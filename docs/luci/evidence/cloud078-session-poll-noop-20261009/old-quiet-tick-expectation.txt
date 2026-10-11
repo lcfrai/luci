@@ -1,0 +1,11 @@
+  it("a quiet tick makes exactly one store write — the poll must move zero pixels", async () => {
+    const stop = startPolling(stubClient(async () => []), useCockpit);
+    await vi.advanceTimersByTimeAsync(0);
+    let writes = 0;
+    const unsubscribe = useCockpit.subscribe(() => { writes += 1; });
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    unsubscribe();
+    stop();
+    // replaceSessions, and nothing else: a redundant setError(null) is a second re-render.
+    expect(writes).toBe(1);
+  });

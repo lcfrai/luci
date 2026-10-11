@@ -1,0 +1,2453 @@
+{
+  "joinRule": "same timeOrigin, name=click, processingStart <= trusted clickAt <= processingEnd; exactly one candidate required",
+  "rows": [
+    {
+      "round": 0,
+      "projectOrdinal": 0,
+      "stage": "home",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 1,
+          "at": 65866.89999997616,
+          "authorityGeneration": 1,
+          "generation": 1,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 65836.89999997616,
+          "observedAt": 65865.69999998808,
+          "samples": 2,
+          "firstSampleAt": 65837.59999996424,
+          "lastSampleAt": 65865.69999998808,
+          "maxSampleGapMs": 28.100000023841858,
+          "maxNodesVisited": 165,
+          "maxControlsVisited": 29,
+          "windowIndex": 0,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 9,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1444,
+          "name": "click",
+          "startTime": 65830.39999997616,
+          "duration": 80,
+          "processingStart": 65836.69999998808,
+          "processingEnd": 65862.59999996424,
+          "interactionId": 1607
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 80,
+        "reportedInteractionGroupMaxDurationMs": 88,
+        "inputQueueMs": 6.300000011920929,
+        "handlerDispatchMs": 25.899999976158142,
+        "reportedPostDispatchRemainderMs": 47.80000001192093
+      },
+      "trustedClickToDOMObservedMs": 28.80000001192093,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 9,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1440,
+          "name": "pointerdown",
+          "startTime": 65829.39999997616,
+          "duration": 88,
+          "processingStart": 65834.69999998808,
+          "processingEnd": 65835.89999997616,
+          "interactionId": 1607
+        },
+        {
+          "windowIndex": 9,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1442,
+          "name": "pointerup",
+          "startTime": 65830.39999997616,
+          "duration": 80,
+          "processingStart": 65836.59999996424,
+          "processingEnd": 65836.69999998808,
+          "interactionId": 1607
+        },
+        {
+          "windowIndex": 9,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1444,
+          "name": "click",
+          "startTime": 65830.39999997616,
+          "duration": 80,
+          "processingStart": 65836.69999998808,
+          "processingEnd": 65862.59999996424,
+          "interactionId": 1607
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 0,
+        "fullActionMs": 354.5523700000049,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.27847999999357853
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 121.01769199999399
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 137.94144500000402
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 137.95010800000455
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 249.2163029999938
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 249.22440500000084
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 249.22732000000542
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 277.9226789999957
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 314.6725529999967
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 326.3074789999955
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 326.31296799999836
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 354.53891000000294
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 120.7392120000004,
+          "overviewHeadingWait": 16.923753000010038,
+          "openProjectClick": 111.26619499998924,
+          "ideaFieldWait": 28.695358999990276,
+          "contextEvaluate": 36.749874000001,
+          "inputValueAssertion": 11.634925999998813,
+          "finalFrames": 28.22594200000458
+        }
+      }
+    },
+    {
+      "round": 0,
+      "projectOrdinal": 0,
+      "stage": "define",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 2,
+          "at": 66034.5,
+          "authorityGeneration": 1,
+          "generation": 2,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "define",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 65971,
+          "observedAt": 66033.59999996424,
+          "samples": 4,
+          "firstSampleAt": 65971.29999995232,
+          "lastSampleAt": 66033.59999996424,
+          "maxSampleGapMs": 27.200000047683716,
+          "maxNodesVisited": 164,
+          "maxControlsVisited": 25,
+          "windowIndex": 0,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 9,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1466,
+          "name": "click",
+          "startTime": 65964.29999995232,
+          "duration": 56,
+          "processingStart": 65971,
+          "processingEnd": 65989.39999997616,
+          "interactionId": 1614
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 56,
+        "reportedInteractionGroupMaxDurationMs": 56,
+        "inputQueueMs": 6.700000047683716,
+        "handlerDispatchMs": 18.399999976158142,
+        "reportedPostDispatchRemainderMs": 30.899999976158142
+      },
+      "trustedClickToDOMObservedMs": 62.59999996423721,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 9,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1462,
+          "name": "pointerdown",
+          "startTime": 65964.29999995232,
+          "duration": 56,
+          "processingStart": 65967.59999996424,
+          "processingEnd": 65968.59999996424,
+          "interactionId": 1614
+        },
+        {
+          "windowIndex": 9,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1464,
+          "name": "pointerup",
+          "startTime": 65964.29999995232,
+          "duration": 56,
+          "processingStart": 65970.5,
+          "processingEnd": 65970.89999997616,
+          "interactionId": 1614
+        },
+        {
+          "windowIndex": 9,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1466,
+          "name": "click",
+          "startTime": 65964.29999995232,
+          "duration": 56,
+          "processingStart": 65971,
+          "processingEnd": 65989.39999997616,
+          "interactionId": 1614
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 0,
+        "fullActionMs": 354.5523700000049,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.27847999999357853
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 121.01769199999399
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 137.94144500000402
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 137.95010800000455
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 249.2163029999938
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 249.22440500000084
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 249.22732000000542
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 277.9226789999957
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 314.6725529999967
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 326.3074789999955
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 326.31296799999836
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 354.53891000000294
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 120.7392120000004,
+          "overviewHeadingWait": 16.923753000010038,
+          "openProjectClick": 111.26619499998924,
+          "ideaFieldWait": 28.695358999990276,
+          "contextEvaluate": 36.749874000001,
+          "inputValueAssertion": 11.634925999998813,
+          "finalFrames": 28.22594200000458
+        }
+      }
+    },
+    {
+      "round": 1,
+      "projectOrdinal": 1,
+      "stage": "home",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 3,
+          "at": 67304.29999995232,
+          "authorityGeneration": 1,
+          "generation": 3,
+          "round": 1,
+          "projectOrdinal": 1,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 67266.39999997616,
+          "observedAt": 67303.5,
+          "samples": 2,
+          "firstSampleAt": 67266.5,
+          "lastSampleAt": 67303.5,
+          "maxSampleGapMs": 37,
+          "maxNodesVisited": 165,
+          "maxControlsVisited": 29,
+          "windowIndex": 1,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 10,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1570,
+          "name": "click",
+          "startTime": 67261.29999995232,
+          "duration": 64,
+          "processingStart": 67266.39999997616,
+          "processingEnd": 67300.39999997616,
+          "interactionId": 1663
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 64,
+        "reportedInteractionGroupMaxDurationMs": 64,
+        "inputQueueMs": 5.100000023841858,
+        "handlerDispatchMs": 34.0,
+        "reportedPostDispatchRemainderMs": 24.899999976158142
+      },
+      "trustedClickToDOMObservedMs": 37.10000002384186,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 10,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1566,
+          "name": "pointerdown",
+          "startTime": 67261.09999996424,
+          "duration": 64,
+          "processingStart": 67264,
+          "processingEnd": 67264.89999997616,
+          "interactionId": 1663
+        },
+        {
+          "windowIndex": 10,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1568,
+          "name": "pointerup",
+          "startTime": 67261.29999995232,
+          "duration": 64,
+          "processingStart": 67265.89999997616,
+          "processingEnd": 67266.29999995232,
+          "interactionId": 1663
+        },
+        {
+          "windowIndex": 10,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1570,
+          "name": "click",
+          "startTime": 67261.29999995232,
+          "duration": 64,
+          "processingStart": 67266.39999997616,
+          "processingEnd": 67300.39999997616,
+          "interactionId": 1663
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 4,
+        "fullActionMs": 342.1419089999981,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.024025999999139458
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 109.77286100000492
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 124.4874550000095
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 124.48971800001164
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 248.69333100000222
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 248.70008100000268
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 248.7011230000062
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 283.8052980000066
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 306.21289100000286
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 312.32245500000136
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 312.3239870000107
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 342.12870900001144
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 109.74883500000578,
+          "overviewHeadingWait": 14.714594000004581,
+          "openProjectClick": 124.20361299999058,
+          "ideaFieldWait": 35.104175000000396,
+          "contextEvaluate": 22.407592999996268,
+          "inputValueAssertion": 6.1095639999985,
+          "finalFrames": 29.804722000000766
+        }
+      }
+    },
+    {
+      "round": 1,
+      "projectOrdinal": 1,
+      "stage": "define",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 4,
+          "at": 67481,
+          "authorityGeneration": 1,
+          "generation": 4,
+          "round": 1,
+          "projectOrdinal": 1,
+          "stage": "define",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 67413.29999995232,
+          "observedAt": 67480.09999996424,
+          "samples": 5,
+          "firstSampleAt": 67413.39999997616,
+          "lastSampleAt": 67480.09999996424,
+          "maxSampleGapMs": 30.600000023841858,
+          "maxNodesVisited": 164,
+          "maxControlsVisited": 25,
+          "windowIndex": 1,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 10,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1592,
+          "name": "click",
+          "startTime": 67408.69999998808,
+          "duration": 56,
+          "processingStart": 67413.29999995232,
+          "processingEnd": 67436.29999995232,
+          "interactionId": 1670
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 56,
+        "reportedInteractionGroupMaxDurationMs": 56,
+        "inputQueueMs": 4.599999964237213,
+        "handlerDispatchMs": 23.0,
+        "reportedPostDispatchRemainderMs": 28.400000035762787
+      },
+      "trustedClickToDOMObservedMs": 66.80000001192093,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 10,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1588,
+          "name": "pointerdown",
+          "startTime": 67408.59999996424,
+          "duration": 56,
+          "processingStart": 67410.89999997616,
+          "processingEnd": 67411.69999998808,
+          "interactionId": 1670
+        },
+        {
+          "windowIndex": 10,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1590,
+          "name": "pointerup",
+          "startTime": 67408.69999998808,
+          "duration": 56,
+          "processingStart": 67413,
+          "processingEnd": 67413.19999998808,
+          "interactionId": 1670
+        },
+        {
+          "windowIndex": 10,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1592,
+          "name": "click",
+          "startTime": 67408.69999998808,
+          "duration": 56,
+          "processingStart": 67413.29999995232,
+          "processingEnd": 67436.29999995232,
+          "interactionId": 1670
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 4,
+        "fullActionMs": 342.1419089999981,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.024025999999139458
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 109.77286100000492
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 124.4874550000095
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 124.48971800001164
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 248.69333100000222
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 248.70008100000268
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 248.7011230000062
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 283.8052980000066
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 306.21289100000286
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 312.32245500000136
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 312.3239870000107
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 342.12870900001144
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 109.74883500000578,
+          "overviewHeadingWait": 14.714594000004581,
+          "openProjectClick": 124.20361299999058,
+          "ideaFieldWait": 35.104175000000396,
+          "contextEvaluate": 22.407592999996268,
+          "inputValueAssertion": 6.1095639999985,
+          "finalFrames": 29.804722000000766
+        }
+      }
+    },
+    {
+      "round": 2,
+      "projectOrdinal": 2,
+      "stage": "home",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 5,
+          "at": 68234,
+          "authorityGeneration": 1,
+          "generation": 5,
+          "round": 2,
+          "projectOrdinal": 2,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 68210.79999995232,
+          "observedAt": 68233.39999997616,
+          "samples": 2,
+          "firstSampleAt": 68210.89999997616,
+          "lastSampleAt": 68233.39999997616,
+          "maxSampleGapMs": 22.5,
+          "maxNodesVisited": 165,
+          "maxControlsVisited": 29,
+          "windowIndex": 2,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 11,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1741,
+          "name": "click",
+          "startTime": 68207.89999997616,
+          "duration": 48,
+          "processingStart": 68210.79999995232,
+          "processingEnd": 68231.69999998808,
+          "interactionId": 1719
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 48,
+        "reportedInteractionGroupMaxDurationMs": 48,
+        "inputQueueMs": 2.899999976158142,
+        "handlerDispatchMs": 20.900000035762787,
+        "reportedPostDispatchRemainderMs": 24.19999998807907
+      },
+      "trustedClickToDOMObservedMs": 22.600000023841858,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 11,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1737,
+          "name": "pointerdown",
+          "startTime": 68207.79999995232,
+          "duration": 48,
+          "processingStart": 68209.29999995232,
+          "processingEnd": 68210,
+          "interactionId": 1719
+        },
+        {
+          "windowIndex": 11,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1739,
+          "name": "pointerup",
+          "startTime": 68207.89999997616,
+          "duration": 48,
+          "processingStart": 68210.59999996424,
+          "processingEnd": 68210.69999998808,
+          "interactionId": 1719
+        },
+        {
+          "windowIndex": 11,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1741,
+          "name": "click",
+          "startTime": 68207.89999997616,
+          "duration": 48,
+          "processingStart": 68210.79999995232,
+          "processingEnd": 68231.69999998808,
+          "interactionId": 1719
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 8,
+        "fullActionMs": 312.312064999991,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.019598999992012978
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 72.06665599999542
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 86.30566699999326
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 86.30705899999884
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 210.25762099999702
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 210.26304900000105
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 210.2638799999986
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 239.94259799999418
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 276.4802229999914
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 286.0382489999902
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 286.040181999997
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 312.2245830000029
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 72.0470570000034,
+          "overviewHeadingWait": 14.239010999997845,
+          "openProjectClick": 123.95056199999817,
+          "ideaFieldWait": 29.67871799999557,
+          "contextEvaluate": 36.537624999997206,
+          "inputValueAssertion": 9.55802599999879,
+          "finalFrames": 26.18440100000589
+        }
+      }
+    },
+    {
+      "round": 2,
+      "projectOrdinal": 2,
+      "stage": "define",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 6,
+          "at": 68382,
+          "authorityGeneration": 1,
+          "generation": 6,
+          "round": 2,
+          "projectOrdinal": 2,
+          "stage": "define",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 68331.19999998808,
+          "observedAt": 68380.69999998808,
+          "samples": 4,
+          "firstSampleAt": 68331.29999995232,
+          "lastSampleAt": 68380.69999998808,
+          "maxSampleGapMs": 22.600000023841858,
+          "maxNodesVisited": 164,
+          "maxControlsVisited": 25,
+          "windowIndex": 2,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 11,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1763,
+          "name": "click",
+          "startTime": 68326.79999995232,
+          "duration": 56,
+          "processingStart": 68331.19999998808,
+          "processingEnd": 68345.59999996424,
+          "interactionId": 1726
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 56,
+        "reportedInteractionGroupMaxDurationMs": 56,
+        "inputQueueMs": 4.400000035762787,
+        "handlerDispatchMs": 14.399999976158142,
+        "reportedPostDispatchRemainderMs": 37.19999998807907
+      },
+      "trustedClickToDOMObservedMs": 49.5,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 11,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1759,
+          "name": "pointerdown",
+          "startTime": 68326.79999995232,
+          "duration": 56,
+          "processingStart": 68329.5,
+          "processingEnd": 68330.19999998808,
+          "interactionId": 1726
+        },
+        {
+          "windowIndex": 11,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1761,
+          "name": "pointerup",
+          "startTime": 68326.79999995232,
+          "duration": 56,
+          "processingStart": 68331,
+          "processingEnd": 68331.19999998808,
+          "interactionId": 1726
+        },
+        {
+          "windowIndex": 11,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1763,
+          "name": "click",
+          "startTime": 68326.79999995232,
+          "duration": 56,
+          "processingStart": 68331.19999998808,
+          "processingEnd": 68345.59999996424,
+          "interactionId": 1726
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 8,
+        "fullActionMs": 312.312064999991,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.019598999992012978
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 72.06665599999542
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 86.30566699999326
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 86.30705899999884
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 210.25762099999702
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 210.26304900000105
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 210.2638799999986
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 239.94259799999418
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 276.4802229999914
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 286.0382489999902
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 286.040181999997
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 312.2245830000029
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 72.0470570000034,
+          "overviewHeadingWait": 14.239010999997845,
+          "openProjectClick": 123.95056199999817,
+          "ideaFieldWait": 29.67871799999557,
+          "contextEvaluate": 36.537624999997206,
+          "inputValueAssertion": 9.55802599999879,
+          "finalFrames": 26.18440100000589
+        }
+      }
+    },
+    {
+      "round": 3,
+      "projectOrdinal": 3,
+      "stage": "home",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 7,
+          "at": 69193.79999995232,
+          "authorityGeneration": 1,
+          "generation": 7,
+          "round": 3,
+          "projectOrdinal": 3,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 69168.69999998808,
+          "observedAt": 69193.39999997616,
+          "samples": 2,
+          "firstSampleAt": 69169,
+          "lastSampleAt": 69193.39999997616,
+          "maxSampleGapMs": 24.399999976158142,
+          "maxNodesVisited": 165,
+          "maxControlsVisited": 29,
+          "windowIndex": 3,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 12,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1912,
+          "name": "click",
+          "startTime": 69164.79999995232,
+          "duration": 48,
+          "processingStart": 69168.69999998808,
+          "processingEnd": 69192,
+          "interactionId": 1775
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 48,
+        "reportedInteractionGroupMaxDurationMs": 48,
+        "inputQueueMs": 3.900000035762787,
+        "handlerDispatchMs": 23.30000001192093,
+        "reportedPostDispatchRemainderMs": 20.799999952316284
+      },
+      "trustedClickToDOMObservedMs": 24.69999998807907,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 12,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1908,
+          "name": "pointerdown",
+          "startTime": 69164.39999997616,
+          "duration": 48,
+          "processingStart": 69167,
+          "processingEnd": 69167.89999997616,
+          "interactionId": 1775
+        },
+        {
+          "windowIndex": 12,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1910,
+          "name": "pointerup",
+          "startTime": 69164.79999995232,
+          "duration": 48,
+          "processingStart": 69168.59999996424,
+          "processingEnd": 69168.59999996424,
+          "interactionId": 1775
+        },
+        {
+          "windowIndex": 12,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1912,
+          "name": "click",
+          "startTime": 69164.79999995232,
+          "duration": 48,
+          "processingStart": 69168.69999998808,
+          "processingEnd": 69192,
+          "interactionId": 1775
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 12,
+        "fullActionMs": 261.17141899999115,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.009483999994699843
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 86.23433999999543
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 97.73463300000003
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 97.73690699999861
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 177.28421299999172
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 177.28752800000075
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 177.28789799999504
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 218.79299499999615
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 235.94965499998943
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 238.62100099999225
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 238.62201199999254
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 261.1405129999912
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 86.22485600000073,
+          "overviewHeadingWait": 11.500293000004604,
+          "openProjectClick": 79.54730599999311,
+          "ideaFieldWait": 41.505097000001115,
+          "contextEvaluate": 17.15665999999328,
+          "inputValueAssertion": 2.6713460000028135,
+          "finalFrames": 22.51850099999865
+        }
+      }
+    },
+    {
+      "round": 3,
+      "projectOrdinal": 3,
+      "stage": "define",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 8,
+          "at": 69318,
+          "authorityGeneration": 1,
+          "generation": 8,
+          "round": 3,
+          "projectOrdinal": 3,
+          "stage": "define",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 69265.69999998808,
+          "observedAt": 69316.79999995232,
+          "samples": 4,
+          "firstSampleAt": 69265.89999997616,
+          "lastSampleAt": 69316.79999995232,
+          "maxSampleGapMs": 30.099999964237213,
+          "maxNodesVisited": 164,
+          "maxControlsVisited": 25,
+          "windowIndex": 3,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 12,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1934,
+          "name": "click",
+          "startTime": 69261.29999995232,
+          "duration": 48,
+          "processingStart": 69265.69999998808,
+          "processingEnd": 69276.59999996424,
+          "interactionId": 1782
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 48,
+        "reportedInteractionGroupMaxDurationMs": 48,
+        "inputQueueMs": 4.400000035762787,
+        "handlerDispatchMs": 10.899999976158142,
+        "reportedPostDispatchRemainderMs": 32.69999998807907
+      },
+      "trustedClickToDOMObservedMs": 51.09999996423721,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 12,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1930,
+          "name": "pointerdown",
+          "startTime": 69261.29999995232,
+          "duration": 48,
+          "processingStart": 69263.89999997616,
+          "processingEnd": 69264.5,
+          "interactionId": 1782
+        },
+        {
+          "windowIndex": 12,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1932,
+          "name": "pointerup",
+          "startTime": 69261.29999995232,
+          "duration": 48,
+          "processingStart": 69265.5,
+          "processingEnd": 69265.59999996424,
+          "interactionId": 1782
+        },
+        {
+          "windowIndex": 12,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 1934,
+          "name": "click",
+          "startTime": 69261.29999995232,
+          "duration": 48,
+          "processingStart": 69265.69999998808,
+          "processingEnd": 69276.59999996424,
+          "interactionId": 1782
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 12,
+        "fullActionMs": 261.17141899999115,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.009483999994699843
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 86.23433999999543
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 97.73463300000003
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 97.73690699999861
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 177.28421299999172
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 177.28752800000075
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 177.28789799999504
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 218.79299499999615
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 235.94965499998943
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 238.62100099999225
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 238.62201199999254
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 261.1405129999912
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 86.22485600000073,
+          "overviewHeadingWait": 11.500293000004604,
+          "openProjectClick": 79.54730599999311,
+          "ideaFieldWait": 41.505097000001115,
+          "contextEvaluate": 17.15665999999328,
+          "inputValueAssertion": 2.6713460000028135,
+          "finalFrames": 22.51850099999865
+        }
+      }
+    },
+    {
+      "round": 4,
+      "projectOrdinal": 0,
+      "stage": "home",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 9,
+          "at": 69933,
+          "authorityGeneration": 1,
+          "generation": 9,
+          "round": 4,
+          "projectOrdinal": 0,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 69912.79999995232,
+          "observedAt": 69932.5,
+          "samples": 2,
+          "firstSampleAt": 69912.79999995232,
+          "lastSampleAt": 69932.5,
+          "maxSampleGapMs": 19.700000047683716,
+          "maxNodesVisited": 165,
+          "maxControlsVisited": 29,
+          "windowIndex": 4,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 13,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2070,
+          "name": "click",
+          "startTime": 69910.5,
+          "duration": 64,
+          "processingStart": 69912.79999995232,
+          "processingEnd": 69930.69999998808,
+          "interactionId": 1831
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 64,
+        "reportedInteractionGroupMaxDurationMs": 64,
+        "inputQueueMs": 2.299999952316284,
+        "handlerDispatchMs": 17.900000035762787,
+        "reportedPostDispatchRemainderMs": 43.80000001192093
+      },
+      "trustedClickToDOMObservedMs": 19.700000047683716,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 13,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2066,
+          "name": "pointerdown",
+          "startTime": 69910.39999997616,
+          "duration": 64,
+          "processingStart": 69911.69999998808,
+          "processingEnd": 69912,
+          "interactionId": 1831
+        },
+        {
+          "windowIndex": 13,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2068,
+          "name": "pointerup",
+          "startTime": 69910.5,
+          "duration": 64,
+          "processingStart": 69912.59999996424,
+          "processingEnd": 69912.69999998808,
+          "interactionId": 1831
+        },
+        {
+          "windowIndex": 13,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2070,
+          "name": "click",
+          "startTime": 69910.5,
+          "duration": 64,
+          "processingStart": 69912.79999995232,
+          "processingEnd": 69930.69999998808,
+          "interactionId": 1831
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 16,
+        "fullActionMs": 293.97032399999443,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.010054999991552904
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 81.13430799999333
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 86.33856699999887
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 86.34053999999014
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 174.50567499999306
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 174.50936999999976
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 174.51000099998782
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 217.02131999999983
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 257.80288199998904
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 265.65416999999434
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 265.65551199999754
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 293.9602389999927
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 81.12425300000177,
+          "overviewHeadingWait": 5.20425900000555,
+          "openProjectClick": 88.16513500000292,
+          "ideaFieldWait": 42.51131900001201,
+          "contextEvaluate": 40.78156199998921,
+          "inputValueAssertion": 7.851288000005297,
+          "finalFrames": 28.304726999995182
+        }
+      }
+    },
+    {
+      "round": 4,
+      "projectOrdinal": 0,
+      "stage": "define",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 10,
+          "at": 70060.79999995232,
+          "authorityGeneration": 1,
+          "generation": 10,
+          "round": 4,
+          "projectOrdinal": 0,
+          "stage": "define",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 69996,
+          "observedAt": 70060.29999995232,
+          "samples": 4,
+          "firstSampleAt": 69996.09999996424,
+          "lastSampleAt": 70060.29999995232,
+          "maxSampleGapMs": 26.100000023841858,
+          "maxNodesVisited": 164,
+          "maxControlsVisited": 25,
+          "windowIndex": 4,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 13,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2092,
+          "name": "click",
+          "startTime": 69991.5,
+          "duration": 72,
+          "processingStart": 69995.89999997616,
+          "processingEnd": 70015.19999998808,
+          "interactionId": 1838
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 72,
+        "reportedInteractionGroupMaxDurationMs": 72,
+        "inputQueueMs": 4.399999976158142,
+        "handlerDispatchMs": 19.30000001192093,
+        "reportedPostDispatchRemainderMs": 48.30000001192093
+      },
+      "trustedClickToDOMObservedMs": 64.29999995231628,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 13,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2088,
+          "name": "pointerdown",
+          "startTime": 69991.5,
+          "duration": 72,
+          "processingStart": 69993.59999996424,
+          "processingEnd": 69994.39999997616,
+          "interactionId": 1838
+        },
+        {
+          "windowIndex": 13,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2090,
+          "name": "pointerup",
+          "startTime": 69991.5,
+          "duration": 72,
+          "processingStart": 69995.59999996424,
+          "processingEnd": 69995.89999997616,
+          "interactionId": 1838
+        },
+        {
+          "windowIndex": 13,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2092,
+          "name": "click",
+          "startTime": 69991.5,
+          "duration": 72,
+          "processingStart": 69995.89999997616,
+          "processingEnd": 70015.19999998808,
+          "interactionId": 1838
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 16,
+        "fullActionMs": 293.97032399999443,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.010054999991552904
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 81.13430799999333
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 86.33856699999887
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 86.34053999999014
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 174.50567499999306
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 174.50936999999976
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 174.51000099998782
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 217.02131999999983
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 257.80288199998904
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 265.65416999999434
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 265.65551199999754
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 293.9602389999927
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 81.12425300000177,
+          "overviewHeadingWait": 5.20425900000555,
+          "openProjectClick": 88.16513500000292,
+          "ideaFieldWait": 42.51131900001201,
+          "contextEvaluate": 40.78156199998921,
+          "inputValueAssertion": 7.851288000005297,
+          "finalFrames": 28.304726999995182
+        }
+      }
+    },
+    {
+      "round": 5,
+      "projectOrdinal": 1,
+      "stage": "home",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 11,
+          "at": 70684.79999995232,
+          "authorityGeneration": 1,
+          "generation": 11,
+          "round": 5,
+          "projectOrdinal": 1,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 70662.5,
+          "observedAt": 70684.39999997616,
+          "samples": 2,
+          "firstSampleAt": 70662.69999998808,
+          "lastSampleAt": 70684.39999997616,
+          "maxSampleGapMs": 21.69999998807907,
+          "maxNodesVisited": 165,
+          "maxControlsVisited": 29,
+          "windowIndex": 5,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 14,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2218,
+          "name": "click",
+          "startTime": 70659.59999996424,
+          "duration": 64,
+          "processingStart": 70662.5,
+          "processingEnd": 70682.79999995232,
+          "interactionId": 1887
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 64,
+        "reportedInteractionGroupMaxDurationMs": 64,
+        "inputQueueMs": 2.900000035762787,
+        "handlerDispatchMs": 20.299999952316284,
+        "reportedPostDispatchRemainderMs": 40.80000001192093
+      },
+      "trustedClickToDOMObservedMs": 21.899999976158142,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 14,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2214,
+          "name": "pointerdown",
+          "startTime": 70659.5,
+          "duration": 64,
+          "processingStart": 70661.29999995232,
+          "processingEnd": 70661.79999995232,
+          "interactionId": 1887
+        },
+        {
+          "windowIndex": 14,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2216,
+          "name": "pointerup",
+          "startTime": 70659.59999996424,
+          "duration": 64,
+          "processingStart": 70662.39999997616,
+          "processingEnd": 70662.5,
+          "interactionId": 1887
+        },
+        {
+          "windowIndex": 14,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2218,
+          "name": "click",
+          "startTime": 70659.59999996424,
+          "duration": 64,
+          "processingStart": 70662.5,
+          "processingEnd": 70682.79999995232,
+          "interactionId": 1887
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 20,
+        "fullActionMs": 259.17579500000284,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.011687999998684973
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 80.23407399999269
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 96.10471499999403
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 96.10692799999379
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 181.9409169999999
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 181.9447530000034
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 181.94528299999365
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 202.97656299998926
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 224.24245599999267
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 228.60197699999844
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 228.60352999999304
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 259.1700259999925
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 80.222385999994,
+          "overviewHeadingWait": 15.870641000001342,
+          "openProjectClick": 85.83398900000611,
+          "ideaFieldWait": 21.031279999995604,
+          "contextEvaluate": 21.265893000003416,
+          "inputValueAssertion": 4.3595210000057705,
+          "finalFrames": 30.56649599999946
+        }
+      }
+    },
+    {
+      "round": 5,
+      "projectOrdinal": 1,
+      "stage": "define",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 12,
+          "at": 70806.5,
+          "authorityGeneration": 1,
+          "generation": 12,
+          "round": 5,
+          "projectOrdinal": 1,
+          "stage": "define",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 70764.09999996424,
+          "observedAt": 70805.69999998808,
+          "samples": 4,
+          "firstSampleAt": 70764.09999996424,
+          "lastSampleAt": 70805.69999998808,
+          "maxSampleGapMs": 16.19999998807907,
+          "maxNodesVisited": 164,
+          "maxControlsVisited": 25,
+          "windowIndex": 5,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 14,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2240,
+          "name": "click",
+          "startTime": 70760.19999998808,
+          "duration": 64,
+          "processingStart": 70764,
+          "processingEnd": 70775.5,
+          "interactionId": 1894
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 64,
+        "reportedInteractionGroupMaxDurationMs": 64,
+        "inputQueueMs": 3.800000011920929,
+        "handlerDispatchMs": 11.5,
+        "reportedPostDispatchRemainderMs": 48.69999998807907
+      },
+      "trustedClickToDOMObservedMs": 41.60000002384186,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 14,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2236,
+          "name": "pointerdown",
+          "startTime": 70760.09999996424,
+          "duration": 64,
+          "processingStart": 70762.5,
+          "processingEnd": 70763.09999996424,
+          "interactionId": 1894
+        },
+        {
+          "windowIndex": 14,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2238,
+          "name": "pointerup",
+          "startTime": 70760.19999998808,
+          "duration": 64,
+          "processingStart": 70763.79999995232,
+          "processingEnd": 70763.89999997616,
+          "interactionId": 1894
+        },
+        {
+          "windowIndex": 14,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2240,
+          "name": "click",
+          "startTime": 70760.19999998808,
+          "duration": 64,
+          "processingStart": 70764,
+          "processingEnd": 70775.5,
+          "interactionId": 1894
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 20,
+        "fullActionMs": 259.17579500000284,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.011687999998684973
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 80.23407399999269
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 96.10471499999403
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 96.10692799999379
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 181.9409169999999
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 181.9447530000034
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 181.94528299999365
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 202.97656299998926
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 224.24245599999267
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 228.60197699999844
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 228.60352999999304
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 259.1700259999925
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 80.222385999994,
+          "overviewHeadingWait": 15.870641000001342,
+          "openProjectClick": 85.83398900000611,
+          "ideaFieldWait": 21.031279999995604,
+          "contextEvaluate": 21.265893000003416,
+          "inputValueAssertion": 4.3595210000057705,
+          "finalFrames": 30.56649599999946
+        }
+      }
+    },
+    {
+      "round": 6,
+      "projectOrdinal": 2,
+      "stage": "home",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 13,
+          "at": 71433.39999997616,
+          "authorityGeneration": 1,
+          "generation": 13,
+          "round": 6,
+          "projectOrdinal": 2,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 71411.5,
+          "observedAt": 71433,
+          "samples": 2,
+          "firstSampleAt": 71411.5,
+          "lastSampleAt": 71433,
+          "maxSampleGapMs": 21.5,
+          "maxNodesVisited": 165,
+          "maxControlsVisited": 29,
+          "windowIndex": 6,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 15,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2389,
+          "name": "click",
+          "startTime": 71408.69999998808,
+          "duration": 48,
+          "processingStart": 71411.5,
+          "processingEnd": 71431.5,
+          "interactionId": 1943
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 48,
+        "reportedInteractionGroupMaxDurationMs": 48,
+        "inputQueueMs": 2.800000011920929,
+        "handlerDispatchMs": 20.0,
+        "reportedPostDispatchRemainderMs": 25.19999998807907
+      },
+      "trustedClickToDOMObservedMs": 21.5,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 15,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2385,
+          "name": "pointerdown",
+          "startTime": 71408.69999998808,
+          "duration": 48,
+          "processingStart": 71410.5,
+          "processingEnd": 71410.89999997616,
+          "interactionId": 1943
+        },
+        {
+          "windowIndex": 15,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2387,
+          "name": "pointerup",
+          "startTime": 71408.69999998808,
+          "duration": 48,
+          "processingStart": 71411.5,
+          "processingEnd": 71411.5,
+          "interactionId": 1943
+        },
+        {
+          "windowIndex": 15,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2389,
+          "name": "click",
+          "startTime": 71408.69999998808,
+          "duration": 48,
+          "processingStart": 71411.5,
+          "processingEnd": 71431.5,
+          "interactionId": 1943
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 24,
+        "fullActionMs": 292.58096400000795,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.00846300000557676
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 81.6416850000096
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 97.30573500000173
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 97.30772799999977
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 204.73074199999974
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 204.93068299999868
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 204.93176500000118
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 237.39479000000574
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 264.95615199999884
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 268.7587140000105
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 268.7608270000055
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 292.5757770000055
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 81.63322200000403,
+          "overviewHeadingWait": 15.66404999999213,
+          "openProjectClick": 107.42301399999997,
+          "ideaFieldWait": 32.46302500000456,
+          "contextEvaluate": 27.561361999993096,
+          "inputValueAssertion": 3.802562000011676,
+          "finalFrames": 23.814949999999953
+        }
+      }
+    },
+    {
+      "round": 6,
+      "projectOrdinal": 2,
+      "stage": "define",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 14,
+          "at": 71585.29999995232,
+          "authorityGeneration": 1,
+          "generation": 14,
+          "round": 6,
+          "projectOrdinal": 2,
+          "stage": "define",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 71530.79999995232,
+          "observedAt": 71584.89999997616,
+          "samples": 5,
+          "firstSampleAt": 71530.89999997616,
+          "lastSampleAt": 71584.89999997616,
+          "maxSampleGapMs": 28.30000001192093,
+          "maxNodesVisited": 164,
+          "maxControlsVisited": 25,
+          "windowIndex": 6,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 15,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2411,
+          "name": "click",
+          "startTime": 71519.39999997616,
+          "duration": 56,
+          "processingStart": 71530.79999995232,
+          "processingEnd": 71543.29999995232,
+          "interactionId": 1950
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 56,
+        "reportedInteractionGroupMaxDurationMs": 56,
+        "inputQueueMs": 11.399999976158142,
+        "handlerDispatchMs": 12.5,
+        "reportedPostDispatchRemainderMs": 32.10000002384186
+      },
+      "trustedClickToDOMObservedMs": 54.10000002384186,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 15,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2407,
+          "name": "pointerdown",
+          "startTime": 71519.29999995232,
+          "duration": 56,
+          "processingStart": 71528,
+          "processingEnd": 71529.69999998808,
+          "interactionId": 1950
+        },
+        {
+          "windowIndex": 15,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2409,
+          "name": "pointerup",
+          "startTime": 71519.39999997616,
+          "duration": 56,
+          "processingStart": 71530.59999996424,
+          "processingEnd": 71530.69999998808,
+          "interactionId": 1950
+        },
+        {
+          "windowIndex": 15,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2411,
+          "name": "click",
+          "startTime": 71519.39999997616,
+          "duration": 56,
+          "processingStart": 71530.79999995232,
+          "processingEnd": 71543.29999995232,
+          "interactionId": 1950
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 24,
+        "fullActionMs": 292.58096400000795,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.00846300000557676
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 81.6416850000096
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 97.30573500000173
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 97.30772799999977
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 204.73074199999974
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 204.93068299999868
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 204.93176500000118
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 237.39479000000574
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 264.95615199999884
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 268.7587140000105
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 268.7608270000055
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 292.5757770000055
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 81.63322200000403,
+          "overviewHeadingWait": 15.66404999999213,
+          "openProjectClick": 107.42301399999997,
+          "ideaFieldWait": 32.46302500000456,
+          "contextEvaluate": 27.561361999993096,
+          "inputValueAssertion": 3.802562000011676,
+          "finalFrames": 23.814949999999953
+        }
+      }
+    },
+    {
+      "round": 7,
+      "projectOrdinal": 3,
+      "stage": "home",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 15,
+          "at": 72163.39999997616,
+          "authorityGeneration": 1,
+          "generation": 15,
+          "round": 7,
+          "projectOrdinal": 3,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 72146.59999996424,
+          "observedAt": 72163,
+          "samples": 2,
+          "firstSampleAt": 72146.59999996424,
+          "lastSampleAt": 72163,
+          "maxSampleGapMs": 16.400000035762787,
+          "maxNodesVisited": 165,
+          "maxControlsVisited": 29,
+          "windowIndex": 7,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 16,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2559,
+          "name": "click",
+          "startTime": 72143.69999998808,
+          "duration": 48,
+          "processingStart": 72146.5,
+          "processingEnd": 72161.5,
+          "interactionId": 1999
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 48,
+        "reportedInteractionGroupMaxDurationMs": 48,
+        "inputQueueMs": 2.800000011920929,
+        "handlerDispatchMs": 15.0,
+        "reportedPostDispatchRemainderMs": 30.19999998807907
+      },
+      "trustedClickToDOMObservedMs": 16.400000035762787,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 16,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2555,
+          "name": "pointerdown",
+          "startTime": 72143.29999995232,
+          "duration": 48,
+          "processingStart": 72145.19999998808,
+          "processingEnd": 72145.69999998808,
+          "interactionId": 1999
+        },
+        {
+          "windowIndex": 16,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2557,
+          "name": "pointerup",
+          "startTime": 72143.69999998808,
+          "duration": 48,
+          "processingStart": 72146.39999997616,
+          "processingEnd": 72146.5,
+          "interactionId": 1999
+        },
+        {
+          "windowIndex": 16,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2559,
+          "name": "click",
+          "startTime": 72143.69999998808,
+          "duration": 48,
+          "processingStart": 72146.5,
+          "processingEnd": 72161.5,
+          "interactionId": 1999
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 28,
+        "fullActionMs": 235.70119200000772,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.00983500000438653
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 71.21538999999757
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 79.84708000000683
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 79.84936300000118
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 170.7853369999939
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 170.78923300000315
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 170.79016400000546
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 182.9411289999989
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 206.56779000000097
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 211.01217899999756
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 211.01351099999738
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 235.69455200000084
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 71.20555499999318,
+          "overviewHeadingWait": 8.631690000009257,
+          "openProjectClick": 90.93597399999271,
+          "ideaFieldWait": 12.150964999993448,
+          "contextEvaluate": 23.62666100000206,
+          "inputValueAssertion": 4.44438899999659,
+          "finalFrames": 24.68104100000346
+        }
+      }
+    },
+    {
+      "round": 7,
+      "projectOrdinal": 3,
+      "stage": "define",
+      "witnessCount": 1,
+      "witnesses": [
+        {
+          "sequence": 16,
+          "at": 72291.69999998808,
+          "authorityGeneration": 1,
+          "generation": 16,
+          "round": 7,
+          "projectOrdinal": 3,
+          "stage": "define",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 72244.79999995232,
+          "observedAt": 72291.39999997616,
+          "samples": 4,
+          "firstSampleAt": 72244.89999997616,
+          "lastSampleAt": 72291.39999997616,
+          "maxSampleGapMs": 21.399999976158142,
+          "maxNodesVisited": 164,
+          "maxControlsVisited": 25,
+          "windowIndex": 7,
+          "timeOrigin": 1791564284324.6
+        }
+      ],
+      "eventJoinStatus": "unique",
+      "eventCandidateCount": 1,
+      "eventCandidates": [
+        {
+          "windowIndex": 16,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2581,
+          "name": "click",
+          "startTime": 72241.89999997616,
+          "duration": 48,
+          "processingStart": 72244.79999995232,
+          "processingEnd": 72256.79999995232,
+          "interactionId": 2006
+        }
+      ],
+      "browserEventMetrics": {
+        "reportedEventDurationMs": 48,
+        "reportedInteractionGroupMaxDurationMs": 48,
+        "inputQueueMs": 2.899999976158142,
+        "handlerDispatchMs": 12.0,
+        "reportedPostDispatchRemainderMs": 33.10000002384186
+      },
+      "trustedClickToDOMObservedMs": 46.60000002384186,
+      "sameInteractionMembers": [
+        {
+          "windowIndex": 16,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2577,
+          "name": "pointerdown",
+          "startTime": 72241.89999997616,
+          "duration": 48,
+          "processingStart": 72243.5,
+          "processingEnd": 72244.09999996424,
+          "interactionId": 2006
+        },
+        {
+          "windowIndex": 16,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2579,
+          "name": "pointerup",
+          "startTime": 72241.89999997616,
+          "duration": 48,
+          "processingStart": 72244.69999998808,
+          "processingEnd": 72244.79999995232,
+          "interactionId": 2006
+        },
+        {
+          "windowIndex": 16,
+          "timeOrigin": 1791564284324.6,
+          "sequence": 2581,
+          "name": "click",
+          "startTime": 72241.89999997616,
+          "duration": 48,
+          "processingStart": 72244.79999995232,
+          "processingEnd": 72256.79999995232,
+          "interactionId": 2006
+        }
+      ],
+      "sameInteractionClickCount": 1,
+      "priorIndependentJoinAgreement": true,
+      "nodeClockSeparate": {
+        "actionIndex": 28,
+        "fullActionMs": 235.70119200000772,
+        "success": true,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.00983500000438653
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 71.21538999999757
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 79.84708000000683
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 79.84936300000118
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 170.7853369999939
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 170.78923300000315
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 170.79016400000546
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 182.9411289999989
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 206.56779000000097
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 211.01217899999756
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 211.01351099999738
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 235.69455200000084
+          }
+        ],
+        "regionsMs": {
+          "allProjectsClick": 71.20555499999318,
+          "overviewHeadingWait": 8.631690000009257,
+          "openProjectClick": 90.93597399999271,
+          "ideaFieldWait": 12.150964999993448,
+          "contextEvaluate": 23.62666100000206,
+          "inputValueAssertion": 4.44438899999659,
+          "finalFrames": 24.68104100000346
+        }
+      }
+    }
+  ]
+}

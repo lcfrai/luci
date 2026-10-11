@@ -209,7 +209,7 @@ func (a *API) handleCodexSignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go a.watchSessionReady(s.ID, sb.ID, sb.Endpoint)
-	httpx.WriteJSON(w, 201, toJSON(updated, sessionBasePath))
+	httpx.WriteJSON(w, 201, a.sessionJSON(updated, sessionBasePath))
 }
 
 func (a *API) recordUtilitySandbox(id string, sb backend.Sandbox) (registry.Session, error) {

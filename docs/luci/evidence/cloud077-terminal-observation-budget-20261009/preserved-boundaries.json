@@ -1,0 +1,33 @@
+{
+  "sourceComparisonOnly": true,
+  "runtimeOrTestsExecuted": false,
+  "exactUnchangedFunctions": [
+    {
+      "function": "export async function holdNextSessionList",
+      "bytes": 5282,
+      "sha256": "122bc57ed75dc138322931621285d2b8c8ba1ad501bb670706cd3450178a991c",
+      "unchanged": true
+    },
+    {
+      "function": "export function createBoundedSecondPollRelease",
+      "bytes": 2413,
+      "sha256": "e71fc169408326b199d3ca67a97751c546b2124be70d01b0bdeb88fda94b9ac6",
+      "unchanged": true
+    },
+    {
+      "function": "export async function waitForOwnedTerminalSettlement",
+      "bytes": 6515,
+      "sha256": "fc7f872cb4dbe716faf1c6158d88e6aa046b984a0901924881eca588778ca6d4",
+      "unchanged": true
+    }
+  ],
+  "outerSupervisorUnchanged": true,
+  "retainedBudgets": {
+    "initialAttachedWaitMs": 15000,
+    "replacementAfterACKWaitMs": 6000,
+    "restartResponseMs": 150000,
+    "workflowMs": 480000,
+    "staleListGateMs": 8000,
+    "productHTTPReadMs": 10000
+  }
+}

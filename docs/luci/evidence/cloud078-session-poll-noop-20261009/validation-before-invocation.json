@@ -1,0 +1,95 @@
+{
+  "arm": "before",
+  "sourceCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "observedHEAD": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "command": [
+    "node",
+    "/workspace/luci/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "/workspace/.luci-tools/cloud078-session-poll-noop/vitest-before.config.mjs",
+    "--configLoader",
+    "runner",
+    "--maxWorkers=1",
+    "--no-file-parallelism"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "environmentOverrides": {
+    "CI": "1",
+    "GOMAXPROCS": "2"
+  },
+  "startedAt": "2026-10-09T17:37:07.242853+00:00",
+  "timeoutSeconds": 90,
+  "before": [
+    {
+      "path": "desktop/src/store/slices/dataSlice.ts",
+      "sha256": "099d299e9a610fdce275ae0411398d6d2b42f74b3b722692c0333ec5f5a1a711"
+    },
+    {
+      "path": "desktop/src/api/poller.test.ts",
+      "sha256": "77b5e0793109c94a7702567614f7de12e5c1dda4efa5b6ce404a4473d97f4f65"
+    },
+    {
+      "path": "desktop/src/api/poller.ts",
+      "sha256": "23d5faa83acffd4d8b77899394d97b1606640f01d250a63d7551d5004b71f164"
+    },
+    {
+      "path": "desktop/src/api/poller.generation.test.ts",
+      "sha256": "c9b2b37a78df0ea781c507991eecee91aa58bd7a17510cae63f8aa95e61c37f5"
+    },
+    {
+      "path": "desktop/src/store/store.ts",
+      "sha256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6"
+    },
+    {
+      "path": "desktop/src/store/types.ts",
+      "sha256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b"
+    },
+    {
+      "path": "desktop/src/lib/pendingSessions.ts",
+      "sha256": "1406fb90a378fab6b2a378fab0b69f0e30e8c52d085a5ffe2f98ae9d3eebff0a"
+    },
+    {
+      "path": "desktop/src/test/fixtures.ts",
+      "sha256": "5f8a1d84422914e034dcfe16958a6aaf3abf79b202698b5a180dae5f2c35fa84"
+    },
+    {
+      "path": "desktop/vitest.config.ts",
+      "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f"
+    },
+    {
+      "path": "desktop/src/test/setup.ts",
+      "sha256": "6873458c092edb343b856df7c92cae4eeaa55caa397d5a908121184301812a57"
+    },
+    {
+      "path": "desktop/package.json",
+      "sha256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5"
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+    }
+  ],
+  "overlayAndSharedTestInputs": [
+    {
+      "path": "/workspace/.luci-tools/cloud078-session-poll-noop/before/desktop/src/store/slices/dataSlice.ts",
+      "sha256": "099d299e9a610fdce275ae0411398d6d2b42f74b3b722692c0333ec5f5a1a711",
+      "bytes": 15179
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud078-session-poll-noop/after/desktop/src/api/poller.test.ts",
+      "sha256": "c0f923f82bcde89a900e017dcb8d56358fc30305779960c1cd94bb848b6fa182",
+      "bytes": 7155
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts",
+      "sha256": "a1d73e3f02f9bce6d9d8b1f51d7cf31fcf88c019da5ac8838ca0a173c0a0f193",
+      "bytes": 9302
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud078-session-poll-noop/vitest-before.config.mjs",
+      "sha256": "5cb080748d104b73feebfcfce3f3df8190f235f3bd1bdbe7c18ade367c906648",
+      "bytes": 1673
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+[96msrc/api/attachRegistry.readiness.test.ts[0m:[93m22[0m:[93m55[0m - [91merror[0m[90m TS2345: [0mArgument of type 'number' is not assignable to parameter of type 'KindValue'.
+
+[7m22[0m const frame = (kind: number, value: string) => encode(kind, new TextEncoder().encode(value));
+[7m  [0m [91m                                                      ~~~~[0m

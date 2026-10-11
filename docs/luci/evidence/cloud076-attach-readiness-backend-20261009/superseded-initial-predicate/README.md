@@ -1,0 +1,11 @@
+# CLOUD-076 backend readiness preparation
+
+Base product source: `786652704fa8bebd1ba1af41cfa1d414d7def100`. All changes and controlled receipts are external; the repository and installed failed warm fixture remain untouched.
+
+The optional public `attachReady` field projects a recorded endpoint for the same known allocation generation. A starting/running/idle record with an endpoint is true; a known generation without one, or a terminal/unknown status, is false. Missing, legacy or erased allocation identity omits the hint, preserving recovery behavior. This is neither authorization nor a backend health probe. Actual attach permissions, backend checks, terminal fences and held capacity do not change.
+
+The dedicated HTTP regression holds backend Create during Restart, reads the new generation with no endpoint, then releases Create while independently holding the health watch. It requires false followed by true at the same generation while both GET and Restart ACK still say starting. It also checks private fields/values stay absent. JSON map decoding lets the identical test compile against the original production struct. Table checks cover all supported statuses, unknown status, present/absent endpoints, and missing/legacy/invalid/erased identities.
+
+Controlled commands use `source /workspace/.luci-tools/activate.sh`, then `python3 run-validation.py before-1`, `after-1`, and `related-1`. They use Go 1.26.3, race instrumentation, GOMAXPROCS=2, package parallelism 1, readonly modules, shared retained caches, and storage floors. Raw JSON test events and stderr are retained separately for each invocation. Complete effective repository Go/native/module/embed hashes are recorded before and after. Any sampled compiled-binary hash is explicitly tied only to the observed process; absence of a sampled hash is not replaced by a later compile claim.
+
+This controlled fake-backend Linux evidence cannot establish installed Docker/browser behavior, Windows execution, or successful warm pre-POST/after-ACK ordering. The original warm attempt had pending Restart, Created container and backend-dispatching lease. Its replacement socket errors classify as HTTP 409 error text; no server branch or Restart outcome is inferred.

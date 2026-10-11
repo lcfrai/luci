@@ -1,0 +1,14 @@
+{
+  "exitCode": 1,
+  "elapsedSeconds": 3.110256892046891,
+  "inputsUnchanged": true,
+  "inputCount": 447,
+  "stdoutSHA256": "9d0af574b5268b0c32bacd8e7417676e950d4df59b710d83dac9b2ac472807d3",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "counts": {
+    "numPassedTests": 26,
+    "numFailedTests": 1,
+    "numPendingTests": 0,
+    "numTotalTests": 27
+  }
+}

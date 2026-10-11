@@ -1,0 +1,17 @@
+{
+  "kind": "offline-existing-receipts-only",
+  "command": [
+    "python3",
+    "/workspace/.luci-tools/cloud032-existing-control-phase-assessment/assess.py",
+    "--evidence-root",
+    "/workspace/luci/docs/luci/evidence",
+    "--output",
+    "/workspace/.luci-tools/cloud032-existing-control-phase-assessment/assessment.json"
+  ],
+  "exitCode": 0,
+  "scriptSHA256": "4919bfeb754cddc73dded412d540ae34bfb73aae4b3446ad695864fa5958ca80",
+  "stderrBytes": 0,
+  "sourceReview": "Independent await_source_review confirmed historical static receipt identity, all seven accepted static sources matching, and reused references rather than a second static measurement.",
+  "newRuntimeOrTests": false,
+  "repositoryChanged": false
+}

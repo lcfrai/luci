@@ -59,7 +59,7 @@ func (a *API) reuseProjectRunSession(w http.ResponseWriter, r *http.Request, req
 		return true
 	}
 	w.Header().Set("Location", sessionBasePath+"/sessions/"+existing.ID)
-	httpx.WriteJSON(w, http.StatusOK, toJSON(*existing, sessionBasePath))
+	httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(*existing, sessionBasePath))
 	return true
 }
 
@@ -120,7 +120,7 @@ func (a *API) beginProjectRunSession(w http.ResponseWriter, r *http.Request, req
 			return product.ProjectRunSessionAdmission{}, false
 		}
 		w.Header().Set("Location", sessionBasePath+"/sessions/"+admission.SessionID)
-		httpx.WriteJSON(w, http.StatusOK, toJSON(*admission.Existing, sessionBasePath))
+		httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(*admission.Existing, sessionBasePath))
 		return product.ProjectRunSessionAdmission{}, false
 	}
 	return admission, true

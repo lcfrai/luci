@@ -1,0 +1,15 @@
+{
+  "sourceBaseCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "scope": "Selected external backend source/test overlay only. Dedicated tests decode public JSON and compile unchanged against original production source. Complete effective Go/native/module/embed input manifests are captured per controlled run.",
+  "files": {
+    "base/control-plane/internal/api/sessions.go": "04762d680f6aa03eeff196e027d1a5d58b57a25ab6ffab6e02cb5c9e1aa1c489",
+    "tree/control-plane/internal/api/session_attach_readiness.go": "8f088af08b3bfb7c7b50d91b3e8475b9b2890b9a075704fe2de21cf8f9743ff6",
+    "tree/control-plane/internal/api/session_attach_readiness_test.go": "4adc6f317089dabdca1a5ccbb040f88400511a05dc8487d948d0eb57a1cf4da2",
+    "tree/control-plane/internal/api/sessions.go": "4e3359da049cf82299712393602bb281b49a58e7539724f02cebdccf43200353",
+    "overlay.json": "0d41e266748dd7e990bc3be4c28466e149d3c39e06d16346aa9a39d189d2bb51",
+    "original-overlay.json": "cf4d2914f4f824870f57b99a157039d1cf647d5d54a0a9883bd2e6ae1b574d0b",
+    "run-validation.py": "b58bbceaa2c0d8fd8ad3c287d54ac86a7ef48c62f38277e19eb3bee337098118",
+    "bind-effective-sources.py": "149f2c9ccf7444ed657b4d251a407533a3b2ac712197104c3f443120eb42cbfe",
+    "CLOUD-076-backend.patch": "c3dc7686e89bafd7c9b21d7dc3e60f634f6815b98c6fd37a8d500368f6be1214"
+  }
+}

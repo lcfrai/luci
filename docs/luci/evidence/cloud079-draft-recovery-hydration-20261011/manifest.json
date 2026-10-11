@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "workItem": "CLOUD-079",
+  "selection": "Exact declared artifact list; excludes cache and undeclared temporary/output copies.",
+  "preservedOriginalFiles": {
+    "original-failure.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/original-failure.json",
+      "bytes": 13337,
+      "sha256": "e64f676bc0423bcf7f8acf712c22c459b58f488d98864b83d01c03a22ba102cf"
+    },
+    "draft-recovery-hydration.patch": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/draft-recovery-hydration.patch",
+      "bytes": 4030,
+      "sha256": "9edd7839c8619af0f60768accae7edbe550128b702ccfdeaa9f4de3a7db2c295"
+    },
+    "run.py": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/run.py",
+      "bytes": 6568,
+      "sha256": "ea839d1887add34f604838fb589c0bd6ecabc608a924be1709126d1a16cf84d5"
+    },
+    "before/desktop/src/components/common/ProjectDraftRecovery.test.tsx": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/before/desktop/src/components/common/ProjectDraftRecovery.test.tsx",
+      "bytes": 34953,
+      "sha256": "d6561414a417d994fa39488112883600ab6e15f549267a422b1aa4995c3ad16b"
+    },
+    "fixed/desktop/src/components/common/ProjectDraftRecovery.test.tsx": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/fixed/desktop/src/components/common/ProjectDraftRecovery.test.tsx",
+      "bytes": 35791,
+      "sha256": "5f6f4f47271f5f1aa0d7a6ccb17685d8205edb4a106b36b5ef8b1fb28f7a90dd"
+    },
+    "runs/before/dependencies.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/before/dependencies.json",
+      "bytes": 2099,
+      "sha256": "a2810463a3015356493b3b9a16a2aa64365eda8a46c810d29f61e4bf88951c1b"
+    },
+    "runs/before/invocation.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/before/invocation.json",
+      "bytes": 1147,
+      "sha256": "18d50dc8caf33e257496500625fdc2fe2ce4362f856c73a7988c708398e44a08"
+    },
+    "runs/before/loaded-test-source.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/before/loaded-test-source.json",
+      "bytes": 328,
+      "sha256": "670e88f62b0aed87e7da2f1be183f48b0fc234ea70eafe1f4d59c3852714cba5"
+    },
+    "runs/before/result.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/before/result.json",
+      "bytes": 1554,
+      "sha256": "a0e332ea2b9eb7e135b53e9cb75359f59d1a16873d7a86f364ccc11ebfc13ae5"
+    },
+    "runs/before/source-before.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/before/source-before.json",
+      "bytes": 73309,
+      "sha256": "cf85b64b9add3940b9814d9813bd5f3f728776e1fcd55af0408db3901a7b58b8"
+    },
+    "runs/before/source-after.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/before/source-after.json",
+      "bytes": 73309,
+      "sha256": "cf85b64b9add3940b9814d9813bd5f3f728776e1fcd55af0408db3901a7b58b8"
+    },
+    "runs/before/stderr.log": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/before/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/before/stdout.log": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/before/stdout.log",
+      "bytes": 101,
+      "sha256": "46665a40d375d26a9a17ddfb1180161e058045ee41cf705e74676c8d3e90377d"
+    },
+    "runs/before/vitest.config.mts": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/before/vitest.config.mts",
+      "bytes": 1200,
+      "sha256": "2b6d68da97402ff5b098c3d5f5aa53bd4b0dc6315bb78ba46f8fbc65a9f828ea"
+    },
+    "runs/before/vitest.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/before/vitest.json",
+      "bytes": 8139,
+      "sha256": "8990fd768b93fa624430b5c143ef7dcc98d6c6a6c1afd80cd6787657d717ff2a"
+    },
+    "runs/fixed/dependencies.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/dependencies.json",
+      "bytes": 2099,
+      "sha256": "a2810463a3015356493b3b9a16a2aa64365eda8a46c810d29f61e4bf88951c1b"
+    },
+    "runs/fixed/invocation.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/invocation.json",
+      "bytes": 1144,
+      "sha256": "b54dc23b958528df951ab11fc43cf03b6c23a6a1036de6948b2bf8993c21f0ed"
+    },
+    "runs/fixed/loaded-test-source.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/loaded-test-source.json",
+      "bytes": 327,
+      "sha256": "687a61d55bfc6f6d544c8b7d707c27ea029c5c26232d96d6eec24ad4e5fdade6"
+    },
+    "runs/fixed/result.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/result.json",
+      "bytes": 1551,
+      "sha256": "ea84b5b11d498602b133b4627a633f2bea4a0ec6e3f4ee26fba195e16b56fe99"
+    },
+    "runs/fixed/source-before.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/source-before.json",
+      "bytes": 73308,
+      "sha256": "2549fcf307bd42b48c08ca0d55acd36e456ea749a81226ddee83532fe190f582"
+    },
+    "runs/fixed/source-after.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/source-after.json",
+      "bytes": 73308,
+      "sha256": "2549fcf307bd42b48c08ca0d55acd36e456ea749a81226ddee83532fe190f582"
+    },
+    "runs/fixed/stderr.log": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/fixed/stdout.log": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/stdout.log",
+      "bytes": 100,
+      "sha256": "ba6e70b8d206e6b39f3bc7dad4bbdb46ac0a6fdd24be642a83e12fcd58b3d2b3"
+    },
+    "runs/fixed/vitest.config.mts": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/vitest.config.mts",
+      "bytes": 1196,
+      "sha256": "c4c38cbaa973e160d49888c2d12c11663245b795ffc67a7d683e633c9e56f019"
+    },
+    "runs/fixed/vitest.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/vitest.json",
+      "bytes": 8122,
+      "sha256": "0d487422aa6be3e2409c096de6680cfc85434bf22913cd4af37a5f499c935620"
+    },
+    "provenance/README.md": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/README.md",
+      "bytes": 2245,
+      "sha256": "9ea5b7e8ed3170115ba8213313ce4240a6fd4bdae408395e1f9600704d23f26f"
+    },
+    "provenance/report.json": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/report.json",
+      "bytes": 3067,
+      "sha256": "5af7dc248e690df49b80fa4ec774ef3d8e6bae4718463dad9bb0e2912111bf06"
+    },
+    "provenance/SHA256SUMS": {
+      "originalPath": "/workspace/.luci-tools/draft-recovery-triage-20261011/SHA256SUMS",
+      "bytes": 2545,
+      "sha256": "5a770f2e7ba24795e4df9f813d8833999179260d4289fa6e82c009d7e80e933f"
+    }
+  },
+  "files": {
+    "ARTIFACTS.txt": {
+      "bytes": 888,
+      "sha256": "78aed251a4d1a0e53d65e980c22680ccd59ace89c916417b5968709020443809"
+    },
+    "README.md": {
+      "bytes": 2689,
+      "sha256": "3a8b242f026323e103a3e25c2f56870715a1658fdbb0666b24034ae1a82e5dfc"
+    },
+    "before/desktop/src/components/common/ProjectDraftRecovery.test.tsx": {
+      "bytes": 34953,
+      "sha256": "d6561414a417d994fa39488112883600ab6e15f549267a422b1aa4995c3ad16b"
+    },
+    "draft-recovery-hydration.patch": {
+      "bytes": 4030,
+      "sha256": "9edd7839c8619af0f60768accae7edbe550128b702ccfdeaa9f4de3a7db2c295"
+    },
+    "fixed/desktop/src/components/common/ProjectDraftRecovery.test.tsx": {
+      "bytes": 35791,
+      "sha256": "5f6f4f47271f5f1aa0d7a6ccb17685d8205edb4a106b36b5ef8b1fb28f7a90dd"
+    },
+    "original-failure.json": {
+      "bytes": 13337,
+      "sha256": "e64f676bc0423bcf7f8acf712c22c459b58f488d98864b83d01c03a22ba102cf"
+    },
+    "privacy-review.json": {
+      "bytes": 736,
+      "sha256": "f4e2678378da4f29218fff3dfaa98a7f8b39eacfc6fa932069ce9ed6b35009ad"
+    },
+    "provenance/README.md": {
+      "bytes": 2245,
+      "sha256": "9ea5b7e8ed3170115ba8213313ce4240a6fd4bdae408395e1f9600704d23f26f"
+    },
+    "provenance/SHA256SUMS": {
+      "bytes": 2545,
+      "sha256": "5a770f2e7ba24795e4df9f813d8833999179260d4289fa6e82c009d7e80e933f"
+    },
+    "provenance/report.json": {
+      "bytes": 3067,
+      "sha256": "5af7dc248e690df49b80fa4ec774ef3d8e6bae4718463dad9bb0e2912111bf06"
+    },
+    "report.json": {
+      "bytes": 3474,
+      "sha256": "ebe991e0365a3e8b56813063a6b0fe764846b4aa3eea4c80162504b0adaf1923"
+    },
+    "run.py": {
+      "bytes": 6568,
+      "sha256": "ea839d1887add34f604838fb589c0bd6ecabc608a924be1709126d1a16cf84d5"
+    },
+    "runs/before/dependencies.json": {
+      "bytes": 2099,
+      "sha256": "a2810463a3015356493b3b9a16a2aa64365eda8a46c810d29f61e4bf88951c1b"
+    },
+    "runs/before/invocation.json": {
+      "bytes": 1147,
+      "sha256": "18d50dc8caf33e257496500625fdc2fe2ce4362f856c73a7988c708398e44a08"
+    },
+    "runs/before/loaded-test-source.json": {
+      "bytes": 328,
+      "sha256": "670e88f62b0aed87e7da2f1be183f48b0fc234ea70eafe1f4d59c3852714cba5"
+    },
+    "runs/before/result.json": {
+      "bytes": 1554,
+      "sha256": "a0e332ea2b9eb7e135b53e9cb75359f59d1a16873d7a86f364ccc11ebfc13ae5"
+    },
+    "runs/before/source-after.json": {
+      "bytes": 73309,
+      "sha256": "cf85b64b9add3940b9814d9813bd5f3f728776e1fcd55af0408db3901a7b58b8"
+    },
+    "runs/before/source-before.json": {
+      "bytes": 73309,
+      "sha256": "cf85b64b9add3940b9814d9813bd5f3f728776e1fcd55af0408db3901a7b58b8"
+    },
+    "runs/before/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/before/stdout.log": {
+      "bytes": 101,
+      "sha256": "46665a40d375d26a9a17ddfb1180161e058045ee41cf705e74676c8d3e90377d"
+    },
+    "runs/before/vitest.config.mts": {
+      "bytes": 1200,
+      "sha256": "2b6d68da97402ff5b098c3d5f5aa53bd4b0dc6315bb78ba46f8fbc65a9f828ea"
+    },
+    "runs/before/vitest.json": {
+      "bytes": 8139,
+      "sha256": "8990fd768b93fa624430b5c143ef7dcc98d6c6a6c1afd80cd6787657d717ff2a"
+    },
+    "runs/fixed/dependencies.json": {
+      "bytes": 2099,
+      "sha256": "a2810463a3015356493b3b9a16a2aa64365eda8a46c810d29f61e4bf88951c1b"
+    },
+    "runs/fixed/invocation.json": {
+      "bytes": 1144,
+      "sha256": "b54dc23b958528df951ab11fc43cf03b6c23a6a1036de6948b2bf8993c21f0ed"
+    },
+    "runs/fixed/loaded-test-source.json": {
+      "bytes": 327,
+      "sha256": "687a61d55bfc6f6d544c8b7d707c27ea029c5c26232d96d6eec24ad4e5fdade6"
+    },
+    "runs/fixed/result.json": {
+      "bytes": 1551,
+      "sha256": "ea84b5b11d498602b133b4627a633f2bea4a0ec6e3f4ee26fba195e16b56fe99"
+    },
+    "runs/fixed/source-after.json": {
+      "bytes": 73308,
+      "sha256": "2549fcf307bd42b48c08ca0d55acd36e456ea749a81226ddee83532fe190f582"
+    },
+    "runs/fixed/source-before.json": {
+      "bytes": 73308,
+      "sha256": "2549fcf307bd42b48c08ca0d55acd36e456ea749a81226ddee83532fe190f582"
+    },
+    "runs/fixed/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runs/fixed/stdout.log": {
+      "bytes": 100,
+      "sha256": "ba6e70b8d206e6b39f3bc7dad4bbdb46ac0a6fdd24be642a83e12fcd58b3d2b3"
+    },
+    "runs/fixed/vitest.config.mts": {
+      "bytes": 1196,
+      "sha256": "c4c38cbaa973e160d49888c2d12c11663245b795ffc67a7d683e633c9e56f019"
+    },
+    "runs/fixed/vitest.json": {
+      "bytes": 8122,
+      "sha256": "0d487422aa6be3e2409c096de6680cfc85434bf22913cd4af37a5f499c935620"
+    }
+  },
+  "selfReference": "Manifest excludes its own hash; SHA256SUMS binds manifest and all other declared files except itself."
+}

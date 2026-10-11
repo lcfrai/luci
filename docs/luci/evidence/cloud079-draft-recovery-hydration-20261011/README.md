@@ -1,0 +1,13 @@
+# CLOUD-079 — Sketch recovery test synchronization
+
+P2 validation-only correction. The interrupted integrated frontend report observed this sketch recovery test restoring `x:1` instead of expected `x:99`. Original report/log/source hashes and exact failure are preserved in `original-failure.json`. The affected test, DesignEditor, useProjectDraft and DraftRecovery matched that report's source bindings at triage start.
+
+The mock exposes its change callback during render but hydrates in a passive effect; the test previously waited only for placeholder DOM. A premature synthetic edit could become the baseline and later hydration could become the retained edit. This is a source-supported ordering risk, **not a deterministically reproduced cause**. No product defect was established.
+
+The unchanged isolated file passed **22/22**; the corrected file passed **22/22**. The test-only patch waits for explicit initial hydration on both mounts, resets readiness on unmount, asserts clean hydration and the exact retained edited scene before unmount, and retains explicit restore/no-autosave requirements. No sleeps or product changes were added. Node v24.19.0, one worker, no file parallelism and a 120-second bound were used. The recorded test module loader hash matched each selected source; all desktop source/config/lock bindings were stable, and selected dependency bindings matched across runs.
+
+Root subsequently applied the exact patch. The later full desktop typecheck passed in the separate `cloud076078-final-typecheck-20261011` capsule. This does not establish a new full-suite pass: the interrupted original remains 2938 passed / 2 failed, with targeted corrections validated separately. Browser, native-adapter and product-completion gates remain separate.
+
+The exact original runner, before/fixed source, configs, test outputs and source/dependency bindings are copied without modifications. Absolute original staging paths in invocation/config/loader records identify the actual historical execution; they are not rewritten to this publication destination. `provenance/README.md`, `provenance/report.json` and `provenance/SHA256SUMS` preserve the original triage files; their root-unmodified and pending-typecheck statements apply to the earlier triage time. The current `report.json` qualifies those facts.
+
+`ARTIFACTS.txt` declares the entire capsule. `manifest.json` maps every preserved file to its original path/hash; `SHA256SUMS` binds all declared files except itself. Vite caches and undeclared temporary/output copies are excluded. No application/browser/Docker runtime, private fixture, retained state, ledger or credential contents were touched during triage.

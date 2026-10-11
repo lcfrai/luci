@@ -1,0 +1,17 @@
+{
+  "base": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "files": [
+    {
+      "path": "desktop/src/api/attachRegistry.ts",
+      "baseSHA256": "b147b04e06f889e5712eb809fd7caf5d381170f26111facb8b1104178b90e6e2"
+    },
+    {
+      "path": "desktop/src/store/types.ts",
+      "baseSHA256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b"
+    },
+    {
+      "path": "desktop/src/components/develop/SessionPaneFooter.tsx",
+      "baseSHA256": "3f48dc7d2f9de3e7041089023ea0fa984669225e8f479c3beb629c03344f2edc"
+    }
+  ]
+}

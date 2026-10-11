@@ -1,0 +1,59 @@
+{
+  "evidenceRoot": "docs/luci/evidence/cloud032-layout-attribution-b94ad37e",
+  "inputs": [
+    {
+      "path": "attempt2/all-browser-timing.json",
+      "bytes": 1258937,
+      "sha256": "34a83cceb71e5823b3d5910b464bf1569a43e7dec9a6d1c88473fd9b3d551560"
+    },
+    {
+      "path": "attempt2/all-interactions.json",
+      "bytes": 71497,
+      "sha256": "d378b4fdfcb3ab7fd132633319de00b7b1d1db1842fcf8dfb668c023ddd042cf"
+    },
+    {
+      "path": "attempt2/result-allowlisted.json",
+      "bytes": 66775,
+      "sha256": "bcc24748cbafbbca9ccb94dfa53996539f9313e6ea3e0a243f6fbc19c43286ce"
+    },
+    {
+      "path": "attempt2/analysis/all16-stage-joins.json",
+      "bytes": 555413,
+      "sha256": "94b50258c6753abc7db2cfac73f058229bdda0fd32e6716f724bf9122a925e06"
+    },
+    {
+      "path": "attempt2/layout-trace-capture.json",
+      "bytes": 5716,
+      "sha256": "6f26ad42ea68117e7f70f7e38471684f7ddfcd6da4aab8fa07765224f9d12a5f"
+    },
+    {
+      "path": "accepted-preparation-v2/actual/interaction-metrics.mjs",
+      "bytes": 10170,
+      "sha256": "1bec6579a3fc27310c88bfbb378321bf3fc764de62900f9be068fffe3626a2cc"
+    },
+    {
+      "path": "accepted-preparation-v2/actual/latency-diagnostics.mjs",
+      "bytes": 7622,
+      "sha256": "4d1c0f75f15c01444c22133f360f10700af58c6dfebd3906700e67dc9407313f"
+    },
+    {
+      "path": "accepted-preparation-v2/actual/autonomous-readiness.mjs",
+      "bytes": 12628,
+      "sha256": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b"
+    },
+    {
+      "path": "accepted-preparation-v2/runtime-binding.json",
+      "bytes": 1451,
+      "sha256": "4afa510e062fbeee777eba04b1f57a1ba8137347cf61ee4ed1e3c09b19f880da"
+    }
+  ],
+  "privateOriginalVerification": {
+    "provided": true,
+    "bytes": 10150948,
+    "sha256": "fead13b770f2351282fc4c9a1bd9d0ab34248b087311e9b4ccdb651ed424fe26",
+    "copied": false,
+    "allFourPublishedTimingFieldsEqual": true,
+    "all32ActionProjectionEqual": true
+  },
+  "privateOriginalRepublished": false
+}

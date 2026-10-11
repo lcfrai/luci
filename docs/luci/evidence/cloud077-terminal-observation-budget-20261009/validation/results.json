@@ -1,0 +1,67 @@
+{
+  "runs": [
+    {
+      "variant": "before",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "monitor-regression.test.mjs"
+      ],
+      "cwd": "/workspace/.luci-tools/cloud077-terminal-observation-budget/tests",
+      "environmentOverrideNames": [
+        "C077_VARIANT"
+      ],
+      "nodeVersion": "v24.19.0",
+      "startedAt": "2026-10-09T17:51:05.400531+00:00",
+      "endedAt": "2026-10-09T17:51:06.070386+00:00",
+      "exitCode": 1,
+      "counts": {
+        "tests": 6,
+        "suites": 0,
+        "pass": 1,
+        "fail": 5,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapSHA256": "550fdc9c365dff860981c9391c68a8b94a2cbef89bd4d2f350729626ec828e30",
+      "tapBytes": 5661
+    },
+    {
+      "variant": "fixed",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "monitor-regression.test.mjs",
+        "fixed-guards.test.mjs"
+      ],
+      "cwd": "/workspace/.luci-tools/cloud077-terminal-observation-budget/tests",
+      "environmentOverrideNames": [
+        "C077_VARIANT"
+      ],
+      "nodeVersion": "v24.19.0",
+      "startedAt": "2026-10-09T17:51:06.071058+00:00",
+      "endedAt": "2026-10-09T17:51:06.793321+00:00",
+      "exitCode": 1,
+      "counts": {
+        "tests": 26,
+        "suites": 0,
+        "pass": 22,
+        "fail": 4,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapSHA256": "4a9d4b5871ed6a0e6d79cea0fceaf04d66a7422c26378f4fb5b7dddfe52c8446",
+      "tapBytes": 11899
+    }
+  ],
+  "allSourceAndContractInputsUnchanged": true,
+  "sourceAndContractInputCount": 14,
+  "sameBodySHA256": "6338e4266b50b8f2d44087995a49837df6575ce3d10e0b5f7aea08665bd412b1",
+  "scope": "Controlled helper-only Node tests, one file worker at a time; no app/browser/compiler/Docker started"
+}

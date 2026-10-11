@@ -351,6 +351,7 @@ func (rs *routes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // API is the whole HTTP surface as one handler.
 type API struct {
+	sessionPreparations     sessionPreparationSet
 	taskObservations        taskCompletionObservations
 	execution               *executionAdmission
 	deps                    Deps

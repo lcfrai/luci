@@ -1,0 +1,21 @@
+{
+  "kind": "offline-analysis-only",
+  "command": [
+    "python3",
+    "/workspace/.luci-tools/cloud032-existing-event-paint-analysis/analyze.py",
+    "--evidence-root",
+    "/workspace/luci/docs/luci/evidence/cloud032-layout-attribution-b94ad37e",
+    "--output",
+    "/workspace/.luci-tools/cloud032-existing-event-paint-analysis/derived",
+    "--original-result",
+    "/workspace/luci/artifacts/quality-swarm/layout-b94ad37e-attempt2/driver/result.json"
+  ],
+  "exitCode": 0,
+  "scriptSHA256": "64494eaf166495d709620566dc4b60ae483e670b394e02005177e3024b74f842",
+  "stdoutSHA256": "c891c7ede7de4a00b67731313db0e3259c5d7a18a27b9027cc54582573cb18e8",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "runtimeAppBrowserTestsLaunched": false,
+  "repositoryMutated": false,
+  "privateOriginalCopied": false,
+  "scope": "Current invocation derived files only; historical capture/closure receipts remain unchanged."
+}

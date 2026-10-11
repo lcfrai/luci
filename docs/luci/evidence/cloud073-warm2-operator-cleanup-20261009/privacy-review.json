@@ -1,0 +1,9 @@
+{
+  "authorizedOriginalFilesRead": 3,
+  "privateOriginalFilesRead": 0,
+  "privateFixtureContentsPublished": false,
+  "tokenOrCredentialValuesPublished": false,
+  "privatePathSubstitutions": 1,
+  "receiptsCopiedByteExact": true,
+  "checks": "Receipt fields and the helper were inspected as bounded evidence. A private relative fixture locator in the helper was replaced; its original bytes are bound only by SHA256 and byte count."
+}

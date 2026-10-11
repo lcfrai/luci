@@ -1,0 +1,172 @@
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/api/poller.test.ts > startPolling > an unchanged quiet tick keeps notifications and preference writes unchanged
+AssertionError: expected { machines: [], projects: [], …(85) } to be { machines: [], projects: [], …(85) } // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: { machines: [], projects: [], …(85) }
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ src/api/poller.test.ts:164:37
+    164|     expect(writes).toBe(1);
+    165|   });
+    166| });
+       |   ^
+    167|
+    168| describe("coveredWorktreeIds", () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts > session reconciliation publishes only actual changes > keeps an unchanged empty response quiet (known empty index: false)
+ FAIL  ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts > session reconciliation publishes only actual changes > keeps an unchanged empty response quiet (known empty index: true)
+AssertionError: expected { machines: [], projects: [], …(85) } to be { machines: [], projects: [], …(85) } // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: { machines: [], projects: [], …(85) }
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts:29:32
+     27|       store.getState().replaceSessions([], known ? ["empty"] : []);
+     28|       store.getState().replaceSessions([], known ? ["empty"] : []);
+     29|       expect(store.getState()).toBe(before);
+       |                                ^
+     30|       observation.quiet();
+     31|     } finally { observation.close(); }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts > session reconciliation publishes only actual changes > keeps freshly decoded identical rows and ordered indexes quiet
+AssertionError: expected { machines: [], projects: [], …(85) } to be { machines: [], projects: [], …(85) } // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: { machines: [], projects: [], …(85) }
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts:42:32
+     40|     try {
+     41|       store.getState().replaceSessions(structuredClone(rows), ["W"]);
+     42|       expect(store.getState()).toBe(before);
+       |                                ^
+     43|       expect(store.getState().sessions.A).toBe(rows[0]);
+     44|       expect(store.getState().sessionIdsByWorktree.W).toBe(before.sess…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts > session reconciliation publishes only actual changes > does not publish an uncovered worktree or dictionary insertion-order-only change
+AssertionError: expected { machines: [], projects: [], …(85) } to be { machines: [], projects: [], …(85) } // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: { machines: [], projects: [], …(85) }
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts:57:32
+     55|       store.getState().replaceSessions([], []);
+     56|       store.getState().replaceSessions([structuredClone(B), structured…
+     57|       expect(store.getState()).toBe(before);
+       |                                ^
+     58|       expect(store.getState().sessionIdsByWorktree).toEqual({ "W-A": […
+     59|       observation.quiet();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts > session reconciliation publishes only actual changes > publishes the first authoritative empty index, then leaves repeated emptiness quiet
+AssertionError: expected { machines: [], projects: [], …(85) } to be { machines: [], projects: [], …(85) } // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: { machines: [], projects: [], …(85) }
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts:119:32
+    117|       const before = store.getState();
+    118|       store.getState().replaceSessions([], ["newly-covered"]);
+    119|       expect(store.getState()).toBe(before); observation.quiet();
+       |                                ^
+    120|     } finally { observation.close(); }
+    121|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts > session reconciliation publishes only actual changes > preserves a pending Kill against stale running data without publishing it again
+AssertionError: expected { machines: [], projects: [], …(85) } to be { machines: [], projects: [], …(85) } // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: { machines: [], projects: [], …(85) }
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts:131:32
+    129|     try {
+    130|       store.getState().replaceSessions([running], ["W"]);
+    131|       expect(store.getState()).toBe(before); expect(store.getState().s…
+       |                                ^
+    132|       observation.quiet();
+    133|       setSessionPending("A", false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts > session reconciliation publishes only actual changes > does not resurrect a pending Forget and still accepts later fresh server visibility
+AssertionError: expected { machines: [], projects: [], …(85) } to be { machines: [], projects: [], …(85) } // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: { machines: [], projects: [], …(85) }
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts:145:32
+    143|     try {
+    144|       store.getState().replaceSessions([old], ["W"]);
+    145|       expect(store.getState()).toBe(before); expect(store.getState().s…
+       |                                ^
+    146|       expect(store.getState().sessionIdsByWorktree.W).toEqual([]); obs…
+    147|       setSessionPending("A", false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts > session reconciliation publishes only actual changes > retains a pending row's old position when omitted, then honors removal after settlement
+AssertionError: expected { machines: [], projects: [], …(85) } to be { machines: [], projects: [], …(85) } // Object.is equality
+
+If it should pass with deep equality, replace "toBe" with "toStrictEqual"
+
+Expected: { machines: [], projects: [], …(85) }
+Received: serializes to the same string
+
+
+Compared values have no visual difference.
+
+ ❯ ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts:161:32
+    159|     try {
+    160|       store.getState().replaceSessions([A, B], ["W"]);
+    161|       expect(store.getState()).toBe(before); expect(store.getState().s…
+       |                                ^
+    162|       observation.quiet();
+    163|       setSessionPending("held", false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+

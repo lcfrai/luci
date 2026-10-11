@@ -1,0 +1,22 @@
+{
+  "type": "read-only-offline-coverage-inspection",
+  "privateOriginal": {
+    "bytes": 7126776,
+    "sha256": "c7b6f65b4e219a1f084e98774158ff57a2f1327e088e1b7371860fe076c358a5",
+    "publicAPISpansEqualsPublishedSubtree": true,
+    "copied": false
+  },
+  "command": [
+    "python3",
+    "/workspace/.luci-tools/cloud032-public-api-wait-reason-assessment/analyze.py",
+    "--input",
+    "/workspace/luci/docs/luci/evidence/cloud032-primary-diagnostics-20261009/public-api-spans-1",
+    "--output",
+    "/workspace/.luci-tools/cloud032-public-api-wait-reason-assessment/derived"
+  ],
+  "analysisExit": 0,
+  "stderrBytes": 0,
+  "originalLoggerFailed": true,
+  "unknownProblemsReclassified": false,
+  "newRuntimeTestsOrRepositoryEdits": false
+}

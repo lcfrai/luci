@@ -173,6 +173,8 @@ export interface StartFailure {
 export interface Session {
   /** Opaque current allocation fingerprint; absent on older/cleaned records. Never authorization. */
   executionGeneration?: string;
+  /** Recorded endpoint readiness only; omission keeps older-server attach behavior. Never authority. */
+  attachReady?: boolean;
   id: SessionId;
   title: string;
   machineId: MachineId;

@@ -1,0 +1,19 @@
+{
+  "reviewer": "/root/candidate_review/await_source_review",
+  "scope": "Independent bounded existing source/capture read; no edits, tests or runtime.",
+  "all16JoinsUniqueAndAgree": true,
+  "all3799EventSequencesContinuous": true,
+  "importantLimits": [
+    "EventTiming lacks target/isTrusted; identity comes from exact trusted observer and same-document interval correspondence.",
+    "interactionId groups pointerdown/up/click; round 0 Home group max88 differs from click80; neither is page INP.",
+    "Visibility snapshots do not prove continuous foreground visibility.",
+    "Missing/ambiguous records stay explicit; Home project ordinal is next destination.",
+    "Rounded event endpoint is not exact target paint."
+  ],
+  "sourcePaths": [
+    "accepted-preparation-v2/actual/autonomous-readiness.mjs",
+    "accepted-preparation-v2/actual/interaction-metrics.mjs",
+    "attempt2/all-browser-timing.json",
+    "attempt2/analysis/all16-stage-joins.json"
+  ]
+}

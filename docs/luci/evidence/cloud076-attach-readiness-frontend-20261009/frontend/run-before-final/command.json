@@ -1,0 +1,22 @@
+{
+  "variant": "before",
+  "scope": "regression",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/luci/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "/workspace/.luci-tools/cloud076-attach-readiness/frontend/vitest.config.mjs",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-final/test-results.json",
+    "/workspace/.luci-tools/cloud076-attach-readiness/frontend/tests/desktop/src/api/attachRegistry.readiness.test.ts"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-09T17:43:37.500740+00:00",
+  "head": "078d0e99f9d1553a2233dfa51b368b415964766c",
+  "baseFunctionalCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "environmentOverrides": {
+    "C076_VARIANT": "before"
+  },
+  "scopeLimit": "Single-worker Vitest/jsdom controlled checks; no installed app, browser, Docker, provider or compiler run."
+}

@@ -1,0 +1,86 @@
+[
+  {
+    "root": "/workspace/.luci-tools/cloud077-terminal-observation-budget",
+    "path": "before/launch.mjs",
+    "bytes": 75917,
+    "sha256": "5f5eb8a8bc016e36932e4b8ac0649671e37e68284b31196ad42ce56d5c341524"
+  },
+  {
+    "root": "/workspace/.luci-tools/cloud077-terminal-observation-budget",
+    "path": "fixed/launch.mjs",
+    "bytes": 78366,
+    "sha256": "0ebd521c6160a19848e6e549b890478af1ed83d7e2230399862879c2d000a66f"
+  },
+  {
+    "root": "/workspace/.luci-tools/cloud077-terminal-observation-budget",
+    "path": "before/scenario.mjs",
+    "bytes": 41178,
+    "sha256": "cc0b1a4ebad01758008502368fdcdfabd3ffc36c8d1e5f6fb6e53f168788b82b"
+  },
+  {
+    "root": "/workspace/.luci-tools/cloud077-terminal-observation-budget",
+    "path": "fixed/scenario.mjs",
+    "bytes": 46383,
+    "sha256": "31981be982085541d1f79c1af3c52a6e480b939efc9d4020abb577905e98b2a6"
+  },
+  {
+    "root": "/workspace/.luci-tools/cloud077-terminal-observation-budget",
+    "path": "before/outer-run.py",
+    "bytes": 22954,
+    "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+  },
+  {
+    "root": "/workspace/.luci-tools/cloud077-terminal-observation-budget",
+    "path": "fixed/outer-run.py",
+    "bytes": 22954,
+    "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+  },
+  {
+    "root": "/workspace/.luci-tools/cloud077-terminal-observation-budget",
+    "path": "tests/README.md",
+    "bytes": 2134,
+    "sha256": "b92e7a1cf85e6519c2933eb6650cd2f1a9a4c7581fea578e82564e6bf2e93c46"
+  },
+  {
+    "root": "/workspace/.luci-tools/cloud077-terminal-observation-budget",
+    "path": "tests/controlled-fixture.mjs",
+    "bytes": 6705,
+    "sha256": "23200ffa030aa1d2c712053935270a725a2805a5295f12a291ff7e6982f4db0b"
+  },
+  {
+    "root": "/workspace/.luci-tools/cloud077-terminal-observation-budget",
+    "path": "tests/fixed-guards.test.mjs",
+    "bytes": 11902,
+    "sha256": "6eba456c48f9e95f6eef0768f970a75498c35a88d4baff3db9e0296d8ad46985"
+  },
+  {
+    "root": "/workspace/.luci-tools/cloud077-terminal-observation-budget",
+    "path": "tests/monitor-regression.test.mjs",
+    "bytes": 7039,
+    "sha256": "6338e4266b50b8f2d44087995a49837df6575ce3d10e0b5f7aea08665bd412b1"
+  },
+  {
+    "root": "/workspace/luci",
+    "path": "desktop/src/api/attachRegistry.ts",
+    "bytes": 40847,
+    "sha256": "b147b04e06f889e5712eb809fd7caf5d381170f26111facb8b1104178b90e6e2"
+  },
+  {
+    "root": "/workspace/luci",
+    "path": "desktop/src/api/client.ts",
+    "bytes": 24991,
+    "sha256": "e5ca0450d49bef4488401c4401720db315869b7eb04202c8ef5edcb0e4255c4f"
+  },
+  {
+    "root": "/workspace/luci",
+    "path": "desktop/src/api/attachRegistry.test.ts",
+    "bytes": 58055,
+    "sha256": "87c0ef6e6f2114105089dea4df3e00fb0ee11dc9fc104e27e0cfc2324784db2c"
+  },
+  {
+    "root": "/workspace/luci",
+    "path": "desktop/src/api/attachRegistry.exit.test.ts",
+    "bytes": 13846,
+    "sha256": "fb51fc2c7594e61d10d7657cf73fbe4b8c517e4d4c38e858c4d38bcbcb2a21b0"
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "attemptedCommand": [
+    "/workspace/.luci-tools/bin/node",
+    "--version"
+  ],
+  "error": "FileNotFoundError: [Errno 2] No such file or directory",
+  "testsStarted": false,
+  "resolution": "command -v node identified the inherited runtime Node binary; no source or dependency change"
+}

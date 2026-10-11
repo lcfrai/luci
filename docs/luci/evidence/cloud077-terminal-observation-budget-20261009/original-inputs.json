@@ -1,0 +1,42 @@
+{
+  "originalDirectory": "/workspace/.luci-tools/cloud073-teardown-route-v2/warm",
+  "originalSources": [
+    {
+      "path": "launch.mjs",
+      "bytes": 75917,
+      "sha256": "5f5eb8a8bc016e36932e4b8ac0649671e37e68284b31196ad42ce56d5c341524"
+    },
+    {
+      "path": "scenario.mjs",
+      "bytes": 41178,
+      "sha256": "cc0b1a4ebad01758008502368fdcdfabd3ffc36c8d1e5f6fb6e53f168788b82b"
+    },
+    {
+      "path": "outer-run.py",
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    }
+  ],
+  "productContractInputs": [
+    {
+      "path": "desktop/src/api/attachRegistry.ts",
+      "bytes": 40847,
+      "sha256": "b147b04e06f889e5712eb809fd7caf5d381170f26111facb8b1104178b90e6e2"
+    },
+    {
+      "path": "desktop/src/api/client.ts",
+      "bytes": 24991,
+      "sha256": "e5ca0450d49bef4488401c4401720db315869b7eb04202c8ef5edcb0e4255c4f"
+    },
+    {
+      "path": "desktop/src/api/attachRegistry.test.ts",
+      "bytes": 58055,
+      "sha256": "87c0ef6e6f2114105089dea4df3e00fb0ee11dc9fc104e27e0cfc2324784db2c"
+    },
+    {
+      "path": "desktop/src/api/attachRegistry.exit.test.ts",
+      "bytes": 13846,
+      "sha256": "fb51fc2c7594e61d10d7657cf73fbe4b8c517e4d4c38e858c4d38bcbcb2a21b0"
+    }
+  ]
+}

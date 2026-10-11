@@ -1,0 +1,1428 @@
+// Task 26. The named seams: where Phases 3, 4, 5 and 8 plug into what Phase 2 shipped.
+// docs/SEAMS.md is the human half — what each seam is, what the phase does there, and
+// what it must not do. This file is the mechanical half: an anchor per seam, read from
+// disk, so a seam that moves fails HERE, with the document's path in the message, instead
+// of being rediscovered by the phase that needed it.
+//
+// A seam that changes is not a failure to work around. Change the anchor here and the row
+// in docs/SEAMS.md in the same commit; the last test below fails until both agree.
+
+import ts from "typescript";
+import { beforeAll, describe, expect, it } from "vitest";
+
+// The files are collected with Vite's `import.meta.glob`, lazy and `?raw`, not read with node:fs,
+// for the measured reason in styles/designsystem.test.ts's header: `@types/node` is not a
+// dependency, so a node:fs import is TS2591 under `npm run typecheck`. The glob is expanded from
+// disk on every run, so its key set IS "what exists": a file that moves drops out of it, and a
+// file a later task creates (task 25's harness) joins it. Every pattern is relative to this file,
+// desktop/src/, and reaches the rest of the repository through ../../.
+const LOADERS = import.meta.glob<string>(
+  [
+    "../../control-plane/**/*.go",
+    // Private runtime probes are generated evidence, outside shipped source.
+    "!../../control-plane/artifacts/**",
+    // Every module extension Vite bundles, not just .ts/.tsx: a `new WebSocket(u)` in a .mts
+    // under desktop/src passed S5.1 because the glob never loaded it (review 3 m4, TS-U3).
+    // None exist today, so widening costs nothing and the row's "anywhere in code" becomes true.
+    "../../desktop/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs,css}",
+    "../../desktop/e2e/**/*.mjs",
+    "../../docs/SEAMS.md",
+    "../../docs/verification/2026-09-27-phase-2-results.md",
+    "../../docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md",
+    "../../docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md",
+    "../../docs/superpowers/plans/phase-2-parts/task-*.md",
+    "../../images/sandbox/Dockerfile",
+  ],
+  { query: "?raw", import: "default" },
+);
+
+/** A glob key, relative to desktop/src/ (or root-absolute), as a repo-relative path. */
+function repoPath(key: string): string {
+  const out = key.startsWith("/") ? ["desktop"] : ["desktop", "src"];
+  for (const part of key.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") out.pop();
+    else out.push(part);
+  }
+  return out.join("/");
+}
+const FILES = new Map(Object.entries(LOADERS).map(([key, load]) => [repoPath(key), load]));
+const exists = (rel: string): boolean => FILES.has(rel);
+
+/** Filled by beforeAll with every file a seam names, so each test below stays synchronous. */
+const LOADED = new Map<string, string>();
+/** Normalised to \n: this checkout mixes CRLF and LF (survey-phase-2-substrate.md:69-70). */
+function text(rel: string): string {
+  const source = LOADED.get(rel);
+  if (source === undefined) throw new Error(`seams.test.ts did not load ${rel}`);
+  return source;
+}
+
+const DOC = "docs/SEAMS.md";
+const RESULTS = "docs/verification/2026-09-27-phase-2-results.md";
+const FENCE = "`".repeat(3);
+
+/** Comments blanked, literals kept whole, newlines kept — for `absent` anchors and the tree rules.
+ *  Rounds 1 to 3 shared defects.test.tsx's one-line stripper, which blanks from any `//` to the
+ *  end of the line, strings included. That is not safe here, and the claim that it was is what
+ *  review 3's I1 disproved: `client.ts:30` is `DEFAULT_BASE_URL = "http://127.0.0.1:8730"`, so
+ *  the URL's own `//` hid the rest of that line from S8.6's `absent` (mutant M-AUTH), and a
+ *  `"ws://…"` hid a `new WebSocket(u)` beside it from S5.1 (mutant TS-U1). A hidden match is a
+ *  silent pass, and this is the shared helper, so it reached every seam.
+ *  Round 3 walked the source skipping quotes, and TypeScript has three more places where a `//`
+ *  or a `/*` is not a comment: a regex literal (`/^wss?:\/\//`, and `/\/*$/`, which blanked every
+ *  line down to the next `*` `/`), a template inside another's `${…}`, and JSX text. Which `/`
+ *  opens a regex, which `}` resumes a template and where JSX text runs are the grammar's to say,
+ *  so a walk that guesses them leaks by construction (task-26-report.md §9).
+ *  So a comment is what the language's own lexer calls one. A TypeScript or JavaScript file is
+ *  parsed by the `typescript` package that `npm run typecheck` already runs, and every string,
+ *  template piece, regex and JSX text the parser finds is kept whole. Go's literals are regular —
+ *  '…' and "…" with \ escapes, ending at their line if unclosed, and backtick raw strings, where
+ *  \ is literal — so one walk reads them exactly. Only a `//` or `/*` outside a literal is blanked.
+ *  Measured on every file a rule reads (task-26-report.md §9): the Go walk equals go/scanner's own
+ *  comments on all of them, and the parser strips every TypeScript file exactly as round 3's walk
+ *  did, so no result on today's tree moved; only the forms above did.
+ *  defects.test.tsx still carries the naive version. It is outside task 26; carried to its
+ *  owner in task-26-report.md's round 3 section, not fixed here. */
+function codeOnly(source: string, rel = ""): string {
+  const literalEnd = rel.endsWith(".go") ? goLiteralEnd(source) : tsLiteralEnd(source, rel);
+  let out = "";
+  let i = 0;
+  while (i < source.length) {
+    const end = literalEnd(i);
+    if (end > i) {
+      out += source.slice(i, end);
+      i = end;
+    } else if (source.startsWith("//", i)) {
+      const newline = source.indexOf("\n", i);
+      i = newline === -1 ? source.length : newline;
+    } else if (source.startsWith("/*", i)) {
+      const close = source.indexOf("*/", i + 2);
+      const stop = close === -1 ? source.length : close + 2;
+      out += source.slice(i, stop).replace(/[^\n]/g, " ");
+      i = stop;
+    } else {
+      out += source[i];
+      i++;
+    }
+  }
+  return out;
+}
+
+/** Go: at a quote the walk reaches, the index just past its literal; anywhere else, `i` itself. */
+function goLiteralEnd(source: string): (i: number) => number {
+  return (i) => {
+    const quote = source[i];
+    if (quote !== "'" && quote !== '"' && quote !== "`") return i;
+    let j = i + 1;
+    while (j < source.length) {
+      const c = source[j];
+      if (c === "\\" && quote !== "`") {
+        j += 2;
+        continue;
+      }
+      j++;
+      if (c === quote || (c === "\n" && quote !== "`")) break;
+    }
+    return Math.min(j, source.length);
+  };
+}
+
+const LITERAL_KINDS = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.StringLiteral,
+  ts.SyntaxKind.NoSubstitutionTemplateLiteral,
+  ts.SyntaxKind.TemplateHead,
+  ts.SyntaxKind.TemplateMiddle,
+  ts.SyntaxKind.TemplateTail,
+  ts.SyntaxKind.RegularExpressionLiteral,
+  ts.SyntaxKind.JsxText,
+]);
+/** TypeScript and JavaScript: the end of the literal the parser found starting at `i`, if any.
+ *  JSX text owns its leading whitespace, so it starts at its `pos`; every other literal at its
+ *  first character after trivia. */
+function tsLiteralEnd(source: string, rel: string): (i: number) => number {
+  const kind = /x$/.test(rel) ? ts.ScriptKind.TSX : /js$/.test(rel) ? ts.ScriptKind.JS : ts.ScriptKind.TS;
+  const file = ts.createSourceFile(rel || "x.ts", source, ts.ScriptTarget.Latest, false, kind);
+  const ends = new Map<number, number>();
+  const visit = (node: ts.Node): void => {
+    if (LITERAL_KINDS.has(node.kind)) {
+      ends.set(node.kind === ts.SyntaxKind.JsxText ? node.pos : node.getStart(file), node.end);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return (i) => ends.get(i) ?? i;
+}
+
+/** codeOnly of a loaded file, once per file. Two tree rules read the same desktop/src sources and
+ *  a parse is the costly part, so beforeAll strips every file a rule reads, under its timeout. */
+const CODE = new Map<string, string>();
+function code(rel: string): string {
+  let stripped = CODE.get(rel);
+  if (stripped === undefined) {
+    stripped = codeOnly(text(rel), rel);
+    CODE.set(rel, stripped);
+  }
+  return stripped;
+}
+
+/** Non-test sources under a directory — TypeScript, or Go for a control-plane rule —
+ *  repo-relative and forward-slashed. */
+function sourcesUnder(dir: string): string[] {
+  const isSource = (f: string): boolean =>
+    (/\.[mc]?[jt]sx?$/.test(f) && !/\.test\.[mc]?[jt]sx?$/.test(f)) ||
+    (/\.go$/.test(f) && !/_test\.go$/.test(f));
+  return [...FILES.keys()]
+    .filter((f) => f.startsWith(`${dir}/`) && isSource(f))
+    .filter((f) => !f.startsWith("desktop/src/test/"))
+    .sort();
+}
+
+interface Anchor {
+  file: string;
+  /** A declaration or call the seam cannot exist without. Matched against the raw source. */
+  present?: RegExp;
+  /** Code whose presence would mean the seam changed shape. Matched against codeOnly(). */
+  absent?: RegExp;
+}
+
+interface TreeRule {
+  /** Every non-test source under this directory must not contain `absent`, in code, */
+  dir: string;
+  absent: RegExp;
+  /** except in these files. */
+  except: string[];
+  /** and, when given, in these files only — for a rule whose exemptions are only true where the
+   *  thing they exempt lives (S8.7's two relay files). A rule with `only` and a rule that
+   *  `except`s the same list together cover the tree once each. */
+  only?: string[];
+}
+
+interface SeamTest {
+  file: string;
+  decl: RegExp;
+  /** The task that creates `file`, when it has not run yet. While the file is absent the entry
+   *  waits; the day it appears the entry FAILS until `pending` is deleted here and docs/SEAMS.md
+   *  cites what that task proved. Task 26 ran before task 25 (docs/superpowers/RESUME.md's
+   *  close-out order), so the first pending entry was task 25's harness. The waiting task's plan
+   *  must say to clear it, and — since it therefore edits this file and docs/SEAMS.md — must also
+   *  name both of them in its `git commit … --` path list and in its pre-flight "is dirty" check,
+   *  so another agent's uncommitted edit cannot ride in on `git commit -- <path>` (review 2 I1,
+   *  restated at SEAMS.md:15-19). The "hands every pending entry" test below fails until all
+   *  three are there. */
+  pending?: string;
+}
+
+interface Seam {
+  /** The row id in docs/SEAMS.md. */
+  id: string;
+  name: string;
+  anchors: Anchor[];
+  trees?: TreeRule[];
+  /** Behaviour tests the seam's contract rests on, by declaration, not by title. */
+  tests?: SeamTest[];
+}
+
+/** The five placeholder arms and the phase each renders today. Deploy is 7 after task 23. */
+const LENSES: ReadonlyArray<[name: string, lens: string, phase: number]> = [
+  ["Discover", "discover", 4],
+  ["Design", "design", 5],
+  ["Files", "files", 3],
+  ["Merge", "merge", 3],
+  ["Deploy", "deploy", 7],
+];
+const lensFile = (name: string): string => `desktop/src/components/lens/${name}Lens.tsx`;
+const APPSHELL = "desktop/src/components/AppShell.tsx";
+
+const SEAMS: Seam[] = [
+  /* ── every later phase ──────────────────────────────────────────────────────────── */
+  {
+    id: "SX.1",
+    name: "one lens, one file; AppShell.tsx is closed",
+    anchors: [
+      ...LENSES.flatMap(([name]): Anchor[] => [
+        { file: lensFile(name), present: new RegExp(`^export function ${name}Lens\\(`, "m") },
+        { file: APPSHELL, present: new RegExp(`^\\s+return <${name}Lens />;$`, "m") },
+      ]),
+      { file: APPSHELL, present: /^\s+return <DevelopLens \/>;$/m },
+      // The shell renders no placeholder of its own any more: a lens that needs one owns it.
+      { file: APPSHELL, absent: /\bLensPlaceholder\b/ },
+    ],
+    tests: [{ file: "desktop/src/components/AppShell.test.tsx", decl: /\bit\s*\(/ }],
+  },
+  {
+    id: "SX.2",
+    name: "the domain model is byte-gated against contract §2",
+    anchors: [{ file: "desktop/src/store/types.ts", present: /^export type Lens =/m }],
+    // The gate itself is the dedicated test at the bottom of this file.
+  },
+  {
+    id: "SX.3",
+    name: "the persisted store shape, at version 2",
+    anchors: [
+      { file: "desktop/src/store/store.ts", present: /^export const PERSIST_VERSION = 2;$/m },
+      { file: "desktop/src/store/store.ts", present: /^export const PERSIST_KEY = "luci\.cockpit";$/m },
+      { file: "desktop/src/store/store.ts", present: /^export const partialize = \(s: CockpitState\): Persisted => \(\{$/m },
+    ],
+  },
+  {
+    id: "SX.4",
+    name: "routes register through the recorder, and the audit sees every one",
+    anchors: [
+      { file: "control-plane/internal/api/api.go", present: /^func \(rs \*routes\) HandleFunc\(pattern string, h func\(http\.ResponseWriter, \*http\.Request\)\) \{$/m },
+    ],
+    tests: [
+      { file: "control-plane/internal/api/routes_audit_test.go", decl: /^func TestNoRegisteredGetCanChangeState\(/m },
+      { file: "control-plane/internal/api/routes_audit_test.go", decl: /^func TestNoFileRegistersOnTheRawMuxBehindTheRecorder\(/m },
+    ],
+  },
+  {
+    id: "SX.5",
+    name: "each phase's state lives under statepath.Dir(sub)",
+    anchors: [{ file: "control-plane/internal/statepath/statepath.go", present: /^func Dir\(sub string\) string \{$/m }],
+  },
+  {
+    id: "SX.6",
+    name: "the command palette is one registry",
+    anchors: [
+      { file: "desktop/src/components/palette/commands.ts", present: /^export interface Command \{$/m },
+      { file: "desktop/src/components/palette/commands.ts", present: /^export function buildCommands\(state: CockpitState, platform: KeyboardPlatform = clientKeyboardPlatform\(\)\): Command\[\] \{$/m },
+    ],
+  },
+  {
+    id: "SX.7",
+    name: "every control-plane error is classified once; the prose stays at the call site",
+    anchors: [
+      { file: "desktop/src/api/problems.ts", present: /^export type ProblemKind =$/m },
+      { file: "desktop/src/api/problems.ts", present: /^export function classify\(error: ApiError\): ProblemKind \{$/m },
+    ],
+  },
+  {
+    id: "SX.8",
+    name: "one heartbeat for the whole window",
+    anchors: [
+      { file: "desktop/src/hooks/heartbeat.ts", present: /^export const BEAT_MS = 2400;$/m },
+      { file: "desktop/src/hooks/heartbeat.ts", present: /^export function beatDelayStyle\(\)/m },
+      { file: "desktop/src/hooks/heartbeat.ts", present: /^export function useHeartbeat\(\): number \{$/m },
+    ],
+  },
+  {
+    id: "SX.9",
+    name: "--need and --drift are defined and unused, for the phase that can derive them",
+    anchors: [
+      { file: "desktop/src/styles/tokens.css", present: /^\s+--need:\s+oklch\(/m },
+      { file: "desktop/src/styles/tokens.css", present: /^\s+--drift:\s+oklch\(/m },
+    ],
+    tests: [{ file: "desktop/src/styles/designsystem.test.ts", decl: /defines --drift and references it nowhere/ }],
+  },
+  {
+    id: "SX.10",
+    name: "resume by Claude's own session id, as a fork, from a conversation store that outlives its sandbox",
+    anchors: [
+      // The Resume fix (b4be570, 2e3db79). Claude Code is started with its own UUID, and a
+      // resume forks it under a new one: the only pairing the CLI accepts.
+      { file: "control-plane/internal/harness/argv.go", present: /^[^/\n]*"--session-id"/m },
+      { file: "control-plane/internal/harness/argv.go", present: /^[^/\n]*"--fork-session"/m },
+      // The cockpit's id still travels from the desktop ON PURPOSE (client.ts sends
+      // `resume: from.id`); the control plane resolves it to the Claude UUID here.
+      { file: "control-plane/internal/api/sessions.go", present: /^func \(a \*API\) sessionResolveResume\(/m },
+      // The store that outlives the sandbox: one mount of <state>/conversations/local/<worktree>/
+      // at the one persisted directory, which the image makes as the agent user.
+      { file: "control-plane/internal/api/sessions.go", present: /^const sessionConversationDir = "\/home\/dev\/\.claude\/projects"$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: conversationStore, ContainerPath: sessionConversationDir\}\)$/m },
+      { file: "images/sandbox/Dockerfile", present: /^RUN mkdir -p \/home\/dev\/\.claude\/projects$/m },
+    ],
+    tests: [
+      // Task 25's headed harness. Task 26 ran first, so this waits for it (see SeamTest.pending).
+      { file: "desktop/e2e/phase2.e2e.mjs", decl: /^check\("o2\.resume",/m },
+      { file: "control-plane/internal/api/sessions_resume_test.go", decl: /^func TestResumePassesTheSourcesConversationNotTheCockpitID\(/m },
+      { file: "control-plane/internal/api/sessions_resume_test.go", decl: /^func TestCreateMountsOnlyThisWorktreesConversationStore\(/m },
+      { file: "control-plane/internal/harness/argv_test.go", decl: /^func TestBuildRefusesAForkThatReusesTheSourceID\(/m },
+    ],
+  },
+
+  /* ── Phase 3: git, worktrees, coordination and convergence ──────────────────────── */
+  {
+    id: "S3.1",
+    name: "git writes live outside package project, whose whitelist stays read-only",
+    anchors: [
+      { file: "control-plane/internal/project/project.go", present: /^func \(s \*Scanner\) Path\(ctx context\.Context, worktreeID string\) \(string, error\) \{$/m },
+    ],
+    tests: [{ file: "control-plane/internal/project/project_test.go", decl: /^func TestEveryGitCommandIsReadOnly\(/m }],
+  },
+  {
+    id: "S3.2",
+    name: "every worktree resolves through worktree.Provider",
+    anchors: [
+      { file: "control-plane/internal/worktree/worktree.go", present: /^type Provider interface \{\n\tPath\(ctx context\.Context, worktreeID string\) \(string, error\)\n\}$/m },
+    ],
+  },
+  {
+    id: "S3.3",
+    name: "the worktree ready flag: the one thing merge may gate on",
+    anchors: [
+      { file: "control-plane/internal/api/catalog.go", present: /\{"PATCH \/v1\/projects\/\{projectId\}\/worktrees\/\{worktreeId\}", http\.HandlerFunc\(a\.handlePatchWorktree\)\},/ },
+      { file: "desktop/src/store/types.ts", present: /^\s+ready\?: boolean;$/m },
+      { file: "desktop/src/api/client.ts", present: /^\s+setWorktreeReady: async \(projectId, worktreeId, ready\) =>$/m },
+    ],
+  },
+  {
+    id: "S3.4",
+    name: "reordering a filtered list goes through the visible-position helpers",
+    anchors: [
+      { file: "desktop/src/lib/immutable.ts", present: /^export function moveWithinVisible\b/m },
+      { file: "desktop/src/lib/immutable.ts", present: /^export function idAtVisiblePosition\b/m },
+    ],
+    tests: [{ file: "desktop/src/defects.test.tsx", decl: /^\s+n: 10,$/m }],
+  },
+  {
+    id: "S3.5",
+    name: "Files and Git use the real project service inside Develop",
+    anchors: [
+      { file: lensFile("Files"), present: /productApi\.files\(/ },
+      { file: lensFile("Merge"), present: /productApi\.git\(/ },
+    ],
+  },
+
+  /* ── Phase 4: Discover ──────────────────────────────────────────────────────────── */
+  {
+    id: "S4.1",
+    name: "Session.contextRef: carried everywhere, written and read by no surface yet",
+    anchors: [
+      { file: "control-plane/internal/registry/session.go", present: /^\tContextRef\s+string\s+`json:"contextRef"`$/m },
+      // The typed allocation extraction nests this record in its request, before
+      // allocatePreparedSession persists it. Field/value ownership is unchanged.
+      { file: "control-plane/internal/api/sessions.go", present: /\bContextRef:\s+req\.ContextRef[,}]/ },
+      { file: "desktop/src/store/types.ts", present: /^\s+contextRef: string;$/m },
+      { file: "desktop/src/store/defaults.ts", present: /^\s+contextRef\?: string;$/m },
+      // Resume and fork both carry it — the case most likely to have been missed.
+      { file: "desktop/src/api/client.ts", present: /contextRef: from\.contextRef,[\s\S]+contextRef: from\.contextRef,/ },
+    ],
+    // The tripwire. No component touches it today (survey-phase-2-substrate.md:355-358); the
+    // day Phase 4 renders or writes it from a surface, this goes red and the row is updated.
+    trees: [{ dir: "desktop/src/components", absent: /\bcontextRef\b/, except: [] }],
+  },
+  {
+    id: "S4.2",
+    name: "the Materialise window in handleSessionCreate — ruled (R1), reserved in prose, not built",
+    anchors: [
+      { file: "control-plane/internal/api/sessions.go", present: /^func \(a \*API\) handleSessionCreate\(w http\.ResponseWriter, r \*http\.Request\) \{$/m },
+      // Decision 0c is ruled (orchestrator-rulings.md R1) and not built. The day api.Deps grows
+      // the materialiser R1 names, this goes red and docs/SEAMS.md's S4.2 row says where it went.
+      { file: "control-plane/internal/api/api.go", absent: /Materiali[sz]/ },
+    ],
+  },
+  {
+    id: "S4.3",
+    name: "append-or-replace edits go through replaceAt / replaceById",
+    anchors: [
+      { file: "desktop/src/lib/immutable.ts", present: /^export function replaceAt</m },
+      { file: "desktop/src/lib/immutable.ts", present: /^export function replaceById</m },
+    ],
+    tests: [{ file: "desktop/src/defects.test.tsx", decl: /^\s+n: 7,$/m }],
+  },
+  {
+    id: "S4.4",
+    name: "display names, worktree paths and the /api/v1 prefix Discover's routes already use",
+    anchors: [
+      { file: "control-plane/internal/project/project.go", present: /^func \(s \*Scanner\) ProjectName\(projectID string\) string \{/m },
+      { file: "control-plane/internal/project/project.go", present: /^func \(s \*Scanner\) BranchName\(branchID string\) string \{/m },
+      { file: "control-plane/internal/api/api.go", present: /guarded\.Handle\("\/api\/v1\/", http\.StripPrefix\("\/api", guarded\)\)/ },
+    ],
+  },
+
+  /* ── Phase 5: the Design canvas ─────────────────────────────────────────────────── */
+  {
+    id: "S5.1",
+    name: "one push-free transport: the 2 s poll and the attach sockets, nothing else",
+    anchors: [
+      { file: "desktop/src/api/poller.ts", present: /^export const POLL_INTERVAL_MS = 2_000;$/m },
+      { file: "desktop/src/api/client.ts", present: /^\s+const makeSocket = opts\?\.webSocket \?\? \(\(url: string\) => new WebSocket\(url\)\);$/m },
+    ],
+    // The tripwire. Phase 5's canvas brings its own room (survey-phase-5-design.md:444-448);
+    // the day a second transport opens, this goes red and the row says where it lives.
+    // One rule, by where the name may appear rather than where it may not. Three rounds of rules
+    // that each listed a way to reach the constructor (`new`, a global's member, bound, passed,
+    // destructured, a string) each had a survivor they did not list: a value (mutation A1), a
+    // destructuring (TS-M1, TS-M5), an alias of the global (review 2 m1, TS-R1). So either name,
+    // anywhere in code (a string included), trips it unless it follows a type position's
+    // token (`:`, a single `|` or `&`, `<`, `as`, `typeof`) or reads a constant (`WebSocket.OPEN`).
+    // attachRegistry.ts's `ws: WebSocket | null` stays clear. A value after a colon (an object
+    // literal's `{ open: WebSocket }`, a ternary's else branch) reads like an annotation, and a
+    // name built at run time (`globalThis["Web" + "Socket"]`, fix round 2's predicted survivor
+    // TS-X1, which survived) is not the word, so neither is seen. Other type positions
+    // (`Map<string, WebSocket>`) and a string that names either word trip it, loudly: reword the
+    // string, or add the position here and to the row.
+    trees: [
+      {
+        dir: "desktop/src",
+        absent: /(?<!(?::|(?<![|&])[|&]|<|\bas|\btypeof)\s*)\b(?:EventSource|WebSocket)\b(?!\s*\.\s*[A-Z][A-Z_]*\b)/,
+        except: ["desktop/src/api/client.ts"],
+      },
+    ],
+  },
+  {
+    id: "S5.2",
+    name: "a lens is handed a fixed box and owns its own scroll",
+    anchors: [
+      { file: "desktop/src/components/shell.css", present: /\.shell-lens\s*\{(?=[^}]*min-block-size:\s*0;)(?=[^}]*min-inline-size:\s*0;)(?=[^}]*overflow:\s*hidden;)[^}]*\}/ },
+      { file: lensFile("Design"), present: /^export function DesignLens\(/m },
+    ],
+  },
+
+  /* ── Phase 8: Kata backend, Terraform and warm pools ────────────────────────────── */
+  {
+    id: "S8.1",
+    name: "backend.Backend: the seven methods katabe already implements",
+    anchors: [
+      { file: "control-plane/internal/backend/katabe/kata.go", present: /^var _ backend\.Backend = \(\*Backend\)\(nil\)$/m },
+      { file: "control-plane/internal/backend/dockerbe/docker.go", present: /^var _ backend\.Backend = \(\*Backend\)\(nil\)$/m },
+    ],
+    tests: [
+      { file: "control-plane/internal/backend/seam_test.go", decl: /^func TestSeamBackendIsTheSevenMethodsBothImplementationsServe\(/m },
+      { file: "control-plane/internal/backend/seam_test.go", decl: /^func TestSeamBackendKindsAreTheTwoPersistedStrings\(/m },
+    ],
+  },
+  {
+    id: "S8.2",
+    name: "LUCI_BACKEND=kata selects katabe, with in-cluster credentials only",
+    anchors: [
+      { file: "control-plane/cmd/api/config.go", present: /^\tenvBackend\s+= "LUCI_BACKEND"$/m },
+      { file: "control-plane/cmd/api/main.go", present: /^\tcase string\(backend\.KindKata\):$/m },
+      { file: "control-plane/cmd/api/main.go", present: /^func kubeClient\(kubeconfig string\) \(\*kubernetes\.Clientset, error\) \{$/m },
+    ],
+  },
+  {
+    id: "S8.3",
+    name: "the gap: the create path always mounts a host worktree, and katabe refuses one",
+    anchors: [
+      // sessionMounts builds every create's and restart's mounts, the worktree first.
+      { file: "control-plane/internal/api/sessions.go", present: /^\tmounts := \[\]backend\.Mount\{\{HostPath: worktreePath, ContainerPath: sessionWorkDir\}\}$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tMounts:\s+sandboxMounts,$/m },
+      { file: "control-plane/internal/backend/katabe/kata.go", present: /^\tif len\(spec\.Mounts\) > 0 \{$/m },
+      { file: "control-plane/internal/backend/katabe/kata.go", present: /^\tif spec\.WorkDir != "" \{$/m },
+    ],
+    tests: [
+      { file: "control-plane/internal/api/sessions_test.go", decl: /^func TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv\(/m },
+      { file: "control-plane/internal/backend/katabe/kata_test.go", decl: /^func TestCreateRejectsMountsAndCreatesNoPod\(/m },
+      { file: "control-plane/internal/backend/katabe/kata_test.go", decl: /^func TestCreateRejectsAWorkDir\(/m },
+    ],
+  },
+  {
+    id: "S8.4",
+    name: "the RuntimeClass name, hard-coded and never observed on a cluster",
+    anchors: [{ file: "control-plane/internal/sandbox/manager.go", present: /^const runtimeClass = "kata-mshv-vm-isolation"$/m }],
+  },
+  {
+    id: "S8.5",
+    name: "isolation is reported per machine, and the rail badges anything that is not a microVM",
+    anchors: [
+      { file: "control-plane/internal/api/catalog.go", present: /^func isolationFor\(k backend\.Kind\) string \{$/m },
+      { file: "desktop/src/components/rail/MachineChip.tsx", present: /\{machine\.isolation === "microvm" \? null : \(/ },
+    ],
+  },
+  {
+    id: "S8.6",
+    name: "authenticated desktop HTTP and single-use attachment tickets",
+    anchors: [
+      { file: "desktop/src/api/client.ts", present: /authHeaders/ },
+      { file: "desktop/src/api/client.ts", present: /\/v1\/auth\/socket-ticket/ },
+    ],
+  },
+  {
+    id: "S8.7",
+    name: "one relay: proxy.RelayHooked",
+    anchors: [
+      { file: "control-plane/internal/proxy/proxy.go", present: /^func RelayHooked\(ctx context\.Context, client, upstream \*websocket\.Conn, h Hooks\) error \{$/m },
+      { file: "control-plane/internal/proxy/proxy.go", absent: /^func Relay\(/m },
+      { file: "control-plane/internal/proxy/proxy.go", present: /OnUpstreamExit func\(\)/ },
+      { file: "control-plane/internal/proxy/proxy.go", present: /typ == websocket\.MessageBinary && len\(data\) > 0 && data\[0\] == 0x03/ },
+      // Nor a wrapper under another name: a three-line relay beside RelayHooked is what Relay was.
+      { file: "control-plane/internal/proxy/proxy.go", absent: /^func (?!RelayHooked\()\w*Relay\w*\(/m },
+      { file: "control-plane/internal/api/attach.go", present: /\bproxy\.RelayHooked\(r\.Context\(\), client, upstream, / },
+      // And that call is the only one: a wrapper under any name has to call RelayHooked.
+      { file: "control-plane/internal/api/attach.go", absent: /\bRelayHooked\b[\s\S]*\bRelayHooked\b/ },
+      // Team routing carries the existing API to one authenticated private worker.
+      // It owns revocation tracking, never a second terminal frame implementation.
+      { file: "control-plane/internal/management/team_runtime.go", present: /^func \(g \*Gateway\) teamExecutionHandler\(ctx context\.Context, teamID string, actor User, policy Policy\) \(http\.Handler, error\) \{$/m },
+      { file: "control-plane/internal/management/team_runtime.go", absent: /\bwebsocket\.|\b(?:ReadMessage|WriteMessage|RelayHooked)\b/ },
+    ],
+    // And not in another file: `func Relay(` re-added as proxy/relay.go, or a method, passed the
+    // proxy.go anchors (mutation A2 of task 26's report). Any exported-style *Relay* function or
+    // method in the control plane's Go, other than RelayHooked; attach.go's relayAttached is
+    // the handler that calls it, and its lower-case `relay` does not match.
+    // Nor as a function value: `var Relay = func(…) error { return RelayHooked(…) }` is the deleted
+    // wrapper in another spelling (task 26 review m3, mutant G-M1). So a package-level var or const
+    // named *Relay*, alone or inside a `var (` / `const (` group, trips it too.
+    trees: [
+      { dir: "control-plane", absent: /^func\s+(?:\([^)]*\)\s*)?(?!RelayHooked\()\w*Relay\w*\s*\(/m, except: [] },
+      {
+        dir: "control-plane",
+        absent: /^(?:var|const)\s+(?!RelayHooked\b)\w*Relay\w*\b|^(?:var|const)\s*\((?:\n(?!\)).*)*?\n\s+(?!RelayHooked\b)\w*Relay\w*\b/m,
+        except: [],
+      },
+      // And by what a wrapper does rather than what it is called: `func Pipe(…) { return
+      // RelayHooked(…) }` passed every name rule (mutant G-M4). RelayHooked is named in code only by
+      // its declaration and attach.go's one call (the anchor above holds attach.go to one).
+      { dir: "control-plane", absent: /(?<!^func )\bRelayHooked\b/m, except: ["control-plane/internal/api/attach.go"] },
+      // And by what a relay holds: two connections. `func Pipe(ctx, client, upstream
+      // *websocket.Conn) error` with its own copy loop passed every rule above (task 26 review 2
+      // m2, mutant G-R1). So a connection type (`*websocket.Conn`, or any package's `Conn`, such as
+      // the `net.Conn` that websocket.NetConn returns) in code, as a parameter, a func literal's, a
+      // field, a var or an element type, trips it. Two rules, because the exemptions differ by file.
+      // A result — `(*websocket.Conn, error)`, from Dial and all three Attach — does not trip, and
+      // that exemption is anchored on what makes a result a result: the parameter list's closing `)`
+      // in front of it. Round 2 anchored it on `(*` alone, which a type assertion, `a.(*websocket
+      // .Conn)`, also ends in, so a relay over two asserted connections passed (review 3 m1, G-U3).
+      // The three by-name exemptions are RelayHooked's own parameters, its copyMessages loop and
+      // relayAttached, the handler that calls it. Those are true of the two files they live in and
+      // false everywhere else, so they are keyed on the FILE now rather than on the spelling: a
+      // `copyMessages := func(dst, src *websocket.Conn, …)` relay loop in any other package was
+      // exempt by name alone (review 3 m2, G-U4). A relay whose connections are never named by type
+      // (two `:=` locals, inferred) is invisible to both, which the S8.7 row says.
+      {
+        dir: "control-plane",
+        absent:
+          /(?<!\bfunc RelayHooked\([^)]*|\bcopyMessages := func\([^)]*|\bfunc \(a \*API\) relayAttached\([^)]*|\)\s*\(\*?)\b\w+\.Conn\b/,
+        except: [],
+        only: ["control-plane/internal/proxy/proxy.go", "control-plane/internal/api/attach.go"],
+      },
+      {
+        dir: "control-plane",
+        absent: /(?<!\)\s*\(\*?)\b\w+\.Conn\b/,
+        // Management tracks admitted network connections for expiry and revocation,
+        // while the worker's existing RelayHooked owns terminal frame transport.
+        except: ["control-plane/internal/proxy/proxy.go", "control-plane/internal/api/attach.go", "control-plane/internal/management/management.go", "control-plane/internal/management/sockets.go", "control-plane/internal/management/team_runtime.go"],
+      },
+      {
+        dir: "control-plane",
+        // Only the known connection-removal callback may name a connection in
+        // team runtime code. New connection loops still require an explicit seam.
+        absent: /(?<!\bfunc \(g \*Gateway\) forgetSocketLocked\([^)]*|\)\s*\(\*?)\b\w+\.Conn\b/,
+        except: [],
+        only: ["control-plane/internal/management/team_runtime.go"],
+      },
+      // And by what a relay moves: messages. One whose connections are typed by a local interface
+      // (fix round 2's predicted survivor G-X1, which survived the rule above) names the message
+      // type in that interface; one that wraps them as streams names websocket.NetConn and a
+      // message kind. The sole relay recognizes MessageBinary for its payload-free
+      // upstream Exit notification. Other named message/stream APIs remain forbidden
+      // there; Phase 8 writing its own frame with a named kind still trips this guard.
+      // And the relay that names neither: `httputil.NewSingleHostReverseProxy(pod).ServeHTTP(w, r)`
+      // has no connection, no message and no local at all, and has forwarded a WebSocket upgrade
+      // since Go 1.12 — the first thing a Phase 8 author reaching a pod over HTTP would write, and
+      // it passed every rule above (review 3 m3, G-U2). `httputil` and a hand-rolled `Hijack()` are
+      // the two ways to that shape; the control plane names neither today.
+      {
+        dir: "control-plane",
+        absent: /\b\w+\.(?:MessageType|MessageBinary|MessageText|NetConn)\b|\bhttputil\.|\.Hijack\(/,
+        // Luci's verified SSH workspace proxy moves the entire existing HTTP/WebSocket API.
+        // It preserves the one session byte relay inside the selected workspace service.
+        // The isolated preview proxy relays application HTTP/WebSocket traffic, never agents.
+        // The authenticated management gateway routes a user to their isolated worker;
+        // it does not interpret terminal frames or replace the worker's byte relay.
+        except: [
+          "control-plane/internal/proxy/proxy.go",
+          "control-plane/internal/product/workspace.go",
+          "control-plane/internal/product/preview_proxy.go",
+          "control-plane/internal/previewgateway/gateway.go",
+          "control-plane/internal/platform/browser_bridge.go",
+          "control-plane/internal/product/workspace_platform.go",
+          "control-plane/internal/management/runtime.go",
+          "control-plane/internal/management/team_runtime.go",
+          "control-plane/internal/management/sockets.go",
+        ],
+      },
+      {
+        dir: "control-plane",
+        absent: /\b\w+\.(?:MessageType|MessageText|NetConn)\b|\bhttputil\.|\.Hijack\(/,
+        only: ["control-plane/internal/proxy/proxy.go"],
+        except: [],
+      },
+    ],
+  },
+  /* The six mounts after the worktree, in four seams, each refused by katabe's `len(spec.Mounts) > 0`
+   * (S8.3's anchor); Go contract §2.6 and backend.Mount's doc comment record every one. One seam per
+   * thing Phase 8 must provide another way, so the day it provides one, exactly one row moves: S8.8
+   * holds the store and a fork's carried transcript, S8.11 the two git files. */
+  {
+    id: "S8.8",
+    name: "the conversation store (and a fork's carried transcript): a volume per user and worktree that outlives the pod",
+    anchors: [
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: conversationStore, ContainerPath: sessionConversationDir\}\)$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, carried\)$/m },
+    ],
+    tests: [
+      { file: "control-plane/internal/api/sessions_resume_test.go", decl: /^func TestCreateMountsOnlyThisWorktreesConversationStore\(/m },
+      { file: "control-plane/internal/api/sessions_fork_test.go", decl: /^func TestAForkIsShownAStagedReadOnlyCopyOfTheSourcesTranscript\(/m },
+    ],
+  },
+  {
+    id: "S8.9",
+    name: "the CA bundle: read-only at /etc/luci/ca-bundle.pem, named by NODE_EXTRA_CA_CERTS",
+    anchors: [
+      { file: "control-plane/internal/api/sessions.go", present: /^const sessionCABundlePath = "\/etc\/luci\/ca-bundle\.pem"$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: caBundle, ContainerPath: sessionCABundlePath, ReadOnly: true\}\)$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tenv\["NODE_EXTRA_CA_CERTS"\] = sessionCABundlePath$/m },
+    ],
+    tests: [{ file: "control-plane/internal/api/sessions_sandboxenv_test.go", decl: /^func TestACABundleIsMountedReadOnlyAndNamedByNodeExtraCACerts\(/m }],
+  },
+  {
+    id: "S8.10",
+    name: "a primary worktree's .git/worktrees, read-only over itself (may vanish under OD-2's one clone per worktree)",
+    anchors: [
+      { file: "control-plane/internal/api/sessions.go", present: /^const sessionWorktreeAdminDir = sessionWorkDir \+ "\/\.git\/worktrees"$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: worktreeAdmin, ContainerPath: sessionWorktreeAdminDir, ReadOnly: true\}\)$/m },
+    ],
+    tests: [{ file: "control-plane/internal/api/sessions_sandboxenv_test.go", decl: /^func TestAPrimaryWorktreesLinkedWorktreeMetadataIsReadOnlyInTheSandbox\(/m }],
+  },
+  {
+    id: "S8.11",
+    name: "the host git's global excludes and attributes files, read-only, from the user's own config",
+    anchors: [
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: git\.excludes\.mount, ContainerPath: sessionGitExcludesPath, ReadOnly: true\}\)$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: git\.attributes\.mount, ContainerPath: sessionGitAttributesPath, ReadOnly: true\}\)$/m },
+    ],
+    tests: [{ file: "control-plane/internal/api/sessions_gitfiles_test.go", decl: /^func TestTheHostsGlobalGitFilesReachTheSandboxReadOnlyAndOnlyWhenTheHostsGitReadsThem\(/m }],
+  },
+];
+
+const UI_CONTRACT = "docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md";
+const GO_CONTRACT = "docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md";
+const KATA = "control-plane/internal/backend/katabe/kata.go";
+/** The plan of the task a pending entry waits for: "task 25" is phase-2-parts/task-25.md. */
+function planOf(task: string): string {
+  const n = /^task (\d+)$/.exec(task);
+  return n === null ? `(no plan for "${task}")` : `docs/superpowers/plans/phase-2-parts/task-${n[1].padStart(2, "0")}.md`;
+}
+/** Any phase's seam id: SX.n, or S<phase>.n for EVERY phase number, not only the four this task
+ *  names. A narrower pattern let a document row for phase 6, 7 or 9 go uncounted, so a seam
+ *  added to docs/SEAMS.md without an anchor passed (mutation M6 of task 26's report). */
+const SEAM_ID = /^S(?:X|\d+)\.\d+$/;
+
+describe("the named seams — docs/SEAMS.md", () => {
+  // Every file a seam names, loaded once. A named file that does not exist is not loaded, and
+  // the test that names it reports it; the generous timeout is for a saturated machine, where
+  // Vite's first transform of a hundred raw modules can outlast the default hook timeout.
+  beforeAll(async () => {
+    const named = new Set<string>([DOC, RESULTS, UI_CONTRACT, "desktop/src/store/types.ts", GO_CONTRACT, KATA]);
+    for (const seam of SEAMS) {
+      for (const a of seam.anchors) named.add(a.file);
+      for (const t of seam.tests ?? []) {
+        named.add(t.file);
+        if (t.pending !== undefined) named.add(planOf(t.pending));
+      }
+      for (const rule of seam.trees ?? []) for (const f of sourcesUnder(rule.dir)) named.add(f);
+    }
+    await Promise.all(
+      [...named].map(async (rel) => {
+        const load = FILES.get(rel);
+        if (load !== undefined) LOADED.set(rel, (await load()).replace(/\r\n/g, "\n"));
+      }),
+    );
+    // Stripped here rather than inside a test's default 5 s: codeOnly parses a TypeScript file.
+    for (const seam of SEAMS) {
+      for (const a of seam.anchors) if (a.absent !== undefined && LOADED.has(a.file)) code(a.file);
+      for (const rule of seam.trees ?? []) for (const f of sourcesUnder(rule.dir)) if (LOADED.has(f)) code(f);
+    }
+  }, 120_000);
+
+  it("names every seam once, with an id of the form the document uses", () => {
+    const ids = SEAMS.map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.filter((id) => !SEAM_ID.test(id))).toEqual([]);
+  });
+
+  it("still has every seam's anchor where the document says it is", () => {
+    const moved: string[] = [];
+    for (const seam of SEAMS) {
+      for (const a of seam.anchors) {
+        if (!exists(a.file)) {
+          moved.push(`${seam.id} (${seam.name}): ${a.file} does not exist`);
+          continue;
+        }
+        const source = text(a.file);
+        if (a.present !== undefined && !a.present.test(source)) {
+          moved.push(`${seam.id} (${seam.name}): ${a.file} lost ${a.present}`);
+        }
+        if (a.absent !== undefined && a.absent.test(code(a.file))) {
+          moved.push(`${seam.id} (${seam.name}): ${a.file} gained ${a.absent}`);
+        }
+      }
+    }
+    // Each line names a seam. Fix the code — or, if the seam genuinely moved, change the
+    // anchor here AND its row in docs/SEAMS.md in the same commit.
+    expect(moved).toEqual([]);
+  });
+
+  it("still has every test a seam's contract rests on", () => {
+    const missing: string[] = [];
+    for (const seam of SEAMS) {
+      for (const t of seam.tests ?? []) {
+        if (!exists(t.file)) {
+          // A pending entry waits for the task that creates its file; any other is missing.
+          if (t.pending === undefined) missing.push(`${seam.id}: ${t.file} does not exist`);
+        } else if (t.pending !== undefined) {
+          missing.push(
+            `${seam.id}: ${t.file} now exists, so ${t.pending} has landed — delete this entry's ` +
+              `\`pending\` and make ${DOC}'s ${seam.id} row and note cite what ${t.pending} proved`,
+          );
+        } else if (!t.decl.test(text(t.file))) {
+          missing.push(`${seam.id}: ${t.file} lost ${t.decl}`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it("hands every pending entry to the plan of the task that clears it", () => {
+    // A pending entry goes red the day its task lands, so that task's plan must say to clear it,
+    // or its own final gate fails for a reason it was never given (task 26 review I2; shared
+    // shape §1 rules 1-2: the task that makes the insertion point names its consumer). One
+    // paragraph of the plan names this file and the seam, and says to delete the `pending` field.
+    // A paragraph that only mentions the entry does not count: task 25's Interfaces block does
+    // that, and it passed with the instruction deleted (mutant I2-M).
+    const deletes = /\bdelete\b[^.]*`pending`/i;
+    const unhanded: string[] = [];
+    for (const seam of SEAMS) {
+      for (const t of seam.tests ?? []) {
+        if (t.pending === undefined) continue;
+        const plan = planOf(t.pending);
+        if (!exists(plan)) {
+          unhanded.push(`${seam.id}: ${t.pending}'s plan ${plan} does not exist`);
+          continue;
+        }
+        const told = text(plan)
+          .split(/\n[ \t]*\n/)
+          .some((p) => p.includes("desktop/src/seams.test.ts") && p.includes(seam.id) && deletes.test(p));
+        if (!told) {
+          unhanded.push(`${seam.id}: ${plan} never tells ${t.pending} to delete this entry's \`pending\``);
+        }
+        // The handoff makes that task edit this file and DOC, so its commits name both, and so
+        // does its pre-flight dirty-path check: `git commit -- <path>` takes the path's whole
+        // working tree, so another agent's uncommitted edit in either would ride in that task's
+        // commit, and nothing after the commit can tell (task 26 review 2, I1).
+        const commands = text(plan).replace(/\\\n/g, " ").split("\n");
+        const paths = (c: string): string[] =>
+          (c.replace(/#.*$/, "").split(/\s--\s/)[1] ?? "").split(/\s+/).filter(Boolean);
+        const committed = commands.filter((c) => /^git commit\s/.test(c)).flatMap(paths);
+        const dirtyAt = commands.findIndex((c) => /^#.*\bis dirty\b/.test(c));
+        const dirty = paths(commands.find((c, i) => i > dirtyAt && /^git status --porcelain\s/.test(c)) ?? "");
+        for (const handed of ["desktop/src/seams.test.ts", DOC]) {
+          if (!committed.includes(handed)) {
+            unhanded.push(`${seam.id}: no \`git commit … --\` in ${plan} names ${handed}`);
+          }
+          if (dirtyAt < 0 || !dirty.some((d) => handed === d || handed.startsWith(`${d}/`))) {
+            unhanded.push(`${seam.id}: ${plan}'s "… is dirty" check does not cover ${handed}`);
+          }
+        }
+      }
+    }
+    expect(unhanded).toEqual([]);
+  });
+
+  it("S8.3: katabe's package comment is byte-identical to Go contract §2.6's copy", () => {
+    // The contract's copy kept "a configuration change and not a rewrite" after kata.go dropped
+    // it as false (task 26 review I1). A restatement that is a verbatim copy is gated like
+    // types.ts (SX.2), so the next edit to either one has to move both.
+    const header = (source: string): string => {
+      const end = source.indexOf("\npackage katabe\n");
+      expect(end).toBeGreaterThan(0);
+      return source.slice(0, end);
+    };
+    const lines = text(GO_CONTRACT).split("\n");
+    const heading = lines.findIndex((l) => l.startsWith("### 2.6 `internal/backend/katabe`"));
+    const open = lines.findIndex((l, i) => i > heading && l === `${FENCE}go`);
+    const close = lines.findIndex((l, i) => i > open && l === FENCE);
+    expect([heading, open, close].every((i) => i >= 0)).toBe(true);
+    // The retained protocol still matches; the historical contract keeps its original brand.
+    expect(header(lines.slice(open + 1, close).join("\n") + "\n").replace(/PANACEA_APP/g, "LUCI")).toBe(header(text(KATA)));
+  });
+
+  it("codeOnly strips only what the language calls a comment, so every absent anchor and tree rule sees the whole line", () => {
+    // Review 3's I1: the shared stripper blanked from any `//` to the end of the line, strings
+    // included, so client.ts:30's own URL hid the rest of that line from S8.6's /Authorization/
+    // (mutant M-AUTH) and a `"ws://…"` hid a `new WebSocket(u)` beside it from S5.1 (TS-U1).
+    // A hidden match is a silent pass, so the blind spot reached all 32 seams. This pins the
+    // line S8.6 actually reads, and both languages' quoting.
+    const client = "desktop/src/api/client.ts";
+    const line = codeOnly(text(client), client).split("\n").find((l) => l.includes("DEFAULT_BASE_URL"));
+    expect(line).toBe('export const DEFAULT_BASE_URL = "http://127.0.0.1:8730";');
+
+    const afterUrl = codeOnly('const u = "ws://h/a"; const s = new WebSocket(u); // gone\n', "x.ts");
+    expect(afterUrl).toContain("new WebSocket(u)");
+    expect(afterUrl).not.toContain("gone");
+    // A backtick is a raw string in Go, where a trailing \ is literal and closes nothing…
+    expect(codeOnly("a := `C:\\` // gone\n", "x.go")).not.toContain("gone");
+    // …and a template literal in TypeScript, where \` is an escape and does not close it.
+    expect(codeOnly("const s = `a\\`b`; // gone\n", "x.ts")).not.toContain("gone");
+    // Round 3's walk knew quotes, and TypeScript has three more places where a `//` or a `/*` is
+    // not a comment (task-26-report.md §9). A regex literal: `/^wss?:\/\//` ends in `//`, and
+    // `/\/*$/` opens a `/*` that blanked every line down to the next `*/`.
+    const scheme = codeOnly("if (/^wss?:\\/\\//.test(u)) return new WebSocket(u); // gone\n", "x.ts");
+    expect(scheme).toContain("return new WebSocket(u);");
+    expect(scheme).not.toContain("gone");
+    const trim = codeOnly('const b = u.replace(/\\/*$/, "");\nconst h = { Authorization: "t" };\n/** gone */\n', "x.ts");
+    expect(trim).toContain('const h = { Authorization: "t" };');
+    expect(trim).not.toContain("gone");
+    // A template inside another's `${…}`, whose backticks a quote walk reads as the outer closing.
+    const nested = codeOnly("const u = `${`ws://h`}`; const s = new WebSocket(u); // gone\n", "x.ts");
+    expect(nested).toContain("const s = new WebSocket(u);");
+    expect(nested).not.toContain("gone");
+    // JSX text, which is neither code nor a string: a URL shown on screen.
+    const jsx = codeOnly("const e = <a>ws://h</a>; const s = new WebSocket(u); // gone\n", "x.tsx");
+    expect(jsx).toContain("const s = new WebSocket(u);");
+    expect(jsx).not.toContain("gone");
+    // And a `/` that divides opens nothing: the comment after it is still a comment.
+    expect(codeOnly("const r = a / b; // gone\n", "x.ts")).not.toContain("gone");
+  });
+
+  it("keeps every tree-wide tripwire", () => {
+    const tripped: string[] = [];
+    for (const seam of SEAMS) {
+      for (const rule of seam.trees ?? []) {
+        for (const file of sourcesUnder(rule.dir)) {
+          if (rule.except.includes(file)) continue;
+          if (rule.only !== undefined && !rule.only.includes(file)) continue;
+          if (rule.absent.test(code(file))) {
+            tripped.push(`${seam.id} (${seam.name}): ${file} matches ${rule.absent}`);
+          }
+        }
+      }
+    }
+    // A trip is not necessarily a defect: it is usually the later phase arriving. Update
+    // the seam's row in docs/SEAMS.md to say where the thing now lives, then the rule.
+    expect(tripped).toEqual([]);
+  });
+
+  it("SX.2: types.ts is byte-identical to contract §2, line endings aside", () => {
+    // task-15.md:276-279's awk gate, as a test, so it runs on every `npm test` rather than
+    // when someone remembers it. Same extraction: the first ts fence after the §2 heading.
+    const lines = text("docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md").split("\n");
+    const heading = lines.findIndex((l) => l.startsWith("## 2. The domain model"));
+    const open = lines.findIndex((l, i) => i > heading && l === `${FENCE}ts`);
+    const close = lines.findIndex((l, i) => i > open && l === FENCE);
+    expect([heading, open, close].every((i) => i >= 0)).toBe(true);
+    const contract = lines.slice(open + 1, close).join("\n");
+    expect(text("desktop/src/store/types.ts").replace(/\n+$/, "")).toBe(contract.replace(/\n+$/, ""));
+  });
+
+  it("docs/SEAMS.md names exactly the seams this file pins", () => {
+    expect(exists(DOC)).toBe(true);
+    const rows = [...text(DOC).matchAll(/^\|\s*(S(?:X|\d+)\.\d+)\s*\|/gm)].map((m) => m[1]);
+    expect(rows.length).toBe(new Set(rows).size); // one table row per seam, never two
+    expect([...rows].sort()).toEqual(SEAMS.map((s) => s.id).sort());
+  });
+
+  /** The manifest row is the index a later phase reads first, and until round 3 of task 25's
+   *  review the SX.10 row called `o2.resume`'s red "cause unattributed" eighty-two lines above
+   *  the note that attributes it to F2. The test above reads row IDS only, so nothing saw the
+   *  contradiction. These two read the prose. */
+  const PARAS = (): string[] => text(DOC).split(/\n\s*\n/);
+  const tags = (s: string): string[] => [...new Set([...s.matchAll(/\bF([1-9])\b/g)].map((m) => `F${m[1]}`))];
+
+  it("docs/SEAMS.md: a FAILED row names the same cause as the note that explains it", () => {
+    const rows = text(DOC).split("\n").filter((l) => l.startsWith("|") && /\*\*FAILED\*\*/.test(l));
+    expect(rows.length).toBeGreaterThan(0); // the day no row records a red, delete this
+    const prose = PARAS().filter((p) => !p.trimStart().startsWith("|"));
+    for (const row of rows) {
+      const id = /^\|\s*(S(?:X|\d+)\.\d+)\s*\|/.exec(row)?.[1] ?? row.slice(0, 40);
+      const checks = [...row.matchAll(/`([a-z0-9]+\.[a-z0-9-]+)`/g)].map((m) => m[1])
+        .filter((c) => !/\.(go|ts|tsx|mjs|md|json|jsonl|sh|ya?ml|py)$/.test(c));
+      for (const check of checks) {
+        // Round 3's Minor 4: `.find` read only the FIRST attributing paragraph, so a second one
+        // naming a different finding was invisible. Every paragraph that names the check counts.
+        const explained = [...new Set(prose.flatMap((p) => (p.includes(check) ? tags(p) : [])))];
+        if (explained.length === 0) continue; // nothing here attributes it; the row may say so
+        expect(tags(row), `${id}: ${check} is attributed below, so the row must carry a cause`)
+          .not.toEqual([]);
+        expect(row, `${id}: ${check} is attributed below; the row may not call it unattributed`)
+          .not.toMatch(/unattributed/i);
+        for (const tag of tags(row)) expect(explained).toContain(tag);
+      }
+    }
+  });
+
+  it("docs/SEAMS.md: SX.10's note counts a cause only where a cause exists", () => {
+    const note = PARAS().find((p) => /Three runs/.test(p)) ?? "";
+    expect(note).not.toBe("");
+    // OO-1's red was closed on non-recurrence, which is absence of evidence, not a mechanism:
+    // counting it as a third cause would make the seam read "untested" rather than "failed".
+    expect(note).not.toMatch(/three\s+causes/i);
+    expect(note).toMatch(/Two have a cause/);
+    expect(note).toMatch(/not the same as being explained/);
+  });
+
+  /** Round 3's I-1, I-2 and Minor 1. The run document's own guards live in the git-ignored SDD
+   *  workspace (`e2e-run4/step20/`), so a reader who reaches this branch from `main` finds the
+   *  obligation and no artifact. Three review rounds named one class — a claim about causation
+   *  or an instant, written OUTSIDE the one table a guard reads — and each round killed one
+   *  named mutant and left the class open. Round 3 committed four rules here, and rounds 5 to 7
+   *  brought them to thirteen. Each needs nothing but the document, so they survive the
+   *  workspace they were measured in and run in `npm test`. */
+  describe("the run document — docs/verification/2026-09-27-phase-2-results.md", () => {
+    type Verdict = { result: string; tag: string | null };
+    /** *The checks* is where a verdict and its finding are authoritative. Every other block in
+     *  the document is read against this map, which is what "document-wide" means here. */
+    const CHECKS = (): Map<string, Verdict> => {
+      const out = new Map<string, Verdict>();
+      const all = text(RESULTS).split("\n");
+      const start = all.findIndex((l) => l.trim() === "## The checks");
+      let end = all.findIndex((l, i) => i > start && l.startsWith("## "));
+      if (end < 0) end = all.length;
+      for (const line of all.slice(start + 1, end)) {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) continue;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const id = /^`([^`]+)`$/.exec(cells[0] ?? "")?.[1];
+        const result = cells.find((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
+        if (id === undefined || result === undefined) continue;
+        const rowTags = tags(cells[cells.length - 1] ?? ""); // `.at` is ES2022; this tsconfig is not
+        out.set(id, { result, tag: rowTags.length === 1 ? (rowTags[0] ?? null) : null });
+      }
+      return out;
+    };
+    /** A paragraph, a single table row, or a single list item — never a whole table and never a
+     *  whole list, because two rows of one table, and two items of one list, speak about two
+     *  different checks. `What is still unproven` is one paragraph of ten numbered items. */
+    const BLOCKS = (): string[] => {
+      const out: string[] = [];
+      const ITEM = /^\s*(?:\d+\.|[-*])\s/;
+      for (const para of text(RESULTS).split(/\n\s*\n/)) {
+        if (para.trimStart().startsWith("|")) {
+          for (const row of para.split("\n")) {
+            if (row.startsWith("|") && !/^\|\s*-/.test(row)) out.push(row);
+          }
+          continue;
+        }
+        let item: string[] = [];
+        for (const line of para.split("\n")) {
+          if (ITEM.test(line) && item.length) { out.push(item.join("\n")); item = []; }
+          item.push(line);
+        }
+        if (item.length) out.push(item.join("\n"));
+      }
+      return out;
+    };
+    /** "That failure is F2's, **not F1's**" asserts one finding and denies another. */
+    const claimed = (s: string): string[] => tags(s.replace(/\b(?:not|nor|neither)\s+F[1-9]('s)?/gi, " "));
+    const idsIn = (s: string): string[] =>
+      [...new Set([...s.matchAll(/`([a-z0-9]+\.[a-z0-9-]+)`/g)].map((m) => m[1]))];
+    const flat = (): string => text(RESULTS).replace(/\s+/g, " ");
+    const secs = (hms: string): number => {
+      const [h, m, s] = hms.split(":").map(Number);
+      return (h ?? 0) * 3600 + (m ?? 0) * 60 + (s ?? 0);
+    };
+
+    // I-1. Mutants MZA ("F2's one line is inside `d.cp-restart`" — a check that PASSED) and MZE
+    // (OO-1's "That failure is F1's") each reinstate round 2's Critical in one edit, and both
+    // survived all nine workspace rules: rule 7 reads only the Findings TABLE, rule 6 only
+    // *The checks*. This rule reads the whole document.
+    it("a block that names one check and a finding agrees with The checks", () => {
+      const checks = CHECKS();
+      expect(checks.size).toBe(19);
+      let read = 0;
+      for (const block of BLOCKS()) {
+        const named = idsIn(block).filter((id) => checks.has(id));
+        const tagged = claimed(block);
+        if (named.length !== 1 || tagged.length === 0) continue;
+        const id = named[0] as string;
+        const v = checks.get(id) as Verdict;
+        read++;
+        for (const tag of tagged) {
+          expect(v.result, `a block names \`${id}\` and ${tag}; the run PASSED that check`).toBe("FAIL");
+          expect(tag, `a block attributes \`${id}\` to ${tag}; The checks says ${v.tag}`).toBe(v.tag);
+        }
+      }
+      expect(read).toBeGreaterThanOrEqual(3); // the day no prose attributes a red, delete this
+    });
+
+    // I-2. Mutant MZD edited the worktree id INSIDE F2's verbatim `err="…"` quote, from
+    // `w-41581457` to `w-48e94ad6` — a real worktree of this run, belonging to a check that
+    // PASSED. The quote is the whole of anchor 1 and the only tie between the 500 and the
+    // session `o2.resume` resumed from; no workspace rule compares any quoted byte against the
+    // log, and rule 8 reaches into that quote only for its three-decimal instant. The document
+    // states the same id three ways, so it can be held to its own account without the log.
+    it("F2's verbatim error line quotes the worktree its attribution names", () => {
+      const doc = flat();
+      const quoted = /for worktree (w-[0-9a-f]+) failed/.exec(doc)?.[1];
+      const anchor = /Its worktree `(w-[0-9a-f]+)`/.exec(doc)?.[1];
+      const other = /on a \*different\* worktree `(w-[0-9a-f]+)`/.exec(doc)?.[1];
+      expect(quoted, "F2's row must quote the failing worktree").toMatch(/^w-[0-9a-f]+$/);
+      expect(anchor, "anchor 1 must name the worktree it reads that quote for").toBe(quoted);
+      expect(other, "anchor 1 must name the worktree it rules OUT").toMatch(/^w-[0-9a-f]+$/);
+      expect(other, "the ruled-out worktree cannot be the one the 500 names").not.toBe(quoted);
+    });
+
+    // I-1, mutant MZB: anchor 2's window is derived in the document from two numbers the
+    // document also carries, and its conclusion is one verb — "excludes 22:08:42". Flipping it
+    // to "includes" makes the anchor self-refuting and survives every workspace rule, because
+    // rule 8 matches three decimals and `22:08:42` has none. Arithmetic is not an opinion.
+    it("a window that says it excludes or includes an instant is right about it", () => {
+      const claims = [...flat().matchAll(
+        /(\d{2}:\d{2}:\d{2})[–-](\d{2}:\d{2}:\d{2}),? (excludes|includes) (\d{2}:\d{2}:\d{2})/g,
+      )];
+      expect(claims.length).toBeGreaterThanOrEqual(1);
+      for (const [all, from, to, verb, at] of claims) {
+        const inside = secs(at as string) >= secs(from as string) && secs(at as string) <= secs(to as string);
+        expect(inside, `"${all}" is false: ${at} is ${inside ? "inside" : "outside"} ${from}-${to}`)
+          .toBe(verb === "includes");
+      }
+    });
+
+    // Minor 1, mutant MZC: anchor 4's start window is derived by subtracting a duration the
+    // document prints from a window the document prints, and two minutes of drift there would
+    // put `o2.resume`'s start before `d.cp-restart`'s and break anchor 4 in silence. Rule 8
+    // deliberately does not match a derived instant — right for a READ value, and unnecessary
+    // here, because both inputs of the subtraction are on the page. Tolerance is one second:
+    // the document rounds, 71,171 ms is 71.171 s.
+    it("the derived start window is the thrown window minus the check's own duration", () => {
+      const m = /≈(\d{2}:\d{2}:\d{2})[–-](\d{2}:\d{2}:\d{2})[^≈]{0,200}?≈(\d{2}:\d{2}:\d{2})[–-](\d{2}:\d{2}:\d{2}) once its own ([\d,]+) ms is subtracted/
+        .exec(flat());
+      expect(m, "anchor 4 must state the throw window, the start window and the duration").not.toBeNull();
+      const [, threwFrom, threwTo, fromS, toS, ms] = m as RegExpExecArray;
+      const took = Number((ms as string).replace(/,/g, "")) / 1000;
+      expect(Math.abs(secs(threwFrom as string) - took - secs(fromS as string)))
+        .toBeLessThanOrEqual(1);
+      expect(Math.abs(secs(threwTo as string) - took - secs(toS as string)))
+        .toBeLessThanOrEqual(1);
+    });
+
+    /** Round 5's I-1. The paragraph above claimed the rules that need nothing but this document
+     *  were committed; three of `tables-vs-run.mjs`'s eleven needed nothing but the document and
+     *  stayed in the git-ignored workspace. One of them was the only guard anywhere on open
+     *  carry 2's verdict: flipping its Result from "Still unproven end to end." to "Proven end
+     *  to end." passed this suite 15/15 while the workspace rule killed it. Ported below.
+     *  Review 7 found the last three such rules (1, 6 and 7); they are re-based at the end of
+     *  this describe, and the paragraph now lists which workspace rules are committed. */
+    const SECTION = (heading: string): { from: number; lines: string[] } => {
+      const all = text(RESULTS).split("\n");
+      const start = all.findIndex((l) => l.trim() === heading);
+      expect(start, `the document must have a "${heading}" section`).toBeGreaterThanOrEqual(0);
+      let end = all.findIndex((l, i) => i > start && l.startsWith("## "));
+      if (end < 0) end = all.length;
+      return { from: start + 2, lines: all.slice(start + 1, end) }; // from = 1-based line of [0]
+    };
+
+    // Workspace rule 5a (`tables-vs-run.mjs:126-143`), verbatim in effect: round 2's MX2 flipped
+    // an item of this section to "PROVEN end to end" and no guard read a numbered list.
+    it('"What is still unproven" never claims that something IS proven', () => {
+      const { from, lines } = SECTION("## What is still unproven");
+      expect(lines.filter((l) => /^\s*\d+\.\s/.test(l)).length).toBeGreaterThanOrEqual(5);
+      lines.forEach((line, k) => {
+        const at = `${RESULTS}:${from + k}`;
+        const quoted = JSON.stringify(line.trim().slice(0, 90));
+        // "unproven" has no word boundary before "proven", so only an affirmative use matches;
+        // "never proven" and "not proven" are struck out first.
+        const affirms = /\bproven\b/i.test(line.replace(/\b(?:never|not)\s+proven\b/gi, ""));
+        expect(affirms, `${at}: claims something IS proven: ${quoted}`).toBe(false);
+        expect(/\bPASS(ED)?\b/.test(line), `${at}: states a PASS verdict: ${quoted}`).toBe(false);
+      });
+    });
+
+    // Workspace rule 5b (`:145-166`), both directions — the round-3 fix. The one-way form fired
+    // only on a Result that still said "unproven", so deleting the word deleted the trigger.
+    it("a Carry disposition Result and \"What is still unproven\" agree, both ways", () => {
+      const secText = SECTION("## What is still unproven").lines.join(" ");
+      const { from, lines } = SECTION("## Carry disposition");
+      let read = 0;
+      lines.forEach((line, k) => {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) return;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        if (cells.length < 2) return;
+        const label = /^((?:OC|RB)\s+\d+)/.exec(cells[0] ?? "")?.[1];
+        if (label === undefined) return; // a row whose Carry is not an OC/RB id ("Phase 1 …")
+        const result = cells[cells.length - 1] ?? "";
+        const saysUnproven = /unproven/i.test(result);
+        const named = new RegExp(`\\b${label.replace(/\s+/g, "\\s+")}\\b`).test(secText);
+        read++;
+        expect(
+          saysUnproven,
+          `${RESULTS}:${from + k}: ${label}'s Result ${saysUnproven ? "says" : "does not say"} ` +
+            `unproven, but "What is still unproven" ${named ? "names" : "never names"} it: ` +
+            JSON.stringify(result.slice(0, 90)),
+        ).toBe(named);
+      });
+      expect(read, "the carry table is task 25's 26 rows copied; 22 carry an OC/RB label").toBe(22);
+    });
+
+    // Workspace rule 3 (`:60-67`): a NOT RUN row's *Observed* must be an em dash. This run has
+    // no NOT RUN row, so that half reads zero rows today and would be a guard on nothing. The
+    // tally below is the document-only half of workspace rule 2 and makes the rule bite now:
+    // *The checks*' own Summary line must count the rows in its own table. It is the tally, not
+    // `results.jsonl`, so it survives this branch.
+    it("The checks' Summary counts its own rows, and a NOT RUN row's Observed is an em dash", () => {
+      const tally = { PASS: 0, FAIL: 0, "NOT RUN": 0 };
+      for (const line of text(RESULTS).split("\n")) {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) continue;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const at = cells.findIndex((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
+        if (at < 0 || cells[at] !== "NOT RUN") continue;
+        const observed = cells[at + 1];
+        expect(observed, `a NOT RUN row's Observed must be an em dash: ${line.slice(0, 90)}`)
+          .toBe("—");
+      }
+      const { lines } = SECTION("## The checks");
+      for (const line of lines) {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) continue;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const result = cells.find((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
+        if (result !== undefined) tally[result as keyof typeof tally]++;
+      }
+      const total = tally.PASS + tally.FAIL + tally["NOT RUN"];
+      expect(total, "The checks must hold the 19 rows CHECKS() reads").toBe(19);
+      const sum = /Summary: (\d+) checks, (\d+) PASS, (\d+) FAIL, (\d+) NOT RUN/.exec(lines.join("\n"));
+      expect(sum, "The checks must carry a Summary line").not.toBeNull();
+      const [, t, p, f, n] = (sum as RegExpExecArray).map(Number);
+      expect([t, p, f, n], `Summary vs the table's own rows`)
+        .toEqual([total, tally.PASS, tally.FAIL, tally["NOT RUN"]]);
+    });
+
+    // Round 2's MX1: the HEADLINE — "in full: 10 PASS, 9 FAIL, 0 NOT RUN" → "14 PASS, 5 FAIL" —
+    // survived every guard until workspace rule 4, which compares against `results.jsonl` and so
+    // stayed in the workspace. Against *The checks*' own tally it needs nothing but the document.
+    // The lookbehind rejects a count preceded by a slash or a digit, because "10/19 PASS" must not
+    // be read as "19 PASS". Round 6's SU1 edited the one line in that `p/t` form — the
+    // What-was-tested row — and passed this suite 19/19, killed only by workspace rule 2, which
+    // does not survive this branch. So the `p/t` form is read here too, by the same tally.
+    it("every headline count written in digits agrees with The checks' own rows", () => {
+      const { lines } = SECTION("## The checks");
+      let pass = 0, fail = 0, notRun = 0;
+      for (const line of lines) {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) continue;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const r = cells.find((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
+        if (r === "PASS") pass++; else if (r === "FAIL") fail++; else if (r === "NOT RUN") notRun++;
+      }
+      const total = pass + fail + notRun;
+      const all = text(RESULTS).split("\n");
+      let seen = 0;
+      let seenOfTotal = 0;
+      all.forEach((line, i) => {
+        const at = `${RESULTS}:${i + 1}`;
+        // `p/t PASS, f FAIL, n NOT RUN` — workspace rule 2's regex (`tables-vs-run.mjs:42`), read
+        // against the table instead of `results.jsonl`, so the pass count carries its total too.
+        for (const m of line.matchAll(/(\d+)\/(\d+) PASS, (\d+) FAIL, (\d+) NOT RUN/g)) {
+          seenOfTotal++;
+          expect(
+            [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])],
+            `${at}: summary says "${m[0]}"`,
+          ).toEqual([pass, total, fail, notRun]);
+        }
+        for (const m of line.matchAll(/(?<![\d/])(\d+) PASS, (\d+) FAIL(?:, (\d+) NOT RUN)?/g)) {
+          seen++;
+          expect([Number(m[1]), Number(m[2])], `${at}: headline says "${m[0]}"`).toEqual([pass, fail]);
+          if (m[3] !== undefined) {
+            expect(Number(m[3]), `${at}: headline says "${m[0]}"`).toBe(notRun);
+          }
+        }
+      });
+      expect(seen, "the first line and the Summary both state the split").toBeGreaterThanOrEqual(2);
+      expect(seenOfTotal, "the What-was-tested row states it as p/t PASS, f FAIL, n NOT RUN")
+        .toBeGreaterThanOrEqual(1);
+    });
+
+    // Review 7's Minor 6, SV3: the first line's spelled-out check count, changed by one, passed
+    // 20/20 and both workspace scripts, because the rule above reads digits and the document states
+    // the same tally in words: five times in its first paragraph and five times after it. Each
+    // phrase is read against The checks' own rows (the Findings table, for the defect count), and
+    // each must be found exactly once, so a paraphrase that drops its number is a red, not a skip.
+    // Review 9's I-2, RS1: the list had nine, and the first paragraph's fifth, "For those five",
+    // went unread, so "six" there passed; it is the tenth. Not read: the Prerequisites' eight,
+    // Phase 1's twelve and the earlier runs' counts, which are other tallies.
+    it("every count the document spells out in words agrees with The checks' own rows", () => {
+      const verdicts = [...CHECKS().values()];
+      const reds = verdicts.filter((v) => v.result === "FAIL");
+      const carrying = (tag: string): number => reds.filter((v) => v.tag === tag).length;
+      const defects = SECTION("## Findings").lines.filter((l) => /^\|\s*F[1-9]\s*\|/.test(l)).length;
+      const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+        "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+        "eighteen", "nineteen", "twenty"];
+      const count = (w: string): number => (/^\d+$/.test(w) ? Number(w) : WORDS.indexOf(w.toLowerCase()));
+      const said: [RegExp, number[]][] = [
+        [/\bAll (\w+) checks ran\b/g, [verdicts.length]],
+        [/\bAll (\w+) ran, in file order\b/g, [verdicts.length]],
+        [/\b(\w+) reds, (\w+) product defects \(F1-F(\d+)\)/g, [reds.length, defects, defects]],
+        [/\b(\w+) of the (\w+) name a finding with a mechanism\b/g, [reds.length - carrying("F5"), reds.length]],
+        [/\bthe other (\w+) carry F5\b/g, [carrying("F5")]],
+        [/\bFor those (\w+), the finding names\b/g, [carrying("F5")]],
+        [/\b(\w+) reds stand as the result\b/g, [reds.length]],
+        [/## Findings (\w+) product defects\./g, [defects]],
+        [/\bit owns (\w+) of the (\w+) failures\b/g, [carrying("F3"), reds.length]],
+        [/\b(\w+) checks failed waiting for output\b/g, [carrying("F5")]],
+      ];
+      const doc = flat();
+      for (const [re, want] of said) {
+        const found = [...doc.matchAll(re)];
+        expect(found.length, `the document states /${re.source}/ exactly once`).toBe(1);
+        const m = found[0];
+        expect(m.slice(1).map(count), `the document says "${m[0]}"`).toEqual(want);
+      }
+    });
+
+    // Round 6's Minor 1. SU2 — item 8's "the fork was never reached." → "the fork was reached,
+    // and the store was readable there." — survived every guard in the repository AND both
+    // workspace scripts: rule 5a matches the words `proven` and `PASS(ED)`, and that sentence
+    // carries neither; the block rule fires on the check id, which the edit keeps. The *Carry
+    // disposition* row for OC 2 says "never reached" in another section, and nothing compared
+    // them. This is that cross-check. It reads only this document, so it belongs here and not in
+    // the workspace. It guards ONE instance of a fourth class beside the three
+    // `tables-vs-run.mjs:172-179` names — a reversal, in words no rule matches, of whether
+    // something was reached — and no other: review 7's SV4 reversed item 6 that way and passed.
+    // Review 7's Minor 2, MF: F2's finding reversed without the word *reached* passed too,
+    // because the floor was two; all three statements are counted now, one per section.
+    it("every statement about whether resume's fork was reached agrees with the others", () => {
+      const inSection = (heading: string): ((n: number) => boolean) => {
+        const { from, lines } = SECTION(heading);
+        return (n: number) => n >= from && n < from + lines.length;
+      };
+      const unproven = inSection("## What is still unproven");
+      const carry = inSection("## Carry disposition");
+      const findings = inSection("## Findings");
+      // "## Reproducing this" is where the guards paragraph documents this very rule, and it has
+      // to quote both forms of the sentence to do so. It is the one section excluded, by heading,
+      // so a rename fails SECTION() loudly instead of silently widening or narrowing the scan.
+      const guardsProse = inSection("## Reproducing this");
+      const said: { at: string; line: number; reached: boolean; quote: string }[] = [];
+      text(RESULTS).split("\n").forEach((raw, i) => {
+        const line = raw.replace(/[*_`]/g, ""); // "**never reached**" is "never reached"
+        if (guardsProse(i + 1)) return;
+        if (!/\bforks?\b/i.test(line) || !/\breached\b/i.test(line)) return;
+        // "never reached" and "not reached" are struck out first, so only an affirmative use
+        // leaves a `reached` behind — the same shape as rule 5a's `unproven`/`proven`.
+        const reached = /\breached\b/i.test(line.replace(/\b(?:never|not)\s+reached\b/gi, ""));
+        said.push({
+          at: `${RESULTS}:${i + 1}`, line: i + 1, reached, quote: line.trim().slice(0, 90),
+        });
+      });
+      expect(said.length, "the carry row, the unproven item and F2's finding each state it").toBe(3);
+      expect(said.some((s) => unproven(s.line)), '"What is still unproven" must state it').toBe(true);
+      expect(said.some((s) => carry(s.line)), '"Carry disposition" must state it').toBe(true);
+      expect(said.some((s) => findings(s.line)), "F2's finding must state it").toBe(true);
+      const first = said[0] as (typeof said)[number];
+      for (const s of said) {
+        expect(
+          s.reached,
+          `${s.at} says the fork WAS${s.reached ? "" : " NOT"} reached, but ${first.at} says it ` +
+            `was${first.reached ? "" : " not"}: ${JSON.stringify(s.quote)}`,
+        ).toBe(first.reached);
+      }
+    });
+
+    /** Every backticked token that is a check of *The checks*. `idsIn` wants a dot, so it cannot
+     *  see `setup`; the three rules below bind every check the table defines. */
+    const checksIn = (s: string, checks: Map<string, Verdict>): string[] =>
+      [...new Set([...s.matchAll(/`([^`]+)`/g)].map((m) => m[1]))].filter((id) => checks.has(id));
+
+    // Review 7's I-1, SV1 and SV2. RB 6's Carry disposition verdict "FAIL (`c6.load`, F5: …)" and
+    // What was tested's "`w.webview2` FAIL", each flipped to PASS, passed this suite 20/20: the
+    // block rule reads SV1's row but asserts The checks' own verdict and tag, never the row's own
+    // word, and skips SV2's row, which names no finding. Workspace rule 1 (`tables-vs-run.mjs:70-87`)
+    // killed both against `results.jsonl`; it is re-based here on *The checks*, with its Phase 1
+    // half (`:90-103`). It reads a row's LAST cell only, and only an upper-case PASS or FAIL there,
+    // which binds the checks in its own `;` clause, because one row can carry two checks with
+    // opposite verdicts; a clause that names no check binds the row's other cells, which is the
+    // Phase 1 table's shape. Read by no rule here, and named as one unguarded class in the
+    // document's guards paragraph: a verdict written in PROSE (the block rule reads The checks'
+    // word, not the paragraph's), in any other cell of a row, or in lower case. Review 9's RC1
+    // (F5's row, cell 3 of 4, `c5.resize` PASSED -> FAILED) and RV1 (RB 8's last cell, `setup`
+    // passed -> failed) survive, as named. Reading more does not converge: RC1's clause names seven
+    // checks, four PASS and three FAIL, and F5's last cell asks a hypothetical, so the binding would
+    // have to be per sentence, which is the design declined for prose.
+    it("an upper-case PASS or FAIL in the last cell of any table row outside The checks is that check's verdict there", () => {
+      const checks = CHECKS();
+      let inChecks = false;
+      let bound = 0;
+      text(RESULTS).split("\n").forEach((line, i) => {
+        if (line.startsWith("## ")) inChecks = line.trim() === "## The checks";
+        if (inChecks || !line.startsWith("|") || /^\|\s*-/.test(line)) return;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const rowIds = checksIn(cells.slice(0, -1).join(" "), checks);
+        for (const clause of (cells[cells.length - 1] ?? "").split(";")) {
+          const saysPass = /\bPASS(ED)?\b/.test(clause);
+          const saysFail = /\bFAIL(ED|S)?\b/.test(clause);
+          if (!saysPass && !saysFail) continue;
+          const named = checksIn(clause, checks);
+          for (const id of named.length > 0 ? named : rowIds) {
+            const truth = (checks.get(id) as Verdict).result;
+            bound++;
+            if (saysPass) expect(truth, `${RESULTS}:${i + 1}: says PASS beside \`${id}\``).toBe("PASS");
+            if (saysFail) expect(truth, `${RESULTS}:${i + 1}: says FAIL beside \`${id}\``).toBe("FAIL");
+          }
+        }
+      });
+      expect(bound, "24 rows outside The checks bind a verdict to a check 26 times").toBe(26);
+      const { from, lines } = SECTION("## Phase 1, re-proven");
+      let phase1 = 0;
+      lines.forEach((line, k) => {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line) || /Phase 1 row/.test(line)) return;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        phase1++;
+        expect(cells[cells.length - 1], `${RESULTS}:${from + k}: a Phase 1 row carries no verdict`)
+          .toMatch(/^(PASS|FAIL|NOT RUN)$/);
+      });
+      expect(phase1, "the Phase 1 table has phase-1-results.md:25-36's 12 rows").toBe(12);
+    });
+
+    // Review 7's MA: `d.detach`'s "— F5" → "— unattributed" passed 20/20 while the first
+    // paragraph still says every red is attributed. Workspace rule 6 (`tables-vs-run.mjs:201-223`),
+    // re-based on the table itself: *The checks* is where an attribution is authoritative, so every
+    // red there names exactly one finding and is never called unattributed, and no green names any.
+    it("every red in The checks names exactly one finding, and no green names any", () => {
+      const { from, lines } = SECTION("## The checks");
+      let rows = 0;
+      let reds = 0;
+      lines.forEach((line, k) => {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) return;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const id = /^`([^`]+)`$/.exec(cells[0] ?? "")?.[1];
+        const result = cells.find((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
+        if (id === undefined || result === undefined) return;
+        rows++;
+        const at = `${RESULTS}:${from + k}: \`${id}\``;
+        const rowTags = tags(cells[cells.length - 1] ?? "");
+        if (result === "FAIL") {
+          reds++;
+          expect(rowTags, `${at} FAILED, so its row must name exactly one finding`).toHaveLength(1);
+          expect(/unattributed/i.test(line), `${at}'s row calls its failure unattributed`).toBe(false);
+        } else if (result === "PASS") {
+          expect(rowTags, `${at} PASSED, so its row may carry no finding tag`).toEqual([]);
+        }
+      });
+      expect([rows, reds], "The checks' 19 rows, 9 of them red, each read").toEqual([19, 9]);
+    });
+
+    // Review 7's MC: F2's row + "It lands inside `d.cp-restart`, which passed anyway." names two
+    // checks, so the block rule skips the whole row, and it passed 20/20. Workspace rule 7
+    // (`tables-vs-run.mjs:225-242`), re-based: a finding may say it landed only in a check that
+    // *The checks* attributes to it. The trigger is the landing verb, not co-occurrence, because a
+    // finding row names green checks as contrast evidence (F5 names `p1.fidelity`) without one.
+    // The trigger is a verb list, so a landing in any other verb is read by no rule: review 9's
+    // MC2 (MC with "It shows up inside") passes, named as the guards paragraph's sixth class.
+    it("a finding says it landed only in a check The checks attributes to it", () => {
+      const checks = CHECKS();
+      const LANDED = /\b(?:lands?|landed|fired|fell)\s+(?:in|inside)\b|the check it broke|which it broke/i;
+      const { from, lines } = SECTION("## Findings");
+      let findings = 0;
+      let landings = 0;
+      lines.forEach((line, k) => {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) return;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const tag = /^(F[1-9])$/.exec((cells[0] ?? "").replace(/\*/g, ""))?.[1];
+        if (tag === undefined) return;
+        findings++;
+        for (const sentence of cells.join(" ").split(/(?<=[.!?])\s+/)) {
+          if (!LANDED.test(sentence)) continue;
+          for (const id of checksIn(sentence, checks)) {
+            const v = checks.get(id) as Verdict;
+            const truth = v.tag ?? (v.result === "PASS" ? "nothing: the run PASSED it" : "no finding");
+            landings++;
+            expect(v.tag, `${RESULTS}:${from + k}: ${tag} says it landed in \`${id}\`, which The checks attributes to ${truth}`)
+              .toBe(tag);
+          }
+        }
+      });
+      expect(findings, "the Findings table holds F1 to F5").toBe(5);
+      expect(landings, "F2's row says where it landed, and no other finding's row does").toBe(1);
+    });
+  });
+});

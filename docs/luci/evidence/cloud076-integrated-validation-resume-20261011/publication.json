@@ -1,0 +1,258 @@
+{
+  "preparedAt": "2026-10-11T09:59:15.460352+00:00",
+  "proposedRepositoryLocation": "docs/luci/evidence/cloud076-integrated-validation-resume-20261011",
+  "scope": "Compact provenance and narrow unchanged-seams regression capsule; no 1229-file source dump. This capsule does not supersede the failed/interrupted full run.",
+  "originalArtifactsUnchanged": true,
+  "historicalTypecheck": "Unrun/unverified in interrupted-attempt-001: no preserved invocation, logs, or result; no typecheck success claim. Separate root-owned typecheck is outside this capsule.",
+  "processRecovery": {
+    "source": "Root agent report delivered 2026-10-11 during this task, not a historical process receipt",
+    "sessionID": 45552,
+    "outcome": "Session unavailable (unknown process id); root reports no remaining runner. Does not recover original child exit status."
+  },
+  "narrowRunResult": {
+    "before": {
+      "passed": 23,
+      "failed": 1,
+      "exitCode": 1
+    },
+    "after": {
+      "passed": 24,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "unchangedTestAndConfiguration": true,
+    "onlyInputChange": "docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md",
+    "nodeVersion": "v24.19.0",
+    "workerCount": 1
+  },
+  "bindings": {
+    "interrupted-attempt-001/invocation.json": {
+      "originalPath": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/runs/attempt-001/invocation.json",
+      "originalBytes": 16142,
+      "originalSHA256": "3b066c14876ede2405d3af98c7d41fd79485216d59e44682e4357243b94a9d65",
+      "encoding": "identity"
+    },
+    "interrupted-attempt-001/vitest.invocation.json": {
+      "originalPath": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/runs/attempt-001/vitest.invocation.json",
+      "originalBytes": 592,
+      "originalSHA256": "360a6143045ed418659fdc2fd4b7c490b3dfe9bbfa980692885a1d6797761d4b",
+      "encoding": "identity"
+    },
+    "interrupted-attempt-001/source-before.json": {
+      "originalPath": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/runs/attempt-001/source-before.json",
+      "originalBytes": 306515,
+      "originalSHA256": "c49c9a0af2c6f009d4bcd06cdde2bec4da55d7a7705804d1efa33265097edbcc",
+      "encoding": "identity"
+    },
+    "interrupted-attempt-001/dependencies-before.json": {
+      "originalPath": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/runs/attempt-001/dependencies-before.json",
+      "originalBytes": 2991,
+      "originalSHA256": "8a08913851becf4c8c51e395636e9cbf8275e66f19ae7eb558cfa45e8968c57a",
+      "encoding": "identity"
+    },
+    "interrupted-attempt-001/vitest.stdout.log": {
+      "originalPath": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/runs/attempt-001/vitest.stdout.log",
+      "originalBytes": 107,
+      "originalSHA256": "924cd3843a13d1d76005b47f8fa4b948dd7575acdfb20b6a492ad72a36eb4f55",
+      "encoding": "identity"
+    },
+    "interrupted-attempt-001/vitest.stderr.log": {
+      "originalPath": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/runs/attempt-001/vitest.stderr.log",
+      "originalBytes": 200,
+      "originalSHA256": "ad9ef12f2f19d2532fbd05b9772e28e31d4b97c1b0de43e902d3b8edc87fcee5",
+      "encoding": "identity"
+    },
+    "interrupted-attempt-001/vitest.json.gz": {
+      "originalPath": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/runs/attempt-001/vitest.json",
+      "originalBytes": 1271050,
+      "originalSHA256": "9bc045b65a2c6b9afc3a9285b1be5bdee0bc31722b937ebb43cae4eea617dc0f",
+      "encoding": "gzip lossless"
+    },
+    "interrupted-attempt-001/runner.py": {
+      "originalPath": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/run.py",
+      "originalBytes": 9786,
+      "originalSHA256": "b710ef9fa1afe1f08223f1e9108266e4e5bab3689ecf0de8849b31ed66ee9d03",
+      "encoding": "identity"
+    },
+    "interrupted-attempt-001/original-README.md": {
+      "originalPath": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/README.md",
+      "originalBytes": 1866,
+      "originalSHA256": "92b7b43654d49742e0ec8584394473da751b57c0bf0a5e4d1b6db34c0e2fc1f6",
+      "encoding": "identity"
+    },
+    "provenance-review.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/provenance-review.json",
+      "originalBytes": 7091,
+      "originalSHA256": "9645b923d7837d4b6a40284361174176f29e7e3c8a79e305aaa4bb0c50b58055",
+      "encoding": "identity"
+    },
+    "summary.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/summary.json",
+      "originalBytes": 1848,
+      "originalSHA256": "f620de87eadecfda11dd5837e1a13574491a14e2eb0798ed29bd0477f3d7ade5",
+      "encoding": "identity"
+    },
+    "SX2-contract.patch": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/SX2-contract.patch",
+      "originalBytes": 511,
+      "originalSHA256": "3be5f11a866fe598b147aa14603e3af263a8b1956ee35f7bcfe1dbed9ae545bb",
+      "encoding": "identity"
+    },
+    "run-seams.py": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/run-seams.py",
+      "originalBytes": 2754,
+      "originalSHA256": "13713a1ed32f72da871e20b8aae2c4978df7388ca1c72edabb06d80c1ad11eb3",
+      "encoding": "identity"
+    },
+    "frozen-inputs.json.gz": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/frozen-inputs.json",
+      "originalBytes": 210422,
+      "originalSHA256": "0437ddadaeb4db982ee474115b6c0225448435969e4d137ef889f0f429fd8ec3",
+      "encoding": "gzip lossless"
+    },
+    "seam/original/docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/original/docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md",
+      "originalBytes": 169253,
+      "originalSHA256": "e1f61d53b94c256e0d874bcac1e5dba28a8038fe04da7f6dfce4923998527e53",
+      "encoding": "identity"
+    },
+    "seam/fixed/docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/fixed/docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md",
+      "originalBytes": 169383,
+      "originalSHA256": "b91091fc3d4896486f7290ac72250b722be3c29114897a35fb8bd07cba8ec126",
+      "encoding": "identity"
+    },
+    "seam/unchanged/desktop/src/seams.test.ts": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/src/seams.test.ts",
+      "originalBytes": 84009,
+      "originalSHA256": "b2f9fa26b08c0f3477b2b7ce126c4b67701703ab315c2a8443bb13459e8262e5",
+      "encoding": "identity"
+    },
+    "seam/unchanged/desktop/src/store/types.ts": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/src/store/types.ts",
+      "originalBytes": 11510,
+      "originalSHA256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f",
+      "encoding": "identity"
+    },
+    "seam/unchanged/desktop/vitest.config.ts": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/vitest.config.ts",
+      "originalBytes": 2265,
+      "originalSHA256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+      "encoding": "identity"
+    },
+    "seam/unchanged/desktop/package.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/package.json",
+      "originalBytes": 1965,
+      "originalSHA256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+      "encoding": "identity"
+    },
+    "seam/unchanged/desktop/package-lock.json.gz": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/package-lock.json",
+      "originalBytes": 247150,
+      "originalSHA256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "encoding": "gzip lossless"
+    },
+    "seam/unchanged/desktop/tsconfig.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/tsconfig.json",
+      "originalBytes": 589,
+      "originalSHA256": "65c82e3009d033dba271b9ce83a712bb4b934aeded98cb9d3e33472dd4d5f49c",
+      "encoding": "identity"
+    },
+    "seam/unchanged/desktop/tsconfig.node.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/tsconfig.node.json",
+      "originalBytes": 233,
+      "originalSHA256": "b2bf1a9053b26138679d790bdcd689042fb4ee157b0673724e4a2eb86a6d8ef5",
+      "encoding": "identity"
+    },
+    "seam/unchanged/docs/SEAMS.md": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/tree/docs/SEAMS.md",
+      "originalBytes": 31537,
+      "originalSHA256": "a1a5766b7f6a05f85abf07c453e690ed75018628ecbb412fd440f58f7aee594b",
+      "encoding": "identity"
+    },
+    "runs/before/invocation.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/before/invocation.json",
+      "originalBytes": 772,
+      "originalSHA256": "1dd4dad9031b2bcf01f5e1e40ab02847fdf41e4f7b353afb6645e2e1367ab678",
+      "encoding": "identity"
+    },
+    "runs/before/result.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/before/result.json",
+      "originalBytes": 3197,
+      "originalSHA256": "b012c3fe34352938041cbc589cbddfe58513c343908298d7deaa9427bffc78fe",
+      "encoding": "identity"
+    },
+    "runs/before/source-after.json.gz": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/before/source-after.json",
+      "originalBytes": 151945,
+      "originalSHA256": "1e71f16458eea6e9d9c665dc23a357f38f76aa7d012bda6bab3c4784c454e8ad",
+      "encoding": "gzip lossless"
+    },
+    "runs/before/source-before.json.gz": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/before/source-before.json",
+      "originalBytes": 151945,
+      "originalSHA256": "1e71f16458eea6e9d9c665dc23a357f38f76aa7d012bda6bab3c4784c454e8ad",
+      "encoding": "gzip lossless"
+    },
+    "runs/before/stderr.log": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/before/stderr.log",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "identity"
+    },
+    "runs/before/stdout.log": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/before/stdout.log",
+      "originalBytes": 92,
+      "originalSHA256": "03d9c13123df893a3918b5348b765e039ed3c6a567a9e2bd03c1ed2c0a23343b",
+      "encoding": "identity"
+    },
+    "runs/before/vitest.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/before/vitest.json",
+      "originalBytes": 12179,
+      "originalSHA256": "2bb1203e89603c2f5d9218c82a9f9e9572af79bf428a773e0bf86d63ca2c11d0",
+      "encoding": "identity"
+    },
+    "runs/after/invocation.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/after/invocation.json",
+      "originalBytes": 770,
+      "originalSHA256": "5c5b377b7101b645333d968b13155c49975341af3a8c452017070be50859163f",
+      "encoding": "identity"
+    },
+    "runs/after/result.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/after/result.json",
+      "originalBytes": 1914,
+      "originalSHA256": "9e6299da4a2708c5f0c16ebf066f27dc792dbb593e26d8e748a42ef21699c034",
+      "encoding": "identity"
+    },
+    "runs/after/source-after.json.gz": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/after/source-after.json",
+      "originalBytes": 151945,
+      "originalSHA256": "896ad3252c584256321face62350b6afc9a37b95d7ee933a037d33fb4caff555",
+      "encoding": "gzip lossless"
+    },
+    "runs/after/source-before.json.gz": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/after/source-before.json",
+      "originalBytes": 151945,
+      "originalSHA256": "896ad3252c584256321face62350b6afc9a37b95d7ee933a037d33fb4caff555",
+      "encoding": "gzip lossless"
+    },
+    "runs/after/stderr.log": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/after/stderr.log",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoding": "identity"
+    },
+    "runs/after/stdout.log": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/after/stdout.log",
+      "originalBytes": 91,
+      "originalSHA256": "8b7cb4395563f5adab825fccfa3a9fb52a4f683c7b2a1e36f4e8040e64ea6d01",
+      "encoding": "identity"
+    },
+    "runs/after/vitest.json": {
+      "originalPath": "/workspace/.luci-tools/seams-triage-20261011/runs/after/vitest.json",
+      "originalBytes": 11176,
+      "originalSHA256": "915b52ee90ddaaa0c4be1b417d7524f9f3795236ff667165eb690f48db19bfd5",
+      "encoding": "identity"
+    }
+  }
+}

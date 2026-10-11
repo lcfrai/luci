@@ -57,6 +57,8 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 		return failure("changed", errors.New("This session is already starting, stopping or restarting."))
 	}
 	defer sessionRestarts.release(row.ID)
+	finishPreparation := a.beginSessionPreparation(row)
+	defer finishPreparation()
 	if err := a.deps.Store.Create(row); err != nil {
 		if prepared.HasReviewedContext {
 			if cleanup := a.removeReviewedContext(row.ID); cleanup != nil {

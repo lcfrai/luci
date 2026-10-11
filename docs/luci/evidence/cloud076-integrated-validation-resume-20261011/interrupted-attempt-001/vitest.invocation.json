@@ -1,0 +1,19 @@
+{
+  "label": "vitest",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/luci/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "--maxWorkers=1",
+    "--no-file-parallelism",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/frontend-integrated-c076v2-c078/runs/attempt-001/vitest.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "timeoutSeconds": 900,
+  "startedAt": "2026-10-09T18:00:55.282533+00:00",
+  "cleanupBoundSeconds": 20,
+  "maxLogBytesPerStream": 33554432,
+  "pid": 2586237,
+  "processGroup": 2586237
+}

@@ -1,0 +1,69 @@
+{
+  "result": "passed",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/luci/desktop/node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "nodeVersion": "v24.19.0",
+  "exitCode": 0,
+  "elapsedSeconds": 18.018343707022723,
+  "timeoutSeconds": 180,
+  "headAtRun": "078d0e99f9d1553a2233dfa51b368b415964766c",
+  "source": "Actual dirty integrated repository, including root-applied C079 test and SX2 seam fixture corrections; no overlay.",
+  "inputCount": 1229,
+  "sourceStable": true,
+  "dependenciesStable": true,
+  "sourceChanges": [],
+  "selectedSourcePins": {
+    "desktop/src/components/common/ProjectDraftRecovery.test.tsx": {
+      "bytes": 35791,
+      "sha256": "5f6f4f47271f5f1aa0d7a6ccb17685d8205edb4a106b36b5ef8b1fb28f7a90dd",
+      "reasons": [
+        "desktop source/test/config support tree"
+      ]
+    },
+    "desktop/src/seams.test.ts": {
+      "bytes": 84009,
+      "sha256": "b2f9fa26b08c0f3477b2b7ce126c4b67701703ab315c2a8443bb13459e8262e5",
+      "reasons": [
+        "desktop source/test/config support tree"
+      ]
+    },
+    "desktop/src/api/attachRegistry.ts": {
+      "bytes": 42958,
+      "sha256": "0e1944e20e8630b0b541ae58c31a1a5741b840fbb6982f36eb063a16cd76fad1",
+      "reasons": [
+        "desktop source/test/config support tree"
+      ]
+    },
+    "desktop/src/store/slices/dataSlice.ts": {
+      "bytes": 15743,
+      "sha256": "83d4be75de4ec7a4de2788cac45edc54ce50d9b1b483f87c059a725200584055",
+      "reasons": [
+        "desktop source/test/config support tree"
+      ]
+    },
+    "desktop/src/components/develop/SessionPaneFooter.tsx": {
+      "bytes": 3423,
+      "sha256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74",
+      "reasons": [
+        "desktop source/test/config support tree"
+      ]
+    },
+    "desktop/src/store/types.ts": {
+      "bytes": 11510,
+      "sha256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f",
+      "reasons": [
+        "desktop source/test/config support tree"
+      ]
+    }
+  },
+  "scope": "Full desktop TypeScript compilation with --noEmit only; no Vitest rerun, installs, service, app, browser, Docker or private fixture/state mutation.",
+  "limits": [
+    "A successful typecheck is not a full test-suite pass or product readiness claim.",
+    "Original interrupted full frontend evidence remains 2938 passed / 2 failed; targeted corrections were validated separately.",
+    "The source checkpoint after this run is owned by root; this receipt binds the dirty input tree at execution time."
+  ]
+}

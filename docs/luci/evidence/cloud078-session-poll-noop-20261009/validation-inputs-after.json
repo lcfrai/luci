@@ -1,0 +1,26 @@
+{
+  "arm": "after",
+  "scope": "Prepared selected production overlay and exact shared test bodies; tests not yet run.",
+  "files": [
+    {
+      "path": "/workspace/.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/slices/dataSlice.ts",
+      "sha256": "83d4be75de4ec7a4de2788cac45edc54ce50d9b1b483f87c059a725200584055",
+      "bytes": 15743
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud078-session-poll-noop/after/desktop/src/api/poller.test.ts",
+      "sha256": "c0f923f82bcde89a900e017dcb8d56358fc30305779960c1cd94bb848b6fa182",
+      "bytes": 7155
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts",
+      "sha256": "a1d73e3f02f9bce6d9d8b1f51d7cf31fcf88c019da5ac8838ca0a173c0a0f193",
+      "bytes": 9302
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud078-session-poll-noop/vitest-after.config.mjs",
+      "sha256": "63b9a98843301e89274635b92cd5e74c13df938e9512c0bdfc58fa56e3256893",
+      "bytes": 1672
+    }
+  ]
+}

@@ -1,0 +1,371 @@
+{
+  "coverage": {
+    "originalActions": 32,
+    "expectedTrustedStages": 16,
+    "retainedTrustedStageRows": 16,
+    "outputStageRows": 16,
+    "joinStatuses": {
+      "unique": 16
+    },
+    "witnessStatuses": {
+      "ready": 16
+    },
+    "priorIndependentJoinAgreements": 16,
+    "zeroInteractionIds": 0,
+    "multipleClickInteractionGroups": 0,
+    "uniqueJoinedClickIdentities": 16,
+    "uniqueNonzeroInteractionIds": 16,
+    "browserWindows": 18,
+    "browserDocuments": 10,
+    "allEventTimingEntries": 3799,
+    "unsupportedWindowCount": 0,
+    "hiddenSnapshotCount": 0,
+    "recordedLateReadinessCallbacks": 0,
+    "readinessOverflowWindows": 0,
+    "sequenceOrOverflowIssues": []
+  },
+  "eventWindows": [
+    {
+      "windowIndex": 0,
+      "timeOrigin": 1791564272908.3,
+      "observedEvents": 0,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 0,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 1,
+      "timeOrigin": 1791564273335.1,
+      "observedEvents": 170,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 170,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 2,
+      "timeOrigin": 1791564275713.6,
+      "observedEvents": 114,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 114,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 3,
+      "timeOrigin": 1791564276915.5,
+      "observedEvents": 144,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 144,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 4,
+      "timeOrigin": 1791564278287.6,
+      "observedEvents": 136,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 136,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 5,
+      "timeOrigin": 1791564279247.8,
+      "observedEvents": 144,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 144,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 6,
+      "timeOrigin": 1791564280321.7,
+      "observedEvents": 122,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 122,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 7,
+      "timeOrigin": 1791564281858.9,
+      "observedEvents": 134,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 134,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 8,
+      "timeOrigin": 1791564283177.7,
+      "observedEvents": 134,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 134,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 9,
+      "timeOrigin": 1791564284324.6,
+      "observedEvents": 1554,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 1554,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 10,
+      "timeOrigin": 1791564284324.6,
+      "observedEvents": 1725,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 171,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 11,
+      "timeOrigin": 1791564284324.6,
+      "observedEvents": 1896,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 171,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 12,
+      "timeOrigin": 1791564284324.6,
+      "observedEvents": 2054,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 158,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 13,
+      "timeOrigin": 1791564284324.6,
+      "observedEvents": 2202,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 148,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 14,
+      "timeOrigin": 1791564284324.6,
+      "observedEvents": 2373,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 171,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 15,
+      "timeOrigin": 1791564284324.6,
+      "observedEvents": 2543,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 170,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 16,
+      "timeOrigin": 1791564284324.6,
+      "observedEvents": 2701,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 158,
+      "latencySnapshotVisibility": "visible"
+    },
+    {
+      "windowIndex": 17,
+      "timeOrigin": 1791564284324.6,
+      "observedEvents": 2701,
+      "droppedEvents": 0,
+      "overflow": false,
+      "unsupported": false,
+      "visibility": "visible",
+      "visibilityNow": "visible",
+      "retainedEvents": 0,
+      "latencySnapshotVisibility": "visible"
+    }
+  ],
+  "readinessWindows": [
+    {
+      "windowIndex": 0,
+      "timeOrigin": 1791564284324.6,
+      "round": 1,
+      "sequence": 2,
+      "overflow": false,
+      "lateCallbacks": 0,
+      "closed": false,
+      "activeGeneration": null
+    },
+    {
+      "windowIndex": 1,
+      "timeOrigin": 1791564284324.6,
+      "round": 2,
+      "sequence": 4,
+      "overflow": false,
+      "lateCallbacks": 0,
+      "closed": false,
+      "activeGeneration": null
+    },
+    {
+      "windowIndex": 2,
+      "timeOrigin": 1791564284324.6,
+      "round": 3,
+      "sequence": 6,
+      "overflow": false,
+      "lateCallbacks": 0,
+      "closed": false,
+      "activeGeneration": null
+    },
+    {
+      "windowIndex": 3,
+      "timeOrigin": 1791564284324.6,
+      "round": 4,
+      "sequence": 8,
+      "overflow": false,
+      "lateCallbacks": 0,
+      "closed": false,
+      "activeGeneration": null
+    },
+    {
+      "windowIndex": 4,
+      "timeOrigin": 1791564284324.6,
+      "round": 5,
+      "sequence": 10,
+      "overflow": false,
+      "lateCallbacks": 0,
+      "closed": false,
+      "activeGeneration": null
+    },
+    {
+      "windowIndex": 5,
+      "timeOrigin": 1791564284324.6,
+      "round": 6,
+      "sequence": 12,
+      "overflow": false,
+      "lateCallbacks": 0,
+      "closed": false,
+      "activeGeneration": null
+    },
+    {
+      "windowIndex": 6,
+      "timeOrigin": 1791564284324.6,
+      "round": 7,
+      "sequence": 14,
+      "overflow": false,
+      "lateCallbacks": 0,
+      "closed": false,
+      "activeGeneration": null
+    },
+    {
+      "windowIndex": 7,
+      "timeOrigin": 1791564284324.6,
+      "round": 8,
+      "sequence": 16,
+      "overflow": false,
+      "lateCallbacks": 0,
+      "closed": false,
+      "activeGeneration": null
+    },
+    {
+      "windowIndex": 8,
+      "timeOrigin": 1791564284324.6,
+      "round": 8,
+      "sequence": 16,
+      "overflow": false,
+      "lateCallbacks": 0,
+      "closed": false,
+      "activeGeneration": null
+    },
+    {
+      "windowIndex": 9,
+      "timeOrigin": 1791564284324.6,
+      "round": 8,
+      "sequence": 17,
+      "overflow": false,
+      "lateCallbacks": 0,
+      "closed": true,
+      "activeGeneration": null
+    }
+  ],
+  "terminalReadinessRows": [
+    {
+      "sequence": 17,
+      "at": 78561.29999995232,
+      "authorityGeneration": 1,
+      "generation": 17,
+      "round": 8,
+      "projectOrdinal": null,
+      "stage": null,
+      "status": "closed",
+      "reason": "cohort-end",
+      "clickAt": null,
+      "observedAt": null,
+      "samples": null,
+      "firstSampleAt": null,
+      "lastSampleAt": null,
+      "maxSampleGapMs": null,
+      "maxNodesVisited": null,
+      "maxControlsVisited": null,
+      "windowIndex": 9,
+      "timeOrigin": 1791564284324.6
+    }
+  ],
+  "unrepresentedStageRows": []
+}

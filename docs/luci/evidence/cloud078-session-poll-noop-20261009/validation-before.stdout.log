@@ -1,0 +1,50 @@
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ ../../.luci-tools/cloud078-session-poll-noop/after/desktop/src/store/sessionPollNoop.test.ts (17 tests | 8 failed) 136ms
+   ❯ session reconciliation publishes only actual changes (17)
+     × keeps an unchanged empty response quiet (known empty index: false) 24ms
+     × keeps an unchanged empty response quiet (known empty index: true) 9ms
+     × keeps freshly decoded identical rows and ordered indexes quiet 12ms
+     × does not publish an uncovered worktree or dictionary insertion-order-only change 8ms
+     ✓ publishes a real status and exit reason change 3ms
+     ✓ publishes a real new allocation generation change 2ms
+     ✓ publishes a real cleared allocation generation change 2ms
+     ✓ publishes a real created timestamp change 2ms
+     ✓ publishes a real updated timestamp change 2ms
+     ✓ publishes a real last output timestamp change 2ms
+     ✓ publishes a real attachment count change 1ms
+     ✓ publishes a real recorded start refusal change 2ms
+     ✓ publishes additions, covered removals and server order changes while preserving uncovered rows 2ms
+     × publishes the first authoritative empty index, then leaves repeated emptiness quiet 6ms
+     × preserves a pending Kill against stale running data without publishing it again 7ms
+     × does not resurrect a pending Forget and still accepts later fresh server visibility 7ms
+     × retains a pending row's old position when omitted, then honors removal after settlement 43ms
+ ❯ src/api/poller.test.ts (13 tests | 1 failed) 37ms
+   ❯ startPolling (11)
+     ✓ fetches once immediately and then on every interval 7ms
+     ✓ writes the fetched sessions into the store 2ms
+     ✓ covers a worktree the store knows about but the response no longer mentions 2ms
+     ✓ pauses while the document is hidden and catches up when it is shown 1ms
+     ✓ does not stack requests when one tick outlives the interval 1ms
+     ✓ records a failure and clears it on the next success 1ms
+     ✓ stops fetching after stop() 1ms
+     ✓ leaves no timer behind after stop() 1ms
+     ✓ a tick still in flight when stop() lands does not write the store 1ms
+     ✓ a tick that fails after stop() records no error 1ms
+     × an unchanged quiet tick keeps notifications and preference writes unchanged 14ms
+   ✓ coveredWorktreeIds (2)
+     ✓ unions what the response saw with what the store already indexes 2ms
+     ✓ never repeats an id 1ms
+ ✓ src/api/poller.generation.test.ts (6 tests) 32ms
+
+ Test Files  2 failed | 1 passed (3)
+      Tests  9 failed | 27 passed (36)
+   Start at  17:37:07
+   Duration  5.56s (environment 76%, setup 10%, transform 7%, tests 4%, import 2%)
+
+Environment  jsdom was created 3 times · 3.73s total, 76% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+JSON report written to /workspace/.luci-tools/cloud078-session-poll-noop/validation-before.json

@@ -1,0 +1,38 @@
+{
+  "kind": "bounded-historical-control-phase-assessment",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 6269,
+      "sha256": "a9347479f7d46c79b8327a8986616dbdfcbe12ea47edfa7b8bfa7859c3afed8d"
+    },
+    {
+      "path": "analysis.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "analysis.stdout.log",
+      "bytes": 4349,
+      "sha256": "cdde4502598d3519a4f54739008cccd4794e3f9c67ca3739320b81deae94d06a"
+    },
+    {
+      "path": "assess.py",
+      "bytes": 5432,
+      "sha256": "4919bfeb754cddc73dded412d540ae34bfb73aae4b3446ad695864fa5958ca80"
+    },
+    {
+      "path": "assessment.json",
+      "bytes": 210651,
+      "sha256": "0b3ba28e5abb5e81f8be5f504a71810859181e139a128559d12910c66e0e8882"
+    },
+    {
+      "path": "execution.json",
+      "bytes": 723,
+      "sha256": "d2c2fbb44c2e024bc962912ae1460bb46733f684fee62333829e1c68acc1496f"
+    }
+  ],
+  "memberCount": 6,
+  "memberBytes": 227424,
+  "separateFrozenEventPaintManifest": "8af4d4d32f948d280e565b209ddbec1b8f96ca66bd876e57e2b6d3981da0bd3a"
+}

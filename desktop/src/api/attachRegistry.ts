@@ -48,6 +48,7 @@ export interface TermLike {
 
 export type AttachPhase =
   | "detached" // no entry: nothing is holding this session
+  | "preparing" // an eligible attachment awaits its recorded endpoint
   | "connecting" // first handshake in flight
   | "attached" // open
   | "reconnecting" // the ladder is running after a failure or a close
@@ -114,6 +115,8 @@ interface Entry {
   connectPermitted: boolean;
   ws: WebSocket | null;
   opening: boolean;
+  /** Armed only by an eligible attach attempt, never by an unacknowledged cold-restart poll. */
+  waitingForReadiness: boolean;
   connectVersion: number;
   state: AttachState;
   pending: Uint8Array[];
@@ -182,6 +185,7 @@ export function acquireAttach(
       connectPermitted: opts.connectPermitted ?? opts.permitted ?? true,
       ws: null,
       opening: false,
+      waitingForReadiness: false,
       connectVersion: 0,
       state: DETACHED,
       pending: [],
@@ -214,6 +218,7 @@ export function acquireAttach(
   // and onto the handle; do not "fix" it by making this conditional.
   entry.readOnly = opts.readOnly;
   entry.refs += 1;
+  resumePreparedAttach(entry);
   idleEntries.delete(session.id);
   if (entry.graceTimer !== null) {
     clearTimeout(entry.graceTimer);
@@ -313,6 +318,9 @@ export function updateAttachSession(session: Session): void {
     clearRetry(entry);
     entry.connectVersion += 1;
     entry.opening = false;
+    // A cached preparation wait remains deferred across allocation replacement
+    // until a pane reacquires it. Ordinary cached attachment behavior is unchanged.
+    entry.waitingForReadiness = entry.waitingForReadiness && entry.refs === 0;
     const old = entry.ws;
     entry.ws = null;
     old?.close(1000, "session allocation changed");
@@ -325,12 +333,39 @@ export function updateAttachSession(session: Session): void {
   }
   if (generation !== null && !(entry.terminalExit && entry.executionGeneration === null)) entry.executionGeneration = generation;
   if (entry.terminalExit && !entry.overloaded) {
+    entry.waitingForReadiness = false;
     publishTerminalExit(entry);
   } else if (session.status === "exited" && !wasExited) {
+    entry.waitingForReadiness = false;
     clearRetry(entry);
     entry.ladderStartedAt = 0;
     if (!entry.ws) publishTerminalExit(entry);
+  } else if (session.attachReady === false && !entry.overloaded && entry.permitted && entry.connectPermitted &&
+      (entry.opening || entry.retryTimer !== null || (entry.ws !== null && entry.ws.readyState !== WS_OPEN))) {
+    waitForAttachReadiness(entry);
+  } else {
+    resumePreparedAttach(entry);
   }
+}
+
+// A readiness update is not a new attach grant. Only a previously eligible
+// attempt can resume, and an unmounted cached pane waits until reacquired.
+function resumePreparedAttach(entry: Entry): void {
+  if (entry.waitingForReadiness && entry.refs > 0 && entry.session.attachReady !== false) openIfLive(entry);
+}
+
+function waitForAttachReadiness(entry: Entry): void {
+  clearRetry(entry);
+  entry.connectVersion += 1;
+  entry.opening = false;
+  const socket = entry.ws;
+  entry.ws = null;
+  socket?.close(1000, "session endpoint is being prepared");
+  entry.waitingForReadiness = true;
+  entry.attempts = 0;
+  entry.ladderStartedAt = 0;
+  publish(entry, { phase: "preparing", attempts: 0, ladderStartedAt: 0,
+    reason: "Preparing the session before connecting to its terminal." });
 }
 
 /** Older servers have no allocation identity. Reconnecting remains an explicit
@@ -397,6 +432,7 @@ export function retryAttach(sessionId: SessionId): boolean {
   // always catches it first. It stops being masked the moment anything marks an entry destroyed
   // without removing it from `entries` — the same expiry condition already written at destroy().
   if (!entry || entry.destroyed || !entry.permitted || !entry.connectPermitted) return false;
+  if (entry.session.attachReady === false) return false;
   // An exited session has no sandbox to attach to; 409 is the only answer the attach route can
   // give, which is the rule `openIfLive` states.
   if (entry.session.status === "exited" || (entry.terminalExit && !canReconnectEndedAttach(sessionId))) return false;
@@ -557,6 +593,12 @@ function openIfLive(entry: Entry): void {
 
 function connect(entry: Entry): void {
   if (entry.destroyed || entry.terminalExit || entry.overloaded || !entry.permitted || !entry.connectPermitted || entry.ws || entry.opening) return;
+  if (entry.session.status === "exited" || (entry.waitingForReadiness && entry.refs === 0)) return;
+  if (entry.session.attachReady === false) {
+    waitForAttachReadiness(entry);
+    return;
+  }
+  entry.waitingForReadiness = false;
   // Stamped on `ladderStartedAt === 0`, not on `attempts === 0`: a successful handshake resets
   // attempts to 0, so keying off it would re-stamp mid-ladder and the 60 s budget would never
   // expire. `onopen` clears the stamp, which is what makes a drop after an hour attached start
@@ -592,6 +634,7 @@ function connect(entry: Entry): void {
       !entry.permitted ||
       !entry.connectPermitted ||
       version !== entry.connectVersion ||
+      entry.session.attachReady === false ||
       entry.session.status === "exited"
     ) {
       ws.close(1000, "attachment no longer needed");
@@ -758,6 +801,11 @@ function scheduleRetry(entry: Entry): void {
       ladderStartedAt: 0,
       reason: exitedReason(entry.session),
     });
+    return;
+  }
+
+  if (entry.session.attachReady === false) {
+    waitForAttachReadiness(entry);
     return;
   }
 

@@ -1,0 +1,9 @@
+{"Time":"2026-10-09T17:46:34.958080602Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/api"}
+{"Time":"2026-10-09T17:46:35.037275629Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestSessionAttachReadinessHTTPRestartWaitsForRecordedEndpoint"}
+{"Time":"2026-10-09T17:46:35.037326426Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestSessionAttachReadinessHTTPRestartWaitsForRecordedEndpoint","Output":"=== RUN   TestSessionAttachReadinessHTTPRestartWaitsForRecordedEndpoint\n"}
+{"Time":"2026-10-09T17:46:35.052788735Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestSessionAttachReadinessHTTPRestartWaitsForRecordedEndpoint","Output":"    session_attach_readiness_test.go:200: current allocation is missing attachReady\n"}
+{"Time":"2026-10-09T17:46:35.053966251Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestSessionAttachReadinessHTTPRestartWaitsForRecordedEndpoint","Output":"--- FAIL: TestSessionAttachReadinessHTTPRestartWaitsForRecordedEndpoint (0.02s)\n"}
+{"Time":"2026-10-09T17:46:35.054001474Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestSessionAttachReadinessHTTPRestartWaitsForRecordedEndpoint","Elapsed":0.02}
+{"Time":"2026-10-09T17:46:35.054451473Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"FAIL\n"}
+{"Time":"2026-10-09T17:46:35.05815625Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"FAIL\tgithub.com/lcfrai/luci/control-plane/internal/api\t0.096s\n"}
+{"Time":"2026-10-09T17:46:35.058179145Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/api","Elapsed":0.1}

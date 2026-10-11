@@ -1,0 +1,216 @@
+{
+  "scope": "Offline reanalysis of eight instrumented b94 rounds, not a new measurement or acceptance cohort.",
+  "productSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "browserVersion": "151.0.7922.173",
+  "coverage": {
+    "originalActions": 32,
+    "expectedTrustedStages": 16,
+    "retainedTrustedStageRows": 16,
+    "outputStageRows": 16,
+    "joinStatuses": {
+      "unique": 16
+    },
+    "witnessStatuses": {
+      "ready": 16
+    },
+    "priorIndependentJoinAgreements": 16,
+    "zeroInteractionIds": 0,
+    "multipleClickInteractionGroups": 0,
+    "uniqueJoinedClickIdentities": 16,
+    "uniqueNonzeroInteractionIds": 16,
+    "browserWindows": 18,
+    "browserDocuments": 10,
+    "allEventTimingEntries": 3799,
+    "unsupportedWindowCount": 0,
+    "hiddenSnapshotCount": 0,
+    "recordedLateReadinessCallbacks": 0,
+    "readinessOverflowWindows": 0,
+    "sequenceOrOverflowIssues": []
+  },
+  "browserStageGroups": {
+    "home": {
+      "rowCount": 8,
+      "eventJoined": 8,
+      "eventDuration": {
+        "observedCount": 8,
+        "minMs": 48,
+        "p50Ms": 48,
+        "p95Ms": 80,
+        "p99Ms": 80,
+        "maxMs": 80,
+        "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+      },
+      "reportedInteractionGroupMaxDuration": {
+        "observedCount": 8,
+        "minMs": 48,
+        "p50Ms": 48,
+        "p95Ms": 88,
+        "p99Ms": 88,
+        "maxMs": 88,
+        "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+      },
+      "handlerDispatch": {
+        "observedCount": 8,
+        "minMs": 15.0,
+        "p50Ms": 20.299999952316284,
+        "p95Ms": 34.0,
+        "p99Ms": 34.0,
+        "maxMs": 34.0,
+        "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+      },
+      "postDispatchReportedRemainder": {
+        "observedCount": 8,
+        "minMs": 20.799999952316284,
+        "p50Ms": 25.19999998807907,
+        "p95Ms": 47.80000001192093,
+        "p99Ms": 47.80000001192093,
+        "maxMs": 47.80000001192093,
+        "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+      },
+      "trustedClickToDOMObserved": {
+        "observedCount": 8,
+        "minMs": 16.400000035762787,
+        "p50Ms": 21.899999976158142,
+        "p95Ms": 37.10000002384186,
+        "p99Ms": 37.10000002384186,
+        "maxMs": 37.10000002384186,
+        "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+      }
+    },
+    "define": {
+      "rowCount": 8,
+      "eventJoined": 8,
+      "eventDuration": {
+        "observedCount": 8,
+        "minMs": 48,
+        "p50Ms": 56,
+        "p95Ms": 72,
+        "p99Ms": 72,
+        "maxMs": 72,
+        "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+      },
+      "reportedInteractionGroupMaxDuration": {
+        "observedCount": 8,
+        "minMs": 48,
+        "p50Ms": 56,
+        "p95Ms": 72,
+        "p99Ms": 72,
+        "maxMs": 72,
+        "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+      },
+      "handlerDispatch": {
+        "observedCount": 8,
+        "minMs": 10.899999976158142,
+        "p50Ms": 12.5,
+        "p95Ms": 23.0,
+        "p99Ms": 23.0,
+        "maxMs": 23.0,
+        "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+      },
+      "postDispatchReportedRemainder": {
+        "observedCount": 8,
+        "minMs": 28.400000035762787,
+        "p50Ms": 32.69999998807907,
+        "p95Ms": 48.69999998807907,
+        "p99Ms": 48.69999998807907,
+        "maxMs": 48.69999998807907,
+        "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+      },
+      "trustedClickToDOMObserved": {
+        "observedCount": 8,
+        "minMs": 41.60000002384186,
+        "p50Ms": 51.09999996423721,
+        "p95Ms": 66.80000001192093,
+        "p99Ms": 66.80000001192093,
+        "maxMs": 66.80000001192093,
+        "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+      }
+    }
+  },
+  "fullNodeActionGroups": {
+    "project-switch": {
+      "observedCount": 8,
+      "minMs": 235.70119200000772,
+      "p50Ms": 292.58096400000795,
+      "p95Ms": 354.5523700000049,
+      "p99Ms": 354.5523700000049,
+      "maxMs": 354.5523700000049,
+      "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+    },
+    "input": {
+      "observedCount": 16,
+      "minMs": 47.043516999998246,
+      "p50Ms": 56.97640699999465,
+      "p95Ms": 107.3842169999989,
+      "p99Ms": 107.3842169999989,
+      "maxMs": 107.3842169999989,
+      "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+    },
+    "draft-reset": {
+      "observedCount": 8,
+      "minMs": 281.6730630000093,
+      "p50Ms": 317.65179299999727,
+      "p95Ms": 418.7077520000021,
+      "p99Ms": 418.7077520000021,
+      "maxMs": 418.7077520000021,
+      "quantile": "nearest rank; missing observations excluded only from this statistic and retained as rows/counts"
+    }
+  },
+  "originalTargetsUnchanged": {
+    "projectSwitchP95Ms": 300,
+    "inputP95Ms": 100,
+    "p99StrictlyBelowMs": 1000,
+    "assessed": false,
+    "reason": "Eight instrumented diagnostic rounds are not a primary acceptance cohort; previous failures remain unchanged."
+  },
+  "originalInteractionSummary": {
+    "eight-round-layout-attribution:project-switch": {
+      "count": 8,
+      "successful": 8,
+      "failed": 0,
+      "p50Ms": 292.58096400000795,
+      "p95Ms": 354.5523700000049,
+      "p99Ms": 354.5523700000049,
+      "maxMs": 354.5523700000049,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "eight-round-layout-attribution:input": {
+      "count": 16,
+      "successful": 16,
+      "failed": 0,
+      "p50Ms": 56.97640699999465,
+      "p95Ms": 107.3842169999989,
+      "p99Ms": 107.3842169999989,
+      "maxMs": 107.3842169999989,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "eight-round-layout-attribution:draft-reset": {
+      "count": 8,
+      "successful": 8,
+      "failed": 0,
+      "p50Ms": 317.65179299999727,
+      "p95Ms": 418.7077520000021,
+      "p99Ms": 418.7077520000021,
+      "maxMs": 418.7077520000021,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    }
+  },
+  "traceCaptureComplete": true,
+  "traceDataLossOccurred": false,
+  "clockPolicy": "Only same-document browser differences and same-action Node differences; no cross-clock subtraction, normalization, overhead subtraction or additive CPU interpretation.",
+  "limitations": [
+    "EventTiming records have no target/isTrusted/action identifier; trust and target identity come from the original capture listener, joined uniquely within its same-document processing interval.",
+    "Duration threshold 16 ms, browser quantization and unreported entries prevent treating missing events as zero or a pass.",
+    "Click-event duration is separate from the maximum duration of reported pointerdown/up/click entries with the same document and interactionId; that group maximum is not page INP.",
+    "Home projectOrdinal denotes the next scheduled destination, not the project being exited.",
+    "Reported event duration concerns a next paint opportunity; it does not identify target-context pixels, compositor presentation or physical display.",
+    "DOM timestamps record when the observer sampled a matching predicate, not first possible readiness or a paint.",
+    "Visibility is sampled at observer initialization/drain only; intervening visibility changes are unavailable.",
+    "The post-dispatch remainder is derived from quantized reported duration, not separately measured paint cost or application work.",
+    "Trace and observer overhead are uncalibrated. Full Node action timings remain unchanged and cannot be corrected by subtraction.",
+    "Current source and CLOUD-078 are not the measured b94 product; no product-cause or before/after improvement is inferred."
+  ]
+}

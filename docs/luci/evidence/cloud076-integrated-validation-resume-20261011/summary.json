@@ -1,0 +1,40 @@
+{
+  "createdAt": "2026-10-11T09:57:52.870358+00:00",
+  "failure": "desktop/src/seams.test.ts SX.2 types.ts equality to UI contract \u00a72",
+  "cause": "C076 adds Session.attachReady?: boolean and its semantics comment to types.ts but not the contract copy. This violates the explicitly retained seam; the assertion is correct.",
+  "fix": "Add the same two lines only to docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md. No assertion, source, manifest or seam-row change.",
+  "patch": {
+    "path": "SX2-contract.patch",
+    "sha256": "3be5f11a866fe598b147aa14603e3af263a8b1956ee35f7bcfe1dbed9ae545bb"
+  },
+  "supportingContracts": [
+    "docs/SEAMS.md:75\u201376",
+    "docs/SEAMS.md:96",
+    "docs/luci/API.md:20",
+    "desktop/src/store/types.ts:173\u2013177"
+  ],
+  "validation": {
+    "before": "runs/before/result.json",
+    "after": "runs/after/result.json",
+    "beforeResult": {
+      "passed": 23,
+      "failed": 1,
+      "exitCode": 1
+    },
+    "afterResult": {
+      "passed": 24,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "nodeVersion": "v24.19.0",
+    "workerCount": 1,
+    "inputs": "1229 files frozen externally from root matching historical source-before.json; both runs input-stable; sole between-run difference is proposed contract amendment",
+    "unchangedTests": true,
+    "unchangedVitestConfiguration": true,
+    "repositoryEdited": false,
+    "typecheckRun": false,
+    "fullSuiteRun": false
+  },
+  "historicalProvenance": "provenance-review.json",
+  "historicalLimit": "Reporter has all 168 configured test files and 2940 terminal assertions (2938 passed, 2 failed). Missing wrapper and Vitest results, typecheck invocation/result and after-snapshots mean exit, whole-run stability and typecheck completion remain unobserved. Current byte parity does not retroactively prove historical stability."
+}

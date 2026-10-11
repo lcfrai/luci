@@ -1,0 +1,20 @@
+{
+  "reviewer": "/root/check_backend/c077_source_review",
+  "relayedBy": "/root/check_backend",
+  "mode": "Independent read-only source review; no tests, runtime, imports or edits by reviewer",
+  "reviewedSources": {
+    "fixed/launch.mjs": "0ebd521c6160a19848e6e549b890478af1ed83d7e2230399862879c2d000a66f",
+    "fixed/scenario.mjs": "31981be982085541d1f79c1af3c52a6e480b939efc9d4020abb577905e98b2a6"
+  },
+  "result": "No concrete blocker",
+  "coverage": [
+    "34 attempts per generation and68 socket limits",
+    "70 allowed browser mutations including one Restart",
+    "1088 private rows at13312 encoded bytes each;14483456 total bound",
+    "Exact admitted Restart arms passive observer before forwarding",
+    "Exactly two successful streams distinguished from refused handshakes",
+    "Post-typed-Exit attempts remain failures",
+    "Original numeric deadlines unchanged"
+  ],
+  "validationSeparation": "This review does not assert the controlled test outcome or any installed acceptance pass."
+}

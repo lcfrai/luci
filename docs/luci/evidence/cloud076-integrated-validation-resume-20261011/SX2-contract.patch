@@ -1,0 +1,11 @@
+--- a/docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md
++++ b/docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md
+@@ -566,6 +566,8 @@
+ export interface Session {
+   /** Opaque current allocation fingerprint; absent on older/cleaned records. Never authorization. */
+   executionGeneration?: string;
++  /** Recorded endpoint readiness only; omission keeps older-server attach behavior. Never authority. */
++  attachReady?: boolean;
+   id: SessionId;
+   title: string;
+   machineId: MachineId;

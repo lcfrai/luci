@@ -1,0 +1,147 @@
+{
+  "createdAt": "2026-10-09T17:39:37.949361+00:00",
+  "members": [
+    {
+      "path": "CLOUD-078.patch",
+      "bytes": 18818,
+      "sha256": "7b172bb77fbbeabb7e29fd111c14c5fbd8f9c25ed769dcd7b036a89e2403765d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4926,
+      "sha256": "9be725aee1537e7ecc4abb455a54316d15b59a63daff060aab9382f3a77e814a"
+    },
+    {
+      "path": "after/desktop/src/api/poller.test.ts",
+      "bytes": 7155,
+      "sha256": "c0f923f82bcde89a900e017dcb8d56358fc30305779960c1cd94bb848b6fa182"
+    },
+    {
+      "path": "after/desktop/src/store/sessionPollNoop.test.ts",
+      "bytes": 9302,
+      "sha256": "a1d73e3f02f9bce6d9d8b1f51d7cf31fcf88c019da5ac8838ca0a173c0a0f193"
+    },
+    {
+      "path": "after/desktop/src/store/slices/dataSlice.ts",
+      "bytes": 15743,
+      "sha256": "83d4be75de4ec7a4de2788cac45edc54ce50d9b1b483f87c059a725200584055"
+    },
+    {
+      "path": "before/desktop/src/api/poller.test.ts",
+      "bytes": 6678,
+      "sha256": "77b5e0793109c94a7702567614f7de12e5c1dda4efa5b6ce404a4473d97f4f65"
+    },
+    {
+      "path": "before/desktop/src/store/slices/dataSlice.ts",
+      "bytes": 15179,
+      "sha256": "099d299e9a610fdce275ae0411398d6d2b42f74b3b722692c0333ec5f5a1a711"
+    },
+    {
+      "path": "loaded-source-after.jsonl",
+      "bytes": 484,
+      "sha256": "867fa43d3d7f3e84514a7f0f3e39d0cdbb713b4d9a06bdf3fcd28c7bb3523a55"
+    },
+    {
+      "path": "loaded-source-before.jsonl",
+      "bytes": 485,
+      "sha256": "49558336d818c74a2066488a1db4ac286158c822ff8b469faa006494e35802b8"
+    },
+    {
+      "path": "old-quiet-tick-expectation.txt",
+      "bytes": 517,
+      "sha256": "bfe2011d685385c201930eeb7618cd98867ac3e4599185bc9418503996e465ba"
+    },
+    {
+      "path": "run-validation.py",
+      "bytes": 3638,
+      "sha256": "a8942937d2e7ea711ce15f33720f770ab69d7b030213026876c2e38f8feaacb3"
+    },
+    {
+      "path": "source-binding.json",
+      "bytes": 2915,
+      "sha256": "cfccef8a99f267fec1c2dbea0bae2362625eb8b8131d3dc99fb003f174fd528f"
+    },
+    {
+      "path": "validation-after-invocation.json",
+      "bytes": 3269,
+      "sha256": "d3f26e231c3e99968f2271619d94ddbdbcda0a89821627c9fcd20f0363d46704"
+    },
+    {
+      "path": "validation-after-receipt.json",
+      "bytes": 5809,
+      "sha256": "948a2dd73f96edcb4d90e313435277d075e55270419b8a370ae21015d952884b"
+    },
+    {
+      "path": "validation-after.json",
+      "bytes": 13751,
+      "sha256": "c8056354fbcb6e83acb6990f673e752ddc899760d52523b04669334c0a901b1d"
+    },
+    {
+      "path": "validation-after.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "validation-after.stdout.log",
+      "bytes": 806,
+      "sha256": "909fddf482f1eede2f522278e58192a78c0459bc3e6d731d237ce5964310df10"
+    },
+    {
+      "path": "validation-before-invocation.json",
+      "bytes": 3273,
+      "sha256": "89504f21c3315e861f77663ac8d34497274cd8df4bdbf0ce74b22136c2312776"
+    },
+    {
+      "path": "validation-before-receipt.json",
+      "bytes": 5821,
+      "sha256": "425de5cc4408e8d08c54f73a0e7b61961658f8aac47f8527c0dd04eb31870877"
+    },
+    {
+      "path": "validation-before.json",
+      "bytes": 23722,
+      "sha256": "1ecbd7ee4a28ef4f80e9f3b6fd700399e0aef9be63a3fa09ce06f3539d539a17"
+    },
+    {
+      "path": "validation-before.stderr.log",
+      "bytes": 8633,
+      "sha256": "e3b9d28c05b9102fe4c85d2c77349150cebf24b0b0ebd360f76531142f90a910"
+    },
+    {
+      "path": "validation-before.stdout.log",
+      "bytes": 3123,
+      "sha256": "2b688925dbfcc87ca5f1849d21115e0cb29d54500e8681acb3677c69a6c19d65"
+    },
+    {
+      "path": "validation-inputs-after.json",
+      "bytes": 1028,
+      "sha256": "cf5d59b132bc32a7ff0febbc5a70971a52d27693b7e0b9152192389c3488ddf7"
+    },
+    {
+      "path": "validation-inputs-before.json",
+      "bytes": 1031,
+      "sha256": "de532c76b7b3e86b4259e96a446feb241b7f3ba53bf363b6744805ee7699e7c6"
+    },
+    {
+      "path": "validation-summary.json",
+      "bytes": 2291,
+      "sha256": "4b7b27a9faca4ba7ccef33a69a567d3d21f0c69b1786410648c04017e863719a"
+    },
+    {
+      "path": "vitest-after.config.mjs",
+      "bytes": 1672,
+      "sha256": "63b9a98843301e89274635b92cd5e74c13df938e9512c0bdfc58fa56e3256893"
+    },
+    {
+      "path": "vitest-before.config.mjs",
+      "bytes": 1673,
+      "sha256": "5cb080748d104b73feebfcfce3f3df8190f235f3bd1bdbe7c18ade367c906648"
+    }
+  ],
+  "memberCount": 27,
+  "totalBytes": 161742,
+  "excludedGeneratedPaths": [
+    "../generated-cache-before",
+    "../generated-cache-after"
+  ],
+  "scope": "External controlled C078 candidate; no C032 performance claim."
+}

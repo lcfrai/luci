@@ -1,0 +1,151 @@
+{
+  "reviewVersion": 1,
+  "reviewScope": "Read-only independent historical artifact, selected source and dependency identity review. No tests, compiler, Docker or application runtime executed; repository and original artifacts unchanged.",
+  "snapshotStartedAt": "2026-10-11T09:56:39.521719+00:00",
+  "snapshotCompletedAt": "2026-10-11T09:56:40.580340+00:00",
+  "repository": "/workspace/luci",
+  "historicalRun": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/runs/attempt-001",
+  "currentHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+  "historicalBaseHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+  "originalArtifactHashes": {
+    "dependencies-before.json": {
+      "bytes": 2991,
+      "sha256": "8a08913851becf4c8c51e395636e9cbf8275e66f19ae7eb558cfa45e8968c57a"
+    },
+    "invocation.json": {
+      "bytes": 16142,
+      "sha256": "3b066c14876ede2405d3af98c7d41fd79485216d59e44682e4357243b94a9d65"
+    },
+    "source-before.json": {
+      "bytes": 306515,
+      "sha256": "c49c9a0af2c6f009d4bcd06cdde2bec4da55d7a7705804d1efa33265097edbcc"
+    },
+    "vitest.invocation.json": {
+      "bytes": 592,
+      "sha256": "360a6143045ed418659fdc2fd4b7c490b3dfe9bbfa980692885a1d6797761d4b"
+    },
+    "vitest.json": {
+      "bytes": 1271050,
+      "sha256": "9bc045b65a2c6b9afc3a9285b1be5bdee0bc31722b937ebb43cae4eea617dc0f"
+    },
+    "vitest.stderr.log": {
+      "bytes": 200,
+      "sha256": "ad9ef12f2f19d2532fbd05b9772e28e31d4b97c1b0de43e902d3b8edc87fcee5"
+    },
+    "vitest.stdout.log": {
+      "bytes": 107,
+      "sha256": "924cd3843a13d1d76005b47f8fa4b948dd7575acdfb20b6a492ad72a36eb4f55"
+    }
+  },
+  "reporter": {
+    "counts": {
+      "numTotalTestSuites": 283,
+      "numPassedTestSuites": 280,
+      "numFailedTestSuites": 3,
+      "numPendingTestSuites": 0,
+      "numTotalTests": 2940,
+      "numPassedTests": 2938,
+      "numFailedTests": 2,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "startTime": 1791568856086,
+      "success": false
+    },
+    "resultFileCount": 168,
+    "fileStatuses": {
+      "passed": 166,
+      "failed": 2
+    },
+    "assertionCount": 2940,
+    "assertionStatuses": {
+      "passed": 2938,
+      "failed": 2
+    },
+    "expectedSourceTestFileCount": 168,
+    "missingExpectedSourceTestFiles": [],
+    "unexpectedReportedFiles": [],
+    "earliestFileStartTime": 1791568860134,
+    "latestFileEndTime": 1791569495823.0872,
+    "failedAssertions": [
+      {
+        "file": "desktop/src/seams.test.ts",
+        "fullName": "the named seams \u2014 docs/SEAMS.md SX.2: types.ts is byte-identical to contract \u00a72, line endings aside",
+        "status": "failed",
+        "failureMessages": [
+          "AssertionError: expected '// desktop/src/store/types.ts\\n//\\n//\u2026' to be '// desktop/src/store/types.ts\\n//\\n//\u2026' // Object.is equality\n    at /workspace/luci/desktop/src/seams.test.ts:907:68\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+        ]
+      },
+      {
+        "file": "desktop/src/components/common/ProjectDraftRecovery.test.tsx",
+        "fullName": "recovers a normalized sketch without counting hydration as an edit or automatically saving it",
+        "status": "failed",
+        "failureMessages": [
+          "AssertionError: expected '[{\"id\":\"shape\",\"x\":1}]' to contain '\"x\":99'\n    at /workspace/luci/desktop/src/components/common/ProjectDraftRecovery.test.tsx:323:64\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20"
+        ]
+      }
+    ]
+  },
+  "wrapperEvidence": {
+    "presentFiles": [
+      "dependencies-before.json",
+      "invocation.json",
+      "source-before.json",
+      "vitest.invocation.json",
+      "vitest.json",
+      "vitest.stderr.log",
+      "vitest.stdout.log"
+    ],
+    "missingExpectedFiles": [
+      "vitest.result.json",
+      "incomplete.json",
+      "typecheck.invocation.json",
+      "typecheck.stdout.log",
+      "typecheck.stderr.log",
+      "typecheck.result.json",
+      "source-after.json",
+      "dependencies-after.json",
+      "source-after-failure.json",
+      "result.json"
+    ],
+    "vitestExitCodeObserved": false,
+    "typecheckStartObserved": false,
+    "typecheckCompletionObserved": false,
+    "historicalAfterSnapshotObserved": false,
+    "fullWrapperCompletionObserved": false
+  },
+  "sourceComparison": {
+    "boundFileCount": 1229,
+    "matchingCount": 1229,
+    "changed": {},
+    "comparisonScope": "All desktop src/e2e/scripts and root source/config/lock files, actual seams external Go/docs/task-plan/Dockerfile globs, literal raw imports. Includes dirty and untracked source. Excludes private artifacts and generated node_modules caches. Dependency identity is separately bounded, not a full transitive dependency byte census."
+  },
+  "selectedDependencyComparison": {
+    "selectedFileCount": 14,
+    "matchingCount": 14,
+    "changed": {},
+    "additionalBindings": {
+      "node": {
+        "bytes": 125989464,
+        "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12",
+        "matches": true
+      },
+      "activation": {
+        "bytes": 1506,
+        "sha256": "59ab2aaf64176aed399e7d7aa790bc2c54e9710ceb624ac60668b4838af2d163",
+        "matches": true
+      },
+      "runner": {
+        "bytes": 9786,
+        "sha256": "b710ef9fa1afe1f08223f1e9108266e4e5bab3689ecf0de8849b31ed66ee9d03",
+        "matches": true
+      }
+    },
+    "comparisonScope": "Actual executable, installed lock and selected runner/compiler/package entries; no dependency installation or claim that every transitive installed file was independently hashed."
+  },
+  "conclusions": [
+    "The complete JSON reporter contains 2940 terminal assertion results across all 168 source test files: 2938 passed, 2 failed; no skipped/pending/todo assertions. Aggregate suite counts are 283 describe/test suite entries, not 283 files.",
+    "The reporter is evidence that reported assertions completed; it does not recover the unobserved Vitest process exit or missing wrapper result.",
+    "No preserved typecheck invocation, log or result exists; this interrupted attempt provides no typecheck execution or success evidence.",
+    "Present source and selected dependency identity can support retrospective relevance only; missing historical after-snapshots mean source/dependency stability throughout the historical execution is unproven."
+  ]
+}

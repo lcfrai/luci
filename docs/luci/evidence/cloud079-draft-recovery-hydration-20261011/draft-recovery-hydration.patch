@@ -1,0 +1,52 @@
+--- a/desktop/src/components/common/ProjectDraftRecovery.test.tsx
++++ b/desktop/src/components/common/ProjectDraftRecovery.test.tsx
+@@ -16,12 +16,16 @@
+ const identity = vi.hoisted(() => ({ actor: "alice", workspace: "local", remoteUser: "alice", root: "/projects/alice" }));
+ vi.mock("../auth/AuthProvider", () => ({ useAuth: () => identity.actor ? { profile: { user: { id: identity.actor } } } : null }));
+ vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ workspace: { mode: identity.workspace === "local" ? "local" : "cloud", connectionId: identity.workspace, host: identity.workspace }, status: { config: { projectsDir: identity.root }, access: { user: { username: identity.remoteUser } } } }) }));
+-const canvas = vi.hoisted(() => ({ change: null as ((elements: unknown[], state: object, files: object) => void) | null }));
++const canvas = vi.hoisted(() => ({ change: null as ((elements: unknown[], state: object, files: object) => void) | null, hydrated: false }));
+ vi.mock("@excalidraw/excalidraw", async () => {
+   const { useEffect } = await import("react");
+   return { Excalidraw: ({ initialData, onChange }: { initialData: DesignScene; onChange: typeof canvas.change }) => {
+     canvas.change = onChange;
+-    useEffect(() => { onChange?.(initialData.elements, initialData.appState, initialData.files); }, []);
++    useEffect(() => {
++      onChange?.(initialData.elements, initialData.appState, initialData.files);
++      canvas.hydrated = true;
++      return () => { canvas.hydrated = false; };
++    }, []);
+     return <div aria-label="Sketch document">{JSON.stringify(initialData.elements)}</div>;
+   }, serializeAsJSON: (elements: unknown[], appState: object, files: object) => JSON.stringify({ elements, appState, files }),
+   MainMenu: Object.assign(() => null, { DefaultItems: { Export: () => null, SaveAsImage: () => null, ClearCanvas: () => null, ChangeCanvasBackground: () => null } }) };
+@@ -36,6 +40,7 @@
+ 
+ beforeEach(() => {
+   vi.restoreAllMocks(); selectTeamScope(""); localStorage.clear(); resetCockpit();
++  canvas.change = null; canvas.hydrated = false;
+   Object.assign(identity, { actor: "alice", workspace: "local", remoteUser: "alice", root: "/projects/alice" });
+   vi.spyOn(definitionApi, "get").mockImplementation(async id => ({ ...specification(), projectId: id }));
+   vi.spyOn(definitionApi, "listAssistance").mockResolvedValue({ jobs: [] });
+@@ -315,9 +320,20 @@
+ it("recovers a normalized sketch without counting hydration as an edit or automatically saving it", async () => {
+   const save = vi.spyOn(productApi, "saveDesign");
+   const view = render(<DesignEditor projectId="p-1" />);
+-  await screen.findByLabelText("Sketch document"); expect(storedDrafts()).toHaveLength(0);
+-  act(() => canvas.change?.([{ id: "shape", x: 99 }], {}, {})); view.unmount();
++  await screen.findByLabelText("Sketch document");
++  // The placeholder can mount before the adapter delivers its initial scene.
++  // User edits begin only after that scene establishes the clean baseline.
++  await waitFor(() => expect(canvas.hydrated).toBe(true));
++  expect(storedDrafts()).toHaveLength(0);
++  expect((screen.getByRole("button", { name: "Save design" }) as HTMLButtonElement).disabled).toBe(true);
++  const editedScene: DesignScene = { elements: [{ id: "shape", x: 99 }], appState: {}, files: {} };
++  act(() => canvas.change?.(editedScene.elements, editedScene.appState, editedScene.files));
++  expect(storedDrafts()).toHaveLength(1);
++  expect(JSON.parse(localStorage.getItem(storedDrafts()[0])!).value).toEqual(editedScene);
++  view.unmount();
++  expect(canvas.hydrated).toBe(false);
+   render(<DesignEditor projectId="p-1" />); await screen.findByLabelText("Sketch document");
++  await waitFor(() => expect(canvas.hydrated).toBe(true));
+   expect(screen.getByLabelText("Sketch document").textContent).toContain('"x":1');
+   await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+   expect(screen.getByLabelText("Sketch document").textContent).toContain('"x":99');

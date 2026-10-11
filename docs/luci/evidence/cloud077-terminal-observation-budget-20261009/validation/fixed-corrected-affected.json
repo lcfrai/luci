@@ -1,0 +1,31 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-reporter=tap",
+    "--test-name-pattern=C077 fixed: Restart boundary rejects ",
+    "fixed-guards.test.mjs"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud077-terminal-observation-budget/tests",
+  "environmentOverrideNames": [
+    "C077_VARIANT"
+  ],
+  "startedAt": "2026-10-09T17:54:49.022744+00:00",
+  "endedAt": "2026-10-09T17:54:49.494017+00:00",
+  "exitCode": 0,
+  "counts": {
+    "tests": 4,
+    "suites": 0,
+    "pass": 4,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "tapSHA256": "f462489acd07c7bdb372323fd6b10f5d1a6691dcfb59103d8fba2bff310392ab",
+  "tapBytes": 889,
+  "all14InputsUnchangedDuringCorrectionRun": true,
+  "helperSourcesAndSameBodyRegressionUnchangedAcrossAllRuns": true,
+  "onlyCorrection": "Four rejection-message assertions now match the exact intended guard error; no helper behavior changes"
+}

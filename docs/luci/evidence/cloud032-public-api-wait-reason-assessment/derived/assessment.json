@@ -1,0 +1,5539 @@
+{
+  "scope": "Existing failed public API logger, lifecycle coverage only; no duration or retry-absence attribution.",
+  "inputBindings": [
+    {
+      "path": "analysis/public-api-spans.original-projection.json",
+      "bytes": 99547,
+      "sha256": "83e88086cc7745c67014c95092970bf57dd9c224f1378ed5320c7b655fbbda5b"
+    },
+    {
+      "path": "result.projection.json.gz",
+      "bytes": 56618,
+      "sha256": "429bee86031eb1321f54e196e14f210cf79a15a572102bb6336d92ac72a89846"
+    },
+    {
+      "path": "sources/accepted/public-api-spans.mjs.gz",
+      "bytes": 2004,
+      "sha256": "7b8647f92afcf7feffdbc05004af3fb6eff33904dd531dd00168080c233e60bb"
+    }
+  ],
+  "originalResult": {
+    "bytes": 7126776,
+    "sha256": "c7b6f65b4e219a1f084e98774158ff57a2f1327e088e1b7371860fe076c358a5"
+  },
+  "acceptedLoggerDecodedSHA256": "994468a342b44b4bb41294242ccfcad1281331d5f59229e1cd0f05bc9e5a09f9",
+  "originalFailedCapture": {
+    "complete": false,
+    "overflow": true,
+    "limits": {
+      "maxEntries": 8000,
+      "maxBytes": 2097152,
+      "maxActions": 400
+    },
+    "entries": 137,
+    "entryBytes": 12293,
+    "actions": 400,
+    "problemCodes": [
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message",
+      "unrecognized-api-message"
+    ],
+    "problemCounts": {
+      "unrecognized-api-message": 100
+    }
+  },
+  "coverage": {
+    "completeActionOrdinals": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "partialActions": [
+      {
+        "ordinal": 16,
+        "kind": "draft-reset",
+        "startedNodeMs": 86657.099954,
+        "firstEntry": 134,
+        "entryCount": 3,
+        "complete": false
+      }
+    ],
+    "zeroEntryActions": 384,
+    "switches": 100,
+    "completeSwitches": 4,
+    "switchesOver300": 12,
+    "slowSwitchesWithAnyLoggerEntries": 0,
+    "slowSwitchOrdinals": [
+      21,
+      37,
+      77,
+      105,
+      133,
+      177,
+      241,
+      301,
+      329,
+      345,
+      373,
+      389
+    ]
+  },
+  "all100SwitchRows": [
+    {
+      "originalIndex": 0,
+      "ordinal": 1,
+      "success": true,
+      "elapsedMs": 271.4171970000025,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.27459400000225287
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 78.10961800000223
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 90.42236100000446
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 167.44421300000977
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 167.44928100000834
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 167.45069300000614
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 251.3427939999965
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 251.34630900000047
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 271.4041670000006
+        }
+      ],
+      "loggerActionComplete": true,
+      "loggerEntryCount": 14,
+      "originalPublicAPIEntries": [
+        {
+          "ordinal": 1,
+          "api": "locator.click",
+          "state": "started",
+          "nodeOffsetMs": 1.1553419999981998
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.click",
+          "state": "succeeded",
+          "nodeOffsetMs": 78.05522599999676
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.waitFor",
+          "state": "started",
+          "nodeOffsetMs": 78.33747199999925
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.waitFor",
+          "state": "succeeded",
+          "nodeOffsetMs": 90.33547000000544
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.click",
+          "state": "started",
+          "nodeOffsetMs": 90.76631900000211
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.click",
+          "state": "succeeded",
+          "nodeOffsetMs": 167.3581140000024
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.waitFor",
+          "state": "started",
+          "nodeOffsetMs": 167.78956400000607
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.waitFor",
+          "state": "succeeded",
+          "nodeOffsetMs": 197.62638400000287
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.evaluate",
+          "state": "started",
+          "nodeOffsetMs": 199.16257000000041
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.evaluate",
+          "state": "succeeded",
+          "nodeOffsetMs": 248.49486000000616
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.inputValue",
+          "state": "started",
+          "nodeOffsetMs": 248.77449199999683
+        },
+        {
+          "ordinal": 1,
+          "api": "locator.inputValue",
+          "state": "succeeded",
+          "nodeOffsetMs": 251.3094229999988
+        },
+        {
+          "ordinal": 1,
+          "api": "page.evaluate",
+          "state": "started",
+          "nodeOffsetMs": 251.5894249999983
+        },
+        {
+          "ordinal": 1,
+          "api": "page.evaluate",
+          "state": "succeeded",
+          "nodeOffsetMs": 271.2368950000091
+        }
+      ],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 4,
+      "ordinal": 5,
+      "success": true,
+      "elapsedMs": 235.13043200000538,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.03038599999854341
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.42932200001087
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 75.1978100000124
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 157.77534000000742
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 157.77942600000824
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 157.77982700000575
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 205.4391680000117
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 205.43999900000927
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 235.11896500000148
+        }
+      ],
+      "loggerActionComplete": true,
+      "loggerEntryCount": 14,
+      "originalPublicAPIEntries": [
+        {
+          "ordinal": 5,
+          "api": "locator.click",
+          "state": "started",
+          "nodeOffsetMs": 0.5561989999987418
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.click",
+          "state": "succeeded",
+          "nodeOffsetMs": 62.37463900000148
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.waitFor",
+          "state": "started",
+          "nodeOffsetMs": 62.824958000011975
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.waitFor",
+          "state": "succeeded",
+          "nodeOffsetMs": 75.1210340000107
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.click",
+          "state": "started",
+          "nodeOffsetMs": 75.71235500001058
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.click",
+          "state": "succeeded",
+          "nodeOffsetMs": 157.73990700001013
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.waitFor",
+          "state": "started",
+          "nodeOffsetMs": 158.02123100000608
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.waitFor",
+          "state": "succeeded",
+          "nodeOffsetMs": 185.25997800000187
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.evaluate",
+          "state": "started",
+          "nodeOffsetMs": 185.5278820000094
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.evaluate",
+          "state": "succeeded",
+          "nodeOffsetMs": 201.07540900001186
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.inputValue",
+          "state": "started",
+          "nodeOffsetMs": 201.28545600001235
+        },
+        {
+          "ordinal": 5,
+          "api": "locator.inputValue",
+          "state": "succeeded",
+          "nodeOffsetMs": 205.3206690000079
+        },
+        {
+          "ordinal": 5,
+          "api": "page.evaluate",
+          "state": "started",
+          "nodeOffsetMs": 205.66907499999797
+        },
+        {
+          "ordinal": 5,
+          "api": "page.evaluate",
+          "state": "succeeded",
+          "nodeOffsetMs": 235.0576629999996
+        }
+      ],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 8,
+      "ordinal": 9,
+      "success": true,
+      "elapsedMs": 238.50229200000467,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.03064700000686571
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 82.12274200000684
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 96.68753599999764
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 159.15851599999587
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 159.16280299999926
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 159.16319300000032
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 212.64604900000268
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 212.64665999999852
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 238.46237200000905
+        }
+      ],
+      "loggerActionComplete": true,
+      "loggerEntryCount": 14,
+      "originalPublicAPIEntries": [
+        {
+          "ordinal": 9,
+          "api": "locator.click",
+          "state": "started",
+          "nodeOffsetMs": 0.43086000000766944
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.click",
+          "state": "succeeded",
+          "nodeOffsetMs": 82.09704300000158
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.waitFor",
+          "state": "started",
+          "nodeOffsetMs": 82.31067500000063
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.waitFor",
+          "state": "succeeded",
+          "nodeOffsetMs": 96.64837700000498
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.click",
+          "state": "started",
+          "nodeOffsetMs": 96.98015699999814
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.click",
+          "state": "succeeded",
+          "nodeOffsetMs": 159.1240539999999
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.waitFor",
+          "state": "started",
+          "nodeOffsetMs": 159.4628950000042
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.waitFor",
+          "state": "succeeded",
+          "nodeOffsetMs": 197.6231540000008
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.evaluate",
+          "state": "started",
+          "nodeOffsetMs": 197.83804800000507
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.evaluate",
+          "state": "succeeded",
+          "nodeOffsetMs": 210.000589999996
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.inputValue",
+          "state": "started",
+          "nodeOffsetMs": 210.29909000000043
+        },
+        {
+          "ordinal": 9,
+          "api": "locator.inputValue",
+          "state": "succeeded",
+          "nodeOffsetMs": 212.6224840000068
+        },
+        {
+          "ordinal": 9,
+          "api": "page.evaluate",
+          "state": "started",
+          "nodeOffsetMs": 212.78706200000306
+        },
+        {
+          "ordinal": 9,
+          "api": "page.evaluate",
+          "state": "succeeded",
+          "nodeOffsetMs": 238.3988459999964
+        }
+      ],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 12,
+      "ordinal": 13,
+      "success": true,
+      "elapsedMs": 217.7244570000039,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01337000000057742
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 87.64923600001202
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 94.99752699999954
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 153.24154800000542
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 153.2453940000123
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 153.245734000011
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 195.201642
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 195.202203000008
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 217.71818799999892
+        }
+      ],
+      "loggerActionComplete": true,
+      "loggerEntryCount": 14,
+      "originalPublicAPIEntries": [
+        {
+          "ordinal": 13,
+          "api": "locator.click",
+          "state": "started",
+          "nodeOffsetMs": 0.26614100000006147
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.click",
+          "state": "succeeded",
+          "nodeOffsetMs": 87.61806900000374
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.waitFor",
+          "state": "started",
+          "nodeOffsetMs": 87.95434600001317
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.waitFor",
+          "state": "succeeded",
+          "nodeOffsetMs": 94.97293000000354
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.click",
+          "state": "started",
+          "nodeOffsetMs": 95.19962200000009
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.click",
+          "state": "succeeded",
+          "nodeOffsetMs": 153.20309000000998
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.waitFor",
+          "state": "started",
+          "nodeOffsetMs": 153.48689800000284
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.waitFor",
+          "state": "succeeded",
+          "nodeOffsetMs": 186.88849900000787
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.evaluate",
+          "state": "started",
+          "nodeOffsetMs": 187.11445000000822
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.evaluate",
+          "state": "succeeded",
+          "nodeOffsetMs": 192.9127550000121
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.inputValue",
+          "state": "started",
+          "nodeOffsetMs": 193.16830000000482
+        },
+        {
+          "ordinal": 13,
+          "api": "locator.inputValue",
+          "state": "succeeded",
+          "nodeOffsetMs": 195.1760030000005
+        },
+        {
+          "ordinal": 13,
+          "api": "page.evaluate",
+          "state": "started",
+          "nodeOffsetMs": 195.33837800000038
+        },
+        {
+          "ordinal": 13,
+          "api": "page.evaluate",
+          "state": "succeeded",
+          "nodeOffsetMs": 217.66571800000384
+        }
+      ],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 16,
+      "ordinal": 17,
+      "success": true,
+      "elapsedMs": 214.55097700000624,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013019999998505227
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 59.77556999999797
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 73.15175800000725
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 140.34705300000496
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 140.35059800000454
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 140.3509480000066
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 179.09853200000362
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 179.10004499999923
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 214.54481700000179
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 20,
+      "ordinal": 21,
+      "success": true,
+      "elapsedMs": 316.1494479999965,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01444199999968987
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 95.92176500000642
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 165.73570000000473
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 243.26209999999264
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 243.265625
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 243.2660559999931
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 285.7707220000011
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 285.77207399999315
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 316.1429579999967
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 24,
+      "ordinal": 25,
+      "success": true,
+      "elapsedMs": 225.6430609999952,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012958999999682419
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 88.3228359999921
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 96.16901399999915
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 161.9342949999991
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 161.93812099999923
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 161.93844099999114
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 201.17276200000197
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 201.1743140000035
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 225.63707199999772
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 28,
+      "ordinal": 29,
+      "success": true,
+      "elapsedMs": 216.01382500000182,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013840999992680736
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 63.13968300000124
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 72.75311000000511
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 136.45600200000627
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 136.45979700000316
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 136.46012800000608
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 181.34450199999264
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 181.34595400000399
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 216.00576299999375
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 32,
+      "ordinal": 33,
+      "success": true,
+      "elapsedMs": 216.22839399999066,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.016134999998030253
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 53.9569049999991
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 61.116182999991
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 138.77165299998887
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 138.78261999999813
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 138.78329099999974
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 185.18519699999888
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 185.1872699999949
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 216.22208399999363
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 36,
+      "ordinal": 37,
+      "success": true,
+      "elapsedMs": 318.9709679999942,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.017366000000038184
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 109.57498399999167
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 152.97602099999494
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 202.1896759999945
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 202.21199899999192
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 202.2123900000006
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 294.66779599999427
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 294.6690180000005
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 318.9654089999967
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 40,
+      "ordinal": 41,
+      "success": true,
+      "elapsedMs": 212.65170200000284,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014252000008127652
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 66.03671000000031
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 70.57871200000227
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 152.18054200000188
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 152.18428800000402
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 152.18489899999986
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 188.84499300000607
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 188.84593500000483
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 212.64501200000814
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 44,
+      "ordinal": 45,
+      "success": true,
+      "elapsedMs": 207.9036749999941,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014912999991793185
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 64.93960699999298
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 70.0326139999961
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 128.5209649999888
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 128.52354899999045
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 128.52387999999337
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 173.5632009999972
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 173.56447299999127
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 207.89666399999987
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 48,
+      "ordinal": 49,
+      "success": true,
+      "elapsedMs": 214.44869499999913,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01490199999534525
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 55.72835499999928
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 70.3995419999992
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 139.35319999999774
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 139.3572060000006
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 139.35771599999862
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 187.59376699999848
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 187.59529899999325
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 214.44217599999683
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 52,
+      "ordinal": 53,
+      "success": true,
+      "elapsedMs": 270.22923500000616,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015352999995229766
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 91.75679899999523
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 116.36449999999604
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 183.4017429999949
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 183.4051679999975
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 183.40579900000012
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 233.10913700000674
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 233.11016799999925
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 270.222225000005
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 56,
+      "ordinal": 57,
+      "success": true,
+      "elapsedMs": 190.22246200000518,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01406200000201352
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 64.10407800000394
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 73.1838490000082
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 129.7462150000065
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 129.74954000000434
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 129.75002099999983
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 160.16577200000756
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 160.1668639999989
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 190.21648299999651
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 60,
+      "ordinal": 61,
+      "success": true,
+      "elapsedMs": 220.60764299999573,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012468000000808388
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 63.80795099999523
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 76.86153399999603
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 141.3380729999917
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 141.3422489999939
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 141.34285999998974
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 193.97053900000174
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 193.9717699999892
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 220.59918999999354
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 64,
+      "ordinal": 65,
+      "success": true,
+      "elapsedMs": 238.3026130000071,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01674500000081025
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 67.3000810000085
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 81.7249359999987
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 155.4703759999975
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 155.474132000003
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 155.47462300000188
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 202.81715699999768
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 202.81846900000528
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 238.29540200000338
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 68,
+      "ordinal": 69,
+      "success": true,
+      "elapsedMs": 222.25096000000485,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01458200000342913
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 81.81950899999356
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 94.01870299999428
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 144.92761499999324
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 144.92987799999537
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 144.93044899999222
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 187.61202600000252
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 187.61332799999218
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 222.2421869999962
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 72,
+      "ordinal": 73,
+      "success": true,
+      "elapsedMs": 211.1798320000089,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.018749000009847805
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 63.60541600000579
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 67.12177800000063
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 136.87291400000686
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 136.87625899999694
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 136.87683999999717
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 180.67703900000197
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 180.6783609999984
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 211.1701580000081
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 76,
+      "ordinal": 77,
+      "success": true,
+      "elapsedMs": 396.9046939999971,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.018517999997129664
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 156.2944359999965
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 227.32760400000552
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 331.73874500000966
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 331.7418800000014
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 331.74219099999755
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 371.73158500000136
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 371.7321159999992
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 396.8972230000072
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 80,
+      "ordinal": 81,
+      "success": true,
+      "elapsedMs": 229.76950500000385,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013340000004973263
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 85.63208199999644
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 92.31603299999551
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 150.89864699999453
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 150.90060999999696
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 150.90082999999868
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 202.40100699999311
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 202.4020889999956
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 229.76290499999595
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 84,
+      "ordinal": 85,
+      "success": true,
+      "elapsedMs": 230.7497180000064,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015293000004021451
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 78.06012600001122
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 88.4589730000007
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 155.78295400000934
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 155.78575900000578
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 155.7860789999977
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 202.13260700000683
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 202.13319800001045
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 230.74289700000372
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 88,
+      "ordinal": 89,
+      "success": true,
+      "elapsedMs": 247.91072800000256,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014631999991252087
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 55.56641200000013
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 67.17513699999836
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 146.47178300000087
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 146.47429699999338
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 146.4748580000014
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 199.14672099999734
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 199.1475619999983
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 247.90073300000222
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 92,
+      "ordinal": 93,
+      "success": true,
+      "elapsedMs": 214.15713000000687,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012820000003557652
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 73.88280900000245
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 88.15896500000963
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 151.70467700000154
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 151.70666000001074
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 151.7068900000013
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 193.8755450000026
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 193.87595500001044
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 214.14938800000527
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 96,
+      "ordinal": 97,
+      "success": true,
+      "elapsedMs": 228.30061999999452,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014041000002180226
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 73.19677499998943
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 81.3537309999956
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 150.61761699999624
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 150.62009099998977
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 150.62033099999826
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 200.92298799999116
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 200.92364899998938
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 228.28422499999579
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 100,
+      "ordinal": 101,
+      "success": true,
+      "elapsedMs": 230.66290100000333,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013980999996419996
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 79.50431299999764
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 89.60923600000388
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 152.19667800000752
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 152.24666299999808
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 152.2469640000054
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 206.85260199999902
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 206.85300200000347
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 230.65672199999972
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 104,
+      "ordinal": 105,
+      "success": true,
+      "elapsedMs": 528.1762600000075,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.016025000004447065
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 162.10800000000745
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 172.6661490000115
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 381.5689650000131
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 381.5717300000106
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 381.5719600000011
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 494.5215450000105
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 494.52208600001177
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 528.170151000013
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 108,
+      "ordinal": 109,
+      "success": true,
+      "elapsedMs": 219.19092199999432,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013068999993265606
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 61.05105499998899
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 70.0419499999989
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 145.79488000000129
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 145.79833599999256
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 145.79863599999226
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 189.94279499999539
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 189.94354699998803
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 219.18346099999326
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 112,
+      "ordinal": 113,
+      "success": true,
+      "elapsedMs": 193.6121429999912,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01460199999564793
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 68.81046399999468
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 78.39772799999628
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 132.58831499998632
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 132.5910489999951
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 132.5913489999948
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 173.59095800000068
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 173.5915789999999
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 193.60532299999613
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 116,
+      "ordinal": 117,
+      "success": true,
+      "elapsedMs": 212.89208599999256,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013760000001639128
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 92.2521609999967
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 98.82524000000558
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 150.32263700000476
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 150.32515999999305
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 150.3600829999923
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 192.18553699999757
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 192.1861479999934
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 212.88437400000112
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 120,
+      "ordinal": 121,
+      "success": true,
+      "elapsedMs": 190.4970570000005,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.0387790000095265
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 65.85059100000944
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 74.3484380000009
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 127.61125100000936
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 127.61378400000103
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 127.61397500000021
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 166.40924500000256
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 166.40994600001432
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 190.49026700000104
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 124,
+      "ordinal": 125,
+      "success": true,
+      "elapsedMs": 199.61984699999448,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014783000005991198
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.56398099999933
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 76.34794799999509
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 138.1542369999952
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 138.1572809999925
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 138.1577019999968
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 179.84326999999757
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 179.8438909999968
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 199.6127059999999
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 128,
+      "ordinal": 129,
+      "success": true,
+      "elapsedMs": 264.6281869999948,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014121000000159256
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 83.75819500000216
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 91.03202600000077
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 161.31465099999332
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 161.31792600000335
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 161.31836699999985
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 229.1613539999962
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 229.16234500000428
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 264.6211170000024
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 132,
+      "ordinal": 133,
+      "success": true,
+      "elapsedMs": 362.75642599999264,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01356099999975413
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 72.46038299999782
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 102.0031500000041
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 205.07638899999438
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 205.07900299999164
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 205.07942399999592
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 338.98434799999814
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 338.98504899999534
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 362.7493350000004
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 136,
+      "ordinal": 137,
+      "success": true,
+      "elapsedMs": 229.91824500000803,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01531299999624025
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 81.46734200000355
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 94.17964600000414
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 154.90923499999917
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 154.9119789999968
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 154.91226900000765
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 198.59794799999509
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 198.59844899999734
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 229.9110040000087
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 140,
+      "ordinal": 141,
+      "success": true,
+      "elapsedMs": 220.42341099999612,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013439999995171092
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 68.02752999999211
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 82.4942699999956
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 144.0811410000024
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 144.08405499999935
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 144.08449599999585
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 195.70189699999173
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 195.70243799999298
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 220.41546899999958
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 144,
+      "ordinal": 145,
+      "success": true,
+      "elapsedMs": 202.17596700000286,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.023514999993494712
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 59.21345300000394
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 71.66491399999359
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 124.7536279999913
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 124.75709299999289
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 124.75742399999581
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 168.41158499999437
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 168.41245599999093
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 202.16687299999467
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 148,
+      "ordinal": 149,
+      "success": true,
+      "elapsedMs": 225.76763200000278,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014462000006460585
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 66.89508300001035
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 74.97156900000118
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 150.26195300000836
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 150.26449700001103
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 150.26481800001056
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 192.0245780000114
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 192.0255390000093
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 225.76144300001033
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 152,
+      "ordinal": 153,
+      "success": true,
+      "elapsedMs": 181.81272499999614,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012778999996953644
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 55.880564000006416
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 61.49645999999484
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 127.62179900000046
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 127.62400199999684
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 127.62438300000213
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 160.059030000004
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 160.05956100000185
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 181.80456299999787
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 156,
+      "ordinal": 157,
+      "success": true,
+      "elapsedMs": 202.68281800000113,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01215799999772571
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.21440199999779
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 71.4600000000064
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 146.46946300000127
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 146.47198699999717
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 146.4722069999989
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 179.80529899999965
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 179.80581999999413
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 202.67485599999782
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 160,
+      "ordinal": 161,
+      "success": true,
+      "elapsedMs": 239.826464999991,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01446199999190867
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 70.94536499999231
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 76.21927499999583
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 140.93016199998965
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 140.93519999999262
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 140.93559999999707
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 195.3679809999885
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 195.36879199999385
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 239.8174519999884
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 164,
+      "ordinal": 165,
+      "success": true,
+      "elapsedMs": 197.89587700000266,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013300000005983748
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 57.96091000000888
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 64.38951200000884
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 124.62151100000483
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 124.62322300000233
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 124.62366400001338
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 167.35432300000684
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 167.35531500000798
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 197.88830600000801
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 168,
+      "ordinal": 169,
+      "success": true,
+      "elapsedMs": 184.29935000000114,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014511999994283542
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 55.10016699999687
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 59.6708779999899
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 121.03480899998976
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 121.03770299999451
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 121.03807399999641
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 161.59097599999222
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 161.59164699999383
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 184.29068700000062
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 172,
+      "ordinal": 173,
+      "success": true,
+      "elapsedMs": 218.16989099999773,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013439999995171092
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 79.77205700000923
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 91.29550900000322
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 160.293227999995
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 160.2951810000086
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 160.2955820000061
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 185.68414700000721
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 185.69266000000061
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 218.16361200000392
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 176,
+      "ordinal": 177,
+      "success": true,
+      "elapsedMs": 399.41952799999854,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.02434699999867007
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 83.58758999999554
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 95.47647300000244
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 321.23438900000474
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 321.2365620000055
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 321.23675199999707
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 367.8792390000017
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 367.8801200000016
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 399.4127080000035
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 180,
+      "ordinal": 181,
+      "success": true,
+      "elapsedMs": 214.26273600000422,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.018878000002587214
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 73.8794990000024
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 84.32599700000719
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 143.9642359999998
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 143.96797199999855
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 143.968372000003
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 192.99376199999824
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 192.99437300000864
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 214.25650699999824
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 184,
+      "ordinal": 185,
+      "success": true,
+      "elapsedMs": 202.14893999999913,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014451999988523312
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 63.98739099998784
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 73.92290999999386
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 129.3207759999932
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 129.32326900000044
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 129.32366999999795
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 179.10527999998885
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 179.10585100000026
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 202.1417489999876
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 188,
+      "ordinal": 189,
+      "success": true,
+      "elapsedMs": 185.3641900000075,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01169800000207033
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 60.28077800000028
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 71.91149100000621
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 123.58420199999819
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 123.58720599999651
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 123.5876569999964
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 160.9000079999969
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 160.90072900000087
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 185.3560470000084
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 192,
+      "ordinal": 193,
+      "success": true,
+      "elapsedMs": 215.9885920000088,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012379000007058494
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 55.41750999999931
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 65.18214100001205
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 144.08752100000856
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 144.0958030000038
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 144.09605400000873
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 190.71212599999853
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 190.7127870000113
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 215.98227200000838
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 196,
+      "ordinal": 197,
+      "success": true,
+      "elapsedMs": 213.7393069999962,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013570999988587573
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 59.44314499999746
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 66.5169889999961
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 140.5529339999921
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 140.55551799999375
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 140.55599899998924
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 178.16853199999605
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 178.16921300000104
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 213.73349899999448
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 200,
+      "ordinal": 201,
+      "success": true,
+      "elapsedMs": 181.88037300000724,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012749000001349486
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 54.34958100000222
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 59.092121000008774
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 120.19778200000292
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 120.20020600000862
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 120.20072600001004
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 158.38200200001302
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 158.38266300001123
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 181.874874000001
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 204,
+      "ordinal": 205,
+      "success": true,
+      "elapsedMs": 202.31597500000498,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012839000002713874
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 55.00844700000016
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 61.902390000002924
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 127.13664900000731
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 127.13940300000831
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 127.13960300000326
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 167.59506000000692
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 167.5958810000011
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 202.30843400000595
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 208,
+      "ordinal": 209,
+      "success": true,
+      "elapsedMs": 193.40122600000177,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013741000002482906
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 63.825860999990255
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 68.77392099999997
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 131.97267499999725
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 131.9753289999935
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 131.97553899999184
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 157.41176699999778
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 157.41237799999362
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 193.39301299999352
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 212,
+      "ordinal": 213,
+      "success": true,
+      "elapsedMs": 185.27323200000683,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012868999998318031
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 57.74075100000482
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 66.80393500000355
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 126.06600000000617
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 126.0676919999969
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 126.0680330000032
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 164.69978500000434
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 164.70041600000695
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 185.2665510000079
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 216,
+      "ordinal": 217,
+      "success": true,
+      "elapsedMs": 187.40505100000883,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01175800000783056
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 57.47239600001194
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 63.553304000000935
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 121.80720900000597
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 121.80987300000561
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 121.81006300001172
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 161.19091900000058
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 161.19146000000183
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 187.39905200000794
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 220,
+      "ordinal": 221,
+      "success": true,
+      "elapsedMs": 191.4551560000109,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012929000004078262
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 60.007483000008506
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 63.52573700000357
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 126.72802200001024
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 126.73009500000626
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 126.73053600000276
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 167.63042800000403
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 167.63113900000462
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 191.4460620000027
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 224,
+      "ordinal": 225,
+      "success": true,
+      "elapsedMs": 180.46030600000813,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012178999997559004
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 71.5662949999969
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 77.52584000000206
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 136.35794699999678
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 136.361121000009
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 136.3613420000038
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 160.32196499999554
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 160.3226960000029
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 180.4538770000072
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 228,
+      "ordinal": 229,
+      "success": true,
+      "elapsedMs": 182.90175100001215,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012359000000287779
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 54.98007900000084
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 60.68632200000866
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 117.28572200000053
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 117.28835600000457
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 117.28863700000511
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 157.11040800000774
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 157.11107900000934
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 182.8946600000054
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 232,
+      "ordinal": 233,
+      "success": true,
+      "elapsedMs": 215.9834959999862,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014951999997720122
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 85.24669399998675
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 91.35932999999204
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 164.06995999999344
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 164.07457699999213
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 164.07546799999545
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 195.93350799998734
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 195.93435899999167
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 215.9777269999904
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 236,
+      "ordinal": 237,
+      "success": true,
+      "elapsedMs": 187.3019750000094,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014151000010315329
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.362504000004265
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 73.36351900000591
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 121.57679600000847
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 121.57891999999993
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 121.57915000000503
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 161.7207580000104
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 161.72157900000457
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 187.28977699999814
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 240,
+      "ordinal": 241,
+      "success": true,
+      "elapsedMs": 348.8403099999996,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013531000004149973
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 59.20999099999608
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 69.61575899999298
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 206.50557700000354
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 206.50936300000467
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 206.50984400000016
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 327.88412499999686
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 327.88481600000523
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 348.83337900000333
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 244,
+      "ordinal": 245,
+      "success": true,
+      "elapsedMs": 230.8078200000018,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.03487299999687821
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 75.51582400000188
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 89.35245999999461
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 150.50222999999824
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 150.505324999991
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 150.50597600000037
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 194.03387400000065
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 194.0345049999887
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 230.8019409999979
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 248,
+      "ordinal": 249,
+      "success": true,
+      "elapsedMs": 247.06373199999507,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01367000000027474
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 91.72783999999228
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 98.27314799999294
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 169.38715599999705
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 169.3905209999939
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 169.39100199998938
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 219.231706999999
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 219.23229800000263
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 247.05622099999164
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 252,
+      "ordinal": 253,
+      "success": true,
+      "elapsedMs": 202.09391999999934,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013810999997076578
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 83.48317999999563
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 93.75686499998847
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 143.17503799998667
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 143.7047969999985
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 143.70599899999797
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 181.588064999989
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 181.58860599999025
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 202.0861589999986
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 256,
+      "ordinal": 257,
+      "success": true,
+      "elapsedMs": 184.90295000000333,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014110999996773899
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 61.230804999999236
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 66.57678899999883
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 122.53780499999993
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 122.54075899999589
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 122.54124000000593
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 161.13874999999825
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 161.1394009999931
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 184.89131300000008
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 260,
+      "ordinal": 261,
+      "success": true,
+      "elapsedMs": 186.84367299999576,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013209999990067445
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 59.474224999998114
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 70.79970799999137
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 124.82977699999174
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 124.83170999999857
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 124.83189999999013
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 162.00380900000164
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 162.00432999999612
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 186.83539100000053
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 264,
+      "ordinal": 265,
+      "success": true,
+      "elapsedMs": 185.68043300000136,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012458999990485609
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 55.0206429999962
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 58.80907699999807
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 120.9100899999903
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 120.91266299999552
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 120.9133440000005
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 160.43049699999392
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 160.43122800000128
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 185.67402399999264
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 268,
+      "ordinal": 269,
+      "success": true,
+      "elapsedMs": 187.12368000000424,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.06557800000882708
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 58.79057399999874
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 70.20633300000918
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 122.68119000000297
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 122.68395500000042
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 122.68425500000012
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 161.49541200000385
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 161.4964239999972
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 187.11695999999938
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 272,
+      "ordinal": 273,
+      "success": true,
+      "elapsedMs": 182.12797000000137,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013551000010920689
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.01595500000985
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 69.50012400001287
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 112.76816800000961
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 112.77060200000415
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 112.77095299999928
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 157.71751000000222
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 157.71791099999973
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 182.12060900000506
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 276,
+      "ordinal": 277,
+      "success": true,
+      "elapsedMs": 185.11435400000482,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013880999991670251
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 59.07514800000354
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 64.91541699999652
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 121.20379699999467
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 121.20612999999139
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 121.20641099999193
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 159.4723159999994
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 159.4742489999917
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 185.106191999992
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 280,
+      "ordinal": 281,
+      "success": true,
+      "elapsedMs": 202.1018929999991,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012628999989829026
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 60.656242999990354
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 71.33932699999423
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 124.58271899999818
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 124.58581299999787
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 124.58606399998826
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 173.09548999999242
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 173.09609099999943
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 202.09384099999443
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 284,
+      "ordinal": 285,
+      "success": true,
+      "elapsedMs": 218.99206000000413,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01314999999885913
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 64.92890800000168
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 73.11342400001013
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 143.1291290000081
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 143.1800959999964
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 143.18053700000746
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 183.53455100000429
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 183.53529200000048
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 218.98351700000057
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 288,
+      "ordinal": 289,
+      "success": true,
+      "elapsedMs": 198.42778499999258,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01432199998816941
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 74.6076919999905
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 83.53676999999152
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 142.01636499998858
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 142.01965999999084
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 142.019930999988
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 174.90591099999438
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 174.90670199999295
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 198.41894199998933
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 292,
+      "ordinal": 293,
+      "success": true,
+      "elapsedMs": 267.799159999995,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.822305999987293
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 79.04678799999238
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 110.39873899999657
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 180.22722799998883
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 180.23012300000119
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 180.23039299999073
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 241.58277599999565
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 241.58356699999422
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 267.79077799999504
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 296,
+      "ordinal": 297,
+      "success": true,
+      "elapsedMs": 230.71188300001086,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015462999988812953
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 92.76671399999759
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 98.60029299999587
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 155.90803500000038
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 155.9098679999879
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 155.91013800000655
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 199.98669799999334
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 199.98752900000545
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 230.70375099999364
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 300,
+      "ordinal": 301,
+      "success": true,
+      "elapsedMs": 326.9123200000031,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01442200000747107
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 186.12199300000793
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 191.78709299999173
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 254.02332400000887
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 254.02547799999593
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 254.02591799999936
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 305.67041099999915
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 305.67101200000616
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 326.901543999993
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 304,
+      "ordinal": 305,
+      "success": true,
+      "elapsedMs": 223.3985570000077,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015142999996896833
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 74.67201499998919
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 80.195956999989
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 154.18871300001047
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 154.19253900001058
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 154.19286899999133
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 189.5911640000122
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 189.59222600000794
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 223.38965299999109
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 308,
+      "ordinal": 309,
+      "success": true,
+      "elapsedMs": 196.82228800002486,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014852000022074208
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 74.74563000001945
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 81.8507099999988
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 135.08654700001352
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 135.0889310000057
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 135.09697300000698
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 176.8698710000026
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 176.87059200002113
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 196.81442599999718
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 312,
+      "ordinal": 313,
+      "success": true,
+      "elapsedMs": 248.6751289999811,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015403999976115301
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 87.89069699999527
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 102.5297679999785
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 172.58435499999905
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 172.58731000000262
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 172.58756999997422
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 215.4366319999972
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 215.43735299998662
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 248.66610499998205
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 316,
+      "ordinal": 317,
+      "success": true,
+      "elapsedMs": 264.00205799998366,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014390999975148588
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 72.4871770000027
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 82.20274999999674
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 170.68769399999292
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 170.6906289999897
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 170.69100900000194
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 225.36532099999022
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 225.36643299998832
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 263.99429599998984
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 320,
+      "ordinal": 321,
+      "success": true,
+      "elapsedMs": 199.8043980000075,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.016965000017080456
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 77.97564200000488
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 84.94166100001894
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 140.00184200002695
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 140.0044760000019
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 140.00474699999904
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 170.88364000001457
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 170.88454100000672
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 199.79577500000596
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 324,
+      "ordinal": 325,
+      "success": true,
+      "elapsedMs": 233.77905700000701,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013380000018514693
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 79.57240200001979
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 93.76973200001521
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 160.80505399999674
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 160.8082890000078
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 160.8085190000129
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 212.85323500001687
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 212.85444700001972
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 233.77077400000417
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 328,
+      "ordinal": 329,
+      "success": true,
+      "elapsedMs": 516.7081109999854,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015393999987281859
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 303.0779249999905
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 332.81145899998955
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 434.64117600000463
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 434.6441099999938
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 434.6443100000033
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 486.2074839999841
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 486.2084859999886
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 516.6988169999968
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 332,
+      "ordinal": 333,
+      "success": true,
+      "elapsedMs": 212.23559699999169,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014442000014241785
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.50631799999974
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 71.77513799999724
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 138.88788200001
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 138.89220800000476
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 138.8926190000202
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 177.90303400001721
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 177.90361500001745
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 212.22571200001403
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 336,
+      "ordinal": 337,
+      "success": true,
+      "elapsedMs": 196.48570499999914,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015122999990126118
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 54.83952199999476
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 59.02322400000412
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 122.35839899998973
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 122.36133300000802
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 122.36156399999163
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 165.46863499999745
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 165.4697060000035
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 196.47801399999298
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 340,
+      "ordinal": 341,
+      "success": true,
+      "elapsedMs": 201.2857709999953,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015202999988105148
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 59.497383999987505
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 66.76623099998687
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 126.800298999995
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 126.80301299999701
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 126.80344399999012
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 175.52007800000138
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 175.52072899998166
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 201.2788709999877
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 344,
+      "ordinal": 345,
+      "success": true,
+      "elapsedMs": 363.61455299999216,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01360099998419173
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 79.58118499998818
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 89.25967599998694
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 262.6271279999928
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 262.6310039999953
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 262.63121500000125
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 325.5369059999939
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 325.53774699999485
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 363.6073219999962
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 348,
+      "ordinal": 349,
+      "success": true,
+      "elapsedMs": 218.49136200000066,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01215799999772571
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 65.74690100000589
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 75.00641999999061
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 141.79510699998355
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 141.7977209999808
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 141.7982020000054
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 182.09793399999035
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 182.09871500000008
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 218.4840709999844
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 352,
+      "ordinal": 353,
+      "success": true,
+      "elapsedMs": 213.02867200001492,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015043000021250919
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 58.692141000006814
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 71.10505500002182
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 131.31225900002755
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 131.31531400000677
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 131.31554400001187
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 180.46310500000254
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 180.4641760000086
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 213.02335400000447
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 356,
+      "ordinal": 357,
+      "success": true,
+      "elapsedMs": 218.239379000006,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015113000001292676
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 58.79285699999309
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 68.10559200000716
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 140.58500900000217
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 140.58747299999231
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 140.5877230000042
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 184.02958699999726
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 184.03055900000618
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 218.23202799999854
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 360,
+      "ordinal": 361,
+      "success": true,
+      "elapsedMs": 228.29118400000152,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014963000023271888
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 75.59781500001554
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 87.16773400001694
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 154.66838700001244
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 154.67203300000983
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 154.67227300000377
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 201.71023200001218
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 201.71087300000363
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 228.28323200001614
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 364,
+      "ordinal": 365,
+      "success": true,
+      "elapsedMs": 231.8201859999972,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013540999992983416
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 87.96521200001007
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 97.51802799999132
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 155.65148500000942
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 155.6536990000168
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 155.65423899999587
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 198.77447000000393
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 198.77564199999324
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 231.81295500000124
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 368,
+      "ordinal": 369,
+      "success": true,
+      "elapsedMs": 249.6554340000148,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015624000021489337
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 72.69843800002127
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 86.34296999999788
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 160.6069739999948
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 160.60966800001916
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 160.61000899999635
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 211.5053600000101
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 211.50628100000904
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 249.647793000011
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 372,
+      "ordinal": 373,
+      "success": true,
+      "elapsedMs": 415.41590399999404,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.016204000014113262
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 68.12233600000036
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 90.01549300001352
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 311.3687090000021
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 311.44272099999944
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 311.4431110000005
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 388.1716669999878
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 388.17256800000905
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 415.39633499999763
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 376,
+      "ordinal": 377,
+      "success": true,
+      "elapsedMs": 239.27873900000122,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013810000004014
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 56.25099199998658
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 66.91167000000132
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 121.83280699999887
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 121.83642199999304
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 121.83679299999494
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 207.73746199999005
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 207.73814299999503
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 239.27129800000694
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 380,
+      "ordinal": 381,
+      "success": true,
+      "elapsedMs": 234.89296500000637,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013590000016847625
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 54.76025500000105
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 61.89630700001726
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 141.9987100000144
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 142.00145499999053
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 142.00199499999871
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 203.50628000000142
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 203.50706199998967
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 234.88425199998892
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 384,
+      "ordinal": 385,
+      "success": true,
+      "elapsedMs": 215.51290800000424,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.02226399999926798
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 75.25328599999193
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 82.77664199998253
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 139.44775299998582
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 139.45106799999485
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 139.4515689999971
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 188.7610080000013
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 188.76181999998516
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 215.5054470000032
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 388,
+      "ordinal": 389,
+      "success": true,
+      "elapsedMs": 319.2631649999821,
+      "over300": true,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013629999972181395
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 156.2770629999868
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 167.67148699998506
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 242.70493599999463
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 242.7081809999945
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 242.70846099997289
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 284.11684999999125
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 284.1172909999732
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 319.2555529999954
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 392,
+      "ordinal": 393,
+      "success": true,
+      "elapsedMs": 204.4266629999911,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013619999983347952
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 60.89088500000071
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 75.00689299998339
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 146.03862199999276
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 146.04135600000154
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 146.04159599999548
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 178.7608210000035
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 178.76183199998923
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 204.4187910000037
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    },
+    {
+      "originalIndex": 396,
+      "ordinal": 397,
+      "success": true,
+      "elapsedMs": 202.01477600002545,
+      "over300": false,
+      "originalNodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013471000012941658
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 55.84978800002136
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 65.86800200000289
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 130.25533500002348
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 130.25815900001908
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 130.26721300001373
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 171.57335700001568
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 171.57422800001223
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 202.0064040000143
+        }
+      ],
+      "loggerActionComplete": false,
+      "loggerEntryCount": 0,
+      "originalPublicAPIEntries": [],
+      "internalWaitReason": "unavailable-not-recorded",
+      "absenceDoesNotProveNoRetry": true
+    }
+  ],
+  "limitations": [
+    "Logger accepted lifecycle method names only; no internal visibility/stability/interception/locator/dispatch reasons retained.",
+    "All100 unknown-message codes remain unclassified; original text was never retained.",
+    "No Playwright actionability trace was enabled in this attempt. CDP/CPU capture is not its substitute.",
+    "Other follow-up actionability traces belong to different episodes and cannot fill the absent primary logs.",
+    "All original spans, failures and 300/100 targets remain unchanged; no causal inference, subtraction or new harness."
+  ]
+}

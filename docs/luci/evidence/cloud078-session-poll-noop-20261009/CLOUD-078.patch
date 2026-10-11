@@ -1,0 +1,348 @@
+--- a/desktop/src/store/slices/dataSlice.ts
++++ b/desktop/src/store/slices/dataSlice.ts
+@@ -176,68 +176,76 @@
+   }),
+   setHarnesses: (harnesses) => set({ harnesses }),
+ 
+-  replaceSessions: (incoming, worktreeIds) =>
+-    set((s) => {
+-      // The fetch covered these worktrees, plus any the incoming rows mention. A covered
+-      // worktree with no incoming rows empties; an uncovered one is untouched.
+-      const covered = new Set<WorktreeId>(worktreeIds);
+-      for (const row of incoming) covered.add(row.worktreeId);
+-
+-      const sessions: Record<SessionId, Session> = {};
+-      for (const [id, row] of Object.entries(s.sessions)) {
+-        if (!covered.has(row.worktreeId)) sessions[id] = row;
+-      }
+-      for (const row of incoming) {
+-        const prev = s.sessions[row.id];
+-        sessions[row.id] = prev !== undefined && sameSession(prev, row) ? prev : row;
+-      }
+-
+-      // ── deferred-verb suppression. ADDED BY TASK 22's FIX ROUND 1, a declared departure
+-      // into task 17's file, and it belongs here rather than in the poller or in the verbs.
+-      //
+-      // Kill and Forget patch the store NOW and hold the request for the 6 s Undo window, so the
+-      // server still reports the old truth. The poller runs every 2 s. Without this, a killed row
+-      // comes back as `running`, and a forgotten row reappears, about two seconds into the window
+-      // — WITH THE UNDO TOAST STILL ON SCREEN.
+-      //
+-      // The store is the one place holding both the incoming rows and the pending ids, so every
+-      // future deferred verb gets this for free and no caller has to remember. A poller-side
+-      // check would leak store knowledge into a fetch loop; a re-patch after each tick is a race.
+-      //
+-      // The rule is simply: while a deferred verb is in flight, the store's own view of that id
+-      // wins — present with its optimistic status (Kill), or absent (Forget).
+-      for (const id of pendingSessionIds()) {
+-        const held = s.sessions[id];
+-        if (held === undefined) delete sessions[id];
+-        else sessions[id] = held;
+-      }
+-
+-      const built: Record<WorktreeId, SessionId[]> = {};
+-      for (const id of covered) built[id] = [];
+-      // `sessions[row.id]` is the test, not `incoming`: a row a deferred Forget has removed must
+-      // not be re-indexed, or the rail renders an id the session map no longer holds.
+-      for (const row of incoming) {
+-        if (sessions[row.id] !== undefined) built[row.worktreeId].push(row.id);
+-      }
+-      // A held row the server has stopped listing keeps its old place. Present in `sessions` but
+-      // missing from the index renders nowhere, and Undo cannot repair it: `upsertSession` leaves
+-      // the position of an id it already holds unchanged, so there would be no position to leave.
+-      for (const id of pendingSessionIds()) {
+-        const held = sessions[id];
+-        if (held === undefined) continue;
+-        const list = built[held.worktreeId];
+-        if (list === undefined || list.includes(id)) continue;
+-        const at = (s.sessionIdsByWorktree[held.worktreeId] ?? []).indexOf(id);
+-        list.splice(at === -1 ? list.length : at, 0, id);
+-      }
+-
+-      const sessionIdsByWorktree = { ...s.sessionIdsByWorktree };
+-      for (const [id, ids] of Object.entries(built)) {
+-        const prev = sessionIdsByWorktree[id];
+-        sessionIdsByWorktree[id] = prev !== undefined && sameIds(prev, ids) ? prev : ids;
+-      }
+-      return { sessions, sessionIdsByWorktree };
+-    }),
++  replaceSessions: (incoming, worktreeIds) => {
++    const s = get();
++    // The fetch covered these worktrees, plus any the incoming rows mention. A covered
++    // worktree with no incoming rows empties; an uncovered one is untouched.
++    const covered = new Set<WorktreeId>(worktreeIds);
++    for (const row of incoming) covered.add(row.worktreeId);
++
++    const sessions: Record<SessionId, Session> = {};
++    for (const [id, row] of Object.entries(s.sessions)) {
++      if (!covered.has(row.worktreeId)) sessions[id] = row;
++    }
++    for (const row of incoming) {
++      const prev = s.sessions[row.id];
++      sessions[row.id] = prev !== undefined && sameSession(prev, row) ? prev : row;
++    }
++
++    // ── deferred-verb suppression. ADDED BY TASK 22's FIX ROUND 1, a declared departure
++    // into task 17's file, and it belongs here rather than in the poller or in the verbs.
++    //
++    // Kill and Forget patch the store NOW and hold the request for the 6 s Undo window, so the
++    // server still reports the old truth. The poller runs every 2 s. Without this, a killed row
++    // comes back as `running`, and a forgotten row reappears, about two seconds into the window
++    // — WITH THE UNDO TOAST STILL ON SCREEN.
++    //
++    // The store is the one place holding both the incoming rows and the pending ids, so every
++    // future deferred verb gets this for free and no caller has to remember. A poller-side
++    // check would leak store knowledge into a fetch loop; a re-patch after each tick is a race.
++    //
++    // The rule is simply: while a deferred verb is in flight, the store's own view of that id
++    // wins — present with its optimistic status (Kill), or absent (Forget).
++    for (const id of pendingSessionIds()) {
++      const held = s.sessions[id];
++      if (held === undefined) delete sessions[id];
++      else sessions[id] = held;
++    }
++
++    const built: Record<WorktreeId, SessionId[]> = {};
++    for (const id of covered) built[id] = [];
++    // `sessions[row.id]` is the test, not `incoming`: a row a deferred Forget has removed must
++    // not be re-indexed, or the rail renders an id the session map no longer holds.
++    for (const row of incoming) {
++      if (sessions[row.id] !== undefined) built[row.worktreeId].push(row.id);
++    }
++    // A held row the server has stopped listing keeps its old place. Present in `sessions` but
++    // missing from the index renders nowhere, and Undo cannot repair it: `upsertSession` leaves
++    // the position of an id it already holds unchanged, so there would be no position to leave.
++    for (const id of pendingSessionIds()) {
++      const held = sessions[id];
++      if (held === undefined) continue;
++      const list = built[held.worktreeId];
++      if (list === undefined || list.includes(id)) continue;
++      const at = (s.sessionIdsByWorktree[held.worktreeId] ?? []).indexOf(id);
++      list.splice(at === -1 ? list.length : at, 0, id);
++    }
++
++    const sessionIdsByWorktree = { ...s.sessionIdsByWorktree };
++    for (const [id, ids] of Object.entries(built)) {
++      const prev = sessionIdsByWorktree[id];
++      sessionIdsByWorktree[id] = prev !== undefined && sameIds(prev, ids) ? prev : ids;
++    }
++    // Preserve the root snapshot when reconciliation changed no row or index.
++    // This check must precede set: persist writes even when its setter callback
++    // returns the old state. Fresh status, generation, timestamps and ordering
++    // still publish through the existing value comparisons above.
++    if (Object.keys(sessions).length === Object.keys(s.sessions).length &&
++        Object.entries(sessions).every(([id, row]) => row === s.sessions[id]) &&
++        Object.keys(sessionIdsByWorktree).length === Object.keys(s.sessionIdsByWorktree).length &&
++        Object.entries(sessionIdsByWorktree).every(([id, ids]) => ids === s.sessionIdsByWorktree[id])) return;
++    set({ sessions, sessionIdsByWorktree });
++  },
+ 
+   upsertSession: (session) => {
+     const prev = get().sessions[session.id];
+--- a/desktop/src/api/poller.test.ts
++++ b/desktop/src/api/poller.test.ts
+@@ -152,16 +152,23 @@
+     expect(useCockpit.getState().lastError).toBeNull();
+   });
+ 
+-  it("a quiet tick makes exactly one store write — the poll must move zero pixels", async () => {
+-    const stop = startPolling(stubClient(async () => []), useCockpit);
++  it("an unchanged quiet tick keeps notifications and preference writes unchanged", async () => {
++    const listSessions = vi.fn(async () => [] as Session[]), goodTick = vi.fn();
++    const stop = startPolling(stubClient(listSessions), useCockpit, goodTick);
+     await vi.advanceTimersByTimeAsync(0);
+-    let writes = 0;
+-    const unsubscribe = useCockpit.subscribe(() => { writes += 1; });
+-    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+-    unsubscribe();
+-    stop();
+-    // replaceSessions, and nothing else: a redundant setError(null) is a second re-render.
+-    expect(writes).toBe(1);
++    const before = useCockpit.getState(), changed = vi.fn();
++    const unsubscribe = useCockpit.subscribe(changed);
++    const write = vi.spyOn(Storage.prototype, "setItem");
++    try {
++      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
++      expect(useCockpit.getState()).toBe(before);
++      expect(changed).not.toHaveBeenCalled();
++      expect(write).not.toHaveBeenCalled();
++      // A quiet response is still a successful fresh read; catalogue retry is
++      // not dependent on publishing redundant session state.
++      expect(listSessions).toHaveBeenCalledTimes(2);
++      expect(goodTick).toHaveBeenCalledTimes(2);
++    } finally { unsubscribe(); stop(); write.mockRestore(); }
+   });
+ });
+ 
+--- /dev/null
++++ b/desktop/src/store/sessionPollNoop.test.ts
+@@ -0,0 +1,169 @@
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import { createCockpitStore } from "./store";
++import { aSession } from "../test/fixtures";
++import { __resetPendingSessions, setSessionPending } from "../lib/pendingSessions";
++import type { Session } from "./types";
++
++beforeEach(() => { localStorage.clear(); __resetPendingSessions(); });
++afterEach(() => { __resetPendingSessions(); vi.restoreAllMocks(); });
++
++function observe(store: ReturnType<typeof createCockpitStore>) {
++  const changed = vi.fn(), unsubscribe = store.subscribe(changed);
++  const write = vi.spyOn(Storage.prototype, "setItem");
++  return {
++    quiet() { expect(changed).not.toHaveBeenCalled(); expect(write).not.toHaveBeenCalled(); },
++    oneChange() { expect(changed).toHaveBeenCalledTimes(1); expect(write).toHaveBeenCalledTimes(1); },
++    reset() { changed.mockClear(); write.mockClear(); },
++    close() { unsubscribe(); write.mockRestore(); },
++  };
++}
++
++describe("session reconciliation publishes only actual changes", () => {
++  it.each([false, true])("keeps an unchanged empty response quiet (known empty index: %s)", known => {
++    const store = createCockpitStore();
++    if (known) store.getState().replaceSessions([], ["empty"]);
++    const before = store.getState(), observation = observe(store);
++    try {
++      store.getState().replaceSessions([], known ? ["empty"] : []);
++      store.getState().replaceSessions([], known ? ["empty"] : []);
++      expect(store.getState()).toBe(before);
++      observation.quiet();
++    } finally { observation.close(); }
++  });
++
++  it("keeps freshly decoded identical rows and ordered indexes quiet", () => {
++    const store = createCockpitStore();
++    const rows = [aSession({ id: "A", worktreeId: "W", executionGeneration: "a".repeat(64) }),
++      aSession({ id: "B", worktreeId: "W", reviewedContextDelivery: { status: "captured", version: 1, digest: "d".repeat(64) } })];
++    store.getState().replaceSessions(rows, ["W"]);
++    const before = store.getState(), observation = observe(store);
++    try {
++      store.getState().replaceSessions(structuredClone(rows), ["W"]);
++      expect(store.getState()).toBe(before);
++      expect(store.getState().sessions.A).toBe(rows[0]);
++      expect(store.getState().sessionIdsByWorktree.W).toBe(before.sessionIdsByWorktree.W);
++      observation.quiet();
++    } finally { observation.close(); }
++  });
++
++  it("does not publish an uncovered worktree or dictionary insertion-order-only change", () => {
++    const store = createCockpitStore();
++    const A = aSession({ id: "A", worktreeId: "W-A" }), B = aSession({ id: "B", worktreeId: "W-B" });
++    store.getState().replaceSessions([A, B], ["W-A", "W-B"]);
++    const before = store.getState(), observation = observe(store);
++    try {
++      store.getState().replaceSessions([], []);
++      store.getState().replaceSessions([structuredClone(B), structuredClone(A)], ["W-B", "W-A"]);
++      expect(store.getState()).toBe(before);
++      expect(store.getState().sessionIdsByWorktree).toEqual({ "W-A": ["A"], "W-B": ["B"] });
++      observation.quiet();
++    } finally { observation.close(); }
++  });
++
++  const changes: [string, Partial<Session>][] = [
++    ["status and exit reason", { status: "exited", exitReason: "process exited" }],
++    ["new allocation generation", { executionGeneration: "b".repeat(64) }],
++    ["cleared allocation generation", { executionGeneration: undefined }],
++    ["created timestamp", { createdAt: "2026-09-18T09:00:01.000Z" }],
++    ["updated timestamp", { updatedAt: "2026-09-18T09:00:01.000Z" }],
++    ["last output timestamp", { lastOutputAt: "2026-09-18T09:00:01.000Z" }],
++    ["attachment count", { attachCount: 3 }],
++    ["recorded start refusal", { startFailure: { stage: "admission", reasonCode: "memory_pressure", message: "Retain the recorded refusal." } }],
++  ];
++  it.each(changes)("publishes a real %s change", (_label, change) => {
++    const store = createCockpitStore();
++    const initial = aSession({ id: "A", worktreeId: "W", executionGeneration: "a".repeat(64) });
++    store.getState().replaceSessions([initial], ["W"]);
++    const updated = { ...initial, ...change }, before = store.getState(), observation = observe(store);
++    try {
++      store.getState().replaceSessions([updated], ["W"]);
++      expect(store.getState()).not.toBe(before);
++      expect(store.getState().sessions.A).toBe(updated);
++      expect(store.getState().sessionIdsByWorktree.W).toEqual(["A"]);
++      observation.oneChange();
++    } finally { observation.close(); }
++  });
++
++  it("publishes additions, covered removals and server order changes while preserving uncovered rows", () => {
++    const store = createCockpitStore();
++    const A = aSession({ id: "A", worktreeId: "W" }), B = aSession({ id: "B", worktreeId: "W" });
++    const foreign = aSession({ id: "foreign", worktreeId: "other" });
++    store.getState().replaceSessions([A, foreign], ["W", "other"]);
++    const otherIndex = store.getState().sessionIdsByWorktree.other, observation = observe(store);
++    try {
++      store.getState().replaceSessions([A, B], ["W"]);
++      expect(store.getState().sessionIdsByWorktree.W).toEqual(["A", "B"]);
++      expect(store.getState().sessions.B).toBe(B); observation.oneChange(); observation.reset();
++      store.getState().replaceSessions([B, A], ["W"]);
++      expect(store.getState().sessionIdsByWorktree.W).toEqual(["B", "A"]);
++      expect(store.getState().sessions.A).toBe(A); observation.oneChange(); observation.reset();
++      store.getState().replaceSessions([B], ["W"]);
++      expect(store.getState().sessions.A).toBeUndefined();
++      expect(store.getState().sessionIdsByWorktree.W).toEqual(["B"]); observation.oneChange(); observation.reset();
++      store.getState().replaceSessions([], ["W"]);
++      expect(store.getState().sessions.B).toBeUndefined();
++      expect(store.getState().sessionIdsByWorktree.W).toEqual([]); observation.oneChange();
++      expect(store.getState().sessions.foreign).toBe(foreign);
++      expect(store.getState().sessionIdsByWorktree.other).toBe(otherIndex);
++    } finally { observation.close(); }
++  });
++
++  it("publishes the first authoritative empty index, then leaves repeated emptiness quiet", () => {
++    const store = createCockpitStore(), observation = observe(store);
++    try {
++      store.getState().replaceSessions([], ["newly-covered"]);
++      expect(store.getState().sessionIdsByWorktree["newly-covered"]).toEqual([]);
++      observation.oneChange(); observation.reset();
++      const before = store.getState();
++      store.getState().replaceSessions([], ["newly-covered"]);
++      expect(store.getState()).toBe(before); observation.quiet();
++    } finally { observation.close(); }
++  });
++
++  it("preserves a pending Kill against stale running data without publishing it again", () => {
++    const store = createCockpitStore();
++    const running = aSession({ id: "A", worktreeId: "W" });
++    const held = { ...running, status: "exited" as const, exitReason: "killed" };
++    store.getState().replaceSessions([held], ["W"]); setSessionPending("A", true);
++    const before = store.getState(), observation = observe(store);
++    try {
++      store.getState().replaceSessions([running], ["W"]);
++      expect(store.getState()).toBe(before); expect(store.getState().sessions.A).toBe(held);
++      observation.quiet();
++      setSessionPending("A", false);
++      store.getState().replaceSessions([running], ["W"]);
++      expect(store.getState().sessions.A).toBe(running); observation.oneChange();
++    } finally { observation.close(); }
++  });
++
++  it("does not resurrect a pending Forget and still accepts later fresh server visibility", () => {
++    const store = createCockpitStore(), old = aSession({ id: "A", worktreeId: "W" });
++    store.getState().replaceSessions([old], ["W"]); store.getState().removeSession("A"); setSessionPending("A", true);
++    const before = store.getState(), observation = observe(store);
++    try {
++      store.getState().replaceSessions([old], ["W"]);
++      expect(store.getState()).toBe(before); expect(store.getState().sessions.A).toBeUndefined();
++      expect(store.getState().sessionIdsByWorktree.W).toEqual([]); observation.quiet();
++      setSessionPending("A", false);
++      store.getState().replaceSessions([old], ["W"]);
++      expect(store.getState().sessions.A).toBe(old); observation.oneChange();
++    } finally { observation.close(); }
++  });
++
++  it("retains a pending row's old position when omitted, then honors removal after settlement", () => {
++    const store = createCockpitStore();
++    const A = aSession({ id: "A", worktreeId: "W" }), held = aSession({ id: "held", worktreeId: "W" });
++    const B = aSession({ id: "B", worktreeId: "W" });
++    store.getState().replaceSessions([A, held, B], ["W"]); setSessionPending("held", true);
++    const before = store.getState(), observation = observe(store);
++    try {
++      store.getState().replaceSessions([A, B], ["W"]);
++      expect(store.getState()).toBe(before); expect(store.getState().sessionIdsByWorktree.W).toEqual(["A", "held", "B"]);
++      observation.quiet();
++      setSessionPending("held", false);
++      store.getState().replaceSessions([A, B], ["W"]);
++      expect(store.getState().sessions.held).toBeUndefined();
++      expect(store.getState().sessionIdsByWorktree.W).toEqual(["A", "B"]); observation.oneChange();
++    } finally { observation.close(); }
++  });
++});

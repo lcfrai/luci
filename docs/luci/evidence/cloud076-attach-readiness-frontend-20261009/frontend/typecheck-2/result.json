@@ -1,0 +1,31 @@
+{
+  "startedAt": "2026-10-09T17:43:01.808Z",
+  "finishedAt": "2026-10-09T17:43:23.864Z",
+  "diagnostics": 0,
+  "compilerVersion": "6.0.3",
+  "inputCount": 745,
+  "inputsUnchanged": true,
+  "sourceOverlay": [
+    {
+      "path": "/workspace/luci/desktop/src/api/attachRegistry.ts",
+      "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/api/attachRegistry.ts",
+      "sha256": "18ddd8a932de421285a5d217038492a951a75afc60ce44e3cf2fa5b61ac34d3a"
+    },
+    {
+      "path": "/workspace/luci/desktop/src/store/types.ts",
+      "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/store/types.ts",
+      "sha256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f"
+    },
+    {
+      "path": "/workspace/luci/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sha256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74"
+    },
+    {
+      "path": "/workspace/luci/desktop/src/api/attachRegistry.readiness.test.ts",
+      "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/tests/desktop/src/api/attachRegistry.readiness.test.ts",
+      "sha256": "fd89a80b18d5c71bb795d0f967fd8cd8c6b0a9c4b5b72723816d8959cacc531e"
+    }
+  ],
+  "scope": "Full desktop tsconfig using exact external source replacements and new regression; no emit, runtime or checkout edit."
+}

@@ -1,0 +1,219 @@
+{
+  "preparedAt": "2026-10-09T17:44:26.100617+00:00",
+  "functionalBase": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "currentHEADAtFreeze": "078d0e99f9d1553a2233dfa51b368b415964766c",
+  "scope": "External only; no checkout application or installed/runtime verification. Additive optional hint, not authority or health. Recorded HTTP 409 cause remains unproven.",
+  "files": [
+    {
+      "path": "desktop/src/api/attachRegistry.ts",
+      "baseSHA256": "b147b04e06f889e5712eb809fd7caf5d381170f26111facb8b1104178b90e6e2",
+      "fixedSHA256": "18ddd8a932de421285a5d217038492a951a75afc60ce44e3cf2fa5b61ac34d3a",
+      "stagedPath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/api/attachRegistry.ts"
+    },
+    {
+      "path": "desktop/src/store/types.ts",
+      "baseSHA256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b",
+      "fixedSHA256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f",
+      "stagedPath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/store/types.ts"
+    },
+    {
+      "path": "desktop/src/components/develop/SessionPaneFooter.tsx",
+      "baseSHA256": "3f48dc7d2f9de3e7041089023ea0fa984669225e8f479c3beb629c03344f2edc",
+      "fixedSHA256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74",
+      "stagedPath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/components/develop/SessionPaneFooter.tsx"
+    },
+    {
+      "path": "desktop/src/api/attachRegistry.readiness.test.ts",
+      "baseSHA256": null,
+      "fixedSHA256": "fd89a80b18d5c71bb795d0f967fd8cd8c6b0a9c4b5b72723816d8959cacc531e",
+      "stagedPath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/tests/desktop/src/api/attachRegistry.readiness.test.ts"
+    }
+  ],
+  "patchSHA256": "022f549d5985e875abb75bbfa11eeccbdb98088c1bf566dd335fbdf4a2677d43",
+  "checks": {
+    "run-before-1": {
+      "result": {
+        "exitCode": 1,
+        "elapsedSeconds": 3.661443318997044,
+        "inputsUnchanged": true,
+        "inputCount": 444,
+        "stdoutSHA256": "ef69c2b7ffec980a575dbbc403f2b3e9e35ce204415a97b8aba2ebf70aa1c104",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "counts": {
+          "numPassedTests": 8,
+          "numFailedTests": 17,
+          "numPendingTests": 0,
+          "numTotalTests": 25
+        }
+      },
+      "files": {
+        "after.json": "b138cb827cad2ad1ea6e5cf9dce1e6c3b336c4dbff5a93cdbce9aedb8669f547",
+        "before.json": "b138cb827cad2ad1ea6e5cf9dce1e6c3b336c4dbff5a93cdbce9aedb8669f547",
+        "command.json": "9343455138c78b61aa6627f977e3847e7b9121167f7eaad63f3f09c9d6e1f40d",
+        "result.json": "88a852f189c58595a9c33fe0dd5ee95964f051822da62c0f737044cfd9927e1b",
+        "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout.log": "ef69c2b7ffec980a575dbbc403f2b3e9e35ce204415a97b8aba2ebf70aa1c104",
+        "test-results.json": "516478547bdaef9d650abac3068b9c44d2b763387cfeec25eb638d5f6cafc690"
+      }
+    },
+    "run-fixed-1": {
+      "result": {
+        "exitCode": 0,
+        "elapsedSeconds": 21.845613524026703,
+        "inputsUnchanged": true,
+        "inputCount": 444,
+        "stdoutSHA256": "ddf07b3de5b261f83fe020d6555871e55fcd67c5b373103e16c62af01abeec8d",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "counts": {
+          "numPassedTests": 338,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTotalTests": 338
+        }
+      },
+      "files": {
+        "after.json": "b138cb827cad2ad1ea6e5cf9dce1e6c3b336c4dbff5a93cdbce9aedb8669f547",
+        "before.json": "b138cb827cad2ad1ea6e5cf9dce1e6c3b336c4dbff5a93cdbce9aedb8669f547",
+        "command.json": "af72a72e028d7c7bb3d0e07469bcdc80557225cedb87200e953a42a177b6b55a",
+        "result.json": "7563173cfd22f840aa35631ae71272a9a9ca3814506d87bc576d6a1ff8e86e1d",
+        "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout.log": "ddf07b3de5b261f83fe020d6555871e55fcd67c5b373103e16c62af01abeec8d",
+        "test-results.json": "76546d6e61bedca0d326f468bf80b953e393b626f161201f5cbae8361e16fbb0"
+      }
+    },
+    "run-before-final": {
+      "result": {
+        "exitCode": 1,
+        "elapsedSeconds": 5.6459108460112475,
+        "inputsUnchanged": true,
+        "inputCount": 444,
+        "stdoutSHA256": "ce9cb7401743733660a826b4c09c5f07b87541ab6d305b32548ca47374e902ad",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "counts": {
+          "numPassedTests": 8,
+          "numFailedTests": 17,
+          "numPendingTests": 0,
+          "numTotalTests": 25
+        }
+      },
+      "files": {
+        "after.json": "783e3535f46bc0d27518b968177e5e63b476fb1593b0231303b811b9ea7392d7",
+        "before.json": "783e3535f46bc0d27518b968177e5e63b476fb1593b0231303b811b9ea7392d7",
+        "command.json": "7624e0e6c136fe63c8f75b0a4da29eec94b3f4c53e6e7bab1a4266999484e789",
+        "result.json": "922b0acc5dfa732b65796e6aaac4b2d1214f4c5b5c536a91b3079a57b358589a",
+        "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout.log": "ce9cb7401743733660a826b4c09c5f07b87541ab6d305b32548ca47374e902ad",
+        "test-results.json": "9ca6630887bd9d50d8f1a276f2921a66dea6a0043f30a37247ddf95a791cbe54"
+      }
+    },
+    "run-fixed-final": {
+      "result": {
+        "exitCode": 0,
+        "elapsedSeconds": 2.6109028339851648,
+        "inputsUnchanged": true,
+        "inputCount": 444,
+        "stdoutSHA256": "9ebebb933cb1516bd21d683847d11eefaf5b87e85353849c0d76519c335e0c47",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "counts": {
+          "numPassedTests": 25,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTotalTests": 25
+        }
+      },
+      "files": {
+        "after.json": "783e3535f46bc0d27518b968177e5e63b476fb1593b0231303b811b9ea7392d7",
+        "before.json": "783e3535f46bc0d27518b968177e5e63b476fb1593b0231303b811b9ea7392d7",
+        "command.json": "6784fc9caa987fc9eb5112b112cce3204b7b04457c68857fbcbbd6423f756459",
+        "result.json": "c2d751caee90290c428be73d3e244ae1ebf9e59af66a91e8307f5d53e966173a",
+        "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout.log": "9ebebb933cb1516bd21d683847d11eefaf5b87e85353849c0d76519c335e0c47",
+        "test-results.json": "e43b14f4f95445b38b54255ee464d2fbf6768ffce2c54ad143db16c73aab92c3"
+      }
+    },
+    "typecheck-1": {
+      "result": {
+        "startedAt": "2026-10-09T17:40:27.807Z",
+        "finishedAt": "2026-10-09T17:40:51.904Z",
+        "diagnostics": 1,
+        "compilerVersion": "6.0.3",
+        "inputCount": 745,
+        "inputsUnchanged": true,
+        "sourceOverlay": [
+          {
+            "path": "/workspace/luci/desktop/src/api/attachRegistry.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/api/attachRegistry.ts",
+            "sha256": "18ddd8a932de421285a5d217038492a951a75afc60ce44e3cf2fa5b61ac34d3a"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/store/types.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/store/types.ts",
+            "sha256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/components/develop/SessionPaneFooter.tsx",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/components/develop/SessionPaneFooter.tsx",
+            "sha256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/api/attachRegistry.readiness.test.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/tests/desktop/src/api/attachRegistry.readiness.test.ts",
+            "sha256": "2d50e115bb176b6799ecf22d5c87da7e7066e71b121c8a21cae993ec1311b1de"
+          }
+        ],
+        "scope": "Full desktop tsconfig using exact external source replacements and new regression; no emit, runtime or checkout edit."
+      },
+      "files": {
+        "attachRegistry.readiness.test.ts.before": "2d50e115bb176b6799ecf22d5c87da7e7066e71b121c8a21cae993ec1311b1de",
+        "diagnostics.txt": "c5a9938b3710bf3384189a6ec4ba9eb5aff6758b6c827c9595dcf5a6eb1eeca4",
+        "inputs.json": "8f632cea8c0853d387f0a463355658e8773029424bdd8d4444654e111f0db042",
+        "result.json": "0b8a7a7be600a79be9e450f8b240fab5e30ec0ad6ecf997d47541b21d223de8a",
+        "type-only-correction.json": "c6e2826d958459e5f1af051247e93f0bf81c4318cead97526ecefe74528122ee"
+      }
+    },
+    "typecheck-2": {
+      "result": {
+        "startedAt": "2026-10-09T17:43:01.808Z",
+        "finishedAt": "2026-10-09T17:43:23.864Z",
+        "diagnostics": 0,
+        "compilerVersion": "6.0.3",
+        "inputCount": 745,
+        "inputsUnchanged": true,
+        "sourceOverlay": [
+          {
+            "path": "/workspace/luci/desktop/src/api/attachRegistry.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/api/attachRegistry.ts",
+            "sha256": "18ddd8a932de421285a5d217038492a951a75afc60ce44e3cf2fa5b61ac34d3a"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/store/types.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/store/types.ts",
+            "sha256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/components/develop/SessionPaneFooter.tsx",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/components/develop/SessionPaneFooter.tsx",
+            "sha256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/api/attachRegistry.readiness.test.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/tests/desktop/src/api/attachRegistry.readiness.test.ts",
+            "sha256": "fd89a80b18d5c71bb795d0f967fd8cd8c6b0a9c4b5b72723816d8959cacc531e"
+          }
+        ],
+        "scope": "Full desktop tsconfig using exact external source replacements and new regression; no emit, runtime or checkout edit."
+      },
+      "files": {
+        "diagnostics.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "inputs.json": "c40fde028329580f0a91e2a19628cba1f1600baf5c717e500ed08176e9274d91",
+        "result.json": "dcbaa6909094e34ce674720c6be9441cb20684de2107b943fd563b9c75f37017"
+      }
+    }
+  },
+  "tooling": {
+    "run.py": "3823224e7dbe0c4587e08cffb6448103b1b504ac12aca3dcd8d2318f51cd793e",
+    "vitest.config.mjs": "c7623f82ac053fb39ff2d686fcfd77b94f8fa1c6a1d551c60f178baa6413feef",
+    "typecheck.mjs": "7d0ed64ade1dcfaf2c277466553e5ff16c04bd94cf7a0778d5b2e070f49e21ec",
+    "base.json": "7045cb4c425c94c797bbf1e37b41f9417609e03bf39237c5d221500e064eb4b6"
+  }
+}

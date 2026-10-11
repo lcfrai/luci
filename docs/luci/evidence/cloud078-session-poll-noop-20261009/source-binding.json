@@ -1,0 +1,78 @@
+{
+  "sourceCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "scope": "Selected exact files; no whole-checkout identity inference from later docs-only HEAD.",
+  "files": [
+    {
+      "path": "desktop/src/store/slices/dataSlice.ts",
+      "bytes": 15179,
+      "sha256": "099d299e9a610fdce275ae0411398d6d2b42f74b3b722692c0333ec5f5a1a711",
+      "commitBlob": "d15f15e4accf5a65258fb2f705af80ebcd312563"
+    },
+    {
+      "path": "desktop/src/api/poller.test.ts",
+      "bytes": 6678,
+      "sha256": "77b5e0793109c94a7702567614f7de12e5c1dda4efa5b6ce404a4473d97f4f65",
+      "commitBlob": "bc283686d912d776ad84fa0c3f8cfa41b459ad6d"
+    },
+    {
+      "path": "desktop/src/api/poller.ts",
+      "bytes": 5885,
+      "sha256": "23d5faa83acffd4d8b77899394d97b1606640f01d250a63d7551d5004b71f164",
+      "commitBlob": "6da2572823dac525caa796cbbdf6d87d6750e571"
+    },
+    {
+      "path": "desktop/src/api/poller.generation.test.ts",
+      "bytes": 5426,
+      "sha256": "c9b2b37a78df0ea781c507991eecee91aa58bd7a17510cae63f8aa95e61c37f5",
+      "commitBlob": "d329604a18664dd30195af3a1c5268121fdf833e"
+    },
+    {
+      "path": "desktop/src/store/store.ts",
+      "bytes": 4709,
+      "sha256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6",
+      "commitBlob": "b54de27d1943be4140f5a0230c559461260d411f"
+    },
+    {
+      "path": "desktop/src/store/types.ts",
+      "bytes": 11380,
+      "sha256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b",
+      "commitBlob": "2109ad45741d226f2e8471a7ff52def2d48dbc23"
+    },
+    {
+      "path": "desktop/src/lib/pendingSessions.ts",
+      "bytes": 2613,
+      "sha256": "1406fb90a378fab6b2a378fab0b69f0e30e8c52d085a5ffe2f98ae9d3eebff0a",
+      "commitBlob": "fb4ea7d264e31dd7e51424a251f5cfb2416b33bd"
+    },
+    {
+      "path": "desktop/src/test/fixtures.ts",
+      "bytes": 5391,
+      "sha256": "5f8a1d84422914e034dcfe16958a6aaf3abf79b202698b5a180dae5f2c35fa84",
+      "commitBlob": "e9ce5978acd0467985fd3a7337c2b431e2146aa9"
+    },
+    {
+      "path": "desktop/vitest.config.ts",
+      "bytes": 2265,
+      "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+      "commitBlob": "d1378fdf32fb90d8905428fc81d1912a8a02c690"
+    },
+    {
+      "path": "desktop/src/test/setup.ts",
+      "bytes": 1173,
+      "sha256": "6873458c092edb343b856df7c92cae4eeaa55caa397d5a908121184301812a57",
+      "commitBlob": "eebbb4e185314b38fddc1b31d4e2a1cec9a86ca4"
+    },
+    {
+      "path": "desktop/package.json",
+      "bytes": 1965,
+      "sha256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+      "commitBlob": "00e1f702baa3ad2275949c865813d4704bebb31a"
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "bytes": 247150,
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "commitBlob": "6e7fcd90ac97d69353ae72781b231fd103760c5f"
+    }
+  ]
+}

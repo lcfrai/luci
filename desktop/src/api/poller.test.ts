@@ -152,16 +152,23 @@ describe("startPolling", () => {
     expect(useCockpit.getState().lastError).toBeNull();
   });
 
-  it("a quiet tick makes exactly one store write — the poll must move zero pixels", async () => {
-    const stop = startPolling(stubClient(async () => []), useCockpit);
+  it("an unchanged quiet tick keeps notifications and preference writes unchanged", async () => {
+    const listSessions = vi.fn(async () => [] as Session[]), goodTick = vi.fn();
+    const stop = startPolling(stubClient(listSessions), useCockpit, goodTick);
     await vi.advanceTimersByTimeAsync(0);
-    let writes = 0;
-    const unsubscribe = useCockpit.subscribe(() => { writes += 1; });
-    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
-    unsubscribe();
-    stop();
-    // replaceSessions, and nothing else: a redundant setError(null) is a second re-render.
-    expect(writes).toBe(1);
+    const before = useCockpit.getState(), changed = vi.fn();
+    const unsubscribe = useCockpit.subscribe(changed);
+    const write = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+      expect(useCockpit.getState()).toBe(before);
+      expect(changed).not.toHaveBeenCalled();
+      expect(write).not.toHaveBeenCalled();
+      // A quiet response is still a successful fresh read; catalogue retry is
+      // not dependent on publishing redundant session state.
+      expect(listSessions).toHaveBeenCalledTimes(2);
+      expect(goodTick).toHaveBeenCalledTimes(2);
+    } finally { unsubscribe(); stop(); write.mockRestore(); }
   });
 });
 

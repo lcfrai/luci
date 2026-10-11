@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/api/session_attach_readiness_test.go": "/workspace/.luci-tools/cloud076-attach-readiness/backend/tree/control-plane/internal/api/session_attach_readiness_test.go"
+  }
+}

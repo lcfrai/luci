@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "intendedDestination": "docs/luci/evidence/cloud077-terminal-observation-budget-20261009",
+  "scope": "External warm acceptance helper correction and controlled Node evidence; no installed retest or product source change",
+  "included": "Exact original/final warm helper sources, unchanged supervisor, exact tests with initial/final expectation versions, raw outcomes, scoped source/contract bindings and independent review",
+  "sourceOutcome": "Original shared6:1pass5fail; fixed initial26:22pass4test-message-mismatch; corrected affected4:4pass;26unique final passing cases, not one combined clean rerun",
+  "excluded": [
+    "actual private runtime fixture",
+    "Docker/lease state",
+    "credentials",
+    "installed screenshots",
+    "raw installed transport or controller logs",
+    "node_modules or binary payload"
+  ],
+  "unchangedAcceptance": "8s held list response,10s product read,15s initial attach,6s postACK attach,150s Restart,8min workflow; afterACKordering still required for overall pass",
+  "allInputsBound": "final-source-and-contract-bindings.json"
+}

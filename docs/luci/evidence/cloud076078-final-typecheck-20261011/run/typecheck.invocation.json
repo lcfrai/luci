@@ -1,0 +1,15 @@
+{
+  "label": "typecheck",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/luci/desktop/node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "timeoutSeconds": 180,
+  "startedAt": "2026-10-11T10:00:32.450941+00:00",
+  "cleanupBoundSeconds": 20,
+  "maxLogBytesPerStream": 33554432,
+  "pid": 2671846,
+  "processGroup": 2671846
+}

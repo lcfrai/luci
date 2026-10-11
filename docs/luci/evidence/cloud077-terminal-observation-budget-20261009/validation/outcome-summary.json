@@ -1,0 +1,28 @@
+{
+  "sharedBefore": {
+    "cases": 6,
+    "pass": 1,
+    "fail": 5,
+    "exitCode": 1
+  },
+  "fixedInitial": {
+    "cases": 26,
+    "pass": 22,
+    "fail": 4,
+    "exitCode": 1
+  },
+  "fixedCorrectedAffectedOnly": {
+    "cases": 4,
+    "pass": 4,
+    "fail": 0,
+    "exitCode": 0
+  },
+  "finalUniquePassingCases": 26,
+  "combinedClean26CaseRerun": false,
+  "sameBodySHA256": "6338e4266b50b8f2d44087995a49837df6575ce3d10e0b5f7aea08665bd412b1",
+  "sameBodyCasesPassedFixed": 6,
+  "helperSourcesUnchangedAcrossRuns": true,
+  "testExpectationOnlyCorrection": "validation/test-expectation-correction.json",
+  "appBrowserCompilerDockerRuntime": false,
+  "installedAcceptanceClaim": false
+}

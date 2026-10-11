@@ -1,0 +1,22 @@
+{
+  "variant": "pre-unmount",
+  "scope": "regression",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/luci/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/vitest.config.mjs",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-before-unmount/test-results.json",
+    "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/tests/desktop/src/api/attachRegistry.readiness.test.ts"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-09T17:48:40.787519+00:00",
+  "head": "078d0e99f9d1553a2233dfa51b368b415964766c",
+  "baseFunctionalCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "environmentOverrides": {
+    "C076_VARIANT": "pre-unmount"
+  },
+  "scopeLimit": "Single-worker Vitest/jsdom controlled checks; no installed app, browser, Docker, provider or compiler run."
+}

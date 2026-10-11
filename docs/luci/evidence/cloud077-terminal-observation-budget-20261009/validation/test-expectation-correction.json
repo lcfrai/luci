@@ -1,0 +1,10 @@
+{
+  "affectedCases": 4,
+  "change": "Match the exact rejection emitted for abnormal/unclean close, nonzero first Exit and prior error; guard behavior and stimulus unchanged",
+  "initialTestSHA256": "78a40b8b09f07b6751654253c2d24ce4bbda32f7e78b0e211f2d28a03e59c24b",
+  "correctedTestSHA256": "6eba456c48f9e95f6eef0768f970a75498c35a88d4baff3db9e0296d8ad46985",
+  "helperSourceChanged": false,
+  "sameBodyRegressionChanged": false,
+  "retested": true,
+  "resultReceipt": "fixed-corrected-affected.json"
+}

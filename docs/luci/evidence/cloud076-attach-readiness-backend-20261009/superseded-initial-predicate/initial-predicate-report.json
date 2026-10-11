@@ -1,0 +1,52 @@
+{
+  "status": "superseded unsafe initial predicate; do not integrate",
+  "sourceBaseCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "checkoutScope": "Root checkout plus external Go overlay; root advanced documentation during validation. Captured HEAD metadata is authoritative; this was not an immutable separate checkout. Effective compiled repository source files stayed unchanged.",
+  "recoveryConcern": "A known-generation live allocation can remain with an empty registry endpoint after controller loss before the second write. A pure false hint would suppress Backend.Get-based recovery. API-owned exact-generation transient preparation tracking is required.",
+  "runs": [
+    {
+      "mode": "before-1",
+      "invocationHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "beforeHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "afterHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "beforeWorkingTreeStatus": "",
+      "afterWorkingTreeStatus": "",
+      "sourceFilesStable": true,
+      "sourceFileCount": 945,
+      "testActions": {
+        "fail": 1
+      },
+      "resultSHA256": "3a186f4f65f4f98edc97f52ac65ffeaf9c5ae6bb3d08a7c274ae086bffbc5ac7"
+    },
+    {
+      "mode": "after-1",
+      "invocationHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "beforeHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "afterHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "beforeWorkingTreeStatus": "",
+      "afterWorkingTreeStatus": "",
+      "sourceFilesStable": true,
+      "sourceFileCount": 946,
+      "testActions": {
+        "pass": 19
+      },
+      "resultSHA256": "101549ad585b505acc1e3686c24ad0ee9773a42754ad2a489364a5989cc746f8"
+    },
+    {
+      "mode": "related-1",
+      "invocationHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "beforeHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "afterHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "beforeWorkingTreeStatus": "",
+      "afterWorkingTreeStatus": "",
+      "sourceFilesStable": true,
+      "sourceFileCount": 946,
+      "testActions": {
+        "pass": 40
+      },
+      "resultSHA256": "608e2ccf62c2090a0dddb1c16484224b6c29e0c06043af46e905cbdadf3e1e95"
+    }
+  ],
+  "executedBinarySHA256": null,
+  "executedBinaryHashScope": "Sampling missed short-lived test processes. Full source manifests and raw invocation results are retained; no later compile is substituted."
+}

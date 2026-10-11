@@ -1,0 +1,47 @@
+{
+  "scope": "Source-bound derivative of failed historical public API logging; wait reasons unavailable",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 4278,
+      "sha256": "89783b80acf17e2323cab809b38b277528317407722e35797ce1279bf9caa851"
+    },
+    {
+      "path": "analysis.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "analysis.stdout.log",
+      "bytes": 434,
+      "sha256": "d2a8c10859997c99f13e10c04baf6928831e3d8923d8e57d42358c613125f3ea"
+    },
+    {
+      "path": "analyze.py",
+      "bytes": 5182,
+      "sha256": "e631d0ed798232199ba81da883b809bf7bf40247559c6b3e07aef299e925f105"
+    },
+    {
+      "path": "derived/accepted-public-api-spans.mjs",
+      "bytes": 4878,
+      "sha256": "994468a342b44b4bb41294242ccfcad1281331d5f59229e1cd0f05bc9e5a09f9"
+    },
+    {
+      "path": "derived/assessment.json",
+      "bytes": 142921,
+      "sha256": "4b00e17500f63daf0e6c5111f4960191d99eb4f0631280fc05558e2f57c48a64"
+    },
+    {
+      "path": "derived/original-logger-projection.json",
+      "bytes": 99547,
+      "sha256": "83e88086cc7745c67014c95092970bf57dd9c224f1378ed5320c7b655fbbda5b"
+    },
+    {
+      "path": "inspection-receipt.json",
+      "bytes": 743,
+      "sha256": "e9bc4e264711619dc0f7aa7872693c7f58376471ffaab7f3e36f9d48902c48a2"
+    }
+  ],
+  "memberCount": 8,
+  "memberBytes": 257983
+}

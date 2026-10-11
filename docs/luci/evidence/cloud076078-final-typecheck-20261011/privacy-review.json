@@ -1,0 +1,20 @@
+{
+  "reviewedTypes": [
+    "Public repository source file paths and SHA-256/size metadata",
+    "Public tool and dependency paths/manifests hashed, not credential contents",
+    "Git HEAD and worktree status path names",
+    "Runner/helper source and explicit commands",
+    "Empty stdout/stderr logs",
+    "Environment variable names and explicit CI=1/NO_COLOR=1 only"
+  ],
+  "excluded": [
+    "Application private fixtures/state/ledgers",
+    "Environment values other than explicit CI/NO_COLOR",
+    "Credential files",
+    "Dependency caches",
+    "Python bytecode",
+    "Undeclared temporary/output copies"
+  ],
+  "findings": "No secret values were read into the declared artifacts by this runner; the capsule contains metadata, generated runner code and empty command logs.",
+  "claimLimit": "Review describes the declared artifact content and data collection; it does not claim a general repository or environment security audit."
+}

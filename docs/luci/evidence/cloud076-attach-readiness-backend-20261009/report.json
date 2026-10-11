@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "status": "controlled checks passed; prospective product fix, installed behavior unverified",
+  "sourceBaseCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "checkoutScope": "Root checkout plus external overlays; actual HEAD and dirty frontend/documentation inventory retained for each invocation. No immutable or clean root checkout claim.",
+  "baseInputReference": "/workspace/.luci-tools/c070-78665270-source-parity.json",
+  "baseInputReferenceSHA256": "9db1fb073cc4e6edb6096da908d2db3baab4cb3574d150642929b87c8cf3e569",
+  "baseReferenceCount": 944,
+  "baseFiles": {
+    "control-plane/internal/api/project_run_sessions.go": "fc4b9434c4361417ba3ef1f7c8825e6df1e26a8a9f15366f18f2281e445f3626",
+    "control-plane/internal/api/session_allocation.go": "ae51c9e1b61d7a5827f9045b319cfbcfa83797e9f5bcbb17611db1e9418e35dd",
+    "control-plane/internal/api/api.go": "32a4d9f8ec00962d5f1f8872de5c1ac56b980ba5e78bd511e66ecbab54f5f79a",
+    "control-plane/internal/api/assist.go": "712122233992eb13154495d4c2fe6a67ed54a5192e3e8c3ac4bfbbd305cee201",
+    "control-plane/internal/api/sessions.go": "04762d680f6aa03eeff196e027d1a5d58b57a25ab6ffab6e02cb5c9e1aa1c489"
+  },
+  "patchSHA256": "8f1ab130530ee29b12c23bf0fd44d2160b44fb8c00930db64b4c9cae8eab7dba",
+  "sourceBindingSHA256": "338d0e8ed504bc1cd4f8e691e3306da1ea01536222045c8887cf40f73da83b69",
+  "sameHTTPRegressionFunctionSHA256": "171711db23a308a082fd1a692e3aededa850790a0744cd9796ea5490e85a6480",
+  "runs": [
+    {
+      "mode": "before-1",
+      "exitCode": 1,
+      "testActions": {
+        "fail": 1,
+        "pass": 4
+      },
+      "failedTests": [
+        "TestSessionAttachReadinessHTTPRestartWaitsForRecordedEndpoint"
+      ],
+      "startedAt": 1791568540.9524918,
+      "endedAt": 1791568562.3346574,
+      "invocationHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "beforeHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "afterHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "workingTreeStatusBefore": " M desktop/src/api/poller.test.ts\n M desktop/src/store/slices/dataSlice.ts\n M docs/luci/QUALITY-WORKLIST.md\n?? desktop/src/store/sessionPollNoop.test.ts\n?? docs/luci/evidence/cloud032-next-event-paint-plan.md\n?? docs/luci/evidence/cloud078-review-after-freeze.json\n?? docs/luci/evidence/cloud078-session-poll-noop-20261009/\n",
+      "workingTreeStatusAfter": " M desktop/src/api/poller.test.ts\n M desktop/src/store/slices/dataSlice.ts\n M docs/luci/QUALITY-WORKLIST.md\n?? desktop/src/store/sessionPollNoop.test.ts\n?? docs/luci/evidence/cloud032-next-event-paint-plan.md\n?? docs/luci/evidence/cloud078-review-after-freeze.json\n?? docs/luci/evidence/cloud078-session-poll-noop-20261009/\n",
+      "sourceFiles": 946,
+      "sourceFilesStable": true,
+      "selectedFilesStable": true,
+      "unalteredBaseInputsCompared": 944,
+      "unalteredBaseInputsMatch786": true,
+      "overlaidBaseInputs": [],
+      "overlayAdditions": [
+        "control-plane/internal/api/session_attach_readiness_http_test.go",
+        "control-plane/internal/api/session_attach_recovery_test.go"
+      ],
+      "resultSHA256": "f72b4d2d53b9bcbbb03febfe5d6d108f082b9c1ed66be09b67bcf68dfab58da1",
+      "beforeManifestSHA256": "16fb7b48a291bf2a07cfdcc0dfb1e3d169e485c2648a2362d5046b047ba2ab66",
+      "afterManifestSHA256": "73c7394ee387774ea042e97ee51ae9af8209bb1c5b6f4bd8d929faadc2bef6ac",
+      "sampledExecutedBinary": false,
+      "minimumFreeBytes": {
+        "root": 2029023232,
+        "tmp": 901537792
+      }
+    },
+    {
+      "mode": "recovery-before-1",
+      "exitCode": 1,
+      "testActions": {
+        "fail": 1
+      },
+      "failedTests": [
+        "TestSessionPreparationRecoveryAllowsBackendResolvedAttach"
+      ],
+      "startedAt": 1791568587.0326703,
+      "endedAt": 1791568603.8648443,
+      "invocationHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "beforeHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "afterHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "workingTreeStatusBefore": " M desktop/src/api/poller.test.ts\n M desktop/src/store/slices/dataSlice.ts\n M docs/luci/QUALITY-WORKLIST.md\n?? desktop/src/store/sessionPollNoop.test.ts\n?? docs/luci/evidence/cloud032-next-event-paint-plan.md\n?? docs/luci/evidence/cloud078-review-after-freeze.json\n?? docs/luci/evidence/cloud078-session-poll-noop-20261009/\n",
+      "workingTreeStatusAfter": " M desktop/src/api/poller.test.ts\n M desktop/src/store/slices/dataSlice.ts\n M docs/luci/QUALITY-WORKLIST.md\n?? desktop/src/store/sessionPollNoop.test.ts\n?? docs/luci/evidence/cloud032-next-event-paint-plan.md\n?? docs/luci/evidence/cloud078-review-after-freeze.json\n?? docs/luci/evidence/cloud078-session-poll-noop-20261009/\n",
+      "sourceFiles": 947,
+      "sourceFilesStable": true,
+      "selectedFilesStable": true,
+      "unalteredBaseInputsCompared": 943,
+      "unalteredBaseInputsMatch786": true,
+      "overlaidBaseInputs": [
+        "control-plane/internal/api/sessions.go"
+      ],
+      "overlayAdditions": [
+        "control-plane/internal/api/session_attach_readiness_http_test.go",
+        "control-plane/internal/api/session_attach_recovery_test.go",
+        "control-plane/internal/api/session_attach_readiness.go"
+      ],
+      "resultSHA256": "186e996896efb0396646ee57e57463244c33c61ecb32bd873b3b16b367ffe718",
+      "beforeManifestSHA256": "5c26e04a6e214ec04da98c7fbcc3ff54545d6be4072b2851b0a91b7046d36f3e",
+      "afterManifestSHA256": "8e57d4a84f72fb3facbd8a4d510547088460959bc613093a2d399f217590b6ec",
+      "sampledExecutedBinary": false,
+      "minimumFreeBytes": {
+        "root": 6720966656,
+        "tmp": 877563904
+      }
+    },
+    {
+      "mode": "after-1",
+      "exitCode": 0,
+      "testActions": {
+        "pass": 38
+      },
+      "failedTests": [],
+      "startedAt": 1791568611.6574795,
+      "endedAt": 1791568628.5570943,
+      "invocationHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "beforeHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "afterHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "workingTreeStatusBefore": " M desktop/src/api/poller.test.ts\n M desktop/src/store/slices/dataSlice.ts\n M docs/luci/QUALITY-WORKLIST.md\n?? desktop/src/store/sessionPollNoop.test.ts\n?? docs/luci/evidence/cloud032-next-event-paint-plan.md\n?? docs/luci/evidence/cloud078-review-after-freeze.json\n?? docs/luci/evidence/cloud078-session-poll-noop-20261009/\n",
+      "workingTreeStatusAfter": " M desktop/src/api/poller.test.ts\n M desktop/src/store/slices/dataSlice.ts\n M docs/luci/QUALITY-WORKLIST.md\n?? desktop/src/store/sessionPollNoop.test.ts\n?? docs/luci/evidence/cloud032-next-event-paint-plan.md\n?? docs/luci/evidence/cloud078-review-after-freeze.json\n?? docs/luci/evidence/cloud078-session-poll-noop-20261009/\n",
+      "sourceFiles": 950,
+      "sourceFilesStable": true,
+      "selectedFilesStable": true,
+      "unalteredBaseInputsCompared": 939,
+      "unalteredBaseInputsMatch786": true,
+      "overlaidBaseInputs": [
+        "control-plane/internal/api/api.go",
+        "control-plane/internal/api/assist.go",
+        "control-plane/internal/api/project_run_sessions.go",
+        "control-plane/internal/api/session_allocation.go",
+        "control-plane/internal/api/sessions.go"
+      ],
+      "overlayAdditions": [
+        "control-plane/internal/api/session_attach_readiness.go",
+        "control-plane/internal/api/session_attach_readiness_http_test.go",
+        "control-plane/internal/api/session_attach_readiness_test.go",
+        "control-plane/internal/api/session_attach_recovery_test.go",
+        "control-plane/internal/api/session_preparation_cancel_test.go",
+        "control-plane/internal/api/session_preparation_test.go"
+      ],
+      "resultSHA256": "991bc1828fffa9407504edd1917fa6b0e905ff25fa3d9526782ac164328156eb",
+      "beforeManifestSHA256": "3eee7acb8b20271cfda1c576773f1260e09d2ca848d52ca07ab5d96c34c2a633",
+      "afterManifestSHA256": "35b384c5ae5b722334095116ea470cd174a7fca898531e15e6393cbfaa1febcf",
+      "sampledExecutedBinary": false,
+      "minimumFreeBytes": {
+        "root": 6720274432,
+        "tmp": 853348352
+      }
+    },
+    {
+      "mode": "related-1",
+      "exitCode": 0,
+      "testActions": {
+        "pass": 40
+      },
+      "failedTests": [],
+      "startedAt": 1791568645.4631078,
+      "endedAt": 1791568653.2905152,
+      "invocationHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "beforeHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "afterHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c",
+      "workingTreeStatusBefore": " M desktop/src/api/poller.test.ts\n M desktop/src/store/slices/dataSlice.ts\n M docs/luci/QUALITY-WORKLIST.md\n?? desktop/src/store/sessionPollNoop.test.ts\n?? docs/luci/evidence/cloud032-next-event-paint-plan.md\n?? docs/luci/evidence/cloud078-review-after-freeze.json\n?? docs/luci/evidence/cloud078-session-poll-noop-20261009/\n",
+      "workingTreeStatusAfter": " M desktop/src/api/poller.test.ts\n M desktop/src/store/slices/dataSlice.ts\n M docs/luci/QUALITY-WORKLIST.md\n?? desktop/src/store/sessionPollNoop.test.ts\n?? docs/luci/evidence/cloud032-next-event-paint-plan.md\n?? docs/luci/evidence/cloud078-review-after-freeze.json\n?? docs/luci/evidence/cloud078-session-poll-noop-20261009/\n",
+      "sourceFiles": 950,
+      "sourceFilesStable": true,
+      "selectedFilesStable": true,
+      "unalteredBaseInputsCompared": 939,
+      "unalteredBaseInputsMatch786": true,
+      "overlaidBaseInputs": [
+        "control-plane/internal/api/api.go",
+        "control-plane/internal/api/assist.go",
+        "control-plane/internal/api/project_run_sessions.go",
+        "control-plane/internal/api/session_allocation.go",
+        "control-plane/internal/api/sessions.go"
+      ],
+      "overlayAdditions": [
+        "control-plane/internal/api/session_attach_readiness.go",
+        "control-plane/internal/api/session_attach_readiness_http_test.go",
+        "control-plane/internal/api/session_attach_readiness_test.go",
+        "control-plane/internal/api/session_attach_recovery_test.go",
+        "control-plane/internal/api/session_preparation_cancel_test.go",
+        "control-plane/internal/api/session_preparation_test.go"
+      ],
+      "resultSHA256": "99b01cca2b924e3875421646bc26869f86a06450d61342e4ac98a53b4e7df419",
+      "beforeManifestSHA256": "4a9d8f71cda972e9c2326bb8cf55cf11662f006fe1be2e2969d9cb88077fc1dd",
+      "afterManifestSHA256": "082288206ff2fb58ef4470b2085b747398ed717405e7d84e0bef1e305ca42692",
+      "sampledExecutedBinary": false,
+      "minimumFreeBytes": {
+        "root": 6743576576,
+        "tmp": 853348352
+      }
+    }
+  ],
+  "invariants": [
+    "Negative hint only exact API-owned session+generation preparation.",
+    "Registration before normal allocation and Restart first row publication; deferred matching generation+entry cleanup.",
+    "Known live endpoint is true even while starting.",
+    "Terminal, legacy, untracked and new-controller empty endpoints omit hint; existing Backend.Get recovery retained.",
+    "No backend probes, persisted migration, resource release, authorization change or raw private endpoint/token exposure."
+  ],
+  "limitations": [
+    "Controlled Linux Go race tests with fake backends and loopback HTTP/WebSocket servers; no installed Docker/browser or native Windows proof.",
+    "Recovery witness uses a new API over a preexisting real FileStore row, not an operating-system process restart.",
+    "No executed test binary hash was sampled; no later compilation substitutes for it.",
+    "The initial pure predicate remains frozen and superseded; its passes are not final-implementation evidence.",
+    "Original warm Restart remains unacknowledged; separate root operator container removal does not settle its retained lease."
+  ]
+}

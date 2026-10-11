@@ -753,12 +753,14 @@ func (a *API) sessionGitIdentity(ctx context.Context, worktreeID string) GitIden
 type sessionJSON struct {
 	// Opaque allocation identity for terminal display continuity, never authorization.
 	ExecutionGeneration string `json:"executionGeneration,omitempty"`
-	ID                  string `json:"id"`
-	Title               string `json:"title"`
-	MachineID           string `json:"machineId"`
-	ProjectID           string `json:"projectId"`
-	BranchID            string `json:"branchId"`
-	WorktreeID          string `json:"worktreeId"`
+	// Optional recorded allocation readiness; never authorization or a health check.
+	AttachReady *bool  `json:"attachReady,omitempty"`
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	MachineID   string `json:"machineId"`
+	ProjectID   string `json:"projectId"`
+	BranchID    string `json:"branchId"`
+	WorktreeID  string `json:"worktreeId"`
 
 	Harness                 string                          `json:"harness"`
 	Model                   string                          `json:"model"`
@@ -795,8 +797,10 @@ type sessionJSON struct {
 // toJSON renders one session for the wire. base is the URL prefix attachPath is
 // built from; production passes sessionBasePath.
 func toJSON(s registry.Session, base string) sessionJSON {
+	generation := sessionExecutionGeneration(s)
 	return sessionJSON{
-		ExecutionGeneration:     sessionExecutionGeneration(s),
+		ExecutionGeneration:     generation,
+		AttachReady:             sessionAttachReady(s, generation),
 		ID:                      s.ID,
 		Title:                   s.Title,
 		MachineID:               s.MachineID,
@@ -1538,7 +1542,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	// 6. Return immediately. The desktop opens the attach socket, which retries
 	// while the status is starting.
 	w.Header().Set("Location", sessionBasePath+"/sessions/"+sessionID)
-	httpx.WriteJSON(w, http.StatusCreated, toJSON(stored, sessionBasePath))
+	httpx.WriteJSON(w, http.StatusCreated, a.sessionJSON(stored, sessionBasePath))
 }
 
 // sessionLocate finds the project and branch a worktree belongs to, through
@@ -1889,7 +1893,7 @@ func (a *API) handleSessionList(w http.ResponseWriter, r *http.Request) {
 		if len(wanted) > 0 && !wanted[sess.Status] {
 			continue
 		}
-		out = append(out, toJSON(sess, sessionBasePath))
+		out = append(out, a.sessionJSON(sess, sessionBasePath))
 	}
 
 	// Descending, per §3.11, sorted here rather than by reversing the store's
@@ -1927,7 +1931,7 @@ func (a *API) handleSessionGet(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, sessionDetailJSON{sessionJSON: toJSON(sess, sessionBasePath), StartAdmissionEvidence: sessionAdmissionEvidence(r, sess)})
+	httpx.WriteJSON(w, http.StatusOK, sessionDetailJSON{sessionJSON: a.sessionJSON(sess, sessionBasePath), StartAdmissionEvidence: sessionAdmissionEvidence(r, sess)})
 }
 
 func (a *API) handleSessionPatch(w http.ResponseWriter, r *http.Request) {
@@ -1961,7 +1965,7 @@ func (a *API) handleSessionPatch(w http.ResponseWriter, r *http.Request) {
 		a.internal(w, r, "rename the session", err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, toJSON(updated, sessionBasePath))
+	httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(updated, sessionBasePath))
 }
 
 // sessionIDSet serialises one verb per session id. It is a package-level value
@@ -2284,6 +2288,8 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// record, so task 13's reaper sees an orphan and removes it.
 	sandboxID := ids.New("s")
 	token := ids.Token()
+	finishPreparation := a.beginSessionPreparation(registry.Session{ID: id, SandboxID: sandboxID, AttachToken: token})
+	defer finishPreparation()
 
 	// THE RECORD NAMES THE NEW SANDBOX BEFORE THE SANDBOX EXISTS, which is
 	// create's ordering (see handleSessionCreate step 4) and is here for the
@@ -2420,7 +2426,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go a.watchSessionReady(id, sb.ID, sb.Endpoint)
-	httpx.WriteJSON(w, http.StatusOK, toJSON(updated, sessionBasePath))
+	httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(updated, sessionBasePath))
 }
 
 // handleSessionDelete is §3.15 and it is one of the three places in this phase
@@ -2533,7 +2539,7 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !purge {
-		httpx.WriteJSON(w, http.StatusOK, toJSON(updated, sessionBasePath))
+		httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(updated, sessionBasePath))
 		return
 	}
 

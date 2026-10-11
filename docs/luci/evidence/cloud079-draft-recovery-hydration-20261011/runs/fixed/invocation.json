@@ -1,0 +1,40 @@
+{
+  "phase": "fixed",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/luci/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "src/components/common/ProjectDraftRecovery.test.tsx",
+    "--config=/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/vitest.config.mts",
+    "--maxWorkers=1",
+    "--no-file-parallelism",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/draft-recovery-triage-20261011/runs/fixed/vitest.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "timeoutSeconds": 120,
+  "maxLogBytesPerStream": 4194304,
+  "startedAt": "2026-10-11T09:57:11.221539+00:00",
+  "head": "078d0e99f9d1553a2233dfa51b368b415964766c",
+  "config": {
+    "bytes": 1196,
+    "sha256": "c4c38cbaa973e160d49888c2d12c11663245b795ffc67a7d683e633c9e56f019"
+  },
+  "runner": {
+    "bytes": 6568,
+    "sha256": "ea839d1887add34f604838fb589c0bd6ecabc608a924be1709126d1a16cf84d5"
+  },
+  "environmentNames": [
+    "CI",
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "NO_COLOR",
+    "PATH",
+    "TMPDIR"
+  ],
+  "explicitEnvironment": {
+    "CI": "1",
+    "NO_COLOR": "1"
+  }
+}

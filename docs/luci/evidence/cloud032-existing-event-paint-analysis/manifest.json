@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "kind": "offline-existing-capture-derivative",
+  "measuredProduct": "b94ad37e53181e360ac8910ee980570de622728c",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 8482,
+      "sha256": "b3b97bb4114a629f66afe3b95e29d3ad9aa28460d00da9ed20a960484c2c6412"
+    },
+    {
+      "path": "analysis.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "analysis.stdout.log",
+      "bytes": 4213,
+      "sha256": "c891c7ede7de4a00b67731313db0e3259c5d7a18a27b9027cc54582573cb18e8"
+    },
+    {
+      "path": "analyze.py",
+      "bytes": 18500,
+      "sha256": "64494eaf166495d709620566dc4b60ae483e670b394e02005177e3024b74f842"
+    },
+    {
+      "path": "derived/all16-click-joins.json",
+      "bytes": 72981,
+      "sha256": "c3ed2df83b4f65e94dec5e15024e2ad01dfc220f56722f95dc6fce0bad19dd1b"
+    },
+    {
+      "path": "derived/all32-original-interactions.json",
+      "bytes": 71497,
+      "sha256": "d378b4fdfcb3ab7fd132633319de00b7b1d1db1842fcf8dfb668c023ddd042cf"
+    },
+    {
+      "path": "derived/input-bindings.json",
+      "bytes": 2010,
+      "sha256": "2f4563a8d50b7cd45333dbab29cc290ee21a9282343f40bbe5d49c0b4c1cb126"
+    },
+    {
+      "path": "derived/observation-coverage.json",
+      "bytes": 9321,
+      "sha256": "21ca78cbf6ce58a858f9499a9b941436c455d44cfafdf1b40d29375a2aa47716"
+    },
+    {
+      "path": "derived/summary.json",
+      "bytes": 8806,
+      "sha256": "cfd4234a9e656e43bb086225b5e2441d1b2e8f9723ca27b771f91a99e4c04ad3"
+    },
+    {
+      "path": "execution.json",
+      "bytes": 952,
+      "sha256": "d32e86f398140fb8240372b2f52bc801fb39b269b233e9e56a049016683e1da9"
+    },
+    {
+      "path": "independent-source-review.json",
+      "bytes": 966,
+      "sha256": "cba995deeddcce5d94c7397723f951f31959960180d1af8d6eb395610dad8f29"
+    }
+  ],
+  "memberCount": 11,
+  "memberBytes": 197728,
+  "limits": "No new runtime, tests, threshold changes, cross-clock subtraction, product-cause or gain claim. Private raw originals are metadata references, not publication members."
+}

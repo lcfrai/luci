@@ -1,0 +1,69 @@
+{
+  "classification": "Test synchronization hardening; no product defect established by observed failure or isolated rerun.",
+  "originalObservedFailure": {
+    "file": "desktop/src/components/common/ProjectDraftRecovery.test.tsx",
+    "name": "recovers a normalized sketch without counting hydration as an edit or automatically saving it",
+    "assertion": "expected saved x:1 to contain restored x:99",
+    "line": 323
+  },
+  "diagnosis": "The mock exposes onChange during render, but sends its initial x:1 scene in a passive effect. The test waits only for placeholder DOM. An edit delivered before mock hydration can establish x:99 as baseline and make delayed x:1 hydration the stored edit. This is a source-supported ordering risk; the isolated unchanged run did not reproduce the fullsuite failure.",
+  "fix": "Explicit hydration flag set only after initial onChange, reset on unmount and before tests; await hydration on both mounts; assert clean hydration and exact retained x:99 scene before unmount; preserve restore and no-autosave assertions.",
+  "productFilesChanged": [],
+  "patchFile": "draft-recovery-hydration.patch",
+  "sourceBindings": {
+    "before": {
+      "desktop/src/components/common/ProjectDraftRecovery.test.tsx": "d6561414a417d994fa39488112883600ab6e15f549267a422b1aa4995c3ad16b"
+    },
+    "fixed": {
+      "desktop/src/components/common/ProjectDraftRecovery.test.tsx": "5f6f4f47271f5f1aa0d7a6ccb17685d8205edb4a106b36b5ef8b1fb28f7a90dd"
+    },
+    "repositoryTestUnchanged": true
+  },
+  "originalArtifactsStillUnchanged": {
+    "vitest.json": true,
+    "source-before.json": true,
+    "dependencies-before.json": true,
+    "vitest.invocation.json": true,
+    "invocation.json": true,
+    "vitest.stdout.log": true,
+    "vitest.stderr.log": true
+  },
+  "validation": {
+    "before": {
+      "result": "runs/before/result.json",
+      "summary": {
+        "numTotalTests": 22,
+        "numPassedTests": 22,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true
+      },
+      "sourceStable": true,
+      "loadBindingMatches": true
+    },
+    "fixed": {
+      "result": "runs/fixed/result.json",
+      "summary": {
+        "numTotalTests": 22,
+        "numPassedTests": 22,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true
+      },
+      "sourceStable": true,
+      "loadBindingMatches": true
+    },
+    "selectedDependenciesSame": true
+  },
+  "remainingGates": [
+    "Root applies test-only patch and runs intended integrated typecheck.",
+    "No fullsuite rerun; historical fullsuite remains 2938 passed, 2 failed, and interrupted without completed runner receipt.",
+    "Real native adapter, browser journey and product completion gates were not evaluated by this narrow mock test."
+  ],
+  "scope": "External staging only. No repository edits, application/browser/Docker runtime, private fixtures, retained state or ledgers touched.",
+  "workItem": "CLOUD-079",
+  "priority": "P2",
+  "changeScope": "Validation-only"
+}

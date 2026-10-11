@@ -1,0 +1,1138 @@
+{
+  "issue": "CLOUD-076",
+  "scope": "Frontend-only external publication capsule; no repository integration, product runtime, installed acceptance, HTTP 409 server-reason inference or new test execution in packaging. Backend-v2 evidence is intentionally separate.",
+  "createdAt": "2026-10-09T17:59:32.210970+00:00",
+  "functionalBase": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "docsOnlyHeadUsedByFinalRuns": "078d0e99f9d1553a2233dfa51b368b415964766c",
+  "shippingFrontend": "frontend-v2/fixed plus frontend-v2/tests",
+  "finalPatchSHA256": "4acd91725ae235ac63ea2d5a2354971ad1bde453f44b0c7878862e8a9557b88b",
+  "finalFrozenManifestSHA256": "a9530a09ff25dbb3efa4b61c0dd3942048e562e988f43ce05ca0b396c7f61fd4",
+  "approvedBackendContract": {
+    "true": "Known generation, starting/running/idle, recorded endpoint present.",
+    "false": "Known generation, starting/running/idle, absent endpoint, exact session/generation preparation owned by this API.",
+    "omitted": "Unknown or legacy identity, untracked absent endpoint including a new API after controller loss, and terminal status.",
+    "limits": "Advisory only. Final backend authorization/readiness checks remain authoritative. No backend Create/Restart deadline. Initial pure recorded-endpoint predicate is superseded and must not ship."
+  },
+  "runs": [
+    {
+      "path": "frontend/run-before-1",
+      "result": {
+        "exitCode": 1,
+        "elapsedSeconds": 3.661443318997044,
+        "inputsUnchanged": true,
+        "inputCount": 444,
+        "stdoutSHA256": "ef69c2b7ffec980a575dbbc403f2b3e9e35ce204415a97b8aba2ebf70aa1c104",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "counts": {
+          "numPassedTests": 8,
+          "numFailedTests": 17,
+          "numPendingTests": 0,
+          "numTotalTests": 25
+        }
+      }
+    },
+    {
+      "path": "frontend/run-fixed-1",
+      "result": {
+        "exitCode": 0,
+        "elapsedSeconds": 21.845613524026703,
+        "inputsUnchanged": true,
+        "inputCount": 444,
+        "stdoutSHA256": "ddf07b3de5b261f83fe020d6555871e55fcd67c5b373103e16c62af01abeec8d",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "counts": {
+          "numPassedTests": 338,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTotalTests": 338
+        }
+      }
+    },
+    {
+      "path": "frontend/run-before-final",
+      "result": {
+        "exitCode": 1,
+        "elapsedSeconds": 5.6459108460112475,
+        "inputsUnchanged": true,
+        "inputCount": 444,
+        "stdoutSHA256": "ce9cb7401743733660a826b4c09c5f07b87541ab6d305b32548ca47374e902ad",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "counts": {
+          "numPassedTests": 8,
+          "numFailedTests": 17,
+          "numPendingTests": 0,
+          "numTotalTests": 25
+        }
+      }
+    },
+    {
+      "path": "frontend/run-fixed-final",
+      "result": {
+        "exitCode": 0,
+        "elapsedSeconds": 2.6109028339851648,
+        "inputsUnchanged": true,
+        "inputCount": 444,
+        "stdoutSHA256": "9ebebb933cb1516bd21d683847d11eefaf5b87e85353849c0d76519c335e0c47",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "counts": {
+          "numPassedTests": 25,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTotalTests": 25
+        }
+      }
+    },
+    {
+      "path": "frontend/typecheck-1",
+      "result": {
+        "startedAt": "2026-10-09T17:40:27.807Z",
+        "finishedAt": "2026-10-09T17:40:51.904Z",
+        "diagnostics": 1,
+        "compilerVersion": "6.0.3",
+        "inputCount": 745,
+        "inputsUnchanged": true,
+        "sourceOverlay": [
+          {
+            "path": "/workspace/luci/desktop/src/api/attachRegistry.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/api/attachRegistry.ts",
+            "sha256": "18ddd8a932de421285a5d217038492a951a75afc60ce44e3cf2fa5b61ac34d3a"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/store/types.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/store/types.ts",
+            "sha256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/components/develop/SessionPaneFooter.tsx",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/components/develop/SessionPaneFooter.tsx",
+            "sha256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/api/attachRegistry.readiness.test.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/tests/desktop/src/api/attachRegistry.readiness.test.ts",
+            "sha256": "2d50e115bb176b6799ecf22d5c87da7e7066e71b121c8a21cae993ec1311b1de"
+          }
+        ],
+        "scope": "Full desktop tsconfig using exact external source replacements and new regression; no emit, runtime or checkout edit."
+      }
+    },
+    {
+      "path": "frontend/typecheck-2",
+      "result": {
+        "startedAt": "2026-10-09T17:43:01.808Z",
+        "finishedAt": "2026-10-09T17:43:23.864Z",
+        "diagnostics": 0,
+        "compilerVersion": "6.0.3",
+        "inputCount": 745,
+        "inputsUnchanged": true,
+        "sourceOverlay": [
+          {
+            "path": "/workspace/luci/desktop/src/api/attachRegistry.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/api/attachRegistry.ts",
+            "sha256": "18ddd8a932de421285a5d217038492a951a75afc60ce44e3cf2fa5b61ac34d3a"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/store/types.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/store/types.ts",
+            "sha256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/components/develop/SessionPaneFooter.tsx",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/components/develop/SessionPaneFooter.tsx",
+            "sha256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74"
+          },
+          {
+            "path": "/workspace/luci/desktop/src/api/attachRegistry.readiness.test.ts",
+            "source": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/tests/desktop/src/api/attachRegistry.readiness.test.ts",
+            "sha256": "fd89a80b18d5c71bb795d0f967fd8cd8c6b0a9c4b5b72723816d8959cacc531e"
+          }
+        ],
+        "scope": "Full desktop tsconfig using exact external source replacements and new regression; no emit, runtime or checkout edit."
+      }
+    },
+    {
+      "path": "frontend-v2/run-before-unmount",
+      "result": {
+        "exitCode": 1,
+        "elapsedSeconds": 3.110256892046891,
+        "inputsUnchanged": true,
+        "inputCount": 447,
+        "stdoutSHA256": "9d0af574b5268b0c32bacd8e7417676e950d4df59b710d83dac9b2ac472807d3",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "counts": {
+          "numPassedTests": 26,
+          "numFailedTests": 1,
+          "numPendingTests": 0,
+          "numTotalTests": 27
+        }
+      }
+    },
+    {
+      "path": "frontend-v2/run-fixed-unmount",
+      "result": {
+        "exitCode": 0,
+        "elapsedSeconds": 22.648229758022353,
+        "inputsUnchanged": true,
+        "inputCount": 447,
+        "stdoutSHA256": "bb1775689edd0d20ed4b85d04fdaa07cb49a908c55dd18579d7c73b9e1e513d4",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "counts": {
+          "numPassedTests": 340,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTotalTests": 340
+        }
+      }
+    }
+  ],
+  "typecheckScope": "Full desktop TypeScript passed on first candidate; first diagnostic was a test-only KindValue annotation with identical emitted JavaScript. Final v2 boolean mount guard plus two boolean cases were not rerun through full TypeScript; final affected Vitest has 340 passes.",
+  "privacyScope": "Only controlled fixture tests, source/configuration, hashes and tool metadata. No installed browser/CDP/private stderr, runtime ledger, credentials, actual account data, process environment dump or backend evidence copied.",
+  "nodeExecutable": {
+    "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12",
+    "bytes": 125989464,
+    "capture": "Publication-time executable binding. Exact path is in every executed command; no historical binary hash was captured. Binary not bundled."
+  },
+  "files": [
+    {
+      "path": "frontend/base.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/base.json",
+      "sourceSHA256": "7045cb4c425c94c797bbf1e37b41f9417609e03bf39237c5d221500e064eb4b6",
+      "sourceBytes": 539,
+      "storedSHA256": "7045cb4c425c94c797bbf1e37b41f9417609e03bf39237c5d221500e064eb4b6",
+      "storedBytes": 539,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend/frozen-manifest.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/frozen-manifest.json",
+      "sourceSHA256": "1f9e152e022b9251331c93ed14e125837199926be58320cc35dc519e9671f092",
+      "sourceBytes": 11368,
+      "storedSHA256": "1f9e152e022b9251331c93ed14e125837199926be58320cc35dc519e9671f092",
+      "storedBytes": 11368,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend/CLOUD-076-frontend.patch",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/CLOUD-076-frontend.patch",
+      "sourceSHA256": "022f549d5985e875abb75bbfa11eeccbdb98088c1bf566dd335fbdf4a2677d43",
+      "sourceBytes": 18709,
+      "storedSHA256": "022f549d5985e875abb75bbfa11eeccbdb98088c1bf566dd335fbdf4a2677d43",
+      "storedBytes": 18709,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend/run.py",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run.py",
+      "sourceSHA256": "3823224e7dbe0c4587e08cffb6448103b1b504ac12aca3dcd8d2318f51cd793e",
+      "sourceBytes": 3042,
+      "storedSHA256": "3823224e7dbe0c4587e08cffb6448103b1b504ac12aca3dcd8d2318f51cd793e",
+      "storedBytes": 3042,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend/vitest.config.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/vitest.config.mjs",
+      "sourceSHA256": "c7623f82ac053fb39ff2d686fcfd77b94f8fa1c6a1d551c60f178baa6413feef",
+      "sourceBytes": 1924,
+      "storedSHA256": "c7623f82ac053fb39ff2d686fcfd77b94f8fa1c6a1d551c60f178baa6413feef",
+      "storedBytes": 1924,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend/typecheck.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/typecheck.mjs",
+      "sourceSHA256": "7d0ed64ade1dcfaf2c277466553e5ff16c04bd94cf7a0778d5b2e070f49e21ec",
+      "sourceBytes": 3076,
+      "storedSHA256": "7d0ed64ade1dcfaf2c277466553e5ff16c04bd94cf7a0778d5b2e070f49e21ec",
+      "storedBytes": 3076,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend/before/desktop/src/api/attachRegistry.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/before/desktop/src/api/attachRegistry.ts",
+      "sourceSHA256": "b147b04e06f889e5712eb809fd7caf5d381170f26111facb8b1104178b90e6e2",
+      "sourceBytes": 40847,
+      "storedSHA256": "b147b04e06f889e5712eb809fd7caf5d381170f26111facb8b1104178b90e6e2",
+      "storedBytes": 40847,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend/before/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/before/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sourceSHA256": "3f48dc7d2f9de3e7041089023ea0fa984669225e8f479c3beb629c03344f2edc",
+      "sourceBytes": 3375,
+      "storedSHA256": "3f48dc7d2f9de3e7041089023ea0fa984669225e8f479c3beb629c03344f2edc",
+      "storedBytes": 3375,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend/before/desktop/src/store/types.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/before/desktop/src/store/types.ts",
+      "sourceSHA256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b",
+      "sourceBytes": 11380,
+      "storedSHA256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b",
+      "storedBytes": 11380,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend/fixed/desktop/src/api/attachRegistry.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/api/attachRegistry.ts",
+      "sourceSHA256": "18ddd8a932de421285a5d217038492a951a75afc60ce44e3cf2fa5b61ac34d3a",
+      "sourceBytes": 42753,
+      "storedSHA256": "18ddd8a932de421285a5d217038492a951a75afc60ce44e3cf2fa5b61ac34d3a",
+      "storedBytes": 42753,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend/fixed/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sourceSHA256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74",
+      "sourceBytes": 3423,
+      "storedSHA256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74",
+      "storedBytes": 3423,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend/fixed/desktop/src/store/types.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/fixed/desktop/src/store/types.ts",
+      "sourceSHA256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f",
+      "sourceBytes": 11510,
+      "storedSHA256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f",
+      "storedBytes": 11510,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend/tests/desktop/src/api/attachRegistry.readiness.test.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/tests/desktop/src/api/attachRegistry.readiness.test.ts",
+      "sourceSHA256": "fd89a80b18d5c71bb795d0f967fd8cd8c6b0a9c4b5b72723816d8959cacc531e",
+      "sourceBytes": 12539,
+      "storedSHA256": "fd89a80b18d5c71bb795d0f967fd8cd8c6b0a9c4b5b72723816d8959cacc531e",
+      "storedBytes": 12539,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend/run-before-1/after.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-1/after.json",
+      "sourceSHA256": "b138cb827cad2ad1ea6e5cf9dce1e6c3b336c4dbff5a93cdbce9aedb8669f547",
+      "sourceBytes": 60012,
+      "storedSHA256": "ec7a475361486cff35b51b4134fc9aced3fcd5a798e32d4f02789bbe59fb3fc4",
+      "storedBytes": 21595,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-1/before.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-1/before.json",
+      "sourceSHA256": "b138cb827cad2ad1ea6e5cf9dce1e6c3b336c4dbff5a93cdbce9aedb8669f547",
+      "sourceBytes": 60012,
+      "storedSHA256": "ec7a475361486cff35b51b4134fc9aced3fcd5a798e32d4f02789bbe59fb3fc4",
+      "storedBytes": 21595,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-1/command.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-1/command.json",
+      "sourceSHA256": "9343455138c78b61aa6627f977e3847e7b9121167f7eaad63f3f09c9d6e1f40d",
+      "sourceBytes": 969,
+      "storedSHA256": "9343455138c78b61aa6627f977e3847e7b9121167f7eaad63f3f09c9d6e1f40d",
+      "storedBytes": 969,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-1/result.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-1/result.json",
+      "sourceSHA256": "88a852f189c58595a9c33fe0dd5ee95964f051822da62c0f737044cfd9927e1b",
+      "sourceBytes": 399,
+      "storedSHA256": "88a852f189c58595a9c33fe0dd5ee95964f051822da62c0f737044cfd9927e1b",
+      "storedBytes": 399,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-1/stderr.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-1/stderr.log",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceBytes": 0,
+      "storedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storedBytes": 0,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-1/stdout.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-1/stdout.log",
+      "sourceSHA256": "ef69c2b7ffec980a575dbbc403f2b3e9e35ce204415a97b8aba2ebf70aa1c104",
+      "sourceBytes": 112,
+      "storedSHA256": "ef69c2b7ffec980a575dbbc403f2b3e9e35ce204415a97b8aba2ebf70aa1c104",
+      "storedBytes": 112,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-1/test-results.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-1/test-results.json",
+      "sourceSHA256": "516478547bdaef9d650abac3068b9c44d2b763387cfeec25eb638d5f6cafc690",
+      "sourceBytes": 42774,
+      "storedSHA256": "f8a0b1807c7cb4edbd36378cb8fb0c47903a8170e44ec376a4312556adf2b96e",
+      "storedBytes": 2927,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-1/after.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-1/after.json",
+      "sourceSHA256": "b138cb827cad2ad1ea6e5cf9dce1e6c3b336c4dbff5a93cdbce9aedb8669f547",
+      "sourceBytes": 60012,
+      "storedSHA256": "ec7a475361486cff35b51b4134fc9aced3fcd5a798e32d4f02789bbe59fb3fc4",
+      "storedBytes": 21595,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-1/before.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-1/before.json",
+      "sourceSHA256": "b138cb827cad2ad1ea6e5cf9dce1e6c3b336c4dbff5a93cdbce9aedb8669f547",
+      "sourceBytes": 60012,
+      "storedSHA256": "ec7a475361486cff35b51b4134fc9aced3fcd5a798e32d4f02789bbe59fb3fc4",
+      "storedBytes": 21595,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-1/command.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-1/command.json",
+      "sourceSHA256": "af72a72e028d7c7bb3d0e07469bcdc80557225cedb87200e953a42a177b6b55a",
+      "sourceBytes": 844,
+      "storedSHA256": "af72a72e028d7c7bb3d0e07469bcdc80557225cedb87200e953a42a177b6b55a",
+      "storedBytes": 844,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-1/result.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-1/result.json",
+      "sourceSHA256": "7563173cfd22f840aa35631ae71272a9a9ca3814506d87bc576d6a1ff8e86e1d",
+      "sourceBytes": 402,
+      "storedSHA256": "7563173cfd22f840aa35631ae71272a9a9ca3814506d87bc576d6a1ff8e86e1d",
+      "storedBytes": 402,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-1/stderr.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-1/stderr.log",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceBytes": 0,
+      "storedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storedBytes": 0,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-1/stdout.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-1/stdout.log",
+      "sourceSHA256": "ddf07b3de5b261f83fe020d6555871e55fcd67c5b373103e16c62af01abeec8d",
+      "sourceBytes": 111,
+      "storedSHA256": "ddf07b3de5b261f83fe020d6555871e55fcd67c5b373103e16c62af01abeec8d",
+      "storedBytes": 111,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-1/test-results.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-1/test-results.json",
+      "sourceSHA256": "76546d6e61bedca0d326f468bf80b953e393b626f161201f5cbae8361e16fbb0",
+      "sourceBytes": 123296,
+      "storedSHA256": "db28acd1f6a25d7e2f1b9bcbbc7fdb50a13e0d7de2dfb93309881e8aca27559d",
+      "storedBytes": 14752,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-final/after.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-final/after.json",
+      "sourceSHA256": "783e3535f46bc0d27518b968177e5e63b476fb1593b0231303b811b9ea7392d7",
+      "sourceBytes": 60012,
+      "storedSHA256": "4bdb4c16272a6f4cfde123d45ceb75cefaaa5e7559bb14b1bb17aaf42ce361c6",
+      "storedBytes": 21595,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-final/before.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-final/before.json",
+      "sourceSHA256": "783e3535f46bc0d27518b968177e5e63b476fb1593b0231303b811b9ea7392d7",
+      "sourceBytes": 60012,
+      "storedSHA256": "4bdb4c16272a6f4cfde123d45ceb75cefaaa5e7559bb14b1bb17aaf42ce361c6",
+      "storedBytes": 21595,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-final/command.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-final/command.json",
+      "sourceSHA256": "7624e0e6c136fe63c8f75b0a4da29eec94b3f4c53e6e7bab1a4266999484e789",
+      "sourceBytes": 973,
+      "storedSHA256": "7624e0e6c136fe63c8f75b0a4da29eec94b3f4c53e6e7bab1a4266999484e789",
+      "storedBytes": 973,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-final/result.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-final/result.json",
+      "sourceSHA256": "922b0acc5dfa732b65796e6aaac4b2d1214f4c5b5c536a91b3079a57b358589a",
+      "sourceBytes": 400,
+      "storedSHA256": "922b0acc5dfa732b65796e6aaac4b2d1214f4c5b5c536a91b3079a57b358589a",
+      "storedBytes": 400,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-final/stderr.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-final/stderr.log",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceBytes": 0,
+      "storedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storedBytes": 0,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-final/stdout.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-final/stdout.log",
+      "sourceSHA256": "ce9cb7401743733660a826b4c09c5f07b87541ab6d305b32548ca47374e902ad",
+      "sourceBytes": 116,
+      "storedSHA256": "ce9cb7401743733660a826b4c09c5f07b87541ab6d305b32548ca47374e902ad",
+      "storedBytes": 116,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-before-final/test-results.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-before-final/test-results.json",
+      "sourceSHA256": "9ca6630887bd9d50d8f1a276f2921a66dea6a0043f30a37247ddf95a791cbe54",
+      "sourceBytes": 42773,
+      "storedSHA256": "8ba60ef126acc37a6c034ca8a9da14efeac1f6367c8e847aa64da1e6007d55c9",
+      "storedBytes": 2918,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-final/after.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-final/after.json",
+      "sourceSHA256": "783e3535f46bc0d27518b968177e5e63b476fb1593b0231303b811b9ea7392d7",
+      "sourceBytes": 60012,
+      "storedSHA256": "4bdb4c16272a6f4cfde123d45ceb75cefaaa5e7559bb14b1bb17aaf42ce361c6",
+      "storedBytes": 21595,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-final/before.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-final/before.json",
+      "sourceSHA256": "783e3535f46bc0d27518b968177e5e63b476fb1593b0231303b811b9ea7392d7",
+      "sourceBytes": 60012,
+      "storedSHA256": "4bdb4c16272a6f4cfde123d45ceb75cefaaa5e7559bb14b1bb17aaf42ce361c6",
+      "storedBytes": 21595,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-final/command.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-final/command.json",
+      "sourceSHA256": "6784fc9caa987fc9eb5112b112cce3204b7b04457c68857fbcbbd6423f756459",
+      "sourceBytes": 970,
+      "storedSHA256": "6784fc9caa987fc9eb5112b112cce3204b7b04457c68857fbcbbd6423f756459",
+      "storedBytes": 970,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-final/result.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-final/result.json",
+      "sourceSHA256": "c2d751caee90290c428be73d3e244ae1ebf9e59af66a91e8307f5d53e966173a",
+      "sourceBytes": 400,
+      "storedSHA256": "c2d751caee90290c428be73d3e244ae1ebf9e59af66a91e8307f5d53e966173a",
+      "storedBytes": 400,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-final/stderr.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-final/stderr.log",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceBytes": 0,
+      "storedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storedBytes": 0,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-final/stdout.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-final/stdout.log",
+      "sourceSHA256": "9ebebb933cb1516bd21d683847d11eefaf5b87e85353849c0d76519c335e0c47",
+      "sourceBytes": 115,
+      "storedSHA256": "9ebebb933cb1516bd21d683847d11eefaf5b87e85353849c0d76519c335e0c47",
+      "storedBytes": 115,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/run-fixed-final/test-results.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/run-fixed-final/test-results.json",
+      "sourceSHA256": "e43b14f4f95445b38b54255ee464d2fbf6768ffce2c54ad143db16c73aab92c3",
+      "sourceBytes": 11375,
+      "storedSHA256": "27cae371141a84fcd24ec0afb585635f7bbc7933fa388f09735d7c89e42b9351",
+      "storedBytes": 1722,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/typecheck-1/attachRegistry.readiness.test.ts.before",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/typecheck-1/attachRegistry.readiness.test.ts.before",
+      "sourceSHA256": "2d50e115bb176b6799ecf22d5c87da7e7066e71b121c8a21cae993ec1311b1de",
+      "sourceBytes": 12520,
+      "storedSHA256": "2d50e115bb176b6799ecf22d5c87da7e7066e71b121c8a21cae993ec1311b1de",
+      "storedBytes": 12520,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/typecheck-1/diagnostics.txt",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/typecheck-1/diagnostics.txt",
+      "sourceSHA256": "c5a9938b3710bf3384189a6ec4ba9eb5aff6758b6c827c9595dcf5a6eb1eeca4",
+      "sourceBytes": 371,
+      "storedSHA256": "c5a9938b3710bf3384189a6ec4ba9eb5aff6758b6c827c9595dcf5a6eb1eeca4",
+      "storedBytes": 371,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/typecheck-1/inputs.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/typecheck-1/inputs.json",
+      "sourceSHA256": "8f632cea8c0853d387f0a463355658e8773029424bdd8d4444654e111f0db042",
+      "sourceBytes": 109314,
+      "storedSHA256": "5a79b38d40b8961cf5c7f4656f79a9fb367b6d41831677974caeabb44492285a",
+      "storedBytes": 36271,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/typecheck-1/result.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/typecheck-1/result.json",
+      "sourceSHA256": "0b8a7a7be600a79be9e450f8b240fab5e30ec0ad6ecf997d47541b21d223de8a",
+      "sourceBytes": 1519,
+      "storedSHA256": "0b8a7a7be600a79be9e450f8b240fab5e30ec0ad6ecf997d47541b21d223de8a",
+      "storedBytes": 1519,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/typecheck-1/type-only-correction.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/typecheck-1/type-only-correction.json",
+      "sourceSHA256": "c6e2826d958459e5f1af051247e93f0bf81c4318cead97526ecefe74528122ee",
+      "sourceBytes": 540,
+      "storedSHA256": "c6e2826d958459e5f1af051247e93f0bf81c4318cead97526ecefe74528122ee",
+      "storedBytes": 540,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/typecheck-2/diagnostics.txt",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/typecheck-2/diagnostics.txt",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceBytes": 0,
+      "storedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storedBytes": 0,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/typecheck-2/inputs.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/typecheck-2/inputs.json",
+      "sourceSHA256": "c40fde028329580f0a91e2a19628cba1f1600baf5c717e500ed08176e9274d91",
+      "sourceBytes": 109314,
+      "storedSHA256": "0fdc2a689951451d5f311dbec32004e07ecf972de749e427e969a3ebb59d755b",
+      "storedBytes": 36268,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend/typecheck-2/result.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend/typecheck-2/result.json",
+      "sourceSHA256": "dcbaa6909094e34ce674720c6be9441cb20684de2107b943fd563b9c75f37017",
+      "sourceBytes": 1519,
+      "storedSHA256": "dcbaa6909094e34ce674720c6be9441cb20684de2107b943fd563b9c75f37017",
+      "storedBytes": 1519,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/base.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/base.json",
+      "sourceSHA256": "7045cb4c425c94c797bbf1e37b41f9417609e03bf39237c5d221500e064eb4b6",
+      "sourceBytes": 539,
+      "storedSHA256": "7045cb4c425c94c797bbf1e37b41f9417609e03bf39237c5d221500e064eb4b6",
+      "storedBytes": 539,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend-v2/frozen-manifest.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/frozen-manifest.json",
+      "sourceSHA256": "a9530a09ff25dbb3efa4b61c0dd3942048e562e988f43ce05ca0b396c7f61fd4",
+      "sourceBytes": 5131,
+      "storedSHA256": "a9530a09ff25dbb3efa4b61c0dd3942048e562e988f43ce05ca0b396c7f61fd4",
+      "storedBytes": 5131,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend-v2/CLOUD-076-frontend.patch",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/CLOUD-076-frontend.patch",
+      "sourceSHA256": "4acd91725ae235ac63ea2d5a2354971ad1bde453f44b0c7878862e8a9557b88b",
+      "sourceBytes": 19645,
+      "storedSHA256": "4acd91725ae235ac63ea2d5a2354971ad1bde453f44b0c7878862e8a9557b88b",
+      "storedBytes": 19645,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend-v2/run.py",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run.py",
+      "sourceSHA256": "1a4cbc357564bcb0632efe9a61aaa19477a42be343ed208b0c1f971615d32b43",
+      "sourceBytes": 3077,
+      "storedSHA256": "1a4cbc357564bcb0632efe9a61aaa19477a42be343ed208b0c1f971615d32b43",
+      "storedBytes": 3077,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend-v2/vitest.config.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/vitest.config.mjs",
+      "sourceSHA256": "ac99d6d3e7beda80cd732fc613639c35a9b8f6244eab55fdfdc2c0e7949821df",
+      "sourceBytes": 1942,
+      "storedSHA256": "ac99d6d3e7beda80cd732fc613639c35a9b8f6244eab55fdfdc2c0e7949821df",
+      "storedBytes": 1942,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend-v2/typecheck.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/typecheck.mjs",
+      "sourceSHA256": "a845986d8761b9095c278f9dea05350cddb2d98d5c504dc5338b848f451f02c1",
+      "sourceBytes": 3079,
+      "storedSHA256": "a845986d8761b9095c278f9dea05350cddb2d98d5c504dc5338b848f451f02c1",
+      "storedBytes": 3079,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend-v2/predecessor.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/predecessor.json",
+      "sourceSHA256": "8291845bfe249bdba519a43e9a17bf0261094cd30c00069f19e02976b6a4632d",
+      "sourceBytes": 497,
+      "storedSHA256": "8291845bfe249bdba519a43e9a17bf0261094cd30c00069f19e02976b6a4632d",
+      "storedBytes": 497,
+      "encoding": "identity",
+      "role": "source provenance or exact runner"
+    },
+    {
+      "path": "frontend-v2/before/desktop/src/api/attachRegistry.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/before/desktop/src/api/attachRegistry.ts",
+      "sourceSHA256": "b147b04e06f889e5712eb809fd7caf5d381170f26111facb8b1104178b90e6e2",
+      "sourceBytes": 40847,
+      "storedSHA256": "b147b04e06f889e5712eb809fd7caf5d381170f26111facb8b1104178b90e6e2",
+      "storedBytes": 40847,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend-v2/before/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/before/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sourceSHA256": "3f48dc7d2f9de3e7041089023ea0fa984669225e8f479c3beb629c03344f2edc",
+      "sourceBytes": 3375,
+      "storedSHA256": "3f48dc7d2f9de3e7041089023ea0fa984669225e8f479c3beb629c03344f2edc",
+      "storedBytes": 3375,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend-v2/before/desktop/src/store/types.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/before/desktop/src/store/types.ts",
+      "sourceSHA256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b",
+      "sourceBytes": 11380,
+      "storedSHA256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b",
+      "storedBytes": 11380,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend-v2/fixed/desktop/src/api/attachRegistry.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/fixed/desktop/src/api/attachRegistry.ts",
+      "sourceSHA256": "0e1944e20e8630b0b541ae58c31a1a5741b840fbb6982f36eb063a16cd76fad1",
+      "sourceBytes": 42958,
+      "storedSHA256": "0e1944e20e8630b0b541ae58c31a1a5741b840fbb6982f36eb063a16cd76fad1",
+      "storedBytes": 42958,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend-v2/fixed/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/fixed/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sourceSHA256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74",
+      "sourceBytes": 3423,
+      "storedSHA256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74",
+      "storedBytes": 3423,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend-v2/fixed/desktop/src/store/types.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/fixed/desktop/src/store/types.ts",
+      "sourceSHA256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f",
+      "sourceBytes": 11510,
+      "storedSHA256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f",
+      "storedBytes": 11510,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend-v2/pre-unmount/desktop/src/api/attachRegistry.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/pre-unmount/desktop/src/api/attachRegistry.ts",
+      "sourceSHA256": "18ddd8a932de421285a5d217038492a951a75afc60ce44e3cf2fa5b61ac34d3a",
+      "sourceBytes": 42753,
+      "storedSHA256": "18ddd8a932de421285a5d217038492a951a75afc60ce44e3cf2fa5b61ac34d3a",
+      "storedBytes": 42753,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend-v2/pre-unmount/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/pre-unmount/desktop/src/components/develop/SessionPaneFooter.tsx",
+      "sourceSHA256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74",
+      "sourceBytes": 3423,
+      "storedSHA256": "7393446ee6d644d7197c4c03fc94132de56d20f62f5eb22a23fbcf190611dd74",
+      "storedBytes": 3423,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend-v2/pre-unmount/desktop/src/store/types.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/pre-unmount/desktop/src/store/types.ts",
+      "sourceSHA256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f",
+      "sourceBytes": 11510,
+      "storedSHA256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f",
+      "storedBytes": 11510,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend-v2/tests/desktop/src/api/attachRegistry.readiness.test.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/tests/desktop/src/api/attachRegistry.readiness.test.ts",
+      "sourceSHA256": "8fe1ab28b49650064f976208bcdc441cebdc6aa6c5b7e8047503c5fa9d3c254c",
+      "sourceBytes": 13257,
+      "storedSHA256": "8fe1ab28b49650064f976208bcdc441cebdc6aa6c5b7e8047503c5fa9d3c254c",
+      "storedBytes": 13257,
+      "encoding": "identity",
+      "role": "exact source variant"
+    },
+    {
+      "path": "frontend-v2/run-before-unmount/after.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-before-unmount/after.json",
+      "sourceSHA256": "2570c5d0435f5ce7d3e3db1d20203d58e6191a5098ed3fae07dc59a14abc4126",
+      "sourceBytes": 60591,
+      "storedSHA256": "69a25c71cff684565b62a5c2ffa581b6a0368d11fe052b268d21495e78ec3a06",
+      "storedBytes": 21671,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-before-unmount/before.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-before-unmount/before.json",
+      "sourceSHA256": "2570c5d0435f5ce7d3e3db1d20203d58e6191a5098ed3fae07dc59a14abc4126",
+      "sourceBytes": 60591,
+      "storedSHA256": "69a25c71cff684565b62a5c2ffa581b6a0368d11fe052b268d21495e78ec3a06",
+      "storedBytes": 21671,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-before-unmount/command.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-before-unmount/command.json",
+      "sourceSHA256": "4f0b0f5d9029a0f43efd873c86487673c80c5f991a35b95c7f3b8302dedbd6b9",
+      "sourceBytes": 994,
+      "storedSHA256": "4f0b0f5d9029a0f43efd873c86487673c80c5f991a35b95c7f3b8302dedbd6b9",
+      "storedBytes": 994,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-before-unmount/result.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-before-unmount/result.json",
+      "sourceSHA256": "b32b53a143d1ad1c8292c524ca272a1c206ca8abd8a9d3f764f8bc811e487902",
+      "sourceBytes": 399,
+      "storedSHA256": "b32b53a143d1ad1c8292c524ca272a1c206ca8abd8a9d3f764f8bc811e487902",
+      "storedBytes": 399,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-before-unmount/stderr.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-before-unmount/stderr.log",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceBytes": 0,
+      "storedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storedBytes": 0,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-before-unmount/stdout.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-before-unmount/stdout.log",
+      "sourceSHA256": "9d0af574b5268b0c32bacd8e7417676e950d4df59b710d83dac9b2ac472807d3",
+      "sourceBytes": 121,
+      "storedSHA256": "9d0af574b5268b0c32bacd8e7417676e950d4df59b710d83dac9b2ac472807d3",
+      "storedBytes": 121,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-before-unmount/test-results.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-before-unmount/test-results.json",
+      "sourceSHA256": "3aca238234eea03f9a668706a07e32bce2b1f4ce286ce737d63d5fa7a308671a",
+      "sourceBytes": 14425,
+      "storedSHA256": "e07cad92e74efb639249dd6466684e45c74f4fe306c21f957fd3cc706e943c21",
+      "storedBytes": 2471,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-fixed-unmount/after.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-fixed-unmount/after.json",
+      "sourceSHA256": "2570c5d0435f5ce7d3e3db1d20203d58e6191a5098ed3fae07dc59a14abc4126",
+      "sourceBytes": 60591,
+      "storedSHA256": "69a25c71cff684565b62a5c2ffa581b6a0368d11fe052b268d21495e78ec3a06",
+      "storedBytes": 21671,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-fixed-unmount/before.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-fixed-unmount/before.json",
+      "sourceSHA256": "2570c5d0435f5ce7d3e3db1d20203d58e6191a5098ed3fae07dc59a14abc4126",
+      "sourceBytes": 60591,
+      "storedSHA256": "69a25c71cff684565b62a5c2ffa581b6a0368d11fe052b268d21495e78ec3a06",
+      "storedBytes": 21671,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-fixed-unmount/command.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-fixed-unmount/command.json",
+      "sourceSHA256": "5e09b2fe4a2106fc43cd13253ebc554cb0d5eec7a6c26f2bdcaace38677ce2d8",
+      "sourceBytes": 856,
+      "storedSHA256": "5e09b2fe4a2106fc43cd13253ebc554cb0d5eec7a6c26f2bdcaace38677ce2d8",
+      "storedBytes": 856,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-fixed-unmount/result.json",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-fixed-unmount/result.json",
+      "sourceSHA256": "f056ee9d5fdafaa63c2ae156b33707fe74fc6c16f73704cb47fee2fe877e99fc",
+      "sourceBytes": 402,
+      "storedSHA256": "f056ee9d5fdafaa63c2ae156b33707fe74fc6c16f73704cb47fee2fe877e99fc",
+      "storedBytes": 402,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-fixed-unmount/stderr.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-fixed-unmount/stderr.log",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceBytes": 0,
+      "storedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storedBytes": 0,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-fixed-unmount/stdout.log",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-fixed-unmount/stdout.log",
+      "sourceSHA256": "bb1775689edd0d20ed4b85d04fdaa07cb49a908c55dd18579d7c73b9e1e513d4",
+      "sourceBytes": 120,
+      "storedSHA256": "bb1775689edd0d20ed4b85d04fdaa07cb49a908c55dd18579d7c73b9e1e513d4",
+      "storedBytes": 120,
+      "encoding": "identity",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "frontend-v2/run-fixed-unmount/test-results.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud076-attach-readiness/frontend-v2/run-fixed-unmount/test-results.json",
+      "sourceSHA256": "d1e7d2fa22a6fc43dcf9206633d841a84ce7dc788a176f2c60c40d6853148d73",
+      "sourceBytes": 124200,
+      "storedSHA256": "6d0c48f592b356ae09eb4c10b040081c7e998b92a2eb9ee3e2e902fe3b813598",
+      "storedBytes": 14783,
+      "encoding": "gzip",
+      "role": "exact executed evidence"
+    },
+    {
+      "path": "dependencies/desktop/package.json",
+      "sourcePath": "/workspace/luci/desktop/package.json",
+      "sourceSHA256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+      "sourceBytes": 1965,
+      "storedSHA256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+      "storedBytes": 1965,
+      "encoding": "identity",
+      "role": "source-bound descriptor, verified equal to initial execution"
+    },
+    {
+      "path": "dependencies/desktop/package-lock.json.gz",
+      "sourcePath": "/workspace/luci/desktop/package-lock.json",
+      "sourceSHA256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "sourceBytes": 247150,
+      "storedSHA256": "3cb8648b2d01686836863d69d82529142c89361cef6e978a99fe0decb515806c",
+      "storedBytes": 50279,
+      "encoding": "gzip",
+      "role": "source-bound descriptor, verified equal to initial execution"
+    },
+    {
+      "path": "dependencies/desktop/vitest.config.ts",
+      "sourcePath": "/workspace/luci/desktop/vitest.config.ts",
+      "sourceSHA256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+      "sourceBytes": 2265,
+      "storedSHA256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+      "storedBytes": 2265,
+      "encoding": "identity",
+      "role": "source-bound descriptor, verified equal to initial execution"
+    },
+    {
+      "path": "dependencies/desktop/tsconfig.json",
+      "sourcePath": "/workspace/luci/desktop/tsconfig.json",
+      "sourceSHA256": "65c82e3009d033dba271b9ce83a712bb4b934aeded98cb9d3e33472dd4d5f49c",
+      "sourceBytes": 589,
+      "storedSHA256": "65c82e3009d033dba271b9ce83a712bb4b934aeded98cb9d3e33472dd4d5f49c",
+      "storedBytes": 589,
+      "encoding": "identity",
+      "role": "source-bound descriptor, verified equal to initial execution"
+    },
+    {
+      "path": "dependencies/desktop/tsconfig.node.json",
+      "sourcePath": "/workspace/luci/desktop/tsconfig.node.json",
+      "sourceSHA256": "b2bf1a9053b26138679d790bdcd689042fb4ee157b0673724e4a2eb86a6d8ef5",
+      "sourceBytes": 233,
+      "storedSHA256": "b2bf1a9053b26138679d790bdcd689042fb4ee157b0673724e4a2eb86a6d8ef5",
+      "storedBytes": 233,
+      "encoding": "identity",
+      "role": "source-bound descriptor, verified equal to initial execution"
+    },
+    {
+      "path": "dependencies/installed/typescript/package.json",
+      "sourcePath": "/workspace/luci/desktop/node_modules/typescript/package.json",
+      "sourceSHA256": "9332e97c30d3e53ed54910b89207ed657fb444066484df6e5b6965bf130865e9",
+      "sourceBytes": 3527,
+      "storedSHA256": "9332e97c30d3e53ed54910b89207ed657fb444066484df6e5b6965bf130865e9",
+      "storedBytes": 3527,
+      "encoding": "identity",
+      "role": "publication-time installed package metadata; not a retroactive dependency read trace"
+    },
+    {
+      "path": "dependencies/installed/vitest/package.json",
+      "sourcePath": "/workspace/luci/desktop/node_modules/vitest/package.json",
+      "sourceSHA256": "bb27a3b3f172321701a7b1f1d90a59e5c9596673176f553a91c1e93b9667abfa",
+      "sourceBytes": 5445,
+      "storedSHA256": "bb27a3b3f172321701a7b1f1d90a59e5c9596673176f553a91c1e93b9667abfa",
+      "storedBytes": 5445,
+      "encoding": "identity",
+      "role": "publication-time installed package metadata; not a retroactive dependency read trace"
+    },
+    {
+      "path": "dependencies/installed/vite/package.json",
+      "sourcePath": "/workspace/luci/desktop/node_modules/vite/package.json",
+      "sourceSHA256": "0a75f2254630e11aa4fde386a2f883e2acc8430acc3fb5a833f25da264c62a16",
+      "sourceBytes": 5082,
+      "storedSHA256": "0a75f2254630e11aa4fde386a2f883e2acc8430acc3fb5a833f25da264c62a16",
+      "storedBytes": 5082,
+      "encoding": "identity",
+      "role": "publication-time installed package metadata; not a retroactive dependency read trace"
+    },
+    {
+      "path": "dependencies/installed/@vitejs/plugin-react/package.json",
+      "sourcePath": "/workspace/luci/desktop/node_modules/@vitejs/plugin-react/package.json",
+      "sourceSHA256": "c5420bbbe5ea17fec4b09d44114f9eedd774efbfcc6f9a1d6228103b590af705",
+      "sourceBytes": 2246,
+      "storedSHA256": "c5420bbbe5ea17fec4b09d44114f9eedd774efbfcc6f9a1d6228103b590af705",
+      "storedBytes": 2246,
+      "encoding": "identity",
+      "role": "publication-time installed package metadata; not a retroactive dependency read trace"
+    },
+    {
+      "path": "dependencies/installed/jsdom/package.json",
+      "sourcePath": "/workspace/luci/desktop/node_modules/jsdom/package.json",
+      "sourceSHA256": "651b67b0f9ae95ae7bc5aea9ed5de30cbc5a722e2ce62dbdae9a4f90c9bea059",
+      "sourceBytes": 4118,
+      "storedSHA256": "651b67b0f9ae95ae7bc5aea9ed5de30cbc5a722e2ce62dbdae9a4f90c9bea059",
+      "storedBytes": 4118,
+      "encoding": "identity",
+      "role": "publication-time installed package metadata; not a retroactive dependency read trace"
+    },
+    {
+      "path": "dependencies/installed/react/package.json",
+      "sourcePath": "/workspace/luci/desktop/node_modules/react/package.json",
+      "sourceSHA256": "6e003e4e9ed25afa7fdd55613f8aa877cefa9b359d9c13f81ee704030248e24e",
+      "sourceBytes": 1242,
+      "storedSHA256": "6e003e4e9ed25afa7fdd55613f8aa877cefa9b359d9c13f81ee704030248e24e",
+      "storedBytes": 1242,
+      "encoding": "identity",
+      "role": "publication-time installed package metadata; not a retroactive dependency read trace"
+    },
+    {
+      "path": "dependencies/installed/react-dom/package.json",
+      "sourcePath": "/workspace/luci/desktop/node_modules/react-dom/package.json",
+      "sourceSHA256": "136d4af63de473392ea79d6a21932b0ed9eb37fe518ce70f4621250f3d79e9bb",
+      "sourceBytes": 3054,
+      "storedSHA256": "136d4af63de473392ea79d6a21932b0ed9eb37fe518ce70f4621250f3d79e9bb",
+      "storedBytes": 3054,
+      "encoding": "identity",
+      "role": "publication-time installed package metadata; not a retroactive dependency read trace"
+    },
+    {
+      "path": "dependencies/installed/zustand/package.json",
+      "sourcePath": "/workspace/luci/desktop/node_modules/zustand/package.json",
+      "sourceSHA256": "b53b4d5e7f6baeb1e832792390354f8af54edaefbd6fe23b490a4d2d2e37dff1",
+      "sourceBytes": 2139,
+      "storedSHA256": "b53b4d5e7f6baeb1e832792390354f8af54edaefbd6fe23b490a4d2d2e37dff1",
+      "storedBytes": 2139,
+      "encoding": "identity",
+      "role": "publication-time installed package metadata; not a retroactive dependency read trace"
+    },
+    {
+      "path": "dependencies/installed/@testing-library/react/package.json",
+      "sourcePath": "/workspace/luci/desktop/node_modules/@testing-library/react/package.json",
+      "sourceSHA256": "8ec075b66acb20cf1705fc56c7bfeca0ba88eb62f354827c29d65afc25a3d967",
+      "sourceBytes": 3469,
+      "storedSHA256": "8ec075b66acb20cf1705fc56c7bfeca0ba88eb62f354827c29d65afc25a3d967",
+      "storedBytes": 3469,
+      "encoding": "identity",
+      "role": "publication-time installed package metadata; not a retroactive dependency read trace"
+    }
+  ]
+}

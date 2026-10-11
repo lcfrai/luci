@@ -1,0 +1,6 @@
+{
+  "stage": "/workspace/.luci-tools/cloud076-attach-readiness/frontend",
+  "frozenManifestSHA256": "1f9e152e022b9251331c93ed14e125837199926be58320cc35dc519e9671f092",
+  "patchSHA256": "022f549d5985e875abb75bbfa11eeccbdb98088c1bf566dd335fbdf4a2677d43",
+  "reason": "Parent review found direct-ready generation replacement clears an unmounted previously armed readiness wait. Preserve only that existing deferred wait; no global refs gate. New two-case regression is prepared, not yet executed."
+}

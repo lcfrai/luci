@@ -1,0 +1,19 @@
+{
+  "label": "after",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "src/seams.test.ts",
+    "--maxWorkers=1",
+    "--no-file-parallelism",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/seams-triage-20261011/runs/after/vitest.json"
+  ],
+  "cwd": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop",
+  "nodeVersion": "v24.19.0",
+  "startedAt": "2026-10-11T09:57:02.566526+00:00",
+  "timeoutSeconds": 240,
+  "maxWorkers": 1,
+  "scope": "Only src/seams.test.ts; unchanged Vitest configuration in frozen external copy; shared installed dependencies. No tsc, full-suite, runtime or Docker."
+}

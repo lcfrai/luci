@@ -1,0 +1,66 @@
+{
+  "label": "before",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "src/seams.test.ts",
+    "--maxWorkers=1",
+    "--no-file-parallelism",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/seams-triage-20261011/runs/before/vitest.json"
+  ],
+  "cwd": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop",
+  "nodeVersion": "v24.19.0",
+  "startedAt": "2026-10-11T09:56:49.828056+00:00",
+  "timeoutSeconds": 240,
+  "maxWorkers": 1,
+  "scope": "Only src/seams.test.ts; unchanged Vitest configuration in frozen external copy; shared installed dependencies. No tsc, full-suite, runtime or Docker.",
+  "exitCode": 1,
+  "elapsedSeconds": 4.965855800022837,
+  "completedAt": "2026-10-11T09:56:54.794045+00:00",
+  "inputsStable": true,
+  "reporter": {
+    "numTotalTests": 24,
+    "numPassedTests": 23,
+    "numFailedTests": 1,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "failures": [
+    {
+      "file": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/src/seams.test.ts",
+      "title": "the named seams \u2014 docs/SEAMS.md SX.2: types.ts is byte-identical to contract \u00a72, line endings aside",
+      "messages": [
+        "AssertionError: expected '// desktop/src/store/types.ts\\n//\\n//\u2026' to be '// desktop/src/store/types.ts\\n//\\n//\u2026' // Object.is equality\n    at /workspace/.luci-tools/seams-triage-20261011/tree/desktop/src/seams.test.ts:907:68\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64"
+      ]
+    }
+  ],
+  "artifacts": {
+    "stdout.log": {
+      "bytes": 92,
+      "sha256": "03d9c13123df893a3918b5348b765e039ed3c6a567a9e2bd03c1ed2c0a23343b"
+    },
+    "invocation.json": {
+      "bytes": 772,
+      "sha256": "1dd4dad9031b2bcf01f5e1e40ab02847fdf41e4f7b353afb6645e2e1367ab678"
+    },
+    "source-after.json": {
+      "bytes": 151945,
+      "sha256": "1e71f16458eea6e9d9c665dc23a357f38f76aa7d012bda6bab3c4784c454e8ad"
+    },
+    "stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "vitest.json": {
+      "bytes": 12179,
+      "sha256": "2bb1203e89603c2f5d9218c82a9f9e9572af79bf428a773e0bf86d63ca2c11d0"
+    },
+    "source-before.json": {
+      "bytes": 151945,
+      "sha256": "1e71f16458eea6e9d9c665dc23a357f38f76aa7d012bda6bab3c4784c454e8ad"
+    }
+  }
+}

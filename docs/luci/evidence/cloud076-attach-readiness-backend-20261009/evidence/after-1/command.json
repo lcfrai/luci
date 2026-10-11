@@ -1,0 +1,48 @@
+{
+  "sourceBaseCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "-overlay=/workspace/.luci-tools/cloud076-attach-readiness/backend-v2/overlay.json",
+    "-run",
+    "^TestSession(AttachReadiness|Preparation)",
+    "./internal/api"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "sourceCommit": "078d0e99f9d1553a2233dfa51b368b415964766c",
+  "startedAt": 1791568611.6574795,
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOPATH": "/tmp/luci-gopath",
+    "GOCACHE": "/tmp/luci-go-build-cache",
+    "GOTMPDIR": "/workspace/.t",
+    "TMPDIR": "/workspace/.t",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly"
+  },
+  "beforeSHA256": {
+    "overlay.json": "3dcf5ef3c96393770e4f7118db00c551e9b4bae1b8f073819b67b4146a6df43c",
+    "original-overlay.json": "be3f9fa1130db2be90906ce64ff3ee9ab90584834502f64f532b977f2d9e5437",
+    "unsafe-overlay.json": "08d3e9b44a8df2ae4d836629f64260d12b2d625eee10cca2abcf91389a4025f5",
+    "CLOUD-076-backend.patch": "8f1ab130530ee29b12c23bf0fd44d2160b44fb8c00930db64b4c9cae8eab7dba",
+    "tree/control-plane/internal/api/api.go": "ae59b18ef787b83f15b701ac220a820807e437a4aa5f7130a2d2a0e480c3a898",
+    "tree/control-plane/internal/api/assist.go": "d7ad4bf7c96ee0dcb167d41ff9565e0adfdd8b9dba56f06378b63c62828d5f08",
+    "tree/control-plane/internal/api/project_run_sessions.go": "a221ca442d4e6cd98947af1f187f4b4b32a8622b4c779f22eddf381717da2872",
+    "tree/control-plane/internal/api/session_allocation.go": "f2071f12f9d2fad33d407b309ca5ed315475ea10b192cf97fe308e699a28c65d",
+    "tree/control-plane/internal/api/session_attach_readiness.go": "ff9dd59a0571165a349c86a75c0c581093aa6c1e039ab50bd5362a126d2571e1",
+    "tree/control-plane/internal/api/session_attach_readiness_http_test.go": "ee43f6dc1fa96217cf92184a1974fc1ace169df744ac9b8112fe5979ca5f67c4",
+    "tree/control-plane/internal/api/session_attach_readiness_test.go": "2eb30ca311872e0fc310fa81e889bc1c21e1e58490d028feca389b0f7440f5dc",
+    "tree/control-plane/internal/api/session_attach_recovery_test.go": "d681162be5e9cff6d8fbd8a09f96c069c483a3de537d5e80e574b3f1cf620dee",
+    "tree/control-plane/internal/api/session_preparation_cancel_test.go": "c91ebaeb99190e1ff9be0f93c2b4e5ceb2666a5a7fddfaf3240471bacff44434",
+    "tree/control-plane/internal/api/session_preparation_test.go": "7042c484a4d1d1c22d96bf33f612b8a089481250d702afa01aefefc4d10c3af1",
+    "tree/control-plane/internal/api/sessions.go": "ddc8d48328299372ee6ac98d10722607a1835b8eb5746e3b8306a9850af19a1c"
+  }
+}

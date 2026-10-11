@@ -1,0 +1,257 @@
+--- before/launch.mjs
++++ fixed/launch.mjs
+@@ -126,8 +126,23 @@
+ 
+ // Private JSONL contains reversible JSON escaping of original error strings.
+ // Public callers receive only record ordinal/length/hash, never the raw text/path.
++// CLOUD-077: bound this two-generation scenario, not arbitrary reconnect use.
++// attachRegistry checks its60s budget on failure BEFORE scheduling the next rung.
++// An immediately refused ladder can therefore start its34th attempt at61,750ms.
++// This witness allows one successful stream per generation; a successful-open/
++// close loop would reset the product budget and is deliberately a scenario failure.
++export function terminalObservationLimits() {
++  const retryDelaysMs=[250,500,1000,2000],retryBudgetMs=60000,generations=2;
++  let attemptsPerGeneration=1,earliestStartMs=0;
++  while(earliestStartMs<retryBudgetMs){earliestStartMs+=retryDelaysMs[Math.min(attemptsPerGeneration-1,retryDelaysMs.length-1)];attemptsPerGeneration++;}
++  const maxSockets=generations*attemptsPerGeneration,maxErrorsPerSocketPerChannel=8,maxErrorTextBytes=2048;
++  const maxPrivateErrorRows=2*maxSockets*maxErrorsPerSocketPerChannel,maxPrivateErrorRowBytes=6*maxErrorTextBytes+1024;
++  return Object.freeze({retryDelaysMs,retryBudgetMs,generations,attemptsPerGeneration,lastEarliestAttemptMs:earliestStartMs,maxSockets,maxBrowserMutations:maxSockets+2,maxErrorsPerSocketPerChannel,maxErrorTextBytes,maxPrivateErrorRows,maxPrivateErrorRowBytes,maxPrivateErrorBytes:maxPrivateErrorRows*maxPrivateErrorRowBytes});
++}
++export const TERMINAL_OBSERVATION_LIMITS=terminalObservationLimits();
++
+ export function createPrivateTransportErrors({path,onFailure=()=>{}}){
+- const limit=128*1024,maxTextBytes=2048,maxRows=32,parent=transportPrivateDirname(path),f=transportPrivateFS,c=f.constants;
++ const limit=TERMINAL_OBSERVATION_LIMITS.maxPrivateErrorBytes,maxTextBytes=TERMINAL_OBSERVATION_LIMITS.maxErrorTextBytes,maxRows=TERMINAL_OBSERVATION_LIMITS.maxPrivateErrorRows,maxRowBytes=TERMINAL_OBSERVATION_LIMITS.maxPrivateErrorRowBytes,maxOrdinal=TERMINAL_OBSERVATION_LIMITS.maxSockets,parent=transportPrivateDirname(path),f=transportPrivateFS,c=f.constants,perSocketChannel=new Map();
+  const same=(a,b)=>a.dev===b.dev&&a.ino===b.ino;let fd,fileIdentity,parentIdentity,closed=false,failed=false,rows=0,bytes=0;
+  const digest=transportPrivateHash('sha256'),failures=[];
+  const fail=code=>{failed=true;if(!failures.includes(code)){failures.push(code);try{onFailure({kind:'private-transport-error-capture-failure',code});}catch{failures.push('failure_callback_failed');}}};
+@@ -135,15 +150,16 @@
+  const validFile=s=>s.isFile()&&s.nlink===1&&s.uid===process.getuid()&&(s.mode&0o777)===0o600;
+  try{if(typeof process.getuid!=='function'||typeof path!=='string'||path.length>4096||path.includes('\0')||transportPrivateResolve(path)!==path)throw Error('Invalid private path');parentIdentity=validParent();fd=f.openSync(path,c.O_WRONLY|c.O_CREAT|c.O_EXCL|c.O_NOFOLLOW|c.O_APPEND|c.O_NONBLOCK,0o600);fileIdentity=f.fstatSync(fd);if(!validFile(fileIdentity)||!same(fileIdentity,f.lstatSync(path)))throw Error('Invalid private file');}catch{if(fd!==undefined)try{f.closeSync(fd);}catch{}throw Error('Private transport error file initialization failed');}
+  const state={fsyncSucceeded:null,identityVerified:null,closeAcknowledged:false};
+- function snapshot(){return {version:1,scope:'Private browser error text records only; no URLs, headers, stdout or credentials deliberately collected; arbitrary error strings may themselves contain secrets and remain private.',rows,bytes,sha256:digest.copy().digest('hex'),maxBytes:limit,maxTextBytes,maxRows,closed,failed,failures:[...failures],...state,passed:closed&&!failed&&state.identityVerified===true&&state.fsyncSucceeded===true&&state.closeAcknowledged};}
++ function snapshot(){return {version:1,scope:'Private browser error text records only; no URLs, headers, stdout or credentials deliberately collected; arbitrary error strings may themselves contain secrets and remain private.',rows,bytes,sha256:digest.copy().digest('hex'),maxBytes:limit,maxTextBytes,maxRows,maxRowBytes,maxOrdinal,closed,failed,failures:[...failures],...state,passed:closed&&!failed&&state.identityVerified===true&&state.fsyncSucceeded===true&&state.closeAcknowledged};}
+  return {record({channel,ordinal,error}){
+   if(closed||failed){fail('private_capture_not_writable');throw Error('Private transport capture unavailable');}
+-  if(!['playwright','cdp'].includes(channel)||!Number.isInteger(ordinal)||ordinal<1||ordinal>8||typeof error!=='string'){fail('invalid_error_observation');throw Error('Private transport error observation invalid');}
++  if(!['playwright','cdp'].includes(channel)||!Number.isInteger(ordinal)||ordinal<1||ordinal>maxOrdinal||typeof error!=='string'){fail('invalid_error_observation');throw Error('Private transport error observation invalid');}
++  const slot=channel+':'+ordinal;if((perSocketChannel.get(slot)??0)>=TERMINAL_OBSERVATION_LIMITS.maxErrorsPerSocketPerChannel){fail('private_socket_error_limit');throw Error('Private per-socket error capture limit');}
+   const raw=Buffer.from(error);if(raw.length>maxTextBytes||rows>=maxRows){fail(raw.length>maxTextBytes?'private_error_text_limit':'private_error_row_limit');throw Error('Private transport error capture limit');}
+   const row={record:rows+1,channel,ordinal,wall:new Date().toISOString(),monotonicMs:performance.now(),errorBytes:raw.length,errorSHA256:transportPrivateHash('sha256').update(raw).digest('hex'),error};
+-  const data=Buffer.from(JSON.stringify(row)+'\n');if(bytes+data.length>limit){fail('private_error_file_limit');throw Error('Private transport error file limit');}
++  const data=Buffer.from(JSON.stringify(row)+'\n');if(data.length>maxRowBytes){fail('private_error_row_byte_limit');throw Error('Private transport error row byte limit');}if(bytes+data.length>limit){fail('private_error_file_limit');throw Error('Private transport error file limit');}
+   let written=0;try{while(written<data.length){const n=f.writeSync(fd,data,written,data.length-written);if(n<=0)throw Error('No progress');digest.update(data.subarray(written,written+n));bytes+=n;written+=n;}f.fsyncSync(fd);}catch{fail('private_error_write_unconfirmed');throw Error('Private transport error write unconfirmed');}
+-  rows++;return {record:row.record,errorBytes:row.errorBytes,errorSHA256:row.errorSHA256,retainedPrivately:true};
++  rows++;perSocketChannel.set(slot,(perSocketChannel.get(slot)??0)+1);return {record:row.record,errorBytes:row.errorBytes,errorSHA256:row.errorSHA256,retainedPrivately:true};
+  },snapshot,close(){if(closed)return snapshot();try{const named=f.lstatSync(path),current=f.fstatSync(fd);if(!validFile(named)||!validFile(current)||!same(fileIdentity,current)||!same(current,named)||current.size!==bytes||!same(parentIdentity,validParent()))throw Error('Identity changed');state.identityVerified=true;}catch{state.identityVerified=false;fail('private_error_identity_changed');}
+   try{f.fsyncSync(fd);state.fsyncSucceeded=true;}catch{state.fsyncSucceeded=false;fail('private_error_sync_failed');}try{f.closeSync(fd);state.closeAcknowledged=true;}catch{fail('private_error_close_failed');}closed=true;let parentFD;try{parentFD=f.openSync(parent,c.O_RDONLY|c.O_DIRECTORY|c.O_NOFOLLOW);if(!same(parentIdentity,f.fstatSync(parentFD)))throw Error('Parent changed');f.fsyncSync(parentFD);}catch{fail('private_error_parent_sync_failed');}finally{if(parentFD!==undefined)try{f.closeSync(parentFD);}catch{fail('private_error_parent_close_failed');}}return snapshot();}};
+ }
+@@ -263,7 +279,7 @@
+  const {createWorkflowDeadline,runBoundedCleanup,boundedAttempt}=await import(pathToFileURL(join(frozen,'launch-recovery/acceptance-lifecycle.mjs')));
+  const {createStartupScope,startAcceptanceBrowser}=await import(pathToFileURL(join(frozen,'launch-recovery/acceptance-startup.mjs')));
+  const {verifyPackage}=await import(pathToFileURL(join(frozen,'check-create-recovery/provenance.mjs')));
+- const {fixtureMarkers,installTerminalMonitor,runTerminalScenario}=await import(pathToFileURL(join(frozen,'scenario.mjs')));
++ const {fixtureMarkers,installTerminalMonitor,runTerminalScenario,terminalObservationLimits:scenarioObservationLimits}=await import(pathToFileURL(join(frozen,'scenario.mjs')));assert.deepEqual(scenarioObservationLimits(),TERMINAL_OBSERVATION_LIMITS,'Launch/scenario observation budgets differ');
+  const receipt={version:1,passed:false,mode:'installed-CLOUD-054-interactive-shell',startedAt:new Date().toISOString(),sourceCommit:product,helperSourceCommit:helperSource,helperBindings:sourceBindings,launcherSHA256:sha(ownBytes),scenarioSHA256:sha(scenarioBytes),apiActions:[],browserMutations:[],phases:[],cleanup:[],scope:'One actual shell Create, one UI same-ID Restart, two natural terminal exits. No model/provider calls, no performance/Windows/permission-revocation claim. Direct Docker transport: no proxy wire count or unknown-Create fence/drain claim.',limitations:['Exclusive empty Linux daemon only; not suitable for the shared Windows daemon.','No app-owned process census outside exact retained identities and fixture environment matches; unreadable foreign environments and observed zombies are reported.','If any mutation loses its response, remote settlement is unverified and acceptance fails even if inventory later becomes empty.','Failed-fixture immutable-ID removal does not release or repair private product ledgers.']};
+  const password=randomUUID()+randomUUID(),lifecycle=randomUUID()+randomUUID(),secrets=[password,lifecycle];let token,stage='preflight',failure,closing=false,workflow,service,serviceIdentity,browser,page,monitor,controllerLog,privateTransportErrors,base,session,project,worktree,machine,engine,instance;
+  const fixture=mkdtempSync(join(fixtureParent,'luci-c054-'));for(const name of ['state','projects','home','docker'])mkdirSync(join(fixture,name),{mode:0o700});writeFileSync(join(evidence,'private-fixture-path'),fixture+'\n',{mode:0o600,flag:'wx'});
+@@ -326,7 +342,7 @@
+    const machines=(await request('GET','/v1/machines')).machines;assert.equal(machines.length,1);machine=machines[0];assert((await request('GET','/v1/harnesses')).harnesses.some(h=>h.id==='shell'));instance=readFileSync(join(state,'instance/instance-id'),'utf8').trim();assert(instance);
+    stageTo('shell-create');await admission('initial-shell');session=await request('POST','/v1/sessions',{machineId:machine.id,worktreeId:worktree.id,harness:'shell',title:'C054 installed shell'},201,150000);assert.equal(session.projectId,project.id);assert.equal(session.harness,'shell');assert(['starting','running'].includes(session.status),'Unexpected acknowledged Create lifecycle status');assert.match(session.executionGeneration,/^[a-f0-9]{64}$/);record({kind:'initial-allocation',sessionId:session.id,createResponseStatus:session.status,executionGeneration:session.executionGeneration,containers:inventory(),ledger:readLedger()});await until('Acknowledged shell reaches running',async()=>{const current=await request('GET','/v1/sessions/'+session.id);assert.equal(current.id,session.id);assert.equal(current.projectId,project.id);assert.equal(current.executionGeneration,session.executionGeneration);assert(['starting','running'].includes(current.status),'Acknowledged shell became terminal before readiness');return current.status==='running';},65000);record({kind:'initial-session-running',sessionId:session.id,executionGeneration:session.executionGeneration});
+    stageTo('browser-start');const {chromium}=await import(pathToFileURL(join(repo,'desktop/node_modules/playwright/index.mjs')));const browserEnv=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(k=>process.env[k]).map(k=>[k,process.env[k]]));browserEnv.LUCI_C054_BROWSER=fixture;
+-   const browserPending=new Map();await startAcceptanceBrowser({scope:startup,assertActive:health,launch:()=>chromium.launch({headless:true,timeout:20000,executablePath:resolve(parsed['--chromium']),env:browserEnv,args:['--no-proxy-server']}),adoptBrowser:b=>{browser=b;},closeBrowser:async b=>{scan('browser');await b.close();},newContext:b=>b.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'}),installRoutes:context=>context.route('**/*',async route=>{const req=route.request(),url=new URL(req.url());try{if(closing&&await abortClosingRead(route,req,url))return;health();assert.equal(url.origin,base,'External browser request refused');if(!['GET','HEAD','OPTIONS'].includes(req.method())){assert(receipt.browserMutations.length<64);const path=url.pathname;assert(req.method()==='POST'&&['/v1/auth/login','/v1/auth/socket-ticket','/v1/sessions/'+session.id+'/restart'].includes(path),'Unexpected browser mutation');if(path.endsWith('/restart')){assert(!receipt.browserMutations.some(x=>x.path===path),'Only one UI Restart');await admission('ui-restart');}receipt.browserMutations.push({method:req.method(),path,at:new Date().toISOString()});if(path.endsWith('/restart')){const key='browser-'+(++mutationSeq);browserPending.set(req,key);pendingMutations.set(key,{method:'POST',path,startedAt:new Date().toISOString()});}}health();await route.continue();}catch(e){fail(e);try{await route.abort('blockedbyclient');}catch{}}}),newPage:c=>c.newPage(),adoptPage:p=>{page=p;}});
++   const browserPending=new Map();await startAcceptanceBrowser({scope:startup,assertActive:health,launch:()=>chromium.launch({headless:true,timeout:20000,executablePath:resolve(parsed['--chromium']),env:browserEnv,args:['--no-proxy-server']}),adoptBrowser:b=>{browser=b;},closeBrowser:async b=>{scan('browser');await b.close();},newContext:b=>b.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'}),installRoutes:context=>context.route('**/*',async route=>{const req=route.request(),url=new URL(req.url());try{if(closing&&await abortClosingRead(route,req,url))return;health();assert.equal(url.origin,base,'External browser request refused');if(!['GET','HEAD','OPTIONS'].includes(req.method())){assert(receipt.browserMutations.length<TERMINAL_OBSERVATION_LIMITS.maxBrowserMutations);const path=url.pathname;assert(req.method()==='POST'&&['/v1/auth/login','/v1/auth/socket-ticket','/v1/sessions/'+session.id+'/restart'].includes(path),'Unexpected browser mutation');if(path.endsWith('/restart')){assert(!receipt.browserMutations.some(x=>x.path===path),'Only one UI Restart');await admission('ui-restart');assert(monitor,'Terminal monitor required before Restart');const boundary=await monitor.restartBoundary();record({kind:'explicit-restart-observation-boundary',...boundary});}receipt.browserMutations.push({method:req.method(),path,at:new Date().toISOString()});if(path.endsWith('/restart')){const key='browser-'+(++mutationSeq);browserPending.set(req,key);pendingMutations.set(key,{method:'POST',path,startedAt:new Date().toISOString()});}}health();await route.continue();}catch(e){fail(e);try{await route.abort('blockedbyclient');}catch{}}}),newPage:c=>c.newPage(),adoptPage:p=>{page=p;}});
+    page.setDefaultTimeout(15000);page.on('pageerror',()=>fail(Error('Browser page error')));page.on('response',r=>{const request=r.request(),key=browserPending.get(request);if(key&&acceptRestartResponses&&!browserResponseRequests.has(request)){browserResponseRequests.add(request);const observation=(async()=>{
+     assert(!closing,'Browser Restart observation is closed');
+     const sessionId=session.id,projectId=project.id,path='/v1/sessions/'+sessionId+'/restart',url=new URL(request.url()),status=r.status();
+--- before/scenario.mjs
++++ fixed/scenario.mjs
+@@ -2,6 +2,21 @@
+ import assert from 'node:assert/strict';
+ import {randomBytes,createHash} from 'node:crypto';
+ import {setTimeout as delay} from 'node:timers/promises';
++
++// CLOUD-077: bound this two-generation scenario, not arbitrary reconnect use.
++// attachRegistry checks its60s budget on failure BEFORE scheduling the next rung.
++// An immediately refused ladder can therefore start its34th attempt at61,750ms.
++// This witness allows one successful stream per generation; a successful-open/
++// close loop would reset the product budget and is deliberately a scenario failure.
++export function terminalObservationLimits() {
++  const retryDelaysMs=[250,500,1000,2000],retryBudgetMs=60000,generations=2;
++  let attemptsPerGeneration=1,earliestStartMs=0;
++  while(earliestStartMs<retryBudgetMs){earliestStartMs+=retryDelaysMs[Math.min(attemptsPerGeneration-1,retryDelaysMs.length-1)];attemptsPerGeneration++;}
++  const maxSockets=generations*attemptsPerGeneration,maxErrorsPerSocketPerChannel=8,maxErrorTextBytes=2048;
++  const maxPrivateErrorRows=2*maxSockets*maxErrorsPerSocketPerChannel,maxPrivateErrorRowBytes=6*maxErrorTextBytes+1024;
++  return Object.freeze({retryDelaysMs,retryBudgetMs,generations,attemptsPerGeneration,lastEarliestAttemptMs:earliestStartMs,maxSockets,maxBrowserMutations:maxSockets+2,maxErrorsPerSocketPerChannel,maxErrorTextBytes,maxPrivateErrorRows,maxPrivateErrorRowBytes,maxPrivateErrorBytes:maxPrivateErrorRows*maxPrivateErrorRowBytes});
++}
++export const TERMINAL_OBSERVATION_LIMITS=terminalObservationLimits();
+ 
+ export function fixtureMarkers() {
+   const nonce=randomBytes(12).toString('hex');
+@@ -48,7 +63,7 @@
+   acquisition.then(value=>{if(closed)void bounded(value.detach(),1500,'late-detach-deadline').catch(()=>fail('late-cdp-detach-unconfirmed'));},()=>{});
+   try{
+     client=await bounded(acquisition,2000,'cdp-acquisition-deadline');
+-    add('Network.webSocketCreated',event=>{let url;try{url=new URL(event.url);}catch{return;}if(url.origin!==origin||url.pathname!==attachPath)return;if(known.has(event.requestId)){fail('duplicate-cdp-socket');return;}if(rows.length>=8){fail('cdp-socket-limit');return;}const row={ordinal:rows.length+1,created:at(),handshakes:[],errors:[],closeFrames:[],closed:null};known.set(event.requestId,row);rows.push(row);});
++    add('Network.webSocketCreated',event=>{let url;try{url=new URL(event.url);}catch{return;}if(url.origin!==origin||url.pathname!==attachPath)return;if(known.has(event.requestId)){fail('duplicate-cdp-socket');return;}if(rows.length>=TERMINAL_OBSERVATION_LIMITS.maxSockets){fail('cdp-socket-limit');return;}const row={ordinal:rows.length+1,created:at(),handshakes:[],errors:[],closeFrames:[],closed:null};known.set(event.requestId,row);rows.push(row);});
+     add('Network.webSocketHandshakeResponseReceived',event=>{const row=known.get(event.requestId);if(!row)return;if(row.handshakes.length>=2){fail('handshake-limit');return;}row.handshakes.push({...at(),...handshakeEvidence(event.response)});});
+     add('Network.webSocketFrameError',event=>{const row=known.get(event.requestId);if(!row)return;if(row.errors.length>=8){fail('cdp-error-limit');return;}const retained=retainTransportError({channel:'cdp',ordinal:row.ordinal,error:event.errorMessage});row.errors.push({...at(),...transportErrorEvidence(event.errorMessage),privateError:retained});});
+     for(const [name,direction]of [['Network.webSocketFrameReceived','received'],['Network.webSocketFrameSent','sent']])add(name,event=>{const row=known.get(event.requestId);if(!row||event.response?.opcode!==8)return;if(row.closeFrames.length>=8){fail('close-frame-limit');return;}const value=closeFrameEvidence(event.response,direction);if(!value.available)fail('close-frame-projection-unavailable');row.closeFrames.push({...at(),...value});});
+@@ -70,23 +85,29 @@
+ 
+ // Serialized into the actual page before navigation. Listener-only native sockets;
+ // no server frames, close codes, product fields or socket sends are rewritten.
+-export function terminalMonitor({origin,attachPath,markers}) {
++export function terminalMonitor({origin,attachPath,markers,limits}) {
+   if(Object.hasOwn(globalThis,'__luciC054Terminal'))throw Error('Monitor already installed');
++  if(!limits||limits.generations!==2||limits.attemptsPerGeneration!==34||limits.maxSockets!==68)throw Error('Bound two-generation observation limits required');
+   const Native=globalThis.WebSocket, rows=[], failures=[];
+   const knownMarkers=Object.entries(markers).filter(([key])=>key!=='nonce');
+   const failure=code=>{if(failures.length<16)failures.push(code);};
+   const now=()=>({wall:new Date().toISOString(),monotonicMs:performance.now()});
+-  let sequence=0;
++  let sequence=0,restart=null;
+   globalThis.WebSocket=new Proxy(Native,{construct(target,args,newTarget){
+     const socket=Reflect.construct(target,args,newTarget);
+     let url;try{url=new URL(String(args[0]),location.href);}catch{return socket;}
+     if(url.origin!==origin||url.pathname!==attachPath)return socket;
+-    if(rows.length>=8){failure('socket-limit');return socket;}
++    if(rows.length>=limits.maxSockets){failure('socket-limit');return socket;}
++    const phaseRows=restart?rows.slice(restart.attemptCount):rows;
++    if(phaseRows.length>=limits.attemptsPerGeneration)failure('generation-attempt-limit');
++    const opened=phaseRows.find(row=>row.open);
++    if(opened)failure(opened.exit.length?'attach-after-typed-exit':'attach-after-opened-stream');
+     const row={ordinal:rows.length+1,created:now(),open:null,stdoutFrames:0,stdoutBytes:0,receivedFrames:0,otherFrames:0,exit:[],markers:{},closed:null,error:false,pending:0,events:[]};
+     rows.push(row);let tail='',chain=Promise.resolve();
+     const event=(kind,details={})=>{if(row.events.length>=512){failure('event-limit');return;}row.events.push({sequence:++sequence,kind,...now(),...details});};
+-    socket.addEventListener('open',()=>{row.open=now();event('open');});
++    socket.addEventListener('open',()=>{row.open=now();event('open');if(rows.filter(value=>value.open).length>(restart?2:1))failure('extra-opened-stream');});
+     socket.addEventListener('message',message=>{
++      if(!row.open){failure('message-before-open');return;}
+       if(row.receivedFrames>=512||row.pending>=32){failure('message-queue-limit');return;}
+       row.receivedFrames++;const received=now();row.pending++;
+       chain=chain.then(async()=>{
+@@ -115,18 +136,26 @@
+     socket.addEventListener('close',closed=>{chain=chain.then(()=>{row.closed={code:closed.code,wasClean:closed.wasClean,...now()};event('close',{code:closed.code,wasClean:closed.wasClean});tail='';});});
+     return socket;
+   }});
+-  Object.defineProperty(globalThis,'__luciC054Terminal',{value:()=>JSON.parse(JSON.stringify({version:1,failures,rows})),configurable:false});
++  Object.defineProperty(globalThis,'__luciC054TerminalRestart',{value:()=>{
++    if(restart)throw Error('Only one explicit Restart boundary');
++    const opened=rows.filter(row=>row.open),first=opened[0];
++    if(failures.length||opened.length!==1||!first||first.exit.length!==1||!first.closed||first.pending!==0||first.ordinal!==rows.length)throw Error('First typed exit and exact attempt settlement required before Restart');
++    if(first.error||first.closed.code!==1000||first.closed.wasClean!==true||first.exit[0].reason.kind!=='exit-status'||first.exit[0].reason.code!==0)throw Error('Initial normal exit0 required before Restart');
++    if(rows.some(row=>row!==first&&(!row.closed||row.open||row.receivedFrames||row.exit.length)))throw Error('Initial refused handshake remains unconfirmed');
++    restart={attemptCount:rows.length,...now()};return {...restart};
++  },configurable:false});
++  Object.defineProperty(globalThis,'__luciC054Terminal',{value:()=>JSON.parse(JSON.stringify({version:1,limits,restart,failures,rows})),configurable:false});
+ }
+ 
+ export async function installTerminalMonitor(page,{base,attachPath,markers,retainTransportError}) {
+   const target=new URL(base);target.protocol=target.protocol==='https:'?'wss:':'ws:';
+-  await page.addInitScript(terminalMonitor,{origin:target.origin,attachPath,markers});
++  await page.addInitScript(terminalMonitor,{origin:target.origin,attachPath,markers,limits:TERMINAL_OBSERVATION_LIMITS});
+   const transport=await installTransportDiagnostics(page,{origin:target.origin,attachPath,retainTransportError});
+   const sent=[],disposal=disposalState();let observerFailure=transport.snapshot().setupComplete?null:'transport-setup-unavailable';
+   const hook=socket=>{
+     const url=new URL(socket.url());if(url.origin!==target.origin||url.pathname!==attachPath)return;
++    if(sent.length>=TERMINAL_OBSERVATION_LIMITS.maxSockets){observerFailure='sent-socket-limit';return;}
+     const row={ordinal:sent.length+1,stdinFrames:0,stdinBytes:0,resizeFrames:0,otherFrames:0,socketErrors:[],sendEvents:[]};sent.push(row);
+-    if(sent.length>8)observerFailure='sent-socket-limit';
+     socket.on('socketerror',error=>{if(row.socketErrors.length>=8){observerFailure='socket-error-limit';return;}try{const retained=retainTransportError({channel:'playwright',ordinal:row.ordinal,error});row.socketErrors.push({wall:new Date().toISOString(),monotonicMs:performance.now(),...transportErrorEvidence(error),privateError:retained});}catch{observerFailure='private-transport-error-capture-failed';}});
+     socket.on('framesent',frame=>{
+       if(!Buffer.isBuffer(frame.payload)){observerFailure='non-binary-sent-frame';return;}
+@@ -138,7 +167,7 @@
+     });
+   };
+   page.on('websocket',hook);
+-  return {snapshot:async()=>{const protocol=transport.snapshot();return {browser:await page.evaluate(()=>globalThis.__luciC054Terminal()),sent:structuredClone(sent),protocol,observerFailure:observerFailure??(protocol.failures.length?'transport-observation-failed':null)};},disposalSnapshot:()=>structuredClone({version:1,monitor:disposal,transport:transport.disposalSnapshot(),protocol:transport.snapshot()}),dispose:async()=>{
++  return {restartBoundary:()=>page.evaluate(()=>globalThis.__luciC054TerminalRestart()),snapshot:async()=>{const protocol=transport.snapshot();return {browser:await page.evaluate(()=>globalThis.__luciC054Terminal()),sent:structuredClone(sent),protocol,observerFailure:observerFailure??(protocol.failures.length?'transport-observation-failed':null)};},disposalSnapshot:()=>structuredClone({version:1,monitor:disposal,transport:transport.disposalSnapshot(),protocol:transport.snapshot()}),dispose:async()=>{
+     const first=beginDisposal(disposal,{listenerRemoved:null,settlement:{state:'pending',at:null}});
+     try{page.off('websocket',hook);if(first)first.listenerRemoved=disposalAt();await transport.dispose();disposalSettlement(first,'settlement','fulfilled');}
+     catch(error){disposalSettlement(first,'settlement','rejected');throw error;}
+@@ -283,13 +312,27 @@
+   };
+ }
+ 
++// The scenario's stream selection is shared with controlled observer regressions.
++// A refused connection is an observed attempt, never a generation's output stream.
++export function terminalGenerationStreams(value) {
++  assert.equal(value.observerFailure,null);assert.deepEqual(value.browser.failures,[]);
++  const opened=value.browser.rows.filter(row=>row.open);assert(opened.length<=2,'Only two successful generation streams');
++  for(const row of value.browser.rows)if(!row.open){
++    assert.equal(row.receivedFrames,0,'Refused handshake carried server frames');assert.equal(row.exit.length,0);
++    const sent=value.sent.find(item=>item.ordinal===row.ordinal);
++    if(sent){assert.equal(sent.stdinFrames,0,'Refused handshake carried stdin');assert.equal(sent.resizeFrames,0);assert.equal(sent.otherFrames,0);}
++  }
++  return opened;
++}
++
+ export async function runTerminalScenario({page,base,workspace,sessionId,projectId,request,record,health,monitor,markers,evidenceDir,observeSettlement}) {
+   assert.match(sessionId,/^s-[a-f0-9]{8}$/);assert.match(projectId,/^p-[a-f0-9]+$/);
+   const path=workspace+'/v1/sessions/'+sessionId, pane=page.locator('section.pane[data-session-id="'+sessionId+'"]');
+   const gates=[];let primaryFailure,secondRelease,step='pane-visible';
+   const stepTo=value=>{step=value;record({kind:'scenario-step',step});};
+   const until=async(label,fn,ms=15000)=>{const end=Date.now()+ms;while(Date.now()<end){health();const value=await fn();if(value)return value;await delay(50);}throw Error(label+' timed out');};
+-  const snapshot=async()=>{const value=await monitor.snapshot();assert.equal(value.observerFailure,null);assert.deepEqual(value.browser.failures,[]);return value;};
++  const streams=terminalGenerationStreams;
++  const snapshot=async()=>{const value=await monitor.snapshot();streams(value);return value;};
+   const state=async()=>pane.evaluate(element=>({label:element.getAttribute('aria-label'),footer:element.querySelector('.pane-foot')?.textContent??'',overlay:element.querySelector('[data-attach-phase]')?.getAttribute('data-attach-phase')??null,termPresent:!!element.querySelector('.xterm'),restartCount:[...element.querySelectorAll('button')].filter(button=>button.textContent==='Restart').length}));
+   const command=async text=>{health();const textarea=pane.locator('textarea.xterm-helper-textarea');await textarea.focus();await page.keyboard.type(text,{delay:0});await page.keyboard.press('Enter');};
+   const fresh=async()=>{const row=await request('GET',path);assert.equal(row.id,sessionId);assert.equal(row.projectId,projectId);assert.equal(row.harness,'shell');return row;};
+@@ -299,41 +342,42 @@
+     await pane.locator('.xterm').evaluate(element=>{globalThis.__c054OriginalTerminal=element;});
+     record({kind:'initial-session',sessionId,projectId,executionGeneration:before.executionGeneration,ui:await state()});
+     stepTo('ready-command');await command(`stty -echo; printf 'C054_READY_%s\\n' '${markers.nonce}'`);
+-    await until('Shell command ready marker',async()=>{const s=await snapshot();return s.browser.rows.length===1&&s.browser.rows[0].markers.ready;});
++    await until('Shell command ready marker',async()=>{const s=await snapshot(),opened=streams(s);return opened.length===1&&opened[0].markers.ready;});
+     // A text body resembling a terminal event must not settle the attachment.
+     stepTo('text-exit-lookalike');await command(`printf 'C054_BODY_EXIT_%s {"type":"exit","code":0}\\n' '${markers.nonce}'`);
+-    await until('Textual exit lookalike printed',async()=>!!(await snapshot()).browser.rows[0].markers.body);
+-    assert.equal((await snapshot()).browser.rows[0].exit.length,0);assert.match((await state()).footer,/attached/);
++    await until('Textual exit lookalike printed',async()=>!!streams(await snapshot())[0]?.markers.body);
++    assert.equal(streams(await snapshot())[0].exit.length,0);assert.match((await state()).footer,/attached/);
+     stepTo('first-running-poll-hold');const firstGate=await holdNextSessionList(page,{base,workspace,sessionId,health,record});gates.push(firstGate);
+     const held=await Promise.race([firstGate.ready,delay(7000).then(()=>{throw Error('First list gate not reached');})]);assert.equal(held.session.status,'running');assert.equal(held.session.executionGeneration,before.executionGeneration);
+     stepTo('first-exit-command');await command(`printf 'C054_FIRST_%s\\n' '${markers.nonce}'; exit 0`);
+-    stepTo('first-wire-close');await until('First actual typed exit and normal close',async()=>{const row=(await snapshot()).browser.rows[0];return row?.closed&&row.pending===0;},5000);
+-    stepTo('first-wire-assertions');let observed=await snapshot(),first=observed.browser.rows[0];assert.equal(observed.browser.rows.length,1);assert.equal(first.error,false);assert.equal(first.closed.code,1000);assert.equal(first.closed.wasClean,true);assert.deepEqual(first.exit.map(value=>value.reason),[{kind:'exit-status',code:0}]);assert(first.markers.first.sequence<first.exit[0].sequence);assert(first.exit[0].sequence<first.events.find(event=>event.kind==='close').sequence);
++    stepTo('first-wire-close');await until('First actual typed exit and normal close',async()=>{const row=streams(await snapshot())[0];return row?.closed&&row.pending===0;},5000);
++    stepTo('first-wire-assertions');let observed=await snapshot(),first=streams(observed)[0];const initialAttemptCount=observed.browser.rows.length;assert.equal(streams(observed).length,1);assert.equal(initialAttemptCount,first.ordinal,'No new attempt after the first successful stream');assert(initialAttemptCount<=TERMINAL_OBSERVATION_LIMITS.attemptsPerGeneration);assert.equal(first.error,false);assert.equal(first.closed.code,1000);assert.equal(first.closed.wasClean,true);assert.deepEqual(first.exit.map(value=>value.reason),[{kind:'exit-status',code:0}]);assert(first.markers.first.sequence<first.exit[0].sequence);assert(first.exit[0].sequence<first.events.find(event=>event.kind==='close').sequence);
+     stepTo('ended-before-poll');await until('Ended footer without next poll',async()=>(await state()).footer.includes('ended'),1000);
+-    stepTo('ended-stdin-and-reconnect-guard');const sentBefore=observed.sent[0].stdinFrames;
++    stepTo('ended-stdin-and-reconnect-guard');const sentBefore=observed.sent[first.ordinal-1].stdinFrames;
+     await command(`printf 'C054_NO_STDIN_%s\\n' '${markers.nonce}'`);
+-    await delay(2300);health();observed=await snapshot();assert.equal(observed.browser.rows.length,1);assert.equal(observed.sent[0].stdinFrames,sentBefore);assert.equal((await state()).overlay,null);assert.match((await state()).footer,/ended/);assert.match((await state()).label,/ — running$/);
++    await delay(2300);health();observed=await snapshot();assert.equal(observed.browser.rows.length,initialAttemptCount,'Automatic attempt after first typed Exit');assert.equal(observed.sent[first.ordinal-1].stdinFrames,sentBefore);assert.equal((await state()).overlay,null);assert.match((await state()).footer,/ended/);assert.match((await state()).label,/ — running$/);
+     await page.screenshot({path:evidenceDir+'/first-ended-poll-held.png',fullPage:true});record({kind:'typed-exit-before-poll',ui:await state(),wire:observed});
+     stepTo('first-poll-release');await firstGate.release();await firstGate.dispose();await until('Fresh exited state and Restart',async()=>(await state()).restartCount===1,20000);
+     stepTo('initial-natural-settlement');await waitForOwnedTerminalSettlement({sessionId,projectId,initialExecutionGeneration:before.executionGeneration,observe:observeSettlement,health,record});
+     stepTo('second-old-poll-hold');const secondGate=await holdNextSessionList(page,{base,workspace,sessionId,health,record});gates.push(secondGate);
+     await Promise.race([secondGate.ready,delay(7000).then(()=>{throw Error('Second list gate not reached');})]);
+     secondRelease=createBoundedSecondPollRelease({gate:secondGate,health,record});
++    assert.equal((await snapshot()).browser.rows.length,initialAttemptCount,'Automatic attempt before the explicit Restart request');
+     stepTo('single-ui-restart');const responsePromise=page.waitForResponse(response=>new URL(response.url()).pathname===path+'/restart'&&response.request().method()==='POST',{timeout:150000});
+     await pane.getByRole('button',{name:'Restart',exact:true}).click();const restartResponse=await responsePromise;assert.equal(restartResponse.status(),200);const restarted=await restartResponse.json();assert.equal(restarted.id,sessionId);assert.match(restarted.executionGeneration,/^[a-f0-9]{64}$/);assert.notEqual(restarted.executionGeneration,before.executionGeneration);secondRelease.acknowledged();
+-    stepTo('replacement-socket');await until('Replacement browser socket attached',async()=>{const s=await snapshot();return s.browser.rows.length===2&&s.browser.rows[1].open&&(await state()).footer.includes('attached');},6000);
++    stepTo('replacement-socket');await until('Replacement browser socket attached',async()=>{const s=await snapshot();assert.equal(s.browser.restart?.attemptCount,initialAttemptCount,'Restart boundary must be the admitted single POST');return streams(s).length===2&&(await state()).footer.includes('attached');},6000);
+     stepTo('old-poll-release-after-restart');const oldReadOrdering=await secondRelease.releaseAfterAttachment();await secondGate.dispose();await delay(250);health();
+-    assert.equal((await snapshot()).browser.rows.length,2);assert.match((await state()).footer,/attached/);assert.equal((await state()).restartCount,0);
++    const replacementObserved=await snapshot(),replacement=streams(replacementObserved)[1],replacementAttemptCount=replacementObserved.browser.rows.length;assert.equal(streams(replacementObserved).length,2);assert.equal(replacementAttemptCount,replacement.ordinal);assert(replacementAttemptCount-initialAttemptCount<=TERMINAL_OBSERVATION_LIMITS.attemptsPerGeneration);assert.match((await state()).footer,/attached/);assert.equal((await state()).restartCount,0);
+     assert.equal(await pane.locator('.xterm').evaluate(element=>element===globalThis.__c054OriginalTerminal),true,'Terminal DOM retained through same-ID restart');
+     const current=await until('Replacement authoritative running row',async()=>{const row=await fresh();assert.equal(row.executionGeneration,restarted.executionGeneration);assert(['starting','running'].includes(row.status));return row.status==='running'?row:null;},15000);assert.equal(current.status,'running');
+     record({kind:'restart-after-held-old-read',sessionId,executionGeneration:current.executionGeneration,ui:await state(),wire:await snapshot()});
+     stepTo('second-exit-command');await command(`stty -echo; printf 'C054_SECOND_%s\\n' '${markers.nonce}'; exit 7`);
+-    await until('Second actual typed exit and normal close',async()=>{const row=(await snapshot()).browser.rows[1];return row?.closed&&row.pending===0;},15000);
+-    stepTo('second-wire-assertions');const final=await snapshot(),second=final.browser.rows[1];assert.equal(final.browser.rows.length,2);assert.equal(second.error,false);assert.equal(second.closed.code,1000);assert.equal(second.closed.wasClean,true);assert.deepEqual(second.exit.map(value=>value.reason),[{kind:'exit-status',code:7}]);assert(second.markers.second.sequence<second.exit[0].sequence);
+-    await until('Nonzero completion says ended',async()=>(await state()).footer.includes('ended'));await delay(2300);health();assert.equal((await snapshot()).browser.rows.length,2);assert.equal((await state()).overlay,null);
++    await until('Second actual typed exit and normal close',async()=>{const row=streams(await snapshot())[1];return row?.closed&&row.pending===0;},15000);
++    stepTo('second-wire-assertions');const final=await snapshot(),second=streams(final)[1];assert.equal(streams(final).length,2);assert.equal(final.browser.rows.length,replacementAttemptCount);assert.equal(second.ordinal,replacement.ordinal);assert.equal(second.error,false);assert.equal(second.closed.code,1000);assert.equal(second.closed.wasClean,true);assert.deepEqual(second.exit.map(value=>value.reason),[{kind:'exit-status',code:7}]);assert(second.markers.second.sequence<second.exit[0].sequence);assert(second.exit[0].sequence<second.events.find(event=>event.kind==='close').sequence);
++    await until('Nonzero completion says ended',async()=>(await state()).footer.includes('ended'));await delay(2300);health();assert.equal((await snapshot()).browser.rows.length,replacementAttemptCount,'Automatic attempt after second typed Exit');assert.equal((await state()).overlay,null);
+     await page.screenshot({path:evidenceDir+'/second-nonzero-ended.png',fullPage:true});
+     record({kind:'scenario-complete',passed:oldReadOrdering.exercised,warmRestartPassed:true,oldReadOrdering,ui:await state(),wire:await snapshot(),limitations:['Actual interactive shell transport, not model-provider output quality','No 1013 overflow induced; separately controlled regression applies','Screenshots preserve actual terminal rendering for manual review; wire marker receipt is not OCR','Current scope verifies terminal-ended stdin suppression, not project-permission revocation','A same-ID UI restart is exercised; external-actor restart and late old-socket callbacks remain controlled-source scope','No responsiveness/throughput/whole-computer claim']});
+-    return {passed:oldReadOrdering.exercised,warmRestartPassed:true,oldReadOrdering,requiredAcceptanceIncomplete:oldReadOrdering.exercised?[]:['installed-old-response-after-restart-acknowledgement'],sessionId,initialExecutionGeneration:before.executionGeneration,restartedExecutionGeneration:restarted.executionGeneration};
++    return {passed:oldReadOrdering.exercised,warmRestartPassed:true,oldReadOrdering,requiredAcceptanceIncomplete:oldReadOrdering.exercised?[]:['installed-old-response-after-restart-acknowledgement'],sessionId,initialExecutionGeneration:before.executionGeneration,restartedExecutionGeneration:restarted.executionGeneration,observationLimits:TERMINAL_OBSERVATION_LIMITS,attempts:{initial:initialAttemptCount,replacement:replacementAttemptCount-initialAttemptCount,total:replacementAttemptCount},successfulGenerationStreams:2};
+   }catch(error){
+     primaryFailure=error;
+     // Preserve the primary failure before route disposal can fail, then make a

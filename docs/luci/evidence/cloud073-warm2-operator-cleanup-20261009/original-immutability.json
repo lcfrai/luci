@@ -1,0 +1,32 @@
+{
+  "checkedOriginalCount": 3,
+  "allUnchanged": true,
+  "before": {
+    "/workspace/.luci-tools/cloud073-installed-78665270/operator-remove-warm2-created.py": {
+      "sha256": "9ec072ce03d85314638a5ef10308a8cf0ce060038f60ac99fb7b8dc535f4fc79",
+      "bytes": 7998
+    },
+    "/workspace/.luci-tools/cloud073-installed-78665270/operator-warm2-created-removal/before.json": {
+      "sha256": "a5f633c8baff711dff22d35cb35391de1a4172ec5aac5eea307351e12bd03778",
+      "bytes": 3621
+    },
+    "/workspace/.luci-tools/cloud073-installed-78665270/operator-warm2-created-removal/result.json": {
+      "sha256": "634988fa9084b1e42cc387c128dd87fe6346c476c99d8d6fe8f207bb7897a96b",
+      "bytes": 6640
+    }
+  },
+  "after": {
+    "/workspace/.luci-tools/cloud073-installed-78665270/operator-remove-warm2-created.py": {
+      "sha256": "9ec072ce03d85314638a5ef10308a8cf0ce060038f60ac99fb7b8dc535f4fc79",
+      "bytes": 7998
+    },
+    "/workspace/.luci-tools/cloud073-installed-78665270/operator-warm2-created-removal/before.json": {
+      "sha256": "a5f633c8baff711dff22d35cb35391de1a4172ec5aac5eea307351e12bd03778",
+      "bytes": 3621
+    },
+    "/workspace/.luci-tools/cloud073-installed-78665270/operator-warm2-created-removal/result.json": {
+      "sha256": "634988fa9084b1e42cc387c128dd87fe6346c476c99d8d6fe8f207bb7897a96b",
+      "bytes": 6640
+    }
+  }
+}

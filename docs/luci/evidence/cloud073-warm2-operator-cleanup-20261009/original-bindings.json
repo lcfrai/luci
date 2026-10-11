@@ -1,0 +1,38 @@
+{
+  "files": [
+    {
+      "originalSource": "/workspace/.luci-tools/cloud073-installed-78665270/operator-remove-warm2-created.py",
+      "originalSHA256": "9ec072ce03d85314638a5ef10308a8cf0ce060038f60ac99fb7b8dc535f4fc79",
+      "originalBytes": 7998,
+      "publishedPath": "operator-remove-warm2-created.py",
+      "publishedSHA256": "07bedfb04547ae905f60fc8e39eb0798979eb5f5b5f799be6ad8217b822c13be",
+      "publishedBytes": 7999,
+      "transformation": "One private relative fixture path literal replaced by fixtures/<PRIVATE_FIXTURE>; all other source bytes preserved."
+    },
+    {
+      "originalSource": "/workspace/.luci-tools/cloud073-installed-78665270/operator-warm2-created-removal/before.json",
+      "originalSHA256": "a5f633c8baff711dff22d35cb35391de1a4172ec5aac5eea307351e12bd03778",
+      "originalBytes": 3621,
+      "publishedPath": "before.json",
+      "publishedSHA256": "a5f633c8baff711dff22d35cb35391de1a4172ec5aac5eea307351e12bd03778",
+      "publishedBytes": 3621,
+      "transformation": "None; byte-exact original public receipt."
+    },
+    {
+      "originalSource": "/workspace/.luci-tools/cloud073-installed-78665270/operator-warm2-created-removal/result.json",
+      "originalSHA256": "634988fa9084b1e42cc387c128dd87fe6346c476c99d8d6fe8f207bb7897a96b",
+      "originalBytes": 6640,
+      "publishedPath": "result.json",
+      "publishedSHA256": "634988fa9084b1e42cc387c128dd87fe6346c476c99d8d6fe8f207bb7897a96b",
+      "publishedBytes": 6640,
+      "transformation": "None; byte-exact original public receipt."
+    }
+  ],
+  "privatePathSubstitution": {
+    "count": 1,
+    "originalLiteralSHA256": "e51ab2dd1e27735fb1d9c6a49ef4d2d0e9e523e739df60f544877dd653306ace",
+    "originalLiteralBytes": 25,
+    "publishedLiteral": "fixtures/<PRIVATE_FIXTURE>"
+  },
+  "scope": "Read only these three authorized originals. No referenced private fixture, ledger, process, Docker, runtime, auth, or original failed-run contents were read or executed while assembling this capsule."
+}

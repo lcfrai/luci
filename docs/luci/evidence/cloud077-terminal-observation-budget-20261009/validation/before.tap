@@ -1,0 +1,139 @@
+TAP version 13
+# Subtest: C077 same-body positive control: two normal Exit 0/7 streams with no refused attempts
+ok 1 - C077 same-body positive control: two normal Exit 0/7 streams with no refused attempts
+  ---
+  duration_ms: 33.921917
+  type: 'test'
+  ...
+# Subtest: C077 same-body: first Exit 0, one Restart boundary, ten refused handshakes, replacement Exit 7
+not ok 2 - C077 same-body: first Exit 0, one Restart boundary, ten refused handshakes, replacement Exit 7
+  ---
+  duration_ms: 26.236831
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud077-terminal-observation-budget/tests/monitor-regression.test.mjs:33:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The actual installed sent/CDP observer must remain healthy
+    + actual - expected
+    
+    + 'sent-socket-limit'
+    - null
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: 'sent-socket-limit'
+  operator: 'strictEqual'
+  stack: |-
+    assertHealthy (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/controlled-fixture.mjs:101:10)
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/monitor-regression.test.mjs:52:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: C077 same-body: exported native observer alone retains twelve bounded attempts
+not ok 3 - C077 same-body: exported native observer alone retains twelve bounded attempts
+  ---
+  duration_ms: 13.916165
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud077-terminal-observation-budget/tests/monitor-regression.test.mjs:67:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   'socket-limit',
+    +   'socket-limit',
+    +   'socket-limit',
+    +   'socket-limit'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'socket-limit'
+    1: 'socket-limit'
+    2: 'socket-limit'
+    3: 'socket-limit'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/monitor-regression.test.mjs:73:10)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: C077 same-body: exported CDP observer independently retains twelve refused attempts
+not ok 4 - C077 same-body: exported CDP observer independently retains twelve refused attempts
+  ---
+  duration_ms: 5.349436
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud077-terminal-observation-budget/tests/monitor-regression.test.mjs:78:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   'cdp-socket-limit'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'cdp-socket-limit'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/monitor-regression.test.mjs:90:54)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: C077 same-body: private error ordinal nine is retained without exposing text in its receipt
+not ok 5 - C077 same-body: private error ordinal nine is retained without exposing text in its receipt
+  ---
+  duration_ms: 0.541086
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud077-terminal-observation-budget/tests/monitor-regression.test.mjs:97:1'
+  failureType: 'testCodeFailure'
+  error: 'Private transport error observation invalid'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.record (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/before/launch.mjs:141:162)
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/monitor-regression.test.mjs:100:35)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: C077 same-body: forty private errors fit while each channel/socket stays below eight
+not ok 6 - C077 same-body: forty private errors fit while each channel/socket stays below eight
+  ---
+  duration_ms: 1.550346
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud077-terminal-observation-budget/tests/monitor-regression.test.mjs:110:1'
+  failureType: 'testCodeFailure'
+  error: 'Private transport error capture limit'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.record (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/before/launch.mjs:142:164)
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/monitor-regression.test.mjs:113:42)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 1
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 408.638749

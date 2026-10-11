@@ -1,0 +1,9 @@
+{
+  "beforeSHA256": "2d50e115bb176b6799ecf22d5c87da7e7066e71b121c8a21cae993ec1311b1de",
+  "afterSHA256": "fd89a80b18d5c71bb795d0f967fd8cd8c6b0a9c4b5b72723816d8959cacc531e",
+  "beforeJavaScriptSHA256": "0de3b6f135d5131f64f2869a2ce2e1cbc89ccad1d659386764de3195d5a813bd",
+  "afterJavaScriptSHA256": "0de3b6f135d5131f64f2869a2ce2e1cbc89ccad1d659386764de3195d5a813bd",
+  "executableJavaScriptIdentical": true,
+  "compilerVersion": "6.0.3",
+  "scope": "Type-only test helper correction after original/fixed Vitest; production bytes unchanged."
+}

@@ -1,0 +1,278 @@
+TAP version 13
+# Subtest: C077 fixed: launcher and scenario publish the same finite two-generation budgets
+ok 1 - C077 fixed: launcher and scenario publish the same finite two-generation budgets
+  ---
+  duration_ms: 1.825352
+  type: 'test'
+  ...
+# Subtest: C077 fixed: exactly 34 attempts in each of two declared ladders remain observable
+ok 2 - C077 fixed: exactly 34 attempts in each of two declared ladders remain observable
+  ---
+  duration_ms: 78.199917
+  type: 'test'
+  ...
+# Subtest: C077 fixed: actual scenario selector rejects stdin attributed to a refused handshake
+ok 3 - C077 fixed: actual scenario selector rejects stdin attributed to a refused handshake
+  ---
+  duration_ms: 12.535659
+  type: 'test'
+  ...
+# Subtest: C077 fixed: an attempt after typed Exit and before admitted Restart fails
+ok 4 - C077 fixed: an attempt after typed Exit and before admitted Restart fails
+  ---
+  duration_ms: 13.02038
+  type: 'test'
+  ...
+# Subtest: C077 fixed: an extra third successful stream fails independently of total-attempt capacity
+ok 5 - C077 fixed: an extra third successful stream fails independently of total-attempt capacity
+  ---
+  duration_ms: 11.601321
+  type: 'test'
+  ...
+# Subtest: C077 fixed: socket 35 in one never-opened ladder fails before total capacity
+ok 6 - C077 fixed: socket 35 in one never-opened ladder fails before total capacity
+  ---
+  duration_ms: 31.462764
+  type: 'test'
+  ...
+# Subtest: C077 fixed: socket 69 fails and all three retained attempt arrays stay bounded
+ok 7 - C077 fixed: socket 69 fails and all three retained attempt arrays stay bounded
+  ---
+  duration_ms: 62.178663
+  type: 'test'
+  ...
+# Subtest: C077 fixed: Restart declaration requires a settled first typed exit
+ok 8 - C077 fixed: Restart declaration requires a settled first typed exit
+  ---
+  duration_ms: 11.522602
+  type: 'test'
+  ...
+# Subtest: C077 fixed: Restart boundary rejects abnormal close
+not ok 9 - C077 fixed: Restart boundary rejects abnormal close
+  ---
+  duration_ms: 11.609272
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:128:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /typed exit|settlement/i. Input:
+    
+    'Error: Initial normal exit0 required before Restart'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'Initial normal exit0 required before Restart'
+  stack: |-
+    value (evalmachine.<anonymous>:56:156)
+    evalmachine.<anonymous>:1:17
+    evalmachine.<anonymous>:1:45
+    Script.runInContext (node:vm:149:12)
+    runInContext (node:vm:301:6)
+    evaluate (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/controlled-fixture.mjs:65:73)
+    page.evaluate (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/controlled-fixture.mjs:68:54)
+    Object.restartBoundary (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/fixed/scenario.mjs:170:36)
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:137:42)
+    async Test.run (node:internal/test_runner/test:1389:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:137:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: C077 fixed: Restart boundary rejects unclean normal-code close
+not ok 10 - C077 fixed: Restart boundary rejects unclean normal-code close
+  ---
+  duration_ms: 9.567644
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:128:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /typed exit|settlement/i. Input:
+    
+    'Error: Initial normal exit0 required before Restart'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'Initial normal exit0 required before Restart'
+  stack: |-
+    value (evalmachine.<anonymous>:56:156)
+    evalmachine.<anonymous>:1:17
+    evalmachine.<anonymous>:1:45
+    Script.runInContext (node:vm:149:12)
+    runInContext (node:vm:301:6)
+    evaluate (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/controlled-fixture.mjs:65:73)
+    page.evaluate (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/controlled-fixture.mjs:68:54)
+    Object.restartBoundary (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/fixed/scenario.mjs:170:36)
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:137:42)
+    async Test.run (node:internal/test_runner/test:1389:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:137:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: C077 fixed: Restart boundary rejects nonzero first typed Exit
+not ok 11 - C077 fixed: Restart boundary rejects nonzero first typed Exit
+  ---
+  duration_ms: 6.813171
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:128:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /typed exit|settlement/i. Input:
+    
+    'Error: Initial normal exit0 required before Restart'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'Initial normal exit0 required before Restart'
+  stack: |-
+    value (evalmachine.<anonymous>:56:156)
+    evalmachine.<anonymous>:1:17
+    evalmachine.<anonymous>:1:45
+    Script.runInContext (node:vm:149:12)
+    runInContext (node:vm:301:6)
+    evaluate (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/controlled-fixture.mjs:65:73)
+    page.evaluate (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/controlled-fixture.mjs:68:54)
+    Object.restartBoundary (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/fixed/scenario.mjs:170:36)
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:137:42)
+    async Test.run (node:internal/test_runner/test:1389:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:137:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: C077 fixed: Restart boundary rejects first-stream error observation
+not ok 12 - C077 fixed: Restart boundary rejects first-stream error observation
+  ---
+  duration_ms: 4.930974
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:128:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /typed exit|settlement/i. Input:
+    
+    'Error: Initial normal exit0 required before Restart'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'Initial normal exit0 required before Restart'
+  stack: |-
+    value (evalmachine.<anonymous>:56:156)
+    evalmachine.<anonymous>:1:17
+    evalmachine.<anonymous>:1:45
+    Script.runInContext (node:vm:149:12)
+    runInContext (node:vm:301:6)
+    evaluate (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/controlled-fixture.mjs:65:73)
+    page.evaluate (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/controlled-fixture.mjs:68:54)
+    Object.restartBoundary (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/fixed/scenario.mjs:170:36)
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:137:42)
+    async Test.run (node:internal/test_runner/test:1389:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud077-terminal-observation-budget/tests/fixed-guards.test.mjs:137:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: C077 fixed: an unopened refused socket cannot contribute stdout
+ok 13 - C077 fixed: an unopened refused socket cannot contribute stdout
+  ---
+  duration_ms: 6.989067
+  type: 'test'
+  ...
+# Subtest: C077 fixed: an unopened refused socket cannot contribute typed Exit
+ok 14 - C077 fixed: an unopened refused socket cannot contribute typed Exit
+  ---
+  duration_ms: 6.114569
+  type: 'test'
+  ...
+# Subtest: C077 fixed: installed CDP and Playwright observers each stop at eight errors per socket
+ok 15 - C077 fixed: installed CDP and Playwright observers each stop at eight errors per socket
+  ---
+  duration_ms: 5.200731
+  type: 'test'
+  ...
+# Subtest: C077 fixed: per-channel per-socket error limit remains eight
+ok 16 - C077 fixed: per-channel per-socket error limit remains eight
+  ---
+  duration_ms: 2.2887
+  type: 'test'
+  ...
+# Subtest: C077 fixed: error ordinal 69 is rejected without private-file growth
+ok 17 - C077 fixed: error ordinal 69 is rejected without private-file growth
+  ---
+  duration_ms: 0.459533
+  type: 'test'
+  ...
+# Subtest: C077 fixed: all 1088 permitted private error slots fit and an additional row fails
+ok 18 - C077 fixed: all 1088 permitted private error slots fit and an additional row fails
+  ---
+  duration_ms: 45.817356
+  type: 'test'
+  ...
+# Subtest: C077 fixed: maximum escaped text stays within encoded-row/file limits and 2049 raw bytes fail
+ok 19 - C077 fixed: maximum escaped text stays within encoded-row/file limits and 2049 raw bytes fail
+  ---
+  duration_ms: 1.075321
+  type: 'test'
+  ...
+# Subtest: C077 fixed: text limit counts UTF-8 bytes, not JavaScript characters
+ok 20 - C077 fixed: text limit counts UTF-8 bytes, not JavaScript characters
+  ---
+  duration_ms: 0.600135
+  type: 'test'
+  ...
+# Subtest: C077 same-body positive control: two normal Exit 0/7 streams with no refused attempts
+ok 21 - C077 same-body positive control: two normal Exit 0/7 streams with no refused attempts
+  ---
+  duration_ms: 28.389065
+  type: 'test'
+  ...
+# Subtest: C077 same-body: first Exit 0, one Restart boundary, ten refused handshakes, replacement Exit 7
+ok 22 - C077 same-body: first Exit 0, one Restart boundary, ten refused handshakes, replacement Exit 7
+  ---
+  duration_ms: 24.825609
+  type: 'test'
+  ...
+# Subtest: C077 same-body: exported native observer alone retains twelve bounded attempts
+ok 23 - C077 same-body: exported native observer alone retains twelve bounded attempts
+  ---
+  duration_ms: 5.172564
+  type: 'test'
+  ...
+# Subtest: C077 same-body: exported CDP observer independently retains twelve refused attempts
+ok 24 - C077 same-body: exported CDP observer independently retains twelve refused attempts
+  ---
+  duration_ms: 4.020241
+  type: 'test'
+  ...
+# Subtest: C077 same-body: private error ordinal nine is retained without exposing text in its receipt
+ok 25 - C077 same-body: private error ordinal nine is retained without exposing text in its receipt
+  ---
+  duration_ms: 1.693133
+  type: 'test'
+  ...
+# Subtest: C077 same-body: forty private errors fit while each channel/socket stays below eight
+ok 26 - C077 same-body: forty private errors fit while each channel/socket stays below eight
+  ---
+  duration_ms: 1.976725
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 22
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 641.326766

@@ -1,0 +1,59 @@
+{
+  "sourceCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "scope": "CLOUD-078 controlled efficiency regression only; no latency or installed/native acceptance.",
+  "before": {
+    "numTotalTests": 36,
+    "numPassedTests": 27,
+    "numFailedTests": 9,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "after": {
+    "numTotalTests": 36,
+    "numPassedTests": 36,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "sameNewTestBodies": true,
+  "testFiles": {
+    "poller.test.ts": 13,
+    "poller.generation.test.ts": 6,
+    "sessionPollNoop.test.ts": 17
+  },
+  "workers": 1,
+  "sourcesStableInBothArms": true,
+  "actualTestsJoined": true,
+  "originalQuietTickExpectationPreserved": "before/desktop/src/api/poller.test.ts and old-quiet-tick-expectation.txt",
+  "baselineFailureScope": "The original production with the new oracles fails first on changed root snapshot identity in nine no-op cases; those failures are retained. Later notification/storage assertions in those baseline cases are not claimed as independently reached. The fixed cases reach all assertions.",
+  "dependencyMetadata": [
+    {
+      "name": "vitest",
+      "version": "5.0.1",
+      "packageJSONSHA256": "bb27a3b3f172321701a7b1f1d90a59e5c9596673176f553a91c1e93b9667abfa"
+    },
+    {
+      "name": "vite",
+      "version": "8.3.0",
+      "packageJSONSHA256": "0a75f2254630e11aa4fde386a2f883e2acc8430acc3fb5a833f25da264c62a16"
+    },
+    {
+      "name": "zustand",
+      "version": "5.0.15",
+      "packageJSONSHA256": "b53b4d5e7f6baeb1e832792390354f8af54edaefbd6fe23b490a4d2d2e37dff1"
+    },
+    {
+      "name": "jsdom",
+      "version": "30.1.0",
+      "packageJSONSHA256": "651b67b0f9ae95ae7bc5aea9ed5de30cbc5a722e2ce62dbdae9a4f90c9bea059"
+    }
+  ],
+  "limitations": [
+    "Existing sameSession comparisons remain unchanged; independently allocated startFailure objects still compare conservatively by reference.",
+    "No browser, Docker workload, app, benchmark, native Windows, model or full frontend/TypeScript run.",
+    "Selected source files and dependency metadata are bound; the complete transitive compiler/dependency inventory is not captured.",
+    "No C032 causality or performance improvement is asserted."
+  ]
+}

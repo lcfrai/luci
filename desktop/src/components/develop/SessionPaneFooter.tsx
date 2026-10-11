@@ -34,6 +34,8 @@ export function attachLabel(state: AttachState, nowMs: number): string {
   switch (state.phase) {
     case "detached":
       return "detached";
+    case "preparing":
+      return "preparing";
     case "connecting":
       return `connecting${ladderElapsed(state, nowMs)}`;
     case "attached":

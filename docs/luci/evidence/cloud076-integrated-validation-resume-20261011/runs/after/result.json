@@ -1,0 +1,58 @@
+{
+  "label": "after",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/.luci-tools/seams-triage-20261011/tree/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "src/seams.test.ts",
+    "--maxWorkers=1",
+    "--no-file-parallelism",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/seams-triage-20261011/runs/after/vitest.json"
+  ],
+  "cwd": "/workspace/.luci-tools/seams-triage-20261011/tree/desktop",
+  "nodeVersion": "v24.19.0",
+  "startedAt": "2026-10-11T09:57:02.566526+00:00",
+  "timeoutSeconds": 240,
+  "maxWorkers": 1,
+  "scope": "Only src/seams.test.ts; unchanged Vitest configuration in frozen external copy; shared installed dependencies. No tsc, full-suite, runtime or Docker.",
+  "exitCode": 0,
+  "elapsedSeconds": 5.598701976996381,
+  "completedAt": "2026-10-11T09:57:08.165395+00:00",
+  "inputsStable": true,
+  "reporter": {
+    "numTotalTests": 24,
+    "numPassedTests": 24,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "failures": [],
+  "artifacts": {
+    "stdout.log": {
+      "bytes": 91,
+      "sha256": "8b7cb4395563f5adab825fccfa3a9fb52a4f683c7b2a1e36f4e8040e64ea6d01"
+    },
+    "invocation.json": {
+      "bytes": 770,
+      "sha256": "5c5b377b7101b645333d968b13155c49975341af3a8c452017070be50859163f"
+    },
+    "source-after.json": {
+      "bytes": 151945,
+      "sha256": "896ad3252c584256321face62350b6afc9a37b95d7ee933a037d33fb4caff555"
+    },
+    "stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "vitest.json": {
+      "bytes": 11176,
+      "sha256": "915b52ee90ddaaa0c4be1b417d7524f9f3795236ff667165eb690f48db19bfd5"
+    },
+    "source-before.json": {
+      "bytes": 151945,
+      "sha256": "896ad3252c584256321face62350b6afc9a37b95d7ee933a037d33fb4caff555"
+    }
+  }
+}

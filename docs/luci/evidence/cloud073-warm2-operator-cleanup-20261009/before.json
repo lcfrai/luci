@@ -1,0 +1,115 @@
+{
+  "startedAt": "2026-10-09T17:55:57.991186+00:00",
+  "scope": "Explicit operator removal of one owned Created allocation. Original pending Restart, registry and charged lease remain untouched. This is not automatic cleanup, Create acknowledgement, transport settlement, capacity release or successful recovery.",
+  "scriptSHA256": "9ec072ce03d85314638a5ef10308a8cf0ce060038f60ac99fb7b8dc535f4fc79",
+  "mutationAttempted": false,
+  "identitiesBefore": [
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2573198,
+        "startTicks": "31292048",
+        "parentPid": 2573193,
+        "state": "R",
+        "family": "launcher",
+        "source": "owned-Popen",
+        "firstObservedAt": "2026-10-09T17:27:31.250633+00:00"
+      },
+      "observed": {
+        "state": "absent"
+      },
+      "originalAbsent": true
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2573373,
+        "startTicks": "31292333",
+        "parentPid": 2573198,
+        "state": "S",
+        "family": "controller",
+        "firstObservedAt": "2026-10-09T17:27:34.877282+00:00",
+        "source": "outer-environment"
+      },
+      "observed": {
+        "state": "absent"
+      },
+      "originalAbsent": true
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2573937,
+        "startTicks": "31295811",
+        "parentPid": 2573198,
+        "state": "R",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T17:28:09.960275+00:00",
+        "source": "outer-environment"
+      },
+      "observed": {
+        "state": "absent"
+      },
+      "originalAbsent": true
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2573952,
+        "startTicks": "31295826",
+        "parentPid": 1,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T17:28:09.960339+00:00",
+        "source": "outer-environment"
+      },
+      "observed": {
+        "startTicks": "31295826",
+        "state": "Z",
+        "parentPID": 1
+      },
+      "originalAbsent": false
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2573956,
+        "startTicks": "31295827",
+        "parentPid": 1,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T17:28:09.960703+00:00",
+        "source": "outer-environment"
+      },
+      "observed": {
+        "startTicks": "31295827",
+        "state": "Z",
+        "parentPID": 1
+      },
+      "originalAbsent": false
+    }
+  ],
+  "sourceCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "originalResultSHA256": "aa1b7d2976ad0c3425be604d3bf46394376adda06a3c6b164f64ff86735de3dc",
+  "containerBefore": {
+    "id": "78a90473d0b49f1934e5fe5942d0a3167c47a7bd68db8cd1e4385cf8e59dfcaf",
+    "name": "/luci-s-b176ccfc",
+    "status": "created",
+    "running": false,
+    "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "memoryBytes": 1073741824,
+    "nanoCPUs": 1000000000,
+    "managed": "true",
+    "instance": "141ee2b3-4d1b-49a5-85c8-614493b395bf",
+    "sandboxId": "s-b176ccfc",
+    "sessionId": "s-fa96251d"
+  },
+  "ledgerSHA256Before": "ecbd4c2ee5b97005643503eb5d01d3c8d77736113eac643bb7d853fcf41f3a9a",
+  "fixtureFileCount": 31,
+  "fixtureManifestSHA256": "86b420812d65bba55f26cc2864976e86e5e960e4c19079d8ccf3bf2cefc2dd45",
+  "originalEvidenceFileCount": 71,
+  "originalEvidenceManifestSHA256": "12108af8753701dbf16d13c39a99e71208b44067f2d1cde1d314c46900afef9c",
+  "rootAvailableBytesBefore": 2029010944,
+  "sameEngine": true,
+  "knownProcessesQuiescentBefore": true
+}

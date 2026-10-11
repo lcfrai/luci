@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "intendedDestination": "docs/luci/evidence/cloud073-installed-78665270-warm-attempt2/operator-cleanup",
+  "sourceCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "scope": "Completed explicit operator removal of one exact owned Created container; failed warm-run status, pending Restart, registry and charged lease remain unchanged.",
+  "originalResultSHA256": "aa1b7d2976ad0c3425be604d3bf46394376adda06a3c6b164f64ff86735de3dc",
+  "operatorRemovalObserved": true,
+  "originalFailedRunReclassified": false,
+  "files": {
+    ".gitattributes": {
+      "bytes": 8,
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da"
+    },
+    "README.md": {
+      "bytes": 2527,
+      "sha256": "c33430a7d75adc9fbba35e0742f61cbc25cafb6dfef19d4860f31deb589a598c"
+    },
+    "before.json": {
+      "bytes": 3621,
+      "sha256": "a5f633c8baff711dff22d35cb35391de1a4172ec5aac5eea307351e12bd03778"
+    },
+    "operator-remove-warm2-created.py": {
+      "bytes": 7999,
+      "sha256": "07bedfb04547ae905f60fc8e39eb0798979eb5f5b5f799be6ad8217b822c13be"
+    },
+    "original-bindings.json": {
+      "bytes": 2005,
+      "sha256": "6cb11098f6ff49d2d79066e579f01abf9d39ed66c680094cde52dc40532ae5d1"
+    },
+    "original-immutability.json": {
+      "bytes": 1355,
+      "sha256": "47e206bd5c1515f4adf389fe36306fcbfd840404147cbe83f15aa24c6bb1a971"
+    },
+    "privacy-review.json": {
+      "bytes": 433,
+      "sha256": "776588b2f359a525d177f77fb38f70789eeba16abe7763e5c27e9b2ea3366948"
+    },
+    "result.json": {
+      "bytes": 6640,
+      "sha256": "634988fa9084b1e42cc387c128dd87fe6346c476c99d8d6fe8f207bb7897a96b"
+    }
+  }
+}

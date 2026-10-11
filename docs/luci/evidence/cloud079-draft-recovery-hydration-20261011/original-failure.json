@@ -1,0 +1,341 @@
+{
+  "originalRunDirectory": "/workspace/.luci-tools/frontend-integrated-c076v2-c078/runs/attempt-001",
+  "originalArtifacts": {
+    "vitest.json": {
+      "sha256": "9bc045b65a2c6b9afc3a9285b1be5bdee0bc31722b937ebb43cae4eea617dc0f",
+      "bytes": 1271050
+    },
+    "source-before.json": {
+      "sha256": "c49c9a0af2c6f009d4bcd06cdde2bec4da55d7a7705804d1efa33265097edbcc",
+      "bytes": 306515
+    },
+    "dependencies-before.json": {
+      "sha256": "8a08913851becf4c8c51e395636e9cbf8275e66f19ae7eb558cfa45e8968c57a",
+      "bytes": 2991
+    },
+    "vitest.invocation.json": {
+      "sha256": "360a6143045ed418659fdc2fd4b7c490b3dfe9bbfa980692885a1d6797761d4b",
+      "bytes": 592
+    },
+    "invocation.json": {
+      "sha256": "3b066c14876ede2405d3af98c7d41fd79485216d59e44682e4357243b94a9d65",
+      "bytes": 16142
+    },
+    "vitest.stdout.log": {
+      "sha256": "924cd3843a13d1d76005b47f8fa4b948dd7575acdfb20b6a492ad72a36eb4f55",
+      "bytes": 107
+    },
+    "vitest.stderr.log": {
+      "sha256": "ad9ef12f2f19d2532fbd05b9772e28e31d4b97c1b0de43e902d3b8edc87fcee5",
+      "bytes": 200
+    }
+  },
+  "originalSummary": {
+    "numTotalTests": 2940,
+    "numPassedTests": 2938,
+    "numFailedTests": 2,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "affectedFileResult": {
+    "assertionResults": [
+      {
+        "ancestorTitles": [],
+        "fullName": "recovers a definition only after an explicit restore, keeps its stable requirement IDs, and clears it after a successful save",
+        "status": "passed",
+        "title": "recovers a definition only after an explicit restore, keeps its stable requirement IDs, and clears it after a successful save",
+        "duration": 738.9280829999998,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "retains conflict edits while comparing the newer saved definition, and requires review before rebasing a manual save",
+        "status": "passed",
+        "title": "retains conflict edits while comparing the newer saved definition, and requires review before rebasing a manual save",
+        "duration": 617.8001159999999,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "blocks definition saved-read recovery until the fresh revision is available, then merges and saves explicitly",
+        "status": "passed",
+        "title": "blocks definition saved-read recovery until the fresh revision is available, then merges and saves explicitly",
+        "duration": 407.0472289999998,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "keeps definition saved-read recovery blocked after failure and retains the draft for an explicit retry",
+        "status": "passed",
+        "title": "keeps definition saved-read recovery blocked after failure and retains the draft for an explicit retry",
+        "duration": 332.04539399999976,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "blocks definition approval during a saved-read retry even without an edited browser draft",
+        "status": "passed",
+        "title": "blocks definition approval during a saved-read retry even without an edited browser draft",
+        "duration": 216.0085739999995,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "ignores superseded definition saved-read success after effect restart and a newer edit",
+        "status": "passed",
+        "title": "ignores superseded definition saved-read success after effect restart and a newer edit",
+        "duration": 94.31082400000014,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "ignores superseded definition saved-read error after effect restart and a newer edit",
+        "status": "passed",
+        "title": "ignores superseded definition saved-read error after effect restart and a newer edit",
+        "duration": 89.53821199999948,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "recovers Alice's constraint without overwriting Bob's newer outcome and saves against the current revision",
+        "status": "passed",
+        "title": "recovers Alice's constraint without overwriting Bob's newer outcome and saves against the current revision",
+        "duration": 304.4270889999998,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "requires explicit field choices for legacy stale drafts instead of treating a newer saved document as their baseline",
+        "status": "passed",
+        "title": "requires explicit field choices for legacy stale drafts instead of treating a newer saved document as their baseline",
+        "duration": 231.52728399999978,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "makes a merged journey's removed outcome link visible and requires an explicit remedy without dropping the teammate's journey",
+        "status": "passed",
+        "title": "makes a merged journey's removed outcome link visible and requires an explicit remedy without dropping the teammate's journey",
+        "duration": 318.2313159999994,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "isolates drafts when accounts, remote accounts, workspaces, project roots, API endpoints, or projects change",
+        "status": "passed",
+        "title": "isolates drafts when accounts, remote accounts, workspaces, project roots, API endpoints, or projects change",
+        "duration": 420.70450600000004,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "retains structured design edits through remount and discards a browser draft without saving it",
+        "status": "passed",
+        "title": "retains structured design edits through remount and discards a browser draft without saving it",
+        "duration": 218.45390400000088,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "recovers task edits and an unfinished new task without starting implementation",
+        "status": "passed",
+        "title": "recovers task edits and an unfinished new task without starting implementation",
+        "duration": 90.9762469999996,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "preserves a teammate's newly added task when recovering an independently edited task",
+        "status": "passed",
+        "title": "preserves a teammate's newly added task when recovering an independently edited task",
+        "duration": 110.9478309999995,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "recovers a normalized sketch without counting hydration as an edit or automatically saving it",
+        "status": "failed",
+        "title": "recovers a normalized sketch without counting hydration as an edit or automatically saving it",
+        "duration": 61.19474199999968,
+        "failureMessages": [
+          "AssertionError: expected '[{\"id\":\"shape\",\"x\":1}]' to contain '\"x\":99'\n    at /workspace/luci/desktop/src/components/common/ProjectDraftRecovery.test.tsx:323:64\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20"
+        ],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "keeps a draft through guarded navigation and explicitly deletes it on discard navigation",
+        "status": "passed",
+        "title": "keeps a draft through guarded navigation and explicitly deletes it on discard navigation",
+        "duration": 305.0335580000001,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "reports unavailable storage truthfully and offers no keep-and-leave action",
+        "status": "passed",
+        "title": "reports unavailable storage truthfully and offers no keep-and-leave action",
+        "duration": 111.33273699999972,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "does not persist unidentified accounts or oversized drafts",
+        "status": "passed",
+        "title": "does not persist unidentified accounts or oversized drafts",
+        "duration": 149.3286109999999,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "preserves a newer draft written in another tab when a late save clears this editor",
+        "status": "passed",
+        "title": "preserves a newer draft written in another tab when a late save clears this editor",
+        "duration": 159.16886799999975,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "does not offer an expired browser draft and never evicts a fresh draft to make room",
+        "status": "passed",
+        "title": "does not offer an expired browser draft and never evicts a fresh draft to make room",
+        "duration": 133.19825299999957,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "keeps an account's unsaved draft when its save finishes after switching accounts",
+        "status": "passed",
+        "title": "keeps an account's unsaved draft when its save finishes after switching accounts",
+        "duration": 222.6010409999999,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      },
+      {
+        "ancestorTitles": [],
+        "fullName": "keeps personal and selected team drafts separate through the actual API workspace prefix",
+        "status": "passed",
+        "title": "keeps personal and selected team drafts separate through the actual API workspace prefix",
+        "duration": 268.66456799999924,
+        "failureMessages": [],
+        "meta": {},
+        "tags": [],
+        "benchmarks": []
+      }
+    ],
+    "startTime": 1791568959126,
+    "endTime": 1791568964728.6646,
+    "status": "failed",
+    "message": "",
+    "name": "/workspace/luci/desktop/src/components/common/ProjectDraftRecovery.test.tsx"
+  },
+  "sourceComparison": {
+    "desktop/src/components/common/ProjectDraftRecovery.test.tsx": {
+      "originalSourceBefore": {
+        "bytes": 34953,
+        "sha256": "d6561414a417d994fa39488112883600ab6e15f549267a422b1aa4995c3ad16b",
+        "reasons": [
+          "desktop source/test/config support tree"
+        ]
+      },
+      "currentBytes": 34953,
+      "currentSha256": "d6561414a417d994fa39488112883600ab6e15f549267a422b1aa4995c3ad16b"
+    },
+    "desktop/src/components/journey/DesignEditor.tsx": {
+      "originalSourceBefore": {
+        "bytes": 13690,
+        "sha256": "277aa3dc0eadc86447e003d5337bc12e09dbe45a6d6139180d8e4cf6f9086b6b",
+        "reasons": [
+          "desktop source/test/config support tree"
+        ]
+      },
+      "currentBytes": 13690,
+      "currentSha256": "277aa3dc0eadc86447e003d5337bc12e09dbe45a6d6139180d8e4cf6f9086b6b"
+    },
+    "desktop/src/hooks/useProjectDraft.ts": {
+      "originalSourceBefore": {
+        "bytes": 7167,
+        "sha256": "d9991f749c285641bddb7eb8f565b3c853e61136148a7a32aa98a49f4fb831b2",
+        "reasons": [
+          "desktop source/test/config support tree"
+        ]
+      },
+      "currentBytes": 7167,
+      "currentSha256": "d9991f749c285641bddb7eb8f565b3c853e61136148a7a32aa98a49f4fb831b2"
+    },
+    "desktop/src/components/common/DraftRecovery.tsx": {
+      "originalSourceBefore": {
+        "bytes": 7653,
+        "sha256": "722df78f80260428547296cccdb247c26e8cc934860e9532dec425589ba238a0",
+        "reasons": [
+          "desktop source/test/config support tree"
+        ]
+      },
+      "currentBytes": 7653,
+      "currentSha256": "722df78f80260428547296cccdb247c26e8cc934860e9532dec425589ba238a0"
+    }
+  },
+  "baseHEAD": "078d0e99f9d1553a2233dfa51b368b415964766c"
+}

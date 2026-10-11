@@ -1,0 +1,936 @@
+--- a/control-plane/internal/api/api.go
++++ b/control-plane/internal/api/api.go
+@@ -351,6 +351,7 @@
+ 
+ // API is the whole HTTP surface as one handler.
+ type API struct {
++	sessionPreparations     sessionPreparationSet
+ 	taskObservations        taskCompletionObservations
+ 	execution               *executionAdmission
+ 	deps                    Deps
+--- a/control-plane/internal/api/assist.go
++++ b/control-plane/internal/api/assist.go
+@@ -209,7 +209,7 @@
+ 		return
+ 	}
+ 	go a.watchSessionReady(s.ID, sb.ID, sb.Endpoint)
+-	httpx.WriteJSON(w, 201, toJSON(updated, sessionBasePath))
++	httpx.WriteJSON(w, 201, a.sessionJSON(updated, sessionBasePath))
+ }
+ 
+ func (a *API) recordUtilitySandbox(id string, sb backend.Sandbox) (registry.Session, error) {
+--- a/control-plane/internal/api/project_run_sessions.go
++++ b/control-plane/internal/api/project_run_sessions.go
+@@ -59,7 +59,7 @@
+ 		return true
+ 	}
+ 	w.Header().Set("Location", sessionBasePath+"/sessions/"+existing.ID)
+-	httpx.WriteJSON(w, http.StatusOK, toJSON(*existing, sessionBasePath))
++	httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(*existing, sessionBasePath))
+ 	return true
+ }
+ 
+@@ -120,7 +120,7 @@
+ 			return product.ProjectRunSessionAdmission{}, false
+ 		}
+ 		w.Header().Set("Location", sessionBasePath+"/sessions/"+admission.SessionID)
+-		httpx.WriteJSON(w, http.StatusOK, toJSON(*admission.Existing, sessionBasePath))
++		httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(*admission.Existing, sessionBasePath))
+ 		return product.ProjectRunSessionAdmission{}, false
+ 	}
+ 	return admission, true
+--- a/control-plane/internal/api/session_allocation.go
++++ b/control-plane/internal/api/session_allocation.go
+@@ -57,6 +57,8 @@
+ 		return failure("changed", errors.New("This session is already starting, stopping or restarting."))
+ 	}
+ 	defer sessionRestarts.release(row.ID)
++	finishPreparation := a.beginSessionPreparation(row)
++	defer finishPreparation()
+ 	if err := a.deps.Store.Create(row); err != nil {
+ 		if prepared.HasReviewedContext {
+ 			if cleanup := a.removeReviewedContext(row.ID); cleanup != nil {
+--- /dev/null
++++ b/control-plane/internal/api/session_attach_readiness.go
+@@ -0,0 +1,78 @@
++package api
++
++import (
++	"sync"
++
++	"github.com/lcfrai/luci/control-plane/internal/registry"
++)
++
++// sessionAttachReady projects only a known allocation's recorded live endpoint.
++// A starting endpoint remains attachable before the health watch completes.
++// An absent endpoint is unknown here: after controller loss, Backend.Get can
++// still recover a live allocation whose endpoint write never completed.
++func sessionAttachReady(s registry.Session, generation string) *bool {
++	if generation == "" || s.Endpoint == "" || !sessionAttachLive(s) {
++		return nil
++	}
++	ready := true
++	return &ready
++}
++
++func sessionAttachLive(s registry.Session) bool {
++	return s.Status == registry.StatusStarting || s.Status == registry.StatusRunning || s.Status == registry.StatusIdle
++}
++
++type sessionPreparation struct{ generation string }
++
++// This transient observation belongs to one API. It is not an execution lock,
++// persisted state, resource reservation, backend health result or authority.
++type sessionPreparationSet struct {
++	mu      sync.Mutex
++	entries map[string]*sessionPreparation
++}
++
++// beginSessionPreparation is armed before publishing the allocation's record.
++// Only its matching allocation may be cleared, including when an older defer
++// runs after a replacement. The cleanup also handles every failed/canceled path.
++func (a *API) beginSessionPreparation(s registry.Session) func() {
++	generation := sessionExecutionGeneration(s)
++	if generation == "" {
++		return func() {}
++	}
++	entry := &sessionPreparation{generation: generation}
++	a.sessionPreparations.mu.Lock()
++	if a.sessionPreparations.entries == nil {
++		a.sessionPreparations.entries = make(map[string]*sessionPreparation)
++	}
++	a.sessionPreparations.entries[s.ID] = entry
++	a.sessionPreparations.mu.Unlock()
++	var once sync.Once
++	return func() {
++		once.Do(func() {
++			a.sessionPreparations.mu.Lock()
++			defer a.sessionPreparations.mu.Unlock()
++			if current := a.sessionPreparations.entries[s.ID]; current == entry && current.generation == generation {
++				delete(a.sessionPreparations.entries, s.ID)
++			}
++		})
++	}
++}
++
++// sessionJSON adds a negative readiness hint only while this API owns the exact
++// allocation preparation. A reopened API or untracked allocation omits it and
++// preserves the existing backend-based attach recovery and authorization checks.
++func (a *API) sessionJSON(s registry.Session, base string) sessionJSON {
++	view := toJSON(s, base)
++	if view.ExecutionGeneration == "" || view.AttachReady != nil || !sessionAttachLive(s) {
++		return view
++	}
++	a.sessionPreparations.mu.Lock()
++	entry := a.sessionPreparations.entries[s.ID]
++	preparing := entry != nil && entry.generation == view.ExecutionGeneration
++	a.sessionPreparations.mu.Unlock()
++	if preparing {
++		ready := false
++		view.AttachReady = &ready
++	}
++	return view
++}
+--- /dev/null
++++ b/control-plane/internal/api/session_attach_readiness_http_test.go
+@@ -0,0 +1,179 @@
++package api
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"io"
++	"net/http"
++	"net/http/httptest"
++	"sync"
++	"testing"
++	"time"
++
++	"github.com/lcfrai/luci/control-plane/internal/registry"
++)
++
++// Decode the public wire shape, keeping this regression buildable against the
++// original source where sessionJSON has no AttachReady field.
++func attachReadinessObject(t *testing.T, raw []byte, private registry.Session) map[string]json.RawMessage {
++	t.Helper()
++	var fields map[string]json.RawMessage
++	if err := json.Unmarshal(raw, &fields); err != nil {
++		t.Fatal("session response is not a JSON object")
++	}
++	for _, key := range []string{"attachToken", "sandboxId", "sandboxRef", "endpoint", "command", "args"} {
++		if _, exists := fields[key]; exists {
++			t.Fatal("private allocation key reached session response")
++		}
++	}
++	for _, secret := range []string{private.AttachToken, private.SandboxID, private.SandboxRef, private.Endpoint} {
++		if secret != "" && bytes.Contains(raw, []byte(secret)) {
++			t.Fatal("private allocation value reached session response")
++		}
++	}
++	return fields
++}
++
++func requireAttachReadiness(t *testing.T, fields map[string]json.RawMessage, want bool) {
++	t.Helper()
++	value, exists := fields["attachReady"]
++	if !exists {
++		t.Fatal("current allocation is missing attachReady")
++	}
++	var got bool
++	if err := json.Unmarshal(value, &got); err != nil || string(value) == "null" || got != want {
++		t.Fatal("attachReady does not match the recorded allocation endpoint")
++	}
++}
++
++func TestSessionAttachReadinessHTTPRestartWaitsForRecordedEndpoint(t *testing.T) {
++	be := newAbandonedCreate()
++	st := sessionsMustStore(t)
++	env := sessionsNewEnvOverWith(t, t.TempDir(), st, st, func(d *Deps) {
++		d.Backend = be
++		d.ReadyTimeout = 10 * time.Second
++	})
++	prior := sessionsStarting("s-0000000b")
++	prior.Status = registry.StatusExited
++	prior.AttachToken = executionGenerationFixture().AttachToken
++	prior.Endpoint = "127.0.0.1:49199"
++	sessionsSeed(t, st, prior)
++	oldGeneration := sessionExecutionGeneration(prior)
++	if oldGeneration == "" {
++		t.Fatal("fixture needs a known prior generation")
++	}
++
++	// Keep health pending independently of Create. Readiness must become true
++	// as soon as the endpoint is recorded, while status is still starting.
++	healthHold := make(chan struct{})
++	previousReady := sessionWaitReady
++	sessionWaitReady = func(ctx context.Context, _ string, _ time.Duration) error {
++		select {
++		case <-healthHold:
++			return nil
++		case <-ctx.Done():
++			return ctx.Err()
++		}
++	}
++	t.Cleanup(func() { sessionWaitReady = previousReady })
++	watch := sessionsWatchDone(t)
++	server := httptest.NewServer(env.mux)
++	t.Cleanup(server.Close)
++	client := &http.Client{Timeout: 15 * time.Second}
++	type reply struct {
++		code int
++		raw  []byte
++		err  error
++	}
++	posted := make(chan struct{})
++	var result reply
++	go func() {
++		defer close(posted)
++		response, err := client.Post(server.URL+"/v1/sessions/"+prior.ID+"/restart", "application/json", nil)
++		if err != nil {
++			result.err = err
++			return
++		}
++		defer response.Body.Close()
++		result.code = response.StatusCode
++		result.raw, result.err = io.ReadAll(io.LimitReader(response.Body, 16<<10))
++	}()
++	var releaseCreate, releaseHealth sync.Once
++	t.Cleanup(func() {
++		releaseCreate.Do(func() { close(be.hold) })
++		releaseHealth.Do(func() { close(healthHold) })
++		select {
++		case <-posted:
++			if result.err == nil && result.code == http.StatusOK {
++				select {
++				case <-watch:
++				case <-time.After(5 * time.Second):
++					t.Error("readiness watch did not settle")
++				}
++			}
++		case <-time.After(20 * time.Second):
++			t.Error("Restart request did not settle after release")
++		}
++	})
++	select {
++	case <-be.entered:
++	case <-time.After(15 * time.Second):
++		t.Fatal("Restart did not reach the controlled backend Create")
++	}
++	get := func() (map[string]json.RawMessage, registry.Session) {
++		t.Helper()
++		response, err := client.Get(server.URL + "/v1/sessions/" + prior.ID)
++		if err != nil {
++			t.Fatal("session GET failed")
++		}
++		defer response.Body.Close()
++		raw, err := io.ReadAll(io.LimitReader(response.Body, 16<<10))
++		if err != nil || response.StatusCode != http.StatusOK {
++			t.Fatal("session GET did not return a complete successful response")
++		}
++		current, err := st.Get(prior.ID)
++		if err != nil {
++			t.Fatal(err)
++		}
++		return attachReadinessObject(t, raw, current), current
++	}
++	before, pending := get()
++	if pending.Status != registry.StatusStarting || pending.Endpoint != "" || pending.SandboxID == prior.SandboxID {
++		t.Fatal("Create barrier did not hold the new allocation before its endpoint write")
++	}
++	var generation string
++	if err := json.Unmarshal(before["executionGeneration"], &generation); err != nil || generation == "" || generation == oldGeneration {
++		t.Fatal("pending Restart lacks a distinct current generation")
++	}
++	requireAttachReadiness(t, before, false)
++	select {
++	case <-posted:
++		t.Fatal("Restart acknowledged before Create was released")
++	default:
++	}
++	releaseCreate.Do(func() { close(be.hold) })
++	select {
++	case <-posted:
++	case <-time.After(15 * time.Second):
++		t.Fatal("Restart did not acknowledge after Create returned")
++	}
++	if result.err != nil || result.code != http.StatusOK {
++		t.Fatal("Restart did not return a successful complete response")
++	}
++	after, allocated := get()
++	if allocated.Status != registry.StatusStarting || allocated.Endpoint == "" || allocated.SandboxID != pending.SandboxID {
++		t.Fatal("successful Create did not publish the same allocation endpoint before health completion")
++	}
++	ack := attachReadinessObject(t, result.raw, allocated)
++	for _, fields := range []map[string]json.RawMessage{after, ack} {
++		requireAttachReadiness(t, fields, true)
++		var got string
++		if err := json.Unmarshal(fields["executionGeneration"], &got); err != nil || got != generation {
++			t.Fatal("endpoint publication changed the allocation generation")
++		}
++		if string(fields["status"]) != `"starting"` {
++			t.Fatal("test did not preserve the starting attach contract")
++		}
++	}
++}
+--- /dev/null
++++ b/control-plane/internal/api/session_attach_readiness_test.go
+@@ -0,0 +1,63 @@
++package api
++
++import (
++	"bytes"
++	"encoding/json"
++	"github.com/lcfrai/luci/control-plane/internal/registry"
++	"testing"
++)
++
++func TestSessionAttachReadinessProjection(t *testing.T) {
++	for _, status := range []registry.Status{registry.StatusStarting, registry.StatusRunning, registry.StatusIdle, registry.StatusExited, "unknown"} {
++		for _, endpoint := range []bool{false, true} {
++			name := string(status) + "/without-endpoint"
++			if endpoint {
++				name = string(status) + "/with-endpoint"
++			}
++			t.Run(name, func(t *testing.T) {
++				s := executionGenerationFixture()
++				s.Status, s.Endpoint = status, ""
++				if endpoint {
++					s.Endpoint = "127.0.0.1:49200"
++				}
++				raw, err := json.Marshal(toJSON(s, sessionBasePath))
++				if err != nil {
++					t.Fatal(err)
++				}
++				fields := attachReadinessObject(t, raw, s)
++				if endpoint && (status == registry.StatusStarting || status == registry.StatusRunning || status == registry.StatusIdle) {
++					requireAttachReadiness(t, fields, true)
++				} else if _, present := fields["attachReady"]; present {
++					t.Fatal("untracked or terminal endpoint availability must be omitted")
++				}
++			})
++		}
++	}
++}
++
++func TestSessionAttachReadinessOmitsUnknownLegacyIdentity(t *testing.T) {
++	for name, change := range map[string]func(*registry.Session){
++		"missing-token":      func(s *registry.Session) { s.AttachToken = "" },
++		"legacy-token":       func(s *registry.Session) { s.AttachToken = "legacy-private" },
++		"invalid-token":      func(s *registry.Session) { s.AttachToken = string(bytes.Repeat([]byte{'!'}, 43)) },
++		"missing-allocation": func(s *registry.Session) { s.SandboxID = "" },
++		"missing-session":    func(s *registry.Session) { s.ID = "" },
++		"cleaned-terminal":   func(s *registry.Session) { s.Status = registry.StatusExited; s.AttachToken = ""; s.Endpoint = "" },
++	} {
++		t.Run(name, func(t *testing.T) {
++			s := executionGenerationFixture()
++			change(&s)
++			raw, err := json.Marshal(toJSON(s, sessionBasePath))
++			if err != nil {
++				t.Fatal(err)
++			}
++			fields := attachReadinessObject(t, raw, s)
++			if _, exists := fields["attachReady"]; exists {
++				t.Fatal("unknown allocation readiness must be omitted")
++			}
++			if _, exists := fields["executionGeneration"]; exists {
++				t.Fatal("fixture unexpectedly has a known allocation generation")
++			}
++		})
++	}
++}
+--- /dev/null
++++ b/control-plane/internal/api/session_attach_recovery_test.go
+@@ -0,0 +1,153 @@
++package api
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/coder/websocket"
++
++	"github.com/lcfrai/luci/control-plane/internal/backend"
++	"github.com/lcfrai/luci/control-plane/internal/httpx"
++	"github.com/lcfrai/luci/control-plane/internal/registry"
++)
++
++// This regression deliberately references no preparation-specific API member or
++// new sessionJSON field. The same public-route test can exercise the original,
++// unsafe persisted-endpoint-only, and corrected receiver-local projections.
++func TestSessionPreparationRecoveryAllowsBackendResolvedAttach(t *testing.T) {
++	token := executionGenerationFixture().AttachToken
++	f := attachNewFixture(t, nil, func(s *registry.Session) {
++		s.Status = registry.StatusStarting
++		s.Endpoint = ""
++		s.AttachToken = token
++	})
++	stored, err := f.store.Get(f.id)
++	if err != nil {
++		t.Fatal(err)
++	}
++	generation := sessionExecutionGeneration(stored)
++	if len(generation) != 64 {
++		t.Fatal("recovery fixture has no known allocation generation")
++	}
++	srv := httptest.NewServer(f.api)
++	t.Cleanup(srv.Close)
++	client := &http.Client{Timeout: 10 * time.Second}
++	assertRecoveredProjection := func() {
++		t.Helper()
++		res, err := client.Get(srv.URL + "/v1/sessions/" + f.id)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer res.Body.Close()
++		if res.StatusCode != http.StatusOK {
++			t.Fatalf("recovered session GET status = %d, want 200", res.StatusCode)
++		}
++		var view map[string]json.RawMessage
++		if err := json.NewDecoder(res.Body).Decode(&view); err != nil {
++			t.Fatal(err)
++		}
++		if _, present := view["attachReady"]; present {
++			t.Fatal("recovered API inferred readiness from an absent persisted endpoint")
++		}
++		var projectedGeneration string
++		if err := json.Unmarshal(view["executionGeneration"], &projectedGeneration); err != nil || projectedGeneration != generation {
++			t.Fatal("recovered API lost the known allocation generation")
++		}
++		for _, key := range []string{"endpoint", "attachToken", "sandboxId", "sandboxRef"} {
++			if _, present := view[key]; present {
++				t.Fatalf("private key %s reached recovered session JSON", key)
++			}
++		}
++	}
++	// The persisted row is present when this API starts, with no current local
++	// Create observation. Its missing endpoint must preserve attach recovery.
++	assertRecoveredProjection()
++
++	// attachNewFixture's original upstream intentionally uses a legacy short
++	// token. This authenticated echo endpoint accepts the canonical test token,
++	// so the actual Backend.Attach path and a known generation are both used.
++	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.URL.Path != "/attach" || r.Header.Get("Authorization") != "Bearer "+token {
++			w.WriteHeader(http.StatusUnauthorized)
++			return
++		}
++		c, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
++		if err != nil {
++			return
++		}
++		defer c.CloseNow()
++		c.SetReadLimit(backend.MaxMessageBytes)
++		for {
++			kind, data, err := c.Read(r.Context())
++			if err != nil {
++				return
++			}
++			if err := c.Write(r.Context(), kind, data); err != nil {
++				return
++			}
++		}
++	}))
++	t.Cleanup(upstream.Close)
++	f.be.sb.Endpoint = strings.TrimPrefix(upstream.URL, "http://")
++	f.be.sb.State = backend.StateStarting
++
++	// Readiness omission cannot bypass the existing local transport guards.
++	// Management project permissions are exercised by their own router tests.
++	writesBefore := f.store.writes.Load()
++	for _, tc := range []struct {
++		name, origin, host string
++		status             int
++		code               string
++	}{
++		{name: "origin", origin: "http://evil.example", status: http.StatusForbidden, code: httpx.CodeForbiddenOrigin},
++		{name: "host", host: "attacker.example:8730", status: http.StatusForbidden, code: httpx.CodeForbiddenHost},
++		{name: "upgrade", status: http.StatusUpgradeRequired, code: httpx.CodeUpgradeRequired},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			status, problem := f.plainGET(t, "/v1/sessions/"+f.id+"/attach", tc.origin, tc.host)
++			if status != tc.status || problem.Error != tc.code {
++				t.Fatalf("attach guard = %d/%s, want %d/%s", status, problem.Error, tc.status, tc.code)
++			}
++		})
++	}
++	if f.store.writes.Load() != writesBefore || f.be.attaches.Load() != 0 {
++		t.Fatal("rejected attach wrote state or dialed the backend")
++	}
++
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/v1/sessions/"+f.id+"/attach", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.CloseNow()
++	c.SetReadLimit(backend.MaxMessageBytes)
++	want := []byte{0x01, 'r', 'e', 'c', 'o', 'v', 'e', 'r'}
++	if err := c.Write(ctx, websocket.MessageBinary, want); err != nil {
++		t.Fatal(err)
++	}
++	kind, got, err := c.Read(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if kind != websocket.MessageBinary || !bytes.Equal(got, want) || f.be.attaches.Load() != 1 {
++		t.Fatal("backend-resolved attach did not complete the authenticated binary relay")
++	}
++	after, err := f.store.Get(f.id)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if after.Endpoint != "" || sessionExecutionGeneration(after) != generation {
++		t.Fatal("attach manufactured a persisted endpoint or changed allocation identity")
++	}
++	assertRecoveredProjection()
++	if f.be.destroyCount() != 0 {
++		t.Fatal("attach observation destroyed an allocation")
++	}
++}
+--- /dev/null
++++ b/control-plane/internal/api/session_preparation_cancel_test.go
+@@ -0,0 +1,78 @@
++package api
++
++import (
++	"context"
++	"encoding/json"
++	"net/http"
++	"net/http/httptest"
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestSessionPreparationCallerCancellationRetainsUntilCreateSettles(t *testing.T) {
++	be := newAbandonedCreate()
++	st := sessionsMustStore(t)
++	env := sessionsNewEnvOverWith(t, t.TempDir(), st, st, func(d *Deps) {
++		d.Backend = be
++		d.ReadyTimeout = 10 * time.Second
++	})
++	sessionsStubReady(t, nil)
++	watch := sessionsWatchDone(t)
++	sessionsSeed(t, st, sessionsStarting("s-0000000b"))
++	ctx, cancel := context.WithCancel(context.Background())
++	t.Cleanup(cancel)
++	request := httptest.NewRequest(http.MethodPost, sessionsTarget("/v1/sessions/s-0000000b/restart"), nil).WithContext(ctx)
++	response := httptest.NewRecorder()
++	served := make(chan struct{})
++	var release sync.Once
++	go func() {
++		defer close(served)
++		env.mux.ServeHTTP(response, request)
++	}()
++	t.Cleanup(func() {
++		release.Do(func() { close(be.hold) })
++		select {
++		case <-served:
++			if response.Code == http.StatusOK {
++				select {
++				case <-watch:
++				case <-time.After(5 * time.Second):
++					t.Error("readiness watch did not settle")
++				}
++			}
++		case <-time.After(20 * time.Second):
++			t.Error("canceled caller's Create did not settle after release")
++		}
++	})
++	select {
++	case <-be.entered:
++	case <-time.After(15 * time.Second):
++		t.Fatal("Restart did not enter Create")
++	}
++	cancel()
++	row, err := st.Get("s-0000000b")
++	if err != nil {
++		t.Fatal(err)
++	}
++	raw, err := json.Marshal(env.api.sessionJSON(row, sessionBasePath))
++	if err != nil {
++		t.Fatal(err)
++	}
++	requireAttachReadiness(t, attachReadinessObject(t, raw, row), false)
++	release.Do(func() { close(be.hold) })
++	select {
++	case <-served:
++	case <-time.After(15 * time.Second):
++		t.Fatal("Restart did not finish after release")
++	}
++	if response.Code != http.StatusOK || be.contextError() != nil {
++		t.Fatal("caller cancellation incorrectly ended the allocation")
++	}
++	env.api.sessionPreparations.mu.Lock()
++	remaining := len(env.api.sessionPreparations.entries)
++	env.api.sessionPreparations.mu.Unlock()
++	if remaining != 0 {
++		t.Fatal("settled allocation leaked preparation tracking after caller cancellation")
++	}
++}
+--- /dev/null
++++ b/control-plane/internal/api/session_preparation_test.go
+@@ -0,0 +1,217 @@
++package api
++
++import (
++	"bytes"
++	"encoding/json"
++	"net/http"
++	"strings"
++	"testing"
++
++	"github.com/lcfrai/luci/control-plane/internal/backend"
++	"github.com/lcfrai/luci/control-plane/internal/registry"
++)
++
++func sessionPreparationRecord() registry.Session {
++	s := executionGenerationFixture()
++	s.Status = registry.StatusStarting
++	s.Endpoint = ""
++	return s
++}
++
++// Assert the optional wire field, including absence versus explicit false.
++// These API values deliberately have no backend: projection owns no probe or
++// execution capability, and depends only on its local preparation observation.
++func assertSessionPreparationProjection(t *testing.T, a *API, s registry.Session, want string) {
++	t.Helper()
++	raw, err := json.Marshal(a.sessionJSON(s, sessionBasePath))
++	if err != nil {
++		t.Fatal(err)
++	}
++	var view map[string]json.RawMessage
++	if err := json.Unmarshal(raw, &view); err != nil {
++		t.Fatal(err)
++	}
++	got, present := view["attachReady"]
++	if want == "" {
++		if present {
++			t.Fatalf("attachReady = %s; want omitted without a current local preparation", got)
++		}
++	} else if !present || string(got) != want {
++		t.Fatalf("attachReady = %s (present %t), want %s", got, present, want)
++	}
++	var generation string
++	if value, ok := view["executionGeneration"]; ok {
++		if err := json.Unmarshal(value, &generation); err != nil {
++			t.Fatal(err)
++		}
++	}
++	if generation != sessionExecutionGeneration(s) {
++		t.Fatal("preparation projection changed the allocation display identity")
++	}
++	for _, key := range []string{"endpoint", "attachToken", "sandboxId", "sandboxRef"} {
++		if _, ok := view[key]; ok {
++			t.Fatalf("private key %s reached the public session", key)
++		}
++	}
++	secrets := []string{s.Endpoint, s.AttachToken, s.SandboxRef}
++	// Initial Create intentionally reuses the public session ID as SandboxID;
++	// its public appearance is not a disclosure of a separate private value.
++	if s.SandboxID != s.ID {
++		secrets = append(secrets, s.SandboxID)
++	}
++	for _, secret := range secrets {
++		if secret != "" && bytes.Contains(raw, []byte(secret)) {
++			t.Fatal("private allocation value reached the public session")
++		}
++	}
++}
++
++func assertSessionPreparationCount(t *testing.T, a *API, want int) {
++	t.Helper()
++	a.sessionPreparations.mu.Lock()
++	got := len(a.sessionPreparations.entries)
++	a.sessionPreparations.mu.Unlock()
++	if got != want {
++		t.Fatalf("retained preparations = %d, want %d", got, want)
++	}
++}
++
++func TestSessionPreparationIsOwnedByAPIAndExactGeneration(t *testing.T) {
++	owner, recovered := &API{}, &API{}
++	s := sessionPreparationRecord()
++	assertSessionPreparationProjection(t, owner, s, "")
++	release := owner.beginSessionPreparation(s)
++	defer release()
++	assertSessionPreparationProjection(t, owner, s, "false")
++	assertSessionPreparationProjection(t, recovered, s, "")
++	assertSessionPreparationCount(t, owner, 1)
++	assertSessionPreparationCount(t, recovered, 0)
++
++	otherGeneration := s
++	otherGeneration.SandboxID += "-replacement"
++	if sessionExecutionGeneration(otherGeneration) == sessionExecutionGeneration(s) {
++		t.Fatal("fixture did not change allocation generation")
++	}
++	assertSessionPreparationProjection(t, owner, otherGeneration, "")
++	otherSession := s
++	otherSession.ID += "-other"
++	assertSessionPreparationProjection(t, owner, otherSession, "")
++
++	// Once the endpoint is recorded, readiness is true even while the creating
++	// handler is unwinding; another API can observe that same positive hint.
++	ready := s
++	ready.Endpoint = "127.0.0.1:43210"
++	assertSessionPreparationProjection(t, owner, ready, "true")
++	assertSessionPreparationProjection(t, recovered, ready, "true")
++	terminal := ready
++	terminal.Status = registry.StatusExited
++	assertSessionPreparationProjection(t, owner, terminal, "")
++
++	release()
++	assertSessionPreparationCount(t, owner, 0)
++	assertSessionPreparationProjection(t, owner, s, "")
++}
++
++func TestSessionPreparationStaleReleaseCannotClearReplacement(t *testing.T) {
++	for _, tc := range []struct {
++		name             string
++		newGeneration    bool
++		releaseBeforeNew bool
++	}{
++		{name: "new generation", newGeneration: true},
++		{name: "same generation superseded entry"},
++		{name: "same generation after completed release", releaseBeforeNew: true},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			a := &API{}
++			old := sessionPreparationRecord()
++			releaseOld := a.beginSessionPreparation(old)
++			defer releaseOld()
++			if tc.releaseBeforeNew {
++				releaseOld()
++				assertSessionPreparationCount(t, a, 0)
++			}
++			next := old
++			if tc.newGeneration {
++				next.SandboxID += "-next"
++			}
++			releaseNext := a.beginSessionPreparation(next)
++			defer releaseNext()
++			assertSessionPreparationProjection(t, a, next, "false")
++			if tc.newGeneration {
++				assertSessionPreparationProjection(t, a, old, "")
++			}
++			releaseOld()
++			releaseOld()
++			assertSessionPreparationProjection(t, a, next, "false")
++			assertSessionPreparationCount(t, a, 1)
++			releaseNext()
++			releaseNext()
++			assertSessionPreparationCount(t, a, 0)
++			assertSessionPreparationProjection(t, a, next, "")
++		})
++	}
++}
++
++func TestSessionPreparationMissingIdentityRetainsNoEntry(t *testing.T) {
++	for name, change := range map[string]func(*registry.Session){
++		"missing session":    func(s *registry.Session) { s.ID = "" },
++		"missing allocation": func(s *registry.Session) { s.SandboxID = "" },
++		"missing token":      func(s *registry.Session) { s.AttachToken = "" },
++		"legacy token":       func(s *registry.Session) { s.AttachToken = "legacy-private" },
++		"invalid token":      func(s *registry.Session) { s.AttachToken = strings.Repeat("!", 43) },
++	} {
++		t.Run(name, func(t *testing.T) {
++			a := &API{}
++			unknown := sessionPreparationRecord()
++			change(&unknown)
++			releaseUnknown := a.beginSessionPreparation(unknown)
++			defer releaseUnknown()
++			assertSessionPreparationCount(t, a, 0)
++			assertSessionPreparationProjection(t, a, unknown, "")
++			known := sessionPreparationRecord()
++			releaseKnown := a.beginSessionPreparation(known)
++			defer releaseKnown()
++			releaseUnknown()
++			releaseUnknown()
++			assertSessionPreparationCount(t, a, 1)
++			assertSessionPreparationProjection(t, a, known, "false")
++			releaseKnown()
++			assertSessionPreparationCount(t, a, 0)
++		})
++	}
++}
++
++func TestSessionPreparationFailedAllocationReleasesObservation(t *testing.T) {
++	for _, restart := range []bool{false, true} {
++		name := "Create"
++		if restart {
++			name = "Restart"
++		}
++		t.Run(name, func(t *testing.T) {
++			env := sessionsNewEnv(t)
++			target, body, previousSandbox := "/v1/sessions", sessionsCreateBody, ""
++			if restart {
++				before := sessionsSeed(t, env.st, sessionsStarting("s-0000000b"))
++				target, body, previousSandbox = "/v1/sessions/"+before.ID+"/restart", "", before.SandboxID
++			}
++			env.be.createErr = backend.ErrUnavailable
++			rec := env.do(t, http.MethodPost, target, body)
++			if rec.Code != http.StatusServiceUnavailable {
++				t.Fatalf("failed allocation status = %d, want 503", rec.Code)
++			}
++			if spec := env.be.spec(t, 0); spec.ID == "" || spec.ID == previousSandbox {
++				t.Fatal("failed allocation did not attempt a fresh backend Create")
++			}
++			assertSessionPreparationCount(t, env.api, 0)
++			rows, err := env.st.List()
++			if err != nil {
++				t.Fatal(err)
++			}
++			if len(rows) != 1 || rows[0].Status != registry.StatusExited {
++				t.Fatal("failed allocation did not retain one exited session")
++			}
++			assertSessionPreparationProjection(t, env.api, rows[0], "")
++		})
++	}
++}
+--- a/control-plane/internal/api/sessions.go
++++ b/control-plane/internal/api/sessions.go
+@@ -753,12 +753,14 @@
+ type sessionJSON struct {
+ 	// Opaque allocation identity for terminal display continuity, never authorization.
+ 	ExecutionGeneration string `json:"executionGeneration,omitempty"`
+-	ID                  string `json:"id"`
+-	Title               string `json:"title"`
+-	MachineID           string `json:"machineId"`
+-	ProjectID           string `json:"projectId"`
+-	BranchID            string `json:"branchId"`
+-	WorktreeID          string `json:"worktreeId"`
++	// Optional recorded allocation readiness; never authorization or a health check.
++	AttachReady *bool  `json:"attachReady,omitempty"`
++	ID          string `json:"id"`
++	Title       string `json:"title"`
++	MachineID   string `json:"machineId"`
++	ProjectID   string `json:"projectId"`
++	BranchID    string `json:"branchId"`
++	WorktreeID  string `json:"worktreeId"`
+ 
+ 	Harness                 string                          `json:"harness"`
+ 	Model                   string                          `json:"model"`
+@@ -795,8 +797,10 @@
+ // toJSON renders one session for the wire. base is the URL prefix attachPath is
+ // built from; production passes sessionBasePath.
+ func toJSON(s registry.Session, base string) sessionJSON {
++	generation := sessionExecutionGeneration(s)
+ 	return sessionJSON{
+-		ExecutionGeneration:     sessionExecutionGeneration(s),
++		ExecutionGeneration:     generation,
++		AttachReady:             sessionAttachReady(s, generation),
+ 		ID:                      s.ID,
+ 		Title:                   s.Title,
+ 		MachineID:               s.MachineID,
+@@ -1538,7 +1542,7 @@
+ 	// 6. Return immediately. The desktop opens the attach socket, which retries
+ 	// while the status is starting.
+ 	w.Header().Set("Location", sessionBasePath+"/sessions/"+sessionID)
+-	httpx.WriteJSON(w, http.StatusCreated, toJSON(stored, sessionBasePath))
++	httpx.WriteJSON(w, http.StatusCreated, a.sessionJSON(stored, sessionBasePath))
+ }
+ 
+ // sessionLocate finds the project and branch a worktree belongs to, through
+@@ -1889,7 +1893,7 @@
+ 		if len(wanted) > 0 && !wanted[sess.Status] {
+ 			continue
+ 		}
+-		out = append(out, toJSON(sess, sessionBasePath))
++		out = append(out, a.sessionJSON(sess, sessionBasePath))
+ 	}
+ 
+ 	// Descending, per §3.11, sorted here rather than by reversing the store's
+@@ -1927,7 +1931,7 @@
+ 	if !ok {
+ 		return
+ 	}
+-	httpx.WriteJSON(w, http.StatusOK, sessionDetailJSON{sessionJSON: toJSON(sess, sessionBasePath), StartAdmissionEvidence: sessionAdmissionEvidence(r, sess)})
++	httpx.WriteJSON(w, http.StatusOK, sessionDetailJSON{sessionJSON: a.sessionJSON(sess, sessionBasePath), StartAdmissionEvidence: sessionAdmissionEvidence(r, sess)})
+ }
+ 
+ func (a *API) handleSessionPatch(w http.ResponseWriter, r *http.Request) {
+@@ -1961,7 +1965,7 @@
+ 		a.internal(w, r, "rename the session", err)
+ 		return
+ 	}
+-	httpx.WriteJSON(w, http.StatusOK, toJSON(updated, sessionBasePath))
++	httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(updated, sessionBasePath))
+ }
+ 
+ // sessionIDSet serialises one verb per session id. It is a package-level value
+@@ -2284,6 +2288,8 @@
+ 	// record, so task 13's reaper sees an orphan and removes it.
+ 	sandboxID := ids.New("s")
+ 	token := ids.Token()
++	finishPreparation := a.beginSessionPreparation(registry.Session{ID: id, SandboxID: sandboxID, AttachToken: token})
++	defer finishPreparation()
+ 
+ 	// THE RECORD NAMES THE NEW SANDBOX BEFORE THE SANDBOX EXISTS, which is
+ 	// create's ordering (see handleSessionCreate step 4) and is here for the
+@@ -2420,7 +2426,7 @@
+ 	}
+ 
+ 	go a.watchSessionReady(id, sb.ID, sb.Endpoint)
+-	httpx.WriteJSON(w, http.StatusOK, toJSON(updated, sessionBasePath))
++	httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(updated, sessionBasePath))
+ }
+ 
+ // handleSessionDelete is §3.15 and it is one of the three places in this phase
+@@ -2533,7 +2539,7 @@
+ 		}
+ 	}
+ 	if !purge {
+-		httpx.WriteJSON(w, http.StatusOK, toJSON(updated, sessionBasePath))
++		httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(updated, sessionBasePath))
+ 		return
+ 	}
+ 

@@ -1,0 +1,9 @@
+{"Time":"2026-10-09T17:56:43.142254279Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/api"}
+{"Time":"2026-10-09T17:56:43.184459973Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestSessionPreparationRecoveryAllowsBackendResolvedAttach"}
+{"Time":"2026-10-09T17:56:43.184510719Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestSessionPreparationRecoveryAllowsBackendResolvedAttach","Output":"=== RUN   TestSessionPreparationRecoveryAllowsBackendResolvedAttach\n"}
+{"Time":"2026-10-09T17:56:43.195857945Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestSessionPreparationRecoveryAllowsBackendResolvedAttach","Output":"    session_attach_recovery_test.go:70: recovered API inferred readiness from an absent persisted endpoint\n"}
+{"Time":"2026-10-09T17:56:43.197232822Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestSessionPreparationRecoveryAllowsBackendResolvedAttach","Output":"--- FAIL: TestSessionPreparationRecoveryAllowsBackendResolvedAttach (0.01s)\n"}
+{"Time":"2026-10-09T17:56:43.197258621Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestSessionPreparationRecoveryAllowsBackendResolvedAttach","Elapsed":0.01}
+{"Time":"2026-10-09T17:56:43.197676691Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"FAIL\n"}
+{"Time":"2026-10-09T17:56:43.200067303Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"FAIL\tgithub.com/lcfrai/luci/control-plane/internal/api\t0.057s\n"}
+{"Time":"2026-10-09T17:56:43.200085791Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/api","Elapsed":0.058}

@@ -1,0 +1,60 @@
+{
+  "sourceBaseCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "-overlay=/workspace/.luci-tools/cloud076-attach-readiness/backend/overlay.json",
+    "-run",
+    "^TestSessionAttachReadiness",
+    "./internal/api"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "sourceCommit": "078d0e99f9d1553a2233dfa51b368b415964766c",
+  "startedAt": 1791568016.507793,
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOPATH": "/tmp/luci-gopath",
+    "GOCACHE": "/tmp/luci-go-build-cache",
+    "GOTMPDIR": "/workspace/.t",
+    "TMPDIR": "/workspace/.t",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly"
+  },
+  "beforeSHA256": {
+    "overlay.json": "0d41e266748dd7e990bc3be4c28466e149d3c39e06d16346aa9a39d189d2bb51",
+    "original-overlay.json": "cf4d2914f4f824870f57b99a157039d1cf647d5d54a0a9883bd2e6ae1b574d0b",
+    "CLOUD-076-backend.patch": "c3dc7686e89bafd7c9b21d7dc3e60f634f6815b98c6fd37a8d500368f6be1214",
+    "tree/control-plane/internal/api/session_attach_readiness.go": "8f088af08b3bfb7c7b50d91b3e8475b9b2890b9a075704fe2de21cf8f9743ff6",
+    "tree/control-plane/internal/api/session_attach_readiness_test.go": "4adc6f317089dabdca1a5ccbb040f88400511a05dc8487d948d0eb57a1cf4da2",
+    "tree/control-plane/internal/api/sessions.go": "4e3359da049cf82299712393602bb281b49a58e7539724f02cebdccf43200353"
+  },
+  "exitCode": 0,
+  "endedAt": 1791568037.9765682,
+  "minimumFreeBytes": {
+    "root": 1989025792,
+    "tmp": 928325632
+  },
+  "stopped": null,
+  "afterSHA256": {
+    "overlay.json": "0d41e266748dd7e990bc3be4c28466e149d3c39e06d16346aa9a39d189d2bb51",
+    "original-overlay.json": "cf4d2914f4f824870f57b99a157039d1cf647d5d54a0a9883bd2e6ae1b574d0b",
+    "CLOUD-076-backend.patch": "c3dc7686e89bafd7c9b21d7dc3e60f634f6815b98c6fd37a8d500368f6be1214",
+    "tree/control-plane/internal/api/session_attach_readiness.go": "8f088af08b3bfb7c7b50d91b3e8475b9b2890b9a075704fe2de21cf8f9743ff6",
+    "tree/control-plane/internal/api/session_attach_readiness_test.go": "4adc6f317089dabdca1a5ccbb040f88400511a05dc8487d948d0eb57a1cf4da2",
+    "tree/control-plane/internal/api/sessions.go": "4e3359da049cf82299712393602bb281b49a58e7539724f02cebdccf43200353"
+  },
+  "testActions": {
+    "pass": 19
+  },
+  "failedTests": [],
+  "eventsSHA256": "53002d9138d38d2f866c8d78b14208c53bfb9c4d84a7f8622ef562355d582a55",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
