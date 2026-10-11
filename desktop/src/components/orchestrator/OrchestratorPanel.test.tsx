@@ -283,6 +283,92 @@ function responsiveOverview(initialCompact: boolean) {
   };
 }
 
+it("opens the same project conversation from compact Develop and preserves its amendment through all activities", async () => {
+  const media = responsiveOverview(true);
+  useCockpit.setState(state => ({ lens: "develop", selection: { ...state.selection, projectId: "p-1" } }));
+  render(<OrchestratorPanel projectId="p-1" />);
+  await screen.findByText("Design · Saved context");
+  expect(screen.queryByLabelText("Message Luci")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Talk to Luci" }));
+  const composer = await screen.findByLabelText("Message Luci") as HTMLTextAreaElement;
+  await waitFor(() => expect(document.activeElement).toBe(composer));
+  await userEvent.type(composer, "Add keyboard shortcuts to the calculator while preserving the current build.");
+  for (const lens of ["discover", "design", "develop", "deploy"] as const) {
+    act(() => useCockpit.getState().setLens(lens));
+    await waitFor(() => expect(screen.queryByText("Updating saved project understanding…")).toBeNull());
+    expect(screen.getByLabelText("Message Luci")).toBe(composer);
+    expect(composer.value).toContain("keyboard shortcuts");
+  }
+  media.resize(false); media.resize(true);
+  expect(screen.getByLabelText("Message Luci")).toBe(composer);
+  expect(within(screen.getByRole("region", { name: "Conversation context" })).getByText(/Definition 2 · Design 1 · Plan 1/)).not.toBeNull();
+  expect(screen.getByText(/A running agent keeps its original captured scope/)).not.toBeNull();
+  expect(readComposerRecovery(decisionScope()).draft?.message).toBe(composer.value);
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
+});
+
+it.each(["recovered", "pending"])("Talk to Luci focuses the %s recovery action without replacing or sending its saved message", async mode => {
+  responsiveOverview(true);
+  saveComposerDraft(decisionScope(), null, "Keep my unsent project amendment", "");
+  if (mode === "pending") retainComposerRequest(decisionScope(), { expectedRevision: 3, expectedContextDigest: context().digest, idempotencyKey: "pending-amendment-header-entry", message: "Keep my unsent project amendment", harness: "codex" });
+  const original = readComposerRecovery(decisionScope());
+  render(<OrchestratorPanel projectId="p-1" />);
+  await screen.findByText("Design · Saved context");
+  await userEvent.click(screen.getByRole("button", { name: "Talk to Luci" }));
+  const action = screen.getByRole("button", { name: mode === "pending" ? "Check original request" : "Restore unsent message" });
+  await waitFor(() => expect(document.activeElement).toBe(action));
+  expect(readComposerRecovery(decisionScope())).toEqual(original);
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.resolveRequest).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["specification", "definition", "definition", "discover"],
+  ["design-plan", "design", "design", "design"],
+  ["plan", "implementation plan", "plan", "develop"],
+] as const)("continues an applied %s amendment at its current editor without approving or applying again", async (target, label, editor, lens) => {
+  const proposal = proposalTurn();
+  proposal.answer!.proposal!.target = target;
+  proposal.appliedRevision = 1;
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [proposal] }));
+  useCockpit.setState(state => ({ lens: "develop", selection: { ...state.selection, projectId: "p-1" } }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  const continuation = screen.getByRole("region", { name: "Continue amendment review" });
+  expect(continuation.textContent).toContain(`saved ${label} draft revision 1`);
+  expect(continuation.textContent).toContain("Existing builds retain the context they started with");
+  await userEvent.click(within(continuation).getByRole("button", { name: `Open current ${label}` }));
+  expect(useCockpit.getState().lens).toBe(lens);
+  expect(takeProjectContextEdit(decisionScope(), "p-1", editor)).toEqual({ editor });
+  expect(orchestratorApi.apply).not.toHaveBeenCalled(); expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("keeps a newer dirty task draft and cancels the applied amendment navigation when the user stays", async () => {
+  const proposal = { ...proposalTurn(), appliedRevision: 3 };
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [proposal] }));
+  useCockpit.setState(state => ({ lens: "develop", selection: { ...state.selection, projectId: "p-1" } }));
+  useCockpit.getState().setUnsavedProjectDraft("plan", { projectId: "p-1", label: "Implementation plan", lens: "develop" });
+  render(<><OrchestratorPanel projectId="p-1" /><DraftNavigationDialog /></>); await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Open current definition" }));
+  const dialog = screen.getByRole("dialog", { name: "Keep your changes?" });
+  await userEvent.click(within(dialog).getByRole("button", { name: "Keep editing" }));
+  expect(useCockpit.getState().lens).toBe("develop");
+  expect(takeProjectContextEdit(decisionScope(), "p-1", "definition")).toBe(false);
+  expect(Object.values(useCockpit.getState().unsavedProjectDrafts)).toHaveLength(1);
+  expect(orchestratorApi.apply).not.toHaveBeenCalled();
+});
+
+it("does not steal focus after a newer action while the coordinator opens", async () => {
+  render(<><button>Other project work</button><OrchestratorPanel projectId="p-1" /></>);
+  await screen.findByRole("button", { name: "Review design" });
+  vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+  try {
+    fireEvent.click(screen.getByRole("button", { name: "Talk to Luci" }));
+    const other = screen.getByRole("button", { name: "Other project work" }); other.focus();
+    await act(async () => { await vi.advanceTimersByTimeAsync(32); });
+    expect(document.activeElement).toBe(other);
+    expect(orchestratorApi.send).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
+});
+
 it("starts compact screens with a labelled phase/context disclosure and opens only on request", async () => {
   const media = responsiveOverview(true);
   const mounted = render(<OrchestratorPanel projectId="p-1" />);

@@ -1,0 +1,9 @@
+{
+  "base": "03c7ca999416a49d631048a565f2760356a36cde",
+  "cwd": "desktop",
+  "commands": [
+    "npm test -- src/components/orchestrator/OrchestratorPanel.test.tsx src/components/orchestrator/ProjectUnderstanding.test.tsx --maxWorkers=1",
+    "npm run typecheck"
+  ],
+  "scope": "Controlled React component fixtures and compiler only; no browser, native, provider or full coordinator acceptance."
+}

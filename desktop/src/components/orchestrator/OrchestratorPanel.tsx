@@ -25,6 +25,8 @@ export interface OrchestratorOpenDetail {
 }
 const compactOverviewQuery = "(max-width: 1100px)";
 const stageLabels = { discover: "Discover", design: "Design", develop: "Develop", deploy: "Deploy" };
+const amendmentEditors = { specification: "definition", "design-plan": "design", plan: "plan" } as const;
+const amendmentLabels = { specification: "definition", "design-plan": "design", plan: "implementation plan" };
 const pendingStatus = (status: string) => ["reserved", "queued", "running", "unknown"].includes(status);
 const readAccessDenied = (cause: unknown) => cause instanceof ApiError && (cause.status === 401 || cause.status === 403);
 const statuses: Record<OrchestratorTurn["status"], string> = {
@@ -464,9 +466,21 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     finally { if (ticket === generation.current) { working.current = false; if (alive.current) setBusy(""); } }
   }
   const openComposer = (text?: string) => {
+    const origin = document.activeElement;
+    const ticket = generation.current;
     setOpenChoice(true); setConversationOpen(true);
     if (text && !messageRef.current.trim()) editComposer(text.slice(0, 16000), replyTo);
-    requestAnimationFrame(() => { if (alive.current) composer.current?.focus(); });
+    requestAnimationFrame(() => {
+      if (!alive.current || !permission.current.canRead || permission.current.loading || permission.current.error || ticket !== generation.current ||
+          document.activeElement !== origin && document.activeElement !== document.body) return;
+      // Opening the coordinator is navigation only. Retained requests/drafts
+      // still require their existing explicit recovery controls before sending.
+      const field = composer.current;
+      const target = field?.disabled
+        ? overviewBody.current?.querySelector<HTMLButtonElement>('[aria-label="Unsent message recovery"] button, [aria-label="Unconfirmed message recovery"] button')
+        : field;
+      target?.scrollIntoView?.({ block: "nearest" }); target?.focus();
+    });
   };
   const ask = (text?: string) => {
     // Opening a generic discussion must not detach an answer already in progress.
@@ -564,7 +578,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const reviewBlock = draftWarning || setupChangeWarning || (contextStale ? "Refresh project understanding before applying an amendment." : !canEdit ? "Editing access is required to apply an amendment." : review && view && review.revision !== view.revision ? "The conversation changed during review. Close this review, refresh and review the amendment again." : "");
 
   return <aside className={`orchestrator${open ? " orchestrator-open" : ""}`} aria-label="Project understanding">
-    <header className="orchestrator-header"><div><h2>Project understanding</h2>{open ? <p>What we are building and what happens next.</p> : <p className="orchestrator-collapsed-stage">{canRead && view ? `${stageLabels[view.nextAction.lens]} · Saved context` : "Saved project context"}</p>}</div><Button variant="secondary" size="compact" aria-expanded={open} aria-controls={contentId} onClick={() => setOpenChoice(!open)}>{open ? "Hide project overview" : "Show project overview"}</Button></header>
+    <header className="orchestrator-header"><div><h2>Project understanding</h2>{open ? <p>One conversation across your project.</p> : <p className="orchestrator-collapsed-stage">{canRead && view ? `${stageLabels[view.nextAction.lens]} · Saved context` : "Saved project context"}</p>}</div><Button variant="primary" size="compact" disabled={!canRead || access.loading || !!access.error} onClick={() => ask()}>Talk to Luci</Button><Button variant="secondary" size="compact" aria-expanded={open} aria-controls={contentId} onClick={() => setOpenChoice(!open)}>{open ? "Hide project overview" : "Show project overview"}</Button></header>
     <div className="orchestrator-body" id={contentId} ref={overviewBody} hidden={!open}>
       {access.message && <p role="status">{access.message}</p>}
       {canRead && <>
@@ -592,7 +606,11 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
                 {turn.questionResolvedBy ? <p>Answered in a later turn.</p> : <div className="orchestrator-actions">{turn.answer.options.map((option, index) => <Button key={index} variant="secondary" size="compact" disabled={!canAssist || !!busy} onClick={() => suggestReply(turn, option)}>{option}</Button>)}<Button variant="ghost" size="compact" disabled={!canAssist || !!busy} onClick={() => reply(turn.id)}>Reply to this question</Button></div>}
               </section>}
               {!turn.answer.question && turn.answer.rationale && <p>{turn.answer.rationale}</p>}
-              {turn.answer.proposal && <div className="orchestrator-proposal"><p>{turn.answer.proposal.summary}</p><Button variant="secondary" disabled={!!busy || !!turn.appliedRevision} onClick={() => { setReview({ turn, revision: view.revision, digest: view.context.digest }); setError(""); }}>Review amendment</Button></div>}
+              {turn.answer.proposal && <div className="orchestrator-proposal"><p>{turn.answer.proposal.summary}</p>{turn.appliedRevision ? <section aria-label="Continue amendment review">
+                <p>This amendment saved {amendmentLabels[turn.answer.proposal.target]} draft revision {turn.appliedRevision}. Review the current document and its affected approvals before preparing more work.</p>
+                <p className="orchestrator-muted">Existing builds retain the context they started with. Reviewing this document does not stop or change those agents.</p>
+                <Button variant="secondary" disabled={!!busy || contextStale || contextRefreshQueued || !canRead || (turn.answer.proposal.target !== "plan" && !canEdit)} onClick={() => edit(amendmentEditors[turn.answer!.proposal!.target])}>Open current {amendmentLabels[turn.answer.proposal.target]}</Button>
+              </section> : <Button variant="secondary" disabled={!!busy} onClick={() => { setReview({ turn, revision: view.revision, digest: view.context.digest }); setError(""); }}>Review amendment</Button>}</div>}
               {turn.answer.nextAction && <p className="orchestrator-muted">Suggested next step: {turn.answer.nextAction}</p>}
             </div>}
             {(turn.status === "unknown" || turn.status === "reserved") && <p>The request is unconfirmed. Refresh to observe it; Luci will not start a duplicate request automatically.</p>}
@@ -612,6 +630,10 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
           {canAssist && (reviewedRequest !== pendingRequest.request.idempotencyKey ? <Button variant="secondary" onClick={() => { setMessage(pendingRequest.request.message); setReplyTo(pendingRequest.request.replyToTurnId ?? ""); setReviewedRequest(pendingRequest.request.idempotencyKey); setConversationOpen(true); }}>Review original request</Button> : <><p>Original agent: {pendingRequest.request.harness}{pendingRequest.request.model ? ` · ${pendingRequest.request.model}` : ""}. Retry uses its saved context and original request identity; model usage may be charged if it was never accepted.</p><Button variant="secondary" disabled={!!busy || !!contextDrafts} onClick={() => void retryOriginal()}>Retry original request</Button></>)}
         </section>}
         <form className="orchestrator-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
+          {view && <section className="orchestrator-composer-context" aria-label="Conversation context">
+            <p>Current saved context · Definition {view.context.specification.revision} · Design {view.context.designPlan.revision} · Plan {view.context.plan.revision}</p>
+            <p className="orchestrator-muted">Describe an idea or amendment from any activity. Luci can ask about ambiguity and propose a draft for your review. A running agent keeps its original captured scope.</p>
+          </section>}
           <details className="orchestrator-agent"><summary>Agent and model</summary><fieldset disabled={!!busy || !canAssist || !!pendingRequest}>
             <label className="luci-field">Luci agent<select value={agent.harness} onChange={event => chooseAgent({ ...agent, harness: event.target.value as OrchestratorAgent["harness"], model: "" })}><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="opencode">OpenCode</option></select></label>
             <AgentConnectionSelect catalogue={catalogue} value={agent.agentConnectionId} label="Luci connection" onChange={id => chooseAgent({ ...agent, agentConnectionId: id === undefined ? catalogue?.activeConnectionId || "" : id })} />
