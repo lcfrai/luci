@@ -253,6 +253,8 @@ func (s *Server) getOrchestrator(w http.ResponseWriter, r *http.Request) {
 func orchestratorProblem(w http.ResponseWriter, err error) {
 	status, code, message := 500, "orchestrator_unavailable", "The private project conversation could not be read or saved. Reload before retrying."
 	switch {
+	case errors.Is(err, ErrOrchestratorInvalid):
+		status, code, message = 400, "invalid_orchestrator_request", err.Error()
 	case errors.Is(err, ErrOrchestratorConflict):
 		status, code, message = 409, "revision_conflict", err.Error()
 	case errors.Is(err, ErrOrchestratorBusy):

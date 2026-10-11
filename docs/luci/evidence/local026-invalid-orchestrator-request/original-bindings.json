@@ -1,0 +1,22 @@
+[
+  {
+    "published": "original/source-before.json.gz",
+    "decodedSHA256": "7e57ff091aa0b567e30a40587652fca77108f55d0134881cf53e8d2d20f0322b",
+    "decodedBytes": 133134
+  },
+  {
+    "published": "original/source-after.json.gz",
+    "decodedSHA256": "7e57ff091aa0b567e30a40587652fca77108f55d0134881cf53e8d2d20f0322b",
+    "decodedBytes": 133134
+  },
+  {
+    "published": "fixed/source-before.json.gz",
+    "decodedSHA256": "69ffa0bc03bf61cdbadb4c6f50471830ab75756e3d9a4c8974e28786e55a7bb8",
+    "decodedBytes": 133134
+  },
+  {
+    "published": "fixed/source-after.json.gz",
+    "decodedSHA256": "69ffa0bc03bf61cdbadb4c6f50471830ab75756e3d9a4c8974e28786e55a7bb8",
+    "decodedBytes": 133134
+  }
+]

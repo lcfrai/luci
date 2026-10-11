@@ -1,0 +1,34 @@
+{
+  "cwd": "/workspace/luci/control-plane",
+  "argv": [
+    "go",
+    "test",
+    "-overlay",
+    "/workspace/.luci-tools/local026-http-validation/original/overlay.json",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout",
+    "90s",
+    "-json",
+    "./internal/product",
+    "-run",
+    "^(TestCoordinationMissingTurnReturnsBadRequestWithoutMutation|TestOrchestratorProblemKeepsConflictAndStorageFailureDistinct)$"
+  ],
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOCACHE": "/dev/shm/luci-go-cache-20261011-recovery"
+  },
+  "resourcePolicy": {
+    "rationale": "Root-authorized test-only cache relocation following ENOSPC; product runtime admission unchanged",
+    "rootFloorMiB": 512,
+    "cgroupRemainingFloorGiB": 4,
+    "cacheLimitGiB": 2,
+    "initial": {
+      "rootFreeBytes": 882081792,
+      "cgroupRemainingBytes": 9240129536,
+      "cacheBytes": 0
+    }
+  },
+  "scope": "Product package restored to committed 544ae842 via exact overlays, same new regression, original LOCAL026 mapping; dependency source/modules current, not full clean checkout"
+}

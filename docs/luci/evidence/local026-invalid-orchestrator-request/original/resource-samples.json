@@ -1,0 +1,518 @@
+[
+  {
+    "rootFreeBytes": 881938432,
+    "cgroupRemainingBytes": 9238335488,
+    "cacheBytes": 0,
+    "elapsedSeconds": 0.0009763240814208984
+  },
+  {
+    "rootFreeBytes": 881831936,
+    "cgroupRemainingBytes": 9209421824,
+    "cacheBytes": 1507659,
+    "elapsedSeconds": 1.037384033203125
+  },
+  {
+    "rootFreeBytes": 878845952,
+    "cgroupRemainingBytes": 9218461696,
+    "cacheBytes": 4039254,
+    "elapsedSeconds": 2.0486443042755127
+  },
+  {
+    "rootFreeBytes": 877969408,
+    "cgroupRemainingBytes": 9137053696,
+    "cacheBytes": 4870916,
+    "elapsedSeconds": 3.0563721656799316
+  },
+  {
+    "rootFreeBytes": 877969408,
+    "cgroupRemainingBytes": 9155743744,
+    "cacheBytes": 4870916,
+    "elapsedSeconds": 4.078912973403931
+  },
+  {
+    "rootFreeBytes": 877969408,
+    "cgroupRemainingBytes": 9105162240,
+    "cacheBytes": 4870916,
+    "elapsedSeconds": 5.087949514389038
+  },
+  {
+    "rootFreeBytes": 877969408,
+    "cgroupRemainingBytes": 9048952832,
+    "cacheBytes": 4870916,
+    "elapsedSeconds": 6.135367393493652
+  },
+  {
+    "rootFreeBytes": 877969408,
+    "cgroupRemainingBytes": 8993947648,
+    "cacheBytes": 4870916,
+    "elapsedSeconds": 7.145906448364258
+  },
+  {
+    "rootFreeBytes": 861728768,
+    "cgroupRemainingBytes": 9225375744,
+    "cacheBytes": 20676470,
+    "elapsedSeconds": 8.158363580703735
+  },
+  {
+    "rootFreeBytes": 858955776,
+    "cgroupRemainingBytes": 9223753728,
+    "cacheBytes": 23326695,
+    "elapsedSeconds": 9.195911407470703
+  },
+  {
+    "rootFreeBytes": 856170496,
+    "cgroupRemainingBytes": 9178906624,
+    "cacheBytes": 26042027,
+    "elapsedSeconds": 10.207440376281738
+  },
+  {
+    "rootFreeBytes": 852590592,
+    "cgroupRemainingBytes": 9165049856,
+    "cacheBytes": 29548425,
+    "elapsedSeconds": 11.263770341873169
+  },
+  {
+    "rootFreeBytes": 849252352,
+    "cgroupRemainingBytes": 9191501824,
+    "cacheBytes": 32864559,
+    "elapsedSeconds": 12.275994539260864
+  },
+  {
+    "rootFreeBytes": 844779520,
+    "cgroupRemainingBytes": 9176821760,
+    "cacheBytes": 37242822,
+    "elapsedSeconds": 13.328585386276245
+  },
+  {
+    "rootFreeBytes": 843964416,
+    "cgroupRemainingBytes": 8966725632,
+    "cacheBytes": 38012420,
+    "elapsedSeconds": 14.3427414894104
+  },
+  {
+    "rootFreeBytes": 838602752,
+    "cgroupRemainingBytes": 8885813248,
+    "cacheBytes": 42933389,
+    "elapsedSeconds": 15.400462865829468
+  },
+  {
+    "rootFreeBytes": 835096576,
+    "cgroupRemainingBytes": 8920846336,
+    "cacheBytes": 44251811,
+    "elapsedSeconds": 16.412094831466675
+  },
+  {
+    "rootFreeBytes": 831680512,
+    "cgroupRemainingBytes": 8854245376,
+    "cacheBytes": 49547846,
+    "elapsedSeconds": 17.424753427505493
+  },
+  {
+    "rootFreeBytes": 828014592,
+    "cgroupRemainingBytes": 8778072064,
+    "cacheBytes": 53362796,
+    "elapsedSeconds": 18.456425428390503
+  },
+  {
+    "rootFreeBytes": 824565760,
+    "cgroupRemainingBytes": 8673714176,
+    "cacheBytes": 56676615,
+    "elapsedSeconds": 19.469202756881714
+  },
+  {
+    "rootFreeBytes": 823259136,
+    "cgroupRemainingBytes": 8741584896,
+    "cacheBytes": 57632181,
+    "elapsedSeconds": 20.49076557159424
+  },
+  {
+    "rootFreeBytes": 819380224,
+    "cgroupRemainingBytes": 9071513600,
+    "cacheBytes": 61425991,
+    "elapsedSeconds": 21.501091241836548
+  },
+  {
+    "rootFreeBytes": 816803840,
+    "cgroupRemainingBytes": 9089839104,
+    "cacheBytes": 63884554,
+    "elapsedSeconds": 22.575820922851562
+  },
+  {
+    "rootFreeBytes": 813047808,
+    "cgroupRemainingBytes": 9121484800,
+    "cacheBytes": 67446909,
+    "elapsedSeconds": 23.591632604599
+  },
+  {
+    "rootFreeBytes": 812965888,
+    "cgroupRemainingBytes": 9024118784,
+    "cacheBytes": 67466888,
+    "elapsedSeconds": 24.666733026504517
+  },
+  {
+    "rootFreeBytes": 808550400,
+    "cgroupRemainingBytes": 9036210176,
+    "cacheBytes": 71846255,
+    "elapsedSeconds": 25.682307720184326
+  },
+  {
+    "rootFreeBytes": 804474880,
+    "cgroupRemainingBytes": 9087832064,
+    "cacheBytes": 75702694,
+    "elapsedSeconds": 26.960151195526123
+  },
+  {
+    "rootFreeBytes": 803024896,
+    "cgroupRemainingBytes": 9024761856,
+    "cacheBytes": 77127458,
+    "elapsedSeconds": 27.9781596660614
+  },
+  {
+    "rootFreeBytes": 797282304,
+    "cgroupRemainingBytes": 9082339328,
+    "cacheBytes": 82584563,
+    "elapsedSeconds": 29.00671362876892
+  },
+  {
+    "rootFreeBytes": 796291072,
+    "cgroupRemainingBytes": 9077370880,
+    "cacheBytes": 83586723,
+    "elapsedSeconds": 30.048781633377075
+  },
+  {
+    "rootFreeBytes": 793284608,
+    "cgroupRemainingBytes": 9011605504,
+    "cacheBytes": 86480855,
+    "elapsedSeconds": 31.063319444656372
+  },
+  {
+    "rootFreeBytes": 793284608,
+    "cgroupRemainingBytes": 8971603968,
+    "cacheBytes": 86480855,
+    "elapsedSeconds": 32.12603974342346
+  },
+  {
+    "rootFreeBytes": 787574784,
+    "cgroupRemainingBytes": 9000566784,
+    "cacheBytes": 92153900,
+    "elapsedSeconds": 33.14385509490967
+  },
+  {
+    "rootFreeBytes": 785076224,
+    "cgroupRemainingBytes": 9010319360,
+    "cacheBytes": 95317079,
+    "elapsedSeconds": 34.20867681503296
+  },
+  {
+    "rootFreeBytes": 783114240,
+    "cgroupRemainingBytes": 8977174528,
+    "cacheBytes": 96494176,
+    "elapsedSeconds": 35.22621154785156
+  },
+  {
+    "rootFreeBytes": 783114240,
+    "cgroupRemainingBytes": 8917843968,
+    "cacheBytes": 96494176,
+    "elapsedSeconds": 36.287938356399536
+  },
+  {
+    "rootFreeBytes": 774324224,
+    "cgroupRemainingBytes": 9003667456,
+    "cacheBytes": 105268814,
+    "elapsedSeconds": 37.308077573776245
+  },
+  {
+    "rootFreeBytes": 770760704,
+    "cgroupRemainingBytes": 9028067328,
+    "cacheBytes": 108721139,
+    "elapsedSeconds": 38.38257169723511
+  },
+  {
+    "rootFreeBytes": 770011136,
+    "cgroupRemainingBytes": 8943415296,
+    "cacheBytes": 109453224,
+    "elapsedSeconds": 39.40171146392822
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8895455232,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 40.48739695549011
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8794144768,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 41.500760555267334
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8801673216,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 42.5860493183136
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8774672384,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 43.60416603088379
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8693104640,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 44.62321400642395
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8613572608,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 45.65089201927185
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8546029568,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 46.66542172431946
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8427974656,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 47.683746337890625
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8391811072,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 48.69712734222412
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8285118464,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 49.71436667442322
+  },
+  {
+    "rootFreeBytes": 763166720,
+    "cgroupRemainingBytes": 8238034944,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 50.72861433029175
+  },
+  {
+    "rootFreeBytes": 763162624,
+    "cgroupRemainingBytes": 8143925248,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 51.742011070251465
+  },
+  {
+    "rootFreeBytes": 733454336,
+    "cgroupRemainingBytes": 8025399296,
+    "cacheBytes": 115803600,
+    "elapsedSeconds": 52.755306243896484
+  },
+  {
+    "rootFreeBytes": 689369088,
+    "cgroupRemainingBytes": 8849268736,
+    "cacheBytes": 189474497,
+    "elapsedSeconds": 53.77339291572571
+  },
+  {
+    "rootFreeBytes": 685268992,
+    "cgroupRemainingBytes": 8759402496,
+    "cacheBytes": 193545669,
+    "elapsedSeconds": 54.79611945152283
+  },
+  {
+    "rootFreeBytes": 685268992,
+    "cgroupRemainingBytes": 8717582336,
+    "cacheBytes": 193545669,
+    "elapsedSeconds": 55.88556456565857
+  },
+  {
+    "rootFreeBytes": 675184640,
+    "cgroupRemainingBytes": 8834379776,
+    "cacheBytes": 203601588,
+    "elapsedSeconds": 56.903934478759766
+  },
+  {
+    "rootFreeBytes": 672759808,
+    "cgroupRemainingBytes": 8816644096,
+    "cacheBytes": 205987499,
+    "elapsedSeconds": 58.01903676986694
+  },
+  {
+    "rootFreeBytes": 672075776,
+    "cgroupRemainingBytes": 8741322752,
+    "cacheBytes": 206619976,
+    "elapsedSeconds": 59.041236877441406
+  },
+  {
+    "rootFreeBytes": 665346048,
+    "cgroupRemainingBytes": 8797388800,
+    "cacheBytes": 213513765,
+    "elapsedSeconds": 60.42571210861206
+  },
+  {
+    "rootFreeBytes": 664629248,
+    "cgroupRemainingBytes": 8744087552,
+    "cacheBytes": 213912692,
+    "elapsedSeconds": 61.44284462928772
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8718123008,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 62.46454572677612
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8684576768,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 63.544429540634155
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8600195072,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 64.56213569641113
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8597782528,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 65.62881302833557
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8567160832,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 66.65329003334045
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8533041152,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 67.74193239212036
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8406282240,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 68.7626461982727
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8329048064,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 69.83343720436096
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8257208320,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 70.85291910171509
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8253390848,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 71.93476247787476
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8187027456,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 72.95988941192627
+  },
+  {
+    "rootFreeBytes": 659718144,
+    "cgroupRemainingBytes": 8138792960,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 74.00613760948181
+  },
+  {
+    "rootFreeBytes": 657551360,
+    "cgroupRemainingBytes": 8106553344,
+    "cacheBytes": 218781551,
+    "elapsedSeconds": 75.02625823020935
+  },
+  {
+    "rootFreeBytes": 631304192,
+    "cgroupRemainingBytes": 8681615360,
+    "cacheBytes": 247161833,
+    "elapsedSeconds": 76.04993915557861
+  },
+  {
+    "rootFreeBytes": 599916544,
+    "cgroupRemainingBytes": 8657502208,
+    "cacheBytes": 247172371,
+    "elapsedSeconds": 77.07151865959167
+  },
+  {
+    "rootFreeBytes": 599879680,
+    "cgroupRemainingBytes": 8708620288,
+    "cacheBytes": 247175702,
+    "elapsedSeconds": 78.1521224975586
+  },
+  {
+    "rootFreeBytes": 599732224,
+    "cgroupRemainingBytes": 8701702144,
+    "cacheBytes": 247183185,
+    "elapsedSeconds": 79.17340445518494
+  },
+  {
+    "rootFreeBytes": 599490560,
+    "cgroupRemainingBytes": 8713326592,
+    "cacheBytes": 247204270,
+    "elapsedSeconds": 80.25953650474548
+  },
+  {
+    "rootFreeBytes": 599351296,
+    "cgroupRemainingBytes": 8674127872,
+    "cacheBytes": 247213984,
+    "elapsedSeconds": 81.27882242202759
+  },
+  {
+    "rootFreeBytes": 599076864,
+    "cgroupRemainingBytes": 8693927936,
+    "cacheBytes": 247231068,
+    "elapsedSeconds": 82.63948345184326
+  },
+  {
+    "rootFreeBytes": 598982656,
+    "cgroupRemainingBytes": 8699166720,
+    "cacheBytes": 247237977,
+    "elapsedSeconds": 83.65756177902222
+  },
+  {
+    "rootFreeBytes": 598794240,
+    "cgroupRemainingBytes": 8614727680,
+    "cacheBytes": 247248715,
+    "elapsedSeconds": 84.84391283988953
+  },
+  {
+    "rootFreeBytes": 598790144,
+    "cgroupRemainingBytes": 8709787648,
+    "cacheBytes": 247249065,
+    "elapsedSeconds": 85.86782026290894
+  },
+  {
+    "rootFreeBytes": 598622208,
+    "cgroupRemainingBytes": 8703119360,
+    "cacheBytes": 247261614,
+    "elapsedSeconds": 87.08547925949097
+  },
+  {
+    "rootFreeBytes": 598470656,
+    "cgroupRemainingBytes": 8672911360,
+    "cacheBytes": 247270871,
+    "elapsedSeconds": 88.11126565933228
+  },
+  {
+    "rootFreeBytes": 598470656,
+    "cgroupRemainingBytes": 8535683072,
+    "cacheBytes": 247270871,
+    "elapsedSeconds": 89.24172067642212
+  }
+]

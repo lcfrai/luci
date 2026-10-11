@@ -1,0 +1,139 @@
+{
+  "revision": "544ae842c1db4cbdf3ef1ae8055289db9115f4c5",
+  "scope": "Product package source restored to this commit in both invocations; new exact regression retained. Fixed overlay changes only orchestratorProblem mapping. Other packages/modules are current source inputs, not a clean-checkout claim.",
+  "inputs": [
+    {
+      "path": "control-plane/internal/product/coordination.go",
+      "sha256": "3a4564961947a82bb0da3ca2b1c090db0fdc55c8238285a33bc6c6b20138bb76",
+      "bytes": 23978,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/coordination_archive.go",
+      "sha256": "96603b9a6f5ce4d55625ed9336cab6113ddb31643e641d141807f6f6c8c8d5d0",
+      "bytes": 16,
+      "scope": "empty compile overlay excludes unrelated uncommitted product file"
+    },
+    {
+      "path": "control-plane/internal/product/coordination_archive_test.go",
+      "sha256": "96603b9a6f5ce4d55625ed9336cab6113ddb31643e641d141807f6f6c8c8d5d0",
+      "bytes": 16,
+      "scope": "empty compile overlay excludes unrelated uncommitted product file"
+    },
+    {
+      "path": "control-plane/internal/product/coordination_retention_regression_test.go",
+      "sha256": "96603b9a6f5ce4d55625ed9336cab6113ddb31643e641d141807f6f6c8c8d5d0",
+      "bytes": 16,
+      "scope": "empty compile overlay excludes unrelated uncommitted product file"
+    },
+    {
+      "path": "control-plane/internal/product/coordination_store.go",
+      "sha256": "de553772dad66280d9f0df9ece1688d049c86e466e770bc3aec09bfbb588f39c",
+      "bytes": 12533,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_background.go",
+      "sha256": "90588df800af079fee4dabc471d53a1ee62a058f718195c17da2fd726fc4b4e9",
+      "bytes": 5238,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_continuation.go",
+      "sha256": "65c478c052007e464e281cbc05c9f02f195d583f40d05e2fc2a9fca6ba9c5c3d",
+      "bytes": 28962,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery.go",
+      "sha256": "99f959399285b2c9b0878ed86a2b639c25c191e9183a4fb44da62f05ed8a79dd",
+      "bytes": 9838,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_checks.go",
+      "sha256": "67ec9000a0d2c1d6f5f19893e0368f45ed37605c6c286a9e8b6b3a0743c38a24",
+      "bytes": 9891,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_preview.go",
+      "sha256": "96603b9a6f5ce4d55625ed9336cab6113ddb31643e641d141807f6f6c8c8d5d0",
+      "bytes": 16,
+      "scope": "empty compile overlay excludes unrelated uncommitted product file"
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_preview_admission.go",
+      "sha256": "96603b9a6f5ce4d55625ed9336cab6113ddb31643e641d141807f6f6c8c8d5d0",
+      "bytes": 16,
+      "scope": "empty compile overlay excludes unrelated uncommitted product file"
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_preview_test.go",
+      "sha256": "96603b9a6f5ce4d55625ed9336cab6113ddb31643e641d141807f6f6c8c8d5d0",
+      "bytes": 16,
+      "scope": "empty compile overlay excludes unrelated uncommitted product file"
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_test.go",
+      "sha256": "afccc6551d408eb7884cd0c22862e289b370470117576c146545fd1ae92938dd",
+      "bytes": 16430,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_preview_policy_test.go",
+      "sha256": "96603b9a6f5ce4d55625ed9336cab6113ddb31643e641d141807f6f6c8c8d5d0",
+      "bytes": 16,
+      "scope": "empty compile overlay excludes unrelated uncommitted product file"
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_route.go",
+      "sha256": "4c60956c32f10ac471d663a38c4912dd3e9ab46802186dba5808203560b5d88d",
+      "bytes": 2046,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator.go",
+      "sha256": "3bb847964123c5a8a31759be27cefe2c8f06957abf2b1bc3ad1afad39e1998e1",
+      "bytes": 19470,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator_policy.go",
+      "sha256": "742cd8c48218bd2bb26105e1fe0c37017e405bd48da799ef9b3d4b8af4c5cc60",
+      "bytes": 10352,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator_resolution.go",
+      "sha256": "366f77f6394029f820b8a26e7aa3be18c48ff68c50814b33e13c8f833a32f47a",
+      "bytes": 6844,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator_store.go",
+      "sha256": "f51256da867cbda9f6b85b00d7b0bc7312b5dd807f2278bf956f9d882ac27f61",
+      "bytes": 19142,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/project_runs_evidence.go",
+      "sha256": "a20e6397a8c9726819128fccb6334e0ce3ebf36ee31be5803771ab16a722299d",
+      "bytes": 20354,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/releases.go",
+      "sha256": "a92ed1403cb9aa0406f4e443ecedca696ea26638989b6e59f91399c3e4dee552",
+      "bytes": 21760,
+      "scope": "exact committed product source"
+    },
+    {
+      "path": "control-plane/internal/product/routes_audit_test.go",
+      "sha256": "c39156c742bbfd1d29bec82f53798c661791563f8c0ed9ccab66df3dc436c0a3",
+      "bytes": 35856,
+      "scope": "exact committed product source"
+    }
+  ],
+  "fixedOrchestratorSHA256": "c720fa41d98ea4934dc03cacc4023e85586e2a3c9846be7fcaac2e51266186f7"
+}

@@ -1,0 +1,39 @@
+{
+  "phase": "original",
+  "exitCode": 1,
+  "stopReason": null,
+  "seconds": 90.24758243560791,
+  "sourceStable": true,
+  "repositoryGoModuleInputs": 861,
+  "outcomes": [
+    {
+      "name": "TestCoordinationMissingTurnReturnsBadRequestWithoutMutation",
+      "action": "fail"
+    },
+    {
+      "name": "TestOrchestratorProblemKeepsConflictAndStorageFailureDistinct/invalid",
+      "action": "fail"
+    },
+    {
+      "name": "TestOrchestratorProblemKeepsConflictAndStorageFailureDistinct/wrapped-invalid",
+      "action": "fail"
+    },
+    {
+      "name": "TestOrchestratorProblemKeepsConflictAndStorageFailureDistinct/conflict",
+      "action": "pass"
+    },
+    {
+      "name": "TestOrchestratorProblemKeepsConflictAndStorageFailureDistinct/storage",
+      "action": "pass"
+    },
+    {
+      "name": "TestOrchestratorProblemKeepsConflictAndStorageFailureDistinct",
+      "action": "fail"
+    }
+  ],
+  "counts": {
+    "pass": 2,
+    "fail": 4,
+    "skip": 0
+  }
+}
