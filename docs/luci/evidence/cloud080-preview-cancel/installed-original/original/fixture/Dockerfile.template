@@ -1,0 +1,6 @@
+FROM __BASE_IMAGE_ID__
+LABEL org.lcfr.fixture.cancel="__NONCE__" org.lcfr.fixture.project="__PROJECT_ID__" org.lcfr.fixture.stage="cancel-run-v1"
+COPY hold.mjs manifest.json /cancel/
+RUN ["node", "/cancel/hold.mjs"]
+EXPOSE 3000
+CMD ["node", "/cancel/hold.mjs"]

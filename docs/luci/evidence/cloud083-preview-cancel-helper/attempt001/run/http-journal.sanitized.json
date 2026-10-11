@@ -1,0 +1,302 @@
+{
+  "scope": "Only request route/timing and response status/digest. All HTTP bodies, auth headers, bootstrap credentials and user records excluded. Start 017 has no recorded response.",
+  "requests": [
+    {
+      "id": "001",
+      "method": "GET",
+      "path": "/v1/control-plane/status",
+      "startedAt": "2026-10-11T14:15:12.576Z",
+      "startedMonotonicMs": 1642.185421,
+      "requestRecordSHA256": "64ec597dbc48992f1aaa6c26e0b392f89fc7de0f22372f3cd2230e5dc8f542e0",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:12.597Z",
+        "bodyBytes": 301,
+        "bodySHA256": "700f8c26b46780eb253b42f37bd50f2729339410cac7b8e37e8a2c183e5acc1d"
+      },
+      "responseRecordSHA256": "2b8599f00cd8cbbe32aba750aab90060ae027a9ccff10cfd681553451092623e"
+    },
+    {
+      "id": "002",
+      "method": "POST",
+      "path": "/v1/auth/bootstrap",
+      "startedAt": "2026-10-11T14:15:12.597Z",
+      "startedMonotonicMs": 1663.739835,
+      "requestRecordSHA256": "8e9fc850a1e1a5b3de6391be3a646eaee04567ba48d4cbbadda290376974b62d",
+      "responseRecorded": true,
+      "response": {
+        "status": 201,
+        "completedAt": "2026-10-11T14:15:13.073Z",
+        "bodyBytes": 207,
+        "bodySHA256": "3dccea0ee3e09b4fa1d3c18fc07acbf4c733dc09f4b981704fd8f6c0793c420f"
+      },
+      "responseRecordSHA256": "57cd221b6b57d1fca20b612959e6a77b2c0cbe89a72e108f15f5fa20685612e4"
+    },
+    {
+      "id": "003",
+      "method": "POST",
+      "path": "/v1/setup/git/identity",
+      "startedAt": "2026-10-11T14:15:13.077Z",
+      "startedMonotonicMs": 2143.69309,
+      "requestRecordSHA256": "dfddd749976d2f3dae7fdad0b597c79895e9abf5a89deaa73058556dec3fc0e1",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.106Z",
+        "bodyBytes": 78,
+        "bodySHA256": "7813c3a0efecbd941a550db2d59c77b1fbac99b516c9f230996a0d1e8c267077"
+      },
+      "responseRecordSHA256": "0ffedb61da6edd3ff3a5da91676ce1d8233cda30bf3452a405352b4415aafc73"
+    },
+    {
+      "id": "004",
+      "method": "POST",
+      "path": "/v1/product/projects",
+      "startedAt": "2026-10-11T14:15:13.107Z",
+      "startedMonotonicMs": 2173.513157,
+      "requestRecordSHA256": "1e2c34c9c562a053631e503bba29388b7d003d7fb7c8389129826041d1d8f2dd",
+      "responseRecorded": true,
+      "response": {
+        "status": 201,
+        "completedAt": "2026-10-11T14:15:13.127Z",
+        "bodyBytes": 215,
+        "bodySHA256": "7099fb13579d7c655c5b434c791422ad0503f82e23e31ab7dcfcb2ac80a5f738"
+      },
+      "responseRecordSHA256": "bc07206a26b28612358a3df93baacaffd9b81f7059e7c6321b3c7c6bb2847458"
+    },
+    {
+      "id": "005",
+      "method": "POST",
+      "path": "/v1/product/projects/p-8fad3ff9/brief",
+      "startedAt": "2026-10-11T14:15:13.128Z",
+      "startedMonotonicMs": 2194.967911,
+      "requestRecordSHA256": "8cfbb0ebd7f69f242863a0fbdaf8246350dbe3a861b94bb0d1837ff2ca8b9b7e",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.172Z",
+        "bodyBytes": 355,
+        "bodySHA256": "2fb79beb7c4536941dfc6f3bc61154749b85b4de51896e301112f64d4c652265"
+      },
+      "responseRecordSHA256": "b17bf347402539b78f714bada2f88e2e220dc2b43065e3fa83ea6ac0c12b90d9"
+    },
+    {
+      "id": "006",
+      "method": "GET",
+      "path": "/v1/product/projects/p-8fad3ff9/specification",
+      "startedAt": "2026-10-11T14:15:13.173Z",
+      "startedMonotonicMs": 2239.521603,
+      "requestRecordSHA256": "88c5c80efcff8a6ed77afe85f94366e2b60ed7de7e41e689af30d3247554711b",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.180Z",
+        "bodyBytes": 755,
+        "bodySHA256": "5c6ec6591f6706aa4ece5852ba8277b7b4a8ea400b9425777f4c114d5da0a818"
+      },
+      "responseRecordSHA256": "04e76242bc42c0ecf2e536b90a30a91e39f48293c093eefa9c2b96682f7e71ac"
+    },
+    {
+      "id": "007",
+      "method": "POST",
+      "path": "/v1/product/projects/p-8fad3ff9/specification",
+      "startedAt": "2026-10-11T14:15:13.181Z",
+      "startedMonotonicMs": 2247.881101,
+      "requestRecordSHA256": "1373e6cbdf56a380d0458cbcd3baa874948bb3dd7bb47993017f11b7e9dc6af8",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.197Z",
+        "bodyBytes": 755,
+        "bodySHA256": "371e787a113e83011565f525bbcabee0dcebf3bc620d935346d26fe50ee12da2"
+      },
+      "responseRecordSHA256": "9bac159f95f1909d9f5c714d5dfaae9adf1d37777c80d1fa9657a09597a0f971"
+    },
+    {
+      "id": "008",
+      "method": "POST",
+      "path": "/v1/product/projects/p-8fad3ff9/specification/approve",
+      "startedAt": "2026-10-11T14:15:13.198Z",
+      "startedMonotonicMs": 2264.171623,
+      "requestRecordSHA256": "48a1db13cddf3744c2f904181d57f610fb6d7a6fa27b00df04d63250a55462ad",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.209Z",
+        "bodyBytes": 822,
+        "bodySHA256": "63d32ce7fc434b80dadd8fda017268d9a7bad8a43b8fa175eccee056dbc88e0e"
+      },
+      "responseRecordSHA256": "a5531b27d227fa841a886d8bf1b421e50d1144b68c7ffc65df729e798c569ce5"
+    },
+    {
+      "id": "009",
+      "method": "GET",
+      "path": "/v1/product/projects/p-8fad3ff9/design-plan",
+      "startedAt": "2026-10-11T14:15:13.211Z",
+      "startedMonotonicMs": 2277.716952,
+      "requestRecordSHA256": "c989b3722a7eb8b472417089f3614707d6c7a27079a7c0dac33a45115ac4f2ff",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.218Z",
+        "bodyBytes": 254,
+        "bodySHA256": "cc6eda9f2cdf85c9d8616188a98bf55630133a2899ad642d2e132dee450029bc"
+      },
+      "responseRecordSHA256": "f1a29d3919930406781558dc2480b041801586dfe01d6f64f561611345bd2d81"
+    },
+    {
+      "id": "010",
+      "method": "POST",
+      "path": "/v1/product/projects/p-8fad3ff9/design-plan",
+      "startedAt": "2026-10-11T14:15:13.219Z",
+      "startedMonotonicMs": 2285.204466,
+      "requestRecordSHA256": "b3073bdcc9272b1299a04610355bd643d467febf61aea69fe07899d8a4ab8666",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.238Z",
+        "bodyBytes": 524,
+        "bodySHA256": "91120020ac66288077d8814fefc8a84c194fc975c31de983ed0f3b5eefd00d82"
+      },
+      "responseRecordSHA256": "6fbf53ed671a83e01035a3d71cc9b882be9ded4253b3ce71042b9a4461a961a9"
+    },
+    {
+      "id": "011",
+      "method": "POST",
+      "path": "/v1/product/projects/p-8fad3ff9/design-plan/approve",
+      "startedAt": "2026-10-11T14:15:13.239Z",
+      "startedMonotonicMs": 2305.480734,
+      "requestRecordSHA256": "bdc10eb27345a9432d297d4b6c3cfae44f3730d65f5a19608d100d37ebb228ca",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.257Z",
+        "bodyBytes": 591,
+        "bodySHA256": "9c2f58ffb30a2a149d970232011b14e586d3dd8738451d9de5837f86a5dd14ee"
+      },
+      "responseRecordSHA256": "57d1de007b0ff060569327bb9d98246ebc95d93586a90606ca48355d724aa227"
+    },
+    {
+      "id": "012",
+      "method": "GET",
+      "path": "/v1/product/projects/p-8fad3ff9/git",
+      "startedAt": "2026-10-11T14:15:13.359Z",
+      "startedMonotonicMs": 2425.499749,
+      "requestRecordSHA256": "edbdb2627058730ccad2601890e6f95e1140a44709b3aa6573685432ae8a3671",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.488Z",
+        "bodyBytes": 14066,
+        "bodySHA256": "71df11af10249c89cf85d6dc02fac5f2418108a5ad9b4a62739fcc261cb991d0"
+      },
+      "responseRecordSHA256": "c54e1ce0fa9cad091698614919e84da6b030cef87571529b6c6e69050e0357c8"
+    },
+    {
+      "id": "013",
+      "method": "POST",
+      "path": "/v1/product/projects/p-8fad3ff9/git/commit",
+      "startedAt": "2026-10-11T14:15:13.488Z",
+      "startedMonotonicMs": 2554.795059,
+      "requestRecordSHA256": "1ef87fd7b214d8aebad47fae6278e687d3c77cecd51ad757ed69ade84aef96e5",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.751Z",
+        "bodyBytes": 116,
+        "bodySHA256": "4e8f465946281080cd0c70e122e8297d1affbfe01586ea7c6d5285de217eacda"
+      },
+      "responseRecordSHA256": "3eeb885d566083bbeacb695cfb0749379bd5d1ddc5c7f5d7d9c2bcadb6b39931"
+    },
+    {
+      "id": "014",
+      "method": "GET",
+      "path": "/v1/product/projects/p-8fad3ff9/git",
+      "startedAt": "2026-10-11T14:15:13.752Z",
+      "startedMonotonicMs": 2818.200476,
+      "requestRecordSHA256": "406e86b412d93a5f6bd1cb7c07380722516cbd5027e2ae61ad1b9072705f75cc",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.835Z",
+        "bodyBytes": 254,
+        "bodySHA256": "67780f8d895eddfc3e5a1dd7dbd823eeb2bc9149fbcfedd79ac875931f42fb96"
+      },
+      "responseRecordSHA256": "e9aa1ea281cde2206c4ca9de269db3a122a75db4ea3ec5c96bdaa1906b44a86a"
+    },
+    {
+      "id": "015",
+      "method": "GET",
+      "path": "/v1/product/projects/p-8fad3ff9/releases",
+      "startedAt": "2026-10-11T14:15:13.835Z",
+      "startedMonotonicMs": 2901.431854,
+      "requestRecordSHA256": "c7a22d31416c4f3cd892594d8d0ffa179a8b11e655bf109750c004d69d5f2b11",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.837Z",
+        "bodyBytes": 16,
+        "bodySHA256": "cd27a311547cb133fd80fc525818d4495f01a03f2a52c99c203034f0d6429baa"
+      },
+      "responseRecordSHA256": "39124af2755e1067bdb4d6897c9ea8359c60c891b3f49ad040142f85d90a7c86"
+    },
+    {
+      "id": "016",
+      "method": "GET",
+      "path": "/v1/product/swarm-scheduler",
+      "startedAt": "2026-10-11T14:15:13.838Z",
+      "startedMonotonicMs": 2904.300317,
+      "requestRecordSHA256": "2f028b147eee9d189b9602552c5f17d043539b985aa69e49d886374093549ada",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.841Z",
+        "bodyBytes": 1877,
+        "bodySHA256": "00965438a6a73b20841aa6cc1b7417b79e6ae058771e938c22f54ff8de4305f9"
+      },
+      "responseRecordSHA256": "d8ec626159f281b1f76ce4806ea4c865918c9950f3ff84af4874e3ece53251bb"
+    },
+    {
+      "id": "017",
+      "method": "POST",
+      "path": "/v1/product/projects/p-8fad3ff9/releases",
+      "startedAt": "2026-10-11T14:15:13.841Z",
+      "startedMonotonicMs": 2907.662624,
+      "requestRecordSHA256": "1a0463782e450880366299b7e3f6d6c9fc4c4e5659cdc37b5c02749d92912429",
+      "responseRecorded": false
+    },
+    {
+      "id": "018",
+      "method": "GET",
+      "path": "/v1/product/projects/p-8fad3ff9/releases",
+      "startedAt": "2026-10-11T14:15:13.842Z",
+      "startedMonotonicMs": 2908.630172,
+      "requestRecordSHA256": "50c407d1a67d2a645ea5d5374d8a73d61e1848a981559ae692d72eb6a61cbcae",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:13.845Z",
+        "bodyBytes": 16,
+        "bodySHA256": "cd27a311547cb133fd80fc525818d4495f01a03f2a52c99c203034f0d6429baa"
+      },
+      "responseRecordSHA256": "53b66699b8c77183c94267e071064086043aa9e48ab0acf5ebd27cfdebbbaa06"
+    },
+    {
+      "id": "019",
+      "method": "GET",
+      "path": "/v1/product/projects/p-8fad3ff9/releases",
+      "startedAt": "2026-10-11T14:15:14.345Z",
+      "startedMonotonicMs": 3412.060774,
+      "requestRecordSHA256": "d692b8e7b40a8d5b956be0f8d4d2959cc90f8f6eb8a16f1f2f445fec118e8a56",
+      "responseRecorded": true,
+      "response": {
+        "status": 200,
+        "completedAt": "2026-10-11T14:15:14.349Z",
+        "bodyBytes": 400,
+        "bodySHA256": "ac815b29e3239beda529cf3ac007820ff7ee4e5a547120a0123691a7c353bd85"
+      },
+      "responseRecordSHA256": "9cef17fe9c354e6924425c6efd3c9a581099e8b6b74115937da14ce7f2af4240"
+    }
+  ]
+}

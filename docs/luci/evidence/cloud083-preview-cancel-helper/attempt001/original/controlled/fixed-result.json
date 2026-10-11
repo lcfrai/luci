@@ -1,0 +1,11 @@
+{
+  "exitCode": 1,
+  "totals": {
+    "tests": 54,
+    "pass": 53,
+    "fail": 1,
+    "skipped": 0
+  },
+  "scope": "Inert exact-handler transport/TAR/identity/mutation guards; no Docker/app/runtime",
+  "failureClassification": "One test-only expected-message mismatch: oversized archive correctly refused by outer input bound"
+}

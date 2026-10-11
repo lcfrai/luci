@@ -1,0 +1,13 @@
+{
+  "finishedAt": "2026-10-11T14:15:28.923549+00:00",
+  "elapsedSeconds": 17.998770448029973,
+  "exitCode": 1,
+  "helperPID": 2771420,
+  "externalTimeout": false,
+  "forcedHelperKill": false,
+  "helperSHA256Unchanged": true,
+  "configSHA256Unchanged": true,
+  "allPreparedFilesUnchanged": true,
+  "independentClosureStillRequired": true,
+  "unknownLeaseMustRemainConservative": true
+}

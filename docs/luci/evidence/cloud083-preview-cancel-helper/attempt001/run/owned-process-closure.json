@@ -1,0 +1,14 @@
+{
+  "scanError": false,
+  "processes": [
+    {
+      "pid": 2771547,
+      "parentPID": 2771420,
+      "startTicks": "47418169",
+      "state": "Z",
+      "closure": "exact-process-gone",
+      "current": null
+    }
+  ],
+  "scope": "Exact controller and descendants observed by PID/start identity; short-lived children may exit between samples. Zombies remain still-present."
+}

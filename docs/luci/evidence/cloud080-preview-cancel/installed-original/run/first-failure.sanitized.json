@@ -1,0 +1,29 @@
+{
+  "scope": "Allowlisted projection from the original private inspection and command journal; raw private errors and inspection omitted.",
+  "firstFailureStage": "build-stage",
+  "firstFailureSHA256": "45e1c8eb1a5968483a61dc9302e2c44d95de5b3c7972b5b58d17b33855800c7d",
+  "containerID": "649369e7c13e8c7352388e79f194a68dc06daa7c7e9a13e9e04de4688f595b19",
+  "runningAtInspection": true,
+  "logDriver": "none",
+  "configuredLimits": {
+    "Memory": 1073741824,
+    "MemorySwap": 1073741824,
+    "CpuQuota": 100000,
+    "CpuPeriod": 100000
+  },
+  "readOnlyCommand": {
+    "executable": "docker",
+    "arguments": [
+      "--host",
+      "unix:///var/run/docker.sock",
+      "logs",
+      "--tail",
+      "5",
+      "649369e7c13e8c7352388e79f194a68dc06daa7c7e9a13e9e04de4688f595b19"
+    ],
+    "exitCode": 1,
+    "signal": null
+  },
+  "approvedErrorLiteral": "Error response from daemon: configured logging driver does not support reading",
+  "interpretation": "Classic builder LogConfig none prevented the helper from reading RUN proof with docker logs. The helper failed before HTTP Cancel. No proof of cancellation behavior, cgroup readings from inside RUN, or product shutdown failure follows."
+}

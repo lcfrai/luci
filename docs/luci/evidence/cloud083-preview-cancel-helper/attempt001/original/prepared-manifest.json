@@ -1,0 +1,21 @@
+{
+  "id": "CLOUD-083",
+  "preparedAt": "2026-10-11T14:14:45.215246+00:00",
+  "scope": "Frozen external prospective helper; no runtime result implied",
+  "originalHelperSHA256": "c6a2dd7b22d8361e785fea9db6527374159b212b0da54feba0699c5d8b55aa5e",
+  "files": {
+    "cancel-preview.mjs": "5d9429365073ed8d00d1778b619012adf338b990324481814d7637468c2e9ac6",
+    "proof-archive.mjs": "5dc19d3cf9c3e4e1867a885ee87fed20aebf83946d462c9cdfbc85ebb0db0fb1",
+    "proof-archive.py": "c21cae776a9648f5377683b198518957382512e65a922ebac13226d1c8c6bf39",
+    "fixture/hold.mjs": "fc7e2219027e893f3ee5b351ed78456f38e890521e5e6aae7126e72dddfc951a",
+    "fixture/Dockerfile.template": "7cad1a10ef28b8d239511124fef597cb65fccec1934ea651e3f7306fb3274c83",
+    "run-installed.py": "a89f3f75089cf9ebfd50c43d8bee1beb6f0aad2201d09ffd6f09140af827301b",
+    "preflight.py": "e0e824523294a94da327a5e5b7340ce26b9e0e924436ba227903defe288eedcf",
+    "run-config-prepared.json": "ac4d6f5cbc88660f0d3dd22a674c95ed3016b925d9208c48fe88f5b2ff959e12",
+    "caps.json": "5cce8a14f13ca6f7b0f760b69b403a7bef89d0e2c6857a8241a589f5379a3674",
+    "archive-oracles.test.mjs": "a8b54329be48dccc5075bbc1cde53ebafb52bc4c036ecb0eb6296b81e68be7b3",
+    "helper-oracles.test.mjs": "d1b0daf6d9f2d58466ca7b58ab98e87f669af96105de4dd56edb2ce9659e7cfc",
+    "ancestor/cancel-preview-original.mjs": "c6a2dd7b22d8361e785fea9db6527374159b212b0da54feba0699c5d8b55aa5e",
+    "README.md": "5b298458ed1e2506fc5c1e5f7b915299b44e50cabc3f4c15f80dcc621984f177"
+  }
+}

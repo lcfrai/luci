@@ -1,0 +1,154 @@
+TAP version 13
+# Subtest: accepts exact fresh stage fixture without treating absent classic product labels as cleanup authority
+ok 1 - accepts exact fresh stage fixture without treating absent classic product labels as cleanup authority
+  ---
+  duration_ms: 10.218172
+  type: 'test'
+  ...
+# Subtest: stage guard rejects foreignNonce
+ok 2 - stage guard rejects foreignNonce
+  ---
+  duration_ms: 2.966792
+  type: 'test'
+  ...
+# Subtest: stage guard rejects foreignProject
+ok 3 - stage guard rejects foreignProject
+  ---
+  duration_ms: 0.957243
+  type: 'test'
+  ...
+# Subtest: stage guard rejects wrongImmutableID
+ok 4 - stage guard rejects wrongImmutableID
+  ---
+  duration_ms: 0.691092
+  type: 'test'
+  ...
+# Subtest: stage guard rejects stopped
+ok 5 - stage guard rejects stopped
+  ---
+  duration_ms: 1.612
+  type: 'test'
+  ...
+# Subtest: stage guard rejects wrongCommand
+ok 6 - stage guard rejects wrongCommand
+  ---
+  duration_ms: 1.529706
+  type: 'test'
+  ...
+# Subtest: stage guard rejects unlimitedMemory
+ok 7 - stage guard rejects unlimitedMemory
+  ---
+  duration_ms: 1.048921
+  type: 'test'
+  ...
+# Subtest: stage guard rejects enabledSwap
+ok 8 - stage guard rejects enabledSwap
+  ---
+  duration_ms: 5.255842
+  type: 'test'
+  ...
+# Subtest: stage guard rejects wrongCPU
+ok 9 - stage guard rejects wrongCPU
+  ---
+  duration_ms: 4.035954
+  type: 'test'
+  ...
+# Subtest: stage guard rejects mount
+ok 10 - stage guard rejects mount
+  ---
+  duration_ms: 1.517668
+  type: 'test'
+  ...
+# Subtest: stage guard rejects foreignPresentProductLabel
+ok 11 - stage guard rejects foreignPresentProductLabel
+  ---
+  duration_ms: 0.448446
+  type: 'test'
+  ...
+# Subtest: stage guard rejects oldContainer
+ok 12 - stage guard rejects oldContainer
+  ---
+  duration_ms: 9.503165
+  type: 'test'
+  ...
+# Subtest: source-bound RUN proof with actual declared limits passes
+ok 13 - source-bound RUN proof with actual declared limits passes
+  ---
+  duration_ms: 0.589498
+  type: 'test'
+  ...
+# Subtest: RUN proof rejects stale
+ok 14 - RUN proof rejects stale
+  ---
+  duration_ms: 0.472892
+  type: 'test'
+  ...
+# Subtest: RUN proof rejects foreignNonce
+ok 15 - RUN proof rejects foreignNonce
+  ---
+  duration_ms: 0.340093
+  type: 'test'
+  ...
+# Subtest: RUN proof rejects differentSource
+ok 16 - RUN proof rejects differentSource
+  ---
+  duration_ms: 0.576509
+  type: 'test'
+  ...
+# Subtest: RUN proof rejects unboundedHold
+ok 17 - RUN proof rejects unboundedHold
+  ---
+  duration_ms: 0.21884
+  type: 'test'
+  ...
+# Subtest: RUN proof rejects missingCPU
+ok 18 - RUN proof rejects missingCPU
+  ---
+  duration_ms: 0.211889
+  type: 'test'
+  ...
+# Subtest: RUN proof rejects unlimitedMemory
+ok 19 - RUN proof rejects unlimitedMemory
+  ---
+  duration_ms: 0.205831
+  type: 'test'
+  ...
+# Subtest: one exact release POST and one exact cancel are permitted; replay is refused
+ok 20 - one exact release POST and one exact cancel are permitted; replay is refused
+  ---
+  duration_ms: 0.526985
+  type: 'test'
+  ...
+# Subtest: request guard rejects foreign-project
+ok 21 - request guard rejects foreign-project
+  ---
+  duration_ms: 0.47789
+  type: 'test'
+  ...
+# Subtest: request guard rejects Stop-assist
+ok 22 - request guard rejects Stop-assist
+  ---
+  duration_ms: 0.371991
+  type: 'test'
+  ...
+# Subtest: request guard rejects replacement-restart
+ok 23 - request guard rejects replacement-restart
+  ---
+  duration_ms: 0.550961
+  type: 'test'
+  ...
+# Subtest: request guard rejects query
+ok 24 - request guard rejects query
+  ---
+  duration_ms: 0.412512
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 311.714247

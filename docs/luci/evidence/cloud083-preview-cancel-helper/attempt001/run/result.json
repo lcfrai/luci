@@ -1,0 +1,123 @@
+{
+  "passed": false,
+  "scenarioPassed": false,
+  "scope": "One handwritten real warm-base Docker RUN cancellation through installed HTTP APIs; no browser, model, cold pull, serving, Windows or full-product proof",
+  "startedAt": "2026-10-11T14:15:11.121Z",
+  "run": "/workspace/.luci-tools/cloud083-installed-cancel/runs/cancel-1791728111119-b08a77ca-70f2-4483-ab3d-dd680b3ab246",
+  "checks": [],
+  "cleanup": {
+    "manualDockerMutation": false,
+    "manualLedgerMutation": false,
+    "stopAssist": false,
+    "failures": [
+      {
+        "at": "2026-10-11T14:15:18.587Z",
+        "stage": "build-stage",
+        "messageStackBytes": 1131,
+        "sha256": "6f881f80740bfa236c8df4caca3227580ebf1f8e88c8ea2b28ec321f25cd7d15",
+        "privateRetention": "retained",
+        "retainedBytes": 1131,
+        "truncated": false,
+        "retainedSHA256": "6f881f80740bfa236c8df4caca3227580ebf1f8e88c8ea2b28ec321f25cd7d15"
+      },
+      {
+        "at": "2026-10-11T14:15:28.875Z",
+        "stage": "final-conservative-status",
+        "messageStackBytes": 242,
+        "sha256": "bf830cf606be87ba8ed1ca862895394a22e0282c4fc39ebbdce9fc00c145a1ed",
+        "privateRetention": "not-attempted"
+      }
+    ],
+    "privateStateRetained": true,
+    "unknownLeaseRetained": true,
+    "controllerExitObserved": true,
+    "startRequestAcknowledged": false,
+    "cancelRequestSent": false
+  },
+  "pendingMutations": [
+    {
+      "id": "017",
+      "method": "POST",
+      "path": "/v1/product/projects/p-8fad3ff9/releases",
+      "startedAt": "2026-10-11T14:15:13.841Z",
+      "startedMonotonicMs": 2907.662624
+    }
+  ],
+  "config": {
+    "repository": "/workspace/.luci-tools/package-preview-cancel/source",
+    "sourceCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+    "repositoryCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+    "binary": "/workspace/.luci-tools/package-preview-cancel/installed/luci",
+    "binarySHA256": "7a370a2a67e836564f053b4991d8ee5b30acedfbeba8ea9f9e5ef41c533408a2",
+    "provenanceFile": "/workspace/.luci-tools/package-preview-cancel/verification/verification.json",
+    "provenanceSHA256": "f68791b2bf375fe201b0627bd78a803927375d1a5550c7e31f019d833554754a",
+    "packageIdentity": "778a3f34b2a7a181e7dec7bfdfddd909c5f78b385f501d1510ac53b02b0383c3",
+    "webDir": "/workspace/.luci-tools/package-preview-cancel/installed/web",
+    "evidenceParent": "/workspace/.luci-tools/cloud083-installed-cancel/runs",
+    "dockerHost": "unix:///var/run/docker.sock",
+    "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+    "engineDriver": "vfs",
+    "mode": "live-preview-cancel",
+    "baseImageID": "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+    "acknowledgeFixtureMutation": true,
+    "acknowledgeWarmBaseOnly": true,
+    "acknowledgeUnknownLeaseRetention": true,
+    "expectedImageIDs": [
+      "sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4",
+      "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+      "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+      "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351",
+      "sha256:b668fcfeda1506850c126b3a8579b7f0e7059392c27e07f8403950039bf66ccc",
+      "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5",
+      "sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b",
+      "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+      "sha256:f347a332372410d3d98f0a0667647e52fd02f97b4181252cc7bc371ee5bfdeda"
+    ]
+  },
+  "helperSHA256": "5d9429365073ed8d00d1778b619012adf338b990324481814d7637468c2e9ac6",
+  "fixtureSHA256": {
+    "hold": "fc7e2219027e893f3ee5b351ed78456f38e890521e5e6aae7126e72dddfc951a",
+    "dockerfile": "7cad1a10ef28b8d239511124fef597cb65fccec1934ea651e3f7306fb3274c83"
+  },
+  "preSpawnFreeBytes": 4071432192,
+  "ancestorPreSpawnFloorBytes": 3890600000,
+  "controllerPID": 2771547,
+  "instanceID": "3653b1d7-66e2-448c-8b74-9edf298c743f",
+  "projectId": "p-8fad3ff9",
+  "fixtureNonce": "68275bb1-0a6b-4771-90e1-19bc4a3be7c1",
+  "fixtureCommit": "ef1d64bea5da2c4a745642df08489dfbf30aed21",
+  "ledgerScope": "fresh fixture host ledger; does not account pending reservations in another controller state root",
+  "previewPostStartedUnixMs": 1791728113841,
+  "previewPostStartedMonotonicMs": 2907.635003,
+  "releaseId": "rel-56929df7cfe0753b3ecf68f9",
+  "controllerExit": {
+    "code": 0,
+    "signal": null
+  },
+  "requestCount": 19,
+  "mutationCounts": {
+    "POST /v1/auth/bootstrap": 1,
+    "POST /v1/setup/git/identity": 1,
+    "POST /v1/product/projects": 1,
+    "POST /v1/product/projects/p-8fad3ff9/brief": 1,
+    "POST /v1/product/projects/p-8fad3ff9/specification": 1,
+    "POST /v1/product/projects/p-8fad3ff9/specification/approve": 1,
+    "POST /v1/product/projects/p-8fad3ff9/design-plan": 1,
+    "POST /v1/product/projects/p-8fad3ff9/design-plan/approve": 1,
+    "POST /v1/product/projects/p-8fad3ff9/git/commit": 1,
+    "POST /v1/product/projects/p-8fad3ff9/releases": 1
+  },
+  "firstFailure": {
+    "at": "2026-10-11T14:15:18.587Z",
+    "stage": "build-stage",
+    "messageStackBytes": 1131,
+    "sha256": "6f881f80740bfa236c8df4caca3227580ebf1f8e88c8ea2b28ec321f25cd7d15",
+    "privateRetention": "retained",
+    "retainedBytes": 1131,
+    "truncated": false,
+    "retainedSHA256": "6f881f80740bfa236c8df4caca3227580ebf1f8e88c8ea2b28ec321f25cd7d15"
+  },
+  "logsTruncated": false,
+  "finishedAt": "2026-10-11T14:15:28.875Z"
+}

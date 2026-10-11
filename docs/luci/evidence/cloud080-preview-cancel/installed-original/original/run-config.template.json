@@ -1,0 +1,20 @@
+{
+  "repository": "/workspace/.luci-tools/package-preview-cancel/source",
+  "sourceCommit": "FILL_NEW_PUBLISHED_PRODUCT_COMMIT",
+  "repositoryCommit": "FILL_VERIFIED_SOURCE_CHECKOUT_COMMIT",
+  "binary": "/workspace/.luci-tools/package-preview-cancel/installed/luci",
+  "binarySHA256": "FILL_VERIFIED_INSTALLED_BINARY_SHA256",
+  "provenanceFile": "/workspace/.luci-tools/package-preview-cancel/verification/verification.json",
+  "provenanceSHA256": "FILL_VERIFICATION_RECEIPT_SHA256",
+  "packageIdentity": "FILL_VERIFIED_PACKAGE_IDENTITY",
+  "webDir": "/workspace/.luci-tools/package-preview-cancel/installed/web",
+  "evidenceParent": "/workspace/.luci-tools/cloud080-installed-cancel/runs",
+  "dockerHost": "unix:///var/run/docker.sock",
+  "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "engineDriver": "vfs",
+  "mode": "live-preview-cancel",
+  "baseImageID": "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+  "acknowledgeFixtureMutation": false,
+  "acknowledgeWarmBaseOnly": false,
+  "acknowledgeUnknownLeaseRetention": false
+}

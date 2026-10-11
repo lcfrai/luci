@@ -1,0 +1,57 @@
+✖ accepts exact fresh stage fixture without treating absent classic product labels as cleanup authority (9.866406ms)
+✔ stage guard rejects foreignNonce (6.562154ms)
+✔ stage guard rejects foreignProject (6.025985ms)
+✔ stage guard rejects wrongImmutableID (4.733857ms)
+✔ stage guard rejects stopped (6.788875ms)
+✔ stage guard rejects wrongCommand (9.671382ms)
+✔ stage guard rejects unlimitedMemory (3.698666ms)
+✔ stage guard rejects enabledSwap (2.71915ms)
+✔ stage guard rejects wrongCPU (3.191131ms)
+✔ stage guard rejects mount (4.049365ms)
+✔ stage guard rejects foreignPresentProductLabel (3.640038ms)
+✔ stage guard rejects oldContainer (3.178632ms)
+✔ source-bound RUN proof with actual declared limits passes (4.81892ms)
+✔ RUN proof rejects stale (3.439896ms)
+✔ RUN proof rejects foreignNonce (3.443151ms)
+✔ RUN proof rejects differentSource (3.625827ms)
+✔ RUN proof rejects unboundedHold (2.922096ms)
+✔ RUN proof rejects missingCPU (4.342001ms)
+✔ RUN proof rejects unlimitedMemory (2.549324ms)
+✔ one exact release POST and one exact cancel are permitted; replay is refused (4.972266ms)
+✔ request guard rejects foreign-project (3.264582ms)
+✔ request guard rejects Stop-assist (4.027192ms)
+✔ request guard rejects replacement-restart (2.650366ms)
+✔ request guard rejects query (3.195879ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 23
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 368.874846
+
+✖ failing tests:
+
+test at .luci-tools/cloud080-installed-cancel/helper-oracles.test.mjs:17:1
+✖ accepts exact fresh stage fixture without treating absent classic product labels as cleanup authority (9.866406ms)
+  AssertionError [ERR_ASSERTION]: Values have same structure but are not reference-equal:
+  
+  [
+    'node',
+    '/cancel/hold.mjs'
+  ]
+  
+      at verifyStageContainer (evalmachine.<anonymous>:4:9)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud080-installed-cancel/helper-oracles.test.mjs:18:56)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'node', '/cancel/hold.mjs' ],
+    expected: [ 'node', '/cancel/hold.mjs' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

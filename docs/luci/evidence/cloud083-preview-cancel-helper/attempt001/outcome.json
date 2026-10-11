@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "runID": "cancel-1791728111119-b08a77ca-70f2-4483-ab3d-dd680b3ab246",
+  "passed": false,
+  "scenarioPassed": false,
+  "scope": "C083 installed attempt001 failed before archive observation and HTTP Cancel. Capsule preparation used only filesystem reads, copying, hashing and derived writes; no application, tests, compiler, helper, Docker or HTTP was executed.",
+  "noHTTPCancelSent": true,
+  "startRequestUnconfirmed": true,
+  "pendingMutationCount": 1,
+  "failureClassification": "strict exact RUN guard observed attributable classic LABEL metadata intermediate in removing state, never started, PID 0",
+  "actualCommandSHA256": "fc53a98cb88037f13c38752b02b975099d0bc2c2c578e025467a7d19ffee1c05",
+  "archiveReadReached": false,
+  "archiveDaemonCompatibilityProven": false,
+  "observedControllerExit": {
+    "code": 0,
+    "signal": null
+  },
+  "controllerEscalationAttempted": false,
+  "independentClosure": {
+    "status": "complete",
+    "sourceSHA256": "12e5d3371653863810a438c006d8b7dafa2d0d792a75c611c5603c9ce29a7fc2",
+    "exactControllerAbsent": true,
+    "exactObservedContainersAbsent": true,
+    "wholeHostAbsenceClaim": false,
+    "selectedDaemonImagesRetained": 11,
+    "selectedDaemonContainers": 0,
+    "selectedDaemonVolumes": 0,
+    "currentPrivateFiles": 58,
+    "currentPrivateFilesUnchanged": true,
+    "priorPrivateFiles": 58,
+    "priorPrivateFilesUnchanged": true
+  },
+  "retainedBuildLease": {
+    "fixture": "c083-attempt001",
+    "ledgerSHA256": "f7b40f31221bb5b4bda6878f34dd71b6475bea15b055f1b5be779a302ec69ee4",
+    "id": "preview-build-0e13e03053a1eb9d7770a7b9",
+    "kind": "preview-build",
+    "state": "building",
+    "resources": {
+      "CPUMillis": 1000,
+      "MemoryMiB": 1024
+    },
+    "revision": 2,
+    "held": true
+  },
+  "capacityReleased": false,
+  "settlementConfirmed": false,
+  "controlledEvidence": {
+    "originalHandlerExitCode": 1,
+    "fixedBatch": {
+      "tests": 54,
+      "pass": 53,
+      "fail": 1
+    },
+    "failureClassification": "test-only error-message expectation mismatch; oversized input correctly refused",
+    "affectedCaseRerun": {
+      "selectedTests": 1,
+      "exitCode": 0
+    },
+    "fullBatchRerunClaim": false,
+    "daemonCompatibilityProven": false
+  },
+  "originalResultSHA256": "68dd93b8ddd4bf7e8f08b630ed5589d49bcdd3a69de701dbdcbcc5f5499d5151",
+  "originalHelperSHA256": "5d9429365073ed8d00d1778b619012adf338b990324481814d7637468c2e9ac6",
+  "originalConfigSHA256": "aee657fe564514824917b2457629b7e532ee54196c02a304f13f726367cfa35f",
+  "originalPreflightSHA256": "16653dc0807bbafd07efc8f7f314d863ddb0239ee2904897cddaa7aabced5d8e"
+}

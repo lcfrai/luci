@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud083-installed-cancel/cancel-preview.mjs",
+    "/workspace/.luci-tools/cloud083-installed-cancel/run-config-001.json"
+  ],
+  "startedAt": "2026-10-11T14:15:10.924929+00:00",
+  "helperSHA256": "5d9429365073ed8d00d1778b619012adf338b990324481814d7637468c2e9ac6",
+  "configSHA256": "aee657fe564514824917b2457629b7e532ee54196c02a304f13f726367cfa35f",
+  "preparedManifestSHA256": "fc2375290fbd160707c85690c9269d963bafa0712bd85e21d2089960675c2f34",
+  "scope": "One installed HTTP live preview cancellation; wrapper success is not Docker settlement or capacity release"
+}

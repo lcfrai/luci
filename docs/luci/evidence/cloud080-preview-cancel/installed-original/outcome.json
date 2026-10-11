@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "passed": false,
+  "scenarioPassed": false,
+  "runID": "cancel-1791727278123-5ac80fb0-871c-44fe-a402-d5533c4e0edd",
+  "scope": "Original failed installed cancellation attempt, frozen independently before any C083 retry. This capsule generation used filesystem reads and writes only; no helper, application, test, compiler, Docker or HTTP command was run.",
+  "noHTTPCancelSent": true,
+  "startRequestUnconfirmed": true,
+  "pendingMutationCount": 1,
+  "failure": "Classic builder LogConfig none made docker logs unsupported before HTTP Cancel.",
+  "controllerEscalationAttemptedAfterGraceSeconds": 10,
+  "observedControllerExit": {
+    "code": 0,
+    "signal": null
+  },
+  "SIGKILLTerminationProven": false,
+  "productShutdownFailureProven": false,
+  "independentClosure": {
+    "exactControllerAbsent": true,
+    "exactRUNContainerAbsent": true,
+    "heldLeaseState": "building",
+    "heldMemoryMiB": 1024,
+    "heldCPUMillis": 1000,
+    "privateFiles": 58,
+    "privateFilesUnchanged": true
+  },
+  "settlementConfirmed": false,
+  "capacityReleased": false,
+  "originalResultSHA256": "621db60fc076c8f44a2baa0586f0c13585a29d3fc5cf73b8adabb4d009f3bcac",
+  "originalHelperSHA256": "c6a2dd7b22d8361e785fea9db6527374159b212b0da54feba0699c5d8b55aa5e",
+  "originalConfigSHA256": "240d14a54c53395e2f32f11457ff6dcc82e8d6e98f73db906d60ff23e6f78672",
+  "originalPreflightSHA256": "a14198de74611cb0edcc1ad9a46ee689448c5c676027972ce7b8e8b3236229d3"
+}

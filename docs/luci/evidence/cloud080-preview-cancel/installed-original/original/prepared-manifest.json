@@ -1,0 +1,19 @@
+{
+  "scope": "Frozen runtime helper/fixture and preparation bytes; runtime config hashed separately by wrapper. Parent authorizes one run only.",
+  "files": {
+    "cancel-preview.mjs": "c6a2dd7b22d8361e785fea9db6527374159b212b0da54feba0699c5d8b55aa5e",
+    "fixture/hold.mjs": "c793f988af5cccd58b4be4099deb00650efc7dfe8976745dc89f9b780efcd747",
+    "fixture/Dockerfile.template": "7cad1a10ef28b8d239511124fef597cb65fccec1934ea651e3f7306fb3274c83",
+    "run-installed.py": "a89f3f75089cf9ebfd50c43d8bee1beb6f0aad2201d09ffd6f09140af827301b",
+    "preflight.py": "e2bd0186d20857accc7b8d23dac12b9cb1655ed5949ab4d2d44217db644bb4ac",
+    "run-config.template.json": "f4c1c20dd48eaa579956103324553872b0a230f50970a2b93511066bc43773cd",
+    "run-config-prepared.json": "6f91d294ce7b79bdbd45ef55b84859dea16cacefeb6567423a15e572f648a509",
+    "caps.json": "b5cecde10d5c51f2a785013352341f6c7ab8fac633bab4de14d46dc4d61fdd20",
+    "helper-oracles.test.mjs": "753cbfe2deca577d6cd10567f114662a415afad1207c24ca213c94c377be5e3f",
+    "helper-guard-test-source.mjs": "787003bff9855dd67f8a02d1d9ef7b7ee21410a58f0d9bc62287b9def87bbba9",
+    "preparation-checks.json": "ae697ccfaa9acafc0272df42b8ba38aeee2cd30cf20ef3340db180a76ab39f70",
+    "README.md": "48e0a0c95444a6e93df4dfc3dfc06bbda883e1ba0b6226ccb208d857fb5c18c6"
+  },
+  "ancestorHelperSHA256": "767db04a94975c16c773c4b4e8cf4bcbf43ac991550bfa9311cd01d5b27f659e",
+  "preflightSHA256": "a14198de74611cb0edcc1ad9a46ee689448c5c676027972ce7b8e8b3236229d3"
+}

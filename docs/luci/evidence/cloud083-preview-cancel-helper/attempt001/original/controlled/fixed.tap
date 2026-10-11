@@ -1,0 +1,100 @@
+✔ read-only endpoint pins full immutable ID and proof path, with bounded hashed metadata (68.994352ms)
+✔ proof not created yet returns null only on bounded404 (0.735929ms)
+✔ archive transport refuses foreignStatus (0.996001ms)
+✔ archive transport refuses declaredOversize (1.461282ms)
+✔ archive transport refuses invalidDeclaredSize (0.442106ms)
+✔ archive transport refuses materializedOversize (0.225229ms)
+✔ archive transport refuses transportError (0.389287ms)
+✔ archive transport refuses interrupted (0.554896ms)
+✔ parent cancellation interrupts held archive read (0.885735ms)
+✔ wrong immutable identity refuses before transport (1.419429ms)
+✔ observation retention failure refuses success (0.895219ms)
+✔ timestamp-only PAX metadata is accepted (34.215509ms)
+✔ in-memory parser refuses traversal without reflecting content (34.00668ms)
+✔ in-memory parser refuses absolute without reflecting content (34.009754ms)
+✔ in-memory parser refuses wrongName without reflecting content (34.082554ms)
+✔ in-memory parser refuses symlink without reflecting content (32.416613ms)
+✔ in-memory parser refuses hardlink without reflecting content (28.878421ms)
+✔ in-memory parser refuses duplicate without reflecting content (30.661278ms)
+✔ in-memory parser refuses oversizedMember without reflecting content (29.431134ms)
+✔ in-memory parser refuses malformedJSON without reflecting content (28.247936ms)
+✔ in-memory parser refuses malformedUTF8 without reflecting content (52.834654ms)
+✔ in-memory parser refuses arrayShape without reflecting content (35.572695ms)
+✔ in-memory parser refuses paxPath without reflecting content (31.433913ms)
+✔ in-memory parser refuses trailingData without reflecting content (28.584949ms)
+✔ in-memory parser refuses missingEnd without reflecting content (29.731662ms)
+✖ in-memory parser refuses archiveOversize without reflecting content (6.068846ms)
+✔ in-memory parser refuses checksum without reflecting content (30.224204ms)
+✔ actual RUN observation remains possible with unsupported container logs (32.653155ms)
+✔ shutdown allowance covers10sHTTP plus5sPreviewClose with bounded margin (0.555197ms)
+✔ accepts exact fresh stage fixture with all product ownership labels (6.658525ms)
+✔ stage guard rejects missingProductLabel (3.079871ms)
+✔ stage guard rejects foreignNonce (0.837011ms)
+✔ stage guard rejects foreignProject (0.640355ms)
+✔ stage guard rejects wrongImmutableID (0.786055ms)
+✔ stage guard rejects stopped (0.531191ms)
+✔ stage guard rejects wrongCommand (0.993828ms)
+✔ stage guard rejects unlimitedMemory (0.793646ms)
+✔ stage guard rejects enabledSwap (5.116361ms)
+✔ stage guard rejects wrongCPU (1.19442ms)
+✔ stage guard rejects mount (0.72346ms)
+✔ stage guard rejects foreignPresentProductLabel (0.407103ms)
+✔ stage guard rejects oldContainer (8.017923ms)
+✔ source-bound RUN proof with actual declared limits passes (0.571842ms)
+✔ RUN proof rejects stale (0.429818ms)
+✔ RUN proof rejects foreignNonce (0.191058ms)
+✔ RUN proof rejects differentSource (0.159861ms)
+✔ RUN proof rejects unboundedHold (0.43129ms)
+✔ RUN proof rejects missingCPU (0.228955ms)
+✔ RUN proof rejects unlimitedMemory (0.229406ms)
+✔ one exact release POST and one exact cancel are permitted; replay is refused (0.498031ms)
+✔ request guard rejects foreign-project (0.258429ms)
+✔ request guard rejects Stop-assist (0.097136ms)
+✔ request guard rejects replacement-restart (0.427384ms)
+✔ request guard rejects query (0.583369ms)
+ℹ tests 54
+ℹ suites 0
+ℹ pass 53
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 883.024455
+
+✖ failing tests:
+
+test at .luci-tools/cloud083-installed-cancel/archive-oracles.test.mjs:32:671
+✖ in-memory parser refuses archiveOversize without reflecting content (6.068846ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /bounded proof archive parser refused|false == true/. Input:
+  
+  'AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n' +
+    '\n' +
+    '  assert.ok(Buffer.isBuffer(bytes)&&bytes.length>0&&bytes.length<=archiveLimits.bytes)\n'
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud083-installed-cancel/archive-oracles.test.mjs:32:751)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+    
+      assert.ok(Buffer.isBuffer(bytes)&&bytes.length>0&&bytes.length<=archiveLimits.bytes)
+    
+        at parseProofArchive (file:///workspace/.luci-tools/cloud083-installed-cancel/proof-archive.mjs:40:9)
+        at file:///workspace/.luci-tools/cloud083-installed-cancel/archive-oracles.test.mjs:32:762
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud083-installed-cancel/archive-oracles.test.mjs:32:751)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+        at Test.postRun (node:internal/test_runner/test:1522:19)
+        at Test.run (node:internal/test_runner/test:1447:12),
+    expected: /bounded proof archive parser refused|false == true/,
+    operator: 'throws',
+    diff: 'simple'
+  }

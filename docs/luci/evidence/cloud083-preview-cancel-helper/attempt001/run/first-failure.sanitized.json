@@ -1,0 +1,18 @@
+{
+  "scope": "Classification, command digest and state only from private inspection; actual command and label values excluded.",
+  "firstFailureStage": "build-stage",
+  "firstFailureSHA256": "6f881f80740bfa236c8df4caca3227580ebf1f8e88c8ea2b28ec321f25cd7d15",
+  "commandClassification": "attributable classic LABEL metadata intermediate; not the required RUN command",
+  "commandSHA256": "fc53a98cb88037f13c38752b02b975099d0bc2c2c578e025467a7d19ffee1c05",
+  "commandHashEncoding": "UTF-8 compact JSON array, no trailing newline",
+  "state": {
+    "Status": "removing",
+    "Running": false,
+    "Pid": 0,
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+  },
+  "archiveReadReached": false,
+  "httpCancelSent": false,
+  "interpretation": "The strict exact RUN guard rejected a removing, never-started metadata intermediate before the archive read. Actual Docker archive compatibility and HTTP cancellation behavior remain unproved."
+}

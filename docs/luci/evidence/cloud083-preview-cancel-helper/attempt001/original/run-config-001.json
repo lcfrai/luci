@@ -1,0 +1,32 @@
+{
+  "repository": "/workspace/.luci-tools/package-preview-cancel/source",
+  "sourceCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+  "repositoryCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+  "binary": "/workspace/.luci-tools/package-preview-cancel/installed/luci",
+  "binarySHA256": "7a370a2a67e836564f053b4991d8ee5b30acedfbeba8ea9f9e5ef41c533408a2",
+  "provenanceFile": "/workspace/.luci-tools/package-preview-cancel/verification/verification.json",
+  "provenanceSHA256": "f68791b2bf375fe201b0627bd78a803927375d1a5550c7e31f019d833554754a",
+  "packageIdentity": "778a3f34b2a7a181e7dec7bfdfddd909c5f78b385f501d1510ac53b02b0383c3",
+  "webDir": "/workspace/.luci-tools/package-preview-cancel/installed/web",
+  "evidenceParent": "/workspace/.luci-tools/cloud083-installed-cancel/runs",
+  "dockerHost": "unix:///var/run/docker.sock",
+  "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "engineDriver": "vfs",
+  "mode": "live-preview-cancel",
+  "baseImageID": "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+  "acknowledgeFixtureMutation": true,
+  "acknowledgeWarmBaseOnly": true,
+  "acknowledgeUnknownLeaseRetention": true,
+  "expectedImageIDs": [
+    "sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4",
+    "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+    "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+    "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351",
+    "sha256:b668fcfeda1506850c126b3a8579b7f0e7059392c27e07f8403950039bf66ccc",
+    "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5",
+    "sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b",
+    "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+    "sha256:f347a332372410d3d98f0a0667647e52fd02f97b4181252cc7bc371ee5bfdeda"
+  ]
+}

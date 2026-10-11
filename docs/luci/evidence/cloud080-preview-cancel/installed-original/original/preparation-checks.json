@@ -1,0 +1,23 @@
+{
+  "scope": "Inert exact extracted guard checks, no app/HTTP/Docker; full workflow not mocked or executed by these tests.",
+  "original": {
+    "pass": 23,
+    "fail": 1,
+    "reason": "Test harness cross-realm array prototype mismatch; original source/output retained. Negative cases were not accepted as final evidence."
+  },
+  "final": {
+    "pass": 24,
+    "fail": 0,
+    "skip": 0,
+    "tapSHA256": "5f939531d692cd458284798d762bdcbadebddbef5e11658669812fa5300f4409",
+    "testSHA256": "753cbfe2deca577d6cd10567f114662a415afad1207c24ca213c94c377be5e3f",
+    "helperAtTestSHA256": "787003bff9855dd67f8a02d1d9ef7b7ee21410a58f0d9bc62287b9def87bbba9",
+    "testedGuardSHA256": {
+      "verifyStageContainer": "854adaa8987087a4e6caeca383bdbe13ebc09f41dbc5ec3e04bd809428bf4c87",
+      "verifyProof": "649a9d383eb0c8bdc6f542f4416dbe0be349af09b7c62c2ce2daa719d8341014",
+      "allowRequest": "a0c464b4003f0eb4ae20db516821eab7c86fc247da2ec8637ab79c78bcb9d29d"
+    },
+    "finalGuardBytesUnchanged": true
+  },
+  "finalHelperSHA256": "c6a2dd7b22d8361e785fea9db6527374159b212b0da54feba0699c5d8b55aa5e"
+}

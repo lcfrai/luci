@@ -1,0 +1,4 @@
+{
+  "exitCode": 1,
+  "scope": "Same exact handler-observation test against original logs-based helper; no Docker/app/runtime"
+}

@@ -1,0 +1,73 @@
+{
+  "observedAtUnixSeconds": 1791727500.2736971,
+  "scope": "Independent read-only exact owned process/container, selected daemon and retained fixture observations; no cleanup or lease mutation; not whole-machine process absence",
+  "sourceClosureSHA256": "98bc4f2630db1c5f82c265bfbd1df17dc48c2f4459e42eb948b130d0e2c538bd",
+  "runResultSHA256": "621db60fc076c8f44a2baa0586f0c13585a29d3fc5cf73b8adabb4d009f3bcac",
+  "wrapperResultSHA256": "238bfe4112cec8fad114d68d4abac1feb0b56b379ae7f5fb1099d6e7138b5ba1",
+  "controllerExit": {
+    "code": 0,
+    "signal": null
+  },
+  "helperEscalationFlag": true,
+  "escalationInterpretation": "The helper exceeded its 10-second grace and attempted escalation; observed code 0 / signal null does not prove SIGKILL termination or a product shutdown failure.",
+  "exactProcesses": [
+    {
+      "pid": 2769701,
+      "startTicks": "47334914",
+      "status": "absent",
+      "current": null
+    }
+  ],
+  "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "exactRunContainer": {
+    "id": "649369e7c13e8c7352388e79f194a68dc06daa7c7e9a13e9e04de4688f595b19",
+    "observedAbsent": true,
+    "inspectExitCode": 1
+  },
+  "selectedDaemonContainerCount": 0,
+  "selectedDaemonVolumeCount": 0,
+  "ledgerSHA256": "9244e0364b78d35586a74b38fb49de4321105f7370e31fa1f6c2143611d37460",
+  "heldPreviewProjection": [
+    {
+      "id": "preview-build-be6b957056fb49cba06e18f3",
+      "scope": "23dec65f06a21a038367cdb9a7c944dd8d8c90a7e25a8646a2f3ee2684984569",
+      "identity": {
+        "protocol": 1,
+        "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+        "instanceId": "cc5453a3-2a2b-4646-895a-b26a3b2a6bbd",
+        "allocationId": "preview-build-be6b957056fb49cba06e18f3",
+        "releaseId": "rel-150d3c4736f84cd200c0a223",
+        "scopeDigest": "23dec65f06a21a038367cdb9a7c944dd8d8c90a7e25a8646a2f3ee2684984569",
+        "projectId": "p-1b515817",
+        "sourceDigest": "ac7af053386edefc2fce7838c807c60c5d0862400c09965189769a2bc88d5dbf",
+        "commit": "baefb95ac9554c7cafa1e76edfb0849e1dc36692"
+      },
+      "kind": "preview-build",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      },
+      "createDiskBytes": 1408444448,
+      "state": "building",
+      "revision": 2,
+      "createdAt": "2026-10-11T14:01:21.657462296Z",
+      "updatedAt": "2026-10-11T14:01:21.69561849Z"
+    }
+  ],
+  "privateFiles": 58,
+  "privateFileManifestSHA256": "58ee6d1c6e133e28d75c8e68ef84ada4f001fbfc4c6a1e6724adba8b3fcb7e09",
+  "privateFilesUnchangedDuringReadOnlyClosure": true,
+  "noHTTPCancelSent": true,
+  "startRequestUnconfirmed": true,
+  "pendingMutations": [
+    {
+      "id": "017",
+      "method": "POST",
+      "path": "/v1/product/projects/p-1b515817/releases",
+      "startedAt": "2026-10-11T14:01:21.493Z",
+      "startedMonotonicMs": 3529.438742
+    }
+  ],
+  "zeroChargeClaim": false,
+  "originalFixturePreserved": true
+}

@@ -1,0 +1,46 @@
+{
+  "scope": "Read-only static package, current daemon inventory and storage. No application/build/container/ledger mutation.",
+  "at": "2026-10-11T13:56:13.424731+00:00",
+  "configurationSHA256": "6f91d294ce7b79bdbd45ef55b84859dea16cacefeb6567423a15e572f648a509",
+  "checks": {
+    "binaryMatches": true,
+    "provenanceMatches": true,
+    "packageIdentityMatches": true,
+    "sourceHEADMatches": true,
+    "sourceClean": true,
+    "engineMatches": true,
+    "baseMatches": true,
+    "baselineMatches": true,
+    "headroom": true
+  },
+  "refusals": [],
+  "daemon": {
+    "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+    "driver": "vfs",
+    "images": [
+      "sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4",
+      "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+      "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+      "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351",
+      "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5",
+      "sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b",
+      "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+      "sha256:f347a332372410d3d98f0a0667647e52fd02f97b4181252cc7bc371ee5bfdeda"
+    ],
+    "containerCount": 0,
+    "containerIDsSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "volumeCount": 0,
+    "volumeNamesSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "disk": {
+    "cachedBaseBytes": 167343632,
+    "productBuildDemandBytes": 3890600000,
+    "rootAvailableBytes": 3950399488,
+    "differenceBytes": 59799488,
+    "tmpAvailableBytes": 802725888,
+    "policyDiskReserveMiBUnchanged": 2048,
+    "scope": "The unchanged ancestor pre-spawn bound, not an atomic production admission proof. Product independently evaluates current capacity."
+  },
+  "passed": true
+}

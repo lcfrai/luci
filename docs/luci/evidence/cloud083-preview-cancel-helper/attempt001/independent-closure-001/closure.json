@@ -1,0 +1,111 @@
+{
+  "atUnix": 1791728253.2950513,
+  "scope": "Independent bounded read-only exact observed controller/container and selected daemon; no cleanup or lease mutation, no whole-machine process closure claim",
+  "runResultSHA256": "68dd93b8ddd4bf7e8f08b630ed5589d49bcdd3a69de701dbdcbcc5f5499d5151",
+  "wrapperResultSHA256": "42b391059af16e199fb96078d9f1da15e89018b884bd26eab8c2645593f01c00",
+  "controllerExit": {
+    "code": 0,
+    "signal": null
+  },
+  "controllerEscalationAttempted": false,
+  "processes": [
+    {
+      "pid": 2771547,
+      "startTicks": "47418169",
+      "status": "absent",
+      "current": null
+    }
+  ],
+  "exactContainers": [
+    {
+      "immutableID": "6835128545d6bf8cb799b53a51f430446f6891f6d6c61b3644cfc979705bc5f7",
+      "absent": true,
+      "exitCode": 1,
+      "stdoutBytes": 3,
+      "stdoutSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "stderrBytes": 88,
+      "stderrSHA256": "b007b1692af2e99b90b137e3613b561de353129b11b5199e57be923813acfd7b"
+    },
+    {
+      "immutableID": "649369e7c13e8c7352388e79f194a68dc06daa7c7e9a13e9e04de4688f595b19",
+      "absent": true,
+      "exitCode": 1,
+      "stdoutBytes": 3,
+      "stdoutSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "stderrBytes": 88,
+      "stderrSHA256": "ea0bc83fa910d75d05d906faea5ce6073e72421bd228314dd7da196693a2c4fc"
+    }
+  ],
+  "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "daemon": {
+    "containers": {
+      "count": 0,
+      "values": [],
+      "namesSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "volumes": {
+      "count": 0,
+      "values": null,
+      "namesSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "images": {
+      "count": 11,
+      "values": [
+        "sha256:165a204d1c7ac452ca78d8a895ec34b167e80363221d8cb0d87047fed972b2fc",
+        "sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4",
+        "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+        "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+        "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+        "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351",
+        "sha256:b668fcfeda1506850c126b3a8579b7f0e7059392c27e07f8403950039bf66ccc",
+        "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5",
+        "sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b",
+        "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+        "sha256:f347a332372410d3d98f0a0667647e52fd02f97b4181252cc7bc371ee5bfdeda"
+      ],
+      "namesSHA256": "7434bbfc15f53b6e6f11c2b96346f84a9e899fe4d978bf14941afe5aeac66a9c"
+    }
+  },
+  "leases": [
+    {
+      "fixture": "original",
+      "ledgerSHA256": "9244e0364b78d35586a74b38fb49de4321105f7370e31fa1f6c2143611d37460",
+      "id": "preview-build-be6b957056fb49cba06e18f3",
+      "kind": "preview-build",
+      "state": "building",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      },
+      "revision": 2,
+      "held": true
+    },
+    {
+      "fixture": "c083-attempt001",
+      "ledgerSHA256": "f7b40f31221bb5b4bda6878f34dd71b6475bea15b055f1b5be779a302ec69ee4",
+      "id": "preview-build-0e13e03053a1eb9d7770a7b9",
+      "kind": "preview-build",
+      "state": "building",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      },
+      "revision": 2,
+      "held": true
+    }
+  ],
+  "currentPrivateFiles": 58,
+  "currentPrivateFilesUnchanged": true,
+  "priorPrivateFiles": 58,
+  "prior58FilesMatchOriginalClosure": true,
+  "priorPrivateFilesUnchanged": true,
+  "noHTTPCancelSent": true,
+  "startRequestUnconfirmed": true,
+  "pendingMutationCount": 1,
+  "archiveGETObserved": false,
+  "scenarioPassed": false,
+  "overallPassed": false,
+  "zeroChargeClaim": false,
+  "manualDockerMutation": false,
+  "manualLedgerMutation": false
+}
