@@ -1,0 +1,121 @@
+{
+  "observedAt": "2026-10-11T13:36:21.228232+00:00",
+  "scope": "Read-only reinspection of the ten exact observed browser child PID/start identities and the reported Vite listener port only. No signals, no whole-machine closure claim.",
+  "identities": [
+    {
+      "expected": {
+        "pid": 2761347,
+        "ppid": 2761284,
+        "start": "47155546",
+        "state": "S"
+      },
+      "observed": null,
+      "status": "absent"
+    },
+    {
+      "expected": {
+        "pid": 2761368,
+        "ppid": 2761347,
+        "start": "47155560",
+        "state": "S"
+      },
+      "observed": {
+        "pid": 2761368,
+        "start": "47155560",
+        "ppid": 1,
+        "state": "Z"
+      },
+      "status": "zombie"
+    },
+    {
+      "expected": {
+        "pid": 2761369,
+        "ppid": 2761347,
+        "start": "47155560",
+        "state": "S"
+      },
+      "observed": {
+        "pid": 2761369,
+        "start": "47155560",
+        "ppid": 1,
+        "state": "Z"
+      },
+      "status": "zombie"
+    },
+    {
+      "expected": {
+        "pid": 2761374,
+        "ppid": 2761369,
+        "start": "47155571",
+        "state": "S"
+      },
+      "observed": null,
+      "status": "absent"
+    },
+    {
+      "expected": {
+        "pid": 2761395,
+        "ppid": 2761368,
+        "start": "47155575",
+        "state": "S"
+      },
+      "observed": null,
+      "status": "absent"
+    },
+    {
+      "expected": {
+        "pid": 2761410,
+        "ppid": 2761347,
+        "start": "47155625",
+        "state": "S"
+      },
+      "observed": null,
+      "status": "absent"
+    },
+    {
+      "expected": {
+        "pid": 2761414,
+        "ppid": 2761374,
+        "start": "47155629",
+        "state": "S"
+      },
+      "observed": null,
+      "status": "absent"
+    },
+    {
+      "expected": {
+        "pid": 2761441,
+        "ppid": 2761374,
+        "start": "47155649",
+        "state": "S"
+      },
+      "observed": null,
+      "status": "absent"
+    },
+    {
+      "expected": {
+        "pid": 2761447,
+        "ppid": 2761374,
+        "start": "47155653",
+        "state": "S"
+      },
+      "observed": null,
+      "status": "absent"
+    },
+    {
+      "expected": {
+        "pid": 2761448,
+        "ppid": 2761374,
+        "start": "47155653",
+        "state": "S"
+      },
+      "observed": null,
+      "status": "absent"
+    }
+  ],
+  "listenerPort": 44055,
+  "listeners": [],
+  "profileAbsent": true,
+  "liveExactIdentities": 0,
+  "zombies": 2
+}

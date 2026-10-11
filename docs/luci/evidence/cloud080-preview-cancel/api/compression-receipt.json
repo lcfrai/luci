@@ -1,0 +1,29 @@
+[
+  {
+    "path": "evidence/before-sources.json.gz",
+    "bytes": 47722,
+    "sha256": "c74eaf53c69f13bb2eccdc71fd853c3d54d7aba7be80375e055f64c987610d74",
+    "originalPath": "/workspace/.luci-tools/cloud080-preview-cancel-api/fixed-1/before-sources.json",
+    "uncompressedBytes": 134934,
+    "uncompressedSHA256": "a885a4f62b055e928e9af5494fca9998714023e2d444e19f162f98d2834fa01c",
+    "losslessVerified": true
+  },
+  {
+    "path": "evidence/after-sources.json.gz",
+    "bytes": 47722,
+    "sha256": "23a4e4f004ad6872a60b29dded6287ad373fc3ea1658304f75798abc117ee990",
+    "originalPath": "/workspace/.luci-tools/cloud080-preview-cancel-api/fixed-1/after-sources.json",
+    "uncompressedBytes": 134934,
+    "uncompressedSHA256": "35ee695333e8dfc1befba07dd7f8af14c628b20d4b3cbb856be061554a1f4e4c",
+    "losslessVerified": true
+  },
+  {
+    "path": "evidence/selected-source.tar.gz",
+    "bytes": 66484,
+    "sha256": "19fe2720dcfba23e93173f8afc4bb98096a007b9af5348d7e8181a6ac8afb553",
+    "uncompressedBytes": 266240,
+    "uncompressedSHA256": "9fd0a355e0304f1debb3ab2bcd97b9701fa4b91d9dc81bff2c54cbe5939ec602",
+    "losslessVerified": true,
+    "members": 14
+  }
+]

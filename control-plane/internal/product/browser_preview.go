@@ -7,6 +7,10 @@ import "github.com/lcfrai/luci/control-plane/internal/previewgateway"
 // their literal loopback ownership boundary.
 func (s *Server) browserRelease(row storedRelease) Release {
 	out := row.Release
+	s.mu.RLock()
+	operation := s.localPreviewOperations[row.ID]
+	out.CanCancel = row.Target == "local" && row.Revision != 0 && operation != nil && !operation.sealed && !operation.cancelRequested && operation.matches(row) && row.Status == "building"
+	s.mu.RUnlock()
 	// A retained handle permits offering cleanup; the explicit stop handler still
 	// verifies current labels and ownership before touching a container.
 	out.CanStop = row.Target == "local" && row.Status != "stopped" && previewContainerID.MatchString(row.ContainerID)

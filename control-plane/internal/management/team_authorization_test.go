@@ -182,3 +182,35 @@ func TestTeamRoutesFailClosedForUnknownMethodsBridgesAndNoncanonicalPaths(t *tes
 		})
 	}
 }
+
+func TestPreviewCancellationTeamRouteCapabilities(t *testing.T) {
+	path := "/v1/product/projects/p-one/releases/release-one/cancel"
+	for _, tc := range []struct {
+		name, method string
+		permissions  TeamPermissions
+		allow        bool
+	}{
+		{"current deploy without execute", "POST", PermissionsForTeam("editor", TeamGrants{Deploy: true}), true},
+		{"revoked deploy", "POST", PermissionsForTeam("editor", TeamGrants{}), false},
+		{"execute cannot substitute for deploy", "POST", PermissionsForTeam("editor", TeamGrants{Execute: true}), false},
+		{"viewer deploy cannot substitute for edit", "POST", PermissionsForTeam("viewer", TeamGrants{Deploy: true}), false},
+		{"missing read", "POST", TeamPermissions{Edit: true, Deploy: true}, false},
+		{"GET cannot cancel", "GET", PermissionsForTeam("editor", TeamGrants{Deploy: true}), false},
+		{"DELETE cannot cancel", "DELETE", PermissionsForTeam("editor", TeamGrants{Deploy: true}), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest(tc.method, path, strings.NewReader(`{"expectedRevision":7}`))
+			w := httptest.NewRecorder()
+			if got := authorizeTeamRoute(w, r, tc.permissions); got != tc.allow {
+				t.Fatalf("cancel allowed=%v want %v: %s", got, tc.allow, w.Body.String())
+			}
+			if tc.allow {
+				if scope, ok := ClassifyTeamRoute(r); !ok || scope != (TeamRouteScope{ProjectID: "p-one"}) {
+					t.Fatalf("cancel lost exact project ownership: scope=%+v known=%v", scope, ok)
+				}
+			} else if w.Code != http.StatusForbidden {
+				t.Fatalf("cancel denial status=%d", w.Code)
+			}
+		})
+	}
+}

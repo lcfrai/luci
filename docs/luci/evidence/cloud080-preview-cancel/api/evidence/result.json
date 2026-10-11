@@ -1,0 +1,50 @@
+{
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "-run",
+    "^TestPreviewHTTPCurrentCancellationReachesAPILockAndRetainsUnknownAcrossReopen$",
+    "./internal/api"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "startedAt": 1791725649.4810221,
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOPATH": "/tmp/luci-gopath",
+    "GOCACHE": "/tmp/luci-go-build-cache",
+    "GOTMPDIR": "/workspace/.t",
+    "TMPDIR": "/workspace/.t",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly"
+  },
+  "freeBefore": {
+    "root": 3813859328,
+    "tmp": 802725888
+  },
+  "runnerSHA256": "d5d5a4ef181326d2da8ad3b30ad07f2743b858c3acd49f13a3336a8cd0ddd12e",
+  "exitCode": 0,
+  "endedAt": 1791725678.467373,
+  "minimumFreeBytes": {
+    "root": 3682181120,
+    "tmp": 802725888
+  },
+  "stopped": null,
+  "testActions": {
+    "pass": 1
+  },
+  "failedTests": [],
+  "repositoryInputCount": 994,
+  "repositoryInputsStable": true,
+  "goWorkStable": true,
+  "eventsSHA256": "e26cc4ad3cb3400551617b952046bee758aefe78a44c56ab0f21a181a1fd271d",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "observedExecutedBinaries": {}
+}

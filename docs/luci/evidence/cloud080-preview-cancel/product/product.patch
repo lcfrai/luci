@@ -1,0 +1,954 @@
+--- a/control-plane/internal/product/server.go
++++ b/control-plane/internal/product/server.go
+@@ -106,6 +106,8 @@
+ 	agentLocal                      LocalAgentConfig
+ 	agentConnections                agentConnectionStore
+ 	activeLocalReleases             map[string]bool
++	localPreviewOperations          map[string]*localPreviewOperation
++	localPreviewsClosed             bool
+ 	deliveryBusy                    map[string]bool
+ 	importMu                        sync.Mutex
+ 	importNames                     map[string]bool
+--- a/control-plane/internal/product/releases.go
++++ b/control-plane/internal/product/releases.go
+@@ -25,6 +25,9 @@
+ )
+ 
+ type Release struct {
++	Revision                  uint64 `json:"revision,omitempty"`
++	CanCancel                 bool   `json:"canCancel,omitempty"`
++	CancelRequested           bool   `json:"cancelRequested,omitempty"`
+ 	CanStop                   bool   `json:"canStop"`
+ 	ID                        string `json:"id"`
+ 	ProjectID                 string `json:"projectId"`
+@@ -41,16 +44,18 @@
+ 
+ type storedRelease struct {
+ 	Release
+-	Revision    uint64                  `json:"revision,omitempty"`
+-	Runtime     *previewruntime.Outcome `json:"runtime,omitempty"`
+-	ContainerID string                  `json:"containerId"`
+-	Image       string                  `json:"image"`
++	CancelRevision uint64                  `json:"cancelRevision,omitempty"`
++	Runtime        *previewruntime.Outcome `json:"runtime,omitempty"`
++	ContainerID    string                  `json:"containerId"`
++	Image          string                  `json:"image"`
++	operation      *localPreviewOperation
+ }
+ 
+ func (s *Server) registerReleases(mux Registrar) {
+ 	mux.HandleFunc("GET /v1/product/projects/{id}/releases", s.listProjectReleases)
+ 	mux.HandleFunc("POST /v1/product/projects/{id}/releases", s.createLocalRelease)
+ 	mux.HandleFunc("POST /v1/product/projects/{id}/releases/{releaseId}/stop", s.stopLocalRelease)
++	mux.HandleFunc("POST /v1/product/projects/{id}/releases/{releaseId}/cancel", s.cancelLocalRelease)
+ }
+ 
+ func (s *Server) releaseFile(projectID string) string {
+@@ -91,6 +96,10 @@
+ func (s *Server) storeRelease(row storedRelease) error {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
++	return s.storeReleaseLocked(row)
++}
++
++func (s *Server) storeReleaseLocked(row storedRelease) error {
+ 	rows, err := s.readReleases(row.ProjectID)
+ 	if err != nil {
+ 		return err
+@@ -243,32 +252,22 @@
+ 	}
+ 	row.Revision = 1
+ 	row.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: p.ID, ReleaseID: row.ID, Target: row.Target, Commit: commit, SourceDigest: digest}, Phase: "reserved"}
+-	s.mu.Lock()
+-	if s.activeLocalReleases == nil {
+-		s.activeLocalReleases = make(map[string]bool)
+-	}
+-	s.activeLocalReleases[row.ID] = true
+-	s.mu.Unlock()
+-	defer func() {
+-		s.mu.Lock()
+-		delete(s.activeLocalReleases, row.ID)
+-		s.mu.Unlock()
+-	}()
+-	if err := s.storeRelease(row); err != nil {
++	operation, err := s.beginLocalPreview(&row, cancel)
++	if err != nil {
+ 		journeyError(w, 500, "release_reservation_failed", err.Error())
+ 		return
+ 	}
++	defer s.finishLocalPreview(row.ID, operation)
+ 	failed := func(message string) {
+ 		next := row
+ 		next.Status, next.URL, next.Message = "failed", "", redactPreviewConfiguration(message, configuration.Values)
+ 		if row.Runtime.ResourcesHeld {
+ 			next.Status = "unknown"
+ 		}
+-		if err := s.storeAdmittedRelease(row, next); err != nil {
++		if err := s.storeAdmittedRelease(row, &next); err != nil {
+ 			journeyError(w, 409, "release_record_changed", "The preview result could not replace its retained receipt.")
+ 			return
+ 		}
+-		next.Revision++
+ 		row = next
+ 		journeyJSON(w, 422, s.browserRelease(row))
+ 	}
+@@ -327,16 +326,23 @@
+ 		failed("The container did not answer a successful HTTP health check: " + err.Error())
+ 		return
+ 	}
+-	next := row
++	s.completeLocalPreview(w, &row, url)
++}
++
++func (s *Server) completeLocalPreview(w http.ResponseWriter, row *storedRelease, url string) {
++	next := *row
+ 	next.Status, next.URL = "ready", url
+ 	next.Message = "Local preview returned a successful HTTP response. Bound to this computer only."
+-	if err := s.storeAdmittedRelease(row, next); err != nil {
++	if err := s.storeAdmittedRelease(*row, &next); err != nil {
+ 		journeyError(w, 409, "release_record_changed", "The ready result could not replace its retained receipt.")
+ 		return
+ 	}
+-	next.Revision++
+-	row = next
+-	journeyJSON(w, 201, s.browserRelease(row))
++	*row = next
++	if row.Status != "ready" {
++		journeyJSON(w, 422, s.browserRelease(*row))
++		return
++	}
++	journeyJSON(w, 201, s.browserRelease(*row))
+ }
+ 
+ func localPreviewURL(mapping string) (string, error) {
+--- a/control-plane/internal/product/connections.go
++++ b/control-plane/internal/product/connections.go
+@@ -399,6 +399,9 @@
+ 	writeJSON(w, 200, map[string]string{"status": "stopped"})
+ }
+ func (s *Server) Close() {
++	previewCtx, previewCancel := context.WithTimeout(context.Background(), 5*time.Second)
++	s.closeLocalPreviews(previewCtx)
++	previewCancel()
+ 	s.closeRuntimeInstaller()
+ 	s.closeProjectChecks()
+ 	s.closeWorkspace()
+--- a/control-plane/internal/product/preview_runtime.go
++++ b/control-plane/internal/product/preview_runtime.go
+@@ -4,6 +4,7 @@
+ 	"context"
+ 	"errors"
+ 	"net/http"
++	"reflect"
+ 	"time"
+ 
+ 	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
+@@ -30,9 +31,12 @@
+ 	return v.SourceDigest, nil
+ }
+ 
+-func (s *Server) storeAdmittedRelease(before storedRelease, after storedRelease) error {
++func (s *Server) storeAdmittedRelease(before storedRelease, after *storedRelease) error {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
++	if before.operation != nil && (s.localPreviewOperations[before.ID] != before.operation || before.operation.sealed) {
++		return errors.New("the preview publisher is no longer owned by this controller")
++	}
+ 	rows, err := s.readReleases(before.ProjectID)
+ 	if err != nil {
+ 		return err
+@@ -41,12 +45,42 @@
+ 		if current.ID != before.ID {
+ 			continue
+ 		}
+-		if current.Revision != before.Revision || current.Commit != before.Commit || current.ConfigurationRevision != before.ConfigurationRevision || current.Runtime == nil || before.Runtime == nil || current.Runtime.Identity != before.Runtime.Identity {
++		if current.Commit != before.Commit || current.ConfigurationRevision != before.ConfigurationRevision || current.Runtime == nil || before.Runtime == nil || current.Runtime.Identity != before.Runtime.Identity {
+ 			return errors.New("the exact release receipt has a newer outcome")
+ 		}
+-		after.Revision = before.Revision + 1
+-		rows[i] = after
+-		return atomicJSON(s.releaseFile(before.ProjectID), rows)
++		if current.Revision != before.Revision {
++			// Cancel is the only concurrent writer whose intent the live producer
++			// may merge. Never absorb a newer runtime outcome or changed source.
++			expected := cancellationReceipt(before)
++			expected.operation = nil
++			if before.operation == nil || !before.operation.cancelRequested || !reflect.DeepEqual(current, expected) {
++				return errors.New("the exact release receipt has a newer outcome")
++			}
++		}
++		after.CancelRequested, after.CancelRevision = current.CancelRequested, current.CancelRevision
++		if before.operation != nil && before.operation.cancelRequested {
++			after.CancelRequested = true
++		}
++		if after.CancelRequested {
++			switch after.Status {
++			case "building":
++				after.Status, after.Message = "cancelling", previewCancellationMessage
++			case "ready", "failed", "unknown":
++				after.Status, after.URL, after.Message = "unknown", "", "Cancellation was requested. The preview outcome or cleanup is unconfirmed; its exact receipt and any reservation are retained. No replacement was started."
++				if after.Runtime != nil && !after.Runtime.ResourcesHeld && (after.Runtime.CleanupConfirmed || !after.Runtime.Retained()) {
++					after.Status, after.Message = "cancelled", "Preview preparation was cancelled with no remaining acknowledged resource demand. The release history is retained."
++				}
++			}
++		}
++		after.Revision = current.Revision + 1
++		rows[i] = *after
++		if err := atomicJSON(s.releaseFile(before.ProjectID), rows); err != nil {
++			return err
++		}
++		if before.operation != nil {
++			before.operation.identity = after.Runtime.Identity
++		}
++		return nil
+ 	}
+ 	return errors.New("the exact release receipt is unavailable")
+ }
+@@ -70,10 +104,9 @@
+ 			next.Status = "stopped"
+ 		}
+ 	}
+-	if err := s.storeAdmittedRelease(*row, next); err != nil {
++	if err := s.storeAdmittedRelease(*row, &next); err != nil {
+ 		return err
+ 	}
+-	next.Revision++
+ 	*row = next
+ 	return nil
+ }
+--- a/control-plane/internal/product/browser_preview.go
++++ b/control-plane/internal/product/browser_preview.go
+@@ -7,6 +7,10 @@
+ // their literal loopback ownership boundary.
+ func (s *Server) browserRelease(row storedRelease) Release {
+ 	out := row.Release
++	s.mu.RLock()
++	operation := s.localPreviewOperations[row.ID]
++	out.CanCancel = row.Target == "local" && row.Revision != 0 && operation != nil && !operation.sealed && !operation.cancelRequested && operation.matches(row) && row.Status == "building"
++	s.mu.RUnlock()
+ 	// A retained handle permits offering cleanup; the explicit stop handler still
+ 	// verifies current labels and ownership before touching a container.
+ 	out.CanStop = row.Target == "local" && row.Status != "stopped" && previewContainerID.MatchString(row.ContainerID)
+--- a/control-plane/internal/product/preview_runtime_test.go
++++ b/control-plane/internal/product/preview_runtime_test.go
+@@ -13,7 +13,7 @@
+ func retainedPreviewFixture(t *testing.T, s *Server, projectID string) storedRelease {
+ 	t.Helper()
+ 	identity := previewruntime.Identity{ProjectID: projectID, ReleaseID: "rel-retained", Target: "local", Commit: strings.Repeat("a", 40), SourceDigest: strings.Repeat("b", 64), BuildAllocationID: "build-retained", EngineID: "engine-retained", InstanceID: "instance-retained"}
+-	row := storedRelease{Release: Release{ID: identity.ReleaseID, ProjectID: projectID, Target: "local", Commit: identity.Commit, Status: "building", ConfigurationRevision: 3}, Revision: 1, Runtime: &previewruntime.Outcome{Identity: identity, Phase: "building", ResourcesHeld: true}}
++	row := storedRelease{Release: Release{ID: identity.ReleaseID, ProjectID: projectID, Target: "local", Commit: identity.Commit, Status: "building", ConfigurationRevision: 3, Revision: 1}, Runtime: &previewruntime.Outcome{Identity: identity, Phase: "building", ResourcesHeld: true}}
+ 	if err := s.storeRelease(row); err != nil {
+ 		t.Fatal(err)
+ 	}
+--- /dev/null
++++ b/control-plane/internal/product/preview_cancel.go
+@@ -0,0 +1,199 @@
++package product
++
++import (
++	"context"
++	"errors"
++	"net/http"
++
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
++)
++
++const previewCancellationMessage = "Cancellation requested. Waiting for the owned preview operation to report its outcome; this does not confirm Docker cleanup or release capacity."
++
++// One entry belongs to one request and one immutable source. It is never
++// restored from disk: a restarted controller cannot cancel its predecessor's
++// unknown Docker work by inventing a new context or replaying the operation.
++type localPreviewOperation struct {
++	identity        previewruntime.Identity
++	cancel          context.CancelFunc
++	done            chan struct{}
++	cancelRequested bool
++	sealed          bool
++}
++
++func (operation *localPreviewOperation) matches(row storedRelease) bool {
++	return row.Runtime != nil && operation.identity.ProjectID == row.ProjectID && operation.identity.ReleaseID == row.ID && operation.identity == row.Runtime.Identity
++}
++
++func (s *Server) beginLocalPreview(row *storedRelease, cancel context.CancelFunc) (*localPreviewOperation, error) {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	if s.localPreviewsClosed || row.Runtime == nil || s.localPreviewOperations[row.ID] != nil {
++		return nil, errors.New("Luci is closing or this preview already has an owned operation; no preview was started")
++	}
++	operation := &localPreviewOperation{identity: row.Runtime.Identity, cancel: cancel, done: make(chan struct{})}
++	if err := s.storeReleaseLocked(*row); err != nil {
++		return nil, err
++	}
++	if s.localPreviewOperations == nil {
++		s.localPreviewOperations = make(map[string]*localPreviewOperation)
++	}
++	if s.activeLocalReleases == nil {
++		s.activeLocalReleases = make(map[string]bool)
++	}
++	s.localPreviewOperations[row.ID], s.activeLocalReleases[row.ID] = operation, true
++	row.operation = operation
++	return operation, nil
++}
++
++func (s *Server) finishLocalPreview(id string, operation *localPreviewOperation) {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	operation.sealed = true
++	if s.localPreviewOperations[id] == operation {
++		delete(s.localPreviewOperations, id)
++		delete(s.activeLocalReleases, id)
++	}
++	close(operation.done)
++}
++
++func cancellationReceipt(row storedRelease) storedRelease {
++	row.CancelRevision = row.Revision
++	row.Revision++
++	row.CancelRequested, row.CanCancel = true, false
++	row.Status, row.Message = "cancelling", previewCancellationMessage
++	return row
++}
++
++func (s *Server) cancelLocalRelease(w http.ResponseWriter, r *http.Request) {
++	var req struct {
++		ExpectedRevision uint64 `json:"expectedRevision"`
++	}
++	if !journeyDecode(w, r, &req) {
++		return
++	}
++	if req.ExpectedRevision == 0 {
++		journeyError(w, 400, "release_revision_required", "Refresh the exact preview receipt before requesting cancellation.")
++		return
++	}
++	p, ok := s.requestProject(w, r)
++	if !ok {
++		return
++	}
++	runtime := s.PreviewRuntime()
++	if runtime.CaptureActor == nil {
++		journeyError(w, 503, "preview_runtime_unavailable", "Current deployment authority cannot be verified.")
++		return
++	}
++	// Cancellation requires current Edit/Deploy, including idempotent requests;
++	// it does not require permission to allocate new work or agent Execute.
++	if _, err := runtime.CaptureActor(r.Context(), p.ID); err != nil {
++		journeyError(w, 403, "deployment_forbidden", err.Error())
++		return
++	}
++	s.mu.Lock()
++	if err := r.Context().Err(); err != nil {
++		s.mu.Unlock()
++		journeyError(w, 403, "deployment_forbidden", "The current deployment control request is no longer active.")
++		return
++	}
++	// A worker can observe a revoked file-backed grant before the gateway's
++	// request cancellation reaches it. Re-read authority after the mutex wait;
++	// a live context alone is not proof that the earlier grant remains current.
++	if _, err := runtime.CaptureActor(r.Context(), p.ID); err != nil {
++		s.mu.Unlock()
++		journeyError(w, 403, "deployment_forbidden", err.Error())
++		return
++	}
++	rows, err := s.readReleases(p.ID)
++	if err != nil {
++		s.mu.Unlock()
++		journeyError(w, 500, "releases_unavailable", err.Error())
++		return
++	}
++	for _, row := range rows {
++		if row.ID != r.PathValue("releaseId") {
++			continue
++		}
++		operation := s.localPreviewOperations[row.ID]
++		if s.localPreviewsClosed || row.Target != "local" || operation == nil || operation.sealed || !operation.matches(row) {
++			s.mu.Unlock()
++			journeyError(w, 409, "preview_not_live", "This controller has no live operation for that exact preview. Its retained outcome is unchanged; cancellation cannot settle unknown Docker work.")
++			return
++		}
++		if row.CancelRequested && operation.cancelRequested && row.CancelRevision == req.ExpectedRevision {
++			s.mu.Unlock()
++			journeyJSON(w, 200, s.browserRelease(row))
++			return
++		}
++		if row.Revision != req.ExpectedRevision || row.CancelRequested || row.Status != "building" {
++			s.mu.Unlock()
++			journeyError(w, 409, "release_record_changed", "The exact preview receipt changed. Refresh its current outcome before another action.")
++			return
++		}
++		next := cancellationReceipt(row)
++		if err := s.storeReleaseLocked(next); err != nil {
++			s.mu.Unlock()
++			journeyError(w, 500, "release_record_failed", "Cancellation intent could not be saved; the live operation was not cancelled.")
++			return
++		}
++		operation.cancelRequested = true
++		operation.cancel()
++		s.mu.Unlock()
++		journeyJSON(w, 202, s.browserRelease(next))
++		return
++	}
++	s.mu.Unlock()
++	journeyError(w, 404, "release_not_found", "The selected release is not in this project's history.")
++}
++
++// One deadline bounds all joins. Cancellation is not settlement; after the
++// deadline every remaining publisher is sealed and the durable receipt stays
++// unknown. The shared ledger is never rewritten or released here.
++func (s *Server) closeLocalPreviews(ctx context.Context) {
++	s.mu.Lock()
++	s.localPreviewsClosed = true
++	operations := make(map[string]*localPreviewOperation, len(s.localPreviewOperations))
++	for id, operation := range s.localPreviewOperations {
++		operations[id] = operation
++		rows, err := s.readReleases(operation.identity.ProjectID)
++		if err == nil {
++			for _, row := range rows {
++				if row.ID == id && operation.matches(row) && !row.CancelRequested {
++					_ = s.storeReleaseLocked(cancellationReceipt(row))
++					break
++				}
++			}
++		}
++		operation.cancelRequested = true
++		operation.cancel()
++	}
++	s.mu.Unlock()
++	for _, operation := range operations {
++		select {
++		case <-operation.done:
++		case <-ctx.Done():
++		}
++	}
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	for id, operation := range operations {
++		if s.localPreviewOperations[id] != operation {
++			continue
++		}
++		operation.sealed = true
++		rows, err := s.readReleases(operation.identity.ProjectID)
++		if err != nil {
++			continue
++		}
++		for _, row := range rows {
++			if row.ID == id && operation.matches(row) {
++				row.Revision++
++				row.CancelRequested = true
++				row.Status, row.URL, row.Message = "unknown", "", "Luci closed before the owned preview reported settlement. Its receipt and any reservation are retained; no replacement was started."
++				_ = s.storeReleaseLocked(row)
++				break
++			}
++		}
++	}
++}
+--- /dev/null
++++ b/control-plane/internal/product/preview_cancel_regression_test.go
+@@ -0,0 +1,154 @@
++package product
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"net/http"
++	"net/http/httptest"
++	"os"
++	"path/filepath"
++	"strings"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
++)
++
++type previewCancelProbe struct {
++	s         *Server
++	mux       *http.ServeMux
++	projectID string
++	row       storedRelease
++	cancelled chan struct{}
++	finish    func()
++	done      chan *httptest.ResponseRecorder
++	calls     atomic.Int32
++}
++
++func heldPreviewCancellation(t *testing.T) *previewCancelProbe {
++	t.Helper()
++	s, mux := journeyFixture(t)
++	p := createJourneyProject(t, mux, "cancel-preview")
++	if err := os.WriteFile(filepath.Join(p.Path, "Dockerfile"), []byte("FROM scratch\n"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	reviewDeploymentFixture(t, mux, p.ID)
++	commitPreviewFixture(t, p.Path)
++	entered := make(chan struct{})
++	finish := make(chan struct{})
++	var once sync.Once
++	probe := &previewCancelProbe{s: s, mux: mux, projectID: p.ID, cancelled: make(chan struct{}), done: make(chan *httptest.ResponseRecorder, 1), finish: func() { once.Do(func() { close(finish) }) }}
++	runtime := s.PreviewRuntime()
++	runtime.Start = func(ctx context.Context, req previewruntime.Request, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
++		probe.calls.Add(1)
++		id := req.Identity
++		id.BuildAllocationID = "cancel-build"
++		id.AllocationID = "cancel-serve"
++		id.EngineID = "cancel-engine"
++		id.InstanceID = "cancel-instance"
++		out := previewruntime.Outcome{Identity: id, Phase: "building", ResourcesHeld: true, Message: "Controlled held build"}
++		if err := publish(out); err != nil {
++			return out, err
++		}
++		close(entered)
++		select {
++		case <-ctx.Done():
++			close(probe.cancelled)
++		case <-finish:
++		}
++		<-finish
++		out.Phase = "unknown"
++		out.Message = "Build acknowledgement remains unknown."
++		return out, errors.New("controlled unacknowledged build")
++	}
++	runtime.Stop = func(context.Context, previewruntime.Identity, func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
++		t.Error("cancel reached runtime Stop")
++		return previewruntime.Outcome{}, errors.New("forbidden")
++	}
++	s.SetPreviewRuntime(runtime)
++	ctx, cancel := context.WithCancel(context.Background())
++	t.Cleanup(func() {
++		cancel()
++		probe.finish()
++		select {
++		case <-probe.done:
++		case <-time.After(3 * time.Second):
++			t.Error("held preview request did not finish")
++		}
++	})
++	go func() {
++		r := httptest.NewRequest("POST", "/v1/product/projects/"+p.ID+"/releases", strings.NewReader(`{"target":"local"}`)).WithContext(ctx)
++		w := httptest.NewRecorder()
++		mux.ServeHTTP(w, r)
++		probe.done <- w
++	}()
++	runtimeSignal(t, entered)
++	s.mu.RLock()
++	rows, err := s.readReleases(p.ID)
++	s.mu.RUnlock()
++	if err != nil || len(rows) != 1 {
++		t.Fatal(rows, err)
++	}
++	probe.row = rows[0]
++	return probe
++}
++
++func TestPreviewCancelLiveRouteRetainsUnknownAndDoesNotReplay(t *testing.T) {
++	p := heldPreviewCancellation(t)
++	path := "/v1/product/projects/" + p.projectID + "/releases/" + p.row.ID + "/cancel"
++	w := journeyRequest(t, p.mux, "POST", path, map[string]any{"expectedRevision": p.row.Revision}, 202)
++	var receipt struct {
++		Revision        uint64 `json:"revision"`
++		CanCancel       bool   `json:"canCancel"`
++		CancelRequested bool   `json:"cancelRequested"`
++		Status          string `json:"status"`
++	}
++	if json.Unmarshal(w.Body.Bytes(), &receipt) != nil || !receipt.CancelRequested || receipt.CanCancel || receipt.Revision != p.row.Revision+1 || receipt.Status != "cancelling" {
++		t.Fatal("cancel acceptance not exact pending intent", w.Body.String())
++	}
++	runtimeSignal(t, p.cancelled)
++	journeyRequest(t, p.mux, "POST", path, map[string]any{"expectedRevision": p.row.Revision}, 200)
++	p.finish()
++	var result *httptest.ResponseRecorder
++	select {
++	case result = <-p.done:
++	case <-time.After(3 * time.Second):
++		t.Fatal("cancelled request did not persist")
++	}
++	p.done <- result
++	rows, err := p.s.readReleases(p.projectID)
++	if err != nil || len(rows) != 1 || rows[0].Status != "unknown" || rows[0].Runtime == nil || !rows[0].Runtime.ResourcesHeld || rows[0].Runtime.CleanupConfirmed || rows[0].Runtime.Identity != p.row.Runtime.Identity {
++		t.Fatal("cancellation invented settlement", rows, err)
++	}
++	reopened, err := New(Options{StateDir: p.s.stateDir, ProjectsDir: p.s.projectRoot()})
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer reopened.Close()
++	history, err := reopened.readReleases(p.projectID)
++	if err != nil || len(history) != 1 || !history[0].Runtime.ResourcesHeld || p.calls.Load() != 1 {
++		t.Fatal("reopen lost or replayed unknown", history, err)
++	}
++}
++
++func TestPreviewCloseCancelsOwnedBuildAndJoinsFinalPublication(t *testing.T) {
++	p := heldPreviewCancellation(t)
++	closed := make(chan struct{})
++	go func() { p.s.Close(); close(closed) }()
++	select {
++	case <-closed:
++		t.Fatal("Close returned without cancelling its owned preview")
++	case <-p.cancelled:
++	case <-time.After(3 * time.Second):
++		t.Fatal("Close did not cancel preview")
++	}
++	p.finish()
++	runtimeSignal(t, closed)
++	rows, err := p.s.readReleases(p.projectID)
++	if err != nil || len(rows) != 1 || rows[0].Status != "unknown" || rows[0].Runtime == nil || !rows[0].Runtime.ResourcesHeld {
++		t.Fatal("Close did not join final unknown publication", rows, err)
++	}
++}
+--- /dev/null
++++ b/control-plane/internal/product/preview_cancel_test.go
+@@ -0,0 +1,350 @@
++package product
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"net/http"
++	"net/http/httptest"
++	"os"
++	"strings"
++	"sync/atomic"
++	"testing"
++
++	"github.com/lcfrai/luci/control-plane/internal/management"
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
++)
++
++func livePreviewReceipt(t *testing.T) (*Server, *http.ServeMux, storedRelease, context.Context) {
++	t.Helper()
++	s, mux := journeyFixture(t)
++	p := createJourneyProject(t, mux, "live-cancel-receipt")
++	row := retainedPreviewFixture(t, s, p.ID)
++	ctx, cancel := context.WithCancel(context.Background())
++	op, err := s.beginLocalPreview(&row, cancel)
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() { cancel(); s.finishLocalPreview(row.ID, op) })
++	return s, mux, row, ctx
++}
++
++func cancelReceiptRequest(t *testing.T, mux http.Handler, row storedRelease, revision uint64, status int) *httptest.ResponseRecorder {
++	t.Helper()
++	return journeyRequest(t, mux, "POST", "/v1/product/projects/"+row.ProjectID+"/releases/"+row.ID+"/cancel", map[string]any{"expectedRevision": revision}, status)
++}
++
++func TestPreviewCancellationRequiresCurrentAuthorityRevisionAndOwnedIdentity(t *testing.T) {
++	for _, mode := range []string{"missing-revision", "stale-revision", "revoked", "changed-allocation", "changed-source", "not-live", "legacy"} {
++		t.Run(mode, func(t *testing.T) {
++			s, mux, row, ctx := livePreviewReceipt(t)
++			want, revision := 409, row.Revision
++			switch mode {
++			case "missing-revision":
++				revision = 0
++				want = 400
++			case "stale-revision":
++				revision++
++			case "revoked":
++				runtime := s.PreviewRuntime()
++				runtime.CaptureActor = func(context.Context, string) (management.ExecutionActorRef, error) {
++					return management.ExecutionActorRef{}, errors.New("current Deploy grant revoked")
++				}
++				s.SetPreviewRuntime(runtime)
++				want = 403
++			case "changed-allocation":
++				copyOutcome := *row.Runtime
++				// This field was empty at begin. A permissive Continues match
++				// would accept its forgery; only a published transition may bind it.
++				copyOutcome.AllocationID = "foreign-build"
++				next := row
++				next.Runtime = &copyOutcome
++				if err := s.storeRelease(next); err != nil {
++					t.Fatal(err)
++				}
++			case "changed-source":
++				copyOutcome := *row.Runtime
++				copyOutcome.SourceDigest = strings.Repeat("c", 64)
++				next := row
++				next.Runtime = &copyOutcome
++				if err := s.storeRelease(next); err != nil {
++					t.Fatal(err)
++				}
++			case "not-live":
++				s.mu.Lock()
++				row.operation.sealed = true
++				s.mu.Unlock()
++			case "legacy":
++				next := row
++				next.Revision = 0
++				if err := s.storeRelease(next); err != nil {
++					t.Fatal(err)
++				}
++			}
++			before, err := os.ReadFile(s.releaseFile(row.ProjectID))
++			if err != nil {
++				t.Fatal(err)
++			}
++			cancelReceiptRequest(t, mux, row, revision, want)
++			after, err := os.ReadFile(s.releaseFile(row.ProjectID))
++			if err != nil {
++				t.Fatal(err)
++			}
++			if ctx.Err() != nil || !bytes.Equal(before, after) {
++				t.Fatal("refused cancellation signalled live work or changed receipt")
++			}
++		})
++	}
++}
++
++func TestPreviewCancellationMergesOnlyExactIntentAndKeepsLatestAllocation(t *testing.T) {
++	for _, phase := range []string{"built", "unknown", "running"} {
++		t.Run(phase, func(t *testing.T) {
++			s, mux, row, ctx := livePreviewReceipt(t)
++			cancelReceiptRequest(t, mux, row, row.Revision, 202)
++			if ctx.Err() == nil {
++				t.Fatal("owned context was not cancelled")
++			}
++			out := *row.Runtime
++			out.Phase = phase
++			if phase == "built" {
++				out.ResourcesHeld = false
++				out.CleanupConfirmed = true
++				out.Image = "sha256:" + strings.Repeat("d", 64)
++			}
++			if phase == "running" {
++				out.AllocationID = "acknowledged-serve"
++				out.ContainerID = strings.Repeat("e", 64)
++				out.Image = "sha256:" + strings.Repeat("d", 64)
++			}
++			if err := s.publishPreviewOutcome(&row, out, nil); err != nil {
++				t.Fatal("cancel intent broke producer CAS", err)
++			}
++			next := row
++			next.Status = "failed"
++			if phase == "running" {
++				next.Status = "ready"
++				next.URL = "http://127.0.0.1:3000"
++			}
++			if err := s.storeAdmittedRelease(row, &next); err != nil {
++				t.Fatal(err)
++			}
++			want := "unknown"
++			if phase == "built" {
++				want = "cancelled"
++			}
++			if next.Status != want || !next.CancelRequested || next.Revision != 4 || next.Runtime.Identity != out.Identity || next.Runtime.ResourcesHeld != out.ResourcesHeld || next.URL != "" {
++				t.Fatalf("late result erased intent/identity or claimed cleanup: %+v", next)
++			}
++			foreign := next
++			foreign.Revision++
++			foreign.Message = "a newer unrelated outcome"
++			if err := s.storeRelease(foreign); err != nil {
++				t.Fatal(err)
++			}
++			late := next
++			late.Message = "stale producer"
++			if err := s.storeAdmittedRelease(next, &late); err == nil {
++				t.Fatal("cancel merge accepted unrelated newer receipt")
++			}
++		})
++	}
++}
++
++func TestPreviewCancellationNewPublishedIdentityReplacesInitialBinding(t *testing.T) {
++	s, mux, row, ctx := livePreviewReceipt(t)
++	out := *row.Runtime
++	out.AllocationID = "new-serving-allocation"
++	out.ContainerID = strings.Repeat("d", 64)
++	out.Image = "sha256:" + strings.Repeat("e", 64)
++	out.Phase = "running"
++	if err := s.publishPreviewOutcome(&row, out, nil); err != nil {
++		t.Fatal(err)
++	}
++	if !s.browserRelease(row).CanCancel {
++		t.Fatal("live latest exact allocation lost cancellation")
++	}
++	cancelReceiptRequest(t, mux, row, row.Revision, 202)
++	if ctx.Err() == nil {
++		t.Fatal("latest owned allocation did not cancel")
++	}
++}
++
++func TestPreviewCancellationBeforeAllocationPreservesConfirmedNoDemand(t *testing.T) {
++	s, mux := journeyFixture(t)
++	p := createJourneyProject(t, mux, "cancel-before-allocation")
++	id := previewruntime.Identity{ProjectID: p.ID, ReleaseID: "before-archive", Target: "local", Commit: strings.Repeat("a", 40), SourceDigest: strings.Repeat("b", 64)}
++	row := storedRelease{Release: Release{ID: id.ReleaseID, ProjectID: p.ID, Target: "local", Commit: id.Commit, Revision: 1, Status: "building"}, Runtime: &previewruntime.Outcome{Identity: id, Phase: "reserved"}}
++	ctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
++	op, err := s.beginLocalPreview(&row, cancel)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer s.finishLocalPreview(row.ID, op)
++	cancelReceiptRequest(t, mux, row, row.Revision, 202)
++	if ctx.Err() == nil {
++		t.Fatal("archive preparation did not receive cancellation")
++	}
++	next := row
++	next.Status = "failed"
++	if err := s.storeAdmittedRelease(row, &next); err != nil {
++		t.Fatal(err)
++	}
++	if next.Status != "cancelled" || !next.CancelRequested || next.Runtime.Retained() || next.Runtime.ResourcesHeld || s.browserRelease(next).CanStop {
++		t.Fatal("pre-allocation cancellation created runtime demand", next)
++	}
++}
++
++func TestPreviewCancellationWinsBeforeFinalReadyReceiptWithoutClaimingCreated(t *testing.T) {
++	s, mux, row, _ := livePreviewReceipt(t)
++	out := *row.Runtime
++	out.AllocationID = "acknowledged-health-serve"
++	out.ContainerID = strings.Repeat("d", 64)
++	out.Image = "sha256:" + strings.Repeat("e", 64)
++	out.Phase = "running"
++	if err := s.publishPreviewOutcome(&row, out, nil); err != nil {
++		t.Fatal(err)
++	}
++	// Health has succeeded; cancel wins immediately before the final ready CAS.
++	cancelReceiptRequest(t, mux, row, row.Revision, 202)
++	w := httptest.NewRecorder()
++	s.completeLocalPreview(w, &row, "http://127.0.0.1:3000")
++	if w.Code != 422 || row.Status != "unknown" || !row.CancelRequested || row.URL != "" || !row.Runtime.ResourcesHeld || row.Runtime.ContainerID != out.ContainerID || !s.browserRelease(row).CanStop {
++		t.Fatal("late cancel claimed ready/cleanup or lost exact Stop", w.Code, w.Body.String())
++	}
++}
++
++func TestPreviewCancellationRouteWorksWithExclusiveSourceGuardHeld(t *testing.T) {
++	s, mux, row, ctx := livePreviewReceipt(t)
++	guard := s.branchGuard(row.ProjectID)
++	guard.Lock()
++	defer guard.Unlock()
++	// The actual registrar must not seek shared source admission for cancel.
++	cancelReceiptRequest(t, mux, row, row.Revision, 202)
++	if ctx.Err() == nil {
++		t.Fatal("private control did not reach live context")
++	}
++}
++
++func TestPreviewCancellationRevokedRequestCannotSignalAfterMutexWait(t *testing.T) {
++	s, mux, row, live := livePreviewReceipt(t)
++	authorized := make(chan struct{})
++	runtime := s.PreviewRuntime()
++	runtime.CaptureActor = func(context.Context, string) (management.ExecutionActorRef, error) {
++		close(authorized)
++		return management.ExecutionActorRef{Local: true}, nil
++	}
++	s.SetPreviewRuntime(runtime)
++	ctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
++	body, _ := json.Marshal(map[string]any{"expectedRevision": row.Revision})
++	r := httptest.NewRequest("POST", "/v1/product/projects/"+row.ProjectID+"/releases/"+row.ID+"/cancel", bytes.NewReader(body)).WithContext(ctx)
++	w := httptest.NewRecorder()
++	done := make(chan struct{})
++	// requestProject precedes CaptureActor and takes s.mu, so capture first,
++	// then hold the mutex from the actor callback until revocation arrives.
++	proceed := make(chan struct{})
++	runtime.CaptureActor = func(context.Context, string) (management.ExecutionActorRef, error) {
++		s.mu.Lock()
++		close(authorized)
++		<-proceed
++		return management.ExecutionActorRef{Local: true}, nil
++	}
++	s.SetPreviewRuntime(runtime)
++	go func() { mux.ServeHTTP(w, r); close(done) }()
++	runtimeSignal(t, authorized)
++	cancel()
++	close(proceed)
++	s.mu.Unlock()
++	runtimeSignal(t, done)
++	if w.Code != 403 || live.Err() != nil {
++		t.Fatal("revoked waiting control still cancelled work", w.Code)
++	}
++	rows, _ := s.readReleases(row.ProjectID)
++	if rows[0].Revision != row.Revision || rows[0].CancelRequested {
++		t.Fatal("revoked request changed intent")
++	}
++}
++
++func TestPreviewCancellationFreshGrantAfterMutexWaitWithoutContextRevocation(t *testing.T) {
++	s, mux, row, live := livePreviewReceipt(t)
++	authorized, proceed, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
++	var calls atomic.Int32
++	var revoked atomic.Bool
++	runtime := s.PreviewRuntime()
++	runtime.CaptureActor = func(context.Context, string) (management.ExecutionActorRef, error) {
++		if calls.Add(1) == 1 {
++			s.mu.Lock()
++			close(authorized)
++			<-proceed
++			return management.ExecutionActorRef{Local: true}, nil
++		}
++		if revoked.Load() {
++			return management.ExecutionActorRef{}, errors.New("current file-backed Deploy grant revoked")
++		}
++		return management.ExecutionActorRef{Local: true}, nil
++	}
++	s.SetPreviewRuntime(runtime)
++	body, _ := json.Marshal(map[string]any{"expectedRevision": row.Revision})
++	r := httptest.NewRequest("POST", "/v1/product/projects/"+row.ProjectID+"/releases/"+row.ID+"/cancel", bytes.NewReader(body))
++	w := httptest.NewRecorder()
++	go func() { mux.ServeHTTP(w, r); close(done) }()
++	runtimeSignal(t, authorized)
++	// Gateway-to-worker disconnect propagation can lag the authoritative grant
++	// update. Keep the request context live and require a new authority read.
++	revoked.Store(true)
++	close(proceed)
++	s.mu.Unlock()
++	runtimeSignal(t, done)
++	if r.Context().Err() != nil || w.Code != 403 || live.Err() != nil || calls.Load() != 2 {
++		t.Fatal("stale successful authority cancelled live preview", w.Code, calls.Load())
++	}
++	rows, _ := s.readReleases(row.ProjectID)
++	if rows[0].Revision != row.Revision || rows[0].CancelRequested {
++		t.Fatal("revoked control changed durable receipt")
++	}
++}
++
++func TestPreviewCloseDeadlineSealsLatePublicationAndDoesNotReactivateOnReopen(t *testing.T) {
++	s, mux, row, live := livePreviewReceipt(t)
++	join, cancel := context.WithCancel(context.Background())
++	cancel()
++	s.closeLocalPreviews(join)
++	if live.Err() == nil {
++		t.Fatal("bounded close did not cancel owned context")
++	}
++	before, err := os.ReadFile(s.releaseFile(row.ProjectID))
++	if err != nil {
++		t.Fatal(err)
++	}
++	out := *row.Runtime
++	out.Phase = "finished"
++	out.ResourcesHeld = false
++	out.CleanupConfirmed = true
++	if err := s.publishPreviewOutcome(&row, out, nil); err == nil {
++		t.Fatal("sealed late publication accepted")
++	}
++	after, _ := os.ReadFile(s.releaseFile(row.ProjectID))
++	if !bytes.Equal(before, after) {
++		t.Fatal("late publication rewrote retained uncertainty")
++	}
++	cancelReceiptRequest(t, mux, row, row.Revision, 409)
++	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer reopened.Close()
++	rows, err := reopened.readReleases(row.ProjectID)
++	if err != nil || len(rows) != 1 || rows[0].Status != "unknown" || !rows[0].Runtime.ResourcesHeld || reopened.browserRelease(rows[0]).CanCancel {
++		t.Fatal("reopen invented live control or cleanup", rows, err)
++	}
++	var calls atomic.Int32
++	next := row
++	next.ID = "another-release"
++	next.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: row.ProjectID, ReleaseID: next.ID}}
++	if _, err := s.beginLocalPreview(&next, func() { calls.Add(1) }); err == nil || calls.Load() != 0 {
++		t.Fatal("closed server admitted new operation")
++	}
++}

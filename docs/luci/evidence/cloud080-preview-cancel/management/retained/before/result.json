@@ -1,0 +1,20 @@
+{
+  "exitCode": 1,
+  "elapsedSeconds": 61.005,
+  "selectedSourceInputs": 86,
+  "selectedSourceStable": true,
+  "outcomes": {
+    "pass": 6,
+    "fail": 5,
+    "skip": 0
+  },
+  "topLevel": 2,
+  "subtests": 9,
+  "failedTests": [
+    "TestPreviewCancellationTeamRouteCapabilities/current_deploy_without_execute",
+    "TestPreviewCancellationTeamRouteCapabilities",
+    "TestPreviewCancellationSuspendedServiceRechecksCurrentGrants/active",
+    "TestPreviewCancellationSuspendedServiceRechecksCurrentGrants/suspended",
+    "TestPreviewCancellationSuspendedServiceRechecksCurrentGrants"
+  ]
+}

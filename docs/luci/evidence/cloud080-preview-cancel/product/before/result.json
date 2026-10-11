@@ -1,0 +1,18 @@
+{
+  "exit": 1,
+  "inputsStable": true,
+  "inputCount": 796,
+  "outcomes": [
+    {
+      "Action": "fail",
+      "Test": "TestPreviewCancelLiveRouteRetainsUnknownAndDoesNotReplay",
+      "Elapsed": 0.13
+    },
+    {
+      "Action": "fail",
+      "Test": "TestPreviewCloseCancelsOwnedBuildAndJoinsFinalPublication",
+      "Elapsed": 0.09
+    }
+  ],
+  "end": 1791725074.9428644
+}

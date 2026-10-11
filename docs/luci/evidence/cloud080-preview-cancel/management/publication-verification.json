@@ -1,0 +1,12 @@
+{
+  "scope": "Publication copy and metadata verification only; no new execution of product or test code.",
+  "originalFiles": 31,
+  "originalBytes": 270850,
+  "allOriginalBytesAndSHA256Preserved": true,
+  "retainedOriginalChecksumsVerified": true,
+  "selectedInputSetsStableBeforeAndFixed": true,
+  "selectedInputCountEachRun": 86,
+  "recordedOutcomesRechecked": true,
+  "originalExternalManifestSHA256": "f82dd9540514a23f56ab8eef25828e14b229a821ce1f91498fe7842772bee047",
+  "sourceReviewResolutionSHA256": "587eb2adc08ada7cd8558fd8c223d2ab10b824481f1f69deed3c3d8920cc4229"
+}

@@ -1,0 +1,453 @@
+{
+  "passed": true,
+  "scope": "Linux Chromium actual styled ProjectDeploy and product client over controlled loopback HTTP; no Luci backend, Docker, model, Windows or performance claim",
+  "startedAt": "2026-10-11T13:30:07.931Z",
+  "helperSHA256": "9c34396a23d5189461585d2efc1d8091ffeb625c784b5f22ddea1b1c06d32765",
+  "fixtureSHA256": "47b7d151d3f27c88f975e70b69122489326a6e0eedbf9e022fa9bae47bf5e283",
+  "sourceBefore": {
+    "desktop/src/components/lens/DeployLens.tsx": "a9c87e4f7611e10fa0b3822e7503ab4a9ab53451cc71f192c2b2329549771fe0",
+    "desktop/src/api/product.ts": "2954a03362047135408de4976ad0a1b54377541691823458d5377137b0f856c9",
+    "desktop/src/hooks/useProjectAccess.ts": "b2789071009294d4497f7be2039839b0a88f4f0e54edf7c544a279440dce2da4",
+    "desktop/src/components/fluid/components/button.tsx": "c90ee25ef6225f949006d6c6ee19316ece048ebfad25d2f17a52e20b74d2bf87",
+    "desktop/src/styles/app.css": "0b672e16997fbb7e2efec0cd1011fb08cbdcb3987169cedd7e86512e9c7329c0",
+    "desktop/src/components/journey/journey.css": "247a10959f05105bb2c5b98e58fb61034192e0c8a15c6e0e34b9bde23e3e6120",
+    "desktop/package-lock.json": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+    "desktop/vite.config.ts": "be4e7f5167e717324648803be82e755033db2a559c4fbada29ce8aeeacb67914"
+  },
+  "calls": [
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:13.754Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:13.859Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "POST",
+      "body": {
+        "target": "local",
+        "port": 3000,
+        "dockerfile": "Dockerfile"
+      },
+      "at": "2026-10-11T13:30:14.063Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:17.061Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases/preview-alpha/cancel",
+      "method": "POST",
+      "body": {
+        "expectedRevision": 4
+      },
+      "at": "2026-10-11T13:30:17.655Z"
+    },
+    {
+      "path": "/v1/product/projects/beta/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:17.832Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:17.997Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:18.050Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:19.573Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:19.612Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "POST",
+      "body": {
+        "target": "local",
+        "port": 3000,
+        "dockerfile": "Dockerfile"
+      },
+      "at": "2026-10-11T13:30:20.111Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:22.984Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases/preview-alpha/cancel",
+      "method": "POST",
+      "body": {
+        "expectedRevision": 4
+      },
+      "at": "2026-10-11T13:30:23.318Z"
+    },
+    {
+      "path": "/v1/product/projects/beta/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:23.557Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:23.654Z"
+    },
+    {
+      "path": "/v1/product/projects/alpha/releases",
+      "method": "GET",
+      "body": null,
+      "at": "2026-10-11T13:30:23.709Z"
+    }
+  ],
+  "checks": [
+    {
+      "width": 1440,
+      "heldStartCancelEnabled": true,
+      "keyboardCancel": true,
+      "requestIntentNotCleanup": true,
+      "lateStartProjectIsolated": true,
+      "unknownRetainedAfterExplicitRefresh": true,
+      "noReplay": true,
+      "geometry": {
+        "viewport": 1440,
+        "width": 1440,
+        "buttons": [
+          {
+            "background": "oklch(0.21 0.006 67)",
+            "border": "6px"
+          }
+        ]
+      },
+      "calls": [
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:13.754Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:13.859Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "POST",
+          "body": {
+            "target": "local",
+            "port": 3000,
+            "dockerfile": "Dockerfile"
+          },
+          "at": "2026-10-11T13:30:14.063Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:17.061Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases/preview-alpha/cancel",
+          "method": "POST",
+          "body": {
+            "expectedRevision": 4
+          },
+          "at": "2026-10-11T13:30:17.655Z"
+        },
+        {
+          "path": "/v1/product/projects/beta/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:17.832Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:17.997Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:18.050Z"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "heldStartCancelEnabled": true,
+      "keyboardCancel": true,
+      "requestIntentNotCleanup": true,
+      "lateStartProjectIsolated": true,
+      "unknownRetainedAfterExplicitRefresh": true,
+      "noReplay": true,
+      "geometry": {
+        "viewport": 390,
+        "width": 390,
+        "buttons": [
+          {
+            "background": "oklch(0.21 0.006 67)",
+            "border": "6px"
+          }
+        ]
+      },
+      "calls": [
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:19.573Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:19.612Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "POST",
+          "body": {
+            "target": "local",
+            "port": 3000,
+            "dockerfile": "Dockerfile"
+          },
+          "at": "2026-10-11T13:30:20.111Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:22.984Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases/preview-alpha/cancel",
+          "method": "POST",
+          "body": {
+            "expectedRevision": 4
+          },
+          "at": "2026-10-11T13:30:23.318Z"
+        },
+        {
+          "path": "/v1/product/projects/beta/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:23.557Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:23.654Z"
+        },
+        {
+          "path": "/v1/product/projects/alpha/releases",
+          "method": "GET",
+          "body": null,
+          "at": "2026-10-11T13:30:23.709Z"
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "cleanup": {
+    "before": [
+      {
+        "pid": 2760719,
+        "ppid": 2760695,
+        "start": "47147848",
+        "state": "S"
+      },
+      {
+        "pid": 2760740,
+        "ppid": 2760719,
+        "start": "47147860",
+        "state": "S"
+      },
+      {
+        "pid": 2760741,
+        "ppid": 2760719,
+        "start": "47147860",
+        "state": "S"
+      },
+      {
+        "pid": 2760743,
+        "ppid": 2760741,
+        "start": "47147868",
+        "state": "S"
+      },
+      {
+        "pid": 2760769,
+        "ppid": 2760740,
+        "start": "47147875",
+        "state": "S"
+      },
+      {
+        "pid": 2760784,
+        "ppid": 2760719,
+        "start": "47147943",
+        "state": "S"
+      },
+      {
+        "pid": 2760785,
+        "ppid": 2760743,
+        "start": "47147954",
+        "state": "S"
+      },
+      {
+        "pid": 2760814,
+        "ppid": 2760743,
+        "start": "47147989",
+        "state": "S"
+      },
+      {
+        "pid": 2760823,
+        "ppid": 2760743,
+        "start": "47147995",
+        "state": "S"
+      },
+      {
+        "pid": 2760824,
+        "ppid": 2760743,
+        "start": "47147995",
+        "state": "S"
+      }
+    ],
+    "browserClose": true,
+    "serverClose": true,
+    "processes": [
+      {
+        "pid": 2760719,
+        "ppid": 2760695,
+        "start": "47147848",
+        "state": "R",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760740,
+        "ppid": 2760719,
+        "start": "47147860",
+        "state": "S",
+        "closure": "zombie",
+        "current": {
+          "pid": 2760740,
+          "ppid": 1,
+          "start": "47147860",
+          "state": "Z"
+        }
+      },
+      {
+        "pid": 2760741,
+        "ppid": 2760719,
+        "start": "47147860",
+        "state": "S",
+        "closure": "zombie",
+        "current": {
+          "pid": 2760741,
+          "ppid": 1,
+          "start": "47147860",
+          "state": "Z"
+        }
+      },
+      {
+        "pid": 2760743,
+        "ppid": 2760741,
+        "start": "47147868",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760769,
+        "ppid": 2760740,
+        "start": "47147875",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760784,
+        "ppid": 2760719,
+        "start": "47147943",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760785,
+        "ppid": 2760743,
+        "start": "47147954",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760814,
+        "ppid": 2760743,
+        "start": "47147989",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760823,
+        "ppid": 2760743,
+        "start": "47147995",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760824,
+        "ppid": 2760743,
+        "start": "47147995",
+        "state": "Z",
+        "closure": "absent",
+        "current": null
+      }
+    ],
+    "serverPort": 34477,
+    "profile": "/workspace/.t/preview-cancel-browser-oGXWmB",
+    "profileRemoved": true
+  },
+  "browserVersion": "151.0.7922.173",
+  "sourceAfter": {
+    "desktop/src/components/lens/DeployLens.tsx": "a9c87e4f7611e10fa0b3822e7503ab4a9ab53451cc71f192c2b2329549771fe0",
+    "desktop/src/api/product.ts": "2954a03362047135408de4976ad0a1b54377541691823458d5377137b0f856c9",
+    "desktop/src/hooks/useProjectAccess.ts": "b2789071009294d4497f7be2039839b0a88f4f0e54edf7c544a279440dce2da4",
+    "desktop/src/components/fluid/components/button.tsx": "c90ee25ef6225f949006d6c6ee19316ece048ebfad25d2f17a52e20b74d2bf87",
+    "desktop/src/styles/app.css": "0b672e16997fbb7e2efec0cd1011fb08cbdcb3987169cedd7e86512e9c7329c0",
+    "desktop/src/components/journey/journey.css": "247a10959f05105bb2c5b98e58fb61034192e0c8a15c6e0e34b9bde23e3e6120",
+    "desktop/package-lock.json": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+    "desktop/vite.config.ts": "be4e7f5167e717324648803be82e755033db2a559c4fbada29ce8aeeacb67914"
+  },
+  "finishedAt": "2026-10-11T13:30:24.346Z"
+}

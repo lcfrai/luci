@@ -22,10 +22,13 @@ func (s *Server) observeLocalReleases(parent context.Context, rows []storedRelea
 			s.mu.RLock()
 			active := s.activeLocalReleases[row.ID]
 			s.mu.RUnlock()
-			if !active && row.Status != "stopped" && (row.Runtime.ResourcesHeld || row.Status == "building" || row.Status == "unknown") {
+			if !active && row.Status != "stopped" && (row.Runtime.ResourcesHeld || row.Status == "building" || row.Status == "cancelling" || row.Status == "unknown") {
 				runtime := s.PreviewRuntime()
 				row.Status, row.URL = "unknown", ""
 				row.Message = "This preview may have been interrupted. Its receipt is retained; refresh to verify it or stop this exact allocation."
+				if saved.Status == "cancelling" {
+					row.Message = "Cancellation was requested, but this controller has no live operation to finish it. The retained outcome and any reservation remain unconfirmed; no work was restarted."
+				}
 				if runtime.Observe != nil && ctx.Err() == nil {
 					out, err := runtime.Observe(ctx, saved.Runtime.Identity)
 					if err == nil && out.Identity == saved.Runtime.Identity && out.Phase == "running" && out.ResourcesHeld {

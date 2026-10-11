@@ -106,3 +106,25 @@ it("retains its timeout and releases the caller listener when the service stalls
     vi.useRealTimers();
   }
 });
+
+
+it.each([202, 200])("binds cancellation to the exact observed revision and accepts explicit %s intent only", async status => {
+  const response = { id: "release/a", projectId: "project/a", target: "local", revision: 7, cancelRequested: true, status: "cancelling" };
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify(response), { status }));
+  await expect(createProductClient("http://localhost", fetcher).cancelRelease("project/a", "release/a", 4)).resolves.toEqual(response);
+  expect(fetcher).toHaveBeenCalledOnce();
+  expect(fetcher.mock.calls[0][0]).toBe("http://localhost/v1/product/projects/project%2Fa/releases/release%2Fa/cancel");
+  expect(fetcher.mock.calls[0][1].method).toBe("POST");
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ expectedRevision: 4 });
+});
+it.each([0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])("refuses invalid cancellation revision %s before dispatch", async revision => {
+  const fetcher = vi.fn();
+  await expect(createProductClient("http://localhost", fetcher).cancelRelease("p", "r", revision)).rejects.toThrow(/Refresh this exact build/);
+  expect(fetcher).not.toHaveBeenCalled();
+});
+it.each([{ projectId: "foreign" }, { id: "foreign" }, { target: "cloud" }, { revision: 4 }, { revision: null }, { cancelRequested: false }])("does not acknowledge mismatched cancellation result %j", async changed => {
+  const response = { id: "r", projectId: "p", target: "local", revision: 5, cancelRequested: true, ...changed };
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify(response), { status: 202 }));
+  await expect(createProductClient("http://localhost", fetcher).cancelRelease("p", "r", 4)).rejects.toThrow(/could not be confirmed/);
+  expect(fetcher).toHaveBeenCalledOnce();
+});

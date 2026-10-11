@@ -1,0 +1,180 @@
+{
+  "before": [
+    {
+      "path": "control-plane/internal/product/browser_preview.go",
+      "sha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f",
+      "capsuleFile": "sources/e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f.go"
+    },
+    {
+      "path": "control-plane/internal/product/connections.go",
+      "sha256": "22b971b760083980e49bc1a87ff93a22cc0777005848a8a36c6118e3fc88c3df",
+      "capsuleFile": "sources/22b971b760083980e49bc1a87ff93a22cc0777005848a8a36c6118e3fc88c3df.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel_regression_test.go",
+      "sha256": "b6bdc2307d5a7a788d1ac87dab4a268059e54fd23ef6a33445137b8d473c53df",
+      "capsuleFile": "sources/b6bdc2307d5a7a788d1ac87dab4a268059e54fd23ef6a33445137b8d473c53df.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime.go",
+      "sha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d",
+      "capsuleFile": "sources/5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime_test.go",
+      "sha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6",
+      "capsuleFile": "sources/f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6.go"
+    },
+    {
+      "path": "control-plane/internal/product/releases.go",
+      "sha256": "135ab45ba15bf639654f28b4753edf75e23f29488642313a5cb50cdee6db5caf",
+      "capsuleFile": "sources/135ab45ba15bf639654f28b4753edf75e23f29488642313a5cb50cdee6db5caf.go"
+    },
+    {
+      "path": "control-plane/internal/product/server.go",
+      "sha256": "895937c8428ba5cc24c880a605b356f35483a072efa6e3cd7e007d944c364e05",
+      "capsuleFile": "sources/895937c8428ba5cc24c880a605b356f35483a072efa6e3cd7e007d944c364e05.go"
+    }
+  ],
+  "fixed-1": [
+    {
+      "path": "control-plane/internal/product/browser_preview.go",
+      "sha256": "9d56b6d5e2741b288aca6903fb234a9be4f58f958df9095fb33949c2a85325c3",
+      "capsuleFile": "sources/9d56b6d5e2741b288aca6903fb234a9be4f58f958df9095fb33949c2a85325c3.go"
+    },
+    {
+      "path": "control-plane/internal/product/connections.go",
+      "sha256": "4cfb8b6242319d13a1c777471f644d4b0fae6ea266db066a867367159e8a7c51",
+      "capsuleFile": "sources/4cfb8b6242319d13a1c777471f644d4b0fae6ea266db066a867367159e8a7c51.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel.go",
+      "sha256": "adb77b25ada8c4df388594fbeaf3d8f60d98bb51add0ed65cc0ded5e9bca318e",
+      "capsuleFile": "sources/adb77b25ada8c4df388594fbeaf3d8f60d98bb51add0ed65cc0ded5e9bca318e.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel_regression_test.go",
+      "sha256": "2fb115490b09852ad04f629d68777389a67d31470a1ee70791af8b0367037d8b",
+      "capsuleFile": "sources/2fb115490b09852ad04f629d68777389a67d31470a1ee70791af8b0367037d8b.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel_test.go",
+      "sha256": "cc231a499fbd3cecc3b1a83dc6f2d1f158326cd69df912a9205ce8fb2e2185dd",
+      "capsuleFile": "sources/cc231a499fbd3cecc3b1a83dc6f2d1f158326cd69df912a9205ce8fb2e2185dd.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime.go",
+      "sha256": "12f36d146ae90dac694d2e5b5ad4fb59288716183ad746dcb1fa763117afde47",
+      "capsuleFile": "sources/12f36d146ae90dac694d2e5b5ad4fb59288716183ad746dcb1fa763117afde47.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime_test.go",
+      "sha256": "51ebdb5d84d9cf465dfb12b76732fbc1f1970a1c8d9fc373630888f41dfbe8ca",
+      "capsuleFile": "sources/51ebdb5d84d9cf465dfb12b76732fbc1f1970a1c8d9fc373630888f41dfbe8ca.go"
+    },
+    {
+      "path": "control-plane/internal/product/releases.go",
+      "sha256": "a92ed1403cb9aa0406f4e443ecedca696ea26638989b6e59f91399c3e4dee552",
+      "capsuleFile": "sources/a92ed1403cb9aa0406f4e443ecedca696ea26638989b6e59f91399c3e4dee552.go"
+    },
+    {
+      "path": "control-plane/internal/product/server.go",
+      "sha256": "392f93e5e6a58eb78fa640034d632e37dc7a43b6b7bd6b55f81f58ed3ac90afe",
+      "capsuleFile": "sources/392f93e5e6a58eb78fa640034d632e37dc7a43b6b7bd6b55f81f58ed3ac90afe.go"
+    }
+  ],
+  "authority-before": [
+    {
+      "path": "control-plane/internal/product/browser_preview.go",
+      "sha256": "9d56b6d5e2741b288aca6903fb234a9be4f58f958df9095fb33949c2a85325c3",
+      "capsuleFile": "sources/9d56b6d5e2741b288aca6903fb234a9be4f58f958df9095fb33949c2a85325c3.go"
+    },
+    {
+      "path": "control-plane/internal/product/connections.go",
+      "sha256": "4cfb8b6242319d13a1c777471f644d4b0fae6ea266db066a867367159e8a7c51",
+      "capsuleFile": "sources/4cfb8b6242319d13a1c777471f644d4b0fae6ea266db066a867367159e8a7c51.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel.go",
+      "sha256": "adb77b25ada8c4df388594fbeaf3d8f60d98bb51add0ed65cc0ded5e9bca318e",
+      "capsuleFile": "sources/adb77b25ada8c4df388594fbeaf3d8f60d98bb51add0ed65cc0ded5e9bca318e.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel_regression_test.go",
+      "sha256": "2fb115490b09852ad04f629d68777389a67d31470a1ee70791af8b0367037d8b",
+      "capsuleFile": "sources/2fb115490b09852ad04f629d68777389a67d31470a1ee70791af8b0367037d8b.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel_test.go",
+      "sha256": "6b92d9ffb398e9a6c40c97e2181c7a4826824221ba3a45a52873c4ca603d1e1d",
+      "capsuleFile": "sources/6b92d9ffb398e9a6c40c97e2181c7a4826824221ba3a45a52873c4ca603d1e1d.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime.go",
+      "sha256": "12f36d146ae90dac694d2e5b5ad4fb59288716183ad746dcb1fa763117afde47",
+      "capsuleFile": "sources/12f36d146ae90dac694d2e5b5ad4fb59288716183ad746dcb1fa763117afde47.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime_test.go",
+      "sha256": "51ebdb5d84d9cf465dfb12b76732fbc1f1970a1c8d9fc373630888f41dfbe8ca",
+      "capsuleFile": "sources/51ebdb5d84d9cf465dfb12b76732fbc1f1970a1c8d9fc373630888f41dfbe8ca.go"
+    },
+    {
+      "path": "control-plane/internal/product/releases.go",
+      "sha256": "a92ed1403cb9aa0406f4e443ecedca696ea26638989b6e59f91399c3e4dee552",
+      "capsuleFile": "sources/a92ed1403cb9aa0406f4e443ecedca696ea26638989b6e59f91399c3e4dee552.go"
+    },
+    {
+      "path": "control-plane/internal/product/server.go",
+      "sha256": "392f93e5e6a58eb78fa640034d632e37dc7a43b6b7bd6b55f81f58ed3ac90afe",
+      "capsuleFile": "sources/392f93e5e6a58eb78fa640034d632e37dc7a43b6b7bd6b55f81f58ed3ac90afe.go"
+    }
+  ],
+  "fixed-2": [
+    {
+      "path": "control-plane/internal/product/browser_preview.go",
+      "sha256": "9d56b6d5e2741b288aca6903fb234a9be4f58f958df9095fb33949c2a85325c3",
+      "capsuleFile": "sources/9d56b6d5e2741b288aca6903fb234a9be4f58f958df9095fb33949c2a85325c3.go"
+    },
+    {
+      "path": "control-plane/internal/product/connections.go",
+      "sha256": "4cfb8b6242319d13a1c777471f644d4b0fae6ea266db066a867367159e8a7c51",
+      "capsuleFile": "sources/4cfb8b6242319d13a1c777471f644d4b0fae6ea266db066a867367159e8a7c51.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel.go",
+      "sha256": "09c4f277e36c73734334545a7fc1836944a975306d505be292a4eaf3b640a91e",
+      "capsuleFile": "sources/09c4f277e36c73734334545a7fc1836944a975306d505be292a4eaf3b640a91e.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel_regression_test.go",
+      "sha256": "2fb115490b09852ad04f629d68777389a67d31470a1ee70791af8b0367037d8b",
+      "capsuleFile": "sources/2fb115490b09852ad04f629d68777389a67d31470a1ee70791af8b0367037d8b.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel_test.go",
+      "sha256": "0b229981ec01fb331e0ae965c677bb9bc2efe0a0976f4cbd5e9742cbd6e0502e",
+      "capsuleFile": "sources/0b229981ec01fb331e0ae965c677bb9bc2efe0a0976f4cbd5e9742cbd6e0502e.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime.go",
+      "sha256": "12f36d146ae90dac694d2e5b5ad4fb59288716183ad746dcb1fa763117afde47",
+      "capsuleFile": "sources/12f36d146ae90dac694d2e5b5ad4fb59288716183ad746dcb1fa763117afde47.go"
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime_test.go",
+      "sha256": "51ebdb5d84d9cf465dfb12b76732fbc1f1970a1c8d9fc373630888f41dfbe8ca",
+      "capsuleFile": "sources/51ebdb5d84d9cf465dfb12b76732fbc1f1970a1c8d9fc373630888f41dfbe8ca.go"
+    },
+    {
+      "path": "control-plane/internal/product/releases.go",
+      "sha256": "a92ed1403cb9aa0406f4e443ecedca696ea26638989b6e59f91399c3e4dee552",
+      "capsuleFile": "sources/a92ed1403cb9aa0406f4e443ecedca696ea26638989b6e59f91399c3e4dee552.go"
+    },
+    {
+      "path": "control-plane/internal/product/server.go",
+      "sha256": "392f93e5e6a58eb78fa640034d632e37dc7a43b6b7bd6b55f81f58ed3ac90afe",
+      "capsuleFile": "sources/392f93e5e6a58eb78fa640034d632e37dc7a43b6b7bd6b55f81f58ed3ac90afe.go"
+    }
+  ]
+}

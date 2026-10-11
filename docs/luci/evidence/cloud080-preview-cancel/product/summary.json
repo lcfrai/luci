@@ -1,0 +1,38 @@
+{
+  "before": {
+    "exit": 1,
+    "inputsStable": true,
+    "inputCount": 796,
+    "pass": 0,
+    "fail": 2,
+    "skip": 0,
+    "topLevel": 2
+  },
+  "fixed-1": {
+    "exit": 0,
+    "inputsStable": true,
+    "inputCount": 798,
+    "pass": 84,
+    "fail": 0,
+    "skip": 0,
+    "topLevel": 33
+  },
+  "authority-before": {
+    "exit": 1,
+    "inputsStable": true,
+    "inputCount": 798,
+    "pass": 0,
+    "fail": 1,
+    "skip": 0,
+    "topLevel": 1
+  },
+  "fixed-2": {
+    "exit": 0,
+    "inputsStable": true,
+    "inputCount": 798,
+    "pass": 87,
+    "fail": 0,
+    "skip": 0,
+    "topLevel": 36
+  }
+}

@@ -1,0 +1,136 @@
+diff --git a/control-plane/internal/management/team_authorization.go b/control-plane/internal/management/team_authorization.go
+index bedcaa0d..19c29ded 100644
+--- a/control-plane/internal/management/team_authorization.go
++++ b/control-plane/internal/management/team_authorization.go
+@@ -187,6 +187,7 @@ var teamRouteRules = []teamRouteRule{
+ 	{"POST /v1/product/projects/{projectId}/releases/pages", teamEdit | teamDeploy},
+ 	{"POST /v1/product/projects/{projectId}/releases/deploy-key", teamEdit | teamDeploy | teamSecrets},
+ 	{"POST /v1/product/projects/{projectId}/releases/{releaseId}/stop", teamEdit | teamDeploy},
++	{"POST /v1/product/projects/{projectId}/releases/{releaseId}/cancel", teamEdit | teamDeploy},
+ 	{"POST /v1/product/projects/{projectId}/releases/{releaseId}/refresh", teamEdit | teamDeploy},
+ 	{"POST /v1/product/projects/{projectId}/releases/{releaseId}/rollback", teamEdit | teamDeploy},
+ 	{"GET /v1/setup/status", teamRead},
+diff --git a/control-plane/internal/management/team_authorization_test.go b/control-plane/internal/management/team_authorization_test.go
+index 0daca2de..09392ef1 100644
+--- a/control-plane/internal/management/team_authorization_test.go
++++ b/control-plane/internal/management/team_authorization_test.go
+@@ -182,3 +182,35 @@ func TestTeamRoutesFailClosedForUnknownMethodsBridgesAndNoncanonicalPaths(t *tes
+ 		})
+ 	}
+ }
++
++func TestPreviewCancellationTeamRouteCapabilities(t *testing.T) {
++	path := "/v1/product/projects/p-one/releases/release-one/cancel"
++	for _, tc := range []struct {
++		name, method string
++		permissions  TeamPermissions
++		allow        bool
++	}{
++		{"current deploy without execute", "POST", PermissionsForTeam("editor", TeamGrants{Deploy: true}), true},
++		{"revoked deploy", "POST", PermissionsForTeam("editor", TeamGrants{}), false},
++		{"execute cannot substitute for deploy", "POST", PermissionsForTeam("editor", TeamGrants{Execute: true}), false},
++		{"viewer deploy cannot substitute for edit", "POST", PermissionsForTeam("viewer", TeamGrants{Deploy: true}), false},
++		{"missing read", "POST", TeamPermissions{Edit: true, Deploy: true}, false},
++		{"GET cannot cancel", "GET", PermissionsForTeam("editor", TeamGrants{Deploy: true}), false},
++		{"DELETE cannot cancel", "DELETE", PermissionsForTeam("editor", TeamGrants{Deploy: true}), false},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			r := httptest.NewRequest(tc.method, path, strings.NewReader(`{"expectedRevision":7}`))
++			w := httptest.NewRecorder()
++			if got := authorizeTeamRoute(w, r, tc.permissions); got != tc.allow {
++				t.Fatalf("cancel allowed=%v want %v: %s", got, tc.allow, w.Body.String())
++			}
++			if tc.allow {
++				if scope, ok := ClassifyTeamRoute(r); !ok || scope != (TeamRouteScope{ProjectID: "p-one"}) {
++					t.Fatalf("cancel lost exact project ownership: scope=%+v known=%v", scope, ok)
++				}
++			} else if w.Code != http.StatusForbidden {
++				t.Fatalf("cancel denial status=%d", w.Code)
++			}
++		})
++	}
++}
+diff --git a/control-plane/internal/management/team_service.go b/control-plane/internal/management/team_service.go
+index eacb8bbd..6bc2596f 100644
+--- a/control-plane/internal/management/team_service.go
++++ b/control-plane/internal/management/team_service.go
+@@ -162,6 +162,7 @@ func teamServiceCleanup(r *http.Request) bool {
+ 		"POST /v1/product/projects/{projectId}/assist/{jobId}/cancel",
+ 		"POST /v1/product/projects/{projectId}/checks/{runId}/cancel",
+ 		"POST /v1/product/projects/{projectId}/releases/{releaseId}/stop",
++		"POST /v1/product/projects/{projectId}/releases/{releaseId}/cancel",
+ 		"POST /v1/product/projects/{projectId}/releases/{releaseId}/refresh":
+ 		return true
+ 	case "POST /v1/platform/projects/{projectId}/deployments/{releaseId}/{action}":
+diff --git a/control-plane/internal/management/team_service_test.go b/control-plane/internal/management/team_service_test.go
+index 32a00c54..f82183eb 100644
+--- a/control-plane/internal/management/team_service_test.go
++++ b/control-plane/internal/management/team_service_test.go
+@@ -174,3 +174,67 @@ func TestTeamServiceCleanupPreservesExactBodyAndRejectsUnboundedActions(t *testi
+ 		t.Fatal("service check consumed or changed worker action body")
+ 	}
+ }
++
++func TestPreviewCancellationSuspendedServiceRechecksCurrentGrants(t *testing.T) {
++	for _, suspended := range []bool{false, true} {
++		name := "active"
++		if suspended {
++			name = "suspended"
++		}
++		t.Run(name, func(t *testing.T) {
++			f := newTeamProxyFixture(t)
++			memberPath := "/v1/teams/" + f.team.ID + "/members/" + f.member.ID
++			projectPath := "/v1/teams/" + f.team.ID + "/projects/p-alpha/members/" + f.member.ID
++			setGrant := func(path, role string, deploy bool) {
++				t.Helper()
++				f.g.mu.Lock()
++				revision := f.g.state.Teams[f.team.ID].Team.Revision
++				f.g.mu.Unlock()
++				request(t, f.h, "PUT", path, f.ownerToken, teamMemberBody(revision, "", role, TeamGrants{Deploy: deploy}), 200)
++			}
++			// Both current grants permit Deploy, with no Execute or Secrets grant.
++			setGrant(memberPath, "editor", true)
++			setGrant(projectPath, "editor", true)
++			if suspended {
++				request(t, f.h, "PUT", "/v1/admin/team-services/"+f.team.ID, f.ownerToken, serviceBody(0, "managed", "suspended"), 200)
++			}
++			path := f.path("/v1/product/projects/p-alpha/releases/release-one/cancel")
++			body := map[string]int{"expectedRevision": 7}
++			request(t, f.h, "POST", path, f.memberToken, body, 200)
++			if f.writes.Load() != 1 {
++				t.Fatal("current deployment authority did not reach the exact cleanup worker")
++			}
++			// An existing login and the same release revision confer no authority
++			// after either the team or project Deploy grant is revoked.
++			setGrant(memberPath, "editor", false)
++			before := f.writes.Load()
++			request(t, f.h, "POST", path, f.memberToken, body, 403)
++			if f.writes.Load() != before {
++				t.Fatal("revoked team deployment grant reached cleanup")
++			}
++			setGrant(memberPath, "editor", true)
++			setGrant(projectPath, "editor", false)
++			request(t, f.h, "POST", path, f.memberToken, body, 403)
++			if f.writes.Load() != before {
++				t.Fatal("revoked project deployment grant reached cleanup")
++			}
++			setGrant(projectPath, "viewer", true)
++			request(t, f.h, "POST", path, f.memberToken, body, 403)
++			request(t, f.h, "POST", f.path("/v1/product/projects/p-secret/releases/release-one/cancel"), f.memberToken, body, 403)
++			if f.writes.Load() != before {
++				t.Fatal("cleanup exemption bypassed edit or project ownership")
++			}
++			setGrant(projectPath, "editor", true)
++			request(t, f.h, "POST", path, f.memberToken, body, 200)
++			if f.writes.Load() != before+1 {
++				t.Fatal("restored current deployment authority did not reach cleanup")
++			}
++			if suspended {
++				request(t, f.h, "POST", f.path("/v1/product/projects/p-alpha/releases"), f.memberToken, map[string]any{}, 403)
++				if f.writes.Load() != before+1 {
++					t.Fatal("cleanup exemption permitted a new release under suspension")
++				}
++			}
++		})
++	}
++}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
@@ -30,9 +31,12 @@ func (s *Server) PreviewSourceDigest(ctx context.Context, projectID, releaseID, 
 	return v.SourceDigest, nil
 }
 
-func (s *Server) storeAdmittedRelease(before storedRelease, after storedRelease) error {
+func (s *Server) storeAdmittedRelease(before storedRelease, after *storedRelease) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if before.operation != nil && (s.localPreviewOperations[before.ID] != before.operation || before.operation.sealed) {
+		return errors.New("the preview publisher is no longer owned by this controller")
+	}
 	rows, err := s.readReleases(before.ProjectID)
 	if err != nil {
 		return err
@@ -41,12 +45,42 @@ func (s *Server) storeAdmittedRelease(before storedRelease, after storedRelease)
 		if current.ID != before.ID {
 			continue
 		}
-		if current.Revision != before.Revision || current.Commit != before.Commit || current.ConfigurationRevision != before.ConfigurationRevision || current.Runtime == nil || before.Runtime == nil || current.Runtime.Identity != before.Runtime.Identity {
+		if current.Commit != before.Commit || current.ConfigurationRevision != before.ConfigurationRevision || current.Runtime == nil || before.Runtime == nil || current.Runtime.Identity != before.Runtime.Identity {
 			return errors.New("the exact release receipt has a newer outcome")
 		}
-		after.Revision = before.Revision + 1
-		rows[i] = after
-		return atomicJSON(s.releaseFile(before.ProjectID), rows)
+		if current.Revision != before.Revision {
+			// Cancel is the only concurrent writer whose intent the live producer
+			// may merge. Never absorb a newer runtime outcome or changed source.
+			expected := cancellationReceipt(before)
+			expected.operation = nil
+			if before.operation == nil || !before.operation.cancelRequested || !reflect.DeepEqual(current, expected) {
+				return errors.New("the exact release receipt has a newer outcome")
+			}
+		}
+		after.CancelRequested, after.CancelRevision = current.CancelRequested, current.CancelRevision
+		if before.operation != nil && before.operation.cancelRequested {
+			after.CancelRequested = true
+		}
+		if after.CancelRequested {
+			switch after.Status {
+			case "building":
+				after.Status, after.Message = "cancelling", previewCancellationMessage
+			case "ready", "failed", "unknown":
+				after.Status, after.URL, after.Message = "unknown", "", "Cancellation was requested. The preview outcome or cleanup is unconfirmed; its exact receipt and any reservation are retained. No replacement was started."
+				if after.Runtime != nil && !after.Runtime.ResourcesHeld && (after.Runtime.CleanupConfirmed || !after.Runtime.Retained()) {
+					after.Status, after.Message = "cancelled", "Preview preparation was cancelled with no remaining acknowledged resource demand. The release history is retained."
+				}
+			}
+		}
+		after.Revision = current.Revision + 1
+		rows[i] = *after
+		if err := atomicJSON(s.releaseFile(before.ProjectID), rows); err != nil {
+			return err
+		}
+		if before.operation != nil {
+			before.operation.identity = after.Runtime.Identity
+		}
+		return nil
 	}
 	return errors.New("the exact release receipt is unavailable")
 }
@@ -70,10 +104,9 @@ func (s *Server) publishPreviewOutcome(row *storedRelease, out previewruntime.Ou
 			next.Status = "stopped"
 		}
 	}
-	if err := s.storeAdmittedRelease(*row, next); err != nil {
+	if err := s.storeAdmittedRelease(*row, &next); err != nil {
 		return err
 	}
-	next.Revision++
 	*row = next
 	return nil
 }

@@ -1,0 +1,29 @@
+{
+  "head": "871ddaa9ea0158c800a20b52be588b8e5df66387",
+  "files": [
+    {
+      "path": "control-plane/internal/product/server.go",
+      "sha256": "895937c8428ba5cc24c880a605b356f35483a072efa6e3cd7e007d944c364e05"
+    },
+    {
+      "path": "control-plane/internal/product/releases.go",
+      "sha256": "135ab45ba15bf639654f28b4753edf75e23f29488642313a5cb50cdee6db5caf"
+    },
+    {
+      "path": "control-plane/internal/product/connections.go",
+      "sha256": "22b971b760083980e49bc1a87ff93a22cc0777005848a8a36c6118e3fc88c3df"
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime.go",
+      "sha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d"
+    },
+    {
+      "path": "control-plane/internal/product/browser_preview.go",
+      "sha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f"
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime_test.go",
+      "sha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6"
+    }
+  ]
+}

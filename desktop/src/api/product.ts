@@ -295,6 +295,9 @@ export interface RequirementCheckBinding {
 }
 export interface Release {
   canStop?: boolean;
+  revision?: number;
+  canCancel?: boolean;
+  cancelRequested?: boolean;
   id: string;
   projectId: string;
   briefRevision: number;
@@ -811,6 +814,14 @@ export function createProductClient(
         "POST",
         180_000,
       ),
+    cancelRelease: async (id: string, releaseId: string, expectedRevision: number) => {
+      if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw new Error("Refresh this exact build before requesting cancellation.");
+      const value = await request<Release>(`${project(id)}/releases/${encodeURIComponent(releaseId)}/cancel`, { expectedRevision });
+      if (!value || value.projectId !== id || value.id !== releaseId || value.target !== "local" || value.cancelRequested !== true || !Number.isSafeInteger(value.revision) || value.revision! <= expectedRevision) {
+        throw new Error("The cancellation response could not be confirmed for this build. Refresh release history before taking another action.");
+      }
+      return value;
+    },
     stopRelease: (id: string, releaseId: string) =>
       request<Release>(
         `${project(id)}/releases/${encodeURIComponent(releaseId)}/stop`,

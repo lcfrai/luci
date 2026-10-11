@@ -1,0 +1,2 @@
+1:30:13 PM [vite] (client) [console.error] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.
+1:30:19 PM [vite] (client) [console.error] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.

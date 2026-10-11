@@ -1,0 +1,428 @@
+{
+  "exit": 0,
+  "inputsStable": true,
+  "inputCount": 798,
+  "outcomes": [
+    {
+      "Action": "pass",
+      "Test": "TestPreviewBridgePreservesAppAuthorizationWithoutControlBearer",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancelLiveRouteRetainsUnknownAndDoesNotReplay",
+      "Elapsed": 1.04
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCloseCancelsOwnedBuildAndJoinsFinalPublication",
+      "Elapsed": 0.27
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationRequiresCurrentAuthorityRevisionAndOwnedIdentity/missing-revision",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationRequiresCurrentAuthorityRevisionAndOwnedIdentity/stale-revision",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationRequiresCurrentAuthorityRevisionAndOwnedIdentity/revoked",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationRequiresCurrentAuthorityRevisionAndOwnedIdentity/changed-allocation",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationRequiresCurrentAuthorityRevisionAndOwnedIdentity/changed-source",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationRequiresCurrentAuthorityRevisionAndOwnedIdentity/not-live",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationRequiresCurrentAuthorityRevisionAndOwnedIdentity/legacy",
+      "Elapsed": 0.01
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationRequiresCurrentAuthorityRevisionAndOwnedIdentity",
+      "Elapsed": 0.13
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationMergesOnlyExactIntentAndKeepsLatestAllocation/built",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationMergesOnlyExactIntentAndKeepsLatestAllocation/unknown",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationMergesOnlyExactIntentAndKeepsLatestAllocation/running",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationMergesOnlyExactIntentAndKeepsLatestAllocation",
+      "Elapsed": 0.06
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationNewPublishedIdentityReplacesInitialBinding",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationWinsBeforeFinalReadyReceiptWithoutClaimingCreated",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationRouteWorksWithExclusiveSourceGuardHeld",
+      "Elapsed": 0.01
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationRevokedRequestCannotSignalAfterMutexWait",
+      "Elapsed": 0.01
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCloseDeadlineSealsLatePublicationAndDoesNotReactivateOnReopen",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/missing-container",
+      "Elapsed": 0.01
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/invalid-container",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/container-missing",
+      "Elapsed": 0.01
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/malformed-inspection",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/stopped",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/wrong-project",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/wrong-release",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/not-preview",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/port-rebound",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/public-binding",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic/multiple-bindings",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic",
+      "Elapsed": 0.06
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyForwardsRecordedAppMethodsPathsAndCookies/GET",
+      "Elapsed": 0.01
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyForwardsRecordedAppMethodsPathsAndCookies/POST",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyForwardsRecordedAppMethodsPathsAndCookies/PUT",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyForwardsRecordedAppMethodsPathsAndCookies/PATCH",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyForwardsRecordedAppMethodsPathsAndCookies/DELETE",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyForwardsRecordedAppMethodsPathsAndCookies/OPTIONS",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyForwardsRecordedAppMethodsPathsAndCookies",
+      "Elapsed": 0.03
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyKeepsAppRedirectsOnBridgeAndReportsUnavailableApp",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/stopped",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/cloud",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/remote",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/localhost",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/ipv6",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/https",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/credentials",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/query",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/path",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/fragment",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/port-zero",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/port-overflow",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/port-ambiguous",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins/control",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyRejectsMissingStoppedCloudAndMalformedRecordedOrigins",
+      "Elapsed": 0.04
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewProxyCarriesWebSocketFrames",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewReceiptRetainsUnknownBuildWithoutContainerAndNeverReplays",
+      "Elapsed": 0.01
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewReceiptCASPreventsStaleReadyFromReplacingExactStop",
+      "Elapsed": 0.01
+    },
+    {
+      "Action": "pass",
+      "Test": "TestLocalReleaseExpectedCommitRejectsChangedSourceBeforeReservation",
+      "Elapsed": 0.29
+    },
+    {
+      "Action": "pass",
+      "Test": "TestLocalReleaseUsesPrivatePinnedRuntimeConfigurationAndRemovesItsEnvFile/healthy",
+      "Elapsed": 0.24
+    },
+    {
+      "Action": "pass",
+      "Test": "TestLocalReleaseUsesPrivatePinnedRuntimeConfigurationAndRemovesItsEnvFile/start-failure",
+      "Elapsed": 0.24
+    },
+    {
+      "Action": "pass",
+      "Test": "TestLocalReleaseUsesPrivatePinnedRuntimeConfigurationAndRemovesItsEnvFile",
+      "Elapsed": 0.47
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewConfigurationRejectsEnvFileInjectionWithoutWriting",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveCanonicalModesInsidePrivateRoot",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRefusesLinkedAncestorsAndPreservesOutside/linked/new/",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRefusesLinkedAncestorsAndPreservesOutside/linked/new/index.html",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRefusesLinkedAncestorsAndPreservesOutside/linked/",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRefusesLinkedAncestorsAndPreservesOutside",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRefusesLinkedRootAndExistingFiles/root",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRefusesLinkedRootAndExistingFiles/existing-file",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRefusesLinkedRootAndExistingFiles",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveCanonicalModesWithRestrictiveUmask",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRejectsPublicStagingRoot",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestLocalReleaseObservationRejectsStalePortAndHealthWithoutRewritingHistory",
+      "Elapsed": 0.04
+    },
+    {
+      "Action": "pass",
+      "Test": "TestLocalReleaseObservationBoundsWholeHistoryAndHonoursCancellation",
+      "Elapsed": 0.04
+    },
+    {
+      "Action": "pass",
+      "Test": "TestLocalReleaseLiveBuildAndControllerRestartAreDistinguished",
+      "Elapsed": 1.18
+    },
+    {
+      "Action": "pass",
+      "Test": "TestLocalReleaseBuildsCommittedSafeContextThenVerifiesHealthAndOwnership",
+      "Elapsed": 0.34
+    },
+    {
+      "Action": "pass",
+      "Test": "TestLocalReleaseRefusesDirtyBuildAndRecordsFailuresWithoutClaimingReady",
+      "Elapsed": 0.23
+    },
+    {
+      "Action": "pass",
+      "Test": "TestStopReleaseRefusesUnrelatedContainer",
+      "Elapsed": 0.01
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewHealthDoesNotFollowRedirectsOrClaimFailedHTTPIsReady",
+      "Elapsed": 0.08
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRejectsTraversalLinksAndOversizedEntries/../escape",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRejectsTraversalLinksAndOversizedEntries/link",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRejectsTraversalLinksAndOversizedEntries/huge",
+      "Elapsed": 0
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewArchiveRejectsTraversalLinksAndOversizedEntries",
+      "Elapsed": 0
+    }
+  ],
+  "end": 1791725435.3673828
+}

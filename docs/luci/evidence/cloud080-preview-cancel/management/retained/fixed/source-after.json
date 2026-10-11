@@ -1,0 +1,432 @@
+[
+  {
+    "path": "control-plane/internal/management/admin.go",
+    "bytes": 8527,
+    "sha256": "459b449d8c8130524fadb98013b165af2079a249bd41dd1024d1367ffedb7e01"
+  },
+  {
+    "path": "control-plane/internal/management/assist_policy_test.go",
+    "bytes": 4537,
+    "sha256": "64cd84fdfdbaf7b6374014623ced519ea6e9a5d928e4beb9718c01e52f77c1b6"
+  },
+  {
+    "path": "control-plane/internal/management/auth.go",
+    "bytes": 14382,
+    "sha256": "8c8e07dead188b9037538308d30bb65e4e125b21cb422793e841a5bf629a503d"
+  },
+  {
+    "path": "control-plane/internal/management/check_authority.go",
+    "bytes": 1703,
+    "sha256": "c69c4c67d3d8c0f7bab9da7e8095055356413f15a8a965a6376992fd2ed502da"
+  },
+  {
+    "path": "control-plane/internal/management/check_authority_test.go",
+    "bytes": 3870,
+    "sha256": "2123143d0c68e50305607bc37e86fc64bd1aef3d590481c8b7265eca8057b36d"
+  },
+  {
+    "path": "control-plane/internal/management/conversations.go",
+    "bytes": 8584,
+    "sha256": "26513cf6991e888c95643c12a26fb725d3dba405dbce1bc1342077265aea2ff4"
+  },
+  {
+    "path": "control-plane/internal/management/conversations_test.go",
+    "bytes": 6639,
+    "sha256": "14cd0755e81176543b311b9467889c057d8ad79b78d65a00496cc9b4b0f448f1"
+  },
+  {
+    "path": "control-plane/internal/management/conversations_windows_test.go",
+    "bytes": 2336,
+    "sha256": "3e2f3e0d8ecc9fbc0ae714aafc6a499c5cd630dbf913fc83c09f6bc64b1599cb"
+  },
+  {
+    "path": "control-plane/internal/management/dependencies.go",
+    "bytes": 26182,
+    "sha256": "5f9a6ffe5089003cdad5f5d1ee8c6fa3ff77b854e39644be2693a837df68d826"
+  },
+  {
+    "path": "control-plane/internal/management/dependencies_test.go",
+    "bytes": 20463,
+    "sha256": "11e5ba9d67047647ebb29250cf9d1ea5fa266dcd3fd17508a7ee5e7a0c362f45"
+  },
+  {
+    "path": "control-plane/internal/management/dependency_lock_unix.go",
+    "bytes": 238,
+    "sha256": "a030f0f6893f3c9e754bfb5f8b44b5ff13c0a73116a379f15a475f897418a145"
+  },
+  {
+    "path": "control-plane/internal/management/dependency_lock_windows.go",
+    "bytes": 1450,
+    "sha256": "d5c8b83fc94b42b199a97f436be89a1e75a751f228f97fb6c3083f8338f233a3"
+  },
+  {
+    "path": "control-plane/internal/management/dependency_lock_windows_test.go",
+    "bytes": 1129,
+    "sha256": "d967c73773da7cbce3ebe2ccabc5ad0f055b1ee40a7f600b6865bdfabda012bd"
+  },
+  {
+    "path": "control-plane/internal/management/dependency_process.go",
+    "bytes": 3526,
+    "sha256": "d1b85fc46d1019aae3c4168e08a07ca0d7c6591d5479655a35a7253d44aa8aa1"
+  },
+  {
+    "path": "control-plane/internal/management/deployment_authority.go",
+    "bytes": 3374,
+    "sha256": "fb75d46c029a7e4d98b2d35860e14663184b21f67eca3a9ec97d634a03c9b59d"
+  },
+  {
+    "path": "control-plane/internal/management/deployment_authority_test.go",
+    "bytes": 4807,
+    "sha256": "c61a82a4fbd549731d263345bb6d52558f8d2b7b02726610b5e560a009b53f38"
+  },
+  {
+    "path": "control-plane/internal/management/execution_authority.go",
+    "bytes": 9827,
+    "sha256": "6135a8716f3f45e36e2b713e54487f1a3929071dd8cc0afd27eae848dcf525db"
+  },
+  {
+    "path": "control-plane/internal/management/execution_authority_other.go",
+    "bytes": 223,
+    "sha256": "97189063f6ab0a3f396c275b5a0f62fb5697b3b659fd59f351d0bd26c947b8ab"
+  },
+  {
+    "path": "control-plane/internal/management/execution_authority_test.go",
+    "bytes": 10158,
+    "sha256": "f2324ede1f8bbd7f8d2fad35fe131aca0cdfc0c1514d5a22232481a026f5fcf3"
+  },
+  {
+    "path": "control-plane/internal/management/execution_authority_unix.go",
+    "bytes": 340,
+    "sha256": "88afd440c5c250173d3fc180190dad6386c0c91316b2e02e149fe75c86d3a18e"
+  },
+  {
+    "path": "control-plane/internal/management/execution_authority_windows.go",
+    "bytes": 1262,
+    "sha256": "78d128377936af26dfd30f59dd60b24237802f1726ad9b14210add9fd84f7d59"
+  },
+  {
+    "path": "control-plane/internal/management/execution_control_authority.go",
+    "bytes": 3304,
+    "sha256": "10557e5d948c232ee39a537cddaf82640ef8b801cd3495d11277b4f73eebd18a"
+  },
+  {
+    "path": "control-plane/internal/management/execution_control_authority_test.go",
+    "bytes": 4966,
+    "sha256": "a3ed439450ccd065b11d22ddb90b239fff34b5dae9cc41d60d7310e1d766ec75"
+  },
+  {
+    "path": "control-plane/internal/management/execution_storage.go",
+    "bytes": 8232,
+    "sha256": "2edca921f93260afefafbb70af1605165866c224ad3cefe2270c1b8a2497b1e4"
+  },
+  {
+    "path": "control-plane/internal/management/execution_storage_file.go",
+    "bytes": 3225,
+    "sha256": "5f93b2a8d0b0d35d492d9f52aaa91d55f425dbee60f9887876863cb6b3457fb3"
+  },
+  {
+    "path": "control-plane/internal/management/execution_storage_file_unix.go",
+    "bytes": 1140,
+    "sha256": "1d0b8706a50166fbce93b840ad2ca1c016a8dfa1068ca17adb6b6bfc2ef2a486"
+  },
+  {
+    "path": "control-plane/internal/management/execution_storage_file_windows.go",
+    "bytes": 1001,
+    "sha256": "169a5857e8775ded655563c989a7981e60335c91b506dc5b35adcae4c5617def"
+  },
+  {
+    "path": "control-plane/internal/management/execution_storage_test.go",
+    "bytes": 13007,
+    "sha256": "0c80780e0d6cc45eecd344e746ca250e53c9e5ad1550a1369fbff6b321f937ab"
+  },
+  {
+    "path": "control-plane/internal/management/invitations.go",
+    "bytes": 7063,
+    "sha256": "e291ad6816dd77156e345b50dbafcf67be8164d068c18bcec2136c56231a967c"
+  },
+  {
+    "path": "control-plane/internal/management/invitations_test.go",
+    "bytes": 5649,
+    "sha256": "809dba44bb2e03746f593106afdf15709577b15e7a2453b7e08122cae91cfe29"
+  },
+  {
+    "path": "control-plane/internal/management/local_access.go",
+    "bytes": 6638,
+    "sha256": "8fc7a2ee299586bc1579ac7655a674be322b7d7631b83d0974f80408c5b2bfaf"
+  },
+  {
+    "path": "control-plane/internal/management/local_access_test.go",
+    "bytes": 10818,
+    "sha256": "d7b0552c846dcf6be09dccd853e007780869511dc11382da078c6ee5f76ebc07"
+  },
+  {
+    "path": "control-plane/internal/management/managed_team.go",
+    "bytes": 3018,
+    "sha256": "c7e842030deda7bf380cb82925b5aca1246c5844c391a5f12d05667ccdc3cefe"
+  },
+  {
+    "path": "control-plane/internal/management/managed_team_test.go",
+    "bytes": 6997,
+    "sha256": "be2791171fcf78fa35bc5727fb421101be2176c79743195fcef187d6c1593f44"
+  },
+  {
+    "path": "control-plane/internal/management/management.go",
+    "bytes": 18394,
+    "sha256": "ebc33dbb061d32f0d30f162b76eb89f1996986aab43faa85cbd350664585ce68"
+  },
+  {
+    "path": "control-plane/internal/management/management_test.go",
+    "bytes": 18901,
+    "sha256": "cca74b5b9f3eed513fab22b5cd69c4b07d2a7372bd5d3486bf4e7a713288e071"
+  },
+  {
+    "path": "control-plane/internal/management/persistence_failure_test.go",
+    "bytes": 8995,
+    "sha256": "c9b88a17f93bbdfde4b2e11465ca767aa622ade87922f6eeae3ef3538860ad89"
+  },
+  {
+    "path": "control-plane/internal/management/platform_bridge_test.go",
+    "bytes": 1419,
+    "sha256": "16a4ea4b3f20365e2e9f742ef3f42fb6bb86bcc0a091d949d1010ab8750e8f44"
+  },
+  {
+    "path": "control-plane/internal/management/policy.go",
+    "bytes": 10527,
+    "sha256": "a91d676456cc4012e8d4162b24054d96117b3e0452f47c87e6d5bca2cd9bc979"
+  },
+  {
+    "path": "control-plane/internal/management/portable_access_test.go",
+    "bytes": 3903,
+    "sha256": "7a48ab1b9ece703cb32dcd3c5e8b87f177b01464ce5cfb11bf124b0b0efb3b2a"
+  },
+  {
+    "path": "control-plane/internal/management/process_unix.go",
+    "bytes": 569,
+    "sha256": "95e1dc27953669b3688e3d1a0054bd2ece8440c6902cad37fffd2dc7b010c788"
+  },
+  {
+    "path": "control-plane/internal/management/process_windows.go",
+    "bytes": 1678,
+    "sha256": "be6fab90cb6e3bda534de09bf8ff9f4dcd03e2f9ff1d0a3eb6a10b3b34c1495d"
+  },
+  {
+    "path": "control-plane/internal/management/project_run_policy_test.go",
+    "bytes": 1840,
+    "sha256": "aedbf2d61eb847121bd5719039af8f6ef37b16bf5bae73aa79cdc0f9fa951dbc"
+  },
+  {
+    "path": "control-plane/internal/management/runtime.go",
+    "bytes": 17394,
+    "sha256": "cbc15063b7dedffbe408662028c66bd9ac25eefad9fca1943d9cdc0e698b605e"
+  },
+  {
+    "path": "control-plane/internal/management/runtime_authority.go",
+    "bytes": 2925,
+    "sha256": "9662be0f924895194c645e91ed519dd66c71fb55c9423c9ddbbb153fbe6795d5"
+  },
+  {
+    "path": "control-plane/internal/management/runtime_authority_test.go",
+    "bytes": 7249,
+    "sha256": "c36fffc48372e7f242bb9bbcf398bee5b81da1b3e7e3848613c11808c158b31b"
+  },
+  {
+    "path": "control-plane/internal/management/sockets.go",
+    "bytes": 2848,
+    "sha256": "f786c7b911feebb19a7170754da7b49cb74a9ae81dc0efe842b1635f5ec0f1e3"
+  },
+  {
+    "path": "control-plane/internal/management/storage_paths.go",
+    "bytes": 1277,
+    "sha256": "4fcc08901f31bac54c470e15279654afa5753680807eceb4ea0ed57ac3aabea6"
+  },
+  {
+    "path": "control-plane/internal/management/storage_paths_test.go",
+    "bytes": 2532,
+    "sha256": "dc87dc6af42288681b16398411182619ad2692bde3095b64fb43b61b0a47925e"
+  },
+  {
+    "path": "control-plane/internal/management/team_audit.go",
+    "bytes": 1769,
+    "sha256": "4af05f3da5f0412620fb303dd938ec5bfce72725287946e68c65c15bc9d87f66"
+  },
+  {
+    "path": "control-plane/internal/management/team_audit_test.go",
+    "bytes": 4104,
+    "sha256": "fa5b2a3f48b647420ffd1831736f114f3b29fe07dbb32d21a6e7ad3722bf8b17"
+  },
+  {
+    "path": "control-plane/internal/management/team_authorization.go",
+    "bytes": 17448,
+    "sha256": "e9dfa7f8f87ae1ddcc898ad1d2cc539f0554920ed27ad17ed708540143913d14"
+  },
+  {
+    "path": "control-plane/internal/management/team_authorization_test.go",
+    "bytes": 13599,
+    "sha256": "b06465e744f44af896ac64873f294a1cb41a0d5addd4d451d0a7c28634580ad8"
+  },
+  {
+    "path": "control-plane/internal/management/team_billing.go",
+    "bytes": 14536,
+    "sha256": "5c35716c15d766d59d5f449863bbe257829d13cd51297050de8da01f5471e805"
+  },
+  {
+    "path": "control-plane/internal/management/team_billing_checkout.go",
+    "bytes": 13166,
+    "sha256": "a6be8a25d77e2eb4ed69a76ae25596fb50d862de049d9b59719251ba4a1dcaf2"
+  },
+  {
+    "path": "control-plane/internal/management/team_billing_provider.go",
+    "bytes": 2437,
+    "sha256": "ab678691eb720f7bdf7ccfd4683e16b3ec8d6106a498e0132521a7ed87f0f108"
+  },
+  {
+    "path": "control-plane/internal/management/team_billing_return_test.go",
+    "bytes": 4328,
+    "sha256": "7ac2b271474175aa20f760b9254a148eb6bf9241b603884c53e38dcb5b2f3acd"
+  },
+  {
+    "path": "control-plane/internal/management/team_billing_security_test.go",
+    "bytes": 20824,
+    "sha256": "90fe8ad2ab0360a7c313d1a6bf8bcf9bade649e80af7a451b1bc7ab565c2b605"
+  },
+  {
+    "path": "control-plane/internal/management/team_billing_test.go",
+    "bytes": 8506,
+    "sha256": "dd1a9a0d242238c24e962d8f7c6ee7aebccba49f63ebac3ed2a2924c5e7446f3"
+  },
+  {
+    "path": "control-plane/internal/management/team_billing_webhook.go",
+    "bytes": 3850,
+    "sha256": "bf72b40590470a41b9b379fb03842fa51e5bead88c64e9de04e6f5b7afabae73"
+  },
+  {
+    "path": "control-plane/internal/management/team_browser.go",
+    "bytes": 12283,
+    "sha256": "92130229c293903e77dd8ae8a1742b69d0bd888a21b27e532a9761ad3093b780"
+  },
+  {
+    "path": "control-plane/internal/management/team_browser_test.go",
+    "bytes": 14214,
+    "sha256": "62c9d9970c2fb1784db2dee1ac30ae305db4c4830bbed9c78111cbd4ad0b273e"
+  },
+  {
+    "path": "control-plane/internal/management/team_data_lifecycle.go",
+    "bytes": 6227,
+    "sha256": "ecac879a518c87ae715ad6fabd005bd6d6cd89a80bc205c844769f32842029a3"
+  },
+  {
+    "path": "control-plane/internal/management/team_data_lifecycle_test.go",
+    "bytes": 6540,
+    "sha256": "3f0f207273d47ac3f23c0b4102f0a4b80cfd257866e35160d69114e0514f30ba"
+  },
+  {
+    "path": "control-plane/internal/management/team_handoff_authorization_test.go",
+    "bytes": 2506,
+    "sha256": "30d80c5890b3e4165e514b00eb4446193400787c005fa75622ec299ca8a912d1"
+  },
+  {
+    "path": "control-plane/internal/management/team_invites.go",
+    "bytes": 9403,
+    "sha256": "62652c3ae1a32a1bffa0c29449869c3dad09578bc5f7ce7882b40cf6107e205a"
+  },
+  {
+    "path": "control-plane/internal/management/team_invites_test.go",
+    "bytes": 11868,
+    "sha256": "c4a210874ed24e2446ae14dbc37e40f907fde8fb063f8b8bc9f41808894151ef"
+  },
+  {
+    "path": "control-plane/internal/management/team_proxy.go",
+    "bytes": 17757,
+    "sha256": "b8a80d8ac58d9e8ebea99a87cfb5bb773dcbf2564a084628428a8b42243b48cd"
+  },
+  {
+    "path": "control-plane/internal/management/team_proxy_test.go",
+    "bytes": 25599,
+    "sha256": "3f3761094b6f7443d1db9d3c39426076d49e7dda65cfef74858f53f3f9a724ca"
+  },
+  {
+    "path": "control-plane/internal/management/team_reviewed_context_test.go",
+    "bytes": 6934,
+    "sha256": "3d7d6fd02decefa5576409c376e1be5ae5e0ad412192009966eb972470327d33"
+  },
+  {
+    "path": "control-plane/internal/management/team_runtime.go",
+    "bytes": 8447,
+    "sha256": "38fcb0563e1bbe96c87c6a8dda357720cb04a0f077375fe0ceeeab04a8d32983"
+  },
+  {
+    "path": "control-plane/internal/management/team_runtime_test.go",
+    "bytes": 10946,
+    "sha256": "23fa0a11733ee252c5275b7c0938d417808d345e357f563cafec2e987a57f069"
+  },
+  {
+    "path": "control-plane/internal/management/team_service.go",
+    "bytes": 11251,
+    "sha256": "43b026f19ca9b290dfc9dbde8d28e0221a9887c770891cf1a96fef0428dd3359"
+  },
+  {
+    "path": "control-plane/internal/management/team_service_guidance_test.go",
+    "bytes": 6439,
+    "sha256": "7d4d5d9ff9c8dd76ee016109491dc3137b77288c03a3e8968e1be5c65bf2d426"
+  },
+  {
+    "path": "control-plane/internal/management/team_service_test.go",
+    "bytes": 12668,
+    "sha256": "4ffd56f1e8a88b3134b75b33cf2320cc94b2cc56c069839d2ba806d0a7d7903e"
+  },
+  {
+    "path": "control-plane/internal/management/team_session_execution_generation_test.go",
+    "bytes": 2656,
+    "sha256": "75f230f9b9336983ef3431875e04931944d390677f42fb30beb67941eda58396"
+  },
+  {
+    "path": "control-plane/internal/management/team_swarm_queue_control_test.go",
+    "bytes": 4474,
+    "sha256": "3fd7c8c0440abbeea509af840ce5a2b3b3648ab90fe453236ba5838d5a2337d4"
+  },
+  {
+    "path": "control-plane/internal/management/team_swarm_worktrees_test.go",
+    "bytes": 8445,
+    "sha256": "48a9c6f02a4dc46eee2667bd5047e92cf85c5b084ef762fdd0ea7c7fe9f3823f"
+  },
+  {
+    "path": "control-plane/internal/management/teams.go",
+    "bytes": 20994,
+    "sha256": "1bef2f0694a983085d2ac7d7f1d02a652ebc912adc916db543c5a580c5cd2c18"
+  },
+  {
+    "path": "control-plane/internal/management/teams_test.go",
+    "bytes": 14017,
+    "sha256": "8d241b78093db33ad3abb663ca9d337f0d1295af5923d44545e2a8ecf523ed20"
+  },
+  {
+    "path": "control-plane/go.mod",
+    "bytes": 3111,
+    "sha256": "a5f4faf59655f01c0691b2a05632d474b0e4019111f4e7c3d8c1d89731a44c92"
+  },
+  {
+    "path": "control-plane/go.sum",
+    "bytes": 19295,
+    "sha256": "c3bbf4f9f4b235b5864b171019079ed97efc3b71bae1cefd885f69f7322b086d"
+  },
+  {
+    "path": "sandboxd/go.mod",
+    "bytes": 152,
+    "sha256": "729defcdf4013ecccfa8ba2f5f985eb6655e90e31d15595c7d396edcfb800292"
+  },
+  {
+    "path": "sandboxd/go.sum",
+    "bytes": 509,
+    "sha256": "48236c5190f2aa0ad9ecc672ed5749dfc083921633445122061a290f1aa43729"
+  },
+  {
+    "path": "/workspace/.luci-tools/activate.sh",
+    "bytes": 1506,
+    "sha256": "59ab2aaf64176aed399e7d7aa790bc2c54e9710ceb624ac60668b4838af2d163"
+  },
+  {
+    "path": "/workspace/.luci-tools/go.work",
+    "bytes": 76,
+    "sha256": "0ac5f5af6697615a6cad94517240e18a750fe8f0160b22e755e2c9b348c18cd7"
+  }
+]

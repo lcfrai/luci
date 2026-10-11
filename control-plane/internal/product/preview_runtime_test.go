@@ -13,7 +13,7 @@ import (
 func retainedPreviewFixture(t *testing.T, s *Server, projectID string) storedRelease {
 	t.Helper()
 	identity := previewruntime.Identity{ProjectID: projectID, ReleaseID: "rel-retained", Target: "local", Commit: strings.Repeat("a", 40), SourceDigest: strings.Repeat("b", 64), BuildAllocationID: "build-retained", EngineID: "engine-retained", InstanceID: "instance-retained"}
-	row := storedRelease{Release: Release{ID: identity.ReleaseID, ProjectID: projectID, Target: "local", Commit: identity.Commit, Status: "building", ConfigurationRevision: 3}, Revision: 1, Runtime: &previewruntime.Outcome{Identity: identity, Phase: "building", ResourcesHeld: true}}
+	row := storedRelease{Release: Release{ID: identity.ReleaseID, ProjectID: projectID, Target: "local", Commit: identity.Commit, Status: "building", ConfigurationRevision: 3, Revision: 1}, Runtime: &previewruntime.Outcome{Identity: identity, Phase: "building", ResourcesHeld: true}}
 	if err := s.storeRelease(row); err != nil {
 		t.Fatal(err)
 	}

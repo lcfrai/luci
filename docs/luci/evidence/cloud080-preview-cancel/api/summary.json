@@ -1,0 +1,37 @@
+{
+  "scope": "Linux controlled registered HTTP/API cancellation bridge. Fake executor and fresh-authority lookup; actual Product/API wiring, reviewed committed temporary projects, shared admission, lifecycle locking and durable state. No real Docker, browser, installed runtime or serving-health proof. No original-version run of this additional API test.",
+  "test": "TestPreviewHTTPCurrentCancellationReachesAPILockAndRetainsUnknownAcrossReopen",
+  "result": "passed",
+  "race": true,
+  "testBodySeconds": 1.53,
+  "exitCode": 0,
+  "testActions": {
+    "pass": 1
+  },
+  "HEADBefore": "871ddaa9ea0158c800a20b52be588b8e5df66387",
+  "HEADAfter": "871ddaa9ea0158c800a20b52be588b8e5df66387",
+  "workingTreeWasDirty": true,
+  "repositoryInputCount": 994,
+  "repositoryInputScope": "Conservative repository Go/native/module/embed inventory from both active modules, including untracked new files; external dependencies bound by module manifests, not individual cache files. This inventory includes files outside the selected compiled dependency closure.",
+  "repositoryInputsStable": true,
+  "observedExecutedBinaryHashAvailable": false,
+  "claims": [
+    "Current expectedRevision cancellation returns HTTP202 before the selected backend returns and reaches the actual API BuildPreview context while its release lifecycle lock is held.",
+    "A second release on the same Product/API retains its context and unchanged cancellable receipt.",
+    "The target unknown preview-build lease retains exact identity/state and1024MiB/1000mCPU; the independent settled build releases only its own charge.",
+    "A new Product/API and registry over the durable state keep the selected release unknown and non-cancellable; refreshed views and repeated HTTP409 cancel refusals do not replay Build or issue Create/Start/Stop/Remove."
+  ],
+  "changedRepositoryFiles": [
+    "control-plane/internal/api/preview_cancellation_http_test.go"
+  ],
+  "testSourceSHA256": "baea345255eac458f5bbba71c87d7ca7a4bebc5063609d661c8372442566d2b2",
+  "patchSHA256": "fed9ee78f8ab37af0b0a8dff5d760678a186db6928f3f90bc9010b988eecc84e",
+  "resultSHA256": "9ed80b347b9d881aae8d54b9d90623c6b59e608b27c262b88d7dd79f5626d206",
+  "eventsSHA256": "e26cc4ad3cb3400551617b952046bee758aefe78a44c56ab0f21a181a1fd271d",
+  "beforeManifestSHA256": "a885a4f62b055e928e9af5494fca9998714023e2d444e19f162f98d2834fa01c",
+  "afterManifestSHA256": "35ee695333e8dfc1befba07dd7f8af14c628b20d4b3cbb856be061554a1f4e4c",
+  "minimumFreeBytes": {
+    "root": 3682181120,
+    "tmp": 802725888
+  }
+}

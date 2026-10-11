@@ -1,0 +1,33 @@
+{
+  "exit": 0,
+  "inputsStable": true,
+  "inputCount": 800,
+  "outcomes": [
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationReopenDoesNotLeaveInactiveNoDemandCancelling/before-allocation",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationReopenDoesNotLeaveInactiveNoDemandCancelling/finished-builder",
+      "Elapsed": 0.03
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationReopenDoesNotLeaveInactiveNoDemandCancelling/live-cancellation",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationReopenDoesNotLeaveInactiveNoDemandCancelling/confirmed-cancelled",
+      "Elapsed": 0.02
+    },
+    {
+      "Action": "pass",
+      "Test": "TestPreviewCancellationReopenDoesNotLeaveInactiveNoDemandCancelling",
+      "Elapsed": 0.09
+    }
+  ],
+  "end": 1791726209.7517858
+}

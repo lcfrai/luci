@@ -25,6 +25,9 @@ import (
 )
 
 type Release struct {
+	Revision                  uint64 `json:"revision,omitempty"`
+	CanCancel                 bool   `json:"canCancel,omitempty"`
+	CancelRequested           bool   `json:"cancelRequested,omitempty"`
 	CanStop                   bool   `json:"canStop"`
 	ID                        string `json:"id"`
 	ProjectID                 string `json:"projectId"`
@@ -41,16 +44,18 @@ type Release struct {
 
 type storedRelease struct {
 	Release
-	Revision    uint64                  `json:"revision,omitempty"`
-	Runtime     *previewruntime.Outcome `json:"runtime,omitempty"`
-	ContainerID string                  `json:"containerId"`
-	Image       string                  `json:"image"`
+	CancelRevision uint64                  `json:"cancelRevision,omitempty"`
+	Runtime        *previewruntime.Outcome `json:"runtime,omitempty"`
+	ContainerID    string                  `json:"containerId"`
+	Image          string                  `json:"image"`
+	operation      *localPreviewOperation
 }
 
 func (s *Server) registerReleases(mux Registrar) {
 	mux.HandleFunc("GET /v1/product/projects/{id}/releases", s.listProjectReleases)
 	mux.HandleFunc("POST /v1/product/projects/{id}/releases", s.createLocalRelease)
 	mux.HandleFunc("POST /v1/product/projects/{id}/releases/{releaseId}/stop", s.stopLocalRelease)
+	mux.HandleFunc("POST /v1/product/projects/{id}/releases/{releaseId}/cancel", s.cancelLocalRelease)
 }
 
 func (s *Server) releaseFile(projectID string) string {
@@ -91,6 +96,10 @@ func (s *Server) readReleases(projectID string) ([]storedRelease, error) {
 func (s *Server) storeRelease(row storedRelease) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.storeReleaseLocked(row)
+}
+
+func (s *Server) storeReleaseLocked(row storedRelease) error {
 	rows, err := s.readReleases(row.ProjectID)
 	if err != nil {
 		return err
@@ -243,32 +252,22 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 	}
 	row.Revision = 1
 	row.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: p.ID, ReleaseID: row.ID, Target: row.Target, Commit: commit, SourceDigest: digest}, Phase: "reserved"}
-	s.mu.Lock()
-	if s.activeLocalReleases == nil {
-		s.activeLocalReleases = make(map[string]bool)
-	}
-	s.activeLocalReleases[row.ID] = true
-	s.mu.Unlock()
-	defer func() {
-		s.mu.Lock()
-		delete(s.activeLocalReleases, row.ID)
-		s.mu.Unlock()
-	}()
-	if err := s.storeRelease(row); err != nil {
+	operation, err := s.beginLocalPreview(&row, cancel)
+	if err != nil {
 		journeyError(w, 500, "release_reservation_failed", err.Error())
 		return
 	}
+	defer s.finishLocalPreview(row.ID, operation)
 	failed := func(message string) {
 		next := row
 		next.Status, next.URL, next.Message = "failed", "", redactPreviewConfiguration(message, configuration.Values)
 		if row.Runtime.ResourcesHeld {
 			next.Status = "unknown"
 		}
-		if err := s.storeAdmittedRelease(row, next); err != nil {
+		if err := s.storeAdmittedRelease(row, &next); err != nil {
 			journeyError(w, 409, "release_record_changed", "The preview result could not replace its retained receipt.")
 			return
 		}
-		next.Revision++
 		row = next
 		journeyJSON(w, 422, s.browserRelease(row))
 	}
@@ -327,16 +326,23 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		failed("The container did not answer a successful HTTP health check: " + err.Error())
 		return
 	}
-	next := row
+	s.completeLocalPreview(w, &row, url)
+}
+
+func (s *Server) completeLocalPreview(w http.ResponseWriter, row *storedRelease, url string) {
+	next := *row
 	next.Status, next.URL = "ready", url
 	next.Message = "Local preview returned a successful HTTP response. Bound to this computer only."
-	if err := s.storeAdmittedRelease(row, next); err != nil {
+	if err := s.storeAdmittedRelease(*row, &next); err != nil {
 		journeyError(w, 409, "release_record_changed", "The ready result could not replace its retained receipt.")
 		return
 	}
-	next.Revision++
-	row = next
-	journeyJSON(w, 201, s.browserRelease(row))
+	*row = next
+	if row.Status != "ready" {
+		journeyJSON(w, 422, s.browserRelease(*row))
+		return
+	}
+	journeyJSON(w, 201, s.browserRelease(*row))
 }
 
 func localPreviewURL(mapping string) (string, error) {

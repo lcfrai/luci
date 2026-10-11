@@ -174,3 +174,67 @@ func TestTeamServiceCleanupPreservesExactBodyAndRejectsUnboundedActions(t *testi
 		t.Fatal("service check consumed or changed worker action body")
 	}
 }
+
+func TestPreviewCancellationSuspendedServiceRechecksCurrentGrants(t *testing.T) {
+	for _, suspended := range []bool{false, true} {
+		name := "active"
+		if suspended {
+			name = "suspended"
+		}
+		t.Run(name, func(t *testing.T) {
+			f := newTeamProxyFixture(t)
+			memberPath := "/v1/teams/" + f.team.ID + "/members/" + f.member.ID
+			projectPath := "/v1/teams/" + f.team.ID + "/projects/p-alpha/members/" + f.member.ID
+			setGrant := func(path, role string, deploy bool) {
+				t.Helper()
+				f.g.mu.Lock()
+				revision := f.g.state.Teams[f.team.ID].Team.Revision
+				f.g.mu.Unlock()
+				request(t, f.h, "PUT", path, f.ownerToken, teamMemberBody(revision, "", role, TeamGrants{Deploy: deploy}), 200)
+			}
+			// Both current grants permit Deploy, with no Execute or Secrets grant.
+			setGrant(memberPath, "editor", true)
+			setGrant(projectPath, "editor", true)
+			if suspended {
+				request(t, f.h, "PUT", "/v1/admin/team-services/"+f.team.ID, f.ownerToken, serviceBody(0, "managed", "suspended"), 200)
+			}
+			path := f.path("/v1/product/projects/p-alpha/releases/release-one/cancel")
+			body := map[string]int{"expectedRevision": 7}
+			request(t, f.h, "POST", path, f.memberToken, body, 200)
+			if f.writes.Load() != 1 {
+				t.Fatal("current deployment authority did not reach the exact cleanup worker")
+			}
+			// An existing login and the same release revision confer no authority
+			// after either the team or project Deploy grant is revoked.
+			setGrant(memberPath, "editor", false)
+			before := f.writes.Load()
+			request(t, f.h, "POST", path, f.memberToken, body, 403)
+			if f.writes.Load() != before {
+				t.Fatal("revoked team deployment grant reached cleanup")
+			}
+			setGrant(memberPath, "editor", true)
+			setGrant(projectPath, "editor", false)
+			request(t, f.h, "POST", path, f.memberToken, body, 403)
+			if f.writes.Load() != before {
+				t.Fatal("revoked project deployment grant reached cleanup")
+			}
+			setGrant(projectPath, "viewer", true)
+			request(t, f.h, "POST", path, f.memberToken, body, 403)
+			request(t, f.h, "POST", f.path("/v1/product/projects/p-secret/releases/release-one/cancel"), f.memberToken, body, 403)
+			if f.writes.Load() != before {
+				t.Fatal("cleanup exemption bypassed edit or project ownership")
+			}
+			setGrant(projectPath, "editor", true)
+			request(t, f.h, "POST", path, f.memberToken, body, 200)
+			if f.writes.Load() != before+1 {
+				t.Fatal("restored current deployment authority did not reach cleanup")
+			}
+			if suspended {
+				request(t, f.h, "POST", f.path("/v1/product/projects/p-alpha/releases"), f.memberToken, map[string]any{}, 403)
+				if f.writes.Load() != before+1 {
+					t.Fatal("cleanup exemption permitted a new release under suspension")
+				}
+			}
+		})
+	}
+}

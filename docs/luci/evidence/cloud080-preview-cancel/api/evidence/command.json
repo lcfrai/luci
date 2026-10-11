@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "-run",
+    "^TestPreviewHTTPCurrentCancellationReachesAPILockAndRetainsUnknownAcrossReopen$",
+    "./internal/api"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "startedAt": 1791725649.4810221,
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOPATH": "/tmp/luci-gopath",
+    "GOCACHE": "/tmp/luci-go-build-cache",
+    "GOTMPDIR": "/workspace/.t",
+    "TMPDIR": "/workspace/.t",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly"
+  },
+  "freeBefore": {
+    "root": 3813859328,
+    "tmp": 802725888
+  },
+  "runnerSHA256": "d5d5a4ef181326d2da8ad3b30ad07f2743b858c3acd49f13a3336a8cd0ddd12e"
+}

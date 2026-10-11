@@ -1,0 +1,94 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2184,
+      "sha256": "4e2b8445299d866e3af26b0ae3e1330371fb6e0eafaf0a3f3710ae40d960ce39"
+    },
+    {
+      "path": "compressed-input-bindings.json",
+      "bytes": 939,
+      "sha256": "bf34c40885cdea7827549a41adb6966046fbd5014d5b4c1ac7ec0156dcbaea8d"
+    },
+    {
+      "path": "reopen-before/go-test.jsonl",
+      "bytes": 7406,
+      "sha256": "291dea9637b3354a568f9701dd92c87e53b949f6148dcf1f00d4cfe9d3c5a398"
+    },
+    {
+      "path": "reopen-before/inputs-after.json.gz",
+      "bytes": 45875,
+      "sha256": "e0455b571324279081496376e0e168aefc1242d1eb65e84fd4180206cc132cc4"
+    },
+    {
+      "path": "reopen-before/inputs-before.json.gz",
+      "bytes": 45875,
+      "sha256": "e0455b571324279081496376e0e168aefc1242d1eb65e84fd4180206cc132cc4"
+    },
+    {
+      "path": "reopen-before/invocation.json",
+      "bytes": 640,
+      "sha256": "b9f6c87780eb7e2107b7d702d022d9be2b97219139a385ae0fcee5193bac807a"
+    },
+    {
+      "path": "reopen-before/preview_cancel_reopen_test.go",
+      "bytes": 3401,
+      "sha256": "983f0e73e527d9fec902de9e42a4b7caf5c9d8eeb58287d82e193ba259232b44"
+    },
+    {
+      "path": "reopen-before/releases_observation.go",
+      "bytes": 3602,
+      "sha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd"
+    },
+    {
+      "path": "reopen-before/result.json",
+      "bytes": 903,
+      "sha256": "19bc561f70cf4ba4ad99e5ce90e4c710db45fa7ca494df679fe402f1508538d2"
+    },
+    {
+      "path": "reopen-boundary.patch",
+      "bytes": 4771,
+      "sha256": "7d558f3f1b77fd9f5f33fc4e224a6a47c366e762fd1bd939a796b4b43e03b967"
+    },
+    {
+      "path": "reopen-fixed/go-test.jsonl",
+      "bytes": 6126,
+      "sha256": "9a9524159518fe3ad200ab169e0396f66c3d2b47159060675b9e152ab97a7212"
+    },
+    {
+      "path": "reopen-fixed/inputs-after.json.gz",
+      "bytes": 45874,
+      "sha256": "cce4037508e64e5c0682033f15e3ff0b8845b24c03d382af816284ce8f9850c7"
+    },
+    {
+      "path": "reopen-fixed/inputs-before.json.gz",
+      "bytes": 45874,
+      "sha256": "cce4037508e64e5c0682033f15e3ff0b8845b24c03d382af816284ce8f9850c7"
+    },
+    {
+      "path": "reopen-fixed/invocation.json",
+      "bytes": 640,
+      "sha256": "30fe223343b6ae6b9d19fa07b01ea6bd30e38db0f861922a85c815ff48c5f901"
+    },
+    {
+      "path": "reopen-fixed/preview_cancel_reopen_test.go",
+      "bytes": 3401,
+      "sha256": "983f0e73e527d9fec902de9e42a4b7caf5c9d8eeb58287d82e193ba259232b44"
+    },
+    {
+      "path": "reopen-fixed/releases_observation.go",
+      "bytes": 3865,
+      "sha256": "d8ea89f0dcecdd26cf096c30a0b88c76972a51095b6b8550934610cf16570ce7"
+    },
+    {
+      "path": "reopen-fixed/result.json",
+      "bytes": 903,
+      "sha256": "4bbf02a46758831d66a83da970c32eba614afcb21d11ed24ab74b2b5edc3a20f"
+    },
+    {
+      "path": "runner-final.py",
+      "bytes": 3350,
+      "sha256": "1fc1ffdb0dfdeaaa785fcec1ff30258032e1a4e7870a033cd968a615b72ab940"
+    }
+  ]
+}

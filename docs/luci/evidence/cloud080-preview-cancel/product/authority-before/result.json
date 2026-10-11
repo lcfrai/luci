@@ -1,0 +1,13 @@
+{
+  "exit": 1,
+  "inputsStable": true,
+  "inputCount": 798,
+  "outcomes": [
+    {
+      "Action": "fail",
+      "Test": "TestPreviewCancellationFreshGrantAfterMutexWaitWithoutContextRevocation",
+      "Elapsed": 0.03
+    }
+  ],
+  "end": 1791725507.5212727
+}

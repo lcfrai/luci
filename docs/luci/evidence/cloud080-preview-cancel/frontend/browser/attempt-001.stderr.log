@@ -1,0 +1,2 @@
+1:29:17 PM [vite] (client) [Unhandled error] SyntaxError: The requested module '/node_modules/react/index.js?v=052380f7' does not provide an export named 'default'
+

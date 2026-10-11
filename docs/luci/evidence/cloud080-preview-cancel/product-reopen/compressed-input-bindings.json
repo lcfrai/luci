@@ -1,0 +1,26 @@
+[
+  {
+    "original": "reopen-before/inputs-before.json",
+    "originalBytes": 214025,
+    "originalSHA256": "540ee0e46db37e526b18869947187566ce741fe91304cee20938d8547f2e47e2",
+    "compressed": "reopen-before/inputs-before.json.gz"
+  },
+  {
+    "original": "reopen-before/inputs-after.json",
+    "originalBytes": 214025,
+    "originalSHA256": "540ee0e46db37e526b18869947187566ce741fe91304cee20938d8547f2e47e2",
+    "compressed": "reopen-before/inputs-after.json.gz"
+  },
+  {
+    "original": "reopen-fixed/inputs-before.json",
+    "originalBytes": 214025,
+    "originalSHA256": "a03cae002025ae3654a9f854852ff0939531acfefe975701c6c1360c2d4be70b",
+    "compressed": "reopen-fixed/inputs-before.json.gz"
+  },
+  {
+    "original": "reopen-fixed/inputs-after.json",
+    "originalBytes": 214025,
+    "originalSHA256": "a03cae002025ae3654a9f854852ff0939531acfefe975701c6c1360c2d4be70b",
+    "compressed": "reopen-fixed/inputs-after.json.gz"
+  }
+]

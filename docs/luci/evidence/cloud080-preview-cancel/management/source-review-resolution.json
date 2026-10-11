@@ -1,0 +1,56 @@
+{
+  "scope": "Independent read-only source review of the three concrete cancellation findings and directly affected regressions; separate from the management tests retained here.",
+  "findings": [
+    {
+      "finding": "Live operation identity initially lacked allocation handles, so a permissive prefix match could accept unpublished handles.",
+      "resolution": "Operation matching now requires the exact latest runtime identity. The live identity advances only after successful durable publication. The regression forges a previously empty AllocationID, and a separate case accepts the next legitimately published identity."
+    },
+    {
+      "finding": "Current Deploy authority could change while the request waited for the product mutex, before gateway cancellation propagated to an isolated worker.",
+      "resolution": "The route rechecks request cancellation and current CaptureActor authority after the mutex wait. A separate live-context grant-change barrier covers this distinction; the backend owner preserved its original HTTP202 failure. Context cancellation alone is not claimed as sufficient authority proof."
+    },
+    {
+      "finding": "Cancellation winning the final ready receipt could still return HTTP201 creation success.",
+      "resolution": "The final completion helper returns HTTP422 when the resulting receipt is not ready; the exact running identity, unknown outcome and Stop eligibility remain retained."
+    }
+  ],
+  "relatedReviewedCases": [
+    "Cancellation route available while the exclusive source guard is held.",
+    "Cancelled and replaced source/allocation identities are refused without signalling or changing the receipt.",
+    "Closed publishers cannot rewrite retained uncertainty or reactivate on reopen.",
+    "One shutdown deadline bounds joining all active preview operations; cancellation does not itself release ledger capacity."
+  ],
+  "result": "No outstanding source finding within this scope at the reviewed source hashes below. Backend race execution and integrated compilation belong to separate owner evidence; the management 11-outcome result does not establish them.",
+  "reviewedSources": [
+    {
+      "path": "control-plane/internal/product/preview_cancel.go",
+      "sha256": "09c4f277e36c73734334545a7fc1836944a975306d505be292a4eaf3b640a91e",
+      "publicationCurrentSHA256": "09c4f277e36c73734334545a7fc1836944a975306d505be292a4eaf3b640a91e",
+      "publicationBytesMatchReview": true
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime.go",
+      "sha256": "12f36d146ae90dac694d2e5b5ad4fb59288716183ad746dcb1fa763117afde47",
+      "publicationCurrentSHA256": "12f36d146ae90dac694d2e5b5ad4fb59288716183ad746dcb1fa763117afde47",
+      "publicationBytesMatchReview": true
+    },
+    {
+      "path": "control-plane/internal/product/releases.go",
+      "sha256": "a92ed1403cb9aa0406f4e443ecedca696ea26638989b6e59f91399c3e4dee552",
+      "publicationCurrentSHA256": "a92ed1403cb9aa0406f4e443ecedca696ea26638989b6e59f91399c3e4dee552",
+      "publicationBytesMatchReview": true
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel_test.go",
+      "sha256": "0b229981ec01fb331e0ae965c677bb9bc2efe0a0976f4cbd5e9742cbd6e0502e",
+      "publicationCurrentSHA256": "0b229981ec01fb331e0ae965c677bb9bc2efe0a0976f4cbd5e9742cbd6e0502e",
+      "publicationBytesMatchReview": true
+    },
+    {
+      "path": "control-plane/internal/product/preview_cancel_regression_test.go",
+      "sha256": "2fb115490b09852ad04f629d68777389a67d31470a1ee70791af8b0367037d8b",
+      "publicationCurrentSHA256": "2fb115490b09852ad04f629d68777389a67d31470a1ee70791af8b0367037d8b",
+      "publicationBytesMatchReview": true
+    }
+  ]
+}

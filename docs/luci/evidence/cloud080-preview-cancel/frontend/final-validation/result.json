@@ -1,0 +1,30 @@
+{
+  "commands": [
+    {
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "src/components/journey/preview-cancellation.test.tsx",
+        "src/components/journey/deployment-continuity.test.tsx",
+        "src/api/product.test.ts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud080-preview-cancel/frontend/final-validation/vitest.json"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 14.848730498051737
+    },
+    {
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 19.01541096298024
+    }
+  ],
+  "inputsUnchanged": true,
+  "inputCount": 458
+}

@@ -1,0 +1,58 @@
+[
+  {
+    "original": "authority-before/inputs-after.json",
+    "originalBytes": 213462,
+    "originalSHA256": "fd4358ab3051b89a62502fcab62cf0ab833ff1c4150b22e88ccce0d31a948c4f",
+    "compressed": "authority-before/inputs-after.json.gz",
+    "compressedSHA256": "c8ffba98cdb0e5f8c0f1c2a86ac62ceb242f09a83ddc6f9fb4000ef662e09d08"
+  },
+  {
+    "original": "authority-before/inputs-before.json",
+    "originalBytes": 213462,
+    "originalSHA256": "fd4358ab3051b89a62502fcab62cf0ab833ff1c4150b22e88ccce0d31a948c4f",
+    "compressed": "authority-before/inputs-before.json.gz",
+    "compressedSHA256": "c8ffba98cdb0e5f8c0f1c2a86ac62ceb242f09a83ddc6f9fb4000ef662e09d08"
+  },
+  {
+    "original": "before/inputs-after.json",
+    "originalBytes": 213183,
+    "originalSHA256": "b3f9d3d9dd6fbf0fc742e22ba7bad230dedb1259764e041c67a71ec8cad6d2ce",
+    "compressed": "before/inputs-after.json.gz",
+    "compressedSHA256": "2ba86a6a6a4f85747117955f3c1fc6a3015bef00073c6ff101af0df95e26823d"
+  },
+  {
+    "original": "before/inputs-before.json",
+    "originalBytes": 213183,
+    "originalSHA256": "b3f9d3d9dd6fbf0fc742e22ba7bad230dedb1259764e041c67a71ec8cad6d2ce",
+    "compressed": "before/inputs-before.json.gz",
+    "compressedSHA256": "2ba86a6a6a4f85747117955f3c1fc6a3015bef00073c6ff101af0df95e26823d"
+  },
+  {
+    "original": "fixed-1/inputs-after.json",
+    "originalBytes": 213461,
+    "originalSHA256": "2df91f430ff89f84e24b894a5d49ffa8bf3ac145569166e58b9a9b825d51e063",
+    "compressed": "fixed-1/inputs-after.json.gz",
+    "compressedSHA256": "dd389949bd428af2f95698efa69652f3cc81208b2051fcd057172c2add732507"
+  },
+  {
+    "original": "fixed-1/inputs-before.json",
+    "originalBytes": 213461,
+    "originalSHA256": "2df91f430ff89f84e24b894a5d49ffa8bf3ac145569166e58b9a9b825d51e063",
+    "compressed": "fixed-1/inputs-before.json.gz",
+    "compressedSHA256": "dd389949bd428af2f95698efa69652f3cc81208b2051fcd057172c2add732507"
+  },
+  {
+    "original": "fixed-2/inputs-after.json",
+    "originalBytes": 213462,
+    "originalSHA256": "e8f664c2f79f49d18cbd14d53f515e48d1e1e703755afa84f98b7b7efbf47373",
+    "compressed": "fixed-2/inputs-after.json.gz",
+    "compressedSHA256": "e14ce3fa4a3d044691457d7ed3e98621f9fda18994f3ca8d3fdf58ba4b447bd4"
+  },
+  {
+    "original": "fixed-2/inputs-before.json",
+    "originalBytes": 213462,
+    "originalSHA256": "e8f664c2f79f49d18cbd14d53f515e48d1e1e703755afa84f98b7b7efbf47373",
+    "compressed": "fixed-2/inputs-before.json.gz",
+    "compressedSHA256": "e14ce3fa4a3d044691457d7ed3e98621f9fda18994f3ca8d3fdf58ba4b447bd4"
+  }
+]

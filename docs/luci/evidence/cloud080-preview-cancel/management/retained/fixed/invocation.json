@@ -1,0 +1,10 @@
+{
+  "command": [
+    "bash",
+    "-c",
+    "source /workspace/.luci-tools/activate.sh && GOMAXPROCS=2 go test -p 1 -count=1 -timeout=2m -json ./internal/management -run '^TestPreviewCancellation(TeamRouteCapabilities|SuspendedServiceRechecksCurrentGrants)$'"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "startedUTC": "2026-10-11T13:20:30.793506+00:00",
+  "sourceScope": "Selected management package source/tests, module declarations and activation; not complete transitive compile closure."
+}

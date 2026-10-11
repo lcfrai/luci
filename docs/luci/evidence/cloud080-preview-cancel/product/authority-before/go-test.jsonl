@@ -1,0 +1,9 @@
+{"Time":"2026-10-11T13:31:47.30105853Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/product"}
+{"Time":"2026-10-11T13:31:47.349807011Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestPreviewCancellationFreshGrantAfterMutexWaitWithoutContextRevocation"}
+{"Time":"2026-10-11T13:31:47.349938088Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestPreviewCancellationFreshGrantAfterMutexWaitWithoutContextRevocation","Output":"=== RUN   TestPreviewCancellationFreshGrantAfterMutexWaitWithoutContextRevocation\n"}
+{"Time":"2026-10-11T13:31:47.371488584Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestPreviewCancellationFreshGrantAfterMutexWaitWithoutContextRevocation","Output":"    preview_cancel_test.go:276: stale successful authority cancelled live preview 202 1\n"}
+{"Time":"2026-10-11T13:31:47.372491562Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestPreviewCancellationFreshGrantAfterMutexWaitWithoutContextRevocation","Output":"--- FAIL: TestPreviewCancellationFreshGrantAfterMutexWaitWithoutContextRevocation (0.03s)\n"}
+{"Time":"2026-10-11T13:31:47.372505844Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestPreviewCancellationFreshGrantAfterMutexWaitWithoutContextRevocation","Elapsed":0.03}
+{"Time":"2026-10-11T13:31:47.375881791Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"FAIL\n"}
+{"Time":"2026-10-11T13:31:47.379764044Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"FAIL\tgithub.com/lcfrai/luci/control-plane/internal/product\t0.076s\n"}
+{"Time":"2026-10-11T13:31:47.379788641Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/product","Elapsed":0.079}

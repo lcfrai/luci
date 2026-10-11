@@ -1,0 +1,72 @@
+[
+  {
+    "path": "control-plane/internal/api/api.go",
+    "bytes": 27093,
+    "sha256": "3d2ea5221ebef5c50ba0e65ee679657b4ceefd7d15fee1e7e7fb91a054161cdf"
+  },
+  {
+    "path": "control-plane/internal/api/execution_preview_leases.go",
+    "bytes": 14612,
+    "sha256": "e9a18e1f82a3bcd25c76a4d2ad876ba3f97b2fc2fd61e47faa73fdc8d4c5211c"
+  },
+  {
+    "path": "control-plane/internal/api/implementation_context_test.go",
+    "bytes": 11022,
+    "sha256": "cb920263deacfe01a260b534700d64513aaa7d53372e289b821d62ea2abc7511"
+  },
+  {
+    "path": "control-plane/internal/api/preview_cancellation_http_test.go",
+    "bytes": 13809,
+    "sha256": "baea345255eac458f5bbba71c87d7ca7a4bebc5063609d661c8372442566d2b2"
+  },
+  {
+    "path": "control-plane/internal/api/preview_execution.go",
+    "bytes": 24443,
+    "sha256": "07c40f52e88daee82e2ee742d87b0126d2c60a1ab4e0f4e51f0322f7282bb945"
+  },
+  {
+    "path": "control-plane/internal/api/preview_execution_test.go",
+    "bytes": 10207,
+    "sha256": "0a6677dbfe64097a94b882e7a50bceb408cc3dba79448e4b4d59416d44efa866"
+  },
+  {
+    "path": "control-plane/internal/api/sessions_test.go",
+    "bytes": 73232,
+    "sha256": "df5ab26dd6bcc8b7c8ce85ec0a453dd81f7959a3ee74d6403a327f61ba5ad327"
+  },
+  {
+    "path": "control-plane/internal/product/browser_preview.go",
+    "bytes": 1642,
+    "sha256": "9d56b6d5e2741b288aca6903fb234a9be4f58f958df9095fb33949c2a85325c3"
+  },
+  {
+    "path": "control-plane/internal/product/connections.go",
+    "bytes": 13575,
+    "sha256": "4cfb8b6242319d13a1c777471f644d4b0fae6ea266db066a867367159e8a7c51"
+  },
+  {
+    "path": "control-plane/internal/product/preview_cancel.go",
+    "bytes": 6983,
+    "sha256": "09c4f277e36c73734334545a7fc1836944a975306d505be292a4eaf3b640a91e"
+  },
+  {
+    "path": "control-plane/internal/product/preview_runtime.go",
+    "bytes": 5369,
+    "sha256": "12f36d146ae90dac694d2e5b5ad4fb59288716183ad746dcb1fa763117afde47"
+  },
+  {
+    "path": "control-plane/internal/product/releases.go",
+    "bytes": 21760,
+    "sha256": "a92ed1403cb9aa0406f4e443ecedca696ea26638989b6e59f91399c3e4dee552"
+  },
+  {
+    "path": "control-plane/internal/product/releases_observation.go",
+    "bytes": 3602,
+    "sha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd"
+  },
+  {
+    "path": "control-plane/internal/product/server.go",
+    "bytes": 22342,
+    "sha256": "392f93e5e6a58eb78fa640034d632e37dc7a43b6b7bd6b55f81f58ed3ac90afe"
+  }
+]

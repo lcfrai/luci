@@ -1,0 +1,8 @@
+{"Time":"2026-10-11T13:34:34.519348846Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/api"}
+{"Time":"2026-10-11T13:34:34.594080989Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestPreviewHTTPCurrentCancellationReachesAPILockAndRetainsUnknownAcrossReopen"}
+{"Time":"2026-10-11T13:34:34.594210403Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestPreviewHTTPCurrentCancellationReachesAPILockAndRetainsUnknownAcrossReopen","Output":"=== RUN   TestPreviewHTTPCurrentCancellationReachesAPILockAndRetainsUnknownAcrossReopen\n"}
+{"Time":"2026-10-11T13:34:36.125715959Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestPreviewHTTPCurrentCancellationReachesAPILockAndRetainsUnknownAcrossReopen","Output":"--- PASS: TestPreviewHTTPCurrentCancellationReachesAPILockAndRetainsUnknownAcrossReopen (1.53s)\n"}
+{"Time":"2026-10-11T13:34:36.129628101Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestPreviewHTTPCurrentCancellationReachesAPILockAndRetainsUnknownAcrossReopen","Elapsed":1.53}
+{"Time":"2026-10-11T13:34:36.130604801Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"PASS\n"}
+{"Time":"2026-10-11T13:34:37.132351796Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/api\t2.610s\n"}
+{"Time":"2026-10-11T13:34:37.13298507Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/api","Elapsed":2.614}

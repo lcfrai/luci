@@ -106,6 +106,8 @@ type Server struct {
 	agentLocal                      LocalAgentConfig
 	agentConnections                agentConnectionStore
 	activeLocalReleases             map[string]bool
+	localPreviewOperations          map[string]*localPreviewOperation
+	localPreviewsClosed             bool
 	deliveryBusy                    map[string]bool
 	importMu                        sync.Mutex
 	importNames                     map[string]bool

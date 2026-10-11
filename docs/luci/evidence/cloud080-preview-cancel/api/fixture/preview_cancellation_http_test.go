@@ -1,0 +1,305 @@
+package api
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
+	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/product"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
+)
+
+// This fixture registers Product through API.New. Its runtime is the actual
+// API preview lifecycle, including the release lock, admission and durable
+// leases. Only the executor and current deployment-authority lookup are fakes.
+type previewCancelHTTPFixture struct {
+	options product.Options
+	root    string
+	backend *previewBackendFixture
+	actor   management.User
+	policy  management.Policy
+}
+
+func newPreviewCancelHTTPFixture(t *testing.T) (*previewCancelHTTPFixture, *sessionsEnv) {
+	t.Helper()
+	root := t.TempDir()
+	f := &previewCancelHTTPFixture{
+		root:    root,
+		options: product.Options{StateDir: filepath.Join(root, "state"), ProjectsDir: filepath.Join(root, "projects")},
+		backend: &previewBackendFixture{Backend: sessionsNewBackend()},
+		actor:   management.User{ID: "u-reviewed-task-fixture", Username: "reviewer", Role: "super-admin"},
+		policy:  management.Policy{MaxSessionsPerUser: 10, MaxConcurrentChecksPerUser: 2, SessionMemoryMiB: 1024, SessionCPUMillis: 1000, CheckMemoryMiB: 1024, CheckCPUMillis: 1000, AllowedHarnesses: []string{"codex", "shell"}, BackingMode: "docker", InstanceName: "Preview cancellation fixture"},
+	}
+	// WorkerHandler's process identity is part of its trusted boundary. Pin it
+	// for this personal fixture and restore the caller's environment afterward.
+	t.Setenv("LUCI_TEAM_ID", "")
+	t.Setenv("LUCI_ACTOR_ID", f.actor.ID)
+	t.Setenv("LUCI_ACTOR_ROLE", f.actor.Role)
+	return f, f.open(t)
+}
+
+func (f *previewCancelHTTPFixture) open(t *testing.T) *sessionsEnv {
+	t.Helper()
+	pd, err := product.New(f.options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pd.Close)
+	st, err := registry.NewFileStore(filepath.Join(f.root, "sessions.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	scanner := project.NewScanner(f.options.ProjectsDir, project.NewExecRunner()).WithProjectBoundary()
+	env := sessionsNewEnvOverWith(t, filepath.Join(f.root, "api"), st, st, func(d *Deps) {
+		d.Product, d.Projects, d.Worktrees = pd, scanner, scanner
+		d.ProjectsDir, d.ExecutionStateDir = f.options.ProjectsDir, filepath.Join(f.root, "execution")
+		d.Backend, d.ManagedExecution = f.backend, true
+		d.Resources = backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}
+		d.ResourceSnapshot = func() resourcebudget.Snapshot {
+			s := executionFixtureSnapshot()
+			s.Execution.EngineID = httpCheckEngine
+			return s
+		}
+		d.AuthorizeDeployment = func(ctx context.Context, ref management.ExecutionActorRef, _ bool) (management.ExecutionAuthority, error) {
+			if err := ctx.Err(); err != nil {
+				return management.ExecutionAuthority{}, err
+			}
+			if ref.Local || ref.UserID != f.actor.ID || ref.TeamID != "" || ref.ProjectID == "" {
+				return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+			}
+			return management.ExecutionAuthority{Actor: f.actor, Policy: f.policy}, nil
+		}
+	})
+	env.mux = env.api.guarded
+	return env
+}
+
+func (f *previewCancelHTTPFixture) project(t *testing.T, env *sessionsEnv, name string) project.Project {
+	t.Helper()
+	w := env.do(t, "POST", "/v1/product/projects", `{"name":"`+name+`"}`)
+	var p project.Project
+	if w.Code != http.StatusCreated || json.Unmarshal(w.Body.Bytes(), &p) != nil {
+		t.Fatalf("create controlled project: status %d", w.Code)
+	}
+	w = env.do(t, "POST", "/v1/product/projects/"+p.ID+"/brief", `{"revision":0,"purpose":"A controlled preview cancellation fixture","criteria":["Cancellation retains unknown work"]}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("save controlled brief: status %d", w.Code)
+	}
+	reviewedSessionPlan(t, env, p.ID)
+	if err := os.WriteFile(filepath.Join(p.Path, "Dockerfile"), []byte("FROM scratch\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	for _, args := range [][]string{{"add", "--all"}, {"-c", "user.name=Preview cancellation fixture", "-c", "user.email=preview@example.com", "commit", "-m", "Reviewed preview fixture"}} {
+		args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
+		cmd := exec.CommandContext(ctx, "git", gitcommand.PlatformArgs(p.Path, args)...)
+		cmd.Dir = p.Path
+		cmd.Env = append(project.ManagedGitEnvironment(os.Environ()), "GIT_CEILING_DIRECTORIES="+f.options.ProjectsDir)
+		cmd.WaitDelay = 2 * time.Second
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("commit controlled preview fixture: %v: %s", err, out)
+		}
+	}
+	return p
+}
+
+func (f *previewCancelHTTPFixture) request(env *sessionsEnv, method, path, body string) *httptest.ResponseRecorder {
+	const token = "preview-cancel-api-fixture-worker-token-at-least-forty-characters"
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	r := httptest.NewRequest(method, sessionsTarget(path), strings.NewReader(body)).WithContext(ctx)
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Authorization", "Bearer "+token)
+	actor, _ := json.Marshal(f.actor)
+	policy, _ := json.Marshal(f.policy)
+	r.Header.Set("X-Luci-Actor", base64.RawURLEncoding.EncodeToString(actor))
+	r.Header.Set("X-Luci-Policy", base64.RawURLEncoding.EncodeToString(policy))
+	w := httptest.NewRecorder()
+	management.WorkerHandler(token, env.api).ServeHTTP(w, r)
+	return w
+}
+
+func previewCancelAwait[T any](t *testing.T, ch <-chan T, stage string) T {
+	t.Helper()
+	select {
+	case v := <-ch:
+		return v
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out at controlled barrier: " + stage)
+		var zero T
+		return zero
+	}
+}
+
+func (f *previewCancelHTTPFixture) release(t *testing.T, env *sessionsEnv, projectID string) product.Release {
+	t.Helper()
+	w := f.request(env, "GET", "/v1/product/projects/"+projectID+"/releases", "")
+	var list struct {
+		Releases []product.Release `json:"releases"`
+	}
+	if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &list) != nil || len(list.Releases) != 1 {
+		t.Fatalf("read exact controlled release: status %d, rows %d", w.Code, len(list.Releases))
+	}
+	return list.Releases[0]
+}
+
+func TestPreviewHTTPCurrentCancellationReachesAPILockAndRetainsUnknownAcrossReopen(t *testing.T) {
+	f, env := newPreviewCancelHTTPFixture(t)
+	target := f.project(t, env, "cancel-target")
+	independent := f.project(t, env, "cancel-independent")
+	type buildCall struct {
+		ctx      context.Context
+		prepared backend.PreparedPreview
+	}
+	targetEntered, independentEntered := make(chan buildCall, 1), make(chan buildCall, 1)
+	targetCancelled := make(chan struct{}, 1)
+	returnTarget, returnIndependent := make(chan struct{}), make(chan struct{})
+	var targetOnce, independentOnce sync.Once
+	releaseTarget := func() { targetOnce.Do(func() { close(returnTarget) }) }
+	releaseIndependent := func() { independentOnce.Do(func() { close(returnIndependent) }) }
+	f.backend.build = func(ctx context.Context, prepared backend.PreparedPreview) (backend.PreviewBuildResult, error) {
+		if prepared.Spec.Identity.ProjectID == target.ID {
+			targetEntered <- buildCall{ctx, prepared}
+			select {
+			case <-ctx.Done():
+				targetCancelled <- struct{}{}
+			case <-returnTarget:
+			}
+			// Keep the API release lock held even after context cancellation.
+			// HTTP cancellation must not wait for the backend's result.
+			<-returnTarget
+			return backend.PreviewBuildResult{}, errors.New("controlled unconfirmed build outcome")
+		}
+		independentEntered <- buildCall{ctx, prepared}
+		select {
+		case <-returnIndependent:
+			return backend.PreviewBuildResult{Settled: true}, errors.New("controlled settled build without image")
+		case <-ctx.Done():
+			return backend.PreviewBuildResult{}, ctx.Err()
+		}
+	}
+	var publishers sync.WaitGroup
+	start := func(p project.Project) <-chan *httptest.ResponseRecorder {
+		done := make(chan *httptest.ResponseRecorder, 1)
+		publishers.Add(1)
+		go func() {
+			defer publishers.Done()
+			done <- f.request(env, "POST", "/v1/product/projects/"+p.ID+"/releases", `{"target":"local","port":3000,"dockerfile":"Dockerfile"}`)
+		}()
+		return done
+	}
+	// Register after Product's cleanup so all controlled publishers are released
+	// and joined before Product.Close, including on an assertion failure.
+	t.Cleanup(func() {
+		releaseTarget()
+		releaseIndependent()
+		joined := make(chan struct{})
+		go func() { publishers.Wait(); close(joined) }()
+		select {
+		case <-joined:
+		case <-time.After(10 * time.Second):
+			t.Error("controlled preview publishers failed to join")
+		}
+	})
+	targetDone := start(target)
+	first := previewCancelAwait(t, targetEntered, "target BuildPreview")
+	independentDone := start(independent)
+	other := previewCancelAwait(t, independentEntered, "independent BuildPreview")
+	row := f.release(t, env, target.ID)
+	otherRow := f.release(t, env, independent.ID)
+	if !row.CanCancel || row.Revision == 0 || row.ID != first.prepared.Spec.Identity.ReleaseID || !otherRow.CanCancel || otherRow.ID != other.prepared.Spec.Identity.ReleaseID {
+		t.Fatal("registered Start did not publish two independently cancellable exact releases")
+	}
+	previewRetained(t, env.api, 2)
+	before, err := env.api.execution.previewLease(context.Background(), first.prepared.Spec.Identity.AllocationID)
+	if err != nil || before.State != "building" || before.Kind != "preview-build" || before.Resources != (backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}) || before.Identity != first.prepared.Spec.Identity {
+		t.Fatal("real API build lease missing", err)
+	}
+	body, _ := json.Marshal(map[string]uint64{"expectedRevision": row.Revision})
+	cancelPath := "/v1/product/projects/" + target.ID + "/releases/" + row.ID + "/cancel"
+	cancelDone := make(chan *httptest.ResponseRecorder, 1)
+	publishers.Add(1)
+	go func() {
+		defer publishers.Done()
+		cancelDone <- f.request(env, "POST", cancelPath, string(body))
+	}()
+	w := previewCancelAwait(t, cancelDone, "cancel response while API release lock remains held")
+	var cancelled product.Release
+	if w.Code != http.StatusAccepted || json.Unmarshal(w.Body.Bytes(), &cancelled) != nil || !cancelled.CancelRequested || cancelled.CanCancel || cancelled.Status != "cancelling" || cancelled.Revision != row.Revision+1 {
+		t.Fatalf("current exact cancellation was not durably accepted: status %d", w.Code)
+	}
+	previewCancelAwait(t, targetCancelled, "BuildPreview context cancellation")
+	if first.ctx.Err() == nil || other.ctx.Err() != nil {
+		t.Fatal("cancellation failed to reach only the selected API build context")
+	}
+	if current := f.release(t, env, independent.ID); current.Revision != otherRow.Revision || current.CancelRequested || !current.CanCancel {
+		t.Fatal("cancelling one release changed its independent peer")
+	}
+	if current, err := env.api.execution.previewLease(context.Background(), before.ID); err != nil || current != before {
+		t.Fatal("requesting cancellation changed an unconfirmed allocation's charge", err)
+	}
+	releaseTarget()
+	w = previewCancelAwait(t, targetDone, "unknown target outcome")
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("unknown build incorrectly succeeded: status %d", w.Code)
+	}
+	unknown := f.release(t, env, target.ID)
+	if unknown.Status != "unknown" || !unknown.CancelRequested || unknown.CanCancel || !unknown.CanStop {
+		t.Fatal("unknown outcome lost conservative recovery controls")
+	}
+	if other.ctx.Err() != nil {
+		t.Fatal("finishing selected cancellation cancelled the independent build")
+	}
+	releaseIndependent()
+	w = previewCancelAwait(t, independentDone, "settled independent outcome")
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("controlled independent build unexpectedly succeeded: status %d", w.Code)
+	}
+	previewRetained(t, env.api, 1)
+	if current, err := env.api.execution.previewLease(context.Background(), before.ID); err != nil || current != before {
+		t.Fatal("unknown build result released or rewrote its exact charge", err)
+	}
+	// Close the original Product only after its requests have joined, then open
+	// a new Product/API and registry over the same private durable state.
+	env.api.deps.Product.Close()
+	reopened := f.open(t)
+	for range 2 {
+		current := f.release(t, reopened, target.ID)
+		if current.Status != "unknown" || current.CanCancel || !current.CancelRequested || !current.CanStop || current.ID != row.ID {
+			t.Fatal("controller reopen fabricated a live operation or lost the unknown receipt")
+		}
+		w = f.request(reopened, "POST", cancelPath, string(body))
+		if w.Code != http.StatusConflict {
+			t.Fatalf("reopened controller accepted cancellation of an unknown old operation: status %d", w.Code)
+		}
+	}
+	previewRetained(t, reopened.api, 1)
+	observation := reopened.api.execution.reservationObservation(context.Background())
+	if observation.executionReservationView == nil || observation.MemoryMiB != 1024 || observation.CPUMillis != 1000 {
+		t.Fatal("reopened reservation view lost the unknown build's exact resource charge")
+	}
+	if current, err := reopened.api.execution.previewLease(context.Background(), before.ID); err != nil || current != before {
+		t.Fatal("reopened controller changed the retained exact build lease", err)
+	}
+	f.backend.mu.Lock()
+	defer f.backend.mu.Unlock()
+	if f.backend.builds != 2 || f.backend.creates != 0 || f.backend.starts != 0 || f.backend.stops != 0 || f.backend.removes != 0 {
+		t.Fatal("cancel, observation or reopen replayed a build or issued a serving/cleanup mutation")
+	}
+}

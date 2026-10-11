@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "go",
+    "test",
+    "-json",
+    "-count=1",
+    "-p=1",
+    "-timeout=100s",
+    "-race",
+    "-run=TestPreviewCancellation(FreshGrantAfterMutexWaitWithoutContextRevocation|RequiresCurrentAuthorityRevisionAndOwnedIdentity/changed-allocation)$",
+    "./internal/product"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "head": "871ddaa9ea0158c800a20b52be588b8e5df66387",
+  "go": "go version go1.26.3 linux/amd64",
+  "env": {
+    "GOMAXPROCS": "2",
+    "GOCACHE": "/tmp/luci-go-build-cache",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOTMPDIR": "/workspace/.t",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly"
+  },
+  "start": 1791725485.6102803
+}

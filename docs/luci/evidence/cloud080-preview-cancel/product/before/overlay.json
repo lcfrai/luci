@@ -1,0 +1,12 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/product/browser_preview.go": "/workspace/.luci-tools/cloud080-preview-cancel/original/control-plane/internal/product/browser_preview.go",
+    "/workspace/luci/control-plane/internal/product/connections.go": "/workspace/.luci-tools/cloud080-preview-cancel/original/control-plane/internal/product/connections.go",
+    "/workspace/luci/control-plane/internal/product/preview_runtime_test.go": "/workspace/.luci-tools/cloud080-preview-cancel/original/control-plane/internal/product/preview_runtime_test.go",
+    "/workspace/luci/control-plane/internal/product/server.go": "/workspace/.luci-tools/cloud080-preview-cancel/original/control-plane/internal/product/server.go",
+    "/workspace/luci/control-plane/internal/product/releases.go": "/workspace/.luci-tools/cloud080-preview-cancel/original/control-plane/internal/product/releases.go",
+    "/workspace/luci/control-plane/internal/product/preview_runtime.go": "/workspace/.luci-tools/cloud080-preview-cancel/original/control-plane/internal/product/preview_runtime.go",
+    "/workspace/luci/control-plane/internal/product/preview_cancel.go": "",
+    "/workspace/luci/control-plane/internal/product/preview_cancel_regression_test.go": "/workspace/.luci-tools/cloud080-preview-cancel/tests/preview_cancel_regression_test.go"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "head": "871ddaa9ea0158c800a20b52be588b8e5df66387",
+  "files": [
+    {
+      "path": "control-plane/internal/management/team_authorization.go",
+      "bytes": 17353,
+      "sha256": "e530232d68e467b5465bb753ce27e6541790448c1283140f7a547a27389f9896"
+    },
+    {
+      "path": "control-plane/internal/management/team_service.go",
+      "bytes": 11180,
+      "sha256": "a1785f82ffdae6668e92ac4d3c3227e443ad5d04ee8099c945ce6bd9ca1013d1"
+    },
+    {
+      "path": "control-plane/internal/management/team_authorization_test.go",
+      "bytes": 12027,
+      "sha256": "e4597f06f44a2c6eebe6fc4dd67dbe5d7ac58c6498f325449a477da03f6aa7d7"
+    },
+    {
+      "path": "control-plane/internal/management/team_service_test.go",
+      "bytes": 9937,
+      "sha256": "e4b5d4c90caf904169d7f7f87abfa66ccb348dc124fad17b46264c153ab4c46a"
+    }
+  ]
+}

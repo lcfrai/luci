@@ -1,0 +1,186 @@
+{
+  "passed": false,
+  "scope": "Linux Chromium actual styled ProjectDeploy and product client over controlled loopback HTTP; no Luci backend, Docker, model, Windows or performance claim",
+  "startedAt": "2026-10-11T13:29:11.749Z",
+  "helperSHA256": "ce376052385cf98a215d0edd6d84bc9463230a7f5d5fcb99ab6c3fe4b10aecf7",
+  "fixtureSHA256": "1147a2b760b1f7f939edf88e44e3246c38ba3c7493ce58d520a8592610b7e4bb",
+  "sourceBefore": {
+    "desktop/src/components/lens/DeployLens.tsx": "a9c87e4f7611e10fa0b3822e7503ab4a9ab53451cc71f192c2b2329549771fe0",
+    "desktop/src/api/product.ts": "2954a03362047135408de4976ad0a1b54377541691823458d5377137b0f856c9",
+    "desktop/src/hooks/useProjectAccess.ts": "b2789071009294d4497f7be2039839b0a88f4f0e54edf7c544a279440dce2da4",
+    "desktop/src/components/fluid/components/button.tsx": "c90ee25ef6225f949006d6c6ee19316ece048ebfad25d2f17a52e20b74d2bf87",
+    "desktop/src/styles/app.css": "0b672e16997fbb7e2efec0cd1011fb08cbdcb3987169cedd7e86512e9c7329c0",
+    "desktop/src/components/journey/journey.css": "247a10959f05105bb2c5b98e58fb61034192e0c8a15c6e0e34b9bde23e3e6120",
+    "desktop/package-lock.json": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+    "desktop/vite.config.ts": "be4e7f5167e717324648803be82e755033db2a559c4fbada29ce8aeeacb67914"
+  },
+  "calls": [],
+  "checks": [],
+  "errors": [
+    "The requested module '/node_modules/react/index.js?v=052380f7' does not provide an export named 'default'"
+  ],
+  "cleanup": {
+    "before": [
+      {
+        "pid": 2760008,
+        "ppid": 2759984,
+        "start": "47142257",
+        "state": "S"
+      },
+      {
+        "pid": 2760041,
+        "ppid": 2760008,
+        "start": "47142267",
+        "state": "S"
+      },
+      {
+        "pid": 2760042,
+        "ppid": 2760008,
+        "start": "47142268",
+        "state": "S"
+      },
+      {
+        "pid": 2760044,
+        "ppid": 2760042,
+        "start": "47142277",
+        "state": "S"
+      },
+      {
+        "pid": 2760067,
+        "ppid": 2760041,
+        "start": "47142281",
+        "state": "S"
+      },
+      {
+        "pid": 2760101,
+        "ppid": 2760008,
+        "start": "47142380",
+        "state": "S"
+      },
+      {
+        "pid": 2760102,
+        "ppid": 2760044,
+        "start": "47142387",
+        "state": "S"
+      },
+      {
+        "pid": 2760151,
+        "ppid": 2760044,
+        "start": "47142423",
+        "state": "S"
+      },
+      {
+        "pid": 2760159,
+        "ppid": 2760044,
+        "start": "47142429",
+        "state": "S"
+      },
+      {
+        "pid": 2760161,
+        "ppid": 2760044,
+        "start": "47142431",
+        "state": "S"
+      }
+    ],
+    "browserClose": true,
+    "serverClose": true,
+    "processes": [
+      {
+        "pid": 2760008,
+        "ppid": 2759984,
+        "start": "47142257",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760041,
+        "ppid": 2760008,
+        "start": "47142267",
+        "state": "S",
+        "closure": "zombie",
+        "current": {
+          "pid": 2760041,
+          "ppid": 1,
+          "start": "47142267",
+          "state": "Z"
+        }
+      },
+      {
+        "pid": 2760042,
+        "ppid": 2760008,
+        "start": "47142268",
+        "state": "S",
+        "closure": "zombie",
+        "current": {
+          "pid": 2760042,
+          "ppid": 1,
+          "start": "47142268",
+          "state": "Z"
+        }
+      },
+      {
+        "pid": 2760044,
+        "ppid": 2760042,
+        "start": "47142277",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760067,
+        "ppid": 2760041,
+        "start": "47142281",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760101,
+        "ppid": 2760008,
+        "start": "47142380",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760102,
+        "ppid": 2760044,
+        "start": "47142387",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760151,
+        "ppid": 2760044,
+        "start": "47142423",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760159,
+        "ppid": 2760044,
+        "start": "47142429",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      },
+      {
+        "pid": 2760161,
+        "ppid": 2760044,
+        "start": "47142431",
+        "state": "S",
+        "closure": "absent",
+        "current": null
+      }
+    ],
+    "serverPort": 45957,
+    "profile": "/workspace/.t/preview-cancel-browser-6YOLZh",
+    "profileRemoved": true
+  },
+  "browserVersion": "151.0.7922.173",
+  "error": "locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('No releases yet. Your first preview will appear here.', { exact: true }) to be visible\u001b[22m\n\n    at /workspace/.luci-tools/cloud080-preview-cancel/frontend/browser/source-browser.mjs:47:206",
+  "finishedAt": "2026-10-11T13:29:30.155Z"
+}

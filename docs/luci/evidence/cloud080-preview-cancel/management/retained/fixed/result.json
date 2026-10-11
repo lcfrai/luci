@@ -1,0 +1,14 @@
+{
+  "exitCode": 0,
+  "elapsedSeconds": 9.992,
+  "selectedSourceInputs": 86,
+  "selectedSourceStable": true,
+  "outcomes": {
+    "pass": 11,
+    "fail": 0,
+    "skip": 0
+  },
+  "topLevel": 2,
+  "subtests": 9,
+  "failedTests": []
+}

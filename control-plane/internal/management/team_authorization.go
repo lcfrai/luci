@@ -187,6 +187,7 @@ var teamRouteRules = []teamRouteRule{
 	{"POST /v1/product/projects/{projectId}/releases/pages", teamEdit | teamDeploy},
 	{"POST /v1/product/projects/{projectId}/releases/deploy-key", teamEdit | teamDeploy | teamSecrets},
 	{"POST /v1/product/projects/{projectId}/releases/{releaseId}/stop", teamEdit | teamDeploy},
+	{"POST /v1/product/projects/{projectId}/releases/{releaseId}/cancel", teamEdit | teamDeploy},
 	{"POST /v1/product/projects/{projectId}/releases/{releaseId}/refresh", teamEdit | teamDeploy},
 	{"POST /v1/product/projects/{projectId}/releases/{releaseId}/rollback", teamEdit | teamDeploy},
 	{"GET /v1/setup/status", teamRead},

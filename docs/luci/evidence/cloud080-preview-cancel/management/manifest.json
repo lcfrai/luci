@@ -1,0 +1,182 @@
+{
+  "schema": "preview-cancel-management-capsule-v1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3863,
+      "sha256": "816b9585a2c2e91cdc36d3eb3fa07dfe381746535a6d68c77e630284814eb884"
+    },
+    {
+      "path": "original-file-map.json",
+      "bytes": 8228,
+      "sha256": "9473e6147039f7163b145ec6209c71e75c48860a4b94e7dca14ce5cfc60978ea"
+    },
+    {
+      "path": "publication-verification.json",
+      "bytes": 576,
+      "sha256": "1baadcfa9ec4aa11444065da126b559caf570ff9370d6c4d22fe3e59e82fa426"
+    },
+    {
+      "path": "retained/README.md",
+      "bytes": 1573,
+      "sha256": "c3057e103bcd2cdfe669d8a8d4f14a46e7b27a928a22db41c8881d06f35bc494"
+    },
+    {
+      "path": "retained/SHA256SUMS",
+      "bytes": 3147,
+      "sha256": "a8d72adefd72d336319ced42ea07cabf33dda925788d34943aab0092f57d9372"
+    },
+    {
+      "path": "retained/before/invocation.json",
+      "bytes": 498,
+      "sha256": "491b9621e9303b5057c7b45b9abf0d20042e6aeeef6481200b31ab63c90c6a2f"
+    },
+    {
+      "path": "retained/before/result.json",
+      "bytes": 588,
+      "sha256": "abb128ee236c7f3b2c6cebc8a744f53c2a715803dedc44ef648d1220aaa3099e"
+    },
+    {
+      "path": "retained/before/source-after.json",
+      "bytes": 15338,
+      "sha256": "0f79255c710ee232a7b7396a60fa0457b0ab29cc58e0b8b4aa672a4c8f811026"
+    },
+    {
+      "path": "retained/before/source-before.json",
+      "bytes": 15338,
+      "sha256": "0f79255c710ee232a7b7396a60fa0457b0ab29cc58e0b8b4aa672a4c8f811026"
+    },
+    {
+      "path": "retained/before/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "retained/before/stdout.jsonl",
+      "bytes": 13170,
+      "sha256": "d863379fb434f9deaf4e012e8fc2f1fe507d1cae7a759dfae397bf04e0a2d8ba"
+    },
+    {
+      "path": "retained/before-sources/control-plane/internal/management/team_authorization.go",
+      "bytes": 17353,
+      "sha256": "e530232d68e467b5465bb753ce27e6541790448c1283140f7a547a27389f9896"
+    },
+    {
+      "path": "retained/before-sources/control-plane/internal/management/team_authorization_test.go",
+      "bytes": 13599,
+      "sha256": "b06465e744f44af896ac64873f294a1cb41a0d5addd4d451d0a7c28634580ad8"
+    },
+    {
+      "path": "retained/before-sources/control-plane/internal/management/team_service.go",
+      "bytes": 11180,
+      "sha256": "a1785f82ffdae6668e92ac4d3c3227e443ad5d04ee8099c945ce6bd9ca1013d1"
+    },
+    {
+      "path": "retained/before-sources/control-plane/internal/management/team_service_test.go",
+      "bytes": 12668,
+      "sha256": "4ffd56f1e8a88b3134b75b33cf2320cc94b2cc56c069839d2ba806d0a7d7903e"
+    },
+    {
+      "path": "retained/fixed/invocation.json",
+      "bytes": 498,
+      "sha256": "39b551405b7851d1a90dbad88cfec255309b7eb49f3b4e6c855c9edf3cd6d3a7"
+    },
+    {
+      "path": "retained/fixed/result.json",
+      "bytes": 230,
+      "sha256": "169800d944328c6f2ae04157e63a772a62eedf33dddb0c2832c43aa42b38c88f"
+    },
+    {
+      "path": "retained/fixed/source-after.json",
+      "bytes": 15338,
+      "sha256": "5ae96e7b653264078e3b3891e7fd783ea89ef377cb1dfdbf346f06ee3f6ec1b5"
+    },
+    {
+      "path": "retained/fixed/source-before.json",
+      "bytes": 15338,
+      "sha256": "5ae96e7b653264078e3b3891e7fd783ea89ef377cb1dfdbf346f06ee3f6ec1b5"
+    },
+    {
+      "path": "retained/fixed/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "retained/fixed/stdout.jsonl",
+      "bytes": 11793,
+      "sha256": "e32826bb14c81a2e354beff1b107e3c5aab216e6bdd4f0acafc1a2a1cfd97424"
+    },
+    {
+      "path": "retained/fixed-sources/control-plane/internal/management/team_authorization.go",
+      "bytes": 17448,
+      "sha256": "e9dfa7f8f87ae1ddcc898ad1d2cc539f0554920ed27ad17ed708540143913d14"
+    },
+    {
+      "path": "retained/fixed-sources/control-plane/internal/management/team_authorization_test.go",
+      "bytes": 13599,
+      "sha256": "b06465e744f44af896ac64873f294a1cb41a0d5addd4d451d0a7c28634580ad8"
+    },
+    {
+      "path": "retained/fixed-sources/control-plane/internal/management/team_service.go",
+      "bytes": 11251,
+      "sha256": "43b026f19ca9b290dfc9dbde8d28e0221a9887c770891cf1a96fef0428dd3359"
+    },
+    {
+      "path": "retained/fixed-sources/control-plane/internal/management/team_service_test.go",
+      "bytes": 12668,
+      "sha256": "4ffd56f1e8a88b3134b75b33cf2320cc94b2cc56c069839d2ba806d0a7d7903e"
+    },
+    {
+      "path": "retained/management.patch",
+      "bytes": 6992,
+      "sha256": "9f06f9ebf9cc5a0a76734035ec74a50fe5a21b35fe555234f1ca7ce58c034c9c"
+    },
+    {
+      "path": "retained/manifest.json",
+      "bytes": 5147,
+      "sha256": "f82dd9540514a23f56ab8eef25828e14b229a821ce1f91498fe7842772bee047"
+    },
+    {
+      "path": "retained/original/control-plane/internal/management/team_authorization.go",
+      "bytes": 17353,
+      "sha256": "e530232d68e467b5465bb753ce27e6541790448c1283140f7a547a27389f9896"
+    },
+    {
+      "path": "retained/original/control-plane/internal/management/team_authorization_test.go",
+      "bytes": 12027,
+      "sha256": "e4597f06f44a2c6eebe6fc4dd67dbe5d7ac58c6498f325449a477da03f6aa7d7"
+    },
+    {
+      "path": "retained/original/control-plane/internal/management/team_service.go",
+      "bytes": 11180,
+      "sha256": "a1785f82ffdae6668e92ac4d3c3227e443ad5d04ee8099c945ce6bd9ca1013d1"
+    },
+    {
+      "path": "retained/original/control-plane/internal/management/team_service_test.go",
+      "bytes": 9937,
+      "sha256": "e4b5d4c90caf904169d7f7f87abfa66ccb348dc124fad17b46264c153ab4c46a"
+    },
+    {
+      "path": "retained/original-bindings.json",
+      "bytes": 835,
+      "sha256": "e7139194f4ece3fac0ec1dbdc7987d6de0bc710a8ac889fdfd6727c1136681b6"
+    },
+    {
+      "path": "retained/run-selected.py",
+      "bytes": 2365,
+      "sha256": "37360e2ce9800760094bdbf5d20d3e09b360302cf791752aa9b5eb3f597b43e2"
+    },
+    {
+      "path": "retained/summary.json",
+      "bytes": 2399,
+      "sha256": "c2bd9909c5799bfed305bd060f082571e9586e686f444553b0226551e596dac9"
+    },
+    {
+      "path": "source-review-resolution.json",
+      "bytes": 3717,
+      "sha256": "587eb2adc08ada7cd8558fd8c223d2ab10b824481f1f69deed3c3d8920cc4229"
+    }
+  ],
+  "scope": "Management implementation and its exact original/fixed tests; separate source review explicitly bound to inspected backend hashes.",
+  "manifestSelfHash": "Covered by SHA256SUMS; checksum file excludes itself."
+}

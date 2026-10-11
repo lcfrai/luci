@@ -66,6 +66,16 @@ function ScopedDeploymentWorkspace({ projectId, scope }: { projectId: string; sc
     <section className="journey-page deployment-configuration"><details className="deployment-details"><summary>Runtime configuration</summary><ProjectConfiguration projectId={projectId} disabled={publishingBusy} onBusyChange={setConfigurationBusy} /></details></section>
   </div>;
 }
+type CancelFeedback = { state: "sending" | "uncertain"; message: string };
+const cancellationPending = "Cancellation requested. Waiting for the build outcome and confirmed cleanup; capacity may remain reserved.";
+const cancellationUncertain = "Cancellation could not be confirmed. Refresh release history before taking another action; the build may still be running or holding capacity.";
+function cancellationMessage(release: Release) {
+  if (!release.cancelRequested) return "";
+  if (release.status === "cancelled") return "Build cancellation completed. The release history is retained.";
+  if (release.status === "unknown") return "Cancellation was requested, but the build outcome or cleanup is unconfirmed. Capacity may remain reserved; inspect this release before starting a replacement.";
+  if (release.status === "ready") return "Cancellation was requested, but this release became ready. Review its outcome before deciding whether to stop it.";
+  return ["preparing", "queued", "building", "deploying", "verifying", "cancelling"].includes(release.status) ? cancellationPending : "Cancellation was requested. Review the current release outcome above.";
+}
 interface ProjectDeployProps { projectId: string; inspectionRequest?: number; inspectReleaseId?: string; configurationManaged?: boolean; configurationBusy?: boolean; onBusyChange?(busy: boolean): void; deploymentIntent?: ProjectRunDeploymentIntent | null }
 export function ProjectDeploy(props: ProjectDeployProps) {
   const scope = useProjectDraftScope(props.projectId);
@@ -78,6 +88,14 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
   const browserPermission = useRef(projectAccess.canExecute); browserPermission.current = projectAccess.canExecute;
   const browserGrantEpoch = useRef(0);
   const canDeploy = projectAccess.canEdit && projectAccess.permissions.deploy;
+  // A permission refresh retains the already granted read surface; confirmed
+  // read denial or an access error hides it. Deployment remains disabled while loading.
+  const canRead = projectAccess.canRead && !projectAccess.error;
+  const authorityKey = JSON.stringify([canRead, canDeploy]);
+  const currentAuthority = useRef({ key: authorityKey, epoch: 0, canRead, canDeploy });
+  if (currentAuthority.current.key !== authorityKey) currentAuthority.current = { key: authorityKey, epoch: currentAuthority.current.epoch + 1, canRead, canDeploy };
+  const cancelling = useRef(new Set<string>());
+  const [cancelFeedback, setCancelFeedback] = useState<Record<string, CancelFeedback>>({});
   const permissionMessage = projectAccess.loading || projectAccess.error ? projectAccess.message
     : !canDeploy ? "Deployment access is required to build, stop, check health or roll back releases. Ask a team owner for editing and deployment access."
       : !projectAccess.canExecute ? "You can deploy this project. Ask a team owner for execution access to open its private application preview." : "";
@@ -95,7 +113,8 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
   const [localConfigurationBusy, setConfigurationBusy] = useState(false);
   const configurationBusy = localConfigurationBusy || externalConfigurationBusy;
   const locked = !!busy || configurationBusy;
-  const buildLocked = locked || !canDeploy || (!!intent && (!binding.run || binding.loading || !!binding.error));
+  const cancellationUnresolved = Object.values(cancelFeedback).some(feedback => feedback.state === "sending" || feedback.state === "uncertain") || releases.some(release => release.target === "local" && release.cancelRequested && ["preparing", "queued", "building", "deploying", "verifying", "cancelling", "unknown"].includes(release.status));
+  const buildLocked = locked || cancellationUnresolved || !canDeploy || (!!intent && (!binding.run || binding.loading || !!binding.error));
   const [error, setError] = useState("");
   const [replacement, setReplacement] = useState<{ previous: Release; commit: string } | null>(null);
   const [replacementAccepted, setReplacementAccepted] = useState(false);
@@ -112,20 +131,23 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
     setup?.workspace?.mode === "cloud" &&
     release.target === "local" &&
     release.status === "ready";
-  const refresh = async (background = false) => {
+  const refresh = async (background = false, reconcileCancellation = false) => {
     // Explicit refreshes and completed operations can supersede an older read.
     // Passive polls must let a slow admitted read finish instead of continually
     // superseding it. Only the newest admitted read owns history and feedback.
-    if (!alive.current || (background && historyRead.current.pending)) return;
+    if (!alive.current || !currentAuthority.current.canRead || (background && historyRead.current.pending)) return;
     const generation = ++historyRead.current.generation;
     historyRead.current.pending = true;
     setHistoryLoading(true); setHistoryError("");
-    const current = () => alive.current && historyRead.current.generation === generation;
+    const current = () => alive.current && currentAuthority.current.canRead && historyRead.current.generation === generation;
     try {
       const value = await productApi.releases(projectId);
       if (!current()) return;
       if (value.releases.some(row => row.projectId !== projectId)) throw new Error("The release history belongs to another project. Refresh this workspace.");
       setReleases(value.releases); setHistoryLoaded(true);
+      // Only a read admitted after an uncertain cancellation finished may clear
+      // its action barrier. Earlier reads are invalidated in cancelBuild.
+      setCancelFeedback(previous => Object.fromEntries(Object.entries(previous).filter(([id, feedback]) => feedback.state === "sending" || (feedback.state === "uncertain" && !reconcileCancellation) || !value.releases.some(row => row.id === id))));
     } catch (cause) {
       if (current()) setHistoryError(errorText(cause));
     } finally {
@@ -134,12 +156,17 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
   };
   useEffect(() => {
     alive.current = true;
-    void refresh();
+    if (canRead) void refresh();
+    else {
+      ++historyRead.current.generation; historyRead.current.pending = false;
+      setReleases([]); setHistoryLoaded(false); setHistoryLoading(false); setHistoryError("");
+      setPreview(null); setReplacement(null); setError("");
+    }
     return () => {
       alive.current = false;
       ++historyRead.current.generation;
     };
-  }, [projectId]);
+  }, [projectId, canRead]);
   useEffect(() => {
     if (!historyLoaded || !inspectReleaseId || focusedRelease.current === `${inspectReleaseId}:${inspectionRequest ?? 0}`) return;
     focusedRelease.current = `${inspectReleaseId}:${inspectionRequest ?? 0}`;
@@ -159,13 +186,14 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
   useEffect(() => {
     if (preview && !releases.some(release => release.id === preview.releaseId && release.status === "ready")) setPreview(null);
   }, [preview, releases]);
+  const awaitingCancellation = releases.some(release => release.cancelRequested && ["preparing", "queued", "building", "deploying", "verifying", "cancelling"].includes(release.status));
   useEffect(() => {
-    if (!busy) return;
+    if ((!busy && !awaitingCancellation) || !canRead) return;
     const timer = setInterval(() => {
       void refresh(true);
     }, 3000);
     return () => clearInterval(timer);
-  }, [busy, projectId]);
+  }, [busy, awaitingCancellation, canRead, projectId]);
   const pendingCloud = releases
     .filter(
       (release) =>
@@ -208,6 +236,33 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
       clearInterval(timer);
     };
   }, [pendingCloud, busy, projectId, canDeploy]);
+  async function cancelBuild(release: Release) {
+    if (!alive.current || !currentAuthority.current.canRead || !currentAuthority.current.canDeploy || release.projectId !== projectId || release.target !== "local" || release.canCancel !== true || release.cancelRequested || !Number.isSafeInteger(release.revision) || release.revision! < 1 || cancelling.current.has(release.id) || cancelFeedback[release.id]?.state === "uncertain") return;
+    const epoch = currentAuthority.current.epoch;
+    const current = () => alive.current && currentAuthority.current.canRead && currentAuthority.current.epoch === epoch;
+    cancelling.current.add(release.id);
+    setCancelFeedback(previous => ({ ...previous, [release.id]: { state: "sending", message: "Requesting cancellation. This does not yet confirm that the build stopped or capacity was released." } }));
+    let confirmed = false;
+    try {
+      const value = await productApi.cancelRelease(projectId, release.id, release.revision!);
+      if (!current()) return;
+      if (value.id !== release.id || value.projectId !== projectId || value.target !== "local" || value.cancelRequested !== true || !Number.isSafeInteger(value.revision) || value.revision! <= release.revision!) throw new Error(cancellationUncertain);
+      ++historyRead.current.generation; historyRead.current.pending = false; setHistoryLoading(false);
+      setReleases(previous => previous.map(row => row.id === value.id && (row.revision ?? 0) <= value.revision! ? value : row));
+      setCancelFeedback(previous => { const next = { ...previous }; delete next[release.id]; return next; });
+      notifyProjectContextChanged(scope, projectId); confirmed = true;
+    } catch (cause) {
+      if (current()) setCancelFeedback(previous => ({ ...previous, [release.id]: { state: "uncertain", message: `${cancellationUncertain} ${errorText(cause)}` } }));
+    } finally {
+      cancelling.current.delete(release.id);
+      if (alive.current && !confirmed) {
+        // Do not let a read started before the uncertain response clear the
+        // barrier, or a late private response escape a permission generation.
+        ++historyRead.current.generation; historyRead.current.pending = false; setHistoryLoading(false);
+        setCancelFeedback(previous => ({ ...previous, [release.id]: previous[release.id]?.state === "uncertain" ? previous[release.id] : { state: "uncertain", message: cancellationUncertain } }));
+      }
+    }
+  }
   async function operate(label: string, action: () => Promise<Release>, refreshAfter = true, permitted = canDeploy) {
     if (working.current || configurationBusy || !permitted) return;
     working.current = true;
@@ -254,6 +309,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
       return null;
     }
   };
+  if (!canRead) return <section className="journey-page"><JourneyHeader title="Previews and publishing" subtitle="Current project access is required to inspect releases." /><p role="status">{projectAccess.message}</p></section>;
   return (
     <section className="journey-page">
       <JourneyHeader
@@ -281,6 +337,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
         <TabsSubtleItem index={1} label="Your cloud" aria-disabled={locked || intent?.outcome === "preview"} />
         <TabsSubtleItem index={2} label="GitHub Pages" aria-disabled={locked || intent?.outcome === "preview"} />
       </TabsSubtle>
+      {Object.entries(cancelFeedback).filter(([id]) => !releases.some(release => release.id === id)).map(([id, feedback]) => <p key={id} role={feedback.state === "uncertain" ? "alert" : "status"}>{feedback.message}</p>)}
       {error && (
         <p className="journey-error" role="alert">
           {error}
@@ -381,8 +438,8 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
         </div>
         <Button type="button"
           variant="secondary"
-          disabled={locked}
-          onClick={() => void refresh()}
+          disabled={!canRead}
+          onClick={() => void refresh(false, true)}
         >
           Refresh
         </Button>
@@ -414,12 +471,14 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
               </span>
             </div>
             <p>{release.message}</p>
+            {(cancelFeedback[release.id]?.message || cancellationMessage(release)) && <p role={cancelFeedback[release.id]?.state === "uncertain" ? "alert" : "status"} className="journey-muted">{cancelFeedback[release.id]?.message || cancellationMessage(release)}</p>}
             <small>
               Brief {release.briefRevision} ·{" "}
               {release.commit ? release.commit.slice(0, 8) : "No commit"} ·{" "}
               {new Date(release.createdAt).toLocaleString()}
             </small>
             <div className="journey-actions">
+              {release.target === "local" && release.canCancel === true && !release.cancelRequested && <Button type="button" variant="secondary" disabled={!canDeploy || !!historyError || !Number.isSafeInteger(release.revision) || release.revision! < 1 || cancelling.current.has(release.id) || cancelFeedback[release.id]?.state === "uncertain"} onClick={() => void cancelBuild(release)}>{cancelFeedback[release.id]?.state === "sending" ? "Requesting cancellation…" : "Cancel build"}</Button>}
               {intent && release.status === "ready" && release.commit === intent.commit && (intent.outcome === "preview" ? release.target === "local" : release.target !== "local") && <Button variant="primary" disabled={locked || !projectAccess.canEdit || !binding.run || binding.loading || !!binding.error} onClick={() => {
                 void operate("Verifying and attaching release evidence", async () => {
                   const current = await binding.validate();
@@ -546,7 +605,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
         <label className="luci-field">Replacement app port<input type="number" min="1" max="65535" value={port} disabled={!!busy} onChange={event => setPort(Number(event.target.value))} /></label>
         {error && <p role="alert">{error}</p>}
         <label className="setup-check"><input type="checkbox" checked={replacementAccepted} disabled={!!busy} onChange={event => setReplacementAccepted(event.target.checked)} />Build this selected commit as a new preview; keep the earlier release in history.</label>
-        <div className="journey-actions"><Button variant="secondary" disabled={!!busy} onClick={() => setReplacement(null)}>Keep reviewing</Button><Button disabled={locked || !canDeploy || !replacementAccepted || !dockerfile.trim() || !Number.isInteger(port) || port < 1 || port > 65535} onClick={() => {
+        <div className="journey-actions"><Button variant="secondary" disabled={!!busy} onClick={() => setReplacement(null)}>Keep reviewing</Button><Button disabled={locked || cancellationUnresolved || !canDeploy || !replacementAccepted || !dockerfile.trim() || !Number.isInteger(port) || port < 1 || port > 65535} onClick={() => {
           void operate("Building replacement preview", async () => {
             const created = await productApi.release(projectId, port, dockerfile, replacement.commit);
             if (alive.current) { setReplacement(null); setReplacementAccepted(false); }

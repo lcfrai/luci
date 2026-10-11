@@ -162,6 +162,7 @@ func teamServiceCleanup(r *http.Request) bool {
 		"POST /v1/product/projects/{projectId}/assist/{jobId}/cancel",
 		"POST /v1/product/projects/{projectId}/checks/{runId}/cancel",
 		"POST /v1/product/projects/{projectId}/releases/{releaseId}/stop",
+		"POST /v1/product/projects/{projectId}/releases/{releaseId}/cancel",
 		"POST /v1/product/projects/{projectId}/releases/{releaseId}/refresh":
 		return true
 	case "POST /v1/platform/projects/{projectId}/deployments/{releaseId}/{action}":
