@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "finishedAt": "2026-10-11T13:53:33.832834+00:00",
+  "elapsedSeconds": 1.741009994992055,
+  "exitCode": 0,
+  "timedOut": false,
+  "processSettlementUnknown": false,
+  "inputsUnchanged": true,
+  "preparedManifestSHA256": "a39a363d3c9e059ceed8595c1095626cc941b52bb78ef521fe2c54b20f81c12c",
+  "frozenInputFiles": 49,
+  "stdoutSHA256": "90824baf29dc5bb0327774ba70991829fed93012bd91cbc94c4811039f40885a",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "browserExecuted": false,
+  "webBuildExecuted": false,
+  "packageExecuted": false,
+  "scope": "Controlled fake DOM/clock contracts only; no actual React/browser commit or performance proof"
+}

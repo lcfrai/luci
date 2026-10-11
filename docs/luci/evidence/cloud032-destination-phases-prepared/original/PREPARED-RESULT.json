@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "status": "source-prepared-controlled-contracts-passed",
+  "preparedManifestSHA256": "a39a363d3c9e059ceed8595c1095626cc941b52bb78ef521fe2c54b20f81c12c",
+  "preparedInputFiles": 48,
+  "preparedInputBytes": 630049,
+  "contractCount": 27,
+  "contractResultSHA256": "cdfe0ab370c378cacf7bfb13f73199eeb3dfeea3e47eae1fc29a294970bc6151",
+  "contractResult": "contract-check/result.json",
+  "contractElapsedSeconds": 1.741009994992055,
+  "stderrEmpty": true,
+  "allPreparedAndFrozenAttemptInputsMatch": true,
+  "sourceDiffs": [
+    "helper.patch",
+    "destination-overlay.patch",
+    "overlay.patch",
+    "operator.patch"
+  ],
+  "webBuildExecuted": false,
+  "browserExecuted": false,
+  "packageExecuted": false,
+  "productEdits": false,
+  "dependencyWrites": false,
+  "actualReactTypecheckOrBrowserCommitProven": false,
+  "nextCommands": "README.md",
+  "buildAndRuntimeRootFreeFloorBytes": 6442450944,
+  "buildAndRuntimeAdmission": "Not performed; preserve6GiB gate and existing exclusive runtime requirements",
+  "scope": "Pure fake-DOM/clock/RAF contracts and source preparation, not locator polling attribution or performance acceptance"
+}

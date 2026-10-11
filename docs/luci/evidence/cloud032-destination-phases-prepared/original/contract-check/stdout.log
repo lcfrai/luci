@@ -1,0 +1,28 @@
+PASS disabled and server contexts leave hooks inert
+PASS enabled but unarmed hooks retain no observation
+PASS matching target, accepted object, revision and textarea produce one complete action
+PASS entry and negative first sample can precede acceptance and first commit
+PASS evaluation can begin before the read and joins the eventual accepted response
+PASS first valid commit is preserved and post-witness reset reads are ignored
+PASS stale and fabricated read tokens cannot accept a response
+PASS replaced target cannot commit an earlier accepted response
+PASS aborted or unaccepted reads cannot commit
+PASS commit rejects stale generation, cloned response, changed revisions, value or ref
+PASS response target and invalid numeric revisions are refused
+PASS evaluation refuses wrong action, target, value and replaced element at witness
+PASS a caller cannot claim a positive sample while detached or showing a wrong value
+PASS snapshot is numeric, drains rows and never serializes identities or values
+PASS 100 actions retain a contiguous sequence; the 101st exceeds the declared bound
+PASS sample observation is bounded and overflow refuses capture
+PASS capture validation refuses missing phases, duplicated rows, nonnumeric rows and counters
+PASS capture validation refuses missing actions and a witness before its product commit
+PASS capture validation enforces monotonic windows and preserves drained rows
+PASS capture validation requires unchanged successful switches and ordered await markers
+PASS immediate value witness preserves the original oracle and schedules no retry frame
+PASS later rAF value witness records entry before readiness and keeps disconnected/value checks
+PASS diagnostic binding refusal does not replace the original connected-value oracle
+PASS value witness retains its original ten-second failure
+PASS mocked interactionRunner preserves await order, assertions and all four two-frame calls
+PASS mocked interactionRunner retains inputValue assertion and does not continue after failure
+PASS Node recorder keeps diagnostics bounded and refuses unknown stages
+{"tests":27,"passed":27,"probeSHA256":"e4b57776de60625049a6beb3da4795f624014c7929356989c5e3233f2bf1c4fe","helperSHA256":{"destination-diagnostics.mjs":"abce92b6dfef2f56886c859ebf61f9324cfcaaeb6318aa380d3b9a9c9a1ae814","interaction-metrics.mjs":"6ad34fd52808fb3c8ec7c1ac665083911e6e8900260f74f0302586e0766e8f24","latency-diagnostics.mjs":"46a77ddce86be3952bff162e851372b08ecbf658d4832ffdf013532b5f954f12"},"typescriptVersion":"6.0.3","typescriptSHA256":"569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39","transpileOnly":true,"browser":false,"webBuild":false,"services":false}

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "argv": [
+    "node",
+    "/workspace/.luci-tools/cloud032-destination-phases/tests/contract-test.mjs"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud032-destination-phases",
+  "nodeVersion": "v24.19.0",
+  "startedAt": "2026-10-11T13:53:32.091799+00:00",
+  "wallTimeoutSeconds": 20,
+  "termGraceSeconds": 5,
+  "killWaitSeconds": 5,
+  "preparedManifestSHA256": "a39a363d3c9e059ceed8595c1095626cc941b52bb78ef521fe2c54b20f81c12c",
+  "dependencyBindingsSHA256": "59a291b8a5204ba2b84484ed3fc154d2511f0feb10c3cc7c71d139170f16a9f6",
+  "browserExecuted": false,
+  "webBuildExecuted": false,
+  "packageExecuted": false
+}

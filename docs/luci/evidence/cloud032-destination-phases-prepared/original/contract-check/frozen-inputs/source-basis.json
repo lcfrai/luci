@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "productSource": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "helperSource": "64829123a5799858b57616b711c84c61b945871a",
+  "priorFull100Directory": "/workspace/.luci-tools/cloud032-home-phase-577-full100",
+  "priorFull100PreparedManifestSHA256": "bef9e00c3c4917f243845ce2db1dc0d4e28e65ea73022136dae136ceb9a26a95",
+  "priorHomeDirectory": "/workspace/.luci-tools/cloud032-home-phase-9536e417",
+  "priorHomeOverlayBindingSHA256": "d74dd31ffa27059309f414fd6ad37a944c90f46bafe0a3981bd6a393861011b0",
+  "priorDiagnosticWebBindingSHA256": "1fb6475f2cefd34f15ec9136f9cfcd4fb1cc04dba01bf17c8138c39b1a8fb407",
+  "priorHomeProbeSHA256": "c9b657144d10cb4adc9d16996b8201c66ddbc8471676e3acba5a7f7df253ac94",
+  "unchangedHomeProbeSHA256": "c9b657144d10cb4adc9d16996b8201c66ddbc8471676e3acba5a7f7df253ac94",
+  "originalPrivateFull100SHA256": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+  "originalPrivateFull100ReadOrChanged": false,
+  "newRuntimeExecuted": false
+}

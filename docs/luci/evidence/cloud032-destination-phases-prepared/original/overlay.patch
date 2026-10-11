@@ -1,0 +1,400 @@
+--- a/desktop/src/components/AppShell.tsx
++++ b/desktop/src/components/AppShell.tsx
+@@ -1,5 +1,6 @@
++import { homeRenderBegin, homeCommit } from "../diagnostics/homePhaseTiming";
+ // Owns responsive navigation, the single keyboard-map mount and shared overlays.
+-import { useEffect, useRef, useState, type JSX } from "react";
++import { useEffect, useLayoutEffect, useRef, useState, type JSX } from "react";
+ import { useCockpit } from "../store/store";
+ import { Rail } from "./rail/Rail";
+ import { SubRail } from "./subrail/SubRail";
+@@ -46,6 +47,7 @@
+ }
+ 
+ export function AppShell(): JSX.Element {
++  const homeRender = homeRenderBegin();
+   const setup = useSetup();
+   const railCollapsed = useCockpit((s) => s.railCollapsed);
+   const branchId = useCockpit((s) => s.selection.branchId);
+@@ -91,6 +93,10 @@
+       document.querySelector<HTMLButtonElement>(".top-projects")?.focus();
+     previousDrawerOpen.current = drawerOpen;
+   }, [drawerOpen, railRef]);
++
++  useLayoutEffect(() => {
++    if (projectId === null && branchId === null) homeCommit(homeRender);
++  }, [projectId, branchId, homeRender]);
+ 
+   // §6.8: the ONE window keydown listener in the app, mounted once, here. Escape is NOT in
+   // it — hooks/useDismissable owns the overlay stack and therefore owns Escape (§6.9).
+--- a/desktop/src/components/definition/DefinitionWorkspace.tsx
++++ b/desktop/src/components/definition/DefinitionWorkspace.tsx
+@@ -1,4 +1,5 @@
+-import { useCallback, useEffect, useId, useRef, useState } from "react";
++import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
++import { destinationReadBegin, destinationReadAccepted, destinationLayoutCommit, type DestinationReadToken } from "../../diagnostics/destinationPhaseTiming";
+ import { notifyProjectContextChanged, PROJECT_CONTEXT_EDIT, takeProjectContextEdit } from "../../api/projectContextEvents";
+ import { definitionApi, type ProjectSpecification, type Requirement } from "../../api/definition";
+ import { errorText } from "../../api/product";
+@@ -112,6 +113,8 @@
+   const submitting = useRef(false);
+   const reading = useRef({ generation: 0, pending: false, ready: false });
+   const readController = useRef<AbortController | null>(null);
++  const destinationRead = useRef<DestinationReadToken | null>(null);
++  const destinationControl = useRef<HTMLTextAreaElement | null>(null);
+   const readAfterGrant = useRef(true);
+   const readPermission = useRef(canRead); readPermission.current = canRead;
+   const abortRead = useCallback(() => {
+@@ -119,6 +122,9 @@
+     const controller = readController.current; readController.current = null;
+     controller?.abort();
+   }, []);
++  useLayoutEffect(() => {
++    destinationLayoutCommit(destinationRead.current, projectId, reading.current.generation, spec, destinationControl.current);
++  });
+   const locked = busy || savedRead !== "ready";
+   const tabsId = useId(), selectedIndex = views.findIndex(([key]) => key === tab);
+   const setLens = useCockpit((s) => s.setLens);
+@@ -129,8 +135,10 @@
+     const controller = new AbortController(); readController.current = controller;
+     reading.current.pending = true; reading.current.ready = false; setSavedRead("loading");
+     try {
++      const destinationToken = destinationReadBegin(projectId, generation); destinationRead.current = destinationToken;
+       const value = await definitionApi.get(projectId, controller.signal);
+       if (!alive.current || !readPermission.current || controller.signal.aborted || reading.current.generation !== generation) return;
++      destinationReadAccepted(destinationToken, value);
+       savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision });
+       reading.current.ready = true; setSavedRead("ready"); setDirty(false); setError("");
+       if (value.purpose || value.revision) setTab("specification");
+@@ -254,7 +262,7 @@
+             </div>}
+             {tab === "specification" && <div className="definition-specification">
+               <h2>Product outline</h2>
+-              <label className="luci-field">The idea<textarea rows={4} value={spec.purpose} onChange={(e) => patch({ purpose: e.target.value })} /></label>
++              <label className="luci-field">The idea<textarea ref={destinationControl} rows={4} value={spec.purpose} onChange={(e) => patch({ purpose: e.target.value })} /></label>
+               <label className="luci-field">Who it is for<textarea rows={2} value={spec.audience} onChange={(e) => patch({ audience: e.target.value })} /></label>
+               <label className="luci-field">Boundaries and constraints<textarea rows={3} value={spec.constraints} onChange={(e) => patch({ constraints: e.target.value })} /></label>
+               <label className="luci-field">Out of scope<textarea rows={2} value={spec.outOfScope.join("\n")} onChange={(e) => patch({ outOfScope: e.target.value.split("\n") })} /><small>One exclusion per line.</small></label>
+--- a/desktop/src/components/rail/Rail.tsx
++++ b/desktop/src/components/rail/Rail.tsx
+@@ -1,3 +1,4 @@
++import { homeHandlerBegin, homeHandlerEnd } from "../../diagnostics/homePhaseTiming";
+ // Contract §6.2: the scroll container, the role="tree" wrapper, and keyboard traversal within
+ // the tree. Traversal reads the DOM rather than a parallel flat list, because a second copy of
+ // "which rows are visible" is a second thing to keep in step with the render — and defect 10's
+@@ -162,8 +163,11 @@
+             className="rail-home"
+             aria-label="All projects"
+             onClick={() => {
+-              useCockpit.getState().selectProject(null);
+-              onClose?.();
++              const timing = homeHandlerBegin();
++              try {
++                useCockpit.getState().selectProject(null);
++                onClose?.();
++              } finally { homeHandlerEnd(timing); }
+             }}
+           >
+             Luci
+--- /dev/null
++++ b/desktop/src/diagnostics/destinationPhaseTiming.ts
+@@ -0,0 +1,147 @@
++// Diagnostic overlay only. Product actions, saved data and acceptance stay unchanged.
++// Private target/value/object/element bindings exist only for the current action.
++export type DestinationReadToken = Readonly<object>;
++type EvaluationToken = Readonly<object>;
++type SavedDestination = { projectId: string; purpose: string; revision: number; briefRevision: number };
++type Control = { tagName: string; isConnected: boolean; value: string };
++type Row = { sequence: number; action: number; read: number; kind: number; at: number; connected?: number; match?: number; samples?: number };
++type Read = { token: DestinationReadToken; ordinal: number; generation: number; value: SavedDestination | null; purpose: string | null; revision: number; briefRevision: number; element: Control | null };
++type Evaluation = { token: EvaluationToken; expected: string; element: Control; samples: number; lastMatch: boolean };
++type Action = { ordinal: number; project: string | null; read: Read | null; evaluation: Evaluation | null; done: boolean };
++const enabled = typeof window !== "undefined" && (window as unknown as { __luciDestinationPhaseRequested?: number }).__luciDestinationPhaseRequested === 1;
++export const DESTINATION_MAX_ACTIONS = 100, DESTINATION_MAX_READS = 100, DESTINATION_MAX_ROWS = 2048, DESTINATION_MAX_SAMPLES = 2048;
++let armed = false, current: Action | null = null, rows: Row[] = [];
++let actions = 0, destinations = 0, reads = 0, accepted = 0, commits = 0, evaluations = 0, samples = 0, witnesses = 0;
++let observed = 0, dropped = 0, errors = 0, overlaps = 0, mismatches = 0;
++const active = () => enabled && armed;
++const integer = (value: number) => Number.isSafeInteger(value) && value >= 0;
++function fail(kind: "overlap" | "mismatch" | "overflow" = "mismatch") {
++  errors++;
++  if (kind === "overlap") overlaps++;
++  else if (kind === "overflow") dropped++;
++  else mismatches++;
++}
++// Diagnostic mistakes never escape into the product or its existing oracle.
++function protect<T>(fallback: T, operation: () => T): T {
++  try { return operation(); } catch { fail(); return fallback; }
++}
++function record(action: Action, kind: number, extra: Partial<Pick<Row, "connected" | "match" | "samples">> = {}) {
++  const at = performance.now();
++  observed++;
++  if (!Number.isFinite(at) || observed > DESTINATION_MAX_ROWS) { fail("overflow"); return; }
++  rows.push({ sequence: observed, action: action.ordinal, read: action.read?.ordinal ?? 0, kind, at, ...extra });
++}
++function control(element: unknown): element is Control {
++  return !!element && typeof element === "object" && (element as Control).tagName === "TEXTAREA" &&
++    typeof (element as Control).isConnected === "boolean" && typeof (element as Control).value === "string";
++}
++function saved(value: unknown): value is SavedDestination {
++  const item = value as SavedDestination | null;
++  return !!item && typeof item === "object" && typeof item.projectId === "string" && typeof item.purpose === "string" &&
++    integer(item.revision) && integer(item.briefRevision);
++}
++function stillAccepted(action: Action, read: Read) {
++  return read.value !== null && read.value.projectId === action.project && read.value.purpose === read.purpose &&
++    read.value.revision === read.revision && read.value.briefRevision === read.briefRevision;
++}
++export function destinationNavigate(projectId: string | null, lens: string): void {
++  if (!active()) return;
++  protect<void>(undefined, () => {
++    if (projectId === null) {
++      if (current && !current.done) fail("overlap");
++      if (actions >= DESTINATION_MAX_ACTIONS) { fail("overflow"); current = null; return; }
++      current = { ordinal: ++actions, project: null, read: null, evaluation: null, done: false };
++      record(current, 1);
++      return;
++    }
++    if (!current || current.done || current.project !== null) { fail("overlap"); return; }
++    if (typeof projectId !== "string" || !projectId || lens !== "discover") { fail(); return; }
++    current.project = projectId; destinations++; record(current, 2);
++  });
++}
++export function destinationReadBegin(projectId: string, generation: number): DestinationReadToken | null {
++  if (!active() || !current || current.done) return null;
++  return protect<DestinationReadToken | null>(null, () => {
++    if (current!.project === null || projectId !== current!.project || !integer(generation) || generation === 0) { fail(); return null; }
++    if (current!.read) { fail("overlap"); return null; }
++    if (reads >= DESTINATION_MAX_READS) { fail("overflow"); return null; }
++    const token = Object.freeze({});
++    current!.read = { token, ordinal: ++reads, generation, value: null, purpose: null, revision: -1, briefRevision: -1, element: null };
++    record(current!, 3); return token;
++  });
++}
++export function destinationReadAccepted(token: DestinationReadToken | null, value: unknown): void {
++  if (!active() || token === null || current?.done) return;
++  protect<void>(undefined, () => {
++    const action = current, read = action?.read;
++    if (!action || !read || read.token !== token) { fail(); return; }
++    if (read.value !== null) { fail("overlap"); return; }
++    if (!saved(value) || value.projectId !== action.project || (action.evaluation && value.purpose !== action.evaluation.expected)) { fail(); return; }
++    read.value = value; read.purpose = value.purpose; read.revision = value.revision; read.briefRevision = value.briefRevision;
++    accepted++; record(action, 4);
++  });
++}
++export function destinationLayoutCommit(token: DestinationReadToken | null, projectId: string, generation: number, spec: unknown, element: unknown): void {
++  if (!active() || token === null || current?.done) return;
++  protect<void>(undefined, () => {
++    const action = current, read = action?.read;
++    if (!action || !read || read.token !== token || projectId !== action.project || generation !== read.generation) { fail(); return; }
++    // Loading/interview commits can legitimately have no destination control yet.
++    if (spec === null || element === null) return;
++    if (spec !== read.value || !stillAccepted(action, read) || !control(element) || !element.isConnected || element.value !== read.purpose ||
++        (action.evaluation && action.evaluation.element !== element)) { fail(); return; }
++    if (read.element !== null) { if (read.element !== element) fail(); return; }
++    read.element = element; commits++; record(action, 5);
++  });
++}
++function evaluationEnter(actionOrdinal: number, projectId: string, expectedValue: string, element: unknown): EvaluationToken | null {
++  if (!active()) return null;
++  return protect<EvaluationToken | null>(null, () => {
++    const action = current;
++    if (!action || action.done || action.ordinal !== actionOrdinal || action.project === null || projectId !== action.project ||
++        typeof expectedValue !== "string" || !control(element)) { fail(); return null; }
++    if (action.evaluation) { fail("overlap"); return null; }
++    const read = action.read;
++    if (read?.value && (!stillAccepted(action, read) || read.purpose !== expectedValue)) { fail(); return null; }
++    if (read?.element && read.element !== element) { fail(); return null; }
++    const token = Object.freeze({});
++    action.evaluation = { token, expected: expectedValue, element, samples: 0, lastMatch: false };
++    evaluations++; record(action, 6); return token;
++  });
++}
++function evaluationSample(token: EvaluationToken | null, element: unknown, match: boolean): void {
++  if (!active() || token === null) return;
++  protect<void>(undefined, () => {
++    const action = current, evaluation = action?.evaluation;
++    if (!action || action.done || !evaluation || evaluation.token !== token || evaluation.element !== element || !control(element) ||
++        typeof match !== "boolean" || match !== (element.isConnected && element.value === evaluation.expected)) { fail(); return; }
++    if (evaluation.samples >= DESTINATION_MAX_SAMPLES) { fail("overflow"); return; }
++    evaluation.samples++; samples++; evaluation.lastMatch = match;
++    if (evaluation.samples === 1) record(action, 7, { connected: Number(element.isConnected), match: Number(match), samples: 1 });
++  });
++}
++function evaluationWitness(token: EvaluationToken | null, element: unknown): void {
++  if (!active() || token === null) return;
++  protect<void>(undefined, () => {
++    const action = current, read = action?.read, evaluation = action?.evaluation;
++    if (!action || action.done || !read || !evaluation || evaluation.token !== token || evaluation.element !== element || read.element !== element ||
++        !stillAccepted(action, read) || read.purpose !== evaluation.expected || !control(element) || !element.isConnected || element.value !== evaluation.expected ||
++        !evaluation.samples || !evaluation.lastMatch) { fail(); return; }
++    witnesses++; record(action, 8, { connected: 1, match: 1, samples: evaluation.samples });
++    // Retain only the completed numeric ordinal; lens-reset reads are unmeasured.
++    action.done = true; action.project = null; action.read = null; action.evaluation = null;
++  });
++}
++if (enabled) protect<void>(undefined, () => {
++  Object.defineProperty(window, "__luciDestinationPhase", { configurable: false, value: {
++    arm() { if (armed || actions || rows.length) { fail("overlap"); return; } armed = true; },
++    snapshot() {
++      const result = { version: 1, timeOrigin: performance.timeOrigin, armed: Number(armed), actions, destinations, reads, accepted, commits, evaluations, samples, witnesses,
++        observed, dropped, errors, overlaps, mismatches, active: current && !current.done ? current.ordinal : 0,
++        pendingReads: Number(!!current && !current.done && current.project !== null && current.read?.value == null),
++        pendingEvaluations: Number(!!current?.evaluation && !current.done), rows };
++      rows = []; return result;
++    },
++    evaluationEnter, evaluationSample, evaluationWitness,
++  } });
++});
+--- /dev/null
++++ b/desktop/src/diagnostics/homePhaseTiming.ts
+@@ -0,0 +1,51 @@
++// Diagnostic overlay only. No production optimization or stored data change.
++type Token = { id: number; start: number } | null;
++type Row = { sequence: number; home: number; kind: number; start: number; end: number; ok: number; count?: number };
++const enabled = typeof window !== "undefined" && (window as unknown as { __luciHomePhaseRequested?: number }).__luciHomePhaseRequested === 1;
++let armed = false, home = 0, active = 0, pending = 0, sequence = 0, dropped = 0;
++const starts = new Map<number, number>();
++let rows: Row[] = [];
++function record(id: number, kind: number, start: number, end: number, ok = 1, count?: number) {
++  if (!id) return;
++  sequence++;
++  if (rows.length >= 2048) { dropped++; return; }
++  rows.push({ sequence, home: id, kind, start, end, ok, ...(count === undefined ? {} : { count }) });
++}
++export function homeHandlerBegin(): number {
++  if (!enabled || !armed) return 0;
++  if (pending) dropped++;
++  const id = ++home; active = pending = id; starts.set(id, performance.now());
++  if (starts.size > 16) { starts.delete(starts.keys().next().value!); dropped++; }
++  return id;
++}
++export function homeHandlerEnd(id: number): void {
++  if (!id) return;
++  record(id, 1, starts.get(id)!, performance.now());
++  if (active === id) active = 0;
++}
++export function homeRenderBegin(): Token {
++  const id = enabled && armed ? active || pending : 0;
++  return id ? { id, start: performance.now() } : null;
++}
++export function homeCommit(token: Token): void {
++  if (!token || pending !== token.id) return;
++  const now = performance.now();
++  record(token.id, 2, starts.get(token.id)!, now);
++  record(token.id, 12, token.start, now);
++  pending = 0;
++}
++export function homePhase<T>(kind: number, operation: () => T): T {
++  const id = enabled && armed ? active || pending : 0;
++  if (!id) return operation();
++  const start = performance.now(); let ok = 0;
++  try { const value = operation(); ok = 1; return value; }
++  finally { record(id, kind, start, performance.now(), ok); }
++}
++export function homeCount(kind: number, count: number): void {
++  const id = enabled && armed ? active || pending : 0;
++  if (id) { const now = performance.now(); record(id, kind, now, now, 1, count); }
++}
++if (enabled) Object.defineProperty(window, "__luciHomePhase", { configurable: false, value: {
++  arm() { if (armed || home || rows.length) throw Error("Home diagnostic already armed"); armed = true; },
++  snapshot() { const result = { version: 1, timeOrigin: performance.timeOrigin, homes: home, observed: sequence, dropped, pending, active, rows }; rows = []; return result; },
++} });
+--- a/desktop/src/preferences/projectNavigation.ts
++++ b/desktop/src/preferences/projectNavigation.ts
+@@ -1,3 +1,4 @@
++import { homePhase, homeCount } from "../diagnostics/homePhaseTiming";
+ import type { Lens, Project } from "../store/types";
+ 
+ // Navigation is a preference, never execution consent or evidence. Its separate
+@@ -48,12 +49,17 @@
+ }
+ 
+ export function writeProjectNavigation(scope: string, navigation: ProjectNavigation): boolean {
++  return homePhase(4, () => {
+   try {
+     const key = PROJECT_NAVIGATION_PREFIX + scope;
+-    const projects = Object.fromEntries(Object.entries(navigation.projects)
+-      .sort((a, b) => b[1].updatedAt - a[1].updatedAt).slice(0, MAX_NAVIGATION_PROJECTS));
+-    const raw = JSON.stringify({ version: 1, ...navigation, projects, updatedAt: Date.now() });
++    const raw = homePhase(5, () => {
++      const projects = Object.fromEntries(Object.entries(navigation.projects)
++        .sort((a, b) => b[1].updatedAt - a[1].updatedAt).slice(0, MAX_NAVIGATION_PROJECTS));
++      return JSON.stringify({ version: 1, ...navigation, projects, updatedAt: Date.now() });
++    });
+     if (raw.length * 2 > MAX_RECORD_BYTES) return false;
++    homePhase(6, () => {
++    homeCount(10, localStorage.length);
+     // Bound only our small preferences; never evict project drafts or application data.
+     const others: { key: string; updatedAt: number }[] = [];
+     for (let i = 0; i < localStorage.length; i++) {
+@@ -64,7 +70,10 @@
+       others.push({ key: stored, updatedAt });
+     }
+     for (const record of others.sort((a, b) => b.updatedAt - a.updatedAt).slice(MAX_SCOPES - 1)) localStorage.removeItem(record.key);
+-    localStorage.setItem(key, raw);
++    homeCount(11, others.length);
++    });
++    homePhase(7, () => localStorage.setItem(key, raw));
+     return true;
+   } catch { return false; }
++  });
+ }
+--- a/desktop/src/store/slices/uiSlice.ts
++++ b/desktop/src/store/slices/uiSlice.ts
+@@ -1,3 +1,5 @@
++import { destinationNavigate } from "../../diagnostics/destinationPhaseTiming";
++import { homePhase } from "../../diagnostics/homePhaseTiming";
+ // desktop/src/store/slices/uiSlice.ts
+ //
+ // Contract §3.3. Selection, lens, layout, rail expansion, overlays, toasts.
+@@ -43,7 +45,7 @@
+   | { kind: "branch"; projectId: ProjectId; branchId: BranchId; worktreeId?: WorktreeId }
+   | { kind: "lens"; lens: Lens };
+ export interface BranchManagerTarget { projectId: ProjectId; action: "create" | "switch"; branchId?: BranchId }
+-const navigationState = (navigation: PendingNavigation, state: CockpitState): Partial<UiSlice> => {
++const navigationState = (navigation: PendingNavigation, state: CockpitState): Partial<UiSlice> => homePhase(3, () => {
+   let selection = state.selection, lens = state.lens;
+   if (navigation.kind === "project") {
+     selection = { ...NO_SELECTION, projectId: navigation.projectId };
+@@ -64,8 +66,9 @@
+   remember(selection.projectId, lens);
+   const bounded = pruneProjectPositions(projectPositions, state.projects);
+   const saved = !state.projectNavigationScope || writeProjectNavigation(state.projectNavigationScope, { projects: bounded, selected: selection.projectId });
++  if (navigation.kind === "project") destinationNavigate(selection.projectId, lens);
+   return { selection, lens, projectPositions: bounded, projectNavigationError: !saved };
+-};
++});
+ 
+ function hasNavigationWorktree(state: CockpitState, projectId: ProjectId, branchId: BranchId, worktreeId: WorktreeId) {
+   return state.projects.some(project => project.id === projectId) && state.branchesByProject[projectId]?.some(branch => branch.id === branchId && branch.projectId === projectId) &&
+--- a/desktop/src/store/store.ts
++++ b/desktop/src/store/store.ts
+@@ -1,3 +1,4 @@
++import { homePhase } from "../diagnostics/homePhaseTiming";
+ // desktop/src/store/store.ts
+ //
+ // Contract §3.1 and §3.5. The store is FLAT: all three slices contribute keys at the root of
+@@ -67,6 +68,11 @@
+ /** A fresh, independently persisted store. `useCockpit` is the app's one instance; the
+  *  factory exists so a test can build a store over a seeded localStorage without disturbing
+  *  the singleton every other suite shares. */
++function homeTimingStorage() {
++  const storage = createJSONStorage(() => localStorage);
++  return storage && { ...storage, setItem: (name: string, value: Parameters<typeof storage.setItem>[1]) => homePhase(8, () => storage.setItem(name, value)) };
++}
++
+ export const createCockpitStore = () =>
+   create<CockpitState>()(
+     persist(
+@@ -78,8 +84,8 @@
+       {
+         name: PERSIST_KEY,
+         version: PERSIST_VERSION,
+-        storage: createJSONStorage(() => localStorage),
+-        partialize,
++        storage: homeTimingStorage(),
++        partialize: state => homePhase(9, () => partialize(state)),
+         migrate,
+         // Contract §12, open question 3. The only report a swallowed storage failure gets.
+         onRehydrateStorage: () => (_state: CockpitState | undefined, error: unknown) => {

@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "baseProduct": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "diagnosticOnly": true,
+  "optimization": false,
+  "priorHomeOverlayBindingSHA256": "d74dd31ffa27059309f414fd6ad37a944c90f46bafe0a3981bd6a393861011b0",
+  "files": [
+    {
+      "path": "desktop/src/components/AppShell.tsx",
+      "originalSHA256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "overlaySHA256": "3f8b4d3e5b76b09a5e22213541317f900ebee59952660f8d51988b15b83abb4a",
+      "bytes": 6657
+    },
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "originalSHA256": "a9cf1aa5589a23f8072efdfb92f7dbef21e1d729d4fd6f8f023bc58b00468c3e",
+      "overlaySHA256": "fc26e82a3964c9cfc696993700e43a848bf7fe04448ecbe3dc53f1c39cb3a2f8",
+      "bytes": 32402
+    },
+    {
+      "path": "desktop/src/components/rail/Rail.tsx",
+      "originalSHA256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "overlaySHA256": "711d22fcef1b85f2bec1e83f5f3483ebb8de592f0693db639f3d07d1a91a7778",
+      "bytes": 8719
+    },
+    {
+      "path": "desktop/src/diagnostics/destinationPhaseTiming.ts",
+      "originalSHA256": null,
+      "overlaySHA256": "e4b57776de60625049a6beb3da4795f624014c7929356989c5e3233f2bf1c4fe",
+      "bytes": 9861
+    },
+    {
+      "path": "desktop/src/diagnostics/homePhaseTiming.ts",
+      "originalSHA256": null,
+      "overlaySHA256": "c9b657144d10cb4adc9d16996b8201c66ddbc8471676e3acba5a7f7df253ac94",
+      "bytes": 2561
+    },
+    {
+      "path": "desktop/src/preferences/projectNavigation.ts",
+      "originalSHA256": "ceef277726d06c850e02bf9fc1f9d167b21f3b03a1c115aca27e2652023ac31b",
+      "overlaySHA256": "1cdf0eaad09a87f49ad9ab920e034f9cf68b62a3f8eefc6940345921f0cbd1aa",
+      "bytes": 4693
+    },
+    {
+      "path": "desktop/src/store/slices/uiSlice.ts",
+      "originalSHA256": "4da15890388c23ac657ffe99311b5a1155001b78400f1b40846061372f1a5b0b",
+      "overlaySHA256": "22f8b02449de5ff4ab7901a1c7dcbc97d28c990dc2ecd8562553da214c6d2a87",
+      "bytes": 17280
+    },
+    {
+      "path": "desktop/src/store/store.ts",
+      "originalSHA256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6",
+      "overlaySHA256": "81e7821507750c0e03bcbf9d56e185338d3cefa57b1f555b4070b9a114e58219",
+      "bytes": 5049
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+--- prior/launch.py
++++ destination/launch.py
+@@ -19,6 +19,7 @@
+ 
+ def main():
+     parser=argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--contract-receipt',type=Path,default=HERE/'contract-check/result.json')
+     parser.add_argument('--source',required=True)
+     parser.add_argument('--helper-source')
+     parser.add_argument('--package',type=Path,required=True)
+@@ -35,6 +36,11 @@
+     assert os.getuid()!=0 and sys.platform=='linux'
+     assert command(['node','--version'])=='v24.19.0'
+     manifest=json.loads((HERE/'prepared-files.json').read_text())
++    dependencies=json.loads((HERE/'dependency-bindings.json').read_text())['files']
++    for name,expected in dependencies.items():assert sha(REPO/'desktop/node_modules'/name)==expected,'Pinned dependency changed: '+name
++    controlled=json.loads(args.contract_receipt.read_text())
++    assert controlled['exitCode']==0 and controlled['inputsUnchanged'] and not controlled['timedOut'],'Controlled diagnostic contract checks required'
++    assert controlled['preparedManifestSHA256']==sha(HERE/'prepared-files.json'),'Contract checks do not bind current preparation'
+     for row in manifest['files']:
+         p=HERE/row['path'];assert p.is_file() and p.stat().st_size==row['bytes'] and sha(p)==row['sha256'],row['path']+' prepared input changed'
+     assert args.source=='577f7a0fdb039b7f875901a6a567d62fdfee88c8' and helper=='64829123a5799858b57616b711c84c61b945871a'
+@@ -46,6 +52,7 @@
+         assert hashlib.sha256(committed).hexdigest()==expected['sha256'],name+' not bound to exact helper revision'
+     binding=json.loads((HERE/'actual/external-source-binding.json').read_text())
+     assert binding['executionDirectory']==str(HERE/'actual') and binding['helperSourceCommit']==helper
++    assert binding['dependencyInputs']==dependencies,'Dependency binding differs'
+     for name,expected in binding['localSources'].items():assert sha(HERE/'actual'/name)==expected,name
+     for name,expected in binding['repositoryDependencies'].items():assert sha(HERE/'frozen-helpers'/name)==expected,name
+     diagnostic_path=HERE/'diagnostic-web-binding.json';diagnostic=json.loads(diagnostic_path.read_text())
+@@ -71,7 +78,7 @@
+     output.mkdir(mode=0o700,parents=True)
+     result_dir=output/'driver';result=result_dir/'result.json'
+     cmd=['node',str(HERE/'actual/sustained.mjs'),'--task-context-version','2','--binary',str(package/'luci'),'--web',str(web),'--diagnostic-web-binding',str(diagnostic_path),'--diagnostic-web-binding-sha256',sha(diagnostic_path),'--provenance',str(args.provenance.resolve()),'--expected-source',args.source,'--expected-helper-source',helper,'--image',args.image,'--expected-image-id',args.expected_image_id,'--image-provenance',str(args.image_provenance.resolve()),'--fixture-root',str(args.fixture_root.resolve()),'--report',str(result),'--trace-after',args.trace_after]
+-    invocation={'version':1,'preparedAt':now(),'command':cmd,'productSource':args.source,'helperSource':helper,'sourceBinding':capture,'observedMutableCheckout':observed,'frozenHelperCopyUsed':True,'diagnosticWebBindingSHA256':sha(diagnostic_path),'diagnosticWebIndexSHA256':diagnostic['webIndexSHA256'],'packagedWebIndexSHA256':provenance['webIndexSHA256'],'driverSHA256':sha(HERE/'actual/sustained.mjs'),'bindingSHA256':sha(HERE/'actual/external-source-binding.json'),'launcherSHA256':sha(Path(__file__)),'provenanceSHA256':sha(args.provenance),'environment':{'LUCI_ACCEPTANCE_REPO':str(REPO),'GOMAXPROCS':'2','NODE_OPTIONS':'--max-old-space-size=3072'},'scope':'Frozen installed binary with separately built diagnostic web; full100-round numeric Home diagnostic only; no runtime allocation, no full sustained pass, no model quality or Windows acceptance.','fixedScope':{'quietSeconds':60,'primarySwitches':100,'primaryInputs':200,'primaryResets':100,'extraTraceRounds':0,'homePhaseNumericOnly':True,'performanceAcceptance':False,'switchP95Ms':300,'inputP95Ms':100,'p99StrictlyBelowMs':1000,'allowedCreates':0,'allowedStarts':0,'preparationSeconds':60,'workflowSeconds':210,'cleanupSeconds':120,'outerDriverWaitSeconds':450,'outerTermGraceSeconds':30,'outerKillWaitSeconds':10,'linuxSampler':False},'engineIdentitySHA256':hashlib.sha256(engine.encode()).hexdigest(),'rootFreeBytes':free,'rawEvidence':'Retain result interactions and node/browser spans verbatim. Original raw evidence/private fixture may contain context; added Home phase fields are numeric only; publish only separately bound allowlisted projections.'}
++    invocation={'version':1,'preparedAt':now(),'command':cmd,'productSource':args.source,'helperSource':helper,'sourceBinding':capture,'observedMutableCheckout':observed,'frozenHelperCopyUsed':True,'diagnosticWebBindingSHA256':sha(diagnostic_path),'diagnosticWebIndexSHA256':diagnostic['webIndexSHA256'],'packagedWebIndexSHA256':provenance['webIndexSHA256'],'driverSHA256':sha(HERE/'actual/sustained.mjs'),'bindingSHA256':sha(HERE/'actual/external-source-binding.json'),'launcherSHA256':sha(Path(__file__)),'provenanceSHA256':sha(args.provenance),'environment':{'LUCI_ACCEPTANCE_REPO':str(REPO),'GOMAXPROCS':'2','NODE_OPTIONS':'--max-old-space-size=3072'},'scope':'Frozen installed binary with separately built diagnostic web; full100-round numeric Home/destination diagnostic only; no runtime allocation, no full sustained pass, no model quality or Windows acceptance.','fixedScope':{'quietSeconds':60,'primarySwitches':100,'primaryInputs':200,'primaryResets':100,'extraTraceRounds':0,'homePhaseNumericOnly':True,'destinationPhaseNumericOnly':True,'locatorPollAttemptsObserved':False,'performanceAcceptance':False,'switchP95Ms':300,'inputP95Ms':100,'p99StrictlyBelowMs':1000,'allowedCreates':0,'allowedStarts':0,'preparationSeconds':60,'workflowSeconds':210,'cleanupSeconds':120,'outerDriverWaitSeconds':450,'outerTermGraceSeconds':30,'outerKillWaitSeconds':10,'linuxSampler':False},'engineIdentitySHA256':hashlib.sha256(engine.encode()).hexdigest(),'rootFreeBytes':free,'dependencyBindingsSHA256':sha(HERE/'dependency-bindings.json'),'contractCheckResultSHA256':sha(args.contract_receipt),'rawEvidence':'Retain result interactions and node/browser spans verbatim. Original raw evidence/private fixture may contain context; added Home phase fields are numeric only; publish only separately bound allowlisted projections.'}
+     write(output/'invocation.json',invocation)
+     env=dict(os.environ,LUCI_ACCEPTANCE_REPO=str(REPO),GOMAXPROCS='2',NODE_OPTIONS='--max-old-space-size=3072');start=time.monotonic();started=now();timeout=False;forced=False;events=[]
+     with (output/'driver.stdout.log').open('w') as stdout,(output/'driver.stderr.log').open('w') as stderr:
+@@ -94,7 +101,7 @@
+                         forced=True;child.kill();events.append({'event':'KILL-exact-driver-only','at':now()})
+                         try:child.wait(timeout=10)
+                         except subprocess.TimeoutExpired:events.append({'event':'driver-remains-unsettled','at':now()})
+-    receipt={'startedAt':started,'finishedAt':now(),'elapsedSeconds':time.monotonic()-start,'exitCode':child.poll(),'externalMonitorTimeout':timeout,'forcedExactDriver':forced,'driverIdentity':driver,'finalDriverObservation':identity(child.pid),'events':events,'ownedCleanupRequiresFinalReceipt':True,'cleanupUnconfirmedByWrapper':True,'resultExists':result.is_file(),'rawResultSHA256':sha(result) if result.is_file() else None,'preparedInputsUnchanged':all((HERE/row['path']).is_file() and sha(HERE/row['path'])==row['sha256'] for row in manifest['files']),'observedMutableCheckoutAfter':{'head':command(['git','rev-parse','HEAD'],cwd=REPO),'statusPorcelain':command(['git','status','--porcelain'],cwd=REPO),'usedForProductOrHelpers':False},'noAutomaticFixtureOrLedgerMutation':True}
++    receipt={'startedAt':started,'finishedAt':now(),'elapsedSeconds':time.monotonic()-start,'exitCode':child.poll(),'externalMonitorTimeout':timeout,'forcedExactDriver':forced,'driverIdentity':driver,'finalDriverObservation':identity(child.pid),'events':events,'ownedCleanupRequiresFinalReceipt':True,'cleanupUnconfirmedByWrapper':True,'resultExists':result.is_file(),'rawResultSHA256':sha(result) if result.is_file() else None,'preparedInputsUnchanged':all((HERE/row['path']).is_file() and sha(HERE/row['path'])==row['sha256'] for row in manifest['files']),'observedMutableCheckoutAfter':{'head':command(['git','rev-parse','HEAD'],cwd=REPO),'statusPorcelain':command(['git','status','--porcelain'],cwd=REPO),'usedForProductOrHelpers':False},'dependenciesUnchanged':all(sha(REPO/'desktop/node_modules'/name)==expected for name,expected in dependencies.items()),'noAutomaticFixtureOrLedgerMutation':True}
+     write(output/'wrapper-result.json',receipt);print(json.dumps(receipt),flush=True)
+-    return 124 if timeout else 1 if not receipt['preparedInputsUnchanged'] else child.returncode if child.returncode is not None else 1
++    return 124 if timeout else 1 if not receipt['preparedInputsUnchanged'] or not receipt['dependenciesUnchanged'] else child.returncode if child.returncode is not None else 1
+ if __name__=='__main__':sys.exit(main())
+--- prior/build-web.py
++++ destination/build-web.py
+@@ -1,12 +1,17 @@
+ #!/usr/bin/env python3
+ """Root-invoked only: build a separate diagnostic web from frozen tracked frontend inputs."""
+ from pathlib import Path
+-import hashlib,json,os,signal,subprocess,time,shutil,sys
++import argparse,hashlib,json,os,signal,subprocess,time,shutil,sys
+ B=Path(__file__).resolve().parent;R=Path('/workspace/luci');PRODUCT='577f7a0fdb039b7f875901a6a567d62fdfee88c8'
+ def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+ def put(p,v):p.write_text(json.dumps(v,indent=2)+'\n');p.chmod(0o600)
+ def frozen_files(root):return [{'path':str(p.relative_to(root)),'bytes':p.stat().st_size,'sha256':sha(p)} for p in sorted(root.rglob('*')) if p.is_file() and not p.is_symlink()]
++parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--contract-receipt',type=Path,default=B/'contract-check/result.json');args=parser.parse_args()
+ prepared=json.loads((B/'prepared-files.json').read_text())
++controlled=json.loads(args.contract_receipt.read_text());assert controlled['exitCode']==0 and controlled['inputsUnchanged'] and not controlled['timedOut'],'Controlled diagnostic contracts required'
++assert controlled['preparedManifestSHA256']==sha(B/'prepared-files.json'),'Contract check binds different preparation'
++expected_dependencies=json.loads((B/'dependency-bindings.json').read_text())['files']
++for name,expected in expected_dependencies.items():assert sha(R/'desktop/node_modules'/name)==expected,'Pinned dependency changed: '+name
+ for row in prepared['files']:
+  p=B/row['path'];assert p.is_file() and p.stat().st_size==row['bytes'] and sha(p)==row['sha256'],row['path']+' prepared input changed'
+ meta=json.loads((B/'overlay-binding.json').read_text());source=B/'frontend';logs=B/'build';web=B/'web'
+@@ -36,9 +41,9 @@
+ (source/'node_modules').symlink_to(R/'desktop/node_modules',target_is_directory=True)
+ # Raw test import/glob declarations are type-only here; tests are not executed.
+ # Do not link mutable backend/docs/scripts into this frozen frontend.
+-dependency_paths=['.package-lock.json','typescript/package.json','typescript/lib/_tsc.js','vite/package.json','vite/dist/node/cli.js','react/package.json','react-dom/package.json','zustand/package.json','zustand/esm/middleware.mjs','@vitejs/plugin-react/package.json','@tailwindcss/vite/package.json','playwright/package.json','playwright/index.mjs']
++dependency_paths=list(expected_dependencies)
+ def dependencies():return {name:sha(R/'desktop/node_modules'/name) for name in dependency_paths}
+-deps_before=dependencies();put(logs/'dependencies-before.json',deps_before)
++deps_before=dependencies();assert deps_before==expected_dependencies;put(logs/'dependencies-before.json',deps_before)
+ before=frozen_files(source);put(logs/'inputs-before.json',{'baseCommit':PRODUCT,'trackedInputs':inputs,'overlay':meta,'frozenFrontend':before,'installedLockSHA256':sha(R/'desktop/node_modules/.package-lock.json')})
+ commands=[['node',str(R/'desktop/node_modules/typescript/bin/tsc'),'--noEmit'],['node',str(R/'desktop/node_modules/vite/bin/vite.js'),'build','--outDir',str(web),'--emptyOutDir']]
+ env=os.environ.copy();env['NODE_OPTIONS']='--max-old-space-size=3072';env['GOMAXPROCS']='2'
+@@ -52,7 +57,11 @@
+   except subprocess.TimeoutExpired:
+    timed=True;os.killpg(proc.pid,signal.SIGTERM)
+    try:code=proc.wait(timeout=5)
+-   except subprocess.TimeoutExpired:os.killpg(proc.pid,signal.SIGKILL);code=proc.wait()
++   except subprocess.TimeoutExpired:
++    os.killpg(proc.pid,signal.SIGKILL)
++    try:code=proc.wait(timeout=10)
++    except subprocess.TimeoutExpired:
++     row.update(exitCode=None,timedOut=True,processSettlementUnknown=True);results.append(row);put(logs/'result.json',results);raise SystemExit(124)
+  row.update(exitCode=code,timedOut=timed,elapsedSeconds=time.monotonic()-start);results.append(row);put(logs/'result.json',results)
+  if code or timed:
+   put(logs/'inputs-after-failure.json',frozen_files(source));raise SystemExit(code or 124)

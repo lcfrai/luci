@@ -1,0 +1,234 @@
+--- /dev/null
++++ destination/actual/destination-diagnostics.mjs
+@@ -0,0 +1,94 @@
++// Additive numeric diagnostic. No selector retries are measured or inferred.
++import assert from 'node:assert/strict';
++
++// Self-contained: Playwright serializes this body into the existing evaluate RPC.
++// The original connected/value predicate, immediate sample, rAF recursion,
++// ten-second deadline and expected-DOM marker remain the completion oracle.
++export function destinationValueWitness(el,{value,action,projectId}) {
++ return new Promise((done,reject)=>{
++  const until=performance.now()+10000;
++  const observation=window.__luciDestinationPhase;
++  const token=observation?.evaluationEnter(action,projectId,value,el);
++  const sample=()=>{
++   const match=el.isConnected&&el.value===value;
++   observation?.evaluationSample(token,el,match);
++   if(match){window.__luciAcceptanceLatency.markExpectedDOM('project-switch');observation?.evaluationWitness(token,el);return done();}
++   if(performance.now()>=until)return reject(Error('Expected project context did not render'));
++   requestAnimationFrame(sample);
++  };
++  sample();
++ });
++}
++
++const snapshotKeys=['version','timeOrigin','armed','actions','destinations','reads','accepted','commits','evaluations','samples','witnesses','observed','dropped','errors','overlaps','mismatches','active','pendingReads','pendingEvaluations','rows'];
++const rowKeys=['sequence','action','read','kind','at','connected','match','samples'];
++const counters=['actions','destinations','reads','accepted','commits','evaluations','samples','witnesses','observed','dropped','errors','overlaps','mismatches'];
++const awaitStages=['waitFor-start','waitFor-end','evaluate-start','evaluate-end','inputValue-start','inputValue-end'];
++
++// Validate only retained observations; no extra page call, selector or waiting.
++// The existing full100 Home validator and original action assertions still run.
++export function validateDestinationCapture(receipt,expectedActions=100) {
++ assert(Number.isSafeInteger(expectedActions)&&expectedActions>=1&&expectedActions<=100);
++ const windows=receipt.browserEventWindows.map(row=>row.destinationPhase).filter(Boolean);
++ assert(windows.length>0,'Missing destination observations');
++ let previous=0,last=null,origin=null;const rows=[];
++ for(const window of windows){
++  assert.deepEqual(Object.keys(window).sort(),[...snapshotKeys].sort(),'Unexpected destination snapshot fields');
++  assert.equal(window.version,1);assert(Number.isFinite(window.timeOrigin));
++  assert([0,1].includes(window.armed));assert(Array.isArray(window.rows)&&window.rows.length<=2048);
++  for(const name of snapshotKeys.filter(name=>!['version','timeOrigin','rows'].includes(name)))assert(Number.isSafeInteger(window[name])&&window[name]>=0,'Invalid numeric destination counter: '+name);
++  if(origin===null&&window.armed)origin=window.timeOrigin;
++  if(window.armed)assert.equal(window.timeOrigin,origin,'Measured destination document changed');
++  if(last&&window.timeOrigin===last.timeOrigin)for(const name of counters)assert(window[name]>=last[name],'Destination counter regressed: '+name);
++  if(!window.armed){assert.equal(window.rows.length,0);assert.equal(window.observed,0);continue;}
++  for(const name of ['dropped','errors','overlaps','mismatches'])assert.equal(window[name],0,'Invalid destination diagnostic '+name);
++  assert(window.actions<=expectedActions&&window.observed<=2048);
++  for(const row of window.rows){
++   assert(Object.keys(row).every(key=>rowKeys.includes(key)),'Unexpected private or unbounded destination row field');
++   for(const name of ['sequence','action','read','kind','at'])assert(Object.hasOwn(row,name),'Missing destination row field');
++   assert(Object.values(row).every(Number.isFinite));
++   assert.equal(row.sequence,++previous,'Destination sequence gap/duplicate');
++   assert(Number.isSafeInteger(row.action)&&row.action>=1&&row.action<=expectedActions);
++   assert(Number.isSafeInteger(row.kind)&&row.kind>=1&&row.kind<=8);
++   assert(Number.isSafeInteger(row.read)&&row.read>=0&&row.read<=expectedActions);
++   if(Object.hasOwn(row,'connected'))assert([0,1].includes(row.connected));
++   if(Object.hasOwn(row,'match'))assert([0,1].includes(row.match));
++   if(Object.hasOwn(row,'samples'))assert(Number.isSafeInteger(row.samples)&&row.samples>=1);
++   rows.push(row);
++  }
++  assert.equal(previous,window.observed,'Destination counter does not match retained rows');last=window;
++ }
++ assert(last&&last.armed===1);
++ for(const name of ['actions','destinations','reads','accepted','commits','evaluations','witnesses'])assert.equal(last[name],expectedActions,'Incomplete destination '+name);
++ for(const name of ['active','pendingReads','pendingEvaluations'])assert.equal(last[name],0,'Unsettled destination '+name);
++ assert.equal(rows.length,expectedActions*8);
++ let samples=0;
++ for(let action=1;action<=expectedActions;action++){
++  const phases=rows.filter(row=>row.action===action),byKind=new Map();
++  for(let kind=1;kind<=8;kind++){
++   const matches=phases.filter(row=>row.kind===kind);assert.equal(matches.length,1,'Exactly one destination phase per action');byKind.set(kind,matches[0]);
++  }
++  for(const [before,after] of [[1,2],[2,3],[3,4],[4,5],[2,6],[6,7],[7,8],[5,8]]){
++   assert(byKind.get(before).sequence<byKind.get(after).sequence,'Invalid destination causal order');
++   assert(byKind.get(before).at<=byKind.get(after).at,'Browser destination time regressed');
++  }
++  const read=byKind.get(3).read;assert(read>=1);
++  for(const kind of [4,5,8])assert.equal(byKind.get(kind).read,read,'Destination read identity changed');
++  assert.equal(byKind.get(7).samples,1);assert.equal(byKind.get(8).connected,1);assert.equal(byKind.get(8).match,1);
++  samples+=byKind.get(8).samples;
++ }
++ assert.equal(last.samples,samples,'Destination sample total changed');
++ const switches=receipt.interactions.filter(row=>row.kind==='project-switch');assert.equal(switches.length,expectedActions);
++ for(const item of switches){
++  assert.equal(item.success,true);
++  const stages=item.diagnostics.nodeStages;
++  const names=stages.map(row=>row.stage);
++  let previousIndex=names.indexOf('verify-start');assert(previousIndex>=0);
++  for(const name of [...awaitStages,'verify-end']){
++   assert.equal(names.filter(value=>value===name).length,1,'Missing or duplicate per-await marker');
++   const index=names.indexOf(name);assert(index>previousIndex);assert(stages[index].offsetMs>=stages[previousIndex].offsetMs);previousIndex=index;
++  }
++ }
++ if(receipt.homePhaseCapture)assert.equal(receipt.homePhaseCapture.homes,expectedActions,'Home/destination ordinal count mismatch');
++ receipt.destinationPhaseCapture={version:1,complete:true,actions:expectedActions,rows:rows.length,samples,identityJoin:'Sequential measured Home/navigation action, exact project/read token/accepted object/textarea matched only in memory; no private identifiers emitted',originalMetricUnchanged:true,diagnosticNotAcceptance:true,locatorPollAttemptsObserved:false,clockRule:'Node and browser spans remain separate; no mixed-clock subtraction, overhead subtraction or polling attribution'};
++}
+--- full100/actual/interaction-metrics.mjs
++++ destination/actual/interaction-metrics.mjs
+@@ -1,6 +1,7 @@
+ // Passive browser observation plus explicit real-user action measurements.
+ // These helpers never change product state through injected JavaScript.
+ import assert from 'node:assert/strict';
++import { destinationValueWitness } from './destination-diagnostics.mjs';
+ import {browserLatencyInit,browserFrameWitness,nodeStageRecorder,createLatencyLedger} from './latency-diagnostics.mjs';
+ export const nearestRank = (values, q) => values.length ? [...values].sort((a,b)=>a-b)[Math.max(0,Math.ceil(values.length*q)-1)] : null;
+ export function summarizeInteractions(rows) {
+@@ -12,7 +13,7 @@
+ }
+ export async function installBrowserTiming(context) {
+  // Separate setup-only RPC, before any primary interaction measurement.
+- await context.addInitScript(()=>{Object.defineProperty(window,'__luciHomePhaseRequested',{value:1,configurable:false});});
++ await context.addInitScript(()=>{Object.defineProperty(window,'__luciHomePhaseRequested',{value:1,configurable:false});Object.defineProperty(window,'__luciDestinationPhaseRequested',{value:1,configurable:false});});
+  await context.addInitScript(browserLatencyInit);
+  await context.addInitScript(()=>{
+   const data={version:2,timeOrigin:performance.timeOrigin,events:[],observedEvents:0,droppedEvents:0,overflow:false,unsupported:false,visibility:document.visibilityState};
+@@ -27,7 +28,7 @@
+ export async function timingSnapshot(page) {
+  // Drain only this fixture's passive observation buffer, never product state.
+  // Sequence and overflow counters remain monotonic across every snapshot.
+- return page.evaluate(()=>{const v=window.__luciAcceptanceTiming;if(!v)return null;const latency=window.__luciAcceptanceLatency?.snapshot();if(!latency)throw Error('Missing browser latency collector');return {...v,events:v.events.splice(0),visibilityNow:document.visibilityState,latency,homePhase:window.__luciHomePhase?.snapshot()??null};});
++ return page.evaluate(()=>{const v=window.__luciAcceptanceTiming;if(!v)return null;const latency=window.__luciAcceptanceLatency?.snapshot();if(!latency)throw Error('Missing browser latency collector');return {...v,events:v.events.splice(0),visibilityNow:document.visibilityState,latency,homePhase:window.__luciHomePhase?.snapshot()??null,destinationPhase:window.__luciDestinationPhase?.snapshot()??null};});
+ }
+ 
+ export function createTimingLedger(receipt,limits={maxEvents:200000,maxBytes:32*1024**2,maxWindows:2000,maxDocuments:128}) {
+@@ -59,24 +60,24 @@
+ export function interactionRunner({page,owners,receipt,assertHealthy,phase,observe=async()=>{}}) {
+  const values=new Map(owners.map(owner=>[owner.owner.id,owner.goal]));
+  receipt.interactions??=[];
+- let current;
++ let current;let switchOrdinal=0;
+  const frames=()=>page.evaluate(browserFrameWitness);
+  async function measured(kind,owner,action,verify){
+   assert(receipt.interactions.length<6000,'Bounded interaction measurement count');
+   const item={phase:phase(),kind,projectID:owner.owner.id,at:new Date().toISOString(),success:false};
+   const start=performance.now(),diagnostic=nodeStageRecorder(item,start);
+-  let timeout;try {await Promise.race([(async()=>{diagnostic.mark('action-start');await action(diagnostic.mark);diagnostic.mark('action-end');diagnostic.mark('verify-start');await verify();diagnostic.mark('verify-end');diagnostic.mark('frames-start');diagnostic.frames(await frames());diagnostic.mark('frames-end');})(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Interaction deadline exceeded after15seconds')),15000);})]);item.success=true;}
++  let timeout;try {await Promise.race([(async()=>{diagnostic.mark('action-start');await action(diagnostic.mark);diagnostic.mark('action-end');diagnostic.mark('verify-start');await verify(diagnostic.mark);diagnostic.mark('verify-end');diagnostic.mark('frames-start');diagnostic.frames(await frames());diagnostic.mark('frames-end');})(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Interaction deadline exceeded after15seconds')),15000);})]);item.success=true;}
+   catch(error){item.error=String(error.message).slice(0,300);throw error;}
+   finally{clearTimeout(timeout);item.elapsedMs=performance.now()-start;diagnostic.close();receipt.interactions.push(item);}
+  }
+  async function switchTo(owner){
+-  assertHealthy();
+-  await measured('project-switch',owner,async mark=>{await page.getByRole('button',{name:'All projects',exact:true}).click();mark('all-projects-click-end');await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();mark('overview-heading-ready');await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();mark('open-project-click-end');},async()=>{
++  assertHealthy();const action=++switchOrdinal;
++  await measured('project-switch',owner,async mark=>{await page.getByRole('button',{name:'All projects',exact:true}).click();mark('all-projects-click-end');await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();mark('overview-heading-ready');await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();mark('open-project-click-end');},async mark=>{
+    // The calibrated lens is Discover. Its actual loaded value is the witness,
+    // rather than a title that could render before stale content is replaced.
+-   const field=page.getByRole('textbox',{name:'The idea',exact:true});await field.waitFor();
+-   await field.evaluate((el,value)=>new Promise((done,reject)=>{const until=performance.now()+10000;const sample=()=>{if(el.isConnected&&el.value===value){window.__luciAcceptanceLatency.markExpectedDOM('project-switch');return done();}if(performance.now()>=until)return reject(Error('Expected project context did not render'));requestAnimationFrame(sample);};sample();}),values.get(owner.owner.id));
+-   assert.equal(await field.inputValue(),values.get(owner.owner.id));
++   const field=page.getByRole('textbox',{name:'The idea',exact:true});mark('waitFor-start');await field.waitFor();mark('waitFor-end');
++   mark('evaluate-start');await field.evaluate(destinationValueWitness,{value:values.get(owner.owner.id),action,projectId:owner.owner.id});mark('evaluate-end');
++   mark('inputValue-start');assert.equal(await field.inputValue(),values.get(owner.owner.id));mark('inputValue-end');
+   });current=owner;
+  }
+  async function typeRound(){
+--- full100/actual/latency-diagnostics.mjs
++++ destination/actual/latency-diagnostics.mjs
+@@ -65,7 +65,7 @@
+  const stages=[];let closed=false;
+  item.diagnostics={version:1,nodeStages:stages,nodeClockReads:0,browserFrames:null,limitations:['Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead.']};
+  return {
+-  mark(stage){if(closed)return;assert(['action-start','action-end','verify-start','verify-end','frames-start','frames-end','all-projects-click-end','overview-heading-ready','open-project-click-end'].includes(stage));assert(stages.length<12);item.diagnostics.nodeClockReads++;stages.push({stage,offsetMs:clock()-start});},
++  mark(stage){if(closed)return;assert(['action-start','action-end','verify-start','verify-end','frames-start','frames-end','all-projects-click-end','overview-heading-ready','open-project-click-end','waitFor-start','waitFor-end','evaluate-start','evaluate-end','inputValue-start','inputValue-end'].includes(stage));assert(stages.length<18);item.diagnostics.nodeClockReads++;stages.push({stage,offsetMs:clock()-start});},
+   frames(value){if(!closed)item.diagnostics.browserFrames=value;},
+   close(){closed=true;},
+  };
+--- full100/actual/sustained.mjs
++++ destination/actual/sustained.mjs
+@@ -2,6 +2,7 @@
+ // Installed sustained mixed-work witness. Real Docker/native commands; explicitly scripted provider.
+ // Approved context/run seeding is labelled API fixture setup; actual task commands finish naturally before human integration.
+ import assert from 'node:assert/strict';
++import { validateDestinationCapture } from './destination-diagnostics.mjs';
+ import { spawn, execFileSync } from 'node:child_process';
+ import { createHash, randomUUID } from 'node:crypto';
+ import { createServer as httpServer } from 'node:http';
+@@ -70,6 +71,10 @@
+  for(const [name,expected] of Object.entries(externalBinding.repositoryDependencies))assert.equal(sha(readFileSync(join(helperRoot,name))),expected);
+  return {productSource:provenance.sourceCommit,frozenHelperSourceCommit:externalBinding.helperSourceCommit,frozenHelperBytesVerified:true,mutableCheckoutNotUsedForHelpers:true};
+ }
++function verifyDependencyInputs(){
++ for(const [name,expected] of Object.entries(externalBinding.dependencyInputs))assert.equal(sha(readFileSync(join(repo,'desktop/node_modules',name))),expected,'Pinned diagnostic dependency changed: '+name);
++}
++verifyDependencyInputs();
+ const harnessCheckout=verifySourceBinding();
+ 
+ const diagnosticWebPath=resolve(option('--diagnostic-web-binding'));
+@@ -129,7 +134,7 @@
+ writeFileSync(join(evidence,'diagnostic-web-binding.json'),diagnosticWebBytes,{mode:0o600,flag:'wx'});
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+-const driverNames=['sustained.mjs','external-source-binding.json','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
++const driverNames=['sustained.mjs','external-source-binding.json','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','destination-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
+ const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+@@ -154,9 +159,9 @@
+ };
+ 
+ Object.assign(receipt,{
+- mode:'installed-four-project-home-phase-diagnostic',diagnosticOnly:true,fullSustainedAcceptance:false,performanceAcceptance:false,
++ mode:'installed-four-project-destination-phase-diagnostic',diagnosticOnly:true,fullSustainedAcceptance:false,performanceAcceptance:false,
+  diagnosticWebBindingSHA256:sha(diagnosticWebBytes),packagedWebIndexSHA256:provenance.webIndexSHA256,instrumentedWebIndexSHA256:diagnosticWeb.webIndexSHA256,
+- scope:'Fresh installed package, exact original four saved contexts and paused queues, original draft/warm setup and 100 rounds (100 switches/200 inputs/100 draft resets). No task execution or sustained completion claim.',
++ scope:'Fresh frozen installed package and separate Home/destination diagnostic web; exact original four saved contexts, paused queues, draft/warm setup and100 rounds. Per-await/value/accepted-response/layout markers only; no locator-polling attribution, task execution, performance gain or acceptance claim.',
+  resourceScope:'One owned browser and installed app. Docker readiness/image inventory reads are required. Explicit guards reject every Create/Start before forwarding. No full Linux resource sampler; browser diagnostic collection is identical to the static control.',
+  limitations:[...receipt.limitations,'Diagnostic subset only; original sustained failure remains unchanged. No resource-cost subtraction.','No independent Linux observer in either prepared control arm; this is not a matched replay of the old observer load.'],
+  externalSourceBinding:externalBinding,dependencyCheckout:receipt.harnessCheckout,
+@@ -706,12 +711,12 @@
+  // END SUSTAINED BROWSER WIRING
+  for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
+  await protectCancellation();assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
+- setStage('idle-baseline');await quietPhase('quiet-app-open-idle');await page.evaluate(()=>{if(!window.__luciHomePhase)throw Error('Missing diagnostic AppShell probe');window.__luciHomePhase.arm();});const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
++ setStage('idle-baseline');await quietPhase('quiet-app-open-idle');await page.evaluate(()=>{if(!window.__luciHomePhase)throw Error('Missing diagnostic AppShell probe');window.__luciHomePhase.arm();if(!window.__luciDestinationPhase)throw Error('Missing destination diagnostic probe');window.__luciDestinationPhase.arm();});const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
+  receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+  receipt.latencyTargets={measurement:'Original All projects→open saved Discover context→two frames; input→expected field→two frames; no physical-input claim',projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000};
+  receipt.targetComparison=Object.fromEntries(['project-switch','input'].map(kind=>{const value=receipt.interactionSummary['idle-interactive-calibration:'+kind];assert.equal(value.count,kind==='input'?200:100);assert.equal(value.failed,0);return[kind,{...value,withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000}];}));
+  assert.equal(receipt.interactions.length,400);assert.equal(receipt.interactions.filter(row=>row.kind==='draft-reset').length,100);
+- validateHomeCapture(receipt);
++ validateHomeCapture(receipt);validateDestinationCapture(receipt);
+  assert.equal(option('--trace-after','no'),'no','Generic tracing is deliberately disabled');
+  assert.deepEqual(effects(),{create:0,start:0,destroy:0});assert.equal(proxy.observations.failures.length,0);assert.equal(receipt.browserErrors.length,0);assert.equal(providerCalls,0);assert.equal(auxiliaryCalls,0);assert.equal(workerContainers().length,0);
+  receipt.idleDiagnosticCompleted=true;receipt.passed=true;
+@@ -737,7 +742,7 @@
+   if(proxy)receipt.dockerTransportObservations=structuredClone(proxy.observations);
+  if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&receipt.dockerMutationStateCertain&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
+  try{assert(startupScope.snapshot().every(row=>row.state==='closed'&&!row.closeTimedOut),'Startup resource remains unsettled');assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(receipt.dockerMutationStateCertain,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(dirname(binary),'web','index.html'))),provenance.webIndexSHA256);assert.deepEqual(verifyDiagnosticWeb(),diagnosticWebBefore);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(helperRoot,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
+-  receipt.finalHarnessCheckout=verifySourceBinding();assert.deepEqual(receipt.finalHarnessCheckout,receipt.harnessCheckout);
++  verifyDependencyInputs();receipt.finalHarnessCheckout=verifySourceBinding();assert.deepEqual(receipt.finalHarnessCheckout,receipt.harnessCheckout);
+   receipt.runtimeCleanup={containers:0,volumes:0,ownedServiceProcesses:0,ownedBrowserProcesses:0,protectedImagePackageAndHelpersUnchanged:true,rootFreeBytes:rootFree()};assert.equal(realpathSync(fixture),fixture);assert.equal(dirname(fixture),fixtureParent);assert(fixture.split(sep).at(-1).startsWith('luci-sustained-'));if(receipt.passed&&!fixtureError){rmSync(fixture,{recursive:true});receipt.fixtureRemoved=true;}
+  }catch(error){cleanupFailure(error);}
+  if(!receipt.fixtureRemoved)receipt.fixtureRetained={path:fixture,reason:'Failed or partial acceptance; private fixture credentials/source/context and bounded diagnostic files remain. Do not reuse as normal workspace.'};
