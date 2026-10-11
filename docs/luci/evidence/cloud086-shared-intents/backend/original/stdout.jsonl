@@ -1,0 +1,9 @@
+{"Time":"2026-10-11T15:42:09.753007304Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/product"}
+{"Time":"2026-10-11T15:42:09.776515773Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestCoordinationHTTPDisjointIntentsPreserveBothPeopleAndReplay"}
+{"Time":"2026-10-11T15:42:09.777007454Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestCoordinationHTTPDisjointIntentsPreserveBothPeopleAndReplay","Output":"=== RUN   TestCoordinationHTTPDisjointIntentsPreserveBothPeopleAndReplay\n"}
+{"Time":"2026-10-11T15:42:09.877929656Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestCoordinationHTTPDisjointIntentsPreserveBothPeopleAndReplay","Output":"    coordination_http_test.go:81: GET /v1/product/projects/p-b65b5860/orchestrator/coordination: status 404, want 200: 404 page not found\n"}
+{"Time":"2026-10-11T15:42:09.878819247Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestCoordinationHTTPDisjointIntentsPreserveBothPeopleAndReplay","Output":"--- FAIL: TestCoordinationHTTPDisjointIntentsPreserveBothPeopleAndReplay (0.10s)\n"}
+{"Time":"2026-10-11T15:42:09.878855632Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestCoordinationHTTPDisjointIntentsPreserveBothPeopleAndReplay","Elapsed":0.1}
+{"Time":"2026-10-11T15:42:09.87886778Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"FAIL\n"}
+{"Time":"2026-10-11T15:42:09.881089138Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"FAIL\tgithub.com/lcfrai/luci/control-plane/internal/product\t0.124s\n"}
+{"Time":"2026-10-11T15:42:09.881115578Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/product","Elapsed":0.128}

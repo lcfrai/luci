@@ -1,0 +1,9 @@
+{
+  "activation": "source /workspace/.luci-tools/activate.sh",
+  "cwd": "control-plane",
+  "environment": {
+    "GOMAXPROCS": "2"
+  },
+  "regular": "go test -p 1 -count=1 -timeout=5m ./internal/product -run '^(TestCoordinator|TestCoordination|TestOrchestrator|TestProductRegisteredReadsCannotMutateProjectsOrStartResources)' -json",
+  "race": "go test -race -p 1 -count=1 -timeout=5m ./internal/product ./internal/management ./internal/api -run '^(TestCoordinator|TestCoordination|TestTeamCoordinator|TestProductRegisteredReadsCannotMutateProjectsOrStartResources)' -json"
+}

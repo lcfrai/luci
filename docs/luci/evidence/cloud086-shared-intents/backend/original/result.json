@@ -1,0 +1,11 @@
+{
+  "exitCode": 1,
+  "timedOut": false,
+  "elapsedSeconds": 16.47889542579651,
+  "repositoryInputCount": 828,
+  "inputsUnchanged": true,
+  "passes": 0,
+  "failures": 1,
+  "missingRouteObserved": true,
+  "testBodySHA256": "50bf8c124797bafbd3fb1c0576d91556837540e5d815c1dd0ab4ac03c106a1a9"
+}

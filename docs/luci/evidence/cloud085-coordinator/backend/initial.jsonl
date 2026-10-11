@@ -1,0 +1,6 @@
+{"ImportPath":"github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]","Action":"build-output","Output":"# github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]\n"}
+{"ImportPath":"github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]","Action":"build-output","Output":"internal/product/orchestrator_policy_test.go:169:108: undefined: jsonBody\n"}
+{"ImportPath":"github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]","Action":"build-fail"}
+{"Time":"2026-10-11T15:13:03.914587692Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/product"}
+{"Time":"2026-10-11T15:13:03.915237882Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"FAIL\tgithub.com/lcfrai/luci/control-plane/internal/product [build failed]\n"}
+{"Time":"2026-10-11T15:13:03.915247066Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/product","Elapsed":0.001,"FailedBuild":"github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]"}

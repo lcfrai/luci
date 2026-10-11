@@ -1,0 +1,37 @@
+[
+  {
+    "path": "control-plane/internal/product/coordination.go",
+    "sha256": "3a4564961947a82bb0da3ca2b1c090db0fdc55c8238285a33bc6c6b20138bb76",
+    "bytes": 23978
+  },
+  {
+    "path": "control-plane/internal/product/coordination_store.go",
+    "sha256": "de553772dad66280d9f0df9ece1688d049c86e466e770bc3aec09bfbb588f39c",
+    "bytes": 12533
+  },
+  {
+    "path": "control-plane/internal/product/coordination_merge.go",
+    "sha256": "ea48531e693821f05a7b7fb8a4a42afb43fea776171ac4d59a9e23d3ed081acd",
+    "bytes": 7001
+  },
+  {
+    "path": "control-plane/internal/product/coordination_http_test.go",
+    "sha256": "50bf8c124797bafbd3fb1c0576d91556837540e5d815c1dd0ab4ac03c106a1a9",
+    "bytes": 5226
+  },
+  {
+    "path": "control-plane/internal/product/coordination_lifecycle_test.go",
+    "sha256": "a180cda8cd6779814bbbbad0d51f9ed379efcff8b9749267ed54feb6f3c05ad8",
+    "bytes": 8584
+  },
+  {
+    "path": "control-plane/internal/product/coordination_merge_test.go",
+    "sha256": "91d979a191ec01e7cd5b36b0b34ad6f702369d78279778d3831dba6aa373a973",
+    "bytes": 6757
+  },
+  {
+    "path": "control-plane/internal/product/coordination_recovery_test.go",
+    "sha256": "f8f23cef3fe048200749a0b8a4de9c2cfed3133eadc7343b31dd72a94bd7af4c",
+    "bytes": 8577
+  }
+]

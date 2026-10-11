@@ -1,0 +1,20 @@
+{
+  "head": "1d5d12504c3c574347e459b98f0ecc9e8e484772",
+  "status": " M control-plane/internal/api/api.go\n M control-plane/internal/api/execution_leases.go\n M control-plane/internal/management/team_authorization.go\n M control-plane/internal/product/orchestrator.go\n M control-plane/internal/product/orchestrator_retention.go\n M control-plane/internal/product/orchestrator_store.go\n M control-plane/internal/product/project_swarm.go\n M control-plane/internal/product/project_swarm_scheduler_http.go\n M control-plane/internal/product/project_swarm_scheduler_store.go\n M control-plane/internal/product/project_swarm_store.go\n M control-plane/internal/product/routes_audit_test.go\n M control-plane/internal/product/server.go\n M desktop/src/api/orchestrator.ts\n M desktop/src/components/journey/ProjectSwarm.test.tsx\n M desktop/src/components/journey/ProjectSwarm.tsx\n M desktop/src/components/orchestrator/CoordinatorPolicy.test.tsx\n M desktop/src/components/orchestrator/CoordinatorPolicy.tsx\n M desktop/src/components/orchestrator/OrchestratorPanel.test.tsx\n M desktop/src/components/orchestrator/OrchestratorPanel.tsx\n M desktop/src/components/projects/HostCapacity.test.tsx\n M desktop/src/components/projects/HostCapacity.tsx\n?? control-plane/internal/api/coordinator_execution.go\n?? control-plane/internal/backend/e2bbe/store.go\n?? control-plane/internal/management/team_coordinator_policy_test.go\n?? control-plane/internal/product/coordination.go\n?? control-plane/internal/product/coordination_http_test.go\n?? control-plane/internal/product/coordination_lifecycle_test.go\n?? control-plane/internal/product/coordination_merge.go\n?? control-plane/internal/product/coordination_merge_test.go\n?? control-plane/internal/product/coordination_recovery_test.go\n?? control-plane/internal/product/coordination_store.go\n?? control-plane/internal/product/coordinator_continuation.go\n?? control-plane/internal/product/coordinator_continuation_test.go\n?? control-plane/internal/product/orchestrator_policy.go\n?? control-plane/internal/product/orchestrator_policy_test.go\n?? control-plane/internal/product/swarm_limits.go\n?? desktop/src/api/swarmLimits.ts\n?? docs/luci/evidence/cloud085-observation-followup/\n?? docs/luci/evidence/cloud086-conversation-mount/\n",
+  "sourceScope": "All repository control-plane Go/module files plus root go.work files; this is not an external module/Go SDK manifest. Exactly two preserved original product source files overlaid on current integrated source.",
+  "command": [
+    "go",
+    "test",
+    "-overlay=/workspace/.luci-tools/cloud086-coordination/evidence/original/overlay.json",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout",
+    "60s",
+    "-json",
+    "-run",
+    "^TestCoordinationHTTPDisjointIntentsPreserveBothPeopleAndReplay$",
+    "./internal/product"
+  ],
+  "expected": "Nonzero exit at GET coordination404, same test body as fixed joined run; compilation failure is not accepted as counterexample."
+}

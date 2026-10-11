@@ -214,13 +214,17 @@ func (s *Server) rotateOrchestratorHistory(ctx context.Context, id string, req o
 	if saved.Revision != req.ExpectedRevision || storage.StorageDigest != req.ExpectedStorageDigest {
 		return ErrOrchestratorConflict
 	}
+	retained, err := s.retainedCoordinationTurnsLocked(p)
+	if err != nil {
+		return err
+	}
 	keep := []storedOrchestratorTurn{}
 	for i, turn := range saved.Turns {
 		if !terminalOrchestrator(turn.Status) {
 			return ErrOrchestratorBusy
 		}
 		unresolved := turn.Status == "succeeded" && turn.Answer != nil && turn.Answer.Blocking && turn.QuestionResolvedBy == ""
-		if i >= len(saved.Turns)-8 || unresolved || turn.ApplyIntent != "" {
+		if i >= len(saved.Turns)-8 || unresolved || turn.ApplyIntent != "" || retained[turn.ID] {
 			keep = append(keep, turn)
 		}
 	}

@@ -1,0 +1,23 @@
+{
+  "control-plane/internal/product/orchestrator_policy.go": "742cd8c48218bd2bb26105e1fe0c37017e405bd48da799ef9b3d4b8af4c5cc60",
+  "control-plane/internal/product/orchestrator_policy_test.go": "83c28d62a60eebb51934204c9ee4937baa6fa4f2286e550d2283b041ae43541a",
+  "control-plane/internal/product/coordinator_continuation.go": "a827e4a295c9ca83107ed4f66d24152210da78d5d8171230e0fba0534ec009b2",
+  "control-plane/internal/product/coordinator_continuation_test.go": "32043340cc6e9f08bc64b6ecb567191709d8588d24f77f95b10ae71c51396f1c",
+  "control-plane/internal/product/orchestrator.go": "3bb847964123c5a8a31759be27cefe2c8f06957abf2b1bc3ad1afad39e1998e1",
+  "control-plane/internal/product/orchestrator_store.go": "f51256da867cbda9f6b85b00d7b0bc7312b5dd807f2278bf956f9d882ac27f61",
+  "control-plane/internal/product/orchestrator_retention.go": "5b77fed888be02aa909c1faf5ef15110d9d69203bb44a93ab0a6f58b87ed16e1",
+  "control-plane/internal/product/server.go": "d1d25eb51be50b5555492d1f4e13891fdfceec72e628f7e14fc0f615153e8ab5",
+  "control-plane/internal/product/routes_audit_test.go": "c39156c742bbfd1d29bec82f53798c661791563f8c0ed9ccab66df3dc436c0a3",
+  "control-plane/internal/product/coordination.go": "3a4564961947a82bb0da3ca2b1c090db0fdc55c8238285a33bc6c6b20138bb76",
+  "control-plane/internal/product/coordination_store.go": "de553772dad66280d9f0df9ece1688d049c86e466e770bc3aec09bfbb588f39c",
+  "control-plane/internal/product/coordination_merge.go": "ea48531e693821f05a7b7fb8a4a42afb43fea776171ac4d59a9e23d3ed081acd",
+  "control-plane/internal/product/coordination_http_test.go": "50bf8c124797bafbd3fb1c0576d91556837540e5d815c1dd0ab4ac03c106a1a9",
+  "control-plane/internal/product/coordination_lifecycle_test.go": "a180cda8cd6779814bbbbad0d51f9ed379efcff8b9749267ed54feb6f3c05ad8",
+  "control-plane/internal/product/coordination_merge_test.go": "91d979a191ec01e7cd5b36b0b34ad6f702369d78279778d3831dba6aa373a973",
+  "control-plane/internal/product/coordination_recovery_test.go": "f8f23cef3fe048200749a0b8a4de9c2cfed3133eadc7343b31dd72a94bd7af4c",
+  "control-plane/internal/product/swarm_limits.go": "7ed2455d2233930b6a00941a2f13bc84c6559d446ccbf5daeef80c997e61706b",
+  "control-plane/internal/api/api.go": "086dfaf32435be46124de12a081b3c54caa87600d4eb2e68ac6b86e9b0be834e",
+  "control-plane/internal/api/coordinator_execution.go": "e63d49f7b7bc4b3819851c117bfd0a4b6dfc145ce3797b7548f890374f1cb64a",
+  "control-plane/internal/management/team_authorization.go": "e366aa15d9275529ba0a14c53c4870578b72d255fc6291eaa40cca09c896430c",
+  "control-plane/internal/management/team_coordinator_policy_test.go": "3d1ce248390b02593562094c9f6a18a0ef39775bddcda0a5260316f918ac70c3"
+}

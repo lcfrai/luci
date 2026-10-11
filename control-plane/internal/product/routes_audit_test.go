@@ -32,6 +32,10 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/orchestrator/coordination":                                  "Reads retained authoritative intent decisions; no accept, apply or allocation.",
+	"GET /v1/product/projects/{id}/orchestrator/continuations":                                 "Reads only current actor private continuation receipts; never starts a step.",
+	"GET /v1/product/projects/{id}/orchestrator/continuations/{continuationId}":                "Reads owned continuation and current journey guidance without replay.",
+	"GET /v1/product/projects/{id}/orchestrator/policy":                                        "Reads a bounded private project draft-saving policy; does not create, approve, apply or execute.",
 	"GET /v1/product/projects/{id}/external-handoffs":                                          "Reads bounded private handoff metadata; no creation, dispatch or repair.",
 	"GET /v1/product/projects/{id}/external-handoffs/{handoffId}":                              "Reads exact private handoff metadata and retained unverified reports; no writes.",
 	"GET /v1/product/projects/{id}/external-handoffs/{handoffId}/bundle":                       "Verifies and streams retained context bytes in an inert ZIP; no repair, code execution or source writes.",
@@ -233,7 +237,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 		if pattern != previewPattern && productReadOnlyRoutes[pattern] == "" {
 			t.Fatalf("unaudited read route %q", pattern)
 		}
-		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{runId}", "missing-run", "{handoffId}", "missing-handoff", "{taskId}", "missing-task", "{path...}", "").Replace(path)
+		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{runId}", "missing-run", "{handoffId}", "missing-handoff", "{continuationId}", "missing-continuation", "{taskId}", "missing-task", "{path...}", "").Replace(path)
 		if strings.HasSuffix(pattern, "/swarm/operations/{operationId}/workspace/file") {
 			path += "?path=ordinary.txt"
 		}
@@ -253,6 +257,9 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			if pattern == "GET /v1/product/projects/{id}/checks/{runId}" || pattern == "GET /v1/product/projects/{id}/checks/{runId}/recovery" || pattern == "GET /v1/product/projects/{id}/runs/{runId}" {
 				status = 404
 			}
+			if strings.Contains(pattern, "/orchestrator/continuations/{continuationId}") {
+				status = 404
+			}
 			if strings.Contains(pattern, "/external-handoffs/{handoffId}") {
 				status = 404
 			}
@@ -263,7 +270,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 				status = 404
 			}
 			var handler http.Handler = recorded
-			if pattern == "GET /v1/product/project-imports/{attemptId}" {
+			if pattern == "GET /v1/product/project-imports/{attemptId}" || strings.Contains(pattern, "/orchestrator/coordination") || strings.Contains(pattern, "/orchestrator/continuations") {
 				handler = fixtureReviewHandler(recorded)
 			}
 			journeyRequest(t, handler, readMethod, path, nil, status)

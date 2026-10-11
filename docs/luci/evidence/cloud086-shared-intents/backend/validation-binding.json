@@ -1,0 +1,21 @@
+{
+  "scope": "Joint fixed source fixture execution, not Docker/provider/team UI/native/deployment acceptance. Full raw joint evidence is published by C085 backend owner.",
+  "jointEvidenceDestination": "docs/luci/evidence/cloud085-coordinator/backend",
+  "regular": {
+    "outcomes": 82,
+    "topLevelPass": 40,
+    "subtestPass": 42,
+    "fail": 0,
+    "skip": 0,
+    "files": {
+      "joined-final.jsonl": "c0ef2098cb6cfddaca422b5da3120ea5a4d2633c84dadbbb8667d957bd77ecd5",
+      "joined-final.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "joined-final.status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "joined-final-before.json": "730f84bfe9cca47dcba22e386d25538f50e6ad128580ed2c6c14cd347768cf19",
+      "joined-final-after.json": "730f84bfe9cca47dcba22e386d25538f50e6ad128580ed2c6c14cd347768cf19"
+    }
+  },
+  "originalScope": "Two exact preserved original production files overlaid on the current C085/C086 code. This is not a clean historical whole-tree build. The identical HTTP fixture fails at missing coordination route404.",
+  "testBodySHA256": "50bf8c124797bafbd3fb1c0576d91556837540e5d815c1dd0ab4ac03c106a1a9",
+  "sourceManifestScope": "Original manifests cover828 repository control-plane Go/module files and root go.work files. External modules, SDK files and exact executed binary are not covered."
+}

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 func ValidateOrchestratorAnswer(snapshot OrchestratorContext, answer OrchestratorAnswer) error {
@@ -96,6 +98,11 @@ func (s *Server) registerOrchestrator(mux Registrar) {
 	if wrapped, ok := mux.(*branchSourceRegistrar); ok {
 		mux = wrapped.base
 	}
+	s.registerCoordination(mux)
+	s.registerCoordinatorContinuations(mux)
+	mux.HandleFunc("GET /v1/product/projects/{id}/orchestrator/policy", s.getCoordinatorPolicy)
+	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/policy", s.saveCoordinatorPolicy)
+	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/turns/{turnId}/advance", s.advanceOrchestrator)
 	mux.HandleFunc("GET /v1/product/projects/{id}/orchestrator", s.getOrchestrator)
 	mux.HandleFunc("GET /v1/product/projects/{id}/orchestrator/export", s.exportOrchestrator)
 	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/rotate", s.rotateOrchestrator)
@@ -293,7 +300,13 @@ func targetSnapshot(state journeyState, target string) (int, any) {
 	}
 	return 0, nil
 }
+
+type orchestratorProposalGuard func(project.Project, orchestratorLedger, storedOrchestratorTurn) error
+
 func (s *Server) applyOrchestratorProposal(ctx context.Context, id, turnID string, expected int, digest string) error {
+	return s.applyOrchestratorProposalGuarded(ctx, id, turnID, expected, digest, nil)
+}
+func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnID string, expected int, digest string, authorize orchestratorProposalGuard) error {
 	if _, ok := authenticatedContextActor(ctx); !ok {
 		return ErrOrchestratorInvalid
 	}
@@ -326,8 +339,16 @@ func (s *Server) applyOrchestratorProposal(ctx context.Context, id, turnID strin
 		return ErrOrchestratorInvalid
 	}
 	turn := &saved.Turns[index]
+	if authorize != nil {
+		if err := authorize(p, saved, *turn); err != nil {
+			return err
+		}
+	}
+	if err := s.validateCoordinationRecoveryLocked(ctx, p, *turn); err != nil {
+		return err
+	}
 	if turn.AppliedRevision > 0 {
-		return nil
+		return s.finishCoordinationApplyLocked(ctx, p, *turn)
 	}
 	if turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil {
 		return ErrOrchestratorInvalid
@@ -345,16 +366,27 @@ func (s *Server) applyOrchestratorProposal(ctx context.Context, id, turnID strin
 		turn.ApplyIntent = ""
 		turn.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		saved.Revision++
-		return s.saveOrchestrator(saved)
+		if err := s.saveOrchestrator(saved); err != nil {
+			return err
+		}
+		return s.finishCoordinationApplyLocked(ctx, p, *turn)
+	}
+	if turn.ApplyIntent != "" {
+		return ErrOrchestratorConflict
 	}
 	snapshot, err := s.orchestratorSnapshotLocked(ctx, p)
 	if err != nil {
 		return err
 	}
-	if expected != saved.Revision || digest != snapshot.Digest || turn.ContextDigest != snapshot.Digest {
+	if expected != saved.Revision || digest != snapshot.Digest {
 		return ErrOrchestratorConflict
 	}
-	if err := ValidateOrchestratorAnswer(snapshot, *turn.Answer); err != nil {
+	answer, err := s.prepareCoordinationApplyLocked(ctx, p, *turn, snapshot)
+	if err != nil {
+		return err
+	}
+	proposal = answer.Proposal
+	if err := ValidateOrchestratorAnswer(snapshot, answer); err != nil {
 		return ErrOrchestratorInvalid
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
@@ -434,7 +466,10 @@ func (s *Server) applyOrchestratorProposal(ctx context.Context, id, turnID strin
 	turn.ApplyIntent = ""
 	turn.UpdatedAt = now
 	saved.Revision++
-	return s.saveOrchestrator(saved)
+	if err := s.saveOrchestrator(saved); err != nil {
+		return err
+	}
+	return s.finishCoordinationApplyLocked(ctx, p, *turn)
 }
 
 // Explicit caller lookup keeps an older material question in the model input

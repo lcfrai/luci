@@ -1,0 +1,6 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/product/orchestrator.go": "/workspace/.luci-tools/coordinator-policy-tests/pre-coordination/orchestrator.go",
+    "/workspace/luci/control-plane/internal/product/orchestrator_store.go": "/workspace/.luci-tools/coordinator-policy-tests/pre-coordination/orchestrator_store.go"
+  }
+}

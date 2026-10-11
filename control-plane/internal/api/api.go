@@ -436,6 +436,8 @@ func New(d Deps) (*API, error) {
 		d.Product.SetTaskHandoffCollector(a.authorizeTaskOutput, a.collectTaskHandoff)
 		d.Product.SetRuntimeResourceSnapshot(d.ResourceSnapshot)
 		a.deps.Product.SetExternalHandoffAuthorizer(a.authorizeExecutionRetirement)
+		d.Product.SetCoordinatorAuthorizer(a.authorizeExecutionRetirement)
+		d.Product.SetCoordinatorExecutionAuthorizer(a.authorizeCoordinatorExecution)
 		checkRuntime := product.ProjectCheckRuntime{AcknowledgeCompleted: a.acknowledgeProjectCheckResults, CaptureActor: a.captureCheckActor, AuthorizeControl: a.authorizeExecutionRetirement, Execute: a.executeProjectCheck, Busy: a.projectCheckBusy, Recovery: a.projectCheckRecovery, Recover: a.recoverProjectCheck}
 		if d.ObserveTaskCompletions {
 			checkRuntime.Observe = a.ObserveChecksOnce

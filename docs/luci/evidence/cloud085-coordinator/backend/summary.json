@@ -1,0 +1,37 @@
+{
+  "joined-runtime": {
+    "exitCode": 1,
+    "packages": {
+      "github.com/lcfrai/luci/control-plane/internal/product": {
+        "top-pass": 35,
+        "top-fail": 3,
+        "sub-pass": 42
+      }
+    }
+  },
+  "joined-final": {
+    "exitCode": 0,
+    "packages": {
+      "github.com/lcfrai/luci/control-plane/internal/product": {
+        "top-pass": 40,
+        "sub-pass": 42
+      }
+    }
+  },
+  "race": {
+    "exitCode": 0,
+    "packages": {
+      "github.com/lcfrai/luci/control-plane/internal/product": {
+        "top-pass": 24,
+        "sub-pass": 24
+      },
+      "github.com/lcfrai/luci/control-plane/internal/management": {
+        "top-pass": 1
+      }
+    }
+  },
+  "sourceBinding": {
+    "scope": "21 selected C085/C086 paths, including compile wiring and C088 constant; external dependencies and other compiled inputs not asserted",
+    "raceBeforeEqualsAfter": true
+  }
+}

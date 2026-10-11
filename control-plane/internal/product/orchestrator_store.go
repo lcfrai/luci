@@ -369,7 +369,7 @@ func (s *Server) CompleteOrchestratorTurn(id, turnID, jobID, status string, answ
 		}
 		if terminalOrchestrator(turn.Status) {
 			if turn.Status == status && reviewDigest(turn.Answer) == reviewDigest(answer) {
-				return nil
+				return s.recordCoordinationProposalLocked(p, *turn)
 			}
 			return ErrOrchestratorConflict
 		}
@@ -382,7 +382,10 @@ func (s *Server) CompleteOrchestratorTurn(id, turnID, jobID, status string, answ
 			}
 		}
 		saved.Revision++
-		return s.saveOrchestrator(saved)
+		if err := s.saveOrchestrator(saved); err != nil {
+			return err
+		}
+		return s.recordCoordinationProposalLocked(p, *turn)
 	}
 	return ErrOrchestratorInvalid
 }

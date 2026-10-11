@@ -63,6 +63,9 @@ type Options struct {
 }
 
 type Server struct {
+	coordinatorAuthorize            func(context.Context, string) error
+	coordinatorExecuteAuthorize     func(context.Context, string, string, bool) error
+	coordinatorActions              map[string]bool
 	externalHandoffAuthorize        func(context.Context, string) error
 	projectSwarmCheckpointAuthorize func(context.Context, ProjectSwarmRecoveryRequest) error
 	projectSwarmCheckpointGuard     func(context.Context, ProjectSwarmRecoveryRequest) (func(), error)
