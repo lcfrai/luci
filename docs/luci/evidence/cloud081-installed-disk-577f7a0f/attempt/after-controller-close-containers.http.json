@@ -1,0 +1,5 @@
+{
+  "method": "GET",
+  "path": "/containers/json?all=1",
+  "status": 200
+}

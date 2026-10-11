@@ -1,0 +1,33 @@
+{
+  "preparedAt": "2026-10-11T12:01:57.441555+00:00",
+  "runtimeExecuted": false,
+  "proxyStarted": false,
+  "dockerCallsExecuted": false,
+  "installerInvoked": false,
+  "repositoryEdited": false,
+  "priorPreviewHelperEdited": false,
+  "node": "v24.19.0",
+  "syntaxCheck": {
+    "argv": [
+      "node",
+      "--check",
+      "/workspace/.luci-tools/cloud081-installer-disk-smoke-prep/installer-disk-smoke.mjs"
+    ],
+    "exit": 0
+  },
+  "scope": "Preparation and static source contract review only",
+  "files": {
+    "installer-disk-smoke.mjs": {
+      "sha256": "f26d15e317387f3e0058332c42d75200b963a7b94976a67afb3a4952d8ccb8aa",
+      "bytes": 26794
+    },
+    "run-577f7a0f.json": {
+      "sha256": "7644a991f411cea6f22043fe922e4d6e7ac84c1b31e580c253a8fe4547baa6de",
+      "bytes": 1276
+    },
+    "README.md": {
+      "sha256": "6304847f446ddd4b6dac82d0cfd436e46f4d7c7b2e27444df48d58b3127c0aa8",
+      "bytes": 7168
+    }
+  }
+}

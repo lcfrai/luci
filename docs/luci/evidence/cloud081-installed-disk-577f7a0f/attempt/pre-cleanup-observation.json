@@ -1,0 +1,132 @@
+{
+  "job": {
+    "id": "runtime-25e9879a9a23f1e9429ccccf",
+    "status": "blocked",
+    "image": "luci/installer-disk-fixture:fcb3e1e661924ddaa8448e4167868e84",
+    "message": "Available disk is below the configured working reserve.",
+    "createdAt": "2026-10-11T12:02:48.604766945Z",
+    "updatedAt": "2026-10-11T12:02:48.681370792Z",
+    "execution": {
+      "jobId": "runtime-25e9879a9a23f1e9429ccccf",
+      "imageTag": "luci/installer-disk-fixture:fcb3e1e661924ddaa8448e4167868e84",
+      "phase": "blocked",
+      "resourcesHeld": false,
+      "cleanupConfirmed": false,
+      "reasonCode": "disk_pressure",
+      "message": "Available disk is below the configured working reserve."
+    }
+  },
+  "diagnostics": {
+    "dispatchPaused": false,
+    "observedAt": "",
+    "policy": {
+      "maxActive": 4,
+      "maxPerProject": 2,
+      "headroomPercent": 25,
+      "minHeadroomMiB": 2048,
+      "diskReserveMiB": 2048
+    },
+    "resources": {
+      "host": {
+        "observedAt": "2026-10-11T12:02:48.014494604Z",
+        "status": "partial",
+        "platform": "linux",
+        "scope": "control-plane-host",
+        "memory": {
+          "physicalTotalBytes": 35743784960,
+          "physicalAvailableBytes": 16585932800,
+          "effectiveTotalBytes": 34359738368,
+          "effectiveAvailableBytes": 11624361984,
+          "limitSource": "physical-and-control-plane-cgroup-v2",
+          "commitLimitBytes": null,
+          "commitAvailableBytes": null
+        },
+        "cpu": {
+          "logicalProcessors": 5,
+          "effectiveMillis": 4000,
+          "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+          "utilizationPercent": null,
+          "pressureSomeAvg10": null,
+          "memoryPressureSomeAvg10": null,
+          "ioPressureSomeAvg10": null
+        },
+        "disks": [
+          {
+            "observedAt": "2026-10-11T12:02:48.014419811Z",
+            "basis": "native-host-volume",
+            "role": "projects",
+            "totalBytes": 33770192896,
+            "availableBytes": 4761608192
+          },
+          {
+            "observedAt": "2026-10-11T12:02:48.014422305Z",
+            "basis": "native-host-volume",
+            "role": "state",
+            "totalBytes": 33770192896,
+            "availableBytes": 4761608192
+          }
+        ],
+        "processes": [
+          {
+            "pid": 2725587,
+            "role": "control-plane",
+            "startId": "linux-ticks:46623712",
+            "residentBytes": 44027904,
+            "privateCommitBytes": null
+          }
+        ],
+        "unavailable": [
+          {
+            "metric": "cpu.pressureSomeAvg10",
+            "reason": "Linux pressure observation is unavailable"
+          },
+          {
+            "metric": "memory.pressureSomeAvg10",
+            "reason": "Linux pressure observation is unavailable"
+          },
+          {
+            "metric": "io.pressureSomeAvg10",
+            "reason": "Linux pressure observation is unavailable"
+          },
+          {
+            "metric": "cpu.utilizationPercent",
+            "reason": "two increasing CPU observations are required"
+          }
+        ]
+      },
+      "execution": {
+        "cpuMillis": 5000,
+        "hostStorage": null,
+        "observedAt": "2026-10-11T12:02:48.031012282Z",
+        "scope": "execution-daemon",
+        "status": "partial",
+        "totalMemoryBytes": 35743784960,
+        "unavailable": [
+          {
+            "metric": "execution.imageVirtualSizeBytes",
+            "reason": "configured worker image size is unavailable; observation does not pull images"
+          }
+        ]
+      },
+      "reservations": {
+        "status": "ready",
+        "observedAt": "2026-10-11T12:02:48.915368304Z",
+        "count": 0,
+        "memoryMiB": 0,
+        "cpuMillis": 0
+      }
+    },
+    "revision": 1
+  },
+  "proxy": {
+    "mutationAttempts": [],
+    "errors": [],
+    "requests": 10
+  },
+  "targetStatus": 404,
+  "inventoryUnchanged": true,
+  "receipts": {
+    "job": "ef2404445e86e0c716d8b9c17d48d7559b258be5d3cc2495cd411f1b163a5853",
+    "ledger": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e"
+  }
+}

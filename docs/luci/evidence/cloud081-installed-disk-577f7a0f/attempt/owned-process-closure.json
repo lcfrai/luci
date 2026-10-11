@@ -1,0 +1,14 @@
+{
+  "processScanError": null,
+  "processes": [
+    {
+      "pid": 2725587,
+      "parentPID": 2725531,
+      "startTicks": "46623712",
+      "state": "Z",
+      "closure": "exact-process-gone",
+      "current": null
+    }
+  ],
+  "scope": "Fresh inline bootstrap owner; no managed worker requested. Descendants sampled every 500 ms; short-lived processes may finish between samples."
+}

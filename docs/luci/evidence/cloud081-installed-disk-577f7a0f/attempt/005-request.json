@@ -1,0 +1,7 @@
+{
+  "method": "GET",
+  "path": "/v1/setup/runtime/install",
+  "body": null,
+  "authenticated": true,
+  "at": "2026-10-11T12:02:48.597Z"
+}

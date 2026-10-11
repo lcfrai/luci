@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-11T12:03:34.437727+00:00",
+  "originalResultSHA256": "77b3dd9cc0f90d0b127bfc02a77c0bc92951f6d1030fabc405220f7c24994599",
+  "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "knownProcessIdentityChecks": [
+    {
+      "pid": 2725587,
+      "expectedStartTicks": "46623712",
+      "exactAbsent": true
+    }
+  ],
+  "containers": [],
+  "uniqueImageInspectExit": 1,
+  "uniqueImageAbsent": true,
+  "scope": "Independent exact controller identity and selected local Docker read-only closure. No product mutation, no inventory-based release inference and no short-lived descendant census."
+}

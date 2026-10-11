@@ -1,0 +1,5 @@
+{
+  "method": "GET",
+  "path": "/images/json?all=1",
+  "status": 200
+}

@@ -1084,3 +1084,49 @@ The final integrated source batch passes 304 race outcomes across 89 top-level t
 ### Installed preview witness at 577f7a0f
 
 Linux's normal product release route built and served a fresh handwritten scratch fixture, passed real HTTP calculator output and invalid-input checks, and stopped through the API with exact container absence and an empty fixture ledger. [Receipts and independent closure](evidence/cloud080-installed-preview-577f7a0f/README.md) preserve the initial helper201-status failure and selected before/after source/identity evidence. This is COPY-only, without model calls, browser latency or ProjectCheckRun execution. Windows has moved from the interrupted241 native build to combined577; completed kernel/frontend/helper scopes remain credited at241, and original native teardown/reopen/external-API cases remain pending on577.
+
+### Windows577 package and harness boundary
+
+The tester reports the official combined native/portable build passed at exact
+`577f7a0fdb039b7f875901a6a567d62fdfee88c8`, clean source, with all five manifest
+artifacts independently checked. ZIP SHA256 is
+`F72080EC218E60F8320488FA763328076FBF12468382573321FADE767A038956`;
+the NSIS installer was generated only. Runtime UI fixtures pass31/31.
+Fresh native startup/read-only bootstrap succeeds, but the local reproduction
+harness stopped before DELETE/session on the sidecar's extended Windows path.
+Its cleanup time parser was corrected and all13 exact known process identities
+were recovered as absent. Preserve this as a harness failure, without upgrading
+LOCAL-024. Corrected original reproduction/reopen/external API and32 backend
+cases are pending. No actual Windows installer/preview, provider or responsiveness
+acceptance follows from these build and fixture results.
+
+
+### Windows577 original forced-parent-death and controlled backend follow-up
+
+The corrected original DELETE/session reproduction passes: all observed native
+app/sidecar descendants and its API listener are absent by3.5208181s and remain
+absent through75.4594723s. Same-state reopen, normal-state metadata/content/file
+identity preservation and final cleanup pass; zero known remaining processes,
+listeners or cleanup errors. No lock-file deletion or ordinary UI-close is
+implied. The local receipt is `native-fix-preparation/577f7a0f-f28ba2e0a4df45c885ab458971a758ca/result.json`.
+External `LUCI_API` preservation and ordinary native close remain pending.
+
+The32 focused backend top-level/83 subtests pass in190.4s, zero failures/skips/
+timeouts, minimum physical available RAM7.216GiB. All12,306 tracked hashes remain
+unchanged and79 observed test process identities are gone. Summary SHA256 is
+`7E9C89A8FC7ED780A2E42A6F76F411814A2E35C7AFB7493A111E46E5BF72BEEB`.
+These controlled API/SDK/product/management checks include the Linux build-wire
+option contract; they do not establish a real Windows Docker install or model
+workflow. Earlier harness failures and unfinished scopes remain preserved.
+
+
+### C081 installed reserve refusal at577
+
+[Published original receipt and independent closure](evidence/cloud081-installed-disk-577f7a0f/README.md)
+retain one actual installer request, HTTP202 then blocked/disk_pressure, no
+allocation, empty ledger and zero shared reservations. The private observation
+proxy forwarded10 actual Docker reads and saw no mutation attempts; unchanged
+inventories and exact controller closure are separate observations. This host
+had approximately4.76GB free, below the unchanged8GiB installer reserve. The
+later32GiB build demand was not exercised. No successful cold install, Windows
+or model workflow is claimed, and no existing failed fixture was modified.

@@ -1,0 +1,32 @@
+{
+  "command": [
+    "/workspace/.luci-tools/package-577f7a0f/installed/luci"
+  ],
+  "cwd": "/workspace/.luci-tools/package-577f7a0f/installed",
+  "environment": {
+    "LANG": "C.UTF-8",
+    "TZ": "UTC",
+    "TMPDIR": "[PRIVATE_PROXY_DIRECTORY]/tmp",
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_OPTIONAL_LOCKS": "0",
+    "GIT_CONFIG_GLOBAL": "[PRIVATE_FIXTURE_ROOT]/private/empty-git-config",
+    "GIT_TERMINAL_PROMPT": "0",
+    "AWS_EC2_METADATA_DISABLED": "true",
+    "DOCKER_HOST": "unix://[PRIVATE_PROXY_DIRECTORY]/docker.sock",
+    "DOCKER_CONFIG": "[PRIVATE_FIXTURE_ROOT]/private/docker-config",
+    "LUCI_DOCKER_HOST": "unix://[PRIVATE_PROXY_DIRECTORY]/docker.sock",
+    "LUCI_ADDR": "127.0.0.1:44537",
+    "LUCI_BROWSER_PREVIEW_ADDR": "127.0.0.1:33169",
+    "LUCI_BROWSER_PREVIEW_PORT": "33169",
+    "LUCI_BACKEND": "docker",
+    "LUCI_STATE_DIR": "[PRIVATE_FIXTURE_ROOT]/private/state",
+    "LUCI_PROJECTS_DIR": "[PRIVATE_FIXTURE_ROOT]/private/projects",
+    "LUCI_EXECUTION_STATE_DIR": "[PRIVATE_FIXTURE_ROOT]/private/state/control-plane/execution",
+    "LUCI_RUNTIME_DIR": "/workspace/.luci-tools/package-577f7a0f/installed/runtime",
+    "LUCI_WEB_DIR": "/workspace/.luci-tools/package-577f7a0f/installed/web",
+    "LUCI_SANDBOX_IMAGE": "luci/installer-disk-fixture:fcb3e1e661924ddaa8448e4167868e84",
+    "LUCI_REAP_INTERVAL": "30s",
+    "LUCI_SESSION_MEMORY_MIB": "1024",
+    "LUCI_SESSION_CPU_MILLIS": "1000"
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "images": [
+    {
+      "id": "sha256:0bf0b58361743ab573ebdc457cb436e744c5067ace477ae4cd0b3985e856a5b7",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:232d27ef9b3dbc5f9fa2f874e523f46b5ec3df78a0dccf78f87cd5510a1561db",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4",
+      "tags": [],
+      "digests": [
+        "postgres@sha256:efedf3595f1d6f415c08568ba171029bf54052e754cc9f030e3f2412b21f3d67"
+      ],
+      "size": 435358655
+    },
+    {
+      "id": "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:5d3a999eecab2173db95b39628b97e34619a9b976b6d14fc7ef77509d646145a",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:6a7b47ae304b75735177d3537405dedf368d50609c2dc6f78add71d0db034154",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "tags": [
+        "luci/sandbox:dev",
+        "luci/sandbox:verified-candidate-20261009t134118z-4a347241"
+      ],
+      "digests": [],
+      "size": 2294638105
+    },
+    {
+      "id": "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+      "tags": [
+        "node:22-alpine"
+      ],
+      "digests": [
+        "node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402"
+      ],
+      "size": 167343632
+    },
+    {
+      "id": "sha256:7ca49db4e1d2564ca2f790812f97470bbee017985eafe52c087ea00999b27ae7",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:8244596b245f7133e2a6ee3b4a2a7c53421a0694ee763e0f56727f49a5579f66",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:82b811bc4a7d43bed365dba62fa447fd14f29b05b3305c5f5a1081ed57ee94cc",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:84b38abfdd45ebf726f34111e3da777537e503fb3607918ae43d546fdbae58e6",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351",
+      "tags": [
+        "luci/sandbox:provider-base-20261008t061146z-87b06740",
+        "luci/sandbox:provider-base-20261008t140025z-a4a2e82b",
+        "luci/sandbox:provider-base-20261009t134118z-4a347241"
+      ],
+      "digests": [],
+      "size": 2285171966
+    },
+    {
+      "id": "sha256:c4d606d037fc4d7aff5b446b27cedb8e550528310c6a9c3445e495c2f41109ab",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:ca5d6773b76e6eeccd3f5e22e1dcc3dfa9e0a19a018fd367a77fa683fa6d4c50",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5",
+      "tags": [
+        "nginx:1.28-alpine"
+      ],
+      "digests": [
+        "nginx@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236"
+      ],
+      "size": 62072530
+    },
+    {
+      "id": "sha256:e026e0d6cdf7e65aa11c8cc16f6041c125276eb7f02a344970b9fc4306612e6f",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b",
+      "tags": [
+        "hello-world:latest"
+      ],
+      "digests": [
+        "hello-world@sha256:5e23090353324d887c48ad5e5c56d294eab81588df9605b07d1afe895f9cc8f8"
+      ],
+      "size": 10072
+    },
+    {
+      "id": "sha256:e87ec5e806be71d9be83c9225cb215ef680ff3e70bd0977321867df2d10d5d5b",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:ef703e60a1cda79e35acef362a2085dbdee02dd005f58af336fee97e5dc21eb0",
+      "tags": [],
+      "digests": [],
+      "size": 8630369
+    },
+    {
+      "id": "sha256:f023b1c609496117563dabe36001cd7fa2731a602013f916e3409e77d31dc8ba",
+      "tags": [],
+      "digests": [],
+      "size": 0
+    }
+  ],
+  "containers": [],
+  "projection": "Image/container labels omitted; original inventories compared in full by the executed helper. All visible image IDs/tags/digests/sizes are retained."
+}

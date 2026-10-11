@@ -1,0 +1,1 @@
+{"backing":"docker","bootstrapRequired":true,"bootstrapTokenPath":"[PRIVATE_FIXTURE_ROOT]/private/state/control-plane/bootstrap-token","configured":false,"instanceName":"Luci","product":"Luci","version":"0.5.0"}

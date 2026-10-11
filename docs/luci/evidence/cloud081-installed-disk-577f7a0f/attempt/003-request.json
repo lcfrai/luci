@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/auth/bootstrap",
+  "body": "[credentials omitted]",
+  "authenticated": false,
+  "at": "2026-10-11T12:02:48.319Z"
+}

@@ -1,0 +1,5 @@
+{
+  "method": "GET",
+  "path": "/info",
+  "status": 200
+}

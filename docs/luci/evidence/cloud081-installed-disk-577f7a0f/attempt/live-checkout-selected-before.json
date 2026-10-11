@@ -1,0 +1,22 @@
+{
+  "scope": "Diagnostic snapshot only; these bytes are not consumed by the installed binary and may change during parallel work",
+  "head": "64829123a5799858b57616b711c84c61b945871a",
+  "paths": {
+    "control-plane/cmd/api/main.go": "ba39e1608447a9d787a0edfc623b6d00350af09b9366b8d8876337322c2bda2f",
+    "control-plane/cmd/api/config.go": "1ba41962319176c6c93ca90db1142d386becb99c6fabbab331ca71610b94552d",
+    "control-plane/cmd/api/execution_storage.go": "b71e72d8aa588bfcb0514b625e57ab3138f02a4bc5687f7950762fc3be0890a3",
+    "control-plane/internal/management/runtime.go": "cbc15063b7dedffbe408662028c66bd9ac25eefad9fca1943d9cdc0e698b605e",
+    "control-plane/internal/backend/dockerbe/resource_disk_linux.go": "f4837084ca8b9cb5fb182b215aa54e7954046cac11e3a820ad2a2d9777ade6f8",
+    "control-plane/internal/backend/dockerbe/resource_observer.go": "40a3aa49b96d2f72845ba0a7a2391f3a4de8c5f1cf05073f0932f6b08cd418dc",
+    "control-plane/internal/product/runtime_install.go": "0a9b806838cfdc60512a2dc08e5c369f6d7659797b7c447443e26657eaeed062",
+    "control-plane/internal/product/setup_tools.go": "c235c2bc70a282b80594a9eca664b107f6b0e7d308ffde0a3572f4b1cf4d79f4",
+    "control-plane/internal/product/setup_storage.go": "c8d1c10925be225a65a0bde98b824242eaa2180d041822300e3e478069be13e6",
+    "control-plane/internal/api/runtime_install_execution.go": "1391cb030a2b52bbd6786c315d70516c25ac8041a7ee27a968bde7afe3506800",
+    "control-plane/internal/api/execution_runtime_image_leases.go": "f90e2985342c826eafac869d89d3b769f2deb20303f41ee59c7b8cd8f66fa804",
+    "control-plane/internal/api/execution_capacity.go": "2955d9183e27c34314fe8550ee2f6df733a80207d1744b907df8b404356be7aa",
+    "control-plane/internal/backend/runtime_image.go": "0e3fc46f53717a55aba17189550c18efe348672093bd0805af4d0b506608e4ea",
+    "control-plane/internal/backend/dockerbe/runtime_image.go": "a48b9eeee610744d396beec76105bf355b88a4093f0fa9065ed34fe923f67ba7",
+    "control-plane/internal/backend/dockerbe/runtime_image_context.go": "25f6e670cbf611e9c6721fd204d66745cd11c44b4fbf253f3082b7ade40a9327",
+    "control-plane/internal/runtimeinstall/runtime.go": "f223e30078cefbd7c40f34563477694043a570f7d3dcf3337f2337a86c3135cf"
+  }
+}

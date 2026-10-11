@@ -1,0 +1,39 @@
+{
+  "privateDirectoriesNotTraversed": [
+    "private/"
+  ],
+  "notPublished": [
+    "Private owner/account state, credentials, raw tokens, full process environment and controller logs",
+    "Exact private fixture/proxy root names",
+    "Raw full daemon info and image labels; selected projections are included",
+    "Binary/archive bytes, model/provider material and unrelated retained state"
+  ],
+  "omittedTopLevelFiles": [
+    {
+      "sourcePath": "after-controller-close-images.body.json",
+      "originalBytes": 14459,
+      "originalSHA256": "921c3452d200b04d2d4f7f6b458a45032a76c36b2a5d75c075f5d5abb23367eb",
+      "reason": "Not on publication allowlist; raw log, daemon detail, or duplicate unredacted inventory retained privately"
+    },
+    {
+      "sourcePath": "before-images.body.json",
+      "originalBytes": 14459,
+      "originalSHA256": "44c4ce04457344aa81446035a57b84106538944c310b18447ce8be248877b16c",
+      "reason": "Not on publication allowlist; raw log, daemon detail, or duplicate unredacted inventory retained privately"
+    },
+    {
+      "sourcePath": "controller.stderr.log",
+      "originalBytes": 1839,
+      "originalSHA256": "cec607a30c3075679add3a87dcb2981801aed013c3d6213778146e1a66ba64e3",
+      "reason": "Not on publication allowlist; raw log, daemon detail, or duplicate unredacted inventory retained privately"
+    },
+    {
+      "sourcePath": "original-terminal-images.body.json",
+      "originalBytes": 14459,
+      "originalSHA256": "44c4ce04457344aa81446035a57b84106538944c310b18447ce8be248877b16c",
+      "reason": "Not on publication allowlist; raw log, daemon detail, or duplicate unredacted inventory retained privately"
+    }
+  ],
+  "originalResultSHA256": "77b3dd9cc0f90d0b127bfc02a77c0bc92951f6d1030fabc405220f7c24994599",
+  "scope": "Hash bindings describe original versus published bytes; they do not provide retrieval of omitted private originals."
+}

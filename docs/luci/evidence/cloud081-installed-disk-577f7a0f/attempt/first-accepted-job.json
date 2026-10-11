@@ -1,0 +1,16 @@
+{
+  "id": "runtime-25e9879a9a23f1e9429ccccf",
+  "status": "installing",
+  "image": "luci/installer-disk-fixture:fcb3e1e661924ddaa8448e4167868e84",
+  "message": "Checking shared capacity before preparing the bundled runtime.",
+  "createdAt": "2026-10-11T12:02:48.604766945Z",
+  "updatedAt": "2026-10-11T12:02:48.604766945Z",
+  "execution": {
+    "jobId": "runtime-25e9879a9a23f1e9429ccccf",
+    "imageTag": "luci/installer-disk-fixture:fcb3e1e661924ddaa8448e4167868e84",
+    "phase": "queued",
+    "resourcesHeld": false,
+    "cleanupConfirmed": false,
+    "message": "Checking shared capacity before preparing the bundled runtime."
+  }
+}

@@ -1,0 +1,1042 @@
+{
+  "schema": 1,
+  "createdAt": "2026-10-11T12:07:54.139077+00:00",
+  "sourceSets": {
+    "helper": "Frozen prepared helper and config retained outside the checkout; byte-identical original copies",
+    "attempt": "One actual installed fixture run, private original location withheld"
+  },
+  "privatePathProjection": {
+    "[PRIVATE_FIXTURE_ROOT]": "Exact generated attempt root omitted, including all nested state/config paths",
+    "[PRIVATE_PROXY_DIRECTORY]": "Exact generated Unix proxy directory omitted"
+  },
+  "entries": [
+    {
+      "sourceSet": "helper",
+      "sourcePath": "installer-disk-smoke.mjs",
+      "originalSHA256": "f26d15e317387f3e0058332c42d75200b963a7b94976a67afb3a4952d8ccb8aa",
+      "originalBytes": 26794,
+      "published": {
+        "path": "original-helper/installer-disk-smoke.mjs",
+        "bytes": 26794,
+        "sha256": "f26d15e317387f3e0058332c42d75200b963a7b94976a67afb3a4952d8ccb8aa"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "helper",
+      "sourcePath": "run-577f7a0f.json",
+      "originalSHA256": "7644a991f411cea6f22043fe922e4d6e7ac84c1b31e580c253a8fe4547baa6de",
+      "originalBytes": 1276,
+      "published": {
+        "path": "original-helper/run-577f7a0f.json",
+        "bytes": 1276,
+        "sha256": "7644a991f411cea6f22043fe922e4d6e7ac84c1b31e580c253a8fe4547baa6de"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "helper",
+      "sourcePath": "README.md",
+      "originalSHA256": "6304847f446ddd4b6dac82d0cfd436e46f4d7c7b2e27444df48d58b3127c0aa8",
+      "originalBytes": 7168,
+      "published": {
+        "path": "original-helper/README.md",
+        "bytes": 7168,
+        "sha256": "6304847f446ddd4b6dac82d0cfd436e46f4d7c7b2e27444df48d58b3127c0aa8"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "helper",
+      "sourcePath": "preparation.json",
+      "originalSHA256": "ee09363d06738aa919bdd57683047582a50991cd852c22c34b1afe792cadc729",
+      "originalBytes": 934,
+      "published": {
+        "path": "original-helper/preparation.json",
+        "bytes": 934,
+        "sha256": "ee09363d06738aa919bdd57683047582a50991cd852c22c34b1afe792cadc729"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "helper",
+      "sourcePath": "SHA256SUMS",
+      "originalSHA256": "7ffe4112643d12629172f7ab431587d46bda25634f5b8b2fe3fc92eb33245549",
+      "originalBytes": 514,
+      "published": {
+        "path": "original-helper/SHA256SUMS",
+        "bytes": 514,
+        "sha256": "7ffe4112643d12629172f7ab431587d46bda25634f5b8b2fe3fc92eb33245549"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "helper",
+      "sourcePath": "syntax-check.stdout.log",
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalBytes": 0,
+      "published": {
+        "path": "original-helper/syntax-check.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "helper",
+      "sourcePath": "syntax-check.stderr.log",
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalBytes": 0,
+      "published": {
+        "path": "original-helper/syntax-check.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "001-request.json",
+      "originalSHA256": "8d2d96aaa19378bedfcd89cc34a553913e75128e8bd81b7bbc95793865fc106f",
+      "originalBytes": 138,
+      "published": {
+        "path": "attempt/001-request.json",
+        "bytes": 138,
+        "sha256": "8d2d96aaa19378bedfcd89cc34a553913e75128e8bd81b7bbc95793865fc106f"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "002-request.json",
+      "originalSHA256": "988fa3cf78825e7ce79b32ec0582521d26b756793e1afe64b5687180cfdecdfa",
+      "originalBytes": 138,
+      "published": {
+        "path": "attempt/002-request.json",
+        "bytes": 138,
+        "sha256": "988fa3cf78825e7ce79b32ec0582521d26b756793e1afe64b5687180cfdecdfa"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "002-response.http.json",
+      "originalSHA256": "3ed8a1f7a2b6de59b6ebf7d64cdd0c5d23725df26deec0525798eb6c328395c1",
+      "originalBytes": 177,
+      "published": {
+        "path": "attempt/002-response.http.json",
+        "bytes": 177,
+        "sha256": "3ed8a1f7a2b6de59b6ebf7d64cdd0c5d23725df26deec0525798eb6c328395c1"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "002-response.body.json",
+      "originalSHA256": "1d8f04a9f829c8c3fe0ccea81cbcf56670b6968b6acb0edf6f66dddae9a283dc",
+      "originalBytes": 262,
+      "published": {
+        "path": "attempt/002-response.body.json",
+        "bytes": 212,
+        "sha256": "6489118c9a24bb99d7fe0953222ded037dc57b4644eec92070ca3524e0a39a33"
+      },
+      "operation": "Replace only exact private fixture root and proxy directory with named placeholders; HTTP envelope bodySHA256 continues to identify original response bytes",
+      "byteIdentical": false
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "003-request.json",
+      "originalSHA256": "88fcf77ddbb6b0565de33f053301583bb87b9bce16cd263913bb3bf0bd1ff095",
+      "originalBytes": 152,
+      "published": {
+        "path": "attempt/003-request.json",
+        "bytes": 152,
+        "sha256": "88fcf77ddbb6b0565de33f053301583bb87b9bce16cd263913bb3bf0bd1ff095"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "003-response.http.json",
+      "originalSHA256": "a719b4c31411a8788a779dd9e24411792e7e8a3ad4c7b3dfbee59777935ab955",
+      "originalBytes": 123,
+      "published": {
+        "path": "attempt/003-response.http.json",
+        "bytes": 123,
+        "sha256": "a719b4c31411a8788a779dd9e24411792e7e8a3ad4c7b3dfbee59777935ab955"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "004-request.json",
+      "originalSHA256": "fd556f7808625b4b04d0f51a359a2a0dd31bb4dd9f7a64327c97a2a9ca014dd5",
+      "originalBytes": 124,
+      "published": {
+        "path": "attempt/004-request.json",
+        "bytes": 124,
+        "sha256": "fd556f7808625b4b04d0f51a359a2a0dd31bb4dd9f7a64327c97a2a9ca014dd5"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "004-response.http.json",
+      "originalSHA256": "707998479e05372015233b72283840072b85c8a73de7cc5cc626f16d3b62ed9e",
+      "originalBytes": 177,
+      "published": {
+        "path": "attempt/004-response.http.json",
+        "bytes": 177,
+        "sha256": "707998479e05372015233b72283840072b85c8a73de7cc5cc626f16d3b62ed9e"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "005-request.json",
+      "originalSHA256": "cf36650ad37aed36524c638e06314f12f0c7d4e72b03d21d5ec21787daf5d1f0",
+      "originalBytes": 138,
+      "published": {
+        "path": "attempt/005-request.json",
+        "bytes": 138,
+        "sha256": "cf36650ad37aed36524c638e06314f12f0c7d4e72b03d21d5ec21787daf5d1f0"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "005-response.http.json",
+      "originalSHA256": "bb7b13348f61365a4bc0457c9000ae29387d0c58f8f0ffb4878dea516e36daee",
+      "originalBytes": 192,
+      "published": {
+        "path": "attempt/005-response.http.json",
+        "bytes": 192,
+        "sha256": "bb7b13348f61365a4bc0457c9000ae29387d0c58f8f0ffb4878dea516e36daee"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "005-response.body.json",
+      "originalSHA256": "7038e4ceb4d3574a3749aa86c3ca8880544f465b0db10137daf117bea9007fee",
+      "originalBytes": 235,
+      "published": {
+        "path": "attempt/005-response.body.json",
+        "bytes": 235,
+        "sha256": "7038e4ceb4d3574a3749aa86c3ca8880544f465b0db10137daf117bea9007fee"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "006-request.json",
+      "originalSHA256": "e14bb85bfe2efb7ec00decd47f1c04c362a39152a47b697b39623c2bc4d93fc3",
+      "originalBytes": 140,
+      "published": {
+        "path": "attempt/006-request.json",
+        "bytes": 140,
+        "sha256": "e14bb85bfe2efb7ec00decd47f1c04c362a39152a47b697b39623c2bc4d93fc3"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "006-response.http.json",
+      "originalSHA256": "335013dbd764cdfd318aef898add9879c401a99039ce0d02753f5552fe232409",
+      "originalBytes": 192,
+      "published": {
+        "path": "attempt/006-response.http.json",
+        "bytes": 192,
+        "sha256": "335013dbd764cdfd318aef898add9879c401a99039ce0d02753f5552fe232409"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "006-response.body.json",
+      "originalSHA256": "3268e508aa2fb83acfc56435af43af1c99d5d24031337df60ab4a5f0abafc991",
+      "originalBytes": 1956,
+      "published": {
+        "path": "attempt/006-response.body.json",
+        "bytes": 1956,
+        "sha256": "3268e508aa2fb83acfc56435af43af1c99d5d24031337df60ab4a5f0abafc991"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "007-request.json",
+      "originalSHA256": "4d1bdad09256d14fe8a23d3e1394f314609729355e2e83e388868da0695cb005",
+      "originalBytes": 137,
+      "published": {
+        "path": "attempt/007-request.json",
+        "bytes": 137,
+        "sha256": "4d1bdad09256d14fe8a23d3e1394f314609729355e2e83e388868da0695cb005"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "007-response.http.json",
+      "originalSHA256": "1fbc9c443eff7e86566784d6a36e2bb0fb2d2ba1e13b9e5ffa78b73fdee1116e",
+      "originalBytes": 192,
+      "published": {
+        "path": "attempt/007-response.http.json",
+        "bytes": 192,
+        "sha256": "1fbc9c443eff7e86566784d6a36e2bb0fb2d2ba1e13b9e5ffa78b73fdee1116e"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "007-response.body.json",
+      "originalSHA256": "d9c6364b355f02a0440501ea3b8fedcc6431f474b1703917526c7a22f76dd94d",
+      "originalBytes": 570,
+      "published": {
+        "path": "attempt/007-response.body.json",
+        "bytes": 570,
+        "sha256": "d9c6364b355f02a0440501ea3b8fedcc6431f474b1703917526c7a22f76dd94d"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "008-request.json",
+      "originalSHA256": "be38c9a3af576757d609eb6c508689d2cd61049424f2b83f8ea26e5d696f5c98",
+      "originalBytes": 138,
+      "published": {
+        "path": "attempt/008-request.json",
+        "bytes": 138,
+        "sha256": "be38c9a3af576757d609eb6c508689d2cd61049424f2b83f8ea26e5d696f5c98"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "008-response.http.json",
+      "originalSHA256": "e16265e53ced67ca7d60dacc5f6f2879c6b05cb3e83d7ae67878b536a3727b9d",
+      "originalBytes": 192,
+      "published": {
+        "path": "attempt/008-response.http.json",
+        "bytes": 192,
+        "sha256": "e16265e53ced67ca7d60dacc5f6f2879c6b05cb3e83d7ae67878b536a3727b9d"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "008-response.body.json",
+      "originalSHA256": "d9c6364b355f02a0440501ea3b8fedcc6431f474b1703917526c7a22f76dd94d",
+      "originalBytes": 570,
+      "published": {
+        "path": "attempt/008-response.body.json",
+        "bytes": 570,
+        "sha256": "d9c6364b355f02a0440501ea3b8fedcc6431f474b1703917526c7a22f76dd94d"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "009-request.json",
+      "originalSHA256": "c8bc035dffcfa8eb4ffa9fccf1042870358f699ab156e38efbae19de4b87de57",
+      "originalBytes": 138,
+      "published": {
+        "path": "attempt/009-request.json",
+        "bytes": 138,
+        "sha256": "c8bc035dffcfa8eb4ffa9fccf1042870358f699ab156e38efbae19de4b87de57"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "009-response.http.json",
+      "originalSHA256": "62349993dc83036e4016d6a17de68cb3538feb5a91c8df52566c6408dc37ec60",
+      "originalBytes": 192,
+      "published": {
+        "path": "attempt/009-response.http.json",
+        "bytes": 192,
+        "sha256": "62349993dc83036e4016d6a17de68cb3538feb5a91c8df52566c6408dc37ec60"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "009-response.body.json",
+      "originalSHA256": "2bfa64a149398182194a3d35fc6231fc1f6919821f8d509a8e0316ab9ac4a8dd",
+      "originalBytes": 583,
+      "published": {
+        "path": "attempt/009-response.body.json",
+        "bytes": 583,
+        "sha256": "2bfa64a149398182194a3d35fc6231fc1f6919821f8d509a8e0316ab9ac4a8dd"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "010-request.json",
+      "originalSHA256": "9f8eaa485bd57ce27208cddb823ca4ae6bbf342f523057ca745bc0f886f69448",
+      "originalBytes": 140,
+      "published": {
+        "path": "attempt/010-request.json",
+        "bytes": 140,
+        "sha256": "9f8eaa485bd57ce27208cddb823ca4ae6bbf342f523057ca745bc0f886f69448"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "010-response.http.json",
+      "originalSHA256": "1be8e2e1ee94d6d454c3189c138bbf6c2c8fc8aa95898d87ea12a2f1fcf3ce45",
+      "originalBytes": 192,
+      "published": {
+        "path": "attempt/010-response.http.json",
+        "bytes": 192,
+        "sha256": "1be8e2e1ee94d6d454c3189c138bbf6c2c8fc8aa95898d87ea12a2f1fcf3ce45"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "010-response.body.json",
+      "originalSHA256": "612817d9120d0332c920d225a889bcdcebcaeaca233e284075e55dc406d90978",
+      "originalBytes": 2034,
+      "published": {
+        "path": "attempt/010-response.body.json",
+        "bytes": 2034,
+        "sha256": "612817d9120d0332c920d225a889bcdcebcaeaca233e284075e55dc406d90978"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "first-accepted-job.json",
+      "originalSHA256": "4d642e98638e6c0833cc67d41eeaf50e4ec0a5c8f507fc8f961c75c3e015a33b",
+      "originalBytes": 638,
+      "published": {
+        "path": "attempt/first-accepted-job.json",
+        "bytes": 638,
+        "sha256": "4d642e98638e6c0833cc67d41eeaf50e4ec0a5c8f507fc8f961c75c3e015a33b"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "initial-job.json",
+      "originalSHA256": "86224886656f94e58d887261481117a775b416044b98c062849aedca84bf7c13",
+      "originalBytes": 260,
+      "published": {
+        "path": "attempt/initial-job.json",
+        "bytes": 260,
+        "sha256": "86224886656f94e58d887261481117a775b416044b98c062849aedca84bf7c13"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "original-terminal-job.json",
+      "originalSHA256": "ef2404445e86e0c716d8b9c17d48d7559b258be5d3cc2495cd411f1b163a5853",
+      "originalBytes": 657,
+      "published": {
+        "path": "attempt/original-terminal-job.json",
+        "bytes": 657,
+        "sha256": "ef2404445e86e0c716d8b9c17d48d7559b258be5d3cc2495cd411f1b163a5853"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "pre-admission-resource-diagnostics.json",
+      "originalSHA256": "8e3961a4236d6d259ef87d798494a0758727252b6885efe4e2351cd202484089",
+      "originalBytes": 2808,
+      "published": {
+        "path": "attempt/pre-admission-resource-diagnostics.json",
+        "bytes": 2808,
+        "sha256": "8e3961a4236d6d259ef87d798494a0758727252b6885efe4e2351cd202484089"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "original-terminal-resource-diagnostics.json",
+      "originalSHA256": "b9ad3127cde3338fe6946f2ac3b6bed6a4de86270856d8be62618bcbca5b4a90",
+      "originalBytes": 2918,
+      "published": {
+        "path": "attempt/original-terminal-resource-diagnostics.json",
+        "bytes": 2918,
+        "sha256": "b9ad3127cde3338fe6946f2ac3b6bed6a4de86270856d8be62618bcbca5b4a90"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "pre-cleanup-observation.json",
+      "originalSHA256": "7500397b7c7bc3c0b2fb20b2dd289818925537af128fe64a40ac672d513da38f",
+      "originalBytes": 4157,
+      "published": {
+        "path": "attempt/pre-cleanup-observation.json",
+        "bytes": 4157,
+        "sha256": "7500397b7c7bc3c0b2fb20b2dd289818925537af128fe64a40ac672d513da38f"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "before-request-private-receipts.json",
+      "originalSHA256": "4cc794dc5f09a470bed3b30245feb1edc43a9ae06052c979c4ee1f3872d65f04",
+      "originalBytes": 78,
+      "published": {
+        "path": "attempt/before-request-private-receipts.json",
+        "bytes": 78,
+        "sha256": "4cc794dc5f09a470bed3b30245feb1edc43a9ae06052c979c4ee1f3872d65f04"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "original-terminal-private-receipts.json",
+      "originalSHA256": "afa25bf64eca6d9ee159ee7d5cafa46009e1590bf0b6683295ec35f0f05c0b19",
+      "originalBytes": 1036,
+      "published": {
+        "path": "attempt/original-terminal-private-receipts.json",
+        "bytes": 1036,
+        "sha256": "afa25bf64eca6d9ee159ee7d5cafa46009e1590bf0b6683295ec35f0f05c0b19"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "before-cleanup-private-receipts.json",
+      "originalSHA256": "afa25bf64eca6d9ee159ee7d5cafa46009e1590bf0b6683295ec35f0f05c0b19",
+      "originalBytes": 1036,
+      "published": {
+        "path": "attempt/before-cleanup-private-receipts.json",
+        "bytes": 1036,
+        "sha256": "afa25bf64eca6d9ee159ee7d5cafa46009e1590bf0b6683295ec35f0f05c0b19"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "after-cleanup-private-receipts.json",
+      "originalSHA256": "afa25bf64eca6d9ee159ee7d5cafa46009e1590bf0b6683295ec35f0f05c0b19",
+      "originalBytes": 1036,
+      "published": {
+        "path": "attempt/after-cleanup-private-receipts.json",
+        "bytes": 1036,
+        "sha256": "afa25bf64eca6d9ee159ee7d5cafa46009e1590bf0b6683295ec35f0f05c0b19"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "original-terminal-job.original.json",
+      "originalSHA256": "ef2404445e86e0c716d8b9c17d48d7559b258be5d3cc2495cd411f1b163a5853",
+      "originalBytes": 657,
+      "published": {
+        "path": "attempt/original-terminal-job.original.json",
+        "bytes": 657,
+        "sha256": "ef2404445e86e0c716d8b9c17d48d7559b258be5d3cc2495cd411f1b163a5853"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "original-terminal-ledger.original.json",
+      "originalSHA256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+      "originalBytes": 25,
+      "published": {
+        "path": "attempt/original-terminal-ledger.original.json",
+        "bytes": 25,
+        "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "before-cleanup-job.original.json",
+      "originalSHA256": "ef2404445e86e0c716d8b9c17d48d7559b258be5d3cc2495cd411f1b163a5853",
+      "originalBytes": 657,
+      "published": {
+        "path": "attempt/before-cleanup-job.original.json",
+        "bytes": 657,
+        "sha256": "ef2404445e86e0c716d8b9c17d48d7559b258be5d3cc2495cd411f1b163a5853"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "before-cleanup-ledger.original.json",
+      "originalSHA256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+      "originalBytes": 25,
+      "published": {
+        "path": "attempt/before-cleanup-ledger.original.json",
+        "bytes": 25,
+        "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "after-cleanup-job.original.json",
+      "originalSHA256": "ef2404445e86e0c716d8b9c17d48d7559b258be5d3cc2495cd411f1b163a5853",
+      "originalBytes": 657,
+      "published": {
+        "path": "attempt/after-cleanup-job.original.json",
+        "bytes": 657,
+        "sha256": "ef2404445e86e0c716d8b9c17d48d7559b258be5d3cc2495cd411f1b163a5853"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "after-cleanup-ledger.original.json",
+      "originalSHA256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+      "originalBytes": 25,
+      "published": {
+        "path": "attempt/after-cleanup-ledger.original.json",
+        "bytes": 25,
+        "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "docker-requests.jsonl",
+      "originalSHA256": "5f90c85b961c4e3d011be6a7195e422bbfbb5661ba51b4821b8742aef384f7ad",
+      "originalBytes": 1410,
+      "published": {
+        "path": "attempt/docker-requests.jsonl",
+        "bytes": 1410,
+        "sha256": "5f90c85b961c4e3d011be6a7195e422bbfbb5661ba51b4821b8742aef384f7ad"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "owned-process-closure.json",
+      "originalSHA256": "e3870b22cf96c9deaab72d7f7497ee8dbaa24a5b17e2868708a860150fd53cae",
+      "originalBytes": 385,
+      "published": {
+        "path": "attempt/owned-process-closure.json",
+        "bytes": 385,
+        "sha256": "e3870b22cf96c9deaab72d7f7497ee8dbaa24a5b17e2868708a860150fd53cae"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "independent-closure.json",
+      "originalSHA256": "cebfc3f87df4d17200e3e11e1673b901051058cebab684ad72d042c9eaa56a37",
+      "originalBytes": 607,
+      "published": {
+        "path": "attempt/independent-closure.json",
+        "bytes": 607,
+        "sha256": "cebfc3f87df4d17200e3e11e1673b901051058cebab684ad72d042c9eaa56a37"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "unique-tag-before.http.json",
+      "originalSHA256": "b3c80a597db54fa9206e012b4a8b0c482a35ed7d380594c1cea3757ad36f1d01",
+      "originalBytes": 95,
+      "published": {
+        "path": "attempt/unique-tag-before.http.json",
+        "bytes": 95,
+        "sha256": "b3c80a597db54fa9206e012b4a8b0c482a35ed7d380594c1cea3757ad36f1d01"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "unique-tag-original-terminal.http.json",
+      "originalSHA256": "b3c80a597db54fa9206e012b4a8b0c482a35ed7d380594c1cea3757ad36f1d01",
+      "originalBytes": 95,
+      "published": {
+        "path": "attempt/unique-tag-original-terminal.http.json",
+        "bytes": 95,
+        "sha256": "b3c80a597db54fa9206e012b4a8b0c482a35ed7d380594c1cea3757ad36f1d01"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "unique-tag-after-close.http.json",
+      "originalSHA256": "b3c80a597db54fa9206e012b4a8b0c482a35ed7d380594c1cea3757ad36f1d01",
+      "originalBytes": 95,
+      "published": {
+        "path": "attempt/unique-tag-after-close.http.json",
+        "bytes": 95,
+        "sha256": "b3c80a597db54fa9206e012b4a8b0c482a35ed7d380594c1cea3757ad36f1d01"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "packaged-source-git-object-bindings.json",
+      "originalSHA256": "86e652f7d3a9e37d7aabfb317bacba707cdeee76f052779235e9ba6e040d50e9",
+      "originalBytes": 2085,
+      "published": {
+        "path": "attempt/packaged-source-git-object-bindings.json",
+        "bytes": 2085,
+        "sha256": "86e652f7d3a9e37d7aabfb317bacba707cdeee76f052779235e9ba6e040d50e9"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "package-provenance.original.json",
+      "originalSHA256": "3b5ddda6d86425beb914f1fdeeba7178eb46c9c269a6bcfd9826b044bc4a0201",
+      "originalBytes": 880,
+      "published": {
+        "path": "attempt/package-provenance.original.json",
+        "bytes": 880,
+        "sha256": "3b5ddda6d86425beb914f1fdeeba7178eb46c9c269a6bcfd9826b044bc4a0201"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "runtime-inputs.original.json",
+      "originalSHA256": "d4d6147b43e00a08f3d82fa8afe9cfe2fd09a03354a95c31071b25ff2b56848c",
+      "originalBytes": 18400,
+      "published": {
+        "path": "attempt/runtime-inputs.original.json",
+        "bytes": 18400,
+        "sha256": "d4d6147b43e00a08f3d82fa8afe9cfe2fd09a03354a95c31071b25ff2b56848c"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "checkout-status-before.txt",
+      "originalSHA256": "36f5b72247a7e75408f3a6d8e8aa1e7f13ea4e3cf63781028c2f89167a1c939c",
+      "originalBytes": 233,
+      "published": {
+        "path": "attempt/checkout-status-before.txt",
+        "bytes": 233,
+        "sha256": "36f5b72247a7e75408f3a6d8e8aa1e7f13ea4e3cf63781028c2f89167a1c939c"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "live-checkout-selected-before.json",
+      "originalSHA256": "7cb3d2ddbdf415691540ec03dd93a7b4ff24931e0d81246ce57205c8b848fe3f",
+      "originalBytes": 2206,
+      "published": {
+        "path": "attempt/live-checkout-selected-before.json",
+        "bytes": 2206,
+        "sha256": "7cb3d2ddbdf415691540ec03dd93a7b4ff24931e0d81246ce57205c8b848fe3f"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "live-checkout-selected-after.json",
+      "originalSHA256": "92247296e4f1332b3d42c0339930afeac3d2555ae1a98e4e41aae06aeaf6179c",
+      "originalBytes": 2133,
+      "published": {
+        "path": "attempt/live-checkout-selected-after.json",
+        "bytes": 2133,
+        "sha256": "92247296e4f1332b3d42c0339930afeac3d2555ae1a98e4e41aae06aeaf6179c"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "engine-before.http.json",
+      "originalSHA256": "9616331199574d230490eb287e4f53d559faca6542478e1ce0af2ee5ebd3a396",
+      "originalBytes": 58,
+      "published": {
+        "path": "attempt/engine-before.http.json",
+        "bytes": 58,
+        "sha256": "9616331199574d230490eb287e4f53d559faca6542478e1ce0af2ee5ebd3a396"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "before-containers.http.json",
+      "originalSHA256": "dca368a3ccca9174f127bb0c029b4665fd27600ee2e8bd222ed54dac1bf37137",
+      "originalBytes": 75,
+      "published": {
+        "path": "attempt/before-containers.http.json",
+        "bytes": 75,
+        "sha256": "dca368a3ccca9174f127bb0c029b4665fd27600ee2e8bd222ed54dac1bf37137"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "before-containers.body.json",
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "originalBytes": 3,
+      "published": {
+        "path": "attempt/before-containers.body.json",
+        "bytes": 3,
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "before-images.http.json",
+      "originalSHA256": "03f20515a7226ef74dac8e8935c24a5d4509b66b797f224ec622917415e0e9ae",
+      "originalBytes": 71,
+      "published": {
+        "path": "attempt/before-images.http.json",
+        "bytes": 71,
+        "sha256": "03f20515a7226ef74dac8e8935c24a5d4509b66b797f224ec622917415e0e9ae"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "original-terminal-containers.http.json",
+      "originalSHA256": "dca368a3ccca9174f127bb0c029b4665fd27600ee2e8bd222ed54dac1bf37137",
+      "originalBytes": 75,
+      "published": {
+        "path": "attempt/original-terminal-containers.http.json",
+        "bytes": 75,
+        "sha256": "dca368a3ccca9174f127bb0c029b4665fd27600ee2e8bd222ed54dac1bf37137"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "original-terminal-containers.body.json",
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "originalBytes": 3,
+      "published": {
+        "path": "attempt/original-terminal-containers.body.json",
+        "bytes": 3,
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "original-terminal-images.http.json",
+      "originalSHA256": "03f20515a7226ef74dac8e8935c24a5d4509b66b797f224ec622917415e0e9ae",
+      "originalBytes": 71,
+      "published": {
+        "path": "attempt/original-terminal-images.http.json",
+        "bytes": 71,
+        "sha256": "03f20515a7226ef74dac8e8935c24a5d4509b66b797f224ec622917415e0e9ae"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "after-controller-close-containers.http.json",
+      "originalSHA256": "dca368a3ccca9174f127bb0c029b4665fd27600ee2e8bd222ed54dac1bf37137",
+      "originalBytes": 75,
+      "published": {
+        "path": "attempt/after-controller-close-containers.http.json",
+        "bytes": 75,
+        "sha256": "dca368a3ccca9174f127bb0c029b4665fd27600ee2e8bd222ed54dac1bf37137"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "after-controller-close-containers.body.json",
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "originalBytes": 3,
+      "published": {
+        "path": "attempt/after-controller-close-containers.body.json",
+        "bytes": 3,
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "after-controller-close-images.http.json",
+      "originalSHA256": "03f20515a7226ef74dac8e8935c24a5d4509b66b797f224ec622917415e0e9ae",
+      "originalBytes": 71,
+      "published": {
+        "path": "attempt/after-controller-close-images.http.json",
+        "bytes": 71,
+        "sha256": "03f20515a7226ef74dac8e8935c24a5d4509b66b797f224ec622917415e0e9ae"
+      },
+      "operation": "byte-for-byte copy",
+      "byteIdentical": true
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "result.json",
+      "originalSHA256": "77b3dd9cc0f90d0b127bfc02a77c0bc92951f6d1030fabc405220f7c24994599",
+      "originalBytes": 3182,
+      "published": {
+        "path": "attempt/result.json",
+        "bytes": 3134,
+        "sha256": "91cdced77e5b15173443c46f6209925b0de5b3561e4deb7ea14dd242a5eaa812"
+      },
+      "operation": "Replace only exact private fixture root and proxy directory with named placeholders; all outcomes/IDs/timestamps unchanged",
+      "byteIdentical": false
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "controller-invocation.json",
+      "originalSHA256": "93a14b346a12eb76a1be807150aef8bce15b9070f89dfaae407600785cad7da4",
+      "originalBytes": 2194,
+      "published": {
+        "path": "attempt/controller-invocation.json",
+        "bytes": 1425,
+        "sha256": "fe9b6222d0783993ea100e0d12445b602e7828dafd4cfd570bd72563883edf54"
+      },
+      "operation": "JSON projection: omit host PATH; replace exact private fixture root and proxy directory; retain exact command and remaining environment",
+      "byteIdentical": false
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "before-inventory.json",
+      "originalSHA256": "422168e1aeabe5d2c313aa5c88e4e120c2bb8ed49979cc2e1d4878f569ead2ff",
+      "originalBytes": 14783,
+      "published": {
+        "path": "attempt/before-inventory.json",
+        "bytes": 4385,
+        "sha256": "8afd11af6d15bff7c96c82b914438de3fc04a3e82b2195cbb512264810d740a4"
+      },
+      "operation": "JSON allowlist: image ID/tags/digests/size and container ID/imageID/image/state/names; omit labels and annotate projection",
+      "byteIdentical": false
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "original-terminal-inventory.json",
+      "originalSHA256": "422168e1aeabe5d2c313aa5c88e4e120c2bb8ed49979cc2e1d4878f569ead2ff",
+      "originalBytes": 14783,
+      "published": {
+        "path": "attempt/original-terminal-inventory.json",
+        "bytes": 4385,
+        "sha256": "8afd11af6d15bff7c96c82b914438de3fc04a3e82b2195cbb512264810d740a4"
+      },
+      "operation": "JSON allowlist: image ID/tags/digests/size and container ID/imageID/image/state/names; omit labels and annotate projection",
+      "byteIdentical": false
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "after-controller-close-inventory.json",
+      "originalSHA256": "422168e1aeabe5d2c313aa5c88e4e120c2bb8ed49979cc2e1d4878f569ead2ff",
+      "originalBytes": 14783,
+      "published": {
+        "path": "attempt/after-controller-close-inventory.json",
+        "bytes": 4385,
+        "sha256": "8afd11af6d15bff7c96c82b914438de3fc04a3e82b2195cbb512264810d740a4"
+      },
+      "operation": "JSON allowlist: image ID/tags/digests/size and container ID/imageID/image/state/names; omit labels and annotate projection",
+      "byteIdentical": false
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "engine-before.body.json",
+      "originalSHA256": "bdd2542a146095bb2b6c49f7a1e39112763ea3b18b87fe19bad37ca140664ef1",
+      "originalBytes": 8877,
+      "published": {
+        "path": "attempt/engine-before.projection.json",
+        "bytes": 338,
+        "sha256": "641a95d3e6c06e0d291a7e9bacdca2e8d3da7e8d3a918ae816c8a12dde1adc5f"
+      },
+      "operation": "JSON allowlist: engine identity/platform/driver/root/capacity/version and object counts; omit host name, daemon internals, runtime paths and registry configuration",
+      "byteIdentical": false
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "003-response.safe.json",
+      "originalSHA256": "dab5ec5bae92b3dbc36fa09ba3e56b6494a86279bc47cabf9a9f5681c7e107d0",
+      "originalBytes": 219,
+      "published": {
+        "path": "attempt/current-authority.projection.json",
+        "bytes": 237,
+        "sha256": "a4f1104ccd50614df73a0cd110af486cf2df83f741aa4e0373a670d5b75e7d78"
+      },
+      "operation": "Joint projection: retain roles/HTTP statuses and same-user boolean; omit all account IDs, display names, username, account policy and token",
+      "byteIdentical": false
+    },
+    {
+      "sourceSet": "attempt",
+      "sourcePath": "004-response.body.json",
+      "originalSHA256": "68a1f623e6304c063c0f478375e3775c8bb974e4d7e37437eacadd8f6cb796c5",
+      "originalBytes": 648,
+      "published": {
+        "path": "attempt/current-authority.projection.json",
+        "bytes": 237,
+        "sha256": "a4f1104ccd50614df73a0cd110af486cf2df83f741aa4e0373a670d5b75e7d78"
+      },
+      "operation": "Joint projection: retain roles/HTTP statuses and same-user boolean; omit all account IDs, display names, username, account policy and token",
+      "byteIdentical": false
+    }
+  ],
+  "scope": "Original hashes are computed from retained originals. byteIdentical=true is a lossless copy. Explicit projections are not represented as original bytes. Current checkout snapshots are diagnostics, not package-source parity."
+}

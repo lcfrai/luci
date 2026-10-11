@@ -1,0 +1,9 @@
+{
+  "bootstrapHTTPStatus": 201,
+  "currentAuthorityHTTPStatus": 200,
+  "bootstrapRole": "super-admin",
+  "currentRole": "super-admin",
+  "sameUserAsBootstrap": true,
+  "accountIdentityAndPolicyOmitted": true,
+  "tokenPublished": false
+}

@@ -1,0 +1,10 @@
+{"at":"2026-10-11T12:02:48.007Z","method":"HEAD","path":"/_ping","forwarded":true,"status":200,"responseBytes":0}
+{"at":"2026-10-11T12:02:48.009Z","method":"HEAD","path":"/_ping","forwarded":true,"status":200,"responseBytes":0}
+{"at":"2026-10-11T12:02:48.011Z","method":"GET","path":"/v1.51/containers/json?all=1&filters=%7B%22label%22%3A%7B%22luci.managed%3Dtrue%22%3Atrue%7D%7D","forwarded":true,"status":200,"responseBytes":3}
+{"at":"2026-10-11T12:02:48.025Z","method":"GET","path":"/v1.51/info","forwarded":true,"status":200,"responseBytes":8876}
+{"at":"2026-10-11T12:02:48.029Z","method":"GET","path":"/v1.51/images/luci/installer-disk-fixture:fcb3e1e661924ddaa8448e4167868e84/json","forwarded":true,"status":404,"responseBytes":90}
+{"at":"2026-10-11T12:02:48.030Z","method":"GET","path":"/v1.51/containers/json?all=1","forwarded":true,"status":200,"responseBytes":3}
+{"at":"2026-10-11T12:02:48.630Z","method":"GET","path":"/v1.51/info","forwarded":true,"status":200,"responseBytes":8877}
+{"at":"2026-10-11T12:02:48.656Z","method":"GET","path":"/v1.51/info","forwarded":true,"status":200,"responseBytes":8877}
+{"at":"2026-10-11T12:02:48.674Z","method":"GET","path":"/v1.51/images/golang:1.26-bookworm/json","forwarded":true,"status":404,"responseBytes":50}
+{"at":"2026-10-11T12:02:48.676Z","method":"GET","path":"/v1.51/images/node:24-bookworm-slim/json","forwarded":true,"status":404,"responseBytes":51}

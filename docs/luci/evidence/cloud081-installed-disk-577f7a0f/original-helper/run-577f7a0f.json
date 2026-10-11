@@ -1,0 +1,20 @@
+{
+  "repository": "/workspace/luci",
+  "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "binary": "/workspace/.luci-tools/package-577f7a0f/installed/luci",
+  "binarySHA256": "6695f12aec9628316aeb2e9ea1901f313dc868d49d245384f075b729166383d7",
+  "runtimeDir": "/workspace/.luci-tools/package-577f7a0f/installed/runtime",
+  "webDir": "/workspace/.luci-tools/package-577f7a0f/installed/web",
+  "provenanceFile": "/workspace/.luci-tools/package-577f7a0f/verified/integrity.json",
+  "provenanceSHA256": "3b5ddda6d86425beb914f1fdeeba7178eb46c9c269a6bcfd9826b044bc4a0201",
+  "runtimeInputsFile": "/workspace/.luci-tools/package-577f7a0f/verified/runtime-inputs.json",
+  "runtimeInputsSHA256": "d4d6147b43e00a08f3d82fa8afe9cfe2fd09a03354a95c31071b25ff2b56848c",
+  "packageIdentity": "6d69e5cebb2af7cbcf5f0c1ca12063b86f71d8f968cbffa007a40447a147592e",
+  "evidenceParent": "/workspace/.luci-tools/cloud081-installer-disk-smoke-prep",
+  "socketParent": "/workspace/.t",
+  "dockerHost": "unix:///var/run/docker.sock",
+  "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "engineDriver": "vfs",
+  "acknowledgeFixtureMutation": true,
+  "sourceBinding": "Git objects at product sourceCommit plus exact package/runtime hashes; concurrent checkout deltas are diagnostic only"
+}
