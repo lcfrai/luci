@@ -45,6 +45,7 @@ export type PendingNavigation =
 export interface BranchManagerTarget { projectId: ProjectId; action: "create" | "switch"; branchId?: BranchId }
 const navigationState = (navigation: PendingNavigation, state: CockpitState): Partial<UiSlice> => {
   let selection = state.selection, lens = state.lens;
+  const workspaceSurface = navigation.kind !== "project" || navigation.lens ? "tools" : state.workspaceSurface;
   if (navigation.kind === "project") {
     selection = { ...NO_SELECTION, projectId: navigation.projectId };
     const saved = navigation.projectId ? state.projectPositions[navigation.projectId] : undefined;
@@ -64,7 +65,7 @@ const navigationState = (navigation: PendingNavigation, state: CockpitState): Pa
   remember(selection.projectId, lens);
   const bounded = pruneProjectPositions(projectPositions, state.projects);
   const saved = !state.projectNavigationScope || writeProjectNavigation(state.projectNavigationScope, { projects: bounded, selected: selection.projectId });
-  return { selection, lens, projectPositions: bounded, projectNavigationError: !saved };
+  return { selection, lens, workspaceSurface, projectPositions: bounded, projectNavigationError: !saved };
 };
 
 function hasNavigationWorktree(state: CockpitState, projectId: ProjectId, branchId: BranchId, worktreeId: WorktreeId) {
@@ -75,6 +76,9 @@ function hasNavigationWorktree(state: CockpitState, projectId: ProjectId, branch
 export interface UiSlice {
   selection: Selection;
   lens: Lens;
+  /** Runtime presentation only. The selected phase editor remains mounted behind Luci. */
+  workspaceSurface: "luci" | "tools";
+  showLuci(): void;
   layout: Layout;
   /** Scoped, bounded stage preferences; source documents remain server-owned. */
   projectNavigationScope: string | null;
@@ -144,7 +148,7 @@ export interface UiSlice {
 
 type UiState = Pick<
   UiSlice,
-  | "selection" | "lens" | "layout" | "railCollapsed" | "projectNavigationScope" | "projectCatalogueEpoch" | "projectPositions" | "projectNavigationError"
+  | "selection" | "lens" | "workspaceSurface" | "layout" | "railCollapsed" | "projectNavigationScope" | "projectCatalogueEpoch" | "projectPositions" | "projectNavigationError"
   | "expandedProjects" | "expandedBranches" | "expandedWorktrees"
   | "paletteOpen" | "pickerOpen" | "contextMenu" | "sessionMenuFor" | "toasts"
   | "machinesOpen" | "unsavedProjectDrafts" | "pendingNavigation" | "branchManager" | "projectSourceRevisions" | "projectRunInspection" | "projectRunVerification" | "projectRunDeployment"
@@ -158,6 +162,7 @@ export const initialUiState: UiState = Object.freeze({
   projectPositions: Object.freeze({}),
   projectNavigationError: false,
   lens: "develop",
+  workspaceSurface: "luci",
   layout: "columns",
   railCollapsed: false,
   expandedProjects: Object.freeze({}) as Record<ProjectId, boolean>,
@@ -186,6 +191,10 @@ export const createUiSlice: StateCreator<
 > = (set, get) => ({
   ...initialUiState,
 
+  showLuci: () => {
+    if (get().workspaceSurface !== "luci") set({ workspaceSurface: "luci" });
+  },
+
   bindProjectNavigation: scope => {
     const state = get();
     if (scope === state.projectNavigationScope) return;
@@ -198,7 +207,7 @@ export const createUiSlice: StateCreator<
     set({ ...(changedWorkspace ? { ...initialDataState, expandedProjects: {}, expandedBranches: {}, expandedWorktrees: {},
       tiles: {}, pinned: [], projectDefaults: {}, branchDefaults: {}, projectSourceRevisions: {} } : {}),
       projectNavigationScope: scope, projectCatalogueEpoch: state.projectCatalogueEpoch + 1, projectPositions: positions, projectNavigationError: false,
-      selection: { ...NO_SELECTION, projectId: selected }, lens: selected ? positions[selected].lens : "discover",
+      selection: { ...NO_SELECTION, projectId: selected }, lens: selected ? positions[selected].lens : "discover", workspaceSurface: "luci",
       pendingNavigation: null, projectRunInspection: null, projectRunVerification: null, projectRunDeployment: null });
   },
 
@@ -211,7 +220,10 @@ export const createUiSlice: StateCreator<
       state.pushToast("This project is no longer available. Refresh your projects before opening its files.");
       return;
     }
-    if (id === state.selection.projectId && state.selection.branchId === null && (!lens || lens === state.lens)) return;
+    if (id === state.selection.projectId && state.selection.branchId === null && (!lens || lens === state.lens)) {
+      if (lens && state.workspaceSurface !== "tools") set({ workspaceSurface: "tools" });
+      return;
+    }
     const navigation: PendingNavigation = { kind: "project", projectId: id, ...(lens ? { lens } : {}) };
     if (Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === state.selection.projectId)) set({ pendingNavigation: navigation });
     else set(navigationState(navigation, state));
@@ -233,7 +245,11 @@ export const createUiSlice: StateCreator<
 
   setLens: (lens) => {
     const state = get();
-    if (state.lens === lens) return;
+    // Revealing the same mounted editor does not leave its draft or change source.
+    if (state.lens === lens) {
+      if (state.workspaceSurface !== "tools") set({ workspaceSurface: "tools" });
+      return;
+    }
     if (Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === state.selection.projectId)) set({ pendingNavigation: { kind: "lens", lens } });
     else set(navigationState({ kind: "lens", lens }, state));
   },

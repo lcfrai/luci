@@ -1,0 +1,4 @@
+{
+  "exitCode": 0,
+  "command": "npm --prefix desktop test -- src/store/luciSurface.test.ts src/store/sourceNavigation.test.ts src/store/projectNavigation.test.ts src/store/store.test.ts --maxWorkers=1"
+}

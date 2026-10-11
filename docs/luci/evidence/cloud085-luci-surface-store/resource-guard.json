@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-11T16:56:36.411668+00:00",
+  "physicalAvailableBytes": 16214159360,
+  "visibleCgroupMemoryMax": "34359738368",
+  "visibleCgroupMemoryCurrent": 25370980352,
+  "visibleCgroupRemaining": 8988758016,
+  "minimumObservedAvailableBytes": 8988758016,
+  "workspaceFreeBytes": 676818944,
+  "decision": "allow-single-worker",
+  "scope": "Read-only pretest sample; not atomic workload admission or app-performance evidence."
+}
