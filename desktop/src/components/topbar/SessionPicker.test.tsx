@@ -280,6 +280,19 @@ describe("SessionPicker", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("describes an explicitly allocating continuation without promising no launch or urging an uncertain retry", async () => {
+    let finish!: (value: { ok: false; message: string }) => void;
+    const submit = vi.fn(() => new Promise<{ ok: false; message: string }>(resolve => { finish = resolve; }));
+    render(<SessionPicker open worktreeId="w-1" onClose={vi.fn()} onSubmit={submit} submitLabel="Continue reviewed work" progressLabel="Preparing reviewed work; allocation may start." failureGuidance="Read the retained outcome before another start." />);
+    await userEvent.click(screen.getByRole("button", { name: "Continue reviewed work" }));
+    await screen.findByText("Preparing reviewed work; allocation may start.");
+    expect(screen.queryByText(/No coding session starts yet/)).toBeNull();
+    await act(async () => finish({ ok: false, message: "Reply lost." }));
+    expect(screen.getByRole("alert").textContent).toContain("Read the retained outcome before another start.");
+    expect(screen.getByRole("alert").textContent).not.toContain("try again");
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
   it("renders nothing when closed", () => {
     render(<SessionPicker open={false} worktreeId="w-1" onClose={() => {}} />);
     expect(screen.queryByLabelText("Harness")).toBeNull();

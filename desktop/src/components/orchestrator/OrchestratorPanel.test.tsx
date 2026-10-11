@@ -5,6 +5,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { orchestratorApi, type OrchestratorJob, type OrchestratorView } from "../../api/orchestrator";
 import { productApi, type AgentConnectionCatalogue } from "../../api/product";
 import { ApiError } from "../../api/client";
+import { coordinatorContinuationsApi } from "../../api/coordinatorContinuations";
 import { coordinatorPolicyApi } from "../../api/coordinatorPolicy";
 import { selectTeamScope } from "../../api/teamScope";
 import { AGENT_CONNECTIONS_CHANGED } from "../../hooks/useAgentConnections";
@@ -43,6 +44,7 @@ beforeEach(() => {
   vi.spyOn(orchestratorApi, "cancel").mockResolvedValue(job({ status: "cancelled" }));
   vi.spyOn(orchestratorApi, "reconcile").mockResolvedValue(job({ status: "succeeded" }));
   vi.spyOn(orchestratorApi, "apply").mockResolvedValue(view({ revision: 4 }));
+  vi.spyOn(coordinatorContinuationsApi, "list").mockResolvedValue([]);
   vi.spyOn(coordinatorPolicyApi, "get").mockImplementation(async projectId => ({ projectId, revision: 0, mode: "review", allowedTargets: ["specification", "design-plan", "plan"], executionMode: "manual", deploymentMode: "manual" }));
 });
 async function ready() {
@@ -901,7 +903,7 @@ it("keeps amendments blocked by a local check draft and shared context still blo
   await userEvent.click(within(dialog).getByRole("button", { name: "Keep current context" }));
   act(() => useCockpit.getState().setUnsavedProjectDraft("definition", { projectId: "p-1", label: "Definition", lens: "discover" }));
   await userEvent.type(screen.getByLabelText("Message Luci"), "Help me finish this check");
-  expect(screen.getByText(/Definition has unsaved edits. Save or discard/)).not.toBeNull();
+  expect(within(screen.getByLabelText("Message Luci").closest("form")!).getByText(/Definition has unsaved edits. Save or discard/)).not.toBeNull();
   expect((screen.getByRole("button", { name: "Send to Luci" }) as HTMLButtonElement).disabled).toBe(true);
   expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(productApi.runChecks).not.toHaveBeenCalled();
 });

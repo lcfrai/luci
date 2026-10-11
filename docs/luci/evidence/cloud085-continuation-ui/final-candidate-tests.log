@@ -1,0 +1,16 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/api/coordinatorContinuations.test.ts src/components/orchestrator/CoordinatorExecution.test.tsx src/components/topbar/SessionPicker.test.tsx src/api/coordinatorPolicy.test.ts src/components/orchestrator/CoordinatorPolicy.test.tsx src/components/orchestrator/OrchestratorPanel.test.tsx --maxWorkers=1
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+
+ Test Files  6 passed (6)
+      Tests  224 passed (224)
+   Start at  15:56:32
+   Duration  62.63s (tests 84%, environment 10%, transform 3%, import 1%, setup 1%)
+
+    Isolate  6 workers spawned · ~1.21s startup each (spawn + environment, per file)
+             at least ~6.03s faster with isolate: false — reuses workers across files instead of one per file
+

@@ -15,6 +15,7 @@ import { AmendmentReview } from "./AmendmentReview";
 import { ProjectUnderstanding } from "./ProjectUnderstanding";
 import { ConversationStorage } from "./ConversationStorage";
 import { CoordinatorPolicy } from "./CoordinatorPolicy";
+import { CoordinatorExecution } from "./CoordinatorExecution";
 import { CoordinatorTeamIntents } from "./CoordinatorTeamIntents";
 import { useAuth } from "../auth/AuthProvider";
 import { readAgentPreference, writeAgentPreference, type OrchestratorAgent } from "./agentPreference";
@@ -46,6 +47,7 @@ export function OrchestratorPanel({ projectId }: { projectId: string }) {
 function ProjectConversation({ projectId, scope }: { projectId: string; scope: string }) {
   const access = useProjectAccess(projectId), setup = useSetup();
   const actorId = useAuth()?.profile.user.id ?? "";
+  const [policyEpoch, setPolicyEpoch] = useState(0);
   const { canRead, canEdit, canAssist, canExecute } = access;
   const [compact, setCompact] = useState(() => window.matchMedia(compactOverviewQuery).matches);
   // The responsive default applies only until an explicit choice. Keep the
@@ -621,18 +623,6 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         {decisionNotice && <p ref={decisionNoticeNode} role="status" tabIndex={-1}>{decisionNotice}</p>}
         {(loading || contextRefreshQueued) && view && <p role="status">Updating saved project understanding…</p>}
         {view && <ProjectUnderstanding view={view} stale={contextStale || contextRefreshQueued} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} onEdit={edit} canEdit={canEdit} />}
-        {view && <CoordinatorPolicy projectId={projectId} scope={scope} actorId={actorId} view={view}
-          canRead={canRead && !access.loading && !access.error} canEdit={canEdit}
-          blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
-          onAdvance={advanceDraft} beginObservation={() => {
-            const observed = latest.current, read = viewRead.current, ticket = generation.current;
-            const current = !contextStale && !contextRefreshQueued && !loading && !working.current;
-            return value => { if (current && alive.current && !working.current && permission.current.canRead && !permission.current.loading && !permission.current.error && latest.current === observed && viewRead.current === read && generation.current === ticket) remember(value); };
-          }} />}
-        {view && <CoordinatorTeamIntents projectId={projectId} scope={scope} actorId={actorId} contextDigest={view.context.digest}
-          canRead={canRead && !access.loading && !access.error} canEdit={canEdit}
-          blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
-          onDiscuss={openConversationTurn} onRefreshContext={() => void refresh(true)} />}
         <details className="orchestrator-discussion" open={conversationOpen} onToggle={event => setConversationOpen(event.currentTarget.open)}><summary>Discuss or request a change</summary>
         {conversation.mounted && <div hidden={!conversationOpen}>
         {view && <>
@@ -694,10 +684,27 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
           {canAssist && replyTo && <div className="orchestrator-actions"><span>{replyQuestion ? `Replying to: ${replyQuestion}` : "Replying to a project decision"}</span><Button type="button" variant="ghost" size="compact" disabled={!!pendingRequest || !canAssist} onClick={() => editComposer(message, "")}>Clear reply</Button></div>}
           <label className="luci-field">Message Luci<textarea ref={composer} rows={3} value={canAssist ? message : ""} maxLength={16000} disabled={!canAssist || busy === "send" || !!pendingRequest || !!recoveredDraft || storageConflict} onChange={event => editComposer(event.target.value, replyTo)} placeholder="What should we build, clarify or change?" /></label>
           <div className="orchestrator-actions"><Button type="submit" disabled={!canAssist || !view || !message.trim() || !!contextDrafts || !!routeIssue || !!busy || loading || contextStale || contextRefreshQueued || !!activeTurn || !!activeJobId || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict || !!localRecovery.error}>{busy === "send" ? "Sending…" : "Send to Luci"}</Button>{activeJobId && !completedUnrecorded && !missingReservedJob && <Button type="button" variant="secondary" disabled={!canExecute || !!busy} onClick={() => void cancel()}>Cancel Luci request</Button>}</div>
-          <p className="orchestrator-muted">Messages can propose changes. You review amendments and start coding, checks or deployment explicitly.</p>
+          <p className="orchestrator-muted">Luci proposes context changes and continues within your configured policy. Unresolved decisions, current approvals and deployment controls still apply.</p>
         </form>
         </div>}
         </details>
+        {view && <CoordinatorPolicy projectId={projectId} scope={scope} actorId={actorId} view={view} policyEpoch={policyEpoch} onPolicyUpdated={() => setPolicyEpoch(value => value + 1)}
+          canRead={canRead && !access.loading && !access.error} canEdit={canEdit}
+          blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
+          onAdvance={advanceDraft} beginObservation={() => {
+            const observed = latest.current, read = viewRead.current, ticket = generation.current;
+            const current = !contextStale && !contextRefreshQueued && !loading && !working.current;
+            return value => { if (current && alive.current && !working.current && permission.current.canRead && !permission.current.loading && !permission.current.error && latest.current === observed && viewRead.current === read && generation.current === ticket) remember(value); };
+          }} />}
+        {view && <CoordinatorExecution projectId={projectId} scope={scope} actorId={actorId} view={view} policyEpoch={policyEpoch} onPolicyUpdated={() => setPolicyEpoch(value => value + 1)}
+          canRead={canRead && !access.loading && !access.error} canEdit={canEdit && !access.loading && !access.error} canExecute={access.canExecute && !access.loading && !access.error}
+          blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
+          runOn={setup?.workspace?.mode === "cloud" ? "Connected workspace · Docker compatibility" : "This computer · Docker"}
+          onInspect={inspect} onNavigate={setLens} />}
+        {view && <CoordinatorTeamIntents projectId={projectId} scope={scope} actorId={actorId} contextDigest={view.context.digest}
+          canRead={canRead && !access.loading && !access.error} canEdit={canEdit}
+          blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
+          onDiscuss={openConversationTurn} onRefreshContext={() => void refresh(true)} />}
       </>}
     </div>
     {suggestedReply && canRead && canAssist && <WorkflowDialog readAccess={access} title="Replace your unsent message?" description="Using this suggested answer replaces your current message and its saved draft in this browser. Nothing is sent until you choose Send to Luci." onClose={closeSuggestedReply} getCloseFocusTarget={openingControl => suggestedReplyCloseTarget(suggestedReply, openingControl)}>

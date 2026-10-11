@@ -45,9 +45,12 @@ export function SessionPicker(props: {
   initialPrompt?: string;
   implementationContext?: ImplementationContextRequest;
   onCreated?: (sessionId?: SessionId) => void;
-  /** Alternative explicit preparation; it must not silently allocate a session. */
+  /** Alternative explicit action; if it starts work, provide truthful labels and consent. */
   onSubmit?: (request: CreateSessionRequest) => Promise<{ ok: true; sessionId?: SessionId } | { ok: false; message: string }>;
   submitLabel?: string;
+  /** Describe an alternative action truthfully if it can start reviewed work. */
+  progressLabel?: string;
+  failureGuidance?: string;
   children?: ReactNode;
 }): JSX.Element | null {
   const { open, worktreeId, onClose, initialPrompt = "" } = props;
@@ -131,13 +134,12 @@ export function SessionPicker(props: {
         {contextIssue && <p className="journey-error" role="alert">{contextIssue}</p>}
         {error && (
           <p className="journey-error" role="alert">
-            {error} Your session settings and prompt have been kept. Resolve the
-            problem and try again.
+            {error} {props.failureGuidance || "Your session settings and prompt have been kept. Resolve the problem and try again."}
           </p>
         )}
         {busy && (
           <p role="status">
-            {props.onSubmit ? "Saving reviewed run inputs… No coding session starts yet." : "Starting the isolated session… A cold runtime can take a little longer."}
+            {props.onSubmit ? props.progressLabel || "Saving reviewed run inputs… No coding session starts yet." : "Starting the isolated session… A cold runtime can take a little longer."}
           </p>
         )}
         <fieldset className="pick-inputs" disabled={busy}>

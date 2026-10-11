@@ -30,11 +30,12 @@ function applied(view: OrchestratorView, request: Advance) {
 const refused = (cause: unknown) => cause instanceof ProductApiError && [400, 401, 403, 409].includes(cause.status);
 
 /** Scope-keyed by the parent; this policy grants draft persistence only. */
-export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, canEdit, blocked, onAdvance, beginObservation }: {
+export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, canEdit, blocked, onAdvance, beginObservation, policyEpoch = 0, onPolicyUpdated }: {
   projectId: string; scope: string; actorId: string; view: OrchestratorView;
   canRead: boolean; canEdit: boolean; blocked: string;
   onAdvance(turnId: string, input: OrchestratorAdvanceRequest): Promise<OrchestratorView>;
   beginObservation(): (view: OrchestratorView) => void;
+  policyEpoch?: number; onPolicyUpdated?(): void;
 }) {
   const key = `luci.coordinator-request.v1:${scope}`;
   const [initial] = useState(() => readRetained(key));
@@ -74,7 +75,7 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
       if (cause instanceof ApiError && [401, 403].includes(cause.status)) { setPolicy(null); setReadDenied(true); }
     } });
     return () => controller.abort();
-  }, [projectId, canRead, canEdit]);
+  }, [projectId, canRead, canEdit, policyEpoch]);
 
   async function refresh() {
     if (!latest.current.canRead || inFlight.current) return;
@@ -116,7 +117,7 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
     try {
       const value = await coordinatorPolicyApi.save(projectId, input);
       if (!alive.current || ticket !== epoch.current || !latest.current.canRead || !latest.current.canEdit) return;
-      persist({ version: 1 }); acceptPolicy(value); setNotice("Draft policy saved. Build, approval and deployment permissions have not changed.");
+      persist({ version: 1 }); acceptPolicy(value); onPolicyUpdated?.(); setNotice("Draft policy saved. Build, approval and deployment permissions have not changed.");
     } catch (cause) { if (alive.current && ticket === epoch.current && latest.current.canRead) {
       if (refused(cause)) { try { persist({ version: 1, policyWrite: { ...input, rejected: true } }); } catch { /* Retain the conservative unknown record. */ } }
       setError(`${errorText(cause)} Refresh policy and conversation to observe the saved request; it will not be resent automatically.`);

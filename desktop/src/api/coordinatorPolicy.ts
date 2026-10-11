@@ -25,10 +25,10 @@ export const coordinatorPolicyApi = {
   async get(projectId: string, signal?: AbortSignal) {
     return verified(await productApi.request<CoordinatorPolicy>(route(projectId), undefined, "GET", 120_000, signal), projectId);
   },
-  async save(projectId: string, input: { expectedRevision: number; mode: CoordinatorPolicy["mode"]; allowedTargets: CoordinatorTarget[] }) {
+  async save(projectId: string, input: { expectedRevision: number; mode: CoordinatorPolicy["mode"]; allowedTargets: CoordinatorTarget[]; executionMode?: CoordinatorPolicy["executionMode"] }) {
     const value = verified(await productApi.request<CoordinatorPolicy>(route(projectId), input), projectId);
     if (value.revision !== input.expectedRevision + 1 || value.mode !== input.mode ||
-        value.allowedTargets.join(",") !== input.allowedTargets.join(",")) {
+        value.allowedTargets.join(",") !== input.allowedTargets.join(",") || (input.executionMode !== undefined && value.executionMode !== input.executionMode)) {
       throw new Error("The saved policy response did not match this change. Refresh to observe its outcome before changing it again.");
     }
     return value;

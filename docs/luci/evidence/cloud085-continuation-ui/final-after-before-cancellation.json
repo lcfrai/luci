@@ -1,0 +1,18 @@
+{
+  "files": {
+    "desktop/src/api/coordinatorContinuations.ts": "f1468fa4fe0f9a872b386df79249794a448ab6a2e526979d53a1e659145186c6",
+    "desktop/src/api/coordinatorContinuations.test.ts": "fa9ab4064003d22dd3d89ec0907f1aad8fef4c02b0abb9f218e40e49986d005a",
+    "desktop/src/api/coordinatorPolicy.ts": "3960d7e29f385073a13f0786eb7a0ba89a02f2065a4dc1d7bd318398230684c6",
+    "desktop/src/api/coordinatorPolicy.test.ts": "53bb5c2e04b8e2d47f41dd1067368adb47d412333ca9d136373d5e5570117272",
+    "desktop/src/components/orchestrator/CoordinatorExecution.tsx": "a3fafd902a06612ac07ee600b12969c2328c479a47011372efb41e1716806a6e",
+    "desktop/src/components/orchestrator/CoordinatorExecution.test.tsx": "04ec754d2ce4febe3bbb567af47073545dda240502e980de09b81bdf72d0f12c",
+    "desktop/src/components/orchestrator/CoordinatorPolicy.tsx": "18eb09d3725b7b4c847da2586d66d9e045003222f26a0b896af21189f40e73ab",
+    "desktop/src/components/orchestrator/CoordinatorPolicy.test.tsx": "3b2bd8299cd83365030ce2c4b5c7085f525b01b15cbe159ee7b46b64278cd741",
+    "desktop/src/components/orchestrator/OrchestratorPanel.tsx": "810be8300481373de017b6ea3b6557d300b490c9f0f2ebc2b3112e33a7680ec2",
+    "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx": "9b0be99f4fed7b884705a028c4389906d5fb3e4c99f7d990a524dcdff5187aad",
+    "desktop/src/components/topbar/SessionPicker.tsx": "e77ce9b47ebcc854a3e5936f4f88be72547cbc56e6d455cc3c768171dd345807",
+    "desktop/src/components/topbar/SessionPicker.test.tsx": "4795f586b5cdd76550840cb5f5be266a65328fabf231dddafb29e06e237ade03",
+    "desktop/src/api/swarmLimits.ts": "b8e4db2724c35c0c42bd2a237b1d268bc5b1c8765e4fdbcee24ef0a4016f9567"
+  },
+  "changed": []
+}

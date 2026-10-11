@@ -1,0 +1,129 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/api/coordinatorContinuations.test.ts src/components/orchestrator/CoordinatorExecution.test.tsx --maxWorkers=1
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx (19 tests | 17 failed) 7882ms
+   × reads on mount without launch and uses current approved tasks in the reused explicit route picker 1247ms
+   × does not create work when unapproved 56ms
+   × does not create work when unsaved 21ms
+   × does not create work when question 21ms
+   × does not create work when foreign-turn 27ms
+   × does not create work when unapplied 15ms
+   × does not create work when no-execute 18ms
+   × does not create work when no-edit 23ms
+   × does not create work when plan-base 30ms
+   × does not create work when wrong-checkout 27ms
+   × requires explicit execution consent and preserves existing draft policy rather than treating credentials as authority 103ms
+   × retains a lost create through remount and requires exact key/actor/project readback without re-POST 1041ms
+   × preserves an uncertain create after permission churn even if its successful reply arrives later 1028ms
+   × does not treat a client-generated scope 409 as a settled refusal 1029ms
+   × observes a definite refusal before allowing a freshly configured new request 1016ms
+   × closes route selection on changed context instead of substituting a newer approval snapshot 1020ms
+   × refuses launch when durable browser request storage cannot be written 1022ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 17 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > reads on mount without launch and uses current approved tasks in the reused explicit route picker
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > retains a lost create through remount and requires exact key/actor/project readback without re-POST
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > preserves an uncertain create after permission churn even if its successful reply arrives later
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > does not treat a client-generated scope 409 as a settled refusal
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > observes a definite refusal before allowing a freshly configured new request
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > closes route selection on changed context instead of substituting a newer approval snapshot
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > refuses launch when durable browser request storage cannot be written
+Error: Invalid Chai property: toBeDisabled
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Continued work"[39m
+        [33mclass[39m=[32m"orchestrator-agent"[39m
+      [36m>[39m
+        [36m<h3>[39m
+          [0mContinue with Luci[0m
+        [36m</h3>[39m
+        [36m<p>[39m
+          [0mRun on: [0m
+          [0mThis computer · Docker[0m
+          [0m. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.[0m
+        [36m</p>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"default"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mConfigure continued work[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"ghost"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mRefresh continued work[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx:23:153
+
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯
+
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > does not create work when unapproved
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > does not create work when unsaved
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > does not create work when question
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > does not create work when foreign-turn
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > does not create work when unapplied
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > does not create work when no-execute
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > does not create work when no-edit
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > does not create work when plan-base
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > does not create work when wrong-checkout
+Error: Invalid Chai property: toBeDisabled
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx:51:75
+     49|   if (reason === 'wrong-checkout') useCockpit.setState({ selection: { …
+     50|   render(<CoordinatorExecution {...input} />); await waitFor(() => exp…
+     51|   expect(screen.getByRole('button', { name: 'Configure continued work'…
+       |                                                                           ^
+     52| });
+     53| it('requires explicit execution consent and preserves existing draft p…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/17]⎯
+
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > requires explicit execution consent and preserves existing draft policy rather than treating credentials as authority
+Error: Invalid Chai property: toBeDisabled
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx:56:84
+     54|   vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ execu…
+     55|   render(<CoordinatorExecution {...props()} />); await userEvent.click…
+     56|   expect(screen.getByRole('button', { name: 'Enable reviewed-task cont…
+       |                                                                                    ^
+     57|   await userEvent.click(screen.getByRole('checkbox', { name: 'Allow re…
+     58|   await userEvent.click(screen.getByRole('button', { name: 'Enable rev…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/17]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  17 failed | 18 passed (35)
+   Start at  15:50:18
+   Duration  12.06s (tests 67%, environment 22%, transform 7%, import 2%, setup 2%)
+
+    Isolate  2 workers spawned · ~1.42s startup each (spawn + environment, per file)
+             at least ~1.42s faster with isolate: false — reuses workers across files instead of one per file
+
