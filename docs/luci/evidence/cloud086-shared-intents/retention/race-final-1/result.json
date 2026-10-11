@@ -1,0 +1,13 @@
+{
+  "exitCode": -15,
+  "stopReason": "outer-timeout",
+  "elapsedSeconds": 300.87956654804293,
+  "effectiveRepositoryInputsStable": true,
+  "sourceCountBefore": 861,
+  "sourceCountAfter": 861,
+  "freeBytesAfter": {
+    "root": 678875136,
+    "tmp": 419381248
+  },
+  "completedAt": "2026-10-11T16:50:09.100725+00:00"
+}

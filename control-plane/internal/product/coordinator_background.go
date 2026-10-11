@@ -185,8 +185,22 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				if (pass == 0 && key <= cursor) || (pass == 1 && key > cursor) {
 					continue
 				}
-				if row.ExecutionActor.UserID == "" || row.Status == "refused" || row.Status == "blocked" || row.Status == "checks-verified" {
+				if row.ExecutionActor.UserID == "" || row.Status == "refused" || row.Status == "blocked" || row.Status == "preview-ready" || row.Status == "preview-blocked" {
 					continue
+				}
+				if row.Status == "checks-verified" {
+					if row.PreviewPlan == nil {
+						continue
+					}
+					s.mu.RLock()
+					policy, policyErr := s.readCoordinatorPolicy(p)
+					s.mu.RUnlock()
+					if policyErr != nil {
+						return policyErr
+					}
+					if policy.PreviewMode != "checked-source" {
+						continue
+					}
 				}
 				next = &candidate{name, row.ID}
 				b.mu.Lock()

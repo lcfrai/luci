@@ -1,0 +1,11 @@
+{
+  "path": "control-plane/internal/product/coordination_retention_regression_test.go",
+  "sha256": "886c3aa2ad681a232923119fc1161c33d1ac7e270ba32ae7964605b09b0c10b7",
+  "identicalAcross": [
+    "original",
+    "fixed-1",
+    "preview-rest-fixed-1"
+  ],
+  "originalScope": "Selective pre-retention coordination.go/store overlay plus inert archive lookup compatibility declarations for newer shared callers. Not a clean whole historical checkout.",
+  "readinessFailureRefinement": "fixed-1-own retains the exact first failed archived-origin test; current source adds explicit dirty-source refusal, idempotent refusal, existing reviewed Git commit, and fresh-key typed preparation. The 70-proposal counterexample body did not change."
+}

@@ -338,7 +338,24 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 		}
 	}
 	if index < 0 {
-		return ErrOrchestratorInvalid
+		archived, err := s.archivedCoordinationTurnLocked(p, turnID)
+		if err != nil {
+			return err
+		}
+		if archived == nil || archived.AppliedRevision < 1 || archived.ApplyIntent != "" {
+			return ErrOrchestratorConflict
+		}
+		// An archived applied origin can only confirm its immutable receipt.
+		// Never append it to current history or replay its canonical mutation.
+		if authorize != nil {
+			if err := authorize(p, saved, *archived); err != nil {
+				return err
+			}
+		}
+		if err := s.validateCoordinationRecoveryLocked(ctx, p, *archived); err != nil {
+			return err
+		}
+		return s.finishCoordinationApplyLocked(ctx, p, *archived)
 	}
 	turn := &saved.Turns[index]
 	if authorize != nil {
@@ -491,6 +508,13 @@ func (s *Server) OrchestratorTurn(id, turnID string) (OrchestratorTurn, error) {
 		if turn.ID == turnID {
 			return turn.OrchestratorTurn, nil
 		}
+	}
+	archived, err := s.archivedCoordinationTurnLocked(p, turnID)
+	if err != nil {
+		return OrchestratorTurn{}, err
+	}
+	if archived != nil {
+		return archived.OrchestratorTurn, nil
 	}
 	return OrchestratorTurn{}, ErrOrchestratorInvalid
 }

@@ -32,6 +32,8 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/orchestrator/coordination/intents/{intentId}":               "Reads an exact retained or archived intent without apply or allocation.",
+	"GET /v1/product/projects/{id}/orchestrator/coordination/events/{eventId}":                 "Reads an exact causal receipt without replay or allocation.",
 	"GET /v1/product/projects/{id}/orchestrator/coordination":                                  "Reads retained authoritative intent decisions; no accept, apply or allocation.",
 	"GET /v1/product/projects/{id}/orchestrator/continuations":                                 "Reads only current actor private continuation receipts; never starts a step.",
 	"GET /v1/product/projects/{id}/orchestrator/continuations/{continuationId}":                "Reads owned continuation and current journey guidance without replay.",
@@ -64,36 +66,36 @@ var productReadOnlyRoutes = map[string]string{
 	"GET /v1/product/projects/{id}/specification":                                              "Reads saved definition or derives a legacy summary in memory; no writes, models or processes.",
 	"GET /v1/product/projects/{id}/specification/history":                                      "Reads immutable saved definition snapshots; no resources or writes.",
 	"GET /v1/product/projects/{id}/configuration":                                              "Reads only names/revision from private runtime configuration; no values, writes or execution.",
-	"GET /v1/setup/status":                                                                     "Reads local setup or bounded remote setup status; no provisioning.",
-	"GET /v1/setup/cloud/jobs":                                                                 "Reads cached provisioning history.",
-	"GET /v1/setup/cloud/login":                                                                "Reads cached explicit-login jobs.",
-	"GET /v1/setup/targets":                                                                    "Reads saved connection descriptions without their tokens.",
-	"GET /v1/setup/ssh/connections":                                                            "Reads already-created tunnels; cannot connect or accept a key.",
-	"GET /v1/setup/git/identity":                                                               "Two bounded git config --global --get calls from host-owned state.",
-	"GET /v1/setup/runtime/install":                                                            "Reads cached image-build state; cannot run Docker.",
-	"GET /v1/setup/workspace/install":                                                          "Reads cached explicit server-install jobs.",
-	"GET /v1/setup/workspace/auth":                                                             "Reads the selected verified SSH backing identity with bounded GET requests; cannot bootstrap or sign in.",
-	"GET /v1/setup/workspace/admin/me":                                                         "Reads the active backing identity after local administrator and private SSH checks; cannot sign in.",
-	"GET /v1/setup/workspace/admin/users":                                                      "Reads public backing user records through a bounded authenticated GET; cannot create users.",
-	"GET /v1/setup/workspace/admin/invitations":                                                "Reads bounded invitation metadata on the selected backing; no code readback, creation or redemption.",
-	"GET /v1/setup/workspace/admin/policy":                                                     "Reads backing policy through a bounded authenticated GET; cannot update it.",
-	"GET /v1/setup/workspace/admin/audit":                                                      "Reads existing backing audit events; cannot execute or provision resources.",
-	"GET /v1/setup/workspace/admin/users/{id}/runtime":                                         "Reads cached backing runtime state; cannot start or stop a worker.",
-	"GET /v1/setup/github/login":                                                               "Reads cached explicit GitHub login jobs without running CLI commands.",
-	"GET /v1/setup/agents":                                                                     "Reports presence of the private agent credential without its value.",
-	"GET /v1/setup/agent-connections":                                                          "Reads public saved route identities, protocol bindings and key presence without secrets or provider requests.",
-	"GET /v1/product/projects/{id}/brief":                                                      "Reads canonical brief history without creating missing state.",
-	"GET /v1/product/projects/{id}/design":                                                     "Reads canonical design history without creating missing state.",
-	"GET /v1/product/projects/{id}/design/export":                                              "Renders an inert HTML response from saved design state.",
-	"GET /v1/product/projects/{id}/files":                                                      "Reads contained regular files/directories; rejects credential paths.",
-	"GET /v1/product/projects/{id}/git":                                                        "Bounded Git inspection with hooks, filters and optional writes disabled.",
-	"GET /v1/product/projects/{id}/releases":                                                   "Reads saved release rows; never builds, deploys or opens a listener.",
-	"GET /v1/product/projects/{id}/prototype-releases":                                         "Reads owned release histories and bounded native ownership/health observations; never builds, starts resources, writes state or opens a listener.",
-	"GET /v1/product/projects/{id}/plan":                                                       "Reads canonical task progress; cannot start checks or complete tasks.",
-	"GET /v1/product/projects/{id}/checks":                                                     "Reads saved bounded execution evidence and suggested command names; no commands execute.",
-	"GET /v1/product/projects/{id}/checks/{runId}":                                             "Reads saved execution evidence without starting a process.",
-	"GET /v1/product/projects/{id}/checks/{runId}/recovery":                                    "Reads the exact retained check and private admission receipt without starting, stopping, probing or removing an execution.",
-	"GET /v1/product/projects/{id}/git/delivery":                                               "Inspects current Git branch/commit and saved publication evidence; cannot create or push a repository.",
+	"GET /v1/setup/status":                                  "Reads local setup or bounded remote setup status; no provisioning.",
+	"GET /v1/setup/cloud/jobs":                              "Reads cached provisioning history.",
+	"GET /v1/setup/cloud/login":                             "Reads cached explicit-login jobs.",
+	"GET /v1/setup/targets":                                 "Reads saved connection descriptions without their tokens.",
+	"GET /v1/setup/ssh/connections":                         "Reads already-created tunnels; cannot connect or accept a key.",
+	"GET /v1/setup/git/identity":                            "Two bounded git config --global --get calls from host-owned state.",
+	"GET /v1/setup/runtime/install":                         "Reads cached image-build state; cannot run Docker.",
+	"GET /v1/setup/workspace/install":                       "Reads cached explicit server-install jobs.",
+	"GET /v1/setup/workspace/auth":                          "Reads the selected verified SSH backing identity with bounded GET requests; cannot bootstrap or sign in.",
+	"GET /v1/setup/workspace/admin/me":                      "Reads the active backing identity after local administrator and private SSH checks; cannot sign in.",
+	"GET /v1/setup/workspace/admin/users":                   "Reads public backing user records through a bounded authenticated GET; cannot create users.",
+	"GET /v1/setup/workspace/admin/invitations":             "Reads bounded invitation metadata on the selected backing; no code readback, creation or redemption.",
+	"GET /v1/setup/workspace/admin/policy":                  "Reads backing policy through a bounded authenticated GET; cannot update it.",
+	"GET /v1/setup/workspace/admin/audit":                   "Reads existing backing audit events; cannot execute or provision resources.",
+	"GET /v1/setup/workspace/admin/users/{id}/runtime":      "Reads cached backing runtime state; cannot start or stop a worker.",
+	"GET /v1/setup/github/login":                            "Reads cached explicit GitHub login jobs without running CLI commands.",
+	"GET /v1/setup/agents":                                  "Reports presence of the private agent credential without its value.",
+	"GET /v1/setup/agent-connections":                       "Reads public saved route identities, protocol bindings and key presence without secrets or provider requests.",
+	"GET /v1/product/projects/{id}/brief":                   "Reads canonical brief history without creating missing state.",
+	"GET /v1/product/projects/{id}/design":                  "Reads canonical design history without creating missing state.",
+	"GET /v1/product/projects/{id}/design/export":           "Renders an inert HTML response from saved design state.",
+	"GET /v1/product/projects/{id}/files":                   "Reads contained regular files/directories; rejects credential paths.",
+	"GET /v1/product/projects/{id}/git":                     "Bounded Git inspection with hooks, filters and optional writes disabled.",
+	"GET /v1/product/projects/{id}/releases":                "Reads saved release rows; never builds, deploys or opens a listener.",
+	"GET /v1/product/projects/{id}/prototype-releases":      "Reads owned release histories and bounded native ownership/health observations; never builds, starts resources, writes state or opens a listener.",
+	"GET /v1/product/projects/{id}/plan":                    "Reads canonical task progress; cannot start checks or complete tasks.",
+	"GET /v1/product/projects/{id}/checks":                  "Reads saved bounded execution evidence and suggested command names; no commands execute.",
+	"GET /v1/product/projects/{id}/checks/{runId}":          "Reads saved execution evidence without starting a process.",
+	"GET /v1/product/projects/{id}/checks/{runId}/recovery": "Reads the exact retained check and private admission receipt without starting, stopping, probing or removing an execution.",
+	"GET /v1/product/projects/{id}/git/delivery":            "Inspects current Git branch/commit and saved publication evidence; cannot create or push a repository.",
 }
 
 func auditTree(t *testing.T, root string) map[string]string {
@@ -237,7 +239,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 		if pattern != previewPattern && productReadOnlyRoutes[pattern] == "" {
 			t.Fatalf("unaudited read route %q", pattern)
 		}
-		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{runId}", "missing-run", "{handoffId}", "missing-handoff", "{continuationId}", "missing-continuation", "{taskId}", "missing-task", "{path...}", "").Replace(path)
+		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{runId}", "missing-run", "{handoffId}", "missing-handoff", "{continuationId}", "missing-continuation", "{intentId}", "intent-000000000000000000000000", "{eventId}", "event-000000000000000000000000", "{taskId}", "missing-task", "{path...}", "").Replace(path)
 		if strings.HasSuffix(pattern, "/swarm/operations/{operationId}/workspace/file") {
 			path += "?path=ordinary.txt"
 		}
@@ -259,6 +261,12 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			}
 			if strings.Contains(pattern, "/orchestrator/continuations/{continuationId}") {
 				status = 404
+			}
+			if strings.Contains(pattern, "/coordination/intents/{intentId}") {
+				status = 409
+			}
+			if strings.Contains(pattern, "/coordination/events/{eventId}") {
+				status = 400 // Exact sequence/origin is required; no history scan on an incomplete locator.
 			}
 			if strings.Contains(pattern, "/external-handoffs/{handoffId}") {
 				status = 404

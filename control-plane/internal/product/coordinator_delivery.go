@@ -24,7 +24,7 @@ func coordinatorIntegratedRun(run ProjectRun, row coordinatorContinuationRecord)
 		in := task.Integration
 		op := swarmOperation(&run, task.OperationID)
 		if !wanted[task.ID] || in == nil || in.State != "integrated" || !deliverySHA.MatchString(in.Commit) || !hexDigest(in.ReviewDigest) ||
-			op == nil || op.TaskID != task.ID || op.Status != "succeeded" || op.Allocation != "ready" {
+			op == nil || op.TaskID != task.ID || (op.Status != "succeeded" && op.Status != "review-required" && op.Status != "failed") || op.Allocation != "ready" {
 			return "", false
 		}
 		delete(wanted, task.ID)
@@ -149,6 +149,9 @@ func (s *Server) continueCoordinatorDelivery(ctx context.Context, p project.Proj
 	} else if row.Delivery.Commit != commit || row.Delivery.SourceDigest != digest || row.Delivery.IntegrationDigest != integration {
 		return row, ErrOrchestratorConflict
 	}
+	if row.Delivery.Status == "verified" {
+		return s.continueCoordinatorPreview(ctx, p, row)
+	}
 	var invokeErr error
 	if invoke {
 		invokeErr = s.invokeCoordinatorChecks(ctx, p, row, run)
@@ -209,7 +212,11 @@ func (s *Server) continueCoordinatorDelivery(ctx context.Context, p project.Proj
 	if err != nil {
 		return row, err
 	}
-	return s.persistCoordinatorDelivery(ctx, p, row, "verified", "The exact completed check is linked to the reviewed integrated source and requirements. Preview, release policy and actual deployment remain to be completed.")
+	row, err = s.persistCoordinatorDelivery(ctx, p, row, "verified", "The exact completed check is linked to the reviewed integrated source and requirements. Preview, release policy and actual deployment remain to be completed.")
+	if err != nil {
+		return row, err
+	}
+	return s.continueCoordinatorPreview(ctx, p, row)
 }
 
 func (s *Server) persistCoordinatorDelivery(ctx context.Context, p project.Project, row coordinatorContinuationRecord, status, message string) (coordinatorContinuationRecord, error) {

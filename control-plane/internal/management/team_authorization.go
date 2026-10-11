@@ -126,6 +126,8 @@ var teamRouteRules = []teamRouteRule{
 	{"POST /v1/product/projects/{projectId}/assist/orchestrator", teamEdit | teamExecute | teamSecrets},
 	{"GET /v1/product/projects/{projectId}/orchestrator", teamRead},
 	{"GET /v1/product/projects/{projectId}/orchestrator/coordination", teamRead},
+	{"GET /v1/product/projects/{projectId}/orchestrator/coordination/intents/{intentId}", teamRead},
+	{"GET /v1/product/projects/{projectId}/orchestrator/coordination/events/{eventId}", teamRead},
 	{"POST /v1/product/projects/{projectId}/orchestrator/coordination/intents", teamEdit},
 	{"POST /v1/product/projects/{projectId}/orchestrator/coordination/intents/{intentId}/resolve", teamEdit},
 	{"GET /v1/product/projects/{projectId}/orchestrator/continuations", teamRead},

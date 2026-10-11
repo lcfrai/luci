@@ -56,13 +56,19 @@ func (s *Server) registerApplicationConfiguration(mux Registrar) {
 // Flat state files avoid creating any directory on a metadata GET. File and
 // parent resolution rejects symlinks; one-name checks reject hard-linked state.
 func (s *Server) privateApplicationStatePath(name string) (string, error) {
+	return privateApplicationStatePathForRoot(s.projectRoot(), s.stateDir, name)
+}
+
+// Callers already holding s.mu pass the protected configuration root directly;
+// the filesystem checks themselves neither acquire the mutex nor create state.
+func privateApplicationStatePathForRoot(projectsDir, stateDir, name string) (string, error) {
 	if !coolifyID.MatchString(name) {
 		return "", errors.New("invalid private application state identifier")
 	}
-	if _, err := hostpath.ResolveOutside(s.projectRoot(), s.stateDir); err != nil {
+	if _, err := hostpath.ResolveOutside(projectsDir, stateDir); err != nil {
 		return "", errors.New("application configuration requires private state outside projects")
 	}
-	path, err := guardedProjectPath(s.stateDir, name+".json", true)
+	path, err := guardedProjectPath(stateDir, name+".json", true)
 	if err != nil {
 		return "", errors.New("application configuration state path is unsafe")
 	}

@@ -14,11 +14,12 @@ type CoordinatorRoute struct {
 	Outcome           string  `json:"outcome"`
 }
 type CoordinatorSavedRoute struct {
-	Revision    int                   `json:"revision"`
-	CheckPlan   *CoordinatorCheckPlan `json:"checkPlan,omitempty"`
-	Route       CoordinatorRoute      `json:"route"`
-	MaxParallel int                   `json:"maxParallel"`
-	UpdatedAt   string                `json:"updatedAt"`
+	Revision    int                     `json:"revision"`
+	CheckPlan   *CoordinatorCheckPlan   `json:"checkPlan,omitempty"`
+	PreviewPlan *CoordinatorPreviewPlan `json:"previewPlan,omitempty"`
+	Route       CoordinatorRoute        `json:"route"`
+	MaxParallel int                     `json:"maxParallel"`
+	UpdatedAt   string                  `json:"updatedAt"`
 }
 
 func coordinatorRoute(req projectRunCreateRequest) CoordinatorRoute {
@@ -32,6 +33,9 @@ func coordinatorRoute(req projectRunCreateRequest) CoordinatorRoute {
 func validCoordinatorRoute(saved *CoordinatorSavedRoute) bool {
 	if saved == nil {
 		return true
+	}
+	if validateCoordinatorPreviewPlan(saved.PreviewPlan) != nil || (saved.PreviewPlan != nil && saved.CheckPlan == nil) {
+		return false
 	}
 	if validateCoordinatorCheckPlan(saved.CheckPlan) != nil {
 		return false

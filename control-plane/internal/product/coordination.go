@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -18,13 +19,17 @@ type CoordinationConflict struct {
 }
 
 type CoordinationView struct {
-	ProjectID      string                 `json:"projectId"`
-	Revision       int                    `json:"revision"`
-	ContextDigest  string                 `json:"contextDigest"`
-	Intents        []CoordinationIntent   `json:"intents"`
-	Events         []CoordinationEvent    `json:"events"`
-	Conflicts      []CoordinationConflict `json:"conflicts"`
-	AllowedActions []string               `json:"allowedActions"`
+	ProjectID        string                         `json:"projectId"`
+	Revision         int                            `json:"revision"`
+	ContextDigest    string                         `json:"contextDigest"`
+	Intents          []CoordinationIntent           `json:"intents"`
+	Events           []CoordinationEvent            `json:"events"`
+	Archives         []CoordinationArchiveReference `json:"archives,omitempty"`
+	HistoricalCauses []CoordinationIntent           `json:"historicalCauses,omitempty"`
+	EventSequence    int                            `json:"eventSequence"`
+	EventHead        string                         `json:"eventHead"`
+	Conflicts        []CoordinationConflict         `json:"conflicts"`
+	AllowedActions   []string                       `json:"allowedActions"`
 }
 
 func (s *Server) registerCoordination(mux Registrar) {
@@ -32,6 +37,8 @@ func (s *Server) registerCoordination(mux Registrar) {
 		mux = wrapped.base
 	}
 	mux.HandleFunc("GET /v1/product/projects/{id}/orchestrator/coordination", s.getCoordination)
+	mux.HandleFunc("GET /v1/product/projects/{id}/orchestrator/coordination/intents/{intentId}", s.getCoordinationIntent)
+	mux.HandleFunc("GET /v1/product/projects/{id}/orchestrator/coordination/events/{eventId}", s.getCoordinationEvent)
 	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/coordination/intents", s.createCoordinationIntent)
 	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/coordination/intents/{intentId}/resolve", s.resolveCoordinationIntent)
 }
@@ -81,15 +88,30 @@ func (s *Server) recordCoordinationProposalLocked(p project.Project, turn stored
 		}
 		return ErrOrchestratorConflict
 	}
-	appendCoordinationOrigin(&saved, turn)
+	archived, _, err := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnID == turn.ID })
+	if err != nil {
+		return err
+	}
+	if archived != nil {
+		if archived.ProposalDigest == reviewDigest(turn.Answer.Proposal) && archived.Actor.ID == turn.Actor.ID && archived.BaseContextDigest == turn.ContextDigest {
+			return nil
+		}
+		return ErrOrchestratorConflict
+	}
+	if err = s.compactCoordinationLocked(p, &saved, 1); err != nil {
+		return err
+	}
+	if err = appendCoordinationOrigin(&saved, turn); err != nil {
+		return err
+	}
 	return s.saveCoordination(saved)
 }
 
-func appendCoordinationOrigin(saved *coordinationLedger, turn storedOrchestratorTurn) {
+func appendCoordinationOrigin(saved *coordinationLedger, turn storedOrchestratorTurn) error {
 	requirements, tasks, all := coordinationImpact(turn)
 	intent := storedCoordinationIntent{CoordinationIntent: CoordinationIntent{ID: newID("intent-"), TurnID: turn.ID, Actor: turn.Actor, LuciID: coordinationLuciID(saved.AccountScope, turn.Actor.ID), BaseContextDigest: turn.ContextDigest, ProposalDigest: reviewDigest(turn.Answer.Proposal), Target: turn.Answer.Proposal.Target, RequestedChange: turn.Message, ChangedPaths: coordinationPaths(coordinationChanges(&turn)), RequirementIDs: requirements, TaskIDs: tasks, AffectsAllTasks: all, DependsOn: []string{}, Status: "pending", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}, Key: reviewDigest([]string{"completed-proposal", turn.Actor.ID, turn.ID}), Request: reviewDigest([]any{turn.Actor.ID, turn.ID, []string{}})}
 	saved.Intents = append(saved.Intents, intent)
-	coordinationEvent(saved, intent.CoordinationIntent, "proposed", turn.ContextDigest, turn.Actor)
+	return coordinationEvent(saved, intent.CoordinationIntent, "proposed", turn.ContextDigest, turn.Actor)
 }
 
 func (s *Server) ensureCoordinationOriginsLocked(p project.Project) error {
@@ -106,10 +128,22 @@ func (s *Server) ensureCoordinationOriginsLocked(p project.Project) error {
 		if turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil || turn.AppliedRevision > 0 || coordinationIntent(&saved, turn.ID) != nil {
 			continue
 		}
+		archived, _, lookupErr := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnID == turn.ID })
+		if lookupErr != nil {
+			return lookupErr
+		}
+		if archived != nil {
+			continue
+		}
 		if ValidateOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
 			return ErrOrchestratorInvalid
 		}
-		appendCoordinationOrigin(&saved, turn)
+		if err = s.compactCoordinationLocked(p, &saved, 1); err != nil {
+			return err
+		}
+		if err = appendCoordinationOrigin(&saved, turn); err != nil {
+			return err
+		}
 		changed = true
 	}
 	// One bounded durable write restores all retained pending proposals, so a
@@ -214,7 +248,7 @@ func coordinationConflicts(saved coordinationLedger, turns orchestratorLedger, c
 			out = append(out, CoordinationConflict{IntentID: intent.ID, Paths: []string{}, Reason: "merged-context-invalid"})
 		}
 		for _, dep := range intent.DependsOn {
-			satisfied := false
+			satisfied := saved.witnesses[dep].Intent.Status == "applied"
 			for _, peer := range saved.Intents {
 				if peer.ID == dep && peer.Status == "applied" {
 					satisfied = true
@@ -259,6 +293,19 @@ func (s *Server) coordinationViewLocked(ctx context.Context, p project.Project) 
 	view := CoordinationView{ProjectID: p.ID, Revision: saved.Revision, ContextDigest: snapshot.Digest, Intents: []CoordinationIntent{}, Events: saved.Events, Conflicts: coordinationConflicts(saved, turns, snapshot), AllowedActions: []string{}}
 	for _, intent := range saved.Intents {
 		view.Intents = append(view.Intents, intent.CoordinationIntent)
+	}
+	sequence, indexErr := coordinationEventIndex(saved)
+	if indexErr != nil {
+		return CoordinationView{}, indexErr
+	}
+	view.EventSequence = len(sequence)
+	view.EventHead = sequence[len(sequence)]
+	for _, witness := range saved.witnesses {
+		view.HistoricalCauses = append(view.HistoricalCauses, witness.Intent)
+	}
+	sort.Slice(view.HistoricalCauses, func(i, j int) bool { return view.HistoricalCauses[i].ID < view.HistoricalCauses[j].ID })
+	for _, archive := range saved.Archives {
+		view.Archives = append(view.Archives, archive.CoordinationArchiveReference)
 	}
 	if s.coordinatorAuthority(ctx, p.ID) == nil {
 		view.AllowedActions = []string{"propose-own-turn", "supersede-own-intent"}
@@ -349,6 +396,23 @@ func (s *Server) createCoordinationIntent(w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
+	archived, _, err := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.Key == key || id.TurnID == req.TurnID })
+	if err != nil {
+		orchestratorProblem(w, err)
+		return
+	}
+	if archived != nil {
+		if archived.Actor.ID != actor.ID {
+			coordinatorPolicyProblem(w, errCoordinatorAuthority)
+			return
+		}
+		if archived.Key != key || archived.Request != request {
+			orchestratorProblem(w, ErrOrchestratorConflict)
+			return
+		}
+		journeyJSON(w, 200, archived.CoordinationIntent)
+		return
+	}
 	turns, err := s.readOrchestrator(p)
 	if err != nil {
 		orchestratorProblem(w, err)
@@ -380,16 +444,35 @@ func (s *Server) createCoordinationIntent(w http.ResponseWriter, r *http.Request
 				found = true
 			}
 		}
+		if !found {
+			archived, _, lookupErr := s.archivedCoordinationIntent(p, saved, func(row coordinationArchivedIdentity) bool { return row.IntentID == id })
+			if lookupErr != nil {
+				orchestratorProblem(w, lookupErr)
+				return
+			}
+			found = archived != nil && archived.Status == "applied"
+		}
 		if !found || deps[id] {
 			orchestratorProblem(w, ErrOrchestratorInvalid)
 			return
 		}
 		deps[id] = true
 	}
+	if err = s.compactCoordinationLocked(p, &saved, 1, req.DependsOn...); err != nil {
+		orchestratorProblem(w, err)
+		return
+	}
 	requirements, tasks, all := coordinationImpact(*turn)
 	intent := storedCoordinationIntent{CoordinationIntent: CoordinationIntent{ID: newID("intent-"), TurnID: turn.ID, Actor: actor, LuciID: coordinationLuciID(saved.AccountScope, actor.ID), BaseContextDigest: turn.ContextDigest, ProposalDigest: reviewDigest(turn.Answer.Proposal), Target: turn.Answer.Proposal.Target, RequestedChange: turn.Message, ChangedPaths: coordinationPaths(coordinationChanges(turn)), RequirementIDs: requirements, TaskIDs: tasks, AffectsAllTasks: all, DependsOn: append([]string{}, req.DependsOn...), Status: "pending", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}, Key: key, Request: request}
 	saved.Intents = append(saved.Intents, intent)
-	coordinationEvent(&saved, intent.CoordinationIntent, "proposed", snapshot.Digest, actor)
+	if err = coordinationEvent(&saved, intent.CoordinationIntent, "proposed", snapshot.Digest, actor); err != nil {
+		orchestratorProblem(w, err)
+		return
+	}
+	if err = newCoordinationArchiveReader(s, p).hydrate(&saved); err != nil {
+		orchestratorProblem(w, err)
+		return
+	}
 	if err = s.saveCoordination(saved); err != nil {
 		orchestratorProblem(w, err)
 		return
@@ -449,6 +532,21 @@ func (s *Server) resolveCoordinationIntent(w http.ResponseWriter, r *http.Reques
 			replacementIntent = &saved.Intents[i]
 		}
 	}
+	if intent == nil {
+		archived, _, lookupErr := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.IntentID == r.PathValue("intentId") })
+		if lookupErr != nil {
+			orchestratorProblem(w, lookupErr)
+			return
+		}
+		if archived != nil && archived.Actor.ID == actor.ID {
+			if archived.Status == "superseded" && archived.SupersededBy == req.SupersededBy && archived.ResolutionReason == req.Reason {
+				journeyJSON(w, 200, archived.CoordinationIntent)
+				return
+			}
+			orchestratorProblem(w, ErrOrchestratorConflict)
+			return
+		}
+	}
 	if intent == nil || intent.Actor.ID != actor.ID {
 		coordinatorPolicyProblem(w, errCoordinatorAuthority)
 		return
@@ -500,7 +598,10 @@ func (s *Server) resolveCoordinationIntent(w http.ResponseWriter, r *http.Reques
 	intent.SupersededBy = req.SupersededBy
 	intent.ResolutionReason = req.Reason
 	value := intent.CoordinationIntent
-	coordinationEvent(&saved, value, "superseded", snapshot.Digest, actor)
+	if err = coordinationEvent(&saved, value, "superseded", snapshot.Digest, actor); err != nil {
+		orchestratorProblem(w, err)
+		return
+	}
 	if err = s.saveCoordination(saved); err != nil {
 		orchestratorProblem(w, err)
 		return
@@ -592,7 +693,13 @@ func (s *Server) finishCoordinationApplyLocked(ctx context.Context, p project.Pr
 	}
 	intent := coordinationIntent(&saved, turn.ID)
 	if intent == nil {
-		return nil
+		intent, _, err = s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnID == turn.ID })
+		if err != nil {
+			return err
+		}
+		if intent == nil {
+			return nil
+		}
 	}
 	if err = s.coordinatorAuthority(ctx, p.ID); err != nil {
 		return err
@@ -619,7 +726,9 @@ func (s *Server) finishCoordinationApplyLocked(ctx context.Context, p project.Pr
 	// as yesterday's acceptance. Consumers fetch and admit current context.
 	value := intent.CoordinationIntent
 	actor, _ := authenticatedContextActor(ctx)
-	coordinationEvent(&saved, value, "applied", intent.ApplyBaseContextDigest, actor)
+	if err = coordinationEvent(&saved, value, "applied", intent.ApplyBaseContextDigest, actor); err != nil {
+		return err
+	}
 	return s.saveCoordination(saved)
 }
 
@@ -633,7 +742,14 @@ func (s *Server) validateCoordinationRecoveryLocked(ctx context.Context, p proje
 	if err != nil {
 		return err
 	}
-	if intent := coordinationIntent(&saved, turn.ID); intent != nil {
+	intent := coordinationIntent(&saved, turn.ID)
+	if intent == nil {
+		intent, _, err = s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnID == turn.ID })
+		if err != nil {
+			return err
+		}
+	}
+	if intent != nil {
 		if err = s.coordinatorAuthority(ctx, p.ID); err != nil {
 			return err
 		}
@@ -656,6 +772,38 @@ func (s *Server) retainedCoordinationTurnsLocked(p project.Project) (map[string]
 	out := map[string]bool{}
 	for _, intent := range saved.Intents {
 		out[intent.TurnID] = true
+	}
+	if s.coordinatorAuthorize != nil {
+		turns, readErr := s.readOrchestrator(p)
+		if readErr != nil {
+			return nil, readErr
+		}
+		reader := newCoordinationArchiveReader(s, p)
+		for _, turn := range turns.Turns {
+			if out[turn.ID] || turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil {
+				continue
+			}
+			settled := false
+			for _, ref := range saved.Archives {
+				for _, row := range ref.Retired {
+					if row.TurnID != turn.ID {
+						continue
+					}
+					page, archiveErr := reader.read(saved, ref)
+					if archiveErr != nil {
+						return nil, archiveErr
+					}
+					original := coordinationTurn(page.Origins, turn.ID)
+					if original == nil || !reflect.DeepEqual(*original, turn) {
+						return nil, ErrOrchestratorConflict
+					}
+					settled = true
+				}
+			}
+			if !settled {
+				out[turn.ID] = true
+			}
+		}
 	}
 	return out, nil
 }

@@ -20,6 +20,11 @@ import (
 func coordinatorDeliveryFixture(t *testing.T, commands ...CheckCommand) (*Server, project.Project, http.Handler, context.Context, CoordinatorContinuation, *atomic.Int32) {
 	t.Helper()
 	s, p, h, ctx, request, _ := coordinatorContinuationFixture(t)
+	return coordinatorDeliveryRequestFixture(t, s, p, h, ctx, request, commands...)
+}
+
+func coordinatorDeliveryRequestFixture(t *testing.T, s *Server, p project.Project, h http.Handler, ctx context.Context, request coordinatorContinuationRequest, commands ...CheckCommand) (*Server, project.Project, http.Handler, context.Context, CoordinatorContinuation, *atomic.Int32) {
+	t.Helper()
 	if len(commands) == 0 {
 		commands = []CheckCommand{{Label: "Reviewed behavior check", Executable: "node", Args: []string{"-e", "const fs=require('fs');if(fs.readFileSync('result.txt','utf8')!=='independently integrated implementation\\n'){process.exit(7)};console.log('integrated result verified')"}}}
 	}
@@ -53,7 +58,7 @@ func coordinatorDeliveryFixture(t *testing.T, commands ...CheckCommand) (*Server
 
 // The coding outcome is controlled; review, private operation receipts, native
 // Git isolation and integration are real. No provider or Docker claim is made.
-func coordinatorIntegrateFixture(t *testing.T, s *Server, p project.Project, h http.Handler, out CoordinatorContinuation) ProjectRun {
+func coordinatorIntegrateFixture(t *testing.T, s *Server, p project.Project, h http.Handler, out CoordinatorContinuation, terminal ...string) ProjectRun {
 	t.Helper()
 	run, err := s.projectRuns.Get(p.ID, p.Path, out.RunID)
 	if err != nil {
@@ -64,7 +69,17 @@ func coordinatorIntegrateFixture(t *testing.T, s *Server, p project.Project, h h
 	op := run.Operations[len(run.Operations)-1]
 	path := mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID)
 	swarmCommitFixture(t, path, "result.txt", "independently integrated implementation\n")
-	run = swarmFinishFixture(t, s, p, run, op.ID)
+	if len(terminal) == 0 {
+		run = swarmFinishFixture(t, s, p, run, op.ID)
+	} else {
+		run, _, _, err = s.projectRuns.ClaimOperation(p.ID, p.Path, run.ID, run.Revision, op.ID)
+		if err == nil {
+			run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, terminal[0], "Controlled failed worker left committed source for explicit review.")
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 	s.SetProjectRunSessionObserver(func(context.Context, string, string, string) ([]registry.Session, error) { return nil, nil })
 	var reviewed struct {
 		Review ProjectSwarmReview `json:"review"`

@@ -1,0 +1,14 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "src/api/coordinatorIntents.test.ts",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud086-retention/evidence/node/report.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "timeoutSeconds": 60,
+  "startedAt": "2026-10-11T16:15:07.383678+00:00"
+}

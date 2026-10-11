@@ -311,8 +311,12 @@ func (s *Server) observeProjectRunRelease(ctx context.Context, projectID, releas
 		if err != nil {
 			return "", "", err
 		}
-		for _, row := range rows {
-			if row.ID == releaseID && row.ProjectID == projectID && row.Target == target && row.Commit == commit && row.Status == "ready" {
+		for _, saved := range rows {
+			if saved.ID == releaseID && saved.ProjectID == projectID && saved.Target == target && saved.Commit == commit && !saved.CancelRequested {
+				row := s.observeLocalReleases(ctx, []storedRelease{saved})[0]
+				if row.Status != "ready" {
+					continue
+				}
 				if err = s.verifyReleasePreview(ctx, row); err != nil {
 					return "", "", errors.New("The release's owned preview is unavailable or its binding changed.")
 				}

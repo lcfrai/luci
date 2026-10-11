@@ -1,0 +1,27 @@
+[
+  {
+    "path": "control-plane/internal/product/coordination.go",
+    "sha256": "f7bc0717a6a77cbb441c7b69a8808b95ddfda0ce4e5f318a6ad902510339364a",
+    "bytes": 29152
+  },
+  {
+    "path": "control-plane/internal/product/coordination_store.go",
+    "sha256": "4343433a7a0bcafa251506ed2d3c29fe15dc8527adcb2d5b07aee048c925f601",
+    "bytes": 13902
+  },
+  {
+    "path": "control-plane/internal/product/coordination_archive.go",
+    "sha256": "71c16378ff2ef8fc75a292a0ece26d866e3de96e6830f6fc11adaada83b2466e",
+    "bytes": 22213
+  },
+  {
+    "path": "control-plane/internal/product/coordination_archive_test.go",
+    "sha256": "12a8764c67a06fd594ec9674d48272a7222bc3a53853ace42aaf6101e167637e",
+    "bytes": 14975
+  },
+  {
+    "path": "control-plane/internal/product/coordination_retention_regression_test.go",
+    "sha256": "886c3aa2ad681a232923119fc1161c33d1ac7e270ba32ae7964605b09b0c10b7",
+    "bytes": 1735
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "src/api/coordinatorIntents.ts": "4657bef93e8b7aaa5015b4aed69975a5a64de039597c6a40df987ebf2541a0db",
+  "src/api/coordinatorIntents.test.ts": "b025f25508d9b0d6e9f8d362ed79fc93e680e6c50e35f28eec576450297cd72d",
+  "package.json": "3423464851fd487363f89beca7a27df2654a94f6b70a74935841a851c9c66bd3",
+  "package-lock.json": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+  "tsconfig.json": "65c82e3009d033dba271b9ce83a712bb4b934aeded98cb9d3e33472dd4d5f49c",
+  "vite.config.ts": "be4e7f5167e717324648803be82e755033db2a559c4fbada29ce8aeeacb67914"
+}

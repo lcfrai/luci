@@ -1,0 +1,12 @@
+[
+  {
+    "path": "control-plane/internal/product/app_config.go",
+    "sha256": "563bfcd4703b650f91ebc425c9be4879d763da329591b909bbc6f21432ec5c04",
+    "bytes": 8731
+  },
+  {
+    "path": "control-plane/internal/product/coordinator_delivery_preview_admission.go",
+    "sha256": "6a0d10a90633196d47d3a4add87ce24371ec77b49c05eecb86599409d51b81c0",
+    "bytes": 10254
+  }
+]

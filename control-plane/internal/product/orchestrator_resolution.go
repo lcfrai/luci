@@ -128,6 +128,9 @@ func (s *Server) ResolveOrchestratorRequest(ctx context.Context, id string, req 
 		}
 	}
 	turn, err := findOrchestratorRequest(storage, key, digest)
+	if err == nil && turn == nil {
+		turn, err = s.archivedCoordinationRequestLocked(p, key, digest)
+	}
 	if err != nil {
 		return unknown, err
 	}
@@ -151,6 +154,13 @@ func (s *Server) ResolveOrchestratorRequest(ctx context.Context, id string, req 
 				return unknown, nil
 			}
 		}
+	}
+	foreign, err := s.archivedCoordinationForeignRequestLocked(p, actor.ID, req.IdempotencyKey)
+	if err != nil {
+		return unknown, err
+	}
+	if foreign {
+		return unknown, nil
 	}
 	if !completeOrchestratorRequestHistory(storage) {
 		unknown.Message = "Retained history cannot establish whether this request was accepted. Keep the original request; no inference was repeated."

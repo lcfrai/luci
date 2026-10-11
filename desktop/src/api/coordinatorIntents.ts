@@ -14,11 +14,14 @@ export interface CoordinatorEvent {
 }
 export interface CoordinatorConflict {
   intentId: string; otherIntentId?: string; paths: string[];
-  reason: "origin-unavailable" | "current-context-conflict" | "dependency-unresolved" | "opposing-intent";
+  reason: "origin-unavailable" | "current-context-conflict" | "dependency-unresolved" | "opposing-intent" | "merged-context-invalid";
+}
+export interface CoordinatorArchive {
+  digest: string; bytes: number; events: { id: string; sequence: number; originIntentId: string }[];
 }
 export interface CoordinatorIntentsView {
   projectId: string; revision: number; contextDigest: string; intents: CoordinatorIntent[];
-  events: CoordinatorEvent[]; conflicts: CoordinatorConflict[]; allowedActions: ("propose-own-turn" | "supersede-own-intent")[];
+  events: CoordinatorEvent[]; archives?: CoordinatorArchive[]; historicalCauses?: CoordinatorIntent[]; eventSequence?: number; eventHead?: string; conflicts: CoordinatorConflict[]; allowedActions: ("propose-own-turn" | "supersede-own-intent")[];
 }
 export interface RecordCoordinatorIntent {
   expectedRevision: number; expectedContextDigest: string; turnId: string; idempotencyKey: string; dependsOn: string[];
@@ -55,15 +58,47 @@ function verifiedView(value: CoordinatorIntentsView, projectId: string) {
     throw new Error("Team coordination could not be verified for this project. Refresh before continuing.");
   }
   const ids = new Set(value.intents.map(intent => intent.id));
-  if (value.intents.some(intent => intent.dependsOn.some(id => !ids.has(id) || id === intent.id) || (intent.supersededBy && !ids.has(intent.supersededBy))) ||
-      new Set(value.events.map(event => event.id)).size !== value.events.length ||
-      value.events.some((event, index) => !event || !text(event.id, 128) || event.sequence !== index + 1 ||
-        (event.previousEventId ?? "") !== (index ? value.events[index - 1].id : "") || !ids.has(event.intentId) || !actor(event.actor) || !timestamp(event.at) ||
-        !["proposed", "applied", "superseded"].includes(event.kind) || !hash(event.contextDigest) || !list(event.causes, 17) || event.causes.some(id => !ids.has(id))) ||
-      value.conflicts.some(conflict => !conflict || !ids.has(conflict.intentId) || (conflict.otherIntentId && !ids.has(conflict.otherIntentId)) || !list(conflict.paths, 1024) ||
-        !["origin-unavailable", "current-context-conflict", "dependency-unresolved", "opposing-intent"].includes(conflict.reason))) {
-    throw new Error("Team coordination has incomplete causal records. Refresh before continuing.");
+  const archives = value.archives ?? [], historical = value.historicalCauses ?? [];
+  const sequence = new Map<number, string>(), eventIds = new Set<string>(), archivedOrigins = new Map<string, string>();
+  const fail = () => { throw new Error("Team coordination has incomplete causal records. Refresh before continuing."); };
+  if ((value.archives !== undefined && !Array.isArray(value.archives)) || archives.length > 64 ||
+      (value.historicalCauses !== undefined && !Array.isArray(value.historicalCauses)) || historical.length > 1024) fail();
+  const addEvent = (id: string, position: number) => {
+    if (!text(id, 128) || !id.startsWith("coord-event-") || !Number.isSafeInteger(position) || position < 1 || position > 12480 || sequence.has(position) || eventIds.has(id)) fail();
+    sequence.set(position, id); eventIds.add(id);
+  };
+  const archiveDigests = new Set<string>();
+  let archiveBytes = 0;
+  for (const archive of archives) {
+    if (!archive || !hash(archive.digest) || archiveDigests.has(archive.digest) || !Number.isSafeInteger(archive.bytes) || archive.bytes < 1 || archive.bytes > 25 * 1024 * 1024 ||
+        !Array.isArray(archive.events) || archive.events.length < 1 || archive.events.length > 192) fail();
+    archiveDigests.add(archive.digest); archiveBytes += archive.bytes;
+    for (const ref of archive.events) {
+      if (!ref || !text(ref.originIntentId, 128) || !ref.originIntentId.startsWith("intent-") || ids.has(ref.originIntentId) ||
+          (archivedOrigins.has(ref.originIntentId) && archivedOrigins.get(ref.originIntentId) !== archive.digest)) fail();
+      archivedOrigins.set(ref.originIntentId, archive.digest);
+      addEvent(ref.id, ref.sequence);
+    }
   }
+  if (archiveBytes > 256 * 1024 * 1024) fail();
+  const causes = new Set(ids);
+  for (const witness of historical) {
+    if (!validIntent(witness) || witness.status !== "applied" || causes.has(witness.id) || !archivedOrigins.has(witness.id)) fail();
+    causes.add(witness.id);
+  }
+  for (const event of value.events) {
+    if (!event) fail();
+    addEvent(event.id, event.sequence);
+  }
+  for (let i = 1; i <= sequence.size; i++) if (!sequence.has(i)) fail();
+  const modern = value.eventSequence !== undefined || value.eventHead !== undefined || archives.length > 0 || historical.length > 0;
+  if (modern && (!Number.isSafeInteger(value.eventSequence) || value.eventSequence !== sequence.size || value.eventHead !== (sequence.get(sequence.size) ?? ""))) fail();
+  if (value.intents.some(intent => intent.dependsOn.some(id => !causes.has(id) || id === intent.id) || (intent.supersededBy && !ids.has(intent.supersededBy))) ||
+      value.events.some((event, index) => !ids.has(event.intentId) || !actor(event.actor) || !timestamp(event.at) ||
+        (index > 0 && event.sequence <= value.events[index - 1].sequence) || (event.previousEventId ?? "") !== (sequence.get(event.sequence - 1) ?? "") ||
+        !["proposed", "applied", "superseded"].includes(event.kind) || !hash(event.contextDigest) || !list(event.causes, 17) || event.causes.some(id => !causes.has(id))) ||
+      value.conflicts.some(conflict => !conflict || !ids.has(conflict.intentId) || (conflict.otherIntentId && !causes.has(conflict.otherIntentId)) || !list(conflict.paths, 1024) ||
+        !["origin-unavailable", "current-context-conflict", "dependency-unresolved", "opposing-intent", "merged-context-invalid"].includes(conflict.reason))) fail();
   return value;
 }
 export const coordinatorIntentsApi = {

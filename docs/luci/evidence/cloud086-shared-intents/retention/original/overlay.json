@@ -1,0 +1,8 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/product/coordination.go": "/workspace/.luci-tools/cloud086-retention/before/coordination.go",
+    "/workspace/luci/control-plane/internal/product/coordination_store.go": "/workspace/.luci-tools/cloud086-retention/before/coordination_store.go",
+    "/workspace/luci/control-plane/internal/product/coordination_archive.go": "/workspace/.luci-tools/cloud086-retention/original/compatibility.go",
+    "/workspace/luci/control-plane/internal/product/coordination_archive_test.go": "/workspace/.luci-tools/cloud086-retention/original/empty_test.go"
+  }
+}

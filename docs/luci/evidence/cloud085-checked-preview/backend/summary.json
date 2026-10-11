@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "scope": "CLOUD-085 checked-source local preview delegation; public deployment is not implemented by this checkpoint",
+  "liveAcceptance": false,
+  "rawReceipts": "docs/luci/evidence/cloud086-shared-intents/retention",
+  "fixedPassingOutcomesAcrossInvocations": 60,
+  "uniquePassingTestIdentitiesAcrossFixedInvocations": 59,
+  "runs": [
+    {
+      "path": "../../cloud086-shared-intents/retention/race-final-1",
+      "result": {
+        "exitCode": -15,
+        "stopReason": "outer-timeout",
+        "elapsedSeconds": 300.87956654804293,
+        "effectiveRepositoryInputsStable": true,
+        "sourceCountBefore": 861,
+        "sourceCountAfter": 861,
+        "freeBytesAfter": {
+          "root": 678875136,
+          "tmp": 419381248
+        },
+        "completedAt": "2026-10-11T16:50:09.100725+00:00"
+      },
+      "testOutcomes": {
+        "pass": 16,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "path": "../../cloud086-shared-intents/retention/preview-first-fixed-1",
+      "result": {
+        "exitCode": 0,
+        "stopReason": null,
+        "elapsedSeconds": 28.586936059000436,
+        "effectiveRepositoryInputsStable": true,
+        "sourceCountBefore": 861,
+        "sourceCountAfter": 861,
+        "freeBytesAfter": {
+          "root": 678109184,
+          "tmp": 419368960
+        },
+        "completedAt": "2026-10-11T16:53:01.078572+00:00"
+      },
+      "testOutcomes": {
+        "pass": 2,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "path": "../../cloud086-shared-intents/retention/preview-rest-fixed-1",
+      "result": {
+        "exitCode": 0,
+        "stopReason": null,
+        "elapsedSeconds": 100.93578799103852,
+        "effectiveRepositoryInputsStable": true,
+        "sourceCountBefore": 861,
+        "sourceCountAfter": 861,
+        "freeBytesAfter": {
+          "root": 676933632,
+          "tmp": 419368960
+        },
+        "completedAt": "2026-10-11T16:55:16.944246+00:00"
+      },
+      "testOutcomes": {
+        "pass": 58,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  ],
+  "limitations": [
+    "Controlled admitted preview runtime; native Git review/integration, command execution, committed archive and actual HTTP health are exercised.",
+    "No live provider, Docker enforcement, microVM, Windows, public deployment, performance or full application behavior acceptance.",
+    "Source integration still requires exact explicit existing review; no model-generated semantic approval is invented.",
+    "Actual deployment and Git source publication are separate subsequent work, not covered by these source pins."
+  ],
+  "repairs": {
+    "lockReentry": "Initial outer-bounded race timed out in first preview. Static inspection found coordinatorPreviewAuthorityLocked held s.mu then privateApplicationStatePath called projectRoot and reacquired it. No Go stack was captured. The pure path helper preserves filesystem guards and uses the already protected root.",
+    "diskFull": "An earlier ENOSPC interrupted project_runs_evidence.go after20480of20482bytes. Full intended source was reconstructed from HEAD plus exact approved observer edit, verified byte-for-byte against retained prefix, restored and formatted before every reported test invocation. Final source SHA2568804337646080c19c8198a95a9441e20248c27727dcf3d6bd5e7cf31d1a5e77b."
+  }
+}

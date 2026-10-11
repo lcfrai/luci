@@ -278,6 +278,9 @@ func (s *Server) ReserveOrchestratorTurn(ctx context.Context, id string, req Orc
 		}
 	}
 	previous, err := findOrchestratorRequest(storage, key, digest)
+	if err == nil && previous == nil {
+		previous, err = s.archivedCoordinationRequestLocked(p, key, digest)
+	}
 	if err != nil {
 		return OrchestratorTurn{}, OrchestratorContext{}, false, err
 	}

@@ -1,0 +1,144 @@
+{
+  "original": {
+    "outcomes": {
+      "product": {
+        "fail-top": 1
+      }
+    },
+    "packageResults": [
+      {
+        "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+        "Action": "fail",
+        "Elapsed": 12.502
+      }
+    ],
+    "result": {
+      "exitCode": 1,
+      "stopReason": null,
+      "elapsedSeconds": 105.22668331296882,
+      "effectiveRepositoryInputsStable": true,
+      "sourceCountBefore": 858,
+      "sourceCountAfter": 858,
+      "freeBytesAfter": {
+        "root": 1896726528,
+        "tmp": 440971264
+      },
+      "completedAt": "2026-10-11T16:26:04.968240+00:00"
+    }
+  },
+  "fixed-1": {
+    "outcomes": {
+      "product": {
+        "pass-top": 25,
+        "pass-sub": 25,
+        "fail-top": 1
+      }
+    },
+    "packageResults": [
+      {
+        "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+        "Action": "fail",
+        "Elapsed": 21.1
+      }
+    ],
+    "result": {
+      "exitCode": 1,
+      "stopReason": null,
+      "elapsedSeconds": 37.27460773399798,
+      "effectiveRepositoryInputsStable": true,
+      "sourceCountBefore": 858,
+      "sourceCountAfter": 858,
+      "freeBytesAfter": {
+        "root": 1866989568,
+        "tmp": 440971264
+      },
+      "completedAt": "2026-10-11T16:28:45.179127+00:00"
+    }
+  },
+  "race-final-1": {
+    "outcomes": {
+      "product": {
+        "pass-top": 9,
+        "pass-sub": 7
+      }
+    },
+    "packageResults": [],
+    "result": {
+      "exitCode": -15,
+      "stopReason": "outer-timeout",
+      "elapsedSeconds": 300.87956654804293,
+      "effectiveRepositoryInputsStable": true,
+      "sourceCountBefore": 861,
+      "sourceCountAfter": 861,
+      "freeBytesAfter": {
+        "root": 678875136,
+        "tmp": 419381248
+      },
+      "completedAt": "2026-10-11T16:50:09.100725+00:00"
+    }
+  },
+  "preview-first-fixed-1": {
+    "outcomes": {
+      "product": {
+        "pass-sub": 1,
+        "pass-top": 1
+      }
+    },
+    "packageResults": [
+      {
+        "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+        "Action": "pass",
+        "Elapsed": 5.499
+      }
+    ],
+    "result": {
+      "exitCode": 0,
+      "stopReason": null,
+      "elapsedSeconds": 28.586936059000436,
+      "effectiveRepositoryInputsStable": true,
+      "sourceCountBefore": 861,
+      "sourceCountAfter": 861,
+      "freeBytesAfter": {
+        "root": 678109184,
+        "tmp": 419368960
+      },
+      "completedAt": "2026-10-11T16:53:01.078572+00:00"
+    }
+  },
+  "preview-rest-fixed-1": {
+    "outcomes": {
+      "product": {
+        "pass-top": 25,
+        "pass-sub": 32
+      },
+      "management": {
+        "pass-top": 1
+      }
+    },
+    "packageResults": [
+      {
+        "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+        "Action": "pass",
+        "Elapsed": 86.017
+      },
+      {
+        "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+        "Action": "pass",
+        "Elapsed": 3.461
+      }
+    ],
+    "result": {
+      "exitCode": 0,
+      "stopReason": null,
+      "elapsedSeconds": 100.93578799103852,
+      "effectiveRepositoryInputsStable": true,
+      "sourceCountBefore": 861,
+      "sourceCountAfter": 861,
+      "freeBytesAfter": {
+        "root": 676933632,
+        "tmp": 419368960
+      },
+      "completedAt": "2026-10-11T16:55:16.944246+00:00"
+    }
+  }
+}

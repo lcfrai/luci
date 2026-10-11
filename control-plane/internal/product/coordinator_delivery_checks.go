@@ -21,15 +21,16 @@ type CoordinatorCheckPlan struct {
 }
 
 type CoordinatorDelivery struct {
-	ActionID          string `json:"actionId"`
-	CheckID           string `json:"checkId"`
-	Status            string `json:"status"`
-	Commit            string `json:"commit"`
-	SourceDigest      string `json:"sourceDigest"`
-	IntegrationDigest string `json:"integrationDigest"`
-	Message           string `json:"message"`
-	StartedAt         string `json:"startedAt"`
-	UpdatedAt         string `json:"updatedAt"`
+	Preview           *CoordinatorPreviewAction `json:"preview,omitempty"`
+	ActionID          string                    `json:"actionId"`
+	CheckID           string                    `json:"checkId"`
+	Status            string                    `json:"status"`
+	Commit            string                    `json:"commit"`
+	SourceDigest      string                    `json:"sourceDigest"`
+	IntegrationDigest string                    `json:"integrationDigest"`
+	Message           string                    `json:"message"`
+	StartedAt         string                    `json:"startedAt"`
+	UpdatedAt         string                    `json:"updatedAt"`
 }
 
 func validateCoordinatorCheckPlan(plan *CoordinatorCheckPlan) error {

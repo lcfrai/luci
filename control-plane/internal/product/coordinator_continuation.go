@@ -58,6 +58,7 @@ type coordinatorContinuationRecord struct {
 	MaxParallel     int                          `json:"maxParallel"`
 	ExecutionActor  management.ExecutionActorRef `json:"executionActor"`
 	CheckPlan       *CoordinatorCheckPlan        `json:"checkPlan,omitempty"`
+	PreviewPlan     *CoordinatorPreviewPlan      `json:"previewPlan,omitempty"`
 }
 type coordinatorContinuations struct {
 	Version      int                             `json:"version"`
@@ -78,6 +79,7 @@ type coordinatorContinuationRequest struct {
 	RememberRoute          bool                    `json:"rememberRoute,omitempty"`
 	ExpectedRouteRevision  *int                    `json:"expectedRouteRevision,omitempty"`
 	CheckPlan              *CoordinatorCheckPlan   `json:"checkPlan,omitempty"`
+	PreviewPlan            *CoordinatorPreviewPlan `json:"previewPlan,omitempty"`
 }
 
 func (s *Server) SetCoordinatorExecutionAuthorizer(fn func(context.Context, string, string, bool) error) {
@@ -163,6 +165,9 @@ func (s *Server) readContinuations(p project.Project, actor string) (coordinator
 		}
 		if r.ExecutionActor.UserID != "" && (r.ExecutionActor.UserID != actor || r.ExecutionActor.ProjectID != p.ID || r.ExecutionActor.Local) {
 			return out, ErrOrchestratorInvalid
+		}
+		if err := validateCoordinatorPreview(r); err != nil {
+			return out, err
 		}
 		if err := validateCoordinatorDelivery(r); err != nil {
 			return out, err
@@ -306,6 +311,14 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		journeyError(w, 400, "invalid_continuation", "Choose an exact completed turn, current reviewed tasks, saved upstream route and intended outcome.")
 		return
 	}
+	if err := validateCoordinatorPreviewPlan(req.PreviewPlan); err != nil {
+		journeyError(w, 400, "invalid_preview_plan", err.Error())
+		return
+	}
+	if req.PreviewPlan != nil && req.CheckPlan == nil {
+		coordinatorPolicyProblem(w, ErrOrchestratorInvalid)
+		return
+	}
 	if err := validateCoordinatorCheckPlan(req.CheckPlan); err != nil {
 		journeyError(w, 400, "invalid_check_plan", err.Error())
 		return
@@ -325,7 +338,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 	key := reviewDigest(requestKey)
 	req.IdempotencyKey = ""
 	requestDigest := reviewDigest(req)
-	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ID: newID("continue-"), IdempotencyKey: requestKey, ProjectID: p.ID, Actor: actor, OriginTurnID: req.OriginTurnID, ContextDigest: req.ExpectedContextDigest, PolicyRevision: req.ExpectedPolicyRevision, Revision: 1, Status: "ready", Message: "Continuing the reviewed task selection with its saved upstream route.", QueueIDs: []string{}, Actions: []CoordinatorAction{}}, KeyDigest: key, RequestDigest: requestDigest, Run: req.Run, MaxParallel: req.MaxParallel, ExecutionActor: executionActor, CheckPlan: req.CheckPlan}
+	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ID: newID("continue-"), IdempotencyKey: requestKey, ProjectID: p.ID, Actor: actor, OriginTurnID: req.OriginTurnID, ContextDigest: req.ExpectedContextDigest, PolicyRevision: req.ExpectedPolicyRevision, Revision: 1, Status: "ready", Message: "Continuing the reviewed task selection with its saved upstream route.", QueueIDs: []string{}, Actions: []CoordinatorAction{}}, KeyDigest: key, RequestDigest: requestDigest, Run: req.Run, MaxParallel: req.MaxParallel, ExecutionActor: executionActor, CheckPlan: req.CheckPlan, PreviewPlan: req.PreviewPlan}
 	if err := s.continuationAuthority(r.Context(), p, row); err != nil {
 		coordinatorPolicyProblem(w, err)
 		return
@@ -355,7 +368,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		}
 	}
 	if err == nil && req.ExpectedRouteRevision != nil {
-		if rows.SavedRoute == nil || rows.SavedRoute.Revision != *req.ExpectedRouteRevision || reviewDigest(rows.SavedRoute.Route) != reviewDigest(coordinatorRoute(req.Run)) || rows.SavedRoute.MaxParallel != req.MaxParallel || reviewDigest(rows.SavedRoute.CheckPlan) != reviewDigest(req.CheckPlan) {
+		if rows.SavedRoute == nil || rows.SavedRoute.Revision != *req.ExpectedRouteRevision || reviewDigest(rows.SavedRoute.Route) != reviewDigest(coordinatorRoute(req.Run)) || rows.SavedRoute.MaxParallel != req.MaxParallel || reviewDigest(rows.SavedRoute.CheckPlan) != reviewDigest(req.CheckPlan) || reviewDigest(rows.SavedRoute.PreviewPlan) != reviewDigest(req.PreviewPlan) {
 			err = ErrOrchestratorConflict
 		}
 	}
@@ -379,7 +392,14 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 					found = true
 				}
 			}
-			if !found || len(orchestratorQuestions(saved)) > 0 {
+			if !found {
+				var archived *storedOrchestratorTurn
+				archived, err = s.archivedCoordinationTurnLocked(p, req.OriginTurnID)
+				if err == nil && archived != nil {
+					found = archived.Actor.ID == actor.ID && archived.Status == "succeeded" && archived.Answer != nil && !archived.Answer.Blocking && (archived.Answer.Proposal == nil || archived.AppliedRevision > 0)
+				}
+			}
+			if err == nil && (!found || len(orchestratorQuestions(saved)) > 0) {
 				err = ErrOrchestratorQuestion
 			}
 		}
@@ -408,7 +428,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 			if rows.SavedRoute != nil {
 				revision = rows.SavedRoute.Revision + 1
 			}
-			rows.SavedRoute = &CoordinatorSavedRoute{Revision: revision, Route: coordinatorRoute(req.Run), MaxParallel: req.MaxParallel, UpdatedAt: row.CreatedAt, CheckPlan: req.CheckPlan}
+			rows.SavedRoute = &CoordinatorSavedRoute{Revision: revision, Route: coordinatorRoute(req.Run), MaxParallel: req.MaxParallel, UpdatedAt: row.CreatedAt, CheckPlan: req.CheckPlan, PreviewPlan: req.PreviewPlan}
 			if !validCoordinatorRoute(rows.SavedRoute) {
 				err = ErrOrchestratorInvalid
 			}

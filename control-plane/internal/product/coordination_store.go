@@ -63,13 +63,17 @@ type storedCoordinationIntent struct {
 }
 
 type coordinationLedger struct {
-	Version      int                        `json:"version"`
-	ProjectID    string                     `json:"projectId"`
-	AccountScope string                     `json:"accountScope"`
-	ProjectScope string                     `json:"projectScope"`
-	Revision     int                        `json:"revision"`
-	Intents      []storedCoordinationIntent `json:"intents"`
-	Events       []CoordinationEvent        `json:"events"`
+	Version       int                        `json:"version"`
+	ProjectID     string                     `json:"projectId"`
+	AccountScope  string                     `json:"accountScope"`
+	ProjectScope  string                     `json:"projectScope"`
+	Revision      int                        `json:"revision"`
+	EventSequence int                        `json:"eventSequence,omitempty"`
+	EventHead     string                     `json:"eventHead,omitempty"`
+	Intents       []storedCoordinationIntent `json:"intents"`
+	Events        []CoordinationEvent        `json:"events"`
+	Archives      []coordinationArchiveIndex `json:"archives,omitempty"`
+	witnesses     map[string]coordinationArchivedWitness
 }
 
 func (s *Server) coordinationPath(id string, create bool) (string, error) {
@@ -124,52 +128,67 @@ func (s *Server) readCoordination(p project.Project) (coordinationLedger, error)
 	} else if err != nil {
 		return out, ErrOrchestratorInvalid
 	}
-	if saved.Version != 1 || saved.ProjectID != out.ProjectID || saved.AccountScope != out.AccountScope || saved.ProjectScope != out.ProjectScope || saved.Revision < 0 || len(saved.Intents) > coordinationIntentLimit || len(saved.Events) > coordinationIntentLimit*3 {
-		return out, ErrOrchestratorInvalid
+	if err = validateCoordinationShape(saved, out); err != nil {
+		return out, err
 	}
-	seen, turns, keys := map[string]bool{}, map[string]bool{}, map[string]bool{}
-	for _, intent := range saved.Intents {
-		if !strings.HasPrefix(intent.ID, "intent-") || !prototypeReleaseID.MatchString(intent.ID) || seen[intent.ID] || turns[intent.TurnID] || keys[intent.Key] || !hexDigest(intent.Key) || !hexDigest(intent.Request) || !hexDigest(intent.BaseContextDigest) || !hexDigest(intent.ProposalDigest) || !prototypeReleaseID.MatchString(intent.TurnID) || !strings.HasPrefix(intent.TurnID, "turn-") || !validConnectionToken(intent.Actor.ID, 128, false) || intent.Actor.DisplayName == "" || len(intent.Actor.DisplayName) > 512 || intent.LuciID != coordinationLuciID(saved.AccountScope, intent.Actor.ID) || len(intent.RequestedChange) > 16000 || len(intent.ChangedPaths) > 1024 || len(intent.DependsOn) > 16 || len(intent.TaskIDs) > 200 || len(intent.RequirementIDs) > 200 {
-			return out, ErrOrchestratorInvalid
-		}
-		if intent.Target != "specification" && intent.Target != "design-plan" && intent.Target != "plan" {
-			return out, ErrOrchestratorInvalid
-		}
-		if intent.Status != "pending" && intent.Status != "applied" && intent.Status != "superseded" {
-			return out, ErrOrchestratorInvalid
-		}
-		if (intent.ApplyBaseContextDigest != "" && !hexDigest(intent.ApplyBaseContextDigest)) || (intent.CandidateProposalDigest != "" && !hexDigest(intent.CandidateProposalDigest)) || (intent.AcceptedContextDigest != "" && !hexDigest(intent.AcceptedContextDigest)) {
-			return out, ErrOrchestratorInvalid
-		}
-		if intent.Status == "applied" && (intent.AppliedRevision < 1 || !hexDigest(intent.AppliedTargetDigest) || !hexDigest(intent.ApplyBaseContextDigest) || !hexDigest(intent.CandidateProposalDigest)) {
-			return out, ErrOrchestratorInvalid
-		}
-		if _, err := time.Parse(time.RFC3339Nano, intent.CreatedAt); err != nil {
-			return out, ErrOrchestratorInvalid
-		}
-		for _, dependency := range intent.DependsOn {
-			if !seen[dependency] {
-				return out, ErrOrchestratorInvalid
-			}
-		}
-		seen[intent.ID], turns[intent.TurnID], keys[intent.Key] = true, true, true
-	}
-	for i, event := range saved.Events {
-		previous := ""
-		if i > 0 {
-			previous = saved.Events[i-1].ID
-		}
-		if event.PreviousEventID != previous {
-			return out, ErrOrchestratorInvalid
-		}
-		if event.Sequence != i+1 || !seen[event.IntentID] || !strings.HasPrefix(event.ID, "coord-event-") || !prototypeReleaseID.MatchString(event.ID) || !hexDigest(event.ContextDigest) || (event.Kind != "proposed" && event.Kind != "applied" && event.Kind != "superseded") || !validConnectionToken(event.Actor.ID, 128, false) || len(event.Causes) > 17 {
-			return out, ErrOrchestratorInvalid
-		}
+	if err = newCoordinationArchiveReader(s, p).hydrate(&saved); err != nil {
+		return out, err
 	}
 	if err = s.validateCoordinationBindings(p, saved); err != nil {
 		return out, err
 	}
 	return saved, nil
+}
+
+func validateCoordinationShape(saved, out coordinationLedger) error {
+	if saved.Version != 1 || saved.ProjectID != out.ProjectID || saved.AccountScope != out.AccountScope || saved.ProjectScope != out.ProjectScope || saved.Revision < 0 || len(saved.Intents) > coordinationIntentLimit || len(saved.Events) > coordinationIntentLimit*3 {
+		return ErrOrchestratorInvalid
+	}
+	archivedIDs := map[string]bool{}
+	for _, page := range saved.Archives {
+		for _, id := range page.Retired {
+			archivedIDs[id.IntentID] = true
+		}
+	}
+	seen, turns, keys := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	for _, intent := range saved.Intents {
+		if !strings.HasPrefix(intent.ID, "intent-") || !prototypeReleaseID.MatchString(intent.ID) || seen[intent.ID] || turns[intent.TurnID] || keys[intent.Key] || !hexDigest(intent.Key) || !hexDigest(intent.Request) || !hexDigest(intent.BaseContextDigest) || !hexDigest(intent.ProposalDigest) || !prototypeReleaseID.MatchString(intent.TurnID) || !strings.HasPrefix(intent.TurnID, "turn-") || !validConnectionToken(intent.Actor.ID, 128, false) || intent.Actor.DisplayName == "" || len(intent.Actor.DisplayName) > 512 || intent.LuciID != coordinationLuciID(saved.AccountScope, intent.Actor.ID) || len(intent.RequestedChange) > 16000 || len(intent.ChangedPaths) > 1024 || len(intent.DependsOn) > 16 || len(intent.TaskIDs) > 200 || len(intent.RequirementIDs) > 200 {
+			return ErrOrchestratorInvalid
+		}
+		if intent.Target != "specification" && intent.Target != "design-plan" && intent.Target != "plan" {
+			return ErrOrchestratorInvalid
+		}
+		if intent.Status != "pending" && intent.Status != "applied" && intent.Status != "superseded" {
+			return ErrOrchestratorInvalid
+		}
+		if (intent.ApplyBaseContextDigest != "" && !hexDigest(intent.ApplyBaseContextDigest)) || (intent.CandidateProposalDigest != "" && !hexDigest(intent.CandidateProposalDigest)) || (intent.AcceptedContextDigest != "" && !hexDigest(intent.AcceptedContextDigest)) {
+			return ErrOrchestratorInvalid
+		}
+		if intent.Status == "applied" && (intent.AppliedRevision < 1 || !hexDigest(intent.AppliedTargetDigest) || !hexDigest(intent.ApplyBaseContextDigest) || !hexDigest(intent.CandidateProposalDigest)) {
+			return ErrOrchestratorInvalid
+		}
+		if _, err := time.Parse(time.RFC3339Nano, intent.CreatedAt); err != nil {
+			return ErrOrchestratorInvalid
+		}
+		for _, dependency := range intent.DependsOn {
+			if !seen[dependency] && !archivedIDs[dependency] {
+				return ErrOrchestratorInvalid
+			}
+		}
+		seen[intent.ID], turns[intent.TurnID], keys[intent.Key] = true, true, true
+	}
+	sequence, err := coordinationEventIndex(saved)
+	if err != nil {
+		return err
+	}
+	previousSequence := 0
+	for _, event := range saved.Events {
+		if event.Sequence <= previousSequence || event.PreviousEventID != sequence[event.Sequence-1] || !seen[event.IntentID] || !strings.HasPrefix(event.ID, "coord-event-") || !prototypeReleaseID.MatchString(event.ID) || !hexDigest(event.ContextDigest) || (event.Kind != "proposed" && event.Kind != "applied" && event.Kind != "superseded") || !validConnectionToken(event.Actor.ID, 128, false) || len(event.Causes) > 17 {
+			return ErrOrchestratorInvalid
+		}
+		previousSequence = event.Sequence
+	}
+	return nil
 }
 
 // A valid-shaped row alone cannot satisfy a dependency or resolve opposition.
@@ -179,6 +198,10 @@ func (s *Server) validateCoordinationBindings(p project.Project, saved coordinat
 	if err != nil {
 		return err
 	}
+	return validateCoordinationBindingsWithTurns(saved, turns)
+}
+
+func validateCoordinationBindingsWithTurns(saved coordinationLedger, turns orchestratorLedger) error {
 	intents := map[string]storedCoordinationIntent{}
 	for _, intent := range saved.Intents {
 		intents[intent.ID] = intent
@@ -204,6 +227,12 @@ func (s *Server) validateCoordinationBindings(p project.Project, saved coordinat
 		}
 	}
 	states, events := map[string]string{}, map[string]bool{}
+	for id, witness := range saved.witnesses {
+		if witness.Intent.Status != "applied" {
+			return ErrOrchestratorInvalid
+		}
+		states[id] = "applied"
+	}
 	for _, event := range saved.Events {
 		intent := intents[event.IntentID]
 		if events[event.ID] || event.Actor.DisplayName == "" || len(event.Actor.DisplayName) > 512 {
@@ -216,6 +245,9 @@ func (s *Server) validateCoordinationBindings(p project.Project, saved coordinat
 		causes := map[string]bool{}
 		for _, cause := range event.Causes {
 			if causes[cause] || states[cause] == "" || cause == event.IntentID {
+				return ErrOrchestratorInvalid
+			}
+			if witness, ok := saved.witnesses[cause]; ok && witness.AppliedSequence >= event.Sequence {
 				return ErrOrchestratorInvalid
 			}
 			causes[cause] = true
@@ -253,7 +285,7 @@ func coordinationLuciID(account, actor string) string {
 
 func (s *Server) saveCoordination(saved coordinationLedger) error {
 	data, err := json.MarshalIndent(saved, "", "  ")
-	if err != nil || len(data)+1 > coordinationFileLimit || len(saved.Intents) > coordinationIntentLimit || len(saved.Events) > coordinationIntentLimit*3 {
+	if err != nil || len(data)+1 > coordinationFileLimit || len(saved.Intents) > coordinationIntentLimit || len(saved.Events) > coordinationIntentLimit*3 || len(saved.Archives) > coordinationArchivePageLimit {
 		return ErrOrchestratorCapacity
 	}
 	path, err := s.coordinationPath(saved.ProjectID, true)
@@ -266,7 +298,7 @@ func (s *Server) saveCoordination(saved coordinationLedger) error {
 	return nil
 }
 
-func coordinationEvent(saved *coordinationLedger, intent CoordinationIntent, kind, digest string, actor ContextActor) {
+func coordinationEvent(saved *coordinationLedger, intent CoordinationIntent, kind, digest string, actor ContextActor) error {
 	causes := append([]string{}, intent.DependsOn...)
 	if intent.SupersededBy != "" {
 		found := false
@@ -277,10 +309,14 @@ func coordinationEvent(saved *coordinationLedger, intent CoordinationIntent, kin
 			causes = append(causes, intent.SupersededBy)
 		}
 	}
-	previous := ""
-	if len(saved.Events) > 0 {
-		previous = saved.Events[len(saved.Events)-1].ID
+	sequence, err := coordinationEventIndex(*saved)
+	if err != nil {
+		return err
 	}
-	saved.Events = append(saved.Events, CoordinationEvent{ID: newID("coord-event-"), Sequence: len(saved.Events) + 1, PreviousEventID: previous, Kind: kind, IntentID: intent.ID, Actor: actor, At: time.Now().UTC().Format(time.RFC3339Nano), Causes: causes, ContextDigest: digest})
+	previous := sequence[len(sequence)]
+	saved.Events = append(saved.Events, CoordinationEvent{ID: newID("coord-event-"), Sequence: len(sequence) + 1, PreviousEventID: previous, Kind: kind, IntentID: intent.ID, Actor: actor, At: time.Now().UTC().Format(time.RFC3339Nano), Causes: causes, ContextDigest: digest})
+	saved.EventSequence = len(sequence) + 1
+	saved.EventHead = saved.Events[len(saved.Events)-1].ID
 	saved.Revision++
+	return nil
 }

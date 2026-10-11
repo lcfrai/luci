@@ -43,6 +43,8 @@ type Release struct {
 }
 
 type storedRelease struct {
+	CoordinatorOriginDigest string `json:"coordinatorOriginDigest,omitempty"`
+
 	Release
 	CancelRevision uint64                  `json:"cancelRevision,omitempty"`
 	Runtime        *previewruntime.Outcome `json:"runtime,omitempty"`
@@ -240,7 +242,19 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 422, "configuration_invalid", err.Error())
 		return
 	}
-	row := storedRelease{Release: Release{ID: newID("rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: "local", Status: "building", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}
+	reservedID, originDigest, existing, err := s.admitCoordinatorPreview(ctx, p, commit, configuration.Revision, req.Port, req.Dockerfile)
+	if err != nil {
+		journeyError(w, 409, "coordinator_preview_changed", "The reserved preview no longer matches current checked source, authority, policy or configuration.")
+		return
+	}
+	if existing != nil {
+		journeyJSON(w, 200, s.browserRelease(*existing))
+		return
+	}
+	if reservedID == "" {
+		reservedID = newID("rel-")
+	}
+	row := storedRelease{CoordinatorOriginDigest: originDigest, Release: Release{ID: reservedID, ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: "local", Status: "building", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}
 	if err := s.RecordProjectRunReleaseProvenance(ctx, p.ID, row.ID, row.Target, row.Commit); err != nil {
 		problem(w, 409, "release_provenance_unavailable", err.Error())
 		return
@@ -292,7 +306,12 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 			if err := s.ValidateDeploymentSource(verify, p.ID, commit); err != nil {
 				return err
 			}
-			return nil
+			// Retain the trusted origin even when the runtime installs freshly
+			// reauthorized actor context for a subsequent allocating effect.
+			if origin, internal := ctx.Value(coordinatorPreviewContextKey{}).(coordinatorPreviewOrigin); internal {
+				verify = context.WithValue(verify, coordinatorPreviewContextKey{}, origin)
+			}
+			return s.validateCoordinatorPreviewMutation(verify, p)
 		},
 	}
 	out, startErr := runtime.Start(ctx, request, func(value previewruntime.Outcome) error {

@@ -1,0 +1,44 @@
+[
+  {
+    "path": "control-plane/internal/product/orchestrator_store.go",
+    "sha256": "be7f6cc3d31cb5ca5d8b07b3bf45cfc18233e43de1ca293f79be9e0a9f18664c",
+    "bytes": 19251,
+    "origin": "unchanged current source matches recorded fixed-1 input"
+  },
+  {
+    "path": "control-plane/internal/product/orchestrator_resolution.go",
+    "sha256": "b5d1d5e5463030081a19c6ef34b097ac4b01ad08a40a145f63a34e30fad5db5b",
+    "bytes": 7119,
+    "origin": "unchanged current source matches recorded fixed-1 input"
+  },
+  {
+    "path": "control-plane/internal/product/orchestrator.go",
+    "sha256": "da8740bba639304758d4e85e71ef64c9fb2739d57ad011f599ccb6b22d08207f",
+    "bytes": 20373,
+    "origin": "unchanged current source matches recorded fixed-1 input"
+  },
+  {
+    "path": "control-plane/internal/product/coordinator_continuation.go",
+    "sha256": "a43209300dda489b163f77b0044c242d76692082eb45b485117f867e15d1f65f",
+    "bytes": 29359,
+    "origin": "reconstructed from preserved pre-hook bytes plus exact archive lookup insertion; recorded before/after digest and byte count matched"
+  },
+  {
+    "path": "control-plane/internal/product/routes_audit_test.go",
+    "sha256": "8d72e0d9296e1bb16de7774a07886c628ef4acf3a94cfe11e3c76655d080247d",
+    "bytes": 35488,
+    "origin": "unchanged current source matches recorded fixed-1 input"
+  },
+  {
+    "path": "control-plane/internal/product/orchestrator_problem_test.go",
+    "sha256": "da264662c3fd6230d23712b7e95aad0a45ed3e3498cd29a1b046ef5f34e24730",
+    "bytes": 2569,
+    "origin": "unchanged current source matches recorded fixed-1 input"
+  },
+  {
+    "path": "control-plane/internal/management/team_authorization.go",
+    "sha256": "1a37d7e0cd5c0234198d4c2cfc0f48f0380b4ec45806840ee2deb96327224c30",
+    "bytes": 19043,
+    "origin": "unchanged current source matches recorded fixed-1 input"
+  }
+]

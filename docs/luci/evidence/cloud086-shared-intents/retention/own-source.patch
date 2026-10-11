@@ -1,0 +1,1712 @@
+diff --git a/control-plane/internal/product/coordination.go b/control-plane/internal/product/coordination.go
+index 5d254bbc..2582bdd2 100644
+--- a/control-plane/internal/product/coordination.go
++++ b/control-plane/internal/product/coordination.go
+@@ -3,6 +3,7 @@ package product
+ import (
+ 	"context"
+ 	"net/http"
++	"reflect"
+ 	"sort"
+ 	"strings"
+ 	"time"
+@@ -18,13 +19,17 @@ type CoordinationConflict struct {
+ }
+ 
+ type CoordinationView struct {
+-	ProjectID      string                 `json:"projectId"`
+-	Revision       int                    `json:"revision"`
+-	ContextDigest  string                 `json:"contextDigest"`
+-	Intents        []CoordinationIntent   `json:"intents"`
+-	Events         []CoordinationEvent    `json:"events"`
+-	Conflicts      []CoordinationConflict `json:"conflicts"`
+-	AllowedActions []string               `json:"allowedActions"`
++	ProjectID        string                         `json:"projectId"`
++	Revision         int                            `json:"revision"`
++	ContextDigest    string                         `json:"contextDigest"`
++	Intents          []CoordinationIntent           `json:"intents"`
++	Events           []CoordinationEvent            `json:"events"`
++	Archives         []CoordinationArchiveReference `json:"archives,omitempty"`
++	HistoricalCauses []CoordinationIntent           `json:"historicalCauses,omitempty"`
++	EventSequence    int                            `json:"eventSequence"`
++	EventHead        string                         `json:"eventHead"`
++	Conflicts        []CoordinationConflict         `json:"conflicts"`
++	AllowedActions   []string                       `json:"allowedActions"`
+ }
+ 
+ func (s *Server) registerCoordination(mux Registrar) {
+@@ -32,6 +37,8 @@ func (s *Server) registerCoordination(mux Registrar) {
+ 		mux = wrapped.base
+ 	}
+ 	mux.HandleFunc("GET /v1/product/projects/{id}/orchestrator/coordination", s.getCoordination)
++	mux.HandleFunc("GET /v1/product/projects/{id}/orchestrator/coordination/intents/{intentId}", s.getCoordinationIntent)
++	mux.HandleFunc("GET /v1/product/projects/{id}/orchestrator/coordination/events/{eventId}", s.getCoordinationEvent)
+ 	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/coordination/intents", s.createCoordinationIntent)
+ 	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/coordination/intents/{intentId}/resolve", s.resolveCoordinationIntent)
+ }
+@@ -81,15 +88,30 @@ func (s *Server) recordCoordinationProposalLocked(p project.Project, turn stored
+ 		}
+ 		return ErrOrchestratorConflict
+ 	}
+-	appendCoordinationOrigin(&saved, turn)
++	archived, _, err := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnID == turn.ID })
++	if err != nil {
++		return err
++	}
++	if archived != nil {
++		if archived.ProposalDigest == reviewDigest(turn.Answer.Proposal) && archived.Actor.ID == turn.Actor.ID && archived.BaseContextDigest == turn.ContextDigest {
++			return nil
++		}
++		return ErrOrchestratorConflict
++	}
++	if err = s.compactCoordinationLocked(p, &saved, 1); err != nil {
++		return err
++	}
++	if err = appendCoordinationOrigin(&saved, turn); err != nil {
++		return err
++	}
+ 	return s.saveCoordination(saved)
+ }
+ 
+-func appendCoordinationOrigin(saved *coordinationLedger, turn storedOrchestratorTurn) {
++func appendCoordinationOrigin(saved *coordinationLedger, turn storedOrchestratorTurn) error {
+ 	requirements, tasks, all := coordinationImpact(turn)
+ 	intent := storedCoordinationIntent{CoordinationIntent: CoordinationIntent{ID: newID("intent-"), TurnID: turn.ID, Actor: turn.Actor, LuciID: coordinationLuciID(saved.AccountScope, turn.Actor.ID), BaseContextDigest: turn.ContextDigest, ProposalDigest: reviewDigest(turn.Answer.Proposal), Target: turn.Answer.Proposal.Target, RequestedChange: turn.Message, ChangedPaths: coordinationPaths(coordinationChanges(&turn)), RequirementIDs: requirements, TaskIDs: tasks, AffectsAllTasks: all, DependsOn: []string{}, Status: "pending", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}, Key: reviewDigest([]string{"completed-proposal", turn.Actor.ID, turn.ID}), Request: reviewDigest([]any{turn.Actor.ID, turn.ID, []string{}})}
+ 	saved.Intents = append(saved.Intents, intent)
+-	coordinationEvent(saved, intent.CoordinationIntent, "proposed", turn.ContextDigest, turn.Actor)
++	return coordinationEvent(saved, intent.CoordinationIntent, "proposed", turn.ContextDigest, turn.Actor)
+ }
+ 
+ func (s *Server) ensureCoordinationOriginsLocked(p project.Project) error {
+@@ -106,10 +128,22 @@ func (s *Server) ensureCoordinationOriginsLocked(p project.Project) error {
+ 		if turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil || turn.AppliedRevision > 0 || coordinationIntent(&saved, turn.ID) != nil {
+ 			continue
+ 		}
++		archived, _, lookupErr := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnID == turn.ID })
++		if lookupErr != nil {
++			return lookupErr
++		}
++		if archived != nil {
++			continue
++		}
+ 		if ValidateOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
+ 			return ErrOrchestratorInvalid
+ 		}
+-		appendCoordinationOrigin(&saved, turn)
++		if err = s.compactCoordinationLocked(p, &saved, 1); err != nil {
++			return err
++		}
++		if err = appendCoordinationOrigin(&saved, turn); err != nil {
++			return err
++		}
+ 		changed = true
+ 	}
+ 	// One bounded durable write restores all retained pending proposals, so a
+@@ -214,7 +248,7 @@ func coordinationConflicts(saved coordinationLedger, turns orchestratorLedger, c
+ 			out = append(out, CoordinationConflict{IntentID: intent.ID, Paths: []string{}, Reason: "merged-context-invalid"})
+ 		}
+ 		for _, dep := range intent.DependsOn {
+-			satisfied := false
++			satisfied := saved.witnesses[dep].Intent.Status == "applied"
+ 			for _, peer := range saved.Intents {
+ 				if peer.ID == dep && peer.Status == "applied" {
+ 					satisfied = true
+@@ -260,6 +294,19 @@ func (s *Server) coordinationViewLocked(ctx context.Context, p project.Project)
+ 	for _, intent := range saved.Intents {
+ 		view.Intents = append(view.Intents, intent.CoordinationIntent)
+ 	}
++	sequence, indexErr := coordinationEventIndex(saved)
++	if indexErr != nil {
++		return CoordinationView{}, indexErr
++	}
++	view.EventSequence = len(sequence)
++	view.EventHead = sequence[len(sequence)]
++	for _, witness := range saved.witnesses {
++		view.HistoricalCauses = append(view.HistoricalCauses, witness.Intent)
++	}
++	sort.Slice(view.HistoricalCauses, func(i, j int) bool { return view.HistoricalCauses[i].ID < view.HistoricalCauses[j].ID })
++	for _, archive := range saved.Archives {
++		view.Archives = append(view.Archives, archive.CoordinationArchiveReference)
++	}
+ 	if s.coordinatorAuthority(ctx, p.ID) == nil {
+ 		view.AllowedActions = []string{"propose-own-turn", "supersede-own-intent"}
+ 	}
+@@ -349,6 +396,23 @@ func (s *Server) createCoordinationIntent(w http.ResponseWriter, r *http.Request
+ 			return
+ 		}
+ 	}
++	archived, _, err := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.Key == key || id.TurnID == req.TurnID })
++	if err != nil {
++		orchestratorProblem(w, err)
++		return
++	}
++	if archived != nil {
++		if archived.Actor.ID != actor.ID {
++			coordinatorPolicyProblem(w, errCoordinatorAuthority)
++			return
++		}
++		if archived.Key != key || archived.Request != request {
++			orchestratorProblem(w, ErrOrchestratorConflict)
++			return
++		}
++		journeyJSON(w, 200, archived.CoordinationIntent)
++		return
++	}
+ 	turns, err := s.readOrchestrator(p)
+ 	if err != nil {
+ 		orchestratorProblem(w, err)
+@@ -380,16 +444,35 @@ func (s *Server) createCoordinationIntent(w http.ResponseWriter, r *http.Request
+ 				found = true
+ 			}
+ 		}
++		if !found {
++			archived, _, lookupErr := s.archivedCoordinationIntent(p, saved, func(row coordinationArchivedIdentity) bool { return row.IntentID == id })
++			if lookupErr != nil {
++				orchestratorProblem(w, lookupErr)
++				return
++			}
++			found = archived != nil && archived.Status == "applied"
++		}
+ 		if !found || deps[id] {
+ 			orchestratorProblem(w, ErrOrchestratorInvalid)
+ 			return
+ 		}
+ 		deps[id] = true
+ 	}
++	if err = s.compactCoordinationLocked(p, &saved, 1, req.DependsOn...); err != nil {
++		orchestratorProblem(w, err)
++		return
++	}
+ 	requirements, tasks, all := coordinationImpact(*turn)
+ 	intent := storedCoordinationIntent{CoordinationIntent: CoordinationIntent{ID: newID("intent-"), TurnID: turn.ID, Actor: actor, LuciID: coordinationLuciID(saved.AccountScope, actor.ID), BaseContextDigest: turn.ContextDigest, ProposalDigest: reviewDigest(turn.Answer.Proposal), Target: turn.Answer.Proposal.Target, RequestedChange: turn.Message, ChangedPaths: coordinationPaths(coordinationChanges(turn)), RequirementIDs: requirements, TaskIDs: tasks, AffectsAllTasks: all, DependsOn: append([]string{}, req.DependsOn...), Status: "pending", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}, Key: key, Request: request}
+ 	saved.Intents = append(saved.Intents, intent)
+-	coordinationEvent(&saved, intent.CoordinationIntent, "proposed", snapshot.Digest, actor)
++	if err = coordinationEvent(&saved, intent.CoordinationIntent, "proposed", snapshot.Digest, actor); err != nil {
++		orchestratorProblem(w, err)
++		return
++	}
++	if err = newCoordinationArchiveReader(s, p).hydrate(&saved); err != nil {
++		orchestratorProblem(w, err)
++		return
++	}
+ 	if err = s.saveCoordination(saved); err != nil {
+ 		orchestratorProblem(w, err)
+ 		return
+@@ -449,6 +532,21 @@ func (s *Server) resolveCoordinationIntent(w http.ResponseWriter, r *http.Reques
+ 			replacementIntent = &saved.Intents[i]
+ 		}
+ 	}
++	if intent == nil {
++		archived, _, lookupErr := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.IntentID == r.PathValue("intentId") })
++		if lookupErr != nil {
++			orchestratorProblem(w, lookupErr)
++			return
++		}
++		if archived != nil && archived.Actor.ID == actor.ID {
++			if archived.Status == "superseded" && archived.SupersededBy == req.SupersededBy && archived.ResolutionReason == req.Reason {
++				journeyJSON(w, 200, archived.CoordinationIntent)
++				return
++			}
++			orchestratorProblem(w, ErrOrchestratorConflict)
++			return
++		}
++	}
+ 	if intent == nil || intent.Actor.ID != actor.ID {
+ 		coordinatorPolicyProblem(w, errCoordinatorAuthority)
+ 		return
+@@ -500,7 +598,10 @@ func (s *Server) resolveCoordinationIntent(w http.ResponseWriter, r *http.Reques
+ 	intent.SupersededBy = req.SupersededBy
+ 	intent.ResolutionReason = req.Reason
+ 	value := intent.CoordinationIntent
+-	coordinationEvent(&saved, value, "superseded", snapshot.Digest, actor)
++	if err = coordinationEvent(&saved, value, "superseded", snapshot.Digest, actor); err != nil {
++		orchestratorProblem(w, err)
++		return
++	}
+ 	if err = s.saveCoordination(saved); err != nil {
+ 		orchestratorProblem(w, err)
+ 		return
+@@ -592,7 +693,13 @@ func (s *Server) finishCoordinationApplyLocked(ctx context.Context, p project.Pr
+ 	}
+ 	intent := coordinationIntent(&saved, turn.ID)
+ 	if intent == nil {
+-		return nil
++		intent, _, err = s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnID == turn.ID })
++		if err != nil {
++			return err
++		}
++		if intent == nil {
++			return nil
++		}
+ 	}
+ 	if err = s.coordinatorAuthority(ctx, p.ID); err != nil {
+ 		return err
+@@ -619,7 +726,9 @@ func (s *Server) finishCoordinationApplyLocked(ctx context.Context, p project.Pr
+ 	// as yesterday's acceptance. Consumers fetch and admit current context.
+ 	value := intent.CoordinationIntent
+ 	actor, _ := authenticatedContextActor(ctx)
+-	coordinationEvent(&saved, value, "applied", intent.ApplyBaseContextDigest, actor)
++	if err = coordinationEvent(&saved, value, "applied", intent.ApplyBaseContextDigest, actor); err != nil {
++		return err
++	}
+ 	return s.saveCoordination(saved)
+ }
+ 
+@@ -633,7 +742,14 @@ func (s *Server) validateCoordinationRecoveryLocked(ctx context.Context, p proje
+ 	if err != nil {
+ 		return err
+ 	}
+-	if intent := coordinationIntent(&saved, turn.ID); intent != nil {
++	intent := coordinationIntent(&saved, turn.ID)
++	if intent == nil {
++		intent, _, err = s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnID == turn.ID })
++		if err != nil {
++			return err
++		}
++	}
++	if intent != nil {
+ 		if err = s.coordinatorAuthority(ctx, p.ID); err != nil {
+ 			return err
+ 		}
+@@ -657,5 +773,37 @@ func (s *Server) retainedCoordinationTurnsLocked(p project.Project) (map[string]
+ 	for _, intent := range saved.Intents {
+ 		out[intent.TurnID] = true
+ 	}
++	if s.coordinatorAuthorize != nil {
++		turns, readErr := s.readOrchestrator(p)
++		if readErr != nil {
++			return nil, readErr
++		}
++		reader := newCoordinationArchiveReader(s, p)
++		for _, turn := range turns.Turns {
++			if out[turn.ID] || turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil {
++				continue
++			}
++			settled := false
++			for _, ref := range saved.Archives {
++				for _, row := range ref.Retired {
++					if row.TurnID != turn.ID {
++						continue
++					}
++					page, archiveErr := reader.read(saved, ref)
++					if archiveErr != nil {
++						return nil, archiveErr
++					}
++					original := coordinationTurn(page.Origins, turn.ID)
++					if original == nil || !reflect.DeepEqual(*original, turn) {
++						return nil, ErrOrchestratorConflict
++					}
++					settled = true
++				}
++			}
++			if !settled {
++				out[turn.ID] = true
++			}
++		}
++	}
+ 	return out, nil
+ }
+diff --git a/control-plane/internal/product/coordination_store.go b/control-plane/internal/product/coordination_store.go
+index e38f6b60..3008fc30 100644
+--- a/control-plane/internal/product/coordination_store.go
++++ b/control-plane/internal/product/coordination_store.go
+@@ -63,13 +63,17 @@ type storedCoordinationIntent struct {
+ }
+ 
+ type coordinationLedger struct {
+-	Version      int                        `json:"version"`
+-	ProjectID    string                     `json:"projectId"`
+-	AccountScope string                     `json:"accountScope"`
+-	ProjectScope string                     `json:"projectScope"`
+-	Revision     int                        `json:"revision"`
+-	Intents      []storedCoordinationIntent `json:"intents"`
+-	Events       []CoordinationEvent        `json:"events"`
++	Version       int                        `json:"version"`
++	ProjectID     string                     `json:"projectId"`
++	AccountScope  string                     `json:"accountScope"`
++	ProjectScope  string                     `json:"projectScope"`
++	Revision      int                        `json:"revision"`
++	EventSequence int                        `json:"eventSequence,omitempty"`
++	EventHead     string                     `json:"eventHead,omitempty"`
++	Intents       []storedCoordinationIntent `json:"intents"`
++	Events        []CoordinationEvent        `json:"events"`
++	Archives      []coordinationArchiveIndex `json:"archives,omitempty"`
++	witnesses     map[string]coordinationArchivedWitness
+ }
+ 
+ func (s *Server) coordinationPath(id string, create bool) (string, error) {
+@@ -124,52 +128,67 @@ func (s *Server) readCoordination(p project.Project) (coordinationLedger, error)
+ 	} else if err != nil {
+ 		return out, ErrOrchestratorInvalid
+ 	}
++	if err = validateCoordinationShape(saved, out); err != nil {
++		return out, err
++	}
++	if err = newCoordinationArchiveReader(s, p).hydrate(&saved); err != nil {
++		return out, err
++	}
++	if err = s.validateCoordinationBindings(p, saved); err != nil {
++		return out, err
++	}
++	return saved, nil
++}
++
++func validateCoordinationShape(saved, out coordinationLedger) error {
+ 	if saved.Version != 1 || saved.ProjectID != out.ProjectID || saved.AccountScope != out.AccountScope || saved.ProjectScope != out.ProjectScope || saved.Revision < 0 || len(saved.Intents) > coordinationIntentLimit || len(saved.Events) > coordinationIntentLimit*3 {
+-		return out, ErrOrchestratorInvalid
++		return ErrOrchestratorInvalid
++	}
++	archivedIDs := map[string]bool{}
++	for _, page := range saved.Archives {
++		for _, id := range page.Retired {
++			archivedIDs[id.IntentID] = true
++		}
+ 	}
+ 	seen, turns, keys := map[string]bool{}, map[string]bool{}, map[string]bool{}
+ 	for _, intent := range saved.Intents {
+ 		if !strings.HasPrefix(intent.ID, "intent-") || !prototypeReleaseID.MatchString(intent.ID) || seen[intent.ID] || turns[intent.TurnID] || keys[intent.Key] || !hexDigest(intent.Key) || !hexDigest(intent.Request) || !hexDigest(intent.BaseContextDigest) || !hexDigest(intent.ProposalDigest) || !prototypeReleaseID.MatchString(intent.TurnID) || !strings.HasPrefix(intent.TurnID, "turn-") || !validConnectionToken(intent.Actor.ID, 128, false) || intent.Actor.DisplayName == "" || len(intent.Actor.DisplayName) > 512 || intent.LuciID != coordinationLuciID(saved.AccountScope, intent.Actor.ID) || len(intent.RequestedChange) > 16000 || len(intent.ChangedPaths) > 1024 || len(intent.DependsOn) > 16 || len(intent.TaskIDs) > 200 || len(intent.RequirementIDs) > 200 {
+-			return out, ErrOrchestratorInvalid
++			return ErrOrchestratorInvalid
+ 		}
+ 		if intent.Target != "specification" && intent.Target != "design-plan" && intent.Target != "plan" {
+-			return out, ErrOrchestratorInvalid
++			return ErrOrchestratorInvalid
+ 		}
+ 		if intent.Status != "pending" && intent.Status != "applied" && intent.Status != "superseded" {
+-			return out, ErrOrchestratorInvalid
++			return ErrOrchestratorInvalid
+ 		}
+ 		if (intent.ApplyBaseContextDigest != "" && !hexDigest(intent.ApplyBaseContextDigest)) || (intent.CandidateProposalDigest != "" && !hexDigest(intent.CandidateProposalDigest)) || (intent.AcceptedContextDigest != "" && !hexDigest(intent.AcceptedContextDigest)) {
+-			return out, ErrOrchestratorInvalid
++			return ErrOrchestratorInvalid
+ 		}
+ 		if intent.Status == "applied" && (intent.AppliedRevision < 1 || !hexDigest(intent.AppliedTargetDigest) || !hexDigest(intent.ApplyBaseContextDigest) || !hexDigest(intent.CandidateProposalDigest)) {
+-			return out, ErrOrchestratorInvalid
++			return ErrOrchestratorInvalid
+ 		}
+ 		if _, err := time.Parse(time.RFC3339Nano, intent.CreatedAt); err != nil {
+-			return out, ErrOrchestratorInvalid
++			return ErrOrchestratorInvalid
+ 		}
+ 		for _, dependency := range intent.DependsOn {
+-			if !seen[dependency] {
+-				return out, ErrOrchestratorInvalid
++			if !seen[dependency] && !archivedIDs[dependency] {
++				return ErrOrchestratorInvalid
+ 			}
+ 		}
+ 		seen[intent.ID], turns[intent.TurnID], keys[intent.Key] = true, true, true
+ 	}
+-	for i, event := range saved.Events {
+-		previous := ""
+-		if i > 0 {
+-			previous = saved.Events[i-1].ID
+-		}
+-		if event.PreviousEventID != previous {
+-			return out, ErrOrchestratorInvalid
+-		}
+-		if event.Sequence != i+1 || !seen[event.IntentID] || !strings.HasPrefix(event.ID, "coord-event-") || !prototypeReleaseID.MatchString(event.ID) || !hexDigest(event.ContextDigest) || (event.Kind != "proposed" && event.Kind != "applied" && event.Kind != "superseded") || !validConnectionToken(event.Actor.ID, 128, false) || len(event.Causes) > 17 {
+-			return out, ErrOrchestratorInvalid
+-		}
++	sequence, err := coordinationEventIndex(saved)
++	if err != nil {
++		return err
+ 	}
+-	if err = s.validateCoordinationBindings(p, saved); err != nil {
+-		return out, err
++	previousSequence := 0
++	for _, event := range saved.Events {
++		if event.Sequence <= previousSequence || event.PreviousEventID != sequence[event.Sequence-1] || !seen[event.IntentID] || !strings.HasPrefix(event.ID, "coord-event-") || !prototypeReleaseID.MatchString(event.ID) || !hexDigest(event.ContextDigest) || (event.Kind != "proposed" && event.Kind != "applied" && event.Kind != "superseded") || !validConnectionToken(event.Actor.ID, 128, false) || len(event.Causes) > 17 {
++			return ErrOrchestratorInvalid
++		}
++		previousSequence = event.Sequence
+ 	}
+-	return saved, nil
++	return nil
+ }
+ 
+ // A valid-shaped row alone cannot satisfy a dependency or resolve opposition.
+@@ -179,6 +198,10 @@ func (s *Server) validateCoordinationBindings(p project.Project, saved coordinat
+ 	if err != nil {
+ 		return err
+ 	}
++	return validateCoordinationBindingsWithTurns(saved, turns)
++}
++
++func validateCoordinationBindingsWithTurns(saved coordinationLedger, turns orchestratorLedger) error {
+ 	intents := map[string]storedCoordinationIntent{}
+ 	for _, intent := range saved.Intents {
+ 		intents[intent.ID] = intent
+@@ -204,6 +227,12 @@ func (s *Server) validateCoordinationBindings(p project.Project, saved coordinat
+ 		}
+ 	}
+ 	states, events := map[string]string{}, map[string]bool{}
++	for id, witness := range saved.witnesses {
++		if witness.Intent.Status != "applied" {
++			return ErrOrchestratorInvalid
++		}
++		states[id] = "applied"
++	}
+ 	for _, event := range saved.Events {
+ 		intent := intents[event.IntentID]
+ 		if events[event.ID] || event.Actor.DisplayName == "" || len(event.Actor.DisplayName) > 512 {
+@@ -218,6 +247,9 @@ func (s *Server) validateCoordinationBindings(p project.Project, saved coordinat
+ 			if causes[cause] || states[cause] == "" || cause == event.IntentID {
+ 				return ErrOrchestratorInvalid
+ 			}
++			if witness, ok := saved.witnesses[cause]; ok && witness.AppliedSequence >= event.Sequence {
++				return ErrOrchestratorInvalid
++			}
+ 			causes[cause] = true
+ 		}
+ 		switch event.Kind {
+@@ -253,7 +285,7 @@ func coordinationLuciID(account, actor string) string {
+ 
+ func (s *Server) saveCoordination(saved coordinationLedger) error {
+ 	data, err := json.MarshalIndent(saved, "", "  ")
+-	if err != nil || len(data)+1 > coordinationFileLimit || len(saved.Intents) > coordinationIntentLimit || len(saved.Events) > coordinationIntentLimit*3 {
++	if err != nil || len(data)+1 > coordinationFileLimit || len(saved.Intents) > coordinationIntentLimit || len(saved.Events) > coordinationIntentLimit*3 || len(saved.Archives) > coordinationArchivePageLimit {
+ 		return ErrOrchestratorCapacity
+ 	}
+ 	path, err := s.coordinationPath(saved.ProjectID, true)
+@@ -266,7 +298,7 @@ func (s *Server) saveCoordination(saved coordinationLedger) error {
+ 	return nil
+ }
+ 
+-func coordinationEvent(saved *coordinationLedger, intent CoordinationIntent, kind, digest string, actor ContextActor) {
++func coordinationEvent(saved *coordinationLedger, intent CoordinationIntent, kind, digest string, actor ContextActor) error {
+ 	causes := append([]string{}, intent.DependsOn...)
+ 	if intent.SupersededBy != "" {
+ 		found := false
+@@ -277,10 +309,14 @@ func coordinationEvent(saved *coordinationLedger, intent CoordinationIntent, kin
+ 			causes = append(causes, intent.SupersededBy)
+ 		}
+ 	}
+-	previous := ""
+-	if len(saved.Events) > 0 {
+-		previous = saved.Events[len(saved.Events)-1].ID
++	sequence, err := coordinationEventIndex(*saved)
++	if err != nil {
++		return err
+ 	}
+-	saved.Events = append(saved.Events, CoordinationEvent{ID: newID("coord-event-"), Sequence: len(saved.Events) + 1, PreviousEventID: previous, Kind: kind, IntentID: intent.ID, Actor: actor, At: time.Now().UTC().Format(time.RFC3339Nano), Causes: causes, ContextDigest: digest})
++	previous := sequence[len(sequence)]
++	saved.Events = append(saved.Events, CoordinationEvent{ID: newID("coord-event-"), Sequence: len(sequence) + 1, PreviousEventID: previous, Kind: kind, IntentID: intent.ID, Actor: actor, At: time.Now().UTC().Format(time.RFC3339Nano), Causes: causes, ContextDigest: digest})
++	saved.EventSequence = len(sequence) + 1
++	saved.EventHead = saved.Events[len(saved.Events)-1].ID
+ 	saved.Revision++
++	return nil
+ }
+diff --git a/control-plane/internal/product/coordination_archive.go b/control-plane/internal/product/coordination_archive.go
+new file mode 100644
+index 00000000..be9d7878
+--- /dev/null
++++ b/control-plane/internal/product/coordination_archive.go
+@@ -0,0 +1,650 @@
++package product
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"io"
++	"net/http"
++	"os"
++	"reflect"
++	"runtime"
++	"sort"
++	"strconv"
++	"strings"
++
++	"github.com/lcfrai/luci/control-plane/internal/hostpath"
++	"github.com/lcfrai/luci/control-plane/internal/project"
++)
++
++// These are storage bounds, not a claim that history may be discarded. Reaching
++// either bound refuses a new write; existing exact receipts remain readable.
++const coordinationArchivePageLimit = 64
++const coordinationArchiveBytes = 256 << 20
++const coordinationArchiveFileLimit = coordinationFileLimit + orchestratorFileLimit + (1 << 20)
++const coordinationRetainThreshold = 48
++const coordinationArchiveReadBytes = 32 << 20
++
++type CoordinationEventReference struct {
++	ID             string `json:"id"`
++	Sequence       int    `json:"sequence"`
++	OriginIntentID string `json:"originIntentId"`
++}
++
++type CoordinationArchiveReference struct {
++	Digest string                       `json:"digest"`
++	Bytes  int                          `json:"bytes"`
++	Events []CoordinationEventReference `json:"events"`
++}
++
++type coordinationArchivedIdentity struct {
++	IntentID    string `json:"intentId"`
++	TurnID      string `json:"turnId"`
++	ActorID     string `json:"actorId"`
++	Key         string `json:"keyDigest"`
++	Request     string `json:"requestDigest"`
++	TurnKey     string `json:"turnKeyDigest"`
++	TurnRequest string `json:"turnRequestDigest"`
++}
++
++type coordinationArchiveIndex struct {
++	CoordinationArchiveReference
++	Retired []coordinationArchivedIdentity `json:"retired"`
++}
++
++type coordinationArchive struct {
++	Version int                `json:"version"`
++	Ledger  coordinationLedger `json:"ledger"`
++	Origins orchestratorLedger `json:"origins"`
++	Retired []string           `json:"retired"`
++}
++
++// A receipt identifies an observation, not permission to act on it. An empty
++// archive digest identifies an event that was active when the receipt was made;
++// exact lookup follows the bounded retirement index if it has since moved.
++type CoordinationEventReceipt struct {
++	EventID        string `json:"eventId"`
++	Sequence       int    `json:"sequence"`
++	OriginIntentID string `json:"originIntentId"`
++	ArchiveDigest  string `json:"archiveDigest,omitempty"`
++}
++
++type CoordinationEventObservation struct {
++	Receipt CoordinationEventReceipt `json:"receipt"`
++	Event   CoordinationEvent        `json:"event"`
++	Intent  CoordinationIntent       `json:"intent"`
++	Origin  OrchestratorTurn         `json:"origin"`
++}
++
++func (s *Server) coordinationArchiveDir(id string, create bool) (string, error) {
++	if !prototypeReleaseID.MatchString(id) {
++		return "", ErrOrchestratorInvalid
++	}
++	for _, relative := range []string{"coordination-archives", "coordination-archives/" + id} {
++		path, err := guardedProjectPath(s.stateDir, relative, create)
++		if err != nil {
++			return "", err
++		}
++		if create {
++			if err = os.Mkdir(path, 0700); err != nil && !errors.Is(err, os.ErrExist) {
++				return "", err
++			}
++			if runtime.GOOS == "windows" {
++				err = restrictPrivateFile(path)
++			} else {
++				err = os.Chmod(path, 0700)
++			}
++			if err != nil {
++				return "", err
++			}
++		}
++	}
++	return guardedProjectPath(s.stateDir, "coordination-archives/"+id, false)
++}
++
++func coordinationArchiveDescriptor(page coordinationArchive) (coordinationArchiveIndex, error) {
++	data, err := json.MarshalIndent(page, "", "  ")
++	if err != nil || len(data)+1 > coordinationArchiveFileLimit {
++		return coordinationArchiveIndex{}, ErrOrchestratorCapacity
++	}
++	out := coordinationArchiveIndex{CoordinationArchiveReference: CoordinationArchiveReference{Digest: reviewDigest(page), Bytes: len(data) + 1, Events: []CoordinationEventReference{}}, Retired: []coordinationArchivedIdentity{}}
++	wanted := map[string]bool{}
++	for _, id := range page.Retired {
++		if wanted[id] {
++			return out, ErrOrchestratorInvalid
++		}
++		wanted[id] = true
++	}
++	for _, row := range page.Ledger.Intents {
++		if !wanted[row.ID] {
++			continue
++		}
++		turn := coordinationTurn(page.Origins, row.TurnID)
++		if row.Status == "pending" || turn == nil || turn.ApplyIntent != "" {
++			return out, ErrOrchestratorInvalid
++		}
++		out.Retired = append(out.Retired, coordinationArchivedIdentity{row.ID, row.TurnID, row.Actor.ID, row.Key, row.Request, turn.KeyDigest, turn.RequestDigest})
++	}
++	if len(out.Retired) == 0 || len(out.Retired) != len(wanted) {
++		return out, ErrOrchestratorInvalid
++	}
++	for _, event := range page.Ledger.Events {
++		if wanted[event.IntentID] {
++			out.Events = append(out.Events, CoordinationEventReference{event.ID, event.Sequence, event.IntentID})
++		}
++	}
++	return out, nil
++}
++
++// Validate the complete sequence using compact references; no archive contents
++// are interpreted as dependency satisfaction or current authority here.
++func coordinationEventIndex(saved coordinationLedger) (map[int]string, error) {
++	if len(saved.Archives) > coordinationArchivePageLimit {
++		return nil, ErrOrchestratorCapacity
++	}
++	bySequence, ids, intents, turns, keys := map[int]string{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}
++	turnKeys := map[string]bool{}
++	digests, totalBytes := map[string]bool{}, 0
++	add := func(id string, seq int) bool {
++		if !strings.HasPrefix(id, "coord-event-") || !prototypeReleaseID.MatchString(id) || seq < 1 || seq > (coordinationArchivePageLimit+1)*coordinationIntentLimit*3 || ids[id] || bySequence[seq] != "" {
++			return false
++		}
++		ids[id], bySequence[seq] = true, id
++		return true
++	}
++	for _, archive := range saved.Archives {
++		if !hexDigest(archive.Digest) || digests[archive.Digest] || archive.Bytes < 1 || archive.Bytes > coordinationArchiveFileLimit || len(archive.Retired) == 0 || len(archive.Retired) > coordinationIntentLimit || len(archive.Events) == 0 || len(archive.Events) > coordinationIntentLimit*3 {
++			return nil, ErrOrchestratorInvalid
++		}
++		digests[archive.Digest] = true
++		totalBytes += archive.Bytes
++		owned := map[string]bool{}
++		for _, row := range archive.Retired {
++			if !strings.HasPrefix(row.IntentID, "intent-") || !prototypeReleaseID.MatchString(row.IntentID) || !strings.HasPrefix(row.TurnID, "turn-") || !prototypeReleaseID.MatchString(row.TurnID) || !validConnectionToken(row.ActorID, 128, false) || intents[row.IntentID] || turns[row.TurnID] || keys[row.Key] || turnKeys[row.TurnKey] || !hexDigest(row.Key) || !hexDigest(row.Request) || !hexDigest(row.TurnKey) || !hexDigest(row.TurnRequest) {
++				return nil, ErrOrchestratorInvalid
++			}
++			intents[row.IntentID], turns[row.TurnID], keys[row.Key] = true, true, true
++			owned[row.IntentID], turnKeys[row.TurnKey] = true, true
++		}
++		for _, ref := range archive.Events {
++			if !owned[ref.OriginIntentID] || !add(ref.ID, ref.Sequence) {
++				return nil, ErrOrchestratorInvalid
++			}
++		}
++	}
++	if totalBytes > coordinationArchiveBytes {
++		return nil, ErrOrchestratorCapacity
++	}
++	for _, row := range saved.Intents {
++		if intents[row.ID] || turns[row.TurnID] || keys[row.Key] {
++			return nil, ErrOrchestratorInvalid
++		}
++	}
++	for _, event := range saved.Events {
++		if !add(event.ID, event.Sequence) {
++			return nil, ErrOrchestratorInvalid
++		}
++	}
++	for i := 1; i <= len(bySequence); i++ {
++		if bySequence[i] == "" {
++			return nil, ErrOrchestratorInvalid
++		}
++	}
++	if saved.EventSequence != 0 || saved.EventHead != "" || len(saved.Archives) > 0 {
++		if saved.EventSequence != len(bySequence) || saved.EventHead != bySequence[len(bySequence)] {
++			return nil, ErrOrchestratorInvalid
++		}
++	}
++	return bySequence, nil
++}
++
++type coordinationArchivedWitness struct {
++	Intent          CoordinationIntent
++	AppliedSequence int
++}
++type coordinationArchiveReader struct {
++	server  *Server
++	project project.Project
++	pages   map[string]coordinationArchive
++	loading map[string]bool
++	bytes   int
++}
++
++func newCoordinationArchiveReader(s *Server, p project.Project) *coordinationArchiveReader {
++	return &coordinationArchiveReader{server: s, project: p, pages: map[string]coordinationArchive{}, loading: map[string]bool{}}
++}
++func (s *Server) readCoordinationArchive(p project.Project, saved coordinationLedger, ref coordinationArchiveIndex) (coordinationArchive, error) {
++	return newCoordinationArchiveReader(s, p).read(saved, ref)
++}
++func (r *coordinationArchiveReader) hydrate(saved *coordinationLedger) error {
++	saved.witnesses = map[string]coordinationArchivedWitness{}
++	active := map[string]bool{}
++	for _, row := range saved.Intents {
++		active[row.ID] = true
++	}
++	for _, row := range saved.Intents {
++		for _, dep := range row.DependsOn {
++			if active[dep] {
++				continue
++			}
++			if _, ok := saved.witnesses[dep]; ok {
++				continue
++			}
++			found := false
++			for _, ref := range saved.Archives {
++				for _, id := range ref.Retired {
++					if id.IntentID != dep {
++						continue
++					}
++					page, err := r.read(*saved, ref)
++					if err != nil {
++						return err
++					}
++					intent := coordinationIntent(&page.Ledger, id.TurnID)
++					if intent == nil || intent.ID != dep || intent.Status != "applied" {
++						return ErrOrchestratorInvalid
++					}
++					for _, event := range page.Ledger.Events {
++						if event.IntentID == dep && event.Kind == "applied" {
++							saved.witnesses[dep] = coordinationArchivedWitness{intent.CoordinationIntent, event.Sequence}
++							found = true
++						}
++					}
++				}
++			}
++			if !found {
++				return ErrOrchestratorInvalid
++			}
++		}
++	}
++	return nil
++}
++
++func (r *coordinationArchiveReader) read(saved coordinationLedger, ref coordinationArchiveIndex) (coordinationArchive, error) {
++	s, p := r.server, r.project
++	if page, ok := r.pages[ref.Digest]; ok {
++		actual, e := coordinationArchiveDescriptor(page)
++		if e != nil || !reflect.DeepEqual(actual, ref) {
++			return coordinationArchive{}, ErrOrchestratorInvalid
++		}
++		return page, nil
++	}
++	if r.loading[ref.Digest] || ref.Bytes < 1 || r.bytes+ref.Bytes > coordinationArchiveReadBytes {
++		return coordinationArchive{}, ErrOrchestratorCapacity
++	}
++	r.loading[ref.Digest] = true
++	defer delete(r.loading, ref.Digest)
++	r.bytes += ref.Bytes
++	var page coordinationArchive
++	dir, err := s.coordinationArchiveDir(p.ID, false)
++	if err != nil {
++		return page, ErrOrchestratorInvalid
++	}
++	path, err := guardedProjectPath(dir, ref.Digest+".json", false)
++	if err != nil || externalReadJSON(path, coordinationArchiveFileLimit, &page) != nil {
++		return page, ErrOrchestratorInvalid
++	}
++	if page.Version != 1 || reviewDigest(page) != ref.Digest || page.Ledger.ProjectID != saved.ProjectID || page.Ledger.AccountScope != saved.AccountScope || page.Ledger.ProjectScope != saved.ProjectScope {
++		return page, ErrOrchestratorInvalid
++	}
++	actual, err := coordinationArchiveDescriptor(page)
++	if err != nil || !reflect.DeepEqual(actual, ref) {
++		return page, ErrOrchestratorInvalid
++	}
++	if err = validateCoordinationShape(page.Ledger, saved); err != nil {
++		return page, err
++	}
++	raw, err := json.Marshal(page.Origins)
++	if err != nil {
++		return page, ErrOrchestratorInvalid
++	}
++	if _, err = decodeOrchestratorLedger(raw, orchestratorLedger{ProjectID: saved.ProjectID, AccountScope: saved.AccountScope, ProjectScope: saved.ProjectScope}); err != nil {
++		return page, err
++	}
++	if err = r.hydrate(&page.Ledger); err != nil {
++		return page, err
++	}
++	if err = validateCoordinationBindingsWithTurns(page.Ledger, page.Origins); err != nil {
++		return page, err
++	}
++	r.pages[ref.Digest] = page
++	return page, nil
++}
++
++// The physical quota includes unreferenced pages left by a crash before pointer
++// publication. They may be reused by exact digest, never silently pruned.
++func (s *Server) writeCoordinationArchive(p project.Project, page coordinationArchive, ref coordinationArchiveIndex) error {
++	dir, err := s.coordinationArchiveDir(p.ID, true)
++	if err != nil {
++		return ErrOrchestratorInvalid
++	}
++	f, err := os.Open(dir)
++	if err != nil {
++		return ErrOrchestratorInvalid
++	}
++	entries, readErr := f.ReadDir(coordinationArchivePageLimit + 1)
++	f.Close()
++	if readErr != nil && !errors.Is(readErr, io.EOF) {
++		return ErrOrchestratorInvalid
++	}
++	if len(entries) > coordinationArchivePageLimit {
++		return ErrOrchestratorCapacity
++	}
++	bytes, exists := 0, false
++	for _, entry := range entries {
++		digest := strings.TrimSuffix(entry.Name(), ".json")
++		staging := orchestratorStagingName.MatchString(entry.Name())
++		if (!staging && (!hexDigest(digest) || entry.Name() != digest+".json")) || !entry.Type().IsRegular() {
++			return ErrOrchestratorInvalid
++		}
++		path, e := guardedProjectPath(dir, entry.Name(), false)
++		if e != nil || hostpath.OneName(path) != nil {
++			return ErrOrchestratorInvalid
++		}
++		info, e := os.Stat(path)
++		if e != nil || info.Size() > coordinationArchiveFileLimit {
++			return ErrOrchestratorInvalid
++		}
++		bytes += int(info.Size())
++		if !staging && digest == ref.Digest {
++			exists = true
++		}
++	}
++	if bytes > coordinationArchiveBytes {
++		return ErrOrchestratorCapacity
++	}
++	if exists {
++		_, err = s.readCoordinationArchive(p, page.Ledger, ref)
++		return err
++	}
++	if len(entries) >= coordinationArchivePageLimit || bytes+ref.Bytes > coordinationArchiveBytes {
++		return ErrOrchestratorCapacity
++	}
++	path, err := guardedProjectPath(dir, ref.Digest+".json", true)
++	if err != nil || durableRunJSON(path, page) != nil {
++		return ErrOrchestratorInvalid
++	}
++	return nil
++}
++
++// Caller owns the existing mutation lock. Publication is archive-first and
++// active-pointer-second. Failure leaves the old authoritative rows untouched.
++func (s *Server) compactCoordinationLocked(p project.Project, saved *coordinationLedger, incoming int, protected ...string) error {
++	if len(saved.Intents)+incoming <= coordinationRetainThreshold {
++		return nil
++	}
++	turns, err := s.readOrchestrator(p)
++	if err != nil {
++		return err
++	}
++	keep := map[string]bool{}
++	for _, id := range protected {
++		keep[id] = true
++	}
++	for _, row := range saved.Intents {
++		turn := coordinationTurn(turns, row.TurnID)
++		if row.Status == "pending" || turn == nil || turn.ApplyIntent != "" || (turn.Answer != nil && turn.Answer.Blocking && turn.QuestionResolvedBy == "") {
++			keep[row.ID] = true
++		}
++	}
++	for range saved.Intents {
++		for _, row := range saved.Intents {
++			if !keep[row.ID] {
++				continue
++			}
++			for _, dep := range row.DependsOn {
++				keep[dep] = true
++			}
++			if row.SupersededBy != "" {
++				keep[row.SupersededBy] = true
++			}
++		}
++	}
++	retired := []string{}
++	for _, row := range saved.Intents {
++		if !keep[row.ID] {
++			retired = append(retired, row.ID)
++		}
++	}
++	if len(retired) == 0 {
++		return nil
++	}
++	origins := turns
++	origins.Turns = []storedOrchestratorTurn{}
++	for _, row := range saved.Intents {
++		turn := coordinationTurn(turns, row.TurnID)
++		if turn == nil {
++			return ErrOrchestratorInvalid
++		}
++		origins.Turns = append(origins.Turns, *turn)
++	}
++	sort.Slice(origins.Turns, func(i, j int) bool { return origins.Turns[i].Sequence < origins.Turns[j].Sequence })
++	page := coordinationArchive{Version: 1, Ledger: *saved, Origins: origins, Retired: retired}
++	ref, err := coordinationArchiveDescriptor(page)
++	if err != nil {
++		return err
++	}
++	if len(saved.Archives) >= coordinationArchivePageLimit {
++		return ErrOrchestratorCapacity
++	}
++	if err = s.writeCoordinationArchive(p, page, ref); err != nil {
++		return err
++	}
++	// Allocate new slices: the immutable page's source slices must not change.
++	active := []storedCoordinationIntent{}
++	for _, row := range saved.Intents {
++		if keep[row.ID] {
++			active = append(active, row)
++		}
++	}
++	events := []CoordinationEvent{}
++	for _, event := range saved.Events {
++		if keep[event.IntentID] {
++			events = append(events, event)
++		}
++	}
++	sequence, err := coordinationEventIndex(*saved)
++	if err != nil {
++		return err
++	}
++	saved.EventSequence = len(sequence)
++	saved.EventHead = sequence[len(sequence)]
++	saved.Intents, saved.Events = active, events
++	saved.Archives = append(append([]coordinationArchiveIndex{}, saved.Archives...), ref)
++	saved.Revision++
++	return nil
++}
++
++func (s *Server) archivedCoordinationIntent(p project.Project, saved coordinationLedger, match func(coordinationArchivedIdentity) bool) (*storedCoordinationIntent, *storedOrchestratorTurn, error) {
++	for _, ref := range saved.Archives {
++		for _, id := range ref.Retired {
++			if match(id) {
++				page, err := s.readCoordinationArchive(p, saved, ref)
++				if err != nil {
++					return nil, nil, err
++				}
++				intent := coordinationIntent(&page.Ledger, id.TurnID)
++				turn := coordinationTurn(page.Origins, id.TurnID)
++				if intent == nil || turn == nil || intent.ID != id.IntentID {
++					return nil, nil, ErrOrchestratorInvalid
++				}
++				return intent, turn, nil
++			}
++		}
++	}
++	return nil, nil, nil
++}
++
++// This also protects the upstream paid-request namespace after normal history
++// rotation. An archived same key with changed request remains a conflict.
++func (s *Server) archivedCoordinationRequestLocked(p project.Project, key, request string) (*storedOrchestratorTurn, error) {
++	saved, err := s.readCoordination(p)
++	if err != nil {
++		return nil, err
++	}
++	_, turn, err := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnKey == key })
++	if err != nil {
++		return nil, err
++	}
++	if turn != nil && turn.RequestDigest != request {
++		return nil, ErrOrchestratorConflict
++	}
++	return turn, nil
++}
++
++// Caller holds s.mu. This is exact original readback, including settled apply
++// receipts; it never promotes an archived proposal back into active work.
++func (s *Server) archivedCoordinationTurnLocked(p project.Project, turnID string) (*storedOrchestratorTurn, error) {
++	saved, err := s.readCoordination(p)
++	if err != nil {
++		return nil, err
++	}
++	_, turn, err := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnID == turnID })
++	return turn, err
++}
++
++func (s *Server) archivedCoordinationForeignRequestLocked(p project.Project, actor, key string) (bool, error) {
++	saved, err := s.readCoordination(p)
++	if err != nil {
++		return false, err
++	}
++	for _, page := range saved.Archives {
++		for _, id := range page.Retired {
++			if id.ActorID != actor && id.TurnKey == reviewDigest(id.ActorID+":"+key) {
++				return true, nil
++			}
++		}
++	}
++	return false, nil
++}
++
++func (s *Server) getCoordinationEvent(w http.ResponseWriter, r *http.Request) {
++	q := r.URL.Query()
++	for key, values := range q {
++		if len(values) != 1 || (key != "sequence" && key != "originIntentId" && key != "archiveDigest") {
++			orchestratorProblem(w, ErrOrchestratorInvalid)
++			return
++		}
++	}
++	sequence, err := strconv.Atoi(q.Get("sequence"))
++	if err != nil {
++		orchestratorProblem(w, ErrOrchestratorInvalid)
++		return
++	}
++	value, err := s.CoordinationEventByIdentity(r.Context(), r.PathValue("id"), CoordinationEventReceipt{r.PathValue("eventId"), sequence, q.Get("originIntentId"), q.Get("archiveDigest")})
++	if err != nil {
++		coordinatorPolicyProblem(w, err)
++		return
++	}
++	journeyJSON(w, 200, value)
++}
++
++func (s *Server) getCoordinationIntent(w http.ResponseWriter, r *http.Request) {
++	if _, ok := authenticatedContextActor(r.Context()); !ok {
++		coordinatorPolicyProblem(w, errCoordinatorAuthority)
++		return
++	}
++	id := r.PathValue("intentId")
++	if !strings.HasPrefix(id, "intent-") || !prototypeReleaseID.MatchString(id) {
++		orchestratorProblem(w, ErrOrchestratorInvalid)
++		return
++	}
++	release, err := s.AcquireGitSessionAdmission(r.Context(), r.PathValue("id"))
++	if err != nil {
++		orchestratorProblem(w, err)
++		return
++	}
++	defer release()
++	p, err := s.resolveProject(r.PathValue("id"))
++	if err != nil {
++		orchestratorProblem(w, err)
++		return
++	}
++	s.mu.RLock()
++	defer s.mu.RUnlock()
++	saved, err := s.readCoordination(p)
++	if err != nil {
++		orchestratorProblem(w, err)
++		return
++	}
++	for _, intent := range saved.Intents {
++		if intent.ID == id {
++			journeyJSON(w, 200, intent.CoordinationIntent)
++			return
++		}
++	}
++	intent, _, err := s.archivedCoordinationIntent(p, saved, func(row coordinationArchivedIdentity) bool { return row.IntentID == id })
++	if err != nil {
++		orchestratorProblem(w, err)
++		return
++	}
++	if intent == nil {
++		orchestratorProblem(w, ErrOrchestratorConflict)
++		return
++	}
++	journeyJSON(w, 200, intent.CoordinationIntent)
++}
++
++func (s *Server) CoordinationEventByIdentity(ctx context.Context, id string, receipt CoordinationEventReceipt) (CoordinationEventObservation, error) {
++	if _, ok := authenticatedContextActor(ctx); !ok {
++		return CoordinationEventObservation{}, errCoordinatorAuthority
++	}
++	if receipt.Sequence < 1 || !strings.HasPrefix(receipt.EventID, "coord-event-") || !prototypeReleaseID.MatchString(receipt.EventID) || !strings.HasPrefix(receipt.OriginIntentID, "intent-") || !prototypeReleaseID.MatchString(receipt.OriginIntentID) || receipt.ArchiveDigest != "" && !hexDigest(receipt.ArchiveDigest) {
++		return CoordinationEventObservation{}, ErrOrchestratorInvalid
++	}
++	release, err := s.AcquireGitSessionAdmission(ctx, id)
++	if err != nil {
++		return CoordinationEventObservation{}, err
++	}
++	defer release()
++	p, err := s.resolveProject(id)
++	if err != nil {
++		return CoordinationEventObservation{}, err
++	}
++	s.mu.RLock()
++	defer s.mu.RUnlock()
++	saved, err := s.readCoordination(p)
++	if err != nil {
++		return CoordinationEventObservation{}, err
++	}
++	selected, origins := saved, orchestratorLedger{}
++	actualDigest := ""
++	for _, ref := range saved.Archives {
++		for _, event := range ref.Events {
++			if event.ID == receipt.EventID {
++				if receipt.ArchiveDigest != "" && receipt.ArchiveDigest != ref.Digest {
++					return CoordinationEventObservation{}, ErrOrchestratorConflict
++				}
++				page, e := s.readCoordinationArchive(p, saved, ref)
++				if e != nil {
++					return CoordinationEventObservation{}, e
++				}
++				selected, origins, actualDigest = page.Ledger, page.Origins, ref.Digest
++			}
++		}
++	}
++	if actualDigest == "" {
++		if receipt.ArchiveDigest != "" {
++			return CoordinationEventObservation{}, ErrOrchestratorConflict
++		}
++		origins, err = s.readOrchestrator(p)
++		if err != nil {
++			return CoordinationEventObservation{}, err
++		}
++	}
++	for _, event := range selected.Events {
++		if event.ID == receipt.EventID && event.Sequence == receipt.Sequence && event.IntentID == receipt.OriginIntentID {
++			for _, intent := range selected.Intents {
++				if intent.ID == event.IntentID {
++					turn := coordinationTurn(origins, intent.TurnID)
++					if turn == nil {
++						return CoordinationEventObservation{}, ErrOrchestratorInvalid
++					}
++					receipt.ArchiveDigest = actualDigest
++					return CoordinationEventObservation{receipt, event, intent.CoordinationIntent, turn.OrchestratorTurn}, nil
++				}
++			}
++		}
++	}
++	return CoordinationEventObservation{}, ErrOrchestratorConflict
++}
+diff --git a/control-plane/internal/product/coordination_archive_test.go b/control-plane/internal/product/coordination_archive_test.go
+new file mode 100644
+index 00000000..1c380325
+--- /dev/null
++++ b/control-plane/internal/product/coordination_archive_test.go
+@@ -0,0 +1,378 @@
++package product
++
++import (
++	"context"
++	"errors"
++	"os"
++	"path/filepath"
++	"reflect"
++	"strings"
++	"testing"
++
++	"github.com/lcfrai/luci/control-plane/internal/project"
++)
++
++func coordinationArchiveFixture(t *testing.T) (*Server, project.Project, OrchestratorTurn, OrchestratorTurn, coordinationLedger) {
++	t.Helper()
++	s, mux := journeyFixture(t)
++	p := createJourneyProject(t, mux, "coordination-archive")
++	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
++	first := coordinationProposalTest(t, s, p.ID, "alice", "purpose", "A confirmed amendment")
++	coordinationApplyTest(t, s, p.ID, "alice", first.ID, 200)
++	pending := coordinationProposalTest(t, s, p.ID, "bob", "audience", "A separate pending amendment")
++	saved, err := s.readCoordination(p)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return s, p, first, pending, saved
++}
++
++func coordinationArchiveNow(t *testing.T, s *Server, p project.Project, saved *coordinationLedger) {
++	t.Helper()
++	// A storage-seam fixture uses the production retirement decision with an
++	// incoming batch bound. The separate HTTP regression proves the real trigger.
++	if err := s.compactCoordinationLocked(p, saved, coordinationRetainThreshold); err != nil {
++		t.Fatal(err)
++	}
++	if err := s.saveCoordination(*saved); err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestCoordinationArchiveRestartExactEventsAndCurrentPendingOrigin(t *testing.T) {
++	s, p, first, pending, saved := coordinationArchiveFixture(t)
++	original := saved.Events[1]
++	originIntent := saved.Intents[0].ID
++	coordinationArchiveNow(t, s, p, &saved)
++	if len(saved.Intents) != 1 || saved.Intents[0].TurnID != pending.ID || len(saved.Archives) != 1 || saved.EventSequence != 3 {
++		t.Fatal("retirement changed pending ownership or sequence")
++	}
++	restarted, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer restarted.Close()
++	restarted.SetCoordinatorAuthorizer(s.coordinatorAuthorize)
++	path, _ := s.coordinationPath(p.ID, false)
++	before, _ := os.ReadFile(path)
++	receipt := CoordinationEventReceipt{EventID: original.ID, Sequence: original.Sequence, OriginIntentID: originIntent}
++	observation, err := restarted.CoordinationEventByIdentity(orchestratorActor(t, "bob"), p.ID, receipt)
++	if err != nil || !reflect.DeepEqual(observation.Event, original) || observation.Origin.ID != first.ID || observation.Intent.Status != "applied" || observation.Receipt.ArchiveDigest != saved.Archives[0].Digest {
++		t.Fatal("exact retired event/origin unavailable", err)
++	}
++	after, _ := os.ReadFile(path)
++	if string(before) != string(after) {
++		t.Fatal("readback mutated coordination")
++	}
++	if _, err = restarted.CoordinationEventByIdentity(context.Background(), p.ID, receipt); !errors.Is(err, errCoordinatorAuthority) {
++		t.Fatal("untrusted event read accepted", err)
++	}
++	wrong := receipt
++	wrong.Sequence++
++	if _, err = restarted.CoordinationEventByIdentity(orchestratorActor(t, "alice"), p.ID, wrong); !errors.Is(err, ErrOrchestratorConflict) {
++		t.Fatal("wrong sequence accepted", err)
++	}
++	wrong = receipt
++	wrong.ArchiveDigest = strings.Repeat("a", 64)
++	if _, err = restarted.CoordinationEventByIdentity(orchestratorActor(t, "alice"), p.ID, wrong); !errors.Is(err, ErrOrchestratorConflict) {
++		t.Fatal("wrong archive accepted", err)
++	}
++	coordinationApplyTest(t, restarted, p.ID, "bob", pending.ID, 200)
++	current, err := restarted.CoordinationViewForProject(orchestratorActor(t, "alice"), p.ID)
++	if err != nil || current.EventSequence != 4 || current.Events[len(current.Events)-1].PreviousEventID != saved.EventHead {
++		t.Fatal("new event severed immutable history", err)
++	}
++}
++
++func TestCoordinationArchiveProtectsIncomingDependencyAndUnknownApply(t *testing.T) {
++	for _, mode := range []string{"incoming-dependency", "unknown-apply", "unresolved-question"} {
++		t.Run(mode, func(t *testing.T) {
++			s, p, first, _, saved := coordinationArchiveFixture(t)
++			protected := []string{saved.Intents[0].ID}
++			if mode != "incoming-dependency" {
++				turns, _ := s.readOrchestrator(p)
++				turn := coordinationTurn(turns, first.ID)
++				if mode == "unknown-apply" {
++					turn.ApplyIntent = "unconfirmed-original-write"
++				} else {
++					turn.Answer.Blocking = true
++					turn.Answer.Question = "Which audience should guide this work?"
++				}
++				if err := s.saveOrchestrator(turns); err != nil {
++					t.Fatal(err)
++				}
++				protected = nil
++			}
++			if err := s.compactCoordinationLocked(p, &saved, coordinationRetainThreshold, protected...); err != nil {
++				t.Fatal(err)
++			}
++			if len(saved.Archives) != 0 || len(saved.Intents) != 2 {
++				t.Fatal("required origin retired")
++			}
++		})
++	}
++}
++
++func TestCoordinationArchiveLateDependencyUsesVerifiedReceipt(t *testing.T) {
++	s, p, _, _, saved := coordinationArchiveFixture(t)
++	firstID := saved.Intents[0].ID
++	coordinationArchiveNow(t, s, p, &saved)
++	// The explicit dependency request has no automatic origin; it uses the
++	// supported legacy completion seam, then current Edit at registration.
++	s.SetCoordinatorAuthorizer(nil)
++	turn := coordinationProposalTest(t, s, p.ID, "alice", "purpose", "A later dependent amendment")
++	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
++	h := coordinationHandler(s, "alice")
++	coordinationRegisterTest(t, h, p.ID, turn.ID, "late-archived-dependency", []string{firstID})
++	view, err := s.CoordinationViewForProject(orchestratorActor(t, "alice"), p.ID)
++	if err != nil || len(view.HistoricalCauses) != 1 || view.HistoricalCauses[0].ID != firstID || view.HistoricalCauses[0].Status != "applied" {
++		t.Fatal("archived cause not verified", err)
++	}
++	coordinationApplyTest(t, s, p.ID, "alice", turn.ID, 200)
++	// A corrupt archive cannot supply a dependency merely through index metadata.
++	dir, _ := s.coordinationArchiveDir(p.ID, false)
++	if err = os.WriteFile(filepath.Join(dir, saved.Archives[0].Digest+".json"), []byte("{}\n"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	if _, err = s.CoordinationViewForProject(orchestratorActor(t, "alice"), p.ID); err == nil {
++		t.Fatal("corrupt causal witness accepted")
++	}
++}
++
++func TestCoordinationArchiveCrashBeforePointerAndStagingRemainConservative(t *testing.T) {
++	s, p, _, _, saved := coordinationArchiveFixture(t)
++	path, _ := s.coordinationPath(p.ID, false)
++	before, _ := os.ReadFile(path)
++	if err := s.compactCoordinationLocked(p, &saved, coordinationRetainThreshold); err != nil {
++		t.Fatal(err)
++	}
++	// The archive is durable but active publication has not happened.
++	current, err := s.readCoordination(p)
++	if err != nil || len(current.Intents) != 2 || len(current.Archives) != 0 {
++		t.Fatal("uncommitted archive became authoritative", err)
++	}
++	after, _ := os.ReadFile(path)
++	if string(before) != string(after) {
++		t.Fatal("pre-commit compaction altered active receipt")
++	}
++	dir, _ := s.coordinationArchiveDir(p.ID, false)
++	staging := filepath.Join(dir, ".luci-123")
++	if err = os.WriteFile(staging, []byte("incomplete private archive"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	coordinationArchiveNow(t, s, p, &current)
++	if current.Archives[0].Digest != saved.Archives[0].Digest {
++		t.Fatal("retry duplicated archive identity")
++	}
++	data, err := os.ReadFile(staging)
++	if err != nil || string(data) != "incomplete private archive" {
++		t.Fatal("uncommitted staging adopted or erased", err)
++	}
++	entries, _ := os.ReadDir(dir)
++	if len(entries) != 2 {
++		t.Fatal("bounded retry wrote duplicate pages")
++	}
++}
++
++func TestCoordinationArchiveTruncatedHeadAndForeignPageRefuse(t *testing.T) {
++	for _, fault := range []string{"head", "foreign-scope", "event-origin", "missing-page"} {
++		t.Run(fault, func(t *testing.T) {
++			s, p, _, _, saved := coordinationArchiveFixture(t)
++			receipt := CoordinationEventReceipt{EventID: saved.Events[1].ID, Sequence: 2, OriginIntentID: saved.Intents[0].ID}
++			coordinationArchiveNow(t, s, p, &saved)
++			switch fault {
++			case "head":
++				saved.Archives = nil
++				if err := s.saveCoordination(saved); err != nil {
++					t.Fatal(err)
++				}
++				if _, err := s.readCoordination(p); err == nil {
++					t.Fatal("missing history accepted")
++				}
++				return
++			case "event-origin":
++				saved.Archives[0].Events[0].OriginIntentID = saved.Intents[0].ID
++				if err := s.saveCoordination(saved); err != nil {
++					t.Fatal(err)
++				}
++			case "foreign-scope":
++				saved.ProjectScope = strings.Repeat("b", 64)
++				if err := s.saveCoordination(saved); err != nil {
++					t.Fatal(err)
++				}
++			case "missing-page":
++				dir, _ := s.coordinationArchiveDir(p.ID, false)
++				if err := os.Remove(filepath.Join(dir, saved.Archives[0].Digest+".json")); err != nil {
++					t.Fatal(err)
++				}
++			}
++			if _, err := s.CoordinationEventByIdentity(orchestratorActor(t, "alice"), p.ID, receipt); err == nil {
++				t.Fatal("invalid archived event accepted")
++			}
++		})
++	}
++}
++
++func TestCoordinationRetentionPinsFailedCompletionOrigin(t *testing.T) {
++	s, mux := journeyFixture(t)
++	p := createJourneyProject(t, mux, "coordination-unrecorded")
++	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
++	turn := coordinationProposalTest(t, s, p.ID, "alice", "purpose", "A completion awaiting origin durability")
++	path, _ := s.coordinationPath(p.ID, false)
++	if err := os.Remove(path); err != nil {
++		t.Fatal(err)
++	}
++	retained, err := s.retainedCoordinationTurnsLocked(p)
++	if err != nil || !retained[turn.ID] {
++		t.Fatal("failed origin write released original proposal", err)
++	}
++}
++
++func TestCoordinationArchiveProtectsPaidRequestAfterOrdinaryHistoryRotation(t *testing.T) {
++	s, mux := journeyFixture(t)
++	p := createJourneyProject(t, mux, "coordination-paid-history")
++	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
++	ctx := orchestratorActor(t, "alice")
++	view, err := s.OrchestratorView(ctx, p.ID, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	req := OrchestratorTurnRequest{ExpectedRevision: view.Revision, ExpectedContextDigest: view.Context.Digest, IdempotencyKey: "original-paid-request", Message: "A durable personal amendment", RouteDigest: strings.Repeat("a", 64)}
++	turn, snapshot, existing, err := s.ReserveOrchestratorTurn(ctx, p.ID, req, "assist-original-owned")
++	if err != nil || existing {
++		t.Fatal(err)
++	}
++	spec := snapshot.Specification
++	spec.Status = "draft"
++	spec.Digest = ""
++	spec.Purpose = "Retain the actual paid request"
++	answer := OrchestratorAnswer{Summary: "Proposed amendment", Proposal: &OrchestratorProposal{Target: "specification", Summary: "Purpose", Specification: &spec}}
++	if err = s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
++		t.Fatal(err)
++	}
++	coordinationApplyTest(t, s, p.ID, "alice", turn.ID, 200)
++	saved, err := s.readCoordination(p)
++	if err != nil {
++		t.Fatal(err)
++	}
++	coordinationArchiveNow(t, s, p, &saved)
++	for round := 0; round < 3; round++ {
++		for i := 0; i < 12; i++ {
++			explanation, _ := reserveOrchestratorTest(t, s, p.ID, ctx, "Explain existing context", "")
++			if err = s.CompleteOrchestratorTurn(p.ID, explanation.ID, explanation.JobID, "succeeded", &OrchestratorAnswer{Summary: "An explanation without a proposal"}); err != nil {
++				t.Fatal(err)
++			}
++		}
++		current, e := s.OrchestratorView(ctx, p.ID, 0)
++		if e != nil {
++			t.Fatal(e)
++		}
++		if e = s.rotateOrchestratorHistory(ctx, p.ID, orchestratorRotateRequest{ExpectedRevision: current.Revision, ExpectedStorageDigest: current.StorageDigest, AcknowledgeExportedHistory: true}); e != nil {
++			t.Fatal(e)
++		}
++	}
++	active, _ := s.readOrchestrator(p)
++	storage, err := s.orchestratorStorageLocked(p, active)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if original, _ := findOrchestratorRequest(storage, reviewDigest("alice:"+req.IdempotencyKey), reviewDigest([]any{"alice", req.Message, "", req.ExpectedContextDigest, req.RouteDigest})); original != nil {
++		t.Fatal("fixture still has original in ordinary history")
++	}
++	again, _, existing, err := s.ReserveOrchestratorTurn(ctx, p.ID, req, "assist-must-never-replace")
++	if err != nil || !existing || again.ID != turn.ID || again.JobID != turn.JobID || again.AppliedRevision != 1 {
++		t.Fatal("archived request created replacement or lost outcome", err)
++	}
++	resolution, err := s.ResolveOrchestratorRequest(ctx, p.ID, req)
++	if err != nil || resolution.Status != "accepted" || resolution.Turn == nil || resolution.Turn.ID != turn.ID {
++		t.Fatal("archived request could not resolve", err)
++	}
++	current, err := s.OrchestratorView(ctx, p.ID, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return errors.New("current permission revoked") })
++	if err = s.applyOrchestratorProposal(ctx, p.ID, turn.ID, current.Revision, current.Context.Digest); !errors.Is(err, errCoordinatorAuthority) {
++		t.Fatal("archive bypassed current authority", err)
++	}
++	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
++	coordinationApplyTest(t, s, p.ID, "alice", turn.ID, 200)
++	confirmed, err := s.OrchestratorView(ctx, p.ID, 0)
++	if err != nil || confirmed.Context.Specification.Revision != 1 {
++		t.Fatal("archived apply confirmation replayed canonical mutation", err)
++	}
++	req.Message = "Different paid inference"
++	if _, _, _, err = s.ReserveOrchestratorTurn(ctx, p.ID, req, "assist-forged-replacement"); !errors.Is(err, ErrOrchestratorConflict) {
++		t.Fatal("archived key accepted changed work", err)
++	}
++}
++
++func TestCoordinationArchivedOriginContinuesThroughCurrentTypedPreparation(t *testing.T) {
++	s, p, h, ctx, req, starts := coordinatorContinuationFixture(t)
++	turn, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Amend the reviewed task title", "")
++	plan := snapshot.Plan
++	plan.Tasks = append([]ProjectTask{}, plan.Tasks...)
++	plan.Tasks[0].Title = "Implement reviewed saving"
++	answer := OrchestratorAnswer{Summary: "A routine reviewed-plan amendment", Proposal: &OrchestratorProposal{Target: "plan", Summary: "Clarify the task title", Plan: &plan}}
++	if err := s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
++		t.Fatal(err)
++	}
++	coordinationApplyTest(t, s, p.ID, "alice", turn.ID, 200)
++	saved, err := s.readCoordination(p)
++	if err != nil {
++		t.Fatal(err)
++	}
++	coordinationArchiveNow(t, s, p, &saved)
++	origins, err := s.readOrchestrator(p)
++	if err != nil {
++		t.Fatal(err)
++	}
++	kept := []storedOrchestratorTurn{}
++	for _, row := range origins.Turns {
++		if row.ID != turn.ID {
++			kept = append(kept, row)
++		}
++	}
++	origins.Turns = kept
++	if err = s.saveOrchestrator(origins); err != nil {
++		t.Fatal(err)
++	}
++	current, err := s.OrchestratorView(ctx, p.ID, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	req.OriginTurnID = turn.ID
++	req.ExpectedContextDigest = current.Context.Digest
++	req.Run.ImplementationContext.PlanRevision = current.Context.Plan.Revision
++	// Archive readback does not waive current source admission. Applying the
++	// amendment changed the exported plan, so this first preparation must keep
++	// the real dirty-source refusal and must not dispatch an upstream task.
++	if !current.Context.SourceKnown || !current.Context.SourceDirty {
++		t.Fatal("fixture did not retain the applied amendment as uncommitted source")
++	}
++	refused := coordinatorCreate(t, h, p, req, 201)
++	const cleanSourceMessage = "Commit the reviewed starting source and create a fresh run before preparing isolated tasks."
++	if refused.OriginTurnID != turn.ID || refused.Status != "refused" || refused.RunID == "" || len(refused.Actions) != 2 || refused.Actions[0].Kind != "create-run" || refused.Actions[0].Status != "confirmed" || refused.Actions[1].Kind != "prepare-tasks" || refused.Actions[1].Status != "refused" || refused.Message != cleanSourceMessage || *starts != 0 {
++		t.Fatalf("archived origin bypassed current dirty-source admission: status=%q message=%q actions=%+v starts=%d", refused.Status, refused.Message, refused.Actions, *starts)
++	}
++	replayedRefusal := coordinatorCreate(t, h, p, req, 200)
++	if replayedRefusal.ID != refused.ID || !reflect.DeepEqual(replayedRefusal.Actions, refused.Actions) || *starts != 0 {
++		t.Fatal("replaying an archived-origin refusal performed fresh work")
++	}
++	commitRoute := "/v1/product/projects/" + p.ID + "/git/commit"
++	journeyRequest(t, h, "POST", commitRoute, reviewedCommitRequest(t, h, commitRoute, "Save the reviewed archived-origin amendment"), 200)
++	current, err = s.OrchestratorView(ctx, p.ID, 0)
++	if err != nil || !current.Context.SourceKnown || current.Context.SourceDirty {
++		t.Fatal("reviewed fixture commit was not clean", err)
++	}
++	req.IdempotencyKey = "continue-archived-clean-12345"
++	req.ExpectedContextDigest = current.Context.Digest
++	out := coordinatorCreate(t, h, p, req, 201)
++	if out.OriginTurnID != turn.ID || out.Status != "queued" || out.RunID == "" || out.RunID == refused.RunID || *starts != 0 {
++		t.Fatalf("archived origin failed typed preparation or dispatched early: status=%q message=%q actions=%+v starts=%d", out.Status, out.Message, out.Actions, *starts)
++	}
++	again := coordinatorCreate(t, h, p, req, 200)
++	if again.ID != out.ID || *starts != 0 {
++		t.Fatal("archived continuation replayed preparation")
++	}
++}
+diff --git a/control-plane/internal/product/coordination_retention_regression_test.go b/control-plane/internal/product/coordination_retention_regression_test.go
+new file mode 100644
+index 00000000..2c6f29e2
+--- /dev/null
++++ b/control-plane/internal/product/coordination_retention_regression_test.go
+@@ -0,0 +1,41 @@
++package product
++
++import (
++	"context"
++	"fmt"
++	"testing"
++)
++
++// The identical test compiles against the pre-retention source. All proposals
++// complete and apply through the existing product lifecycle; no synthetic
++// accepted rows, archive invocation or manual rotation makes room for them.
++func TestCoordinationAutomaticRetentionAllowsOrdinaryProposalsPastActiveLimit(t *testing.T) {
++	s, mux := journeyFixture(t)
++	p := createJourneyProject(t, mux, "coordination-retention-progress")
++	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
++	var first OrchestratorTurn
++	for i := 0; i < 70; i++ {
++		turn := coordinationProposalTest(t, s, p.ID, "alice", "purpose", fmt.Sprintf("Ordinary accepted amendment %d", i))
++		if i == 0 {
++			first = turn
++		}
++		coordinationApplyTest(t, s, p.ID, "alice", turn.ID, 200)
++	}
++	view := coordinationHTTPView(t, coordinationHandler(s, "alice"), p.ID)
++	archives, ok := view["archives"].([]any)
++	if !ok || len(archives) == 0 || len(view["intents"].([]any)) > 64 {
++		t.Fatal("ordinary proposal progress did not retain bounded archive history")
++	}
++	if view["eventSequence"] != float64(140) {
++		t.Fatal("retention duplicated or dropped an event")
++	}
++	current, err := s.OrchestratorView(orchestratorActor(t, "alice"), p.ID, 0)
++	if err != nil || current.Context.Specification.Revision != 70 || current.Context.Specification.Purpose != "Ordinary accepted amendment 69" {
++		t.Fatal("canonical amendments were lost or replayed", err)
++	}
++	coordinationApplyTest(t, s, p.ID, "alice", first.ID, 200)
++	after, err := s.OrchestratorView(orchestratorActor(t, "alice"), p.ID, 0)
++	if err != nil || after.Context.Specification.Revision != 70 {
++		t.Fatal("archived apply replay changed context", err)
++	}
++}
+diff --git a/desktop/src/api/coordinatorIntents.ts b/desktop/src/api/coordinatorIntents.ts
+index 1443b608..553272bd 100644
+--- a/desktop/src/api/coordinatorIntents.ts
++++ b/desktop/src/api/coordinatorIntents.ts
+@@ -14,11 +14,14 @@ export interface CoordinatorEvent {
+ }
+ export interface CoordinatorConflict {
+   intentId: string; otherIntentId?: string; paths: string[];
+-  reason: "origin-unavailable" | "current-context-conflict" | "dependency-unresolved" | "opposing-intent";
++  reason: "origin-unavailable" | "current-context-conflict" | "dependency-unresolved" | "opposing-intent" | "merged-context-invalid";
++}
++export interface CoordinatorArchive {
++  digest: string; bytes: number; events: { id: string; sequence: number; originIntentId: string }[];
+ }
+ export interface CoordinatorIntentsView {
+   projectId: string; revision: number; contextDigest: string; intents: CoordinatorIntent[];
+-  events: CoordinatorEvent[]; conflicts: CoordinatorConflict[]; allowedActions: ("propose-own-turn" | "supersede-own-intent")[];
++  events: CoordinatorEvent[]; archives?: CoordinatorArchive[]; historicalCauses?: CoordinatorIntent[]; eventSequence?: number; eventHead?: string; conflicts: CoordinatorConflict[]; allowedActions: ("propose-own-turn" | "supersede-own-intent")[];
+ }
+ export interface RecordCoordinatorIntent {
+   expectedRevision: number; expectedContextDigest: string; turnId: string; idempotencyKey: string; dependsOn: string[];
+@@ -55,15 +58,47 @@ function verifiedView(value: CoordinatorIntentsView, projectId: string) {
+     throw new Error("Team coordination could not be verified for this project. Refresh before continuing.");
+   }
+   const ids = new Set(value.intents.map(intent => intent.id));
+-  if (value.intents.some(intent => intent.dependsOn.some(id => !ids.has(id) || id === intent.id) || (intent.supersededBy && !ids.has(intent.supersededBy))) ||
+-      new Set(value.events.map(event => event.id)).size !== value.events.length ||
+-      value.events.some((event, index) => !event || !text(event.id, 128) || event.sequence !== index + 1 ||
+-        (event.previousEventId ?? "") !== (index ? value.events[index - 1].id : "") || !ids.has(event.intentId) || !actor(event.actor) || !timestamp(event.at) ||
+-        !["proposed", "applied", "superseded"].includes(event.kind) || !hash(event.contextDigest) || !list(event.causes, 17) || event.causes.some(id => !ids.has(id))) ||
+-      value.conflicts.some(conflict => !conflict || !ids.has(conflict.intentId) || (conflict.otherIntentId && !ids.has(conflict.otherIntentId)) || !list(conflict.paths, 1024) ||
+-        !["origin-unavailable", "current-context-conflict", "dependency-unresolved", "opposing-intent"].includes(conflict.reason))) {
+-    throw new Error("Team coordination has incomplete causal records. Refresh before continuing.");
++  const archives = value.archives ?? [], historical = value.historicalCauses ?? [];
++  const sequence = new Map<number, string>(), eventIds = new Set<string>(), archivedOrigins = new Map<string, string>();
++  const fail = () => { throw new Error("Team coordination has incomplete causal records. Refresh before continuing."); };
++  if ((value.archives !== undefined && !Array.isArray(value.archives)) || archives.length > 64 ||
++      (value.historicalCauses !== undefined && !Array.isArray(value.historicalCauses)) || historical.length > 1024) fail();
++  const addEvent = (id: string, position: number) => {
++    if (!text(id, 128) || !id.startsWith("coord-event-") || !Number.isSafeInteger(position) || position < 1 || position > 12480 || sequence.has(position) || eventIds.has(id)) fail();
++    sequence.set(position, id); eventIds.add(id);
++  };
++  const archiveDigests = new Set<string>();
++  let archiveBytes = 0;
++  for (const archive of archives) {
++    if (!archive || !hash(archive.digest) || archiveDigests.has(archive.digest) || !Number.isSafeInteger(archive.bytes) || archive.bytes < 1 || archive.bytes > 25 * 1024 * 1024 ||
++        !Array.isArray(archive.events) || archive.events.length < 1 || archive.events.length > 192) fail();
++    archiveDigests.add(archive.digest); archiveBytes += archive.bytes;
++    for (const ref of archive.events) {
++      if (!ref || !text(ref.originIntentId, 128) || !ref.originIntentId.startsWith("intent-") || ids.has(ref.originIntentId) ||
++          (archivedOrigins.has(ref.originIntentId) && archivedOrigins.get(ref.originIntentId) !== archive.digest)) fail();
++      archivedOrigins.set(ref.originIntentId, archive.digest);
++      addEvent(ref.id, ref.sequence);
++    }
++  }
++  if (archiveBytes > 256 * 1024 * 1024) fail();
++  const causes = new Set(ids);
++  for (const witness of historical) {
++    if (!validIntent(witness) || witness.status !== "applied" || causes.has(witness.id) || !archivedOrigins.has(witness.id)) fail();
++    causes.add(witness.id);
++  }
++  for (const event of value.events) {
++    if (!event) fail();
++    addEvent(event.id, event.sequence);
+   }
++  for (let i = 1; i <= sequence.size; i++) if (!sequence.has(i)) fail();
++  const modern = value.eventSequence !== undefined || value.eventHead !== undefined || archives.length > 0 || historical.length > 0;
++  if (modern && (!Number.isSafeInteger(value.eventSequence) || value.eventSequence !== sequence.size || value.eventHead !== (sequence.get(sequence.size) ?? ""))) fail();
++  if (value.intents.some(intent => intent.dependsOn.some(id => !causes.has(id) || id === intent.id) || (intent.supersededBy && !ids.has(intent.supersededBy))) ||
++      value.events.some((event, index) => !ids.has(event.intentId) || !actor(event.actor) || !timestamp(event.at) ||
++        (index > 0 && event.sequence <= value.events[index - 1].sequence) || (event.previousEventId ?? "") !== (sequence.get(event.sequence - 1) ?? "") ||
++        !["proposed", "applied", "superseded"].includes(event.kind) || !hash(event.contextDigest) || !list(event.causes, 17) || event.causes.some(id => !causes.has(id))) ||
++      value.conflicts.some(conflict => !conflict || !ids.has(conflict.intentId) || (conflict.otherIntentId && !causes.has(conflict.otherIntentId)) || !list(conflict.paths, 1024) ||
++        !["origin-unavailable", "current-context-conflict", "dependency-unresolved", "opposing-intent", "merged-context-invalid"].includes(conflict.reason))) fail();
+   return value;
+ }
+ export const coordinatorIntentsApi = {
+diff --git a/desktop/src/api/coordinatorIntents.test.ts b/desktop/src/api/coordinatorIntents.test.ts
+index 6c39727f..05f73ae0 100644
+--- a/desktop/src/api/coordinatorIntents.test.ts
++++ b/desktop/src/api/coordinatorIntents.test.ts
+@@ -52,3 +52,44 @@ it("binds a resolution to the exact own intent, replacement, reason and revision
+     await expect(coordinatorIntentsApi.resolve("p-1", "alice", "intent-a", input)).rejects.toThrow();
+   }
+ });
++
++function archivedView(): CoordinatorIntentsView {
++  const cause = intent({ id: "intent-old", turnId: "turn-old", status: "applied", appliedRevision: 1, applyBaseContextDigest: hash, candidateProposalDigest: hash, appliedTargetDigest: hash });
++  return view({
++    intents: [intent({ dependsOn: [cause.id] })], historicalCauses: [cause],
++    archives: [{ digest: "b".repeat(64), bytes: 8192, events: [
++      { id: "coord-event-1", sequence: 1, originIntentId: cause.id },
++      { id: "coord-event-2", sequence: 2, originIntentId: cause.id },
++    ] }],
++    events: [{ id: "coord-event-3", sequence: 3, previousEventId: "coord-event-2", kind: "proposed", intentId: "intent-a", actor: { id: "alice", displayName: "Alice" }, at: "2026-10-12T00:00:02Z", causes: [cause.id], contextDigest: hash }],
++    eventSequence: 3, eventHead: "coord-event-3",
++    conflicts: [{ intentId: "intent-a", reason: "merged-context-invalid", paths: [] }],
++  });
++}
++it("preserves immutable sparse events and verified historical causes without enabling an action", async () => {
++  const original = archivedView();
++  const request = vi.spyOn(productApi, "request").mockResolvedValue(original);
++  expect(await coordinatorIntentsApi.get("p-1")).toBe(original);
++  expect(original.allowedActions).toEqual(["propose-own-turn", "supersede-own-intent"]);
++  expect(request).toHaveBeenCalledTimes(1);
++});
++it.each([
++  ["missing archive", (v: CoordinatorIntentsView) => { v.archives = []; }],
++  ["truncated head", (v: CoordinatorIntentsView) => { v.eventSequence = 2; }],
++  ["different head", (v: CoordinatorIntentsView) => { v.eventHead = "coord-event-other"; }],
++  ["head omitted", (v: CoordinatorIntentsView) => { delete v.eventSequence; delete v.eventHead; }],
++  ["sequence reuse", (v: CoordinatorIntentsView) => { v.archives![0].events[1].sequence = 1; }],
++  ["event reuse", (v: CoordinatorIntentsView) => { v.archives![0].events[1].id = "coord-event-1"; }],
++  ["causal link changed", (v: CoordinatorIntentsView) => { v.events[0].previousEventId = "coord-event-1"; }],
++  ["active origin archived", (v: CoordinatorIntentsView) => { v.archives![0].events[0].originIntentId = "intent-a"; }],
++  ["unproved cause", (v: CoordinatorIntentsView) => { v.historicalCauses![0].id = "intent-unknown"; }],
++  ["unaccepted cause", (v: CoordinatorIntentsView) => { v.historicalCauses![0].status = "pending"; }],
++  ["duplicate cause", (v: CoordinatorIntentsView) => { v.historicalCauses!.push(v.historicalCauses![0]); }],
++  ["missing apply receipt", (v: CoordinatorIntentsView) => { delete v.historicalCauses![0].appliedTargetDigest; }],
++  ["oversized page", (v: CoordinatorIntentsView) => { v.archives![0].bytes = 25 * 1024 * 1024 + 1; }],
++  ["duplicate page", (v: CoordinatorIntentsView) => { v.archives!.push(v.archives![0]); }],
++] as const)("rejects unverified archive evidence: %s", async (_label, mutate) => {
++  const response = archivedView(); mutate(response);
++  vi.spyOn(productApi, "request").mockResolvedValue(response);
++  await expect(coordinatorIntentsApi.get("p-1")).rejects.toThrow("causal records");
++});

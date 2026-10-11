@@ -1,0 +1,55 @@
+{
+  "scope": "Ten shared C085/C086 source and affected test paths at the final preview capture; not external Go modules, SDK or runtime artifacts.",
+  "files": [
+    {
+      "path": "control-plane/internal/management/team_authorization.go",
+      "sha256": "1a37d7e0cd5c0234198d4c2cfc0f48f0380b4ec45806840ee2deb96327224c30",
+      "bytes": 19043
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_background.go",
+      "sha256": "1de0e4798458e55e39935596d1ab481f648bff269cb5d1b112dd3d83b640daf8",
+      "bytes": 5592
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_continuation.go",
+      "sha256": "987661a04c3acb82eb0356b2fc4acbeb30258a1eed24962b4f1b8cac69d8971e",
+      "bytes": 29996
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_route.go",
+      "sha256": "643cabab54625b0c04e52f73eec2e1047133b3f83e9a0d1ddee70295a34ab0a8",
+      "bytes": 2261
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator.go",
+      "sha256": "da8740bba639304758d4e85e71ef64c9fb2739d57ad011f599ccb6b22d08207f",
+      "bytes": 20373
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator_policy.go",
+      "sha256": "0a49cdc83bc6903940cd2262e368e79f2105b76caa45f3d263b8777ae799211b",
+      "bytes": 10872
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator_resolution.go",
+      "sha256": "b5d1d5e5463030081a19c6ef34b097ac4b01ad08a40a145f63a34e30fad5db5b",
+      "bytes": 7119
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator_store.go",
+      "sha256": "be7f6cc3d31cb5ca5d8b07b3bf45cfc18233e43de1ca293f79be9e0a9f18664c",
+      "bytes": 19251
+    },
+    {
+      "path": "control-plane/internal/product/routes_audit_test.go",
+      "sha256": "8d72e0d9296e1bb16de7774a07886c628ef4acf3a94cfe11e3c76655d080247d",
+      "bytes": 35488
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_preview_policy_test.go",
+      "sha256": "41b111a2af7d7375eb0b839108ab2bd92e25191178736453a4c599f4b9a0f79a",
+      "bytes": 5815
+    }
+  ]
+}

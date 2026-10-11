@@ -52,3 +52,44 @@ it("binds a resolution to the exact own intent, replacement, reason and revision
     await expect(coordinatorIntentsApi.resolve("p-1", "alice", "intent-a", input)).rejects.toThrow();
   }
 });
+
+function archivedView(): CoordinatorIntentsView {
+  const cause = intent({ id: "intent-old", turnId: "turn-old", status: "applied", appliedRevision: 1, applyBaseContextDigest: hash, candidateProposalDigest: hash, appliedTargetDigest: hash });
+  return view({
+    intents: [intent({ dependsOn: [cause.id] })], historicalCauses: [cause],
+    archives: [{ digest: "b".repeat(64), bytes: 8192, events: [
+      { id: "coord-event-1", sequence: 1, originIntentId: cause.id },
+      { id: "coord-event-2", sequence: 2, originIntentId: cause.id },
+    ] }],
+    events: [{ id: "coord-event-3", sequence: 3, previousEventId: "coord-event-2", kind: "proposed", intentId: "intent-a", actor: { id: "alice", displayName: "Alice" }, at: "2026-10-12T00:00:02Z", causes: [cause.id], contextDigest: hash }],
+    eventSequence: 3, eventHead: "coord-event-3",
+    conflicts: [{ intentId: "intent-a", reason: "merged-context-invalid", paths: [] }],
+  });
+}
+it("preserves immutable sparse events and verified historical causes without enabling an action", async () => {
+  const original = archivedView();
+  const request = vi.spyOn(productApi, "request").mockResolvedValue(original);
+  expect(await coordinatorIntentsApi.get("p-1")).toBe(original);
+  expect(original.allowedActions).toEqual(["propose-own-turn", "supersede-own-intent"]);
+  expect(request).toHaveBeenCalledTimes(1);
+});
+it.each([
+  ["missing archive", (v: CoordinatorIntentsView) => { v.archives = []; }],
+  ["truncated head", (v: CoordinatorIntentsView) => { v.eventSequence = 2; }],
+  ["different head", (v: CoordinatorIntentsView) => { v.eventHead = "coord-event-other"; }],
+  ["head omitted", (v: CoordinatorIntentsView) => { delete v.eventSequence; delete v.eventHead; }],
+  ["sequence reuse", (v: CoordinatorIntentsView) => { v.archives![0].events[1].sequence = 1; }],
+  ["event reuse", (v: CoordinatorIntentsView) => { v.archives![0].events[1].id = "coord-event-1"; }],
+  ["causal link changed", (v: CoordinatorIntentsView) => { v.events[0].previousEventId = "coord-event-1"; }],
+  ["active origin archived", (v: CoordinatorIntentsView) => { v.archives![0].events[0].originIntentId = "intent-a"; }],
+  ["unproved cause", (v: CoordinatorIntentsView) => { v.historicalCauses![0].id = "intent-unknown"; }],
+  ["unaccepted cause", (v: CoordinatorIntentsView) => { v.historicalCauses![0].status = "pending"; }],
+  ["duplicate cause", (v: CoordinatorIntentsView) => { v.historicalCauses!.push(v.historicalCauses![0]); }],
+  ["missing apply receipt", (v: CoordinatorIntentsView) => { delete v.historicalCauses![0].appliedTargetDigest; }],
+  ["oversized page", (v: CoordinatorIntentsView) => { v.archives![0].bytes = 25 * 1024 * 1024 + 1; }],
+  ["duplicate page", (v: CoordinatorIntentsView) => { v.archives!.push(v.archives![0]); }],
+] as const)("rejects unverified archive evidence: %s", async (_label, mutate) => {
+  const response = archivedView(); mutate(response);
+  vi.spyOn(productApi, "request").mockResolvedValue(response);
+  await expect(coordinatorIntentsApi.get("p-1")).rejects.toThrow("causal records");
+});
