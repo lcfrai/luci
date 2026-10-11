@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "8805c8c61e51e533b8224d3d458def2dd2c80ea4",
+  "originalCapsuleManifestSHA256": "eb987c5e0735c734940ac761078bf2bf3603e5a23fbf9dfb53236d25af4527f5",
+  "scope": "Evidence-only follow-up; original capsule bytes preserved. Seven C086 source/test files unchanged between fixed regular, original overlay and final race.",
+  "race": {
+    "productTopLevelPass": 24,
+    "productSubtestPass": 24,
+    "managementTopLevelPass": 1,
+    "fail": 0,
+    "skip": 0,
+    "api": "Compiled, no selected tests; no API behavior pass claimed.",
+    "files": {
+      "race.jsonl": "a0b0ef440d10d4311e272b94aeac79450cbf3043a325cfc12b5846690def4b1f",
+      "race.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "race.status": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "race-before.json": "f7b5fab52ae09fe8a7463081e5a80d8959f9a7cd44a380829e0dd57c2aebb273",
+      "race-after.json": "f7b5fab52ae09fe8a7463081e5a80d8959f9a7cd44a380829e0dd57c2aebb273"
+    }
+  },
+  "jointEvidence": "../../cloud085-coordinator/backend/README.md"
+}
