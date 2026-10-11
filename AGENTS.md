@@ -1,5 +1,10 @@
 # Luci development
 
+## Current product focus — 11 October 2026 UTC / 12 October local
+
+The owner's latest clarification supersedes the earlier ambition to build a replacement coding-agent harness. Luci's differentiator is excellent shared project context and delivery around existing tools: **Discover → Design → approved/versioned context → external Codex, Claude Code or another development tool → returned changes and evidence → review/preview/deploy → amend**. Keep the four activities concurrent and the project scope understandable throughout. Use existing tools' execution capabilities and authentication rather than rebuilding them. Existing managed sessions, coordination and resource/recovery controls remain supported infrastructure; resolve their safety/correctness defects without letting new runtime features displace the context-to-delivery journey. Do not overwrite user-owned AGENTS.md or CLAUDE.md when exporting context. External reports are claims, not approvals or independently verified checks.
+
+
 The user's direction of 2 October 2026 supersedes every earlier Panacea/KPMG decision and review gate in this repository.
 
 Luci is an open-source lcfr.ai application: Discover, Design, Develop, Git delivery, previews, deployment and maintenance in one coherent desktop app. Its management gateway owns identity, per-user workspaces, Admin/Super Admin policy and audit; Docker is the default execution boundary on the local or selected cloud host. It runs locally by default and guides users through an optional, inexpensive deployment in their own AWS or Azure account and domain. There is no required KPMG system, Panacea service, tenant, Entra realm, AKS cluster or hosted lcfr.ai account.

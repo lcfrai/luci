@@ -1,5 +1,16 @@
 # Finish the full Luci product
 
+## Current objective — owner clarification, 11 October 2026 UTC / 12 October local
+
+**Deliver an exceptional local-first context and delivery application around existing development tools.** Help people discover and design the right solution, understand and approve versioned context, hand an immutable task-specific packet to already-authenticated Codex, Claude Code or other tools, bring back source and reported evidence, reconcile amendments, review independently checked results, and preview/deploy/maintain the application. Four or more projects must remain isolated, easy to resume and responsive without overwhelming the computer.
+
+This clarification supersedes the earlier replacement-harness emphasis below. Luci is not being built as a substitute for Claude Code or Codex. Existing managed workers, scheduling, recovery and resource limits support delivered workflows; they are not the differentiator and must not expand at the expense of context quality, interoperability and deployment. Existing correctness/recovery issues, retained failed fixtures and acceptance evidence remain open at their recorded scopes.
+
+The immediate P1 is **LOCAL-025**, a standalone approved-context export and returned-results workflow that does not require a Luci session, sandbox or copied credentials. The local tester has confirmed an already-signed-in Codex CLI can supply the real provider. A manual filesystem handoff is useful preliminary evidence, not completion of the integrated product path. [Scope and acceptance](CONTEXT-DELIVERY-SCOPE.md) records the supported baseline, implementation gaps and real-provider trial.
+
+The working objective remains **active and unfinished**. No persistent-goal control is exposed in this session; the last known platform goal status remains **blocked**, not reactivated by this document or this running turn. No prior fixture, roadmap, scope revision or passing suite completes the product.
+
+
 The four concurrent activities are **Discover, Design, Develop and Deploy**, following the owner's 7 October naming clarification relayed by Windows acceptance on 11 October 2026. Use these names in current product navigation and guidance without changing stored identifiers, review controls or historical evidence.
 
 ## Interactive application and local testing handoff — 8 October 2026

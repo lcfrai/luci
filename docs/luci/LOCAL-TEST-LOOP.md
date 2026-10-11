@@ -1,6 +1,13 @@
 <!-- Current source: edc742e8b6ce4216a1726e74cceef892663ce3d5; Windows adoption only between batches. -->
 # Windows testing and correction loop
 
+## Current coordinated priority — real external-tool journey
+
+The owner's 11 October UTC / 12 October local clarification prioritizes context and delivery around existing coding tools. **LOCAL-025 is fixing:** standalone approved-context export and results return, without a Luci session or container. The local tester has reported signed-in Codex CLI 0.162.0-alpha.17.2; reuse its own supported authentication without reading/copying credentials. [Current formats and exact acceptance boundaries](CONTEXT-DELIVERY-SCOPE.md) distinguish existing generated files/manual preliminary trials from the new integrated path, which is not yet released. Publish the implementation pin and setup delta before switching a closed local batch.
+
+Existing edc742e8 cancellation and native/provider/resource gates retain their scopes. Do not wait for embedded container authentication or a full runtime install to examine exported context with the already-authenticated external tool. Do not count a manual CLI result as full Luci integration, approved evidence or deployment.
+
+
 ## Current source checkpoint — edc742e8
 
 [Exact retrieval, setup and remaining checks](TEST-CHECKPOINT-EDC742E8.md) accompany CLOUD-080/082 live preview cancellation. The correction is pushed and retrievable; selected source/API/UI checks and the narrow restart-observation follow-up are [published separately](evidence/cloud080-preview-cancel/README.md). The [matching clean Linux package](evidence/package-edc742e8/README.md) now passes build/archive/identity verification; real Docker cancellation remains in progress. No setup variable, credential or runtime-image source changed. Adopt only between batches; older native passes retain their original scopes.

@@ -1,5 +1,14 @@
 # Continuing product-quality work
 
+## Current product priority — owner clarification, 11 October 2026 UTC
+
+**LOCAL-025 (P1, fixing, cloud implementation; local real-provider acceptance): standalone context handoff and return.** Source audit confirms generated `LUCI.md`, specification/design Markdown+JSON, task plan and sketch exist, but immutable selected-task capture and returned reports are coupled to managed sessions/swarm operations. Implement an explicit external-tool export/return UI/API using the canonical approved context, file hashes and source binding; no session/container/credential copying, user agent-file overwrite, execution or verification authority from imports. See [scope, baseline formats and acceptance](CONTEXT-DELIVERY-SCOPE.md). Already-signed-in local Codex is the first real-provider path. No integrated pass yet.
+
+The owner explicitly prioritizes context and delivery around existing Codex/Claude Code, superseding replacement-harness expansion. Context quality, clear approvals/amendments, external interoperability, review/preview/deploy and multi-project usability lead the backlog. Existing managed-runtime recovery/resource defects remain tracked; retained fixtures are not repaired by hand or dropped. CLOUD-032 latency and final Windows/live-provider acceptance remain open with unchanged targets.
+
+**CLOUD-083 remains open after a second helper failure:** its corrected logging observer encountered an attributable never-started classic-build LABEL intermediate before the required live RUN, and refused before archive inspection or HTTP Cancel. Start acknowledgement remains unknown. The controller exited normally within the corrected grace. Read-only closure finds exact observed processes/containers absent but both failed fixtures retain their own 1 GiB/1 CPU preview-build leases; original private files remain unchanged. Further installed retries are deferred while LOCAL-025 is implemented; no product cancellation, settlement or release pass is claimed. Exact receipts are retained for publication.
+
+
 The continuing objective remains [GOAL.md](GOAL.md), judged against
 [PRODUCT-QUALITY.md](PRODUCT-QUALITY.md). This is an implementation worklist,
 not a replacement completion standard. The owner resumed the full objective on

@@ -1,5 +1,16 @@
 # Luci production roadmap
 
+## Revised immediate delivery order — 11 October 2026 UTC
+
+The owner's latest clarification supersedes the replacement-harness emphasis of earlier milestones. Luci owns **project understanding, reviewed context and delivery around existing coding tools**. See [the reviewable scope and current capability map](CONTEXT-DELIVERY-SCOPE.md).
+
+1. Close P1 LOCAL-025: standalone approved context export and reviewed results return, without allocating a Luci agent or copying credentials.
+2. Complete a real external Codex/Claude implementation from that context, independently inspect changes/checks, and bring the same project through preview and an amendment. Record manual glue separately until the integrated route is verified.
+3. Refine context quality and multi-project UX from actual use: ambiguity, decisions, requirements, design states, task-specific context, staleness and continuity. Keep response targets and resource limits unchanged.
+4. Resolve remaining delivery, supported-runtime recovery and Windows gates. Existing managed execution remains supported; do not expand a bespoke coding engine as a substitute for this journey.
+5. Retain later optional cloud connectivity and managed service work after local acceptance/access. No cloud prerequisite blocks external context handoff.
+
+
 6 October 2026. This roadmap implements the owner's confirmed direction:
 MIT-licensed self-hosted Luci plus optional paid lcfr.ai-managed team workspaces.
 [GOAL.md](GOAL.md) remains the full completion contract. Stages describe work and

@@ -1,5 +1,14 @@
 # Luci build plan
 
+## Owner's current scope and first priority — 11 October 2026 UTC
+
+The latest clarification makes context quality, external-tool interoperability and delivery the primary product: Discover → Design → approved/versioned context → Codex/Claude Code/other tool → returned source/evidence → review/preview/deploy → amend. It supersedes any earlier replacement-harness framing. Implement [the context/delivery acceptance plan](CONTEXT-DELIVERY-SCOPE.md) first. Existing session/swarm execution remains an optional supported path, not a prerequisite for an external handoff or the basis for a new coding engine.
+
+**P1 LOCAL-025:** expose the existing canonical approved-context capture as a standalone immutable export with file hashes, task/requirement identities and source binding; retain and reconcile returned reports against the exact captured scope and observed Git state. External claims never grant approval, execute commands or mark acceptance passed. Follow this with the local tester's real signed-in Codex trial and reviewed changes/checks/preview. Preserve user AGENTS.md/CLAUDE.md and all existing context, authority and recovery boundaries.
+
+New runtime features and additional generic harness acceptance work are subordinate to this useful product journey. Existing safety/recovery defects are retained, not declared fixed or silently dropped. Four-project responsiveness, Windows/native and live-provider gates still apply. Cloud-only setup does not block the local external-tool trial.
+
+
 3 October 2026 (Australia/Brisbane). This is the current plan. The owner authorizes autonomous implementation and outcome checks. The former corporate takeover programme is superseded.
 
 Luci takes a person from an idea to a running application in one app. Distribution is through lcfr.ai; source is open, and users keep ownership of their projects, model credentials, infrastructure and domain.
