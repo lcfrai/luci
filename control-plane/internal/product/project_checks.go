@@ -64,6 +64,8 @@ type ProjectCheckRun struct {
 	EvidenceStatus        string                       `json:"evidenceStatus"`
 	StaleReasons          []string                     `json:"staleReasons"`
 	ApprovalSelection     *ProjectRunApprovalSelection `json:"approvalSelection,omitempty"`
+
+	CoordinatorOriginDigest string `json:"coordinatorOriginDigest,omitempty"`
 }
 type projectCheckJob struct {
 	actor  management.ExecutionActorRef
@@ -341,6 +343,20 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 		writeEvidenceBindingError(w, err)
 		return
 	}
+	checkID, originDigest, existing, err := s.admitCoordinatorCheckLocked(r.Context(), p, req.Commands, binding, digest, commit, dirty)
+	if err != nil {
+		s.mu.Unlock()
+		coordinatorPolicyProblem(w, err)
+		return
+	}
+	if existing != nil {
+		s.mu.Unlock()
+		writeJSON(w, 200, *existing)
+		return
+	}
+	if checkID == "" {
+		checkID = newID("check-")
+	}
 	limit := 1
 	if managed && policy.MaxConcurrentChecksPerUser > 0 {
 		limit = policy.MaxConcurrentChecksPerUser
@@ -363,7 +379,7 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	held := false
-	row := ProjectCheckRun{Revision: 1, ResourcesHeld: &held, ID: newID("check-"), ProjectID: p.ID, Commit: commit, Dirty: dirty, Execution: req.Execution, SourceDigest: digest, Status: "queued", Commands: []CheckCommandResult{}, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Commands are queued. Task completion remains independent of check evidence."}
+	row := ProjectCheckRun{Revision: 1, ResourcesHeld: &held, ID: checkID, CoordinatorOriginDigest: originDigest, ProjectID: p.ID, Commit: commit, Dirty: dirty, Execution: req.Execution, SourceDigest: digest, Status: "queued", Commands: []CheckCommandResult{}, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Commands are queued. Task completion remains independent of check evidence."}
 	row.RequirementIDs, row.RequirementSnapshots = binding.RequirementIDs, binding.RequirementSnapshots
 	row.SpecificationRevision, row.SpecificationDigest = binding.SpecificationRevision, binding.SpecificationDigest
 	row.DesignPlanRevision, row.DesignPlanDigest = binding.DesignPlanRevision, binding.DesignPlanDigest

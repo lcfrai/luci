@@ -1,0 +1,5 @@
+{
+  "availableBytes": 943230976,
+  "minimumBytes": 524288000,
+  "scope": "warm bounded source tests; not runtime admission floor"
+}

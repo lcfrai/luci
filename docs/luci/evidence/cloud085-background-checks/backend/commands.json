@@ -1,0 +1,10 @@
+{
+  "cwd": "control-plane",
+  "activation": "source /workspace/.luci-tools/activate.sh",
+  "environment": {
+    "GOMAXPROCS": "2"
+  },
+  "initial": "go test -p 1 -count=1 -timeout=5m ./internal/product ./internal/management ./internal/api -run '^(TestCoordinator|TestTeamCoordinator)' -json",
+  "preCoverageRace": "go test -race -p 1 -count=1 -timeout=5m ./internal/product ./internal/management ./internal/api -run '^(TestCoordinator|TestTeamCoordinator|TestProjectCheck|TestProjectRunCheck|TestProjectRequirement|TestLinkedChecks|TestEvidence)' -json",
+  "coverageRace": "go test -race -p 1 -count=1 -timeout=5m ./internal/product ./internal/api -run '^(TestCoordinator|TestProjectCheck|TestProjectRunCheck|TestProjectRequirement|TestLinkedChecks|TestEvidence)' -json"
+}

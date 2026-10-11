@@ -1,0 +1,87 @@
+[
+  {
+    "path": "README.md",
+    "bytes": 4111,
+    "sha256": "e8d237a814db2bfc7a5fb1d7413bb29c77e9df8a1ada4631485fa66973445c2d"
+  },
+  {
+    "path": "commands.json",
+    "bytes": 773,
+    "sha256": "40e79545a3d979c8f2291b085e2a29516bec7deff3afb08a06a2f9f65facee10"
+  },
+  {
+    "path": "coverage-after.json",
+    "bytes": 2302,
+    "sha256": "136977cdc2d464f7136af11e6b3135d54ba80663da395daa127b6bb348eff825"
+  },
+  {
+    "path": "coverage-before.json",
+    "bytes": 2302,
+    "sha256": "136977cdc2d464f7136af11e6b3135d54ba80663da395daa127b6bb348eff825"
+  },
+  {
+    "path": "coverage.jsonl",
+    "bytes": 165269,
+    "sha256": "61314c65947bcfba8c9a4050054652f5a46f46727e6d0b3abf2b7fb9e9903de1"
+  },
+  {
+    "path": "coverage.status",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "coverage.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "final-after.json",
+    "bytes": 2302,
+    "sha256": "8f54193de791fc43076a1cbf587461eba4f1e098261392f13513986206fc30db"
+  },
+  {
+    "path": "final-before.json",
+    "bytes": 2302,
+    "sha256": "8f54193de791fc43076a1cbf587461eba4f1e098261392f13513986206fc30db"
+  },
+  {
+    "path": "final.jsonl",
+    "bytes": 156086,
+    "sha256": "a02de49be547886a2ce24627a89d26e4a44fa4185dae33e15588052bdb30d786"
+  },
+  {
+    "path": "final.status",
+    "bytes": 2,
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+  },
+  {
+    "path": "final.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "headroom.json",
+    "bytes": 132,
+    "sha256": "668b217625ee219ae6fd9ac47adf8320777eaa26ee86e417b2d11b9b363fa5cb"
+  },
+  {
+    "path": "initial.jsonl",
+    "bytes": 42257,
+    "sha256": "2cdc39274c66777e9f5b46f4e904181c56066cdc2c43d020e823fcfcf89a9152"
+  },
+  {
+    "path": "initial.status",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "initial.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "summary.json",
+    "bytes": 1175,
+    "sha256": "8ed59221f9b8496fef6e086df5f39d508068557851884884f186bb56cb21a3a8"
+  }
+]

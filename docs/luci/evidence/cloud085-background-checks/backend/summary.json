@@ -1,0 +1,45 @@
+{
+  "initial": {
+    "exitCode": 0,
+    "packages": {
+      "github.com/lcfrai/luci/control-plane/internal/product": {
+        "top-pass": 19,
+        "sub-pass": 19
+      },
+      "github.com/lcfrai/luci/control-plane/internal/management": {
+        "top-pass": 1
+      }
+    }
+  },
+  "final": {
+    "exitCode": 1,
+    "packages": {
+      "github.com/lcfrai/luci/control-plane/internal/product": {
+        "top-pass": 31,
+        "sub-pass": 44
+      },
+      "github.com/lcfrai/luci/control-plane/internal/management": {
+        "top-pass": 1
+      },
+      "github.com/lcfrai/luci/control-plane/internal/api": {
+        "top-fail": 1,
+        "sub-pass": 51,
+        "top-pass": 21
+      }
+    }
+  },
+  "coverage": {
+    "exitCode": 0,
+    "packages": {
+      "github.com/lcfrai/luci/control-plane/internal/product": {
+        "top-pass": 32,
+        "sub-pass": 49
+      },
+      "github.com/lcfrai/luci/control-plane/internal/api": {
+        "sub-pass": 55,
+        "top-pass": 22
+      }
+    }
+  },
+  "scope": "Linux controlled source and real Git/Node fixture execution, not Docker, provider, Windows, performance, preview or deployment acceptance. Counts overlap."
+}

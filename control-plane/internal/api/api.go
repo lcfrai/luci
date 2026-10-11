@@ -451,6 +451,7 @@ func New(d Deps) (*API, error) {
 		}
 		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, Release: a.execution.release, Resources: a.queuedResourceView})
 		d.Product.SetProjectSwarmWorktreeObserver(a.observeSwarmWorktree)
+		d.Product.SetCoordinatorRuntime(a.reauthorizeCoordinator)
 	}
 
 	// guarded holds every route the origin middleware protects.

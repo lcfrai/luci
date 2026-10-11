@@ -399,6 +399,7 @@ func (s *Server) stopTunnel(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"status": "stopped"})
 }
 func (s *Server) Close() {
+	s.closeCoordinator()
 	previewCtx, previewCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	s.closeLocalPreviews(previewCtx)
 	previewCancel()

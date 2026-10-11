@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
@@ -30,30 +31,33 @@ type CoordinatorAction struct {
 	FinishedAt  string `json:"finishedAt,omitempty"`
 }
 type CoordinatorContinuation struct {
-	ID             string              `json:"id"`
-	IdempotencyKey string              `json:"idempotencyKey"`
-	ProjectID      string              `json:"projectId"`
-	Actor          ContextActor        `json:"actor"`
-	OriginTurnID   string              `json:"originTurnId"`
-	ContextDigest  string              `json:"contextDigest"`
-	PolicyRevision int                 `json:"policyRevision"`
-	Revision       int                 `json:"revision"`
-	Status         string              `json:"status"`
-	Message        string              `json:"message"`
-	RunID          string              `json:"runId,omitempty"`
-	QueueIDs       []string            `json:"queueIds"`
-	Actions        []CoordinatorAction `json:"actions"`
-	CreatedAt      string              `json:"createdAt"`
-	UpdatedAt      string              `json:"updatedAt"`
-	NextAction     *OrchestratorAction `json:"nextAction,omitempty"`
+	ID             string               `json:"id"`
+	IdempotencyKey string               `json:"idempotencyKey"`
+	ProjectID      string               `json:"projectId"`
+	Actor          ContextActor         `json:"actor"`
+	OriginTurnID   string               `json:"originTurnId"`
+	ContextDigest  string               `json:"contextDigest"`
+	PolicyRevision int                  `json:"policyRevision"`
+	Revision       int                  `json:"revision"`
+	Status         string               `json:"status"`
+	Message        string               `json:"message"`
+	RunID          string               `json:"runId,omitempty"`
+	QueueIDs       []string             `json:"queueIds"`
+	Actions        []CoordinatorAction  `json:"actions"`
+	CreatedAt      string               `json:"createdAt"`
+	UpdatedAt      string               `json:"updatedAt"`
+	NextAction     *OrchestratorAction  `json:"nextAction,omitempty"`
+	Delivery       *CoordinatorDelivery `json:"delivery,omitempty"`
 }
 type coordinatorContinuationRecord struct {
 	CoordinatorContinuation
-	KeyDigest       string                  `json:"keyDigest"`
-	RequestDigest   string                  `json:"requestDigest"`
-	CanonicalDigest string                  `json:"canonicalDigest"`
-	Run             projectRunCreateRequest `json:"run"`
-	MaxParallel     int                     `json:"maxParallel"`
+	KeyDigest       string                       `json:"keyDigest"`
+	RequestDigest   string                       `json:"requestDigest"`
+	CanonicalDigest string                       `json:"canonicalDigest"`
+	Run             projectRunCreateRequest      `json:"run"`
+	MaxParallel     int                          `json:"maxParallel"`
+	ExecutionActor  management.ExecutionActorRef `json:"executionActor"`
+	CheckPlan       *CoordinatorCheckPlan        `json:"checkPlan,omitempty"`
 }
 type coordinatorContinuations struct {
 	Version      int                             `json:"version"`
@@ -62,6 +66,7 @@ type coordinatorContinuations struct {
 	ActorID      string                          `json:"actorId"`
 	ProjectID    string                          `json:"projectId"`
 	Rows         []coordinatorContinuationRecord `json:"rows"`
+	SavedRoute   *CoordinatorSavedRoute          `json:"savedRoute,omitempty"`
 }
 type coordinatorContinuationRequest struct {
 	IdempotencyKey         string                  `json:"idempotencyKey"`
@@ -70,6 +75,9 @@ type coordinatorContinuationRequest struct {
 	ExpectedPolicyRevision int                     `json:"expectedPolicyRevision"`
 	Run                    projectRunCreateRequest `json:"run"`
 	MaxParallel            int                     `json:"maxParallel"`
+	RememberRoute          bool                    `json:"rememberRoute,omitempty"`
+	ExpectedRouteRevision  *int                    `json:"expectedRouteRevision,omitempty"`
+	CheckPlan              *CoordinatorCheckPlan   `json:"checkPlan,omitempty"`
 }
 
 func (s *Server) SetCoordinatorExecutionAuthorizer(fn func(context.Context, string, string, bool) error) {
@@ -145,10 +153,19 @@ func (s *Server) readContinuations(p project.Project, actor string) (coordinator
 	if stored.Version != 1 || stored.AccountScope != out.AccountScope || stored.ProjectScope != out.ProjectScope || stored.ProjectID != p.ID || stored.ActorID != actor || len(stored.Rows) > coordinatorContinuationLimit {
 		return out, ErrOrchestratorInvalid
 	}
+	if !validCoordinatorRoute(stored.SavedRoute) {
+		return out, ErrOrchestratorInvalid
+	}
 	seen := map[string]bool{}
 	for _, r := range stored.Rows {
 		if r.ProjectID != p.ID || r.Actor.ID != actor || !strings.HasPrefix(r.ID, "continue-") || !prototypeReleaseID.MatchString(r.ID) || seen[r.ID] || r.Revision < 1 || !validRunKey(r.IdempotencyKey) || reviewDigest(r.IdempotencyKey) != r.KeyDigest || !hexDigest(r.KeyDigest) || !hexDigest(r.RequestDigest) || !hexDigest(r.CanonicalDigest) || !hexDigest(r.ContextDigest) || r.Run.ImplementationContext.ProjectID != p.ID || r.MaxParallel < 1 || r.MaxParallel > MaxSwarmParallelTasks || len(r.Actions) > 3 {
 			return out, ErrOrchestratorInvalid
+		}
+		if r.ExecutionActor.UserID != "" && (r.ExecutionActor.UserID != actor || r.ExecutionActor.ProjectID != p.ID || r.ExecutionActor.Local) {
+			return out, ErrOrchestratorInvalid
+		}
+		if err := validateCoordinatorDelivery(r); err != nil {
+			return out, err
 		}
 		seen[r.ID] = true
 		for i, a := range r.Actions {
@@ -215,7 +232,7 @@ func (s *Server) listCoordinatorContinuations(w http.ResponseWriter, r *http.Req
 	if r.Context().Err() != nil {
 		return
 	}
-	journeyJSON(w, 200, map[string]any{"continuations": out})
+	journeyJSON(w, 200, map[string]any{"continuations": out, "savedRoute": rows.SavedRoute})
 }
 func (s *Server) getCoordinatorContinuation(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)
@@ -289,9 +306,18 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		journeyError(w, 400, "invalid_continuation", "Choose an exact completed turn, current reviewed tasks, saved upstream route and intended outcome.")
 		return
 	}
+	if err := validateCoordinatorCheckPlan(req.CheckPlan); err != nil {
+		journeyError(w, 400, "invalid_check_plan", err.Error())
+		return
+	}
 	sort.Strings(req.Run.ImplementationContext.TaskIDs)
 	actor, ok := authenticatedContextActor(r.Context())
 	if !ok {
+		coordinatorPolicyProblem(w, errCoordinatorAuthority)
+		return
+	}
+	executionActor, captureErr := management.CaptureExecutionActor(r.Context(), p.ID)
+	if captureErr != nil || executionActor.UserID != actor.ID {
 		coordinatorPolicyProblem(w, errCoordinatorAuthority)
 		return
 	}
@@ -299,7 +325,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 	key := reviewDigest(requestKey)
 	req.IdempotencyKey = ""
 	requestDigest := reviewDigest(req)
-	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ID: newID("continue-"), IdempotencyKey: requestKey, ProjectID: p.ID, Actor: actor, OriginTurnID: req.OriginTurnID, ContextDigest: req.ExpectedContextDigest, PolicyRevision: req.ExpectedPolicyRevision, Revision: 1, Status: "ready", Message: "Continuing the reviewed task selection with its saved upstream route.", QueueIDs: []string{}, Actions: []CoordinatorAction{}}, KeyDigest: key, RequestDigest: requestDigest, Run: req.Run, MaxParallel: req.MaxParallel}
+	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ID: newID("continue-"), IdempotencyKey: requestKey, ProjectID: p.ID, Actor: actor, OriginTurnID: req.OriginTurnID, ContextDigest: req.ExpectedContextDigest, PolicyRevision: req.ExpectedPolicyRevision, Revision: 1, Status: "ready", Message: "Continuing the reviewed task selection with its saved upstream route.", QueueIDs: []string{}, Actions: []CoordinatorAction{}}, KeyDigest: key, RequestDigest: requestDigest, Run: req.Run, MaxParallel: req.MaxParallel, ExecutionActor: executionActor, CheckPlan: req.CheckPlan}
 	if err := s.continuationAuthority(r.Context(), p, row); err != nil {
 		coordinatorPolicyProblem(w, err)
 		return
@@ -326,6 +352,11 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 				}
 				return
 			}
+		}
+	}
+	if err == nil && req.ExpectedRouteRevision != nil {
+		if rows.SavedRoute == nil || rows.SavedRoute.Revision != *req.ExpectedRouteRevision || reviewDigest(rows.SavedRoute.Route) != reviewDigest(coordinatorRoute(req.Run)) || rows.SavedRoute.MaxParallel != req.MaxParallel || reviewDigest(rows.SavedRoute.CheckPlan) != reviewDigest(req.CheckPlan) {
+			err = ErrOrchestratorConflict
 		}
 	}
 	if err == nil && len(rows.Rows) >= coordinatorContinuationLimit {
@@ -364,13 +395,28 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		row.CanonicalDigest, err = s.continuationContextLocked(p, req.Run.ImplementationContext)
 	}
 	if err == nil {
+		err = s.coordinatorCheckCoverageLocked(p, req.Run.ImplementationContext, req.CheckPlan)
+	}
+	if err == nil {
 		err = s.continuationAuthority(r.Context(), p, row)
 	}
 	if err == nil {
 		row.CreatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		row.UpdatedAt = row.CreatedAt
-		rows.Rows = append(rows.Rows, row)
-		err = s.saveContinuations(rows)
+		if req.RememberRoute {
+			revision := 1
+			if rows.SavedRoute != nil {
+				revision = rows.SavedRoute.Revision + 1
+			}
+			rows.SavedRoute = &CoordinatorSavedRoute{Revision: revision, Route: coordinatorRoute(req.Run), MaxParallel: req.MaxParallel, UpdatedAt: row.CreatedAt, CheckPlan: req.CheckPlan}
+			if !validCoordinatorRoute(rows.SavedRoute) {
+				err = ErrOrchestratorInvalid
+			}
+		}
+		if err == nil {
+			rows.Rows = append(rows.Rows, row)
+			err = s.saveContinuations(rows)
+		}
 	}
 	s.mu.Unlock()
 	release()
@@ -378,6 +424,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		coordinatorPolicyProblem(w, err)
 		return
 	}
+	s.WakeCoordinator()
 	out, err := s.continueCoordinator(r.Context(), p, row.ID, actor.ID, 0)
 	if err != nil {
 		coordinatorPolicyProblem(w, err)
@@ -680,7 +727,7 @@ func (s *Server) continueCoordinator(ctx context.Context, p project.Project, id,
 		}
 		if next == 3 {
 			s.mu.Unlock()
-			return out, nil
+			return s.continueCoordinatorDelivery(ctx, p, out)
 		}
 		kind := []string{"create-run", "prepare-tasks", "queue-tasks"}[next]
 		now := time.Now().UTC().Format(time.RFC3339Nano)
