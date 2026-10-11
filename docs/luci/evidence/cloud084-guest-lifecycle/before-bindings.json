@@ -1,0 +1,29 @@
+{
+  "scope": "Exact pre-correction transport/controller and regression. No counterexample has run yet.",
+  "inputs": [
+    {
+      "path": "control-plane/internal/backend/e2bbe/guest.go",
+      "retained": "before-guest.go",
+      "sha256": "bbebd2b5df7fb15b418c723ace46546243d7f230fef2f89959f7e16e5d30449e",
+      "bytes": 8711
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/grant.go",
+      "retained": "before-grant.go",
+      "sha256": "790351a8a4bdad4563fe22c01a0f516210eaadfd883d8fd54c28c54b7b20e80a",
+      "bytes": 4830
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/controller.go",
+      "retained": "before-controller.go",
+      "sha256": "45fe4e54ce5c623cfbb9ef8b47b7562e8b74ac738212486f692ff905bb0f1ca3",
+      "bytes": 17378
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/guest_lifecycle_test.go",
+      "retained": "before-guest_lifecycle_test.go",
+      "sha256": "d60ed8dd6c49f1289dbb0548fca2a9502fcd8fa0f1d437cff734478655c2d0e8",
+      "bytes": 3001
+    }
+  ]
+}

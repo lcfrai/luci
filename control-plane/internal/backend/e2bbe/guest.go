@@ -41,6 +41,9 @@ type GuestTransport struct {
 	owner         *Controller
 	mu            sync.Mutex
 	closed        bool
+	ctx           context.Context
+	cancel        context.CancelFunc
+	operations    sync.WaitGroup
 	config        GuestConfig
 	envd, sandbox *url.URL
 	files, attach *http.Client
@@ -62,7 +65,8 @@ func NewGuestTransport(cfg GuestConfig) (*GuestTransport, error) {
 	// A WebSocket outlives the bounded upgrade request. Its reads/writes use the
 	// existing sandboxd frame/context protocol, not http.Client.Timeout.
 	attach.Timeout = 0
-	return &GuestTransport{config: cfg, envd: envd, sandbox: sandbox, files: files, attach: attach}, nil
+	ctx, cancel := context.WithCancel(context.Background())
+	return &GuestTransport{config: cfg, envd: envd, sandbox: sandbox, files: files, attach: attach, ctx: ctx, cancel: cancel}, nil
 }
 func (g *GuestTransport) guard(ctx context.Context, action string) error {
 	g.mu.Lock()
@@ -136,6 +140,11 @@ func (r *countReader) Read(b []byte) (int, error) { n, e := r.r.Read(b); r.n += 
 // command or grant authority. The trusted guest bootstrap is a separate gate.
 func (g *GuestTransport) StageInput(ctx context.Context, r io.ReadSeeker) (TransferManifest, error) {
 	var m TransferManifest
+	ctx, done, e := g.beginIO(ctx)
+	if e != nil {
+		return m, e
+	}
+	defer done()
 	if r == nil {
 		return m, ErrTransfer
 	}
@@ -148,7 +157,7 @@ func (g *GuestTransport) StageInput(ctx context.Context, r io.ReadSeeker) (Trans
 	req := g.config.Record.Request
 	binding := TransferBinding{Identity: req.Identity, SourceDigest: req.SourceDigest, ContextDigest: req.ContextDigest, Direction: "input"}
 	counter := &countReader{r: r}
-	m, e := VerifyTransfer(contextReader{ctx, counter}, binding, req.BundleDigest)
+	m, e = VerifyTransfer(contextReader{ctx, counter}, binding, req.BundleDigest)
 	if e != nil {
 		return m, e
 	}
@@ -175,6 +184,11 @@ func (g *GuestTransport) StageInput(ctx context.Context, r io.ReadSeeker) (Trans
 
 func (g *GuestTransport) verifyInput(ctx context.Context) (TransferManifest, error) {
 	var m TransferManifest
+	ctx, done, e := g.beginIO(ctx)
+	if e != nil {
+		return m, e
+	}
+	defer done()
 	if e := g.guard(ctx, "stage-input"); e != nil {
 		return m, e
 	}
@@ -200,6 +214,11 @@ func (g *GuestTransport) verifyInput(ctx context.Context) (TransferManifest, err
 // approved for integration. No original project files are modified here.
 func (g *GuestTransport) ReceiveOutput(ctx context.Context, hash string, store *DirectoryStore) (TransferManifest, error) {
 	var m TransferManifest
+	ctx, done, e := g.beginIO(ctx)
+	if e != nil {
+		return m, e
+	}
+	defer done()
 	if store == nil || !digestPattern.MatchString(hash) {
 		return m, ErrUnsupported
 	}
@@ -223,6 +242,11 @@ func (g *GuestTransport) ReceiveOutput(ctx context.Context, hash string, store *
 	return m, nil
 }
 func (g *GuestTransport) Attach(ctx context.Context, token string) (*websocket.Conn, error) {
+	ctx, done, e := g.beginIO(ctx)
+	if e != nil {
+		return nil, e
+	}
+	defer done()
 	if !validToken(token) {
 		return nil, backend.ErrUnauthorized
 	}
@@ -252,7 +276,9 @@ func (g *GuestTransport) Attach(ctx context.Context, token string) (*websocket.C
 func (g *GuestTransport) Close() {
 	g.mu.Lock()
 	g.closed = true
+	g.cancel()
 	g.mu.Unlock()
+	g.operations.Wait()
 	g.files.CloseIdleConnections()
 	g.attach.CloseIdleConnections()
 }

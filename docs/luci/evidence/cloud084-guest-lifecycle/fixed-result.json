@@ -1,0 +1,374 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-json",
+    "-count=1",
+    "-p",
+    "1",
+    "-timeout",
+    "2m",
+    "./internal/backend/e2bbe"
+  ],
+  "cwd": "control-plane",
+  "start": "2026-10-11T16:59:07.464836+00:00",
+  "end": "2026-10-11T16:59:14.499186+00:00",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOCACHE": "/dev/shm/luci-go-cache-20261011-recovery"
+  },
+  "exit": 0,
+  "resourcesBefore": {
+    "diskAvailable": 675606528,
+    "cacheBytes": 640532818,
+    "cgroupRemaining": 8972914688
+  },
+  "scope": "Selected repository package/module/workspace source; not all external compiler inputs. Controlled TLS/WSS/Connect fixtures; no provider deployment.",
+  "before": {
+    "control-plane/go.mod": {
+      "bytes": 3143,
+      "sha256": "f5ef2cccb836411082e4b4de8f93759353b7feb2051bbb0f0f016aeeccc4367d"
+    },
+    "control-plane/go.sum": {
+      "bytes": 19460,
+      "sha256": "32d27dffccec67f104ab2931ca91f8655477986f3157973c9c959afc3572acd7"
+    },
+    "control-plane/internal/backend/allocation_observation.go": {
+      "bytes": 634,
+      "sha256": "5d55222fb0d6dfc75e986b36cf81006ff43c1e64bb491dfc496346313301d42b"
+    },
+    "control-plane/internal/backend/backend.go": {
+      "bytes": 17332,
+      "sha256": "b7e25e056c72fe6b0227fdfc6d024b0cbf3d00c02fb46da90378ed1cbeb9148c"
+    },
+    "control-plane/internal/backend/backend_test.go": {
+      "bytes": 7661,
+      "sha256": "2ecc44a90c091fe3f586a51ba339937e25c57c32706651f92d62096ecec43550"
+    },
+    "control-plane/internal/backend/checks.go": {
+      "bytes": 3407,
+      "sha256": "090393a01b586f1d2ede865f3e0dbed3c01c013fb975be4f0ecc326f2076602a"
+    },
+    "control-plane/internal/backend/dial.go": {
+      "bytes": 4961,
+      "sha256": "1610e84e64884210c2b7deaaf6615f5d81d8858c48d8ac6ebb857915230f0f5f"
+    },
+    "control-plane/internal/backend/dial_test.go": {
+      "bytes": 10665,
+      "sha256": "271a2f3d5538ac72e7c0e7621ba8100e2e949d366e9a345d0ae6e4319a0136d2"
+    },
+    "control-plane/internal/backend/e2bbe/client.go": {
+      "bytes": 7370,
+      "sha256": "abfd45a389772d7cb8bfc9c42be13f67d3fb02bd85028feb64e9cc23bac9c6f1"
+    },
+    "control-plane/internal/backend/e2bbe/controller.go": {
+      "bytes": 17378,
+      "sha256": "45fe4e54ce5c623cfbb9ef8b47b7562e8b74ac738212486f692ff905bb0f1ca3"
+    },
+    "control-plane/internal/backend/e2bbe/controller_test.go": {
+      "bytes": 18218,
+      "sha256": "d4d97becca99ba952b5903830cc27d4121310e8b79171ff65255446d11ef7360"
+    },
+    "control-plane/internal/backend/e2bbe/envdprocess/process.pb.go": {
+      "bytes": 81415,
+      "sha256": "f385b69c66e254ecc6d339fbe26bcf20459b60fb249a34465ca8834d39b5ea85"
+    },
+    "control-plane/internal/backend/e2bbe/envdprocess/processconnect/process.connect.go": {
+      "bytes": 15496,
+      "sha256": "bd6d12d25e83636cf495e139a2d6e0ffc15db0c54f17e097bd7e5d0d8e5704e4"
+    },
+    "control-plane/internal/backend/e2bbe/grant.go": {
+      "bytes": 4830,
+      "sha256": "790351a8a4bdad4563fe22c01a0f516210eaadfd883d8fd54c28c54b7b20e80a"
+    },
+    "control-plane/internal/backend/e2bbe/grant_test.go": {
+      "bytes": 5369,
+      "sha256": "1662a792821feb3d2217e9289b473e17b66403c1f2453895850b74718400f7f4"
+    },
+    "control-plane/internal/backend/e2bbe/guest.go": {
+      "bytes": 9235,
+      "sha256": "1b73592e50dcf0fde16f1a4f365a09f14568bf2a7f4190b29d3610ab68b55a40"
+    },
+    "control-plane/internal/backend/e2bbe/guest_lifecycle_test.go": {
+      "bytes": 3001,
+      "sha256": "d60ed8dd6c49f1289dbb0548fca2a9502fcd8fa0f1d437cff734478655c2d0e8"
+    },
+    "control-plane/internal/backend/e2bbe/guest_operation.go": {
+      "bytes": 1270,
+      "sha256": "d26819f497f683e537f01a9d6998fd89c82f62e2eef2210239d5a928687a7921"
+    },
+    "control-plane/internal/backend/e2bbe/guest_operation_test.go": {
+      "bytes": 4063,
+      "sha256": "90119f866d576fe85e124ef45f2fec0da5f55e64ce1572d2d6171d7b28648838"
+    },
+    "control-plane/internal/backend/e2bbe/guest_test.go": {
+      "bytes": 9380,
+      "sha256": "c1c1b4040e76c1d2abc070657b21ba99b8962cbcaa0d69b75c0c5b95a25801a4"
+    },
+    "control-plane/internal/backend/e2bbe/launch.go": {
+      "bytes": 6675,
+      "sha256": "3973bd286b4bc04b5d16420e29d11b382dbbd9f5d0f3a319e2934be5ddda44d4"
+    },
+    "control-plane/internal/backend/e2bbe/launch_test.go": {
+      "bytes": 10255,
+      "sha256": "21d0512c6f788a0baab4d0ed686e44e5dc716f185a04ad9ef31b9a13ccb99474"
+    },
+    "control-plane/internal/backend/e2bbe/store.go": {
+      "bytes": 14334,
+      "sha256": "98553442faece9667226906758a648797489f9d1adad2a2e286ec8a95b2348ea"
+    },
+    "control-plane/internal/backend/e2bbe/store_test.go": {
+      "bytes": 11370,
+      "sha256": "aeac784adfecc52abc6e6b3b7e67304a293f71c42d9d620b657e8bfeac90152c"
+    },
+    "control-plane/internal/backend/e2bbe/transfer.go": {
+      "bytes": 7567,
+      "sha256": "cf8ad42a82ef8638c075b24e49244bf3c840a51f7f70638afb2b9daefdaaa70d"
+    },
+    "control-plane/internal/backend/e2bbe/transfer_test.go": {
+      "bytes": 7295,
+      "sha256": "9d22bb8e8d173ebc00c332ea5efa483bd8950c953fbca6e11886c2d799a33128"
+    },
+    "control-plane/internal/backend/e2bbe/types.go": {
+      "bytes": 6396,
+      "sha256": "cc1a9db42996ebd4b63dccc5accc5146e9f17db75818ad1b51fc434aa151007a"
+    },
+    "control-plane/internal/backend/launch_fence.go": {
+      "bytes": 2767,
+      "sha256": "28f4484a46c8b065b984bd4bdc5886872fed5aa32dfa3343c8dd615e0472b0cd"
+    },
+    "control-plane/internal/backend/previews.go": {
+      "bytes": 3036,
+      "sha256": "3c8a2f3e36efe65215196a113f30349734431aedd171fb4170b704c4d3ac6279"
+    },
+    "control-plane/internal/backend/resource_limits.go": {
+      "bytes": 514,
+      "sha256": "e44a1c4775570ab0431ae83902f1adcc61618a8e4b21e74b0ba96f9809da5153"
+    },
+    "control-plane/internal/backend/runtime_image.go": {
+      "bytes": 2581,
+      "sha256": "0e3fc46f53717a55aba17189550c18efe348672093bd0805af4d0b506608e4ea"
+    },
+    "control-plane/internal/backend/seam_test.go": {
+      "bytes": 9256,
+      "sha256": "e263ef8815ab8be36a4f1439e93fe1e16b4b308565ff91097fac388588142b62"
+    },
+    "control-plane/internal/statelease/lease.go": {
+      "bytes": 613,
+      "sha256": "65bd6bd82824261a68653bc4111f88de6842f91f07f1d804c9cf7597c6c7d7e4"
+    },
+    "control-plane/internal/statelease/lease_other.go": {
+      "bytes": 226,
+      "sha256": "3736a094e89f48b825c54f9efeecee4e1eb3d2e4dbba32dbfb8037527344531f"
+    },
+    "control-plane/internal/statelease/lease_process_test.go": {
+      "bytes": 4946,
+      "sha256": "065f9c16837292843e75e415a77d58df8a1ed535d0d3f8542676289f85388d15"
+    },
+    "control-plane/internal/statelease/lease_special_unix_test.go": {
+      "bytes": 2170,
+      "sha256": "185840893063c0bc15970e73ad4c2560b1e2cdb4318b57221413a725e97169cd"
+    },
+    "control-plane/internal/statelease/lease_test.go": {
+      "bytes": 3725,
+      "sha256": "7f7ce8648066e91e6f3ceaf214339192e616c7b97de282994efd92db7ba35404"
+    },
+    "control-plane/internal/statelease/lease_unix.go": {
+      "bytes": 3434,
+      "sha256": "53428533e0122a9c063f6b7e8df950a039a08e8a96c6fbca6fe8ac07d5edb76a"
+    },
+    "control-plane/internal/statelease/lease_windows.go": {
+      "bytes": 8088,
+      "sha256": "2a52b6025a04728819f1f9ff5472400d6f31e92aefead610a229f995895e1769"
+    },
+    "control-plane/internal/statelease/lease_windows_test.go": {
+      "bytes": 6531,
+      "sha256": "dbdf0b2931281e10b254131abc8804770ea0ebf137ca61d7cc9390b9855f82ac"
+    },
+    "go.work": {
+      "bytes": 48,
+      "sha256": "e634b59bb2cdd79a961dc765ab7452e40a0fa486cf8972d3357ff5df2dbd9db9"
+    },
+    "go.work.sum": {
+      "bytes": 2499,
+      "sha256": "cebe32be8573f52246bc5d2e8daac3d204fae0bea61f35fe569ed4e9ca18785e"
+    }
+  },
+  "after": {
+    "control-plane/go.mod": {
+      "bytes": 3143,
+      "sha256": "f5ef2cccb836411082e4b4de8f93759353b7feb2051bbb0f0f016aeeccc4367d"
+    },
+    "control-plane/go.sum": {
+      "bytes": 19460,
+      "sha256": "32d27dffccec67f104ab2931ca91f8655477986f3157973c9c959afc3572acd7"
+    },
+    "control-plane/internal/backend/allocation_observation.go": {
+      "bytes": 634,
+      "sha256": "5d55222fb0d6dfc75e986b36cf81006ff43c1e64bb491dfc496346313301d42b"
+    },
+    "control-plane/internal/backend/backend.go": {
+      "bytes": 17332,
+      "sha256": "b7e25e056c72fe6b0227fdfc6d024b0cbf3d00c02fb46da90378ed1cbeb9148c"
+    },
+    "control-plane/internal/backend/backend_test.go": {
+      "bytes": 7661,
+      "sha256": "2ecc44a90c091fe3f586a51ba339937e25c57c32706651f92d62096ecec43550"
+    },
+    "control-plane/internal/backend/checks.go": {
+      "bytes": 3407,
+      "sha256": "090393a01b586f1d2ede865f3e0dbed3c01c013fb975be4f0ecc326f2076602a"
+    },
+    "control-plane/internal/backend/dial.go": {
+      "bytes": 4961,
+      "sha256": "1610e84e64884210c2b7deaaf6615f5d81d8858c48d8ac6ebb857915230f0f5f"
+    },
+    "control-plane/internal/backend/dial_test.go": {
+      "bytes": 10665,
+      "sha256": "271a2f3d5538ac72e7c0e7621ba8100e2e949d366e9a345d0ae6e4319a0136d2"
+    },
+    "control-plane/internal/backend/e2bbe/client.go": {
+      "bytes": 7370,
+      "sha256": "abfd45a389772d7cb8bfc9c42be13f67d3fb02bd85028feb64e9cc23bac9c6f1"
+    },
+    "control-plane/internal/backend/e2bbe/controller.go": {
+      "bytes": 17378,
+      "sha256": "45fe4e54ce5c623cfbb9ef8b47b7562e8b74ac738212486f692ff905bb0f1ca3"
+    },
+    "control-plane/internal/backend/e2bbe/controller_test.go": {
+      "bytes": 18218,
+      "sha256": "d4d97becca99ba952b5903830cc27d4121310e8b79171ff65255446d11ef7360"
+    },
+    "control-plane/internal/backend/e2bbe/envdprocess/process.pb.go": {
+      "bytes": 81415,
+      "sha256": "f385b69c66e254ecc6d339fbe26bcf20459b60fb249a34465ca8834d39b5ea85"
+    },
+    "control-plane/internal/backend/e2bbe/envdprocess/processconnect/process.connect.go": {
+      "bytes": 15496,
+      "sha256": "bd6d12d25e83636cf495e139a2d6e0ffc15db0c54f17e097bd7e5d0d8e5704e4"
+    },
+    "control-plane/internal/backend/e2bbe/grant.go": {
+      "bytes": 4830,
+      "sha256": "790351a8a4bdad4563fe22c01a0f516210eaadfd883d8fd54c28c54b7b20e80a"
+    },
+    "control-plane/internal/backend/e2bbe/grant_test.go": {
+      "bytes": 5369,
+      "sha256": "1662a792821feb3d2217e9289b473e17b66403c1f2453895850b74718400f7f4"
+    },
+    "control-plane/internal/backend/e2bbe/guest.go": {
+      "bytes": 9235,
+      "sha256": "1b73592e50dcf0fde16f1a4f365a09f14568bf2a7f4190b29d3610ab68b55a40"
+    },
+    "control-plane/internal/backend/e2bbe/guest_lifecycle_test.go": {
+      "bytes": 3001,
+      "sha256": "d60ed8dd6c49f1289dbb0548fca2a9502fcd8fa0f1d437cff734478655c2d0e8"
+    },
+    "control-plane/internal/backend/e2bbe/guest_operation.go": {
+      "bytes": 1270,
+      "sha256": "d26819f497f683e537f01a9d6998fd89c82f62e2eef2210239d5a928687a7921"
+    },
+    "control-plane/internal/backend/e2bbe/guest_operation_test.go": {
+      "bytes": 4063,
+      "sha256": "90119f866d576fe85e124ef45f2fec0da5f55e64ce1572d2d6171d7b28648838"
+    },
+    "control-plane/internal/backend/e2bbe/guest_test.go": {
+      "bytes": 9380,
+      "sha256": "c1c1b4040e76c1d2abc070657b21ba99b8962cbcaa0d69b75c0c5b95a25801a4"
+    },
+    "control-plane/internal/backend/e2bbe/launch.go": {
+      "bytes": 6675,
+      "sha256": "3973bd286b4bc04b5d16420e29d11b382dbbd9f5d0f3a319e2934be5ddda44d4"
+    },
+    "control-plane/internal/backend/e2bbe/launch_test.go": {
+      "bytes": 10255,
+      "sha256": "21d0512c6f788a0baab4d0ed686e44e5dc716f185a04ad9ef31b9a13ccb99474"
+    },
+    "control-plane/internal/backend/e2bbe/store.go": {
+      "bytes": 14334,
+      "sha256": "98553442faece9667226906758a648797489f9d1adad2a2e286ec8a95b2348ea"
+    },
+    "control-plane/internal/backend/e2bbe/store_test.go": {
+      "bytes": 11370,
+      "sha256": "aeac784adfecc52abc6e6b3b7e67304a293f71c42d9d620b657e8bfeac90152c"
+    },
+    "control-plane/internal/backend/e2bbe/transfer.go": {
+      "bytes": 7567,
+      "sha256": "cf8ad42a82ef8638c075b24e49244bf3c840a51f7f70638afb2b9daefdaaa70d"
+    },
+    "control-plane/internal/backend/e2bbe/transfer_test.go": {
+      "bytes": 7295,
+      "sha256": "9d22bb8e8d173ebc00c332ea5efa483bd8950c953fbca6e11886c2d799a33128"
+    },
+    "control-plane/internal/backend/e2bbe/types.go": {
+      "bytes": 6396,
+      "sha256": "cc1a9db42996ebd4b63dccc5accc5146e9f17db75818ad1b51fc434aa151007a"
+    },
+    "control-plane/internal/backend/launch_fence.go": {
+      "bytes": 2767,
+      "sha256": "28f4484a46c8b065b984bd4bdc5886872fed5aa32dfa3343c8dd615e0472b0cd"
+    },
+    "control-plane/internal/backend/previews.go": {
+      "bytes": 3036,
+      "sha256": "3c8a2f3e36efe65215196a113f30349734431aedd171fb4170b704c4d3ac6279"
+    },
+    "control-plane/internal/backend/resource_limits.go": {
+      "bytes": 514,
+      "sha256": "e44a1c4775570ab0431ae83902f1adcc61618a8e4b21e74b0ba96f9809da5153"
+    },
+    "control-plane/internal/backend/runtime_image.go": {
+      "bytes": 2581,
+      "sha256": "0e3fc46f53717a55aba17189550c18efe348672093bd0805af4d0b506608e4ea"
+    },
+    "control-plane/internal/backend/seam_test.go": {
+      "bytes": 9256,
+      "sha256": "e263ef8815ab8be36a4f1439e93fe1e16b4b308565ff91097fac388588142b62"
+    },
+    "control-plane/internal/statelease/lease.go": {
+      "bytes": 613,
+      "sha256": "65bd6bd82824261a68653bc4111f88de6842f91f07f1d804c9cf7597c6c7d7e4"
+    },
+    "control-plane/internal/statelease/lease_other.go": {
+      "bytes": 226,
+      "sha256": "3736a094e89f48b825c54f9efeecee4e1eb3d2e4dbba32dbfb8037527344531f"
+    },
+    "control-plane/internal/statelease/lease_process_test.go": {
+      "bytes": 4946,
+      "sha256": "065f9c16837292843e75e415a77d58df8a1ed535d0d3f8542676289f85388d15"
+    },
+    "control-plane/internal/statelease/lease_special_unix_test.go": {
+      "bytes": 2170,
+      "sha256": "185840893063c0bc15970e73ad4c2560b1e2cdb4318b57221413a725e97169cd"
+    },
+    "control-plane/internal/statelease/lease_test.go": {
+      "bytes": 3725,
+      "sha256": "7f7ce8648066e91e6f3ceaf214339192e616c7b97de282994efd92db7ba35404"
+    },
+    "control-plane/internal/statelease/lease_unix.go": {
+      "bytes": 3434,
+      "sha256": "53428533e0122a9c063f6b7e8df950a039a08e8a96c6fbca6fe8ac07d5edb76a"
+    },
+    "control-plane/internal/statelease/lease_windows.go": {
+      "bytes": 8088,
+      "sha256": "2a52b6025a04728819f1f9ff5472400d6f31e92aefead610a229f995895e1769"
+    },
+    "control-plane/internal/statelease/lease_windows_test.go": {
+      "bytes": 6531,
+      "sha256": "dbdf0b2931281e10b254131abc8804770ea0ebf137ca61d7cc9390b9855f82ac"
+    },
+    "go.work": {
+      "bytes": 48,
+      "sha256": "e634b59bb2cdd79a961dc765ab7452e40a0fa486cf8972d3357ff5df2dbd9db9"
+    },
+    "go.work.sum": {
+      "bytes": 2499,
+      "sha256": "cebe32be8573f52246bc5d2e8daac3d204fae0bea61f35fe569ed4e9ca18785e"
+    }
+  },
+  "changedInputs": [],
+  "results": {
+    "pass-top": 54,
+    "pass-sub": 73,
+    "pass-package": 1
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "scope": "Exact final changed source and tests; original regression unchanged.",
+  "originalRegressionUnchanged": true,
+  "inputs": [
+    {
+      "path": "control-plane/internal/backend/e2bbe/guest.go",
+      "retained": "after-guest.go",
+      "bytes": 9235,
+      "sha256": "1b73592e50dcf0fde16f1a4f365a09f14568bf2a7f4190b29d3610ab68b55a40"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/launch.go",
+      "retained": "after-launch.go",
+      "bytes": 6675,
+      "sha256": "3973bd286b4bc04b5d16420e29d11b382dbbd9f5d0f3a319e2934be5ddda44d4"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/guest_operation.go",
+      "retained": "after-guest_operation.go",
+      "bytes": 1270,
+      "sha256": "d26819f497f683e537f01a9d6998fd89c82f62e2eef2210239d5a928687a7921"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/guest_operation_test.go",
+      "retained": "after-guest_operation_test.go",
+      "bytes": 4063,
+      "sha256": "90119f866d576fe85e124ef45f2fec0da5f55e64ce1572d2d6171d7b28648838"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/guest_lifecycle_test.go",
+      "retained": "after-guest_lifecycle_test.go",
+      "bytes": 3001,
+      "sha256": "d60ed8dd6c49f1289dbb0548fca2a9502fcd8fa0f1d437cff734478655c2d0e8"
+    }
+  ]
+}

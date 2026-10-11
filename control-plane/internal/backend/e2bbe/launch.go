@@ -65,6 +65,11 @@ func bootstrapArgs(r Record) []string {
 	return []string{"--archive", guestInputPath, "--archive-sha256", r.Request.BundleDigest, "--owner", i.OwnerID, "--project", i.ProjectID, "--task", i.TaskID, "--attempt", i.AttemptID, "--operation", i.OperationID, "--source-sha256", r.Request.SourceDigest, "--context-sha256", r.Request.ContextDigest}
 }
 func (g *GuestTransport) start(ctx context.Context, l LaunchSpec) (uint32, error) {
+	ctx, done, e := g.beginIO(ctx)
+	if e != nil {
+		return 0, e
+	}
+	defer done()
 	if !validLaunch(l) {
 		return 0, ErrUnsupported
 	}
