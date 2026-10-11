@@ -1,0 +1,9 @@
+{
+  "desktop/src/api/orchestrator.ts": "d0fbae34004db30174637f62d9dae05530e33b9779226ae6aeab95baea38e059",
+  "desktop/src/api/coordinatorPolicy.ts": "3da17829726656735b9cceecc25a76ba82d2acabfd48d7421302fbb744746c06",
+  "desktop/src/api/coordinatorPolicy.test.ts": "53bb5c2e04b8e2d47f41dd1067368adb47d412333ca9d136373d5e5570117272",
+  "desktop/src/components/orchestrator/CoordinatorPolicy.tsx": "2ed92de8942ee19f70c2fbcf014c7885602933bc3a517b8062030f178c7dfe6c",
+  "desktop/src/components/orchestrator/CoordinatorPolicy.test.tsx": "722cffba3e38484322f5b5a756869802dc28bf9d7af9cae1271bd13fcc244064",
+  "desktop/src/components/orchestrator/OrchestratorPanel.tsx": "9bec32b396b4c4197c4ad737ad5a84d13184d325a08e00a231f7a1ad99e8eed5",
+  "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx": "6c2291fbabf7a7ee67cf9e6779c27048455d60160c7241f2a532f44685414665"
+}

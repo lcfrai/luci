@@ -5,6 +5,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { orchestratorApi, type OrchestratorJob, type OrchestratorView } from "../../api/orchestrator";
 import { productApi, type AgentConnectionCatalogue } from "../../api/product";
 import { ApiError } from "../../api/client";
+import { coordinatorPolicyApi } from "../../api/coordinatorPolicy";
 import { selectTeamScope } from "../../api/teamScope";
 import { AGENT_CONNECTIONS_CHANGED } from "../../hooks/useAgentConnections";
 import { useCockpit, resetCockpit } from "../../store/store";
@@ -39,6 +40,7 @@ beforeEach(() => {
   vi.spyOn(orchestratorApi, "cancel").mockResolvedValue(job({ status: "cancelled" }));
   vi.spyOn(orchestratorApi, "reconcile").mockResolvedValue(job({ status: "succeeded" }));
   vi.spyOn(orchestratorApi, "apply").mockResolvedValue(view({ revision: 4 }));
+  vi.spyOn(coordinatorPolicyApi, "get").mockImplementation(async projectId => ({ projectId, revision: 0, mode: "review", allowedTargets: ["specification", "design-plan", "plan"], executionMode: "manual", deploymentMode: "manual" }));
 });
 async function ready() {
   await screen.findByRole("button", { name: "Review design" });
@@ -46,6 +48,29 @@ async function ready() {
   if (!(disclosure.parentElement as HTMLDetailsElement).open) await userEvent.click(disclosure);
   await screen.findByText(/Using Team provider/);
 }
+
+it("uses the existing conversation mutation boundary for a policy-authorized draft and leaves Build/Deploy untouched", async () => {
+  const proposal = { ...proposalTurn(), actor: { id: "owner", displayName: "Owner" } };
+  const initial = view({ turns: [proposal] });
+  vi.mocked(orchestratorApi.get).mockResolvedValue(initial);
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue({ projectId: "p-1", revision: 2, mode: "auto-drafts", allowedTargets: ["specification"], executionMode: "manual", deploymentMode: "manual", actor: proposal.actor, updatedAt: "2026-10-12T00:00:00Z" });
+  const advance = vi.spyOn(orchestratorApi, "advance").mockResolvedValue(view({ revision: 4, context: { ...context(), digest: "saved-draft" }, turns: [{ ...proposal, appliedRevision: 3 }] }));
+  render(<OrchestratorPanel projectId="p-1" />);
+  await waitFor(() => expect(advance).toHaveBeenCalledExactlyOnceWith("p-1", proposal.id, { expectedRevision: 3, expectedContextDigest: context().digest, expectedPolicyRevision: 2 }));
+  await userEvent.click(screen.getByRole("button", { name: "Talk to Luci" }));
+  await screen.findByRole("button", { name: "Open current definition" });
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
+});
+
+it("does not automatically apply while this project has unsaved context", async () => {
+  const proposal = { ...proposalTurn(), actor: { id: "owner", displayName: "Owner" } };
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [proposal] }));
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue({ projectId: "p-1", revision: 2, mode: "auto-drafts", allowedTargets: ["specification"], executionMode: "manual", deploymentMode: "manual", actor: proposal.actor, updatedAt: "2026-10-12T00:00:00Z" });
+  const advance = vi.spyOn(orchestratorApi, "advance");
+  useCockpit.setState({ unsavedProjectDrafts: { definition: { projectId: "p-1", label: "Definition", lens: "discover", retained: true, discard: vi.fn() } } });
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  expect(advance).not.toHaveBeenCalled();
+});
 
 const decisionScope = () => JSON.stringify([productApi.baseUrl, identity.actor, identity.connection ? "cloud" : "local", identity.connection, identity.connection, identity.actor, identity.root, "p-1"]);
 const decisions = [

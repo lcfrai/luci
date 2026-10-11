@@ -1,0 +1,6 @@
+{
+  "base": "3ba9efede649768894ae6921a8371def994f2edf",
+  "test": "npm --prefix desktop test -- src/api/coordinatorPolicy.test.ts src/api/orchestrator.test.ts src/components/orchestrator/CoordinatorPolicy.test.tsx src/components/orchestrator/OrchestratorPanel.test.tsx --maxWorkers=1",
+  "typecheck": "npm --prefix desktop run typecheck",
+  "scope": "Selected component/API fixtures; no actual browser/native/provider/whole coordinator acceptance."
+}

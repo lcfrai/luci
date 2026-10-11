@@ -14,6 +14,8 @@ import { WorkflowDialog } from "../common/WorkflowDialog";
 import { AmendmentReview } from "./AmendmentReview";
 import { ProjectUnderstanding } from "./ProjectUnderstanding";
 import { ConversationStorage } from "./ConversationStorage";
+import { CoordinatorPolicy } from "./CoordinatorPolicy";
+import { useAuth } from "../auth/AuthProvider";
 import { readAgentPreference, writeAgentPreference, type OrchestratorAgent } from "./agentPreference";
 import { finishComposerRequest, isComposerRecoveryKey, readComposerRecovery, retainComposerRequest, saveComposerDraft } from "./composerRecovery";
 import "./orchestrator.css";
@@ -42,6 +44,7 @@ export function OrchestratorPanel({ projectId }: { projectId: string }) {
 
 function ProjectConversation({ projectId, scope }: { projectId: string; scope: string }) {
   const access = useProjectAccess(projectId), setup = useSetup();
+  const actorId = useAuth()?.profile.user.id ?? "";
   const { canRead, canEdit, canAssist, canExecute } = access;
   const [compact, setCompact] = useState(() => window.matchMedia(compactOverviewQuery).matches);
   // The responsive default applies only until an explicit choice. Keep the
@@ -465,6 +468,21 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     } catch (cause) { if (alive.current && ticket === generation.current) setError(`${errorText(cause)} Keep this proposal, refresh the conversation and review the current context before applying again.`); }
     finally { if (ticket === generation.current) { working.current = false; if (alive.current) setBusy(""); } }
   }
+  async function advanceDraft(turnId: string, policyRevision: number): Promise<OrchestratorView> {
+    const current = latest.current;
+    const unsaved = Object.values(useCockpit.getState().unsavedProjectDrafts).some(draft => draft.projectId === projectId);
+    if (!permission.current.canEdit || permission.current.loading || permission.current.error || !current || contextStale || contextRefreshQueued || unsaved || working.current || pendingRequest || uncertain) {
+      throw new Error("The current project is not ready for automatic draft saving.");
+    }
+    working.current = true; const ticket = ++generation.current; setBusy("auto-draft"); setError("");
+    try {
+      const value = await orchestratorApi.advance(projectId, turnId, { expectedRevision: current.revision, expectedContextDigest: current.context.digest, expectedPolicyRevision: policyRevision });
+      if (alive.current && permission.current.canRead && permission.current.canEdit && ticket === generation.current) {
+        remember(value); setRefreshEditor(true);
+      }
+      return value;
+    } finally { if (ticket === generation.current) { working.current = false; if (alive.current) setBusy(""); } }
+  }
   const openComposer = (text?: string) => {
     const origin = document.activeElement;
     const ticket = generation.current;
@@ -589,6 +607,10 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         {decisionNotice && <p ref={decisionNoticeNode} role="status" tabIndex={-1}>{decisionNotice}</p>}
         {(loading || contextRefreshQueued) && view && <p role="status">Updating saved project understanding…</p>}
         {view && <ProjectUnderstanding view={view} stale={contextStale || contextRefreshQueued} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} onEdit={edit} canEdit={canEdit} />}
+        {view && <CoordinatorPolicy projectId={projectId} scope={scope} actorId={actorId} view={view}
+          canRead={canRead && !access.loading && !access.error} canEdit={canEdit}
+          blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
+          onAdvance={advanceDraft} onObserved={value => { if (!working.current && permission.current.canRead) remember(value); }} />}
         <details className="orchestrator-discussion" open={conversationOpen} onToggle={event => setConversationOpen(event.currentTarget.open)}><summary>Discuss or request a change</summary>
         {conversation.mounted && <div hidden={!conversationOpen}>
         {view && <>

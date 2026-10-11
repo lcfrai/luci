@@ -1,0 +1,16 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/api/coordinatorPolicy.test.ts src/components/orchestrator/CoordinatorPolicy.test.tsx --maxWorkers=1
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+
+ Test Files  2 passed (2)
+      Tests  32 passed (32)
+   Start at  15:20:24
+   Duration  3.62s (environment 52%, tests 28%, setup 8%, transform 8%, import 4%)
+
+    Isolate  2 workers spawned · ~1000ms startup each (spawn + environment, per file)
+             at least ~1000ms faster with isolate: false — reuses workers across files instead of one per file
+
