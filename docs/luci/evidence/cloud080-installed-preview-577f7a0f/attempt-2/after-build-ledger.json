@@ -1,0 +1,73 @@
+{
+  "rawSHA256": "7531851cad29b1d7e3427c4bc88b50e3441091cb94a22c132160d282129ad07f",
+  "version": 1,
+  "ownPreviews": [
+    {
+      "id": "preview-build-46febdcca4dcc0258bd5c352",
+      "scope": "54c0dfe041ab0820dc04f0fb50aabc68a57edceeaf774ecbcb3015227d24605f",
+      "actor": {
+        "userId": "user-RJX2KanPh2bPk7jaors6Lo",
+        "projectId": "p-8bff5b8a"
+      },
+      "identity": {
+        "protocol": 1,
+        "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+        "instanceId": "a025383f-ec4a-4639-ae63-448455d6e42f",
+        "allocationId": "preview-build-46febdcca4dcc0258bd5c352",
+        "releaseId": "rel-33671bc7faeac61d924ee2dc",
+        "scopeDigest": "54c0dfe041ab0820dc04f0fb50aabc68a57edceeaf774ecbcb3015227d24605f",
+        "projectId": "p-8bff5b8a",
+        "sourceDigest": "59212d6c7e9248773e887c12aefa3574aa023e79fee203c70916e80fb785a81b",
+        "commit": "be33ef7e3a3f412ad32a683d17799d10bdd4e7e0"
+      },
+      "kind": "preview-build",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      },
+      "createDiskBytes": 1091017728,
+      "state": "finished",
+      "image": "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+      "revision": 3,
+      "createdAt": "2026-10-11T11:43:39.031774203Z",
+      "updatedAt": "2026-10-11T11:43:53.033169806Z"
+    },
+    {
+      "id": "preview-799a1bae7fffe619032b6437",
+      "scope": "54c0dfe041ab0820dc04f0fb50aabc68a57edceeaf774ecbcb3015227d24605f",
+      "actor": {
+        "userId": "user-RJX2KanPh2bPk7jaors6Lo",
+        "projectId": "p-8bff5b8a"
+      },
+      "identity": {
+        "protocol": 1,
+        "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+        "instanceId": "a025383f-ec4a-4639-ae63-448455d6e42f",
+        "allocationId": "preview-799a1bae7fffe619032b6437",
+        "releaseId": "rel-33671bc7faeac61d924ee2dc",
+        "scopeDigest": "54c0dfe041ab0820dc04f0fb50aabc68a57edceeaf774ecbcb3015227d24605f",
+        "projectId": "p-8bff5b8a",
+        "sourceDigest": "59212d6c7e9248773e887c12aefa3574aa023e79fee203c70916e80fb785a81b",
+        "commit": "be33ef7e3a3f412ad32a683d17799d10bdd4e7e0"
+      },
+      "kind": "preview",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      },
+      "createDiskBytes": 277065825,
+      "state": "running",
+      "ref": "ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3",
+      "image": "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+      "revision": 5,
+      "createdAt": "2026-10-11T11:43:53.142103906Z",
+      "updatedAt": "2026-10-11T11:43:53.506652745Z"
+    }
+  ],
+  "counts": {
+    "workers": 0,
+    "checks": 0,
+    "runtimeImages": 0,
+    "allPreviews": 2
+  }
+}

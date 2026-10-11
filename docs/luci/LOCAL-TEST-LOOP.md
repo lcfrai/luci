@@ -1080,3 +1080,7 @@ under the existing two-way test protocol.
 ### Final Linux Docker build contract correction in C080/081
 
 The final integrated source batch passes 304 race outcomes across 89 top-level tests with zero failures/skips and 879 selected inputs stable. The same pinned-SDK wire regression first reproduces both runtime/preview Linux build refusals. ImageBuildOptions.SecurityOpt is Windows-only; its removal preserves CPU/memory/swap/ulimits and the serving container security settings. Earlier 291 passes and the subsequent obsolete option-assertion failure remain separate. This is controlled HTTP/SDK evidence, not a real build or a Windows pass. Adopt the immutable runtime/preview checkpoint only after the ongoing 2416135f native batch closes.
+
+### Installed preview witness at 577f7a0f
+
+Linux's normal product release route built and served a fresh handwritten scratch fixture, passed real HTTP calculator output and invalid-input checks, and stopped through the API with exact container absence and an empty fixture ledger. [Receipts and independent closure](evidence/cloud080-installed-preview-577f7a0f/README.md) preserve the initial helper201-status failure and selected before/after source/identity evidence. This is COPY-only, without model calls, browser latency or ProjectCheckRun execution. Windows has moved from the interrupted241 native build to combined577; completed kernel/frontend/helper scopes remain credited at241, and original native teardown/reopen/external-API cases remain pending on577.

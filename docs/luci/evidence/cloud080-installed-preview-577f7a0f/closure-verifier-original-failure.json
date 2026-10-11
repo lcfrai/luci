@@ -1,0 +1,6 @@
+{
+  "type": "KeyError",
+  "key": "previews",
+  "cause": "Empty ledger arrays are omitted by production JSON; verifier used direct index. No mutation occurred.",
+  "changed": "Require ledger version1 and absent-or-empty arrays."
+}

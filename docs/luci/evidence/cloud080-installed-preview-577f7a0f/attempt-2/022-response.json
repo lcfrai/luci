@@ -1,0 +1,7 @@
+{
+  "status": 409,
+  "value": {
+    "error": "commit_required",
+    "message": "Commit all changes before previewing so the release identifies exactly what was built."
+  }
+}

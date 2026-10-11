@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects/p-8bff5b8a/git/commit",
+  "body": {
+    "message": "Reviewed preview transport fixture",
+    "expectedReviewDigest": "d5e912224c1c48ad678f9f8d9447e1635b3b4d8c64fc9e7e76058e10609d37d2"
+  },
+  "timeout": 30000,
+  "at": "2026-10-11T11:43:37.894Z"
+}

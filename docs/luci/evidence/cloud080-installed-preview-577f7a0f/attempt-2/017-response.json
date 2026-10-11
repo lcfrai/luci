@@ -1,0 +1,46 @@
+{
+  "status": 200,
+  "value": {
+    "coverage": {
+      "projectId": "p-8bff5b8a",
+      "specification": {
+        "revision": 2,
+        "status": "approved",
+        "digest": "4bbf1bdc328fdf7ad06684e87f7b0f8e281cadb763f79bfa443ccb57f423755b"
+      },
+      "design": {
+        "revision": 2,
+        "status": "approved",
+        "digest": "be9c89d007da8a9ed7c292906f8a6284ccfb39092cbaee9353007af88277d8ec"
+      },
+      "source": {
+        "commit": "be33ef7e3a3f412ad32a683d17799d10bdd4e7e0",
+        "sourceDigest": "59212d6c7e9248773e887c12aefa3574aa023e79fee203c70916e80fb785a81b",
+        "dirty": false,
+        "available": true
+      },
+      "rows": [
+        {
+          "requirementId": "AC-001",
+          "title": "Add two entered amounts",
+          "acceptance": "Add two entered amounts",
+          "taskIds": [],
+          "doneTaskIds": [],
+          "evidenceRunIds": [],
+          "evidenceStatus": "unverified"
+        },
+        {
+          "requirementId": "AC-002",
+          "title": "Bind the preview to loopback and settle owned execution on Stop",
+          "acceptance": "Bind the preview to loopback and settle owned execution on Stop",
+          "taskIds": [],
+          "doneTaskIds": [],
+          "evidenceRunIds": [],
+          "evidenceStatus": "unverified"
+        }
+      ]
+    },
+    "runs": [],
+    "suggested": []
+  }
+}

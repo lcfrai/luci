@@ -1,0 +1,9 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects/p-8bff5b8a/design-plan/approve",
+  "body": {
+    "revision": 1
+  },
+  "timeout": 30000,
+  "at": "2026-10-11T11:43:37.441Z"
+}

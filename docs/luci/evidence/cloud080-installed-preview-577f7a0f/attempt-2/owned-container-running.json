@@ -1,0 +1,237 @@
+{
+  "Id": "ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3",
+  "Created": "2026-10-11T11:43:53.239230622Z",
+  "Path": "/fixture",
+  "Args": [],
+  "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 2723108,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-10-11T11:43:53.368337922Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+  },
+  "Image": "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+  "ResolvConfPath": "/var/lib/docker/containers/ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3/resolv.conf",
+  "HostnamePath": "/var/lib/docker/containers/ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3/hostname",
+  "HostsPath": "/var/lib/docker/containers/ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3/hosts",
+  "LogPath": "/var/lib/docker/containers/ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3/ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3-json.log",
+  "Name": "/luci-preview-preview-799a1bae7fffe619032b6437",
+  "RestartCount": 0,
+  "Driver": "vfs",
+  "Platform": "linux",
+  "MountLabel": "",
+  "ProcessLabel": "",
+  "AppArmorProfile": "",
+  "ExecIDs": null,
+  "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {
+        "max-file": "2",
+        "max-size": "10m"
+      }
+    },
+    "NetworkMode": "bridge",
+    "PortBindings": {
+      "3000/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": ""
+        }
+      ]
+    },
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+      "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": null,
+    "DnsSearch": null,
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": false,
+    "SecurityOpt": [
+      "no-new-privileges:true"
+    ],
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 1073741824,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteIOps": null,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": null,
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": null,
+    "PidsLimit": 256,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ],
+    "Init": true
+  },
+  "GraphDriver": {
+    "Data": {
+      "ID": "ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3"
+    },
+    "Name": "vfs"
+  },
+  "Mounts": [],
+  "Config": {
+    "Hostname": "ec4a31ec0d0f",
+    "Domainname": "",
+    "User": "65532:65532",
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "AttachStderr": false,
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+      "APP_GREETING=Luci fixture preview OK",
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    ],
+    "Cmd": null,
+    "Image": "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+    "Volumes": null,
+    "WorkingDir": "",
+    "Entrypoint": [
+      "/fixture"
+    ],
+    "OnBuild": null,
+    "Labels": {
+      "luci.instance": "a025383f-ec4a-4639-ae63-448455d6e42f",
+      "luci.preview": "true",
+      "luci.preview-allocation": "preview-799a1bae7fffe619032b6437",
+      "luci.preview-commit": "be33ef7e3a3f412ad32a683d17799d10bdd4e7e0",
+      "luci.preview-cpu": "1000",
+      "luci.preview-engine": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+      "luci.preview-image": "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+      "luci.preview-memory": "1024",
+      "luci.preview-network": "bridge",
+      "luci.preview-port": "3000",
+      "luci.preview-project": "p-8bff5b8a",
+      "luci.preview-protocol": "1",
+      "luci.preview-release": "rel-33671bc7faeac61d924ee2dc",
+      "luci.preview-scope": "54c0dfe041ab0820dc04f0fb50aabc68a57edceeaf774ecbcb3015227d24605f",
+      "luci.preview-source": "59212d6c7e9248773e887c12aefa3574aa023e79fee203c70916e80fb785a81b",
+      "luci.project-id": "p-8bff5b8a",
+      "luci.release-id": "rel-33671bc7faeac61d924ee2dc"
+    }
+  },
+  "NetworkSettings": {
+    "Bridge": "",
+    "SandboxID": "8b982963f2fe8e2eb8fca181b61e2bf8bc02b55851fb73cb87cfb5de28b06e4d",
+    "SandboxKey": "/run/codex-docker/exec-6dv4dk3n/netns/8b982963f2fe",
+    "Ports": {
+      "3000/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "32991"
+        }
+      ]
+    },
+    "HairpinMode": false,
+    "LinkLocalIPv6Address": "",
+    "LinkLocalIPv6PrefixLen": 0,
+    "SecondaryIPAddresses": null,
+    "SecondaryIPv6Addresses": null,
+    "EndpointID": "059156a2b36f27b44c586d213c6de398e520a7d54c1423504e72329ff268280e",
+    "Gateway": "172.17.0.1",
+    "GlobalIPv6Address": "",
+    "GlobalIPv6PrefixLen": 0,
+    "IPAddress": "172.17.0.2",
+    "IPPrefixLen": 16,
+    "IPv6Gateway": "",
+    "MacAddress": "b6:08:00:1b:11:cd",
+    "Networks": {
+      "bridge": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": null,
+        "MacAddress": "b6:08:00:1b:11:cd",
+        "DriverOpts": null,
+        "GwPriority": 0,
+        "NetworkID": "5f77e708f91919ea8df28c455077b2c4a418294bbf79d095badfae18e891dc90",
+        "EndpointID": "059156a2b36f27b44c586d213c6de398e520a7d54c1423504e72329ff268280e",
+        "Gateway": "172.17.0.1",
+        "IPAddress": "172.17.0.2",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DNSNames": null
+      }
+    }
+  }
+}

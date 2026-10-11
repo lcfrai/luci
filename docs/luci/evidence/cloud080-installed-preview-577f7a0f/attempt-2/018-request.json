@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects/p-8bff5b8a/configuration",
+  "body": {
+    "expectedRevision": 0,
+    "updates": [
+      {
+        "name": "APP_GREETING",
+        "value": "Luci fixture preview OK"
+      }
+    ]
+  },
+  "timeout": 30000,
+  "at": "2026-10-11T11:43:38.467Z"
+}

@@ -1,0 +1,4 @@
+{
+  "status": 400,
+  "body": "Use finite amounts between -1000000 and 1000000\n"
+}

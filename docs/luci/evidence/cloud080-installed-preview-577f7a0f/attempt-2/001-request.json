@@ -1,0 +1,7 @@
+{
+  "method": "GET",
+  "path": "/v1/control-plane/status",
+  "body": null,
+  "timeout": 2000,
+  "at": "2026-10-11T11:43:36.740Z"
+}

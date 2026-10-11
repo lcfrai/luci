@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "value": {
+    "reviewDigest": "56f53bbb811fce3a98e4ccf6ba6072204d00f1ac36ea19c3f7a919eedc2722f7",
+    "branch": "main",
+    "clean": true,
+    "changes": [],
+    "log": [
+      {
+        "hash": "be33ef7e3a3f412ad32a683d17799d10bdd4e7e0",
+        "subject": "Reviewed preview transport fixture"
+      }
+    ],
+    "diff": ""
+  }
+}

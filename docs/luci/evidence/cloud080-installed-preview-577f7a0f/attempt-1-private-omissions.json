@@ -1,0 +1,8 @@
+{
+  "notPublished": [
+    "Private state/projects/Git history, bootstrap/owner secrets, full logs and process environment",
+    "Fixture binary and package bytes; their hashes and original cloud receipts remain available"
+  ],
+  "originalRunSHA256": "6088073a0b63bfd5ad7a3b1d082be7fd07b40df0eb16acfe1a3f49fd67ab41c4",
+  "scope": "Selected generated fixture HTTP envelopes were already credential-redacted by helper; exact private run root replaced. A source-binding/projection receipt is not retrieval of omitted private originals."
+}

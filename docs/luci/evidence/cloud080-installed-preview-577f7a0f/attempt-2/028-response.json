@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "value": {
+    "canStop": false,
+    "id": "rel-33671bc7faeac61d924ee2dc",
+    "projectId": "p-8bff5b8a",
+    "briefRevision": 2,
+    "configurationRevision": 1,
+    "commit": "be33ef7e3a3f412ad32a683d17799d10bdd4e7e0",
+    "target": "local",
+    "status": "stopped",
+    "url": "",
+    "message": "The exact preview allocations are settled; their capacity is released and release history is retained.",
+    "createdAt": "2026-10-11T11:43:38.729258561Z"
+  }
+}

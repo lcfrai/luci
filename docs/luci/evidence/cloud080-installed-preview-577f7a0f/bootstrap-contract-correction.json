@@ -1,0 +1,8 @@
+{
+  "issue": "CLOUD-080 installed helper bootstrap contract",
+  "originalHelperSHA256": "1bac4ffbcd2c4892b1146d09232118c2ff4e4ab0c8f557849c915d1f7d872645",
+  "fixedHelperSHA256": "578b5e245b9eae01bc3dc604643404a9160e8c46dceb76961129baf37665bde3",
+  "change": "Owner creation explicitly expects HTTP201, as the production registrar returns. No product change or relaxed review/allocation assertions.",
+  "originalResult": "preview-1791718940836-d5ee922b-8d77-4845-83ca-0ab3be21b547/result.json",
+  "originalScope": "Host fixture compiler and isolated service/bootstrap only; no project or Docker build/allocation"
+}

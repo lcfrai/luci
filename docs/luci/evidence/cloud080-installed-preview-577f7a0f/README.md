@@ -1,0 +1,19 @@
+# Actual installed preview at product 577f7a0f
+
+**Scoped Linux Docker pass**, 11 October 2026. Package source `577f7a0fdb039b7f875901a6a567d62fdfee88c8`; source/helper preparation ran from documentation-only successor `9536e417069254681133b6eb5afed1e82b0dd56e`, with selected product bytes checked equal. Matching [package verification](../package-577f7a0f/README.md) is separate.
+
+The fresh private fixture used normal owner/project, Discover/Design approval, reviewed commit and configuration APIs. Wrong-commit and dirty-source requests were refused before release allocation. The normal release route built one scratch image, allocated one serving container, answered a useful calculator request (12.5 + 7.25 = 19.75), refused invalid input and received its exact configuration. It ran as UID65532 with inspected 1GiB RAM/swap, 1CPU and256 PID limits, no-new-privileges, dropped capabilities, no mounts and loopback publication. Runtime API success alone was not accepted: the helper inspected exact image/container/allocation/source identities and real HTTP output.
+
+Normal API Stop retired both exact build/serving lineages, left resourcesHeld=false/cleanupConfirmed=true, and the final private ledger was empty. Independent read-only closure at11:45:23Z reconfirmed exact container absence, unchanged engine, empty ledger, and absence of the one captured controller PID/start. Short-lived children can fall between one-second samples; this is not universal process history. No forced controller kill, manual Docker removal or global prune was used. The8,630,369-byte output image and build cache are intentionally retained. Earlier failed fixtures/charges were not read or changed.
+
+Attempt1 is a retained helper failure: owner bootstrap correctly returned201 while the initial helper expected200. It stopped before project or Docker allocation. Attempt2 changes only that expected status and passes; no product code changed. The independent closure verifier initially indexed an omitted empty JSON array, raised KeyError before mutation, then used version1 plus absent-or-empty array semantics. Both verifier versions and failure note remain.
+
+## Limits
+
+This is a handwritten fixture, statically compiled on the host under a bounded invocation. The Dockerfile is COPY-only; it does not measure a build RUN process's CPU/RAM cost. Project checks were observed as empty, not fabricated or executed; the separate fully verified project-run acceptance gate is open. This is no live-model, UI/browser, restart/cancellation, installer or latency pass. The private fresh shared ledger measures this fixture controller only, not retained demand in unrelated stopped controller roots. Windows and full4-project acceptance remain open.
+
+## Evidence and reproduction
+
+`helpers/preview-smoke.mjs`, `helpers/fixture.go`, and the exact run configuration are provided for review. Use a freshly extracted matching package, a new private evidence directory, the exact verified binary/package identities, Linux/Node24/Go1.26.3 and an explicitly selected daemon. Recompute configuration path hashes when relocating; preserve source/check/ownership assertions and capacity floors. This helper creates only its own fixture; it must not be run against an arbitrary user state root. The8-minute lifecycle bound and normal API Stop remain in effect; uncertain outcomes are retained, not manually released.
+
+Published JSON/HTML journals are allowlisted and credential-redacted by the driver, with only the exact private fixture root replaced during publication. `original-publication-bindings.json` binds original versus projected bytes; it does not claim omitted private original retrieval. Logs, account state and tokens remain private. All timing values are workflow timestamps, not browser responsiveness benchmarks.

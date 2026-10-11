@@ -1,0 +1,54 @@
+{
+  "Id": "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+  "RepoTags": [],
+  "RepoDigests": [],
+  "Parent": "sha256:ca5d6773b76e6eeccd3f5e22e1dcc3dfa9e0a19a018fd367a77fa683fa6d4c50",
+  "Comment": "",
+  "Created": "2026-10-11T11:43:52.074850937Z",
+  "DockerVersion": "28.4.0",
+  "Author": "",
+  "Architecture": "amd64",
+  "Os": "linux",
+  "Size": 8630369,
+  "GraphDriver": {
+    "Data": null,
+    "Name": "vfs"
+  },
+  "RootFS": {
+    "Type": "layers",
+    "Layers": [
+      "sha256:97188d3f8af6bc335118e6a3b99ba474a2607033d88c1f79c3d652726ea9dcdb"
+    ]
+  },
+  "Metadata": {
+    "LastTagTime": "0001-01-01T00:00:00Z"
+  },
+  "Config": {
+    "Cmd": null,
+    "Entrypoint": [
+      "/fixture"
+    ],
+    "Env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Labels": {
+      "luci.instance": "a025383f-ec4a-4639-ae63-448455d6e42f",
+      "luci.preview": "true",
+      "luci.preview-allocation": "preview-build-46febdcca4dcc0258bd5c352",
+      "luci.preview-commit": "be33ef7e3a3f412ad32a683d17799d10bdd4e7e0",
+      "luci.preview-engine": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+      "luci.preview-project": "p-8bff5b8a",
+      "luci.preview-protocol": "1",
+      "luci.preview-release": "rel-33671bc7faeac61d924ee2dc",
+      "luci.preview-scope": "54c0dfe041ab0820dc04f0fb50aabc68a57edceeaf774ecbcb3015227d24605f",
+      "luci.preview-source": "59212d6c7e9248773e887c12aefa3574aa023e79fee203c70916e80fb785a81b"
+    },
+    "OnBuild": null,
+    "User": "65532:65532",
+    "Volumes": null,
+    "WorkingDir": ""
+  }
+}

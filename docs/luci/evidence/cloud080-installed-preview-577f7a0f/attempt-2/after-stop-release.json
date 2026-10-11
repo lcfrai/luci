@@ -1,0 +1,33 @@
+{
+  "canStop": false,
+  "id": "rel-33671bc7faeac61d924ee2dc",
+  "projectId": "p-8bff5b8a",
+  "briefRevision": 2,
+  "configurationRevision": 1,
+  "commit": "be33ef7e3a3f412ad32a683d17799d10bdd4e7e0",
+  "target": "local",
+  "status": "stopped",
+  "url": "",
+  "message": "The exact preview allocations are settled; their capacity is released and release history is retained.",
+  "createdAt": "2026-10-11T11:43:38.729258561Z",
+  "revision": 14,
+  "runtime": {
+    "projectId": "p-8bff5b8a",
+    "releaseId": "rel-33671bc7faeac61d924ee2dc",
+    "target": "local",
+    "commit": "be33ef7e3a3f412ad32a683d17799d10bdd4e7e0",
+    "sourceDigest": "59212d6c7e9248773e887c12aefa3574aa023e79fee203c70916e80fb785a81b",
+    "buildAllocationId": "preview-build-46febdcca4dcc0258bd5c352",
+    "allocationId": "preview-799a1bae7fffe619032b6437",
+    "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+    "instanceId": "a025383f-ec4a-4639-ae63-448455d6e42f",
+    "containerId": "ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3",
+    "image": "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+    "phase": "finished",
+    "resourcesHeld": false,
+    "cleanupConfirmed": true,
+    "message": "The exact preview allocations are settled; their capacity is released and release history is retained."
+  },
+  "containerId": "ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3",
+  "image": "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570"
+}

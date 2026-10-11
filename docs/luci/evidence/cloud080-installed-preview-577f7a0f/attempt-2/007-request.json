@@ -1,0 +1,45 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects/p-8bff5b8a/specification",
+  "body": {
+    "expectedRevision": 0,
+    "expectedBriefRevision": 1,
+    "specification": {
+      "projectId": "p-8bff5b8a",
+      "version": 1,
+      "revision": 0,
+      "briefRevision": 1,
+      "startingPoint": "new",
+      "purpose": "Verify a local preview calculator",
+      "audience": "Release verification",
+      "constraints": "Fixture only; no model, cloud calls or runtime installation",
+      "outOfScope": [],
+      "requirements": [
+        {
+          "id": "AC-001",
+          "title": "Add two entered amounts",
+          "priority": "must",
+          "acceptance": "Add two entered amounts"
+        },
+        {
+          "id": "AC-002",
+          "title": "Bind the preview to loopback and settle owned execution on Stop",
+          "priority": "must",
+          "acceptance": "Bind the preview to loopback and settle owned execution on Stop"
+        }
+      ],
+      "journeys": [],
+      "roles": [],
+      "entities": [],
+      "integrations": [],
+      "glossary": [],
+      "decisions": [],
+      "questions": [],
+      "status": "draft",
+      "digest": "",
+      "updatedAt": "2026-10-11T11:43:37.365152952Z"
+    }
+  },
+  "timeout": 30000,
+  "at": "2026-10-11T11:43:37.380Z"
+}

@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects/p-8bff5b8a/specification/approve",
+  "body": {
+    "revision": 1,
+    "briefRevision": 2
+  },
+  "timeout": 30000,
+  "at": "2026-10-11T11:43:37.405Z"
+}

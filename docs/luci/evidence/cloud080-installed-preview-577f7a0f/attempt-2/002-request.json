@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/auth/bootstrap",
+  "body": "[bootstrap credentials omitted]",
+  "timeout": 30000,
+  "at": "2026-10-11T11:43:36.780Z"
+}

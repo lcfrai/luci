@@ -1,0 +1,13 @@
+{
+  "status": 201,
+  "value": {
+    "user": {
+      "id": "user-RPcN6qPEjr6H-rM0UuwYAs",
+      "username": "preview-owner",
+      "displayName": "Preview Fixture Owner",
+      "role": "super-admin",
+      "disabled": false
+    },
+    "tokenOmitted": true
+  }
+}

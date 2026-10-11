@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "path": "/v1/setup/git/identity",
+  "body": {
+    "name": "Luci Preview Fixture",
+    "email": "preview-fixture@example.invalid"
+  },
+  "timeout": 30000,
+  "at": "2026-10-11T11:43:37.318Z"
+}

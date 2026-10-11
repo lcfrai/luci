@@ -1,0 +1,40 @@
+{
+  "passed": false,
+  "scope": "hand-written fixture preview transport only; no live model, project check pass, installer or full product acceptance",
+  "startedAt": "2026-10-11T11:42:20.838Z",
+  "run": "PRIVATE_PREVIEW_FIXTURE",
+  "mode": "scratch",
+  "checks": [],
+  "cleanup": {
+    "controllerExitObserved": true,
+    "privateStateRetained": true,
+    "manualDockerRemoval": false,
+    "globalPrune": false
+  },
+  "fixtureSourceSHA256": "9d47c8bc7e3cb686826305b0b8e85c3e5525957c638ba016cec52d3d89a7e8ac",
+  "config": {
+    "repository": "/workspace/luci",
+    "binary": "/workspace/.luci-tools/package-577f7a0f/installed/luci",
+    "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+    "repositoryCommit": "9536e417069254681133b6eb5afed1e82b0dd56e",
+    "dockerHost": "unix:///var/run/docker.sock",
+    "ledgerDir": "PRIVATE_PREVIEW_FIXTURE/private/state/control-plane/execution",
+    "ledgerScope": "fresh fixture host ledger; does not account pending work in another controller state root"
+  },
+  "binarySHA256": "6695f12aec9628316aeb2e9ea1901f313dc868d49d245384f075b729166383d7",
+  "provenanceSHA256": "76a87cb61df75b975b68f99e6c646701ea80b4b20ebf8eff014f25e41348745b",
+  "helperSHA256": "1bac4ffbcd2c4892b1146d09232118c2ff4e4ab0c8f557849c915d1f7d872645",
+  "minimumBuildDiskBytes": 3221225472,
+  "fixtureBinarySHA256": "850b0be9300c3b15faef20a6736d43ae5d5d8f8529306ceb4adc3dffd63e546c",
+  "goVersion": "go version go1.26.3 linux/amd64\n",
+  "preSpawnRootAvailableBytes": 4795572224,
+  "controllerPID": 2722459,
+  "error": "POST /v1/auth/bootstrap: HTTP 201: [sensitive response omitted]",
+  "errorStack": "AssertionError [ERR_ASSERTION]: POST /v1/auth/bootstrap: HTTP 201: [sensitive response omitted]\n    at api (file:///workspace/.luci-tools/cloud080081-preview-smoke-prep/preview-smoke.mjs:118:9)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///workspace/.luci-tools/cloud080081-preview-smoke-prep/preview-smoke.mjs:181:13",
+  "controllerExit": {
+    "code": 0,
+    "signal": null
+  },
+  "logsTruncated": false,
+  "finishedAt": "2026-10-11T11:42:23.885Z"
+}

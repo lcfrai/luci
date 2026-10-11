@@ -1,0 +1,19 @@
+{
+  "repository": "/workspace/luci",
+  "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "repositoryCommit": "9536e417069254681133b6eb5afed1e82b0dd56e",
+  "binary": "/workspace/.luci-tools/package-577f7a0f/installed/luci",
+  "binarySHA256": "6695f12aec9628316aeb2e9ea1901f313dc868d49d245384f075b729166383d7",
+  "webDir": "/workspace/.luci-tools/package-577f7a0f/installed/web",
+  "provenanceFile": "/workspace/.luci-tools/package-577f7a0f/verified/release-manifest.json",
+  "provenanceSHA256": "76a87cb61df75b975b68f99e6c646701ea80b4b20ebf8eff014f25e41348745b",
+  "packageIdentity": "6d69e5cebb2af7cbcf5f0c1ca12063b86f71d8f968cbffa007a40447a147592e",
+  "go": "/workspace/.luci-tools/go1.26.3/bin/go",
+  "goCache": "/tmp/luci-go-build-cache",
+  "evidenceParent": "/workspace/.luci-tools/cloud080081-preview-smoke-prep",
+  "mode": "scratch",
+  "dockerHost": "unix:///var/run/docker.sock",
+  "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "engineDriver": "vfs",
+  "acknowledgeFixtureMutation": true
+}

@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "value": {
+    "projectId": "p-8bff5b8a",
+    "revision": 0,
+    "briefRevision": 2,
+    "specificationRevision": 2,
+    "sketchRevision": 0,
+    "screens": [],
+    "tokens": [],
+    "assets": [],
+    "implementationNotes": "",
+    "prototypeReleaseId": "",
+    "prototypeCommit": "",
+    "status": "draft",
+    "digest": "",
+    "updatedAt": ""
+  }
+}

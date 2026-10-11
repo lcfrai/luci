@@ -1,0 +1,7 @@
+{
+  "status": 200,
+  "value": {
+    "name": "Luci Preview Fixture",
+    "email": "preview-fixture@example.invalid"
+  }
+}

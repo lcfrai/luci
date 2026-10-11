@@ -1,0 +1,31 @@
+{
+  "at": "2026-10-11T11:45:23.824849+00:00",
+  "productSource": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "resultSHA256": "6b12402d92da5f0ade76efec9e53a0ee5caf45c750d3bd3f2f45e27ed760bf1e",
+  "exactContainer": "ec4a31ec0d0f0c5ea4ceb80247719a3b119e011f324e39721b4ee873d5ef3df3",
+  "immutableInspectAbsent": true,
+  "globalContainerIDs": [],
+  "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "rawPrivateLedgerSHA256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+  "ledgerRows": {
+    "previews": 0,
+    "leases": 0,
+    "checks": 0,
+    "runtimeImages": 0
+  },
+  "observedProcessIdentities": [
+    {
+      "pid": 2722613,
+      "startTicks": "46508587",
+      "observation": "absent"
+    }
+  ],
+  "retainedOutputImage": {
+    "id": "sha256:499c94f938676d42e5b32561702c96862b6518f57faca0641c7545e90f334570",
+    "bytes": 8630369
+  },
+  "normalAPIRetiredOnlyExactLineage": true,
+  "manualDockerMutation": false,
+  "sourceClean": true,
+  "scope": "Independent read-only exact object, ledger and previously observed PID/start closure. Prior failed environments not read or modified. COPY-only fixture preview; no full checked-project/model/RUN workload or performance claim."
+}

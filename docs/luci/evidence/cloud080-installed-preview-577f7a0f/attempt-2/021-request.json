@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects/p-8bff5b8a/releases",
+  "body": {
+    "target": "local",
+    "port": 3000,
+    "dockerfile": "Dockerfile",
+    "expectedCommit": "0000000000000000000000000000000000000000"
+  },
+  "timeout": 30000,
+  "at": "2026-10-11T11:43:38.476Z"
+}

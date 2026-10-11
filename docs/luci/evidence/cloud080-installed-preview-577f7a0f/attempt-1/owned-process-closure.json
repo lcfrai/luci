@@ -1,0 +1,14 @@
+{
+  "scanError": null,
+  "processes": [
+    {
+      "pid": 2722459,
+      "parentPID": 2722303,
+      "startTicks": "46501254",
+      "state": "S",
+      "closure": "exact-process-gone",
+      "current": null
+    }
+  ],
+  "scope": "Controller and descendants observed while it was alive; this fixture creates one inline bootstrap owner and never asks for a managed worker. Short-lived children may exit between one-second scans."
+}

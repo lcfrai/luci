@@ -1,0 +1,12 @@
+{
+  "status": 200,
+  "value": {
+    "revision": 1,
+    "variables": [
+      {
+        "name": "APP_GREETING"
+      }
+    ],
+    "updatedAt": "2026-10-11T11:43:38.469437566Z"
+  }
+}
