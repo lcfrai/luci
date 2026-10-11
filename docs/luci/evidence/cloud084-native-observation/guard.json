@@ -1,0 +1,8 @@
+{
+  "rootFreeBytes": 861224960,
+  "cgroupRemainingBytes": 9048387584,
+  "cacheBytes": 907781444,
+  "minimumRootFreeBytes": 536870912,
+  "minimumCgroupRemainingBytes": 4294967296,
+  "maximumCacheBytes": 2147483648
+}

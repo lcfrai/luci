@@ -22,19 +22,20 @@ type journal struct {
 	Records map[string]Record `json:"records"`
 }
 type Controller struct {
-	mu         sync.Mutex
-	config     Config
-	client     *providerClient
-	journal    journal
-	root       *os.Root
-	lease      *os.File
-	busy       map[string]bool
-	closed     bool
-	stopped    chan struct{}
-	ctx        context.Context
-	cancel     context.CancelFunc
-	workers    sync.WaitGroup
-	checkpoint CheckpointWriter
+	mu              sync.Mutex
+	config          Config
+	client          *providerClient
+	journal         journal
+	root            *os.Root
+	lease           *os.File
+	busy            map[string]bool
+	nativeObservers map[string]context.CancelFunc
+	closed          bool
+	stopped         chan struct{}
+	ctx             context.Context
+	cancel          context.CancelFunc
+	workers         sync.WaitGroup
+	checkpoint      CheckpointWriter
 }
 
 func New(c Config) (*Controller, error) { return newController(c, nil, context.Background()) }
@@ -64,7 +65,7 @@ func newController(c Config, restored []byte, restoreContext context.Context) (*
 		return nil, e
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	out := &Controller{config: c, client: client, root: root, lease: lease, busy: map[string]bool{}, ctx: ctx, cancel: cancel, stopped: make(chan struct{}), journal: journal{Version: 1, OwnerID: c.OwnerID, Scope: c.Deployment.Scope, Records: map[string]Record{}}}
+	out := &Controller{config: c, client: client, root: root, lease: lease, busy: map[string]bool{}, nativeObservers: map[string]context.CancelFunc{}, ctx: ctx, cancel: cancel, stopped: make(chan struct{}), journal: journal{Version: 1, OwnerID: c.OwnerID, Scope: c.Deployment.Scope, Records: map[string]Record{}}}
 	fail := func(err error) (*Controller, error) {
 		root.Close()
 		lease.Close()
@@ -153,6 +154,12 @@ func validateJournal(b []byte, owner, scope string) (journal, error) {
 			return journal{}, ErrConflict
 		}
 		if r.LaunchRequested != (r.LaunchDigest != "") || r.LaunchRequested && (!digestPattern.MatchString(r.LaunchDigest) || r.SandboxID == "") || r.ProcessPID != 0 && !r.LaunchRequested {
+			return journal{}, ErrConflict
+		}
+		if r.LaunchKernel != (CaptureIdentity{}) && ValidateCaptureIdentity(r.LaunchKernel, r) != nil {
+			return journal{}, ErrConflict
+		}
+		if r.NativeExit != (NativeExitReceipt{}) && (ValidateCaptureIdentity(r.LaunchKernel, r) != nil || ValidateNativeExitReceipt(r.NativeExit, r) != nil) {
 			return journal{}, ErrConflict
 		}
 		key := r.Request.Identity.ProjectID + "/" + r.Request.Identity.TaskID + "/" + r.Request.Identity.AttemptID
@@ -543,7 +550,11 @@ func (c *Controller) cancelBusy(ctx context.Context, op string, expectedRevision
 	current.Revision++
 	current.UpdatedAt = time.Now().UTC()
 	c.journal.Records[op] = current
-	return current, c.persist(ctx)
+	err := c.persist(ctx)
+	if cancel := c.nativeObservers[op]; cancel != nil {
+		cancel()
+	}
+	return current, err
 }
 
 // Close cancels only this controller's transports. It never deletes microVMs

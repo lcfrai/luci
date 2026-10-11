@@ -62,9 +62,9 @@ func launchDigest(r Record, l LaunchSpec) string {
 }
 func bootstrapArgs(r Record) []string {
 	i := r.Request.Identity
-	return []string{"--archive", guestInputPath, "--archive-sha256", r.Request.BundleDigest, "--owner", i.OwnerID, "--project", i.ProjectID, "--task", i.TaskID, "--attempt", i.AttemptID, "--operation", i.OperationID, "--source-sha256", r.Request.SourceDigest, "--context-sha256", r.Request.ContextDigest}
+	return []string{"--archive", guestInputPath, "--archive-sha256", r.Request.BundleDigest, "--owner", i.OwnerID, "--project", i.ProjectID, "--task", i.TaskID, "--attempt", i.AttemptID, "--operation", i.OperationID, "--source-sha256", r.Request.SourceDigest, "--context-sha256", r.Request.ContextDigest, "--sandbox", r.SandboxID, "--request-sha256", r.RequestDigest, "--launch-sha256", r.LaunchDigest}
 }
-func (g *GuestTransport) start(ctx context.Context, l LaunchSpec) (uint32, error) {
+func (g *GuestTransport) start(ctx context.Context, r Record, l LaunchSpec) (uint32, error) {
 	ctx, done, e := g.beginIO(ctx)
 	if e != nil {
 		return 0, e
@@ -73,10 +73,14 @@ func (g *GuestTransport) start(ctx context.Context, l LaunchSpec) (uint32, error
 	if !validLaunch(l) {
 		return 0, ErrUnsupported
 	}
+	if !r.LaunchRequested || r.ProcessPID != 0 || r.LaunchDigest != launchDigest(r, l) ||
+		r.SandboxID != g.config.Record.SandboxID || r.RequestDigest != g.config.Record.RequestDigest ||
+		r.Deployment != g.config.Record.Deployment {
+		return 0, ErrConflict
+	}
 	if e := g.guard(ctx, "start"); e != nil {
 		return 0, e
 	}
-	r := g.config.Record
 	// Pin process lifetime to the allocation expiry. A short ACK deadline must
 	// not become envd's process lifetime via Connect-Timeout-Ms. Canceling this
 	// stream detaches the observer; the pinned envd starts a bounded independent
@@ -171,7 +175,7 @@ func (c *Controller) StartGuest(ctx context.Context, op string, expectedRevision
 	if e != nil {
 		return r, e
 	}
-	pid, startErr := g.start(ctx, l)
+	pid, startErr := g.start(ctx, r, l)
 	current, readErr := c.record(op)
 	if readErr != nil {
 		return current, readErr

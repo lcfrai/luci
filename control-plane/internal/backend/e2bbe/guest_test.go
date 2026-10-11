@@ -23,6 +23,10 @@ type guestFixture struct {
 	server                                 *httptest.Server
 	record                                 Record
 	input, output                          []byte
+	launchKernel                           []byte
+	attachFrames                           [][]byte
+	attachEntered                          chan struct{}
+	attachHeld                             bool
 	posts, gets, upgrades                  int
 	lostACK, corrupt, reject, cancelOnPost bool
 	denied                                 bool
@@ -75,6 +79,7 @@ func (f *guestFixture) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		f.mu.Lock()
 		f.upgrades++
+		frames, entered, held := f.attachFrames, f.attachEntered, f.attachHeld
 		f.mu.Unlock()
 		conn, e := websocket.Accept(w, r, nil)
 		if e != nil {
@@ -82,6 +87,20 @@ func (f *guestFixture) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		defer conn.CloseNow()
 		conn.SetReadLimit(backend.MaxMessageBytes)
+		if entered != nil {
+			close(entered)
+		}
+		if frames != nil {
+			for _, frame := range frames {
+				if conn.Write(r.Context(), websocket.MessageBinary, frame) != nil {
+					return
+				}
+			}
+			if held {
+				_, _, _ = conn.Read(r.Context())
+			}
+			return
+		}
 		kind, b, e := conn.Read(r.Context())
 		if e == nil {
 			_ = conn.Write(r.Context(), kind, b)
@@ -130,6 +149,8 @@ func (f *guestFixture) handle(w http.ResponseWriter, r *http.Request) {
 			b = f.input
 		case guestOutputPath:
 			b = f.output
+		case guestLaunchPath:
+			b = f.launchKernel
 		default:
 			w.WriteHeader(400)
 			return

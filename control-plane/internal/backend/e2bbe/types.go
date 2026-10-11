@@ -104,6 +104,10 @@ type Record struct {
 	LaunchRequested bool   `json:"launchRequested,omitempty"`
 	LaunchDigest    string `json:"launchDigest,omitempty"`
 	ProcessPID      uint32 `json:"processPid,omitempty"`
+	// Protected launch readback and native process outcome remain independent
+	// from artifact capture, reviewed integration and exact VM deletion.
+	LaunchKernel CaptureIdentity   `json:"launchKernel,omitzero"`
+	NativeExit   NativeExitReceipt `json:"nativeExit,omitzero"`
 }
 
 // Checkpoint supplies an exclusive fenced journal writer. Production wiring

@@ -1,0 +1,35 @@
+{
+  "startedAt": "2026-10-11T17:21:43.054710+00:00",
+  "finishedAt": "2026-10-11T17:21:54.503765+00:00",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-json",
+    "-count=1",
+    "-p",
+    "1",
+    "-timeout",
+    "2m",
+    "./internal/backend/e2bbe",
+    "./internal/microvmguest",
+    "./cmd/microvm-bootstrap",
+    "./cmd/microvm-collect"
+  ],
+  "exitCode": 0,
+  "selectedSourceStable": true,
+  "selectedInputCount": 61,
+  "changedPaths": [],
+  "counts": {
+    "github.com/lcfrai/luci/control-plane/internal/backend/e2bbe": {
+      "sub-pass": 127,
+      "top-pass": 65
+    },
+    "github.com/lcfrai/luci/control-plane/internal/microvmguest": {
+      "top-pass": 15,
+      "sub-pass": 44,
+      "top-skip": 1
+    }
+  },
+  "scope": "Selected repository source bindings, controlled TLS/Connect and guest filesystem/kernel fixtures. Not full compiler/dependency provenance or actual KVM/cloud/template/provider acceptance."
+}

@@ -25,6 +25,7 @@ type processFixture struct {
 	t                *testing.T
 	r                Record
 	controller       *Controller
+	guest            *guestFixture
 	starts           int
 	timeoutMS        int
 	fail, badEvent   bool
@@ -39,19 +40,19 @@ func (p *processFixture) Start(ctx context.Context, req *connect.Request[process
 	entered, release := p.entered, p.release
 	p.mu.Unlock()
 	msg := req.Msg
+	row, e := p.controller.record(p.r.Request.Identity.OperationID)
+	if e != nil || !row.LaunchRequested || row.LaunchDigest == "" || row.ProcessPID != 0 {
+		p.t.Error("Start preceded durable marker")
+	}
 	if req.Header().Get("Authorization") != "Basic cm9vdDo=" || req.Header().Get("X-Access-Token") != "fixture-envd" || req.Header().Get("e2b-traffic-access-token") != "fixture-traffic" || req.Header().Get("X-API-Key") != "" {
 		return connect.NewError(connect.CodeUnauthenticated, errors.New("wrong fixture credential boundary"))
 	}
-	if msg.GetProcess().GetCmd() != "/usr/local/bin/luci-microvm-bootstrap" || !reflect.DeepEqual(msg.GetProcess().GetArgs(), bootstrapArgs(p.r)) || msg.GetProcess().GetCwd() != "/luci-transfer" || msg.GetTag() != p.r.Request.Identity.OperationID || msg.Stdin == nil || msg.GetStdin() || msg.Pty != nil {
+	if msg.GetProcess().GetCmd() != "/usr/local/bin/luci-microvm-bootstrap" || !reflect.DeepEqual(msg.GetProcess().GetArgs(), bootstrapArgs(row)) || msg.GetProcess().GetCwd() != "/luci-transfer" || msg.GetTag() != p.r.Request.Identity.OperationID || msg.Stdin == nil || msg.GetStdin() || msg.Pty != nil {
 		p.t.Error("wrong pinned process contract")
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("wrong process"))
 	}
 	if msg.Process.Envs[backend.EnvCommand] != "codex" || msg.Process.Envs[backend.EnvToken] != "fixture-attach" || msg.Process.Envs["OPENAI_API_KEY"] != "fixture-model-secret" {
 		p.t.Error("wrong trusted launch environment")
-	}
-	row, e := p.controller.record(p.r.Request.Identity.OperationID)
-	if e != nil || !row.LaunchRequested || row.LaunchDigest == "" || row.ProcessPID != 0 {
-		p.t.Error("Start preceded durable marker")
 	}
 	if entered != nil {
 		close(entered)
@@ -95,7 +96,7 @@ func launchFixture(t *testing.T) (*Controller, Config, *GuestTransport, *process
 	if _, e = g.StageInput(context.Background(), bytes.NewReader(archive)); e != nil {
 		t.Fatal(e)
 	}
-	proc := &processFixture{t: t, r: r, controller: c}
+	proc := &processFixture{t: t, r: r, controller: c, guest: f}
 	_, handler := processconnect.NewProcessHandler(proc)
 	f.mu.Lock()
 	f.rpc = handler

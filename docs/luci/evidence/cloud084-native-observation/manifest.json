@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "scope": "controlled joined native-outcome contract; no actual VM/provider execution",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 3828,
+      "sha256": "88475b9fb7e36f7f9f9edde4253bca8efe0da895b8f47ac56f04a8034d947efc"
+    },
+    {
+      "path": "fixed-result.json",
+      "bytes": 935,
+      "sha256": "9dbdfccb60b41efbcf35020e339d123616ea7177c36967155b440b469d7f03c8"
+    },
+    {
+      "path": "fixed.jsonl",
+      "bytes": 265036,
+      "sha256": "c81dec1fd86ebdc27ca84e331e7179f718ab54951532ae131217c66e9c6a1f77"
+    },
+    {
+      "path": "fixed.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "guard.json",
+      "bytes": 215,
+      "sha256": "5d5fd62f374b7f8958334a09a649a729c554dbd71b0bdb761a8243607f601869"
+    },
+    {
+      "path": "run.py",
+      "bytes": 3241,
+      "sha256": "53349f77ff6aef05af2b8593ce2f7ee5d24ac81c7cff44316fe22414af107fc5"
+    },
+    {
+      "path": "source/capture_types.go",
+      "bytes": 7678,
+      "sha256": "a3ca885d22b41a99ce5069f2ec0911f0dc2201528498e5d783a25de738c0f033"
+    },
+    {
+      "path": "source/capture_types_test.go",
+      "bytes": 8857,
+      "sha256": "d19f13032439ed5e88f8f3fb7f54a2e01a042278a04ab74ff68a16cd31726476"
+    },
+    {
+      "path": "source/controller.go",
+      "bytes": 17944,
+      "sha256": "db5884d65bda2cc7aa6a00c727f2d242709df90b3bf32fa08241752aeca58094"
+    },
+    {
+      "path": "source/guest_test.go",
+      "bytes": 9957,
+      "sha256": "eabac44ae608936773610c3c04f41e15bbacdad3b3ceff2c28c5bf2208655601"
+    },
+    {
+      "path": "source/launch.go",
+      "bytes": 7023,
+      "sha256": "24dddffce7fa9a7f61da767cbbe5bf5517041d1458687a417ffd6908785f8dad"
+    },
+    {
+      "path": "source/launch_test.go",
+      "bytes": 10297,
+      "sha256": "513a7b5812869998716aaedfa7a8d118b6f736fded22a6a1fb24850b5e6761c9"
+    },
+    {
+      "path": "source/observation.go",
+      "bytes": 7135,
+      "sha256": "e19ac37243115c89220da52ce33f745acd270fac5b8e6d7fb9d1f205fa882077"
+    },
+    {
+      "path": "source/observation_test.go",
+      "bytes": 9369,
+      "sha256": "405faf915ec99262da074c3723627210856db602b13aed2a451754bcdc97d9ed"
+    },
+    {
+      "path": "source/types.go",
+      "bytes": 6667,
+      "sha256": "42013f8f4aad479e087ab73c9526724dbab3e8d6dff9bd47212a33d674c6e62c"
+    },
+    {
+      "path": "source-after.json",
+      "bytes": 9854,
+      "sha256": "b64282e61e6fd0b742ecba8186a03bc2c0ea5a40d6f1ea0c699ad7f2a846314a"
+    },
+    {
+      "path": "source-before.json",
+      "bytes": 9854,
+      "sha256": "b64282e61e6fd0b742ecba8186a03bc2c0ea5a40d6f1ea0c699ad7f2a846314a"
+    }
+  ]
+}
