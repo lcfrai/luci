@@ -5,7 +5,7 @@
 The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.
 
 
-Mechanism contract subordinate to [PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md); the owner scope-audit gate is held. The earlier private review-authority batch remains the source of the mechanisms below, not a ban on the required policy-bounded conversational coordinator.
+Mechanism contract subordinate to [PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md); the owner scope audit passed and aligned implementation has resumed. The earlier private review-authority batch remains the source of the mechanisms below, not a ban on the required policy-bounded conversational coordinator.
 The [production continuation](HANDOFF-2026-10-06-PRODUCTION.md) records the
 implementation and scoped evidence. This contract is not a claim that project
 runs have shipped or that full installed acceptance has passed. Existing

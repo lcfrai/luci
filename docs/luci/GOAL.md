@@ -7,11 +7,11 @@ The originating local thread explicitly lifted the scope gate for contract revis
 
 ## Controlling contract and scope audit
 
-[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) is the single controlling product direction and requirement-to-code map. **The owner scope gate is held: no new implementation, delegated work, tests/builds or provisioning until the originating local audit explicitly lifts it.** Contract publication does not resume work. Existing safe diagnostics/owned cleanup may finish; preserve draft source and failed evidence.
+[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) is the single controlling product direction and requirement-to-code map. **The originating local audit passed and explicitly lifted the gate for b3ecb011.** Aligned implementation, delegation and verification have resumed under the recorded authority. Contract publication alone was not the release; the audit-lift receipt is authoritative. Preserve source and failed evidence. Actual cloud spend retains its configured access and cost gates.
 
 One primary persistent conversational Luci per person coordinates Discover, Design, Develop and Deploy. The four phases are revisitable tools of that continuing workflow. Local Develop boots existing upstream harnesses in isolated Docker; cloud Develop requires a real supported provider microVM backend. Management/app-deployment Docker and SSH compatibility do not satisfy cloud microVM execution.
 
-CLOUD-085 must carry conversational amendments through canonical reviewed context/design/tasks, affected upstream work, independent checks/review, preview and actual policy-permitted deployment. CLOUD-086 must coordinate distinct people's Lucis through durable authoritative intent/revision/event/ownership/dependency state, reconcile compatible changes, surface genuinely contradictory intent and continue affected implementation/delivery without human handoff management. Draft-only or preview-only slices are not completion. All current owners are paused; the controlling contract records acceptance criteria, source gaps and worker acknowledgements.
+CLOUD-085 must carry conversational amendments through canonical reviewed context/design/tasks, affected upstream work, independent checks/review, preview and actual policy-permitted deployment. CLOUD-086 must coordinate distinct people's Lucis through durable authoritative intent/revision/event/ownership/dependency state, reconcile compatible changes, surface genuinely contradictory intent and continue affected implementation/delivery without human handoff management. Draft-only or preview-only slices are not completion. Current implementation owners have received the audit lift; the controlling contract retains the unchanged acceptance criteria and historical source-gap/acknowledgement baseline.
 
 CLOUD-088 is a required P1 workstream dependent on CLOUD-084/085/086: easy elastic fan-out of many small dependency-aware upstream tasks, each with its own newly allocated isolated microVM and observed spin-down/settlement. Concurrency/resource/spend policy, durable task artifacts, shared-context amendments and duplicate-safe restart/cancel remain explicit. The controlling contract sets a representative12-task/4-project/4-concurrent-VM live target, not a product ceiling.
 
@@ -24,7 +24,7 @@ The earlier relay incorrectly made manual external-tool handoff the primary path
 
 The next meaningful acceptance is a real selected provider through Luci's integrated Docker path: approved context → upstream harness → actual changes → review/checks → preview/deploy → amendment. Preserve existing adapters and safety/recovery defects; avoid unnecessary new runtime abstractions. Cloud microVM support must be inventoried honestly and cannot be claimed for generic SSH/Docker or an unimplemented backend. See [current scope and capability inventory](CONTEXT-DELIVERY-SCOPE.md).
 
-The documented working objective remains **unfinished, with implementation paused for the explicit owner scope audit**. No persistent-goal control is exposed here; the last confirmed platform status remains **blocked**, not reactivated by this document or running turn. No fixture, roadmap or scoped test pass completes the product.
+The documented working objective remains **unfinished, with aligned implementation resumed after the passed scope audit**. No persistent-goal control is exposed here; the last confirmed platform status remains **blocked**, not reactivated by this document or running turn. No fixture, roadmap or scoped test pass completes the product.
 
 ## Interactive application and local testing handoff — 8 October 2026
 
@@ -299,9 +299,9 @@ acceptance evidence.
 Historical note: a7October continuation used an active platform goal. That is
 not the current verified status. The last confirmed platform goal is blocked;
 this session has no goal-control API, and this document cannot reactivate it.
-The full working objective remains unfinished, with implementation paused for
-the explicit owner scope audit in PRODUCT-CONTRACT.md. A later audit lift permits
-aligned work, not a claim of platform-goal activation or release acceptance.
+The full working objective remains unfinished. The originating local audit
+explicitly lifted the scope gate at b3ecb011 and aligned implementation has
+resumed. This does not reactivate the platform goal or establish release acceptance.
 Do not close the full objective for a smaller benchmark or saved roadmap.
 
 ## Required product outcomes
