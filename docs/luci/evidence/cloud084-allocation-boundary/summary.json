@@ -1,0 +1,32 @@
+{
+  "scope": "Linux Go controlled TLS server/journal/archive fixtures; not real E2B/Firecracker, cloud/model/provider, guest execution, product API or Windows runtime acceptance.",
+  "command": "GOMAXPROCS=2 go test -json -race -p 1 -count=1 -timeout=90s ./internal/backend/e2bbe",
+  "workingDirectory": "control-plane",
+  "toolchain": "go1.26.3 linux/amd64",
+  "exit": 0,
+  "passedTopLevel": 22,
+  "passedSubtests": 43,
+  "failed": [],
+  "skipped": [],
+  "selectedSourcesStable": true,
+  "selectedSourceCount": 18,
+  "crosscompile": {
+    "command": "GOMAXPROCS=2 GOOS=windows GOARCH=amd64 go test -c -p 1 -o <owned-artifact> ./internal/backend/e2bbe",
+    "exit": 0,
+    "scope": "Compile only; no Windows execution.",
+    "artifact": {
+      "bytes": 12143104,
+      "sha256": "e2e023280930c7a337f5f9db6a8c8457300e9c0c87369c3868abfe3bff4529a6",
+      "retained": false
+    }
+  },
+  "earlierHarnessFailures": [
+    "Initial test command ran from repository root and reported no Go files; corrected working directory is control-plane.",
+    "One gofmt invocation lacked task toolchain activation and exited127; activation then formatting succeeded."
+  ],
+  "notes": [
+    "Passed earlier selected batches overlap this final batch; no cumulative unique-count claim.",
+    "Fixture VM IDs and records do not establish real VM isolation or provider capacity.",
+    "TLS fixture intentionally rejects an untrusted certificate in a negative case."
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "scope": "Selected new boundary, all statelease sources and module/workspace inputs. Not every compiler/toolchain/transitive dependency input.",
+  "at": "2026-10-11T15:34:11.488338+00:00",
+  "baseRevision": "d5bf1f26655ee5e2ee1952cc8531040aca9951d9",
+  "files": [
+    {
+      "path": "control-plane/internal/backend/e2bbe/client.go",
+      "bytes": 6573,
+      "sha256": "4feba273eae64fab33cc467cbfcfb9405143bd68bb9e53534c5acbe8fb961c90"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/controller.go",
+      "bytes": 15346,
+      "sha256": "22c188ebaf0934d5a96e6eecbf6034faf1c7be8653c0419436d1c7fe941a5ea9"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/controller_test.go",
+      "bytes": 17532,
+      "sha256": "382f89259a37bb93cf98046fee8510848bb45cbf0577d116178625860dd2f1ce"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/transfer.go",
+      "bytes": 7567,
+      "sha256": "cf8ad42a82ef8638c075b24e49244bf3c840a51f7f70638afb2b9daefdaaa70d"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/transfer_test.go",
+      "bytes": 7295,
+      "sha256": "9d22bb8e8d173ebc00c332ea5efa483bd8950c953fbca6e11886c2d799a33128"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/types.go",
+      "bytes": 5483,
+      "sha256": "bf9964af9284d8470e8869780353de54961cfdef5edcf7b4b469a0b5e3679481"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease.go",
+      "bytes": 613,
+      "sha256": "65bd6bd82824261a68653bc4111f88de6842f91f07f1d804c9cf7597c6c7d7e4"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_other.go",
+      "bytes": 226,
+      "sha256": "3736a094e89f48b825c54f9efeecee4e1eb3d2e4dbba32dbfb8037527344531f"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_process_test.go",
+      "bytes": 4946,
+      "sha256": "065f9c16837292843e75e415a77d58df8a1ed535d0d3f8542676289f85388d15"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_special_unix_test.go",
+      "bytes": 2170,
+      "sha256": "185840893063c0bc15970e73ad4c2560b1e2cdb4318b57221413a725e97169cd"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_test.go",
+      "bytes": 3725,
+      "sha256": "7f7ce8648066e91e6f3ceaf214339192e616c7b97de282994efd92db7ba35404"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_unix.go",
+      "bytes": 3434,
+      "sha256": "53428533e0122a9c063f6b7e8df950a039a08e8a96c6fbca6fe8ac07d5edb76a"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_windows.go",
+      "bytes": 8088,
+      "sha256": "2a52b6025a04728819f1f9ff5472400d6f31e92aefead610a229f995895e1769"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_windows_test.go",
+      "bytes": 6531,
+      "sha256": "dbdf0b2931281e10b254131abc8804770ea0ebf137ca61d7cc9390b9855f82ac"
+    },
+    {
+      "path": "control-plane/go.mod",
+      "bytes": 3111,
+      "sha256": "a5f4faf59655f01c0691b2a05632d474b0e4019111f4e7c3d8c1d89731a44c92"
+    },
+    {
+      "path": "control-plane/go.sum",
+      "bytes": 19295,
+      "sha256": "c3bbf4f9f4b235b5864b171019079ed97efc3b71bae1cefd885f69f7322b086d"
+    },
+    {
+      "path": "go.work",
+      "bytes": 48,
+      "sha256": "e634b59bb2cdd79a961dc765ab7452e40a0fa486cf8972d3357ff5df2dbd9db9"
+    },
+    {
+      "path": "go.work.sum",
+      "bytes": 2499,
+      "sha256": "cebe32be8573f52246bc5d2e8daac3d204fae0bea61f35fe569ed4e9ca18785e"
+    }
+  ]
+}
