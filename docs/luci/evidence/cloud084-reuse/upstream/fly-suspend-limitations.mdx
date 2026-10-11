@@ -1,0 +1,56 @@
+A machine can use suspend if it has:
+
+- **≤ 2 GB** memory (For larger memory sizes, suspend is discouraged due to increased suspend times)
+- **No** [**swap**](/reference/configuration#swap_size_mb-option) **configured**
+- **No** [**schedule**](/machines/flyctl/fly-machine-run#start-a-machine-on-a-schedule) **configured** 
+- Been updated since **June 20, 2024 20:00 UTC**
+
+If you have an older machine, or you’re not sure when it was last updated, you can bring it up to date with:
+
+```bash
+fly machine update <machine-id> --yes 
+```
+
+This updates the machine in place to the latest supported configuration for suspend, without changing your app code or image.
+
+---
+
+## Limitations and considerations
+
+- Suspend is not currently recommended for large machine memory sizes (> 2 GB)
+- Suspending many machines at once is not recommended
+- Some logs may be lost after resume
+- Unlike stop, suspend **does not** reset the machine's `rootfs` 
+- On resume, the clock can lag a few seconds until NTP syncs
+
+<Info>
+Always design for both resume and cold start paths.
+</Info>
+
+---
+
+## Snapshot behavior with suspend
+
+<Warning>
+Snapshots are tied to the exact code and state of the machine they were taken from. If you deploy new code, the old snapshot can’t be resumed safely and will be discarded.
+</Warning>
+
+**Snapshots** **aren’t guaranteed to persist.** Cold starts may happen if:
+
+- **You deploy a new version of your app** — deployments rebuild the machine image, which invalidates the old snapshot. Since a snapshot is a literal memory dump of the _old_ process, resuming it after you’ve swapped in new code or dependencies would be unsafe and unpredictable.
+- The machine is migrated to a different host
+- The snapshot file is lost or corrupted — Hardware failures, space reclamation, or corruption can cause them to be deleted
+- We perform system maintenance or updates
+
+---
+
+## Volume behavior with suspend
+
+Suspend automatically saves a machine's memory state to persistent storage. You don't need to attach a [volume](/volumes) for suspend to work, and the snapshot isn't stored on a volume.
+
+If your machine does have an attached volume, the volume and its data aren't affected by suspend and resume. It helps to think of the machine snapshot and the volume as separate things:
+
+- The **snapshot** is the saved CPU and memory state, managed by Fly. It can be discarded, for example, during a deploy, which forces a [cold start](#snapshot-behavior-with-suspend).
+- The **volume** is your persistent storage. Its data survives suspend, resume, and cold starts, just as it does across a normal stop and start.
+
+Even if a snapshot is discarded and the machine cold starts, the data on your volume is still there.

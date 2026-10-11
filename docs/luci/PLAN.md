@@ -1,5 +1,13 @@
 # Luci build plan
 
+## Persistent Luci coordinator — latest owner requirement, 11 October 2026 UTC
+
+Luci is the continuing conversational project coordinator. Durable conversation and intent lead to clarification/proposals, canonical versioned context/design/tasks, the chosen upstream harness, observed checks/review, preview/deployment and subsequent amendments. Discover, Design, Develop and Deploy are connected views/tools of this workflow, not disconnected forms or a mandatory one-way wizard. This supersedes the earlier statement that persistent conversation is optional.
+
+A request during Develop must be able to revisit Discover questions and Design, update the affected context, and return to building with exact scope/source provenance. Team Lucis coordinate through authoritative shared revisions/events, identity, ownership, intents and dependencies. Compatible bounded edits may merge; contradictory intents remain explicit until actually resolved. No silent last-writer-wins, message-only consensus or unnecessary restart of all agents. Broadcast accepted changes, invalidate stale evidence/work and replan affected tasks durably.
+
+Routine iteration is autonomous within configured project/team authority and approval/deployment/cost policies. The first concrete acceptance is a conversational mid-build amendment → clarification where needed → revised design/context → real Docker harness changes → independent checks → updated preview. The team case uses two authenticated people requesting competing design edits, resolves versions/conflicts, handles stale active work and replays safely after restart. Fixture-only coordination is not a real-provider/team negotiation pass. **CLOUD-085** owns the integrated amendment vertical; **CLOUD-086** owns shared intent/conflict coordination. Backend, frontend and team owners are assigned in parallel; implementation remains unfinished.
+
 ## Owner's current scope and first priority — corrected 11 October 2026 UTC
 
 **Primary path:** Discover/Design build and approve context; Develop boots/orchestrates an existing upstream harness in isolated Docker locally (cloud-provider microVMs are the cloud target); review and independently check actual changes; Deploy makes the application live; amendments feed back across all four activities. Luci owns context/environment/orchestration/review/deployment, not a replacement coding engine.

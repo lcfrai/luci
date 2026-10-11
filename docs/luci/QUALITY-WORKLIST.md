@@ -1,5 +1,19 @@
 # Continuing product-quality work
 
+## Current local trial blocker — CLOUD-087
+
+**CLOUD-087 (P1, investigating; product cause unconfirmed):** Windows official runtime installation at577 accepts202 then refuses `resource_observation_unavailable` before any build. Job `runtime-077a337bb071c885e27c935b` is uncharged; the healthy shared Docker engine and existing workloads remain unchanged. Reported host free memory alone cannot explain this code: the predicate precedes memory-pressure evaluation and also requires fresh complete host/engine capacity and matching engine identity. The local tester is collecting existing cached scheduler resource views and runtime/storage GETs. A shared two-second resource observation budget is a hypothesis, not a proven cause. Preserve CPU/RAM/disk guards; do not misreport this as model/auth success or a resource-limit correction.
+
+LOCAL-024 now also has a relayed passing Windows external-API preservation check at577, in addition to forced parent death and same-state reopen. The detailed external-API receipt is not yet published here; ordinary native UI close and broader acceptance remain open.
+
+## Primary coordinator verticals — latest owner requirement, 11 October 2026 UTC
+
+- **CLOUD-085 (P1, fixing): persistent conversational amendment coordinator.** Owner: backend amendment agent and frontend journey agent. Audit/reuse durable orchestrator conversations/proposals, then connect an in-Develop request through clarification, canonical versioned specification/design/task changes, exact affected run/source, real upstream Docker execution, independent checks and updated preview. Four activity screens are views/tools of one continuing coordinator. Current integration and real-provider completion are not yet verified.
+- **CLOUD-086 (P1, fixing): shared team intent/conflict coordination.** Owner: team coordination backend agent; shared UI coordinated with CLOUD-085. Reuse authenticated project revisions/events and authority. Persist intents/ownership/dependencies; detect competing changes, merge only bounded compatible changes, explicitly resolve genuine contradictions, invalidate affected work/evidence and replan without restarting unrelated agents. Two real authenticated teammates and durable restart replay are acceptance gates; messages or controlled fixtures alone cannot prove consensus or actual agent negotiation.
+- **CLOUD-084 (P1, open): actual cloud-provider microVM execution.** The reusable backend evaluation advances in parallel; local Docker remains the first usable path.
+
+Routine iteration should proceed autonomously within configured project/team execution, approval, deployment and cost policies. This does not invent missing permission or treat unresolved contradictory intent as approval. Preserve exact provenance from intent through context, source, check and release. LOCAL-025 remains secondary interoperability and must not displace these verticals.
+
 ## Current product priority — corrected owner clarification, 11 October 2026 UTC
 
 **Primary: real-provider integrated Docker journey.** Luci boots/orchestrates existing upstream Codex/Claude Code/etc; it owns context, environment/orchestration, review and deployment. Discover/Design context, Develop execution and Deploy evidence must exchange feedback and amendments. The cloud target is provider microVMs; actual implemented support must be stated specifically. Existing adapters remain valuable. No replacement coding engine and no manual host-CLI substitution.

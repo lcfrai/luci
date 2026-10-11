@@ -1,0 +1,319 @@
+{
+  "schema": "luci-official-source-reuse-review/v1",
+  "observedAtUTC": "2026-10-11T14:35:17.538166+00:00",
+  "luciHEAD": "0db053b866882f1f1a7709ee478118a383f00a31",
+  "scope": "read-only official source research; no install, credentials, cloud provisioning or runtime tests",
+  "claimBoundary": "Source describes capabilities; neither managed-service availability nor Luci integration nor prices are verified. Glasses discovery is relayed by local tester, not called here.",
+  "sources": [
+    {
+      "repo": "e2b-dev/infra",
+      "commit": "cf536c284434fdd2f09bbab35ec807a5dacc87e4",
+      "path": "README.md",
+      "url": "https://raw.githubusercontent.com/e2b-dev/infra/cf536c284434fdd2f09bbab35ec807a5dacc87e4/README.md",
+      "status": 200,
+      "bytes": 9200,
+      "sha256": "9fb53aabca7e49de0781dc8bd2a48d6a272444c0171f400ab8d052fe8241d5cc"
+    },
+    {
+      "repo": "e2b-dev/infra",
+      "commit": "cf536c284434fdd2f09bbab35ec807a5dacc87e4",
+      "path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/e2b-dev/infra/cf536c284434fdd2f09bbab35ec807a5dacc87e4/LICENSE",
+      "status": 200,
+      "bytes": 11347,
+      "sha256": "b4ef1bf811cb4095229fb86b574199e467c78f0ac4078cf8be62189e1fbd0818"
+    },
+    {
+      "repo": "e2b-dev/infra",
+      "commit": "cf536c284434fdd2f09bbab35ec807a5dacc87e4",
+      "path": "spec/openapi.yml",
+      "url": "https://raw.githubusercontent.com/e2b-dev/infra/cf536c284434fdd2f09bbab35ec807a5dacc87e4/spec/openapi.yml",
+      "status": 200,
+      "bytes": 171651,
+      "sha256": "1a6d0f906ed616034a3d545533e4ad202239f039a06fc1c3a40bc1bcc0e32618"
+    },
+    {
+      "repo": "e2b-dev/infra",
+      "commit": "cf536c284434fdd2f09bbab35ec807a5dacc87e4",
+      "path": "embed/README.md",
+      "url": "https://raw.githubusercontent.com/e2b-dev/infra/cf536c284434fdd2f09bbab35ec807a5dacc87e4/embed/README.md",
+      "status": 200,
+      "bytes": 6609,
+      "sha256": "67c2d07904732d73e583de278b2fecf877672d6f313a48b63c9739600fd9227c"
+    },
+    {
+      "repo": "e2b-dev/infra",
+      "commit": "cf536c284434fdd2f09bbab35ec807a5dacc87e4",
+      "path": "embed/terraform/aws/README.md",
+      "url": "https://raw.githubusercontent.com/e2b-dev/infra/cf536c284434fdd2f09bbab35ec807a5dacc87e4/embed/terraform/aws/README.md",
+      "status": 200,
+      "bytes": 21052,
+      "sha256": "e808b53c95e6a33cf7dcf579e5f04358cadaeb63b36ab71e52b5b665b4a4821b"
+    },
+    {
+      "repo": "e2b-dev/infra",
+      "commit": "cf536c284434fdd2f09bbab35ec807a5dacc87e4",
+      "path": "embed/terraform/azure/README.md",
+      "url": "https://raw.githubusercontent.com/e2b-dev/infra/cf536c284434fdd2f09bbab35ec807a5dacc87e4/embed/terraform/azure/README.md",
+      "status": 200,
+      "bytes": 20754,
+      "sha256": "0d0c0a65a9176b1bcb717473d522aa42d4cf08239b3454ab72f4ebfa4318ffd1"
+    },
+    {
+      "repo": "e2b-dev/E2B",
+      "commit": "df6c368152b067512702fc677952c0fc4e13c2f0",
+      "path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/e2b-dev/E2B/df6c368152b067512702fc677952c0fc4e13c2f0/LICENSE",
+      "status": 200,
+      "bytes": 11347,
+      "sha256": "b4ef1bf811cb4095229fb86b574199e467c78f0ac4078cf8be62189e1fbd0818"
+    },
+    {
+      "repo": "e2b-dev/E2B",
+      "commit": "df6c368152b067512702fc677952c0fc4e13c2f0",
+      "path": "packages/js-sdk/src/sandbox/sandboxApi.ts",
+      "url": "https://raw.githubusercontent.com/e2b-dev/E2B/df6c368152b067512702fc677952c0fc4e13c2f0/packages/js-sdk/src/sandbox/sandboxApi.ts",
+      "status": 200,
+      "bytes": 62954,
+      "sha256": "2b34b66e5562bf2c614d8bd1684df45d6576b94483ba808dcd18a91d3f9c3954"
+    },
+    {
+      "repo": "e2b-dev/E2B",
+      "commit": "df6c368152b067512702fc677952c0fc4e13c2f0",
+      "path": "packages/js-sdk/src/sandbox/index.ts",
+      "url": "https://raw.githubusercontent.com/e2b-dev/E2B/df6c368152b067512702fc677952c0fc4e13c2f0/packages/js-sdk/src/sandbox/index.ts",
+      "status": 200,
+      "bytes": 26929,
+      "sha256": "77796fba637a9c66a5745b7c89ada75506a12b376c25ce6c2027224e0b4869b8"
+    },
+    {
+      "repo": "e2b-dev/E2B",
+      "commit": "df6c368152b067512702fc677952c0fc4e13c2f0",
+      "path": "packages/js-sdk/src/sandbox/filesystem/index.ts",
+      "url": "https://raw.githubusercontent.com/e2b-dev/E2B/df6c368152b067512702fc677952c0fc4e13c2f0/packages/js-sdk/src/sandbox/filesystem/index.ts",
+      "status": 200,
+      "bytes": 32058,
+      "sha256": "6363af5c6d9a1d73f99be062495e67004a36b1adcc528a81210068b1841ed108"
+    },
+    {
+      "repo": "e2b-dev/E2B",
+      "commit": "df6c368152b067512702fc677952c0fc4e13c2f0",
+      "path": "packages/js-sdk/src/sandbox/commands/pty.ts",
+      "url": "https://raw.githubusercontent.com/e2b-dev/E2B/df6c368152b067512702fc677952c0fc4e13c2f0/packages/js-sdk/src/sandbox/commands/pty.ts",
+      "status": 200,
+      "bytes": 8125,
+      "sha256": "c980ab60e328e8ec18b2a2936588098d55f18854df5f0adfba7fb895281ad4d5"
+    },
+    {
+      "repo": "superfly/docs",
+      "commit": "0fc1a74ab5afa558c16b7c58613bbc0a5751faf4",
+      "path": "machines/overview.mdx",
+      "url": "https://raw.githubusercontent.com/superfly/docs/0fc1a74ab5afa558c16b7c58613bbc0a5751faf4/machines/overview.mdx",
+      "status": 200,
+      "bytes": 9738,
+      "sha256": "12c174ddffb5f75829b34e64f2f3d6e4428f75aa176781b72f4cd189f4e6214c"
+    },
+    {
+      "repo": "superfly/docs",
+      "commit": "0fc1a74ab5afa558c16b7c58613bbc0a5751faf4",
+      "path": "reference/suspend-resume.mdx",
+      "url": "https://raw.githubusercontent.com/superfly/docs/0fc1a74ab5afa558c16b7c58613bbc0a5751faf4/reference/suspend-resume.mdx",
+      "status": 200,
+      "bytes": 7168,
+      "sha256": "1a6c98e7591f345a412b0a00b2e81258690543609e876211d659f2914f79382a"
+    },
+    {
+      "repo": "superfly/docs",
+      "commit": "0fc1a74ab5afa558c16b7c58613bbc0a5751faf4",
+      "path": "machines/api/working-with-machines-api.mdx",
+      "url": "https://raw.githubusercontent.com/superfly/docs/0fc1a74ab5afa558c16b7c58613bbc0a5751faf4/machines/api/working-with-machines-api.mdx",
+      "status": 200,
+      "bytes": 3668,
+      "sha256": "f88ea5fada08bce4609e21bb9781ec9a71af4daef5dd22a9035147bf980979a3"
+    },
+    {
+      "repo": "superfly/docs",
+      "commit": "0fc1a74ab5afa558c16b7c58613bbc0a5751faf4",
+      "path": "about/pricing.mdx",
+      "url": "https://raw.githubusercontent.com/superfly/docs/0fc1a74ab5afa558c16b7c58613bbc0a5751faf4/about/pricing.mdx",
+      "status": 200,
+      "bytes": 19087,
+      "sha256": "fed5e5904d0467fb853307e77a5a1f86ffd1d268ca9ab79ad9f84ac796dfc2bf"
+    },
+    {
+      "repo": "superfly/docs",
+      "commit": "0fc1a74ab5afa558c16b7c58613bbc0a5751faf4",
+      "path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/superfly/docs/0fc1a74ab5afa558c16b7c58613bbc0a5751faf4/LICENSE",
+      "status": 200,
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "repo": "superfly/fly-go",
+      "commit": "9cd555203a0f329e698f30205a112a26bde8130a",
+      "path": "machine_types.go",
+      "url": "https://raw.githubusercontent.com/superfly/fly-go/9cd555203a0f329e698f30205a112a26bde8130a/machine_types.go",
+      "status": 200,
+      "bytes": 53920,
+      "sha256": "2e69061f745654cbeab1571931aa31c609a7dddd9bc3361f1ad2a3386ac08b9b"
+    },
+    {
+      "repo": "superfly/fly-go",
+      "commit": "9cd555203a0f329e698f30205a112a26bde8130a",
+      "path": "flaps/flaps_machines.go",
+      "url": "https://raw.githubusercontent.com/superfly/fly-go/9cd555203a0f329e698f30205a112a26bde8130a/flaps/flaps_machines.go",
+      "status": 200,
+      "bytes": 14068,
+      "sha256": "3441fbcc15c955acacfbb7537d1a36462fa62b8719c3b3ae467dd98e6b0403e7"
+    },
+    {
+      "repo": "superfly/fly-go",
+      "commit": "9cd555203a0f329e698f30205a112a26bde8130a",
+      "path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/superfly/fly-go/9cd555203a0f329e698f30205a112a26bde8130a/LICENSE",
+      "status": 200,
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "key": "e2b-process-proto",
+      "url": "https://raw.githubusercontent.com/e2b-dev/E2B/df6c368152b067512702fc677952c0fc4e13c2f0/spec/envd/process/process.proto",
+      "status": 200,
+      "bytes": 3299,
+      "sha256": "8edd9358c7dbfcad96796b3f0ed8d14c262b8b14d6bc7d5e84d468941511b8e0"
+    },
+    {
+      "key": "e2b-files-proto",
+      "url": "https://raw.githubusercontent.com/e2b-dev/E2B/df6c368152b067512702fc677952c0fc4e13c2f0/spec/envd/filesystem/filesystem.proto",
+      "status": 200,
+      "bytes": 3853,
+      "sha256": "5024f6f6c9a62cab94e29a209389313fd259c8eaa847b5093356308dc2f711b9"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/runtime/cf536c284434fdd2f09bbab35ec807a5dacc87e4/tests/integration/internal/tests/proxies/traffic_access_token_test.go",
+      "path": "pinned/e2b-dev/runtime/tests/integration/internal/tests/proxies/traffic_access_token_test.go",
+      "bytes": 12554,
+      "sha256": "bb1adc9f7ac45dae6d52cc4bb1c31fc6f987c8a0ec6c5da415e20e00a53ffb8a"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/runtime/cf536c284434fdd2f09bbab35ec807a5dacc87e4/embed/compose/README.md",
+      "path": "pinned/e2b-dev/runtime/embed/compose/README.md",
+      "bytes": 27005,
+      "sha256": "494237cae7ac262f859f93abec24b5071ba341d91f8b3f0f13d4bacd891f5db0"
+    }
+  ],
+  "publishedCopies": [
+    {
+      "path": "upstream/e2b-runtime-README.md",
+      "bytes": 9200,
+      "sha256": "9fb53aabca7e49de0781dc8bd2a48d6a272444c0171f400ab8d052fe8241d5cc",
+      "sourceSha256": "9fb53aabca7e49de0781dc8bd2a48d6a272444c0171f400ab8d052fe8241d5cc",
+      "kind": "full-source-copy"
+    },
+    {
+      "path": "upstream/E2B-LICENSE",
+      "bytes": 11347,
+      "sha256": "b4ef1bf811cb4095229fb86b574199e467c78f0ac4078cf8be62189e1fbd0818",
+      "sourceSha256": "b4ef1bf811cb4095229fb86b574199e467c78f0ac4078cf8be62189e1fbd0818",
+      "kind": "full-source-copy"
+    },
+    {
+      "path": "upstream/Fly-LICENSE",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "sourceSha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "kind": "full-source-copy"
+    },
+    {
+      "path": "upstream/e2b-process.proto",
+      "bytes": 3299,
+      "sha256": "8edd9358c7dbfcad96796b3f0ed8d14c262b8b14d6bc7d5e84d468941511b8e0",
+      "sourceSha256": "8edd9358c7dbfcad96796b3f0ed8d14c262b8b14d6bc7d5e84d468941511b8e0",
+      "kind": "full-source-copy"
+    },
+    {
+      "path": "upstream/e2b-filesystem.proto",
+      "bytes": 3853,
+      "sha256": "5024f6f6c9a62cab94e29a209389313fd259c8eaa847b5093356308dc2f711b9",
+      "sourceSha256": "5024f6f6c9a62cab94e29a209389313fd259c8eaa847b5093356308dc2f711b9",
+      "kind": "full-source-copy"
+    },
+    {
+      "path": "upstream/e2b-create-v2.yaml",
+      "bytes": 2779,
+      "sha256": "bd53da67357a0c609248b6a522c17d09088c8bc28e15dc5eda7b4a8507e1f2a3",
+      "sourceSha256": "1a6d0f906ed616034a3d545533e4ad202239f039a06fc1c3a40bc1bcc0e32618",
+      "sourceLineStart": 2985,
+      "sourceLineEndInclusive": 3047,
+      "kind": "exact-contiguous-source-excerpt"
+    },
+    {
+      "path": "upstream/e2b-kvm-prerequisites.md",
+      "bytes": 4737,
+      "sha256": "b6f60f514e3501e0b097addd9c9f8e864e3b915df90b8a25108563846f5ceb34",
+      "sourceSha256": "494237cae7ac262f859f93abec24b5071ba341d91f8b3f0f13d4bacd891f5db0",
+      "sourceLineStart": 1,
+      "sourceLineEndInclusive": 74,
+      "kind": "exact-contiguous-source-excerpt"
+    },
+    {
+      "path": "upstream/fly-suspend-limitations.mdx",
+      "bytes": 2729,
+      "sha256": "0de0a5fc96e6972ae2e6ba42e2f9379cd47a972485dea7a6d0b9cd67f4d03451",
+      "sourceSha256": "1a6c98e7591f345a412b0a00b2e81258690543609e876211d659f2914f79382a",
+      "sourceLineStart": 81,
+      "sourceLineEndInclusive": 136,
+      "kind": "exact-contiguous-source-excerpt"
+    },
+    {
+      "path": "upstream/e2b-token-test.go.txt",
+      "bytes": 1259,
+      "sha256": "a28fe963695f983b2631c00cb6cd3b0d38fadede0f6b42c25a02472d721c3f01",
+      "sourceSha256": "bb1adc9f7ac45dae6d52cc4bb1c31fc6f987c8a0ec6c5da415e20e00a53ffb8a",
+      "sourceLineStart": 26,
+      "sourceLineEndInclusive": 63,
+      "kind": "exact-contiguous-source-excerpt"
+    }
+  ],
+  "luciSelectedSources": [
+    {
+      "path": "control-plane/internal/backend/backend.go",
+      "bytes": 17332,
+      "sha256": "b7e25e056c72fe6b0227fdfc6d024b0cbf3d00c02fb46da90378ed1cbeb9148c"
+    },
+    {
+      "path": "control-plane/internal/backend/dial.go",
+      "bytes": 4961,
+      "sha256": "1610e84e64884210c2b7deaaf6615f5d81d8858c48d8ac6ebb857915230f0f5f"
+    },
+    {
+      "path": "control-plane/internal/backend/katabe/kata.go",
+      "bytes": 11921,
+      "sha256": "50ef5b17f822a0b381a0718da168e535c5c085cb3edece8b382e1c158b025758"
+    },
+    {
+      "path": "control-plane/internal/api/sessions.go",
+      "bytes": 118108,
+      "sha256": "ddc8d48328299372ee6ac98d10722607a1835b8eb5746e3b8306a9850af19a1c"
+    },
+    {
+      "path": "control-plane/internal/harness/harness.go",
+      "bytes": 12773,
+      "sha256": "4326dd1d146f52bd7a6b7951933b09a75d6729fb63af3f88ff0857153399ed49"
+    },
+    {
+      "path": "control-plane/internal/harness/task.go",
+      "bytes": 3322,
+      "sha256": "b320a24c906e3a27a3594fb54ece9fdf8a73c0bf6148395969a9ceac15d970b3"
+    }
+  ],
+  "networkLimitations": [
+    "e2b.dev, docs.e2b.dev and fly.io official website requests returned proxy403; official GitHub raw/API reads succeeded",
+    "Current E2B managed prices, quotas, feature/version availability and account credentials unverified"
+  ],
+  "unreviewedRelayedCandidates": [
+    "firecracker-containerd be68640a5d2237f5b427c37c1f5809ec154126c5 (local tester relay)",
+    "Rivet sandbox-agent (local tester relay; no adoption)"
+  ]
+}

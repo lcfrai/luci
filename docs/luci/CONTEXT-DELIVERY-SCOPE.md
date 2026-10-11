@@ -1,5 +1,13 @@
 # Context, orchestration and delivery scope
 
+## Persistent Luci coordinator — latest owner requirement, 11 October 2026 UTC
+
+Luci is the continuing conversational project coordinator. Durable conversation and intent lead to clarification/proposals, canonical versioned context/design/tasks, the chosen upstream harness, observed checks/review, preview/deployment and subsequent amendments. Discover, Design, Develop and Deploy are connected views/tools of this workflow, not disconnected forms or a mandatory one-way wizard. This supersedes the earlier statement that persistent conversation is optional.
+
+A request during Develop must be able to revisit Discover questions and Design, update the affected context, and return to building with exact scope/source provenance. Team Lucis coordinate through authoritative shared revisions/events, identity, ownership, intents and dependencies. Compatible bounded edits may merge; contradictory intents remain explicit until actually resolved. No silent last-writer-wins, message-only consensus or unnecessary restart of all agents. Broadcast accepted changes, invalidate stale evidence/work and replan affected tasks durably.
+
+Routine iteration is autonomous within configured project/team authority and approval/deployment/cost policies. The first concrete acceptance is a conversational mid-build amendment → clarification where needed → revised design/context → real Docker harness changes → independent checks → updated preview. The team case uses two authenticated people requesting competing design edits, resolves versions/conflicts, handles stale active work and replays safely after restart. Fixture-only coordination is not a real-provider/team negotiation pass. **CLOUD-085** owns the integrated amendment vertical; **CLOUD-086** owns shared intent/conflict coordination. Backend, frontend and team owners are assigned in parallel; implementation remains unfinished.
+
 **Corrected owner clarification: 11 October 2026 UTC / 12 October local.** The earlier relay overcorrected “do not replace Codex/Claude Code” into manual host-tool handoff. The owner explicitly corrected that interpretation. This document replaces that mistaken priority; the earlier commit remains historical evidence.
 
 ## Primary product and four connected activities
@@ -31,7 +39,7 @@ Audited product baseline: `edc742e8b6ce4216a1726e74cceef892663ce3d5`. Documentat
 | Delivery | Existing Git review/commit, independent command checks, source-bound preview and deployment controls exist. A handwritten warm Linux Docker build/serve/Stop fixture passed at80462898. It is not a real-provider idea-to-app pass. Cancellation/recovery, cold preparation, Windows and response gates remain separately open. |
 | Standalone interchange | Portable files exist; frozen external export/return is being implemented under LOCAL-025 as **secondary interoperability**. It must not replace or delay primary integrated Develop acceptance. |
 
-**CLOUD-084 (P1, open, cloud execution capability):** usable provider microVM execution is missing. It needs a concrete reusable backend, actual project/context transfer rather than host-path mounts, supported credential delivery, owned lifecycle and recovery, result return, resource/cost controls and provider-specific verification. Existing remote Docker and dormant Kata cannot be relabelled to close this gap. Local-first acceptance proceeds independently; cloud provisioning waits for a concrete plan and supplied access. A bounded reuse evaluation is in progress; no new provider support is claimed.
+**CLOUD-084 (P1, open, cloud execution capability):** usable provider microVM execution is missing. [The source-bound reuse evaluation and implementation contract](CLOUD-MICROVM-EXECUTION.md) proposes E2B Cloud as the first concrete provider; it is not yet implemented or verified. It needs a concrete reusable backend, actual project/context transfer rather than host-path mounts, supported credential delivery, owned lifecycle and recovery, result return, resource/cost controls and provider-specific verification. Existing remote Docker and dormant Kata cannot be relabelled to close this gap. Local-first acceptance proceeds independently; cloud provisioning waits for a concrete plan and supplied access. A bounded reuse evaluation is in progress; no new provider support is claimed.
 
 ## Immediate real-provider path and blockers
 

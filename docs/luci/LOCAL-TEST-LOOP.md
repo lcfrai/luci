@@ -1,6 +1,10 @@
 <!-- Current source: edc742e8b6ce4216a1726e74cceef892663ce3d5; Windows adoption only between batches. -->
 # Windows testing and correction loop
 
+## Next primary acceptance slice
+
+CLOUD-085/CLOUD-086 implement the owner's persistent coordinator requirement. Test a conversational amendment during a real Docker build through revised Discover/Design context, upstream code changes, independent checks and updated preview; then two authenticated teammates with competing edits, explicit version resolution, affected-work handling and restart replay. Existing unrelated scoped passes remain valid. No manual host-CLI or fixture-only negotiation substitutes for these gates.
+
 ## Current coordinated priority — integrated Docker real-provider journey
 
 The owner corrected the earlier relay: primary Develop must boot/orchestrate the upstream coding harness inside isolated Docker locally, with cloud-provider microVMs as the cloud target. Discover/Design context and Deploy evidence exchange feedback throughout. Standalone external export/return (LOCAL-025) remains secondary interoperability. **The proposed signed-in host-CLI trial is cancelled before inference**, and cannot replace integrated acceptance.

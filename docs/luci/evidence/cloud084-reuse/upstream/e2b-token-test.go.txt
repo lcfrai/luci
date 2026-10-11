@@ -1,0 +1,38 @@
+func TestSandboxWithEnabledTrafficAccessTokenButMissingHeader(t *testing.T) {
+	t.Parallel()
+	c := setup.GetAPIClient()
+
+	sbxNetAllowPublic := false
+	sbxNet := &api.SandboxNetworkConfig{
+		AllowPublicTraffic: &sbxNetAllowPublic,
+	}
+	sbx := utils.SetupSandboxWithCleanup(t, c, utils.WithNetwork(sbxNet))
+	require.NotNil(t, sbx.TrafficAccessToken)
+	require.NotNil(t, sbx.EnvdAccessToken)
+
+	url, err := url.Parse(setup.EnvdProxy)
+	require.NoError(t, err)
+
+	client := &http.Client{
+		Timeout: 1000 * time.Second,
+	}
+
+	sbx.TrafficAccessToken = nil // Simulate missing header
+
+	port := 8080
+	req := utils.NewRequest(sbx, url, port, nil)
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	assert.Equal(t, "application/json; charset=utf-8", resp.Header.Get("Content-Type"))
+
+	// Parse error response
+	var errorResp struct {
+		Message   string `json:"message"`
+		SandboxID string `json:"sandboxId"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&errorResp)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, "Sandbox is secured with traffic access token. Token header 'e2b-traffic-access-token' is missing", errorResp.Message)
+	assert.Equal(t, sbx.SandboxID, errorResp.SandboxID)
