@@ -1,0 +1,40 @@
+{
+  "reason": "GitHub GH007 rejected unpublished commit identity metadata. No source, tree, test receipt, or executed revision record was changed. Only identity email fields and parent hashes in the unpublished suffix changed.",
+  "publishedBase": "e3b7d5212db4455315c98d46a4703a5cff6813a7",
+  "originalHead": "a3f4cfaf80d99b0cc9fed1673513f89cfb959dc0",
+  "replacementHead": "eb70a1744d1219c24a9f2dcf5993009a8c851c5e",
+  "entries": [
+    {
+      "originalExecutionRevision": "544ae842c1db4cbdf3ef1ae8055289db9115f4c5",
+      "accessibleMetadataEquivalentRevision": "0c44a0548b20c4dc50da68bd86423b5520e0d9bc",
+      "identicalTree": "8ae9ec00c42407d42fa93d485ced8b68c650073c",
+      "identityEmailFieldsCorrected": 2
+    },
+    {
+      "originalExecutionRevision": "5770e011ea86dbe54f939f77cd05888fe3a43a66",
+      "accessibleMetadataEquivalentRevision": "0fae38d9252df2a4bf2264e8ca2e8d1160f91d24",
+      "identicalTree": "f3f776b89ef46c6d9b87704a5b7f5c1bdbc674e4",
+      "identityEmailFieldsCorrected": 2
+    },
+    {
+      "originalExecutionRevision": "c947b04161ed722197b8793b7d846cb8c0dceffb",
+      "accessibleMetadataEquivalentRevision": "6d7abc0b3560cc46d8e945b92596f580b09f760d",
+      "identicalTree": "8df88acf93a7b89b3df4d9c6f0624a04d455ffae",
+      "identityEmailFieldsCorrected": 2
+    },
+    {
+      "originalExecutionRevision": "d456a6559f7a8b9a44b8659390b808c83f60d08f",
+      "accessibleMetadataEquivalentRevision": "c811ccc1d704bf40ba5ba22d7cb6a4e494fed413",
+      "identicalTree": "26b6eea326dc5a0e1d0ea4cc1ed7cd458ed41179",
+      "identityEmailFieldsCorrected": 2
+    },
+    {
+      "originalExecutionRevision": "a3f4cfaf80d99b0cc9fed1673513f89cfb959dc0",
+      "accessibleMetadataEquivalentRevision": "eb70a1744d1219c24a9f2dcf5993009a8c851c5e",
+      "identicalTree": "c1a1b2b2d04f5a66d7e0b3a32e3bdfa8e0ab1a40",
+      "identityEmailFieldsCorrected": 0
+    }
+  ],
+  "indexBytesUnchanged": true,
+  "forcePushRequired": false
+}
