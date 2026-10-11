@@ -1,11 +1,15 @@
-<!-- Current source: 80462898735a191cceaa4cb33e486b42b0a35f3c; Windows adoption only between batches. -->
+<!-- Current source: edc742e8b6ce4216a1726e74cceef892663ce3d5; Windows adoption only between batches. -->
 # Windows testing and correction loop
 
-## Current source checkpoint — 80462898
+## Current source checkpoint — edc742e8
+
+[Exact retrieval, setup and remaining checks](TEST-CHECKPOINT-EDC742E8.md) accompany CLOUD-080/082 live preview cancellation. The correction is pushed and retrievable; selected source/API/UI checks and the narrow restart-observation follow-up are [published separately](evidence/cloud080-preview-cancel/README.md). Matching packaging and real Docker cancellation remain in progress. No setup variable, credential or runtime-image source changed. Adopt only between batches; older native passes retain their original scopes.
+
+## Prior source/package checkpoint — 80462898
 
 [Exact retrieval, setup and remaining checks](TEST-CHECKPOINT-80462898.md) accompany CLOUD-082's guarded preview-base preparation. The source and [matching verified Linux package receipts](evidence/package-80462898/README.md) are available, without replacing the earlier 577 package or evidence. No setup variable or credential name changed. Original failed timing, interruption and charged-fixture evidence remains intact.
 
-Matching `80462898` now has an [actual warm multistage Docker RUN/build/serve/Stop pass](evidence/cloud082-installed-warm-80462898/README.md): ten Node tests, useful app response, observed 1 GiB, one-CPU, no-swap build limits, separately inspected serving limits, exact API cleanup and independent empty fixture ledger/container inventory. It is a handwritten Linux fixture using an existing base; cold pulls, Windows, live-provider quality, peak resources and responsiveness remain open. The prepared/current Windows source remains `80462898`, so no revision change is required solely for this evidence publication.
+Matching `80462898` now has an [actual warm multistage Docker RUN/build/serve/Stop pass](evidence/cloud082-installed-warm-80462898/README.md): ten Node tests, useful app response, observed 1 GiB, one-CPU, no-swap build limits, separately inspected serving limits, exact API cleanup and independent empty fixture ledger/container inventory. It is a handwritten Linux fixture using an existing base; cold pulls, Windows, live-provider quality, peak resources and responsiveness remain open. This earlier evidence publication changed no product bytes; the later cancellation correction has the new edc742e8 source pin above.
 
 Windows has verified LOCAL-024's original forced-parent-death and same-state reopen at `577f7a0f`, with normal user-state preservation and final known process/listener cleanup. External `LUCI_API` and ordinary native close remain pending; do not repeat the completed original case solely for a documentation update. The same Windows revision has clean native/portable packaging and its separately recorded controlled tests. Actual installation, provider-driven build/review/check/preview, broader recovery and sustained resource/response acceptance remain open.
 
