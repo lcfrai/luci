@@ -1,0 +1,18 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/store/luciSurface.test.ts src/store/sourceNavigation.test.ts src/store/projectNavigation.test.ts src/store/store.test.ts src/components/rail/Rail.test.tsx --maxWorkers=1
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ Test Files  5 passed (5)
+      Tests  145 passed (145)
+   Start at  17:06:40
+   Duration  12.55s (environment 35%, transform 30%, import 16%, tests 15%, setup 4%)
+
+Environment  jsdom was created 5 times · 4.08s total, 35% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+

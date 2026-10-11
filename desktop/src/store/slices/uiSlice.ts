@@ -38,10 +38,17 @@ const NO_SELECTION: Selection = Object.freeze({
 export interface ProjectRunDeploymentIntent { scope: string; projectId: ProjectId; runId: string; checkId: string; commit: string; sourceDigest: string; outcome: "preview" | "publish" }
 /** Unspecified purpose is unsaved shared context. Local check setup still needs navigation/source protection. */
 export interface UnsavedProjectDraft { projectId: ProjectId; label: string; lens: Lens; purpose?: "verification-setup" | "coordinator-setup"; retained?: boolean; discard?(): void }
+interface SessionNavigation {
+  kind: "session";
+  projectId: ProjectId; branchId: BranchId; worktreeId: WorktreeId; sessionId: SessionId;
+  createdAt: string; executionGeneration: string; catalogueEpoch: number; sourceRevision: number;
+  projectPath: string; worktreePath: string;
+}
 export type PendingNavigation =
   | { kind: "project"; projectId: ProjectId | null; lens?: Lens }
   | { kind: "branch"; projectId: ProjectId; branchId: BranchId; worktreeId?: WorktreeId }
-  | { kind: "lens"; lens: Lens };
+  | { kind: "lens"; lens: Lens }
+  | SessionNavigation;
 export interface BranchManagerTarget { projectId: ProjectId; action: "create" | "switch"; branchId?: BranchId }
 const navigationState = (navigation: PendingNavigation, state: CockpitState): Partial<UiSlice> => {
   let selection = state.selection, lens = state.lens;
@@ -53,6 +60,9 @@ const navigationState = (navigation: PendingNavigation, state: CockpitState): Pa
     lens = navigation.lens ?? (saved && saved.path === project?.path ? saved.lens : "discover");
   } else if (navigation.kind === "branch") {
     selection = { projectId: navigation.projectId, branchId: navigation.branchId, worktreeId: navigation.worktreeId ?? null, sessionId: null };
+    lens = "develop";
+  } else if (navigation.kind === "session") {
+    selection = { projectId: navigation.projectId, branchId: navigation.branchId, worktreeId: navigation.worktreeId, sessionId: navigation.sessionId };
     lens = "develop";
   } else lens = navigation.lens;
   const projectPositions = { ...state.projectPositions };
@@ -71,6 +81,26 @@ const navigationState = (navigation: PendingNavigation, state: CockpitState): Pa
 function hasNavigationWorktree(state: CockpitState, projectId: ProjectId, branchId: BranchId, worktreeId: WorktreeId) {
   return state.projects.some(project => project.id === projectId) && state.branchesByProject[projectId]?.some(branch => branch.id === branchId && branch.projectId === projectId) &&
     state.worktreesByBranch[branchId]?.some(worktree => worktree.id === worktreeId && worktree.projectId === projectId && worktree.branchId === branchId);
+}
+
+function sessionNavigation(state: CockpitState, sessionId: SessionId): SessionNavigation | null {
+  const session = state.sessions[sessionId];
+  if (!session || session.id !== sessionId || session.authOnly ||
+      !hasNavigationWorktree(state, session.projectId, session.branchId, session.worktreeId) ||
+      !state.sessionIdsByWorktree[session.worktreeId]?.includes(sessionId)) return null;
+  const project = state.projects.find(item => item.id === session.projectId)!;
+  const worktree = state.worktreesByBranch[session.branchId].find(item => item.id === session.worktreeId)!;
+  return { kind: "session", projectId: session.projectId, branchId: session.branchId, worktreeId: session.worktreeId, sessionId,
+    createdAt: session.createdAt, executionGeneration: session.executionGeneration ?? "", catalogueEpoch: state.projectCatalogueEpoch,
+    sourceRevision: state.projectSourceRevisions[session.projectId] ?? 0, projectPath: project.path, worktreePath: worktree.path };
+}
+
+function isCurrentSessionNavigation(state: CockpitState, navigation: SessionNavigation): boolean {
+  const current = sessionNavigation(state, navigation.sessionId);
+  return !!current && current.projectId === navigation.projectId && current.branchId === navigation.branchId &&
+    current.worktreeId === navigation.worktreeId && current.createdAt === navigation.createdAt &&
+    current.executionGeneration === navigation.executionGeneration && current.catalogueEpoch === navigation.catalogueEpoch &&
+    current.sourceRevision === navigation.sourceRevision && current.projectPath === navigation.projectPath && current.worktreePath === navigation.worktreePath;
 }
 
 export interface UiSlice {
@@ -124,6 +154,8 @@ export interface UiSlice {
   selectWorktree(id: WorktreeId | null): void;
   /** Focus, not navigation: it does not change the branch. */
   focusSession(id: SessionId | null): void;
+  /** Explicit navigation to an existing session; draft confirmation precedes any focus change. */
+  openSession(id: SessionId): void;
   setLens(lens: Lens): void;
   setLayout(layout: Layout): void;
   toggleRail(): void;
@@ -242,6 +274,18 @@ export const createUiSlice: StateCreator<
   // Decision (b): the focused session survives, because focus is not navigation.
   selectWorktree: (id) => set((s) => ({ selection: { ...s.selection, worktreeId: id } })),
   focusSession: (id) => set((s) => ({ selection: { ...s.selection, sessionId: id } })),
+  openSession: id => {
+    const state = get(), navigation = sessionNavigation(state, id);
+    if (!navigation) {
+      state.pushToast("That session or its checkout is no longer available. Refresh the project before opening it.");
+      return;
+    }
+    const sameEditor = state.lens === "develop" && state.selection.projectId === navigation.projectId &&
+      state.selection.branchId === navigation.branchId && state.selection.worktreeId === navigation.worktreeId;
+    if (!sameEditor && Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === state.selection.projectId))
+      set({ pendingNavigation: navigation });
+    else set(navigationState(navigation, state));
+  },
 
   setLens: (lens) => {
     const state = get();
@@ -277,6 +321,11 @@ export const createUiSlice: StateCreator<
         !hasNavigationWorktree(current, destination.projectId, destination.branchId, destination.worktreeId)) {
       set({ pendingNavigation: null });
       current.pushToast("That checkout is no longer available. Choose a current build location. Your edited draft is still here.");
+      return;
+    }
+    if (destination?.kind === "session" && !isCurrentSessionNavigation(current, destination)) {
+      set({ pendingNavigation: null });
+      current.pushToast("That session or its checkout changed. Your edited draft is still here. Choose the current session again.");
       return;
     }
     const leaving = Object.values(current.unsavedProjectDrafts).filter(draft => draft.projectId === current.selection.projectId);

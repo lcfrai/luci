@@ -277,6 +277,32 @@ describe("Rail", () => {
     ).toBeNull();
   });
 
+  it.each(["click", "keyboard", "attention"])("reveals an existing session from Luci through the explicit %s action", async action => {
+    seed({ selection: { projectId: project.id, branchId: branch.id, worktreeId: worktree.id, sessionId: idling.id }, lens: "develop", workspaceSurface: "luci" });
+    render(<Rail />);
+    const row = screen.getByRole("treeitem", { name: /wire the upload route/ });
+    if (action === "keyboard") { row.focus(); await userEvent.keyboard("{Enter}"); }
+    else if (action === "attention") await userEvent.click(screen.getByRole("img", { name: "running · evidence-upload" }).closest("button")!);
+    else await userEvent.click(row);
+    expect(useCockpit.getState()).toMatchObject({ workspaceSurface: "tools", lens: "develop", pendingNavigation: null,
+      selection: { projectId: project.id, branchId: branch.id, worktreeId: worktree.id, sessionId: running.id } });
+  });
+
+  it.each(["click", "attention"])("guards the %s session action without changing the focused session when cancelled", async action => {
+    const discard = vi.fn();
+    seed({ selection: { projectId: project.id, branchId: branch.id, worktreeId: worktree.id, sessionId: idling.id }, lens: "design", workspaceSurface: "luci",
+      unsavedProjectDrafts: { editor: { projectId: project.id, label: "Design", lens: "design", retained: true, discard } } });
+    render(<Rail />);
+    if (action === "attention") await userEvent.click(screen.getByRole("img", { name: "running · evidence-upload" }).closest("button")!);
+    else await userEvent.click(screen.getByRole("treeitem", { name: /wire the upload route/ }));
+    expect(useCockpit.getState().pendingNavigation).toMatchObject({ kind: "session", sessionId: running.id });
+    expect(useCockpit.getState()).toMatchObject({ workspaceSurface: "luci", lens: "design", selection: { sessionId: idling.id } });
+    act(() => useCockpit.getState().cancelNavigation());
+    expect(useCockpit.getState()).toMatchObject({ workspaceSurface: "luci", lens: "design", pendingNavigation: null, selection: { sessionId: idling.id } });
+    expect(useCockpit.getState().unsavedProjectDrafts.editor).toBeDefined();
+    expect(discard).not.toHaveBeenCalled();
+  });
+
   it("keeps a worktree expandable when only exited sessions remain", () => {
     const done = aSession({
       ...base,

@@ -1,4 +1,4 @@
-// Contract §6.2: status dot + harness command + title. Click FOCUSES the session; it does not
+// Contract §6.2: status dot + harness command + title. Click OPENS the existing session; it does not
 // scroll anything. §6.8 gives horizontal scroll to task 20's ColumnsLayout, which reacts to
 // the focus change — a row that called scrollIntoView itself would be a second owner.
 import type { JSX } from "react";
@@ -21,7 +21,7 @@ export function SessionRow(props: { sessionId: SessionId; selected: boolean }): 
     const found = session === undefined ? undefined : selectHarness(session.harness)(s);
     return found?.command ?? session?.harness ?? "";
   });
-  const focusSession = useCockpit((s) => s.focusSession);
+  const openSession = useCockpit((s) => s.openSession);
   const openContextMenu = useCockpit((s) => s.openContextMenu);
 
   if (session === undefined) return <></>;
@@ -43,7 +43,7 @@ export function SessionRow(props: { sessionId: SessionId; selected: boolean }): 
       data-pending={pending ? "true" : undefined}
       style={pending ? { opacity: 0.55 } : undefined}
       className="rail-row rail-level-4"
-      onClick={() => focusSession(session.id)}
+      onClick={() => openSession(session.id)}
       onContextMenu={(event) => {
         event.preventDefault();
         openContextMenu({ kind: "session", id: session.id, x: event.clientX, y: event.clientY });

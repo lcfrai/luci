@@ -1,0 +1,12 @@
+{
+  "observedAt": "2026-10-11T17:06:39Z",
+  "physicalAvailableBytes": 16197947392,
+  "visibleCgroupMaximum": "34359738368",
+  "visibleCgroupCurrentBytes": 25257422848,
+  "diskAvailableBytes": 672845824,
+  "requiredPhysicalAvailableBytes": 2147483648,
+  "requiredVisibleCgroupAvailableBytes": 2147483648,
+  "requiredDiskAvailableBytes": 134217728,
+  "scope": "Read-only source-test guard, not product admission or performance evidence",
+  "allowed": true
+}

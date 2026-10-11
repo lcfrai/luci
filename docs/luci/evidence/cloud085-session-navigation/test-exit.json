@@ -1,0 +1,20 @@
+{
+  "command": [
+    "npm",
+    "--prefix",
+    "desktop",
+    "test",
+    "--",
+    "src/store/luciSurface.test.ts",
+    "src/store/sourceNavigation.test.ts",
+    "src/store/projectNavigation.test.ts",
+    "src/store/store.test.ts",
+    "src/components/rail/Rail.test.tsx",
+    "--maxWorkers=1"
+  ],
+  "startedAt": "2026-10-11T17:06:39Z",
+  "finishedAt": "2026-10-11T17:06:53Z",
+  "exitCode": 0,
+  "selectedInputsUnchanged": true,
+  "baseRevision": "b35a9dd70688dd47b891b96a0131448ff1c864fd"
+}

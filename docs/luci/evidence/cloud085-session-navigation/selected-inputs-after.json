@@ -1,0 +1,107 @@
+[
+  {
+    "path": "desktop/src/store/slices/uiSlice.ts",
+    "bytes": 21087,
+    "sha256": "5eb8ca4deb43358cfa3c8a3c7b2c2e66a2d71a224b7f9e677d01bdf72d3e757b"
+  },
+  {
+    "path": "desktop/src/store/luciSurface.test.ts",
+    "bytes": 17926,
+    "sha256": "f95b3333f6756db6d81c7e8a136d14dc4e651b397ed4cdc5777be9d0117dcb11"
+  },
+  {
+    "path": "desktop/src/store/sourceNavigation.test.ts",
+    "bytes": 4743,
+    "sha256": "853827764a6aa2f439bd85120e74085cc56f526352d366c0ca223befe0181e5a"
+  },
+  {
+    "path": "desktop/src/store/projectNavigation.test.ts",
+    "bytes": 10103,
+    "sha256": "71d89957456703dde2c6be98394d8c1ecafb5d2b161871bc4ff177b0c90c163e"
+  },
+  {
+    "path": "desktop/src/store/store.test.ts",
+    "bytes": 32931,
+    "sha256": "09d006b5b88821d8be881823539d58c2190a340b63a35b646d7d0e6366b4c879"
+  },
+  {
+    "path": "desktop/src/store/store.ts",
+    "bytes": 4709,
+    "sha256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6"
+  },
+  {
+    "path": "desktop/src/store/slices/dataSlice.ts",
+    "bytes": 15743,
+    "sha256": "83d4be75de4ec7a4de2788cac45edc54ce50d9b1b483f87c059a725200584055"
+  },
+  {
+    "path": "desktop/src/store/types.ts",
+    "bytes": 11510,
+    "sha256": "7161062ac3f240e2a5709337845c9bd207c7929dda271984bc84fe2a0f0b537f"
+  },
+  {
+    "path": "desktop/src/store/selectors.ts",
+    "bytes": 12230,
+    "sha256": "b98178fa378f19cb486ee2a5dcbf970949bdf6ef3fa730b4a875bc7698cb3e31"
+  },
+  {
+    "path": "desktop/src/test/fixtures.ts",
+    "bytes": 5391,
+    "sha256": "5f8a1d84422914e034dcfe16958a6aaf3abf79b202698b5a180dae5f2c35fa84"
+  },
+  {
+    "path": "desktop/src/preferences/projectNavigation.ts",
+    "bytes": 4413,
+    "sha256": "ceef277726d06c850e02bf9fc1f9d167b21f3b03a1c115aca27e2652023ac31b"
+  },
+  {
+    "path": "desktop/src/components/rail/SessionRow.tsx",
+    "bytes": 2875,
+    "sha256": "c7295b1aedc74166120b04c0f95bdb05a6b74d6e8a0fb0c84228e669b6203fee"
+  },
+  {
+    "path": "desktop/src/components/rail/BranchRow.tsx",
+    "bytes": 4143,
+    "sha256": "ac5f9a233c69674f5774ed9f7766fa2aa3c5beb57f689b35c97ecee6671781db"
+  },
+  {
+    "path": "desktop/src/components/rail/WorktreeRow.tsx",
+    "bytes": 4263,
+    "sha256": "c3356922af35fb13df36e6cb603af908cd99d2327c8e95f72c7d7bec5fb9014b"
+  },
+  {
+    "path": "desktop/src/components/rail/Rail.tsx",
+    "bytes": 8508,
+    "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8"
+  },
+  {
+    "path": "desktop/src/components/rail/Rail.test.tsx",
+    "bytes": 22410,
+    "sha256": "14317a392b220881c148a3aee1b52c47c30ce6a90b57621839a21f51efa52fa9"
+  },
+  {
+    "path": "desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "desktop/package.json",
+    "bytes": 1967,
+    "sha256": "3423464851fd487363f89beca7a27df2654a94f6b70a74935841a851c9c66bd3"
+  },
+  {
+    "path": "desktop/package-lock.json",
+    "bytes": 247150,
+    "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+  },
+  {
+    "path": "desktop/vite.config.ts",
+    "bytes": 1710,
+    "sha256": "be4e7f5167e717324648803be82e755033db2a559c4fbada29ce8aeeacb67914"
+  },
+  {
+    "path": "desktop/tsconfig.json",
+    "bytes": 589,
+    "sha256": "65c82e3009d033dba271b9ce83a712bb4b934aeded98cb9d3e33472dd4d5f49c"
+  }
+]

@@ -31,7 +31,7 @@ export function BranchRow(props: {
   );
   const selectBranch = useCockpit((s) => s.selectBranch);
   const toggleBranch = useCockpit((s) => s.toggleBranch);
-  const focusSession = useCockpit((s) => s.focusSession);
+  const openSession = useCockpit((s) => s.openSession);
   const openContextMenu = useCockpit((s) => s.openContextMenu);
   const expandedWorktrees = useCockpit((s) => s.expandedWorktrees);
 
@@ -79,7 +79,7 @@ export function BranchRow(props: {
             className="rail-dot-btn"
             onClick={(event) => {
               event.stopPropagation();
-              if (attentionId !== null) focusSession(attentionId);
+              if (attentionId !== null) openSession(attentionId);
             }}
           >
             <StatusDot
