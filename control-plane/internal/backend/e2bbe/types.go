@@ -98,12 +98,23 @@ type Record struct {
 	UpdatedAt              time.Time `json:"updatedAt"`
 }
 
-// Checkpoint must durably store the complete hash-bound journal OFF the
-// replaceable Embed host before returning. Acknowledging the exact digest is a
-// required interface boundary, not proof of the caller's actual backup setup.
-// Production wiring must verify restore and supply a real implementation.
+// Checkpoint supplies an exclusive fenced journal writer. Production wiring
+// must verify the store is outside the replaceable runtime host and can restore.
 type Checkpoint interface {
+	Claim(ctx context.Context, claim CheckpointClaim) (CheckpointWriter, error)
+}
+type CheckpointClaim struct {
+	OwnerID       string
+	Scope         string
+	JournalDigest string
+	HasJournal    bool
+}
+
+// CheckpointWriter must durably acknowledge the exact complete journal before
+// provider mutation. A released/stale writer must never publish another head.
+type CheckpointWriter interface {
 	Commit(ctx context.Context, digest string, journal []byte) (acknowledgedDigest string, err error)
+	Close() error
 }
 type Config struct {
 	Endpoint   string

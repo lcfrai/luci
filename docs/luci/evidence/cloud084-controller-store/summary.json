@@ -1,0 +1,29 @@
+{
+  "scope": "Linux controlled TLS and real private filesystem fixtures, not actual E2B/VM/model/provider or host-loss/Windows runtime acceptance.",
+  "command": "GOMAXPROCS=2 go test -json -race -p 1 -count=1 -timeout=90s ./internal/backend/e2bbe",
+  "workingDirectory": "control-plane",
+  "toolchain": "go1.26.3 linux/amd64",
+  "exit": 0,
+  "passedTopLevel": 32,
+  "passedSubtests": 43,
+  "failed": [],
+  "skipped": [],
+  "selectedSourcesStable": true,
+  "selectedSourceCount": 20,
+  "crosscompile": {
+    "command": "GOMAXPROCS=2 GOOS=windows GOARCH=amd64 go test -c -p 1 -o <owned-artifact> ./internal/backend/e2bbe",
+    "exit": 0,
+    "scope": "Compile only; not Windows execution.",
+    "artifact": {
+      "bytes": 12293632,
+      "sha256": "a0516674bbc38defedee9f04be27cce6a7414afb27668ddedb1ebd53b6c12664",
+      "retained": false
+    }
+  },
+  "notes": [
+    "Includes and overlaps earlier allocation/transfer cases; not additive unique coverage.",
+    "Separation IDs/receipt are fixture configuration, not demonstrated physical host separation.",
+    "No failures in this final batch; earlier successful iterative batches overlap.",
+    "No new dependencies, installs, cloud/model requests or guest processes."
+  ]
+}

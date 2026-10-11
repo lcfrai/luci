@@ -24,6 +24,16 @@ type checkpointFixture struct {
 	fail bool
 }
 
+func (s *checkpointFixture) Claim(context.Context, CheckpointClaim) (CheckpointWriter, error) {
+	return &checkpointFixtureWriter{s}, nil
+}
+
+type checkpointFixtureWriter struct{ sink *checkpointFixture }
+
+func (w *checkpointFixtureWriter) Commit(ctx context.Context, hash string, b []byte) (string, error) {
+	return w.sink.Commit(ctx, hash, b)
+}
+func (w *checkpointFixtureWriter) Close() error { return nil }
 func (s *checkpointFixture) Commit(ctx context.Context, hash string, b []byte) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

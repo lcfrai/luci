@@ -22,21 +22,24 @@ type journal struct {
 	Records map[string]Record `json:"records"`
 }
 type Controller struct {
-	mu      sync.Mutex
-	config  Config
-	client  *providerClient
-	journal journal
-	root    *os.Root
-	lease   *os.File
-	busy    map[string]bool
-	closed  bool
-	stopped chan struct{}
-	ctx     context.Context
-	cancel  context.CancelFunc
-	workers sync.WaitGroup
+	mu         sync.Mutex
+	config     Config
+	client     *providerClient
+	journal    journal
+	root       *os.Root
+	lease      *os.File
+	busy       map[string]bool
+	closed     bool
+	stopped    chan struct{}
+	ctx        context.Context
+	cancel     context.CancelFunc
+	workers    sync.WaitGroup
+	checkpoint CheckpointWriter
 }
 
-func New(c Config) (*Controller, error) {
+func New(c Config) (*Controller, error) { return newController(c, nil, context.Background()) }
+
+func newController(c Config, restored []byte, restoreContext context.Context) (*Controller, error) {
 	if !validID(c.OwnerID) || !validID(c.Deployment.Scope) || !validID(c.Deployment.HostGeneration) || c.Deployment.Provider != "aws" || c.Deployment.InstanceType != "m8i.xlarge" || !validID(c.Deployment.Region) || c.Deployment.RuntimeRevision != RuntimeRevision || !digestPattern.MatchString(c.Deployment.ManagementReceiptDigest) || !digestPattern.MatchString(c.Deployment.RestoreReceiptDigest) || c.Checkpoint == nil || c.Authorize == nil {
 		return nil, ErrUnsupported
 	}
@@ -62,12 +65,42 @@ func New(c Config) (*Controller, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	out := &Controller{config: c, client: client, root: root, lease: lease, busy: map[string]bool{}, ctx: ctx, cancel: cancel, stopped: make(chan struct{}), journal: journal{Version: 1, OwnerID: c.OwnerID, Scope: c.Deployment.Scope, Records: map[string]Record{}}}
-	if e = out.load(); e != nil {
+	fail := func(err error) (*Controller, error) {
 		root.Close()
 		lease.Close()
 		cancel()
-		return nil, e
+		if out.checkpoint != nil {
+			_ = out.checkpoint.Close()
+		}
+		return nil, err
 	}
+	if restored != nil {
+		if _, e = root.Lstat("attempts.json"); !errors.Is(e, os.ErrNotExist) {
+			return fail(ErrConflict)
+		}
+		out.journal, e = validateJournal(restored, c.OwnerID, c.Deployment.Scope)
+		if e != nil {
+			return fail(e)
+		}
+	} else if e = out.load(); e != nil {
+		return fail(e)
+	}
+	_, fileErr := root.Lstat("attempts.json")
+	body, _ := json.Marshal(out.journal)
+	out.checkpoint, e = c.Checkpoint.Claim(restoreContext, CheckpointClaim{OwnerID: c.OwnerID, Scope: c.Deployment.Scope, JournalDigest: bytesDigest(body), HasJournal: restored != nil || fileErr == nil})
+	if e != nil {
+		return fail(e)
+	}
+	if out.checkpoint == nil {
+		return fail(ErrUnsupported)
+	}
+
+	if restored != nil {
+		if e = out.persist(restoreContext); e != nil {
+			return fail(e)
+		}
+	}
+
 	return out, nil
 }
 func (c *Controller) load() error {
@@ -90,38 +123,45 @@ func (c *Controller) load() error {
 	if e != nil || len(b) > maxResponse {
 		return ErrConflict
 	}
+	j, e := validateJournal(b, c.config.OwnerID, c.config.Deployment.Scope)
+	if e != nil {
+		return e
+	}
+	c.journal = j
+	return nil
+}
+func validateJournal(b []byte, owner, scope string) (journal, error) {
 	var j journal
 	decoder := json.NewDecoder(bytes.NewReader(b))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&j) != nil || decoder.Decode(new(any)) != io.EOF || j.Version != 1 || j.OwnerID != c.config.OwnerID || j.Scope != c.config.Deployment.Scope || j.Records == nil || len(j.Records) > maxRecords {
-		return ErrConflict
+	if decoder.Decode(&j) != nil || decoder.Decode(new(any)) != io.EOF || j.Version != 1 || j.OwnerID != owner || j.Scope != scope || j.Records == nil || len(j.Records) > maxRecords {
+		return journal{}, ErrConflict
 	}
 	seenVMs := map[string]bool{}
 	seenAttempts := map[string]bool{}
 	for op, r := range j.Records {
 		if op != r.Request.Identity.OperationID || !validRequest(r.Request) || r.Request.Identity.OwnerID != j.OwnerID || r.RequestDigest != digest(r.Request) || r.Deployment.Scope != j.Scope || r.Deployment.RuntimeRevision != RuntimeRevision || r.Revision < 1 || r.CreatedAt.IsZero() || r.UpdatedAt.Before(r.CreatedAt) || r.ProviderBillingSettled {
-			return ErrConflict
+			return journal{}, ErrConflict
 		}
 		if r.Template.MemoryMiB < 128 || r.Template.MemoryMiB > 32768 || r.Template.CPUMillis < 1000 || r.Template.CPUMillis > 16000 || !validID(r.Template.ID) || !digestPattern.MatchString(r.Template.BuildDigest) {
-			return ErrConflict
+			return journal{}, ErrConflict
 		}
 		if r.State != Creating && r.State != Allocated && r.State != Unknown && r.State != Cancelling && r.State != Absent {
-			return ErrConflict
+			return journal{}, ErrConflict
 		}
 		if r.ResourcesHeld != (r.State != Absent) || (r.SandboxID != "" && !validID(r.SandboxID)) || (r.State == Allocated && r.SandboxID == "") {
-			return ErrConflict
+			return journal{}, ErrConflict
 		}
 		key := r.Request.Identity.ProjectID + "/" + r.Request.Identity.TaskID + "/" + r.Request.Identity.AttemptID
 		if seenAttempts[key] || r.SandboxID != "" && seenVMs[r.SandboxID] {
-			return ErrConflict
+			return journal{}, ErrConflict
 		}
 		seenAttempts[key] = true
 		if r.SandboxID != "" {
 			seenVMs[r.SandboxID] = true
 		}
 	}
-	c.journal = j
-	return nil
+	return j, nil
 }
 
 // Caller holds mu. The private local journal survives a process crash; the
@@ -172,7 +212,7 @@ func (c *Controller) persist(ctx context.Context) error {
 	if dirErr != nil && runtime.GOOS != "windows" {
 		return ErrUnknown
 	}
-	ack, e := c.config.Checkpoint.Commit(ctx, bytesDigest(b), append([]byte(nil), b...))
+	ack, e := c.checkpoint.Commit(ctx, bytesDigest(b), append([]byte(nil), b...))
 	if e != nil || ack != bytesDigest(b) {
 		return ErrUnknown
 	}
@@ -508,6 +548,9 @@ func (c *Controller) Close(ctx context.Context) error {
 			c.client.http.CloseIdleConnections()
 			_ = c.root.Close()
 			_ = c.lease.Close()
+			if c.checkpoint != nil {
+				_ = c.checkpoint.Close()
+			}
 			c.mu.Unlock()
 			close(c.stopped)
 		}()
