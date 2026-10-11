@@ -1,5 +1,10 @@
 # Context, orchestration and delivery scope
 
+## Current status — scope audit passed, implementation resumed (12 October 2026)
+
+The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.
+
+
 ## Controlling contract and scope audit
 
 [PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) is the single controlling product direction and requirement-to-code map. **The owner scope gate is held: no new implementation, delegated work, tests/builds or provisioning until the originating local audit explicitly lifts it.** Contract publication does not resume work. Existing safe diagnostics/owned cleanup may finish; preserve draft source and failed evidence.

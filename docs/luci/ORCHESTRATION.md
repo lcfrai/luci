@@ -1,5 +1,10 @@
 # Project understanding and reviewed amendments
 
+## Current status — scope audit passed, implementation resumed (12 October 2026)
+
+The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.
+
+
 [PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) controls scope; its owner audit gate is held. This document describes existing mechanisms and their extension points, not a smaller completion contract.
 
 One persistent conversational Luci per person is the primary interface and coordinates an understandable project: agreed purpose, requirements, current phase, exact build scope, next step and amendments. Discover, Design, Develop and Deploy are revisitable tools of that coordinator. Conversation is required, while canonical versioned context, current authority and observed evidence remain the source of truth. Chat alone does not prove an application works.

@@ -1,8 +1,21 @@
 # Continuing product-quality work
 
-## Scope gate held — controlling reconciliation
+## Current status — scope audit passed, implementation resumed (12 October 2026)
 
-[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) is the controlling requirement/architecture/acceptance map. All new product/delegated implementation, tests/builds, installs and provisioning are paused pending the originating local thread's explicit audit lift. Publication is not resumption. Existing safe read-only diagnostics and owned cleanup may finish. Every worker acknowledged the gate and CLOUD-088 addition; preserved draft paths/hashes are in [CONTRACT-GATE-INVENTORY.json](CONTRACT-GATE-INVENTORY.json). Older “fixing”, “continue”, or handoff instructions below describe retained work, not permission to cross this gate.
+The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.
+
+
+## Resumed implementation owners and immediate work
+
+- **CLOUD-085 — fixing:** coordinator backend and UX owners resume preserved drafts, then implement the durable conversational action chain through current typed run/check/review/preview/release operations. Draft-only policy is not completion.
+- **CLOUD-086 — fixing:** team backend owner implements durable scoped intents, compatible reconciliation, explicit contradictory decisions and affected-work continuation/replay; UI is coordinated with CLOUD-085.
+- **CLOUD-084/088 — fixing:** microVM owner verifies the concrete pinned Embed integration/security/durability boundary, then implements per-attempt microVM lifecycle/transfer and elastic swarm scheduling with root. No unsupported provider or live-spend claim; preserve the12-task/4-project/4-concurrent acceptance workload and support higher configured concurrency under actual capacity/budget.
+- **CLOUD-087 — investigating:** root owns Windows runtime observation/admission diagnosis and an evidence-preserving correction; six later good samples do not explain the original missing snapshot. Preserve CPU/RAM/disk guards and unrelated Docker work.
+- **CLOUD-032 and retained recovery/delivery issues:** root integrates usable verticals and addresses failures with matched evidence; existing targets, charges, negative fixtures and real-provider/cloud/Windows gates stay open.
+
+## Scope-audit baseline — historical stopped-work inventory
+
+[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) is the controlling requirement/architecture/acceptance map. The table retains the b3ecb011 stopped-work baseline. The originating local thread has now explicitly lifted the gate; the current owner assignments immediately below resume implementation. Existing safe read-only diagnostics and owned cleanup may finish. Every worker acknowledged the gate and CLOUD-088 addition; preserved draft paths/hashes are in [CONTRACT-GATE-INVENTORY.json](CONTRACT-GATE-INVENTORY.json). Older “fixing”, “continue”, or handoff instructions below describe retained work, not permission to cross this gate.
 
 | Priority / issue | Current scope, state and owner |
 | --- | --- |
@@ -15,7 +28,7 @@
 | LOCAL-025 | Committed optional interchange at2cb58a8a, selected source checks only. Retain capability; no primary manual host-CLI path or new expansion. |
 | LOCAL-024 | Scoped native-owned-lifecycle regression now reported verified at577 by the local tester, including ordinary UI Close; details below. No full product acceptance. |
 
-After explicit gate lift, deliver the three complete acceptance verticals in the controlling contract: conversational amendment to deployment, two-Lucis coordination to delivery, and elastic per-agent microVM fan-out/recovery. Local-first sequencing preserves all three; it does not shrink cloud/team scope or require a sleeping owner's further scope reply. Configured cloud access/cost policy still controls actual spend.
+With the explicit gate now lifted, deliver the three complete acceptance verticals in the controlling contract: conversational amendment to deployment, two-Lucis coordination to delivery, and elastic per-agent microVM fan-out/recovery. Local-first sequencing preserves all three; it does not shrink cloud/team scope or require a sleeping owner's further scope reply. Configured cloud access/cost policy still controls actual spend.
 
 ## Current local trial blocker — CLOUD-087
 

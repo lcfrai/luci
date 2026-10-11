@@ -1,5 +1,10 @@
 # Cloud microVM execution: candidate architecture and reuse evidence
 
+## Current status — scope audit passed, implementation resumed (12 October 2026)
+
+The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.
+
+
 [PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) controls this architecture and the held owner audit gate. **CLOUD-084 is an open P1 implementation gap; CLOUD-088 adds required elastic per-task microVM swarms. E2B runtime Embed is the preferred first-adapter candidate, not adopted, implemented or verified.** The earlier managed-E2B-first proposal is superseded. No provider currently supports Luci microVM Develop. Local upstream Docker remains implemented; SSH remote Docker management/application hosting cannot pass microVM isolation.
 
 Luci owns context, environments, coordination, review and delivery. Codex, Claude Code and other explicitly supported upstream tools remain the coding engines. Discover and Design create and amend context; Develop consumes the exact approved version; changes and checks return for review; Deploy uses reviewed source and evidence. Standalone export/return is secondary interoperability, not a replacement for integrated Develop.

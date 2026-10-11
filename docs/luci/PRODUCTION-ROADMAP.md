@@ -1,5 +1,10 @@
 # Luci production roadmap
 
+## Current status — scope audit passed, implementation resumed (12 October 2026)
+
+The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.
+
+
 [PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) controls scope and acceptance. The owner scope-audit gate is held; no new implementation or workload starts until the originating local audit explicitly lifts it. Older checkpoint instructions below are retained evidence and do not override the gate.
 
 ## Revised immediate delivery order — corrected 11 October 2026 UTC

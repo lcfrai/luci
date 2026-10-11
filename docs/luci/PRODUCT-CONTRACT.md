@@ -1,14 +1,19 @@
 # Controlling Luci product contract
 
-Owner direction reconciled 11 October 2026 UTC / 12 October local. This is the single controlling product contract. **Implementation is paused for the owner's scope audit. Publishing this document does not lift that gate.**
+## Current status — scope audit passed, implementation resumed (12 October 2026)
+
+The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.
+
+
+Owner direction reconciled 11 October 2026 UTC / 12 October local. This is the single controlling product contract. **The original scope gate was explicitly lifted by the originating local audit on12October2026, as recorded above. The required product/acceptance contract is unchanged.**
 
 ## Authority and gate
 
 The latest explicit owner direction controls. For product scope, this document takes precedence over AGENTS.md's older product descriptions, GOAL, PLAN, ORCHESTRATION, PROJECT-RUN-CONTRACT, API, CLOUD, the roadmap, quality/worklist and previous handoffs. AGENTS.md points here and retains its compatible engineering, licensing and ownership rules. API and runtime documents describe implemented mechanisms, not permission to narrow the product. Evidence capsules and dated receipts remain immutable historical observations; they cannot redefine acceptance.
 
-The originating local thread `01a1199f-7500-7843-b02b-081081e536fa` will audit the exact committed reconciliation. **No automatic implementation resumption:** wait for that audit to explicitly lift the gate. Until then, no feature edits, delegated implementation, new product tests/builds, installations, provider calls or provisioning. Necessary contract reconciliation and already-authorized safe read-only diagnostics/owned cleanup may finish. Preserve incomplete work and failed fixtures.
+The originating local thread `01a1199f-7500-7843-b02b-081081e536fa` audited the exact committed reconciliation and explicitly lifted the gate. The previous pause was mandatory until that outcome; publication alone did not lift it. Aligned feature work, delegated implementation and verification now resume under existing authority, credential and cloud cost policies. Preserve incomplete work and failed fixtures.
 
-The full working objective remains unfinished; its execution is paused. No persistent-goal API is exposed in this session. The last confirmed platform goal is blocked; neither this commit nor an active chat reactivates it.
+The full working objective remains unfinished; aligned implementation has resumed. No persistent-goal API is exposed in this session. The last confirmed platform goal is blocked; neither this commit nor an active chat reactivates it.
 
 ## Required product
 
@@ -97,9 +102,9 @@ Use two authenticated people with distinct primary Luci identities on one author
 5. Observe per-VM spin-down/deletion and exact settlement in both provider inventory and Luci ownership/charge records, then admit waiting work fairly. Distinguish lingering stopped storage/snapshots from active compute. List any retained charges and why; no manual ledger deletion, hidden orphan VM or generic empty inventory shortcut. Preserve unrelated provider resources and all failed evidence.
 6. Measure useful verified throughput, elapsed time, latency, total local/remote owned resources and provider/model cost against a matched serial baseline for this workload. Report observations without promising unlimited scale or unsupported speedups. Local responsiveness targets and safety guards remain unchanged.
 
-## Paused work, ownership and acknowledgements
+## Historical pause inventory and current ownership
 
-All discovered workers received and acknowledged the gate, including the later CLOUD-088 addition. Root is accountable for publication and keeping the gate closed. The names below assign responsibility after explicit lift, not permission to work now.
+All discovered workers received and acknowledged the original gate, including CLOUD-088. The table below preserves that stopped-work inventory at b3ecb011. The explicit audit lift now restores these assignments; current resumption is recorded in the worklist and audit-lift record. The earlier preserved draft hashes remain historical evidence.
 
 | Worker | Gate acknowledgement / preserved state |
 | --- | --- |

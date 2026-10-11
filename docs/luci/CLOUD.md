@@ -1,5 +1,10 @@
 # Existing management and application cloud rollout
 
+## Current status — scope audit passed, implementation resumed (12 October 2026)
+
+The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.
+
+
 [PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) controls scope; the owner audit gate is held. **This page documents existing VM/Docker management, SSH workspace compatibility and application deployment. It does not implement cloud Develop microVM isolation.** CLOUD-084 must add a real supported microVM backend; CLOUD-088 must allocate each cloud task subagent its own microVM with elastic scheduling and observed teardown. A remote Docker host, these VM presets and a Coolify application are not those capabilities.
 
 The default Develop path is local Docker. The existing remote workspace stores projects and runs the retained container compatibility path on the selected SSH host. The desktop stays on the person's computer, and management stays behind verified SSH. Coolify handles public application deployment and HTTPS. Deployment location and coding execution location are separate. Per-person Luci and team coordination must lead through actual policy-permitted deployment; this infrastructure guide does not reduce that journey to manual setup.
