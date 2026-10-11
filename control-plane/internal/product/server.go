@@ -63,6 +63,7 @@ type Options struct {
 }
 
 type Server struct {
+	externalHandoffAuthorize        func(context.Context, string) error
 	projectSwarmCheckpointAuthorize func(context.Context, ProjectSwarmRecoveryRequest) error
 	projectSwarmCheckpointGuard     func(context.Context, ProjectSwarmRecoveryRequest) (func(), error)
 	taskHandoffAuthorize            func(context.Context, ProjectSwarmRecoveryRequest) error

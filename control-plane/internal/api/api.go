@@ -435,6 +435,7 @@ func New(d Deps) (*API, error) {
 		d.Product.SetProjectSwarmCheckpointGuard(a.authorizeTaskCheckpoint, a.acquireStoppedTaskOutput)
 		d.Product.SetTaskHandoffCollector(a.authorizeTaskOutput, a.collectTaskHandoff)
 		d.Product.SetRuntimeResourceSnapshot(d.ResourceSnapshot)
+		a.deps.Product.SetExternalHandoffAuthorizer(a.authorizeExecutionRetirement)
 		checkRuntime := product.ProjectCheckRuntime{AcknowledgeCompleted: a.acknowledgeProjectCheckResults, CaptureActor: a.captureCheckActor, AuthorizeControl: a.authorizeExecutionRetirement, Execute: a.executeProjectCheck, Busy: a.projectCheckBusy, Recovery: a.projectCheckRecovery, Recover: a.recoverProjectCheck}
 		if d.ObserveTaskCompletions {
 			checkRuntime.Observe = a.ObserveChecksOnce

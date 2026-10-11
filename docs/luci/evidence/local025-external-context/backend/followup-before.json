@@ -1,0 +1,11 @@
+{
+  "control-plane/internal/product/external_handoff.go": "b8be107441ac1370c6533159c654e95b4d74791b94142ea9647a08f7d04b5aec",
+  "control-plane/internal/product/external_handoff_test.go": "419f6b898a1fe5d8ec1309fddb0f43a8a5140213ed10b9bdfa39288429795a72",
+  "control-plane/internal/product/files_git_review.go": "12a24a44fcc43670b1faac355be05849fa68b10add7b49e5f11d1eb72e03174a",
+  "control-plane/internal/product/journey_context.go": "722561bc455e9d04370c23bb7d58363572cdf6aa7fa3bc06206ce3635395f669",
+  "control-plane/internal/product/server.go": "48550248dae224384c32e54fc014b26b1361168f20a84d12880aa0e3773d7300",
+  "control-plane/internal/product/routes_audit_test.go": "fd29e598cf23b7b76983d78c2e865d58a192a2389557ec55f43b650951d59c7b",
+  "control-plane/internal/management/team_authorization.go": "535109965ae0e81c368cc15e98bda639390596660de696f6179cfc55accc46e2",
+  "control-plane/internal/management/team_external_handoff_test.go": "6bda3e33bdedc32326b7a9eda828fd71e7af89fae7167296ce310df06d291e0f",
+  "control-plane/internal/api/api.go": "6b9c1425b722538dacd35373a7996a07d7fb907f7c5916ed06fb94982807f915"
+}

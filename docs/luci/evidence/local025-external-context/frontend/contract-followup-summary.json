@@ -1,0 +1,16 @@
+{
+  "assertions": 26,
+  "passed": 26,
+  "failed": 0,
+  "pending": 0,
+  "files": 2,
+  "testExit": 0,
+  "typecheckExit": 0,
+  "stableRepositoryInputs": 448,
+  "sourceStable": true,
+  "changedSince75PassBatch": [
+    "desktop/src/api/externalHandoffs.test.ts",
+    "desktop/src/api/externalHandoffs.ts"
+  ],
+  "countsOverlap": true
+}

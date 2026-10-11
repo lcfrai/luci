@@ -1,0 +1,6 @@
+{
+  "scope": "final initial focused batch; subsequently added report-scope tests only",
+  "changedSinceCapture": [
+    "control-plane/internal/product/external_handoff_test.go"
+  ]
+}

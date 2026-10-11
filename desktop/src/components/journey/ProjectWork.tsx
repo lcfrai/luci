@@ -16,6 +16,7 @@ import { useSetup } from "../setup/SetupProvider";
 import { ProjectPlan } from "./ProjectPlan";
 import { ProjectChecks } from "./ProjectChecks";
 import { ProjectRuns, type ProjectRunDraft } from "./ProjectRuns";
+import { ExternalToolHandoff } from "./ExternalToolHandoff";
 import { Button } from "../fluid/components/button";
 import "./journey.css";
 
@@ -158,6 +159,7 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
         setSessionFocus({ sessionId: target.sessionId, origin: target.origin });
       }
     }} />
+    <ExternalToolHandoff projectId={projectId} onReviewPlan={() => { if (details.current) { details.current.open = true; details.current.scrollIntoView({ block: 'nearest' }); } }} />
     <details className="project-work" open={expanded} ref={details}>
       <summary>
         <strong role="heading" aria-level={1}>Project plan and checks</strong>

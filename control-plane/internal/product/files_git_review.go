@@ -29,7 +29,7 @@ type gitReview struct {
 type privateReviewGit struct{ GitDir, Worktree, ObjectsDir string }
 type privateReviewGitKey struct{}
 
-func (s *Server) captureGitReview(ctx context.Context, dir, destination string) (gitReview, error) {
+func (s *Server) captureGitReview(ctx context.Context, dir, destination string, inventory ...map[string]ExternalSourceFile) (gitReview, error) {
 	var result gitReview
 	bounded, err := journeyGitBoundary(ctx, s.journeyGitRoot(ctx), dir, []string{"status"})
 	if err != nil {
@@ -201,6 +201,12 @@ func (s *Server) captureGitReview(ctx context.Context, dir, destination string) 
 		total += int64(len(data))
 		fmt.Fprintf(h, "file:%s\x00%d\x00%d\x00", path, info.Mode().Perm()&0111, len(data))
 		h.Write(data)
+		// Optional external handoff inventory uses the identical opened bytes
+		// hashed into this review, without an independent file-reading pass.
+		if len(inventory) == 1 && inventory[0] != nil {
+			sum := sha256.Sum256(data)
+			inventory[0][path] = ExternalSourceFile{SHA256: hex.EncodeToString(sum[:]), Bytes: len(data), Executable: info.Mode().Perm()&0111 != 0}
+		}
 		if destination != "" {
 			target := filepath.Join(destination, filepath.FromSlash(path))
 			if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {

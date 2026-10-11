@@ -1,0 +1,89 @@
+{
+  "scope": "Linux native Git + controlled source/API/management fixtures. No model, Docker, packaged app, browser or native Windows execution. Full product suite not run.",
+  "reports": {
+    "first": {
+      "topLevel": {
+        "pass": 1,
+        "fail": 5,
+        "skip": 0
+      },
+      "subtests": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+          "Action": "fail",
+          "Elapsed": 1.7189999999999999
+        },
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+          "Action": "fail",
+          "Elapsed": 0.792
+        }
+      ],
+      "jsonlSHA256": "7090d28fc9913a553b7cfa9873411bf49c74102e9f7743fe9abc859a95a129e9"
+    },
+    "final": {
+      "topLevel": {
+        "pass": 6,
+        "fail": 0,
+        "skip": 0
+      },
+      "subtests": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+          "Action": "pass",
+          "Elapsed": 2.608
+        },
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+          "Action": "pass",
+          "Elapsed": 1.22
+        }
+      ],
+      "jsonlSHA256": "c4546e44040b94bdc42445598017cf4a2e0cd3d54e6c3325fd2ae6d46c804b4b"
+    },
+    "followup": {
+      "topLevel": {
+        "pass": 4,
+        "fail": 0,
+        "skip": 0
+      },
+      "subtests": {
+        "pass": 5,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+          "Action": "pass",
+          "Elapsed": 1.215
+        }
+      ],
+      "jsonlSHA256": "c7d3518e0e9a9fec545fa83ddd8ed4aae6ff8932a09877fc938363f885ab83fd"
+    }
+  },
+  "sourceStable": true,
+  "selectedSourceFiles": 9,
+  "originalLimit": "first batch was draft validation during edits/compile; no frozen before-fix or complete compiled-input provenance claim. All draft failures retained.",
+  "finalLimit": "final-before source snapshot followed by complete final batch; one test file appended afterward, captured separately by followup-before/after. Follow-up does not repeat unchanged completed tests.",
+  "commands": [
+    "GOMAXPROCS=2 go test -p 1 -count=1 -timeout=5m ./internal/product ./internal/management -run TestExternal|TestTeamExternalHandoff|TestProductRegisteredReadsCannotMutateProjectsOrStartResources -json",
+    "GOMAXPROCS=2 go test -p 1 -count=1 -timeout=5m ./internal/product -run TestExternalHandoffReportScopeAndBaselineIntegrity|TestGitReviewDisplaysUntrackedTextAndPortableContextWithoutCredentialBytes|TestGitReviewRefusesConcurrentDisplayChangeAndOversizeFiles|TestReviewedCommitCapturesExactFilesAndLeavesConcurrentEditsUncommitted -json",
+    "GOMAXPROCS=2 go test -p 1 -run ^$ ./internal/api (compile only; exit0; no tests to run)"
+  ],
+  "apiCompilation": {
+    "passed": true,
+    "runtimeTests": 0,
+    "logSHA256": "d04f17c559201356fc19d6f9ea3f83395e52bdd4316f19646ffae15f35f8efc7"
+  }
+}

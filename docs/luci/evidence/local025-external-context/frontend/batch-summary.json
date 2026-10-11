@@ -1,0 +1,10 @@
+{
+  "baseRevision": "0db053b866882f1f1a7709ee478118a383f00a31",
+  "scope": "controlled component/API and unchanged parent ProjectWork/seams regression fixtures; no browser/native/provider/container execution",
+  "stableRepositoryInputs": 448,
+  "sourceStable": true,
+  "affectedAssertions": 75,
+  "affectedFiles": 4,
+  "typecheckExit": 0,
+  "followup": "Two final API contract files changed after this batch; the separately recorded contract-followup batch covers them. Counts overlap."
+}

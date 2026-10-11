@@ -1,0 +1,13 @@
+{
+  "workingDirectory": "desktop",
+  "runtimeActivation": "source /workspace/.luci-tools/activate.sh",
+  "affected": [
+    "npm test -- src/api/externalHandoffs.test.ts src/components/journey/ExternalToolHandoff.test.tsx src/components/journey/ProjectWork.test.tsx src/seams.test.ts --maxWorkers=1 --reporter=json --outputFile=/workspace/.luci-tools/local025-frontend/final-tests.json",
+    "npm run typecheck"
+  ],
+  "contractFollowup": [
+    "npm test -- src/api/externalHandoffs.test.ts src/components/journey/ExternalToolHandoff.test.tsx --maxWorkers=1 --reporter=json --outputFile=/workspace/.luci-tools/local025-frontend/contract-followup-tests.json",
+    "npm run typecheck"
+  ],
+  "capture": "stdout/stderr redirected separately; individual exit codes retained; snapshot.py ran immediately before/after each sequential batch. Dependency/node_modules bytes were not captured."
+}

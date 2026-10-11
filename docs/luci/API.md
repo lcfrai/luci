@@ -1209,3 +1209,49 @@ client. Failed work can direct attention to its exact retained run. Backend
 Create/Start acknowledgement failures remain unknown/recoverable because an
 error response does not prove that no worker was created. Neither opening Home
 nor observing these diagnostics allocates, retries or integrates work.
+
+## Optional external context interoperability
+
+This is a supplementary path; primary Develop boots the chosen upstream harness
+inside Luci's Docker execution boundary. No external-handoff route launches a
+session, imports credentials, executes report commands or changes application
+source. Handoff reads require project Read; creation and return recording require
+current Edit, rechecked after waiting and before publication. Execute is not
+required for these context-only operations.
+
+Routes under `/v1/product/projects/{id}/external-handoffs`:
+
+- `GET` lists bounded handoff summaries.
+- `POST {selection,idempotencyKey}` captures canonical approved context for the
+  existing `ImplementationContextRequest` (project, brief/plan/specification/design
+  revisions and selected task IDs). It binds current private review authority
+  and source. The stable request key supports exact readback, never a changed
+  assignment. It returns201 for a new capture or200 for the same retained one.
+- `GET /{handoffId}` reads the immutable assignment and retained unverified returns.
+- `GET /{handoffId}/bundle` verifies retained files and downloads an inert ZIP with
+  `manifest.json`, captured Markdown/JSON context, `source-files.json`,
+  `HANDOFF.md` and `report-template.json`. No source code, private approval receipt,
+  user agent-file replacement or credential is exported. Extract into a separate
+  context directory; never over the working project.
+- `GET /{handoffId}/review` observes current context and actual Git-visible source,
+  returning `contextCurrent`, its explanation, changed-file hashes and a
+  `reviewDigest`. Expected implementation changes are reviewable; changed context
+  requires a fresh approved assignment. Reads do not save or execute anything.
+- `POST /{handoffId}/returns {expectedReviewDigest,idempotencyKey,report}` rechecks
+  current authority, source and approved context before retaining the report.
+  `report` requires exact `projectId`, `handoffId`, `handoffDigest`, nonempty
+  `summary`, `checks:[{command,outcome,output}]` and `notes`. The template directs
+  the tool to copy identity from the manifest. Foreign identity and stale reviews
+  refuse; a request key cannot name a different report. Exact repeats return the
+  original receipt. All retained returns have `evidenceStatus:"unverified"`.
+
+Reports are bounded to128KiB,50checks and20returns per handoff. Per-project
+handoff history is bounded to100 records. Reaching a bound refuses new writes;
+there is no automatic evidence deletion. Historical bundles remain inspectable
+and byte-stable after restart or amendments. The source inventory is bounded by
+the existing Git review limits. Saving a return does not integrate source,
+approve context, pass checks, mark requirements complete or deploy. Existing
+source review, independently executed checks and release controls remain the
+next actions. Download success means transfer started, not proof that a user
+retained it. A lost write acknowledgement requires explicit saved-record readback
+before another mutation; the UI retains a bounded project-scoped report draft.

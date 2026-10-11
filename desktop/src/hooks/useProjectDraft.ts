@@ -29,7 +29,7 @@ export interface ProjectDraftState<T> {
 }
 /** Only project documents and command drafts enter this hook. Runtime consent and credentials do not. */
 export function useProjectDraft<T>({ scope, kind, base, baseValue, value, dirty, valid }: {
-  scope: string | null; kind: "definition" | "design-plan" | "sketch" | "implementation-plan" | "verification-setup";
+  scope: string | null; kind: "definition" | "design-plan" | "sketch" | "implementation-plan" | "verification-setup" | "external-report";
   base: string | null; baseValue?: T | null; value: T | null; dirty: boolean; valid(value: unknown): value is T;
 }): ProjectDraftState<T> {
   const key = scope ? PREFIX + JSON.stringify([scope, kind]) : null;

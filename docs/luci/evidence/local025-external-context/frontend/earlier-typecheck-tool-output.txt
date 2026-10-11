@@ -1,0 +1,3 @@
+Observed terminal output, preserved from tool session 8593 (not a redirected compiler log):
+src/components/journey/ExternalToolHandoff.tsx(153,91): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<`${string}-${string}-${string}-${string}-${string}`>'.
+Exit 2. Corrected useState<string> for restored request key.

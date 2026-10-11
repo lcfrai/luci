@@ -150,6 +150,7 @@ func inspectJourneyContext(dir string, state journeyState) journeyContextStatus 
 	return result
 }
 func (s *Server) registerJourneyContext(mux Registrar) {
+	s.registerExternalHandoffs(mux)
 	mux.HandleFunc("GET /v1/product/projects/{id}/context", s.getJourneyContext)
 	mux.HandleFunc("GET /v1/product/projects/{id}/context/archive", s.getJourneyArchive)
 	mux.HandleFunc("POST /v1/product/projects/{id}/context/exports/repair", s.repairJourneyExports)

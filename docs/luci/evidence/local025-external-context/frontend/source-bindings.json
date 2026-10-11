@@ -1,0 +1,53 @@
+[
+  {
+    "path": "desktop/src/api/externalHandoffs.ts",
+    "afterSha256": "23c4fc8247ac0028868008818984d5bb968ff8a0a08c5d4e29474719eb263c6d",
+    "bytes": 6531,
+    "baseRevision": "0db053b866882f1f1a7709ee478118a383f00a31",
+    "existedAtBase": false
+  },
+  {
+    "path": "desktop/src/api/externalHandoffs.test.ts",
+    "afterSha256": "eebe9374cfd2ee4b70cce11e0f88f4b90a98c98c762ec51c3852002496096a65",
+    "bytes": 4163,
+    "baseRevision": "0db053b866882f1f1a7709ee478118a383f00a31",
+    "existedAtBase": false
+  },
+  {
+    "path": "desktop/src/components/journey/ExternalToolHandoff.tsx",
+    "afterSha256": "e2c7dd8ea45128c02156429b8be868aa0d8352db76621155299c6a749ab81be0",
+    "bytes": 22553,
+    "baseRevision": "0db053b866882f1f1a7709ee478118a383f00a31",
+    "existedAtBase": false
+  },
+  {
+    "path": "desktop/src/components/journey/ExternalToolHandoff.test.tsx",
+    "afterSha256": "0cb9e97fcf9d4b0f2b7b7116937d140cd35b000a6550545245b48093902ef3f0",
+    "bytes": 17085,
+    "baseRevision": "0db053b866882f1f1a7709ee478118a383f00a31",
+    "existedAtBase": false
+  },
+  {
+    "path": "desktop/src/components/journey/external-tool-handoff.css",
+    "afterSha256": "24548ef4c397544388b10acb2f5ee28d698bb33fd9aed97c88c3341e85c4b65b",
+    "bytes": 2085,
+    "baseRevision": "0db053b866882f1f1a7709ee478118a383f00a31",
+    "existedAtBase": false
+  },
+  {
+    "path": "desktop/src/components/journey/ProjectWork.tsx",
+    "afterSha256": "f1bbc79a77bafb2eeca08fb49edc86b5801c9fa50c2940638a8d34149ad0cecf",
+    "bytes": 15633,
+    "baseRevision": "0db053b866882f1f1a7709ee478118a383f00a31",
+    "existedAtBase": true,
+    "beforeSha256": "6c95a5f2f1fa9f16df5b4535165a6bb7718fe2fd9dbacb6104f5cb6f276ce740"
+  },
+  {
+    "path": "desktop/src/hooks/useProjectDraft.ts",
+    "afterSha256": "812c8e8eae1d0df9920f975680d5f1905742c7dc5c7e7bd584162251f18a6ed6",
+    "bytes": 7187,
+    "baseRevision": "0db053b866882f1f1a7709ee478118a383f00a31",
+    "existedAtBase": true,
+    "beforeSha256": "d9991f749c285641bddb7eb8f565b3c853e61136148a7a32aa98a49f4fb831b2"
+  }
+]

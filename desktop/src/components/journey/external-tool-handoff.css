@@ -1,0 +1,18 @@
+.external-handoff-entry { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; border-block-end: 1px solid var(--line-soft); background: var(--surface); }
+.external-handoff-entry h2 { font-size: 16px; font-weight: 550; margin: 0 0 6px; }
+.external-handoff-entry p { margin: 0; color: var(--ink-2); max-inline-size: 68ch; line-height: 1.5; }
+.external-handoff-body { display: grid; gap: 20px; min-inline-size: 0; }
+.external-handoff-body section + section { border-block-start: 1px solid var(--line-soft); padding-block-start: 18px; }
+.external-handoff-body h3 { margin-block: 0 10px; font-size: 16px; }
+.external-handoff-body p, .external-handoff-body li { line-height: 1.6; overflow-wrap: anywhere; }
+.external-handoff-body pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--canvas); padding: 12px; font: 12px/1.6 var(--mono); max-block-size: 240px; overflow: auto; }
+.external-handoff-body textarea { inline-size: 100%; font-family: var(--mono); resize: vertical; }
+.external-handoff-body details { margin-block: 14px; }
+.external-handoff-body summary { cursor: pointer; min-block-size: 36px; }
+.external-handoff-readiness { padding-inline-start: 20px; }
+.external-handoff-tasks { margin: 16px 0; padding: 12px; border: 1px solid var(--line-soft); border-radius: 8px; display: grid; gap: 8px; }
+.external-handoff-tasks label, .external-handoff-consent { display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; padding-block: 8px; }
+.external-handoff-tasks input, .external-handoff-consent input { margin-block-start: 5px; flex: 0 0 auto; }
+.external-handoff-tasks small { display: block; color: var(--ink-2); }
+.external-handoff-review { padding: 14px; border: 1px solid var(--line-soft); border-radius: 8px; margin-block: 16px; }
+@media (max-width: 700px) { .external-handoff-entry { align-items: flex-start; flex-direction: column; gap: 12px; } .external-handoff-body .journey-actions { align-items: stretch; } .external-handoff-body .journey-actions button { white-space: normal; } }

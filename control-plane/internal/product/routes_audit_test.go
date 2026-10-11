@@ -32,9 +32,13 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
-	"GET /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/handoff":    "Reads the exact bounded immutable report and answer receipts plus recorded run evidence; no capture, backend probe, lifecycle lock, allocation or writes. TestTaskHandoffReadAudit checks existing and missing GET/HEAD without a collector call.",
-	"GET /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/checkpoint": "Reads complete bounded retained regular-file text and immutable base/target Git objects; no checkpoint intent, lifecycle lock, allocation, staging, repair or dispatch. TestSwarmCheckpointCapabilityReadAudit asserts GET/HEAD preserve private/source/retained bytes.",
-	"GET /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/recovery":   "Reads the exact retained operation and current edit-scoped private recovery capability; no lifecycle lock, Docker probe, intent/proof/lease write, child observation or resource allocation. See TestProductSwarmRecoveryCapabilityReadAudit for existing-attempt GET/HEAD and refusal paths.",
+	"GET /v1/product/projects/{id}/external-handoffs":                                          "Reads bounded private handoff metadata; no creation, dispatch or repair.",
+	"GET /v1/product/projects/{id}/external-handoffs/{handoffId}":                              "Reads exact private handoff metadata and retained unverified reports; no writes.",
+	"GET /v1/product/projects/{id}/external-handoffs/{handoffId}/bundle":                       "Verifies and streams retained context bytes in an inert ZIP; no repair, code execution or source writes.",
+	"GET /v1/product/projects/{id}/external-handoffs/{handoffId}/review":                       "Reads private context and bounded Git/source hashes; does not accept imported evidence or execute commands.",
+	"GET /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/handoff":        "Reads the exact bounded immutable report and answer receipts plus recorded run evidence; no capture, backend probe, lifecycle lock, allocation or writes. TestTaskHandoffReadAudit checks existing and missing GET/HEAD without a collector call.",
+	"GET /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/checkpoint":     "Reads complete bounded retained regular-file text and immutable base/target Git objects; no checkpoint intent, lifecycle lock, allocation, staging, repair or dispatch. TestSwarmCheckpointCapabilityReadAudit asserts GET/HEAD preserve private/source/retained bytes.",
+	"GET /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/recovery":       "Reads the exact retained operation and current edit-scoped private recovery capability; no lifecycle lock, Docker probe, intent/proof/lease write, child observation or resource allocation. See TestProductSwarmRecoveryCapabilityReadAudit for existing-attempt GET/HEAD and refusal paths.",
 	"GET /v1/product/swarm-scheduler":                                                          "Reads private scheduler settings and already-cached resource observations; no host sampling, queue repair, allocation or dispatch.",
 	"GET /v1/product/projects/{id}/swarm-queue":                                                "Reads only this project’s durable queue projection; no host sampling, child observation, ledger repair or dispatch.",
 	"GET /v1/product/projects/{id}/overview":                                                   "Reads bounded compact canonical context, private question projections and recorded queue counts; never migrates, repairs, reconciles, executes or writes on GET/HEAD.",
@@ -229,7 +233,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 		if pattern != previewPattern && productReadOnlyRoutes[pattern] == "" {
 			t.Fatalf("unaudited read route %q", pattern)
 		}
-		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{runId}", "missing-run", "{taskId}", "missing-task", "{path...}", "").Replace(path)
+		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{runId}", "missing-run", "{handoffId}", "missing-handoff", "{taskId}", "missing-task", "{path...}", "").Replace(path)
 		if strings.HasSuffix(pattern, "/swarm/operations/{operationId}/workspace/file") {
 			path += "?path=ordinary.txt"
 		}
@@ -247,6 +251,9 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 				status = 403 // Standalone fixtures have no trusted management actor.
 			}
 			if pattern == "GET /v1/product/projects/{id}/checks/{runId}" || pattern == "GET /v1/product/projects/{id}/checks/{runId}/recovery" || pattern == "GET /v1/product/projects/{id}/runs/{runId}" {
+				status = 404
+			}
+			if strings.Contains(pattern, "/external-handoffs/{handoffId}") {
 				status = 404
 			}
 			if strings.Contains(pattern, "/swarm/") {
