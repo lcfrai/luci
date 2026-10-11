@@ -1,9 +1,8 @@
 # Luci development
 
-## Current product focus — 11 October 2026 UTC / 12 October local
+## Current product focus — corrected owner clarification, 11 October 2026 UTC / 12 October local
 
-The owner's latest clarification supersedes the earlier ambition to build a replacement coding-agent harness. Luci's differentiator is excellent shared project context and delivery around existing tools: **Discover → Design → approved/versioned context → external Codex, Claude Code or another development tool → returned changes and evidence → review/preview/deploy → amend**. Keep the four activities concurrent and the project scope understandable throughout. Use existing tools' execution capabilities and authentication rather than rebuilding them. Existing managed sessions, coordination and resource/recovery controls remain supported infrastructure; resolve their safety/correctness defects without letting new runtime features displace the context-to-delivery journey. Do not overwrite user-owned AGENTS.md or CLAUDE.md when exporting context. External reports are claims, not approvals or independently verified checks.
-
+Luci owns **context, environment/orchestration, review and deployment** around existing upstream coding engines. Discover and Design develop coherent project context; **Develop boots and orchestrates the selected upstream Codex, Claude Code or other supported harness in isolated Docker locally**. The cloud target is cloud-provider **microVMs**, with actual implemented provider support and missing capabilities stated precisely. Deploy gets the application live. All four activities exchange feedback and amendments. Do not replace upstream coding engines; do not replace the integrated Develop path with manual host-CLI handoff. Standalone context export/return is secondary interoperability. Preserve existing upstream adapters, resource/authority/recovery protections and user AGENTS.md/CLAUDE.md. Prefer appropriate reusable open-source solutions via Glasses where available; keep the shadcn/ui experience coherent, usable and quick.
 
 The user's direction of 2 October 2026 supersedes every earlier Panacea/KPMG decision and review gate in this repository.
 

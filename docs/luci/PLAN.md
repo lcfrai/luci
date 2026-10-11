@@ -1,13 +1,12 @@
 # Luci build plan
 
-## Owner's current scope and first priority — 11 October 2026 UTC
+## Owner's current scope and first priority — corrected 11 October 2026 UTC
 
-The latest clarification makes context quality, external-tool interoperability and delivery the primary product: Discover → Design → approved/versioned context → Codex/Claude Code/other tool → returned source/evidence → review/preview/deploy → amend. It supersedes any earlier replacement-harness framing. Implement [the context/delivery acceptance plan](CONTEXT-DELIVERY-SCOPE.md) first. Existing session/swarm execution remains an optional supported path, not a prerequisite for an external handoff or the basis for a new coding engine.
+**Primary path:** Discover/Design build and approve context; Develop boots/orchestrates an existing upstream harness in isolated Docker locally (cloud-provider microVMs are the cloud target); review and independently check actual changes; Deploy makes the application live; amendments feed back across all four activities. Luci owns context/environment/orchestration/review/deployment, not a replacement coding engine.
 
-**P1 LOCAL-025:** expose the existing canonical approved-context capture as a standalone immutable export with file hashes, task/requirement identities and source binding; retain and reconcile returned reports against the exact captured scope and observed Git state. External claims never grant approval, execute commands or mark acceptance passed. Follow this with the local tester's real signed-in Codex trial and reviewed changes/checks/preview. Preserve user AGENTS.md/CLAUDE.md and all existing context, authority and recovery boundaries.
+The prior manual-external-tool emphasis was an incorrect interpretation of the owner's direction and is superseded. **LOCAL-025 is secondary interoperability**, not a prerequisite or substitute for the integrated real-provider path. Finish its bounded in-progress implementation without broadening it, then prioritize the already-supported Docker harness and provider connection through a complete useful application journey. The local host-CLI trial was cancelled before inference.
 
-New runtime features and additional generic harness acceptance work are subordinate to this useful product journey. Existing safety/recovery defects are retained, not declared fixed or silently dropped. Four-project responsiveness, Windows/native and live-provider gates still apply. Cloud-only setup does not block the local external-tool trial.
-
+[Current scope and inventory](CONTEXT-DELIVERY-SCOPE.md) distinguishes actual Docker adapters, provider/auth paths and cloud support from intended capabilities. Preserve all source/authority/cancellation/recovery guards, failed evidence and unchanged responsiveness targets. Prefer existing open-source solutions and upstream harness improvements, with clean shadcn/ui controls and explicit supported capabilities. Cloud-only prerequisites do not block the integrated local milestone.
 
 3 October 2026 (Australia/Brisbane). This is the current plan. The owner authorizes autonomous implementation and outcome checks. The former corporate takeover programme is superseded.
 

@@ -1,9 +1,8 @@
 # Luci product-quality completion contract
 
-## Current product boundary — 11 October 2026 UTC
+## Current product boundary — corrected 11 October 2026 UTC
 
-Luci builds the context and delivery workflow around existing Codex, Claude Code and other development tools. A polished replacement terminal/agent harness is not the goal. The primary complete journey must include standalone export of approved immutable context and reviewed return of actual changed source and evidence without a Luci-managed worker. This is required alongside the existing quality and four-project criteria, not a relaxation of them. Imported tool reports remain unverified claims until independent checks are recorded; manual file glue and an external CLI smoke test cannot establish integrated acceptance. [CONTEXT-DELIVERY-SCOPE.md](CONTEXT-DELIVERY-SCOPE.md) owns this scope clarification and the P1 LOCAL-025 acceptance sequence.
-
+Luci builds coherent project context and **boots/orchestrates existing upstream coding harnesses**, using isolated Docker locally and cloud-provider microVMs as the cloud target. It owns the environment, review and deployment workflow while Codex/Claude Code/etc own the coding engines. The primary complete journey must run through this integrated Develop path. Standalone export/return is useful interoperability; neither it nor a manual host-CLI smoke test replaces integrated acceptance. All four activities exchange amendments and evidence. Existing quality/four-project targets and recovery duties remain unchanged. [CONTEXT-DELIVERY-SCOPE.md](CONTEXT-DELIVERY-SCOPE.md) records supported versus intended capabilities.
 
 The owner's latest direction makes exceptional product quality the finish line:
 a polished, dependable experience comparable in clarity and care to Vercel,

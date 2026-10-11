@@ -1,15 +1,16 @@
 # Luci production roadmap
 
-## Revised immediate delivery order — 11 October 2026 UTC
+## Revised immediate delivery order — corrected 11 October 2026 UTC
 
-The owner's latest clarification supersedes the replacement-harness emphasis of earlier milestones. Luci owns **project understanding, reviewed context and delivery around existing coding tools**. See [the reviewable scope and current capability map](CONTEXT-DELIVERY-SCOPE.md).
+The primary product is context **and integrated orchestration/delivery** around upstream coding engines. The previous manual host-tool emphasis is superseded by the owner's explicit correction.
 
-1. Close P1 LOCAL-025: standalone approved context export and reviewed results return, without allocating a Luci agent or copying credentials.
-2. Complete a real external Codex/Claude implementation from that context, independently inspect changes/checks, and bring the same project through preview and an amendment. Record manual glue separately until the integrated route is verified.
-3. Refine context quality and multi-project UX from actual use: ambiguity, decisions, requirements, design states, task-specific context, staleness and continuity. Keep response targets and resource limits unchanged.
-4. Resolve remaining delivery, supported-runtime recovery and Windows gates. Existing managed execution remains supported; do not expand a bespoke coding engine as a substitute for this journey.
-5. Retain later optional cloud connectivity and managed service work after local acceptance/access. No cloud prerequisite blocks external context handoff.
+1. Verify the actual local Docker runtime/provider setup and selected upstream CLI path. Preserve proven adapters rather than build a replacement coding engine.
+2. Complete a real-provider Discover → Design → Docker Develop → reviewed changes/checks → preview/deploy → amendment journey through Luci. Keep context and code/deployment evidence coherent.
+3. Improve context quality, shadcn/ui usability and four-project performance from that journey. Finish bounded standalone export/return work as secondary interoperability; no manual host-CLI trial substitutes for primary acceptance.
+4. Resolve remaining native, resource and supported-runtime recovery gates. Inventory actual cloud-provider microVM support; do not label remote Docker or stubs as generic microVM support.
+5. Implement/verify the cloud microVM target after local testing and supplied access, then optional managed-service delivery. Retain honest provider-specific limits and approvals.
 
+See [scope and capability inventory](CONTEXT-DELIVERY-SCOPE.md). Earlier evidence and unresolved issue IDs remain intact.
 
 6 October 2026. This roadmap implements the owner's confirmed direction:
 MIT-licensed self-hosted Luci plus optional paid lcfr.ai-managed team workspaces.

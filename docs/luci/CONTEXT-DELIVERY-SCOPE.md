@@ -1,74 +1,69 @@
-# Context and delivery scope
+# Context, orchestration and delivery scope
 
-Owner clarification received 11 October 2026 UTC (12 October on the owner's local date). This supersedes earlier replacement-harness emphasis, while retaining existing permissions, source protection, recovery defects and honest acceptance requirements.
+**Corrected owner clarification: 11 October 2026 UTC / 12 October local.** The earlier relay overcorrected “do not replace Codex/Claude Code” into manual host-tool handoff. The owner explicitly corrected that interpretation. This document replaces that mistaken priority; the earlier commit remains historical evidence.
 
-## Objective and product boundary
+## Primary product and four connected activities
 
-Luci helps people build the best possible project context and turn it into a verified, delivered application using existing development tools. The user should understand what is agreed, what is ambiguous, what changed, and what action comes next across **Discover, Design, Develop and Deploy**. Activities can be revisited together; they are not a rigid wizard.
+Luci owns **project context, environments/orchestration, review and deployment**. Existing upstream coding harnesses own the coding engines. Luci must boot and orchestrate those harnesses, not merely export files and send the person elsewhere.
 
-The priority workflow is:
+1. **Discover:** develop purpose, users, constraints, risks, exclusions, decisions and measurable acceptance outcomes. Resolve consequential ambiguity and keep assumptions explicit.
+2. **Design:** develop screens/states, responsive behavior, data and integration boundaries; review and version the context, link tasks and requirements, and approve exact inputs.
+3. **Develop:** select an actually supported upstream Codex, Claude Code or other harness and boot it in **isolated Docker locally**. The cloud target is **provider microVMs**, with provider-specific capabilities and limits stated honestly. Give the harness the frozen approved scope, observe actual work, retain useful output/questions, and review changes and independently checked evidence.
+4. **Deploy:** preview and deliver the reviewed exact source, observe application health, and support operation, repair and amendments with explicit permissions and cost acknowledgement.
 
-1. Discover the purpose, users, constraints, risks, exclusions, decisions and measurable acceptance outcomes. Ask about consequential ambiguity rather than silently inventing intent.
-2. Design screens, states, responsive behavior, data and interaction boundaries. Review the specification and design, link stable requirement/task IDs, and approve exact versions.
-3. Export immutable, task-specific context for Codex, Claude Code or another development tool. Show its source/version binding and what the tool is being asked to deliver. Use the tool's own authentication; do not copy its credentials or replace its execution engine.
-4. Bring back actual code and a report. Inspect source changes independently, distinguish reported checks from verified checks, detect changed context or a stale review, and retain the original assignment.
-5. Review and commit the result, run independent checks, preview the exact source, deploy with explicit authority/cost controls, and amend the context when the idea changes.
+All four activities exchange feedback. Code or preview findings can refine Discover/Design; an amendment must preserve the original assignment and show its effect on work and evidence. The phases are not a one-way wizard. Four or more projects must remain understandable, isolated, resumable and responsive without consuming the host's available resources indiscriminately.
 
-Across four or more projects, retain goals, decisions, drafts, active work, evidence and next actions without leakage or repeated explanation. Keep existing resource limits and measured responsiveness targets; more simultaneous workers is not itself success.
+Do not build a replacement coding engine or new custom hypervisor. Preserve proven CLI adapters and use suitable existing/open-source execution solutions. Existing source/authority/resource/cancellation/recovery protections remain required. Shadcn/ui controls should make the integrated path clear and quick; generic runtime mechanisms are justified by that path, not by feature count.
 
-Existing managed sessions and swarm scheduling are supported execution options. Their correctness, ownership, cancellation and recovery defects remain obligations. New general-purpose runtime features, additional harness abstractions and repeated unchanged fixture exercises are subordinate to the primary context-to-delivery workflow. Do not expand those mechanisms to substitute for a missing usable external handoff.
+## Supported baseline and missing capability
 
-## Audited baseline at edc742e8
+Audited product baseline: `edc742e8b6ce4216a1726e74cceef892663ce3d5`. Documentation publications do not change its product bytes. The currently checked source contains these capabilities; real-provider and platform results retain their independent acceptance scopes.
 
-The current product source is `edc742e8b6ce4216a1726e74cceef892663ce3d5`. Later scope/evidence publications do not change those product bytes.
-
-| Capability | Current support and limitation |
+| Area | Implemented source / actual limitation |
 | --- | --- |
-| Structured context | Discover specification contains purpose, audience, constraints, exclusions, requirements/acceptance, journeys, roles, data, integrations, decisions and questions. Design contains screens/states/responsive targets, tokens, assets and notes. The plan contains stable task IDs, requirement links, dependencies, write paths and acceptance. |
-| Portable generated files | Saving writes `LUCI.md`, `.luci/specification.json`, `.luci/specification.md`, `.luci/design-handoff.json`, `.luci/design-handoff.md`, `.luci/plan.json` and `.luci/design.json` when their corresponding state exists. These are Markdown/JSON context data; not all files exist before that context is saved. |
-| Canonical versions and approval | `.luci/state.json` and bounded history retain project context. Private approval receipts bind exact reviewed contents. Copied files or a tool's reported approval do not confer permission. Discover/Design Context storage reports missing/changed exports; explicit repair exists. |
-| Immutable selected-task bundle | Existing internal capture adds task-specific instructions and `.luci/brief.json`, manifest/file hashes and exact source binding, but is delivered through Luci-managed sessions. `GET /v1/sessions/{id}/reviewed-context` inspects an existing owned capture; it is not a standalone exporter. |
-| Other exports | Project backup preserves a larger project/history archive; design export is static HTML/sketch export; orchestrator export is conversation. None is a substitute for an immutable approved external assignment. |
-| Existing implementation UI | Develop exposes Prepare project run / Start implementation session. These invoke Luci-managed work rather than a separately authenticated external tool. |
-| Returned work | Existing Git views/commit, checks, releases and managed task reports cover their own paths. There is no standalone generic return-review API/UI at this baseline. A manual filesystem/CLI trial must be labelled manual glue. |
+| Canonical context | Specification, design, sketch and task plan with stable IDs, revisions, private digest-bound approvals, generated Markdown/JSON and bounded history. Copying exported approval text grants no authority. |
+| Reviewed delivery | Canonical selected-task capture is persisted with a manifest/source binding and mounted read-only at `/home/dev/.luci-reviewed-context` for managed implementation sessions. New amendments cannot silently replace the old assignment. |
+| Local coding engines | `internal/harness` builds argv for upstream CLIs rather than reimplementing their coding logic. The runtime Dockerfile pins Codex 0.160.0, Claude Code 2.1.274 and OpenCode 1.18.34. Installed/catalogue/option support is distinct from a signed-in account or verified model result. Gemini is not installed; do not advertise it as usable. |
+| Local execution | Docker backend, session and task allocation, isolated worktrees, source/review controls, shared resource admission, terminal/task output and recovery machinery exist. Scripted-provider Linux runs prove selected plumbing, not real-model app quality. |
+| Codex sign-in | Settings exposes Open Codex account sign-in, upstream terminal device flow, then Save Codex sign-in. The API starts an auth session and saves from its owned session; it does not import an arbitrary host credential path. Host Codex being signed in does not establish the Luci sandbox is signed in. |
+| Existing remote workspace | SSH connects to a matching remote Luci service. Current AWS/Azure setup provisions a VM running Docker/Coolify. This is remote Docker execution/deployment, **not per-session provider microVM isolation**. |
+| Kata backend | `internal/backend/katabe` is explicitly dormant. Its Create rejects host mounts and WorkDir, both needed by normal sessions. Managed workers currently select Docker. Kata's presence and compilation do not make cloud microVM Develop functional. |
+| Delivery | Existing Git review/commit, independent command checks, source-bound preview and deployment controls exist. A handwritten warm Linux Docker build/serve/Stop fixture passed at80462898. It is not a real-provider idea-to-app pass. Cancellation/recovery, cold preparation, Windows and response gates remain separately open. |
+| Standalone interchange | Portable files exist; frozen external export/return is being implemented under LOCAL-025 as **secondary interoperability**. It must not replace or delay primary integrated Develop acceptance. |
 
-**LOCAL-025 (P1, fixing)** closes the last two gaps. The minimal implementation reuses approved canonical capture and existing Git/source protections, exposes a downloadable ZIP containing exact context and a hash manifest, retains export history, and adds a reviewed return report. It does not launch a tool, create a sandbox, overwrite `AGENTS.md`/`CLAUDE.md`, or import arbitrary commands as execution authority. Exact API/UI instructions and the tested implementation revision will follow with its source checkpoint; this scope document is not a feature-completion receipt.
+**CLOUD-084 (P1, open, cloud execution capability):** usable provider microVM execution is missing. It needs a concrete reusable backend, actual project/context transfer rather than host-path mounts, supported credential delivery, owned lifecycle and recovery, result return, resource/cost controls and provider-specific verification. Existing remote Docker and dormant Kata cannot be relabelled to close this gap. Local-first acceptance proceeds independently; cloud provisioning waits for a concrete plan and supplied access. A bounded reuse evaluation is in progress; no new provider support is claimed.
 
-## Return contract and stale context
+## Immediate real-provider path and blockers
 
-The frozen assignment names project, selected tasks, approved context revisions/digests and base source. The returned implementation may legitimately differ from that base: those are the changes to review. Luci must bind the review to the actual current source and reject a submission if that source changes again before saving the review. Changed approved context is a separate amendment requiring explicit reconciliation/new handoff; it must not silently relabel the old work.
+The next trial follows the product UI: save/review context → prepare implementation → choose a supported upstream harness/provider → Docker execution → inspect returned work/questions → reviewed integration → independent checks → source-bound preview → amendment.
 
-Retain reported summary, changed paths, decisions, checks, limitations and unresolved questions as **unverified tool claims**. Independently observed Git changes are distinct from that report. Saving a return does not approve context, mark tasks complete, merge code, execute a command, pass acceptance or deploy. Preserve original exports and returns across project switching and restart. The person can inspect the return, run/review checks and continue to preview using the existing source-bound paths.
+The local tester reports an authenticated host Codex CLI, but has **cancelled the proposed manual host-CLI inference trial before execution**. Do not copy its auth file or infer sandbox access. Use Luci's supported container sign-in/provider connection. Exact model availability and account limits must be observed there.
 
-## Real-provider trial and exact blockers
+Current actionable gates:
 
-The Windows tester reports Codex CLI `0.162.0-alpha.17.2` is signed in using ChatGPT. That supplies a real external provider path without embedded container authentication. No auth file was read/copied. The tester owns the isolated Windows invocation, checks supported CLI flags locally and retains its actual JSON events, exit, model-generated changes and independent checks. A command-level smoke test alone is insufficient.
+- Complete native Docker runtime installation or use an exact provenance-verified compatible image. Preserve actual host and Docker backing-volume headroom and current CPU/RAM/storage guards; no unbounded installer or unverifiable retagging.
+- Establish the selected provider through the intended runtime path. No real-provider full application journey is yet demonstrated by the published scripted fixtures. A CLI version check, auth status or account existence is not inference evidence.
+- Build useful approved context in Luci and give a real implementation task to the upstream harness. Do not seed the answer or let the verifier implement it. Retain exact context/source/worker identity and actual output.
+- Review and independently check real changes before preview/deployment. Keep reported tests, actual executed checks, source integration, preview health and completed acceptance distinct.
+- Complete amendments and four-project continuity/resource checks. CLOUD-032 switching still fails its unchanged300ms target; no layout/helper change or instrumentation subtraction establishes a pass.
+- Preserve unfinished native lifecycle and supported-runtime recovery scopes. LOCAL-024 parent-death and reopen are locally verified; the tester now also reports external `LUCI_API` preservation verified, with detailed receipt pending publication. Ordinary UI-close remains open. None establishes full native/provider acceptance.
 
-Current blockers and work that can proceed:
+Cloud microVM implementation is an explicit product gap but does not block independent local Docker/provider work. Optional paid service/billing/public cloud access remain later gates under the local-first sequence.
 
-- **Integrated handoff/return:** LOCAL-025 is an implementation gap, now being fixed. Meanwhile the existing saved Markdown/JSON exports can support a clearly labelled manual preliminary trial; do not describe it as the finished workflow.
-- **Context readiness:** save and approve an actual specification/design and select actionable tasks. Record consequential ambiguity and acceptance, rather than feeding a prewritten implementation to the provider.
-- **Provider:** local signed-in Codex is available by tester report. Its actual inference, generated output quality, limits and failed/interrupted behavior remain unverified for this trial. No new cloud key or container sign-in is required for the external-tool portion.
-- **Returned source:** use an isolated owned project, preserve the original assignment and repository identity, inspect all actual changes, and do not allow the tool to rewrite Luci's approval/context records as a way to pass review.
-- **Checks/preview:** local toolchain/dependencies and Docker/base/runtime admission are separate prerequisites for the relevant commands. External context export must not depend on runtime installation. Keep real installer, preview cancellation/recovery and resource gates open at their recorded scopes.
-- **Product polish:** CLOUD-032 switching still fails its unchanged 300 ms acceptance target. Existing native close/external-API ownership, four-project resource, recovery and full idea-to-app checks remain open.
+## Secondary interoperability: LOCAL-025
 
-## Concrete acceptance sequence
+The original P1 classification was based on the misinterpreted primary workflow and is superseded by the owner correction. The already-started bounded implementation may finish as optional context interchange, with no new execution engine or credentials path.
 
-1. In a fresh isolated Luci project, author an ordinary-language idea. Resolve a material ambiguity, save measurable requirements and design states, approve exact versions, and create linked tasks. Keep a second project with distinct context for isolation checks.
-2. Use the standalone product control to review and export the assignment. Verify archive file hashes and source/version/task identity; extract into a fresh context directory rather than overwriting the working project or user agent files. Preserve original bytes.
-3. Give only that packet plus the owned source checkout to the already-signed-in external tool. Ask it to implement the selected task, record unresolved questions and produce the specified return report. Record actual provider execution, not a scripted response or verifier-written solution.
-4. Return through Luci's product UI. Review actual source changes alongside reported checks. Test a foreign handoff, context amendment and source change after review; each must refuse or require explicit fresh review without losing the earlier packet/report.
-5. Independently exercise the changed application and its requirements. Preserve failing checks, fix through the context/tool loop, then review/commit and preview exact source. An agent's claim or exit code cannot be the only evidence.
-6. Amend one requirement, export a successor packet, and verify old work retains its original context. Switch among four projects and restart Luci; export/return/history/drafts must remain project-scoped and understandable.
-7. Record observed quality, human intervention, elapsed time, provider usage if available, all owned-process resources and UI timing. Keep missing observations explicit. No market-leadership claim follows from one example.
+Existing portable files, where their context has been saved, are `LUCI.md`, `.luci/specification.json`, `.luci/specification.md`, `.luci/design-handoff.json`, `.luci/design-handoff.md`, `.luci/plan.json` and `.luci/design.json`. `.luci/state.json` is canonical; exports are not private review authority. Context storage can detect and explicitly repair generated-export drift. Backups, conversation export and sketch/static HTML export have separate purposes.
 
-## Comparison and reuse
+The new optional ZIP retains approved task-specific context, source/version binding and file hashes without overwriting user `AGENTS.md`/`CLAUDE.md`. Its return review observes current Git changes, binds imported reports to the exact handoff/project and labels all reported checks **unverified**. Expected code changes are reviewable; context amendments and changes after review require fresh reconciliation. Saving a report cannot grant execution/deploy authority, mark checks passed or silently merge code. Export/return testing is not evidence for the primary managed Docker workflow.
 
-Evaluate tools by their actual role: Codex/Claude Code for implementation and their own authentication/execution; GSD-family approaches for useful planning/context decomposition; Nimbalyst for understandable project work and artifact review. Existing research/evidence is retained. Recheck official current workflows when implementing an adapter; do not copy an entire competing harness or infer compatibility from a brand name. The Windows tester is independently checking official external-tool workflows. No fresh comparative benchmark or unsupported superiority claim is made here. Glasses MCP is not callable in the currently exposed tool set; that does not block reuse of Luci's existing canonical context machinery.
+## Reuse and comparison
+
+Use official upstream CLI behavior for Codex/Claude/OpenCode adapters. Evaluate GSD-family ideas for context/task structure and Nimbalyst for understandable artifacts/coordination; preserve licences and existing research. Cloud-provider microVM reuse must establish the actual isolation boundary, transfer/credential/lifecycle contract and costs before implementation or claims. Glasses MCP is not callable in this cloud session's exposed tools; the local tester is restoring its Glasses service for complementary discovery. That limitation does not justify inventing reuse evidence or a generic-provider claim.
 
 ## Goal and coordination status
 
-The documented working objective is active and unfinished. Persistent platform-goal controls are unavailable; the last confirmed platform status remains blocked. Thread activity and a scope edit do not reactivate it.
+The documented working objective is active and unfinished. Persistent platform-goal controls are unavailable; last confirmed status remains blocked. Scope edits/thread activity do not reactivate it.
 
-The authorized local test loop continues at thread `01a1199f-7500-7843-b02b-081081e536fa`. This session currently has no thread-message tool, so immutable checkpoint links and clearly labelled updates in the cloud thread are the handoff mechanism. Adopt source only between test batches. Scope changes do not erase existing issue IDs, failed receipts, unknown charged leases or prior passing scopes.
+Continue the authorized local loop at thread `01a1199f-7500-7843-b02b-081081e536fa`. This session has no thread-message tool, so exact immutable handoffs and labelled cloud-thread updates remain the coordination route. Adopt revisions between test batches. Preserve issue IDs, prior failed receipts, unknown charges and completed scoped passes.
