@@ -1,0 +1,21 @@
+# Clean 972d6864 Linux package checkpoint
+
+Exact source `972d6864a30b742b12545c8e12f4ca3ae2faa884` completed the Linux package build in **55.468211 seconds**, exit **0**, clean before and after with unchanged HEAD. The original verifier records **965 matching extracted files, 347 licensed components and zero missing licences**. The build log records **54 compact guide/index files and 367 rewritten links**. These are package/source results, not installed acceptance or a performance comparison.
+
+| Subject | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Linux portable archive | 69,202,698 | `03340a8313890763de5596fcf416890d319e16d11d283ed7d51e32f1a939a193` |
+| Linux cloud archive | 34,696,128 | `07141337ae002ae695402309f16e620772614b47caca7a306c6d4d9c4c5b84f8` |
+| Release manifest | 696 | `787a01f8cbeb89ea9bbd5855ab7177b511f444a92bb5b02a30e9cb20cf929acf` |
+
+API binary SHA-256: `ea4df58d5a8f6349ec258c82f35eb5f7e577a33aec1e33f88ab348e53b0b8431`. Web index SHA-256: `c32360f1edec1c7d1aa694aebb861ace9c6bc01dddc30f8e65aabf3798c433e8`. **Archives and extracted binaries remain publisher-held; this capsule does not provide downloadable payloads.** This publication carries the original verifier's identities and does not reread or independently rehash the large archives/binaries.
+
+The wrapper preserved the previous exact [786 package](../package-78665270/README.md) by a generated-directory rename and verified its recorded bytes unchanged. The wrapper source hash matches the original build receipt. `GOMAXPROCS=2`, `GOFLAGS=-mod=readonly -p=1` and the 600-second bound are the original explicit controls; no complete environment/compiler/dependency inventory is claimed. Five selected packaging scripts match immutable 972d source. The copied verifier is publication-time source at the path the wrapper invokes; its full historical process inputs were not separately captured. Existing helper preparation/controls remain in the earlier package capsule and were not rerun here.
+
+The original build log, invocation, result, preservation and integrity/provenance receipts are unchanged under `receipts/`. `release/` holds the exact release manifest and archive checksum list. `original-bindings.json` links copied bytes to their original paths/hashes; `source-bindings.json` binds selected packaging source. `windows-source-parity.json` establishes that ten selected Windows launch/build/test/guide and dependency declaration/lock files match 786; it is source equality, not Windows execution. `SHA256SUMS` inventories every included file except itself, including the raw build log. Original large-chunk warnings remain in that log.
+
+C076 terminal preparation, C078 unchanged-session polling, the mirrored Session contract correction and C079's test-only hydration synchronization are integrated. Their [source checks](../../TEST-CHECKPOINT-972D6864.md#what-changed-and-what-was-checked) retain their exact per-run scopes. The interrupted full reporter remains **2,938 passed / 2 failed across 168 files**, without its original Vitest/wrapper exit or subsequent typecheck receipt. Later affected files pass separately and the final standalone full typecheck passed; packaging does not rewrite the interrupted report into a clean suite.
+
+No native build or execution at 972d was performed for this Linux package (`nativeRequested:false`). The latest Windows native build/browser progress belongs to reported 786 results; its unsigned installer was generated, not installed. Runtime-image parity and any later installed/idle/terminal evidence belong in separate receipts. Full warm ordering, retained recovery, four-project useful work, unchanged 300 ms switching/100 ms input targets, real-provider quality and idea-to-live completion remain open. [Windows checkpoint](../../TEST-CHECKPOINT-972D6864.md) retains isolated source/native instructions and the closed-batch revision boundary.
+
+Publication work made only small reads/copies and selected Git-object comparisons: no build, test, service, Docker action, archive extraction, large-payload hashing, user-fixture or ledger mutation. Run `python3 verify-publication.py` to check this small capsule's inventory and receipt consistency; it does not verify absent archives or execute product checks.

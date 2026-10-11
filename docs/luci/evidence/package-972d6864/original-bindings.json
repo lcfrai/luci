@@ -1,0 +1,100 @@
+{
+  "originals": [
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-972d6864/package/build-invocation.json",
+      "publishedPath": "receipts/build-invocation.json",
+      "bytes": 579,
+      "sha256": "7763c6ac14c8b43cd07a9f1068b7f7babe203de821b0c45b328e84e3e0cb9017"
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-972d6864/package/build-result.json",
+      "publishedPath": "receipts/build-result.json",
+      "bytes": 751,
+      "sha256": "d42bd687188dcc9d859f88d0feb5ff6e6c4877fd22cdfe3ad84770b5b4b80922"
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-972d6864/package/build.log",
+      "publishedPath": "receipts/build.log",
+      "bytes": 18758,
+      "sha256": "81a70ae5d7ea19c1a15ed1f09f17451e7ecb2494832e3431c3079328ed29f1f1"
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-972d6864/package/previous-release-preservation.json",
+      "publishedPath": "receipts/previous-release-preservation.json",
+      "bytes": 1183,
+      "sha256": "2e79b12f91484cabe78086f57d35a44878907f0cb755b2c7e1d1271b1845bcb3"
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-972d6864/package/package-integrity.json",
+      "publishedPath": "receipts/package-integrity.json",
+      "bytes": 788,
+      "sha256": "5d7a8a80857eeac17ca06e25f54cf6bc9912711286d123c6b6d2e6da9469a38c"
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-972d6864/package/package-provenance.json",
+      "publishedPath": "receipts/package-provenance.json",
+      "bytes": 1039,
+      "sha256": "8dc4837c725ec4ac367cd519e993aec7567202facb9bd504c1e74ae826c28f85"
+    },
+    {
+      "source": "/workspace/luci/artifacts/releases/0.5.0/release-manifest.json",
+      "publishedPath": "release/release-manifest.json",
+      "bytes": 696,
+      "sha256": "787a01f8cbeb89ea9bbd5855ab7177b511f444a92bb5b02a30e9cb20cf929acf"
+    },
+    {
+      "source": "/workspace/luci/artifacts/releases/0.5.0/SHA256SUMS",
+      "publishedPath": "release/SHA256SUMS",
+      "bytes": 186,
+      "sha256": "afad7d818790e6d87decae431e1cb9c5748d6edb5b889b076bdea0a20547564e"
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/build-package.py",
+      "publishedPath": "helpers/build-package.py",
+      "bytes": 5804,
+      "sha256": "8771e5c661745b4cb4bfefc9aea0839f947dec534d3a438459bda0ecc409e418"
+    },
+    {
+      "source": "/workspace/.luci-tools/verify-local-package.py",
+      "publishedPath": "helpers/verify-local-package.py",
+      "bytes": 2246,
+      "sha256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c"
+    },
+    {
+      "source": "/workspace/luci/scripts/build-release.sh",
+      "publishedPath": "selected-source/scripts/build-release.sh",
+      "bytes": 6029,
+      "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d"
+    },
+    {
+      "source": "/workspace/luci/scripts/package.py",
+      "publishedPath": "selected-source/scripts/package.py",
+      "bytes": 2649,
+      "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5"
+    },
+    {
+      "source": "/workspace/luci/scripts/stage-release-docs.py",
+      "publishedPath": "selected-source/scripts/stage-release-docs.py",
+      "bytes": 20959,
+      "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26"
+    },
+    {
+      "source": "/workspace/luci/scripts/collect-licenses.py",
+      "publishedPath": "selected-source/scripts/collect-licenses.py",
+      "bytes": 14817,
+      "sha256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be"
+    },
+    {
+      "source": "/workspace/luci/scripts/launch-unix.sh",
+      "publishedPath": "selected-source/scripts/launch-unix.sh",
+      "bytes": 5579,
+      "sha256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53"
+    }
+  ],
+  "representation": "Every included original file copied byte-for-byte. No build log or receipt rewritten.",
+  "excluded": [
+    "Large archives/binaries/extracted packages",
+    "Private app fixtures, ledgers and credentials",
+    "Environment values beyond the explicit original build-bound Go controls"
+  ]
+}

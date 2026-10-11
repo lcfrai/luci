@@ -14,7 +14,19 @@ The owner has authorized an ongoing Windows test/correction loop in
 revisions and reports stable issue IDs; the implementation thread acknowledges,
 fixes and sends exact revisions for retest while other testing continues.
 
-## Current acceptance checkpoint — 9 October 2026 (Brisbane)
+## Current acceptance checkpoint — 11 October 2026
+
+The owner has explicitly resumed implementation and Windows acceptance. The working objective remains open; no persistent-goal activation API is exposed in this session, so platform reactivation is not claimed.
+
+**Source `972d6864a30b742b12545c8e12f4ca3ae2faa884` is retrievable and has a matching verified Linux package.** The [Windows checkpoint](TEST-CHECKPOINT-972D6864.md) preserves the isolated setup and unchanged configuration. [Exact package receipts](evidence/package-972d6864/README.md) record a clean 55.468-second build, 965 matching extracted files and 347 licensed components with none missing. CLOUD-076/078 and CLOUD-079's test-only correction are included. Archive payloads remain publisher-held; Windows can retrieve and build the exact source.
+
+The unchanged plain idle400 measurement at this source completed all 100 switches, 200 inputs and 100 resets plus 32 separate follow-up actions. Switching p95 **400.974902 ms** fails the unchanged 300 ms target; input p95 **79.123043 ms** passes 100 ms. CLOUD-032 remains open. The raw receipt and independent closure are retained pending a separate publication: known driver/controller absent, selected daemon empty, two extra browser zombies observed but not bound to recorded browser identities. No latency causality or full browser-absence claim.
+
+The matching fresh warm scenario has two first-attempt generation streams, natural exits 0/7, one explicit Restart and empty final allocation ledger. Overall it remains **failed**: the old response was released before Restart acknowledgement, leaving the required ordering unexercised under the unchanged 8-second hold/10-second read budgets. The driver records no pending mutations/cleanup errors; independent closure and publication are pending. Earlier failed fixtures and retained charges remain unchanged.
+
+Windows at 78665270 has reported a clean native release build and matching five release artifacts, 12 top-level plus 48 controlled recovery subtests with no failures/skips/timeouts, and real source-browser creation/switching/draft/reopen coverage across four complete saved specification objects. Digest fields were empty; no nonempty digest persistence is claimed. Native launch, worker/model execution and sustained performance remain separate. LOCAL-022's original Docker inventory is healthy and preserved. LOCAL-023 records the newer Discover/Design/Develop/Deploy naming requirement; its correction is in preparation, not in 972d.
+
+## Previous acceptance checkpoint — 9 October 2026 (Brisbane)
 
 **78665270 has a matching clean Linux package and scoped installed results; Windows/native and full acceptance remain open.** [Original package receipts](evidence/package-78665270/README.md) bind source `786652704fa8bebd1ba1af41cfa1d414d7def100`, a 272.581780-second clean build, 964 matching extracted files, 347 licensed components with none missing, 53 compact guide/index files and 338 rewritten links. Binary SHA256 is `fd2da8762ebe87f29a9cd999e830c0e578b70ce90658135e809456ae1c8e8cf7`; portable archive SHA256 is `265b41aa1eb18334035e08b9dd0e500787f31a008988ebe5c4ca559c9a77b4aa`. Archives remain publisher-held. All 106 captured runtime-image inputs match; image760 retains its original 5f4a966f build provenance. C070's 944-input parity carries original 29931afc-plus-overlay checks, not a rerun at 786. The [Windows checkpoint](TEST-CHECKPOINT-78665270.md) retains isolated commands and unchanged authority/admission targets.
 

@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+  "startedAt": "2026-10-11T10:08:02.268933+00:00",
+  "command": [
+    "bash",
+    "scripts/build-release.sh",
+    "0.5.0",
+    "linux-amd64"
+  ],
+  "helperSHA256": "8771e5c661745b4cb4bfefc9aea0839f947dec534d3a438459bda0ecc409e418",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOFLAGS": "-mod=readonly -p=1"
+  },
+  "timeoutSeconds": 600,
+  "cleanBefore": true,
+  "status": "running",
+  "preservedPreviousSource": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "ownedPID": 2673017,
+  "ownedProcessGroup": 2673017
+}

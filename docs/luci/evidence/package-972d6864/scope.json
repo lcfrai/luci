@@ -1,0 +1,47 @@
+{
+  "sourceCommit": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+  "previousSource": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "buildSeconds": 55.46821133804042,
+  "packageFiles": 965,
+  "licenses": 347,
+  "missingLicenses": 0,
+  "guideBuildProjection": {
+    "compact": true,
+    "sourceCommit": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+    "officialSourceAssociation": {
+      "repository": "https://github.com/lcfrai/luci",
+      "trackingCommit": "972d6864a30b742b12545c8e12f4ca3ae2faa884"
+    },
+    "retainedReason": null,
+    "files": 54,
+    "rewrittenLinks": 367
+  },
+  "subjects": [
+    {
+      "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+      "sha256": "07141337ae002ae695402309f16e620772614b47caca7a306c6d4d9c4c5b84f8",
+      "bytes": 34696128
+    },
+    {
+      "name": "linux-amd64/luci-linux-amd64.tar.gz",
+      "sha256": "03340a8313890763de5596fcf416890d319e16d11d283ed7d51e32f1a939a193",
+      "bytes": 69202698
+    },
+    {
+      "name": "linux-amd64/release-manifest.json",
+      "sha256": "787a01f8cbeb89ea9bbd5855ab7177b511f444a92bb5b02a30e9cb20cf929acf",
+      "bytes": 696
+    }
+  ],
+  "binarySHA256": "ea4df58d5a8f6349ec258c82f35eb5f7e577a33aec1e33f88ab348e53b0b8431",
+  "webIndexSHA256": "c32360f1edec1c7d1aa694aebb861ace9c6bc01dddc30f8e65aabf3798c433e8",
+  "nativeRequested": false,
+  "publicationActions": "Small original receipt/log/helper copies and selected immutable source comparisons only; no archive or binary read/hash, build, tests, services or runtime.",
+  "environmentScope": "Original wrapper records GOMAXPROCS=2, GOFLAGS=-mod=readonly -p=1, 600-second bound. No complete process-environment, compiler or dependency provenance is inferred.",
+  "limitations": [
+    "Archives/extracted payloads remain publisher-held, absent from this capsule; this publication did not independently rehash them.",
+    "Runtime-image identity/parity, installed behavior, Windows/native execution, real-provider quality and responsiveness require separate evidence.",
+    "Guide counts are original build-log projections, not a separate guide audit.",
+    "Prior failed tests/runs/retained fixtures and original source scopes are not superseded by packaging."
+  ]
+}

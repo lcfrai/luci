@@ -1,0 +1,31 @@
+{
+  "commit": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+  "inputs": [
+    {
+      "path": "scripts/build-release.sh",
+      "bytes": 6029,
+      "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d"
+    },
+    {
+      "path": "scripts/package.py",
+      "bytes": 2649,
+      "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5"
+    },
+    {
+      "path": "scripts/stage-release-docs.py",
+      "bytes": 20959,
+      "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26"
+    },
+    {
+      "path": "scripts/collect-licenses.py",
+      "bytes": 14817,
+      "sha256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be"
+    },
+    {
+      "path": "scripts/launch-unix.sh",
+      "bytes": 5579,
+      "sha256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53"
+    }
+  ],
+  "scope": "Five selected packaging scripts match immutable source and publication-time current bytes. Not a complete compiler, dependency, toolchain or build-environment inventory."
+}

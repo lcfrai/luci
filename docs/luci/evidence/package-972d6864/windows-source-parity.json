@@ -1,0 +1,66 @@
+{
+  "commit": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+  "inputs": [
+    {
+      "path": "scripts/start-local-acceptance.ps1",
+      "bytes": 7403,
+      "sha256": "e9648e58d6b1eb25560ab9268e317a0a34e95384813638c58d4cc0aba56e5c1a",
+      "unchangedFrom": "786652704fa8bebd1ba1af41cfa1d414d7def100"
+    },
+    {
+      "path": "scripts/build-release.ps1",
+      "bytes": 17249,
+      "sha256": "42c7f005d6644881bc34fed76d42860d4b701bf4d169bf5657b59cf43c280c16",
+      "unchangedFrom": "786652704fa8bebd1ba1af41cfa1d414d7def100"
+    },
+    {
+      "path": "scripts/test-installed-windows.ps1",
+      "bytes": 15138,
+      "sha256": "b5e55a8069cbe6411f97878a0447ca10db6adc62423316de424646d3b6e4252d",
+      "unchangedFrom": "786652704fa8bebd1ba1af41cfa1d414d7def100"
+    },
+    {
+      "path": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "bytes": 54655,
+      "sha256": "3c07d86ac87128dc64ec6472d15192d866671126c9d9264676df0124e6ba04a3",
+      "unchangedFrom": "786652704fa8bebd1ba1af41cfa1d414d7def100"
+    },
+    {
+      "path": "desktop/package.json",
+      "bytes": 1965,
+      "sha256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+      "unchangedFrom": "786652704fa8bebd1ba1af41cfa1d414d7def100"
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "bytes": 247150,
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "unchangedFrom": "786652704fa8bebd1ba1af41cfa1d414d7def100"
+    },
+    {
+      "path": "control-plane/go.mod",
+      "bytes": 3111,
+      "sha256": "a5f4faf59655f01c0691b2a05632d474b0e4019111f4e7c3d8c1d89731a44c92",
+      "unchangedFrom": "786652704fa8bebd1ba1af41cfa1d414d7def100"
+    },
+    {
+      "path": "control-plane/go.sum",
+      "bytes": 19295,
+      "sha256": "c3bbf4f9f4b235b5864b171019079ed97efc3b71bae1cefd885f69f7322b086d",
+      "unchangedFrom": "786652704fa8bebd1ba1af41cfa1d414d7def100"
+    },
+    {
+      "path": "sandboxd/go.mod",
+      "bytes": 152,
+      "sha256": "729defcdf4013ecccfa8ba2f5f985eb6655e90e31d15595c7d396edcfb800292",
+      "unchangedFrom": "786652704fa8bebd1ba1af41cfa1d414d7def100"
+    },
+    {
+      "path": "sandboxd/go.sum",
+      "bytes": 509,
+      "sha256": "48236c5190f2aa0ad9ecc672ed5749dfc083921633445122061a290f1aa43729",
+      "unchangedFrom": "786652704fa8bebd1ba1af41cfa1d414d7def100"
+    }
+  ],
+  "scope": "Ten selected immutable launcher/Windows guide/dependency declarations and locks match 786. Source equality only; no Windows/native/setup execution or configuration publication."
+}

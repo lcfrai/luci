@@ -1,0 +1,8 @@
+{
+  "scope": "Explicit allowlist of small build/package receipts, build log, helper source and selected packaging scripts. Review of source paths and text; bounded secret-pattern checks supplement scope review.",
+  "flaggedFiles": [],
+  "privateArtifactsIncluded": false,
+  "permittedPaths": "Ordinary /workspace and retained tooling/extracted-package provenance paths; no bootstrap/account/session data or raw runtime logs.",
+  "rawOriginalsRewritten": false,
+  "limitation": "Pattern checks are not a universal secret detector; no arbitrary tree or credential file was read."
+}

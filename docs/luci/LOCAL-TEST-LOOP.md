@@ -1,3 +1,4 @@
+<!-- Current successor: 972d6864a30b742b12545c8e12f4ca3ae2faa884; matching Linux package verified; Windows adoption only between batches. -->
 # Windows testing and correction loop
 
 
