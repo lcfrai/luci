@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tarfile
 from retained_ui import SHADCN_ROOT, SHADCN_REVISION, read_shadcn, verify_shadcn
+from retained_e2b import E2B_ROOT, E2B_REVISION, verify_e2b
 
 
 def json_stream(text):
@@ -147,6 +148,12 @@ def collect(root, output, native):
     if shadcn["present"]:
         add("vendored", "shadcn-ui", SHADCN_REVISION, root / SHADCN_ROOT, "MIT",
             source_url="https://github.com/shadcn-ui/ui/tree/" + SHADCN_REVISION)
+
+    e2b = verify_e2b(root)
+    if e2b["present"]:
+        add("vendored", "e2b-envd-process-bindings", E2B_REVISION, root / E2B_ROOT,
+            "Apache-2.0", extra=[root / E2B_ROOT / "UPSTREAM.md"],
+            source_url="https://github.com/e2b-dev/runtime/tree/" + E2B_REVISION)
 
     lock = json.loads((root / "desktop" / "package-lock.json").read_text(encoding="utf-8"))
     for relative, meta in sorted(lock["packages"].items()):

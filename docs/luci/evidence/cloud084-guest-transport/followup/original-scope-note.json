@@ -1,0 +1,10 @@
+{
+  "wrapperExit": 2,
+  "goExit": 1,
+  "explanation": "The expected one-case original e2bbe test failed with ErrUnsupported after acknowledged VM creation. The wrapper additionally refused an all-selected-source stability claim because root concurrently edited two guest files. microvmguest is not imported or compiled by this original e2bbe command. Every selected e2bbe/direct backend/statelease/module/licence input remained byte-identical. The final joined run will capture frozen guest sources separately.",
+  "changedOutOfCompiledScope": [
+    "control-plane/internal/microvmguest/prepare.go",
+    "control-plane/internal/microvmguest/prepare_test.go"
+  ],
+  "expectedRegressionFailureObserved": true
+}

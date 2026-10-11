@@ -1,0 +1,118 @@
+{
+  "control-plane/cmd/microvm-bootstrap/main_linux.go": {
+    "sha256": "a4404545cfff995310a53c8b027173390d3570fe46d5b1c67115e77749a9df83",
+    "bytes": 3222
+  },
+  "control-plane/cmd/microvm-bootstrap/main_other.go": {
+    "sha256": "9cbe1117e32aed60ead31c58372986563a40da81a0712f689ff674114bb0ab1d",
+    "bytes": 178
+  },
+  "control-plane/go.mod": {
+    "sha256": "f5ef2cccb836411082e4b4de8f93759353b7feb2051bbb0f0f016aeeccc4367d",
+    "bytes": 3143
+  },
+  "control-plane/go.sum": {
+    "sha256": "32d27dffccec67f104ab2931ca91f8655477986f3157973c9c959afc3572acd7",
+    "bytes": 19460
+  },
+  "control-plane/internal/backend/e2bbe/client.go": {
+    "sha256": "abfd45a389772d7cb8bfc9c42be13f67d3fb02bd85028feb64e9cc23bac9c6f1",
+    "bytes": 7370
+  },
+  "control-plane/internal/backend/e2bbe/controller.go": {
+    "sha256": "85e0b68dc28a8659e858e9f6990905b902411a23b52114bcee39002f70ac3715",
+    "bytes": 17234
+  },
+  "control-plane/internal/backend/e2bbe/controller_test.go": {
+    "sha256": "3a75ba6baf030175e446bfcf60b2b0f2669007dee21a42729ef9a9441a757476",
+    "bytes": 18118
+  },
+  "control-plane/internal/backend/e2bbe/envdprocess/LICENSE": {
+    "sha256": "b4ef1bf811cb4095229fb86b574199e467c78f0ac4078cf8be62189e1fbd0818",
+    "bytes": 11347
+  },
+  "control-plane/internal/backend/e2bbe/envdprocess/UPSTREAM.md": {
+    "sha256": "5f8477fdb6452dd0b224c6f716ba6d7c8ad3aa78f972552427fe434cf188c348",
+    "bytes": 674
+  },
+  "control-plane/internal/backend/e2bbe/envdprocess/process.pb.go": {
+    "sha256": "f385b69c66e254ecc6d339fbe26bcf20459b60fb249a34465ca8834d39b5ea85",
+    "bytes": 81415
+  },
+  "control-plane/internal/backend/e2bbe/envdprocess/process.proto": {
+    "sha256": "8edd9358c7dbfcad96796b3f0ed8d14c262b8b14d6bc7d5e84d468941511b8e0",
+    "bytes": 3299
+  },
+  "control-plane/internal/backend/e2bbe/envdprocess/processconnect/process.connect.go": {
+    "sha256": "bd6d12d25e83636cf495e139a2d6e0ffc15db0c54f17e097bd7e5d0d8e5704e4",
+    "bytes": 15496
+  },
+  "control-plane/internal/backend/e2bbe/grant.go": {
+    "sha256": "790351a8a4bdad4563fe22c01a0f516210eaadfd883d8fd54c28c54b7b20e80a",
+    "bytes": 4830
+  },
+  "control-plane/internal/backend/e2bbe/grant_test.go": {
+    "sha256": "fbc75bf4e74462c4b66172c2065fd9c45b4c0c347d8aeb81eb5d5c20305e88b5",
+    "bytes": 4328
+  },
+  "control-plane/internal/backend/e2bbe/guest.go": {
+    "sha256": "bbebd2b5df7fb15b418c723ace46546243d7f230fef2f89959f7e16e5d30449e",
+    "bytes": 8711
+  },
+  "control-plane/internal/backend/e2bbe/guest_test.go": {
+    "sha256": "c1c1b4040e76c1d2abc070657b21ba99b8962cbcaa0d69b75c0c5b95a25801a4",
+    "bytes": 9380
+  },
+  "control-plane/internal/backend/e2bbe/launch.go": {
+    "sha256": "cda8e00af4f7d034e91a195a6f2b858432dd24c835b0b7c3c4811f7b9bb40eee",
+    "bytes": 6597
+  },
+  "control-plane/internal/backend/e2bbe/launch_test.go": {
+    "sha256": "21d0512c6f788a0baab4d0ed686e44e5dc716f185a04ad9ef31b9a13ccb99474",
+    "bytes": 10255
+  },
+  "control-plane/internal/backend/e2bbe/store.go": {
+    "sha256": "98553442faece9667226906758a648797489f9d1adad2a2e286ec8a95b2348ea",
+    "bytes": 14334
+  },
+  "control-plane/internal/backend/e2bbe/store_test.go": {
+    "sha256": "aeac784adfecc52abc6e6b3b7e67304a293f71c42d9d620b657e8bfeac90152c",
+    "bytes": 11370
+  },
+  "control-plane/internal/backend/e2bbe/transfer.go": {
+    "sha256": "cf8ad42a82ef8638c075b24e49244bf3c840a51f7f70638afb2b9daefdaaa70d",
+    "bytes": 7567
+  },
+  "control-plane/internal/backend/e2bbe/transfer_test.go": {
+    "sha256": "9d22bb8e8d173ebc00c332ea5efa483bd8950c953fbca6e11886c2d799a33128",
+    "bytes": 7295
+  },
+  "control-plane/internal/backend/e2bbe/types.go": {
+    "sha256": "cc1a9db42996ebd4b63dccc5accc5146e9f17db75818ad1b51fc434aa151007a",
+    "bytes": 6396
+  },
+  "control-plane/internal/microvmguest/permissions_linux.go": {
+    "sha256": "3fa302e7d8ef7dfa390bf8767b17cb2a76f135772af17c5a3bb4dd548a3289a7",
+    "bytes": 1844
+  },
+  "control-plane/internal/microvmguest/permissions_linux_test.go": {
+    "sha256": "c2832fc8f26a45d5310312cc1ebfda4c82040dbcc8902d3f1de5c7ed0d7656f4",
+    "bytes": 2224
+  },
+  "control-plane/internal/microvmguest/permissions_other.go": {
+    "sha256": "e1f8030316878b0b79abf77963bca27749bf240b18ce3906e90806d0ea7a24df",
+    "bytes": 263
+  },
+  "control-plane/internal/microvmguest/prepare.go": {
+    "sha256": "e982fca1ec083fbfbbb0d51a34bd25a282e3ccf64f862de3d9797e9ad5fc265b",
+    "bytes": 6580
+  },
+  "control-plane/internal/microvmguest/prepare_test.go": {
+    "sha256": "b1dcdf5dfe2116afb4af1cf00080c8dbd34029022fbe4125b4a8fa63aab3dca7",
+    "bytes": 6097
+  },
+  "control-plane/internal/microvmguest/repository_linux.go": {
+    "sha256": "7142abb91e899391d44fadb59882a6555b29e152733ec40abb80eab3b8f350f3",
+    "bytes": 3569
+  }
+}

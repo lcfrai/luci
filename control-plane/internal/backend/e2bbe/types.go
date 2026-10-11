@@ -15,6 +15,10 @@ import (
 )
 
 const RuntimeRevision = "cf536c284434fdd2f09bbab35ec807a5dacc87e4"
+
+// EnvdVersion is the runtime pin's packages/envd/pkg/version.go value, not a
+// minimum feature version inferred from the JavaScript SDK.
+const EnvdVersion = "0.9.0"
 const maxRecords = 4096
 const maxResponse = 4 << 20
 
@@ -96,6 +100,10 @@ type Record struct {
 	ProviderBillingSettled bool      `json:"providerBillingSettled"`
 	CreatedAt              time.Time `json:"createdAt"`
 	UpdatedAt              time.Time `json:"updatedAt"`
+	// LaunchRequested is a durable no-replay fence, not a successful Start.
+	LaunchRequested bool   `json:"launchRequested,omitempty"`
+	LaunchDigest    string `json:"launchDigest,omitempty"`
+	ProcessPID      uint32 `json:"processPid,omitempty"`
 }
 
 // Checkpoint supplies an exclusive fenced journal writer. Production wiring
@@ -129,6 +137,9 @@ type Config struct {
 	// Authorize rechecks current authority/cost policy before each provider effect.
 	// Secrets never enter a Request or the persisted journal.
 	Authorize func(context.Context, Request, string) error
+	// GuestOrigins is trusted operator configuration for the exact template.
+	// Provider response URLs and task archives cannot select these origins.
+	GuestOrigins func(sandboxID string) (envdOrigin, sandboxOrigin, envdVersion string, err error)
 }
 
 type Usage struct {

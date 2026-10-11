@@ -1,0 +1,5 @@
+{
+  "phase": "before-test",
+  "error": "mkdir used control-plane relative path while report used repository root; source capture and output redirections failed; no go test launched",
+  "corrected": "absolute artifact directory"
+}

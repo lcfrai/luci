@@ -1,0 +1,24 @@
+{
+  "observed": "2026-10-11T16:37:17.193486+00:00",
+  "scope": "Exact original production and unchanged formatted regression/fixture before malformed post-Create grant follow-up; no Go run yet.",
+  "files": [
+    {
+      "path": "control-plane/internal/backend/e2bbe/controller.go",
+      "retained": "before-controller.go",
+      "bytes": 17234,
+      "sha256": "85e0b68dc28a8659e858e9f6990905b902411a23b52114bcee39002f70ac3715"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/controller_test.go",
+      "retained": "before-controller_test.go",
+      "bytes": 18218,
+      "sha256": "d4d97becca99ba952b5903830cc27d4121310e8b79171ff65255446d11ef7360"
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/grant_test.go",
+      "retained": "before-grant_test.go",
+      "bytes": 5369,
+      "sha256": "1662a792821feb3d2217e9289b473e17b66403c1f2453895850b74718400f7f4"
+    }
+  ]
+}

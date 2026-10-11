@@ -1,0 +1,278 @@
+{
+  "captured": "2026-10-11T16:45:33.885698+00:00",
+  "preliminaryJoinedToFinal": [
+    {
+      "path": "control-plane/internal/backend/e2bbe/controller.go",
+      "initial": {
+        "sha256": "85e0b68dc28a8659e858e9f6990905b902411a23b52114bcee39002f70ac3715",
+        "bytes": 17234
+      },
+      "final": {
+        "bytes": 17378,
+        "sha256": "45fe4e54ce5c623cfbb9ef8b47b7562e8b74ac738212486f692ff905bb0f1ca3"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/controller_test.go",
+      "initial": {
+        "sha256": "3a75ba6baf030175e446bfcf60b2b0f2669007dee21a42729ef9a9441a757476",
+        "bytes": 18118
+      },
+      "final": {
+        "bytes": 18218,
+        "sha256": "d4d97becca99ba952b5903830cc27d4121310e8b79171ff65255446d11ef7360"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/e2bbe/grant_test.go",
+      "initial": {
+        "sha256": "fbc75bf4e74462c4b66172c2065fd9c45b4c0c347d8aeb81eb5d5c20305e88b5",
+        "bytes": 4328
+      },
+      "final": {
+        "bytes": 5369,
+        "sha256": "1662a792821feb3d2217e9289b473e17b66403c1f2453895850b74718400f7f4"
+      }
+    },
+    {
+      "path": "control-plane/internal/microvmguest/prepare.go",
+      "initial": {
+        "sha256": "e982fca1ec083fbfbbb0d51a34bd25a282e3ccf64f862de3d9797e9ad5fc265b",
+        "bytes": 6580
+      },
+      "final": {
+        "bytes": 8087,
+        "sha256": "e85ef329d9243a754fea4abec6ccbfb29147bb88ca5e873571bbea582c31c931"
+      }
+    },
+    {
+      "path": "control-plane/internal/microvmguest/prepare_test.go",
+      "initial": {
+        "sha256": "b1dcdf5dfe2116afb4af1cf00080c8dbd34029022fbe4125b4a8fa63aab3dca7",
+        "bytes": 6097
+      },
+      "final": {
+        "bytes": 7651,
+        "sha256": "ef86d3d59fb7f30ab076167d1c499b153eebf9614de3b8aeed5efed412d0cefc"
+      }
+    }
+  ],
+  "originalFollowupToFinal": [
+    {
+      "path": "control-plane/internal/backend/e2bbe/controller.go",
+      "original": {
+        "bytes": 17234,
+        "sha256": "85e0b68dc28a8659e858e9f6990905b902411a23b52114bcee39002f70ac3715"
+      },
+      "final": {
+        "bytes": 17378,
+        "sha256": "45fe4e54ce5c623cfbb9ef8b47b7562e8b74ac738212486f692ff905bb0f1ca3"
+      }
+    },
+    {
+      "path": "control-plane/internal/microvmguest/prepare.go",
+      "original": {
+        "bytes": 6598,
+        "sha256": "d2b8a9eae83ae853e10d6ec863a6ec0e8890f3368e89f821c9cefe72e69ec0f9"
+      },
+      "final": {
+        "bytes": 8087,
+        "sha256": "e85ef329d9243a754fea4abec6ccbfb29147bb88ca5e873571bbea582c31c931"
+      }
+    },
+    {
+      "path": "control-plane/internal/microvmguest/prepare_test.go",
+      "original": {
+        "bytes": 6115,
+        "sha256": "c2f71a2c3c5739253e3fdefaa13d7b05dc7ff6090ba892297edf13b2f552a115"
+      },
+      "final": {
+        "bytes": 7651,
+        "sha256": "ef86d3d59fb7f30ab076167d1c499b153eebf9614de3b8aeed5efed412d0cefc"
+      }
+    }
+  ],
+  "originalRegressionAndFixtureUnchanged": true,
+  "finalSelectedCurrentSourceMatch": true,
+  "scope": "Selected manifests only. Root-owned microvmguest changes are Linux build constraints and prelaunch materialized-file revalidation; cmd body remains separately covered by preliminary compile. Original single-case e2bbe compiled no guest files. All final counts overlap earlier runs.",
+  "preliminaryOnlyInputs": [
+    {
+      "path": "control-plane/internal/microvmguest/permissions_other.go",
+      "binding": {
+        "sha256": "e1f8030316878b0b79abf77963bca27749bf240b18ce3906e90806d0ea7a24df",
+        "bytes": 263
+      },
+      "currentlyExists": false
+    }
+  ],
+  "finalOnlyInputs": [
+    {
+      "path": "control-plane/internal/backend/allocation_observation.go",
+      "binding": {
+        "bytes": 634,
+        "sha256": "5d55222fb0d6dfc75e986b36cf81006ff43c1e64bb491dfc496346313301d42b"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/backend.go",
+      "binding": {
+        "bytes": 17332,
+        "sha256": "b7e25e056c72fe6b0227fdfc6d024b0cbf3d00c02fb46da90378ed1cbeb9148c"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/backend_test.go",
+      "binding": {
+        "bytes": 7661,
+        "sha256": "2ecc44a90c091fe3f586a51ba339937e25c57c32706651f92d62096ecec43550"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/checks.go",
+      "binding": {
+        "bytes": 3407,
+        "sha256": "090393a01b586f1d2ede865f3e0dbed3c01c013fb975be4f0ecc326f2076602a"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/dial.go",
+      "binding": {
+        "bytes": 4961,
+        "sha256": "1610e84e64884210c2b7deaaf6615f5d81d8858c48d8ac6ebb857915230f0f5f"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/dial_test.go",
+      "binding": {
+        "bytes": 10665,
+        "sha256": "271a2f3d5538ac72e7c0e7621ba8100e2e949d366e9a345d0ae6e4319a0136d2"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/launch_fence.go",
+      "binding": {
+        "bytes": 2767,
+        "sha256": "28f4484a46c8b065b984bd4bdc5886872fed5aa32dfa3343c8dd615e0472b0cd"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/previews.go",
+      "binding": {
+        "bytes": 3036,
+        "sha256": "3c8a2f3e36efe65215196a113f30349734431aedd171fb4170b704c4d3ac6279"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/resource_limits.go",
+      "binding": {
+        "bytes": 514,
+        "sha256": "e44a1c4775570ab0431ae83902f1adcc61618a8e4b21e74b0ba96f9809da5153"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/runtime_image.go",
+      "binding": {
+        "bytes": 2581,
+        "sha256": "0e3fc46f53717a55aba17189550c18efe348672093bd0805af4d0b506608e4ea"
+      }
+    },
+    {
+      "path": "control-plane/internal/backend/seam_test.go",
+      "binding": {
+        "bytes": 9256,
+        "sha256": "e263ef8815ab8be36a4f1439e93fe1e16b4b308565ff91097fac388588142b62"
+      }
+    },
+    {
+      "path": "control-plane/internal/statelease/lease.go",
+      "binding": {
+        "bytes": 613,
+        "sha256": "65bd6bd82824261a68653bc4111f88de6842f91f07f1d804c9cf7597c6c7d7e4"
+      }
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_other.go",
+      "binding": {
+        "bytes": 226,
+        "sha256": "3736a094e89f48b825c54f9efeecee4e1eb3d2e4dbba32dbfb8037527344531f"
+      }
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_process_test.go",
+      "binding": {
+        "bytes": 4946,
+        "sha256": "065f9c16837292843e75e415a77d58df8a1ed535d0d3f8542676289f85388d15"
+      }
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_special_unix_test.go",
+      "binding": {
+        "bytes": 2170,
+        "sha256": "185840893063c0bc15970e73ad4c2560b1e2cdb4318b57221413a725e97169cd"
+      }
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_test.go",
+      "binding": {
+        "bytes": 3725,
+        "sha256": "7f7ce8648066e91e6f3ceaf214339192e616c7b97de282994efd92db7ba35404"
+      }
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_unix.go",
+      "binding": {
+        "bytes": 3434,
+        "sha256": "53428533e0122a9c063f6b7e8df950a039a08e8a96c6fbca6fe8ac07d5edb76a"
+      }
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_windows.go",
+      "binding": {
+        "bytes": 8088,
+        "sha256": "2a52b6025a04728819f1f9ff5472400d6f31e92aefead610a229f995895e1769"
+      }
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_windows_test.go",
+      "binding": {
+        "bytes": 6531,
+        "sha256": "dbdf0b2931281e10b254131abc8804770ea0ebf137ca61d7cc9390b9855f82ac"
+      }
+    },
+    {
+      "path": "go.work",
+      "binding": {
+        "bytes": 48,
+        "sha256": "e634b59bb2cdd79a961dc765ab7452e40a0fa486cf8972d3357ff5df2dbd9db9"
+      }
+    },
+    {
+      "path": "go.work.sum",
+      "binding": {
+        "bytes": 2499,
+        "sha256": "cebe32be8573f52246bc5d2e8daac3d204fae0bea61f35fe569ed4e9ca18785e"
+      }
+    },
+    {
+      "path": "scripts/collect-licenses.py",
+      "binding": {
+        "bytes": 15161,
+        "sha256": "a99c812e69a06d6da35d511964d1e7c8309d42832827dadf5d6301b223ca5715"
+      }
+    },
+    {
+      "path": "scripts/retained_e2b.py",
+      "binding": {
+        "bytes": 2359,
+        "sha256": "b4e4375018b1c57560050a050118171cd80dc217c8a09e9b4b89323b5662ac20"
+      }
+    },
+    {
+      "path": "scripts/test_retained_e2b.py",
+      "binding": {
+        "bytes": 4177,
+        "sha256": "b177a2ab416f71e4f2749031f7a57cd8c3be2610c573b724fae5cb683adfcd1e"
+      }
+    }
+  ]
+}

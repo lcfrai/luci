@@ -1,0 +1,69 @@
+{
+  "observed": "2026-10-11T16:20:09.942833+00:00",
+  "scope": "Read-only immutable official sources; no provider credentials, installation or provisioning. SDK minimum0.6.4 does not override runtime actual0.9.0.",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/runtime/cf536c284434fdd2f09bbab35ec807a5dacc87e4/packages/shared/pkg/grpc/envd/process/process.pb.go",
+      "path": "packages/shared/pkg/grpc/envd/process/process.pb.go",
+      "bytes": 81415,
+      "sha256": "f385b69c66e254ecc6d339fbe26bcf20459b60fb249a34465ca8834d39b5ea85",
+      "retained": "upstream/process.pb.go"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/runtime/cf536c284434fdd2f09bbab35ec807a5dacc87e4/packages/shared/pkg/grpc/envd/process/processconnect/process.connect.go",
+      "path": "packages/shared/pkg/grpc/envd/process/processconnect/process.connect.go",
+      "bytes": 15487,
+      "sha256": "d6e845cf159047d740cd980dcf38c584d4d6e5de840271310a4d5353605f7097",
+      "retained": "upstream/process.connect.go"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/runtime/cf536c284434fdd2f09bbab35ec807a5dacc87e4/packages/envd/spec/process/process.proto",
+      "path": "packages/envd/spec/process/process.proto",
+      "bytes": 3299,
+      "sha256": "8edd9358c7dbfcad96796b3f0ed8d14c262b8b14d6bc7d5e84d468941511b8e0",
+      "retained": "upstream/process.proto"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/runtime/cf536c284434fdd2f09bbab35ec807a5dacc87e4/LICENSE",
+      "path": "LICENSE",
+      "bytes": 11347,
+      "sha256": "b4ef1bf811cb4095229fb86b574199e467c78f0ac4078cf8be62189e1fbd0818",
+      "retained": "upstream/LICENSE"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/runtime/cf536c284434fdd2f09bbab35ec807a5dacc87e4/packages/envd/internal/api/upload.go",
+      "path": "packages/envd/internal/api/upload.go",
+      "retained": "upstream/upload.go",
+      "bytes": 11982,
+      "sha256": "430fe737406e7cac79ac1ea6639d12f1de777bacf666bcc367231cb19c303fac"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/runtime/cf536c284434fdd2f09bbab35ec807a5dacc87e4/packages/envd/pkg/version.go",
+      "path": "packages/envd/pkg/version.go",
+      "retained": "upstream/version.go",
+      "bytes": 63,
+      "sha256": "48cab73534b8cb2516e4add7c6f7c621457da1e4a88891d449ad1e592550f853"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/runtime/cf536c284434fdd2f09bbab35ec807a5dacc87e4/packages/envd/internal/services/process/start.go",
+      "path": "packages/envd/internal/services/process/start.go",
+      "retained": "upstream/start.go",
+      "bytes": 7029,
+      "sha256": "b7dd3c90e7a37d78c4e1ff0c2d7d0719fa7a155cb00583c639a62242853d6d84"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/E2B/df6c368152b067512702fc677952c0fc4e13c2f0/packages/js-sdk/src/envd/rpc.ts",
+      "path": "packages/js-sdk/src/envd/rpc.ts",
+      "bytes": 11485,
+      "sha256": "e240e3c368b7ea6ae2012122258c94fa2071e00348a63dc4011ef3a7c5b31090",
+      "retained": "upstream/rpc.ts"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/e2b-dev/E2B/df6c368152b067512702fc677952c0fc4e13c2f0/packages/js-sdk/src/envd/versions.ts",
+      "path": "packages/js-sdk/src/envd/versions.ts",
+      "bytes": 424,
+      "sha256": "36718e6450b6261c3290b9c5ec0672af71dd0bd75913a18f16b5ba836ab0492c",
+      "retained": "upstream/versions.ts"
+    }
+  ]
+}

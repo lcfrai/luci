@@ -54,6 +54,8 @@ type providerFixture struct {
 	rows                         map[string]providerSandbox
 	creates, deletes             int
 	lostACK, holdDelete, foreign bool
+	guestGrant                   bool
+	invalidGuestGrant            bool
 	entered, release             chan struct{}
 }
 
@@ -94,6 +96,14 @@ func (p *providerFixture) handle(w http.ResponseWriter, r *http.Request) {
 		p.creates++
 		id := fmt.Sprintf("vm-%d", p.creates)
 		row := providerSandbox{ID: id, TemplateID: body.Template, State: "running", CPU: 2, MemoryMiB: 2048, Metadata: body.Metadata}
+		if p.guestGrant {
+			row.EnvdAccessToken = "fixture-envd"
+			row.TrafficAccessToken = "fixture-traffic"
+			row.EnvdVersion = EnvdVersion
+			if p.invalidGuestGrant {
+				row.TrafficAccessToken = ""
+			}
+		}
 		p.rows[id] = row
 		entered, release := p.entered, p.release
 		if entered != nil {

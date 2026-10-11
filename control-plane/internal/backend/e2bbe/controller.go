@@ -152,6 +152,9 @@ func validateJournal(b []byte, owner, scope string) (journal, error) {
 		if r.ResourcesHeld != (r.State != Absent) || (r.SandboxID != "" && !validID(r.SandboxID)) || (r.State == Allocated && r.SandboxID == "") {
 			return journal{}, ErrConflict
 		}
+		if r.LaunchRequested != (r.LaunchDigest != "") || r.LaunchRequested && (!digestPattern.MatchString(r.LaunchDigest) || r.SandboxID == "") || r.ProcessPID != 0 && !r.LaunchRequested {
+			return journal{}, ErrConflict
+		}
 		key := r.Request.Identity.ProjectID + "/" + r.Request.Identity.TaskID + "/" + r.Request.Identity.AttemptID
 		if seenAttempts[key] || r.SandboxID != "" && seenVMs[r.SandboxID] {
 			return journal{}, ErrConflict
@@ -357,7 +360,7 @@ func (c *Controller) Allocate(ctx context.Context, req Request) (Record, error) 
 		r.State, r.ResourcesHeld = Absent, false
 		return c.update(context.WithoutCancel(ctx), r)
 	}
-	id, createErr := c.client.create(ctx, r)
+	created, createErr := c.client.create(ctx, r)
 	// A concurrent cancellation may have persisted intent while Create was
 	// in flight. Preserve it and settle this same allocation, never replay it.
 	r, e = c.record(req.Identity.OperationID)
@@ -374,13 +377,13 @@ func (c *Controller) Allocate(ctx context.Context, req Request) (Record, error) 
 		}
 		return after, ErrUnknown
 	}
-	r.SandboxID = id
+	r.SandboxID = created.ID
 	if !r.CancelRequested {
 		r.State = Unknown
 	}
 	c.mu.Lock()
 	for op, old := range c.journal.Records {
-		if op != req.Identity.OperationID && old.SandboxID == id {
+		if op != req.Identity.OperationID && old.SandboxID == created.ID {
 			c.mu.Unlock()
 			return r, ErrConflict
 		}
@@ -389,6 +392,15 @@ func (c *Controller) Allocate(ctx context.Context, req Request) (Record, error) 
 	r, e = c.update(context.WithoutCancel(ctx), r)
 	if e != nil {
 		return r, e
+	}
+	// Persist tokens separately from the checkpoint/public allocation journal.
+	// A lost or unsupported grant does not justify another Create/Connect.
+	if created.EnvdAccessToken != "" || created.TrafficAccessToken != "" {
+		if e = c.saveGrant(r, created); e != nil {
+			// Create was acknowledged and the exact VM is charged. A missing
+			// private grant cannot turn that effect into a no-op refusal.
+			return r, ErrUnknown
+		}
 	}
 	return c.observe(ctx, r, r.CancelRequested)
 }

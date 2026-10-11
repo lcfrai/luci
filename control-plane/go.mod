@@ -3,6 +3,7 @@ module github.com/lcfrai/luci/control-plane
 go 1.25.0
 
 require (
+	connectrpc.com/connect v1.18.1
 	github.com/coder/websocket v1.8.15
 	github.com/shopspring/decimal v1.4.0
 	github.com/stripe/stripe-go/v87 v87.0.0

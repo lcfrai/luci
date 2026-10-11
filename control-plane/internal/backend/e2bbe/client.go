@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"io"
@@ -11,18 +12,24 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 )
 
 type providerSandbox struct {
-	ID         string            `json:"sandboxID"`
-	TemplateID string            `json:"templateID"`
-	State      string            `json:"state"`
-	CPU        int64             `json:"cpuCount"`
-	MemoryMiB  int64             `json:"memoryMB"`
-	Metadata   map[string]string `json:"metadata"`
+	ID                 string            `json:"sandboxID"`
+	TemplateID         string            `json:"templateID"`
+	State              string            `json:"state"`
+	CPU                int64             `json:"cpuCount"`
+	MemoryMiB          int64             `json:"memoryMB"`
+	Metadata           map[string]string `json:"metadata"`
+	EnvdAccessToken    string            `json:"envdAccessToken,omitempty"`
+	TrafficAccessToken string            `json:"trafficAccessToken,omitempty"`
+	EnvdVersion        string            `json:"envdVersion,omitempty"`
 }
+
+func (providerSandbox) String() string   { return "E2B sandbox response (private grant redacted)" }
+func (providerSandbox) GoString() string { return "E2B sandbox response (private grant redacted)" }
+
 type providerClient struct {
 	endpoint *url.URL
 	key      string
@@ -30,24 +37,42 @@ type providerClient struct {
 }
 
 func newClient(c Config) (*providerClient, error) {
-	u, e := url.Parse(c.Endpoint)
-	if e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") || u.Port() == "5008" {
+	if !validToken(c.APIKey) {
 		return nil, ErrUnsupported
+	}
+	u, h, e := privateHTTP(c.Endpoint, c.RootCAs)
+	if e != nil {
+		return nil, e
+	}
+	return &providerClient{endpoint: u, key: c.APIKey, http: h}, nil
+}
+func validToken(s string) bool {
+	if len(s) < 1 || len(s) > 4096 {
+		return false
+	}
+	for _, r := range s {
+		if r < 33 || r > 126 {
+			return false
+		}
+	}
+	return true
+}
+func privateHTTP(endpoint string, roots *x509.CertPool) (*url.URL, *http.Client, error) {
+	u, e := url.Parse(endpoint)
+	if e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") || u.Port() == "5008" {
+		return nil, nil, ErrUnsupported
 	}
 	if ip := net.ParseIP(u.Hostname()); ip != nil && !privateIP(ip) {
-		return nil, ErrUnsupported
-	}
-	if c.APIKey == "" || len(c.APIKey) > 4096 || strings.ContainsAny(c.APIKey, "\r\n\x00") {
-		return nil, ErrUnsupported
+		return nil, nil, ErrUnsupported
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
-	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: c.RootCAs}
+	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
 	transport.DialContext = privateDial
 	transport.MaxConnsPerHost = 8
 	transport.MaxIdleConnsPerHost = 4
 	transport.ResponseHeaderTimeout = 10 * time.Second
-	return &providerClient{endpoint: u, key: c.APIKey, http: &http.Client{Transport: transport, Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("provider redirect refused") }}}, nil
+	return u, &http.Client{Transport: transport, Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("provider redirect refused") }}, nil
 }
 func privateIP(ip net.IP) bool {
 	return ip != nil && (ip.IsPrivate() || ip.IsLoopback()) && !ip.IsUnspecified()
@@ -141,14 +166,14 @@ func matches(r Record, s providerSandbox) bool {
 	}
 	return true
 }
-func (c *providerClient) create(ctx context.Context, r Record) (string, error) {
+func (c *providerClient) create(ctx context.Context, r Record) (providerSandbox, error) {
 	body := map[string]any{"templateID": r.Template.ID, "timeout": r.Request.MaxSeconds, "autoPause": false, "autoResume": map[string]any{"enabled": false}, "network": map[string]any{"allowPublicTraffic": false, "denyOut": []string{"0.0.0.0/0"}}, "metadata": metadata(r)}
 	var response providerSandbox
 	status, _, e := c.call(ctx, http.MethodPost, "/v2/sandboxes", nil, body, &response)
 	if e != nil || status != http.StatusCreated || !validID(response.ID) || response.TemplateID != r.Template.ID {
-		return "", ErrUnknown
+		return providerSandbox{}, ErrUnknown
 	}
-	return response.ID, nil
+	return response, nil
 }
 func (c *providerClient) inspect(ctx context.Context, id string) (providerSandbox, bool, error) {
 	var out providerSandbox

@@ -1,0 +1,12 @@
+test_actual_collector_includes_original_apache_grant_and_attribution (test_retained_e2b.RetainedE2BTests.test_actual_collector_includes_original_apache_grant_and_attribution) ... ok
+test_changed_original_or_license_is_refused (test_retained_e2b.RetainedE2BTests.test_changed_original_or_license_is_refused) ... ok
+test_exact_generated_bindings_and_license (test_retained_e2b.RetainedE2BTests.test_exact_generated_bindings_and_license) ... ok
+test_linked_generated_directory_is_refused (test_retained_e2b.RetainedE2BTests.test_linked_generated_directory_is_refused) ... ok
+test_missing_license_is_refused (test_retained_e2b.RetainedE2BTests.test_missing_license_is_refused) ... ok
+test_only_exact_import_relocation_is_permitted (test_retained_e2b.RetainedE2BTests.test_only_exact_import_relocation_is_permitted) ... ok
+test_windows_line_endings_preserve_exact_source (test_retained_e2b.RetainedE2BTests.test_windows_line_endings_preserve_exact_source) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.019s
+
+OK
