@@ -22,6 +22,7 @@ type previewBackendFixture struct {
 	builds, creates, starts, stops, removes int
 	state                                   string
 	build                                   func(context.Context, backend.PreparedPreview) (backend.PreviewBuildResult, error)
+	guardedBuild                            func(context.Context, backend.PreparedPreview, func(context.Context) error) (backend.PreviewBuildResult, error)
 	createError, startError, removeError    error
 	afterCreate                             func()
 }
@@ -34,7 +35,13 @@ func (f *previewBackendFixture) PreparePreview(ctx context.Context, s backend.Pr
 	s.Identity.InstanceID = httpCheckInstance
 	return backend.PreparedPreview{Spec: s, RequiredDiskBytes: 1 << 30, StorageDriver: "overlay2"}, nil
 }
-func (f *previewBackendFixture) BuildPreview(ctx context.Context, p backend.PreparedPreview) (backend.PreviewBuildResult, error) {
+func (f *previewBackendFixture) BuildPreview(ctx context.Context, p backend.PreparedPreview, beforeMutation func(context.Context) error) (backend.PreviewBuildResult, error) {
+	if f.guardedBuild != nil {
+		return f.guardedBuild(ctx, p, beforeMutation)
+	}
+	if err := beforeMutation(ctx); err != nil {
+		return backend.PreviewBuildResult{Settled: true}, err
+	}
 	f.mu.Lock()
 	f.builds++
 	f.mu.Unlock()

@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "original_before": {
+    "state": "expected failure demonstrated",
+    "exit_code": 1,
+    "source_manifest_count": 52,
+    "sources_unchanged": true,
+    "evidence": "evidence/before-cold/result.json"
+  },
+  "initial_integrated": {
+    "state": "passed before COPY flag correction",
+    "counts": {
+      "pass": 186,
+      "subtest": 143,
+      "top_level": 43
+    },
+    "exit_code": 0,
+    "exit_provenance": "Root observed exec completion; JSON package pass records independently retained",
+    "command": [
+      "go",
+      "test",
+      "-p1",
+      "-race",
+      "-count=1",
+      "-timeout=4m",
+      "-json",
+      "./internal/backend/dockerbe",
+      "./internal/api",
+      "-run",
+      "TestPreview|TestClassicBuild"
+    ],
+    "cwd": "control-plane",
+    "environment": "Repository activation with GOMAXPROCS=2",
+    "input_binding": "Incomplete: frozen backend files retained, API unchanged per root observation; no complete before/after source manifest for this run"
+  },
+  "initial_compile": {
+    "state": "compile-only passed before COPY flag correction",
+    "exit_code": 0,
+    "exit_provenance": "Root observed exec completion",
+    "command": [
+      "go",
+      "test",
+      "-p1",
+      "-run",
+      "^$",
+      "./..."
+    ],
+    "cwd": "control-plane",
+    "environment": "Repository activation with GOMAXPROCS=2",
+    "input_binding": "No complete before/after source manifest captured",
+    "tests_executed": false
+  },
+  "copy_correction": {
+    "state": "corrected and focused regression validated",
+    "finding": "Quoted or escaped whitespace in preceding COPY flags could hide an external --from reference from strings.Fields validation",
+    "before": {
+      "exit_code": 1,
+      "leaf_cases": 9,
+      "passed": 5,
+      "failed": 4,
+      "skipped": 0,
+      "sources_unchanged": true
+    },
+    "after": {
+      "exit_code": 0,
+      "leaf_cases": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "sources_unchanged": true
+    },
+    "source_inputs_per_run": 55,
+    "evidence": "evidence/copy-correction/final-summary.json",
+    "patch": "evidence/copy-correction/copy-flags.patch",
+    "final_source_186_claim": false,
+    "validation_scope": "Dedicated COPY regression only; original 186 outcomes and compile-all predate this correction"
+  },
+  "runtime": {
+    "actual_cold_docker_pull_or_application_build_validated": false,
+    "windows_validation": "pending",
+    "end_to_end_idea_to_preview_quality": "not established by these tests"
+  },
+  "final_selected_sources": {
+    "manifest": "sources/final-selected-source-bindings.json",
+    "file_count": 13,
+    "scope": "Selected C082 Go product/test changes, not full compile closure",
+    "unchanged_focused_inputs_verified": true,
+    "api_stability_provenance": "Root reports unchanged; current API bytes are hash-bound in selected manifest"
+  }
+}

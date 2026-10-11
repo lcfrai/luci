@@ -1,0 +1,15 @@
+{
+  ".package-lock.json": "7426772e49589aaa6326920af535bb130ab61a7436c8a54569df5d320b817c10",
+  "typescript/package.json": "9332e97c30d3e53ed54910b89207ed657fb444066484df6e5b6965bf130865e9",
+  "typescript/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+  "vite/package.json": "0a75f2254630e11aa4fde386a2f883e2acc8430acc3fb5a833f25da264c62a16",
+  "vite/dist/node/cli.js": "74ad623b5e5a1fb012ff4caaf324733c19aa69cc79d95297232769598a065eec",
+  "react/package.json": "6e003e4e9ed25afa7fdd55613f8aa877cefa9b359d9c13f81ee704030248e24e",
+  "react-dom/package.json": "136d4af63de473392ea79d6a21932b0ed9eb37fe518ce70f4621250f3d79e9bb",
+  "zustand/package.json": "b53b4d5e7f6baeb1e832792390354f8af54edaefbd6fe23b490a4d2d2e37dff1",
+  "zustand/esm/middleware.mjs": "06acf5818857096359bdd9703fe06cf7a194c6df65af846fc13aab071c7bcfc4",
+  "@vitejs/plugin-react/package.json": "c5420bbbe5ea17fec4b09d44114f9eedd774efbfcc6f9a1d6228103b590af705",
+  "@tailwindcss/vite/package.json": "cba2bb8613106ca608bbd757998b2cf56a464584e3848310338fe3fe3b4761aa",
+  "playwright/package.json": "8bc2ddebe8d9b051b9ecb87d62c6c63877e59d08617f32c3215681ca8bb70998",
+  "playwright/index.mjs": "a0f5715ea22354f922791a9c53dc012d5d5c067ff9cc4cd35ffb7cd272071a9f"
+}

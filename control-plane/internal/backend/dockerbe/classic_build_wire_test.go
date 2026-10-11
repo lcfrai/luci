@@ -39,7 +39,7 @@ func TestClassicBuildWireSupportsLinuxAndRetainsLimits(t *testing.T) {
 				id := previewBuiltImage(f, p)
 				aux, _ := json.Marshal(map[string]any{"aux": map[string]string{"ID": id}})
 				f.stream = string(aux) + "\n" + previewStreamFrame("Successfully built "+strings.TrimPrefix(id, "sha256:")[:12]+"\n")
-				if _, err = b.BuildPreview(context.Background(), p); err != nil {
+				if _, err = b.BuildPreview(context.Background(), p, allowPreviewMutation); err != nil {
 					t.Fatal(err)
 				}
 				options = f.buildOptions[0]

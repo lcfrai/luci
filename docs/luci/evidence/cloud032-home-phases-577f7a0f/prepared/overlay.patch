@@ -1,0 +1,199 @@
+--- a/desktop/src/components/rail/Rail.tsx
++++ b/desktop/src/components/rail/Rail.tsx
+@@ -1,3 +1,4 @@
++import { homeHandlerBegin, homeHandlerEnd } from "../../diagnostics/homePhaseTiming";
+ // Contract §6.2: the scroll container, the role="tree" wrapper, and keyboard traversal within
+ // the tree. Traversal reads the DOM rather than a parallel flat list, because a second copy of
+ // "which rows are visible" is a second thing to keep in step with the render — and defect 10's
+@@ -162,8 +163,11 @@
+             className="rail-home"
+             aria-label="All projects"
+             onClick={() => {
+-              useCockpit.getState().selectProject(null);
+-              onClose?.();
++              const timing = homeHandlerBegin();
++              try {
++                useCockpit.getState().selectProject(null);
++                onClose?.();
++              } finally { homeHandlerEnd(timing); }
+             }}
+           >
+             Luci
+--- a/desktop/src/components/AppShell.tsx
++++ b/desktop/src/components/AppShell.tsx
+@@ -1,5 +1,6 @@
++import { homeRenderBegin, homeCommit } from "../diagnostics/homePhaseTiming";
+ // Owns responsive navigation, the single keyboard-map mount and shared overlays.
+-import { useEffect, useRef, useState, type JSX } from "react";
++import { useEffect, useLayoutEffect, useRef, useState, type JSX } from "react";
+ import { useCockpit } from "../store/store";
+ import { Rail } from "./rail/Rail";
+ import { SubRail } from "./subrail/SubRail";
+@@ -46,6 +47,7 @@
+ }
+ 
+ export function AppShell(): JSX.Element {
++  const homeRender = homeRenderBegin();
+   const setup = useSetup();
+   const railCollapsed = useCockpit((s) => s.railCollapsed);
+   const branchId = useCockpit((s) => s.selection.branchId);
+@@ -91,6 +93,10 @@
+       document.querySelector<HTMLButtonElement>(".top-projects")?.focus();
+     previousDrawerOpen.current = drawerOpen;
+   }, [drawerOpen, railRef]);
++
++  useLayoutEffect(() => {
++    if (projectId === null && branchId === null) homeCommit(homeRender);
++  }, [projectId, branchId, homeRender]);
+ 
+   // §6.8: the ONE window keydown listener in the app, mounted once, here. Escape is NOT in
+   // it — hooks/useDismissable owns the overlay stack and therefore owns Escape (§6.9).
+--- a/desktop/src/store/slices/uiSlice.ts
++++ b/desktop/src/store/slices/uiSlice.ts
+@@ -1,3 +1,4 @@
++import { homePhase } from "../../diagnostics/homePhaseTiming";
+ // desktop/src/store/slices/uiSlice.ts
+ //
+ // Contract §3.3. Selection, lens, layout, rail expansion, overlays, toasts.
+@@ -43,7 +44,7 @@
+   | { kind: "branch"; projectId: ProjectId; branchId: BranchId; worktreeId?: WorktreeId }
+   | { kind: "lens"; lens: Lens };
+ export interface BranchManagerTarget { projectId: ProjectId; action: "create" | "switch"; branchId?: BranchId }
+-const navigationState = (navigation: PendingNavigation, state: CockpitState): Partial<UiSlice> => {
++const navigationState = (navigation: PendingNavigation, state: CockpitState): Partial<UiSlice> => homePhase(3, () => {
+   let selection = state.selection, lens = state.lens;
+   if (navigation.kind === "project") {
+     selection = { ...NO_SELECTION, projectId: navigation.projectId };
+@@ -65,7 +66,7 @@
+   const bounded = pruneProjectPositions(projectPositions, state.projects);
+   const saved = !state.projectNavigationScope || writeProjectNavigation(state.projectNavigationScope, { projects: bounded, selected: selection.projectId });
+   return { selection, lens, projectPositions: bounded, projectNavigationError: !saved };
+-};
++});
+ 
+ function hasNavigationWorktree(state: CockpitState, projectId: ProjectId, branchId: BranchId, worktreeId: WorktreeId) {
+   return state.projects.some(project => project.id === projectId) && state.branchesByProject[projectId]?.some(branch => branch.id === branchId && branch.projectId === projectId) &&
+--- a/desktop/src/preferences/projectNavigation.ts
++++ b/desktop/src/preferences/projectNavigation.ts
+@@ -1,3 +1,4 @@
++import { homePhase, homeCount } from "../diagnostics/homePhaseTiming";
+ import type { Lens, Project } from "../store/types";
+ 
+ // Navigation is a preference, never execution consent or evidence. Its separate
+@@ -48,12 +49,17 @@
+ }
+ 
+ export function writeProjectNavigation(scope: string, navigation: ProjectNavigation): boolean {
++  return homePhase(4, () => {
+   try {
+     const key = PROJECT_NAVIGATION_PREFIX + scope;
+-    const projects = Object.fromEntries(Object.entries(navigation.projects)
+-      .sort((a, b) => b[1].updatedAt - a[1].updatedAt).slice(0, MAX_NAVIGATION_PROJECTS));
+-    const raw = JSON.stringify({ version: 1, ...navigation, projects, updatedAt: Date.now() });
++    const raw = homePhase(5, () => {
++      const projects = Object.fromEntries(Object.entries(navigation.projects)
++        .sort((a, b) => b[1].updatedAt - a[1].updatedAt).slice(0, MAX_NAVIGATION_PROJECTS));
++      return JSON.stringify({ version: 1, ...navigation, projects, updatedAt: Date.now() });
++    });
+     if (raw.length * 2 > MAX_RECORD_BYTES) return false;
++    homePhase(6, () => {
++    homeCount(10, localStorage.length);
+     // Bound only our small preferences; never evict project drafts or application data.
+     const others: { key: string; updatedAt: number }[] = [];
+     for (let i = 0; i < localStorage.length; i++) {
+@@ -64,7 +70,10 @@
+       others.push({ key: stored, updatedAt });
+     }
+     for (const record of others.sort((a, b) => b.updatedAt - a.updatedAt).slice(MAX_SCOPES - 1)) localStorage.removeItem(record.key);
+-    localStorage.setItem(key, raw);
++    homeCount(11, others.length);
++    });
++    homePhase(7, () => localStorage.setItem(key, raw));
+     return true;
+   } catch { return false; }
++  });
+ }
+--- a/desktop/src/store/store.ts
++++ b/desktop/src/store/store.ts
+@@ -1,3 +1,4 @@
++import { homePhase } from "../diagnostics/homePhaseTiming";
+ // desktop/src/store/store.ts
+ //
+ // Contract §3.1 and §3.5. The store is FLAT: all three slices contribute keys at the root of
+@@ -67,6 +68,11 @@
+ /** A fresh, independently persisted store. `useCockpit` is the app's one instance; the
+  *  factory exists so a test can build a store over a seeded localStorage without disturbing
+  *  the singleton every other suite shares. */
++function homeTimingStorage() {
++  const storage = createJSONStorage(() => localStorage);
++  return storage && { ...storage, setItem: (name: string, value: Parameters<typeof storage.setItem>[1]) => homePhase(8, () => storage.setItem(name, value)) };
++}
++
+ export const createCockpitStore = () =>
+   create<CockpitState>()(
+     persist(
+@@ -78,8 +84,8 @@
+       {
+         name: PERSIST_KEY,
+         version: PERSIST_VERSION,
+-        storage: createJSONStorage(() => localStorage),
+-        partialize,
++        storage: homeTimingStorage(),
++        partialize: state => homePhase(9, () => partialize(state)),
+         migrate,
+         // Contract §12, open question 3. The only report a swallowed storage failure gets.
+         onRehydrateStorage: () => (_state: CockpitState | undefined, error: unknown) => {
+--- /dev/null
++++ b/desktop/src/diagnostics/homePhaseTiming.ts
+@@ -0,0 +1,51 @@
++// Diagnostic overlay only. No production optimization or stored data change.
++type Token = { id: number; start: number } | null;
++type Row = { sequence: number; home: number; kind: number; start: number; end: number; ok: number; count?: number };
++const enabled = typeof window !== "undefined" && (window as unknown as { __luciHomePhaseRequested?: number }).__luciHomePhaseRequested === 1;
++let armed = false, home = 0, active = 0, pending = 0, sequence = 0, dropped = 0;
++const starts = new Map<number, number>();
++let rows: Row[] = [];
++function record(id: number, kind: number, start: number, end: number, ok = 1, count?: number) {
++  if (!id) return;
++  sequence++;
++  if (rows.length >= 2048) { dropped++; return; }
++  rows.push({ sequence, home: id, kind, start, end, ok, ...(count === undefined ? {} : { count }) });
++}
++export function homeHandlerBegin(): number {
++  if (!enabled || !armed) return 0;
++  if (pending) dropped++;
++  const id = ++home; active = pending = id; starts.set(id, performance.now());
++  if (starts.size > 16) { starts.delete(starts.keys().next().value!); dropped++; }
++  return id;
++}
++export function homeHandlerEnd(id: number): void {
++  if (!id) return;
++  record(id, 1, starts.get(id)!, performance.now());
++  if (active === id) active = 0;
++}
++export function homeRenderBegin(): Token {
++  const id = enabled && armed ? active || pending : 0;
++  return id ? { id, start: performance.now() } : null;
++}
++export function homeCommit(token: Token): void {
++  if (!token || pending !== token.id) return;
++  const now = performance.now();
++  record(token.id, 2, starts.get(token.id)!, now);
++  record(token.id, 12, token.start, now);
++  pending = 0;
++}
++export function homePhase<T>(kind: number, operation: () => T): T {
++  const id = enabled && armed ? active || pending : 0;
++  if (!id) return operation();
++  const start = performance.now(); let ok = 0;
++  try { const value = operation(); ok = 1; return value; }
++  finally { record(id, kind, start, performance.now(), ok); }
++}
++export function homeCount(kind: number, count: number): void {
++  const id = enabled && armed ? active || pending : 0;
++  if (id) { const now = performance.now(); record(id, kind, now, now, 1, count); }
++}
++if (enabled) Object.defineProperty(window, "__luciHomePhase", { configurable: false, value: {
++  arm() { if (armed || home || rows.length) throw Error("Home diagnostic already armed"); armed = true; },
++  snapshot() { const result = { version: 1, timeOrigin: performance.timeOrigin, homes: home, observed: sequence, dropped, pending, active, rows }; rows = []; return result; },
++} });

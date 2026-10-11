@@ -1,0 +1,236 @@
+--- original/sustained.mjs
++++ diagnostic/sustained.mjs
+@@ -19,8 +19,9 @@
+ import { installBrowserTiming, timingSnapshot, interactionRunner, summarizeInteractions, createTimingLedger } from './interaction-metrics.mjs';
+ 
+ const here=dirname(fileURLToPath(import.meta.url)),repo=resolve(process.env.LUCI_ACCEPTANCE_REPO??'/workspace/luci'),args=process.argv.slice(2);
++const helperRoot=resolve(here,'../frozen-helpers');
+ const option = (name, fallback) => { const i = args.indexOf(name); if (i < 0) return fallback; assert(args[i + 1] && !args[i + 1].startsWith('--'), 'Missing value for ' + name); return args[i + 1]; };
+-if(args.includes('--help')){console.log('CLOUD-032 diagnostic only: frozen installed prefix through idle100 switches/200 inputs, zero Create/Start hard guards. Original package/image/source/provenance arguments remain mandatory. No full sustained pass. Explicit controlled runtime window required.');process.exit(0);}
++if(args.includes('--help')){console.log('CLOUD-032 diagnostic only: frozen installed prefix through eight rounds (8 switches/16 inputs/8 draft resets), zero Create/Start hard guards. Original package/image/source/provenance arguments remain mandatory. No full sustained pass. Explicit controlled runtime window required.');process.exit(0);}
+ const PREPARATION_MS=60000,WORKFLOW_MS=210000,CLEANUP_MS=120000,DRIVER_TOTAL_MS=PREPARATION_MS+WORKFLOW_MS+CLEANUP_MS;
+ const driverStarted=Date.now(),preparationDeadline=driverStarted+PREPARATION_MS;
+ let commandDeadline=preparationDeadline,preparationActive=true;
+@@ -28,9 +29,9 @@
+ const report = resolve(option('--report', 'artifacts/quality-swarm/sustained-mixed/attempt-' + Date.now() + '/result.json')), evidence = dirname(report);
+ if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a fresh evidence directory; prior failures must remain');
+ mkdirSync(evidence, { recursive: true, mode: 0o700 });
+-const {createAcceptanceJournal,diagnosticError,journalProcessIdentity}=await import(join(repo,'scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs'));
+-const {createWorkflowDeadline,boundedAttempt,runBoundedCleanup,writeFailureCheckpoint,settleOwnedBrowser}=await import(join(repo,'scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs'));
+-const {createStartupScope,startAcceptanceServices,startAcceptanceBrowser}=await import(join(repo,'scripts/acceptance/launch-recovery/acceptance-startup.mjs'));
++const {createAcceptanceJournal,diagnosticError,journalProcessIdentity}=await import(join(helperRoot,'scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs'));
++const {createWorkflowDeadline,boundedAttempt,runBoundedCleanup,writeFailureCheckpoint,settleOwnedBrowser}=await import(join(helperRoot,'scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs'));
++const {createStartupScope,startAcceptanceServices,startAcceptanceBrowser}=await import(join(helperRoot,'scripts/acceptance/launch-recovery/acceptance-startup.mjs'));
+ 
+ const journal=createAcceptanceJournal(join(evidence,'diagnostic-journal.jsonl'));
+ journal.record('driver-start',{...journalProcessIdentity(),deadlineMs:DRIVER_TOTAL_MS,stage:'preparation'});
+@@ -40,9 +41,9 @@
+ const preparationHardStop=setTimeout(()=>{const error=Object.assign(Error('Preparation deadline exceeded'),{code:'preparation-deadline-exceeded'});try{journal.record('driver-caught-failure',{stage:'preparation',...diagnosticError(error)});writeFailureCheckpoint(report,preparationCheckpoint(error));}catch{}process.exit(1);},Math.max(1,preparationDeadline-Date.now()));
+ for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{if(!preparationActive)return;const error=Object.assign(Error('Preparation interrupted'),{code:'preparation-interrupted'});try{journal.record('driver-signal',{stage:'preparation',signal});writeFailureCheckpoint(report,{...preparationCheckpoint(error),signal});}catch{}process.exit(1);});
+ const {chromium}=await import(join(repo,'desktop/node_modules/playwright/index.mjs'));
+-const {validateWorkerCreate}=await import(join(repo,'scripts/acceptance/launch-recovery/worker-create-guard.mjs'));
+-const {startFencedDockerProxy}=await import(join(repo,'scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs'));
+-const {createNativeTerminalProbe}=await import(join(repo,'scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs'));
++const {validateWorkerCreate}=await import(join(helperRoot,'scripts/acceptance/launch-recovery/worker-create-guard.mjs'));
++const {startFencedDockerProxy}=await import(join(helperRoot,'scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs'));
++const {createNativeTerminalProbe}=await import(join(helperRoot,'scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs'));
+ 
+ const taskContextVersion=Number(option('--task-context-version','1')); assert(taskContextVersion===1||taskContextVersion===2,'Explicit trusted context version must be1or2');
+ const binary = resolve(option('--binary', 'artifacts/luci')), web = resolve(option('--web', 'desktop/dist'));
+@@ -60,15 +61,36 @@
+ const externalBinding=JSON.parse(readFileSync(join(here,'external-source-binding.json'),'utf8'));
+ assert.equal(realpathSync(here),externalBinding.executionDirectory);
+ for(const [name,expected] of Object.entries(externalBinding.localSources)) assert.equal(sha(readFileSync(join(here,name))),expected,'External diagnostic source changed: '+name);
+-for(const [name,expected] of Object.entries(externalBinding.repositoryDependencies)) assert.equal(sha(readFileSync(join(repo,name))),expected,'Captured repository dependency changed: '+name);
++for(const [name,expected] of Object.entries(externalBinding.repositoryDependencies)) assert.equal(sha(readFileSync(join(helperRoot,name))),expected,'Captured repository dependency changed: '+name);
+ const sourceBindingOptions=parseSourceBindingOptions(args);
+-function verifySourceBinding(){return validateSourceBinding({provenance,...sourceBindingOptions,helperCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim(),helperDirty:!!execFileSync('git',['status','--porcelain'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim()});}
++function verifySourceBinding(){
++ assert.equal(sourceBindingOptions.expectedProduct,provenance.sourceCommit);
++ assert.equal(sourceBindingOptions.expectedHelper,externalBinding.helperSourceCommit);
++ assert.equal(provenance.sourceCommit,'577f7a0fdb039b7f875901a6a567d62fdfee88c8');assert.equal(provenance.sourceDirty,false);
++ for(const [name,expected] of Object.entries(externalBinding.repositoryDependencies))assert.equal(sha(readFileSync(join(helperRoot,name))),expected);
++ return {productSource:provenance.sourceCommit,frozenHelperSourceCommit:externalBinding.helperSourceCommit,frozenHelperBytesVerified:true,mutableCheckoutNotUsedForHelpers:true};
++}
+ const harnessCheckout=verifySourceBinding();
++
++const diagnosticWebPath=resolve(option('--diagnostic-web-binding'));
++const diagnosticWebBytes=readFileSync(diagnosticWebPath);assert.equal(sha(diagnosticWebBytes),option('--diagnostic-web-binding-sha256'));
++const diagnosticWeb=JSON.parse(diagnosticWebBytes);
++function verifyDiagnosticWeb(){
++ assert.equal(sha(readFileSync(diagnosticWebPath)),sha(diagnosticWebBytes));
++ assert.equal(diagnosticWeb.diagnosticOnly,true);assert.equal(diagnosticWeb.instrumentedWebIsNotPackagedProduct,true);
++ assert.equal(diagnosticWeb.baseProductCommit,provenance.sourceCommit);assert.equal(diagnosticWeb.helperSourceCommit,externalBinding.helperSourceCommit);
++ assert.equal(realpathSync(web),diagnosticWeb.webRoot);assert.notEqual(realpathSync(web),realpathSync(join(dirname(binary),'web')));
++ assert(Array.isArray(diagnosticWeb.webMembers)&&diagnosticWeb.webMembers.length>0&&diagnosticWeb.webMembers.length<4096);
++ const found=[];function walk(root,prefix=''){for(const name of readdirSync(root).sort()){const relative=prefix+name,path=join(root,name),st=lstatSync(path);assert(!st.isSymbolicLink());if(st.isDirectory())walk(path,relative+'/');else{assert(st.isFile()&&st.size<=64*1024**2);found.push({path:relative,bytes:st.size,sha256:sha(readFileSync(path))});}}}walk(web);
++ assert.deepEqual(found.sort((a,b)=>a.path.localeCompare(b.path)),[...diagnosticWeb.webMembers].sort((a,b)=>a.path.localeCompare(b.path)));
++ assert.equal(sha(readFileSync(join(web,'index.html'))),diagnosticWeb.webIndexSHA256);return found;
++}
++
+ for(const [path,expected] of Object.entries(imageEvidence.sourcesBefore??{})){
+  assert(/^(sandboxd\/|images\/sandbox\/)/.test(path)&&!path.split('/').includes('..'));
+  assert.equal(sha(execFileSync('git',['show',provenance.sourceCommit+':'+path],{cwd:repo,maxBuffer:32*1024**2,timeout:Math.ceil(commandBudget(30000))})),expected,'Sandbox source differs from packaged source commit: '+path);
+ }
+-assert(Object.keys(imageEvidence.sourcesBefore??{}).length>10,'Sandbox source fence missing'); assert.equal(sha(readFileSync(binary)), provenance.binarySHA256); assert.equal(sha(readFileSync(join(web, 'index.html'))), provenance.webIndexSHA256);
++assert(Object.keys(imageEvidence.sourcesBefore??{}).length>10,'Sandbox source fence missing'); assert.equal(sha(readFileSync(binary)), provenance.binarySHA256); assert.equal(sha(readFileSync(join(dirname(binary),'web','index.html'))), provenance.webIndexSHA256);
+ const packageIntegrity = JSON.parse(execFileSync('python3', ['-c', `import hashlib,json,pathlib,sys,tarfile
+ archive=pathlib.Path(sys.argv[1]); root=pathlib.Path(sys.argv[3]).resolve()
+ digest=hashlib.sha256()
+@@ -92,7 +114,7 @@
+   if a.digest()!=b.digest(): raise ValueError('Installed package member differs: '+str(p))
+   count+=1
+ print(json.dumps({'archiveSHA256':digest.hexdigest(),'verifiedMembers':count,'allMembersMatch':True}))`, provenance.archive, provenance.archiveSHA256, dirname(binary)], { encoding: 'utf8', timeout: Math.ceil(commandBudget(60000)), maxBuffer: 1024 * 1024 }));
+-assert.equal(realpathSync(web), realpathSync(join(dirname(binary), 'web')));
++const diagnosticWebBefore=verifyDiagnosticWeb();
+ const rootFree = () => { const volume = statfsSync('/'); return Number(volume.bavail) * Number(volume.bsize); };
+ const initialRootFree = rootFree(); assert(initialRootFree >= 6 * 1024 ** 3, 'This fixture needs six GiB root free, including a conservative one GiB working reserve');
+ const docker = (...values) => execFileSync('docker', values, { encoding: 'utf8', timeout: Math.ceil(commandBudget(30_000)) }).trim();
+@@ -104,13 +126,14 @@
+ assert.equal(releaseImageInfo.Id, expectedImage);
+ const bridge = docker('network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}');
+ assert.match(bridge, /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/);
++writeFileSync(join(evidence,'diagnostic-web-binding.json'),diagnosticWebBytes,{mode:0o600,flag:'wx'});
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+ const driverNames=['sustained.mjs','external-source-binding.json','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
+ const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+-for (const name of reusedHelpers) writeFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')),readFileSync(join(repo,'scripts/acceptance',name)),{mode:0o600,flag:'wx'});
++for (const name of reusedHelpers) writeFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')),readFileSync(join(helperRoot,'scripts/acceptance',name)),{mode:0o600,flag:'wx'});
+ const fixtureParent = resolve(option('--fixture-root', 'artifacts/quality-swarm/private-fixtures')); mkdirSync(fixtureParent, {recursive:true,mode:0o700});
+ const fixture = mkdtempSync(join(fixtureParent,'luci-sustained-'));
+ for (const folder of ['home', 'projects', 'state', 'docker']) mkdirSync(join(fixture, folder), { mode: 0o700 });
+@@ -123,7 +146,7 @@
+   resourceScope: 'At most five real workers across four projects, one at a time; four initial150s fuzz phases and one short reviewed amendment. Worker handoff reports are intentionally not fabricated by this scripted workload; missing reports remain explicit and do not prove no questions. Zero existing containers and six GiB root admission before every Create, no recovery fences allowed; hard one GiB running reserve. No image pulls, release or cloud allocation.',
+   binarySHA256: sha(readFileSync(binary)), webIndexSHA256: sha(readFileSync(join(web, 'index.html'))), driverSHA256: sha(readFileSync(fileURLToPath(import.meta.url))),
+   helperSHA256: Object.fromEntries(driverNames.filter(name=>name!=='sustained.mjs').map(name => [name, sha(readFileSync(new URL(name, import.meta.url)))])),
+-  reusedHelperSHA256:Object.fromEntries(reusedHelpers.map(name=>['scripts/acceptance/'+name,sha(readFileSync(join(repo,'scripts/acceptance',name)))])),
++  reusedHelperSHA256:Object.fromEntries(reusedHelpers.map(name=>['scripts/acceptance/'+name,sha(readFileSync(join(helperRoot,'scripts/acceptance',name)))])),
+   image: { reference: image, id: imageInfo.Id }, releaseImage: { reference: releaseImage, id: releaseImageInfo.Id },
+   scope: 'Installed mixed build/test commands, explicit idle/settle, action latency, cancellation, active-command restart and reviewed amendment. Scripted provider; no live-model or Windows claim.',
+   limitations: ['Existing trusted Docker images; installation is not exercised.', 'Provider output is deliberately scripted; this proves actual CLI, Docker, task coordination and review mechanics. It does not measure model reasoning, production application quality, cloud deployment or Windows behavior.'],
+@@ -131,13 +154,24 @@
+ };
+ 
+ Object.assign(receipt,{
+- mode:'installed-four-project-idle-diagnostic',diagnosticOnly:true,fullSustainedAcceptance:false,
+- scope:'Fresh installed package, exact original four saved contexts and paused queues, original draft/warm setup and idle100 switches/200 inputs. No task execution or sustained completion claim.',
++ mode:'installed-four-project-home-phase-diagnostic',diagnosticOnly:true,fullSustainedAcceptance:false,performanceAcceptance:false,
++ diagnosticWebBindingSHA256:sha(diagnosticWebBytes),packagedWebIndexSHA256:provenance.webIndexSHA256,instrumentedWebIndexSHA256:diagnosticWeb.webIndexSHA256,
++ scope:'Fresh installed package, exact original four saved contexts and paused queues, original draft/warm setup and eight rounds (8 switches/16 inputs/8 draft resets). No task execution or sustained completion claim.',
+  resourceScope:'One owned browser and installed app. Docker readiness/image inventory reads are required. Explicit guards reject every Create/Start before forwarding. No full Linux resource sampler; browser diagnostic collection is identical to the static control.',
+  limitations:[...receipt.limitations,'Diagnostic subset only; original sustained failure remains unchanged. No resource-cost subtraction.','No independent Linux observer in either prepared control arm; this is not a matched replay of the old observer load.'],
+  externalSourceBinding:externalBinding,dependencyCheckout:receipt.harnessCheckout,
+  diagnosticPreparedFrom:{kind:'current frozen repository template',sourceSHA256:externalBinding.templateSourceSHA256},
+ });
++function validateHomeCapture(value){
++ const windows=value.browserEventWindows.map(row=>row.homePhase).filter(Boolean);
++ assert(windows.length>0);const last=windows.at(-1);assert.equal(last.homes,8);assert.equal(last.active,0);assert.equal(last.pending,0);assert.equal(last.dropped,0);
++ const rows=windows.flatMap(row=>row.rows);let previous=0;
++ for(const row of rows){assert.equal(row.sequence,++previous);assert(Object.values(row).every(Number.isFinite));assert(row.home>=1&&row.home<=8&&Number.isInteger(row.home));assert(row.kind>=1&&row.kind<=12&&Number.isInteger(row.kind));assert(row.end>=row.start);assert.equal(row.ok,1);}
++ assert.equal(previous,last.observed);
++ for(let home=1;home<=8;home++)for(const kind of [1,2,3,4,5,6,7,10,11,12])assert.equal(rows.filter(row=>row.home===home&&row.kind===kind).length,1,'One complete numeric phase per measured Home');
++ for(let home=1;home<=8;home++){const writes=rows.filter(row=>row.home===home&&row.kind===8).length;assert(writes>=1);assert.equal(writes,rows.filter(row=>row.home===home&&row.kind===9).length);}
++ value.homePhaseCapture={complete:true,homes:8,rows:rows.length,originalMetricUnchanged:true,diagnosticNotAcceptance:true,join:'home 1..8 matches project-switch 1..8 in action order',nestedDurationsNotAdditive:true};
++}
+ const check = (name, details = {}) => { receipt.checks.push({ name, passed: true, ...details }); console.log('PASS ' + name); };
+ const names=contextFileNames(taskContextVersion);
+ // The private brief is generated from saved state; only seven members are checkout exports.
+@@ -521,8 +555,8 @@
+ }
+ async function functionalDrafts(){
+  setStage('unsent-draft-isolation');await page.getByRole('button',{name:'All projects',exact:true}).click();
+- for(const owner of projectStates){await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();await page.getByRole('textbox',{name:'The idea',exact:true}).fill(owner.goal+' UNSENT '+owner.owner.id);await page.getByRole('button',{name:'All projects',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Keep your changes?',exact:true});await dialog.getByRole('button',{name:'Keep drafts and continue',exact:true}).click();}
+- for(const owner of projectStates){await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();await page.getByRole('button',{name:'Restore draft',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),owner.goal+' UNSENT '+owner.owner.id);await page.getByRole('textbox',{name:'The idea',exact:true}).fill(owner.goal);await page.getByRole('button',{name:'All projects',exact:true}).click();if(await page.getByRole('dialog',{name:'Keep your changes?',exact:true}).isVisible())await page.getByRole('button',{name:'Discard edits and continue',exact:true}).click();}
++ for(const owner of projectStates){await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Discover',exact:true}).click();await page.getByRole('textbox',{name:'The idea',exact:true}).fill(owner.goal+' UNSENT '+owner.owner.id);await page.getByRole('button',{name:'All projects',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Keep your changes?',exact:true});await dialog.getByRole('button',{name:'Keep drafts and continue',exact:true}).click();}
++ for(const owner of projectStates){await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Discover',exact:true}).click();await page.getByRole('button',{name:'Restore draft',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),owner.goal+' UNSENT '+owner.owner.id);await page.getByRole('textbox',{name:'The idea',exact:true}).fill(owner.goal);await page.getByRole('button',{name:'All projects',exact:true}).click();if(await page.getByRole('dialog',{name:'Keep your changes?',exact:true}).isVisible())await page.getByRole('button',{name:'Discard edits and continue',exact:true}).click();}
+  for(const owner of projectStates){project=owner.owner;assert.deepEqual(canonical(),owner.canonicalBefore);}check('Four distinct unsent idea drafts restore to their own project without changing approved source context');
+ }
+ function exactQueueControlEntry(owner,expected,queue){
+@@ -659,18 +693,13 @@
+  // END SUSTAINED BROWSER WIRING
+  for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
+  await protectCancellation();assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
+- setStage('idle-baseline');await quietPhase('quiet-app-open-idle');const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
++ setStage('idle-baseline');await quietPhase('quiet-app-open-idle');await page.evaluate(()=>{if(!window.__luciHomePhase)throw Error('Missing diagnostic AppShell probe');window.__luciHomePhase.arm();});const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(8);phaseEnd(idle);await passiveTiming('end-idle-calibration');
+  receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+- receipt.latencyTargets={measurement:'Original All projects→open saved Define context→two frames; input→expected field→two frames; no physical-input claim',projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000};
+- receipt.targetComparison=Object.fromEntries(['project-switch','input'].map(kind=>{const value=receipt.interactionSummary['idle-interactive-calibration:'+kind];assert.equal(value.count,kind==='input'?200:100);assert.equal(value.failed,0);return[kind,{...value,withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000}];}));
+- assert.equal(receipt.interactions.length,400);
+- const traceAfter=option('--trace-after','no');assert(['yes','no'].includes(traceAfter));
+- if(traceAfter==='yes'){
+-  const tracePhase=phaseStart('idle-actionability-trace-followup');receipt.traceScope='Eight extra rounds after the primary100; snapshots/screenshots/sources disabled; instrumentation differs and does not replace primary metrics.';
+-  await page.context().tracing.start({screenshots:false,snapshots:false,sources:false});
+-  try{for(let index=0;index<8;index++)await interactions.round(index);await passiveTiming('trace-followup-complete');phaseEnd(tracePhase);}
+-  finally{await boundedAttempt(()=>page.context().tracing.stop({path:join(evidence,'action-only-trace.zip')}),5000,'trace-stop-timeout');}
+- }
++ receipt.latencyTargets={measurement:'Original All projects→open saved Discover context→two frames; input→expected field→two frames; no physical-input claim',projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000};
++ receipt.targetComparison=Object.fromEntries(['project-switch','input'].map(kind=>{const value=receipt.interactionSummary['idle-interactive-calibration:'+kind];assert.equal(value.count,kind==='input'?16:8);assert.equal(value.failed,0);return[kind,{...value,withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000}];}));
++ assert.equal(receipt.interactions.length,32);assert.equal(receipt.interactions.filter(row=>row.kind==='draft-reset').length,8);
++ validateHomeCapture(receipt);
++ assert.equal(option('--trace-after','no'),'no','Generic tracing is deliberately disabled');
+  assert.deepEqual(effects(),{create:0,start:0,destroy:0});assert.equal(proxy.observations.failures.length,0);assert.equal(receipt.browserErrors.length,0);assert.equal(providerCalls,0);assert.equal(auxiliaryCalls,0);assert.equal(workerContainers().length,0);
+  receipt.idleDiagnosticCompleted=true;receipt.passed=true;
+  check('Fresh installed idle diagnostic completed; no full sustained or latency-target success implied');
+@@ -693,7 +722,7 @@
+   receipt.cleanupPhases=await settleSustainedResources();receipt.startupResources=startupScope.snapshot();
+   if(proxy)receipt.dockerTransportObservations=structuredClone(proxy.observations);
+  if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&receipt.dockerMutationStateCertain&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
+- try{assert(startupScope.snapshot().every(row=>row.state==='closed'&&!row.closeTimedOut),'Startup resource remains unsettled');assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(receipt.dockerMutationStateCertain,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(web,'index.html'))),provenance.webIndexSHA256);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(repo,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
++ try{assert(startupScope.snapshot().every(row=>row.state==='closed'&&!row.closeTimedOut),'Startup resource remains unsettled');assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(receipt.dockerMutationStateCertain,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(dirname(binary),'web','index.html'))),provenance.webIndexSHA256);assert.deepEqual(verifyDiagnosticWeb(),diagnosticWebBefore);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(helperRoot,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
+   receipt.finalHarnessCheckout=verifySourceBinding();assert.deepEqual(receipt.finalHarnessCheckout,receipt.harnessCheckout);
+   receipt.runtimeCleanup={containers:0,volumes:0,ownedServiceProcesses:0,ownedBrowserProcesses:0,protectedImagePackageAndHelpersUnchanged:true,rootFreeBytes:rootFree()};assert.equal(realpathSync(fixture),fixture);assert.equal(dirname(fixture),fixtureParent);assert(fixture.split(sep).at(-1).startsWith('luci-sustained-'));if(receipt.passed&&!fixtureError){rmSync(fixture,{recursive:true});receipt.fixtureRemoved=true;}
+  }catch(error){cleanupFailure(error);}
+--- original/interaction-metrics.mjs
++++ diagnostic/interaction-metrics.mjs
+@@ -12,6 +12,7 @@
+ }
+ export async function installBrowserTiming(context) {
+  // Separate setup-only RPC, before any primary interaction measurement.
++ await context.addInitScript(()=>{Object.defineProperty(window,'__luciHomePhaseRequested',{value:1,configurable:false});});
+  await context.addInitScript(browserLatencyInit);
+  await context.addInitScript(()=>{
+   const data={version:2,timeOrigin:performance.timeOrigin,events:[],observedEvents:0,droppedEvents:0,overflow:false,unsupported:false,visibility:document.visibilityState};
+@@ -26,7 +27,7 @@
+ export async function timingSnapshot(page) {
+  // Drain only this fixture's passive observation buffer, never product state.
+  // Sequence and overflow counters remain monotonic across every snapshot.
+- return page.evaluate(()=>{const v=window.__luciAcceptanceTiming;if(!v)return null;const latency=window.__luciAcceptanceLatency?.snapshot();if(!latency)throw Error('Missing browser latency collector');return {...v,events:v.events.splice(0),visibilityNow:document.visibilityState,latency};});
++ return page.evaluate(()=>{const v=window.__luciAcceptanceTiming;if(!v)return null;const latency=window.__luciAcceptanceLatency?.snapshot();if(!latency)throw Error('Missing browser latency collector');return {...v,events:v.events.splice(0),visibilityNow:document.visibilityState,latency,homePhase:window.__luciHomePhase?.snapshot()??null};});
+ }
+ 
+ export function createTimingLedger(receipt,limits={maxEvents:200000,maxBytes:32*1024**2,maxWindows:2000,maxDocuments:128}) {
+@@ -44,6 +45,7 @@
+    // Preserve an in-budget overflow/gap window before refusing acceptance.
+    receipt.browserEventWindows.push(row);count+=value.events.length;bytes+=size;
+    if(Object.hasOwn(value,'latency'))latencyLedger.append(value.latency);
++   if(value.homePhase){const h=value.homePhase;const keys=['version','timeOrigin','homes','observed','dropped','pending','active'];if(!keys.every(key=>Number.isFinite(h[key]))||h.version!==1||!Array.isArray(h.rows)||h.rows.length>2048||h.dropped!==0||!h.rows.every(row=>Object.values(row).every(Number.isFinite)))fail('Invalid or overflowed numeric Home phase capture');}
+    Object.assign(receipt.browserTimingLedger,{events:count,bytes,documents:documents.size+(documents.has(value.timeOrigin)?0:1)});
+    let previous=documents.get(value.timeOrigin)??0;
+    for(const event of value.events){if(!Number.isSafeInteger(event.sequence)||event.sequence!==previous+1)fail('Passive browser event sequence contains a gap or duplicate');previous=event.sequence;}
+@@ -70,7 +72,7 @@
+  async function switchTo(owner){
+   assertHealthy();
+   await measured('project-switch',owner,async mark=>{await page.getByRole('button',{name:'All projects',exact:true}).click();mark('all-projects-click-end');await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();mark('overview-heading-ready');await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();mark('open-project-click-end');},async()=>{
+-   // The calibrated lens is Define. Its actual loaded value is the witness,
++   // The calibrated lens is Discover. Its actual loaded value is the witness,
+    // rather than a title that could render before stale content is replaced.
+    const field=page.getByRole('textbox',{name:'The idea',exact:true});await field.waitFor();
+    await field.evaluate((el,value)=>new Promise((done,reject)=>{const until=performance.now()+10000;const sample=()=>{if(el.isConnected&&el.value===value){window.__luciAcceptanceLatency.markExpectedDOM('project-switch');return done();}if(performance.now()>=until)return reject(Error('Expected project context did not render'));requestAnimationFrame(sample);};sample();}),values.get(owner.owner.id));
+@@ -85,12 +87,12 @@
+   await measured('input',owner,()=>field.press('Backspace'),async()=>{await page.waitForFunction(value=>{if(document.activeElement?.value!==value)return false;window.__luciAcceptanceLatency.markExpectedDOM('input');return true;},expected,{timeout:10000});});
+   // The product deliberately keeps dirty=true even if text returns to baseline.
+   // Reset through its real discard flow; record this extra action separately.
+-  await measured('draft-reset',owner,async()=>{await page.getByRole('button',{name:'Design',exact:true}).click();await page.getByRole('dialog',{name:'Keep your changes?',exact:true}).getByRole('button',{name:'Discard edits and continue',exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();},async()=>{assert.equal(await field.inputValue(),expected);});
++  await measured('draft-reset',owner,async()=>{await page.getByRole('button',{name:'Design',exact:true}).click();await page.getByRole('dialog',{name:'Keep your changes?',exact:true}).getByRole('button',{name:'Discard edits and continue',exact:true}).click();await page.getByRole('button',{name:'Discover',exact:true}).click();},async()=>{assert.equal(await field.inputValue(),expected);});
+  }
+  return {
+   async calibrate(rounds=100){for(let index=0;index<rounds;index++){await switchTo(owners[index%owners.length]);await typeRound();await observe('after-calibration-round');}},
+   async round(index){await switchTo(owners[index%owners.length]);await typeRound();await observe('after-loaded-round');},
+   expected(owner,value){values.set(owner.owner.id,value);},
+-  async warm(){for(const owner of owners){await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),values.get(owner.owner.id));}current=owners.at(-1);},
++  async warm(){for(const owner of owners){await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Discover',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),values.get(owner.owner.id));}current=owners.at(-1);},
+  };
+ }

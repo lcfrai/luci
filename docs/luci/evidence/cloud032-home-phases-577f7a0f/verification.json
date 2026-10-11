@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "scope": "Offline byte integrity and existing receipt review only; no runtime, tests or build executed",
+  "preparedManifestMembersVerified": 43,
+  "copiedFileCount": 62,
+  "allCopiedFilesByteIdentical": true,
+  "originalCopiedInputsUnchanged": true,
+  "acceptedHarnessFilesVerifiedAgainstActual": 18,
+  "frozenFrontendMembersVerified": 691,
+  "generatedWebMembersVerified": 424,
+  "beforeAfterDependenciesIdentical": true,
+  "beforeAfterFrontendBindingsIdentical": true,
+  "webInputDependencyAndOverlayHashesMatch": true,
+  "numericProjectionSHA256": "656db4445bae4491e49a6e2019662d9d64b7d899342f6080e1b13a154f5980b8",
+  "rawPrivateSHA256": "3b4c7e81784fb67908700e305df0bf8352d4d80d46e1458c322edf0afbb3aec0",
+  "rawPrivateBytesCopied": false,
+  "sourceOrOriginalRunModified": false,
+  "privacyScope": "Allowlisted numeric projection, source/helper code, hash/count/source bindings and bounded build/closure receipts only; no raw context/credential reports.",
+  "reproductionLimits": {
+    "selectedDependencyFileHashes": 13,
+    "fullToolchainBound": false,
+    "browserVersionPublished": false,
+    "exactCrossMachinePerformanceReproductionClaim": false
+  }
+}

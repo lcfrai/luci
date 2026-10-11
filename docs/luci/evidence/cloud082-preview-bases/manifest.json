@@ -1,0 +1,442 @@
+{
+  "schema_version": 1,
+  "status": "final: original cold gap and COPY gap reproduced; initial scoped validation and corrected focused follow-up retained distinctly",
+  "scope": "C082 selected source/evidence and Windows acceptance handoff only; not runtime acceptance",
+  "included_files": [
+    {
+      "path": "README.md",
+      "bytes": 4840,
+      "sha256": "a349c6125a095ed6823418261d953cfa15aa3faa43a72f0dcf7da6a09bb67dea",
+      "provenance": "Generated evidence summary, selected-source binding or Windows handoff; not an original run artifact"
+    },
+    {
+      "path": "WINDOWS-HANDOFF.md",
+      "bytes": 4008,
+      "sha256": "084ae84ee8a6a00ac8fdf08c1b2935c6126579ab2c0b5ba8879d590bdba3a6fb",
+      "provenance": "Generated evidence summary, selected-source binding or Windows handoff; not an original run artifact"
+    },
+    {
+      "path": "environment/cache-cleanup.json",
+      "bytes": 373,
+      "sha256": "177296f78a70270529079e844be5d024b7d8aef9774937fe9b6c88cfe71cb0f2",
+      "provenance": "Separate disposable-cache cleanup receipt; not a C082 product outcome"
+    },
+    {
+      "path": "evidence/before-cold/after-source-bindings.json",
+      "bytes": 10481,
+      "sha256": "42804a9343febce113219eeea57f9ec2ddb4b9baec8d3b228334c1d2666584c0",
+      "provenance": "Exact original cold-base failure artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/before-cold/before-source-bindings.json",
+      "bytes": 10481,
+      "sha256": "42804a9343febce113219eeea57f9ec2ddb4b9baec8d3b228334c1d2666584c0",
+      "provenance": "Exact original cold-base failure artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/before-cold/invocation.json",
+      "bytes": 1253,
+      "sha256": "205e543401ba7b5ccdc4bc6b9651b5883d0b507327987f20df7502ba7fd12156",
+      "provenance": "Exact original cold-base failure artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/before-cold/overlay.json",
+      "bytes": 253,
+      "sha256": "99aac5f366699c07c494010ee4c83b571961e9cf6ff80717317fa05f0156191c",
+      "provenance": "Exact original cold-base failure artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/before-cold/result.json",
+      "bytes": 1426,
+      "sha256": "7f216d991c8a6adbbf4b4e6505cc057a21b592258f945783b7f3fd4823853232",
+      "provenance": "Exact original cold-base failure artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/before-cold/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "Exact original cold-base failure artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/before-cold/stdout.jsonl",
+      "bytes": 2063,
+      "sha256": "00c3906223cdac76a64c1e83ea665b36cbc1ae8821c6118ba7935befc3308afb",
+      "provenance": "Exact original cold-base failure artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/claims.json",
+      "bytes": 2897,
+      "sha256": "925fd4bd63aa6194032043a1b2358d3908e1c4da50701c03ad5051e0d5236f6b",
+      "provenance": "Generated evidence summary, selected-source binding or Windows handoff; not an original run artifact"
+    },
+    {
+      "path": "evidence/copy-correction/after/after-source-bindings.json",
+      "bytes": 11064,
+      "sha256": "94ed2fbdc5473f42b48963d63b5756dfabb00ed24f377bb1feeca6fb9b671c48",
+      "provenance": "Exact COPY quoted-whitespace after regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/after/before-source-bindings.json",
+      "bytes": 11064,
+      "sha256": "94ed2fbdc5473f42b48963d63b5756dfabb00ed24f377bb1feeca6fb9b671c48",
+      "provenance": "Exact COPY quoted-whitespace after regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/after/invocation.json",
+      "bytes": 1236,
+      "sha256": "7da73193d67a94df2c4f6a9fc136089944eef6ebacfa8f74e63430d9931364e4",
+      "provenance": "Exact COPY quoted-whitespace after regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/after/result.json",
+      "bytes": 1248,
+      "sha256": "d0408b0a8088b62bb3402e3f3f804d794f76beb9833762ecbf5de4a20c36adb9",
+      "provenance": "Exact COPY quoted-whitespace after regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/after/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "Exact COPY quoted-whitespace after regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/after/stdout.jsonl",
+      "bytes": 12746,
+      "sha256": "42e94e4aad547ec822ac676bfd3675a7f5f8e635338595597725535a3817b931",
+      "provenance": "Exact COPY quoted-whitespace after regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/before/after-source-bindings.json",
+      "bytes": 11064,
+      "sha256": "b9beb4c0cc7d2cacfde28c7ed446326ff678c93bae0ee34530bd0034c77f27c9",
+      "provenance": "Exact COPY quoted-whitespace before regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/before/before-source-bindings.json",
+      "bytes": 11064,
+      "sha256": "b9beb4c0cc7d2cacfde28c7ed446326ff678c93bae0ee34530bd0034c77f27c9",
+      "provenance": "Exact COPY quoted-whitespace before regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/before/invocation.json",
+      "bytes": 1236,
+      "sha256": "6eec321b4330aa05b374bceb8d1fcb3afa7e93415149a66ee1899b06bb73aac0",
+      "provenance": "Exact COPY quoted-whitespace before regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/before/result.json",
+      "bytes": 1254,
+      "sha256": "f5a85fd82e9d7f1491710ba7cab5e2cd4126fbe0f91ba5639ad4602005bd0c25",
+      "provenance": "Exact COPY quoted-whitespace before regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/before/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "Exact COPY quoted-whitespace before regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/before/stdout.jsonl",
+      "bytes": 15414,
+      "sha256": "9bbe895dd11777345901ec2eb41dd28af0cc60f73a62b856c285d9476fa0edfb",
+      "provenance": "Exact COPY quoted-whitespace before regression artifact; original bytes retained"
+    },
+    {
+      "path": "evidence/copy-correction/copy-flags.patch",
+      "bytes": 3609,
+      "sha256": "5f29ff4fbd447f817588646f454e108ab763123ab6588de4365f0a50db93ce93",
+      "provenance": "Exact dedicated COPY correction artifact; helper retained without execution or rewriting"
+    },
+    {
+      "path": "evidence/copy-correction/final-summary.json",
+      "bytes": 875,
+      "sha256": "303771ded6a1934048d4e57f87b1d1f5e0db4001a7a3609ba1c5bd63db96df26",
+      "provenance": "Exact dedicated COPY correction artifact; helper retained without execution or rewriting"
+    },
+    {
+      "path": "evidence/copy-correction/moby-contract.md",
+      "bytes": 1623,
+      "sha256": "4eedfcb4cf8763656066bc33d56295a707629c0451c4cd46216fbd1e987fe32f",
+      "provenance": "Exact dedicated COPY correction artifact; helper retained without execution or rewriting"
+    },
+    {
+      "path": "evidence/copy-correction/moby-source-bindings.json",
+      "bytes": 926,
+      "sha256": "beb90d16cda366a8b987a8a4c4b212b0a9243fb4a123faed16789a039712db23",
+      "provenance": "Exact dedicated COPY correction artifact; helper retained without execution or rewriting"
+    },
+    {
+      "path": "evidence/copy-correction/run_focused.py",
+      "bytes": 2641,
+      "sha256": "5fa540b9880a9eb71ba80f670b8804faaf9ff447d65876084df8705ddd1d67fd",
+      "provenance": "Exact dedicated COPY correction artifact; helper retained without execution or rewriting"
+    },
+    {
+      "path": "evidence/initial-validation/compile-all.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "Exact root initial validation output, predating COPY flag correction; no complete source manifest was captured for this run"
+    },
+    {
+      "path": "evidence/initial-validation/compile-all.stdout",
+      "bytes": 2639,
+      "sha256": "1286b32c507d0b6ffe53f869521b598ceb8cdcaf1773889cf529f26f3b135f35",
+      "provenance": "Exact root initial validation output, predating COPY flag correction; no complete source manifest was captured for this run"
+    },
+    {
+      "path": "evidence/initial-validation/integrated-first.jsonl",
+      "bytes": 195634,
+      "sha256": "6911652bdb96868c9b1d1a7d7fa4a4edf0f704bb975263b55bfa1739e2225720",
+      "provenance": "Exact root initial validation output, predating COPY flag correction; no complete source manifest was captured for this run"
+    },
+    {
+      "path": "evidence/initial-validation/integrated-first.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "Exact root initial validation output, predating COPY flag correction; no complete source manifest was captured for this run"
+    },
+    {
+      "path": "evidence/original-source-retrieval.json",
+      "bytes": 21458,
+      "sha256": "b846262f7a1300d8395e541f7a9b32271d553adbb61f014c6e0f7b04bf8309c3",
+      "provenance": "Generated evidence summary, selected-source binding or Windows handoff; not an original run artifact"
+    },
+    {
+      "path": "provenance-draft.json",
+      "bytes": 18676,
+      "sha256": "f0cb657cd27e391f604e36a9fc1ff22310a98924a2ace71ae57c6035d2e84e8c",
+      "provenance": "Generated evidence summary, selected-source binding or Windows handoff; not an original run artifact"
+    },
+    {
+      "path": "sources/api-captured/preview_execution.go",
+      "bytes": 24443,
+      "sha256": "07c40f52e88daee82e2ee742d87b0126d2c60a1ab4e0f4e51f0322f7282bb945",
+      "provenance": "Current API bytes captured for handoff; root observes unchanged since initial validation, but no complete initial input manifest exists"
+    },
+    {
+      "path": "sources/api-captured/preview_execution_test.go",
+      "bytes": 10207,
+      "sha256": "0a6677dbfe64097a94b882e7a50bceb408cc3dba79448e4b4d59416d44efa866",
+      "provenance": "Current API bytes captured for handoff; root observes unchanged since initial validation, but no complete initial input manifest exists"
+    },
+    {
+      "path": "sources/api-original/preview_execution.go",
+      "bytes": 22807,
+      "sha256": "941eeea687c12fa8ae383c117527cc17ab47aa5ceb27f093ee11777bbe7c6f5a",
+      "provenance": "Root saved API source before C082 edits"
+    },
+    {
+      "path": "sources/api-original/preview_execution_test.go",
+      "bytes": 9827,
+      "sha256": "e929297c610bcb451b9cb10e3b2f9c210837d31d4a7c16579be5b7e1134e8cd0",
+      "provenance": "Root saved API source before C082 edits"
+    },
+    {
+      "path": "sources/copy-correction/original-preview_bases.go",
+      "bytes": 8875,
+      "sha256": "67c9a77cb46b5b2caf69622dff8dcc752023f14de729a4153900fb2ae66c40eb",
+      "provenance": "Exact validator snapshot before quoted-whitespace COPY correction"
+    },
+    {
+      "path": "sources/copy-correction/original-validator-binding.json",
+      "bytes": 186,
+      "sha256": "114c504aa388ed8b16fcb4a8d53d02a8b66b775b7881dff79a429e3b2ecfafc0",
+      "provenance": "Original validator source binding"
+    },
+    {
+      "path": "sources/final/control-plane/internal/api/preview_base_authority_test.go",
+      "bytes": 4467,
+      "sha256": "c089cd8f31590edd9da562af00aff4ac57507df3fe2be81874233d43fa0196a0",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/api/preview_execution.go",
+      "bytes": 24443,
+      "sha256": "07c40f52e88daee82e2ee742d87b0126d2c60a1ab4e0f4e51f0322f7282bb945",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/api/preview_execution_test.go",
+      "bytes": 10207,
+      "sha256": "0a6677dbfe64097a94b882e7a50bceb408cc3dba79448e4b4d59416d44efa866",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/backend/dockerbe/classic_build_wire_test.go",
+      "bytes": 3177,
+      "sha256": "864fb67c6f08cac53260aa93f31756c7480834f7f7c9fb57b3064ef14a31b425",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/backend/dockerbe/preview_bases.go",
+      "bytes": 9381,
+      "sha256": "5e37138a418a9a44210ffd5f8cc1fbd545d17e515f72b2d30318c3bc4619cace",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/backend/dockerbe/preview_bases_test.go",
+      "bytes": 30132,
+      "sha256": "7ccefbc6827e13771f72ea4ae80b528d1f7fdfb58cf7e8255aaa2135597608bd",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/backend/dockerbe/preview_cold_base_regression_test.go",
+      "bytes": 634,
+      "sha256": "8751db86680eddf79e389b2f3d487fd27aed92425997629bd9a91286db7706c1",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/backend/dockerbe/preview_context.go",
+      "bytes": 13275,
+      "sha256": "e56bc1086a57eb055b1b245132d4565162f556112102846d0dd4e339c6357576",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/backend/dockerbe/preview_copy_flags_regression_test.go",
+      "bytes": 2185,
+      "sha256": "b12775262b9c40a5aa39a1efa46c666fe811678304fcaa0ec4e05336363a1410",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/backend/dockerbe/preview_terminal_regression_test.go",
+      "bytes": 3116,
+      "sha256": "235144f27ec38cab0a705d853ce963c3f7da55c09ac6523eb34e8114e8429860",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/backend/dockerbe/previews.go",
+      "bytes": 21678,
+      "sha256": "8a64b5b54d012d53d0aec33365840ad0d178cd92b92c061cd1e07d977beb1d8d",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/backend/dockerbe/previews_test.go",
+      "bytes": 12500,
+      "sha256": "c049b102a3b1571f07d7df28178f5238accc686394a2a116d7304788f9bfbdc6",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final/control-plane/internal/backend/previews.go",
+      "bytes": 3036,
+      "sha256": "3c8a2f3e36efe65215196a113f30349734431aedd171fb4170b704c4d3ac6279",
+      "provenance": "Final selected C082 source bytes captured after COPY follow-up; selected scope, not complete compilation closure"
+    },
+    {
+      "path": "sources/final-selected-source-bindings.json",
+      "bytes": 6179,
+      "sha256": "6d04e96e38b3d79c68bd85da5fdb2c6dc0958005eed5e8562cc5c5ddee4fe8e3",
+      "provenance": "Generated evidence summary, selected-source binding or Windows handoff; not an original run artifact"
+    },
+    {
+      "path": "sources/final-selected-source.patch",
+      "bytes": 67848,
+      "sha256": "93e6682906b4e8645240b6cc9f76f1647387b2dd1bdc239c9e6df2b40cd25cae",
+      "provenance": "Generated evidence summary, selected-source binding or Windows handoff; not an original run artifact"
+    },
+    {
+      "path": "sources/initial/backend-cold-bases.patch",
+      "bytes": 56132,
+      "sha256": "4274fcbc826ee87bf5f8debd6fe0b845bae2eb10a93f484911b90539525a11d3",
+      "provenance": "Exact initial staged backend artifact, before integration and COPY flag correction"
+    },
+    {
+      "path": "sources/initial/backend-source-bindings.json",
+      "bytes": 3135,
+      "sha256": "0ab548e59527d21043cbafce45b245e1fef230ad89814baca8600d2d2bbeb950",
+      "provenance": "Exact initial staged backend artifact, before integration and COPY flag correction"
+    },
+    {
+      "path": "sources/initial/tree/control-plane/internal/backend/dockerbe/classic_build_wire_test.go",
+      "bytes": 3177,
+      "sha256": "864fb67c6f08cac53260aa93f31756c7480834f7f7c9fb57b3064ef14a31b425",
+      "provenance": "Exact frozen initial backend implementation/test bytes; bindings in sources/initial/backend-source-bindings.json"
+    },
+    {
+      "path": "sources/initial/tree/control-plane/internal/backend/dockerbe/preview_bases.go",
+      "bytes": 8875,
+      "sha256": "67c9a77cb46b5b2caf69622dff8dcc752023f14de729a4153900fb2ae66c40eb",
+      "provenance": "Exact frozen initial backend implementation/test bytes; bindings in sources/initial/backend-source-bindings.json"
+    },
+    {
+      "path": "sources/initial/tree/control-plane/internal/backend/dockerbe/preview_bases_test.go",
+      "bytes": 30132,
+      "sha256": "7ccefbc6827e13771f72ea4ae80b528d1f7fdfb58cf7e8255aaa2135597608bd",
+      "provenance": "Exact frozen initial backend implementation/test bytes; bindings in sources/initial/backend-source-bindings.json"
+    },
+    {
+      "path": "sources/initial/tree/control-plane/internal/backend/dockerbe/preview_cold_base_regression_test.go",
+      "bytes": 634,
+      "sha256": "8751db86680eddf79e389b2f3d487fd27aed92425997629bd9a91286db7706c1",
+      "provenance": "Exact frozen initial backend implementation/test bytes; bindings in sources/initial/backend-source-bindings.json"
+    },
+    {
+      "path": "sources/initial/tree/control-plane/internal/backend/dockerbe/preview_context.go",
+      "bytes": 13275,
+      "sha256": "e56bc1086a57eb055b1b245132d4565162f556112102846d0dd4e339c6357576",
+      "provenance": "Exact frozen initial backend implementation/test bytes; bindings in sources/initial/backend-source-bindings.json"
+    },
+    {
+      "path": "sources/initial/tree/control-plane/internal/backend/dockerbe/preview_terminal_regression_test.go",
+      "bytes": 3116,
+      "sha256": "235144f27ec38cab0a705d853ce963c3f7da55c09ac6523eb34e8114e8429860",
+      "provenance": "Exact frozen initial backend implementation/test bytes; bindings in sources/initial/backend-source-bindings.json"
+    },
+    {
+      "path": "sources/initial/tree/control-plane/internal/backend/dockerbe/previews.go",
+      "bytes": 21678,
+      "sha256": "8a64b5b54d012d53d0aec33365840ad0d178cd92b92c061cd1e07d977beb1d8d",
+      "provenance": "Exact frozen initial backend implementation/test bytes; bindings in sources/initial/backend-source-bindings.json"
+    },
+    {
+      "path": "sources/initial/tree/control-plane/internal/backend/dockerbe/previews_test.go",
+      "bytes": 12500,
+      "sha256": "c049b102a3b1571f07d7df28178f5238accc686394a2a116d7304788f9bfbdc6",
+      "provenance": "Exact frozen initial backend implementation/test bytes; bindings in sources/initial/backend-source-bindings.json"
+    },
+    {
+      "path": "sources/initial/tree/control-plane/internal/backend/previews.go",
+      "bytes": 3036,
+      "sha256": "3c8a2f3e36efe65215196a113f30349734431aedd171fb4170b704c4d3ac6279",
+      "provenance": "Exact frozen initial backend implementation/test bytes; bindings in sources/initial/backend-source-bindings.json"
+    },
+    {
+      "path": "sources/original-before/control-plane/internal/backend/dockerbe/checks_test.go",
+      "bytes": 24021,
+      "sha256": "dd9bb11ec670b361e44dc735a07b8290b682985dfd1af9e9b6a383d02db6f7b2",
+      "provenance": "Exact original bytes recovered from Git 64829123a5799858b57616b711c84c61b945871a:control-plane/internal/backend/dockerbe/checks_test.go and verified against the 52-input original-before manifest"
+    },
+    {
+      "path": "sources/original-before/control-plane/internal/backend/dockerbe/preview_context.go",
+      "bytes": 12089,
+      "sha256": "a361a782d87106bb5a85d0ebc6a2876e85b1a4328ff384aee489be601a42d97a",
+      "provenance": "Exact original bytes recovered from Git 64829123a5799858b57616b711c84c61b945871a:control-plane/internal/backend/dockerbe/preview_context.go and verified against the 52-input original-before manifest"
+    },
+    {
+      "path": "sources/original-before/control-plane/internal/backend/dockerbe/previews_test.go",
+      "bytes": 12410,
+      "sha256": "5a3d5844ce3e749c09d0ceb8e7a5cc4cc06757e183c9d635cf437edf863bee05",
+      "provenance": "Exact original bytes recovered from Git 64829123a5799858b57616b711c84c61b945871a:control-plane/internal/backend/dockerbe/previews_test.go and verified against the 52-input original-before manifest"
+    },
+    {
+      "path": "sources/original-before/control-plane/internal/backend/previews.go",
+      "bytes": 2305,
+      "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc",
+      "provenance": "Exact original bytes recovered from Git 64829123a5799858b57616b711c84c61b945871a:control-plane/internal/backend/previews.go and verified against the 52-input original-before manifest"
+    },
+    {
+      "path": "sources/original-before/preview_cold_base_regression_test.go",
+      "bytes": 634,
+      "sha256": "8751db86680eddf79e389b2f3d487fd27aed92425997629bd9a91286db7706c1",
+      "provenance": "Exact original added regression source, verified against original-before manifest"
+    }
+  ],
+  "exclusions": [
+    "module cache",
+    "build cache",
+    "Docker/runtime state",
+    "unrelated files",
+    "full dependency source"
+  ],
+  "claims_file": "evidence/claims.json",
+  "selected_source_manifest": "sources/final-selected-source-bindings.json"
+}

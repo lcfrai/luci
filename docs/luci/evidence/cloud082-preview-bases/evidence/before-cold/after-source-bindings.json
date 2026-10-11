@@ -1,0 +1,262 @@
+[
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/allocation_observation.go",
+    "bytes": 1186,
+    "sha256": "dc600861675447483b802b4420788b3b06b838c467f2fe2d5de2bf4f105c6f0e"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/api.go",
+    "bytes": 1811,
+    "sha256": "d8d21a84860ee13a96e5a58dcc920fd48362868a20751bfcf9973545c62440c6"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/check_fence.go",
+    "bytes": 8786,
+    "sha256": "d99999be384f8d7f3e16fb701662333e72c8683fa7ba292702dfda5a974a5305"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/check_resource_limits_test.go",
+    "bytes": 10928,
+    "sha256": "8daf3b378e77be54c8d0dfa063f6926fca0f6f5db16ae3eabb318efe27181048"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/checks.go",
+    "bytes": 19551,
+    "sha256": "69ae5e5a08b6cd9480c24328fa2779ed9f8a0e5f25e232fe8c7877aebfd56c78"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/checks_test.go",
+    "bytes": 24021,
+    "sha256": "dd9bb11ec670b361e44dc735a07b8290b682985dfd1af9e9b6a383d02db6f7b2"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/classic_build_wire_test.go",
+    "bytes": 3155,
+    "sha256": "e19c57a94eec1e70b31c8aff777d4e90575f1a2fb6620225d6dd182057a2864c"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/creation_admission_test.go",
+    "bytes": 3281,
+    "sha256": "b6849b2ac020f16e2627cab1c7418ecd194f35d8f6e6befd402b60b3e8c2320d"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/docker.go",
+    "bytes": 31285,
+    "sha256": "b865a8eea8a313ad818686f372724e2a97874ba8532c0041ad6cc5d3b0d0d46c"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/docker_instance_test.go",
+    "bytes": 7763,
+    "sha256": "112d97f235cce5fbfff328d2cac4cc2867b6922dd0c738441af46051d1891695"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/docker_test.go",
+    "bytes": 43368,
+    "sha256": "101cb9c0b69e9c32e4c8ae1fb5c2feb539333a0850b3c9f4ae7c6636598f7a0c"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/identity.go",
+    "bytes": 1582,
+    "sha256": "8e91f8ece0d6c23df23ba6a852c54b58a84fc8b53eae56e2e73aca8e35f0d9f0"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/identity_darwin.go",
+    "bytes": 571,
+    "sha256": "f9313bb0ce2b0e047054d81c2611c0fded04784f98a9743c2789befdc8608693"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/identity_darwin_test.go",
+    "bytes": 736,
+    "sha256": "b383353a233285729421d3de2d7a50bbd298c485a84aab6f30a5903d77e2aa27"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/identity_linux.go",
+    "bytes": 223,
+    "sha256": "175a1317abe2bc212d22a6385ae7e7863e77b4cb50acabcccf5f3f400ba5a044"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/identity_linux_test.go",
+    "bytes": 734,
+    "sha256": "3f8e4a9ae03aa166e186153ced0df9e82b619e1db38c69d30056046538f476b7"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/identity_other.go",
+    "bytes": 326,
+    "sha256": "189e482e5bb4b1410d98f7cc69ece60fbffe6936a2c284ac65ceb7b6e208a943"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/identity_test.go",
+    "bytes": 3494,
+    "sha256": "7f91a35c2b1fd847b87caeb797172f84c8809dc04b0fb36b1cb2ba4244ca55a8"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/launch_fence.go",
+    "bytes": 15595,
+    "sha256": "6ad13e1b9164db520e83ecaee63b332251f6d24c2a5bfe1beba7f9d57578d8ac"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/launch_fence_live_test.go",
+    "bytes": 6731,
+    "sha256": "06585955f7c7954e6aab522e93c21984b62a7e0352c7b796d13648ae470e7408"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/launch_fence_test.go",
+    "bytes": 18382,
+    "sha256": "d423c8611b4dee603b3ce693b1187ff47cb3bc484977ae4fe805acec9d9a0f2a"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/manual_absence_contract_test.go",
+    "bytes": 4275,
+    "sha256": "ff9dbe916edf7a078fc4e992114dbf994e38f182ea2d6ce28d1dc7146e21fc7d"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/preview_adapter_contract_test.go",
+    "bytes": 3225,
+    "sha256": "d5223e96ca4d011fbedfa618cfa1b961cd2b803a7fead87b2c0c902236ea4d43"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/preview_context.go",
+    "bytes": 12089,
+    "sha256": "a361a782d87106bb5a85d0ebc6a2876e85b1a4328ff384aee489be601a42d97a"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/preview_context_regression_test.go",
+    "bytes": 5171,
+    "sha256": "db899f7b61e995eee10f654315ff97f1f6f4cafcbcc18144c112636a6ef3a79f"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/preview_terminal_regression_test.go",
+    "bytes": 3094,
+    "sha256": "16c4a3483c6c91b7b21315187186b3f69ebff535ab5175b72935390140a7ffda"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/previews.go",
+    "bytes": 21076,
+    "sha256": "42aaaa4ab27d2c62b19b164e663329106a7da92280e8cd7c19ba22756247a037"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/previews_test.go",
+    "bytes": 12410,
+    "sha256": "5a3d5844ce3e749c09d0ceb8e7a5cc4cc06757e183c9d635cf437edf863bee05"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_disk.go",
+    "bytes": 2816,
+    "sha256": "cf83a7c8cbac90ba1999ee1493d7cea4288440f68317d2c65b75618f5d46dfdc"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_disk_linux.go",
+    "bytes": 1029,
+    "sha256": "f4837084ca8b9cb5fb182b215aa54e7954046cac11e3a820ad2a2d9777ade6f8"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_disk_other.go",
+    "bytes": 402,
+    "sha256": "55a4bea45e585c113c5de5773901b4666c6d266a9b596cb32f1f8c0b858b7693"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_disk_test.go",
+    "bytes": 2142,
+    "sha256": "9d7e523a029765129c241c0b8b454e8e66aee1e9bea9ab25ba3b39bbf16cd0aa"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_disk_windows.go",
+    "bytes": 1702,
+    "sha256": "a7a2bf102579b2c9ab435fcc7416c28ecf84a644f2929b8b00159a80eeb35fce"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_limits.go",
+    "bytes": 4070,
+    "sha256": "112a441d099439a1bb50c17e317b723d01a465627c5267654fcf73b20a2e8d5b"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_observer.go",
+    "bytes": 8480,
+    "sha256": "40a3aa49b96d2f72845ba0a7a2391f3a4de8c5f1cf05073f0932f6b08cd418dc"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_observer_test.go",
+    "bytes": 4203,
+    "sha256": "05175c0f1dc597b224dde60dec93bb5085777fbf38deefa3081ea58075159616"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_storage.go",
+    "bytes": 11203,
+    "sha256": "509088c407fc943a3e70236e15f442855269a1fadee74d5b7ae46f5020852e22"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_storage_process_test.go",
+    "bytes": 8909,
+    "sha256": "72e057e9020212983cf229375eb5ee1f4b2014f3be319d8ce2490a36757c59a5"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_storage_shared.go",
+    "bytes": 5882,
+    "sha256": "c692d5c819ade5955f63c4257bddc2be492cf429b53724a413c196dca9ec29d0"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_storage_test.go",
+    "bytes": 11180,
+    "sha256": "41a7bf33f7fa1334f46a03d054f57d93761dde1940f51b737321e61cb408b093"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_storage_test_unix_test.go",
+    "bytes": 197,
+    "sha256": "af967294c77edb3a2f88003fa818cdb819f14b397451f0c4b428c6141ffa2c0d"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/resource_storage_test_windows_test.go",
+    "bytes": 625,
+    "sha256": "e36c4bbb8d7b17c5ef0361626508e2bc89d8c012b33145776670d3fa9e73c33b"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/runtime_image.go",
+    "bytes": 19088,
+    "sha256": "a48b9eeee610744d396beec76105bf355b88a4093f0fa9065ed34fe923f67ba7"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/runtime_image_bundle_test.go",
+    "bytes": 1492,
+    "sha256": "ce22b822ad2d1dcc78c2f4397167479df4087bcdd08bc9d9048280808c897153"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/runtime_image_context.go",
+    "bytes": 11392,
+    "sha256": "25f6e670cbf611e9c6721fd204d66745cd11c44b4fbf253f3082b7ade40a9327"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/runtime_image_test.go",
+    "bytes": 27136,
+    "sha256": "89ba5fe8adddb956dab1f8486db7c2cf3dc418551e795df96c397f906f89b083"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/stopped_cleanup.go",
+    "bytes": 3433,
+    "sha256": "12029d93ab7c75f5657c14fcd85085810492d33a159a2ebe4fc11eed2b3676cf"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/dockerbe/stopped_cleanup_test.go",
+    "bytes": 3745,
+    "sha256": "55f4a22dc9ae31fc9a5eede45be9d47ec6eccb09e6bc722be5888512248fb23f"
+  },
+  {
+    "path": "/workspace/luci/control-plane/internal/backend/previews.go",
+    "bytes": 2305,
+    "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc"
+  },
+  {
+    "path": "/workspace/luci/control-plane/go.mod",
+    "bytes": 3111,
+    "sha256": "a5f4faf59655f01c0691b2a05632d474b0e4019111f4e7c3d8c1d89731a44c92"
+  },
+  {
+    "path": "/workspace/luci/control-plane/go.sum",
+    "bytes": 19295,
+    "sha256": "c3bbf4f9f4b235b5864b171019079ed97efc3b71bae1cefd885f69f7322b086d"
+  },
+  {
+    "path": "/workspace/.luci-tools/cloud082-preview-bases/tree/control-plane/internal/backend/dockerbe/preview_cold_base_regression_test.go",
+    "bytes": 634,
+    "sha256": "8751db86680eddf79e389b2f3d487fd27aed92425997629bd9a91286db7706c1"
+  }
+]

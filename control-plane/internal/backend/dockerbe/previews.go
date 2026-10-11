@@ -150,12 +150,14 @@ func (b *Backend) PreparePreview(ctx context.Context, s backend.PreviewSpec) (ba
 	}
 	p := backend.PreparedPreview{Spec: s, StorageDriver: info.Driver}
 	if s.Kind == "preview-build" {
-		var e error
-		p.PreparedContext, p.ContextDigest, p.BaseImages, p.RequiredDiskBytes, e = b.preparePreviewContext(ctx, s)
+		plan, e := b.planPreviewContext(ctx, s, nil)
 		if e != nil {
 			return backend.PreparedPreview{}, e
 		}
+		p.PreparedContext, p.ContextDigest, p.BaseImages, p.RequiredDiskBytes = plan.prepared, plan.digest, plan.images, plan.demand
+		p.BasePlan = plan.bases
 		p.Spec.ContextDigest = p.ContextDigest
+		p.BasePlanDigest = previewBasePlanDigest(p)
 	} else {
 		images, ok := b.api.(imageResourceClient)
 		if !ok {
@@ -182,30 +184,47 @@ func (b *Backend) PreparePreview(ctx context.Context, s backend.PreviewSpec) (ba
 	}
 	return p, nil
 }
-func (b *Backend) BuildPreview(ctx context.Context, p backend.PreparedPreview) (backend.PreviewBuildResult, error) {
-	if p.Spec.Kind != "preview-build" {
-		return backend.PreviewBuildResult{}, backend.ErrUnsupported
+func (b *Backend) BuildPreview(ctx context.Context, p backend.PreparedPreview, beforeMutation func(context.Context) error) (backend.PreviewBuildResult, error) {
+	unstarted := backend.PreviewBuildResult{Settled: true}
+	if p.Spec.Kind != "preview-build" || beforeMutation == nil {
+		return unstarted, backend.ErrUnsupported
 	}
 	fresh, err := b.PreparePreview(ctx, p.Spec)
 	if err != nil {
-		return backend.PreviewBuildResult{}, err
+		return unstarted, err
 	}
 	if !reflect.DeepEqual(fresh, p) {
-		return backend.PreviewBuildResult{}, backend.ErrLaunchFenceOwnership
+		return unstarted, backend.ErrLaunchFenceOwnership
 	}
 	api, ok := b.api.(previewBuildClient)
 	if !ok {
-		return backend.PreviewBuildResult{}, backend.ErrUnsupported
+		return unstarted, backend.ErrUnsupported
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
+	plan, settled, err := b.provisionPreviewBases(ctx, p, beforeMutation)
+	if err != nil {
+		return backend.PreviewBuildResult{Settled: settled}, err
+	}
+	if err = b.previewIdentity(ctx, p.Spec.Identity); err != nil {
+		return unstarted, err
+	}
 	// Explicit classic builder: BuildKit ignores the per-build memory/CPU flags.
 	// nproc is a process ulimit, not a cgroup PID bound; serving uses PidsLimit.
 	opts := build.ImageBuildOptions{Version: build.BuilderV1, Dockerfile: p.Spec.Dockerfile, Remove: true, ForceRemove: true, PullParent: false, NoCache: true, Memory: p.Spec.Resources.MemoryBytes(), MemorySwap: p.Spec.Resources.MemoryBytes(), CPUPeriod: 100000, CPUQuota: int64(p.Spec.Resources.CPUMillis) * 100, NetworkMode: "default", Labels: previewIdentityLabels(p.Spec.Identity), Ulimits: []*container.Ulimit{{Name: "nproc", Soft: 256, Hard: 256}}}
 	if opts.Dockerfile == "" {
 		opts.Dockerfile = "Dockerfile"
 	}
-	response, err := api.ImageBuild(ctx, bytes.NewReader(p.PreparedContext), opts)
+	if err = ctx.Err(); err != nil {
+		return unstarted, err
+	}
+	if err = beforeMutation(ctx); err != nil {
+		return unstarted, err
+	}
+	if err = ctx.Err(); err != nil {
+		return unstarted, err
+	}
+	response, err := api.ImageBuild(ctx, bytes.NewReader(plan.prepared), opts)
 	if err != nil || response.Body == nil {
 		return backend.PreviewBuildResult{}, backend.ErrUnavailable
 	}

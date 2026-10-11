@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "scope": "Exactly 13 changed/new C082 Go product and test files; this is a selected-source manifest, not the complete compile or test input closure",
+  "baseline_commit": "64829123a5799858b57616b711c84c61b945871a",
+  "files": [
+    {
+      "path": "control-plane/internal/api/preview_base_authority_test.go",
+      "bytes": 4467,
+      "sha256": "c089cd8f31590edd9da562af00aff4ac57507df3fe2be81874233d43fa0196a0",
+      "capsule_path": "sources/final/control-plane/internal/api/preview_base_authority_test.go",
+      "matches_focused_after_input_binding": false,
+      "stability_provenance": "Current selected API bytes captured; root reports no API changes since initial validation and stability after focused run"
+    },
+    {
+      "path": "control-plane/internal/api/preview_execution.go",
+      "bytes": 24443,
+      "sha256": "07c40f52e88daee82e2ee742d87b0126d2c60a1ab4e0f4e51f0322f7282bb945",
+      "capsule_path": "sources/final/control-plane/internal/api/preview_execution.go",
+      "matches_focused_after_input_binding": false,
+      "stability_provenance": "Current selected API bytes captured; root reports no API changes since initial validation and stability after focused run"
+    },
+    {
+      "path": "control-plane/internal/api/preview_execution_test.go",
+      "bytes": 10207,
+      "sha256": "0a6677dbfe64097a94b882e7a50bceb408cc3dba79448e4b4d59416d44efa866",
+      "capsule_path": "sources/final/control-plane/internal/api/preview_execution_test.go",
+      "matches_focused_after_input_binding": false,
+      "stability_provenance": "Current selected API bytes captured; root reports no API changes since initial validation and stability after focused run"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/classic_build_wire_test.go",
+      "bytes": 3177,
+      "sha256": "864fb67c6f08cac53260aa93f31756c7480834f7f7c9fb57b3064ef14a31b425",
+      "capsule_path": "sources/final/control-plane/internal/backend/dockerbe/classic_build_wire_test.go",
+      "matches_focused_after_input_binding": true,
+      "stability_provenance": "Hash matches source-bound focused after run"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_bases.go",
+      "bytes": 9381,
+      "sha256": "5e37138a418a9a44210ffd5f8cc1fbd545d17e515f72b2d30318c3bc4619cace",
+      "capsule_path": "sources/final/control-plane/internal/backend/dockerbe/preview_bases.go",
+      "matches_focused_after_input_binding": true,
+      "stability_provenance": "Hash matches source-bound focused after run"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_bases_test.go",
+      "bytes": 30132,
+      "sha256": "7ccefbc6827e13771f72ea4ae80b528d1f7fdfb58cf7e8255aaa2135597608bd",
+      "capsule_path": "sources/final/control-plane/internal/backend/dockerbe/preview_bases_test.go",
+      "matches_focused_after_input_binding": true,
+      "stability_provenance": "Hash matches source-bound focused after run"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_cold_base_regression_test.go",
+      "bytes": 634,
+      "sha256": "8751db86680eddf79e389b2f3d487fd27aed92425997629bd9a91286db7706c1",
+      "capsule_path": "sources/final/control-plane/internal/backend/dockerbe/preview_cold_base_regression_test.go",
+      "matches_focused_after_input_binding": true,
+      "stability_provenance": "Hash matches source-bound focused after run"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_context.go",
+      "bytes": 13275,
+      "sha256": "e56bc1086a57eb055b1b245132d4565162f556112102846d0dd4e339c6357576",
+      "capsule_path": "sources/final/control-plane/internal/backend/dockerbe/preview_context.go",
+      "matches_focused_after_input_binding": true,
+      "stability_provenance": "Hash matches source-bound focused after run"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_copy_flags_regression_test.go",
+      "bytes": 2185,
+      "sha256": "b12775262b9c40a5aa39a1efa46c666fe811678304fcaa0ec4e05336363a1410",
+      "capsule_path": "sources/final/control-plane/internal/backend/dockerbe/preview_copy_flags_regression_test.go",
+      "matches_focused_after_input_binding": true,
+      "stability_provenance": "Hash matches source-bound focused after run"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_terminal_regression_test.go",
+      "bytes": 3116,
+      "sha256": "235144f27ec38cab0a705d853ce963c3f7da55c09ac6523eb34e8114e8429860",
+      "capsule_path": "sources/final/control-plane/internal/backend/dockerbe/preview_terminal_regression_test.go",
+      "matches_focused_after_input_binding": true,
+      "stability_provenance": "Hash matches source-bound focused after run"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/previews.go",
+      "bytes": 21678,
+      "sha256": "8a64b5b54d012d53d0aec33365840ad0d178cd92b92c061cd1e07d977beb1d8d",
+      "capsule_path": "sources/final/control-plane/internal/backend/dockerbe/previews.go",
+      "matches_focused_after_input_binding": true,
+      "stability_provenance": "Hash matches source-bound focused after run"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/previews_test.go",
+      "bytes": 12500,
+      "sha256": "c049b102a3b1571f07d7df28178f5238accc686394a2a116d7304788f9bfbdc6",
+      "capsule_path": "sources/final/control-plane/internal/backend/dockerbe/previews_test.go",
+      "matches_focused_after_input_binding": true,
+      "stability_provenance": "Hash matches source-bound focused after run"
+    },
+    {
+      "path": "control-plane/internal/backend/previews.go",
+      "bytes": 3036,
+      "sha256": "3c8a2f3e36efe65215196a113f30349734431aedd171fb4170b704c4d3ac6279",
+      "capsule_path": "sources/final/control-plane/internal/backend/previews.go",
+      "matches_focused_after_input_binding": true,
+      "stability_provenance": "Hash matches source-bound focused after run"
+    }
+  ],
+  "focused_after_input_count": 55,
+  "selected_files_matching_focused_after_inputs": 10,
+  "all_api_stability_claim_provenance": "Root observation, not a before/after full-source manifest"
+}

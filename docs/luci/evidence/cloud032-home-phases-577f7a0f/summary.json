@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "scope": "Eight-round instrumented Home diagnostic; no optimization or acceptance claim",
+  "diagnosticOnly": true,
+  "acceptance": false,
+  "performanceGainClaim": false,
+  "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "helperSourceCommit": "64829123a5799858b57616b711c84c61b945871a",
+  "overlayPreparationSourceCommit": "9536e417069254681133b6eb5afed1e82b0dd56e",
+  "numericProjectionSHA256": "656db4445bae4491e49a6e2019662d9d64b7d899342f6080e1b13a154f5980b8",
+  "rawPrivateSHA256": "3b4c7e81784fb67908700e305df0bf8352d4d80d46e1458c322edf0afbb3aec0",
+  "rawResultIncluded": false,
+  "rawCapturePassed": true,
+  "completeCapture": true,
+  "actions": 32,
+  "numericHomeRows": 96,
+  "actionSummaryMs": {
+    "project-switch": {
+      "count": 8,
+      "p50": 227.04877799999667,
+      "p95": 337.11967100000766,
+      "p99": 337.11967100000766,
+      "max": 337.11967100000766
+    },
+    "input": {
+      "count": 16,
+      "p50": 48.61774499999592,
+      "p95": 57.339454999993904,
+      "p99": 57.339454999993904,
+      "max": 57.339454999993904
+    },
+    "draft-reset": {
+      "count": 8,
+      "p50": 233.8720089999988,
+      "p95": 518.4207119999919,
+      "p99": 518.4207119999919,
+      "max": 518.4207119999919
+    }
+  },
+  "homeSummaryMs": {
+    "handler": {
+      "count": 8,
+      "p50": 0.5999999642372131,
+      "p95": 2.099999964237213,
+      "p99": 2.099999964237213,
+      "max": 2.099999964237213
+    },
+    "handler_to_home_commit": {
+      "count": 8,
+      "p50": 3.400000035762787,
+      "p95": 9.699999988079071,
+      "p99": 9.699999988079071,
+      "max": 9.699999988079071
+    },
+    "navigation_state": {
+      "count": 8,
+      "p50": 0.30000001192092896,
+      "p95": 1.0,
+      "p99": 1.0,
+      "max": 1.0
+    },
+    "scoped_navigation_write": {
+      "count": 8,
+      "p50": 0.19999998807907104,
+      "p95": 1.0,
+      "p99": 1.0,
+      "max": 1.0
+    },
+    "navigation_encode": {
+      "count": 8,
+      "p50": 0.0,
+      "p95": 0.10000002384185791,
+      "p99": 0.10000002384185791,
+      "max": 0.10000002384185791
+    },
+    "scope_scan": {
+      "count": 8,
+      "p50": 0.09999996423721313,
+      "p95": 0.19999998807907104,
+      "p99": 0.19999998807907104,
+      "max": 0.19999998807907104
+    },
+    "navigation_set_item": {
+      "count": 8,
+      "p50": 0.10000002384185791,
+      "p95": 0.699999988079071,
+      "p99": 0.699999988079071,
+      "max": 0.699999988079071
+    },
+    "cockpit_serialize_write": {
+      "count": 8,
+      "p50": 0.09999996423721313,
+      "p95": 0.19999998807907104,
+      "p99": 0.19999998807907104,
+      "max": 0.19999998807907104
+    },
+    "cockpit_partialize": {
+      "count": 8,
+      "p50": 0.0,
+      "p95": 0.10000002384185791,
+      "p99": 0.10000002384185791,
+      "max": 0.10000002384185791
+    },
+    "app_shell_render_entry_to_layout_effect": {
+      "count": 8,
+      "p50": 2.800000011920929,
+      "p95": 7.5,
+      "p99": 7.5,
+      "max": 7.5
+    }
+  },
+  "unchangedThresholdsMs": {
+    "switchP95": 300,
+    "inputP95": 100,
+    "p99StrictlyBelow": 1000
+  },
+  "interpretation": "Measured synchronous Home handler and persistence spans are small in this run. These spans do not support a storage cause for the longer project-switch observation. They do not establish a performance gain.",
+  "original972dSwitchP95Ms": 400.974902,
+  "original972dFailureUnchanged": true,
+  "buildReceipts": [
+    {
+      "argv": [
+        "node",
+        "/workspace/luci/desktop/node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/.luci-tools/cloud032-home-phase-9536e417/frontend",
+      "wallTimeoutSeconds": 180,
+      "startedUTC": "2026-10-11T12:22:18Z",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedSeconds": 22.05608959903475
+    },
+    {
+      "argv": [
+        "node",
+        "/workspace/luci/desktop/node_modules/vite/bin/vite.js",
+        "build",
+        "--outDir",
+        "/workspace/.luci-tools/cloud032-home-phase-9536e417/web",
+        "--emptyOutDir"
+      ],
+      "cwd": "/workspace/.luci-tools/cloud032-home-phase-9536e417/frontend",
+      "wallTimeoutSeconds": 180,
+      "startedUTC": "2026-10-11T12:22:40Z",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedSeconds": 3.854238206986338
+    }
+  ],
+  "cleanupScope": {
+    "wrapperConfirmsDriverExitOnly": true,
+    "independentDriverAndControllerAbsent": true,
+    "independentDockerContainers": 0,
+    "independentDockerVolumes": 0,
+    "independentBrowserStartIdentityCensusCollected": false,
+    "wholeMachineOrZeroZombieClaim": false,
+    "limitations": [
+      "No independent browser start-identity census was collected in this eight-round diagnostic; helper browser cleanup reports remain separately scoped.",
+      "Absence of these driver/controller PIDs and empty Docker inventory is not a whole-machine or zombie-absence claim."
+    ]
+  },
+  "externalRuntimeInput": {
+    "immutableImageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "imageProvenanceSHA256": "a6fb7d93c1ce81b726923a155e44a5adbd53ed6da1198bafb76e4a82da009331",
+    "imageProvenanceCopied": false,
+    "note": "Existing historical image provenance remains separately retained; its bytes and image are prerequisites for the frozen launcher, not recreated or reinterpreted by this capsule."
+  },
+  "limits": [
+    "Eight rounds are diagnostic, not the 100-switch acceptance sample.",
+    "Node and browser clocks are never subtracted.",
+    "Nested phase durations overlap and are not added.",
+    "Render entry to layout effect includes scheduling and commit; it is not isolated CPU time.",
+    "No causal conclusion from counts or association alone.",
+    "Original 972d failure remains unchanged."
+  ],
+  "reproductionLimits": {
+    "selectedDependencyFileHashes": 13,
+    "fullToolchainBound": false,
+    "browserVersionPublished": false,
+    "exactCrossMachinePerformanceReproductionClaim": false
+  }
+}

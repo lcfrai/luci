@@ -1,0 +1,14 @@
+{
+  "scope": "Static syntax and immutable selected input integrity only",
+  "pythonAST": true,
+  "modifiedNodeSyntax": true,
+  "overlayFiles": 6,
+  "localHelperFiles": 17,
+  "frozenDependencyFiles": 7,
+  "frontendOriginalsMatchProduct577": true,
+  "buildExecuted": false,
+  "testsExecuted": false,
+  "browserExecuted": false,
+  "dockerExecuted": false,
+  "repoEditedByThisTask": false
+}

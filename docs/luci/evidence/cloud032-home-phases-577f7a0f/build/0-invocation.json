@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "node",
+    "/workspace/luci/desktop/node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud032-home-phase-9536e417/frontend",
+  "wallTimeoutSeconds": 180,
+  "startedUTC": "2026-10-11T12:22:18Z"
+}

@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/backend/dockerbe/preview_cold_base_regression_test.go": "/workspace/.luci-tools/cloud082-preview-bases/tree/control-plane/internal/backend/dockerbe/preview_cold_base_regression_test.go"
+  }
+}

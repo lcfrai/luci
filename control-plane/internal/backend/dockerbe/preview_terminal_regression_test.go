@@ -57,7 +57,7 @@ func TestPreviewClassicBuildRequiresFinalCompletionAfterLastStage(t *testing.T) 
 				f.stream = previewAuxFrame(finalID) + finalMarker
 				wantSuccess = true
 			}
-			result, err := b.BuildPreview(context.Background(), prepared)
+			result, err := b.BuildPreview(context.Background(), prepared, allowPreviewMutation)
 			if wantSuccess {
 				if err != nil || !result.Settled || result.ImageID != finalID {
 					t.Fatalf("final completion refused: result=%+v error=%v", result, err)

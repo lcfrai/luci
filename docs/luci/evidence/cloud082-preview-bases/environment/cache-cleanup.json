@@ -1,0 +1,10 @@
+{
+  "path": "/workspace/.luci-tools/cloud082-preview-bases/copy-flags/rebuild-cache",
+  "files_removed": 2518,
+  "file_bytes_removed": 152777687,
+  "allocated_file_bytes_removed": 161767424,
+  "observed_workspace_free_bytes_before": 6574948352,
+  "observed_workspace_free_bytes_after": 6737768448,
+  "active_pinned_go_tools": [],
+  "finished_utc": "2026-10-11T12:24:47Z"
+}

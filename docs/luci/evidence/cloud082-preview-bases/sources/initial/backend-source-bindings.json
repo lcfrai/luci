@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "source_commit": "64829123a5799858b57616b711c84c61b945871a",
+  "files": [
+    {
+      "path": "control-plane/internal/backend/dockerbe/classic_build_wire_test.go",
+      "bytes": 3177,
+      "sha256": "864fb67c6f08cac53260aa93f31756c7480834f7f7c9fb57b3064ef14a31b425",
+      "original_sha256": "e19c57a94eec1e70b31c8aff777d4e90575f1a2fb6620225d6dd182057a2864c"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_bases.go",
+      "bytes": 8875,
+      "sha256": "67c9a77cb46b5b2caf69622dff8dcc752023f14de729a4153900fb2ae66c40eb",
+      "original_sha256": null
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_bases_test.go",
+      "bytes": 30132,
+      "sha256": "7ccefbc6827e13771f72ea4ae80b528d1f7fdfb58cf7e8255aaa2135597608bd",
+      "original_sha256": null
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_cold_base_regression_test.go",
+      "bytes": 634,
+      "sha256": "8751db86680eddf79e389b2f3d487fd27aed92425997629bd9a91286db7706c1",
+      "original_sha256": null
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_context.go",
+      "bytes": 13275,
+      "sha256": "e56bc1086a57eb055b1b245132d4565162f556112102846d0dd4e339c6357576",
+      "original_sha256": "a361a782d87106bb5a85d0ebc6a2876e85b1a4328ff384aee489be601a42d97a"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_terminal_regression_test.go",
+      "bytes": 3116,
+      "sha256": "235144f27ec38cab0a705d853ce963c3f7da55c09ac6523eb34e8114e8429860",
+      "original_sha256": "16c4a3483c6c91b7b21315187186b3f69ebff535ab5175b72935390140a7ffda"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/previews.go",
+      "bytes": 21678,
+      "sha256": "8a64b5b54d012d53d0aec33365840ad0d178cd92b92c061cd1e07d977beb1d8d",
+      "original_sha256": "42aaaa4ab27d2c62b19b164e663329106a7da92280e8cd7c19ba22756247a037"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/previews_test.go",
+      "bytes": 12500,
+      "sha256": "c049b102a3b1571f07d7df28178f5238accc686394a2a116d7304788f9bfbdc6",
+      "original_sha256": "5a3d5844ce3e749c09d0ceb8e7a5cc4cc06757e183c9d635cf437edf863bee05"
+    },
+    {
+      "path": "control-plane/internal/backend/previews.go",
+      "bytes": 3036,
+      "sha256": "3c8a2f3e36efe65215196a113f30349734431aedd171fb4170b704c4d3ac6279",
+      "original_sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc"
+    }
+  ],
+  "patch": {
+    "path": "backend-cold-bases.patch",
+    "bytes": 56132,
+    "sha256": "4274fcbc826ee87bf5f8debd6fe0b845bae2eb10a93f484911b90539525a11d3"
+  },
+  "validation": {
+    "formatter": "go1.26.3 gofmt",
+    "original_before_regression": "before-cold/result.json",
+    "fixed_tests_run": false
+  },
+  "policy": {
+    "cold_base_virtual_limit_bytes": 2147483648,
+    "cold_total_disk_ceiling_bytes": 34359738368,
+    "disk_formula": "twice per-stage observed warm size or cold virtual limit, plus twice tar context including bounded pin expansion, plus 1 GiB work reserve",
+    "hard_download_quota": false
+  }
+}

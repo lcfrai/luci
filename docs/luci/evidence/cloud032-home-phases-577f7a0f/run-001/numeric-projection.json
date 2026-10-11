@@ -1,0 +1,1830 @@
+{
+  "version": 1,
+  "rawPrivateSHA256": "3b4c7e81784fb67908700e305df0bf8352d4d80d46e1458c322edf0afbb3aec0",
+  "diagnosticOnly": true,
+  "acceptance": false,
+  "rawCapturePassed": true,
+  "completeCapture": true,
+  "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "binarySHA256": "6695f12aec9628316aeb2e9ea1901f313dc868d49d245384f075b729166383d7",
+  "diagnosticWebBindingSHA256": "1fb6475f2cefd34f15ec9136f9cfcd4fb1cc04dba01bf17c8138c39b1a8fb407",
+  "packagedWebIndexSHA256": "0ca305a9abea2fac7b56144afe768daef611fd1798ef43c7026d4225128a1e8d",
+  "instrumentedWebIndexSHA256": "7cf9ea424292833279df91ad7b072baf4fd620b1c0cd48b31d10d25c8368221a",
+  "kinds": {
+    "1": "handler",
+    "2": "handler_to_home_commit",
+    "3": "navigation_state",
+    "4": "scoped_navigation_write",
+    "5": "navigation_encode",
+    "6": "scope_scan",
+    "7": "navigation_set_item",
+    "8": "cockpit_serialize_write",
+    "9": "cockpit_partialize",
+    "10": "storage_key_count",
+    "11": "other_navigation_scope_count",
+    "12": "app_shell_render_entry_to_layout_effect"
+  },
+  "actions": [
+    {
+      "ordinal": 1,
+      "kind": "project-switch",
+      "homeOrdinal": 1,
+      "success": true,
+      "elapsedMs": 337.11967100000766,
+      "nodeOffsetsMs": {
+        "action-start": 0.5622070000099484,
+        "all-projects-click-end": 114.59128400000918,
+        "overview-heading-ready": 175.98064000000886,
+        "open-project-click-end": 259.2504760000011,
+        "action-end": 259.2566060000099,
+        "verify-start": 259.258388000002,
+        "verify-end": 312.2513850000105,
+        "frames-start": 312.25553200001013,
+        "frames-end": 337.1046190000052
+      },
+      "nodeSpansMs": {
+        "all_projects_command": 114.02907699999923,
+        "overview_wait": 61.38935599999968,
+        "open_project_command": 83.26983599999221,
+        "saved_value_verification": 52.99299700000847,
+        "two_frame_command": 24.849086999995052
+      },
+      "browserFrames": {
+        "requestedAt": 65780.30000001192,
+        "firstFrameAt": 65783.80000001192,
+        "secondFrameAt": 65800.80000001192
+      }
+    },
+    {
+      "ordinal": 2,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 44.88511200000357,
+      "nodeOffsetsMs": {
+        "action-start": 0.04186300000583287,
+        "action-end": 20.8713940000016,
+        "verify-start": 20.874007999998867,
+        "verify-end": 24.527652999997372,
+        "frames-start": 24.52928499999689,
+        "frames-end": 44.851542000003974
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 3.6536449999985052,
+        "two_frame_command": 20.322257000007085
+      },
+      "browserFrames": {
+        "requestedAt": 65849.40000003576,
+        "firstFrameAt": 65850,
+        "secondFrameAt": 65867.30000001192
+      }
+    },
+    {
+      "ordinal": 3,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 49.949642999999924,
+      "nodeOffsetsMs": {
+        "action-start": 0.025477999995928258,
+        "action-end": 13.048978999999235,
+        "verify-start": 13.050971999997273,
+        "verify-end": 19.038562000001548,
+        "frames-start": 19.040454999994836,
+        "frames-end": 49.93731399999524
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 5.987590000004275,
+        "two_frame_command": 30.896859000000404
+      },
+      "browserFrames": {
+        "requestedAt": 65888.70000004768,
+        "firstFrameAt": 65900.60000002384,
+        "secondFrameAt": 65917
+      }
+    },
+    {
+      "ordinal": 4,
+      "kind": "draft-reset",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 233.5049799999979,
+      "nodeOffsetsMs": {
+        "action-start": 0.011256999991019256,
+        "action-end": 186.53028999999515,
+        "verify-start": 186.53226299998641,
+        "verify-end": 199.49787699998706,
+        "frames-start": 199.4998399999895,
+        "frames-end": 233.49321299999428
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 12.965614000000642,
+        "two_frame_command": 33.993373000004794
+      },
+      "browserFrames": {
+        "requestedAt": 66123.40000003576,
+        "firstFrameAt": 66135.60000002384,
+        "secondFrameAt": 66150.10000002384
+      }
+    },
+    {
+      "ordinal": 5,
+      "kind": "project-switch",
+      "homeOrdinal": 2,
+      "success": true,
+      "elapsedMs": 243.97418199999083,
+      "nodeOffsetsMs": {
+        "action-start": 0.01946999999927357,
+        "all-projects-click-end": 75.05550499999663,
+        "overview-heading-ready": 88.03844499999832,
+        "open-project-click-end": 171.8505029999942,
+        "action-end": 171.8547099999996,
+        "verify-start": 171.8553910000046,
+        "verify-end": 211.0353269999905,
+        "frames-start": 211.03724999999395,
+        "frames-end": 243.96309499999916
+      },
+      "nodeSpansMs": {
+        "all_projects_command": 75.03603499999736,
+        "overview_wait": 12.98294000000169,
+        "open_project_command": 83.81205799999589,
+        "saved_value_verification": 39.1799359999859,
+        "two_frame_command": 32.92584500000521
+      },
+      "browserFrames": {
+        "requestedAt": 66538.90000003576,
+        "firstFrameAt": 66550.70000004768,
+        "secondFrameAt": 66567.20000004768
+      }
+    },
+    {
+      "ordinal": 6,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 54.20295999999507,
+      "nodeOffsetsMs": {
+        "action-start": 0.08655999999609776,
+        "action-end": 15.347662000000128,
+        "verify-start": 15.349405000000843,
+        "verify-end": 17.423689999995986,
+        "frames-start": 17.42533199999889,
+        "frames-end": 54.18846799999301
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 2.074284999995143,
+        "two_frame_command": 36.76313599999412
+      },
+      "browserFrames": {
+        "requestedAt": 66603.20000004768,
+        "firstFrameAt": 66616.90000003576,
+        "secondFrameAt": 66634.40000003576
+      }
+    },
+    {
+      "ordinal": 7,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 48.61774499999592,
+      "nodeOffsetsMs": {
+        "action-start": 0.012347999989287928,
+        "action-end": 13.53367900000012,
+        "verify-start": 13.535422000000835,
+        "verify-end": 18.55279599998903,
+        "frames-start": 18.554338999994798,
+        "frames-end": 48.604074999995646
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 5.0173739999881946,
+        "two_frame_command": 30.04973600000085
+      },
+      "browserFrames": {
+        "requestedAt": 66655.60000002384,
+        "firstFrameAt": 66666.80000001192,
+        "secondFrameAt": 66683.5
+      }
+    },
+    {
+      "ordinal": 8,
+      "kind": "draft-reset",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 252.74839199999406,
+      "nodeOffsetsMs": {
+        "action-start": 0.010727000000770204,
+        "action-end": 188.35657099999662,
+        "verify-start": 188.35863399998925,
+        "verify-end": 215.6939219999913,
+        "frames-start": 215.69653599998855,
+        "frames-end": 252.73582299999543
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 27.335288000002038,
+        "two_frame_command": 37.03928700000688
+      },
+      "browserFrames": {
+        "requestedAt": 66904.20000004768,
+        "firstFrameAt": 66919.5,
+        "secondFrameAt": 66935.60000002384
+      }
+    },
+    {
+      "ordinal": 9,
+      "kind": "project-switch",
+      "homeOrdinal": 3,
+      "success": true,
+      "elapsedMs": 245.21440700000676,
+      "nodeOffsetsMs": {
+        "action-start": 0.021212000006926246,
+        "all-projects-click-end": 68.45871299999999,
+        "overview-heading-ready": 81.82986500000698,
+        "open-project-click-end": 159.13236699999834,
+        "action-end": 159.13624300000083,
+        "verify-start": 159.13664300000528,
+        "verify-end": 205.20293500000844,
+        "frames-start": 205.20425700000487,
+        "frames-end": 245.1995440000028
+      },
+      "nodeSpansMs": {
+        "all_projects_command": 68.43750099999306,
+        "overview_wait": 13.371152000006987,
+        "open_project_command": 77.30250199999136,
+        "saved_value_verification": 46.06629200000316,
+        "two_frame_command": 39.995286999997916
+      },
+      "browserFrames": {
+        "requestedAt": 67168.30000001192,
+        "firstFrameAt": 67184.10000002384,
+        "secondFrameAt": 67205.60000002384
+      }
+    },
+    {
+      "ordinal": 10,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 54.1372709999996,
+      "nodeOffsetsMs": {
+        "action-start": 0.029214000009233132,
+        "action-end": 33.58924800000386,
+        "verify-start": 33.59164199999941,
+        "verify-end": 37.96214699999837,
+        "frames-start": 37.96390899999824,
+        "frames-end": 54.128258000011556
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 4.370504999998957,
+        "two_frame_command": 16.164349000013317
+      },
+      "browserFrames": {
+        "requestedAt": 67271.10000002384,
+        "firstFrameAt": 67275.10000002384,
+        "secondFrameAt": 67283.80000001192
+      }
+    },
+    {
+      "ordinal": 11,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 48.505750000011176,
+      "nodeOffsetsMs": {
+        "action-start": 0.009294000003137626,
+        "action-end": 13.736938000001828,
+        "verify-start": 13.738811000002897,
+        "verify-end": 18.636817000005976,
+        "frames-start": 18.638209000011557,
+        "frames-end": 48.49949000000197
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 4.898006000003079,
+        "two_frame_command": 29.861280999990413
+      },
+      "browserFrames": {
+        "requestedAt": 67306.30000001192,
+        "firstFrameAt": 67317,
+        "secondFrameAt": 67333.40000003576
+      }
+    },
+    {
+      "ordinal": 12,
+      "kind": "draft-reset",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 518.4207119999919,
+      "nodeOffsetsMs": {
+        "action-start": 0.01682499999878928,
+        "action-end": 465.6351789999899,
+        "verify-start": 465.692234999995,
+        "verify-end": 483.719557000004,
+        "frames-start": 483.72104899999977,
+        "frames-end": 518.4135910000041
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 18.027322000009008,
+        "two_frame_command": 34.69254200000432
+      },
+      "browserFrames": {
+        "requestedAt": 67823,
+        "firstFrameAt": 67835.40000003576,
+        "secondFrameAt": 67850.30000001192
+      }
+    },
+    {
+      "ordinal": 13,
+      "kind": "project-switch",
+      "homeOrdinal": 4,
+      "success": true,
+      "elapsedMs": 255.67413699999452,
+      "nodeOffsetsMs": {
+        "action-start": 0.036024999993969686,
+        "all-projects-click-end": 73.79710100000375,
+        "overview-heading-ready": 98.12438799999654,
+        "open-project-click-end": 160.79386999999406,
+        "action-end": 160.79692500000237,
+        "verify-start": 160.79722500000207,
+        "verify-end": 223.5483200000017,
+        "frames-start": 223.54954199999338,
+        "frames-end": 255.66740700000082
+      },
+      "nodeSpansMs": {
+        "all_projects_command": 73.76107600000978,
+        "overview_wait": 24.327286999992793,
+        "open_project_command": 62.669481999997515,
+        "saved_value_verification": 62.75109499999962,
+        "two_frame_command": 32.11786500000744
+      },
+      "browserFrames": {
+        "requestedAt": 68122.30000001192,
+        "firstFrameAt": 68135.5,
+        "secondFrameAt": 68151.5
+      }
+    },
+    {
+      "ordinal": 14,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 57.339454999993904,
+      "nodeOffsetsMs": {
+        "action-start": 0.011377999995602295,
+        "action-end": 21.282445999997435,
+        "verify-start": 21.28398899998865,
+        "verify-end": 33.333027000000584,
+        "frames-start": 33.38246199999412,
+        "frames-end": 57.33406699998886
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 12.049038000011933,
+        "two_frame_command": 23.951604999994743
+      },
+      "browserFrames": {
+        "requestedAt": 68213,
+        "firstFrameAt": 68216.70000004768,
+        "secondFrameAt": 68233.40000003576
+      }
+    },
+    {
+      "ordinal": 15,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 49.837933999995585,
+      "nodeOffsetsMs": {
+        "action-start": 0.004646999994292855,
+        "action-end": 12.94947599999432,
+        "verify-start": 12.95082800000091,
+        "verify-end": 19.699488999991445,
+        "frames-start": 19.701381999999285,
+        "frames-end": 49.831924999991315
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 6.748660999990534,
+        "two_frame_command": 30.13054299999203
+      },
+      "browserFrames": {
+        "requestedAt": 68256.10000002384,
+        "firstFrameAt": 68266.60000002384,
+        "secondFrameAt": 68283.60000002384
+      }
+    },
+    {
+      "ordinal": 16,
+      "kind": "draft-reset",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 249.86254200000258,
+      "nodeOffsetsMs": {
+        "action-start": 0.004576999999699183,
+        "action-end": 192.09921400000167,
+        "verify-start": 192.10074599999643,
+        "verify-end": 220.37772800000675,
+        "frames-start": 220.3792209999956,
+        "frames-end": 249.8372640000016
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 28.27698200001032,
+        "two_frame_command": 29.458043000006
+      },
+      "browserFrames": {
+        "requestedAt": 68507,
+        "firstFrameAt": 68517,
+        "secondFrameAt": 68533.60000002384
+      }
+    },
+    {
+      "ordinal": 17,
+      "kind": "project-switch",
+      "homeOrdinal": 5,
+      "success": true,
+      "elapsedMs": 227.04877799999667,
+      "nodeOffsetsMs": {
+        "action-start": 0.010795999987749383,
+        "all-projects-click-end": 69.28731600000174,
+        "overview-heading-ready": 75.84296099998755,
+        "open-project-click-end": 151.0032429999992,
+        "action-end": 151.00708799999848,
+        "verify-start": 151.0074190000014,
+        "verify-end": 198.85870199999772,
+        "frames-start": 198.85966299999563,
+        "frames-end": 227.04311999998754
+      },
+      "nodeSpansMs": {
+        "all_projects_command": 69.27652000001399,
+        "overview_wait": 6.555644999985816,
+        "open_project_command": 75.16028200001165,
+        "saved_value_verification": 47.85128299999633,
+        "two_frame_command": 28.183456999991904
+      },
+      "browserFrames": {
+        "requestedAt": 68757.5,
+        "firstFrameAt": 68767.80000001192,
+        "secondFrameAt": 68783.60000002384
+      }
+    },
+    {
+      "ordinal": 18,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 51.34574299999804,
+      "nodeOffsetsMs": {
+        "action-start": 0.00923400001192931,
+        "action-end": 13.627468000006047,
+        "verify-start": 13.629071000003023,
+        "verify-end": 15.92225899999903,
+        "frames-start": 15.923521000004257,
+        "frames-end": 51.33812100000796
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 2.2931879999960074,
+        "two_frame_command": 35.4146000000037
+      },
+      "browserFrames": {
+        "requestedAt": 68821.5,
+        "firstFrameAt": 68836,
+        "secondFrameAt": 68850.70000004768
+      }
+    },
+    {
+      "ordinal": 19,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 33.470658999998705,
+      "nodeOffsetsMs": {
+        "action-start": 0.005047999991802499,
+        "action-end": 11.031124000001,
+        "verify-start": 11.032705999998143,
+        "verify-end": 13.118740999998408,
+        "frames-start": 13.119653000001563,
+        "frames-end": 33.466522999995505
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 2.0860350000002654,
+        "two_frame_command": 20.34686999999394
+      },
+      "browserFrames": {
+        "requestedAt": 68865.90000003576,
+        "firstFrameAt": 68867.40000003576,
+        "secondFrameAt": 68884.10000002384
+      }
+    },
+    {
+      "ordinal": 20,
+      "kind": "draft-reset",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 217.23271599999862,
+      "nodeOffsetsMs": {
+        "action-start": 0.005267999993520789,
+        "action-end": 174.27205699999467,
+        "verify-start": 174.27343899999687,
+        "verify-end": 185.72531699998945,
+        "frames-start": 185.72782099999313,
+        "frames-end": 217.2265069999994
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 11.451877999992575,
+        "two_frame_command": 31.498686000006273
+      },
+      "browserFrames": {
+        "requestedAt": 69075,
+        "firstFrameAt": 69086.70000004768,
+        "secondFrameAt": 69100.70000004768
+      }
+    },
+    {
+      "ordinal": 21,
+      "kind": "project-switch",
+      "homeOrdinal": 6,
+      "success": true,
+      "elapsedMs": 201.61475699998846,
+      "nodeOffsetsMs": {
+        "action-start": 0.009864999999990687,
+        "all-projects-click-end": 59.769384999992326,
+        "overview-heading-ready": 65.02699199999915,
+        "open-project-click-end": 128.98478699999396,
+        "action-end": 128.98963399999775,
+        "verify-start": 128.99015499999223,
+        "verify-end": 171.65077599999495,
+        "frames-start": 171.65243899999768,
+        "frames-end": 201.60875799998757
+      },
+      "nodeSpansMs": {
+        "all_projects_command": 59.759519999992335,
+        "overview_wait": 5.2576070000068285,
+        "open_project_command": 63.9577949999948,
+        "saved_value_verification": 42.66062100000272,
+        "two_frame_command": 29.95631899998989
+      },
+      "browserFrames": {
+        "requestedAt": 69291,
+        "firstFrameAt": 69300.5,
+        "secondFrameAt": 69316.5
+      }
+    },
+    {
+      "ordinal": 22,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 49.02439299999969,
+      "nodeOffsetsMs": {
+        "action-start": 0.010576000000583008,
+        "action-end": 12.979722000003676,
+        "verify-start": 12.980913999999757,
+        "verify-end": 19.253521999999066,
+        "frames-start": 19.25542500001029,
+        "frames-end": 49.01855400000932
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 6.272607999999309,
+        "two_frame_command": 29.763128999999026
+      },
+      "browserFrames": {
+        "requestedAt": 69373.30000001192,
+        "firstFrameAt": 69384.30000001192,
+        "secondFrameAt": 69400.70000004768
+      }
+    },
+    {
+      "ordinal": 23,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 32.38840799999889,
+      "nodeOffsetsMs": {
+        "action-start": 0.00551899999845773,
+        "action-end": 9.238780999992741,
+        "verify-start": 9.240353999994113,
+        "verify-end": 11.15040399999998,
+        "frames-start": 11.151335000002291,
+        "frames-end": 32.382408999998006
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 1.9100500000058673,
+        "two_frame_command": 21.231073999995715
+      },
+      "browserFrames": {
+        "requestedAt": 69414,
+        "firstFrameAt": 69417.5,
+        "secondFrameAt": 69433.70000004768
+      }
+    },
+    {
+      "ordinal": 24,
+      "kind": "draft-reset",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 217.11067799999728,
+      "nodeOffsetsMs": {
+        "action-start": 0.006410000001778826,
+        "action-end": 175.58893399999943,
+        "verify-start": 175.59129699999176,
+        "verify-end": 187.46991899999557,
+        "frames-start": 187.47215199998755,
+        "frames-end": 217.1046490000008
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 11.878622000003816,
+        "two_frame_command": 29.632497000013245
+      },
+      "browserFrames": {
+        "requestedAt": 69625.80000001192,
+        "firstFrameAt": 69634.80000001192,
+        "secondFrameAt": 69650.10000002384
+      }
+    },
+    {
+      "ordinal": 25,
+      "kind": "project-switch",
+      "homeOrdinal": 7,
+      "success": true,
+      "elapsedMs": 217.02021100001002,
+      "nodeOffsetsMs": {
+        "action-start": 0.009965000004740432,
+        "all-projects-click-end": 65.7039220000006,
+        "overview-heading-ready": 76.36293899999873,
+        "open-project-click-end": 140.04220900000655,
+        "action-end": 140.05439699999988,
+        "verify-start": 140.05496800001129,
+        "verify-end": 180.97198000000208,
+        "frames-start": 180.97311200000695,
+        "frames-end": 217.01458200000343
+      },
+      "nodeSpansMs": {
+        "all_projects_command": 65.69395699999586,
+        "overview_wait": 10.65901699999813,
+        "open_project_command": 63.67927000000782,
+        "saved_value_verification": 40.91701199999079,
+        "two_frame_command": 36.04146999999648
+      },
+      "browserFrames": {
+        "requestedAt": 69851.60000002384,
+        "firstFrameAt": 69867,
+        "secondFrameAt": 69883.60000002384
+      }
+    },
+    {
+      "ordinal": 26,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 43.90028599998914,
+      "nodeOffsetsMs": {
+        "action-start": 0.013860999999451451,
+        "action-end": 19.07410099999106,
+        "verify-start": 19.07520300000033,
+        "verify-end": 21.14063699998951,
+        "frames-start": 21.141938999993727,
+        "frames-end": 43.889669999989565
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 2.0654339999891818,
+        "two_frame_command": 22.747730999995838
+      },
+      "browserFrames": {
+        "requestedAt": 69930,
+        "firstFrameAt": 69935.60000002384,
+        "secondFrameAt": 69950.30000001192
+      }
+    },
+    {
+      "ordinal": 27,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 32.75369299999147,
+      "nodeOffsetsMs": {
+        "action-start": 0.006139000004623085,
+        "action-end": 10.84688099999039,
+        "verify-start": 10.84829300000274,
+        "verify-end": 13.35650500000338,
+        "frames-start": 13.357577000002493,
+        "frames-end": 32.74738400000206
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 2.50821200000064,
+        "two_frame_command": 19.389806999999564
+      },
+      "browserFrames": {
+        "requestedAt": 69966.20000004768,
+        "firstFrameAt": 69967.60000002384,
+        "secondFrameAt": 69983.5
+      }
+    },
+    {
+      "ordinal": 28,
+      "kind": "draft-reset",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 266.3065190000052,
+      "nodeOffsetsMs": {
+        "action-start": 0.010756999996374361,
+        "action-end": 201.07459299999755,
+        "verify-start": 201.07702599999902,
+        "verify-end": 230.56041299999924,
+        "frames-start": 230.56238600000506,
+        "frames-end": 266.3010210000066
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 29.48338700000022,
+        "two_frame_command": 35.73863500000152
+      },
+      "browserFrames": {
+        "requestedAt": 70219.30000001192,
+        "firstFrameAt": 70233.60000002384,
+        "secondFrameAt": 70250.10000002384
+      }
+    },
+    {
+      "ordinal": 29,
+      "kind": "project-switch",
+      "homeOrdinal": 8,
+      "success": true,
+      "elapsedMs": 184.805846999996,
+      "nodeOffsetsMs": {
+        "action-start": 0.012178000004496425,
+        "all-projects-click-end": 59.59428600000683,
+        "overview-heading-ready": 66.98670700000366,
+        "open-project-click-end": 123.29862899999716,
+        "action-end": 123.3019639999984,
+        "verify-start": 123.30237400000624,
+        "verify-end": 162.13324100000318,
+        "frames-start": 162.13417299999855,
+        "frames-end": 184.79967799999577
+      },
+      "nodeSpansMs": {
+        "all_projects_command": 59.582108000002336,
+        "overview_wait": 7.39242099999683,
+        "open_project_command": 56.3119219999935,
+        "saved_value_verification": 38.83086699999694,
+        "two_frame_command": 22.66550499999721
+      },
+      "browserFrames": {
+        "requestedAt": 70430.30000001192,
+        "firstFrameAt": 70433.5,
+        "secondFrameAt": 70451.10000002384
+      }
+    },
+    {
+      "ordinal": 30,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 51.623282999993535,
+      "nodeOffsetsMs": {
+        "action-start": 0.009594000002834946,
+        "action-end": 20.84508199999982,
+        "verify-start": 20.846785000001546,
+        "verify-end": 23.3197899999941,
+        "frames-start": 23.320540999993682,
+        "frames-end": 51.617413999993005
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 2.473004999992554,
+        "two_frame_command": 28.296872999999323
+      },
+      "browserFrames": {
+        "requestedAt": 70490.30000001192,
+        "firstFrameAt": 70500,
+        "secondFrameAt": 70516.70000004768
+      }
+    },
+    {
+      "ordinal": 31,
+      "kind": "input",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 33.67341300001135,
+      "nodeOffsetsMs": {
+        "action-start": 0.005188000010093674,
+        "action-end": 10.344989999997779,
+        "verify-start": 10.34630200000538,
+        "verify-end": 12.470522000003257,
+        "frames-start": 12.47159400000237,
+        "frames-end": 33.66735400000471
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 2.1242199999978766,
+        "two_frame_command": 21.195760000002338
+      },
+      "browserFrames": {
+        "requestedAt": 70531,
+        "firstFrameAt": 70534.20000004768,
+        "secondFrameAt": 70550.20000004768
+      }
+    },
+    {
+      "ordinal": 32,
+      "kind": "draft-reset",
+      "homeOrdinal": null,
+      "success": true,
+      "elapsedMs": 233.8720089999988,
+      "nodeOffsetsMs": {
+        "action-start": 0.005147000003489666,
+        "action-end": 171.7382770000113,
+        "verify-start": 171.7396790000057,
+        "verify-end": 197.92436000000453,
+        "frames-start": 197.9259230000025,
+        "frames-end": 233.8660600000003
+      },
+      "nodeSpansMs": {
+        "saved_value_verification": 26.184680999998818,
+        "two_frame_command": 35.940136999997776
+      },
+      "browserFrames": {
+        "requestedAt": 70752.40000003576,
+        "firstFrameAt": 70766.70000004768,
+        "secondFrameAt": 70783.60000002384
+      }
+    }
+  ],
+  "homeRows": [
+    {
+      "sequence": 1,
+      "home": 1,
+      "kind": 5,
+      "start": 65529.5,
+      "end": 65529.60000002384,
+      "ok": 1,
+      "durationMs": 0.10000002384185791
+    },
+    {
+      "sequence": 2,
+      "home": 1,
+      "kind": 10,
+      "start": 65529.700000047684,
+      "end": 65529.700000047684,
+      "ok": 1,
+      "count": 8,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 3,
+      "home": 1,
+      "kind": 11,
+      "start": 65529.700000047684,
+      "end": 65529.700000047684,
+      "ok": 1,
+      "count": 0,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 4,
+      "home": 1,
+      "kind": 6,
+      "start": 65529.60000002384,
+      "end": 65529.700000047684,
+      "ok": 1,
+      "durationMs": 0.10000002384185791
+    },
+    {
+      "sequence": 5,
+      "home": 1,
+      "kind": 7,
+      "start": 65529.700000047684,
+      "end": 65530.40000003576,
+      "ok": 1,
+      "durationMs": 0.699999988079071
+    },
+    {
+      "sequence": 6,
+      "home": 1,
+      "kind": 4,
+      "start": 65529.5,
+      "end": 65530.5,
+      "ok": 1,
+      "durationMs": 1.0
+    },
+    {
+      "sequence": 7,
+      "home": 1,
+      "kind": 3,
+      "start": 65529.5,
+      "end": 65530.5,
+      "ok": 1,
+      "durationMs": 1.0
+    },
+    {
+      "sequence": 8,
+      "home": 1,
+      "kind": 9,
+      "start": 65531.200000047684,
+      "end": 65531.200000047684,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 9,
+      "home": 1,
+      "kind": 8,
+      "start": 65531.200000047684,
+      "end": 65531.40000003576,
+      "ok": 1,
+      "durationMs": 0.19999998807907104
+    },
+    {
+      "sequence": 10,
+      "home": 1,
+      "kind": 1,
+      "start": 65529.40000003576,
+      "end": 65531.5,
+      "ok": 1,
+      "durationMs": 2.099999964237213
+    },
+    {
+      "sequence": 11,
+      "home": 1,
+      "kind": 2,
+      "start": 65529.40000003576,
+      "end": 65539.10000002384,
+      "ok": 1,
+      "durationMs": 9.699999988079071
+    },
+    {
+      "sequence": 12,
+      "home": 1,
+      "kind": 12,
+      "start": 65531.60000002384,
+      "end": 65539.10000002384,
+      "ok": 1,
+      "durationMs": 7.5
+    },
+    {
+      "sequence": 13,
+      "home": 2,
+      "kind": 5,
+      "start": 66374.70000004768,
+      "end": 66374.70000004768,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 14,
+      "home": 2,
+      "kind": 10,
+      "start": 66374.80000001192,
+      "end": 66374.80000001192,
+      "ok": 1,
+      "count": 8,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 15,
+      "home": 2,
+      "kind": 11,
+      "start": 66374.80000001192,
+      "end": 66374.80000001192,
+      "ok": 1,
+      "count": 0,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 16,
+      "home": 2,
+      "kind": 6,
+      "start": 66374.70000004768,
+      "end": 66374.90000003576,
+      "ok": 1,
+      "durationMs": 0.19999998807907104
+    },
+    {
+      "sequence": 17,
+      "home": 2,
+      "kind": 7,
+      "start": 66374.90000003576,
+      "end": 66375.10000002384,
+      "ok": 1,
+      "durationMs": 0.19999998807907104
+    },
+    {
+      "sequence": 18,
+      "home": 2,
+      "kind": 4,
+      "start": 66374.70000004768,
+      "end": 66375.10000002384,
+      "ok": 1,
+      "durationMs": 0.3999999761581421
+    },
+    {
+      "sequence": 19,
+      "home": 2,
+      "kind": 3,
+      "start": 66374.70000004768,
+      "end": 66375.10000002384,
+      "ok": 1,
+      "durationMs": 0.3999999761581421
+    },
+    {
+      "sequence": 20,
+      "home": 2,
+      "kind": 9,
+      "start": 66375.20000004768,
+      "end": 66375.20000004768,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 21,
+      "home": 2,
+      "kind": 8,
+      "start": 66375.20000004768,
+      "end": 66375.30000001192,
+      "ok": 1,
+      "durationMs": 0.09999996423721313
+    },
+    {
+      "sequence": 22,
+      "home": 2,
+      "kind": 1,
+      "start": 66374.70000004768,
+      "end": 66375.30000001192,
+      "ok": 1,
+      "durationMs": 0.5999999642372131
+    },
+    {
+      "sequence": 23,
+      "home": 2,
+      "kind": 2,
+      "start": 66374.70000004768,
+      "end": 66379.10000002384,
+      "ok": 1,
+      "durationMs": 4.399999976158142
+    },
+    {
+      "sequence": 24,
+      "home": 2,
+      "kind": 12,
+      "start": 66375.40000003576,
+      "end": 66379.10000002384,
+      "ok": 1,
+      "durationMs": 3.699999988079071
+    },
+    {
+      "sequence": 25,
+      "home": 3,
+      "kind": 5,
+      "start": 67006.80000001192,
+      "end": 67006.80000001192,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 26,
+      "home": 3,
+      "kind": 10,
+      "start": 67006.80000001192,
+      "end": 67006.80000001192,
+      "ok": 1,
+      "count": 8,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 27,
+      "home": 3,
+      "kind": 11,
+      "start": 67007,
+      "end": 67007,
+      "ok": 1,
+      "count": 0,
+      "durationMs": 0
+    },
+    {
+      "sequence": 28,
+      "home": 3,
+      "kind": 6,
+      "start": 67006.80000001192,
+      "end": 67007,
+      "ok": 1,
+      "durationMs": 0.19999998807907104
+    },
+    {
+      "sequence": 29,
+      "home": 3,
+      "kind": 7,
+      "start": 67007,
+      "end": 67007.10000002384,
+      "ok": 1,
+      "durationMs": 0.10000002384185791
+    },
+    {
+      "sequence": 30,
+      "home": 3,
+      "kind": 4,
+      "start": 67006.80000001192,
+      "end": 67007.10000002384,
+      "ok": 1,
+      "durationMs": 0.30000001192092896
+    },
+    {
+      "sequence": 31,
+      "home": 3,
+      "kind": 3,
+      "start": 67006.70000004768,
+      "end": 67007.10000002384,
+      "ok": 1,
+      "durationMs": 0.3999999761581421
+    },
+    {
+      "sequence": 32,
+      "home": 3,
+      "kind": 9,
+      "start": 67007.20000004768,
+      "end": 67007.20000004768,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 33,
+      "home": 3,
+      "kind": 8,
+      "start": 67007.20000004768,
+      "end": 67007.30000001192,
+      "ok": 1,
+      "durationMs": 0.09999996423721313
+    },
+    {
+      "sequence": 34,
+      "home": 3,
+      "kind": 1,
+      "start": 67006.70000004768,
+      "end": 67007.30000001192,
+      "ok": 1,
+      "durationMs": 0.5999999642372131
+    },
+    {
+      "sequence": 35,
+      "home": 3,
+      "kind": 2,
+      "start": 67006.70000004768,
+      "end": 67012.10000002384,
+      "ok": 1,
+      "durationMs": 5.399999976158142
+    },
+    {
+      "sequence": 36,
+      "home": 3,
+      "kind": 12,
+      "start": 67007.40000003576,
+      "end": 67012.10000002384,
+      "ok": 1,
+      "durationMs": 4.699999988079071
+    },
+    {
+      "sequence": 37,
+      "home": 4,
+      "kind": 5,
+      "start": 67940.40000003576,
+      "end": 67940.40000003576,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 38,
+      "home": 4,
+      "kind": 10,
+      "start": 67940.40000003576,
+      "end": 67940.40000003576,
+      "ok": 1,
+      "count": 8,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 39,
+      "home": 4,
+      "kind": 11,
+      "start": 67940.40000003576,
+      "end": 67940.40000003576,
+      "ok": 1,
+      "count": 0,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 40,
+      "home": 4,
+      "kind": 6,
+      "start": 67940.40000003576,
+      "end": 67940.40000003576,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 41,
+      "home": 4,
+      "kind": 7,
+      "start": 67940.40000003576,
+      "end": 67940.5,
+      "ok": 1,
+      "durationMs": 0.09999996423721313
+    },
+    {
+      "sequence": 42,
+      "home": 4,
+      "kind": 4,
+      "start": 67940.40000003576,
+      "end": 67940.5,
+      "ok": 1,
+      "durationMs": 0.09999996423721313
+    },
+    {
+      "sequence": 43,
+      "home": 4,
+      "kind": 3,
+      "start": 67940.30000001192,
+      "end": 67940.5,
+      "ok": 1,
+      "durationMs": 0.19999998807907104
+    },
+    {
+      "sequence": 44,
+      "home": 4,
+      "kind": 9,
+      "start": 67940.70000004768,
+      "end": 67940.70000004768,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 45,
+      "home": 4,
+      "kind": 8,
+      "start": 67940.70000004768,
+      "end": 67940.70000004768,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 46,
+      "home": 4,
+      "kind": 1,
+      "start": 67940.30000001192,
+      "end": 67940.70000004768,
+      "ok": 1,
+      "durationMs": 0.40000003576278687
+    },
+    {
+      "sequence": 47,
+      "home": 4,
+      "kind": 2,
+      "start": 67940.30000001192,
+      "end": 67944.5,
+      "ok": 1,
+      "durationMs": 4.199999988079071
+    },
+    {
+      "sequence": 48,
+      "home": 4,
+      "kind": 12,
+      "start": 67940.70000004768,
+      "end": 67944.5,
+      "ok": 1,
+      "durationMs": 3.799999952316284
+    },
+    {
+      "sequence": 49,
+      "home": 5,
+      "kind": 5,
+      "start": 68606.80000001192,
+      "end": 68606.80000001192,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 50,
+      "home": 5,
+      "kind": 10,
+      "start": 68606.80000001192,
+      "end": 68606.80000001192,
+      "ok": 1,
+      "count": 8,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 51,
+      "home": 5,
+      "kind": 11,
+      "start": 68606.80000001192,
+      "end": 68606.80000001192,
+      "ok": 1,
+      "count": 0,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 52,
+      "home": 5,
+      "kind": 6,
+      "start": 68606.80000001192,
+      "end": 68606.80000001192,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 53,
+      "home": 5,
+      "kind": 7,
+      "start": 68606.80000001192,
+      "end": 68607.20000004768,
+      "ok": 1,
+      "durationMs": 0.40000003576278687
+    },
+    {
+      "sequence": 54,
+      "home": 5,
+      "kind": 4,
+      "start": 68606.80000001192,
+      "end": 68607.20000004768,
+      "ok": 1,
+      "durationMs": 0.40000003576278687
+    },
+    {
+      "sequence": 55,
+      "home": 5,
+      "kind": 3,
+      "start": 68606.80000001192,
+      "end": 68607.20000004768,
+      "ok": 1,
+      "durationMs": 0.40000003576278687
+    },
+    {
+      "sequence": 56,
+      "home": 5,
+      "kind": 9,
+      "start": 68607.30000001192,
+      "end": 68607.30000001192,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 57,
+      "home": 5,
+      "kind": 8,
+      "start": 68607.30000001192,
+      "end": 68607.30000001192,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 58,
+      "home": 5,
+      "kind": 1,
+      "start": 68606.80000001192,
+      "end": 68607.40000003576,
+      "ok": 1,
+      "durationMs": 0.6000000238418579
+    },
+    {
+      "sequence": 59,
+      "home": 5,
+      "kind": 2,
+      "start": 68606.80000001192,
+      "end": 68609.60000002384,
+      "ok": 1,
+      "durationMs": 2.800000011920929
+    },
+    {
+      "sequence": 60,
+      "home": 5,
+      "kind": 12,
+      "start": 68607.40000003576,
+      "end": 68609.60000002384,
+      "ok": 1,
+      "durationMs": 2.199999988079071
+    },
+    {
+      "sequence": 61,
+      "home": 6,
+      "kind": 5,
+      "start": 69158.70000004768,
+      "end": 69158.70000004768,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 62,
+      "home": 6,
+      "kind": 10,
+      "start": 69158.70000004768,
+      "end": 69158.70000004768,
+      "ok": 1,
+      "count": 8,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 63,
+      "home": 6,
+      "kind": 11,
+      "start": 69158.80000001192,
+      "end": 69158.80000001192,
+      "ok": 1,
+      "count": 0,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 64,
+      "home": 6,
+      "kind": 6,
+      "start": 69158.70000004768,
+      "end": 69158.80000001192,
+      "ok": 1,
+      "durationMs": 0.09999996423721313
+    },
+    {
+      "sequence": 65,
+      "home": 6,
+      "kind": 7,
+      "start": 69158.80000001192,
+      "end": 69158.90000003576,
+      "ok": 1,
+      "durationMs": 0.10000002384185791
+    },
+    {
+      "sequence": 66,
+      "home": 6,
+      "kind": 4,
+      "start": 69158.70000004768,
+      "end": 69158.90000003576,
+      "ok": 1,
+      "durationMs": 0.19999998807907104
+    },
+    {
+      "sequence": 67,
+      "home": 6,
+      "kind": 3,
+      "start": 69158.70000004768,
+      "end": 69158.90000003576,
+      "ok": 1,
+      "durationMs": 0.19999998807907104
+    },
+    {
+      "sequence": 68,
+      "home": 6,
+      "kind": 9,
+      "start": 69159,
+      "end": 69159.10000002384,
+      "ok": 1,
+      "durationMs": 0.10000002384185791
+    },
+    {
+      "sequence": 69,
+      "home": 6,
+      "kind": 8,
+      "start": 69159.10000002384,
+      "end": 69159.20000004768,
+      "ok": 1,
+      "durationMs": 0.10000002384185791
+    },
+    {
+      "sequence": 70,
+      "home": 6,
+      "kind": 1,
+      "start": 69158.60000002384,
+      "end": 69159.20000004768,
+      "ok": 1,
+      "durationMs": 0.6000000238418579
+    },
+    {
+      "sequence": 71,
+      "home": 6,
+      "kind": 2,
+      "start": 69158.60000002384,
+      "end": 69161.60000002384,
+      "ok": 1,
+      "durationMs": 3.0
+    },
+    {
+      "sequence": 72,
+      "home": 6,
+      "kind": 12,
+      "start": 69159.20000004768,
+      "end": 69161.60000002384,
+      "ok": 1,
+      "durationMs": 2.399999976158142
+    },
+    {
+      "sequence": 73,
+      "home": 7,
+      "kind": 5,
+      "start": 69708.90000003576,
+      "end": 69708.90000003576,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 74,
+      "home": 7,
+      "kind": 10,
+      "start": 69708.90000003576,
+      "end": 69708.90000003576,
+      "ok": 1,
+      "count": 8,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 75,
+      "home": 7,
+      "kind": 11,
+      "start": 69709,
+      "end": 69709,
+      "ok": 1,
+      "count": 0,
+      "durationMs": 0
+    },
+    {
+      "sequence": 76,
+      "home": 7,
+      "kind": 6,
+      "start": 69708.90000003576,
+      "end": 69709,
+      "ok": 1,
+      "durationMs": 0.09999996423721313
+    },
+    {
+      "sequence": 77,
+      "home": 7,
+      "kind": 7,
+      "start": 69709,
+      "end": 69709.10000002384,
+      "ok": 1,
+      "durationMs": 0.10000002384185791
+    },
+    {
+      "sequence": 78,
+      "home": 7,
+      "kind": 4,
+      "start": 69708.90000003576,
+      "end": 69709.10000002384,
+      "ok": 1,
+      "durationMs": 0.19999998807907104
+    },
+    {
+      "sequence": 79,
+      "home": 7,
+      "kind": 3,
+      "start": 69708.80000001192,
+      "end": 69709.10000002384,
+      "ok": 1,
+      "durationMs": 0.30000001192092896
+    },
+    {
+      "sequence": 80,
+      "home": 7,
+      "kind": 9,
+      "start": 69709.20000004768,
+      "end": 69709.20000004768,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 81,
+      "home": 7,
+      "kind": 8,
+      "start": 69709.20000004768,
+      "end": 69709.30000001192,
+      "ok": 1,
+      "durationMs": 0.09999996423721313
+    },
+    {
+      "sequence": 82,
+      "home": 7,
+      "kind": 1,
+      "start": 69708.80000001192,
+      "end": 69709.30000001192,
+      "ok": 1,
+      "durationMs": 0.5
+    },
+    {
+      "sequence": 83,
+      "home": 7,
+      "kind": 2,
+      "start": 69708.80000001192,
+      "end": 69712.20000004768,
+      "ok": 1,
+      "durationMs": 3.400000035762787
+    },
+    {
+      "sequence": 84,
+      "home": 7,
+      "kind": 12,
+      "start": 69709.40000003576,
+      "end": 69712.20000004768,
+      "ok": 1,
+      "durationMs": 2.800000011920929
+    },
+    {
+      "sequence": 85,
+      "home": 8,
+      "kind": 5,
+      "start": 70307.60000002384,
+      "end": 70307.60000002384,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 86,
+      "home": 8,
+      "kind": 10,
+      "start": 70307.70000004768,
+      "end": 70307.70000004768,
+      "ok": 1,
+      "count": 8,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 87,
+      "home": 8,
+      "kind": 11,
+      "start": 70307.70000004768,
+      "end": 70307.70000004768,
+      "ok": 1,
+      "count": 0,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 88,
+      "home": 8,
+      "kind": 6,
+      "start": 70307.60000002384,
+      "end": 70307.70000004768,
+      "ok": 1,
+      "durationMs": 0.10000002384185791
+    },
+    {
+      "sequence": 89,
+      "home": 8,
+      "kind": 7,
+      "start": 70307.70000004768,
+      "end": 70307.80000001192,
+      "ok": 1,
+      "durationMs": 0.09999996423721313
+    },
+    {
+      "sequence": 90,
+      "home": 8,
+      "kind": 4,
+      "start": 70307.60000002384,
+      "end": 70307.80000001192,
+      "ok": 1,
+      "durationMs": 0.19999998807907104
+    },
+    {
+      "sequence": 91,
+      "home": 8,
+      "kind": 3,
+      "start": 70307.60000002384,
+      "end": 70307.80000001192,
+      "ok": 1,
+      "durationMs": 0.19999998807907104
+    },
+    {
+      "sequence": 92,
+      "home": 8,
+      "kind": 9,
+      "start": 70307.90000003576,
+      "end": 70307.90000003576,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 93,
+      "home": 8,
+      "kind": 8,
+      "start": 70307.90000003576,
+      "end": 70307.90000003576,
+      "ok": 1,
+      "durationMs": 0.0
+    },
+    {
+      "sequence": 94,
+      "home": 8,
+      "kind": 1,
+      "start": 70307.60000002384,
+      "end": 70307.90000003576,
+      "ok": 1,
+      "durationMs": 0.30000001192092896
+    },
+    {
+      "sequence": 95,
+      "home": 8,
+      "kind": 2,
+      "start": 70307.60000002384,
+      "end": 70310.5,
+      "ok": 1,
+      "durationMs": 2.899999976158142
+    },
+    {
+      "sequence": 96,
+      "home": 8,
+      "kind": 12,
+      "start": 70308,
+      "end": 70310.5,
+      "ok": 1,
+      "durationMs": 2.5
+    }
+  ],
+  "actionSummaryMs": {
+    "project-switch": {
+      "count": 8,
+      "p50": 227.04877799999667,
+      "p95": 337.11967100000766,
+      "p99": 337.11967100000766,
+      "max": 337.11967100000766
+    },
+    "input": {
+      "count": 16,
+      "p50": 48.61774499999592,
+      "p95": 57.339454999993904,
+      "p99": 57.339454999993904,
+      "max": 57.339454999993904
+    },
+    "draft-reset": {
+      "count": 8,
+      "p50": 233.8720089999988,
+      "p95": 518.4207119999919,
+      "p99": 518.4207119999919,
+      "max": 518.4207119999919
+    }
+  },
+  "homeSummaryMs": {
+    "handler": {
+      "count": 8,
+      "p50": 0.5999999642372131,
+      "p95": 2.099999964237213,
+      "p99": 2.099999964237213,
+      "max": 2.099999964237213
+    },
+    "handler_to_home_commit": {
+      "count": 8,
+      "p50": 3.400000035762787,
+      "p95": 9.699999988079071,
+      "p99": 9.699999988079071,
+      "max": 9.699999988079071
+    },
+    "navigation_state": {
+      "count": 8,
+      "p50": 0.30000001192092896,
+      "p95": 1.0,
+      "p99": 1.0,
+      "max": 1.0
+    },
+    "scoped_navigation_write": {
+      "count": 8,
+      "p50": 0.19999998807907104,
+      "p95": 1.0,
+      "p99": 1.0,
+      "max": 1.0
+    },
+    "navigation_encode": {
+      "count": 8,
+      "p50": 0.0,
+      "p95": 0.10000002384185791,
+      "p99": 0.10000002384185791,
+      "max": 0.10000002384185791
+    },
+    "scope_scan": {
+      "count": 8,
+      "p50": 0.09999996423721313,
+      "p95": 0.19999998807907104,
+      "p99": 0.19999998807907104,
+      "max": 0.19999998807907104
+    },
+    "navigation_set_item": {
+      "count": 8,
+      "p50": 0.10000002384185791,
+      "p95": 0.699999988079071,
+      "p99": 0.699999988079071,
+      "max": 0.699999988079071
+    },
+    "cockpit_serialize_write": {
+      "count": 8,
+      "p50": 0.09999996423721313,
+      "p95": 0.19999998807907104,
+      "p99": 0.19999998807907104,
+      "max": 0.19999998807907104
+    },
+    "cockpit_partialize": {
+      "count": 8,
+      "p50": 0.0,
+      "p95": 0.10000002384185791,
+      "p99": 0.10000002384185791,
+      "max": 0.10000002384185791
+    },
+    "app_shell_render_entry_to_layout_effect": {
+      "count": 8,
+      "p50": 2.800000011920929,
+      "p95": 7.5,
+      "p99": 7.5,
+      "max": 7.5
+    }
+  },
+  "limits": [
+    "Eight rounds are diagnostic, not the 100-switch acceptance sample.",
+    "Node and browser clocks are never subtracted.",
+    "Nested phase durations overlap and are not added.",
+    "Render entry to layout effect includes scheduling and commit; it is not isolated CPU time.",
+    "No causal conclusion from counts or association alone.",
+    "Original 972d failure remains unchanged."
+  ]
+}

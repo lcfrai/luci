@@ -1,0 +1,23 @@
+{
+  "observedAt": "2026-10-11T12:27:54.255730+00:00",
+  "rawResultSHA256": "3b4c7e81784fb67908700e305df0bf8352d4d80d46e1458c322edf0afbb3aec0",
+  "driverAndControllerObservations": [
+    {
+      "pid": 2732078,
+      "state": "absent"
+    },
+    {
+      "pid": 2732257,
+      "state": "absent"
+    }
+  ],
+  "driverExpectedStartTicks": 46756791,
+  "engineIdentityMatches": true,
+  "dockerContainerIDs": [],
+  "dockerVolumeIDs": [],
+  "mutationsPerformed": 0,
+  "limitations": [
+    "No independent browser start-identity census was collected in this eight-round diagnostic; helper browser cleanup reports remain separately scoped.",
+    "Absence of these driver/controller PIDs and empty Docker inventory is not a whole-machine or zombie-absence claim."
+  ]
+}

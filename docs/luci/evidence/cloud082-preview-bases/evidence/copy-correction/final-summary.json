@@ -1,0 +1,33 @@
+{
+  "sources": [
+    {
+      "path": "/workspace/luci/control-plane/internal/backend/dockerbe/preview_bases.go",
+      "bytes": 9381,
+      "sha256": "5e37138a418a9a44210ffd5f8cc1fbd545d17e515f72b2d30318c3bc4619cace"
+    },
+    {
+      "path": "/workspace/luci/control-plane/internal/backend/dockerbe/preview_copy_flags_regression_test.go",
+      "bytes": 2185,
+      "sha256": "b12775262b9c40a5aa39a1efa46c666fe811678304fcaa0ec4e05336363a1410"
+    }
+  ],
+  "patch_sha256": "5f29ff4fbd447f817588646f454e108ab763123ab6588de4365f0a50db93ce93",
+  "tests": {
+    "before": {
+      "exit_code": 1,
+      "leaf_cases": 9,
+      "passed": 5,
+      "failed": 4,
+      "skipped": 0,
+      "sources_unchanged": true
+    },
+    "after": {
+      "exit_code": 0,
+      "leaf_cases": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "sources_unchanged": true
+    }
+  }
+}

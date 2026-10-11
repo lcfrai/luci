@@ -54,6 +54,39 @@ func previewRecordContext(ctx context.Context) (context.Context, context.CancelF
 	return context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 }
 
+// A cold preview may download several declared base images before building.
+// Keep the one admitted build charged throughout, but recheck live authority,
+// reviewed source and the exact phase before every new mutating Docker call.
+// This does not allocate, replay, reconcile or release any reservation.
+func (a *API) previewBuildMutation(ctx context.Context, req previewruntime.Request, lease previewExecutionLease) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if lease.Kind != "preview-build" || lease.State != "building" || lease.Actor != req.Actor ||
+		lease.Identity.ProjectID != req.ProjectID || lease.Identity.ReleaseID != req.ReleaseID ||
+		lease.Identity.SourceDigest != req.SourceDigest || lease.Identity.Commit != req.Commit || req.ValidateSource == nil {
+		return errors.New("preview build authority or reviewed identity changed")
+	}
+	authority, err := a.authorizePreview(ctx, req.Actor, true)
+	if err != nil {
+		return err
+	}
+	if !req.Actor.Local && (lease.Resources.MemoryMiB > authority.Policy.CheckMemoryMiB || lease.Resources.CPUMillis > authority.Policy.CheckCPUMillis || authority.Policy.MaxConcurrentChecksPerUser < 1) {
+		return errors.New("preview limits exceed current deployment policy")
+	}
+	if err = req.ValidateSource(ctx); err != nil {
+		return err
+	}
+	current, err := a.execution.previewLease(ctx, lease.ID)
+	if err != nil {
+		return err
+	}
+	if current != lease {
+		return errors.New("the exact preview build reservation changed")
+	}
+	return ctx.Err()
+}
+
 func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
 	out := previewruntime.Outcome{Identity: req.Identity, Phase: "blocked", Message: "No preview allocation was started."}
 	fail := func(code, message string, err error) (previewruntime.Outcome, error) {
@@ -144,11 +177,13 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 	if err != nil {
 		return out, err
 	}
-	out.Phase, out.Message = "building", "Building the exact reviewed source within the admitted resource limits."
+	out.Phase, out.Message = "building", "Preparing declared base images and building the reviewed source within the admitted resource allowance."
 	if err = publish(out); err != nil {
 		return out, err
 	}
-	result, buildErr := executor.BuildPreview(ctx, prepared)
+	result, buildErr := executor.BuildPreview(ctx, prepared, func(mutationCtx context.Context) error {
+		return a.previewBuildMutation(mutationCtx, req, lease)
+	})
 	if !result.Settled {
 		if buildErr == nil {
 			buildErr = errors.New("preview build settlement was not acknowledged")

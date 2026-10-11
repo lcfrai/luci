@@ -299,16 +299,21 @@ func previewTar(files []previewFile) ([]byte, error) {
 // and case-insensitive FROM/AS are preserved. Every external base is pinned by
 // immutable local image identity; preparation never pulls an uncharged image.
 func (b *Backend) preparePreviewContext(ctx context.Context, spec backend.PreviewSpec) ([]byte, string, []string, uint64, error) {
+	plan, err := b.planPreviewContext(ctx, spec, nil)
+	return plan.prepared, plan.digest, plan.images, plan.demand, err
+}
+
+func (b *Backend) planPreviewContext(ctx context.Context, spec backend.PreviewSpec, resolved map[string]backend.PreviewBaseImage) (previewContextPlan, error) {
 	files, digest, err := previewContext(spec)
 	if err != nil {
-		return nil, "", nil, 0, err
+		return previewContextPlan{}, err
 	}
 	dockerfile := spec.Dockerfile
 	if dockerfile == "" {
 		dockerfile = "Dockerfile"
 	}
 	if !previewContextPath(dockerfile) {
-		return nil, "", nil, 0, backend.ErrUnsupported
+		return previewContextPlan{}, backend.ErrUnsupported
 	}
 	index := -1
 	for i := range files {
@@ -317,18 +322,25 @@ func (b *Backend) preparePreviewContext(ctx context.Context, spec backend.Previe
 		}
 	}
 	if index < 0 || len(files[index].data) > 1<<20 {
-		return nil, "", nil, 0, backend.ErrUnsupported
+		return previewContextPlan{}, backend.ErrUnsupported
 	}
 	images, ok := b.api.(imageResourceClient)
 	if !ok {
-		return nil, "", nil, 0, backend.ErrUnsupported
+		return previewContextPlan{}, backend.ErrUnsupported
 	}
 	lines, err := previewDockerfileInstructions(string(files[index].data))
 	if err != nil {
-		return nil, "", nil, 0, err
+		return previewContextPlan{}, err
+	}
+	if err := validatePreviewCopyStages(lines); err != nil {
+		return previewContextPlan{}, err
 	}
 	stages := map[string]bool{}
 	bases := []string{}
+	basePlan := []backend.PreviewBaseImage{}
+	byReference := map[string]backend.PreviewBaseImage{}
+	cold := false
+	coldPinGrowth := 0
 	var baseBytes uint64
 	out := []string{}
 	fromCount := 0
@@ -350,40 +362,56 @@ func (b *Backend) preparePreviewContext(ctx context.Context, spec backend.Previe
 		}
 		fields := strings.Fields(clean)
 		if strings.EqualFold(fields[0], "LABEL") && !previewLabelKeysAllowed(strings.TrimSpace(strings.TrimPrefix(clean, fields[0]))) {
-			return nil, "", nil, 0, backend.ErrUnsupported
+			return previewContextPlan{}, backend.ErrUnsupported
 		}
 		isFrom := strings.EqualFold(fields[0], "FROM")
 		if isFrom {
 			if len(fields) != 2 && (len(fields) != 4 || !strings.EqualFold(fields[2], "AS")) {
-				return nil, "", nil, 0, backend.ErrUnsupported
+				return previewContextPlan{}, backend.ErrUnsupported
 			}
 			base := fields[1]
 			if strings.ContainsAny(base, "$\\") || strings.HasPrefix(base, "--") {
-				return nil, "", nil, 0, backend.ErrUnsupported
+				return previewContextPlan{}, backend.ErrUnsupported
 			}
 			fromCount++
 			if fromCount > 16 {
-				return nil, "", nil, 0, backend.ErrUnsupported
+				return previewContextPlan{}, backend.ErrUnsupported
 			}
 			if !stages[strings.ToLower(base)] && base != "scratch" {
-				row, e := images.ImageInspect(ctx, base)
+				canonical, e := previewBaseReference(base)
 				if e != nil {
-					return nil, "", nil, 0, fmt.Errorf("preview base image %q must be available locally before its build can be admitted: %w", base, backend.ErrUnavailable)
+					return previewContextPlan{}, e
 				}
-				if !previewImageID(row.ID) || row.Size <= 0 || row.Os != "linux" || row.Config == nil || len(row.Config.OnBuild) != 0 || len(row.Config.Volumes) != 0 {
-					return nil, "", nil, 0, backend.ErrUnsupported
+				planned, seen := byReference[canonical]
+				if !seen {
+					planned, e = previewPlanBase(ctx, images, base, canonical, resolved)
+					if e != nil {
+						return previewContextPlan{}, e
+					}
+					byReference[canonical] = planned
+					basePlan = append(basePlan, planned)
 				}
-				fields[1] = row.ID
-				bases = append(bases, row.ID)
-				if uint64(row.Size) > math.MaxUint64-baseBytes {
-					return nil, "", nil, 0, backend.ErrUnsupported
+				size := planned.VirtualSizeBytes
+				if planned.ImageID == "" {
+					cold = true
+					size = previewColdBaseVirtualLimit
+					if growth := 71 - len(planned.Reference); growth > 0 {
+						coldPinGrowth += growth
+					}
+					fields[1] = planned.Reference
+				} else {
+					fields[1] = planned.ImageID
+					bases = append(bases, planned.ImageID)
 				}
-				baseBytes += uint64(row.Size)
+				if size > math.MaxUint64-baseBytes {
+					return previewContextPlan{}, backend.ErrUnsupported
+				}
+				baseBytes += size
 			}
 			if len(fields) == 4 {
 				alias := strings.ToLower(fields[3])
 				if alias == "" || stages[alias] {
-					return nil, "", nil, 0, backend.ErrUnsupported
+					return previewContextPlan{}, backend.ErrUnsupported
 				}
 				stages[alias] = true
 			}
@@ -393,24 +421,30 @@ func (b *Backend) preparePreviewContext(ctx context.Context, spec backend.Previe
 		}
 	}
 	if fromCount == 0 {
-		return nil, "", nil, 0, backend.ErrUnsupported
+		return previewContextPlan{}, backend.ErrUnsupported
 	}
 	files[index].data = []byte(strings.Join(out, "\n"))
 	prepared, err := previewTar(files)
 	if err != nil {
-		return nil, "", nil, 0, err
+		return previewContextPlan{}, err
 	}
 	// Includes context, base materialization per stage and a working reserve. It
 	// is a conservative admission estimate, not a per-build filesystem quota.
 	const reserve = uint64(1 << 30)
 	contextBytes := uint64(len(prepared))
+	// Pinning short cold references can grow the Dockerfile across tar blocks.
+	// Reserve that bounded expansion so an exactly-at-limit image still fits.
+	contextBytes += uint64((coldPinGrowth + 511) / 512 * 512)
 	if contextBytes > (math.MaxUint64-reserve)/2 {
-		return nil, "", nil, 0, backend.ErrUnsupported
+		return previewContextPlan{}, backend.ErrUnsupported
 	}
 	demand := contextBytes*2 + reserve
 	if baseBytes > (math.MaxUint64-demand)/2 {
-		return nil, "", nil, 0, backend.ErrUnsupported
+		return previewContextPlan{}, backend.ErrUnsupported
 	}
 	demand += baseBytes * 2
-	return prepared, digest, bases, demand, nil
+	if cold && demand > previewColdDiskLimit {
+		return previewContextPlan{}, backend.ErrUnsupported
+	}
+	return previewContextPlan{prepared: prepared, digest: digest, images: bases, bases: basePlan, demand: demand}, nil
 }

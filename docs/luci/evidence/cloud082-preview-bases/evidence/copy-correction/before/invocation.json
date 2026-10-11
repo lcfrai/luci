@@ -1,0 +1,27 @@
+{
+  "cwd": "/workspace/luci/control-plane",
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-json",
+    "-mod=readonly",
+    "-count=1",
+    "-p=1",
+    "-timeout=120s",
+    "-run",
+    "^TestPreviewCopyQuoted(FlagsRefusedBeforeInspection|StageFlagsRemainSupported)$",
+    "./internal/backend/dockerbe"
+  ],
+  "environment_overrides": {
+    "GOMAXPROCS": "2",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOTMPDIR": "/workspace/.t",
+    "GOCACHE": "/workspace/.luci-tools/cloud082-preview-bases/copy-flags/rebuild-cache",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly",
+    "PATH": "/workspace/.luci-tools/go1.26.3/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "started_utc": "2026-10-11T12:22:25Z"
+}

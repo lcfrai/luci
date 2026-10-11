@@ -1130,3 +1130,49 @@ inventories and exact controller closure are separate observations. This host
 had approximately4.76GB free, below the unchanged8GiB installer reserve. The
 later32GiB build demand was not exercised. No successful cold install, Windows
 or model workflow is claimed, and no existing failed fixture was modified.
+
+### C082 guarded cold-preview preparation
+
+The source checkpoint containing [this receipt](evidence/cloud082-preview-bases/README.md)
+supports missing public Dockerfile `FROM` images through the admitted preview
+build. It keeps the charge across preparation, checks current Deploy/source/exact
+lease before each mutation, and builds from acknowledged immutable image IDs.
+There are no new environment variables, credentials or frontend dependencies.
+Rebuild the backend or use the documented Windows release script at the exact
+handoff revision; the existing `577f7a0f` binary does not contain this correction.
+Keep fresh `LUCI_STATE_DIR`, `LUCI_PROJECTS_DIR` and a free `LUCI_ADDR` as before.
+
+The original cold-image regression fails as retained. Initial backend/API
+selection passes 186 race outcomes (43 top-level, 143 subtests); an all-package
+compile-only check also passes. Those precede the review follow-up: a quoted
+COPY flag could hide an external `--from` before Docker resolves that image.
+Four of nine focused cases fail before correction and all nine pass afterward,
+with 55 selected inputs stable within each invocation. These counts and source
+binding limits remain separate; no final full-suite result is implied.
+
+[Windows acceptance sequence](evidence/cloud082-preview-bases/WINDOWS-HANDOFF.md)
+covers cold public bases, prior-stage COPY, current authority, interrupted pulls,
+immutable pinning and exact resource refusal. Docker download/unpacking has a
+conservative admission allowance, not a hard per-download quota. Actual cold
+Docker execution, retained-pull recovery, Windows and the real-provider
+idea-to-preview journey remain open. Carry unaffected native lifecycle results
+at their original revisions; do not repeat them solely for this backend change.
+
+### C032 Home-phase diagnostic at577
+
+[The eight-round instrumented diagnostic](evidence/cloud032-home-phases-577f7a0f/README.md)
+captures all 32 actions and 96 numeric Home rows. Home handler maximum is 2.1 ms,
+handler-to-Home-layout-effect maximum 9.7 ms and scoped navigation write maximum 1 ms.
+These observations do not support a storage rewrite. Eight-switch p95 is
+337.119671 ms and 16-input p95 is 57.339455 ms; this short instrumented sample cannot
+replace the unchanged 100-switch/200-input acceptance gate. No optimization or
+causal performance gain is claimed. The installed binary remains577; web code
+has the explicitly bound numeric-only diagnostic overlay. The private raw
+result also records Chromium `151.0.7922.173`; its hash is retained in the public
+projection, while the capsule does not contain that private original.
+
+TypeScript and Vite complete before execution. Wrapper exit 0 means completed
+capture; independent closure finds its driver/controller PIDs absent and Docker
+containers/volumes empty. No independent browser start-identity census was
+collected for this short run, so no zero-zombie or whole-machine closure claim
+is made. C032 and full Windows/provider/sustained acceptance remain open.

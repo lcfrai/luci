@@ -55,10 +55,12 @@ func (f *previewProbe) ContainerStop(_ context.Context, ref string, _ container.
 	f.rows[ref] = r
 	return nil
 }
+func allowPreviewMutation(context.Context) error { return nil }
+
 func newPreviewProbe(t *testing.T) (*Backend, *previewProbe, backend.PreviewSpec) {
 	t.Helper()
 	b, old, _ := newCheckProbe(t)
-	f := &previewProbe{checkProbe: old, images: map[string]image.InspectResponse{"node:fixture": old.image}}
+	f := &previewProbe{checkProbe: old, images: map[string]image.InspectResponse{"node:fixture": old.image, old.image.ID: old.image}}
 	b.api = f
 	dir := t.TempDir()
 	dir, e := filepath.EvalSymlinks(dir)
@@ -121,12 +123,12 @@ func TestPreviewPreparationPinsContextWithoutMutation(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(s.SourceDirectory, "new.txt"), []byte("changed"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, e = b.BuildPreview(context.Background(), p); e == nil || len(f.buildOptions) != 0 {
+	if _, e = b.BuildPreview(context.Background(), p, allowPreviewMutation); e == nil || len(f.buildOptions) != 0 {
 		t.Fatal("changed context reached builder")
 	}
 }
 func TestPreviewPreparationRefusesUnbudgetedInputs(t *testing.T) {
-	for _, tc := range []struct{ name, text string }{{"dynamic-base", "ARG BASE=node:fixture\nFROM $BASE\n"}, {"buildkit", "# syntax=docker/dockerfile:1\nFROM node:fixture\n"}, {"host-platform", "FROM --platform=linux/amd64 node:fixture\n"}, {"reserved-label", "FROM node:fixture\nLABEL luci.preview-allocation=other\n"}, {"missing-image", "FROM no-local-image\n"}, {"heredoc", "FROM node:fixture\nRUN <<EOF\nx\nEOF\n"}} {
+	for _, tc := range []struct{ name, text string }{{"dynamic-base", "ARG BASE=node:fixture\nFROM $BASE\n"}, {"buildkit", "# syntax=docker/dockerfile:1\nFROM node:fixture\n"}, {"host-platform", "FROM --platform=linux/amd64 node:fixture\n"}, {"reserved-label", "FROM node:fixture\nLABEL luci.preview-allocation=other\n"}, {"heredoc", "FROM node:fixture\nRUN <<EOF\nx\nEOF\n"}} {
 		t.Run(tc.name, func(t *testing.T) {
 			b, f, s := newPreviewProbe(t)
 			if e := os.WriteFile(filepath.Join(s.SourceDirectory, "Dockerfile"), []byte(tc.text), 0600); e != nil {
@@ -202,7 +204,7 @@ func TestPreviewBuilderRequiresTerminalTransportAndExactSettlement(t *testing.T)
 			case "oversized":
 				f.stream = string(aux) + strings.Repeat(" ", 4<<20)
 			}
-			result, e := b.BuildPreview(context.Background(), p)
+			result, e := b.BuildPreview(context.Background(), p, allowPreviewMutation)
 			if mode == "success" {
 				if e != nil || !result.Settled || result.ImageID != id {
 					t.Fatalf("success: %+v %v", result, e)

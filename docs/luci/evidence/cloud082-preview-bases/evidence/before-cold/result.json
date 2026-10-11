@@ -1,0 +1,39 @@
+{
+  "exit_code": 1,
+  "elapsed_seconds": 3.946,
+  "sources_unchanged": true,
+  "source_file_count": 52,
+  "finished_utc": "2026-10-11T11:58:19Z",
+  "artifacts": [
+    {
+      "path": "/workspace/.luci-tools/cloud082-preview-bases/before-cold/overlay.json",
+      "bytes": 253,
+      "sha256": "99aac5f366699c07c494010ee4c83b571961e9cf6ff80717317fa05f0156191c"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud082-preview-bases/before-cold/invocation.json",
+      "bytes": 1253,
+      "sha256": "205e543401ba7b5ccdc4bc6b9651b5883d0b507327987f20df7502ba7fd12156"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud082-preview-bases/before-cold/before-source-bindings.json",
+      "bytes": 10481,
+      "sha256": "42804a9343febce113219eeea57f9ec2ddb4b9baec8d3b228334c1d2666584c0"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud082-preview-bases/before-cold/after-source-bindings.json",
+      "bytes": 10481,
+      "sha256": "42804a9343febce113219eeea57f9ec2ddb4b9baec8d3b228334c1d2666584c0"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud082-preview-bases/before-cold/stdout.jsonl",
+      "bytes": 2063,
+      "sha256": "00c3906223cdac76a64c1e83ea665b36cbc1ae8821c6118ba7935befc3308afb"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud082-preview-bases/before-cold/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

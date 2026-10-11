@@ -38,11 +38,23 @@ type PreparedPreview struct {
 	Spec              PreviewSpec
 	StorageDriver     string
 	RequiredDiskBytes uint64
-	// PreparedContext is a bounded tar with pinned FROM images. It is ephemeral,
-	// not part of the durable lease, logs or browser-facing outcome.
+	// PreparedContext is a bounded tar; warm FROM images are pinned and cold
+	// declarations are bound by BasePlan. Build pins every image before dispatch.
+	// The tar is ephemeral, never in the durable lease or browser-facing outcome.
 	PreparedContext []byte
 	ContextDigest   string
 	BaseImages      []string
+	// BasePlan is derived only from the reviewed Dockerfile. A missing ImageID
+	// means Prepare observed confirmed absence, never an unavailable engine.
+	BasePlan       []PreviewBaseImage
+	BasePlanDigest string
+}
+
+type PreviewBaseImage struct {
+	Reference string
+	ImageID   string
+	// Observed virtual size when warm; the supported policy cap when cold.
+	VirtualSizeBytes uint64
 }
 
 type PreviewBuildResult struct {
@@ -58,7 +70,10 @@ type PreviewObservation struct{ Ref, State, URL string }
 // requires a complete backend reply, never merely client cancellation.
 type PreviewExecutor interface {
 	PreparePreview(context.Context, PreviewSpec) (PreparedPreview, error)
-	BuildPreview(context.Context, PreparedPreview) (PreviewBuildResult, error)
+	// beforeMutation rechecks the exact active lease, current Deploy authority
+	// and reviewed source before every declared-base pull and final image build.
+	// It is mandatory; pulls share this build allocation and are never replayed.
+	BuildPreview(context.Context, PreparedPreview, func(context.Context) error) (PreviewBuildResult, error)
 	CreatePreview(context.Context, PreparedPreview) (string, error)
 	StartPreview(context.Context, PreviewIdentity, string) error
 	StopPreview(context.Context, PreviewIdentity, string) error

@@ -1,0 +1,22 @@
+[
+  {
+    "path": "/tmp/luci-retained-tools/go-mod/github.com/docker/docker@v28.3.3+incompatible/vendor.mod",
+    "bytes": 13080,
+    "sha256": "3256340013b459c949af12f2c4bd968ff2b3b218e2dd71e8b7a1035e3675fd2b"
+  },
+  {
+    "path": "/tmp/luci-retained-tools/go-mod/github.com/docker/docker@v28.3.3+incompatible/builder/dockerfile/dispatchers.go",
+    "bytes": 20819,
+    "sha256": "1f83368a540e447b1df3cd7cb08e4b5cdaa6adafd0184fd4b0f2da1a3cab2074"
+  },
+  {
+    "path": "/tmp/luci-retained-tools/go-mod/github.com/docker/docker@v28.3.3+incompatible/builder/dockerfile/imagecontext.go",
+    "bytes": 3408,
+    "sha256": "daca90f6d9785a1f0eb7ad7035535f7d1f6523401e957ec40b363d890e02f19a"
+  },
+  {
+    "path": "/tmp/luci-retained-tools/go-mod/github.com/docker/docker@v28.3.3+incompatible/builder/dockerfile/internals.go",
+    "bytes": 13511,
+    "sha256": "3df0fcd60ba4c3bce98b6cfe3351b4f8d7c24488d9dae110f0e63b1c786bf19e"
+  }
+]

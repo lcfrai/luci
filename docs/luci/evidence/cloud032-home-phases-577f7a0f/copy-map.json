@@ -1,0 +1,440 @@
+{
+  "version": 1,
+  "sourceRoot": "/workspace/.luci-tools/cloud032-home-phase-9536e417",
+  "copiedFiles": [
+    {
+      "original": "README.md",
+      "capsulePath": "prepared/README.md",
+      "bytes": 6062,
+      "sha256": "be10c87598abbd298e6713a7930db70d330f35d6ba72ef3f9f8b75c83bab49b7",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/external-source-binding.json",
+      "capsulePath": "prepared/actual/external-source-binding.json",
+      "bytes": 5990,
+      "sha256": "fae5f8c4d613fd58d70503470d0288f81408e8387853e95b19048ac46af38f55",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/four-project-queue_native-terminal-diagnostics.mjs",
+      "capsulePath": "prepared/actual/four-project-queue_native-terminal-diagnostics.mjs",
+      "bytes": 6811,
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/four-project-queue_sample-linux-owned.py",
+      "capsulePath": "prepared/actual/four-project-queue_sample-linux-owned.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/interaction-metrics.mjs",
+      "capsulePath": "prepared/actual/interaction-metrics.mjs",
+      "bytes": 10399,
+      "sha256": "fe1fe65bbf0a262adb714be88deaccadb1e4fb64fed1dba24539e345c3a47547",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/latency-diagnostics.mjs",
+      "capsulePath": "prepared/actual/latency-diagnostics.mjs",
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/launch-recovery_acceptance-lifecycle.mjs",
+      "capsulePath": "prepared/actual/launch-recovery_acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/launch-recovery_acceptance-startup.mjs",
+      "capsulePath": "prepared/actual/launch-recovery_acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/launch-recovery_durable-acceptance-journal.mjs",
+      "capsulePath": "prepared/actual/launch-recovery_durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/launch-recovery_fenced-docker-proxy.mjs",
+      "capsulePath": "prepared/actual/launch-recovery_fenced-docker-proxy.mjs",
+      "bytes": 39518,
+      "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/launch-recovery_worker-create-guard.mjs",
+      "capsulePath": "prepared/actual/launch-recovery_worker-create-guard.mjs",
+      "bytes": 5545,
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/queue-controls.mjs",
+      "capsulePath": "prepared/actual/queue-controls.mjs",
+      "bytes": 711,
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/receipt-transport.mjs",
+      "capsulePath": "prepared/actual/receipt-transport.mjs",
+      "bytes": 5857,
+      "sha256": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/run-with-observer.py",
+      "capsulePath": "prepared/actual/run-with-observer.py",
+      "bytes": 17220,
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/source-binding.mjs",
+      "capsulePath": "prepared/actual/source-binding.mjs",
+      "bytes": 2768,
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/sustained.mjs",
+      "capsulePath": "prepared/actual/sustained.mjs",
+      "bytes": 99744,
+      "sha256": "d5550df823e242a83542b5a113933e7c548beaa7df0ef358891f854228b7d89f",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/task-command.mjs",
+      "capsulePath": "prepared/actual/task-command.mjs",
+      "bytes": 11762,
+      "sha256": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/task-context.mjs",
+      "capsulePath": "prepared/actual/task-context.mjs",
+      "bytes": 2439,
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "byteIdentical": true
+    },
+    {
+      "original": "actual/workloads.mjs",
+      "capsulePath": "prepared/actual/workloads.mjs",
+      "bytes": 18691,
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "byteIdentical": true
+    },
+    {
+      "original": "analyze.py",
+      "capsulePath": "prepared/analyze.py",
+      "bytes": 4067,
+      "sha256": "48d148a15187a3110478c4bef7811d0582113bc09a92f3520e014ed98c0161bf",
+      "byteIdentical": true
+    },
+    {
+      "original": "build-web.py",
+      "capsulePath": "prepared/build-web.py",
+      "bytes": 5796,
+      "sha256": "93f4fcc0e777e4aa86afde4a31460fe641ecba57dd3b897ffed152fd257de534",
+      "byteIdentical": true
+    },
+    {
+      "original": "driver.patch",
+      "capsulePath": "prepared/driver.patch",
+      "bytes": 34800,
+      "sha256": "2c25e12110a96f7a0c631f10f6418817618b82131443071abc31dcd55e48ea86",
+      "byteIdentical": true
+    },
+    {
+      "original": "frozen-helpers/scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs",
+      "capsulePath": "prepared/frozen-helpers/scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs",
+      "bytes": 6811,
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "byteIdentical": true
+    },
+    {
+      "original": "frozen-helpers/scripts/acceptance/four-project-queue/sample-linux-owned.py",
+      "capsulePath": "prepared/frozen-helpers/scripts/acceptance/four-project-queue/sample-linux-owned.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "byteIdentical": true
+    },
+    {
+      "original": "frozen-helpers/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "capsulePath": "prepared/frozen-helpers/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "byteIdentical": true
+    },
+    {
+      "original": "frozen-helpers/scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "capsulePath": "prepared/frozen-helpers/scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "byteIdentical": true
+    },
+    {
+      "original": "frozen-helpers/scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "capsulePath": "prepared/frozen-helpers/scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "byteIdentical": true
+    },
+    {
+      "original": "frozen-helpers/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "capsulePath": "prepared/frozen-helpers/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "bytes": 39518,
+      "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+      "byteIdentical": true
+    },
+    {
+      "original": "frozen-helpers/scripts/acceptance/launch-recovery/worker-create-guard.mjs",
+      "capsulePath": "prepared/frozen-helpers/scripts/acceptance/launch-recovery/worker-create-guard.mjs",
+      "bytes": 5545,
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "byteIdentical": true
+    },
+    {
+      "original": "homePhaseTiming.ts",
+      "capsulePath": "prepared/homePhaseTiming.ts",
+      "bytes": 2561,
+      "sha256": "c9b657144d10cb4adc9d16996b8201c66ddbc8471676e3acba5a7f7df253ac94",
+      "byteIdentical": true
+    },
+    {
+      "original": "launch.py",
+      "capsulePath": "prepared/launch.py",
+      "bytes": 10480,
+      "sha256": "957403eb584fa662a275bb339f3fde56199e58815800462f2cea5751479b03af",
+      "byteIdentical": true
+    },
+    {
+      "original": "launcher.patch",
+      "capsulePath": "prepared/launcher.patch",
+      "bytes": 10869,
+      "sha256": "656f524a157e4434915c7adf311472a57a4aa559864e216429a529941e2185fd",
+      "byteIdentical": true
+    },
+    {
+      "original": "overlay/desktop/src/components/AppShell.tsx",
+      "capsulePath": "prepared/overlay/desktop/src/components/AppShell.tsx",
+      "bytes": 6657,
+      "sha256": "3f8b4d3e5b76b09a5e22213541317f900ebee59952660f8d51988b15b83abb4a",
+      "byteIdentical": true
+    },
+    {
+      "original": "overlay/desktop/src/components/rail/Rail.tsx",
+      "capsulePath": "prepared/overlay/desktop/src/components/rail/Rail.tsx",
+      "bytes": 8719,
+      "sha256": "711d22fcef1b85f2bec1e83f5f3483ebb8de592f0693db639f3d07d1a91a7778",
+      "byteIdentical": true
+    },
+    {
+      "original": "overlay/desktop/src/diagnostics/homePhaseTiming.ts",
+      "capsulePath": "prepared/overlay/desktop/src/diagnostics/homePhaseTiming.ts",
+      "bytes": 2561,
+      "sha256": "c9b657144d10cb4adc9d16996b8201c66ddbc8471676e3acba5a7f7df253ac94",
+      "byteIdentical": true
+    },
+    {
+      "original": "overlay/desktop/src/preferences/projectNavigation.ts",
+      "capsulePath": "prepared/overlay/desktop/src/preferences/projectNavigation.ts",
+      "bytes": 4693,
+      "sha256": "1cdf0eaad09a87f49ad9ab920e034f9cf68b62a3f8eefc6940345921f0cbd1aa",
+      "byteIdentical": true
+    },
+    {
+      "original": "overlay/desktop/src/store/slices/uiSlice.ts",
+      "capsulePath": "prepared/overlay/desktop/src/store/slices/uiSlice.ts",
+      "bytes": 17115,
+      "sha256": "033dce9633d019fc958e3728a28fe3b722a4b8dc8e7b68ccd204008905d67ba6",
+      "byteIdentical": true
+    },
+    {
+      "original": "overlay/desktop/src/store/store.ts",
+      "capsulePath": "prepared/overlay/desktop/src/store/store.ts",
+      "bytes": 5049,
+      "sha256": "81e7821507750c0e03bcbf9d56e185338d3cefa57b1f555b4070b9a114e58219",
+      "byteIdentical": true
+    },
+    {
+      "original": "overlay-binding.json",
+      "capsulePath": "prepared/overlay-binding.json",
+      "bytes": 1828,
+      "sha256": "d74dd31ffa27059309f414fd6ad37a944c90f46bafe0a3981bd6a393861011b0",
+      "byteIdentical": true
+    },
+    {
+      "original": "overlay.patch",
+      "capsulePath": "prepared/overlay.patch",
+      "bytes": 9728,
+      "sha256": "c1f98ae0a57474e241df7700a82cfde00a363b0add7726dfb0de47d1bdd7bbf2",
+      "byteIdentical": true
+    },
+    {
+      "original": "stage.py",
+      "capsulePath": "prepared/stage.py",
+      "bytes": 5624,
+      "sha256": "3d9c874e791b3e73d79db4247a3563b8d872c0150ed02ca9485d4b5161727f21",
+      "byteIdentical": true
+    },
+    {
+      "original": "static-validation.json",
+      "capsulePath": "prepared/static-validation.json",
+      "bytes": 387,
+      "sha256": "e19091f982f6f3a356bdf8aad93ea4c2f9e8549eca4ace045687ba44b9a0e55c",
+      "byteIdentical": true
+    },
+    {
+      "original": "template-capture.json",
+      "capsulePath": "prepared/template-capture.json",
+      "bytes": 1526,
+      "sha256": "3d82dcb1bd41de59b34291b9e838095a97f891b96a761f2e21eaeb676e9690db",
+      "byteIdentical": true
+    },
+    {
+      "original": "prepared-files.json",
+      "capsulePath": "prepared/prepared-files.json",
+      "bytes": 7529,
+      "sha256": "2f81b9b41b4b4434a1d23f18c6d41bea2cf10e8c91c2a106269e19f7bbb81a5d",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/0-invocation.json",
+      "capsulePath": "build/0-invocation.json",
+      "bytes": 252,
+      "sha256": "d9e76d6206f0f5e9ad04ac2fcd8aca9502d40815f43ba13ae8872e7fe1c78469",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/0.stderr.log",
+      "capsulePath": "build/0.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/0.stdout.log",
+      "capsulePath": "build/0.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/1-invocation.json",
+      "capsulePath": "build/1-invocation.json",
+      "bytes": 347,
+      "sha256": "4650be8c08a8e88798675ff947fd8dad7c133e77edc52a6c99c4c364ac21bf33",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/1.stderr.log",
+      "capsulePath": "build/1.stderr.log",
+      "bytes": 360,
+      "sha256": "351b524197fb492920789369e7f1a271420c757633fbb553b280a181ac4c31a4",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/1.stdout.log",
+      "capsulePath": "build/1.stdout.log",
+      "bytes": 18183,
+      "sha256": "ef0ff1896fcdbde75aafd4a405d3b615742f54abadbe6edf1184505f03a326d2",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/dependencies-after.json",
+      "capsulePath": "build/dependencies-after.json",
+      "bytes": 1258,
+      "sha256": "65007fa42c46b545cfacc6fcdf4907cd51e9d19fd6e2d6fe95ae6498b44716ef",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/dependencies-before.json",
+      "capsulePath": "build/dependencies-before.json",
+      "bytes": 1258,
+      "sha256": "65007fa42c46b545cfacc6fcdf4907cd51e9d19fd6e2d6fe95ae6498b44716ef",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/inputs-after.json",
+      "capsulePath": "build/inputs-after.json",
+      "bytes": 123774,
+      "sha256": "7345f1d929d7d45788a1fe42120566247f9e7ea3b9d9943aad74e6961c8d4c5e",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/inputs-before.json",
+      "capsulePath": "build/inputs-before.json",
+      "bytes": 214614,
+      "sha256": "5b49343e5fdbf0b28b70c5b453323f94d479757f6a60f260ceb3b555c7332044",
+      "byteIdentical": true
+    },
+    {
+      "original": "build/result.json",
+      "capsulePath": "build/result.json",
+      "bytes": 816,
+      "sha256": "d409f29aa6ab190fbe078f6178ccabebbfbcce5603e4cee31de3d7f7cb5c3072",
+      "byteIdentical": true
+    },
+    {
+      "original": "diagnostic-web-binding.json",
+      "capsulePath": "diagnostic-web-binding.json",
+      "bytes": 84821,
+      "sha256": "1fb6475f2cefd34f15ec9136f9cfcd4fb1cc04dba01bf17c8138c39b1a8fb407",
+      "byteIdentical": true
+    },
+    {
+      "original": "run-001/numeric-projection.json",
+      "capsulePath": "run-001/numeric-projection.json",
+      "bytes": 47065,
+      "sha256": "656db4445bae4491e49a6e2019662d9d64b7d899342f6080e1b13a154f5980b8",
+      "byteIdentical": true
+    },
+    {
+      "original": "run-001/wrapper-result.json",
+      "capsulePath": "run-001/wrapper-result.json",
+      "bytes": 1707,
+      "sha256": "e15a4a2dfc696ee1950831df384dd705a03f5039313aa3f8b2bd1fa438e2e0dc",
+      "byteIdentical": true
+    },
+    {
+      "original": "run-001/independent-closure.json",
+      "capsulePath": "run-001/independent-closure.json",
+      "bytes": 758,
+      "sha256": "a998844d51c6812d6bc42465c4eaf5a6dad6c7e85b297a5b428a9c453f42e85c",
+      "byteIdentical": true
+    },
+    {
+      "original": "run-001/invocation.json",
+      "capsulePath": "run-001/invocation.json",
+      "bytes": 6022,
+      "sha256": "96891eb8dc992515459d59567d2cb9e076d67be43797f551e0e169ee9951df9b",
+      "byteIdentical": true
+    },
+    {
+      "original": "run-001/driver-identity.json",
+      "capsulePath": "run-001/driver-identity.json",
+      "bytes": 63,
+      "sha256": "2c9958363cf8f7809306a9d002c14670b3f639cb9ec0722f21b18edc7f6192ea",
+      "byteIdentical": true
+    },
+    {
+      "original": "run-001/driver/package-provenance.json",
+      "capsulePath": "run-001/package-provenance.json",
+      "bytes": 880,
+      "sha256": "3b5ddda6d86425beb914f1fdeeba7178eb46c9c269a6bcfd9826b044bc4a0201",
+      "byteIdentical": true
+    }
+  ]
+}
