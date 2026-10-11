@@ -351,7 +351,7 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 		resources = clampSessionResources(resources, authority.Policy)
 	}
 	decision.Resources = resources
-	if resources.MemoryMiB < 128 || resources.MemoryMiB > 32768 || resources.CPUMillis < 100 || resources.CPUMillis > 16000 || providerLimit < 1 || providerLimit > 16 || actor.ProjectID != projectID || id == "" || len(id) > 200 || len(provider) > 200 || provider == "" {
+	if resources.MemoryMiB < 128 || resources.MemoryMiB > 32768 || resources.CPUMillis < 100 || resources.CPUMillis > 16000 || providerLimit < 1 || providerLimit > product.MaxSwarmScheduledTasks || actor.ProjectID != projectID || id == "" || len(id) > 200 || len(provider) > 200 || provider == "" {
 		return decision, errors.New("worker resource or ownership policy is outside supported execution bounds")
 	}
 	if g.api.deps.ResourceSnapshot == nil {
@@ -658,7 +658,7 @@ func executionSessionProvider(row registry.Session) string {
 
 func validExecutionLease(lease executionLease) bool {
 	scope, err := hex.DecodeString(lease.Scope)
-	if err != nil || len(scope) != 32 || lease.LaunchGuard < 0 || lease.LaunchGuard > 1 || lease.ID == "" || len(lease.ID) > 200 || lease.ProjectID == "" || len(lease.ProjectID) > 200 || lease.Actor.ProjectID != lease.ProjectID || len(lease.Actor.UserID) > 200 || len(lease.Actor.TeamID) > 200 || lease.Provider == "" || len(lease.Provider) > 200 || lease.ProviderLimit < 1 || lease.ProviderLimit > 16 || lease.Resources.MemoryMiB < 128 || lease.Resources.MemoryMiB > 32768 || lease.Resources.CPUMillis < 100 || lease.Resources.CPUMillis > 16000 || lease.CreatedAt.IsZero() || lease.UpdatedAt.Before(lease.CreatedAt) || len(lease.SessionID) > 200 || len(lease.SandboxID) > 200 {
+	if err != nil || len(scope) != 32 || lease.LaunchGuard < 0 || lease.LaunchGuard > 1 || lease.ID == "" || len(lease.ID) > 200 || lease.ProjectID == "" || len(lease.ProjectID) > 200 || lease.Actor.ProjectID != lease.ProjectID || len(lease.Actor.UserID) > 200 || len(lease.Actor.TeamID) > 200 || lease.Provider == "" || len(lease.Provider) > 200 || lease.ProviderLimit < 1 || lease.ProviderLimit > product.MaxSwarmScheduledTasks || lease.Resources.MemoryMiB < 128 || lease.Resources.MemoryMiB > 32768 || lease.Resources.CPUMillis < 100 || lease.Resources.CPUMillis > 16000 || lease.CreatedAt.IsZero() || lease.UpdatedAt.Before(lease.CreatedAt) || len(lease.SessionID) > 200 || len(lease.SandboxID) > 200 {
 		return false
 	}
 	if lease.Actor.Local && (lease.Actor.UserID != "" || lease.Actor.TeamID != "") || !lease.Actor.Local && lease.Actor.UserID == "" {

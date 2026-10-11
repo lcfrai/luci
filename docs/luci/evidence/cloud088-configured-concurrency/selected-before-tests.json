@@ -1,0 +1,67 @@
+[
+  {
+    "path": "control-plane/internal/product/swarm_limits.go",
+    "bytes": 461,
+    "sha256": "7ed2455d2233930b6a00941a2f13bc84c6559d446ccbf5daeef80c997e61706b"
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm.go",
+    "bytes": 30689,
+    "sha256": "0d65a4d69dcf4150db467f7990f69d24c6bf82f445fb5c4e8412ada1c64336ba"
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm_store.go",
+    "bytes": 11543,
+    "sha256": "002c4175acffeb327a0f94cd78f7f6408c527f7a13434d58833995ca022fde07"
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm_scheduler_store.go",
+    "bytes": 11084,
+    "sha256": "69c544c61e6b4c1fe14202c06c8769fcab72e98680c8e87585bcafb91aae9a36"
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm_scheduler_http.go",
+    "bytes": 12925,
+    "sha256": "8cfb6f45bffc3f0cef5c5e2e99244a8a1af2b3e54456b2a58815b834aab01b97"
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm_configured_concurrency_test.go",
+    "bytes": 7030,
+    "sha256": "20e10b1951c1fdcc480f706ef9607bc7145baf471a9cee2bb137d80e04fcdf4a"
+  },
+  {
+    "path": "control-plane/internal/api/execution_leases.go",
+    "bytes": 30114,
+    "sha256": "fdd1e4ee173731f61038e2a19796dea5696e99b4d6c5ef66e93282bc050aa7e4"
+  },
+  {
+    "path": "control-plane/internal/api/execution_swarm_configured_concurrency_test.go",
+    "bytes": 6972,
+    "sha256": "8f16aac0f9c4a66000b11b1f623c81247423ae0baac150300baa2940fedcbc5e"
+  },
+  {
+    "path": "desktop/src/api/swarmLimits.ts",
+    "bytes": 233,
+    "sha256": "b8e4db2724c35c0c42bd2a237b1d268bc5b1c8765e4fdbcee24ef0a4016f9567"
+  },
+  {
+    "path": "desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 53320,
+    "sha256": "578d842152c5789b8307b438d7671282db94f9c3b2e94ac7660f43f45d39202f"
+  },
+  {
+    "path": "desktop/src/components/journey/ProjectSwarm.test.tsx",
+    "bytes": 37332,
+    "sha256": "296daa319a35fa626b4e4a259cd05f35cf6dd55e79ea5c227ce7eaa734c57b3e"
+  },
+  {
+    "path": "desktop/src/components/projects/HostCapacity.tsx",
+    "bytes": 14255,
+    "sha256": "f4477243161c3675b9c9a92f02307043743aee1eb1c183b12e549a42299f90f2"
+  },
+  {
+    "path": "desktop/src/components/projects/HostCapacity.test.tsx",
+    "bytes": 11788,
+    "sha256": "af0fee54b98493cd525fc7e3a46fad0fdc567c6ceac94282f43797c0043c84c6"
+  }
+]

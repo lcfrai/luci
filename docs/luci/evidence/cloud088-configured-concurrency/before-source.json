@@ -1,0 +1,37 @@
+[
+  {
+    "path": "control-plane/internal/product/project_swarm.go",
+    "sha256": "c6afb692534a37a7f67dce0b603fac552f2174b86ec83344fac0053a5b7b0fe9",
+    "bytes": 30572
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm_store.go",
+    "sha256": "ddad47b3848a8483805c00eb24ed8422a18ff41ce37878032ba840d9f0acec51",
+    "bytes": 11523
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm_scheduler_store.go",
+    "sha256": "301c57fc49aa259bd5caf633b036ae766629ebec425bc5edc93a81a18156e11a",
+    "bytes": 11025
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm_scheduler_http.go",
+    "sha256": "e44624f7ae97dd65b260941db830ec34640ffb47cf730c7ff9bbf02fdf64ce11",
+    "bytes": 12785
+  },
+  {
+    "path": "control-plane/internal/api/execution_leases.go",
+    "sha256": "a46b0c4bbbd44eaecb38b13f95bf21041748cd86a87fb653b9ef5b34e382a159",
+    "bytes": 30058
+  },
+  {
+    "path": "desktop/src/components/journey/ProjectSwarm.tsx",
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd",
+    "bytes": 52803
+  },
+  {
+    "path": "desktop/src/components/projects/HostCapacity.tsx",
+    "sha256": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999",
+    "bytes": 14116
+  }
+]

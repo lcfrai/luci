@@ -1,0 +1,51 @@
+{
+  "issue": "CLOUD-088",
+  "scope": "Configured ceilings; controlled source regressions, not installed or live microVM acceptance",
+  "baseProduct": "8805c8c61e51e533b8224d3d458def2dd2c80ea4",
+  "setupChanges": [],
+  "ceilings": {
+    "run": 200,
+    "perProject": 200,
+    "workspace": 500
+  },
+  "defaults": {
+    "run": 2,
+    "perProject": 2,
+    "workspace": 4
+  },
+  "selectedInputCount": 13,
+  "selectedInputsStable": true,
+  "originalOverlay": {
+    "topLevelFail": 4,
+    "exit": 1,
+    "identicalNewRegressionFiles": true
+  },
+  "correctedFocused": {
+    "topLevelPass": 4,
+    "subtestPass": 5,
+    "exit": 0
+  },
+  "affectedRace": {
+    "topLevelPass": 29,
+    "subtestPass": 40,
+    "fail": 0,
+    "skip": 0,
+    "exit": 0
+  },
+  "frontend": {
+    "files": 2,
+    "pass": 59,
+    "fail": 0,
+    "exit": 0
+  },
+  "overlap": "Focused Go nine passing outcomes are included in the affected race69; not78unique.",
+  "typecheck": "Pending final coordinated frontend typecheck; no standalone TypeScript claim.",
+  "harnessFailure": "Initial command used control-plane cwd for repository-relative copy and source binding paths, then ran zero matching Go tests. product-first receipt is not a product pass. Corrected commands used copied/gofmt compiled tests and13selected hashes.",
+  "limitations": [
+    "No real Docker, microVM or model call",
+    "No Windows execution, performance or whole-product acceptance",
+    "Selected inputs only, not full Go dependency/compiled-input closure",
+    "Shared checkout contained other agents edits; no clean checkout claim",
+    "Docker observer128 bound, per-account/provider permissions and resource admission unchanged"
+  ]
+}

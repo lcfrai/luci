@@ -62,7 +62,7 @@ func validateProjectSwarm(run ProjectRun) error {
 		return nil
 	}
 	swarm := run.Swarm
-	if swarm.MaxParallel < 1 || swarm.MaxParallel > 4 || (swarm.State != "ready" && swarm.State != "paused" && swarm.State != "cancelled") || len(swarm.Tasks) == 0 || len(swarm.Tasks) != len(run.Input.Implementation.TaskIDs) {
+	if swarm.MaxParallel < 1 || swarm.MaxParallel > MaxSwarmParallelTasks || (swarm.State != "ready" && swarm.State != "paused" && swarm.State != "cancelled") || len(swarm.Tasks) == 0 || len(swarm.Tasks) != len(run.Input.Implementation.TaskIDs) {
 		return ErrProjectRunInvalid
 	}
 	seen := map[string]bool{}

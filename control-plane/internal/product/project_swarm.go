@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path"
@@ -72,8 +73,8 @@ func (s *Server) initializeProjectSwarm(w http.ResponseWriter, r *http.Request) 
 	if req.MaxParallel == 0 {
 		req.MaxParallel = 2
 	}
-	if req.MaxParallel < 1 || req.MaxParallel > 4 {
-		projectRunProblem(w, errors.New("Choose between one and four parallel task slots."))
+	if req.MaxParallel < 1 || req.MaxParallel > MaxSwarmParallelTasks {
+		projectRunProblem(w, fmt.Errorf("Choose between 1 and %d parallel task slots. Actual starts remain subject to resource, account and provider limits.", MaxSwarmParallelTasks))
 		return
 	}
 	run, err := s.projectRuns.Get(p.ID, p.Path, r.PathValue("runId"))

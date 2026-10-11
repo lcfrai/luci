@@ -131,3 +131,28 @@ it('expires a visible reservation while its next read remains pending', async ()
   expect(screen.getByText(/Reserved execution demand: Unavailable/)).toBeTruthy();
   expect(screen.queryByText(/\d+ allocations ·/)).toBeNull();
 });
+
+it('saves higher configured ceilings with unchanged resource policy and exact revision', async () => {
+  const user = userEvent.setup(); render(<HostCapacity />); await expandCapacity();
+  await user.click(screen.getByRole('button', {name: 'Scheduling settings'}));
+  const global = screen.getByRole('spinbutton', {name: 'Workspace agent ceiling'});
+  const project = screen.getByRole('spinbutton', {name: 'Agents per project'});
+  expect(global.getAttribute('max')).toBe('500'); expect(project.getAttribute('max')).toBe('200');
+  await user.clear(global); await user.type(global, '24');
+  await user.clear(project); await user.type(project, '6');
+  await user.click(screen.getByRole('button', {name: 'Save scheduling ceilings'}));
+  expect(swarmSchedulerApi.configure).toHaveBeenCalledWith(expect.objectContaining({revision: 7}), {...snapshot().policy, maxActive: 24, maxPerProject: 6}, false);
+});
+
+it('rejects ceilings outside queue/task bounds and project ceilings above workspace capacity', async () => {
+  const user = userEvent.setup(); render(<HostCapacity />); await expandCapacity();
+  await user.click(screen.getByRole('button', {name: 'Scheduling settings'}));
+  const global = screen.getByRole('spinbutton', {name: 'Workspace agent ceiling'});
+  const project = screen.getByRole('spinbutton', {name: 'Agents per project'});
+  for (const [g, p] of [['501', '6'], ['500', '201'], ['6', '7']]) {
+    await user.clear(global); await user.type(global, g);
+    await user.clear(project); await user.type(project, p);
+    expect(screen.getByRole('button', {name: 'Save scheduling ceilings'})).toHaveProperty('disabled', true);
+  }
+  expect(swarmSchedulerApi.configure).not.toHaveBeenCalled();
+});

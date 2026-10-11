@@ -1,0 +1,5 @@
+{"Time":"2026-10-11T15:47:12.021651771Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/product"}
+{"Time":"2026-10-11T15:47:12.042087985Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-11T15:47:12.042382489Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"PASS\n"}
+{"Time":"2026-10-11T15:47:12.045009374Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/product\t0.021s [no tests to run]\n"}
+{"Time":"2026-10-11T15:47:12.045255926Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/product","Elapsed":0.024}

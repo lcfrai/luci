@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { swarmSchedulerApi, type SchedulerPolicy, type SwarmScheduler } from '../../api/swarmScheduler';
+import { MAX_SWARM_PARALLEL_TASKS, MAX_SWARM_SCHEDULED_TASKS } from '../../api/swarmLimits';
 import { useAuth } from '../auth/AuthProvider';
 import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import { Button } from '../fluid/components/button';
@@ -9,8 +10,8 @@ import { WorkflowDialog } from '../common/WorkflowDialog';
 const memory = (bytes: number | null | undefined) => typeof bytes === 'number' && Number.isFinite(bytes) && bytes >= 0 ? `${(bytes / 1024 ** 3).toFixed(1)} GiB` : 'Unavailable';
 const fresh = (observedAt?: string) => { const age = observedAt ? Date.now() - Date.parse(observedAt) : Infinity; return Number.isFinite(age) && age >= 0 && age < 30_000; };
 const fields: { key: keyof SchedulerPolicy; label: string; min: number; max: number }[] = [
-  { key: 'maxActive', label: 'Workspace agent ceiling', min: 1, max: 16 },
-  { key: 'maxPerProject', label: 'Agents per project', min: 1, max: 4 },
+  { key: 'maxActive', label: 'Workspace agent ceiling', min: 1, max: MAX_SWARM_SCHEDULED_TASKS },
+  { key: 'maxPerProject', label: 'Agents per project', min: 1, max: MAX_SWARM_PARALLEL_TASKS },
   { key: 'headroomPercent', label: 'RAM and CPU headroom (%)', min: 10, max: 75 },
   { key: 'minHeadroomMiB', label: 'Minimum RAM reserve (MiB)', min: 512, max: 65536 },
   { key: 'diskReserveMiB', label: 'Minimum disk reserve (MiB)', min: 512, max: 1048576 },

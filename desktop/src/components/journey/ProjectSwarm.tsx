@@ -4,9 +4,11 @@ import { ApiError } from '../../api/client';
 import { errorText } from '../../api/product';
 import { projectRunsApi, runOperationNeedsRecovery, runOperationNeedsReview, runSessionRequest, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
 import { swarmTaskCapability } from '../../api/swarmTaskCapability';
+import { MAX_SWARM_PARALLEL_TASKS } from '../../api/swarmLimits';
 import { projectSwarmApi, type SwarmReview, type SwarmRecoveryAvailability } from '../../api/projectSwarm';
 import { useCockpit } from '../../store/store';
 import { Button } from '../fluid/components/button';
+import { Input } from '../ui/input';
 import { WorkflowDialog } from '../common/WorkflowDialog';
 import { SwarmWorkspaceReview } from './SwarmWorkspaceReview';
 import { SwarmCheckpointDialog } from './SwarmCheckpointDialog';
@@ -166,6 +168,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   const blocked = !!run.codingBlocker || !!run.contextFreshness && run.contextFreshness.status !== 'current' || ['cancelled', 'complete'].includes(run.state);
   const subscription = run.input.route.connection.kind === 'codex-subscription' || run.input.route.connection.authMode === 'chatgpt';
   const selectedLimit = subscription ? 1 : limit;
+  const validLimit = Number.isInteger(selectedLimit) && selectedLimit >= 1 && selectedLimit <= MAX_SWARM_PARALLEL_TASKS;
   const tasks = run.swarm?.tasks || [], active = tasks.filter(task => inFlight(operationFor(run, task))).length;
   const retiringTask = tasks.find(task => task.id === retire);
   const finishingRecovery = !!retiringTask && runOperationNeedsRecovery(operationFor(run, retiringTask));
@@ -478,12 +481,14 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     {dialog === 'prepare' && <WorkflowDialog readAccess={projectAccess} title="Prepare agent team" onClose={() => setDialog(null)} busy={busy} description="Use this build’s saved tasks and model connection. Preparation records the team; it does not start agents.">
       <p>Saved permission: {capability.mode}. Task commands run without interactive approvals inside isolated Docker workspaces. Each task exits after its response; review and integration remain your choice.</p>
       {capability.notice && <p>{capability.notice}</p>}
-      <label className="luci-field">Maximum parallel agents<select value={selectedLimit} disabled={busy || subscription} onChange={event => setLimit(Number(event.target.value))}>{(subscription ? [1] : [1, 2, 3, 4]).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+      <label className="luci-field">Maximum parallel agents<Input type="number" min={1} max={subscription ? 1 : MAX_SWARM_PARALLEL_TASKS} step={1} value={Number.isNaN(selectedLimit) ? '' : selectedLimit} disabled={busy || subscription} onChange={event => setLimit(event.target.value === '' ? NaN : Number(event.target.value))} /></label>
+      {!validLimit && <p role="alert">Choose a whole number from 1 to {MAX_SWARM_PARALLEL_TASKS}.</p>}
+      <p>Actual starts also depend on ready tasks and the current workspace, account, provider and resource limits.</p>
       {subscription && <p>This saved Codex subscription connection supports one active agent at a time. To run independent tasks in parallel, prepare a new build with a compatible API or local-model connection.</p>}
       <p>Each active agent uses memory, disk and provider usage. Workspace and provider limits may keep additional tasks queued. This limit controls concurrency, not provider billing.</p>
       <p>Commit the starting project first. Include each selected task’s dependencies in this build. Conflicting or unspecified file scopes are scheduled separately.</p>
       {error && <p role="alert">{error}</p>}
-      <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setDialog(null)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || blocked || !capability.allowed} onClick={() => void operate('Preparing agent team', async epoch => { if (!current.current.taskAllowed) return; const value = await projectSwarmApi.prepare(run.projectId, run.id, run.revision, selectedLimit); if (remember(value, epoch)) { setDialog(null); setNotice('Agent team prepared. Review the task scopes, then start the ready tasks.'); } })}>Prepare team</Button></div>
+      <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setDialog(null)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || blocked || !capability.allowed || !validLimit} onClick={() => void operate('Preparing agent team', async epoch => { if (!current.current.taskAllowed || !validLimit) return; const value = await projectSwarmApi.prepare(run.projectId, run.id, run.revision, selectedLimit); if (remember(value, epoch)) { setDialog(null); setNotice('Agent team prepared. Review the task scopes, then start the ready tasks.'); } })}>Prepare team</Button></div>
     </WorkflowDialog>}
     {dialog === 'cancel' && <WorkflowDialog readAccess={projectAccess} title="Cancel remaining tasks" onClose={() => setDialog(null)} busy={busy} description="Prevent further task starts for this team. Existing agents keep running until you stop them in their sessions. Saved changes and integration history remain available.">
       {error && <p role="alert">{error}</p>}

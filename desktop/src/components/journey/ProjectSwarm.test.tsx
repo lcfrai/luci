@@ -288,8 +288,8 @@ it('offers the saved subscription route only one slot and prepares without start
   render(<Harness initial={initial} />);
   await userEvent.click(screen.getByRole('button', {name: 'Prepare agent team'}));
   const dialog = await screen.findByRole('dialog', {name: 'Prepare agent team'});
-  expect(within(dialog).getByRole('combobox')).toHaveProperty('value', '1');
-  expect(within(dialog).getByRole('combobox')).toHaveProperty('disabled', true);
+  expect(within(dialog).getByRole('spinbutton', {name: 'Maximum parallel agents'})).toHaveProperty('value', '1');
+  expect(within(dialog).getByRole('spinbutton', {name: 'Maximum parallel agents'})).toHaveProperty('disabled', true);
   expect(within(dialog).getByText(/supports one active agent/)).not.toBeNull();
   await userEvent.click(within(dialog).getByRole('button', {name: 'Prepare team'}));
   await waitFor(() => expect(prepare).toHaveBeenCalledWith('p-1', 'run-1', 1, 1));
@@ -433,4 +433,31 @@ it('restores the exact review opener after asynchronous loading temporarily lose
   await userEvent.click(within(dialog).getByRole('button',{name:'Keep reviewing'}));
   await waitFor(()=>expect(document.activeElement).toBe(opener));
   expect(integrate).not.toHaveBeenCalled();
+});
+
+it('prepares a reviewed ceiling above four without dispatching any worker', async () => {
+  const initial = base(); delete initial.swarm;
+  const prepare = vi.spyOn(projectSwarmApi, 'prepare').mockResolvedValue({...base(), swarm: {...base().swarm!, maxParallel: 6}, revision: 2});
+  const create = vi.spyOn(api, 'createSession');
+  render(<Harness initial={initial} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Prepare agent team'}));
+  const limit = screen.getByRole('spinbutton', {name: 'Maximum parallel agents'});
+  expect(limit).toHaveProperty('value', '2');
+  expect(limit.getAttribute('max')).toBe('200');
+  await userEvent.clear(limit); await userEvent.type(limit, '6');
+  expect(screen.getByText(/Actual starts also depend on ready tasks/)).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', {name: 'Prepare team'}));
+  await waitFor(() => expect(prepare).toHaveBeenCalledWith('p-1', 'run-1', 1, 6));
+  expect(create).not.toHaveBeenCalled();
+});
+
+it.each(['', '0', '201', '2.5'])('blocks invalid parallel ceiling %j without side effects', async value => {
+  const initial = base(); delete initial.swarm;
+  const prepare = vi.spyOn(projectSwarmApi, 'prepare');
+  render(<Harness initial={initial} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Prepare agent team'}));
+  const limit = screen.getByRole('spinbutton', {name: 'Maximum parallel agents'});
+  await userEvent.clear(limit); if (value) await userEvent.type(limit, value);
+  expect(screen.getByRole('button', {name: 'Prepare team'})).toHaveProperty('disabled', true);
+  expect(prepare).not.toHaveBeenCalled();
 });
