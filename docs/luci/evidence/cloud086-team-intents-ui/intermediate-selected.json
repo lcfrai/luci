@@ -1,0 +1,18 @@
+{
+  "desktop/src/api/coordinatorIntents.ts": {
+    "sha256": "f7339ba49a1707e6fa34e5b95512575a8e4dc2a349e238cd3503283820c570b3",
+    "bytes": 7403
+  },
+  "desktop/src/api/coordinatorIntents.test.ts": {
+    "sha256": "bae048b9b87f8871dafd54a4484cddcfbce1c4f43d659f674acccdb08334fb3c",
+    "bytes": 5135
+  },
+  "desktop/src/components/orchestrator/CoordinatorTeamIntents.tsx": {
+    "sha256": "37674847b0a79b61ee0f725f5938c7f5f336cc5eab80c06d63454d00bef62dc2",
+    "bytes": 17086
+  },
+  "desktop/src/components/orchestrator/CoordinatorTeamIntents.test.tsx": {
+    "sha256": "509ac5d79488acf1f14ed39de0c054a06c380b39e2774fd073146651af759026",
+    "bytes": 13703
+  }
+}
