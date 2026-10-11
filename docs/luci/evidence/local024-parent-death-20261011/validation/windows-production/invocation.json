@@ -1,0 +1,28 @@
+{
+  "label": "windows-production",
+  "command": [
+    "/workspace/.luci-tools/rust-1.99.0/bin/cargo",
+    "check",
+    "--lib",
+    "--offline",
+    "--locked",
+    "--target",
+    "x86_64-pc-windows-msvc",
+    "--manifest-path",
+    "/workspace/.luci-tools/local024-parent-death-20261011/compile/Cargo.toml"
+  ],
+  "cwd": "/workspace/.luci-tools/local024-parent-death-20261011",
+  "startedAt": "2026-10-11T10:37:38.669942+00:00",
+  "timeoutSeconds": 180,
+  "scope": "Focused module/controlled quoting only; no Tauri app, browser, Docker or Windows runtime execution.",
+  "explicitEnvironment": {
+    "CARGO_HOME": "/workspace/.luci-tools/rust-cargo",
+    "RUSTC": "/workspace/.luci-tools/rust-1.99.0/bin/rustc",
+    "CARGO_TARGET_DIR": "/workspace/.luci-tools/local024-parent-death-20261011/target",
+    "CARGO_BUILD_JOBS": "1"
+  },
+  "rustc": {
+    "path": "/workspace/.luci-tools/rust-1.99.0/bin/rustc",
+    "sha256": "f3834d26669b03f6855fa54bd2381443123e860167bc0c7a8dd137e5cf6e5e4f"
+  }
+}

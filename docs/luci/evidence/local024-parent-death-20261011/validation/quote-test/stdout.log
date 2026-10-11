@@ -1,0 +1,9 @@
+
+running 4 tests
+test windows_command_line::tests::arguments_preserve_empty_space_quote_and_trailing_slash ... ok
+test windows_command_line::tests::invalid_program_or_nul_argument_is_rejected_before_creation ... ok
+test windows_command_line::tests::paths_with_spaces_and_unicode_stay_one_executable ... ok
+test windows_command_line::tests::unpaired_utf16_units_are_not_lossily_reencoded ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

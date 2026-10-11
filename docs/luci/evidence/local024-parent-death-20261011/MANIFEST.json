@@ -1,0 +1,205 @@
+{
+  "scope": "Compact exact source, patch, invocation and raw validation evidence. Does not ship dependency archives, extracted sysroots, build targets or executable test binaries. Portable Windows-check registry harness is supplied separately from the unchanged original cross-check wrapper.",
+  "files": {
+    "HANDOFF.md": {
+      "bytes": 6564,
+      "sha256": "81ff901339165e498653249be86638120ec7215ccdc1ff6abd5b3d2401348f9d"
+    },
+    "LOCAL-024.patch": {
+      "bytes": 33394,
+      "sha256": "d275308011085d53c73a809792e599f2a9eeca057a080e05c2530362036cdb4f"
+    },
+    "base.json": {
+      "bytes": 633,
+      "sha256": "7cca60c18c40d875b38765f8a9bbb55667e8edec69157d9f4ee5ed052372c58c"
+    },
+    "before/desktop/src-tauri/Cargo.lock": {
+      "bytes": 123253,
+      "sha256": "ae48aee4aaa8a8e8b3e08d859fcced01e839c44c04e81a75541bf60e6a063859"
+    },
+    "before/desktop/src-tauri/Cargo.toml": {
+      "bytes": 1078,
+      "sha256": "1521c2bc584bb1fa1676f19c58b48e14d3cb8708bb3586343a52064f35012576"
+    },
+    "before/desktop/src-tauri/src/lib.rs": {
+      "bytes": 14009,
+      "sha256": "ec8e2df01bf45deabdea0e199303e0e828da75b3ff25fe7307e826fa10405f5c"
+    },
+    "compile/Cargo.lock": {
+      "bytes": 345,
+      "sha256": "0046270cc52bc9b53fff3614aea9d02f2c4cd0700db0ec970e3b793fef1195f0"
+    },
+    "compile/Cargo.toml": {
+      "bytes": 386,
+      "sha256": "ed3f2d391c29068e353d743b4bc023c541c1c41d48c4a2e598c947bb2ce7bc96"
+    },
+    "compile/lib.rs": {
+      "bytes": 83,
+      "sha256": "1e050de07083f1298a907f1c0ff45bc44b703a2c8a9edffe18394facc7911dea"
+    },
+    "compile/quoting-tests.rs": {
+      "bytes": 93,
+      "sha256": "2a573e69d3c33c50a3f748127af5590e72133f3d5775fa6538db5aa75fa2a8f9"
+    },
+    "dependencies/downloads.json": {
+      "bytes": 924,
+      "sha256": "1956534382dc0253de9aa452baba960c76c055300a45a9e17c1564b96aa679ab"
+    },
+    "dependencies/rust-downloads.json": {
+      "bytes": 708,
+      "sha256": "938684a54024fc64e7975c096c0a27730e009ef123d6e12a5deff130996cb049"
+    },
+    "fixed/desktop/src-tauri/Cargo.lock": {
+      "bytes": 123276,
+      "sha256": "a90b28aaeea85a844882399b2d1c5dfce3358f45b2b27cb7859dfda25438ec2c"
+    },
+    "fixed/desktop/src-tauri/Cargo.toml": {
+      "bytes": 1279,
+      "sha256": "3877ed8d924506873111314ee75e6a15a1ac390ea9928d5362cab7241ffe4e89"
+    },
+    "fixed/desktop/src-tauri/src/lib.rs": {
+      "bytes": 14451,
+      "sha256": "9970445a2c73d1858dc3bfcf80786c86c119bc938dcd44bc0f01b580232d428f"
+    },
+    "fixed/desktop/src-tauri/src/windows_command_line.rs": {
+      "bytes": 2767,
+      "sha256": "815cab8b92fc57f91de520f1fdb286d6a8bec32e78b83af00db1c2916f1c8c1c"
+    },
+    "fixed/desktop/src-tauri/src/windows_sidecar.rs": {
+      "bytes": 9037,
+      "sha256": "60a23b84433ee889b6dddf9e4108f12c1a8502d3869c91c4f2c8516f956495f1"
+    },
+    "fixed/desktop/src-tauri/src/windows_sidecar_tests.rs": {
+      "bytes": 16513,
+      "sha256": "fe50c1d1fbb102b173b848a0160168539b4e6fc91e2aa7d9da5b19b091932efe"
+    },
+    "integration-binding.json": {
+      "bytes": 1639,
+      "sha256": "620509cf4462506568a81ddbbb5d71200a51bb1fe81f61ead7d2354c93a16849"
+    },
+    "run-check.py": {
+      "bytes": 3433,
+      "sha256": "3b5c63a3dbb1d77b737118368439bd8e933e508e7f5c39c411ea681cc77017a7"
+    },
+    "validation/environment-supplement.json": {
+      "bytes": 963,
+      "sha256": "6faeb896b89dfd62fc1f0b2d8a59296e801c5da55b65a1ce6a0805f6c4b8811b"
+    },
+    "validation/patch-apply-check.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "validation/patch-apply-check.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "validation/quote-compile/inputs-after.json": {
+      "bytes": 1290,
+      "sha256": "5fd43bbd86c967e78f6d3542daf6df33e4d5692eeb1eacc94042533f1abae376"
+    },
+    "validation/quote-compile/inputs-before.json": {
+      "bytes": 1290,
+      "sha256": "5fd43bbd86c967e78f6d3542daf6df33e4d5692eeb1eacc94042533f1abae376"
+    },
+    "validation/quote-compile/invocation.json": {
+      "bytes": 996,
+      "sha256": "4f655535b6a38a66743fdeedb18f06caf52c42195c71e7a8aae1d6505504fae1"
+    },
+    "validation/quote-compile/result.json": {
+      "bytes": 1402,
+      "sha256": "33dabad538d8e38a69fdc0ab697f7d1b11c8456487b842872bb34d9b9a49a2f2"
+    },
+    "validation/quote-compile/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "validation/quote-compile/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "validation/quote-test/inputs-after.json": {
+      "bytes": 1290,
+      "sha256": "5fd43bbd86c967e78f6d3542daf6df33e4d5692eeb1eacc94042533f1abae376"
+    },
+    "validation/quote-test/inputs-before.json": {
+      "bytes": 1290,
+      "sha256": "5fd43bbd86c967e78f6d3542daf6df33e4d5692eeb1eacc94042533f1abae376"
+    },
+    "validation/quote-test/invocation.json": {
+      "bytes": 833,
+      "sha256": "0741dc828574cda438f25cb6cf99ff8732ab530b0caae75395a3857a4b265885"
+    },
+    "validation/quote-test/result.json": {
+      "bytes": 1243,
+      "sha256": "8623b1fd1f4ba9e4782700e44092a6ac8f975104f9d0c9acfb3dc0994cc13ebc"
+    },
+    "validation/quote-test/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "validation/quote-test/stdout.log": {
+      "bytes": 490,
+      "sha256": "6ead77db304ded9c0d82bbea74522912a03e6065cd69feff2cff8f45209a7a18"
+    },
+    "validation/windows-production/inputs-after.json": {
+      "bytes": 1290,
+      "sha256": "5fd43bbd86c967e78f6d3542daf6df33e4d5692eeb1eacc94042533f1abae376"
+    },
+    "validation/windows-production/inputs-before.json": {
+      "bytes": 1290,
+      "sha256": "5fd43bbd86c967e78f6d3542daf6df33e4d5692eeb1eacc94042533f1abae376"
+    },
+    "validation/windows-production/invocation.json": {
+      "bytes": 994,
+      "sha256": "2a3b16efddc8e907090e9a0794b853c7cdd9a2f100e396fde1befbb72d22d7fb"
+    },
+    "validation/windows-production/result.json": {
+      "bytes": 1402,
+      "sha256": "fdfa0f7ad4e3199896bc843b328995fb830eabb50bbb2d833aa831ebbf48abae"
+    },
+    "validation/windows-production/stderr.log": {
+      "bytes": 3302,
+      "sha256": "43c824933872c2d4eec80b675d202994d398fd3338325fee5b9574b7eafb3355"
+    },
+    "validation/windows-production/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "validation/windows-tests/inputs-after.json": {
+      "bytes": 1456,
+      "sha256": "1afd9f9fceb687e6cec74016a266bc69fa55891f19ccf49b82c286d944998951"
+    },
+    "validation/windows-tests/inputs-before.json": {
+      "bytes": 1456,
+      "sha256": "1afd9f9fceb687e6cec74016a266bc69fa55891f19ccf49b82c286d944998951"
+    },
+    "validation/windows-tests/invocation.json": {
+      "bytes": 991,
+      "sha256": "0233157ec2c0c560f4123e2a6eec56b67444862f2660ddecd30cf6f6ae3e75fe"
+    },
+    "validation/windows-tests/result.json": {
+      "bytes": 1400,
+      "sha256": "c18773c69feaa6b275fbdd646b5fd80d6d2d8288a8ef44884b50294e92369149"
+    },
+    "validation/windows-tests/stderr.log": {
+      "bytes": 181,
+      "sha256": "2042194e370a9090deea27a4083a4f77b9267c2ab5f2c9f2f6db2158df45eb41"
+    },
+    "validation/windows-tests/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "windows-check/Cargo.lock": {
+      "bytes": 632,
+      "sha256": "a0963835d7bff998c2b4d9ed7bff9851bb87e7545a7dec28a6bb5dfac5a6f1eb"
+    },
+    "windows-check/Cargo.toml": {
+      "bytes": 299,
+      "sha256": "bf3448b0dfd9f39d4b3fc0768e9267490fed5ca0b1d9940db0c7fa2cd36a596b"
+    },
+    "windows-check/lib.rs": {
+      "bytes": 191,
+      "sha256": "1a5542cd3f4e8dbed94fc3c64035e9ad40b8afea661e3cab4a5835513233ee5e"
+    }
+  }
+}

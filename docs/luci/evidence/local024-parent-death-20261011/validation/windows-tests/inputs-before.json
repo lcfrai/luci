@@ -1,0 +1,42 @@
+{
+  "fixed/desktop/src-tauri/Cargo.toml": {
+    "bytes": 1279,
+    "sha256": "3877ed8d924506873111314ee75e6a15a1ac390ea9928d5362cab7241ffe4e89"
+  },
+  "fixed/desktop/src-tauri/Cargo.lock": {
+    "bytes": 123276,
+    "sha256": "a90b28aaeea85a844882399b2d1c5dfce3358f45b2b27cb7859dfda25438ec2c"
+  },
+  "fixed/desktop/src-tauri/src/lib.rs": {
+    "bytes": 14451,
+    "sha256": "9970445a2c73d1858dc3bfcf80786c86c119bc938dcd44bc0f01b580232d428f"
+  },
+  "fixed/desktop/src-tauri/src/windows_sidecar.rs": {
+    "bytes": 9037,
+    "sha256": "60a23b84433ee889b6dddf9e4108f12c1a8502d3869c91c4f2c8516f956495f1"
+  },
+  "fixed/desktop/src-tauri/src/windows_command_line.rs": {
+    "bytes": 2767,
+    "sha256": "815cab8b92fc57f91de520f1fdb286d6a8bec32e78b83af00db1c2916f1c8c1c"
+  },
+  "compile/Cargo.toml": {
+    "bytes": 386,
+    "sha256": "ed3f2d391c29068e353d743b4bc023c541c1c41d48c4a2e598c947bb2ce7bc96"
+  },
+  "compile/Cargo.lock": {
+    "bytes": 345,
+    "sha256": "0046270cc52bc9b53fff3614aea9d02f2c4cd0700db0ec970e3b793fef1195f0"
+  },
+  "compile/lib.rs": {
+    "bytes": 83,
+    "sha256": "1e050de07083f1298a907f1c0ff45bc44b703a2c8a9edffe18394facc7911dea"
+  },
+  "compile/quoting-tests.rs": {
+    "bytes": 93,
+    "sha256": "2a573e69d3c33c50a3f748127af5590e72133f3d5775fa6538db5aa75fa2a8f9"
+  },
+  "fixed/desktop/src-tauri/src/windows_sidecar_tests.rs": {
+    "bytes": 16513,
+    "sha256": "fe50c1d1fbb102b173b848a0160168539b4e6fc91e2aa7d9da5b19b091932efe"
+  }
+}

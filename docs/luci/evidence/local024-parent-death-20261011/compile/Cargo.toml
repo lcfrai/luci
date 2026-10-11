@@ -1,0 +1,10 @@
+[package]
+name = "luci-owned-sidecar-check"
+version = "0.0.0"
+edition = "2021"
+[lib]
+path = "lib.rs"
+[dependencies]
+windows-sys = { path = "../dependencies/windows-sys-0.61.2", features = ["Win32_Foundation", "Win32_Globalization", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
+[patch.crates-io]
+windows-link = { path = "../dependencies/windows-link-0.2.1" }

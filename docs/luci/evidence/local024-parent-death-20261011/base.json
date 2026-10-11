@@ -1,0 +1,18 @@
+{
+  "head": "bb36ced437e031cc1f0a32b580280adeafe54de7",
+  "files": {
+    "desktop/src-tauri/src/lib.rs": {
+      "bytes": 14009,
+      "sha256": "ec8e2df01bf45deabdea0e199303e0e828da75b3ff25fe7307e826fa10405f5c"
+    },
+    "desktop/src-tauri/Cargo.toml": {
+      "bytes": 1078,
+      "sha256": "1521c2bc584bb1fa1676f19c58b48e14d3cb8708bb3586343a52064f35012576"
+    },
+    "desktop/src-tauri/Cargo.lock": {
+      "bytes": 123253,
+      "sha256": "ae48aee4aaa8a8e8b3e08d859fcced01e839c44c04e81a75541bf60e6a063859"
+    }
+  },
+  "scope": "Exact root files at external patch preparation; existing LOCAL-023 Cargo description retained."
+}

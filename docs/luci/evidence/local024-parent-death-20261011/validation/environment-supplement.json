@@ -1,0 +1,20 @@
+{
+  "scope": "Supplement recorded after completion; original invocation/result/raw logs are unchanged.",
+  "source": "run-check.py explicitly sets this value before subprocess.Popen for labels starting windows-.",
+  "additionalExplicitEnvironment": {
+    "windows-production": {
+      "RUSTFLAGS": "--sysroot=/workspace/.luci-tools/local024-parent-death-20261011/windows-sysroot"
+    },
+    "windows-tests": {
+      "RUSTFLAGS": "--sysroot=/workspace/.luci-tools/local024-parent-death-20261011/windows-sysroot"
+    }
+  },
+  "notClaimed": [
+    "Full native Tauri compilation",
+    "Linking Windows executable on Linux",
+    "Windows kernel test execution",
+    "Unsupported Windows capability fault injection",
+    "Native driver DELETE-session acceptance"
+  ],
+  "portableHarness": "windows-check is a transportable wrapper for the exact same fixed module/test bytes and pinned registry dependencies; supplied Windows execution command has not been run here."
+}

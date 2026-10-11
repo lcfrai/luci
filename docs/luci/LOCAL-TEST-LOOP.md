@@ -1040,3 +1040,9 @@ remains authoritative. Race checks pass 20 product and 24 complementary schedule
 outcomes, zero failures/skips, with 637 compiled-scope inputs unchanged.
 [Retrievable before/after proof and failed installed receipt](evidence/cloud021-source-admission/README.md).
 This source result does not turn the failed installed attempt into a pass.
+
+## LOCAL-024 native parent-death correction — 11 October 2026
+
+The [exact source/evidence and executable Windows module harness](evidence/local024-parent-death-20261011/HANDOFF.md) are published with the correction. Adopt its containing immutable revision only between test batches. No environment variable, state path or provider setup changes. Cargo adds a Windows-only direct `windows-sys 0.61.2` dependency already present in the lockfile; normal non-Windows launching is unchanged.
+
+Run the standalone controlled module harness first, then the actual native build and original driver DELETE/session case. Expected module selection is nine ordinary tests and one intentionally ignored subprocess entry point; record actual results. The kernel tests use only disposable processes and can run while the desktop is locked. Preserve the distinction between forced parent death, ordinary close, external `LUCI_API`, state-lock recovery and Docker/worker recovery. A private Job Object does not prove graceful state flushing or Docker reservation release. Full local acceptance remains open.

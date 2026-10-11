@@ -10,11 +10,38 @@ use std::{
 };
 use tauri::Manager;
 use tauri_plugin_shell::{
-    process::{CommandChild, CommandEvent},
+    process::Command,
     ShellExt,
 };
 mod local_access;
 mod state_dir;
+#[cfg(windows)]
+mod windows_sidecar;
+#[cfg(windows)]
+use windows_sidecar::OwnedChild;
+#[cfg(not(windows))]
+use tauri_plugin_shell::process::{CommandChild as OwnedChild, CommandEvent};
+
+fn spawn_owned_sidecar(command: Command, exited: Arc<AtomicBool>) -> Result<OwnedChild, String> {
+    #[cfg(windows)]
+    {
+        // Keep Tauri's sidecar resolution and configured environment; ownership
+        // must be installed atomically when Windows creates the process.
+        windows_sidecar::spawn(command.into(), exited).map_err(|error| error.to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        let (mut events, child) = command.spawn().map_err(|error| error.to_string())?;
+        tauri::async_runtime::spawn(async move {
+            while let Some(event) = events.recv().await {
+                if matches!(event, CommandEvent::Terminated(_)) {
+                    exited.store(true, Ordering::Release);
+                }
+            }
+        });
+        Ok(child)
+    }
+}
 
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,7 +72,7 @@ impl RuntimeInfo {
 }
 
 struct LocalService {
-    child: Mutex<Option<CommandChild>>,
+    child: Mutex<Option<OwnedChild>>,
     info: RuntimeInfo,
     exited: Arc<AtomicBool>,
     state_dir: Option<PathBuf>,
@@ -234,27 +261,18 @@ pub fn run() {
                         .resource_dir()?
                         .join("cloud")
                         .join("luci-cloud-linux-amd64.tar.gz");
-                    match app.shell().sidecar("luci-api").and_then(|command| {
-                        command
+                    match app.shell().sidecar("luci-api").map_err(|error| error.to_string()).and_then(|command| {
+                        let command = command
                             .env("LUCI_ADDR", address)
                             .env("LUCI_STATE_DIR", managed_state)
                             .env("LUCI_MANAGED_SHUTDOWN_TOKEN", shutdown_token)
                             .env("LUCI_LOCAL_ACCESS_TOKEN", access_token)
                             .env("LUCI_RUNTIME_DIR", runtime)
-                            .env("LUCI_CLOUD_BUNDLE", cloud_bundle)
-                            .spawn()
+                            .env("LUCI_CLOUD_BUNDLE", cloud_bundle);
+                        spawn_owned_sidecar(command, Arc::clone(&exited))
                     }) {
-                        Ok((mut events, process)) => {
+                        Ok(process) => {
                             child = Some(process);
-                            let process_exited = Arc::clone(&exited);
-                            // Drain output so a verbose service never blocks on a full pipe.
-                            tauri::async_runtime::spawn(async move {
-                                while let Some(event) = events.recv().await {
-                                    if matches!(event, CommandEvent::Terminated(_)) {
-                                        process_exited.store(true, Ordering::Release);
-                                    }
-                                }
-                            });
                         }
                         Err(error) => {
                             info.startup_error =

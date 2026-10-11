@@ -1,0 +1,26 @@
+[
+  {
+    "name": "tauri-plugin-shell",
+    "version": "2.4.0",
+    "url": "https://static.crates.io/crates/tauri-plugin-shell/tauri-plugin-shell-2.4.0.crate",
+    "sha256": "094bdbc47e5efe36544ba21b3a53ab5c724150236cf55e6c9be46191deb6eab6",
+    "bytes": 60955,
+    "verifiedAgainst": "desktop/src-tauri/Cargo.lock"
+  },
+  {
+    "name": "windows-sys",
+    "version": "0.61.2",
+    "url": "https://static.crates.io/crates/windows-sys/windows-sys-0.61.2.crate",
+    "sha256": "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc",
+    "bytes": 2517186,
+    "verifiedAgainst": "desktop/src-tauri/Cargo.lock"
+  },
+  {
+    "name": "windows-link",
+    "version": "0.2.1",
+    "url": "https://static.crates.io/crates/windows-link/windows-link-0.2.1.crate",
+    "sha256": "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5",
+    "bytes": 6133,
+    "verifiedAgainst": "desktop/src-tauri/Cargo.lock"
+  }
+]
