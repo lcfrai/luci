@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "baselineCommit": "22b0ec898de84c00364825caa826f7e8d6239520",
+  "scopeGate": "held-until-explicit-originating-local-audit-lift",
+  "scope": "Preserved uncommitted product draft bytes; not included in contract commit or claimed implemented/verified.",
+  "files": [
+    {
+      "path": "control-plane/internal/api/api.go",
+      "bytes": 27240,
+      "sha256": "c5963bd1ce0f6ddb5a7c20c0130cb637b579e7a1f883ed22592beddd28856adf"
+    },
+    {
+      "path": "control-plane/internal/management/team_authorization.go",
+      "bytes": 18183,
+      "sha256": "c46e7457cf6f250a1efbcb47d2868288aedbde1567befbaa99b4bfedb0491be3"
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator.go",
+      "bytes": 18932,
+      "sha256": "5c364f35273fc627eb4f47131f4cb94e9177e1824bfa11f5b645d9f021b7da38"
+    },
+    {
+      "path": "control-plane/internal/product/routes_audit_test.go",
+      "bytes": 35075,
+      "sha256": "adae9efd7f556bd347a90dba50d6cede4aa0576a351ea13c2a35bd05ae71042e"
+    },
+    {
+      "path": "control-plane/internal/product/server.go",
+      "bytes": 22480,
+      "sha256": "3e458c921a4416c1da51be552f130ad7e9a3c94901bf51ba5eefd552c4c1ce0a"
+    },
+    {
+      "path": "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+      "bytes": 115857,
+      "sha256": "70708ab296b5713912a23a4cdcc3da12d3f6d84cb19059c17d3e407af4b081c3"
+    },
+    {
+      "path": "desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+      "bytes": 55560,
+      "sha256": "596efbf367397876f408dea877a173b67a1847da4a06e1d217caac54eeda17f2"
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator_policy.go",
+      "bytes": 8863,
+      "sha256": "e099966815a5cc4ebfef2bebcdb003b9140f76d29f99203bcb5312dfae244020"
+    }
+  ]
+}

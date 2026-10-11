@@ -1,9 +1,15 @@
 # Luci application contract
 
+[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) controls product scope and the active owner audit gate. This file documents implemented routes; their existence does not establish the required per-person conversational coordinator, autonomous team reconciliation or cloud microVM execution. CLOUD-085 policy drafts in the working tree are uncommitted/unverified, not a supported API. New implementation remains paused until the local audit explicitly lifts the gate.
+
+Local Develop uses isolated Docker and existing upstream harnesses. Cloud Develop requires a real supported microVM backend (CLOUD-084, missing). Existing `backing` labels (`docker`, `aws`, `azure`), SSH workspace selection and Coolify release routes identify management/compatibility or app-deployment locations, not microVM capability. Runtime image installation on an SSH host installs the existing container runtime only. Keep **Run on** and **Deploy to** distinct. Future coordinator automation must call current typed operations under agreed authority/review/cost/deployment policy; optional export/return does not replace that primary path.
+
 Version 0.5, 6 October 2026. JSON is camelCase. Routes below are additions to the retained session API at /v1. Errors are `{error: string, message: string}`. Requests reject unknown JSON fields. A control API read never starts a session/provisioning job or creates a resource. Bounded read-only Git subprocesses are allowed. Application preview requests are forwarded to the selected application's own HTTP surface.
 
 
 Current cross-phase contracts are documented separately in [project understanding and reviewed amendments](ORCHESTRATION.md) and [durable project runs](PROJECT-RUN-CONTRACT.md). Team, billing and hosting contracts are in [team service operations](TEAM-SERVICE-OPERATIONS.md), [Stripe billing](STRIPE-BILLING.md) and [public HTTPS ingress](PUBLIC-HTTPS-INGRESS.md).
+
+CLOUD-088 adds required elastic cloud task agents: each receives a separate newly allocated isolated microVM with exact durable task/attempt ownership and bounded provider/resource/spend admission. Current Docker session/scheduler endpoints are reuse foundations, not an implemented cloud swarm API. Per-person Lucis, team peers and task agents have distinct identities.
 
 ## Setup
 
@@ -220,7 +226,9 @@ POST /v1/product/projects/{id}/releases/cloud accepts `{targetId, repository, br
 
 POST /v1/product/projects/{id}/releases/{releaseId}/refresh polls the recorded provider deployment and, after completion, performs a real HTTPS check of the validated public domain and health path. Redirects and private/reserved destinations are refused. Provider completion remains `verifying` until the expected commit and HTTP 2xx health check are confirmed. Subsequent commits reuse the saved application; ready historical releases retain their original verification result.
 
-## Cloud workspaces
+## SSH workspaces — retained remote Docker capability
+
+These routes currently forward to a matching service and Docker host. They remain supported compatibility/management mechanisms, but **do not implement the required cloud Develop microVM boundary**. A public application deployed with Docker/Coolify also does not prove its coding work ran in a microVM. CLOUD-084 must add explicit provider capabilities and lifecycle/transfer/credential contracts before cloud microVM Develop can be advertised.
 
 The desktop control process stays local. An active cloud workspace places projects, Git worktrees, agent sessions, files and application previews on the selected SSH machine. Provider account sign-in, cloud resource creation and the SSH connection controls remain local. Setting `config.mode` alone does not activate a remote runtime. `workspace` in setup status identifies the active execution location; an unavailable cloud connection does not silently fall back to local project state.
 
@@ -1213,7 +1221,8 @@ nor observing these diagnostics allocates, retries or integrates work.
 ## Optional external context interoperability
 
 This is a supplementary path; primary Develop boots the chosen upstream harness
-inside Luci's Docker execution boundary. No external-handoff route launches a
+inside isolated Docker locally; cloud Develop requires a supported isolated
+microVM backend, which remains missing. No external-handoff route launches a
 session, imports credentials, executes report commands or changes application
 source. Handoff reads require project Read; creation and return recording require
 current Edit, rechecked after waiting and before publication. Execute is not

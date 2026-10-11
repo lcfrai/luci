@@ -1,12 +1,15 @@
 # Context, orchestration and delivery scope
 
-## Persistent Luci coordinator — latest owner requirement, 11 October 2026 UTC
+## Controlling contract and scope audit
 
-Luci is the continuing conversational project coordinator. Durable conversation and intent lead to clarification/proposals, canonical versioned context/design/tasks, the chosen upstream harness, observed checks/review, preview/deployment and subsequent amendments. Discover, Design, Develop and Deploy are connected views/tools of this workflow, not disconnected forms or a mandatory one-way wizard. This supersedes the earlier statement that persistent conversation is optional.
+[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) is the single controlling product direction and requirement-to-code map. **The owner scope gate is held: no new implementation, delegated work, tests/builds or provisioning until the originating local audit explicitly lifts it.** Contract publication does not resume work. Existing safe diagnostics/owned cleanup may finish; preserve draft source and failed evidence.
 
-A request during Develop must be able to revisit Discover questions and Design, update the affected context, and return to building with exact scope/source provenance. Team Lucis coordinate through authoritative shared revisions/events, identity, ownership, intents and dependencies. Compatible bounded edits may merge; contradictory intents remain explicit until actually resolved. No silent last-writer-wins, message-only consensus or unnecessary restart of all agents. Broadcast accepted changes, invalidate stale evidence/work and replan affected tasks durably.
+One primary persistent conversational Luci per person coordinates Discover, Design, Develop and Deploy. The four phases are revisitable tools of that continuing workflow. Local Develop boots existing upstream harnesses in isolated Docker; cloud Develop requires a real supported provider microVM backend. Management/app-deployment Docker and SSH compatibility do not satisfy cloud microVM execution.
 
-Routine iteration is autonomous within configured project/team authority and approval/deployment/cost policies. The first concrete acceptance is a conversational mid-build amendment → clarification where needed → revised design/context → real Docker harness changes → independent checks → updated preview. The team case uses two authenticated people requesting competing design edits, resolves versions/conflicts, handles stale active work and replays safely after restart. Fixture-only coordination is not a real-provider/team negotiation pass. **CLOUD-085** owns the integrated amendment vertical; **CLOUD-086** owns shared intent/conflict coordination. Backend, frontend and team owners are assigned in parallel; implementation remains unfinished.
+CLOUD-085 must carry conversational amendments through canonical reviewed context/design/tasks, affected upstream work, independent checks/review, preview and actual policy-permitted deployment. CLOUD-086 must coordinate distinct people's Lucis through durable authoritative intent/revision/event/ownership/dependency state, reconcile compatible changes, surface genuinely contradictory intent and continue affected implementation/delivery without human handoff management. Draft-only or preview-only slices are not completion. All current owners are paused; the controlling contract records acceptance criteria, source gaps and worker acknowledgements.
+
+
+CLOUD-088 is a required P1 workstream dependent on CLOUD-084/085/086: easy elastic fan-out of many small dependency-aware upstream tasks, each with its own newly allocated isolated microVM and observed spin-down/settlement. Concurrency/resource/spend policy, durable task artifacts, shared-context amendments and duplicate-safe restart/cancel remain explicit. The controlling contract sets a representative12-task/4-project/4-concurrent-VM live target, not a product ceiling.
 
 **Corrected owner clarification: 11 October 2026 UTC / 12 October local.** The earlier relay overcorrected “do not replace Codex/Claude Code” into manual host-tool handoff. The owner explicitly corrected that interpretation. This document replaces that mistaken priority; the earlier commit remains historical evidence.
 
@@ -25,7 +28,7 @@ Do not build a replacement coding engine or new custom hypervisor. Preserve prov
 
 ## Supported baseline and missing capability
 
-Audited product baseline: `edc742e8b6ce4216a1726e74cceef892663ce3d5`. Documentation publications do not change its product bytes. The currently checked source contains these capabilities; real-provider and platform results retain their independent acceptance scopes.
+Audited committed baseline: `22b0ec898de84c00364825caa826f7e8d6239520`, including the optional interchange at2cb58a8a. The earlier edc runtime/package evidence remains scoped to edc; this documentation commit does not change product bytes and excludes preserved uncommitted CLOUD-085 drafts. The currently checked source contains these capabilities; real-provider and platform results retain their independent acceptance scopes.
 
 | Area | Implemented source / actual limitation |
 | --- | --- |
@@ -37,13 +40,13 @@ Audited product baseline: `edc742e8b6ce4216a1726e74cceef892663ce3d5`. Documentat
 | Existing remote workspace | SSH connects to a matching remote Luci service. Current AWS/Azure setup provisions a VM running Docker/Coolify. This is remote Docker execution/deployment, **not per-session provider microVM isolation**. |
 | Kata backend | `internal/backend/katabe` is explicitly dormant. Its Create rejects host mounts and WorkDir, both needed by normal sessions. Managed workers currently select Docker. Kata's presence and compilation do not make cloud microVM Develop functional. |
 | Delivery | Existing Git review/commit, independent command checks, source-bound preview and deployment controls exist. A handwritten warm Linux Docker build/serve/Stop fixture passed at80462898. It is not a real-provider idea-to-app pass. Cancellation/recovery, cold preparation, Windows and response gates remain separately open. |
-| Standalone interchange | Portable files exist; frozen external export/return is being implemented under LOCAL-025 as **secondary interoperability**. It must not replace or delay primary integrated Develop acceptance. |
+| Standalone interchange | Portable files exist; frozen external export/return is committed under LOCAL-025 at2cb58a8a with selected source tests, without matching installed/provider acceptance as **secondary interoperability**. It must not replace or delay primary integrated Develop acceptance. |
 
-**CLOUD-084 (P1, open, cloud execution capability):** usable provider microVM execution is missing. [The source-bound reuse evaluation and implementation contract](CLOUD-MICROVM-EXECUTION.md) proposes E2B Cloud as the first concrete provider; it is not yet implemented or verified. It needs a concrete reusable backend, actual project/context transfer rather than host-path mounts, supported credential delivery, owned lifecycle and recovery, result return, resource/cost controls and provider-specific verification. Existing remote Docker and dormant Kata cannot be relabelled to close this gap. Local-first acceptance proceeds independently; cloud provisioning waits for a concrete plan and supplied access. A bounded reuse evaluation is in progress; no new provider support is claimed.
+**CLOUD-084 (P1, open, cloud execution capability):** usable provider microVM execution is missing. [The source-bound reuse evaluation and implementation contract](CLOUD-MICROVM-EXECUTION.md) records E2B runtime Embed as the preferred first-adapter candidate, replacing the older managed-E2B-first proposal; no provider is yet implemented or verified for microVM Develop. CLOUD-088 explicitly requires elastic per-task microVM swarms, dependent on CLOUD-084/085/086. It needs a concrete reusable backend, actual project/context transfer rather than host-path mounts, supported credential delivery, owned lifecycle and recovery, result return, resource/cost controls and provider-specific verification. Existing remote Docker and dormant Kata cannot be relabelled to close this gap. Local-first acceptance proceeds independently; cloud provisioning waits for a concrete plan and supplied access. Existing source research is retained; further evaluation/implementation is paused under the owner gate. Fresh-storage host replacement, backup/restore, KVM and protected management are explicit obligations, not solved by the candidate choice.
 
 ## Immediate real-provider path and blockers
 
-The next trial follows the product UI: save/review context → prepare implementation → choose a supported upstream harness/provider → Docker execution → inspect returned work/questions → reviewed integration → independent checks → source-bound preview → amendment.
+The next trial follows the product UI: save/review context → prepare implementation → choose a supported upstream harness/provider → Docker execution → inspect returned work/questions → reviewed integration → independent checks → source-bound preview → actual policy-permitted deployment → amendment.
 
 The local tester reports an authenticated host Codex CLI, but has **cancelled the proposed manual host-CLI inference trial before execution**. Do not copy its auth file or infer sandbox access. Use Luci's supported container sign-in/provider connection. Exact model availability and account limits must be observed there.
 
@@ -54,13 +57,13 @@ Current actionable gates:
 - Build useful approved context in Luci and give a real implementation task to the upstream harness. Do not seed the answer or let the verifier implement it. Retain exact context/source/worker identity and actual output.
 - Review and independently check real changes before preview/deployment. Keep reported tests, actual executed checks, source integration, preview health and completed acceptance distinct.
 - Complete amendments and four-project continuity/resource checks. CLOUD-032 switching still fails its unchanged300ms target; no layout/helper change or instrumentation subtraction establishes a pass.
-- Preserve unfinished native lifecycle and supported-runtime recovery scopes. LOCAL-024 parent-death and reopen are locally verified; the tester now also reports external `LUCI_API` preservation verified, with detailed receipt pending publication. Ordinary UI-close remains open. None establishes full native/provider acceptance.
+- Preserve unfinished native lifecycle and supported-runtime recovery scopes. LOCAL-024 parent-death, reopen, external `LUCI_API` preservation and ordinary titlebar Close are now locally reported verified at577; the exact latest receipt hash is in the controlling contract. This closes the scoped owned-lifecycle regression only. None establishes full native/provider acceptance.
 
 Cloud microVM implementation is an explicit product gap but does not block independent local Docker/provider work. Optional paid service/billing/public cloud access remain later gates under the local-first sequence.
 
 ## Secondary interoperability: LOCAL-025
 
-The original P1 classification was based on the misinterpreted primary workflow and is superseded by the owner correction. The already-started bounded implementation may finish as optional context interchange, with no new execution engine or credentials path.
+The original P1 classification was based on the misinterpreted primary workflow and is superseded by the owner correction. The bounded implementation is committed at2cb58a8a as optional interchange; no new work proceeds under the gate. It adds no execution engine or credentials path.
 
 Existing portable files, where their context has been saved, are `LUCI.md`, `.luci/specification.json`, `.luci/specification.md`, `.luci/design-handoff.json`, `.luci/design-handoff.md`, `.luci/plan.json` and `.luci/design.json`. `.luci/state.json` is canonical; exports are not private review authority. Context storage can detect and explicitly repair generated-export drift. Backups, conversation export and sketch/static HTML export have separate purposes.
 
@@ -68,10 +71,10 @@ The new optional ZIP retains approved task-specific context, source/version bind
 
 ## Reuse and comparison
 
-Use official upstream CLI behavior for Codex/Claude/OpenCode adapters. Evaluate GSD-family ideas for context/task structure and Nimbalyst for understandable artifacts/coordination; preserve licences and existing research. Cloud-provider microVM reuse must establish the actual isolation boundary, transfer/credential/lifecycle contract and costs before implementation or claims. Glasses MCP is not callable in this cloud session's exposed tools; the local tester is restoring its Glasses service for complementary discovery. That limitation does not justify inventing reuse evidence or a generic-provider claim.
+Use official upstream CLI behavior for Codex/Claude/OpenCode adapters. Evaluate GSD-family ideas for context/task structure and Nimbalyst for understandable artifacts/coordination; preserve licences and existing research. Cloud-provider microVM reuse must establish the actual isolation boundary, transfer/credential/lifecycle contract and costs before implementation or claims. Glasses MCP is not callable in this cloud session's exposed tools; the local tester supplied pinned reuse research through its restored service, then stopped that owned service after diagnostics. That limitation does not justify inventing reuse evidence or a generic-provider claim.
 
 ## Goal and coordination status
 
-The documented working objective is active and unfinished. Persistent platform-goal controls are unavailable; last confirmed status remains blocked. Scope edits/thread activity do not reactivate it.
+The documented working objective is unfinished; implementation is paused for the owner scope audit. Persistent platform-goal controls are unavailable; last confirmed status remains blocked. Scope edits/thread activity do not reactivate it.
 
 Continue the authorized local loop at thread `01a1199f-7500-7843-b02b-081081e536fa`. This session has no thread-message tool, so exact immutable handoffs and labelled cloud-thread updates remain the coordination route. Adopt revisions between test batches. Preserve issue IDs, prior failed receipts, unknown charges and completed scoped passes.

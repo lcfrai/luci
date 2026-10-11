@@ -1,9 +1,11 @@
 <!-- Current source: edc742e8b6ce4216a1726e74cceef892663ce3d5; Windows adoption only between batches. -->
 # Windows testing and correction loop
 
+[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) controls scope and acceptance. The owner scope-audit gate is held; no new implementation or workload starts until the originating local audit explicitly lifts it. Older checkpoint instructions below are retained evidence and do not override the gate.
+
 ## Next primary acceptance slice
 
-CLOUD-085/CLOUD-086 implement the owner's persistent coordinator requirement. Test a conversational amendment during a real Docker build through revised Discover/Design context, upstream code changes, independent checks and updated preview; then two authenticated teammates with competing edits, explicit version resolution, affected-work handling and restart replay. Existing unrelated scoped passes remain valid. No manual host-CLI or fixture-only negotiation substitutes for these gates.
+After explicit audit lift, CLOUD-085/CLOUD-086 acceptance must test a conversational amendment during real Docker work through revised Discover/Design context, upstream changes, independent checks/review, preview and actual policy-permitted deployment; then two authenticated people's Lucis autonomously reconcile compatible edits, surface contradictory intent, continue affected implementation/delivery and replay safely after restart. Existing unrelated scoped passes remain valid. No manual host-CLI or fixture-only negotiation substitutes for these gates.
 
 ## Current coordinated priority — integrated Docker real-provider journey
 
@@ -21,7 +23,7 @@ Continue Windows native lifecycle checks independently. The next real-provider t
 
 Matching `80462898` now has an [actual warm multistage Docker RUN/build/serve/Stop pass](evidence/cloud082-installed-warm-80462898/README.md): ten Node tests, useful app response, observed 1 GiB, one-CPU, no-swap build limits, separately inspected serving limits, exact API cleanup and independent empty fixture ledger/container inventory. It is a handwritten Linux fixture using an existing base; cold pulls, Windows, live-provider quality, peak resources and responsiveness remain open. This earlier evidence publication changed no product bytes; the later cancellation correction has the new edc742e8 source pin above.
 
-Windows has verified LOCAL-024's original forced-parent-death and same-state reopen at `577f7a0f`, with normal user-state preservation and final known process/listener cleanup. External `LUCI_API` and ordinary native close remain pending; do not repeat the completed original case solely for a documentation update. The same Windows revision has clean native/portable packaging and its separately recorded controlled tests. Actual installation, provider-driven build/review/check/preview, broader recovery and sustained resource/response acceptance remain open.
+Windows has verified LOCAL-024's original forced-parent-death and same-state reopen at `577f7a0f`, with normal user-state preservation and final known process/listener cleanup. The tester subsequently reports external `LUCI_API` preservation and ordinary native titlebar Close passed at the same577source. The complete scoped owned-lifecycle regression is reported verified; see the current contract/worklist for the exact new receipt. This does not pass full product/provider acceptance; do not repeat unchanged completed cases solely for documentation. The same Windows revision has clean native/portable packaging and its separately recorded controlled tests. Actual installation, provider-driven build/review/check/preview, broader recovery and sustained resource/response acceptance remain open.
 
 The [plain packaged577 idle receipt](evidence/cloud032-idle-577f7a0f/README.md) retains all 400 actions and the failed switch p95 of 497.324950 ms against 300 ms. Input p95 is 87.794101 ms against 100 ms. Two same-start Chromium PID-1 zombies remain explicit. Home timing probes do not establish a correction; no target or guard is relaxed. The entries below retain earlier checkpoint observations rather than overriding this current state.
 
@@ -1132,7 +1134,7 @@ absent through75.4594723s. Same-state reopen, normal-state metadata/content/file
 identity preservation and final cleanup pass; zero known remaining processes,
 listeners or cleanup errors. No lock-file deletion or ordinary UI-close is
 implied. The local receipt is `native-fix-preparation/577f7a0f-f28ba2e0a4df45c885ab458971a758ca/result.json`.
-External `LUCI_API` preservation and ordinary native close remain pending.
+Those two cases were pending at this earlier checkpoint; both subsequently passed at577, closing the scoped native-owned-lifecycle regression. Current contract/worklist retain the exact titlebar-Close receipt and distinguish full product/provider acceptance.
 
 The32 focused backend top-level/83 subtests pass in190.4s, zero failures/skips/
 timeouts, minimum physical available RAM7.216GiB. All12,306 tracked hashes remain

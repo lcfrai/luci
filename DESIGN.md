@@ -1,8 +1,6 @@
 # Luci application design
 
-This is the implementation authority for the shipped Luci application. The older
-design-system document records the original direction; this file resolves that
-direction against the current product and UAT findings.
+This is the UI design guidance subordinate to [the controlling product contract](docs/luci/PRODUCT-CONTRACT.md). The owner scope-audit gate is held. One persistent conversational Luci per person is the primary interface; the four phases are revisitable views/tools of its context, upstream execution and actual policy-permitted delivery loop. Team coordination and elastic per-task cloud microVM swarms belong in that same accessible journey, with clear authority/cost/resource controls. The older design-system document retains historical direction; no static screen or current fixture establishes shipped product acceptance.
 
 Luci brings a project brief, visual design, implementation tasks, agent terminals,
 files, Git, checks and releases into one workspace. People should understand where

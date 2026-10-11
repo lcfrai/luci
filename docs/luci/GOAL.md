@@ -1,12 +1,15 @@
 # Finish the full Luci product
 
-## Persistent Luci coordinator — latest owner requirement, 11 October 2026 UTC
+## Controlling contract and scope audit
 
-Luci is the continuing conversational project coordinator. Durable conversation and intent lead to clarification/proposals, canonical versioned context/design/tasks, the chosen upstream harness, observed checks/review, preview/deployment and subsequent amendments. Discover, Design, Develop and Deploy are connected views/tools of this workflow, not disconnected forms or a mandatory one-way wizard. This supersedes the earlier statement that persistent conversation is optional.
+[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) is the single controlling product direction and requirement-to-code map. **The owner scope gate is held: no new implementation, delegated work, tests/builds or provisioning until the originating local audit explicitly lifts it.** Contract publication does not resume work. Existing safe diagnostics/owned cleanup may finish; preserve draft source and failed evidence.
 
-A request during Develop must be able to revisit Discover questions and Design, update the affected context, and return to building with exact scope/source provenance. Team Lucis coordinate through authoritative shared revisions/events, identity, ownership, intents and dependencies. Compatible bounded edits may merge; contradictory intents remain explicit until actually resolved. No silent last-writer-wins, message-only consensus or unnecessary restart of all agents. Broadcast accepted changes, invalidate stale evidence/work and replan affected tasks durably.
+One primary persistent conversational Luci per person coordinates Discover, Design, Develop and Deploy. The four phases are revisitable tools of that continuing workflow. Local Develop boots existing upstream harnesses in isolated Docker; cloud Develop requires a real supported provider microVM backend. Management/app-deployment Docker and SSH compatibility do not satisfy cloud microVM execution.
 
-Routine iteration is autonomous within configured project/team authority and approval/deployment/cost policies. The first concrete acceptance is a conversational mid-build amendment → clarification where needed → revised design/context → real Docker harness changes → independent checks → updated preview. The team case uses two authenticated people requesting competing design edits, resolves versions/conflicts, handles stale active work and replays safely after restart. Fixture-only coordination is not a real-provider/team negotiation pass. **CLOUD-085** owns the integrated amendment vertical; **CLOUD-086** owns shared intent/conflict coordination. Backend, frontend and team owners are assigned in parallel; implementation remains unfinished.
+CLOUD-085 must carry conversational amendments through canonical reviewed context/design/tasks, affected upstream work, independent checks/review, preview and actual policy-permitted deployment. CLOUD-086 must coordinate distinct people's Lucis through durable authoritative intent/revision/event/ownership/dependency state, reconcile compatible changes, surface genuinely contradictory intent and continue affected implementation/delivery without human handoff management. Draft-only or preview-only slices are not completion. All current owners are paused; the controlling contract records acceptance criteria, source gaps and worker acknowledgements.
+
+CLOUD-088 is a required P1 workstream dependent on CLOUD-084/085/086: easy elastic fan-out of many small dependency-aware upstream tasks, each with its own newly allocated isolated microVM and observed spin-down/settlement. Concurrency/resource/spend policy, durable task artifacts, shared-context amendments and duplicate-safe restart/cancel remain explicit. The controlling contract sets a representative12-task/4-project/4-concurrent-VM live target, not a product ceiling.
+
 
 ## Current objective — corrected owner clarification, 11 October 2026 UTC / 12 October local
 
@@ -16,7 +19,7 @@ The earlier relay incorrectly made manual external-tool handoff the primary path
 
 The next meaningful acceptance is a real selected provider through Luci's integrated Docker path: approved context → upstream harness → actual changes → review/checks → preview/deploy → amendment. Preserve existing adapters and safety/recovery defects; avoid unnecessary new runtime abstractions. Cloud microVM support must be inventoried honestly and cannot be claimed for generic SSH/Docker or an unimplemented backend. See [current scope and capability inventory](CONTEXT-DELIVERY-SCOPE.md).
 
-The documented working objective remains **active and unfinished**. No persistent-goal control is exposed here; the last confirmed platform status remains **blocked**, not reactivated by this document or running turn. No fixture, roadmap or scoped test pass completes the product.
+The documented working objective remains **unfinished, with implementation paused for the explicit owner scope audit**. No persistent-goal control is exposed here; the last confirmed platform status remains **blocked**, not reactivated by this document or running turn. No fixture, roadmap or scoped test pass completes the product.
 
 ## Interactive application and local testing handoff — 8 October 2026
 
@@ -151,8 +154,8 @@ The last confirmed platform status was **blocked**. On 8 October the owner
 explicitly resumed pursuit of this objective, but this session exposes no
 persistent-goal read, edit or activation API. Therefore platform reactivation
 cannot be verified or performed here; it requires a supported app/user control.
-Independent research, implementation and verification continue under this
-documented objective. Preserve the unresolved live-model, full-stack capacity,
+After explicit scope-audit lift, independent research, implementation and
+verification may continue under the reconciled documented objective. Preserve the unresolved live-model, full-stack capacity,
 commercial, public-deployment and native-distribution gates. This goal remains
 **unfinished**, and no earlier checkpoint establishes production readiness.
 
@@ -183,14 +186,14 @@ The person must understand the solution being agreed and built at every stage,
 know what requires their decision, see the consequence of a change, and have a
 clear way forward after an interruption or failure. Luci must carry this
 understanding into an independently verified, live application and subsequent
-changes. Persistent conversation remains optional.
+changes. One persistent conversational Luci per person is the required primary interface; canonical context and observed evidence remain authoritative.
 
 [PRODUCT-QUALITY.md](PRODUCT-QUALITY.md) defines the observable quality contract,
 representative complete journeys and evidence required to close this goal.
 Treat it as a release gate alongside the existing functional, isolation,
 commercial and distribution gates. Keep improving concrete shortcomings until
 the contract is demonstrated; neither blocked Windows CI nor missing external
-credentials excuses independent product and interaction work.
+credentials excuses independent product and interaction work after the scope gate is lifted.
 
 Current status: **not complete and not production ready**. Existing scoped
 test/package results are valuable evidence, not a verdict on whole-product
@@ -200,7 +203,7 @@ failures. Do not promise that any application can never encounter a future bug.
 
 The owner's renewed continuation instruction is explicit: a completed corrective
 batch, updated PR or saved roadmap is a checkpoint, not the end of this objective.
-Continue through the remaining independently actionable product work. A missing
+After explicit scope-audit lift, continue through the remaining independently actionable product work. A missing
 credential or platform capability blocks only the gate that requires it; it does
 not close the goal or justify stopping unrelated implementation. Keep concrete
 findings and their resolution in [QUALITY-WORKLIST.md](QUALITY-WORKLIST.md), and
@@ -242,12 +245,12 @@ public publication or hosted subscription activation has been performed. Preserv
 SMTP and signed/public-download evidence below; a smaller milestone does not
 replace the full completion contract.
 
-## One understandable project journey — 6 October 2026
+## One understandable project journey — reconciled with the controlling contract
 
-The owner's latest clarification prioritizes a clear view of the current stage,
-exactly what Luci and its agents are building, and how amendments change the
-solution. Persistent conversation is useful supporting history, not a required
-primary interface or a completion gate. Luci must understand the agreed idea,
+The retained stage-clarity requirement complements the controlling contract:
+show exactly what is being built and how amendments change the solution.
+One persistent conversational Luci per person is the required primary interface
+and a completion gate. Luci must understand the agreed idea,
 build shared context through each phase and carry it through implementation,
 verification and a live application. Phase editors are focused views of that
 same project; the current purpose, requirements, selected tasks, execution state
@@ -269,10 +272,11 @@ bounded private history recovery. Acceptance must show understandable stage and
 selected work during actual agent activity, including a teammate amendment and
 its effect on existing run inputs; retained chat alone is not acceptance.
 
-## Overnight completion instruction — 6 October 2026
+## Retained overnight completion instruction — subordinate to the current scope gate
 
-The owner has explicitly authorized continued autonomous work while away and
-reaffirmed that the result must be the full, finished product. Finish implementation
+The owner previously authorized continued autonomous work while away and
+reaffirmed the full-product objective. The current scope gate temporarily pauses
+that implementation authority until explicit audit lift. After lift, finish implementation
 and actual installed acceptance together. Resolve known blocking defects,
 unfinished core controls and disconnected workflows before handback. A control
 must perform its stated operation, show truthful progress and give a useful
@@ -287,15 +291,13 @@ missing credentials never turn an untested outcome into a pass. Literal absence
 of every possible future defect cannot be promised, and must not replace concrete
 acceptance evidence.
 
-The platform's 7 October continuation now supplies this full objective as the
-active goal: finish Luci as a fully fledged, polished application with provable
-quality across its supported controls and journeys. The goal remains active
-until the outcomes are demonstrated, or all useful independent work is exhausted
-and a concrete external prerequisite blocks further progress. The available goal
-control can mark the objective complete or blocked; it is not evidence that the
-application has passed any release gate. Earlier observations that this cloud
-session exposed no goal control are historical. Do not close the full objective
-for a smaller benchmark, corrective batch or saved roadmap.
+Historical note: a7October continuation used an active platform goal. That is
+not the current verified status. The last confirmed platform goal is blocked;
+this session has no goal-control API, and this document cannot reactivate it.
+The full working objective remains unfinished, with implementation paused for
+the explicit owner scope audit in PRODUCT-CONTRACT.md. A later audit lift permits
+aligned work, not a claim of platform-goal activation or release acceptance.
+Do not close the full objective for a smaller benchmark or saved roadmap.
 
 ## Required product outcomes
 

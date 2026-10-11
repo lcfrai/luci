@@ -1,6 +1,6 @@
 # Durable project runs
 
-Implementation contract for the batch after the private review-authority fix.
+Mechanism contract subordinate to [PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md); the owner scope-audit gate is held. The earlier private review-authority batch remains the source of the mechanisms below, not a ban on the required policy-bounded conversational coordinator.
 The [production continuation](HANDOFF-2026-10-06-PRODUCTION.md) records the
 implementation and scoped evidence. This contract is not a claim that project
 runs have shipped or that full installed acceptance has passed. Existing
@@ -14,10 +14,11 @@ evidence and exact release together. The next action is explicit. A session's
 exit, an agent's statement, a task marked done, or a saved release status never
 proves the application works.
 
-Start with a private durable record and reconciliation over existing operations.
-Do not add an autonomous executor, another daemon, a required model brand,
-automatic paid inference, or automatic publication. A model may suggest work;
-typed server operations and independent evidence determine state.
+Reuse the private durable record and existing typed execution/review/release operations. The primary per-person Luci must automatically continue routine allowed work through context, upstream harness execution, checks/review and actual deployment under configured policy. It must not invent authority, paid inference consent or publication permission. Preserve exact operation identities, current grants, cost policy and independent evidence; do not add a replacement coding engine or a second implementation of admission. Existing manually initiated run APIs are foundations, not completion of CLOUD-085/086.
+
+Local coding children run in isolated Docker. Cloud coding children require a supported provider microVM backend (CLOUD-084, missing). SSH remote Docker can host control-plane/deployment compatibility functions but does not satisfy that execution boundary. Shared accepted amendments must drive affected runs and delivery, preserving original inputs and unrelated work; merely attaching a draft or saving an intent is insufficient.
+
+CLOUD-088 requires runs to decompose into many small dependency-aware task attempts with per-agent microVM ownership in cloud, configurable fan-out/backpressure and durable result/checkpoint recovery. Existing Docker task/run records are foundations; they do not establish per-agent cloud isolation or observed teardown. The controlling contract keeps personal Lucis/team coordination distinct from task-worker and allocation identities.
 
 ## Existing seams to reuse
 
@@ -70,7 +71,7 @@ transcripts or raw command output in the run record.
 
 ## Create before allocating a child
 
-Proposed endpoints under `/v1/product/projects/{id}/runs`:
+Existing run endpoints under `/v1/product/projects/{id}/runs` (see [API.md](API.md) for current wire details). Their implementation does not establish the missing coordinator/team/cloud capabilities or full installed acceptance:
 
 - `POST /runs`: client supplies a fresh idempotency key, expected reviewed
   revisions/task IDs, worktree, harness/connection choice and intended outcome.

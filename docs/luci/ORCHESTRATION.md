@@ -1,9 +1,12 @@
 # Project understanding and reviewed amendments
 
-The primary product outcome is an understandable project: its agreed purpose,
-requirements, current stage, exact selected build scope, next step and a clear
-way to change direction. Optional discussion supports that outcome. A long-lived
-chat is neither the project specification nor proof that the application works.
+[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) controls scope; its owner audit gate is held. This document describes existing mechanisms and their extension points, not a smaller completion contract.
+
+One persistent conversational Luci per person is the primary interface and coordinates an understandable project: agreed purpose, requirements, current phase, exact build scope, next step and amendments. Discover, Design, Develop and Deploy are revisitable tools of that coordinator. Conversation is required, while canonical versioned context, current authority and observed evidence remain the source of truth. Chat alone does not prove an application works.
+
+The current project conversation/proposal mechanism is a partial foundation. CLOUD-085 must connect real upstream Docker work through independent checks/review, preview and actual authorized deployment; CLOUD-086 must coordinate distinct people's Lucis and continue affected implementation/delivery after compatible shared changes. Draft-only policy and human handoffs are insufficient. Cloud Develop additionally requires CLOUD-084's real microVM backend; remote Docker management/deployment remains separate. These extensions are unimplemented or incomplete and paused for the scope audit.
+
+CLOUD-088 extends this coordinator with easy elastic cloud swarms: decompose small dependency tasks, launch each upstream task agent in its own newly allocated microVM, track task-local immutable context and durable results, reconcile amendments/conflicts, and observe exact spin-down/charges under configured resource/concurrency/spend policy. Personal Lucis and teammate Lucis remain distinct from these task agents. This is required and currently missing, not a new coding engine.
 
 ## Current understanding
 
@@ -39,11 +42,14 @@ turn also retains the complete bounded observation snapshot actually supplied
 to the selected provider. Its conversation revision is a separate concurrency
 token. Reads do not persist observations or repair storage.
 
-The common project panel stays available across Define, Design, Develop and
+The common project panel stays available across Discover, Design, Develop and
 Deploy. Stage-specific editors remain direct, reviewable ways to amend the same
 context. The panel shows the exact existing run scope and navigates to existing
-review, execution and release controls; a model recommendation does not silently
-invoke those controls.
+review, execution and release controls. Current source does not automatically
+invoke those controls from a recommendation. The target coordinator must invoke
+typed operations under configured current authority/review/cost/deployment policy,
+without treating model text itself as authority or requiring a new human handoff
+for every routine permitted action.
 
 Manual definition questions have a direct, stable-ID route to their existing
 Answer field. Navigation respects unfinished drafts and cancelled navigation

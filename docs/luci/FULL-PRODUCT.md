@@ -1,5 +1,7 @@
 # Full product implementation and acceptance
 
+[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) controls scope and acceptance. The owner scope-audit gate is held; no new implementation or workload starts until the originating local audit explicitly lifts it. Older checkpoint instructions below are retained evidence and do not override the gate.
+
 3 October 2026. The user's installed-app inspection supersedes the earlier narrow delivery checklist. The current application is not a complete UAT handback.
 
 The owner's 5 October instruction is recorded in [GOAL.md](GOAL.md). It is the

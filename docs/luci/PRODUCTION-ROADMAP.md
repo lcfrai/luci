@@ -1,14 +1,18 @@
 # Luci production roadmap
 
+[PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) controls scope and acceptance. The owner scope-audit gate is held; no new implementation or workload starts until the originating local audit explicitly lifts it. Older checkpoint instructions below are retained evidence and do not override the gate.
+
 ## Revised immediate delivery order — corrected 11 October 2026 UTC
 
 The primary product is context **and integrated orchestration/delivery** around upstream coding engines. The previous manual host-tool emphasis is superseded by the owner's explicit correction.
 
 1. Verify the actual local Docker runtime/provider setup and selected upstream CLI path. Preserve proven adapters rather than build a replacement coding engine.
-2. Complete a real-provider Discover → Design → Docker Develop → reviewed changes/checks → preview/deploy → amendment journey through Luci. Keep context and code/deployment evidence coherent.
-3. Improve context quality, shadcn/ui usability and four-project performance from that journey. Finish bounded standalone export/return work as secondary interoperability; no manual host-CLI trial substitutes for primary acceptance.
+2. Complete the primary per-person conversational Luci: real-provider Discover → Design → Docker Develop → reviewed changes/checks → preview and actual policy-permitted deployment → amendment. Add peer-Luci shared-intent reconciliation and affected implementation/delivery continuation; preserve coherent context/source/release evidence.
+3. Improve context quality, shadcn/ui usability and four-project performance from that journey. Keep the already-committed bounded export/return capability secondary; no manual host-CLI trial substitutes for primary acceptance.
 4. Resolve remaining native, resource and supported-runtime recovery gates. Inventory actual cloud-provider microVM support; do not label remote Docker or stubs as generic microVM support.
 5. Implement/verify the cloud microVM target after local testing and supplied access, then optional managed-service delivery. Retain honest provider-specific limits and approvals.
+
+CLOUD-088 is required alongside CLOUD-084/085/086: elastic dependency-aware task agents, each in its own newly allocated cloud microVM, under accessible resource/concurrency/spend policy with durable outputs, duplicate-safe recovery and observed teardown. Use the controlling contract's live workload target; this is an implementation workstream, not optional future roadmap text.
 
 See [scope and capability inventory](CONTEXT-DELIVERY-SCOPE.md). Earlier evidence and unresolved issue IDs remain intact.
 
