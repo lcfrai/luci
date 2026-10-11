@@ -374,8 +374,30 @@ export interface CloudReleaseRequest {
   healthPath: string;
   dockerfile: string;
 }
+export interface RuntimeAdmissionObservation {
+  stage: "initial" | "before-build";
+  reasonCode: string;
+  decidedAt: string;
+  samplerAvailable: boolean;
+  hostObservedAt?: string;
+  executionObservedAt?: string;
+  hostFresh: boolean;
+  executionFresh: boolean;
+  hostMemoryKnown: boolean;
+  hostCPUKnown: boolean;
+  executionMemoryKnown: boolean;
+  executionCPUKnown: boolean;
+  inventoryComplete: boolean;
+  engineMatched: boolean;
+  metric?: string;
+  metricObservedAt?: string;
+  observedBytes?: number;
+  requiredBytes?: number;
+  observedPercent?: number;
+  maximumPercent?: number;
+}
 export interface RuntimeJob {
-  execution?: { jobId: string; allocationId?: string; engineId?: string; instanceId?: string; sourceDigest?: string; imageId?: string; imageTag?: string; phase: string; resourcesHeld: boolean; cleanupConfirmed: boolean; reasonCode?: string; message: string };
+  execution?: { jobId: string; allocationId?: string; engineId?: string; instanceId?: string; sourceDigest?: string; imageId?: string; imageTag?: string; phase: string; resourcesHeld: boolean; cleanupConfirmed: boolean; reasonCode?: string; message: string; admission?: RuntimeAdmissionObservation };
   cancelRequested?: boolean;
   id: string;
   status: string;

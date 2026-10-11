@@ -77,6 +77,7 @@ func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared b
 		return out, result, errors.New("runtime installer resources exceed current operator policy")
 	}
 	if g.api.deps.ResourceSnapshot == nil {
+		out.RuntimeAdmission = runtimeAdmissionObservation(nil, id.EngineID, time.Now().UTC())
 		return out, result, nil
 	}
 	// Preserve the existing 32 GiB bounded installation demand +8 GiB reserve.
@@ -86,6 +87,7 @@ func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared b
 			return err
 		}
 		snap, now := g.api.deps.ResourceSnapshot(), time.Now().UTC()
+		out.RuntimeAdmission = runtimeAdmissionObservation(&snap, id.EngineID, now)
 		if !freshExecutionCapacity(snap, now) || snap.Execution.EngineID != id.EngineID {
 			return nil
 		}

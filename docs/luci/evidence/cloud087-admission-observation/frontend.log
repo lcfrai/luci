@@ -1,0 +1,17 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 src/components/setup/RuntimeAdmission.test.tsx src/components/setup/RuntimeCancellation.test.tsx
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+
+ Test Files  2 passed (2)
+      Tests  13 passed (13)
+   Start at  15:23:26
+   Duration  5.82s (environment 43%, tests 19%, transform 17%, setup 16%, import 5%)
+
+Environment  jsdom was created 2 times · 2.33s total, 43% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+

@@ -1,5 +1,6 @@
 import { runtimeInstallActive, runtimeInstallRetained } from "../../api/runtimeInstall";
 import { storagePreparationBlock } from "../../api/executionStorage";
+import { RuntimeAdmission } from "./RuntimeAdmission";
 import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -277,6 +278,7 @@ export function RuntimePreparation({
         </p>
       )}
       {job?.status === "cancelled" && <p role="status">{job.message}</p>}
+      {manageBacking && <RuntimeAdmission observation={job?.execution?.admission} />}
       {shownStatus && !dockerReady && (
         <p className="journey-muted">
           Use the tool setup above to install Docker where supported. Open

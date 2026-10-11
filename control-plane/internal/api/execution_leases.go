@@ -20,6 +20,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
 )
 
 // Every persisted lease accounts for a pending allocation even before Docker
@@ -72,6 +73,7 @@ type executionDecision struct {
 	State, Code, Message string
 	Resources            backend.Resources
 	Evidence             registry.StartAdmissionEvidence
+	RuntimeAdmission     *runtimeinstall.AdmissionObservation
 }
 
 func newExecutionAdmission(a *API) *executionAdmission {

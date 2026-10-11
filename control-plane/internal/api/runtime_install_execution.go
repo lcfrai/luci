@@ -115,6 +115,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 			decision.Code = "runtime_install_admission_unavailable"
 			decision.Message = "Current administrator access or shared capacity could not be verified. No build was started."
 		}
+		out.Admission = runtimeAdmissionRefusal(decision, "initial")
 		return fail(decision.Code, decision.Message, err)
 	}
 	out.AllocationID, out.EngineID, out.InstanceID, out.SourceDigest = allocation, id.EngineID, id.InstanceID, id.SourceDigest
@@ -143,6 +144,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	}
 	nextDecision, nextLease, admitErr := admit()
 	if admitErr != nil || nextDecision.State != "admitted" {
+		out.Admission = runtimeAdmissionRefusal(nextDecision, "before-build")
 		return unstarted(errors.Join(admitErr, errors.New("runtime build admission changed")))
 	}
 	lease = nextLease

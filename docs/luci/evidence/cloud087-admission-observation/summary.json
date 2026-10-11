@@ -1,0 +1,54 @@
+{
+  "scope": "controlled Linux Go/API/product fixtures and actual React components with controlled clients; no Docker/Windows/provider execution",
+  "sourceBinding": "selected-after.json",
+  "sourceChangesDuringAPIAndRace": [],
+  "Go": {
+    "api-first": {
+      "exit": 0,
+      "counts": {
+        "pass": {
+          "topLevel": 4,
+          "subtests": 13
+        },
+        "fail": {
+          "topLevel": 0,
+          "subtests": 0
+        },
+        "skip": {
+          "topLevel": 0,
+          "subtests": 0
+        }
+      }
+    },
+    "affected-race": {
+      "exit": 0,
+      "counts": {
+        "pass": {
+          "topLevel": 22,
+          "subtests": 23
+        },
+        "fail": {
+          "topLevel": 0,
+          "subtests": 0
+        },
+        "skip": {
+          "topLevel": 0,
+          "subtests": 0
+        }
+      }
+    }
+  },
+  "frontend": {
+    "passed": 13,
+    "files": 2,
+    "failed": 0,
+    "exit": 0
+  },
+  "limits": [
+    "Original Windows CLOUD-087 failing sample was not retained; cause is unresolved.",
+    "Go tests compiled alongside uncommitted coordinator/team source. This manifest binds selected admission inputs, not the entire compile graph.",
+    "CLOUD-089 is a separate Created-container correction with its own source evidence.",
+    "The initial selected-before manifest predates pointer operands; selected-api-inputs is the unchanged final API/race source. Frontend inputs are unchanged between both."
+  ],
+  "committedHistoryDuringBatch": "3ba9efede649768894ae6921a8371def994f2edf through 6748fd40; selected working inputs are bound separately"
+}

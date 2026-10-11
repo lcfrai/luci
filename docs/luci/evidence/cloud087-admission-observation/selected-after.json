@@ -1,0 +1,67 @@
+[
+  {
+    "path": "control-plane/internal/runtimeinstall/runtime.go",
+    "bytes": 4308,
+    "sha256": "8bcf02f168ddcb4a68de26e7b900c6c8dbf6a0d90082c348283230644ad9ee69"
+  },
+  {
+    "path": "control-plane/internal/api/execution_leases.go",
+    "bytes": 30058,
+    "sha256": "a46b0c4bbbd44eaecb38b13f95bf21041748cd86a87fb653b9ef5b34e382a159"
+  },
+  {
+    "path": "control-plane/internal/api/execution_runtime_image_leases.go",
+    "bytes": 11288,
+    "sha256": "b65824018e9375338eb10d6329a3286ca4a7c0baee249ed8723f089dc6375263"
+  },
+  {
+    "path": "control-plane/internal/api/runtime_install_execution.go",
+    "bytes": 15031,
+    "sha256": "9199cb176d427d21ccfb134e3fc1687856d167490ab0ed26fe053ba571ace9af"
+  },
+  {
+    "path": "control-plane/internal/api/runtime_install_admission.go",
+    "bytes": 1984,
+    "sha256": "99ef0456e5bd4744a7809d7c23cf16ec36db660dd7dc2f773853274ab7481b3f"
+  },
+  {
+    "path": "control-plane/internal/api/runtime_install_admission_test.go",
+    "bytes": 6717,
+    "sha256": "c859208449dd2f6fa80907fc33b7fc2d209218ad2163a463c88699615e960656"
+  },
+  {
+    "path": "control-plane/internal/product/runtime_install_admission_test.go",
+    "bytes": 2720,
+    "sha256": "91a3a9f14e1d95c4679f50f8f39ea909e7675c29450c607319192e7af341b9c0"
+  },
+  {
+    "path": "desktop/src/api/product.ts",
+    "bytes": 31311,
+    "sha256": "cac3459e7292c10274928e161c3c490554cdf54398253e23d35c2ba265736075"
+  },
+  {
+    "path": "desktop/src/components/setup/LocalTools.tsx",
+    "bytes": 9910,
+    "sha256": "1656df77de929ea0577b987958301063ac14196a3fde07ddaaf7e2a48cf54782"
+  },
+  {
+    "path": "desktop/src/components/setup/RuntimePreparation.tsx",
+    "bytes": 14906,
+    "sha256": "54e27225e737508d466040147731c43a2422af175eabefa368745502e689a56f"
+  },
+  {
+    "path": "desktop/src/components/setup/RuntimeAdmission.tsx",
+    "bytes": 2487,
+    "sha256": "2dfd68bfadf212041dfa6b56ec2d640e10a7e3068930343453a4f634fb10b792"
+  },
+  {
+    "path": "desktop/src/components/setup/RuntimeAdmission.test.tsx",
+    "bytes": 5982,
+    "sha256": "6860d54da4a9c959af28e93260a2526c742008a9ab7e505b50a7c82e7b6c8d8a"
+  },
+  {
+    "path": "desktop/src/components/setup/RuntimeCancellation.test.tsx",
+    "bytes": 9479,
+    "sha256": "463501448e6ec9bce4ec36b65b5556ca9abcd98aa11e1179446229e17ff36db4"
+  }
+]

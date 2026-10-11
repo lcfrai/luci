@@ -2,6 +2,7 @@ import { runtimeInstallActive, runtimeInstallRetained } from "../../api/runtimeI
 import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
 import { AgentConnections } from "./AgentConnections";
+import { RuntimeAdmission } from "./RuntimeAdmission";
 import { useAuth } from "../auth/AuthProvider";
 import {
   errorText,
@@ -214,6 +215,7 @@ export function LocalTools({
                     {runtime.status} · {runtime.message}
                   </p>
                 )}
+                <RuntimeAdmission observation={runtime?.execution?.admission} />
                 {runtimeBlockedReason && <p className="preparation-action">{runtimeBlockedReason} Review Docker storage above; you can keep planning.</p>}
                 <Button type="button"
                   variant="secondary"
