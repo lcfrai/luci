@@ -28,6 +28,8 @@ Windows at 78665270 has reported a clean native release build and matching five 
 
 ## Current correction batch — 11 October
 
+**Matching Linux package at `577f7a0f`:** [package receipts](evidence/package-577f7a0f/README.md) verify clean-source build, 967 extracted files, 106 runtime source bindings and 347 licences. Runtime/preview Docker and Windows acceptance remain separate. The initial full-doc package and corrected compact-guide build are retained as distinct invocations.
+
 **CLOUD-080/081 integrated source checkpoint:** [runtime/preview handoff](TEST-CHECKPOINT-RUNTIME-PREVIEW.md) and [raw integrated evidence](evidence/cloud080081-integrated-20261011/README.md) record 304 final passing race outcomes/89 top-level tests, all-package compilation, nine cold-demand outcomes, actual bundled-source read-only preparation and the managed-route regression. The UI has 31 affected passes/full TypeScript success. The final SDK wire regression removes Linux-invalid build SecurityOpt without changing hard resource limits; original refusals and the obsolete assertion failure are preserved. Earlier failures and overlapping staged counts are retained. This is ready for native source/controlled retest, **not actual installer/preview acceptance**: the cloud host cannot meet the unchanged 40 GiB cold-install floor, and unknown-build recovery, missing project-base provisioning, real providers and responsiveness remain open. No existing failed fixture or charged reservation was modified.
 
 

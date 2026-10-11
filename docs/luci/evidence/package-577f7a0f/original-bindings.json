@@ -1,0 +1,164 @@
+[
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/command.json",
+    "path": "full-doc-build/command.json",
+    "bytes": 299,
+    "sha256": "e8f9944d7d40a8aa8ce794a12e529061ba0da41ec59595deab9362252f3f1577"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/result.json",
+    "path": "full-doc-build/result.json",
+    "bytes": 135,
+    "sha256": "4cc96154e4ae1137c794d05a495b411ac15cf7a7c9fe3a50c650097caa9af9f7"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/build.stdout.log",
+    "path": "full-doc-build/build.stdout.log",
+    "bytes": 18324,
+    "sha256": "e2b7c6f0a10112a8093a6f20bb0847865b7c4aa730dc7124406bb5dce5c8d577"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/build.stderr.log",
+    "path": "full-doc-build/build.stderr.log",
+    "bytes": 360,
+    "sha256": "351b524197fb492920789369e7f1a271420c757633fbb553b280a181ac4c31a4"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/compact/build.stderr.log",
+    "path": "compact-build/build.stderr.log",
+    "bytes": 360,
+    "sha256": "351b524197fb492920789369e7f1a271420c757633fbb553b280a181ac4c31a4"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/compact/build.stdout.log",
+    "path": "compact-build/build.stdout.log",
+    "bytes": 18398,
+    "sha256": "46e51873d513f9c9adf6f21c1d998edc57fbf2edbb84b0b90f2714833745be87"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/compact/command.json",
+    "path": "compact-build/command.json",
+    "bytes": 564,
+    "sha256": "f2aa17f47521df6636d354c92563ae31a2d4a84452a067d2498126247a5a1ced"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/compact/prior-SHA256SUMS",
+    "path": "compact-build/prior-SHA256SUMS",
+    "bytes": 186,
+    "sha256": "f48bdf1ed0c75eabd49141fd84aa64199d2b6676b9a48c0e9f6be152041486b4"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/compact/prior-preserved.json",
+    "path": "compact-build/prior-preserved.json",
+    "bytes": 877,
+    "sha256": "6f18e6d79320774b99d58db4768c476f976d7d86d0a8dc57b91921565f55e87e"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/compact/prior-release-manifest.json",
+    "path": "compact-build/prior-release-manifest.json",
+    "bytes": 698,
+    "sha256": "c56c62afecc71538c409a4decb5cfa45c347262570b6194521903f8ea0dddac0"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/compact/result.json",
+    "path": "compact-build/result.json",
+    "bytes": 134,
+    "sha256": "6c4e30e99ab0e9f96a740364ecb2367fd97a5e6d6c9b5a8f1346998ecb90afce"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/verified/SHA256SUMS",
+    "path": "verified/SHA256SUMS",
+    "bytes": 186,
+    "sha256": "b6efeebc74c62cc50bc9d6a28c4ed4a0362b8992e43ce5a7a9899a554795af83"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/verified/archive-members.json",
+    "path": "verified/archive-members.json",
+    "bytes": 174970,
+    "sha256": "c8070baeb36419793e89c1877097d825cf3e1a79aa8e783e678d1750773104f0"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/verified/integrity.json",
+    "path": "verified/integrity.json",
+    "bytes": 880,
+    "sha256": "3b5ddda6d86425beb914f1fdeeba7178eb46c9c269a6bcfd9826b044bc4a0201"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/verified/release-manifest.json",
+    "path": "verified/release-manifest.json",
+    "bytes": 696,
+    "sha256": "76a87cb61df75b975b68f99e6c646701ea80b4b20ebf8eff014f25e41348745b"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/verified/runtime-inputs.json",
+    "path": "verified/runtime-inputs.json",
+    "bytes": 18400,
+    "sha256": "d4d6147b43e00a08f3d82fa8afe9cfe2fd09a03354a95c31071b25ff2b56848c"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/rebuild-compact.py",
+    "path": "helpers/rebuild-compact.py",
+    "bytes": 2449,
+    "sha256": "8c44c98951983b080dea2a7ac2baa95c5469fd11936a83ac540760ad4193130e"
+  },
+  {
+    "source": "/workspace/.luci-tools/package-577f7a0f/verify.py",
+    "path": "helpers/verify.py",
+    "bytes": 2972,
+    "sha256": "7bf89fcfeee78c41af1de7eefb85df26fa60110a8b61daee579a1028cbc435d2"
+  },
+  {
+    "source": "/workspace/luci/scripts/build-release.sh",
+    "path": "source/scripts/build-release.sh",
+    "bytes": 6029,
+    "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d"
+  },
+  {
+    "source": "/workspace/luci/scripts/package.py",
+    "path": "source/scripts/package.py",
+    "bytes": 2649,
+    "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5"
+  },
+  {
+    "source": "/workspace/luci/scripts/stage-release-docs.py",
+    "path": "source/scripts/stage-release-docs.py",
+    "bytes": 20959,
+    "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26"
+  },
+  {
+    "source": "/workspace/luci/scripts/collect-licenses.py",
+    "path": "source/scripts/collect-licenses.py",
+    "bytes": 14817,
+    "sha256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be"
+  },
+  {
+    "source": "/workspace/luci/scripts/launch-unix.sh",
+    "path": "source/scripts/launch-unix.sh",
+    "bytes": 5579,
+    "sha256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53"
+  },
+  {
+    "source": "/workspace/luci/desktop/package.json",
+    "path": "source/desktop/package.json",
+    "bytes": 1967,
+    "sha256": "3423464851fd487363f89beca7a27df2654a94f6b70a74935841a851c9c66bd3"
+  },
+  {
+    "source": "/workspace/luci/desktop/package-lock.json",
+    "path": "source/desktop/package-lock.json",
+    "bytes": 247150,
+    "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+  },
+  {
+    "source": "/workspace/luci/control-plane/go.mod",
+    "path": "source/control-plane/go.mod",
+    "bytes": 3111,
+    "sha256": "a5f4faf59655f01c0691b2a05632d474b0e4019111f4e7c3d8c1d89731a44c92"
+  },
+  {
+    "source": "/workspace/luci/control-plane/go.sum",
+    "path": "source/control-plane/go.sum",
+    "bytes": 19295,
+    "sha256": "c3bbf4f9f4b235b5864b171019079ed97efc3b71bae1cefd885f69f7322b086d"
+  }
+]

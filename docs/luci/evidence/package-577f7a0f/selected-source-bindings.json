@@ -1,0 +1,47 @@
+[
+  {
+    "path": "scripts/build-release.sh",
+    "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d",
+    "bytes": 6029
+  },
+  {
+    "path": "scripts/package.py",
+    "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5",
+    "bytes": 2649
+  },
+  {
+    "path": "scripts/stage-release-docs.py",
+    "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+    "bytes": 20959
+  },
+  {
+    "path": "scripts/collect-licenses.py",
+    "sha256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be",
+    "bytes": 14817
+  },
+  {
+    "path": "scripts/launch-unix.sh",
+    "sha256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53",
+    "bytes": 5579
+  },
+  {
+    "path": "desktop/package.json",
+    "sha256": "3423464851fd487363f89beca7a27df2654a94f6b70a74935841a851c9c66bd3",
+    "bytes": 1967
+  },
+  {
+    "path": "desktop/package-lock.json",
+    "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+    "bytes": 247150
+  },
+  {
+    "path": "control-plane/go.mod",
+    "sha256": "a5f4faf59655f01c0691b2a05632d474b0e4019111f4e7c3d8c1d89731a44c92",
+    "bytes": 3111
+  },
+  {
+    "path": "control-plane/go.sum",
+    "sha256": "c3bbf4f9f4b235b5864b171019079ed97efc3b71bae1cefd885f69f7322b086d",
+    "bytes": 19295
+  }
+]
