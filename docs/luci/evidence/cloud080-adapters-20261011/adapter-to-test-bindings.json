@@ -1,0 +1,156 @@
+[
+  {
+    "path": "control-plane/cmd/api/main.go",
+    "stagedSha256": "2321ddd0f27663de756094d436e4ec1c1c90f46c332be5a1fd5b40f76e7dadef",
+    "testedOverlaySha256": "7ad0508fb623c3e22e4d04c6f0abf4c24bfa7b12c829a07d96b2f03f9a56eaf9",
+    "matches": false,
+    "note": "Shared coordinator combined platform option and authorization wiring; cmd/api not exercised by this selected package run."
+  },
+  {
+    "path": "control-plane/internal/platform/browser_bridge.go",
+    "stagedSha256": "a8fa18272f93e42b35496d417c77fcc1361dbdd3ad765d8211181dd3b201ddaa",
+    "testedOverlaySha256": "a8fa18272f93e42b35496d417c77fcc1361dbdd3ad765d8211181dd3b201ddaa",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/platform/browser_bridge_test.go",
+    "stagedSha256": "3ed43570fa32663aa580aada66fe06c6f13c8e2bdbcda046cdde82b5732437ca",
+    "testedOverlaySha256": "3ed43570fa32663aa580aada66fe06c6f13c8e2bdbcda046cdde82b5732437ca",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/platform/browser_preview.go",
+    "stagedSha256": "76e7fb6ff15fb58897536c9842a8fddfa78e16b42ac1a0ac16a8fecf5fe39c11",
+    "testedOverlaySha256": "76e7fb6ff15fb58897536c9842a8fddfa78e16b42ac1a0ac16a8fecf5fe39c11",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/platform/database_restore.go",
+    "stagedSha256": "67b8123d8f55091ec9c436052d8330e93ba857f9715e310f79b7db052ca12da5",
+    "testedOverlaySha256": "67b8123d8f55091ec9c436052d8330e93ba857f9715e310f79b7db052ca12da5",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/platform/docker.go",
+    "stagedSha256": "d35c4db71f3b2e2d67289023158facea90c78e473e7bb0948a670e2d0dc78187",
+    "testedOverlaySha256": "d35c4db71f3b2e2d67289023158facea90c78e473e7bb0948a670e2d0dc78187",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/platform/platform.go",
+    "stagedSha256": "5a4545fcf7b102326d00cdf7bf073de6ea4677bce135ee7cd33df2c490b42861",
+    "testedOverlaySha256": "5a4545fcf7b102326d00cdf7bf073de6ea4677bce135ee7cd33df2c490b42861",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/platform/platform_test.go",
+    "stagedSha256": "9b6176234d59344a04c8cd0c0738d3c3a59e246581d89c2c67c01c1e043de5b4",
+    "testedOverlaySha256": "9b6176234d59344a04c8cd0c0738d3c3a59e246581d89c2c67c01c1e043de5b4",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/platform/preview_runtime.go",
+    "stagedSha256": "dea2b18105843bc7738b6f993c8f230b794ab14527c0db0c072124a3aa6745e5",
+    "testedOverlaySha256": "dea2b18105843bc7738b6f993c8f230b794ab14527c0db0c072124a3aa6745e5",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/platform/preview_runtime_test.go",
+    "stagedSha256": "a6b2eab24d9eedce73c61dd454ab8f1f9d7181bc4af2d9892d2b381b5919863d",
+    "testedOverlaySha256": "a6b2eab24d9eedce73c61dd454ab8f1f9d7181bc4af2d9892d2b381b5919863d",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/platform/project_runs.go",
+    "stagedSha256": "c576e172fbe79c75a9e1de1a85fbc28ff8fbce1518de7d6d497337ecead106b6",
+    "testedOverlaySha256": "c576e172fbe79c75a9e1de1a85fbc28ff8fbce1518de7d6d497337ecead106b6",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/platform/prototype_releases.go",
+    "stagedSha256": "63db5fad935283c6d0501d11eb58999d4c0e62a8b3bc2aa0e1e4d0cc3121bea6",
+    "testedOverlaySha256": "63db5fad935283c6d0501d11eb58999d4c0e62a8b3bc2aa0e1e4d0cc3121bea6",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/previewruntime/runtime.go",
+    "stagedSha256": "8e6aec2e45feb61b2d55e61cb5aa8914746ccef5dafa87e31898a4aee86ef7df",
+    "testedOverlaySha256": "8e6aec2e45feb61b2d55e61cb5aa8914746ccef5dafa87e31898a4aee86ef7df",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/product/browser_preview.go",
+    "stagedSha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f",
+    "testedOverlaySha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/product/preview_proxy.go",
+    "stagedSha256": "68fb052cd8dec65df9278a6b36195136e267613f9a4acaa054a72099e916f73d",
+    "testedOverlaySha256": "68fb052cd8dec65df9278a6b36195136e267613f9a4acaa054a72099e916f73d",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/product/preview_runtime.go",
+    "stagedSha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d",
+    "testedOverlaySha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/product/preview_runtime_fixture_test.go",
+    "stagedSha256": "34c1392b50ddb99c13c2a2958a275f6c5bfc57c111ddc00030139fcc08229dcf",
+    "testedOverlaySha256": "34c1392b50ddb99c13c2a2958a275f6c5bfc57c111ddc00030139fcc08229dcf",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/product/preview_runtime_test.go",
+    "stagedSha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6",
+    "testedOverlaySha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/product/projects_test.go",
+    "stagedSha256": "08a3dfb285e5c06dabb5bfee683825668a9015d87eec334d48be8f6c7105f82d",
+    "testedOverlaySha256": "08a3dfb285e5c06dabb5bfee683825668a9015d87eec334d48be8f6c7105f82d",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/product/releases.go",
+    "stagedSha256": "fcd242e0005c33d1b16b07ffeae1c5e9e97b32de8fd018e30f0029f92c984f09",
+    "testedOverlaySha256": "fcd242e0005c33d1b16b07ffeae1c5e9e97b32de8fd018e30f0029f92c984f09",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/product/releases_observation.go",
+    "stagedSha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd",
+    "testedOverlaySha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd",
+    "matches": true,
+    "note": ""
+  },
+  {
+    "path": "control-plane/internal/product/server.go",
+    "stagedSha256": "a62f2f5832ff0e3910039c8b749b7ab0521ec340b69c316be6e49c91ad9584ec",
+    "testedOverlaySha256": "a62f2f5832ff0e3910039c8b749b7ab0521ec340b69c316be6e49c91ad9584ec",
+    "matches": true,
+    "note": ""
+  }
+]

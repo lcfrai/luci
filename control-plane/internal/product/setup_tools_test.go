@@ -140,7 +140,7 @@ func awaitRuntimeJob(t *testing.T, mux http.Handler) RuntimeJob {
 func TestRuntimeInstallIsAsyncCachedDurableAndVerifiesImage(t *testing.T) {
 	s, mux := journeyFixture(t)
 	s.registerSetupTools(mux)
-	s.runtimeDir = runtimeSourceFixture(t)
+	runtimeInstallerFixture(t, s)
 	var calls atomic.Int32
 	var buildStarted sync.Once
 	started := make(chan struct{})
@@ -219,7 +219,7 @@ func TestRuntimeInstallFailsHonestlyAndRejectsCallerSource(t *testing.T) {
 	s, mux := journeyFixture(t)
 	s.registerSetupTools(mux)
 	journeyRequest(t, mux, "POST", "/v1/setup/runtime/install", map[string]any{}, 409)
-	s.runtimeDir = runtimeSourceFixture(t)
+	runtimeInstallerFixture(t, s)
 	journeyRequest(t, mux, "POST", "/v1/setup/runtime/install", map[string]string{"sourceDir": t.TempDir()}, 400)
 	journeyRequest(t, mux, "POST", "/v1/setup/runtime/install", map[string]string{"buildTimeout": "24h"}, 400)
 	if readRuntimeJob(t, mux).Status != "idle" {
@@ -286,7 +286,7 @@ func TestCommandExecutionBudgetIsTrustedBuildOnlyAndRespectsEarlierDeadline(t *t
 func TestRuntimeInstallPersistsBoundedFailureHeadAndFinalTail(t *testing.T) {
 	s, mux := journeyFixture(t)
 	s.registerSetupTools(mux)
-	s.runtimeDir = runtimeSourceFixture(t)
+	runtimeInstallerFixture(t, s)
 	head := "docker: initial base-image download\n"
 	tail := "\nERROR: failed to solve: registry connection closed\nexit status 1"
 	s.runner = func(context.Context, string, []string, string) (string, error) {

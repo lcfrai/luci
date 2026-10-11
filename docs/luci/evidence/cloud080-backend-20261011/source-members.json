@@ -1,0 +1,57 @@
+[
+  {
+    "path": "source/fixed/control-plane/internal/backend/dockerbe/preview_adapter_contract_test.go",
+    "bytes": 3225,
+    "sha256": "d5223e96ca4d011fbedfa618cfa1b961cd2b803a7fead87b2c0c902236ea4d43"
+  },
+  {
+    "path": "source/fixed/control-plane/internal/backend/dockerbe/preview_context.go",
+    "bytes": 12089,
+    "sha256": "a361a782d87106bb5a85d0ebc6a2876e85b1a4328ff384aee489be601a42d97a"
+  },
+  {
+    "path": "source/fixed/control-plane/internal/backend/dockerbe/preview_context_regression_test.go",
+    "bytes": 5171,
+    "sha256": "db899f7b61e995eee10f654315ff97f1f6f4cafcbcc18144c112636a6ef3a79f"
+  },
+  {
+    "path": "source/fixed/control-plane/internal/backend/dockerbe/preview_terminal_regression_test.go",
+    "bytes": 3094,
+    "sha256": "16c4a3483c6c91b7b21315187186b3f69ebff535ab5175b72935390140a7ffda"
+  },
+  {
+    "path": "source/fixed/control-plane/internal/backend/dockerbe/previews.go",
+    "bytes": 21125,
+    "sha256": "f631c59a54d0453a162d2e562256de42f22da6ab417b34be09eacbe190be4f86"
+  },
+  {
+    "path": "source/fixed/control-plane/internal/backend/dockerbe/previews_test.go",
+    "bytes": 12410,
+    "sha256": "5a3d5844ce3e749c09d0ceb8e7a5cc4cc06757e183c9d635cf437edf863bee05"
+  },
+  {
+    "path": "source/fixed/control-plane/internal/backend/previews.go",
+    "bytes": 2305,
+    "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc"
+  },
+  {
+    "path": "source/original/control-plane/internal/backend/dockerbe/preview_context.go",
+    "bytes": 7982,
+    "sha256": "2b7f19dd4337e9ae85fbc97fd0db6b215ef5990ed5307c8d69a95728b6fc089c"
+  },
+  {
+    "path": "source/original/control-plane/internal/backend/dockerbe/previews.go",
+    "bytes": 19973,
+    "sha256": "9eb22e4ffbfef9da603cf81284194dfcc03761f13ee2f05656b3d102740da6b0"
+  },
+  {
+    "path": "source/original/control-plane/internal/backend/dockerbe/previews_test.go",
+    "bytes": 12322,
+    "sha256": "d541982c6f54b0e11ebde9241e0176bc2f59afd2c8a1756685543599352aa872"
+  },
+  {
+    "path": "source/original/control-plane/internal/backend/previews.go",
+    "bytes": 2305,
+    "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc"
+  }
+]

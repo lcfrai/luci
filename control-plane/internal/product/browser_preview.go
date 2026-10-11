@@ -10,6 +10,9 @@ func (s *Server) browserRelease(row storedRelease) Release {
 	// A retained handle permits offering cleanup; the explicit stop handler still
 	// verifies current labels and ownership before touching a container.
 	out.CanStop = row.Target == "local" && row.Status != "stopped" && previewContainerID.MatchString(row.ContainerID)
+	if row.Runtime != nil {
+		out.CanStop = row.Target == "local" && row.Runtime.Retained() && row.Runtime.Phase != "finished"
+	}
 	if s.browserRegistry == nil || row.Target != "local" || row.Status != "ready" {
 		return out
 	}

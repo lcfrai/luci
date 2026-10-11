@@ -1,0 +1,140 @@
+{
+  "head": "2416135f89049efc21bcc647102c892b3152c692",
+  "repositoryEdited": false,
+  "testsRun": false,
+  "files": [
+    {
+      "path": "control-plane/cmd/api/main.go",
+      "beforeSha256": "938181421cd34020ac593eabc810b713113eab268db23c53d4f3286defd184b3",
+      "stagedSha256": "2321ddd0f27663de756094d436e4ec1c1c90f46c332be5a1fd5b40f76e7dadef",
+      "bytes": 33760
+    },
+    {
+      "path": "control-plane/internal/platform/browser_bridge.go",
+      "beforeSha256": "e4a7ea8463fc6fef3f2b613318de5b2e59d8ecad09819d0f10c461154ef31f3d",
+      "stagedSha256": "a8fa18272f93e42b35496d417c77fcc1361dbdd3ad765d8211181dd3b201ddaa",
+      "bytes": 9860
+    },
+    {
+      "path": "control-plane/internal/platform/browser_bridge_test.go",
+      "beforeSha256": "e78a7ca73939c0314d38cde74f6c9ba324b53eb501393a478b100826ca04f76a",
+      "stagedSha256": "3ed43570fa32663aa580aada66fe06c6f13c8e2bdbcda046cdde82b5732437ca",
+      "bytes": 12640
+    },
+    {
+      "path": "control-plane/internal/platform/browser_preview.go",
+      "beforeSha256": "49d8b41b34e73397b96ba74d4aa1de859b3a84417ac244118f57fc5b5cb5837c",
+      "stagedSha256": "76e7fb6ff15fb58897536c9842a8fddfa78e16b42ac1a0ac16a8fecf5fe39c11",
+      "bytes": 3535
+    },
+    {
+      "path": "control-plane/internal/platform/database_restore.go",
+      "beforeSha256": "1a2feb45a8497bc0f293a6556d20d910a1687982782e317bb0733f01b6b389c4",
+      "stagedSha256": "67b8123d8f55091ec9c436052d8330e93ba857f9715e310f79b7db052ca12da5",
+      "bytes": 19181
+    },
+    {
+      "path": "control-plane/internal/platform/docker.go",
+      "beforeSha256": "86a71a0c17c116b6578ea5aca65faba867ec19b9c26bf121fa0bbaa0194c7ecc",
+      "stagedSha256": "d35c4db71f3b2e2d67289023158facea90c78e473e7bb0948a670e2d0dc78187",
+      "bytes": 19393
+    },
+    {
+      "path": "control-plane/internal/platform/platform.go",
+      "beforeSha256": "42784a9a524cf5c1f14713b95eefa2cda73253de736fad4cbd06d9624db278a1",
+      "stagedSha256": "5a4545fcf7b102326d00cdf7bf073de6ea4677bce135ee7cd33df2c490b42861",
+      "bytes": 15102
+    },
+    {
+      "path": "control-plane/internal/platform/platform_test.go",
+      "beforeSha256": "cf22e6bff7af91eefd3f693828fe4a7d850eb9c4a739bc0c2a52be6e4d2b1dbf",
+      "stagedSha256": "9b6176234d59344a04c8cd0c0738d3c3a59e246581d89c2c67c01c1e043de5b4",
+      "bytes": 31143
+    },
+    {
+      "path": "control-plane/internal/platform/preview_runtime.go",
+      "beforeSha256": null,
+      "stagedSha256": "dea2b18105843bc7738b6f993c8f230b794ab14527c0db0c072124a3aa6745e5",
+      "bytes": 10343
+    },
+    {
+      "path": "control-plane/internal/platform/preview_runtime_test.go",
+      "beforeSha256": null,
+      "stagedSha256": "a6b2eab24d9eedce73c61dd454ab8f1f9d7181bc4af2d9892d2b381b5919863d",
+      "bytes": 3157
+    },
+    {
+      "path": "control-plane/internal/platform/project_runs.go",
+      "beforeSha256": "ee25dd465fb92088e97798dce6be3892225d0e0ce40328efe134c473e17504a1",
+      "stagedSha256": "c576e172fbe79c75a9e1de1a85fbc28ff8fbce1518de7d6d497337ecead106b6",
+      "bytes": 4750
+    },
+    {
+      "path": "control-plane/internal/platform/prototype_releases.go",
+      "beforeSha256": "f6255e44d0f215fd1ff1d147ce81da9ef2658441d1a89f46115d9be008411b29",
+      "stagedSha256": "63db5fad935283c6d0501d11eb58999d4c0e62a8b3bc2aa0e1e4d0cc3121bea6",
+      "bytes": 3061
+    },
+    {
+      "path": "control-plane/internal/previewruntime/runtime.go",
+      "beforeSha256": null,
+      "stagedSha256": "8e6aec2e45feb61b2d55e61cb5aa8914746ccef5dafa87e31898a4aee86ef7df",
+      "bytes": 3486
+    },
+    {
+      "path": "control-plane/internal/product/browser_preview.go",
+      "beforeSha256": "56b6f3ff509a7b4a5ae2eb0a39e6009f4ec73e2e50678697360a127d4a3f8790",
+      "stagedSha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f",
+      "bytes": 1380
+    },
+    {
+      "path": "control-plane/internal/product/preview_proxy.go",
+      "beforeSha256": "46f4fd7819cac3ccea7525abe6b10e46aed246e29cfba79a18c00df35532d1b9",
+      "stagedSha256": "68fb052cd8dec65df9278a6b36195136e267613f9a4acaa054a72099e916f73d",
+      "bytes": 8127
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime.go",
+      "beforeSha256": null,
+      "stagedSha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d",
+      "bytes": 3708
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime_fixture_test.go",
+      "beforeSha256": null,
+      "stagedSha256": "34c1392b50ddb99c13c2a2958a275f6c5bfc57c111ddc00030139fcc08229dcf",
+      "bytes": 6326
+    },
+    {
+      "path": "control-plane/internal/product/preview_runtime_test.go",
+      "beforeSha256": null,
+      "stagedSha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6",
+      "bytes": 4060
+    },
+    {
+      "path": "control-plane/internal/product/projects_test.go",
+      "beforeSha256": "d2a8d9e2c8c35aca2058e341c7c0be050c0492d4f2a9c54a23b28cecea38902d",
+      "stagedSha256": "08a3dfb285e5c06dabb5bfee683825668a9015d87eec334d48be8f6c7105f82d",
+      "bytes": 14257
+    },
+    {
+      "path": "control-plane/internal/product/releases.go",
+      "beforeSha256": "758d59b35cf55d0403ee3a10af6fc3b3fdff2a296b036eb8210e56bd5929f0ef",
+      "stagedSha256": "fcd242e0005c33d1b16b07ffeae1c5e9e97b32de8fd018e30f0029f92c984f09",
+      "bytes": 21311
+    },
+    {
+      "path": "control-plane/internal/product/releases_observation.go",
+      "beforeSha256": "20e8d7e43e1e81116fe48d3c0425b440de685ae81a943224f6f5867ab142e1da",
+      "stagedSha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd",
+      "bytes": 3602
+    },
+    {
+      "path": "control-plane/internal/product/server.go",
+      "beforeSha256": "9ee0931c6bf7c0f516b4598830275bb0f76e1f929f3cddc5db834f3c54946e23",
+      "stagedSha256": "a62f2f5832ff0e3910039c8b749b7ab0521ec340b69c316be6e49c91ad9584ec",
+      "bytes": 22184
+    }
+  ],
+  "patchSha256": "048f4b144ff75fc807ec3a096817adefe2b9326fdcdfcf3cd4a485af0196abfb"
+}

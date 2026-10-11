@@ -23,6 +23,7 @@ import (
 
 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
@@ -340,11 +341,17 @@ func (s *Service) deploy(w http.ResponseWriter, r *http.Request) {
 		problem(w, 400, "invalid_deployment", "Choose the exact commit, application port and an absolute health path.")
 		return
 	}
-	if s.opts.ValidateDeploymentSource == nil {
-		problem(w, 503, "validation_unavailable", "Source approval is not available.")
+	runtime := s.previewRuntime()
+	if runtime.CaptureActor == nil || runtime.Start == nil || runtime.Stop == nil || runtime.Observe == nil || s.opts.DeploymentSourceDigest == nil || s.opts.RecordDeploymentProvenance == nil || s.opts.ValidateDeploymentSource == nil {
+		problem(w, 503, "preview_runtime_unavailable", "Shared preview admission and source validation are required. No build started.")
 		return
 	}
-	if e := s.opts.ValidateDeploymentSource(r.Context(), p.ID, in.Commit); e != nil {
+	actor, err := runtime.CaptureActor(r.Context(), p.ID)
+	if err != nil {
+		problem(w, 403, "deployment_forbidden", "Current Edit and Deploy access are required.")
+		return
+	}
+	if err := s.opts.ValidateDeploymentSource(r.Context(), p.ID, in.Commit); err != nil {
 		problem(w, 409, "source_not_ready", "Commit the approved project context and all changes before deployment.")
 		return
 	}
@@ -352,30 +359,38 @@ func (s *Service) deploy(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "operation_running", "A platform operation is already running for this project.")
 		return
 	}
-	rev, env, e := s.environment(p.ID)
-	if e == nil {
-		e = s.deploymentBrowserData(r, p.ID, env)
+	rev, baselineEnvironment, err := s.environment(p.ID)
+	env := make(map[string]string, len(baselineEnvironment))
+	for k, v := range baselineEnvironment {
+		env[k] = v
 	}
-	if e != nil {
+	if err == nil {
+		err = s.deploymentBrowserData(r, p.ID, env)
+	}
+	if err != nil {
 		s.release(p.ID)
 		problem(w, 500, "configuration_unavailable", "Runtime configuration could not be read.")
 		return
 	}
-	d := Deployment{ID: randomID("deploy-"), ProjectID: p.ID, Provider: "docker", Commit: in.Commit, ConfigurationRevision: rev, Status: "building", Message: "Building the exact committed source on Docker.", Port: in.Port, HealthPath: in.HealthPath, CreatedAt: now(), UpdatedAt: now()}
-	d.Container = s.resource(p.ID, d.ID)
-	if s.opts.RecordDeploymentProvenance != nil {
-		if e = s.opts.RecordDeploymentProvenance(r.Context(), p.ID, d.ID, "native-docker", d.Commit); e != nil {
-			s.release(p.ID)
-			problem(w, 409, "release_provenance_unavailable", "The exact source and private review selections could not be saved. No deployment started.")
-			return
-		}
+	d := Deployment{ID: randomID("deploy-"), ProjectID: p.ID, Provider: "docker", Commit: in.Commit, ConfigurationRevision: rev, Status: "building", Message: "Preparing the exact committed source for shared admission.", Port: in.Port, HealthPath: in.HealthPath, CreatedAt: now(), UpdatedAt: now(), Revision: 1}
+	if err = s.opts.RecordDeploymentProvenance(r.Context(), p.ID, d.ID, "native-docker", d.Commit); err != nil {
+		s.release(p.ID)
+		problem(w, 409, "release_provenance_unavailable", "The exact source and private review selections could not be saved. No deployment started.")
+		return
 	}
-	if e = s.write(d.ID+"-redactions", env); e != nil {
+	digest, err := s.opts.DeploymentSourceDigest(r.Context(), p.ID, d.ID, d.Commit)
+	if err != nil {
+		s.release(p.ID)
+		problem(w, 409, "source_provenance_unavailable", "The saved source identity is unavailable.")
+		return
+	}
+	d.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: p.ID, ReleaseID: d.ID, Target: "native-docker", Commit: d.Commit, SourceDigest: digest}, Phase: "reserved"}
+	if err = s.write(d.ID+"-redactions", env); err != nil {
 		s.release(p.ID)
 		problem(w, 500, "state_unavailable", "Private deployment settings could not be saved.")
 		return
 	}
-	if e = s.saveDeployment(d); e != nil {
+	if err = s.saveDeployment(d); err != nil {
 		s.release(p.ID)
 		problem(w, 500, "state_unavailable", "Deployment could not be recorded.")
 		return
@@ -387,49 +402,61 @@ func (s *Service) deploy(w http.ResponseWriter, r *http.Request) {
 		defer s.release(p.ID)
 		ctx, cancel := context.WithTimeout(s.ctx, 15*time.Minute)
 		defer cancel()
-		err := s.buildAndRun(ctx, p, &d, env, limits)
-		d.UpdatedAt = now()
-		if err != nil {
-			d.Status = "failed"
-			d.URL = ""
-			d.Message = "Deployment failed. Check the Dockerfile, application health path and bounded application logs."
-		} else {
-			d.Status = "ready"
-			d.Message = "Persistent local Docker deployment is healthy. It restarts with this Docker engine."
+		request := previewruntime.Request{Identity: d.Runtime.Identity, Dockerfile: "Dockerfile", Port: d.Port, Environment: env, Actor: actor, MemoryMiB: limits.MemoryMiB, CPUMillis: limits.CPUMillis,
+			Labels: map[string]string{labelInstance: s.instance, labelProject: p.ID, labelResource: d.ID},
+			ValidateSource: func(verify context.Context) error {
+				if err := s.opts.ValidateDeploymentSource(verify, p.ID, d.Commit); err != nil {
+					return err
+				}
+				return nil
+			},
 		}
-		_ = s.saveDeployment(d)
+		err := s.buildAndRun(ctx, p, &d, request)
+		if err != nil {
+			next := d
+			next.Status, next.URL, next.Message = "failed", "", "The admitted deployment did not finish. Check its retained receipt and bounded logs."
+			if d.Runtime.ResourcesHeld {
+				next.Status = "unknown"
+				next.Message = "The deployment outcome is uncertain. Its reservation is retained; refresh or stop this exact deployment."
+			}
+			_ = s.storeAdmittedDeployment(d, next)
+		}
 	}(d)
 	respond(w, 202, d)
 }
-func (s *Service) buildAndRun(ctx context.Context, p project.Project, d *Deployment, env map[string]string, limits resourceLimits) error {
-	archive, e := s.archive(ctx, p, d.Commit)
-	if e != nil {
-		return e
+func (s *Service) buildAndRun(ctx context.Context, p project.Project, d *Deployment, request previewruntime.Request) error {
+	archive, err := s.archive(ctx, p, d.Commit)
+	if err != nil {
+		return err
 	}
-	tag := "luci-platform/" + s.instance + ":" + d.ID
-	args := []string{"build", "--network=default", "--tag", tag, "-"}
-	if _, e = s.opts.Runner(ctx, "docker", args, s.dir, archive); e != nil {
-		return e
+	request.SourceArchive = archive
+	request.Network, err = s.existingDeploymentNetwork(ctx, p.ID, request.Environment)
+	if err != nil {
+		return err
 	}
-	network, e := s.ensureNetwork(ctx, p.ID)
-	if e != nil {
-		return e
+	out, err := s.previewRuntime().Start(ctx, request, func(value previewruntime.Outcome) error {
+		return s.publishDeploymentOutcome(d, value, request.Environment)
+	})
+	if err != nil {
+		return err
 	}
-	file, e := s.envFile(env)
-	if e != nil {
-		return e
+	if err = s.publishDeploymentOutcome(d, out, request.Environment); err != nil {
+		return err
 	}
-	defer os.Remove(file)
-	args = []string{"run", "--detach", "--name", d.Container, "--restart", "unless-stopped", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--network", network, "--publish", fmt.Sprintf("127.0.0.1::%d", d.Port), "--env-file", file}
-	args = append(args, limits.args()...)
-	args = append(args, s.labels(p.ID, d.ID)...)
-	args = append(args, tag)
-	_, e = s.docker(ctx, args...)
-	_ = os.Remove(file)
-	if e != nil {
-		return e
+	if out.Phase != "running" || !out.ResourcesHeld {
+		return errors.New("the admitted deployment is not running")
 	}
-	return s.waitHealthy(ctx, d)
+	if err = s.waitAdmittedDeploymentHealthy(ctx, d); err != nil {
+		return err
+	}
+	next := *d
+	next.Status, next.Message, next.UpdatedAt = "ready", "The admitted Docker deployment returned a successful HTTP response.", now()
+	if err = s.storeAdmittedDeployment(*d, next); err != nil {
+		return err
+	}
+	next.Revision++
+	*d = next
+	return nil
 }
 func (s *Service) findDeployment(id, release string) (Deployment, error) {
 	s.mu.Lock()
@@ -467,24 +494,25 @@ func (s *Service) deploymentAction(w http.ResponseWriter, r *http.Request) {
 	defer s.release(p.ID)
 	ctx, cancel := context.WithTimeout(r.Context(), 75*time.Second)
 	defer cancel()
+	if d.Runtime != nil {
+		s.admittedDeploymentAction(w, r, ctx, d, action)
+		return
+	}
 	info, e := s.inspect(ctx, p.ID, d.ID, d.Container)
 	if e != nil {
 		problem(w, 409, "ownership_unverified", "The recorded container is missing or its ownership has changed.")
 		return
 	}
-	if action != "refresh" {
-		if action == "restart" {
-			if e = s.checkDeploymentDatabaseBinding(p.ID, d, info); e != nil {
-				problem(w, 409, "database_redeployment_required", "Redeploy this application to connect to the selected restored database. Restarting its retained container would use an earlier database binding.")
-				return
-			}
-			args := append([]string{"update"}, s.limits(r).args()...)
-			args = append(args, d.Container)
-			if _, e = s.docker(ctx, args...); e != nil {
-				problem(w, 502, "resource_limit_failed", "Docker could not apply the current workspace resource policy.")
-				return
-			}
+	if action == "restart" {
+		if err := s.checkDeploymentDatabaseBinding(p.ID, d, info); err != nil {
+			problem(w, 409, "database_redeployment_required", "Redeploy this application to connect to the selected restored database.")
+			return
 		}
+		problem(w, 409, "redeployment_required", "This historical deployment has no shared reservation. Create a new admitted deployment to restart it.")
+		return
+	}
+
+	if action != "refresh" {
 		if _, e = s.docker(ctx, action, d.Container); e != nil {
 			problem(w, 502, "operation_failed", "Docker could not complete the requested operation.")
 			return
@@ -521,7 +549,7 @@ func (s *Service) logs(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	if _, e = s.inspect(ctx, p.ID, d.ID, d.Container); e != nil {
+	if _, e = s.inspectDeploymentForLogs(ctx, d); e != nil {
 		problem(w, 409, "ownership_unverified", "Container ownership could not be verified.")
 		return
 	}

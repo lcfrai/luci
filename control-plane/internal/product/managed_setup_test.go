@@ -172,5 +172,7 @@ func TestInvitedMemberImmediatelyCreatesPrivateProjectWithoutBackingSetup(t *tes
 	config.ProjectsDir = ownerProject.Path
 	call(memberAuth.Token, "POST", "/v1/setup/config", config, 403)
 	call(memberAuth.Token, "POST", "/v1/setup/runtime/install", map[string]any{}, 403)
+	call(memberAuth.Token, "POST", "/v1/setup/runtime/install/cancel", map[string]any{"jobId": "runtime-owned"}, 403)
+	call(memberAuth.Token, "POST", "/v1/setup/runtime/install/reconcile", map[string]any{"jobId": "runtime-owned"}, 403)
 	call(memberAuth.Token, "POST", "/v1/setup/cloud/plan", map[string]any{}, 403)
 }

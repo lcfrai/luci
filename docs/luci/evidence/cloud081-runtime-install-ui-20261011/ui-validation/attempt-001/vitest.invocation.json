@@ -1,0 +1,21 @@
+{
+  "label": "vitest",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "src/components/setup/RuntimePreparation.test.tsx",
+    "src/components/setup/LocalTools.test.tsx",
+    "src/components/setup/RuntimeCancellation.test.tsx",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/vitest.json"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop",
+  "timeoutSeconds": 300,
+  "startedAt": "2026-10-11T11:12:38.879804+00:00",
+  "cleanupBoundSeconds": 20,
+  "maxLogBytesPerStream": 33554432,
+  "pid": 2710454,
+  "processGroup": 2710454
+}

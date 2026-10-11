@@ -44,6 +44,8 @@ func (g *executionAdmission) reservationObservation(ctx context.Context) executi
 		view.MemoryMiB += check.Resources.MemoryMiB
 		view.CPUMillis += check.Resources.CPUMillis
 	}
+	addPreviewReservationView(view, ledger.Previews)
+	addRuntimeImageReservationView(view, ledger.RuntimeImages)
 	return executionReservationObservation{Status: "ready", executionReservationView: view}
 }
 
@@ -98,4 +100,16 @@ func (g *executionAdmission) readReservationLedger(ctx context.Context) (executi
 	// The existing reader confines ordinary files, enforces the 2 MiB bound,
 	// validates every scope's ownership fields and decodes the entire ledger.
 	return g.readFenceLedger()
+}
+
+// Retained unknown preview builders and servers stay visible in the same host totals.
+func addPreviewReservationView(view *executionReservationView, rows []previewExecutionLease) {
+	for _, row := range rows {
+		if row.State == "finished" {
+			continue
+		}
+		view.Count++
+		view.MemoryMiB += row.Resources.MemoryMiB
+		view.CPUMillis += row.Resources.CPUMillis
+	}
 }

@@ -17,6 +17,7 @@ import (
 	"unicode"
 
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
 )
 
 type GitIdentity struct {
@@ -31,12 +32,14 @@ type SSHKey struct {
 }
 
 type RuntimeJob struct {
-	ID        string    `json:"id"`
-	Status    string    `json:"status"`
-	Image     string    `json:"image"`
-	Message   string    `json:"message"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID              string                  `json:"id"`
+	Status          string                  `json:"status"`
+	Image           string                  `json:"image"`
+	Message         string                  `json:"message"`
+	CreatedAt       time.Time               `json:"createdAt"`
+	UpdatedAt       time.Time               `json:"updatedAt"`
+	Execution       *runtimeinstall.Outcome `json:"execution,omitempty"`
+	CancelRequested bool                    `json:"cancelRequested,omitempty"`
 }
 
 // A first build downloads two base images, operating-system packages and the
@@ -119,9 +122,9 @@ func (s *Server) initSetupTools() error {
 	if err = json.Unmarshal(data, &s.runtimeJob); err != nil {
 		return err
 	}
-	if s.runtimeJob.Status == "installing" {
+	if runtimeInstallActive(s.runtimeJob.Status) {
 		s.runtimeJob.Status = "unknown"
-		s.runtimeJob.Message = "Luci restarted during installation. Run the readiness check, or install again."
+		s.runtimeJob.Message = "Luci restarted during installation. Check the retained operation before preparing again."
 	}
 	return nil
 }
@@ -133,6 +136,8 @@ func (s *Server) registerSetupTools(mux Registrar) {
 	mux.HandleFunc("POST /v1/setup/ssh/key", s.createSSHKey)
 	mux.HandleFunc("GET /v1/setup/runtime/install", s.getRuntimeInstall)
 	mux.HandleFunc("POST /v1/setup/runtime/install", s.installRuntime)
+	mux.HandleFunc("POST /v1/setup/runtime/install/cancel", s.cancelRuntimeInstall)
+	mux.HandleFunc("POST /v1/setup/runtime/install/reconcile", s.reconcileRuntimeInstall)
 }
 
 // Setup commands run in host-owned state, never in a repository where local
@@ -340,75 +345,4 @@ func (s *Server) runtimeSource() (string, error) {
 		}
 	}
 	return dir, nil
-}
-
-func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
-	var req struct{}
-	if !readJSON(w, r, &req) {
-		return
-	}
-	dir, err := s.runtimeSource()
-	if err != nil {
-		problem(w, 409, "runtime_source_missing", err.Error())
-		return
-	}
-	s.mu.RLock()
-	active := s.runtimeJob
-	s.mu.RUnlock()
-	if active.Status == "installing" {
-		// Losing a fresh observation must never cancel an existing build.
-		writeJSON(w, 202, active)
-		return
-	}
-	if err = s.runtimeStoragePreflight(); err != nil {
-		problem(w, 409, "runtime_"+runtimeStorageErrorCode(err), err.Error())
-		return
-	}
-	s.mu.Lock()
-	if s.runtimeJob.Status == "installing" {
-		job := s.runtimeJob
-		s.mu.Unlock()
-		writeJSON(w, 202, job)
-		return
-	}
-	now := time.Now().UTC()
-	job := RuntimeJob{ID: newID("runtime-"), Status: "installing", Image: s.sandboxImage, Message: "Building the bundled agent runtime. Initial downloads can take several minutes.", CreatedAt: now, UpdatedAt: now}
-	if err = atomicJSON(filepath.Join(s.stateDir, "runtime-install.json"), job); err != nil {
-		s.mu.Unlock()
-		problem(w, 500, "runtime_save_failed", err.Error())
-		return
-	}
-	s.runtimeJob = job
-	s.mu.Unlock()
-	go s.buildRuntime(dir, job)
-	writeJSON(w, 202, job)
-}
-
-func (s *Server) buildRuntime(dir string, job RuntimeJob) {
-	ctx, cancel := context.WithTimeout(context.Background(), runtimeBuildTimeout)
-	defer cancel()
-	ctx = context.WithValue(ctx, runtimeBuildBudgetKey{}, runtimeBuildBudget{})
-	err := s.runtimeStoragePreflight()
-	if err == nil {
-		_, err = s.runner(ctx, "docker", []string{"build", "--file", "images/sandbox/Dockerfile", "--tag", job.Image, "."}, dir)
-	}
-	if err == nil {
-		var imageID string
-		imageID, err = s.runner(ctx, "docker", []string{"image", "inspect", job.Image, "--format", "{{.Id}}"}, dir)
-		if err == nil && !strings.HasPrefix(strings.TrimSpace(imageID), "sha256:") {
-			err = errors.New("Docker returned no verified image ID after the build")
-		}
-	}
-	job.Status, job.Message = "ready", "The agent runtime image is installed. Run the readiness check to verify Docker and the image together."
-	if err != nil {
-		job.Status = "failed"
-		job.Message = runtimeBuildFailure(ctx, err)
-	}
-	job.UpdatedAt = time.Now().UTC()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if saveErr := atomicJSON(filepath.Join(s.stateDir, "runtime-install.json"), job); saveErr != nil {
-		job.Status, job.Message = "unknown", "The build finished but Luci could not save its result. Run the readiness check: "+saveErr.Error()
-	}
-	s.runtimeJob = job
 }

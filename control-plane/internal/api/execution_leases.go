@@ -44,12 +44,14 @@ type executionLease struct {
 	UpdatedAt       time.Time                    `json:"updatedAt"`
 }
 type executionLeaseLedger struct {
-	Version     int                         `json:"version"`
-	Leases      []executionLease            `json:"leases"`
-	Retirements []executionRetirement       `json:"retirements,omitempty"`
-	Fences      []executionFenceRecord      `json:"fences,omitempty"`
-	Checks      []checkExecutionLease       `json:"checks,omitempty"`
-	CheckFences []checkExecutionFenceRecord `json:"checkFences,omitempty"`
+	Version       int                          `json:"version"`
+	Leases        []executionLease             `json:"leases"`
+	Retirements   []executionRetirement        `json:"retirements,omitempty"`
+	Fences        []executionFenceRecord       `json:"fences,omitempty"`
+	Checks        []checkExecutionLease        `json:"checks,omitempty"`
+	RuntimeImages []runtimeImageExecutionLease `json:"runtimeImages,omitempty"`
+	Previews      []previewExecutionLease      `json:"previews,omitempty"`
+	CheckFences   []checkExecutionFenceRecord  `json:"checkFences,omitempty"`
 }
 type executionAdmission struct {
 	api            *API
@@ -212,6 +214,8 @@ func (g *executionAdmission) mutateLocked(ctx context.Context, fn func(*executio
 		view.MemoryMiB += check.Resources.MemoryMiB
 		view.CPUMillis += check.Resources.CPUMillis
 	}
+	addPreviewReservationView(view, ledger.Previews)
+	addRuntimeImageReservationView(view, ledger.RuntimeImages)
 	g.snapshot.Store(view)
 	return nil
 }
@@ -220,7 +224,7 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 	var ledger executionLeaseLedger
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&ledger) != nil || decoder.Decode(new(any)) != io.EOF || ledger.Version != 1 || len(ledger.Leases)+len(ledger.Checks) > 4096 || len(ledger.Retirements) > 4096 {
+	if decoder.Decode(&ledger) != nil || decoder.Decode(new(any)) != io.EOF || ledger.Version != 1 || len(ledger.Leases)+len(ledger.Checks)+len(ledger.Previews)+len(ledger.RuntimeImages) > 4096 || len(ledger.Retirements) > 4096 {
 		return ledger, errors.New("execution capacity state cannot be verified")
 	}
 	seen := map[string]bool{}
@@ -235,6 +239,20 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 		key := check.Scope + ":" + check.ID
 		if !validCheckExecutionLease(check) || seen[key] {
 			return ledger, errors.New("check capacity ownership cannot be verified")
+		}
+		seen[key] = true
+	}
+	for _, preview := range ledger.Previews {
+		key := preview.Scope + ":" + preview.ID
+		if !validPreviewExecutionLease(preview) || seen[key] {
+			return ledger, errors.New("preview capacity ownership cannot be verified")
+		}
+		seen[key] = true
+	}
+	for _, install := range ledger.RuntimeImages {
+		key := install.Scope + ":" + install.ID
+		if !validRuntimeImageExecutionLease(install) || seen[key] {
+			return ledger, errors.New("runtime image capacity ownership cannot be verified")
 		}
 		seen[key] = true
 	}
@@ -480,12 +498,18 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 		if err := addCheckCapacity(snap, ledger.Checks, "", "", &demand); err != nil {
 			return err
 		}
+		if err := addPreviewCapacity(snap, ledger.Previews, "", "", &demand); err != nil {
+			return err
+		}
+		if err := addRuntimeImageCapacity(ledger.RuntimeImages, "", "", &demand); err != nil {
+			return err
+		}
 		if capacity := evaluateExecutionCapacityWithEvidence(snap, policy, resources, demand, now); capacity.Code != "" {
 			waiting(capacity.Code, capacity.Message)
 			decision.Evidence = capacity.Evidence
 			return nil
 		}
-		if len(ledger.Leases)+len(ledger.Checks) >= 4096 {
+		if len(ledger.Leases)+len(ledger.Checks)+len(ledger.Previews)+len(ledger.RuntimeImages) >= 4096 {
 			return errors.New("execution capacity history needs reconciliation")
 		}
 		if replacement != nil {

@@ -1,0 +1,47 @@
+[
+  {
+    "path": "after.json",
+    "sha256": "cab98c40dca3a88acdd5a9972b248bcb6324ea457248446ffda8be6359019a62",
+    "bytes": 15810
+  },
+  {
+    "path": "before.json",
+    "sha256": "cab98c40dca3a88acdd5a9972b248bcb6324ea457248446ffda8be6359019a62",
+    "bytes": 15810
+  },
+  {
+    "path": "command.json",
+    "sha256": "8a8ba82fa1f9cd5dbfd8168e25d14ab4eb81883a4c49941ea3b7e814436c454a",
+    "bytes": 541
+  },
+  {
+    "path": "overlay.json",
+    "sha256": "8e4fe30265ff6224b6b4d8d7b6f3b61bafb60ef4e479687d76b9ebe15d9bbef5",
+    "bytes": 355
+  },
+  {
+    "path": "result.json",
+    "sha256": "1074bedc19bf8613e6f3951bc4480ae853bda3cd9a45138766766c174262738e",
+    "bytes": 133
+  },
+  {
+    "path": "runtime_authority.go",
+    "sha256": "60c014cd1ed42c54a2de84e387492be4a96b20e8223a8a5d706cfa28e0d54f38",
+    "bytes": 2593
+  },
+  {
+    "path": "runtime_authority_test.go",
+    "sha256": "c36fffc48372e7f242bb9bbcf398bee5b81da1b3e7e3848613c11808c158b31b",
+    "bytes": 7249
+  },
+  {
+    "path": "stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "stdout.jsonl",
+    "sha256": "dfd56af776625214f1b69532e03ade308e52643e60258f78379a92c0461b9706",
+    "bytes": 1959
+  }
+]

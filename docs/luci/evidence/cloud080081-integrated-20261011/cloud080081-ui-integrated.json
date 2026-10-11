@@ -1,0 +1,26 @@
+[
+  {
+    "path": "desktop/src/api/runtimeInstall.ts",
+    "sha256": "ee5c9fea79b4b2ff9ec9e37cb186836d844dd8efaa01fccead741585674bd358"
+  },
+  {
+    "path": "desktop/src/api/product.ts",
+    "sha256": "ece84046c0c48423f9f3c245e8789ce864960ba24a944f934cd28a9cfacd37e4"
+  },
+  {
+    "path": "desktop/src/components/setup/LocalTools.tsx",
+    "sha256": "98753132f8f7236ec1341a70bba6173edb596a654cc2651de7a7bd0f5194cc95"
+  },
+  {
+    "path": "desktop/src/components/setup/RuntimeCancellation.test.tsx",
+    "sha256": "463501448e6ec9bce4ec36b65b5556ca9abcd98aa11e1179446229e17ff36db4"
+  },
+  {
+    "path": "desktop/src/components/setup/RuntimePreparation.tsx",
+    "sha256": "6b5e7389b6e657debb9007cb4a162b7b08642f5f789a5c54c27b777588565b41"
+  },
+  {
+    "path": "docs/luci/API.md",
+    "sha256": "7494fea9b8149431bdc638a190bdebf9d61010af5411dae960ab4a2e93d99be1"
+  }
+]

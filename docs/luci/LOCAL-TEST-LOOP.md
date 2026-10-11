@@ -1046,3 +1046,37 @@ This source result does not turn the failed installed attempt into a pass.
 The [exact source/evidence and executable Windows module harness](evidence/local024-parent-death-20261011/HANDOFF.md) are published with the correction. Adopt its containing immutable revision only between test batches. No environment variable, state path or provider setup changes. Cargo adds a Windows-only direct `windows-sys 0.61.2` dependency already present in the lockfile; normal non-Windows launching is unchanged.
 
 Run the standalone controlled module harness first, then the actual native build and original driver DELETE/session case. Expected module selection is nine ordinary tests and one intentionally ignored subprocess entry point; record actual results. The kernel tests use only disposable processes and can run while the desktop is locked. Preserve the distinction between forced parent death, ordinary close, external `LUCI_API`, state-lock recovery and Docker/worker recovery. A private Job Object does not prove graceful state flushing or Docker reservation release. Full local acceptance remains open.
+
+
+### LOCAL-024 first real Windows result at 2416135f
+
+The local tester reports the exact standalone kernel harness passed nine tests,
+zero failures, with one intentionally ignored subprocess fixture. All three
+selected modules match the production hashes. The matching full native build
+and original DELETE/session, reopen and external-API preservation checks remain
+pending. Evidence is retained locally under
+`E:\Luci-local-acceptance\evidence\resume-20261011\2416135f` as
+`windows-kernel-tests.log` and `windows-kernel-result.json`; these are relayed
+results, not cloud-executed Windows tests. The separate 296 affected frontend
+cases and 17 helper cases pass without establishing browser latency. The earlier
+972 portable batch is closed with owned API/conhost and port 19740 absent and
+all four original Docker workloads preserved.
+
+
+### CLOUD-080 / CLOUD-081 integrated source checkpoint
+
+Adopt the immutable [runtime/preview checkpoint](TEST-CHECKPOINT-RUNTIME-PREVIEW.md)
+only between batches. It includes shared preview build/serving admission and a
+trusted bounded runtime installer with Cancel/Check outcome controls. Source
+race, compilation, authority and UI checks pass; actual Docker installation,
+preview workflow, Windows resources, provider quality and responsiveness remain
+open. Use a fresh private E: state/projects directory and unique nonexistent
+`LUCI_SANDBOX_IMAGE` via the portable route. The source launcher clears inherited
+image overrides; never reinterpret the older local image as verified current
+runtime. Do not lower the existing 40 GiB disk admission floor. Retain exact
+build/source/image identities and failures, and report new defects immediately
+under the existing two-way test protocol.
+
+### Final Linux Docker build contract correction in C080/081
+
+The final integrated source batch passes 304 race outcomes across 89 top-level tests with zero failures/skips and 879 selected inputs stable. The same pinned-SDK wire regression first reproduces both runtime/preview Linux build refusals. ImageBuildOptions.SecurityOpt is Windows-only; its removal preserves CPU/memory/swap/ulimits and the serving container security settings. Earlier 291 passes and the subsequent obsolete option-assertion failure remain separate. This is controlled HTTP/SDK evidence, not a real build or a Windows pass. Adopt the immutable runtime/preview checkpoint only after the ongoing 2416135f native batch closes.

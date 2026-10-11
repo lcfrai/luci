@@ -1,3 +1,4 @@
+import { runtimeInstallActive, runtimeInstallRetained } from "../../api/runtimeInstall";
 import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
 import { AgentConnections } from "./AgentConnections";
@@ -37,6 +38,16 @@ export function LocalTools({
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const working = useRef(false);
+  const generation = useRef(0);
+  const mutation = useRef(0);
+  useEffect(() => {
+    generation.current += 1;
+    working.current = false;
+    setLoaded(false);
+    setRuntime(null);
+    setBusy("");
+    return () => { generation.current += 1; };
+  }, [client]);
   useEffect(() => {
     if (!open || loaded) return;
     let cancelled = false;
@@ -58,28 +69,48 @@ export function LocalTools({
     };
   }, [client, open, loaded, loadAttempt]);
   useEffect(() => {
-    if (runtime?.status !== "installing") return;
+    if (!runtimeInstallActive(runtime)) return;
+    let alive = true;
+    let polling = false;
+    const controller = new AbortController();
     const timer = setInterval(() => {
-      void client
-        .runtime()
-        .then(setRuntime)
-        .catch((e) => setError(errorText(e)));
+      if (polling) return;
+      polling = true;
+      const observedMutation = mutation.current;
+      void client.runtime(controller.signal).then((next) => {
+        if (alive && observedMutation === mutation.current) setRuntime(next);
+      }).catch((cause) => {
+        if (alive && observedMutation === mutation.current) setError(errorText(cause));
+      }).finally(() => { polling = false; });
     }, 3000);
-    return () => clearInterval(timer);
-  }, [client, runtime?.status]);
+    return () => { alive = false; controller.abort(); clearInterval(timer); };
+  }, [client, runtime?.id, runtime?.status]);
+  const runtimeAction = (action: "install" | "cancel" | "reconcile") => {
+    if (!manageBacking || working.current || (action !== "install" && !runtime?.id)) return;
+    if (action === "install" && (runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime))) return;
+    const currentGeneration = generation.current;
+    const selectedMutation = ++mutation.current;
+    void run(action === "install" ? "Starting runtime installation" : action === "cancel" ? "Requesting cancellation" : "Checking interrupted installation", async () => {
+      const next = action === "install" ? await client.installRuntime() : action === "cancel" ? await client.cancelRuntime(runtime!.id) : await client.reconcileRuntime(runtime!.id);
+      if (generation.current === currentGeneration && mutation.current === selectedMutation) setRuntime(next);
+    });
+  };
   async function run(label: string, action: () => Promise<void>) {
     if (working.current) return;
     working.current = true;
+    const currentGeneration = generation.current;
     setBusy(label);
     setError("");
     setNotice("");
     try {
       await action();
     } catch (e) {
-      setError(errorText(e));
+      if (generation.current === currentGeneration) setError(errorText(e));
     } finally {
-      working.current = false;
-      setBusy("");
+      if (generation.current === currentGeneration) {
+        working.current = false;
+        setBusy("");
+      }
     }
   }
   return (
@@ -187,18 +218,24 @@ export function LocalTools({
                 <Button type="button"
                   variant="secondary"
                   disabled={
-                    !loaded || !!busy || !!runtimeBlockedReason || runtime?.status === "installing"
+                    !loaded || !!busy || !!runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime)
                   }
-                  onClick={() =>
-                    !runtimeBlockedReason && void run("Starting runtime installation", async () =>
-                      setRuntime(await client.installRuntime()),
-                    )
-                  }
+                  onClick={() => runtimeAction("install")}
                 >
-                  {runtime?.status === "installing"
-                    ? "Installing runtime…"
+                  {runtimeInstallActive(runtime)
+                    ? "Runtime preparation in progress…"
                     : "Install agent runtime"}
                 </Button>
+                {runtime?.id && runtimeInstallActive(runtime) && runtime.status !== "reconciling" && (
+                  <Button type="button" variant="secondary" disabled={!!busy || !!runtime.cancelRequested || runtime.status === "cancelling"} onClick={() => runtimeAction("cancel")}>
+                    {runtime.cancelRequested || runtime.status === "cancelling" ? "Cancellation requested" : "Cancel runtime preparation"}
+                  </Button>
+                )}
+                {runtime?.id && !runtimeInstallActive(runtime) && runtimeInstallRetained(runtime) && (
+                  <Button type="button" variant="secondary" disabled={!!busy} onClick={() => runtimeAction("reconcile")}>
+                    Check interrupted installation
+                  </Button>
+                )}
               </section>
             ) : (
               <p className="journey-muted">

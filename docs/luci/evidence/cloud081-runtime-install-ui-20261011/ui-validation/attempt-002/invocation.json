@@ -1,0 +1,40 @@
+{
+  "startedAt": "2026-10-11T11:14:10.680497+00:00",
+  "sourceHEAD": "2416135f89049efc21bcc647102c892b3152c692",
+  "scope": "Frozen full UI source/config/raw-import inputs from root plus exact C081 frontend overlay. Base Go/raw inputs are captured as frontend support, not compiled or claimed C081 backend validation. Existing node_modules shared by symlink; bounded dependency fingerprints recorded. No repository source edits.",
+  "frozenRoot": "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-002/frozen",
+  "nodeVersion": "v24.19.0",
+  "selectedVitestFiles": [
+    "src/components/setup/RuntimePreparation.test.tsx",
+    "src/components/setup/LocalTools.test.tsx",
+    "src/components/setup/RuntimeCancellation.test.tsx"
+  ],
+  "maxWorkers": 1,
+  "explicitEnvironment": {
+    "CI": "1",
+    "NO_COLOR": "1"
+  },
+  "overlay": {
+    "desktop/src/api/product.ts": {
+      "bytes": 29835,
+      "sha256": "ece84046c0c48423f9f3c245e8789ce864960ba24a944f934cd28a9cfacd37e4"
+    },
+    "desktop/src/api/runtimeInstall.ts": {
+      "bytes": 383,
+      "sha256": "ee5c9fea79b4b2ff9ec9e37cb186836d844dd8efaa01fccead741585674bd358"
+    },
+    "desktop/src/components/setup/LocalTools.tsx": {
+      "bytes": 9774,
+      "sha256": "98753132f8f7236ec1341a70bba6173edb596a654cc2651de7a7bd0f5194cc95"
+    },
+    "desktop/src/components/setup/RuntimeCancellation.test.tsx": {
+      "bytes": 9479,
+      "sha256": "463501448e6ec9bce4ec36b65b5556ca9abcd98aa11e1179446229e17ff36db4"
+    },
+    "desktop/src/components/setup/RuntimePreparation.tsx": {
+      "bytes": 14765,
+      "sha256": "6b5e7389b6e657debb9007cb4a162b7b08642f5f789a5c54c27b777588565b41"
+    }
+  },
+  "commands": []
+}

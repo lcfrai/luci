@@ -219,7 +219,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	defer productService.Close()
 	// Public browser origins are optional and independent from private Docker
 	// health URLs. The portable/native launch paths keep their prior defaults.
-	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, BrowserPreviewDomain: cfg.PreviewBaseDomain, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource, RecordDeploymentProvenance: productService.RecordProjectRunReleaseProvenance})
+	platformService, err = platform.New(platform.Options{PreviewRuntime: productService.PreviewRuntime, DeploymentSourceDigest: productService.PreviewSourceDigest, FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, BrowserPreviewDomain: cfg.PreviewBaseDomain, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource, RecordDeploymentProvenance: productService.RecordProjectRunReleaseProvenance})
 	if err != nil {
 		return fmt.Errorf("initialise application platform: %w", err)
 	}
@@ -285,6 +285,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	defer func() { stopSamples(); <-samplesDone }()
 	var executionAuthority management.ExecutionAuthorizer
 	var checkAuthority management.CheckAuthorizer
+	var deploymentAuthority management.DeploymentAuthorizer
+	var runtimeInstallerAuthority management.RuntimeInstallerAuthorizer
 	var executionControlAuthority management.ExecutionControlAuthorizer
 	var executionReady atomic.Bool
 	if cfg.Worker {
@@ -296,6 +298,14 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		checkAuthority, err = management.NewFileCheckAuthorizer(scope)
 		if err != nil {
 			return fmt.Errorf("initialize current check authority: %w", err)
+		}
+		deploymentAuthority, err = management.NewFileDeploymentAuthorizer(scope)
+		if err != nil {
+			return fmt.Errorf("initialize current deployment authority: %w", err)
+		}
+		runtimeInstallerAuthority, err = management.NewFileRuntimeInstallerAuthorizer(scope)
+		if err != nil {
+			return fmt.Errorf("initialize current runtime installer authority: %w", err)
 		}
 		executionControlAuthority, err = management.NewFileExecutionControlAuthorizer(scope)
 		if err != nil {
@@ -309,6 +319,18 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ResourceSnapshot:       sampler.Latest,
 		ExecutionReady:         executionReady.Load,
 		ManagedExecution:       cfg.Worker,
+		AuthorizeRuntimeInstaller: func(ctx context.Context, ref management.ExecutionActorRef) (management.ExecutionAuthority, error) {
+			if !executionReady.Load() || runtimeInstallerAuthority == nil {
+				return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+			}
+			return runtimeInstallerAuthority(ctx, ref)
+		},
+		AuthorizeDeployment: func(ctx context.Context, ref management.ExecutionActorRef, allocate bool) (management.ExecutionAuthority, error) {
+			if !executionReady.Load() || deploymentAuthority == nil {
+				return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+			}
+			return deploymentAuthority(ctx, ref, allocate)
+		},
 		AuthorizeChecks: func(ctx context.Context, ref management.ExecutionActorRef) (management.ExecutionAuthority, error) {
 			if !executionReady.Load() || checkAuthority == nil {
 				return management.ExecutionAuthority{}, management.ErrExecutionAuthority
@@ -399,6 +421,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		}
 		executionAuthority = control.AuthorizeExecution
 		checkAuthority = control.AuthorizeChecks
+		deploymentAuthority = control.AuthorizeDeployment
+		runtimeInstallerAuthority = control.AuthorizeRuntimeInstaller
 		executionControlAuthority = control.AuthorizeExecutionControl
 		executionReady.Store(true)
 		defer func() {

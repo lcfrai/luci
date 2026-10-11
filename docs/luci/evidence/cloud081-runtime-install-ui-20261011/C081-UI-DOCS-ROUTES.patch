@@ -1,0 +1,533 @@
+--- a/desktop/src/api/product.ts
++++ b/desktop/src/api/product.ts
+@@ -372,6 +372,8 @@
+   dockerfile: string;
+ }
+ export interface RuntimeJob {
++  execution?: { jobId: string; allocationId?: string; engineId?: string; instanceId?: string; sourceDigest?: string; imageId?: string; imageTag?: string; phase: string; resourcesHeld: boolean; cleanupConfirmed: boolean; reasonCode?: string; message: string };
++  cancelRequested?: boolean;
+   id: string;
+   status: string;
+   image: string;
+@@ -606,6 +608,8 @@
+     runtime: (signal?: AbortSignal) =>
+       request<RuntimeJob>("/v1/setup/runtime/install", undefined, "GET", 120_000, signal),
+     installRuntime: () => request<RuntimeJob>("/v1/setup/runtime/install", {}),
++    cancelRuntime: (jobId: string) => request<RuntimeJob>("/v1/setup/runtime/install/cancel", { jobId }),
++    reconcileRuntime: (jobId: string) => request<RuntimeJob>("/v1/setup/runtime/install/reconcile", { jobId }),
+     cloudJobs: () => request<{ jobs: CloudJob[] }>("/v1/setup/cloud/jobs"),
+     workspaceInstalls: () =>
+       request<{ jobs: WorkspaceInstall[] }>("/v1/setup/workspace/install"),
+--- /dev/null
++++ b/desktop/src/api/runtimeInstall.ts
+@@ -0,0 +1,9 @@
++import type { RuntimeJob } from "./product";
++
++export function runtimeInstallActive(job: RuntimeJob | null | undefined): boolean {
++  return !!job && ["installing", "cancelling", "reconciling"].includes(job.status);
++}
++
++export function runtimeInstallRetained(job: RuntimeJob | null | undefined): boolean {
++  return job?.execution?.resourcesHeld === true || job?.status === "unknown";
++}
+--- a/desktop/src/components/setup/LocalTools.tsx
++++ b/desktop/src/components/setup/LocalTools.tsx
+@@ -1,3 +1,4 @@
++import { runtimeInstallActive, runtimeInstallRetained } from "../../api/runtimeInstall";
+ import { Button } from "../fluid/components/button";
+ import { useEffect, useRef, useState } from "react";
+ import { AgentConnections } from "./AgentConnections";
+@@ -37,6 +38,16 @@
+     [error, setError] = useState(""),
+     [notice, setNotice] = useState("");
+   const working = useRef(false);
++  const generation = useRef(0);
++  const mutation = useRef(0);
++  useEffect(() => {
++    generation.current += 1;
++    working.current = false;
++    setLoaded(false);
++    setRuntime(null);
++    setBusy("");
++    return () => { generation.current += 1; };
++  }, [client]);
+   useEffect(() => {
+     if (!open || loaded) return;
+     let cancelled = false;
+@@ -58,28 +69,48 @@
+     };
+   }, [client, open, loaded, loadAttempt]);
+   useEffect(() => {
+-    if (runtime?.status !== "installing") return;
++    if (!runtimeInstallActive(runtime)) return;
++    let alive = true;
++    let polling = false;
++    const controller = new AbortController();
+     const timer = setInterval(() => {
+-      void client
+-        .runtime()
+-        .then(setRuntime)
+-        .catch((e) => setError(errorText(e)));
++      if (polling) return;
++      polling = true;
++      const observedMutation = mutation.current;
++      void client.runtime(controller.signal).then((next) => {
++        if (alive && observedMutation === mutation.current) setRuntime(next);
++      }).catch((cause) => {
++        if (alive && observedMutation === mutation.current) setError(errorText(cause));
++      }).finally(() => { polling = false; });
+     }, 3000);
+-    return () => clearInterval(timer);
+-  }, [client, runtime?.status]);
++    return () => { alive = false; controller.abort(); clearInterval(timer); };
++  }, [client, runtime?.id, runtime?.status]);
++  const runtimeAction = (action: "install" | "cancel" | "reconcile") => {
++    if (!manageBacking || working.current || (action !== "install" && !runtime?.id)) return;
++    if (action === "install" && (runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime))) return;
++    const currentGeneration = generation.current;
++    const selectedMutation = ++mutation.current;
++    void run(action === "install" ? "Starting runtime installation" : action === "cancel" ? "Requesting cancellation" : "Checking interrupted installation", async () => {
++      const next = action === "install" ? await client.installRuntime() : action === "cancel" ? await client.cancelRuntime(runtime!.id) : await client.reconcileRuntime(runtime!.id);
++      if (generation.current === currentGeneration && mutation.current === selectedMutation) setRuntime(next);
++    });
++  };
+   async function run(label: string, action: () => Promise<void>) {
+     if (working.current) return;
+     working.current = true;
++    const currentGeneration = generation.current;
+     setBusy(label);
+     setError("");
+     setNotice("");
+     try {
+       await action();
+     } catch (e) {
+-      setError(errorText(e));
++      if (generation.current === currentGeneration) setError(errorText(e));
+     } finally {
+-      working.current = false;
+-      setBusy("");
++      if (generation.current === currentGeneration) {
++        working.current = false;
++        setBusy("");
++      }
+     }
+   }
+   return (
+@@ -187,18 +218,24 @@
+                 <Button type="button"
+                   variant="secondary"
+                   disabled={
+-                    !loaded || !!busy || !!runtimeBlockedReason || runtime?.status === "installing"
++                    !loaded || !!busy || !!runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime)
+                   }
+-                  onClick={() =>
+-                    !runtimeBlockedReason && void run("Starting runtime installation", async () =>
+-                      setRuntime(await client.installRuntime()),
+-                    )
+-                  }
++                  onClick={() => runtimeAction("install")}
+                 >
+-                  {runtime?.status === "installing"
+-                    ? "Installing runtime…"
++                  {runtimeInstallActive(runtime)
++                    ? "Runtime preparation in progress…"
+                     : "Install agent runtime"}
+                 </Button>
++                {runtime?.id && runtimeInstallActive(runtime) && runtime.status !== "reconciling" && (
++                  <Button type="button" variant="secondary" disabled={!!busy || !!runtime.cancelRequested || runtime.status === "cancelling"} onClick={() => runtimeAction("cancel")}>
++                    {runtime.cancelRequested || runtime.status === "cancelling" ? "Cancellation requested" : "Cancel runtime preparation"}
++                  </Button>
++                )}
++                {runtime?.id && !runtimeInstallActive(runtime) && runtimeInstallRetained(runtime) && (
++                  <Button type="button" variant="secondary" disabled={!!busy} onClick={() => runtimeAction("reconcile")}>
++                    Check interrupted installation
++                  </Button>
++                )}
+               </section>
+             ) : (
+               <p className="journey-muted">
+--- a/desktop/src/components/setup/RuntimePreparation.tsx
++++ b/desktop/src/components/setup/RuntimePreparation.tsx
+@@ -1,3 +1,4 @@
++import { runtimeInstallActive, runtimeInstallRetained } from "../../api/runtimeInstall";
+ import { storagePreparationBlock } from "../../api/executionStorage";
+ import { Button } from "../fluid/components/button";
+ import { useEffect, useRef, useState } from "react";
+@@ -32,9 +33,17 @@
+   /** Initial checks and install acceptance only; the backend build continues independently. */
+   onPendingChange?(pending: boolean): void;
+ }) {
+-  const [status, setStatus] = useState<SetupStatus | null>(null);
+-  const [job, setJob] = useState<RuntimeJob | null>(null);
++  const [statusObservation, setStatusObservation] = useState<{ client: ProductClient; value: SetupStatus } | null>(null);
++  const [jobObservation, setJobObservation] = useState<{ client: ProductClient; value: RuntimeJob } | null>(null);
++  // A new backing must never inherit control targets or advice from the old one,
++  // even during the render before its first observation effect has completed.
++  const status = statusObservation?.client === client ? statusObservation.value : null;
++  const job = jobObservation?.client === client ? jobObservation.value : null;
++  const setStatus = (value: SetupStatus) => setStatusObservation({ client, value });
++  const setJob = (value: RuntimeJob) => setJobObservation({ client, value });
+   const [checking, setChecking] = useState(false);
++  const [controlBusy, setControlBusy] = useState(false);
++  const mutation = useRef(0);
+   const [error, setError] = useState("");
+   const [attempt, setAttempt] = useState(0);
+   const callback = useRef(onStatus);
+@@ -71,13 +80,15 @@
+     const controller = new AbortController();
+     readiness.current = controller;
+     generation.current += 1;
++    setControlBusy(false);
+     setChecking(true);
+     pendingCallback.current?.(true);
+     setError("");
+     const checkedStorageRevision = currentStorageRevision.current;
++    const observedMutation = mutation.current;
+     void Promise.all([client.check(controller.signal), client.runtime(controller.signal)])
+       .then(async ([next, runtime]) => {
+-        if (!alive) return;
++        if (!alive || observedMutation !== mutation.current) return;
+         setJob(runtime);
+         if (!publish(next, checkedStorageRevision)) return;
+         const docker =
+@@ -102,7 +113,7 @@
+         const pending = installations.current.get(client);
+         if (pending) {
+           const installed = await pending;
+-          if (!alive) return;
++          if (!alive || observedMutation !== mutation.current) return;
+           settled = installed;
+           setJob(installed);
+         }
+@@ -134,17 +145,18 @@
+     };
+   }, [client, automatic, manageBacking, attempt, refreshToken]);
+   useEffect(() => {
+-    if (job?.status !== "installing") return;
++    if (!runtimeInstallActive(job)) return;
+     let alive = true;
+     const controller = new AbortController();
+     let polling = false;
+     const timer = setInterval(() => {
+       if (polling) return;
+       polling = true;
++      const observedMutation = mutation.current;
+       void client
+         .runtime(controller.signal)
+         .then(async (next) => {
+-          if (!alive) return;
++          if (!alive || observedMutation !== mutation.current) return;
+           let current: SetupStatus | undefined;
+           const checkRevision = currentStorageRevision.current;
+           let readinessError = "";
+@@ -155,7 +167,7 @@
+               readinessError = errorText(cause);
+             }
+           }
+-          if (!alive) return;
++          if (!alive || observedMutation !== mutation.current) return;
+           // Changing installing to ready tears down this polling effect. Apply
+           // its actual readiness response before finishing that lifecycle.
+           if (current) {
+@@ -165,7 +177,7 @@
+           setError(readinessError);
+         })
+         .catch((cause) => {
+-          if (alive) setError(errorText(cause));
++          if (alive && observedMutation === mutation.current) setError(errorText(cause));
+         })
+         .finally(() => {
+           polling = false;
+@@ -176,7 +188,35 @@
+       controller.abort();
+       clearInterval(timer);
+     };
+-  }, [client, job?.status, automatic, manageBacking, attempt, refreshToken]);
++  }, [client, job?.id, job?.status, automatic, manageBacking, attempt, refreshToken]);
++  const control = (action: "cancel" | "reconcile") => {
++    if (!manageBacking || controlBusy || !job?.id) return;
++    const selectedJob = job.id;
++    const currentGeneration = generation.current;
++    const selectedMutation = ++mutation.current;
++    setControlBusy(true);
++    setError("");
++    const request = action === "cancel" ? client.cancelRuntime(selectedJob) : client.reconcileRuntime(selectedJob);
++    void request.then(async (next) => {
++      if (generation.current !== currentGeneration || mutation.current !== selectedMutation) return;
++      if (next.status === "ready") {
++        const checkRevision = currentStorageRevision.current;
++        try {
++          const current = await client.check(readiness.current?.signal);
++          if (generation.current !== currentGeneration || mutation.current !== selectedMutation) return;
++          publish(current, checkRevision);
++        } catch (cause) {
++          if (generation.current !== currentGeneration || mutation.current !== selectedMutation) return;
++          setError(errorText(cause));
++        }
++      }
++      setJob(next);
++    }).catch((cause) => {
++      if (generation.current === currentGeneration && mutation.current === selectedMutation) setError(errorText(cause));
++    }).finally(() => {
++      if (generation.current === currentGeneration && mutation.current === selectedMutation) setControlBusy(false);
++    });
++  };
+   const shownStatus = statusSnapshot ?? status;
+   const dockerReady =
+     shownStatus?.checks.find((check) => check.id === "docker")?.status === "ready";
+@@ -224,18 +264,19 @@
+           ))}
+       </ul>
+       {storageBlocked && <p className="preparation-action">{storageBlocked} Existing workers keep running; you can keep planning while new runtime preparation waits.</p>}
+-      {job?.status === "installing" && (
++      {runtimeInstallActive(job) && (
+         <p role="status">
+-          Installing runtime… {job.message} You can keep planning while this
++          {job?.status === "cancelling" ? "Cancelling runtime preparation…" : job?.status === "reconciling" ? "Checking interrupted installation…" : "Installing runtime…"} {job?.message} You can keep planning while this
+           runs.
+         </p>
+       )}
+-      {job && ["failed", "unknown"].includes(job.status) && (
++      {job && ["failed", "unknown", "blocked"].includes(job.status) && (
+         <p className="journey-error" role="alert">
+           {job.message ||
+             "Runtime preparation did not finish. Check dependencies and retry."}
+         </p>
+       )}
++      {job?.status === "cancelled" && <p role="status">{job.message}</p>}
+       {shownStatus && !dockerReady && (
+         <p className="journey-muted">
+           Use the tool setup above to install Docker where supported. Open
+@@ -251,18 +292,28 @@
+       <div className="setup-actions">
+         <Button type="button"
+           variant="secondary"
+-          disabled={checking}
++          disabled={checking || controlBusy}
+           onClick={() => setAttempt((value) => value + 1)}
+         >
+           Check again
+         </Button>
++        {manageBacking && job?.id && runtimeInstallActive(job) && job.status !== "reconciling" && (
++          <Button type="button" variant="secondary" disabled={controlBusy || !!job.cancelRequested || job.status === "cancelling"} onClick={() => control("cancel")}>
++            {job.cancelRequested || job.status === "cancelling" ? "Cancellation requested" : "Cancel runtime preparation"}
++          </Button>
++        )}
++        {manageBacking && job?.id && !runtimeInstallActive(job) && runtimeInstallRetained(job) && (
++          <Button type="button" variant="secondary" disabled={checking || controlBusy} onClick={() => control("reconcile")}>
++            Check interrupted installation
++          </Button>
++        )}
+         {manageBacking &&
+           dockerReady &&
+           !imageReady &&
+-          job?.status !== "installing" && (
++          !runtimeInstallActive(job) && !runtimeInstallRetained(job) && (
+             <Button type="button"
+               variant="secondary"
+-              disabled={checking || !!storageBlocked}
++              disabled={checking || controlBusy || !!storageBlocked}
+               onClick={() => {
+                 if (storageBlocked) return;
+                 const currentGeneration = generation.current;
+--- /dev/null
++++ b/desktop/src/components/setup/RuntimeCancellation.test.tsx
+@@ -0,0 +1,158 @@
++import { act, render, screen, waitFor } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { afterEach, expect, it, vi } from "vitest";
++import { type ProductClient, type RuntimeJob, type SetupStatus } from "../../api/product";
++import { RuntimePreparation } from "./RuntimePreparation";
++import { LocalTools } from "./LocalTools";
++
++afterEach(() => vi.restoreAllMocks());
++
++const status = { checks: [
++  { id: "docker", label: "Docker", status: "ready", message: "Docker available" },
++  { id: "sandbox-image", label: "Runtime", status: "missing", message: "Runtime missing" },
++] } as SetupStatus;
++
++function job(state: string, changes: Partial<RuntimeJob> = {}): RuntimeJob {
++  return { id: "runtime-a", status: state, image: "luci/sandbox:dev", message: `Observed ${state}`, createdAt: "2026-10-11T00:00:00Z", updatedAt: "2026-10-11T00:00:00Z", ...changes };
++}
++function retained() {
++  return { jobId: "runtime-a", allocationId: "allocation-a", imageId: "sha256:verified", phase: "unknown", resourcesHeld: false, cleanupConfirmed: true, message: "Image publication is unconfirmed" };
++}
++function deferred<T>() {
++  let resolve!: (value: T) => void;
++  const promise = new Promise<T>((done) => { resolve = done; });
++  return { promise, resolve };
++}
++function clientFor(initial: RuntimeJob) {
++  return {
++    check: vi.fn().mockResolvedValue(status),
++    runtime: vi.fn().mockResolvedValue(initial),
++    installRuntime: vi.fn(),
++    cancelRuntime: vi.fn(),
++    reconcileRuntime: vi.fn(),
++    gitIdentity: vi.fn().mockResolvedValue({ name: "Saved", email: "saved@example.invalid" }),
++    agents: vi.fn().mockResolvedValue({ providers: [] }),
++  } as unknown as ProductClient;
++}
++function controlledInterval() {
++  let tick = () => {};
++  const actualInterval = globalThis.setInterval;
++  vi.spyOn(globalThis, "setInterval").mockImplementation((callback, delay, ...args) => {
++    // Testing Library also uses intervals. Only replace the component's exact
++    // poll; retain a real, harmless handle so its normal cleanup stays valid.
++    if (delay === 3000) {
++      tick = callback as () => void;
++      return actualInterval(() => {}, 60_000);
++    }
++    return actualInterval(callback, delay, ...args);
++  });
++  return () => tick();
++}
++
++it("cancels the exact installation once and keeps polling until an unconfirmed publication is observed", async () => {
++  const tick = controlledInterval();
++  const client = clientFor(job("installing"));
++  const cancelled = job("cancelling", { cancelRequested: true });
++  vi.mocked(client.cancelRuntime).mockResolvedValue(cancelled);
++  render(<RuntimePreparation client={client} manageBacking onStatus={vi.fn()} />);
++  await userEvent.click(await screen.findByRole("button", { name: "Cancel runtime preparation" }));
++  expect(client.cancelRuntime).toHaveBeenCalledExactlyOnceWith("runtime-a");
++  expect((await screen.findByRole("button", { name: "Cancellation requested" })).hasAttribute("disabled")).toBe(true);
++  expect(screen.queryByRole("button", { name: "Prepare agent runtime" })).toBeNull();
++  vi.mocked(client.runtime).mockResolvedValue(job("unknown", { execution: retained() }));
++  await act(async () => { tick(); });
++  await screen.findByRole("button", { name: "Check interrupted installation" });
++  expect(screen.queryByRole("button", { name: "Prepare agent runtime" })).toBeNull();
++  expect(client.installRuntime).not.toHaveBeenCalled();
++});
++
++it("ignores a pre-cancellation poll that arrives after the cancellation response", async () => {
++  const tick = controlledInterval();
++  const stale = deferred<RuntimeJob>();
++  const client = clientFor(job("installing"));
++  vi.mocked(client.cancelRuntime).mockResolvedValue(job("cancelling", { cancelRequested: true }));
++  render(<RuntimePreparation client={client} manageBacking onStatus={vi.fn()} />);
++  await screen.findByRole("button", { name: "Cancel runtime preparation" });
++  vi.mocked(client.runtime).mockReturnValueOnce(stale.promise);
++  await act(async () => { tick(); });
++  await userEvent.click(screen.getByRole("button", { name: "Cancel runtime preparation" }));
++  await screen.findByRole("button", { name: "Cancellation requested" });
++  await act(async () => { stale.resolve(job("installing")); await stale.promise; });
++  expect(screen.getByRole("button", { name: "Cancellation requested" }).hasAttribute("disabled")).toBe(true);
++  expect(screen.queryByRole("button", { name: "Cancel runtime preparation" })).toBeNull();
++});
++
++it("requires explicit reconciliation of an uncharged unknown receipt and never automatically rebuilds it", async () => {
++  const client = clientFor(job("unknown", { execution: retained() }));
++  vi.mocked(client.reconcileRuntime).mockResolvedValue(job("failed", { message: "Publication was not confirmed", execution: { ...retained(), phase: "failed" } }));
++  render(<RuntimePreparation client={client} manageBacking automatic onStatus={vi.fn()} />);
++  await userEvent.click(await screen.findByRole("button", { name: "Check interrupted installation" }));
++  expect(client.reconcileRuntime).toHaveBeenCalledExactlyOnceWith("runtime-a");
++  await screen.findByRole("button", { name: "Retry runtime preparation" });
++  expect(client.installRuntime).not.toHaveBeenCalled();
++});
++
++it("does not let cancellation from the previous workspace replace the newly selected workspace", async () => {
++  const pending = deferred<RuntimeJob>();
++  const old = clientFor(job("installing"));
++  const current = clientFor(job("installing", { id: "runtime-b", message: "Current workspace build" }));
++  vi.mocked(old.cancelRuntime).mockReturnValue(pending.promise);
++  const view = render(<RuntimePreparation client={old} manageBacking onStatus={vi.fn()} />);
++  await userEvent.click(await screen.findByRole("button", { name: "Cancel runtime preparation" }));
++  view.rerender(<RuntimePreparation client={current} manageBacking onStatus={vi.fn()} />);
++  await screen.findByText(/Current workspace build/);
++  await act(async () => { pending.resolve(job("unknown", { execution: retained() })); await pending.promise; });
++  expect(screen.queryByRole("button", { name: "Check interrupted installation" })).toBeNull();
++  expect(screen.getByText(/Current workspace build/)).toBeTruthy();
++  view.unmount();
++  expect(old.cancelRuntime).toHaveBeenCalledTimes(1);
++  expect(current.cancelRuntime).not.toHaveBeenCalled();
++});
++
++it("hides backing mutations from a viewer while retaining the observed installer state", async () => {
++  const client = clientFor(job("installing"));
++  render(<RuntimePreparation client={client} manageBacking={false} automatic onStatus={vi.fn()} />);
++  await screen.findByText(/Observed installing/);
++  expect(screen.queryByRole("button", { name: "Cancel runtime preparation" })).toBeNull();
++  expect(client.installRuntime).not.toHaveBeenCalled();
++  expect(client.cancelRuntime).not.toHaveBeenCalled();
++});
++
++it("the local tools view blocks a second build while an uncharged publication receipt awaits reconciliation", async () => {
++  const client = clientFor(job("unknown", { execution: retained() }));
++  render(<LocalTools client={client} manageBacking />);
++  await userEvent.click(screen.getByText("Git identity, agent connection and runtime"));
++  await screen.findByRole("button", { name: "Check interrupted installation" });
++  const install = screen.getByRole("button", { name: "Install agent runtime" });
++  await waitFor(() => expect(install.hasAttribute("disabled")).toBe(true));
++  await userEvent.click(install);
++  expect(client.installRuntime).not.toHaveBeenCalled();
++});
++
++it("removes the old backing's control targets before the new backing finishes its first observation", async () => {
++  const old = clientFor(job("installing"));
++  const pending = deferred<RuntimeJob>();
++  const current = clientFor(job("installing", { id: "runtime-b" }));
++  vi.mocked(current.runtime).mockReturnValue(pending.promise);
++  const view = render(<RuntimePreparation client={old} manageBacking onStatus={vi.fn()} />);
++  await screen.findByRole("button", { name: "Cancel runtime preparation" });
++  view.rerender(<RuntimePreparation client={current} manageBacking onStatus={vi.fn()} />);
++  expect(screen.queryByRole("button", { name: "Cancel runtime preparation" })).toBeNull();
++  expect(current.cancelRuntime).not.toHaveBeenCalled();
++  await act(async () => { pending.resolve(job("installing", { id: "runtime-b" })); await pending.promise; });
++  await screen.findByRole("button", { name: "Cancel runtime preparation" });
++});
++
++it("refreshes actual image readiness after a direct ready reconciliation response", async () => {
++  const client = clientFor(job("unknown", { execution: retained() }));
++  const installed = { ...status, checks: status.checks.map((check) => check.id === "sandbox-image" ? { ...check, status: "ready", message: "Verified current image" } : check) } as SetupStatus;
++  vi.mocked(client.check).mockResolvedValueOnce(status).mockResolvedValue(installed);
++  vi.mocked(client.reconcileRuntime).mockResolvedValue(job("ready", { execution: { ...retained(), phase: "ready" } }));
++  const onStatus = vi.fn();
++  render(<RuntimePreparation client={client} manageBacking onStatus={onStatus} />);
++  await userEvent.click(await screen.findByRole("button", { name: "Check interrupted installation" }));
++  await screen.findByText("Verified current image");
++  expect(client.check).toHaveBeenCalledTimes(2);
++  expect(onStatus).toHaveBeenLastCalledWith(installed);
++  expect(screen.queryByRole("button", { name: "Prepare agent runtime" })).toBeNull();
++});
+--- a/control-plane/internal/management/policy.go
++++ b/control-plane/internal/management/policy.go
+@@ -42,7 +42,7 @@
+ 	}
+ 	mutating := r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS"
+ 	admin := u.Role == "admin" || u.Role == "super-admin"
+-	if mutating && (strings.HasPrefix(path, "/v1/setup/cloud/") || strings.HasPrefix(path, "/v1/setup/ssh/") || path == "/v1/setup/targets" || path == "/v1/setup/workspace/activate" || path == "/v1/setup/workspace/login" || path == "/v1/setup/workspace/bootstrap" || path == "/v1/setup/runtime/install") {
++	if mutating && (strings.HasPrefix(path, "/v1/setup/cloud/") || strings.HasPrefix(path, "/v1/setup/ssh/") || path == "/v1/setup/targets" || path == "/v1/setup/workspace/activate" || path == "/v1/setup/workspace/login" || path == "/v1/setup/workspace/bootstrap" || (path == "/v1/setup/runtime/install" || strings.HasPrefix(path, "/v1/setup/runtime/install/"))) {
+ 		if !admin {
+ 			fail(w, 403, "permission_denied", "Backing infrastructure is managed by an administrator.")
+ 			return
+--- a/control-plane/internal/product/managed_setup_test.go
++++ b/control-plane/internal/product/managed_setup_test.go
+@@ -172,5 +172,7 @@
+ 	config.ProjectsDir = ownerProject.Path
+ 	call(memberAuth.Token, "POST", "/v1/setup/config", config, 403)
+ 	call(memberAuth.Token, "POST", "/v1/setup/runtime/install", map[string]any{}, 403)
++	call(memberAuth.Token, "POST", "/v1/setup/runtime/install/cancel", map[string]any{"jobId": "runtime-owned"}, 403)
++	call(memberAuth.Token, "POST", "/v1/setup/runtime/install/reconcile", map[string]any{"jobId": "runtime-owned"}, 403)
+ 	call(memberAuth.Token, "POST", "/v1/setup/cloud/plan", map[string]any{}, 403)
+ }
+--- a/docs/luci/API.md
++++ b/docs/luci/API.md
+@@ -137,7 +137,15 @@
+ 
+ POST /v1/setup/ssh/key accepts `{}` and returns `{publicKey, privateKeyPath, fingerprint}`. The dedicated Ed25519 key is stored at `stateDir/ssh/id_luci`; only its public key, local private-key path and SHA256 fingerprint are returned. Repeating the request returns the same matching key pair. Existing key material is never overwritten. A missing/mismatched public key or unreadable private key returns 409 for explicit resolution.
+ 
+-POST /v1/setup/runtime/install accepts `{}` and returns HTTP 202 with `{id, status, image, message, createdAt, updatedAt}`. The build uses the runtime source shipped with Luci, configured by the application at startup; callers cannot supply an arbitrary source path or image. Docker builds the bundled sandbox image asynchronously with a ten-minute limit and then verifies that Docker can inspect the resulting image. Repeating POST while installation is running returns the same job. Status is `idle`, `installing`, `ready`, `failed` or `unknown`. Docker failures remain failures with their actual bounded diagnostic. GET on the same route returns only cached job state and never calls Docker. A restart during installation yields `unknown`, requiring a readiness check or explicit retry. A saved `ready` outcome records the prior successful install; `/v1/setup/check` verifies current availability.
++POST /v1/setup/runtime/install accepts `{}` and returns HTTP 202 with `{id,status,image,message,createdAt,updatedAt,execution?,cancelRequested?}`. The runtime source and image name come from the installed application; callers cannot supply paths, build options or resource limits. Preparation reserves shared CPU, memory and a conservative 32 GiB build allowance before any image pull or build, while retaining the independent 40 GiB host/guest storage prerequisite (32 GiB working allowance plus 8 GiB reserve). This allowance is not a measured peak or a disk quota. A cold install does not require the sandbox image to exist already; unrelated pending worker allocations still need their own image-demand estimate. The trusted first-build limit is thirty minutes. The owned classic Docker build receives explicit memory, swap and CPU limits; there is no unbudgeted CLI fallback.
++
++The build must confirm its terminal stream, exact owned-intermediate absence and immutable output before releasing its reservation. Publishing the configured image tag is a separate acknowledged operation under fresh administrator authority. An existing different image at that tag is refused. Luci serializes its own publication through shared execution admission; Docker supplies no compare-and-swap tag operation, so this does not establish atomic protection against an unrelated privileged Docker client racing the tag change. Unknown build or publication outcomes are never automatically replayed.
++
++Repeating POST while installation is active or its result is unknown returns the same job. GET returns only cached state and never invokes Docker or reconciles an operation. Status is `idle`, `installing`, `cancelling`, `reconciling`, `ready`, `failed`, `blocked`, `cancelled` or `unknown`. Optional `execution` records immutable job/allocation/engine/source/image identity, exact phase, `resourcesHeld` and `cleanupConfirmed`; a settled build can have an uncharged but still unknown publication receipt. A saved `ready` result describes that completed installation; `/v1/setup/check` separately verifies current availability.
++
++POST `/v1/setup/runtime/install/cancel` accepts `{jobId}` and requests cancellation of that exact current job. Repeating cancellation is idempotent; a stale job ID returns 409 and cannot cancel a successor. Accepted work survives an observing request disconnect or a view unmount. Explicit cancellation and server shutdown cancel its owned context; neither proves the Docker daemon has settled. Server close waits boundedly for result persistence, seals late publication and preserves uncertainty rather than permitting an automatic replacement.
++
++POST `/v1/setup/runtime/install/reconcile` accepts `{jobId}` and explicitly observes the retained operation without building or tagging. A confirmed finished build may recover a lost publication acknowledgement by observing its exact immutable image and configured tag. Absence alone cannot settle a possibly running build. New-protocol queued receipts may look up the exact job in the valid shared ledger even if the first allocation receipt was not saved. Legacy interrupted CLI records with no durable execution metadata cannot infer no work from a missing ledger row and receive an explicit unresolved-recovery response. Installation, cancellation and reconciliation require the current backing administrator; team-scoped runtime setup remains unavailable. A selected cloud workspace receives the same operation through its existing proxy, without a local fallback.
+ 
+ Configured Claude Code API and gateway connections are injected into the session without an additional login-method choice. A person using Claude's separate subscription may explicitly use its own `/login` flow inside the sandbox; that subscription is not an API gateway credential. Model access and charges belong to the chosen provider account. Credentials created by in-session sign-in remain inside that sandbox and are not copied into project files or transcripts; a replacement sandbox can require sign-in again. Shell sessions need no model account. Claude receives a fixed instruction to read the worktree's `LUCI.md` as untrusted project context; Luci does not replace the person's `CLAUDE.md` or interpolate their brief into a system prompt.
+ 

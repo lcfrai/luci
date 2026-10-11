@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
 )
 
 func bridgePlatformRequest(t *testing.T, s *Service, method, address string, headers map[string]string) *httptest.ResponseRecorder {
@@ -160,12 +161,28 @@ func TestCloudBrowserDataOriginReachesActualPrivateDeploymentRuntime(t *testing.
 	if err = s.deploymentBrowserData(r, "owned", values); err != nil {
 		t.Fatal(err)
 	}
-	deployment := Deployment{ID: "deploy-browser", ProjectID: "owned", Commit: strings.Repeat("a", 40), Container: "owned-browser-app", Port: 3000, HealthPath: "/"}
+	deployment := Deployment{ID: "deploy-browser", ProjectID: "owned", Provider: "docker", Commit: strings.Repeat("a", 40), ConfigurationRevision: 7, Port: 3000, HealthPath: "/", Revision: 1}
+	deployment.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: deployment.ProjectID, ReleaseID: deployment.ID, Target: "native-docker", Commit: deployment.Commit, SourceDigest: strings.Repeat("d", 64)}, Phase: "reserved"}
+	if err = s.saveDeployment(deployment); err != nil {
+		t.Fatal(err)
+	}
+	containerID := "preview-container-" + deployment.ID
+	network := s.resource(deployment.ProjectID, "net")
+	networkID := strings.Repeat("b", 64)
+	f.mu.Lock()
+	f.networks[network] = map[string]string{labelInstance: s.instance, labelProject: deployment.ProjectID, labelResource: "network"}
+	f.mu.Unlock()
 	var runtimeBytes []byte
-	var runtimeFile string
+	var runtimeFile, runtimeNetwork string
 	s.opts.Runner = func(ctx context.Context, exe string, args []string, dir string, input []byte) ([]byte, error) {
 		if exe == "git" {
 			return tarSource(t, map[string]string{"Dockerfile": "FROM scratch", "LUCI.md": "approved"}), nil
+		}
+		if len(args) >= 3 && args[0] == "network" && args[1] == "inspect" {
+			if args[2] != network {
+				t.Error("inspected another project's network")
+			}
+			return json.Marshal(map[string]any{"Id": networkID, "Driver": "bridge", "Labels": map[string]string{labelInstance: s.instance, labelProject: deployment.ProjectID, labelResource: "network"}})
 		}
 		if args[0] == "build" {
 			if bytes.Contains(input, []byte(secret.ServiceRole)) || bytes.Contains(input, []byte(origin)) {
@@ -175,6 +192,9 @@ func TestCloudBrowserDataOriginReachesActualPrivateDeploymentRuntime(t *testing.
 		}
 		if args[0] == "run" {
 			for index, arg := range args {
+				if arg == "--network" {
+					runtimeNetwork = args[index+1]
+				}
 				if arg == "--env-file" {
 					runtimeFile = args[index+1]
 					runtimeBytes, err = os.ReadFile(runtimeFile)
@@ -183,20 +203,26 @@ func TestCloudBrowserDataOriginReachesActualPrivateDeploymentRuntime(t *testing.
 					}
 				}
 			}
-			v := containerInfo{Image: "sha256:immutable"}
+			v := containerInfo{ID: containerID, Image: "sha256:immutable"}
 			v.State.Running = true
 			v.Config.Labels = map[string]string{labelInstance: s.instance, labelProject: "owned", labelResource: deployment.ID}
 			v.NetworkSettings.Ports = map[string][]struct{ HostIP, HostPort string }{"3000/tcp": {{"127.0.0.1", appURL.Port()}}}
 			f.mu.Lock()
-			f.containers[deployment.Container] = v
+			f.containers[containerID] = v
 			f.mu.Unlock()
 			return []byte("container"), nil
 		}
 		return f.run(ctx, exe, args, dir, input)
 	}
 	p, _ := s.opts.ResolveProject("owned")
-	if err = s.buildAndRun(context.Background(), p, &deployment, values, resourceLimits{512, 500}); err != nil {
+	request := previewruntime.Request{Identity: deployment.Runtime.Identity, Environment: values, Port: deployment.Port, Dockerfile: "Dockerfile", MemoryMiB: 512, CPUMillis: 500,
+		Labels: map[string]string{labelInstance: s.instance, labelProject: deployment.ProjectID, labelResource: deployment.ID},
+	}
+	if err = s.buildAndRun(context.Background(), p, &deployment, request); err != nil {
 		t.Fatal(err)
+	}
+	if runtimeNetwork != networkID {
+		t.Fatal("runtime did not join the existing owned data network")
 	}
 	for _, expected := range []string{"SUPABASE_PUBLIC_URL=" + origin + "\n", "SUPABASE_URL=http://supabase-api:8000\n", "SUPABASE_SERVICE_ROLE_KEY=" + secret.ServiceRole + "\n"} {
 		if !bytes.Contains(runtimeBytes, []byte(expected)) {

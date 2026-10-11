@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=4m",
+    "-json",
+    "-run",
+    "TestColdTypedExecutionDemandRetainsCapacityAndPendingWorkerRequirements",
+    "./control-plane/internal/api"
+  ],
+  "cwd": "/workspace/luci",
+  "baseHead": "2416135f89049efc21bcc647102c892b3152c692",
+  "workingTree": "integrated candidate, not yet committed",
+  "start": 1791717416.375409,
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOCACHE": "/tmp/luci-go-build-cache",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOTMPDIR": "/workspace/.t",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly"
+  }
+}

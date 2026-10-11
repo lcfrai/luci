@@ -1,0 +1,28 @@
+{
+  "label": "typecheck",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop/node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop",
+  "timeoutSeconds": 180,
+  "startedAt": "2026-10-11T11:12:50.598995+00:00",
+  "cleanupBoundSeconds": 20,
+  "maxLogBytesPerStream": 33554432,
+  "pid": 2710508,
+  "processGroup": 2710508,
+  "exitCode": 0,
+  "elapsedSeconds": 17.52437291102251,
+  "completedAt": "2026-10-11T11:13:08.123392+00:00",
+  "logs": {
+    "stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "underlyingExitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 14.253268437983934,
+  "inputsUnchanged": true,
+  "inputCount": 971,
+  "counts": {
+    "pass": {
+      "topLevel": 1,
+      "subtests": 0
+    }
+  },
+  "failedTests": [],
+  "packages": [
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Action": "pass",
+      "Elapsed": 0.187
+    }
+  ],
+  "logSha256": {
+    "stdout.jsonl": "90f530d77197e182d73909f21a396ee46cdbab7f77c42c4635de01cc1eda1cbf",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

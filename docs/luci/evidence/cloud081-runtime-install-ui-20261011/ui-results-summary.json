@@ -1,0 +1,78 @@
+{
+  "attempt-001": {
+    "passed": false,
+    "nodeVersion": "v24.19.0",
+    "maxWorkers": 1,
+    "vitest": {
+      "numTotalTests": 31,
+      "numPassedTests": 30,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "numTotalTestSuites": 3,
+      "numPassedTestSuites": 2,
+      "numFailedTestSuites": 1,
+      "success": false
+    },
+    "inputCount": 1265,
+    "sourceStable": true,
+    "dependenciesStable": true,
+    "selectedFilesMatch": true,
+    "vitestSourceStable": true,
+    "vitestDependenciesStable": true,
+    "commands": [
+      {
+        "label": "vitest",
+        "exitCode": 1,
+        "elapsedSeconds": 11.10974595497828,
+        "startedAt": "2026-10-11T11:12:38.879804+00:00",
+        "completedAt": "2026-10-11T11:12:49.989580+00:00"
+      },
+      {
+        "label": "typecheck",
+        "exitCode": 0,
+        "elapsedSeconds": 17.52437291102251,
+        "startedAt": "2026-10-11T11:12:50.598995+00:00",
+        "completedAt": "2026-10-11T11:13:08.123392+00:00"
+      }
+    ]
+  },
+  "attempt-002": {
+    "passed": true,
+    "nodeVersion": "v24.19.0",
+    "maxWorkers": 1,
+    "vitest": {
+      "numTotalTests": 31,
+      "numPassedTests": 31,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "numTotalTestSuites": 3,
+      "numPassedTestSuites": 3,
+      "numFailedTestSuites": 0,
+      "success": true
+    },
+    "inputCount": 1265,
+    "sourceStable": true,
+    "dependenciesStable": true,
+    "selectedFilesMatch": true,
+    "vitestSourceStable": true,
+    "vitestDependenciesStable": true,
+    "commands": [
+      {
+        "label": "vitest",
+        "exitCode": 0,
+        "elapsedSeconds": 9.587003373017069,
+        "startedAt": "2026-10-11T11:14:11.725614+00:00",
+        "completedAt": "2026-10-11T11:14:21.312664+00:00"
+      },
+      {
+        "label": "typecheck",
+        "exitCode": 0,
+        "elapsedSeconds": 21.15123474400025,
+        "startedAt": "2026-10-11T11:14:21.942861+00:00",
+        "completedAt": "2026-10-11T11:14:43.094125+00:00"
+      }
+    ]
+  }
+}

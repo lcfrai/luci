@@ -20,11 +20,12 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
+	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 type Release struct {
-	CanStop bool `json:"canStop"`
+	CanStop                   bool   `json:"canStop"`
 	ID                        string `json:"id"`
 	ProjectID                 string `json:"projectId"`
 	BriefRevision             int    `json:"briefRevision"`
@@ -40,8 +41,10 @@ type Release struct {
 
 type storedRelease struct {
 	Release
-	ContainerID string `json:"containerId"`
-	Image       string `json:"image"`
+	Revision    uint64                  `json:"revision,omitempty"`
+	Runtime     *previewruntime.Outcome `json:"runtime,omitempty"`
+	ContainerID string                  `json:"containerId"`
+	Image       string                  `json:"image"`
 }
 
 func (s *Server) registerReleases(mux Registrar) {
@@ -173,6 +176,16 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	runtime := s.PreviewRuntime()
+	if runtime.CaptureActor == nil || runtime.Start == nil || runtime.Observe == nil || runtime.Stop == nil {
+		journeyError(w, 503, "preview_runtime_unavailable", "Shared preview admission is unavailable. No build started.")
+		return
+	}
+	actor, err := runtime.CaptureActor(r.Context(), p.ID)
+	if err != nil {
+		journeyError(w, 403, "deployment_forbidden", err.Error())
+		return
+	}
 	if _, err := guardedProjectPath(p.Path, req.Dockerfile, false); err != nil {
 		journeyError(w, 400, "dockerfile_unavailable", err.Error())
 		return
@@ -223,6 +236,13 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "release_provenance_unavailable", err.Error())
 		return
 	}
+	digest, err := s.PreviewSourceDigest(ctx, p.ID, row.ID, commit)
+	if err != nil {
+		journeyError(w, 409, "source_provenance_unavailable", err.Error())
+		return
+	}
+	row.Revision = 1
+	row.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: p.ID, ReleaseID: row.ID, Target: row.Target, Commit: commit, SourceDigest: digest}, Phase: "reserved"}
 	s.mu.Lock()
 	if s.activeLocalReleases == nil {
 		s.activeLocalReleases = make(map[string]bool)
@@ -234,26 +254,23 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		delete(s.activeLocalReleases, row.ID)
 		s.mu.Unlock()
 	}()
-	row.Image = "luci/preview:" + row.ID
 	if err := s.storeRelease(row); err != nil {
 		journeyError(w, 500, "release_reservation_failed", err.Error())
 		return
 	}
 	failed := func(message string) {
-		message = redactPreviewConfiguration(message, configuration.Values)
-		row.Status = "failed"
-		row.Message = message
-		row.URL = ""
-		if row.ContainerID != "" {
-			cleanup, c := context.WithTimeout(context.Background(), 10*time.Second)
-			_, _ = s.runner(cleanup, "docker", []string{"rm", "--force", row.ContainerID}, "")
-			c()
+		next := row
+		next.Status, next.URL, next.Message = "failed", "", redactPreviewConfiguration(message, configuration.Values)
+		if row.Runtime.ResourcesHeld {
+			next.Status = "unknown"
 		}
-		if err := s.storeRelease(row); err != nil {
-			journeyError(w, 500, "release_record_failed", message+"; also could not save the release: "+err.Error())
+		if err := s.storeAdmittedRelease(row, next); err != nil {
+			journeyError(w, 409, "release_record_changed", "The preview result could not replace its retained receipt.")
 			return
 		}
-		journeyJSON(w, 422, row.Release)
+		next.Revision++
+		row = next
+		journeyJSON(w, 422, s.browserRelease(row))
 	}
 	contextDir, err := os.MkdirTemp("", "luci-preview-*")
 	if err != nil {
@@ -265,59 +282,44 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		failed("Could not prepare a safe committed build context: " + err.Error())
 		return
 	}
-	dockerfile, err := guardedProjectPath(contextDir, req.Dockerfile, false)
+	_, err = guardedProjectPath(contextDir, req.Dockerfile, false)
 	if err != nil {
 		failed("The chosen Dockerfile is missing from the committed snapshot: " + err.Error())
 		return
 	}
-	if _, err := s.runner(ctx, "docker", []string{"build", "--tag", row.Image, "--label", "luci.preview=true", "--file", dockerfile, contextDir}, contextDir); err != nil {
-		failed("Image build failed: " + err.Error())
+	request := previewruntime.Request{Identity: row.Runtime.Identity, SourceDirectory: contextDir, Dockerfile: req.Dockerfile, Port: req.Port, Environment: configuration.Values, Actor: actor, Network: "bridge",
+		Labels: map[string]string{"luci.release-id": row.ID, "luci.project-id": p.ID},
+		ValidateSource: func(verify context.Context) error {
+			if err := s.ValidateDeploymentSource(verify, p.ID, commit); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+	out, startErr := runtime.Start(ctx, request, func(value previewruntime.Outcome) error {
+		return s.publishPreviewOutcome(&row, value, configuration.Values)
+	})
+	if startErr != nil {
+		message := row.Message
+		if message == "" {
+			message = "The admitted preview did not finish. Any uncertain allocation is retained; refresh or stop this exact preview."
+		}
+		failed(message)
 		return
 	}
-	args := []string{"run", "--detach", "--init", "--name", "luci-preview-" + row.ID, "--label", "luci.preview=true", "--label", "luci.release-id=" + row.ID, "--label", "luci.project-id=" + p.ID, "--cpus", "1", "--memory", "1g", "--pids-limit", "256", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--publish", fmt.Sprintf("127.0.0.1::%d", req.Port)}
-	envFile, err := s.writePreviewEnvironment(configuration.Values)
-	if err != nil {
-		failed("Could not prepare private application runtime configuration.")
+	if err := s.publishPreviewOutcome(&row, out, configuration.Values); err != nil {
+		journeyError(w, 409, "release_record_changed", err.Error())
 		return
 	}
-	if envFile != "" {
-		defer os.Remove(envFile)
-		args = append(args, "--env-file", envFile)
-	}
-	args = append(args, row.Image)
-	containerID, err := s.runner(ctx, "docker", args, "")
-	var cleanupErr error
-	if envFile != "" {
-		cleanupErr = os.Remove(envFile)
-	}
-	if err != nil {
-		failed("Container start failed: " + err.Error())
+	if out.Phase != "running" || !out.ResourcesHeld || out.ContainerID == "" {
+		failed("The preview runtime has no verified running application; its receipt is retained.")
 		return
 	}
-	row.ContainerID = strings.TrimSpace(containerID)
-	if !regexp.MustCompile(`^[a-f0-9]{12,64}$`).MatchString(row.ContainerID) {
-		row.ContainerID = ""
-		failed("Docker returned an invalid container ID; inspect Docker for this release's labelled container.")
+	if _, err := recordedPreviewOrigin(out.URL); err != nil {
+		failed("The admitted preview has no verified local origin.")
 		return
 	}
-	if cleanupErr != nil {
-		failed("Could not remove the private application environment file after Docker read it.")
-		return
-	}
-	if err := s.storeRelease(row); err != nil {
-		failed("Could not record the started container: " + err.Error())
-		return
-	}
-	mapping, err := s.runner(ctx, "docker", []string{"port", row.ContainerID, strconv.Itoa(req.Port) + "/tcp"}, "")
-	if err != nil {
-		failed("Could not discover the local preview port: " + err.Error())
-		return
-	}
-	url, err := localPreviewURL(mapping)
-	if err != nil {
-		failed(err.Error())
-		return
-	}
+	url := out.URL
 	healthCtx, healthCancel := context.WithTimeout(ctx, 20*time.Second)
 	err = waitPreviewHealthy(healthCtx, url)
 	healthCancel()
@@ -325,13 +327,15 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		failed("The container did not answer a successful HTTP health check: " + err.Error())
 		return
 	}
-	row.Status = "ready"
-	row.URL = url
-	row.Message = "Local preview returned a successful HTTP response. Bound to this computer only."
-	if err := s.storeRelease(row); err != nil {
-		failed("Health passed but its release record could not be saved: " + err.Error())
+	next := row
+	next.Status, next.URL = "ready", url
+	next.Message = "Local preview returned a successful HTTP response. Bound to this computer only."
+	if err := s.storeAdmittedRelease(row, next); err != nil {
+		journeyError(w, 409, "release_record_changed", "The ready result could not replace its retained receipt.")
 		return
 	}
+	next.Revision++
+	row = next
 	journeyJSON(w, 201, s.browserRelease(row))
 }
 
@@ -404,6 +408,10 @@ func (s *Server) stopLocalRelease(w http.ResponseWriter, r *http.Request) {
 	}
 	if !found {
 		s.stopCloudRelease(w, r)
+		return
+	}
+	if row.Runtime != nil {
+		s.stopAdmittedRelease(w, r, row)
 		return
 	}
 	if row.Status == "stopped" {

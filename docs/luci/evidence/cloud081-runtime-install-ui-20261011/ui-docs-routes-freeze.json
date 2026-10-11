@@ -1,0 +1,46 @@
+{
+  "scope": "Final frontend, API documentation and exact managed-route regression handoff; frontend attempt-002 ongoing. Root may already have integrated policy source independently.",
+  "files": {
+    "desktop/src/api/product.ts": {
+      "bytes": 29835,
+      "sha256": "ece84046c0c48423f9f3c245e8789ce864960ba24a944f934cd28a9cfacd37e4",
+      "alreadyMatchesRoot": false
+    },
+    "desktop/src/api/runtimeInstall.ts": {
+      "bytes": 383,
+      "sha256": "ee5c9fea79b4b2ff9ec9e37cb186836d844dd8efaa01fccead741585674bd358",
+      "alreadyMatchesRoot": false
+    },
+    "desktop/src/components/setup/LocalTools.tsx": {
+      "bytes": 9774,
+      "sha256": "98753132f8f7236ec1341a70bba6173edb596a654cc2651de7a7bd0f5194cc95",
+      "alreadyMatchesRoot": false
+    },
+    "desktop/src/components/setup/RuntimePreparation.tsx": {
+      "bytes": 14765,
+      "sha256": "6b5e7389b6e657debb9007cb4a162b7b08642f5f789a5c54c27b777588565b41",
+      "alreadyMatchesRoot": false
+    },
+    "desktop/src/components/setup/RuntimeCancellation.test.tsx": {
+      "bytes": 9479,
+      "sha256": "463501448e6ec9bce4ec36b65b5556ca9abcd98aa11e1179446229e17ff36db4",
+      "alreadyMatchesRoot": false
+    },
+    "control-plane/internal/management/policy.go": {
+      "bytes": 10527,
+      "sha256": "a91d676456cc4012e8d4162b24054d96117b3e0452f47c87e6d5bca2cd9bc979",
+      "alreadyMatchesRoot": true
+    },
+    "control-plane/internal/product/managed_setup_test.go": {
+      "bytes": 8787,
+      "sha256": "e803add3392307da29803dd7c99a2b1d9029c49124ff888c104e33c413da808d",
+      "alreadyMatchesRoot": true
+    },
+    "docs/luci/API.md": {
+      "bytes": 133163,
+      "sha256": "7494fea9b8149431bdc638a190bdebf9d61010af5411dae960ab4a2e93d99be1",
+      "alreadyMatchesRoot": false
+    }
+  },
+  "patchSha256": "b13a2a037022977a2ed7f96668eea35342ec2af4df8e7b2b96a17d037d7784db"
+}

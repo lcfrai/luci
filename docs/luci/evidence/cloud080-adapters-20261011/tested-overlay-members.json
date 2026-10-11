@@ -1,0 +1,192 @@
+[
+  {
+    "path": "control-plane/cmd/api/main.go",
+    "sha256": "7ad0508fb623c3e22e4d04c6f0abf4c24bfa7b12c829a07d96b2f03f9a56eaf9",
+    "bytes": 34376
+  },
+  {
+    "path": "control-plane/internal/api/api.go",
+    "sha256": "bdc3766344fc59a6198419ef9e2df49ba44d3feb9eb2b9c288827fbf3383b80f",
+    "bytes": 26974
+  },
+  {
+    "path": "control-plane/internal/api/execution_capacity.go",
+    "sha256": "2955d9183e27c34314fe8550ee2f6df733a80207d1744b907df8b404356be7aa",
+    "bytes": 8442
+  },
+  {
+    "path": "control-plane/internal/api/execution_capacity_typed_test.go",
+    "sha256": "7bee093aac95200da83ed60f93f51bba9fa0007b27262cb49e839bcd0defaf9b",
+    "bytes": 2089
+  },
+  {
+    "path": "control-plane/internal/api/execution_check_leases.go",
+    "sha256": "8dd2a8503d636aa8adc0deeb8207034135b4aca50fd796bea3c88a7b494db738",
+    "bytes": 15187
+  },
+  {
+    "path": "control-plane/internal/api/execution_leases.go",
+    "sha256": "fd3fd6ddb23de1b811ad18d0d70dc1aa3c369c110216f9f191e540d7abdeed38",
+    "bytes": 29356
+  },
+  {
+    "path": "control-plane/internal/api/execution_preview_leases.go",
+    "sha256": "59726ddef2e5f14e5f2c0580cbd7826f4a383c7739952ac8061c988a953d8c13",
+    "bytes": 14489
+  },
+  {
+    "path": "control-plane/internal/api/execution_preview_leases_test.go",
+    "sha256": "f3620155ffe8949e8379d5687fd5c1c1d2a4fa2875e67e3d89e87ad8cddcdfaa",
+    "bytes": 7461
+  },
+  {
+    "path": "control-plane/internal/api/execution_reservation_view.go",
+    "sha256": "60e6f7385dacce9d97a4236cf09db42517f017be34aa4f35eaee0c29915c6384",
+    "bytes": 3899
+  },
+  {
+    "path": "control-plane/internal/api/preview_execution.go",
+    "sha256": "941eeea687c12fa8ae383c117527cc17ab47aa5ceb27f093ee11777bbe7c6f5a",
+    "bytes": 22807
+  },
+  {
+    "path": "control-plane/internal/api/preview_execution_test.go",
+    "sha256": "e929297c610bcb451b9cb10e3b2f9c210837d31d4a7c16579be5b7e1134e8cd0",
+    "bytes": 9827
+  },
+  {
+    "path": "control-plane/internal/backend/dockerbe/preview_context.go",
+    "sha256": "2b7f19dd4337e9ae85fbc97fd0db6b215ef5990ed5307c8d69a95728b6fc089c",
+    "bytes": 7982
+  },
+  {
+    "path": "control-plane/internal/backend/dockerbe/previews.go",
+    "sha256": "9eb22e4ffbfef9da603cf81284194dfcc03761f13ee2f05656b3d102740da6b0",
+    "bytes": 19973
+  },
+  {
+    "path": "control-plane/internal/backend/dockerbe/previews_test.go",
+    "sha256": "d541982c6f54b0e11ebde9241e0176bc2f59afd2c8a1756685543599352aa872",
+    "bytes": 12322
+  },
+  {
+    "path": "control-plane/internal/backend/previews.go",
+    "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc",
+    "bytes": 2305
+  },
+  {
+    "path": "control-plane/internal/management/deployment_authority.go",
+    "sha256": "fb75d46c029a7e4d98b2d35860e14663184b21f67eca3a9ec97d634a03c9b59d",
+    "bytes": 3374
+  },
+  {
+    "path": "control-plane/internal/management/deployment_authority_test.go",
+    "sha256": "c61a82a4fbd549731d263345bb6d52558f8d2b7b02726610b5e560a009b53f38",
+    "bytes": 4807
+  },
+  {
+    "path": "control-plane/internal/platform/browser_bridge.go",
+    "sha256": "a8fa18272f93e42b35496d417c77fcc1361dbdd3ad765d8211181dd3b201ddaa",
+    "bytes": 9860
+  },
+  {
+    "path": "control-plane/internal/platform/browser_bridge_test.go",
+    "sha256": "3ed43570fa32663aa580aada66fe06c6f13c8e2bdbcda046cdde82b5732437ca",
+    "bytes": 12640
+  },
+  {
+    "path": "control-plane/internal/platform/browser_preview.go",
+    "sha256": "76e7fb6ff15fb58897536c9842a8fddfa78e16b42ac1a0ac16a8fecf5fe39c11",
+    "bytes": 3535
+  },
+  {
+    "path": "control-plane/internal/platform/database_restore.go",
+    "sha256": "67b8123d8f55091ec9c436052d8330e93ba857f9715e310f79b7db052ca12da5",
+    "bytes": 19181
+  },
+  {
+    "path": "control-plane/internal/platform/docker.go",
+    "sha256": "d35c4db71f3b2e2d67289023158facea90c78e473e7bb0948a670e2d0dc78187",
+    "bytes": 19393
+  },
+  {
+    "path": "control-plane/internal/platform/platform.go",
+    "sha256": "5a4545fcf7b102326d00cdf7bf073de6ea4677bce135ee7cd33df2c490b42861",
+    "bytes": 15102
+  },
+  {
+    "path": "control-plane/internal/platform/platform_test.go",
+    "sha256": "9b6176234d59344a04c8cd0c0738d3c3a59e246581d89c2c67c01c1e043de5b4",
+    "bytes": 31143
+  },
+  {
+    "path": "control-plane/internal/platform/preview_runtime.go",
+    "sha256": "dea2b18105843bc7738b6f993c8f230b794ab14527c0db0c072124a3aa6745e5",
+    "bytes": 10343
+  },
+  {
+    "path": "control-plane/internal/platform/preview_runtime_test.go",
+    "sha256": "a6b2eab24d9eedce73c61dd454ab8f1f9d7181bc4af2d9892d2b381b5919863d",
+    "bytes": 3157
+  },
+  {
+    "path": "control-plane/internal/platform/project_runs.go",
+    "sha256": "c576e172fbe79c75a9e1de1a85fbc28ff8fbce1518de7d6d497337ecead106b6",
+    "bytes": 4750
+  },
+  {
+    "path": "control-plane/internal/platform/prototype_releases.go",
+    "sha256": "63db5fad935283c6d0501d11eb58999d4c0e62a8b3bc2aa0e1e4d0cc3121bea6",
+    "bytes": 3061
+  },
+  {
+    "path": "control-plane/internal/previewruntime/runtime.go",
+    "sha256": "8e6aec2e45feb61b2d55e61cb5aa8914746ccef5dafa87e31898a4aee86ef7df",
+    "bytes": 3486
+  },
+  {
+    "path": "control-plane/internal/product/browser_preview.go",
+    "sha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f",
+    "bytes": 1380
+  },
+  {
+    "path": "control-plane/internal/product/preview_proxy.go",
+    "sha256": "68fb052cd8dec65df9278a6b36195136e267613f9a4acaa054a72099e916f73d",
+    "bytes": 8127
+  },
+  {
+    "path": "control-plane/internal/product/preview_runtime.go",
+    "sha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d",
+    "bytes": 3708
+  },
+  {
+    "path": "control-plane/internal/product/preview_runtime_fixture_test.go",
+    "sha256": "34c1392b50ddb99c13c2a2958a275f6c5bfc57c111ddc00030139fcc08229dcf",
+    "bytes": 6326
+  },
+  {
+    "path": "control-plane/internal/product/preview_runtime_test.go",
+    "sha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6",
+    "bytes": 4060
+  },
+  {
+    "path": "control-plane/internal/product/projects_test.go",
+    "sha256": "08a3dfb285e5c06dabb5bfee683825668a9015d87eec334d48be8f6c7105f82d",
+    "bytes": 14257
+  },
+  {
+    "path": "control-plane/internal/product/releases.go",
+    "sha256": "fcd242e0005c33d1b16b07ffeae1c5e9e97b32de8fd018e30f0029f92c984f09",
+    "bytes": 21311
+  },
+  {
+    "path": "control-plane/internal/product/releases_observation.go",
+    "sha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd",
+    "bytes": 3602
+  },
+  {
+    "path": "control-plane/internal/product/server.go",
+    "sha256": "a62f2f5832ff0e3910039c8b749b7ab0521ec340b69c316be6e49c91ad9584ec",
+    "bytes": 22184
+  }
+]

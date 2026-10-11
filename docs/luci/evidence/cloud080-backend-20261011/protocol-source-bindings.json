@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "scope": "Existing pinned Docker classic-builder source excerpts only; no new runtime or tests",
+  "module": {
+    "path": "github.com/docker/docker",
+    "version": "v28.3.3+incompatible"
+  },
+  "dependency_pins": [
+    {
+      "path": "control-plane/go.mod",
+      "bytes": 3111,
+      "sha256": "a5f4faf59655f01c0691b2a05632d474b0e4019111f4e7c3d8c1d89731a44c92",
+      "matching_lines": [
+        {
+          "line": 23,
+          "text": "\tgithub.com/docker/docker v28.3.3+incompatible // indirect"
+        }
+      ]
+    },
+    {
+      "path": "control-plane/go.sum",
+      "bytes": 19295,
+      "sha256": "c3bbf4f9f4b235b5864b171019079ed97efc3b71bae1cefd885f69f7322b086d",
+      "matching_lines": [
+        {
+          "line": 20,
+          "text": "github.com/docker/docker v28.3.3+incompatible h1:Dypm25kh4rmk49v1eiVbsAtpAsYURjYkaKubwuBdxEI="
+        },
+        {
+          "line": 21,
+          "text": "github.com/docker/docker v28.3.3+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk="
+        }
+      ]
+    }
+  ],
+  "accepted_invocation": {
+    "path": "terminal-triage/fixed-preview/invocation.json",
+    "bytes": 834,
+    "sha256": "18d2052c5848a80855e14fc2990dd7704d099f11c8cc0e16c9eb6a6f8fdc47b2"
+  },
+  "sources": [
+    {
+      "path": "builder/dockerfile/builder.go",
+      "bytes": 11917,
+      "sha256": "b30b2aa50cd55253689426e27f71754529b6f5df2fb2cfdd1d2d13d9c2fa216b",
+      "provenance": "Pinned dependency module cache used by the accepted fixed-preview invocation",
+      "role": "Classic builder emits image ID auxiliary output after each stage command loop, before committing the stage.",
+      "excerpt": {
+        "first_line": 281,
+        "last_line": 310,
+        "lines": [
+          {
+            "line": 281,
+            "text": "\t\trequest.state.updateRunConfig()"
+          },
+          {
+            "line": 282,
+            "text": "\t\t_, _ = fmt.Fprintf(b.Stdout, \" ---> %s\\n\", stringid.TruncateID(request.state.imageID))"
+          },
+          {
+            "line": 283,
+            "text": "\t\tfor _, cmd := range stage.Commands {"
+          },
+          {
+            "line": 284,
+            "text": "\t\t\tselect {"
+          },
+          {
+            "line": 285,
+            "text": "\t\t\tcase <-ctx.Done():"
+          },
+          {
+            "line": 286,
+            "text": "\t\t\t\tlog.G(ctx).Debug(\"Builder: build cancelled!\")"
+          },
+          {
+            "line": 287,
+            "text": "\t\t\t\t_, _ = fmt.Fprint(b.Stdout, \"Build cancelled\\n\")"
+          },
+          {
+            "line": 288,
+            "text": "\t\t\t\tbuildsFailed.WithValues(metricsBuildCanceled).Inc()"
+          },
+          {
+            "line": 289,
+            "text": "\t\t\t\treturn nil, errors.New(\"Build cancelled\")"
+          },
+          {
+            "line": 290,
+            "text": "\t\t\tdefault:"
+          },
+          {
+            "line": 291,
+            "text": "\t\t\t\t// Not cancelled yet, keep going..."
+          },
+          {
+            "line": 292,
+            "text": "\t\t\t}"
+          },
+          {
+            "line": 293,
+            "text": ""
+          },
+          {
+            "line": 294,
+            "text": "\t\t\tcurrentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, cmd)"
+          },
+          {
+            "line": 295,
+            "text": ""
+          },
+          {
+            "line": 296,
+            "text": "\t\t\tif err := dispatch(ctx, request, cmd); err != nil {"
+          },
+          {
+            "line": 297,
+            "text": "\t\t\t\treturn nil, err"
+          },
+          {
+            "line": 298,
+            "text": "\t\t\t}"
+          },
+          {
+            "line": 299,
+            "text": "\t\t\trequest.state.updateRunConfig()"
+          },
+          {
+            "line": 300,
+            "text": "\t\t\t_, _ = fmt.Fprintf(b.Stdout, \" ---> %s\\n\", stringid.TruncateID(request.state.imageID))"
+          },
+          {
+            "line": 301,
+            "text": "\t\t}"
+          },
+          {
+            "line": 302,
+            "text": "\t\tif err := emitImageID(b.Aux, request.state); err != nil {"
+          },
+          {
+            "line": 303,
+            "text": "\t\t\treturn nil, err"
+          },
+          {
+            "line": 304,
+            "text": "\t\t}"
+          },
+          {
+            "line": 305,
+            "text": "\t\tbuildArgs.MergeReferencedArgs(request.state.buildArgs)"
+          },
+          {
+            "line": 306,
+            "text": "\t\tif err := commitStage(request.state, stagesResults); err != nil {"
+          },
+          {
+            "line": 307,
+            "text": "\t\t\treturn nil, err"
+          },
+          {
+            "line": 308,
+            "text": "\t\t}"
+          },
+          {
+            "line": 309,
+            "text": "\t}"
+          },
+          {
+            "line": 310,
+            "text": "\tbuildArgs.WarnOnUnusedBuildArgs(b.Stdout)"
+          }
+        ]
+      }
+    },
+    {
+      "path": "api/server/backend/build/backend.go",
+      "bytes": 3854,
+      "sha256": "a25e494f3767688278b9366c640db9f1b1e654b91ede15b0dd8ea06b9ee48e70",
+      "provenance": "Pinned dependency module cache used by the accepted fixed-preview invocation",
+      "role": "Classic builder final success text uses the final image ID; image tagging follows and can still return an error.",
+      "excerpt": {
+        "first_line": 91,
+        "last_line": 97,
+        "lines": [
+          {
+            "line": 91,
+            "text": "\tif imageID != \"\" && !useBuildKit {"
+          },
+          {
+            "line": 92,
+            "text": "\t\tstdout := config.ProgressWriter.StdoutFormatter"
+          },
+          {
+            "line": 93,
+            "text": "\t\t_, _ = fmt.Fprintf(stdout, \"Successfully built %s\\n\", stringid.TruncateID(imageID))"
+          },
+          {
+            "line": 94,
+            "text": "\t\terr = tagImages(ctx, b.imageComponent, config.ProgressWriter.StdoutFormatter, image.ID(imageID), tags)"
+          },
+          {
+            "line": 95,
+            "text": "\t}"
+          },
+          {
+            "line": 96,
+            "text": "\treturn imageID, err"
+          },
+          {
+            "line": 97,
+            "text": "}"
+          }
+        ]
+      }
+    }
+  ],
+  "interpretation": "Per-stage auxiliary image IDs alone do not identify terminal success. The final classic-builder success line names the final image; the stream must still be consumed through EOF without later errors because tagging follows that line."
+}

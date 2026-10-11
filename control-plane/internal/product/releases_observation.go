@@ -18,6 +18,29 @@ func (s *Server) observeLocalReleases(parent context.Context, rows []storedRelea
 	result := make([]storedRelease, 0, len(rows))
 	for _, saved := range rows {
 		row := saved
+		if row.Runtime != nil {
+			s.mu.RLock()
+			active := s.activeLocalReleases[row.ID]
+			s.mu.RUnlock()
+			if !active && row.Status != "stopped" && (row.Runtime.ResourcesHeld || row.Status == "building" || row.Status == "unknown") {
+				runtime := s.PreviewRuntime()
+				row.Status, row.URL = "unknown", ""
+				row.Message = "This preview may have been interrupted. Its receipt is retained; refresh to verify it or stop this exact allocation."
+				if runtime.Observe != nil && ctx.Err() == nil {
+					out, err := runtime.Observe(ctx, saved.Runtime.Identity)
+					if err == nil && out.Identity == saved.Runtime.Identity && out.Phase == "running" && out.ResourcesHeld {
+						row.URL = out.URL
+						if _, originErr := recordedPreviewOrigin(row.URL); originErr == nil && checkPreviewHTTP(ctx, row.URL) == nil {
+							row.Status = "ready"
+						} else {
+							row.URL = ""
+						}
+					}
+				}
+			}
+			result = append(result, row)
+			continue
+		}
 		if row.Target == "local" {
 			switch row.Status {
 			case "building":

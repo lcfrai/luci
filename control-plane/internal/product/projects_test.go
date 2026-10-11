@@ -59,6 +59,7 @@ func journeyFixture(t *testing.T) (*Server, *http.ServeMux) {
 	}
 	s.SetRuntimeResourceSnapshot(setupStorageFixtureSnapshot)
 	installControlledProjectCheckRuntime(t, s, nil)
+	installControlledPreviewRuntime(t, s)
 	t.Cleanup(func() { s.Close() })
 	mux := http.NewServeMux()
 	s.registerProjects(fixtureReviewRegistrar{mux})

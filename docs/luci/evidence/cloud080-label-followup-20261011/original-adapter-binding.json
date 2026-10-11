@@ -1,0 +1,6 @@
+{
+  "originalAdapterCapsule": "cloud080-product-preview/capsule",
+  "originalAdapterSHA256SUMS": "225c9fdbb956e558647f70542e31178f311a7c5754991dbd37b8b9b8e7ace293",
+  "applicationOrder": "Apply original frozen adapters.patch first, then product-label-followup.patch. The original adapter capsule is unchanged.",
+  "beforeOverlayReconstruction": "Extract tested-overlay.tar.gz, then replace only control-plane/internal/product/releases.go with source/before/control-plane/internal/product/releases.go. The new fixture assertion is identical for before and fixed."
+}

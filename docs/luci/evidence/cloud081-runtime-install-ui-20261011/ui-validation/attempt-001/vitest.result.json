@@ -1,0 +1,34 @@
+{
+  "label": "vitest",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "src/components/setup/RuntimePreparation.test.tsx",
+    "src/components/setup/LocalTools.test.tsx",
+    "src/components/setup/RuntimeCancellation.test.tsx",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/vitest.json"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop",
+  "timeoutSeconds": 300,
+  "startedAt": "2026-10-11T11:12:38.879804+00:00",
+  "cleanupBoundSeconds": 20,
+  "maxLogBytesPerStream": 33554432,
+  "pid": 2710454,
+  "processGroup": 2710454,
+  "exitCode": 1,
+  "elapsedSeconds": 11.10974595497828,
+  "completedAt": "2026-10-11T11:12:49.989580+00:00",
+  "logs": {
+    "stdout": {
+      "bytes": 118,
+      "sha256": "74492d21e5939a851ebdf768a1417f6b23d4c4e337c0793fb596d4688ab4ac9b"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

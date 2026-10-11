@@ -1,0 +1,10 @@
+{
+	"Path": "gopkg.in/evanphx/json-patch.v4",
+	"Version": "v4.12.0",
+	"Info": "/tmp/luci-retained-tools/go-mod/cache/download/gopkg.in/evanphx/json-patch.v4/@v/v4.12.0.info",
+	"GoMod": "/tmp/luci-retained-tools/go-mod/cache/download/gopkg.in/evanphx/json-patch.v4/@v/v4.12.0.mod",
+	"Zip": "/tmp/luci-retained-tools/go-mod/cache/download/gopkg.in/evanphx/json-patch.v4/@v/v4.12.0.zip",
+	"Dir": "/tmp/luci-retained-tools/go-mod/gopkg.in/evanphx/json-patch.v4@v4.12.0",
+	"Sum": "h1:n6jtcsulIzXPJaxegRbvFNNrZDjbij7ny3gmSPG+6V4=",
+	"GoModSum": "h1:p8EYWUEYMpynmqDbY58zCKCFZw8pRWMG4EsWvDvM72M="
+}

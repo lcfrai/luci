@@ -1,0 +1,33 @@
+{
+  "argv": [
+    "go",
+    "test",
+    "-json",
+    "-mod=readonly",
+    "-overlay=/workspace/.luci-tools/cloud080-docker/terminal-triage/before-terminal/overlay.json",
+    "-count=1",
+    "-p=1",
+    "-timeout=120s",
+    "-run",
+    "^TestPreviewClassicBuildRequiresFinalCompletionAfterLastStage$",
+    "./internal/backend/dockerbe"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "version": "go version go1.26.3 linux/amd64",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOTMPDIR": "/workspace/.t",
+    "GOCACHE": "/tmp/luci-go-build-cache",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly"
+  },
+  "freeBytesBefore": {
+    "/tmp": 68452352,
+    "/workspace": 6474522624
+  },
+  "wallTimeoutSeconds": 180,
+  "startedUTC": "2026-10-11T11:01:09Z"
+}

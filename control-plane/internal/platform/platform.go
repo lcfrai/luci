@@ -22,10 +22,13 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
+	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 type Options struct {
+	PreviewRuntime                   func() previewruntime.Runtime
+	DeploymentSourceDigest           func(context.Context, string, string, string) (string, error)
 	BrowserPreviewPort               int
 	BrowserPreviewDomain             string
 	StateDir, InstanceID, DockerHost string
@@ -40,23 +43,25 @@ type Options struct {
 	FunctionSources                  *DataFunctionSources
 }
 type Deployment struct {
-	ID                    string `json:"id"`
-	ProjectID             string `json:"projectId"`
-	Provider              string `json:"provider"`
-	Commit                string `json:"commit"`
-	ConfigurationRevision int    `json:"configurationRevision"`
-	Status                string `json:"status"`
-	URL                   string `json:"url,omitempty"`
-	Message               string `json:"message"`
-	Image                 string `json:"image,omitempty"`
-	Container             string `json:"container,omitempty"`
-	Port                  int    `json:"port,omitempty"`
-	HealthPath            string `json:"healthPath,omitempty"`
-	CreatedAt             string `json:"createdAt"`
-	UpdatedAt             string `json:"updatedAt"`
-	RemoteProject         string `json:"remoteProject,omitempty"`
-	PipelineRun           string `json:"pipelineRun,omitempty"`
-	ProviderBinding       string `json:"providerBinding,omitempty"`
+	Revision              uint64                  `json:"revision,omitempty"`
+	Runtime               *previewruntime.Outcome `json:"runtime,omitempty"`
+	ID                    string                  `json:"id"`
+	ProjectID             string                  `json:"projectId"`
+	Provider              string                  `json:"provider"`
+	Commit                string                  `json:"commit"`
+	ConfigurationRevision int                     `json:"configurationRevision"`
+	Status                string                  `json:"status"`
+	URL                   string                  `json:"url,omitempty"`
+	Message               string                  `json:"message"`
+	Image                 string                  `json:"image,omitempty"`
+	Container             string                  `json:"container,omitempty"`
+	Port                  int                     `json:"port,omitempty"`
+	HealthPath            string                  `json:"healthPath,omitempty"`
+	CreatedAt             string                  `json:"createdAt"`
+	UpdatedAt             string                  `json:"updatedAt"`
+	RemoteProject         string                  `json:"remoteProject,omitempty"`
+	PipelineRun           string                  `json:"pipelineRun,omitempty"`
+	ProviderBinding       string                  `json:"providerBinding,omitempty"`
 }
 type Database struct {
 	Status    string `json:"status"`
@@ -340,7 +345,7 @@ func (s *Service) status(w http.ResponseWriter, r *http.Request) {
 	dockerReady := err == nil && strings.TrimSpace(string(version)) != ""
 	_, policy, _ := management.ActorFromContext(r.Context())
 	limits := s.limits(r)
-	respond(w, 200, map[string]any{"dockerReady": dockerReady, "limits": map[string]int{"memoryMiB": limits.MemoryMiB, "cpuMillis": limits.CPUMillis}, "permissions": map[string]bool{"connectPanacea": admin(r), "deployPanacea": policy.AllowCloudProvisioning}, "capabilities": map[string]bool{"persistentLocalDeployments": dockerReady, "postgres": dockerReady, "postgresBackups": dockerReady, "panaceaConnector": true, "supabaseAvailable": true}, "scope": "Local deployments persist on this Docker host. Public hosting requires a connected hosting provider. Limits apply per running service, not to total host capacity or billing.", "supabase": map[string]any{"status": "available", "message": "Optional Supabase Auth, Storage, REST and Realtime are installed per project with a separate resource acknowledgement.", "upstream": "https://supabase.com/docs/guides/self-hosting/docker"}})
+	respond(w, 200, map[string]any{"dockerReady": dockerReady, "limits": map[string]int{"memoryMiB": limits.MemoryMiB, "cpuMillis": limits.CPUMillis}, "permissions": map[string]bool{"connectPanacea": admin(r), "deployPanacea": policy.AllowCloudProvisioning}, "capabilities": map[string]bool{"persistentLocalDeployments": dockerReady && s.previewRuntime().Start != nil, "postgres": dockerReady, "postgresBackups": dockerReady, "panaceaConnector": true, "supabaseAvailable": true}, "scope": "Local deployments persist on this Docker host. Public hosting requires a connected hosting provider. Application builds and serving containers require shared host capacity admission. Database service limits and billing are separate.", "supabase": map[string]any{"status": "available", "message": "Optional Supabase Auth, Storage, REST and Realtime are installed per project with a separate resource acknowledgement.", "upstream": "https://supabase.com/docs/guides/self-hosting/docker"}})
 }
 func (s *Service) projectStatus(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.project(w, r)
@@ -361,14 +366,26 @@ func (s *Service) projectStatus(w http.ResponseWriter, r *http.Request) {
 	if !busy {
 		observeInterruptedDatabaseRestore(&v)
 		for i := range v.Deployments {
-			if v.Deployments[i].Provider == "docker" && v.Deployments[i].Status == "building" {
+			if v.Deployments[i].Runtime == nil && v.Deployments[i].Provider == "docker" && v.Deployments[i].Status == "building" {
 				v.Deployments[i].Status = "interrupted"
 				v.Deployments[i].Message = "Luci stopped during deployment. Verify its owned container before restarting."
 			}
 		}
 	}
+	observation, cancel := context.WithTimeout(r.Context(), 6*time.Second)
+	defer cancel()
 	for i := range v.Deployments {
-		v.Deployments[i] = s.browserDeployment(v.Deployments[i])
+		d := v.Deployments[i]
+		if !busy && d.Runtime != nil && (d.Status == "building" || d.Status == "unknown") {
+			d.Status, d.URL, d.Message = "unknown", "", "The interrupted deployment receipt is retained. Refresh to verify it or stop its exact allocations."
+			if observation.Err() == nil {
+				if observed, err := s.observeAdmittedDeployment(observation, d); err == nil && s.healthy(observation, observed.URL, observed.HealthPath) {
+					d = observed
+					d.Status = "ready"
+				}
+			}
+		}
+		v.Deployments[i] = s.browserDeploymentContext(observation, d)
 	}
 	respond(w, 200, map[string]any{"project": v, "busy": busy})
 }

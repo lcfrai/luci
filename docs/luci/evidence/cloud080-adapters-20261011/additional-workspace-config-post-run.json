@@ -1,0 +1,35 @@
+{
+  "scope": "Post-run supplemental workspace configuration identities; not a before/after capture. Tracked source also bound by identical clean Git HEAD and full tracked diff hash recorded before and after.",
+  "files": [
+    {
+      "path": "/workspace/.luci-tools/go.work",
+      "sha256": "0ac5f5af6697615a6cad94517240e18a750fe8f0160b22e755e2c9b348c18cd7",
+      "bytes": 76
+    },
+    {
+      "path": "/workspace/.luci-tools/go.work.sum",
+      "sha256": "cebe32be8573f52246bc5d2e8daac3d204fae0bea61f35fe569ed4e9ca18785e",
+      "bytes": 2499
+    },
+    {
+      "path": "/workspace/luci/go.work",
+      "sha256": "e634b59bb2cdd79a961dc765ab7452e40a0fa486cf8972d3357ff5df2dbd9db9",
+      "bytes": 48
+    },
+    {
+      "path": "/workspace/luci/go.work.sum",
+      "sha256": "cebe32be8573f52246bc5d2e8daac3d204fae0bea61f35fe569ed4e9ca18785e",
+      "bytes": 2499
+    },
+    {
+      "path": "/workspace/luci/sandboxd/go.mod",
+      "sha256": "729defcdf4013ecccfa8ba2f5f985eb6655e90e31d15595c7d396edcfb800292",
+      "bytes": 152
+    },
+    {
+      "path": "/workspace/luci/sandboxd/go.sum",
+      "sha256": "48236c5190f2aa0ad9ecc672ed5749dfc083921633445122061a290f1aa43729",
+      "bytes": 509
+    }
+  ]
+}

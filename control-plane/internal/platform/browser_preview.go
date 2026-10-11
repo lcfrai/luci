@@ -1,13 +1,39 @@
 package platform
 
 import (
+	"context"
 	"errors"
 	"os"
+	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
 func (s *Service) browserDeployment(d Deployment) Deployment {
+	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+	defer cancel()
+	return s.browserDeploymentContext(ctx, d)
+}
+
+func (s *Service) browserDeploymentContext(ctx context.Context, d Deployment) Deployment {
+	if d.Runtime != nil {
+		public := *d.Runtime
+		public.URL = ""
+		d.Runtime = &public
+	}
+	if d.Runtime != nil {
+		if d.Provider != "docker" || d.Status != "ready" {
+			d.URL = ""
+			return d
+		}
+		observed, err := s.observeAdmittedDeployment(ctx, d)
+		if err != nil {
+			d.URL = ""
+			d.Message = "The exact application allocation could not be verified. Its retained resources are unchanged."
+			return d
+		}
+		d = observed
+	}
 	if s.browserRegistry == nil || d.Provider != "docker" || d.Status != "ready" {
 		return d
 	}

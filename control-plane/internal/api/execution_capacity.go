@@ -86,15 +86,23 @@ func evaluateExecutionCapacityWithEvidence(snap resourcebudget.Snapshot, policy 
 			return refused("disk_pressure", "Available disk is below the configured working reserve.")
 		}
 	}
-	if snap.Execution.ImageVirtualSizeBytes == nil || snap.Execution.DaemonDisk == nil || snap.Execution.DaemonDisk.AvailableBytes == nil {
+	typedDemandOnly := demand.RequiredCreateDiskBytes != 0 && demand.PendingAllocations == 0
+	if (!typedDemandOnly && snap.Execution.ImageVirtualSizeBytes == nil) || snap.Execution.DaemonDisk == nil || snap.Execution.DaemonDisk.AvailableBytes == nil {
 		return refused("execution_disk_unavailable", "Execution storage capacity and sandbox image demand must be observed before another worker starts.")
 	}
 	if snap.Execution.DaemonDisk.ObservedAt.IsZero() || snap.Execution.DaemonDisk.ObservedAt.After(now) || now.Sub(snap.Execution.DaemonDisk.ObservedAt) > 5*time.Second {
 		return refused("execution_disk_unavailable", "Current execution storage capacity is not available. Waiting for a fresh observation.")
 	}
-	createDisk, estimateErr := estimateExecutionCreateDisk(snap.Execution)
-	if estimateErr != nil {
-		return refused("execution_disk_estimate_unavailable", estimateErr.Error())
+	// An explicitly bounded typed build can prepare the first sandbox image.
+	// It does not need that image to exist beforehand. Any pending worker still
+	// needs the real configured-image estimate; typed demand cannot erase it.
+	createDisk := executionCreateDiskEstimate{Bytes: demand.RequiredCreateDiskBytes}
+	if !typedDemandOnly {
+		var estimateErr error
+		createDisk, estimateErr = estimateExecutionCreateDisk(snap.Execution)
+		if estimateErr != nil {
+			return refused("execution_disk_estimate_unavailable", estimateErr.Error())
+		}
 	}
 	diskDemand, bounded := executionPendingDiskDemand(createDisk.Bytes, demand.PendingAllocations, policy.DiskReserveMiB)
 	if !bounded {

@@ -1,0 +1,22 @@
+[
+  {
+    "path": "control-plane/internal/backend/dockerbe/previews.go",
+    "sha256": "f631c59a54d0453a162d2e562256de42f22da6ab417b34be09eacbe190be4f86",
+    "bytes": 21125
+  },
+  {
+    "path": "control-plane/internal/backend/dockerbe/runtime_image.go",
+    "sha256": "5df885178755a52031245063823ea86be205932a71a4e42a9281deb3af47e71e",
+    "bytes": 19137
+  },
+  {
+    "path": "control-plane/internal/backend/dockerbe/classic_build_wire_test.go",
+    "sha256": "e19c57a94eec1e70b31c8aff777d4e90575f1a2fb6620225d6dd182057a2864c",
+    "bytes": 3155
+  },
+  {
+    "externalPath": "/tmp/luci-retained-tools/go-mod/github.com/docker/docker@v28.3.3+incompatible/api/server/router/build/build_routes.go",
+    "sha256": "d282acdd7ad2b1cce105d73d6f71abe230ff36d482150918d9186314d8184355",
+    "bytes": 13146
+  }
+]

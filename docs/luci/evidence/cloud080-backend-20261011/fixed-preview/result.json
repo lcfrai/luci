@@ -1,0 +1,25 @@
+{
+  "underlyingExitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 2.8931598250055686,
+  "inputsUnchanged": true,
+  "inputCount": 958,
+  "counts": {
+    "pass": {
+      "topLevel": 16,
+      "subtests": 60
+    }
+  },
+  "failedTests": [],
+  "packages": [
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "Action": "pass",
+      "Elapsed": 0.075
+    }
+  ],
+  "logSha256": {
+    "stdout.jsonl": "9a5c747759a27520b6f19c510aaa611be0f52a786576b21fa452b96c0ec3bfe5",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

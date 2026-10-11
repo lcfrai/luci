@@ -1,0 +1,24 @@
+--- a/control-plane/internal/product/preview_runtime_fixture_test.go
++++ b/control-plane/internal/product/preview_runtime_fixture_test.go
+@@ -44,6 +44,10 @@
+ 			if reflect.ValueOf(s.runner).Pointer() == initialRunner {
+ 				t.Error("unexpected preview without explicit runner fixture")
+ 				return out, errors.New("preview runner fixture missing")
++			}
++			if !reflect.DeepEqual(req.Labels, map[string]string{"luci.release-id": req.ReleaseID, "luci.project-id": req.ProjectID}) {
++				t.Error("product preview must supply only extra release/project labels; mandatory runtime ownership cannot be overridden")
++				return out, errors.New("invalid product preview label contract")
+ 			}
+ 			if req.Actor.ProjectID != req.ProjectID || req.SourceDirectory == "" || req.SourceDigest == "" || req.ValidateSource == nil {
+ 				t.Error("typed preview lost its source/actor binding")
+--- a/control-plane/internal/product/releases.go
++++ b/control-plane/internal/product/releases.go
+@@ -288,7 +288,7 @@
+ 		return
+ 	}
+ 	request := previewruntime.Request{Identity: row.Runtime.Identity, SourceDirectory: contextDir, Dockerfile: req.Dockerfile, Port: req.Port, Environment: configuration.Values, Actor: actor, Network: "bridge",
+-		Labels: map[string]string{"luci.preview": "true", "luci.release-id": row.ID, "luci.project-id": p.ID},
++		Labels: map[string]string{"luci.release-id": row.ID, "luci.project-id": p.ID},
+ 		ValidateSource: func(verify context.Context) error {
+ 			if err := s.ValidateDeploymentSource(verify, p.ID, commit); err != nil {
+ 				return err

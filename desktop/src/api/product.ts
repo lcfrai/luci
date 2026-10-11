@@ -372,6 +372,8 @@ export interface CloudReleaseRequest {
   dockerfile: string;
 }
 export interface RuntimeJob {
+  execution?: { jobId: string; allocationId?: string; engineId?: string; instanceId?: string; sourceDigest?: string; imageId?: string; imageTag?: string; phase: string; resourcesHeld: boolean; cleanupConfirmed: boolean; reasonCode?: string; message: string };
+  cancelRequested?: boolean;
   id: string;
   status: string;
   image: string;
@@ -606,6 +608,8 @@ export function createProductClient(
     runtime: (signal?: AbortSignal) =>
       request<RuntimeJob>("/v1/setup/runtime/install", undefined, "GET", 120_000, signal),
     installRuntime: () => request<RuntimeJob>("/v1/setup/runtime/install", {}),
+    cancelRuntime: (jobId: string) => request<RuntimeJob>("/v1/setup/runtime/install/cancel", { jobId }),
+    reconcileRuntime: (jobId: string) => request<RuntimeJob>("/v1/setup/runtime/install/reconcile", { jobId }),
     cloudJobs: () => request<{ jobs: CloudJob[] }>("/v1/setup/cloud/jobs"),
     workspaceInstalls: () =>
       request<{ jobs: WorkspaceInstall[] }>("/v1/setup/workspace/install"),

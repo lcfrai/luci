@@ -94,6 +94,13 @@ func (s *Service) resolveBrowserTarget(ctx context.Context, projectID, kind, res
 			if deployment.ID != resourceID || deployment.Provider != "docker" || deployment.Status != "ready" {
 				continue
 			}
+			if deployment.Runtime != nil {
+				observed, err := s.observeAdmittedDeployment(ctx, deployment)
+				if err != nil {
+					return meta, "", errors.New("owned application allocation is unavailable")
+				}
+				deployment = observed
+			}
 			info, err := s.inspect(ctx, projectID, deployment.ID, deployment.Container)
 			if err != nil || !info.State.Running || (deployment.Image != "" && deployment.Image != info.Image) {
 				return meta, "", errors.New("owned application is unavailable")

@@ -200,6 +200,15 @@ func (s *Service) acceptDatabaseRecovery(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	for _, d := range state.Deployments {
+		if d.Runtime != nil {
+			if d.Runtime.ResourcesHeld {
+				problem(w, 409, "applications_stop_required", "Stop this project's retained application allocations before restoring. Unknown outcomes keep their resources reserved.")
+				return
+			}
+			// Typed cleanup can remove its exact container. A settled allocation
+			// must not fall back to inspecting a historical container name.
+			continue
+		}
 		if d.Provider != "docker" {
 			continue
 		}

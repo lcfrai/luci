@@ -12,6 +12,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,6 +21,7 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
@@ -39,14 +42,175 @@ func fixture(t *testing.T, runner Runner) *Service {
 			return errors.New("source changed")
 		}
 		return nil
+	}, RecordDeploymentProvenance: func(_ context.Context, id, release, _target, commit string) error {
+		if id != "owned" || release == "" || commit != strings.Repeat("a", 40) {
+			return errors.New("release provenance changed")
+		}
+		return nil
+	}, DeploymentSourceDigest: func(_ context.Context, id, release, commit string) (string, error) {
+		if id != "owned" || release == "" || commit != strings.Repeat("a", 40) {
+			return "", errors.New("source provenance changed")
+		}
+		return strings.Repeat("d", 64), nil
 	}, ApplicationConfiguration: func(string) (int, map[string]string, error) {
 		return 7, map[string]string{"API_TOKEN": "private-application-value", "EMPTY": ""}, nil
 	}})
 	if e != nil {
 		t.Fatal(e)
 	}
+	runtime := fakePlatformPreviewRuntime(t, s)
+	s.opts.PreviewRuntime = func() previewruntime.Runtime { return runtime }
 	t.Cleanup(s.Close)
 	return s
+}
+
+// This explicit runtime adapter drives only each test's in-memory Runner. It
+// keeps platform archive, private-environment, policy and ownership assertions
+// active without restoring a production Runner fallback or contacting Docker.
+func fakePlatformPreviewRuntime(t *testing.T, s *Service) previewruntime.Runtime {
+	t.Helper()
+	var mu sync.Mutex
+	outcomes := map[string]previewruntime.Outcome{}
+	lookup := func(identity previewruntime.Identity) (previewruntime.Outcome, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		out, ok := outcomes[identity.ReleaseID]
+		if !ok || out.Identity != identity {
+			return previewruntime.Outcome{}, errors.New("fake runtime allocation changed")
+		}
+		return out, nil
+	}
+	return previewruntime.Runtime{
+		CaptureActor: func(ctx context.Context, projectID string) (management.ExecutionActorRef, error) {
+			actor, _, ok := management.ActorFromContext(ctx)
+			if !ok || actor.ID == "" || projectID != "owned" {
+				return management.ExecutionActorRef{}, errors.New("fake deployment actor unavailable")
+			}
+			return management.ExecutionActorRef{UserID: actor.ID, ProjectID: projectID}, nil
+		},
+		Start: func(ctx context.Context, request previewruntime.Request, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
+			out := previewruntime.Outcome{Identity: request.Identity}
+			if request.ProjectID != "owned" || request.ReleaseID == "" || request.SourceDigest != strings.Repeat("d", 64) || request.Dockerfile != "Dockerfile" || len(request.SourceArchive) == 0 || request.MemoryMiB <= 0 || request.CPUMillis <= 0 || request.Labels[labelInstance] != s.instance || request.Labels[labelProject] != request.ProjectID || request.Labels[labelResource] != request.ReleaseID {
+				return out, errors.New("invalid fake admitted request")
+			}
+			if request.ValidateSource != nil {
+				if err := request.ValidateSource(ctx); err != nil {
+					return out, err
+				}
+			}
+			out.BuildAllocationID, out.AllocationID = "build-"+request.ReleaseID, "allocation-"+request.ReleaseID
+			out.EngineID, out.InstanceID = "fixture-engine", s.instance
+			out.ResourcesHeld = true
+			emit := func(phase string) error {
+				out.Phase = phase
+				if err := publish(out); err != nil {
+					return err
+				}
+				mu.Lock()
+				outcomes[out.ReleaseID] = out
+				mu.Unlock()
+				return nil
+			}
+			for _, phase := range []string{"reserved", "building"} {
+				if err := emit(phase); err != nil {
+					return out, err
+				}
+			}
+			if _, err := s.opts.Runner(ctx, "docker", []string{"build", "--tag", "fixture-" + request.ReleaseID, "-"}, s.dir, request.SourceArchive); err != nil {
+				return out, err
+			}
+			if err := emit("built"); err != nil {
+				return out, err
+			}
+			if request.ValidateSource != nil {
+				if err := request.ValidateSource(ctx); err != nil {
+					return out, err
+				}
+			}
+			if err := emit("creating"); err != nil {
+				return out, err
+			}
+			file, err := s.envFile(request.Environment)
+			if err != nil {
+				return out, err
+			}
+			defer os.Remove(file)
+			container := "preview-container-" + request.ReleaseID
+			args := []string{"run", "--detach", "--name", container, "--restart", "unless-stopped", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--publish", "127.0.0.1::" + strconv.Itoa(request.Port), "--env-file", file}
+			if request.Network != "" {
+				args = append(args, "--network", request.Network)
+			}
+			args = append(args, (resourceLimits{request.MemoryMiB, request.CPUMillis}).args()...)
+			keys := make([]string, 0, len(request.Labels))
+			for key := range request.Labels {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				args = append(args, "--label", key+"="+request.Labels[key])
+			}
+			args = append(args, "fixture-"+request.ReleaseID)
+			if _, err := s.opts.Runner(ctx, "docker", args, s.dir, nil); err != nil {
+				return out, err
+			}
+			info, err := s.inspect(ctx, request.ProjectID, request.ReleaseID, container)
+			if err != nil || !info.State.Running || info.ID != container || info.Image == "" {
+				return out, errors.New("fake runtime container ownership unverified")
+			}
+			out.ContainerID, out.Image = info.ID, info.Image
+			out.URL, err = loopbackURL(info, request.Port)
+			if err != nil {
+				return out, err
+			}
+			if err := emit("running"); err != nil {
+				return out, err
+			}
+			return out, nil
+		},
+		Observe: func(ctx context.Context, identity previewruntime.Identity) (previewruntime.Outcome, error) {
+			out, err := lookup(identity)
+			if err != nil {
+				return out, err
+			}
+			if out.Phase == "running" {
+				info, err := s.inspect(ctx, identity.ProjectID, identity.ReleaseID, identity.ContainerID)
+				if err != nil || info.ID != identity.ContainerID || info.Image != identity.Image || !info.State.Running {
+					return out, errors.New("fake runtime exact container changed")
+				}
+			}
+			return out, nil
+		},
+		Stop: func(ctx context.Context, identity previewruntime.Identity, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
+			out, err := lookup(identity)
+			if err != nil {
+				return out, err
+			}
+			info, err := s.inspect(ctx, identity.ProjectID, identity.ReleaseID, identity.ContainerID)
+			if err != nil || info.ID != identity.ContainerID || info.Image != identity.Image {
+				return out, errors.New("fake runtime cleanup ownership unverified")
+			}
+			out.Phase = "cleaning"
+			if err := publish(out); err != nil {
+				return out, err
+			}
+			for _, action := range []string{"stop", "rm"} {
+				if _, err := s.opts.Runner(ctx, "docker", []string{action, identity.ContainerID}, s.dir, nil); err != nil {
+					return out, err
+				}
+			}
+			if _, err := s.inspect(ctx, identity.ProjectID, identity.ReleaseID, identity.ContainerID); !errors.Is(err, os.ErrNotExist) {
+				return out, errors.New("fake runtime exact absence unverified")
+			}
+			out.Phase, out.ResourcesHeld, out.CleanupConfirmed, out.URL = "finished", false, true, ""
+			if err := publish(out); err != nil {
+				return out, err
+			}
+			mu.Lock()
+			outcomes[out.ReleaseID] = out
+			mu.Unlock()
+			return out, nil
+		},
+	}
 }
 func request(t *testing.T, s *Service, method, path, role string, input any) *httptest.ResponseRecorder {
 	t.Helper()
@@ -189,6 +353,7 @@ func TestDeploymentPersistsAcrossServiceRestartAndRedactsPinnedConfiguration(t *
 	var runArgs []string
 	container, resource := "", ""
 	running := true
+	removed := false
 	envFile := ""
 	runner := func(_ context.Context, exe string, args []string, _ string, input []byte) ([]byte, error) {
 		mu.Lock()
@@ -220,12 +385,19 @@ func TestDeploymentPersistsAcrossServiceRestartAndRedactsPinnedConfiguration(t *
 					envFile = args[i+1]
 				}
 			}
+			reserved, err := s.findDeployment("owned", resource)
+			if err != nil || reserved.Runtime == nil || !reserved.Runtime.ResourcesHeld || reserved.Runtime.Phase != "creating" || reserved.Runtime.ContainerID != "" {
+				t.Error("application creation began without a persisted held allocation")
+			}
 			data, e := os.ReadFile(envFile)
 			if e != nil || !strings.Contains(string(data), "API_TOKEN=private-application-value\n") || !strings.Contains(string(data), "EMPTY=\n") {
 				t.Errorf("runtime file missing %v", e)
 			}
 			return []byte("container"), nil
 		case "inspect":
+			if removed {
+				return nil, os.ErrNotExist
+			}
 			v := containerInfo{ID: container, Image: "sha256:immutable-image"}
 			v.State.Running = running
 			v.Config.Labels = map[string]string{labelInstance: s.instance, labelProject: "owned", labelResource: resource}
@@ -240,6 +412,12 @@ func TestDeploymentPersistsAcrossServiceRestartAndRedactsPinnedConfiguration(t *
 		case "restart":
 			running = true
 			return nil, nil
+		case "rm":
+			if args[1] != container {
+				return nil, errors.New("wrong immutable container cleanup")
+			}
+			removed = true
+			return nil, nil
 		}
 		return nil, errors.New("unexpected command")
 	}
@@ -252,7 +430,7 @@ func TestDeploymentPersistsAcrossServiceRestartAndRedactsPinnedConfiguration(t *
 	_ = json.Unmarshal(w.Body.Bytes(), &d)
 	s.wg.Wait()
 	d, e := s.findDeployment("owned", d.ID)
-	if e != nil || d.Status != "ready" || d.URL != app.URL || d.ConfigurationRevision != 7 {
+	if e != nil || d.Status != "ready" || d.URL != app.URL || d.ConfigurationRevision != 7 || d.Runtime == nil || !d.Runtime.ResourcesHeld || d.Runtime.ContainerID != container || d.Runtime.Image != "sha256:immutable-image" {
 		t.Fatalf("%+v %v", d, e)
 	}
 	if _, e = os.Stat(envFile); !errors.Is(e, os.ErrNotExist) {
@@ -287,6 +465,10 @@ func TestDeploymentPersistsAcrossServiceRestartAndRedactsPinnedConfiguration(t *
 	w = request(t, second, "POST", "/v1/platform/projects/owned/deployments/"+d.ID+"/stop", "member", map[string]any{})
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"status":"stopped"`) {
 		t.Fatalf("stop %s", w.Body)
+	}
+	stopped, err := second.findDeployment("owned", d.ID)
+	if err != nil || stopped.Runtime == nil || stopped.Runtime.ResourcesHeld || !stopped.Runtime.CleanupConfirmed || !removed {
+		t.Fatal("stop did not settle the exact retained allocation", err)
 	}
 }
 func TestForeignContainerCannotBeStopped(t *testing.T) {
@@ -516,4 +698,87 @@ func TestPanaceaOriginAndOperationAdmission(t *testing.T) {
 		t.Fatal("operation slot was not released")
 	}
 	s.release("two")
+}
+
+func TestAdmittedDeploymentKeepsUnknownCreateReservationAcrossRefresh(t *testing.T) {
+	calls := 0
+	s := fixture(t, func(_ context.Context, exe string, _ []string, _ string, _ []byte) ([]byte, error) {
+		if exe != "git" {
+			t.Error("unknown allocation touched the legacy Docker path")
+			return nil, errors.New("unexpected Docker command")
+		}
+		return tarSource(t, map[string]string{"Dockerfile": "FROM scratch", "LUCI.md": "approved"}), nil
+	})
+	runtime := s.previewRuntime()
+	var retained previewruntime.Outcome
+	runtime.Start = func(_ context.Context, request previewruntime.Request, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
+		calls++
+		retained = previewruntime.Outcome{Identity: request.Identity, Phase: "creating", ResourcesHeld: true}
+		retained.AllocationID, retained.EngineID, retained.InstanceID = "allocation-unknown", "fixture-engine", s.instance
+		if err := publish(retained); err != nil {
+			return retained, err
+		}
+		return retained, errors.New("create acknowledgement unavailable")
+	}
+	runtime.Observe = func(_ context.Context, identity previewruntime.Identity) (previewruntime.Outcome, error) {
+		if identity != retained.Identity {
+			return previewruntime.Outcome{}, errors.New("allocation changed")
+		}
+		out := retained
+		out.Phase = "unknown"
+		return out, nil
+	}
+	s.opts.PreviewRuntime = func() previewruntime.Runtime { return runtime }
+	w := request(t, s, "POST", "/v1/platform/projects/owned/deployments", "member", map[string]any{"commit": strings.Repeat("a", 40), "port": 3000, "healthPath": "/"})
+	if w.Code != 202 {
+		t.Fatalf("deployment: %d %s", w.Code, w.Body)
+	}
+	var accepted Deployment
+	if err := json.Unmarshal(w.Body.Bytes(), &accepted); err != nil {
+		t.Fatal(err)
+	}
+	s.wg.Wait()
+	for _, refresh := range []bool{false, true} {
+		if refresh {
+			w = request(t, s, "POST", "/v1/platform/projects/owned/deployments/"+accepted.ID+"/refresh", "member", map[string]any{})
+			if w.Code != 200 {
+				t.Fatalf("refresh: %d %s", w.Code, w.Body)
+			}
+		}
+		d, err := s.findDeployment("owned", accepted.ID)
+		if err != nil || d.Status != "unknown" || d.Runtime == nil || !d.Runtime.ResourcesHeld || d.Runtime.CleanupConfirmed || d.Runtime.Identity != retained.Identity || d.Container != "" || d.URL != "" || calls != 1 {
+			t.Fatal("unknown creation lost its reservation or replayed", err)
+		}
+	}
+}
+
+func TestAdmittedDeploymentRejectsStaleSettlementPublication(t *testing.T) {
+	s := fixture(t, func(context.Context, string, []string, string, []byte) ([]byte, error) {
+		t.Error("receipt publication touched Docker")
+		return nil, errors.New("unexpected Docker command")
+	})
+	d := Deployment{ID: "deploy-cas", ProjectID: "owned", Provider: "docker", Commit: strings.Repeat("a", 40), ConfigurationRevision: 7, Revision: 1, Status: "building", Runtime: &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: "owned", ReleaseID: "deploy-cas", Target: "native-docker", Commit: strings.Repeat("a", 40), SourceDigest: strings.Repeat("d", 64)}, Phase: "reserved"}}
+	if err := s.saveDeployment(d); err != nil {
+		t.Fatal(err)
+	}
+	stale := d
+	reserved := *d.Runtime
+	reserved.AllocationID, reserved.EngineID, reserved.InstanceID = "allocation-cas", "fixture-engine", s.instance
+	reserved.ResourcesHeld = true
+	if err := s.publishDeploymentOutcome(&d, reserved, nil); err != nil {
+		t.Fatal(err)
+	}
+	before, err := s.findDeployment("owned", d.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settled := reserved
+	settled.Phase, settled.ResourcesHeld, settled.CleanupConfirmed = "finished", false, true
+	if err := s.publishDeploymentOutcome(&stale, settled, nil); err == nil {
+		t.Fatal("stale writer settled a newer allocation receipt")
+	}
+	after, err := s.findDeployment("owned", d.ID)
+	if err != nil || !reflect.DeepEqual(before, after) || after.Runtime == nil || !after.Runtime.ResourcesHeld {
+		t.Fatal("rejected stale publication changed the retained allocation", err)
+	}
 }

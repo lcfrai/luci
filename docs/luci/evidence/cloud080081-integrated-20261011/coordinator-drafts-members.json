@@ -1,0 +1,1487 @@
+[
+  {
+    "path": "api-product-1/command.json",
+    "sha256": "6cb4f9b97cccebf3237136191190de4687095749c246e8e242f46beed132883c",
+    "bytes": 783
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/cmd/api/main.go",
+    "sha256": "ba39e1608447a9d787a0edfc623b6d00350af09b9366b8d8876337322c2bda2f",
+    "bytes": 35028
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/api.go",
+    "sha256": "3d2ea5221ebef5c50ba0e65ee679657b4ceefd7d15fee1e7e7fb91a054161cdf",
+    "bytes": 27093
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/execution_capacity.go",
+    "sha256": "2955d9183e27c34314fe8550ee2f6df733a80207d1744b907df8b404356be7aa",
+    "bytes": 8442
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/execution_capacity_typed_test.go",
+    "sha256": "7bee093aac95200da83ed60f93f51bba9fa0007b27262cb49e839bcd0defaf9b",
+    "bytes": 2089
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/execution_check_leases.go",
+    "sha256": "fa5704431baa6aad243706a8f91f589d93344b865d5d13a102266c79267f6182",
+    "bytes": 15310
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/execution_leases.go",
+    "sha256": "7916d4d875497c0a694679f2d7072f08d16ef5746dbc4fe9395c29fdee55294a",
+    "bytes": 29935
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/execution_preview_leases.go",
+    "sha256": "e9a18e1f82a3bcd25c76a4d2ad876ba3f97b2fc2fd61e47faa73fdc8d4c5211c",
+    "bytes": 14612
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/execution_preview_leases_test.go",
+    "sha256": "f3620155ffe8949e8379d5687fd5c1c1d2a4fa2875e67e3d89e87ad8cddcdfaa",
+    "bytes": 7461
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/execution_reservation_view.go",
+    "sha256": "9aa3a40bd574ef517423bdd68898216f75987c62d0dde7be2442b978f4fe8c3d",
+    "bytes": 3959
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/execution_runtime_image_leases.go",
+    "sha256": "f90e2985342c826eafac869d89d3b769f2deb20303f41ee59c7b8cd8f66fa804",
+    "bytes": 11121
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/execution_runtime_image_leases_test.go",
+    "sha256": "ead2f52131cafe41dfb7e4fd7c4d782cd79d5fd049d4f9a09c2ebce95b7b26ed",
+    "bytes": 8105
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/preview_execution.go",
+    "sha256": "941eeea687c12fa8ae383c117527cc17ab47aa5ceb27f093ee11777bbe7c6f5a",
+    "bytes": 22807
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/preview_execution_test.go",
+    "sha256": "e929297c610bcb451b9cb10e3b2f9c210837d31d4a7c16579be5b7e1134e8cd0",
+    "bytes": 9827
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/runtime_install_execution.go",
+    "sha256": "a227e67b001edd8630fb896d84021df10f838b70a07634f16f9d1a70eec42f6a",
+    "bytes": 14710
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/api/runtime_install_execution_test.go",
+    "sha256": "27e2e7889661ac332eeaa406a475f51372b68a44ebafb39af3f43e4c295386f0",
+    "bytes": 11232
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/backend/previews.go",
+    "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc",
+    "bytes": 2305
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/backend/runtime_image.go",
+    "sha256": "2fed99ba7a6cdc546f1db9447eaedbecc96652ca9552e528e3c254b381ee16b7",
+    "bytes": 2580
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/management/deployment_authority.go",
+    "sha256": "fb75d46c029a7e4d98b2d35860e14663184b21f67eca3a9ec97d634a03c9b59d",
+    "bytes": 3374
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/management/deployment_authority_test.go",
+    "sha256": "c61a82a4fbd549731d263345bb6d52558f8d2b7b02726610b5e560a009b53f38",
+    "bytes": 4807
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/management/policy.go",
+    "sha256": "a91d676456cc4012e8d4162b24054d96117b3e0452f47c87e6d5bca2cd9bc979",
+    "bytes": 10527
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/management/runtime_authority.go",
+    "sha256": "9662be0f924895194c645e91ed519dd66c71fb55c9423c9ddbbb153fbe6795d5",
+    "bytes": 2925
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/management/runtime_authority_test.go",
+    "sha256": "c36fffc48372e7f242bb9bbcf398bee5b81da1b3e7e3848613c11808c158b31b",
+    "bytes": 7249
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/browser_bridge.go",
+    "sha256": "a8fa18272f93e42b35496d417c77fcc1361dbdd3ad765d8211181dd3b201ddaa",
+    "bytes": 9860
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/browser_bridge_test.go",
+    "sha256": "3ed43570fa32663aa580aada66fe06c6f13c8e2bdbcda046cdde82b5732437ca",
+    "bytes": 12640
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/browser_preview.go",
+    "sha256": "76e7fb6ff15fb58897536c9842a8fddfa78e16b42ac1a0ac16a8fecf5fe39c11",
+    "bytes": 3535
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/database_restore.go",
+    "sha256": "67b8123d8f55091ec9c436052d8330e93ba857f9715e310f79b7db052ca12da5",
+    "bytes": 19181
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/docker.go",
+    "sha256": "d35c4db71f3b2e2d67289023158facea90c78e473e7bb0948a670e2d0dc78187",
+    "bytes": 19393
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/platform.go",
+    "sha256": "5a4545fcf7b102326d00cdf7bf073de6ea4677bce135ee7cd33df2c490b42861",
+    "bytes": 15102
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/platform_test.go",
+    "sha256": "9b6176234d59344a04c8cd0c0738d3c3a59e246581d89c2c67c01c1e043de5b4",
+    "bytes": 31143
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/preview_runtime.go",
+    "sha256": "dea2b18105843bc7738b6f993c8f230b794ab14527c0db0c072124a3aa6745e5",
+    "bytes": 10343
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/preview_runtime_test.go",
+    "sha256": "a6b2eab24d9eedce73c61dd454ab8f1f9d7181bc4af2d9892d2b381b5919863d",
+    "bytes": 3157
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/project_runs.go",
+    "sha256": "c576e172fbe79c75a9e1de1a85fbc28ff8fbce1518de7d6d497337ecead106b6",
+    "bytes": 4750
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/platform/prototype_releases.go",
+    "sha256": "63db5fad935283c6d0501d11eb58999d4c0e62a8b3bc2aa0e1e4d0cc3121bea6",
+    "bytes": 3061
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/previewruntime/runtime.go",
+    "sha256": "8e6aec2e45feb61b2d55e61cb5aa8914746ccef5dafa87e31898a4aee86ef7df",
+    "bytes": 3486
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/browser_preview.go",
+    "sha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f",
+    "bytes": 1380
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/connections.go",
+    "sha256": "22b971b760083980e49bc1a87ff93a22cc0777005848a8a36c6118e3fc88c3df",
+    "bytes": 13437
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/preview_proxy.go",
+    "sha256": "68fb052cd8dec65df9278a6b36195136e267613f9a4acaa054a72099e916f73d",
+    "bytes": 8127
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/preview_runtime.go",
+    "sha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d",
+    "bytes": 3708
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/preview_runtime_fixture_test.go",
+    "sha256": "34c1392b50ddb99c13c2a2958a275f6c5bfc57c111ddc00030139fcc08229dcf",
+    "bytes": 6326
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/preview_runtime_test.go",
+    "sha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6",
+    "bytes": 4060
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/projects_test.go",
+    "sha256": "08a3dfb285e5c06dabb5bfee683825668a9015d87eec334d48be8f6c7105f82d",
+    "bytes": 14257
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/releases.go",
+    "sha256": "fcd242e0005c33d1b16b07ffeae1c5e9e97b32de8fd018e30f0029f92c984f09",
+    "bytes": 21311
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/releases_observation.go",
+    "sha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd",
+    "bytes": 3602
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/runtime_install.go",
+    "sha256": "81e9ed8dee75e117a8bda850150b6b6066c6eff19e0a5edf828f6bccb9498797",
+    "bytes": 11940
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/runtime_install_test.go",
+    "sha256": "ad1b6d0d03bdb71519df4dd855983548799a95f3dc4647b761e4967e35dbc65a",
+    "bytes": 14035
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/server.go",
+    "sha256": "7e897c06c794f8a1832c1b8db4c543602b0a31a9a874d924e5fcf5922a66c873",
+    "bytes": 22117
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/setup_storage_test.go",
+    "sha256": "8ae48b1d53f19b2b1af8b5358965b824569c60a3fc10c0218f0c5b71d71b412b",
+    "bytes": 11610
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/setup_tools.go",
+    "sha256": "c235c2bc70a282b80594a9eca664b107f6b0e7d308ffde0a3572f4b1cf4d79f4",
+    "bytes": 12318
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/product/setup_tools_test.go",
+    "sha256": "4ccb3313a5bb5fa474902fdc53c284243e47af42c9586eac4081f328fcc86efa",
+    "bytes": 13659
+  },
+  {
+    "path": "api-product-1/frozen/control-plane/internal/runtimeinstall/runtime.go",
+    "sha256": "f223e30078cefbd7c40f34563477694043a570f7d3dcf3337f2337a86c3135cf",
+    "bytes": 2565
+  },
+  {
+    "path": "api-product-1/inputs-after.json",
+    "sha256": "e0b47928adfd8db310b8b8e0ee06e5cd78f0bd57e6d9cd13f9d40c1f4e27ecc2",
+    "bytes": 172546
+  },
+  {
+    "path": "api-product-1/inputs-before.json",
+    "sha256": "e0b47928adfd8db310b8b8e0ee06e5cd78f0bd57e6d9cd13f9d40c1f4e27ecc2",
+    "bytes": 172546
+  },
+  {
+    "path": "api-product-1/overlay.json",
+    "sha256": "ce8e081a519adfc2e62dc9af3eb4d865ab3b159b0e1d91b596b74aeabb3b4736",
+    "bytes": 10151
+  },
+  {
+    "path": "api-product-1/result.json",
+    "sha256": "8d7455bca4977b1bdb1e00b6e2c05088907eb20640310acff64556d856e198a5",
+    "bytes": 96
+  },
+  {
+    "path": "api-product-1/stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "api-product-1/stdout.jsonl",
+    "sha256": "507b5cd0a3a275d34a62e31c45cb14137d114d0ef241808204215c84ca216626",
+    "bytes": 14029
+  },
+  {
+    "path": "api-product-2/command.json",
+    "sha256": "62328d29e774c8751d0fa66d6faf0b26753b951d9542bc3376d080ada37e35be",
+    "bytes": 739
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/cmd/api/main.go",
+    "sha256": "ba39e1608447a9d787a0edfc623b6d00350af09b9366b8d8876337322c2bda2f",
+    "bytes": 35028
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/api.go",
+    "sha256": "3d2ea5221ebef5c50ba0e65ee679657b4ceefd7d15fee1e7e7fb91a054161cdf",
+    "bytes": 27093
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/execution_capacity.go",
+    "sha256": "2955d9183e27c34314fe8550ee2f6df733a80207d1744b907df8b404356be7aa",
+    "bytes": 8442
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/execution_capacity_typed_test.go",
+    "sha256": "7bee093aac95200da83ed60f93f51bba9fa0007b27262cb49e839bcd0defaf9b",
+    "bytes": 2089
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/execution_check_leases.go",
+    "sha256": "fa5704431baa6aad243706a8f91f589d93344b865d5d13a102266c79267f6182",
+    "bytes": 15310
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/execution_leases.go",
+    "sha256": "7916d4d875497c0a694679f2d7072f08d16ef5746dbc4fe9395c29fdee55294a",
+    "bytes": 29935
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/execution_preview_leases.go",
+    "sha256": "e9a18e1f82a3bcd25c76a4d2ad876ba3f97b2fc2fd61e47faa73fdc8d4c5211c",
+    "bytes": 14612
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/execution_preview_leases_test.go",
+    "sha256": "f3620155ffe8949e8379d5687fd5c1c1d2a4fa2875e67e3d89e87ad8cddcdfaa",
+    "bytes": 7461
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/execution_reservation_view.go",
+    "sha256": "9aa3a40bd574ef517423bdd68898216f75987c62d0dde7be2442b978f4fe8c3d",
+    "bytes": 3959
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/execution_runtime_image_leases.go",
+    "sha256": "f90e2985342c826eafac869d89d3b769f2deb20303f41ee59c7b8cd8f66fa804",
+    "bytes": 11121
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/execution_runtime_image_leases_test.go",
+    "sha256": "ead2f52131cafe41dfb7e4fd7c4d782cd79d5fd049d4f9a09c2ebce95b7b26ed",
+    "bytes": 8105
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/preview_execution.go",
+    "sha256": "941eeea687c12fa8ae383c117527cc17ab47aa5ceb27f093ee11777bbe7c6f5a",
+    "bytes": 22807
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/preview_execution_test.go",
+    "sha256": "e929297c610bcb451b9cb10e3b2f9c210837d31d4a7c16579be5b7e1134e8cd0",
+    "bytes": 9827
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/runtime_install_execution.go",
+    "sha256": "a227e67b001edd8630fb896d84021df10f838b70a07634f16f9d1a70eec42f6a",
+    "bytes": 14710
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/api/runtime_install_execution_test.go",
+    "sha256": "27e2e7889661ac332eeaa406a475f51372b68a44ebafb39af3f43e4c295386f0",
+    "bytes": 11232
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/backend/previews.go",
+    "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc",
+    "bytes": 2305
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/backend/runtime_image.go",
+    "sha256": "2fed99ba7a6cdc546f1db9447eaedbecc96652ca9552e528e3c254b381ee16b7",
+    "bytes": 2580
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/management/deployment_authority.go",
+    "sha256": "fb75d46c029a7e4d98b2d35860e14663184b21f67eca3a9ec97d634a03c9b59d",
+    "bytes": 3374
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/management/deployment_authority_test.go",
+    "sha256": "c61a82a4fbd549731d263345bb6d52558f8d2b7b02726610b5e560a009b53f38",
+    "bytes": 4807
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/management/policy.go",
+    "sha256": "a91d676456cc4012e8d4162b24054d96117b3e0452f47c87e6d5bca2cd9bc979",
+    "bytes": 10527
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/management/runtime_authority.go",
+    "sha256": "9662be0f924895194c645e91ed519dd66c71fb55c9423c9ddbbb153fbe6795d5",
+    "bytes": 2925
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/management/runtime_authority_test.go",
+    "sha256": "c36fffc48372e7f242bb9bbcf398bee5b81da1b3e7e3848613c11808c158b31b",
+    "bytes": 7249
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/browser_bridge.go",
+    "sha256": "a8fa18272f93e42b35496d417c77fcc1361dbdd3ad765d8211181dd3b201ddaa",
+    "bytes": 9860
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/browser_bridge_test.go",
+    "sha256": "3ed43570fa32663aa580aada66fe06c6f13c8e2bdbcda046cdde82b5732437ca",
+    "bytes": 12640
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/browser_preview.go",
+    "sha256": "76e7fb6ff15fb58897536c9842a8fddfa78e16b42ac1a0ac16a8fecf5fe39c11",
+    "bytes": 3535
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/database_restore.go",
+    "sha256": "67b8123d8f55091ec9c436052d8330e93ba857f9715e310f79b7db052ca12da5",
+    "bytes": 19181
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/docker.go",
+    "sha256": "d35c4db71f3b2e2d67289023158facea90c78e473e7bb0948a670e2d0dc78187",
+    "bytes": 19393
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/platform.go",
+    "sha256": "5a4545fcf7b102326d00cdf7bf073de6ea4677bce135ee7cd33df2c490b42861",
+    "bytes": 15102
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/platform_test.go",
+    "sha256": "9b6176234d59344a04c8cd0c0738d3c3a59e246581d89c2c67c01c1e043de5b4",
+    "bytes": 31143
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/preview_runtime.go",
+    "sha256": "dea2b18105843bc7738b6f993c8f230b794ab14527c0db0c072124a3aa6745e5",
+    "bytes": 10343
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/preview_runtime_test.go",
+    "sha256": "a6b2eab24d9eedce73c61dd454ab8f1f9d7181bc4af2d9892d2b381b5919863d",
+    "bytes": 3157
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/project_runs.go",
+    "sha256": "c576e172fbe79c75a9e1de1a85fbc28ff8fbce1518de7d6d497337ecead106b6",
+    "bytes": 4750
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/platform/prototype_releases.go",
+    "sha256": "63db5fad935283c6d0501d11eb58999d4c0e62a8b3bc2aa0e1e4d0cc3121bea6",
+    "bytes": 3061
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/previewruntime/runtime.go",
+    "sha256": "8e6aec2e45feb61b2d55e61cb5aa8914746ccef5dafa87e31898a4aee86ef7df",
+    "bytes": 3486
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/browser_preview.go",
+    "sha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f",
+    "bytes": 1380
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/connections.go",
+    "sha256": "22b971b760083980e49bc1a87ff93a22cc0777005848a8a36c6118e3fc88c3df",
+    "bytes": 13437
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/preview_proxy.go",
+    "sha256": "68fb052cd8dec65df9278a6b36195136e267613f9a4acaa054a72099e916f73d",
+    "bytes": 8127
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/preview_runtime.go",
+    "sha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d",
+    "bytes": 3708
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/preview_runtime_fixture_test.go",
+    "sha256": "34c1392b50ddb99c13c2a2958a275f6c5bfc57c111ddc00030139fcc08229dcf",
+    "bytes": 6326
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/preview_runtime_test.go",
+    "sha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6",
+    "bytes": 4060
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/projects_test.go",
+    "sha256": "08a3dfb285e5c06dabb5bfee683825668a9015d87eec334d48be8f6c7105f82d",
+    "bytes": 14257
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/releases.go",
+    "sha256": "fcd242e0005c33d1b16b07ffeae1c5e9e97b32de8fd018e30f0029f92c984f09",
+    "bytes": 21311
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/releases_observation.go",
+    "sha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd",
+    "bytes": 3602
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/runtime_install.go",
+    "sha256": "0a9b806838cfdc60512a2dc08e5c369f6d7659797b7c447443e26657eaeed062",
+    "bytes": 12272
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/runtime_install_test.go",
+    "sha256": "68b9b5e7ba5ebaee70bd7dc1ce77995b94b604e1143134068ea166d46ec2a769",
+    "bytes": 17977
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/server.go",
+    "sha256": "7e897c06c794f8a1832c1b8db4c543602b0a31a9a874d924e5fcf5922a66c873",
+    "bytes": 22117
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/setup_storage_test.go",
+    "sha256": "8ae48b1d53f19b2b1af8b5358965b824569c60a3fc10c0218f0c5b71d71b412b",
+    "bytes": 11610
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/setup_tools.go",
+    "sha256": "c235c2bc70a282b80594a9eca664b107f6b0e7d308ffde0a3572f4b1cf4d79f4",
+    "bytes": 12318
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/product/setup_tools_test.go",
+    "sha256": "4ccb3313a5bb5fa474902fdc53c284243e47af42c9586eac4081f328fcc86efa",
+    "bytes": 13659
+  },
+  {
+    "path": "api-product-2/frozen/control-plane/internal/runtimeinstall/runtime.go",
+    "sha256": "f223e30078cefbd7c40f34563477694043a570f7d3dcf3337f2337a86c3135cf",
+    "bytes": 2565
+  },
+  {
+    "path": "api-product-2/inputs-after.json",
+    "sha256": "26097288760717e2174785dba1dff9ae27d8c4e4e58908ffcbf16e92b56d6376",
+    "bytes": 172546
+  },
+  {
+    "path": "api-product-2/inputs-before.json",
+    "sha256": "26097288760717e2174785dba1dff9ae27d8c4e4e58908ffcbf16e92b56d6376",
+    "bytes": 172546
+  },
+  {
+    "path": "api-product-2/overlay.json",
+    "sha256": "56e30e0624494c4fc3aaeeee75fa4db138c534aaf4a26d46723f225c25c8681d",
+    "bytes": 10151
+  },
+  {
+    "path": "api-product-2/result.json",
+    "sha256": "71b6081f50688b585a8ed1f9847d8e5b83619ea247cda2cc5d1d85dc2a3646c8",
+    "bytes": 95
+  },
+  {
+    "path": "api-product-2/stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "api-product-2/stdout.jsonl",
+    "sha256": "409e32cebef383c96eed2e948a11ee8102b7c6a7dedc37bdfc8cc86178797a20",
+    "bytes": 2027
+  },
+  {
+    "path": "api-product-3/command.json",
+    "sha256": "8da40166d508bac79431e7a228733de31a2164680ad613c47cdd2b4d0a0f2e1b",
+    "bytes": 740
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/cmd/api/main.go",
+    "sha256": "ba39e1608447a9d787a0edfc623b6d00350af09b9366b8d8876337322c2bda2f",
+    "bytes": 35028
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/api.go",
+    "sha256": "3d2ea5221ebef5c50ba0e65ee679657b4ceefd7d15fee1e7e7fb91a054161cdf",
+    "bytes": 27093
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/execution_capacity.go",
+    "sha256": "2955d9183e27c34314fe8550ee2f6df733a80207d1744b907df8b404356be7aa",
+    "bytes": 8442
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/execution_capacity_typed_test.go",
+    "sha256": "7bee093aac95200da83ed60f93f51bba9fa0007b27262cb49e839bcd0defaf9b",
+    "bytes": 2089
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/execution_check_leases.go",
+    "sha256": "fa5704431baa6aad243706a8f91f589d93344b865d5d13a102266c79267f6182",
+    "bytes": 15310
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/execution_leases.go",
+    "sha256": "7916d4d875497c0a694679f2d7072f08d16ef5746dbc4fe9395c29fdee55294a",
+    "bytes": 29935
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/execution_preview_leases.go",
+    "sha256": "e9a18e1f82a3bcd25c76a4d2ad876ba3f97b2fc2fd61e47faa73fdc8d4c5211c",
+    "bytes": 14612
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/execution_preview_leases_test.go",
+    "sha256": "f3620155ffe8949e8379d5687fd5c1c1d2a4fa2875e67e3d89e87ad8cddcdfaa",
+    "bytes": 7461
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/execution_reservation_view.go",
+    "sha256": "9aa3a40bd574ef517423bdd68898216f75987c62d0dde7be2442b978f4fe8c3d",
+    "bytes": 3959
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/execution_runtime_image_leases.go",
+    "sha256": "f90e2985342c826eafac869d89d3b769f2deb20303f41ee59c7b8cd8f66fa804",
+    "bytes": 11121
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/execution_runtime_image_leases_test.go",
+    "sha256": "ead2f52131cafe41dfb7e4fd7c4d782cd79d5fd049d4f9a09c2ebce95b7b26ed",
+    "bytes": 8105
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/preview_execution.go",
+    "sha256": "941eeea687c12fa8ae383c117527cc17ab47aa5ceb27f093ee11777bbe7c6f5a",
+    "bytes": 22807
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/preview_execution_test.go",
+    "sha256": "e929297c610bcb451b9cb10e3b2f9c210837d31d4a7c16579be5b7e1134e8cd0",
+    "bytes": 9827
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/runtime_install_execution.go",
+    "sha256": "a227e67b001edd8630fb896d84021df10f838b70a07634f16f9d1a70eec42f6a",
+    "bytes": 14710
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/api/runtime_install_execution_test.go",
+    "sha256": "27e2e7889661ac332eeaa406a475f51372b68a44ebafb39af3f43e4c295386f0",
+    "bytes": 11232
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/backend/previews.go",
+    "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc",
+    "bytes": 2305
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/backend/runtime_image.go",
+    "sha256": "2fed99ba7a6cdc546f1db9447eaedbecc96652ca9552e528e3c254b381ee16b7",
+    "bytes": 2580
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/management/deployment_authority.go",
+    "sha256": "fb75d46c029a7e4d98b2d35860e14663184b21f67eca3a9ec97d634a03c9b59d",
+    "bytes": 3374
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/management/deployment_authority_test.go",
+    "sha256": "c61a82a4fbd549731d263345bb6d52558f8d2b7b02726610b5e560a009b53f38",
+    "bytes": 4807
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/management/policy.go",
+    "sha256": "a91d676456cc4012e8d4162b24054d96117b3e0452f47c87e6d5bca2cd9bc979",
+    "bytes": 10527
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/management/runtime_authority.go",
+    "sha256": "9662be0f924895194c645e91ed519dd66c71fb55c9423c9ddbbb153fbe6795d5",
+    "bytes": 2925
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/management/runtime_authority_test.go",
+    "sha256": "c36fffc48372e7f242bb9bbcf398bee5b81da1b3e7e3848613c11808c158b31b",
+    "bytes": 7249
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/browser_bridge.go",
+    "sha256": "a8fa18272f93e42b35496d417c77fcc1361dbdd3ad765d8211181dd3b201ddaa",
+    "bytes": 9860
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/browser_bridge_test.go",
+    "sha256": "3ed43570fa32663aa580aada66fe06c6f13c8e2bdbcda046cdde82b5732437ca",
+    "bytes": 12640
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/browser_preview.go",
+    "sha256": "76e7fb6ff15fb58897536c9842a8fddfa78e16b42ac1a0ac16a8fecf5fe39c11",
+    "bytes": 3535
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/database_restore.go",
+    "sha256": "67b8123d8f55091ec9c436052d8330e93ba857f9715e310f79b7db052ca12da5",
+    "bytes": 19181
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/docker.go",
+    "sha256": "d35c4db71f3b2e2d67289023158facea90c78e473e7bb0948a670e2d0dc78187",
+    "bytes": 19393
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/platform.go",
+    "sha256": "5a4545fcf7b102326d00cdf7bf073de6ea4677bce135ee7cd33df2c490b42861",
+    "bytes": 15102
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/platform_test.go",
+    "sha256": "9b6176234d59344a04c8cd0c0738d3c3a59e246581d89c2c67c01c1e043de5b4",
+    "bytes": 31143
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/preview_runtime.go",
+    "sha256": "dea2b18105843bc7738b6f993c8f230b794ab14527c0db0c072124a3aa6745e5",
+    "bytes": 10343
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/preview_runtime_test.go",
+    "sha256": "a6b2eab24d9eedce73c61dd454ab8f1f9d7181bc4af2d9892d2b381b5919863d",
+    "bytes": 3157
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/project_runs.go",
+    "sha256": "c576e172fbe79c75a9e1de1a85fbc28ff8fbce1518de7d6d497337ecead106b6",
+    "bytes": 4750
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/platform/prototype_releases.go",
+    "sha256": "63db5fad935283c6d0501d11eb58999d4c0e62a8b3bc2aa0e1e4d0cc3121bea6",
+    "bytes": 3061
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/previewruntime/runtime.go",
+    "sha256": "8e6aec2e45feb61b2d55e61cb5aa8914746ccef5dafa87e31898a4aee86ef7df",
+    "bytes": 3486
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/browser_preview.go",
+    "sha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f",
+    "bytes": 1380
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/connections.go",
+    "sha256": "22b971b760083980e49bc1a87ff93a22cc0777005848a8a36c6118e3fc88c3df",
+    "bytes": 13437
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/managed_setup_test.go",
+    "sha256": "e803add3392307da29803dd7c99a2b1d9029c49124ff888c104e33c413da808d",
+    "bytes": 8787
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/preview_proxy.go",
+    "sha256": "68fb052cd8dec65df9278a6b36195136e267613f9a4acaa054a72099e916f73d",
+    "bytes": 8127
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/preview_runtime.go",
+    "sha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d",
+    "bytes": 3708
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/preview_runtime_fixture_test.go",
+    "sha256": "34c1392b50ddb99c13c2a2958a275f6c5bfc57c111ddc00030139fcc08229dcf",
+    "bytes": 6326
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/preview_runtime_test.go",
+    "sha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6",
+    "bytes": 4060
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/projects_test.go",
+    "sha256": "08a3dfb285e5c06dabb5bfee683825668a9015d87eec334d48be8f6c7105f82d",
+    "bytes": 14257
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/releases.go",
+    "sha256": "fcd242e0005c33d1b16b07ffeae1c5e9e97b32de8fd018e30f0029f92c984f09",
+    "bytes": 21311
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/releases_observation.go",
+    "sha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd",
+    "bytes": 3602
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/runtime_install.go",
+    "sha256": "0a9b806838cfdc60512a2dc08e5c369f6d7659797b7c447443e26657eaeed062",
+    "bytes": 12272
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/runtime_install_test.go",
+    "sha256": "68b9b5e7ba5ebaee70bd7dc1ce77995b94b604e1143134068ea166d46ec2a769",
+    "bytes": 17977
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/server.go",
+    "sha256": "895937c8428ba5cc24c880a605b356f35483a072efa6e3cd7e007d944c364e05",
+    "bytes": 22237
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/setup_storage_test.go",
+    "sha256": "8ae48b1d53f19b2b1af8b5358965b824569c60a3fc10c0218f0c5b71d71b412b",
+    "bytes": 11610
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/setup_tools.go",
+    "sha256": "c235c2bc70a282b80594a9eca664b107f6b0e7d308ffde0a3572f4b1cf4d79f4",
+    "bytes": 12318
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/product/setup_tools_test.go",
+    "sha256": "4ccb3313a5bb5fa474902fdc53c284243e47af42c9586eac4081f328fcc86efa",
+    "bytes": 13659
+  },
+  {
+    "path": "api-product-3/frozen/control-plane/internal/runtimeinstall/runtime.go",
+    "sha256": "f223e30078cefbd7c40f34563477694043a570f7d3dcf3337f2337a86c3135cf",
+    "bytes": 2565
+  },
+  {
+    "path": "api-product-3/inputs-after.json",
+    "sha256": "c52e06765b547ea08f8b0a867c205775f3cd5fcb1b647cc410fd175d4898117f",
+    "bytes": 172545
+  },
+  {
+    "path": "api-product-3/inputs-before.json",
+    "sha256": "c52e06765b547ea08f8b0a867c205775f3cd5fcb1b647cc410fd175d4898117f",
+    "bytes": 172545
+  },
+  {
+    "path": "api-product-3/overlay.json",
+    "sha256": "9f7969dfa20fc5c25cf523c84fa3a680754196923b71666f2b7e660d9c2ffe79",
+    "bytes": 10357
+  },
+  {
+    "path": "api-product-3/result.json",
+    "sha256": "218361d97eb1f8ac9578a0757c4dc085024c649409db05988e84ae032363ee53",
+    "bytes": 96
+  },
+  {
+    "path": "api-product-3/stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "api-product-3/stdout.jsonl",
+    "sha256": "371eba987016a4409d639afd5c3639e361591df7773aa1ac74d072ac805fda4c",
+    "bytes": 38876
+  },
+  {
+    "path": "api-product-4/command.json",
+    "sha256": "e9c3297235702e07d3b8d05cd203d4c30ca170b4c495b60bce20c6fa0a58808d",
+    "bytes": 740
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/cmd/api/main.go",
+    "sha256": "ba39e1608447a9d787a0edfc623b6d00350af09b9366b8d8876337322c2bda2f",
+    "bytes": 35028
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/api.go",
+    "sha256": "3d2ea5221ebef5c50ba0e65ee679657b4ceefd7d15fee1e7e7fb91a054161cdf",
+    "bytes": 27093
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/execution_capacity.go",
+    "sha256": "2955d9183e27c34314fe8550ee2f6df733a80207d1744b907df8b404356be7aa",
+    "bytes": 8442
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/execution_capacity_typed_test.go",
+    "sha256": "7bee093aac95200da83ed60f93f51bba9fa0007b27262cb49e839bcd0defaf9b",
+    "bytes": 2089
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/execution_check_leases.go",
+    "sha256": "fa5704431baa6aad243706a8f91f589d93344b865d5d13a102266c79267f6182",
+    "bytes": 15310
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/execution_leases.go",
+    "sha256": "7916d4d875497c0a694679f2d7072f08d16ef5746dbc4fe9395c29fdee55294a",
+    "bytes": 29935
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/execution_preview_leases.go",
+    "sha256": "e9a18e1f82a3bcd25c76a4d2ad876ba3f97b2fc2fd61e47faa73fdc8d4c5211c",
+    "bytes": 14612
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/execution_preview_leases_test.go",
+    "sha256": "f3620155ffe8949e8379d5687fd5c1c1d2a4fa2875e67e3d89e87ad8cddcdfaa",
+    "bytes": 7461
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/execution_reservation_view.go",
+    "sha256": "9aa3a40bd574ef517423bdd68898216f75987c62d0dde7be2442b978f4fe8c3d",
+    "bytes": 3959
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/execution_runtime_image_leases.go",
+    "sha256": "f90e2985342c826eafac869d89d3b769f2deb20303f41ee59c7b8cd8f66fa804",
+    "bytes": 11121
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/execution_runtime_image_leases_test.go",
+    "sha256": "ead2f52131cafe41dfb7e4fd7c4d782cd79d5fd049d4f9a09c2ebce95b7b26ed",
+    "bytes": 8105
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/preview_execution.go",
+    "sha256": "941eeea687c12fa8ae383c117527cc17ab47aa5ceb27f093ee11777bbe7c6f5a",
+    "bytes": 22807
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/preview_execution_test.go",
+    "sha256": "e929297c610bcb451b9cb10e3b2f9c210837d31d4a7c16579be5b7e1134e8cd0",
+    "bytes": 9827
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/runtime_install_execution.go",
+    "sha256": "1391cb030a2b52bbd6786c315d70516c25ac8041a7ee27a968bde7afe3506800",
+    "bytes": 14896
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/api/runtime_install_execution_test.go",
+    "sha256": "2da2ac4b6ad48277cd86f00f048789290c75e2d45b548821c78cc6536b128ee1",
+    "bytes": 11429
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/backend/previews.go",
+    "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc",
+    "bytes": 2305
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/backend/runtime_image.go",
+    "sha256": "2fed99ba7a6cdc546f1db9447eaedbecc96652ca9552e528e3c254b381ee16b7",
+    "bytes": 2580
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/management/deployment_authority.go",
+    "sha256": "fb75d46c029a7e4d98b2d35860e14663184b21f67eca3a9ec97d634a03c9b59d",
+    "bytes": 3374
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/management/deployment_authority_test.go",
+    "sha256": "c61a82a4fbd549731d263345bb6d52558f8d2b7b02726610b5e560a009b53f38",
+    "bytes": 4807
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/management/policy.go",
+    "sha256": "a91d676456cc4012e8d4162b24054d96117b3e0452f47c87e6d5bca2cd9bc979",
+    "bytes": 10527
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/management/runtime_authority.go",
+    "sha256": "9662be0f924895194c645e91ed519dd66c71fb55c9423c9ddbbb153fbe6795d5",
+    "bytes": 2925
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/management/runtime_authority_test.go",
+    "sha256": "c36fffc48372e7f242bb9bbcf398bee5b81da1b3e7e3848613c11808c158b31b",
+    "bytes": 7249
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/browser_bridge.go",
+    "sha256": "a8fa18272f93e42b35496d417c77fcc1361dbdd3ad765d8211181dd3b201ddaa",
+    "bytes": 9860
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/browser_bridge_test.go",
+    "sha256": "3ed43570fa32663aa580aada66fe06c6f13c8e2bdbcda046cdde82b5732437ca",
+    "bytes": 12640
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/browser_preview.go",
+    "sha256": "76e7fb6ff15fb58897536c9842a8fddfa78e16b42ac1a0ac16a8fecf5fe39c11",
+    "bytes": 3535
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/database_restore.go",
+    "sha256": "67b8123d8f55091ec9c436052d8330e93ba857f9715e310f79b7db052ca12da5",
+    "bytes": 19181
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/docker.go",
+    "sha256": "d35c4db71f3b2e2d67289023158facea90c78e473e7bb0948a670e2d0dc78187",
+    "bytes": 19393
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/platform.go",
+    "sha256": "5a4545fcf7b102326d00cdf7bf073de6ea4677bce135ee7cd33df2c490b42861",
+    "bytes": 15102
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/platform_test.go",
+    "sha256": "9b6176234d59344a04c8cd0c0738d3c3a59e246581d89c2c67c01c1e043de5b4",
+    "bytes": 31143
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/preview_runtime.go",
+    "sha256": "dea2b18105843bc7738b6f993c8f230b794ab14527c0db0c072124a3aa6745e5",
+    "bytes": 10343
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/preview_runtime_test.go",
+    "sha256": "a6b2eab24d9eedce73c61dd454ab8f1f9d7181bc4af2d9892d2b381b5919863d",
+    "bytes": 3157
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/project_runs.go",
+    "sha256": "c576e172fbe79c75a9e1de1a85fbc28ff8fbce1518de7d6d497337ecead106b6",
+    "bytes": 4750
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/platform/prototype_releases.go",
+    "sha256": "63db5fad935283c6d0501d11eb58999d4c0e62a8b3bc2aa0e1e4d0cc3121bea6",
+    "bytes": 3061
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/previewruntime/runtime.go",
+    "sha256": "8e6aec2e45feb61b2d55e61cb5aa8914746ccef5dafa87e31898a4aee86ef7df",
+    "bytes": 3486
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/browser_preview.go",
+    "sha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f",
+    "bytes": 1380
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/connections.go",
+    "sha256": "22b971b760083980e49bc1a87ff93a22cc0777005848a8a36c6118e3fc88c3df",
+    "bytes": 13437
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/managed_setup_test.go",
+    "sha256": "e803add3392307da29803dd7c99a2b1d9029c49124ff888c104e33c413da808d",
+    "bytes": 8787
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/preview_proxy.go",
+    "sha256": "68fb052cd8dec65df9278a6b36195136e267613f9a4acaa054a72099e916f73d",
+    "bytes": 8127
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/preview_runtime.go",
+    "sha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d",
+    "bytes": 3708
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/preview_runtime_fixture_test.go",
+    "sha256": "34c1392b50ddb99c13c2a2958a275f6c5bfc57c111ddc00030139fcc08229dcf",
+    "bytes": 6326
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/preview_runtime_test.go",
+    "sha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6",
+    "bytes": 4060
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/projects_test.go",
+    "sha256": "08a3dfb285e5c06dabb5bfee683825668a9015d87eec334d48be8f6c7105f82d",
+    "bytes": 14257
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/releases.go",
+    "sha256": "fcd242e0005c33d1b16b07ffeae1c5e9e97b32de8fd018e30f0029f92c984f09",
+    "bytes": 21311
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/releases_observation.go",
+    "sha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd",
+    "bytes": 3602
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/runtime_install.go",
+    "sha256": "0a9b806838cfdc60512a2dc08e5c369f6d7659797b7c447443e26657eaeed062",
+    "bytes": 12272
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/runtime_install_test.go",
+    "sha256": "68b9b5e7ba5ebaee70bd7dc1ce77995b94b604e1143134068ea166d46ec2a769",
+    "bytes": 17977
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/server.go",
+    "sha256": "895937c8428ba5cc24c880a605b356f35483a072efa6e3cd7e007d944c364e05",
+    "bytes": 22237
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/setup_storage_test.go",
+    "sha256": "8ae48b1d53f19b2b1af8b5358965b824569c60a3fc10c0218f0c5b71d71b412b",
+    "bytes": 11610
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/setup_tools.go",
+    "sha256": "c235c2bc70a282b80594a9eca664b107f6b0e7d308ffde0a3572f4b1cf4d79f4",
+    "bytes": 12318
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/product/setup_tools_test.go",
+    "sha256": "4ccb3313a5bb5fa474902fdc53c284243e47af42c9586eac4081f328fcc86efa",
+    "bytes": 13659
+  },
+  {
+    "path": "api-product-4/frozen/control-plane/internal/runtimeinstall/runtime.go",
+    "sha256": "f223e30078cefbd7c40f34563477694043a570f7d3dcf3337f2337a86c3135cf",
+    "bytes": 2565
+  },
+  {
+    "path": "api-product-4/inputs-after.json",
+    "sha256": "8829db98a3b9a7db19e9bc768f8646fa683bd2c0a3782c32e492680d5e417332",
+    "bytes": 172545
+  },
+  {
+    "path": "api-product-4/inputs-before.json",
+    "sha256": "8829db98a3b9a7db19e9bc768f8646fa683bd2c0a3782c32e492680d5e417332",
+    "bytes": 172545
+  },
+  {
+    "path": "api-product-4/overlay.json",
+    "sha256": "37c365d1d2077783f1d26fad17e1ac4942cc1f0df5e994bcc6065cf4729127ef",
+    "bytes": 10357
+  },
+  {
+    "path": "api-product-4/result.json",
+    "sha256": "dbb62817da67c3f09609fa6070a17d3ae8c5ad57a954c3ebc4f145a9c3ebfb49",
+    "bytes": 96
+  },
+  {
+    "path": "api-product-4/stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "api-product-4/stdout.jsonl",
+    "sha256": "d6de6b590569a9aa08551905c5cfe58d4df985e7a43181df9036506142f8f7f8",
+    "bytes": 38089
+  },
+  {
+    "path": "backend-1/command.json",
+    "sha256": "d0020c0fe2512250843e72a9fd528d7cb4fbcb578c92dda2c54a1dcb3db0969a",
+    "bytes": 690
+  },
+  {
+    "path": "backend-1/frozen/control-plane/cmd/api/main.go",
+    "sha256": "ba39e1608447a9d787a0edfc623b6d00350af09b9366b8d8876337322c2bda2f",
+    "bytes": 35028
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/api.go",
+    "sha256": "3d2ea5221ebef5c50ba0e65ee679657b4ceefd7d15fee1e7e7fb91a054161cdf",
+    "bytes": 27093
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/execution_capacity.go",
+    "sha256": "2955d9183e27c34314fe8550ee2f6df733a80207d1744b907df8b404356be7aa",
+    "bytes": 8442
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/execution_capacity_typed_test.go",
+    "sha256": "7bee093aac95200da83ed60f93f51bba9fa0007b27262cb49e839bcd0defaf9b",
+    "bytes": 2089
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/execution_check_leases.go",
+    "sha256": "fa5704431baa6aad243706a8f91f589d93344b865d5d13a102266c79267f6182",
+    "bytes": 15310
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/execution_leases.go",
+    "sha256": "7916d4d875497c0a694679f2d7072f08d16ef5746dbc4fe9395c29fdee55294a",
+    "bytes": 29935
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/execution_preview_leases.go",
+    "sha256": "e9a18e1f82a3bcd25c76a4d2ad876ba3f97b2fc2fd61e47faa73fdc8d4c5211c",
+    "bytes": 14612
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/execution_preview_leases_test.go",
+    "sha256": "f3620155ffe8949e8379d5687fd5c1c1d2a4fa2875e67e3d89e87ad8cddcdfaa",
+    "bytes": 7461
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/execution_reservation_view.go",
+    "sha256": "9aa3a40bd574ef517423bdd68898216f75987c62d0dde7be2442b978f4fe8c3d",
+    "bytes": 3959
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/execution_runtime_image_leases.go",
+    "sha256": "f90e2985342c826eafac869d89d3b769f2deb20303f41ee59c7b8cd8f66fa804",
+    "bytes": 11121
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/execution_runtime_image_leases_test.go",
+    "sha256": "ead2f52131cafe41dfb7e4fd7c4d782cd79d5fd049d4f9a09c2ebce95b7b26ed",
+    "bytes": 8105
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/preview_execution.go",
+    "sha256": "941eeea687c12fa8ae383c117527cc17ab47aa5ceb27f093ee11777bbe7c6f5a",
+    "bytes": 22807
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/preview_execution_test.go",
+    "sha256": "e929297c610bcb451b9cb10e3b2f9c210837d31d4a7c16579be5b7e1134e8cd0",
+    "bytes": 9827
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/runtime_install_execution.go",
+    "sha256": "1391cb030a2b52bbd6786c315d70516c25ac8041a7ee27a968bde7afe3506800",
+    "bytes": 14896
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/api/runtime_install_execution_test.go",
+    "sha256": "2da2ac4b6ad48277cd86f00f048789290c75e2d45b548821c78cc6536b128ee1",
+    "bytes": 11429
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/dockerbe/preview_adapter_contract_test.go",
+    "sha256": "d5223e96ca4d011fbedfa618cfa1b961cd2b803a7fead87b2c0c902236ea4d43",
+    "bytes": 3225
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/dockerbe/preview_context.go",
+    "sha256": "a361a782d87106bb5a85d0ebc6a2876e85b1a4328ff384aee489be601a42d97a",
+    "bytes": 12089
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/dockerbe/preview_context_regression_test.go",
+    "sha256": "db899f7b61e995eee10f654315ff97f1f6f4cafcbcc18144c112636a6ef3a79f",
+    "bytes": 5171
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/dockerbe/preview_terminal_regression_test.go",
+    "sha256": "16c4a3483c6c91b7b21315187186b3f69ebff535ab5175b72935390140a7ffda",
+    "bytes": 3094
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/dockerbe/previews.go",
+    "sha256": "f631c59a54d0453a162d2e562256de42f22da6ab417b34be09eacbe190be4f86",
+    "bytes": 21125
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/dockerbe/previews_test.go",
+    "sha256": "5a3d5844ce3e749c09d0ceb8e7a5cc4cc06757e183c9d635cf437edf863bee05",
+    "bytes": 12410
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/dockerbe/runtime_image.go",
+    "sha256": "a15a5ccb965a6c67a98cb48950492e38f3de22797f60e49f4a5246c4642a3d4f",
+    "bytes": 18878
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/dockerbe/runtime_image_context.go",
+    "sha256": "25f6e670cbf611e9c6721fd204d66745cd11c44b4fbf253f3082b7ade40a9327",
+    "bytes": 11392
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/dockerbe/runtime_image_test.go",
+    "sha256": "4f13d06f961353fd34f8680219c27331e65aca47502c7309aeaed5d8a1858369",
+    "bytes": 27090
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/previews.go",
+    "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc",
+    "bytes": 2305
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/backend/runtime_image.go",
+    "sha256": "2fed99ba7a6cdc546f1db9447eaedbecc96652ca9552e528e3c254b381ee16b7",
+    "bytes": 2580
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/management/deployment_authority.go",
+    "sha256": "fb75d46c029a7e4d98b2d35860e14663184b21f67eca3a9ec97d634a03c9b59d",
+    "bytes": 3374
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/management/deployment_authority_test.go",
+    "sha256": "c61a82a4fbd549731d263345bb6d52558f8d2b7b02726610b5e560a009b53f38",
+    "bytes": 4807
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/management/policy.go",
+    "sha256": "a91d676456cc4012e8d4162b24054d96117b3e0452f47c87e6d5bca2cd9bc979",
+    "bytes": 10527
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/management/runtime_authority.go",
+    "sha256": "9662be0f924895194c645e91ed519dd66c71fb55c9423c9ddbbb153fbe6795d5",
+    "bytes": 2925
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/management/runtime_authority_test.go",
+    "sha256": "c36fffc48372e7f242bb9bbcf398bee5b81da1b3e7e3848613c11808c158b31b",
+    "bytes": 7249
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/browser_bridge.go",
+    "sha256": "a8fa18272f93e42b35496d417c77fcc1361dbdd3ad765d8211181dd3b201ddaa",
+    "bytes": 9860
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/browser_bridge_test.go",
+    "sha256": "3ed43570fa32663aa580aada66fe06c6f13c8e2bdbcda046cdde82b5732437ca",
+    "bytes": 12640
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/browser_preview.go",
+    "sha256": "76e7fb6ff15fb58897536c9842a8fddfa78e16b42ac1a0ac16a8fecf5fe39c11",
+    "bytes": 3535
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/database_restore.go",
+    "sha256": "67b8123d8f55091ec9c436052d8330e93ba857f9715e310f79b7db052ca12da5",
+    "bytes": 19181
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/docker.go",
+    "sha256": "d35c4db71f3b2e2d67289023158facea90c78e473e7bb0948a670e2d0dc78187",
+    "bytes": 19393
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/platform.go",
+    "sha256": "5a4545fcf7b102326d00cdf7bf073de6ea4677bce135ee7cd33df2c490b42861",
+    "bytes": 15102
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/platform_test.go",
+    "sha256": "9b6176234d59344a04c8cd0c0738d3c3a59e246581d89c2c67c01c1e043de5b4",
+    "bytes": 31143
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/preview_runtime.go",
+    "sha256": "dea2b18105843bc7738b6f993c8f230b794ab14527c0db0c072124a3aa6745e5",
+    "bytes": 10343
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/preview_runtime_test.go",
+    "sha256": "a6b2eab24d9eedce73c61dd454ab8f1f9d7181bc4af2d9892d2b381b5919863d",
+    "bytes": 3157
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/project_runs.go",
+    "sha256": "c576e172fbe79c75a9e1de1a85fbc28ff8fbce1518de7d6d497337ecead106b6",
+    "bytes": 4750
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/platform/prototype_releases.go",
+    "sha256": "63db5fad935283c6d0501d11eb58999d4c0e62a8b3bc2aa0e1e4d0cc3121bea6",
+    "bytes": 3061
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/previewruntime/runtime.go",
+    "sha256": "8e6aec2e45feb61b2d55e61cb5aa8914746ccef5dafa87e31898a4aee86ef7df",
+    "bytes": 3486
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/browser_preview.go",
+    "sha256": "e81e3d5a2756adbdf3c02cf177b1021277dca9cb02ebca979cbaad4f7d24574f",
+    "bytes": 1380
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/connections.go",
+    "sha256": "22b971b760083980e49bc1a87ff93a22cc0777005848a8a36c6118e3fc88c3df",
+    "bytes": 13437
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/managed_setup_test.go",
+    "sha256": "e803add3392307da29803dd7c99a2b1d9029c49124ff888c104e33c413da808d",
+    "bytes": 8787
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/preview_proxy.go",
+    "sha256": "68fb052cd8dec65df9278a6b36195136e267613f9a4acaa054a72099e916f73d",
+    "bytes": 8127
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/preview_runtime.go",
+    "sha256": "5e207bc7a1c8f4b0ba4892d48d52eee4f7b7155cdacea2ca87c3e8162e83248d",
+    "bytes": 3708
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/preview_runtime_fixture_test.go",
+    "sha256": "34c1392b50ddb99c13c2a2958a275f6c5bfc57c111ddc00030139fcc08229dcf",
+    "bytes": 6326
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/preview_runtime_test.go",
+    "sha256": "f701e28a1bb87d77b2485b036df40735617996be4f55a8ea258e00c72d3863b6",
+    "bytes": 4060
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/projects_test.go",
+    "sha256": "08a3dfb285e5c06dabb5bfee683825668a9015d87eec334d48be8f6c7105f82d",
+    "bytes": 14257
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/releases.go",
+    "sha256": "fcd242e0005c33d1b16b07ffeae1c5e9e97b32de8fd018e30f0029f92c984f09",
+    "bytes": 21311
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/releases_observation.go",
+    "sha256": "e8900fb670a50de9df5bfb965f6049d8e41ca70cc3e97cb5dc4ae531859db5cd",
+    "bytes": 3602
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/runtime_install.go",
+    "sha256": "0a9b806838cfdc60512a2dc08e5c369f6d7659797b7c447443e26657eaeed062",
+    "bytes": 12272
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/runtime_install_test.go",
+    "sha256": "68b9b5e7ba5ebaee70bd7dc1ce77995b94b604e1143134068ea166d46ec2a769",
+    "bytes": 17977
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/server.go",
+    "sha256": "895937c8428ba5cc24c880a605b356f35483a072efa6e3cd7e007d944c364e05",
+    "bytes": 22237
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/setup_storage_test.go",
+    "sha256": "8ae48b1d53f19b2b1af8b5358965b824569c60a3fc10c0218f0c5b71d71b412b",
+    "bytes": 11610
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/setup_tools.go",
+    "sha256": "c235c2bc70a282b80594a9eca664b107f6b0e7d308ffde0a3572f4b1cf4d79f4",
+    "bytes": 12318
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/product/setup_tools_test.go",
+    "sha256": "4ccb3313a5bb5fa474902fdc53c284243e47af42c9586eac4081f328fcc86efa",
+    "bytes": 13659
+  },
+  {
+    "path": "backend-1/frozen/control-plane/internal/runtimeinstall/runtime.go",
+    "sha256": "f223e30078cefbd7c40f34563477694043a570f7d3dcf3337f2337a86c3135cf",
+    "bytes": 2565
+  },
+  {
+    "path": "backend-1/inputs-after.json",
+    "sha256": "ad33bf86e64d16edf6215ad71bcf4e791e0975d982b10911daee3a17833e406f",
+    "bytes": 174432
+  },
+  {
+    "path": "backend-1/inputs-before.json",
+    "sha256": "ad33bf86e64d16edf6215ad71bcf4e791e0975d982b10911daee3a17833e406f",
+    "bytes": 174432
+  },
+  {
+    "path": "backend-1/overlay.json",
+    "sha256": "59eaf1da9fc89057ea0ba9a20b2b277476f2ccc74c9ae796dd2b3fc12cac84e0",
+    "bytes": 12169
+  },
+  {
+    "path": "backend-1/result.json",
+    "sha256": "236dff5bca972f18f7a54294f842fd099122ab65ca9564c0b93e4660aac8806c",
+    "bytes": 96
+  },
+  {
+    "path": "backend-1/stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "backend-1/stdout.jsonl",
+    "sha256": "5b21f3e1b0a9f93c9c4ab3a6f9fa561eba2e6284de3ff668444c742864a10253",
+    "bytes": 76623
+  }
+]

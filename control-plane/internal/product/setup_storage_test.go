@@ -53,7 +53,7 @@ func TestRuntimePreparationRefusesUnconfirmedStaleAndInsufficientHostStorage(t *
 		t.Run(test.name, func(t *testing.T) {
 			s, mux := journeyFixture(t)
 			s.registerSetupTools(mux)
-			s.runtimeDir = runtimeSourceFixture(t)
+			runtimeInstallerFixture(t, s)
 			s.SetRuntimeResourceSnapshot(func() resourcebudget.Snapshot {
 				snapshot := windowsStorageFixtureSnapshot()
 				test.change(&snapshot)
@@ -76,7 +76,7 @@ func TestRuntimePreparationRefusesUnconfirmedStaleAndInsufficientHostStorage(t *
 func TestRuntimePreparationRechecksBeforeBuildWithoutImageDependency(t *testing.T) {
 	s, mux := journeyFixture(t)
 	s.registerSetupTools(mux)
-	s.runtimeDir = runtimeSourceFixture(t)
+	runtimeInstallerFixture(t, s)
 	var samples, commands atomic.Int32
 	s.SetRuntimeResourceSnapshot(func() resourcebudget.Snapshot {
 		snapshot := windowsStorageFixtureSnapshot()
@@ -135,7 +135,7 @@ func TestRuntimePreparationSeparatelyRequiresFreshDockerGuestCapacity(t *testing
 		t.Run(test.name, func(t *testing.T) {
 			s, mux := journeyFixture(t)
 			s.registerSetupTools(mux)
-			s.runtimeDir = runtimeSourceFixture(t)
+			runtimeInstallerFixture(t, s)
 			s.SetRuntimeResourceSnapshot(func() resourcebudget.Snapshot {
 				snapshot := windowsStorageFixtureSnapshot()
 				test.change(&snapshot)
@@ -158,7 +158,7 @@ func TestRuntimePreparationSeparatelyRequiresFreshDockerGuestCapacity(t *testing
 func TestRuntimePreparationRechecksGuestCapacityBeforeStartingBuild(t *testing.T) {
 	s, mux := journeyFixture(t)
 	s.registerSetupTools(mux)
-	s.runtimeDir = runtimeSourceFixture(t)
+	runtimeInstallerFixture(t, s)
 	var samples, commands atomic.Int32
 	s.SetRuntimeResourceSnapshot(func() resourcebudget.Snapshot {
 		snapshot := windowsStorageFixtureSnapshot()
@@ -182,7 +182,7 @@ func TestRuntimePreparationRechecksGuestCapacityBeforeStartingBuild(t *testing.T
 func TestRuntimeStorageLossPreservesExistingBuildAndReadOnlyReadiness(t *testing.T) {
 	s, mux := journeyFixture(t)
 	s.registerSetupTools(mux)
-	s.runtimeDir = runtimeSourceFixture(t)
+	runtimeInstallerFixture(t, s)
 	var missing atomic.Bool
 	s.SetRuntimeResourceSnapshot(func() resourcebudget.Snapshot {
 		snapshot := windowsStorageFixtureSnapshot()

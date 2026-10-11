@@ -1,0 +1,251 @@
+package api
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/product"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+)
+
+var errRuntimeImageLeaseAbsent = errors.New("exact runtime installer allocation is absent")
+
+type runtimeImageExecutionLease struct {
+	ID              string                       `json:"id"`
+	Scope           string                       `json:"scope"`
+	Actor           management.ExecutionActorRef `json:"actor"`
+	Identity        backend.RuntimeImageIdentity `json:"identity"`
+	Resources       backend.Resources            `json:"resources"`
+	CreateDiskBytes uint64                       `json:"createDiskBytes"`
+	ImageTag        string                       `json:"imageTag"`
+	State           string                       `json:"state"`
+	Image           string                       `json:"image,omitempty"`
+	Revision        int                          `json:"revision"`
+	CreatedAt       time.Time                    `json:"createdAt"`
+	UpdatedAt       time.Time                    `json:"updatedAt"`
+}
+
+func validRuntimeImageExecutionLease(v runtimeImageExecutionLease) bool {
+	i := v.Identity
+	return i.Protocol == backend.RuntimeImageExecutionProtocol && i.EngineID != "" && len(i.EngineID) <= 200 && !strings.ContainsAny(i.EngineID, "\x00\r\n") && backend.ValidateInstance(i.InstanceID) == nil &&
+		checkLogicalID(i.AllocationID) && checkLogicalID(i.JobID) && checkHex(i.ScopeDigest, 32) && checkHex(i.SourceDigest, 32) && v.ID == i.AllocationID && v.Scope == i.ScopeDigest &&
+		v.Actor.ProjectID == "" && len(v.Actor.UserID) <= 200 && len(v.Actor.TeamID) <= 200 && (v.Actor.Local && v.Actor.UserID == "" && v.Actor.TeamID == "" || !v.Actor.Local && v.Actor.UserID != "") &&
+		v.Resources.MemoryMiB >= 128 && v.Resources.MemoryMiB <= 32768 && v.Resources.CPUMillis >= 100 && v.Resources.CPUMillis <= 16000 &&
+		v.CreateDiskBytes >= backend.RuntimeImageRequiredDiskBytes && v.CreateDiskBytes <= 1<<50 && v.ImageTag != "" && len(v.ImageTag) <= 300 && !strings.ContainsAny(v.ImageTag, "\x00\r\n \t") &&
+		v.Revision >= 1 && !v.CreatedAt.IsZero() && !v.UpdatedAt.Before(v.CreatedAt) &&
+		(v.State == "reserved" && v.Image == "" || v.State == "building" && v.Image == "" || v.State == "finished" && (v.Image == "" || strings.HasPrefix(v.Image, "sha256:") && checkHex(strings.TrimPrefix(v.Image, "sha256:"), 32)))
+}
+func addRuntimeImageCapacity(rows []runtimeImageExecutionLease, skipScope, skipID string, demand *executionCapacityDemand) error {
+	for _, v := range rows {
+		if v.State == "finished" || v.Scope == skipScope && v.ID == skipID {
+			continue
+		}
+		memory := uint64(v.Resources.MemoryMiB) << 20
+		if demand.PendingMemory > ^uint64(0)-memory || demand.AllMemory > ^uint64(0)-memory || demand.PendingDiskBytes > ^uint64(0)-v.CreateDiskBytes {
+			return errors.New("runtime installer demand exceeds supported capacity accounting")
+		}
+		demand.PendingMemory += memory
+		demand.AllMemory += memory
+		demand.CPU += int64(v.Resources.CPUMillis)
+		demand.PendingDiskBytes += v.CreateDiskBytes
+	}
+	return nil
+}
+func addRuntimeImageReservationView(view *executionReservationView, rows []runtimeImageExecutionLease) {
+	for _, v := range rows {
+		if v.State != "finished" {
+			view.Count++
+			view.MemoryMiB += v.Resources.MemoryMiB
+			view.CPUMillis += v.Resources.CPUMillis
+		}
+	}
+}
+func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy) (executionDecision, runtimeImageExecutionLease, error) {
+	id, resources := prepared.Spec.Identity, prepared.Spec.Resources
+	out := executionDecision{State: "waiting", Code: "resource_observation_unavailable", Message: "Current machine capacity is unavailable; runtime installation has not started.", Resources: resources}
+	var result runtimeImageExecutionLease
+	candidate := runtimeImageExecutionLease{ID: id.AllocationID, Scope: g.scope, Actor: actor, Identity: id, Resources: resources, CreateDiskBytes: prepared.RequiredDiskBytes, ImageTag: prepared.Spec.ImageTag, State: "reserved", Revision: 1, CreatedAt: time.Now().UTC()}
+	candidate.UpdatedAt = candidate.CreatedAt
+	if !validRuntimeImageExecutionLease(candidate) || id.ScopeDigest != g.scope {
+		return out, result, errors.New("runtime installer allocation identity or budget is invalid")
+	}
+	if !actor.Local && (resources.MemoryMiB > authority.Policy.CheckMemoryMiB || resources.CPUMillis > authority.Policy.CheckCPUMillis) {
+		return out, result, errors.New("runtime installer resources exceed current operator policy")
+	}
+	if g.api.deps.ResourceSnapshot == nil {
+		return out, result, nil
+	}
+	// Preserve the existing 32 GiB bounded installation demand +8 GiB reserve.
+	policy.DiskReserveMiB = max(policy.DiskReserveMiB, 8192)
+	err := g.mutate(ctx, func(l *executionLeaseLedger) error {
+		if err := g.reconcileOwned(ctx, l); err != nil {
+			return err
+		}
+		snap, now := g.api.deps.ResourceSnapshot(), time.Now().UTC()
+		if !freshExecutionCapacity(snap, now) || snap.Execution.EngineID != id.EngineID {
+			return nil
+		}
+		existing := false
+		for _, v := range l.RuntimeImages {
+			if v.Scope == g.scope && v.ID == id.AllocationID {
+				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.State != "reserved" {
+					return errors.New("runtime installer allocation already claimed, changed or settled")
+				}
+				existing, result = true, v
+				continue
+			}
+			// Finished retains the engine-wide identity slot through image publication.
+			// It carries no resource charge; acknowledgement retires the exact lineage.
+			if v.Identity.EngineID == id.EngineID {
+				out.Code, out.Message = "runtime_install_retained", "Another runtime installation or its publication still requires settlement."
+				return nil
+			}
+		}
+		demand := executionCapacityDemand{RequiredCreateDiskBytes: prepared.RequiredDiskBytes}
+		observed := map[string]bool{}
+		for _, c := range snap.Execution.Containers {
+			memory, cpu, ok := executionWorkloadDemand(c, now)
+			if !ok {
+				out.Code, out.Message = "execution_limits_unknown", "A workload has neither verified limits nor fresh usage. No runtime installation was started."
+				return nil
+			}
+			demand.AllMemory += memory
+			demand.CPU += cpu
+			if c.SandboxID != "" {
+				observed[c.SandboxID] = true
+			}
+		}
+		for _, v := range l.Leases {
+			if v.SessionID == "" || !observed[v.sandboxID()] {
+				memory := uint64(v.Resources.MemoryMiB) << 20
+				demand.PendingMemory += memory
+				demand.AllMemory += memory
+				demand.CPU += int64(v.Resources.CPUMillis)
+				demand.PendingAllocations++
+			}
+		}
+		rows, err := g.api.deps.Store.List()
+		if err != nil {
+			return err
+		}
+		for _, row := range rows {
+			if row.Status == registry.StatusExited || observed[row.SandboxID] {
+				continue
+			}
+			covered := false
+			for _, v := range l.Leases {
+				if v.Scope == g.scope && v.SessionID == row.ID {
+					covered = true
+					break
+				}
+			}
+			if !covered {
+				memory := uint64(g.api.deps.Resources.MemoryMiB) << 20
+				demand.PendingMemory += memory
+				demand.AllMemory += memory
+				demand.CPU += int64(g.api.deps.Resources.CPUMillis)
+				demand.PendingAllocations++
+			}
+		}
+		if err = addCheckCapacity(snap, l.Checks, "", "", &demand); err != nil {
+			return err
+		}
+		if err = addPreviewCapacity(snap, l.Previews, "", "", &demand); err != nil {
+			return err
+		}
+		if err := addRuntimeImageCapacity(l.RuntimeImages, g.scope, id.AllocationID, &demand); err != nil {
+			return err
+		}
+		capacity := evaluateExecutionCapacityWithEvidence(snap, policy, resources, demand, now)
+		if capacity.Code != "" {
+			out.Code, out.Message, out.Evidence = capacity.Code, capacity.Message, capacity.Evidence
+			return nil
+		}
+		if !existing {
+			if len(l.Leases)+len(l.Checks)+len(l.Previews)+len(l.RuntimeImages) >= 4096 {
+				return errors.New("execution capacity history needs reconciliation")
+			}
+			candidate.CreatedAt, candidate.UpdatedAt = now, now
+			l.RuntimeImages = append(l.RuntimeImages, candidate)
+			result = candidate
+		}
+		out.State, out.Code, out.Message = "admitted", "capacity_reserved", "Shared capacity reserved for the exact bundled runtime build."
+		return nil
+	})
+	return out, result, err
+}
+func (g *executionAdmission) transitionRuntimeImage(ctx context.Context, before runtimeImageExecutionLease, next string) (runtimeImageExecutionLease, error) {
+	var out runtimeImageExecutionLease
+	err := g.mutate(ctx, func(l *executionLeaseLedger) error {
+		for i, v := range l.RuntimeImages {
+			if v.Scope == g.scope && v.ID == before.ID {
+				if v != before || v.State != "reserved" || next != "building" {
+					return errors.New("runtime installer phase already changed")
+				}
+				v.State, v.UpdatedAt = next, time.Now().UTC()
+				v.Revision++
+				l.RuntimeImages[i], out = v, v
+				return nil
+			}
+		}
+		return errRuntimeImageLeaseAbsent
+	})
+	return out, err
+}
+func (g *executionAdmission) completeRuntimeImage(ctx context.Context, before runtimeImageExecutionLease, settled bool, image string) (runtimeImageExecutionLease, error) {
+	var out runtimeImageExecutionLease
+	if !settled {
+		return out, errors.New("runtime build settlement is unknown; capacity remains held")
+	}
+	err := g.mutate(ctx, func(l *executionLeaseLedger) error {
+		for i, v := range l.RuntimeImages {
+			if v.Scope == g.scope && v.ID == before.ID {
+				if v != before || (v.State != "reserved" && v.State != "building") {
+					return errors.New("runtime build completion changed")
+				}
+				v.State, v.Image, v.UpdatedAt = "finished", image, time.Now().UTC()
+				v.Revision++
+				if !validRuntimeImageExecutionLease(v) {
+					return errors.New("runtime build completion identity is invalid")
+				}
+				l.RuntimeImages[i], out = v, v
+				return nil
+			}
+		}
+		return errRuntimeImageLeaseAbsent
+	})
+	return out, err
+}
+func (g *executionAdmission) acknowledgeRuntimeImageCompletion(ctx context.Context, before runtimeImageExecutionLease) error {
+	return g.mutate(ctx, func(l *executionLeaseLedger) error {
+		for i, v := range l.RuntimeImages {
+			if v.Scope == g.scope && v.ID == before.ID {
+				if v != before || v.State != "finished" {
+					return errors.New("runtime installer publication is not durably settled")
+				}
+				l.RuntimeImages = append(l.RuntimeImages[:i], l.RuntimeImages[i+1:]...)
+				return nil
+			}
+		}
+		return errRuntimeImageLeaseAbsent
+	})
+}
+func (g *executionAdmission) runtimeImageLease(ctx context.Context, id string) (runtimeImageExecutionLease, error) {
+	if err := ctx.Err(); err != nil {
+		return runtimeImageExecutionLease{}, err
+	}
+	l, err := g.readReservationLedger(ctx)
+	if err != nil {
+		return runtimeImageExecutionLease{}, err
+	}
+	for _, v := range l.RuntimeImages {
+		if v.Scope == g.scope && v.ID == id {
+			return v, nil
+		}
+	}
+	return runtimeImageExecutionLease{}, errRuntimeImageLeaseAbsent
+}

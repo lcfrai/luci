@@ -1,0 +1,76 @@
+{
+  "source": [
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_context.go",
+      "sha256": "2b7f19dd4337e9ae85fbc97fd0db6b215ef5990ed5307c8d69a95728b6fc089c",
+      "bytes": 7982
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/previews.go",
+      "sha256": "9eb22e4ffbfef9da603cf81284194dfcc03761f13ee2f05656b3d102740da6b0",
+      "bytes": 19973
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/previews_test.go",
+      "sha256": "d541982c6f54b0e11ebde9241e0176bc2f59afd2c8a1756685543599352aa872",
+      "bytes": 12322
+    },
+    {
+      "path": "control-plane/internal/backend/previews.go",
+      "sha256": "b7ca5ec71a21e7bb268caff5c6cdbff5540ba493203b04ebef98ca9033421ddc",
+      "bytes": 2305
+    }
+  ],
+  "preservedOriginalEvidence": [
+    {
+      "name": "compile.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "compile.stdout.log",
+      "sha256": "d5ec741a36b18f07d7d30d1e3bbeda782087a0d9520a29af66e2482435bf0157",
+      "bytes": 93
+    },
+    {
+      "name": "diagnostic.log",
+      "sha256": "30681ccf33af6536d2f7da6a12895560422d2994ecea67e9c3337ee917cae16c",
+      "bytes": 4035
+    },
+    {
+      "name": "focused-fixed.jsonl",
+      "sha256": "934b5a22918c947f39795c38bdf5d241c2f1cf7cd753e311edd9f88bf657b331",
+      "bytes": 39892
+    },
+    {
+      "name": "focused-fixed.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "focused-original.jsonl",
+      "sha256": "5c8ae9568de53688fcf2b9d1bc282f7b4f8c48393d7d032dddef7db1c87b25f9",
+      "bytes": 40161
+    },
+    {
+      "name": "focused-original.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "overlay.json",
+      "sha256": "03a7c2364727fb2e273e10462b99ca9b74d80bad0e5ae6927c7a2c820b0b1273",
+      "bytes": 699
+    },
+    {
+      "name": "predicates-fixed-wrapper.log",
+      "sha256": "8b1896df851add10a8c40166bede76d39c60206a1ae3b463896d8ec3a9c7569f",
+      "bytes": 5450
+    },
+    {
+      "name": "predicates.log",
+      "sha256": "04dbd6d4f8ef03b2e52128eddfe222005566288afe84fd92a9adc27637f76a65",
+      "bytes": 351
+    }
+  ]
+}

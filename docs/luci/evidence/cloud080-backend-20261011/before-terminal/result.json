@@ -1,0 +1,37 @@
+{
+  "underlyingExitCode": 1,
+  "timedOut": false,
+  "elapsedSeconds": 3.049606817017775,
+  "inputsUnchanged": true,
+  "inputCount": 956,
+  "counts": {
+    "fail": {
+      "topLevel": 1,
+      "subtests": 6
+    },
+    "pass": {
+      "topLevel": 0,
+      "subtests": 3
+    }
+  },
+  "failedTests": [
+    "TestPreviewClassicBuildRequiresFinalCompletionAfterLastStage/first-stage-only-eof",
+    "TestPreviewClassicBuildRequiresFinalCompletionAfterLastStage/mismatched-final-marker",
+    "TestPreviewClassicBuildRequiresFinalCompletionAfterLastStage/marker-before-aux",
+    "TestPreviewClassicBuildRequiresFinalCompletionAfterLastStage/aux-after-marker",
+    "TestPreviewClassicBuildRequiresFinalCompletionAfterLastStage/later-mismatched-marker",
+    "TestPreviewClassicBuildRequiresFinalCompletionAfterLastStage/marker-with-extra-text",
+    "TestPreviewClassicBuildRequiresFinalCompletionAfterLastStage"
+  ],
+  "packages": [
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "Action": "fail",
+      "Elapsed": 0.015
+    }
+  ],
+  "logSha256": {
+    "stdout.jsonl": "f0da8f840d9e61666c7952a8343e4f6f330fa50529a4f243f019af45a247d5ba",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

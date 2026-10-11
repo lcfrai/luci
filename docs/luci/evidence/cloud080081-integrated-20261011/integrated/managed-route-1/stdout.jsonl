@@ -1,0 +1,8 @@
+{"Time":"2026-10-11T11:20:26.718716263Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/product"}
+{"Time":"2026-10-11T11:20:26.736247434Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestInvitedMemberImmediatelyCreatesPrivateProjectWithoutBackingSetup"}
+{"Time":"2026-10-11T11:20:26.736313494Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestInvitedMemberImmediatelyCreatesPrivateProjectWithoutBackingSetup","Output":"=== RUN   TestInvitedMemberImmediatelyCreatesPrivateProjectWithoutBackingSetup\n"}
+{"Time":"2026-10-11T11:20:27.488845749Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestInvitedMemberImmediatelyCreatesPrivateProjectWithoutBackingSetup","Output":"--- PASS: TestInvitedMemberImmediatelyCreatesPrivateProjectWithoutBackingSetup (0.75s)\n"}
+{"Time":"2026-10-11T11:20:27.488913411Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/product","Test":"TestInvitedMemberImmediatelyCreatesPrivateProjectWithoutBackingSetup","Elapsed":0.75}
+{"Time":"2026-10-11T11:20:27.488944798Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"PASS\n"}
+{"Time":"2026-10-11T11:20:27.499034756Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/product\t0.780s\n"}
+{"Time":"2026-10-11T11:20:27.4990968Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/product","Elapsed":0.78}

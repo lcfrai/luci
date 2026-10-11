@@ -1,0 +1,136 @@
+{
+  "startedAt": "2026-10-11T11:12:38.280452+00:00",
+  "sourceHEAD": "2416135f89049efc21bcc647102c892b3152c692",
+  "scope": "Frozen full UI source/config/raw-import inputs from root plus exact C081 frontend overlay. Base Go/raw inputs are captured as frontend support, not compiled or claimed C081 backend validation. Existing node_modules shared by symlink; bounded dependency fingerprints recorded. No repository source edits.",
+  "frozenRoot": "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen",
+  "nodeVersion": "v24.19.0",
+  "selectedVitestFiles": [
+    "src/components/setup/RuntimePreparation.test.tsx",
+    "src/components/setup/LocalTools.test.tsx",
+    "src/components/setup/RuntimeCancellation.test.tsx"
+  ],
+  "maxWorkers": 1,
+  "explicitEnvironment": {
+    "CI": "1",
+    "NO_COLOR": "1"
+  },
+  "overlay": {
+    "desktop/src/api/product.ts": {
+      "bytes": 29835,
+      "sha256": "ece84046c0c48423f9f3c245e8789ce864960ba24a944f934cd28a9cfacd37e4"
+    },
+    "desktop/src/api/runtimeInstall.ts": {
+      "bytes": 383,
+      "sha256": "ee5c9fea79b4b2ff9ec9e37cb186836d844dd8efaa01fccead741585674bd358"
+    },
+    "desktop/src/components/setup/LocalTools.tsx": {
+      "bytes": 9774,
+      "sha256": "98753132f8f7236ec1341a70bba6173edb596a654cc2651de7a7bd0f5194cc95"
+    },
+    "desktop/src/components/setup/RuntimeCancellation.test.tsx": {
+      "bytes": 9182,
+      "sha256": "48e1b8b0a9367812786b9e73553f2e703f6bab676a1b7ec8367c5b1f512573ff"
+    },
+    "desktop/src/components/setup/RuntimePreparation.tsx": {
+      "bytes": 14765,
+      "sha256": "6b5e7389b6e657debb9007cb4a162b7b08642f5f789a5c54c27b777588565b41"
+    }
+  },
+  "commands": [
+    {
+      "label": "vitest",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop/node_modules/vitest/vitest.mjs",
+        "run",
+        "src/components/setup/RuntimePreparation.test.tsx",
+        "src/components/setup/LocalTools.test.tsx",
+        "src/components/setup/RuntimeCancellation.test.tsx",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/vitest.json"
+      ],
+      "cwd": "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop",
+      "timeoutSeconds": 300,
+      "startedAt": "2026-10-11T11:12:38.879804+00:00",
+      "cleanupBoundSeconds": 20,
+      "maxLogBytesPerStream": 33554432,
+      "pid": 2710454,
+      "processGroup": 2710454,
+      "exitCode": 1,
+      "elapsedSeconds": 11.10974595497828,
+      "completedAt": "2026-10-11T11:12:49.989580+00:00",
+      "logs": {
+        "stdout": {
+          "bytes": 118,
+          "sha256": "74492d21e5939a851ebdf768a1417f6b23d4c4e337c0793fb596d4688ab4ac9b"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    },
+    {
+      "label": "typecheck",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop/node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop",
+      "timeoutSeconds": 180,
+      "startedAt": "2026-10-11T11:12:50.598995+00:00",
+      "cleanupBoundSeconds": 20,
+      "maxLogBytesPerStream": 33554432,
+      "pid": 2710508,
+      "processGroup": 2710508,
+      "exitCode": 0,
+      "elapsedSeconds": 17.52437291102251,
+      "completedAt": "2026-10-11T11:13:08.123392+00:00",
+      "logs": {
+        "stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    }
+  ],
+  "vitestSourceStable": true,
+  "vitestDependenciesStable": true,
+  "vitest": {
+    "numTotalTests": 31,
+    "numPassedTests": 30,
+    "numFailedTests": 1,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "numTotalTestSuites": 3,
+    "numPassedTestSuites": 2,
+    "numFailedTestSuites": 1,
+    "success": false
+  },
+  "reportedTestFiles": [
+    "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop/src/components/setup/LocalTools.test.tsx",
+    "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop/src/components/setup/RuntimeCancellation.test.tsx",
+    "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop/src/components/setup/RuntimePreparation.test.tsx"
+  ],
+  "selectedFilesMatch": true,
+  "failures": [
+    {
+      "file": "/workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop/src/components/setup/RuntimeCancellation.test.tsx",
+      "title": "cancels the exact installation once and keeps polling until an unconfirmed publication is observed",
+      "failureMessages": [
+        "Error: Unable to find role=\"button\" and name \"Check interrupted installation\"\n\nIgnored nodes: comments, script, style\n\u001b[36m<body>\u001b[39m\n  \u001b[36m<div>\u001b[39m\n    \u001b[36m<section\u001b[39m\n      \u001b[33maria-labelledby\u001b[39m=\u001b[32m\"preparation-title\"\u001b[39m\n      \u001b[33mclass\u001b[39m=\u001b[32m\"runtime-preparation\"\u001b[39m\n    \u001b[36m>\u001b[39m\n      \u001b[36m<h2\u001b[39m\n        \u001b[33mid\u001b[39m=\u001b[32m\"preparation-title\"\u001b[39m\n      \u001b[36m>\u001b[39m\n        \u001b[0mPrepare your workspace\u001b[0m\n      \u001b[36m</h2>\u001b[39m\n      \u001b[36m<p\u001b[39m\n        \u001b[33mclass\u001b[39m=\u001b[32m\"journey-muted\"\u001b[39m\n      \u001b[36m>\u001b[39m\n        \u001b[0mLuci checks Git and Docker, then prepares its isolated agent runtime when Docker is ready. This downloads dependencies and can take several minutes. No model is called.\u001b[0m\n      \u001b[36m</p>\u001b[39m\n      \u001b[36m<ul\u001b[39m\n        \u001b[33mclass\u001b[39m=\u001b[32m\"preparation-list\"\u001b[39m\n      \u001b[36m>\u001b[39m\n        \u001b[36m<li>\u001b[39m\n          \u001b[36m<div>\u001b[39m\n            \u001b[36m<strong>\u001b[39m\n              \u001b[0mDocker\u001b[0m\n            \u001b[36m</strong>\u001b[39m\n            \u001b[36m<span\u001b[39m\n              \u001b[33mclass\u001b[39m=\u001b[32m\"setup-status setup-status-ready\"\u001b[39m\n            \u001b[36m>\u001b[39m\n              \u001b[0mready\u001b[0m\n            \u001b[36m</span>\u001b[39m\n          \u001b[36m</div>\u001b[39m\n          \u001b[36m<p>\u001b[39m\n            \u001b[0mDocker available\u001b[0m\n          \u001b[36m</p>\u001b[39m\n        \u001b[36m</li>\u001b[39m\n        \u001b[36m<li>\u001b[39m\n          \u001b[36m<div>\u001b[39m\n            \u001b[36m<strong>\u001b[39m\n              \u001b[0mRuntime\u001b[0m\n            \u001b[36m</strong>\u001b[39m\n            \u001b[36m<span\u001b[39m\n              \u001b[33mclass\u001b[39m=\u001b[32m\"setup-status setup-status-missing\"\u001b[39m\n            \u001b[36m>\u001b[39m\n              \u001b[0mmissing\u001b[0m\n            \u001b[36m</span>\u001b[39m\n          \u001b[36m</div>\u001b[39m\n          \u001b[36m<p>\u001b[39m\n            \u001b[0mRuntime missing\u001b[0m\n          \u001b[36m</p>\u001b[39m\n        \u001b[36m</li>\u001b[39m\n      \u001b[36m</ul>\u001b[39m\n      \u001b[36m<p\u001b[39m\n        \u001b[33mrole\u001b[39m=\u001b[32m\"status\"\u001b[39m\n      \u001b[36m>\u001b[39m\n        \u001b[0mCancelling runtime preparation\u2026\u001b[0m\n        \u001b[0m \u001b[0m\n        \u001b[0mObserved cancelling\u001b[0m\n        \u001b[0m You can keep planning while this runs.\u001b[0m\n      \u001b[36m</p>\u001b[39m\n      \u001b[36m<div\u001b[39m\n        \u001b[33mclass\u001b[39m=\u001b[32m\"setup-actions\"\u001b[39m\n      \u001b[36m>\u001b[39m\n        \u001b[36m<button\u001b[39m\n          \u001b[33mclass\u001b[39m=\u001b[32m\"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2\"\u001b[39m\n          \u001b[33mdata-size\u001b[39m=\u001b[32m\"default\"\u001b[39m\n          \u001b[33mdata-slot\u001b[39m=\u001b[32m\"button\"\u001b[39m\n          \u001b[33mdata-variant\u001b[39m=\u001b[32m\"secondary\"\u001b[39m\n          \u001b[33mtype\u001b[39m=\u001b[32m\"button\"\u001b[39m\n        \u001b[36m>\u001b[39m\n          \u001b[36m<span>\u001b[39m\n            \u001b[0mCheck again\u001b[0m\n          \u001b[36m</span>\u001b[39m\n        \u001b[36m</button>\u001b[39m\n        \u001b[36m<button\u001b[39m\n          \u001b[33mclass\u001b[39m=\u001b[32m\"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2\"\u001b[39m\n          \u001b[33mdata-size\u001b[39m=\u001b[32m\"default\"\u001b[39m\n          \u001b[33mdata-slot\u001b[39m=\u001b[32m\"button\"\u001b[39m\n          \u001b[33mdata-variant\u001b[39m=\u001b[32m\"secondary\"\u001b[39m\n          \u001b[33mdisabled\u001b[39m=\u001b[32m\"\"\u001b[39m\n          \u001b[33mtype\u001b[39m=\u001b[32m\"button\"\u001b[39m\n        \u001b[36m>\u001b[39m\n          \u001b[36m<span>\u001b[39m\n            \u001b[0mCancellation requested\u001b[0m\n          \u001b[36m</span>\u001b[39m\n        \u001b[36m</button>\u001b[39m\n      \u001b[36m</div>\u001b[39m\n    \u001b[36m</section>\u001b[39m\n  \u001b[36m</div>\u001b[39m\n\u001b[36m</body>\u001b[39m\n    at waitForWrapper (/workspace/luci/desktop/node_modules/@testing-library/dom/dist/wait-for.js:163:27)\n    at /workspace/luci/desktop/node_modules/@testing-library/dom/dist/query-helpers.js:86:33\n    at /workspace/.luci-tools/cloud081-runtime-install-20261011/ui-validation/attempt-001/frozen/desktop/src/components/setup/RuntimeCancellation.test.tsx:58:16\n    at file:///workspace/luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20"
+      ]
+    }
+  ],
+  "inputCount": 1265,
+  "sourceStable": true,
+  "dependenciesStable": true,
+  "passed": false,
+  "completedAt": "2026-10-11T11:13:08.710597+00:00"
+}

@@ -1,0 +1,22 @@
+{"label": "vitest", "exitCode": 0, "elapsedSeconds": 9.587003373017069}
+{"vitest": {"numTotalTests": 31, "numPassedTests": 31, "numFailedTests": 0, "numPendingTests": 0, "numTodoTests": 0, "numTotalTestSuites": 3, "numPassedTestSuites": 3, "numFailedTestSuites": 0, "success": true}, "failures": []}
+{"label": "typecheck", "exitCode": 0, "elapsedSeconds": 21.15123474400025}
+{
+  "passed": true,
+  "inputCount": 1265,
+  "sourceStable": true,
+  "dependenciesStable": true,
+  "vitest": {
+    "numTotalTests": 31,
+    "numPassedTests": 31,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "numTotalTestSuites": 3,
+    "numPassedTestSuites": 3,
+    "numFailedTestSuites": 0,
+    "success": true
+  },
+  "failures": [],
+  "runnerFailure": null
+}

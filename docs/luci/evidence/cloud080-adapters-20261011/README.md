@@ -1,0 +1,13 @@
+# CLOUD-080 product and platform adapters
+
+External staging only; root owns integration. `tree/` holds complete staged files, `adapters.patch` the unified patch, and `source-bindings.json` the original/staged source hashes. The shared-admission agent's combined `cmd/api/main.go` supersedes this tree's platform-only option wire.
+
+Both local application entrypoints require a typed shared runtime. No production CLI build/run fallback remains. Release receipts retain separate build and serving allocation IDs, immutable engine/container/image/source identity, resource uncertainty, and revision-based publication checks. Every runtime mutation must publish synchronously before its external operation. Product callbacks refuse changed source/identity or a stale receipt revision. Configuration remains the explicitly captured revision during a new launch.
+
+Typed observation, browser access, logs, stop and restart use retained allocation identity. Unknown operations are not replayed. Stop is complete only at whole-release `finished` with verified cleanup and no retained charge; `stopped` during restart is not settlement. Historical deployments retain bounded observation/stop, but restart requires a new admitted deployment. An admitted restart preserves saved configuration/database bindings and the coordinator rechecks authority and capacity between its exact Stop and Start.
+
+Application networks are never created by these adapters. Data-bound applications resolve an existing owned bridge network to its immutable ID; other applications use the default bridge. Browser projections omit nested private runtime URLs without modifying the stored receipt. Crashed owned containers retain bounded redacted logs. Database restore refuses retained application capacity.
+
+Controlled fixtures substitute only the typed runtime boundary. Existing safe-archive, checked source, private configuration, health, ownership and persistence assertions remain active through explicit in-memory runner fixtures. New tests cover unknown retention, stale publication, absence of an unadmitted fallback, crashed logs and response projection. They do not establish Docker resource enforcement, default builder support, real browser acceptance or shared host admission correctness.
+
+Actual acceptance still requires the coordinated API/backend integration, supported engine build limits, base-image provisioning and a recoverable uncertain-build outcome. A required locally missing base image or unsupported Dockerfile/build engine must fail before mutation. Uncertain builder execution remains retained until exact settlement can be established; this staging does not claim that every lost build acknowledgement is automatically recoverable.

@@ -34,8 +34,14 @@ func (s *Service) ObserveProjectRunDeployment(ctx context.Context, projectID, re
 	defer cancel()
 	switch d.Provider {
 	case "docker":
-		info, err := s.inspect(bounded, projectID, d.ID, d.Container)
-		if err != nil || !info.State.Running || d.Image == "" || info.Image != d.Image || info.Config.Image != "luci-platform/"+s.instance+":"+d.ID {
+		var info containerInfo
+		var err error
+		if d.Runtime != nil {
+			info, err = s.inspectAdmittedDeployment(bounded, d)
+		} else {
+			info, err = s.inspect(bounded, projectID, d.ID, d.Container)
+		}
+		if err != nil || !info.State.Running || d.Image == "" || info.Image != d.Image || (d.Runtime == nil && info.Config.Image != "luci-platform/"+s.instance+":"+d.ID) {
 			return out, errors.New("native release running container and image ownership changed")
 		}
 		address, err := loopbackURL(info, d.Port)

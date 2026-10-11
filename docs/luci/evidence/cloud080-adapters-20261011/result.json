@@ -1,0 +1,37 @@
+{
+  "underlyingExitCode": 0,
+  "wallTimeout": false,
+  "elapsedSeconds": 21.937534679018427,
+  "inputBindingUnchanged": true,
+  "repositoryMetadataUnchanged": true,
+  "countsIncludingSubtests": {
+    "pass": 136
+  },
+  "failedTests": [],
+  "packages": [
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Action": "pass",
+      "Elapsed": 2.497
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/platform",
+      "Action": "pass",
+      "Elapsed": 0.865
+    }
+  ],
+  "logSha256": {
+    "stdout.jsonl": "6539edd0f7f9cbe81d211fda63ddaf7c5d44f66e1aa6459e5d962f2410242547",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "countsByPackage": {
+    "github.com/lcfrai/luci/control-plane/internal/product": {
+      "topLevel": 31,
+      "subtests": 54
+    },
+    "github.com/lcfrai/luci/control-plane/internal/platform": {
+      "topLevel": 16,
+      "subtests": 35
+    }
+  }
+}

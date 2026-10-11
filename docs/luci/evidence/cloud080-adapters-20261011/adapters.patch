@@ -1,0 +1,2027 @@
+--- a/control-plane/cmd/api/main.go
++++ b/control-plane/cmd/api/main.go
+@@ -219,7 +219,7 @@
+ 	defer productService.Close()
+ 	// Public browser origins are optional and independent from private Docker
+ 	// health URLs. The portable/native launch paths keep their prior defaults.
+-	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, BrowserPreviewDomain: cfg.PreviewBaseDomain, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource, RecordDeploymentProvenance: productService.RecordProjectRunReleaseProvenance})
++	platformService, err = platform.New(platform.Options{PreviewRuntime: productService.PreviewRuntime, DeploymentSourceDigest: productService.PreviewSourceDigest, FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, BrowserPreviewDomain: cfg.PreviewBaseDomain, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource, RecordDeploymentProvenance: productService.RecordProjectRunReleaseProvenance})
+ 	if err != nil {
+ 		return fmt.Errorf("initialise application platform: %w", err)
+ 	}
+--- a/control-plane/internal/platform/browser_bridge.go
++++ b/control-plane/internal/platform/browser_bridge.go
+@@ -94,6 +94,13 @@
+ 			if deployment.ID != resourceID || deployment.Provider != "docker" || deployment.Status != "ready" {
+ 				continue
+ 			}
++			if deployment.Runtime != nil {
++				observed, err := s.observeAdmittedDeployment(ctx, deployment)
++				if err != nil {
++					return meta, "", errors.New("owned application allocation is unavailable")
++				}
++				deployment = observed
++			}
+ 			info, err := s.inspect(ctx, projectID, deployment.ID, deployment.Container)
+ 			if err != nil || !info.State.Running || (deployment.Image != "" && deployment.Image != info.Image) {
+ 				return meta, "", errors.New("owned application is unavailable")
+--- a/control-plane/internal/platform/browser_bridge_test.go
++++ b/control-plane/internal/platform/browser_bridge_test.go
+@@ -15,6 +15,7 @@
+ 	"testing"
+ 
+ 	"github.com/lcfrai/luci/control-plane/internal/management"
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
+ )
+ 
+ func bridgePlatformRequest(t *testing.T, s *Service, method, address string, headers map[string]string) *httptest.ResponseRecorder {
+@@ -160,12 +161,28 @@
+ 	if err = s.deploymentBrowserData(r, "owned", values); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	deployment := Deployment{ID: "deploy-browser", ProjectID: "owned", Commit: strings.Repeat("a", 40), Container: "owned-browser-app", Port: 3000, HealthPath: "/"}
++	deployment := Deployment{ID: "deploy-browser", ProjectID: "owned", Provider: "docker", Commit: strings.Repeat("a", 40), ConfigurationRevision: 7, Port: 3000, HealthPath: "/", Revision: 1}
++	deployment.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: deployment.ProjectID, ReleaseID: deployment.ID, Target: "native-docker", Commit: deployment.Commit, SourceDigest: strings.Repeat("d", 64)}, Phase: "reserved"}
++	if err = s.saveDeployment(deployment); err != nil {
++		t.Fatal(err)
++	}
++	containerID := "preview-container-" + deployment.ID
++	network := s.resource(deployment.ProjectID, "net")
++	networkID := strings.Repeat("b", 64)
++	f.mu.Lock()
++	f.networks[network] = map[string]string{labelInstance: s.instance, labelProject: deployment.ProjectID, labelResource: "network"}
++	f.mu.Unlock()
+ 	var runtimeBytes []byte
+-	var runtimeFile string
++	var runtimeFile, runtimeNetwork string
+ 	s.opts.Runner = func(ctx context.Context, exe string, args []string, dir string, input []byte) ([]byte, error) {
+ 		if exe == "git" {
+ 			return tarSource(t, map[string]string{"Dockerfile": "FROM scratch", "LUCI.md": "approved"}), nil
++		}
++		if len(args) >= 3 && args[0] == "network" && args[1] == "inspect" {
++			if args[2] != network {
++				t.Error("inspected another project's network")
++			}
++			return json.Marshal(map[string]any{"Id": networkID, "Driver": "bridge", "Labels": map[string]string{labelInstance: s.instance, labelProject: deployment.ProjectID, labelResource: "network"}})
+ 		}
+ 		if args[0] == "build" {
+ 			if bytes.Contains(input, []byte(secret.ServiceRole)) || bytes.Contains(input, []byte(origin)) {
+@@ -175,6 +192,9 @@
+ 		}
+ 		if args[0] == "run" {
+ 			for index, arg := range args {
++				if arg == "--network" {
++					runtimeNetwork = args[index+1]
++				}
+ 				if arg == "--env-file" {
+ 					runtimeFile = args[index+1]
+ 					runtimeBytes, err = os.ReadFile(runtimeFile)
+@@ -183,20 +203,26 @@
+ 					}
+ 				}
+ 			}
+-			v := containerInfo{Image: "sha256:immutable"}
++			v := containerInfo{ID: containerID, Image: "sha256:immutable"}
+ 			v.State.Running = true
+ 			v.Config.Labels = map[string]string{labelInstance: s.instance, labelProject: "owned", labelResource: deployment.ID}
+ 			v.NetworkSettings.Ports = map[string][]struct{ HostIP, HostPort string }{"3000/tcp": {{"127.0.0.1", appURL.Port()}}}
+ 			f.mu.Lock()
+-			f.containers[deployment.Container] = v
++			f.containers[containerID] = v
+ 			f.mu.Unlock()
+ 			return []byte("container"), nil
+ 		}
+ 		return f.run(ctx, exe, args, dir, input)
+ 	}
+ 	p, _ := s.opts.ResolveProject("owned")
+-	if err = s.buildAndRun(context.Background(), p, &deployment, values, resourceLimits{512, 500}); err != nil {
+-		t.Fatal(err)
++	request := previewruntime.Request{Identity: deployment.Runtime.Identity, Environment: values, Port: deployment.Port, Dockerfile: "Dockerfile", MemoryMiB: 512, CPUMillis: 500,
++		Labels: map[string]string{labelInstance: s.instance, labelProject: deployment.ProjectID, labelResource: deployment.ID},
++	}
++	if err = s.buildAndRun(context.Background(), p, &deployment, request); err != nil {
++		t.Fatal(err)
++	}
++	if runtimeNetwork != networkID {
++		t.Fatal("runtime did not join the existing owned data network")
+ 	}
+ 	for _, expected := range []string{"SUPABASE_PUBLIC_URL=" + origin + "\n", "SUPABASE_URL=http://supabase-api:8000\n", "SUPABASE_SERVICE_ROLE_KEY=" + secret.ServiceRole + "\n"} {
+ 		if !bytes.Contains(runtimeBytes, []byte(expected)) {
+--- a/control-plane/internal/platform/browser_preview.go
++++ b/control-plane/internal/platform/browser_preview.go
+@@ -1,13 +1,39 @@
+ package platform
+ 
+ import (
++	"context"
+ 	"errors"
+ 	"os"
++	"time"
+ 
+ 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
+ )
+ 
+ func (s *Service) browserDeployment(d Deployment) Deployment {
++	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
++	defer cancel()
++	return s.browserDeploymentContext(ctx, d)
++}
++
++func (s *Service) browserDeploymentContext(ctx context.Context, d Deployment) Deployment {
++	if d.Runtime != nil {
++		public := *d.Runtime
++		public.URL = ""
++		d.Runtime = &public
++	}
++	if d.Runtime != nil {
++		if d.Provider != "docker" || d.Status != "ready" {
++			d.URL = ""
++			return d
++		}
++		observed, err := s.observeAdmittedDeployment(ctx, d)
++		if err != nil {
++			d.URL = ""
++			d.Message = "The exact application allocation could not be verified. Its retained resources are unchanged."
++			return d
++		}
++		d = observed
++	}
+ 	if s.browserRegistry == nil || d.Provider != "docker" || d.Status != "ready" {
+ 		return d
+ 	}
+--- a/control-plane/internal/platform/database_restore.go
++++ b/control-plane/internal/platform/database_restore.go
+@@ -200,6 +200,15 @@
+ 		return
+ 	}
+ 	for _, d := range state.Deployments {
++		if d.Runtime != nil {
++			if d.Runtime.ResourcesHeld {
++				problem(w, 409, "applications_stop_required", "Stop this project's retained application allocations before restoring. Unknown outcomes keep their resources reserved.")
++				return
++			}
++			// Typed cleanup can remove its exact container. A settled allocation
++			// must not fall back to inspecting a historical container name.
++			continue
++		}
+ 		if d.Provider != "docker" {
+ 			continue
+ 		}
+--- a/control-plane/internal/platform/docker.go
++++ b/control-plane/internal/platform/docker.go
+@@ -23,6 +23,7 @@
+ 
+ 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
+ 	"github.com/lcfrai/luci/control-plane/internal/management"
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
+ 	"github.com/lcfrai/luci/control-plane/internal/project"
+ )
+ 
+@@ -340,11 +341,17 @@
+ 		problem(w, 400, "invalid_deployment", "Choose the exact commit, application port and an absolute health path.")
+ 		return
+ 	}
+-	if s.opts.ValidateDeploymentSource == nil {
+-		problem(w, 503, "validation_unavailable", "Source approval is not available.")
+-		return
+-	}
+-	if e := s.opts.ValidateDeploymentSource(r.Context(), p.ID, in.Commit); e != nil {
++	runtime := s.previewRuntime()
++	if runtime.CaptureActor == nil || runtime.Start == nil || runtime.Stop == nil || runtime.Observe == nil || s.opts.DeploymentSourceDigest == nil || s.opts.RecordDeploymentProvenance == nil || s.opts.ValidateDeploymentSource == nil {
++		problem(w, 503, "preview_runtime_unavailable", "Shared preview admission and source validation are required. No build started.")
++		return
++	}
++	actor, err := runtime.CaptureActor(r.Context(), p.ID)
++	if err != nil {
++		problem(w, 403, "deployment_forbidden", "Current Edit and Deploy access are required.")
++		return
++	}
++	if err := s.opts.ValidateDeploymentSource(r.Context(), p.ID, in.Commit); err != nil {
+ 		problem(w, 409, "source_not_ready", "Commit the approved project context and all changes before deployment.")
+ 		return
+ 	}
+@@ -352,30 +359,38 @@
+ 		problem(w, 409, "operation_running", "A platform operation is already running for this project.")
+ 		return
+ 	}
+-	rev, env, e := s.environment(p.ID)
+-	if e == nil {
+-		e = s.deploymentBrowserData(r, p.ID, env)
+-	}
+-	if e != nil {
++	rev, baselineEnvironment, err := s.environment(p.ID)
++	env := make(map[string]string, len(baselineEnvironment))
++	for k, v := range baselineEnvironment {
++		env[k] = v
++	}
++	if err == nil {
++		err = s.deploymentBrowserData(r, p.ID, env)
++	}
++	if err != nil {
+ 		s.release(p.ID)
+ 		problem(w, 500, "configuration_unavailable", "Runtime configuration could not be read.")
+ 		return
+ 	}
+-	d := Deployment{ID: randomID("deploy-"), ProjectID: p.ID, Provider: "docker", Commit: in.Commit, ConfigurationRevision: rev, Status: "building", Message: "Building the exact committed source on Docker.", Port: in.Port, HealthPath: in.HealthPath, CreatedAt: now(), UpdatedAt: now()}
+-	d.Container = s.resource(p.ID, d.ID)
+-	if s.opts.RecordDeploymentProvenance != nil {
+-		if e = s.opts.RecordDeploymentProvenance(r.Context(), p.ID, d.ID, "native-docker", d.Commit); e != nil {
+-			s.release(p.ID)
+-			problem(w, 409, "release_provenance_unavailable", "The exact source and private review selections could not be saved. No deployment started.")
+-			return
+-		}
+-	}
+-	if e = s.write(d.ID+"-redactions", env); e != nil {
++	d := Deployment{ID: randomID("deploy-"), ProjectID: p.ID, Provider: "docker", Commit: in.Commit, ConfigurationRevision: rev, Status: "building", Message: "Preparing the exact committed source for shared admission.", Port: in.Port, HealthPath: in.HealthPath, CreatedAt: now(), UpdatedAt: now(), Revision: 1}
++	if err = s.opts.RecordDeploymentProvenance(r.Context(), p.ID, d.ID, "native-docker", d.Commit); err != nil {
++		s.release(p.ID)
++		problem(w, 409, "release_provenance_unavailable", "The exact source and private review selections could not be saved. No deployment started.")
++		return
++	}
++	digest, err := s.opts.DeploymentSourceDigest(r.Context(), p.ID, d.ID, d.Commit)
++	if err != nil {
++		s.release(p.ID)
++		problem(w, 409, "source_provenance_unavailable", "The saved source identity is unavailable.")
++		return
++	}
++	d.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: p.ID, ReleaseID: d.ID, Target: "native-docker", Commit: d.Commit, SourceDigest: digest}, Phase: "reserved"}
++	if err = s.write(d.ID+"-redactions", env); err != nil {
+ 		s.release(p.ID)
+ 		problem(w, 500, "state_unavailable", "Private deployment settings could not be saved.")
+ 		return
+ 	}
+-	if e = s.saveDeployment(d); e != nil {
++	if err = s.saveDeployment(d); err != nil {
+ 		s.release(p.ID)
+ 		problem(w, 500, "state_unavailable", "Deployment could not be recorded.")
+ 		return
+@@ -387,49 +402,61 @@
+ 		defer s.release(p.ID)
+ 		ctx, cancel := context.WithTimeout(s.ctx, 15*time.Minute)
+ 		defer cancel()
+-		err := s.buildAndRun(ctx, p, &d, env, limits)
+-		d.UpdatedAt = now()
++		request := previewruntime.Request{Identity: d.Runtime.Identity, Dockerfile: "Dockerfile", Port: d.Port, Environment: env, Actor: actor, MemoryMiB: limits.MemoryMiB, CPUMillis: limits.CPUMillis,
++			Labels: map[string]string{labelInstance: s.instance, labelProject: p.ID, labelResource: d.ID},
++			ValidateSource: func(verify context.Context) error {
++				if err := s.opts.ValidateDeploymentSource(verify, p.ID, d.Commit); err != nil {
++					return err
++				}
++				return nil
++			},
++		}
++		err := s.buildAndRun(ctx, p, &d, request)
+ 		if err != nil {
+-			d.Status = "failed"
+-			d.URL = ""
+-			d.Message = "Deployment failed. Check the Dockerfile, application health path and bounded application logs."
+-		} else {
+-			d.Status = "ready"
+-			d.Message = "Persistent local Docker deployment is healthy. It restarts with this Docker engine."
+-		}
+-		_ = s.saveDeployment(d)
++			next := d
++			next.Status, next.URL, next.Message = "failed", "", "The admitted deployment did not finish. Check its retained receipt and bounded logs."
++			if d.Runtime.ResourcesHeld {
++				next.Status = "unknown"
++				next.Message = "The deployment outcome is uncertain. Its reservation is retained; refresh or stop this exact deployment."
++			}
++			_ = s.storeAdmittedDeployment(d, next)
++		}
+ 	}(d)
+ 	respond(w, 202, d)
+ }
+-func (s *Service) buildAndRun(ctx context.Context, p project.Project, d *Deployment, env map[string]string, limits resourceLimits) error {
+-	archive, e := s.archive(ctx, p, d.Commit)
+-	if e != nil {
+-		return e
+-	}
+-	tag := "luci-platform/" + s.instance + ":" + d.ID
+-	args := []string{"build", "--network=default", "--tag", tag, "-"}
+-	if _, e = s.opts.Runner(ctx, "docker", args, s.dir, archive); e != nil {
+-		return e
+-	}
+-	network, e := s.ensureNetwork(ctx, p.ID)
+-	if e != nil {
+-		return e
+-	}
+-	file, e := s.envFile(env)
+-	if e != nil {
+-		return e
+-	}
+-	defer os.Remove(file)
+-	args = []string{"run", "--detach", "--name", d.Container, "--restart", "unless-stopped", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--network", network, "--publish", fmt.Sprintf("127.0.0.1::%d", d.Port), "--env-file", file}
+-	args = append(args, limits.args()...)
+-	args = append(args, s.labels(p.ID, d.ID)...)
+-	args = append(args, tag)
+-	_, e = s.docker(ctx, args...)
+-	_ = os.Remove(file)
+-	if e != nil {
+-		return e
+-	}
+-	return s.waitHealthy(ctx, d)
++func (s *Service) buildAndRun(ctx context.Context, p project.Project, d *Deployment, request previewruntime.Request) error {
++	archive, err := s.archive(ctx, p, d.Commit)
++	if err != nil {
++		return err
++	}
++	request.SourceArchive = archive
++	request.Network, err = s.existingDeploymentNetwork(ctx, p.ID, request.Environment)
++	if err != nil {
++		return err
++	}
++	out, err := s.previewRuntime().Start(ctx, request, func(value previewruntime.Outcome) error {
++		return s.publishDeploymentOutcome(d, value, request.Environment)
++	})
++	if err != nil {
++		return err
++	}
++	if err = s.publishDeploymentOutcome(d, out, request.Environment); err != nil {
++		return err
++	}
++	if out.Phase != "running" || !out.ResourcesHeld {
++		return errors.New("the admitted deployment is not running")
++	}
++	if err = s.waitAdmittedDeploymentHealthy(ctx, d); err != nil {
++		return err
++	}
++	next := *d
++	next.Status, next.Message, next.UpdatedAt = "ready", "The admitted Docker deployment returned a successful HTTP response.", now()
++	if err = s.storeAdmittedDeployment(*d, next); err != nil {
++		return err
++	}
++	next.Revision++
++	*d = next
++	return nil
+ }
+ func (s *Service) findDeployment(id, release string) (Deployment, error) {
+ 	s.mu.Lock()
+@@ -467,24 +494,25 @@
+ 	defer s.release(p.ID)
+ 	ctx, cancel := context.WithTimeout(r.Context(), 75*time.Second)
+ 	defer cancel()
++	if d.Runtime != nil {
++		s.admittedDeploymentAction(w, r, ctx, d, action)
++		return
++	}
+ 	info, e := s.inspect(ctx, p.ID, d.ID, d.Container)
+ 	if e != nil {
+ 		problem(w, 409, "ownership_unverified", "The recorded container is missing or its ownership has changed.")
+ 		return
+ 	}
++	if action == "restart" {
++		if err := s.checkDeploymentDatabaseBinding(p.ID, d, info); err != nil {
++			problem(w, 409, "database_redeployment_required", "Redeploy this application to connect to the selected restored database.")
++			return
++		}
++		problem(w, 409, "redeployment_required", "This historical deployment has no shared reservation. Create a new admitted deployment to restart it.")
++		return
++	}
++
+ 	if action != "refresh" {
+-		if action == "restart" {
+-			if e = s.checkDeploymentDatabaseBinding(p.ID, d, info); e != nil {
+-				problem(w, 409, "database_redeployment_required", "Redeploy this application to connect to the selected restored database. Restarting its retained container would use an earlier database binding.")
+-				return
+-			}
+-			args := append([]string{"update"}, s.limits(r).args()...)
+-			args = append(args, d.Container)
+-			if _, e = s.docker(ctx, args...); e != nil {
+-				problem(w, 502, "resource_limit_failed", "Docker could not apply the current workspace resource policy.")
+-				return
+-			}
+-		}
+ 		if _, e = s.docker(ctx, action, d.Container); e != nil {
+ 			problem(w, 502, "operation_failed", "Docker could not complete the requested operation.")
+ 			return
+@@ -521,7 +549,7 @@
+ 	}
+ 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+ 	defer cancel()
+-	if _, e = s.inspect(ctx, p.ID, d.ID, d.Container); e != nil {
++	if _, e = s.inspectDeploymentForLogs(ctx, d); e != nil {
+ 		problem(w, 409, "ownership_unverified", "Container ownership could not be verified.")
+ 		return
+ 	}
+--- a/control-plane/internal/platform/platform.go
++++ b/control-plane/internal/platform/platform.go
+@@ -22,10 +22,13 @@
+ 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+ 	"github.com/lcfrai/luci/control-plane/internal/management"
+ 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
+ 	"github.com/lcfrai/luci/control-plane/internal/project"
+ )
+ 
+ type Options struct {
++	PreviewRuntime                   func() previewruntime.Runtime
++	DeploymentSourceDigest           func(context.Context, string, string, string) (string, error)
+ 	BrowserPreviewPort               int
+ 	BrowserPreviewDomain             string
+ 	StateDir, InstanceID, DockerHost string
+@@ -40,23 +43,25 @@
+ 	FunctionSources                  *DataFunctionSources
+ }
+ type Deployment struct {
+-	ID                    string `json:"id"`
+-	ProjectID             string `json:"projectId"`
+-	Provider              string `json:"provider"`
+-	Commit                string `json:"commit"`
+-	ConfigurationRevision int    `json:"configurationRevision"`
+-	Status                string `json:"status"`
+-	URL                   string `json:"url,omitempty"`
+-	Message               string `json:"message"`
+-	Image                 string `json:"image,omitempty"`
+-	Container             string `json:"container,omitempty"`
+-	Port                  int    `json:"port,omitempty"`
+-	HealthPath            string `json:"healthPath,omitempty"`
+-	CreatedAt             string `json:"createdAt"`
+-	UpdatedAt             string `json:"updatedAt"`
+-	RemoteProject         string `json:"remoteProject,omitempty"`
+-	PipelineRun           string `json:"pipelineRun,omitempty"`
+-	ProviderBinding       string `json:"providerBinding,omitempty"`
++	Revision              uint64                  `json:"revision,omitempty"`
++	Runtime               *previewruntime.Outcome `json:"runtime,omitempty"`
++	ID                    string                  `json:"id"`
++	ProjectID             string                  `json:"projectId"`
++	Provider              string                  `json:"provider"`
++	Commit                string                  `json:"commit"`
++	ConfigurationRevision int                     `json:"configurationRevision"`
++	Status                string                  `json:"status"`
++	URL                   string                  `json:"url,omitempty"`
++	Message               string                  `json:"message"`
++	Image                 string                  `json:"image,omitempty"`
++	Container             string                  `json:"container,omitempty"`
++	Port                  int                     `json:"port,omitempty"`
++	HealthPath            string                  `json:"healthPath,omitempty"`
++	CreatedAt             string                  `json:"createdAt"`
++	UpdatedAt             string                  `json:"updatedAt"`
++	RemoteProject         string                  `json:"remoteProject,omitempty"`
++	PipelineRun           string                  `json:"pipelineRun,omitempty"`
++	ProviderBinding       string                  `json:"providerBinding,omitempty"`
+ }
+ type Database struct {
+ 	Status    string `json:"status"`
+@@ -340,7 +345,7 @@
+ 	dockerReady := err == nil && strings.TrimSpace(string(version)) != ""
+ 	_, policy, _ := management.ActorFromContext(r.Context())
+ 	limits := s.limits(r)
+-	respond(w, 200, map[string]any{"dockerReady": dockerReady, "limits": map[string]int{"memoryMiB": limits.MemoryMiB, "cpuMillis": limits.CPUMillis}, "permissions": map[string]bool{"connectPanacea": admin(r), "deployPanacea": policy.AllowCloudProvisioning}, "capabilities": map[string]bool{"persistentLocalDeployments": dockerReady, "postgres": dockerReady, "postgresBackups": dockerReady, "panaceaConnector": true, "supabaseAvailable": true}, "scope": "Local deployments persist on this Docker host. Public hosting requires a connected hosting provider. Limits apply per running service, not to total host capacity or billing.", "supabase": map[string]any{"status": "available", "message": "Optional Supabase Auth, Storage, REST and Realtime are installed per project with a separate resource acknowledgement.", "upstream": "https://supabase.com/docs/guides/self-hosting/docker"}})
++	respond(w, 200, map[string]any{"dockerReady": dockerReady, "limits": map[string]int{"memoryMiB": limits.MemoryMiB, "cpuMillis": limits.CPUMillis}, "permissions": map[string]bool{"connectPanacea": admin(r), "deployPanacea": policy.AllowCloudProvisioning}, "capabilities": map[string]bool{"persistentLocalDeployments": dockerReady && s.previewRuntime().Start != nil, "postgres": dockerReady, "postgresBackups": dockerReady, "panaceaConnector": true, "supabaseAvailable": true}, "scope": "Local deployments persist on this Docker host. Public hosting requires a connected hosting provider. Application builds and serving containers require shared host capacity admission. Database service limits and billing are separate.", "supabase": map[string]any{"status": "available", "message": "Optional Supabase Auth, Storage, REST and Realtime are installed per project with a separate resource acknowledgement.", "upstream": "https://supabase.com/docs/guides/self-hosting/docker"}})
+ }
+ func (s *Service) projectStatus(w http.ResponseWriter, r *http.Request) {
+ 	p, ok := s.project(w, r)
+@@ -361,14 +366,26 @@
+ 	if !busy {
+ 		observeInterruptedDatabaseRestore(&v)
+ 		for i := range v.Deployments {
+-			if v.Deployments[i].Provider == "docker" && v.Deployments[i].Status == "building" {
++			if v.Deployments[i].Runtime == nil && v.Deployments[i].Provider == "docker" && v.Deployments[i].Status == "building" {
+ 				v.Deployments[i].Status = "interrupted"
+ 				v.Deployments[i].Message = "Luci stopped during deployment. Verify its owned container before restarting."
+ 			}
+ 		}
+ 	}
++	observation, cancel := context.WithTimeout(r.Context(), 6*time.Second)
++	defer cancel()
+ 	for i := range v.Deployments {
+-		v.Deployments[i] = s.browserDeployment(v.Deployments[i])
++		d := v.Deployments[i]
++		if !busy && d.Runtime != nil && (d.Status == "building" || d.Status == "unknown") {
++			d.Status, d.URL, d.Message = "unknown", "", "The interrupted deployment receipt is retained. Refresh to verify it or stop its exact allocations."
++			if observation.Err() == nil {
++				if observed, err := s.observeAdmittedDeployment(observation, d); err == nil && s.healthy(observation, observed.URL, observed.HealthPath) {
++					d = observed
++					d.Status = "ready"
++				}
++			}
++		}
++		v.Deployments[i] = s.browserDeploymentContext(observation, d)
+ 	}
+ 	respond(w, 200, map[string]any{"project": v, "busy": busy})
+ }
+--- a/control-plane/internal/platform/platform_test.go
++++ b/control-plane/internal/platform/platform_test.go
+@@ -12,6 +12,8 @@
+ 	"net/http/httptest"
+ 	"os"
+ 	"path/filepath"
++	"reflect"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -19,6 +21,7 @@
+ 	"time"
+ 
+ 	"github.com/lcfrai/luci/control-plane/internal/management"
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
+ 	"github.com/lcfrai/luci/control-plane/internal/project"
+ )
+ 
+@@ -39,14 +42,175 @@
+ 			return errors.New("source changed")
+ 		}
+ 		return nil
++	}, RecordDeploymentProvenance: func(_ context.Context, id, release, _target, commit string) error {
++		if id != "owned" || release == "" || commit != strings.Repeat("a", 40) {
++			return errors.New("release provenance changed")
++		}
++		return nil
++	}, DeploymentSourceDigest: func(_ context.Context, id, release, commit string) (string, error) {
++		if id != "owned" || release == "" || commit != strings.Repeat("a", 40) {
++			return "", errors.New("source provenance changed")
++		}
++		return strings.Repeat("d", 64), nil
+ 	}, ApplicationConfiguration: func(string) (int, map[string]string, error) {
+ 		return 7, map[string]string{"API_TOKEN": "private-application-value", "EMPTY": ""}, nil
+ 	}})
+ 	if e != nil {
+ 		t.Fatal(e)
+ 	}
++	runtime := fakePlatformPreviewRuntime(t, s)
++	s.opts.PreviewRuntime = func() previewruntime.Runtime { return runtime }
+ 	t.Cleanup(s.Close)
+ 	return s
++}
++
++// This explicit runtime adapter drives only each test's in-memory Runner. It
++// keeps platform archive, private-environment, policy and ownership assertions
++// active without restoring a production Runner fallback or contacting Docker.
++func fakePlatformPreviewRuntime(t *testing.T, s *Service) previewruntime.Runtime {
++	t.Helper()
++	var mu sync.Mutex
++	outcomes := map[string]previewruntime.Outcome{}
++	lookup := func(identity previewruntime.Identity) (previewruntime.Outcome, error) {
++		mu.Lock()
++		defer mu.Unlock()
++		out, ok := outcomes[identity.ReleaseID]
++		if !ok || out.Identity != identity {
++			return previewruntime.Outcome{}, errors.New("fake runtime allocation changed")
++		}
++		return out, nil
++	}
++	return previewruntime.Runtime{
++		CaptureActor: func(ctx context.Context, projectID string) (management.ExecutionActorRef, error) {
++			actor, _, ok := management.ActorFromContext(ctx)
++			if !ok || actor.ID == "" || projectID != "owned" {
++				return management.ExecutionActorRef{}, errors.New("fake deployment actor unavailable")
++			}
++			return management.ExecutionActorRef{UserID: actor.ID, ProjectID: projectID}, nil
++		},
++		Start: func(ctx context.Context, request previewruntime.Request, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
++			out := previewruntime.Outcome{Identity: request.Identity}
++			if request.ProjectID != "owned" || request.ReleaseID == "" || request.SourceDigest != strings.Repeat("d", 64) || request.Dockerfile != "Dockerfile" || len(request.SourceArchive) == 0 || request.MemoryMiB <= 0 || request.CPUMillis <= 0 || request.Labels[labelInstance] != s.instance || request.Labels[labelProject] != request.ProjectID || request.Labels[labelResource] != request.ReleaseID {
++				return out, errors.New("invalid fake admitted request")
++			}
++			if request.ValidateSource != nil {
++				if err := request.ValidateSource(ctx); err != nil {
++					return out, err
++				}
++			}
++			out.BuildAllocationID, out.AllocationID = "build-"+request.ReleaseID, "allocation-"+request.ReleaseID
++			out.EngineID, out.InstanceID = "fixture-engine", s.instance
++			out.ResourcesHeld = true
++			emit := func(phase string) error {
++				out.Phase = phase
++				if err := publish(out); err != nil {
++					return err
++				}
++				mu.Lock()
++				outcomes[out.ReleaseID] = out
++				mu.Unlock()
++				return nil
++			}
++			for _, phase := range []string{"reserved", "building"} {
++				if err := emit(phase); err != nil {
++					return out, err
++				}
++			}
++			if _, err := s.opts.Runner(ctx, "docker", []string{"build", "--tag", "fixture-" + request.ReleaseID, "-"}, s.dir, request.SourceArchive); err != nil {
++				return out, err
++			}
++			if err := emit("built"); err != nil {
++				return out, err
++			}
++			if request.ValidateSource != nil {
++				if err := request.ValidateSource(ctx); err != nil {
++					return out, err
++				}
++			}
++			if err := emit("creating"); err != nil {
++				return out, err
++			}
++			file, err := s.envFile(request.Environment)
++			if err != nil {
++				return out, err
++			}
++			defer os.Remove(file)
++			container := "preview-container-" + request.ReleaseID
++			args := []string{"run", "--detach", "--name", container, "--restart", "unless-stopped", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--publish", "127.0.0.1::" + strconv.Itoa(request.Port), "--env-file", file}
++			if request.Network != "" {
++				args = append(args, "--network", request.Network)
++			}
++			args = append(args, (resourceLimits{request.MemoryMiB, request.CPUMillis}).args()...)
++			keys := make([]string, 0, len(request.Labels))
++			for key := range request.Labels {
++				keys = append(keys, key)
++			}
++			sort.Strings(keys)
++			for _, key := range keys {
++				args = append(args, "--label", key+"="+request.Labels[key])
++			}
++			args = append(args, "fixture-"+request.ReleaseID)
++			if _, err := s.opts.Runner(ctx, "docker", args, s.dir, nil); err != nil {
++				return out, err
++			}
++			info, err := s.inspect(ctx, request.ProjectID, request.ReleaseID, container)
++			if err != nil || !info.State.Running || info.ID != container || info.Image == "" {
++				return out, errors.New("fake runtime container ownership unverified")
++			}
++			out.ContainerID, out.Image = info.ID, info.Image
++			out.URL, err = loopbackURL(info, request.Port)
++			if err != nil {
++				return out, err
++			}
++			if err := emit("running"); err != nil {
++				return out, err
++			}
++			return out, nil
++		},
++		Observe: func(ctx context.Context, identity previewruntime.Identity) (previewruntime.Outcome, error) {
++			out, err := lookup(identity)
++			if err != nil {
++				return out, err
++			}
++			if out.Phase == "running" {
++				info, err := s.inspect(ctx, identity.ProjectID, identity.ReleaseID, identity.ContainerID)
++				if err != nil || info.ID != identity.ContainerID || info.Image != identity.Image || !info.State.Running {
++					return out, errors.New("fake runtime exact container changed")
++				}
++			}
++			return out, nil
++		},
++		Stop: func(ctx context.Context, identity previewruntime.Identity, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
++			out, err := lookup(identity)
++			if err != nil {
++				return out, err
++			}
++			info, err := s.inspect(ctx, identity.ProjectID, identity.ReleaseID, identity.ContainerID)
++			if err != nil || info.ID != identity.ContainerID || info.Image != identity.Image {
++				return out, errors.New("fake runtime cleanup ownership unverified")
++			}
++			out.Phase = "cleaning"
++			if err := publish(out); err != nil {
++				return out, err
++			}
++			for _, action := range []string{"stop", "rm"} {
++				if _, err := s.opts.Runner(ctx, "docker", []string{action, identity.ContainerID}, s.dir, nil); err != nil {
++					return out, err
++				}
++			}
++			if _, err := s.inspect(ctx, identity.ProjectID, identity.ReleaseID, identity.ContainerID); !errors.Is(err, os.ErrNotExist) {
++				return out, errors.New("fake runtime exact absence unverified")
++			}
++			out.Phase, out.ResourcesHeld, out.CleanupConfirmed, out.URL = "finished", false, true, ""
++			if err := publish(out); err != nil {
++				return out, err
++			}
++			mu.Lock()
++			outcomes[out.ReleaseID] = out
++			mu.Unlock()
++			return out, nil
++		},
++	}
+ }
+ func request(t *testing.T, s *Service, method, path, role string, input any) *httptest.ResponseRecorder {
+ 	t.Helper()
+@@ -189,6 +353,7 @@
+ 	var runArgs []string
+ 	container, resource := "", ""
+ 	running := true
++	removed := false
+ 	envFile := ""
+ 	runner := func(_ context.Context, exe string, args []string, _ string, input []byte) ([]byte, error) {
+ 		mu.Lock()
+@@ -220,12 +385,19 @@
+ 					envFile = args[i+1]
+ 				}
+ 			}
++			reserved, err := s.findDeployment("owned", resource)
++			if err != nil || reserved.Runtime == nil || !reserved.Runtime.ResourcesHeld || reserved.Runtime.Phase != "creating" || reserved.Runtime.ContainerID != "" {
++				t.Error("application creation began without a persisted held allocation")
++			}
+ 			data, e := os.ReadFile(envFile)
+ 			if e != nil || !strings.Contains(string(data), "API_TOKEN=private-application-value\n") || !strings.Contains(string(data), "EMPTY=\n") {
+ 				t.Errorf("runtime file missing %v", e)
+ 			}
+ 			return []byte("container"), nil
+ 		case "inspect":
++			if removed {
++				return nil, os.ErrNotExist
++			}
+ 			v := containerInfo{ID: container, Image: "sha256:immutable-image"}
+ 			v.State.Running = running
+ 			v.Config.Labels = map[string]string{labelInstance: s.instance, labelProject: "owned", labelResource: resource}
+@@ -240,6 +412,12 @@
+ 		case "restart":
+ 			running = true
+ 			return nil, nil
++		case "rm":
++			if args[1] != container {
++				return nil, errors.New("wrong immutable container cleanup")
++			}
++			removed = true
++			return nil, nil
+ 		}
+ 		return nil, errors.New("unexpected command")
+ 	}
+@@ -252,7 +430,7 @@
+ 	_ = json.Unmarshal(w.Body.Bytes(), &d)
+ 	s.wg.Wait()
+ 	d, e := s.findDeployment("owned", d.ID)
+-	if e != nil || d.Status != "ready" || d.URL != app.URL || d.ConfigurationRevision != 7 {
++	if e != nil || d.Status != "ready" || d.URL != app.URL || d.ConfigurationRevision != 7 || d.Runtime == nil || !d.Runtime.ResourcesHeld || d.Runtime.ContainerID != container || d.Runtime.Image != "sha256:immutable-image" {
+ 		t.Fatalf("%+v %v", d, e)
+ 	}
+ 	if _, e = os.Stat(envFile); !errors.Is(e, os.ErrNotExist) {
+@@ -287,6 +465,10 @@
+ 	w = request(t, second, "POST", "/v1/platform/projects/owned/deployments/"+d.ID+"/stop", "member", map[string]any{})
+ 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"status":"stopped"`) {
+ 		t.Fatalf("stop %s", w.Body)
++	}
++	stopped, err := second.findDeployment("owned", d.ID)
++	if err != nil || stopped.Runtime == nil || stopped.Runtime.ResourcesHeld || !stopped.Runtime.CleanupConfirmed || !removed {
++		t.Fatal("stop did not settle the exact retained allocation", err)
+ 	}
+ }
+ func TestForeignContainerCannotBeStopped(t *testing.T) {
+@@ -517,3 +699,86 @@
+ 	}
+ 	s.release("two")
+ }
++
++func TestAdmittedDeploymentKeepsUnknownCreateReservationAcrossRefresh(t *testing.T) {
++	calls := 0
++	s := fixture(t, func(_ context.Context, exe string, _ []string, _ string, _ []byte) ([]byte, error) {
++		if exe != "git" {
++			t.Error("unknown allocation touched the legacy Docker path")
++			return nil, errors.New("unexpected Docker command")
++		}
++		return tarSource(t, map[string]string{"Dockerfile": "FROM scratch", "LUCI.md": "approved"}), nil
++	})
++	runtime := s.previewRuntime()
++	var retained previewruntime.Outcome
++	runtime.Start = func(_ context.Context, request previewruntime.Request, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
++		calls++
++		retained = previewruntime.Outcome{Identity: request.Identity, Phase: "creating", ResourcesHeld: true}
++		retained.AllocationID, retained.EngineID, retained.InstanceID = "allocation-unknown", "fixture-engine", s.instance
++		if err := publish(retained); err != nil {
++			return retained, err
++		}
++		return retained, errors.New("create acknowledgement unavailable")
++	}
++	runtime.Observe = func(_ context.Context, identity previewruntime.Identity) (previewruntime.Outcome, error) {
++		if identity != retained.Identity {
++			return previewruntime.Outcome{}, errors.New("allocation changed")
++		}
++		out := retained
++		out.Phase = "unknown"
++		return out, nil
++	}
++	s.opts.PreviewRuntime = func() previewruntime.Runtime { return runtime }
++	w := request(t, s, "POST", "/v1/platform/projects/owned/deployments", "member", map[string]any{"commit": strings.Repeat("a", 40), "port": 3000, "healthPath": "/"})
++	if w.Code != 202 {
++		t.Fatalf("deployment: %d %s", w.Code, w.Body)
++	}
++	var accepted Deployment
++	if err := json.Unmarshal(w.Body.Bytes(), &accepted); err != nil {
++		t.Fatal(err)
++	}
++	s.wg.Wait()
++	for _, refresh := range []bool{false, true} {
++		if refresh {
++			w = request(t, s, "POST", "/v1/platform/projects/owned/deployments/"+accepted.ID+"/refresh", "member", map[string]any{})
++			if w.Code != 200 {
++				t.Fatalf("refresh: %d %s", w.Code, w.Body)
++			}
++		}
++		d, err := s.findDeployment("owned", accepted.ID)
++		if err != nil || d.Status != "unknown" || d.Runtime == nil || !d.Runtime.ResourcesHeld || d.Runtime.CleanupConfirmed || d.Runtime.Identity != retained.Identity || d.Container != "" || d.URL != "" || calls != 1 {
++			t.Fatal("unknown creation lost its reservation or replayed", err)
++		}
++	}
++}
++
++func TestAdmittedDeploymentRejectsStaleSettlementPublication(t *testing.T) {
++	s := fixture(t, func(context.Context, string, []string, string, []byte) ([]byte, error) {
++		t.Error("receipt publication touched Docker")
++		return nil, errors.New("unexpected Docker command")
++	})
++	d := Deployment{ID: "deploy-cas", ProjectID: "owned", Provider: "docker", Commit: strings.Repeat("a", 40), ConfigurationRevision: 7, Revision: 1, Status: "building", Runtime: &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: "owned", ReleaseID: "deploy-cas", Target: "native-docker", Commit: strings.Repeat("a", 40), SourceDigest: strings.Repeat("d", 64)}, Phase: "reserved"}}
++	if err := s.saveDeployment(d); err != nil {
++		t.Fatal(err)
++	}
++	stale := d
++	reserved := *d.Runtime
++	reserved.AllocationID, reserved.EngineID, reserved.InstanceID = "allocation-cas", "fixture-engine", s.instance
++	reserved.ResourcesHeld = true
++	if err := s.publishDeploymentOutcome(&d, reserved, nil); err != nil {
++		t.Fatal(err)
++	}
++	before, err := s.findDeployment("owned", d.ID)
++	if err != nil {
++		t.Fatal(err)
++	}
++	settled := reserved
++	settled.Phase, settled.ResourcesHeld, settled.CleanupConfirmed = "finished", false, true
++	if err := s.publishDeploymentOutcome(&stale, settled, nil); err == nil {
++		t.Fatal("stale writer settled a newer allocation receipt")
++	}
++	after, err := s.findDeployment("owned", d.ID)
++	if err != nil || !reflect.DeepEqual(before, after) || after.Runtime == nil || !after.Runtime.ResourcesHeld {
++		t.Fatal("rejected stale publication changed the retained allocation", err)
++	}
++}
+--- /dev/null
++++ b/control-plane/internal/platform/preview_runtime.go
+@@ -0,0 +1,268 @@
++package platform
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"net/http"
++	"net/url"
++	"strconv"
++	"strings"
++	"time"
++
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
++)
++
++func (s *Service) previewRuntime() previewruntime.Runtime {
++	if s.opts.PreviewRuntime == nil {
++		return previewruntime.Runtime{}
++	}
++	return s.opts.PreviewRuntime()
++}
++
++func (s *Service) storeAdmittedDeployment(before, after Deployment) error {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	v, err := s.load(before.ProjectID)
++	if err != nil {
++		return err
++	}
++	for i, current := range v.Deployments {
++		if current.ID != before.ID {
++			continue
++		}
++		if current.Revision != before.Revision || current.Commit != before.Commit || current.ConfigurationRevision != before.ConfigurationRevision || current.Runtime == nil || before.Runtime == nil || current.Runtime.Identity != before.Runtime.Identity {
++			return errors.New("the exact deployment has a newer outcome")
++		}
++		after.Revision = before.Revision + 1
++		v.Deployments[i] = after
++		return s.write(before.ProjectID, v)
++	}
++	return errors.New("the exact deployment receipt is unavailable")
++}
++
++func (s *Service) publishDeploymentOutcome(d *Deployment, out previewruntime.Outcome, environment map[string]string) error {
++	if d.Runtime == nil || !previewruntime.Continues(d.Runtime.Identity, out.Identity) {
++		return errors.New("preview outcome does not match its exact deployment")
++	}
++	next := *d
++	copyOutcome := out
++	for _, value := range environment {
++		if value != "" {
++			copyOutcome.Message = strings.ReplaceAll(copyOutcome.Message, value, "[redacted]")
++		}
++	}
++	next.Runtime = &copyOutcome
++	next.Container, next.Image, next.URL = out.ContainerID, out.Image, ""
++	next.Message, next.UpdatedAt, next.Status = copyOutcome.Message, now(), "unknown"
++	switch out.Phase {
++	case "reserved", "building", "built", "creating", "created", "starting", "running":
++		next.Status = "building"
++	case "finished":
++		if out.CleanupConfirmed && !out.ResourcesHeld {
++			next.Status = "stopped"
++		}
++	}
++	if err := s.storeAdmittedDeployment(*d, next); err != nil {
++		return err
++	}
++	next.Revision++
++	*d = next
++	return nil
++}
++
++// Preparing an application never creates a network outside admission. A data
++// service must already have established its owned network; an application with
++// no data binding can use Docker's default network.
++func (s *Service) existingDeploymentNetwork(ctx context.Context, projectID string, environment map[string]string) (string, error) {
++	needsNetwork := false
++	for _, key := range []string{"DATABASE_URL", "SUPABASE_DB_URL", "SUPABASE_URL"} {
++		address, err := url.Parse(environment[key])
++		if err == nil && (address.Hostname() == "database" || address.Hostname() == "supabase-api" || address.Hostname() == "supabase-db") {
++			needsNetwork = true
++		}
++	}
++	if !needsNetwork {
++		return "bridge", nil
++	}
++	name := s.resource(projectID, "net")
++	data, err := s.docker(ctx, "network", "inspect", name, "--format", "{{json .}}")
++	if err != nil {
++		return "", errors.New("the selected database network is unavailable")
++	}
++	var network struct {
++		ID     string            `json:"Id"`
++		Driver string            `json:"Driver"`
++		Labels map[string]string `json:"Labels"`
++	}
++	if json.Unmarshal(data, &network) != nil || len(network.ID) != 64 || strings.Trim(network.ID, "0123456789abcdef") != "" || network.Driver != "bridge" || network.Labels[labelInstance] != s.instance || network.Labels[labelProject] != projectID {
++		return "", errors.New("database network ownership could not be verified")
++	}
++	return network.ID, nil
++}
++
++func (s *Service) observeAdmittedDeployment(ctx context.Context, d Deployment) (Deployment, error) {
++	if err := ctx.Err(); err != nil {
++		return d, err
++	}
++	if d.Runtime == nil || s.previewRuntime().Observe == nil {
++		return d, errors.New("shared preview observation is unavailable")
++	}
++	out, err := s.previewRuntime().Observe(ctx, d.Runtime.Identity)
++	if err != nil || out.Identity != d.Runtime.Identity || out.Phase != "running" || !out.ResourcesHeld || out.ContainerID == "" || out.URL == "" {
++		return d, errors.New("the exact admitted deployment is not verified running")
++	}
++	address, parseErr := url.Parse(out.URL)
++	if parseErr != nil {
++		return d, errors.New("the admitted deployment origin is invalid")
++	}
++	port, portErr := strconv.Atoi(address.Port())
++	if address.Scheme != "http" || address.Hostname() != "127.0.0.1" || address.User != nil || address.Path != "" || address.RawPath != "" || address.RawQuery != "" || address.ForceQuery || address.Fragment != "" || address.Opaque != "" || portErr != nil || port < 1 || port > 65535 {
++		return d, errors.New("the admitted deployment origin is not a private loopback origin")
++	}
++	// The loopback port and historical extra labels are checked below and by
++	// every direct browser resolver. Runtime observation proves exact engine,
++	// instance, allocation and immutable container ownership first.
++	d.Container, d.Image, d.URL = out.ContainerID, out.Image, out.URL
++	return d, nil
++}
++
++func (s *Service) inspectAdmittedDeployment(ctx context.Context, d Deployment) (containerInfo, error) {
++	observed, err := s.observeAdmittedDeployment(ctx, d)
++	if err != nil {
++		return containerInfo{}, err
++	}
++	info, err := s.inspect(ctx, d.ProjectID, d.ID, observed.Container)
++	if err != nil {
++		return containerInfo{}, err
++	}
++	address, err := loopbackURL(info, d.Port)
++	if err != nil || !info.State.Running || info.ID != observed.Container || info.Image != observed.Image || address != observed.URL {
++		return containerInfo{}, errors.New("admitted deployment identity or port changed")
++	}
++	return info, nil
++}
++
++func (s *Service) inspectDeploymentForLogs(ctx context.Context, d Deployment) (containerInfo, error) {
++	if d.Runtime == nil {
++		return s.inspect(ctx, d.ProjectID, d.ID, d.Container)
++	}
++	runtime := s.previewRuntime()
++	if runtime.Observe == nil {
++		return containerInfo{}, errors.New("shared preview observation is unavailable")
++	}
++	out, err := runtime.Observe(ctx, d.Runtime.Identity)
++	if err != nil || out.Identity != d.Runtime.Identity || !out.ResourcesHeld || out.ContainerID == "" {
++		return containerInfo{}, errors.New("exact retained preview logs cannot be verified")
++	}
++	info, err := s.inspect(ctx, d.ProjectID, d.ID, out.ContainerID)
++	if err != nil || info.ID != out.ContainerID || info.Image != out.Image {
++		return containerInfo{}, errors.New("exact retained preview ownership changed")
++	}
++	return info, nil
++}
++
++func (s *Service) waitAdmittedDeploymentHealthy(ctx context.Context, d *Deployment) error {
++	bounded, cancel := context.WithTimeout(ctx, 60*time.Second)
++	defer cancel()
++	ticker := time.NewTicker(500 * time.Millisecond)
++	defer ticker.Stop()
++	for {
++		info, err := s.inspectAdmittedDeployment(bounded, *d)
++		if err != nil {
++			return err
++		}
++		address, err := loopbackURL(info, d.Port)
++		if err != nil {
++			return err
++		}
++		if s.healthy(bounded, address, d.HealthPath) {
++			d.URL = address
++			return nil
++		}
++		select {
++		case <-bounded.Done():
++			return bounded.Err()
++		case <-ticker.C:
++		}
++	}
++}
++
++func (s *Service) admittedDeploymentAction(w http.ResponseWriter, r *http.Request, ctx context.Context, d Deployment, action string) {
++	runtime := s.previewRuntime()
++	var out previewruntime.Outcome
++	var err error
++	publish := func(value previewruntime.Outcome) error { return s.publishDeploymentOutcome(&d, value, nil) }
++	switch action {
++	case "stop":
++		if d.Runtime.Phase == "finished" && d.Runtime.CleanupConfirmed && !d.Runtime.ResourcesHeld {
++			respond(w, 200, s.browserDeployment(d))
++			return
++		}
++		if runtime.Stop == nil {
++			problem(w, 503, "preview_runtime_unavailable", "The shared runtime is unavailable; the reservation is retained.")
++			return
++		}
++		out, err = runtime.Stop(ctx, d.Runtime.Identity, publish)
++	case "restart":
++		if runtime.Restart == nil || runtime.CaptureActor == nil || s.opts.ValidateDeploymentSource == nil || !d.Runtime.ResourcesHeld || d.Runtime.ContainerID == "" {
++			problem(w, 409, "redeployment_required", "Create a new admitted deployment from the reviewed commit.")
++			return
++		}
++		actor, captureErr := runtime.CaptureActor(r.Context(), d.ProjectID)
++		if captureErr != nil {
++			problem(w, 403, "deployment_forbidden", "Current Edit and Deploy access are required.")
++			return
++		}
++		validate := func(verify context.Context) error {
++			if err := s.opts.ValidateDeploymentSource(verify, d.ProjectID, d.Commit); err != nil {
++				return err
++			}
++			rev, _, err := s.environment(d.ProjectID)
++			if err != nil || rev != d.ConfigurationRevision {
++				return errors.New("configuration changed; create a new deployment")
++			}
++			// Restart can be checked while the exact retained container is
++			// stopped. Never require a running observation between Stop/Start.
++			info, err := s.inspect(verify, d.ProjectID, d.ID, d.Runtime.ContainerID)
++			if err != nil || info.ID != d.Runtime.ContainerID || info.Image != d.Runtime.Image {
++				return errors.New("exact retained deployment ownership changed")
++			}
++			return s.checkDeploymentDatabaseBinding(d.ProjectID, d, info)
++		}
++		out, err = runtime.Restart(ctx, previewruntime.Request{Identity: d.Runtime.Identity, Actor: actor, ValidateSource: validate}, publish)
++	case "refresh":
++		if runtime.Observe == nil {
++			problem(w, 503, "preview_runtime_unavailable", "Shared preview observation is unavailable.")
++			return
++		}
++		out, err = runtime.Observe(ctx, d.Runtime.Identity)
++	}
++	if err == nil {
++		err = publish(out)
++	}
++	if err != nil {
++		problem(w, 503, "preview_operation_unconfirmed", "The exact operation is unconfirmed. Its receipt and any reserved capacity are retained.")
++		return
++	}
++	if action == "stop" {
++		if d.Runtime.ResourcesHeld || !d.Runtime.CleanupConfirmed {
++			problem(w, 503, "preview_cleanup_unconfirmed", "Cleanup is unconfirmed; the reservation is retained.")
++			return
++		}
++	} else {
++		next := d
++		if err := s.waitAdmittedDeploymentHealthy(ctx, &next); err != nil {
++			next.Status, next.URL, next.Message = "unknown", "", "The owned deployment did not pass health verification; its reservation is retained."
++		} else {
++			next.Status, next.Message = "ready", "The exact admitted deployment is healthy."
++		}
++		if err := s.storeAdmittedDeployment(d, next); err != nil {
++			problem(w, 409, "deployment_changed", "A newer outcome owns this deployment receipt.")
++			return
++		}
++		next.Revision++
++		d = next
++	}
++	respond(w, 200, s.browserDeployment(d))
++}
+--- /dev/null
++++ b/control-plane/internal/platform/preview_runtime_test.go
+@@ -0,0 +1,65 @@
++package platform
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"strings"
++	"testing"
++
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
++)
++
++func TestRetainedCrashedDeploymentKeepsOwnedRedactedLogs(t *testing.T) {
++	var s *Service
++	identity := previewruntime.Identity{ProjectID: "owned", ReleaseID: "deploy-crashed", Target: "native-docker", Commit: strings.Repeat("a", 40), SourceDigest: strings.Repeat("d", 64), AllocationID: "serve-crashed", ContainerID: strings.Repeat("b", 64), Image: "sha256:" + strings.Repeat("c", 64)}
++	s = fixture(t, func(_ context.Context, exe string, args []string, _ string, _ []byte) ([]byte, error) {
++		if exe != "docker" || len(args) < 2 || args[len(args)-1] != identity.ContainerID {
++			return nil, errors.New("unexpected container target")
++		}
++		switch args[0] {
++		case "inspect":
++			info := containerInfo{ID: identity.ContainerID, Image: identity.Image}
++			info.Config.Labels = map[string]string{labelInstance: s.instance, labelProject: "owned", labelResource: identity.ReleaseID}
++			return json.Marshal([]containerInfo{info})
++		case "logs":
++			return []byte("crashed with fixture-private-value"), nil
++		default:
++			t.Error("logs attempted a mutation")
++			return nil, errors.New("unexpected operation")
++		}
++	})
++	out := previewruntime.Outcome{Identity: identity, Phase: "exited", ResourcesHeld: true}
++	runtime := s.previewRuntime()
++	runtime.Observe = func(_ context.Context, id previewruntime.Identity) (previewruntime.Outcome, error) {
++		if id != identity {
++			return previewruntime.Outcome{}, errors.New("wrong allocation")
++		}
++		return out, nil
++	}
++	s.opts.PreviewRuntime = func() previewruntime.Runtime { return runtime }
++	d := Deployment{ID: identity.ReleaseID, ProjectID: "owned", Provider: "docker", Status: "unknown", Container: identity.ContainerID, Image: identity.Image, Runtime: &out}
++	if err := s.saveDeployment(d); err != nil {
++		t.Fatal(err)
++	}
++	if err := s.write(d.ID+"-redactions", map[string]string{"APP_SECRET": "fixture-private-value"}); err != nil {
++		t.Fatal(err)
++	}
++	w := request(t, s, "GET", "/v1/platform/projects/owned/deployments/"+d.ID+"/logs", "member", nil)
++	if w.Code != 200 || !strings.Contains(w.Body.String(), "[redacted]") || strings.Contains(w.Body.String(), "fixture-private-value") {
++		t.Fatal("crashed owned container logs were unavailable or leaked", w.Code, w.Body.String())
++	}
++}
++
++func TestBrowserDeploymentDoesNotExposeOrMutatePrivateRuntimeOrigin(t *testing.T) {
++	s := fixture(t, func(context.Context, string, []string, string, []byte) ([]byte, error) {
++		t.Error("receipt projection invoked Docker")
++		return nil, errors.New("unexpected")
++	})
++	out := previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: "owned", ReleaseID: "deploy-private"}, URL: "http://127.0.0.1:45678", Phase: "unknown", ResourcesHeld: true}
++	d := Deployment{ID: "deploy-private", ProjectID: "owned", Provider: "docker", Status: "unknown", Runtime: &out}
++	public := s.browserDeployment(d)
++	if public.Runtime == nil || public.Runtime.URL != "" || d.Runtime.URL != "http://127.0.0.1:45678" {
++		t.Fatal("public receipt exposed private runtime origin or mutated durable outcome")
++	}
++}
+--- a/control-plane/internal/platform/project_runs.go
++++ b/control-plane/internal/platform/project_runs.go
+@@ -34,8 +34,14 @@
+ 	defer cancel()
+ 	switch d.Provider {
+ 	case "docker":
+-		info, err := s.inspect(bounded, projectID, d.ID, d.Container)
+-		if err != nil || !info.State.Running || d.Image == "" || info.Image != d.Image || info.Config.Image != "luci-platform/"+s.instance+":"+d.ID {
++		var info containerInfo
++		var err error
++		if d.Runtime != nil {
++			info, err = s.inspectAdmittedDeployment(bounded, d)
++		} else {
++			info, err = s.inspect(bounded, projectID, d.ID, d.Container)
++		}
++		if err != nil || !info.State.Running || d.Image == "" || info.Image != d.Image || (d.Runtime == nil && info.Config.Image != "luci-platform/"+s.instance+":"+d.ID) {
+ 			return out, errors.New("native release running container and image ownership changed")
+ 		}
+ 		address, err := loopbackURL(info, d.Port)
+--- a/control-plane/internal/platform/prototype_releases.go
++++ b/control-plane/internal/platform/prototype_releases.go
+@@ -3,6 +3,7 @@
+ import (
+ 	"context"
+ 	"errors"
++	"reflect"
+ 	"time"
+ )
+ 
+@@ -39,12 +40,27 @@
+ 		if d.Provider != "docker" || d.Status != "ready" {
+ 			continue
+ 		}
+-		if d.ProjectID != projectID || !identifier.MatchString(d.ID) || seen[d.ID] || !commitID.MatchString(d.Commit) || !identifier.MatchString(d.Container) || d.Image == "" || d.Port < 1 || d.Port > 65535 || !validHealthPath(d.HealthPath) {
++		recorded := d
++		if d.Runtime != nil {
++			snapshot := *d.Runtime
++			recorded.Runtime = &snapshot
++		}
++		if d.ProjectID != projectID || !identifier.MatchString(d.ID) || seen[d.ID] || !commitID.MatchString(d.Commit) || d.Port < 1 || d.Port > 65535 || !validHealthPath(d.HealthPath) {
+ 			return nil, errors.New("application deployment provenance is invalid")
+ 		}
+ 		seen[d.ID] = true
+ 		if err := ctx.Err(); err != nil {
+ 			return nil, err
++		}
++		if d.Runtime != nil {
++			observed, err := s.observeAdmittedDeployment(ctx, d)
++			if err != nil {
++				continue
++			}
++			d = observed
++		}
++		if !identifier.MatchString(d.Container) || d.Image == "" {
++			return nil, errors.New("application deployment provenance is invalid")
+ 		}
+ 		info, err := s.inspect(ctx, projectID, d.ID, d.Container)
+ 		if err != nil || !info.State.Running || info.Image != d.Image || info.State.Health.Status == "unhealthy" || info.State.Health.Status == "starting" {
+@@ -65,7 +81,7 @@
+ 		}
+ 		matching := false
+ 		for _, current := range latest.Deployments {
+-			if current.ID == d.ID && current == d {
++			if current.ID == recorded.ID && reflect.DeepEqual(current, recorded) {
+ 				matching = true
+ 			}
+ 		}
+--- /dev/null
++++ b/control-plane/internal/previewruntime/runtime.go
+@@ -0,0 +1,79 @@
++// Package previewruntime defines the shared, admitted local application runtime.
++// Product and platform own reviewed source and durable release receipts; the API
++// coordinator owns fresh authority, host admission and exact allocation leases.
++package previewruntime
++
++import (
++	"context"
++	"github.com/lcfrai/luci/control-plane/internal/management"
++)
++
++type Identity struct {
++	ProjectID         string `json:"projectId"`
++	ReleaseID         string `json:"releaseId"`
++	Target            string `json:"target"`
++	Commit            string `json:"commit"`
++	SourceDigest      string `json:"sourceDigest"`
++	BuildAllocationID string `json:"buildAllocationId,omitempty"`
++	AllocationID      string `json:"allocationId,omitempty"`
++	EngineID          string `json:"engineId,omitempty"`
++	InstanceID        string `json:"instanceId,omitempty"`
++	ContainerID       string `json:"containerId,omitempty"`
++	Image             string `json:"image,omitempty"`
++}
++
++type Request struct {
++	Identity
++	SourceDirectory string
++	SourceArchive   []byte
++	Dockerfile      string
++	Port            int
++	Environment     map[string]string
++	// Network is a pre-existing, server-selected owned network; no client input.
++	Network string
++	// Labels retain historical platform/proxy ownership in addition to the
++	// mandatory runtime allocation labels. They cannot override runtime labels.
++	Labels               map[string]string
++	Actor                management.ExecutionActorRef
++	MemoryMiB, CPUMillis int
++	// Rechecked immediately before each independent allocating side effect.
++	ValidateSource func(context.Context) error
++}
++
++type Outcome struct {
++	Identity
++	Phase            string `json:"phase"`
++	URL              string `json:"url,omitempty"`
++	ResourcesHeld    bool   `json:"resourcesHeld"`
++	CleanupConfirmed bool   `json:"cleanupConfirmed"`
++	ReasonCode       string `json:"reasonCode,omitempty"`
++	Message          string `json:"message,omitempty"`
++}
++
++// Publish runs synchronously before every external mutation. Publication
++// failure stops the operation and retains existing leases. Start is never
++// replayed from a saved receipt. Observe is read-only; Stop reauthorizes the
++// current caller and settles only exact owned allocation absence.
++type Runtime struct {
++	CaptureActor func(context.Context, string) (management.ExecutionActorRef, error)
++	Start        func(context.Context, Request, func(Outcome) error) (Outcome, error)
++	Observe      func(context.Context, Identity) (Outcome, error)
++	Stop         func(context.Context, Identity, func(Outcome) error) (Outcome, error)
++	Restart      func(context.Context, Request, func(Outcome) error) (Outcome, error)
++}
++
++func (i Identity) Retained() bool { return i.BuildAllocationID != "" || i.AllocationID != "" }
++
++// Continues permits acknowledgement of an identity that was previously
++// unknown, but never replacement of an already recorded allocation or object.
++func Continues(before, after Identity) bool {
++	if before.ProjectID != after.ProjectID || before.ReleaseID != after.ReleaseID || before.Target != after.Target || before.Commit != after.Commit || before.SourceDigest != after.SourceDigest {
++		return false
++	}
++	for _, pair := range [][2]string{{before.BuildAllocationID, after.BuildAllocationID}, {before.AllocationID, after.AllocationID}, {before.EngineID, after.EngineID}, {before.InstanceID, after.InstanceID}, {before.ContainerID, after.ContainerID}, {before.Image, after.Image}} {
++		if pair[0] != "" && pair[0] != pair[1] {
++			return false
++		}
++	}
++	return true
++}
+--- a/control-plane/internal/product/browser_preview.go
++++ b/control-plane/internal/product/browser_preview.go
+@@ -10,6 +10,9 @@
+ 	// A retained handle permits offering cleanup; the explicit stop handler still
+ 	// verifies current labels and ownership before touching a container.
+ 	out.CanStop = row.Target == "local" && row.Status != "stopped" && previewContainerID.MatchString(row.ContainerID)
++	if row.Runtime != nil {
++		out.CanStop = row.Target == "local" && row.Runtime.Retained() && row.Runtime.Phase != "finished"
++	}
+ 	if s.browserRegistry == nil || row.Target != "local" || row.Status != "ready" {
+ 		return out
+ 	}
+--- a/control-plane/internal/product/preview_proxy.go
++++ b/control-plane/internal/product/preview_proxy.go
+@@ -27,6 +27,17 @@
+ 	}
+ 	if _, err := recordedPreviewOrigin(row.URL); err != nil {
+ 		return err
++	}
++	if row.Runtime != nil {
++		runtime := s.PreviewRuntime()
++		if runtime.Observe == nil {
++			return errors.New("shared preview observation is unavailable")
++		}
++		out, err := runtime.Observe(ctx, row.Runtime.Identity)
++		if err != nil || out.Identity != row.Runtime.Identity || out.Phase != "running" || out.URL != row.URL || !out.ResourcesHeld {
++			return errors.New("the exact admitted preview could not be verified")
++		}
++		return nil
+ 	}
+ 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+ 	defer cancel()
+--- /dev/null
++++ b/control-plane/internal/product/preview_runtime.go
+@@ -0,0 +1,102 @@
++package product
++
++import (
++	"context"
++	"errors"
++	"net/http"
++	"time"
++
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
++)
++
++func (s *Server) SetPreviewRuntime(value previewruntime.Runtime) { s.previewRuntime = value }
++func (s *Server) PreviewRuntime() previewruntime.Runtime         { return s.previewRuntime }
++
++// PreviewSourceDigest reads the original private admission provenance. A tar
++// checksum is not interchangeable with the source digest used by check evidence.
++func (s *Server) PreviewSourceDigest(ctx context.Context, projectID, releaseID, commit string) (string, error) {
++	if err := ctx.Err(); err != nil {
++		return "", err
++	}
++	s.mu.RLock()
++	defer s.mu.RUnlock()
++	v, err := s.readReleaseRunProvenance(projectID, releaseID)
++	if err != nil {
++		return "", err
++	}
++	if v.Commit != commit || !hexDigest(v.SourceDigest) {
++		return "", errors.New("release source provenance changed")
++	}
++	return v.SourceDigest, nil
++}
++
++func (s *Server) storeAdmittedRelease(before storedRelease, after storedRelease) error {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	rows, err := s.readReleases(before.ProjectID)
++	if err != nil {
++		return err
++	}
++	for i, current := range rows {
++		if current.ID != before.ID {
++			continue
++		}
++		if current.Revision != before.Revision || current.Commit != before.Commit || current.ConfigurationRevision != before.ConfigurationRevision || current.Runtime == nil || before.Runtime == nil || current.Runtime.Identity != before.Runtime.Identity {
++			return errors.New("the exact release receipt has a newer outcome")
++		}
++		after.Revision = before.Revision + 1
++		rows[i] = after
++		return atomicJSON(s.releaseFile(before.ProjectID), rows)
++	}
++	return errors.New("the exact release receipt is unavailable")
++}
++
++func (s *Server) publishPreviewOutcome(row *storedRelease, out previewruntime.Outcome, environment map[string]string) error {
++	if row.Runtime == nil || !previewruntime.Continues(row.Runtime.Identity, out.Identity) {
++		return errors.New("preview outcome does not match its exact source and allocation")
++	}
++	next := *row
++	copyOutcome := out
++	copyOutcome.Message = redactPreviewConfiguration(out.Message, environment)
++	next.Runtime = &copyOutcome
++	next.ContainerID, next.Image = out.ContainerID, out.Image
++	next.URL, next.Message = "", copyOutcome.Message
++	next.Status = "unknown"
++	switch out.Phase {
++	case "reserved", "building", "built", "creating", "created", "starting", "running":
++		next.Status = "building"
++	case "finished":
++		if out.CleanupConfirmed && !out.ResourcesHeld {
++			next.Status = "stopped"
++		}
++	}
++	if err := s.storeAdmittedRelease(*row, next); err != nil {
++		return err
++	}
++	next.Revision++
++	*row = next
++	return nil
++}
++
++func (s *Server) stopAdmittedRelease(w http.ResponseWriter, r *http.Request, row storedRelease) {
++	if row.Runtime.Phase == "finished" && row.Runtime.CleanupConfirmed && !row.Runtime.ResourcesHeld {
++		journeyJSON(w, 200, s.browserRelease(row))
++		return
++	}
++	runtime := s.PreviewRuntime()
++	if runtime.Stop == nil {
++		journeyError(w, 503, "preview_runtime_unavailable", "The shared preview runtime is unavailable; its reservation is retained.")
++		return
++	}
++	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
++	defer cancel()
++	out, err := runtime.Stop(ctx, row.Runtime.Identity, func(value previewruntime.Outcome) error { return s.publishPreviewOutcome(&row, value, nil) })
++	if err == nil {
++		err = s.publishPreviewOutcome(&row, out, nil)
++	}
++	if err != nil || row.Runtime.ResourcesHeld || !row.Runtime.CleanupConfirmed {
++		journeyError(w, 503, "preview_cleanup_unconfirmed", "The exact preview cleanup is unconfirmed. Its history and reservation are retained; refresh or retry Stop.")
++		return
++	}
++	journeyJSON(w, 200, s.browserRelease(row))
++}
+--- /dev/null
++++ b/control-plane/internal/product/preview_runtime_fixture_test.go
+@@ -0,0 +1,170 @@
++package product
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"os"
++	"path/filepath"
++	"reflect"
++	"strconv"
++	"strings"
++	"testing"
++
++	"github.com/lcfrai/luci/control-plane/internal/management"
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
++)
++
++// Only the typed boundary is substituted. Calls below reach each test's
++// explicit runner fixture, never an actual Docker daemon. They retain existing
++// committed archive, private configuration, health and ownership assertions;
++// they make no shared admission or backend enforcement claim.
++func installControlledPreviewRuntime(t *testing.T, s *Server) {
++	t.Helper()
++	initialRunner := reflect.ValueOf(s.runner).Pointer()
++	read := func(id previewruntime.Identity) (previewruntime.Outcome, error) {
++		s.mu.RLock()
++		defer s.mu.RUnlock()
++		rows, err := s.readReleases(id.ProjectID)
++		if err != nil {
++			return previewruntime.Outcome{}, err
++		}
++		for _, row := range rows {
++			if row.ID == id.ReleaseID && row.Runtime != nil && row.Runtime.Identity == id {
++				return *row.Runtime, nil
++			}
++		}
++		return previewruntime.Outcome{}, errors.New("exact fixture receipt missing")
++	}
++	s.SetPreviewRuntime(previewruntime.Runtime{
++		CaptureActor: management.CaptureDeploymentActor,
++		Start: func(ctx context.Context, req previewruntime.Request, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
++			out := previewruntime.Outcome{Identity: req.Identity, Phase: "building", ResourcesHeld: true}
++			if reflect.ValueOf(s.runner).Pointer() == initialRunner {
++				t.Error("unexpected preview without explicit runner fixture")
++				return out, errors.New("preview runner fixture missing")
++			}
++			if req.Actor.ProjectID != req.ProjectID || req.SourceDirectory == "" || req.SourceDigest == "" || req.ValidateSource == nil {
++				t.Error("typed preview lost its source/actor binding")
++				return out, errors.New("invalid preview fixture request")
++			}
++			if err := req.ValidateSource(ctx); err != nil {
++				return out, err
++			}
++			out.BuildAllocationID, out.EngineID, out.InstanceID = "build-"+req.ReleaseID, "fixture-engine", "fixture-instance"
++			if err := publish(out); err != nil {
++				return out, err
++			}
++			tag := "luci/preview:" + req.ReleaseID
++			if _, err := s.runner(ctx, "docker", []string{"build", "--tag", tag, "--file", filepath.Join(req.SourceDirectory, req.Dockerfile), req.SourceDirectory}, req.SourceDirectory); err != nil {
++				// This fixture's build failure is deliberately settled. Unknown
++				// transport failures are covered separately with a retained lease.
++				out.Phase, out.ResourcesHeld, out.CleanupConfirmed, out.Message = "failed", false, true, err.Error()
++				if e := publish(out); e != nil {
++					return out, e
++				}
++				return out, err
++			}
++			out.Image = "sha256:" + strings.Repeat("c", 64)
++			out.Phase, out.ResourcesHeld = "built", false
++			if err := publish(out); err != nil {
++				return out, err
++			}
++			if err := req.ValidateSource(ctx); err != nil {
++				return out, err
++			}
++			out.AllocationID, out.Phase, out.ResourcesHeld = "serve-"+req.ReleaseID, "creating", true
++			if err := publish(out); err != nil {
++				return out, err
++			}
++			args := []string{"run", "--detach", "--init", "--name", "luci-preview-" + req.ReleaseID, "--label", "luci.preview=true", "--label", "luci.release-id=" + req.ReleaseID, "--label", "luci.project-id=" + req.ProjectID, "--publish", fmt.Sprintf("127.0.0.1::%d", req.Port)}
++			file, err := s.writePreviewEnvironment(req.Environment)
++			if err != nil {
++				return out, err
++			}
++			if file != "" {
++				defer os.Remove(file)
++				args = append(args, "--env-file", file)
++			}
++			args = append(args, tag)
++			ref, err := s.runner(ctx, "docker", args, "")
++			if file != "" {
++				if removeErr := os.Remove(file); err == nil {
++					err = removeErr
++				}
++			}
++			if err != nil {
++				out.Phase, out.Message = "unknown", err.Error()
++				if e := publish(out); e != nil {
++					return out, e
++				}
++				return out, err
++			}
++			out.ContainerID = strings.TrimSpace(ref)
++			if !previewContainerID.MatchString(out.ContainerID) {
++				return out, errors.New("invalid controlled container ID")
++			}
++			out.Phase = "starting"
++			if err := publish(out); err != nil {
++				return out, err
++			}
++			mapping, err := s.runner(ctx, "docker", []string{"port", out.ContainerID, strconv.Itoa(req.Port) + "/tcp"}, "")
++			if err != nil {
++				return out, err
++			}
++			out.URL, err = localPreviewURL(mapping)
++			if err != nil {
++				return out, err
++			}
++			out.Phase = "running"
++			if err := publish(out); err != nil {
++				return out, err
++			}
++			return out, nil
++		},
++		Observe: func(ctx context.Context, id previewruntime.Identity) (previewruntime.Outcome, error) {
++			out, err := read(id)
++			if err != nil || out.Phase != "running" {
++				return out, err
++			}
++			data, err := s.runner(ctx, "docker", []string{"inspect", "--format", `{"running":{{json .State.Running}},"labels":{{json .Config.Labels}},"ports":{{json .NetworkSettings.Ports}}}`, id.ContainerID}, "")
++			if err != nil {
++				return out, err
++			}
++			var inspection struct {
++				Running bool `json:"running"`
++			}
++			if json.Unmarshal([]byte(data), &inspection) != nil || !inspection.Running {
++				return out, errors.New("controlled preview not running")
++			}
++			return out, nil
++		},
++		Stop: func(ctx context.Context, id previewruntime.Identity, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
++			out, err := read(id)
++			if err != nil || out.Phase == "finished" {
++				return out, err
++			}
++			data, err := s.runner(ctx, "docker", []string{"inspect", "--format", "{{json .Config.Labels}}", id.ContainerID}, "")
++			if err != nil {
++				return out, err
++			}
++			var labels map[string]string
++			if json.Unmarshal([]byte(data), &labels) != nil || labels["luci.preview"] != "true" || labels["luci.release-id"] != id.ReleaseID || labels["luci.project-id"] != id.ProjectID {
++				return out, errors.New("fixture ownership mismatch")
++			}
++			out.Phase = "cleaning"
++			if err := publish(out); err != nil {
++				return out, err
++			}
++			if _, err := s.runner(ctx, "docker", []string{"rm", "--force", id.ContainerID}, ""); err != nil {
++				return out, err
++			}
++			out.Phase, out.ResourcesHeld, out.CleanupConfirmed, out.URL = "finished", false, true, ""
++			if err := publish(out); err != nil {
++				return out, err
++			}
++			return out, nil
++		},
++	})
++}
+--- /dev/null
++++ b/control-plane/internal/product/preview_runtime_test.go
+@@ -0,0 +1,96 @@
++package product
++
++import (
++	"context"
++	"errors"
++	"reflect"
++	"strings"
++	"testing"
++
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
++)
++
++func retainedPreviewFixture(t *testing.T, s *Server, projectID string) storedRelease {
++	t.Helper()
++	identity := previewruntime.Identity{ProjectID: projectID, ReleaseID: "rel-retained", Target: "local", Commit: strings.Repeat("a", 40), SourceDigest: strings.Repeat("b", 64), BuildAllocationID: "build-retained", EngineID: "engine-retained", InstanceID: "instance-retained"}
++	row := storedRelease{Release: Release{ID: identity.ReleaseID, ProjectID: projectID, Target: "local", Commit: identity.Commit, Status: "building", ConfigurationRevision: 3}, Revision: 1, Runtime: &previewruntime.Outcome{Identity: identity, Phase: "building", ResourcesHeld: true}}
++	if err := s.storeRelease(row); err != nil {
++		t.Fatal(err)
++	}
++	return row
++}
++
++func TestPreviewReceiptRetainsUnknownBuildWithoutContainerAndNeverReplays(t *testing.T) {
++	s, mux := journeyFixture(t)
++	p := createJourneyProject(t, mux, "retained-preview")
++	row := retainedPreviewFixture(t, s, p.ID)
++	out := *row.Runtime
++	out.Phase, out.Message = "unknown", "The build acknowledgement was lost."
++	if err := s.publishPreviewOutcome(&row, out, nil); err != nil {
++		t.Fatal(err)
++	}
++	if row.Status != "unknown" || row.ContainerID != "" || !s.browserRelease(row).CanStop {
++		t.Fatal("unknown pre-container build lost its stop affordance")
++	}
++	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot(), Runner: func(context.Context, string, []string, string) (string, error) {
++		t.Error("restart observation attempted a resource operation")
++		return "", errors.New("no runtime")
++	}})
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer reopened.Close()
++	rows, err := reopened.readReleases(p.ID)
++	if err != nil || len(rows) != 1 || rows[0].Runtime == nil || *rows[0].Runtime != out {
++		t.Fatal("restart lost the exact uncertain allocation", err)
++	}
++	before := auditTree(t, s.stateDir)
++	views := reopened.observeLocalReleases(context.Background(), rows)
++	if len(views) != 1 || views[0].Status != "unknown" || !reopened.browserRelease(views[0]).CanStop {
++		t.Fatal("restart manufactured a ready or settled build")
++	}
++	if !reflect.DeepEqual(before, auditTree(t, s.stateDir)) {
++		t.Fatal("observation rewrote the retained receipt")
++	}
++}
++
++func TestPreviewReceiptCASPreventsStaleReadyFromReplacingExactStop(t *testing.T) {
++	s, mux := journeyFixture(t)
++	p := createJourneyProject(t, mux, "preview-cas")
++	row := retainedPreviewFixture(t, s, p.ID)
++	stale := row
++	finished := *row.Runtime
++	finished.Phase, finished.ResourcesHeld, finished.CleanupConfirmed = "finished", false, true
++	if err := s.publishPreviewOutcome(&row, finished, nil); err != nil {
++		t.Fatal(err)
++	}
++	late := *stale.Runtime
++	late.Phase, late.AllocationID, late.ContainerID = "running", "serve-stale", strings.Repeat("c", 64)
++	if err := s.publishPreviewOutcome(&stale, late, nil); err == nil {
++		t.Fatal("stale launch replaced a newer exact stop")
++	}
++	rows, err := s.readReleases(p.ID)
++	if err != nil || len(rows) != 1 || rows[0].Status != "stopped" || rows[0].Runtime.ResourcesHeld || rows[0].Runtime.AllocationID != "" {
++		t.Fatal("stale result changed the stopped receipt", err)
++	}
++	foreign := finished
++	foreign.EngineID = "another-engine"
++	if err := s.publishPreviewOutcome(&row, foreign, nil); err == nil {
++		t.Fatal("known engine identity was replaceable")
++	}
++}
++
++func TestLocalPreviewHasNoUnadmittedRunnerFallback(t *testing.T) {
++	s, mux := journeyFixture(t)
++	p := createJourneyProject(t, mux, "preview-runtime-required")
++	s.SetPreviewRuntime(previewruntime.Runtime{})
++	s.runner = func(context.Context, string, []string, string) (string, error) {
++		t.Error("missing runtime reached a command runner")
++		return "", errors.New("forbidden")
++	}
++	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/releases", map[string]any{"target": "local"}, 503)
++	rows, err := s.readReleases(p.ID)
++	if err != nil || len(rows) != 0 {
++		t.Fatal("unadmitted preview created a release receipt", err)
++	}
++}
+--- a/control-plane/internal/product/projects_test.go
++++ b/control-plane/internal/product/projects_test.go
+@@ -59,6 +59,7 @@
+ 	}
+ 	s.SetRuntimeResourceSnapshot(setupStorageFixtureSnapshot)
+ 	installControlledProjectCheckRuntime(t, s, nil)
++	installControlledPreviewRuntime(t, s)
+ 	t.Cleanup(func() { s.Close() })
+ 	mux := http.NewServeMux()
+ 	s.registerProjects(fixtureReviewRegistrar{mux})
+--- a/control-plane/internal/product/releases.go
++++ b/control-plane/internal/product/releases.go
+@@ -20,11 +20,12 @@
+ 	"time"
+ 
+ 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
+ 	"github.com/lcfrai/luci/control-plane/internal/project"
+ )
+ 
+ type Release struct {
+-	CanStop bool `json:"canStop"`
++	CanStop                   bool   `json:"canStop"`
+ 	ID                        string `json:"id"`
+ 	ProjectID                 string `json:"projectId"`
+ 	BriefRevision             int    `json:"briefRevision"`
+@@ -40,8 +41,10 @@
+ 
+ type storedRelease struct {
+ 	Release
+-	ContainerID string `json:"containerId"`
+-	Image       string `json:"image"`
++	Revision    uint64                  `json:"revision,omitempty"`
++	Runtime     *previewruntime.Outcome `json:"runtime,omitempty"`
++	ContainerID string                  `json:"containerId"`
++	Image       string                  `json:"image"`
+ }
+ 
+ func (s *Server) registerReleases(mux Registrar) {
+@@ -173,6 +176,16 @@
+ 	if !ok {
+ 		return
+ 	}
++	runtime := s.PreviewRuntime()
++	if runtime.CaptureActor == nil || runtime.Start == nil || runtime.Observe == nil || runtime.Stop == nil {
++		journeyError(w, 503, "preview_runtime_unavailable", "Shared preview admission is unavailable. No build started.")
++		return
++	}
++	actor, err := runtime.CaptureActor(r.Context(), p.ID)
++	if err != nil {
++		journeyError(w, 403, "deployment_forbidden", err.Error())
++		return
++	}
+ 	if _, err := guardedProjectPath(p.Path, req.Dockerfile, false); err != nil {
+ 		journeyError(w, 400, "dockerfile_unavailable", err.Error())
+ 		return
+@@ -223,6 +236,13 @@
+ 		problem(w, 409, "release_provenance_unavailable", err.Error())
+ 		return
+ 	}
++	digest, err := s.PreviewSourceDigest(ctx, p.ID, row.ID, commit)
++	if err != nil {
++		journeyError(w, 409, "source_provenance_unavailable", err.Error())
++		return
++	}
++	row.Revision = 1
++	row.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: p.ID, ReleaseID: row.ID, Target: row.Target, Commit: commit, SourceDigest: digest}, Phase: "reserved"}
+ 	s.mu.Lock()
+ 	if s.activeLocalReleases == nil {
+ 		s.activeLocalReleases = make(map[string]bool)
+@@ -234,26 +254,23 @@
+ 		delete(s.activeLocalReleases, row.ID)
+ 		s.mu.Unlock()
+ 	}()
+-	row.Image = "luci/preview:" + row.ID
+ 	if err := s.storeRelease(row); err != nil {
+ 		journeyError(w, 500, "release_reservation_failed", err.Error())
+ 		return
+ 	}
+ 	failed := func(message string) {
+-		message = redactPreviewConfiguration(message, configuration.Values)
+-		row.Status = "failed"
+-		row.Message = message
+-		row.URL = ""
+-		if row.ContainerID != "" {
+-			cleanup, c := context.WithTimeout(context.Background(), 10*time.Second)
+-			_, _ = s.runner(cleanup, "docker", []string{"rm", "--force", row.ContainerID}, "")
+-			c()
+-		}
+-		if err := s.storeRelease(row); err != nil {
+-			journeyError(w, 500, "release_record_failed", message+"; also could not save the release: "+err.Error())
++		next := row
++		next.Status, next.URL, next.Message = "failed", "", redactPreviewConfiguration(message, configuration.Values)
++		if row.Runtime.ResourcesHeld {
++			next.Status = "unknown"
++		}
++		if err := s.storeAdmittedRelease(row, next); err != nil {
++			journeyError(w, 409, "release_record_changed", "The preview result could not replace its retained receipt.")
+ 			return
+ 		}
+-		journeyJSON(w, 422, row.Release)
++		next.Revision++
++		row = next
++		journeyJSON(w, 422, s.browserRelease(row))
+ 	}
+ 	contextDir, err := os.MkdirTemp("", "luci-preview-*")
+ 	if err != nil {
+@@ -265,59 +282,44 @@
+ 		failed("Could not prepare a safe committed build context: " + err.Error())
+ 		return
+ 	}
+-	dockerfile, err := guardedProjectPath(contextDir, req.Dockerfile, false)
++	_, err = guardedProjectPath(contextDir, req.Dockerfile, false)
+ 	if err != nil {
+ 		failed("The chosen Dockerfile is missing from the committed snapshot: " + err.Error())
+ 		return
+ 	}
+-	if _, err := s.runner(ctx, "docker", []string{"build", "--tag", row.Image, "--label", "luci.preview=true", "--file", dockerfile, contextDir}, contextDir); err != nil {
+-		failed("Image build failed: " + err.Error())
+-		return
+-	}
+-	args := []string{"run", "--detach", "--init", "--name", "luci-preview-" + row.ID, "--label", "luci.preview=true", "--label", "luci.release-id=" + row.ID, "--label", "luci.project-id=" + p.ID, "--cpus", "1", "--memory", "1g", "--pids-limit", "256", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--publish", fmt.Sprintf("127.0.0.1::%d", req.Port)}
+-	envFile, err := s.writePreviewEnvironment(configuration.Values)
+-	if err != nil {
+-		failed("Could not prepare private application runtime configuration.")
+-		return
+-	}
+-	if envFile != "" {
+-		defer os.Remove(envFile)
+-		args = append(args, "--env-file", envFile)
+-	}
+-	args = append(args, row.Image)
+-	containerID, err := s.runner(ctx, "docker", args, "")
+-	var cleanupErr error
+-	if envFile != "" {
+-		cleanupErr = os.Remove(envFile)
+-	}
+-	if err != nil {
+-		failed("Container start failed: " + err.Error())
+-		return
+-	}
+-	row.ContainerID = strings.TrimSpace(containerID)
+-	if !regexp.MustCompile(`^[a-f0-9]{12,64}$`).MatchString(row.ContainerID) {
+-		row.ContainerID = ""
+-		failed("Docker returned an invalid container ID; inspect Docker for this release's labelled container.")
+-		return
+-	}
+-	if cleanupErr != nil {
+-		failed("Could not remove the private application environment file after Docker read it.")
+-		return
+-	}
+-	if err := s.storeRelease(row); err != nil {
+-		failed("Could not record the started container: " + err.Error())
+-		return
+-	}
+-	mapping, err := s.runner(ctx, "docker", []string{"port", row.ContainerID, strconv.Itoa(req.Port) + "/tcp"}, "")
+-	if err != nil {
+-		failed("Could not discover the local preview port: " + err.Error())
+-		return
+-	}
+-	url, err := localPreviewURL(mapping)
+-	if err != nil {
+-		failed(err.Error())
+-		return
+-	}
++	request := previewruntime.Request{Identity: row.Runtime.Identity, SourceDirectory: contextDir, Dockerfile: req.Dockerfile, Port: req.Port, Environment: configuration.Values, Actor: actor, Network: "bridge",
++		Labels: map[string]string{"luci.preview": "true", "luci.release-id": row.ID, "luci.project-id": p.ID},
++		ValidateSource: func(verify context.Context) error {
++			if err := s.ValidateDeploymentSource(verify, p.ID, commit); err != nil {
++				return err
++			}
++			return nil
++		},
++	}
++	out, startErr := runtime.Start(ctx, request, func(value previewruntime.Outcome) error {
++		return s.publishPreviewOutcome(&row, value, configuration.Values)
++	})
++	if startErr != nil {
++		message := row.Message
++		if message == "" {
++			message = "The admitted preview did not finish. Any uncertain allocation is retained; refresh or stop this exact preview."
++		}
++		failed(message)
++		return
++	}
++	if err := s.publishPreviewOutcome(&row, out, configuration.Values); err != nil {
++		journeyError(w, 409, "release_record_changed", err.Error())
++		return
++	}
++	if out.Phase != "running" || !out.ResourcesHeld || out.ContainerID == "" {
++		failed("The preview runtime has no verified running application; its receipt is retained.")
++		return
++	}
++	if _, err := recordedPreviewOrigin(out.URL); err != nil {
++		failed("The admitted preview has no verified local origin.")
++		return
++	}
++	url := out.URL
+ 	healthCtx, healthCancel := context.WithTimeout(ctx, 20*time.Second)
+ 	err = waitPreviewHealthy(healthCtx, url)
+ 	healthCancel()
+@@ -325,13 +327,15 @@
+ 		failed("The container did not answer a successful HTTP health check: " + err.Error())
+ 		return
+ 	}
+-	row.Status = "ready"
+-	row.URL = url
+-	row.Message = "Local preview returned a successful HTTP response. Bound to this computer only."
+-	if err := s.storeRelease(row); err != nil {
+-		failed("Health passed but its release record could not be saved: " + err.Error())
+-		return
+-	}
++	next := row
++	next.Status, next.URL = "ready", url
++	next.Message = "Local preview returned a successful HTTP response. Bound to this computer only."
++	if err := s.storeAdmittedRelease(row, next); err != nil {
++		journeyError(w, 409, "release_record_changed", "The ready result could not replace its retained receipt.")
++		return
++	}
++	next.Revision++
++	row = next
+ 	journeyJSON(w, 201, s.browserRelease(row))
+ }
+ 
+@@ -404,6 +408,10 @@
+ 	}
+ 	if !found {
+ 		s.stopCloudRelease(w, r)
++		return
++	}
++	if row.Runtime != nil {
++		s.stopAdmittedRelease(w, r, row)
+ 		return
+ 	}
+ 	if row.Status == "stopped" {
+--- a/control-plane/internal/product/releases_observation.go
++++ b/control-plane/internal/product/releases_observation.go
+@@ -18,6 +18,29 @@
+ 	result := make([]storedRelease, 0, len(rows))
+ 	for _, saved := range rows {
+ 		row := saved
++		if row.Runtime != nil {
++			s.mu.RLock()
++			active := s.activeLocalReleases[row.ID]
++			s.mu.RUnlock()
++			if !active && row.Status != "stopped" && (row.Runtime.ResourcesHeld || row.Status == "building" || row.Status == "unknown") {
++				runtime := s.PreviewRuntime()
++				row.Status, row.URL = "unknown", ""
++				row.Message = "This preview may have been interrupted. Its receipt is retained; refresh to verify it or stop this exact allocation."
++				if runtime.Observe != nil && ctx.Err() == nil {
++					out, err := runtime.Observe(ctx, saved.Runtime.Identity)
++					if err == nil && out.Identity == saved.Runtime.Identity && out.Phase == "running" && out.ResourcesHeld {
++						row.URL = out.URL
++						if _, originErr := recordedPreviewOrigin(row.URL); originErr == nil && checkPreviewHTTP(ctx, row.URL) == nil {
++							row.Status = "ready"
++						} else {
++							row.URL = ""
++						}
++					}
++				}
++			}
++			result = append(result, row)
++			continue
++		}
+ 		if row.Target == "local" {
+ 			switch row.Status {
+ 			case "building":
+--- a/control-plane/internal/product/server.go
++++ b/control-plane/internal/product/server.go
+@@ -21,6 +21,7 @@
+ 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
+ 	"github.com/lcfrai/luci/control-plane/internal/management"
+ 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
++	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
+ 	"github.com/lcfrai/luci/control-plane/internal/registry"
+ 	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
+ )
+@@ -111,6 +112,7 @@
+ 	importActive                    map[string]bool
+ 	projectChecks                   map[string]*projectCheckJob
+ 	projectCheckRuntime             ProjectCheckRuntime
++	previewRuntime                  previewruntime.Runtime
+ 	runtimeJob                      RuntimeJob
+ 	runtimeResourceSnapshot         func() resourcebudget.Snapshot
+ 	authJobs                        map[string]*ProviderLoginJob

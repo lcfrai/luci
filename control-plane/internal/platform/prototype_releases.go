@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 	"errors"
+	"reflect"
 	"time"
 )
 
@@ -39,12 +40,27 @@ func (s *Service) ApplicationPrototypeReleases(ctx context.Context, projectID st
 		if d.Provider != "docker" || d.Status != "ready" {
 			continue
 		}
-		if d.ProjectID != projectID || !identifier.MatchString(d.ID) || seen[d.ID] || !commitID.MatchString(d.Commit) || !identifier.MatchString(d.Container) || d.Image == "" || d.Port < 1 || d.Port > 65535 || !validHealthPath(d.HealthPath) {
+		recorded := d
+		if d.Runtime != nil {
+			snapshot := *d.Runtime
+			recorded.Runtime = &snapshot
+		}
+		if d.ProjectID != projectID || !identifier.MatchString(d.ID) || seen[d.ID] || !commitID.MatchString(d.Commit) || d.Port < 1 || d.Port > 65535 || !validHealthPath(d.HealthPath) {
 			return nil, errors.New("application deployment provenance is invalid")
 		}
 		seen[d.ID] = true
 		if err := ctx.Err(); err != nil {
 			return nil, err
+		}
+		if d.Runtime != nil {
+			observed, err := s.observeAdmittedDeployment(ctx, d)
+			if err != nil {
+				continue
+			}
+			d = observed
+		}
+		if !identifier.MatchString(d.Container) || d.Image == "" {
+			return nil, errors.New("application deployment provenance is invalid")
 		}
 		info, err := s.inspect(ctx, projectID, d.ID, d.Container)
 		if err != nil || !info.State.Running || info.Image != d.Image || info.State.Health.Status == "unhealthy" || info.State.Health.Status == "starting" {
@@ -65,7 +81,7 @@ func (s *Service) ApplicationPrototypeReleases(ctx context.Context, projectID st
 		}
 		matching := false
 		for _, current := range latest.Deployments {
-			if current.ID == d.ID && current == d {
+			if current.ID == recorded.ID && reflect.DeepEqual(current, recorded) {
 				matching = true
 			}
 		}

@@ -260,12 +260,18 @@ func (g *executionAdmission) reserveCheck(ctx context.Context, prepared backend.
 		if err := addCheckCapacity(snap, l.Checks, g.scope, identity.AllocationID, &demand); err != nil {
 			return err
 		}
+		if err := addPreviewCapacity(snap, l.Previews, "", "", &demand); err != nil {
+			return err
+		}
+		if err := addRuntimeImageCapacity(l.RuntimeImages, "", "", &demand); err != nil {
+			return err
+		}
 		if code, message := evaluateExecutionCapacity(snap, policy, resources, demand, now); code != "" {
 			out.Code, out.Message = code, message
 			return nil
 		}
 		if !existing {
-			if len(l.Leases)+len(l.Checks) >= 4096 {
+			if len(l.Leases)+len(l.Checks)+len(l.Previews)+len(l.RuntimeImages) >= 4096 {
 				return errors.New("execution capacity history needs reconciliation")
 			}
 			l.Checks = append(l.Checks, checkExecutionLease{ID: identity.AllocationID, Scope: g.scope, Actor: actor, Identity: identity, Resources: resources, CreateDiskBytes: estimate.Bytes, State: "reserved", CreatedAt: now, UpdatedAt: now})

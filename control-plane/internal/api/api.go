@@ -88,6 +88,8 @@ type Deps struct {
 	AuthorizeExecution        management.ExecutionAuthorizer
 	AuthorizeChecks           management.CheckAuthorizer
 	AuthorizeExecutionControl management.ExecutionControlAuthorizer
+	AuthorizeDeployment       management.DeploymentAuthorizer
+	AuthorizeRuntimeInstaller management.RuntimeInstallerAuthorizer
 	ManagedExecution          bool
 	ExecutionReady            func() bool
 	// Version is reported by /healthz. Empty means DefaultVersion.
@@ -425,6 +427,8 @@ func New(d Deps) (*API, error) {
 	a := &API{deps: d}
 	a.execution = newExecutionAdmission(a)
 	if d.Product != nil {
+		d.Product.SetPreviewRuntime(a.previewRuntime())
+		d.Product.SetRuntimeInstaller(a.runtimeInstaller())
 		d.Product.SetProjectSwarmRecovery(a.proveSwarmMissingChild, a.finalizeSwarmMissingChild)
 		d.Product.SetProjectSwarmFenceRecovery(a.projectSwarmFenceRecoveryAvailability, a.authorizeSwarmFenceRecovery, a.acquireSwarmFenceRecovery, a.proveSwarmFencedLaunch, a.finalizeSwarmFencedLaunch)
 		d.Product.SetProjectSwarmPendingLaunch(a.projectSwarmPendingLaunch)

@@ -1,3 +1,4 @@
+import { runtimeInstallActive, runtimeInstallRetained } from "../../api/runtimeInstall";
 import { storagePreparationBlock } from "../../api/executionStorage";
 import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
@@ -32,9 +33,17 @@ export function RuntimePreparation({
   /** Initial checks and install acceptance only; the backend build continues independently. */
   onPendingChange?(pending: boolean): void;
 }) {
-  const [status, setStatus] = useState<SetupStatus | null>(null);
-  const [job, setJob] = useState<RuntimeJob | null>(null);
+  const [statusObservation, setStatusObservation] = useState<{ client: ProductClient; value: SetupStatus } | null>(null);
+  const [jobObservation, setJobObservation] = useState<{ client: ProductClient; value: RuntimeJob } | null>(null);
+  // A new backing must never inherit control targets or advice from the old one,
+  // even during the render before its first observation effect has completed.
+  const status = statusObservation?.client === client ? statusObservation.value : null;
+  const job = jobObservation?.client === client ? jobObservation.value : null;
+  const setStatus = (value: SetupStatus) => setStatusObservation({ client, value });
+  const setJob = (value: RuntimeJob) => setJobObservation({ client, value });
   const [checking, setChecking] = useState(false);
+  const [controlBusy, setControlBusy] = useState(false);
+  const mutation = useRef(0);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const callback = useRef(onStatus);
@@ -71,13 +80,15 @@ export function RuntimePreparation({
     const controller = new AbortController();
     readiness.current = controller;
     generation.current += 1;
+    setControlBusy(false);
     setChecking(true);
     pendingCallback.current?.(true);
     setError("");
     const checkedStorageRevision = currentStorageRevision.current;
+    const observedMutation = mutation.current;
     void Promise.all([client.check(controller.signal), client.runtime(controller.signal)])
       .then(async ([next, runtime]) => {
-        if (!alive) return;
+        if (!alive || observedMutation !== mutation.current) return;
         setJob(runtime);
         if (!publish(next, checkedStorageRevision)) return;
         const docker =
@@ -102,7 +113,7 @@ export function RuntimePreparation({
         const pending = installations.current.get(client);
         if (pending) {
           const installed = await pending;
-          if (!alive) return;
+          if (!alive || observedMutation !== mutation.current) return;
           settled = installed;
           setJob(installed);
         }
@@ -134,17 +145,18 @@ export function RuntimePreparation({
     };
   }, [client, automatic, manageBacking, attempt, refreshToken]);
   useEffect(() => {
-    if (job?.status !== "installing") return;
+    if (!runtimeInstallActive(job)) return;
     let alive = true;
     const controller = new AbortController();
     let polling = false;
     const timer = setInterval(() => {
       if (polling) return;
       polling = true;
+      const observedMutation = mutation.current;
       void client
         .runtime(controller.signal)
         .then(async (next) => {
-          if (!alive) return;
+          if (!alive || observedMutation !== mutation.current) return;
           let current: SetupStatus | undefined;
           const checkRevision = currentStorageRevision.current;
           let readinessError = "";
@@ -155,7 +167,7 @@ export function RuntimePreparation({
               readinessError = errorText(cause);
             }
           }
-          if (!alive) return;
+          if (!alive || observedMutation !== mutation.current) return;
           // Changing installing to ready tears down this polling effect. Apply
           // its actual readiness response before finishing that lifecycle.
           if (current) {
@@ -165,7 +177,7 @@ export function RuntimePreparation({
           setError(readinessError);
         })
         .catch((cause) => {
-          if (alive) setError(errorText(cause));
+          if (alive && observedMutation === mutation.current) setError(errorText(cause));
         })
         .finally(() => {
           polling = false;
@@ -176,7 +188,35 @@ export function RuntimePreparation({
       controller.abort();
       clearInterval(timer);
     };
-  }, [client, job?.status, automatic, manageBacking, attempt, refreshToken]);
+  }, [client, job?.id, job?.status, automatic, manageBacking, attempt, refreshToken]);
+  const control = (action: "cancel" | "reconcile") => {
+    if (!manageBacking || controlBusy || !job?.id) return;
+    const selectedJob = job.id;
+    const currentGeneration = generation.current;
+    const selectedMutation = ++mutation.current;
+    setControlBusy(true);
+    setError("");
+    const request = action === "cancel" ? client.cancelRuntime(selectedJob) : client.reconcileRuntime(selectedJob);
+    void request.then(async (next) => {
+      if (generation.current !== currentGeneration || mutation.current !== selectedMutation) return;
+      if (next.status === "ready") {
+        const checkRevision = currentStorageRevision.current;
+        try {
+          const current = await client.check(readiness.current?.signal);
+          if (generation.current !== currentGeneration || mutation.current !== selectedMutation) return;
+          publish(current, checkRevision);
+        } catch (cause) {
+          if (generation.current !== currentGeneration || mutation.current !== selectedMutation) return;
+          setError(errorText(cause));
+        }
+      }
+      setJob(next);
+    }).catch((cause) => {
+      if (generation.current === currentGeneration && mutation.current === selectedMutation) setError(errorText(cause));
+    }).finally(() => {
+      if (generation.current === currentGeneration && mutation.current === selectedMutation) setControlBusy(false);
+    });
+  };
   const shownStatus = statusSnapshot ?? status;
   const dockerReady =
     shownStatus?.checks.find((check) => check.id === "docker")?.status === "ready";
@@ -224,18 +264,19 @@ export function RuntimePreparation({
           ))}
       </ul>
       {storageBlocked && <p className="preparation-action">{storageBlocked} Existing workers keep running; you can keep planning while new runtime preparation waits.</p>}
-      {job?.status === "installing" && (
+      {runtimeInstallActive(job) && (
         <p role="status">
-          Installing runtime… {job.message} You can keep planning while this
+          {job?.status === "cancelling" ? "Cancelling runtime preparation…" : job?.status === "reconciling" ? "Checking interrupted installation…" : "Installing runtime…"} {job?.message} You can keep planning while this
           runs.
         </p>
       )}
-      {job && ["failed", "unknown"].includes(job.status) && (
+      {job && ["failed", "unknown", "blocked"].includes(job.status) && (
         <p className="journey-error" role="alert">
           {job.message ||
             "Runtime preparation did not finish. Check dependencies and retry."}
         </p>
       )}
+      {job?.status === "cancelled" && <p role="status">{job.message}</p>}
       {shownStatus && !dockerReady && (
         <p className="journey-muted">
           Use the tool setup above to install Docker where supported. Open
@@ -251,18 +292,28 @@ export function RuntimePreparation({
       <div className="setup-actions">
         <Button type="button"
           variant="secondary"
-          disabled={checking}
+          disabled={checking || controlBusy}
           onClick={() => setAttempt((value) => value + 1)}
         >
           Check again
         </Button>
+        {manageBacking && job?.id && runtimeInstallActive(job) && job.status !== "reconciling" && (
+          <Button type="button" variant="secondary" disabled={controlBusy || !!job.cancelRequested || job.status === "cancelling"} onClick={() => control("cancel")}>
+            {job.cancelRequested || job.status === "cancelling" ? "Cancellation requested" : "Cancel runtime preparation"}
+          </Button>
+        )}
+        {manageBacking && job?.id && !runtimeInstallActive(job) && runtimeInstallRetained(job) && (
+          <Button type="button" variant="secondary" disabled={checking || controlBusy} onClick={() => control("reconcile")}>
+            Check interrupted installation
+          </Button>
+        )}
         {manageBacking &&
           dockerReady &&
           !imageReady &&
-          job?.status !== "installing" && (
+          !runtimeInstallActive(job) && !runtimeInstallRetained(job) && (
             <Button type="button"
               variant="secondary"
-              disabled={checking || !!storageBlocked}
+              disabled={checking || controlBusy || !!storageBlocked}
               onClick={() => {
                 if (storageBlocked) return;
                 const currentGeneration = generation.current;

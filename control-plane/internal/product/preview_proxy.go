@@ -28,6 +28,17 @@ func (s *Server) verifyReleasePreview(ctx context.Context, row storedRelease) er
 	if _, err := recordedPreviewOrigin(row.URL); err != nil {
 		return err
 	}
+	if row.Runtime != nil {
+		runtime := s.PreviewRuntime()
+		if runtime.Observe == nil {
+			return errors.New("shared preview observation is unavailable")
+		}
+		out, err := runtime.Observe(ctx, row.Runtime.Identity)
+		if err != nil || out.Identity != row.Runtime.Identity || out.Phase != "running" || out.URL != row.URL || !out.ResourcesHeld {
+			return errors.New("the exact admitted preview could not be verified")
+		}
+		return nil
+	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	inspection, err := s.runner(ctx, "docker", []string{"inspect", "--format", `{"running":{{json .State.Running}},"labels":{{json .Config.Labels}},"ports":{{json .NetworkSettings.Ports}}}`, row.ContainerID}, "")

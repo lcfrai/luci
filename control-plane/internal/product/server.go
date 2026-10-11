@@ -21,6 +21,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
+	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
 )
@@ -111,6 +112,8 @@ type Server struct {
 	importActive                    map[string]bool
 	projectChecks                   map[string]*projectCheckJob
 	projectCheckRuntime             ProjectCheckRuntime
+	previewRuntime                  previewruntime.Runtime
+	runtimeInstall                  runtimeInstallState
 	runtimeJob                      RuntimeJob
 	runtimeResourceSnapshot         func() resourcebudget.Snapshot
 	authJobs                        map[string]*ProviderLoginJob

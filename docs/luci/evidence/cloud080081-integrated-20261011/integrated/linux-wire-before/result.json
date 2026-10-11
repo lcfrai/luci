@@ -1,0 +1,10 @@
+{
+  "exit": 1,
+  "elapsedSeconds": 3.2017481327056885,
+  "inputCount": 879,
+  "sourceStable": true,
+  "pass": 0,
+  "fail": 3,
+  "skip": 0,
+  "topPass": 0
+}
