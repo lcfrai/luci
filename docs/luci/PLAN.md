@@ -6,6 +6,8 @@ Luci takes a person from an idea to a running application in one app. Distributi
 
 ## Delivery decisions
 
+The owner names the concurrent activities **Discover, Design, Develop and Deploy** (7 October clarification, relayed 11 October 2026). These replace the earlier Define/Describe labels in current product guidance; existing identifiers and recorded evidence remain unchanged.
+
 - Local is the default: desktop or packaged browser UI, one managed Go control plane, durable files, Git and Docker execution. The first owner creates a local account. No external identity provider, cluster or database server is required. The same product runs against a user-owned AWS/Azure backing.
 - The application is the end user's workspace. The backing owns management: account roles, private per-user runtime state, provider credentials, resource policy, execution and audit. Member, Admin and Super Admin are explicit roles. A member cannot modify backing configuration or run arbitrary host commands. Super Admin host execution is an optional, explicit trusted-operation policy, disabled by default.
 - Cloud workspaces are an explicit optional execution location: a matching Luci service runs on the selected SSH machine, storing its own projects and running its agent containers and previews. The desktop remains local and routes the existing journey through a pinned SSH connection. Switching execution location does not migrate files or copy credentials automatically.
@@ -18,7 +20,7 @@ Luci takes a person from an idea to a running application in one app. Distributi
 
 ## Build sequence
 
-The installed-app inspection on 3 October supersedes the former narrow completion bar. [FULL-PRODUCT.md](FULL-PRODUCT.md) defines the active implementation and complete acceptance requirements: proper onboarding, automatic preparation, Projects home, appearance, rich Define, meaningful Design, operational Develop and an application/data deployment platform. The application is not yet a full UAT handback.
+The installed-app inspection on 3 October supersedes the former narrow completion bar. [FULL-PRODUCT.md](FULL-PRODUCT.md) defines the active implementation and complete acceptance requirements: proper onboarding, automatic preparation, Projects home, appearance, rich Discover, meaningful Design, operational Develop and an application/data deployment platform. The application is not yet a full UAT handback.
 
 The owner's latest polish requirement is an explicit completion gate in
 [PRODUCT-QUALITY.md](PRODUCT-QUALITY.md) and [GOAL.md](GOAL.md): a coherent,
@@ -28,7 +30,7 @@ launch success and passing technical tests do not establish that outcome.
 
 1. Rebrand active source, runtime variables, UI, packages, metadata and instructions. Keep historical planning clearly historical.
 2. Implement setup readiness, durable local configuration and a real new-project flow. Make the desktop start its service.
-3. Deliver Define, Design, Develop, Files/Git and a local application preview as one usable journey. Keep real outcome errors visible.
+3. Deliver Discover, Design, Develop, Files/Git and a local application preview as one usable journey. Keep real outcome errors visible.
 4. Deliver guided AWS/Azure template and execution paths, domain/TLS checks, cost acknowledgement, and cleanup.
 5. Connect the whole solution workflow: versioned task plan and design context, Claude/Codex/local-model development, independently recorded command checks, GitHub creation/push, exact commit preview/deployment, project backup/restore and release maintenance.
 6. Add control-plane authentication, isolated user runtimes, role/policy enforcement, supervision and audit. Connect cloud backing authentication through verified SSH without copying local credentials.

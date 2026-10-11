@@ -24,7 +24,7 @@ export interface OrchestratorOpenDetail {
   scope?: string; destination?: "decisions"; turnId?: string;
 }
 const compactOverviewQuery = "(max-width: 1100px)";
-const stageLabels = { discover: "Define", design: "Design", develop: "Develop", deploy: "Deploy" };
+const stageLabels = { discover: "Discover", design: "Design", develop: "Develop", deploy: "Deploy" };
 const pendingStatus = (status: string) => ["reserved", "queued", "running", "unknown"].includes(status);
 const readAccessDenied = (cause: unknown) => cause instanceof ApiError && (cause.status === 401 || cause.status === 403);
 const statuses: Record<OrchestratorTurn["status"], string> = {

@@ -203,7 +203,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
     : !plan?.revision ? "Save the implementation plan before starting."
       : refreshingRequirements ? "Checking the current definition and design approvals…"
         : !coverage ? "Refresh the current definition and design approvals before starting."
-          : !approvedRequirements ? "Approve the current definition in Define before starting implementation."
+          : !approvedRequirements ? "Approve the current definition in Discover before starting implementation."
             : coverage.design.status !== "approved" ? "Approve the current design handoff in Design before starting implementation."
               : needsRebind ? "The brief or definition changed. Review the tasks and save the plan against the current revisions."
                 : unavailableLinks ? "Review and remove unavailable requirement links before starting."
@@ -354,7 +354,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
                 <TaskScope task={task} index={index} tasks={tasks} disabled={!canEdit || locked || !!draft.pending} onChange={next => edit(tasks.map(item => item.id === task.id ? next : item))} />
                 <details className="task-requirements">
                   <summary>Requirements for task {index + 1} · {task.requirementIds?.length ?? 0} linked</summary>
-                  {!approvedRequirements && <p className="journey-muted">Approve the current requirements in Define before adding links. Existing links can be removed.</p>}
+                  {!approvedRequirements && <p className="journey-muted">Approve the current requirements in Discover before adding links. Existing links can be removed.</p>}
                   {requirements.map(row => {
                     const checked = task.requirementIds?.includes(row.requirementId) ?? false;
                     return <label className="requirement-choice" key={row.requirementId}>

@@ -1,0 +1,14 @@
+{
+  "kind": "second-poll-ordering-coverage",
+  "exercised": false,
+  "reason": "slow-or-late-restart-within-longer-create-budget",
+  "releaseRequestedMonotonicMs": 71985.482563,
+  "releasedMonotonicMs": 71995.726071,
+  "acknowledgedMonotonicMs": 93132.538242,
+  "attachedMonotonicMs": 93223.539744,
+  "originalDeadlineMonotonicMs": 73983.696081,
+  "clientReadBudgetMs": 10000,
+  "originalGateBudgetMs": 8000,
+  "transportReserveMs": 2000,
+  "observedAt": "2026-10-11T10:16:49.489Z"
+}

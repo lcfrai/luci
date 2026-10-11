@@ -1,0 +1,151 @@
+{
+  "startedAt": "2026-10-11T10:24:24.248611+00:00",
+  "nodeVersion": "v24.19.0",
+  "headBefore": "6f00501d7f370789ed45b018a7d958fd25cc1e2d",
+  "worktreeStatusBefore": "M AGENTS.md\n M README.md\n M control-plane/internal/api/assist.go\n M control-plane/internal/api/orchestrator.go\n M control-plane/internal/product/project_overview.go\n M desktop/index.html\n M desktop/package.json\n M desktop/src-tauri/Cargo.toml\n M desktop/src/components/definition/DefinitionWorkspace.tsx\n M desktop/src/components/journey/ProjectPlan.test.tsx\n M desktop/src/components/journey/ProjectPlan.tsx\n M desktop/src/components/journey/ProjectWork.tsx\n M desktop/src/components/journey/RequirementsEvidence.tsx\n M desktop/src/components/orchestrator/OrchestratorPanel.tsx\n M desktop/src/components/orchestrator/ProjectUnderstanding.tsx\n M desktop/src/components/projects/ProjectEntry.test.tsx\n M desktop/src/components/projects/ProjectEntry.tsx\n M desktop/src/components/projects/ProjectsHome.tsx\n M desktop/src/components/setup/SetupPanel.test.tsx\n M desktop/src/components/setup/SetupPanel.tsx\n M desktop/src/components/setup/WorkspaceInstaller.tsx\n M desktop/src/components/subrail/SubRail.tsx\n M desktop/src/components/topbar/TopBar.tsx\n M docs/luci/GOAL.md\n M docs/luci/PLAN.md\n M scripts/acceptance/sustained-four-project/interaction-metrics.mjs\n M scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs\n M scripts/acceptance/sustained-four-project/phone-overview.browser.mjs\n M scripts/acceptance/sustained-four-project/sustained.mjs\n?? desktop/src/lib/projectName.ts",
+  "effectiveSource": "Actual root working tree HEAD6f00501d plus frozen LOCAL-023 and project-name guidance changes; no overlays or source edits by runner.",
+  "cleanHEADClaim": false,
+  "selectedVitestFiles": [
+    "src/components/AppShell.test.tsx",
+    "src/components/definition/DefinitionWorkspace.test.tsx",
+    "src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "src/components/orchestrator/ProjectUnderstanding.test.tsx",
+    "src/components/journey/ProjectPlan.test.tsx",
+    "src/components/journey/ProjectWork.test.tsx",
+    "src/components/setup/SetupPanel.test.tsx",
+    "src/components/setup/WorkspaceInstaller.test.tsx",
+    "src/components/projects/ProjectEntry.test.tsx"
+  ],
+  "maxWorkers": 2,
+  "environmentNames": [
+    "CI",
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "NO_COLOR",
+    "PATH",
+    "TMPDIR"
+  ],
+  "explicitEnvironment": {
+    "CI": "1",
+    "NO_COLOR": "1"
+  },
+  "runner": {
+    "bytes": 5859,
+    "sha256": "8aa68cbeaeecc98bd45d55330fd18b332f930d5b41aa878ec58c0a330457c06e"
+  },
+  "bindingHelper": {
+    "bytes": 5677,
+    "sha256": "0ded058cc69dcac4c2057ccf5d3ba72305393a690803de3a2930d1211f520945"
+  },
+  "commands": [
+    {
+      "label": "vitest",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/luci/desktop/node_modules/vitest/vitest.mjs",
+        "run",
+        "src/components/AppShell.test.tsx",
+        "src/components/definition/DefinitionWorkspace.test.tsx",
+        "src/components/orchestrator/OrchestratorPanel.test.tsx",
+        "src/components/orchestrator/ProjectUnderstanding.test.tsx",
+        "src/components/journey/ProjectPlan.test.tsx",
+        "src/components/journey/ProjectWork.test.tsx",
+        "src/components/setup/SetupPanel.test.tsx",
+        "src/components/setup/WorkspaceInstaller.test.tsx",
+        "src/components/projects/ProjectEntry.test.tsx",
+        "--maxWorkers=2",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/local023-validation-20261011/frontend/vitest.json"
+      ],
+      "cwd": "/workspace/luci/desktop",
+      "timeoutSeconds": 300,
+      "startedAt": "2026-10-11T10:24:25.349985+00:00",
+      "cleanupBoundSeconds": 20,
+      "maxLogBytesPerStream": 33554432,
+      "pid": 2691490,
+      "processGroup": 2691490,
+      "exitCode": 0,
+      "elapsedSeconds": 41.37469412200153,
+      "completedAt": "2026-10-11T10:25:06.724716+00:00",
+      "logs": {
+        "stdout": {
+          "bytes": 96,
+          "sha256": "9b5747049fc4d2e2ef6df8071b1295128137fa85af2af0e19eaf73187503bd97"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    },
+    {
+      "label": "typecheck",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/luci/desktop/node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "cwd": "/workspace/luci/desktop",
+      "timeoutSeconds": 180,
+      "startedAt": "2026-10-11T10:25:07.340379+00:00",
+      "cleanupBoundSeconds": 20,
+      "maxLogBytesPerStream": 33554432,
+      "pid": 2692788,
+      "processGroup": 2692788,
+      "exitCode": 0,
+      "elapsedSeconds": 29.376681762980297,
+      "completedAt": "2026-10-11T10:25:36.717088+00:00",
+      "logs": {
+        "stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    }
+  ],
+  "vitestSourceStable": true,
+  "vitestDependenciesStable": true,
+  "vitest": {
+    "numTotalTests": 283,
+    "numPassedTests": 283,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "numTotalTestSuites": 10,
+    "numPassedTestSuites": 10,
+    "numFailedTestSuites": 0,
+    "success": true
+  },
+  "vitestReporter": {
+    "bytes": 94871,
+    "sha256": "e8f76d7852389d07e3ae15328a12e7cbdd2f9fb53497924456a2889a1bb9282a"
+  },
+  "reportedTestFiles": [
+    "/workspace/luci/desktop/src/components/AppShell.test.tsx",
+    "/workspace/luci/desktop/src/components/definition/DefinitionWorkspace.test.tsx",
+    "/workspace/luci/desktop/src/components/journey/ProjectPlan.test.tsx",
+    "/workspace/luci/desktop/src/components/journey/ProjectWork.test.tsx",
+    "/workspace/luci/desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "/workspace/luci/desktop/src/components/orchestrator/ProjectUnderstanding.test.tsx",
+    "/workspace/luci/desktop/src/components/setup/SetupPanel.test.tsx",
+    "/workspace/luci/desktop/src/components/setup/WorkspaceInstaller.test.tsx",
+    "/workspace/luci/desktop/src/components/projects/ProjectEntry.test.tsx"
+  ],
+  "selectedFilesMatch": true,
+  "failedTests": [],
+  "inputCount": 1230,
+  "sourceStable": true,
+  "dependenciesStable": true,
+  "typecheckSourceStable": true,
+  "typecheckDependenciesStable": true,
+  "sourceChanges": [],
+  "passed": true,
+  "headAfter": "6f00501d7f370789ed45b018a7d958fd25cc1e2d",
+  "worktreeStatusAfter": "M AGENTS.md\n M README.md\n M control-plane/internal/api/assist.go\n M control-plane/internal/api/orchestrator.go\n M control-plane/internal/product/project_overview.go\n M desktop/index.html\n M desktop/package.json\n M desktop/src-tauri/Cargo.toml\n M desktop/src/components/definition/DefinitionWorkspace.tsx\n M desktop/src/components/journey/ProjectPlan.test.tsx\n M desktop/src/components/journey/ProjectPlan.tsx\n M desktop/src/components/journey/ProjectWork.tsx\n M desktop/src/components/journey/RequirementsEvidence.tsx\n M desktop/src/components/orchestrator/OrchestratorPanel.tsx\n M desktop/src/components/orchestrator/ProjectUnderstanding.tsx\n M desktop/src/components/projects/ProjectEntry.test.tsx\n M desktop/src/components/projects/ProjectEntry.tsx\n M desktop/src/components/projects/ProjectsHome.tsx\n M desktop/src/components/setup/SetupPanel.test.tsx\n M desktop/src/components/setup/SetupPanel.tsx\n M desktop/src/components/setup/WorkspaceInstaller.tsx\n M desktop/src/components/subrail/SubRail.tsx\n M desktop/src/components/topbar/TopBar.tsx\n M docs/luci/GOAL.md\n M docs/luci/PLAN.md\n M scripts/acceptance/sustained-four-project/interaction-metrics.mjs\n M scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs\n M scripts/acceptance/sustained-four-project/phone-overview.browser.mjs\n M scripts/acceptance/sustained-four-project/sustained.mjs\n?? desktop/src/lib/projectName.ts",
+  "completedAt": "2026-10-11T10:25:38.553917+00:00"
+}

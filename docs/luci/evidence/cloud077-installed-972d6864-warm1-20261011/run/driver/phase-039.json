@@ -1,0 +1,7 @@
+{
+  "kind": "explicit-restart-observation-boundary",
+  "attemptCount": 1,
+  "wall": "2026-10-11T10:16:22.454Z",
+  "monotonicMs": 35000.700000047684,
+  "observedAt": "2026-10-11T10:16:22.454Z"
+}

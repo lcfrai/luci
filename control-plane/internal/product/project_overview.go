@@ -197,7 +197,7 @@ func (s *Server) readProjectOverview(ctx context.Context, p project.Project) (Pr
 		}
 	}
 	view.Status = "ready"
-	view.Phase = ProjectOverviewPhase{ID: "define", Label: "Define"}
+	view.Phase = ProjectOverviewPhase{ID: "define", Label: "Discover"}
 	view.NextAction = OrchestratorAction{ID: "define", Label: "Shape your idea", Lens: "discover", Reason: "Clarify the people, intended outcome and measurable requirements."}
 	if spec.Revision > 0 {
 		view.NextAction = OrchestratorAction{ID: "review-definition", Label: "Review the definition", Lens: "discover", Reason: "Resolve questions and review the current definition."}

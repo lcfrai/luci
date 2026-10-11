@@ -1,0 +1,46 @@
+{
+  "kind": "product-settled",
+  "knownAllocations": [
+    {
+      "id": "a176c8abd9321ea9666b5aca99a9c2bc9f18a660306e87a4b79a3939d44799a3",
+      "sandboxId": "s-7b97d791",
+      "sessionId": "s-7b97d791",
+      "instanceId": "be74fa7f-3cf6-4934-86c8-050e2d257966",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-7b97d791",
+      "status": "removing",
+      "pid": 0,
+      "created": "2026-10-11T10:15:19.128345346Z",
+      "startedAt": "2026-10-11T10:15:45.362740112Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    },
+    {
+      "id": "5fa77dc3c3fbddc26cc2660ee942dc6b33595b42d095d71013df1f2d93293b83",
+      "sandboxId": "s-facd8fa5",
+      "sessionId": "s-7b97d791",
+      "instanceId": "be74fa7f-3cf6-4934-86c8-050e2d257966",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-facd8fa5",
+      "status": "removing",
+      "pid": 0,
+      "created": "2026-10-11T10:16:22.539993213Z",
+      "startedAt": "2026-10-11T10:16:48.974443047Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    }
+  ],
+  "ledger": {
+    "present": true,
+    "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+    "bytes": 25,
+    "leases": [],
+    "checks": [],
+    "fences": [],
+    "checkFences": []
+  },
+  "containers": [],
+  "observedAt": "2026-10-11T10:17:21.616Z"
+}

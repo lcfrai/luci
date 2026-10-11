@@ -254,7 +254,7 @@ func (a *API) handleAssistCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.deps.Backend.Kind() != backend.KindDocker {
-		httpx.WriteProblem(w, 409, "docker_required", "Define assistance requires the Docker runtime.", nil)
+		httpx.WriteProblem(w, 409, "docker_required", "Discover assistance requires the Docker runtime.", nil)
 		return
 	}
 	a.codexAccountMu.Lock()
@@ -320,7 +320,7 @@ func (a *API) handleAssistCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	s, spec, err := a.assistantSession(r.Context(), snapshot.ProjectID, "Define assistant", "luci:define-assist", req.Harness, connection, env, account)
+	s, spec, err := a.assistantSession(r.Context(), snapshot.ProjectID, "Discover assistant", "luci:define-assist", req.Harness, connection, env, account)
 	if err != nil {
 		codexAccountProblem(w, err)
 		return

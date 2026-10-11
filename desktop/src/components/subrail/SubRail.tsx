@@ -15,7 +15,7 @@ export const LENSES: ReadonlyArray<{
   label: string;
   icon: NavigationIconName;
 }> = [
-  { id: "discover", label: "Define", icon: "discover" },
+  { id: "discover", label: "Discover", icon: "discover" },
   { id: "design", label: "Design", icon: "design" },
   { id: "develop", label: "Develop", icon: "develop" },
   { id: "deploy", label: "Deploy", icon: "deploy" },

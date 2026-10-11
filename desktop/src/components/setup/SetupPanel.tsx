@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -31,6 +32,7 @@ import { createExecutionStorageClient, storagePreparationBlock } from "../../api
 import { AgentConnections } from "./AgentConnections";
 import { DependencySetup } from "./DependencySetup";
 import { createDependencyClient } from "../../api/dependencies";
+import { projectNameError, projectNameHelp } from "../../lib/projectName";
 import "./setup.css";
 
 interface Props {
@@ -182,6 +184,8 @@ export function SetupPanel({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const [name, setName] = useState("");
+  const nameHelpId = useId();
+  const nameError = name.trim() ? projectNameError(name) : null;
   const [remote, setRemote] = useState("");
   const [cloudName, setCloudName] = useState("luci");
   const [size, setSize] = useState<"small" | "standard" | "full">("small");
@@ -363,8 +367,8 @@ export function SetupPanel({
           <strong>Luci</strong>
           <h2>A workspace for the whole idea.</h2>
           <p>
-            Define what matters, design the experience, build with an agent and
-            ship a working solution.
+            Discover what matters, design the experience, develop with agents and
+            deploy a working solution.
           </p>
           <ol aria-label="Getting started">
             <li aria-current={!route && onboarding ? "step" : undefined}>
@@ -697,6 +701,7 @@ export function SetupPanel({
                   <form
                     onSubmit={(event) => {
                       event.preventDefault();
+                      if (projectNameError(name)) return;
                       void run("Creating project", async () => {
                         const project = await client.createProject(
                           name.trim(),
@@ -724,8 +729,13 @@ export function SetupPanel({
                         required
                         autoComplete="off"
                         placeholder="my-next-app"
+                        aria-describedby={nameHelpId}
+                        aria-invalid={!!nameError}
                       />
                     </label>
+                    <p id={nameHelpId} className={nameError ? "journey-error" : "journey-muted"}>
+                      {nameError ?? projectNameHelp}
+                    </p>
                     <label className="luci-field">
                       Repository URL{" "}
                       <span className="journey-muted">optional</span>
@@ -742,7 +752,7 @@ export function SetupPanel({
                     </p>
                     <Button type="submit"
                       variant="primary" loading={busy === "Creating project"}
-                      disabled={!!busy || !name.trim()}
+                      disabled={!!busy || !!projectNameError(name)}
                     >
                       {busy === "Creating project"
                         ? "Creating project…"

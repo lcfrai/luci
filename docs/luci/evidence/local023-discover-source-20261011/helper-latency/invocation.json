@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-reporter=tap",
+    "/workspace/luci/scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs"
+  ],
+  "shellDisplay": "node --test --test-concurrency=1 --test-reporter=tap /workspace/luci/scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs",
+  "cwd": "/workspace/luci",
+  "activation": ". /workspace/.luci-tools/activate.sh",
+  "startUTC": "2026-10-11T10:25:14.557708+00:00",
+  "timeoutSeconds": 115,
+  "terminationGraceSeconds": 3,
+  "scope": "Exactly one controlled helper test; no browser, Docker, services, network, or repository edits requested by this harness.",
+  "pid": 2692941
+}

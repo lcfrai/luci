@@ -1,0 +1,24 @@
+{
+  "startUTC": "2026-10-11T10:25:14.557708+00:00",
+  "endUTC": "2026-10-11T10:25:14.777618+00:00",
+  "elapsedSeconds": 0.21967129403492436,
+  "exitCode": 0,
+  "timedOut": false,
+  "counts": {
+    "tests": 17,
+    "suites": 0,
+    "pass": 17,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "failedTAPLines": [],
+  "sourceAndConfigurationStable": true,
+  "nodeIdentityStable": true,
+  "rootDiffStable": true,
+  "gitStatusStable": true,
+  "headStable": true,
+  "stdoutBytes": 3147,
+  "stderrBytes": 0
+}

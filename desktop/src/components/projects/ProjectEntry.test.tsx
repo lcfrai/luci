@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProjectEntry } from "./ProjectEntry";
 import { ProductApiError, type ProductClient } from "../../api/product";
@@ -19,6 +19,36 @@ async function fillImport() {
   await userEvent.click(screen.getByRole("checkbox"));
   await userEvent.click(within(screen.getByRole("dialog")).getAllByRole("button", { name: "Import repository" }).find(button => button.closest("form"))!);
 }
+
+it.each(["new", "import"] as const)("explains an invalid %s folder name before any request and preserves the entered spelling", async mode => {
+  const project = { id: "p-atlas", name: "Acceptance_Atlas", path: "/projects/Acceptance_Atlas" };
+  const createProject = vi.fn().mockResolvedValue(project), created = vi.fn();
+  render(<ProjectEntry mode={mode} client={{ createProject } as unknown as ProductClient} onCreated={created} onClose={() => {}} />);
+  const name = screen.getByRole("textbox", { name: "Project name" });
+  const form = name.closest("form")!;
+  if (mode === "import") {
+    await userEvent.type(screen.getByRole("textbox", { name: /Repository URL/ }), repository);
+    await userEvent.click(screen.getByRole("checkbox"));
+  }
+  const submit = within(form).getByRole("button", { name: mode === "new" ? "Create project" : "Import repository" });
+  for (const invalid of ["Acceptance Atlas", "CON", "a".repeat(65)]) {
+    fireEvent.change(name, { target: { value: invalid } });
+    expect(name).toHaveProperty("value", invalid);
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(name.getAttribute("aria-describedby")!)?.textContent).toContain(invalid === "CON" ? "reserved by Windows" : "No spaces");
+    expect(submit).toHaveProperty("disabled", true);
+    fireEvent.submit(form);
+    expect(createProject).not.toHaveBeenCalled();
+    expect(loadPendingImport(identity.scope)).toBeNull();
+  }
+  fireEvent.change(name, { target: { value: " Acceptance_Atlas " } });
+  expect(name.getAttribute("aria-invalid")).toBe("false");
+  expect(submit).toHaveProperty("disabled", false);
+  await userEvent.click(submit);
+  await waitFor(() => expect(created).toHaveBeenCalledWith(project));
+  expect(createProject).toHaveBeenCalledTimes(1);
+  expect(createProject.mock.calls[0][0]).toBe("Acceptance_Atlas");
+});
 
 it("keeps the project name after a failure and opens only the successfully created project", async () => {
   const project = { id: "p-new", name: "my-app", path: "/projects/my-app" };

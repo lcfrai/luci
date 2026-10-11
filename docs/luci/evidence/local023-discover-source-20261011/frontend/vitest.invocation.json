@@ -1,0 +1,27 @@
+{
+  "label": "vitest",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/luci/desktop/node_modules/vitest/vitest.mjs",
+    "run",
+    "src/components/AppShell.test.tsx",
+    "src/components/definition/DefinitionWorkspace.test.tsx",
+    "src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "src/components/orchestrator/ProjectUnderstanding.test.tsx",
+    "src/components/journey/ProjectPlan.test.tsx",
+    "src/components/journey/ProjectWork.test.tsx",
+    "src/components/setup/SetupPanel.test.tsx",
+    "src/components/setup/WorkspaceInstaller.test.tsx",
+    "src/components/projects/ProjectEntry.test.tsx",
+    "--maxWorkers=2",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/local023-validation-20261011/frontend/vitest.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "timeoutSeconds": 300,
+  "startedAt": "2026-10-11T10:24:25.349985+00:00",
+  "cleanupBoundSeconds": 20,
+  "maxLogBytesPerStream": 33554432,
+  "pid": 2691490,
+  "processGroup": 2691490
+}

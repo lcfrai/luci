@@ -76,7 +76,7 @@ export function TopBar({
       ) : (
         <span className="top-title">
           {lens === "discover"
-            ? "Define"
+            ? "Discover"
             : lens === "design"
               ? "Design"
               : "Deploy"}

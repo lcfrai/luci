@@ -1,0 +1,13 @@
+ARTIFACTS.txt
+README.md
+SHA256SUMS
+analysis.json
+analyze.py
+execution.json
+independent-review.json
+manifest.json
+privacy-review.json
+slow9-decisive-breakdown.json
+source-binding.json
+switches.all108.json
+timings.all432.projection.json.gz

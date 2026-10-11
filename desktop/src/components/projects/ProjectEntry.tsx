@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { errorText, productApi, ProductApiError, type ProductClient } from "../../api/product";
 import {
   clearPendingImport, createPendingImport, loadPendingImport, projectImportsApi,
@@ -7,6 +7,7 @@ import {
 import { useDismissable } from "../../hooks/useDismissable";
 import { useProjectDraftScope } from "../../hooks/useProjectDraft";
 import { ProjectRestore } from "../journey/ProjectBackup";
+import { projectNameError, projectNameHelp } from "../../lib/projectName";
 import "./projects.css";
 
 export type ProjectEntryMode = "new" | "import" | "restore";
@@ -38,6 +39,8 @@ function ProjectEntryForm({
   const [trusted, setTrusted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const nameHelpId = useId();
+  const nameError = name.trim() ? projectNameError(name) : null;
   const working = useRef(false);
   const alive = useRef(true);
   const generation = useRef(0);
@@ -226,7 +229,7 @@ function ProjectEntryForm({
                 event.preventDefault();
                 if (
                   working.current ||
-                  !name.trim() ||
+                  !!projectNameError(name) ||
                   (mode === "import" && (!trusted || pending))
                 )
                   return;
@@ -257,11 +260,16 @@ function ProjectEntryForm({
                   required
                   autoComplete="off"
                   value={mode === "import" && pending ? pending.name : name}
+                  aria-describedby={nameHelpId}
+                  aria-invalid={!!nameError}
                   disabled={busy || (mode === "import" && !!pending)}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="my-next-app"
                 />
               </label>
+              <p id={nameHelpId} className={nameError ? "journey-error" : "journey-muted"}>
+                {nameError ?? projectNameHelp}
+              </p>
               {mode === "import" && (
                 <>
                   <label className="luci-field">
@@ -331,7 +339,7 @@ function ProjectEntryForm({
                 {(mode !== "import" || !pending) && <button
                   className="luci-button luci-primary"
                   disabled={
-                    busy || !name.trim() || (mode === "import" && !trusted)
+                    busy || !!projectNameError(name) || (mode === "import" && !trusted)
                   }
                 >
                   {busy

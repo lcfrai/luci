@@ -8,7 +8,7 @@ import "./project-understanding.css";
 
 type Stage = OrchestratorView["nextAction"]["lens"];
 const stages: { lens: Stage; label: string; purpose: string }[] = [
-  { lens: "discover", label: "Define", purpose: "Agree the idea and outcomes" },
+  { lens: "discover", label: "Discover", purpose: "Agree the idea and outcomes" },
   { lens: "design", label: "Design", purpose: "Decide how it should work" },
   { lens: "develop", label: "Develop", purpose: "Build and verify the agreed work" },
   { lens: "deploy", label: "Deploy", purpose: "Release and look after the application" },

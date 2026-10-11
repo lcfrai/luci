@@ -195,7 +195,7 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
                 <h2>The brief</h2>
                 <p>
                   {facts.brief.purpose ||
-                    "Save an idea and acceptance criteria in Define to give the work a direction."}
+                    "Save an idea and acceptance criteria in Discover to give the work a direction."}
                 </p>
                 {!!facts.brief.criteria.length && (
                   <>

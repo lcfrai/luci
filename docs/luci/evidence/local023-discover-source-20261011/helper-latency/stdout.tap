@@ -1,0 +1,112 @@
+TAP version 13
+# Subtest: trusted input and frames retain timestamps but no key, value, target or text
+ok 1 - trusted input and frames retain timestamps but no key, value, target or text
+  ---
+  duration_ms: 4.311629
+  type: 'test'
+  ...
+# Subtest: synthetic DOM events are excluded and pointer capture is text-free
+ok 2 - synthetic DOM events are excluded and pointer capture is text-free
+  ---
+  duration_ms: 1.050323
+  type: 'test'
+  ...
+# Subtest: route timing retains only exact same-origin classes and strips identities/query
+ok 3 - route timing retains only exact same-origin classes and strips identities/query
+  ---
+  duration_ms: 1.866414
+  type: 'test'
+  ...
+# Subtest: unsupported resource observation stays explicit while input still works
+ok 4 - unsupported resource observation stays explicit while input still works
+  ---
+  duration_ms: 1.210956
+  type: 'test'
+  ...
+# Subtest: 2048 browser row cap is sticky across drains; no overflowing input frame scheduled
+ok 5 - 2048 browser row cap is sticky across drains; no overflowing input frame scheduled
+  ---
+  duration_ms: 7.780939
+  type: 'test'
+  ...
+# Subtest: bounded ledger verifies monotonic per-document sequence and accounts bytes
+ok 6 - bounded ledger verifies monotonic per-document sequence and accounts bytes
+  ---
+  duration_ms: 2.994193
+  type: 'test'
+  ...
+# Subtest: ledger refuses gap
+ok 7 - ledger refuses gap
+  ---
+  duration_ms: 1.304486
+  type: 'test'
+  ...
+# Subtest: ledger refuses counter
+ok 8 - ledger refuses counter
+  ---
+  duration_ms: 1.177084
+  type: 'test'
+  ...
+# Subtest: ledger refuses overflow
+ok 9 - ledger refuses overflow
+  ---
+  duration_ms: 1.040348
+  type: 'test'
+  ...
+# Subtest: ledger refuses rows bound
+ok 10 - ledger refuses rows bound
+  ---
+  duration_ms: 1.389985
+  type: 'test'
+  ...
+# Subtest: ledger refuses bytes bound
+ok 11 - ledger refuses bytes bound
+  ---
+  duration_ms: 0.881249
+  type: 'test'
+  ...
+# Subtest: ledger refuses windows bound
+ok 12 - ledger refuses windows bound
+  ---
+  duration_ms: 0.881409
+  type: 'test'
+  ...
+# Subtest: ledger refuses documents bound
+ok 13 - ledger refuses documents bound
+  ---
+  duration_ms: 0.815489
+  type: 'test'
+  ...
+# Subtest: Node stage recorder freezes on timeout/close and never changes primary elapsed
+ok 14 - Node stage recorder freezes on timeout/close and never changes primary elapsed
+  ---
+  duration_ms: 0.398952
+  type: 'test'
+  ...
+# Subtest: existing frame RPC returns two chronological callbacks in the browser clock
+ok 15 - existing frame RPC returns two chronological callbacks in the browser clock
+  ---
+  duration_ms: 1.370285
+  type: 'test'
+  ...
+# Subtest: one full round preserves action order and existing RPC count
+ok 16 - one full round preserves action order and existing RPC count
+  ---
+  duration_ms: 6.432977
+  type: 'test'
+  ...
+# Subtest: snapshot uses one existing RPC and keeps passive timing plus diagnostics
+ok 17 - snapshot uses one existing RPC and keeps passive timing plus diagnostics
+  ---
+  duration_ms: 1.091966
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 149.744536

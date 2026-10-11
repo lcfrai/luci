@@ -1,0 +1,9 @@
+{
+  "kind": "second-poll-release-requested",
+  "reason": "bounded-before-attachment",
+  "releaseRequestedMonotonicMs": 71985.482563,
+  "acknowledgedMonotonicMs": null,
+  "attachedMonotonicMs": null,
+  "originalDeadlineMonotonicMs": 73983.696081,
+  "observedAt": "2026-10-11T10:16:28.252Z"
+}

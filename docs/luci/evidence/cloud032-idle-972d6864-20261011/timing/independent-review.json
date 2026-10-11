@@ -1,0 +1,24 @@
+{
+  "method": "Independent offline review of original numeric interaction stages and same-clock pointer/EventTiming associations. No runtime or artifact mutation.",
+  "agreement": {
+    "primarySwitches": 100,
+    "primaryP50Ms": 204.94878799999424,
+    "primaryP95Ms": 400.97490200000175,
+    "primaryP99Ms": 513.6322159999982,
+    "primaryMaxMs": 530.7880430000077,
+    "primaryOver300": 9,
+    "largestSpanSlowCounts": {
+      "allProjectsCommand": 6,
+      "verifyExpectedContext": 3
+    },
+    "sourceConsistentHomePointerCount": 99,
+    "slowHomePointerCount": 8,
+    "followupSwitches": 8,
+    "followupOver300": 0
+  },
+  "limits": [
+    "Whole command pre-pointer versus post-pointer split unknown without shared command-boundary anchors.",
+    "EventTiming duration is not whole-command or render-only cost.",
+    "Expected-DOM witness follows driver verification; not React commit."
+  ]
+}

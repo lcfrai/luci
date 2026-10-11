@@ -32,7 +32,7 @@ export function RequirementsEvidence({ coverage, runs, refreshing, onRefresh }: 
     <Button type="button" variant="secondary" disabled={refreshing} onClick={onRefresh}>{refreshing ? "Refreshing evidence…" : "Refresh requirement evidence"}</Button>
     {!coverage ? <p className="journey-muted">Requirement evidence could not be loaded. You can still run generic project checks.</p> : <>
       <p className="requirements-context">Requirements revision {coverage.specification.revision} · {coverage.specification.status}; design revision {coverage.design.revision} · {coverage.design.status}. {coverage.source.available ? `Source ${coverage.source.commit ? coverage.source.commit.slice(0, 12) : "without a commit"}${coverage.source.dirty ? " · includes uncommitted changes" : " · clean working tree"}.` : "Current source could not be read."}</p>
-      {!coverage.rows.length && <p className="journey-muted">Add and approve requirements in Define to record linked evidence.</p>}
+      {!coverage.rows.length && <p className="journey-muted">Add and approve requirements in Discover to record linked evidence.</p>}
       <ul className="requirements-evidence-list">{coverage.rows.map(row => {
         const latest = runs.filter(run => row.evidenceRunIds.includes(run.id)).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
         return <li key={row.requirementId}>

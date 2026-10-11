@@ -1,5 +1,7 @@
 # Finish the full Luci product
 
+The four concurrent activities are **Discover, Design, Develop and Deploy**, following the owner's 7 October naming clarification relayed by Windows acceptance on 11 October 2026. Use these names in current product navigation and guidance without changing stored identifiers, review controls or historical evidence.
+
 ## Interactive application and local testing handoff — 8 October 2026
 
 The owner explicitly requires a working interactive application with polished
@@ -312,7 +314,7 @@ demo or a preliminary test.
 2. Projects have a dedicated home with creation, Git import and backup restore.
    Project context is consistent across navigation, files, agents and releases.
    Appearance, density and accessibility controls work and survive restart.
-3. Define supports a useful guided interview and genuine existing-repository
+3. Discover supports a useful guided interview and genuine existing-repository
    analysis, selected provider/model access, stable acceptance criteria,
    requirements, journeys, roles, entities, integration constraints and versioned
    approval. Partial model findings are labelled and reviewed before saving.
@@ -360,7 +362,7 @@ restart, failure/retry, recovery and account/project isolation. Run a batched
 visual/accessibility inspection and confirm fixes without repeated cosmetic
 review loops.
 
-The real Docker/Codex Describe→Design→Develop→Deploy journey must finish with a
+The real Docker/Codex Discover→Design→Develop→Deploy journey must finish with a
 working public site whose behavior, commit and release provenance are verified.
 Separately, supported live AWS and Azure account/resource/domain journeys need
 their own evidence, including recovery/reconnect and owned-resource cleanup.

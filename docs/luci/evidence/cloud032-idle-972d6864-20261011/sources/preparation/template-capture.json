@@ -1,0 +1,88 @@
+{
+  "scope": "Preparation only; all 17 selected sources matched exact clean committed bytes before extraction. No runtime or workload launched.",
+  "capturedHEAD": "67a5b7c75ca6354d43085f5bb81ec53ee4291f34",
+  "sources": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": {
+      "sha256": "4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911",
+      "bytes": 99856
+    },
+    "scripts/acceptance/sustained-four-project/task-command.mjs": {
+      "sha256": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+      "bytes": 11762
+    },
+    "scripts/acceptance/sustained-four-project/receipt-transport.mjs": {
+      "sha256": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+      "bytes": 5857
+    },
+    "scripts/acceptance/sustained-four-project/workloads.mjs": {
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "bytes": 18691
+    },
+    "scripts/acceptance/sustained-four-project/interaction-metrics.mjs": {
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "bytes": 9846
+    },
+    "scripts/acceptance/sustained-four-project/latency-diagnostics.mjs": {
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "bytes": 7545
+    },
+    "scripts/acceptance/sustained-four-project/task-context.mjs": {
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "bytes": 2439
+    },
+    "scripts/acceptance/sustained-four-project/source-binding.mjs": {
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "bytes": 2768
+    },
+    "scripts/acceptance/sustained-four-project/queue-controls.mjs": {
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "bytes": 711
+    },
+    "scripts/acceptance/sustained-four-project/run-with-observer.py": {
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "bytes": 17220
+    },
+    "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": {
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "bytes": 6811
+    },
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": {
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "bytes": 35379
+    },
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": {
+      "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+      "bytes": 39518
+    },
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": {
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "bytes": 5545
+    },
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": {
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670
+    },
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": {
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176
+    },
+    "scripts/acceptance/launch-recovery/acceptance-startup.mjs": {
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637
+    }
+  },
+  "baseline": "/workspace/.luci-tools/cloud032-idle-integrated-candidate-20261009",
+  "baselineInteractionSources": {
+    "interaction-metrics.mjs": {
+      "bytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "identical": true
+    },
+    "latency-diagnostics.mjs": {
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "identical": true
+    }
+  },
+  "seedGeneratorSHA256": "af30789b19f8d63a09991928b58cf2650f639af07b041b3d8ea7cc3db2d38db9"
+}

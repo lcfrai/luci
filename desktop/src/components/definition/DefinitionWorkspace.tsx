@@ -205,7 +205,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   };
   const openQuestionCount = spec?.questions.filter((question) => !question.answer.trim()).length ?? 0;
   return <section className="journey-page definition-workspace">
-    <JourneyHeader title="Define your project" subtitle="Turn an idea or existing application into a clear, testable product definition.">
+    <JourneyHeader title="Discover" subtitle="Turn an idea or existing application into a clear, testable product definition.">
       {spec && <span className="journey-revision" role="status">{dirty ? "Unsaved changes" : `${spec.status === "approved" ? "Approved" : spec.status === "outdated" ? "Needs reconciliation" : "Draft"} · Revision ${spec.revision}`}</span>}
     </JourneyHeader>
     <div className="definition-conversation-link">

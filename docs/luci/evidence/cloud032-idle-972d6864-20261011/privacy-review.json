@@ -1,0 +1,11 @@
+{
+  "scope": "Published metadata, exact source helpers, sanitized execution receipts and frozen strict-allowlist timing projection.",
+  "checks": [
+    "Known original project IDs absent from every plain/decompressed member.",
+    "No concrete retained fresh-fixture instance path.",
+    "No request URL/body/header payloads or credential values copied.",
+    "Stdout path sanitization explicit; stderr empty.",
+    "All log and manifest members claimed as published are present."
+  ],
+  "limits": "Source code contains variable names and generic fixture path templates. No private fixture contents, failed ledger, archive or credential file was inspected."
+}

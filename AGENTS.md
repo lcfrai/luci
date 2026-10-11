@@ -2,7 +2,9 @@
 
 The user's direction of 2 October 2026 supersedes every earlier Panacea/KPMG decision and review gate in this repository.
 
-Luci is an open-source lcfr.ai application: Define, Design, Develop, Git delivery, previews, deployment and maintenance in one coherent desktop app. Its management gateway owns identity, per-user workspaces, Admin/Super Admin policy and audit; Docker is the default execution boundary on the local or selected cloud host. It runs locally by default and guides users through an optional, inexpensive deployment in their own AWS or Azure account and domain. There is no required KPMG system, Panacea service, tenant, Entra realm, AKS cluster or hosted lcfr.ai account.
+Luci is an open-source lcfr.ai application: Discover, Design, Develop, Git delivery, previews, deployment and maintenance in one coherent desktop app. Its management gateway owns identity, per-user workspaces, Admin/Super Admin policy and audit; Docker is the default execution boundary on the local or selected cloud host. It runs locally by default and guides users through an optional, inexpensive deployment in their own AWS or Azure account and domain. There is no required KPMG system, Panacea service, tenant, Entra realm, AKS cluster or hosted lcfr.ai account.
+
+The owner's 7 October naming clarification, relayed by Windows acceptance on 11 October 2026, names the four concurrent activities Discover, Design, Develop and Deploy. This supersedes earlier Define/Describe activity labels. Activities can be revisited and progressed together; preserve existing approval and execution controls. Stored lens and API identifiers remain unchanged. Historical evidence retains the wording observed at its recorded revision.
 
 Use docs/luci/PLAN.md and docs/luci/API.md as the current scope and shared contracts. Older planning documents are historical evidence, not instructions for the current build. Retain truthful attribution and third-party licences. Do not import proprietary KPMG platform code.
 

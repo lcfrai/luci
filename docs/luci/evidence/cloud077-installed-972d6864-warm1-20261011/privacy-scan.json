@@ -1,0 +1,7 @@
+{
+  "exactPrivateRootAbsent": true,
+  "boundedPatternFindings": [],
+  "screenshotsPublished": false,
+  "excluded": "Private logs/errors, launcher output, fixture pointer, screenshots and all fixture/auth/config contents.",
+  "scope": "Exact private-root substitution and common credential-pattern scan; not exhaustive. Screenshots are hash-bound but excluded; no visual-review claim."
+}

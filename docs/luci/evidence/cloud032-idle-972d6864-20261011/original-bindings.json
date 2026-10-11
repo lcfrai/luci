@@ -1,0 +1,300 @@
+{
+  "exactCopies": [
+    {
+      "member": "timing/ARTIFACTS.txt",
+      "originLabel": "Frozen timing capsule/ARTIFACTS.txt",
+      "original": {
+        "sha256": "1c3dbc9a05d155f68f3bc94724277220c42e64bc36acecf7fc98cda174519561",
+        "bytes": 238
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/README.md",
+      "originLabel": "Frozen timing capsule/README.md",
+      "original": {
+        "sha256": "6ee0139c93d81ca3d9bf972b06dfc7f05b57b3ba833775eb45f7a753595617ca",
+        "bytes": 5047
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/SHA256SUMS",
+      "originLabel": "Frozen timing capsule/SHA256SUMS",
+      "original": {
+        "sha256": "60c12877deec3dd0ad6a152801f0dfb5e7c41a89d795cf3889fdae978edbea84",
+        "bytes": 1019
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/analysis.json",
+      "originLabel": "Frozen timing capsule/analysis.json",
+      "original": {
+        "sha256": "bad4dea660be0c395a2d5f0ee54cd410f8f352a60b6b9c4ef241e3f46df15c32",
+        "bytes": 83004
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/analyze.py",
+      "originLabel": "Frozen timing capsule/analyze.py",
+      "original": {
+        "sha256": "23e51a5b4d2ef586a93dc4d84295eb1c919e8f8b9fc17186eb1275842ce066fa",
+        "bytes": 19427
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/execution.json",
+      "originLabel": "Frozen timing capsule/execution.json",
+      "original": {
+        "sha256": "3eab893a5b4eb049b8df2d0e3ffdded0a61686b42a8f81ce2f7e8ecafd4c1daf",
+        "bytes": 618
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/independent-review.json",
+      "originLabel": "Frozen timing capsule/independent-review.json",
+      "original": {
+        "sha256": "0ce319c3689a8c771856ab40fba25dab80744c586feadef8f6df5b74b8297de1",
+        "bytes": 899
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/manifest.json",
+      "originLabel": "Frozen timing capsule/manifest.json",
+      "original": {
+        "sha256": "bac41f0ea63519459eb57a84cb7338ebd537cbbbc048260c00ef0110ef95bb16",
+        "bytes": 1948
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/privacy-review.json",
+      "originLabel": "Frozen timing capsule/privacy-review.json",
+      "original": {
+        "sha256": "7fe464db64be43143ea6935f77c1dd720591ad3d71a0615cdd143ef45bb17153",
+        "bytes": 900
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/slow9-decisive-breakdown.json",
+      "originLabel": "Frozen timing capsule/slow9-decisive-breakdown.json",
+      "original": {
+        "sha256": "0cda79e0ca5da6280c76714fe92a283bf55867fa2a169bbb30f3fa90fe40874d",
+        "bytes": 11126
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/source-binding.json",
+      "originLabel": "Frozen timing capsule/source-binding.json",
+      "original": {
+        "sha256": "395e0bfe759f23db825f0270b60bb9f3106eb1b3bff00bfe5dbe983d4c3a7a56",
+        "bytes": 10131
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/switches.all108.json",
+      "originLabel": "Frozen timing capsule/switches.all108.json",
+      "original": {
+        "sha256": "8bc6bb0830621752bec4886f5002200e8e48c55ebc038761b7c435afa2966231",
+        "bytes": 833479
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timing/timings.all432.projection.json.gz",
+      "originLabel": "Frozen timing capsule/timings.all432.projection.json.gz",
+      "original": {
+        "sha256": "a76f81a27dd97021679df3c8889fc620cf8cc4bf28fd42e9c9d430451978144e",
+        "bytes": 301031
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/launch.py",
+      "originLabel": "Recorded idle preparation/launch.py",
+      "original": {
+        "sha256": "a1ffc1ee3e9674a2812ad569a301d4ad69402c8dfa690f543c1a0bc12b270a62",
+        "bytes": 8311
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/prepare-idle.py",
+      "originLabel": "Recorded idle preparation/prepare-idle.py",
+      "original": {
+        "sha256": "af30789b19f8d63a09991928b58cf2650f639af07b041b3d8ea7cc3db2d38db9",
+        "bytes": 12349
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/template-capture.json",
+      "originLabel": "Recorded idle preparation/template-capture.json",
+      "original": {
+        "sha256": "572937f1e69cc4a57a76482993837b89862712d57184be4c63d632fa10171cec",
+        "bytes": 3869
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/idle-extraction.patch",
+      "originLabel": "Recorded idle preparation/idle-extraction.patch",
+      "original": {
+        "sha256": "f0c421e6a118e31d5f824c1dcff57f475ae5bfa8a133a53f54fb7db2c18dd890",
+        "bytes": 25674
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/idle-extraction.json",
+      "originLabel": "Recorded idle preparation/idle-extraction.json",
+      "original": {
+        "sha256": "b2b29dec8b6f23987cf2ddf94edbd317944c8c9f495b413d69973986cc7e5519",
+        "bytes": 6185
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "closure/closure.py",
+      "originLabel": "Independent read-only closure helper",
+      "original": {
+        "sha256": "f251903592da35882acfda4dac1dd294dee13db3b1fa4a729e10cfcc578ce685",
+        "bytes": 6780
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "closure/prelaunch-process-survey.original.json",
+      "originLabel": "Recorded prelaunch selected process-name survey",
+      "original": {
+        "sha256": "cc77635a1b6447aa510991f62b52b7a2ee6a2586b4067be9e912f861ef21da50",
+        "bytes": 109783
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/accepted-helper-review.json",
+      "originLabel": "Independent accepted helper and Git-object review",
+      "original": {
+        "sha256": "55baaafac9249b3289275a1139d3d46287159239a16c856a8b95d89cb8d130de",
+        "bytes": 10901
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "publish.py",
+      "originLabel": "This offline publication helper",
+      "original": {
+        "sha256": "48cc2504cbd9c509268f0f1a5c60b50f34cfd3e717a6537982fd34a5da000f2d",
+        "bytes": 22235
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "runtime/wrapper-result.original.json",
+      "originLabel": "Original run/wrapper-result.json",
+      "original": {
+        "sha256": "90bf249196559704a614e87a5d9281371546a7e55f46f44a8bb1016961a326b0",
+        "bytes": 655
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "runtime/driver-identity.original.json",
+      "originLabel": "Original run/driver-identity.json",
+      "original": {
+        "sha256": "77c0a57d97703023e80771af6cbb525e3a494d43ea7b2c029068a04efb816966",
+        "bytes": 63
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "runtime/diagnostic-journal.original.jsonl",
+      "originLabel": "Original run/driver/diagnostic-journal.jsonl",
+      "original": {
+        "sha256": "fa5886b2a05f3a27d7f3e437a6bcdaa94c83505ef84e160baa592cc6dcfddcf2",
+        "bytes": 6312
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "runtime/driver.stderr.original.log",
+      "originLabel": "Original run/driver.stderr.log",
+      "original": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "transformation": "none"
+    }
+  ],
+  "projections": [
+    {
+      "member": "runtime/invocation.sanitized.json",
+      "originLabel": "Original invocation",
+      "original": {
+        "relativeOriginalMember": "invocation.json",
+        "sha256": "9f9e5bf72f1fbe01cad292e623923e94818e7609c1306ecd4b4e44379dc1f2c7",
+        "bytes": 6689
+      },
+      "transformation": "Task-specific execution/package/archive/report/fixture-parent paths replaced; original command, bounds and source identity otherwise retained."
+    },
+    {
+      "member": "runtime/source-binding.sanitized.json",
+      "originLabel": "Accepted original source binding",
+      "original": {
+        "relativeOriginalMember": "driver/accepted-harness/external-source-binding.json",
+        "sha256": "b2b29dec8b6f23987cf2ddf94edbd317944c8c9f495b413d69973986cc7e5519",
+        "bytes": 6185
+      },
+      "transformation": "External execution directory replaced; all declared hashes and extraction relationships retained."
+    },
+    {
+      "member": "runtime/package-provenance.sanitized.json",
+      "originLabel": "Original package provenance",
+      "original": {
+        "relativeOriginalMember": "driver/package-provenance.json",
+        "sha256": "8dc4837c725ec4ac367cd519e993aec7567202facb9bd504c1e74ae826c28f85",
+        "bytes": 1039
+      },
+      "transformation": "Package/archive locations replaced; source, sizes and recorded hashes retained. No archive or binary rehash."
+    },
+    {
+      "member": "closure/independent-closure.sanitized.json",
+      "originLabel": "Independent read-only closure",
+      "original": {
+        "sha256": "baebf45e1ce2a6c28bbc18f9e912ca1254f365f36bd7fc493f40d78d5b3df940",
+        "bytes": 134882
+      },
+      "transformation": "Prelaunch/prior-helper path labels replaced; all recorded PID/start observations, process survey, inventories, hashes and limitations retained. Closure was not rerun."
+    },
+    {
+      "member": "runtime/driver.stdout.sanitized.log",
+      "originLabel": "Original driver stdout",
+      "original": {
+        "relativeOriginalMember": "driver.stdout.log",
+        "sha256": "20f1e9b412415b75341ccc86ff76f2e9d59a64f8ede1918a729941e42d441e07",
+        "bytes": 301
+      },
+      "transformation": "Final raw result path replaced; PASS messages and all other characters unchanged."
+    },
+    {
+      "member": "result-summary.projection.json",
+      "originLabel": "Original private completed driver result",
+      "original": {
+        "relativeOriginalMember": "driver/result.json",
+        "sha256": "5f25447b1f6dc7eca50e220f358a4a029bd311e7d368e15ec85d693198569a00",
+        "bytes": 7395826
+      },
+      "transformation": "Explicit allowlist of exact original outcome, per-cohort quantiles, target decisions, source/package/runtime identities and cleanup assertions. Dynamic fixture/project identifiers, request paths/bodies and raw fixture content omitted. A projection is not reconstruction of the entire original."
+    }
+  ],
+  "scope": "Only declared publication members are listed as copies/projections. Original private result/trace/package/image payloads are hash-bound or projected, never copied wholesale."
+}

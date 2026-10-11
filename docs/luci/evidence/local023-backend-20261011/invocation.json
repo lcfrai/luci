@@ -1,0 +1,19 @@
+{
+  "startedAt": "2026-10-11T10:24:14.150156+00:00",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-timeout=4m",
+    "-json",
+    "./control-plane/internal/product",
+    "./control-plane/internal/api",
+    "-run",
+    "^Test(ProjectOverview|OrchestratorUsesSelectedProvider|IndependentSignInAndDefineAssistant|DefineAssistant(Cancellation|Recovery))"
+  ],
+  "head": "6f00501d7f370789ed45b018a7d958fd25cc1e2d",
+  "goVersion": "go version go1.26.3 linux/amd64",
+  "scope": "Selected existing overview/assistant/orchestrator regression cases; all control-plane repository Go/mod/sum bytes before/after, not full compiled dependency provenance or live provider proof."
+}

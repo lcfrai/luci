@@ -193,7 +193,7 @@ it("accepts legacy and extended browser drafts and safely rejects malformed opti
 it("requires current definition and design approvals and provides their review paths", async () => {
   vi.mocked(productApi.checks).mockResolvedValue({ runs: [], suggested: [], coverage: { ...coverage, specification: { ...coverage.specification, status: "draft" } } });
   render(<ProjectPlan projectId="p-1" brief={brief} />);
-  await screen.findByText("Approve the current definition in Define before starting implementation.");
+  await screen.findByText("Approve the current definition in Discover before starting implementation.");
   expect((screen.getAllByRole("button", { name: "Implement task" })[0] as HTMLButtonElement).disabled).toBe(true);
   await userEvent.click(screen.getByRole("button", { name: "Review current definition" }));
   expect(useCockpit.getState().lens).toBe("discover");

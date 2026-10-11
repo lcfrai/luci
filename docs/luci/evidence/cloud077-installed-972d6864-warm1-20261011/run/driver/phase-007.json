@@ -1,0 +1,24 @@
+{
+  "kind": "browser-identities",
+  "processes": [
+    {
+      "pid": 2680102,
+      "start": "45981566",
+      "parent": 2679397,
+      "status": "S"
+    },
+    {
+      "pid": 2680124,
+      "start": "45981574",
+      "parent": 1,
+      "status": "S"
+    },
+    {
+      "pid": 2680129,
+      "start": "45981574",
+      "parent": 1,
+      "status": "S"
+    }
+  ],
+  "observedAt": "2026-10-11T10:15:47.432Z"
+}

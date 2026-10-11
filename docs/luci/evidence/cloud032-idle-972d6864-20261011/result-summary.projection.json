@@ -1,0 +1,298 @@
+{
+  "original": {
+    "relativeOriginalMember": "driver/result.json",
+    "sha256": "5f25447b1f6dc7eca50e220f358a4a029bd311e7d368e15ec85d693198569a00",
+    "bytes": 7395826
+  },
+  "representation": "Explicit allowlist of exact original outcome, per-cohort quantiles, target decisions, source/package/runtime identities and cleanup assertions. Dynamic fixture/project identifiers, request paths/bodies and raw fixture content omitted. A projection is not reconstruction of the entire original.",
+  "value": {
+    "passed": true,
+    "diagnosticOnly": true,
+    "fullSustainedAcceptance": false,
+    "sourceCommit": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+    "sourceDirty": false,
+    "harnessCheckout": {
+      "commit": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+      "dirty": false,
+      "expectedSource": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+      "productSource": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+      "separateHelperRevision": false
+    },
+    "finalHarnessCheckout": {
+      "commit": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+      "dirty": false,
+      "expectedSource": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+      "productSource": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+      "separateHelperRevision": false
+    },
+    "dependencyCheckout": {
+      "commit": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+      "dirty": false,
+      "expectedSource": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+      "productSource": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+      "separateHelperRevision": false
+    },
+    "packageIntegrity": {
+      "archiveSHA256": "03340a8313890763de5596fcf416890d319e16d11d283ed7d51e32f1a939a193",
+      "verifiedMembers": 965,
+      "allMembersMatch": true
+    },
+    "binarySHA256": "ea4df58d5a8f6349ec258c82f35eb5f7e577a33aec1e33f88ab348e53b0b8431",
+    "webIndexSHA256": "c32360f1edec1c7d1aa694aebb861ace9c6bc01dddc30f8e65aabf3798c433e8",
+    "driverSHA256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2",
+    "helperSHA256": {
+      "external-source-binding.json": "b2b29dec8b6f23987cf2ddf94edbd317944c8c9f495b413d69973986cc7e5519",
+      "task-command.mjs": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+      "receipt-transport.mjs": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+      "workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "interaction-metrics.mjs": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a"
+    },
+    "reusedHelperSHA256": {
+      "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "scripts/acceptance/four-project-queue/sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+      "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "scripts/acceptance/launch-recovery/acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    "image": {
+      "reference": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "id": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8"
+    },
+    "releaseImage": {
+      "reference": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "id": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8"
+    },
+    "bounds": {
+      "preparationDeadlineMs": 60000,
+      "scenarioDeadlineMs": 210000,
+      "cleanupDeadlineMs": 120000,
+      "totalDeadlineMs": 390000,
+      "maxMeasuredActions": 432,
+      "primaryMeasuredActions": 400,
+      "optionalTraceMeasuredActions": 32,
+      "actualFuzzSeconds": 0,
+      "allowedCreates": 0,
+      "allowedStarts": 0,
+      "upstreamRequestMs": 120000,
+      "maxCreates": 1,
+      "maxStarts": 1,
+      "preCreateFreeBytes": 6442450944,
+      "runningReserveBytes": 1073741824,
+      "proxyStructuralBudgetNote": "Existing proxy requires positive numeric maxima; unconditional guards refuse Create and Start before forwarding."
+    },
+    "browserVersion": "151.0.7922.173",
+    "browserErrors": [],
+    "providerCalls": 0,
+    "auxiliaryCalls": 0,
+    "externalModelCalls": 0,
+    "actualTaskCount": 0,
+    "controllersStopped": true,
+    "dockerRequestsDrained": true,
+    "dockerMutationStateCertain": true,
+    "cleanup": [],
+    "cleanupPhases": [
+      {
+        "name": "controllers",
+        "status": "completed",
+        "result": {
+          "stopped": true
+        }
+      },
+      {
+        "name": "browser",
+        "status": "completed"
+      },
+      {
+        "name": "provider",
+        "status": "completed"
+      },
+      {
+        "name": "proxy",
+        "status": "completed",
+        "result": {
+          "drained": true,
+          "mutationStateCertain": true
+        }
+      }
+    ],
+    "startupResources": [
+      {
+        "name": "provider",
+        "state": "closed",
+        "late": false,
+        "closeTimedOut": false
+      },
+      {
+        "name": "proxy",
+        "state": "closed",
+        "late": false,
+        "closeTimedOut": false
+      },
+      {
+        "name": "browser",
+        "state": "closed",
+        "late": false,
+        "closeTimedOut": false
+      },
+      {
+        "name": "browser-context",
+        "state": "closed",
+        "late": false,
+        "closeTimedOut": false,
+        "parent": "browser",
+        "closedByParent": true
+      },
+      {
+        "name": "browser-page",
+        "state": "closed",
+        "late": false,
+        "closeTimedOut": false,
+        "parent": "browser-context",
+        "closedByParent": true
+      }
+    ],
+    "runtimeCleanup": {
+      "containers": 0,
+      "volumes": 0,
+      "ownedServiceProcesses": 0,
+      "ownedBrowserProcesses": 0,
+      "protectedImagePackageAndHelpersUnchanged": true,
+      "rootFreeBytes": 6793539584
+    },
+    "fixtureRemoved": true,
+    "idleDiagnosticCompleted": true,
+    "originalReceiptComplete": true,
+    "elapsedMs": 147993,
+    "totalElapsedMs": 150528,
+    "signal": null,
+    "finishedAt": "2026-10-11T10:12:44.190Z",
+    "interactionSummary": {
+      "idle-interactive-calibration:project-switch": {
+        "count": 100,
+        "successful": 100,
+        "failed": 0,
+        "p50Ms": 204.94878799999424,
+        "p95Ms": 400.97490200000175,
+        "p99Ms": 513.6322159999982,
+        "maxMs": 530.7880430000077,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "idle-interactive-calibration:input": {
+        "count": 200,
+        "successful": 200,
+        "failed": 0,
+        "p50Ms": 45.92517400000361,
+        "p95Ms": 79.1230429999996,
+        "p99Ms": 249.59180199999537,
+        "maxMs": 374.2478609999962,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "idle-interactive-calibration:draft-reset": {
+        "count": 100,
+        "successful": 100,
+        "failed": 0,
+        "p50Ms": 233.87459799999488,
+        "p95Ms": 414.736373000007,
+        "p99Ms": 516.914877999996,
+        "maxMs": 585.0646439999982,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "idle-actionability-trace-followup:project-switch": {
+        "count": 8,
+        "successful": 8,
+        "failed": 0,
+        "p50Ms": 199.97325900002033,
+        "p95Ms": 251.83310799999163,
+        "p99Ms": 251.83310799999163,
+        "maxMs": 251.83310799999163,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "idle-actionability-trace-followup:input": {
+        "count": 16,
+        "successful": 16,
+        "failed": 0,
+        "p50Ms": 39.09453999999096,
+        "p95Ms": 97.80218300002161,
+        "p99Ms": 97.80218300002161,
+        "maxMs": 97.80218300002161,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "idle-actionability-trace-followup:draft-reset": {
+        "count": 8,
+        "successful": 8,
+        "failed": 0,
+        "p50Ms": 233.25459699999192,
+        "p95Ms": 333.9877709999855,
+        "p99Ms": 333.9877709999855,
+        "maxMs": 333.9877709999855,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      }
+    },
+    "targetComparison": {
+      "project-switch": {
+        "count": 100,
+        "successful": 100,
+        "failed": 0,
+        "p50Ms": 204.94878799999424,
+        "p95Ms": 400.97490200000175,
+        "p99Ms": 513.6322159999982,
+        "maxMs": 530.7880430000077,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": [],
+        "withinReference": false
+      },
+      "input": {
+        "count": 200,
+        "successful": 200,
+        "failed": 0,
+        "p50Ms": 45.92517400000361,
+        "p95Ms": 79.1230429999996,
+        "p99Ms": 249.59180199999537,
+        "maxMs": 374.2478609999962,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": [],
+        "withinReference": true
+      }
+    },
+    "latencyTargets": {
+      "measurement": "Original All projects\u2192open saved Define context\u2192two frames; input\u2192expected field\u2192two frames; no physical-input claim",
+      "projectSwitchP95Ms": 300,
+      "inputP95Ms": 100,
+      "p99StrictlyBelowMs": 1000
+    },
+    "workflowOperationUnsettled": false,
+    "engineIdentitySHA256": "9ccbe65e5da6fcbddb4f24a682abf7d4e4ddf8dff3a453fca0c0dbd34de76de5",
+    "dockerTransportSummary": {
+      "counts": {
+        "total": 452,
+        "create": 0,
+        "worker": 0,
+        "fence": 0,
+        "start": 0
+      },
+      "dropped": 0,
+      "failures": [],
+      "cleanup": {
+        "closedAt": "2026-10-11T10:12:43.722Z",
+        "pendingRequests": 0,
+        "activeHandlers": 0,
+        "pendingBodyBytes": 0,
+        "uncertainMutation": false,
+        "drained": true
+      }
+    }
+  }
+}

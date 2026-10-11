@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "kind": "Offline retained idle 972d timing analysis",
+  "originalResultSHA256": "5f25447b1f6dc7eca50e220f358a4a029bd311e7d368e15ec85d693198569a00",
+  "files": {
+    "ARTIFACTS.txt": {
+      "bytes": 238,
+      "sha256": "1c3dbc9a05d155f68f3bc94724277220c42e64bc36acecf7fc98cda174519561"
+    },
+    "README.md": {
+      "bytes": 5047,
+      "sha256": "6ee0139c93d81ca3d9bf972b06dfc7f05b57b3ba833775eb45f7a753595617ca"
+    },
+    "analysis.json": {
+      "bytes": 83004,
+      "sha256": "bad4dea660be0c395a2d5f0ee54cd410f8f352a60b6b9c4ef241e3f46df15c32"
+    },
+    "analyze.py": {
+      "bytes": 19427,
+      "sha256": "23e51a5b4d2ef586a93dc4d84295eb1c919e8f8b9fc17186eb1275842ce066fa"
+    },
+    "execution.json": {
+      "bytes": 618,
+      "sha256": "3eab893a5b4eb049b8df2d0e3ffdded0a61686b42a8f81ce2f7e8ecafd4c1daf"
+    },
+    "independent-review.json": {
+      "bytes": 899,
+      "sha256": "0ce319c3689a8c771856ab40fba25dab80744c586feadef8f6df5b74b8297de1"
+    },
+    "privacy-review.json": {
+      "bytes": 900,
+      "sha256": "7fe464db64be43143ea6935f77c1dd720591ad3d71a0615cdd143ef45bb17153"
+    },
+    "slow9-decisive-breakdown.json": {
+      "bytes": 11126,
+      "sha256": "0cda79e0ca5da6280c76714fe92a283bf55867fa2a169bbb30f3fa90fe40874d"
+    },
+    "source-binding.json": {
+      "bytes": 10131,
+      "sha256": "395e0bfe759f23db825f0270b60bb9f3106eb1b3bff00bfe5dbe983d4c3a7a56"
+    },
+    "switches.all108.json": {
+      "bytes": 833479,
+      "sha256": "8bc6bb0830621752bec4886f5002200e8e48c55ebc038761b7c435afa2966231"
+    },
+    "timings.all432.projection.json.gz": {
+      "bytes": 301031,
+      "sha256": "a76f81a27dd97021679df3c8889fc620cf8cc4bf28fd42e9c9d430451978144e"
+    }
+  },
+  "selfReference": "Manifest excludes itself; SHA256SUMS binds all declared artifacts except itself.",
+  "scope": "All 432 actions, no removed outliers, original and follow-up cohorts separate. No private raw input copied."
+}

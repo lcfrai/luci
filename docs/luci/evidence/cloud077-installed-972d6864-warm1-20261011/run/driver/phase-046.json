@@ -1,0 +1,44 @@
+{
+  "kind": "replacement-allocation-observed",
+  "sessionId": "s-7b97d791",
+  "executionGeneration": "48e7b2eef6173acaaee6215cfe1bfc6f9e51f0514a82424f23f4f6a5a62229f6",
+  "containers": [
+    {
+      "id": "5fa77dc3c3fbddc26cc2660ee942dc6b33595b42d095d71013df1f2d93293b83",
+      "sandboxId": "s-facd8fa5",
+      "sessionId": "s-7b97d791",
+      "instanceId": "be74fa7f-3cf6-4934-86c8-050e2d257966",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-facd8fa5",
+      "status": "running",
+      "pid": 2684030,
+      "created": "2026-10-11T10:16:22.539993213Z",
+      "startedAt": "2026-10-11T10:16:48.974443047Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    }
+  ],
+  "ledger": {
+    "present": true,
+    "sha256": "2f374a6bebd853381f2daadb948ca9d655edf3368c1f14acac5724abc659ab4b",
+    "bytes": 499,
+    "leases": [
+      {
+        "id": "restart-cafcb5fc",
+        "sessionId": "s-7b97d791",
+        "sandboxId": "s-facd8fa5",
+        "projectId": "p-bc622f37",
+        "state": "backend-settled",
+        "resources": {
+          "CPUMillis": 1000,
+          "MemoryMiB": 1024
+        }
+      }
+    ],
+    "checks": [],
+    "fences": [],
+    "checkFences": []
+  },
+  "observedAt": "2026-10-11T10:16:49.907Z"
+}

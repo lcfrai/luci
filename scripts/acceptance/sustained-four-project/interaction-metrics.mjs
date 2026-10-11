@@ -70,7 +70,7 @@ export function interactionRunner({page,owners,receipt,assertHealthy,phase,obser
  async function switchTo(owner){
   assertHealthy();
   await measured('project-switch',owner,async mark=>{await page.getByRole('button',{name:'All projects',exact:true}).click();mark('all-projects-click-end');await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();mark('overview-heading-ready');await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();mark('open-project-click-end');},async()=>{
-   // The calibrated lens is Define. Its actual loaded value is the witness,
+   // The calibrated lens is Discover. Its actual loaded value is the witness,
    // rather than a title that could render before stale content is replaced.
    const field=page.getByRole('textbox',{name:'The idea',exact:true});await field.waitFor();
    await field.evaluate((el,value)=>new Promise((done,reject)=>{const until=performance.now()+10000;const sample=()=>{if(el.isConnected&&el.value===value){window.__luciAcceptanceLatency.markExpectedDOM('project-switch');return done();}if(performance.now()>=until)return reject(Error('Expected project context did not render'));requestAnimationFrame(sample);};sample();}),values.get(owner.owner.id));
@@ -85,12 +85,12 @@ export function interactionRunner({page,owners,receipt,assertHealthy,phase,obser
   await measured('input',owner,()=>field.press('Backspace'),async()=>{await page.waitForFunction(value=>{if(document.activeElement?.value!==value)return false;window.__luciAcceptanceLatency.markExpectedDOM('input');return true;},expected,{timeout:10000});});
   // The product deliberately keeps dirty=true even if text returns to baseline.
   // Reset through its real discard flow; record this extra action separately.
-  await measured('draft-reset',owner,async()=>{await page.getByRole('button',{name:'Design',exact:true}).click();await page.getByRole('dialog',{name:'Keep your changes?',exact:true}).getByRole('button',{name:'Discard edits and continue',exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();},async()=>{assert.equal(await field.inputValue(),expected);});
+  await measured('draft-reset',owner,async()=>{await page.getByRole('button',{name:'Design',exact:true}).click();await page.getByRole('dialog',{name:'Keep your changes?',exact:true}).getByRole('button',{name:'Discard edits and continue',exact:true}).click();await page.getByRole('button',{name:'Discover',exact:true}).click();},async()=>{assert.equal(await field.inputValue(),expected);});
  }
  return {
   async calibrate(rounds=100){for(let index=0;index<rounds;index++){await switchTo(owners[index%owners.length]);await typeRound();await observe('after-calibration-round');}},
   async round(index){await switchTo(owners[index%owners.length]);await typeRound();await observe('after-loaded-round');},
   expected(owner,value){values.set(owner.owner.id,value);},
-  async warm(){for(const owner of owners){await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),values.get(owner.owner.id));}current=owners.at(-1);},
+  async warm(){for(const owner of owners){await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Discover',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),values.get(owner.owner.id));}current=owners.at(-1);},
  };
 }

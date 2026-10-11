@@ -1,0 +1,86 @@
+{
+  "kind": "initial-settlement-confirmed",
+  "pin": {
+    "allocation": {
+      "id": "a176c8abd9321ea9666b5aca99a9c2bc9f18a660306e87a4b79a3939d44799a3",
+      "sandboxId": "s-7b97d791",
+      "sessionId": "s-7b97d791",
+      "instanceId": "be74fa7f-3cf6-4934-86c8-050e2d257966",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-7b97d791"
+    },
+    "lease": {
+      "id": "manual-4e8836c7",
+      "sessionId": "s-7b97d791",
+      "projectId": "p-bc622f37",
+      "sandboxId": "s-7b97d791",
+      "state": "backend-settled",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      }
+    }
+  },
+  "polls": 52,
+  "elapsedMs": 27538.742757,
+  "first": {
+    "at": "2026-10-11T10:15:54.405Z",
+    "elapsedMs": 144.7737479999996,
+    "containers": [
+      {
+        "id": "a176c8abd9321ea9666b5aca99a9c2bc9f18a660306e87a4b79a3939d44799a3",
+        "sandboxId": "s-7b97d791",
+        "sessionId": "s-7b97d791",
+        "instanceId": "be74fa7f-3cf6-4934-86c8-050e2d257966",
+        "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+        "name": "/luci-s-7b97d791",
+        "status": "exited",
+        "pid": 0,
+        "created": "2026-10-11T10:15:19.128345346Z",
+        "startedAt": "2026-10-11T10:15:45.362740112Z",
+        "memoryBytes": 1073741824,
+        "cpuNano": 1000000000,
+        "pidsLimit": 256
+      }
+    ],
+    "ledger": {
+      "present": true,
+      "sha256": "999268f8d141acb44a9f54ca229029f4c29cd19926d5fe71f4e1abc1d09eb257",
+      "bytes": 498,
+      "leases": [
+        {
+          "id": "manual-4e8836c7",
+          "sessionId": "s-7b97d791",
+          "sandboxId": "s-7b97d791",
+          "projectId": "p-bc622f37",
+          "state": "backend-settled",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          }
+        }
+      ],
+      "checks": [],
+      "fences": [],
+      "checkFences": []
+    },
+    "rootFreeBytes": 2050265088
+  },
+  "last": {
+    "at": "2026-10-11T10:16:21.797Z",
+    "elapsedMs": 27536.341096999997,
+    "containers": [],
+    "ledger": {
+      "present": true,
+      "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+      "bytes": 25,
+      "leases": [],
+      "checks": [],
+      "fences": [],
+      "checkFences": []
+    },
+    "rootFreeBytes": 6785392640
+  },
+  "scope": "Observed exact natural allocation absence and charge release only. Actual Restart admission and six GiB root floor remain authoritative.",
+  "observedAt": "2026-10-11T10:16:21.799Z"
+}

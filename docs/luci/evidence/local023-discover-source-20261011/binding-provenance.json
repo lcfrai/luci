@@ -1,0 +1,7 @@
+{
+  "source": "/workspace/.luci-tools/desktop-typecheck-c076-c078-c079-sx2-20261011/binding-and-execution.py",
+  "sha256": "0ded058cc69dcac4c2057ccf5d3ba72305393a690803de3a2930d1211f520945",
+  "bytes": 5677,
+  "copyExact": true,
+  "scope": "Existing bound source/dependency inventory and bounded command executor copied unchanged; no top-level tests from original integrated runner executed."
+}

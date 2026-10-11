@@ -70,7 +70,7 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Close projects', exact: true }).count(), 0); check('exact corrected resize/drawer/home tail passes and closes drawer');
   for (const name of ['alpha', 'beta', 'gamma', 'delta']) {
     await page.getByRole('button', { name: 'Open project ' + name, exact: true }).click();
-    await page.getByRole('button', { name: 'Define', exact: true }).click();
+    await page.getByRole('button', { name: 'Discover', exact: true }).click();
     const idea = page.getByRole('textbox', { name: 'The idea', exact: true }); await idea.waitFor();
     assert.equal(await idea.inputValue(), 'Unique saved purpose for ' + name + '.'); assert.equal((await state()).project, name);
     await geometry(); check('phone exact saved context ' + name);
@@ -107,7 +107,7 @@ try {
   // its two completed 15-second negative waits when only these cases change.
   await page.setViewportSize({ width: 1440, height: 1080 }); await fresh();
   await page.evaluate(() => localStorage.clear()); await page.reload();
-  await page.getByRole('button', { name: 'Define', exact: true }).click();
+  await page.getByRole('button', { name: 'Discover', exact: true }).click();
   const focusedIdea = page.getByRole('textbox', { name: 'The idea', exact: true }); await focusedIdea.waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
   const projects = page.getByRole('button', { name: 'Projects', exact: true });

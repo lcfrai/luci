@@ -82,7 +82,7 @@ export function WorkspaceInstaller({
       <p className="journey-muted">
         {existing
           ? "Your account and permissions belong to this workspace. Sign in, then switch your project view to the verified server. You do not need to reinstall an existing workspace."
-          : "Install Luci’s workspace service on a verified server. Define, Design, Develop and Deploy then use that machine through your private SSH connection. After switching, install the agent runtime in This workspace → Git identity, agent connection and runtime."}
+          : "Install Luci’s workspace service on a verified server. Discover, Design, Develop and Deploy then use that machine through your private SSH connection. After switching, install the agent runtime in This workspace → Git identity, agent connection and runtime."}
       </p>
       {error && (
         <p className="journey-error" role="alert">

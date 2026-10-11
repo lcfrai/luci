@@ -1,0 +1,149 @@
+{
+  "productSource": "972d6864a30b742b12545c8e12f4ca3ae2faa884",
+  "overallPassed": false,
+  "launcherExitCode": 1,
+  "wrapperFailure": null,
+  "scenarioCompleted": true,
+  "warmRestartPassed": true,
+  "scenario": {
+    "passed": false,
+    "warmRestartPassed": true,
+    "oldReadOrdering": {
+      "exercised": false,
+      "reason": "slow-or-late-restart-within-longer-create-budget",
+      "releaseRequestedMonotonicMs": 71985.482563,
+      "releasedMonotonicMs": 71995.726071,
+      "acknowledgedMonotonicMs": 93132.538242,
+      "attachedMonotonicMs": 93223.539744,
+      "originalDeadlineMonotonicMs": 73983.696081,
+      "clientReadBudgetMs": 10000,
+      "originalGateBudgetMs": 8000,
+      "transportReserveMs": 2000
+    },
+    "requiredAcceptanceIncomplete": [
+      "installed-old-response-after-restart-acknowledgement"
+    ],
+    "sessionId": "s-7b97d791",
+    "initialExecutionGeneration": "0e4a0edf1e3e850e11eb2beb4808b3277ea1336ab2f2e4378d5c7716f3cdbc8f",
+    "restartedExecutionGeneration": "48e7b2eef6173acaaee6215cfe1bfc6f9e51f0514a82424f23f4f6a5a62229f6",
+    "observationLimits": {
+      "retryDelaysMs": [
+        250,
+        500,
+        1000,
+        2000
+      ],
+      "retryBudgetMs": 60000,
+      "generations": 2,
+      "attemptsPerGeneration": 34,
+      "lastEarliestAttemptMs": 61750,
+      "maxSockets": 68,
+      "maxBrowserMutations": 70,
+      "maxErrorsPerSocketPerChannel": 8,
+      "maxErrorTextBytes": 2048,
+      "maxPrivateErrorRows": 1088,
+      "maxPrivateErrorRowBytes": 13312,
+      "maxPrivateErrorBytes": 14483456
+    },
+    "attempts": {
+      "initial": 1,
+      "replacement": 1,
+      "total": 2
+    },
+    "successfulGenerationStreams": 2
+  },
+  "terminalStreams": [
+    {
+      "ordinal": 1,
+      "exit": [
+        {
+          "reason": {
+            "kind": "exit-status",
+            "code": 0
+          },
+          "payload": {
+            "bytes": 13,
+            "sha256": "7146fc872b9a9dba5098f80e211bc7a8af3d9b2fbf8a3e5d9447db130fcaa3b2",
+            "knownStaticRepresentation": "exit status 0",
+            "unclassifiedTextRetained": false
+          },
+          "wall": "2026-10-11T10:15:50.371Z",
+          "monotonicMs": 2917.5,
+          "sequence": 72
+        }
+      ],
+      "closed": {
+        "code": 1000,
+        "wasClean": true,
+        "wall": "2026-10-11T10:15:50.372Z",
+        "monotonicMs": 2918.900000035763
+      }
+    },
+    {
+      "ordinal": 2,
+      "exit": [
+        {
+          "reason": {
+            "kind": "exit-status",
+            "code": 7
+          },
+          "payload": {
+            "bytes": 13,
+            "sha256": "67d434b25b528742e51d17cdc13134306be9a0fb36da21a9f759f85a7c9e8d7b",
+            "knownStaticRepresentation": "exit status 7",
+            "unclassifiedTextRetained": false
+          },
+          "wall": "2026-10-11T10:16:50.111Z",
+          "monotonicMs": 62658.30000001192,
+          "sequence": 148
+        }
+      ],
+      "closed": {
+        "code": 1000,
+        "wasClean": true,
+        "wall": "2026-10-11T10:16:50.113Z",
+        "monotonicMs": 62659.80000001192
+      }
+    }
+  ],
+  "browserRestartCount": 1,
+  "pendingMutations": [],
+  "cleanupErrors": [],
+  "cleanupPhaseOutcomes": [
+    {
+      "name": "browser",
+      "status": "completed"
+    },
+    {
+      "name": "supported-session-stop",
+      "status": "completed"
+    },
+    {
+      "name": "controller",
+      "status": "completed"
+    },
+    {
+      "name": "private-controller-log",
+      "status": "completed"
+    },
+    {
+      "name": "exact-container-leftovers",
+      "status": "completed"
+    },
+    {
+      "name": "final-source-and-inventory",
+      "status": "completed"
+    }
+  ],
+  "oldResponseBeforeAcknowledgementMs": 21136.812170999998,
+  "originalResult": {
+    "bytes": 308518,
+    "sha256": "0d01c6ba4b5b2ed21adcfb91088f84785c980ad9cb6932953466ec923ba5e4e5"
+  },
+  "originalWrapper": {
+    "bytes": 5057,
+    "sha256": "7930cdd7433aec1feab10bf761d54f5341af17a11745926708928e3de5c1dbcf"
+  },
+  "independentClosureSHA256": "c33b6bc241bb802234b35633dada6ab8749ece78a5578b9c64462be1ddf69beb",
+  "scope": "Terminal lifecycle succeeded; required installed old-response-after-ACK ordering remains unexercised. Overall acceptance remains false. No performance, Windows or live-model claim."
+}

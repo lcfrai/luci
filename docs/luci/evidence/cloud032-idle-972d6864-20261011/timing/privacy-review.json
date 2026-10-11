@@ -1,0 +1,15 @@
+{
+  "selection": "Strict key allowlists for interaction, stage, browser frame/ref, route-category and EventTiming data. Unknown keys or string enums fail closed.",
+  "omitted": [
+    "Project IDs",
+    "Private raw-input and execution-directory paths",
+    "Fixture text",
+    "Request URLs, selectors, headers and bodies",
+    "Credentials and environment values",
+    "Unneeded free-text source receipt fields"
+  ],
+  "verification": "Known original project identifiers and private input/execution paths were checked absent from all published payloads, including decompressed projection. Metric source excerpts contain code and route patterns, not original fixture values.",
+  "rawInputUnchanged": true,
+  "originalResultSHA256": "5f25447b1f6dc7eca50e220f358a4a029bd311e7d368e15ec85d693198569a00",
+  "claimLimit": "Scoped artifact review, not a general secret scan or repository security audit."
+}

@@ -108,7 +108,7 @@ export function ProjectsHome() {
           </p>
           <ol>
             <li>
-              <strong>Define</strong>
+              <strong>Discover</strong>
               <span>Decide what the solution should do.</span>
             </li>
             <li>

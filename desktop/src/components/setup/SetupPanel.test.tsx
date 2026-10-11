@@ -401,7 +401,7 @@ it("saves local configuration, shows the server result and refreshes the project
   expect(screen.getByText("Docker is not running")).not.toBeNull();
 });
 
-it("preserves an unsuccessful new project and selects a successful project in Define", async () => {
+it("preserves an unsuccessful new project and selects a successful project in Discover", async () => {
   const fetcher = vi
     .fn<typeof fetch>()
     .mockResolvedValueOnce(
