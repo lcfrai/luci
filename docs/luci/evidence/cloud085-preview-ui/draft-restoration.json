@@ -1,0 +1,7 @@
+{
+  "truncatedBytes": 29017,
+  "truncatedSha256": "c5c3172c8e2c1f9256c3f9a271d1278f63a76806f9dfb5212e65fa763909dd04",
+  "restoredTailSource": "5770e011ea86dbe54f939f77cd05888fe3a43a66",
+  "tailSha256": "f90a7d2e31f3a44736bc5bcf4e8d5641a8fc47b64c39cc6ff85056cce885fca7",
+  "scope": "Unchanged SessionPicker closing tail restored after ENOSPC, no committed source damage"
+}

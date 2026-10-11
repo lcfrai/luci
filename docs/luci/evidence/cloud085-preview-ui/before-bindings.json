@@ -1,0 +1,14 @@
+{
+  "desktop/src/api/coordinatorContinuations.ts": {
+    "sha256": "3f2d46d9bcd214673becad35bbb7a8dcaf25cf621f88f532a57bc5ed43850f70",
+    "copy": "before-coordinatorContinuations.ts.txt"
+  },
+  "desktop/src/components/orchestrator/CoordinatorExecution.tsx": {
+    "sha256": "c16f23f9c6d57526d36ff8ff76c996aa55a103e3a8dc3db9bcf161b38b01bc17",
+    "copy": "before-CoordinatorExecution.tsx.txt"
+  },
+  "desktop/src/components/orchestrator/CoordinatorPreviewSetup.tsx": {
+    "sha256": "b6a24a9e5a83a91544d27c6cffe7f1943e836429805d79d8878ec8a05194fe41",
+    "copy": "before-CoordinatorPreviewSetup.tsx.txt"
+  }
+}

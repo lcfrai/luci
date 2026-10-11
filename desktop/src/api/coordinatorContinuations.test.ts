@@ -53,3 +53,15 @@ it.each(['consent', 'coverage', 'duplicate-coverage', 'executable', 'arguments',
   vi.mocked(productApi.request).mockResolvedValueOnce({ continuations: [], savedRoute: value });
   await expect(api.listState('p-1', 'alice')).rejects.toThrow(/saved continuation route/);
 });
+
+const previewRow = (): CoordinatorContinuation => continuation({ status: 'preview-ready', delivery: { actionId: 'continue-one-checks', checkId: 'check-one', status: 'verified', commit: 'a'.repeat(40), sourceDigest: 'b'.repeat(64), integrationDigest: 'c'.repeat(64), message: 'Independent checks verified', startedAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:01Z', preview: { actionId: 'continue-one-preview', releaseId: 'rel-one', status: 'ready', message: 'Owned local HTTP responded', startedAt: '2026-10-12T00:00:01Z', updatedAt: '2026-10-12T00:00:02Z', evidence: { releaseId: 'rel-one', projectId: 'p-1', checkId: 'check-one', target: 'local', outcome: 'preview', commit: 'a'.repeat(40), sourceDigest: 'b'.repeat(64), approvals: { specificationApprovalId: 'spec-a', specificationRevision: 2, specificationDigest: 'd'.repeat(64), designApprovalId: 'design-a', designRevision: 1, designDigest: 'e'.repeat(64), briefDigest: 'f'.repeat(64), sketchDigest: '0'.repeat(64) }, observedAt: '2026-10-12T00:00:02Z', url: 'http://127.0.0.1:3000', limitations: 'Local preview only', joinedAt: '' } } } });
+it('accepts an exact local preview witness without claiming public deployment', async () => {
+  const value = previewRow(); vi.mocked(productApi.request).mockResolvedValue(value); expect(await api.get('p-1', 'alice', value.id)).toEqual(value);
+});
+it.each(['wrong target', 'missing target', 'unverified check'])('refuses preview evidence with %s', async fault => {
+  const value = previewRow();
+  if (fault === 'wrong target') value.delivery!.preview!.evidence!.target = 'aws';
+  if (fault === 'missing target') delete (value.delivery!.preview!.evidence as { target?: string }).target;
+  if (fault === 'unverified check') { value.status = 'checking'; value.delivery!.status = 'running'; }
+  vi.mocked(productApi.request).mockResolvedValue(value); await expect(api.get('p-1', 'alice', value.id)).rejects.toThrow(/could not be verified/);
+});

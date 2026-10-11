@@ -1,0 +1,107 @@
+[
+  {
+    "path": "desktop/src/api/coordinatorContinuations.ts",
+    "bytes": 11959,
+    "sha256": "3d82e8d8d5d5922a64ec9fcd002adf5e843a2f9b72c173de9b2a4bc184c83808"
+  },
+  {
+    "path": "desktop/src/api/coordinatorContinuations.test.ts",
+    "bytes": 8768,
+    "sha256": "27ce246429531651fa91080fb51a4c68c36b65946d2deb927e145e0fbde2f731"
+  },
+  {
+    "path": "desktop/src/api/coordinatorPolicy.ts",
+    "bytes": 2697,
+    "sha256": "9c69f89f9ff6cb38996fcd0a92fce12826be555b46ec001010b3399289996481"
+  },
+  {
+    "path": "desktop/src/api/coordinatorPolicy.test.ts",
+    "bytes": 4185,
+    "sha256": "ec591149893cedce382b08cd61388cb05265c88fe4b2a24bb0e0a51a374db7dc"
+  },
+  {
+    "path": "desktop/src/api/coordinatorIntents.ts",
+    "bytes": 10015,
+    "sha256": "4657bef93e8b7aaa5015b4aed69975a5a64de039597c6a40df987ebf2541a0db"
+  },
+  {
+    "path": "desktop/src/api/coordinatorIntents.test.ts",
+    "bytes": 8202,
+    "sha256": "b025f25508d9b0d6e9f8d362ed79fc93e680e6c50e35f28eec576450297cd72d"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorPreviewSetup.tsx",
+    "bytes": 7637,
+    "sha256": "eeebfbbce460e2221ad30a5f0023b2f8365c3cce612d1cd018d6196b63e04649"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorPreviewSetup.test.tsx",
+    "bytes": 5223,
+    "sha256": "5da93fbf2527db9b58595abee8daee6e16ee14010b680c5d27738cbc5980c47c"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorExecution.tsx",
+    "bytes": 30720,
+    "sha256": "aa9b6b72db8788e37de64eb34c9e227e1de72348df85b3665e24614cbbbb973d"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorExecution.test.tsx",
+    "bytes": 35700,
+    "sha256": "d166db28661c99ce28b6c4eb2cc2447e0c817362f11adeca6d48b5526f1f97c1"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorPolicy.tsx",
+    "bytes": 15003,
+    "sha256": "18eb09d3725b7b4c847da2586d66d9e045003222f26a0b896af21189f40e73ab"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorPolicy.test.tsx",
+    "bytes": 17673,
+    "sha256": "3b2bd8299cd83365030ce2c4b5c7085f525b01b15cbe159ee7b46b64278cd741"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 61086,
+    "sha256": "26488fa12f03fa1bf118c9f3066d30cc619d9acf5dba1567c884e738de7eb602"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "bytes": 122763,
+    "sha256": "8b3737d3f2d7902ec167007a137a369bb012e1695861ee63c114a272a63b643b"
+  },
+  {
+    "path": "desktop/src/components/common/ProjectDraftRecovery.test.tsx",
+    "bytes": 35791,
+    "sha256": "5f6f4f47271f5f1aa0d7a6ccb17685d8205edb4a106b36b5ef8b1fb28f7a90dd"
+  },
+  {
+    "path": "desktop/src/hooks/useProjectDraft.ts",
+    "bytes": 7233,
+    "sha256": "0c857ace2ab2f6164c0cf8c069abb5a2438f5b8681782ed4641de5599bae9676"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorCheckSetup.tsx",
+    "bytes": 7245,
+    "sha256": "13cedde1a61026429e375feeabc3237bbe2dac09d7e9e9d1af3e94a4e5d39d28"
+  },
+  {
+    "path": "desktop/src/api/product.ts",
+    "bytes": 31311,
+    "sha256": "cac3459e7292c10274928e161c3c490554cdf54398253e23d35c2ba265736075"
+  },
+  {
+    "path": "desktop/src/api/projectRuns.ts",
+    "bytes": 11372,
+    "sha256": "aef63e2c8f8b3533d82a508ffcd6c173b27a93c1f9f865932a72e0cef5f640c0"
+  },
+  {
+    "path": "desktop/package.json",
+    "bytes": 1967,
+    "sha256": "3423464851fd487363f89beca7a27df2654a94f6b70a74935841a851c9c66bd3"
+  },
+  {
+    "path": "desktop/package-lock.json",
+    "bytes": 247150,
+    "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+  }
+]

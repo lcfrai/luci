@@ -1,0 +1,7 @@
+{
+  "scope": "First preview test attempt never launched: mkdir and log creation failed ENOSPC. Source drafts preserved. Root restored space before these commands.",
+  "workspaceAvailableBytes": 882466816,
+  "cgroupCurrentBytes": 25508769792,
+  "cgroupLimitBytes": 34359738368,
+  "cgroupPath": "/"
+}

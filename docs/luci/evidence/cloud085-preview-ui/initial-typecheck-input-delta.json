@@ -1,0 +1,7 @@
+[
+  {
+    "path": "desktop/src/api/coordinatorContinuations.test.ts",
+    "before": "225d140cb43c8bdca561f42c2f9ce208b6d6bffdbaa28bec091fdc70f5733f18",
+    "after": "27ce246429531651fa91080fb51a4c68c36b65946d2deb927e145e0fbde2f731"
+  }
+]

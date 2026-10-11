@@ -1,0 +1,54 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ApiError } from '../../api/client';
+import { productApi, errorText, type ProjectConfiguration } from '../../api/product';
+import { coordinatorPreviewPlanValid, type CoordinatorPreviewPlan } from '../../api/coordinatorContinuations';
+import { useProjectDraft } from '../../hooks/useProjectDraft';
+import { useUnsavedProjectDraft } from '../../hooks/useUnsavedProjectDraft';
+import { DraftRecovery } from '../common/DraftRecovery';
+import { Button } from '../fluid/components/button';
+export interface CoordinatorPreviewSelection { plan: CoordinatorPreviewPlan | null; dirty: boolean; problem: string; draftDigest: string }
+interface Draft { dockerfile: string; port: number }
+const valid = (value: unknown): value is Draft => !!value && typeof value === 'object' && Object.keys(value).sort().join(',') === 'dockerfile,port' && typeof (value as Draft).dockerfile === 'string' && (value as Draft).dockerfile.length <= 4096 && Number.isFinite((value as Draft).port);
+export async function readCoordinatorConfiguration(projectId: string, signal?: AbortSignal) {
+  const value = await productApi.request<ProjectConfiguration>(`/v1/product/projects/${encodeURIComponent(projectId)}/configuration`, undefined, 'GET', 15_000, signal);
+  if (!value || !Number.isSafeInteger(value.revision) || value.revision < 0 || !Array.isArray(value.variables) || value.variables.length > 100 || value.variables.some(row => typeof row?.name !== 'string')) throw new Error('Current runtime configuration could not be verified. Read it again before delegating a preview.');
+  return value.revision;
+}
+export function CoordinatorPreviewSetup({ projectId, scope, disabled, enabled, recordedDraft, onChange }: {
+  projectId: string; scope: string; disabled: boolean; enabled: boolean; recordedDraft?: string;
+  onChange(value: CoordinatorPreviewSelection): void;
+}) {
+  const [opened, setOpened] = useState(false), [changed, setChanged] = useState(false), [dockerfile, setDockerfile] = useState('Dockerfile'), [port, setPort] = useState(3000);
+  const [trusted, setTrusted] = useState(false), [revision, setRevision] = useState<number | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const value = useMemo(() => ({ dockerfile, port }), [dockerfile, port]), original = useMemo(() => ({ dockerfile: 'Dockerfile', port: 3000 }), []), digest = JSON.stringify(value);
+  const draft = useProjectDraft({ scope: JSON.stringify([scope, 'coordinator-preview']), kind: 'preview-setup', base: projectId, baseValue: original, value, dirty: changed, valid });
+  const alive = useRef(true), generation = useRef(0), controller = useRef<AbortController | null>(null), latest = useRef({ disabled, enabled }); latest.current = { disabled, enabled };
+  function clear() { draft.clear(); setChanged(false); setDockerfile('Dockerfile'); setPort(3000); setTrusted(false); }
+  useUnsavedProjectDraft(projectId, changed || !!draft.pending, 'Continued-work preview', 'develop', { retained: draft.retained || !!draft.pending, discard: clear }, 'coordinator-setup');
+  useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; controller.current?.abort(); }; }, []);
+  useEffect(() => { generation.current++; controller.current?.abort(); setBusy(false); setTrusted(false); setRevision(null); }, [projectId, disabled, enabled]);
+  useEffect(() => { if (recordedDraft && recordedDraft === digest) clear(); }, [recordedDraft]);
+  async function refresh() {
+    if (latest.current.disabled || !latest.current.enabled) return;
+    controller.current?.abort(); const next = new AbortController(); controller.current = next; const ticket = ++generation.current; setTrusted(false); setRevision(null); setBusy(true);
+    try { const observed = await readCoordinatorConfiguration(projectId, next.signal); if (alive.current && ticket === generation.current && !next.signal.aborted && !latest.current.disabled) { setRevision(observed); setError(''); } }
+    catch (cause) { if (alive.current && ticket === generation.current && !next.signal.aborted) setError(cause instanceof ApiError && [401, 403].includes(cause.status) ? 'Current access to preview configuration was refused.' : errorText(cause)); }
+    finally { if (alive.current && ticket === generation.current) setBusy(false); }
+  }
+  const candidate = { dockerfile, port, expectedConfigurationRevision: revision ?? -1, acknowledgePreviewBuild: true as const };
+  const problem = draft.pending ? 'Restore or discard the retained preview setup first.' : draft.error || error || (changed && (!enabled ? 'Enable checked-source previews before delegating this configuration.' : !coordinatorPreviewPlanValid(candidate) ? 'Read current configuration and choose a relative Dockerfile and app port from 1 to 65535.' : !trusted ? 'Confirm the exact preview build configuration.' : ''));
+  const plan = !disabled && enabled && !busy && !problem && trusted && coordinatorPreviewPlanValid(candidate) ? candidate : null;
+  const projection = JSON.stringify({ plan, dirty: changed || !!draft.pending, problem, draftDigest: digest });
+  useEffect(() => { onChange(JSON.parse(projection) as CoordinatorPreviewSelection); }, [projection, onChange]);
+  return <details onToggle={event => { if (event.currentTarget.open) setOpened(true); }}><summary>Preview after independent checks{draft.pending ? ' · saved draft' : ''}</summary>{opened && <>
+    <p>Reuse an exact local preview build after independent checks. This can allocate a container and use the network. It does not publish the application or authorize public deployment.</p>
+    {!enabled && <p>Enable checked-source preview permission first. Current Deploy access remains required.</p>}
+    <DraftRecovery draft={draft} label="Continued-work preview" localSetup base={projectId} saved={original} busy={busy || disabled} readOnly={disabled} onDiscard={clear} onRestore={restored => { setDockerfile(restored.dockerfile); setPort(restored.port); setChanged(true); setTrusted(false); setRevision(null); }} />
+    {error && <p role="alert">{error}</p>}
+    <div className="setup-field-grid"><label className="luci-field">Preview Dockerfile<input value={dockerfile} disabled={disabled || !!draft.pending} onChange={event => { setChanged(true); setTrusted(false); setDockerfile(event.target.value); }} /></label><label className="luci-field">Preview app port<input type="number" min={1} max={65535} value={port} disabled={disabled || !!draft.pending} onChange={event => { setChanged(true); setTrusted(false); setPort(Number(event.target.value)); }} /><small>The port the app listens on inside its container.</small></label></div>
+    <Button variant="secondary" disabled={disabled || !enabled || busy || !!draft.pending} onClick={() => void refresh()}>Read preview configuration</Button>
+    {revision !== null && <p>Current runtime configuration revision {revision}. Values remain private; changing configuration invalidates this preview delegation.</p>}
+    <label className="setup-check"><input type="checkbox" checked={trusted} disabled={disabled || !enabled || busy || !!draft.pending || !coordinatorPreviewPlanValid(candidate)} onChange={event => { setChanged(true); setTrusted(event.target.checked); }} />I delegate this exact Dockerfile, app port and runtime configuration for checked-source previews.</label>
+    {problem && <p role="status">{problem}</p>}{changed && <Button variant="tertiary" disabled={disabled || busy} onClick={clear}>Discard continued-work preview setup</Button>}
+  </>}</details>;
+}

@@ -1,16 +1,16 @@
 import { productApi, type CheckCommand } from './product';
 import { MAX_SWARM_PARALLEL_TASKS } from './swarmLimits';
-import type { CreateProjectRun } from './projectRuns';
+import type { CreateProjectRun, ProjectRun } from './projectRuns';
 import type { OrchestratorView } from './orchestrator';
 
 export type CoordinatorActionKind = 'create-run' | 'prepare-tasks' | 'queue-tasks';
 export interface CoordinatorContinuation {
   id: string; projectId: string; actor: { id: string; displayName: string }; idempotencyKey: string;
   originTurnId: string; contextDigest: string; policyRevision: number; revision: number;
-  status: 'ready' | 'continuing' | 'queued' | 'checking' | 'checks-verified' | 'unknown' | 'refused' | 'blocked'; message: string;
+  status: 'ready' | 'continuing' | 'queued' | 'checking' | 'checks-verified' | 'unknown' | 'refused' | 'blocked' | 'previewing' | 'preview-ready' | 'preview-blocked'; message: string;
   runId?: string; queueIds: string[];
   actions: { id: string; kind: CoordinatorActionKind; status: 'pending' | 'confirmed' | 'unknown' | 'refused'; referenceId?: string; message?: string; startedAt: string; finishedAt?: string }[];
-  delivery?: { actionId: string; checkId: string; status: 'pending' | 'running' | 'verified' | 'unknown' | 'blocked'; commit: string; sourceDigest: string; integrationDigest: string; message: string; startedAt: string; updatedAt: string };
+  delivery?: { actionId: string; checkId: string; status: 'pending' | 'running' | 'verified' | 'unknown' | 'blocked'; commit: string; sourceDigest: string; integrationDigest: string; message: string; startedAt: string; updatedAt: string; preview?: { actionId: string; releaseId: string; status: 'pending' | 'running' | 'ready' | 'unknown' | 'blocked'; message: string; startedAt: string; updatedAt: string; evidence?: ProjectRun['releases'][number] & { projectId: string } } };
   createdAt: string; updatedAt: string; nextAction?: OrchestratorView['nextAction'];
 }
 export interface CoordinatorCheckPlan {
@@ -19,16 +19,17 @@ export interface CoordinatorCheckPlan {
   requirementSnapshots: { id: string; title: string; acceptance: string }[];
   acknowledgeProjectCommands: true;
 }
+export interface CoordinatorPreviewPlan { dockerfile: string; port: number; expectedConfigurationRevision: number; acknowledgePreviewBuild: true }
 export interface CoordinatorSavedRoute {
   revision: number;
   route: Omit<CreateProjectRun, 'idempotencyKey' | 'implementationContext'>;
-  maxParallel: number; updatedAt: string; checkPlan?: CoordinatorCheckPlan;
+  maxParallel: number; updatedAt: string; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan;
 }
 export interface CoordinatorContinuationState { continuations: CoordinatorContinuation[]; savedRoute: CoordinatorSavedRoute | null }
 export interface CoordinatorContinuationRequest {
   idempotencyKey: string; originTurnId: string; expectedContextDigest: string; expectedPolicyRevision: number;
   run: Omit<CreateProjectRun, 'idempotencyKey'>; maxParallel: number;
-  rememberRoute?: boolean; expectedRouteRevision?: number; checkPlan?: CoordinatorCheckPlan;
+  rememberRoute?: boolean; expectedRouteRevision?: number; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan;
 }
 const base = (project: string) => `/v1/product/projects/${encodeURIComponent(project)}/orchestrator/continuations`;
 const kinds: CoordinatorActionKind[] = ['create-run', 'prepare-tasks', 'queue-tasks'];
@@ -37,17 +38,30 @@ function verified(value: CoordinatorContinuation, project: string, actor: string
   if (!value || value.projectId !== project || value.actor?.id !== actor || !text(value.id) || (id && value.id !== id) ||
       !text(value.idempotencyKey) || !text(value.originTurnId) || !text(value.contextDigest) ||
       !Number.isSafeInteger(value.revision) || value.revision < 1 || !Number.isSafeInteger(value.policyRevision) || value.policyRevision < 1 ||
-      !['ready', 'continuing', 'queued', 'checking', 'checks-verified', 'unknown', 'refused', 'blocked'].includes(value.status) || typeof value.message !== 'string' ||
+      !['ready', 'continuing', 'queued', 'checking', 'checks-verified', 'unknown', 'refused', 'blocked', 'previewing', 'preview-ready', 'preview-blocked'].includes(value.status) || typeof value.message !== 'string' ||
       !Array.isArray(value.queueIds) || value.queueIds.some(item => !text(item)) || new Set(value.queueIds).size !== value.queueIds.length ||
       !Array.isArray(value.actions) || value.actions.length > kinds.length || value.actions.some((action, index) =>
         action.kind !== kinds[index] || action.id !== `${value.id}-${action.kind}` || !['pending', 'confirmed', 'unknown', 'refused'].includes(action.status) || !text(action.startedAt)) ||
-      value.status === 'checks-verified' && value.delivery?.status !== 'verified' ||
+      ['checks-verified', 'previewing', 'preview-ready', 'preview-blocked'].includes(value.status) && value.delivery?.status !== 'verified' ||
+      value.status === 'preview-ready' && value.delivery?.preview?.status !== 'ready' ||
+      value.delivery?.preview && !previewVerified(value.delivery.preview, value, project) ||
       value.delivery && (value.delivery.actionId !== `${value.id}-checks` || !text(value.delivery.checkId) || !['pending', 'running', 'verified', 'unknown', 'blocked'].includes(value.delivery.status) || !/^[0-9a-f]{40,64}$/.test(value.delivery.commit) || !/^[0-9a-f]{64}$/.test(value.delivery.sourceDigest) || !/^[0-9a-f]{64}$/.test(value.delivery.integrationDigest) || typeof value.delivery.message !== 'string') ||
       !Number.isFinite(Date.parse(value.createdAt)) || !Number.isFinite(Date.parse(value.updatedAt)) ||
       value.nextAction && (!['discover', 'design', 'develop', 'deploy'].includes(value.nextAction.lens) || !text(value.nextAction.label) || typeof value.nextAction.reason !== 'string')) {
     throw new Error('The continuation response could not be verified for this person and project. Refresh its exact outcome before continuing.');
   }
   return value;
+}
+function previewVerified(preview: NonNullable<NonNullable<CoordinatorContinuation['delivery']>['preview']>, row: CoordinatorContinuation, project: string) {
+  if (preview.actionId !== `${row.id}-preview` || !/^rel-[a-zA-Z0-9_-]+$/.test(preview.releaseId) || !['pending', 'running', 'ready', 'unknown', 'blocked'].includes(preview.status) || typeof preview.message !== 'string' || !Number.isFinite(Date.parse(preview.startedAt)) || !Number.isFinite(Date.parse(preview.updatedAt))) return false;
+  const evidence = preview.evidence, delivery = row.delivery;
+  if (!delivery || delivery.status !== 'verified') return false;
+  if (preview.status === 'ready' && !evidence) return false;
+  return !evidence || (evidence.projectId === project && evidence.releaseId === preview.releaseId && evidence.checkId === delivery.checkId && evidence.commit === delivery.commit && evidence.sourceDigest === delivery.sourceDigest && evidence.target === 'local' && evidence.outcome === 'preview' && Number.isFinite(Date.parse(evidence.observedAt)));
+}
+export function coordinatorPreviewPlanValid(value: unknown): value is CoordinatorPreviewPlan {
+  const plan = value as CoordinatorPreviewPlan;
+  return !!plan && plan.acknowledgePreviewBuild === true && typeof plan.dockerfile === 'string' && !!plan.dockerfile.trim() && new TextEncoder().encode(plan.dockerfile).length <= 1024 && !/[\\:\0]/.test(plan.dockerfile) && !plan.dockerfile.startsWith('/') && !plan.dockerfile.split('/').some(part => part === '..' || part === '.') && Number.isSafeInteger(plan.port) && plan.port > 0 && plan.port <= 65535 && Number.isSafeInteger(plan.expectedConfigurationRevision) && plan.expectedConfigurationRevision >= 0;
 }
 const bytes = (value: string) => new TextEncoder().encode(value).length;
 /** Same command bounds as the production check API; this does not confer execution authority. */
@@ -72,7 +86,7 @@ function savedRoute(value: CoordinatorSavedRoute | null | undefined) {
       !Number.isFinite(Date.parse(value.updatedAt)) || !route || Object.keys(route).some(key => !['worktreeId', 'harness', 'model', 'permissionMode', 'effort', 'agentConnectionId', 'outcome'].includes(key)) || !text(route.worktreeId) || !text(route.harness) || typeof route.model !== 'string' ||
       !['ask', 'bypass', 'plan'].includes(route.permissionMode) || !['preview', 'publish'].includes(route.outcome) ||
       route.effort !== undefined && typeof route.effort !== 'string' || route.agentConnectionId !== undefined && typeof route.agentConnectionId !== 'string' ||
-      value.checkPlan !== undefined && !checkPlanValid(value.checkPlan)) throw new Error('The saved continuation route or check delegation could not be verified. Reconfigure it before continuing.');
+      value.checkPlan !== undefined && !checkPlanValid(value.checkPlan) || value.previewPlan !== undefined && (!value.checkPlan || !coordinatorPreviewPlanValid(value.previewPlan))) throw new Error('The saved continuation route or check delegation could not be verified. Reconfigure it before continuing.');
   return value;
 }
 async function listState(project: string, actor: string, signal?: AbortSignal): Promise<CoordinatorContinuationState> {

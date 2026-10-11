@@ -38,3 +38,12 @@ it("binds automatic draft advance to exact turn, context and policy without acce
   request.mockResolvedValue(view({ projectId: "other" }));
   await expect(orchestratorApi.advance("p-1", "turn/one", input)).rejects.toThrow("could not be verified");
 });
+
+it('preserves omitted preview policy and binds explicit checked-source changes without upgrading deployment', async () => {
+  const saved = { ...policy(), revision: 2, previewMode: 'checked-source' as const };
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue(saved);
+  const input = { expectedRevision: 1, mode: 'review' as const, allowedTargets: ['specification' as const], previewMode: 'checked-source' as const };
+  expect(await coordinatorPolicyApi.save('p-1', input)).toEqual(saved); expect(request).toHaveBeenLastCalledWith('/v1/product/projects/p-1/orchestrator/policy', input);
+  request.mockResolvedValue({ ...saved, previewMode: 'manual' }); await expect(coordinatorPolicyApi.save('p-1', input)).rejects.toThrow(/did not match/);
+  request.mockResolvedValue({ ...saved, previewMode: 'public-auto' }); await expect(coordinatorPolicyApi.get('p-1')).rejects.toThrow(/could not be verified/);
+});

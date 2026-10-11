@@ -26,7 +26,7 @@ vi.mock("./CoordinatorTeamIntents", () => ({ CoordinatorTeamIntents: ({ onDiscus
 const identity = vi.hoisted(() => ({ actor: "owner", connection: "", root: "/projects/owner", read: true, edit: true, assist: true }));
 vi.mock("../auth/AuthProvider", () => ({ useAuth: () => identity.actor ? { profile: { user: { id: identity.actor } } } : null }));
 vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ openAgents: vi.fn(), workspace: { mode: identity.connection ? "cloud" : "local", connectionId: identity.connection, host: identity.connection }, status: { access: { user: { username: identity.actor } }, config: { projectsDir: identity.root } } }) }));
-vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({ canRead: identity.read, canEdit: identity.edit, canExecute: identity.assist, canAssist: identity.assist, message: identity.edit ? "" : "Read-only access." }) }));
+vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({ canRead: identity.read, canEdit: identity.edit, canExecute: identity.assist, permissions: { deploy: identity.assist }, canAssist: identity.assist, message: identity.edit ? "" : "Read-only access." }) }));
 
 const catalogue = (activeConnectionId = "gateway"): AgentConnectionCatalogue => ({ revision: 1, activeConnectionId, connections: [
   { id: "gateway", name: "Team provider", revision: 1, kind: "compatible-api", enabled: true, configured: true, keyPresent: true, models: { codex: "model-team", opencode: "model-open" }, endpoints: { responses: "https://provider.test/v1/responses", chatCompletions: "https://provider.test/v1/chat/completions" } },

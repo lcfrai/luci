@@ -1,0 +1,5 @@
+{
+  "inputs": 427,
+  "changed": [],
+  "scope": "Repository TS/TSX and package/lock/config source bindings; installed dependency bytes and toolchain are not captured."
+}

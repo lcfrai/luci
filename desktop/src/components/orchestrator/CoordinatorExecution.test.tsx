@@ -7,7 +7,7 @@ import { coordinatorContinuationsApi as api, type CoordinatorContinuation, type 
 import { coordinatorPolicyApi, type CoordinatorPolicy } from '../../api/coordinatorPolicy';
 import { ApiError } from '../../api/client';
 import type { CreateSessionRequest } from '../../api/client';
-import { ProductApiError } from '../../api/product';
+import { productApi, ProductApiError } from '../../api/product';
 import { resetCockpit, useCockpit } from '../../store/store';
 import { aWorktree } from '../../test/fixtures';
 import { context, proposalTurn, view } from './fixtures';
@@ -225,7 +225,7 @@ it('requires current new amendment approvals, then continues with fresh task IDs
   expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ originTurnId: 'turn-2', expectedContextDigest: approved.context.digest, expectedRouteRevision: 5, run: { implementationContext: { taskIds: ['T-2'] } } });
 });
 it('does not silently drop a newer saved delivery delegation when reusing a route', async () => {
-  const saved = { ...savedRoute(), previewPlan: { dockerfile: 'Dockerfile', port: 3000 } };
+  const saved = { ...savedRoute(), futureDelivery: { unsupported: true } };
   vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: saved }); render(<CoordinatorExecution {...withRequirements()} />);
   await screen.findByText(/newer delivery delegation/); expect(api.create).not.toHaveBeenCalled();
 });
@@ -243,4 +243,60 @@ it('keeps automatic continuation paused when discarding a retained command draft
   await screen.findAllByText(/This draft could not be removed/); await act(async () => { await Promise.resolve(); });
   expect(localStorage.getItem(key)).not.toBeNull(); expect(api.create).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true);
+});
+
+it('pauses new automatic continuations with exact policy CAS without cancelling retained work', async () => {
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row()], savedRoute: null }); vi.mocked(coordinatorPolicyApi.save).mockResolvedValue(policy({ revision: 3, executionMode: 'manual' }));
+  render(<CoordinatorExecution {...props()} />); await userEvent.click(await screen.findByRole('button', { name: 'Pause new continuations' }));
+  await waitFor(() => expect(coordinatorPolicyApi.save).toHaveBeenCalledExactlyOnceWith('p-1', { expectedRevision: 2, mode: 'review', allowedTargets: ['specification'], executionMode: 'manual' }));
+  expect(api.advance).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled(); await screen.findByText(/they have not been cancelled/);
+});
+it('requires separate Deploy authority and explicit preview permission consent', async () => {
+  const input = props(), ui = render(<CoordinatorExecution {...input} />); await screen.findByText('Checked-source preview permission');
+  expect(screen.getByRole('button', { name: 'Enable checked-source previews' })).toHaveProperty('disabled', true);
+  ui.rerender(<CoordinatorExecution {...input} canDeploy />); await waitFor(() => expect(screen.getByRole('checkbox', { name: /Allow checked-source local previews/ })).toHaveProperty('disabled', false));
+  vi.mocked(coordinatorPolicyApi.save).mockResolvedValue(policy({ revision: 3, previewMode: 'checked-source' }));
+  await userEvent.click(screen.getByRole('checkbox', { name: /Allow checked-source local previews/ })); await userEvent.click(screen.getByRole('button', { name: 'Enable checked-source previews' }));
+  await waitFor(() => expect(coordinatorPolicyApi.save).toHaveBeenCalledExactlyOnceWith('p-1', { expectedRevision: 2, mode: 'review', allowedTargets: ['specification'], previewMode: 'checked-source' }));
+  expect(api.create).not.toHaveBeenCalled();
+});
+it.each(['matched', 'changed', 'revoked'])('reuses an exact saved preview only with %s current configuration and access', async condition => {
+  const saved = { ...savedRoute(), previewPlan: { dockerfile: 'Dockerfile', port: 3000, expectedConfigurationRevision: 3, acknowledgePreviewBuild: true as const } };
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: saved }); vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source' }));
+  const metadata = vi.spyOn(productApi, 'request').mockResolvedValue({ revision: condition === 'changed' ? 4 : 3, variables: [], updatedAt: '' });
+  render(<CoordinatorExecution {...withRequirements()} canDeploy={condition !== 'revoked'} />); await screen.findByText(/Saved upstream route/);
+  if (condition === 'matched') { await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1)); expect(vi.mocked(api.create).mock.calls[0][2].previewPlan).toEqual(saved.previewPlan); } else expect(api.create).not.toHaveBeenCalled();
+  expect(metadata).toHaveBeenCalledTimes(condition === 'revoked' ? 0 : 1);
+});
+
+it('retains a preview-policy request after Deploy permission churn until authoritative readback', async () => {
+  const held = deferred<CoordinatorPolicy>(); vi.mocked(coordinatorPolicyApi.save).mockReturnValue(held.promise);
+  const input = props(), ui = render(<CoordinatorExecution {...input} canDeploy />);
+  await waitFor(() => expect(screen.getByRole('checkbox', { name: /Allow checked-source local previews/ })).toHaveProperty('disabled', false));
+  await userEvent.click(screen.getByRole('checkbox', { name: /Allow checked-source local previews/ })); await userEvent.click(screen.getByRole('button', { name: 'Enable checked-source previews' }));
+  ui.rerender(<CoordinatorExecution {...input} canDeploy={false} />); ui.rerender(<CoordinatorExecution {...input} canDeploy />);
+  await act(async () => held.resolve(policy({ revision: 3, previewMode: 'checked-source' })));
+  expect(records()).toHaveLength(1); expect(screen.queryByText(/preview permission is saved/)).toBeNull(); expect(coordinatorPolicyApi.save).toHaveBeenCalledTimes(1);
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ revision: 3, previewMode: 'checked-source' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await screen.findByText(/Current authoritative state was read/);
+  expect(records()).toHaveLength(0); expect(coordinatorPolicyApi.save).toHaveBeenCalledTimes(1); expect(api.create).not.toHaveBeenCalled();
+});
+it('records the exact delegated preview with checks and does not retain preview consent after confirmation', async () => {
+  const input = withRequirements(); vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source' }));
+  vi.spyOn(productApi, 'request').mockResolvedValue({ revision: 3, variables: [], updatedAt: '' });
+  render(<CoordinatorExecution {...input} canDeploy />); await waitFor(() => expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', false));
+  await userEvent.click(screen.getByText('Independent checks for continued work')); await screen.findByLabelText('Executable'); await userEvent.type(screen.getByLabelText('Executable'), 'npm'); fireEvent.change(screen.getByLabelText('Arguments · JSON array'), { target: { value: '["test"]' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Add check command' })); await userEvent.click(screen.getByRole('checkbox', { name: /REQ-1/ })); await userEvent.click(screen.getByRole('checkbox', { name: /I delegate these exact/ }));
+  await userEvent.click(screen.getByText(/Preview after independent checks/)); await userEvent.click(await screen.findByRole('button', { name: 'Read preview configuration' })); await screen.findByText(/configuration revision 3/);
+  await userEvent.click(screen.getByRole('checkbox', { name: /I delegate this exact Dockerfile/ })); await configure();
+  await userEvent.click(screen.getByRole('checkbox', { name: /Reuse this upstream route/ })); await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await screen.findByText(/continuation is retained/); expect(api.create).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ rememberRoute: true, checkPlan: savedRoute().checkPlan, previewPlan: { dockerfile: 'Dockerfile', port: 3000, expectedConfigurationRevision: 3, acknowledgePreviewBuild: true } });
+  await waitFor(() => expect(screen.getByRole('checkbox', { name: /I delegate this exact Dockerfile/ })).toHaveProperty('checked', false));
+});
+it('labels a ready preview as local and opens Deploy without claiming exact release inspection or public delivery', async () => {
+  const input = props(); vi.mocked(api.listState).mockResolvedValue({ continuations: [row({ status: 'preview-ready', delivery: { actionId: 'continue-one-checks', checkId: 'check-one', status: 'verified', commit: 'a'.repeat(40), sourceDigest: 'b'.repeat(64), integrationDigest: 'c'.repeat(64), message: 'Checks verified', startedAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:01Z', preview: { actionId: 'continue-one-preview', releaseId: 'rel-one', status: 'ready', message: 'Observed local preview', startedAt: '2026-10-12T00:00:01Z', updatedAt: '2026-10-12T00:00:02Z' } } })], savedRoute: null });
+  render(<CoordinatorExecution {...input} />); await screen.findByRole('region', { name: 'Checked-source preview' });
+  expect(screen.getByText(/This is a local preview, not public deployment or semantic acceptance/)).not.toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Open Deploy' })); expect(input.onNavigate).toHaveBeenCalledExactlyOnceWith('deploy'); expect(api.advance).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
 });

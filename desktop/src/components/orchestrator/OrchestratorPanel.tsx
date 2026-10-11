@@ -698,7 +698,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
             return value => { if (current && alive.current && !working.current && permission.current.canRead && !permission.current.loading && !permission.current.error && latest.current === observed && viewRead.current === read && generation.current === ticket) remember(value); };
           }} />}
         {view && <CoordinatorExecution projectId={projectId} scope={scope} actorId={actorId} view={view} policyEpoch={policyEpoch} onPolicyUpdated={() => setPolicyEpoch(value => value + 1)}
-          canRead={canRead && !access.loading && !access.error} canEdit={canEdit && !access.loading && !access.error} canExecute={access.canExecute && !access.loading && !access.error}
+          canRead={canRead && !access.loading && !access.error} canEdit={canEdit && !access.loading && !access.error} canExecute={access.canExecute && !access.loading && !access.error} canDeploy={access.permissions.deploy && !access.loading && !access.error}
           blocked={draftWarning || (otherCheckSetup ? setupChangeWarning : "") || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
           runOn={setup?.workspace?.mode === "cloud" ? "Connected workspace · Docker compatibility" : "This computer · Docker"}
           onInspect={inspect} onNavigate={setLens} />}

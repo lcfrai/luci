@@ -1,0 +1,1 @@
+{"scope":"Interrupted selected run after repeated parent fixture exceptions; fixture mocked useProjectAccess without its existing production permissions property. Added explicit deploy field to fixture; real useProjectAccess already returns it. Original run exit130 and logs retained."}
