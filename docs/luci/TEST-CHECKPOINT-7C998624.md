@@ -14,7 +14,7 @@ git -C E:\Luci-local-acceptance\checkouts\7c998624 checkout --detach 7c998624d94
 git -C E:\Luci-local-acceptance\checkouts\7c998624 status --short
 ```
 
-A clean Linux portable package is being built from a separate exact checkout. Until a bound completion receipt is published, this handoff establishes retrievable source only. Do not reuse an older package as this revision.
+The clean Linux package build and actual four-project HTTP policy/restart smoke now pass. [Bound package receipt, exact archives and retained helper failures](evidence/checkpoint-7c998624-package/README.md) distinguish these checks from provider/browser/Windows acceptance. The archives remain in the cloud workspace; source is accessible in Git, not a published binary download. Do not reuse an older package as this revision.
 
 ## Setup and commands
 

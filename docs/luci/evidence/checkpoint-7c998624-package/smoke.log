@@ -1,0 +1,1 @@
+{"passed": true, "failureType": null, "checkpoints": ["packaged gateway status", "fresh owner bootstrap", "four project default policy, save, stale CAS and private continuation routes", "four policy records persist through normal service restart"], "cleanupPassed": true}

@@ -1,0 +1,188 @@
+{
+  "sourceCommit": "7c998624d94720e84c8cef0236d0dafbe17a535b",
+  "scope": "Actual packaged Linux HTTP startup/policy/state smoke only; no browser, provider, runtime image build, task dispatch, microVM or performance pass.",
+  "archives": [
+    {
+      "name": "luci-cloud-linux-amd64.tar.gz",
+      "bytes": 35055179,
+      "sha256": "d7194c3993f726713f0d03e406f006143cb7f564e8bc24ffdc459ca88f32dafa",
+      "regularMembers": 973
+    },
+    {
+      "name": "luci-linux-amd64.tar.gz",
+      "bytes": 69929529,
+      "sha256": "20061241e83076af8de8a3430febdd5a885089c65684ec55c62fbc6c0a673048",
+      "regularMembers": 974
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/v1/auth/bootstrap",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-37ce24fe/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects/p-37ce24fe/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects/p-37ce24fe/orchestrator/policy",
+      "status": 409
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-37ce24fe/orchestrator/continuations",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-37ce24fe/orchestrator/coordination",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-2928db4e/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects/p-2928db4e/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects/p-2928db4e/orchestrator/policy",
+      "status": 409
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-2928db4e/orchestrator/continuations",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-2928db4e/orchestrator/coordination",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-8b94b7e8/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects/p-8b94b7e8/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects/p-8b94b7e8/orchestrator/policy",
+      "status": 409
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-8b94b7e8/orchestrator/continuations",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-8b94b7e8/orchestrator/coordination",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-1dce0bc5/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects/p-1dce0bc5/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects/p-1dce0bc5/orchestrator/policy",
+      "status": 409
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-1dce0bc5/orchestrator/continuations",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-1dce0bc5/orchestrator/coordination",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-37ce24fe/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-2928db4e/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-8b94b7e8/orchestrator/policy",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-1dce0bc5/orchestrator/policy",
+      "status": 200
+    }
+  ],
+  "checkpoints": [
+    "packaged gateway status",
+    "fresh owner bootstrap",
+    "four project default policy, save, stale CAS and private continuation routes",
+    "four policy records persist through normal service restart"
+  ],
+  "binarySHA256": "843e755c60b88169ee63bdaf8b0ca1560ffe48e09f4d3fd9cd4a25bcae45e6d8",
+  "webIndexSHA256": "273f42f71224b2db19c1c01189f28477f90c765c1a494c083bbf22d41561df70",
+  "passed": true,
+  "ownedIdentities": [
+    {
+      "pid": 2832700,
+      "start": "48091395",
+      "sameIdentityRemaining": false
+    },
+    {
+      "pid": 2832739,
+      "start": "48091460",
+      "sameIdentityRemaining": false
+    }
+  ],
+  "listenerRemains": false,
+  "cleanupPassed": true
+}

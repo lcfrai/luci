@@ -1,0 +1,7 @@
+{
+  "time": "2026-10-11T15:54:58.059623+00:00",
+  "pid": 2809401,
+  "reason": "Root stops its build after guide staging correctly retained the full source because the isolated local clone lacks verified official remote association. Configure legitimate remote/ref association and retry; no product failure or package pass.",
+  "stage": "go build after frontend success and noncompact guide staging",
+  "signal": "SIGTERM"
+}

@@ -1,0 +1,27 @@
+{
+  "version": "0.5.0",
+  "builtAt": "2026-10-11T16:00:17.057076+00:00",
+  "sourceCommit": "7c998624d94720e84c8cef0236d0dafbe17a535b",
+  "sourceDirty": false,
+  "artifacts": [
+    {
+      "name": "luci-cloud-linux-amd64.tar.gz",
+      "bytes": 35055179,
+      "sha256": "d7194c3993f726713f0d03e406f006143cb7f564e8bc24ffdc459ca88f32dafa"
+    },
+    {
+      "name": "luci-linux-amd64.tar.gz",
+      "bytes": 69929529,
+      "sha256": "20061241e83076af8de8a3430febdd5a885089c65684ec55c62fbc6c0a673048"
+    }
+  ],
+  "portableLicenseComponents": [
+    {
+      "target": "luci-linux-amd64",
+      "count": 347,
+      "missing": 0
+    }
+  ],
+  "nativeLicenseComponents": 0,
+  "nativeRequested": false
+}

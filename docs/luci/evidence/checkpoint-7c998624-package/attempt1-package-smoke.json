@@ -1,0 +1,34 @@
+{
+  "sourceCommit": "7c998624d94720e84c8cef0236d0dafbe17a535b",
+  "scope": "Actual packaged Linux HTTP startup/policy/state smoke only; no browser, provider, runtime image build, task dispatch, microVM or performance pass.",
+  "archives": [
+    {
+      "name": "luci-cloud-linux-amd64.tar.gz",
+      "bytes": 35055179,
+      "sha256": "d7194c3993f726713f0d03e406f006143cb7f564e8bc24ffdc459ca88f32dafa",
+      "regularMembers": 973
+    },
+    {
+      "name": "luci-linux-amd64.tar.gz",
+      "bytes": 69929529,
+      "sha256": "20061241e83076af8de8a3430febdd5a885089c65684ec55c62fbc6c0a673048",
+      "regularMembers": 974
+    }
+  ],
+  "requests": [],
+  "checkpoints": [],
+  "binarySHA256": "843e755c60b88169ee63bdaf8b0ca1560ffe48e09f4d3fd9cd4a25bcae45e6d8",
+  "webIndexSHA256": "273f42f71224b2db19c1c01189f28477f90c765c1a494c083bbf22d41561df70",
+  "passed": false,
+  "failureType": "AssertionError",
+  "failure": "health deadline",
+  "ownedIdentities": [
+    {
+      "pid": 2831956,
+      "start": "48075727",
+      "sameIdentityRemaining": false
+    }
+  ],
+  "listenerRemains": false,
+  "cleanupPassed": true
+}

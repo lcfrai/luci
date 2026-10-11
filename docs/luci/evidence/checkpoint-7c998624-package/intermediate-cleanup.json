@@ -1,0 +1,7 @@
+{
+  "time": "2026-10-11T15:55:48.408756+00:00",
+  "path": "/workspace/.t/go-build1182295626",
+  "ownership": "temporary Go compile directory from the exact root-stopped checkpoint build PID2809401",
+  "liveCommandReferences": [],
+  "scope": "generated compile intermediates only; original build output and interruption receipt preserved"
+}

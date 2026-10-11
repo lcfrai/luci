@@ -1,0 +1,46 @@
+{
+  "sourceCommit": "7c998624d94720e84c8cef0236d0dafbe17a535b",
+  "sourceCleanAfter": true,
+  "packageIdentity": "0811197d088f1669b84f75a41412caa846050cc59ea7ec4a6b57f140a3b5e3e9",
+  "dependencyMode": "Reused existing desktop node_modules via symlink; no fresh npm ci in this checkout. Lockfiles are pinned source; this is not independent fetched dependency-byte verification.",
+  "commands": [
+    "source /workspace/.luci-tools/activate.sh",
+    "GOWORK=/workspace/.t/luci-build-checkpoints/go.work GOMAXPROCS=2 GOFLAGS=-p=1 bash scripts/build-release.sh 0.5.0 linux-amd64",
+    "python3 artifacts/checkpoint-build/verify-smoke.py"
+  ],
+  "scope": "Exact clean Linux package build and actual packaged four-project HTTP policy/restart smoke; no model/browser/VM/performance/Windows pass.",
+  "selectedSourceInputs": {
+    "scripts/build-release.sh": {
+      "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d",
+      "bytes": 6029
+    },
+    "scripts/stage-release-docs.py": {
+      "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+      "bytes": 20959
+    },
+    "scripts/package.py": {
+      "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5",
+      "bytes": 2649
+    },
+    "scripts/collect-licenses.py": {
+      "sha256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be",
+      "bytes": 14817
+    },
+    "desktop/package.json": {
+      "sha256": "3423464851fd487363f89beca7a27df2654a94f6b70a74935841a851c9c66bd3",
+      "bytes": 1967
+    },
+    "desktop/package-lock.json": {
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "bytes": 247150
+    },
+    "control-plane/go.mod": {
+      "sha256": "a5f4faf59655f01c0691b2a05632d474b0e4019111f4e7c3d8c1d89731a44c92",
+      "bytes": 3111
+    },
+    "control-plane/go.sum": {
+      "sha256": "c3bbf4f9f4b235b5864b171019079ed97efc3b71bae1cefd885f69f7322b086d",
+      "bytes": 19295
+    }
+  }
+}

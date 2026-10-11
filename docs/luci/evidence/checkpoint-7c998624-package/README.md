@@ -1,0 +1,14 @@
+# Clean Linux checkpoint package and four-project HTTP smoke
+
+Exact source: `7c998624d94720e84c8cef0236d0dafbe17a535b`, clean isolated checkout before/after. The official release script passes TypeScript/Vite, Linux API build, compact guide staging and347 licence components with zero missing. Selected source/build commands and reused-dependency limitation are in binding.json. This is not full compiled dependency provenance.
+
+Portable archive:69,929,529 bytes, SHA256 `20061241e83076af8de8a3430febdd5a885089c65684ec55c62fbc6c0a673048`. Cloud archive:35,055,179 bytes, SHA256 `d7194c3993f726713f0d03e406f006143cb7f564e8bc24ffdc459ca88f32dafa`. Archives remain in the cloud workspace, not published binary downloads; the exact source is retrievable from Git. Do not imply that a local reviewer downloaded these binaries. The helper independently checks both archive size/hashes and all extracted cloud members against the original archive.
+
+The actual packaged API started with fresh private state. The test created an owner and four empty projects, checked review/manual policy defaults, saved each policy, rejected stale CAS, read empty actor-scoped continuations and shared coordination, then normally stopped/restarted and observed all four policy revisions unchanged. Final report retains every HTTP operation/status and exact observed controller PID/start identities. Both controllers/listeners are absent after SIGTERM; no force was needed. This is controller-only closure, not a whole-machine process/container inventory. No task, provider, runtime installation or VM was requested. Four policies are not four model-driven completed projects.
+
+Two root-owned failed preparation attempts are retained separately:
+
+- The first build correctly kept11629 documentation files because the isolated clone pointed to a local repository rather than verified official remote ancestry. Root intentionally stopped its Go build (exit143), preserved logs, removed only its now-unused generated compiler intermediates, configured the legitimate GitHub origin and fetched the already-published branch. Retry stages63 guides and rewrites444 links. No package-policy weakening or product failure is claimed.
+- First smoke used the worker health endpoint on the management gateway and timed out. Controller cleanup passed. Its exact helper/report remain under attempt1 names. The corrected helper uses the documented `/v1/control-plane/status` readiness route; the full stated smoke passes. This is a helper correction, not evidence of a startup product failure. Original HTTP readiness response bodies were not retained.
+
+Large Vite chunk warnings remain in the build log. No responsiveness improvement follows. CLOUD-032, actual Windows/runtime/provider workflows, conversational delivery, live team coordination and per-task microVM acceptance remain open.
