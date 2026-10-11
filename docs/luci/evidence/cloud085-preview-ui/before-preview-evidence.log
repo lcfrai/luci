@@ -1,0 +1,292 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/api/coordinatorContinuations.test.ts -t preview (evidence|witness) --maxWorkers=1
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ src/api/coordinatorContinuations.test.ts (29 tests | 3 failed | 25 skipped) 43ms
+   × refuses preview evidence with wrong target 17ms
+   × refuses preview evidence with missing target 4ms
+   × refuses preview evidence with unverified check 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/api/coordinatorContinuations.test.ts > refuses preview evidence with wrong target
+AssertionError: promise resolved "{ id: 'continue-one', …(15) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "actions": [
++     {
++       "id": "continue-one-create-run",
++       "kind": "create-run",
++       "referenceId": "run-one",
++       "startedAt": "2026-10-12T00:00:00Z",
++       "status": "confirmed",
++     },
++   ],
++   "actor": {
++     "displayName": "Alice",
++     "id": "alice",
++   },
++   "contextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++   "createdAt": "2026-10-12T00:00:00Z",
++   "delivery": {
++     "actionId": "continue-one-checks",
++     "checkId": "check-one",
++     "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++     "integrationDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
++     "message": "Independent checks verified",
++     "preview": {
++       "actionId": "continue-one-preview",
++       "evidence": {
++         "approvals": {
++           "briefDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
++           "designApprovalId": "design-a",
++           "designDigest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
++           "designRevision": 1,
++           "sketchDigest": "0000000000000000000000000000000000000000000000000000000000000000",
++           "specificationApprovalId": "spec-a",
++           "specificationDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
++           "specificationRevision": 2,
++         },
++         "checkId": "check-one",
++         "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++         "joinedAt": "",
++         "limitations": "Local preview only",
++         "observedAt": "2026-10-12T00:00:02Z",
++         "outcome": "preview",
++         "projectId": "p-1",
++         "releaseId": "rel-one",
++         "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
++         "target": "aws",
++         "url": "http://127.0.0.1:3000",
++       },
++       "message": "Owned local HTTP responded",
++       "releaseId": "rel-one",
++       "startedAt": "2026-10-12T00:00:01Z",
++       "status": "ready",
++       "updatedAt": "2026-10-12T00:00:02Z",
++     },
++     "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
++     "startedAt": "2026-10-12T00:00:00Z",
++     "status": "verified",
++     "updatedAt": "2026-10-12T00:00:01Z",
++   },
++   "id": "continue-one",
++   "idempotencyKey": "request-one",
++   "message": "Tasks queued under reviewed policy",
++   "originTurnId": "turn-1",
++   "policyRevision": 2,
++   "projectId": "p-1",
++   "queueIds": [
++     "queue-one",
++   ],
++   "revision": 4,
++   "runId": "run-one",
++   "status": "preview-ready",
++   "updatedAt": "2026-10-12T00:00:01Z",
+  }
+
+ ❯ src/api/coordinatorContinuations.test.ts:66:106
+     64|   if (fault === 'missing target') delete (value.delivery!.preview!.evi…
+     65|   if (fault === 'unverified check') { value.status = 'checking'; value…
+     66|   vi.mocked(productApi.request).mockResolvedValue(value); await expect…
+       |                                                                                                          ^
+     67| });
+     68|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/api/coordinatorContinuations.test.ts > refuses preview evidence with missing target
+AssertionError: promise resolved "{ id: 'continue-one', …(15) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "actions": [
++     {
++       "id": "continue-one-create-run",
++       "kind": "create-run",
++       "referenceId": "run-one",
++       "startedAt": "2026-10-12T00:00:00Z",
++       "status": "confirmed",
++     },
++   ],
++   "actor": {
++     "displayName": "Alice",
++     "id": "alice",
++   },
++   "contextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++   "createdAt": "2026-10-12T00:00:00Z",
++   "delivery": {
++     "actionId": "continue-one-checks",
++     "checkId": "check-one",
++     "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++     "integrationDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
++     "message": "Independent checks verified",
++     "preview": {
++       "actionId": "continue-one-preview",
++       "evidence": {
++         "approvals": {
++           "briefDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
++           "designApprovalId": "design-a",
++           "designDigest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
++           "designRevision": 1,
++           "sketchDigest": "0000000000000000000000000000000000000000000000000000000000000000",
++           "specificationApprovalId": "spec-a",
++           "specificationDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
++           "specificationRevision": 2,
++         },
++         "checkId": "check-one",
++         "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++         "joinedAt": "",
++         "limitations": "Local preview only",
++         "observedAt": "2026-10-12T00:00:02Z",
++         "outcome": "preview",
++         "projectId": "p-1",
++         "releaseId": "rel-one",
++         "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
++         "url": "http://127.0.0.1:3000",
++       },
++       "message": "Owned local HTTP responded",
++       "releaseId": "rel-one",
++       "startedAt": "2026-10-12T00:00:01Z",
++       "status": "ready",
++       "updatedAt": "2026-10-12T00:00:02Z",
++     },
++     "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
++     "startedAt": "2026-10-12T00:00:00Z",
++     "status": "verified",
++     "updatedAt": "2026-10-12T00:00:01Z",
++   },
++   "id": "continue-one",
++   "idempotencyKey": "request-one",
++   "message": "Tasks queued under reviewed policy",
++   "originTurnId": "turn-1",
++   "policyRevision": 2,
++   "projectId": "p-1",
++   "queueIds": [
++     "queue-one",
++   ],
++   "revision": 4,
++   "runId": "run-one",
++   "status": "preview-ready",
++   "updatedAt": "2026-10-12T00:00:01Z",
+  }
+
+ ❯ src/api/coordinatorContinuations.test.ts:66:106
+     64|   if (fault === 'missing target') delete (value.delivery!.preview!.evi…
+     65|   if (fault === 'unverified check') { value.status = 'checking'; value…
+     66|   vi.mocked(productApi.request).mockResolvedValue(value); await expect…
+       |                                                                                                          ^
+     67| });
+     68|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/api/coordinatorContinuations.test.ts > refuses preview evidence with unverified check
+AssertionError: promise resolved "{ id: 'continue-one', …(15) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "actions": [
++     {
++       "id": "continue-one-create-run",
++       "kind": "create-run",
++       "referenceId": "run-one",
++       "startedAt": "2026-10-12T00:00:00Z",
++       "status": "confirmed",
++     },
++   ],
++   "actor": {
++     "displayName": "Alice",
++     "id": "alice",
++   },
++   "contextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++   "createdAt": "2026-10-12T00:00:00Z",
++   "delivery": {
++     "actionId": "continue-one-checks",
++     "checkId": "check-one",
++     "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++     "integrationDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
++     "message": "Independent checks verified",
++     "preview": {
++       "actionId": "continue-one-preview",
++       "evidence": {
++         "approvals": {
++           "briefDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
++           "designApprovalId": "design-a",
++           "designDigest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
++           "designRevision": 1,
++           "sketchDigest": "0000000000000000000000000000000000000000000000000000000000000000",
++           "specificationApprovalId": "spec-a",
++           "specificationDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
++           "specificationRevision": 2,
++         },
++         "checkId": "check-one",
++         "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++         "joinedAt": "",
++         "limitations": "Local preview only",
++         "observedAt": "2026-10-12T00:00:02Z",
++         "outcome": "preview",
++         "projectId": "p-1",
++         "releaseId": "rel-one",
++         "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
++         "target": "local",
++         "url": "http://127.0.0.1:3000",
++       },
++       "message": "Owned local HTTP responded",
++       "releaseId": "rel-one",
++       "startedAt": "2026-10-12T00:00:01Z",
++       "status": "ready",
++       "updatedAt": "2026-10-12T00:00:02Z",
++     },
++     "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
++     "startedAt": "2026-10-12T00:00:00Z",
++     "status": "running",
++     "updatedAt": "2026-10-12T00:00:01Z",
++   },
++   "id": "continue-one",
++   "idempotencyKey": "request-one",
++   "message": "Tasks queued under reviewed policy",
++   "originTurnId": "turn-1",
++   "policyRevision": 2,
++   "projectId": "p-1",
++   "queueIds": [
++     "queue-one",
++   ],
++   "revision": 4,
++   "runId": "run-one",
++   "status": "checking",
++   "updatedAt": "2026-10-12T00:00:01Z",
+  }
+
+ ❯ src/api/coordinatorContinuations.test.ts:66:106
+     64|   if (fault === 'missing target') delete (value.delivery!.preview!.evi…
+     65|   if (fault === 'unverified check') { value.status = 'checking'; value…
+     66|   vi.mocked(productApi.request).mockResolvedValue(value); await expect…
+       |                                                                                                          ^
+     67| });
+     68|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 1 passed | 25 skipped (29)
+   Start at  16:37:35
+   Duration  2.63s (environment 75%, transform 11%, setup 10%, tests 2%, import 1%)
+

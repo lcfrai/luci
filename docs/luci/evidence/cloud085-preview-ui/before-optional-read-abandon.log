@@ -1,0 +1,185 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 src/components/orchestrator/CoordinatorPreviewSetup.test.tsx -t allows abandoning a pristine
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ src/components/orchestrator/CoordinatorPreviewSetup.test.tsx (7 tests | 1 failed | 6 skipped) 330ms
+   × allows abandoning a pristine failed optional preview read after preview permission is paused 328ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/orchestrator/CoordinatorPreviewSetup.test.tsx > allows abandoning a pristine failed optional preview read after preview permission is paused
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Discard continued-work preview setup"
+
+Here are the accessible roles:
+
+  group:
+
+  Name "":
+  [36m<details[39m
+    [33mopen[39m=[32m""[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  --------------------------------------------------
+  alert:
+
+  Name "":
+  [36m<p[39m
+    [33mrole[39m=[32m"alert"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  textbox:
+
+  Name "Preview Dockerfile":
+  [36m<input[39m
+    [33mvalue[39m=[32m"Dockerfile"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  spinbutton:
+
+  Name "Preview app port The port the app listens on inside its container.":
+  [36m<input[39m
+    [33mmax[39m=[32m"65535"[39m
+    [33mmin[39m=[32m"1"[39m
+    [33mtype[39m=[32m"number"[39m
+    [33mvalue[39m=[32m"3000"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Read preview configuration":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"secondary"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  checkbox:
+
+  Name "I delegate this exact Dockerfile, app port and runtime configuration for checked-source previews.":
+  [36m<input[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mtype[39m=[32m"checkbox"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  status:
+
+  Name "":
+  [36m<p[39m
+    [33mrole[39m=[32m"status"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<details[39m
+      [33mopen[39m=[32m""[39m
+    [36m>[39m
+      [36m<summary>[39m
+        [0mPreview after independent checks[0m
+      [36m</summary>[39m
+      [36m<p>[39m
+        [0mReuse an exact local preview build after independent checks. This can allocate a container and use the network. It does not publish the application or authorize public deployment.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mEnable checked-source preview permission first. Current Deploy access remains required.[0m
+      [36m</p>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"draft-recovery"[39m
+      [36m/>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mConfiguration unavailable[0m
+      [36m</p>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"setup-field-grid"[39m
+      [36m>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"luci-field"[39m
+        [36m>[39m
+          [0mPreview Dockerfile[0m
+          [36m<input[39m
+            [33mvalue[39m=[32m"Dockerfile"[39m
+          [36m/>[39m
+        [36m</label>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"luci-field"[39m
+        [36m>[39m
+          [0mPreview app port[0m
+          [36m<input[39m
+            [33mmax[39m=[32m"65535"[39m
+            [33mmin[39m=[32m"1"[39m
+            [33mtype[39m=[32m"number"[39m
+            [33mvalue[39m=[32m"3000"[39m
+          [36m/>[39m
+          [36m<small>[39m
+            [0mThe port the app listens on inside its container.[0m
+          [36m</small>[39m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"secondary"[39m
+        [33mdisabled[39m=[32m""[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRead preview configuration[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"setup-check"[39m
+      [36m>[39m
+        [36m<input[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"checkbox"[39m
+        [36m/>[39m
+        [0mI delegate this exact Dockerfile, app port and runtime configuration for checked-source previews.[0m
+      [36m</label>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mConfiguration unavailable[0m
+      [36m</p>[39m
+    [36m</details>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/orchestrator/CoordinatorPreviewSetup.test.tsx:39:32
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 skipped (7)
+   Start at  16:44:08
+   Duration  4.23s (environment 45%, transform 34%, tests 9%, import 7%, setup 4%)
+

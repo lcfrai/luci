@@ -1,0 +1,17 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 src/api/coordinatorContinuations.test.ts src/api/coordinatorPolicy.test.ts src/components/orchestrator/CoordinatorPreviewSetup.test.tsx src/components/orchestrator/CoordinatorExecution.test.tsx
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+
+ Test Files  4 passed (4)
+      Tests  100 passed (100)
+   Start at  16:41:52
+   Duration  10.82s (environment 40%, tests 35%, transform 15%, setup 5%, import 5%)
+
+Environment  jsdom was created 4 times · 3.92s total, 40% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+

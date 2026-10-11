@@ -1,0 +1,364 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 src/api/coordinatorContinuations.test.ts src/api/coordinatorPolicy.test.ts src/components/orchestrator/CoordinatorPreviewSetup.test.tsx src/components/orchestrator/CoordinatorExecution.test.tsx src/components/orchestrator/CoordinatorPolicy.test.tsx src/components/orchestrator/OrchestratorPanel.test.tsx
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > uses the existing conversation mutation boundary for a policy-authorized draft and leaves Build/Deploy untouched
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not automatically apply while this project has unsaved context
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > keeps the parent context ahead of an older child observation when the newer read is resolved
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > keeps the parent context ahead of an older child observation when the newer read is pending
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > opens the exact team conversation on compact screens without changing its retained draft or sending work
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > explains an older team conversation without fabricating a reply or fetching/mutating it automatically
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > defers unopened discussion presentation while preserving current understanding and the recovered request record
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > defers unopened discussion presentation while preserving current understanding and the pending request record
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > keeps an opened discussion node and draft across closing but resets its presentation for another project
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > reveals the exact current blocking question without replacing an unsent message or its reply target
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > reveals a decision while preserving the exact recovered composer record
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > reveals a decision while preserving the exact pending composer record
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > reports an already resolved or missing target instead of selecting another unresolved decision
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > keeps an unreadable decision lookup actionable without touching the composer
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > ignores foreign project and workspace decision destinations
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > cancels a slow decision destination after navigation changes
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > cancels a slow decision destination after new destination changes
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > cancels a slow decision destination after read access changes
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > cancels a slow decision destination after account changes
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > focuses the readable question itself when the member cannot use its answer control
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not replace a newer saved context at the same conversation revision with a delayed decision lookup
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not let a refresh started before a decision lookup overwrite that lookup's newer same-revision context
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > opens the same project conversation from compact Develop and preserves its amendment through all activities
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > Talk to Luci focuses the recovered recovery action without replacing or sending its saved message
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > Talk to Luci focuses the pending recovery action without replacing or sending its saved message
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > continues an applied specification amendment at its current editor without approving or applying again
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > continues an applied design-plan amendment at its current editor without approving or applying again
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > continues an applied plan amendment at its current editor without approving or applying again
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > keeps a newer dirty task draft and cancels the applied amendment navigation when the user stays
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not steal focus after a newer action while the coordinator opens
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > starts compact screens with a labelled phase/context disclosure and opens only on request
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > adapts an untouched overview on resize without moving task focus, while preserving explicit open and close choices
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > retains the exact mounted conversation and unsent composer through compact disclosure changes
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not hide a focused composer on resize and keeps explicit project-open events working after a manual close
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > restores shared history without inference and keeps the same composer across phase changes
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > opens and focuses only this project's composer without sending or overwriting an unsent question
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > honors the chosen saved connection/model on explicit Send and preserves it across settings refresh and reload
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > explains material ambiguity and pre-fills an attributed reply only until Send
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > keeps an occupied composer and its recovery copy until a suggested answer is explicitly chosen
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > replaces an occupied message only explicitly and retains the selected question until deliberate Send
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not complete a pending replacement focus handoff after a change to newer focus
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not complete a pending replacement focus handoff after a change to message
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not complete a pending replacement focus handoff after a change to read
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not complete a pending replacement focus handoff after a change to assist
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not complete a pending replacement focus handoff after a change to scope
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > retires a pending suggested replacement across assist loss and regrant without changing the original draft
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > retires a pending suggested replacement across read loss and regrant without changing the original draft
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > does not carry a suggested replacement into another account or replace its retained draft
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > preserves another tab's newer message if storage changes during the replacement choice
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > keeps an amendment and returns to its editor after Replace with suggested answer when the question was resolved during the choice
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/components/orchestrator/OrchestratorPanel.test.tsx > keeps an amendment and returns to its editor after Keep current message when the question was resolved during the choice
+An error occurred in the <ProjectConversation> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
