@@ -1,0 +1,38 @@
+{
+  "status": 200,
+  "value": {
+    "projectId": "p-ec295aad",
+    "version": 1,
+    "revision": 2,
+    "briefRevision": 2,
+    "startingPoint": "new",
+    "purpose": "Verify a local preview calculator",
+    "audience": "Release verification",
+    "constraints": "Fixture only; no model, cloud calls or runtime installation",
+    "outOfScope": [],
+    "requirements": [
+      {
+        "id": "AC-001",
+        "title": "Add two entered amounts",
+        "priority": "must",
+        "acceptance": "Add two entered amounts"
+      },
+      {
+        "id": "AC-002",
+        "title": "Bind the preview to loopback and settle owned execution on Stop",
+        "priority": "must",
+        "acceptance": "Bind the preview to loopback and settle owned execution on Stop"
+      }
+    ],
+    "journeys": [],
+    "roles": [],
+    "entities": [],
+    "integrations": [],
+    "glossary": [],
+    "decisions": [],
+    "questions": [],
+    "status": "approved",
+    "digest": "469f48f5818cd06c980d0fd40829dc636be74b7330b4abcf6ccb2670caf6bc3c",
+    "updatedAt": "2026-10-11T13:03:50.527089363Z"
+  }
+}

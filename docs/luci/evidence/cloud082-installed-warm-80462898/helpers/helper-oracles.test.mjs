@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import vm from 'node:vm';
+const code=readFileSync(new URL('./preview-smoke.mjs',import.meta.url),'utf8');
+const start=code.indexOf('function assertBuildProof('),end=code.indexOf('\nasync function api(',start);
+assert.ok(start>0&&end>start);
+const validate=vm.runInNewContext(`(${code.slice(start,end)})`,{assert,createHash,Number});
+const tap=readFileSync(new URL('./local-fixture-tests.tap',import.meta.url),'utf8');
+const manifest={nonce:'94dbd066-d5b5-414b-929c-8099b1aa28f4',sources:{'calculator.mjs':'c'.repeat(64)}};
+function proof(){return{schema:1,nonce:manifest.nonce,sources:{...manifest.sources},platform:'linux',node:'v22.15.0',uid:0,testProcessExit:0,tap,tapSHA256:createHash('sha256').update(tap).digest('hex'),cgroup:{'/sys/fs/cgroup/memory.max':{status:'read',text:'1073741824\n'},'/sys/fs/cgroup/cpu.max':{status:'read',text:'100000 100000\n'},'/sys/fs/cgroup/memory.swap.max':{status:'read',text:'0\n'}}};}
+test('accepts matching nonce, actual completed TAP and exact v2 RUN budgets',()=>assert.equal(validate(proof(),manifest).memoryBytes,1073741824));
+test('rejects another fixture nonce',()=>{const p=proof();p.nonce='wrong';assert.throws(()=>validate(p,manifest));});
+test('rejects source mismatch',()=>{const p=proof();p.sources['calculator.mjs']='d'.repeat(64);assert.throws(()=>validate(p,manifest));});
+test('rejects tampered TAP',()=>{const p=proof();p.tap+='not ok 11 extra\n';assert.throws(()=>validate(p,manifest));});
+test('rejects nonzero test exit',()=>{const p=proof();p.testProcessExit=1;assert.throws(()=>validate(p,manifest));});
+test('rejects missing or unlimited memory observation',()=>{for(const text of [undefined,'max']){const p=proof();p.cgroup['/sys/fs/cgroup/memory.max']=text?{status:'read',text}:{status:'unavailable',code:'ENOENT'};assert.throws(()=>validate(p,manifest));}});
+test('rejects unlimited CPU or a different quota',()=>{for(const text of ['max 100000','200000 100000']){const p=proof();p.cgroup['/sys/fs/cgroup/cpu.max'].text=text;assert.throws(()=>validate(p,manifest));}});
+test('rejects enabled swap',()=>{const p=proof();p.cgroup['/sys/fs/cgroup/memory.swap.max'].text='1073741824';assert.throws(()=>validate(p,manifest));});
+test('accepts equivalent exact v1 quota and memory+swap observations',()=>{const p=proof();p.cgroup={'/sys/fs/cgroup/memory/memory.limit_in_bytes':{status:'read',text:'1073741824'},'/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes':{status:'read',text:'1073741824'},'/sys/fs/cgroup/cpu/cpu.cfs_quota_us':{status:'read',text:'100000'},'/sys/fs/cgroup/cpu/cpu.cfs_period_us':{status:'read',text:'100000'}};assert.equal(validate(p,manifest).swapEvidence,'cgroup-v1-memory-plus-swap-equals-memory');});

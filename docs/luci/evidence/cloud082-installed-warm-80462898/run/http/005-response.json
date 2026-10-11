@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "value": {
+    "projectId": "p-ec295aad",
+    "revision": 1,
+    "purpose": "Verify a local preview calculator",
+    "audience": "Release verification",
+    "constraints": "Fixture only; no model, cloud calls or runtime installation",
+    "criteria": [
+      "Add two entered amounts",
+      "Bind the preview to loopback and settle owned execution on Stop"
+    ],
+    "updatedAt": "2026-10-11T13:03:50.496527462Z"
+  }
+}

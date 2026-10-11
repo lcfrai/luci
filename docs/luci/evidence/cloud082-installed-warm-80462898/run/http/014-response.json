@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "value": {
+    "reviewDigest": "bb5e421538b1fe6b6c5115430b087e974a4df4ded0be9c7a336ce584e4528669",
+    "branch": "main",
+    "clean": true,
+    "changes": [],
+    "log": [
+      {
+        "hash": "1245d3f6463f452e16290089145dea2c5d6faac5",
+        "subject": "Reviewed warm Node calculator and multistage test/build fixture"
+      }
+    ],
+    "diff": ""
+  }
+}

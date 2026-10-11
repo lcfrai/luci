@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects/p-ec295aad/git/commit",
+  "body": {
+    "message": "Reviewed warm Node calculator and multistage test/build fixture",
+    "expectedReviewDigest": "8b043d43e4da0fbe56ca766e590c147fac8ebb94e0de2b1f5e565fca9b175bc5"
+  },
+  "timeout": 30000,
+  "at": "2026-10-11T13:03:50.695Z"
+}

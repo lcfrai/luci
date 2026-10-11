@@ -1,0 +1,10 @@
+FROM sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c AS build
+WORKDIR /build
+COPY calculator.mjs calculator.test.mjs server.mjs build.mjs fixture-manifest.json ./
+RUN node --test --test-reporter=tap calculator.test.mjs > test-output.tap && node build.mjs
+FROM sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c
+WORKDIR /app
+COPY --from=build /build/dist/ /app/
+USER 65532:65532
+EXPOSE 3000
+CMD ["node", "server.mjs"]

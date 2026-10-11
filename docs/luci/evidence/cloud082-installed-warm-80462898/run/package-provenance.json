@@ -1,0 +1,68 @@
+{
+  "ok": true,
+  "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "sourceDirty": false,
+  "version": "0.5.0",
+  "sourceRoot": "/workspace/.luci-tools/package-80462898/source",
+  "releaseDirectory": "/workspace/.luci-tools/package-80462898/source/artifacts/releases/0.5.0",
+  "archives": {
+    "luci-cloud-linux-amd64.tar.gz": {
+      "name": "luci-cloud-linux-amd64.tar.gz",
+      "sha256": "34f9951f1e7b07e1dc866b1a1ba65c0a8630b695cb84b8079dbadc7112563c67",
+      "bytes": 34880559,
+      "members": 1501,
+      "unpackedFileBytes": 89284885,
+      "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+      "webIndexSHA256": "537b41083a4d6b4652011be3bef8c70c45bad9c1fe43636e3377da2c3eaafe82",
+      "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+      "licenseComponents": 347,
+      "verifiedLicenseAndSourceFiles": 374,
+      "missingLicenses": [],
+      "documentationMode": "compact",
+      "evidenceMembers": 0
+    },
+    "luci-linux-amd64.tar.gz": {
+      "name": "luci-linux-amd64.tar.gz",
+      "sha256": "5307c88d5b1aeec6d1394cffcc8fae2639403878b3fcb43f5519dbe96a928ca1",
+      "bytes": 69559318,
+      "members": 1503,
+      "unpackedFileBytes": 124165444,
+      "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+      "webIndexSHA256": "537b41083a4d6b4652011be3bef8c70c45bad9c1fe43636e3377da2c3eaafe82",
+      "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+      "licenseComponents": 347,
+      "verifiedLicenseAndSourceFiles": 374,
+      "missingLicenses": [],
+      "documentationMode": "compact",
+      "evidenceMembers": 0
+    }
+  },
+  "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+  "documentationMode": "compact",
+  "binaryBuildSettings": {
+    "-buildmode": "exe",
+    "-compiler": "gc",
+    "-trimpath": "true",
+    "DefaultGODEBUG": "cryptocustomrand=1,tlssecpmlkem=0,urlstrictcolons=0",
+    "CGO_ENABLED": "0",
+    "GOARCH": "amd64",
+    "GOOS": "linux",
+    "GOAMD64": "v1"
+  },
+  "embeddedVCS": {
+    "present": false,
+    "sourceBinding": "Official build invocation, clean pinned checkout/source bindings, release manifest and archive/binary hashes; official binary contains no VCS fields"
+  },
+  "installationDirectory": "/workspace/.luci-tools/package-80462898/installed",
+  "checks": {
+    "officialReleaseIntegrity": true,
+    "safePathsAndModes": true,
+    "packageIdentity": true,
+    "licenseFilesAndMissingEntries": true,
+    "documentationMode": true,
+    "nestedCloudArchive": true,
+    "matchingBinaries": true,
+    "binaryBuildInformation": true,
+    "serviceExecuted": false
+  }
+}

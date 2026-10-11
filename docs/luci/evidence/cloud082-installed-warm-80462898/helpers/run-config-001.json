@@ -1,0 +1,19 @@
+{
+  "repository": "/workspace/.luci-tools/package-80462898/source",
+  "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "repositoryCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "binary": "/workspace/.luci-tools/package-80462898/installed/luci",
+  "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+  "provenanceFile": "/workspace/.luci-tools/package-80462898/verification-compact-final/verification.json",
+  "provenanceSHA256": "6383014b1869914439cda1710c2f7f0a6fefa55bacc3081a6283ed7c892d666f",
+  "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+  "webDir": "/workspace/.luci-tools/package-80462898/installed/web",
+  "evidenceParent": "PRIVATE_WARM_PREVIEW_EVIDENCE_PARENT",
+  "dockerHost": "unix:///var/run/docker.sock",
+  "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "engineDriver": "vfs",
+  "mode": "warm-multistage",
+  "baseImageID": "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+  "acknowledgeFixtureMutation": true,
+  "acknowledgeWarmBaseOnly": true
+}

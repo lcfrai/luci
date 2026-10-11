@@ -1,0 +1,9 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects",
+  "body": {
+    "name": "preview-dacbb1de"
+  },
+  "timeout": 30000,
+  "at": "2026-10-11T13:03:50.485Z"
+}

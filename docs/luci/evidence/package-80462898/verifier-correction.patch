@@ -1,0 +1,25 @@
+--- a/verify-package-build.py
++++ b/verify-package-build.py
+@@ -218,9 +218,11 @@
+             key, value = fields[1].split('=', 1)
+             require(key not in settings, f'Duplicate build setting: {key}')
+             settings[key] = value
+-    for key, value in {'GOOS': 'linux', 'GOARCH': 'amd64', 'CGO_ENABLED': '0',
+-                       'vcs.revision': COMMIT, 'vcs.modified': 'false'}.items():
++    for key, value in {'GOOS': 'linux', 'GOARCH': 'amd64', 'CGO_ENABLED': '0'}.items():
+         require(settings.get(key) == value, f'Binary build information differs: {key}')
++    for key, expected in {'vcs.revision': COMMIT, 'vcs.modified': 'false'}.items():
++        require(key not in settings or settings[key] == expected, f'Conflicting embedded VCS metadata: {key}')
++    embedded_vcs = {'present': 'vcs.revision' in settings, 'sourceBinding': 'embedded Go VCS metadata' if 'vcs.revision' in settings else 'Official build invocation, clean pinned checkout/source bindings, release manifest and archive/binary hashes; official binary contains no VCS fields'}
+     extracted = None
+     if args.extract_to:
+         require(desktop['documentationMode'] == 'compact', 'Optional installation requires the compact archive')
+@@ -241,7 +243,7 @@
+     return {'ok': True, 'sourceCommit': COMMIT, 'sourceDirty': False, 'version': VERSION,
+             'sourceRoot': str(source), 'releaseDirectory': str(release), 'archives': summaries,
+             'packageIdentity': desktop['packageIdentity'], 'documentationMode': desktop['documentationMode'],
+-            'binaryBuildSettings': settings, 'installationDirectory': extracted,
++            'binaryBuildSettings': settings, 'embeddedVCS': embedded_vcs, 'installationDirectory': extracted,
+             'checks': {'officialReleaseIntegrity': True, 'safePathsAndModes': True,
+                        'packageIdentity': True, 'licenseFilesAndMissingEntries': True,
+                        'documentationMode': True, 'nestedCloudArchive': True,

@@ -1,0 +1,7 @@
+{
+  "ok": false,
+  "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "errorType": "ValueError",
+  "error": "Binary build information differs: vcs.revision",
+  "serviceExecuted": false
+}

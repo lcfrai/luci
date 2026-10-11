@@ -1,0 +1,167 @@
+{
+  "schema": "isolated-official-linux-package-result-v1",
+  "createdUTC": "2026-10-11T13:05:20.114762+00:00",
+  "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "version": "0.5.0",
+  "target": "linux-amd64",
+  "officialCommand": [
+    "bash",
+    "scripts/build-release.sh",
+    "0.5.0",
+    "linux-amd64"
+  ],
+  "sourceDirectory": "source",
+  "installedDirectory": "installed",
+  "installedBinary": "installed/luci",
+  "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+  "compactReleaseDirectory": "source/artifacts/releases/0.5.0",
+  "compactArchives": {
+    "luci-cloud-linux-amd64.tar.gz": {
+      "name": "luci-cloud-linux-amd64.tar.gz",
+      "sha256": "34f9951f1e7b07e1dc866b1a1ba65c0a8630b695cb84b8079dbadc7112563c67",
+      "bytes": 34880559,
+      "members": 1501,
+      "unpackedFileBytes": 89284885,
+      "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+      "webIndexSHA256": "537b41083a4d6b4652011be3bef8c70c45bad9c1fe43636e3377da2c3eaafe82",
+      "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+      "licenseComponents": 347,
+      "verifiedLicenseAndSourceFiles": 374,
+      "missingLicenses": [],
+      "documentationMode": "compact",
+      "evidenceMembers": 0
+    },
+    "luci-linux-amd64.tar.gz": {
+      "name": "luci-linux-amd64.tar.gz",
+      "sha256": "5307c88d5b1aeec6d1394cffcc8fae2639403878b3fcb43f5519dbe96a928ca1",
+      "bytes": 69559318,
+      "members": 1503,
+      "unpackedFileBytes": 124165444,
+      "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+      "webIndexSHA256": "537b41083a4d6b4652011be3bef8c70c45bad9c1fe43636e3377da2c3eaafe82",
+      "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+      "licenseComponents": 347,
+      "verifiedLicenseAndSourceFiles": 374,
+      "missingLicenses": [],
+      "documentationMode": "compact",
+      "evidenceMembers": 0
+    }
+  },
+  "compactVerification": {
+    "path": "verification-compact-final/verification.json",
+    "bytes": 2720,
+    "sha256": "6383014b1869914439cda1710c2f7f0a6fefa55bacc3081a6283ed7c892d666f"
+  },
+  "preservedFullDocumentationReleaseDirectory": "full-doc/releases/0.5.0",
+  "preservedFullDocumentationArchives": {
+    "luci-cloud-linux-amd64.tar.gz": {
+      "name": "luci-cloud-linux-amd64.tar.gz",
+      "sha256": "04b272051418b75c61db65ba6dbd80a0728ca668b2dc0f723c5371570a94c0ab",
+      "bytes": 150861087,
+      "members": 14174,
+      "unpackedFileBytes": 354514313,
+      "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+      "webIndexSHA256": "537b41083a4d6b4652011be3bef8c70c45bad9c1fe43636e3377da2c3eaafe82",
+      "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+      "licenseComponents": 347,
+      "verifiedLicenseAndSourceFiles": 374,
+      "missingLicenses": [],
+      "documentationMode": "full",
+      "evidenceMembers": 12672
+    },
+    "luci-linux-amd64.tar.gz": {
+      "name": "luci-linux-amd64.tar.gz",
+      "sha256": "8db42bf43e3224eac00940fe851bec4bb405be057133be62e4b2623f27729779",
+      "bytes": 301382429,
+      "members": 14176,
+      "unpackedFileBytes": 505375400,
+      "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+      "webIndexSHA256": "537b41083a4d6b4652011be3bef8c70c45bad9c1fe43636e3377da2c3eaafe82",
+      "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+      "licenseComponents": 347,
+      "verifiedLicenseAndSourceFiles": 374,
+      "missingLicenses": [],
+      "documentationMode": "full",
+      "evidenceMembers": 12672
+    }
+  },
+  "preservedFullDocumentationVerification": {
+    "path": "verification-full-doc-final/verification.json",
+    "bytes": 2669,
+    "sha256": "61a61dff09d38ea81fca38a38e4d6221ab473fdee930706f41604976a16d1ec6"
+  },
+  "builds": [
+    {
+      "kind": "initial-full-documentation",
+      "invocation": {
+        "path": "receipts/build-invocation.json",
+        "bytes": 1437,
+        "sha256": "8a913e839fef2b112bdaa0255c139c64c328c7afca01f837adbea1c093e93c23"
+      },
+      "result": {
+        "path": "receipts/build-result.json",
+        "bytes": 275,
+        "sha256": "7bd73f1035d3e107ce86fa8451213ca019a5b379c1d322a40d5ea0887e768379"
+      },
+      "reason": "Cached official branch tracking was still the prior commit; official documentation staging conservatively included full documentation."
+    },
+    {
+      "kind": "intended-compact-distribution",
+      "invocation": {
+        "path": "receipts/compact/build-invocation.json",
+        "bytes": 1437,
+        "sha256": "2ee7e542eb029f3344ea88b67e6d27cb9412fbf4c7ee7688337da60e89eaad1e"
+      },
+      "result": {
+        "path": "receipts/compact/build-result.json",
+        "bytes": 274,
+        "sha256": "664c359cff2f15c05713b7ae876a2865e546935318730a6204b365c7344d578e"
+      },
+      "reason": "After preserving the first outputs unchanged, an authorized fetch refreshed the official published branch association. Repeated official packaging used the same clean pinned source."
+    }
+  ],
+  "sourcePreservation": {
+    "path": "receipts/source-preservation.json",
+    "bytes": 211,
+    "sha256": "2c3cbfa7a3af75a8efc736135a1e6a8d4130461dc1abee58dde3ada10798eb5b"
+  },
+  "original577ReleaseBefore": {
+    "path": "receipts/previous-release-before.json",
+    "bytes": 756,
+    "sha256": "514fcb937e4f36455b7e9b06554e84ea2ced573a17a8183ce9880520b1376602"
+  },
+  "original577ReleaseAfter": {
+    "path": "receipts/previous-release-after.json",
+    "bytes": 834,
+    "sha256": "5871af7607cee143a780f8e9ae68006c8f8d8a4040318fd0ff02610ce3ab079c"
+  },
+  "trackedSourceBindingBefore": {
+    "path": "receipts/tracked-inputs-before.json",
+    "bytes": 2662755,
+    "sha256": "ef3c726ba25028fef5eeb3559475a49e217d3d4d3b49dfe3a0b8464a754061d1"
+  },
+  "trackedSourceBindingAfter": {
+    "path": "receipts/compact/tracked-inputs-after.json",
+    "bytes": 2662755,
+    "sha256": "ef3c726ba25028fef5eeb3559475a49e217d3d4d3b49dfe3a0b8464a754061d1"
+  },
+  "scope": {
+    "buildExecuted": true,
+    "serviceExecutedByPackagingTask": false,
+    "testsExecuted": false,
+    "dockerExecuted": false,
+    "rootSourceEdited": false,
+    "root577ReleaseFilesChanged": false
+  },
+  "limitations": [
+    "Static package verification is not a runtime preview result.",
+    "The official binary has no embedded VCS revision fields. Source attribution uses the official invocation, clean pinned checkout with 12,677 unchanged tracked input hashes, release manifest and artifact hashes.",
+    "The first external verifier incorrectly required optional embedded VCS fields; its helper bytes and failure receipts are preserved. The corrected verifier rejects conflicting fields if present and explicitly records their absence. No rebuild or product test was performed for this verifier correction.",
+    "The second packaging run reused compiled artifacts. Its elapsed time is not a product performance claim."
+  ],
+  "cacheCleanup": {
+    "path": "receipts/build-cache-cleanup.json",
+    "bytes": 803,
+    "sha256": "6dc90f77ac1b64853558f14404127b9e713a469e1e3d754e056b8a1390554091"
+  }
+}

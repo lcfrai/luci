@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects/p-ec295aad/releases/rel-06edd57f774ad025f9f4e732/stop",
+  "body": {},
+  "timeout": 35000,
+  "at": "2026-10-11T13:04:45.370Z"
+}

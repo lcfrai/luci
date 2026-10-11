@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: accepts matching nonce, actual completed TAP and exact v2 RUN budgets
+ok 1 - accepts matching nonce, actual completed TAP and exact v2 RUN budgets
+  ---
+  duration_ms: 4.363938
+  type: 'test'
+  ...
+# Subtest: rejects another fixture nonce
+ok 2 - rejects another fixture nonce
+  ---
+  duration_ms: 2.112514
+  type: 'test'
+  ...
+# Subtest: rejects source mismatch
+ok 3 - rejects source mismatch
+  ---
+  duration_ms: 1.011284
+  type: 'test'
+  ...
+# Subtest: rejects tampered TAP
+ok 4 - rejects tampered TAP
+  ---
+  duration_ms: 3.013371
+  type: 'test'
+  ...
+# Subtest: rejects nonzero test exit
+ok 5 - rejects nonzero test exit
+  ---
+  duration_ms: 0.485221
+  type: 'test'
+  ...
+# Subtest: rejects missing or unlimited memory observation
+ok 6 - rejects missing or unlimited memory observation
+  ---
+  duration_ms: 0.467114
+  type: 'test'
+  ...
+# Subtest: rejects unlimited CPU or a different quota
+ok 7 - rejects unlimited CPU or a different quota
+  ---
+  duration_ms: 0.6897
+  type: 'test'
+  ...
+# Subtest: rejects enabled swap
+ok 8 - rejects enabled swap
+  ---
+  duration_ms: 0.631211
+  type: 'test'
+  ...
+# Subtest: accepts equivalent exact v1 quota and memory+swap observations
+ok 9 - accepts equivalent exact v1 quota and memory+swap observations
+  ---
+  duration_ms: 0.407635
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 242.506083

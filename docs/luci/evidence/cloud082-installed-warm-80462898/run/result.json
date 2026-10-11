@@ -1,0 +1,95 @@
+{
+  "passed": true,
+  "scope": "handwritten Node warm-base multistage RUN test/build and preview; no live model, cold pull, project check pass, installer or full product acceptance",
+  "startedAt": "2026-10-11T13:03:48.449Z",
+  "run": "PRIVATE_WARM_PREVIEW_RUN",
+  "mode": "warm-multistage",
+  "checks": [
+    {
+      "at": "2026-10-11T13:03:51.437Z",
+      "name": "normal source/review/config API gates retained",
+      "commit": "1245d3f6463f452e16290089145dea2c5d6faac5",
+      "configurationRevision": 1,
+      "projectChecks": "observed only; not executed"
+    },
+    {
+      "at": "2026-10-11T13:04:45.367Z",
+      "name": "actual Node tests and multistage RUN build, observed build caps, limited serving allocation and useful HTTP response verified",
+      "containerId": "a6287b45200b55d75d8af63835bd79c47ff88738cde3528c0f607400129b83a7",
+      "imageID": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+      "buildAllocationId": "preview-build-ebf92ccfab2358e95121a65f",
+      "allocationId": "preview-c1e3ac6740cca9891935545a"
+    },
+    {
+      "at": "2026-10-11T13:04:45.894Z",
+      "name": "normal API Stop settled exact allocations; image/cache retained"
+    }
+  ],
+  "cleanup": {
+    "previewStopConfirmed": true,
+    "retainedImage": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+    "controllerExitObserved": true,
+    "privateStateRetained": true,
+    "manualDockerRemoval": false,
+    "globalPrune": false
+  },
+  "fixtureSourceSHA256": null,
+  "config": {
+    "repository": "/workspace/.luci-tools/package-80462898/source",
+    "binary": "/workspace/.luci-tools/package-80462898/installed/luci",
+    "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+    "repositoryCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+    "dockerHost": "unix:///var/run/docker.sock",
+    "ledgerDir": "PRIVATE_WARM_PREVIEW_RUN/private/state/control-plane/execution",
+    "ledgerScope": "fresh fixture host ledger; does not account pending work in another controller state root"
+  },
+  "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+  "provenanceSHA256": "6383014b1869914439cda1710c2f7f0a6fefa55bacc3081a6283ed7c892d666f",
+  "helperSHA256": "767db04a94975c16c773c4b4e8cf4bcbf43ac991550bfa9311cd01d5b27f659e",
+  "fixtureSources": {
+    "calculator.mjs": "141dab21aa21726011a589ea0ce419a154eacb7a5ec32f8780cb3f2b9dc105a0",
+    "calculator.test.mjs": "181ab2d149a4cc0762439877c3a4f5f1392df75fadb80e13531f10442124b692",
+    "server.mjs": "c4cb09a1cb64f708c82ff3b11e989d4e2b3f260226fac568f9dd20c7edefcedd",
+    "build.mjs": "61b75983039f60854f22766956a7d0d9113e4287db407f936c659d7fd8385bee"
+  },
+  "fixtureDockerfileTemplateSHA256": "a1ec35292ad270982d4e2bd29826a8171316a527dff0236d2de76dab6d908011",
+  "baseImageID": "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+  "minimumBuildDiskBytes": 3890600000,
+  "preSpawnRootAvailableBytes": 4716457984,
+  "controllerPID": 2751401,
+  "instanceID": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+  "projectId": "p-ec295aad",
+  "fixtureCommit": "1245d3f6463f452e16290089145dea2c5d6faac5",
+  "releaseId": "rel-06edd57f774ad025f9f4e732",
+  "runtime": {
+    "projectId": "p-ec295aad",
+    "releaseId": "rel-06edd57f774ad025f9f4e732",
+    "target": "local",
+    "commit": "1245d3f6463f452e16290089145dea2c5d6faac5",
+    "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+    "buildAllocationId": "preview-build-ebf92ccfab2358e95121a65f",
+    "allocationId": "preview-c1e3ac6740cca9891935545a",
+    "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+    "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+    "containerId": "a6287b45200b55d75d8af63835bd79c47ff88738cde3528c0f607400129b83a7",
+    "image": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+    "phase": "running",
+    "url": "http://127.0.0.1:32992",
+    "resourcesHeld": true,
+    "cleanupConfirmed": false,
+    "message": "The application container is running; verify its HTTP health and behavior."
+  },
+  "actualBuildCaps": {
+    "memoryBytes": 1073741824,
+    "cpuQuotaMicros": 100000,
+    "cpuPeriodMicros": 100000,
+    "swapEvidence": "cgroup-v2-zero-swap",
+    "scope": "Actual RUN child namespace cgroup files, not host capacity or whole-process resource sampling"
+  },
+  "controllerExit": {
+    "code": 0,
+    "signal": null
+  },
+  "logsTruncated": false,
+  "finishedAt": "2026-10-11T13:04:46.526Z"
+}

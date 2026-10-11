@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects/p-ec295aad/releases",
+  "body": {
+    "target": "local",
+    "port": 3000,
+    "dockerfile": "Dockerfile",
+    "expectedCommit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+  },
+  "timeout": 195000,
+  "at": "2026-10-11T13:03:51.438Z"
+}

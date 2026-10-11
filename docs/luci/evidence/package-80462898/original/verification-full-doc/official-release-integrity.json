@@ -1,0 +1,17 @@
+[
+  {
+    "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+    "sha256": "04b272051418b75c61db65ba6dbd80a0728ca668b2dc0f723c5371570a94c0ab",
+    "bytes": 150861087
+  },
+  {
+    "name": "linux-amd64/luci-linux-amd64.tar.gz",
+    "sha256": "8db42bf43e3224eac00940fe851bec4bb405be057133be62e4b2623f27729779",
+    "bytes": 301382429
+  },
+  {
+    "name": "linux-amd64/release-manifest.json",
+    "sha256": "ffea7bf667773b8f0e67699009d916a84e305fcf997215196ff4eb0bd3c1596d",
+    "bytes": 698
+  }
+]

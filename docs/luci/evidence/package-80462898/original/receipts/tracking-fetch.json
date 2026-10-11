@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/workspace/.luci-tools/package-80462898/source",
+    "fetch",
+    "--no-tags",
+    "origin",
+    "refs/heads/codex/luci-production-runs:refs/remotes/origin/codex/luci-production-runs"
+  ],
+  "exit_code": 0,
+  "pinned_source_unchanged": true
+}

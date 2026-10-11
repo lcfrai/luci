@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "version",
+    "-m",
+    "/workspace/.luci-tools/package-80462898/verification-compact-final/luci"
+  ],
+  "exitCode": 0
+}

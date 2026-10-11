@@ -1,0 +1,22 @@
+[
+  {
+    "path": "/workspace/luci/artifacts/releases/0.5.0/SHA256SUMS",
+    "bytes": 186,
+    "sha256": "b6efeebc74c62cc50bc9d6a28c4ed4a0362b8992e43ce5a7a9899a554795af83"
+  },
+  {
+    "path": "/workspace/luci/artifacts/releases/0.5.0/luci-cloud-linux-amd64.tar.gz",
+    "bytes": 34858383,
+    "sha256": "28c61142c1e3c630604d8837b1926a50b38916ce3a930e5efef1e18ddabebffa"
+  },
+  {
+    "path": "/workspace/luci/artifacts/releases/0.5.0/luci-linux-amd64.tar.gz",
+    "bytes": 69530944,
+    "sha256": "98d8bea09b1476a09a290a6b53567f9ecdca8ced32099dbdcbf3b735a88b07ba"
+  },
+  {
+    "path": "/workspace/luci/artifacts/releases/0.5.0/release-manifest.json",
+    "bytes": 696,
+    "sha256": "76a87cb61df75b975b68f99e6c646701ea80b4b20ebf8eff014f25e41348745b"
+  }
+]

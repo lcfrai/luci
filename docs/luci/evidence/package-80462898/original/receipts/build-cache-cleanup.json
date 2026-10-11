@@ -1,0 +1,33 @@
+{
+  "at_utc": "2026-10-11T13:04:22.784675+00:00",
+  "scope": "Task-owned disposable build caches and temporary files only; no shared cache, source, output or evidence removed.",
+  "paths": [
+    {
+      "relative_path": "go-cache",
+      "files": 4020,
+      "file_bytes": 695359007,
+      "removed": true
+    },
+    {
+      "relative_path": "go-tmp",
+      "files": 0,
+      "file_bytes": 0,
+      "removed": true
+    },
+    {
+      "relative_path": "tmp",
+      "files": 622,
+      "file_bytes": 4155752,
+      "removed": true
+    },
+    {
+      "relative_path": "npm-cache",
+      "files": 3,
+      "file_bytes": 2314,
+      "removed": true
+    }
+  ],
+  "workspace_free_before_bytes": 3754106880,
+  "workspace_free_after_bytes": 4313628672,
+  "free_byte_change_not_exclusive_to_cleanup": 559521792
+}

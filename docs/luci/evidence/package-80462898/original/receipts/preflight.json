@@ -1,0 +1,26 @@
+{
+  "commit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "clean": true,
+  "tracked_input_count": 12677,
+  "tracked_bytes": 292149544,
+  "node_modules": "Ignored symlink to existing installed dependencies after package.json/package-lock.json byte parity",
+  "before_binding_sha256": "ef3c726ba25028fef5eeb3559475a49e217d3d4d3b49dfe3a0b8464a754061d1",
+  "disk_before": {
+    "/workspace": {
+      "total": 33770192896,
+      "used": 25665552384,
+      "free": 6369878016
+    },
+    "/tmp": {
+      "total": 17871892480,
+      "used": 17115279360,
+      "free": 756613120
+    }
+  },
+  "limits": {
+    "GOMAXPROCS": 2,
+    "GOFLAGS": "-mod=readonly -p=1",
+    "workspace_floor_bytes": 1610612736,
+    "tmp_floor_bytes": 402653184
+  }
+}

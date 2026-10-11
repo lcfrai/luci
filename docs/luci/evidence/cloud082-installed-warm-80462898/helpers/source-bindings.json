@@ -1,0 +1,51 @@
+{
+  "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "scope": "Selected preview product anchors, not whole compiled-input provenance",
+  "files": [
+    {
+      "path": "control-plane/internal/backend/dockerbe/previews.go",
+      "bytes": 21678,
+      "sha256": "8a64b5b54d012d53d0aec33365840ad0d178cd92b92c061cd1e07d977beb1d8d"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_context.go",
+      "bytes": 13275,
+      "sha256": "e56bc1086a57eb055b1b245132d4565162f556112102846d0dd4e339c6357576"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/preview_bases.go",
+      "bytes": 9381,
+      "sha256": "5e37138a418a9a44210ffd5f8cc1fbd545d17e515f72b2d30318c3bc4619cace"
+    },
+    {
+      "path": "control-plane/internal/api/preview_execution.go",
+      "bytes": 24443,
+      "sha256": "07c40f52e88daee82e2ee742d87b0126d2c60a1ab4e0f4e51f0322f7282bb945"
+    },
+    {
+      "path": "control-plane/internal/api/execution_preview_leases.go",
+      "bytes": 14612,
+      "sha256": "e9a18e1f82a3bcd25c76a4d2ad876ba3f97b2fc2fd61e47faa73fdc8d4c5211c"
+    },
+    {
+      "path": "control-plane/internal/api/execution_capacity.go",
+      "bytes": 8442,
+      "sha256": "2955d9183e27c34314fe8550ee2f6df733a80207d1744b907df8b404356be7aa"
+    },
+    {
+      "path": "control-plane/internal/product/releases.go",
+      "bytes": 21287,
+      "sha256": "135ab45ba15bf639654f28b4753edf75e23f29488642313a5cb50cdee6db5caf"
+    },
+    {
+      "path": "control-plane/internal/product/project_resolver.go",
+      "bytes": 4459,
+      "sha256": "37c7a36aed57f7a255514c7d170a74f9d59a9951415dcd86e0ea8bcf5358216d"
+    },
+    {
+      "path": "control-plane/internal/product/project_runs_evidence.go",
+      "bytes": 20354,
+      "sha256": "a20e6397a8c9726819128fccb6334e0ce3ebf36ee31be5803771ab16a722299d"
+    }
+  ]
+}

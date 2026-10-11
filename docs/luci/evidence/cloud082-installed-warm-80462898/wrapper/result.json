@@ -1,0 +1,12 @@
+{
+  "finishedAt": "2026-10-11T13:04:46.559694+00:00",
+  "elapsedSeconds": 58.26740139501635,
+  "exitCode": 0,
+  "helperPID": 2751302,
+  "externalTimeout": false,
+  "forcedHelperKill": false,
+  "waitError": null,
+  "helperSHA256Unchanged": true,
+  "configSHA256Unchanged": true,
+  "controllerAndDockerCleanupRequireIndependentReceipt": true
+}

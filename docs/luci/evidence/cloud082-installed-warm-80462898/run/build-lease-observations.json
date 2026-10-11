@@ -1,0 +1,379 @@
+{
+  "scope": "Read-only 50ms samples, not exhaustive transition capture",
+  "reads": 837,
+  "snapshots": [
+    {
+      "at": "2026-10-11T13:03:51.689Z",
+      "ownPreviews": [
+        {
+          "id": "preview-build-ebf92ccfab2358e95121a65f",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-build-ebf92ccfab2358e95121a65f",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview-build",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 1743147072,
+          "state": "reserved",
+          "revision": 1,
+          "createdAt": "2026-10-11T13:03:51.678940396Z",
+          "updatedAt": "2026-10-11T13:03:51.678940396Z"
+        }
+      ],
+      "rawSHA256": "2bdff9f2331b2f9c353ed6f816e052ab268541768c1f1dd202d05e852dcd23b9"
+    },
+    {
+      "at": "2026-10-11T13:03:51.739Z",
+      "ownPreviews": [
+        {
+          "id": "preview-build-ebf92ccfab2358e95121a65f",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-build-ebf92ccfab2358e95121a65f",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview-build",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 1743147072,
+          "state": "building",
+          "revision": 2,
+          "createdAt": "2026-10-11T13:03:51.678940396Z",
+          "updatedAt": "2026-10-11T13:03:51.725533986Z"
+        }
+      ],
+      "rawSHA256": "dd9ec831e57e975df2b49cd1518ff257e1bdaa65b9fae7e3216f16d55efd9b6c"
+    },
+    {
+      "at": "2026-10-11T13:04:43.220Z",
+      "ownPreviews": [
+        {
+          "id": "preview-build-ebf92ccfab2358e95121a65f",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-build-ebf92ccfab2358e95121a65f",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview-build",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 1743147072,
+          "state": "finished",
+          "image": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+          "revision": 3,
+          "createdAt": "2026-10-11T13:03:51.678940396Z",
+          "updatedAt": "2026-10-11T13:04:43.203887325Z"
+        }
+      ],
+      "rawSHA256": "def168b40e70f21ac22b46d3e376bfc0d2076103f3db397d6ea177c7c35b3135"
+    },
+    {
+      "at": "2026-10-11T13:04:43.368Z",
+      "ownPreviews": [
+        {
+          "id": "preview-build-ebf92ccfab2358e95121a65f",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-build-ebf92ccfab2358e95121a65f",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview-build",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 1743147072,
+          "state": "finished",
+          "image": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+          "revision": 3,
+          "createdAt": "2026-10-11T13:03:51.678940396Z",
+          "updatedAt": "2026-10-11T13:04:43.203887325Z"
+        },
+        {
+          "id": "preview-c1e3ac6740cca9891935545a",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-c1e3ac6740cca9891935545a",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 435784106,
+          "state": "reserved",
+          "image": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+          "revision": 1,
+          "createdAt": "2026-10-11T13:04:43.326448797Z",
+          "updatedAt": "2026-10-11T13:04:43.326448797Z"
+        }
+      ],
+      "rawSHA256": "cce847a1384feb421f6bb6cbf5d89089a19e4dfa266700454e0dacd99103e20a"
+    },
+    {
+      "at": "2026-10-11T13:04:43.421Z",
+      "ownPreviews": [
+        {
+          "id": "preview-build-ebf92ccfab2358e95121a65f",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-build-ebf92ccfab2358e95121a65f",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview-build",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 1743147072,
+          "state": "finished",
+          "image": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+          "revision": 3,
+          "createdAt": "2026-10-11T13:03:51.678940396Z",
+          "updatedAt": "2026-10-11T13:04:43.203887325Z"
+        },
+        {
+          "id": "preview-c1e3ac6740cca9891935545a",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-c1e3ac6740cca9891935545a",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 435784106,
+          "state": "creating",
+          "image": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+          "revision": 2,
+          "createdAt": "2026-10-11T13:04:43.326448797Z",
+          "updatedAt": "2026-10-11T13:04:43.382082453Z"
+        }
+      ],
+      "rawSHA256": "54023d6044db53f84a712737e462bd3e98c5532000c9bd0bdc13d64c23ac5ff5"
+    },
+    {
+      "at": "2026-10-11T13:04:44.027Z",
+      "ownPreviews": [
+        {
+          "id": "preview-build-ebf92ccfab2358e95121a65f",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-build-ebf92ccfab2358e95121a65f",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview-build",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 1743147072,
+          "state": "finished",
+          "image": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+          "revision": 3,
+          "createdAt": "2026-10-11T13:03:51.678940396Z",
+          "updatedAt": "2026-10-11T13:04:43.203887325Z"
+        },
+        {
+          "id": "preview-c1e3ac6740cca9891935545a",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-c1e3ac6740cca9891935545a",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 435784106,
+          "state": "starting",
+          "ref": "a6287b45200b55d75d8af63835bd79c47ff88738cde3528c0f607400129b83a7",
+          "image": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+          "revision": 4,
+          "createdAt": "2026-10-11T13:04:43.326448797Z",
+          "updatedAt": "2026-10-11T13:04:44.007541757Z"
+        }
+      ],
+      "rawSHA256": "da8b0655cfe92847c80046017871868b73188add786a1a54b039964c7be688ef"
+    },
+    {
+      "at": "2026-10-11T13:04:44.228Z",
+      "ownPreviews": [
+        {
+          "id": "preview-build-ebf92ccfab2358e95121a65f",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-build-ebf92ccfab2358e95121a65f",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview-build",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 1743147072,
+          "state": "finished",
+          "image": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+          "revision": 3,
+          "createdAt": "2026-10-11T13:03:51.678940396Z",
+          "updatedAt": "2026-10-11T13:04:43.203887325Z"
+        },
+        {
+          "id": "preview-c1e3ac6740cca9891935545a",
+          "scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+          "actor": {
+            "userId": "user-1RIxyAy0IZ0TTVonvWNwmf",
+            "projectId": "p-ec295aad"
+          },
+          "identity": {
+            "protocol": 1,
+            "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+            "instanceId": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+            "allocationId": "preview-c1e3ac6740cca9891935545a",
+            "releaseId": "rel-06edd57f774ad025f9f4e732",
+            "scopeDigest": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+            "projectId": "p-ec295aad",
+            "sourceDigest": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443",
+            "commit": "1245d3f6463f452e16290089145dea2c5d6faac5"
+          },
+          "kind": "preview",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          },
+          "createDiskBytes": 435784106,
+          "state": "running",
+          "ref": "a6287b45200b55d75d8af63835bd79c47ff88738cde3528c0f607400129b83a7",
+          "image": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+          "revision": 5,
+          "createdAt": "2026-10-11T13:04:43.326448797Z",
+          "updatedAt": "2026-10-11T13:04:44.186419053Z"
+        }
+      ],
+      "rawSHA256": "cccb0e97d3b3f10d7ee52ff8056b37b3ceef6a22a278cd46e6e41b5cc19168b3"
+    }
+  ],
+  "error": null
+}

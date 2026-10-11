@@ -1,0 +1,47 @@
+{
+  "observedAt": "2026-10-11T13:05:35.900597+00:00",
+  "rawResultSHA256": "e12f02022b9e275a54cd1565b5bae73a1520e2c29170d71974caa1ed01af4613",
+  "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+  "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+  "knownProcessObservations": [
+    {
+      "pid": 2751401,
+      "expectedStartTicks": "46989935",
+      "state": "absent"
+    }
+  ],
+  "engineIdentityMatches": true,
+  "exactContainerAbsent": true,
+  "exactContainerID": "a6287b45200b55d75d8af63835bd79c47ff88738cde3528c0f607400129b83a7",
+  "dockerContainerIDs": [],
+  "dockerVolumeIDs": [],
+  "fixtureLedger": {
+    "version": 1,
+    "bytes": 25,
+    "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+    "counts": {
+      "leases": 0,
+      "checks": 0,
+      "runtimeImages": 0,
+      "previews": 0
+    }
+  },
+  "baseImageUnchanged": true,
+  "actualBuildCaps": {
+    "memoryBytes": 1073741824,
+    "cpuQuotaMicros": 100000,
+    "cpuPeriodMicros": 100000,
+    "swapEvidence": "cgroup-v2-zero-swap",
+    "scope": "Actual RUN child namespace cgroup files, not host capacity or whole-process resource sampling"
+  },
+  "nativeBuildTestCount": 10,
+  "proofSHA256": "4d6134a4b082f7a7a9878ffd463b92ca30c2ca5a10324ef0f06f530f3e535d26",
+  "independentMutations": 0,
+  "limitations": [
+    "Known observed controller/descendant identities only, not an exhaustive lifetime or whole-machine census.",
+    "Fixture ledger only; other stopped controller roots and original charged fixtures were not accessed or changed.",
+    "Warm cached-base handwritten Node fixture, not cold pulls, Windows, live-model quality, peak resource measurement or latency acceptance.",
+    "Output image and build cache intentionally retained."
+  ]
+}

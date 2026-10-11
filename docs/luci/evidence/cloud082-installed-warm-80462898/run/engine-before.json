@@ -1,0 +1,10 @@
+{
+  "ID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "Driver": "vfs",
+  "OSType": "linux",
+  "Architecture": "x86_64",
+  "DockerRootDir": "/var/lib/docker",
+  "MemTotal": 35743784960,
+  "NCPU": 5,
+  "ServerVersion": "28.4.0"
+}

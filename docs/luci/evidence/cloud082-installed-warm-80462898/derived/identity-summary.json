@@ -1,0 +1,28 @@
+{
+  "scope": "Derived byte/identity joins only; does not execute or supplement the fixture",
+  "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "testScope": "10 actual Docker RUN tests; not Windows",
+  "buildProofSHA256": "4d6134a4b082f7a7a9878ffd463b92ca30c2ca5a10324ef0f06f530f3e535d26",
+  "decodedTapSHA256": "68d358bb95b0232670df76de264fd77aa48776ab11e0ce2bdd8a4f73d4b75325",
+  "helperSHA256": "767db04a94975c16c773c4b4e8cf4bcbf43ac991550bfa9311cd01d5b27f659e",
+  "fixtureNonceMatches": true,
+  "fourFixtureSourceHashesMatch": true,
+  "beforeAfterSelectedProductBindingsEqual": true,
+  "buildLeaseReadCount": 837,
+  "observedDistinctLeaseSnapshots": 7,
+  "uniqueBuildAllocations": [
+    "preview-build-ebf92ccfab2358e95121a65f"
+  ],
+  "uniqueServingAllocations": [
+    "preview-c1e3ac6740cca9891935545a"
+  ],
+  "maximumObservedSimultaneouslyChargedPreviewRows": 1,
+  "scopeNote": "50 ms observation target, not exhaustive transition timing or whole-machine resource accounting",
+  "normalStopExactOwnLeaseRows": 0,
+  "baseImageID": "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+  "buildPIDCgroupObservation": {
+    "status": "read",
+    "text": "max\n"
+  },
+  "buildPIDNote": "Observed max; production uses build nproc ulimit, not a build PID cgroup cap; serving PID cap separately 256"
+}

@@ -1,0 +1,68 @@
+{
+  "ok": true,
+  "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "sourceDirty": false,
+  "version": "0.5.0",
+  "sourceRoot": "/workspace/.luci-tools/package-80462898/source",
+  "releaseDirectory": "/workspace/.luci-tools/package-80462898/full-doc/releases/0.5.0",
+  "archives": {
+    "luci-cloud-linux-amd64.tar.gz": {
+      "name": "luci-cloud-linux-amd64.tar.gz",
+      "sha256": "04b272051418b75c61db65ba6dbd80a0728ca668b2dc0f723c5371570a94c0ab",
+      "bytes": 150861087,
+      "members": 14174,
+      "unpackedFileBytes": 354514313,
+      "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+      "webIndexSHA256": "537b41083a4d6b4652011be3bef8c70c45bad9c1fe43636e3377da2c3eaafe82",
+      "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+      "licenseComponents": 347,
+      "verifiedLicenseAndSourceFiles": 374,
+      "missingLicenses": [],
+      "documentationMode": "full",
+      "evidenceMembers": 12672
+    },
+    "luci-linux-amd64.tar.gz": {
+      "name": "luci-linux-amd64.tar.gz",
+      "sha256": "8db42bf43e3224eac00940fe851bec4bb405be057133be62e4b2623f27729779",
+      "bytes": 301382429,
+      "members": 14176,
+      "unpackedFileBytes": 505375400,
+      "binarySHA256": "b3a971589a0097ca08eef3c409f016617fc5f2590f79a7c5b673a2654f0a0f3d",
+      "webIndexSHA256": "537b41083a4d6b4652011be3bef8c70c45bad9c1fe43636e3377da2c3eaafe82",
+      "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+      "licenseComponents": 347,
+      "verifiedLicenseAndSourceFiles": 374,
+      "missingLicenses": [],
+      "documentationMode": "full",
+      "evidenceMembers": 12672
+    }
+  },
+  "packageIdentity": "4dccaf0d141ee12da9523bdb00affc3f2517dcb8e45652625e3502a8bfb2cf0c",
+  "documentationMode": "full",
+  "binaryBuildSettings": {
+    "-buildmode": "exe",
+    "-compiler": "gc",
+    "-trimpath": "true",
+    "DefaultGODEBUG": "cryptocustomrand=1,tlssecpmlkem=0,urlstrictcolons=0",
+    "CGO_ENABLED": "0",
+    "GOARCH": "amd64",
+    "GOOS": "linux",
+    "GOAMD64": "v1"
+  },
+  "embeddedVCS": {
+    "present": false,
+    "sourceBinding": "Official build invocation, clean pinned checkout/source bindings, release manifest and archive/binary hashes; official binary contains no VCS fields"
+  },
+  "installationDirectory": null,
+  "checks": {
+    "officialReleaseIntegrity": true,
+    "safePathsAndModes": true,
+    "packageIdentity": true,
+    "licenseFilesAndMissingEntries": true,
+    "documentationMode": true,
+    "nestedCloudArchive": true,
+    "matchingBinaries": true,
+    "binaryBuildInformation": true,
+    "serviceExecuted": false
+  }
+}

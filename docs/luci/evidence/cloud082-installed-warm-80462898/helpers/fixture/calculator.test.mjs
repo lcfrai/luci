@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { calculate } from './calculator.mjs';
+test('adds the requested decimal amounts', () => assert.equal(calculate('12.5', '7.25'), 19.75));
+test('adds negative and positive amounts', () => assert.equal(calculate('-12.5', '7.25'), -5.25));
+test('preserves zero and accepts surrounding whitespace', () => assert.equal(calculate(' 0 ', '0'), 0));
+test('accepts signed fractions', () => assert.equal(calculate('+.5', '-.25'), .25));
+test('rejects missing amounts', () => assert.throws(() => calculate(null, '1'), TypeError));
+test('rejects empty amounts', () => assert.throws(() => calculate('', '1'), TypeError));
+test('rejects arbitrary text', () => assert.throws(() => calculate('invalid', '1'), TypeError));
+test('rejects nonfinite values', () => assert.throws(() => calculate('Infinity', '1'), TypeError));
+test('rejects nondecimal and exponent formats', () => { for (const value of ['0x10', '1e3', '1,000']) assert.throws(() => calculate(value, '1'), TypeError); });
+test('rejects decimal overflow', () => assert.throws(() => calculate('9'.repeat(309), '1'), TypeError));

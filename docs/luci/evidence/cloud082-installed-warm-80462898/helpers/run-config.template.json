@@ -1,0 +1,19 @@
+{
+  "repository": "/workspace/luci",
+  "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "repositoryCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "binary": "/ABSOLUTE/VERIFIED/80462898/INSTALLED/luci-api",
+  "binarySHA256": "FILL_FROM_VERIFIED_PACKAGE",
+  "provenanceFile": "/ABSOLUTE/VERIFIED/80462898/integrity.json",
+  "provenanceSHA256": "FILL_FROM_VERIFIED_PACKAGE",
+  "packageIdentity": "FILL_FROM_VERIFIED_PACKAGE",
+  "webDir": "/ABSOLUTE/VERIFIED/80462898/INSTALLED/web",
+  "evidenceParent": "/workspace/.luci-tools/cloud082-warm-preview-80462898/runs",
+  "dockerHost": "unix:///var/run/docker.sock",
+  "engineID": "FILL_FROM_CURRENT_READ_ONLY_DAEMON_IDENTITY",
+  "engineDriver": "FILL_FROM_CURRENT_READ_ONLY_DAEMON_IDENTITY",
+  "mode": "warm-multistage",
+  "baseImageID": "sha256:FILL_FULL_EXISTING_7c3b093add7c_IMAGE_ID",
+  "acknowledgeFixtureMutation": false,
+  "acknowledgeWarmBaseOnly": false
+}

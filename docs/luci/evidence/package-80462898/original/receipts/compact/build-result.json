@@ -1,0 +1,9 @@
+{
+  "exit_code": 0,
+  "stop_reason": null,
+  "finished_utc": "2026-10-11T12:58:55.608632+00:00",
+  "elapsed_seconds": 60.17,
+  "minimum_workspace_free_bytes": 4509163520,
+  "minimum_tmp_free_bytes": 756613120,
+  "source_commit": "80462898735a191cceaa4cb33e486b42b0a35f3c"
+}

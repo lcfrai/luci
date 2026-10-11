@@ -1,0 +1,64 @@
+{
+  "Id": "sha256:eb1309aded7dc04bd3f9f5c6ca16fba0e8d8b8f43fc14d1e6e33d04b89dae146",
+  "RepoTags": [],
+  "RepoDigests": [],
+  "Parent": "sha256:b8194bc2dc7f72b4e32480832076ec61855d537337b3eb7895a5fb79a2f247da",
+  "Comment": "",
+  "Created": "2026-10-11T13:04:42.893299326Z",
+  "DockerVersion": "28.4.0",
+  "Author": "",
+  "Architecture": "amd64",
+  "Os": "linux",
+  "Size": 167348650,
+  "GraphDriver": {
+    "Data": null,
+    "Name": "vfs"
+  },
+  "RootFS": {
+    "Type": "layers",
+    "Layers": [
+      "sha256:74d97c428c51a828f9051a7a40a53ff1fc99e54fc30323ce36760701b0b7f711",
+      "sha256:ba3263475f993ce3855e4edf69b59a64716f9b4f4b43c369113a33f0c6a1b114",
+      "sha256:50a35fcbb91b0a6dd3821fb8ee87c3e44743f5f57c4337c1721280ff811f2d2a",
+      "sha256:ff5db628aec4eaf74f091c36d7fc5f855481dfa4de3cb6c0b05b0684bfcea637",
+      "sha256:493739d372675f3cdfbe70b3b03a9b8acbbf35d0c9eac7ee94ab2de349791641",
+      "sha256:aa0769cdbf512bfc6b2244ed52524690d8d91e9684190b4c236fc1bbaf5fb117"
+    ]
+  },
+  "Metadata": {
+    "LastTagTime": "0001-01-01T00:00:00Z"
+  },
+  "Config": {
+    "Cmd": [
+      "node",
+      "server.mjs"
+    ],
+    "Entrypoint": [
+      "docker-entrypoint.sh"
+    ],
+    "Env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "NODE_VERSION=22.23.3",
+      "YARN_VERSION=1.22.22"
+    ],
+    "ExposedPorts": {
+      "3000/tcp": {}
+    },
+    "Labels": {
+      "luci.instance": "6b3343be-a1ad-47a9-ac55-c0c0b85d82b5",
+      "luci.preview": "true",
+      "luci.preview-allocation": "preview-build-ebf92ccfab2358e95121a65f",
+      "luci.preview-commit": "1245d3f6463f452e16290089145dea2c5d6faac5",
+      "luci.preview-engine": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+      "luci.preview-project": "p-ec295aad",
+      "luci.preview-protocol": "1",
+      "luci.preview-release": "rel-06edd57f774ad025f9f4e732",
+      "luci.preview-scope": "f46ad5c06b6379034f6882df8b7376da0adb056133e63adceb7c9d7129485452",
+      "luci.preview-source": "55a0542e44e60d04efb2172518cc1ddf20a2ff65ac15ce56ae315d30af1d6443"
+    },
+    "OnBuild": null,
+    "User": "65532:65532",
+    "Volumes": null,
+    "WorkingDir": "/app"
+  }
+}

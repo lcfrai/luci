@@ -1,0 +1,85 @@
+{
+  "status": "prepared-not-executed",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 5978,
+      "sha256": "979b3b8f405949e946e85d5c3ef4e8832d82deafb1e7916cad6d67dd4000349c"
+    },
+    {
+      "path": "fixture/Dockerfile.template",
+      "bytes": 354,
+      "sha256": "a1ec35292ad270982d4e2bd29826a8171316a527dff0236d2de76dab6d908011"
+    },
+    {
+      "path": "fixture/build.mjs",
+      "bytes": 2100,
+      "sha256": "61b75983039f60854f22766956a7d0d9113e4287db407f936c659d7fd8385bee"
+    },
+    {
+      "path": "fixture/calculator.mjs",
+      "bytes": 513,
+      "sha256": "141dab21aa21726011a589ea0ce419a154eacb7a5ec32f8780cb3f2b9dc105a0"
+    },
+    {
+      "path": "fixture/calculator.test.mjs",
+      "bytes": 1153,
+      "sha256": "181ab2d149a4cc0762439877c3a4f5f1392df75fadb80e13531f10442124b692"
+    },
+    {
+      "path": "fixture/server.mjs",
+      "bytes": 1696,
+      "sha256": "c4cb09a1cb64f708c82ff3b11e989d4e2b3f260226fac568f9dd20c7edefcedd"
+    },
+    {
+      "path": "helper-oracles-final.tap",
+      "bytes": 1430,
+      "sha256": "a355bbd8603df2f8afce40c535f17ad3fc38a7c65755fa02eea2432170d3a601"
+    },
+    {
+      "path": "helper-oracles.tap",
+      "bytes": 1431,
+      "sha256": "c060e54e898fbf96ecc47b7ed02dede3637a4ff2e1fad27e44c591012250016e"
+    },
+    {
+      "path": "helper-oracles.test.mjs",
+      "bytes": 2848,
+      "sha256": "7503810b7e060fb7516801534f69cfa1fb361da11b54adac008f97d06e2a9006"
+    },
+    {
+      "path": "local-fixture-tests-original-spec.txt",
+      "bytes": 590,
+      "sha256": "9eb2886e8e0724fc3c68c1d040534bbca2498a872e56d55b448bbae30135cb17"
+    },
+    {
+      "path": "local-fixture-tests.tap",
+      "bytes": 1419,
+      "sha256": "980a68c40a7da42fe5cf09653e05fd935c6f24c2083b19fd1484a7d9d16efedd"
+    },
+    {
+      "path": "prepare-helper.py",
+      "bytes": 9894,
+      "sha256": "3f6592cf7973ce9e636f8c047cc100dcc5fc92ff84c14922002789b1e95a6db1"
+    },
+    {
+      "path": "preview-smoke-original.mjs",
+      "bytes": 30465,
+      "sha256": "578b5e245b9eae01bc3dc604643404a9160e8c46dceb76961129baf37665bde3"
+    },
+    {
+      "path": "preview-smoke.mjs",
+      "bytes": 35604,
+      "sha256": "767db04a94975c16c773c4b4e8cf4bcbf43ac991550bfa9311cd01d5b27f659e"
+    },
+    {
+      "path": "run-config.template.json",
+      "bytes": 929,
+      "sha256": "b296e9480a84306c1310e354edd5bd76b523f4a9ad5d18e84376e3f56c15ca61"
+    },
+    {
+      "path": "source-bindings.json",
+      "bytes": 1848,
+      "sha256": "cbb8d8c1d7aeb2046e4a85f40921c92188f4ba693b8be6c34242a33d554e7b5a"
+    }
+  ]
+}

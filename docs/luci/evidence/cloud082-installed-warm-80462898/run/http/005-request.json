@@ -1,0 +1,16 @@
+{
+  "method": "POST",
+  "path": "/v1/product/projects/p-ec295aad/brief",
+  "body": {
+    "revision": 0,
+    "purpose": "Verify a local preview calculator",
+    "audience": "Release verification",
+    "constraints": "Fixture only; no model, cloud calls or runtime installation",
+    "criteria": [
+      "Add two entered amounts",
+      "Bind the preview to loopback and settle owned execution on Stop"
+    ]
+  },
+  "timeout": 30000,
+  "at": "2026-10-11T13:03:50.493Z"
+}

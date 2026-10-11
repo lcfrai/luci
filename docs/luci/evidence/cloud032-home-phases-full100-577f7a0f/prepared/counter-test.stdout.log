@@ -1,0 +1,5 @@
+PASS exact original probe:17th completed Home retires one start entry with12 phase rows retained; full100 preserves1200 contiguous phase rows and84 retirements
+PASS missing phase/sequence still refuses complete capture
+PASS extra dropped counter still refuses complete capture
+PASS actual overlapping unfinished Home exceeds permitted retirement count
+{"tests":4,"passed":4,"probeSHA256":"c9b657144d10cb4adc9d16996b8201c66ddbc8471676e3acba5a7f7df253ac94","driverSHA256":"c4312796c88ffe272f8dac9d14cb01d4040b2d040ba4262494daeccf2fb6ef56","transpileOnly":true,"browser":false,"webBuild":false}

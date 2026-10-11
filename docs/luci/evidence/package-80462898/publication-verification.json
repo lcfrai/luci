@@ -1,0 +1,43 @@
+{
+  "schema": "package-evidence-publication-copy-check-v1",
+  "checkedUTC": "2026-10-11T13:10:50.385171+00:00",
+  "sourceCommit": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+  "logicalOriginalFiles": 95,
+  "exactOriginalBytesAndHashesVerified": true,
+  "officialSourceFiles": 9,
+  "officialSourceBytesAndHashesVerified": true,
+  "beforeAfterTrackedBindings": {
+    "documents": 4,
+    "sameOriginalSHA256": "ef3c726ba25028fef5eeb3559475a49e217d3d4d3b49dfe3a0b8464a754061d1",
+    "trackedInputs": 12677
+  },
+  "gzipObjects": 6,
+  "losslessDecompressionVerified": true,
+  "readmeLocalLinksVerified": true,
+  "binaryArchivesPublished": false,
+  "buildsTestsDockerRuntimeExecutedForPublication": false,
+  "privacyReview": {
+    "scope": [
+      "receipts/build-invocation.json",
+      "receipts/build.stdout",
+      "receipts/build.stderr",
+      "receipts/compact/build-invocation.json",
+      "receipts/compact/build.stdout",
+      "receipts/compact/build.stderr",
+      "receipts/preflight.json",
+      "receipts/tracking-fetch.stderr",
+      "receipts/tracking-fetch.json",
+      "go.work",
+      "run-build.py",
+      "run-compact-build.py",
+      "verify-package-build.py",
+      "verify-package-build-original-vcs-assumption.py"
+    ],
+    "method": "Independent read-only text review of these scoped helper/log/invocation files",
+    "actualSecretsFound": 0,
+    "privateFixtureInstancePathsFound": 0,
+    "redactionRequired": false,
+    "note": "Ordinary public repository, package and tooling paths retained. Apparent credential-pattern matches were locale asset filenames."
+  },
+  "historicalReceiptsUnmodified": true
+}

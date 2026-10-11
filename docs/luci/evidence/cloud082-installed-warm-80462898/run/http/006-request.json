@@ -1,0 +1,7 @@
+{
+  "method": "GET",
+  "path": "/v1/product/projects/p-ec295aad/specification",
+  "body": null,
+  "timeout": 30000,
+  "at": "2026-10-11T13:03:50.506Z"
+}

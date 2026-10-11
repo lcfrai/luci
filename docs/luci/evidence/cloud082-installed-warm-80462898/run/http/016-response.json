@@ -1,0 +1,39 @@
+{
+  "status": 200,
+  "value": {
+    "projectId": "p-ec295aad",
+    "revision": 2,
+    "briefRevision": 2,
+    "specificationRevision": 2,
+    "sketchRevision": 0,
+    "screens": [
+      {
+        "id": "calculator",
+        "name": "Calculator",
+        "route": "/",
+        "purpose": "Add two amounts",
+        "states": [
+          "Ready",
+          "Invalid input"
+        ],
+        "widths": [
+          390,
+          1440
+        ],
+        "requirementIds": [
+          "AC-001",
+          "AC-002"
+        ],
+        "accessibility": ""
+      }
+    ],
+    "tokens": [],
+    "assets": [],
+    "implementationNotes": "",
+    "prototypeReleaseId": "",
+    "prototypeCommit": "",
+    "status": "approved",
+    "digest": "75b4da5c0528ede7bddd319747c9a8c27072dd7201de996204c80ae7f53c0b90",
+    "updatedAt": "2026-10-11T13:03:50.558109398Z"
+  }
+}

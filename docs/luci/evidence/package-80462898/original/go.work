@@ -1,0 +1,6 @@
+go 1.25.0
+
+use (
+	/workspace/.luci-tools/package-80462898/source/control-plane
+	/workspace/.luci-tools/package-80462898/source/sandboxd
+)

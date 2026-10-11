@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "scope": "Handwritten warm-base build fixture; no model or whole-product pass",
+  "nonce": "92d5c3d0-9ff8-4936-908a-5d8e62ca8f81",
+  "node": "v22.23.3",
+  "architecture": "x64",
+  "platform": "linux",
+  "uid": 0,
+  "sources": {
+    "calculator.mjs": "141dab21aa21726011a589ea0ce419a154eacb7a5ec32f8780cb3f2b9dc105a0",
+    "calculator.test.mjs": "181ab2d149a4cc0762439877c3a4f5f1392df75fadb80e13531f10442124b692",
+    "server.mjs": "c4cb09a1cb64f708c82ff3b11e989d4e2b3f260226fac568f9dd20c7edefcedd",
+    "build.mjs": "61b75983039f60854f22766956a7d0d9113e4287db407f936c659d7fd8385bee"
+  },
+  "tap": "TAP version 13\n# Subtest: adds the requested decimal amounts\nok 1 - adds the requested decimal amounts\n  ---\n  duration_ms: 2.409431\n  type: 'test'\n  ...\n# Subtest: adds negative and positive amounts\nok 2 - adds negative and positive amounts\n  ---\n  duration_ms: 0.355586\n  type: 'test'\n  ...\n# Subtest: preserves zero and accepts surrounding whitespace\nok 3 - preserves zero and accepts surrounding whitespace\n  ---\n  duration_ms: 0.160171\n  type: 'test'\n  ...\n# Subtest: accepts signed fractions\nok 4 - accepts signed fractions\n  ---\n  duration_ms: 2.442151\n  type: 'test'\n  ...\n# Subtest: rejects missing amounts\nok 5 - rejects missing amounts\n  ---\n  duration_ms: 1.147529\n  type: 'test'\n  ...\n# Subtest: rejects empty amounts\nok 6 - rejects empty amounts\n  ---\n  duration_ms: 0.213852\n  type: 'test'\n  ...\n# Subtest: rejects arbitrary text\nok 7 - rejects arbitrary text\n  ---\n  duration_ms: 0.223757\n  type: 'test'\n  ...\n# Subtest: rejects nonfinite values\nok 8 - rejects nonfinite values\n  ---\n  duration_ms: 0.227623\n  type: 'test'\n  ...\n# Subtest: rejects nondecimal and exponent formats\nok 9 - rejects nondecimal and exponent formats\n  ---\n  duration_ms: 0.897704\n  type: 'test'\n  ...\n# Subtest: rejects decimal overflow\nok 10 - rejects decimal overflow\n  ---\n  duration_ms: 1.255262\n  type: 'test'\n  ...\n1..10\n# tests 10\n# suites 0\n# pass 10\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 167.269962\n",
+  "tapSHA256": "68d358bb95b0232670df76de264fd77aa48776ab11e0ce2bdd8a4f73d4b75325",
+  "testProcessExit": 0,
+  "cgroup": {
+    "/proc/self/cgroup": {
+      "status": "read",
+      "text": "0::/\n"
+    },
+    "/sys/fs/cgroup/memory.max": {
+      "status": "read",
+      "text": "1073741824\n"
+    },
+    "/sys/fs/cgroup/memory.swap.max": {
+      "status": "read",
+      "text": "0\n"
+    },
+    "/sys/fs/cgroup/cpu.max": {
+      "status": "read",
+      "text": "100000 100000\n"
+    },
+    "/sys/fs/cgroup/pids.max": {
+      "status": "read",
+      "text": "max\n"
+    },
+    "/sys/fs/cgroup/memory/memory.limit_in_bytes": {
+      "status": "unavailable",
+      "code": "ENOENT"
+    },
+    "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes": {
+      "status": "unavailable",
+      "code": "ENOENT"
+    },
+    "/sys/fs/cgroup/cpu/cpu.cfs_quota_us": {
+      "status": "unavailable",
+      "code": "ENOENT"
+    },
+    "/sys/fs/cgroup/cpu/cpu.cfs_period_us": {
+      "status": "unavailable",
+      "code": "ENOENT"
+    }
+  }
+}

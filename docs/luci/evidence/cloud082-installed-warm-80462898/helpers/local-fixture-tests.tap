@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: adds the requested decimal amounts
+ok 1 - adds the requested decimal amounts
+  ---
+  duration_ms: 0.977523
+  type: 'test'
+  ...
+# Subtest: adds negative and positive amounts
+ok 2 - adds negative and positive amounts
+  ---
+  duration_ms: 0.371029
+  type: 'test'
+  ...
+# Subtest: preserves zero and accepts surrounding whitespace
+ok 3 - preserves zero and accepts surrounding whitespace
+  ---
+  duration_ms: 0.121664
+  type: 'test'
+  ...
+# Subtest: accepts signed fractions
+ok 4 - accepts signed fractions
+  ---
+  duration_ms: 1.099427
+  type: 'test'
+  ...
+# Subtest: rejects missing amounts
+ok 5 - rejects missing amounts
+  ---
+  duration_ms: 0.361645
+  type: 'test'
+  ...
+# Subtest: rejects empty amounts
+ok 6 - rejects empty amounts
+  ---
+  duration_ms: 0.122064
+  type: 'test'
+  ...
+# Subtest: rejects arbitrary text
+ok 7 - rejects arbitrary text
+  ---
+  duration_ms: 0.11973
+  type: 'test'
+  ...
+# Subtest: rejects nonfinite values
+ok 8 - rejects nonfinite values
+  ---
+  duration_ms: 0.186881
+  type: 'test'
+  ...
+# Subtest: rejects nondecimal and exponent formats
+ok 9 - rejects nondecimal and exponent formats
+  ---
+  duration_ms: 0.263216
+  type: 'test'
+  ...
+# Subtest: rejects decimal overflow
+ok 10 - rejects decimal overflow
+  ---
+  duration_ms: 0.223537
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 81.710988

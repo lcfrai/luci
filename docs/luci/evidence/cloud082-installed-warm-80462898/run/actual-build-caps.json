@@ -1,0 +1,7 @@
+{
+  "memoryBytes": 1073741824,
+  "cpuQuotaMicros": 100000,
+  "cpuPeriodMicros": 100000,
+  "swapEvidence": "cgroup-v2-zero-swap",
+  "scope": "Actual RUN child namespace cgroup files, not host capacity or whole-process resource sampling"
+}

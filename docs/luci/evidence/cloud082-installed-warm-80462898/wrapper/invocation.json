@@ -1,0 +1,11 @@
+{
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud082-warm-preview-80462898/preview-smoke.mjs",
+    "/workspace/.luci-tools/cloud082-warm-preview-80462898/run-config-001.json"
+  ],
+  "startedAt": "2026-10-11T13:03:48.291819+00:00",
+  "helperSHA256": "767db04a94975c16c773c4b4e8cf4bcbf43ac991550bfa9311cd01d5b27f659e",
+  "configSHA256": "70e2bb3bbde70b5600d1f1f2801fc0ae6aa9824b5868d6320dc83dfcc1535698",
+  "scope": "Bounded installed warm-base multistage fixture; wrapper exit alone is not cleanup or product acceptance"
+}

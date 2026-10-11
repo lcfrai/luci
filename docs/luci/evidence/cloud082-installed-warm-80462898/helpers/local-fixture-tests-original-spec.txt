@@ -1,0 +1,18 @@
+✔ adds the requested decimal amounts (1.317716ms)
+✔ adds negative and positive amounts (0.141894ms)
+✔ preserves zero and accepts surrounding whitespace (0.142254ms)
+✔ accepts signed fractions (1.580923ms)
+✔ rejects missing amounts (0.493985ms)
+✔ rejects empty amounts (0.183216ms)
+✔ rejects arbitrary text (0.162635ms)
+✔ rejects nonfinite values (0.163086ms)
+✔ rejects nondecimal and exponent formats (0.327254ms)
+✔ rejects decimal overflow (0.375446ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 98.191888
