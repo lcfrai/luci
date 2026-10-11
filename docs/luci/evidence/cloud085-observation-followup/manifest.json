@@ -1,0 +1,62 @@
+{
+  "README.md": {
+    "sha256": "2c5c5736765c7fe1631b91c9d63c4dae4f1af2c2c883b0ccb5e2b26bd3d72d49",
+    "bytes": 3017
+  },
+  "after-focused-corrected-fixture-exit.json": {
+    "sha256": "982b9e9bfb10ffe83cad665807abcfd3fa97b37822db5ab7831157a499548a9e",
+    "bytes": 16
+  },
+  "after-focused-corrected-fixture.log": {
+    "sha256": "86e06fb2a4a0819ec7de9e6ed7cc1db3899c650d7f7230f59529a7eafae9ebf8",
+    "bytes": 776
+  },
+  "after-focused-exit.json": {
+    "sha256": "e153f5bd2ee7416d77570b30ba1de5bb9196c55f8d145e34df9dab12190ffe43",
+    "bytes": 16
+  },
+  "after-focused.log": {
+    "sha256": "81e537628082fa5aecf8fe78b49fb2b4a99a6335cfc62314b016f75e81443d0f",
+    "bytes": 17610
+  },
+  "before-CoordinatorPolicy.tsx.txt": {
+    "sha256": "2ed92de8942ee19f70c2fbcf014c7885602933bc3a517b8062030f178c7dfe6c",
+    "bytes": 14045
+  },
+  "before-OrchestratorPanel.tsx.txt": {
+    "sha256": "c6928263e2332f833cbaa993432bbf24b7bb665a2343e8756b85786e13278831",
+    "bytes": 59169
+  },
+  "before-exit.json": {
+    "sha256": "e153f5bd2ee7416d77570b30ba1de5bb9196c55f8d145e34df9dab12190ffe43",
+    "bytes": 16
+  },
+  "before-test.log": {
+    "sha256": "9460914672dfbc6947864388bb8f0995b60c35b36505af18c8bc6cc357771a4e",
+    "bytes": 4335
+  },
+  "final-after.json": {
+    "sha256": "f4879dac45f43f137cae4a753fe4dfef820eec2b243304ac8bd97a825af59f52",
+    "bytes": 1277
+  },
+  "final-before.json": {
+    "sha256": "ed4c8c7e7e69076b9c60bceaa623494207b60791064d6b31bb798a66e1b29982",
+    "bytes": 1332
+  },
+  "final-tests-exit.json": {
+    "sha256": "982b9e9bfb10ffe83cad665807abcfd3fa97b37822db5ab7831157a499548a9e",
+    "bytes": 16
+  },
+  "final-tests.log": {
+    "sha256": "20a0cf483fddb2a66552b8037b3b1df97a3472628cd2a427a2a0d3a348a00c67",
+    "bytes": 636
+  },
+  "final-typecheck-exit.json": {
+    "sha256": "982b9e9bfb10ffe83cad665807abcfd3fa97b37822db5ab7831157a499548a9e",
+    "bytes": 16
+  },
+  "final-typecheck.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

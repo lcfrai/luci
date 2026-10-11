@@ -55,6 +55,9 @@ export interface OrchestratorRequest {
   message: string; replyToTurnId?: string;
   harness: "codex" | "claude-code" | "opencode"; model?: string; agentConnectionId?: string;
 }
+export interface OrchestratorAdvanceRequest {
+  expectedRevision: number; expectedContextDigest: string; expectedPolicyRevision: number;
+}
 export interface OrchestratorJob {
   id: string; projectId: string; kind: "orchestrator"; status: TurnStatus; message: string;
   orchestratorTurnId: string; orchestratorContext: OrchestratorContext; orchestratorResult?: OrchestratorAnswer;
@@ -139,7 +142,7 @@ export const orchestratorApi = {
   async apply(projectId: string, turnId: string, input: { expectedRevision: number; expectedContextDigest: string }) {
     return verifiedView(await productApi.request<OrchestratorView>(`${route(projectId)}/orchestrator/turns/${encodeURIComponent(turnId)}/apply`, input), projectId);
   },
-  async advance(projectId: string, turnId: string, input: { expectedRevision: number; expectedContextDigest: string; expectedPolicyRevision: number }) {
+  async advance(projectId: string, turnId: string, input: OrchestratorAdvanceRequest) {
     return verifiedView(await productApi.request<OrchestratorView>(`${route(projectId)}/orchestrator/turns/${encodeURIComponent(turnId)}/advance`, input), projectId);
   },
 };

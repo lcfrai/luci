@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import { coordinatorPolicyApi, type CoordinatorPolicy as Policy } from "../../api/coordinatorPolicy";
-import { orchestratorApi, type OrchestratorView } from "../../api/orchestrator";
+import { orchestratorApi, type OrchestratorAdvanceRequest, type OrchestratorView } from "../../api/orchestrator";
 import { ApiError } from "../../api/client";
 import { ProductApiError } from "../../api/product";
 import { CoordinatorPolicy } from "./CoordinatorPolicy";
@@ -11,7 +11,10 @@ import { context, proposalTurn, view } from "./fixtures";
 const policy = (patch: Partial<Policy> = {}): Policy => ({ projectId: "p-1", revision: 1, mode: "review", allowedTargets: ["specification", "design-plan", "plan"], executionMode: "manual", deploymentMode: "manual", actor: { id: "alice", displayName: "Alice" }, updatedAt: "2026-10-12T00:00:00Z", ...patch });
 const pendingView = () => view({ turns: [proposalTurn()] });
 const savedView = () => view({ revision: 4, context: { ...context(), digest: "new-context" }, turns: [{ ...proposalTurn(), appliedRevision: 3 }] });
-const props = () => ({ projectId: "p-1", scope: "workspace/alice/p-1", actorId: "alice", view: pendingView(), canRead: true, canEdit: true, blocked: "", onAdvance: vi.fn<(id: string, revision: number) => Promise<OrchestratorView>>().mockResolvedValue(savedView()), onObserved: vi.fn() });
+const props = () => {
+  const onObserved = vi.fn();
+  return { projectId: "p-1", scope: "workspace/alice/p-1", actorId: "alice", view: pendingView(), canRead: true, canEdit: true, blocked: "", onAdvance: vi.fn<(id: string, input: OrchestratorAdvanceRequest) => Promise<OrchestratorView>>().mockResolvedValue(savedView()), onObserved, beginObservation: () => onObserved };
+};
 function deferred<T>() { let resolve!: (value: T) => void, reject!: (cause: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 const records = () => Object.keys(localStorage).filter(key => key.startsWith("luci.coordinator-request.v1:"));
 async function open() { await userEvent.click(screen.getByText(/Context draft policy ·/)); }
@@ -37,16 +40,15 @@ it("defaults to review and requires explicit consent for selected document targe
 it("saves only the current person's current nonblocking proposal exactly once, even while the parent view lags", async () => {
   vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ mode: "auto-drafts" }));
   const input = props(), ui = render(<CoordinatorPolicy {...input} />);
-  await waitFor(() => expect(input.onAdvance).toHaveBeenCalledExactlyOnceWith("turn-1", 1));
+  await waitFor(() => expect(input.onAdvance).toHaveBeenCalledExactlyOnceWith("turn-1", { expectedRevision: 3, expectedContextDigest: context().digest, expectedPolicyRevision: 1 }));
   await waitFor(() => expect(records()).toHaveLength(0));
   ui.rerender(<CoordinatorPolicy {...input} view={pendingView()} />);
   await act(async () => {});
   expect(input.onAdvance).toHaveBeenCalledTimes(1);
 });
-it.each(["other-actor", "old-context", "material-question", "blocking-answer", "unselected-target", "drafts", "read-only"])("refuses automatic draft saving for %s", async reason => {
+it.each(["other-actor", "material-question", "blocking-answer", "unselected-target", "drafts", "read-only"])("refuses automatic draft saving for %s", async reason => {
   const input = props(), p = policy({ mode: "auto-drafts" });
   if (reason === "other-actor") input.actorId = "bob";
-  if (reason === "old-context") input.view.context.digest = "changed";
   if (reason === "material-question") input.view.blockingQuestions = [{ turnId: "decision", question: "Who can access this?", rationale: "Privacy", options: [] }];
   if (reason === "blocking-answer") input.view.turns[0].answer!.blocking = true;
   if (reason === "unselected-target") p.allowedTargets = ["plan"];
@@ -160,4 +162,49 @@ it("retains uncertainty when a client scope fence discards the response with HTT
   render(<CoordinatorPolicy {...input} />); await open(); await screen.findByText(/Workspace changed before this response arrived/);
   await userEvent.click(screen.getByRole("button", { name: "Refresh policy and conversation" })); await screen.findByText(/Current policy and conversation read/);
   expect(records()).toHaveLength(1); expect(input.onAdvance).toHaveBeenCalledTimes(1);
+});
+it("does not publish a held conversation read over a newer parent context at the same conversation revision", async () => {
+  const input = props(); input.view = view(); const held = deferred<OrchestratorView>();
+  const ui = render(<CoordinatorPolicy {...input} />); await open();
+  vi.mocked(orchestratorApi.get).mockReturnValue(held.promise);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh policy and conversation" }));
+  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledTimes(1));
+  const newer = view({ context: { ...context(), digest: "newer-approved-context" } });
+  ui.rerender(<CoordinatorPolicy {...input} view={newer} />);
+  await act(async () => held.resolve(view()));
+  expect(input.onObserved).not.toHaveBeenCalled();
+});
+
+it("settles an exact uncertain amendment without publishing its old read over newer parent context", async () => {
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ mode: "auto-drafts" }));
+  const input = props(); input.onAdvance.mockRejectedValue(new Error("Reply lost"));
+  const ui = render(<CoordinatorPolicy {...input} />); await open(); await screen.findByText(/Reply lost/);
+  const held = deferred<OrchestratorView>(); vi.mocked(orchestratorApi.get).mockReturnValue(held.promise);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh policy and conversation" }));
+  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledTimes(1));
+  ui.rerender(<CoordinatorPolicy {...input} view={view({ context: { ...context(), digest: "newer-context" } })} />);
+  await act(async () => held.resolve(savedView()));
+  await screen.findByText(/retained amendment was saved/);
+  expect(records()).toHaveLength(0); expect(input.onObserved).not.toHaveBeenCalled();
+  expect(input.onAdvance).toHaveBeenCalledTimes(1);
+});
+it("asks the server to rebase the latest own proposal with the current context CAS despite a later peer turn", async () => {
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ mode: "auto-drafts" }));
+  const input = props();
+  const own = proposalTurn(), peer = { ...proposalTurn(), id: "peer-turn", sequence: 2, actor: { id: "bob", displayName: "Bob" } };
+  input.view = view({ revision: 7, context: { ...context(), digest: "current-team-context" }, turns: [own, peer] });
+  render(<CoordinatorPolicy {...input} />);
+  await waitFor(() => expect(input.onAdvance).toHaveBeenCalledExactlyOnceWith(own.id, { expectedRevision: 7, expectedContextDigest: "current-team-context", expectedPolicyRevision: 1 }));
+  await waitFor(() => expect(records()).toHaveLength(0));
+});
+it("retains a conflicting old-base proposal without repeated automatic attempts or invented compatibility", async () => {
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ mode: "auto-drafts" }));
+  const input = props(); input.view = view({ revision: 7, context: { ...context(), digest: "changed-team-context" }, turns: [proposalTurn()] });
+  input.onAdvance.mockRejectedValue(new ProductApiError("conflict", "Contradictory team intent", 409, { error: "coordination_conflict" }));
+  render(<CoordinatorPolicy {...input} />); await open(); await screen.findByText(/Contradictory team intent/);
+  expect(records()).toHaveLength(1);
+  vi.mocked(orchestratorApi.get).mockResolvedValue(input.view);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh policy and conversation" }));
+  await waitFor(() => expect(records()).toHaveLength(0));
+  expect(input.onAdvance).toHaveBeenCalledTimes(1); expect(screen.queryByText(/retained amendment was saved/)).toBeNull();
 });

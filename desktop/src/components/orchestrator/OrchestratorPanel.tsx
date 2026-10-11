@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { orchestratorApi, type OrchestratorJob, type OrchestratorRequest, type OrchestratorTurn, type OrchestratorView } from "../../api/orchestrator";
+import { orchestratorApi, type OrchestratorAdvanceRequest, type OrchestratorJob, type OrchestratorRequest, type OrchestratorTurn, type OrchestratorView } from "../../api/orchestrator";
 import { errorText } from "../../api/product";
 import { ApiError } from "../../api/client";
 import { PROJECT_CONTEXT_CHANGED, requestProjectContextEdit, type ContextEditor, type ProjectContextIdentity } from "../../api/projectContextEvents";
@@ -15,6 +15,7 @@ import { AmendmentReview } from "./AmendmentReview";
 import { ProjectUnderstanding } from "./ProjectUnderstanding";
 import { ConversationStorage } from "./ConversationStorage";
 import { CoordinatorPolicy } from "./CoordinatorPolicy";
+import { CoordinatorTeamIntents } from "./CoordinatorTeamIntents";
 import { useAuth } from "../auth/AuthProvider";
 import { readAgentPreference, writeAgentPreference, type OrchestratorAgent } from "./agentPreference";
 import { finishComposerRequest, isComposerRecoveryKey, readComposerRecovery, retainComposerRequest, saveComposerDraft } from "./composerRecovery";
@@ -114,6 +115,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const editRequestNeedsWrite = useRef(true);
   const decisionRequest = useRef(0), decisionNoticeNode = useRef<HTMLParagraphElement>(null);
   const decisionNodes = useRef(new Map<string, HTMLDivElement>());
+  const conversationNodes = useRef(new Map<string, HTMLLIElement>());
   latest.current = view;
 
   useEffect(() => {
@@ -468,15 +470,15 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     } catch (cause) { if (alive.current && ticket === generation.current) setError(`${errorText(cause)} Keep this proposal, refresh the conversation and review the current context before applying again.`); }
     finally { if (ticket === generation.current) { working.current = false; if (alive.current) setBusy(""); } }
   }
-  async function advanceDraft(turnId: string, policyRevision: number): Promise<OrchestratorView> {
+  async function advanceDraft(turnId: string, input: OrchestratorAdvanceRequest): Promise<OrchestratorView> {
     const current = latest.current;
     const unsaved = Object.values(useCockpit.getState().unsavedProjectDrafts).some(draft => draft.projectId === projectId);
-    if (!permission.current.canEdit || permission.current.loading || permission.current.error || !current || contextStale || contextRefreshQueued || unsaved || working.current || pendingRequest || uncertain) {
+    if (!permission.current.canEdit || permission.current.loading || permission.current.error || !current || current.revision !== input.expectedRevision || current.context.digest !== input.expectedContextDigest || contextStale || contextRefreshQueued || unsaved || working.current || pendingRequest || uncertain) {
       throw new Error("The current project is not ready for automatic draft saving.");
     }
     working.current = true; const ticket = ++generation.current; setBusy("auto-draft"); setError("");
     try {
-      const value = await orchestratorApi.advance(projectId, turnId, { expectedRevision: current.revision, expectedContextDigest: current.context.digest, expectedPolicyRevision: policyRevision });
+      const value = await orchestratorApi.advance(projectId, turnId, input);
       if (alive.current && permission.current.canRead && permission.current.canEdit && ticket === generation.current) {
         remember(value); setRefreshEditor(true);
       }
@@ -498,6 +500,18 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         ? overviewBody.current?.querySelector<HTMLButtonElement>('[aria-label="Unsent message recovery"] button, [aria-label="Unconfirmed message recovery"] button')
         : field;
       target?.scrollIntoView?.({ block: "nearest" }); target?.focus();
+    });
+  };
+  const openConversationTurn = (turnId: string) => {
+    if (!permission.current.canRead || permission.current.loading || permission.current.error) return;
+    const origin = document.activeElement, ticket = generation.current;
+    setOpenChoice(true); setConversationOpen(true);
+    requestAnimationFrame(() => {
+      if (!alive.current || !permission.current.canRead || permission.current.loading || permission.current.error || ticket !== generation.current ||
+          document.activeElement !== origin && document.activeElement !== document.body) return;
+      const node = conversationNodes.current.get(turnId);
+      if (node) { node.scrollIntoView?.({ block: "nearest" }); node.focus(); }
+      else setNotice("This request is in earlier conversation history. Show earlier conversation to find it. Your message and reply target have not changed.");
     });
   };
   const ask = (text?: string) => {
@@ -610,14 +624,22 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         {view && <CoordinatorPolicy projectId={projectId} scope={scope} actorId={actorId} view={view}
           canRead={canRead && !access.loading && !access.error} canEdit={canEdit}
           blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
-          onAdvance={advanceDraft} onObserved={value => { if (!working.current && permission.current.canRead) remember(value); }} />}
+          onAdvance={advanceDraft} beginObservation={() => {
+            const observed = latest.current, read = viewRead.current, ticket = generation.current;
+            const current = !contextStale && !contextRefreshQueued && !loading && !working.current;
+            return value => { if (current && alive.current && !working.current && permission.current.canRead && !permission.current.loading && !permission.current.error && latest.current === observed && viewRead.current === read && generation.current === ticket) remember(value); };
+          }} />}
+        {view && <CoordinatorTeamIntents projectId={projectId} scope={scope} actorId={actorId} contextDigest={view.context.digest}
+          canRead={canRead && !access.loading && !access.error} canEdit={canEdit}
+          blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
+          onDiscuss={openConversationTurn} onRefreshContext={() => void refresh(true)} />}
         <details className="orchestrator-discussion" open={conversationOpen} onToggle={event => setConversationOpen(event.currentTarget.open)}><summary>Discuss or request a change</summary>
         {conversation.mounted && <div hidden={!conversationOpen}>
         {view && <>
           <div className="orchestrator-toolbar"><h3>Luci</h3><Button variant="ghost" size="compact" disabled={!!busy || loading} onClick={() => void refresh(true)}>Refresh conversation</Button></div>
           {(page?.hasEarlier ?? view.hasEarlier) && <Button variant="secondary" size="compact" disabled={!!busy} onClick={() => void older()}>Show earlier conversation</Button>}
           {!turns.length && <p className="orchestrator-welcome">Describe your idea, ask about the current work, or discuss a change. Luci can propose an amendment for you to review.</p>}
-          <ol className="orchestrator-turns" aria-label="Conversation history">{turns.map(turn => <li key={turn.id}>
+          <ol className="orchestrator-turns" aria-label="Conversation history">{turns.map(turn => <li key={turn.id} tabIndex={-1} ref={node => { if (node) conversationNodes.current.set(turn.id, node); else conversationNodes.current.delete(turn.id); }}>
             <div className="orchestrator-turn-meta"><strong>{turn.actor.displayName}</strong><time dateTime={turn.createdAt}>{new Date(turn.createdAt).toLocaleString()}</time></div>
             <p className="orchestrator-message">{turn.message}</p>
             {turn.replyToTurnId && <p className="orchestrator-muted">Reply to an earlier question</p>}

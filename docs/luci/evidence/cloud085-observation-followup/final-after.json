@@ -1,0 +1,15 @@
+{
+  "files": {
+    "desktop/src/api/orchestrator.ts": "fe6d5f21b043a3c4a17dc9aefd74f0248881e09c4a51b5a64e02dd999aa44363",
+    "desktop/src/api/coordinatorPolicy.ts": "3da17829726656735b9cceecc25a76ba82d2acabfd48d7421302fbb744746c06",
+    "desktop/src/api/coordinatorPolicy.test.ts": "53bb5c2e04b8e2d47f41dd1067368adb47d412333ca9d136373d5e5570117272",
+    "desktop/src/api/orchestrator.test.ts": "8de13da860e8808aca3fc7c8a27c36645916a5eec59ecd629a0cb40194c71cac",
+    "desktop/src/components/orchestrator/CoordinatorPolicy.tsx": "4b854e2e38ed7881d3e453532fdf23c466a22a3671da7a88b8f67d3337b8a597",
+    "desktop/src/components/orchestrator/CoordinatorPolicy.test.tsx": "3b2bd8299cd83365030ce2c4b5c7085f525b01b15cbe159ee7b46b64278cd741",
+    "desktop/src/components/orchestrator/OrchestratorPanel.tsx": "dce5ab2c514ef111ae7e57b1ad4907f6a706641b38a672e4b234e85473360db4",
+    "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx": "a0de5ef1b2dfe12d821c0b0927d835db9c7e1f337d1fd1c3b5513dc8895c08f0",
+    "desktop/src/components/orchestrator/CoordinatorTeamIntents.tsx": "cdd0df31bb8f4234e01c4fa46caf3ab805655f5ef21fb71bd44132ddec40b418",
+    "desktop/src/api/coordinatorIntents.ts": "f7339ba49a1707e6fa34e5b95512575a8e4dc2a349e238cd3503283820c570b3"
+  },
+  "changed": []
+}

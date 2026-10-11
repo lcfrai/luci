@@ -1,0 +1,17 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/components/orchestrator/CoordinatorPolicy.test.tsx src/components/orchestrator/OrchestratorPanel.test.tsx --maxWorkers=1 -t held conversation|exact uncertain|latest own|conflicting old-base|parent context ahead
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+
+ Test Files  2 passed (2)
+      Tests  6 passed | 145 skipped (151)
+   Start at  15:41:02
+   Duration  7.57s (environment 41%, transform 23%, tests 21%, import 12%, setup 4%)
+
+Environment  jsdom was created 2 times · 2.95s total, 41% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+

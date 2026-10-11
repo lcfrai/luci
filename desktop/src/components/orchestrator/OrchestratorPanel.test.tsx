@@ -19,6 +19,9 @@ import { context, job, proposalTurn, turn, view } from "./fixtures";
 import { readComposerRecovery, retainComposerRequest, saveComposerDraft } from "./composerRecovery";
 
 vi.mock("../journey/ContextStorage", () => ({ ContextStorage: () => null }));
+// The team component has its own actual-card/API tests. Here exercise only the
+// parent history/focus seam without introducing additional service reads.
+vi.mock("./CoordinatorTeamIntents", () => ({ CoordinatorTeamIntents: ({ onDiscuss }: { onDiscuss(id: string): void }) => <button onClick={() => onDiscuss("turn-1")}>Open retained team conversation</button> }));
 const identity = vi.hoisted(() => ({ actor: "owner", connection: "", root: "/projects/owner", read: true, edit: true, assist: true }));
 vi.mock("../auth/AuthProvider", () => ({ useAuth: () => identity.actor ? { profile: { user: { id: identity.actor } } } : null }));
 vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ openAgents: vi.fn(), workspace: { mode: identity.connection ? "cloud" : "local", connectionId: identity.connection, host: identity.connection }, status: { access: { user: { username: identity.actor } }, config: { projectsDir: identity.root } } }) }));
@@ -70,6 +73,59 @@ it("does not automatically apply while this project has unsaved context", async 
   useCockpit.setState({ unsavedProjectDrafts: { definition: { projectId: "p-1", label: "Definition", lens: "discover", retained: true, discard: vi.fn() } } });
   render(<OrchestratorPanel projectId="p-1" />); await ready();
   expect(advance).not.toHaveBeenCalled();
+});
+
+it.each(["resolved", "pending"])("keeps the parent context ahead of an older child observation when the newer read is %s", async state => {
+  const oldView = view({ context: { ...context(), specification: { ...context().specification, purpose: "Old booking purpose" } } });
+  const newer = view({ context: { ...context(), digest: "new-current-context", specification: { ...context().specification, purpose: "New booking purpose" } } });
+  vi.mocked(orchestratorApi.get).mockResolvedValue(oldView);
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByText(/Context draft policy ·/));
+  let oldResolve!: (value: OrchestratorView) => void, newResolve!: (value: OrchestratorView) => void;
+  const oldRead = new Promise<OrchestratorView>(resolve => { oldResolve = resolve; });
+  const newRead = new Promise<OrchestratorView>(resolve => { newResolve = resolve; });
+  vi.mocked(orchestratorApi.get).mockReturnValueOnce(oldRead).mockReturnValueOnce(newRead);
+  const reads = vi.mocked(orchestratorApi.get).mock.calls.length;
+  await userEvent.click(screen.getByRole("button", { name: "Refresh policy and conversation" }));
+  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledTimes(reads + 1));
+  await userEvent.click(screen.getByRole("button", { name: "Refresh project understanding" }));
+  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledTimes(reads + 2));
+  if (state === "resolved") await act(async () => newResolve(newer));
+  await act(async () => oldResolve(oldView));
+  if (state === "pending") {
+    expect(screen.getByText("Updating saved project understanding…")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Review design" }).matches(":disabled")).toBe(true);
+    await act(async () => newResolve(newer));
+  }
+  expect(screen.getByText("New booking purpose")).not.toBeNull();
+  expect(screen.queryByText("Old booking purpose")).toBeNull();
+  expect(orchestratorApi.apply).not.toHaveBeenCalled(); expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("opens the exact team conversation on compact screens without changing its retained draft or sending work", async () => {
+  responsiveOverview(true);
+  const current = proposalTurn();
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [current] }));
+  render(<OrchestratorPanel projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Talk to Luci" }));
+  const composer = await screen.findByLabelText("Message Luci");
+  await userEvent.type(composer, "Keep this separate unsent amendment.");
+  const before = browserRecords();
+  await userEvent.click(screen.getByRole("button", { name: "Open retained team conversation" }));
+  const retained = within(screen.getByRole("list", { name: "Conversation history" })).getByText(current.message).closest("li");
+  await waitFor(() => expect(document.activeElement).toBe(retained));
+  expect((composer as HTMLTextAreaElement).value).toBe("Keep this separate unsent amendment.");
+  expect(browserRecords()).toEqual(before); expect(orchestratorApi.send).not.toHaveBeenCalled();
+  expect(orchestratorApi.apply).not.toHaveBeenCalled();
+});
+
+it("explains an older team conversation without fabricating a reply or fetching/mutating it automatically", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn({ id: "other-turn" })], hasEarlier: true, beforeSequence: 2 }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  const before = vi.mocked(orchestratorApi.get).mock.calls.length;
+  await userEvent.click(screen.getByRole("button", { name: "Open retained team conversation" }));
+  await screen.findByText(/This request is in earlier conversation history/);
+  expect(orchestratorApi.get).toHaveBeenCalledTimes(before); expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
 const decisionScope = () => JSON.stringify([productApi.baseUrl, identity.actor, identity.connection ? "cloud" : "local", identity.connection, identity.connection, identity.actor, identity.root, "p-1"]);

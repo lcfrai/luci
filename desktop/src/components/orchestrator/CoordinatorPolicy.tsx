@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { coordinatorPolicyApi, coordinatorTargets, type CoordinatorPolicy as Policy, type CoordinatorTarget } from "../../api/coordinatorPolicy";
-import { orchestratorApi, type OrchestratorView } from "../../api/orchestrator";
+import { orchestratorApi, type OrchestratorAdvanceRequest, type OrchestratorView } from "../../api/orchestrator";
 import { errorText, ProductApiError } from "../../api/product";
 import { ApiError } from "../../api/client";
 import { Button } from "../fluid/components/button";
 
 const labels = { specification: "Definition", "design-plan": "Design", plan: "Implementation plan" };
 type PolicyWrite = { expectedRevision: number; mode: Policy["mode"]; allowedTargets: CoordinatorTarget[]; rejected?: true };
-type Advance = { turnId: string; actorId: string; contextDigest: string; revision: number; policyRevision: number; rejected?: true };
+type Advance = { turnId: string; actorId: string; contextDigest: string; expectedContextDigest?: string; revision: number; policyRevision: number; rejected?: true };
 type Retained = { version: 1; advance?: Advance; policyWrite?: PolicyWrite };
 function readRetained(key: string): { value: Retained; raw: string | null; error: string } {
   try {
@@ -15,7 +15,7 @@ function readRetained(key: string): { value: Retained; raw: string | null; error
     if (!raw) return { value: { version: 1 }, raw, error: "" };
     const value = JSON.parse(raw) as Retained;
     if (raw.length > 16000 || value.version !== 1 ||
-        (value.advance && (!value.advance.turnId || !value.advance.actorId || !value.advance.contextDigest || !Number.isSafeInteger(value.advance.revision) || !Number.isSafeInteger(value.advance.policyRevision) || (value.advance.rejected !== undefined && value.advance.rejected !== true))) ||
+        (value.advance && (!value.advance.turnId || !value.advance.actorId || !value.advance.contextDigest || (value.advance.expectedContextDigest !== undefined && (typeof value.advance.expectedContextDigest !== "string" || !value.advance.expectedContextDigest)) || !Number.isSafeInteger(value.advance.revision) || !Number.isSafeInteger(value.advance.policyRevision) || (value.advance.rejected !== undefined && value.advance.rejected !== true))) ||
         (value.policyWrite && (!Number.isSafeInteger(value.policyWrite.expectedRevision) || !["review", "auto-drafts"].includes(value.policyWrite.mode) || !Array.isArray(value.policyWrite.allowedTargets) || value.policyWrite.allowedTargets.some(target => !coordinatorTargets.includes(target)) || (value.policyWrite.rejected !== undefined && value.policyWrite.rejected !== true)))) {
       throw new Error("The retained coordinator request cannot be read. Automatic draft saving is paused; keep this browser record for recovery.");
     }
@@ -30,11 +30,11 @@ function applied(view: OrchestratorView, request: Advance) {
 const refused = (cause: unknown) => cause instanceof ProductApiError && [400, 401, 403, 409].includes(cause.status);
 
 /** Scope-keyed by the parent; this policy grants draft persistence only. */
-export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, canEdit, blocked, onAdvance, onObserved }: {
+export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, canEdit, blocked, onAdvance, beginObservation }: {
   projectId: string; scope: string; actorId: string; view: OrchestratorView;
   canRead: boolean; canEdit: boolean; blocked: string;
-  onAdvance(turnId: string, policyRevision: number): Promise<OrchestratorView>;
-  onObserved(view: OrchestratorView): void;
+  onAdvance(turnId: string, input: OrchestratorAdvanceRequest): Promise<OrchestratorView>;
+  beginObservation(): (view: OrchestratorView) => void;
 }) {
   const key = `luci.coordinator-request.v1:${scope}`;
   const [initial] = useState(() => readRetained(key));
@@ -48,8 +48,8 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
   const [readDenied, setReadDenied] = useState(false);
   const alive = useRef(true), epoch = useRef(0), inFlight = useRef(false);
   const attempted = useRef(new Set<string>());
-  const latest = useRef({ canRead, canEdit, blocked, view, actorId, onAdvance, onObserved });
-  latest.current = { canRead, canEdit, blocked, view, actorId, onAdvance, onObserved };
+  const latest = useRef({ canRead, canEdit, blocked, view, actorId, onAdvance, beginObservation });
+  latest.current = { canRead, canEdit, blocked, view, actorId, onAdvance, beginObservation };
   function persist(value: Retained) {
     try {
       if (storageError || localStorage.getItem(key) !== rawRef.current) throw new Error("Another window changed the coordinator request, or browser recovery is unavailable. Automatic changes are paused; reopen this project to read the retained request.");
@@ -78,6 +78,7 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
 
   async function refresh() {
     if (!latest.current.canRead || inFlight.current) return;
+    const observedView = latest.current.view, publish = latest.current.beginObservation();
     inFlight.current = true; const ticket = ++epoch.current; setBusy("refresh"); setFresh(false); setConsent(false);
     try {
       const nextPolicy = await coordinatorPolicyApi.get(projectId);
@@ -94,7 +95,11 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
         ...(!policySettled && pending.policyWrite ? { policyWrite: pending.policyWrite } : {}),
         ...(!advanceSettled && pending.advance ? { advance: pending.advance } : {}),
       });
-      acceptPolicy(nextPolicy); latest.current.onObserved(nextView); setError("");
+      acceptPolicy(nextPolicy);
+      // Exact request settlement above remains valid historical evidence even
+      // when another reader has advanced the parent's displayed context.
+      if (latest.current.view === observedView) publish(nextView);
+      setError("");
       setNotice(advanceApplied ? "The retained amendment was saved. No request was sent again." : "Current policy and conversation read. Unconfirmed requests remain paused until their outcome is established.");
     } catch (cause) { if (alive.current && ticket === epoch.current && latest.current.canRead) {
       setError(errorText(cause));
@@ -121,16 +126,18 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
 
   useEffect(() => {
     if (!canRead || !canEdit || !fresh || policy?.mode !== "auto-drafts" || blocked || inFlight.current || storageError || retained.advance || retained.policyWrite) return;
-    const turn = view.turns[view.turns.length - 1];
+    const turn = [...view.turns].reverse().find(candidate => candidate.actor.id === actorId);
     if (!turn || turn.actor.id !== actorId || turn.status !== "succeeded" || !turn.answer?.proposal || turn.answer.blocking || turn.appliedRevision ||
-        turn.contextDigest !== view.context.digest || view.blockingQuestions.length || !policy.allowedTargets.includes(turn.answer.proposal.target)) return;
+        view.blockingQuestions.length || !policy.allowedTargets.includes(turn.answer.proposal.target)) return;
     const identity = `${turn.id}:${turn.contextDigest}`;
     if (attempted.current.has(identity)) return;
-    const request: Advance = { turnId: turn.id, actorId, contextDigest: turn.contextDigest, revision: view.revision, policyRevision: policy.revision };
+    const request: Advance = { turnId: turn.id, actorId, contextDigest: turn.contextDigest, expectedContextDigest: view.context.digest, revision: view.revision, policyRevision: policy.revision };
     try { persist({ version: 1, advance: request }); } catch { return; }
     attempted.current.add(identity);
     inFlight.current = true; const ticket = ++epoch.current; setBusy("advance"); setError("");
-    void latest.current.onAdvance(turn.id, policy.revision).then(value => {
+    // The server alone decides whether a retained old-base team proposal can
+    // be rebased compatibly. Always submit the exact CURRENT context CAS.
+    void latest.current.onAdvance(turn.id, { expectedRevision: view.revision, expectedContextDigest: view.context.digest, expectedPolicyRevision: policy.revision }).then(value => {
       if (!alive.current || ticket !== epoch.current || !latest.current.canRead || !latest.current.canEdit) return;
       if (!applied(value, request)) throw new Error("The draft outcome was not confirmed in the returned conversation.");
       persist({ version: 1 }); setNotice("Luci saved the proposed context draft under your policy. Review affected approvals before implementation.");

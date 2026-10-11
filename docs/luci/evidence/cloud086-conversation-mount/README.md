@@ -1,0 +1,3 @@
+# Parent team conversation mount — initial source validation
+
+This retained intermediate127-assertion OrchestratorPanel run passed. The two added tests exercise compact focus of the exact loaded turn and an explicit older-history notice, without draft mutation or automatic send. Team callback is mocked here; actual team card/API tests are separate. The parent source subsequently gained the stale observation correction and current-context request binding. Final validation and selected source bindings are in `../cloud085-observation-followup`:201 assertions across four files plus TypeScript0. Do not describe this initial mount run as final source/browser/native acceptance.

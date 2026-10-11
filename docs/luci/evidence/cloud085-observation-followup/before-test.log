@@ -1,0 +1,134 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/components/orchestrator/CoordinatorPolicy.test.tsx -t does not publish a held conversation read --maxWorkers=1
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ src/components/orchestrator/CoordinatorPolicy.test.tsx (20 tests | 1 failed | 19 skipped) 213ms
+   × does not publish a held conversation read over a newer parent context at the same conversation revision 212ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/orchestrator/CoordinatorPolicy.test.tsx > does not publish a held conversation read over a newer parent context at the same conversation revision
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "archivePresent": false,
+        "beforeSequence": 0,
+        "blockingQuestions": Array [],
+        "context": Object {
+          "brief": Object {
+            "audience": "Visitors",
+            "constraints": "",
+            "criteria": Array [],
+            "projectId": "p-1",
+            "purpose": "A booking service",
+            "revision": 1,
+            "updatedAt": "",
+          },
+          "checksSummary": "No checks recorded",
+          "designPlan": Object {
+            "assets": Array [],
+            "briefRevision": 1,
+            "digest": "design",
+            "implementationNotes": "",
+            "projectId": "p-1",
+            "prototypeCommit": "",
+            "prototypeReleaseId": "",
+            "revision": 1,
+            "screens": Array [],
+            "sketchRevision": 0,
+            "specificationRevision": 2,
+            "status": "draft",
+            "tokens": Array [],
+            "updatedAt": "",
+          },
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "plan": Object {
+            "briefRevision": 1,
+            "projectId": "p-1",
+            "revision": 1,
+            "tasks": Array [
+              Object {
+                "id": "T-1",
+                "status": "todo",
+                "title": "Build booking",
+              },
+            ],
+            "updatedAt": "",
+          },
+          "projectId": "p-1",
+          "releasesSummary": "No release recorded",
+          "sketchRevision": 0,
+          "sourceCommit": "a1b2c3",
+          "sourceDirty": false,
+          "sourceKnown": true,
+          "specification": Object {
+            "audience": "Visitors",
+            "briefRevision": 1,
+            "constraints": "",
+            "decisions": Array [],
+            "digest": "spec",
+            "entities": Array [],
+            "glossary": Array [],
+            "integrations": Array [],
+            "journeys": Array [],
+            "outOfScope": Array [],
+            "projectId": "p-1",
+            "purpose": "A booking service",
+            "questions": Array [],
+            "requirements": Array [
+              Object {
+                "acceptance": "A visitor can book",
+                "id": "REQ-1",
+                "priority": "must",
+                "title": "Book",
+              },
+            ],
+            "revision": 2,
+            "roles": Array [],
+            "startingPoint": "new",
+            "status": "approved",
+            "updatedAt": "",
+            "version": 1,
+          },
+        },
+        "hasEarlier": false,
+        "nextAction": Object {
+          "id": "design",
+          "label": "Review design",
+          "lens": "design",
+          "reason": "The saved definition is approved; review the design handoff.",
+        },
+        "projectId": "p-1",
+        "revision": 3,
+        "storageDigest": "private-storage-digest",
+        "turns": Array [],
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/components/orchestrator/CoordinatorPolicy.test.tsx:173:32
+    171|   ui.rerender(<CoordinatorPolicy {...input} view={newer} />);
+    172|   await act(async () => held.resolve(view()));
+    173|   expect(input.onObserved).not.toHaveBeenCalled();
+       |                                ^
+    174| });
+    175|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 skipped (20)
+   Start at  15:35:22
+   Duration  1.89s (environment 56%, transform 17%, tests 12%, setup 9%, import 5%)
+

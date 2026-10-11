@@ -1,0 +1,18 @@
+{
+  "README.md": {
+    "sha256": "8c743b8041c3b44a5764875f8f8f183299417866690608934d7de3c08c3f5b52",
+    "bytes": 682
+  },
+  "before.json": {
+    "sha256": "59732bd0d87a56fdbefb60c8a917f10b3f73746f42ea6e1052e2b9de89956536",
+    "bytes": 270
+  },
+  "tests-exit.json": {
+    "sha256": "982b9e9bfb10ffe83cad665807abcfd3fa97b37822db5ab7831157a499548a9e",
+    "bytes": 16
+  },
+  "tests.log": {
+    "sha256": "f70662bf1d24b1adcb566b02d4dee813becbd7ad94e3a7efbd836f152c64ea0f",
+    "bytes": 309
+  }
+}
