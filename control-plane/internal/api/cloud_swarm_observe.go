@@ -51,6 +51,13 @@ func cloudObservationCandidates(rows []e2bbe.Record) []e2bbe.Record {
 	return active
 }
 
+func (a *API) reconcileRestoredCloud(ctx context.Context) error {
+	child, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	_, err := a.deps.CloudTasks.Runtime.Controller.ReconcileRestored(child, 4)
+	return err
+}
+
 // observeCloudTaskCompletions rotates a bounded set of exact owned attempts.
 // One slow guest cannot starve independent project completions. It makes no
 // new VM or upstream Start request; the controller's durable one-shot markers
@@ -63,7 +70,7 @@ func (a *API) observeCloudTaskCompletions(ctx context.Context) error {
 	rows, _ := cloud.Runtime.Controller.Snapshot()
 	active := cloudObservationCandidates(rows)
 	if len(active) == 0 {
-		return nil
+		return a.reconcileRestoredCloud(ctx)
 	}
 	sort.Slice(active, func(i, j int) bool {
 		return active[i].Request.Identity.OperationID < active[j].Request.Identity.OperationID
@@ -77,7 +84,11 @@ func (a *API) observeCloudTaskCompletions(ctx context.Context) error {
 	for n := 0; n < limit; n++ {
 		selected = append(selected, active[(start+n)%len(active)])
 	}
-	return runCloudObservationBatch(ctx, selected, a.observeOneCloudTask)
+	observedErr := runCloudObservationBatch(ctx, selected, a.observeOneCloudTask)
+	// Recovery must advance even when no new queue entry asks for admission.
+	// Completion observation runs first so one slow old provider identity does
+	// not delay independent finished-task results on this tick.
+	return errors.Join(observedErr, a.reconcileRestoredCloud(ctx))
 }
 
 func runCloudObservationBatch(ctx context.Context, selected []e2bbe.Record, observe func(context.Context, e2bbe.Record) error) error {
