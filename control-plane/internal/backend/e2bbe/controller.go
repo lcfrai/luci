@@ -156,6 +156,9 @@ func validateJournal(b []byte, owner, scope string) (journal, error) {
 		if r.LaunchRequested != (r.LaunchDigest != "") || r.LaunchRequested && (!digestPattern.MatchString(r.LaunchDigest) || r.SandboxID == "") || r.ProcessPID != 0 && !r.LaunchRequested {
 			return journal{}, ErrConflict
 		}
+		if r.InputUploadRequested && r.SandboxID == "" {
+			return journal{}, ErrConflict
+		}
 		if r.LaunchKernel != (CaptureIdentity{}) && ValidateCaptureIdentity(r.LaunchKernel, r) != nil {
 			return journal{}, ErrConflict
 		}

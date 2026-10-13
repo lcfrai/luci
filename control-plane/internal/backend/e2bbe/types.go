@@ -100,6 +100,9 @@ type Record struct {
 	ProviderBillingSettled bool      `json:"providerBillingSettled"`
 	CreatedAt              time.Time `json:"createdAt"`
 	UpdatedAt              time.Time `json:"updatedAt"`
+	// A durable one-shot upload marker. After an uncertain POST, only exact
+	// guest readback can confirm staging; a retry must never post again.
+	InputUploadRequested bool `json:"inputUploadRequested,omitempty"`
 	// LaunchRequested is a durable no-replay fence, not a successful Start.
 	LaunchRequested bool   `json:"launchRequested,omitempty"`
 	LaunchDigest    string `json:"launchDigest,omitempty"`

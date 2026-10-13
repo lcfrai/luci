@@ -105,6 +105,44 @@ func captureManifestMatches(receipt CaptureReceipt, manifest TransferManifest) b
 	return source && changes
 }
 
+// ReviewGuestOutput binds already captured bytes to the original input bundle
+// and exact source diff. It deliberately does not apply files, claim checks,
+// integrate code or retire the VM. Those require product-level authority and
+// a separate task-owned worktree/review transition.
+func (c *Controller) ReviewGuestOutput(ctx context.Context, op string, store *DirectoryStore) (SourceChanges, error) {
+	if store == nil {
+		return SourceChanges{}, ErrUnsupported
+	}
+	ctx, done, err := c.begin(ctx, op)
+	if err != nil {
+		return SourceChanges{}, err
+	}
+	defer done()
+	r, err := c.record(op)
+	if err != nil {
+		return SourceChanges{}, err
+	}
+	if !r.CaptureRequested || r.Capture == (CaptureReceipt{}) || ValidateCaptureReceipt(r.Capture, r.LaunchKernel, r) != nil ||
+		ValidateNativeExitReceipt(r.NativeExit, r) != nil {
+		return SourceChanges{}, ErrConflict
+	}
+	if err = c.config.Authorize(ctx, r.Request, "review-output"); err != nil {
+		return SourceChanges{}, err
+	}
+	changes, err := store.ValidateStoredReturnedSource(ctx, r.Request, r.Capture)
+	if err != nil {
+		return SourceChanges{}, err
+	}
+	current, err := c.record(op)
+	if err != nil || current.Revision != r.Revision || current.RequestDigest != r.RequestDigest || current.Capture != r.Capture || current.NativeExit != r.NativeExit {
+		return SourceChanges{}, ErrConflict
+	}
+	if err = c.config.Authorize(ctx, current.Request, "review-output"); err != nil {
+		return SourceChanges{}, err
+	}
+	return changes, nil
+}
+
 func (g *GuestTransport) invokeCollector(ctx context.Context, r Record) error {
 	ctx, done, err := g.beginIO(ctx)
 	if err != nil {
