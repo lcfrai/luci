@@ -17,10 +17,12 @@ import (
 const azureARMOrigin = "https://management.azure.com"
 
 type azureARMResource struct {
-	ID         string `json:"id"`
-	ManagedBy  string `json:"managedBy"`
-	Properties struct {
+	ID                string   `json:"id"`
+	ManagedBy         string   `json:"managedBy"`
+	ManagedByExtended []string `json:"managedByExtended"`
+	Properties        struct {
 		DiskState         string `json:"diskState"`
+		MaxShares         *int   `json:"maxShares"`
 		ProvisioningState string `json:"provisioningState"`
 	} `json:"properties"`
 }
@@ -94,7 +96,9 @@ func verifyAzureARMOwnership(ctx context.Context, selected e2bOperatorConfig, re
 	var disk azureARMResource
 	if err := reader.Read(ctx, selected.Store.AzureDataDiskID, "2023-10-02", &disk); err != nil ||
 		strings.ToLower(disk.ID) != selected.Store.AzureDataDiskID ||
-		strings.ToLower(disk.ManagedBy) != selected.AzureMount.ControllerInstanceID || disk.Properties.DiskState != "Attached" {
+		strings.ToLower(disk.ManagedBy) != selected.AzureMount.ControllerInstanceID || disk.Properties.DiskState != "Attached" ||
+		disk.Properties.MaxShares == nil || *disk.Properties.MaxShares != 1 ||
+		len(disk.ManagedByExtended) > 1 || len(disk.ManagedByExtended) == 1 && strings.ToLower(disk.ManagedByExtended[0]) != selected.AzureMount.ControllerInstanceID {
 		return errors.New("Azure controller data disk attachment is unverified")
 	}
 	var controller azureARMResource

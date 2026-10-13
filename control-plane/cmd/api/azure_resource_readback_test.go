@@ -34,6 +34,8 @@ func azureARMFixture() (e2bOperatorConfig, *fakeAzureARM) {
 	selected.Deployment.AzureInstanceID = "0"
 	disk := azureARMResource{ID: diskID, ManagedBy: controllerID}
 	disk.Properties.DiskState = "Attached"
+	one := 1
+	disk.Properties.MaxShares = &one
 	controller := azureARMResource{ID: controllerID}
 	controller.Properties.ProvisioningState = "Succeeded"
 	runtime := azureARMResource{ID: runtimeID}
@@ -59,6 +61,17 @@ func TestAzureARMRequiresExactControllerDiskAndRuntimeHostReadback(t *testing.T)
 		func(s *e2bOperatorConfig, f *fakeAzureARM) {
 			r := f.resources[s.Store.AzureDataDiskID]
 			r.Properties.DiskState = "Unattached"
+			f.resources[s.Store.AzureDataDiskID] = r
+		},
+		func(s *e2bOperatorConfig, f *fakeAzureARM) {
+			r := f.resources[s.Store.AzureDataDiskID]
+			r.ManagedByExtended = []string{s.AzureMount.ControllerInstanceID, "other-vm"}
+			f.resources[s.Store.AzureDataDiskID] = r
+		},
+		func(s *e2bOperatorConfig, f *fakeAzureARM) {
+			r := f.resources[s.Store.AzureDataDiskID]
+			shared := 2
+			r.Properties.MaxShares = &shared
 			f.resources[s.Store.AzureDataDiskID] = r
 		},
 		func(s *e2bOperatorConfig, f *fakeAzureARM) {
