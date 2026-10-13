@@ -1,5 +1,6 @@
 import { productApi } from './product';
 import { validRunAttention, type ProjectRunAttention } from './runAttention';
+import type { OrchestratorActivity } from './orchestrator';
 
 export interface ProjectOverview {
   projectId: string; observedAt: string; status: 'ready' | 'partial' | 'unavailable';
@@ -11,6 +12,7 @@ export interface ProjectOverview {
   nextAction: { id: string; label: string; lens: string; runId?: string; reason?: string };
   latestRun?: { status: 'recorded' | 'none' | 'unavailable'; id?: string; state?: string; updatedAt?: string; contextStatus?: 'current' | 'changed' | 'unavailable'; contextReason?: string };
   attention?: { status: 'recorded' | 'unavailable'; count: number | null; items: ProjectRunAttention[]; omitted: number | null };
+  sharedChange?: { status: 'recorded' | 'none' | 'unavailable'; event?: OrchestratorActivity['accepted'][number] };
   limitations: string[];
 }
 const count = (value: unknown) => value === null || (Number.isSafeInteger(value) && (value as number) >= 0);
@@ -20,6 +22,19 @@ function validAttention(value: ProjectOverview['attention']): boolean {
   if (value.status === 'unavailable') return value.count === null && value.omitted === null && value.items.length === 0;
   return value.status === 'recorded' && count(value.count) && value.count !== null && count(value.omitted) && value.omitted !== null &&
     value.count <= 200 && value.count === value.items.length + value.omitted;
+}
+function validSharedChange(value: ProjectOverview['sharedChange']): boolean {
+  if (value === undefined) return true; // An older service has no shared-event projection.
+  if (!value || !['recorded', 'none', 'unavailable'].includes(value.status)) return false;
+  if (value.status !== 'recorded') return value.event === undefined;
+  const event = value.event;
+  return !!event && typeof event.eventId === 'string' && !!event.eventId &&
+    Number.isSafeInteger(event.sequence) && event.sequence > 0 && !!event.intentId && !!event.originTurnId &&
+    typeof event.actor?.id === 'string' && !!event.actor.id && typeof event.actor.displayName === 'string' &&
+    !!event.target && /^[a-f0-9]{64}$/.test(event.appliedTargetDigest) &&
+    (event.acceptedContextDigest === undefined || /^[a-f0-9]{64}$/.test(event.acceptedContextDigest)) &&
+    Array.isArray(event.taskIds) && event.taskIds.every(id => typeof id === 'string' && !!id) &&
+    typeof event.affectsAllTasks === 'boolean';
 }
 export const projectOverviewApi = {
   async get(projectId: string, signal?: AbortSignal): Promise<ProjectOverview> {
@@ -35,6 +50,7 @@ export const projectOverviewApi = {
       (value.execution.failed !== undefined && (!count(value.execution.failed) ||
         (value.execution.status === 'recorded' ? value.execution.failed === null : value.execution.failed !== null))) ||
       !validAttention(value.attention) ||
+      !validSharedChange(value.sharedChange) ||
       !Array.isArray(value.limitations) || value.limitations.some(item => typeof item !== 'string')) {
       throw new Error('This project summary could not be read. Refresh it before continuing.');
     }

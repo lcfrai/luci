@@ -28,6 +28,19 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it('shows the accepted teammate change only in its authorized project card', async () => {
+  vi.mocked(projectOverviewApi.get).mockImplementation(async id => id === 'p1' ? { ...overview(id), sharedChange: {
+    status: 'recorded', event: { eventId: 'event-accepted', sequence: 2, intentId: 'intent-bob', originTurnId: 'turn-bob',
+      actor: { id: 'bob', displayName: 'Bob' }, target: 'design-plan', appliedTargetDigest: 'a'.repeat(64),
+      taskIds: ['task-notes'], affectsAllTasks: false },
+  } } : overview(id));
+  render(<ProjectOverviewBoard projects={projects} />);
+  expect(await screen.findByText(/Latest accepted project change: Bob updated design-plan/)).toBeTruthy();
+  expect(screen.getAllByText('event-accepted')).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Open project Notes' })).toBeTruthy();
+  expect(swarmQueueApi.control).not.toHaveBeenCalled();
+});
+
 it('opens a current project before summary reads finish and preserves the unsaved-draft decision', async () => {
   vi.mocked(projectOverviewApi.get).mockImplementation(() => new Promise(() => {}));
   useCockpit.getState().selectProject('p2', 'design');

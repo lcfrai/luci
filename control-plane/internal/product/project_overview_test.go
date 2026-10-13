@@ -33,6 +33,35 @@ func overviewGet(t *testing.T, mux http.Handler, id string) ProjectOverview {
 	}
 	return view
 }
+func TestProjectOverviewShowsAcceptedTeamChangeAcrossRestartWithoutBorrowingAnotherProject(t *testing.T) {
+	s, mux := overviewFixture(t)
+	p := createJourneyProject(t, mux, "shared-overview")
+	other := createJourneyProject(t, mux, "unrelated-overview")
+	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+	turn := coordinationProposalTest(t, s, p.ID, "bob", "purpose", "A shared reading list")
+	coordinationRegisterTest(t, coordinationHandler(s, "bob"), p.ID, turn.ID, "overview-event", nil)
+	coordinationApplyTest(t, s, p.ID, "bob", turn.ID, 200)
+	got := overviewGet(t, mux, p.ID)
+	if got.SharedChange.Status != "recorded" || got.SharedChange.Event == nil ||
+		got.SharedChange.Event.Actor.ID != "bob" || got.SharedChange.Event.OriginTurnID != turn.ID ||
+		got.SharedChange.Event.AppliedTargetDigest == "" || got.SharedChange.Event.AcceptedContextDigest != "" {
+		t.Fatalf("project summary lost or overstated accepted team change: %+v", got.SharedChange)
+	}
+	if foreign := overviewGet(t, mux, other.ID); foreign.SharedChange.Status != "none" || foreign.SharedChange.Event != nil {
+		t.Fatalf("another project borrowed a team change: %+v", foreign.SharedChange)
+	}
+	restarted, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restarted.Close()
+	second := http.NewServeMux()
+	restarted.registerProjectOverview(second)
+	again := overviewGet(t, second, p.ID)
+	if !reflect.DeepEqual(again.SharedChange, got.SharedChange) {
+		t.Fatalf("read-only restart lost accepted project activity: %+v", again.SharedChange)
+	}
+}
 func TestProjectOverviewFourProjectsKeepContextAndQuestionsSeparate(t *testing.T) {
 	s, mux := overviewFixture(t)
 	projects := make([]project.Project, 4)

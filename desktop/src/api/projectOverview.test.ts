@@ -27,6 +27,20 @@ it('retains older review identities separately from an empty queue and newer pre
   expect(result.latestRun?.id).toBe('new-ready');
   expect(request).toHaveBeenCalledTimes(1);
 });
+it('keeps a bounded exact accepted event separate from unavailable or absent shared history', async () => {
+  const event = { eventId: 'coord-event-1', sequence: 2, intentId: 'intent-1', originTurnId: 'turn-1',
+    actor: { id: 'bob', displayName: 'Bob' }, target: 'specification', appliedTargetDigest: 'a'.repeat(64),
+    taskIds: ['task-1'], affectsAllTasks: false };
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue({ ...summary(), sharedChange: { status: 'recorded', event } });
+  expect((await projectOverviewApi.get('p-1')).sharedChange?.event).toEqual(event);
+  request.mockResolvedValue({ ...summary(), sharedChange: { status: 'unavailable' } });
+  expect((await projectOverviewApi.get('p-1')).sharedChange?.status).toBe('unavailable');
+  for (const invalid of [{ status: 'recorded', event: { ...event, appliedTargetDigest: '' } },
+    { status: 'none', event }, { status: 'recorded', event: { ...event, actor: { id: '', displayName: 'Bob' } } }]) {
+    request.mockResolvedValue({ ...summary(), sharedChange: invalid });
+    await expect(projectOverviewApi.get('p-1')).rejects.toThrow('summary could not be read');
+  }
+});
 it.each(['complete', 'cancelled'])('keeps reported task questions visible for a %s parent without inventing activity', async state => {
   const value = summary(); value.attention = { status: 'recorded', count: 1, omitted: 0, items: [{ ...attention, state, kind: 'task-question' }] };
   vi.spyOn(productApi, 'request').mockResolvedValue(value);

@@ -11,18 +11,15 @@ const orchestratorActivityLimit = 8
 // The last archived page is read only if the active ledger has fewer than
 // eight accepted updates; older history remains available in coordination.
 func (s *Server) orchestratorActivityLocked(p project.Project, actorID string) (*OrchestratorActivity, error) {
-	if actorID == "" {
-		return nil, nil
-	}
 	coordination, err := s.readCoordination(p)
 	if err != nil {
 		return nil, err
 	}
-	continuations, err := s.readContinuations(p, actorID)
-	if err != nil {
-		return nil, err
-	}
 	out := &OrchestratorActivity{Accepted: []OrchestratorAcceptedUpdate{}, Work: []OrchestratorWorkUpdate{}}
+	limit := orchestratorActivityLimit
+	if actorID == "" {
+		limit = 1 // The cross-project board needs only the newest shared event.
+	}
 	appendAccepted := func(events []CoordinationEvent, intents []storedCoordinationIntent) error {
 		byID := make(map[string]CoordinationIntent, len(intents))
 		for _, intent := range intents {
@@ -32,7 +29,7 @@ func (s *Server) orchestratorActivityLocked(p project.Project, actorID string) (
 			if events[i].Kind != "applied" {
 				continue
 			}
-			if len(out.Accepted) >= orchestratorActivityLimit {
+			if len(out.Accepted) >= limit {
 				out.EarlierAvailable = true
 				return nil
 			}
@@ -52,7 +49,7 @@ func (s *Server) orchestratorActivityLocked(p project.Project, actorID string) (
 	if err = appendAccepted(coordination.Events, coordination.Intents); err != nil {
 		return nil, err
 	}
-	if len(out.Accepted) < orchestratorActivityLimit && len(coordination.Archives) > 0 {
+	if len(out.Accepted) < limit && len(coordination.Archives) > 0 {
 		last := coordination.Archives[len(coordination.Archives)-1]
 		page, readErr := s.readCoordinationArchive(p, coordination, last)
 		if readErr != nil {
@@ -64,6 +61,13 @@ func (s *Server) orchestratorActivityLocked(p project.Project, actorID string) (
 		out.EarlierAvailable = len(coordination.Archives) > 1 || out.EarlierAvailable
 	} else if len(coordination.Archives) > 0 {
 		out.EarlierAvailable = true
+	}
+	if actorID == "" {
+		return out, nil // A project summary exposes shared events, never another person's private continuation.
+	}
+	continuations, err := s.readContinuations(p, actorID)
+	if err != nil {
+		return nil, err
 	}
 	for i := len(continuations.Rows) - 1; i >= 0; i-- {
 		if len(out.Work) >= orchestratorActivityLimit {

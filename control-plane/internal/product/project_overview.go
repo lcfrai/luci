@@ -17,18 +17,23 @@ const projectOverviewQuestionLimit = 5
 // A compact, recorded view for project switching. Nothing in this response is
 // authority to dispatch, approve, integrate or claim that an output was verified.
 type ProjectOverview struct {
-	ProjectID   string                   `json:"projectId"`
-	ObservedAt  string                   `json:"observedAt"`
-	Status      string                   `json:"status"`
-	Goal        *ProjectOverviewGoal     `json:"goal"`
-	Phase       ProjectOverviewPhase     `json:"phase"`
-	Context     *ProjectOverviewContext  `json:"context"`
-	Questions   ProjectOverviewQuestions `json:"questions"`
-	Execution   ProjectOverviewExecution `json:"execution"`
-	LatestRun   ProjectOverviewRun       `json:"latestRun"`
-	Attention   ProjectOverviewAttention `json:"attention"`
-	NextAction  OrchestratorAction       `json:"nextAction"`
-	Limitations []string                 `json:"limitations"`
+	ProjectID    string                      `json:"projectId"`
+	ObservedAt   string                      `json:"observedAt"`
+	Status       string                      `json:"status"`
+	Goal         *ProjectOverviewGoal        `json:"goal"`
+	Phase        ProjectOverviewPhase        `json:"phase"`
+	Context      *ProjectOverviewContext     `json:"context"`
+	Questions    ProjectOverviewQuestions    `json:"questions"`
+	Execution    ProjectOverviewExecution    `json:"execution"`
+	LatestRun    ProjectOverviewRun          `json:"latestRun"`
+	Attention    ProjectOverviewAttention    `json:"attention"`
+	SharedChange ProjectOverviewSharedChange `json:"sharedChange"`
+	NextAction   OrchestratorAction          `json:"nextAction"`
+	Limitations  []string                    `json:"limitations"`
+}
+type ProjectOverviewSharedChange struct {
+	Status string                      `json:"status"` // recorded, none, unavailable
+	Event  *OrchestratorAcceptedUpdate `json:"event,omitempty"`
 }
 type ProjectOverviewGoal struct {
 	Text      string `json:"text"`
@@ -105,6 +110,19 @@ func (s *Server) getProjectOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	view.Execution = ProjectOverviewExecution{Scope: "swarm-queue", Status: "unavailable"}
+	view.SharedChange = ProjectOverviewSharedChange{Status: "none"}
+	s.mu.RLock()
+	activity, sharedErr := s.orchestratorActivityLocked(p, "")
+	s.mu.RUnlock()
+	if sharedErr != nil {
+		view.SharedChange.Status = "unavailable"
+		view.Limitations = append(view.Limitations, "Accepted team changes could not be read. Open this project's conversation for its available history; an unavailable summary is not an empty history.")
+		if view.Status == "ready" {
+			view.Status = "partial"
+		}
+	} else if len(activity.Accepted) > 0 {
+		view.SharedChange = ProjectOverviewSharedChange{Status: "recorded", Event: &activity.Accepted[0]}
+	}
 	if err != nil {
 		view.Limitations = append(view.Limitations, "Queued work could not be read. Open this project's work queue to retry; its counts are unknown.")
 		if view.Status == "ready" {
