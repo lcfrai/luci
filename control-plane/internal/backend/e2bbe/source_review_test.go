@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -82,6 +84,21 @@ func TestStoredReturnedSourceRequiresCompleteBoundInputAndOutput(t *testing.T) {
 	got, err := store.ValidateStoredReturnedSource(context.Background(), req, receipt)
 	if err != nil || len(got.Changes) != 1 || got.Changes[0].Path != "main.go" {
 		t.Fatal("stored source was not independently verified", got, err)
+	}
+	stage := filepath.Join(t.TempDir(), "stage")
+	if err = os.Mkdir(stage, 0700); err != nil {
+		t.Fatal(err)
+	}
+	materialized, err := store.MaterializeStoredReturnedSource(context.Background(), req, receipt, stage)
+	body, readErr := os.ReadFile(filepath.Join(stage, "main.go"))
+	if err != nil || readErr != nil || string(body) != "new" || len(materialized.Changes) != 1 {
+		t.Fatal("verified source was not confined to staging", err, readErr)
+	}
+	if _, err = os.Lstat(filepath.Join(stage, "approved.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("private context was copied into returned source")
+	}
+	if _, err = store.MaterializeStoredReturnedSource(context.Background(), req, receipt, stage); !errors.Is(err, ErrTransfer) {
+		t.Fatal("nonempty destination was overwritten", err)
 	}
 	wrong := receipt
 	wrong.ArchiveBytes++
