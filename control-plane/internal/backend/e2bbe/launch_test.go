@@ -27,10 +27,31 @@ type processFixture struct {
 	controller       *Controller
 	guest            *guestFixture
 	starts           int
+	lists            int
+	listed           []*process.ProcessInfo
 	captures         int
 	timeoutMS        int
 	fail, badEvent   bool
 	entered, release chan struct{}
+}
+
+func (p *processFixture) List(_ context.Context, req *connect.Request[process.ListRequest]) (*connect.Response[process.ListResponse], error) {
+	if req.Header().Get("Authorization") != "Basic cm9vdDo=" || req.Header().Get("X-Access-Token") != "fixture-envd" || req.Header().Get("e2b-traffic-access-token") != "fixture-traffic" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("wrong fixture credential boundary"))
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.lists++
+	return connect.NewResponse(&process.ListResponse{Processes: p.listed}), nil
+}
+
+func listedLaunch(r Record, pid uint32) *process.ProcessInfo {
+	tag := r.Request.Identity.OperationID
+	cwd := "/luci-transfer"
+	return &process.ProcessInfo{Pid: pid, Tag: &tag, Config: &process.ProcessConfig{
+		Cmd: "/usr/local/bin/luci-microvm-bootstrap", Args: bootstrapArgs(r), Cwd: &cwd,
+		Envs: map[string]string{"OPENAI_API_KEY": "fixture-model-secret"},
+	}}
 }
 
 func (p *processFixture) Start(ctx context.Context, req *connect.Request[process.StartRequest], stream *connect.ServerStream[process.StartResponse]) error {
@@ -183,6 +204,79 @@ func TestGuestStartLostACKAndInvalidFirstEventRetainChargeAndNeverReplay(t *test
 			}
 			if p.starts != 1 || provider.creates != 1 || provider.deletes != 0 {
 				t.Fatal("uncertain Start replayed/released")
+			}
+		})
+	}
+}
+
+func TestLostStartACKReadbackRecoversOnlyUniqueExactProcess(t *testing.T) {
+	c, cfg, g, p, provider := launchFixture(t)
+	p.fail = true
+	op := p.r.Request.Identity.OperationID
+	row, err := c.StartGuest(context.Background(), op, p.r.Revision, launchSpec(), g)
+	if !errors.Is(err, ErrUnknown) || !row.LaunchRequested || row.ProcessPID != 0 {
+		t.Fatal(row, err)
+	}
+	if err = c.Close(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	c = openController(t, cfg)
+	p.controller = c
+	g, err = c.Guest(context.Background(), op)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer g.Close()
+	p.listed = []*process.ProcessInfo{listedLaunch(row, 321)}
+	got, err := c.ObserveStartPID(context.Background(), op, g)
+	if err != nil || got.ProcessPID != 321 || !got.ResourcesHeld || !got.LaunchRequested || p.starts != 1 || provider.creates != 1 {
+		t.Fatal(got, err, p.starts, provider.creates)
+	}
+	again, err := c.ObserveStartPID(context.Background(), op, g)
+	if err != nil || again.ProcessPID != 321 || p.lists != 1 {
+		t.Fatal(again, err, p.lists)
+	}
+	journal, err := os.ReadFile(filepath.Join(cfg.StateDir, "attempts.json"))
+	if err != nil || bytes.Contains(journal, []byte("fixture-model-secret")) {
+		t.Fatal("readback disclosed the process environment")
+	}
+}
+
+func TestLostStartACKReadbackRetainsUncertainOrForeignProcess(t *testing.T) {
+	for _, name := range []string{"missing", "foreign-tag", "wrong-args", "duplicate", "zero-pid", "revoked"} {
+		t.Run(name, func(t *testing.T) {
+			c, _, g, p, provider := launchFixture(t)
+			p.fail = true
+			op := p.r.Request.Identity.OperationID
+			row, err := c.StartGuest(context.Background(), op, p.r.Revision, launchSpec(), g)
+			if !errors.Is(err, ErrUnknown) {
+				t.Fatal(err)
+			}
+			candidate := listedLaunch(row, 321)
+			switch name {
+			case "missing":
+				candidate = nil
+			case "foreign-tag":
+				tag := "other-operation"
+				candidate.Tag = &tag
+			case "wrong-args":
+				candidate.Config.Args = []string{"other"}
+			case "duplicate":
+				p.listed = []*process.ProcessInfo{candidate, listedLaunch(row, 322)}
+			case "zero-pid":
+				candidate.Pid = 0
+			case "revoked":
+				c.config.Authorize = func(context.Context, Request, string) error { return backend.ErrUnauthorized }
+			}
+			if name != "duplicate" && candidate != nil {
+				p.listed = []*process.ProcessInfo{candidate}
+			}
+			if _, err = c.ObserveStartPID(context.Background(), op, g); err == nil {
+				t.Fatal("uncertain or foreign process accepted")
+			}
+			retained, err := c.record(op)
+			if err != nil || retained.ProcessPID != 0 || !retained.ResourcesHeld || p.starts != 1 || provider.deletes != 0 {
+				t.Fatal(retained, err, p.starts, provider.deletes)
 			}
 		})
 	}

@@ -112,6 +112,17 @@ func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) er
 		}
 		return nil // retain unconfirmed Create/transfer for explicit recovery
 	}
+	if current.State == e2bbe.Allocated && current.ProcessPID == 0 {
+		// A lost envd Start ACK is read back by exact operation tag and pinned
+		// bootstrap identity. It must never lead to a second Start request.
+		guest, guestErr := cloud.Runtime.Controller.Guest(ctx, identity.OperationID)
+		if guestErr != nil {
+			return guestErr
+		}
+		current, err = cloud.Runtime.Controller.ObserveStartPID(ctx, identity.OperationID, guest)
+		guest.Close()
+		return err // the next pass verifies the protected launch kernel
+	}
 	if current.State == e2bbe.Allocated && current.Capture.ArchiveSHA256 == "" {
 		// Finish owns the native exit and one-shot collector readback. Its
 		// staging is provisional until retirement and product source review.

@@ -3,6 +3,7 @@ package e2bbe
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"time"
 
@@ -67,6 +68,100 @@ func bootstrapArgs(r Record) []string {
 		args = append(args, "--run", i.RunID)
 	}
 	return append(args, "--task", i.TaskID, "--attempt", i.AttemptID, "--operation", i.OperationID, "--source-sha256", r.Request.SourceDigest, "--context-sha256", r.Request.ContextDigest, "--sandbox", r.SandboxID, "--request-sha256", r.RequestDigest, "--launch-sha256", r.LaunchDigest)
+}
+
+// listStartedPID can settle a lost Start acknowledgement without another Start.
+// Envd's list is read through the exact VM grant. Its response may contain
+// secret process environment values, so no response or config is logged or
+// persisted; only the uniquely matched PID enters the journal.
+func (g *GuestTransport) listStartedPID(ctx context.Context, r Record) (uint32, error) {
+	ctx, done, err := g.beginIO(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer done()
+	if err = g.guard(ctx, "observe-launch"); err != nil {
+		return 0, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req := connect.NewRequest(&process.ListRequest{})
+	req.Header().Set("Authorization", "Basic cm9vdDo=")
+	req.Header().Set("X-Access-Token", g.config.EnvdAccessToken)
+	req.Header().Set("e2b-traffic-access-token", g.config.TrafficAccessToken)
+	client := processconnect.NewProcessClient(g.attach, g.envd.String(), connect.WithReadMaxBytes(256<<10), connect.WithSendMaxBytes(16<<10))
+	response, err := client.List(ctx, req)
+	if err != nil {
+		return 0, ErrUnknown
+	}
+	var pid uint32
+	if response.Msg == nil {
+		return 0, ErrUnknown
+	}
+	for _, row := range response.Msg.GetProcesses() {
+		if row.GetTag() != r.Request.Identity.OperationID {
+			continue
+		}
+		config := row.GetConfig()
+		if pid != 0 || row.GetPid() == 0 || config == nil ||
+			config.GetCmd() != "/usr/local/bin/luci-microvm-bootstrap" ||
+			config.GetCwd() != "/luci-transfer" || !reflect.DeepEqual(config.GetArgs(), bootstrapArgs(r)) {
+			return 0, ErrConflict
+		}
+		pid = row.GetPid()
+	}
+	if pid == 0 {
+		return 0, ErrUnknown
+	}
+	if err = g.guard(ctx, "observe-launch"); err != nil {
+		return 0, err
+	}
+	return pid, nil
+}
+
+// ObserveStartPID is read-only at the guest boundary. It never treats an
+// absent or ambiguous list as permission to replay Start or release a charge.
+func (c *Controller) ObserveStartPID(ctx context.Context, op string, g *GuestTransport) (Record, error) {
+	if g == nil || g.owner != c {
+		return Record{}, ErrUnsupported
+	}
+	ctx, done, err := c.begin(ctx, op)
+	if err != nil {
+		return Record{}, err
+	}
+	defer done()
+	r, err := c.record(op)
+	if err != nil {
+		return r, err
+	}
+	if r.State != Allocated || r.CancelRequested || !r.ResourcesHeld || !r.LaunchRequested ||
+		r.SandboxID != g.config.Record.SandboxID || r.RequestDigest != g.config.Record.RequestDigest ||
+		r.Deployment != g.config.Record.Deployment || r.Template != g.config.Record.Template {
+		return r, ErrConflict
+	}
+	if err = c.config.Authorize(ctx, r.Request, "observe-launch"); err != nil {
+		return r, err
+	}
+	if r.ProcessPID != 0 {
+		return c.confirmObservationCheckpoint(ctx, r)
+	}
+	pid, err := g.listStartedPID(ctx, r)
+	if err != nil {
+		return r, err
+	}
+	current, err := c.record(op)
+	if err != nil {
+		return current, err
+	}
+	if current.Revision != r.Revision || current.CancelRequested || current.State != Allocated ||
+		!current.ResourcesHeld || current.LaunchDigest != r.LaunchDigest || current.ProcessPID != 0 {
+		return current, ErrConflict
+	}
+	if err = c.config.Authorize(ctx, current.Request, "observe-launch"); err != nil {
+		return current, err
+	}
+	current.ProcessPID = pid
+	return c.update(ctx, current)
 }
 func (g *GuestTransport) start(ctx context.Context, r Record, l LaunchSpec) (uint32, error) {
 	ctx, done, e := g.beginIO(ctx)
