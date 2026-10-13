@@ -641,7 +641,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
         {conversation.mounted && <div hidden={!conversationOpen}>
         {view && <>
           <div className="orchestrator-toolbar"><h3>Luci</h3><Button variant="ghost" size="compact" disabled={!!busy || loading} onClick={() => void refresh(true)}>Refresh conversation</Button></div>
-          {view.activity && (!!view.activity.accepted.length || !!view.activity.work.length || !!view.blockingQuestions.length) &&
+          {view.activity && (!!view.activity.accepted.length || !!view.activity.work.length || !!view.activity.findings?.length || !!view.blockingQuestions.length) &&
             <section aria-label="Shared changes and affected work" className="orchestrator-provenance">
               <h4>Shared changes and affected work</h4>
               {!!view.blockingQuestions.length && <p>{view.blockingQuestions.length} decision{view.blockingQuestions.length === 1 ? "" : "s"} {view.blockingQuestions.length === 1 ? "needs" : "need"} an answer before affected work can continue. Answer below; Luci will recheck current context, authority and policy before acting.</p>}
@@ -660,6 +660,16 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
                 </>}
                 {work.runId && <> · run <code>{work.runId}</code> <Button variant="secondary" size="compact" disabled={!canRead || contextStale} onClick={() => inspect(work.runId!)}>Inspect run</Button></>}
                 {(["blocked", "unknown", "refused", "preview-blocked", "deployment-blocked"].includes(work.status)) && <Button variant="secondary" size="compact" disabled={!canAssist || !!busy || contextStale || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict} onClick={() => discussFinding(work)}>Discuss finding with Luci</Button>}
+              </p>)}
+              {view.activity.findings?.map(finding => <p key={finding.id} role={finding.status === 'question' || finding.status === 'unknown' ? 'status' : undefined}>
+                Luci follow-up for {finding.sourceStatus} {finding.eventId ? 'event' : 'work'} <code>{finding.eventId || finding.continuationId}</code>, recorded digest <code>{finding.contextDigest}</code>:
+                {' '}{finding.status === 'pending' ? 'Saved for this person. Automatic discussion waits for an explicitly saved provider route, model-spending choice and current project policy.' :
+                  finding.status === 'reserved' || finding.status === 'inflight' ? 'One exact model turn is reserved or running; its outcome is not yet confirmed.' :
+                  finding.status === 'question' ? 'A consequential question needs an answer in this conversation.' :
+                  finding.status === 'resumed' ? 'The recorded question was answered; affected work is being rechecked against the accepted context.' :
+                  finding.status === 'unknown' ? 'The model outcome is unconfirmed. Inspect the saved turn before another request.' :
+                  'Luci’s result is ready for review. A proposal is still only a draft.'}
+                {' '}Finding <code>{finding.id}</code>{finding.turnId && <> · turn <code>{finding.turnId}</code></>}.
               </p>)}
               {view.activity.earlierAvailable && <p>Earlier shared changes and work remain in the project’s saved coordination history.</p>}
             </section>}

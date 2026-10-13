@@ -100,6 +100,22 @@ it("brings a blocked delivery finding into the same conversation without sending
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
+it("shows an exact automatic follow-up question without replacing an unsent message or granting execution", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ activity: { accepted: [], work: [], earlierAvailable: false, findings: [{
+    id: "finding-one", projectId: "p-1", recipientId: "owner", continuationId: "continue-one", originTurnId: "turn-original",
+    contextDigest: "d".repeat(64), sourceRevision: 5, sourceStatus: "deployment-blocked", status: "question",
+    message: "Public health is unconfirmed.", turnId: "turn-followup", updatedAt: "2026-10-13T00:00:00Z",
+  }] } }));
+  render(<OrchestratorPanel projectId="p-1" primary />);
+  const composer = await screen.findByLabelText("Message Luci") as HTMLTextAreaElement;
+  await userEvent.type(composer, "My unsent deployment concern");
+  const progress = screen.getByRole("region", { name: "Shared changes and affected work" });
+  expect(within(progress).getByText(/A consequential question needs an answer/)).toBeTruthy();
+  expect(within(progress).getByText("finding-one")).toBeTruthy();
+  expect(composer.value).toBe("My unsent deployment concern");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
 it("uses the existing conversation mutation boundary for a policy-authorized draft and leaves Build/Deploy untouched", async () => {
   const proposal = { ...proposalTurn(), actor: { id: "owner", displayName: "Owner" } };
   const initial = view({ turns: [proposal] });

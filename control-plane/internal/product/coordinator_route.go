@@ -15,13 +15,16 @@ type CoordinatorRoute struct {
 	Outcome           string  `json:"outcome"`
 }
 type CoordinatorSavedRoute struct {
-	Revision       int                        `json:"revision"`
-	CheckPlan      *CoordinatorCheckPlan      `json:"checkPlan,omitempty"`
-	PreviewPlan    *CoordinatorPreviewPlan    `json:"previewPlan,omitempty"`
-	DeploymentPlan *CoordinatorDeploymentPlan `json:"deploymentPlan,omitempty"`
-	Route          CoordinatorRoute           `json:"route"`
-	MaxParallel    int                        `json:"maxParallel"`
-	UpdatedAt      string                     `json:"updatedAt"`
+	Revision int `json:"revision"`
+	// Explicitly permits a bounded model turn for each new consequential
+	// finding. Saving a coding route alone never authorizes model spending.
+	AutoDiscussFindings bool                       `json:"autoDiscussFindings,omitempty"`
+	CheckPlan           *CoordinatorCheckPlan      `json:"checkPlan,omitempty"`
+	PreviewPlan         *CoordinatorPreviewPlan    `json:"previewPlan,omitempty"`
+	DeploymentPlan      *CoordinatorDeploymentPlan `json:"deploymentPlan,omitempty"`
+	Route               CoordinatorRoute           `json:"route"`
+	MaxParallel         int                        `json:"maxParallel"`
+	UpdatedAt           string                     `json:"updatedAt"`
 }
 
 func coordinatorRoute(req projectRunCreateRequest) CoordinatorRoute {

@@ -323,6 +323,16 @@ it('labels a ready preview as local and opens Deploy without claiming exact rele
 
 const deploymentPlan = (): CoordinatorDeploymentPlan => ({ targetId: 'target-one', targetFingerprint: 'd'.repeat(64), serverUuid: 'server-one', repository: 'https://github.com/test/app', branch: 'main', domain: 'https://app.example.com', port: 3000, healthPath: '/', dockerfile: 'Dockerfile', source: 'public', dataClientFramework: 'none', expectedConfigurationRevision: 3, expectedDataDomainRevision: 0, expectedDataBindingFingerprint: '', acknowledgeRepositoryPush: true, acknowledgePublic: true, acknowledgeDeploymentCosts: true });
 const deploymentRoute = (): CoordinatorSavedRoute => ({ ...savedRoute(), route: { ...savedRoute().route, outcome: 'publish' }, previewPlan: { dockerfile: 'Dockerfile', port: 3000, expectedConfigurationRevision: 3, acknowledgePreviewBuild: true }, deploymentPlan: deploymentPlan() });
+it('pauses a saved automatic model preference by exact route revision without starting a worker', async () => {
+  const saved = { ...savedRoute(), autoDiscussFindings: true };
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: saved });
+  const update = vi.spyOn(api, 'setFindingPreference').mockResolvedValue({ ...saved, revision: saved.revision + 1, autoDiscussFindings: false });
+  render(<CoordinatorExecution {...props()} />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Pause automatic finding discussions' }));
+  expect(update).toHaveBeenCalledWith('p-1', saved.revision, false);
+  expect(await screen.findByRole('button', { name: 'Enable automatic finding discussions' })).not.toBeNull();
+  expect(api.create).not.toHaveBeenCalled();
+});
 it('requires separate existing-target permission and does not mutate other policy dimensions', async () => {
   const input = props(), ui = render(<CoordinatorExecution {...input} />);
   await screen.findByText('Existing-target deployment permission');

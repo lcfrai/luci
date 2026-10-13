@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
@@ -341,6 +342,19 @@ func (s *Server) ReserveOrchestratorTurn(ctx context.Context, id string, req Orc
 		if !found {
 			return OrchestratorTurn{}, snapshot, false, ErrOrchestratorConflict
 		}
+	}
+	// A person's primary conversation is a durable recipient even before a
+	// coding route exists. This stores identity only; current project Read
+	// access is still resolved when a finding is delivered or shown.
+	ref := management.ExecutionActorRef{UserID: actor.ID, ProjectID: p.ID}
+	if access, scoped := management.TeamAccessFromContext(ctx); scoped {
+		if access.ProjectID != p.ID || !access.Permissions.Read || access.Team.ID == "" {
+			return OrchestratorTurn{}, snapshot, false, ErrOrchestratorInvalid
+		}
+		ref.TeamID = access.Team.ID
+	}
+	if err = s.ensureCoordinatorRecipientLocked(p, ref); err != nil {
+		return OrchestratorTurn{}, snapshot, false, err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	turn := OrchestratorTurn{ID: newID("turn-"), ProjectID: id, Sequence: nextOrchestratorSequence(saved), Actor: actor, Message: req.Message, JobID: jobID, ReplyToTurnID: req.ReplyToTurnID, ContextDigest: snapshot.Digest, Context: snapshot, Status: "reserved", CreatedAt: now, UpdatedAt: now}

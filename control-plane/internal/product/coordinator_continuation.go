@@ -67,14 +67,17 @@ type coordinatorContinuationRecord struct {
 	DeploymentPlan  *CoordinatorDeploymentPlan   `json:"deploymentPlan,omitempty"`
 }
 type coordinatorContinuations struct {
-	Version        int                             `json:"version"`
-	AccountScope   string                          `json:"accountScope"`
-	ProjectScope   string                          `json:"projectScope"`
-	ActorID        string                          `json:"actorId"`
-	ProjectID      string                          `json:"projectId"`
-	Rows           []coordinatorContinuationRecord `json:"rows"`
-	SavedRoute     *CoordinatorSavedRoute          `json:"savedRoute,omitempty"`
-	ContextCommits []CoordinatorContextCommit      `json:"contextCommits,omitempty"`
+	Version            int                             `json:"version"`
+	AccountScope       string                          `json:"accountScope"`
+	ProjectScope       string                          `json:"projectScope"`
+	ActorID            string                          `json:"actorId"`
+	ProjectID          string                          `json:"projectId"`
+	RecipientRef       management.ExecutionActorRef    `json:"recipientRef,omitempty"`
+	Rows               []coordinatorContinuationRecord `json:"rows"`
+	Findings           []CoordinatorFinding            `json:"findings,omitempty"`
+	FindingEventCursor int                             `json:"findingEventCursor,omitempty"`
+	SavedRoute         *CoordinatorSavedRoute          `json:"savedRoute,omitempty"`
+	ContextCommits     []CoordinatorContextCommit      `json:"contextCommits,omitempty"`
 }
 type CoordinatorContextCommitView struct {
 	EventID   string `json:"eventId"`
@@ -91,6 +94,7 @@ type coordinatorContinuationRequest struct {
 	Run                    projectRunCreateRequest    `json:"run"`
 	MaxParallel            int                        `json:"maxParallel"`
 	RememberRoute          bool                       `json:"rememberRoute,omitempty"`
+	AutoDiscussFindings    bool                       `json:"autoDiscussFindings,omitempty"`
 	ExpectedRouteRevision  *int                       `json:"expectedRouteRevision,omitempty"`
 	CheckPlan              *CoordinatorCheckPlan      `json:"checkPlan,omitempty"`
 	PreviewPlan            *CoordinatorPreviewPlan    `json:"previewPlan,omitempty"`
@@ -106,6 +110,7 @@ func (s *Server) SetCoordinatorDeploymentAuthorizer(fn management.DeploymentAuth
 
 func (s *Server) registerCoordinatorContinuations(mux Registrar) {
 	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/deployment-plan", s.prepareCoordinatorDeploymentPlan)
+	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/findings/preferences", s.updateCoordinatorFindingPreference)
 	const base = "/v1/product/projects/{id}/orchestrator/continuations"
 	mux.HandleFunc("GET "+base, s.listCoordinatorContinuations)
 	mux.HandleFunc("POST "+base, s.createCoordinatorContinuation)
@@ -172,8 +177,15 @@ func (s *Server) readContinuations(p project.Project, actor string) (coordinator
 	} else if err != nil {
 		return out, err
 	}
-	if stored.Version != 1 || stored.AccountScope != out.AccountScope || stored.ProjectScope != out.ProjectScope || stored.ProjectID != p.ID || stored.ActorID != actor || len(stored.Rows) > coordinatorContinuationLimit || len(stored.ContextCommits) > coordinatorContinuationLimit {
+	if stored.Version != 1 || stored.AccountScope != out.AccountScope || stored.ProjectScope != out.ProjectScope || stored.ProjectID != p.ID || stored.ActorID != actor || len(stored.Rows) > coordinatorContinuationLimit || len(stored.ContextCommits) > coordinatorContinuationLimit || len(stored.Findings) > coordinatorFindingLimit || stored.FindingEventCursor < 0 || (stored.RecipientRef.UserID != "" && (stored.RecipientRef.UserID != actor || stored.RecipientRef.ProjectID != p.ID || stored.RecipientRef.Local)) {
 		return out, ErrOrchestratorInvalid
+	}
+	findings := map[string]bool{}
+	for _, finding := range stored.Findings {
+		if !validCoordinatorFinding(finding, p.ID, actor) || findings[finding.ID] {
+			return out, ErrOrchestratorInvalid
+		}
+		findings[finding.ID] = true
 	}
 	commitEvents := map[string]bool{}
 	for _, commit := range stored.ContextCommits {
@@ -413,6 +425,10 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		coordinatorPolicyProblem(w, ErrOrchestratorInvalid)
 		return
 	}
+	if req.AutoDiscussFindings && !req.RememberRoute {
+		coordinatorPolicyProblem(w, ErrOrchestratorInvalid)
+		return
+	}
 	// A caller can name an event, but cannot turn a proposal into acceptance.
 	// Reopen the exact archived or active receipt before source admission, then
 	// compare the current event head again under the mutation lock below.
@@ -559,7 +575,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 			if rows.SavedRoute != nil {
 				revision = rows.SavedRoute.Revision + 1
 			}
-			rows.SavedRoute = &CoordinatorSavedRoute{Revision: revision, Route: coordinatorRoute(req.Run), MaxParallel: req.MaxParallel, UpdatedAt: row.CreatedAt, CheckPlan: req.CheckPlan, PreviewPlan: req.PreviewPlan, DeploymentPlan: req.DeploymentPlan}
+			rows.SavedRoute = &CoordinatorSavedRoute{Revision: revision, AutoDiscussFindings: req.AutoDiscussFindings, Route: coordinatorRoute(req.Run), MaxParallel: req.MaxParallel, UpdatedAt: row.CreatedAt, CheckPlan: req.CheckPlan, PreviewPlan: req.PreviewPlan, DeploymentPlan: req.DeploymentPlan}
 			if !validCoordinatorRoute(rows.SavedRoute) {
 				err = ErrOrchestratorInvalid
 			}

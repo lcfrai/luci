@@ -189,6 +189,7 @@ type OrchestratorWorkFinding struct {
 type OrchestratorActivity struct {
 	Accepted         []OrchestratorAcceptedUpdate `json:"accepted"`
 	Work             []OrchestratorWorkUpdate     `json:"work"`
+	Findings         []CoordinatorFinding         `json:"findings,omitempty"`
 	EarlierAvailable bool                         `json:"earlierAvailable"`
 }
 type OrchestratorView struct {

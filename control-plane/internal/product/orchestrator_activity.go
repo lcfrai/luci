@@ -15,7 +15,7 @@ func (s *Server) orchestratorActivityLocked(p project.Project, actorID string) (
 	if err != nil {
 		return nil, err
 	}
-	out := &OrchestratorActivity{Accepted: []OrchestratorAcceptedUpdate{}, Work: []OrchestratorWorkUpdate{}}
+	out := &OrchestratorActivity{Accepted: []OrchestratorAcceptedUpdate{}, Work: []OrchestratorWorkUpdate{}, Findings: []CoordinatorFinding{}}
 	limit := orchestratorActivityLimit
 	if actorID == "" {
 		limit = 1 // The cross-project board needs only the newest shared event.
@@ -68,6 +68,13 @@ func (s *Server) orchestratorActivityLocked(p project.Project, actorID string) (
 	continuations, err := s.readContinuations(p, actorID)
 	if err != nil {
 		return nil, err
+	}
+	for i := len(continuations.Findings) - 1; i >= 0; i-- {
+		if len(out.Findings) >= orchestratorActivityLimit {
+			out.EarlierAvailable = true
+			break
+		}
+		out.Findings = append(out.Findings, continuations.Findings[i])
 	}
 	for i := len(continuations.Rows) - 1; i >= 0; i-- {
 		if len(out.Work) >= orchestratorActivityLimit {

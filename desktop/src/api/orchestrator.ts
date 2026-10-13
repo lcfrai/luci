@@ -52,6 +52,10 @@ export interface OrchestratorActivity {
     status: string; message: string; runId?: string; updatedAt: string;
     finding?: { status: string; checkId?: string; commit?: string; previewStatus?: string; previewReleaseId?: string;
       deployStatus?: string; deployReleaseId?: string } }[];
+  findings?: { id: string; projectId: string; recipientId: string; continuationId: string; eventId?: string; originTurnId: string;
+    contextDigest: string; sourceRevision: number; sourceStatus: string;
+    status: "pending" | "reserved" | "inflight" | "question" | "review" | "resumed" | "unknown";
+    message: string; requestKey?: string; turnId?: string; updatedAt: string }[];
   earlierAvailable: boolean;
 }
 export interface OrchestratorView {
@@ -102,6 +106,7 @@ function verifiedView(value: OrchestratorView, projectId: string): OrchestratorV
       value.turns.some(turn => turn.projectId !== projectId || turn.context?.projectId !== projectId) ||
       new Set(value.turns.map(turn => turn.id)).size !== value.turns.length ||
       !validActiveRuns(value.context) || !validActivity(value.activity) ||
+      value.activity?.findings?.some(finding => finding.projectId !== projectId) ||
       (value.context.needsAttention !== undefined && !validRunAttention(value.context.needsAttention, 200)) ||
       (value.nextAction?.runId !== undefined && ![value.context.currentRun?.id, ...(value.context.activeRuns ?? []).map(run => run.id), ...(value.context.needsAttention ?? []).map(run => run.id)].includes(value.nextAction.runId)) ||
       !["discover", "design", "develop", "deploy"].includes(value.nextAction?.lens)) {
@@ -113,6 +118,13 @@ function validActivity(activity: OrchestratorActivity | undefined): boolean {
   if (activity === undefined) return true;
   if (!Array.isArray(activity.accepted) || !Array.isArray(activity.work) ||
       activity.accepted.length > 8 || activity.work.length > 8 || typeof activity.earlierAvailable !== "boolean") return false;
+  if (activity.findings !== undefined && (!Array.isArray(activity.findings) || activity.findings.length > 8 ||
+      new Set(activity.findings.map(row => row.id)).size !== activity.findings.length ||
+      activity.findings.some(row => !row || !row.id?.startsWith('finding-') || !row.projectId || !row.recipientId ||
+        (!row.continuationId && !row.eventId) || !!row.continuationId && !!row.eventId || !row.originTurnId || !/^[0-9a-f]{64}$/.test(row.contextDigest) ||
+        !Number.isSafeInteger(row.sourceRevision) || row.sourceRevision < 1 || !row.sourceStatus ||
+        !['pending', 'reserved', 'inflight', 'question', 'review', 'resumed', 'unknown'].includes(row.status) ||
+        typeof row.message !== 'string' || !Number.isFinite(Date.parse(row.updatedAt))))) return false;
   if (new Set(activity.accepted.map(event => event.eventId)).size !== activity.accepted.length ||
       new Set(activity.work.map(work => work.id)).size !== activity.work.length) return false;
   return activity.accepted.every(event => event && typeof event.eventId === "string" && !!event.eventId &&

@@ -284,6 +284,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	go func() { defer close(samplesDone); sampler.Run(sampleCtx) }()
 	defer func() { stopSamples(); <-samplesDone }()
 	var executionAuthority management.ExecutionAuthorizer
+	var findingRecipients management.ProjectRecipientLister
+	var authorizeProjectRead management.ProjectReadAuthorizer
 	var checkAuthority management.CheckAuthorizer
 	var deploymentAuthority management.DeploymentAuthorizer
 	var runtimeInstallerAuthority management.RuntimeInstallerAuthorizer
@@ -294,6 +296,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		executionAuthority, err = management.NewFileExecutionAuthorizer(scope)
 		if err != nil {
 			return fmt.Errorf("initialize current execution authority: %w", err)
+		}
+		findingRecipients, authorizeProjectRead, err = management.NewFileProjectRecipients(scope)
+		if err != nil {
+			return fmt.Errorf("initialize current project recipients: %w", err)
 		}
 		checkAuthority, err = management.NewFileCheckAuthorizer(scope)
 		if err != nil {
@@ -329,6 +335,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ResourceSnapshot:       sampler.Latest,
 		ExecutionReady:         executionReady.Load,
 		ManagedExecution:       cfg.Worker,
+		FindingRecipients:      findingRecipients,
+		AuthorizeProjectRead:   authorizeProjectRead,
 		AuthorizeRuntimeInstaller: func(ctx context.Context, ref management.ExecutionActorRef) (management.ExecutionAuthority, error) {
 			if !executionReady.Load() || runtimeInstallerAuthority == nil {
 				return management.ExecutionAuthority{}, management.ErrExecutionAuthority

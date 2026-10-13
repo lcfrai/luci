@@ -23,6 +23,7 @@ export interface CoordinatorCheckPlan {
 export interface CoordinatorPreviewPlan { dockerfile: string; port: number; expectedConfigurationRevision: number; acknowledgePreviewBuild: true }
 export interface CoordinatorSavedRoute {
   revision: number;
+  autoDiscussFindings?: boolean;
   route: Omit<CreateProjectRun, 'idempotencyKey' | 'implementationContext'>;
   maxParallel: number; updatedAt: string; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan; deploymentPlan?: CoordinatorDeploymentPlan;
 }
@@ -40,6 +41,7 @@ export interface CoordinatorContinuationRequest {
   idempotencyKey: string; originTurnId: string; expectedContextDigest: string; expectedPolicyRevision: number;
   run: Omit<CreateProjectRun, 'idempotencyKey'>; maxParallel: number;
   rememberRoute?: boolean; expectedRouteRevision?: number; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan; deploymentPlan?: CoordinatorDeploymentPlan;
+  autoDiscussFindings?: boolean;
 }
 const base = (project: string) => `/v1/product/projects/${encodeURIComponent(project)}/orchestrator/continuations`;
 const kinds: CoordinatorActionKind[] = ['create-run', 'prepare-tasks', 'queue-tasks'];
@@ -112,7 +114,7 @@ function checkPlanValid(value: CoordinatorCheckPlan) {
 function savedRoute(value: CoordinatorSavedRoute | null | undefined) {
   if (value == null) return null;
   const route = value.route;
-  if (!Number.isSafeInteger(value.revision) || value.revision < 1 || !Number.isSafeInteger(value.maxParallel) || value.maxParallel < 1 || value.maxParallel > MAX_SWARM_PARALLEL_TASKS ||
+  if (!Number.isSafeInteger(value.revision) || value.revision < 1 || (value.autoDiscussFindings !== undefined && typeof value.autoDiscussFindings !== 'boolean') || !Number.isSafeInteger(value.maxParallel) || value.maxParallel < 1 || value.maxParallel > MAX_SWARM_PARALLEL_TASKS ||
       !Number.isFinite(Date.parse(value.updatedAt)) || !route || Object.keys(route).some(key => !['worktreeId', 'harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'agentConnectionId', 'outcome'].includes(key)) || !text(route.worktreeId) || !text(route.harness) || typeof route.model !== 'string' ||
       !['ask', 'bypass', 'plan'].includes(route.permissionMode) || !['preview', 'publish'].includes(route.outcome) ||
       route.executionLocation !== undefined && (route.executionLocation !== 'cloud-microvm' || route.permissionMode !== 'bypass' || !['codex', 'claude-code'].includes(route.harness)) ||
@@ -135,6 +137,11 @@ async function listState(project: string, actor: string, signal?: AbortSignal): 
 }
 export const coordinatorContinuationsApi = {
   listState,
+  async setFindingPreference(project: string, expectedRouteRevision: number, autoDiscussFindings: boolean) {
+    const result = savedRoute(await productApi.request<CoordinatorSavedRoute>(`/v1/product/projects/${encodeURIComponent(project)}/orchestrator/findings/preferences`, { expectedRouteRevision, autoDiscussFindings }));
+    if (!result || result.revision !== expectedRouteRevision + 1 || !!result.autoDiscussFindings !== autoDiscussFindings) throw new Error('The finding preference did not match the saved route revision. Refresh its exact state before another change.');
+    return result;
+  },
   async list(project: string, actor: string, signal?: AbortSignal) { return (await listState(project, actor, signal)).continuations; },
   async get(project: string, actor: string, id: string, signal?: AbortSignal) {
     return verified(await productApi.request<CoordinatorContinuation>(`${base(project)}/${encodeURIComponent(id)}`, undefined, 'GET', 30_000, signal), project, actor, id);

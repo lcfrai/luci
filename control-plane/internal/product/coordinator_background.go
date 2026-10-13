@@ -17,13 +17,16 @@ import (
 // account, team, project, harness and secret authority on every continuation.
 type CoordinatorReauthorizer func(context.Context, management.ExecutionActorRef, string, bool) (context.Context, error)
 type coordinatorBackground struct {
-	mu        sync.Mutex
-	tick      sync.Mutex
-	authorize CoordinatorReauthorizer
-	cancel    context.CancelFunc
-	done      chan struct{}
-	wake      chan struct{}
-	cursor    string
+	mu          sync.Mutex
+	tick        sync.Mutex
+	authorize   CoordinatorReauthorizer
+	dispatch    CoordinatorFindingDispatcher
+	recipients  management.ProjectRecipientLister
+	readFinding management.ProjectReadAuthorizer
+	cancel      context.CancelFunc
+	done        chan struct{}
+	wake        chan struct{}
+	cursor      string
 	// One refused draft fingerprint per saved actor/project. A 4xx cannot be
 	// treated as an absent mutation or sent again on every two-second tick.
 	draftRefusals  map[string]string
@@ -66,6 +69,22 @@ func (s *Server) SetCoordinatorRuntime(authorize CoordinatorReauthorizer) {
 	}()
 	s.WakeCoordinator()
 }
+
+func (s *Server) SetCoordinatorFindingDispatcher(dispatch CoordinatorFindingDispatcher) {
+	b := &s.coordinatorBackground
+	b.mu.Lock()
+	b.dispatch = dispatch
+	b.mu.Unlock()
+	s.WakeCoordinator()
+}
+
+func (s *Server) SetCoordinatorFindingRecipients(list management.ProjectRecipientLister, read management.ProjectReadAuthorizer) {
+	b := &s.coordinatorBackground
+	b.mu.Lock()
+	b.recipients, b.readFinding = list, read
+	b.mu.Unlock()
+	s.WakeCoordinator()
+}
 func (s *Server) WakeCoordinator() {
 	b := &s.coordinatorBackground
 	b.mu.Lock()
@@ -106,7 +125,7 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 		return err
 	}
 	b.mu.Lock()
-	authorize, cursor := b.authorize, b.cursor
+	authorize, dispatch, recipients, readFinding, cursor := b.authorize, b.dispatch, b.recipients, b.readFinding, b.cursor
 	b.mu.Unlock()
 	if authorize == nil {
 		return nil
@@ -182,6 +201,48 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 			s.mu.RUnlock()
 			if e != nil {
 				return e
+			}
+			if e = s.settleInterruptedCoordinatorFindings(p, header.ActorID); e != nil {
+				return e
+			}
+			s.mu.RLock()
+			rows, e = s.readContinuations(p, header.ActorID)
+			s.mu.RUnlock()
+			if e != nil {
+				return e
+			}
+			// A delivery can be persisted just before a crash. Reconstruct its
+			// per-person notification from the exact durable row, once, before
+			// advancing any subsequent affected work.
+			if dispatch != nil {
+				seeded, e := s.seedCoordinatorFindingRecipients(ctx, p, rows, recipients, readFinding)
+				if e != nil {
+					return e
+				}
+				if seeded {
+					return nil
+				}
+				accepted, e := s.deliverAcceptedFinding(ctx, p, rows, authorize, readFinding)
+				if e != nil {
+					return e
+				}
+				if accepted {
+					return nil
+				}
+				published, e := s.deliverCoordinatorFindings(ctx, p, rows, root, names, authorize, readFinding)
+				if e != nil {
+					return e
+				}
+				if published {
+					return nil
+				}
+				followed, e := s.continueCoordinatorFinding(ctx, p, rows, authorize, dispatch)
+				if e != nil {
+					return e
+				}
+				if followed {
+					return nil
+				}
 			}
 			advanced, e := s.continueSavedCoordinatorDraft(ctx, p, rows, authorize)
 			if e != nil {

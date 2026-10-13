@@ -134,6 +134,7 @@ var teamRouteRules = []teamRouteRule{
 	{"GET /v1/product/projects/{projectId}/orchestrator/continuations/{continuationId}", teamRead},
 	{"POST /v1/product/projects/{projectId}/orchestrator/deployment-plan", teamEdit | teamDeploy},
 	{"POST /v1/product/projects/{projectId}/orchestrator/continuations", teamEdit | teamExecute},
+	{"POST /v1/product/projects/{projectId}/orchestrator/findings/preferences", teamEdit | teamExecute},
 	{"POST /v1/product/projects/{projectId}/orchestrator/continuations/{continuationId}/advance", teamEdit | teamExecute},
 	{"GET /v1/product/projects/{projectId}/orchestrator/policy", teamRead},
 	{"POST /v1/product/projects/{projectId}/orchestrator/policy", teamEdit},

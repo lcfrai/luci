@@ -87,6 +87,8 @@ type Deps struct {
 	ExecutionStateDir         string
 	ResourceSnapshot          func() resourcebudget.Snapshot
 	AuthorizeExecution        management.ExecutionAuthorizer
+	FindingRecipients         management.ProjectRecipientLister
+	AuthorizeProjectRead      management.ProjectReadAuthorizer
 	AuthorizeChecks           management.CheckAuthorizer
 	AuthorizeExecutionControl management.ExecutionControlAuthorizer
 	AuthorizeDeployment       management.DeploymentAuthorizer
@@ -487,6 +489,8 @@ func New(d Deps) (*API, error) {
 		}
 		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, ResumeCloud: resumeCloud, StopOwned: a.stopOwnedSwarmTask, Release: a.execution.release, CloudRetired: cloudRetired, CloudRecoveryPending: cloudRecoveryPending, Resources: a.queuedResourceView})
 		d.Product.SetProjectSwarmWorktreeObserver(a.observeSwarmWorktree)
+		d.Product.SetCoordinatorFindingDispatcher(a.dispatchCoordinatorFinding)
+		d.Product.SetCoordinatorFindingRecipients(d.FindingRecipients, d.AuthorizeProjectRead)
 		d.Product.SetCoordinatorRuntime(a.reauthorizeCoordinator)
 	}
 
