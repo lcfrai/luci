@@ -18,7 +18,7 @@ import (
 )
 
 func gatewayFixture() config {
-	return config{GatewayHost: "embed.private.example", PrivateListenIP: "10.20.0.4", Scope: "scope-one", Generation: "generation-one",
+	return config{GatewayHost: "embed.private.example", PrivateListenIP: "10.20.0.4", ControllerIP: "10.20.0.5", Scope: "scope-one", Generation: "generation-one",
 		ServerCertFile: "/run/luci-gateway/server.crt", ServerKeyFile: "/run/luci-gateway/server.key", ClientCAFile: "/run/luci-gateway/client-ca.crt"}
 }
 
@@ -105,6 +105,9 @@ func TestAzureGatewayRejectsPublicListenerAndConfigurationInjection(t *testing.T
 	for _, change := range []func(*config){
 		func(c *config) { c.PrivateListenIP = "0.0.0.0" },
 		func(c *config) { c.PrivateListenIP = "8.8.8.8" },
+		func(c *config) { c.ControllerIP = "0.0.0.0" },
+		func(c *config) { c.ControllerIP = "8.8.8.8" },
+		func(c *config) { c.ControllerIP = c.PrivateListenIP },
 		func(c *config) { c.GatewayHost += "'\npublic-route" },
 		func(c *config) { c.ServerCertFile += "'\npublic-route" },
 		func(c *config) { c.Generation = "other/generation" },
@@ -115,5 +118,24 @@ func TestAzureGatewayRejectsPublicListenerAndConfigurationInjection(t *testing.T
 		if _, err := render(c); err == nil {
 			t.Fatal("unsafe gateway configuration was accepted", c)
 		}
+	}
+}
+
+func TestAzureGatewayDedicatedHostFirewallDeniesDirectRuntimePorts(t *testing.T) {
+	data, err := renderFirewall(gatewayFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	for _, required := range []string{
+		"table inet luci_embed", "policy drop", `iifname "lo" accept`,
+		"ct state established,related accept", "ip saddr 10.20.0.5/32 ip daddr 10.20.0.4 tcp dport 443 accept",
+	} {
+		if !strings.Contains(s, required) {
+			t.Fatal("dedicated-host ingress rule missing", required)
+		}
+	}
+	if strings.Contains(s, "3000") || strings.Contains(s, "3002") || strings.Contains(s, "5008") || strings.Contains(s, "0.0.0.0/0") {
+		t.Fatal("direct E2B host-network port or unrestricted peer was opened")
 	}
 }

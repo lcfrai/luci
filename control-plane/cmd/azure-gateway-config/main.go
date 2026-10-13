@@ -24,6 +24,7 @@ import (
 type config struct {
 	GatewayHost     string `json:"gatewayHost"`
 	PrivateListenIP string `json:"privateListenIp"`
+	ControllerIP    string `json:"controllerPrivateIp"`
 	Scope           string `json:"scope"`
 	Generation      string `json:"generation"`
 	ServerCertFile  string `json:"serverCertFile"`
@@ -37,7 +38,10 @@ var pathPattern = regexp.MustCompile(`^/[A-Za-z0-9/._-]+$`)
 
 func validConfig(c config) bool {
 	ip := net.ParseIP(c.PrivateListenIP)
-	if ip == nil || !ip.IsPrivate() || strings.Contains(c.GatewayHost, "..") ||
+	controller := net.ParseIP(c.ControllerIP)
+	if ip == nil || ip.To4() == nil || !ip.IsPrivate() ||
+		controller == nil || controller.To4() == nil || !controller.IsPrivate() || controller.Equal(ip) ||
+		strings.Contains(c.GatewayHost, "..") ||
 		!hostPattern.MatchString(c.GatewayHost) || !idPattern.MatchString(c.Scope) || !idPattern.MatchString(c.Generation) {
 		return false
 	}
@@ -47,6 +51,26 @@ func validConfig(c config) bool {
 		}
 	}
 	return c.ServerCertFile != c.ServerKeyFile && c.ServerCertFile != c.ClientCAFile && c.ServerKeyFile != c.ClientCAFile
+}
+
+// This dedicated-host firewall has a default-deny ingress chain. Loopback
+// keeps E2B's host-network API/proxy/orchestrator working; only the selected
+// controller can reach the private mTLS listener. Other inbound traffic,
+// including 3000-3002 and unauthenticated 5008, is dropped. It is emitted as
+// a separate reviewable artifact: rendering never changes the host firewall.
+func renderFirewall(c config) ([]byte, error) {
+	if !validConfig(c) {
+		return nil, errors.New("private gateway configuration is invalid")
+	}
+	return []byte(fmt.Sprintf(`table inet luci_embed {
+  chain input {
+    type filter hook input priority -100; policy drop;
+    iifname "lo" accept
+    ct state established,related accept
+    ip saddr %s/32 ip daddr %s tcp dport 443 accept
+  }
+}
+`, c.ControllerIP, c.PrivateListenIP)), nil
 }
 
 type allowedRoute struct{ method, path, auth, cluster string }
@@ -229,11 +253,13 @@ func validateGatewayMaterials(c config, now time.Time) error {
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: azure-gateway-config PRIVATE_CONFIG.json")
+	firewall := len(os.Args) == 3 && os.Args[1] == "--nftables"
+	if len(os.Args) != 2 && !firewall {
+		fmt.Fprintln(os.Stderr, "usage: azure-gateway-config [--nftables] PRIVATE_CONFIG.json")
 		os.Exit(2)
 	}
-	file, err := os.Open(os.Args[1])
+	path := os.Args[len(os.Args)-1]
+	file, err := os.Open(path)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "private gateway configuration unavailable")
 		os.Exit(2)
@@ -255,7 +281,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	data, err := render(c)
+	var data []byte
+	if firewall {
+		data, err = renderFirewall(c)
+	} else {
+		data, err = render(c)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
