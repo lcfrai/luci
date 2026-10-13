@@ -1,12 +1,34 @@
 package e2bbe
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestAzureDeploymentReadbackBlocksAdvisoryNodeCapacityWithoutCreate(t *testing.T) {
+	p := newProvider(t)
+	cfg, _ := fixtureConfig(t, p)
+	cfg.AdminAPIKey, cfg.HostNodeID = "test-only-admin-key", "node-one"
+	ready := false
+	cfg.DeploymentReadback = func(context.Context) error {
+		if !ready {
+			return errors.New("exact Azure disk readback unavailable")
+		}
+		return nil
+	}
+	c := openController(t, cfg)
+	if err := c.VerifyNodeCapacity(context.Background()); !errors.Is(err, ErrUnsupported) || p.creates != 0 {
+		t.Fatal("unverified Azure attachment offered task VM capacity", err, p.creates)
+	}
+	ready = true
+	if err := c.VerifyNodeCapacity(context.Background()); err != nil {
+		t.Fatal("verified attachment and pinned E2B host were refused", err)
+	}
+}
 
 func azureDeploymentFixture() Deployment {
 	return Deployment{

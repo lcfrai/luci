@@ -61,6 +61,9 @@ func (a *API) cloudTaskCapacity(ctx context.Context, projectID, actorID string) 
 		}
 	}
 	view := cloudCapacityView(limits, template, usage, projectActive, rows, settled, pending, actorID, projectID, cloud.Runtime.Controller.Region(), cloud.EstimatedCostMicros, cloud.MaxSeconds, budget, time.Now().UTC())
+	if cloud.Runtime.Controller.Provider() == "azure" {
+		view.Provider = "azure-e2b-embed"
+	}
 	if !policy.AllowCloudProvisioning || policy.MonthlyBudgetUSD <= 0 {
 		return cloudCapacityBlocked(view, "Cloud provisioning and a positive monthly spending budget must be enabled by the current account or team policy."), nil
 	}

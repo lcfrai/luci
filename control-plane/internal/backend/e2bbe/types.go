@@ -173,8 +173,11 @@ type Config struct {
 	// Azure's private gateway requires this client identity on API and guest
 	// traffic. The key is never written to a journal or task archive.
 	ClientCertificate *tls.Certificate
-	StateDir          string
-	OwnerID           string
+	// DeploymentReadback checks Azure disk and host ownership before node
+	// admission. Nil preserves the existing AWS path.
+	DeploymentReadback func(context.Context) error
+	StateDir           string
+	OwnerID            string
 	// EgressAllow names exact operator-approved model endpoints. The provider
 	// still denies all other outbound IPv4 destinations for each fresh VM.
 	EgressAllow []string

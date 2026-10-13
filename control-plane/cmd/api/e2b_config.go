@@ -184,6 +184,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		return nil, nil, fmt.Errorf("selected cloud microVM template lacks its exact private Create/build intent: %w", err)
 	}
 	var azureSecretsCleanup func()
+	var azureARM azureARMReader
 	if selected.AzureSecrets != nil {
 		source, sourceErr := newAzureSecretSource(*selected.AzureSecrets)
 		if sourceErr != nil {
@@ -196,6 +197,11 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		azureSecretsCleanup = cleanup
 		selected.APIKeyFile, selected.AdminAPIKeyFile, selected.AttachKeyFile = files.APIKey, files.AdminKey, files.AttachKey
 		selected.ClientCertFile, selected.ClientKeyFile = files.ClientCert, files.ClientKey
+		azureARM, err = newAzureARMReader(selected.AzureSecrets.ClientID)
+		if err != nil {
+			cleanup()
+			return nil, nil, err
+		}
 	}
 	succeeded := false
 	defer func() {
@@ -268,6 +274,9 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 			if err := verifyAzureDurableMount(*selected.AzureMount, selected, cfg); err != nil {
 				return management.ErrExecutionAuthority
 			}
+			if err := verifyAzureARMOwnership(effectCtx, selected, azureARM); err != nil {
+				return management.ErrExecutionAuthority
+			}
 		}
 		i := request.Identity
 		if i.OwnerID != selected.Store.OwnerID || i.RunID == "" {
@@ -326,6 +335,14 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 			return strings.ReplaceAll(selected.EnvdOriginTemplate, "{sandboxID}", id),
 				strings.ReplaceAll(selected.SandboxOriginTemplate, "{sandboxID}", id), e2bbe.EnvdVersion, nil
 		}}
+	if azureARM != nil {
+		controllerConfig.DeploymentReadback = func(readCtx context.Context) error {
+			if err := verifyAzureDurableMount(*selected.AzureMount, selected, cfg); err != nil {
+				return err
+			}
+			return verifyAzureARMOwnership(readCtx, selected, azureARM)
+		}
+	}
 	journal := filepath.Join(selected.ControllerStateDir, "attempts.json")
 	if _, statErr := os.Lstat(journal); errors.Is(statErr, os.ErrNotExist) {
 		if head, headErr := store.Head(ctx); headErr == nil {

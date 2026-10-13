@@ -90,6 +90,8 @@ func (c *Controller) OwnerID() string { return c.config.OwnerID }
 
 func (c *Controller) Region() string { return c.config.Deployment.Region }
 
+func (c *Controller) Provider() string { return c.config.Deployment.Provider }
+
 func (c *Controller) EgressDomains() []string {
 	return append([]string{}, c.config.EgressAllow...)
 }

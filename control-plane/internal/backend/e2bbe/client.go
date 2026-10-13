@@ -187,6 +187,11 @@ type providerNode struct {
 // atomic Create decision still owns actual placement; this cannot guarantee
 // future quota, KVM availability or price. Unknown/malformed reads fail closed.
 func (c *Controller) VerifyNodeCapacity(ctx context.Context) error {
+	if c.config.DeploymentReadback != nil {
+		if err := c.config.DeploymentReadback(ctx); err != nil {
+			return ErrUnsupported
+		}
+	}
 	if c.client.adminKey == "" || !validID(c.config.HostNodeID) {
 		return ErrUnsupported
 	}
