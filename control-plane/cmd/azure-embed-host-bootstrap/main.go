@@ -36,6 +36,10 @@ type secretRef struct {
 type config struct {
 	VaultURL           string    `json:"vaultUrl"`
 	GatewayHost        string    `json:"gatewayHost"`
+	PrivateListenIP    string    `json:"privateListenIp"`
+	ControllerIP       string    `json:"controllerPrivateIp"`
+	Scope              string    `json:"scope"`
+	Generation         string    `json:"generation"`
 	HostClientID       string    `json:"hostClientId"`
 	ControllerClientID string    `json:"controllerClientId"`
 	PrivateDirectory   string    `json:"privateDirectory"`
@@ -52,7 +56,7 @@ type config struct {
 }
 
 type staged struct {
-	Directory, ComposeEnv, ServerCert, ServerKey, ClientCA string
+	Directory, ComposeEnv, ServerCert, ServerKey, ClientCA, GatewayConfig string
 }
 
 type source interface {
@@ -75,15 +79,20 @@ var (
 	namePattern     = regexp.MustCompile(`^[a-zA-Z0-9-]{1,127}$`)
 	digestPattern   = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	hostPattern     = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{2,252}$`)
+	idPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,127}$`)
 	teamKeyPattern  = regexp.MustCompile(`^e2b_[0-9a-f]{32}$`)
 	hexKeyPattern   = regexp.MustCompile(`^[0-9a-f]{64}$`)
 )
 
 func validConfig(c config) bool {
 	u, err := url.Parse(c.VaultURL)
+	gatewayIP, controllerIP := net.ParseIP(c.PrivateListenIP), net.ParseIP(c.ControllerIP)
 	if err != nil || u.Scheme != "https" || u.User != nil || u.Port() != "" || u.Path != "" || u.RawQuery != "" || u.Fragment != "" ||
 		!strings.HasSuffix(u.Hostname(), ".vault.azure.net") || len(strings.TrimSuffix(u.Hostname(), ".vault.azure.net")) == 0 ||
 		!hostPattern.MatchString(c.GatewayHost) || strings.Contains(c.GatewayHost, "..") ||
+		gatewayIP == nil || gatewayIP.To4() == nil || !gatewayIP.IsPrivate() ||
+		controllerIP == nil || controllerIP.To4() == nil || !controllerIP.IsPrivate() || controllerIP.Equal(gatewayIP) ||
+		!idPattern.MatchString(c.Scope) || !idPattern.MatchString(c.Generation) ||
 		!clientIDPattern.MatchString(c.HostClientID) || !clientIDPattern.MatchString(c.ControllerClientID) || c.HostClientID == c.ControllerClientID ||
 		!filepath.IsAbs(c.PrivateDirectory) || filepath.Clean(c.PrivateDirectory) != c.PrivateDirectory ||
 		!filepath.IsAbs(c.ComposePath) || filepath.Clean(c.ComposePath) != c.ComposePath || !digestPattern.MatchString(c.ComposeSHA256) ||
@@ -291,6 +300,24 @@ func stage(ctx context.Context, c config, s source, tmpfs func(string) bool) (st
 	if result.ClientCA, err = write("client-ca.crt", values[5]); err != nil {
 		return staged{}, err
 	}
+	// This is the exact private input accepted by azure-gateway-config. It
+	// contains file paths and generation identity, never secret values.
+	gateway, err := json.Marshal(struct {
+		GatewayHost     string `json:"gatewayHost"`
+		PrivateListenIP string `json:"privateListenIp"`
+		ControllerIP    string `json:"controllerPrivateIp"`
+		Scope           string `json:"scope"`
+		Generation      string `json:"generation"`
+		ServerCertFile  string `json:"serverCertFile"`
+		ServerKeyFile   string `json:"serverKeyFile"`
+		ClientCAFile    string `json:"clientCaFile"`
+	}{c.GatewayHost, c.PrivateListenIP, c.ControllerIP, c.Scope, c.Generation, result.ServerCert, result.ServerKey, result.ClientCA})
+	if err != nil {
+		return staged{}, errors.New("Azure host gateway input is invalid")
+	}
+	if result.GatewayConfig, err = write("gateway.json", gateway); err != nil {
+		return staged{}, err
+	}
 	result.Directory = root
 	success = true
 	return result, nil
@@ -311,7 +338,7 @@ func retire(c config, path string, tmpfs func(string) bool) error {
 	if err != nil {
 		return errors.New("Azure host secret retirement target is unreadable")
 	}
-	allowed := map[string]bool{"runtime.env": true, "server.crt": true, "server.key": true, "client-ca.crt": true}
+	allowed := map[string]bool{"runtime.env": true, "server.crt": true, "server.key": true, "client-ca.crt": true, "gateway.json": true}
 	for _, entry := range entries {
 		if !allowed[entry.Name()] {
 			return errors.New("Azure host secret retirement target contains unknown data")

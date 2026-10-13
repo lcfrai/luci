@@ -48,6 +48,7 @@ func hostFixture(t *testing.T) (config, fakeSecrets) {
 	sum := sha256.Sum256(data)
 	composeSum := sha256.Sum256(composeBytes)
 	c := config{VaultURL: "https://luci-private.vault.azure.net", GatewayHost: "embed.private.example",
+		PrivateListenIP: "10.20.0.4", ControllerIP: "10.20.0.5", Scope: "scope-one", Generation: "generation-one",
 		HostClientID: "12345678-1234-1234-1234-123456789abc", ControllerClientID: "87654321-1234-1234-1234-123456789abc",
 		PrivateDirectory: private, ComposePath: compose, ComposeSHA256: hex.EncodeToString(composeSum[:]),
 		ComposeEnvBase: base, ComposeEnvSHA256: hex.EncodeToString(sum[:]),
@@ -94,7 +95,7 @@ func TestAzureHostStagesOnlyPinnedScopedPrivateMaterials(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(result.Directory) })
-	for _, path := range []string{result.ComposeEnv, result.ServerCert, result.ServerKey, result.ClientCA} {
+	for _, path := range []string{result.ComposeEnv, result.ServerCert, result.ServerKey, result.ClientCA, result.GatewayConfig} {
 		info, err := os.Lstat(path)
 		if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || filepath.Dir(path) != result.Directory {
 			t.Fatal("host output was not a private owned file", path, err)
@@ -104,6 +105,11 @@ func TestAzureHostStagesOnlyPinnedScopedPrivateMaterials(t *testing.T) {
 	if err != nil || !strings.Contains(string(env), "TEAM_API_KEY=e2b_") || !strings.Contains(string(env), "ADMIN_TOKEN=") ||
 		!strings.Contains(string(env), "SANDBOX_ACCESS_TOKEN_HASH_SEED=") {
 		t.Fatal("pinned runtime environment omitted selected exact secrets", err)
+	}
+	gateway, err := os.ReadFile(result.GatewayConfig)
+	if err != nil || !strings.Contains(string(gateway), `"controllerPrivateIp":"10.20.0.5"`) ||
+		!strings.Contains(string(gateway), `"generation":"generation-one"`) || strings.Contains(string(gateway), "e2b_111") {
+		t.Fatal("host did not bind a nonsecret exact gateway input", err)
 	}
 	unknown := filepath.Join(result.Directory, "unrelated")
 	if err := os.WriteFile(unknown, []byte("keep"), 0600); err != nil {
