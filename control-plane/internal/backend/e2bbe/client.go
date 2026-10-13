@@ -113,10 +113,10 @@ func privateDial(ctx context.Context, network, address string) (net.Conn, error)
 	return nil, last
 }
 func (c *providerClient) call(ctx context.Context, method, path string, query url.Values, body any, out any) (int, http.Header, error) {
-	return c.callWithKey(ctx, c.key, method, path, query, body, out)
+	return c.callWithKey(ctx, "X-API-Key", c.key, method, path, query, body, out)
 }
 
-func (c *providerClient) callWithKey(ctx context.Context, key, method, path string, query url.Values, body any, out any) (int, http.Header, error) {
+func (c *providerClient) callWithKey(ctx context.Context, header, key, method, path string, query url.Values, body any, out any) (int, http.Header, error) {
 	var payload []byte
 	if body != nil {
 		var e error
@@ -133,7 +133,7 @@ func (c *providerClient) callWithKey(ctx context.Context, key, method, path stri
 	if e != nil {
 		return 0, nil, e
 	}
-	req.Header.Set("X-API-Key", key)
+	req.Header.Set(header, key)
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -185,7 +185,7 @@ func (c *Controller) VerifyNodeCapacity(ctx context.Context) error {
 		return ErrUnsupported
 	}
 	var nodes []providerNode
-	status, _, err := c.client.callWithKey(ctx, c.client.adminKey, http.MethodGet, "/nodes", nil, nil, &nodes)
+	status, _, err := c.client.callWithKey(ctx, "X-Admin-Token", c.client.adminKey, http.MethodGet, "/nodes", nil, nil, &nodes)
 	if err != nil || status != http.StatusOK || len(nodes) == 0 || len(nodes) > 128 {
 		return ErrUnsupported
 	}

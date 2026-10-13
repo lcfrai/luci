@@ -72,7 +72,7 @@ func newProvider(t *testing.T) *providerFixture {
 }
 func (p *providerFixture) handle(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" && r.URL.Path == "/nodes" {
-		if r.Header.Get("X-API-Key") != "test-only-admin-key" {
+		if r.Header.Get("X-Admin-Token") != "test-only-admin-key" || r.Header.Get("X-API-Key") != "" {
 			w.WriteHeader(401)
 			return
 		}
