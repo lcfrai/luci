@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-13T18:22:27Z",
+  "method": "Read-only source, environment-name, file-existence and safe API checks; no credential contents read or imported and no provider mutation",
+  "integratedRevision": "3869446251725bbfd3dc583e6bc423bb04a6aa1e",
+  "implementationRevision": "7bf4469f345b1a3497f84d9263fb7211dd5d7ce8",
+  "interveningDelta": "Documentation only: FEATURE-IMPLEMENTATION-HANDOFF-20261013.md added; QUALITY-WORKLIST.md modified. No product code changed.",
+  "developmentHost": {
+    "kvm": "Absent on this development host; the selected external runtime host has not been identified or tested",
+    "docker": "Read-only info returned Linux engine 28.4.0",
+    "github": "Read-only /user API request succeeded; publication grant and deployment target unverified",
+    "aws": "AWS_PROFILE, AWS_CONFIG_FILE and AWS_SHARED_CREDENTIALS_FILE are set and the two referenced files exist; authenticated identity, account scope, quota and credential validity unverified. No AWS API call was made; aws CLI and Python boto3/botocore are unavailable.",
+    "luciRuntime": "LUCI_E2B_CONFIG, LUCI_STATE_DIR and LUCI_PROJECTS_DIR are unset"
+  },
+  "requirements": {
+    "CLOUD-084": {"source": "Named E2B Embed route, per-task VM controller, protected transfer, frozen output, owned retirement and restored-state Create/Start fence present", "configuration": "Missing here: selected E2B operator file/endpoint, authenticated management origin, host node, pinned guest build/journals, physically off-host store and restore receipt", "live": "Unverified external-host KVM, authenticated transport, capacity, actual VM/guest, absence and charges"},
+    "CLOUD-085": {"source": "Accepted-event continuation, upstream task, reviewed source, independent checks, preview and existing-target release joins present", "configuration": "No isolated managed project, matching runtime image, saved model connection, Git publication target or existing deployment target loaded here", "live": "Unverified real upstream coding, Git publication, public HTTPS behavior and rollback"},
+    "CLOUD-086": {"source": "Durable shared intents/events, compatible reconciliation, explicit contradiction and affected-work continuation present", "configuration": "No managed team identity, two authenticated actors, current grants or shared durable project state loaded here", "live": "Unverified two-person convergence, revocation and restart/disconnection delivery"},
+    "CLOUD-088": {"source": "Dependency scheduler, configurable limits, distinct per-task VM identities, no-replay and conservative settlement present", "configuration": "Blocked by unconfigured CLOUD-084 runtime and unverified actor/team spending policy, provider quota, pinned guest and off-host store", "live": "Unverified twelve tasks/four projects/four concurrent distinct VMs, amendment, integration, cancel/restart and exact settlement"}
+  },
+  "sourceSHA256": {
+    "control-plane/cmd/api/e2b_config.go": "023ce6a5a50f6a05162385c5ce97226f0e9b7822c3746e72a3f9e1cc4876dabc",
+    "control-plane/internal/api/cloud_swarm_dispatch.go": "46a663cbde02bd2130905419fabeaef1ccd39e3d0db0b9dec1eabf8c64beb9c7",
+    "control-plane/internal/api/cloud_swarm_observe.go": "aed39be080c64236dd0abd21232473ce001a6c2ad96aaba8848c287f86e3bf07",
+    "control-plane/internal/product/coordination.go": "2aaf86bd5262013cf08abbd4a06a2d42c81b96c788fe30499808c61f943e955e",
+    "control-plane/internal/product/coordinator_delivery_deployment.go": "915d25ba843234a4c69da688b89f9d20ac1fd0f80e6595ef6cd34bbcbc9364f8"
+  },
+  "safeAcceptanceSequence": [
+    "First verify an explicitly selected external E2B Embed host/account with authenticated read-only identity, node/template/capacity and protected TLS checks. This development host's missing KVM says nothing about that host.",
+    "Verify a pinned private guest build and source inventory, physically independent off-host store/restore, scoped model connection, current two-person grants, actual quota and existing spending authority. Record baseline owned identities and charges; keep secrets out of receipts.",
+    "Only then use a new isolated managed workspace with four approved projects and twelve bounded tasks, configured concurrency four within measured quota/budget, and an authorized upstream harness. Observe four distinct owned VMs, midflight amendment, reviewed integration, checks, deployment and one failure/cancel/restart without duplicate Create.",
+    "Confirm each exact VM stop and provider absence, retained or released Luci reservations and conservative estimates. Treat actual provider usage and final invoices separately; the pinned Embed contract exposes no authenticated final invoice feed."
+  ],
+  "actionsPerformed": "No VM, template, model call, billed allocation, public deployment, team-state mutation or unrelated service change."
+}
