@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sync"
 	"time"
 
@@ -46,6 +47,12 @@ func (c *Controller) OwnerID() string { return c.config.OwnerID }
 
 func (c *Controller) EgressDomains() []string {
 	return append([]string{}, c.config.EgressAllow...)
+}
+
+func egressDigest(domains []string) string {
+	ordered := append([]string{}, domains...)
+	slices.Sort(ordered)
+	return digest(ordered)
 }
 
 func newController(c Config, restored []byte, restoreContext context.Context) (*Controller, error) {
@@ -154,6 +161,9 @@ func validateJournal(b []byte, owner, scope string) (journal, error) {
 	seenAttempts := map[string]bool{}
 	for op, r := range j.Records {
 		if op != r.Request.Identity.OperationID || !validRequest(r.Request) || r.Request.Identity.OwnerID != j.OwnerID || r.RequestDigest != digest(r.Request) || r.Deployment.Scope != j.Scope || r.Deployment.RuntimeRevision != RuntimeRevision || r.Revision < 1 || r.CreatedAt.IsZero() || r.UpdatedAt.Before(r.CreatedAt) || r.ProviderBillingSettled {
+			return journal{}, ErrConflict
+		}
+		if r.EgressDigest != "" && !digestPattern.MatchString(r.EgressDigest) {
 			return journal{}, ErrConflict
 		}
 		if r.Template.MemoryMiB < 128 || r.Template.MemoryMiB > 32768 || r.Template.CPUMillis < 1000 || r.Template.CPUMillis > 16000 || !validID(r.Template.ID) || !digestPattern.MatchString(r.Template.BuildDigest) {
@@ -356,7 +366,7 @@ func (c *Controller) Allocate(ctx context.Context, req Request) (Record, error) 
 		return Record{}, ErrCapacity
 	}
 	now := time.Now().UTC()
-	r := Record{Request: req, RequestDigest: digest(req), Deployment: c.config.Deployment, Template: t, State: Creating, Revision: 1, ResourcesHeld: true, CreatedAt: now, UpdatedAt: now}
+	r := Record{Request: req, RequestDigest: digest(req), EgressDigest: egressDigest(c.config.EgressAllow), Deployment: c.config.Deployment, Template: t, State: Creating, Revision: 1, ResourcesHeld: true, CreatedAt: now, UpdatedAt: now}
 	c.journal.Records[req.Identity.OperationID] = r
 	e = c.persist(ctx)
 	c.mu.Unlock()

@@ -154,7 +154,11 @@ func (c *providerClient) call(ctx context.Context, method, path string, query ur
 	return response.StatusCode, response.Header, nil
 }
 func metadata(r Record) map[string]string {
-	return map[string]string{"luci.owner": r.Request.Identity.OwnerID, "luci.project": r.Request.Identity.ProjectID, "luci.task": r.Request.Identity.TaskID, "luci.attempt": r.Request.Identity.AttemptID, "luci.operation": r.Request.Identity.OperationID, "luci.request": r.RequestDigest, "luci.scope": r.Deployment.Scope, "luci.generation": r.Deployment.HostGeneration}
+	m := map[string]string{"luci.owner": r.Request.Identity.OwnerID, "luci.project": r.Request.Identity.ProjectID, "luci.task": r.Request.Identity.TaskID, "luci.attempt": r.Request.Identity.AttemptID, "luci.operation": r.Request.Identity.OperationID, "luci.request": r.RequestDigest, "luci.scope": r.Deployment.Scope, "luci.generation": r.Deployment.HostGeneration}
+	if r.EgressDigest != "" {
+		m["luci.egress"] = r.EgressDigest
+	}
+	return m
 }
 func matches(r Record, s providerSandbox) bool {
 	if !validID(s.ID) || s.TemplateID != r.Template.ID || s.MemoryMiB != r.Template.MemoryMiB || s.CPU*1000 != r.Template.CPUMillis || (s.State != "running" && s.State != "paused") {

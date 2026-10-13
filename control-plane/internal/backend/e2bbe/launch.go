@@ -152,7 +152,7 @@ func (c *Controller) StartGuest(ctx context.Context, op string, expectedRevision
 	if e = c.config.Authorize(ctx, r.Request, "start"); e != nil {
 		return r, e
 	}
-	if r.State != Allocated || r.CancelRequested || !r.ResourcesHeld || r.Deployment != c.config.Deployment || g.config.Record.SandboxID != r.SandboxID || g.config.Record.RequestDigest != r.RequestDigest || g.config.Record.Deployment != r.Deployment {
+	if r.State != Allocated || r.CancelRequested || !r.ResourcesHeld || r.Deployment != c.config.Deployment || r.EgressDigest == "" || r.EgressDigest != egressDigest(c.config.EgressAllow) || g.config.Record.SandboxID != r.SandboxID || g.config.Record.RequestDigest != r.RequestDigest || g.config.Record.Deployment != r.Deployment {
 		return r, ErrConflict
 	}
 	hash := launchDigest(r, l)

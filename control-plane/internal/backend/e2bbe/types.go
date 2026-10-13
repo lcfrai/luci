@@ -90,8 +90,11 @@ const (
 )
 
 type Record struct {
-	Request         Request    `json:"request"`
-	RequestDigest   string     `json:"requestDigest"`
+	Request       Request `json:"request"`
+	RequestDigest string  `json:"requestDigest"`
+	// EgressDigest binds the network policy used at Create. Older records with
+	// no binding remain observable and retireable, but cannot be staged/started.
+	EgressDigest    string     `json:"egressDigest,omitempty"`
 	Deployment      Deployment `json:"deployment"`
 	Template        Template   `json:"template"`
 	State           State      `json:"state"`

@@ -21,7 +21,7 @@ func (c *Controller) StageGuestInput(ctx context.Context, op string, g *GuestTra
 	if err != nil {
 		return r, err
 	}
-	if r.State != Allocated || r.CancelRequested || !r.ResourcesHeld || r.LaunchRequested ||
+	if r.State != Allocated || r.CancelRequested || !r.ResourcesHeld || r.LaunchRequested || r.EgressDigest == "" || r.EgressDigest != egressDigest(c.config.EgressAllow) ||
 		r.SandboxID != g.config.Record.SandboxID || r.RequestDigest != g.config.Record.RequestDigest || r.Deployment != g.config.Record.Deployment {
 		return r, ErrConflict
 	}
