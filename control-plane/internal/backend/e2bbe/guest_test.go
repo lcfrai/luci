@@ -24,6 +24,7 @@ type guestFixture struct {
 	record                                 Record
 	input, output                          []byte
 	launchKernel                           []byte
+	captureReceipt                         []byte
 	attachFrames                           [][]byte
 	attachEntered                          chan struct{}
 	attachHeld                             bool
@@ -151,6 +152,8 @@ func (f *guestFixture) handle(w http.ResponseWriter, r *http.Request) {
 			b = f.output
 		case guestLaunchPath:
 			b = f.launchKernel
+		case guestCapturePath:
+			b = f.captureReceipt
 		default:
 			w.WriteHeader(400)
 			return

@@ -108,6 +108,10 @@ type Record struct {
 	// from artifact capture, reviewed integration and exact VM deletion.
 	LaunchKernel CaptureIdentity   `json:"launchKernel,omitzero"`
 	NativeExit   NativeExitReceipt `json:"nativeExit,omitzero"`
+	// A collector intent is checkpointed before its single root process RPC.
+	// A lost acknowledgement can be resolved only by exact output readback.
+	CaptureRequested bool           `json:"captureRequested,omitempty"`
+	Capture          CaptureReceipt `json:"capture,omitzero"`
 }
 
 // Checkpoint supplies an exclusive fenced journal writer. Production wiring

@@ -162,6 +162,9 @@ func validateJournal(b []byte, owner, scope string) (journal, error) {
 		if r.NativeExit != (NativeExitReceipt{}) && (ValidateCaptureIdentity(r.LaunchKernel, r) != nil || ValidateNativeExitReceipt(r.NativeExit, r) != nil) {
 			return journal{}, ErrConflict
 		}
+		if r.CaptureRequested && ValidateNativeExitReceipt(r.NativeExit, r) != nil || r.Capture != (CaptureReceipt{}) && (!r.CaptureRequested || ValidateCaptureReceipt(r.Capture, r.LaunchKernel, r) != nil) {
+			return journal{}, ErrConflict
+		}
 		key := r.Request.Identity.ProjectID + "/" + r.Request.Identity.TaskID + "/" + r.Request.Identity.AttemptID
 		if seenAttempts[key] || r.SandboxID != "" && seenVMs[r.SandboxID] {
 			return journal{}, ErrConflict

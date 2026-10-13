@@ -27,6 +27,7 @@ type processFixture struct {
 	controller       *Controller
 	guest            *guestFixture
 	starts           int
+	captures         int
 	timeoutMS        int
 	fail, badEvent   bool
 	entered, release chan struct{}
@@ -41,6 +42,20 @@ func (p *processFixture) Start(ctx context.Context, req *connect.Request[process
 	p.mu.Unlock()
 	msg := req.Msg
 	row, e := p.controller.record(p.r.Request.Identity.OperationID)
+	if msg.GetProcess().GetCmd() == "/usr/local/bin/luci-microvm-collect" {
+		p.mu.Lock()
+		p.starts-- // Keep original launch-only assertions exact.
+		p.captures++
+		p.mu.Unlock()
+		if e != nil || !row.CaptureRequested || row.Capture != (CaptureReceipt{}) || msg.GetProcess().GetCwd() != "/luci-transfer" || len(msg.GetProcess().GetArgs()) != 2 || msg.GetProcess().GetArgs()[0] != "--identity-base64" || msg.GetTag() != p.r.Request.Identity.OperationID+"-capture" {
+			p.t.Error("collector did not follow a durable exact reservation")
+			return connect.NewError(connect.CodeInvalidArgument, errors.New("wrong collector"))
+		}
+		if err := stream.Send(&process.StartResponse{Event: &process.ProcessEvent{Event: &process.ProcessEvent_Start{Start: &process.ProcessEvent_StartEvent{Pid: 322}}}}); err != nil {
+			return err
+		}
+		return stream.Send(&process.StartResponse{Event: &process.ProcessEvent{Event: &process.ProcessEvent_End{End: &process.ProcessEvent_EndEvent{Exited: true, ExitCode: 0}}}})
+	}
 	if e != nil || !row.LaunchRequested || row.LaunchDigest == "" || row.ProcessPID != 0 {
 		p.t.Error("Start preceded durable marker")
 	}
