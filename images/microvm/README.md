@@ -35,7 +35,9 @@ go run ./microvm-template.go -mode status -config /private/template-build.json
 ```
 
 The creation JSON contains `endpoint`, `apiKeyFile`, optional `rootCaFile`, a
-unique `luci-...` `name`, `cpuCount`, `memoryMB`, and `journalPath`. The separate
+unique `luci-...-<32 lowercase random hex>` `name`, `cpuCount`, `memoryMB`, and
+`journalPath`. The tool refuses a name already visible in complete provider
+inventory before Create. The separate
 build JSON uses the returned `templateId` and `buildId`, immutable `fromImage`,
 and a **different** `journalPath`. Keep the key/config and
 the journal's directory private and outside Git. The tool requires protected

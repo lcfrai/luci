@@ -102,13 +102,17 @@ func TestPrivateTemplateCreationRetainsExactIDsAndNeverReplays(t *testing.T) {
 	journal := filepath.Join(t.TempDir(), "creation.json")
 	posts := 0
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v2/templates" {
+			_ = json.NewEncoder(w).Encode([]any{})
+			return
+		}
 		posts++
 		if r.Method != http.MethodPost || r.URL.Path != "/v3/templates" || r.Header.Get("X-API-Key") != "operator-test-key" {
 			t.Error("unexpected template creation request")
 		}
 		var intent TemplateCreateIntent
 		data, err := os.ReadFile(journal)
-		if err != nil || json.Unmarshal(data, &intent) != nil || intent.Name != "luci-guest-one" || intent.CPUCount != 2 || intent.MemoryMiB != 2048 {
+		if err != nil || json.Unmarshal(data, &intent) != nil || intent.Name != "luci-guest-0123456789abcdef0123456789abcdef" || intent.CPUCount != 2 || intent.MemoryMiB != 2048 {
 			t.Error("private template mutation preceded its exact intent", err)
 		}
 		var body struct {
@@ -126,7 +130,7 @@ func TestPrivateTemplateCreationRetainsExactIDsAndNeverReplays(t *testing.T) {
 	roots := x509.NewCertPool()
 	roots.AddCert(server.Certificate())
 	p := TemplateCreation{Endpoint: server.URL, APIKey: "operator-test-key", RootCAs: roots,
-		Name: "luci-guest-one", CPUCount: 2, MemoryMiB: 2048, JournalPath: journal}
+		Name: "luci-guest-0123456789abcdef0123456789abcdef", CPUCount: 2, MemoryMiB: 2048, JournalPath: journal}
 	created, err := p.CreateTemplate(context.Background())
 	if err != nil || created.TemplateID != "template-one" || created.BuildID != "build-one" {
 		t.Fatal("private template IDs were not retained", created, err)
@@ -149,7 +153,11 @@ func TestUnknownPrivateTemplateCreationIsNotRetried(t *testing.T) {
 	posts := 0
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && r.URL.Path == "/v2/templates" {
-			_ = json.NewEncoder(w).Encode([]map[string]any{{"templateID": "template-one", "names": []string{"luci-guest-one"}, "public": false,
+			if posts == 0 {
+				_ = json.NewEncoder(w).Encode([]any{})
+				return
+			}
+			_ = json.NewEncoder(w).Encode([]map[string]any{{"templateID": "template-one", "names": []string{"luci-guest-0123456789abcdef0123456789abcdef"}, "public": false,
 				"builds": []map[string]any{{"buildID": "build-one", "cpuCount": 2, "memoryMB": 2048}}}})
 			return
 		}
@@ -160,7 +168,7 @@ func TestUnknownPrivateTemplateCreationIsNotRetried(t *testing.T) {
 	roots := x509.NewCertPool()
 	roots.AddCert(server.Certificate())
 	p := TemplateCreation{Endpoint: server.URL, APIKey: "operator-test-key", RootCAs: roots,
-		Name: "luci-guest-one", CPUCount: 2, MemoryMiB: 2048, JournalPath: journal}
+		Name: "luci-guest-0123456789abcdef0123456789abcdef", CPUCount: 2, MemoryMiB: 2048, JournalPath: journal}
 	if _, err := p.CreateTemplate(context.Background()); !errors.Is(err, ErrUnknown) {
 		t.Fatal("uncertain template creation appeared complete", err)
 	}
@@ -187,8 +195,12 @@ func TestTemplateCreationReconcileRefusesAmbiguousProviderInventory(t *testing.T
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
+		if posts == 0 {
+			_ = json.NewEncoder(w).Encode([]any{})
+			return
+		}
 		row := func(id string) map[string]any {
-			return map[string]any{"templateID": id, "names": []string{"luci-guest-one"}, "public": false,
+			return map[string]any{"templateID": id, "names": []string{"luci-guest-0123456789abcdef0123456789abcdef"}, "public": false,
 				"builds": []map[string]any{{"buildID": "build-one", "cpuCount": 2, "memoryMB": 2048}}}
 		}
 		_ = json.NewEncoder(w).Encode([]map[string]any{row("template-one"), row("template-two")})
@@ -197,12 +209,36 @@ func TestTemplateCreationReconcileRefusesAmbiguousProviderInventory(t *testing.T
 	roots := x509.NewCertPool()
 	roots.AddCert(server.Certificate())
 	p := TemplateCreation{Endpoint: server.URL, APIKey: "operator-test-key", RootCAs: roots,
-		Name: "luci-guest-one", CPUCount: 2, MemoryMiB: 2048, JournalPath: journal}
+		Name: "luci-guest-0123456789abcdef0123456789abcdef", CPUCount: 2, MemoryMiB: 2048, JournalPath: journal}
 	_, _ = p.CreateTemplate(context.Background())
 	if _, err := p.ReconcileTemplateCreation(context.Background()); !errors.Is(err, ErrUnknown) || posts != 1 {
 		t.Fatal("ambiguous provider identity was adopted or Create replayed", posts, err)
 	}
 	if _, err := p.ReadTemplateCreation(); !errors.Is(err, ErrUnknown) {
 		t.Fatal("ambiguous provider identity became a durable success", err)
+	}
+}
+
+func TestTemplateCreationRefusesPreexistingNameBeforeIntentOrMutation(t *testing.T) {
+	journal := filepath.Join(t.TempDir(), "creation.json")
+	posts := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			posts++
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]any{{"names": []string{"luci-guest-0123456789abcdef0123456789abcdef"}}})
+	}))
+	defer server.Close()
+	roots := x509.NewCertPool()
+	roots.AddCert(server.Certificate())
+	p := TemplateCreation{Endpoint: server.URL, APIKey: "operator-test-key", RootCAs: roots,
+		Name: "luci-guest-0123456789abcdef0123456789abcdef", CPUCount: 2, MemoryMiB: 2048, JournalPath: journal}
+	if _, err := p.CreateTemplate(context.Background()); !errors.Is(err, ErrConflict) || posts != 0 {
+		t.Fatal("preexisting template name was adopted or mutated", posts, err)
+	}
+	if _, err := os.Lstat(journal); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("a rejected name persisted a fake Create intent", err)
 	}
 }

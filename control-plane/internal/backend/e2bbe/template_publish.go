@@ -40,7 +40,27 @@ type TemplateBuildIntent struct {
 }
 
 var pinnedOCIImage = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}@sha256:([0-9a-f]{64})$`)
-var privateTemplateName = regexp.MustCompile(`^luci-[a-z0-9][a-z0-9-]{2,78}$`)
+var privateTemplateName = regexp.MustCompile(`^luci-[a-z0-9][a-z0-9-]{1,40}-[0-9a-f]{32}$`)
+
+type providerTemplateInventory struct {
+	TemplateID string   `json:"templateID"`
+	Names      []string `json:"names"`
+	Public     *bool    `json:"public"`
+	Builds     []struct {
+		BuildID   string `json:"buildID"`
+		CPUCount  int64  `json:"cpuCount"`
+		MemoryMiB int64  `json:"memoryMB"`
+	} `json:"builds"`
+}
+
+func readTemplateInventory(ctx context.Context, client *providerClient) ([]providerTemplateInventory, error) {
+	var templates []providerTemplateInventory
+	status, headers, err := client.call(ctx, http.MethodGet, "/v2/templates", url.Values{"limit": {"100"}}, nil, &templates)
+	if err != nil || status != http.StatusOK || headers.Get("X-Next-Token") != "" || len(templates) > 100 {
+		return nil, ErrUnknown
+	}
+	return templates, nil
+}
 
 // TemplateCreation reserves an exclusively named, private provider template.
 // It is a separate operator action from building an image into that template.
@@ -79,6 +99,20 @@ func (p TemplateCreation) CreateTemplate(ctx context.Context) (TemplateCreateRec
 	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs})
 	if err != nil {
 		return result, err
+	}
+	// A prior same-name template could otherwise be mistaken for this request
+	// after a lost ACK. The random-suffix name and this complete preflight both
+	// precede the durable intent; provider name uniqueness remains authoritative.
+	prior, err := readTemplateInventory(ctx, client)
+	if err != nil {
+		return result, err
+	}
+	for _, candidate := range prior {
+		for _, name := range candidate.Names {
+			if name == p.Name {
+				return result, ErrConflict
+			}
+		}
 	}
 	intent := TemplateCreateIntent{RuntimeRevision: RuntimeRevision, Name: p.Name, CPUCount: p.CPUCount, MemoryMiB: p.MemoryMiB}
 	data, _ := json.Marshal(intent)
@@ -152,19 +186,9 @@ func (p TemplateCreation) ReconcileTemplateCreation(ctx context.Context) (Templa
 	if err != nil {
 		return result, err
 	}
-	var templates []struct {
-		TemplateID string   `json:"templateID"`
-		Names      []string `json:"names"`
-		Public     *bool    `json:"public"`
-		Builds     []struct {
-			BuildID   string `json:"buildID"`
-			CPUCount  int64  `json:"cpuCount"`
-			MemoryMiB int64  `json:"memoryMB"`
-		} `json:"builds"`
-	}
-	status, headers, err := client.call(ctx, http.MethodGet, "/v2/templates", url.Values{"limit": {"100"}}, nil, &templates)
-	if err != nil || status != http.StatusOK || headers.Get("X-Next-Token") != "" || len(templates) > 100 {
-		return result, ErrUnknown
+	templates, err := readTemplateInventory(ctx, client)
+	if err != nil {
+		return result, err
 	}
 	matches := 0
 	for _, candidate := range templates {
