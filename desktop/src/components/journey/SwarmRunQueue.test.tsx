@@ -188,6 +188,7 @@ it('explains automatic old-context stop without offering a duplicate queue or ca
   render(<Harness />);
   await openQueueControls();
   expect(await screen.findByText(/reservation remains held until absence and release are confirmed/)).toBeTruthy();
+  expect(screen.getByText(/Capacity still reserved: 1024 MiB memory and 0m CPU/)).toBeTruthy();
   expect(screen.queryByRole('button', {name:'Cancel queued task'})).toBeNull();
   expect(screen.queryByRole('button', {name:'Resume queued task'})).toBeNull();
 });

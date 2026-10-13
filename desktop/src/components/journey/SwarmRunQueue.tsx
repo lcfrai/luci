@@ -115,6 +115,8 @@ export function SwarmRunQueue(props: Props) {
     {pending.length > 0 && <ul className="swarm-run-queue-items">{pending.map(item => <li key={item.id}>
       <div><strong>{item.taskTitle}</strong> <span>{item.state}</span></div>
       {item.reason && <p>{item.reason}</p>}
+      {item.state === 'unknown' && ((item.memoryMiB ?? 0) > 0 || (item.cpuMillis ?? 0) > 0) &&
+        <p role="status">Capacity still reserved: {item.memoryMiB ?? 0} MiB memory and {item.cpuMillis ?? 0}m CPU. {item.childId ? `Exact child ${item.childId}.` : 'Child identity is not yet confirmed.'} Luci will not replace this attempt until ownership and release are proven.</p>}
       <div className="journey-actions">
         <label>Priority for {item.taskTitle}<select value={item.priority} disabled={!canEdit || busy || !['queued', 'paused', 'blocked'].includes(item.state)} onChange={event => void operate('Changing queue priority', generation => control(item, 'priority', generation, event.target.value as QueuePriority))}><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select></label>
         {item.state === 'queued' && <Button variant="secondary" disabled={!canEdit || busy} onClick={() => void operate('Pausing queued task', generation => control(item, 'pause', generation))}>Pause queued task</Button>}
