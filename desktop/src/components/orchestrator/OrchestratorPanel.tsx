@@ -17,6 +17,7 @@ import { ConversationStorage } from "./ConversationStorage";
 import { CoordinatorPolicy } from "./CoordinatorPolicy";
 import { CoordinatorExecution } from "./CoordinatorExecution";
 import { CoordinatorTeamIntents } from "./CoordinatorTeamIntents";
+import { CoordinatorContextReview } from "./CoordinatorContextReview";
 import { useAuth } from "../auth/AuthProvider";
 import { readAgentPreference, writeAgentPreference, type OrchestratorAgent } from "./agentPreference";
 import { finishComposerRequest, isComposerRecoveryKey, readComposerRecovery, retainComposerRequest, saveComposerDraft } from "./composerRecovery";
@@ -701,6 +702,10 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
             const current = !contextStale && !contextRefreshQueued && !loading && !working.current;
             return value => { if (current && alive.current && !working.current && permission.current.canRead && !permission.current.loading && !permission.current.error && latest.current === observed && viewRead.current === read && generation.current === ticket) remember(value); };
           }} />}
+        {view && <CoordinatorContextReview projectId={projectId} scope={scope} actorId={actorId} view={view}
+          canRead={canRead && !access.loading && !access.error} canEdit={canEdit && !access.loading && !access.error}
+          blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
+          onReviewed={() => void refresh(true)} />}
         {view && <CoordinatorExecution projectId={projectId} scope={scope} actorId={actorId} view={view} policyEpoch={policyEpoch} onPolicyUpdated={() => setPolicyEpoch(value => value + 1)}
           canRead={canRead && !access.loading && !access.error} canEdit={canEdit && !access.loading && !access.error} canExecute={access.canExecute && !access.loading && !access.error} canDeploy={access.permissions.deploy && !access.loading && !access.error}
           blocked={draftWarning || (otherCheckSetup ? setupChangeWarning : "") || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
