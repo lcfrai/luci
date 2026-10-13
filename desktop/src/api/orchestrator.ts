@@ -56,6 +56,7 @@ export interface OrchestratorActivity {
     contextDigest: string; sourceRevision: number; sourceStatus: string;
     status: "pending" | "reserved" | "inflight" | "question" | "review" | "observed" | "resumed" | "unknown";
     message: string; requestKey?: string; turnId?: string; updatedAt: string }[];
+  recovery?: { releaseId: string; rollbackOf: string; status: string; commit: string; message: string; createdAt: string }[];
   earlierAvailable: boolean;
 }
 export interface OrchestratorView {
@@ -125,6 +126,11 @@ function validActivity(activity: OrchestratorActivity | undefined): boolean {
         !Number.isSafeInteger(row.sourceRevision) || row.sourceRevision < 1 || !row.sourceStatus ||
         !['pending', 'reserved', 'inflight', 'question', 'review', 'observed', 'resumed', 'unknown'].includes(row.status) ||
         typeof row.message !== 'string' || !Number.isFinite(Date.parse(row.updatedAt))))) return false;
+  if (activity.recovery !== undefined && (!Array.isArray(activity.recovery) || activity.recovery.length > 8 ||
+      new Set(activity.recovery.map(row => row.releaseId)).size !== activity.recovery.length ||
+      activity.recovery.some(row => !row || !row.releaseId || !row.rollbackOf || !row.status ||
+        !/^[0-9a-f]{40}$/.test(row.commit) || typeof row.message !== 'string' ||
+        !Number.isFinite(Date.parse(row.createdAt))))) return false;
   if (new Set(activity.accepted.map(event => event.eventId)).size !== activity.accepted.length ||
       new Set(activity.work.map(work => work.id)).size !== activity.work.length) return false;
   return activity.accepted.every(event => event && typeof event.eventId === "string" && !!event.eventId &&

@@ -20,21 +20,24 @@ type CoordinatorCloudAttempt struct {
 type CoordinatorCloudCapacity struct {
 	// SetupNeeds is read-only, actor-scoped advice. An empty Provider means no
 	// capacity claim exists; the UI must not offer activation as ready.
-	SetupNeeds               []string                  `json:"setupNeeds,omitempty"`
-	Provider                 string                    `json:"provider"`
-	Region                   string                    `json:"region"`
-	ConfiguredGlobalSlots    int                       `json:"configuredGlobalSlots"`
-	ConfiguredProjectSlots   int                       `json:"configuredProjectSlots"`
-	ConfiguredAvailableSlots int                       `json:"configuredAvailableSlots"`
-	EstimatedTaskCostMicros  int64                     `json:"estimatedTaskCostMicros"`
-	EstimatedMonthMicros     int64                     `json:"estimatedMonthMicros"`
-	MonthlyBudgetMicros      int64                     `json:"monthlyBudgetMicros"`
-	MaxTaskSeconds           int                       `json:"maxTaskSeconds"`
-	RetainedProjectVMs       int                       `json:"retainedProjectVMs"`
-	RetainedAttempts         []CoordinatorCloudAttempt `json:"retainedAttempts"`
-	MoreRetainedAttempts     int                       `json:"moreRetainedAttempts"`
-	ObservedAt               string                    `json:"observedAt"`
-	Limitation               string                    `json:"limitation"`
+	SetupNeeds               []string `json:"setupNeeds,omitempty"`
+	Provider                 string   `json:"provider"`
+	Region                   string   `json:"region"`
+	ConfiguredGlobalSlots    int      `json:"configuredGlobalSlots"`
+	ConfiguredProjectSlots   int      `json:"configuredProjectSlots"`
+	ConfiguredAvailableSlots int      `json:"configuredAvailableSlots"`
+	EstimatedTaskCostMicros  int64    `json:"estimatedTaskCostMicros"`
+	EstimatedMonthMicros     int64    `json:"estimatedMonthMicros"`
+	// Exact VM absence releases a Luci allocation, not provider billing. Count
+	// this actor's retired, created VMs still awaiting independent bill evidence.
+	RetiredBillingUnconfirmed int                       `json:"retiredBillingUnconfirmed"`
+	MonthlyBudgetMicros       int64                     `json:"monthlyBudgetMicros"`
+	MaxTaskSeconds            int                       `json:"maxTaskSeconds"`
+	RetainedProjectVMs        int                       `json:"retainedProjectVMs"`
+	RetainedAttempts          []CoordinatorCloudAttempt `json:"retainedAttempts"`
+	MoreRetainedAttempts      int                       `json:"moreRetainedAttempts"`
+	ObservedAt                string                    `json:"observedAt"`
+	Limitation                string                    `json:"limitation"`
 }
 
 func (s *Server) SetCoordinatorCloudCapacity(read func(context.Context, string, string) (CoordinatorCloudCapacity, error)) {

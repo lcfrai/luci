@@ -113,7 +113,7 @@ it('shows configured per-task VM and current-month estimate without treating it 
   vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: {
     provider: 'e2b-embed', region: 'us-east-1', configuredGlobalSlots: 8, configuredProjectSlots: 6,
     configuredAvailableSlots: 2, estimatedTaskCostMicros: 150_000, estimatedMonthMicros: 250_000,
-    monthlyBudgetMicros: 1_000_000, maxTaskSeconds: 600, observedAt: '2026-10-13T12:00:00Z',
+    monthlyBudgetMicros: 1_000_000, maxTaskSeconds: 600, retiredBillingUnconfirmed: 2, observedAt: '2026-10-13T12:00:00Z',
     limitation: 'Configured limits only; actual admission is checked later.', retainedProjectVMs: 1, moreRetainedAttempts: 0,
     retainedAttempts: [{ runId: 'run-one', taskId: 'task-one', attemptId: 'attempt-one', operationId: 'op-one', state: 'unknown', resourcesHeld: true, estimatedCostMicros: 150_000, updatedAt: '2026-10-13T12:00:00Z' }]
   } });
@@ -121,6 +121,7 @@ it('shows configured per-task VM and current-month estimate without treating it 
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Develop execution location' }), 'cloud-microvm');
   expect(screen.getByText(/2 task VM slots presently available/)).not.toBeNull();
   expect(screen.getAllByText(/\$0\.25 of \$1\.00 USD/)).toHaveLength(2);
+  expect(screen.getByText(/2 retired microVMs this month have confirmed Luci allocation release but no independent provider billing settlement/)).not.toBeNull();
   await userEvent.click(screen.getByText('1 retained task microVM in this project'));
   expect(screen.getByText(/task-one · run run-one · attempt attempt-one · unknown/)).not.toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Open exact task controls' }));

@@ -190,7 +190,19 @@ type OrchestratorActivity struct {
 	Accepted         []OrchestratorAcceptedUpdate `json:"accepted"`
 	Work             []OrchestratorWorkUpdate     `json:"work"`
 	Findings         []CoordinatorFinding         `json:"findings,omitempty"`
+	Recovery         []OrchestratorRecoveryUpdate `json:"recovery,omitempty"`
 	EarlierAvailable bool                         `json:"earlierAvailable"`
+}
+
+// Recovery reports a separate, operator-authorized historical release action.
+// It never changes or implies success for the original coordinator delivery.
+type OrchestratorRecoveryUpdate struct {
+	ReleaseID  string `json:"releaseId"`
+	RollbackOf string `json:"rollbackOf"`
+	Status     string `json:"status"`
+	Commit     string `json:"commit"`
+	Message    string `json:"message"`
+	CreatedAt  string `json:"createdAt"`
 }
 type OrchestratorView struct {
 	StorageDigest     string                 `json:"storageDigest"`

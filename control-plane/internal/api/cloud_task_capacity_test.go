@@ -32,7 +32,7 @@ func TestCloudCapacityAdviceKeepsHeldChargeAndUsesConfiguredResourceLimits(t *te
 	rows[2].Request.Identity.ProjectID = "p-other"
 	view := cloudCapacityView(limits, template, usage, 1, rows, nil, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
 	if view.ConfiguredAvailableSlots != 2 || view.EstimatedMonthMicros != 250 || view.MonthlyBudgetMicros != 1000 || view.EstimatedTaskCostMicros != 200 || view.Region != "us-east-1" ||
-		view.RetainedProjectVMs != 1 || len(view.RetainedAttempts) != 1 || view.RetainedAttempts[0].OperationID != "op-still-held" || view.MoreRetainedAttempts != 0 {
+		view.RetainedProjectVMs != 1 || len(view.RetainedAttempts) != 1 || view.RetainedAttempts[0].OperationID != "op-still-held" || view.MoreRetainedAttempts != 0 || view.RetiredBillingUnconfirmed != 1 {
 		t.Fatal("configured capacity or exact retained estimate was misreported", view)
 	}
 	newer := row("alice", now.Add(time.Nanosecond), true, "newer-vm", 50)
@@ -52,7 +52,7 @@ func TestCloudCapacityAdviceKeepsHeldChargeAndUsesConfiguredResourceLimits(t *te
 	}
 	settled := []e2bbe.SettledSpend{{OperationID: "op-archived", BillingUserID: "alice", CreatedAt: now, EstimatedCostMicros: 700, SandboxCreated: true}}
 	view = cloudCapacityView(limits, template, usage, 1, rows[:4], settled, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
-	if view.EstimatedMonthMicros != 950 || view.ConfiguredAvailableSlots != 0 || view.RetainedProjectVMs != 1 {
+	if view.EstimatedMonthMicros != 950 || view.ConfiguredAvailableSlots != 0 || view.RetainedProjectVMs != 1 || view.RetiredBillingUnconfirmed != 2 {
 		t.Fatal("archived spend was omitted or misreported as a live VM", view)
 	}
 }

@@ -641,7 +641,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
         {conversation.mounted && <div hidden={!conversationOpen}>
         {view && <>
           <div className="orchestrator-toolbar"><h3>Luci</h3><Button variant="ghost" size="compact" disabled={!!busy || loading} onClick={() => void refresh(true)}>Refresh conversation</Button></div>
-          {view.activity && (!!view.activity.accepted.length || !!view.activity.work.length || !!view.activity.findings?.length || !!view.blockingQuestions.length) &&
+          {view.activity && (!!view.activity.accepted.length || !!view.activity.work.length || !!view.activity.findings?.length || !!view.activity.recovery?.length || !!view.blockingQuestions.length) &&
             <section aria-label="Shared changes and affected work" className="orchestrator-provenance">
               <h4>Shared changes and affected work</h4>
               {!!view.blockingQuestions.length && <p>{view.blockingQuestions.length} decision{view.blockingQuestions.length === 1 ? "" : "s"} {view.blockingQuestions.length === 1 ? "needs" : "need"} an answer before affected work can continue. Answer below; Luci will recheck current context, authority and policy before acting.</p>}
@@ -660,6 +660,12 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
                 </>}
                 {work.runId && <> · run <code>{work.runId}</code> <Button variant="secondary" size="compact" disabled={!canRead || contextStale} onClick={() => inspect(work.runId!)}>Inspect run</Button></>}
                 {(["blocked", "unknown", "refused", "preview-blocked", "deployment-blocked"].includes(work.status)) && <Button variant="secondary" size="compact" disabled={!canAssist || !!busy || contextStale || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict} onClick={() => discussFinding(work)}>Discuss finding with Luci</Button>}
+                {work.status === "deployment-blocked" && <Button variant="secondary" size="compact" disabled={!canRead || !access.permissions.deploy} onClick={() => setLens("deploy")}>Open Deploy recovery</Button>}
+              </p>)}
+              {view.activity.recovery?.map(recovery => <p key={recovery.releaseId}>
+                Historical release recovery <code>{recovery.releaseId}</code> for release <code>{recovery.rollbackOf}</code> · {recovery.status} · commit <code>{recovery.commit}</code>. {recovery.message}
+                {' '}This separate action does not change the original delivery receipt.
+                <Button variant="secondary" size="compact" disabled={!canRead || !access.permissions.deploy} onClick={() => setLens("deploy")}>Open Deploy recovery</Button>
               </p>)}
               {view.activity.findings?.map(finding => <p key={finding.id} role={finding.status === 'question' || finding.status === 'unknown' ? 'status' : undefined}>
                 Luci follow-up for {finding.sourceStatus} {finding.eventId ? 'event' : 'work'} <code>{finding.eventId || finding.continuationId}</code>, recorded digest <code>{finding.contextDigest}</code>:

@@ -98,6 +98,30 @@ it("brings a blocked delivery finding into the same conversation without sending
   await userEvent.click(button);
   expect(composer.value).toBe("Keep my own careful question.");
   expect(orchestratorApi.send).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Open Deploy recovery" }));
+  expect(useCockpit.getState().lens).toBe("deploy");
+  expect(composer.value).toBe("Keep my own careful question.");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("shows retained rollback health and withholds Deploy recovery navigation after grant loss", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ activity: { accepted: [], work: [], earlierAvailable: false,
+    recovery: [{ releaseId: "cloud-rel-recovery", rollbackOf: "cloud-rel-original", status: "attention",
+      commit: "a".repeat(40), message: "Public health is unconfirmed; inspect provider ownership.", createdAt: "2026-10-13T00:00:00Z" }] } }));
+  const mounted = render(<OrchestratorPanel projectId="p-1" primary />);
+  const composer = await screen.findByLabelText("Message Luci") as HTMLTextAreaElement;
+  await userEvent.type(composer, "Keep my own recovery question");
+  const progress = screen.getByRole("region", { name: "Shared changes and affected work" });
+  expect(within(progress).getByText(/Historical release recovery/).textContent).toContain("cloud-rel-recovery");
+  expect(within(progress).getByText(/Historical release recovery/).textContent).toContain("attention");
+  identity.assist = false;
+  mounted.rerender(<OrchestratorPanel projectId="p-1" primary />);
+  expect(screen.getByRole("button", { name: "Open Deploy recovery" }).hasAttribute("disabled")).toBe(true);
+  // Revocation hides the private composer value without discarding it.
+  identity.assist = true;
+  mounted.rerender(<OrchestratorPanel projectId="p-1" primary />);
+  expect(composer.value).toBe("Keep my own recovery question");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
 it("prepares a scoped parallel-task request without dispatching or replacing an unsent message", async () => {

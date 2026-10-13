@@ -59,6 +59,7 @@ func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe
 	actorID, projectID, region string, taskCost int64, maxSeconds int, budget int64, now time.Time) product.CoordinatorCloudCapacity {
 	month := now.UTC().Format("2006-01")
 	committed, unknown := int64(0), false
+	retiredBillingUnconfirmed := 0
 	type heldAttempt struct {
 		view product.CoordinatorCloudAttempt
 		at   time.Time
@@ -80,6 +81,9 @@ func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe
 			continue
 		}
 		if row.Request.BillingUserID == actorID {
+			if !row.ResourcesHeld && row.SandboxID != "" && !row.ProviderBillingSettled && row.CreatedAt.UTC().Format("2006-01") == month {
+				retiredBillingUnconfirmed++
+			}
 			cost := row.Request.EstimatedCostMicros
 			if cost <= 0 || cost > math.MaxInt64-committed {
 				unknown = true
@@ -97,6 +101,7 @@ func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe
 			continue
 		}
 		if row.BillingUserID == actorID {
+			retiredBillingUnconfirmed++ // compacted rows retain no provider bill receipt
 			if row.EstimatedCostMicros < 1 || row.EstimatedCostMicros > math.MaxInt64-committed {
 				unknown = true
 				continue
@@ -130,7 +135,8 @@ func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe
 		ConfiguredGlobalSlots: limits.MaxConcurrent, ConfiguredProjectSlots: limits.MaxPerProject,
 		ConfiguredAvailableSlots: available, EstimatedTaskCostMicros: taskCost,
 		EstimatedMonthMicros: committed, MonthlyBudgetMicros: budget, MaxTaskSeconds: maxSeconds,
-		RetainedProjectVMs: count, RetainedAttempts: attempts, MoreRetainedAttempts: more,
+		RetiredBillingUnconfirmed: retiredBillingUnconfirmed,
+		RetainedProjectVMs:        count, RetainedAttempts: attempts, MoreRetainedAttempts: more,
 		ObservedAt: now.Format(time.RFC3339Nano), Limitation: limitation}
 	if unknown || committed > budget || taskCost > budget-committed {
 		advice.SetupNeeds = []string{"The saved cloud spending estimate cannot authorize another VM. Reconcile retained charges or update the current budget before activation."}

@@ -39,6 +39,25 @@ it('shows the accepted teammate change only in its authorized project card', asy
   expect(screen.getAllByText('event-accepted')).toHaveLength(1);
   expect(screen.getByRole('button', { name: 'Open project Notes' })).toBeTruthy();
   expect(swarmQueueApi.control).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Discuss Notes with Luci' }));
+  expect(useCockpit.getState().selection.projectId).toBe('p1');
+  expect(useCockpit.getState().workspaceSurface).toBe('luci');
+});
+
+it('keeps cross-project conversation attention behind the existing unsaved-draft guard', async () => {
+  vi.mocked(projectOverviewApi.get).mockImplementation(async id => id === 'p1' ? { ...overview(id), sharedChange: {
+    status: 'recorded', event: { eventId: 'event-accepted', sequence: 2, intentId: 'intent-bob', originTurnId: 'turn-bob',
+      actor: { id: 'bob', displayName: 'Bob' }, target: 'design-plan', appliedTargetDigest: 'a'.repeat(64), taskIds: [], affectsAllTasks: true },
+  } } : overview(id));
+  const store = useCockpit.getState();
+  store.selectProject('p2', 'design');
+  useCockpit.setState({ workspaceSurface: 'tools' });
+  store.setUnsavedProjectDraft('design', { projectId: 'p2', label: 'Design', lens: 'design' });
+  render(<ProjectOverviewBoard projects={projects} />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Discuss Notes with Luci' }));
+  expect(useCockpit.getState().selection.projectId).toBe('p2');
+  expect(useCockpit.getState().pendingNavigation).toEqual({ kind: 'project', projectId: 'p1', lens: undefined });
+  expect(useCockpit.getState().workspaceSurface).not.toBe('luci');
 });
 
 it('opens a current project before summary reads finish and preserves the unsaved-draft decision', async () => {

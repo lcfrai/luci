@@ -15,7 +15,7 @@ func (s *Server) orchestratorActivityLocked(p project.Project, actorID string) (
 	if err != nil {
 		return nil, err
 	}
-	out := &OrchestratorActivity{Accepted: []OrchestratorAcceptedUpdate{}, Work: []OrchestratorWorkUpdate{}, Findings: []CoordinatorFinding{}}
+	out := &OrchestratorActivity{Accepted: []OrchestratorAcceptedUpdate{}, Work: []OrchestratorWorkUpdate{}, Findings: []CoordinatorFinding{}, Recovery: []OrchestratorRecoveryUpdate{}}
 	limit := orchestratorActivityLimit
 	if actorID == "" {
 		limit = 1 // The cross-project board needs only the newest shared event.
@@ -64,6 +64,27 @@ func (s *Server) orchestratorActivityLocked(p project.Project, actorID string) (
 	}
 	if actorID == "" {
 		return out, nil // A project summary exposes shared events, never another person's private continuation.
+	}
+	// Historical rebuilds are separate authorized release actions. Reading the
+	// same retained release history on every conversation read makes their actual
+	// provider/health observation durable across restart without replaying them.
+	releases, err := s.readCloudReleases(p.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, release := range releases {
+		if release.RollbackOf == "" {
+			continue
+		}
+		if len(out.Recovery) >= orchestratorActivityLimit {
+			out.EarlierAvailable = true
+			break
+		}
+		out.Recovery = append(out.Recovery, OrchestratorRecoveryUpdate{
+			ReleaseID: release.ID, RollbackOf: release.RollbackOf,
+			Status: release.Status, Commit: release.Release.Commit,
+			Message: release.Message, CreatedAt: release.CreatedAt,
+		})
 	}
 	continuations, err := s.readContinuations(p, actorID)
 	if err != nil {

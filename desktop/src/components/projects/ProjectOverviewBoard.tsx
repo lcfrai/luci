@@ -218,6 +218,15 @@ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picke
     const lens = (['discover', 'design', 'develop', 'files', 'merge', 'deploy'].includes(value.nextAction.lens) ? value.nextAction.lens : undefined) as Lens | undefined;
     openDestination(lens, value.nextAction.runId);
   }
+  function openConversation() {
+    if (!value || summary?.sourceBusy) return;
+    // The normal project switch owns the unsaved-draft decision. Never open
+    // another project's conversation while that decision is still pending.
+    useCockpit.getState().selectProject(project.id);
+    const state = useCockpit.getState();
+    if (!state.pendingNavigation && state.selection.projectId === project.id &&
+        state.projects.some(item => item.id === project.id && item.path === project.path)) state.showLuci();
+  }
   return <li className="overview-card"><header><h3>{project.name}</h3>{value && <Badge variant="outline">{summary?.sourceBusy && 'Last recorded: '}{value.phase.label}</Badge>}</header>
     {!summary ? <p role="status">Loading project context…</p> : summary.error ? <p className="overview-warning" role="status">Summary unavailable. {summary.error}</p> : value && <>
       {summary.sourceBusy && <p className="overview-warning" role="status">Source is being prepared; showing last recorded context. Queue controls remain available. Activity counts are recorded, not live.</p>}
@@ -234,7 +243,7 @@ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picke
         ? <RecordedRunAttention {...value.attention} compact initialLimit={1} count={value.attention.count ?? 0} omitted={value.attention.omitted ?? 0} stale={summary.sourceBusy} onInspect={runId => openDestination('develop', runId)} onOpenHistory={() => openDestination('develop')} />
         : <p className="overview-meta">Review history is unavailable. Open the project to inspect its saved builds.</p>}
     </>}
-    <footer>{value && !summary?.sourceBusy && !(value.nextAction.id === 'inspect-run' && value.nextAction.lens === 'develop' && value.attention?.status === 'recorded' && value.attention.items[0]?.id === value.nextAction.runId) && <Button variant="secondary" onClick={openNext}>{value.nextAction.label}</Button>}<Button variant="ghost" onClick={() => useCockpit.getState().selectProject(project.id)}>Open project</Button><Button variant="ghost" disabled={pending} aria-expanded={showQueue} onClick={() => { if (showQueue) onForget(project.id); setShowQueue(value => !value); }}>{showQueue ? 'Hide queue' : 'Manage queue'}</Button></footer>
+    <footer>{value && !summary?.sourceBusy && !(value.nextAction.id === 'inspect-run' && value.nextAction.lens === 'develop' && value.attention?.status === 'recorded' && value.attention?.items[0]?.id === value.nextAction.runId) && <Button variant="secondary" onClick={openNext}>{value.nextAction.label}</Button>}{value && (value.sharedChange?.status === 'recorded' || (value.questions?.count ?? 0) > 0 || (value.attention?.count ?? 0) > 0) && <Button variant="secondary" disabled={!!summary?.sourceBusy} onClick={openConversation}>Discuss {project.name} with Luci</Button>}<Button variant="ghost" onClick={() => useCockpit.getState().selectProject(project.id)}>Open project</Button><Button variant="ghost" disabled={pending} aria-expanded={showQueue} onClick={() => { if (showQueue) onForget(project.id); setShowQueue(value => !value); }}>{showQueue ? 'Hide queue' : 'Manage queue'}</Button></footer>
     {value && <>
 
       {value.questions.items.length > 0 && <details className="overview-questions"><summary>{value.questions.count === null ? 'Known questions to resolve' : `${value.questions.count} ${value.questions.count === 1 ? 'question' : 'questions'} to resolve`}</summary><ul>{value.questions.items.map(question => <li key={`${question.source}:${question.id}`}>{question.text}{question.truncated && '…'}</li>)}</ul>{!!value.questions.omitted && <p>{value.questions.omitted} more in the project.</p>}</details>}

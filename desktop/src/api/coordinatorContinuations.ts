@@ -31,6 +31,7 @@ export interface CoordinatorContextCommitView { eventId: string; status: 'pendin
 export interface CoordinatorCloudCapacity {
   provider: 'e2b-embed' | ''; setupNeeds?: string[]; region: string; configuredGlobalSlots: number; configuredProjectSlots: number;
   configuredAvailableSlots: number; estimatedTaskCostMicros: number; estimatedMonthMicros: number;
+  retiredBillingUnconfirmed?: number;
   monthlyBudgetMicros: number; maxTaskSeconds: number; observedAt: string; limitation: string;
   retainedProjectVMs: number; moreRetainedAttempts: number;
   retainedAttempts: { runId: string; taskId: string; attemptId: string; operationId: string; state: string;
@@ -131,7 +132,7 @@ async function listState(project: string, actor: string, signal?: AbortSignal): 
   if (capacity != null && (!Array.isArray(capacity.setupNeeds ?? []) || (capacity.setupNeeds ?? []).length > 4 || (capacity.setupNeeds ?? []).some(need => !text(need) || need.length > 500) ||
     capacity.provider === '' && !(capacity.setupNeeds ?? []).length ||
     capacity.provider !== '' && (capacity.provider !== 'e2b-embed' || !text(capacity.region) || !text(capacity.limitation) || !Number.isFinite(Date.parse(capacity.observedAt)) ||
-    ![capacity.configuredGlobalSlots, capacity.configuredProjectSlots, capacity.configuredAvailableSlots, capacity.maxTaskSeconds, capacity.retainedProjectVMs, capacity.moreRetainedAttempts].every(value => Number.isSafeInteger(value) && value >= 0) ||
+    ![capacity.configuredGlobalSlots, capacity.configuredProjectSlots, capacity.configuredAvailableSlots, capacity.maxTaskSeconds, capacity.retainedProjectVMs, capacity.moreRetainedAttempts, capacity.retiredBillingUnconfirmed ?? 0].every(value => Number.isSafeInteger(value) && value >= 0) ||
     !Array.isArray(capacity.retainedAttempts) || capacity.retainedAttempts.length > 20 || capacity.retainedProjectVMs !== capacity.retainedAttempts.length + capacity.moreRetainedAttempts ||
     capacity.retainedAttempts.some(row => !text(row.runId) || !text(row.taskId) || !text(row.attemptId) || !text(row.operationId) || !['creating', 'allocated', 'unknown', 'cancelling'].includes(row.state) || row.resourcesHeld !== true || !Number.isSafeInteger(row.estimatedCostMicros) || row.estimatedCostMicros <= 0 || !Number.isFinite(Date.parse(row.updatedAt))) ||
     ![capacity.estimatedTaskCostMicros, capacity.estimatedMonthMicros, capacity.monthlyBudgetMicros].every(value => Number.isSafeInteger(value) && value >= 0)))) throw new Error('The cloud task capacity observation could not be verified. Refresh before choosing cloud execution.');

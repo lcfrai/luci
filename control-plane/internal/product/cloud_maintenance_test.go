@@ -59,6 +59,16 @@ func TestPrivateCloudReleaseStopObservesProviderAndRollbackPinsHistory(t *testin
 	if rolled.CoordinatorOriginDigest != "" || rolled.ID == first.ID || rolled.RollbackOf != first.ID || rolled.Release.Commit != first.Release.Commit || rolled.BriefRevision != first.BriefRevision || rolled.ApplicationID != first.ApplicationID || rolled.Status != "queued" || rolled.URL != "" {
 		t.Fatalf("rollback lost historical provenance: %+v", rolled)
 	}
+	// The separate recovery action must reach the primary conversation through
+	// retained release history, without rewriting the original delivery.
+	activity, err := s.orchestratorActivityLocked(p, "alice")
+	if err != nil || len(activity.Recovery) != 1 || activity.Recovery[0].ReleaseID != rolled.ID || activity.Recovery[0].RollbackOf != first.ID || activity.Recovery[0].Status != "queued" {
+		t.Fatalf("queued recovery was not visible by exact identity: %+v, %v", activity, err)
+	}
+	shared, err := s.orchestratorActivityLocked(p, "")
+	if err != nil || len(shared.Recovery) != 0 {
+		t.Fatalf("project summary exposed per-person release recovery: %+v, %v", shared, err)
+	}
 	s.mu.RLock()
 	retained, err := s.readCloudReleases(p.ID)
 	s.mu.RUnlock()
@@ -83,6 +93,13 @@ func TestPrivateCloudReleaseStopObservesProviderAndRollbackPinsHistory(t *testin
 	verified, err := observeCloudRelease(context.Background(), rolled, client, func(context.Context, string) error { return nil })
 	if err != nil || verified.Status != "ready" || verified.Release.Commit != first.Release.Commit {
 		t.Fatal("rollback could not verify its exact commit and health", err)
+	}
+	if err := s.storeCloudRelease(verified); err != nil {
+		t.Fatal(err)
+	}
+	activity, err = s.orchestratorActivityLocked(p, "alice")
+	if err != nil || len(activity.Recovery) != 1 || activity.Recovery[0].Status != "ready" || activity.Recovery[0].Commit != first.Release.Commit {
+		t.Fatalf("observed recovery health did not survive durable reread: %+v, %v", activity, err)
 	}
 }
 
