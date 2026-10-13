@@ -36,6 +36,7 @@ type e2bOperatorConfig struct {
 	ClientCertFile            string                      `json:"clientCertFile,omitempty"`
 	ClientKeyFile             string                      `json:"clientKeyFile,omitempty"`
 	AzureSecrets              *azureSecretMaterialization `json:"azureSecrets,omitempty"`
+	AzureMount                *azureDurableMount          `json:"azureMount,omitempty"`
 	ControllerStateDir        string                      `json:"controllerStateDir"`
 	StagingDir                string                      `json:"stagingDir"`
 	EnvdOriginTemplate        string                      `json:"envdOriginTemplate"`
@@ -84,6 +85,10 @@ func validE2BOriginTemplate(value string) bool {
 	u, err := url.Parse(strings.Replace(value, "{sandboxID}", "verified-sandbox", 1))
 	return err == nil && u.Scheme == "https" && u.Hostname() != "" && u.User == nil &&
 		u.Port() != "5008" && (u.Path == "" || u.Path == "/") && u.RawQuery == "" && u.Fragment == ""
+}
+
+func validAzureGuestOriginTemplate(value, kind, gateway string) bool {
+	return value == "https://"+kind+"-{sandboxID}."+gateway && validE2BOriginTemplate(value)
 }
 
 // These effects inspect or retire an already owned attempt. They never
@@ -153,16 +158,25 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		selected.Deployment.Provider == "azure" && selected.Store.AzureDataDiskID != selected.Deployment.AzureDataDiskID ||
 		selected.Deployment.Provider != "azure" && selected.Store.AzureDataDiskID != "" ||
 		selected.Deployment.Provider == "azure" && (selected.AzureSecrets == nil || selected.APIKeyFile != "" || selected.AdminAPIKeyFile != "" || selected.AttachKeyFile != "" || selected.ClientCertFile != "" || selected.ClientKeyFile != "") ||
+		selected.Deployment.Provider == "azure" && selected.AzureMount == nil ||
 		selected.Deployment.Provider != "azure" && selected.AzureSecrets != nil ||
+		selected.Deployment.Provider != "azure" && selected.AzureMount != nil ||
 		(selected.ClientCertFile == "") != (selected.ClientKeyFile == "") ||
 		selected.Template.BuildID == "" || selected.HostNodeID == "" || selected.Deployment.Provider != "azure" && selected.AdminAPIKeyFile == "" ||
 		selected.TaskMaxSeconds < 1 || selected.TaskMaxSeconds > selected.Limits.MaxTaskSeconds ||
 		selected.TaskEstimatedCostMicros < 1 || selected.TaskEstimatedCostMicros > selected.Limits.EstimatedCostMicros ||
 		len(selected.ModelEgressDomains) == 0 || !e2bbe.ValidEgressDomains(selected.ModelEgressDomains) ||
 		!validE2BOriginTemplate(selected.EnvdOriginTemplate) || !validE2BOriginTemplate(selected.SandboxOriginTemplate) ||
+		selected.Deployment.Provider == "azure" && (!validAzureGuestOriginTemplate(selected.EnvdOriginTemplate, "envd", selected.Deployment.AzureGatewayHost) ||
+			!validAzureGuestOriginTemplate(selected.SandboxOriginTemplate, "sandbox", selected.Deployment.AzureGatewayHost)) ||
 		!filepath.IsAbs(selected.ControllerStateDir) || !filepath.IsAbs(selected.StagingDir) ||
 		!filepath.IsAbs(selected.TemplateCreateJournalPath) || !filepath.IsAbs(selected.TemplateBuildJournalPath) {
 		return nil, nil, errors.New("cloud microVM configuration has incomplete scope, limits, storage or trusted guest origins")
+	}
+	if selected.AzureMount != nil {
+		if err := verifyAzureDurableMount(*selected.AzureMount, selected, cfg); err != nil {
+			return nil, nil, fmt.Errorf("verify Azure controller disk and restoration boundary: %w", err)
+		}
 	}
 	if _, err = (e2bbe.TemplatePublication{TemplateID: selected.Template.ID, BuildID: selected.Template.BuildID,
 		FromImage: selected.TemplateFromImage, CreateJournalPath: selected.TemplateCreateJournalPath,
@@ -247,6 +261,11 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	closeStore := func() { _ = store.Close() }
 	var controller *e2bbe.Controller
 	authorizeEffect := func(effectCtx context.Context, request e2bbe.Request, action string) error {
+		if selected.AzureMount != nil && !cloudOwnershipOnlyEffect(action) {
+			if err := verifyAzureDurableMount(*selected.AzureMount, selected, cfg); err != nil {
+				return management.ErrExecutionAuthority
+			}
+		}
 		i := request.Identity
 		if i.OwnerID != selected.Store.OwnerID || i.RunID == "" {
 			return management.ErrExecutionAuthority

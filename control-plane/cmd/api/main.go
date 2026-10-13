@@ -98,6 +98,9 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		return err
 	}
 	cfg.ExecutionStateDir = executionStateDir
+	if err := preflightAzureControllerMount(cfg); err != nil {
+		return fmt.Errorf("preflight cloud controller storage: %w", err)
+	}
 	lease, err := acquireManagedStateLease(cfg)
 	if err != nil {
 		return fmt.Errorf("acquire Luci state: %w", err)
