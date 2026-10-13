@@ -115,6 +115,7 @@ export function SwarmRunQueue(props: Props) {
     {pending.length > 0 && <ul className="swarm-run-queue-items">{pending.map(item => <li key={item.id}>
       <div><strong>{item.taskTitle}</strong> <span>{item.state}</span></div>
       {item.reason && <p>{item.reason}</p>}
+      {item.reasonCode === 'cloud_restore_pending' && <p role="status">Luci is checking the exact restored microVM identities before another agent starts. Existing VM ownership and capacity remain reserved. Refresh status to see the outcome; you can request an exact stop for an owned active attempt.</p>}
       {item.state === 'unknown' && ((item.memoryMiB ?? 0) > 0 || (item.cpuMillis ?? 0) > 0) &&
         <p role="status">Capacity still reserved: {item.memoryMiB ?? 0} MiB memory and {item.cpuMillis ?? 0}m CPU. {item.childId ? `Exact child ${item.childId}.` : 'Child identity is not yet confirmed.'} Luci will not replace this attempt until ownership and release are proven.</p>}
       <div className="journey-actions">

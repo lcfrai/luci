@@ -75,6 +75,11 @@ type Controller struct {
 	workers          sync.WaitGroup
 	checkpoint       CheckpointWriter
 	checkpointDigest string
+	// A restored journal is ownership evidence, not proof that its VMs still
+	// match the provider. New Create effects wait for exact readback of every
+	// retained attempt. This set is process-local; the journal remains durable.
+	restoredPending map[string]bool
+	restoredAfter   string
 }
 
 func New(c Config) (*Controller, error) { return newController(c, nil, context.Background()) }
@@ -168,7 +173,7 @@ func newController(c Config, restored []byte, restoreContext context.Context) (*
 		return nil, e
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	out := &Controller{config: c, client: client, root: root, lease: lease, busy: map[string]bool{}, nativeObservers: map[string]context.CancelFunc{}, ctx: ctx, cancel: cancel, stopped: make(chan struct{}), journal: journal{Version: 1, OwnerID: c.OwnerID, Scope: c.Deployment.Scope, Records: map[string]Record{}}}
+	out := &Controller{config: c, client: client, root: root, lease: lease, busy: map[string]bool{}, nativeObservers: map[string]context.CancelFunc{}, restoredPending: map[string]bool{}, ctx: ctx, cancel: cancel, stopped: make(chan struct{}), journal: journal{Version: 1, OwnerID: c.OwnerID, Scope: c.Deployment.Scope, Records: map[string]Record{}}}
 	fail := func(err error) (*Controller, error) {
 		root.Close()
 		lease.Close()
@@ -185,6 +190,11 @@ func newController(c Config, restored []byte, restoreContext context.Context) (*
 		out.journal, e = validateJournal(restored, c.OwnerID, c.Deployment.Scope)
 		if e != nil {
 			return fail(e)
+		}
+		for op, row := range out.journal.Records {
+			if row.State != Absent {
+				out.restoredPending[op] = true
+			}
 		}
 	} else if e = out.load(); e != nil {
 		return fail(e)
@@ -499,6 +509,9 @@ func (c *Controller) update(ctx context.Context, r Record) (Record, error) {
 	if e := c.persist(ctx); e != nil {
 		return r, e
 	}
+	if r.State == Absent {
+		delete(c.restoredPending, r.Request.Identity.OperationID)
+	}
 	return r, nil
 }
 func (c *Controller) Allocate(ctx context.Context, req Request) (Record, error) {
@@ -515,9 +528,13 @@ func (c *Controller) Allocate(ctx context.Context, req Request) (Record, error) 
 	}
 	c.mu.Lock()
 	if old, ok := c.journal.Records[req.Identity.OperationID]; ok {
+		pending := c.restoredPending[req.Identity.OperationID]
 		c.mu.Unlock()
 		if old.RequestDigest != digest(req) {
 			return old, ErrConflict
+		}
+		if pending {
+			return old, ErrUnknown
 		}
 		if old.State == Allocated || old.State == Absent {
 			return old, nil
@@ -530,6 +547,10 @@ func (c *Controller) Allocate(ctx context.Context, req Request) (Record, error) 
 			return Record{}, ErrConflict
 		}
 		return Record{}, ErrUnknown // The owned operation can never Create again.
+	}
+	if len(c.restoredPending) != 0 {
+		c.mu.Unlock()
+		return Record{}, ErrUnknown // Restore must inspect exact prior ownership first.
 	}
 	if e = c.compactSettledLocked(ctx, maxRecords); e != nil {
 		c.mu.Unlock()
@@ -714,10 +735,62 @@ func (c *Controller) Reconcile(ctx context.Context, op string) (Record, error) {
 	if e = c.config.Authorize(ctx, r.Request, "observe"); e != nil {
 		return r, e
 	}
-	if r.State == Absent {
-		return r, nil
+	if r.State != Absent {
+		r, e = c.observe(ctx, r, false)
+		if e != nil {
+			return r, e
+		}
 	}
-	return c.observe(ctx, r, false)
+	c.mu.Lock()
+	delete(c.restoredPending, op)
+	c.mu.Unlock()
+	return r, nil
+}
+
+// ReconcileRestored reads back a bounded page of exact restored attempts. It
+// never creates, starts or deletes a VM. A failed identity read leaves that
+// attempt pending and charged; healthy peers are still inspected on this pass.
+// Callers may repeat it after provider recovery. New Allocate is fenced until
+// every retained identity has a successful readback.
+func (c *Controller) ReconcileRestored(ctx context.Context, max int) (int, error) {
+	if max < 1 {
+		return 0, ErrConflict
+	}
+	c.mu.Lock()
+	ops := make([]string, 0, len(c.restoredPending))
+	for op := range c.restoredPending {
+		ops = append(ops, op)
+	}
+	c.mu.Unlock()
+	slices.Sort(ops)
+	start := 0
+	c.mu.Lock()
+	after := c.restoredAfter
+	c.mu.Unlock()
+	if after != "" {
+		start = sort.Search(len(ops), func(i int) bool { return ops[i] > after })
+		if start == len(ops) {
+			start = 0
+		}
+	}
+	var firstErr error
+	for i := 0; i < min(max, len(ops)); i++ {
+		op := ops[(start+i)%len(ops)]
+		if ctx.Err() != nil {
+			firstErr = ctx.Err()
+			break
+		}
+		c.mu.Lock()
+		c.restoredAfter = op
+		c.mu.Unlock()
+		if _, err := c.Reconcile(ctx, op); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	c.mu.Lock()
+	remaining := len(c.restoredPending)
+	c.mu.Unlock()
+	return remaining, firstErr
 }
 func (c *Controller) Cancel(ctx context.Context, op string, expectedRevision int) (Record, error) {
 	originalContext := ctx

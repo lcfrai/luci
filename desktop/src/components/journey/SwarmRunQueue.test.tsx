@@ -111,6 +111,16 @@ it('keeps waiting-task control separate from active-session stops and hides othe
   expect(control).toHaveBeenCalledWith('p-1', queued, 'pause', undefined);
 });
 
+it('shows restored cloud ownership as pending without offering a replacement start', async () => {
+  const run = {...initial, input: {...initial.input, route: {...initial.input.route, executionLocation: 'cloud-microvm' as const}}};
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([swarmQueueItem({state: 'unknown', reasonCode: 'cloud_restore_pending', operationId: 'op-a', childId: 'vm-a', memoryMiB: 2048, cpuMillis: 2000})]));
+  render(<Harness run={run} />);
+  await openQueueControls();
+  expect(await screen.findByText(/checking the exact restored microVM identities/)).not.toBeNull();
+  expect(screen.getByText(/Capacity still reserved: 2048 MiB memory and 2000m CPU/)).not.toBeNull();
+  expect(screen.getByRole('button', {name: 'Stop active task'})).not.toBeNull();
+});
+
 it('leaves a viewer read-only and aborts an unfinished read on unmount', async () => {
   let resolve!: (q: ProjectSwarmQueue) => void;
   vi.mocked(swarmQueueApi.get).mockReturnValue(new Promise(done => {resolve = done;}));

@@ -93,6 +93,62 @@ func TestDirectoryStoreRestoresExactJournalAndArtifactsWithoutReplayingCreate(t 
 	after, e = c.Cancel(context.Background(), req.Identity.OperationID, after.Revision)
 	requireAbsent(t, after, e)
 }
+
+func TestRestoredControllerReadsEveryOwnedVMBeforeNewCreate(t *testing.T) {
+	p := newProvider(t)
+	cfg, _ := fixtureConfig(t, p)
+	sc := storeConfig(t)
+	s := openStore(t, sc)
+	cfg.Checkpoint = s
+	c := openController(t, cfg)
+	first := taskRequest("alpha", "one")
+	second := taskRequest("beta", "two")
+	if _, err := c.Allocate(context.Background(), first); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Allocate(context.Background(), second); err != nil {
+		t.Fatal(err)
+	}
+	head, err := s.Head(context.Background())
+	if err != nil || c.Close(context.Background()) != nil || s.Close() != nil {
+		t.Fatal("could not settle original controller", err)
+	}
+	s = openStore(t, sc)
+	cfg.Checkpoint = s
+	cfg.StateDir = filepath.Join(t.TempDir(), "restored")
+	c, err = s.RestoreController(context.Background(), cfg, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = c.Close(context.Background()) })
+	third := taskRequest("gamma", "three")
+	if _, err = c.Allocate(context.Background(), first); !errors.Is(err, ErrUnknown) {
+		t.Fatal("same-attempt Start could proceed before restored identity readback", err)
+	}
+	if _, err = c.Allocate(context.Background(), third); !errors.Is(err, ErrUnknown) || p.creates != 2 {
+		t.Fatal("fresh Create preceded restored identity readback", err, p.creates)
+	}
+	p.foreign = true
+	remaining, err := c.ReconcileRestored(context.Background(), 1)
+	if remaining != 2 || !errors.Is(err, ErrConflict) {
+		t.Fatal("foreign first VM did not stay charged", remaining, err)
+	}
+	p.foreign = false
+	remaining, err = c.ReconcileRestored(context.Background(), 1)
+	if remaining != 1 || err != nil {
+		t.Fatal("healthy peer was starved by first VM", remaining, err)
+	}
+	if _, err = c.Allocate(context.Background(), third); !errors.Is(err, ErrUnknown) || p.creates != 2 {
+		t.Fatal("new VM admitted while one restored identity remains", err, p.creates)
+	}
+	remaining, err = c.ReconcileRestored(context.Background(), 1)
+	if remaining != 0 || err != nil {
+		t.Fatal("exact restored readback did not release admission fence", remaining, err)
+	}
+	if _, err = c.Allocate(context.Background(), third); err != nil || p.creates != 3 || p.deletes != 0 {
+		t.Fatal("fresh admission replayed or deleted prior VMs", err, p.creates, p.deletes)
+	}
+}
 func TestDirectoryStoreRejectsLiveSecondWriterAndStaleRestore(t *testing.T) {
 	p := newProvider(t)
 	cfg, _ := fixtureConfig(t, p)

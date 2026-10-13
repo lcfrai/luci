@@ -27,7 +27,14 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 	if cloud == nil {
 		return blocked("cloud_microvm_unavailable", "A verified cloud microVM execution service is not configured.")
 	}
+	remaining, _ := cloud.Runtime.Controller.ReconcileRestored(ctx, 8)
 	prior, found := a.cloudRecord(req.ProjectID, req.RunID, req.OperationID, op.ChildID)
+	if remaining != 0 {
+		if found {
+			return unknown("cloud_restore_pending")
+		}
+		return product.SwarmDispatchResult{State: "waiting", ReasonCode: "cloud_restore_pending", Message: "Restored cloud VMs are being checked against their exact provider identities. Their ownership and charges remain visible; no new VM will start until reconciliation finishes."}, nil
+	}
 	if found {
 		if prior.State == e2bbe.Creating || prior.State == e2bbe.Unknown {
 			var reconcileErr error
