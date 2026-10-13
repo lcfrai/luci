@@ -1,0 +1,290 @@
+[
+  {
+    "path": "runs/first/inputs-after.json.gz",
+    "originalSHA256": "31cef4b296a1d1b5596c52575c99c33caa691b592ad81a7adaf463cdf54c7887",
+    "originalBytes": 232239,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/first/inputs-before.json.gz",
+    "originalSHA256": "31cef4b296a1d1b5596c52575c99c33caa691b592ad81a7adaf463cdf54c7887",
+    "originalBytes": 232239,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/first/invocation.json",
+    "originalSHA256": "ce737c91684418ad08ce9cf57568edc2ac2aa68550c2594b2806134290b8a93e",
+    "originalBytes": 13561,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/first/resource-observations.json",
+    "originalSHA256": "302d350f32c8edbf8378fae7099edaba8a7c3605be68734fbf038b85b30425c7",
+    "originalBytes": 1105,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/first/result.json",
+    "originalSHA256": "b6e44faddee1c932862379a789e2ae656d03235ce386b547543042ae43d76ff0",
+    "originalBytes": 304,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/first/stderr.txt",
+    "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "originalBytes": 0,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/first/stdout.jsonl.gz",
+    "originalSHA256": "77d0be47c51deb6bb19071581ed2f648b4794bb87b30c74e14e4d823952f8ada",
+    "originalBytes": 246682,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/marker-fixed/inputs-after.json.gz",
+    "originalSHA256": "c6b475523079901331165760ec9c6103a33d9f8c08c5214a438a7e2335cf91a2",
+    "originalBytes": 232239,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/marker-fixed/inputs-before.json.gz",
+    "originalSHA256": "c6b475523079901331165760ec9c6103a33d9f8c08c5214a438a7e2335cf91a2",
+    "originalBytes": 232239,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/marker-fixed/invocation.json",
+    "originalSHA256": "4458ea355e261122870b6133713d4f38e5e037d061459daeba5e7bd1bdd5165f",
+    "originalBytes": 14092,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/marker-fixed/resource-observations.json",
+    "originalSHA256": "0c2e26ce5896be2ac9b9b9751d39a10e73196ea5f1ba2854b9f7bb9b27e9af41",
+    "originalBytes": 741,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/marker-fixed/result.json",
+    "originalSHA256": "8b2c5893f961a81a4cb8000ccd8a2ff64ac222e7152555416c6f59510a027361",
+    "originalBytes": 303,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/marker-fixed/stderr.txt",
+    "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "originalBytes": 0,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/marker-fixed/stdout.jsonl.gz",
+    "originalSHA256": "63ea320c1a0f09c58961da119e398d3ffebd2115b6877f5b54a11fbfff2435c7",
+    "originalBytes": 64349,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/exclusion-before/inputs-after.json.gz",
+    "originalSHA256": "58bc240aeb6fb6da46a55242e0dd5fa46c45da83571532e1fe2990c8f18f8c6c",
+    "originalBytes": 232765,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/exclusion-before/inputs-before.json.gz",
+    "originalSHA256": "58bc240aeb6fb6da46a55242e0dd5fa46c45da83571532e1fe2990c8f18f8c6c",
+    "originalBytes": 232765,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/exclusion-before/invocation.json",
+    "originalSHA256": "5a02522640b79e310a152416bcfdc123413d461087686acf3a5891f70a17e80d",
+    "originalBytes": 2968,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/exclusion-before/resource-observations.json",
+    "originalSHA256": "3b7c17e6459d4e82cbf5ff96a954f5138362d7f42c345b8bf92309fcd26c9ca5",
+    "originalBytes": 375,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/exclusion-before/result.json",
+    "originalSHA256": "0189cfdc883f9c131de1404b553ad89d22d7385264b618162557235521686959",
+    "originalBytes": 304,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/exclusion-before/stderr.txt",
+    "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "originalBytes": 0,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/exclusion-before/stdout.jsonl.gz",
+    "originalSHA256": "3fe26ec15bbfc9ec58d70b2f13a7fc40f03d7599d90416c7d28949c58f9c43b9",
+    "originalBytes": 2288,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/exclusion-fixed/inputs-after.json.gz",
+    "originalSHA256": "350d555c7a675ddc69319dfbade8dabe8529c44b2afe81db0741cdcd2e3608fa",
+    "originalBytes": 232765,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/exclusion-fixed/inputs-before.json.gz",
+    "originalSHA256": "350d555c7a675ddc69319dfbade8dabe8529c44b2afe81db0741cdcd2e3608fa",
+    "originalBytes": 232765,
+    "encoding": "gzip"
+  },
+  {
+    "path": "runs/exclusion-fixed/invocation.json",
+    "originalSHA256": "a99d869c291a7dca8e02c7c2411803fb67ab7984dfee8ba217ab556c8f00db62",
+    "originalBytes": 2874,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/exclusion-fixed/resource-observations.json",
+    "originalSHA256": "cd5e35985b56b5c05480c4aa2a4f17dd77b5fa0474729177c7fb8cd777dff671",
+    "originalBytes": 559,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/exclusion-fixed/result.json",
+    "originalSHA256": "1d66af227ee22777496650d09a72848fe47f11c9da0c9173756cffa5c6c912e8",
+    "originalBytes": 303,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/exclusion-fixed/stderr.txt",
+    "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "originalBytes": 0,
+    "encoding": "identity"
+  },
+  {
+    "path": "runs/exclusion-fixed/stdout.jsonl.gz",
+    "originalSHA256": "c23bdfd40b943af6effad89b73e36c2bd917ffa3fe0daed2929bbea90c5af39c",
+    "originalBytes": 65390,
+    "encoding": "gzip"
+  },
+  {
+    "path": "before/before-marker/restore_linux.go",
+    "originalSHA256": "aafc68b7e70237786d7d9e298214029699fb98b98580a618d249abe55c9e6421",
+    "originalBytes": 4854,
+    "encoding": "identity"
+  },
+  {
+    "path": "before/before-exclusion/capture_linux.go",
+    "originalSHA256": "c9f173b1c6f6cf5f4e76a4175b11e52cb3084cbe663c1415aeda65b93e7592a1",
+    "originalBytes": 12137,
+    "encoding": "identity"
+  },
+  {
+    "path": "before/initial-capture_linux_test.go",
+    "originalSHA256": "9009a639e805372c90d19af54502cdc9bc71da5bc89bc26e8553478d1d322439",
+    "originalBytes": 6822,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/cmd/microvm-bootstrap/main_linux.go",
+    "originalSHA256": "7387ba5b7279536c8f6f32c723fa3bdcad26b9b69f1e2d9e03ad75f2d1c737fd",
+    "originalBytes": 3847,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/cmd/microvm-bootstrap/main_other.go",
+    "originalSHA256": "9cbe1117e32aed60ead31c58372986563a40da81a0712f689ff674114bb0ab1d",
+    "originalBytes": 178,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/cmd/microvm-collect/main_linux.go",
+    "originalSHA256": "82cfadc45021cca915388a75b2739237660459bc865a7cacabbfd32f3d9c7280",
+    "originalBytes": 1276,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/cmd/microvm-collect/main_other.go",
+    "originalSHA256": "1291cb8f3ce466dbc663f718a16d6096a25fdbbcd55245107faadab1badd4856",
+    "originalBytes": 176,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/backend/e2bbe/capture_types.go",
+    "originalSHA256": "a3ca885d22b41a99ce5069f2ec0911f0dc2201528498e5d783a25de738c0f033",
+    "originalBytes": 7678,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/backend/e2bbe/transfer.go",
+    "originalSHA256": "cf8ad42a82ef8638c075b24e49244bf3c840a51f7f70638afb2b9daefdaaa70d",
+    "originalBytes": 7567,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/capture_linux.go",
+    "originalSHA256": "31e190401d6f9b4dafd353aca0ae00f26e1b9b5ef48440769fcd8381bbda7340",
+    "originalBytes": 12181,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/capture_linux_test.go",
+    "originalSHA256": "b8c41f2d72408153c328f1a2c97ca4ca9d66420a3de80a299d965a5a8dc89671",
+    "originalBytes": 8932,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/cgroup_linux.go",
+    "originalSHA256": "6a898d92a9a3602155608b29bb0ee936086332ebb3f2fc6c0c54261b5ec909a8",
+    "originalBytes": 9031,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/cgroup_linux_test.go",
+    "originalSHA256": "8bfff8d1c84228307d10c56d631a80a3d64e3f4622fa2e2d3a8a5356426c2bad",
+    "originalBytes": 5540,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/permissions_linux.go",
+    "originalSHA256": "3fa302e7d8ef7dfa390bf8767b17cb2a76f135772af17c5a3bb4dd548a3289a7",
+    "originalBytes": 1844,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/permissions_linux_test.go",
+    "originalSHA256": "c2832fc8f26a45d5310312cc1ebfda4c82040dbcc8902d3f1de5c7ed0d7656f4",
+    "originalBytes": 2224,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/prepare.go",
+    "originalSHA256": "e85ef329d9243a754fea4abec6ccbfb29147bb88ca5e873571bbea582c31c931",
+    "originalBytes": 8087,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/prepare_test.go",
+    "originalSHA256": "ef86d3d59fb7f30ab076167d1c499b153eebf9614de3b8aeed5efed412d0cefc",
+    "originalBytes": 7651,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/repository_linux.go",
+    "originalSHA256": "7142abb91e899391d44fadb59882a6555b29e152733ec40abb80eab3b8f350f3",
+    "originalBytes": 3569,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/restore_linux.go",
+    "originalSHA256": "8679c4595139da47ef75896606c548f7aaabc1bd91afdf79f0b36ea05f02dd4c",
+    "originalBytes": 4858,
+    "encoding": "identity"
+  },
+  {
+    "path": "source/control-plane/internal/microvmguest/restore_linux_test.go",
+    "originalSHA256": "b0c2645089be628913560e121be59ee18a13ec2e146b7e612b8fc6ba129657c4",
+    "originalBytes": 4044,
+    "encoding": "identity"
+  }
+]

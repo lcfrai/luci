@@ -1,0 +1,16 @@
+[
+  {
+    "rootFreeBytes": 860659712,
+    "tmpFreeBytes": 368914432,
+    "cgroupRemainingBytes": 9036021760,
+    "cacheBytes": 917149277,
+    "monotonicSeconds": 0.010780685988720506
+  },
+  {
+    "rootFreeBytes": 860659712,
+    "tmpFreeBytes": 368914432,
+    "cgroupRemainingBytes": 9035501568,
+    "cacheBytes": 917149277,
+    "monotonicSeconds": 0.022238270961679518
+  }
+]

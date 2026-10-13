@@ -19,6 +19,7 @@ import (
 
 func run() error {
 	var binding e2bbe.TransferBinding
+	var kernelIdentity e2bbe.CaptureIdentity
 	archive := flag.String("archive", "/luci-transfer/input.tar", "fixed uploaded input")
 	digest := flag.String("archive-sha256", "", "exact reviewed archive digest")
 	flag.StringVar(&binding.Identity.OwnerID, "owner", "", "controller owner")
@@ -28,6 +29,9 @@ func run() error {
 	flag.StringVar(&binding.Identity.OperationID, "operation", "", "operation")
 	flag.StringVar(&binding.SourceDigest, "source-sha256", "", "reviewed source digest")
 	flag.StringVar(&binding.ContextDigest, "context-sha256", "", "reviewed context digest")
+	flag.StringVar(&kernelIdentity.SandboxID, "sandbox", "", "exact owned microVM")
+	flag.StringVar(&kernelIdentity.RequestDigest, "request-sha256", "", "exact reserved request")
+	flag.StringVar(&kernelIdentity.LaunchDigest, "launch-sha256", "", "exact reserved upstream launch")
 	flag.Parse()
 	if os.Geteuid() != 0 || flag.NArg() != 0 || *archive != "/luci-transfer/input.tar" {
 		return microvmguest.ErrRefused
@@ -76,6 +80,12 @@ func run() error {
 		return e
 	}
 	if e = microvmguest.ReserveLaunch(context.Background(), prepared); e != nil {
+		return e
+	}
+	kernelIdentity.Identity = binding.Identity
+	kernelIdentity.InputBundleDigest = *digest
+	kernelIdentity.SourceDigest, kernelIdentity.ContextDigest = binding.SourceDigest, binding.ContextDigest
+	if _, e = microvmguest.BindTaskCgroup(context.Background(), prepared, kernelIdentity); e != nil {
 		return e
 	}
 	// The trusted existing entrypoint drops UID/GID and all capabilities before

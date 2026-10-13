@@ -14,6 +14,7 @@ as the controller:
 ```sh
 cd control-plane
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o ../artifacts/luci-microvm-bootstrap ./cmd/microvm-bootstrap
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o ../artifacts/luci-microvm-collect ./cmd/microvm-collect
 ```
 
 That command alone does not assemble or verify a provider template. A template
@@ -28,6 +29,11 @@ the ordinary API/sandboxd inventory alone is insufficient before API wiring.
   authenticated management/guest route, and explicit model egress policy. The
   current allocation boundary denies outbound IPv4; it does not establish a
   working model connection or IPv6 policy.
+- Unified cgroup v2 mounted at `/sys/fs/cgroup` from the real root, with a
+  root-owned, undelegated `/sys/fs/cgroup/luci-tasks` parent. The root collector
+  and envd must run outside every task group. No task process may write cgroup
+  controls or move itself/descendants out of its group. Host/container cgroup
+  namespaces alone do not establish this template contract.
 - Existing sandbox tools at their fixed absolute paths, `dev` UID/GID1001 and
   the unchanged privilege-dropping entrypoint. Root must retain the ability to
   make the one read-only context bind mount before dropping capabilities.
@@ -74,11 +80,39 @@ exact VM; this is not a cleanup success. A process PID acknowledgement proves
 only envd fork, not prepared input, sandboxd readiness, model execution or task
 success.
 
-The separate `e2bbe.ReceiveOutput` validates a returned archive as data. It does
-not produce an archive, establish that writers stopped, or integrate changes.
-The exact terminal observation, quiesced output producer, original-baseline
-review/import, scheduler/backend wiring, template build and live VM lifecycle
-remain required integration work. Missing cloud credentials or KVM block live
+## Exact task output capture
+
+Bootstrap records root-protected `launch-kernel.json` with the acknowledged
+process PID, VM/request/launch/input identities, boot ID and task-cgroup inode,
+then moves itself into the fresh `luci-tasks/<operation>` group before exec.
+The controller must authenticate and durably retain this receipt. It observes
+the existing sandboxd typed Exit frame independently; stdout or collector exit
+cannot declare upstream success. Native completion alone never releases a VM.
+
+The fixed root collector takes only `--identity-base64` containing that exact
+prior JSON identity. It reloads protected original input and launch markers,
+checks the kernel boot/inode and that it runs outside the task, requests freeze,
+and waits for actual `cgroup.events` frozen=1. Cancellation/uncertainty leaves
+the group frozen and the VM charged; it never supplies an unfreeze action.
+The collector executes no task Git configuration, hooks or commands.
+
+It writes one exclusive capture intent and `/luci-transfer/output.tar`, then
+publishes `/luci-transfer/output.json` only after archive verification, durable
+writes and another exact freeze observation. Partial files remain diagnostic
+uncertainty and cannot trigger a second capture. The archive contains full
+bounded source under `output/source/`, plus hash-bound `output/source-manifest.json`
+and `output/changes.json`. Original transferred paths remain represented when
+changed/deleted, even if the task edits ignore files. Fixed exclusions apply
+only to new dependency/cache/Git/credential paths; exclusions are enumerated.
+Links, special files, unowned/cross-device files and exceeded bounds refuse
+capture. Current limits are4094 source files,63MiB source plus1MiB metadata,
+16384 visited entries and1024 directories, with the underlying portable archive
+path limits. Unsupported larger repositories require an explicit future
+transfer policy; no truncated-success claim is made.
+
+The controller-side `ReceiveOutput` still validates returned data; complete
+collector invocation, result import/review, product scheduler/backend wiring,
+template build and live VM lifecycle remain required integration work. Missing cloud credentials or KVM block live
 operations only; source and controlled validation continue independently.
 
 ## Focused checks
@@ -95,3 +129,5 @@ explicitly skips without root; a skipped test is not an ownership pass. A
 controlled root test in a Docker container can verify Linux ownership/Git
 behavior, but cannot establish a real microVM, mount capability, upstream
 provider execution, template provenance or cloud resource settlement.
+
+Controlled source evidence is in [the output-capture capsule](../../docs/luci/evidence/cloud084-guest-capture/README.md). Kernel observations there are fixtures. Root freezer/mount/UID permissions, executable template provenance, live model execution and real per-VM teardown have **not** passed.
