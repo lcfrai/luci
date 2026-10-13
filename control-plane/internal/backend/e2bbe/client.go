@@ -158,7 +158,30 @@ func metadata(r Record) map[string]string {
 	if r.EgressDigest != "" {
 		m["luci.egress"] = r.EgressDigest
 	}
+	if r.Template.BuildID != "" {
+		m["luci.template-build"] = r.Template.BuildID
+	}
 	return m
+}
+
+// The pinned Embed API reports the exact build's status. This read is an
+// admission prerequisite, not proof of guest contents or KVM isolation.
+func (c *Controller) VerifyTemplateBuild(ctx context.Context) error {
+	t := c.config.Template
+	if t.BuildID == "" || !validID(t.BuildID) {
+		return ErrUnsupported
+	}
+	var out struct {
+		TemplateID string `json:"templateID"`
+		BuildID    string `json:"buildID"`
+		Status     string `json:"status"`
+	}
+	path := "/templates/" + t.ID + "/builds/" + t.BuildID + "/status"
+	status, _, err := c.client.call(ctx, http.MethodGet, path, url.Values{"limit": {"0"}}, nil, &out)
+	if err != nil || status != http.StatusOK || out.TemplateID != t.ID || out.BuildID != t.BuildID || out.Status != "ready" {
+		return ErrUnsupported
+	}
+	return nil
 }
 func matches(r Record, s providerSandbox) bool {
 	if !validID(s.ID) || s.TemplateID != r.Template.ID || s.MemoryMiB != r.Template.MemoryMiB || s.CPU*1000 != r.Template.CPUMillis || (s.State != "running" && s.State != "paused") {

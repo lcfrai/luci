@@ -63,7 +63,7 @@ func newController(c Config, restored []byte, restoreContext context.Context) (*
 	if !validID(c.OwnerID) || !validID(c.Deployment.Scope) || !validID(c.Deployment.HostGeneration) || c.Deployment.Provider != "aws" || c.Deployment.InstanceType != "m8i.xlarge" || !validID(c.Deployment.Region) || c.Deployment.RuntimeRevision != RuntimeRevision || !digestPattern.MatchString(c.Deployment.ManagementReceiptDigest) || !digestPattern.MatchString(c.Deployment.RestoreReceiptDigest) || c.Checkpoint == nil || c.Authorize == nil {
 		return nil, ErrUnsupported
 	}
-	if !validID(c.Template.ID) || !digestPattern.MatchString(c.Template.BuildDigest) || c.Template.MemoryMiB < 128 || c.Template.MemoryMiB > 32768 || c.Template.CPUMillis < 1000 || c.Template.CPUMillis > 16000 || c.Template.CPUMillis%1000 != 0 {
+	if !validID(c.Template.ID) || c.Template.BuildID != "" && !validID(c.Template.BuildID) || !digestPattern.MatchString(c.Template.BuildDigest) || c.Template.MemoryMiB < 128 || c.Template.MemoryMiB > 32768 || c.Template.CPUMillis < 1000 || c.Template.CPUMillis > 16000 || c.Template.CPUMillis%1000 != 0 {
 		return nil, ErrUnsupported
 	}
 	l := c.Limits
@@ -166,7 +166,7 @@ func validateJournal(b []byte, owner, scope string) (journal, error) {
 		if r.EgressDigest != "" && !digestPattern.MatchString(r.EgressDigest) {
 			return journal{}, ErrConflict
 		}
-		if r.Template.MemoryMiB < 128 || r.Template.MemoryMiB > 32768 || r.Template.CPUMillis < 1000 || r.Template.CPUMillis > 16000 || !validID(r.Template.ID) || !digestPattern.MatchString(r.Template.BuildDigest) {
+		if r.Template.MemoryMiB < 128 || r.Template.MemoryMiB > 32768 || r.Template.CPUMillis < 1000 || r.Template.CPUMillis > 16000 || !validID(r.Template.ID) || r.Template.BuildID != "" && !validID(r.Template.BuildID) || !digestPattern.MatchString(r.Template.BuildDigest) {
 			return journal{}, ErrConflict
 		}
 		if r.State != Creating && r.State != Allocated && r.State != Unknown && r.State != Cancelling && r.State != Absent {

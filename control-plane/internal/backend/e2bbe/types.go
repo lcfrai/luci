@@ -71,6 +71,7 @@ type Deployment struct {
 }
 type Template struct {
 	ID          string `json:"id"`
+	BuildID     string `json:"buildId,omitempty"` // exact provider build selected by the operator
 	BuildDigest string `json:"buildDigest"`
 	MemoryMiB   int64  `json:"memoryMiB"`
 	CPUMillis   int64  `json:"cpuMillis"`

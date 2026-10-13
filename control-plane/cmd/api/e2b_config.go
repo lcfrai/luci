@@ -109,6 +109,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&selected) != nil || decoder.Decode(new(any)) != io.EOF ||
 		selected.Store.OwnerID == "" || selected.Store.RuntimeScope != selected.Deployment.Scope ||
+		selected.Template.BuildID == "" ||
 		selected.TaskMaxSeconds < 1 || selected.TaskMaxSeconds > selected.Limits.MaxTaskSeconds ||
 		selected.TaskEstimatedCostMicros < 1 || selected.TaskEstimatedCostMicros > selected.Limits.EstimatedCostMicros ||
 		len(selected.ModelEgressDomains) == 0 || !e2bbe.ValidEgressDomains(selected.ModelEgressDomains) ||
@@ -223,6 +224,11 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	if err != nil {
 		closeStore()
 		return nil, nil, fmt.Errorf("restore exact cloud VM ownership: %w", err)
+	}
+	if err = controller.VerifyTemplateBuild(ctx); err != nil {
+		_ = controller.Close(context.WithoutCancel(ctx))
+		closeStore()
+		return nil, nil, fmt.Errorf("verify selected cloud microVM template build: %w", err)
 	}
 	cloud := &api.CloudTaskRuntime{Runtime: &e2bbe.TaskRuntime{Controller: controller, Store: store},
 		AttachKey: attachKey, MaxSeconds: selected.TaskMaxSeconds,

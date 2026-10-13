@@ -56,6 +56,7 @@ type providerFixture struct {
 	lostACK, holdDelete, foreign bool
 	guestGrant                   bool
 	invalidGuestGrant            bool
+	templateStatus               string
 	entered, release             chan struct{}
 }
 
@@ -74,6 +75,17 @@ func (p *providerFixture) handle(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if r.Method == "GET" && r.URL.Path == "/templates/template-one/builds/build-one/status" {
+		if r.URL.Query().Get("limit") != "0" {
+			p.t.Error("template readiness read requested unbounded logs")
+		}
+		status := p.templateStatus
+		if status == "" {
+			status = "ready"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"templateID": "template-one", "buildID": "build-one", "status": status, "logs": []string{}, "logEntries": []string{}})
+		return
+	}
 	if r.Method == "POST" && r.URL.Path == "/v2/sandboxes" {
 		var body struct {
 			Template   string `json:"templateID"`
@@ -174,6 +186,26 @@ func fixtureConfig(t *testing.T, p *providerFixture) (Config, *checkpointFixture
 	sink := &checkpointFixture{}
 	return Config{Endpoint: p.server.URL, APIKey: "test-only-key", RootCAs: roots, StateDir: filepath.Join(t.TempDir(), "state"), OwnerID: "owner-a", EgressAllow: []string{"api.openai.com"}, Deployment: Deployment{Provider: "aws", Region: "us-east-1", InstanceType: "m8i.xlarge", Scope: "scope-one", HostGeneration: "host-one", RuntimeRevision: RuntimeRevision, ManagementReceiptDigest: strings.Repeat("a", 64), RestoreReceiptDigest: strings.Repeat("b", 64)}, Template: Template{ID: "template-one", BuildDigest: strings.Repeat("c", 64), MemoryMiB: 2048, CPUMillis: 2000}, Limits: Limits{MaxConcurrent: 4, MaxPerProject: 2, MemoryMiB: 8192, CPUMillis: 8000, EstimatedCostMicros: 10000, MaxTaskSeconds: 60}, Checkpoint: sink, Authorize: func(context.Context, Request, string) error { return nil }}, sink
 }
+func TestExactProviderTemplateBuildMustBeReadyBeforeCloudAdmission(t *testing.T) {
+	p := newProvider(t)
+	cfg, _ := fixtureConfig(t, p)
+	cfg.Template.BuildID = "build-one"
+	c := openController(t, cfg)
+	if err := c.VerifyTemplateBuild(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	p.mu.Lock()
+	p.templateStatus = "building"
+	p.mu.Unlock()
+	if err := c.VerifyTemplateBuild(context.Background()); !errors.Is(err, ErrUnsupported) {
+		t.Fatal("unfinished provider build was accepted", err)
+	}
+	_, usage := c.Snapshot()
+	if usage.Active != 0 || p.creates != 0 {
+		t.Fatal("readiness inspection allocated a VM", usage, p.creates)
+	}
+}
+
 func TestConfiguredModelEgressRejectsBroadAndLocalDestinations(t *testing.T) {
 	for _, domains := range [][]string{{"*.openai.com"}, {"0.0.0.0/0"}, {"127.0.0.1"}, {"localhost"}, {"model.internal"}, {"API.OPENAI.COM"}, {"api.openai.com", "api.openai.com"}} {
 		if ValidEgressDomains(domains) {
