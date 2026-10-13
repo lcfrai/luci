@@ -2,7 +2,7 @@
 
 Dylan's latest direction is **make Luci work locally first; Azure is the first cloud target; AWS follows later**. This is an authorized sequencing correction under the already audited [controlling contract](PRODUCT-CONTRACT.md), not a new scope gate or a relaxation of any [verbatim LC-01–LC-16 requirement](PRODUCT-CONTRACT-LC.json). The local Docker path, four communicating phases, per-person conversation, team coordination, live delivery, per-task microVM swarm, authority, safety, recovery and performance obligations remain intact.
 
-The [Azure microVM architecture proposal](AZURE-MICROVM-ARCHITECTURE-PROPOSAL-2026-10-14.md) records a pinned upstream and Microsoft primary-source fit review. It is **awaiting the originating local architecture audit**, not an implemented Azure provider, account readiness check, or authorization to provision. Local Docker testing continues independently.
+The [Azure microVM architecture proposal](AZURE-MICROVM-ARCHITECTURE-PROPOSAL-2026-10-14.md) records concrete offline gateway, secret, durable-store, restore and provider-identity decisions plus pinned primary-source fit review. It is **awaiting the originating local architecture audit and local readiness before Azure code**, not an implemented Azure provider, account readiness check, or authorization to provision. Azure subscription, region/SKU/quota, live KVM and budget checks are later deployment/run gates and do not block offline implementation after that audit. Local Docker testing continues independently.
 
 ## Active order and evidence boundary
 
