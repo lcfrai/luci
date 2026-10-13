@@ -198,6 +198,25 @@ async function interviewOutcomes() {
   for (let step = 0; step < 4; step++) await userEvent.click(screen.getByRole("button", { name: "Next question" }));
   await screen.findByRole("textbox", { name: "How to check outcome 1" });
 }
+it("keeps guided answers through Next, Back, final review and Save definition", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_projectId, value) => ({ ...value, revision: 3, briefRevision: 4 }));
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByRole("textbox", { name: "The idea" });
+  await userEvent.click(screen.getByRole("tab", { name: "Guided interview" }));
+  const answer = screen.getByRole("textbox", { name: "What should this solution do?" });
+  await userEvent.clear(answer);
+  await userEvent.type(answer, "Keep the original goal and add scheduling");
+  await userEvent.click(screen.getByRole("button", { name: "Next question" }));
+  await userEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect((screen.getByRole("textbox", { name: "What should this solution do?" }) as HTMLTextAreaElement).value).toBe("Keep the original goal and add scheduling");
+  for (let step = 0; step < 4; step++) await userEvent.click(screen.getByRole("button", { name: "Next question" }));
+  await userEvent.click(screen.getByRole("button", { name: "Review specification" }));
+  expect((screen.getByRole("textbox", { name: "The idea" }) as HTMLTextAreaElement).value).toBe("Keep the original goal and add scheduling");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(save.mock.calls[0][1].purpose).toBe("Keep the original goal and add scheduling");
+});
 function twoOutcomes() {
   const value = fixture();
   value.requirements.push({ id: "AC-002", title: "Staff block availability", priority: "should", acceptance: "Unavailable slots cannot be booked" });

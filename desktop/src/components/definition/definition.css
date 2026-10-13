@@ -29,7 +29,7 @@
 .definition-history { padding-inline-start: 22px; }
 .definition-history > li { padding-block: 16px; border-block-end: 1px solid var(--line-soft); }
 .definition-history pre { white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 420px; overflow: auto; font: 0.8rem/1.6 var(--mono); }
-.definition-footer { position: sticky; inset-block-end: -28px; background: var(--surface); padding-block: 16px; margin-block-start: 32px; border-block-start: 1px solid var(--line-soft); z-index: 1; }
+.definition-footer { position: static; background: var(--surface); padding-block: 16px; margin-block-start: 32px; border-block-start: 1px solid var(--line-soft); }
 .definition-footer p { margin-block: 10px 0; }
 /* Scrollable tabs keep Fluid's inset ring so focusing a revealed tab cannot
    clip its indicator at the tab strip or viewport edge. */
@@ -51,10 +51,7 @@
 .repository-draft-actions > summary, .repository-evidence > summary { cursor: pointer; min-block-size: 44px; padding-block: 10px; line-height: 1.5; }
 .repository-history { border-block-start: 1px solid var(--line-soft); margin-block-start: 24px; padding-block-start: 4px; }
 @media (max-width: 1100px) { .definition-layout { grid-template-columns: minmax(0, 1fr); gap: 26px; } .definition-assistant { position: static; border-inline-start: 0; border-block-start: 1px solid var(--line-soft); padding-inline-start: 0; padding-block-start: 24px; } }
-@media (max-width: 600px) { .definition-record { padding: 12px; } .definition-footer { position: static; } .definition-footer .journey-actions { flex-wrap: wrap; } }
-/* A short viewport needs the whole scrollport for editing and keyboard focus;
-   a pinned action footer otherwise covers the tabs and fields being revealed. */
-@media (max-height: 700px) { .definition-footer { position: static; } }
+@media (max-width: 600px) { .definition-record { padding: 12px; } .definition-footer .journey-actions { flex-wrap: wrap; } }
 
 .definition-conversation-link { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-block-end: 24px; }
 .definition-conversation-link p { margin: 0; max-inline-size: 72ch; line-height: 1.6; }
