@@ -189,9 +189,9 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 			if controller == nil {
 				return management.ErrExecutionAuthority
 			}
-			rows, _ := controller.Snapshot()
+			rows, settled := controller.SpendSnapshot()
 			limit := int64(math.Floor(current.Policy.MonthlyBudgetUSD * 1_000_000))
-			if !cloudActorMonthlyCostFits(rows, request, time.Now().UTC(), limit) {
+			if !cloudActorMonthlyCostFits(rows, settled, request, time.Now().UTC(), limit) {
 				return management.ErrExecutionAuthority
 			}
 		}

@@ -48,11 +48,11 @@ func (a *API) cloudTaskCapacity(ctx context.Context, projectID, actorID string) 
 	if budget < 0 {
 		budget = 0
 	}
-	limits, template, usage, projectActive, rows := cloud.Runtime.Controller.Capacity(projectID)
-	return cloudCapacityView(limits, template, usage, projectActive, rows, actorID, projectID, cloud.Runtime.Controller.Region(), cloud.EstimatedCostMicros, cloud.MaxSeconds, budget, time.Now().UTC()), nil
+	limits, template, usage, projectActive, rows, settled := cloud.Runtime.Controller.Capacity(projectID)
+	return cloudCapacityView(limits, template, usage, projectActive, rows, settled, actorID, projectID, cloud.Runtime.Controller.Region(), cloud.EstimatedCostMicros, cloud.MaxSeconds, budget, time.Now().UTC()), nil
 }
 
-func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe.Usage, projectActive int, rows []e2bbe.Record,
+func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe.Usage, projectActive int, rows []e2bbe.Record, settled []e2bbe.SettledSpend,
 	actorID, projectID, region string, taskCost int64, maxSeconds int, budget int64, now time.Time) product.CoordinatorCloudCapacity {
 	month := now.UTC().Format("2006-01")
 	committed, unknown := int64(0), false
@@ -83,6 +83,22 @@ func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe
 				continue
 			}
 			committed += cost
+		}
+	}
+	for _, row := range settled {
+		if !row.SandboxCreated || row.CreatedAt.UTC().Format("2006-01") != month {
+			continue
+		}
+		if row.BillingUserID == "" {
+			unknown = true
+			continue
+		}
+		if row.BillingUserID == actorID {
+			if row.EstimatedCostMicros < 1 || row.EstimatedCostMicros > math.MaxInt64-committed {
+				unknown = true
+				continue
+			}
+			committed += row.EstimatedCostMicros
 		}
 	}
 	available := minimumCloudSlots(limits.MaxConcurrent-usage.Active, limits.MaxPerProject-projectActive,

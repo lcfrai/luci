@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
+	"sort"
 	"sync"
 	"time"
 
@@ -21,22 +24,57 @@ type journal struct {
 	OwnerID string            `json:"ownerId"`
 	Scope   string            `json:"scope"`
 	Records map[string]Record `json:"records"`
+	// Settled retains exact no-replay and estimated-spend evidence after an
+	// absent VM has been joined to the authoritative product run. Its full
+	// record remains in the prior immutable off-host journal checkpoint.
+	Settled map[string]settledAttempt `json:"settled,omitempty"`
 }
+
+type settledAttempt struct {
+	RequestDigest       string    `json:"requestDigest"`
+	AttemptDigest       string    `json:"attemptDigest"`
+	RecordDigest        string    `json:"recordDigest"`
+	JournalDigest       string    `json:"journalDigest"`
+	EstimatedCostMicros int64     `json:"estimatedCostMicros"`
+	BillingUserID       string    `json:"billingUserId,omitempty"`
+	CreatedAt           time.Time `json:"createdAt"`
+	SandboxCreated      bool      `json:"sandboxCreated"`
+}
+
+// SettledSpend is budget evidence only. It cannot be used as an allocation,
+// process observation, provider billing settlement or source-review receipt.
+type SettledSpend struct {
+	OperationID         string
+	BillingUserID       string
+	CreatedAt           time.Time
+	EstimatedCostMicros int64
+	SandboxCreated      bool
+}
+
+const maxSettledAttempts = 8192
+const settledCompactionWatermark = 3 << 20
+const settledCompactionTarget = 2 << 20
+
+func attemptDigest(i Identity) string {
+	return digest([3]string{i.ProjectID, i.TaskID, i.AttemptID})
+}
+
 type Controller struct {
-	mu              sync.Mutex
-	config          Config
-	client          *providerClient
-	journal         journal
-	root            *os.Root
-	lease           *os.File
-	busy            map[string]bool
-	nativeObservers map[string]context.CancelFunc
-	closed          bool
-	stopped         chan struct{}
-	ctx             context.Context
-	cancel          context.CancelFunc
-	workers         sync.WaitGroup
-	checkpoint      CheckpointWriter
+	mu               sync.Mutex
+	config           Config
+	client           *providerClient
+	journal          journal
+	root             *os.Root
+	lease            *os.File
+	busy             map[string]bool
+	nativeObservers  map[string]context.CancelFunc
+	closed           bool
+	stopped          chan struct{}
+	ctx              context.Context
+	cancel           context.CancelFunc
+	workers          sync.WaitGroup
+	checkpoint       CheckpointWriter
+	checkpointDigest string
 }
 
 func New(c Config) (*Controller, error) { return newController(c, nil, context.Background()) }
@@ -53,7 +91,7 @@ func (c *Controller) EgressDomains() []string {
 
 // Capacity is an informational snapshot. Allocate rechecks the authoritative
 // journal and current actor/provider prerequisites under its own lock.
-func (c *Controller) Capacity(projectID string) (Limits, Template, Usage, int, []Record) {
+func (c *Controller) Capacity(projectID string) (Limits, Template, Usage, int, []Record, []SettledSpend) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	rows := make([]Record, 0, len(c.journal.Records))
@@ -65,7 +103,26 @@ func (c *Controller) Capacity(projectID string) (Limits, Template, Usage, int, [
 		}
 	}
 	usage, _ := c.usageLocked()
-	return c.config.Limits, c.config.Template, usage, projectActive, rows
+	return c.config.Limits, c.config.Template, usage, projectActive, rows, c.settledSpendLocked()
+}
+
+func (c *Controller) settledSpendLocked() []SettledSpend {
+	out := make([]SettledSpend, 0, len(c.journal.Settled))
+	for op, row := range c.journal.Settled {
+		out = append(out, SettledSpend{OperationID: op, BillingUserID: row.BillingUserID, CreatedAt: row.CreatedAt, EstimatedCostMicros: row.EstimatedCostMicros, SandboxCreated: row.SandboxCreated})
+	}
+	return out
+}
+
+// SpendSnapshot reads live and compacted estimates under one journal lock.
+func (c *Controller) SpendSnapshot() ([]Record, []SettledSpend) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	rows := make([]Record, 0, len(c.journal.Records))
+	for _, row := range c.journal.Records {
+		rows = append(rows, row)
+	}
+	return rows, c.settledSpendLocked()
 }
 
 func egressDigest(domains []string) string {
@@ -133,6 +190,7 @@ func newController(c Config, restored []byte, restoreContext context.Context) (*
 	if out.checkpoint == nil {
 		return fail(ErrUnsupported)
 	}
+	out.checkpointDigest = bytesDigest(body)
 
 	if restored != nil {
 		if e = out.persist(restoreContext); e != nil {
@@ -173,13 +231,22 @@ func validateJournal(b []byte, owner, scope string) (journal, error) {
 	var j journal
 	decoder := json.NewDecoder(bytes.NewReader(b))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&j) != nil || decoder.Decode(new(any)) != io.EOF || j.Version != 1 || j.OwnerID != owner || j.Scope != scope || j.Records == nil || len(j.Records) > maxRecords {
+	if decoder.Decode(&j) != nil || decoder.Decode(new(any)) != io.EOF || j.Version != 1 || j.OwnerID != owner || j.Scope != scope || j.Records == nil || len(j.Records) > maxRecords || len(j.Settled) > maxSettledAttempts {
 		return journal{}, ErrConflict
 	}
 	seenVMs := map[string]bool{}
 	seenAttempts := map[string]bool{}
+	for op, settled := range j.Settled {
+		if !validID(op) || !digestPattern.MatchString(settled.RequestDigest) || !digestPattern.MatchString(settled.AttemptDigest) || !digestPattern.MatchString(settled.RecordDigest) || !digestPattern.MatchString(settled.JournalDigest) || settled.EstimatedCostMicros < 1 || settled.EstimatedCostMicros > 1<<50 || settled.CreatedAt.IsZero() || settled.BillingUserID != "" && !validID(settled.BillingUserID) {
+			return journal{}, ErrConflict
+		}
+		if seenAttempts[settled.AttemptDigest] {
+			return journal{}, ErrConflict
+		}
+		seenAttempts[settled.AttemptDigest] = true
+	}
 	for op, r := range j.Records {
-		if op != r.Request.Identity.OperationID || !validRequest(r.Request) || r.Request.Identity.OwnerID != j.OwnerID || r.RequestDigest != digest(r.Request) || r.Deployment.Scope != j.Scope || r.Deployment.RuntimeRevision != RuntimeRevision || r.Revision < 1 || r.CreatedAt.IsZero() || r.UpdatedAt.Before(r.CreatedAt) || r.ProviderBillingSettled {
+		if op != r.Request.Identity.OperationID || j.Settled[op].RequestDigest != "" || !validRequest(r.Request) || r.Request.Identity.OwnerID != j.OwnerID || r.RequestDigest != digest(r.Request) || r.Deployment.Scope != j.Scope || r.Deployment.RuntimeRevision != RuntimeRevision || r.Revision < 1 || r.CreatedAt.IsZero() || r.UpdatedAt.Before(r.CreatedAt) || r.ProviderBillingSettled {
 			return journal{}, ErrConflict
 		}
 		if r.EgressDigest != "" && !digestPattern.MatchString(r.EgressDigest) {
@@ -212,7 +279,7 @@ func validateJournal(b []byte, owner, scope string) (journal, error) {
 		if r.ProductOutcome != "" && (r.State != Absent || r.ResourcesHeld || !validProductOutcome(r, r.ProductOutcome)) {
 			return journal{}, ErrConflict
 		}
-		key := r.Request.Identity.ProjectID + "/" + r.Request.Identity.TaskID + "/" + r.Request.Identity.AttemptID
+		key := attemptDigest(r.Request.Identity)
 		if seenAttempts[key] || r.SandboxID != "" && seenVMs[r.SandboxID] {
 			return journal{}, ErrConflict
 		}
@@ -276,14 +343,89 @@ func (c *Controller) persist(ctx context.Context) error {
 	if e != nil || ack != bytesDigest(b) {
 		return ErrUnknown
 	}
+	c.checkpointDigest = ack
 	return nil
+}
+
+// compactSettledLocked moves only absent, product-joined records into bounded
+// no-replay tombstones. The prior complete journal must already be confirmed
+// in the off-host checkpoint; no provider resource or billing proof is lost.
+// Caller holds mu and refuses allocation if publication is unconfirmed.
+func (c *Controller) compactSettledLocked(ctx context.Context, capacity int) error {
+	prior, err := json.Marshal(c.journal)
+	if err != nil {
+		return ErrCapacity
+	}
+	if len(c.journal.Records) < capacity && len(prior) < settledCompactionWatermark {
+		return nil
+	}
+	if bytesDigest(prior) != c.checkpointDigest {
+		return ErrUnknown
+	}
+	if len(c.journal.Settled) >= maxSettledAttempts {
+		return ErrCapacity
+	}
+	originalRecords := maps.Clone(c.journal.Records)
+	originalSettled := maps.Clone(c.journal.Settled)
+	rollback := func() {
+		c.journal.Records = originalRecords
+		c.journal.Settled = originalSettled
+	}
+	type candidate struct {
+		op     string
+		record Record
+	}
+	rows := make([]candidate, 0)
+	for op, r := range c.journal.Records {
+		if r.State == Absent && !r.ResourcesHeld && r.ProductOutcome != "" && !c.busy[op] {
+			rows = append(rows, candidate{op, r})
+		}
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].record.UpdatedAt.Equal(rows[j].record.UpdatedAt) {
+			return rows[i].op < rows[j].op
+		}
+		return rows[i].record.UpdatedAt.Before(rows[j].record.UpdatedAt)
+	})
+	if c.journal.Settled == nil {
+		c.journal.Settled = map[string]settledAttempt{}
+	}
+	changed := false
+	for _, row := range rows {
+		if len(c.journal.Settled) >= maxSettledAttempts {
+			break
+		}
+		r := row.record
+		c.journal.Settled[row.op] = settledAttempt{RequestDigest: r.RequestDigest, AttemptDigest: attemptDigest(r.Request.Identity), RecordDigest: digest(r), JournalDigest: c.checkpointDigest, EstimatedCostMicros: r.Request.EstimatedCostMicros, BillingUserID: r.Request.BillingUserID, CreatedAt: r.CreatedAt, SandboxCreated: r.SandboxID != ""}
+		delete(c.journal.Records, row.op)
+		changed = true
+		if len(c.journal.Records) <= capacity/2 {
+			current, marshalErr := json.Marshal(c.journal)
+			if marshalErr != nil {
+				rollback()
+				return ErrCapacity
+			}
+			if len(current) <= settledCompactionTarget {
+				break
+			}
+		}
+	}
+	current, err := json.Marshal(c.journal)
+	if err != nil || !changed || len(c.journal.Records) >= capacity || len(current) >= settledCompactionWatermark {
+		rollback()
+		return ErrCapacity
+	}
+	return c.persist(ctx)
 }
 func (c *Controller) usageLocked() (Usage, error) {
 	var u Usage
+	for _, settled := range c.journal.Settled {
+		u.EstimatedCostMicros = addEstimatedCost(u.EstimatedCostMicros, settled.EstimatedCostMicros)
+	}
 	for _, r := range c.journal.Records {
 		// Retain estimated spend across VM spin-down. Absence proves neither
 		// refunded model spend nor settled provider/storage billing.
-		u.EstimatedCostMicros += r.Request.EstimatedCostMicros
+		u.EstimatedCostMicros = addEstimatedCost(u.EstimatedCostMicros, r.Request.EstimatedCostMicros)
 		if r.ResourcesHeld {
 			u.Active++
 			u.MemoryMiB += r.Template.MemoryMiB
@@ -292,6 +434,13 @@ func (c *Controller) usageLocked() (Usage, error) {
 		}
 	}
 	return u, nil
+}
+
+func addEstimatedCost(total, cost int64) int64 {
+	if cost > math.MaxInt64-total {
+		return math.MaxInt64 // A saturated estimate must refuse further admission.
+	}
+	return total + cost
 }
 func (c *Controller) Snapshot() ([]Record, Usage) {
 	c.mu.Lock()
@@ -367,10 +516,28 @@ func (c *Controller) Allocate(ctx context.Context, req Request) (Record, error) 
 		}
 		return old, ErrUnknown
 	}
+	if old, ok := c.journal.Settled[req.Identity.OperationID]; ok {
+		c.mu.Unlock()
+		if old.RequestDigest != digest(req) {
+			return Record{}, ErrConflict
+		}
+		return Record{}, ErrUnknown // The owned operation can never Create again.
+	}
+	if e = c.compactSettledLocked(ctx, maxRecords); e != nil {
+		c.mu.Unlock()
+		return Record{}, e
+	}
 	u, _ := c.usageLocked()
 	perProject := 0
+	key := attemptDigest(req.Identity)
+	for _, settled := range c.journal.Settled {
+		if settled.AttemptDigest == key {
+			c.mu.Unlock()
+			return Record{}, ErrConflict
+		}
+	}
 	for _, r := range c.journal.Records {
-		if r.Request.Identity.ProjectID == req.Identity.ProjectID && r.Request.Identity.TaskID == req.Identity.TaskID && r.Request.Identity.AttemptID == req.Identity.AttemptID {
+		if attemptDigest(r.Request.Identity) == key {
 			c.mu.Unlock()
 			return Record{}, ErrConflict
 		}

@@ -12,7 +12,7 @@ import (
 // a proven no-Create refusal does not become model/provider spend. An older
 // current-month allocation with no saved billing owner makes admission
 // uncertain and fails closed until it is settled or the period ends.
-func cloudActorMonthlyCostFits(rows []e2bbe.Record, request e2bbe.Request, now time.Time, limit int64) bool {
+func cloudActorMonthlyCostFits(rows []e2bbe.Record, settled []e2bbe.SettledSpend, request e2bbe.Request, now time.Time, limit int64) bool {
 	if request.BillingUserID == "" || limit <= 0 || request.EstimatedCostMicros <= 0 || request.EstimatedCostMicros > limit {
 		return false
 	}
@@ -40,6 +40,20 @@ func cloudActorMonthlyCostFits(rows []e2bbe.Record, request e2bbe.Request, now t
 			return false
 		}
 		total += cost
+	}
+	for _, row := range settled {
+		if !row.SandboxCreated || row.CreatedAt.UTC().Format("2006-01") != month {
+			continue
+		}
+		if row.BillingUserID == "" || row.OperationID == request.Identity.OperationID {
+			return false
+		}
+		if row.BillingUserID == request.BillingUserID {
+			if row.EstimatedCostMicros < 1 || row.EstimatedCostMicros > limit-total {
+				return false
+			}
+			total += row.EstimatedCostMicros
+		}
 	}
 	return found || request.EstimatedCostMicros <= limit-total
 }
