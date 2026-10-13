@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -31,23 +32,24 @@ type CoordinatorAction struct {
 	FinishedAt  string `json:"finishedAt,omitempty"`
 }
 type CoordinatorContinuation struct {
-	ID             string               `json:"id"`
-	IdempotencyKey string               `json:"idempotencyKey"`
-	ProjectID      string               `json:"projectId"`
-	Actor          ContextActor         `json:"actor"`
-	OriginTurnID   string               `json:"originTurnId"`
-	ContextDigest  string               `json:"contextDigest"`
-	PolicyRevision int                  `json:"policyRevision"`
-	Revision       int                  `json:"revision"`
-	Status         string               `json:"status"`
-	Message        string               `json:"message"`
-	RunID          string               `json:"runId,omitempty"`
-	QueueIDs       []string             `json:"queueIds"`
-	Actions        []CoordinatorAction  `json:"actions"`
-	CreatedAt      string               `json:"createdAt"`
-	UpdatedAt      string               `json:"updatedAt"`
-	NextAction     *OrchestratorAction  `json:"nextAction,omitempty"`
-	Delivery       *CoordinatorDelivery `json:"delivery,omitempty"`
+	ID             string                     `json:"id"`
+	IdempotencyKey string                     `json:"idempotencyKey"`
+	ProjectID      string                     `json:"projectId"`
+	Actor          ContextActor               `json:"actor"`
+	OriginTurnID   string                     `json:"originTurnId"`
+	AcceptedEvents []CoordinationEventReceipt `json:"acceptedEvents,omitempty"`
+	ContextDigest  string                     `json:"contextDigest"`
+	PolicyRevision int                        `json:"policyRevision"`
+	Revision       int                        `json:"revision"`
+	Status         string                     `json:"status"`
+	Message        string                     `json:"message"`
+	RunID          string                     `json:"runId,omitempty"`
+	QueueIDs       []string                   `json:"queueIds"`
+	Actions        []CoordinatorAction        `json:"actions"`
+	CreatedAt      string                     `json:"createdAt"`
+	UpdatedAt      string                     `json:"updatedAt"`
+	NextAction     *OrchestratorAction        `json:"nextAction,omitempty"`
+	Delivery       *CoordinatorDelivery       `json:"delivery,omitempty"`
 }
 type coordinatorContinuationRecord struct {
 	CoordinatorContinuation
@@ -62,17 +64,25 @@ type coordinatorContinuationRecord struct {
 	DeploymentPlan  *CoordinatorDeploymentPlan   `json:"deploymentPlan,omitempty"`
 }
 type coordinatorContinuations struct {
-	Version      int                             `json:"version"`
-	AccountScope string                          `json:"accountScope"`
-	ProjectScope string                          `json:"projectScope"`
-	ActorID      string                          `json:"actorId"`
-	ProjectID    string                          `json:"projectId"`
-	Rows         []coordinatorContinuationRecord `json:"rows"`
-	SavedRoute   *CoordinatorSavedRoute          `json:"savedRoute,omitempty"`
+	Version        int                             `json:"version"`
+	AccountScope   string                          `json:"accountScope"`
+	ProjectScope   string                          `json:"projectScope"`
+	ActorID        string                          `json:"actorId"`
+	ProjectID      string                          `json:"projectId"`
+	Rows           []coordinatorContinuationRecord `json:"rows"`
+	SavedRoute     *CoordinatorSavedRoute          `json:"savedRoute,omitempty"`
+	ContextCommits []CoordinatorContextCommit      `json:"contextCommits,omitempty"`
+}
+type CoordinatorContextCommitView struct {
+	EventID   string `json:"eventId"`
+	Status    string `json:"status"`
+	Commit    string `json:"commit,omitempty"`
+	CreatedAt string `json:"createdAt"`
 }
 type coordinatorContinuationRequest struct {
 	IdempotencyKey         string                     `json:"idempotencyKey"`
 	OriginTurnID           string                     `json:"originTurnId"`
+	AcceptedEvents         []CoordinationEventReceipt `json:"acceptedEvents,omitempty"`
 	ExpectedContextDigest  string                     `json:"expectedContextDigest"`
 	ExpectedPolicyRevision int                        `json:"expectedPolicyRevision"`
 	Run                    projectRunCreateRequest    `json:"run"`
@@ -159,15 +169,22 @@ func (s *Server) readContinuations(p project.Project, actor string) (coordinator
 	} else if err != nil {
 		return out, err
 	}
-	if stored.Version != 1 || stored.AccountScope != out.AccountScope || stored.ProjectScope != out.ProjectScope || stored.ProjectID != p.ID || stored.ActorID != actor || len(stored.Rows) > coordinatorContinuationLimit {
+	if stored.Version != 1 || stored.AccountScope != out.AccountScope || stored.ProjectScope != out.ProjectScope || stored.ProjectID != p.ID || stored.ActorID != actor || len(stored.Rows) > coordinatorContinuationLimit || len(stored.ContextCommits) > coordinatorContinuationLimit {
 		return out, ErrOrchestratorInvalid
+	}
+	commitEvents := map[string]bool{}
+	for _, commit := range stored.ContextCommits {
+		if !validCoordinatorContextCommit(commit) || commitEvents[commit.EventID] {
+			return out, ErrOrchestratorInvalid
+		}
+		commitEvents[commit.EventID] = true
 	}
 	if !validCoordinatorRoute(stored.SavedRoute) {
 		return out, ErrOrchestratorInvalid
 	}
 	seen := map[string]bool{}
 	for _, r := range stored.Rows {
-		if r.ProjectID != p.ID || r.Actor.ID != actor || !strings.HasPrefix(r.ID, "continue-") || !prototypeReleaseID.MatchString(r.ID) || seen[r.ID] || r.Revision < 1 || !validRunKey(r.IdempotencyKey) || reviewDigest(r.IdempotencyKey) != r.KeyDigest || !hexDigest(r.KeyDigest) || !hexDigest(r.RequestDigest) || !hexDigest(r.CanonicalDigest) || !hexDigest(r.ContextDigest) || r.Run.ImplementationContext.ProjectID != p.ID || r.MaxParallel < 1 || r.MaxParallel > MaxSwarmParallelTasks || len(r.Actions) > 3 {
+		if r.ProjectID != p.ID || r.Actor.ID != actor || !strings.HasPrefix(r.ID, "continue-") || !prototypeReleaseID.MatchString(r.ID) || seen[r.ID] || r.Revision < 1 || !validRunKey(r.IdempotencyKey) || reviewDigest(r.IdempotencyKey) != r.KeyDigest || !hexDigest(r.KeyDigest) || !hexDigest(r.RequestDigest) || !hexDigest(r.CanonicalDigest) || !hexDigest(r.ContextDigest) || r.Run.ImplementationContext.ProjectID != p.ID || r.MaxParallel < 1 || r.MaxParallel > MaxSwarmParallelTasks || len(r.Actions) > 3 || len(r.AcceptedEvents) > 16 {
 			return out, ErrOrchestratorInvalid
 		}
 		if r.ExecutionActor.UserID != "" && (r.ExecutionActor.UserID != actor || r.ExecutionActor.ProjectID != p.ID || r.ExecutionActor.Local) {
@@ -183,6 +200,11 @@ func (s *Server) readContinuations(p project.Project, actor string) (coordinator
 			return out, err
 		}
 		seen[r.ID] = true
+		for i, receipt := range r.AcceptedEvents {
+			if receipt.Sequence < 1 || !strings.HasPrefix(receipt.EventID, "coord-event-") || !prototypeReleaseID.MatchString(receipt.EventID) || !strings.HasPrefix(receipt.OriginIntentID, "intent-") || !prototypeReleaseID.MatchString(receipt.OriginIntentID) || receipt.ArchiveDigest != "" && !hexDigest(receipt.ArchiveDigest) || i > 0 && r.AcceptedEvents[i-1].Sequence >= receipt.Sequence {
+				return out, ErrOrchestratorInvalid
+			}
+		}
 		for i, a := range r.Actions {
 			if a.ID != r.ID+"-"+a.Kind || i >= 3 || a.Kind != []string{"create-run", "prepare-tasks", "queue-tasks"}[i] || (a.Status != "pending" && a.Status != "confirmed" && a.Status != "unknown" && a.Status != "refused") {
 				return out, ErrOrchestratorInvalid
@@ -244,10 +266,14 @@ func (s *Server) listCoordinatorContinuations(w http.ResponseWriter, r *http.Req
 	for _, row := range rows.Rows {
 		out = append(out, row.CoordinatorContinuation)
 	}
+	commits := []CoordinatorContextCommitView{}
+	for _, commit := range rows.ContextCommits {
+		commits = append(commits, CoordinatorContextCommitView{EventID: commit.EventID, Status: commit.Status, Commit: commit.Commit, CreatedAt: commit.CreatedAt})
+	}
 	if r.Context().Err() != nil {
 		return
 	}
-	journeyJSON(w, 200, map[string]any{"continuations": out, "savedRoute": rows.SavedRoute})
+	journeyJSON(w, 200, map[string]any{"continuations": out, "savedRoute": rows.SavedRoute, "contextCommits": commits})
 }
 func (s *Server) getCoordinatorContinuation(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)
@@ -371,6 +397,22 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		journeyError(w, 400, "invalid_check_plan", err.Error())
 		return
 	}
+	if len(req.AcceptedEvents) > 16 {
+		coordinatorPolicyProblem(w, ErrOrchestratorInvalid)
+		return
+	}
+	// A caller can name an event, but cannot turn a proposal into acceptance.
+	// Reopen the exact archived or active receipt before source admission, then
+	// compare the current event head again under the mutation lock below.
+	accepted := make([]CoordinationEventObservation, 0, len(req.AcceptedEvents))
+	for i, receipt := range req.AcceptedEvents {
+		observation, eventErr := s.CoordinationEventByIdentity(r.Context(), p.ID, receipt)
+		if eventErr != nil || observation.Event.Kind != "applied" || observation.Intent.Status != "applied" || observation.Intent.Actor.ID != observation.Event.Actor.ID || observation.Intent.Actor.ID == "" || (i > 0 && req.AcceptedEvents[i-1].Sequence >= receipt.Sequence) || (i == len(req.AcceptedEvents)-1 && observation.Intent.TurnID != req.OriginTurnID) {
+			coordinatorPolicyProblem(w, ErrOrchestratorConflict)
+			return
+		}
+		accepted = append(accepted, observation)
+	}
 	sort.Strings(req.Run.ImplementationContext.TaskIDs)
 	actor, ok := authenticatedContextActor(r.Context())
 	if !ok {
@@ -386,7 +428,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 	key := reviewDigest(requestKey)
 	req.IdempotencyKey = ""
 	requestDigest := reviewDigest(req)
-	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ID: newID("continue-"), IdempotencyKey: requestKey, ProjectID: p.ID, Actor: actor, OriginTurnID: req.OriginTurnID, ContextDigest: req.ExpectedContextDigest, PolicyRevision: req.ExpectedPolicyRevision, Revision: 1, Status: "ready", Message: "Continuing the reviewed task selection with its saved upstream route.", QueueIDs: []string{}, Actions: []CoordinatorAction{}}, KeyDigest: key, RequestDigest: requestDigest, Run: req.Run, MaxParallel: req.MaxParallel, ExecutionActor: executionActor, CheckPlan: req.CheckPlan, PreviewPlan: req.PreviewPlan, DeploymentPlan: req.DeploymentPlan}
+	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ID: newID("continue-"), IdempotencyKey: requestKey, ProjectID: p.ID, Actor: actor, OriginTurnID: req.OriginTurnID, AcceptedEvents: append([]CoordinationEventReceipt{}, req.AcceptedEvents...), ContextDigest: req.ExpectedContextDigest, PolicyRevision: req.ExpectedPolicyRevision, Revision: 1, Status: "ready", Message: "Continuing the reviewed task selection with its saved upstream route.", QueueIDs: []string{}, Actions: []CoordinatorAction{}}, KeyDigest: key, RequestDigest: requestDigest, Run: req.Run, MaxParallel: req.MaxParallel, ExecutionActor: executionActor, CheckPlan: req.CheckPlan, PreviewPlan: req.PreviewPlan, DeploymentPlan: req.DeploymentPlan}
 	if err := s.continuationAuthority(r.Context(), p, row); err != nil {
 		coordinatorPolicyProblem(w, err)
 		return
@@ -423,6 +465,31 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 	if err == nil && len(rows.Rows) >= coordinatorContinuationLimit {
 		err = ErrOrchestratorCapacity
 	}
+	if err == nil && len(req.AcceptedEvents) > 0 {
+		ids := make([]string, 0, len(req.AcceptedEvents))
+		for _, receipt := range req.AcceptedEvents {
+			ids = append(ids, receipt.EventID)
+		}
+		var claimed bool
+		claimed, err = s.acceptedEventClaimedLocked(p, ids, req.OriginTurnID)
+		if err == nil && claimed {
+			err = ErrOrchestratorConflict
+		}
+	}
+	if err == nil && len(req.AcceptedEvents) > 0 {
+		var coordination coordinationLedger
+		coordination, err = s.readCoordination(p)
+		if err == nil && coordination.EventHead != req.AcceptedEvents[len(req.AcceptedEvents)-1].EventID {
+			err = ErrOrchestratorConflict
+		}
+		if err == nil {
+			var state journeyState
+			state, err = s.readApprovedJourney(p.Path, p.ID)
+			if err == nil && !reflect.DeepEqual(coordinatorAffectedTaskIDs(currentPlan(state, p.ID).Tasks, accepted), req.Run.ImplementationContext.TaskIDs) {
+				err = ErrOrchestratorConflict
+			}
+		}
+	}
 	if err == nil {
 		var policy CoordinatorPolicy
 		policy, err = s.readCoordinatorPolicy(p)
@@ -436,7 +503,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		if err == nil {
 			found := false
 			for _, turn := range saved.Turns {
-				if turn.ID == req.OriginTurnID && turn.Actor.ID == actor.ID && turn.Status == "succeeded" && turn.Answer != nil && !turn.Answer.Blocking && (turn.Answer.Proposal == nil || turn.AppliedRevision > 0) {
+				if turn.ID == req.OriginTurnID && (turn.Actor.ID == actor.ID || len(accepted) > 0 && accepted[len(accepted)-1].Intent.Actor.ID == turn.Actor.ID) && turn.Status == "succeeded" && turn.Answer != nil && !turn.Answer.Blocking && (turn.Answer.Proposal == nil || turn.AppliedRevision > 0) {
 					found = true
 				}
 			}
@@ -444,7 +511,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 				var archived *storedOrchestratorTurn
 				archived, err = s.archivedCoordinationTurnLocked(p, req.OriginTurnID)
 				if err == nil && archived != nil {
-					found = archived.Actor.ID == actor.ID && archived.Status == "succeeded" && archived.Answer != nil && !archived.Answer.Blocking && (archived.Answer.Proposal == nil || archived.AppliedRevision > 0)
+					found = (archived.Actor.ID == actor.ID || len(accepted) > 0 && accepted[len(accepted)-1].Intent.Actor.ID == archived.Actor.ID) && archived.Status == "succeeded" && archived.Answer != nil && !archived.Answer.Blocking && (archived.Answer.Proposal == nil || archived.AppliedRevision > 0)
 				}
 			}
 			if err == nil && (!found || len(orchestratorQuestions(saved)) > 0) {

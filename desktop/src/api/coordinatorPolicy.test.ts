@@ -57,3 +57,15 @@ it('preserves existing-target permission on draft-only writes and requires exact
   await expect(coordinatorPolicyApi.save('p-1', { ...draftOnly, deploymentMode: 'manual' })).rejects.toThrow(/did not match/);
   expect(await coordinatorPolicyApi.save('p-1', { ...draftOnly, deploymentMode: 'existing-target' })).toEqual(response);
 });
+
+it('requires exact readback for an explicitly enabled reviewed-scope integration policy', async () => {
+  const saved = { ...policy(), revision: 2, integrationMode: 'reviewed-scopes' as const };
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue(saved);
+  const input = { expectedRevision: 1, mode: 'review' as const, allowedTargets: ['specification' as const], integrationMode: 'reviewed-scopes' as const };
+  expect(await coordinatorPolicyApi.save('p-1', input)).toEqual(saved);
+  expect(request).toHaveBeenLastCalledWith('/v1/product/projects/p-1/orchestrator/policy', input);
+  request.mockResolvedValue({ ...saved, integrationMode: 'manual' });
+  await expect(coordinatorPolicyApi.save('p-1', input)).rejects.toThrow(/did not match/);
+  request.mockResolvedValue({ ...saved, integrationMode: 'all-candidates' });
+  await expect(coordinatorPolicyApi.get('p-1')).rejects.toThrow(/could not be verified/);
+});

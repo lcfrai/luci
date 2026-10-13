@@ -179,6 +179,13 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 			if e != nil {
 				return e
 			}
+			created, e := s.continueAcceptedCoordinatorEvent(ctx, p, rows, authorize)
+			if e != nil {
+				return e
+			}
+			if created {
+				return nil
+			}
 			sort.Slice(rows.Rows, func(i, j int) bool { return rows.Rows[i].ID < rows.Rows[j].ID })
 			for _, row := range rows.Rows {
 				key := name + "/" + row.ID
@@ -232,6 +239,13 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				actor, ok := authenticatedContextActor(fresh)
 				if !ok || actor.ID != row.Actor.ID {
 					return errCoordinatorAuthority
+				}
+				integrated, integrationErr := s.continueCoordinatorCandidateIntegration(fresh, p, row)
+				if integrationErr != nil {
+					return integrationErr
+				}
+				if integrated {
+					return nil
 				}
 				_, e = s.continueCoordinator(fresh, p, row.ID, row.Actor.ID, 0)
 				return e

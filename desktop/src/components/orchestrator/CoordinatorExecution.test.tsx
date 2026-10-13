@@ -170,13 +170,13 @@ it('aborts explicit policy/history reads when the current project surface unmoun
 
 const savedRoute = (): CoordinatorSavedRoute => ({ revision: 5, route: { worktreeId: 'w-1', harness: 'codex', model: 'model', permissionMode: 'bypass', agentConnectionId: 'configured', outcome: 'preview' }, maxParallel: 4, updatedAt: '2026-10-12T00:00:00Z', checkPlan: { commands: [{ label: 'npm', executable: 'npm', args: ['test'] }], requirementIds: ['REQ-1'], requirementSnapshots: [{ id: 'REQ-1', title: 'Book', acceptance: 'A visitor can book' }], acknowledgeProjectCommands: true } });
 const withRequirements = () => { const input = props(); input.view.context.plan.tasks[0].requirementIds = ['REQ-1']; return input; };
-it('automatically continues one applied approved amendment using the exact delegated route, without reopening route controls', async () => {
+it('leaves accepted-event admission to the durable service while showing the saved route', async () => {
   const saved = savedRoute(); vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: saved });
   const input = withRequirements(), ui = render(<CoordinatorExecution {...input} />);
-  await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
-  expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ expectedRouteRevision: 5, expectedPolicyRevision: 2, checkPlan: saved.checkPlan, maxParallel: 4, run: { ...saved.route, implementationContext: { projectId: 'p-1', specificationRevision: 2, taskIds: ['T-1'] } } });
+  await screen.findByText(/Saved upstream route/);
+  expect(api.create).not.toHaveBeenCalled();
   expect(screen.queryByRole('dialog')).toBeNull(); ui.rerender(<CoordinatorExecution {...input} />);
-  expect(api.create).toHaveBeenCalledTimes(1);
+  expect(api.create).not.toHaveBeenCalled();
 });
 it.each(['acceptance', 'coverage', 'no-plan', 'manual-policy', 'unapplied', 'other-person', 'existing', 'draft', 'authority', 'checkout'])('does not automatically reuse a saved route when %s changed', async condition => {
   const input = withRequirements(), saved = savedRoute(); let rows: CoordinatorContinuation[] = [];
@@ -190,12 +190,6 @@ it.each(['acceptance', 'coverage', 'no-plan', 'manual-policy', 'unapplied', 'oth
   if (condition === 'checkout') saved.route.worktreeId = 'foreign';
   vi.mocked(api.listState).mockResolvedValue({ continuations: rows, savedRoute: saved }); render(<CoordinatorExecution {...input} />);
   await screen.findByText(/Saved upstream route/); expect(api.create).not.toHaveBeenCalled();
-});
-it('retains automatic-start uncertainty across refresh and remount without retrying a POST', async () => {
-  const saved = savedRoute(); vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: saved }); vi.mocked(api.create).mockRejectedValue(new Error('Reply lost'));
-  const input = withRequirements(), ui = render(<CoordinatorExecution {...input} />); await screen.findByText(/Reply lost/);
-  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); ui.unmount(); render(<CoordinatorExecution {...input} />);
-  await screen.findByText(/New requests are paused/); expect(api.create).toHaveBeenCalledTimes(1);
 });
 it('does not run automatically before resolving a retained browser command draft', async () => {
   const input = withRequirements();
@@ -221,9 +215,9 @@ it('requires current new amendment approvals, then continues with fresh task IDs
   const next = structuredClone(input.view); next.turns.push({ ...proposalTurn(), id: 'turn-2', appliedRevision: 4 }); next.context.digest = 'b'.repeat(64); next.context.plan.tasks[0].id = 'T-2'; next.context.specification.status = 'draft';
   ui.rerender(<CoordinatorExecution {...input} view={next} />); await screen.findByText(/Review and approve/); expect(api.create).not.toHaveBeenCalled();
   const approved = structuredClone(next); approved.context.specification.status = 'approved'; approved.context.digest = 'c'.repeat(64);
-  vi.mocked(api.create).mockImplementation(async (_p, _a, request) => row({ id: 'continue-two', originTurnId: request.originTurnId, contextDigest: request.expectedContextDigest, idempotencyKey: request.idempotencyKey }));
-  ui.rerender(<CoordinatorExecution {...input} view={approved} />); await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
-  expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ originTurnId: 'turn-2', expectedContextDigest: approved.context.digest, expectedRouteRevision: 5, run: { implementationContext: { taskIds: ['T-2'] } } });
+  ui.rerender(<CoordinatorExecution {...input} view={approved} />);
+  await screen.findByText(/Saved upstream route/);
+  expect(api.create).not.toHaveBeenCalled(); // The durable server selects and reserves affected work.
 });
 it('does not silently drop a newer saved delivery delegation when reusing a route', async () => {
   const saved = { ...savedRoute(), futureDelivery: { unsupported: true } };
@@ -266,7 +260,7 @@ it.each(['matched', 'changed', 'revoked'])('reuses an exact saved preview only w
   vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: saved }); vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source' }));
   const metadata = vi.spyOn(productApi, 'request').mockResolvedValue({ revision: condition === 'changed' ? 4 : 3, variables: [], updatedAt: '' });
   render(<CoordinatorExecution {...withRequirements()} canDeploy={condition !== 'revoked'} />); await screen.findByText(/Saved upstream route/);
-  if (condition === 'matched') { await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1)); expect(vi.mocked(api.create).mock.calls[0][2].previewPlan).toEqual(saved.previewPlan); } else expect(api.create).not.toHaveBeenCalled();
+  expect(api.create).not.toHaveBeenCalled();
   expect(metadata).toHaveBeenCalledTimes(condition === 'revoked' ? 0 : 1);
 });
 
@@ -328,23 +322,10 @@ it.each(['matched', 'target', 'config', 'data', 'repository', 'revoked', 'manual
   render(<CoordinatorExecution {...withRequirements()} canDeploy={condition !== 'revoked'} />);
   await screen.findByText(/Saved upstream route/);
   if (condition === 'matched') {
-    await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ expectedRouteRevision: 5, deploymentPlan: route.deploymentPlan, previewPlan: route.previewPlan, checkPlan: route.checkPlan, run: { outcome: 'publish' } });
     expect(prepare).toHaveBeenCalledTimes(1);
-  } else expect(api.create).not.toHaveBeenCalled();
+  }
+  expect(api.create).not.toHaveBeenCalled();
   if (condition === 'revoked' || condition === 'manual') expect(prepare).not.toHaveBeenCalled();
-});
-it('retains an uncertain saved deployment continuation through remount and never repeats its POST', async () => {
-  const route = deploymentRoute(); vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: route });
-  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source', deploymentMode: 'existing-target' }));
-  vi.spyOn(productApi, 'request').mockResolvedValue({ revision: 3, variables: [] });
-  vi.spyOn(coordinatorDeploymentApi, 'prepare').mockResolvedValue({ ...deploymentPlan(), acknowledgeRepositoryPush: false, acknowledgePublic: false, acknowledgeDeploymentCosts: false });
-  vi.mocked(api.create).mockRejectedValue(new Error('Deployment continuation reply lost'));
-  const input = withRequirements(), ui = render(<CoordinatorExecution {...input} canDeploy />);
-  await screen.findByText(/Deployment continuation reply lost/); const raw = localStorage.getItem(records()[0]); ui.unmount();
-  render(<CoordinatorExecution {...input} canDeploy />); await screen.findByText(/New requests are paused/);
-  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await screen.findByText(/Saved upstream route/);
-  expect(api.create).toHaveBeenCalledTimes(1); expect(localStorage.getItem(records()[0])).toBe(raw);
 });
 it('retains deployment-policy uncertainty across permission churn and pauses without stopping existing releases', async () => {
   const held = deferred<CoordinatorPolicy>(); vi.mocked(coordinatorPolicyApi.save).mockReturnValue(held.promise);

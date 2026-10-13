@@ -1,0 +1,207 @@
+package product
+
+import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/lcfrai/luci/control-plane/internal/management"
+)
+
+func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testing.T) {
+	s, p, _, ctx, req, starts := coordinatorContinuationFixture(t)
+	anchor := coordinatorReadyFixture(t, s, p, ctx, req)
+	s.mu.Lock()
+	rows, err := s.readContinuations(p, "alice")
+	if err == nil {
+		rows.Rows[0].Status = "blocked" // An older build must not be replayed.
+		rows.SavedRoute = &CoordinatorSavedRoute{Revision: 1, Route: coordinatorRoute(req.Run), MaxParallel: 1, UpdatedAt: anchor.CreatedAt}
+		err = s.saveContinuations(rows)
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Improve the saved task acceptance", "")
+	plan := snapshot.Plan
+	plan.Tasks[0].Acceptance = "The changed result is independently checked."
+	answer := OrchestratorAnswer{Summary: "Changed task acceptance", Options: []string{}, Impact: []string{}, Proposal: &OrchestratorProposal{Target: "plan", Summary: "Revise one task", Plan: &plan}}
+	if err = s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.applyOrchestratorProposal(ctx, p.ID, turn.ID, view.Revision, view.Context.Digest); err != nil {
+		t.Fatal(err)
+	}
+	s.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = s.readContinuations(p, "alice")
+	if err != nil || len(rows.ContextCommits) != 1 || rows.ContextCommits[0].Status != "confirmed" {
+		t.Fatal("accepted context did not reach exact reviewed Git commit", err)
+	}
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = s.readContinuations(p, "alice")
+	if err != nil || len(rows.Rows) != 2 || len(rows.Rows[1].AcceptedEvents) != 1 || rows.Rows[1].OriginTurnID != turn.ID || rows.Rows[1].Status != "queued" || len(rows.Rows[1].Run.ImplementationContext.TaskIDs) != 1 || rows.Rows[1].Run.ImplementationContext.TaskIDs[0] != "task-save" {
+		t.Fatalf("accepted event did not reserve exact changed task: %+v %v", rows, err)
+	}
+	actual, err := s.projectRuns.Get(p.ID, p.Path, rows.Rows[1].RunID)
+	if err != nil || actual.Input.Implementation.PlanRevision != snapshot.Plan.Revision+1 || *starts != 0 {
+		t.Fatalf("changed reviewed input was not retained: %+v %v", actual, err)
+	}
+	// The same event after a process restart cannot reserve another run.
+	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	reopened.SetCoordinatorAuthorizer(s.coordinatorAuthorize)
+	reopened.SetCoordinatorExecutionAuthorizer(s.coordinatorExecuteAuthorize)
+	reopened.SetProjectRunSelectionResolver(s.projectRunSelectionResolver)
+	reopened.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	if err = reopened.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	retained, err := reopened.readContinuations(p, "alice")
+	if err != nil || len(retained.Rows) != 2 || retained.Rows[1].ID != rows.Rows[1].ID {
+		t.Fatal("restart replayed accepted event", err)
+	}
+	// Revoking current execution authority cannot create a second continuation.
+	reopened.coordinatorBackground.authorize = func(context.Context, management.ExecutionActorRef, string, bool) (context.Context, error) {
+		return nil, errCoordinatorAuthority
+	}
+	if err = reopened.RunCoordinatorOnce(context.Background()); err != nil && !errors.Is(err, errCoordinatorAuthority) {
+		t.Fatal(err)
+	}
+	retained, err = reopened.readContinuations(p, "alice")
+	if err != nil || len(retained.Rows) != 2 {
+		t.Fatal("revoked authority changed durable work", err)
+	}
+}
+
+func TestCoordinatorAcceptedEventPreservesUnrelatedDirtySource(t *testing.T) {
+	s, p, _, ctx, req, _ := coordinatorContinuationFixture(t)
+	anchor := coordinatorReadyFixture(t, s, p, ctx, req)
+	s.mu.Lock()
+	rows, err := s.readContinuations(p, "alice")
+	if err == nil {
+		rows.Rows[0].Status = "blocked"
+		rows.SavedRoute = &CoordinatorSavedRoute{Revision: 1, Route: coordinatorRoute(req.Run), MaxParallel: 1, UpdatedAt: anchor.CreatedAt}
+		err = s.saveContinuations(rows)
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Amend one reviewed task", "")
+	plan := snapshot.Plan
+	plan.Tasks[0].Acceptance = "The revised task has independent evidence."
+	answer := OrchestratorAnswer{Summary: "Revise task", Options: []string{}, Impact: []string{}, Proposal: &OrchestratorProposal{Target: "plan", Summary: "Revise task", Plan: &plan}}
+	if err = s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.applyOrchestratorProposal(ctx, p.ID, turn.ID, view.Revision, view.Context.Digest); err != nil {
+		t.Fatal(err)
+	}
+	before, err := s.journeyGit(ctx, p.Path, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	unexpected := filepath.Join(p.Path, "unrelated.txt")
+	if err = os.WriteFile(unexpected, []byte("user work must remain\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	after, err := s.journeyGit(ctx, p.Path, "rev-parse", "HEAD")
+	if err != nil || strings.TrimSpace(after) != strings.TrimSpace(before) {
+		t.Fatal("unreviewed source was committed", err)
+	}
+	bytes, err := os.ReadFile(unexpected)
+	if err != nil || string(bytes) != "user work must remain\n" {
+		t.Fatal("unreviewed source changed", err)
+	}
+	rows, err = s.readContinuations(p, "alice")
+	if err != nil || len(rows.Rows) != 1 || len(rows.ContextCommits) != 0 {
+		t.Fatal("unreviewed source reserved accepted work", err)
+	}
+}
+
+func TestCoordinatorTeammateAcceptedEventUsesOneCurrentRoute(t *testing.T) {
+	s, p, _, ctx, req, _ := coordinatorContinuationFixture(t)
+	anchor := coordinatorReadyFixture(t, s, p, ctx, req)
+	s.mu.Lock()
+	alice, err := s.readContinuations(p, "alice")
+	if err == nil {
+		alice.Rows[0].Status = "blocked"
+		err = s.saveContinuations(alice)
+	}
+	if err == nil {
+		var bob coordinatorContinuations
+		bob, err = s.readContinuations(p, "bob")
+		if err == nil {
+			seed := anchor
+			seed.Actor.ID, seed.Actor.DisplayName = "bob", "Bob"
+			seed.ExecutionActor.UserID = "bob"
+			seed.Status = "blocked"
+			bob.Rows = append(bob.Rows, seed)
+			bob.SavedRoute = &CoordinatorSavedRoute{Revision: 1, Route: coordinatorRoute(req.Run), MaxParallel: 1, UpdatedAt: anchor.CreatedAt}
+			err = s.saveContinuations(bob)
+		}
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Change a shared task for the team", "")
+	plan := snapshot.Plan
+	plan.Tasks[0].Acceptance = "A teammate's reviewed change is implemented."
+	answer := OrchestratorAnswer{Summary: "Change shared task", Options: []string{}, Impact: []string{}, Proposal: &OrchestratorProposal{Target: "plan", Summary: "Change shared task", Plan: &plan}}
+	if err = s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.applyOrchestratorProposal(ctx, p.ID, turn.ID, view.Revision, view.Context.Digest); err != nil {
+		t.Fatal(err)
+	}
+	s.coordinatorBackground.authorize = func(ctx context.Context, ref management.ExecutionActorRef, harness string, secrets bool) (context.Context, error) {
+		if ref.UserID != "bob" || harness != "codex" || !secrets {
+			return nil, errCoordinatorAuthority
+		}
+		return management.WithExecutionAuthority(ctx, management.ExecutionAuthority{Actor: management.User{ID: "bob", Role: "member"}}), nil
+	}
+	for i := 0; i < 2; i++ {
+		if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bob, err := s.readContinuations(p, "bob")
+	if err != nil || len(bob.Rows) != 2 || len(bob.Rows[1].AcceptedEvents) != 1 || bob.Rows[1].OriginTurnID != turn.ID || bob.Rows[1].Actor.ID != "bob" {
+		t.Fatalf("accepted team event was not bound to one executing Luci: %+v %v", bob, err)
+	}
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	alice, err = s.readContinuations(p, "alice")
+	if err != nil || len(alice.Rows) != 1 {
+		t.Fatal("teammate event duplicated work", err)
+	}
+}

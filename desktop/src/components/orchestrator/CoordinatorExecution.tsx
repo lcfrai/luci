@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { coordinatorContinuationsApi, type CoordinatorContinuation, type CoordinatorContinuationRequest, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
+import { coordinatorContinuationsApi, type CoordinatorContinuation, type CoordinatorContinuationRequest, type CoordinatorContinuationState, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
 import { coordinatorPolicyApi, type CoordinatorPolicy } from '../../api/coordinatorPolicy';
 import type { OrchestratorView } from '../../api/orchestrator';
 import type { CreateSessionRequest } from '../../api/client';
@@ -47,11 +47,11 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const key = keyFor(scope), [initial] = useState(() => initialRequest(key, projectId, actorId));
   const [pending, setPending] = useState(initial.value), pendingRef = useRef(initial.value), rawRef = useRef(initial.raw);
   const [storageError, setStorageError] = useState(initial.error);
-  const [rows, setRows] = useState<CoordinatorContinuation[]>([]), [selected, setSelected] = useState('');
+  const [rows, setRows] = useState<CoordinatorContinuation[]>([]), [contextCommits, setContextCommits] = useState<NonNullable<CoordinatorContinuationState['contextCommits']>>([]), [selected, setSelected] = useState('');
   const [policy, setPolicy] = useState<CoordinatorPolicy | null>(null), [fresh, setFresh] = useState(false);
   const [deliveryReadWarning, setDeliveryReadWarning] = useState('');
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(''), [readDenied, setReadDenied] = useState(false);
-  const [consent, setConsent] = useState(false), [picker, setPicker] = useState<CoordinatorContinuationRequest | null>(null);
+  const [consent, setConsent] = useState(false), [integrationConsent, setIntegrationConsent] = useState(false), [picker, setPicker] = useState<CoordinatorContinuationRequest | null>(null);
   const [deploymentConsent, setDeploymentConsent] = useState(false), [deploymentFresh, setDeploymentFresh] = useState(false);
   const [deploymentSelection, setDeploymentSelection] = useState<CoordinatorDeploymentSelection>({ plan: null, dirty: true, problem: 'Reading retained deployment setup…', draftDigest: '' }), [recordedDeployment, setRecordedDeployment] = useState('');
   const deploymentChanged = useCallback((value: CoordinatorDeploymentSelection) => setDeploymentSelection(value), []);
@@ -61,7 +61,6 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const [savedRoute, setSavedRoute] = useState<CoordinatorSavedRoute | null>(null), [rememberRoute, setRememberRoute] = useState(false);
   const [checkSelection, setCheckSelection] = useState<CoordinatorCheckSelection>({ plan: null, dirty: true, problem: 'Reading retained check setup…', draftDigest: '' }), [recordedDraft, setRecordedDraft] = useState('');
   const checkChanged = useCallback((value: CoordinatorCheckSelection) => setCheckSelection(value), []);
-  const automaticAttempts = useRef(new Set<string>());
   const [parallel, setParallel] = useState(2), [outcome, setOutcome] = useState<'preview' | 'publish'>('preview');
   const worktreeId = useCockpit(state => state.selection.worktreeId), worktree = useCockpit(selectWorktreeById(worktreeId ?? ''));
   const alive = useRef(true), generation = useRef(0), working = useRef(false), readController = useRef<AbortController | null>(null);
@@ -105,15 +104,15 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
         const match = retained.kind === 'create' ? nextRows.find(row => row.idempotencyKey === retained.input.idempotencyKey && row.originTurnId === retained.input.originTurnId && row.contextDigest === retained.input.expectedContextDigest && row.policyRevision === retained.input.expectedPolicyRevision) : retained.kind === 'advance' ? nextRows.find(row => row.id === retained.id && row.revision > retained.revision && !row.actions.some(action => action.status === 'pending' || action.status === 'unknown')) : undefined;
         if (retained.rejected || match || retained.kind === 'policy' && nextPolicy.revision > retained.revision) { persist(null); setNotice(match ? 'The exact retained request was observed. It was not submitted again.' : 'Current authoritative state was read. The retained request was not replayed.'); }
       }
-      setPolicy(nextPolicy); setDeploymentFresh(!!deployment && !!state.savedRoute?.deploymentPlan && sameCoordinatorDeploymentBinding(deployment, state.savedRoute.deploymentPlan)); setConfigurationRevision(configuration); setSavedRoute(state.savedRoute); setRows(nextRows); setSelected(previous => nextRows.some(row => row.id === previous) ? previous : nextRows[nextRows.length - 1]?.id ?? '');
+      setPolicy(nextPolicy); setDeploymentFresh(!!deployment && !!state.savedRoute?.deploymentPlan && sameCoordinatorDeploymentBinding(deployment, state.savedRoute.deploymentPlan)); setConfigurationRevision(configuration); setSavedRoute(state.savedRoute); setRows(nextRows); setContextCommits(state.contextCommits ?? []); setSelected(previous => nextRows.some(row => row.id === previous) ? previous : nextRows[nextRows.length - 1]?.id ?? '');
       setFresh(true); setReadDenied(false); setError('');
     } catch (cause) { if (current(ticket) && !signal?.aborted) { setError(errorText(cause)); if (denied(cause)) { setRows([]); setPolicy(null); setSavedRoute(null); setReadDenied(true); } } }
     finally { if (readController.current === controller) readController.current = null; if (current(ticket)) setBusy(''); }
   }
   useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; readController.current?.abort(); }; }, []);
   useEffect(() => {
-    generation.current++; setConsent(false); setPreviewConsent(false); setDeploymentConsent(false); setDeploymentFresh(false); setPicker(null); setFresh(false);
-    if (!canRead) { setRows([]); setPolicy(null); setSavedRoute(null); return; }
+    generation.current++; setConsent(false); setIntegrationConsent(false); setPreviewConsent(false); setDeploymentConsent(false); setDeploymentFresh(false); setPicker(null); setFresh(false);
+    if (!canRead) { setRows([]); setContextCommits([]); setPolicy(null); setSavedRoute(null); return; }
     void load(false);
     return () => readController.current?.abort();
   }, [projectId, actorId, canRead, canEdit, canExecute, canDeploy, view.context.digest, policyEpoch]);
@@ -138,6 +137,10 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   async function enableExecution(mode: 'manual' | 'reviewed-tasks' = 'reviewed-tasks') {
     if (!policy || mode === 'reviewed-tasks' && !consent || !latest.current.canExecute) return;
     await mutate('policy', { kind: 'policy', actorId, projectId, revision: policy.revision }, () => coordinatorPolicyApi.save(projectId, { expectedRevision: policy.revision, mode: policy.mode, allowedTargets: policy.allowedTargets, executionMode: mode }), value => { setPolicy(value); onPolicyUpdated?.(); setNotice(mode === 'manual' ? 'New automatic task continuations are paused. Already allocated tasks keep their current controls; they have not been cancelled.' : 'Reviewed-task continuation is enabled. Saved context approvals, current access and resource limits still apply. Deployment remains separately controlled.'); });
+  }
+  async function saveIntegrationMode(mode: 'manual' | 'reviewed-scopes') {
+    if (!policy || !latest.current.canExecute || mode === 'reviewed-scopes' && !integrationConsent) return;
+    await mutate('policy', { kind: 'policy', actorId, projectId, revision: policy.revision }, () => coordinatorPolicyApi.save(projectId, { expectedRevision: policy.revision, mode: policy.mode, allowedTargets: policy.allowedTargets, integrationMode: mode }), value => { setPolicy(value); setIntegrationConsent(false); onPolicyUpdated?.(); setNotice(mode === 'manual' ? 'Automatic candidate integration is paused. Retained attempts have not been cancelled.' : 'Reviewed write-scope integration is enabled for future continuations. Luci still requires a stopped candidate, current authority and independent combined checks.'); });
   }
   async function savePreviewMode(mode: 'manual' | 'checked-source') {
     if (!policy || !latest.current.canDeploy || mode === 'checked-source' && !previewConsent) return;
@@ -173,18 +176,6 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     const ok = await mutate('create', { kind: 'create', projectId, actorId, input }, () => coordinatorContinuationsApi.create(projectId, actorId, input), value => { remember(value); if (input.checkPlan) setRecordedDraft(checkSelection.draftDigest); if (input.previewPlan) setRecordedPreview(previewSelection.draftDigest); if (input.deploymentPlan) setRecordedDeployment(deploymentSelection.draftDigest); setPicker(null); setNotice('The continuation is retained. Queued work is not yet verified or deployed.'); });
     return ok ? { ok: true as const } : { ok: false as const, message: 'The continuation outcome needs readback in Luci. Close this picker and refresh continued work; do not submit it again.' };
   }
-  useEffect(() => {
-    if (issue || savedIssue || !savedRoute || !savedRoute.checkPlan || !ownTurn?.appliedRevision || !ownTurn.answer?.proposal || !policy || !worktree || !fresh || busy || pending || storageError || picker || checkSelection.dirty || checkSelection.problem || previewSelection.dirty || previewSelection.problem || deploymentSelection.dirty || deploymentSelection.problem) return;
-    const identity = `${actorId}:${projectId}:${ownTurn.id}`;
-    if (automaticAttempts.current.has(identity)) return;
-    automaticAttempts.current.add(identity);
-    const input: CoordinatorContinuationRequest = {
-      idempotencyKey: crypto.randomUUID(), originTurnId: ownTurn.id, expectedContextDigest: view.context.digest, expectedPolicyRevision: policy.revision,
-      expectedRouteRevision: savedRoute.revision, maxParallel: savedRoute.maxParallel, checkPlan: savedRoute.checkPlan, ...(savedRoute.deploymentPlan ? { deploymentPlan: savedRoute.deploymentPlan } : {}), ...(savedRoute.previewPlan ? { previewPlan: savedRoute.previewPlan } : {}),
-      run: { ...savedRoute.route, implementationContext: { projectId, briefRevision: view.context.brief.revision, planRevision: view.context.plan.revision, specificationRevision: view.context.specification.revision, designPlanRevision: view.context.designPlan.revision, taskIds: tasks.map(task => task.id) } },
-    };
-    void mutate('create', { kind: 'create', projectId, actorId, input }, () => coordinatorContinuationsApi.create(projectId, actorId, input), value => { remember(value); setNotice('Luci continued this approved amendment using your saved route and exact check delegation. Completion and deployment remain subject to their own evidence and policy.'); });
-  }, [issue, savedIssue, savedRoute, ownTurn, policy, worktree, fresh, busy, pending, storageError, picker, checkSelection.dirty, checkSelection.problem, previewSelection.dirty, previewSelection.problem, deploymentSelection.dirty, deploymentSelection.problem, actorId, projectId, view.context.digest]);
   async function advance() {
     if (!row || !canExecute || blocked) return;
     await mutate('advance', { kind: 'advance', actorId, projectId, id: row.id, revision: row.revision }, () => coordinatorContinuationsApi.advance(projectId, actorId, row.id, row.revision), remember);
@@ -197,7 +188,9 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     {pending && <p role="status">A continuation request is retained. New requests are paused until its exact outcome is read back.</p>}
     {readDenied ? <p role="alert">Current access was refused. Retained private work is hidden.</p> : <>
       {rows.length > 0 && <label className="luci-field">Retained continuation<select value={selected} onChange={event => setSelected(event.target.value)}>{rows.map(value => <option value={value.id} key={value.id}>{states[value.status]} · {value.originTurnId}</option>)}</select></label>}
+      {contextCommits.some(value => value.status === 'pending') && <p role="status">An accepted context Git commit has an uncertain outcome. Luci will inspect its exact parent, paths and bytes without replaying the write. Review this project’s source if it remains pending.</p>}
       {row && <article aria-label="Selected continuation"><p role="status"><strong>{states[row.status]}</strong> · {row.message}</p>
+        {!!row.acceptedEvents?.length && <p>Continued from {row.acceptedEvents.length} accepted project change{row.acceptedEvents.length === 1 ? '' : 's'}, through event {row.acceptedEvents[row.acceptedEvents.length - 1].sequence}. The saved input still requires current review and authority.</p>}
         {row.contextDigest !== view.context.digest && <p>The current context observation differs from this work’s captured snapshot. Luci rechecks the exact reviewed selection before continuing; it does not replace captured context.</p>}
         <ol>{row.actions.map(action => <li key={action.id}>{steps[action.kind]} · {action.status}{action.message ? ` — ${action.message}` : ''}</li>)}</ol>
         {row.queueIds.length > 0 && <p>{row.queueIds.length} queued task reservations. Completion, independent checks and release evidence remain separate.</p>}
@@ -210,6 +203,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
       </article>}
       {policy && policy.executionMode !== 'reviewed-tasks' && <details><summary>Implementation permission</summary><p>Allow Luci to prepare and queue reviewed tasks with your chosen upstream route. Current access, approvals, resource and provider limits still apply. This does not authorize deployment or change draft policy.</p><label className="orchestrator-ack"><input type="checkbox" checked={consent} disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending} onChange={event => setConsent(event.target.checked)} />Allow reviewed-task continuation in this project.</label><Button variant="secondary" disabled={!consent || !canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError} onClick={() => void enableExecution()}>Enable reviewed-task continuation</Button></details>}
       {policy?.executionMode === 'reviewed-tasks' && <Button variant="tertiary" disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError} onClick={() => void enableExecution('manual')}>Pause new continuations</Button>}
+      {policy && <details><summary>Reviewed candidate integration</summary><p>Allow Luci to integrate a stopped upstream candidate only inside its saved nonempty task write paths. Failed or uncertain attempts, unanswered questions and changed source remain for explicit review. Independent checks on the combined source still run afterward.</p>{policy.integrationMode === 'reviewed-scopes' ? <Button variant="tertiary" disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError} onClick={() => void saveIntegrationMode('manual')}>Pause automatic integration</Button> : <><label className="setup-check"><input type="checkbox" checked={integrationConsent} disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending} onChange={event => setIntegrationConsent(event.target.checked)} />Allow reviewed-scope candidate integration for future continuations.</label><Button variant="secondary" disabled={!integrationConsent || !canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError} onClick={() => void saveIntegrationMode('reviewed-scopes')}>Enable reviewed integration</Button></>}</details>}
       {policy && <details><summary>Checked-source preview permission</summary><p>Allow Luci to build a local preview from the exact independently checked source, using explicitly delegated build configuration. Current Deploy access and resource limits apply. Public deployment uses its separate permission and exact configuration.</p>{policy.previewMode === 'checked-source' ? <Button variant="tertiary" disabled={!canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending || !!storageError} onClick={() => void savePreviewMode('manual')}>Pause automatic previews</Button> : <><label className="setup-check"><input type="checkbox" checked={previewConsent} disabled={!canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending} onChange={event => setPreviewConsent(event.target.checked)} />Allow checked-source local previews for this project.</label><Button variant="secondary" disabled={!previewConsent || !canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending || !!storageError} onClick={() => void savePreviewMode('checked-source')}>Enable checked-source previews</Button></>}</details>}
       {policy && <details><summary>Existing-target deployment permission</summary><p>Allow Luci to continue checked, previewed work to an existing connected deployment server. It can publish the exact reviewed source and create or update the application under your saved configuration. It does not provision new servers or remove current permission and resource limits.</p>{policy.deploymentMode === 'existing-target' ? <Button variant="tertiary" disabled={!canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending || !!storageError} onClick={() => void saveDeploymentMode('manual')}>Pause delegated deployments</Button> : <><label className="setup-check"><input type="checkbox" checked={deploymentConsent} disabled={!canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending} onChange={event => setDeploymentConsent(event.target.checked)} />Allow existing-target deployment under an exact saved delivery plan.</label><Button variant="secondary" disabled={!deploymentConsent || !canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending || !!storageError} onClick={() => void saveDeploymentMode('existing-target')}>Enable existing-target deployment</Button></>}</details>}
       {savedRoute && <p>Saved upstream route: {savedRoute.route.harness} · {savedRoute.route.model || 'configured model'} · up to {savedRoute.maxParallel} tasks. Luci reuses only this exact route and check delegation for your later approved amendments while reviewed-task permission remains enabled.</p>}

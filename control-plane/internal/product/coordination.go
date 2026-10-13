@@ -729,7 +729,11 @@ func (s *Server) finishCoordinationApplyLocked(ctx context.Context, p project.Pr
 	if err = coordinationEvent(&saved, value, "applied", intent.ApplyBaseContextDigest, actor); err != nil {
 		return err
 	}
-	return s.saveCoordination(saved)
+	if err = s.saveCoordination(saved); err != nil {
+		return err
+	}
+	s.WakeCoordinator()
+	return nil
 }
 
 func (s *Server) validateCoordinationRecoveryLocked(ctx context.Context, p project.Project, turn storedOrchestratorTurn) error {

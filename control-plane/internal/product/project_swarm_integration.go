@@ -245,6 +245,10 @@ func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Reques
 		projectRunProblem(w, err)
 		return
 	}
+	if err = s.checkCoordinatorIntegrationGate(r.Context(), p, run); err != nil {
+		projectRunProblem(w, err)
+		return
+	}
 	taskID := r.PathValue("taskId")
 	op := *swarmOperation(&run, review.OperationID)
 	sourcePath, err := s.swarmPath(p.ID, run.ID, op.ID)

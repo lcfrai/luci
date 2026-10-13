@@ -7,7 +7,7 @@ import type { OrchestratorView } from './orchestrator';
 export type CoordinatorActionKind = 'create-run' | 'prepare-tasks' | 'queue-tasks';
 export interface CoordinatorContinuation {
   id: string; projectId: string; actor: { id: string; displayName: string }; idempotencyKey: string;
-  originTurnId: string; contextDigest: string; policyRevision: number; revision: number;
+  originTurnId: string; acceptedEvents?: { eventId: string; sequence: number; originIntentId: string; archiveDigest?: string }[]; contextDigest: string; policyRevision: number; revision: number;
   status: 'ready' | 'continuing' | 'queued' | 'checking' | 'checks-verified' | 'unknown' | 'refused' | 'blocked' | 'previewing' | 'preview-ready' | 'preview-blocked' | 'deploying' | 'deployed' | 'deployment-blocked'; message: string;
   runId?: string; queueIds: string[];
   actions: { id: string; kind: CoordinatorActionKind; status: 'pending' | 'confirmed' | 'unknown' | 'refused'; referenceId?: string; message?: string; startedAt: string; finishedAt?: string }[];
@@ -26,7 +26,8 @@ export interface CoordinatorSavedRoute {
   route: Omit<CreateProjectRun, 'idempotencyKey' | 'implementationContext'>;
   maxParallel: number; updatedAt: string; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan; deploymentPlan?: CoordinatorDeploymentPlan;
 }
-export interface CoordinatorContinuationState { continuations: CoordinatorContinuation[]; savedRoute: CoordinatorSavedRoute | null }
+export interface CoordinatorContextCommitView { eventId: string; status: 'pending' | 'confirmed'; commit?: string; createdAt: string }
+export interface CoordinatorContinuationState { continuations: CoordinatorContinuation[]; savedRoute: CoordinatorSavedRoute | null; contextCommits?: CoordinatorContextCommitView[] }
 export interface CoordinatorContinuationRequest {
   idempotencyKey: string; originTurnId: string; expectedContextDigest: string; expectedPolicyRevision: number;
   run: Omit<CreateProjectRun, 'idempotencyKey'>; maxParallel: number;
@@ -38,6 +39,7 @@ const text = (value: unknown): value is string => typeof value === 'string' && v
 function verified(value: CoordinatorContinuation, project: string, actor: string, id?: string) {
   if (!value || value.projectId !== project || value.actor?.id !== actor || !text(value.id) || (id && value.id !== id) ||
       !text(value.idempotencyKey) || !text(value.originTurnId) || !text(value.contextDigest) ||
+      value.acceptedEvents !== undefined && (!Array.isArray(value.acceptedEvents) || value.acceptedEvents.length > 16 || value.acceptedEvents.some((item, index) => !text(item.eventId) || !text(item.originIntentId) || !Number.isSafeInteger(item.sequence) || item.sequence < 1 || index > 0 && value.acceptedEvents![index - 1].sequence >= item.sequence)) ||
       !Number.isSafeInteger(value.revision) || value.revision < 1 || !Number.isSafeInteger(value.policyRevision) || value.policyRevision < 1 ||
       !['ready', 'continuing', 'queued', 'checking', 'checks-verified', 'unknown', 'refused', 'blocked', 'previewing', 'preview-ready', 'preview-blocked', 'deploying', 'deployed', 'deployment-blocked'].includes(value.status) || typeof value.message !== 'string' ||
       !Array.isArray(value.queueIds) || value.queueIds.some(item => !text(item)) || new Set(value.queueIds).size !== value.queueIds.length ||
@@ -113,7 +115,8 @@ function savedRoute(value: CoordinatorSavedRoute | null | undefined) {
 async function listState(project: string, actor: string, signal?: AbortSignal): Promise<CoordinatorContinuationState> {
   const result = await productApi.request<CoordinatorContinuationState>(base(project), undefined, 'GET', 30_000, signal);
   if (!Array.isArray(result?.continuations) || result.continuations.length > 40 || new Set(result.continuations.map(row => row.id)).size !== result.continuations.length || new Set(result.continuations.map(row => row.idempotencyKey)).size !== result.continuations.length) throw new Error('The continuation history could not be verified. Refresh before continuing.');
-  return { continuations: result.continuations.map(row => verified(row, project, actor)), savedRoute: savedRoute(result.savedRoute) };
+  if (result.contextCommits !== undefined && (!Array.isArray(result.contextCommits) || result.contextCommits.length > 40 || result.contextCommits.some(item => !text(item.eventId) || !['pending', 'confirmed'].includes(item.status) || item.status === 'confirmed' && !/^[0-9a-f]{40,64}$/.test(item.commit ?? '') || !Number.isFinite(Date.parse(item.createdAt))))) throw new Error('The accepted context source history could not be verified. Refresh before continuing.');
+  return { continuations: result.continuations.map(row => verified(row, project, actor)), savedRoute: savedRoute(result.savedRoute), contextCommits: result.contextCommits ?? [] };
 }
 export const coordinatorContinuationsApi = {
   listState,
