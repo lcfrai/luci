@@ -122,6 +122,9 @@ func TestRestoredControllerReadsEveryOwnedVMBeforeNewCreate(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = c.Close(context.Background()) })
 	third := taskRequest("gamma", "three")
+	if !c.RestoredPending(first.Identity.OperationID) || !c.RestoredPending(second.Identity.OperationID) {
+		t.Fatal("restored ownership was not visible before provider readback")
+	}
 	if _, err = c.Allocate(context.Background(), first); !errors.Is(err, ErrUnknown) {
 		t.Fatal("same-attempt Start could proceed before restored identity readback", err)
 	}
@@ -134,9 +137,19 @@ func TestRestoredControllerReadsEveryOwnedVMBeforeNewCreate(t *testing.T) {
 		t.Fatal("foreign first VM did not stay charged", remaining, err)
 	}
 	p.foreign = false
+	p.mu.Lock()
+	delete(p.rows, "vm-2") // Exact provider absence settles only the healthy peer's VM charge.
+	p.mu.Unlock()
 	remaining, err = c.ReconcileRestored(context.Background(), 1)
 	if remaining != 1 || err != nil {
 		t.Fatal("healthy peer was starved by first VM", remaining, err)
+	}
+	if c.RestoredPending(second.Identity.OperationID) || !c.RestoredPending(first.Identity.OperationID) {
+		t.Fatal("readback cleared another VM's recovery status")
+	}
+	_, usage := c.Snapshot()
+	if usage.Active != 1 {
+		t.Fatal("missing peer did not release only its exact VM reservation", usage)
 	}
 	if _, err = c.Allocate(context.Background(), third); !errors.Is(err, ErrUnknown) || p.creates != 2 {
 		t.Fatal("new VM admitted while one restored identity remains", err, p.creates)

@@ -470,6 +470,14 @@ func (c *Controller) Snapshot() ([]Record, Usage) {
 	u, _ := c.usageLocked()
 	return out, u
 }
+
+// RestoredPending is a read of the process-local admission fence. It never
+// samples the provider or changes durable ownership.
+func (c *Controller) RestoredPending(op string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.restoredPending[op]
+}
 func (c *Controller) begin(ctx context.Context, op string) (context.Context, func(), error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

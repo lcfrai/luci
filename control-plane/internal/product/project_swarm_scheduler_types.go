@@ -58,6 +58,9 @@ type SwarmSchedulerRuntime struct {
 	// CloudRetired proves exact per-task VM absence before a cloud attempt can
 	// become terminal and release its scheduler slot. Nil refuses cloud release.
 	CloudRetired func(context.Context, string, string, string, string) (bool, error)
+	// CloudRecoveryPending reads only the controller's restored-identity fence.
+	// It does not inspect a provider during queue reconciliation or GET routes.
+	CloudRecoveryPending func(string, string, string, string) bool
 	// Resources returns an already-observed, credential-free runtime snapshot.
 	// A read must not sample the host, reserve capacity, or reconcile children.
 	Resources func(context.Context) any

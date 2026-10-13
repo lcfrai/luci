@@ -473,14 +473,19 @@ func New(d Deps) (*API, error) {
 			}
 		}
 		cloudRetired := func(context.Context, string, string, string, string) (bool, error) { return false, nil }
+		var cloudRecoveryPending func(string, string, string, string) bool
 		if d.CloudTasks != nil {
 			cloudRetired = a.cloudRetired
+			cloudRecoveryPending = func(projectID, runID, operationID, childID string) bool {
+				_, found := a.cloudRecord(projectID, runID, operationID, childID)
+				return found && d.CloudTasks.Runtime.Controller.RestoredPending(childID)
+			}
 		}
 		var resumeCloud func(context.Context, product.SwarmDispatchRequest) (product.SwarmDispatchResult, error)
 		if d.CloudTasks != nil {
 			resumeCloud = a.resumeCloudSwarm
 		}
-		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, ResumeCloud: resumeCloud, StopOwned: a.stopOwnedSwarmTask, Release: a.execution.release, CloudRetired: cloudRetired, Resources: a.queuedResourceView})
+		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, ResumeCloud: resumeCloud, StopOwned: a.stopOwnedSwarmTask, Release: a.execution.release, CloudRetired: cloudRetired, CloudRecoveryPending: cloudRecoveryPending, Resources: a.queuedResourceView})
 		d.Product.SetProjectSwarmWorktreeObserver(a.observeSwarmWorktree)
 		d.Product.SetCoordinatorRuntime(a.reauthorizeCoordinator)
 	}

@@ -496,6 +496,10 @@ func (s *Server) reconcileQueuedSwarm(ctx context.Context, item swarmQueueRecord
 			return nil
 		})
 	}
+	if run.Input.Route.ExecutionLocation == "cloud-microvm" && runtime.CloudRecoveryPending != nil &&
+		runtime.CloudRecoveryPending(item.ProjectID, item.RunID, op.ID, op.ChildID) {
+		return s.schedulerSetReason(item.ID, "unknown", "cloud_restore_pending", "The exact restored microVM is awaiting provider identity readback. Its owned reservation remains held; no replacement will start.")
+	}
 	if run.Input.Route.ExecutionLocation == "cloud-microvm" && (op.Status == "reserved" || op.Status == "dispatching") &&
 		item.State == "unknown" && runtime.ResumeCloud != nil && !s.swarmQueueCoolingDown(item.ID) && run.State != "cancelled" &&
 		run.Swarm != nil && run.Swarm.State == "ready" {

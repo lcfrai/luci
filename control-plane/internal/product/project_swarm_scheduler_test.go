@@ -294,6 +294,49 @@ func TestCloudSwarmKeepsSchedulerSlotUntilExactMicroVMRetirement(t *testing.T) {
 		t.Fatal("confirmed cloud absence did not release the next task", err, *starts)
 	}
 }
+func TestCloudRestoredIdentityRemainsVisibleAndChargedUntilReadback(t *testing.T) {
+	s, mux, run, base, admitted, starts, _ := schedulerFixture(t, true)
+	*admitted = true
+	queue := enqueueSchedulerFixture(t, mux, run, base, []string{"task-a"})
+	if err := s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 1 {
+		t.Fatal("initial cloud attempt did not start once", err, *starts)
+	}
+	current, err := s.GetProjectSwarmRun(run.ProjectID, run.ID)
+	if err != nil || len(current.Operations) != 1 {
+		t.Fatal(err, current.Operations)
+	}
+	p, err := s.resolveProject(run.ProjectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	op := current.Operations[0]
+	if _, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, current.Revision, op.ID, op.ChildID, "running", "exact cloud launch observed"); err != nil {
+		t.Fatal(err)
+	}
+	pending := true
+	s.swarmScheduler.runtime.CloudRecoveryPending = func(projectID, runID, operationID, childID string) bool {
+		if projectID != run.ProjectID || runID != run.ID || operationID == "" || childID == "" {
+			t.Fatal("restore check lost exact task ownership")
+		}
+		return pending
+	}
+	if err := s.RunSwarmSchedulerOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.ProjectSwarmQueueSnapshot(run.ProjectID)
+	if err != nil || len(view.Items) != 1 || view.Items[0].ID != queue[0].ID || view.Items[0].State != "unknown" ||
+		view.Items[0].ReasonCode != "cloud_restore_pending" || view.Items[0].MemoryMiB != 1024 || view.Items[0].CPUMillis != 1000 || *starts != 1 {
+		t.Fatal("restored cloud identity was hidden or its charge released", view, err, *starts)
+	}
+	pending = false
+	if err = s.RunSwarmSchedulerOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	view, err = s.ProjectSwarmQueueSnapshot(run.ProjectID)
+	if err != nil || view.Items[0].State != "running" || *starts != 1 {
+		t.Fatal("successful readback replayed the task or left a stale warning", view, err, *starts)
+	}
+}
 func TestCancelledCloudAttemptKeepsSchedulerSlotUntilVMRetirement(t *testing.T) {
 	s, mux, run, base, admitted, starts, _ := schedulerFixture(t, true)
 	*admitted = true
