@@ -10,11 +10,13 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
+
+const microVMImportFileLimit = 8 << 20
+const microVMImportTotalLimit = 64 << 20
 
 type ProjectSwarmMicroVMImportScope struct {
 	ProjectID, RunID, OperationID, ChildID, OwnerID, RequestDigest string
@@ -247,7 +249,7 @@ func (s *Server) ImportProjectSwarmMicroVMCandidate(ctx context.Context, project
 		return "", err
 	}
 	files := make([]ProjectSwarmCheckpointFile, 0, len(changes.Changes))
-	total := 0
+	var total int64
 	for _, change := range changes.Changes {
 		if !safeSwarmWorkspacePath(change.Path) || blockedProjectFile(change.Path) || strings.EqualFold(change.Path, "LUCI.md") ||
 			!validProjectTaskWritePath(change.Path) || len(task.WritePaths) > 0 && !swarmPathAllowed(change.Path, task.WritePaths) {
@@ -269,7 +271,7 @@ func (s *Server) ImportProjectSwarmMicroVMCandidate(ctx context.Context, project
 			}
 		}
 		if change.Before != nil {
-			if change.Before.Path != change.Path || change.Before.Size > swarmCheckpointFileLimit {
+			if change.Before.Path != change.Path || change.Before.Size > microVMImportFileLimit {
 				return "", ErrProjectRunInvalid
 			}
 			file.BeforeMode = gitMode(change.Before.Mode)
@@ -277,12 +279,12 @@ func (s *Server) ImportProjectSwarmMicroVMCandidate(ctx context.Context, project
 				return "", errors.New("The cloud candidate's starting file mode or size changed.")
 			}
 			file.Before, err = s.swarmGit(ctx, path, "show", base+":"+change.Path)
-			if err != nil || int64(len(file.Before)) != change.Before.Size || !sameMicroVMBytes(file.Before, change.Before.SHA256) || !safeMicroVMText(file.Before) {
+			if err != nil || int64(len(file.Before)) != change.Before.Size || !sameMicroVMBytes(file.Before, change.Before.SHA256) {
 				return "", errors.New("The cloud candidate's starting bytes no longer match its exact source bundle.")
 			}
 		}
 		if change.After != nil {
-			if change.After.Path != change.Path || change.After.Size > swarmCheckpointFileLimit {
+			if change.After.Path != change.Path || change.After.Size > microVMImportFileLimit {
 				return "", ErrProjectRunInvalid
 			}
 			file.AfterMode = gitMode(change.After.Mode)
@@ -296,9 +298,9 @@ func (s *Server) ImportProjectSwarmMicroVMCandidate(ctx context.Context, project
 				opened.Close()
 				return "", errors.New("The staged source mode differs from its verified manifest.")
 			}
-			body, readErr := io.ReadAll(io.LimitReader(opened, swarmCheckpointFileLimit+1))
+			body, readErr := io.ReadAll(io.LimitReader(opened, microVMImportFileLimit+1))
 			closeErr := opened.Close()
-			if readErr != nil || closeErr != nil || int64(len(body)) != change.After.Size || !sameMicroVMBytes(string(body), change.After.SHA256) || !safeMicroVMText(string(body)) {
+			if readErr != nil || closeErr != nil || int64(len(body)) != change.After.Size || !sameMicroVMBytes(string(body), change.After.SHA256) {
 				return "", errors.New("The staged cloud candidate changed after its verified capture.")
 			}
 			file.After = string(body)
@@ -308,8 +310,8 @@ func (s *Server) ImportProjectSwarmMicroVMCandidate(ctx context.Context, project
 			file.BeforeMode == "" && change.Before != nil || file.AfterMode == "" && change.After != nil {
 			return "", ErrProjectRunInvalid
 		}
-		total += len(file.Before) + len(file.After)
-		if total > swarmCheckpointTotalLimit || len(files) >= swarmCheckpointPathLimit {
+		total += int64(len(file.Before) + len(file.After))
+		if total > microVMImportTotalLimit || len(files) >= swarmCheckpointPathLimit {
 			return "", errors.New("The cloud candidate exceeds the complete review limit; split it into smaller scoped tasks.")
 		}
 		files = append(files, file)
@@ -337,8 +339,4 @@ func gitMode(mode uint32) string {
 func sameMicroVMBytes(body, expected string) bool {
 	hash := sha256.Sum256([]byte(body))
 	return hex.EncodeToString(hash[:]) == expected
-}
-
-func safeMicroVMText(body string) bool {
-	return utf8.ValidString(body) && !strings.ContainsRune(body, 0)
 }

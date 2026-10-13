@@ -55,16 +55,16 @@ func (s *Server) verifyImportedMicroVMCandidate(ctx context.Context, path, base,
 			if side.file == nil {
 				continue
 			}
-			if side.file.Path != name || side.file.Size > swarmCheckpointFileLimit || side.entry.Size != side.file.Size ||
+			if side.file.Path != name || side.file.Size > microVMImportFileLimit || side.entry.Size != side.file.Size ||
 				side.entry.Mode != gitMode(side.file.Mode) {
 				return "", ErrProjectRunConflict
 			}
 			body, readErr := s.swarmGit(ctx, path, "show", side.commit+":"+name)
-			if readErr != nil || int64(len(body)) != side.file.Size || !sameMicroVMBytes(body, side.file.SHA256) || !safeMicroVMText(body) {
+			if readErr != nil || int64(len(body)) != side.file.Size || !sameMicroVMBytes(body, side.file.SHA256) {
 				return "", ErrProjectRunConflict
 			}
 			total += int64(len(body))
-			if total > swarmCheckpointTotalLimit {
+			if total > microVMImportTotalLimit {
 				return "", ErrProjectRunConflict
 			}
 		}

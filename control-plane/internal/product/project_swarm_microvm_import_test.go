@@ -153,6 +153,65 @@ func TestCancelledCloudRunRequiresExactVMAbsenceBeforeTaskRetirement(t *testing.
 	}
 }
 
+func TestMicroVMReturnReviewsBoundedBinaryAssetAndExactReadback(t *testing.T) {
+	s, mux, p, run, base, _ := swarmHTTPFixture(t)
+	s.SetProjectSwarmMicroVMImportGuard(func(context.Context, ProjectSwarmMicroVMImportScope) (func(), error) { return func() {}, nil })
+	run = swarmReserveHTTP(t, mux, base, run, "task-a", "cloud-binary-asset")
+	op := run.Operations[0]
+	var err error
+	run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, "running", "cloud process started")
+	if err != nil {
+		t.Fatal(err)
+	}
+	op = run.Operations[0]
+	content := string(append([]byte{0, 0xff, 0xfe}, []byte(strings.Repeat("asset", 30000))...))
+	record, changes, stage := microVMImportFixture(t, run.ID, op, content)
+	if _, err = s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, record); err != nil {
+		t.Fatal(err)
+	}
+	commit, err := s.ImportProjectSwarmMicroVMCandidate(context.Background(), p.ID, run.ID, op.ID, record, changes, stage)
+	if err != nil || !deliverySHA.MatchString(commit) {
+		t.Fatal("bounded binary asset was not retained for ordinary Git review", err)
+	}
+	workerPath := mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID)
+	got, err := os.ReadFile(filepath.Join(workerPath, "alpha.txt"))
+	if err != nil || string(got) != content {
+		t.Fatal("binary asset bytes changed", err)
+	}
+	if again, err := s.ImportProjectSwarmMicroVMCandidate(context.Background(), p.ID, run.ID, op.ID, record, changes, stage); err != nil || again != commit {
+		t.Fatal("binary asset lost-commit readback was not exact", err)
+	}
+}
+
+func TestMicroVMReturnRefusesOversizedAssetBeforeGitWrite(t *testing.T) {
+	s, mux, p, run, base, _ := swarmHTTPFixture(t)
+	s.SetProjectSwarmMicroVMImportGuard(func(context.Context, ProjectSwarmMicroVMImportScope) (func(), error) { return func() {}, nil })
+	run = swarmReserveHTTP(t, mux, base, run, "task-a", "cloud-oversized-asset")
+	op := run.Operations[0]
+	var err error
+	run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, "running", "cloud process started")
+	if err != nil {
+		t.Fatal(err)
+	}
+	op = run.Operations[0]
+	record, changes, stage := microVMImportFixture(t, run.ID, op, "small asset")
+	if _, err = s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, record); err != nil {
+		t.Fatal(err)
+	}
+	changes.Changes[0].After.Size = microVMImportFileLimit + 1
+	encoded, _ := json.Marshal(changes)
+	hash := sha256.Sum256(encoded)
+	record.Capture.ChangeManifestSHA256 = hex.EncodeToString(hash[:])
+	worker := mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID)
+	before := auditTree(t, worker)
+	if _, err = s.ImportProjectSwarmMicroVMCandidate(context.Background(), p.ID, run.ID, op.ID, record, changes, stage); err == nil {
+		t.Fatal("oversized asset was imported")
+	}
+	if !reflect.DeepEqual(before, auditTree(t, worker)) {
+		t.Fatal("oversized asset changed the task checkout")
+	}
+}
+
 func TestMicroVMCandidateRejectsOutOfScopeSourceBeforeAnyGitWrite(t *testing.T) {
 	s, mux, p, run, base, _ := swarmHTTPFixture(t)
 	s.SetProjectSwarmMicroVMImportGuard(func(context.Context, ProjectSwarmMicroVMImportScope) (func(), error) { return func() {}, nil })
