@@ -12,6 +12,23 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
+func TestAcceptedAmendmentSelectsTransitiveDependentsAndPreservesIndependentTask(t *testing.T) {
+	tasks := []ProjectTask{
+		{ID: "schema"},
+		{ID: "api", DependsOn: []string{"schema"}},
+		{ID: "screen", DependsOn: []string{"api"}},
+		{ID: "unrelated"},
+	}
+	events := []CoordinationEventObservation{{Intent: CoordinationIntent{TaskIDs: []string{"schema"}}}}
+	if got := coordinatorAffectedTaskIDs(tasks, events); !reflect.DeepEqual(got, []string{"api", "schema", "screen"}) {
+		t.Fatal("dependent old-version work was not selected for replan", got)
+	}
+	events[0].Intent.TaskIDs = []string{"removed"}
+	if got := coordinatorAffectedTaskIDs(tasks, events); got != nil {
+		t.Fatal("missing task granted an implicit new execution scope", got)
+	}
+}
+
 func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testing.T) {
 	s, p, h, ctx, req, starts := coordinatorContinuationFixture(t)
 	anchor := coordinatorCreate(t, h, p, req, 201)

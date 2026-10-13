@@ -29,9 +29,32 @@ func coordinatorAffectedTaskIDs(tasks []ProjectTask, events []CoordinationEventO
 			selected[id] = true
 		}
 	}
+	for id := range selected {
+		if !known[id] {
+			return nil // A removed/renamed task needs explicit review.
+		}
+	}
 	if all {
 		for id := range known {
 			selected[id] = true
+		}
+	}
+	// A task using an amended predecessor cannot continue from an old-version
+	// result. Expand only along saved plan dependencies; independent projects
+	// and independent tasks retain their own identities and execution.
+	for changed := true; changed; {
+		changed = false
+		for _, task := range tasks {
+			if selected[task.ID] {
+				continue
+			}
+			for _, dependency := range task.DependsOn {
+				if selected[dependency] {
+					selected[task.ID] = true
+					changed = true
+					break
+				}
+			}
 		}
 	}
 	if len(selected) == 0 || len(selected) > 200 {
