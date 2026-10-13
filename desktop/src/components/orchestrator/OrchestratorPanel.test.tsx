@@ -81,6 +81,25 @@ it("shows accepted peer changes, actor-owned work and decisions in the primary c
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
+it("brings a blocked delivery finding into the same conversation without sending or replacing a draft", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ activity: { accepted: [], earlierAvailable: false, work: [{
+    id: "continue-blocked", originTurnId: "turn-1", contextDigest: "d".repeat(64), acceptedEvents: [],
+    status: "deployment-blocked", message: "Provider health is unknown.", runId: "run-1", updatedAt: "2026-10-13T00:00:00Z",
+    finding: { status: "verified", checkId: "check-1", deployStatus: "blocked", deployReleaseId: "release-1" },
+  }] } }));
+  render(<OrchestratorPanel projectId="p-1" primary />);
+  const button = await screen.findByRole("button", { name: "Discuss finding with Luci" });
+  await userEvent.click(button);
+  const composer = screen.getByLabelText("Message Luci") as HTMLTextAreaElement;
+  expect(composer.value).toContain("run run-1, context " + "d".repeat(64));
+  expect(composer.value).toContain("check check-1");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+  await userEvent.clear(composer); await userEvent.type(composer, "Keep my own careful question.");
+  await userEvent.click(button);
+  expect(composer.value).toBe("Keep my own careful question.");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
 it("uses the existing conversation mutation boundary for a policy-authorized draft and leaves Build/Deploy untouched", async () => {
   const proposal = { ...proposalTurn(), actor: { id: "owner", displayName: "Owner" } };
   const initial = view({ turns: [proposal] });

@@ -611,6 +611,15 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
     useCockpit.setState({ projectRunInspection: { scope, projectId, runId, refresh: true } });
     setLens("develop");
   };
+  const discussFinding = (work: NonNullable<OrchestratorView["activity"]>["work"][number]) => {
+    if (!permission.current.canAssist || contextStale || pendingRequest || recoveredDraft || storageConflict || uncertain || busy) return;
+    if (messageRef.current.trim()) {
+      setNotice("Your unsent message has been kept. Include the recorded finding when you ask Luci about it.");
+    } else {
+      editComposer(`Review the retained ${work.status} finding for run ${work.runId || "without a run"}, context ${work.contextDigest}${work.finding?.checkId ? `, check ${work.finding.checkId}` : ""}. Explain any necessary Discover or Design change before continuing. Do not retry an unconfirmed external effect.`, "");
+    }
+    openComposer();
+  };
   const turns = [...new Map([...earlier, ...(view?.turns ?? [])].map(turn => [turn.id, turn])).values()].sort((a, b) => a.sequence - b.sequence);
   const replyQuestion = view?.blockingQuestions.find(question => question.turnId === replyTo)?.question || turns.find(turn => turn.id === replyTo)?.answer?.question;
   const reviewBlock = draftWarning || setupChangeWarning || (contextStale ? "Refresh project understanding before applying an amendment." : !canEdit ? "Editing access is required to apply an amendment." : review && view && review.revision !== view.revision ? "The conversation changed during review. Close this review, refresh and review the amendment again." : "");
@@ -650,6 +659,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
                   {work.finding.deployStatus && <> · deployment {work.finding.deployStatus}{work.finding.deployReleaseId && <> <code>{work.finding.deployReleaseId}</code></>}</>}
                 </>}
                 {work.runId && <> · run <code>{work.runId}</code> <Button variant="secondary" size="compact" disabled={!canRead || contextStale} onClick={() => inspect(work.runId!)}>Inspect run</Button></>}
+                {(["blocked", "unknown", "refused", "preview-blocked", "deployment-blocked"].includes(work.status)) && <Button variant="secondary" size="compact" disabled={!canAssist || !!busy || contextStale || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict} onClick={() => discussFinding(work)}>Discuss finding with Luci</Button>}
               </p>)}
               {view.activity.earlierAvailable && <p>Earlier shared changes and work remain in the project’s saved coordination history.</p>}
             </section>}
