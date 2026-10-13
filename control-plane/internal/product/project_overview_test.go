@@ -62,6 +62,45 @@ func TestProjectOverviewShowsAcceptedTeamChangeAcrossRestartWithoutBorrowingAnot
 		t.Fatalf("read-only restart lost accepted project activity: %+v", again.SharedChange)
 	}
 }
+
+func TestProjectOverviewKeepsPrivateFindingWithRecipientAcrossRestart(t *testing.T) {
+	s, p, h, ctx, req, _ := coordinatorContinuationFixture(t)
+	row := coordinatorReadyFixture(t, s, p, ctx, req)
+	s.mu.Lock()
+	rows, err := s.readContinuations(p, "alice")
+	if err == nil {
+		rows.Findings = []CoordinatorFinding{{ID: findingIdentity(row, "alice"), ProjectID: p.ID, RecipientID: "alice",
+			ContinuationID: row.ID, OriginTurnID: row.OriginTurnID, ContextDigest: row.ContextDigest,
+			SourceRevision: row.Revision, SourceStatus: "blocked", Status: "question", Message: "Clarify the reviewed change.", UpdatedAt: row.UpdatedAt}}
+		err = s.saveContinuations(rows)
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := overviewGet(t, h, p.ID)
+	if got.PrivateFinding.Status != "recorded" || got.PrivateFinding.ID != rows.Findings[0].ID || got.PrivateFinding.State != "question" {
+		t.Fatalf("actor did not receive the retained finding pointer: %+v", got.PrivateFinding)
+	}
+	bobMux := http.NewServeMux()
+	s.Register(bobMux)
+	bob := contextHistoryActorHandler(bobMux, management.User{ID: "bob", Username: "bob", Role: "member"})
+	other := overviewGet(t, bob, p.ID)
+	if other.PrivateFinding.Status != "none" || other.PrivateFinding.ID != "" {
+		t.Fatalf("another person received a private finding: %+v", other.PrivateFinding)
+	}
+	restarted, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restarted.Close()
+	mux := http.NewServeMux()
+	restarted.registerProjectOverview(mux)
+	after := overviewGet(t, contextHistoryActorHandler(mux, management.User{ID: "alice", Username: "alice", Role: "member"}), p.ID)
+	if !reflect.DeepEqual(after.PrivateFinding, got.PrivateFinding) {
+		t.Fatalf("restart lost private finding identity: before=%+v after=%+v", got.PrivateFinding, after.PrivateFinding)
+	}
+}
 func TestProjectOverviewFourProjectsKeepContextAndQuestionsSeparate(t *testing.T) {
 	s, mux := overviewFixture(t)
 	projects := make([]project.Project, 4)

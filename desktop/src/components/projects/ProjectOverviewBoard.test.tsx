@@ -60,6 +60,19 @@ it('keeps cross-project conversation attention behind the existing unsaved-draft
   expect(useCockpit.getState().workspaceSurface).not.toBe('luci');
 });
 
+it('shows only the recipient\'s bounded finding pointer and opens its exact conversation', async () => {
+  vi.mocked(projectOverviewApi.get).mockImplementation(async id => id === 'p1' ? { ...overview(id), privateFinding: {
+    status: 'recorded', id: 'finding-owned', sourceStatus: 'deployment-blocked', state: 'question', updatedAt: '2026-10-13T00:00:00Z',
+  } } : { ...overview(id), privateFinding: { status: 'none' } });
+  render(<ProjectOverviewBoard projects={projects} />);
+  expect(await screen.findByText(/Your Luci conversation has a question follow-up for deployment-blocked/)).toBeTruthy();
+  expect(screen.getAllByText('finding-owned')).toHaveLength(1);
+  expect(screen.queryByRole('button', { name: 'Discuss Shop with Luci' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Discuss Notes with Luci' }));
+  expect(useCockpit.getState().selection.projectId).toBe('p1');
+  expect(useCockpit.getState().workspaceSurface).toBe('luci');
+});
+
 it('opens a current project before summary reads finish and preserves the unsaved-draft decision', async () => {
   vi.mocked(projectOverviewApi.get).mockImplementation(() => new Promise(() => {}));
   useCockpit.getState().selectProject('p2', 'design');

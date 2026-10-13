@@ -13,6 +13,7 @@ export interface ProjectOverview {
   latestRun?: { status: 'recorded' | 'none' | 'unavailable'; id?: string; state?: string; updatedAt?: string; contextStatus?: 'current' | 'changed' | 'unavailable'; contextReason?: string };
   attention?: { status: 'recorded' | 'unavailable'; count: number | null; items: ProjectRunAttention[]; omitted: number | null };
   sharedChange?: { status: 'recorded' | 'none' | 'unavailable'; event?: OrchestratorActivity['accepted'][number] };
+  privateFinding?: { status: 'recorded' | 'none' | 'unavailable'; id?: string; sourceStatus?: string; state?: string; updatedAt?: string };
   limitations: string[];
 }
 const count = (value: unknown) => value === null || (Number.isSafeInteger(value) && (value as number) >= 0);
@@ -36,6 +37,14 @@ function validSharedChange(value: ProjectOverview['sharedChange']): boolean {
     Array.isArray(event.taskIds) && event.taskIds.every(id => typeof id === 'string' && !!id) &&
     typeof event.affectsAllTasks === 'boolean';
 }
+function validPrivateFinding(value: ProjectOverview['privateFinding']): boolean {
+  if (value === undefined) return true;
+  if (!value || !['recorded', 'none', 'unavailable'].includes(value.status)) return false;
+  if (value.status !== 'recorded') return value.id === undefined && value.sourceStatus === undefined && value.state === undefined && value.updatedAt === undefined;
+  return !!value.id?.startsWith('finding-') && !!value.sourceStatus &&
+    ['pending', 'reserved', 'inflight', 'question', 'review', 'observed', 'resumed', 'unknown'].includes(value.state ?? '') &&
+    Number.isFinite(Date.parse(value.updatedAt ?? ''));
+}
 export const projectOverviewApi = {
   async get(projectId: string, signal?: AbortSignal): Promise<ProjectOverview> {
     const value = await productApi.request<ProjectOverview>(`/v1/product/projects/${encodeURIComponent(projectId)}/overview`, undefined, 'GET', 30_000, signal);
@@ -51,6 +60,7 @@ export const projectOverviewApi = {
         (value.execution.status === 'recorded' ? value.execution.failed === null : value.execution.failed !== null))) ||
       !validAttention(value.attention) ||
       !validSharedChange(value.sharedChange) ||
+      !validPrivateFinding(value.privateFinding) ||
       !Array.isArray(value.limitations) || value.limitations.some(item => typeof item !== 'string')) {
       throw new Error('This project summary could not be read. Refresh it before continuing.');
     }

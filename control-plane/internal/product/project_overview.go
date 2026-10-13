@@ -17,23 +17,34 @@ const projectOverviewQuestionLimit = 5
 // A compact, recorded view for project switching. Nothing in this response is
 // authority to dispatch, approve, integrate or claim that an output was verified.
 type ProjectOverview struct {
-	ProjectID    string                      `json:"projectId"`
-	ObservedAt   string                      `json:"observedAt"`
-	Status       string                      `json:"status"`
-	Goal         *ProjectOverviewGoal        `json:"goal"`
-	Phase        ProjectOverviewPhase        `json:"phase"`
-	Context      *ProjectOverviewContext     `json:"context"`
-	Questions    ProjectOverviewQuestions    `json:"questions"`
-	Execution    ProjectOverviewExecution    `json:"execution"`
-	LatestRun    ProjectOverviewRun          `json:"latestRun"`
-	Attention    ProjectOverviewAttention    `json:"attention"`
-	SharedChange ProjectOverviewSharedChange `json:"sharedChange"`
-	NextAction   OrchestratorAction          `json:"nextAction"`
-	Limitations  []string                    `json:"limitations"`
+	ProjectID      string                        `json:"projectId"`
+	ObservedAt     string                        `json:"observedAt"`
+	Status         string                        `json:"status"`
+	Goal           *ProjectOverviewGoal          `json:"goal"`
+	Phase          ProjectOverviewPhase          `json:"phase"`
+	Context        *ProjectOverviewContext       `json:"context"`
+	Questions      ProjectOverviewQuestions      `json:"questions"`
+	Execution      ProjectOverviewExecution      `json:"execution"`
+	LatestRun      ProjectOverviewRun            `json:"latestRun"`
+	Attention      ProjectOverviewAttention      `json:"attention"`
+	SharedChange   ProjectOverviewSharedChange   `json:"sharedChange"`
+	PrivateFinding ProjectOverviewPrivateFinding `json:"privateFinding"`
+	NextAction     OrchestratorAction            `json:"nextAction"`
+	Limitations    []string                      `json:"limitations"`
 }
 type ProjectOverviewSharedChange struct {
 	Status string                      `json:"status"` // recorded, none, unavailable
 	Event  *OrchestratorAcceptedUpdate `json:"event,omitempty"`
+}
+
+// Only the signed-in recipient sees this bounded pointer. The finding text,
+// proposal and model outcome remain in that person's project conversation.
+type ProjectOverviewPrivateFinding struct {
+	Status       string `json:"status"` // recorded, none, unavailable
+	ID           string `json:"id,omitempty"`
+	SourceStatus string `json:"sourceStatus,omitempty"`
+	State        string `json:"state,omitempty"`
+	UpdatedAt    string `json:"updatedAt,omitempty"`
 }
 type ProjectOverviewGoal struct {
 	Text      string `json:"text"`
@@ -111,8 +122,25 @@ func (s *Server) getProjectOverview(w http.ResponseWriter, r *http.Request) {
 	}
 	view.Execution = ProjectOverviewExecution{Scope: "swarm-queue", Status: "unavailable"}
 	view.SharedChange = ProjectOverviewSharedChange{Status: "none"}
+	view.PrivateFinding = ProjectOverviewPrivateFinding{Status: "unavailable"}
 	s.mu.RLock()
 	activity, sharedErr := s.orchestratorActivityLocked(p, "")
+	if actor, ok := authenticatedContextActor(r.Context()); ok {
+		private, privateErr := s.readContinuations(p, actor.ID)
+		if privateErr == nil {
+			view.PrivateFinding.Status = "none"
+			if len(private.Findings) > 0 {
+				latest := private.Findings[len(private.Findings)-1]
+				view.PrivateFinding = ProjectOverviewPrivateFinding{Status: "recorded", ID: latest.ID,
+					SourceStatus: latest.SourceStatus, State: latest.Status, UpdatedAt: latest.UpdatedAt}
+			}
+		} else {
+			view.Limitations = append(view.Limitations, "Your conversation follow-up could not be summarized. Open this project's Luci conversation to inspect the retained record; unavailable is not none.")
+			if view.Status == "ready" {
+				view.Status = "partial"
+			}
+		}
+	}
 	s.mu.RUnlock()
 	if sharedErr != nil {
 		view.SharedChange.Status = "unavailable"

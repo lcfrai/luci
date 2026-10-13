@@ -41,6 +41,18 @@ it('keeps a bounded exact accepted event separate from unavailable or absent sha
     await expect(projectOverviewApi.get('p-1')).rejects.toThrow('summary could not be read');
   }
 });
+it('verifies the private finding pointer without treating unavailable history as empty', async () => {
+  const pointer = { status: 'recorded', id: 'finding-owned', sourceStatus: 'deployment-blocked', state: 'question', updatedAt: '2026-10-13T00:00:00Z' };
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue({ ...summary(), privateFinding: pointer });
+  expect((await projectOverviewApi.get('p-1')).privateFinding).toEqual(pointer);
+  request.mockResolvedValue({ ...summary(), privateFinding: { status: 'unavailable' } });
+  expect((await projectOverviewApi.get('p-1')).privateFinding?.status).toBe('unavailable');
+  for (const invalid of [{ ...pointer, id: 'foreign' }, { ...pointer, updatedAt: 'not-a-time' },
+    { status: 'none', id: pointer.id }, { ...pointer, state: 'approved' }]) {
+    request.mockResolvedValue({ ...summary(), privateFinding: invalid });
+    await expect(projectOverviewApi.get('p-1')).rejects.toThrow('summary could not be read');
+  }
+});
 it.each(['complete', 'cancelled'])('keeps reported task questions visible for a %s parent without inventing activity', async state => {
   const value = summary(); value.attention = { status: 'recorded', count: 1, omitted: 0, items: [{ ...attention, state, kind: 'task-question' }] };
   vi.spyOn(productApi, 'request').mockResolvedValue(value);
