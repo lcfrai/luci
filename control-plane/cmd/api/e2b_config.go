@@ -27,28 +27,29 @@ import (
 // These are operator-reviewed identities and file paths. Secrets stay in
 // separate private files, never in JSON task input, Git or provider metadata.
 type e2bOperatorConfig struct {
-	Endpoint                  string            `json:"endpoint"`
-	APIKeyFile                string            `json:"apiKeyFile"`
-	AdminAPIKeyFile           string            `json:"adminApiKeyFile"`
-	HostNodeID                string            `json:"hostNodeId"`
-	AttachKeyFile             string            `json:"attachKeyFile"`
-	RootCAFile                string            `json:"rootCaFile,omitempty"`
-	ClientCertFile            string            `json:"clientCertFile,omitempty"`
-	ClientKeyFile             string            `json:"clientKeyFile,omitempty"`
-	ControllerStateDir        string            `json:"controllerStateDir"`
-	StagingDir                string            `json:"stagingDir"`
-	EnvdOriginTemplate        string            `json:"envdOriginTemplate"`
-	SandboxOriginTemplate     string            `json:"sandboxOriginTemplate"`
-	Deployment                e2bbe.Deployment  `json:"deployment"`
-	Template                  e2bbe.Template    `json:"template"`
-	TemplateCreateJournalPath string            `json:"templateCreateJournalPath"`
-	TemplateBuildJournalPath  string            `json:"templateBuildJournalPath"`
-	TemplateFromImage         string            `json:"templateFromImage"`
-	Limits                    e2bbe.Limits      `json:"limits"`
-	Store                     e2bbe.StoreConfig `json:"store"`
-	TaskMaxSeconds            int               `json:"taskMaxSeconds"`
-	TaskEstimatedCostMicros   int64             `json:"taskEstimatedCostMicros"`
-	ModelEgressDomains        []string          `json:"modelEgressDomains"`
+	Endpoint                  string                      `json:"endpoint"`
+	APIKeyFile                string                      `json:"apiKeyFile"`
+	AdminAPIKeyFile           string                      `json:"adminApiKeyFile"`
+	HostNodeID                string                      `json:"hostNodeId"`
+	AttachKeyFile             string                      `json:"attachKeyFile"`
+	RootCAFile                string                      `json:"rootCaFile,omitempty"`
+	ClientCertFile            string                      `json:"clientCertFile,omitempty"`
+	ClientKeyFile             string                      `json:"clientKeyFile,omitempty"`
+	AzureSecrets              *azureSecretMaterialization `json:"azureSecrets,omitempty"`
+	ControllerStateDir        string                      `json:"controllerStateDir"`
+	StagingDir                string                      `json:"stagingDir"`
+	EnvdOriginTemplate        string                      `json:"envdOriginTemplate"`
+	SandboxOriginTemplate     string                      `json:"sandboxOriginTemplate"`
+	Deployment                e2bbe.Deployment            `json:"deployment"`
+	Template                  e2bbe.Template              `json:"template"`
+	TemplateCreateJournalPath string                      `json:"templateCreateJournalPath"`
+	TemplateBuildJournalPath  string                      `json:"templateBuildJournalPath"`
+	TemplateFromImage         string                      `json:"templateFromImage"`
+	Limits                    e2bbe.Limits                `json:"limits"`
+	Store                     e2bbe.StoreConfig           `json:"store"`
+	TaskMaxSeconds            int                         `json:"taskMaxSeconds"`
+	TaskEstimatedCostMicros   int64                       `json:"taskEstimatedCostMicros"`
+	ModelEgressDomains        []string                    `json:"modelEgressDomains"`
 }
 
 func readPrivateE2BFile(path string, max int64) ([]byte, error) {
@@ -151,9 +152,10 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		selected.Store.OwnerID == "" || selected.Store.RuntimeScope != selected.Deployment.Scope ||
 		selected.Deployment.Provider == "azure" && selected.Store.AzureDataDiskID != selected.Deployment.AzureDataDiskID ||
 		selected.Deployment.Provider != "azure" && selected.Store.AzureDataDiskID != "" ||
+		selected.Deployment.Provider == "azure" && (selected.AzureSecrets == nil || selected.APIKeyFile != "" || selected.AdminAPIKeyFile != "" || selected.AttachKeyFile != "" || selected.ClientCertFile != "" || selected.ClientKeyFile != "") ||
+		selected.Deployment.Provider != "azure" && selected.AzureSecrets != nil ||
 		(selected.ClientCertFile == "") != (selected.ClientKeyFile == "") ||
-		selected.Deployment.Provider == "azure" && selected.ClientCertFile == "" ||
-		selected.Template.BuildID == "" || selected.HostNodeID == "" || selected.AdminAPIKeyFile == "" ||
+		selected.Template.BuildID == "" || selected.HostNodeID == "" || selected.Deployment.Provider != "azure" && selected.AdminAPIKeyFile == "" ||
 		selected.TaskMaxSeconds < 1 || selected.TaskMaxSeconds > selected.Limits.MaxTaskSeconds ||
 		selected.TaskEstimatedCostMicros < 1 || selected.TaskEstimatedCostMicros > selected.Limits.EstimatedCostMicros ||
 		len(selected.ModelEgressDomains) == 0 || !e2bbe.ValidEgressDomains(selected.ModelEgressDomains) ||
@@ -167,6 +169,26 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		JournalPath: selected.TemplateBuildJournalPath}).ReadTemplateBuildIntent(); err != nil {
 		return nil, nil, fmt.Errorf("selected cloud microVM template lacks its exact private Create/build intent: %w", err)
 	}
+	var azureSecretsCleanup func()
+	if selected.AzureSecrets != nil {
+		source, sourceErr := newAzureSecretSource(*selected.AzureSecrets)
+		if sourceErr != nil {
+			return nil, nil, sourceErr
+		}
+		files, cleanup, materializeErr := materializeAzureSecrets(ctx, *selected.AzureSecrets, source)
+		if materializeErr != nil {
+			return nil, nil, materializeErr
+		}
+		azureSecretsCleanup = cleanup
+		selected.APIKeyFile, selected.AdminAPIKeyFile, selected.AttachKeyFile = files.APIKey, files.AdminKey, files.AttachKey
+		selected.ClientCertFile, selected.ClientKeyFile = files.ClientCert, files.ClientKey
+	}
+	succeeded := false
+	defer func() {
+		if !succeeded && azureSecretsCleanup != nil {
+			azureSecretsCleanup()
+		}
+	}()
 	apiKey, err := readPrivateE2BFile(selected.APIKeyFile, 4096)
 	if err != nil {
 		return nil, nil, err
@@ -309,10 +331,14 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		AttachKey: attachKey, MaxSeconds: selected.TaskMaxSeconds,
 		EstimatedCostMicros: selected.TaskEstimatedCostMicros, StagingDir: selected.StagingDir,
 		ModelEgressDomains: append([]string{}, selected.ModelEgressDomains...)}
+	succeeded = true
 	return cloud, func() {
 		closeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = controller.Close(closeCtx)
 		closeStore()
+		if azureSecretsCleanup != nil {
+			azureSecretsCleanup()
+		}
 	}, nil
 }

@@ -8,6 +8,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
@@ -27,6 +28,8 @@ type operatorInput struct {
 	Endpoint          string `json:"endpoint"`
 	APIKeyFile        string `json:"apiKeyFile"`
 	RootCAFile        string `json:"rootCaFile,omitempty"`
+	ClientCertFile    string `json:"clientCertFile,omitempty"`
+	ClientKeyFile     string `json:"clientKeyFile,omitempty"`
 	Name              string `json:"name,omitempty"`
 	CPUCount          int64  `json:"cpuCount,omitempty"`
 	MemoryMiB         int64  `json:"memoryMB,omitempty"`
@@ -73,6 +76,9 @@ func run(mode, configPath string) error {
 	if decoder.Decode(&input) != nil || decoder.Decode(new(any)) != io.EOF {
 		return errors.New("invalid private template publication configuration")
 	}
+	if (input.ClientCertFile == "") != (input.ClientKeyFile == "") {
+		return errors.New("template gateway client certificate and key must be selected together")
+	}
 	key, err := privateFile(input.APIKeyFile, 4096)
 	if err != nil {
 		return err
@@ -91,11 +97,32 @@ func run(mode, configPath string) error {
 			return errors.New("invalid private TLS root certificate")
 		}
 	}
+	var clientCertificate *tls.Certificate
+	if input.ClientCertFile != "" {
+		certPEM, certErr := privateFile(input.ClientCertFile, 1<<20)
+		if certErr != nil {
+			return certErr
+		}
+		keyPEM, keyErr := privateFile(input.ClientKeyFile, 1<<20)
+		if keyErr != nil {
+			return keyErr
+		}
+		cert, pairErr := tls.X509KeyPair(certPEM, keyPEM)
+		if pairErr != nil || len(cert.Certificate) == 0 {
+			return errors.New("template gateway client identity is invalid")
+		}
+		leaf, parseErr := x509.ParseCertificate(cert.Certificate[0])
+		if parseErr != nil || time.Now().Before(leaf.NotBefore) || !time.Now().Before(leaf.NotAfter) {
+			return errors.New("template gateway client identity is not currently valid")
+		}
+		cert.Leaf = leaf
+		clientCertificate = &cert
+	}
 	auth := strings.TrimSpace(string(key))
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	if mode == "create" || mode == "created" || mode == "reconcile" {
-		p := e2bbe.TemplateCreation{Endpoint: input.Endpoint, APIKey: auth, RootCAs: roots,
+		p := e2bbe.TemplateCreation{Endpoint: input.Endpoint, APIKey: auth, RootCAs: roots, ClientCertificate: clientCertificate,
 			Name: input.Name, CPUCount: input.CPUCount, MemoryMiB: input.MemoryMiB, JournalPath: input.JournalPath}
 		var receipt e2bbe.TemplateCreateReceipt
 		if mode == "create" {
@@ -111,7 +138,7 @@ func run(mode, configPath string) error {
 		fmt.Printf("private template %s build %s acknowledged\n", receipt.TemplateID, receipt.BuildID)
 		return nil
 	}
-	p := e2bbe.TemplatePublication{Endpoint: input.Endpoint, APIKey: auth, RootCAs: roots,
+	p := e2bbe.TemplatePublication{Endpoint: input.Endpoint, APIKey: auth, RootCAs: roots, ClientCertificate: clientCertificate,
 		TemplateID: input.TemplateID, BuildID: input.BuildID, FromImage: input.FromImage,
 		CreateJournalPath: input.CreateJournalPath, JournalPath: input.JournalPath}
 	switch mode {

@@ -3,6 +3,7 @@ package e2bbe
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
@@ -22,12 +23,13 @@ import (
 // allocation. The image must already be in a registry reachable by Embed.
 // The journal directory is private, durable controller-host storage.
 type TemplatePublication struct {
-	Endpoint   string
-	APIKey     string
-	RootCAs    *x509.CertPool
-	TemplateID string
-	BuildID    string
-	FromImage  string
+	Endpoint          string
+	APIKey            string
+	RootCAs           *x509.CertPool
+	ClientCertificate *tls.Certificate
+	TemplateID        string
+	BuildID           string
+	FromImage         string
 	// The separate, acknowledged private Create journal binds these provider
 	// IDs before this command can issue its one build mutation.
 	CreateJournalPath string
@@ -70,13 +72,14 @@ func readTemplateInventory(ctx context.Context, client *providerClient) ([]provi
 // A lost Create response is uncertain and must be reconciled by the operator;
 // this method never repeats it.
 type TemplateCreation struct {
-	Endpoint    string
-	APIKey      string
-	RootCAs     *x509.CertPool
-	Name        string
-	CPUCount    int64
-	MemoryMiB   int64
-	JournalPath string
+	Endpoint          string
+	APIKey            string
+	RootCAs           *x509.CertPool
+	ClientCertificate *tls.Certificate
+	Name              string
+	CPUCount          int64
+	MemoryMiB         int64
+	JournalPath       string
 }
 
 type TemplateCreateIntent struct {
@@ -99,7 +102,7 @@ func (p TemplateCreation) CreateTemplate(ctx context.Context) (TemplateCreateRec
 		privatePublicationDirectory(p.JournalPath) != nil {
 		return result, ErrUnsupported
 	}
-	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs})
+	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs, ClientCertificate: p.ClientCertificate})
 	if err != nil {
 		return result, err
 	}
@@ -185,7 +188,7 @@ func (p TemplateCreation) ReconcileTemplateCreation(ctx context.Context) (Templa
 	}) {
 		return result, ErrUnknown
 	}
-	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs})
+	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs, ClientCertificate: p.ClientCertificate})
 	if err != nil {
 		return result, err
 	}
@@ -258,7 +261,7 @@ func (p TemplatePublication) intent() (TemplateBuildIntent, error) {
 }
 
 func (p TemplatePublication) client() (*providerClient, error) {
-	return newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs})
+	return newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs, ClientCertificate: p.ClientCertificate})
 }
 
 func (p TemplatePublication) createdTemplate() error {
