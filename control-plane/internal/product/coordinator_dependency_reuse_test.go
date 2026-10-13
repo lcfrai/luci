@@ -26,6 +26,14 @@ func TestCoordinatorDerivesExactReviewedPrerequisiteWithoutManualHandoff(t *test
 	if next.Swarm == nil || len(next.Swarm.Tasks) != 1 || next.Swarm.Tasks[0].ID != "task-c" || len(next.Swarm.ReusedDependencies) != 1 || next.Swarm.ReusedDependencies[0].TaskID != "task-a" {
 		t.Fatal("affected task was not prepared against exact prior integration", next.Swarm)
 	}
+	continued := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{RunID: next.ID, Actions: []CoordinatorAction{{Kind: "prepare-tasks", PreparationDigest: reviewDigest(refs)}}}, Run: projectRunCreateRequest{ImplementationContext: ImplementationContextRequest{TaskIDs: []string{"task-c"}}}, MaxParallel: 1}
+	if id, _, found, err := s.observeCoordinatorStep(p, continued, "prepare-tasks"); err != nil || !found || id != next.ID {
+		t.Fatal("lost response could not read back exact prepared dependencies", id, found, err)
+	}
+	continued.Actions[0].PreparationDigest = reviewDigest([]ProjectSwarmReuseReference{})
+	if _, _, found, err := s.observeCoordinatorStep(p, continued, "prepare-tasks"); err != ErrOrchestratorConflict || found {
+		t.Fatal("different prepared dependency was adopted after a lost response", found, err)
+	}
 }
 
 func TestCoordinatorIncludesUnprovenPrerequisiteInNewAffectedRun(t *testing.T) {

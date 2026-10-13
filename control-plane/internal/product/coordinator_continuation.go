@@ -23,13 +23,16 @@ const coordinatorContinuationLimit = 40
 const coordinatorContinuationBytes = 2 << 20
 
 type CoordinatorAction struct {
-	ID          string `json:"id"`
-	Kind        string `json:"kind"`
-	Status      string `json:"status"`
-	ReferenceID string `json:"referenceId,omitempty"`
-	Message     string `json:"message,omitempty"`
-	StartedAt   string `json:"startedAt"`
-	FinishedAt  string `json:"finishedAt,omitempty"`
+	ID     string `json:"id"`
+	Kind   string `json:"kind"`
+	Status string `json:"status"`
+	// PreparationDigest binds the exact external dependency receipts before
+	// the HTTP mutation. Lost responses cannot adopt different reused work.
+	PreparationDigest string `json:"preparationDigest,omitempty"`
+	ReferenceID       string `json:"referenceId,omitempty"`
+	Message           string `json:"message,omitempty"`
+	StartedAt         string `json:"startedAt"`
+	FinishedAt        string `json:"finishedAt,omitempty"`
 }
 type CoordinatorContinuation struct {
 	ID             string                     `json:"id"`
@@ -643,6 +646,9 @@ func (s *Server) invokeCoordinatorStep(ctx context.Context, p project.Project, r
 		if err != nil {
 			return "", nil, &coordinatorStepError{Status: 409, Message: "An unchanged prerequisite has no current reviewed integration proof; inspect its prior result or include it in new work."}
 		}
+		if len(row.Actions) == 0 || row.Actions[len(row.Actions)-1].PreparationDigest != reviewDigest(refs) {
+			return "", nil, ErrOrchestratorConflict
+		}
 		body = struct {
 			ExpectedRevision   int                          `json:"expectedRevision"`
 			MaxParallel        int                          `json:"maxParallel"`
@@ -772,6 +778,15 @@ func (s *Server) observeCoordinatorStep(p project.Project, row coordinatorContin
 				return "", nil, false, ErrOrchestratorConflict
 			}
 		}
+		if len(row.Actions) == 0 || row.Actions[len(row.Actions)-1].PreparationDigest != "" {
+			refs := make([]ProjectSwarmReuseReference, 0, len(run.Swarm.ReusedDependencies))
+			for _, dep := range run.Swarm.ReusedDependencies {
+				refs = append(refs, dep.ProjectSwarmReuseReference)
+			}
+			if len(row.Actions) == 0 || row.Actions[len(row.Actions)-1].PreparationDigest != reviewDigest(refs) {
+				return "", nil, false, ErrOrchestratorConflict
+			}
+		}
 		return run.ID, nil, true, nil
 	case "queue-tasks":
 		s.swarmScheduler.mu.Lock()
@@ -877,9 +892,33 @@ func (s *Server) continueCoordinator(ctx context.Context, p project.Project, id,
 			s.mu.Unlock()
 			return s.continueCoordinatorDelivery(ctx, p, out)
 		}
+		preparationDigest := ""
+		if next == 1 {
+			// Resolve read-only dependency evidence outside s.mu. The exact
+			// result is then CAS-bound before the preparation mutation.
+			revision := out.Revision
+			s.mu.Unlock()
+			run, readErr := s.projectRuns.Get(p.ID, p.Path, out.RunID)
+			if readErr != nil {
+				return out, readErr
+			}
+			refs, readErr := s.coordinatorReuseReferences(ctx, p, run)
+			if readErr != nil {
+				return out, readErr
+			}
+			preparationDigest = reviewDigest(refs)
+			s.mu.Lock()
+			rows, err = s.readContinuations(p, actor)
+			index = findContinuation(rows, id)
+			if err != nil || index < 0 || rows.Rows[index].Revision != revision || len(rows.Rows[index].Actions) != next {
+				s.mu.Unlock()
+				return out, ErrOrchestratorConflict
+			}
+			out = rows.Rows[index]
+		}
 		kind := []string{"create-run", "prepare-tasks", "queue-tasks"}[next]
 		now := time.Now().UTC().Format(time.RFC3339Nano)
-		action := CoordinatorAction{ID: out.ID + "-" + kind, Kind: kind, Status: "pending", StartedAt: now, Message: "This exact operation is reserved. An interrupted response must be reconciled before another step."}
+		action := CoordinatorAction{ID: out.ID + "-" + kind, Kind: kind, Status: "pending", PreparationDigest: preparationDigest, StartedAt: now, Message: "This exact operation is reserved. An interrupted response must be reconciled before another step."}
 		out.Actions = append(out.Actions, action)
 		out.Status = "continuing"
 		out.Message = action.Message
