@@ -7,12 +7,39 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 )
+
+func TestAzureGatewayReceiptRejectsStaleOrMissingRouteGeneration(t *testing.T) {
+	want := GatewayReceiptDigest("embed.private.example", "scope-one", "generation-one")
+	body := want
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/luci-gateway/receipt" || r.Header.Get("X-API-Key") != "" {
+			t.Error("gateway receipt used a mutation or provider key")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		_, _ = w.Write([]byte(body))
+	}))
+	defer server.Close()
+	client, err := newClient(Config{Endpoint: server.URL, APIKey: "task-test-key", RootCAs: server.Client().Transport.(*http.Transport).TLSClientConfig.RootCAs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &Controller{client: client, config: Config{GatewayReceiptDigest: want}}
+	if err := c.VerifyGatewayReceipt(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	body = GatewayReceiptDigest("embed.private.example", "scope-one", "generation-two")
+	if err := c.VerifyGatewayReceipt(context.Background()); !errors.Is(err, ErrUnsupported) {
+		t.Fatal("stale gateway generation was accepted", err)
+	}
+}
 
 func azureTestClientCertificate(t *testing.T) *tls.Certificate {
 	t.Helper()

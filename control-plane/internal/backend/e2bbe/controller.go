@@ -154,6 +154,10 @@ func newController(c Config, restored []byte, restoreContext context.Context) (*
 	if !validID(c.OwnerID) || !validDeployment(c) || c.Checkpoint == nil || c.Authorize == nil {
 		return nil, ErrUnsupported
 	}
+	if c.Deployment.Provider == "azure" && !digestPattern.MatchString(c.GatewayReceiptDigest) ||
+		c.Deployment.Provider != "azure" && c.GatewayReceiptDigest != "" {
+		return nil, ErrUnsupported
+	}
 	if !validID(c.Template.ID) || c.Template.BuildID != "" && !validID(c.Template.BuildID) || !digestPattern.MatchString(c.Template.BuildDigest) || c.Template.MemoryMiB < 128 || c.Template.MemoryMiB > 32768 || c.Template.CPUMillis < 1000 || c.Template.CPUMillis > 16000 || c.Template.CPUMillis%1000 != 0 {
 		return nil, ErrUnsupported
 	}

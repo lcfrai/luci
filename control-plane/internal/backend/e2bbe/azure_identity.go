@@ -6,6 +6,13 @@ import (
 	"strings"
 )
 
+// GatewayReceiptDigest is a nonsecret exact route-generation contract. It is
+// returned by the private mTLS gateway and pinned in the controller config;
+// live TLS and E2B API reads remain separate acceptance checks.
+func GatewayReceiptDigest(host, scope, generation string) string {
+	return digest([]string{"luci-azure-e2b-gateway-v1", host, scope, generation, "api:3000", "guest:3002", "envd:49983", "sandboxd:8080"})
+}
+
 var (
 	azureSubscriptionPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 	azureNamePattern         = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,62}[a-z0-9]$|^[a-z0-9]$`)

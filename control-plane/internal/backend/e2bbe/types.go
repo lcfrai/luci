@@ -175,9 +175,10 @@ type Config struct {
 	ClientCertificate *tls.Certificate
 	// DeploymentReadback checks Azure disk and host ownership before node
 	// admission. Nil preserves the existing AWS path.
-	DeploymentReadback func(context.Context) error
-	StateDir           string
-	OwnerID            string
+	DeploymentReadback   func(context.Context) error
+	GatewayReceiptDigest string
+	StateDir             string
+	OwnerID              string
 	// EgressAllow names exact operator-approved model endpoints. The provider
 	// still denies all other outbound IPv4 destinations for each fresh VM.
 	EgressAllow []string

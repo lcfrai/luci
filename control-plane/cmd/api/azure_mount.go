@@ -120,6 +120,7 @@ func verifyAzureDurableMount(m azureDurableMount, selected e2bOperatorConfig, cf
 func verifyAzureDurableMountWithProbe(m azureDurableMount, selected e2bOperatorConfig, cfg Config, mountedDevice func(string, string) (uint64, error)) error {
 	if !azureUUIDPattern.MatchString(m.FilesystemUUID) || !underAzureMount(m.MountPath, m.ReceiptPath) ||
 		!underAzureMount(m.MountPath, m.GenerationReceiptPath) || m.ReceiptPath == m.GenerationReceiptPath ||
+		!azureGenerationPattern.MatchString(selected.Store.RuntimeScope) ||
 		!azureGenerationPattern.MatchString(m.Generation) || !azureControllerInstancePattern.MatchString(m.ControllerInstanceID) ||
 		!azureDigestPattern.MatchString(m.GenerationReceiptDigest) ||
 		selected.Store.AzureDataDiskID != selected.Deployment.AzureDataDiskID {

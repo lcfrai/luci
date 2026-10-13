@@ -192,6 +192,11 @@ func (c *Controller) VerifyNodeCapacity(ctx context.Context) error {
 			return ErrUnsupported
 		}
 	}
+	if c.config.GatewayReceiptDigest != "" {
+		if err := c.VerifyGatewayReceipt(ctx); err != nil {
+			return ErrUnsupported
+		}
+	}
 	if c.client.adminKey == "" || !validID(c.config.HostNodeID) {
 		return ErrUnsupported
 	}
@@ -224,6 +229,34 @@ func (c *Controller) VerifyNodeCapacity(ctx context.Context) error {
 	if *found.SandboxCount >= *found.MaxSandboxes || *found.SandboxStartingCount >= *found.MaxSandboxes-*found.SandboxCount ||
 		*found.Metrics.AllocatedCPU > *found.Metrics.CPUCount-cpu || usedMemory > *found.Metrics.MemoryTotalBytes-memory {
 		return ErrCapacity
+	}
+	return nil
+}
+
+// The gateway receipt is a nonsecret read behind controller mTLS. It confirms
+// that the contacted gateway advertises the exact configured route generation;
+// the task/admin/guest calls still verify their separate live behavior.
+func (c *Controller) VerifyGatewayReceipt(ctx context.Context) error {
+	if !digestPattern.MatchString(c.config.GatewayReceiptDigest) {
+		return ErrUnsupported
+	}
+	u := *c.client.endpoint
+	u.Path = "/luci-gateway/receipt"
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return ErrUnsupported
+	}
+	response, err := c.client.http.Do(request)
+	if err != nil {
+		return ErrUnsupported
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return ErrUnsupported
+	}
+	data, err := io.ReadAll(io.LimitReader(response.Body, 65))
+	if err != nil || string(data) != c.config.GatewayReceiptDigest {
+		return ErrUnsupported
 	}
 	return nil
 }

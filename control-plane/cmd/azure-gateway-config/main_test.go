@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 )
 
 func gatewayFixture() config {
@@ -19,6 +21,7 @@ func TestAzureGatewayRendersExactPrivateManagementAndGuestBoundary(t *testing.T)
 	for _, required := range []string{
 		"address: '10.20.0.4', port_value: 443", "require_client_certificate: true",
 		"spiffe://luci/controller/scope-one/generation-one", "trusted_ca:",
+		e2bbe.GatewayReceiptDigest("embed.private.example", "scope-one", "generation-one"),
 		"name: 'x-admin-token'", "name: 'x-api-key'", "name: 'e2b-traffic-access-token'",
 		`^49983-[a-z0-9]+\.embed\.private\.example$`, `^8080-[a-z0-9]+\.embed\.private\.example$`,
 		"port_value: 3000", "port_value: 3002", "safe_regex: {google_re2: {}, regex: '^/nodes$'}",

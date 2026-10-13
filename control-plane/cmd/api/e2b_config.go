@@ -37,6 +37,7 @@ type e2bOperatorConfig struct {
 	ClientKeyFile             string                      `json:"clientKeyFile,omitempty"`
 	AzureSecrets              *azureSecretMaterialization `json:"azureSecrets,omitempty"`
 	AzureMount                *azureDurableMount          `json:"azureMount,omitempty"`
+	AzureGatewayReceiptDigest string                      `json:"azureGatewayReceiptDigest,omitempty"`
 	ControllerStateDir        string                      `json:"controllerStateDir"`
 	StagingDir                string                      `json:"stagingDir"`
 	EnvdOriginTemplate        string                      `json:"envdOriginTemplate"`
@@ -159,8 +160,10 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		selected.Deployment.Provider != "azure" && selected.Store.AzureDataDiskID != "" ||
 		selected.Deployment.Provider == "azure" && (selected.AzureSecrets == nil || selected.APIKeyFile != "" || selected.AdminAPIKeyFile != "" || selected.AttachKeyFile != "" || selected.ClientCertFile != "" || selected.ClientKeyFile != "") ||
 		selected.Deployment.Provider == "azure" && selected.AzureMount == nil ||
+		selected.Deployment.Provider == "azure" && selected.AzureMount != nil && selected.AzureGatewayReceiptDigest != e2bbe.GatewayReceiptDigest(selected.Deployment.AzureGatewayHost, selected.Store.RuntimeScope, selected.AzureMount.Generation) ||
 		selected.Deployment.Provider != "azure" && selected.AzureSecrets != nil ||
 		selected.Deployment.Provider != "azure" && selected.AzureMount != nil ||
+		selected.Deployment.Provider != "azure" && selected.AzureGatewayReceiptDigest != "" ||
 		(selected.ClientCertFile == "") != (selected.ClientKeyFile == "") ||
 		selected.Template.BuildID == "" || selected.HostNodeID == "" || selected.Deployment.Provider != "azure" && selected.AdminAPIKeyFile == "" ||
 		selected.TaskMaxSeconds < 1 || selected.TaskMaxSeconds > selected.Limits.MaxTaskSeconds ||
@@ -277,6 +280,9 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 			if err := verifyAzureARMOwnership(effectCtx, selected, azureARM); err != nil {
 				return management.ErrExecutionAuthority
 			}
+			if controller == nil || controller.VerifyGatewayReceipt(effectCtx) != nil {
+				return management.ErrExecutionAuthority
+			}
 		}
 		i := request.Identity
 		if i.OwnerID != selected.Store.OwnerID || i.RunID == "" {
@@ -336,6 +342,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 				strings.ReplaceAll(selected.SandboxOriginTemplate, "{sandboxID}", id), e2bbe.EnvdVersion, nil
 		}}
 	if azureARM != nil {
+		controllerConfig.GatewayReceiptDigest = selected.AzureGatewayReceiptDigest
 		controllerConfig.DeploymentReadback = func(readCtx context.Context) error {
 			if err := verifyAzureDurableMount(*selected.AzureMount, selected, cfg); err != nil {
 				return err

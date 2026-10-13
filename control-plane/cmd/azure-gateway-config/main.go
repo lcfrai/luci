@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 )
 
 type config struct {
@@ -117,6 +119,9 @@ static_resources:
 	for _, r := range managementRoutes {
 		writeRoute(&out, r, "")
 	}
+	// Only the mTLS controller can read this nonsecret deployment marker. It
+	// binds the route generation independently of the E2B task/admin keys.
+	fmt.Fprintf(&out, "            - match: {path: '/luci-gateway/receipt', headers: [{name: ':method', string_match: {exact: 'GET'}}]}\n              direct_response: {status: 200, body: {inline_string: '%s'}}\n", e2bbe.GatewayReceiptDigest(c.GatewayHost, c.Scope, c.Generation))
 	fmt.Fprintf(&out, "            - name: owned_guest\n              domains: ['*.%s']\n              routes:\n", c.GatewayHost)
 	guestHost := regexp.QuoteMeta(c.GatewayHost)
 	writeRoute(&out, allowedRoute{"GET", `/files`, "x-access-token", "e2b-client-proxy"}, "^49983-[a-z0-9]+\\."+guestHost+"$")
