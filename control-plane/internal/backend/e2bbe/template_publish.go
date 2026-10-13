@@ -22,13 +22,16 @@ import (
 // allocation. The image must already be in a registry reachable by Embed.
 // The journal directory is private, durable controller-host storage.
 type TemplatePublication struct {
-	Endpoint    string
-	APIKey      string
-	RootCAs     *x509.CertPool
-	TemplateID  string
-	BuildID     string
-	FromImage   string
-	JournalPath string
+	Endpoint   string
+	APIKey     string
+	RootCAs    *x509.CertPool
+	TemplateID string
+	BuildID    string
+	FromImage  string
+	// The separate, acknowledged private Create journal binds these provider
+	// IDs before this command can issue its one build mutation.
+	CreateJournalPath string
+	JournalPath       string
 }
 
 type TemplateBuildIntent struct {
@@ -258,6 +261,34 @@ func (p TemplatePublication) client() (*providerClient, error) {
 	return newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs})
 }
 
+func (p TemplatePublication) createdTemplate() error {
+	if !filepath.IsAbs(p.CreateJournalPath) || p.CreateJournalPath == p.JournalPath ||
+		privatePublicationDirectory(p.CreateJournalPath) != nil {
+		return ErrUnsupported
+	}
+	data, err := readPublicationFile(p.CreateJournalPath + ".response")
+	if err != nil {
+		return ErrUnknown
+	}
+	var receipt TemplateCreateReceipt
+	dec := json.NewDecoder(strings.NewReader(string(data)))
+	dec.DisallowUnknownFields()
+	if dec.Decode(&receipt) != nil || dec.Decode(new(any)) != io.EOF ||
+		!privateTemplateName.MatchString(receipt.Name) || receipt.RuntimeRevision != RuntimeRevision ||
+		receipt.CPUCount < 1 || receipt.CPUCount > 16 || receipt.MemoryMiB < 128 || receipt.MemoryMiB > 32768 {
+		return ErrConflict
+	}
+	created, err := (TemplateCreation{Name: receipt.Name, CPUCount: receipt.CPUCount,
+		MemoryMiB: receipt.MemoryMiB, JournalPath: p.CreateJournalPath}).ReadTemplateCreation()
+	if err != nil {
+		return err
+	}
+	if created.TemplateID != p.TemplateID || created.BuildID != p.BuildID {
+		return ErrConflict
+	}
+	return nil
+}
+
 func privatePublicationDirectory(path string) error {
 	dir := filepath.Dir(path)
 	for current := dir; ; current = filepath.Dir(current) {
@@ -282,6 +313,9 @@ func privatePublicationDirectory(path string) error {
 func (p TemplatePublication) StartTemplateBuild(ctx context.Context) (TemplateBuildIntent, error) {
 	intent, err := p.intent()
 	if err != nil {
+		return intent, err
+	}
+	if err = p.createdTemplate(); err != nil {
 		return intent, err
 	}
 	client, err := p.client()
@@ -312,6 +346,9 @@ func (p TemplatePublication) InspectTemplateBuild(ctx context.Context) (string, 
 	want, err := p.intent()
 	if err != nil || privatePublicationDirectory(p.JournalPath) != nil {
 		return "", ErrUnsupported
+	}
+	if err = p.createdTemplate(); err != nil {
+		return "", err
 	}
 	data, err := readPublicationFile(p.JournalPath)
 	if err != nil {

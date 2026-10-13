@@ -39,7 +39,11 @@ unique `luci-...-<32 lowercase random hex>` `name`, `cpuCount`, `memoryMB`, and
 `journalPath`. The tool refuses a name already visible in complete provider
 inventory before Create. The separate
 build JSON uses the returned `templateId` and `buildId`, immutable `fromImage`,
-and a **different** `journalPath`. Keep the key/config and
+the absolute `createJournalPath` from the private Create request, and a
+**different** `journalPath`. Before the one build POST, Luci reopens the
+acknowledged Create intent and response and requires exact matching template
+and build IDs. A missing, changed or unacknowledged Create never grants build
+authority. Keep the key/config and
 the journal's directory private and outside Git. The tool requires protected
 HTTPS management, checkpoints each intent before its **single** provider POST,
 and refuses another POST for that journal even after a lost response. `created`

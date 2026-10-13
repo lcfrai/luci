@@ -24,16 +24,17 @@ import (
 )
 
 type operatorInput struct {
-	Endpoint    string `json:"endpoint"`
-	APIKeyFile  string `json:"apiKeyFile"`
-	RootCAFile  string `json:"rootCaFile,omitempty"`
-	Name        string `json:"name,omitempty"`
-	CPUCount    int64  `json:"cpuCount,omitempty"`
-	MemoryMiB   int64  `json:"memoryMB,omitempty"`
-	TemplateID  string `json:"templateId"`
-	BuildID     string `json:"buildId"`
-	FromImage   string `json:"fromImage"`
-	JournalPath string `json:"journalPath"`
+	Endpoint          string `json:"endpoint"`
+	APIKeyFile        string `json:"apiKeyFile"`
+	RootCAFile        string `json:"rootCaFile,omitempty"`
+	Name              string `json:"name,omitempty"`
+	CPUCount          int64  `json:"cpuCount,omitempty"`
+	MemoryMiB         int64  `json:"memoryMB,omitempty"`
+	TemplateID        string `json:"templateId"`
+	BuildID           string `json:"buildId"`
+	FromImage         string `json:"fromImage"`
+	CreateJournalPath string `json:"createJournalPath,omitempty"`
+	JournalPath       string `json:"journalPath"`
 }
 
 func privateFile(path string, limit int64) ([]byte, error) {
@@ -111,7 +112,8 @@ func run(mode, configPath string) error {
 		return nil
 	}
 	p := e2bbe.TemplatePublication{Endpoint: input.Endpoint, APIKey: auth, RootCAs: roots,
-		TemplateID: input.TemplateID, BuildID: input.BuildID, FromImage: input.FromImage, JournalPath: input.JournalPath}
+		TemplateID: input.TemplateID, BuildID: input.BuildID, FromImage: input.FromImage,
+		CreateJournalPath: input.CreateJournalPath, JournalPath: input.JournalPath}
 	switch mode {
 	case "start":
 		intent, err := p.StartTemplateBuild(ctx)

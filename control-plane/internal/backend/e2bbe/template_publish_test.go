@@ -13,9 +13,27 @@ import (
 	"testing"
 )
 
+func acknowledgedTemplateCreate(t *testing.T, dir, templateID, buildID string) string {
+	t.Helper()
+	path := filepath.Join(dir, "create-intent.json")
+	intent := TemplateCreateIntent{RuntimeRevision: RuntimeRevision,
+		Name: "luci-guest-0123456789abcdef0123456789abcdef", CPUCount: 2, MemoryMiB: 2048}
+	body, _ := json.Marshal(intent)
+	if err := checkpointPublicationIntent(path, body); err != nil {
+		t.Fatal(err)
+	}
+	ack, _ := json.Marshal(TemplateCreateReceipt{TemplateCreateIntent: intent, TemplateID: templateID, BuildID: buildID})
+	if err := checkpointPublicationIntent(path+".response", ack); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func TestPinnedTemplatePublicationCheckpointsBeforeOneBuildAndInspects(t *testing.T) {
 	const image = "registry.example/luci/guest@sha256:" + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	journal := filepath.Join(t.TempDir(), "build-intent.json")
+	dir := t.TempDir()
+	journal := filepath.Join(dir, "build-intent.json")
+	createJournal := acknowledgedTemplateCreate(t, dir, "template-one", "build-one")
 	posts := 0
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-API-Key") != "operator-test-key" {
@@ -56,7 +74,7 @@ func TestPinnedTemplatePublicationCheckpointsBeforeOneBuildAndInspects(t *testin
 	roots := x509.NewCertPool()
 	roots.AddCert(server.Certificate())
 	p := TemplatePublication{Endpoint: server.URL, APIKey: "operator-test-key", RootCAs: roots,
-		TemplateID: "template-one", BuildID: "build-one", FromImage: image, JournalPath: journal}
+		TemplateID: "template-one", BuildID: "build-one", FromImage: image, CreateJournalPath: createJournal, JournalPath: journal}
 	intent, err := p.StartTemplateBuild(context.Background())
 	if err != nil || !intent.Valid() || TemplateImageBinding(intent) == "" {
 		t.Fatal("exact build did not start", err)
@@ -74,7 +92,9 @@ func TestPinnedTemplatePublicationCheckpointsBeforeOneBuildAndInspects(t *testin
 }
 
 func TestPinnedTemplatePublicationKeepsUncertainMutationWithoutRetry(t *testing.T) {
-	journal := filepath.Join(t.TempDir(), "uncertain.json")
+	dir := t.TempDir()
+	journal := filepath.Join(dir, "uncertain.json")
+	createJournal := acknowledgedTemplateCreate(t, dir, "template-one", "build-one")
 	posts := 0
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		posts++
@@ -84,7 +104,7 @@ func TestPinnedTemplatePublicationKeepsUncertainMutationWithoutRetry(t *testing.
 	roots := x509.NewCertPool()
 	roots.AddCert(server.Certificate())
 	p := TemplatePublication{Endpoint: server.URL, APIKey: "operator-test-key", RootCAs: roots,
-		TemplateID: "template-one", BuildID: "build-one", FromImage: "guest@sha256:" + strings.Repeat("a", 64), JournalPath: journal}
+		TemplateID: "template-one", BuildID: "build-one", FromImage: "guest@sha256:" + strings.Repeat("a", 64), CreateJournalPath: createJournal, JournalPath: journal}
 	if _, err := p.StartTemplateBuild(context.Background()); !errors.Is(err, ErrUnknown) {
 		t.Fatal("uncertain provider response appeared safely retryable", err)
 	}
@@ -95,6 +115,45 @@ func TestPinnedTemplatePublicationKeepsUncertainMutationWithoutRetry(t *testing.
 	p.FromImage = "guest:mutable-tag"
 	if _, err := p.StartTemplateBuild(context.Background()); !errors.Is(err, ErrUnsupported) {
 		t.Fatal("mutable image tag was accepted", err)
+	}
+}
+
+func TestTemplateBuildRequiresExactAcknowledgedPrivateCreate(t *testing.T) {
+	dir := t.TempDir()
+	createJournal := acknowledgedTemplateCreate(t, dir, "template-one", "build-one")
+	posts := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		posts++
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer server.Close()
+	roots := x509.NewCertPool()
+	roots.AddCert(server.Certificate())
+	p := TemplatePublication{Endpoint: server.URL, APIKey: "operator-test-key", RootCAs: roots,
+		TemplateID: "template-two", BuildID: "build-one", FromImage: "guest@sha256:" + strings.Repeat("a", 64),
+		CreateJournalPath: createJournal, JournalPath: filepath.Join(dir, "build-intent.json")}
+	if _, err := p.StartTemplateBuild(context.Background()); !errors.Is(err, ErrConflict) || posts != 0 {
+		t.Fatal("foreign template received a build mutation", err, posts)
+	}
+	p.TemplateID = "template-one"
+	p.BuildID = "build-two"
+	if _, err := p.StartTemplateBuild(context.Background()); !errors.Is(err, ErrConflict) || posts != 0 {
+		t.Fatal("changed build ID received a build mutation", err, posts)
+	}
+	p.BuildID = "build-one"
+	p.CreateJournalPath = filepath.Join(dir, "missing-create.json")
+	if _, err := p.StartTemplateBuild(context.Background()); !errors.Is(err, ErrUnknown) || posts != 0 {
+		t.Fatal("missing Create ACK received a build mutation", err, posts)
+	}
+	p.CreateJournalPath = createJournal
+	if err := os.WriteFile(createJournal+".response", []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.StartTemplateBuild(context.Background()); !errors.Is(err, ErrConflict) || posts != 0 {
+		t.Fatal("altered Create ACK received a build mutation", err, posts)
+	}
+	if _, err := os.Stat(p.JournalPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("invalid Create proof wrote a build intent", err)
 	}
 }
 
