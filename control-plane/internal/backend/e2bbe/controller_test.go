@@ -84,11 +84,12 @@ func (p *providerFixture) handle(w http.ResponseWriter, r *http.Request) {
 			} `json:"autoResume"`
 			Network struct {
 				Public bool     `json:"allowPublicTraffic"`
+				Allow  []string `json:"allowOut"`
 				Deny   []string `json:"denyOut"`
 			} `json:"network"`
 			Metadata map[string]string `json:"metadata"`
 		}
-		if json.NewDecoder(r.Body).Decode(&body) != nil || body.Template != "template-one" || body.Timeout != 60 || body.AutoPause || body.AutoResume.Enabled || body.Network.Public || len(body.Network.Deny) != 1 || body.Network.Deny[0] != "0.0.0.0/0" || r.Header.Get("Idempotency-Key") != "" {
+		if json.NewDecoder(r.Body).Decode(&body) != nil || body.Template != "template-one" || body.Timeout != 60 || body.AutoPause || body.AutoResume.Enabled || body.Network.Public || len(body.Network.Allow) != 1 || body.Network.Allow[0] != "api.openai.com" || len(body.Network.Deny) != 1 || body.Network.Deny[0] != "0.0.0.0/0" || r.Header.Get("Idempotency-Key") != "" {
 			p.t.Error("incorrect pinned create contract")
 			w.WriteHeader(400)
 			return
@@ -171,7 +172,23 @@ func fixtureConfig(t *testing.T, p *providerFixture) (Config, *checkpointFixture
 	roots := x509.NewCertPool()
 	roots.AddCert(p.server.Certificate())
 	sink := &checkpointFixture{}
-	return Config{Endpoint: p.server.URL, APIKey: "test-only-key", RootCAs: roots, StateDir: filepath.Join(t.TempDir(), "state"), OwnerID: "owner-a", Deployment: Deployment{Provider: "aws", Region: "us-east-1", InstanceType: "m8i.xlarge", Scope: "scope-one", HostGeneration: "host-one", RuntimeRevision: RuntimeRevision, ManagementReceiptDigest: strings.Repeat("a", 64), RestoreReceiptDigest: strings.Repeat("b", 64)}, Template: Template{ID: "template-one", BuildDigest: strings.Repeat("c", 64), MemoryMiB: 2048, CPUMillis: 2000}, Limits: Limits{MaxConcurrent: 4, MaxPerProject: 2, MemoryMiB: 8192, CPUMillis: 8000, EstimatedCostMicros: 10000, MaxTaskSeconds: 60}, Checkpoint: sink, Authorize: func(context.Context, Request, string) error { return nil }}, sink
+	return Config{Endpoint: p.server.URL, APIKey: "test-only-key", RootCAs: roots, StateDir: filepath.Join(t.TempDir(), "state"), OwnerID: "owner-a", EgressAllow: []string{"api.openai.com"}, Deployment: Deployment{Provider: "aws", Region: "us-east-1", InstanceType: "m8i.xlarge", Scope: "scope-one", HostGeneration: "host-one", RuntimeRevision: RuntimeRevision, ManagementReceiptDigest: strings.Repeat("a", 64), RestoreReceiptDigest: strings.Repeat("b", 64)}, Template: Template{ID: "template-one", BuildDigest: strings.Repeat("c", 64), MemoryMiB: 2048, CPUMillis: 2000}, Limits: Limits{MaxConcurrent: 4, MaxPerProject: 2, MemoryMiB: 8192, CPUMillis: 8000, EstimatedCostMicros: 10000, MaxTaskSeconds: 60}, Checkpoint: sink, Authorize: func(context.Context, Request, string) error { return nil }}, sink
+}
+func TestConfiguredModelEgressRejectsBroadAndLocalDestinations(t *testing.T) {
+	for _, domains := range [][]string{{"*.openai.com"}, {"0.0.0.0/0"}, {"127.0.0.1"}, {"localhost"}, {"model.internal"}, {"API.OPENAI.COM"}, {"api.openai.com", "api.openai.com"}} {
+		if ValidEgressDomains(domains) {
+			t.Fatalf("unsafe model egress admitted: %v", domains)
+		}
+	}
+	if !ValidEgressDomains([]string{"api.openai.com", "api.anthropic.com"}) {
+		t.Fatal("exact upstream model domains refused")
+	}
+	p := newProvider(t)
+	cfg, _ := fixtureConfig(t, p)
+	cfg.EgressAllow = []string{"*.openai.com"}
+	if controller, err := New(cfg); !errors.Is(err, ErrUnsupported) || controller != nil {
+		t.Fatal("invalid egress reached controller setup", err)
+	}
 }
 func openController(t *testing.T, c Config) *Controller {
 	t.Helper()

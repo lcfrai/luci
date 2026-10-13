@@ -34,6 +34,7 @@ type providerClient struct {
 	endpoint *url.URL
 	key      string
 	http     *http.Client
+	egress   []string
 }
 
 func newClient(c Config) (*providerClient, error) {
@@ -44,7 +45,7 @@ func newClient(c Config) (*providerClient, error) {
 	if e != nil {
 		return nil, e
 	}
-	return &providerClient{endpoint: u, key: c.APIKey, http: h}, nil
+	return &providerClient{endpoint: u, key: c.APIKey, http: h, egress: append([]string{}, c.EgressAllow...)}, nil
 }
 func validToken(s string) bool {
 	if len(s) < 1 || len(s) > 4096 {
@@ -167,7 +168,7 @@ func matches(r Record, s providerSandbox) bool {
 	return true
 }
 func (c *providerClient) create(ctx context.Context, r Record) (providerSandbox, error) {
-	body := map[string]any{"templateID": r.Template.ID, "timeout": r.Request.MaxSeconds, "autoPause": false, "autoResume": map[string]any{"enabled": false}, "network": map[string]any{"allowPublicTraffic": false, "denyOut": []string{"0.0.0.0/0"}}, "metadata": metadata(r)}
+	body := map[string]any{"templateID": r.Template.ID, "timeout": r.Request.MaxSeconds, "autoPause": false, "autoResume": map[string]any{"enabled": false}, "network": map[string]any{"allowPublicTraffic": false, "allowOut": c.egress, "denyOut": []string{"0.0.0.0/0"}}, "metadata": metadata(r)}
 	var response providerSandbox
 	status, _, e := c.call(ctx, http.MethodPost, "/v2/sandboxes", nil, body, &response)
 	if e != nil || status != http.StatusCreated || !validID(response.ID) || response.TemplateID != r.Template.ID {

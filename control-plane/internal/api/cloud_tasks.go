@@ -7,8 +7,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"os"
 	"runtime"
+	"slices"
+	"strings"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 	"github.com/lcfrai/luci/control-plane/internal/product"
@@ -23,12 +26,44 @@ type CloudTaskRuntime struct {
 	MaxSeconds          int
 	EstimatedCostMicros int64
 	StagingDir          string
+	ModelEgressDomains  []string
+}
+
+func (c *CloudTaskRuntime) allowsModelEndpoint(harness string, env map[string]string) bool {
+	if c == nil || len(c.ModelEgressDomains) == 0 || !e2bbe.ValidEgressDomains(c.ModelEgressDomains) {
+		return false
+	}
+	base := "https://api.openai.com"
+	if harness == "codex" {
+		if env["OPENAI_BASE_URL"] != "" {
+			base = env["OPENAI_BASE_URL"]
+		}
+	} else if harness == "claude-code" {
+		base = "https://api.anthropic.com"
+		if env["ANTHROPIC_BASE_URL"] != "" {
+			base = env["ANTHROPIC_BASE_URL"]
+		}
+	} else {
+		return false
+	}
+	u, err := url.Parse(base)
+	if err != nil || u.Scheme != "https" || u.User != nil || u.Hostname() == "" || u.RawQuery != "" || u.Fragment != "" || u.Port() != "" && u.Port() != "443" {
+		return false
+	}
+	for _, name := range c.ModelEgressDomains {
+		if name == strings.ToLower(u.Hostname()) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *CloudTaskRuntime) validate() error {
 	if c == nil || c.Runtime == nil || c.Runtime.Controller == nil || c.Runtime.Store == nil ||
 		len(c.AttachKey) != 32 || c.MaxSeconds < 1 || c.MaxSeconds > 86400 ||
-		c.EstimatedCostMicros < 1 || c.EstimatedCostMicros > 1<<50 {
+		c.EstimatedCostMicros < 1 || c.EstimatedCostMicros > 1<<50 ||
+		len(c.ModelEgressDomains) == 0 || !e2bbe.ValidEgressDomains(c.ModelEgressDomains) ||
+		!slices.Equal(c.ModelEgressDomains, c.Runtime.Controller.EgressDomains()) {
 		return errors.New("api: configured cloud microVM runtime lacks a durable controller, owner key or bounded task cost")
 	}
 	info, err := os.Lstat(c.StagingDir)

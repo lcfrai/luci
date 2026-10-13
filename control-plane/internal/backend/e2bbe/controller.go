@@ -44,7 +44,15 @@ func New(c Config) (*Controller, error) { return newController(c, nil, context.B
 // credential or a task-selected identity.
 func (c *Controller) OwnerID() string { return c.config.OwnerID }
 
+func (c *Controller) EgressDomains() []string {
+	return append([]string{}, c.config.EgressAllow...)
+}
+
 func newController(c Config, restored []byte, restoreContext context.Context) (*Controller, error) {
+	if !ValidEgressDomains(c.EgressAllow) {
+		return nil, ErrUnsupported
+	}
+	c.EgressAllow = append([]string{}, c.EgressAllow...)
 	if !validID(c.OwnerID) || !validID(c.Deployment.Scope) || !validID(c.Deployment.HostGeneration) || c.Deployment.Provider != "aws" || c.Deployment.InstanceType != "m8i.xlarge" || !validID(c.Deployment.Region) || c.Deployment.RuntimeRevision != RuntimeRevision || !digestPattern.MatchString(c.Deployment.ManagementReceiptDigest) || !digestPattern.MatchString(c.Deployment.RestoreReceiptDigest) || c.Checkpoint == nil || c.Authorize == nil {
 		return nil, ErrUnsupported
 	}

@@ -39,6 +39,7 @@ type e2bOperatorConfig struct {
 	Store                   e2bbe.StoreConfig `json:"store"`
 	TaskMaxSeconds          int               `json:"taskMaxSeconds"`
 	TaskEstimatedCostMicros int64             `json:"taskEstimatedCostMicros"`
+	ModelEgressDomains      []string          `json:"modelEgressDomains"`
 }
 
 func readPrivateE2BFile(path string, max int64) ([]byte, error) {
@@ -109,6 +110,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		selected.Store.OwnerID == "" || selected.Store.RuntimeScope != selected.Deployment.Scope ||
 		selected.TaskMaxSeconds < 1 || selected.TaskMaxSeconds > selected.Limits.MaxTaskSeconds ||
 		selected.TaskEstimatedCostMicros < 1 || selected.TaskEstimatedCostMicros > selected.Limits.EstimatedCostMicros ||
+		len(selected.ModelEgressDomains) == 0 || !e2bbe.ValidEgressDomains(selected.ModelEgressDomains) ||
 		!validE2BOriginTemplate(selected.EnvdOriginTemplate) || !validE2BOriginTemplate(selected.SandboxOriginTemplate) ||
 		!filepath.IsAbs(selected.ControllerStateDir) || !filepath.IsAbs(selected.StagingDir) {
 		return nil, nil, errors.New("cloud microVM configuration has incomplete scope, limits, storage or trusted guest origins")
@@ -181,7 +183,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	}
 	controllerConfig := e2bbe.Config{Endpoint: selected.Endpoint, APIKey: strings.TrimSpace(string(apiKey)), RootCAs: roots,
 		StateDir: selected.ControllerStateDir, OwnerID: selected.Store.OwnerID, Deployment: selected.Deployment,
-		Template: selected.Template, Limits: selected.Limits, Checkpoint: store, Authorize: authorizeEffect,
+		Template: selected.Template, Limits: selected.Limits, EgressAllow: selected.ModelEgressDomains, Checkpoint: store, Authorize: authorizeEffect,
 		GuestOrigins: func(id string) (string, string, string, error) {
 			if id == "" || strings.ContainsAny(id, "/\\.:@") {
 				return "", "", "", e2bbe.ErrConflict
@@ -210,7 +212,8 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	}
 	cloud := &api.CloudTaskRuntime{Runtime: &e2bbe.TaskRuntime{Controller: controller, Store: store},
 		AttachKey: attachKey, MaxSeconds: selected.TaskMaxSeconds,
-		EstimatedCostMicros: selected.TaskEstimatedCostMicros, StagingDir: selected.StagingDir}
+		EstimatedCostMicros: selected.TaskEstimatedCostMicros, StagingDir: selected.StagingDir,
+		ModelEgressDomains: append([]string{}, selected.ModelEgressDomains...)}
 	return cloud, func() {
 		closeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

@@ -10,7 +10,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -137,15 +139,18 @@ type CheckpointWriter interface {
 	Close() error
 }
 type Config struct {
-	Endpoint   string
-	APIKey     string
-	RootCAs    *x509.CertPool // nil uses system roots; verification cannot be disabled
-	StateDir   string
-	OwnerID    string
-	Deployment Deployment
-	Template   Template
-	Limits     Limits
-	Checkpoint Checkpoint
+	Endpoint string
+	APIKey   string
+	RootCAs  *x509.CertPool // nil uses system roots; verification cannot be disabled
+	StateDir string
+	OwnerID  string
+	// EgressAllow names exact operator-approved model endpoints. The provider
+	// still denies all other outbound IPv4 destinations for each fresh VM.
+	EgressAllow []string
+	Deployment  Deployment
+	Template    Template
+	Limits      Limits
+	Checkpoint  Checkpoint
 	// Authorize rechecks current authority/cost policy before each provider effect.
 	// Secrets never enter a Request or the persisted journal.
 	Authorize func(context.Context, Request, string) error
@@ -163,6 +168,41 @@ type Usage struct {
 
 var idPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$`)
 var digestPattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
+
+// ValidEgressDomains permits only exact lowercase DNS names, never wildcard,
+// CIDR, bare IP, URL or localhost rules. Empty means deny all egress and is
+// useful for transport-only fixtures, not an upstream model configuration.
+func ValidEgressDomains(domains []string) bool {
+	if len(domains) > 8 {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, name := range domains {
+		if len(name) < 4 || len(name) > 253 || seen[name] || name != strings.ToLower(name) || net.ParseIP(name) != nil || strings.HasSuffix(name, ".local") || strings.HasSuffix(name, ".localhost") || strings.HasSuffix(name, ".internal") {
+			return false
+		}
+		seen[name] = true
+		labels := strings.Split(name, ".")
+		if len(labels) < 2 {
+			return false
+		}
+		for _, label := range labels {
+			if len(label) == 0 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+				return false
+			}
+			for _, ch := range label {
+				if ch < 'a' || ch > 'z' {
+					if ch < '0' || ch > '9' {
+						if ch != '-' {
+							return false
+						}
+					}
+				}
+			}
+		}
+	}
+	return true
+}
 
 func validID(s string) bool { return idPattern.MatchString(s) }
 func digest(v any) string {
