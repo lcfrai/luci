@@ -1,10 +1,11 @@
 # Trusted task guest boundary (CLOUD-084/088)
 
-This is the contract for the new `control-plane/cmd/microvm-bootstrap` helper,
-not a published E2B template or an enabled cloud backend. The controlling
+This is the contract for the `control-plane/cmd/microvm-bootstrap` helper,
+not a published E2B template or an installed cloud backend. The controlling
 [product contract](../../docs/luci/PRODUCT-CONTRACT.md) still requires actual
 provider/KVM, durable host-loss recovery, upstream execution and per-task VM
-teardown evidence. The current product does not offer a working microVM choice.
+teardown evidence. The product exposes an explicit configured microVM route,
+but no working provider/template has passed live verification.
 
 The helper reuses the existing sandbox image's Git, unprivileged `dev` identity,
 `entrypoint.sh`, `sandboxd` and upstream coding engines. It does not implement an
@@ -27,8 +28,11 @@ the ordinary API/sandboxd inventory alone is insufficient before API wiring.
 
 - Linux with the pinned Embed envd protocol, an independently verified private
   authenticated management/guest route, and explicit model egress policy. The
-  current allocation boundary denies outbound IPv4; it does not establish a
-  working model connection or IPv6 policy.
+  controller now sends an operator-approved exact-domain `allowOut` list over
+  `denyOut: ["0.0.0.0/0"]` and refuses an unlisted model endpoint before VM
+  allocation. The pinned API documents allow-list precedence. This source
+  behavior does not establish a working model connection, other IPv4 egress
+  refusal on a real guest, or any IPv6 policy.
 - Unified cgroup v2 mounted at `/sys/fs/cgroup` from the real root, with a
   root-owned, undelegated `/sys/fs/cgroup/luci-tasks` parent. The root collector
   and envd must run outside every task group. No task process may write cgroup
