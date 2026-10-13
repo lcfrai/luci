@@ -56,14 +56,18 @@ func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe
 	actorID, projectID, region string, taskCost int64, maxSeconds int, budget int64, now time.Time) product.CoordinatorCloudCapacity {
 	month := now.UTC().Format("2006-01")
 	committed, unknown := int64(0), false
-	retained := make([]product.CoordinatorCloudAttempt, 0)
+	type heldAttempt struct {
+		view product.CoordinatorCloudAttempt
+		at   time.Time
+	}
+	retained := make([]heldAttempt, 0)
 	for _, row := range rows {
 		if row.ResourcesHeld && row.Request.Identity.ProjectID == projectID {
 			identity := row.Request.Identity
-			retained = append(retained, product.CoordinatorCloudAttempt{RunID: identity.RunID, TaskID: identity.TaskID,
+			retained = append(retained, heldAttempt{view: product.CoordinatorCloudAttempt{RunID: identity.RunID, TaskID: identity.TaskID,
 				AttemptID: identity.AttemptID, OperationID: identity.OperationID, State: string(row.State),
 				ResourcesHeld: true, EstimatedCostMicros: row.Request.EstimatedCostMicros,
-				UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339Nano)})
+				UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339Nano)}, at: row.UpdatedAt})
 		}
 		if (!row.ResourcesHeld && row.SandboxID == "") || (row.CreatedAt.UTC().Format("2006-01") != month && !row.ResourcesHeld) {
 			continue
@@ -89,20 +93,24 @@ func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe
 		limitation = "The current person's cloud estimate is unavailable or over the configured monthly budget. New VMs remain refused until current authority and retained spending are reconciled."
 	}
 	sort.Slice(retained, func(i, j int) bool {
-		if retained[i].UpdatedAt == retained[j].UpdatedAt {
-			return retained[i].OperationID < retained[j].OperationID
+		if retained[i].at.Equal(retained[j].at) {
+			return retained[i].view.OperationID < retained[j].view.OperationID
 		}
-		return retained[i].UpdatedAt > retained[j].UpdatedAt
+		return retained[i].at.After(retained[j].at)
 	})
 	count, more := len(retained), 0
 	if len(retained) > 20 {
 		more = len(retained) - 20
 		retained = retained[:20]
 	}
+	attempts := make([]product.CoordinatorCloudAttempt, 0, len(retained))
+	for _, row := range retained {
+		attempts = append(attempts, row.view)
+	}
 	return product.CoordinatorCloudCapacity{Provider: "e2b-embed", Region: region,
 		ConfiguredGlobalSlots: limits.MaxConcurrent, ConfiguredProjectSlots: limits.MaxPerProject,
 		ConfiguredAvailableSlots: available, EstimatedTaskCostMicros: taskCost,
 		EstimatedMonthMicros: committed, MonthlyBudgetMicros: budget, MaxTaskSeconds: maxSeconds,
-		RetainedProjectVMs: count, RetainedAttempts: retained, MoreRetainedAttempts: more,
+		RetainedProjectVMs: count, RetainedAttempts: attempts, MoreRetainedAttempts: more,
 		ObservedAt: now.Format(time.RFC3339Nano), Limitation: limitation}
 }

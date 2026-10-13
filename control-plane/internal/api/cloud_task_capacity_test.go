@@ -28,6 +28,12 @@ func TestCloudCapacityAdviceKeepsHeldChargeAndUsesConfiguredResourceLimits(t *te
 		view.RetainedProjectVMs != 1 || len(view.RetainedAttempts) != 1 || view.RetainedAttempts[0].OperationID != "op-still-held" || view.MoreRetainedAttempts != 0 {
 		t.Fatal("configured capacity or exact retained estimate was misreported", view)
 	}
+	newer := row("alice", now.Add(time.Nanosecond), true, "newer-vm", 50)
+	ordered := append(append([]e2bbe.Record{}, rows...), row("alice", now, true, "same-second", 50), newer)
+	view = cloudCapacityView(limits, template, usage, 1, ordered, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
+	if view.RetainedProjectVMs != 3 || view.RetainedAttempts[0].OperationID != "op-newer-vm" {
+		t.Fatal("newest exact held attempt was not first", view.RetainedAttempts)
+	}
 	rows = append(rows, row("", now.Add(-time.Hour), true, "legacy-held", 100))
 	view = cloudCapacityView(limits, template, usage, 1, rows, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
 	if view.ConfiguredAvailableSlots != 0 || !strings.Contains(view.Limitation, "unavailable") {
