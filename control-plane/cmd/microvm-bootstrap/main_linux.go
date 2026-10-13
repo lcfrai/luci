@@ -100,6 +100,12 @@ func run() error {
 	if e = os.Setenv("LUCI_HOST_GID", "1001"); e != nil {
 		return e
 	}
+	// The shared entrypoint must not chown /home/dev in a microVM. That parent
+	// contains the root-owned reviewed-context mount; only the separate agent
+	// home may be writable by the upstream coding process.
+	if e = os.Setenv("LUCI_MICROVM_FIXED_HOME", "1"); e != nil {
+		return e
+	}
 	return syscall.Exec("/usr/local/bin/entrypoint.sh", []string{"/usr/local/bin/entrypoint.sh"}, os.Environ())
 }
 func main() {

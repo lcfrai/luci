@@ -62,10 +62,12 @@ the ordinary API/sandboxd inventory alone is insufficient before API wiring.
   mode0600. The pinned envd upload endpoint preserves an existing mode; its
   default mode for a new file is not a private-context boundary.
 - `/home/dev/.luci-reviewed-context`: precreated empty ordinary root-owned
-  directory, neither group- nor world-writable. The helper bind-mounts reviewed
-  context here read-only/no-exec/no-suid/no-dev so existing harness prompts keep
-  their established path. A symlink beneath writable `/home/dev` is not an
-  equivalent boundary.
+  directory, neither group- nor world-writable. Every ancestor, including
+  `/home/dev`, stays root-owned and non-writable after the trusted entrypoint
+  drops privilege. The upstream process gets a separate writable
+  `/home/dev/.luci-agent-home` as `HOME`. The helper checks this hierarchy
+  before mounting context read-only/no-exec/no-suid/no-dev. A symlink or
+  writable ancestor is not an equivalent boundary.
 
 Do not run a generic image entrypoint as a task before the controller's single
 authenticated Start. The controller supplies the exact operation/project/task/
@@ -84,7 +86,7 @@ opaque prepared handle rechecks the exact directory and receipt before later
 permission or launch changes.
 
 Source becomes writable by UID1001. Reviewed context remains root-owned under
-a root-owned parent and is exposed through the read-only bind mount. A new Git
+a root-owned parent after entrypoint UID bootstrap and is exposed through the read-only bind mount. A new Git
 repository contains the exact input as a **synthetic guest baseline**: original
 host Git configuration, hooks, credentials and history are not imported. Its
 recorded commit is not the original host commit. Return/review wiring must use

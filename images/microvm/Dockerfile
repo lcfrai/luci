@@ -26,7 +26,9 @@ RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh \
     && install -d -m 0700 /luci-transfer \
     && install -d -m 0755 /luci-work /home/dev/.luci-reviewed-context \
     && install -m 0600 /dev/null /luci-transfer/input.tar \
-    && install -d -o dev -g dev -m 0700 /home/dev/.claude /home/dev/.claude/projects
+    && install -d -o dev -g dev -m 0700 /home/dev/.luci-agent-home \
+    && chown root:root /home/dev /home/dev/.luci-reviewed-context \
+    && chmod 0755 /home/dev /home/dev/.luci-reviewed-context
 USER root
 WORKDIR /luci-work
 # The authenticated envd Start RPC invokes the fixed bootstrap. Booting the

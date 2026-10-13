@@ -77,6 +77,12 @@ func ExposeReviewedContext(p Prepared) error {
 		return ErrRefused
 	}
 	target := harness.ReviewedContextDirectory
+	// The bind mount itself is read-only, but its pathname is not immutable if
+	// the upstream user can replace an ancestor. The guest template and its
+	// UID bootstrap must keep every ancestor root-owned and non-writable.
+	if _, e := privateHierarchy(target, 0); e != nil {
+		return ErrRefused
+	}
 	info, e := os.Lstat(target)
 	if e != nil {
 		return e

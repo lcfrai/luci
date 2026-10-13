@@ -1,10 +1,13 @@
 #!/bin/bash -p
 set -euo pipefail
 
-# Only the control plane's fixed terminal home may survive UID bootstrap.
-# Other harnesses keep their original home; arbitrary HOME values are ignored.
+# Only the control plane's fixed terminal or trusted microVM guest home may
+# survive UID bootstrap. Other harnesses keep the normal home; arbitrary HOME
+# values are ignored.
 luci_bootstrap_home() {
-  if [[ "${LUCI_COMMAND:-/bin/bash}" == "/bin/bash" && "${HOME:-}" == "/home/dev/.luci-shell" ]]; then
+  if [[ "${LUCI_MICROVM_FIXED_HOME:-}" == "1" ]]; then
+    printf '%s' '/home/dev/.luci-agent-home'
+  elif [[ "${LUCI_COMMAND:-/bin/bash}" == "/bin/bash" && "${HOME:-}" == "/home/dev/.luci-shell" ]]; then
     printf '%s' '/home/dev/.luci-shell'
   else
     printf '%s' '/home/dev'
@@ -27,10 +30,21 @@ if [[ "$(/usr/bin/id -u)" == "0" ]]; then
   # bind mount. Change only image metadata and the two image-owned parents.
   /usr/bin/sed -i -E "s/^(dev:[^:]*:)[0-9]+:[0-9]+:/\1${host_uid}:${host_gid}:/" /etc/passwd
   /usr/bin/sed -i -E "s/^(dev:[^:]*:)[0-9]+:/\1${host_gid}:/" /etc/group
-  /usr/bin/chown "$host_uid:$host_gid" /home/dev /home/dev/.claude
+  if [[ "${LUCI_MICROVM_FIXED_HOME:-}" == "1" ]]; then
+    # The trusted guest bootstrap sets this flag only after it mounted exact
+    # reviewed context. Keep every path ancestor root-owned. The upstream
+    # process gets a separate private HOME and cannot replace the mount path.
+    if [[ "$(/usr/bin/stat -c '%u:%a' /home/dev)" != "0:755" ]] \
+       || [[ "$(/usr/bin/stat -c '%u:%a' /home/dev/.luci-agent-home)" != "${host_uid}:700" ]]; then
+      printf '%s\n' 'Luci guest home boundary is unavailable.' >&2
+      exit 2
+    fi
+  else
+    /usr/bin/chown "$host_uid:$host_gid" /home/dev /home/dev/.claude
+  fi
   HOME="$(luci_bootstrap_home)"
   export HOME USER=dev LOGNAME=dev
-  unset LUCI_HOST_UID LUCI_HOST_GID
+  unset LUCI_HOST_UID LUCI_HOST_GID LUCI_MICROVM_FIXED_HOME
   exec /usr/bin/setpriv --reuid="$host_uid" --regid="$host_gid" --clear-groups \
     --inh-caps=-all --ambient-caps=-all --bounding-set=-all --no-new-privs \
     /usr/local/bin/entrypoint.sh

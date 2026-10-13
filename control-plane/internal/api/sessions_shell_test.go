@@ -251,14 +251,15 @@ func TestShellBootstrapHomeAndInitialToolPath(t *testing.T) {
 	if !found || !ended {
 		t.Fatal("image is missing its terminal HOME handoff")
 	}
-	for _, tc := range []struct{ command, home, want string }{
-		{"/bin/bash", shellHomeDir, shellHomeDir},
-		{"/bin/bash", "/arbitrary/path", "/home/dev"},
-		{"codex", shellHomeDir, "/home/dev"},
-		{"claude", shellHomeDir, "/home/dev"},
+	for _, tc := range []struct{ command, home, guest, want string }{
+		{"/bin/bash", shellHomeDir, "", shellHomeDir},
+		{"/bin/bash", "/arbitrary/path", "", "/home/dev"},
+		{"codex", shellHomeDir, "", "/home/dev"},
+		{"claude", shellHomeDir, "", "/home/dev"},
+		{"codex", "/arbitrary/path", "1", "/home/dev/.luci-agent-home"},
 	} {
 		cmd := exec.Command(bash, "-p", "-c", "luci_bootstrap_home() {"+body+"\n}\nluci_bootstrap_home")
-		cmd.Env = []string{"PATH=/usr/bin:/bin", "LUCI_COMMAND=" + tc.command, "HOME=" + tc.home}
+		cmd.Env = []string{"PATH=/usr/bin:/bin", "LUCI_COMMAND=" + tc.command, "HOME=" + tc.home, "LUCI_MICROVM_FIXED_HOME=" + tc.guest}
 		out, err := cmd.Output()
 		if err != nil || string(out) != tc.want {
 			t.Fatalf("image HOME handoff for %s: %q, %v", tc.command, out, err)
