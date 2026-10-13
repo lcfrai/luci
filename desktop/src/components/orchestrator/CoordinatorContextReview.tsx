@@ -99,6 +99,7 @@ function ContextReview({ projectId, scope, actorId, view, canEdit, blocked, onRe
       <p>{target === "specification" ? view.context.specification.purpose : view.context.designPlan.implementationNotes}</p>
       {target === "specification" && <><p>{view.context.specification.requirements.length} requirements · {view.context.specification.questions.filter(item => !item.answer.trim()).length} unanswered questions</p><ul>{view.context.specification.requirements.map(item => <li key={item.id}>{item.title}: {item.acceptance}</li>)}</ul></>}
       {target === "design-plan" && <ul>{view.context.designPlan.screens.map(item => <li key={item.id}>{item.name}: {item.purpose}</li>)}</ul>}
+      <details><summary>Complete saved {label} record</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(selected, null, 2)}</pre></details>
     </details>}
     {error && <p role="alert">{error}</p>}{storageError && <p role="alert">{storageError}</p>}{notice && <p role="status">{notice}</p>}
     {blocked && <p role="status">{blocked}</p>}
