@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -106,6 +107,42 @@ func TestCoordinatorFindingTwoRecipientsSurviveRestartAndRevocation(t *testing.T
 	bob, err := s.readContinuations(p, "bob")
 	if err != nil || len(bob.Findings) != 1 {
 		t.Fatal("revoked recipient received a later private finding", err)
+	}
+}
+
+func TestCoordinatorVerifiedStagesReachBothConversationsWithoutModelReplay(t *testing.T) {
+	s, p, _, ctx, req, _ := coordinatorContinuationFixture(t)
+	row := coordinatorReadyFixture(t, s, p, ctx, req)
+	findingTestSource(t, s, p, row, true)
+	path, err := s.continuationPath(p.ID, "alice", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bobPath, err := s.continuationPath(p.ID, "bob", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, names := filepath.Dir(path), []string{filepath.Base(path), filepath.Base(bobPath)}
+	for index, stage := range []string{"checks-verified", "preview-ready"} {
+		source, readErr := s.readContinuations(p, "alice")
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		source.Rows[0].Status, source.Rows[0].Message = stage, "Exact reviewed stage "+stage+" is available for this run."
+		source.Rows[0].Revision += index + 1
+		for _, actorID := range []string{"alice", "bob"} {
+			changed, deliverErr := s.deliverCoordinatorFindings(context.Background(), p, source, root, names, findingTestAuthority, nil)
+			if deliverErr != nil || !changed {
+				t.Fatal("stage was not delivered to current reader", stage, actorID, changed, deliverErr)
+			}
+			found, readErr := s.readContinuations(p, actorID)
+			if readErr != nil || len(found.Findings) != index+1 || found.Findings[index].SourceStatus != stage || found.Findings[index].Status != "observed" || !validCoordinatorFinding(found.Findings[index], p.ID, actorID) {
+				t.Fatal("stage was not an exact read-only conversation observation", stage, actorID, found.Findings, readErr)
+			}
+		}
+		if changed, deliverErr := s.deliverCoordinatorFindings(context.Background(), p, source, root, names, findingTestAuthority, nil); deliverErr != nil || changed {
+			t.Fatal("stage was duplicated after durable readback", stage, changed, deliverErr)
+		}
 	}
 }
 

@@ -131,6 +131,20 @@ it("shows an exact automatic follow-up question without replacing an unsent mess
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
+it("shows verified-stage feedback in the primary conversation without starting another model turn", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ activity: { accepted: [], work: [], earlierAvailable: false, findings: [{
+    id: "finding-stage", projectId: "p-1", recipientId: "owner", continuationId: "continue-one", originTurnId: "turn-original",
+    contextDigest: "d".repeat(64), sourceRevision: 6, sourceStatus: "checks-verified", status: "observed",
+    message: "The exact independent check passed.", updatedAt: "2026-10-13T00:00:00Z",
+  }] } }));
+  render(<OrchestratorPanel projectId="p-1" primary />);
+  const composer = await screen.findByLabelText("Message Luci") as HTMLTextAreaElement;
+  await userEvent.type(composer, "Keep this delivery question private for now");
+  expect(screen.getByText(/verified check or preview stage is recorded/)).toBeTruthy();
+  expect(composer.value).toBe("Keep this delivery question private for now");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
 it("uses the existing conversation mutation boundary for a policy-authorized draft and leaves Build/Deploy untouched", async () => {
   const proposal = { ...proposalTurn(), actor: { id: "owner", displayName: "Owner" } };
   const initial = view({ turns: [proposal] });

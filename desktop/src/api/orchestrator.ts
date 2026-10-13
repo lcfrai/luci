@@ -54,7 +54,7 @@ export interface OrchestratorActivity {
       deployStatus?: string; deployReleaseId?: string } }[];
   findings?: { id: string; projectId: string; recipientId: string; continuationId: string; eventId?: string; originTurnId: string;
     contextDigest: string; sourceRevision: number; sourceStatus: string;
-    status: "pending" | "reserved" | "inflight" | "question" | "review" | "resumed" | "unknown";
+    status: "pending" | "reserved" | "inflight" | "question" | "review" | "observed" | "resumed" | "unknown";
     message: string; requestKey?: string; turnId?: string; updatedAt: string }[];
   earlierAvailable: boolean;
 }
@@ -123,7 +123,7 @@ function validActivity(activity: OrchestratorActivity | undefined): boolean {
       activity.findings.some(row => !row || !row.id?.startsWith('finding-') || !row.projectId || !row.recipientId ||
         (!row.continuationId && !row.eventId) || !!row.continuationId && !!row.eventId || !row.originTurnId || !/^[0-9a-f]{64}$/.test(row.contextDigest) ||
         !Number.isSafeInteger(row.sourceRevision) || row.sourceRevision < 1 || !row.sourceStatus ||
-        !['pending', 'reserved', 'inflight', 'question', 'review', 'resumed', 'unknown'].includes(row.status) ||
+        !['pending', 'reserved', 'inflight', 'question', 'review', 'observed', 'resumed', 'unknown'].includes(row.status) ||
         typeof row.message !== 'string' || !Number.isFinite(Date.parse(row.updatedAt))))) return false;
   if (new Set(activity.accepted.map(event => event.eventId)).size !== activity.accepted.length ||
       new Set(activity.work.map(work => work.id)).size !== activity.work.length) return false;

@@ -29,7 +29,7 @@ type CoordinatorFinding struct {
 	ContextDigest  string `json:"contextDigest"`
 	SourceRevision int    `json:"sourceRevision"`
 	SourceStatus   string `json:"sourceStatus"`
-	Status         string `json:"status"` // pending, reserved, inflight, question, review, resumed, unknown
+	Status         string `json:"status"` // pending, reserved, inflight, question, review, observed, resumed, unknown
 	Message        string `json:"message"`
 	RequestKey     string `json:"requestKey,omitempty"`
 	TurnID         string `json:"turnId,omitempty"`
@@ -65,12 +65,12 @@ func validCoordinatorFinding(f CoordinatorFinding, projectID, actorID string) bo
 		return false
 	}
 	switch f.SourceStatus {
-	case "blocked", "unknown", "preview-blocked", "deployment-blocked", "deployed", "accepted-context":
+	case "blocked", "unknown", "checks-verified", "preview-ready", "preview-blocked", "deployment-blocked", "deployed", "accepted-context":
 	default:
 		return false
 	}
 	switch f.Status {
-	case "pending", "reserved", "inflight", "question", "review", "resumed", "unknown":
+	case "pending", "reserved", "inflight", "question", "review", "observed", "resumed", "unknown":
 	default:
 		return false
 	}
@@ -83,7 +83,7 @@ func findingIdentity(row coordinatorContinuationRecord, actorID string) string {
 
 func consequentialFinding(row coordinatorContinuationRecord) bool {
 	switch row.Status {
-	case "blocked", "unknown", "preview-blocked", "deployment-blocked", "deployed":
+	case "blocked", "unknown", "checks-verified", "preview-ready", "preview-blocked", "deployment-blocked", "deployed":
 		return true
 	}
 	return false
@@ -349,7 +349,13 @@ func (s *Server) deliverCoordinatorFindings(ctx context.Context, p project.Proje
 			if message == "" {
 				message = "The exact saved continuation requires review."
 			}
-			finding := CoordinatorFinding{ID: id, ProjectID: p.ID, RecipientID: recipient.ActorID, ContinuationID: row.ID, OriginTurnID: row.OriginTurnID, ContextDigest: row.ContextDigest, SourceRevision: row.Revision, SourceStatus: row.Status, Status: "pending", Message: message, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+			status := "pending"
+			if row.Status == "checks-verified" || row.Status == "preview-ready" {
+				// Positive stages are exact read-only feedback. They do not buy
+				// another model turn or delegate a new context mutation.
+				status = "observed"
+			}
+			finding := CoordinatorFinding{ID: id, ProjectID: p.ID, RecipientID: recipient.ActorID, ContinuationID: row.ID, OriginTurnID: row.OriginTurnID, ContextDigest: row.ContextDigest, SourceRevision: row.Revision, SourceStatus: row.Status, Status: status, Message: message, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 			s.mu.Lock()
 			current, err := s.readContinuations(p, recipient.ActorID)
 			if err == nil && findingIndex(current, id) < 0 {

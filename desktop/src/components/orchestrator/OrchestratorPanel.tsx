@@ -667,6 +667,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
                   finding.status === 'reserved' || finding.status === 'inflight' ? 'One exact model turn is reserved or running; its outcome is not yet confirmed.' :
                   finding.status === 'question' ? 'A consequential question needs an answer in this conversation.' :
                   finding.status === 'resumed' ? 'The recorded question was answered; affected work is being rechecked against the accepted context.' :
+                  finding.status === 'observed' ? 'This verified check or preview stage is recorded for this person. Inspect the exact run before treating it as delivered behavior.' :
                   finding.status === 'unknown' ? 'The model outcome is unconfirmed. Inspect the saved turn before another request.' :
                   'Luci’s result is ready for review. A proposal is still only a draft.'}
                 {' '}Finding <code>{finding.id}</code>{finding.turnId && <> · turn <code>{finding.turnId}</code></>}.
