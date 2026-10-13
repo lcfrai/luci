@@ -89,6 +89,14 @@ func (c *Controller) EgressDomains() []string {
 	return append([]string{}, c.config.EgressAllow...)
 }
 
+func supportedEmbedInstanceType(instance string) bool {
+	switch instance {
+	case "m8i.xlarge", "m8i.2xlarge", "m8i.4xlarge", "m8i.8xlarge":
+		return true
+	}
+	return false
+}
+
 // Capacity is an informational snapshot. Allocate rechecks the authoritative
 // journal and current actor/provider prerequisites under its own lock.
 func (c *Controller) Capacity(projectID string) (Limits, Template, Usage, int, []Record, []SettledSpend) {
@@ -136,7 +144,7 @@ func newController(c Config, restored []byte, restoreContext context.Context) (*
 		return nil, ErrUnsupported
 	}
 	c.EgressAllow = append([]string{}, c.EgressAllow...)
-	if !validID(c.OwnerID) || !validID(c.Deployment.Scope) || !validID(c.Deployment.HostGeneration) || c.Deployment.Provider != "aws" || c.Deployment.InstanceType != "m8i.xlarge" || !validID(c.Deployment.Region) || c.Deployment.RuntimeRevision != RuntimeRevision || !digestPattern.MatchString(c.Deployment.ManagementReceiptDigest) || !digestPattern.MatchString(c.Deployment.RestoreReceiptDigest) || c.Checkpoint == nil || c.Authorize == nil {
+	if !validID(c.OwnerID) || !validID(c.Deployment.Scope) || !validID(c.Deployment.HostGeneration) || c.Deployment.Provider != "aws" || !supportedEmbedInstanceType(c.Deployment.InstanceType) || !validID(c.Deployment.Region) || c.Deployment.RuntimeRevision != RuntimeRevision || !digestPattern.MatchString(c.Deployment.ManagementReceiptDigest) || !digestPattern.MatchString(c.Deployment.RestoreReceiptDigest) || c.Checkpoint == nil || c.Authorize == nil {
 		return nil, ErrUnsupported
 	}
 	if !validID(c.Template.ID) || c.Template.BuildID != "" && !validID(c.Template.BuildID) || !digestPattern.MatchString(c.Template.BuildDigest) || c.Template.MemoryMiB < 128 || c.Template.MemoryMiB > 32768 || c.Template.CPUMillis < 1000 || c.Template.CPUMillis > 16000 || c.Template.CPUMillis%1000 != 0 {

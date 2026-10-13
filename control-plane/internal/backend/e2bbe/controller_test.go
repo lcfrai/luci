@@ -279,6 +279,26 @@ func TestCloudNodeCapacityRequiresSeparateAdminReadAndPinnedReadyHost(t *testing
 	}
 }
 
+func TestCloudHostSizeAllowsConfiguredFourVMWorkloadWithoutGenericProviderClaim(t *testing.T) {
+	for _, instance := range []string{"m8i.xlarge", "m8i.2xlarge", "m8i.4xlarge", "m8i.8xlarge"} {
+		if !supportedEmbedInstanceType(instance) {
+			t.Fatal("supported nested-virtualization host refused", instance)
+		}
+	}
+	for _, instance := range []string{"m8i.12xlarge", "m7g.2xlarge", "t3.2xlarge", "m8i.metal"} {
+		if supportedEmbedInstanceType(instance) {
+			t.Fatal("unreviewed host type offered as configured microVM execution", instance)
+		}
+	}
+	p := newProvider(t)
+	cfg, _ := fixtureConfig(t, p)
+	cfg.Deployment.InstanceType = "m8i.4xlarge"
+	c := openController(t, cfg)
+	if c.config.Limits.MaxConcurrent != 4 || c.config.Deployment.InstanceType != "m8i.4xlarge" {
+		t.Fatal("representative four VM configuration was narrowed", c.config)
+	}
+}
+
 func TestConfiguredModelEgressRejectsBroadAndLocalDestinations(t *testing.T) {
 	for _, domains := range [][]string{{"*.openai.com"}, {"0.0.0.0/0"}, {"127.0.0.1"}, {"localhost"}, {"model.internal"}, {"API.OPENAI.COM"}, {"api.openai.com", "api.openai.com"}} {
 		if ValidEgressDomains(domains) {
