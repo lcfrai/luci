@@ -74,6 +74,70 @@ func TestCoordinatorDelegatedReviewRenewsOnlyExactPreviouslyApprovedAmendment(t 
 	}
 }
 
+func TestCoordinatorAnsweredQuestionResumesSavedApprovedRouteOnce(t *testing.T) {
+	s, p, h, ctx, req, _ := coordinatorContinuationFixture(t)
+	anchor := coordinatorReadyFixture(t, s, p, ctx, req)
+	s.mu.Lock()
+	rows, err := s.readContinuations(p, "alice")
+	if err == nil {
+		rows.Rows[0].Status = "blocked"
+		rows.SavedRoute = &CoordinatorSavedRoute{Revision: 1, Route: coordinatorRoute(req.Run), MaxParallel: 1, UpdatedAt: anchor.CreatedAt}
+		err = s.saveContinuations(rows)
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	decodeEvidenceResponse(t, journeyRequest(t, h, "POST", "/v1/product/projects/"+p.ID+"/orchestrator/policy", map[string]any{
+		"expectedRevision": req.ExpectedPolicyRevision, "mode": "auto-drafts", "reviewMode": "approved-amendments", "allowedTargets": []string{"specification"},
+	}, 200).Body.Bytes(), &CoordinatorPolicy{})
+	question, _ := reserveOrchestratorTest(t, s, p.ID, ctx, "Should private work be easier to find?", "")
+	if err = s.CompleteOrchestratorTurn(p.ID, question.ID, question.JobID, "succeeded", &OrchestratorAnswer{
+		Summary: "The navigation choice needs a decision.", Question: "Show private work first?", Rationale: "This affects the entry point.",
+		Options: []string{"Yes", "No"}, Blocking: true, Impact: []string{"Definition"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	s.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	blocked, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil || len(blocked.BlockingQuestions) != 1 || blocked.Turns[len(blocked.Turns)-1].AppliedRevision != 0 {
+		t.Fatalf("unanswered decision changed saved context: %+v %v", blocked, err)
+	}
+	reply, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Yes. Show my saved work first.", question.ID)
+	spec := snapshot.Specification
+	spec.Purpose = "Find private saved work before starting something new"
+	spec.Status, spec.Digest = "draft", ""
+	if err = s.CompleteOrchestratorTurn(p.ID, reply.ID, reply.JobID, "succeeded", &OrchestratorAnswer{
+		Summary: "Put saved work first.", Options: []string{}, Impact: []string{"Definition"},
+		Proposal: &OrchestratorProposal{Target: "specification", Summary: "Saved work entry", Specification: &spec},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ {
+		if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resumed, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil || len(resumed.BlockingQuestions) != 0 || resumed.Activity == nil || len(resumed.Activity.Accepted) != 1 ||
+		resumed.Activity.Accepted[0].OriginTurnID != reply.ID || resumed.Activity.Accepted[0].AppliedTargetDigest == "" {
+		t.Fatalf("answered decision did not resume exact reviewed change: %+v %v", resumed.Activity, err)
+	}
+	acceptedID := resumed.Activity.Accepted[0].EventID
+	for i := 0; i < 2; i++ {
+		if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	replayed, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil || len(replayed.Activity.Accepted) != 1 || replayed.Activity.Accepted[0].EventID != acceptedID {
+		t.Fatalf("clarification replay created a second accepted event: %+v %v", replayed.Activity, err)
+	}
+}
+
 func TestCoordinatorDelegatedReviewRejectsUnreviewedBaseAndPolicyChange(t *testing.T) {
 	s, p, h, ctx := coordinatorPolicyFixture(t)
 	policy := coordinatorSavePolicy(t, h, p.ID, 0, "auto-drafts", []string{"specification"})

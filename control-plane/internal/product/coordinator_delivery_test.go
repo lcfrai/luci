@@ -144,7 +144,7 @@ func coordinatorDeliveryReopen(t *testing.T, s *Server) (*Server, http.Handler) 
 }
 
 func TestCoordinatorDeliveryHTTPWaitsForReviewedIntegrationAndJoinsExactNativeCheck(t *testing.T) {
-	s, p, h, _, out, starts := coordinatorDeliveryFixture(t)
+	s, p, h, ctx, out, starts := coordinatorDeliveryFixture(t)
 	before := auditTree(t, s.stateDir)
 	out = coordinatorDeliveryAdvance(t, h, p, out, 200)
 	if out.Status != "queued" || out.Delivery != nil || starts.Load() != 0 || !reflect.DeepEqual(before, auditTree(t, s.stateDir)) {
@@ -168,6 +168,12 @@ func TestCoordinatorDeliveryHTTPWaitsForReviewedIntegrationAndJoinsExactNativeCh
 	run, err := s.projectRuns.Get(p.ID, p.Path, out.RunID)
 	if err != nil || starts.Load() != 1 || out.Status != "checks-verified" || out.Delivery.Status != "verified" || len(run.Checks) != 1 || run.Checks[0].CheckID != check.ID || len(run.Releases) != 0 || run.Acceptance != nil {
 		t.Fatal("exact check was not independently joined, or delivery was fabricated", out, run, err)
+	}
+	conversation, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil || conversation.Activity == nil || len(conversation.Activity.Work) == 0 ||
+		conversation.Activity.Work[0].Finding == nil || conversation.Activity.Work[0].Finding.Status != "verified" ||
+		conversation.Activity.Work[0].Finding.CheckID != check.ID || conversation.Activity.Work[0].RunID != run.ID {
+		t.Fatalf("verified check finding was absent from the actor's primary conversation: %+v %v", conversation.Activity, err)
 	}
 	coordinatorDeliveryAdvance(t, h, p, out, 200)
 	if starts.Load() != 1 {

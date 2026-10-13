@@ -55,6 +55,32 @@ async function ready() {
   await screen.findByText(/Using Team provider/);
 }
 
+it("shows accepted peer changes, actor-owned work and decisions in the primary conversation without replay", async () => {
+  const accepted = { eventId: "event-1", sequence: 4, intentId: "intent-1", originTurnId: "turn-1",
+    actor: { id: "bob", displayName: "Bob" }, target: "design-plan", appliedTargetDigest: "c".repeat(64), acceptedContextDigest: "d".repeat(64),
+    taskIds: ["task-1"], affectsAllTasks: false };
+  vi.mocked(orchestratorApi.get).mockImplementation(async id => view({ projectId: id, context: context(id),
+    blockingQuestions: id === "p-1" ? [{ turnId: "question-1", question: "Which layout?", rationale: "The designs conflict.", options: ["Compact", "Wide"] }] : [],
+    activity: id === "p-1" ? { accepted: [accepted], work: [{ id: "continue-1", originTurnId: "turn-1", contextDigest: accepted.acceptedContextDigest,
+      acceptedEvents: [{ eventId: accepted.eventId, sequence: accepted.sequence, originIntentId: accepted.intentId }],
+      status: "checks-verified", message: "The exact check is linked to reviewed source.", runId: "run-1", updatedAt: "2026-10-13T00:00:00Z",
+      finding: { status: "verified", checkId: "check-1", commit: "a1b2c3", previewStatus: "ready", previewReleaseId: "preview-1" } }], earlierAvailable: false }
+      : { accepted: [], work: [], earlierAvailable: false } }));
+  const mounted = render(<OrchestratorPanel projectId="p-1" primary />);
+  const progress = await screen.findByRole("region", { name: "Shared changes and affected work" });
+  expect(within(progress).getByText(/Bob’s design-plan change was accepted/)).toBeTruthy();
+  expect(within(progress).getAllByText(accepted.acceptedContextDigest)).toHaveLength(2);
+  expect(within(progress).getByText(accepted.appliedTargetDigest)).toBeTruthy();
+  expect(within(progress).getByText("check-1")).toBeTruthy();
+  expect(within(progress).getByText("preview-1")).toBeTruthy();
+  expect(within(progress).getByText(/1 decision needs an answer/)).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Answer this decision" })).toBeTruthy();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+  mounted.rerender(<OrchestratorPanel projectId="p-2" primary />);
+  await waitFor(() => expect(screen.queryByText(/Bob’s design-plan change was accepted/)).toBeNull());
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
 it("uses the existing conversation mutation boundary for a policy-authorized draft and leaves Build/Deploy untouched", async () => {
   const proposal = { ...proposalTurn(), actor: { id: "owner", displayName: "Owner" } };
   const initial = view({ turns: [proposal] });

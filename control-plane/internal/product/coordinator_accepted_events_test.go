@@ -88,6 +88,17 @@ func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testi
 	if err != nil || len(rows.Rows) != 2 || len(rows.Rows[1].AcceptedEvents) != 1 || rows.Rows[1].OriginTurnID != turn.ID || rows.Rows[1].Status != "queued" || len(rows.Rows[1].Run.ImplementationContext.TaskIDs) != 1 || rows.Rows[1].Run.ImplementationContext.TaskIDs[0] != "task-save" {
 		t.Fatalf("accepted event did not reserve exact changed task: %+v %v", rows, err)
 	}
+	conversation, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil || conversation.Activity == nil || len(conversation.Activity.Accepted) != 1 || len(conversation.Activity.Work) != 2 ||
+		conversation.Activity.Accepted[0].EventID != rows.Rows[1].AcceptedEvents[0].EventID ||
+		conversation.Activity.Work[0].ID != rows.Rows[1].ID || conversation.Activity.Work[0].ContextDigest != rows.Rows[1].ContextDigest ||
+		conversation.Activity.Work[0].RunID != rows.Rows[1].RunID {
+		t.Fatalf("primary conversation lost accepted work provenance: %+v %v", conversation.Activity, err)
+	}
+	peerConversation, err := s.OrchestratorView(peerContext, p.ID, 0)
+	if err != nil || peerConversation.Activity == nil || len(peerConversation.Activity.Accepted) != 1 || len(peerConversation.Activity.Work) != 0 {
+		t.Fatalf("teammate conversation lost shared event or borrowed another actor's work: %+v %v", peerConversation.Activity, err)
+	}
 	queue, err := s.ProjectSwarmQueueSnapshot(p.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -121,6 +132,10 @@ func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testi
 	retained, err := reopened.readContinuations(p, "alice")
 	if err != nil || len(retained.Rows) != 2 || retained.Rows[1].ID != rows.Rows[1].ID {
 		t.Fatal("restart replayed accepted event", err)
+	}
+	replayed, err := reopened.OrchestratorView(ctx, p.ID, 0)
+	if err != nil || !reflect.DeepEqual(replayed.Activity, conversation.Activity) {
+		t.Fatalf("conversation activity changed across read-only restart: %+v %v", replayed.Activity, err)
 	}
 	// Revoking current execution authority cannot create a second continuation.
 	reopened.coordinatorBackground.authorize = func(context.Context, management.ExecutionActorRef, string, bool) (context.Context, error) {

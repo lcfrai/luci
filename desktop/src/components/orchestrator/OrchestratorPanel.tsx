@@ -632,6 +632,27 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
         {conversation.mounted && <div hidden={!conversationOpen}>
         {view && <>
           <div className="orchestrator-toolbar"><h3>Luci</h3><Button variant="ghost" size="compact" disabled={!!busy || loading} onClick={() => void refresh(true)}>Refresh conversation</Button></div>
+          {view.activity && (!!view.activity.accepted.length || !!view.activity.work.length || !!view.blockingQuestions.length) &&
+            <section aria-label="Shared changes and affected work" className="orchestrator-provenance">
+              <h4>Shared changes and affected work</h4>
+              {!!view.blockingQuestions.length && <p>{view.blockingQuestions.length} decision{view.blockingQuestions.length === 1 ? "" : "s"} {view.blockingQuestions.length === 1 ? "needs" : "need"} an answer before affected work can continue. Answer below; Luci will recheck current context, authority and policy before acting.</p>}
+              {view.activity.accepted.map(event => <p key={event.eventId}>
+                {event.actor.displayName}’s {event.target} change was accepted at target <code>{event.appliedTargetDigest}</code>.
+                {event.acceptedContextDigest && <> Accepted context <code>{event.acceptedContextDigest}</code>.</>}
+                {event.affectsAllTasks ? " All tasks may be affected." : event.taskIds.length ? ` Affected tasks: ${event.taskIds.join(", ")}.` : ""}
+                {" "}Event <code>{event.eventId}</code> · intent <code>{event.intentId}</code> · conversation <code>{event.originTurnId}</code>
+              </p>)}
+              {view.activity.work.map(work => <p key={work.id}>
+                Affected work: {work.message} · {work.status} · context <code>{work.contextDigest}</code>
+                {work.acceptedEvents.length > 0 && <> · accepted event{work.acceptedEvents.length === 1 ? "" : "s"} {work.acceptedEvents.map(event => event.eventId).join(", ")}</>}
+                {work.finding && <> · checks {work.finding.status}{work.finding.checkId && <> <code>{work.finding.checkId}</code></>}{work.finding.commit && <> · source <code>{work.finding.commit}</code></>}
+                  {work.finding.previewStatus && <> · preview {work.finding.previewStatus}{work.finding.previewReleaseId && <> <code>{work.finding.previewReleaseId}</code></>}</>}
+                  {work.finding.deployStatus && <> · deployment {work.finding.deployStatus}{work.finding.deployReleaseId && <> <code>{work.finding.deployReleaseId}</code></>}</>}
+                </>}
+                {work.runId && <> · run <code>{work.runId}</code> <Button variant="secondary" size="compact" disabled={!canRead || contextStale} onClick={() => inspect(work.runId!)}>Inspect run</Button></>}
+              </p>)}
+              {view.activity.earlierAvailable && <p>Earlier shared changes and work remain in the project’s saved coordination history.</p>}
+            </section>}
           {(page?.hasEarlier ?? view.hasEarlier) && <Button variant="secondary" size="compact" disabled={!!busy} onClick={() => void older()}>Show earlier conversation</Button>}
           {!turns.length && <p className="orchestrator-welcome">Describe your idea, ask about the current work, or discuss a change. Luci can propose an amendment for you to review.</p>}
           <ol className="orchestrator-turns" aria-label="Conversation history">{turns.map(turn => <li key={turn.id} tabIndex={-1} ref={node => { if (node) conversationNodes.current.set(turn.id, node); else conversationNodes.current.delete(turn.id); }}>

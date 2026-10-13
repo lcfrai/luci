@@ -150,6 +150,47 @@ type OrchestratorAction struct {
 	Reason string `json:"reason"`
 	Lens   string `json:"lens"`
 }
+
+// These are read-only projections of authoritative project events and this
+// person's saved continuation. They are not conversation turns, new approvals
+// or permission to replay an external effect.
+type OrchestratorAcceptedUpdate struct {
+	EventID               string       `json:"eventId"`
+	Sequence              int          `json:"sequence"`
+	IntentID              string       `json:"intentId"`
+	OriginTurnID          string       `json:"originTurnId"`
+	Actor                 ContextActor `json:"actor"`
+	Target                string       `json:"target"`
+	AppliedTargetDigest   string       `json:"appliedTargetDigest"`
+	AcceptedContextDigest string       `json:"acceptedContextDigest,omitempty"`
+	TaskIDs               []string     `json:"taskIds"`
+	AffectsAllTasks       bool         `json:"affectsAllTasks"`
+}
+type OrchestratorWorkUpdate struct {
+	ID             string                     `json:"id"`
+	OriginTurnID   string                     `json:"originTurnId"`
+	ContextDigest  string                     `json:"contextDigest"`
+	AcceptedEvents []CoordinationEventReceipt `json:"acceptedEvents"`
+	Status         string                     `json:"status"`
+	Message        string                     `json:"message"`
+	RunID          string                     `json:"runId,omitempty"`
+	UpdatedAt      string                     `json:"updatedAt"`
+	Finding        *OrchestratorWorkFinding   `json:"finding,omitempty"`
+}
+type OrchestratorWorkFinding struct {
+	Status           string `json:"status"`
+	CheckID          string `json:"checkId,omitempty"`
+	Commit           string `json:"commit,omitempty"`
+	PreviewStatus    string `json:"previewStatus,omitempty"`
+	PreviewReleaseID string `json:"previewReleaseId,omitempty"`
+	DeployStatus     string `json:"deployStatus,omitempty"`
+	DeployReleaseID  string `json:"deployReleaseId,omitempty"`
+}
+type OrchestratorActivity struct {
+	Accepted         []OrchestratorAcceptedUpdate `json:"accepted"`
+	Work             []OrchestratorWorkUpdate     `json:"work"`
+	EarlierAvailable bool                         `json:"earlierAvailable"`
+}
 type OrchestratorView struct {
 	StorageDigest     string                 `json:"storageDigest"`
 	ArchivePresent    bool                   `json:"archivePresent"`
@@ -161,4 +202,5 @@ type OrchestratorView struct {
 	BlockingQuestions []OrchestratorQuestion `json:"blockingQuestions"`
 	HasEarlier        bool                   `json:"hasEarlier"`
 	BeforeSequence    int                    `json:"beforeSequence"`
+	Activity          *OrchestratorActivity  `json:"activity,omitempty"`
 }

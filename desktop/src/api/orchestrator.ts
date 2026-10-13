@@ -43,12 +43,24 @@ export interface OrchestratorTurn {
   context: OrchestratorContext; status: TurnStatus; createdAt: string; updatedAt: string;
   answer?: OrchestratorAnswer; appliedRevision?: number; questionResolvedBy?: string;
 }
+export interface OrchestratorActivity {
+  accepted: { eventId: string; sequence: number; intentId: string; originTurnId: string;
+    actor: { id: string; displayName: string }; target: string; appliedTargetDigest: string; acceptedContextDigest?: string;
+    taskIds: string[]; affectsAllTasks: boolean }[];
+  work: { id: string; originTurnId: string; contextDigest: string;
+    acceptedEvents: { eventId: string; sequence: number; originIntentId: string; archiveDigest?: string }[];
+    status: string; message: string; runId?: string; updatedAt: string;
+    finding?: { status: string; checkId?: string; commit?: string; previewStatus?: string; previewReleaseId?: string;
+      deployStatus?: string; deployReleaseId?: string } }[];
+  earlierAvailable: boolean;
+}
 export interface OrchestratorView {
   projectId: string; revision: number; context: OrchestratorContext; turns: OrchestratorTurn[];
   nextAction: { id: string; label: string; reason: string; lens: "discover" | "design" | "develop" | "deploy"; runId?: string };
   blockingQuestions: { turnId: string; question: string; rationale: string; options: string[] }[];
   hasEarlier: boolean; beforeSequence: number;
   storageDigest: string; archivePresent: boolean;
+  activity?: OrchestratorActivity;
 }
 export interface OrchestratorRequest {
   expectedRevision: number; expectedContextDigest: string; idempotencyKey: string;
@@ -89,13 +101,33 @@ function verifiedView(value: OrchestratorView, projectId: string): OrchestratorV
       !Array.isArray(value.turns) || !Array.isArray(value.blockingQuestions) ||
       value.turns.some(turn => turn.projectId !== projectId || turn.context?.projectId !== projectId) ||
       new Set(value.turns.map(turn => turn.id)).size !== value.turns.length ||
-      !validActiveRuns(value.context) ||
+      !validActiveRuns(value.context) || !validActivity(value.activity) ||
       (value.context.needsAttention !== undefined && !validRunAttention(value.context.needsAttention, 200)) ||
       (value.nextAction?.runId !== undefined && ![value.context.currentRun?.id, ...(value.context.activeRuns ?? []).map(run => run.id), ...(value.context.needsAttention ?? []).map(run => run.id)].includes(value.nextAction.runId)) ||
       !["discover", "design", "develop", "deploy"].includes(value.nextAction?.lens)) {
     throw new Error("Luci's conversation could not be verified for this project. Refresh before continuing.");
   }
   return value;
+}
+function validActivity(activity: OrchestratorActivity | undefined): boolean {
+  if (activity === undefined) return true;
+  if (!Array.isArray(activity.accepted) || !Array.isArray(activity.work) ||
+      activity.accepted.length > 8 || activity.work.length > 8 || typeof activity.earlierAvailable !== "boolean") return false;
+  if (new Set(activity.accepted.map(event => event.eventId)).size !== activity.accepted.length ||
+      new Set(activity.work.map(work => work.id)).size !== activity.work.length) return false;
+  return activity.accepted.every(event => event && typeof event.eventId === "string" && !!event.eventId &&
+    Number.isSafeInteger(event.sequence) && event.sequence > 0 && !!event.intentId && !!event.originTurnId &&
+    !!event.actor?.id && typeof event.actor.displayName === "string" && !!event.target &&
+    !!event.appliedTargetDigest && (event.acceptedContextDigest === undefined || !!event.acceptedContextDigest) && Array.isArray(event.taskIds) &&
+    event.taskIds.every(id => typeof id === "string" && !!id) && typeof event.affectsAllTasks === "boolean") &&
+    activity.work.every(work => work && !!work.id && !!work.originTurnId && !!work.contextDigest &&
+      Array.isArray(work.acceptedEvents) && work.acceptedEvents.every(event => event && !!event.eventId &&
+        Number.isSafeInteger(event.sequence) && event.sequence > 0 && !!event.originIntentId) &&
+      typeof work.status === "string" && !!work.status && typeof work.message === "string" &&
+      typeof work.updatedAt === "string" && Number.isFinite(Date.parse(work.updatedAt)) &&
+      (work.finding === undefined || (!!work.finding.status &&
+        [work.finding.checkId, work.finding.commit, work.finding.previewStatus, work.finding.previewReleaseId,
+          work.finding.deployStatus, work.finding.deployReleaseId].every(value => value === undefined || typeof value === "string"))));
 }
 function verifiedJob(value: OrchestratorJob, projectId: string): OrchestratorJob {
   if (value?.projectId !== projectId || value.kind !== "orchestrator" || value.orchestratorContext?.projectId !== projectId) {

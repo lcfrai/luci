@@ -72,6 +72,11 @@ func TestOrchestratorSnapshotShowsPendingTeamIntentsWithoutAcceptingThem(t *test
 		t.Fatalf("peer request leaked into another project: %+v %v", foreign.TeamIntents, err)
 	}
 	coordinationApplyTest(t, s, p.ID, "bob", turn.ID, 200)
+	conversation, err := s.OrchestratorView(orchestratorActor(t, "alice"), p.ID, 0)
+	if err != nil || conversation.Activity == nil || len(conversation.Activity.Accepted) != 1 ||
+		conversation.Activity.Accepted[0].AppliedTargetDigest == "" || conversation.Activity.Accepted[0].AcceptedContextDigest != "" {
+		t.Fatalf("older applied event lost its exact target or invented a whole-context digest: %+v %v", conversation.Activity, err)
+	}
 	after, err := s.OrchestratorSnapshot(orchestratorActor(t, "alice"), p.ID)
 	if err != nil || after.TeamIntents == nil || after.TeamIntents.Pending != 0 || len(after.TeamIntents.Recent) != 0 || after.Digest == before.Digest {
 		t.Fatalf("accepted request remained pending or canonical change disappeared: %+v %v", after.TeamIntents, err)

@@ -228,11 +228,18 @@ func (s *Server) OrchestratorView(ctx context.Context, id string, before int) (O
 	if err != nil {
 		return OrchestratorView{}, err
 	}
+	var activity *OrchestratorActivity
+	if actor, ok := authenticatedContextActor(ctx); ok {
+		activity, err = s.orchestratorActivityLocked(p, actor.ID)
+		if err != nil {
+			return OrchestratorView{}, err
+		}
+	}
 	cursor := 0
 	if len(turns) > 0 {
 		cursor = turns[0].Sequence
 	}
-	return OrchestratorView{StorageDigest: storage.StorageDigest, ArchivePresent: len(storage.Archive) > 0, ProjectID: id, Revision: saved.Revision, Context: snapshot, Turns: turns, NextAction: orchestratorNext(snapshot, questions), BlockingQuestions: questions, HasEarlier: start > 0, BeforeSequence: cursor}, nil
+	return OrchestratorView{StorageDigest: storage.StorageDigest, ArchivePresent: len(storage.Archive) > 0, ProjectID: id, Revision: saved.Revision, Context: snapshot, Turns: turns, NextAction: orchestratorNext(snapshot, questions), BlockingQuestions: questions, HasEarlier: start > 0, BeforeSequence: cursor, Activity: activity}, nil
 }
 func (s *Server) getOrchestrator(w http.ResponseWriter, r *http.Request) {
 	before, err := strconv.Atoi(r.URL.Query().Get("before"))
