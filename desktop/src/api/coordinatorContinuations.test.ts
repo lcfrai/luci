@@ -1,6 +1,16 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { productApi } from './product';
 import { coordinatorContinuationsApi as api, type CoordinatorContinuation, type CoordinatorContinuationRequest, type CoordinatorSavedRoute } from './coordinatorContinuations';
+
+it('refuses malformed cloud capacity advice without starting a task', async () => {
+  vi.spyOn(productApi, 'request').mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: {
+    provider: 'e2b-embed', region: 'us-east-1', configuredGlobalSlots: 4, configuredProjectSlots: 2,
+    configuredAvailableSlots: -1, estimatedTaskCostMicros: 100, estimatedMonthMicros: 0,
+    monthlyBudgetMicros: 1000, maxTaskSeconds: 60, observedAt: '2026-10-13T12:00:00Z', limitation: 'unverified'
+  } });
+  await expect(api.listState('p-1', 'alice')).rejects.toThrow(/capacity observation/);
+  expect(productApi.request).toHaveBeenCalledTimes(1);
+});
 export const continuation = (patch: Partial<CoordinatorContinuation> = {}): CoordinatorContinuation => ({ id: 'continue-one', projectId: 'p-1', actor: { id: 'alice', displayName: 'Alice' }, idempotencyKey: 'request-one', originTurnId: 'turn-1', contextDigest: 'a'.repeat(64), policyRevision: 2, revision: 4, status: 'queued', message: 'Tasks queued under reviewed policy', runId: 'run-one', queueIds: ['queue-one'], actions: [{ id: 'continue-one-create-run', kind: 'create-run', status: 'confirmed', referenceId: 'run-one', startedAt: '2026-10-12T00:00:00Z' }], createdAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:01Z', ...patch });
 const request = (): CoordinatorContinuationRequest => ({ idempotencyKey: 'request-one', originTurnId: 'turn-1', expectedContextDigest: 'a'.repeat(64), expectedPolicyRevision: 2, maxParallel: 2, run: { worktreeId: 'w-1', harness: 'codex', model: 'm', permissionMode: 'bypass', outcome: 'preview', implementationContext: { projectId: 'p-1', briefRevision: 1, planRevision: 1, specificationRevision: 2, designPlanRevision: 1, taskIds: ['T-1'] } } });
 beforeEach(() => { vi.restoreAllMocks(); vi.spyOn(productApi, 'request').mockResolvedValue(continuation()); });

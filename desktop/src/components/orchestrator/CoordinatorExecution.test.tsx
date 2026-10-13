@@ -49,6 +49,19 @@ it('records explicit per-task cloud microVM placement without changing local def
   expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ run: { executionLocation: 'cloud-microvm', harness: 'codex', permissionMode: 'bypass', agentConnectionId: 'configured', outcome: 'preview' } });
   expect(vi.mocked(api.create).mock.calls[0][2].deploymentPlan).toBeUndefined();
 });
+it('shows configured per-task VM and current-month estimate without treating it as admission', async () => {
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: {
+    provider: 'e2b-embed', region: 'us-east-1', configuredGlobalSlots: 8, configuredProjectSlots: 6,
+    configuredAvailableSlots: 2, estimatedTaskCostMicros: 150_000, estimatedMonthMicros: 250_000,
+    monthlyBudgetMicros: 1_000_000, maxTaskSeconds: 600, observedAt: '2026-10-13T12:00:00Z',
+    limitation: 'Configured limits only; actual admission is checked later.'
+  } });
+  render(<CoordinatorExecution {...props()} />); await configure();
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Develop execution location' }), 'cloud-microvm');
+  expect(screen.getByText(/2 task VM slots presently available/)).not.toBeNull();
+  expect(screen.getByText(/\$0\.25 of \$1\.00 USD/)).not.toBeNull();
+  expect(api.create).not.toHaveBeenCalled();
+});
 it.each(['unapproved', 'unsaved', 'question', 'foreign-turn', 'unapplied', 'no-execute', 'no-edit', 'plan-base', 'wrong-checkout'])('does not create work when %s', async reason => {
   const input = props();
   if (reason === 'unapproved') input.view.context.designPlan.status = 'draft'; if (reason === 'unsaved') input.blocked = 'Unsaved context';

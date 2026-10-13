@@ -27,7 +27,12 @@ export interface CoordinatorSavedRoute {
   maxParallel: number; updatedAt: string; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan; deploymentPlan?: CoordinatorDeploymentPlan;
 }
 export interface CoordinatorContextCommitView { eventId: string; status: 'pending' | 'confirmed'; commit?: string; createdAt: string }
-export interface CoordinatorContinuationState { continuations: CoordinatorContinuation[]; savedRoute: CoordinatorSavedRoute | null; contextCommits?: CoordinatorContextCommitView[] }
+export interface CoordinatorCloudCapacity {
+  provider: 'e2b-embed'; region: string; configuredGlobalSlots: number; configuredProjectSlots: number;
+  configuredAvailableSlots: number; estimatedTaskCostMicros: number; estimatedMonthMicros: number;
+  monthlyBudgetMicros: number; maxTaskSeconds: number; observedAt: string; limitation: string;
+}
+export interface CoordinatorContinuationState { continuations: CoordinatorContinuation[]; savedRoute: CoordinatorSavedRoute | null; contextCommits?: CoordinatorContextCommitView[]; cloudCapacity?: CoordinatorCloudCapacity | null }
 export interface CoordinatorContinuationRequest {
   idempotencyKey: string; originTurnId: string; expectedContextDigest: string; expectedPolicyRevision: number;
   run: Omit<CreateProjectRun, 'idempotencyKey'>; maxParallel: number;
@@ -117,7 +122,11 @@ async function listState(project: string, actor: string, signal?: AbortSignal): 
   const result = await productApi.request<CoordinatorContinuationState>(base(project), undefined, 'GET', 30_000, signal);
   if (!Array.isArray(result?.continuations) || result.continuations.length > 40 || new Set(result.continuations.map(row => row.id)).size !== result.continuations.length || new Set(result.continuations.map(row => row.idempotencyKey)).size !== result.continuations.length) throw new Error('The continuation history could not be verified. Refresh before continuing.');
   if (result.contextCommits !== undefined && (!Array.isArray(result.contextCommits) || result.contextCommits.length > 40 || result.contextCommits.some(item => !text(item.eventId) || !['pending', 'confirmed'].includes(item.status) || item.status === 'confirmed' && !/^[0-9a-f]{40,64}$/.test(item.commit ?? '') || !Number.isFinite(Date.parse(item.createdAt))))) throw new Error('The accepted context source history could not be verified. Refresh before continuing.');
-  return { continuations: result.continuations.map(row => verified(row, project, actor)), savedRoute: savedRoute(result.savedRoute), contextCommits: result.contextCommits ?? [] };
+  const capacity = result.cloudCapacity;
+  if (capacity != null && (capacity.provider !== 'e2b-embed' || !text(capacity.region) || !text(capacity.limitation) || !Number.isFinite(Date.parse(capacity.observedAt)) ||
+    ![capacity.configuredGlobalSlots, capacity.configuredProjectSlots, capacity.configuredAvailableSlots, capacity.maxTaskSeconds].every(value => Number.isSafeInteger(value) && value >= 0) ||
+    ![capacity.estimatedTaskCostMicros, capacity.estimatedMonthMicros, capacity.monthlyBudgetMicros].every(value => Number.isSafeInteger(value) && value >= 0))) throw new Error('The cloud task capacity observation could not be verified. Refresh before choosing cloud execution.');
+  return { continuations: result.continuations.map(row => verified(row, project, actor)), savedRoute: savedRoute(result.savedRoute), contextCommits: result.contextCommits ?? [], cloudCapacity: capacity ?? null };
 }
 export const coordinatorContinuationsApi = {
   listState,

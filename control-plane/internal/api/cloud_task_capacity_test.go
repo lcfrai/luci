@@ -1,0 +1,38 @@
+package api
+
+import (
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
+)
+
+func TestCloudCapacityAdviceKeepsHeldChargeAndUsesConfiguredResourceLimits(t *testing.T) {
+	now := time.Date(2026, time.October, 13, 12, 0, 0, 0, time.UTC)
+	row := func(user string, at time.Time, held bool, sandbox string, cost int64) e2bbe.Record {
+		return e2bbe.Record{Request: e2bbe.Request{BillingUserID: user, EstimatedCostMicros: cost}, CreatedAt: at, ResourcesHeld: held, SandboxID: sandbox}
+	}
+	limits := e2bbe.Limits{MaxConcurrent: 8, MaxPerProject: 6, MemoryMiB: 8192, CPUMillis: 8000}
+	template := e2bbe.Template{MemoryMiB: 2048, CPUMillis: 2000}
+	usage := e2bbe.Usage{Active: 2, MemoryMiB: 4096, CPUMillis: 4000}
+	rows := []e2bbe.Record{
+		row("alice", now.Add(-time.Hour), false, "retired-vm", 100),
+		row("alice", now.AddDate(0, -1, 0), true, "still-held", 150),
+		row("bob", now.Add(-time.Hour), true, "other-user", 250),
+		row("alice", now.Add(-time.Hour), false, "", 300), // proved no Create
+	}
+	view := cloudCapacityView(limits, template, usage, 1, rows, "alice", "us-east-1", 200, 60, 1000, now)
+	if view.ConfiguredAvailableSlots != 2 || view.EstimatedMonthMicros != 250 || view.MonthlyBudgetMicros != 1000 || view.EstimatedTaskCostMicros != 200 || view.Region != "us-east-1" {
+		t.Fatal("configured capacity or exact retained estimate was misreported", view)
+	}
+	rows = append(rows, row("", now.Add(-time.Hour), true, "legacy-held", 100))
+	view = cloudCapacityView(limits, template, usage, 1, rows, "alice", "us-east-1", 200, 60, 1000, now)
+	if view.ConfiguredAvailableSlots != 0 || !strings.Contains(view.Limitation, "unavailable") {
+		t.Fatal("unattributed held allocation exposed apparent budget", view)
+	}
+	view = cloudCapacityView(limits, template, usage, 1, rows[:4], "alice", "us-east-1", 800, 60, 1000, now)
+	if view.ConfiguredAvailableSlots != 0 {
+		t.Fatal("new task cost exceeded this actor's retained monthly estimate", view)
+	}
+}

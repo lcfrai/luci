@@ -87,6 +87,25 @@ func coordinatorCreate(t *testing.T, h http.Handler, p project.Project, req coor
 	decodeEvidenceResponse(t, journeyRequest(t, h, "POST", "/v1/product/projects/"+p.ID+"/orchestrator/continuations", req, status).Body.Bytes(), &out)
 	return out
 }
+
+func TestCoordinatorCapacityAdviceIsReadOnlyAndScopedToCurrentActor(t *testing.T) {
+	s, p, h, _, _, _ := coordinatorContinuationFixture(t)
+	calls := 0
+	s.SetCoordinatorCloudCapacity(func(_ context.Context, projectID, actorID string) (CoordinatorCloudCapacity, error) {
+		calls++
+		if projectID != p.ID || actorID != "alice" {
+			t.Fatal("capacity read lost project or person scope", projectID, actorID)
+		}
+		return CoordinatorCloudCapacity{Provider: "e2b-embed", Region: "us-east-1", ConfiguredAvailableSlots: 2}, nil
+	})
+	var response struct {
+		CloudCapacity *CoordinatorCloudCapacity `json:"cloudCapacity"`
+	}
+	decodeEvidenceResponse(t, journeyRequest(t, h, "GET", "/v1/product/projects/"+p.ID+"/orchestrator/continuations", nil, 200).Body.Bytes(), &response)
+	if calls != 1 || response.CloudCapacity == nil || response.CloudCapacity.ConfiguredAvailableSlots != 2 {
+		t.Fatal("scoped read did not expose configured advice", calls, response.CloudCapacity)
+	}
+}
 func TestCoordinatorContinuationRunsTypedPreparationQueueAndExactlyOnceAdmission(t *testing.T) {
 	s, p, h, _, req, starts := coordinatorContinuationFixture(t)
 	out := coordinatorCreate(t, h, p, req, 201)

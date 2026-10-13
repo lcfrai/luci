@@ -276,7 +276,16 @@ func (s *Server) listCoordinatorContinuations(w http.ResponseWriter, r *http.Req
 	if r.Context().Err() != nil {
 		return
 	}
-	journeyJSON(w, 200, map[string]any{"continuations": out, "savedRoute": rows.SavedRoute, "contextCommits": commits})
+	var capacity *CoordinatorCloudCapacity
+	if s.cloudTaskCapacity != nil {
+		if current, readErr := s.cloudTaskCapacity(r.Context(), p.ID, actor.ID); readErr == nil && current.Provider != "" {
+			capacity = &current
+		}
+	}
+	if r.Context().Err() != nil {
+		return
+	}
+	journeyJSON(w, 200, map[string]any{"continuations": out, "savedRoute": rows.SavedRoute, "contextCommits": commits, "cloudCapacity": capacity})
 }
 func (s *Server) getCoordinatorContinuation(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)

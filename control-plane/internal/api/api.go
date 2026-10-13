@@ -441,6 +441,7 @@ func New(d Deps) (*API, error) {
 				return nil, err
 			}
 			d.Product.SetCloudMicroVMAvailability(func() bool { return true })
+			d.Product.SetCoordinatorCloudCapacity(a.cloudTaskCapacity)
 			d.Product.SetProjectSwarmMicroVMImportGuard(a.guardMicroVMImport)
 		}
 		d.Product.SetTaskHandoffCollector(a.authorizeTaskOutput, a.collectTaskHandoff)

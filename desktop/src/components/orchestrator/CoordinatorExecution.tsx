@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { coordinatorContinuationsApi, type CoordinatorContinuation, type CoordinatorContinuationRequest, type CoordinatorContinuationState, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
+import { coordinatorContinuationsApi, type CoordinatorCloudCapacity, type CoordinatorContinuation, type CoordinatorContinuationRequest, type CoordinatorContinuationState, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
 import { coordinatorPolicyApi, type CoordinatorPolicy } from '../../api/coordinatorPolicy';
 import type { OrchestratorView } from '../../api/orchestrator';
 import type { CreateSessionRequest } from '../../api/client';
@@ -59,6 +59,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const [previewSelection, setPreviewSelection] = useState<CoordinatorPreviewSelection>({ plan: null, dirty: true, problem: 'Reading retained preview setup…', draftDigest: '' }), [recordedPreview, setRecordedPreview] = useState('');
   const previewChanged = useCallback((value: CoordinatorPreviewSelection) => setPreviewSelection(value), []);
   const [savedRoute, setSavedRoute] = useState<CoordinatorSavedRoute | null>(null), [rememberRoute, setRememberRoute] = useState(false);
+  const [cloudCapacity, setCloudCapacity] = useState<CoordinatorCloudCapacity | null>(null);
   const [checkSelection, setCheckSelection] = useState<CoordinatorCheckSelection>({ plan: null, dirty: true, problem: 'Reading retained check setup…', draftDigest: '' }), [recordedDraft, setRecordedDraft] = useState('');
   const checkChanged = useCallback((value: CoordinatorCheckSelection) => setCheckSelection(value), []);
   const [parallel, setParallel] = useState(2), [outcome, setOutcome] = useState<'preview' | 'publish'>('preview');
@@ -105,7 +106,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
         const match = retained.kind === 'create' ? nextRows.find(row => row.idempotencyKey === retained.input.idempotencyKey && row.originTurnId === retained.input.originTurnId && row.contextDigest === retained.input.expectedContextDigest && row.policyRevision === retained.input.expectedPolicyRevision) : retained.kind === 'advance' ? nextRows.find(row => row.id === retained.id && row.revision > retained.revision && !row.actions.some(action => action.status === 'pending' || action.status === 'unknown')) : undefined;
         if (retained.rejected || match || retained.kind === 'policy' && nextPolicy.revision > retained.revision) { persist(null); setNotice(match ? 'The exact retained request was observed. It was not submitted again.' : 'Current authoritative state was read. The retained request was not replayed.'); }
       }
-      setPolicy(nextPolicy); setDeploymentFresh(!!deployment && !!state.savedRoute?.deploymentPlan && sameCoordinatorDeploymentBinding(deployment, state.savedRoute.deploymentPlan)); setConfigurationRevision(configuration); setSavedRoute(state.savedRoute); setRows(nextRows); setContextCommits(state.contextCommits ?? []); setSelected(previous => nextRows.some(row => row.id === previous) ? previous : nextRows[nextRows.length - 1]?.id ?? '');
+      setPolicy(nextPolicy); setDeploymentFresh(!!deployment && !!state.savedRoute?.deploymentPlan && sameCoordinatorDeploymentBinding(deployment, state.savedRoute.deploymentPlan)); setConfigurationRevision(configuration); setSavedRoute(state.savedRoute); setCloudCapacity(state.cloudCapacity ?? null); setRows(nextRows); setContextCommits(state.contextCommits ?? []); setSelected(previous => nextRows.some(row => row.id === previous) ? previous : nextRows[nextRows.length - 1]?.id ?? '');
       setFresh(true); setReadDenied(false); setError('');
     } catch (cause) { if (current(ticket) && !signal?.aborted) { setError(errorText(cause)); if (denied(cause)) { setRows([]); setPolicy(null); setSavedRoute(null); setReadDenied(true); } } }
     finally { if (readController.current === controller) readController.current = null; if (current(ticket)) setBusy(''); }
@@ -113,7 +114,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; readController.current?.abort(); }; }, []);
   useEffect(() => {
     generation.current++; setConsent(false); setIntegrationConsent(false); setPreviewConsent(false); setDeploymentConsent(false); setDeploymentFresh(false); setPicker(null); setFresh(false);
-    if (!canRead) { setRows([]); setContextCommits([]); setPolicy(null); setSavedRoute(null); return; }
+    if (!canRead) { setRows([]); setContextCommits([]); setPolicy(null); setSavedRoute(null); setCloudCapacity(null); return; }
     void load(false);
     return () => readController.current?.abort();
   }, [projectId, actorId, canRead, canEdit, canExecute, canDeploy, view.context.digest, policyEpoch]);
@@ -222,6 +223,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     <SessionPicker open={!!picker && canRead && canEdit && canExecute && !readDenied} worktreeId={picker?.run.worktreeId ?? null} implementationContext={picker?.run.implementationContext} onClose={() => setPicker(null)} onSubmit={create} submitLabel="Start reviewed continuation" progressLabel="Recording this continuation and preparing its reviewed tasks. Resources may be allocated under the current limits." failureGuidance="Read the exact retained request outcome in Luci before another start." onCreated={() => setPicker(null)}>
       <label className="luci-field">Develop execution location<select value={executionLocation} onChange={event => setExecutionLocation(event.target.value as typeof executionLocation)}><option value="local-docker">This computer · isolated Docker</option><option value="cloud-microvm">Configured cloud · one isolated microVM per task</option></select></label>
       <p>{executionLocation === 'cloud-microvm' ? 'Cloud tasks require an operator-configured microVM service, current cloud provisioning and spending permission, and an explicit upstream API-key connection. Each VM remains charged until exact retirement is observed. Luci will refuse an unavailable cloud route rather than fall back to Docker.' : `Run on: ${runOn}.`} This starts only the selected saved tasks; successful deployment is not implied.</p>
+      {executionLocation === 'cloud-microvm' && (cloudCapacity ? <p role="status">Configured {cloudCapacity.provider} in {cloudCapacity.region}: {cloudCapacity.configuredAvailableSlots} task VM slots presently available under Luci limits (global {cloudCapacity.configuredGlobalSlots}, project {cloudCapacity.configuredProjectSlots}). Configured cost estimate per task ${(cloudCapacity.estimatedTaskCostMicros / 1_000_000).toFixed(2)} USD for up to {cloudCapacity.maxTaskSeconds} seconds; your current-month retained estimate is ${(cloudCapacity.estimatedMonthMicros / 1_000_000).toFixed(2)} of ${(cloudCapacity.monthlyBudgetMicros / 1_000_000).toFixed(2)} USD. {cloudCapacity.limitation}</p> : <p role="status">No current cloud capacity or provisioning permission is visible for this project. Configure the managed microVM service and your account policy before expecting cloud work to start.</p>)}
       <label className="luci-field">Maximum parallel tasks<input type="number" min={1} max={Math.min(MAX_SWARM_PARALLEL_TASKS, picker?.run.implementationContext.taskIds.length ?? 1)} value={parallel} onChange={event => setParallel(Number(event.target.value))} /></label>
       <label className="luci-field">Intended delivery outcome<select value={outcome} onChange={event => setOutcome(event.target.value as typeof outcome)}><option value="preview">Working preview</option><option value="publish">Published application</option></select></label>
       <label className="setup-check"><input type="checkbox" checked={rememberRoute} onChange={event => setRememberRoute(event.target.checked)} />Reuse this upstream route and exact check delegation for my later approved amendments under the current policy.</label>

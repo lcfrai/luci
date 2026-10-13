@@ -45,8 +45,27 @@ func New(c Config) (*Controller, error) { return newController(c, nil, context.B
 // credential or a task-selected identity.
 func (c *Controller) OwnerID() string { return c.config.OwnerID }
 
+func (c *Controller) Region() string { return c.config.Deployment.Region }
+
 func (c *Controller) EgressDomains() []string {
 	return append([]string{}, c.config.EgressAllow...)
+}
+
+// Capacity is an informational snapshot. Allocate rechecks the authoritative
+// journal and current actor/provider prerequisites under its own lock.
+func (c *Controller) Capacity(projectID string) (Limits, Template, Usage, int, []Record) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	rows := make([]Record, 0, len(c.journal.Records))
+	projectActive := 0
+	for _, row := range c.journal.Records {
+		rows = append(rows, row)
+		if row.ResourcesHeld && row.Request.Identity.ProjectID == projectID {
+			projectActive++
+		}
+	}
+	usage, _ := c.usageLocked()
+	return c.config.Limits, c.config.Template, usage, projectActive, rows
 }
 
 func egressDigest(domains []string) string {
