@@ -27,6 +27,10 @@ func TestCoordinationOpposingIntentNeedsOwnedResolutionAndCannotBypass(t *testin
 	if len(view["conflicts"].([]any)) == 0 {
 		t.Fatal("opposing meanings disappeared")
 	}
+	snapshot, err := s.OrchestratorSnapshot(orchestratorActor(t, "alice"), p.ID)
+	if err != nil || snapshot.TeamIntents == nil || snapshot.TeamIntents.Pending != 2 || len(snapshot.TeamIntents.Conflicts) == 0 {
+		t.Fatalf("personal Luci lost unresolved teammate opposition: %+v %v", snapshot.TeamIntents, err)
+	}
 	coordinationApplyTest(t, s, p.ID, "alice", a.ID, 409)
 	coordinationApplyTest(t, s, p.ID, "bob", b.ID, 409)
 	resolve := "/v1/product/projects/" + p.ID + "/orchestrator/coordination/intents/" + ia["id"].(string) + "/resolve"
@@ -39,6 +43,38 @@ func TestCoordinationOpposingIntentNeedsOwnedResolutionAndCannotBypass(t *testin
 	final := coordinationHTTPView(t, bob, p.ID)
 	if len(final["events"].([]any)) != 4 {
 		t.Fatal("resolution replay changed history")
+	}
+}
+
+func TestOrchestratorSnapshotShowsPendingTeamIntentsWithoutAcceptingThem(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "team-intent-snapshot")
+	other := createJourneyProject(t, mux, "other-intent-snapshot")
+	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+	before, err := s.OrchestratorSnapshot(orchestratorActor(t, "alice"), p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn := coordinationProposalTest(t, s, p.ID, "bob", "purpose", "A shared notebook")
+	intent := coordinationRegisterTest(t, coordinationHandler(s, "bob"), p.ID, turn.ID, "team-visibility", nil)
+	current, err := s.OrchestratorSnapshot(orchestratorActor(t, "alice"), p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Digest != before.Digest || current.Specification.Purpose != before.Specification.Purpose {
+		t.Fatal("unaccepted teammate request changed canonical context")
+	}
+	if current.TeamIntents == nil || current.TeamIntents.Pending != 1 || current.TeamIntents.Omitted != 0 || len(current.TeamIntents.Recent) != 1 || current.TeamIntents.Recent[0].ID != intent["id"] || current.TeamIntents.Recent[0].Actor != "bob" || current.TeamIntents.Recent[0].Target != "specification" {
+		t.Fatalf("pending teammate request missing or misattributed: %+v", current.TeamIntents)
+	}
+	foreign, err := s.OrchestratorSnapshot(orchestratorActor(t, "alice"), other.ID)
+	if err != nil || foreign.TeamIntents != nil {
+		t.Fatalf("peer request leaked into another project: %+v %v", foreign.TeamIntents, err)
+	}
+	coordinationApplyTest(t, s, p.ID, "bob", turn.ID, 200)
+	after, err := s.OrchestratorSnapshot(orchestratorActor(t, "alice"), p.ID)
+	if err != nil || after.TeamIntents == nil || after.TeamIntents.Pending != 0 || len(after.TeamIntents.Recent) != 0 || after.Digest == before.Digest {
+		t.Fatalf("accepted request remained pending or canonical change disappeared: %+v %v", after.TeamIntents, err)
 	}
 }
 

@@ -44,9 +44,31 @@ type OrchestratorRunSummary struct {
 	Valid                 bool                        `json:"valid"`
 	Reason                string                      `json:"reason"`
 }
+
+// Peer requests are conversation evidence, not accepted project context or
+// authority to change it. The bounded projection may omit older requests.
+type OrchestratorTeamIntent struct {
+	ID              string   `json:"id"`
+	Actor           string   `json:"actor"`
+	Target          string   `json:"target"`
+	RequestedChange string   `json:"requestedChange"`
+	ChangedPaths    []string `json:"changedPaths"`
+	DependsOn       []string `json:"dependsOn"`
+}
+
+type OrchestratorTeamIntents struct {
+	Revision         int                      `json:"revision"`
+	Pending          int                      `json:"pending"`
+	Omitted          int                      `json:"omitted"`
+	Recent           []OrchestratorTeamIntent `json:"recent"`
+	Conflicts        []CoordinationConflict   `json:"conflicts"`
+	ConflictsOmitted int                      `json:"conflictsOmitted"`
+}
+
 type OrchestratorContext struct {
 	// Optional to preserve earlier immutable snapshot digests.
 	TaskHandoffs *OrchestratorTaskHandoffs `json:"taskHandoffs,omitempty"`
+	TeamIntents  *OrchestratorTeamIntents  `json:"teamIntents,omitempty"`
 	// Recorded review obligations are distinct from unfinished execution.
 	NeedsAttention  []ProjectRunAttention    `json:"needsAttention,omitempty"`
 	ProjectID       string                   `json:"projectId"`

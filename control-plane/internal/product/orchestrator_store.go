@@ -197,6 +197,23 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 		Plan   ProjectPlan
 		Sketch Design
 	}{value.Brief, value.Specification, value.DesignPlan, value.Plan, state.Design})
+	coordination, err := s.readCoordination(p)
+	if err != nil {
+		return OrchestratorContext{}, ErrOrchestratorInvalid
+	}
+	value.TeamIntents = teamIntentProjection(coordination)
+	if value.TeamIntents != nil && value.TeamIntents.Pending > 0 {
+		turns, err := s.readOrchestrator(p)
+		if err != nil {
+			return OrchestratorContext{}, ErrOrchestratorInvalid
+		}
+		conflicts := coordinationConflicts(coordination, turns, value)
+		if len(conflicts) > teamIntentConflictLimit {
+			value.TeamIntents.ConflictsOmitted = len(conflicts) - teamIntentConflictLimit
+			conflicts = conflicts[:teamIntentConflictLimit]
+		}
+		value.TeamIntents.Conflicts = conflicts
+	}
 	readCtx, cancel := context.WithTimeout(context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir), 3*time.Second)
 	defer cancel()
 	head, headErr := s.journeyGit(readCtx, p.Path, "rev-parse", "--verify", "HEAD")

@@ -14,6 +14,45 @@ import (
 
 const coordinationIntentLimit = 64
 const coordinationFileLimit = 8 << 20
+const teamIntentProjectionLimit = 8
+const teamIntentTextLimit = 512
+const teamIntentPathLimit = 12
+const teamIntentConflictLimit = 16
+
+// The conversation can see a bounded summary of verified pending team
+// requests. It never promotes proposals to canonical context or hides the
+// number omitted from the model's view.
+func teamIntentProjection(saved coordinationLedger) *OrchestratorTeamIntents {
+	if saved.Revision == 0 && len(saved.Intents) == 0 {
+		return nil
+	}
+	out := &OrchestratorTeamIntents{Revision: saved.Revision, Recent: []OrchestratorTeamIntent{}}
+	for i := len(saved.Intents) - 1; i >= 0; i-- {
+		intent := saved.Intents[i]
+		if intent.Status != "pending" {
+			continue
+		}
+		out.Pending++
+		if len(out.Recent) == teamIntentProjectionLimit {
+			out.Omitted++
+			continue
+		}
+		change := intent.RequestedChange
+		if len(change) > teamIntentTextLimit {
+			change = change[:teamIntentTextLimit]
+		}
+		paths := intent.ChangedPaths
+		if len(paths) > teamIntentPathLimit {
+			paths = paths[:teamIntentPathLimit]
+		}
+		out.Recent = append(out.Recent, OrchestratorTeamIntent{
+			ID: intent.ID, Actor: intent.Actor.DisplayName, Target: intent.Target,
+			RequestedChange: change, ChangedPaths: append([]string{}, paths...),
+			DependsOn: append([]string{}, intent.DependsOn...),
+		})
+	}
+	return out
+}
 
 // Origins and events are private authenticated project state, never agent
 // editable context. A Luci origin identifies its person, not a task worker/VM.
