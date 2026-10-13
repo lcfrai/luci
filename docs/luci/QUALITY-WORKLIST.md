@@ -2,6 +2,8 @@
 
 **Active provider order (14 October 2026):** [dated amendment](PROVIDER-ORDER-AMENDMENT-2026-10-14.md). The next product acceptance priority is the real local upstream-harness Docker lifecycle and isolated Windows checks. Azure is the first cloud microVM implementation and live acceptance target **after** exact architecture reconciliation and local audit; AWS follows later. Existing AWS-specific E2B source/fixtures and CLOUD-084/088 evidence stay preserved, but the `38694462` “all sixteen mapped source paths” conclusion cannot establish Azure feature completeness. CLOUD-084/088 remain P1 for Azure fit/wiring and real per-task VM proof. Do not lower 12-task/4-project/4-concurrent, authority, recovery, charge or responsiveness gates. No Azure credentials, infrastructure or pricing campaign is requested by this documentation change.
 
+**CLOUD-084/088 architecture proposal, pending audit:** [Azure microVM source/fit proposal](AZURE-MICROVM-ARCHITECTURE-PROPOSAL-2026-10-14.md) records the host/guest split, private management, off-host durability, exact VM ownership and retained-charge requirements using pinned E2B and Microsoft sources. No Azure feature code, account query or provisioning occurred. The local reviewer must audit it, and local Docker readiness remains first. Keep CLOUD-084/088 implementation and real-provider acceptance open.
+
 
 ## Current operating policy — 13 October 2026
 

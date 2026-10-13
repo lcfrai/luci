@@ -1,5 +1,7 @@
 # LC-01–LC-16 implementation map
 
+**Azure proposal status:** [pinned architecture and primary-source review](AZURE-MICROVM-ARCHITECTURE-PROPOSAL-2026-10-14.md) is documentation awaiting local audit. LC-06/14/15/16 below retain their exact Azure code/configuration gaps; no source or acceptance state is upgraded by the proposal.
+
 **Provider-order correction (14 October 2026):** [the dated amendment](PROVIDER-ORDER-AMENDMENT-2026-10-14.md) makes real local Docker and Windows acceptance first, Azure the first cloud microVM target, and AWS later. The “all sixteen mapped source paths” statement at `38694462` is historical for the AWS-specific E2B path and must not be reused as Azure implementation completeness. The canonical LC-01–16 wording and acceptance predicates are unchanged. Cloud Sol owns Azure architecture/source reconciliation after local audit; local Sol/Astra own the local acceptance loop.
 
 
