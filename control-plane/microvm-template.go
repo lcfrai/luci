@@ -27,6 +27,9 @@ type operatorInput struct {
 	Endpoint    string `json:"endpoint"`
 	APIKeyFile  string `json:"apiKeyFile"`
 	RootCAFile  string `json:"rootCaFile,omitempty"`
+	Name        string `json:"name,omitempty"`
+	CPUCount    int64  `json:"cpuCount,omitempty"`
+	MemoryMiB   int64  `json:"memoryMB,omitempty"`
 	TemplateID  string `json:"templateId"`
 	BuildID     string `json:"buildId"`
 	FromImage   string `json:"fromImage"`
@@ -87,10 +90,26 @@ func run(mode, configPath string) error {
 			return errors.New("invalid private TLS root certificate")
 		}
 	}
-	p := e2bbe.TemplatePublication{Endpoint: input.Endpoint, APIKey: strings.TrimSpace(string(key)), RootCAs: roots,
-		TemplateID: input.TemplateID, BuildID: input.BuildID, FromImage: input.FromImage, JournalPath: input.JournalPath}
+	auth := strings.TrimSpace(string(key))
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+	if mode == "create" || mode == "created" {
+		p := e2bbe.TemplateCreation{Endpoint: input.Endpoint, APIKey: auth, RootCAs: roots,
+			Name: input.Name, CPUCount: input.CPUCount, MemoryMiB: input.MemoryMiB, JournalPath: input.JournalPath}
+		var receipt e2bbe.TemplateCreateReceipt
+		if mode == "create" {
+			receipt, err = p.CreateTemplate(ctx)
+		} else {
+			receipt, err = p.ReadTemplateCreation()
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Printf("private template %s build %s acknowledged\n", receipt.TemplateID, receipt.BuildID)
+		return nil
+	}
+	p := e2bbe.TemplatePublication{Endpoint: input.Endpoint, APIKey: auth, RootCAs: roots,
+		TemplateID: input.TemplateID, BuildID: input.BuildID, FromImage: input.FromImage, JournalPath: input.JournalPath}
 	switch mode {
 	case "start":
 		intent, err := p.StartTemplateBuild(ctx)
@@ -105,13 +124,13 @@ func run(mode, configPath string) error {
 		}
 		fmt.Printf("pinned provider build status: %s\n", status)
 	default:
-		return errors.New("mode must be start or status")
+		return errors.New("mode must be create, created, start or status")
 	}
 	return nil
 }
 
 func main() {
-	mode := flag.String("mode", "status", "start or status")
+	mode := flag.String("mode", "status", "create, created, start or status")
 	config := flag.String("config", "", "absolute path to private operator JSON")
 	flag.Parse()
 	if flag.NArg() != 0 {

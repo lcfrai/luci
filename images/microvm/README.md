@@ -22,25 +22,29 @@ cannot atomically pin a build ID; a concurrent template rebuild is therefore
 an unresolved operational risk. Luci refuses a non-ready selected build but
 cannot infer guest bytes from the status response alone.
 
-For an **existing private template and build ID** from the pinned Embed
-runtime, `control-plane/microvm-template.go` can start one build from an OCI
-registry image pinned by `@sha256:<64 lowercase hex>`. From `control-plane`:
+The explicit `control-plane/microvm-template.go` operator tool can request one
+private Embed template/build ID, then start that build from an OCI registry
+image pinned by `@sha256:<64 lowercase hex>`. From `control-plane`:
 
 ```sh
+go run ./microvm-template.go -mode create -config /private/template-create.json
+go run ./microvm-template.go -mode created -config /private/template-create.json
 go run ./microvm-template.go -mode start -config /private/template-build.json
 go run ./microvm-template.go -mode status -config /private/template-build.json
 ```
 
-The private JSON contains `endpoint`, `apiKeyFile`, optional `rootCaFile`,
-`templateId`, `buildId`, `fromImage`, and `journalPath`. Keep the key/config and
+The creation JSON contains `endpoint`, `apiKeyFile`, optional `rootCaFile`, a
+unique `luci-...` `name`, `cpuCount`, `memoryMB`, and `journalPath`. The separate
+build JSON uses the returned `templateId` and `buildId`, immutable `fromImage`,
+and a **different** `journalPath`. Keep the key/config and
 the journal's directory private and outside Git. The tool requires protected
-HTTPS management, checkpoints the image/build intent before the **single**
-build POST, and refuses another POST for that journal even after a lost
-response. `status` reads only the same build ID. On an uncertain response,
-inspect provider state and retain the journal; never delete it to guess at a
-retry. The image must already exist in a registry reachable by Embed, and the
-template/build IDs must already exist. This tool neither creates a template nor
-proves final guest bytes, KVM isolation or model execution. Independently bind
+HTTPS management, checkpoints each intent before its **single** provider POST,
+and refuses another POST for that journal even after a lost response. `created`
+reads only the acknowledged template/build IDs; `status` reads only the same
+build ID. On an uncertain response, inspect provider state and retain the
+journal; never delete it to guess at a retry. The image must already exist in
+a registry reachable by Embed. This tool neither proves final guest bytes, KVM
+isolation nor model execution. Independently bind
 the source inventory, OCI digest and resulting ready provider build before
 using `template.buildId` and `template.buildDigest` in worker configuration.
 

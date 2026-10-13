@@ -40,6 +40,122 @@ type TemplateBuildIntent struct {
 }
 
 var pinnedOCIImage = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}@sha256:([0-9a-f]{64})$`)
+var privateTemplateName = regexp.MustCompile(`^luci-[a-z0-9][a-z0-9-]{2,78}$`)
+
+// TemplateCreation reserves an exclusively named, private provider template.
+// It is a separate operator action from building an image into that template.
+// A lost Create response is uncertain and must be reconciled by the operator;
+// this method never repeats it.
+type TemplateCreation struct {
+	Endpoint    string
+	APIKey      string
+	RootCAs     *x509.CertPool
+	Name        string
+	CPUCount    int64
+	MemoryMiB   int64
+	JournalPath string
+}
+
+type TemplateCreateIntent struct {
+	RuntimeRevision string `json:"runtimeRevision"`
+	Name            string `json:"name"`
+	CPUCount        int64  `json:"cpuCount"`
+	MemoryMiB       int64  `json:"memoryMB"`
+}
+
+type TemplateCreateReceipt struct {
+	TemplateCreateIntent
+	TemplateID string `json:"templateId"`
+	BuildID    string `json:"buildId"`
+}
+
+func (p TemplateCreation) CreateTemplate(ctx context.Context) (TemplateCreateReceipt, error) {
+	var result TemplateCreateReceipt
+	if !privateTemplateName.MatchString(p.Name) || p.CPUCount < 1 || p.CPUCount > 16 ||
+		p.MemoryMiB < 128 || p.MemoryMiB > 32768 || !filepath.IsAbs(p.JournalPath) ||
+		privatePublicationDirectory(p.JournalPath) != nil {
+		return result, ErrUnsupported
+	}
+	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs})
+	if err != nil {
+		return result, err
+	}
+	intent := TemplateCreateIntent{RuntimeRevision: RuntimeRevision, Name: p.Name, CPUCount: p.CPUCount, MemoryMiB: p.MemoryMiB}
+	data, _ := json.Marshal(intent)
+	if err := checkpointPublicationIntent(p.JournalPath, data); err != nil {
+		return result, err
+	}
+	var response struct {
+		TemplateID string `json:"templateID"`
+		BuildID    string `json:"buildID"`
+		Public     *bool  `json:"public"`
+	}
+	status, _, err := client.call(ctx, http.MethodPost, "/v3/templates", nil, map[string]any{
+		"name": p.Name, "cpuCount": p.CPUCount, "memoryMB": p.MemoryMiB,
+	}, &response)
+	if err != nil || status != http.StatusAccepted || !validID(response.TemplateID) || !validID(response.BuildID) ||
+		response.Public == nil || *response.Public {
+		return result, ErrUnknown
+	}
+	result = TemplateCreateReceipt{TemplateCreateIntent: intent, TemplateID: response.TemplateID, BuildID: response.BuildID}
+	data, _ = json.Marshal(result)
+	if err = checkpointPublicationIntent(p.JournalPath+".response", data); err != nil {
+		return TemplateCreateReceipt{}, ErrUnknown
+	}
+	return result, nil
+}
+
+// ReadTemplateCreation recovers only a durably acknowledged result. A missing
+// response file does not prove Create failed; the intent blocks another POST.
+func (p TemplateCreation) ReadTemplateCreation() (TemplateCreateReceipt, error) {
+	var result TemplateCreateReceipt
+	if !privateTemplateName.MatchString(p.Name) || privatePublicationDirectory(p.JournalPath) != nil {
+		return result, ErrUnsupported
+	}
+	intentData, err := readPublicationFile(p.JournalPath)
+	var intent TemplateCreateIntent
+	if err != nil || json.Unmarshal(intentData, &intent) != nil || intent != (TemplateCreateIntent{
+		RuntimeRevision: RuntimeRevision, Name: p.Name, CPUCount: p.CPUCount, MemoryMiB: p.MemoryMiB,
+	}) {
+		return result, ErrUnknown
+	}
+	data, err := readPublicationFile(p.JournalPath + ".response")
+	if err != nil || json.Unmarshal(data, &result) != nil || result.RuntimeRevision != RuntimeRevision ||
+		result.Name != p.Name || result.CPUCount != p.CPUCount || result.MemoryMiB != p.MemoryMiB ||
+		result.TemplateCreateIntent != intent ||
+		!validID(result.TemplateID) || !validID(result.BuildID) {
+		return TemplateCreateReceipt{}, ErrUnknown
+	}
+	return result, nil
+}
+
+func checkpointPublicationIntent(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if errors.Is(err, os.ErrExist) {
+		return ErrConflict
+	}
+	if err != nil {
+		return err
+	}
+	_, writeErr := f.Write(append(data, '\n'))
+	if writeErr == nil {
+		writeErr = f.Sync()
+	}
+	closeErr := f.Close()
+	if writeErr != nil || closeErr != nil {
+		return ErrUnknown
+	}
+	dir, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return ErrUnknown
+	}
+	syncErr := dir.Sync()
+	_ = dir.Close()
+	if syncErr != nil {
+		return ErrUnknown
+	}
+	return nil
+}
 
 func (p TemplatePublication) intent() (TemplateBuildIntent, error) {
 	match := pinnedOCIImage.FindStringSubmatch(p.FromImage)
@@ -87,29 +203,8 @@ func (p TemplatePublication) StartTemplateBuild(ctx context.Context) (TemplateBu
 	if err != nil {
 		return intent, err
 	}
-	f, err := os.OpenFile(p.JournalPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if errors.Is(err, os.ErrExist) {
-		return intent, ErrConflict
-	}
-	if err != nil {
+	if err = checkpointPublicationIntent(p.JournalPath, data); err != nil {
 		return intent, err
-	}
-	_, writeErr := f.Write(append(data, '\n'))
-	if writeErr == nil {
-		writeErr = f.Sync()
-	}
-	closeErr := f.Close()
-	if writeErr != nil || closeErr != nil {
-		return intent, ErrUnknown
-	}
-	dir, err := os.Open(filepath.Dir(p.JournalPath))
-	if err != nil {
-		return intent, ErrUnknown
-	}
-	syncErr := dir.Sync()
-	_ = dir.Close()
-	if syncErr != nil {
-		return intent, ErrUnknown
 	}
 	path := "/v2/templates/" + url.PathEscape(p.TemplateID) + "/builds/" + url.PathEscape(p.BuildID)
 	status, _, err := client.call(ctx, http.MethodPost, path, nil, map[string]any{
@@ -129,23 +224,8 @@ func (p TemplatePublication) InspectTemplateBuild(ctx context.Context) (string, 
 	if err != nil || privatePublicationDirectory(p.JournalPath) != nil {
 		return "", ErrUnsupported
 	}
-	info, err := os.Lstat(p.JournalPath)
-	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 ||
-		runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0 || info.Size() > 4096 {
-		return "", ErrUnknown
-	}
-	f, err := os.Open(p.JournalPath)
+	data, err := readPublicationFile(p.JournalPath)
 	if err != nil {
-		return "", ErrUnknown
-	}
-	opened, err := f.Stat()
-	if err != nil || !os.SameFile(info, opened) {
-		_ = f.Close()
-		return "", ErrUnknown
-	}
-	data, err := io.ReadAll(io.LimitReader(f, 4097))
-	_ = f.Close()
-	if err != nil || len(data) > 4096 {
 		return "", ErrUnknown
 	}
 	var saved TemplateBuildIntent
@@ -172,6 +252,29 @@ func (p TemplatePublication) InspectTemplateBuild(ctx context.Context) (string, 
 	default:
 		return "", ErrUnknown
 	}
+}
+
+func readPublicationFile(path string) ([]byte, error) {
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 ||
+		runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0 || info.Size() > 4096 {
+		return nil, ErrUnknown
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, ErrUnknown
+	}
+	opened, err := f.Stat()
+	if err != nil || !os.SameFile(info, opened) {
+		_ = f.Close()
+		return nil, ErrUnknown
+	}
+	data, err := io.ReadAll(io.LimitReader(f, 4097))
+	_ = f.Close()
+	if err != nil || len(data) > 4096 {
+		return nil, ErrUnknown
+	}
+	return data, nil
 }
 
 // TemplateImageBinding is suitable for a signed operator inventory. It is not

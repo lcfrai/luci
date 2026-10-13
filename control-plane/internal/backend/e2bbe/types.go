@@ -1,6 +1,7 @@
 // Package e2bbe implements the owned allocation boundary for a pinned E2B Embed
-// deployment. It is not selected by Luci's product wiring yet. Allocation is not
-// upstream task execution, verified output, deployment, or a billing guarantee.
+// deployment. Product wiring selects it only for a configured, reviewed cloud
+// route. Allocation is not upstream execution, verified output, deployment or
+// a billing guarantee.
 package e2bbe
 
 import (
