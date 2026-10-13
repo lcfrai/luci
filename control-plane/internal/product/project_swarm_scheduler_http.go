@@ -21,6 +21,90 @@ func (s *Server) registerSwarmScheduler(mux Registrar) {
 	for _, action := range []string{"pause", "resume", "cancel", "priority"} {
 		mux.HandleFunc("POST /v1/product/projects/{id}/swarm-queue/{queueId}/"+action, s.controlProjectSwarmQueue)
 	}
+	mux.HandleFunc("POST /v1/product/projects/{id}/swarm-queue/{queueId}/stop", s.stopProjectSwarmQueue)
+}
+
+// A stop request changes one exact active queue item, not its whole run or
+// another project. The durable pending receipt precedes every backend effect.
+// A lost response is read back at the same queue ID; the scheduler continues
+// the stop after restart without issuing any replacement launch.
+func (s *Server) stopProjectSwarmQueue(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.requestProject(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		ExpectedRevision int `json:"expectedRevision"`
+	}
+	if !journeyDecode(w, r, &req) {
+		return
+	}
+	actor, err := management.CaptureExecutionControlActor(r.Context(), p.ID)
+	if err != nil {
+		projectRunProblem(w, err)
+		return
+	}
+	s.swarmScheduler.tick.Lock()
+	defer s.swarmScheduler.tick.Unlock()
+	s.swarmScheduler.mu.Lock()
+	row, err := s.readSwarmScheduler()
+	index := -1
+	if err == nil {
+		for i := range row.Items {
+			if row.Items[i].ID == r.PathValue("queueId") && row.Items[i].ProjectID == p.ID {
+				index = i
+				break
+			}
+		}
+		if index < 0 {
+			err = ErrProjectRunNotFound
+		}
+	}
+	var item swarmQueueRecord
+	if err == nil {
+		selected := &row.Items[index]
+		if selected.Revision != req.ExpectedRevision {
+			err = ErrProjectRunConflict
+		} else if !swarmQueueActive(selected.State) || selected.OperationID == "" || selected.ChildID == "" ||
+			selected.ReasonCode == "context_superseded_identity_pending" || selected.ReasonCode == "context_superseded_unallocated_claim" {
+			err = errors.New("Select an active queue item with an exact retained operation and child. An unidentified or superseded launch requires its existing recovery path.")
+		} else {
+			selected.StopActor = actor
+			if selected.ReasonCode != "context_superseded_stop_pending" {
+				schedulerReason(selected, "unknown", "operator_stop_pending", "Stopping this exact task. The child and its capacity remain held until absence and release are confirmed; retained output remains available.")
+			}
+			selected.Revision++
+			selected.UpdatedAt = s.schedulerNow().Format(time.RFC3339Nano)
+			err = s.saveSwarmScheduler(&row)
+			item = *selected
+		}
+	}
+	runtime := s.swarmScheduler.runtime
+	s.swarmScheduler.mu.Unlock()
+	if err != nil {
+		projectRunProblem(w, err)
+		return
+	}
+	settled, _ := s.settleOwnedQueueStop(r.Context(), item, runtime)
+	s.swarmScheduler.mu.Lock()
+	current, readErr := s.readSwarmScheduler()
+	s.swarmScheduler.mu.Unlock()
+	if readErr != nil {
+		projectRunProblem(w, readErr)
+		return
+	}
+	s.WakeSwarmScheduler()
+	status := http.StatusAccepted
+	if settled {
+		status = http.StatusOK
+	}
+	for _, latest := range current.Items {
+		if latest.ID == item.ID && latest.ProjectID == p.ID {
+			journeyJSON(w, status, map[string]any{"item": publicSwarmQueueItem(latest.SwarmQueueItem), "queue": queueProjectSnapshot(current, p.ID)})
+			return
+		}
+	}
+	projectRunProblem(w, ErrProjectRunNotFound)
 }
 func (s *Server) getProjectSwarmQueue(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)

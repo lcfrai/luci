@@ -25,6 +25,20 @@ func cloudProductTaskCancelled(run product.ProjectRun, record e2bbe.Record) bool
 	return false
 }
 
+func (a *API) cloudOwnedStopRequested(identity e2bbe.Identity) bool {
+	queue, err := a.deps.Product.ProjectSwarmQueueSnapshot(identity.ProjectID)
+	if err != nil {
+		return false
+	}
+	for _, item := range queue.Items {
+		if item.ProjectID == identity.ProjectID && item.RunID == identity.RunID && item.TaskID == identity.TaskID &&
+			item.OperationID == identity.AttemptID && item.ChildID == identity.OperationID && (item.ReasonCode == "context_superseded_stop_pending" || item.ReasonCode == "operator_stop_pending") {
+			return true
+		}
+	}
+	return false
+}
+
 func cloudObservationCandidates(rows []e2bbe.Record) []e2bbe.Record {
 	active := make([]e2bbe.Record, 0, len(rows))
 	for _, row := range rows {
@@ -110,7 +124,17 @@ func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) er
 	// finished capture. Only the authoritative product run/operation can
 	// classify this task as cancelled; otherwise a lost handoff response
 	// would turn valid retained output into a false cancellation.
-	if cloudProductTaskCancelled(run, current) {
+	supersededActive := false
+	if current.Capture.ArchiveSHA256 == "" && a.cloudOwnedStopRequested(identity) {
+		for _, op := range run.Operations {
+			if op.ID == identity.AttemptID && op.ChildID == identity.OperationID &&
+				(op.Status == "running" || op.Status == "dispatching" || op.Status == "reserved" || op.Status == "unknown") {
+				supersededActive = true
+				break
+			}
+		}
+	}
+	if cloudProductTaskCancelled(run, current) || supersededActive {
 		for _, op := range run.Operations {
 			if op.ID == identity.AttemptID && op.ChildID == identity.OperationID && op.Status == "cancelled" && current.State == e2bbe.Absent && !current.ResourcesHeld {
 				_, err = cloud.Runtime.Controller.AcknowledgeProductOutcome(ctx, identity.OperationID, current.Revision, "cancelled")

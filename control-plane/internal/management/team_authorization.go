@@ -170,6 +170,7 @@ var teamRouteRules = []teamRouteRule{
 	{"POST /v1/product/projects/{projectId}/swarm-queue/{queueId}/cancel", teamEdit},
 	{"POST /v1/product/projects/{projectId}/swarm-queue/{queueId}/priority", teamEdit},
 	{"POST /v1/product/projects/{projectId}/swarm-queue/{queueId}/resume", teamEdit | teamExecute},
+	{"POST /v1/product/projects/{projectId}/swarm-queue/{queueId}/stop", teamEdit | teamExecute},
 	{"POST /v1/product/projects/{projectId}/runs/{runId}/swarm/pause", teamEdit},
 	{"POST /v1/product/projects/{projectId}/runs/{runId}/swarm/resume", teamEdit | teamExecute},
 	{"POST /v1/product/projects/{projectId}/runs/{runId}/swarm/cancel", teamEdit},

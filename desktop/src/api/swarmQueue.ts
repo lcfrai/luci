@@ -48,7 +48,7 @@ export const swarmQueueApi = {
     value.items.forEach(item => { ownedItem(project, item); if (item.runId !== run || !taskIds.includes(item.taskId)) throw new Error('The queued batch does not match the reviewed tasks. Refresh before continuing.'); });
     return { items: value.items, queue: owned(project, value.queue) };
   },
-  async control(project: string, item: SwarmQueueItem, action: 'pause' | 'resume' | 'cancel' | 'priority', priority?: QueuePriority) {
+  async control(project: string, item: SwarmQueueItem, action: 'pause' | 'resume' | 'cancel' | 'priority' | 'stop', priority?: QueuePriority) {
     ownedItem(project, item);
     if (item.state === 'failed') throw new Error('This queue entry failed. Inspect its saved run before reviewing a new attempt; failed work cannot be resumed or reprioritized.');
     const value = await productApi.request<{ item: SwarmQueueItem; queue: ProjectSwarmQueue }>(`${path(project)}/swarm-queue/${encodeURIComponent(item.id)}/${action}`, { expectedRevision: item.revision, ...(action === 'priority' ? { priority } : {}) });

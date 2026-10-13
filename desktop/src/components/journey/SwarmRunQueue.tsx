@@ -18,6 +18,7 @@ interface Props {
 /** Queue consent names saved task inputs. A read, tab switch or retrying a read never enqueues work. */
 export function SwarmRunQueue(props: Props) {
   const { run, readAccess, canEdit, canExecute, busy } = props;
+  const cloudRun = run.input.route.executionLocation === 'cloud-microvm';
   const harnesses = useCockpit(state => state.harnesses);
   const capability = swarmTaskCapability(run, harnesses);
   const [queue, setQueue] = useState<ProjectSwarmQueue | null>(null), [error, setError] = useState('');
@@ -94,9 +95,9 @@ export function SwarmRunQueue(props: Props) {
     }
   }
 
-  async function control(item: SwarmQueueItem, action: 'pause' | 'resume' | 'cancel' | 'priority', generation: number, value?: QueuePriority) {
+  async function control(item: SwarmQueueItem, action: 'pause' | 'resume' | 'cancel' | 'priority' | 'stop', generation: number, value?: QueuePriority) {
     const result = await swarmQueueApi.control(run.projectId, item, action, value);
-    if (usable(generation)) { receive(result); setNotice(action === 'cancel' ? 'Future starts cancelled for this queue entry. Existing sessions and saved output are retained.' : 'Queue updated. Active work keeps its own session controls.'); }
+    if (usable(generation)) { receive(result); setNotice(action === 'stop' ? 'Exact task stop requested. Refresh status until its child and reservation are confirmed settled; saved output remains available.' : action === 'cancel' ? 'Future starts cancelled for this queue entry. Existing sessions and saved output are retained.' : 'Queue updated. Active work keeps its own session controls.'); }
   }
   return <section className="swarm-run-queue" aria-label="Background task queue">
     <div className="project-swarm-heading"><h4>Background queue</h4>
@@ -119,15 +120,18 @@ export function SwarmRunQueue(props: Props) {
         {item.state === 'queued' && <Button variant="secondary" disabled={!canEdit || busy} onClick={() => void operate('Pausing queued task', generation => control(item, 'pause', generation))}>Pause queued task</Button>}
         {item.state === 'paused' && <Button variant="secondary" disabled={!canEdit || !canExecute || busy || sourceBlocked || !capability.allowed} onClick={() => void operate('Resuming queued task', generation => control(item, 'resume', generation), true)}>Resume queued task</Button>}
         {['queued', 'paused', 'blocked'].includes(item.state) && <Button variant="tertiary" disabled={!canEdit || busy} onClick={() => void operate('Cancelling queued task', generation => control(item, 'cancel', generation))}>Cancel queued task</Button>}
+        {['reserved', 'running', 'unknown'].includes(item.state) && item.operationId && item.childId && <Button variant="tertiary" disabled={!canEdit || !canExecute || busy} onClick={() => void operate('Stopping exact active task', generation => control(item, 'stop', generation), true)}>{item.reasonCode?.endsWith('stop_pending') ? 'Retry exact stop' : 'Stop active task'}</Button>}
       </div>
       {item.state === 'blocked' && <p>Resolve the reason above, cancel this queue entry, then review the build and queue a new attempt.</p>}
-      {item.state === 'unknown' && <p>Inspect the task session and retained output, then check team status. An uncertain start is never replayed automatically.</p>}
+      {item.state === 'unknown' && (item.reasonCode?.startsWith('context_superseded_')
+        ? <p role="status">Luci is reconciling this old-context attempt and stopping its exact child when identified. Its reservation remains held until absence and release are confirmed; revised work waits. Saved output stays available for review.</p>
+        : <p>Inspect the task session and retained output, then check team status. An uncertain start is never replayed automatically.</p>)}
     </li>)}</ul>}
     {queue?.hasMore && <p>Only part of the project queue is shown. Refresh as earlier entries complete to inspect remaining work.</p>}
     </details>
     {confirm && <WorkflowDialog readAccess={readAccess} title="Queue reviewed work" description="Authorize these exact saved tasks to start automatically as capacity becomes available. Dependent tasks wait for reviewed integration. Your configured model connection may incur usage charges." busy={busy} onClose={() => setConfirm(false)}>
       <p>{run.input.route.harness} · {run.input.route.model || 'Configured model'} · up to {run.swarm?.maxParallel} agents in this build, within workspace and provider limits.</p>
-      <p>Saved permission: {capability.mode}. Tasks run commands without interactive approvals inside isolated Docker workspaces and exit after their response. Their output still needs review; queue completion does not accept or integrate changes.</p>
+      <p>Saved permission: {capability.mode}. Tasks run commands without interactive approvals inside {cloudRun ? 'separate owned cloud microVMs' : 'isolated Docker workspaces'} and exit after their response. Their output still needs review; queue completion does not accept or integrate changes.</p>
       {capability.notice && <p>{capability.notice}</p>}
       <ul>{candidates.map(task => <li key={task.id}>{task.title}</li>)}</ul>
       <label className="luci-field">Initial task priority<select value={priority} disabled={busy} onChange={event => setPriority(event.target.value as QueuePriority)}><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select></label>

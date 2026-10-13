@@ -75,6 +75,53 @@ func enqueueSchedulerFixture(t *testing.T, mux *http.ServeMux, run ProjectRun, b
 	decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", base+"/queue", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "explicit-reviewed-batch", "priority": "normal", "taskIds": tasks}, 201).Body.Bytes(), &response)
 	return response.Items
 }
+
+func TestExactActiveQueueStopRetainsChargeAfterLostACKAndSettlesAfterRestart(t *testing.T) {
+	s, mux, run, base, admitted, starts, _ := schedulerFixture(t, true)
+	*admitted = true
+	enqueueSchedulerFixture(t, mux, run, base, []string{"task-a"})
+	if err := s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 1 {
+		t.Fatal("owned task did not start once", err, *starts)
+	}
+	before, err := s.ProjectSwarmQueueSnapshot(run.ProjectID)
+	if err != nil || len(before.Items) != 1 || before.Items[0].OperationID == "" || before.Items[0].ChildID == "" {
+		t.Fatal("active attempt lacks exact identity", before, err)
+	}
+	stops, settled := 0, false
+	runtime := s.swarmScheduler.runtime
+	runtime.StopOwned = func(_ context.Context, req SwarmSupersededRequest) (bool, error) {
+		stops++
+		if req.QueueID != before.Items[0].ID || req.ProjectID != run.ProjectID || req.RunID != run.ID || req.OperationID != before.Items[0].OperationID || req.ChildID != before.Items[0].ChildID {
+			t.Fatalf("stop lost immutable attempt identity: %+v", req)
+		}
+		return settled, nil
+	}
+	s.swarmScheduler.runtime = runtime
+	path := "/v1/product/projects/" + run.ProjectID + "/swarm-queue/" + before.Items[0].ID + "/stop"
+	journeyRequest(t, mux, "POST", path, map[string]int{"expectedRevision": before.Items[0].Revision}, 202)
+	pending, err := s.ProjectSwarmQueueSnapshot(run.ProjectID)
+	if err != nil || pending.Items[0].ReasonCode != "operator_stop_pending" || pending.Items[0].MemoryMiB != 1024 || pending.Items[0].State != "unknown" || stops != 1 {
+		t.Fatal("lost stop acknowledgement released capacity", pending, err, stops)
+	}
+	journeyRequest(t, mux, "POST", path, map[string]int{"expectedRevision": before.Items[0].Revision}, 409)
+	if err := s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 1 {
+		t.Fatal("stop pending resumed a worker", err, *starts)
+	}
+	settled = true
+	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	reopened.swarmScheduler.runtime = runtime
+	if err = reopened.RunSwarmSchedulerOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	final, err := reopened.ProjectSwarmQueueSnapshot(run.ProjectID)
+	if err != nil || final.Items[0].State != "cancelled" || final.Items[0].ReasonCode != "operator_stopped" || final.Items[0].MemoryMiB != 0 || *starts != 1 {
+		t.Fatal("exact stop did not settle once after restart", final, err, *starts)
+	}
+}
 func TestSwarmSchedulerPressurePrecedesCloneAndBatchConsentIsAtomic(t *testing.T) {
 	s, mux, run, base, admitted, starts, children := schedulerFixture(t)
 	items := enqueueSchedulerFixture(t, mux, run, base, []string{"task-a", "task-b", "task-c"})

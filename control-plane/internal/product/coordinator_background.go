@@ -258,6 +258,13 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				if !ok || actor.ID != row.Actor.ID {
 					return errCoordinatorAuthority
 				}
+				stale, staleErr := s.blockStaleCoordinatorRow(p, row)
+				if staleErr != nil {
+					return staleErr
+				}
+				if stale {
+					return nil // retain prior results; the accepted event owns replan
+				}
 				integrated, integrationErr := s.continueCoordinatorCandidateIntegration(fresh, p, row)
 				if integrationErr != nil {
 					return integrationErr

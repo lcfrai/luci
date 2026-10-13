@@ -170,6 +170,16 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 	if _, err = implementationSnapshot(state, selection, ""); err != nil {
 		return false, nil // Accepted intent can precede required context approval.
 	}
+	for _, prior := range rows.Rows {
+		old := prior.Run.ImplementationContext
+		if old.BriefRevision == selection.BriefRevision && old.PlanRevision == selection.PlanRevision &&
+			old.SpecificationRevision == selection.SpecificationRevision && old.DesignPlanRevision == selection.DesignPlanRevision {
+			continue
+		}
+		if actions := prior.Actions; len(actions) > 0 && (actions[len(actions)-1].Status == "pending" || actions[len(actions)-1].Status == "unknown") {
+			return false, nil // Preserve uncertain old publication for exact readback; no new run yet.
+		}
+	}
 	lastEventID := events[len(events)-1].Event.ID
 	reservedCommit := false
 	for _, commit := range rows.ContextCommits {
@@ -194,6 +204,10 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 	}
 	if err = s.blockSupersededQueuedTasks(p.ID, selection); err != nil {
 		return false, err // Retry the same accepted event before creating new work.
+	}
+	settled, stopErr := s.stopSupersededActiveTasks(ctx, p.ID, selection)
+	if stopErr != nil || !settled {
+		return false, stopErr // No revised admission while an old child/charge is uncertain.
 	}
 	run := projectRunCreateRequest{WorktreeID: route.Route.WorktreeID, Harness: route.Route.Harness, Model: route.Route.Model, PermissionMode: route.Route.PermissionMode, Effort: route.Route.Effort, ExecutionLocation: route.Route.ExecutionLocation, AgentConnectionID: route.Route.AgentConnectionID, Outcome: route.Route.Outcome, ImplementationContext: selection}
 	req := coordinatorContinuationRequest{IdempotencyKey: "accepted-" + events[len(events)-1].Event.ID, OriginTurnID: events[len(events)-1].Intent.TurnID, ExpectedContextDigest: view.ContextDigest, ExpectedPolicyRevision: policy.Revision, Run: run, MaxParallel: route.MaxParallel, ExpectedRouteRevision: &route.Revision, CheckPlan: route.CheckPlan, PreviewPlan: route.PreviewPlan, DeploymentPlan: route.DeploymentPlan}

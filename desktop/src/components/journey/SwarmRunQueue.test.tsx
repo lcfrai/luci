@@ -181,3 +181,35 @@ it('shows failed queue work separately and offers no queue replay or pending-ite
   expect(screen.queryByRole('combobox')).toBeNull();
   expect(control).not.toHaveBeenCalled(); expect(enqueue).not.toHaveBeenCalled();
 });
+
+it('explains automatic old-context stop without offering a duplicate queue or cancel action', async () => {
+  const pending = swarmQueueItem({state:'unknown', reasonCode:'context_superseded_stop_pending', reason:'Exact stop is pending.', memoryMiB:1024});
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([pending]));
+  render(<Harness />);
+  await openQueueControls();
+  expect(await screen.findByText(/reservation remains held until absence and release are confirmed/)).toBeTruthy();
+  expect(screen.queryByRole('button', {name:'Cancel queued task'})).toBeNull();
+  expect(screen.queryByRole('button', {name:'Resume queued task'})).toBeNull();
+});
+
+it('names the selected per-task cloud boundary in queue consent', async () => {
+  const run = {...initial, input:{...initial.input, route:{...initial.input.route, executionLocation:'cloud-microvm' as const}}};
+  render(<Harness run={run} />);
+  await waitFor(() => expect(screen.getByRole('button', {name:'Queue reviewed tasks (3)'})).toHaveProperty('disabled', false));
+  await userEvent.click(screen.getByRole('button', {name:'Queue reviewed tasks (3)'}));
+  expect(within(screen.getByRole('dialog')).getByText(/separate owned cloud microVMs/)).toBeTruthy();
+});
+
+it('requests one exact active cloud stop and retains pending charge after an unconfirmed result', async () => {
+  const item = swarmQueueItem({state:'running', operationId:'op-one', childId:'vm-one', memoryMiB:1024});
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([item]));
+  const pending = {...item, state:'unknown' as const, revision:item.revision+1, reasonCode:'operator_stop_pending'};
+  const stop = vi.spyOn(swarmQueueApi, 'control').mockResolvedValue(swarmQueueFixture([pending]));
+  render(<Harness />);
+  await openQueueControls();
+  await userEvent.click(await screen.findByRole('button', {name:'Stop active task'}));
+  expect(stop).toHaveBeenCalledWith('p-1', item, 'stop', undefined);
+  expect(screen.getByText(/child and reservation are confirmed settled/)).toBeTruthy();
+  expect(screen.queryByRole('button', {name:'Stop active task'})).toBeNull();
+  expect(screen.getByRole('button', {name:'Retry exact stop'})).toBeTruthy();
+});

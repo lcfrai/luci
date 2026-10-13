@@ -480,7 +480,7 @@ func New(d Deps) (*API, error) {
 		if d.CloudTasks != nil {
 			resumeCloud = a.resumeCloudSwarm
 		}
-		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, ResumeCloud: resumeCloud, Release: a.execution.release, CloudRetired: cloudRetired, Resources: a.queuedResourceView})
+		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, ResumeCloud: resumeCloud, StopOwned: a.stopOwnedSwarmTask, Release: a.execution.release, CloudRetired: cloudRetired, Resources: a.queuedResourceView})
 		d.Product.SetProjectSwarmWorktreeObserver(a.observeSwarmWorktree)
 		d.Product.SetCoordinatorRuntime(a.reauthorizeCoordinator)
 	}

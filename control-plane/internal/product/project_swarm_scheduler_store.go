@@ -2,6 +2,7 @@ package product
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -19,6 +20,155 @@ const swarmQueueFileLimit = 2 << 20
 
 func defaultSwarmSchedulerPolicy() SwarmSchedulerPolicy {
 	return SwarmSchedulerPolicy{MaxActive: 4, MaxPerProject: 2, HeadroomPercent: 25, MinHeadroomMiB: 2048, DiskReserveMiB: 2048}
+}
+func swarmSupersededStopReason(code string) bool {
+	return code == "context_superseded_stop_pending" || code == "context_superseded_unallocated_claim" || code == "context_superseded_identity_pending" || code == "operator_stop_pending"
+}
+
+func (s *Server) settleOwnedQueueStop(ctx context.Context, item swarmQueueRecord, runtime SwarmSchedulerRuntime) (bool, error) {
+	if runtime.StopOwned == nil || item.ReasonCode == "context_superseded_identity_pending" {
+		return false, nil
+	}
+	actor := item.Actor
+	if item.StopActor.ProjectID == item.ProjectID {
+		actor = item.StopActor
+	}
+	settled, err := runtime.StopOwned(ctx, SwarmSupersededRequest{QueueID: item.ID, ProjectID: item.ProjectID, RunID: item.RunID, TaskID: item.TaskID, OperationID: item.OperationID, ChildID: item.ChildID, Actor: actor})
+	if err != nil || !settled {
+		return false, err
+	}
+	if err = s.releaseQueueLease(ctx, item.ID, runtime); err != nil {
+		return false, err
+	}
+	code, message := "operator_stopped", "The exact owned attempt was stopped and its reservation released. Retained output remains available for review."
+	if item.ReasonCode != "operator_stop_pending" {
+		code, message = "context_superseded", "The exact old-version attempt was stopped and its reservation released. Retained output remains available for review."
+	}
+	if err = s.schedulerSetReason(item.ID, "cancelled", code, message); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// An accepted amendment first records a durable stop intent against each
+// affected, old-version active attempt. The scheduler will neither resume nor
+// replace that exact child. A new run waits for backend absence and release of
+// its charged reservation; failure or a lost stop ACK leaves the intent intact
+// for the next pass after restart. The scheduler tick serializes this edge with
+// dispatch, while other projects keep their normal scheduling turns.
+func (s *Server) stopSupersededActiveTasks(ctx context.Context, projectID string, current ImplementationContextRequest) (bool, error) {
+	s.swarmScheduler.tick.Lock()
+	defer s.swarmScheduler.tick.Unlock()
+	selected := map[string]bool{}
+	for _, id := range current.TaskIDs {
+		selected[id] = true
+	}
+	p, err := s.resolveProject(projectID)
+	if err != nil {
+		return false, err
+	}
+	stopActor, stopActorErr := management.CaptureExecutionControlActor(ctx, projectID)
+	s.swarmScheduler.mu.Lock()
+	row, err := s.readSwarmScheduler()
+	runtime := s.swarmScheduler.runtime
+	if err != nil {
+		s.swarmScheduler.mu.Unlock()
+		return false, err
+	}
+	pending := []swarmQueueRecord{}
+	heldTerminals := []swarmQueueRecord{}
+	changed := false
+	allIdentified := true
+	for i := range row.Items {
+		item := &row.Items[i]
+		if item.ProjectID != projectID || !selected[item.TaskID] ||
+			(!swarmQueueActive(item.State) && !swarmSupersededStopReason(item.ReasonCode) && !(swarmQueueTerminal(item.State) && (item.MemoryMiB > 0 || item.CPUMillis > 0))) {
+			continue
+		}
+		run, readErr := s.projectRuns.Get(projectID, p.Path, item.RunID)
+		if readErr != nil {
+			s.swarmScheduler.mu.Unlock()
+			return false, readErr
+		}
+		prior := ImplementationContextSelection(&run.Input.Implementation)
+		if prior == nil {
+			s.swarmScheduler.mu.Unlock()
+			return false, ErrProjectRunInvalid
+		}
+		if prior.BriefRevision == current.BriefRevision && prior.PlanRevision == current.PlanRevision &&
+			prior.SpecificationRevision == current.SpecificationRevision && prior.DesignPlanRevision == current.DesignPlanRevision {
+			continue
+		}
+		if swarmQueueTerminal(item.State) {
+			heldTerminals = append(heldTerminals, *item)
+			continue // retain outcome; release still needs exact lease proof
+		}
+		code := "context_superseded_stop_pending"
+		itemChanged := false
+		if item.OperationID == "" || item.ChildID == "" {
+			_, op, found, lookupErr := s.projectRuns.FindOperationByKey(p.ID, p.Path, item.RunID, schedulerReserveKey(*item), "session")
+			if lookupErr != nil {
+				s.swarmScheduler.mu.Unlock()
+				return false, lookupErr
+			}
+			if found {
+				item.OperationID, item.ChildID = op.ID, op.ChildID
+				itemChanged = true
+			} else if item.State == "claiming" || item.ReasonCode == "context_superseded_unallocated_claim" {
+				// The serialized claim never created an operation. Release its
+				// private admission lease before admitting revised work.
+				code = "context_superseded_unallocated_claim"
+			} else {
+				code = "context_superseded_identity_pending"
+			}
+		}
+		if item.ReasonCode != code || item.State != "unknown" || itemChanged {
+			// Unknown still counts against scheduler capacity and cannot be
+			// resumed. Never mark cancelled or erase charge before exact proof.
+			schedulerReason(item, "unknown", code, "Accepted context changed this task. Its exact launch and capacity remain held until owned stop or absence is confirmed; revised work waits.")
+			item.Revision++
+			item.UpdatedAt = s.schedulerNow().Format(time.RFC3339Nano)
+			changed = true
+		}
+		if stopActorErr == nil && item.StopActor != stopActor {
+			item.StopActor = stopActor
+			item.Revision++
+			item.UpdatedAt = s.schedulerNow().Format(time.RFC3339Nano)
+			changed = true
+		}
+		if code == "context_superseded_stop_pending" || code == "context_superseded_unallocated_claim" {
+			pending = append(pending, *item)
+		} else {
+			allIdentified = false
+		}
+	}
+	if changed {
+		err = s.saveSwarmScheduler(&row)
+	}
+	s.swarmScheduler.mu.Unlock()
+	if err != nil {
+		return false, err
+	}
+	if len(pending) == 0 && len(heldTerminals) == 0 {
+		return allIdentified, nil
+	}
+	allSettled := allIdentified
+	for _, item := range heldTerminals {
+		if runtime.Release == nil || s.releaseQueueLease(ctx, item.ID, runtime) != nil {
+			allSettled = false
+		}
+	}
+	for _, item := range pending {
+		if ctx.Err() != nil {
+			return false, ctx.Err()
+		}
+		settled, stopErr := s.settleOwnedQueueStop(ctx, item, runtime)
+		if stopErr != nil || !settled {
+			allSettled = false
+			continue
+		}
+	}
+	return allSettled, nil
 }
 func validateSwarmSchedulerPolicy(p SwarmSchedulerPolicy) bool {
 	return p.MaxActive >= 1 && p.MaxActive <= MaxSwarmScheduledTasks && p.MaxPerProject >= 1 && p.MaxPerProject <= MaxSwarmParallelTasks && p.MaxPerProject <= p.MaxActive && p.HeadroomPercent >= 10 && p.HeadroomPercent <= 75 && p.MinHeadroomMiB >= 512 && p.MinHeadroomMiB <= 65536 && p.DiskReserveMiB >= 512 && p.DiskReserveMiB <= 1048576
@@ -105,6 +255,9 @@ func (s *Server) validateSwarmScheduler(row swarmSchedulerLedger) error {
 			return ErrProjectRunInvalid
 		}
 		if item.OperationID != "" && !prototypeReleaseID.MatchString(item.OperationID) || item.ChildID != "" && !prototypeReleaseID.MatchString(item.ChildID) {
+			return ErrProjectRunInvalid
+		}
+		if item.StopActor.ProjectID != "" && (item.StopActor.ProjectID != item.ProjectID || item.StopActor.Local && (item.StopActor.UserID != "" || item.StopActor.TeamID != "") || !item.StopActor.Local && item.StopActor.UserID == "") || item.ReasonCode == "operator_stop_pending" && item.StopActor.ProjectID != item.ProjectID {
 			return ErrProjectRunInvalid
 		}
 		ids[item.ID] = true

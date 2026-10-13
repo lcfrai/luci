@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -147,6 +148,248 @@ func TestSupersededContextLeavesActiveTaskAndCurrentVersionAlone(t *testing.T) {
 	queue, err = s.ProjectSwarmQueueSnapshot(p.ID)
 	if err != nil || len(queue.Items) != 1 || queue.Items[0].State != "running" || queue.Items[0].ReasonCode == "context_superseded" {
 		t.Fatal("active owned task lost its observation path", queue, err)
+	}
+}
+
+func TestAcceptedAmendmentStopsExactActiveAttemptBeforeReplanAfterRestart(t *testing.T) {
+	s, p, h, ctx, req, starts := coordinatorContinuationFixture(t)
+	anchor := coordinatorCreate(t, h, p, req, 201)
+	if err := s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 1 {
+		t.Fatal("original worker did not start", err, *starts)
+	}
+	old, err := s.GetProjectSwarmRun(p.ID, anchor.RunID)
+	if err != nil || len(old.Operations) != 1 {
+		t.Fatal("original operation missing", err)
+	}
+	op := old.Operations[0]
+	s.mu.Lock()
+	rows, err := s.readContinuations(p, "alice")
+	if err == nil {
+		rows.SavedRoute = &CoordinatorSavedRoute{Revision: 1, Route: coordinatorRoute(req.Run), MaxParallel: 1, UpdatedAt: anchor.CreatedAt}
+		err = s.saveContinuations(rows)
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Change the running task's acceptance", "")
+	plan := snapshot.Plan
+	plan.Tasks[0].Acceptance = "The amended task has its own evidence."
+	answer := OrchestratorAnswer{Summary: "Change running task", Proposal: &OrchestratorProposal{Target: "plan", Summary: "New acceptance", Plan: &plan}}
+	if err = s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.applyOrchestratorProposal(ctx, p.ID, turn.ID, view.Revision, view.Context.Digest); err != nil {
+		t.Fatal(err)
+	}
+	stops, settled := 0, false
+	runtime := s.swarmScheduler.runtime
+	runtime.StopOwned = func(_ context.Context, got SwarmSupersededRequest) (bool, error) {
+		stops++
+		if got.ProjectID != p.ID || got.RunID != anchor.RunID || got.QueueID != anchor.QueueIDs[0] || got.OperationID != op.ID || got.ChildID != op.ChildID || got.TaskID != op.TaskID {
+			t.Fatalf("stop escaped exact old attempt: %+v", got)
+		}
+		return settled, nil // first lost ACK: charge and child remain uncertain
+	}
+	s.swarmScheduler.runtime = runtime
+	s.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	for i := 0; i < 3; i++ {
+		if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	queue, err := s.ProjectSwarmQueueSnapshot(p.ID)
+	if err != nil || len(queue.Items) != 1 || queue.Items[0].State != "unknown" || queue.Items[0].ReasonCode != "context_superseded_stop_pending" || queue.Items[0].MemoryMiB != 1024 || stops == 0 {
+		t.Fatal("lost stop ACK erased exact active charge or intent", queue, stops, err)
+	}
+	if err = s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 1 {
+		t.Fatal("scheduler relaunched superseded work", err, *starts)
+	}
+	rows, err = s.readContinuations(p, "alice")
+	if err != nil || len(rows.Rows) != 1 {
+		t.Fatal("revised work reserved before exact stop", err)
+	}
+	s.coordinatorBackground.authorize = func(context.Context, management.ExecutionActorRef, string, bool) (context.Context, error) {
+		return nil, errCoordinatorAuthority
+	}
+	before := stops
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil || stops != before {
+		t.Fatal("revoked actor changed stop or admission", err, stops)
+	}
+	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	reopened.SetCoordinatorAuthorizer(s.coordinatorAuthorize)
+	reopened.SetCoordinatorExecutionAuthorizer(s.coordinatorExecuteAuthorize)
+	reopened.SetProjectRunSelectionResolver(s.projectRunSelectionResolver)
+	reopened.swarmScheduler.runtime = runtime
+	reopened.branchSessions = s.branchSessions
+	reopened.SetProjectSwarmPendingLaunch(func(context.Context, string, string, string, string) (bool, error) { return false, nil })
+	reopened.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	settled = true
+	for i := 0; i < 4; i++ {
+		if err = reopened.RunCoordinatorOnce(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	queue, err = reopened.ProjectSwarmQueueSnapshot(p.ID)
+	rows, readErr := reopened.readContinuations(p, "alice")
+	if err != nil || readErr != nil || len(rows.Rows) != 2 || rows.Rows[1].OriginTurnID != turn.ID || len(queue.Items) != 2 || queue.Items[0].State != "cancelled" || queue.Items[0].MemoryMiB != 0 || queue.Items[1].State != "queued" || *starts != 1 {
+		t.Fatal("confirmed stop did not admit exactly one revised run", err, readErr, queue, rows, *starts)
+	}
+}
+
+func TestSupersededStopDoesNotTouchConcurrentOtherProject(t *testing.T) {
+	s, p, h, _, req, _ := coordinatorContinuationFixture(t)
+	anchor := coordinatorCreate(t, h, p, req, 201)
+	other := createJourneyProject(t, h, "independent-project")
+	s.swarmScheduler.mu.Lock()
+	ledger, err := s.readSwarmScheduler()
+	if err == nil {
+		ledger.Items[0].State = "running"
+		ledger.Items[0].MemoryMiB = 1024
+		ledger.Items[0].Revision++
+		peer := ledger.Items[0]
+		peer.ID, peer.ProjectID, peer.Actor.ProjectID = "queue-independent-123", other.ID, other.ID
+		peer.KeyDigest = reviewDigest("independent-key")
+		peer.BatchKeyDigest = reviewDigest("independent-batch")
+		peer.RequestDigest = reviewDigest("independent-request")
+		ledger.Items = append(ledger.Items, peer)
+		err = s.saveSwarmScheduler(&ledger)
+	}
+	s.swarmScheduler.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := s.ProjectSwarmQueueSnapshot(other.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection := req.Run.ImplementationContext
+	selection.PlanRevision++
+	// Without a stop runtime this remains charged, while the other project's
+	// private queue receipt is byte-for-byte unchanged.
+	settled, err := s.stopSupersededActiveTasks(context.Background(), p.ID, selection)
+	if err != nil || settled {
+		t.Fatal("old attempt should remain pending", err, settled)
+	}
+	after, err := s.ProjectSwarmQueueSnapshot(other.ID)
+	if err != nil || !reflect.DeepEqual(before, after) {
+		t.Fatal("unrelated project changed", err, before, after)
+	}
+	queue, err := s.ProjectSwarmQueueSnapshot(p.ID)
+	if err != nil || len(queue.Items) != 1 || queue.Items[0].ID != anchor.QueueIDs[0] || queue.Items[0].ReasonCode != "context_superseded_identity_pending" || queue.Items[0].MemoryMiB != 1024 {
+		t.Fatal("affected stop intent was not isolated", queue, err)
+	}
+}
+
+func TestSupersededUnknownWithoutExactOperationCannotReleaseOrReplan(t *testing.T) {
+	s, p, h, _, req, _ := coordinatorContinuationFixture(t)
+	coordinatorCreate(t, h, p, req, 201)
+	s.swarmScheduler.mu.Lock()
+	ledger, err := s.readSwarmScheduler()
+	if err == nil {
+		ledger.Items[0].State = "unknown"
+		ledger.Items[0].MemoryMiB = 1024
+		ledger.Items[0].ReasonCode = "allocation_unknown"
+		ledger.Items[0].Revision++
+		err = s.saveSwarmScheduler(&ledger)
+	}
+	s.swarmScheduler.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	runtime := s.swarmScheduler.runtime
+	runtime.StopOwned = func(context.Context, SwarmSupersededRequest) (bool, error) { calls++; return true, nil }
+	s.swarmScheduler.runtime = runtime
+	selection := req.Run.ImplementationContext
+	selection.PlanRevision++
+	settled, err := s.stopSupersededActiveTasks(context.Background(), p.ID, selection)
+	queue, readErr := s.ProjectSwarmQueueSnapshot(p.ID)
+	if err != nil || readErr != nil || settled || calls != 0 || queue.Items[0].State != "unknown" || queue.Items[0].ReasonCode != "context_superseded_identity_pending" || queue.Items[0].MemoryMiB != 1024 {
+		t.Fatal("missing identity was incorrectly treated as an absent worker", err, readErr, queue, calls)
+	}
+}
+
+func TestAmendmentWaitsForTerminalOldVersionLeaseProof(t *testing.T) {
+	s, p, h, _, req, _ := coordinatorContinuationFixture(t)
+	anchor := coordinatorCreate(t, h, p, req, 201)
+	s.swarmScheduler.mu.Lock()
+	ledger, err := s.readSwarmScheduler()
+	if err == nil {
+		ledger.Items[0].State = "completed"
+		ledger.Items[0].MemoryMiB = 1024
+		ledger.Items[0].CPUMillis = 1000
+		ledger.Items[0].Revision++
+		err = s.saveSwarmScheduler(&ledger)
+	}
+	s.swarmScheduler.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	releaseAllowed := false
+	releases := 0
+	runtime := s.swarmScheduler.runtime
+	runtime.Release = func(_ context.Context, id string) error {
+		if id != anchor.QueueIDs[0] {
+			t.Fatalf("released a different reservation: %s", id)
+		}
+		releases++
+		if !releaseAllowed {
+			return errors.New("exact cleanup remains unconfirmed")
+		}
+		return nil
+	}
+	s.swarmScheduler.runtime = runtime
+	selection := req.Run.ImplementationContext
+	selection.PlanRevision++
+	settled, err := s.stopSupersededActiveTasks(context.Background(), p.ID, selection)
+	queue, readErr := s.ProjectSwarmQueueSnapshot(p.ID)
+	if err != nil || readErr != nil || settled || releases != 1 || queue.Items[0].State != "completed" || queue.Items[0].MemoryMiB != 1024 {
+		t.Fatal("unconfirmed terminal reservation was released or its outcome changed", err, readErr, queue, releases)
+	}
+	releaseAllowed = true
+	settled, err = s.stopSupersededActiveTasks(context.Background(), p.ID, selection)
+	queue, readErr = s.ProjectSwarmQueueSnapshot(p.ID)
+	if err != nil || readErr != nil || !settled || releases != 2 || queue.Items[0].State != "completed" || queue.Items[0].MemoryMiB != 0 || queue.Items[0].CPUMillis != 0 {
+		t.Fatal("exact terminal lease did not settle before replanning", err, readErr, queue, releases)
+	}
+}
+
+func TestStaleCoordinatorKeepsUnknownExternalMutationReceipt(t *testing.T) {
+	s, p, h, _, req, _ := coordinatorContinuationFixture(t)
+	anchor := coordinatorCreate(t, h, p, req, 201)
+	s.mu.Lock()
+	rows, err := s.readContinuations(p, "alice")
+	if err == nil {
+		row := &rows.Rows[findContinuation(rows, anchor.ID)]
+		row.Actions[len(row.Actions)-1].Status = "unknown"
+		err = s.saveContinuations(rows)
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	journeyRequest(t, h, "POST", "/v1/product/projects/"+p.ID+"/plan", map[string]any{
+		"expectedRevision":              req.Run.ImplementationContext.PlanRevision,
+		"expectedSpecificationRevision": req.Run.ImplementationContext.SpecificationRevision,
+		"tasks":                         []ProjectTask{{ID: "task-save", Title: "Implement saving", Status: "done", RequirementIDs: []string{"AC-save"}, Acceptance: "Amended independent check"}},
+	}, 200)
+	before, err := s.readContinuations(p, "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	paused, err := s.blockStaleCoordinatorRow(p, before.Rows[0])
+	after, readErr := s.readContinuations(p, "alice")
+	if err != nil || readErr != nil || !paused || !reflect.DeepEqual(before, after) {
+		t.Fatal("an uncertain old external mutation was overwritten or replayed", err, readErr, before, after)
 	}
 }
 

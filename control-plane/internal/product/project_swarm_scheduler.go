@@ -120,6 +120,14 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 	}
 	// Recover before capacity selection. An uncertain child is never replaced.
 	for _, item := range row.Items {
+		if swarmSupersededStopReason(item.ReasonCode) {
+			// A durable stop intent excludes resume/admission. Retry exact stop
+			// even when the origin browser closed or the queue is paused.
+			if item.ReasonCode != "context_superseded_identity_pending" {
+				_, _ = s.settleOwnedQueueStop(ctx, item, runtime)
+			}
+			continue
+		}
 		if swarmQueueTerminal(item.State) && (item.MemoryMiB > 0 || item.CPUMillis > 0) {
 			if err = s.releaseQueueLease(ctx, item.ID, runtime); err != nil && !swarmCleanupIsPending(err) {
 				return err

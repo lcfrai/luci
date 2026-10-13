@@ -37,6 +37,10 @@ type SwarmDispatchResult struct {
 	ReasonCode string `json:"reasonCode,omitempty"`
 	Message    string `json:"message,omitempty"`
 }
+type SwarmSupersededRequest struct {
+	QueueID, ProjectID, RunID, TaskID, OperationID, ChildID string
+	Actor                                                   management.ExecutionActorRef
+}
 type SwarmSchedulerRuntime struct {
 	// ObserveTasks records existing terminal task output independently of queue
 	// admission. It never starts work or supplies execution authority.
@@ -47,7 +51,10 @@ type SwarmSchedulerRuntime struct {
 	// ResumeCloud may complete only an already-owned, reconciled VM whose
 	// upstream launch marker is still absent. It must never allocate a new VM.
 	ResumeCloud func(context.Context, SwarmDispatchRequest) (SwarmDispatchResult, error)
-	Release     func(context.Context, string) error
+	// StopOwned settles only the exact retained attempt after a durable stop
+	// intent. False means its child or charge is still live/uncertain.
+	StopOwned func(context.Context, SwarmSupersededRequest) (bool, error)
+	Release   func(context.Context, string) error
 	// CloudRetired proves exact per-task VM absence before a cloud attempt can
 	// become terminal and release its scheduler slot. Nil refuses cloud release.
 	CloudRetired func(context.Context, string, string, string, string) (bool, error)
@@ -102,6 +109,7 @@ type ProjectSwarmQueue struct {
 type swarmQueueRecord struct {
 	SwarmQueueItem
 	Actor          management.ExecutionActorRef `json:"actor"`
+	StopActor      management.ExecutionActorRef `json:"stopActor,omitzero"`
 	InputDigest    string                       `json:"inputDigest"`
 	KeyDigest      string                       `json:"keyDigest"`
 	BatchKeyDigest string                       `json:"batchKeyDigest"`

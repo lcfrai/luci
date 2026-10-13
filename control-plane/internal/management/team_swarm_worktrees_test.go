@@ -149,6 +149,7 @@ func TestTeamQueueAndOverviewRoutesRetainProjectCapabilities(t *testing.T) {
 		{"POST", "/v1/product/projects/p-one/swarm-queue/queue-one/cancel", teamEdit},
 		{"POST", "/v1/product/projects/p-one/swarm-queue/queue-one/priority", teamEdit},
 		{"POST", "/v1/product/projects/p-one/swarm-queue/queue-one/resume", teamEdit | teamExecute},
+		{"POST", "/v1/product/projects/p-one/swarm-queue/queue-one/stop", teamEdit | teamExecute},
 	} {
 		for _, permission := range []TeamPermissions{{Read: true}, {Read: true, Edit: true}, {Read: true, Edit: true, Execute: true}, {}} {
 			req := httptest.NewRequest(tc.method, tc.path, nil)
