@@ -83,6 +83,11 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 	if err != nil {
 		return blocked("cloud_input_changed", "The reviewed Git source or task context changed before cloud allocation; no VM was started.")
 	}
+	if req.Actor.UserID == "" || req.Actor.Local || req.Actor.ProjectID != req.ProjectID {
+		return blocked("cloud_actor_unavailable", "A saved, current account identity is required before cloud allocation.")
+	}
+	input.Request.BillingUserID = req.Actor.UserID
+	input.Request.BillingTeamID = req.Actor.TeamID
 	if found && prior.Request != input.Request {
 		return unknown("cloud_input_changed") // retained Create belongs to another immutable task input
 	}

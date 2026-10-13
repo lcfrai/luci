@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -146,6 +147,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		return nil, nil, fmt.Errorf("open durable cloud task artifacts: %w", err)
 	}
 	closeStore := func() { _ = store.Close() }
+	var controller *e2bbe.Controller
 	authorizeEffect := func(effectCtx context.Context, request e2bbe.Request, action string) error {
 		i := request.Identity
 		if i.OwnerID != selected.Store.OwnerID || i.RunID == "" {
@@ -174,10 +176,23 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		if err != nil || run.State == "cancelled" || run.Input.Route.ExecutionLocation != "cloud-microvm" {
 			return management.ErrExecutionAuthority
 		}
+		if actor.UserID == "" || actor.UserID != request.BillingUserID || actor.TeamID != request.BillingTeamID || actor.Local {
+			return management.ErrExecutionAuthority
+		}
 		current, err := authorize(effectCtx, actor, run.Input.Route.Harness, true)
 		if err != nil || !current.Policy.AllowCloudProvisioning || current.Policy.MonthlyBudgetUSD <= 0 ||
 			float64(request.EstimatedCostMicros) > current.Policy.MonthlyBudgetUSD*1_000_000 {
 			return management.ErrExecutionAuthority
+		}
+		if action == "allocate" {
+			if controller == nil {
+				return management.ErrExecutionAuthority
+			}
+			rows, _ := controller.Snapshot()
+			limit := int64(math.Floor(current.Policy.MonthlyBudgetUSD * 1_000_000))
+			if !cloudActorMonthlyCostFits(rows, request, time.Now().UTC(), limit) {
+				return management.ErrExecutionAuthority
+			}
 		}
 		return nil
 	}
@@ -191,7 +206,6 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 			return strings.ReplaceAll(selected.EnvdOriginTemplate, "{sandboxID}", id),
 				strings.ReplaceAll(selected.SandboxOriginTemplate, "{sandboxID}", id), e2bbe.EnvdVersion, nil
 		}}
-	var controller *e2bbe.Controller
 	journal := filepath.Join(selected.ControllerStateDir, "attempts.json")
 	if _, statErr := os.Lstat(journal); errors.Is(statErr, os.ErrNotExist) {
 		if head, headErr := store.Head(ctx); headErr == nil {

@@ -43,12 +43,17 @@ type Identity struct {
 	OperationID string `json:"operationId"`
 }
 type Request struct {
-	Identity            Identity `json:"identity"`
-	SourceDigest        string   `json:"sourceDigest"`
-	ContextDigest       string   `json:"contextDigest"`
-	BundleDigest        string   `json:"bundleDigest"`
-	MaxSeconds          int      `json:"maxSeconds"`
-	EstimatedCostMicros int64    `json:"estimatedCostMicros"`
+	Identity Identity `json:"identity"`
+	// Billing identity is captured from the saved queue owner, never from a
+	// guest archive. The API binds it before allocation and current authority
+	// must recheck it before every new provider effect.
+	BillingUserID       string `json:"billingUserId,omitempty"`
+	BillingTeamID       string `json:"billingTeamId,omitempty"`
+	SourceDigest        string `json:"sourceDigest"`
+	ContextDigest       string `json:"contextDigest"`
+	BundleDigest        string `json:"bundleDigest"`
+	MaxSeconds          int    `json:"maxSeconds"`
+	EstimatedCostMicros int64  `json:"estimatedCostMicros"`
 }
 
 // Deployment records an operator-verified boundary, not a provider claim made
@@ -215,6 +220,9 @@ func digest(v any) string {
 }
 func bytesDigest(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
 func validRequest(r Request) bool {
+	if (r.BillingUserID != "" && !validID(r.BillingUserID)) || (r.BillingTeamID != "" && (r.BillingUserID == "" || !validID(r.BillingTeamID))) {
+		return false
+	}
 	i := r.Identity
 	return validID(i.OwnerID) && validID(i.ProjectID) && (i.RunID == "" || validID(i.RunID)) && validID(i.TaskID) && validID(i.AttemptID) && validID(i.OperationID) && digestPattern.MatchString(r.SourceDigest) && digestPattern.MatchString(r.ContextDigest) && digestPattern.MatchString(r.BundleDigest) && r.MaxSeconds > 0 && r.MaxSeconds <= 86400 && r.EstimatedCostMicros > 0 && r.EstimatedCostMicros <= 1<<50
 }
