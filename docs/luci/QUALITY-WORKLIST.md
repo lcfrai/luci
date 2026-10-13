@@ -1,5 +1,13 @@
 # Continuing product-quality work
 
+## Current operating policy — 13 October 2026
+
+Dylan renewed usage and assigned the originating local tester as the sole orchestrator/Astra agent. This cloud session is the **gpt-6.1-sol implementation worker**: no delegation, nested orchestration, new subagents or restarting prior Astra workers. Preserve every existing committed/uncommitted source and evidence. Recovery found no other active worker or test process. Historical multi-owner assignments below describe prior work, not permission to resume those workers.
+
+Contract LC-01–LC-16 remains controlled by audited `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`; no scope confirmation is pending and full acceptance remains false. Current sequence: finish the already-started Git-publication/existing-target deployment settings slice and publish exact source/setup/evidence; then commit the already-tested microVM artifact-filtering/identity correction. Continue independent unfinished contract work with bounded affected checks. Preserve source-test versus Docker/model/live-deployment/team/microVM acceptance distinctions and unchanged resource/latency guards.
+
+Recovered HEAD: `d331e22c6cfa9422410bbde39619c3f932632d5d`. Backend delivery slice is committed at `0ce7995d0bf1d0c1df930ee583c5cd92036f36ba`; UI, guest correction and dependency-reuse drafts are retained. Source/UI closure will precede publication; no new package or live acceptance is inferred.
+
 ## Current status — scope audit passed, implementation resumed (12 October 2026)
 
 The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.
@@ -27,6 +35,10 @@ The originating local thread explicitly lifted the scope gate for contract revis
 **Matching7c Linux package:** [clean official build and actual HTTP smoke](evidence/checkpoint-7c998624-package/README.md) pass. Portable69,929,529B SHA256 `20061241e83076af8de8a3430febdd5a885089c65684ec55c62fbc6c0a673048`; cloud35,055,179B SHA256 `d7194c3993f726713f0d03e406f006143cb7f564e8bc24ffdc459ca88f32dafa`. The helper independently verifies both archives and973 extracted cloud members. Four project policy records survive normal service restart; stale CAS is refused. No model/browser/installer/microVM/performance claim. Original root-stopped noncompact-guide build and wrong-gateway-readiness helper timeout remain separate. Archives are publisher-held, not a locally downloaded Windows binary.
 
 **Windows7c incoming scoped result:** local tester reports22top+23sub CLOUD-087 selected backend checks passing without race/failures/skips and no predicate weakening. Full local fixture originals remain with tester; affected UI/portable build are underway. Fresh Docker Desktop active/pending storage UI cannot currently be observed (wallpaper/activation failure), so guarded installation may remain held. Saved config/VHD identity alone does not prove pending state. Existing Ollama qwen2.5-coder:7b tools-capability/listener discovery is only a potential OpenCode route: no download, model load or inference occurred. Do not import host credentials or bypass resource/storage authority.
+
+## Focused Git/deployment UI handoff — 13 October 2026
+
+[Exact source and Windows steps](TEST-CHECKPOINT-1E88F68B.md) identify the backend `0ce7995d` and the continued-work deployment settings UI on top. Current project authority, checked source, reviewed Git publication and an existing target are guarded before any public provider action; the user must review three distinct push/public/cost acknowledgments. Controlled product20 top+35 sub, API1, management1top+4sub, rollback1 and affected UI/typecheck results are source evidence. Original failures, one resource-floor stop and overlapping counts are retained. Real provider publication/HTTPS health, Windows, candidate-autointegration, accepted-event automation, whole app quality and LC-01–16 acceptance remain open. The local tester may adopt this immutable source only between batches; no image/configuration change or matching cloud-built package is claimed.
 
 ## Current integrated source checkpoint — primary Luci and checked previews
 
