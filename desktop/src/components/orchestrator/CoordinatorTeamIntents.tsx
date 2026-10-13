@@ -81,6 +81,8 @@ function TeamIntents({ projectId, scope, actorId, contextDigest, canRead, canEdi
     setFresh(false); setError(errorText(cause));
     if (cause instanceof ApiError && [401, 403].includes(cause.status)) { setView(null); setReadDenied(true); }
   }
+  const acceptLatest = useRef(accept), readFailedLatest = useRef(readFailed);
+  acceptLatest.current = accept; readFailedLatest.current = readFailed;
   useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; displayRead.current?.abort(); }; }, []);
   useEffect(() => {
     const ticket = ++generation.current, controller = new AbortController();
@@ -91,6 +93,26 @@ function TeamIntents({ projectId, scope, actorId, contextDigest, canRead, canEdi
     }).catch(cause => { if (alive.current && ticket === generation.current && !controller.signal.aborted) readFailed(cause); });
     return () => controller.abort();
   }, [projectId, canRead, canEdit, contextDigest]);
+
+  useEffect(() => {
+    if (!canRead) return;
+    function observeSharedChanges() {
+      if (!alive.current || !latest.current.canRead || working.current || document.visibilityState === "hidden") return;
+      const ticket = ++generation.current, controller = new AbortController();
+      displayRead.current?.abort(); displayRead.current = controller;
+      void coordinatorIntentsApi.get(projectId, controller.signal).then(next => {
+        if (alive.current && ticket === generation.current && !controller.signal.aborted && latest.current.canRead) acceptLatest.current(next);
+      }).catch(cause => {
+        if (alive.current && ticket === generation.current && !controller.signal.aborted) readFailedLatest.current(cause);
+      });
+    }
+    // A peer can propose an intent without changing canonical context. Reads
+    // only observe the authoritative event log; they never infer agreement or
+    // trigger an apply. Focus gives a returning person a prompt update.
+    const timer = window.setInterval(observeSharedChanges, 15_000);
+    window.addEventListener("focus", observeSharedChanges);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", observeSharedChanges); };
+  }, [projectId, canRead]);
 
   async function refresh() {
     if (working.current || !latest.current.canRead) return;

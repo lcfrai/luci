@@ -38,6 +38,18 @@ it("shows exact shared authors and conflicting scope without claiming consensus 
   expect(screen.getByText(/A saved context revision is separate/)).not.toBeNull();
   expect(coordinatorIntentsApi.record).not.toHaveBeenCalled(); expect(coordinatorIntentsApi.resolve).not.toHaveBeenCalled();
 });
+
+it("observes a teammate's new intent on return even when canonical context did not change", async () => {
+  render(<CoordinatorTeamIntents {...props()} />);
+  await screen.findByText("2 pending · 1 coordination issue");
+  vi.mocked(coordinatorIntentsApi.get).mockResolvedValue(view({ revision: 3, intents: [...view().intents,
+    intent({ id: "intent-c", turnId: "turn-c", actor: { id: "charlie", displayName: "Charlie" }, requestedChange: "Add keyboard access", changedPaths: ["accessibility"] })],
+  }));
+  fireEvent.focus(window);
+  await screen.findByText("3 pending · 1 coordination issue");
+  expect(coordinatorIntentsApi.resolve).not.toHaveBeenCalled();
+  expect(coordinatorIntentsApi.record).not.toHaveBeenCalled();
+});
 it("requires fresh consent and exact replacement/reason for only the person's own intent", async () => {
   render(<CoordinatorTeamIntents {...props()} />); await openDecision();
   fireEvent.change(screen.getByLabelText("Why this resolves your request"), { target: { value: "Updated reason" } });
