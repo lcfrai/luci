@@ -121,18 +121,7 @@ func (s *Server) captureTaskHandoff(ctx context.Context, projectPath string, run
 	if err != nil {
 		return run, err
 	}
-	ref := &TaskHandoffReference{Digest: digest, Status: receipt.Status, CapturedAt: receipt.CapturedAt}
-	if receipt.Reported != nil {
-		ref.Questions = len(receipt.Reported.Questions)
-		ref.Unanswered = ref.Questions
-		ref.Summary = receipt.Reported.Summary
-		for len(ref.Summary) > 1000 {
-			ref.Summary = ref.Summary[:len(ref.Summary)-1]
-		}
-		for !handoffText(ref.Summary, 1000) {
-			ref.Summary = ref.Summary[:len(ref.Summary)-1]
-		}
-	}
+	ref := taskHandoffReference(receipt, digest)
 	if authorize {
 		if err = s.taskHandoffAuthorize(ctx, req.ProjectSwarmRecoveryRequest); err != nil {
 			return run, err
@@ -146,6 +135,22 @@ func (s *Server) captureTaskHandoff(ctx context.Context, projectPath string, run
 		selected.Handoff = ref
 		return nil
 	})
+}
+
+func taskHandoffReference(receipt TaskHandoffReceipt, digest string) *TaskHandoffReference {
+	ref := &TaskHandoffReference{Digest: digest, Status: receipt.Status, CapturedAt: receipt.CapturedAt}
+	if receipt.Reported != nil {
+		ref.Questions = len(receipt.Reported.Questions)
+		ref.Unanswered = ref.Questions
+		ref.Summary = receipt.Reported.Summary
+		for len(ref.Summary) > 1000 {
+			ref.Summary = ref.Summary[:len(ref.Summary)-1]
+		}
+		for !handoffText(ref.Summary, 1000) {
+			ref.Summary = ref.Summary[:len(ref.Summary)-1]
+		}
+	}
+	return ref
 }
 
 func (s *Server) getTaskHandoff(w http.ResponseWriter, r *http.Request) {

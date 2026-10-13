@@ -146,3 +146,53 @@ func TestMicroVMCapturedExitRequiresExactReviewedRun(t *testing.T) {
 		t.Fatal("foreign run output changed local task state", err)
 	}
 }
+
+func TestMicroVMCapturedReportJoinsTaskReviewWithoutTrustingWorkerChecks(t *testing.T) {
+	s, mux, p, run, base, _ := swarmHTTPFixture(t)
+	run = swarmReserveHTTP(t, mux, base, run, "task-a", "microvm-report-123456")
+	op := run.Operations[0]
+	var err error
+	run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, "running", "cloud native process started")
+	if err != nil {
+		t.Fatal(err)
+	}
+	op = run.Operations[0]
+	record, changes, stage := microVMImportFixture(t, run.ID, op, "cloud candidate\n")
+	report := []byte(`{"version":1,"summary":"Built alpha","changedFiles":["alpha.txt"],"decisions":[],"reportedChecks":[{"command":"go test ./...","outcome":"passed","detail":"worker claim only"}],"questions":[],"limitations":[]}`)
+	sum := sha256.Sum256(report)
+	record.Capture.ReportSHA256 = hex.EncodeToString(sum[:])
+	s.SetProjectSwarmMicroVMImportGuard(func(_ context.Context, scope ProjectSwarmMicroVMImportScope) (func(), error) {
+		if scope.ProjectID != p.ID || scope.RunID != run.ID || scope.OperationID != op.ID || scope.ChildID != op.ChildID || scope.RequestDigest != record.RequestDigest {
+			t.Fatal("cloud report escaped its guarded owner", scope)
+		}
+		return func() {}, nil
+	})
+	run, err = s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.RecordProjectSwarmMicroVMHandoff(context.Background(), p.ID, run.ID, op.ID, record, []byte("tampered")); err == nil {
+		t.Fatal("report outside the frozen capture was published")
+	}
+	if _, err = s.ImportProjectSwarmMicroVMCandidate(context.Background(), p.ID, run.ID, op.ID, record, changes, stage); err != nil {
+		t.Fatal(err)
+	}
+	run, err = s.RecordProjectSwarmMicroVMHandoff(context.Background(), p.ID, run.ID, op.ID, record, report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.projectRuns.taskHandoffView(run, run.Operations[0])
+	if err != nil || view.Status != "captured" || view.Receipt == nil || view.Receipt.CloudReportDigest != record.Capture.ReportSHA256 ||
+		view.Receipt.CloudRequestDigest != record.RequestDigest || view.Receipt.Reported == nil || len(view.Receipt.Reported.ReportedChecks) != 1 || len(view.RecordedChecks) != 0 {
+		t.Fatal("cloud worker claim was lost or promoted into independent check evidence", view, err)
+	}
+	repeated, err := s.RecordProjectSwarmMicroVMHandoff(context.Background(), p.ID, run.ID, op.ID, record, report)
+	if err != nil || repeated.Revision != run.Revision {
+		t.Fatal("same cloud report replayed a run mutation", err)
+	}
+	other := record
+	other.Capture.ArchiveSHA256 = strings.Repeat("1", 64)
+	if _, err = s.RecordProjectSwarmMicroVMHandoff(context.Background(), p.ID, run.ID, op.ID, other, report); err == nil {
+		t.Fatal("a different cloud capture replaced the retained report")
+	}
+}

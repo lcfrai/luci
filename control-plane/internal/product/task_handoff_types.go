@@ -83,6 +83,10 @@ type TaskHandoffReceipt struct {
 	ChildID              string             `json:"childId"`
 	WorktreeID           string             `json:"worktreeId"`
 	RequestDigest        string             `json:"requestDigest"`
+	CloudRequestDigest   string             `json:"cloudRequestDigest,omitempty"`
+	CloudCaptureDigest   string             `json:"cloudCaptureDigest,omitempty"`
+	CloudReportDigest    string             `json:"cloudReportDigest,omitempty"`
+	CloudExitFrameDigest string             `json:"cloudExitFrameDigest,omitempty"`
 	ImplementationDigest string             `json:"implementationDigest"`
 	ContextDigest        string             `json:"contextDigest,omitempty"`
 	SourceCommit         string             `json:"sourceCommit"`

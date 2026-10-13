@@ -219,6 +219,11 @@ func (s *ProjectRunStore) taskHandoffView(run ProjectRun, op ProjectRunOperation
 	if !deliverySHA.MatchString(receipt.SourceCommit) || !hexDigest(receipt.SourceDigest) || receipt.ContextDigest != "" && !hexDigest(receipt.ContextDigest) {
 		return v, ErrProjectRunInvalid
 	}
+	for _, digest := range []string{receipt.CloudRequestDigest, receipt.CloudCaptureDigest, receipt.CloudReportDigest, receipt.CloudExitFrameDigest} {
+		if digest != "" && !hexDigest(digest) {
+			return v, ErrProjectRunInvalid
+		}
+	}
 	v.Status, v.Digest, v.Receipt = receipt.Status, op.Handoff.Digest, &receipt
 	if receipt.Reported != nil {
 		data, _ := json.Marshal(receipt.Reported)
