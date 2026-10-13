@@ -136,6 +136,26 @@ func verifyCloudStartup(ctx context.Context, controller cloudStartupController) 
 	return ctx.Err()
 }
 
+// cloudProviderRoots isolates the Azure private gateway trust from public
+// system roots while preserving the existing AWS trust behavior.
+func cloudProviderRoots(pemBytes []byte, azure bool) (*x509.CertPool, error) {
+	var roots *x509.CertPool
+	if azure {
+		// The private Azure gateway trusts only this pinned operator CA.
+		// System roots would admit an unrelated public CA after a DNS error.
+		roots = x509.NewCertPool()
+	} else {
+		roots, _ = x509.SystemCertPool()
+		if roots == nil {
+			roots = x509.NewCertPool()
+		}
+	}
+	if !roots.AppendCertsFromPEM(pemBytes) {
+		return nil, errors.New("cloud TLS root file has no valid certificate")
+	}
+	return roots, nil
+}
+
 // openE2BTaskRuntime refuses an unconfigured or unverified cloud capability.
 // The artifact store must be on the durable controller host, not on the
 // replaceable Embed runtime host. The signed separation/restore receipts and
@@ -160,6 +180,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		selected.Deployment.Provider != "azure" && selected.Store.AzureDataDiskID != "" ||
 		selected.Deployment.Provider == "azure" && (selected.AzureSecrets == nil || selected.APIKeyFile != "" || selected.AdminAPIKeyFile != "" || selected.AttachKeyFile != "" || selected.ClientCertFile != "" || selected.ClientKeyFile != "") ||
 		selected.Deployment.Provider == "azure" && selected.AzureMount == nil ||
+		selected.Deployment.Provider == "azure" && selected.RootCAFile == "" ||
 		selected.Deployment.Provider == "azure" && selected.AzureMount != nil && selected.AzureGatewayReceiptDigest != e2bbe.GatewayReceiptDigest(selected.Deployment.AzureGatewayHost, selected.Store.RuntimeScope, selected.AzureMount.Generation) ||
 		selected.Deployment.Provider != "azure" && selected.AzureSecrets != nil ||
 		selected.Deployment.Provider != "azure" && selected.AzureMount != nil ||
@@ -234,12 +255,9 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		if readErr != nil {
 			return nil, nil, readErr
 		}
-		roots, err = x509.SystemCertPool()
-		if err != nil || roots == nil {
-			roots = x509.NewCertPool()
-		}
-		if !roots.AppendCertsFromPEM(pemBytes) {
-			return nil, nil, errors.New("cloud TLS root file has no valid certificate")
+		roots, err = cloudProviderRoots(pemBytes, selected.Deployment.Provider == "azure")
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 	var clientCertificate *tls.Certificate

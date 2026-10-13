@@ -2,15 +2,43 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
+	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 )
+
+func TestAzureGatewayTrustsOnlySelectedPrivateRoot(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certificate := &x509.Certificate{SerialNumber: big.NewInt(1), NotBefore: time.Now().Add(-time.Hour),
+		NotAfter: time.Now().Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
+	der, err := x509.CreateCertificate(rand.Reader, certificate, certificate, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	pool, err := cloudProviderRoots(selected, true)
+	if err != nil || len(pool.Subjects()) != 1 {
+		t.Fatal("Azure gateway inherited unrelated trust roots", err)
+	}
+	if _, err := cloudProviderRoots([]byte("not a certificate"), true); err == nil {
+		t.Fatal("Azure gateway accepted invalid private root")
+	}
+}
 
 type cloudStartupFixture struct {
 	rows                     []e2bbe.Record
