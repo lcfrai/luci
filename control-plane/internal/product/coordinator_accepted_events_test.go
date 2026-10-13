@@ -39,6 +39,22 @@ func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testi
 	if err = s.applyOrchestratorProposal(ctx, p.ID, turn.ID, view.Revision, view.Context.Digest); err != nil {
 		t.Fatal(err)
 	}
+	// A second person's still-pending proposal advances the event head but has
+	// not changed canonical context. It must not hold the already accepted plan
+	// event or force unrelated work to wait for that person's decision.
+	peerContext := orchestratorActor(t, "bob")
+	peer, peerBase := reserveOrchestratorTest(t, s, p.ID, peerContext, "Consider a clearer home screen", "")
+	design := peerBase.DesignPlan
+	design.Status, design.Digest = "draft", ""
+	design.Screens[0].Purpose = "Clarify the saved-work entry point"
+	peerAnswer := OrchestratorAnswer{Summary: "A possible design change", Options: []string{}, Impact: []string{"Design review"}, Proposal: &OrchestratorProposal{Target: "design-plan", Summary: "Home screen", DesignPlan: &design}}
+	if err = s.CompleteOrchestratorTurn(p.ID, peer.ID, peer.JobID, "succeeded", &peerAnswer); err != nil {
+		t.Fatal(err)
+	}
+	coordination, err := s.CoordinationViewForProject(ctx, p.ID)
+	if err != nil || len(coordination.Events) < 2 || coordination.Events[len(coordination.Events)-1].Kind != "proposed" {
+		t.Fatal("later independent proposal was not retained", err)
+	}
 	s.coordinatorBackground.authorize = coordinatorFixtureReauthorize
 	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
 		t.Fatal(err)

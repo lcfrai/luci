@@ -126,8 +126,18 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 			events = append(events, observation)
 		}
 	}
-	if len(events) == 0 || len(events) > 16 || events[len(events)-1].Event.ID != view.EventHead {
-		return false, nil // An intervening event needs resolution or a new review.
+	if len(events) == 0 || len(events) > 16 {
+		return false, nil
+	}
+	s.mu.RLock()
+	coordination, frontierErr := s.readCoordination(p)
+	frontier := ""
+	if frontierErr == nil {
+		frontier, frontierErr = s.latestAppliedCoordinationEventLocked(p, coordination)
+	}
+	s.mu.RUnlock()
+	if frontierErr != nil || frontier != events[len(events)-1].Event.ID {
+		return false, frontierErr
 	}
 	ids := make([]string, 0, len(events))
 	for _, event := range events {

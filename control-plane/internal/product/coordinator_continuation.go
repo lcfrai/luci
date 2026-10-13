@@ -479,7 +479,11 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 	if err == nil && len(req.AcceptedEvents) > 0 {
 		var coordination coordinationLedger
 		coordination, err = s.readCoordination(p)
-		if err == nil && coordination.EventHead != req.AcceptedEvents[len(req.AcceptedEvents)-1].EventID {
+		frontier := ""
+		if err == nil {
+			frontier, err = s.latestAppliedCoordinationEventLocked(p, coordination)
+		}
+		if err == nil && frontier != req.AcceptedEvents[len(req.AcceptedEvents)-1].EventID {
 			err = ErrOrchestratorConflict
 		}
 		if err == nil {

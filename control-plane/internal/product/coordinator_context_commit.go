@@ -221,9 +221,13 @@ func (s *Server) commitAcceptedCoordinatorContext(ctx context.Context, p project
 	s.mu.Lock()
 	fresh, err := s.readContinuations(p, rows.ActorID)
 	if err == nil {
-		var view CoordinationView
-		view, err = s.coordinationViewLocked(ctx, p)
-		if err == nil && view.EventHead != eventID {
+		var coordination coordinationLedger
+		coordination, err = s.readCoordination(p)
+		frontier := ""
+		if err == nil {
+			frontier, err = s.latestAppliedCoordinationEventLocked(p, coordination)
+		}
+		if err == nil && frontier != eventID {
 			err = ErrOrchestratorConflict
 		}
 	}
