@@ -7,6 +7,21 @@ provider/KVM, durable host-loss recovery, upstream execution and per-task VM
 teardown evidence. The product exposes an explicit configured microVM route,
 but no working provider/template has passed live verification.
 
+A candidate OCI guest filesystem is now at `images/microvm/Dockerfile`. From
+repository root, `docker build -f images/microvm/Dockerfile -t
+luci/microvm-guest:candidate .` builds the fixed Linux bootstrap, collector,
+sandboxd and pinned upstream CLI versions, with the root-owned input/context
+paths required below. Record the resulting immutable image digest and all
+binary/CLI versions before any provider template publication. This local image
+build is not an E2B template or microVM execution result. The Embed operator
+must import/build it under the selected template ID, record the exact provider
+`buildId` and signed source inventory, verify envd and the root/cgroup/network
+preconditions on a real guest, and keep that template exclusive to the build
+while Luci allocates tasks. The pinned Create API selects a template ID and
+cannot atomically pin a build ID; a concurrent template rebuild is therefore
+an unresolved operational risk. Luci refuses a non-ready selected build but
+cannot infer guest bytes from the status response alone.
+
 The helper reuses the existing sandbox image's Git, unprivileged `dev` identity,
 `entrypoint.sh`, `sandboxd` and upstream coding engines. It does not implement an
 agent engine. Build the Linux helper from the same reviewed source/module lock
