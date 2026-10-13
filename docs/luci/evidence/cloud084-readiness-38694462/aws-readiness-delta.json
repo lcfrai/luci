@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-13T18:56:58Z",
+  "baseReadinessRevision": "e6bd3f9448d753acfee7531608eff6e96233f2c7",
+  "integratedSourceRevision": "3869446251725bbfd3dc583e6bc423bb04a6aa1e",
+  "scope": "Read-only existing AWS/profile/client and cloud prerequisites. No credential contents, resource mutation, VM, model call or public deployment.",
+  "revisionCheck": {
+    "remoteBranchHead": "e6bd3f9448d753acfee7531608eff6e96233f2c7",
+    "parent": "3869446251725bbfd3dc583e6bc423bb04a6aa1e",
+    "onlyChangedPath": "docs/luci/evidence/cloud084-readiness-38694462/readiness.json",
+    "localCheckout": "3869446251725bbfd3dc583e6bc423bb04a6aa1e",
+    "localCheckoutClean": true,
+    "localRefresh": "Not written: workspace has zero user-available bytes. Remote commit API verifies documentation-only delta; five selected implementation file hashes equal the base receipt."
+  },
+  "storage": {
+    "workspaceAvailableBytes": 0,
+    "workspaceFreeBytesReserved": 1664458752,
+    "regenerableCacheBytesMovedToShm": 29403988,
+    "moved": [
+      "desktop/node_modules/.vite",
+      "desktop/dist"
+    ],
+    "preserved": "Source, package archives, retained logs/evidence, unknown/shared resources and unrelated processes were not removed or overwritten.",
+    "effect": "Reclaimed roughly 29.4 MB of overlay use but still below the filesystem reserve; no further speculative cleanup."
+  },
+  "aws": {
+    "configuredProfileNamePresent": true,
+    "configAndCredentialPathsPresent": true,
+    "configFileBytes": 1,
+    "credentialFileBytes": 1,
+    "matchingProfileSections": false,
+    "awsCredentialEnvironmentVariablesPresent": false,
+    "existingAwsCliOrSdkFound": false,
+    "curlHasSigV4": true,
+    "stsIdentity": "not attempted: no credential source or suitable configured profile to sign with",
+    "regionAndExistingResources": "not queried because authenticated identity and authorized account scope are unverified",
+    "classification": "missing authentication material in this environment; not an AWS denial or proof the account lacks resources"
+  },
+  "cloudRuntime": {
+    "selectedE2BEndpoint": "unset",
+    "externalKvmHost": "unidentified",
+    "privateManagementTransport": "unverified",
+    "offHostStore": "unidentified",
+    "pinnedTemplate": "unverified",
+    "deploymentTarget": "unconfigured",
+    "selectedTeamAndModelGrants": "unloaded"
+  },
+  "minimalNextPlan": [
+    "Provide an existing authorized AWS profile binding or supported federated role to this isolated environment, or run read-only discovery from an already configured approved AWS client. First verify STS identity and approved account/region without logging credentials.",
+    "Within that approved account/region only, inspect existing instances/host virtualization suitability, protected E2B management endpoint, template, independent durable store and deploy target; do not treat an EC2 VM or SSH Docker host as a proven microVM runtime.",
+    "If no suitable resources exist, obtain a concrete provider/region, KVM-capable host and private-network/off-host-store design plus cost ceiling before provisioning. No infrastructure or spending was authorized by this read-only receipt.",
+    "For the eventual real test, isolate four projects and twelve bounded tasks, target four concurrent independently owned microVMs within measured policy, and verify amendment, independent results, reviewed integration, cancel/restart, exact retirement and retained versus final-billing evidence separately."
+  ],
+  "outcome": {
+    "CLOUD-084": "external host, endpoint, template, store and auth missing/unverified",
+    "CLOUD-085": "real harness and delivery target unconfigured/unverified",
+    "CLOUD-086": "two authenticated team actors/shared state unconfigured/unverified",
+    "CLOUD-088": "four-VM live swarm blocked by CLOUD-084 and spending/capacity policy verification"
+  },
+  "actionsPerformed": [
+    "Read-only filesystem/profile-shape/client inventory",
+    "Read-only Git remote and commit metadata check",
+    "Moved only two generated caches to tmpfs; no permanent evidence deletion"
+  ]
+}
