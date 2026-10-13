@@ -104,3 +104,34 @@ func (t TaskRuntime) Retire(ctx context.Context, operationID string, revision in
 	}
 	return t.Controller.Cancel(ctx, operationID, revision)
 }
+
+// RetireCaptured settles a finished VM even when later source review or
+// current review authority refuses the returned candidate. It requires the
+// complete, immutable output archive to remain readable off-host first.
+// Nothing here accepts task output or changes project source; a later review
+// still needs its own current authority and exact input binding.
+func (t TaskRuntime) RetireCaptured(ctx context.Context, observed Record) (Record, error) {
+	if t.Controller == nil || t.Store == nil {
+		return Record{}, ErrUnsupported
+	}
+	op := observed.Request.Identity.OperationID
+	current, err := t.Controller.record(op)
+	if err != nil {
+		return current, err
+	}
+	if current.Revision != observed.Revision || current.RequestDigest != observed.RequestDigest ||
+		current.Capture != observed.Capture || current.NativeExit != observed.NativeExit ||
+		current.State != Allocated || !current.ResourcesHeld ||
+		ValidateNativeExitReceipt(current.NativeExit, current) != nil ||
+		ValidateCaptureReceipt(current.Capture, current.LaunchKernel, current) != nil {
+		return current, ErrConflict
+	}
+	binding := TransferBinding{Identity: current.Request.Identity, SourceDigest: current.Request.SourceDigest,
+		ContextDigest: current.Request.ContextDigest, Direction: "output"}
+	if _, err = t.Store.CopyTransfer(ctx, binding, current.Capture.ArchiveSHA256, io.Discard); err != nil {
+		return current, err
+	}
+	// Cancel performs its own exact revision/ownership and provider readback.
+	// A concurrent change or unavailable deletion retains the charged record.
+	return t.Controller.Cancel(ctx, op, current.Revision)
+}

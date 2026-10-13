@@ -7,7 +7,21 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
+	"github.com/lcfrai/luci/control-plane/internal/product"
 )
+
+func cloudProductTaskCancelled(run product.ProjectRun, record e2bbe.Record) bool {
+	if run.State == "cancelled" {
+		return true
+	}
+	identity := record.Request.Identity
+	for _, op := range run.Operations {
+		if op.ID == identity.AttemptID && op.ChildID == identity.OperationID && op.Status == "cancelled" {
+			return true
+		}
+	}
+	return false
+}
 
 // observeCloudTaskCompletions rotates a bounded set of exact owned attempts.
 // One slow guest cannot starve independent project completions. It makes no
@@ -61,14 +75,11 @@ func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) er
 	if err != nil {
 		return err
 	}
-	operationCancelled := false
-	for _, op := range run.Operations {
-		if op.ID == identity.AttemptID && op.ChildID == identity.OperationID && op.Status == "cancelled" {
-			operationCancelled = true
-			break
-		}
-	}
-	if run.State == "cancelled" || operationCancelled || current.CancelRequested {
+	// Controller CancelRequested also records normal VM retirement after a
+	// finished capture. Only the authoritative product run/operation can
+	// classify this task as cancelled; otherwise a lost handoff response
+	// would turn valid retained output into a false cancellation.
+	if cloudProductTaskCancelled(run, current) {
 		for _, op := range run.Operations {
 			if op.ID == identity.AttemptID && op.ChildID == identity.OperationID && op.Status == "cancelled" && current.State == e2bbe.Absent && !current.ResourcesHeld {
 				return nil
@@ -111,6 +122,17 @@ func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) er
 		defer os.RemoveAll(staging)
 		current, _, err = cloud.Runtime.Finish(ctx, identity.OperationID, cloud.attachToken(current.Request), staging)
 		if err != nil {
+			// Source review and current authority are separate from ownership.
+			// Once the exact native exit and off-host archive are durable, a
+			// refusal must not strand a billable VM. The captured result remains
+			// unaccepted and available for later authorized recovery.
+			if current.Capture.ArchiveSHA256 != "" {
+				if settled, settleErr := cloud.Runtime.RetireCaptured(ctx, current); settleErr != nil {
+					return settleErr
+				} else if settled.State != e2bbe.Absent || settled.ResourcesHeld {
+					return e2bbe.ErrUnknown
+				}
+			}
 			return err
 		}
 	}
