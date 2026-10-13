@@ -17,7 +17,24 @@ const coordinationFileLimit = 8 << 20
 const teamIntentProjectionLimit = 8
 const teamIntentTextLimit = 512
 const teamIntentPathLimit = 12
+const teamIntentPathBytes = 200
 const teamIntentConflictLimit = 16
+
+func teamIntentPaths(paths []string) ([]string, int) {
+	omitted := 0
+	if len(paths) > teamIntentPathLimit {
+		omitted = len(paths) - teamIntentPathLimit
+		paths = paths[:teamIntentPathLimit]
+	}
+	out := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if len(path) > teamIntentPathBytes {
+			path = strings.ToValidUTF8(path[:teamIntentPathBytes], "")
+		}
+		out = append(out, path)
+	}
+	return out, omitted
+}
 
 // The conversation can see a bounded summary of verified pending team
 // requests. It never promotes proposals to canonical context or hides the
@@ -41,13 +58,10 @@ func teamIntentProjection(saved coordinationLedger) *OrchestratorTeamIntents {
 		if len(change) > teamIntentTextLimit {
 			change = change[:teamIntentTextLimit]
 		}
-		paths := intent.ChangedPaths
-		if len(paths) > teamIntentPathLimit {
-			paths = paths[:teamIntentPathLimit]
-		}
+		paths, omitted := teamIntentPaths(intent.ChangedPaths)
 		out.Recent = append(out.Recent, OrchestratorTeamIntent{
 			ID: intent.ID, Actor: intent.Actor.DisplayName, Target: intent.Target,
-			RequestedChange: change, ChangedPaths: append([]string{}, paths...),
+			RequestedChange: strings.ToValidUTF8(change, ""), ChangedPaths: paths, PathsOmitted: omitted,
 			DependsOn: append([]string{}, intent.DependsOn...),
 		})
 	}

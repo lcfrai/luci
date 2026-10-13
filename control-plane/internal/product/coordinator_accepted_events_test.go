@@ -162,6 +162,90 @@ func TestCoordinatorSavedDraftContinuesWithoutBrowserAndDoesNotReplayAfterRestar
 	}
 }
 
+func TestCoordinatorTwoPersonalLucisApplyCompatiblePlanIntentsWithoutBrowser(t *testing.T) {
+	s, p, h, aliceContext, req, _ := coordinatorContinuationFixture(t)
+	anchor := coordinatorReadyFixture(t, s, p, aliceContext, req)
+	s.mu.Lock()
+	alice, err := s.readContinuations(p, "alice")
+	if err == nil {
+		alice.Rows[0].Status = "blocked"
+		alice.SavedRoute = &CoordinatorSavedRoute{Revision: 1, Route: coordinatorRoute(req.Run), MaxParallel: 1, UpdatedAt: anchor.CreatedAt}
+		err = s.saveContinuations(alice)
+	}
+	if err == nil {
+		bob, readErr := s.readContinuations(p, "bob")
+		err = readErr
+		if err == nil {
+			seed := anchor
+			seed.Actor.ID, seed.Actor.DisplayName = "bob", "Bob"
+			seed.ExecutionActor.UserID = "bob"
+			seed.Status = "blocked"
+			bob.Rows = append(bob.Rows, seed)
+			bob.SavedRoute = &CoordinatorSavedRoute{Revision: 1, Route: coordinatorRoute(req.Run), MaxParallel: 1, UpdatedAt: anchor.CreatedAt}
+			err = s.saveContinuations(bob)
+		}
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	coordinatorSavePolicy(t, h, p.ID, req.ExpectedPolicyRevision, "auto-drafts", []string{"plan"})
+	bobContext := orchestratorActor(t, "bob")
+	a, base := reserveOrchestratorTest(t, s, p.ID, aliceContext, "Improve the task acceptance", "")
+	first := base.Plan
+	first.Tasks[0].Acceptance = "The revised result is independently checked."
+	firstAnswer := OrchestratorAnswer{Summary: "Compatible task change", Options: []string{}, Impact: []string{}, Proposal: &OrchestratorProposal{Target: "plan", Summary: "Revise one task field", Plan: &first}}
+	if err := s.CompleteOrchestratorTurn(p.ID, a.ID, a.JobID, "succeeded", &firstAnswer); err != nil {
+		t.Fatal(err)
+	}
+	b, peerBase := reserveOrchestratorTest(t, s, p.ID, bobContext, "Add a separate implementation task", "")
+	second := peerBase.Plan
+	second.Tasks = append(second.Tasks, ProjectTask{ID: "task-new", Title: "Verify a second saved-work path", Status: "todo", RequirementIDs: []string{"AC-save"}})
+	secondAnswer := OrchestratorAnswer{Summary: "Compatible task change", Options: []string{}, Impact: []string{}, Proposal: &OrchestratorProposal{Target: "plan", Summary: "Revise one task field", Plan: &second}}
+	if err := s.CompleteOrchestratorTurn(p.ID, b.ID, b.JobID, "succeeded", &secondAnswer); err != nil {
+		t.Fatal(err)
+	}
+	s.coordinatorBackground.authorize = func(ctx context.Context, ref management.ExecutionActorRef, harness string, secrets bool) (context.Context, error) {
+		if (ref.UserID != "alice" && ref.UserID != "bob") || harness != "codex" || !secrets {
+			return nil, errCoordinatorAuthority
+		}
+		return management.WithExecutionAuthority(ctx, management.ExecutionAuthority{Actor: management.User{ID: ref.UserID, Role: "member"}}), nil
+	}
+	for i := 0; i < 6; i++ {
+		if err := s.RunCoordinatorOnce(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	view, err := s.OrchestratorView(aliceContext, p.ID, 0)
+	if err != nil || view.Context.Plan.Tasks[0].Acceptance != first.Tasks[0].Acceptance || len(view.Context.Plan.Tasks) != 2 || view.Context.Plan.Tasks[1].ID != "task-new" {
+		t.Fatalf("compatible teammate edits did not reconcile: tasks=%v err=%v", view.Context.Plan.Tasks, err)
+	}
+	for _, id := range []string{a.ID, b.ID} {
+		turn, err := s.OrchestratorTurn(p.ID, id)
+		if err != nil || turn.AppliedRevision == 0 {
+			t.Fatalf("teammate intent was not accepted: %s %v", id, err)
+		}
+	}
+	accepted := 0
+	for _, actor := range []string{"alice", "bob"} {
+		rows, err := s.readContinuations(p, actor)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, row := range rows.Rows {
+			if len(row.AcceptedEvents) > 0 {
+				accepted++
+				if len(row.AcceptedEvents) != 2 || len(row.Run.ImplementationContext.TaskIDs) != 2 {
+					t.Fatalf("team changes did not select both affected tasks: %+v", row)
+				}
+			}
+		}
+	}
+	if accepted != 1 {
+		t.Fatalf("expected one shared continuation for both accepted intents, got %d", accepted)
+	}
+}
+
 func TestCoordinatorAcceptedEventPreservesUnrelatedDirtySource(t *testing.T) {
 	s, p, _, ctx, req, _ := coordinatorContinuationFixture(t)
 	anchor := coordinatorReadyFixture(t, s, p, ctx, req)

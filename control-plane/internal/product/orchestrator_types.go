@@ -53,16 +53,25 @@ type OrchestratorTeamIntent struct {
 	Target          string   `json:"target"`
 	RequestedChange string   `json:"requestedChange"`
 	ChangedPaths    []string `json:"changedPaths"`
+	PathsOmitted    int      `json:"pathsOmitted"`
 	DependsOn       []string `json:"dependsOn"`
 }
 
+type OrchestratorTeamConflict struct {
+	IntentID      string   `json:"intentId"`
+	OtherIntentID string   `json:"otherIntentId,omitempty"`
+	Reason        string   `json:"reason"`
+	Paths         []string `json:"paths"`
+	PathsOmitted  int      `json:"pathsOmitted"`
+}
+
 type OrchestratorTeamIntents struct {
-	Revision         int                      `json:"revision"`
-	Pending          int                      `json:"pending"`
-	Omitted          int                      `json:"omitted"`
-	Recent           []OrchestratorTeamIntent `json:"recent"`
-	Conflicts        []CoordinationConflict   `json:"conflicts"`
-	ConflictsOmitted int                      `json:"conflictsOmitted"`
+	Revision         int                        `json:"revision"`
+	Pending          int                        `json:"pending"`
+	Omitted          int                        `json:"omitted"`
+	Recent           []OrchestratorTeamIntent   `json:"recent"`
+	Conflicts        []OrchestratorTeamConflict `json:"conflicts"`
+	ConflictsOmitted int                        `json:"conflictsOmitted"`
 }
 
 type OrchestratorContext struct {

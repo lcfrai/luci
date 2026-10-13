@@ -212,7 +212,11 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 			value.TeamIntents.ConflictsOmitted = len(conflicts) - teamIntentConflictLimit
 			conflicts = conflicts[:teamIntentConflictLimit]
 		}
-		value.TeamIntents.Conflicts = conflicts
+		value.TeamIntents.Conflicts = make([]OrchestratorTeamConflict, 0, len(conflicts))
+		for _, conflict := range conflicts {
+			paths, omitted := teamIntentPaths(conflict.Paths)
+			value.TeamIntents.Conflicts = append(value.TeamIntents.Conflicts, OrchestratorTeamConflict{IntentID: conflict.IntentID, OtherIntentID: conflict.OtherIntentID, Reason: conflict.Reason, Paths: paths, PathsOmitted: omitted})
+		}
 	}
 	readCtx, cancel := context.WithTimeout(context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir), 3*time.Second)
 	defer cancel()
