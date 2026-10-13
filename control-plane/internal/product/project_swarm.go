@@ -479,6 +479,11 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 		if op.Allocation != "ready" || op.Status == "reserved" || op.LaunchRecovery != nil || projectRunOperationTerminal(op.Status) {
 			continue
 		}
+		if op.TaskID != "" && run.Input.Route.ExecutionLocation == "cloud-microvm" {
+			// Cloud observation has its own exact VM/native-exit guard. A missing
+			// Docker registry child must not downgrade a cloud task to unknown.
+			continue
+		}
 		children, err := s.projectRunSessionObserver(ctx, run.ProjectID, run.ID, op.ID)
 		if err != nil {
 			return run, err
@@ -492,7 +497,7 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 	for _, task := range run.Swarm.Tasks {
 		// Only private, exact stopped output is collected; failures leave the
 		// report visibly unrecorded and never alter process/capacity evidence.
-		if op := swarmOperation(&run, task.OperationID); op != nil && op.Handoff == nil && op.StartFailure.IsZero() && projectRunOperationTerminal(op.Status) && op.Allocation == "ready" && s.taskHandoffCollector != nil {
+		if op := swarmOperation(&run, task.OperationID); op != nil && op.Handoff == nil && op.StartFailure.IsZero() && projectRunOperationTerminal(op.Status) && op.Allocation == "ready" && s.taskHandoffCollector != nil && run.Input.Route.ExecutionLocation != "cloud-microvm" {
 			if captured, captureErr := s.captureTaskHandoff(ctx, path, run, op.ID, false, false); captureErr == nil {
 				run = captured
 			}

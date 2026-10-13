@@ -45,6 +45,9 @@ type SwarmSchedulerRuntime struct {
 	Admit        func(context.Context, SwarmAdmissionRequest) (SwarmAdmissionResult, error)
 	Dispatch     func(context.Context, SwarmDispatchRequest) (SwarmDispatchResult, error)
 	Release      func(context.Context, string) error
+	// CloudRetired proves exact per-task VM absence before a cloud attempt can
+	// become terminal and release its scheduler slot. Nil refuses cloud release.
+	CloudRetired func(context.Context, string, string, string, string) (bool, error)
 	// Resources returns an already-observed, credential-free runtime snapshot.
 	// A read must not sample the host, reserve capacity, or reconcile children.
 	Resources func(context.Context) any

@@ -15,9 +15,13 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
-func schedulerFixture(t *testing.T) (*Server, *http.ServeMux, ProjectRun, string, *bool, *int, map[string]registry.Session) {
+func schedulerFixture(t *testing.T, cloud ...bool) (*Server, *http.ServeMux, ProjectRun, string, *bool, *int, map[string]registry.Session) {
 	t.Helper()
-	s, mux, p, run, base, selection := swarmHTTPFixture(t)
+	location := ""
+	if len(cloud) > 0 && cloud[0] {
+		location = "cloud-microvm"
+	}
+	s, mux, p, run, base, selection := swarmHTTPFixtureWithLocation(t, location)
 	s.registerSwarmScheduler(mux)
 	admitted := false
 	starts := 0
@@ -159,6 +163,60 @@ func TestSwarmSchedulerPressurePrecedesCloneAndBatchConsentIsAtomic(t *testing.T
 		if item.TaskID == "task-c" && item.State != "queued" {
 			t.Fatal("process exit released dependency without integration")
 		}
+	}
+}
+
+func TestCloudSwarmKeepsSchedulerSlotUntilExactMicroVMRetirement(t *testing.T) {
+	s, mux, run, base, admitted, starts, _ := schedulerFixture(t, true)
+	*admitted = true
+	p, err := s.resolveProject(run.ProjectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.swarmScheduler.mu.Lock()
+	ledger, err := s.readSwarmScheduler()
+	if err == nil {
+		ledger.Policy.MaxActive, ledger.Policy.MaxPerProject = 1, 1
+		err = s.saveSwarmScheduler(&ledger)
+	}
+	s.swarmScheduler.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	retired := false
+	s.swarmScheduler.runtime.CloudRetired = func(_ context.Context, projectID, runID, operationID, childID string) (bool, error) {
+		if projectID != run.ProjectID || runID != run.ID || operationID == "" || childID == "" {
+			t.Fatal("retirement checked another cloud allocation")
+		}
+		return retired, nil
+	}
+	s.projectRunSessionObserver = func(context.Context, string, string, string) ([]registry.Session, error) {
+		t.Fatal("cloud task was observed through the local Docker registry")
+		return nil, nil
+	}
+	enqueueSchedulerFixture(t, mux, run, base, []string{"task-a", "task-b"})
+	if err = s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 1 {
+		t.Fatal("first cloud task was not dispatched exactly once", err, *starts)
+	}
+	current, err := s.GetProjectSwarmRun(run.ProjectID, run.ID)
+	if err != nil || len(current.Operations) != 1 {
+		t.Fatal(err, current.Operations)
+	}
+	op := current.Operations[0]
+	_, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, current.Revision, op.ID, op.ChildID, "review-required", "exact cloud native exit retained")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 1 {
+		t.Fatal("uncertain cloud retirement released the next slot", err, *starts)
+	}
+	snapshot, err := s.ProjectSwarmQueueSnapshot(p.ID)
+	if err != nil || snapshot.Counts.Unknown != 1 || snapshot.Counts.Queued != 1 {
+		t.Fatal("retirement uncertainty was not durable", snapshot, err)
+	}
+	retired = true
+	if err = s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 2 {
+		t.Fatal("confirmed cloud absence did not release the next task", err, *starts)
 	}
 }
 func TestSwarmSchedulerInterruptedLaunchReopensWithoutReplay(t *testing.T) {

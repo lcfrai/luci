@@ -98,6 +98,26 @@ func TestProjectRunHTTPCreateReplayReadOnlyAndStaleSelections(t *testing.T) {
 	}
 }
 
+func TestProjectRunCloudMicroVMPlacementNeverFallsBackToLocalDocker(t *testing.T) {
+	s, mux, p, req, selected, _ := projectRunHTTPFixture(t)
+	base := "/v1/product/projects/" + p.ID + "/runs"
+	req.ExecutionLocation, req.PermissionMode = "cloud-microvm", "bypass"
+	selected.PermissionMode = "bypass"
+	journeyRequest(t, mux, "POST", base, req, 503)
+	if rows, err := s.projectRuns.List(p.ID, p.Path); err != nil || len(rows) != 0 {
+		t.Fatal("unconfigured cloud placement created a local run", rows, err)
+	}
+	s.SetCloudMicroVMAvailability(func() bool { return true })
+	run := projectRunHTTPResponse(t, journeyRequest(t, mux, "POST", base, req, 201))
+	if run.Input.Route.ExecutionLocation != "cloud-microvm" || run.Input.Route.PermissionMode != "bypass" {
+		t.Fatal("explicit cloud placement was lost", run.Input.Route)
+	}
+	replay := projectRunHTTPResponse(t, journeyRequest(t, mux, "POST", base, req, 200))
+	if replay.ID != run.ID || replay.Input.Route.ExecutionLocation != run.Input.Route.ExecutionLocation {
+		t.Fatal("cloud route replay changed placement", replay)
+	}
+}
+
 func TestProjectRunHTTPUnknownChildrenNeverReplayOrVerifyTasks(t *testing.T) {
 	s, mux, p, req, _, _ := projectRunHTTPFixture(t)
 	base := "/v1/product/projects/" + p.ID + "/runs"

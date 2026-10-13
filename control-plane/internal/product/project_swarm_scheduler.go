@@ -489,7 +489,7 @@ func (s *Server) reconcileQueuedSwarm(ctx context.Context, item swarmQueueRecord
 			return nil
 		})
 	}
-	if s.projectRunSessionObserver != nil && !projectRunOperationTerminal(op.Status) {
+	if run.Input.Route.ExecutionLocation != "cloud-microvm" && s.projectRunSessionObserver != nil && !projectRunOperationTerminal(op.Status) {
 		s.projectRunDispatchMu.Lock()
 		run, err = s.observeProjectSwarm(ctx, p.Path, run)
 		s.projectRunDispatchMu.Unlock()
@@ -517,6 +517,15 @@ func (s *Server) reconcileQueuedSwarm(ctx context.Context, item swarmQueueRecord
 		}
 	case "cancelled":
 		state, code, reason = "cancelled", "attempt_retired", "The attempt was retired. Retained work remains available."
+	}
+	if run.Input.Route.ExecutionLocation == "cloud-microvm" && projectRunOperationTerminal(op.Status) {
+		if runtime.CloudRetired == nil {
+			return s.schedulerSetReason(item.ID, "unknown", "microvm_retirement_unavailable", "The cloud task's exact VM retirement cannot be verified. Its scheduler slot remains held.")
+		}
+		retired, retireErr := runtime.CloudRetired(ctx, item.ProjectID, item.RunID, op.ID, op.ChildID)
+		if retireErr != nil || !retired {
+			return s.schedulerSetReason(item.ID, "unknown", "microvm_retirement_pending", "The cloud task's exact VM remains live or uncertain. Its scheduler slot stays held until confirmed absence.")
+		}
 	}
 	if swarmQueueTerminal(state) {
 		if err = s.releaseQueueLease(ctx, item.ID, runtime); err != nil {

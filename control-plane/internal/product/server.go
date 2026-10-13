@@ -73,6 +73,7 @@ type Server struct {
 	projectSwarmCheckpointAuthorize func(context.Context, ProjectSwarmRecoveryRequest) error
 	projectSwarmCheckpointGuard     func(context.Context, ProjectSwarmRecoveryRequest) (func(), error)
 	projectSwarmMicroVMImportGuard  func(context.Context, ProjectSwarmMicroVMImportScope) (func(), error)
+	cloudMicroVMAvailable           func() bool
 	taskHandoffAuthorize            func(context.Context, ProjectSwarmRecoveryRequest) error
 	taskHandoffCollector            func(context.Context, TaskHandoffCaptureRequest) (TaskHandoffCapture, error)
 	projectSwarmPendingLaunch       func(context.Context, string, string, string, string) (bool, error)

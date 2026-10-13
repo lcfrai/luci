@@ -14,8 +14,15 @@ import (
 )
 
 func swarmHTTPFixture(t *testing.T, taskOverrides ...ProjectTask) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
+	return swarmHTTPFixtureWithLocation(t, "", taskOverrides...)
+}
+func swarmHTTPFixtureWithLocation(t *testing.T, location string, taskOverrides ...ProjectTask) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
 	t.Helper()
 	s, mux, p, req, selected, _ := projectRunHTTPFixture(t)
+	if location == "cloud-microvm" {
+		s.SetCloudMicroVMAvailability(func() bool { return true })
+		req.ExecutionLocation = location
+	}
 	// This product-only fixture has no external execution lease ledger.
 	s.SetProjectSwarmPendingLaunch(func(context.Context, string, string, string, string) (bool, error) { return false, nil })
 	// Autonomous workers use only an explicitly saved supported permission;

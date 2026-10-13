@@ -223,6 +223,7 @@ type projectRunCreateRequest struct {
 	Model                 string                       `json:"model"`
 	PermissionMode        string                       `json:"permissionMode"`
 	Effort                string                       `json:"effort,omitempty"`
+	ExecutionLocation     string                       `json:"executionLocation,omitempty"`
 	AgentConnectionID     *string                      `json:"agentConnectionId,omitempty"`
 	Outcome               string                       `json:"outcome"`
 	ImplementationContext ImplementationContextRequest `json:"implementationContext"`
@@ -239,6 +240,10 @@ func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
 	}
 	req.WorktreeID, req.Harness, req.Model = strings.TrimSpace(req.WorktreeID), strings.TrimSpace(req.Harness), strings.TrimSpace(req.Model)
 	req.PermissionMode, req.Effort = strings.TrimSpace(req.PermissionMode), strings.TrimSpace(req.Effort)
+	req.ExecutionLocation = strings.TrimSpace(req.ExecutionLocation)
+	if req.ExecutionLocation == "local-docker" {
+		req.ExecutionLocation = "" // preserve the historical local route digest
+	}
 	if req.Harness == "" {
 		req.Harness = "claude-code"
 	}
@@ -248,6 +253,20 @@ func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
 	if !validRunKey(req.IdempotencyKey) || req.WorktreeID == "" || req.ImplementationContext.ProjectID != p.ID || (req.Outcome != "preview" && req.Outcome != "publish") {
 		journeyError(w, http.StatusBadRequest, "invalid_project_run", "Choose this project's saved tasks, worktree, intended outcome and a fresh request key.")
 		return
+	}
+	if req.ExecutionLocation != "" && req.ExecutionLocation != "cloud-microvm" {
+		journeyError(w, http.StatusBadRequest, "invalid_execution_location", "Choose local Docker or a configured cloud microVM for this reviewed run.")
+		return
+	}
+	if req.ExecutionLocation == "cloud-microvm" {
+		if req.PermissionMode != "bypass" || req.Harness != "codex" && req.Harness != "claude-code" {
+			journeyError(w, http.StatusBadRequest, "unsupported_cloud_harness", "Cloud microVM tasks currently require an explicit noninteractive Codex or Claude Code run.")
+			return
+		}
+		if s.cloudMicroVMAvailable == nil || !s.cloudMicroVMAvailable() {
+			journeyError(w, http.StatusServiceUnavailable, "cloud_microvm_unavailable", "A verified cloud microVM execution service is not configured for this workspace.")
+			return
+		}
 	}
 	// Normalize unordered task selection, never trust a digest from the client.
 	sort.Strings(req.ImplementationContext.TaskIDs)
@@ -308,7 +327,7 @@ func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
 		projectRunProblem(w, err)
 		return
 	}
-	input := ProjectRunInput{Implementation: *implementation, Approvals: approvals, Route: ProjectRunRoute{Harness: selected.Harness, Model: selected.Model, PermissionMode: selected.PermissionMode, Effort: selected.Effort, Connection: selected.Connection}, Outcome: req.Outcome, Requirements: binding.RequirementSnapshots}
+	input := ProjectRunInput{Implementation: *implementation, Approvals: approvals, Route: ProjectRunRoute{Harness: selected.Harness, Model: selected.Model, PermissionMode: selected.PermissionMode, Effort: selected.Effort, ExecutionLocation: req.ExecutionLocation, Connection: selected.Connection}, Outcome: req.Outcome, Requirements: binding.RequirementSnapshots}
 	run, created, err := s.projectRuns.Create(p.ID, p.Path, key, input, selected.CodexConnectionID, digest)
 	if err != nil {
 		projectRunProblem(w, err)

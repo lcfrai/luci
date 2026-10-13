@@ -35,11 +35,12 @@ var (
 )
 
 type ProjectRunRoute struct {
-	Harness        string                 `json:"harness"`
-	Model          string                 `json:"model"`
-	PermissionMode string                 `json:"permissionMode"`
-	Effort         string                 `json:"effort,omitempty"`
-	Connection     AgentConnectionReceipt `json:"connection"`
+	Harness           string                 `json:"harness"`
+	Model             string                 `json:"model"`
+	PermissionMode    string                 `json:"permissionMode"`
+	Effort            string                 `json:"effort,omitempty"`
+	ExecutionLocation string                 `json:"executionLocation,omitempty"`
+	Connection        AgentConnectionReceipt `json:"connection"`
 }
 
 // ProjectRunInput is constructed by admission code, never decoded from a client.
@@ -568,7 +569,9 @@ func validateRunInput(projectID string, in ProjectRunInput) error {
 	if c.BriefDigest != in.Approvals.BriefDigest || c.SpecificationRevision != in.Approvals.SpecificationRevision || c.SpecificationDigest != in.Approvals.SpecificationDigest || c.DesignPlanRevision != in.Approvals.DesignRevision || c.DesignPlanDigest != in.Approvals.DesignDigest {
 		return ErrProjectRunInvalid
 	}
-	if !validConnectionToken(in.Route.Harness, 128, false) || !validConnectionToken(in.Route.Model, 256, false) || (in.Route.PermissionMode != "ask" && in.Route.PermissionMode != "plan" && in.Route.PermissionMode != "bypass") {
+	if !validConnectionToken(in.Route.Harness, 128, false) || !validConnectionToken(in.Route.Model, 256, false) || (in.Route.PermissionMode != "ask" && in.Route.PermissionMode != "plan" && in.Route.PermissionMode != "bypass") ||
+		(in.Route.ExecutionLocation != "" && in.Route.ExecutionLocation != "cloud-microvm") ||
+		(in.Route.ExecutionLocation == "cloud-microvm" && (in.Route.PermissionMode != "bypass" || in.Route.Harness != "codex" && in.Route.Harness != "claude-code")) {
 		return ErrProjectRunInvalid
 	}
 	if len(in.Route.Connection.ID) > 128 || len(in.Route.Connection.Endpoint) > 2048 || len(in.Route.Connection.Kind) > 128 || len(in.Route.Connection.Protocol) > 128 || len(in.Route.Connection.AuthMode) > 128 || in.Route.Connection.Revision < 0 {
