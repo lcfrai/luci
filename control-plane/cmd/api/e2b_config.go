@@ -75,6 +75,18 @@ func validE2BOriginTemplate(value string) bool {
 		u.Port() != "5008" && (u.Path == "" || u.Path == "/") && u.RawQuery == "" && u.Fragment == ""
 }
 
+// These effects inspect or retire an already owned attempt. They never
+// authorize a new VM, upload fresh input, start an upstream agent or import
+// source. Revoking a project grant must not make prior evidence or VM cleanup
+// impossible; exact queue/attempt ownership is still required below.
+func cloudOwnershipOnlyEffect(action string) bool {
+	switch action {
+	case "cancel", "observe", "guest-transport", "observe-launch", "observe-native-exit", "capture-output", "review-output":
+		return true
+	}
+	return false
+}
+
 // openE2BTaskRuntime refuses an unconfigured or unverified cloud capability.
 // The artifact store must be on the durable controller host, not on the
 // replaceable Embed runtime host. The signed separation/restore receipts and
@@ -138,17 +150,19 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 			return management.ErrExecutionAuthority
 		}
 		scope := product.ProjectSwarmMicroVMImportScope{ProjectID: i.ProjectID, RunID: i.RunID, OperationID: i.AttemptID, ChildID: i.OperationID, OwnerID: i.OwnerID}
-		if action == "cancel" {
-			// Exact owned retirement remains possible after a project grant is
-			// revoked. It cannot start work or accept returned source.
+		if cloudOwnershipOnlyEffect(action) {
+			// A completed or revoked attempt must remain observable and
+			// removable. All provider and guest operations still validate the
+			// immutable launch/attempt; product source import reauthorizes.
 			_, err := projects.CloudSwarmCleanupOwner(scope)
 			return err
 		}
-		if action == "allocate" || action == "stage-input" || action == "start" {
-			enabled, enabledErr := projects.SwarmSchedulerDispatchEnabled()
-			if enabledErr != nil || !enabled {
-				return management.ErrExecutionAuthority
-			}
+		if action != "allocate" && action != "stage-input" && action != "start" {
+			return management.ErrExecutionAuthority
+		}
+		enabled, enabledErr := projects.SwarmSchedulerDispatchEnabled()
+		if enabledErr != nil || !enabled {
+			return management.ErrExecutionAuthority
 		}
 		actor, err := projects.CloudSwarmQueueOwner(scope)
 		if err != nil {

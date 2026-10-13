@@ -44,3 +44,16 @@ func TestCloudOperatorConfigRejectsPublicLinkedAndUntrustedOrigins(t *testing.T)
 		}
 	}
 }
+
+func TestCloudRevocationRetainsOnlyExactOwnedObservationAndCleanupEffects(t *testing.T) {
+	for _, action := range []string{"cancel", "observe", "guest-transport", "observe-launch", "observe-native-exit", "capture-output", "review-output"} {
+		if !cloudOwnershipOnlyEffect(action) {
+			t.Fatalf("prior owned attempt cannot be settled after revocation: %s", action)
+		}
+	}
+	for _, action := range []string{"allocate", "stage-input", "start", "import-source", "", "deploy"} {
+		if cloudOwnershipOnlyEffect(action) {
+			t.Fatalf("new or unrecognized effect inherited cleanup authority: %s", action)
+		}
+	}
+}
