@@ -127,6 +127,10 @@ type Record struct {
 	// A lost acknowledgement can be resolved only by exact output readback.
 	CaptureRequested bool           `json:"captureRequested,omitempty"`
 	Capture          CaptureReceipt `json:"capture,omitzero"`
+	// ProductOutcome is recorded only after the authoritative project run has
+	// joined this absent VM. It lets the observer skip settled historical rows;
+	// it is not provider billing settlement or source integration approval.
+	ProductOutcome string `json:"productOutcome,omitempty"`
 }
 
 // Checkpoint supplies an exclusive fenced journal writer. Production wiring

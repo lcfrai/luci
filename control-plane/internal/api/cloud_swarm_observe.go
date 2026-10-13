@@ -23,6 +23,18 @@ func cloudProductTaskCancelled(run product.ProjectRun, record e2bbe.Record) bool
 	return false
 }
 
+func cloudObservationCandidates(rows []e2bbe.Record) []e2bbe.Record {
+	active := make([]e2bbe.Record, 0, len(rows))
+	for _, row := range rows {
+		if row.Request.Identity.RunID != "" && row.Request.Identity.ProjectID != "" &&
+			(row.State == e2bbe.Creating || row.State == e2bbe.Allocated || row.State == e2bbe.Cancelling || row.State == e2bbe.Unknown ||
+				row.State == e2bbe.Absent && row.ProductOutcome == "") {
+			active = append(active, row)
+		}
+	}
+	return active
+}
+
 // observeCloudTaskCompletions rotates a bounded set of exact owned attempts.
 // One slow guest cannot starve independent project completions. It makes no
 // new VM or upstream Start request; the controller's durable one-shot markers
@@ -33,13 +45,7 @@ func (a *API) observeCloudTaskCompletions(ctx context.Context) error {
 		return nil
 	}
 	rows, _ := cloud.Runtime.Controller.Snapshot()
-	active := make([]e2bbe.Record, 0, len(rows))
-	for _, row := range rows {
-		if row.Request.Identity.RunID != "" && row.Request.Identity.ProjectID != "" &&
-			(row.State == e2bbe.Creating || row.State == e2bbe.Allocated || row.State == e2bbe.Cancelling || row.State == e2bbe.Unknown || row.State == e2bbe.Absent) {
-			active = append(active, row)
-		}
-	}
+	active := cloudObservationCandidates(rows)
 	if len(active) == 0 {
 		return nil
 	}
@@ -82,7 +88,8 @@ func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) er
 	if cloudProductTaskCancelled(run, current) {
 		for _, op := range run.Operations {
 			if op.ID == identity.AttemptID && op.ChildID == identity.OperationID && op.Status == "cancelled" && current.State == e2bbe.Absent && !current.ResourcesHeld {
-				return nil
+				_, err = cloud.Runtime.Controller.AcknowledgeProductOutcome(ctx, identity.OperationID, current.Revision, "cancelled")
+				return err
 			}
 		}
 		if current.State != e2bbe.Absent {
@@ -94,16 +101,23 @@ func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) er
 		if current.State != e2bbe.Absent || current.ResourcesHeld {
 			return e2bbe.ErrUnknown
 		}
-		_, err = a.deps.Product.RecordProjectSwarmMicroVMCancelled(ctx, identity.ProjectID, identity.RunID, identity.AttemptID, current)
+		if _, err = a.deps.Product.RecordProjectSwarmMicroVMCancelled(ctx, identity.ProjectID, identity.RunID, identity.AttemptID, current); err != nil {
+			return err
+		}
+		_, err = cloud.Runtime.Controller.AcknowledgeProductOutcome(ctx, identity.OperationID, current.Revision, "cancelled")
 		return err
 	}
 	for _, op := range run.Operations {
 		if op.ID == identity.AttemptID && op.ChildID == identity.OperationID && op.Handoff != nil && current.State == e2bbe.Absent && !current.ResourcesHeld {
-			return nil // a retained, exact handoff needs no repeated store read
+			_, err = cloud.Runtime.Controller.AcknowledgeProductOutcome(ctx, identity.OperationID, current.Revision, "handoff")
+			return err // a retained, exact handoff needs no repeated store read
 		}
 	}
 	if current.State == e2bbe.Absent && current.Capture.ArchiveSHA256 == "" {
-		_, err = a.deps.Product.RecordProjectSwarmMicroVMNoResult(ctx, identity.ProjectID, identity.RunID, identity.AttemptID, current)
+		if _, err = a.deps.Product.RecordProjectSwarmMicroVMNoResult(ctx, identity.ProjectID, identity.RunID, identity.AttemptID, current); err != nil {
+			return err
+		}
+		_, err = cloud.Runtime.Controller.AcknowledgeProductOutcome(ctx, identity.OperationID, current.Revision, "no-result")
 		return err // no native success or returned source is inferred from absence
 	}
 	if !current.LaunchRequested {
@@ -172,7 +186,10 @@ func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) er
 			if readErr != nil {
 				return readErr
 			}
-			_, readErr = a.deps.Product.RecordProjectSwarmMicroVMHandoff(ctx, identity.ProjectID, identity.RunID, identity.AttemptID, current, report)
+			if _, readErr = a.deps.Product.RecordProjectSwarmMicroVMHandoff(ctx, identity.ProjectID, identity.RunID, identity.AttemptID, current, report); readErr != nil {
+				return readErr
+			}
+			_, readErr = cloud.Runtime.Controller.AcknowledgeProductOutcome(ctx, identity.OperationID, current.Revision, "handoff")
 			return readErr
 		}
 	}
@@ -197,6 +214,9 @@ func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) er
 	if err != nil {
 		return err
 	}
-	_, err = a.deps.Product.RecordProjectSwarmMicroVMHandoff(ctx, identity.ProjectID, identity.RunID, identity.AttemptID, current, report)
+	if _, err = a.deps.Product.RecordProjectSwarmMicroVMHandoff(ctx, identity.ProjectID, identity.RunID, identity.AttemptID, current, report); err != nil {
+		return err
+	}
+	_, err = cloud.Runtime.Controller.AcknowledgeProductOutcome(ctx, identity.OperationID, current.Revision, "handoff")
 	return err
 }
