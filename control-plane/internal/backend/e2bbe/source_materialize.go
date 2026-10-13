@@ -82,6 +82,9 @@ func (s *DirectoryStore) MaterializeStoredReturnedSource(ctx context.Context, re
 		}
 		n, copyErr := io.CopyN(out, reader, file.Size)
 		if copyErr == nil {
+			copyErr = out.Chmod(os.FileMode(file.Mode))
+		}
+		if copyErr == nil {
 			copyErr = out.Sync()
 		}
 		closeErr := out.Close()

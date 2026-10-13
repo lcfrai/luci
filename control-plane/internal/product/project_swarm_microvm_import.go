@@ -1,0 +1,218 @@
+package product
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"io"
+	"os"
+	"runtime"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+)
+
+type ProjectSwarmMicroVMImportScope struct {
+	ProjectID, RunID, OperationID, ChildID, OwnerID, RequestDigest string
+}
+
+// SetProjectSwarmMicroVMImportGuard requires a current scoped authority lease
+// around source mutation. An unregistered cloud completion path cannot import.
+func (s *Server) SetProjectSwarmMicroVMImportGuard(guard func(context.Context, ProjectSwarmMicroVMImportScope) (func(), error)) {
+	s.projectRunDispatchMu.Lock()
+	defer s.projectRunDispatchMu.Unlock()
+	s.projectSwarmMicroVMImportGuard = guard
+}
+
+// ImportProjectSwarmMicroVMCandidate turns verified returned source into a
+// committed candidate in this operation's isolated Git worktree. It does not
+// integrate into primary, claim independent checks or approve a deployment.
+// The API must have established current actor authority and used the exact
+// controller-owned output store; the source lock/revision gates are repeated
+// here before any write. A partial local Git write is retained for inspection,
+// never replayed over a dirty worktree.
+func (s *Server) ImportProjectSwarmMicroVMCandidate(ctx context.Context, projectID, runID, operationID string, record e2bbe.Record, changes e2bbe.SourceChanges, staging string) (string, error) {
+	p, err := s.resolveProject(projectID)
+	if err != nil {
+		return "", err
+	}
+	guard := s.branchGuard(projectID)
+	if !guard.TryLock() {
+		return "", errors.New("Project source is busy; retain the cloud candidate for later review.")
+	}
+	defer guard.Unlock()
+	s.projectRunDispatchMu.Lock()
+	defer s.projectRunDispatchMu.Unlock()
+	if s.projectSwarmMicroVMImportGuard == nil {
+		return "", ErrProjectRunInvalid
+	}
+	scope := ProjectSwarmMicroVMImportScope{ProjectID: projectID, RunID: runID, OperationID: operationID, ChildID: record.Request.Identity.OperationID, OwnerID: record.Request.Identity.OwnerID, RequestDigest: record.RequestDigest}
+	release, err := s.projectSwarmMicroVMImportGuard(ctx, scope)
+	if err != nil || release == nil {
+		return "", ErrProjectRunConflict
+	}
+	defer release()
+	run, err := s.projectRuns.Get(projectID, p.Path, runID)
+	if err != nil {
+		return "", err
+	}
+	op := swarmOperation(&run, operationID)
+	if op == nil || op.Implementation == nil || op.Allocation != "ready" || op.Integration != nil || op.ChildID == "" {
+		return "", ErrProjectRunConflict
+	}
+	task := swarmTask(&run, op.TaskID)
+	if task == nil || task.OperationID != op.ID || task.Integration != nil || run.State == "cancelled" {
+		return "", ErrProjectRunConflict
+	}
+	if op.Status != "review-required" && op.Status != "failed" && op.Status != "succeeded" {
+		return "", ErrProjectRunConflict
+	}
+	req := record.Request
+	if req.Identity.ProjectID != projectID || req.Identity.TaskID != op.TaskID || req.Identity.AttemptID != op.ID || req.Identity.OperationID != op.ChildID ||
+		req.SourceDigest != implementationDigest(swarmStartingCommit(*op)) || req.ContextDigest != implementationDigest(op.Implementation) ||
+		!record.CaptureRequested || e2bbe.ValidateCaptureReceipt(record.Capture, record.LaunchKernel, record) != nil ||
+		e2bbe.ValidateNativeExitReceipt(record.NativeExit, record) != nil || changes.InputBundleSHA256 != req.BundleDigest ||
+		changes.SourceManifestSHA256 != record.Capture.SourceManifestSHA256 {
+		return "", ErrProjectRunConflict
+	}
+	changeBytes, err := json.Marshal(changes)
+	if err != nil || !sameMicroVMBytes(string(changeBytes), record.Capture.ChangeManifestSHA256) {
+		return "", ErrProjectRunConflict
+	}
+	if err = s.validateProjectSwarmReuseCurrent(ctx, p, run); err != nil {
+		return "", err
+	}
+	path, err := s.swarmPath(projectID, runID, operationID)
+	if err != nil || project.WorktreeID(path) != op.WorktreeID {
+		return "", ErrProjectRunInvalid
+	}
+	if err = s.validateSwarmTaskGit(ctx, path); err != nil {
+		return "", err
+	}
+	active, err := s.swarmWorktreeActive(ctx, projectID, op.WorktreeID)
+	if err != nil || active {
+		return "", errors.New("The task checkout still has a live or uncertain child; retain the cloud output until it is settled.")
+	}
+	base := swarmStartingCommit(*op)
+	source, err := s.captureGitReview(ctx, path, "")
+	if err != nil || source.Status != "" || source.Head != base {
+		return "", errors.New("The task checkout changed before cloud import. Preserve its bytes for explicit recovery.")
+	}
+	stageInfo, err := os.Lstat(staging)
+	if err != nil || !stageInfo.IsDir() || stageInfo.Mode()&os.ModeSymlink != 0 || runtime.GOOS != "windows" && stageInfo.Mode().Perm()&0077 != 0 {
+		return "", ErrProjectRunInvalid
+	}
+	root, err := os.OpenRoot(staging)
+	if err != nil {
+		return "", err
+	}
+	defer root.Close()
+	workerRoot, err := os.OpenRoot(path)
+	if err != nil {
+		return "", err
+	}
+	defer workerRoot.Close()
+	baseFiles, err := s.checkpointTree(ctx, path, base)
+	if err != nil {
+		return "", err
+	}
+	files := make([]ProjectSwarmCheckpointFile, 0, len(changes.Changes))
+	total := 0
+	for _, change := range changes.Changes {
+		if !safeSwarmWorkspacePath(change.Path) || blockedProjectFile(change.Path) || strings.EqualFold(change.Path, "LUCI.md") ||
+			!validProjectTaskWritePath(change.Path) || len(task.WritePaths) > 0 && !swarmPathAllowed(change.Path, task.WritePaths) {
+			return "", errors.New("The cloud candidate changes a protected or out-of-scope project path.")
+		}
+		file := ProjectSwarmCheckpointFile{Path: change.Path, Status: change.Kind}
+		prior, existed := baseFiles[change.Path]
+		if existed != (change.Before != nil) {
+			return "", errors.New("The cloud candidate's changed-path baseline differs from the assigned Git commit.")
+		}
+		if !existed {
+			current, openErr := openSwarmWorkspaceFile(workerRoot, change.Path)
+			if openErr == nil {
+				current.Close()
+				return "", errors.New("An untracked task file occupies the cloud candidate's new path.")
+			}
+			if !errors.Is(openErr, os.ErrNotExist) {
+				return "", openErr
+			}
+		}
+		if change.Before != nil {
+			if change.Before.Path != change.Path || change.Before.Size > swarmCheckpointFileLimit {
+				return "", ErrProjectRunInvalid
+			}
+			file.BeforeMode = gitMode(change.Before.Mode)
+			if prior.Mode != file.BeforeMode || prior.Size != change.Before.Size {
+				return "", errors.New("The cloud candidate's starting file mode or size changed.")
+			}
+			file.Before, err = s.swarmGit(ctx, path, "show", base+":"+change.Path)
+			if err != nil || int64(len(file.Before)) != change.Before.Size || !sameMicroVMBytes(file.Before, change.Before.SHA256) || !safeMicroVMText(file.Before) {
+				return "", errors.New("The cloud candidate's starting bytes no longer match its exact source bundle.")
+			}
+		}
+		if change.After != nil {
+			if change.After.Path != change.Path || change.After.Size > swarmCheckpointFileLimit {
+				return "", ErrProjectRunInvalid
+			}
+			file.AfterMode = gitMode(change.After.Mode)
+			var opened *os.File
+			opened, err = openSwarmWorkspaceFile(root, change.Path)
+			if err != nil {
+				return "", err
+			}
+			stageFileInfo, statErr := opened.Stat()
+			if statErr != nil || stageFileInfo.Mode().Perm() != os.FileMode(change.After.Mode) {
+				opened.Close()
+				return "", errors.New("The staged source mode differs from its verified manifest.")
+			}
+			body, readErr := io.ReadAll(io.LimitReader(opened, swarmCheckpointFileLimit+1))
+			closeErr := opened.Close()
+			if readErr != nil || closeErr != nil || int64(len(body)) != change.After.Size || !sameMicroVMBytes(string(body), change.After.SHA256) || !safeMicroVMText(string(body)) {
+				return "", errors.New("The staged cloud candidate changed after its verified capture.")
+			}
+			file.After = string(body)
+		}
+		if change.Before == nil && change.After == nil || change.Before != nil && change.After != nil && change.Kind != "modified" ||
+			change.Before == nil && change.Kind != "added" || change.After == nil && change.Kind != "deleted" ||
+			file.BeforeMode == "" && change.Before != nil || file.AfterMode == "" && change.After != nil {
+			return "", ErrProjectRunInvalid
+		}
+		total += len(file.Before) + len(file.After)
+		if total > swarmCheckpointTotalLimit || len(files) >= swarmCheckpointPathLimit {
+			return "", errors.New("The cloud candidate exceeds the complete review limit; split it into smaller scoped tasks.")
+		}
+		files = append(files, file)
+	}
+	if len(files) == 0 {
+		return "", errors.New("The cloud task returned no source changes to review.")
+	}
+	end, err := s.captureGitReview(ctx, path, "")
+	if err != nil || end.Digest != source.Digest {
+		return "", ErrProjectRunConflict
+	}
+	return s.applySwarmCheckpoint(ctx, path, base, files)
+}
+
+func gitMode(mode uint32) string {
+	switch mode {
+	case 0644:
+		return "100644"
+	case 0755:
+		return "100755"
+	}
+	return ""
+}
+
+func sameMicroVMBytes(body, expected string) bool {
+	hash := sha256.Sum256([]byte(body))
+	return hex.EncodeToString(hash[:]) == expected
+}
+
+func safeMicroVMText(body string) bool {
+	return utf8.ValidString(body) && !strings.ContainsRune(body, 0)
+}
