@@ -42,7 +42,7 @@ func newClient(c Config) (*providerClient, error) {
 	if !validToken(c.APIKey) {
 		return nil, ErrUnsupported
 	}
-	u, h, e := privateHTTP(c.Endpoint, c.RootCAs)
+	u, h, e := privateHTTP(c.Endpoint, c.RootCAs, c.ClientCertificate)
 	if e != nil {
 		return nil, e
 	}
@@ -62,7 +62,7 @@ func validToken(s string) bool {
 	}
 	return true
 }
-func privateHTTP(endpoint string, roots *x509.CertPool) (*url.URL, *http.Client, error) {
+func privateHTTP(endpoint string, roots *x509.CertPool, clientCertificate *tls.Certificate) (*url.URL, *http.Client, error) {
 	u, e := url.Parse(endpoint)
 	if e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") || u.Port() == "5008" {
 		return nil, nil, ErrUnsupported
@@ -73,6 +73,12 @@ func privateHTTP(endpoint string, roots *x509.CertPool) (*url.URL, *http.Client,
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
+	if clientCertificate != nil {
+		if len(clientCertificate.Certificate) == 0 || clientCertificate.PrivateKey == nil {
+			return nil, nil, ErrUnsupported
+		}
+		transport.TLSClientConfig.Certificates = []tls.Certificate{*clientCertificate}
+	}
 	transport.DialContext = privateDial
 	transport.MaxConnsPerHost = 8
 	transport.MaxIdleConnsPerHost = 4
@@ -218,6 +224,11 @@ func (c *Controller) VerifyNodeCapacity(ctx context.Context) error {
 }
 func metadata(r Record) map[string]string {
 	m := map[string]string{"luci.owner": r.Request.Identity.OwnerID, "luci.project": r.Request.Identity.ProjectID, "luci.task": r.Request.Identity.TaskID, "luci.attempt": r.Request.Identity.AttemptID, "luci.operation": r.Request.Identity.OperationID, "luci.request": r.RequestDigest, "luci.scope": r.Deployment.Scope, "luci.generation": r.Deployment.HostGeneration}
+	if r.Deployment.Provider == "azure" {
+		// One nonsecret digest ties readback to the exact configured Azure host,
+		// disk and gateway without exposing their ARM IDs to the guest.
+		m["luci.deployment"] = digest(r.Deployment)
+	}
 	if r.EgressDigest != "" {
 		m["luci.egress"] = r.EgressDigest
 	}

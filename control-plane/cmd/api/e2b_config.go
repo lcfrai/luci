@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
@@ -32,6 +33,8 @@ type e2bOperatorConfig struct {
 	HostNodeID                string            `json:"hostNodeId"`
 	AttachKeyFile             string            `json:"attachKeyFile"`
 	RootCAFile                string            `json:"rootCaFile,omitempty"`
+	ClientCertFile            string            `json:"clientCertFile,omitempty"`
+	ClientKeyFile             string            `json:"clientKeyFile,omitempty"`
 	ControllerStateDir        string            `json:"controllerStateDir"`
 	StagingDir                string            `json:"stagingDir"`
 	EnvdOriginTemplate        string            `json:"envdOriginTemplate"`
@@ -146,6 +149,10 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&selected) != nil || decoder.Decode(new(any)) != io.EOF ||
 		selected.Store.OwnerID == "" || selected.Store.RuntimeScope != selected.Deployment.Scope ||
+		selected.Deployment.Provider == "azure" && selected.Store.AzureDataDiskID != selected.Deployment.AzureDataDiskID ||
+		selected.Deployment.Provider != "azure" && selected.Store.AzureDataDiskID != "" ||
+		(selected.ClientCertFile == "") != (selected.ClientKeyFile == "") ||
+		selected.Deployment.Provider == "azure" && selected.ClientCertFile == "" ||
 		selected.Template.BuildID == "" || selected.HostNodeID == "" || selected.AdminAPIKeyFile == "" ||
 		selected.TaskMaxSeconds < 1 || selected.TaskMaxSeconds > selected.Limits.MaxTaskSeconds ||
 		selected.TaskEstimatedCostMicros < 1 || selected.TaskEstimatedCostMicros > selected.Limits.EstimatedCostMicros ||
@@ -189,6 +196,27 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		if !roots.AppendCertsFromPEM(pemBytes) {
 			return nil, nil, errors.New("cloud TLS root file has no valid certificate")
 		}
+	}
+	var clientCertificate *tls.Certificate
+	if selected.ClientCertFile != "" {
+		certPEM, certErr := readPrivateE2BFile(selected.ClientCertFile, 1<<20)
+		if certErr != nil {
+			return nil, nil, certErr
+		}
+		keyPEM, keyErr := readPrivateE2BFile(selected.ClientKeyFile, 1<<20)
+		if keyErr != nil {
+			return nil, nil, keyErr
+		}
+		cert, pairErr := tls.X509KeyPair(certPEM, keyPEM)
+		if pairErr != nil || len(cert.Certificate) == 0 {
+			return nil, nil, errors.New("cloud TLS client identity is invalid")
+		}
+		leaf, parseErr := x509.ParseCertificate(cert.Certificate[0])
+		if parseErr != nil || time.Now().Before(leaf.NotBefore) || !time.Now().Before(leaf.NotAfter) {
+			return nil, nil, errors.New("cloud TLS client identity is not currently valid")
+		}
+		cert.Leaf = leaf
+		clientCertificate = &cert
 	}
 	store, err := e2bbe.NewDirectoryStore(selected.Store)
 	if err != nil {
@@ -244,7 +272,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		}
 		return nil
 	}
-	controllerConfig := e2bbe.Config{Endpoint: selected.Endpoint, APIKey: strings.TrimSpace(string(apiKey)), AdminAPIKey: strings.TrimSpace(string(adminKey)), HostNodeID: selected.HostNodeID, RootCAs: roots,
+	controllerConfig := e2bbe.Config{Endpoint: selected.Endpoint, APIKey: strings.TrimSpace(string(apiKey)), AdminAPIKey: strings.TrimSpace(string(adminKey)), HostNodeID: selected.HostNodeID, RootCAs: roots, ClientCertificate: clientCertificate,
 		StateDir: selected.ControllerStateDir, OwnerID: selected.Store.OwnerID, Deployment: selected.Deployment,
 		Template: selected.Template, Limits: selected.Limits, EgressAllow: selected.ModelEgressDomains, Checkpoint: store, Authorize: authorizeEffect,
 		GuestOrigins: func(id string) (string, string, string, error) {

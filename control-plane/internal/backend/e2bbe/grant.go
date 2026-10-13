@@ -129,7 +129,7 @@ func (c *Controller) Guest(ctx context.Context, op string) (*GuestTransport, err
 	if e != nil || version != grant.EnvdVersion {
 		return nil, ErrUnsupported
 	}
-	g, e := NewGuestTransport(GuestConfig{Record: r, EnvdEndpoint: envd, SandboxEndpoint: sandbox, EnvdVersion: version, EnvdAccessToken: grant.EnvdAccessToken, TrafficAccessToken: grant.TrafficAccessToken, RootCAs: c.config.RootCAs, Authorize: c.config.Authorize, CurrentRecord: func(ctx context.Context, op string) (Record, error) {
+	g, e := NewGuestTransport(GuestConfig{Record: r, EnvdEndpoint: envd, SandboxEndpoint: sandbox, EnvdVersion: version, EnvdAccessToken: grant.EnvdAccessToken, TrafficAccessToken: grant.TrafficAccessToken, RootCAs: c.config.RootCAs, ClientCertificate: c.config.ClientCertificate, Authorize: c.config.Authorize, CurrentRecord: func(ctx context.Context, op string) (Record, error) {
 		if e := ctx.Err(); e != nil {
 			return Record{}, e
 		}

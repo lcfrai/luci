@@ -149,7 +149,7 @@ func newController(c Config, restored []byte, restoreContext context.Context) (*
 		return nil, ErrUnsupported
 	}
 	c.EgressAllow = append([]string{}, c.EgressAllow...)
-	if !validID(c.OwnerID) || !validID(c.Deployment.Scope) || !validID(c.Deployment.HostGeneration) || c.Deployment.Provider != "aws" || !supportedEmbedInstanceType(c.Deployment.InstanceType) || !validID(c.Deployment.Region) || c.Deployment.RuntimeRevision != RuntimeRevision || !digestPattern.MatchString(c.Deployment.ManagementReceiptDigest) || !digestPattern.MatchString(c.Deployment.RestoreReceiptDigest) || c.Checkpoint == nil || c.Authorize == nil {
+	if !validID(c.OwnerID) || !validDeployment(c) || c.Checkpoint == nil || c.Authorize == nil {
 		return nil, ErrUnsupported
 	}
 	if !validID(c.Template.ID) || c.Template.BuildID != "" && !validID(c.Template.BuildID) || !digestPattern.MatchString(c.Template.BuildDigest) || c.Template.MemoryMiB < 128 || c.Template.MemoryMiB > 32768 || c.Template.CPUMillis < 1000 || c.Template.CPUMillis > 16000 || c.Template.CPUMillis%1000 != 0 {

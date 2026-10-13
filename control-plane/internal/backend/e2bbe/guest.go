@@ -2,6 +2,7 @@ package e2bbe
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"io"
 	"net/http"
@@ -28,6 +29,7 @@ type GuestConfig struct {
 	EnvdAccessToken    string                                        `json:"-"`
 	TrafficAccessToken string                                        `json:"-"`
 	RootCAs            *x509.CertPool                                `json:"-"`
+	ClientCertificate  *tls.Certificate                              `json:"-"`
 	CurrentRecord      func(context.Context, string) (Record, error) `json:"-"`
 	Authorize          func(context.Context, Request, string) error  `json:"-"`
 }
@@ -53,11 +55,11 @@ func NewGuestTransport(cfg GuestConfig) (*GuestTransport, error) {
 	if !validRequest(cfg.Record.Request) || cfg.Record.RequestDigest != digest(cfg.Record.Request) || !validID(cfg.Record.SandboxID) || cfg.Record.State != Allocated || !cfg.Record.ResourcesHeld || cfg.Record.CancelRequested || cfg.Record.CreatedAt.IsZero() || cfg.EnvdVersion != EnvdVersion || !validToken(cfg.EnvdAccessToken) || !validToken(cfg.TrafficAccessToken) || cfg.CurrentRecord == nil || cfg.Authorize == nil {
 		return nil, ErrUnsupported
 	}
-	envd, files, e := privateHTTP(cfg.EnvdEndpoint, cfg.RootCAs)
+	envd, files, e := privateHTTP(cfg.EnvdEndpoint, cfg.RootCAs, cfg.ClientCertificate)
 	if e != nil {
 		return nil, e
 	}
-	sandbox, attach, e := privateHTTP(cfg.SandboxEndpoint, cfg.RootCAs)
+	sandbox, attach, e := privateHTTP(cfg.SandboxEndpoint, cfg.RootCAs, cfg.ClientCertificate)
 	if e != nil {
 		files.CloseIdleConnections()
 		return nil, e

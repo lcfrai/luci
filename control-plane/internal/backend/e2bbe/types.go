@@ -7,6 +7,7 @@ package e2bbe
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
@@ -69,6 +70,15 @@ type Deployment struct {
 	RuntimeRevision         string `json:"runtimeRevision"`
 	ManagementReceiptDigest string `json:"managementReceiptDigest"`
 	RestoreReceiptDigest    string `json:"restoreReceiptDigest"`
+	// Azure IDs are lowercase canonical ARM paths, bound to every task record.
+	// Empty on the historical AWS route so its journal bytes stay unchanged.
+	AzureSubscriptionID string `json:"azureSubscriptionId,omitempty"`
+	AzureResourceGroup  string `json:"azureResourceGroup,omitempty"`
+	AzureScaleSetID     string `json:"azureScaleSetId,omitempty"`
+	AzureInstanceID     string `json:"azureInstanceId,omitempty"`
+	AzureDataDiskID     string `json:"azureDataDiskId,omitempty"`
+	AzureZone           string `json:"azureZone,omitempty"`
+	AzureGatewayHost    string `json:"azureGatewayHost,omitempty"`
 }
 type Template struct {
 	ID          string `json:"id"`
@@ -160,8 +170,11 @@ type Config struct {
 	AdminAPIKey string
 	HostNodeID  string
 	RootCAs     *x509.CertPool // nil uses system roots; verification cannot be disabled
-	StateDir    string
-	OwnerID     string
+	// Azure's private gateway requires this client identity on API and guest
+	// traffic. The key is never written to a journal or task archive.
+	ClientCertificate *tls.Certificate
+	StateDir          string
+	OwnerID           string
 	// EgressAllow names exact operator-approved model endpoints. The provider
 	// still denies all other outbound IPv4 destinations for each fresh VM.
 	EgressAllow []string

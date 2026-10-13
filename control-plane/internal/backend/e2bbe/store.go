@@ -24,6 +24,7 @@ type StoreConfig struct {
 	ControllerHostID        string
 	RuntimeHostID           string
 	SeparationReceiptDigest string
+	AzureDataDiskID         string `json:"azureDataDiskId,omitempty"`
 	MaxBytes                int64
 	MaxObjects              int
 }
@@ -34,6 +35,7 @@ type storeIdentity struct {
 	ControllerHostID        string `json:"controllerHostId"`
 	RuntimeHostID           string `json:"runtimeHostId"`
 	SeparationReceiptDigest string `json:"separationReceiptDigest"`
+	AzureDataDiskID         string `json:"azureDataDiskId,omitempty"`
 }
 type storeHead struct {
 	Version       int    `json:"version"`
@@ -53,7 +55,7 @@ type DirectoryStore struct {
 }
 
 func NewDirectoryStore(cfg StoreConfig) (*DirectoryStore, error) {
-	if !validID(cfg.OwnerID) || !validID(cfg.RuntimeScope) || !validID(cfg.ControllerHostID) || !validID(cfg.RuntimeHostID) || cfg.ControllerHostID == cfg.RuntimeHostID || !digestPattern.MatchString(cfg.SeparationReceiptDigest) || cfg.MaxBytes < maxResponse || cfg.MaxBytes > 10<<30 || cfg.MaxObjects < 1 || cfg.MaxObjects > 65536 {
+	if !validID(cfg.OwnerID) || !validID(cfg.RuntimeScope) || !validID(cfg.ControllerHostID) || !validID(cfg.RuntimeHostID) || cfg.ControllerHostID == cfg.RuntimeHostID || !digestPattern.MatchString(cfg.SeparationReceiptDigest) || cfg.AzureDataDiskID != "" && !azureDiskPattern.MatchString(cfg.AzureDataDiskID) || cfg.MaxBytes < maxResponse || cfg.MaxBytes > 10<<30 || cfg.MaxObjects < 1 || cfg.MaxObjects > 65536 {
 		return nil, ErrUnsupported
 	}
 	lease, e := statelease.Acquire(cfg.Directory, "e2b-artifacts-v1")
@@ -65,7 +67,7 @@ func NewDirectoryStore(cfg StoreConfig) (*DirectoryStore, error) {
 		lease.Close()
 		return nil, e
 	}
-	s := &DirectoryStore{config: cfg, root: root, lease: lease, identity: storeIdentity{1, cfg.OwnerID, cfg.RuntimeScope, cfg.ControllerHostID, cfg.RuntimeHostID, cfg.SeparationReceiptDigest}}
+	s := &DirectoryStore{config: cfg, root: root, lease: lease, identity: storeIdentity{Version: 1, OwnerID: cfg.OwnerID, Scope: cfg.RuntimeScope, ControllerHostID: cfg.ControllerHostID, RuntimeHostID: cfg.RuntimeHostID, SeparationReceiptDigest: cfg.SeparationReceiptDigest, AzureDataDiskID: cfg.AzureDataDiskID}}
 	fail := func(e error) (*DirectoryStore, error) { root.Close(); lease.Close(); return nil, e }
 	if i, err := root.Lstat(".store-next"); err == nil {
 		if !i.Mode().IsRegular() {
