@@ -85,3 +85,7 @@
 .orchestrator-primary .orchestrator-header p { display: block; }
 .orchestrator-primary .orchestrator-composer textarea { min-block-size: 110px; }
 .orchestrator-primary .orchestrator-header p { overflow-wrap: anywhere; }
+.orchestrator-primary .orchestrator-welcome { max-inline-size: 65ch; font-size: 15px; }
+.orchestrator-primary .orchestrator-composer { padding-block: 14px; }
+.orchestrator-primary .orchestrator-status-details { margin-block: 12px; padding-block: 10px; border-block-start: 1px solid var(--line); }
+.orchestrator-primary .orchestrator-agent > summary, .orchestrator-primary .orchestrator-status-details > summary { display: flex; align-items: center; min-block-size: 44px; }

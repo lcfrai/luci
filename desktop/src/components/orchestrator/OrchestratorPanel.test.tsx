@@ -81,6 +81,29 @@ it("shows accepted peer changes, actor-owned work and decisions in the primary c
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
+it("puts the primary thread and composer before optional context and refresh controls", async () => {
+  render(<OrchestratorPanel projectId="p-1" primary />);
+  const composer = await screen.findByLabelText("Message Luci") as HTMLTextAreaElement;
+  const pane = screen.getByRole("region", { name: "Luci conversation" });
+  expect(within(pane).getAllByRole("heading", { name: "Luci" })).toHaveLength(1);
+  expect(within(pane).queryByRole("button", { name: "Talk to Luci" })).toBeNull();
+  const welcome = within(pane).getByText(/Describe your idea, ask about the current work/);
+  expect(welcome.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(pane).getByText(/Using Team provider.*model usage may be charged/i)).toBeTruthy();
+  const agentDetails = within(pane).getByText("Agent and model").closest("details")!;
+  const statusDetails = within(pane).getByText("Project context and refresh").closest("details")!;
+  expect(agentDetails.open).toBe(false);
+  expect(statusDetails.open).toBe(false);
+  expect(composer.compareDocumentPosition(agentDetails) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  await userEvent.type(composer, "Keep this question for later");
+  await userEvent.click(within(pane).getByText("Agent and model"));
+  expect(within(agentDetails).getByRole("region", { name: "Conversation context" })).toBeTruthy();
+  await userEvent.click(within(pane).getByText("Project context and refresh"));
+  expect(within(statusDetails).getByText(/Saved context · Definition 2 · Design 1 · Plan 1/)).toBeTruthy();
+  expect(composer.value).toBe("Keep this question for later");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
 it("brings a blocked delivery finding into the same conversation without sending or replacing a draft", async () => {
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ activity: { accepted: [], earlierAvailable: false, work: [{
     id: "continue-blocked", originTurnId: "turn-1", contextDigest: "d".repeat(64), acceptedEvents: [],
@@ -1773,12 +1796,13 @@ it("opens the existing conversation as the primary pane without sending or grant
   render(<OrchestratorPanel projectId="p-1" primary />); await ready();
   const pane = screen.getByRole("region", { name: "Luci conversation" });
   expect(pane.classList.contains("orchestrator-primary")).toBe(true);
-  expect(screen.getByText(/Working in Atlas/)).not.toBeNull();
-  expect(screen.getByLabelText("Message Luci")).not.toBeNull();
+  expect(screen.getByText(/Atlas · One conversation across your project/)).not.toBeNull();
+  const composer = screen.getByLabelText("Message Luci");
   expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
   expect(screen.getByRole("region", { name: "Saved project understanding" })).not.toBeNull();
-  screen.getByRole("button", { name: "Talk to Luci" }).focus(); await userEvent.keyboard("{Enter}");
-  await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Message Luci")));
+  expect(screen.queryByRole("button", { name: "Talk to Luci" })).toBeNull();
+  await userEvent.click(composer);
+  expect(document.activeElement).toBe(composer);
 });
 it("preserves the current unsent message through primary and phase-tool presentations", async () => {
   const ui = render(<OrchestratorPanel projectId="p-1" primary />); await ready();
