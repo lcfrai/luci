@@ -213,3 +213,16 @@ it('requests one exact active cloud stop and retains pending charge after an unc
   expect(screen.queryByRole('button', {name:'Stop active task'})).toBeNull();
   expect(screen.getByRole('button', {name:'Retry exact stop'})).toBeTruthy();
 });
+
+it('lets a current editor retry exact cleanup after execution permission is withdrawn', async () => {
+  const pending = swarmQueueItem({state:'unknown', operationId:'op-one', childId:'vm-one', memoryMiB:1024, reasonCode:'operator_stop_pending'});
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([pending]));
+  const stop = vi.spyOn(swarmQueueApi, 'control').mockResolvedValue(swarmQueueFixture([{...pending, state:'cancelled', memoryMiB:0}]));
+  render(<Harness execute={false} />);
+  await openQueueControls();
+  const retry = await screen.findByRole('button', {name:'Retry exact stop'});
+  expect(retry).toHaveProperty('disabled', false);
+  await userEvent.click(retry);
+  expect(stop).toHaveBeenCalledWith('p-1', pending, 'stop', undefined);
+  expect(screen.getByRole('button', {name:'Queue reviewed tasks (3)'})).toHaveProperty('disabled', true);
+});
