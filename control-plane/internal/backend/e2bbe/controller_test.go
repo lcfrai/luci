@@ -57,6 +57,7 @@ type providerFixture struct {
 	guestGrant                   bool
 	invalidGuestGrant            bool
 	templateStatus               string
+	templateCurrentBuild         string
 	nodeSlots, nodeLimit         int64
 	nodeMemoryUsed               int64
 	nodeStatus                   string
@@ -106,6 +107,14 @@ func (p *providerFixture) handle(w http.ResponseWriter, r *http.Request) {
 			status = "ready"
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"templateID": "template-one", "buildID": "build-one", "status": status, "logs": []string{}, "logEntries": []string{}})
+		return
+	}
+	if r.Method == "GET" && r.URL.Path == "/templates" {
+		build := p.templateCurrentBuild
+		if build == "" {
+			build = "build-one"
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]any{{"templateID": "template-one", "buildID": build, "cpuCount": 2, "memoryMB": 2048, "public": false}})
 		return
 	}
 	if r.Method == "POST" && r.URL.Path == "/v2/sandboxes" {
@@ -221,6 +230,13 @@ func TestExactProviderTemplateBuildMustBeReadyBeforeCloudAdmission(t *testing.T)
 	p.mu.Unlock()
 	if err := c.VerifyTemplateBuild(context.Background()); !errors.Is(err, ErrUnsupported) {
 		t.Fatal("unfinished provider build was accepted", err)
+	}
+	p.mu.Lock()
+	p.templateStatus = "ready"
+	p.templateCurrentBuild = "newer-build"
+	p.mu.Unlock()
+	if err := c.VerifyTemplateBuild(context.Background()); !errors.Is(err, ErrUnsupported) {
+		t.Fatal("mutable template switched away from selected build", err)
 	}
 	_, usage := c.Snapshot()
 	if usage.Active != 0 || p.creates != 0 {

@@ -244,6 +244,33 @@ func (c *Controller) VerifyTemplateBuild(ctx context.Context) error {
 	if err != nil || status != http.StatusOK || out.TemplateID != t.ID || out.BuildID != t.BuildID || out.Status != "ready" {
 		return ErrUnsupported
 	}
+	// Create accepts only templateID. Its latest successful build can change
+	// independently of this pinned build-status endpoint. Refuse a template
+	// which already points elsewhere; exclusive operator publication is still
+	// required because the read and Create are not atomic.
+	var templates []struct {
+		TemplateID string `json:"templateID"`
+		BuildID    string `json:"buildID"`
+		CPU        int64  `json:"cpuCount"`
+		MemoryMiB  int64  `json:"memoryMB"`
+		Public     *bool  `json:"public"`
+	}
+	status, _, err = c.client.call(ctx, http.MethodGet, "/templates", nil, nil, &templates)
+	if err != nil || status != http.StatusOK || len(templates) == 0 || len(templates) > 128 {
+		return ErrUnsupported
+	}
+	matches := 0
+	for _, current := range templates {
+		if current.TemplateID == t.ID {
+			matches++
+			if current.BuildID != t.BuildID || current.CPU*1000 != t.CPUMillis || current.MemoryMiB != t.MemoryMiB || current.Public == nil || *current.Public {
+				return ErrUnsupported
+			}
+		}
+	}
+	if matches != 1 {
+		return ErrUnsupported
+	}
 	return nil
 }
 func matches(r Record, s providerSandbox) bool {
