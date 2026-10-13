@@ -1,0 +1,47 @@
+[
+  {
+    "path": "control-plane/internal/product/project_swarm_reuse.go",
+    "sha256": "33c0e8cc1428995cff1c2f857472675552d531b820d93948db90e19aa2660cce",
+    "bytes": 12430
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm_reuse_test.go",
+    "sha256": "365ff4dcd8cc91445b91187140554c5eed51d9e75cd22d89c979df14323c6353",
+    "bytes": 15626
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm.go",
+    "sha256": "9b1d97ae186485f2007e847d2440f72b84b5fa830b05f58fb0b13c7d7ac91212",
+    "bytes": 31971
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm_store.go",
+    "sha256": "2357fe915cd849811753f9debb028b30ba6b0c07bfd1760944f0dedda30443d5",
+    "bytes": 12463
+  },
+  {
+    "path": "control-plane/internal/product/project_swarm_integration.go",
+    "sha256": "d381a5d5142e9fbe71845c9486a675722ce519e3aa6f56d0fd47678125a73495",
+    "bytes": 13540
+  },
+  {
+    "path": "control-plane/internal/product/task_handoff_store.go",
+    "sha256": "15920da79c50aa650d9f6f2224a28efa2af184a24c3af0b942b3457117f017d7",
+    "bytes": 13370
+  },
+  {
+    "path": "control-plane/internal/product/project_branches.go",
+    "sha256": "23a1ab001ca3a0568ba7c23a238d8aa82e6d10d864ef256edc3eebae40b718a1",
+    "bytes": 30625
+  },
+  {
+    "path": "control-plane/internal/product/coordinator_continuation.go",
+    "sha256": "7889ea1836399db7225f39b77358abc54feb3e4fba118256b186e9b4246e6ce6",
+    "bytes": 32511
+  },
+  {
+    "path": "control-plane/internal/product/coordinator_delivery.go",
+    "sha256": "a230ba272d3590dc59e13c0e44610e30d6eb654427009fb6dd0f7909d4dcf055",
+    "bytes": 10377
+  }
+]

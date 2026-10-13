@@ -1,0 +1,11 @@
+{
+  "selectedTests": 6,
+  "exitCode": 0,
+  "sourceInputsStable": true,
+  "sourceCount": 5,
+  "rootFreeAfter": 854900736,
+  "tmpFreeAfter": 361668608,
+  "command": "GOCACHE=/dev/shm/luci-go-cache-20261011-recovery GOMAXPROCS=2 GOFLAGS=-mod=readonly,-p=1 timeout 150s go test -race -count=1 -timeout=120s -run ^TestProjectSwarmReuse ./internal/product",
+  "scope": "selected source/Git fixtures; not installed Docker/model/microVM acceptance",
+  "note": "Six selected top-level tests in the source; Go plain output reports package success but not subtest count."
+}

@@ -1,0 +1,37 @@
+[
+  {
+    "path": "README.md",
+    "sha256": "f276953d3b765cd9a9658196231c01e65739251eb8e661e579d3e39b9efaa120",
+    "bytes": 2280
+  },
+  {
+    "path": "admission.json",
+    "sha256": "6376508451baa1aa520c840aea59da43a911c435ce6d2c973799e4da9291bde6",
+    "bytes": 86
+  },
+  {
+    "path": "affected-result.json",
+    "sha256": "c4cbec47065ddb4f4317bba4eded173ed1c451c25403b2215a96ad6c3b61f504",
+    "bytes": 563
+  },
+  {
+    "path": "affected.log",
+    "sha256": "8633e4bb61f20d10b989bf994736cdcf2b09386c8f06830cec338e0e9f8ae9c5",
+    "bytes": 67
+  },
+  {
+    "path": "full-before.json",
+    "sha256": "a7f493b62c363842f4af332a5d5a26a7091379e3b4fef8c034d396861ee772e7",
+    "bytes": 747
+  },
+  {
+    "path": "preparation.log",
+    "sha256": "0b529d37ec161bfbca0273c60016c091d607516ce772ec0774e7c432f05840bb",
+    "bytes": 66
+  },
+  {
+    "path": "source-bindings.json",
+    "sha256": "902416870d5c954160fabea84d3c99c2ac4c9f585063241460d8c15f05f37814",
+    "bytes": 1621
+  }
+]

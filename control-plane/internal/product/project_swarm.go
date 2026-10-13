@@ -64,8 +64,9 @@ func (s *Server) initializeProjectSwarm(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var req struct {
-		ExpectedRevision int `json:"expectedRevision"`
-		MaxParallel      int `json:"maxParallel"`
+		ExpectedRevision   int                          `json:"expectedRevision"`
+		MaxParallel        int                          `json:"maxParallel"`
+		ReusedDependencies []ProjectSwarmReuseReference `json:"reusedDependencies,omitempty"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
@@ -82,6 +83,10 @@ func (s *Server) initializeProjectSwarm(w http.ResponseWriter, r *http.Request) 
 		projectRunProblem(w, err)
 		return
 	}
+	if run.Revision != req.ExpectedRevision || run.Swarm != nil || len(run.Operations) > 0 || len(run.Checks) > 0 || run.State != "ready" {
+		projectRunProblem(w, ErrProjectRunConflict)
+		return
+	}
 	if err = validateSwarmTaskRoute(run); err != nil {
 		projectRunProblem(w, err)
 		return
@@ -94,9 +99,20 @@ func (s *Server) initializeProjectSwarm(w http.ResponseWriter, r *http.Request) 
 		projectRunProblem(w, err)
 		return
 	}
+	guard := s.branchGuard(p.ID)
+	if !guard.TryLock() {
+		projectRunProblem(w, errors.New("Project source is busy. Wait before preparing exact task dependencies."))
+		return
+	}
+	defer guard.Unlock()
 	s.mu.RLock()
 	state, err := s.readApprovedJourney(p.Path, p.ID)
 	s.mu.RUnlock()
+	if err != nil {
+		projectRunProblem(w, err)
+		return
+	}
+	inputDigests, err := swarmTaskInputDigests(state, p.ID)
 	if err != nil {
 		projectRunProblem(w, err)
 		return
@@ -110,13 +126,8 @@ func (s *Server) initializeProjectSwarm(w http.ResponseWriter, r *http.Request) 
 		if !selected[task.ID] {
 			continue
 		}
-		for _, dep := range task.DependsOn {
-			if !selected[dep] {
-				projectRunProblem(w, errors.New("Include every dependency in this reviewed run's task selection before starting a swarm."))
-				return
-			}
-		}
-		tasks = append(tasks, ProjectSwarmTask{ID: task.ID, Title: task.Title, DependsOn: append([]string{}, task.DependsOn...), WritePaths: append([]string{}, task.WritePaths...), Acceptance: task.Acceptance})
+
+		tasks = append(tasks, ProjectSwarmTask{ID: task.ID, TaskInputDigest: inputDigests[task.ID], Title: task.Title, DependsOn: append([]string{}, task.DependsOn...), WritePaths: append([]string{}, task.WritePaths...), Acceptance: task.Acceptance})
 	}
 	if len(tasks) != len(selected) {
 		projectRunProblem(w, ErrProjectRunConflict)
@@ -131,13 +142,31 @@ func (s *Server) initializeProjectSwarm(w http.ResponseWriter, r *http.Request) 
 		projectRunProblem(w, errors.New("Commit the reviewed starting source and create a fresh run before preparing isolated tasks."))
 		return
 	}
+	reused, err := s.resolveSwarmReuse(r.Context(), p, state, run.Input.Implementation.TaskIDs, commit, req.ReusedDependencies)
+	if err != nil {
+		projectRunProblem(w, err)
+		return
+	}
+	// Immutable handoff objects precede the run CAS; interrupted unreferenced
+	// objects grant no reuse authority and are bounded by the existing quota.
+	for i := range reused {
+		digest, e := s.projectRuns.writeHandoffObject(p.ID, reused[i].handoff, TaskDependencyPacketLimit)
+		if e != nil || digest != reused[i].HandoffViewDigest {
+			if e == nil {
+				e = ErrProjectRunInvalid
+			}
+			projectRunProblem(w, e)
+			return
+		}
+		reused[i].handoff = TaskHandoffView{}
+	}
 	s.projectRunDispatchMu.Lock()
 	defer s.projectRunDispatchMu.Unlock()
 	run, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, req.ExpectedRevision, func(run *ProjectRun) error {
 		if run.Swarm != nil || len(run.Operations) > 0 || len(run.Checks) > 0 || run.State != "ready" {
 			return ErrProjectRunConflict
 		}
-		run.Swarm = &ProjectSwarm{State: "ready", MaxParallel: req.MaxParallel, Tasks: tasks}
+		run.Swarm = &ProjectSwarm{State: "ready", MaxParallel: req.MaxParallel, Tasks: tasks, ReusedDependencies: reused}
 		run.Reason = "Reviewed tasks are prepared for isolated execution. Dependencies require reviewed integration."
 		return nil
 	})
@@ -299,6 +328,9 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 	}
 	if run.Swarm == nil {
 		return ProjectRun{}, ProjectRunOperation{}, ErrProjectRunConflict
+	}
+	if err = s.validateProjectSwarmReuseCurrent(ctx, p, run); err != nil {
+		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	expected := swarmExpectedHead(run)
 	if head != expected {

@@ -115,6 +115,9 @@ func (s *Server) continueCoordinatorDelivery(ctx context.Context, p project.Proj
 	if err != nil {
 		return row, err
 	}
+	if err = s.validateProjectSwarmReuseCurrent(ctx, p, run); err != nil {
+		return row, err
+	}
 	integration, ready := coordinatorIntegratedRun(run, row)
 	if !ready {
 		if row.Delivery != nil {

@@ -1,0 +1,12 @@
+{
+  "rootFree": 854913024,
+  "tmpFree": 361668608,
+  "cgroupRemaining": 11292413952,
+  "source": {
+    "control-plane/internal/product/project_swarm.go": "9b1d97ae186485f2007e847d2440f72b84b5fa830b05f58fb0b13c7d7ac91212",
+    "control-plane/internal/product/project_swarm_store.go": "2357fe915cd849811753f9debb028b30ba6b0c07bfd1760944f0dedda30443d5",
+    "control-plane/internal/product/project_swarm_reuse.go": "33c0e8cc1428995cff1c2f857472675552d531b820d93948db90e19aa2660cce",
+    "control-plane/internal/product/project_swarm_reuse_test.go": "365ff4dcd8cc91445b91187140554c5eed51d9e75cd22d89c979df14323c6353",
+    "control-plane/internal/product/task_handoff_store.go": "15920da79c50aa650d9f6f2224a28efa2af184a24c3af0b942b3457117f017d7"
+  }
+}

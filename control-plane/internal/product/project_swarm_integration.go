@@ -27,6 +27,9 @@ type ProjectSwarmReview struct {
 
 func (s *Server) swarmReview(ctx context.Context, p project.Project, run ProjectRun, taskID string) (ProjectSwarmReview, error) {
 	review := ProjectSwarmReview{TaskID: taskID, Paths: []string{}}
+	if err := s.validateProjectSwarmReuseCurrent(ctx, p, run); err != nil {
+		return review, err
+	}
 	task := swarmTask(&run, taskID)
 	if task == nil {
 		return review, ErrProjectRunNotFound

@@ -112,10 +112,10 @@ func (s *Server) guardProjectSourceRoutes(mux Registrar) Registrar {
 }
 
 func (g *branchSourceRegistrar) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
-	// These allocation/integration handlers acquire exclusive source admission
+	// These preparation/allocation/integration handlers acquire exclusive source admission
 	// themselves. Wrapping checkpoint POST in shared admission would make its
 	// own TryLock fail; its GET still receives the normal read guard.
-	if projectRouteUsesPrivateQueue(pattern) || pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/checkpoint" || pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/integrate" || pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/reserve" || !strings.Contains(pattern, "/v1/product/projects/{id}/") || strings.Contains(pattern, "/git/branches") || strings.HasSuffix(pattern, "/git/switch") || strings.Contains(pattern, "/git/branch-operations/") || strings.Contains(pattern, "/releases/{releaseId}/") || strings.HasSuffix(pattern, "/configuration") || strings.Contains(pattern, "/checks/{runId}") {
+	if pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm" || projectRouteUsesPrivateQueue(pattern) || pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/checkpoint" || pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/integrate" || pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/reserve" || !strings.Contains(pattern, "/v1/product/projects/{id}/") || strings.Contains(pattern, "/git/branches") || strings.HasSuffix(pattern, "/git/switch") || strings.Contains(pattern, "/git/branch-operations/") || strings.Contains(pattern, "/releases/{releaseId}/") || strings.HasSuffix(pattern, "/configuration") || strings.Contains(pattern, "/checks/{runId}") {
 		g.base.HandleFunc(pattern, handler)
 		return
 	}

@@ -599,11 +599,15 @@ func (s *Server) invokeCoordinatorStep(ctx context.Context, p project.Project, r
 	req.SetPathValue("id", p.ID)
 	req.SetPathValue("runId", row.RunID)
 	req.Header.Set("Content-Type", "application/json")
-	release, err := s.AcquireGitSessionAdmission(ctx, p.ID)
-	if err != nil {
-		return "", nil, &coordinatorStepError{Status: 409, Message: errCoordinatorSourceBusy.Error()}
+	// Preparation owns exclusive source admission while validating exact
+	// prerequisite reuse. Other typed steps retain shared source admission.
+	if kind != "prepare-tasks" {
+		release, err := s.AcquireGitSessionAdmission(ctx, p.ID)
+		if err != nil {
+			return "", nil, &coordinatorStepError{Status: 409, Message: errCoordinatorSourceBusy.Error()}
+		}
+		defer release()
 	}
-	defer release()
 	if err = s.continuationAuthority(ctx, p, row); err != nil {
 		return "", nil, err
 	}

@@ -11,18 +11,20 @@ import (
 // Swarms coordinate existing reviewed sessions. A task is released only by an
 // integration receipt, never a task-board checkbox or successful process exit.
 type ProjectSwarm struct {
-	State       string             `json:"state"`
-	MaxParallel int                `json:"maxParallel"`
-	Tasks       []ProjectSwarmTask `json:"tasks"`
+	State              string                         `json:"state"`
+	MaxParallel        int                            `json:"maxParallel"`
+	Tasks              []ProjectSwarmTask             `json:"tasks"`
+	ReusedDependencies []ProjectSwarmReusedDependency `json:"reusedDependencies,omitempty"`
 }
 type ProjectSwarmTask struct {
-	ID          string                   `json:"id"`
-	Title       string                   `json:"title"`
-	DependsOn   []string                 `json:"dependsOn"`
-	WritePaths  []string                 `json:"writePaths"`
-	Acceptance  string                   `json:"acceptance"`
-	OperationID string                   `json:"operationId,omitempty"`
-	Integration *ProjectSwarmIntegration `json:"integration,omitempty"`
+	ID              string                   `json:"id"`
+	TaskInputDigest string                   `json:"taskInputDigest,omitempty"`
+	Title           string                   `json:"title"`
+	DependsOn       []string                 `json:"dependsOn"`
+	WritePaths      []string                 `json:"writePaths"`
+	Acceptance      string                   `json:"acceptance"`
+	OperationID     string                   `json:"operationId,omitempty"`
+	Integration     *ProjectSwarmIntegration `json:"integration,omitempty"`
 }
 type ProjectSwarmIntegration struct {
 	HandoffDigest string `json:"handoffDigest,omitempty"`
@@ -73,6 +75,9 @@ func validateProjectSwarm(run ProjectRun) error {
 			return ErrProjectRunInvalid
 		}
 		seen[task.ID] = true
+		if task.TaskInputDigest != "" && !hexDigest(task.TaskInputDigest) {
+			return ErrProjectRunInvalid
+		}
 		selected := false
 		for _, id := range run.Input.Implementation.TaskIDs {
 			selected = selected || id == task.ID
@@ -100,6 +105,20 @@ func validateProjectSwarm(run ProjectRun) error {
 			}
 		}
 	}
+	if len(swarm.ReusedDependencies) > 200 {
+		return ErrProjectRunInvalid
+	}
+	for _, dep := range swarm.ReusedDependencies {
+		if seen[dep.TaskID] || !validSwarmReuse(dep, run) {
+			return ErrProjectRunInvalid
+		}
+		seen[dep.TaskID] = true
+		task := dep.Task
+		planTasks = append(planTasks, ProjectTask{ID: task.ID, Title: task.Title, Status: "todo", DependsOn: task.DependsOn, WritePaths: task.WritePaths, Acceptance: task.Acceptance})
+	}
+	if !swarmReuseReachable(run) {
+		return ErrProjectRunInvalid
+	}
 	if validatePlan(ProjectPlan{Tasks: planTasks}) != nil {
 		return ErrProjectRunInvalid
 	}
@@ -126,7 +145,7 @@ func validateProjectSwarm(run ProjectRun) error {
 		if op.AbsenceRetirement != nil && (op.Status != "cancelled" || op.Allocation != "ready" || !validSwarmRecoveryProof(*op.AbsenceRetirement, op.ChildID)) {
 			return ErrProjectRunInvalid
 		}
-		if !seen[op.TaskID] || !prototypeReleaseID.MatchString(op.WorktreeID) || !deliverySHA.MatchString(op.BaseCommit) || (op.Allocation != "allocating" && op.Allocation != "ready" && op.Allocation != "unknown" && op.Allocation != "abandoned") {
+		if swarmTask(&run, op.TaskID) == nil || !prototypeReleaseID.MatchString(op.WorktreeID) || !deliverySHA.MatchString(op.BaseCommit) || (op.Allocation != "allocating" && op.Allocation != "ready" && op.Allocation != "unknown" && op.Allocation != "abandoned") {
 			return ErrProjectRunInvalid
 		}
 		if op.Allocation == "ready" && (op.Implementation == nil || op.Implementation.WorktreeID != op.WorktreeID || len(op.Implementation.TaskIDs) != 1 || op.Implementation.TaskIDs[0] != op.TaskID) {
@@ -167,7 +186,7 @@ func swarmTaskReady(run ProjectRun, task ProjectSwarmTask) error {
 	}
 	for _, dep := range task.DependsOn {
 		t := swarmTask(&run, dep)
-		if t == nil || t.Integration == nil || t.Integration.State != "integrated" {
+		if (t == nil || t.Integration == nil || t.Integration.State != "integrated") && reusedSwarmDependency(run, dep) == nil {
 			return errors.New("Integrate this task's dependencies before starting it.")
 		}
 	}

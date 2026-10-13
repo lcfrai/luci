@@ -308,6 +308,16 @@ func (s *ProjectRunStore) freezeTaskDependencies(run ProjectRun, op ProjectRunOp
 	}
 	for _, id := range task.DependsOn {
 		dep := swarmTask(&run, id)
+		if dep == nil {
+			if reused := reusedSwarmDependency(run, id); reused != nil {
+				view, err := s.reusedDependencyHandoff(run, *reused)
+				if err != nil {
+					return nil, err
+				}
+				packet.Dependencies = append(packet.Dependencies, view)
+				continue
+			}
+		}
 		if dep == nil || dep.Integration == nil || dep.Integration.State != "integrated" {
 			return nil, ErrProjectRunPending
 		}
