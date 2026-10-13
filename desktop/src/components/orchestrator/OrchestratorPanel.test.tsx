@@ -100,6 +100,21 @@ it("brings a blocked delivery finding into the same conversation without sending
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
+it("prepares a scoped parallel-task request without dispatching or replacing an unsent message", async () => {
+  render(<OrchestratorPanel projectId="p-1" primary />);
+  const action = await screen.findByRole("button", { name: "Plan parallel tasks with Luci" });
+  await userEvent.click(action);
+  const composer = screen.getByLabelText("Message Luci") as HTMLTextAreaElement;
+  expect(composer.value).toContain("small dependency-aware tasks");
+  expect(composer.value).toContain("one cloud microVM per agent");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+  await userEvent.clear(composer);
+  await userEvent.type(composer, "Keep my own unsent swarm instruction");
+  await userEvent.click(action);
+  expect(composer.value).toBe("Keep my own unsent swarm instruction");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
 it("shows an exact automatic follow-up question without replacing an unsent message or granting execution", async () => {
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ activity: { accepted: [], work: [], earlierAvailable: false, findings: [{
     id: "finding-one", projectId: "p-1", recipientId: "owner", continuationId: "continue-one", originTurnId: "turn-original",
