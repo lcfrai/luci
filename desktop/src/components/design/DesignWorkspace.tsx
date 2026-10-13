@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
-import { notifyProjectContextChanged, PROJECT_CONTEXT_EDIT, takeProjectContextEdit } from "../../api/projectContextEvents";
+import { notifyProjectContextChanged, PROJECT_CONTEXT_CHANGED, PROJECT_CONTEXT_EDIT, takeProjectContextEdit, type ProjectContextIdentity } from "../../api/projectContextEvents";
 import { designPlanApi, type DesignPlan, type DesignScreen } from "../../api/designPlan";
 import { definitionApi, type ProjectSpecification } from "../../api/definition";
 import { productApi, errorText, type Release } from "../../api/product";
@@ -81,7 +81,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
   useEffect(() => { if (!access.loading && !canExecute) closePrototype(); }, [canExecute, access.loading]);
   const [width, setWidth] = useState(390);
   const alive = useRef(true), working = useRef(false), draftVersion = useRef(0), generation = useRef(0);
-  const documentRead = useRef(0), reading = useRef(false);
+  const documentRead = useRef(0), reading = useRef(false), refreshQueued = useRef(false);
   const sketchRead = useRef(0);
   const historyRead = useRef(0), prototypeRead = useRef(0), prototypeWorking = useRef(false);
   const tabsId = useId(), selectedIndex = views.findIndex(([key]) => key === view);
@@ -103,13 +103,16 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
     setRefreshingSketch(false);
     try {
       const [saved, definition] = await Promise.all([designPlanApi.get(projectId), definitionApi.get(projectId)]);
-      if (!current()) return;
+      if (!current() || refreshQueued.current) return;
       savedPlan.current = saved; setPlan(saved); setBaseRevision(saved.revision); setSpec(definition); setDirty(false); setError("");
       setDocumentReadState("ready");
     } catch (cause) {
-      if (current()) { setError(errorText(cause)); setDocumentReadState("failed"); }
+      if (current() && !refreshQueued.current) { setError(errorText(cause)); setDocumentReadState("failed"); }
     } finally {
-      if (current()) reading.current = false;
+      if (current()) {
+        reading.current = false;
+        if (refreshQueued.current) { refreshQueued.current = false; void load(); }
+      }
     }
   }
   async function loadPrototypeHistory() {
@@ -133,6 +136,19 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
     if (canRead) void loadPrototypeHistory();
     return () => { alive.current = false; generation.current++; };
   }, [projectId, canRead || !!plan]);
+  useEffect(() => {
+    const changed = (event: Event) => {
+      const identity = (event as CustomEvent<ProjectContextIdentity>).detail;
+      if (!scope || identity?.scope !== scope || identity.projectId !== projectId || !canRead || working.current) return;
+      // An existing edit, including a sketch draft, keeps its original CAS base.
+      // A clean editor reads both documents before it accepts new input.
+      if (dirty || draft.pending || sketchDirty) return;
+      if (reading.current) refreshQueued.current = true;
+      else void load();
+    };
+    window.addEventListener(PROJECT_CONTEXT_CHANGED, changed);
+    return () => window.removeEventListener(PROJECT_CONTEXT_CHANGED, changed);
+  }, [scope, projectId, canRead, dirty, draft.pending, sketchDirty]);
   const patch = (value: Partial<PlanDraft>) => { if (documentUnavailable || reading.current) return; draftVersion.current++; if (plan) setPlan({ ...plan, ...value, status: "draft", digest: "" }); setDirty(true); setNotice(""); };
   const screenChange = (screenId: string, value: Partial<ScreenDraft>) => plan && patch({ screens: plan.screens.map((s) => s.id === screenId ? { ...s, ...value } : s) });
   function addScreen() {

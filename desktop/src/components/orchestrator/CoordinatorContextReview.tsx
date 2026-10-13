@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { definitionApi } from "../../api/definition";
 import { designPlanApi } from "../../api/designPlan";
+import { notifyProjectContextChanged } from "../../api/projectContextEvents";
 import type { OrchestratorView } from "../../api/orchestrator";
 import { ProductApiError, errorText } from "../../api/product";
 import { Button } from "../fluid/components/button";
@@ -53,6 +54,7 @@ function ContextReview({ projectId, scope, actorId, view, canEdit, blocked, onRe
       rawRef.current = next; setRaw(next); setPending(value);
     } catch (cause) { setStorageError(errorText(cause)); throw cause; }
   }
+  function reviewed() { notifyProjectContextChanged(scope, projectId); onReviewed(); }
   async function approve() {
     if (!canEdit || !target || blocked || !consent || busy || pending || storageError || selected.status !== "draft") return;
     const request: Pending = { version: 1, projectId, actorId, target, revision: selected.revision, briefRevision: view.context.brief.revision };
@@ -66,7 +68,7 @@ function ContextReview({ projectId, scope, actorId, view, canEdit, blocked, onRe
       if (result.projectId !== projectId || result.status !== "approved" || result.revision !== request.revision + 1 || !/^[a-f0-9]{64}$/.test(result.digest)) {
         throw new Error("The returned approval did not match the exact requested revision. Read its saved outcome before another review.");
       }
-      persist(null); setNotice("The exact context review is recorded. Luci can continue affected work under its separate execution policy."); onReviewed();
+      persist(null); setNotice("The exact context review is recorded. Luci can continue affected work under its separate execution policy."); reviewed();
     } catch (cause) {
       if (!alive.current) return;
       if (cause instanceof ProductApiError && [400, 401, 403, 409, 422].includes(cause.status)) {
@@ -83,7 +85,7 @@ function ContextReview({ projectId, scope, actorId, view, canEdit, blocked, onRe
       if (!alive.current) return;
       if (current.projectId !== projectId) throw new Error("The returned review belongs to another project.");
       if (current.status === "approved" && current.revision === pending.revision + 1 && /^[a-f0-9]{64}$/.test(current.digest)) {
-        persist(null); setNotice("The retained review was confirmed from saved context. No approval was sent again."); onReviewed();
+        persist(null); setNotice("The retained review was confirmed from saved context. No approval was sent again."); reviewed();
       } else if (pending.rejected && current.revision === pending.revision && current.status === "draft") {
         persist(null); setNotice("The server refused that exact review. Inspect the current draft before deciding again."); onReviewed();
       } else {

@@ -10,11 +10,50 @@ import DesignWorkspace from "./DesignWorkspace";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { DEFAULT_BASE_URL } from "../../api/client";
 import * as projectDraft from "../../hooks/useProjectDraft";
+import { notifyProjectContextChanged } from "../../api/projectContextEvents";
 
 vi.mock("../journey/DesignEditor", () => ({ default: ({ onDirtyChange, onBusyChange }: { onDirtyChange?(dirty: boolean): void; onBusyChange?(busy: boolean): void }) => <div>Drawing tools<button onClick={() => onDirtyChange?.(true)}>Edit sketch fixture</button><button onClick={() => onDirtyChange?.(false)}>Save sketch fixture</button><button onClick={() => onBusyChange?.(true)}>Begin sketch save fixture</button><button onClick={() => onBusyChange?.(false)}>Complete sketch save fixture</button></div> }));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 beforeEach(() => resetCockpit());
 const fixture = (): DesignPlan => ({ projectId:"p-1", revision:2, briefRevision:1, specificationRevision:2, sketchRevision:0, screens:[{id:"screen-1",name:"Home",route:"/",purpose:"Save work",states:["Empty","Saved"],widths:[390,1440],requirementIds:["AC-001"],accessibility:"Keyboard"}],tokens:[],assets:[],implementationNotes:"Saved notes",prototypeReleaseId:"",prototypeCommit:"",status:"draft",digest:"",updatedAt:"" });
+it("refreshes a clean Design editor after same-window definition approval before new edits", async () => {
+  ready();
+  vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue("design-context-clean");
+  const initial = vi.mocked(definitionApi.get).getMockImplementation()!;
+  vi.mocked(definitionApi.get).mockImplementationOnce(initial).mockImplementation(async projectId => ({ ...await initial(projectId), revision: 3 }));
+  vi.mocked(designPlanApi.get).mockResolvedValueOnce(fixture()).mockResolvedValue({ ...fixture(), status: "outdated" });
+  const save = vi.spyOn(designPlanApi, "save").mockImplementation(async (_id, plan) => ({ ...plan, revision: 3 }));
+  render(<DesignWorkspace projectId="p-1" />);
+  await screen.findByRole("textbox", { name: "Screen name" });
+  await act(async () => notifyProjectContextChanged("design-context-clean", "p-1"));
+  await screen.findByText("Definition 3 · approved");
+  expect(designPlanApi.get).toHaveBeenCalledTimes(2);
+  const name = screen.getByRole("textbox", { name: "Screen name" });
+  await userEvent.type(name, " refreshed");
+  await userEvent.click(screen.getByRole("button", { name: "Save design plan" }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(save.mock.calls[0][3]).toBe(1);
+  expect(save.mock.calls[0][4]).toBe(3);
+});
+
+it("keeps a dirty Design draft on a context event and preserves stale-save refusal", async () => {
+  ready();
+  const scope = "design-context-dirty";
+  vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue(scope);
+  const save = vi.spyOn(designPlanApi, "save").mockRejectedValue(new Error("The definition/design changed. Reload saved design before saving."));
+  try {
+    render(<DesignWorkspace projectId="p-1" />);
+    const name = await screen.findByRole("textbox", { name: "Screen name" }) as HTMLInputElement;
+    await userEvent.type(name, " with my draft");
+    await act(async () => notifyProjectContextChanged(scope, "p-1"));
+    expect(designPlanApi.get).toHaveBeenCalledTimes(1);
+    expect(name.value).toBe("Home with my draft");
+    await userEvent.click(screen.getByRole("button", { name: "Save design plan" }));
+    await screen.findByRole("button", { name: "Reload saved design" });
+    expect(save).toHaveBeenCalledExactlyOnceWith("p-1", expect.objectContaining({ screens: [expect.objectContaining({ name: "Home with my draft" })] }), 2, 1, 2);
+    expect(name.value).toBe("Home with my draft");
+  } finally { localStorage.removeItem(`luci.project-draft.v1:${JSON.stringify([scope, "design-plan"])}`); }
+});
 it("retains newly typed handoff notes when the sketch refresh completes late", async () => {
   let finish!: (value: DesignPlan) => void;
   vi.spyOn(designPlanApi,"get").mockResolvedValueOnce(fixture()).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
