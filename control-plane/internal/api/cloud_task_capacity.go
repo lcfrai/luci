@@ -35,27 +35,50 @@ func (a *API) cloudTaskCapacity(ctx context.Context, projectID, actorID string) 
 	if cloud == nil {
 		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"The managed microVM service is not configured for this workspace. An operator must connect a protected E2B Embed host before cloud tasks can start."}}, nil
 	}
-	if !policy.AllowCloudProvisioning || policy.MonthlyBudgetUSD <= 0 {
-		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"Cloud provisioning and a positive monthly spending budget must be enabled by the current account or team policy."}}, nil
-	}
-	ref, err := management.CaptureExecutionActor(ctx, projectID)
+	// A person who may control the exact owned task must still see its retained
+	// identity and cost after Execute, model access or provisioning is revoked.
+	// Those permissions only govern another Create; they cannot make an
+	// existing allocation disappear from the recovery view.
+	ref, err := management.CaptureExecutionControlActor(ctx, projectID)
 	if err != nil || ref.Local {
-		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"Sign in through a managed project identity before starting cloud microVM tasks."}}, nil
+		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"Current project edit access and a managed identity are required to inspect or recover owned cloud tasks."}}, nil
 	}
-	if _, err = a.authorizeExecution(ctx, ref, "codex", true); err != nil {
-		if _, err = a.authorizeExecution(ctx, ref, "claude-code", true); err != nil {
-			return product.CoordinatorCloudCapacity{SetupNeeds: []string{"Current project execution, secret access or an allowed Codex/Claude Code harness connection is missing. Review your team grant and model connection."}}, nil
-		}
+	if a.deps.AuthorizeExecutionControl == nil {
+		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"Cloud task recovery authority is unavailable; refresh after the managed project controller is configured."}}, nil
+	}
+	if err = a.deps.AuthorizeExecutionControl(ctx, ref); err != nil {
+		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"Current project edit access is required to inspect or recover owned cloud tasks."}}, nil
 	}
 	budget := int64(math.Floor(policy.MonthlyBudgetUSD * 1_000_000))
 	if budget < 0 {
 		budget = 0
 	}
 	limits, template, usage, projectActive, rows, settled := cloud.Runtime.Controller.Capacity(projectID)
-	return cloudCapacityView(limits, template, usage, projectActive, rows, settled, actorID, projectID, cloud.Runtime.Controller.Region(), cloud.EstimatedCostMicros, cloud.MaxSeconds, budget, time.Now().UTC()), nil
+	pending := make(map[string]bool)
+	for _, row := range rows {
+		if row.Request.Identity.ProjectID == projectID && cloud.Runtime.Controller.RestoredPending(row.Request.Identity.OperationID) {
+			pending[row.Request.Identity.OperationID] = true
+		}
+	}
+	view := cloudCapacityView(limits, template, usage, projectActive, rows, settled, pending, actorID, projectID, cloud.Runtime.Controller.Region(), cloud.EstimatedCostMicros, cloud.MaxSeconds, budget, time.Now().UTC())
+	if !policy.AllowCloudProvisioning || policy.MonthlyBudgetUSD <= 0 {
+		return cloudCapacityBlocked(view, "Cloud provisioning and a positive monthly spending budget must be enabled by the current account or team policy."), nil
+	}
+	if _, err = a.authorizeExecution(ctx, ref, "codex", true); err != nil {
+		if _, err = a.authorizeExecution(ctx, ref, "claude-code", true); err != nil {
+			return cloudCapacityBlocked(view, "Current project execution, secret access or an allowed Codex/Claude Code harness connection is missing. Existing owned attempts remain visible for exact recovery."), nil
+		}
+	}
+	return view, nil
 }
 
-func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe.Usage, projectActive int, rows []e2bbe.Record, settled []e2bbe.SettledSpend,
+func cloudCapacityBlocked(view product.CoordinatorCloudCapacity, reason string) product.CoordinatorCloudCapacity {
+	view.ConfiguredAvailableSlots = 0
+	view.SetupNeeds = append(view.SetupNeeds, reason)
+	return view
+}
+
+func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe.Usage, projectActive int, rows []e2bbe.Record, settled []e2bbe.SettledSpend, pending map[string]bool,
 	actorID, projectID, region string, taskCost int64, maxSeconds int, budget int64, now time.Time) product.CoordinatorCloudCapacity {
 	month := now.UTC().Format("2006-01")
 	committed, unknown := int64(0), false
@@ -70,7 +93,7 @@ func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe
 			identity := row.Request.Identity
 			retained = append(retained, heldAttempt{view: product.CoordinatorCloudAttempt{RunID: identity.RunID, TaskID: identity.TaskID,
 				AttemptID: identity.AttemptID, OperationID: identity.OperationID, State: string(row.State),
-				ResourcesHeld: true, EstimatedCostMicros: row.Request.EstimatedCostMicros,
+				ResourcesHeld: true, RecoveryPending: pending[identity.OperationID], EstimatedCostMicros: row.Request.EstimatedCostMicros,
 				UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339Nano)}, at: row.UpdatedAt})
 		}
 		if (!row.ResourcesHeld && row.SandboxID == "") || (row.CreatedAt.UTC().Format("2006-01") != month && !row.ResourcesHeld) {

@@ -73,11 +73,12 @@ it('names missing cloud setup and keeps activation disabled without touching a s
   expect(api.create).not.toHaveBeenCalled();
 });
 it('keeps exact recovery controls reachable when a retained VM charge blocks fresh activation', async () => {
-  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: { ...configuredCloud(), setupNeeds: ['Reconcile retained charges before activation.'], retainedProjectVMs: 1, retainedAttempts: [{ runId: 'run-held', taskId: 'task-held', attemptId: 'attempt-held', operationId: 'op-held', state: 'unknown', resourcesHeld: true, estimatedCostMicros: 150_000, updatedAt: '2026-10-13T12:00:00Z' }] } });
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: { ...configuredCloud(), setupNeeds: ['Reconcile retained charges before activation.'], retainedProjectVMs: 1, retainedAttempts: [{ runId: 'run-held', taskId: 'task-held', attemptId: 'attempt-held', operationId: 'op-held', state: 'unknown', recoveryPending: true, resourcesHeld: true, estimatedCostMicros: 150_000, updatedAt: '2026-10-13T12:00:00Z' }] } });
   const input = props(); render(<CoordinatorExecution {...input} />);
   expect(await screen.findByText('Reconcile retained charges before activation.')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Review cloud swarm activation' })).toHaveProperty('disabled', true);
   await userEvent.click(screen.getByText('1 retained task microVM in this project'));
+  expect(screen.getByText(/restored identity readback pending; no replacement launch/)).toBeTruthy();
   await userEvent.click(screen.getByRole('button', { name: 'Open exact task controls' }));
   expect(input.onInspect).toHaveBeenCalledWith('run-held');
   expect(api.create).not.toHaveBeenCalled();

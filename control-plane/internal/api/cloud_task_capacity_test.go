@@ -30,28 +30,32 @@ func TestCloudCapacityAdviceKeepsHeldChargeAndUsesConfiguredResourceLimits(t *te
 		row("alice", now.Add(-time.Hour), false, "", 300), // proved no Create
 	}
 	rows[2].Request.Identity.ProjectID = "p-other"
-	view := cloudCapacityView(limits, template, usage, 1, rows, nil, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
+	view := cloudCapacityView(limits, template, usage, 1, rows, nil, map[string]bool{"op-still-held": true}, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
 	if view.ConfiguredAvailableSlots != 2 || view.EstimatedMonthMicros != 250 || view.MonthlyBudgetMicros != 1000 || view.EstimatedTaskCostMicros != 200 || view.Region != "us-east-1" ||
-		view.RetainedProjectVMs != 1 || len(view.RetainedAttempts) != 1 || view.RetainedAttempts[0].OperationID != "op-still-held" || view.MoreRetainedAttempts != 0 || view.RetiredBillingUnconfirmed != 1 {
+		view.RetainedProjectVMs != 1 || len(view.RetainedAttempts) != 1 || view.RetainedAttempts[0].OperationID != "op-still-held" || !view.RetainedAttempts[0].RecoveryPending || view.MoreRetainedAttempts != 0 || view.RetiredBillingUnconfirmed != 1 {
 		t.Fatal("configured capacity or exact retained estimate was misreported", view)
+	}
+	blocked := cloudCapacityBlocked(view, "Current execution authority was revoked.")
+	if blocked.ConfiguredAvailableSlots != 0 || len(blocked.SetupNeeds) != 1 || blocked.RetainedAttempts[0] != view.RetainedAttempts[0] || blocked.EstimatedMonthMicros != view.EstimatedMonthMicros || blocked.RetiredBillingUnconfirmed != view.RetiredBillingUnconfirmed {
+		t.Fatal("revoked admission hid or released an owned VM or its estimate", blocked)
 	}
 	newer := row("alice", now.Add(time.Nanosecond), true, "newer-vm", 50)
 	ordered := append(append([]e2bbe.Record{}, rows...), row("alice", now, true, "same-second", 50), newer)
-	view = cloudCapacityView(limits, template, usage, 1, ordered, nil, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
+	view = cloudCapacityView(limits, template, usage, 1, ordered, nil, nil, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
 	if view.RetainedProjectVMs != 3 || view.RetainedAttempts[0].OperationID != "op-newer-vm" {
 		t.Fatal("newest exact held attempt was not first", view.RetainedAttempts)
 	}
 	rows = append(rows, row("", now.Add(-time.Hour), true, "legacy-held", 100))
-	view = cloudCapacityView(limits, template, usage, 1, rows, nil, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
+	view = cloudCapacityView(limits, template, usage, 1, rows, nil, nil, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
 	if view.ConfiguredAvailableSlots != 0 || !strings.Contains(view.Limitation, "unavailable") || len(view.SetupNeeds) != 1 {
 		t.Fatal("unattributed held allocation exposed apparent budget", view)
 	}
-	view = cloudCapacityView(limits, template, usage, 1, rows[:4], nil, "alice", "p-one", "us-east-1", 800, 60, 1000, now)
+	view = cloudCapacityView(limits, template, usage, 1, rows[:4], nil, nil, "alice", "p-one", "us-east-1", 800, 60, 1000, now)
 	if view.ConfiguredAvailableSlots != 0 || len(view.SetupNeeds) != 1 {
 		t.Fatal("new task cost exceeded this actor's retained monthly estimate", view)
 	}
 	settled := []e2bbe.SettledSpend{{OperationID: "op-archived", BillingUserID: "alice", CreatedAt: now, EstimatedCostMicros: 700, SandboxCreated: true}}
-	view = cloudCapacityView(limits, template, usage, 1, rows[:4], settled, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
+	view = cloudCapacityView(limits, template, usage, 1, rows[:4], settled, nil, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
 	if view.EstimatedMonthMicros != 950 || view.ConfiguredAvailableSlots != 0 || view.RetainedProjectVMs != 1 || view.RetiredBillingUnconfirmed != 2 {
 		t.Fatal("archived spend was omitted or misreported as a live VM", view)
 	}

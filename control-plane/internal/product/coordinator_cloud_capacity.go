@@ -9,6 +9,7 @@ type CoordinatorCloudAttempt struct {
 	OperationID         string `json:"operationId"`
 	State               string `json:"state"`
 	ResourcesHeld       bool   `json:"resourcesHeld"`
+	RecoveryPending     bool   `json:"recoveryPending,omitempty"`
 	EstimatedCostMicros int64  `json:"estimatedCostMicros"`
 	UpdatedAt           string `json:"updatedAt"`
 }
