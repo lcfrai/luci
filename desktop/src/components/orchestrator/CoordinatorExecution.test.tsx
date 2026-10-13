@@ -72,6 +72,16 @@ it('names missing cloud setup and keeps activation disabled without touching a s
   expect(screen.getByRole('button', { name: 'Review cloud swarm activation' })).toHaveProperty('disabled', true);
   expect(api.create).not.toHaveBeenCalled();
 });
+it('keeps exact recovery controls reachable when a retained VM charge blocks fresh activation', async () => {
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: { ...configuredCloud(), setupNeeds: ['Reconcile retained charges before activation.'], retainedProjectVMs: 1, retainedAttempts: [{ runId: 'run-held', taskId: 'task-held', attemptId: 'attempt-held', operationId: 'op-held', state: 'unknown', resourcesHeld: true, estimatedCostMicros: 150_000, updatedAt: '2026-10-13T12:00:00Z' }] } });
+  const input = props(); render(<CoordinatorExecution {...input} />);
+  expect(await screen.findByText('Reconcile retained charges before activation.')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Review cloud swarm activation' })).toHaveProperty('disabled', true);
+  await userEvent.click(screen.getByText('1 retained task microVM in this project'));
+  await userEvent.click(screen.getByRole('button', { name: 'Open exact task controls' }));
+  expect(input.onInspect).toHaveBeenCalledWith('run-held');
+  expect(api.create).not.toHaveBeenCalled();
+});
 it('keeps the exact cloud activation identity across a lost response and restart', async () => {
   vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: configuredCloud() });
   vi.mocked(api.create).mockRejectedValue(new Error('Cloud reply lost'));
@@ -107,12 +117,14 @@ it('shows configured per-task VM and current-month estimate without treating it 
     limitation: 'Configured limits only; actual admission is checked later.', retainedProjectVMs: 1, moreRetainedAttempts: 0,
     retainedAttempts: [{ runId: 'run-one', taskId: 'task-one', attemptId: 'attempt-one', operationId: 'op-one', state: 'unknown', resourcesHeld: true, estimatedCostMicros: 150_000, updatedAt: '2026-10-13T12:00:00Z' }]
   } });
-  render(<CoordinatorExecution {...props()} />); await configure();
+  const input = props(); render(<CoordinatorExecution {...input} />); await configure();
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Develop execution location' }), 'cloud-microvm');
   expect(screen.getByText(/2 task VM slots presently available/)).not.toBeNull();
   expect(screen.getAllByText(/\$0\.25 of \$1\.00 USD/)).toHaveLength(2);
   await userEvent.click(screen.getByText('1 retained task microVM in this project'));
   expect(screen.getByText(/task-one · run run-one · attempt attempt-one · unknown/)).not.toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Open exact task controls' }));
+  expect(input.onInspect).toHaveBeenCalledWith('run-one');
   expect(api.create).not.toHaveBeenCalled();
 });
 it.each(['unapproved', 'unsaved', 'question', 'foreign-turn', 'unapplied', 'no-execute', 'no-edit', 'plan-base', 'wrong-checkout'])('does not create work when %s', async reason => {
