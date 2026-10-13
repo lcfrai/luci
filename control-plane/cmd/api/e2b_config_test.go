@@ -1,12 +1,64 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 )
+
+type cloudStartupFixture struct {
+	rows                     []e2bbe.Record
+	templateErr, nodeErr     error
+	templateReads, nodeReads int
+}
+
+func (f *cloudStartupFixture) Snapshot() ([]e2bbe.Record, e2bbe.Usage) {
+	return f.rows, e2bbe.Usage{}
+}
+func (f *cloudStartupFixture) VerifyTemplateBuild(context.Context) error {
+	f.templateReads++
+	return f.templateErr
+}
+func (f *cloudStartupFixture) VerifyNodeCapacity(context.Context) error {
+	f.nodeReads++
+	return f.nodeErr
+}
+
+func TestCloudStartupKeepsRetainedOwnershipVisibleDuringProviderOutage(t *testing.T) {
+	unavailable := errors.New("provider temporarily unreachable")
+	for _, row := range []e2bbe.Record{{State: e2bbe.Creating, ResourcesHeld: true}, {State: e2bbe.Allocated, ResourcesHeld: true}, {State: e2bbe.Unknown, ResourcesHeld: true}, {State: e2bbe.Cancelling, ResourcesHeld: true}, {State: e2bbe.Absent}} {
+		f := &cloudStartupFixture{rows: []e2bbe.Record{row}, templateErr: unavailable, nodeErr: unavailable}
+		if err := verifyCloudStartup(context.Background(), f); err != nil || f.templateReads != 1 || f.nodeReads != 1 {
+			t.Fatalf("retained %s was hidden by unavailable provider: %v, reads %d/%d", row.State, err, f.templateReads, f.nodeReads)
+		}
+	}
+	for _, rows := range [][]e2bbe.Record{nil, {{State: e2bbe.Absent, ProductOutcome: "handoff"}}} {
+		f := &cloudStartupFixture{rows: rows, templateErr: unavailable}
+		if err := verifyCloudStartup(context.Background(), f); !errors.Is(err, unavailable) || f.templateReads != 1 || f.nodeReads != 0 {
+			t.Fatalf("new cloud allocation was offered without template proof: %v, reads %d/%d", err, f.templateReads, f.nodeReads)
+		}
+		f = &cloudStartupFixture{rows: rows, nodeErr: unavailable}
+		if err := verifyCloudStartup(context.Background(), f); !errors.Is(err, unavailable) || f.templateReads != 1 || f.nodeReads != 1 {
+			t.Fatalf("new cloud allocation was offered without host proof: %v, reads %d/%d", err, f.templateReads, f.nodeReads)
+		}
+	}
+	f := &cloudStartupFixture{nodeErr: e2bbe.ErrCapacity}
+	if err := verifyCloudStartup(context.Background(), f); err != nil {
+		t.Fatal("an observed full node should backpressure task admission, not hide the API", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	f = &cloudStartupFixture{rows: []e2bbe.Record{{State: e2bbe.Unknown, ResourcesHeld: true}}}
+	if err := verifyCloudStartup(ctx, f); !errors.Is(err, context.Canceled) || f.templateReads != 0 {
+		t.Fatal("cancelled startup continued to provider probes", err)
+	}
+}
 
 func TestCloudOperatorConfigRejectsPublicLinkedAndUntrustedOrigins(t *testing.T) {
 	root := t.TempDir()

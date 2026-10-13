@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "contractId": "LUCI-PRODUCT-CONTRACT-2026-10-12",
+  "provenance": {
+    "authority": "Dylan's locally audited controlling product contract",
+    "sourcePath": "C:\\Users\\DylanMackie\\Documents\\ChatGPT\\Luci\\audit-evidence\\local-acceptance\\product-contract.json",
+    "sourceSha256ReportedByLocalAudit": "F82779DBB4A78CAE5A91C3FD0DEB58E73ECC41E49E1FAB12298466A9F42F5D04",
+    "scopeAlignmentRevision": "b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707",
+    "transcription": "The id, requirement and acceptance strings below are verbatim from the originating local coordinator's supplied canonical entries on 2026-10-13. This tracked projection has its own bytes and is not a copy or independent hash verification of the Windows source file."
+  },
+  "requirements": [
+    {
+      "id": "LC-01",
+      "requirement": "One primary conversational Luci per person coordinates their work. People describe goals and changes; Luci asks useful questions, maintains intent and context, and routes work through the lifecycle.",
+      "acceptance": "A person can start an idea and request a mid-build change through conversation without manually authoring or transporting phase artifacts."
+    },
+    {
+      "id": "LC-02",
+      "requirement": "Discover, Design, Develop and Deploy are four revisitable, communicating phases, rather than a one-way wizard.",
+      "acceptance": "A build or deployment finding can reopen discovery or design, update affected context and continue work with a traceable reason."
+    },
+    {
+      "id": "LC-03",
+      "requirement": "Discover and Design develop high-quality, structured, durable context that upstream development tools can ingest: intent, evidence, requirements, decisions, design, constraints and acceptance criteria.",
+      "acceptance": "A harness receives an identifiable context revision, and a reviewer can trace generated work back to the relevant human intent and accepted decisions."
+    },
+    {
+      "id": "LC-04",
+      "requirement": "Develop launches and orchestrates existing upstream coding harnesses. Luci supplies context, environments, work coordination, review and delivery; it does not replace those harnesses' coding engines.",
+      "acceptance": "A real supported upstream harness receives Luci context and produces observable code, checks and reviewable outputs through the integrated workflow."
+    },
+    {
+      "id": "LC-05",
+      "requirement": "Local Develop runs in an isolated Docker environment with scoped workspace, credentials, resources and owned lifecycle.",
+      "acceptance": "A real provider-backed coding task runs inside Docker; host CLI execution, fixtures and manual code import are not substitutes."
+    },
+    {
+      "id": "LC-06",
+      "requirement": "Cloud Develop runs in isolated microVMs on the selected supported cloud provider.",
+      "acceptance": "Actual microVM creation, harness execution, isolation, persistence/recovery and cleanup are demonstrated. A remote Docker container or ordinary shared VM does not satisfy this requirement."
+    },
+    {
+      "id": "LC-07",
+      "requirement": "A conversational change during development triggers the necessary discovery questions, design changes, context revision, implementation, validation and deployment work under established policy.",
+      "acceptance": "Add a feature during an active build; the resulting app and deployment reflect the amended context, with obsolete work identified and no stale result silently accepted."
+    },
+    {
+      "id": "LC-08",
+      "requirement": "Deploy gets the reviewed application live and feeds operational results back into the same project context.",
+      "acceptance": "A real deployed app is reachable and its intended behavior is checked; failed deployments and rollback or recovery retain truthful status and evidence."
+    },
+    {
+      "id": "LC-09",
+      "requirement": "Cloud teams have per-person Lucis coordinate against shared durable, versioned project context.",
+      "acceptance": "Two team members' Lucis exchange accepted changes, track their provenance and dependencies, and converge on the shared project state across restart or temporary disconnection."
+    },
+    {
+      "id": "LC-10",
+      "requirement": "Team Lucis resolve routine concurrent changes under agreed authority and policy, notify affected agents and adapt their work without humans managing handoffs.",
+      "acceptance": "A teammate requests a design change while another Luci builds; compatible changes are reconciled, conflicting or stale work is handled explicitly, and development continues using the agreed revision. No silent last-writer-wins or fabricated consensus."
+    },
+    {
+      "id": "LC-11",
+      "requirement": "Luci automates routine work within the user's and team's established authority. Material ambiguity or incompatible human intent is surfaced clearly; existing deployment and spending boundaries remain meaningful.",
+      "acceptance": "Routine phase transitions and agreed changes do not require repeated manual approvals. Irreconcilable intent or actions outside the agreed authority produce a specific decision request instead of pretending the conflict is resolved."
+    },
+    {
+      "id": "LC-12",
+      "requirement": "The experience is clean, quick and usable with shadcn/ui; conversation and project work remain coherent across phases and projects.",
+      "acceptance": "The real interface supports conversational work, project switching, context review, progress, amendment and recovery without requiring users to operate separate vendor administration screens for routine work."
+    },
+    {
+      "id": "LC-13",
+      "requirement": "Scheduling, priorities, project isolation, reviewed outputs, cancellation/restart recovery and whole-computer resource responsiveness remain required capabilities.",
+      "acceptance": "Evidence covers at least four projects, durable isolated context, priority/scheduling behavior, recovery, and owned workers, browsers, servers and containers without disrupting unrelated work."
+    },
+    {
+      "id": "LC-14",
+      "requirement": "Reuse suitable open-source solutions and existing details through Glasses, preserving provenance and licences; integrate them to this contract rather than substituting their product scope.",
+      "acceptance": "Material reuse decisions cite inspected original evidence, licensing, integration fit and limitations; demonstrations and fixture evidence are not presented as real-provider proof."
+    },
+    {
+      "id": "LC-15",
+      "requirement": "Cloud agent swarms are a first-class capability that is easy to enable. Primary Luci decomposes work into many smaller dependency-aware tasks and elastically schedules upstream-harness subagents, each in its own independently owned isolated microVM, then spins those VMs down as their work finishes.",
+      "acceptance": "A real cloud swarm runs multiple independently owned microVM subagents concurrently, consumes exact scoped context, coordinates dependencies and amendments, integrates reviewable results, and demonstrates per-VM cleanup. Multiple processes or containers sharing one VM do not satisfy per-agent microVM isolation."
+    },
+    {
+      "id": "LC-16",
+      "requirement": "Swarm operation supports clear concurrency, resource and spending policy, priority/backpressure, durable task outputs/checkpoints, bounded retry, cancellation and restart reconciliation. It must not require humans to provision each VM or manage routine agent handoffs.",
+      "acceptance": "A representative small-task fan-out workload has an explicit measured concurrency target within configured limits, with no arbitrary low product ceiling or claim of unlimited scale. Tests cover a mid-swarm context change, conflicting outputs, failure/cancel/restart, duplicate-create prevention and observed settlement of owned VM identities and retained charges. Uncertain provider outcomes remain visible and are reconciled, not silently dropped."
+    }
+  ]
+}

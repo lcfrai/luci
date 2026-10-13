@@ -17,6 +17,18 @@ The full working objective remains unfinished; aligned implementation has resume
 
 ## Required product
 
+The [canonical LC-01–LC-16 requirement and acceptance entries](PRODUCT-CONTRACT-LC.json) preserve the originating local audit's exact IDs and wording. The seven prose items below organize that contract; they do not renumber or replace any LC entry. This crosswalk records which entries each item explains:
+
+| Prose item | Canonical entries |
+| --- | --- |
+| 1. Primary conversational Luci | LC-01, LC-11 |
+| 2. Four communicating phases and context | LC-02, LC-03, LC-04, LC-08 |
+| 3. Execution boundaries | LC-04, LC-05, LC-06 |
+| 4. Mid-build amendment loop | LC-02, LC-07, LC-08, LC-11 |
+| 5. Team Luci coordination | LC-09, LC-10, LC-11 |
+| 6. Quality and operations | LC-12, LC-13, LC-14 |
+| 7. Elastic cloud swarms | LC-15, LC-16 |
+
 1. **One primary conversational Luci per person.** This is the main interface and continuing coordinator across projects and the whole lifecycle. It remembers that person's intent and authorized project state, asks about consequential ambiguity, explains what is being built and what happens next, and acts within agreed policy. A saved project chat or a button opening discussion alone does not satisfy this. Per-person identity does not require a permanently running expensive worker for every person/project.
 2. **Discover, Design, Develop, Deploy are four communicating, revisitable views of that workflow.** Discover and Design develop exceptionally useful structured context: outcomes, users, decisions, constraints, behavior/design, dependencies and measurable acceptance. Develop boots and orchestrates existing supported upstream Codex, Claude Code or other coding harnesses. Deploy gets the resulting application live and supports operation and amendments. Direct editors, terminals and review tools remain available within the coordinator's coherent journey.
 3. **The execution boundaries are explicit.** Local Develop uses isolated Docker; cloud Develop uses isolated microVMs on a specifically supported provider. Luci owns context, environment lifecycle, coordination, review and delivery; upstream harnesses own coding engines. Remote SSH Docker and dormant Kata do not fulfill cloud microVM execution. Management services, image preparation and deployed applications may use Docker without changing this distinction. Show **Run on** separately from **Deploy to**.

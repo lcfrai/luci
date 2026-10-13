@@ -94,6 +94,38 @@ func cloudOwnershipOnlyEffect(action string) bool {
 	return false
 }
 
+// A provider outage must not hide already owned VM attempts from the API's
+// recovery view. The restored journal is still mandatory and retains every
+// charge; this exception only permits startup for an existing live/uncertain
+// attempt or an absent VM whose product outcome has not been joined. New
+// allocation rechecks both provider prerequisites in dispatch.
+type cloudStartupController interface {
+	Snapshot() ([]e2bbe.Record, e2bbe.Usage)
+	VerifyTemplateBuild(context.Context) error
+	VerifyNodeCapacity(context.Context) error
+}
+
+func verifyCloudStartup(ctx context.Context, controller cloudStartupController) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	rows, _ := controller.Snapshot()
+	retained := false
+	for _, row := range rows {
+		if row.State != e2bbe.Absent || row.ProductOutcome == "" {
+			retained = true
+			break
+		}
+	}
+	if err := controller.VerifyTemplateBuild(ctx); err != nil && !retained {
+		return fmt.Errorf("verify selected cloud microVM template build: %w", err)
+	}
+	if err := controller.VerifyNodeCapacity(ctx); err != nil && !errors.Is(err, e2bbe.ErrCapacity) && !retained {
+		return fmt.Errorf("verify authenticated cloud microVM host: %w", err)
+	}
+	return ctx.Err()
+}
+
 // openE2BTaskRuntime refuses an unconfigured or unverified cloud capability.
 // The artifact store must be on the durable controller host, not on the
 // replaceable Embed runtime host. The signed separation/restore receipts and
@@ -240,15 +272,10 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		closeStore()
 		return nil, nil, fmt.Errorf("restore exact cloud VM ownership: %w", err)
 	}
-	if err = controller.VerifyTemplateBuild(ctx); err != nil {
+	if err = verifyCloudStartup(ctx, controller); err != nil {
 		_ = controller.Close(context.WithoutCancel(ctx))
 		closeStore()
-		return nil, nil, fmt.Errorf("verify selected cloud microVM template build: %w", err)
-	}
-	if err = controller.VerifyNodeCapacity(ctx); err != nil && !errors.Is(err, e2bbe.ErrCapacity) {
-		_ = controller.Close(context.WithoutCancel(ctx))
-		closeStore()
-		return nil, nil, fmt.Errorf("verify authenticated cloud microVM host: %w", err)
+		return nil, nil, err
 	}
 	cloud := &api.CloudTaskRuntime{Runtime: &e2bbe.TaskRuntime{Controller: controller, Store: store},
 		AttachKey: attachKey, MaxSeconds: selected.TaskMaxSeconds,
