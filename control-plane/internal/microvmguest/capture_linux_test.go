@@ -124,6 +124,49 @@ func TestGuestCaptureExportsCompleteSourceChangesWithoutRunningGit(t *testing.T)
 		t.Fatal("replay changed output or unfroze task")
 	}
 }
+
+func TestGuestCaptureBindsUntrustedTaskReportOutsideSource(t *testing.T) {
+	p, frozen, _, dest := frozenSourceFixture(t)
+	dir := filepath.Join(p.directory, "task-output")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	report := []byte(`{"version":1,"summary":"candidate claims only"}`)
+	if err := os.WriteFile(filepath.Join(dir, "handoff.json"), report, 0600); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := captureTaskOutput(context.Background(), p, frozen, dest, uint32(os.Getuid()))
+	if err != nil || receipt.ReportSHA256 != hashBytes(report) {
+		t.Fatal("dedicated report was not bound to the frozen output", err)
+	}
+	archive, err := os.ReadFile(filepath.Join(dest, "output.tar"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := p.manifest.Binding
+	binding.Direction = "output"
+	manifest, err := e2bbe.VerifyTransfer(bytes.NewReader(archive), binding, receipt.ArchiveSHA256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, file := range manifest.Files {
+		found = found || file.Path == "output/handoff.json" && file.SHA256 == receipt.ReportSHA256
+	}
+	if !found {
+		t.Fatal("complete archive omitted the hash-bound handoff")
+	}
+	if _, err := os.Lstat(filepath.Join(p.directory, "source", "handoff.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("untrusted report entered reviewable source")
+	}
+	malicious, maliciousFrozen, _, next := frozenSourceFixture(t)
+	if err := os.Symlink(dir, filepath.Join(malicious.directory, "task-output")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := captureTaskOutput(context.Background(), malicious, maliciousFrozen, next, uint32(os.Getuid())); err == nil {
+		t.Fatal("linked report directory was followed")
+	}
+}
 func TestGuestCaptureRefusesLinkedSpecialOversizedOrChangedIdentitySource(t *testing.T) {
 	for _, name := range []string{"symlink", "hardlink", "fifo", "oversized", "different-attempt", "source-root-link"} {
 		t.Run(name, func(t *testing.T) {

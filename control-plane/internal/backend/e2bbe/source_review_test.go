@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -48,6 +49,25 @@ func returnedSourceFixture(t *testing.T) (Request, TransferManifest, TransferMan
 	return req, input, output, receipt, sourceBytes, changeBytes
 }
 
+func TestReturnedSourceRequiresExactOptionalReportBinding(t *testing.T) {
+	req, input, output, receipt, source, changes := returnedSourceFixture(t)
+	report := []byte(`{"version":1,"summary":"untrusted claim"}`)
+	output.Files = append(output.Files, payload("output/handoff.json", string(report)).TransferFile)
+	sort.Slice(output.Files, func(i, j int) bool { return output.Files[i].Path < output.Files[j].Path })
+	receipt.ReportSHA256 = bytesDigest(report)
+	if _, err := ValidateReturnedSource(req, input, output, receipt, source, changes); err != nil {
+		t.Fatal("bounded report rejected alongside exact source", err)
+	}
+	wrong := receipt
+	wrong.ReportSHA256 = strings.Repeat("0", 64)
+	if _, err := ValidateReturnedSource(req, input, output, wrong, source, changes); err == nil {
+		t.Fatal("report bytes detached from capture receipt")
+	}
+	if _, err := ValidateReturnedSource(req, input, output, CaptureReceipt{ArchiveSHA256: receipt.ArchiveSHA256, SourceManifestSHA256: receipt.SourceManifestSHA256, ChangeManifestSHA256: receipt.ChangeManifestSHA256}, source, changes); err == nil {
+		t.Fatal("unclaimed report bytes entered a source receipt")
+	}
+}
+
 func TestStoredReturnedSourceRequiresCompleteBoundInputAndOutput(t *testing.T) {
 	req := taskRequest("alpha", "one")
 	inBinding := TransferBinding{Identity: req.Identity, SourceDigest: req.SourceDigest, ContextDigest: req.ContextDigest, Direction: "input"}
@@ -66,11 +86,12 @@ func TestStoredReturnedSourceRequiresCompleteBoundInputAndOutput(t *testing.T) {
 	outBinding := inBinding
 	outBinding.Direction = "output"
 	var outputArchive bytes.Buffer
-	_, outputHash, err := WriteTransfer(&outputArchive, outBinding, []Payload{payload("output/changes.json", string(changeBytes)), payload("output/source-manifest.json", string(sourceBytes)), payload("output/source/main.go", "new")})
+	report := []byte(`{"version":1,"summary":"upstream claim only"}`)
+	_, outputHash, err := WriteTransfer(&outputArchive, outBinding, []Payload{payload("output/changes.json", string(changeBytes)), payload("output/handoff.json", string(report)), payload("output/source-manifest.json", string(sourceBytes)), payload("output/source/main.go", "new")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt := CaptureReceipt{ArchiveSHA256: outputHash, ArchiveBytes: int64(outputArchive.Len()), SourceManifestSHA256: bytesDigest(sourceBytes), ChangeManifestSHA256: bytesDigest(changeBytes)}
+	receipt := CaptureReceipt{ArchiveSHA256: outputHash, ArchiveBytes: int64(outputArchive.Len()), SourceManifestSHA256: bytesDigest(sourceBytes), ChangeManifestSHA256: bytesDigest(changeBytes), ReportSHA256: bytesDigest(report)}
 	store := openStore(t, storeConfig(t))
 	if _, err = store.PutTransfer(context.Background(), inBinding, inputHash, bytes.NewReader(inputArchive.Bytes())); err != nil {
 		t.Fatal(err)
@@ -84,6 +105,10 @@ func TestStoredReturnedSourceRequiresCompleteBoundInputAndOutput(t *testing.T) {
 	got, err := store.ValidateStoredReturnedSource(context.Background(), req, receipt)
 	if err != nil || len(got.Changes) != 1 || got.Changes[0].Path != "main.go" {
 		t.Fatal("stored source was not independently verified", got, err)
+	}
+	storedReport, err := store.ReadStoredTaskReport(context.Background(), req, receipt)
+	if err != nil || !bytes.Equal(storedReport, report) {
+		t.Fatal("stored upstream report was not returned as exact untrusted bytes", err)
 	}
 	stage := filepath.Join(t.TempDir(), "stage")
 	if err = os.Mkdir(stage, 0700); err != nil {

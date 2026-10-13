@@ -59,7 +59,15 @@ func ValidateReturnedSource(req Request, input, output TransferManifest, receipt
 		}
 		after[file.Path] = file
 	}
-	if len(output.Files) != len(source.Files)+2 {
+	reportFiles := 0
+	if receipt.ReportSHA256 != "" {
+		report, exists := files["output/handoff.json"]
+		if !exists || report.SHA256 != receipt.ReportSHA256 || report.Size < 1 || report.Size > 64<<10 || report.Mode != 0644 {
+			return SourceChanges{}, ErrTransfer
+		}
+		reportFiles = 1
+	}
+	if len(output.Files) != len(source.Files)+2+reportFiles {
 		return SourceChanges{}, ErrTransfer
 	}
 	remaining := make(map[string]TransferFile, len(before))

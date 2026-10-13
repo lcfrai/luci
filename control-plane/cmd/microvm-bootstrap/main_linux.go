@@ -71,6 +71,9 @@ func run() error {
 	if e = microvmguest.Protect(prepared, 1001, 1001); e != nil {
 		return e
 	}
+	if e = microvmguest.PrepareTaskOutput(prepared, "/home/dev/.luci-task-output", 1001, 1001); e != nil {
+		return e
+	}
 	if _, e = microvmguest.InitializeRepository(context.Background(), prepared); e != nil {
 		return e
 	}

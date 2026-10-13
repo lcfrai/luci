@@ -24,6 +24,7 @@ import (
 const capturePolicy = e2bbe.SourceSnapshotPolicy
 const maxCaptureEntries = 16384
 const maxCaptureDirectories = 1024
+const maxTaskHandoffBytes = 64 << 10
 
 type sourceSnapshot = e2bbe.SourceSnapshot
 type sourceChange = e2bbe.SourceChange
@@ -68,6 +69,51 @@ func sourceFile(root *os.Root, name string, expected os.FileInfo, uid uint32) (*
 		return nil, ErrRefused
 	}
 	return f, nil
+}
+
+// A handoff is untrusted agent output, not an approved decision or independent
+// check. The report directory is the controller-created sibling of source;
+// capture never follows the writable home-directory convenience link.
+func frozenTaskHandoff(ctx context.Context, p Prepared, frozen FrozenTask, uid uint32) ([]byte, error) {
+	if e := frozen.verifyFrozen(ctx); e != nil {
+		return nil, e
+	}
+	root, e := os.OpenRoot(p.directory)
+	if e != nil {
+		return nil, e
+	}
+	defer root.Close()
+	dir, e := root.Lstat("task-output")
+	if errors.Is(e, os.ErrNotExist) { // older prepared attempts had no report path
+		return nil, nil
+	}
+	if e != nil || !dir.IsDir() || dir.Mode()&os.ModeSymlink != 0 || dir.Mode().Perm()&0077 != 0 {
+		return nil, ErrRefused
+	}
+	owner, ok := dir.Sys().(*syscall.Stat_t)
+	if !ok || owner.Uid != uid {
+		return nil, ErrRefused
+	}
+	info, e := root.Lstat("task-output/handoff.json")
+	if errors.Is(e, os.ErrNotExist) {
+		return nil, nil
+	}
+	if e != nil || !info.Mode().IsRegular() || info.Size() < 1 || info.Size() > maxTaskHandoffBytes {
+		return nil, ErrRefused
+	}
+	f, e := sourceFile(root, "task-output/handoff.json", info, uid)
+	if e != nil {
+		return nil, e
+	}
+	body, readErr := io.ReadAll(io.LimitReader(checkedReader{ctx: ctx, r: f}, maxTaskHandoffBytes+1))
+	closeErr := f.Close()
+	if readErr != nil || closeErr != nil || int64(len(body)) != info.Size() {
+		return nil, ErrRefused
+	}
+	if e = frozen.verifyFrozen(ctx); e != nil {
+		return nil, e
+	}
+	return body, nil
 }
 
 // Bounded batches avoid reading a huge dependency directory into RAM. The task
@@ -317,6 +363,13 @@ func captureTaskOutput(ctx context.Context, p Prepared, frozen FrozenTask, desti
 		return receipt, e2bbe.ErrTransfer
 	}
 	payloads = append(payloads, metadataPayload("output/source-manifest.json", sourceBytes), metadataPayload("output/changes.json", changeBytes))
+	reportBytes, e := frozenTaskHandoff(ctx, p, frozen, uid)
+	if e != nil {
+		return receipt, e
+	}
+	if len(reportBytes) != 0 {
+		payloads = append(payloads, metadataPayload("output/handoff.json", reportBytes))
+	}
 	file, e := os.OpenFile(filepath.Join(destination, "output.tar"), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if e != nil {
 		return receipt, e
@@ -354,6 +407,9 @@ func captureTaskOutput(ctx context.Context, p Prepared, frozen FrozenTask, desti
 		return receipt, e
 	}
 	receipt = e2bbe.CaptureReceipt{Version: 1, CaptureID: captureID, Identity: frozen.identity, ArchiveSHA256: hash, ArchiveBytes: info.Size(), CapturedAt: time.Now().UTC(), SourceManifestSHA256: hashBytes(sourceBytes), ChangeManifestSHA256: hashBytes(changeBytes)}
+	if len(reportBytes) != 0 {
+		receipt.ReportSHA256 = hashBytes(reportBytes)
+	}
 	if e = writeJSON(filepath.Join(destination, "output.json"), receipt); e != nil {
 		return e2bbe.CaptureReceipt{}, e
 	}

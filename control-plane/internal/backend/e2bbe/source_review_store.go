@@ -3,9 +3,59 @@ package e2bbe
 import (
 	"archive/tar"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 )
+
+// ReadStoredTaskReport returns the optional untrusted upstream handoff only
+// after both complete source archives have passed exact binding validation.
+// Missing means no report was captured, never that checks passed or questions
+// were answered. The returned bytes still require product schema/review.
+func (s *DirectoryStore) ReadStoredTaskReport(ctx context.Context, req Request, receipt CaptureReceipt) ([]byte, error) {
+	if _, err := s.ValidateStoredReturnedSource(ctx, req, receipt); err != nil {
+		return nil, err
+	}
+	if receipt.ReportSHA256 == "" {
+		return nil, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return nil, ErrClosed
+	}
+	f, err := s.root.Open("artifact-" + receipt.ArchiveSHA256 + ".tar")
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	reader := tar.NewReader(contextReader{ctx: ctx, r: f})
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			return nil, ErrTransfer
+		}
+		if err != nil {
+			return nil, err
+		}
+		if header.Name != "output/handoff.json" {
+			continue
+		}
+		if header.Size < 1 || header.Size > 64<<10 || header.Typeflag != tar.TypeReg {
+			return nil, ErrTransfer
+		}
+		body, err := io.ReadAll(io.LimitReader(reader, 64<<10+1))
+		if err != nil || int64(len(body)) != header.Size {
+			return nil, ErrTransfer
+		}
+		hash := sha256.Sum256(body)
+		if hex.EncodeToString(hash[:]) != receipt.ReportSHA256 {
+			return nil, ErrTransfer
+		}
+		return body, nil
+	}
+}
 
 // ValidateStoredReturnedSource reads both complete, hash-bound archives from
 // controller-owned storage and verifies the returned source inventory/diff.

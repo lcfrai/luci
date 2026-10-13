@@ -20,6 +20,8 @@ Contract LC-01–LC-16 remains controlled by audited `b3ecb0114dba6b6e0dfcfedbf1
 
 **CLOUD-084 restart identity:** new task transfers and guest launch receipts include their exact reviewed run ID as well as project/task/attempt/child. Product review refuses another run's otherwise plausible captured exit, so a restarted observer can look up the owning run without guessing from a project-wide task name. Legacy controller fixture records without `runId` remain readable but cannot enter the new product import path. Focused source tests pass; controller/API observation wiring and real guest execution remain open.
 
+**CLOUD-084 upstream task report capture:** guest bootstrap now supplies the existing `/home/dev/.luci-task-output/handoff.json` path as a private directory outside source/reviewed context. Frozen output capture binds an optional bounded handoff file into the archive and receipt; controller storage returns only the exact verified bytes as an untrusted report. A missing report never means no questions or passing checks. Focused UID/path, archive and tampering regressions pass. The product's existing task-handoff ledger still needs a cloud-specific collector/authority binding before this report appears in review; no independent check or live guest has passed.
+
 Recovery baseline was `d331e22c6cfa9422410bbde39619c3f932632d5d`. The backend delivery slice is committed at `0ce7995d0bf1d0c1df930ee583c5cd92036f36ba`; later source checkpoints above supersede this baseline. No new package or live acceptance is inferred.
 
 ## Published bounded implementation checkpoints — 13 October 2026

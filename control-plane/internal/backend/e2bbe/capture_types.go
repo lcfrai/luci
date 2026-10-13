@@ -74,6 +74,8 @@ type CaptureReceipt struct {
 	CapturedAt           time.Time       `json:"capturedAt"`
 	SourceManifestSHA256 string          `json:"sourceManifestSha256"`
 	ChangeManifestSHA256 string          `json:"changeManifestSha256"`
+	// Optional untrusted upstream handoff, never independent check evidence.
+	ReportSHA256 string `json:"reportSha256,omitempty"`
 }
 
 // NativeExitReceipt is independent of an envd Start/End stream or capture
@@ -136,7 +138,8 @@ func ValidateCaptureReceipt(receipt CaptureReceipt, launch CaptureIdentity, r Re
 		!digestPattern.MatchString(receipt.ArchiveSHA256) || receipt.ArchiveBytes <= 0 ||
 		receipt.ArchiveBytes > MaxCaptureArchiveBytes ||
 		receipt.CapturedAt.IsZero() || !digestPattern.MatchString(receipt.SourceManifestSHA256) ||
-		!digestPattern.MatchString(receipt.ChangeManifestSHA256) {
+		!digestPattern.MatchString(receipt.ChangeManifestSHA256) ||
+		(receipt.ReportSHA256 != "" && !digestPattern.MatchString(receipt.ReportSHA256)) {
 		return ErrTransfer
 	}
 	return nil

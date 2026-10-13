@@ -36,6 +36,20 @@ func TestProtectedGuestContextCannotBeReplacedByUpstreamUser(t *testing.T) {
 	if e = Protect(p, 1001, 1001); e != nil {
 		t.Fatal(e)
 	}
+	home := filepath.Join(parent, "dev-home")
+	if e = os.Mkdir(home, 0755); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.Chown(home, 1001, 1001); e != nil {
+		t.Fatal(e)
+	}
+	outputLink := filepath.Join(home, ".luci-task-output")
+	if e = PrepareTaskOutput(p, outputLink, 1001, 1001); e != nil {
+		t.Fatal(e)
+	}
+	if e = PrepareTaskOutput(p, outputLink, 1001, 1001); e == nil {
+		t.Fatal("an existing report link was adopted by another launch")
+	}
 	commit, e := InitializeRepository(context.Background(), p)
 	if e != nil || len(commit) != 40 {
 		t.Fatal("independent Git workspace", commit, e)
@@ -52,7 +66,7 @@ func TestProtectedGuestContextCannotBeReplacedByUpstreamUser(t *testing.T) {
 			t.Fatal(path, "wrong owner")
 		}
 	}
-	command := exec.Command("/bin/sh", "-c", `test -r "$1/context/reviewed.json" && printf 'updated' > "$1/source/AGENTS.md" && test -x "$1/source/build.sh" && ! (printf 'tamper' > "$1/context/reviewed.json") && ! mv "$1/context" "$1/renamed-context" && ! rm "$1/prepared.json"`, "guest-fixture", p.Directory())
+	command := exec.Command("/bin/sh", "-c", `test -r "$1/context/reviewed.json" && printf 'updated' > "$1/source/AGENTS.md" && printf '{"version":1}' > "$2/.luci-task-output/handoff.json" && test -x "$1/source/build.sh" && ! (printf 'tamper' > "$1/context/reviewed.json") && ! mv "$1/context" "$1/renamed-context" && ! rm "$1/prepared.json"`, "guest-fixture", p.Directory(), home)
 	command.Dir = parent
 	command.SysProcAttr = &syscall.SysProcAttr{Credential: &syscall.Credential{Uid: 1001, Gid: 1001, Groups: []uint32{}}}
 	if out, e := command.CombinedOutput(); e != nil {
@@ -60,5 +74,8 @@ func TestProtectedGuestContextCannotBeReplacedByUpstreamUser(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(filepath.Join(p.Directory(), "context/reviewed.json")); string(b) != "{\"revision\":7}" {
 		t.Fatal("protected context changed")
+	}
+	if b, _ := os.ReadFile(filepath.Join(p.Directory(), "task-output", "handoff.json")); string(b) != "{\"version\":1}" {
+		t.Fatal("dedicated report did not stay in the owned attempt")
 	}
 }
