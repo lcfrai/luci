@@ -46,7 +46,11 @@ func ValidAzureDeployment(d Deployment, endpoint string) bool {
 		return false
 	}
 	u, err := url.Parse(endpoint)
-	return err == nil && u.Scheme == "https" && u.Hostname() == d.AzureGatewayHost
+	// The Azure management endpoint is the protected gateway's fixed listener.
+	// Accepting another port could route directly to an E2B service on the same
+	// private host and bypass its mTLS and generation-receipt boundary.
+	return err == nil && u.Scheme == "https" && u.Host == d.AzureGatewayHost &&
+		u.User == nil && u.Path == "" && u.RawQuery == "" && u.Fragment == ""
 }
 
 func hasAzureDeploymentFields(d Deployment) bool {

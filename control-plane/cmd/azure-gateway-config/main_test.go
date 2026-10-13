@@ -1,8 +1,18 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 )
@@ -10,6 +20,59 @@ import (
 func gatewayFixture() config {
 	return config{GatewayHost: "embed.private.example", PrivateListenIP: "10.20.0.4", Scope: "scope-one", Generation: "generation-one",
 		ServerCertFile: "/run/luci-gateway/server.crt", ServerKeyFile: "/run/luci-gateway/server.key", ClientCAFile: "/run/luci-gateway/client-ca.crt"}
+}
+
+func TestAzureGatewayRequiresCurrentPrivateCertificateMaterials(t *testing.T) {
+	c := gatewayFixture()
+	c.ServerCertFile = filepath.Join(t.TempDir(), "server.crt")
+	c.ServerKeyFile = filepath.Join(filepath.Dir(c.ServerCertFile), "server.key")
+	c.ClientCAFile = filepath.Join(filepath.Dir(c.ServerCertFile), "client-ca.crt")
+	now := time.Now().UTC()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write := func(path string, data []byte) {
+		t.Helper()
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cert := func(names []string, ca bool) []byte {
+		t.Helper()
+		template := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "private-gateway"}, DNSNames: names,
+			NotBefore: now.Add(-time.Hour), NotAfter: now.Add(time.Hour), IsCA: ca, BasicConstraintsValid: true,
+			KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+		der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	}
+	privateKey, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(c.ServerKeyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privateKey}))
+	write(c.ClientCAFile, cert(nil, true))
+	write(c.ServerCertFile, cert([]string{c.GatewayHost, "*." + c.GatewayHost}, false))
+	if err := validateGatewayMaterials(c, now); err != nil {
+		t.Fatal("current exact TLS materials refused", err)
+	}
+	write(c.ServerCertFile, cert([]string{c.GatewayHost}, false))
+	if err := validateGatewayMaterials(c, now); err == nil {
+		t.Fatal("server certificate without guest origins accepted")
+	}
+	write(c.ServerCertFile, cert([]string{c.GatewayHost, "*." + c.GatewayHost}, false))
+	if err := validateGatewayMaterials(c, now.Add(2*time.Hour)); err == nil {
+		t.Fatal("expired gateway certificate accepted")
+	}
+	if err := os.Chmod(c.ClientCAFile, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateGatewayMaterials(c, now); err == nil {
+		t.Fatal("shared-readable gateway trust root accepted")
+	}
 }
 
 func TestAzureGatewayRendersExactPrivateManagementAndGuestBoundary(t *testing.T) {

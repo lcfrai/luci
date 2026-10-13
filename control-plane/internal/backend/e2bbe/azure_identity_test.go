@@ -91,6 +91,15 @@ func TestAzureDeploymentIdentityIsExactAndSeparateFromAWS(t *testing.T) {
 	if validDeployment(Config{Deployment: d, Endpoint: endpoint}) {
 		t.Fatal("Azure gateway accepted no client identity")
 	}
+	for _, other := range []string{
+		"https://embed.private.example:3000", "https://embed.private.example:5008",
+		"https://embed.private.example:8443", "https://embed.private.example/other",
+		"https://user@embed.private.example", "https://embed.private.example?route=other",
+	} {
+		if validDeployment(Config{Deployment: d, Endpoint: other, ClientCertificate: &tls.Certificate{}}) {
+			t.Fatal("Azure deployment accepted an endpoint outside the fixed gateway listener", other)
+		}
+	}
 	for name, change := range map[string]func(*Deployment){
 		"subscription": func(d *Deployment) { d.AzureSubscriptionID = "other" },
 		"scale set":    func(d *Deployment) { d.AzureScaleSetID += "/virtualmachines/0" },

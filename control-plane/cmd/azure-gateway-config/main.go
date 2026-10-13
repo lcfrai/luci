@@ -4,7 +4,10 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 )
@@ -163,6 +167,67 @@ static_resources:
 	return out.Bytes(), nil
 }
 
+// The renderer is also the host's preflight for the selected private TLS
+// generation. A syntactically valid route file with missing or stale key
+// material must never be handed to Envoy as a ready gateway candidate.
+func validateGatewayMaterials(c config, now time.Time) error {
+	if !validConfig(c) {
+		return errors.New("private gateway configuration is invalid")
+	}
+	read := func(path string) ([]byte, error) {
+		info, err := os.Lstat(path)
+		if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 || info.Size() < 1 || info.Size() > 1<<20 {
+			return nil, errors.New("private gateway certificate material is unavailable")
+		}
+		data, err := os.ReadFile(path)
+		if err != nil || len(data) < 1 || len(data) > 1<<20 {
+			return nil, errors.New("private gateway certificate material is unavailable")
+		}
+		return data, nil
+	}
+	certPEM, err := read(c.ServerCertFile)
+	if err != nil {
+		return err
+	}
+	keyPEM, err := read(c.ServerKeyFile)
+	if err != nil {
+		return err
+	}
+	caPEM, err := read(c.ClientCAFile)
+	if err != nil {
+		return err
+	}
+	pair, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil || len(pair.Certificate) == 0 {
+		return errors.New("private gateway server certificate or key is invalid")
+	}
+	server, err := x509.ParseCertificate(pair.Certificate[0])
+	if err != nil || now.Before(server.NotBefore) || !now.Before(server.NotAfter) ||
+		server.VerifyHostname(c.GatewayHost) != nil ||
+		server.VerifyHostname("49983-sandbox."+c.GatewayHost) != nil ||
+		server.VerifyHostname("8080-sandbox."+c.GatewayHost) != nil {
+		return errors.New("private gateway server identity or validity is invalid")
+	}
+	if len(server.ExtKeyUsage) != 0 {
+		allowed := false
+		for _, use := range server.ExtKeyUsage {
+			allowed = allowed || use == x509.ExtKeyUsageServerAuth
+		}
+		if !allowed {
+			return errors.New("private gateway server certificate cannot serve TLS")
+		}
+	}
+	block, rest := pem.Decode(caPEM)
+	if block == nil || block.Type != "CERTIFICATE" || len(bytes.TrimSpace(rest)) != 0 {
+		return errors.New("private gateway client CA is invalid")
+	}
+	ca, err := x509.ParseCertificate(block.Bytes)
+	if err != nil || !ca.IsCA || now.Before(ca.NotBefore) || !now.Before(ca.NotAfter) {
+		return errors.New("private gateway client CA is invalid")
+	}
+	return nil
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		fmt.Fprintln(os.Stderr, "usage: azure-gateway-config PRIVATE_CONFIG.json")
@@ -184,6 +249,10 @@ func main() {
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&c) != nil || decoder.Decode(new(any)) != io.EOF {
 		fmt.Fprintln(os.Stderr, "gateway configuration is invalid")
+		os.Exit(2)
+	}
+	if err := validateGatewayMaterials(c, time.Now()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
 	data, err := render(c)
