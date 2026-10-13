@@ -104,12 +104,7 @@ func (a *API) cloudRetired(_ context.Context, projectID, runID, operationID, chi
 
 func (a *API) guardMicroVMImport(ctx context.Context, scope product.ProjectSwarmMicroVMImportScope) (func(), error) {
 	row, ok := a.cloudRecord(scope.ProjectID, scope.RunID, scope.OperationID, scope.ChildID)
-	if !ok || row.RequestDigest != scope.RequestDigest || row.Request.Identity.OwnerID != scope.OwnerID ||
-		(scope.CleanupOnly && (scope.RequireRetired || row.State != e2bbe.Absent || row.ResourcesHeld)) ||
-		(scope.RequireRetired && (row.State != e2bbe.Absent || row.ResourcesHeld ||
-			e2bbe.ValidateNativeExitReceipt(row.NativeExit, row) != nil || e2bbe.ValidateCaptureReceipt(row.Capture, row.LaunchKernel, row) != nil)) ||
-		(!scope.RequireRetired && !scope.CleanupOnly && (row.State != e2bbe.Allocated || !row.ResourcesHeld ||
-			e2bbe.ValidateCaptureIdentity(row.LaunchKernel, row) != nil)) {
+	if !ok || !cloudImportRecordAllowed(row, scope) {
 		return nil, product.ErrProjectRunConflict
 	}
 	if scope.CleanupOnly {
@@ -136,4 +131,21 @@ func (a *API) guardMicroVMImport(ctx context.Context, scope product.ProjectSwarm
 		}
 	}
 	return func() {}, nil
+}
+
+func cloudImportRecordAllowed(row e2bbe.Record, scope product.ProjectSwarmMicroVMImportScope) bool {
+	if row.RequestDigest != scope.RequestDigest || row.Request.Identity.OwnerID != scope.OwnerID ||
+		scope.RequireUncaptured && (!scope.CleanupOnly || row.Capture.ArchiveSHA256 != "") {
+		return false
+	}
+	if scope.CleanupOnly {
+		return !scope.RequireRetired && row.State == e2bbe.Absent && !row.ResourcesHeld
+	}
+	if scope.RequireRetired {
+		return row.State == e2bbe.Absent && !row.ResourcesHeld &&
+			e2bbe.ValidateNativeExitReceipt(row.NativeExit, row) == nil &&
+			e2bbe.ValidateCaptureReceipt(row.Capture, row.LaunchKernel, row) == nil
+	}
+	return row.State == e2bbe.Allocated && row.ResourcesHeld &&
+		e2bbe.ValidateCaptureIdentity(row.LaunchKernel, row) == nil
 }

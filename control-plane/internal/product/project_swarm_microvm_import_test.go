@@ -113,6 +113,53 @@ func TestMicroVMCandidateUsesTaskOwnedGitReviewWithoutPrimaryWriteOrReplay(t *te
 	}
 }
 
+func TestAbsentCloudVMWithoutCapturedResultNeedsReviewBeforeRetry(t *testing.T) {
+	s, mux, p, run, base, _ := swarmHTTPFixtureWithLocation(t, "cloud-microvm")
+	run = swarmReserveHTTP(t, mux, base, run, "task-a", "cloud-no-result-attempt")
+	op := run.Operations[0]
+	record, _, _ := microVMImportFixture(t, run.ID, op, "unreviewed")
+	record.State, record.ResourcesHeld = e2bbe.Absent, false
+	record.Capture = e2bbe.CaptureReceipt{}
+	if _, err := s.RecordProjectSwarmMicroVMNoResult(context.Background(), p.ID, run.ID, op.ID, record); err == nil {
+		t.Fatal("unregistered cleanup guard classified an absent VM")
+	}
+	s.SetProjectSwarmMicroVMImportGuard(func(_ context.Context, scope ProjectSwarmMicroVMImportScope) (func(), error) {
+		if scope.ChildID != op.ChildID {
+			return nil, ErrProjectRunConflict
+		}
+		if scope.ProjectID != p.ID || scope.RunID != run.ID || scope.OperationID != op.ID ||
+			!scope.CleanupOnly || !scope.RequireUncaptured || scope.RequireRetired {
+			t.Fatal("no-result outcome requested source-import authority", scope)
+		}
+		return func() {}, nil
+	})
+	for _, name := range []string{"live", "charged", "captured", "foreign"} {
+		wrong := record
+		switch name {
+		case "live":
+			wrong.State, wrong.ResourcesHeld = e2bbe.Allocated, true
+		case "charged":
+			wrong.ResourcesHeld = true
+		case "captured":
+			wrong.Capture.ArchiveSHA256 = strings.Repeat("c", 64)
+		case "foreign":
+			wrong.Request.Identity.OperationID = "s-foreign"
+		}
+		if _, err := s.RecordProjectSwarmMicroVMNoResult(context.Background(), p.ID, run.ID, op.ID, wrong); err == nil {
+			t.Fatal(name, "was classified as a settled missing result")
+		}
+	}
+	before := auditTree(t, p.Path)
+	settled, err := s.RecordProjectSwarmMicroVMNoResult(context.Background(), p.ID, run.ID, op.ID, record)
+	if err != nil || settled.State != "blocked" || settled.Operations[0].Status != "failed" || !strings.Contains(settled.Operations[0].Message, "no verified task result") {
+		t.Fatal("absent uncaptured VM did not become truthful attention", settled, err)
+	}
+	again, err := s.RecordProjectSwarmMicroVMNoResult(context.Background(), p.ID, run.ID, op.ID, record)
+	if err != nil || again.Revision != settled.Revision || !reflect.DeepEqual(before, auditTree(t, p.Path)) {
+		t.Fatal("no-result reread replayed a mutation", err)
+	}
+}
+
 func TestCancelledCloudRunRequiresExactVMAbsenceBeforeTaskRetirement(t *testing.T) {
 	s, mux, p, run, base, _ := swarmHTTPFixtureWithLocation(t, "cloud-microvm")
 	s.SetProjectSwarmMicroVMImportGuard(func(_ context.Context, scope ProjectSwarmMicroVMImportScope) (func(), error) {

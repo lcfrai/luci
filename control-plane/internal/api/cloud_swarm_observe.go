@@ -103,7 +103,8 @@ func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) er
 		}
 	}
 	if current.State == e2bbe.Absent && current.Capture.ArchiveSHA256 == "" {
-		return e2bbe.ErrUnknown // never describe uncaptured output as a reviewed result
+		_, err = a.deps.Product.RecordProjectSwarmMicroVMNoResult(ctx, identity.ProjectID, identity.RunID, identity.AttemptID, current)
+		return err // no native success or returned source is inferred from absence
 	}
 	if !current.LaunchRequested {
 		if current.State == e2bbe.Creating || current.State == e2bbe.Unknown {

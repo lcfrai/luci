@@ -22,6 +22,45 @@ type ProjectSwarmMicroVMImportScope struct {
 	ProjectID, RunID, OperationID, ChildID, OwnerID, RequestDigest string
 	RequireRetired                                                 bool
 	CleanupOnly                                                    bool
+	RequireUncaptured                                              bool
+}
+
+// RecordProjectSwarmMicroVMNoResult makes a settled VM loss visible without
+// inventing a native exit or accepting source. The backend guard must prove
+// this exact allocation absent, uncharged and without a captured archive.
+func (s *Server) RecordProjectSwarmMicroVMNoResult(ctx context.Context, projectID, runID, operationID string, record e2bbe.Record) (ProjectRun, error) {
+	s.projectRunDispatchMu.Lock()
+	defer s.projectRunDispatchMu.Unlock()
+	if s.projectSwarmMicroVMImportGuard == nil {
+		return ProjectRun{}, ErrProjectRunInvalid
+	}
+	req := record.Request
+	scope := ProjectSwarmMicroVMImportScope{ProjectID: projectID, RunID: runID, OperationID: operationID,
+		ChildID: req.Identity.OperationID, OwnerID: req.Identity.OwnerID, RequestDigest: record.RequestDigest,
+		CleanupOnly: true, RequireUncaptured: true}
+	release, err := s.projectSwarmMicroVMImportGuard(ctx, scope)
+	if err != nil || release == nil {
+		return ProjectRun{}, ErrProjectRunConflict
+	}
+	defer release()
+	p, err := s.resolveProject(projectID)
+	if err != nil {
+		return ProjectRun{}, err
+	}
+	run, err := s.projectRuns.Get(projectID, p.Path, runID)
+	if err != nil {
+		return ProjectRun{}, err
+	}
+	op := swarmOperation(&run, operationID)
+	if op == nil || op.Implementation == nil || op.ChildID != req.Identity.OperationID || op.TaskID != req.Identity.TaskID ||
+		req.Identity.ProjectID != projectID || req.Identity.RunID != runID || req.Identity.AttemptID != operationID ||
+		req.SourceDigest != implementationDigest(swarmStartingCommit(*op)) || req.ContextDigest != implementationDigest(op.Implementation) ||
+		run.State == "cancelled" || record.State != e2bbe.Absent || record.ResourcesHeld || record.Capture.ArchiveSHA256 != "" ||
+		(op.Status != "reserved" && op.Status != "dispatching" && op.Status != "running" && op.Status != "unknown" && op.Status != "failed") {
+		return ProjectRun{}, ErrProjectRunConflict
+	}
+	const message = "The exact cloud task VM is absent and its Luci reservation is released, but no verified task result was captured. Review the retained attempt before retrying; provider billing remains separate."
+	return s.projectRuns.ObserveOperation(projectID, p.Path, runID, run.Revision, op.ID, op.ChildID, "failed", message)
 }
 
 // RecordProjectSwarmMicroVMCancelled settles a cancelled run only after the
