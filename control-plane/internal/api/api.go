@@ -438,12 +438,12 @@ func New(d Deps) (*API, error) {
 		d.Product.SetProjectSwarmFenceRecovery(a.projectSwarmFenceRecoveryAvailability, a.authorizeSwarmFenceRecovery, a.acquireSwarmFenceRecovery, a.proveSwarmFencedLaunch, a.finalizeSwarmFencedLaunch)
 		d.Product.SetProjectSwarmPendingLaunch(a.projectSwarmPendingLaunch)
 		d.Product.SetProjectSwarmCheckpointGuard(a.authorizeTaskCheckpoint, a.acquireStoppedTaskOutput)
+		d.Product.SetCoordinatorCloudCapacity(a.cloudTaskCapacity)
 		if d.CloudTasks != nil {
 			if err := d.CloudTasks.validate(); err != nil {
 				return nil, err
 			}
 			d.Product.SetCloudMicroVMAvailability(func() bool { return true })
-			d.Product.SetCoordinatorCloudCapacity(a.cloudTaskCapacity)
 			d.Product.SetProjectSwarmMicroVMImportGuard(a.guardMicroVMImport)
 		}
 		d.Product.SetTaskHandoffCollector(a.authorizeTaskOutput, a.collectTaskHandoff)

@@ -12,6 +12,18 @@ it('refuses malformed cloud capacity advice without starting a task', async () =
   await expect(api.listState('p-1', 'alice')).rejects.toThrow(/capacity observation/);
   expect(productApi.request).toHaveBeenCalledTimes(1);
 });
+it('accepts explicit missing cloud setup without inventing a configured provider', async () => {
+  vi.spyOn(productApi, 'request').mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: { provider: '', setupNeeds: ['Managed microVM service is not configured.'] } });
+  const state = await api.listState('p-1', 'alice');
+  expect(state.cloudCapacity?.provider).toBe('');
+  expect(state.cloudCapacity?.setupNeeds).toEqual(['Managed microVM service is not configured.']);
+});
+it('refuses an empty or oversized missing-prerequisite claim', async () => {
+  for (const setupNeeds of [[], ['x'.repeat(501)]]) {
+    vi.spyOn(productApi, 'request').mockResolvedValueOnce({ continuations: [], savedRoute: null, cloudCapacity: { provider: '', setupNeeds } });
+    await expect(api.listState('p-1', 'alice')).rejects.toThrow(/capacity observation/);
+  }
+});
 export const continuation = (patch: Partial<CoordinatorContinuation> = {}): CoordinatorContinuation => ({ id: 'continue-one', projectId: 'p-1', actor: { id: 'alice', displayName: 'Alice' }, idempotencyKey: 'request-one', originTurnId: 'turn-1', contextDigest: 'a'.repeat(64), policyRevision: 2, revision: 4, status: 'queued', message: 'Tasks queued under reviewed policy', runId: 'run-one', queueIds: ['queue-one'], actions: [{ id: 'continue-one-create-run', kind: 'create-run', status: 'confirmed', referenceId: 'run-one', startedAt: '2026-10-12T00:00:00Z' }], createdAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:01Z', ...patch });
 const request = (): CoordinatorContinuationRequest => ({ idempotencyKey: 'request-one', originTurnId: 'turn-1', expectedContextDigest: 'a'.repeat(64), expectedPolicyRevision: 2, maxParallel: 2, run: { worktreeId: 'w-1', harness: 'codex', model: 'm', permissionMode: 'bypass', outcome: 'preview', implementationContext: { projectId: 'p-1', briefRevision: 1, planRevision: 1, specificationRevision: 2, designPlanRevision: 1, taskIds: ['T-1'] } } });
 beforeEach(() => { vi.restoreAllMocks(); vi.spyOn(productApi, 'request').mockResolvedValue(continuation()); });

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { CoordinatorExecution } from './CoordinatorExecution';
-import { coordinatorContinuationsApi as api, type CoordinatorContinuation, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
+import { coordinatorContinuationsApi as api, type CoordinatorCloudCapacity, type CoordinatorContinuation, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
 import { coordinatorDeploymentApi, type CoordinatorDeploymentPlan } from '../../api/coordinatorDeployment';
 import { coordinatorPolicyApi, type CoordinatorPolicy } from '../../api/coordinatorPolicy';
 import { ApiError } from '../../api/client';
@@ -20,6 +20,7 @@ const policy = (patch: Partial<CoordinatorPolicy> = {}): CoordinatorPolicy => ({
 const currentView = () => view({ context: { ...context(), designPlan: { ...context().designPlan, status: 'approved' }, plan: { ...context().plan, specificationRevision: 2 } }, turns: [{ ...proposalTurn(), appliedRevision: 3 }] });
 const props = () => ({ projectId: 'p-1', scope: 'local/alice/p-1', actorId: 'alice', view: currentView(), canRead: true, canEdit: true, canExecute: true, blocked: '', runOn: 'This computer · Docker', onInspect: vi.fn(), onNavigate: vi.fn() });
 const records = () => Object.keys(localStorage).filter(key => key.startsWith('luci.coordinator-execution.v1:'));
+const configuredCloud = (): CoordinatorCloudCapacity => ({ provider: 'e2b-embed', region: 'us-east-1', configuredGlobalSlots: 8, configuredProjectSlots: 6, configuredAvailableSlots: 2, estimatedTaskCostMicros: 150_000, estimatedMonthMicros: 250_000, monthlyBudgetMicros: 1_000_000, maxTaskSeconds: 600, observedAt: '2026-10-13T12:00:00Z', limitation: 'Configured limits only; actual admission is checked later.', retainedProjectVMs: 0, moreRetainedAttempts: 0, retainedAttempts: [] });
 function deferred<T>() { let resolve!: (value: T) => void, reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 async function configure() { const button = await screen.findByRole('button', { name: 'Configure continued work' }); await waitFor(() => expect(button).toHaveProperty('disabled', false)); await userEvent.click(button); }
 beforeEach(() => {
@@ -41,6 +42,7 @@ it('reads on mount without launch and uses current approved tasks in the reused 
   expect(screen.getByText(/queued task reservations/)).not.toBeNull(); expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true);
 });
 it('records explicit per-task cloud microVM placement without changing local defaults or delivery authority', async () => {
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: configuredCloud() });
   render(<CoordinatorExecution {...props()} />); await configure();
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Develop execution location' }), 'cloud-microvm');
   expect(screen.getByText(/one isolated microVM per task/)).not.toBeNull();
@@ -48,6 +50,54 @@ it('records explicit per-task cloud microVM placement without changing local def
   await screen.findByText(/continuation is retained/);
   expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ run: { executionLocation: 'cloud-microvm', harness: 'codex', permissionMode: 'bypass', agentConnectionId: 'configured', outcome: 'preview' } });
   expect(vi.mocked(api.create).mock.calls[0][2].deploymentPlan).toBeUndefined();
+});
+it('activates the existing cloud task continuation from the primary surface with one durable request', async () => {
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: configuredCloud() });
+  render(<CoordinatorExecution {...props()} />);
+  const action = await screen.findByRole('button', { name: 'Review cloud swarm activation' });
+  await waitFor(() => expect(action).toHaveProperty('disabled', false));
+  expect(api.create).not.toHaveBeenCalled();
+  await userEvent.click(action);
+  expect(screen.getByRole('combobox', { name: 'Develop execution location' })).toHaveProperty('value', 'cloud-microvm');
+  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await screen.findByText(/continuation is retained/);
+  expect(api.create).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ maxParallel: 1, run: { executionLocation: 'cloud-microvm', implementationContext: { taskIds: ['T-1'] } } });
+  expect(records()).toHaveLength(0);
+});
+it('names missing cloud setup and keeps activation disabled without touching a saved message or making a request', async () => {
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: { ...configuredCloud(), provider: '', setupNeeds: ['A protected microVM service is not configured.'] } });
+  render(<CoordinatorExecution {...props()} />);
+  expect(await screen.findByText('A protected microVM service is not configured.')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Review cloud swarm activation' })).toHaveProperty('disabled', true);
+  expect(api.create).not.toHaveBeenCalled();
+});
+it('keeps the exact cloud activation identity across a lost response and restart', async () => {
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: configuredCloud() });
+  vi.mocked(api.create).mockRejectedValue(new Error('Cloud reply lost'));
+  const input = props(), first = render(<CoordinatorExecution {...input} />);
+  const action = await screen.findByRole('button', { name: 'Review cloud swarm activation' });
+  await waitFor(() => expect(action).toHaveProperty('disabled', false));
+  await userEvent.click(action);
+  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await screen.findByText(/Cloud reply lost/);
+  const sent = vi.mocked(api.create).mock.calls[0][2];
+  expect(sent.run.executionLocation).toBe('cloud-microvm'); expect(records()).toHaveLength(1);
+  first.unmount(); render(<CoordinatorExecution {...input} />);
+  await screen.findByText(/New requests are paused/);
+  expect(screen.getByRole('button', { name: 'Review cloud swarm activation' })).toHaveProperty('disabled', true);
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row({ idempotencyKey: sent.idempotencyKey })], savedRoute: null, cloudCapacity: configuredCloud() });
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' }));
+  await screen.findByText(/exact retained request was observed/);
+  expect(api.create).toHaveBeenCalledTimes(1); expect(records()).toHaveLength(0);
+});
+it('withdraws cloud activation when current execution authority is revoked', async () => {
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: configuredCloud() });
+  const input = props(), ui = render(<CoordinatorExecution {...input} />);
+  const action = await screen.findByRole('button', { name: 'Review cloud swarm activation' });
+  await waitFor(() => expect(action).toHaveProperty('disabled', false));
+  ui.rerender(<CoordinatorExecution {...input} canExecute={false} />);
+  expect(action).toHaveProperty('disabled', true); expect(api.create).not.toHaveBeenCalled();
 });
 it('shows configured per-task VM and current-month estimate without treating it as admission', async () => {
   vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: {
@@ -60,7 +110,7 @@ it('shows configured per-task VM and current-month estimate without treating it 
   render(<CoordinatorExecution {...props()} />); await configure();
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Develop execution location' }), 'cloud-microvm');
   expect(screen.getByText(/2 task VM slots presently available/)).not.toBeNull();
-  expect(screen.getByText(/\$0\.25 of \$1\.00 USD/)).not.toBeNull();
+  expect(screen.getAllByText(/\$0\.25 of \$1\.00 USD/)).toHaveLength(2);
   await userEvent.click(screen.getByText('1 retained task microVM in this project'));
   expect(screen.getByText(/task-one · run run-one · attempt attempt-one · unknown/)).not.toBeNull();
   expect(api.create).not.toHaveBeenCalled();
@@ -111,6 +161,7 @@ it('hides cached private work on actual read denial while retaining unknown requ
   vi.mocked(api.listState).mockRejectedValue(new ApiError('conflict', 'Read revoked', 403));
   await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await screen.findByText(/Current access was refused/);
   expect(screen.queryByRole('article')).toBeNull(); expect(screen.queryByRole('button', { name: 'Inspect this build' })).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Cloud task swarm activation' })).toBeNull();
 });
 it('does not treat a client-generated scope 409 as a settled refusal', async () => {
   vi.mocked(api.create).mockRejectedValue(new ApiError('conflict', 'Workspace changed', 409)); render(<CoordinatorExecution {...props()} />); await configure();

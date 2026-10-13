@@ -18,6 +18,9 @@ type CoordinatorCloudAttempt struct {
 // fresh actor policy, provider status, quota and exact allocations are checked
 // again before an irreversible Create.
 type CoordinatorCloudCapacity struct {
+	// SetupNeeds is read-only, actor-scoped advice. An empty Provider means no
+	// capacity claim exists; the UI must not offer activation as ready.
+	SetupNeeds               []string                  `json:"setupNeeds,omitempty"`
 	Provider                 string                    `json:"provider"`
 	Region                   string                    `json:"region"`
 	ConfiguredGlobalSlots    int                       `json:"configuredGlobalSlots"`

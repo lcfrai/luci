@@ -142,6 +142,38 @@ func TestCoordinatorContinuationRunsTypedPreparationQueueAndExactlyOnceAdmission
 	req.Run.Model = "different"
 	journeyRequest(t, h, "POST", "/v1/product/projects/"+p.ID+"/orchestrator/continuations", req, 409)
 }
+func TestCoordinatorFirstCloudActivationQueuesExactReviewedTasksWithoutLocalFallback(t *testing.T) {
+	s, p, h, _, req, starts := coordinatorContinuationFixture(t)
+	req.Run.ExecutionLocation = "cloud-microvm"
+	// No cloud service means no run, queue or local fallback, even with a
+	// reviewed task plan and a valid upstream model connection.
+	journeyRequest(t, h, "POST", "/v1/product/projects/"+p.ID+"/orchestrator/continuations", req, 503)
+	if runs, err := s.projectRuns.List(p.ID, p.Path); err != nil || len(runs) != 0 || *starts != 0 {
+		t.Fatal("unconfigured cloud activation started work", runs, err, *starts)
+	}
+	if retained, err := s.readContinuations(p, "alice"); err != nil || len(retained.Rows) != 0 {
+		t.Fatal("known cloud setup refusal left an uncertain continuation", retained, err)
+	}
+	available := true
+	s.SetCloudMicroVMAvailability(func() bool { return available })
+	out := coordinatorCreate(t, h, p, req, 201)
+	if out.Status != "queued" || out.RunID == "" || len(out.QueueIDs) != 1 {
+		t.Fatal("reviewed cloud activation did not reach the existing queue", out)
+	}
+	run, err := s.projectRuns.Get(p.ID, p.Path, out.RunID)
+	if err != nil || run.Input.Route.ExecutionLocation != "cloud-microvm" || run.Input.Implementation.PlanRevision != req.Run.ImplementationContext.PlanRevision {
+		t.Fatal("cloud task lost placement or reviewed context", run.Input, err)
+	}
+	available = false // readback of an admitted identity must survive service loss
+	duplicate := coordinatorCreate(t, h, p, req, 200)
+	if duplicate.ID != out.ID || *starts != 0 {
+		t.Fatal("duplicate cloud activation changed its durable identity", duplicate, *starts)
+	}
+	available = true
+	if err = s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 1 {
+		t.Fatal("existing scheduler did not dispatch the exact reviewed cloud queue once", err, *starts)
+	}
+}
 func TestCoordinatorContinuationReadOnlyActorScopeAndAuthorityRefusal(t *testing.T) {
 	s, p, h, ctx, req, _ := coordinatorContinuationFixture(t)
 	out := coordinatorCreate(t, h, p, req, 201)

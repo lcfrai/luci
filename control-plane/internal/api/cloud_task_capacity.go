@@ -27,21 +27,24 @@ func minimumCloudSlots(values ...int) int {
 // cloudTaskCapacity is read-only advice shown in the normal Develop flow.
 // Unknown/legacy attributed spend is never presented as remaining budget.
 func (a *API) cloudTaskCapacity(ctx context.Context, projectID, actorID string) (product.CoordinatorCloudCapacity, error) {
-	cloud := a.deps.CloudTasks
-	if cloud == nil {
+	actor, policy, present := management.ActorFromContext(ctx)
+	if !present || actor.ID != actorID {
 		return product.CoordinatorCloudCapacity{}, nil
 	}
-	actor, policy, present := management.ActorFromContext(ctx)
-	if !present || actor.ID != actorID || !policy.AllowCloudProvisioning || policy.MonthlyBudgetUSD <= 0 {
-		return product.CoordinatorCloudCapacity{}, nil
+	cloud := a.deps.CloudTasks
+	if cloud == nil {
+		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"The managed microVM service is not configured for this workspace. An operator must connect a protected E2B Embed host before cloud tasks can start."}}, nil
+	}
+	if !policy.AllowCloudProvisioning || policy.MonthlyBudgetUSD <= 0 {
+		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"Cloud provisioning and a positive monthly spending budget must be enabled by the current account or team policy."}}, nil
 	}
 	ref, err := management.CaptureExecutionActor(ctx, projectID)
 	if err != nil || ref.Local {
-		return product.CoordinatorCloudCapacity{}, nil
+		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"Sign in through a managed project identity before starting cloud microVM tasks."}}, nil
 	}
 	if _, err = a.authorizeExecution(ctx, ref, "codex", true); err != nil {
 		if _, err = a.authorizeExecution(ctx, ref, "claude-code", true); err != nil {
-			return product.CoordinatorCloudCapacity{}, nil
+			return product.CoordinatorCloudCapacity{SetupNeeds: []string{"Current project execution, secret access or an allowed Codex/Claude Code harness connection is missing. Review your team grant and model connection."}}, nil
 		}
 	}
 	budget := int64(math.Floor(policy.MonthlyBudgetUSD * 1_000_000))
@@ -123,10 +126,14 @@ func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe
 	for _, row := range retained {
 		attempts = append(attempts, row.view)
 	}
-	return product.CoordinatorCloudCapacity{Provider: "e2b-embed", Region: region,
+	advice := product.CoordinatorCloudCapacity{Provider: "e2b-embed", Region: region,
 		ConfiguredGlobalSlots: limits.MaxConcurrent, ConfiguredProjectSlots: limits.MaxPerProject,
 		ConfiguredAvailableSlots: available, EstimatedTaskCostMicros: taskCost,
 		EstimatedMonthMicros: committed, MonthlyBudgetMicros: budget, MaxTaskSeconds: maxSeconds,
 		RetainedProjectVMs: count, RetainedAttempts: attempts, MoreRetainedAttempts: more,
 		ObservedAt: now.Format(time.RFC3339Nano), Limitation: limitation}
+	if unknown || committed > budget || taskCost > budget-committed {
+		advice.SetupNeeds = []string{"The saved cloud spending estimate cannot authorize another VM. Reconcile retained charges or update the current budget before activation."}
+	}
+	return advice
 }

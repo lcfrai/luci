@@ -155,6 +155,10 @@ func (s *Server) readCoordinatorPolicy(p project.Project) (CoordinatorPolicy, er
 	return stored.Policy, nil
 }
 func coordinatorPolicyProblem(w http.ResponseWriter, err error) {
+	if errors.Is(err, errCoordinatorCloudUnavailable) {
+		journeyError(w, 503, "cloud_microvm_unavailable", err.Error())
+		return
+	}
 	if errors.Is(err, errCoordinatorSourceBusy) {
 		journeyError(w, 409, "branch_busy", err.Error())
 		return

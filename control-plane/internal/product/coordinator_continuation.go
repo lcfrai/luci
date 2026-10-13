@@ -22,6 +22,8 @@ import (
 const coordinatorContinuationLimit = 40
 const coordinatorContinuationBytes = 2 << 20
 
+var errCoordinatorCloudUnavailable = errors.New("a verified cloud microVM execution service is not configured for this workspace")
+
 type CoordinatorAction struct {
 	ID     string `json:"id"`
 	Kind   string `json:"kind"`
@@ -290,7 +292,7 @@ func (s *Server) listCoordinatorContinuations(w http.ResponseWriter, r *http.Req
 	}
 	var capacity *CoordinatorCloudCapacity
 	if s.cloudTaskCapacity != nil {
-		if current, readErr := s.cloudTaskCapacity(r.Context(), p.ID, actor.ID); readErr == nil && current.Provider != "" {
+		if current, readErr := s.cloudTaskCapacity(r.Context(), p.ID, actor.ID); readErr == nil && (current.Provider != "" || len(current.SetupNeeds) > 0) {
 			capacity = &current
 		}
 	}
@@ -399,6 +401,10 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 	}
 	if !validRunKey(req.IdempotencyKey) || !hexDigest(req.ExpectedContextDigest) || req.ExpectedPolicyRevision < 1 || !prototypeReleaseID.MatchString(req.OriginTurnID) || req.Run.IdempotencyKey != "" || req.Run.ImplementationContext.ProjectID != p.ID || req.MaxParallel < 1 || req.MaxParallel > MaxSwarmParallelTasks || (req.Run.Outcome != "preview" && req.Run.Outcome != "publish") || req.Run.WorktreeID == "" || req.Run.Harness == "" || req.Run.PermissionMode == "" {
 		journeyError(w, 400, "invalid_continuation", "Choose an exact completed turn, current reviewed tasks, saved upstream route and intended outcome.")
+		return
+	}
+	if req.Run.ExecutionLocation != "" && req.Run.ExecutionLocation != "local-docker" && req.Run.ExecutionLocation != "cloud-microvm" || req.Run.ExecutionLocation == "cloud-microvm" && (req.Run.PermissionMode != "bypass" || req.Run.Harness != "codex" && req.Run.Harness != "claude-code" || req.Run.AgentConnectionID == nil || *req.Run.AgentConnectionID == "") {
+		journeyError(w, 400, "invalid_cloud_continuation", "Choose an explicit supported cloud harness, noninteractive permission and a model connection for this microVM task plan.")
 		return
 	}
 	if err := validateCoordinatorDeploymentPlan(req.DeploymentPlan); err != nil {
@@ -566,6 +572,9 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 	}
 	if err == nil {
 		err = s.continuationAuthority(r.Context(), p, row)
+	}
+	if err == nil && req.Run.ExecutionLocation == "cloud-microvm" && (s.cloudMicroVMAvailable == nil || !s.cloudMicroVMAvailable()) {
+		err = errCoordinatorCloudUnavailable // known pre-allocation refusal; no uncertain continuation
 	}
 	if err == nil {
 		row.CreatedAt = time.Now().UTC().Format(time.RFC3339Nano)

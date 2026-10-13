@@ -8,6 +8,13 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 )
 
+func TestCloudCapacityAdviceNamesUnconfiguredServiceWithoutClaimingProviderSlots(t *testing.T) {
+	view, err := (&API{}).cloudTaskCapacity(orchestratorExecutionActor(t), "p-one", "u-reviewed-task-fixture")
+	if err != nil || view.Provider != "" || view.ConfiguredAvailableSlots != 0 || len(view.SetupNeeds) != 1 || !strings.Contains(view.SetupNeeds[0], "not configured") {
+		t.Fatal("unconfigured service was presented as usable cloud capacity", view, err)
+	}
+}
+
 func TestCloudCapacityAdviceKeepsHeldChargeAndUsesConfiguredResourceLimits(t *testing.T) {
 	now := time.Date(2026, time.October, 13, 12, 0, 0, 0, time.UTC)
 	row := func(user string, at time.Time, held bool, sandbox string, cost int64) e2bbe.Record {
@@ -36,11 +43,11 @@ func TestCloudCapacityAdviceKeepsHeldChargeAndUsesConfiguredResourceLimits(t *te
 	}
 	rows = append(rows, row("", now.Add(-time.Hour), true, "legacy-held", 100))
 	view = cloudCapacityView(limits, template, usage, 1, rows, nil, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
-	if view.ConfiguredAvailableSlots != 0 || !strings.Contains(view.Limitation, "unavailable") {
+	if view.ConfiguredAvailableSlots != 0 || !strings.Contains(view.Limitation, "unavailable") || len(view.SetupNeeds) != 1 {
 		t.Fatal("unattributed held allocation exposed apparent budget", view)
 	}
 	view = cloudCapacityView(limits, template, usage, 1, rows[:4], nil, "alice", "p-one", "us-east-1", 800, 60, 1000, now)
-	if view.ConfiguredAvailableSlots != 0 {
+	if view.ConfiguredAvailableSlots != 0 || len(view.SetupNeeds) != 1 {
 		t.Fatal("new task cost exceeded this actor's retained monthly estimate", view)
 	}
 	settled := []e2bbe.SettledSpend{{OperationID: "op-archived", BillingUserID: "alice", CreatedAt: now, EstimatedCostMicros: 700, SandboxCreated: true}}
