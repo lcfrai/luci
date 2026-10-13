@@ -22,6 +22,28 @@ cannot atomically pin a build ID; a concurrent template rebuild is therefore
 an unresolved operational risk. Luci refuses a non-ready selected build but
 cannot infer guest bytes from the status response alone.
 
+For an **existing private template and build ID** from the pinned Embed
+runtime, `control-plane/microvm-template.go` can start one build from an OCI
+registry image pinned by `@sha256:<64 lowercase hex>`. From `control-plane`:
+
+```sh
+go run ./microvm-template.go -mode start -config /private/template-build.json
+go run ./microvm-template.go -mode status -config /private/template-build.json
+```
+
+The private JSON contains `endpoint`, `apiKeyFile`, optional `rootCaFile`,
+`templateId`, `buildId`, `fromImage`, and `journalPath`. Keep the key/config and
+the journal's directory private and outside Git. The tool requires protected
+HTTPS management, checkpoints the image/build intent before the **single**
+build POST, and refuses another POST for that journal even after a lost
+response. `status` reads only the same build ID. On an uncertain response,
+inspect provider state and retain the journal; never delete it to guess at a
+retry. The image must already exist in a registry reachable by Embed, and the
+template/build IDs must already exist. This tool neither creates a template nor
+proves final guest bytes, KVM isolation or model execution. Independently bind
+the source inventory, OCI digest and resulting ready provider build before
+using `template.buildId` and `template.buildDigest` in worker configuration.
+
 The helper reuses the existing sandbox image's Git, unprivileged `dev` identity,
 `entrypoint.sh`, `sandboxd` and upstream coding engines. It does not implement an
 agent engine. Build the Linux helper from the same reviewed source/module lock
