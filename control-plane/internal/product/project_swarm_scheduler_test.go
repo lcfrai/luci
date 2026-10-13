@@ -76,6 +76,34 @@ func enqueueSchedulerFixture(t *testing.T, mux *http.ServeMux, run ProjectRun, b
 	return response.Items
 }
 
+func TestAcceptedAmendmentFencesOldRunDependentAfterCurrentGraphChanges(t *testing.T) {
+	s, mux, run, base, _, _, _ := schedulerFixture(t)
+	items := enqueueSchedulerFixture(t, mux, run, base, []string{"task-a", "task-b", "task-c"})
+	if len(items) != 3 {
+		t.Fatal("old graph fixture did not retain all tasks")
+	}
+	current := ImplementationContextRequest{ProjectID: run.ProjectID, BriefRevision: run.Input.Implementation.BriefRevision,
+		PlanRevision:          run.Input.Implementation.PlanRevision + 1,
+		SpecificationRevision: run.Input.Implementation.SpecificationRevision,
+		DesignPlanRevision:    run.Input.Implementation.DesignPlanRevision, TaskIDs: []string{"task-a"}}
+	// task-c depends on task-a in this saved run. A revised plan may remove
+	// that edge, but the old task-c still consumed old task-a's contract.
+	if err := s.blockSupersededQueuedTasks(run.ProjectID, current); err != nil {
+		t.Fatal(err)
+	}
+	queue, err := s.ProjectSwarmQueueSnapshot(run.ProjectID)
+	if err != nil || len(queue.Items) != 3 {
+		t.Fatal(err, queue)
+	}
+	states := map[string]string{}
+	for _, item := range queue.Items {
+		states[item.TaskID] = item.State
+	}
+	if states["task-a"] != "blocked" || states["task-c"] != "blocked" || states["task-b"] != "queued" {
+		t.Fatal("old dependent or independent task changed incorrectly", states)
+	}
+}
+
 func TestExactActiveQueueStopRetainsChargeAfterLostACKAndSettlesAfterRestart(t *testing.T) {
 	s, mux, run, base, admitted, starts, _ := schedulerFixture(t, true)
 	*admitted = true

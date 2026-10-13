@@ -25,6 +25,40 @@ func swarmSupersededStopReason(code string) bool {
 	return code == "context_superseded_stop_pending" || code == "context_superseded_unallocated_claim" || code == "context_superseded_identity_pending" || code == "operator_stop_pending"
 }
 
+// The accepted plan can remove or rewire a dependency. Fence old running or
+// waiting dependents using the graph saved with their own run, not only the
+// new graph. This does not add removed tasks to the revised run.
+func oldRunTaskAffected(run ProjectRun, taskID string, selected map[string]bool) bool {
+	if selected[taskID] {
+		return true
+	}
+	if run.Swarm == nil {
+		return false
+	}
+	deps := make(map[string][]string, len(run.Swarm.Tasks))
+	for _, task := range run.Swarm.Tasks {
+		deps[task.ID] = task.DependsOn
+	}
+	seen := map[string]bool{}
+	var affected func(string) bool
+	affected = func(id string) bool {
+		if selected[id] {
+			return true
+		}
+		if seen[id] {
+			return false
+		}
+		seen[id] = true
+		for _, dep := range deps[id] {
+			if affected(dep) {
+				return true
+			}
+		}
+		return false
+	}
+	return affected(taskID)
+}
+
 func (s *Server) settleOwnedQueueStop(ctx context.Context, item swarmQueueRecord, runtime SwarmSchedulerRuntime) (bool, error) {
 	if runtime.StopOwned == nil || item.ReasonCode == "context_superseded_identity_pending" {
 		return false, nil
@@ -81,7 +115,7 @@ func (s *Server) stopSupersededActiveTasks(ctx context.Context, projectID string
 	allIdentified := true
 	for i := range row.Items {
 		item := &row.Items[i]
-		if item.ProjectID != projectID || !selected[item.TaskID] ||
+		if item.ProjectID != projectID ||
 			(!swarmQueueActive(item.State) && !swarmSupersededStopReason(item.ReasonCode) && !(swarmQueueTerminal(item.State) && (item.MemoryMiB > 0 || item.CPUMillis > 0))) {
 			continue
 		}
@@ -89,6 +123,9 @@ func (s *Server) stopSupersededActiveTasks(ctx context.Context, projectID string
 		if readErr != nil {
 			s.swarmScheduler.mu.Unlock()
 			return false, readErr
+		}
+		if !oldRunTaskAffected(run, item.TaskID, selected) {
+			continue
 		}
 		prior := ImplementationContextSelection(&run.Input.Implementation)
 		if prior == nil {
@@ -530,7 +567,7 @@ func (s *Server) blockSupersededQueuedTasks(projectID string, current Implementa
 	changed := false
 	for i := range row.Items {
 		item := &row.Items[i]
-		if item.ProjectID != projectID || !selected[item.TaskID] ||
+		if item.ProjectID != projectID ||
 			(item.State != "queued" && item.State != "paused" && item.State != "blocked") ||
 			item.ReasonCode == "context_superseded" {
 			continue
@@ -538,6 +575,9 @@ func (s *Server) blockSupersededQueuedTasks(projectID string, current Implementa
 		run, readErr := s.projectRuns.Get(projectID, p.Path, item.RunID)
 		if readErr != nil {
 			return readErr // Never guess which task input a retained queue owns.
+		}
+		if !oldRunTaskAffected(run, item.TaskID, selected) {
+			continue
 		}
 		prior := ImplementationContextSelection(&run.Input.Implementation)
 		if prior == nil || prior.BriefRevision == current.BriefRevision && prior.PlanRevision == current.PlanRevision &&
