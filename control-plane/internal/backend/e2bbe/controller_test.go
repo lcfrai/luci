@@ -333,6 +333,35 @@ func openController(t *testing.T, c Config) *Controller {
 func taskRequest(project, task string) Request {
 	return Request{Identity: Identity{OwnerID: "owner-a", ProjectID: project, TaskID: task, AttemptID: "attempt-" + task, OperationID: "op-" + project + "-" + task}, SourceDigest: strings.Repeat("1", 64), ContextDigest: strings.Repeat("2", 64), BundleDigest: strings.Repeat("3", 64), MaxSeconds: 60, EstimatedCostMicros: 100}
 }
+func TestControllerReopenReconstructsIdentityFenceFromDurableJournal(t *testing.T) {
+	p := newProvider(t)
+	cfg, _ := fixtureConfig(t, p)
+	c := openController(t, cfg)
+	first, second := taskRequest("alpha", "one"), taskRequest("beta", "two")
+	if _, err := c.Allocate(context.Background(), first); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Close(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reopened.Close(context.Background()) })
+	if !reopened.RestoredPending(first.Identity.OperationID) {
+		t.Fatal("local-journal restart forgot an owned VM")
+	}
+	if _, err = reopened.Allocate(context.Background(), second); !errors.Is(err, ErrUnknown) || p.creates != 1 {
+		t.Fatal("new Create preceded restarted identity readback", err, p.creates)
+	}
+	if _, err = reopened.Reconcile(context.Background(), first.Identity.OperationID); err != nil || reopened.RestoredPending(first.Identity.OperationID) {
+		t.Fatal("exact readback did not clear the restarted fence", err)
+	}
+	if _, err = reopened.Allocate(context.Background(), second); err != nil || p.creates != 2 {
+		t.Fatal("readback replayed or stranded a different allocation", err, p.creates)
+	}
+}
 func requireAbsent(t *testing.T, r Record, e error) {
 	t.Helper()
 	if e != nil || r.State != Absent || r.ResourcesHeld || r.ProviderBillingSettled {

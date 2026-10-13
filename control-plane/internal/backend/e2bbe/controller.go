@@ -191,13 +191,16 @@ func newController(c Config, restored []byte, restoreContext context.Context) (*
 		if e != nil {
 			return fail(e)
 		}
-		for op, row := range out.journal.Records {
-			if row.State != Absent {
-				out.restoredPending[op] = true
-			}
-		}
 	} else if e = out.load(); e != nil {
 		return fail(e)
+	}
+	// Every controller open must repeat exact readback, including a restart
+	// after a previous restore was interrupted. The durable journal reconstructs
+	// this admission fence; a process-local "done" flag cannot do so.
+	for op, row := range out.journal.Records {
+		if row.State != Absent {
+			out.restoredPending[op] = true
+		}
 	}
 	_, fileErr := root.Lstat("attempts.json")
 	body, _ := json.Marshal(out.journal)
