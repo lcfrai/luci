@@ -114,7 +114,7 @@ func TestProjectRunCheckJoinRejectsIncompleteFailedDirtyAndStaleEvidence(t *test
 		})
 	}
 	state, _ := s.readApprovedJourney(p.Path, p.ID)
-	if err := s.recordJourneyApproval(p.Path, p.ID, "design", "fixture-reviewer", &state); err != nil {
+	if err := s.recordJourneyApproval(context.Background(), p.Path, p.ID, "design", "fixture-reviewer", &state); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.SnapshotProjectRunCheck(context.Background(), p.ID, row.ID, selected, requirements); err == nil {

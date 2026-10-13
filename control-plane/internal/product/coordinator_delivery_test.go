@@ -258,7 +258,7 @@ func TestCoordinatorDeliveryRejectsSourceAuthorityApprovalAndPolicyDrift(t *test
 				status = 403
 			case "approval":
 				state, err := s.readApprovedJourney(p.Path, p.ID)
-				if err != nil || s.recordJourneyApproval(p.Path, p.ID, "design", "new-reviewer", &state) != nil {
+				if err != nil || s.recordJourneyApproval(context.Background(), p.Path, p.ID, "design", "new-reviewer", &state) != nil {
 					t.Fatal("could not change private approval", err)
 				}
 			case "policy":

@@ -46,7 +46,7 @@ beforeEach(() => {
   vi.spyOn(orchestratorApi, "reconcile").mockResolvedValue(job({ status: "succeeded" }));
   vi.spyOn(orchestratorApi, "apply").mockResolvedValue(view({ revision: 4 }));
   vi.spyOn(coordinatorContinuationsApi, "list").mockResolvedValue([]);
-  vi.spyOn(coordinatorPolicyApi, "get").mockImplementation(async projectId => ({ projectId, revision: 0, mode: "review", allowedTargets: ["specification", "design-plan", "plan"], executionMode: "manual", deploymentMode: "manual" }));
+  vi.spyOn(coordinatorPolicyApi, "get").mockImplementation(async projectId => ({ projectId, revision: 0, mode: "review", reviewMode: "manual", allowedTargets: ["specification", "design-plan", "plan"], executionMode: "manual", deploymentMode: "manual" }));
 });
 async function ready() {
   await screen.findByRole("button", { name: "Review design" });
@@ -59,7 +59,7 @@ it("uses the existing conversation mutation boundary for a policy-authorized dra
   const proposal = { ...proposalTurn(), actor: { id: "owner", displayName: "Owner" } };
   const initial = view({ turns: [proposal] });
   vi.mocked(orchestratorApi.get).mockResolvedValue(initial);
-  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue({ projectId: "p-1", revision: 2, mode: "auto-drafts", allowedTargets: ["specification"], executionMode: "manual", deploymentMode: "manual", actor: proposal.actor, updatedAt: "2026-10-12T00:00:00Z" });
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue({ projectId: "p-1", revision: 2, mode: "auto-drafts", reviewMode: "manual", allowedTargets: ["specification"], executionMode: "manual", deploymentMode: "manual", actor: proposal.actor, updatedAt: "2026-10-12T00:00:00Z" });
   const advance = vi.spyOn(orchestratorApi, "advance").mockResolvedValue(view({ revision: 4, context: { ...context(), digest: "saved-draft" }, turns: [{ ...proposal, appliedRevision: 3 }] }));
   render(<OrchestratorPanel projectId="p-1" />);
   await waitFor(() => expect(advance).toHaveBeenCalledExactlyOnceWith("p-1", proposal.id, { expectedRevision: 3, expectedContextDigest: context().digest, expectedPolicyRevision: 2 }));
@@ -71,7 +71,7 @@ it("uses the existing conversation mutation boundary for a policy-authorized dra
 it("does not automatically apply while this project has unsaved context", async () => {
   const proposal = { ...proposalTurn(), actor: { id: "owner", displayName: "Owner" } };
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [proposal] }));
-  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue({ projectId: "p-1", revision: 2, mode: "auto-drafts", allowedTargets: ["specification"], executionMode: "manual", deploymentMode: "manual", actor: proposal.actor, updatedAt: "2026-10-12T00:00:00Z" });
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue({ projectId: "p-1", revision: 2, mode: "auto-drafts", reviewMode: "manual", allowedTargets: ["specification"], executionMode: "manual", deploymentMode: "manual", actor: proposal.actor, updatedAt: "2026-10-12T00:00:00Z" });
   const advance = vi.spyOn(orchestratorApi, "advance");
   useCockpit.setState({ unsavedProjectDrafts: { definition: { projectId: "p-1", label: "Definition", lens: "discover", retained: true, discard: vi.fn() } } });
   render(<OrchestratorPanel projectId="p-1" />); await ready();
@@ -83,7 +83,7 @@ it.each(["resolved", "pending"])("keeps the parent context ahead of an older chi
   const newer = view({ context: { ...context(), digest: "new-current-context", specification: { ...context().specification, purpose: "New booking purpose" } } });
   vi.mocked(orchestratorApi.get).mockResolvedValue(oldView);
   render(<OrchestratorPanel projectId="p-1" />); await ready();
-  await userEvent.click(screen.getByText(/Context draft policy ·/));
+  await userEvent.click(screen.getByText(/Context policy ·/));
   let oldResolve!: (value: OrchestratorView) => void, newResolve!: (value: OrchestratorView) => void;
   const oldRead = new Promise<OrchestratorView>(resolve => { oldResolve = resolve; });
   const newRead = new Promise<OrchestratorView>(resolve => { newResolve = resolve; });

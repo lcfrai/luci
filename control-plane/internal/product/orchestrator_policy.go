@@ -14,12 +14,14 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
-// This policy delegates draft persistence, not approval or execution. An
-// opted-in coordinator still uses the existing exact proposal/context CAS.
+// Draft persistence and routine review are separate opt-ins. A routine review
+// can only renew an already approved document through the existing validation
+// and exact actor/context gates; it never grants execution or deployment.
 type CoordinatorPolicy struct {
 	ProjectID       string        `json:"projectId"`
 	Revision        int           `json:"revision"`
 	Mode            string        `json:"mode"`
+	ReviewMode      string        `json:"reviewMode"`
 	ExecutionMode   string        `json:"executionMode"`
 	IntegrationMode string        `json:"integrationMode"`
 	PreviewMode     string        `json:"previewMode"`
@@ -115,7 +117,7 @@ func (s *Server) coordinatorPolicyPath(id string, create bool) (string, error) {
 	return path, err
 }
 func (s *Server) readCoordinatorPolicy(p project.Project) (CoordinatorPolicy, error) {
-	policy := CoordinatorPolicy{ProjectID: p.ID, Revision: 0, Mode: "review", ExecutionMode: "manual", IntegrationMode: "manual", PreviewMode: "manual", DeploymentMode: "manual", AllowedTargets: []string{"specification", "design-plan", "plan"}}
+	policy := CoordinatorPolicy{ProjectID: p.ID, Revision: 0, Mode: "review", ReviewMode: "manual", ExecutionMode: "manual", IntegrationMode: "manual", PreviewMode: "manual", DeploymentMode: "manual", AllowedTargets: []string{"specification", "design-plan", "plan"}}
 	scope, err := s.approvalScopes(p.Path, p.ID)
 	if err != nil {
 		return policy, err
@@ -134,6 +136,9 @@ func (s *Server) readCoordinatorPolicy(p project.Project) (CoordinatorPolicy, er
 	if stored.Policy.ExecutionMode == "" {
 		stored.Policy.ExecutionMode = "manual"
 	}
+	if stored.Policy.ReviewMode == "" {
+		stored.Policy.ReviewMode = "manual"
+	}
 	if stored.Policy.IntegrationMode == "" {
 		stored.Policy.IntegrationMode = "manual"
 	}
@@ -144,7 +149,7 @@ func (s *Server) readCoordinatorPolicy(p project.Project) (CoordinatorPolicy, er
 		stored.Policy.DeploymentMode = "manual"
 	}
 	targets, err := coordinatorTargets(stored.Policy.AllowedTargets)
-	if err != nil || (stored.Policy.ExecutionMode != "manual" && stored.Policy.ExecutionMode != "reviewed-tasks") || (stored.Policy.IntegrationMode != "manual" && stored.Policy.IntegrationMode != "reviewed-scopes") || (stored.Policy.PreviewMode != "manual" && stored.Policy.PreviewMode != "checked-source") || (stored.Policy.DeploymentMode != "manual" && stored.Policy.DeploymentMode != "existing-target") || stored.Version != 1 || stored.AccountScope != scope.AccountScope || stored.ProjectScope != scope.ProjectScope || stored.Policy.ProjectID != p.ID || stored.Policy.Revision < 1 || (stored.Policy.Mode != "review" && stored.Policy.Mode != "auto-drafts") || (stored.Policy.Mode == "auto-drafts" && len(targets) == 0) || strings.Join(targets, ",") != strings.Join(stored.Policy.AllowedTargets, ",") || stored.Policy.Actor == nil || stored.Policy.Actor.ID == "" {
+	if err != nil || (stored.Policy.ReviewMode != "manual" && stored.Policy.ReviewMode != "approved-amendments") || (stored.Policy.ReviewMode == "approved-amendments" && stored.Policy.Mode != "auto-drafts") || (stored.Policy.ExecutionMode != "manual" && stored.Policy.ExecutionMode != "reviewed-tasks") || (stored.Policy.IntegrationMode != "manual" && stored.Policy.IntegrationMode != "reviewed-scopes") || (stored.Policy.PreviewMode != "manual" && stored.Policy.PreviewMode != "checked-source") || (stored.Policy.DeploymentMode != "manual" && stored.Policy.DeploymentMode != "existing-target") || stored.Version != 1 || stored.AccountScope != scope.AccountScope || stored.ProjectScope != scope.ProjectScope || stored.Policy.ProjectID != p.ID || stored.Policy.Revision < 1 || (stored.Policy.Mode != "review" && stored.Policy.Mode != "auto-drafts") || (stored.Policy.Mode == "auto-drafts" && len(targets) == 0) || strings.Join(targets, ",") != strings.Join(stored.Policy.AllowedTargets, ",") || stored.Policy.Actor == nil || stored.Policy.Actor.ID == "" {
 		return policy, ErrOrchestratorInvalid
 	}
 	return stored.Policy, nil
@@ -185,6 +190,7 @@ func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ExpectedRevision int      `json:"expectedRevision"`
 		Mode             string   `json:"mode"`
+		ReviewMode       *string  `json:"reviewMode"`
 		ExecutionMode    *string  `json:"executionMode"`
 		IntegrationMode  *string  `json:"integrationMode"`
 		PreviewMode      *string  `json:"previewMode"`
@@ -195,7 +201,7 @@ func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	targets, err := coordinatorTargets(req.AllowedTargets)
-	if err != nil || (req.ExecutionMode != nil && *req.ExecutionMode != "manual" && *req.ExecutionMode != "reviewed-tasks") || (req.IntegrationMode != nil && *req.IntegrationMode != "manual" && *req.IntegrationMode != "reviewed-scopes") || (req.PreviewMode != nil && *req.PreviewMode != "manual" && *req.PreviewMode != "checked-source") || (req.DeploymentMode != nil && *req.DeploymentMode != "manual" && *req.DeploymentMode != "existing-target") || req.ExpectedRevision < 0 || (req.Mode != "review" && req.Mode != "auto-drafts") || (req.Mode == "auto-drafts" && len(targets) == 0) {
+	if err != nil || (req.ReviewMode != nil && *req.ReviewMode != "manual" && *req.ReviewMode != "approved-amendments") || (req.ExecutionMode != nil && *req.ExecutionMode != "manual" && *req.ExecutionMode != "reviewed-tasks") || (req.IntegrationMode != nil && *req.IntegrationMode != "manual" && *req.IntegrationMode != "reviewed-scopes") || (req.PreviewMode != nil && *req.PreviewMode != "manual" && *req.PreviewMode != "checked-source") || (req.DeploymentMode != nil && *req.DeploymentMode != "manual" && *req.DeploymentMode != "existing-target") || req.ExpectedRevision < 0 || (req.Mode != "review" && req.Mode != "auto-drafts") || (req.Mode == "auto-drafts" && len(targets) == 0) {
 		journeyError(w, 400, "invalid_coordinator_policy", "Choose review-only or automatic draft saving with explicit document targets. This grants no approval or execution permission.")
 		return
 	}
@@ -222,7 +228,14 @@ func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 		coordinatorPolicyProblem(w, errCoordinatorPolicy)
 		return
 	}
-	executionMode, integrationMode, previewMode, deploymentMode := current.ExecutionMode, current.IntegrationMode, current.PreviewMode, current.DeploymentMode
+	reviewMode, executionMode, integrationMode, previewMode, deploymentMode := current.ReviewMode, current.ExecutionMode, current.IntegrationMode, current.PreviewMode, current.DeploymentMode
+	if req.ReviewMode != nil {
+		reviewMode = *req.ReviewMode
+	}
+	if reviewMode == "approved-amendments" && req.Mode != "auto-drafts" {
+		coordinatorPolicyProblem(w, errCoordinatorPolicy)
+		return
+	}
 	if req.ExecutionMode != nil {
 		executionMode = *req.ExecutionMode
 	}
@@ -236,7 +249,7 @@ func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 		deploymentMode = *req.DeploymentMode
 	}
 	actor, _ := authenticatedContextActor(r.Context())
-	policy := CoordinatorPolicy{ProjectID: p.ID, Revision: current.Revision + 1, Mode: req.Mode, ExecutionMode: executionMode, IntegrationMode: integrationMode, PreviewMode: previewMode, DeploymentMode: deploymentMode, AllowedTargets: targets, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano), Actor: &actor}
+	policy := CoordinatorPolicy{ProjectID: p.ID, Revision: current.Revision + 1, Mode: req.Mode, ReviewMode: reviewMode, ExecutionMode: executionMode, IntegrationMode: integrationMode, PreviewMode: previewMode, DeploymentMode: deploymentMode, AllowedTargets: targets, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano), Actor: &actor}
 	scope, err := s.approvalScopes(p.Path, p.ID)
 	if err != nil {
 		coordinatorPolicyProblem(w, err)

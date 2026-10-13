@@ -8,7 +8,7 @@ import { ProductApiError } from "../../api/product";
 import { CoordinatorPolicy } from "./CoordinatorPolicy";
 import { context, proposalTurn, view } from "./fixtures";
 
-const policy = (patch: Partial<Policy> = {}): Policy => ({ projectId: "p-1", revision: 1, mode: "review", allowedTargets: ["specification", "design-plan", "plan"], executionMode: "manual", deploymentMode: "manual", actor: { id: "alice", displayName: "Alice" }, updatedAt: "2026-10-12T00:00:00Z", ...patch });
+const policy = (patch: Partial<Policy> = {}): Policy => ({ projectId: "p-1", revision: 1, mode: "review", reviewMode: "manual", allowedTargets: ["specification", "design-plan", "plan"], executionMode: "manual", deploymentMode: "manual", actor: { id: "alice", displayName: "Alice" }, updatedAt: "2026-10-12T00:00:00Z", ...patch });
 const pendingView = () => view({ turns: [proposalTurn()] });
 const savedView = () => view({ revision: 4, context: { ...context(), digest: "new-context" }, turns: [{ ...proposalTurn(), appliedRevision: 3 }] });
 const props = () => {
@@ -17,11 +17,11 @@ const props = () => {
 };
 function deferred<T>() { let resolve!: (value: T) => void, reject!: (cause: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 const records = () => Object.keys(localStorage).filter(key => key.startsWith("luci.coordinator-request.v1:"));
-async function open() { await userEvent.click(screen.getByText(/Context draft policy ·/)); }
+async function open() { await userEvent.click(screen.getByText(/Context policy ·/)); }
 beforeEach(() => {
   vi.restoreAllMocks(); localStorage.clear();
   vi.spyOn(coordinatorPolicyApi, "get").mockResolvedValue(policy());
-  vi.spyOn(coordinatorPolicyApi, "save").mockImplementation(async (_id, input) => policy({ revision: input.expectedRevision + 1, mode: input.mode, allowedTargets: input.allowedTargets }));
+  vi.spyOn(coordinatorPolicyApi, "save").mockImplementation(async (_id, input) => policy({ revision: input.expectedRevision + 1, mode: input.mode, reviewMode: input.reviewMode ?? "manual", allowedTargets: input.allowedTargets }));
   vi.spyOn(orchestratorApi, "get").mockResolvedValue(pendingView());
 });
 it("defaults to review and requires explicit consent for selected document targets, without execution/deploy grant", async () => {
@@ -29,13 +29,22 @@ it("defaults to review and requires explicit consent for selected document targe
   await userEvent.selectOptions(screen.getByLabelText("Draft policy"), "auto-drafts");
   await userEvent.click(screen.getByRole("button", { name: "Save draft policy" }));
   expect(coordinatorPolicyApi.save).not.toHaveBeenCalled(); expect(input.onAdvance).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole("checkbox", { name: /Apply this draft policy/ }));
+  await userEvent.click(screen.getByRole("checkbox", { name: /Apply this context policy/ }));
   await userEvent.click(screen.getByRole("checkbox", { name: "Design" }));
-  expect((screen.getByRole("checkbox", { name: /Apply this draft policy/ }) as HTMLInputElement).checked).toBe(false);
-  await userEvent.click(screen.getByRole("checkbox", { name: /Apply this draft policy/ }));
+  expect((screen.getByRole("checkbox", { name: /Apply this context policy/ }) as HTMLInputElement).checked).toBe(false);
+  await userEvent.click(screen.getByRole("checkbox", { name: /Apply this context policy/ }));
   await userEvent.click(screen.getByRole("button", { name: "Save draft policy" }));
-  await waitFor(() => expect(coordinatorPolicyApi.save).toHaveBeenCalledExactlyOnceWith("p-1", { expectedRevision: 1, mode: "auto-drafts", allowedTargets: ["specification", "plan"] }));
-  expect(screen.getByText(/never approves context, starts a build/)).not.toBeNull();
+  await waitFor(() => expect(coordinatorPolicyApi.save).toHaveBeenCalledExactlyOnceWith("p-1", { expectedRevision: 1, mode: "auto-drafts", reviewMode: "manual", allowedTargets: ["specification", "plan"] }));
+  expect(screen.getByText(/Neither option starts a build/)).not.toBeNull();
+});
+it("requires a separate opt-in to renew reviewed definition or design amendments", async () => {
+  render(<CoordinatorPolicy {...props()} />); await open();
+  await userEvent.selectOptions(screen.getByLabelText("Draft policy"), "auto-drafts");
+  await userEvent.selectOptions(screen.getByLabelText("Routine amendment review"), "approved-amendments");
+  await userEvent.click(screen.getByRole("checkbox", { name: /Apply this context policy/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Save draft policy" }));
+  await waitFor(() => expect(coordinatorPolicyApi.save).toHaveBeenCalledExactlyOnceWith("p-1", { expectedRevision: 1, mode: "auto-drafts", reviewMode: "approved-amendments", allowedTargets: ["specification", "design-plan", "plan"] }));
+  expect(screen.getByText(/An initial definition\/design review and unresolved human questions still need me/)).not.toBeNull();
 });
 it("saves only the current person's current nonblocking proposal exactly once, even while the parent view lags", async () => {
   vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ mode: "auto-drafts" }));
@@ -87,7 +96,7 @@ it("preserves an uncertain policy save through edit revocation/restoration until
   vi.mocked(coordinatorPolicyApi.save).mockReturnValue(held.promise);
   const ui = render(<CoordinatorPolicy {...input} />); await open();
   await userEvent.selectOptions(screen.getByLabelText("Draft policy"), "auto-drafts");
-  await userEvent.click(screen.getByRole("checkbox", { name: /Apply this draft policy/ }));
+  await userEvent.click(screen.getByRole("checkbox", { name: /Apply this context policy/ }));
   await userEvent.click(screen.getByRole("button", { name: "Save draft policy" }));
   ui.rerender(<CoordinatorPolicy {...input} canEdit={false} />); await act(async () => {});
   ui.rerender(<CoordinatorPolicy {...input} />); await act(async () => {});
@@ -101,7 +110,7 @@ it("preserves an uncertain policy save through edit revocation/restoration until
 });
 it("does not clear unconfirmed policy work from a pre-write revision or unblock before both reads finish", async () => {
   const input = props(); input.view = view(); vi.mocked(coordinatorPolicyApi.save).mockRejectedValue(new Error("Reply lost"));
-  render(<CoordinatorPolicy {...input} />); await open(); await userEvent.click(screen.getByRole("checkbox", { name: /Apply this draft policy/ }));
+  render(<CoordinatorPolicy {...input} />); await open(); await userEvent.click(screen.getByRole("checkbox", { name: /Apply this context policy/ }));
   await userEvent.click(screen.getByRole("button", { name: "Save draft policy" })); await screen.findByText(/Reply lost/);
   await userEvent.click(screen.getByRole("button", { name: "Refresh policy and conversation" })); await screen.findByText(/Current policy and conversation read/);
   expect(records()).toHaveLength(1); expect(coordinatorPolicyApi.save).toHaveBeenCalledTimes(1);
@@ -128,13 +137,13 @@ it("requires a subsequent fresh read after definite policy refusal, then permits
   const input = props(); input.view = view();
   vi.mocked(coordinatorPolicyApi.save).mockRejectedValueOnce(new ProductApiError("conflict", "Editing access revoked", 403, { error: "coordinator_forbidden" }));
   render(<CoordinatorPolicy {...input} />); await open();
-  await userEvent.click(screen.getByRole("checkbox", { name: /Apply this draft policy/ }));
+  await userEvent.click(screen.getByRole("checkbox", { name: /Apply this context policy/ }));
   await userEvent.click(screen.getByRole("button", { name: "Save draft policy" }));
   await screen.findByText(/Editing access revoked/);
   expect(records()).toHaveLength(1);
   await userEvent.click(screen.getByRole("button", { name: "Refresh policy and conversation" }));
   await waitFor(() => expect(records()).toHaveLength(0));
-  expect((screen.getByRole("checkbox", { name: /Apply this draft policy/ }) as HTMLInputElement).checked).toBe(false);
+  expect((screen.getByRole("checkbox", { name: /Apply this context policy/ }) as HTMLInputElement).checked).toBe(false);
   expect(coordinatorPolicyApi.save).toHaveBeenCalledTimes(1);
 });
 it("settles a definite automatic refusal by explicit read without retrying the unchanged proposal or claiming it was saved", async () => {

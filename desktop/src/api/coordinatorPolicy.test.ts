@@ -3,7 +3,7 @@ import { coordinatorPolicyApi, type CoordinatorPolicy } from "./coordinatorPolic
 import { productApi } from "./product";
 import { orchestratorApi } from "./orchestrator";
 import { view } from "../components/orchestrator/fixtures";
-const policy = (): CoordinatorPolicy => ({ projectId: "p-1", revision: 1, mode: "review", allowedTargets: ["specification"], executionMode: "manual", deploymentMode: "manual", actor: { id: "alice", displayName: "Alice" }, updatedAt: "2026-10-12T00:00:00Z" });
+const policy = (): CoordinatorPolicy => ({ projectId: "p-1", revision: 1, mode: "review", reviewMode: "manual", allowedTargets: ["specification"], executionMode: "manual", deploymentMode: "manual", actor: { id: "alice", displayName: "Alice" }, updatedAt: "2026-10-12T00:00:00Z" });
 afterEach(() => vi.restoreAllMocks());
 it("retains exact CAS and omits unrelated execution/deployment policy fields when saving draft policy", async () => {
   const response = { ...policy(), projectId: "p/one", revision: 5, mode: "auto-drafts" as const, executionMode: "reviewed-tasks" as const };
@@ -25,6 +25,14 @@ it("preserves abort signal for display-only reads", async () => {
   const signal = new AbortController().signal;
   await coordinatorPolicyApi.get("p-1", signal);
   expect(request).toHaveBeenCalledExactlyOnceWith("/v1/product/projects/p-1/orchestrator/policy", undefined, "GET", 120000, signal);
+});
+it("binds explicit routine review policy readback without granting build or deployment", async () => {
+  const response = { ...policy(), revision: 2, mode: "auto-drafts" as const, reviewMode: "approved-amendments" as const };
+  vi.spyOn(productApi, "request").mockResolvedValue(response);
+  const input = { expectedRevision: 1, mode: "auto-drafts" as const, reviewMode: "approved-amendments" as const, allowedTargets: ["specification" as const] };
+  expect(await coordinatorPolicyApi.save("p-1", input)).toEqual(response);
+  vi.spyOn(productApi, "request").mockResolvedValue({ ...response, reviewMode: "manual" });
+  await expect(coordinatorPolicyApi.save("p-1", input)).rejects.toThrow("did not match");
 });
 it.each([{ revision: 3 }, { mode: "auto-drafts" }, { allowedTargets: ["plan"] }])("rejects a saved reply that does not prove the requested change %j", async patch => {
   vi.spyOn(productApi, "request").mockResolvedValue({ ...policy(), revision: 2, ...patch });

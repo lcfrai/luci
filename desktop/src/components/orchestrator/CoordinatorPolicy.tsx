@@ -6,7 +6,7 @@ import { ApiError } from "../../api/client";
 import { Button } from "../fluid/components/button";
 
 const labels = { specification: "Definition", "design-plan": "Design", plan: "Implementation plan" };
-type PolicyWrite = { expectedRevision: number; mode: Policy["mode"]; allowedTargets: CoordinatorTarget[]; rejected?: true };
+type PolicyWrite = { expectedRevision: number; mode: Policy["mode"]; reviewMode: Policy["reviewMode"]; allowedTargets: CoordinatorTarget[]; rejected?: true };
 type Advance = { turnId: string; actorId: string; contextDigest: string; expectedContextDigest?: string; revision: number; policyRevision: number; rejected?: true };
 type Retained = { version: 1; advance?: Advance; policyWrite?: PolicyWrite };
 function readRetained(key: string): { value: Retained; raw: string | null; error: string } {
@@ -16,7 +16,7 @@ function readRetained(key: string): { value: Retained; raw: string | null; error
     const value = JSON.parse(raw) as Retained;
     if (raw.length > 16000 || value.version !== 1 ||
         (value.advance && (!value.advance.turnId || !value.advance.actorId || !value.advance.contextDigest || (value.advance.expectedContextDigest !== undefined && (typeof value.advance.expectedContextDigest !== "string" || !value.advance.expectedContextDigest)) || !Number.isSafeInteger(value.advance.revision) || !Number.isSafeInteger(value.advance.policyRevision) || (value.advance.rejected !== undefined && value.advance.rejected !== true))) ||
-        (value.policyWrite && (!Number.isSafeInteger(value.policyWrite.expectedRevision) || !["review", "auto-drafts"].includes(value.policyWrite.mode) || !Array.isArray(value.policyWrite.allowedTargets) || value.policyWrite.allowedTargets.some(target => !coordinatorTargets.includes(target)) || (value.policyWrite.rejected !== undefined && value.policyWrite.rejected !== true)))) {
+        (value.policyWrite && (!Number.isSafeInteger(value.policyWrite.expectedRevision) || !["review", "auto-drafts"].includes(value.policyWrite.mode) || !["manual", "approved-amendments"].includes(value.policyWrite.reviewMode) || !Array.isArray(value.policyWrite.allowedTargets) || value.policyWrite.allowedTargets.some(target => !coordinatorTargets.includes(target)) || (value.policyWrite.rejected !== undefined && value.policyWrite.rejected !== true)))) {
       throw new Error("The retained coordinator request cannot be read. Automatic draft saving is paused; keep this browser record for recovery.");
     }
     return { value, raw, error: "" };
@@ -29,7 +29,7 @@ function applied(view: OrchestratorView, request: Advance) {
 // switching. Only a parsed server refusal can establish a rejected mutation.
 const refused = (cause: unknown) => cause instanceof ProductApiError && [400, 401, 403, 409].includes(cause.status);
 
-/** Scope-keyed by the parent; this policy grants draft persistence only. */
+/** Scope-keyed by the parent; review is a separate explicit opt-in. */
 export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, canEdit, blocked, onAdvance, beginObservation, policyEpoch = 0, onPolicyUpdated }: {
   projectId: string; scope: string; actorId: string; view: OrchestratorView;
   canRead: boolean; canEdit: boolean; blocked: string;
@@ -43,6 +43,7 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
   const [storageError, setStorageError] = useState(initial.error);
   const [policy, setPolicy] = useState<Policy | null>(null);
   const [mode, setMode] = useState<Policy["mode"]>("review"), [targets, setTargets] = useState<CoordinatorTarget[]>(coordinatorTargets);
+  const [reviewMode, setReviewMode] = useState<Policy["reviewMode"]>("manual");
   const [consent, setConsent] = useState(false), [busy, setBusy] = useState("");
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [fresh, setFresh] = useState(false);
@@ -60,7 +61,7 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
     } catch (cause) { setStorageError(errorText(cause)); throw cause; }
   }
   function acceptPolicy(value: Policy) {
-    setPolicy(value); setMode(value.mode); setTargets(value.allowedTargets); setConsent(false); setFresh(true); setReadDenied(false);
+    setPolicy(value); setMode(value.mode); setReviewMode(value.reviewMode); setTargets(value.allowedTargets); setConsent(false); setFresh(true); setReadDenied(false);
   }
   useEffect(() => { alive.current = true; return () => { alive.current = false; epoch.current++; }; }, []);
   useEffect(() => {
@@ -110,14 +111,14 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
   }
   async function save() {
     if (!latest.current.canEdit || !policy || !fresh || inFlight.current || retainedRef.current.policyWrite || retainedRef.current.advance || storageError || !consent) return;
-    const input = { expectedRevision: policy.revision, mode, allowedTargets: targets };
+    const input = { expectedRevision: policy.revision, mode, reviewMode: mode === "review" ? "manual" as const : reviewMode, allowedTargets: targets };
     if (mode === "auto-drafts" && !targets.length) return;
     try { persist({ version: 1, policyWrite: input }); } catch { return; }
     inFlight.current = true; const ticket = ++epoch.current; setBusy("save"); setFresh(false); setError("");
     try {
       const value = await coordinatorPolicyApi.save(projectId, input);
       if (!alive.current || ticket !== epoch.current || !latest.current.canRead || !latest.current.canEdit) return;
-      persist({ version: 1 }); acceptPolicy(value); onPolicyUpdated?.(); setNotice("Draft policy saved. Build, approval and deployment permissions have not changed.");
+      persist({ version: 1 }); acceptPolicy(value); onPolicyUpdated?.(); setNotice("Context policy saved. Build and deployment permissions have not changed.");
     } catch (cause) { if (alive.current && ticket === epoch.current && latest.current.canRead) {
       if (refused(cause)) { try { persist({ version: 1, policyWrite: { ...input, rejected: true } }); } catch { /* Retain the conservative unknown record. */ } }
       setError(`${errorText(cause)} Refresh policy and conversation to observe the saved request; it will not be resent automatically.`);
@@ -153,8 +154,8 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
   if (readDenied) return <section aria-label="Coordinator policy unavailable"><p role="alert">Current access to the coordinator policy was refused. Saved requests remain retained.</p><Button variant="secondary" disabled={!!busy} onClick={() => void refresh()}>Refresh policy and conversation</Button></section>;
   const pending = !!retained.advance || !!retained.policyWrite;
   const disabled = !canEdit || !fresh || !!busy || pending || !!storageError;
-  return <details className="orchestrator-agent"><summary>Context draft policy · {!policy ? "Checking policy" : policy.mode === "auto-drafts" ? "Automatic saving" : "Review first"}</summary>
-    <p>Luci can save your completed, unambiguous context proposals as drafts. This setting never approves context, starts a build, spends on a new model request or deploys an application.</p>
+  return <details className="orchestrator-agent"><summary>Context policy · {!policy ? "Checking policy" : policy.mode === "auto-drafts" ? "Automatic saving" : "Review first"}</summary>
+    <p>Luci can save completed, unambiguous proposals as drafts. Separately, you can allow routine changes to an already approved definition or design to be reviewed under this exact policy. Neither option starts a build, spends on a new model request or deploys an application.</p>
     {!canEdit && <p>Editing access is required to change this policy.</p>}
     {error && <p role="alert">{error}</p>}{storageError && <p role="alert">{storageError}</p>}{notice && <p role="status">{notice}</p>}
     {pending && <p role="status">A coordinator request is retained. Automatic changes are paused until its exact outcome is read back.</p>}
@@ -162,8 +163,9 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
     <fieldset disabled={disabled}>
       <legend>Saving context proposals</legend>
       <label className="luci-field">Draft policy<select value={mode} onChange={event => { setMode(event.target.value as Policy["mode"]); setConsent(false); }}><option value="review">Review each amendment</option><option value="auto-drafts">Automatically save context drafts</option></select></label>
+      {mode === "auto-drafts" && <label className="luci-field">Routine amendment review<select value={reviewMode} onChange={event => { setReviewMode(event.target.value as Policy["reviewMode"]); setConsent(false); }}><option value="manual">Review each saved draft yourself</option><option value="approved-amendments">Approve valid changes to previously approved definition and design</option></select></label>}
       {coordinatorTargets.map(target => <label className="orchestrator-ack" key={target}><input type="checkbox" checked={targets.includes(target)} onChange={event => { setTargets(coordinatorTargets.filter(value => value === target ? event.target.checked : targets.includes(value))); setConsent(false); }} />{labels[target]}</label>)}
-      <label className="orchestrator-ack"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />Apply this draft policy to this project. Existing build and deployment permissions stay unchanged.</label>
+      <label className="orchestrator-ack"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />Apply this context policy to this project. An initial definition/design review and unresolved human questions still need me; build and deployment permissions stay unchanged.</label>
       <Button variant="secondary" disabled={!consent || (mode === "auto-drafts" && !targets.length)} onClick={() => void save()}>Save draft policy</Button>
     </fieldset>
     <Button variant="ghost" disabled={!!busy} onClick={() => void refresh()}>Refresh policy and conversation</Button>

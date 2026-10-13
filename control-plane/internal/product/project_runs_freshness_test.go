@@ -55,7 +55,7 @@ func TestProjectRunHTTPFreshnessProjectsContextChangesWithoutObservingOrWriting(
 			case "renewed-review":
 				// Identical content with a fresh private approval is a different
 				// review selection; public digests alone cannot revive an old run.
-				if err := s.recordJourneyApproval(p.Path, p.ID, "design", "reviewer", &state); err != nil {
+				if err := s.recordJourneyApproval(context.Background(), p.Path, p.ID, "design", "reviewer", &state); err != nil {
 					t.Fatal(err)
 				}
 			case "unreadable":

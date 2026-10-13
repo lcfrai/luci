@@ -367,6 +367,12 @@ func (s *Server) approveSpecification(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "revision_conflict", "Save the current definition before approving it.")
 		return
 	}
+	if gate, ok := r.Context().Value(coordinatorDelegatedReviewKey{}).(coordinatorDelegatedReviewGate); ok {
+		if err := s.validateCoordinatorDelegatedReviewLocked(r.Context(), p, state, gate, "specification", spec.Revision, reviewDigest(spec)); err != nil {
+			coordinatorPolicyProblem(w, err)
+			return
+		}
+	}
 	if strings.TrimSpace(spec.Purpose) == "" || strings.TrimSpace(spec.Audience) == "" || len(spec.Requirements) == 0 {
 		problem(w, 422, "definition_incomplete", "Add the purpose, audience and measurable requirements before approving.")
 		return
@@ -400,7 +406,7 @@ func (s *Server) approveSpecification(w http.ResponseWriter, r *http.Request) {
 	spec.Digest = hex.EncodeToString(sum[:])
 	state.Specification = &spec
 	state.SpecificationRevisions = append(state.SpecificationRevisions, spec)
-	if err := s.recordJourneyApproval(p.Path, p.ID, "specification", actor, &state); err != nil {
+	if err := s.recordJourneyApproval(r.Context(), p.Path, p.ID, "specification", actor, &state); err != nil {
 		problem(w, 500, "approval_unavailable", "The private review receipt could not be saved. Approval was not granted; retain your draft and retry explicit review.")
 		return
 	}

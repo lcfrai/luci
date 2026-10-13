@@ -261,6 +261,12 @@ func (s *Server) approveDesignPlan(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "revision_conflict", "Save the design against the current definition and sketch before approving it.")
 		return
 	}
+	if gate, ok := r.Context().Value(coordinatorDelegatedReviewKey{}).(coordinatorDelegatedReviewGate); ok {
+		if err := s.validateCoordinatorDelegatedReviewLocked(r.Context(), p, state, gate, "design-plan", plan.Revision, reviewDigest(plan)); err != nil {
+			coordinatorPolicyProblem(w, err)
+			return
+		}
+	}
 	if state.Specification != nil && spec.Status != "approved" {
 		problem(w, 422, "definition_approval_required", "Approve the current definition before approving its design.")
 		return
@@ -302,7 +308,7 @@ func (s *Server) approveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	plan.Digest = hex.EncodeToString(sum[:])
 	state.DesignPlan = &plan
 	state.DesignPlanRevisions = append(state.DesignPlanRevisions, plan)
-	if err := s.recordJourneyApproval(p.Path, p.ID, "design", actor, &state); err != nil {
+	if err := s.recordJourneyApproval(r.Context(), p.Path, p.ID, "design", actor, &state); err != nil {
 		problem(w, 500, "approval_unavailable", "The private review receipt could not be saved. Approval was not granted; retain your draft and retry explicit review.")
 		return
 	}

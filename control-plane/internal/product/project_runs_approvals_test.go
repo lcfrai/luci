@@ -1,6 +1,7 @@
 package product
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -27,7 +28,7 @@ func TestProjectRunApprovalSelectionUsesPrivateAuthorityAndExactSelection(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.recordJourneyApproval(p.Path, p.ID, "design", "fixture-reviewer", &state); err != nil {
+	if err := s.recordJourneyApproval(context.Background(), p.Path, p.ID, "design", "fixture-reviewer", &state); err != nil {
 		t.Fatal(err)
 	}
 	current, err := s.ApprovalSelection(p.ID)

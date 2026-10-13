@@ -2,6 +2,7 @@ package product
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -24,28 +25,31 @@ var errApprovalStoreInvalid = errors.New("private review authority is invalid")
 // Only the latest private selections confer authority. Revoking a selection on
 // Save prevents replay of an older, genuinely reviewed project snapshot.
 type journeyApprovalStore struct {
-	Version       int                     `json:"version"`
-	AccountScope  string                  `json:"accountScope"`
-	ProjectID     string                  `json:"projectId"`
-	ProjectScope  string                  `json:"projectScope"`
-	Specification *journeyApprovalReceipt `json:"specification,omitempty"`
-	Design        *journeyApprovalReceipt `json:"design,omitempty"`
+	Version           int                     `json:"version"`
+	AccountScope      string                  `json:"accountScope"`
+	ProjectID         string                  `json:"projectId"`
+	ProjectScope      string                  `json:"projectScope"`
+	Specification     *journeyApprovalReceipt `json:"specification,omitempty"`
+	Design            *journeyApprovalReceipt `json:"design,omitempty"`
+	LastSpecification *journeyApprovalReceipt `json:"lastSpecification,omitempty"`
+	LastDesign        *journeyApprovalReceipt `json:"lastDesign,omitempty"`
 }
 
 type journeyApprovalReceipt struct {
-	ID                    string `json:"id"`
-	Kind                  string `json:"kind"`
-	Revision              int    `json:"revision"`
-	ContentDigest         string `json:"contentDigest"`
-	BriefRevision         int    `json:"briefRevision"`
-	BriefDigest           string `json:"briefDigest"`
-	SpecificationRevision int    `json:"specificationRevision,omitempty"`
-	SpecificationDigest   string `json:"specificationDigest,omitempty"`
-	SpecificationApproval string `json:"specificationApproval,omitempty"`
-	SketchRevision        int    `json:"sketchRevision,omitempty"`
-	SketchDigest          string `json:"sketchDigest,omitempty"`
-	ActorID               string `json:"actorId"`
-	ApprovedAt            string `json:"approvedAt"`
+	ID                      string `json:"id"`
+	Kind                    string `json:"kind"`
+	Revision                int    `json:"revision"`
+	ContentDigest           string `json:"contentDigest"`
+	BriefRevision           int    `json:"briefRevision"`
+	BriefDigest             string `json:"briefDigest"`
+	SpecificationRevision   int    `json:"specificationRevision,omitempty"`
+	SpecificationDigest     string `json:"specificationDigest,omitempty"`
+	SpecificationApproval   string `json:"specificationApproval,omitempty"`
+	SketchRevision          int    `json:"sketchRevision,omitempty"`
+	SketchDigest            string `json:"sketchDigest,omitempty"`
+	ActorID                 string `json:"actorId"`
+	DelegatedPolicyRevision int    `json:"delegatedPolicyRevision,omitempty"`
+	ApprovedAt              string `json:"approvedAt"`
 }
 
 func reviewDigest(value any) string {
@@ -119,7 +123,7 @@ func validApprovalReceipt(receipt *journeyApprovalReceipt, kind string) bool {
 	if receipt == nil {
 		return true
 	}
-	if !strings.HasPrefix(receipt.ID, "approval-") || len(receipt.ID) != 33 || !hexDigest(receipt.ContentDigest) || !hexDigest(receipt.BriefDigest) || receipt.Kind != kind || receipt.Revision <= 0 || receipt.BriefRevision < 0 || !validConnectionToken(receipt.ActorID, 128, false) {
+	if !strings.HasPrefix(receipt.ID, "approval-") || len(receipt.ID) != 33 || !hexDigest(receipt.ContentDigest) || !hexDigest(receipt.BriefDigest) || receipt.Kind != kind || receipt.Revision <= 0 || receipt.BriefRevision < 0 || receipt.DelegatedPolicyRevision < 0 || !validConnectionToken(receipt.ActorID, 128, false) {
 		return false
 	}
 	if _, err := time.Parse(time.RFC3339Nano, receipt.ApprovedAt); err != nil {
@@ -162,7 +166,7 @@ func (s *Server) readApprovalStore(dir, id string) (journeyApprovalStore, error)
 	var saved journeyApprovalStore
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&saved) != nil || decoder.Decode(new(any)) != io.EOF || saved.Version != expected.Version || saved.AccountScope != expected.AccountScope || saved.ProjectID != id || saved.ProjectScope != expected.ProjectScope || !validApprovalReceipt(saved.Specification, "specification") || !validApprovalReceipt(saved.Design, "design") {
+	if decoder.Decode(&saved) != nil || decoder.Decode(new(any)) != io.EOF || saved.Version != expected.Version || saved.AccountScope != expected.AccountScope || saved.ProjectID != id || saved.ProjectScope != expected.ProjectScope || !validApprovalReceipt(saved.Specification, "specification") || !validApprovalReceipt(saved.Design, "design") || !validApprovalReceipt(saved.LastSpecification, "specification") || !validApprovalReceipt(saved.LastDesign, "design") {
 		return expected, errApprovalStoreInvalid
 	}
 	return saved, nil
@@ -227,7 +231,13 @@ func (s *Server) revokeJourneyApproval(dir, id string, specification bool) error
 		return err
 	}
 	if specification {
+		if store.Specification != nil {
+			store.LastSpecification = store.Specification
+		}
 		store.Specification = nil
+	}
+	if store.Design != nil {
+		store.LastDesign = store.Design
 	}
 	store.Design = nil
 	return s.saveApprovalStore(store)
@@ -245,12 +255,15 @@ func authenticatedReviewActor(w http.ResponseWriter, r *http.Request) (string, b
 // Called only from authenticated approval POSTs. A receipt is committed before
 // the exact new approved snapshot is exported; a partial write cannot match an
 // older snapshot and retries require another explicit review.
-func (s *Server) recordJourneyApproval(dir, id, kind, actor string, state *journeyState) error {
+func (s *Server) recordJourneyApproval(ctx context.Context, dir, id, kind, actor string, state *journeyState) error {
 	store, err := s.readApprovalStore(dir, id)
 	if err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, errApprovalStoreInvalid) {
 		return err
 	}
 	receipt := &journeyApprovalReceipt{ID: newID("approval-"), Kind: kind, BriefRevision: state.Brief.Revision, BriefDigest: reviewDigest(state.Brief), ActorID: actor, ApprovedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	if gate, ok := ctx.Value(coordinatorDelegatedReviewKey{}).(coordinatorDelegatedReviewGate); ok {
+		receipt.DelegatedPolicyRevision = gate.PolicyRevision
+	}
 	switch kind {
 	case "specification":
 		receipt.Revision, receipt.ContentDigest = state.Specification.Revision, state.Specification.Digest
