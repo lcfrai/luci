@@ -28,6 +28,8 @@ import (
 type e2bOperatorConfig struct {
 	Endpoint                string            `json:"endpoint"`
 	APIKeyFile              string            `json:"apiKeyFile"`
+	AdminAPIKeyFile         string            `json:"adminApiKeyFile"`
+	HostNodeID              string            `json:"hostNodeId"`
 	AttachKeyFile           string            `json:"attachKeyFile"`
 	RootCAFile              string            `json:"rootCaFile,omitempty"`
 	ControllerStateDir      string            `json:"controllerStateDir"`
@@ -109,7 +111,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&selected) != nil || decoder.Decode(new(any)) != io.EOF ||
 		selected.Store.OwnerID == "" || selected.Store.RuntimeScope != selected.Deployment.Scope ||
-		selected.Template.BuildID == "" ||
+		selected.Template.BuildID == "" || selected.HostNodeID == "" || selected.AdminAPIKeyFile == "" ||
 		selected.TaskMaxSeconds < 1 || selected.TaskMaxSeconds > selected.Limits.MaxTaskSeconds ||
 		selected.TaskEstimatedCostMicros < 1 || selected.TaskEstimatedCostMicros > selected.Limits.EstimatedCostMicros ||
 		len(selected.ModelEgressDomains) == 0 || !e2bbe.ValidEgressDomains(selected.ModelEgressDomains) ||
@@ -118,6 +120,10 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		return nil, nil, errors.New("cloud microVM configuration has incomplete scope, limits, storage or trusted guest origins")
 	}
 	apiKey, err := readPrivateE2BFile(selected.APIKeyFile, 4096)
+	if err != nil {
+		return nil, nil, err
+	}
+	adminKey, err := readPrivateE2BFile(selected.AdminAPIKeyFile, 4096)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -197,7 +203,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		}
 		return nil
 	}
-	controllerConfig := e2bbe.Config{Endpoint: selected.Endpoint, APIKey: strings.TrimSpace(string(apiKey)), RootCAs: roots,
+	controllerConfig := e2bbe.Config{Endpoint: selected.Endpoint, APIKey: strings.TrimSpace(string(apiKey)), AdminAPIKey: strings.TrimSpace(string(adminKey)), HostNodeID: selected.HostNodeID, RootCAs: roots,
 		StateDir: selected.ControllerStateDir, OwnerID: selected.Store.OwnerID, Deployment: selected.Deployment,
 		Template: selected.Template, Limits: selected.Limits, EgressAllow: selected.ModelEgressDomains, Checkpoint: store, Authorize: authorizeEffect,
 		GuestOrigins: func(id string) (string, string, string, error) {
@@ -229,6 +235,11 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		_ = controller.Close(context.WithoutCancel(ctx))
 		closeStore()
 		return nil, nil, fmt.Errorf("verify selected cloud microVM template build: %w", err)
+	}
+	if err = controller.VerifyNodeCapacity(ctx); err != nil && !errors.Is(err, e2bbe.ErrCapacity) {
+		_ = controller.Close(context.WithoutCancel(ctx))
+		closeStore()
+		return nil, nil, fmt.Errorf("verify authenticated cloud microVM host: %w", err)
 	}
 	cloud := &api.CloudTaskRuntime{Runtime: &e2bbe.TaskRuntime{Controller: controller, Store: store},
 		AttachKey: attachKey, MaxSeconds: selected.TaskMaxSeconds,

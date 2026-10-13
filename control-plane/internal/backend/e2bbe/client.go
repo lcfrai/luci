@@ -33,6 +33,7 @@ func (providerSandbox) GoString() string { return "E2B sandbox response (private
 type providerClient struct {
 	endpoint *url.URL
 	key      string
+	adminKey string
 	http     *http.Client
 	egress   []string
 }
@@ -45,7 +46,10 @@ func newClient(c Config) (*providerClient, error) {
 	if e != nil {
 		return nil, e
 	}
-	return &providerClient{endpoint: u, key: c.APIKey, http: h, egress: append([]string{}, c.EgressAllow...)}, nil
+	if c.AdminAPIKey != "" && (!validToken(c.AdminAPIKey) || c.AdminAPIKey == c.APIKey || !validID(c.HostNodeID)) {
+		return nil, ErrUnsupported
+	}
+	return &providerClient{endpoint: u, key: c.APIKey, adminKey: c.AdminAPIKey, http: h, egress: append([]string{}, c.EgressAllow...)}, nil
 }
 func validToken(s string) bool {
 	if len(s) < 1 || len(s) > 4096 {
@@ -109,6 +113,10 @@ func privateDial(ctx context.Context, network, address string) (net.Conn, error)
 	return nil, last
 }
 func (c *providerClient) call(ctx context.Context, method, path string, query url.Values, body any, out any) (int, http.Header, error) {
+	return c.callWithKey(ctx, c.key, method, path, query, body, out)
+}
+
+func (c *providerClient) callWithKey(ctx context.Context, key, method, path string, query url.Values, body any, out any) (int, http.Header, error) {
 	var payload []byte
 	if body != nil {
 		var e error
@@ -125,7 +133,7 @@ func (c *providerClient) call(ctx context.Context, method, path string, query ur
 	if e != nil {
 		return 0, nil, e
 	}
-	req.Header.Set("X-API-Key", c.key)
+	req.Header.Set("X-API-Key", key)
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -152,6 +160,61 @@ func (c *providerClient) call(ctx context.Context, method, path string, query ur
 		}
 	}
 	return response.StatusCode, response.Header, nil
+}
+
+type providerNode struct {
+	ID                   string `json:"id"`
+	Status               string `json:"status"`
+	SandboxCount         *int64 `json:"sandboxCount"`
+	SandboxStartingCount *int64 `json:"sandboxStartingCount"`
+	MaxSandboxes         *int64 `json:"maxSandboxes"`
+	Metrics              struct {
+		AllocatedCPU         *int64 `json:"allocatedCPU"`
+		CPUCount             *int64 `json:"cpuCount"`
+		AllocatedMemoryBytes *int64 `json:"allocatedMemoryBytes"`
+		MemoryUsedBytes      *int64 `json:"memoryUsedBytes"`
+		MemoryTotalBytes     *int64 `json:"memoryTotalBytes"`
+	} `json:"metrics"`
+}
+
+// VerifyNodeCapacity is a read-only, pinned-host advisory gate. The provider's
+// atomic Create decision still owns actual placement; this cannot guarantee
+// future quota, KVM availability or price. Unknown/malformed reads fail closed.
+func (c *Controller) VerifyNodeCapacity(ctx context.Context) error {
+	if c.client.adminKey == "" || !validID(c.config.HostNodeID) {
+		return ErrUnsupported
+	}
+	var nodes []providerNode
+	status, _, err := c.client.callWithKey(ctx, c.client.adminKey, http.MethodGet, "/nodes", nil, nil, &nodes)
+	if err != nil || status != http.StatusOK || len(nodes) == 0 || len(nodes) > 128 {
+		return ErrUnsupported
+	}
+	var found *providerNode
+	for i := range nodes {
+		if !validID(nodes[i].ID) || nodes[i].ID != c.config.HostNodeID {
+			continue
+		}
+		if found != nil {
+			return ErrUnsupported
+		}
+		found = &nodes[i]
+	}
+	if found == nil || found.Status != "ready" || found.MaxSandboxes == nil || found.SandboxCount == nil || found.SandboxStartingCount == nil ||
+		found.Metrics.CPUCount == nil || found.Metrics.AllocatedCPU == nil || found.Metrics.MemoryTotalBytes == nil || found.Metrics.AllocatedMemoryBytes == nil || found.Metrics.MemoryUsedBytes == nil {
+		return ErrUnsupported
+	}
+	if *found.MaxSandboxes <= 0 || *found.SandboxCount < 0 || *found.SandboxStartingCount < 0 ||
+		*found.Metrics.CPUCount <= 0 || *found.Metrics.AllocatedCPU < 0 || *found.Metrics.MemoryTotalBytes <= 0 || *found.Metrics.AllocatedMemoryBytes < 0 || *found.Metrics.MemoryUsedBytes < 0 {
+		return ErrUnsupported
+	}
+	memory := c.config.Template.MemoryMiB * (1 << 20)
+	cpu := c.config.Template.CPUMillis / 1000
+	usedMemory := max(*found.Metrics.AllocatedMemoryBytes, *found.Metrics.MemoryUsedBytes)
+	if *found.SandboxCount >= *found.MaxSandboxes || *found.SandboxStartingCount >= *found.MaxSandboxes-*found.SandboxCount ||
+		*found.Metrics.AllocatedCPU > *found.Metrics.CPUCount-cpu || usedMemory > *found.Metrics.MemoryTotalBytes-memory {
+		return ErrCapacity
+	}
+	return nil
 }
 func metadata(r Record) map[string]string {
 	m := map[string]string{"luci.owner": r.Request.Identity.OwnerID, "luci.project": r.Request.Identity.ProjectID, "luci.task": r.Request.Identity.TaskID, "luci.attempt": r.Request.Identity.AttemptID, "luci.operation": r.Request.Identity.OperationID, "luci.request": r.RequestDigest, "luci.scope": r.Deployment.Scope, "luci.generation": r.Deployment.HostGeneration}

@@ -57,6 +57,9 @@ type providerFixture struct {
 	guestGrant                   bool
 	invalidGuestGrant            bool
 	templateStatus               string
+	nodeSlots, nodeLimit         int64
+	nodeMemoryUsed               int64
+	nodeStatus                   string
 	entered, release             chan struct{}
 }
 
@@ -67,6 +70,25 @@ func newProvider(t *testing.T) *providerFixture {
 	return p
 }
 func (p *providerFixture) handle(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" && r.URL.Path == "/nodes" {
+		if r.Header.Get("X-API-Key") != "test-only-admin-key" {
+			w.WriteHeader(401)
+			return
+		}
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		status, limit := p.nodeStatus, p.nodeLimit
+		if status == "" {
+			status = "ready"
+		}
+		if limit == 0 {
+			limit = 4
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]any{{"id": "node-one", "status": status,
+			"sandboxCount": p.nodeSlots, "sandboxStartingCount": 0, "maxSandboxes": limit,
+			"metrics": map[string]any{"allocatedCPU": 0, "cpuCount": 4, "allocatedMemoryBytes": 0, "memoryUsedBytes": p.nodeMemoryUsed, "memoryTotalBytes": 8192 << 20}}})
+		return
+	}
 	if r.Header.Get("X-API-Key") != "test-only-key" {
 		p.t.Error("missing API authorization")
 		w.WriteHeader(401)
@@ -203,6 +225,41 @@ func TestExactProviderTemplateBuildMustBeReadyBeforeCloudAdmission(t *testing.T)
 	_, usage := c.Snapshot()
 	if usage.Active != 0 || p.creates != 0 {
 		t.Fatal("readiness inspection allocated a VM", usage, p.creates)
+	}
+}
+
+func TestCloudNodeCapacityRequiresSeparateAdminReadAndPinnedReadyHost(t *testing.T) {
+	p := newProvider(t)
+	cfg, _ := fixtureConfig(t, p)
+	cfg.AdminAPIKey = "test-only-admin-key"
+	cfg.HostNodeID = "node-one"
+	c := openController(t, cfg)
+	if err := c.VerifyNodeCapacity(context.Background()); err != nil {
+		t.Fatal("ready pinned node was refused", err)
+	}
+	p.nodeSlots = 4
+	if err := c.VerifyNodeCapacity(context.Background()); !errors.Is(err, ErrCapacity) {
+		t.Fatal("full node was not backpressured", err)
+	}
+	p.nodeSlots, p.nodeStatus = 0, "draining"
+	if err := c.VerifyNodeCapacity(context.Background()); !errors.Is(err, ErrUnsupported) {
+		t.Fatal("draining node was offered for new VM work", err)
+	}
+	p.nodeStatus = "ready"
+	p.nodeMemoryUsed = 7 << 30
+	if err := c.VerifyNodeCapacity(context.Background()); !errors.Is(err, ErrCapacity) {
+		t.Fatal("host memory pressure was ignored", err)
+	}
+	p.nodeMemoryUsed = 0
+	if p.creates != 0 {
+		t.Fatal("node observation issued a Create")
+	}
+	other := cfg
+	other.HostNodeID = "unrelated-node"
+	other.StateDir = filepath.Join(t.TempDir(), "other")
+	otherController := openController(t, other)
+	if err := otherController.VerifyNodeCapacity(context.Background()); !errors.Is(err, ErrUnsupported) {
+		t.Fatal("unmatched host was accepted", err)
 	}
 }
 

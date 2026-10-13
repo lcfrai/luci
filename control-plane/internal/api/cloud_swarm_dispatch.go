@@ -78,8 +78,15 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 	if !cloud.allowsModelEndpoint(run.Input.Route.Harness, agentEnv) {
 		return blocked("cloud_model_egress_unavailable", "The selected upstream model endpoint is outside this cloud microVM's operator-approved egress domains; no VM was started.")
 	}
-	if !found && cloud.Runtime.Controller.VerifyTemplateBuild(ctx) != nil {
-		return blocked("cloud_template_unavailable", "The selected microVM template build is not confirmed ready; no VM was started.")
+	if !found {
+		if cloud.Runtime.Controller.VerifyTemplateBuild(ctx) != nil {
+			return blocked("cloud_template_unavailable", "The selected microVM template build is not confirmed ready; no VM was started.")
+		}
+		if err = cloud.Runtime.Controller.VerifyNodeCapacity(ctx); errors.Is(err, e2bbe.ErrCapacity) {
+			return product.SwarmDispatchResult{State: "waiting", ReasonCode: "cloud_host_capacity", Message: "The selected microVM host has no observed free VM slot, CPU or memory; no VM was started."}, nil
+		} else if err != nil {
+			return blocked("cloud_host_unavailable", "The selected microVM host's authenticated capacity could not be confirmed; no VM was started.")
+		}
 	}
 	input, err := a.deps.Product.BuildProjectSwarmMicroVMInput(ctx, req.ProjectID, req.RunID, op.ID,
 		cloud.Runtime.Controller.OwnerID(), cloud.MaxSeconds, cloud.EstimatedCostMicros)

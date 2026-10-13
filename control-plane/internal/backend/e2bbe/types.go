@@ -154,9 +154,13 @@ type CheckpointWriter interface {
 type Config struct {
 	Endpoint string
 	APIKey   string
-	RootCAs  *x509.CertPool // nil uses system roots; verification cannot be disabled
-	StateDir string
-	OwnerID  string
+	// AdminAPIKey is a separate private credential for the pinned runtime's
+	// read-only node admission endpoint. It never enters a task or journal.
+	AdminAPIKey string
+	HostNodeID  string
+	RootCAs     *x509.CertPool // nil uses system roots; verification cannot be disabled
+	StateDir    string
+	OwnerID     string
 	// EgressAllow names exact operator-approved model endpoints. The provider
 	// still denies all other outbound IPv4 destinations for each fresh VM.
 	EgressAllow []string
