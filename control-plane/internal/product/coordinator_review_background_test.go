@@ -92,3 +92,46 @@ func TestCoordinatorDelegatedReviewRejectsUnreviewedBaseAndPolicyChange(t *testi
 		"expectedRevision": policy.Revision, "mode": "review", "reviewMode": "approved-amendments", "allowedTargets": []string{"specification"},
 	}, 409)
 }
+
+func TestCoordinatorDelegatedDesignReviewPreservesDefinitionDependency(t *testing.T) {
+	s, p, h, ctx, req, _ := coordinatorContinuationFixture(t)
+	anchor := coordinatorReadyFixture(t, s, p, ctx, req)
+	s.mu.Lock()
+	rows, err := s.readContinuations(p, "alice")
+	if err == nil {
+		rows.Rows[0].Status = "blocked"
+		rows.SavedRoute = &CoordinatorSavedRoute{Revision: 1, Route: coordinatorRoute(req.Run), MaxParallel: 1, UpdatedAt: anchor.CreatedAt}
+		err = s.saveContinuations(rows)
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var policy CoordinatorPolicy
+	decodeEvidenceResponse(t, journeyRequest(t, h, "POST", "/v1/product/projects/"+p.ID+"/orchestrator/policy", map[string]any{
+		"expectedRevision": req.ExpectedPolicyRevision, "mode": "auto-drafts", "reviewMode": "approved-amendments", "allowedTargets": []string{"design-plan"},
+	}, 200).Body.Bytes(), &policy)
+	turn, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Improve the reviewed design", "")
+	design := snapshot.DesignPlan
+	design.Status, design.Digest = "draft", ""
+	design.Screens[0].Purpose = "Make saved work easier to reopen"
+	answer := OrchestratorAnswer{Summary: "Improve the existing home screen", Options: []string{}, Impact: []string{"Design review"}, Proposal: &OrchestratorProposal{Target: "design-plan", Summary: "Home amendment", DesignPlan: &design}}
+	if err = s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
+		t.Fatal(err)
+	}
+	s.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	state, err := s.readApprovedJourney(p.Path, p.ID)
+	if err != nil || state.DesignPlan.Status != "draft" || !specificationApprovalMatches(state) {
+		t.Fatal("design draft changed approved definition", err)
+	}
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	state, err = s.readApprovedJourney(p.Path, p.ID)
+	if err != nil || !designApprovalMatches(state) || state.DesignPlan.Screens[0].Purpose != design.Screens[0].Purpose || state.approvalAuthority.Design.DelegatedPolicyRevision != policy.Revision {
+		t.Fatal("design review lost its exact definition and prior design binding", err)
+	}
+}
