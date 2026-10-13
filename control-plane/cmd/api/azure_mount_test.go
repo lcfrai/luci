@@ -4,13 +4,25 @@ package main
 
 import (
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestAzureGatewayClientCertificateBindsControllerGeneration(t *testing.T) {
+	uri, _ := url.Parse(azureControllerSAN("scope-one", "generation-one"))
+	leaf := &x509.Certificate{URIs: []*url.URL{uri}}
+	if !azureControllerCertificateMatches(leaf, "scope-one", "generation-one") ||
+		azureControllerCertificateMatches(leaf, "scope-one", "generation-two") ||
+		azureControllerCertificateMatches(leaf, "other-scope", "generation-one") {
+		t.Fatal("Azure mTLS identity was not bound to exact scope and generation")
+	}
+}
 
 func TestAzureDurableMountBindsEveryControllerPathAndReceipt(t *testing.T) {
 	mount := t.TempDir()
@@ -119,16 +131,16 @@ func TestAzureMountInfoRequiresExactWritableExt4(t *testing.T) {
 }
 
 func TestAzureGuestOriginsStayAtSelectedGateway(t *testing.T) {
-	if !validAzureGuestOriginTemplate("https://envd-{sandboxID}.embed.private.example", "envd", "embed.private.example") ||
-		!validAzureGuestOriginTemplate("https://sandbox-{sandboxID}.embed.private.example", "sandbox", "embed.private.example") {
+	if !validAzureGuestOriginTemplate("https://49983-{sandboxID}.embed.private.example", "49983", "embed.private.example") ||
+		!validAzureGuestOriginTemplate("https://8080-{sandboxID}.embed.private.example", "8080", "embed.private.example") {
 		t.Fatal("pinned gateway origins were refused")
 	}
 	for _, value := range []string{
-		"https://envd-{sandboxID}.other.private.example",
+		"https://49983-{sandboxID}.other.private.example",
 		"https://{sandboxID}.embed.private.example",
-		"https://envd-{sandboxID}.embed.private.example:5008",
+		"https://49983-{sandboxID}.embed.private.example:5008",
 	} {
-		if validAzureGuestOriginTemplate(value, "envd", "embed.private.example") {
+		if validAzureGuestOriginTemplate(value, "49983", "embed.private.example") {
 			t.Fatal("unpinned guest destination was accepted", value)
 		}
 	}

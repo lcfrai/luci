@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,23 @@ import (
 	"regexp"
 	"strings"
 )
+
+func azureControllerSAN(scope, generation string) string {
+	return "spiffe://luci/controller/" + scope + "/" + generation
+}
+
+func azureControllerCertificateMatches(leaf *x509.Certificate, scope, generation string) bool {
+	if leaf == nil || !azureGenerationPattern.MatchString(generation) || scope == "" {
+		return false
+	}
+	want := azureControllerSAN(scope, generation)
+	for _, uri := range leaf.URIs {
+		if uri.String() == want {
+			return true
+		}
+	}
+	return false
+}
 
 // The disk's filesystem UUID is checked against the mounted block device.
 // The ARM disk ID is an operator-attested identity bound to the private
@@ -52,6 +70,7 @@ type azureGenerationReceipt struct {
 }
 
 var azureUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+var azureSandboxIDPattern = regexp.MustCompile(`^[a-z0-9]+$`)
 var azureGenerationPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,127}$`)
 var azureControllerInstancePattern = regexp.MustCompile(`^/subscriptions/[0-9a-f-]{36}/resourcegroups/[a-z0-9_-]+/providers/microsoft.compute/virtualmachines/[a-z0-9_-]+$`)
 var azureDigestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)

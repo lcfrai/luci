@@ -87,8 +87,8 @@ func validE2BOriginTemplate(value string) bool {
 		u.Port() != "5008" && (u.Path == "" || u.Path == "/") && u.RawQuery == "" && u.Fragment == ""
 }
 
-func validAzureGuestOriginTemplate(value, kind, gateway string) bool {
-	return value == "https://"+kind+"-{sandboxID}."+gateway && validE2BOriginTemplate(value)
+func validAzureGuestOriginTemplate(value, port, gateway string) bool {
+	return value == "https://"+port+"-{sandboxID}."+gateway && validE2BOriginTemplate(value)
 }
 
 // These effects inspect or retire an already owned attempt. They never
@@ -167,8 +167,8 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		selected.TaskEstimatedCostMicros < 1 || selected.TaskEstimatedCostMicros > selected.Limits.EstimatedCostMicros ||
 		len(selected.ModelEgressDomains) == 0 || !e2bbe.ValidEgressDomains(selected.ModelEgressDomains) ||
 		!validE2BOriginTemplate(selected.EnvdOriginTemplate) || !validE2BOriginTemplate(selected.SandboxOriginTemplate) ||
-		selected.Deployment.Provider == "azure" && (!validAzureGuestOriginTemplate(selected.EnvdOriginTemplate, "envd", selected.Deployment.AzureGatewayHost) ||
-			!validAzureGuestOriginTemplate(selected.SandboxOriginTemplate, "sandbox", selected.Deployment.AzureGatewayHost)) ||
+		selected.Deployment.Provider == "azure" && (!validAzureGuestOriginTemplate(selected.EnvdOriginTemplate, "49983", selected.Deployment.AzureGatewayHost) ||
+			!validAzureGuestOriginTemplate(selected.SandboxOriginTemplate, "8080", selected.Deployment.AzureGatewayHost)) ||
 		!filepath.IsAbs(selected.ControllerStateDir) || !filepath.IsAbs(selected.StagingDir) ||
 		!filepath.IsAbs(selected.TemplateCreateJournalPath) || !filepath.IsAbs(selected.TemplateBuildJournalPath) {
 		return nil, nil, errors.New("cloud microVM configuration has incomplete scope, limits, storage or trusted guest origins")
@@ -252,6 +252,9 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 			return nil, nil, errors.New("cloud TLS client identity is not currently valid")
 		}
 		cert.Leaf = leaf
+		if selected.Deployment.Provider == "azure" && !azureControllerCertificateMatches(leaf, selected.Store.RuntimeScope, selected.AzureMount.Generation) {
+			return nil, nil, errors.New("Azure gateway client identity does not match this controller generation")
+		}
 		clientCertificate = &cert
 	}
 	store, err := e2bbe.NewDirectoryStore(selected.Store)
@@ -317,7 +320,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		StateDir: selected.ControllerStateDir, OwnerID: selected.Store.OwnerID, Deployment: selected.Deployment,
 		Template: selected.Template, Limits: selected.Limits, EgressAllow: selected.ModelEgressDomains, Checkpoint: store, Authorize: authorizeEffect,
 		GuestOrigins: func(id string) (string, string, string, error) {
-			if id == "" || strings.ContainsAny(id, "/\\.:@") {
+			if id == "" || strings.ContainsAny(id, "/\\.:@") || selected.Deployment.Provider == "azure" && !azureSandboxIDPattern.MatchString(id) {
 				return "", "", "", e2bbe.ErrConflict
 			}
 			return strings.ReplaceAll(selected.EnvdOriginTemplate, "{sandboxID}", id),
