@@ -1,5 +1,8 @@
 # Cloud microVM execution: configured task path and reuse evidence
 
+**Azure-first correction, 14 October 2026:** [the provider-order amendment](PROVIDER-ORDER-AMENDMENT-2026-10-14.md) places local Docker acceptance first and Azure microVM Develop second; AWS is later. All detailed E2B Embed configuration, AWS `m8i` host claims, preflights and source outcomes below describe the preserved **AWS-targeted implementation**, not a verified Azure route. Before Azure code or support claims, reconcile the selected Azure nested-virtualization host, pinned E2B runtime/guest, authenticated private management, transfer, independently durable restore, exact ownership/retirement, quota/spend and evidence requirements; obtain the local architecture audit. No generic Azure VM/SSH Docker substitution.
+
+
 ## Current status — scope audit passed, implementation resumed (12 October 2026)
 
 The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.

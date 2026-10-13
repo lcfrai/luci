@@ -1,5 +1,7 @@
 # Luci development
 
+**Active provider order, 14 October 2026:** make the integrated local Docker lifecycle work first and complete isolated Windows acceptance; Azure is the first cloud Develop microVM target, with exact protected-runtime architecture and local audit before implementation; AWS follows later. The AWS-specific E2B source remains historical and cannot be presented as Azure support. This sequencing does not narrow LC-01–LC-16, per-agent VM isolation, recovery, authority, charge or delivery gates. See [the dated amendment](docs/luci/PROVIDER-ORDER-AMENDMENT-2026-10-14.md).
+
 ## Controlling direction — scope audit passed, 12 October 2026
 
 Read [PRODUCT-CONTRACT.md](docs/luci/PRODUCT-CONTRACT.md) as the controlling product direction. One persistent conversational **Luci per person** is the primary interface across projects and Discover, Design, Develop and Deploy. Team Lucis coordinate through authoritative durable versioned context, actor/intent/ownership/dependency records and replayable accepted changes. Resolve compatible changes under policy, surface genuinely contradictory intent, preserve unrelated work and continue affected implementation through checks/review and actual policy-permitted deployment. Saving drafts, exporting files, handing work between humans or stopping at preview does not fulfill that contract.

@@ -1,5 +1,9 @@
 # Luci build plan
 
+> **Provider-order amendment, 14 October 2026 (Australia/Brisbane):** [Local Docker first; Azure microVM next; AWS later](PROVIDER-ORDER-AMENDMENT-2026-10-14.md). LC-01–LC-16 and all safety/acceptance gates are unchanged. The existing E2B Embed implementation and 38694462 source handoff are AWS-targeted history, not Azure feature completeness. Local Windows/Docker work proceeds now; Azure implementation follows the recorded architecture reconciliation and local audit. No cloud provisioning is authorized by this notice.
+
+**Active sequence:** finish the real local upstream-harness Docker journey and independent Windows acceptance first. Reconcile and audit an Azure microVM architecture, implement its exact provider adapter/lifecycle, then run Azure live acceptance under existing authority and cost policy. AWS follows Azure. The later “guided AWS/Azure template” plan below concerns management/app deployment presets and does not make either provider a supported Develop microVM backend.
+
 ## Current status — scope audit passed, implementation resumed (12 October 2026)
 
 The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.

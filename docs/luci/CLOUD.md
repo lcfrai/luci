@@ -1,5 +1,9 @@
 # Existing management and application cloud rollout
 
+> **Provider-order amendment, 14 October 2026 (Australia/Brisbane):** [Local Docker first; Azure microVM next; AWS later](PROVIDER-ORDER-AMENDMENT-2026-10-14.md). LC-01–LC-16 and all safety/acceptance gates are unchanged. The existing E2B Embed implementation and 38694462 source handoff are AWS-targeted history, not Azure feature completeness. Local Windows/Docker work proceeds now; Azure implementation follows the recorded architecture reconciliation and local audit. No cloud provisioning is authorized by this notice.
+
+This page remains a management/SSH-Docker/application-deployment guide. Its AWS and Azure VM rows are **not** a choice of Develop microVM provider, and neither a generic Azure VM nor an SSH Docker host passes LC-06/15.
+
 ## Current status — scope audit passed, implementation resumed (12 October 2026)
 
 The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.

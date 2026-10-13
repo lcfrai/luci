@@ -1,5 +1,8 @@
 # Continuing product-quality work
 
+**Active provider order (14 October 2026):** [dated amendment](PROVIDER-ORDER-AMENDMENT-2026-10-14.md). The next product acceptance priority is the real local upstream-harness Docker lifecycle and isolated Windows checks. Azure is the first cloud microVM implementation and live acceptance target **after** exact architecture reconciliation and local audit; AWS follows later. Existing AWS-specific E2B source/fixtures and CLOUD-084/088 evidence stay preserved, but the `38694462` “all sixteen mapped source paths” conclusion cannot establish Azure feature completeness. CLOUD-084/088 remain P1 for Azure fit/wiring and real per-task VM proof. Do not lower 12-task/4-project/4-concurrent, authority, recovery, charge or responsiveness gates. No Azure credentials, infrastructure or pricing campaign is requested by this documentation change.
+
+
 ## Current operating policy — 13 October 2026
 
 Dylan renewed usage and assigned the originating local tester as the sole orchestrator/Astra agent. This cloud session is the **gpt-6-sol implementation worker** (capacity fallback after gpt-6.1-sol was unavailable): no delegation, nested orchestration, new subagents or restarting prior Astra workers. Preserve every existing committed/uncommitted source and evidence. Recovery found no other active worker or test process. Historical multi-owner assignments below describe prior work, not permission to resume those workers.
