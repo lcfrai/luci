@@ -20,6 +20,45 @@ type ProjectSwarmMicroVMImportScope struct {
 	ProjectID, RunID, OperationID, ChildID, OwnerID, RequestDigest string
 }
 
+// RecordProjectSwarmMicroVMExit makes a captured native exit visible to the
+// existing review flow. It never treats a provider Create, envd Start, text
+// status or retained archive alone as a completed task. The API guard must
+// hold current authority and the exact cloud-child lifecycle fence.
+func (s *Server) RecordProjectSwarmMicroVMExit(ctx context.Context, projectID, runID, operationID string, record e2bbe.Record) (ProjectRun, error) {
+	s.projectRunDispatchMu.Lock()
+	defer s.projectRunDispatchMu.Unlock()
+	if s.projectSwarmMicroVMImportGuard == nil {
+		return ProjectRun{}, ErrProjectRunInvalid
+	}
+	req := record.Request
+	scope := ProjectSwarmMicroVMImportScope{ProjectID: projectID, RunID: runID, OperationID: operationID, ChildID: req.Identity.OperationID, OwnerID: req.Identity.OwnerID, RequestDigest: record.RequestDigest}
+	release, err := s.projectSwarmMicroVMImportGuard(ctx, scope)
+	if err != nil || release == nil {
+		return ProjectRun{}, ErrProjectRunConflict
+	}
+	defer release()
+	p, err := s.resolveProject(projectID)
+	if err != nil {
+		return ProjectRun{}, err
+	}
+	run, err := s.projectRuns.Get(projectID, p.Path, runID)
+	if err != nil {
+		return ProjectRun{}, err
+	}
+	op := swarmOperation(&run, operationID)
+	if op == nil || op.Implementation == nil || op.ChildID == "" || op.Allocation != "ready" || op.Integration != nil ||
+		run.State == "cancelled" || swarmTask(&run, op.TaskID) == nil ||
+		(op.Status != "running" && op.Status != "dispatching" && op.Status != "review-required") ||
+		req.Identity.ProjectID != projectID || req.Identity.TaskID != op.TaskID || req.Identity.AttemptID != op.ID || req.Identity.OperationID != op.ChildID ||
+		req.SourceDigest != implementationDigest(swarmStartingCommit(*op)) || req.ContextDigest != implementationDigest(op.Implementation) ||
+		!record.LaunchRequested || !record.CaptureRequested || e2bbe.ValidateNativeExitReceipt(record.NativeExit, record) != nil ||
+		e2bbe.ValidateCaptureReceipt(record.Capture, record.LaunchKernel, record) != nil {
+		return ProjectRun{}, ErrProjectRunConflict
+	}
+	const message = "The cloud task's native exit and source capture are retained. Review its candidate and checks before integration."
+	return s.projectRuns.ObserveOperation(projectID, p.Path, runID, run.Revision, op.ID, op.ChildID, "review-required", message)
+}
+
 // SetProjectSwarmMicroVMImportGuard requires a current scoped authority lease
 // around source mutation. An unregistered cloud completion path cannot import.
 func (s *Server) SetProjectSwarmMicroVMImportGuard(guard func(context.Context, ProjectSwarmMicroVMImportScope) (func(), error)) {

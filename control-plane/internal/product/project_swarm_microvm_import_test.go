@@ -46,15 +46,14 @@ func TestMicroVMCandidateUsesTaskOwnedGitReviewWithoutPrimaryWriteOrReplay(t *te
 	run = swarmReserveHTTP(t, mux, base, run, "task-a", "microvm-owned-attempt")
 	op := run.Operations[0]
 	var err error
-	run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, "review-required", "native exit and capture confirmed")
+	run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, "running", "cloud native process started")
 	if err != nil {
 		t.Fatal(err)
 	}
 	op = run.Operations[0]
 	record, changes, stage := microVMImportFixture(t, op, "cloud candidate\n")
-	before := auditTree(t, p.Path)
-	if _, err = s.ImportProjectSwarmMicroVMCandidate(context.Background(), p.ID, run.ID, op.ID, record, changes, stage); err == nil {
-		t.Fatal("unregistered authority guard admitted cloud source")
+	if _, err := s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, record); err == nil {
+		t.Fatal("unregistered guard published a cloud native exit")
 	}
 	s.SetProjectSwarmMicroVMImportGuard(func(_ context.Context, scope ProjectSwarmMicroVMImportScope) (func(), error) {
 		if scope.ProjectID != p.ID || scope.OperationID != op.ID || scope.ChildID != op.ChildID || scope.RequestDigest != record.RequestDigest {
@@ -62,6 +61,21 @@ func TestMicroVMCandidateUsesTaskOwnedGitReviewWithoutPrimaryWriteOrReplay(t *te
 		}
 		return func() {}, nil
 	})
+	tampered := record
+	tampered.NativeExit.FrameSHA256 = strings.Repeat("0", 64)
+	if _, err := s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, tampered); err == nil {
+		t.Fatal("unverified native exit advanced task review")
+	}
+	run, err = s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repeated, err := s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, record)
+	if err != nil || repeated.Revision != run.Revision {
+		t.Fatal("same captured exit replayed a run mutation", err)
+	}
+	op = run.Operations[0]
+	before := auditTree(t, p.Path)
 	commit, err := s.ImportProjectSwarmMicroVMCandidate(context.Background(), p.ID, run.ID, op.ID, record, changes, stage)
 	if err != nil || !deliverySHA.MatchString(commit) || commit == swarmStartingCommit(op) {
 		t.Fatal("candidate did not enter owned Git review", commit, err)
@@ -88,12 +102,17 @@ func TestMicroVMCandidateRejectsOutOfScopeSourceBeforeAnyGitWrite(t *testing.T) 
 	run = swarmReserveHTTP(t, mux, base, run, "task-a", "microvm-scope-refusal")
 	op := run.Operations[0]
 	var err error
-	run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, "review-required", "native exit and capture confirmed")
+	run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, "running", "cloud native process started")
 	if err != nil {
 		t.Fatal(err)
 	}
 	op = run.Operations[0]
 	record, changes, stage := microVMImportFixture(t, op, "wrong path\n")
+	run, err = s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	op = run.Operations[0]
 	changes.Changes[0].Path, changes.Changes[0].After.Path = "beta.txt", "beta.txt"
 	encoded, _ := json.Marshal(changes)
 	hash := sha256.Sum256(encoded)

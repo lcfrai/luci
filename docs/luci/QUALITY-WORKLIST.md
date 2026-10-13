@@ -16,6 +16,8 @@ Contract LC-01–LC-16 remains controlled by audited `b3ecb0114dba6b6e0dfcfedbf1
 
 **CLOUD-084 exact input capture in progress:** `BuildProjectSwarmMicroVMInput` now builds the selected reserved task's complete bounded Git source and canonical reviewed context into one verified archive. It refuses dirty source, unknown protected tracked paths, unsupported Git objects and invalid lifetime/cost inputs before provider allocation; generated Luci exports travel as read-only context, while existing project instructions remain source. Focused real-Git capture/dirty-source tests pass. API scheduling, cloud selection, real guest upload/launch, result import under a registered authority guard, VM retirement and installed acceptance remain required.
 
+**CLOUD-084 native-exit review join in progress:** `RecordProjectSwarmMicroVMExit` now gates the existing run's review-required transition on an exact owned attempt, native exit frame, captured frozen output and a registered current-authority/lifecycle guard. Repeating the same proven exit leaves the run revision stable; an unregistered guard or tampered native frame is refused. Focused product regressions pass. The API still must configure that guard and call the join after real guest observation; neither model output nor archive metadata alone establishes integration or checks.
+
 Recovery baseline was `d331e22c6cfa9422410bbde39619c3f932632d5d`. The backend delivery slice is committed at `0ce7995d0bf1d0c1df930ee583c5cd92036f36ba`; later source checkpoints above supersede this baseline. No new package or live acceptance is inferred.
 
 ## Published bounded implementation checkpoints — 13 October 2026
