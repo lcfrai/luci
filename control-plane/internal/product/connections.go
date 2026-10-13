@@ -400,6 +400,7 @@ func (s *Server) stopTunnel(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) Close() {
 	s.closeCoordinator()
+	s.StopCloudTaskObserver()
 	previewCtx, previewCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	s.closeLocalPreviews(previewCtx)
 	previewCancel()

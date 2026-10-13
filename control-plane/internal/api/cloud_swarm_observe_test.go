@@ -1,7 +1,10 @@
 package api
 
 import (
+	"context"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 	"github.com/lcfrai/luci/control-plane/internal/product"
@@ -28,6 +31,55 @@ func TestCloudRetirementDoesNotInventProductCancellation(t *testing.T) {
 	run.State = "cancelled"
 	if !cloudProductTaskCancelled(run, record) {
 		t.Fatal("run-level cancellation was lost")
+	}
+}
+
+func TestCloudObservationBatchAllowsOtherProjectWhileFirstGuestIsSlow(t *testing.T) {
+	started := make(chan string, 2)
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	finished := make(chan error, 1)
+	rows := []e2bbe.Record{
+		{Request: e2bbe.Request{Identity: e2bbe.Identity{ProjectID: "project-a"}}},
+		{Request: e2bbe.Request{Identity: e2bbe.Identity{ProjectID: "project-b"}}},
+	}
+	go func() {
+		finished <- runCloudObservationBatch(context.Background(), rows, func(ctx context.Context, row e2bbe.Record) error {
+			started <- row.Request.Identity.ProjectID
+			if row.Request.Identity.ProjectID == "project-a" {
+				select {
+				case <-release:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+			return nil
+		})
+	}()
+	defer unblock()
+	seen := map[string]bool{}
+	for len(seen) < 2 {
+		select {
+		case project := <-started:
+			seen[project] = true
+		case <-time.After(2 * time.Second):
+			t.Fatal("slow guest prevented an independent project observation")
+		}
+	}
+	select {
+	case err := <-finished:
+		t.Fatal("batch finished before the slow guest settled", err)
+	default:
+	}
+	unblock()
+	select {
+	case err := <-finished:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("bounded batch did not settle")
 	}
 }
 

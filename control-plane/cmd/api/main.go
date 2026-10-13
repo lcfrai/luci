@@ -318,7 +318,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		return fmt.Errorf("configure cloud microVM Develop: %w", err)
 	}
 	if stopCloudTasks != nil {
-		defer stopCloudTasks()
+		defer func() {
+			productService.StopCloudTaskObserver()
+			stopCloudTasks()
+		}()
 	}
 	handler, err := api.New(api.Deps{
 		ObserveTaskCompletions: true,

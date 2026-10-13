@@ -88,6 +88,7 @@ type Server struct {
 	swarmSchedulerPolicyDir         string
 	projectOverview                 projectOverviewCache
 	swarmScheduler                  swarmScheduler
+	cloudTaskObserver               cloudTaskObserver
 	projectSwarmWorktreeObserver    func(context.Context, string, string) (bool, error)
 	projectRuns                     *ProjectRunStore
 	projectRunDispatchMu            sync.Mutex

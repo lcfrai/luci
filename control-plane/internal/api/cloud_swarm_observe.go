@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"errors"
 	"os"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
@@ -57,17 +59,40 @@ func (a *API) observeCloudTaskCompletions(ctx context.Context) error {
 	if limit > 4 {
 		limit = 4
 	}
-	var first error
-	for n := 0; n < limit && ctx.Err() == nil; n++ {
-		row := active[(start+n)%len(active)]
-		child, cancel := context.WithTimeout(ctx, 700*time.Millisecond)
-		err := a.observeOneCloudTask(child, row)
-		cancel()
-		if err != nil && first == nil {
-			first = err
+	selected := make([]e2bbe.Record, 0, limit)
+	for n := 0; n < limit; n++ {
+		selected = append(selected, active[(start+n)%len(active)])
+	}
+	return runCloudObservationBatch(ctx, selected, a.observeOneCloudTask)
+}
+
+func runCloudObservationBatch(ctx context.Context, selected []e2bbe.Record, observe func(context.Context, e2bbe.Record) error) error {
+	if len(selected) > 4 {
+		return e2bbe.ErrCapacity
+	}
+	results := make(chan error, len(selected))
+	var workers sync.WaitGroup
+	for _, row := range selected {
+		if ctx.Err() != nil {
+			break
+		}
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			child, cancel := context.WithTimeout(ctx, 25*time.Second)
+			defer cancel()
+			results <- observe(child, row)
+		}()
+	}
+	workers.Wait()
+	close(results)
+	var failures []error
+	for err := range results {
+		if err != nil {
+			failures = append(failures, err)
 		}
 	}
-	return first
+	return errors.Join(failures...)
 }
 
 func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) error {

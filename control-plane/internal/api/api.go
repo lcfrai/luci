@@ -460,12 +460,16 @@ func New(d Deps) (*API, error) {
 		var observeTasks func(context.Context) error
 		if d.ObserveTaskCompletions {
 			observeTasks = func(ctx context.Context) error {
-				if d.CloudTasks != nil {
-					if err := a.observeCloudTaskCompletions(ctx); err != nil {
+				return a.observeExecutionCompletions(ctx)
+			}
+			if d.CloudTasks != nil {
+				d.Product.SetCloudTaskObserver(func(ctx context.Context) error {
+					err := a.observeCloudTaskCompletions(ctx)
+					if err != nil && ctx.Err() == nil {
 						a.sessionLog().Warn("cloud task observation remains pending", "err", err)
 					}
-				}
-				return a.observeExecutionCompletions(ctx)
+					return err
+				})
 			}
 		}
 		cloudRetired := func(context.Context, string, string, string, string) (bool, error) { return false, nil }
