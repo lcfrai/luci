@@ -6,7 +6,8 @@ it('refuses malformed cloud capacity advice without starting a task', async () =
   vi.spyOn(productApi, 'request').mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: {
     provider: 'e2b-embed', region: 'us-east-1', configuredGlobalSlots: 4, configuredProjectSlots: 2,
     configuredAvailableSlots: -1, estimatedTaskCostMicros: 100, estimatedMonthMicros: 0,
-    monthlyBudgetMicros: 1000, maxTaskSeconds: 60, observedAt: '2026-10-13T12:00:00Z', limitation: 'unverified'
+    monthlyBudgetMicros: 1000, maxTaskSeconds: 60, observedAt: '2026-10-13T12:00:00Z', limitation: 'unverified',
+    retainedProjectVMs: 0, moreRetainedAttempts: 0, retainedAttempts: []
   } });
   await expect(api.listState('p-1', 'alice')).rejects.toThrow(/capacity observation/);
   expect(productApi.request).toHaveBeenCalledTimes(1);

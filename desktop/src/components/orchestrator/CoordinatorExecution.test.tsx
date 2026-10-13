@@ -54,12 +54,15 @@ it('shows configured per-task VM and current-month estimate without treating it 
     provider: 'e2b-embed', region: 'us-east-1', configuredGlobalSlots: 8, configuredProjectSlots: 6,
     configuredAvailableSlots: 2, estimatedTaskCostMicros: 150_000, estimatedMonthMicros: 250_000,
     monthlyBudgetMicros: 1_000_000, maxTaskSeconds: 600, observedAt: '2026-10-13T12:00:00Z',
-    limitation: 'Configured limits only; actual admission is checked later.'
+    limitation: 'Configured limits only; actual admission is checked later.', retainedProjectVMs: 1, moreRetainedAttempts: 0,
+    retainedAttempts: [{ runId: 'run-one', taskId: 'task-one', attemptId: 'attempt-one', operationId: 'op-one', state: 'unknown', resourcesHeld: true, estimatedCostMicros: 150_000, updatedAt: '2026-10-13T12:00:00Z' }]
   } });
   render(<CoordinatorExecution {...props()} />); await configure();
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Develop execution location' }), 'cloud-microvm');
   expect(screen.getByText(/2 task VM slots presently available/)).not.toBeNull();
   expect(screen.getByText(/\$0\.25 of \$1\.00 USD/)).not.toBeNull();
+  await userEvent.click(screen.getByText('1 retained task microVM in this project'));
+  expect(screen.getByText(/task-one · run run-one · attempt attempt-one · unknown/)).not.toBeNull();
   expect(api.create).not.toHaveBeenCalled();
 });
 it.each(['unapproved', 'unsaved', 'question', 'foreign-turn', 'unapplied', 'no-execute', 'no-edit', 'plan-base', 'wrong-checkout'])('does not create work when %s', async reason => {

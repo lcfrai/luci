@@ -31,6 +31,9 @@ export interface CoordinatorCloudCapacity {
   provider: 'e2b-embed'; region: string; configuredGlobalSlots: number; configuredProjectSlots: number;
   configuredAvailableSlots: number; estimatedTaskCostMicros: number; estimatedMonthMicros: number;
   monthlyBudgetMicros: number; maxTaskSeconds: number; observedAt: string; limitation: string;
+  retainedProjectVMs: number; moreRetainedAttempts: number;
+  retainedAttempts: { runId: string; taskId: string; attemptId: string; operationId: string; state: string;
+    resourcesHeld: true; estimatedCostMicros: number; updatedAt: string }[];
 }
 export interface CoordinatorContinuationState { continuations: CoordinatorContinuation[]; savedRoute: CoordinatorSavedRoute | null; contextCommits?: CoordinatorContextCommitView[]; cloudCapacity?: CoordinatorCloudCapacity | null }
 export interface CoordinatorContinuationRequest {
@@ -124,7 +127,9 @@ async function listState(project: string, actor: string, signal?: AbortSignal): 
   if (result.contextCommits !== undefined && (!Array.isArray(result.contextCommits) || result.contextCommits.length > 40 || result.contextCommits.some(item => !text(item.eventId) || !['pending', 'confirmed'].includes(item.status) || item.status === 'confirmed' && !/^[0-9a-f]{40,64}$/.test(item.commit ?? '') || !Number.isFinite(Date.parse(item.createdAt))))) throw new Error('The accepted context source history could not be verified. Refresh before continuing.');
   const capacity = result.cloudCapacity;
   if (capacity != null && (capacity.provider !== 'e2b-embed' || !text(capacity.region) || !text(capacity.limitation) || !Number.isFinite(Date.parse(capacity.observedAt)) ||
-    ![capacity.configuredGlobalSlots, capacity.configuredProjectSlots, capacity.configuredAvailableSlots, capacity.maxTaskSeconds].every(value => Number.isSafeInteger(value) && value >= 0) ||
+    ![capacity.configuredGlobalSlots, capacity.configuredProjectSlots, capacity.configuredAvailableSlots, capacity.maxTaskSeconds, capacity.retainedProjectVMs, capacity.moreRetainedAttempts].every(value => Number.isSafeInteger(value) && value >= 0) ||
+    !Array.isArray(capacity.retainedAttempts) || capacity.retainedAttempts.length > 20 || capacity.retainedProjectVMs !== capacity.retainedAttempts.length + capacity.moreRetainedAttempts ||
+    capacity.retainedAttempts.some(row => !text(row.runId) || !text(row.taskId) || !text(row.attemptId) || !text(row.operationId) || !['creating', 'allocated', 'unknown', 'cancelling'].includes(row.state) || row.resourcesHeld !== true || !Number.isSafeInteger(row.estimatedCostMicros) || row.estimatedCostMicros <= 0 || !Number.isFinite(Date.parse(row.updatedAt))) ||
     ![capacity.estimatedTaskCostMicros, capacity.estimatedMonthMicros, capacity.monthlyBudgetMicros].every(value => Number.isSafeInteger(value) && value >= 0))) throw new Error('The cloud task capacity observation could not be verified. Refresh before choosing cloud execution.');
   return { continuations: result.continuations.map(row => verified(row, project, actor)), savedRoute: savedRoute(result.savedRoute), contextCommits: result.contextCommits ?? [], cloudCapacity: capacity ?? null };
 }

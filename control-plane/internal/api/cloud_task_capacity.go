@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"math"
+	"sort"
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
@@ -48,14 +49,22 @@ func (a *API) cloudTaskCapacity(ctx context.Context, projectID, actorID string) 
 		budget = 0
 	}
 	limits, template, usage, projectActive, rows := cloud.Runtime.Controller.Capacity(projectID)
-	return cloudCapacityView(limits, template, usage, projectActive, rows, actorID, cloud.Runtime.Controller.Region(), cloud.EstimatedCostMicros, cloud.MaxSeconds, budget, time.Now().UTC()), nil
+	return cloudCapacityView(limits, template, usage, projectActive, rows, actorID, projectID, cloud.Runtime.Controller.Region(), cloud.EstimatedCostMicros, cloud.MaxSeconds, budget, time.Now().UTC()), nil
 }
 
 func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe.Usage, projectActive int, rows []e2bbe.Record,
-	actorID, region string, taskCost int64, maxSeconds int, budget int64, now time.Time) product.CoordinatorCloudCapacity {
+	actorID, projectID, region string, taskCost int64, maxSeconds int, budget int64, now time.Time) product.CoordinatorCloudCapacity {
 	month := now.UTC().Format("2006-01")
 	committed, unknown := int64(0), false
+	retained := make([]product.CoordinatorCloudAttempt, 0)
 	for _, row := range rows {
+		if row.ResourcesHeld && row.Request.Identity.ProjectID == projectID {
+			identity := row.Request.Identity
+			retained = append(retained, product.CoordinatorCloudAttempt{RunID: identity.RunID, TaskID: identity.TaskID,
+				AttemptID: identity.AttemptID, OperationID: identity.OperationID, State: string(row.State),
+				ResourcesHeld: true, EstimatedCostMicros: row.Request.EstimatedCostMicros,
+				UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339Nano)})
+		}
 		if (!row.ResourcesHeld && row.SandboxID == "") || (row.CreatedAt.UTC().Format("2006-01") != month && !row.ResourcesHeld) {
 			continue
 		}
@@ -79,9 +88,21 @@ func cloudCapacityView(limits e2bbe.Limits, template e2bbe.Template, usage e2bbe
 		available = 0
 		limitation = "The current person's cloud estimate is unavailable or over the configured monthly budget. New VMs remain refused until current authority and retained spending are reconciled."
 	}
+	sort.Slice(retained, func(i, j int) bool {
+		if retained[i].UpdatedAt == retained[j].UpdatedAt {
+			return retained[i].OperationID < retained[j].OperationID
+		}
+		return retained[i].UpdatedAt > retained[j].UpdatedAt
+	})
+	count, more := len(retained), 0
+	if len(retained) > 20 {
+		more = len(retained) - 20
+		retained = retained[:20]
+	}
 	return product.CoordinatorCloudCapacity{Provider: "e2b-embed", Region: region,
 		ConfiguredGlobalSlots: limits.MaxConcurrent, ConfiguredProjectSlots: limits.MaxPerProject,
 		ConfiguredAvailableSlots: available, EstimatedTaskCostMicros: taskCost,
 		EstimatedMonthMicros: committed, MonthlyBudgetMicros: budget, MaxTaskSeconds: maxSeconds,
+		RetainedProjectVMs: count, RetainedAttempts: retained, MoreRetainedAttempts: more,
 		ObservedAt: now.Format(time.RFC3339Nano), Limitation: limitation}
 }

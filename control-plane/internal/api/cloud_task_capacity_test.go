@@ -11,7 +11,7 @@ import (
 func TestCloudCapacityAdviceKeepsHeldChargeAndUsesConfiguredResourceLimits(t *testing.T) {
 	now := time.Date(2026, time.October, 13, 12, 0, 0, 0, time.UTC)
 	row := func(user string, at time.Time, held bool, sandbox string, cost int64) e2bbe.Record {
-		return e2bbe.Record{Request: e2bbe.Request{BillingUserID: user, EstimatedCostMicros: cost}, CreatedAt: at, ResourcesHeld: held, SandboxID: sandbox}
+		return e2bbe.Record{Request: e2bbe.Request{Identity: e2bbe.Identity{ProjectID: "p-one", RunID: "run-one", TaskID: "task-one", AttemptID: "attempt-one", OperationID: "op-" + sandbox}, BillingUserID: user, EstimatedCostMicros: cost}, CreatedAt: at, UpdatedAt: at, ResourcesHeld: held, SandboxID: sandbox}
 	}
 	limits := e2bbe.Limits{MaxConcurrent: 8, MaxPerProject: 6, MemoryMiB: 8192, CPUMillis: 8000}
 	template := e2bbe.Template{MemoryMiB: 2048, CPUMillis: 2000}
@@ -22,16 +22,18 @@ func TestCloudCapacityAdviceKeepsHeldChargeAndUsesConfiguredResourceLimits(t *te
 		row("bob", now.Add(-time.Hour), true, "other-user", 250),
 		row("alice", now.Add(-time.Hour), false, "", 300), // proved no Create
 	}
-	view := cloudCapacityView(limits, template, usage, 1, rows, "alice", "us-east-1", 200, 60, 1000, now)
-	if view.ConfiguredAvailableSlots != 2 || view.EstimatedMonthMicros != 250 || view.MonthlyBudgetMicros != 1000 || view.EstimatedTaskCostMicros != 200 || view.Region != "us-east-1" {
+	rows[2].Request.Identity.ProjectID = "p-other"
+	view := cloudCapacityView(limits, template, usage, 1, rows, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
+	if view.ConfiguredAvailableSlots != 2 || view.EstimatedMonthMicros != 250 || view.MonthlyBudgetMicros != 1000 || view.EstimatedTaskCostMicros != 200 || view.Region != "us-east-1" ||
+		view.RetainedProjectVMs != 1 || len(view.RetainedAttempts) != 1 || view.RetainedAttempts[0].OperationID != "op-still-held" || view.MoreRetainedAttempts != 0 {
 		t.Fatal("configured capacity or exact retained estimate was misreported", view)
 	}
 	rows = append(rows, row("", now.Add(-time.Hour), true, "legacy-held", 100))
-	view = cloudCapacityView(limits, template, usage, 1, rows, "alice", "us-east-1", 200, 60, 1000, now)
+	view = cloudCapacityView(limits, template, usage, 1, rows, "alice", "p-one", "us-east-1", 200, 60, 1000, now)
 	if view.ConfiguredAvailableSlots != 0 || !strings.Contains(view.Limitation, "unavailable") {
 		t.Fatal("unattributed held allocation exposed apparent budget", view)
 	}
-	view = cloudCapacityView(limits, template, usage, 1, rows[:4], "alice", "us-east-1", 800, 60, 1000, now)
+	view = cloudCapacityView(limits, template, usage, 1, rows[:4], "alice", "p-one", "us-east-1", 800, 60, 1000, now)
 	if view.ConfiguredAvailableSlots != 0 {
 		t.Fatal("new task cost exceeded this actor's retained monthly estimate", view)
 	}
