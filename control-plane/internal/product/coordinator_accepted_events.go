@@ -181,6 +181,17 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 			return false, commitErr
 		}
 	}
+	// A changed downstream task can depend on previously integrated work. Reuse
+	// only exact reviewed prerequisites; otherwise include those ancestors in
+	// the new run so the person need not shuttle a dependency by hand.
+	expanded, expandErr := s.coordinatorExpandAffectedPrerequisites(fresh, p, state, selection.TaskIDs)
+	if expandErr != nil {
+		return false, expandErr
+	}
+	selection.TaskIDs = expanded
+	if _, err = implementationSnapshot(state, selection, ""); err != nil {
+		return false, nil // A new prerequisite may need renewed context review.
+	}
 	run := projectRunCreateRequest{WorktreeID: route.Route.WorktreeID, Harness: route.Route.Harness, Model: route.Route.Model, PermissionMode: route.Route.PermissionMode, Effort: route.Route.Effort, ExecutionLocation: route.Route.ExecutionLocation, AgentConnectionID: route.Route.AgentConnectionID, Outcome: route.Route.Outcome, ImplementationContext: selection}
 	req := coordinatorContinuationRequest{IdempotencyKey: "accepted-" + events[len(events)-1].Event.ID, OriginTurnID: events[len(events)-1].Intent.TurnID, ExpectedContextDigest: view.ContextDigest, ExpectedPolicyRevision: policy.Revision, Run: run, MaxParallel: route.MaxParallel, ExpectedRouteRevision: &route.Revision, CheckPlan: route.CheckPlan, PreviewPlan: route.PreviewPlan, DeploymentPlan: route.DeploymentPlan}
 	for _, event := range events {

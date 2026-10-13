@@ -639,10 +639,15 @@ func (s *Server) invokeCoordinatorStep(ctx context.Context, p project.Project, r
 		if err != nil {
 			return "", nil, err
 		}
+		refs, err := s.coordinatorReuseReferences(ctx, p, run)
+		if err != nil {
+			return "", nil, &coordinatorStepError{Status: 409, Message: "An unchanged prerequisite has no current reviewed integration proof; inspect its prior result or include it in new work."}
+		}
 		body = struct {
-			ExpectedRevision int `json:"expectedRevision"`
-			MaxParallel      int `json:"maxParallel"`
-		}{run.Revision, row.MaxParallel}
+			ExpectedRevision   int                          `json:"expectedRevision"`
+			MaxParallel        int                          `json:"maxParallel"`
+			ReusedDependencies []ProjectSwarmReuseReference `json:"reusedDependencies"`
+		}{run.Revision, row.MaxParallel, refs}
 		handler = s.initializeProjectSwarm
 	case "queue-tasks":
 		run, err := s.projectRuns.Get(p.ID, p.Path, row.RunID)
