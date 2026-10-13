@@ -488,6 +488,23 @@ func (s *Server) reconcileQueuedSwarm(ctx context.Context, item swarmQueueRecord
 			return nil
 		})
 	}
+	if run.Input.Route.ExecutionLocation == "cloud-microvm" && (op.Status == "reserved" || op.Status == "dispatching") &&
+		item.State == "unknown" && runtime.ResumeCloud != nil && !s.swarmQueueCoolingDown(item.ID) && run.State != "cancelled" &&
+		run.Swarm != nil && run.Swarm.State == "ready" {
+		s.swarmScheduler.mu.Lock()
+		latest, readErr := s.readSwarmScheduler()
+		s.swarmScheduler.mu.Unlock()
+		if readErr != nil {
+			return readErr
+		}
+		if !latest.Paused {
+			result, resumeErr := runtime.ResumeCloud(ctx, SwarmDispatchRequest{QueueID: item.ID, ProjectID: item.ProjectID, RunID: item.RunID, OperationID: op.ID, Actor: item.Actor})
+			if resumeErr == nil && result.State == "running" && result.SessionID == op.ChildID {
+				return s.schedulerSetReason(item.ID, "running", "cloud_running", "The exact retained cloud VM resumed its one-shot upstream launch; no replacement was allocated.")
+			}
+			s.deferSwarmQueueAttempt(item.ID)
+		}
+	}
 	if op.Status == "reserved" {
 		return s.schedulerUpdate(item.ID, func(current *swarmQueueRecord) error {
 			current.OperationID = op.ID

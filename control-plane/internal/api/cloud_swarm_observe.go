@@ -95,6 +95,10 @@ func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) er
 		return e2bbe.ErrUnknown // never describe uncaptured output as a reviewed result
 	}
 	if !current.LaunchRequested {
+		if current.State == e2bbe.Creating || current.State == e2bbe.Unknown {
+			_, err := cloud.Runtime.Controller.Reconcile(ctx, identity.OperationID)
+			return err // exact provider readback only; scheduling owns any future Start
+		}
 		return nil // retain unconfirmed Create/transfer for explicit recovery
 	}
 	if current.State == e2bbe.Allocated && current.Capture.ArchiveSHA256 == "" {

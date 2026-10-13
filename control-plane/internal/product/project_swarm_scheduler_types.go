@@ -44,7 +44,10 @@ type SwarmSchedulerRuntime struct {
 	CaptureActor func(context.Context, string) (management.ExecutionActorRef, error)
 	Admit        func(context.Context, SwarmAdmissionRequest) (SwarmAdmissionResult, error)
 	Dispatch     func(context.Context, SwarmDispatchRequest) (SwarmDispatchResult, error)
-	Release      func(context.Context, string) error
+	// ResumeCloud may complete only an already-owned, reconciled VM whose
+	// upstream launch marker is still absent. It must never allocate a new VM.
+	ResumeCloud func(context.Context, SwarmDispatchRequest) (SwarmDispatchResult, error)
+	Release     func(context.Context, string) error
 	// CloudRetired proves exact per-task VM absence before a cloud attempt can
 	// become terminal and release its scheduler slot. Nil refuses cloud release.
 	CloudRetired func(context.Context, string, string, string, string) (bool, error)

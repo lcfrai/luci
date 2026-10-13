@@ -27,7 +27,21 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 	if cloud == nil {
 		return blocked("cloud_microvm_unavailable", "A verified cloud microVM execution service is not configured.")
 	}
-	if old, found := a.cloudRecord(req.ProjectID, req.RunID, req.OperationID, op.ChildID); found {
+	prior, found := a.cloudRecord(req.ProjectID, req.RunID, req.OperationID, op.ChildID)
+	if found {
+		if prior.State == e2bbe.Creating || prior.State == e2bbe.Unknown {
+			var reconcileErr error
+			prior, reconcileErr = cloud.Runtime.Controller.Reconcile(ctx, op.ChildID)
+			if reconcileErr != nil {
+				return unknown("cloud_create_unconfirmed")
+			}
+		}
+		if prior.CancelRequested || prior.State != e2bbe.Allocated {
+			return unknown("cloud_attempt_unconfirmed")
+		}
+	}
+	if found && prior.LaunchRequested {
+		old := prior
 		if old.State != e2bbe.Allocated || !old.LaunchRequested || old.ProcessPID == 0 ||
 			e2bbe.ValidateCaptureIdentity(old.LaunchKernel, old) != nil {
 			return unknown("cloud_attempt_unconfirmed")
@@ -66,6 +80,13 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 	if err != nil {
 		return blocked("cloud_input_changed", "The reviewed Git source or task context changed before cloud allocation; no VM was started.")
 	}
+	if found && prior.Request != input.Request {
+		return unknown("cloud_input_changed") // retained Create belongs to another immutable task input
+	}
+	enabled, err := a.deps.Product.SwarmSchedulerDispatchEnabled()
+	if err != nil || !enabled {
+		return blocked("dispatch_paused", "New cloud task dispatch is paused; the exact owned attempt remains retained.")
+	}
 	command, args, err := harness.BuildTask(harness.Request{Harness: harness.ID(run.Input.Route.Harness), Model: model,
 		Permission: harness.PermissionBypass, ReviewedContext: true, OpeningPrompt: input.OpeningPrompt, Effort: harness.Effort(run.Input.Route.Effort)})
 	if err != nil {
@@ -99,4 +120,26 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 	}
 	return product.SwarmDispatchResult{State: "running", SessionID: op.ChildID, ReasonCode: "cloud_running",
 		Message: fmt.Sprintf("%s is running in an owned cloud microVM. Changes and checks remain unverified.", run.Input.Route.Harness)}, nil
+}
+
+// resumeCloudSwarm is scheduler-owned recovery of an existing exact VM after
+// a lost Create/input acknowledgement. It refuses a missing or changed record
+// before the ordinary dispatch authority/source checks; a second Create is
+// never used as a recovery probe.
+func (a *API) resumeCloudSwarm(ctx context.Context, req product.SwarmDispatchRequest) (product.SwarmDispatchResult, error) {
+	run, err := a.deps.Product.GetProjectSwarmRun(req.ProjectID, req.RunID)
+	if err != nil || run.State == "cancelled" || run.Swarm == nil || run.Swarm.State != "ready" {
+		return product.SwarmDispatchResult{State: "unknown", ReasonCode: "cloud_resume_not_authorized"}, nil
+	}
+	for _, op := range run.Operations {
+		if op.ID != req.OperationID {
+			continue
+		}
+		row, found := a.cloudRecord(req.ProjectID, req.RunID, op.ID, op.ChildID)
+		if !found || row.State != e2bbe.Allocated || row.CancelRequested || row.LaunchRequested || !row.ResourcesHeld {
+			return product.SwarmDispatchResult{State: "unknown", ReasonCode: "cloud_resume_unconfirmed"}, nil
+		}
+		return a.dispatchQueuedSwarm(ctx, req)
+	}
+	return product.SwarmDispatchResult{State: "unknown", ReasonCode: "cloud_resume_unconfirmed"}, nil
 }

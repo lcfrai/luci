@@ -144,6 +144,12 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 			_, err := projects.CloudSwarmCleanupOwner(scope)
 			return err
 		}
+		if action == "allocate" || action == "stage-input" || action == "start" {
+			enabled, enabledErr := projects.SwarmSchedulerDispatchEnabled()
+			if enabledErr != nil || !enabled {
+				return management.ErrExecutionAuthority
+			}
+		}
 		actor, err := projects.CloudSwarmQueueOwner(scope)
 		if err != nil {
 			return err

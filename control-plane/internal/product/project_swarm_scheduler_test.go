@@ -262,6 +262,56 @@ func TestCancelledCloudAttemptKeepsSchedulerSlotUntilVMRetirement(t *testing.T) 
 		t.Fatal("exact retired VM did not settle once", queue, err)
 	}
 }
+func TestCloudLostLaunchResumesOnlyOwnedAttemptAfterDispatchUnpauses(t *testing.T) {
+	s, mux, run, base, admitted, starts, _ := schedulerFixture(t, true)
+	*admitted = true
+	first := s.swarmScheduler.runtime.Dispatch
+	s.swarmScheduler.runtime.Dispatch = func(ctx context.Context, req SwarmDispatchRequest) (SwarmDispatchResult, error) {
+		if _, err := first(ctx, req); err != nil {
+			return SwarmDispatchResult{}, err
+		}
+		return SwarmDispatchResult{State: "unknown", ReasonCode: "cloud_create_unconfirmed"}, nil
+	}
+	resumes := 0
+	s.swarmScheduler.runtime.ResumeCloud = func(_ context.Context, req SwarmDispatchRequest) (SwarmDispatchResult, error) {
+		resumes++
+		current, err := s.GetProjectSwarmRun(req.ProjectID, req.RunID)
+		if err != nil || len(current.Operations) != 1 || current.Operations[0].ID != req.OperationID {
+			t.Fatal("cloud resume lost its exact retained operation", err)
+		}
+		return SwarmDispatchResult{State: "running", SessionID: current.Operations[0].ChildID}, nil
+	}
+	enqueueSchedulerFixture(t, mux, run, base, []string{"task-a"})
+	if err := s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 1 {
+		t.Fatal("initial cloud attempt was not retained", err, *starts)
+	}
+	s.swarmScheduler.mu.Lock()
+	ledger, err := s.readSwarmScheduler()
+	if err == nil {
+		ledger.Paused = true
+		err = s.saveSwarmScheduler(&ledger)
+	}
+	s.swarmScheduler.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.RunSwarmSchedulerOnce(context.Background()); err != nil || resumes != 0 || *starts != 1 {
+		t.Fatal("paused dispatch resumed an upstream cloud process", err, resumes, *starts)
+	}
+	s.swarmScheduler.mu.Lock()
+	ledger, err = s.readSwarmScheduler()
+	if err == nil {
+		ledger.Paused = false
+		err = s.saveSwarmScheduler(&ledger)
+	}
+	s.swarmScheduler.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.RunSwarmSchedulerOnce(context.Background()); err != nil || resumes != 1 || *starts != 1 {
+		t.Fatal("exact cloud attempt did not resume without new allocation", err, resumes, *starts)
+	}
+}
 func TestSwarmSchedulerInterruptedLaunchReopensWithoutReplay(t *testing.T) {
 	s, mux, run, base, admitted, starts, _ := schedulerFixture(t)
 	*admitted = true
