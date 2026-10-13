@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
 const swarmQueueLimit = MaxSwarmScheduledTasks
@@ -276,6 +277,49 @@ func (s *Server) SwarmQueueIDForOperation(projectID, runID, operationID string) 
 		}
 	}
 	return "", nil
+}
+
+// CloudSwarmQueueOwner resolves an exact retained task's original actor. The
+// execution service must reauthorize this identity against current project,
+// team, connection and cost policy before each provider effect. A client or a
+// cloud artifact never supplies the actor for a resumed allocation.
+func (s *Server) CloudSwarmQueueOwner(scope ProjectSwarmMicroVMImportScope) (management.ExecutionActorRef, error) {
+	return s.cloudSwarmQueueOwner(scope, false)
+}
+
+// CloudSwarmCleanupOwner is only for exact owned VM retirement. It does not
+// grant source import, task launch or provider inference after revocation.
+func (s *Server) CloudSwarmCleanupOwner(scope ProjectSwarmMicroVMImportScope) (management.ExecutionActorRef, error) {
+	return s.cloudSwarmQueueOwner(scope, true)
+}
+
+func (s *Server) cloudSwarmQueueOwner(scope ProjectSwarmMicroVMImportScope, cleanup bool) (management.ExecutionActorRef, error) {
+	s.swarmScheduler.mu.Lock()
+	row, err := s.readSwarmScheduler()
+	s.swarmScheduler.mu.Unlock()
+	if err != nil {
+		return management.ExecutionActorRef{}, err
+	}
+	p, err := s.resolveProject(scope.ProjectID)
+	if err != nil {
+		return management.ExecutionActorRef{}, err
+	}
+	run, err := s.projectRuns.Get(p.ID, p.Path, scope.RunID)
+	if err != nil || run.Input.Route.ExecutionLocation != "cloud-microvm" {
+		return management.ExecutionActorRef{}, ErrProjectRunConflict
+	}
+	op := swarmOperation(&run, scope.OperationID)
+	if op == nil || op.ChildID != scope.ChildID || op.TaskID == "" || run.State == "cancelled" && !cleanup {
+		return management.ExecutionActorRef{}, ErrProjectRunConflict
+	}
+	for _, item := range row.Items {
+		if item.ProjectID == scope.ProjectID && item.RunID == scope.RunID && item.OperationID == scope.OperationID &&
+			item.ChildID == scope.ChildID && item.TaskID == op.TaskID && item.Actor.ProjectID == scope.ProjectID &&
+			(item.State == "dispatching" || item.State == "running" || item.State == "unknown" || item.State == "completed" || item.State == "failed" || cleanup && item.State == "cancelled") {
+			return item.Actor, nil
+		}
+	}
+	return management.ExecutionActorRef{}, ErrProjectRunConflict
 }
 
 func publicSwarmQueueItem(item SwarmQueueItem) SwarmQueueItem {

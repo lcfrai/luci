@@ -9,6 +9,12 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
+// SetCloudMicroVMAvailability makes cloud placement an explicit configured
+// capability. A saved cloud run cannot silently fall back to Docker.
+func (s *Server) SetCloudMicroVMAvailability(available func() bool) {
+	s.cloudMicroVMAvailable = available
+}
+
 // RecordProjectSwarmMicroVMHandoff publishes a controller-captured worker
 // claim in the ordinary task review ledger. The caller must first retrieve
 // rawReport from the exact controller-owned output store. Neither this claim
@@ -29,7 +35,7 @@ func (s *Server) RecordProjectSwarmMicroVMHandoff(ctx context.Context, projectID
 		return ProjectRun{}, ErrProjectRunInvalid
 	}
 	req := record.Request
-	scope := ProjectSwarmMicroVMImportScope{ProjectID: projectID, RunID: runID, OperationID: operationID, ChildID: req.Identity.OperationID, OwnerID: req.Identity.OwnerID, RequestDigest: record.RequestDigest}
+	scope := ProjectSwarmMicroVMImportScope{ProjectID: projectID, RunID: runID, OperationID: operationID, ChildID: req.Identity.OperationID, OwnerID: req.Identity.OwnerID, RequestDigest: record.RequestDigest, RequireRetired: true}
 	release, err := s.projectSwarmMicroVMImportGuard(ctx, scope)
 	if err != nil || release == nil {
 		return ProjectRun{}, ErrProjectRunConflict

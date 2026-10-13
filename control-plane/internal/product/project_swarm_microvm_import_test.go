@@ -61,6 +61,19 @@ func TestMicroVMCandidateUsesTaskOwnedGitReviewWithoutPrimaryWriteOrReplay(t *te
 		}
 		return func() {}, nil
 	})
+	started := record
+	started.NativeExit = e2bbe.NativeExitReceipt{}
+	started.CaptureRequested = false
+	started.Capture = e2bbe.CaptureReceipt{}
+	tamperedStart := started
+	tamperedStart.LaunchKernel.ProcessPID++
+	if _, err := s.RecordProjectSwarmMicroVMLaunch(context.Background(), p.ID, run.ID, op.ID, tamperedStart); err == nil {
+		t.Fatal("an unverified cloud launch changed the task")
+	}
+	run, err = s.RecordProjectSwarmMicroVMLaunch(context.Background(), p.ID, run.ID, op.ID, started)
+	if err != nil || run.Operations[0].Status != "running" {
+		t.Fatal("protected cloud launch did not enter the running view", err)
+	}
 	tampered := record
 	tampered.NativeExit.FrameSHA256 = strings.Repeat("0", 64)
 	if _, err := s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, tampered); err == nil {
@@ -91,8 +104,52 @@ func TestMicroVMCandidateUsesTaskOwnedGitReviewWithoutPrimaryWriteOrReplay(t *te
 	if err != nil || !review.CanIntegrate || review.SourceCommit != commit || len(review.Paths) != 1 || review.Paths[0] != "alpha.txt" {
 		t.Fatal("candidate skipped or failed normal integration review", review, err)
 	}
+	if repeated, retryErr := s.ImportProjectSwarmMicroVMCandidate(context.Background(), p.ID, run.ID, op.ID, record, changes, stage); retryErr != nil || repeated != commit {
+		t.Fatal("lost Git acknowledgement was not recovered by exact readback", repeated, retryErr)
+	}
+	swarmCommitFixture(t, workerPath, "beta.txt", "unrelated second commit\n")
 	if _, err = s.ImportProjectSwarmMicroVMCandidate(context.Background(), p.ID, run.ID, op.ID, record, changes, stage); err == nil {
-		t.Fatal("the same cloud candidate replayed over the committed task source")
+		t.Fatal("a later source change was mistaken for the original cloud import")
+	}
+}
+
+func TestCancelledCloudRunRequiresExactVMAbsenceBeforeTaskRetirement(t *testing.T) {
+	s, mux, p, run, base, _ := swarmHTTPFixtureWithLocation(t, "cloud-microvm")
+	s.SetProjectSwarmMicroVMImportGuard(func(_ context.Context, scope ProjectSwarmMicroVMImportScope) (func(), error) {
+		if scope.ProjectID != p.ID || scope.RunID != run.ID || !scope.CleanupOnly || scope.RequireRetired {
+			t.Fatal("cancelled cloud cleanup borrowed source-import authority", scope)
+		}
+		return func() {}, nil
+	})
+	run = swarmReserveHTTP(t, mux, base, run, "task-a", "cancelled-cloud-attempt")
+	op := run.Operations[0]
+	record, _, _ := microVMImportFixture(t, run.ID, op, "uncounted candidate\n")
+	run, err := s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, "running", "cloud process started")
+	if err != nil {
+		t.Fatal(err)
+	}
+	run = projectRunHTTPResponse(t, journeyRequest(t, mux, "POST", base+"/cancel", map[string]any{"expectedRevision": run.Revision}, 200)).ProjectRun
+	if run.Operations[0].Status != "running" {
+		t.Fatal("cancellation incorrectly asserted process exit")
+	}
+	if _, err = s.RecordProjectSwarmMicroVMCancelled(context.Background(), p.ID, run.ID, op.ID, record); err == nil {
+		t.Fatal("a live or uncertain cloud VM was reported retired")
+	}
+	retired := record
+	retired.State, retired.ResourcesHeld = e2bbe.Absent, false
+	wrong := retired
+	wrong.Request.Identity.OperationID = "s-foreign"
+	if _, err = s.RecordProjectSwarmMicroVMCancelled(context.Background(), p.ID, run.ID, op.ID, wrong); err == nil {
+		t.Fatal("foreign cloud VM settled this task")
+	}
+	before := auditTree(t, p.Path)
+	settled, err := s.RecordProjectSwarmMicroVMCancelled(context.Background(), p.ID, run.ID, op.ID, retired)
+	if err != nil || settled.Operations[0].Status != "cancelled" {
+		t.Fatal("exact absent VM did not settle cancelled task", err)
+	}
+	again, err := s.RecordProjectSwarmMicroVMCancelled(context.Background(), p.ID, run.ID, op.ID, retired)
+	if err != nil || again.Revision != settled.Revision || !reflect.DeepEqual(before, auditTree(t, p.Path)) {
+		t.Fatal("retirement replayed source or run mutation", err)
 	}
 }
 

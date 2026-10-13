@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/assistance"
@@ -147,6 +148,7 @@ type Deps struct {
 	ProjectsDir        string
 	ProjectsDirCurrent func() string
 	Product            *product.Server
+	CloudTasks         *CloudTaskRuntime
 
 	// Origin is the allowlist and the loopback Host guard, from task 9.
 	Origin *httpx.OriginPolicy
@@ -353,6 +355,7 @@ func (rs *routes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // API is the whole HTTP surface as one handler.
 type API struct {
+	cloudObservationCursor  atomic.Uint64
 	sessionPreparations     sessionPreparationSet
 	taskObservations        taskCompletionObservations
 	execution               *executionAdmission
@@ -433,6 +436,13 @@ func New(d Deps) (*API, error) {
 		d.Product.SetProjectSwarmFenceRecovery(a.projectSwarmFenceRecoveryAvailability, a.authorizeSwarmFenceRecovery, a.acquireSwarmFenceRecovery, a.proveSwarmFencedLaunch, a.finalizeSwarmFencedLaunch)
 		d.Product.SetProjectSwarmPendingLaunch(a.projectSwarmPendingLaunch)
 		d.Product.SetProjectSwarmCheckpointGuard(a.authorizeTaskCheckpoint, a.acquireStoppedTaskOutput)
+		if d.CloudTasks != nil {
+			if err := d.CloudTasks.validate(); err != nil {
+				return nil, err
+			}
+			d.Product.SetCloudMicroVMAvailability(func() bool { return true })
+			d.Product.SetProjectSwarmMicroVMImportGuard(a.guardMicroVMImport)
+		}
 		d.Product.SetTaskHandoffCollector(a.authorizeTaskOutput, a.collectTaskHandoff)
 		d.Product.SetRuntimeResourceSnapshot(d.ResourceSnapshot)
 		a.deps.Product.SetExternalHandoffAuthorizer(a.authorizeExecutionRetirement)
@@ -448,9 +458,20 @@ func New(d Deps) (*API, error) {
 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)
 		var observeTasks func(context.Context) error
 		if d.ObserveTaskCompletions {
-			observeTasks = a.observeExecutionCompletions
+			observeTasks = func(ctx context.Context) error {
+				if d.CloudTasks != nil {
+					if err := a.observeCloudTaskCompletions(ctx); err != nil {
+						a.sessionLog().Warn("cloud task observation remains pending", "err", err)
+					}
+				}
+				return a.observeExecutionCompletions(ctx)
+			}
 		}
-		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, Release: a.execution.release, Resources: a.queuedResourceView})
+		cloudRetired := func(context.Context, string, string, string, string) (bool, error) { return false, nil }
+		if d.CloudTasks != nil {
+			cloudRetired = a.cloudRetired
+		}
+		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, Release: a.execution.release, CloudRetired: cloudRetired, Resources: a.queuedResourceView})
 		d.Product.SetProjectSwarmWorktreeObserver(a.observeSwarmWorktree)
 		d.Product.SetCoordinatorRuntime(a.reauthorizeCoordinator)
 	}

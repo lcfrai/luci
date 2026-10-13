@@ -67,6 +67,15 @@ func (a *API) admitQueuedSwarm(ctx context.Context, req product.SwarmAdmissionRe
 	if err := harness.ValidateTask(harness.ID(run.Input.Route.Harness), harness.PermissionMode(run.Input.Route.PermissionMode)); err != nil {
 		return blocked("task_permission_requires_interactive", err.Error())
 	}
+	if run.Input.Route.ExecutionLocation == "cloud-microvm" {
+		if a.deps.CloudTasks == nil {
+			return blocked("cloud_microvm_unavailable", "A verified cloud microVM execution service is not configured.")
+		}
+		// The cloud controller rechecks its own per-task, per-project, global
+		// VM and spending limits before an irreversible Create. Local host RAM
+		// leases are for Docker and must not be fabricated for remote VMs.
+		return product.SwarmAdmissionResult{State: "admitted"}, nil
+	}
 	provider, limit := providerCapacity(run.Input.Route, req.Policy)
 	decision, err := a.execution.reserve(ctx, req.QueueID, req.ProjectID, provider, limit, req.Actor, authority, req.Policy)
 	if err != nil {
@@ -119,6 +128,10 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	authority, err := a.authorizeExecution(ctx, req.Actor, route.Harness, route.Connection.ID != "")
 	if err != nil {
 		return refuse("access_changed", err)
+	}
+	if route.ExecutionLocation == "cloud-microvm" {
+		_ = authority // current authority was checked before cloud selection
+		return a.dispatchCloudSwarm(ctx, req, run, *op)
 	}
 	existing, err := a.deps.Product.FindProjectRunSession(req.ProjectID, req.RunID, req.OperationID, a.deps.Store.Get)
 	if err != nil {

@@ -16,9 +16,10 @@ import (
 // ProjectSwarmMicroVMInput is an immutable, controller-selected task input.
 // It carries no execution authority, provider credentials or review approval.
 type ProjectSwarmMicroVMInput struct {
-	Request  e2bbe.Request
-	Manifest e2bbe.TransferManifest
-	Archive  []byte
+	Request       e2bbe.Request
+	Manifest      e2bbe.TransferManifest
+	Archive       []byte
+	OpeningPrompt string // derived from the same immutable reviewed task binding
 }
 
 // BuildProjectSwarmMicroVMInput captures the exact reserved Git base and
@@ -128,7 +129,7 @@ func (s *Server) BuildProjectSwarmMicroVMInput(ctx context.Context, projectID, r
 	if _, err = e2bbe.VerifyTransfer(bytes.NewReader(archive.Bytes()), binding, bundleDigest); err != nil {
 		return ProjectSwarmMicroVMInput{}, err
 	}
-	result.Manifest, result.Archive = manifest, archive.Bytes()
+	result.Manifest, result.Archive, result.OpeningPrompt = manifest, archive.Bytes(), ImplementationOpeningPrompt(capture.Binding)
 	return result, nil
 }
 

@@ -35,6 +35,7 @@ const (
 	envWebDir                 = "LUCI_WEB_DIR"
 	envRuntimeDir             = "LUCI_RUNTIME_DIR"
 	envCloudBundle            = "LUCI_CLOUD_BUNDLE"
+	envE2BConfig              = "LUCI_E2B_CONFIG"
 	envBrowserPreviewAddr     = "LUCI_BROWSER_PREVIEW_ADDR"
 	envBrowserPreviewPort     = "LUCI_BROWSER_PREVIEW_PORT"
 	envStripeAPIKey           = "LUCI_STRIPE_API_KEY"
@@ -166,6 +167,7 @@ type Config struct {
 	PreviewBaseDomain                                                                                     string
 	RuntimeDir                                                                                            string
 	CloudBundle                                                                                           string
+	E2BConfigPath                                                                                         string
 	WebDir                                                                                                string
 	Worker                                                                                                bool
 	WorkerToken                                                                                           string
@@ -253,15 +255,19 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	}
 
 	cfg := Config{
-		Addr:         get(envAddr, defaultAddr),
-		Backend:      strings.ToLower(get(envBackend, defaultBackend)),
-		SandboxImage: get(envSandboxImage, defaultSandboxImage),
-		StateDir:     get(envStateDir, ""),
-		ProjectsDir:  get(envProjectsDir, ""),
-		DockerHost:   get(envDockerHost, ""),
-		Kubeconfig:   get(envKubeconfig, ""),
-		Namespace:    get(envNamespace, defaultNamespace),
-		LogLevel:     slog.LevelInfo,
+		Addr:          get(envAddr, defaultAddr),
+		Backend:       strings.ToLower(get(envBackend, defaultBackend)),
+		SandboxImage:  get(envSandboxImage, defaultSandboxImage),
+		StateDir:      get(envStateDir, ""),
+		ProjectsDir:   get(envProjectsDir, ""),
+		E2BConfigPath: raw(envE2BConfig),
+		DockerHost:    get(envDockerHost, ""),
+		Kubeconfig:    get(envKubeconfig, ""),
+		Namespace:     get(envNamespace, defaultNamespace),
+		LogLevel:      slog.LevelInfo,
+	}
+	if cfg.E2BConfigPath != "" && !filepath.IsAbs(cfg.E2BConfigPath) {
+		return Config{}, fmt.Errorf("%s must name an absolute private operator configuration file", envE2BConfig)
 	}
 	cfg.AllowPublicBind = parseFlag(raw(envAllowPublicBind))
 	cfg.BrowserPreviewAddr = raw(envBrowserPreviewAddr)

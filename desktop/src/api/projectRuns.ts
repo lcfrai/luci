@@ -47,7 +47,7 @@ export interface ProjectRun {
     implementation: ImplementationContext; approvals: RunApprovals; outcome: 'preview' | 'publish';
     requirements: RunRequirement[];
     route: {
-      harness: string; model: string; permissionMode: PermissionMode; effort?: string;
+      harness: string; model: string; permissionMode: PermissionMode; effort?: string; executionLocation?: 'cloud-microvm';
       connection: { id?: string; kind: string; protocol?: string; model?: string; endpoint?: string; authMode?: string; revision: number };
     };
   };
@@ -72,7 +72,7 @@ export interface ProjectRun {
 }
 export interface CreateProjectRun {
   idempotencyKey: string; worktreeId: string; harness: string; model: string; permissionMode: PermissionMode;
-  effort?: string; agentConnectionId?: string; outcome: 'preview' | 'publish'; implementationContext: ImplementationContextRequest;
+  effort?: string; executionLocation?: 'cloud-microvm'; agentConnectionId?: string; outcome: 'preview' | 'publish'; implementationContext: ImplementationContextRequest;
 }
 const path = (project: string, run?: string) => `/v1/product/projects/${encodeURIComponent(project)}/runs${run ? '/' + encodeURIComponent(run) : ''}`;
 // Responses must belong to the requested project before any receipt is rendered.

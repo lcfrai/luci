@@ -40,6 +40,10 @@ type Controller struct {
 
 func New(c Config) (*Controller, error) { return newController(c, nil, context.Background()) }
 
+// OwnerID is the configured controller ownership scope, never a provider
+// credential or a task-selected identity.
+func (c *Controller) OwnerID() string { return c.config.OwnerID }
+
 func newController(c Config, restored []byte, restoreContext context.Context) (*Controller, error) {
 	if !validID(c.OwnerID) || !validID(c.Deployment.Scope) || !validID(c.Deployment.HostGeneration) || c.Deployment.Provider != "aws" || c.Deployment.InstanceType != "m8i.xlarge" || !validID(c.Deployment.Region) || c.Deployment.RuntimeRevision != RuntimeRevision || !digestPattern.MatchString(c.Deployment.ManagementReceiptDigest) || !digestPattern.MatchString(c.Deployment.RestoreReceiptDigest) || c.Checkpoint == nil || c.Authorize == nil {
 		return nil, ErrUnsupported

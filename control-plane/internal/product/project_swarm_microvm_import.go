@@ -18,13 +18,59 @@ import (
 
 type ProjectSwarmMicroVMImportScope struct {
 	ProjectID, RunID, OperationID, ChildID, OwnerID, RequestDigest string
+	RequireRetired                                                 bool
+	CleanupOnly                                                    bool
 }
 
-// RecordProjectSwarmMicroVMExit makes a captured native exit visible to the
-// existing review flow. It never treats a provider Create, envd Start, text
-// status or retained archive alone as a completed task. The API guard must
-// hold current authority and the exact cloud-child lifecycle fence.
-func (s *Server) RecordProjectSwarmMicroVMExit(ctx context.Context, projectID, runID, operationID string, record e2bbe.Record) (ProjectRun, error) {
+// RecordProjectSwarmMicroVMCancelled settles a cancelled run only after the
+// controller proves this exact owned VM absent and its resources unheld. It
+// does not import source, accept output or infer provider billing settlement.
+func (s *Server) RecordProjectSwarmMicroVMCancelled(ctx context.Context, projectID, runID, operationID string, record e2bbe.Record) (ProjectRun, error) {
+	s.projectRunDispatchMu.Lock()
+	defer s.projectRunDispatchMu.Unlock()
+	if s.projectSwarmMicroVMImportGuard == nil {
+		return ProjectRun{}, ErrProjectRunInvalid
+	}
+	req := record.Request
+	scope := ProjectSwarmMicroVMImportScope{ProjectID: projectID, RunID: runID, OperationID: operationID, ChildID: req.Identity.OperationID, OwnerID: req.Identity.OwnerID, RequestDigest: record.RequestDigest, CleanupOnly: true}
+	release, err := s.projectSwarmMicroVMImportGuard(ctx, scope)
+	if err != nil || release == nil {
+		return ProjectRun{}, ErrProjectRunConflict
+	}
+	defer release()
+	p, err := s.resolveProject(projectID)
+	if err != nil {
+		return ProjectRun{}, err
+	}
+	run, err := s.projectRuns.Get(projectID, p.Path, runID)
+	if err != nil {
+		return ProjectRun{}, err
+	}
+	op := swarmOperation(&run, operationID)
+	if op == nil || (run.State != "cancelled" && op.Status != "cancelled" && !record.CancelRequested) || op.ChildID != req.Identity.OperationID || op.TaskID != req.Identity.TaskID ||
+		req.Identity.ProjectID != projectID || req.Identity.RunID != runID || req.Identity.AttemptID != operationID ||
+		record.State != e2bbe.Absent || record.ResourcesHeld || record.RequestDigest == "" {
+		return ProjectRun{}, ErrProjectRunConflict
+	}
+	if op.Status == "cancelled" {
+		return run, nil
+	}
+	return s.projectRuns.mutateSwarm(projectID, p.Path, runID, run.Revision, func(current *ProjectRun) error {
+		selected := swarmOperation(current, operationID)
+		if selected == nil || (current.State != "cancelled" && selected.Status != "cancelled" && !record.CancelRequested) || selected.ChildID != op.ChildID || selected.TaskID != op.TaskID ||
+			(selected.Status != "running" && selected.Status != "dispatching" && selected.Status != "reserved" && selected.Status != "unknown") {
+			return ErrProjectRunConflict
+		}
+		selected.Status = "cancelled"
+		selected.Message = "The cancelled cloud task's exact VM is absent and its controller reservation is released. Returned work was not accepted; provider billing settlement remains separate."
+		return nil
+	})
+}
+
+// RecordProjectSwarmMicroVMLaunch shows a verified task process in the usual
+// run/queue view. An envd Start ACK alone is insufficient: the exact protected
+// guest launch identity must be observed, and current authority rechecked.
+func (s *Server) RecordProjectSwarmMicroVMLaunch(ctx context.Context, projectID, runID, operationID string, record e2bbe.Record) (ProjectRun, error) {
 	s.projectRunDispatchMu.Lock()
 	defer s.projectRunDispatchMu.Unlock()
 	if s.projectSwarmMicroVMImportGuard == nil {
@@ -46,9 +92,47 @@ func (s *Server) RecordProjectSwarmMicroVMExit(ctx context.Context, projectID, r
 		return ProjectRun{}, err
 	}
 	op := swarmOperation(&run, operationID)
+	if op == nil || op.Implementation == nil || op.Allocation != "ready" || op.ChildID == "" ||
+		run.State == "cancelled" || (op.Status != "reserved" && op.Status != "dispatching" && op.Status != "running") ||
+		req.Identity.ProjectID != projectID || req.Identity.RunID != runID || req.Identity.TaskID != op.TaskID ||
+		req.Identity.AttemptID != op.ID || req.Identity.OperationID != op.ChildID ||
+		req.SourceDigest != implementationDigest(swarmStartingCommit(*op)) || req.ContextDigest != implementationDigest(op.Implementation) ||
+		!record.LaunchRequested || record.ProcessPID == 0 || e2bbe.ValidateCaptureIdentity(record.LaunchKernel, record) != nil {
+		return ProjectRun{}, ErrProjectRunConflict
+	}
+	const message = "The cloud task's exact upstream process is running in its owned microVM. Its result and checks remain unverified."
+	return s.projectRuns.ObserveOperation(projectID, p.Path, runID, run.Revision, op.ID, op.ChildID, "running", message)
+}
+
+// RecordProjectSwarmMicroVMExit makes a captured native exit visible to the
+// existing review flow. It never treats a provider Create, envd Start, text
+// status or retained archive alone as a completed task. The API guard must
+// hold current authority and the exact cloud-child lifecycle fence.
+func (s *Server) RecordProjectSwarmMicroVMExit(ctx context.Context, projectID, runID, operationID string, record e2bbe.Record) (ProjectRun, error) {
+	s.projectRunDispatchMu.Lock()
+	defer s.projectRunDispatchMu.Unlock()
+	if s.projectSwarmMicroVMImportGuard == nil {
+		return ProjectRun{}, ErrProjectRunInvalid
+	}
+	req := record.Request
+	scope := ProjectSwarmMicroVMImportScope{ProjectID: projectID, RunID: runID, OperationID: operationID, ChildID: req.Identity.OperationID, OwnerID: req.Identity.OwnerID, RequestDigest: record.RequestDigest, RequireRetired: true}
+	release, err := s.projectSwarmMicroVMImportGuard(ctx, scope)
+	if err != nil || release == nil {
+		return ProjectRun{}, ErrProjectRunConflict
+	}
+	defer release()
+	p, err := s.resolveProject(projectID)
+	if err != nil {
+		return ProjectRun{}, err
+	}
+	run, err := s.projectRuns.Get(projectID, p.Path, runID)
+	if err != nil {
+		return ProjectRun{}, err
+	}
+	op := swarmOperation(&run, operationID)
 	if op == nil || op.Implementation == nil || op.ChildID == "" || op.Allocation != "ready" || op.Integration != nil ||
 		run.State == "cancelled" || swarmTask(&run, op.TaskID) == nil ||
-		(op.Status != "running" && op.Status != "dispatching" && op.Status != "review-required") ||
+		(op.Status != "running" && op.Status != "dispatching" && op.Status != "reserved" && op.Status != "review-required") ||
 		req.Identity.ProjectID != projectID || req.Identity.RunID != runID || req.Identity.TaskID != op.TaskID || req.Identity.AttemptID != op.ID || req.Identity.OperationID != op.ChildID ||
 		req.SourceDigest != implementationDigest(swarmStartingCommit(*op)) || req.ContextDigest != implementationDigest(op.Implementation) ||
 		!record.LaunchRequested || !record.CaptureRequested || e2bbe.ValidateNativeExitReceipt(record.NativeExit, record) != nil ||
@@ -89,7 +173,7 @@ func (s *Server) ImportProjectSwarmMicroVMCandidate(ctx context.Context, project
 	if s.projectSwarmMicroVMImportGuard == nil {
 		return "", ErrProjectRunInvalid
 	}
-	scope := ProjectSwarmMicroVMImportScope{ProjectID: projectID, RunID: runID, OperationID: operationID, ChildID: record.Request.Identity.OperationID, OwnerID: record.Request.Identity.OwnerID, RequestDigest: record.RequestDigest}
+	scope := ProjectSwarmMicroVMImportScope{ProjectID: projectID, RunID: runID, OperationID: operationID, ChildID: record.Request.Identity.OperationID, OwnerID: record.Request.Identity.OwnerID, RequestDigest: record.RequestDigest, RequireRetired: true}
 	release, err := s.projectSwarmMicroVMImportGuard(ctx, scope)
 	if err != nil || release == nil {
 		return "", ErrProjectRunConflict
@@ -138,8 +222,11 @@ func (s *Server) ImportProjectSwarmMicroVMCandidate(ctx context.Context, project
 	}
 	base := swarmStartingCommit(*op)
 	source, err := s.captureGitReview(ctx, path, "")
-	if err != nil || source.Status != "" || source.Head != base {
+	if err != nil || source.Status != "" {
 		return "", errors.New("The task checkout changed before cloud import. Preserve its bytes for explicit recovery.")
+	}
+	if source.Head != base {
+		return s.verifyImportedMicroVMCandidate(ctx, path, base, source.Head, task.WritePaths, changes)
 	}
 	stageInfo, err := os.Lstat(staging)
 	if err != nil || !stageInfo.IsDir() || stageInfo.Mode()&os.ModeSymlink != 0 || runtime.GOOS != "windows" && stageInfo.Mode().Perm()&0077 != 0 {

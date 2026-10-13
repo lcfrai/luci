@@ -313,6 +313,13 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		}
 		executionReady.Store(true)
 	}
+	cloudTasks, stopCloudTasks, err := openE2BTaskRuntime(ctx, cfg, productService, executionAuthority)
+	if err != nil {
+		return fmt.Errorf("configure cloud microVM Develop: %w", err)
+	}
+	if stopCloudTasks != nil {
+		defer stopCloudTasks()
+	}
 	handler, err := api.New(api.Deps{
 		ObserveTaskCompletions: true,
 		ExecutionStateDir:      executionStateDir,
@@ -355,6 +362,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		Worktrees:          projects,
 		Projects:           projects,
 		Product:            productService,
+		CloudTasks:         cloudTasks,
 		ProjectsDirCurrent: func() string { return productService.Config().ProjectsDir },
 		Flags:              store, // registry.WorktreeFlagStore, implemented by *FileStore
 		Origin:             originPolicy,

@@ -40,6 +40,15 @@ it('reads on mount without launch and uses current approved tasks in the reused 
   expect(api.create).toHaveBeenCalledTimes(1); expect(records()).toHaveLength(0);
   expect(screen.getByText(/queued task reservations/)).not.toBeNull(); expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true);
 });
+it('records explicit per-task cloud microVM placement without changing local defaults or delivery authority', async () => {
+  render(<CoordinatorExecution {...props()} />); await configure();
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Develop execution location' }), 'cloud-microvm');
+  expect(screen.getByText(/one isolated microVM per task/)).not.toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await screen.findByText(/continuation is retained/);
+  expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ run: { executionLocation: 'cloud-microvm', harness: 'codex', permissionMode: 'bypass', agentConnectionId: 'configured', outcome: 'preview' } });
+  expect(vi.mocked(api.create).mock.calls[0][2].deploymentPlan).toBeUndefined();
+});
 it.each(['unapproved', 'unsaved', 'question', 'foreign-turn', 'unapplied', 'no-execute', 'no-edit', 'plan-base', 'wrong-checkout'])('does not create work when %s', async reason => {
   const input = props();
   if (reason === 'unapproved') input.view.context.designPlan.status = 'draft'; if (reason === 'unsaved') input.blocked = 'Unsaved context';

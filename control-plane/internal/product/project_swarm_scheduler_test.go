@@ -219,6 +219,49 @@ func TestCloudSwarmKeepsSchedulerSlotUntilExactMicroVMRetirement(t *testing.T) {
 		t.Fatal("confirmed cloud absence did not release the next task", err, *starts)
 	}
 }
+func TestCancelledCloudAttemptKeepsSchedulerSlotUntilVMRetirement(t *testing.T) {
+	s, mux, run, base, admitted, starts, _ := schedulerFixture(t, true)
+	*admitted = true
+	enqueueSchedulerFixture(t, mux, run, base, []string{"task-a"})
+	retired := false
+	s.swarmScheduler.runtime.CloudRetired = func(_ context.Context, projectID, runID, operationID, childID string) (bool, error) {
+		if projectID != run.ProjectID || runID != run.ID || operationID == "" || childID == "" {
+			t.Fatal("cloud cancellation checked a different attempt")
+		}
+		return retired, nil
+	}
+	if err := s.RunSwarmSchedulerOnce(context.Background()); err != nil || *starts != 1 {
+		t.Fatal("cloud attempt did not start once", err, *starts)
+	}
+	current, err := s.GetProjectSwarmRun(run.ProjectID, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.resolveProject(run.ProjectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	op := current.Operations[0]
+	current, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, current.Revision, op.ID, op.ChildID, "cancelled", "exact retirement requested")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.RunSwarmSchedulerOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	queue, err := s.ProjectSwarmQueueSnapshot(run.ProjectID)
+	if err != nil || queue.Counts.Unknown != 1 || *starts != 1 {
+		t.Fatal("cancelled task released an unretired VM", queue, err)
+	}
+	retired = true
+	if err = s.RunSwarmSchedulerOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	queue, err = s.ProjectSwarmQueueSnapshot(run.ProjectID)
+	if err != nil || queue.Counts.Unknown != 0 || queue.Items[0].State != "cancelled" || *starts != 1 {
+		t.Fatal("exact retired VM did not settle once", queue, err)
+	}
+}
 func TestSwarmSchedulerInterruptedLaunchReopensWithoutReplay(t *testing.T) {
 	s, mux, run, base, admitted, starts, _ := schedulerFixture(t)
 	*admitted = true

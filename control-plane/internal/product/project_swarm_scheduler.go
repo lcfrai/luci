@@ -466,6 +466,15 @@ func (s *Server) reconcileQueuedSwarm(ctx context.Context, item swarmQueueRecord
 		return s.schedulerSetReason(item.ID, "unknown", "retirement_pending", "Finish this attempt's explicit launch recovery before retrying. Its output, frozen context and execution reservation remain retained.")
 	}
 	if op.Status == "cancelled" || op.Allocation == "abandoned" {
+		if run.Input.Route.ExecutionLocation == "cloud-microvm" {
+			if runtime.CloudRetired == nil {
+				return s.schedulerSetReason(item.ID, "unknown", "microvm_retirement_unavailable", "The cancelled task's exact microVM retirement cannot be verified. Its scheduler slot remains held.")
+			}
+			retired, retireErr := runtime.CloudRetired(ctx, item.ProjectID, item.RunID, op.ID, op.ChildID)
+			if retireErr != nil || !retired {
+				return s.schedulerSetReason(item.ID, "unknown", "microvm_retirement_pending", "The cancelled task's exact microVM remains live or uncertain. Its scheduler slot stays held.")
+			}
+		}
 		if err = s.releaseQueueLease(ctx, item.ID, runtime); err != nil {
 			return s.schedulerSetReason(item.ID, "unknown", "resource_release_pending", "The task was retired, but its execution reservation cannot yet be confirmed released. No replacement will be launched.")
 		}
