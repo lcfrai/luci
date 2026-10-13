@@ -24,6 +24,9 @@ type coordinatorBackground struct {
 	done      chan struct{}
 	wake      chan struct{}
 	cursor    string
+	// One refused draft fingerprint per saved actor/project. A 4xx cannot be
+	// treated as an absent mutation or sent again on every two-second tick.
+	draftRefusals map[string]string
 }
 
 func (s *Server) SetCoordinatorRuntime(authorize CoordinatorReauthorizer) {
@@ -178,6 +181,13 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 			s.mu.RUnlock()
 			if e != nil {
 				return e
+			}
+			advanced, e := s.continueSavedCoordinatorDraft(ctx, p, rows, authorize)
+			if e != nil {
+				return e
+			}
+			if advanced {
+				return nil
 			}
 			created, e := s.continueAcceptedCoordinatorEvent(ctx, p, rows, authorize)
 			if e != nil {

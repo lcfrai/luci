@@ -88,6 +88,64 @@ func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testi
 	}
 }
 
+func TestCoordinatorSavedDraftContinuesWithoutBrowserAndDoesNotReplayAfterRestart(t *testing.T) {
+	s, p, h, ctx, req, starts := coordinatorContinuationFixture(t)
+	anchor := coordinatorReadyFixture(t, s, p, ctx, req)
+	s.mu.Lock()
+	rows, err := s.readContinuations(p, "alice")
+	if err == nil {
+		rows.Rows[0].Status = "blocked"
+		rows.SavedRoute = &CoordinatorSavedRoute{Revision: 1, Route: coordinatorRoute(req.Run), MaxParallel: 1, UpdatedAt: anchor.CreatedAt}
+		err = s.saveContinuations(rows)
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := coordinatorSavePolicy(t, h, p.ID, req.ExpectedPolicyRevision, "auto-drafts", []string{"plan"})
+	turn, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Improve one task from the conversation", "")
+	plan := snapshot.Plan
+	plan.Tasks[0].Acceptance = "The amended result has its own check."
+	answer := OrchestratorAnswer{Summary: "Changed task acceptance", Options: []string{}, Impact: []string{}, Proposal: &OrchestratorProposal{Target: "plan", Summary: "Revise one task", Plan: &plan}}
+	if err = s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
+		t.Fatal(err)
+	}
+	s.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil || view.Context.Plan.Tasks[0].Acceptance != plan.Tasks[0].Acceptance || view.Turns[len(view.Turns)-1].AppliedRevision == 0 {
+		t.Fatal("saved draft policy did not continue the exact completed turn", err)
+	}
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = s.readContinuations(p, "alice")
+	if err != nil || len(rows.Rows) != 2 || rows.Rows[1].OriginTurnID != turn.ID || rows.Rows[1].PolicyRevision != policy.Revision || *starts != 0 {
+		t.Fatal("accepted draft did not bind one affected reviewed continuation", err)
+	}
+	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	reopened.SetCoordinatorAuthorizer(s.coordinatorAuthorize)
+	reopened.SetCoordinatorExecutionAuthorizer(s.coordinatorExecuteAuthorize)
+	reopened.SetProjectRunSelectionResolver(s.projectRunSelectionResolver)
+	reopened.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	if err = reopened.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	after, err := reopened.readContinuations(p, "alice")
+	if err != nil || len(after.Rows) != 2 || after.Rows[1].ID != rows.Rows[1].ID {
+		t.Fatal("restart replayed the saved context amendment", err)
+	}
+}
+
 func TestCoordinatorAcceptedEventPreservesUnrelatedDirtySource(t *testing.T) {
 	s, p, _, ctx, req, _ := coordinatorContinuationFixture(t)
 	anchor := coordinatorReadyFixture(t, s, p, ctx, req)
