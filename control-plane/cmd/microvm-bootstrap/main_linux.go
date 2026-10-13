@@ -24,6 +24,7 @@ func run() error {
 	digest := flag.String("archive-sha256", "", "exact reviewed archive digest")
 	flag.StringVar(&binding.Identity.OwnerID, "owner", "", "controller owner")
 	flag.StringVar(&binding.Identity.ProjectID, "project", "", "project")
+	flag.StringVar(&binding.Identity.RunID, "run", "", "reviewed run")
 	flag.StringVar(&binding.Identity.TaskID, "task", "", "task")
 	flag.StringVar(&binding.Identity.AttemptID, "attempt", "", "attempt")
 	flag.StringVar(&binding.Identity.OperationID, "operation", "", "operation")

@@ -15,7 +15,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 )
 
-func microVMImportFixture(t *testing.T, op ProjectRunOperation, content string) (e2bbe.Record, e2bbe.SourceChanges, string) {
+func microVMImportFixture(t *testing.T, runID string, op ProjectRunOperation, content string) (e2bbe.Record, e2bbe.SourceChanges, string) {
 	t.Helper()
 	stage := t.TempDir()
 	if err := os.WriteFile(filepath.Join(stage, "alpha.txt"), []byte(content), 0644); err != nil {
@@ -25,7 +25,7 @@ func microVMImportFixture(t *testing.T, op ProjectRunOperation, content string) 
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256([]byte(content))
-	req := e2bbe.Request{Identity: e2bbe.Identity{OwnerID: "owner-a", ProjectID: op.Implementation.ProjectID, TaskID: op.TaskID, AttemptID: op.ID, OperationID: op.ChildID}, SourceDigest: implementationDigest(swarmStartingCommit(op)), ContextDigest: implementationDigest(op.Implementation), BundleDigest: strings.Repeat("b", 64), MaxSeconds: 60, EstimatedCostMicros: 100}
+	req := e2bbe.Request{Identity: e2bbe.Identity{OwnerID: "owner-a", ProjectID: op.Implementation.ProjectID, RunID: runID, TaskID: op.TaskID, AttemptID: op.ID, OperationID: op.ChildID}, SourceDigest: implementationDigest(swarmStartingCommit(op)), ContextDigest: implementationDigest(op.Implementation), BundleDigest: strings.Repeat("b", 64), MaxSeconds: 60, EstimatedCostMicros: 100}
 	body, _ := json.Marshal(req)
 	requestHash := sha256.Sum256(body)
 	identity := e2bbe.CaptureIdentity{Version: 1, Identity: req.Identity, RequestDigest: hex.EncodeToString(requestHash[:]), SandboxID: "vm-one", LaunchDigest: strings.Repeat("a", 64), ProcessPID: 321, InputBundleDigest: req.BundleDigest, SourceDigest: req.SourceDigest, ContextDigest: req.ContextDigest, BootID: "11111111-2222-4333-8444-555555555555", CgroupRelativePath: "luci-tasks/" + op.ChildID, CgroupInode: 123}
@@ -51,7 +51,7 @@ func TestMicroVMCandidateUsesTaskOwnedGitReviewWithoutPrimaryWriteOrReplay(t *te
 		t.Fatal(err)
 	}
 	op = run.Operations[0]
-	record, changes, stage := microVMImportFixture(t, op, "cloud candidate\n")
+	record, changes, stage := microVMImportFixture(t, run.ID, op, "cloud candidate\n")
 	if _, err := s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, record); err == nil {
 		t.Fatal("unregistered guard published a cloud native exit")
 	}
@@ -107,7 +107,7 @@ func TestMicroVMCandidateRejectsOutOfScopeSourceBeforeAnyGitWrite(t *testing.T) 
 		t.Fatal(err)
 	}
 	op = run.Operations[0]
-	record, changes, stage := microVMImportFixture(t, op, "wrong path\n")
+	record, changes, stage := microVMImportFixture(t, run.ID, op, "wrong path\n")
 	run, err = s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, record)
 	if err != nil {
 		t.Fatal(err)
@@ -124,5 +124,25 @@ func TestMicroVMCandidateRejectsOutOfScopeSourceBeforeAnyGitWrite(t *testing.T) 
 	}
 	if !reflect.DeepEqual(before, auditTree(t, workerPath)) {
 		t.Fatal("refused cloud candidate changed task source")
+	}
+}
+
+func TestMicroVMCapturedExitRequiresExactReviewedRun(t *testing.T) {
+	s, mux, p, run, base, _ := swarmHTTPFixture(t)
+	s.SetProjectSwarmMicroVMImportGuard(func(context.Context, ProjectSwarmMicroVMImportScope) (func(), error) { return func() {}, nil })
+	run = swarmReserveHTTP(t, mux, base, run, "task-a", "microvm-run-identity")
+	op := run.Operations[0]
+	var err error
+	run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, "running", "cloud native process started")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrong, _, _ := microVMImportFixture(t, "another-run", run.Operations[0], "plausible output\n")
+	if _, err = s.RecordProjectSwarmMicroVMExit(context.Background(), p.ID, run.ID, op.ID, wrong); err == nil {
+		t.Fatal("a signed exit for another run advanced this task")
+	}
+	current, err := s.GetProjectSwarmRun(p.ID, run.ID)
+	if err != nil || current.Revision != run.Revision || current.Operations[0].Status != "running" {
+		t.Fatal("foreign run output changed local task state", err)
 	}
 }

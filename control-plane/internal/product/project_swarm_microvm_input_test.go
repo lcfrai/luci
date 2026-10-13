@@ -19,7 +19,7 @@ func TestMicroVMInputCapturesExactReviewedTaskAndGitBaseWithoutPrivateSource(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	if input.Request.Identity.TaskID != "task-a" || input.Request.Identity.OperationID != op.ChildID ||
+	if input.Request.Identity.RunID != run.ID || input.Request.Identity.TaskID != "task-a" || input.Request.Identity.OperationID != op.ChildID ||
 		input.Request.SourceDigest != implementationDigest(swarmStartingCommit(op)) ||
 		input.Request.ContextDigest != implementationDigest(op.Implementation) || len(input.Archive) == 0 {
 		t.Fatal("cloud input lost its selected task, base or context binding", input.Request)

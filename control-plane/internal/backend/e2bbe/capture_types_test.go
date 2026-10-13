@@ -176,6 +176,8 @@ func TestNativeExitReceiptRejectsTextAndWrongLaunchBindings(t *testing.T) {
 
 func TestBootstrapArgsCarryExactFencedLaunchIdentity(t *testing.T) {
 	r, _, _ := captureFixture()
+	r.Request.Identity.RunID = "run-owned"
+	r.RequestDigest = digest(r.Request)
 	args := bootstrapArgs(r)
 	values := map[string]string{}
 	for i := 0; i < len(args); i += 2 {
@@ -184,7 +186,7 @@ func TestBootstrapArgsCarryExactFencedLaunchIdentity(t *testing.T) {
 		}
 		values[args[i]] = args[i+1]
 	}
-	for flag, want := range map[string]string{"--sandbox": r.SandboxID, "--request-sha256": r.RequestDigest, "--launch-sha256": r.LaunchDigest} {
+	for flag, want := range map[string]string{"--run": r.Request.Identity.RunID, "--sandbox": r.SandboxID, "--request-sha256": r.RequestDigest, "--launch-sha256": r.LaunchDigest} {
 		if values[flag] != want || want == "" {
 			t.Fatal(flag, values[flag], want)
 		}

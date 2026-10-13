@@ -110,7 +110,7 @@ func (s *Server) BuildProjectSwarmMicroVMInput(ctx context.Context, projectID, r
 		payloads = append(payloads, microVMInputPayload("context/"+file.Path, file.Data, 0644))
 	}
 	sort.Slice(payloads, func(i, j int) bool { return payloads[i].Path < payloads[j].Path })
-	identity := e2bbe.Identity{OwnerID: ownerID, ProjectID: projectID, TaskID: op.TaskID, AttemptID: op.ID, OperationID: op.ChildID}
+	identity := e2bbe.Identity{OwnerID: ownerID, ProjectID: projectID, RunID: runID, TaskID: op.TaskID, AttemptID: op.ID, OperationID: op.ChildID}
 	binding := e2bbe.TransferBinding{Identity: identity, SourceDigest: implementationDigest(base), ContextDigest: implementationDigest(op.Implementation), Direction: "input"}
 	var archive bytes.Buffer
 	manifest, bundleDigest, err := e2bbe.WriteTransfer(&archive, binding, payloads)

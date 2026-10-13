@@ -35,6 +35,7 @@ var (
 type Identity struct {
 	OwnerID     string `json:"ownerId"`
 	ProjectID   string `json:"projectId"`
+	RunID       string `json:"runId,omitempty"`
 	TaskID      string `json:"taskId"`
 	AttemptID   string `json:"attemptId"`
 	OperationID string `json:"operationId"`
@@ -172,5 +173,5 @@ func digest(v any) string {
 func bytesDigest(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
 func validRequest(r Request) bool {
 	i := r.Identity
-	return validID(i.OwnerID) && validID(i.ProjectID) && validID(i.TaskID) && validID(i.AttemptID) && validID(i.OperationID) && digestPattern.MatchString(r.SourceDigest) && digestPattern.MatchString(r.ContextDigest) && digestPattern.MatchString(r.BundleDigest) && r.MaxSeconds > 0 && r.MaxSeconds <= 86400 && r.EstimatedCostMicros > 0 && r.EstimatedCostMicros <= 1<<50
+	return validID(i.OwnerID) && validID(i.ProjectID) && (i.RunID == "" || validID(i.RunID)) && validID(i.TaskID) && validID(i.AttemptID) && validID(i.OperationID) && digestPattern.MatchString(r.SourceDigest) && digestPattern.MatchString(r.ContextDigest) && digestPattern.MatchString(r.BundleDigest) && r.MaxSeconds > 0 && r.MaxSeconds <= 86400 && r.EstimatedCostMicros > 0 && r.EstimatedCostMicros <= 1<<50
 }

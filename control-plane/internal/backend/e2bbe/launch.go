@@ -62,7 +62,11 @@ func launchDigest(r Record, l LaunchSpec) string {
 }
 func bootstrapArgs(r Record) []string {
 	i := r.Request.Identity
-	return []string{"--archive", guestInputPath, "--archive-sha256", r.Request.BundleDigest, "--owner", i.OwnerID, "--project", i.ProjectID, "--task", i.TaskID, "--attempt", i.AttemptID, "--operation", i.OperationID, "--source-sha256", r.Request.SourceDigest, "--context-sha256", r.Request.ContextDigest, "--sandbox", r.SandboxID, "--request-sha256", r.RequestDigest, "--launch-sha256", r.LaunchDigest}
+	args := []string{"--archive", guestInputPath, "--archive-sha256", r.Request.BundleDigest, "--owner", i.OwnerID, "--project", i.ProjectID}
+	if i.RunID != "" { // older retained fixture journals omitted runId
+		args = append(args, "--run", i.RunID)
+	}
+	return append(args, "--task", i.TaskID, "--attempt", i.AttemptID, "--operation", i.OperationID, "--source-sha256", r.Request.SourceDigest, "--context-sha256", r.Request.ContextDigest, "--sandbox", r.SandboxID, "--request-sha256", r.RequestDigest, "--launch-sha256", r.LaunchDigest)
 }
 func (g *GuestTransport) start(ctx context.Context, r Record, l LaunchSpec) (uint32, error) {
 	ctx, done, e := g.beginIO(ctx)

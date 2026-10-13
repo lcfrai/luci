@@ -18,6 +18,8 @@ Contract LC-01–LC-16 remains controlled by audited `b3ecb0114dba6b6e0dfcfedbf1
 
 **CLOUD-084 native-exit review join in progress:** `RecordProjectSwarmMicroVMExit` now gates the existing run's review-required transition on an exact owned attempt, native exit frame, captured frozen output and a registered current-authority/lifecycle guard. Repeating the same proven exit leaves the run revision stable; an unregistered guard or tampered native frame is refused. Focused product regressions pass. The API still must configure that guard and call the join after real guest observation; neither model output nor archive metadata alone establishes integration or checks.
 
+**CLOUD-084 restart identity:** new task transfers and guest launch receipts include their exact reviewed run ID as well as project/task/attempt/child. Product review refuses another run's otherwise plausible captured exit, so a restarted observer can look up the owning run without guessing from a project-wide task name. Legacy controller fixture records without `runId` remain readable but cannot enter the new product import path. Focused source tests pass; controller/API observation wiring and real guest execution remain open.
+
 Recovery baseline was `d331e22c6cfa9422410bbde39619c3f932632d5d`. The backend delivery slice is committed at `0ce7995d0bf1d0c1df930ee583c5cd92036f36ba`; later source checkpoints above supersede this baseline. No new package or live acceptance is inferred.
 
 ## Published bounded implementation checkpoints — 13 October 2026

@@ -49,7 +49,7 @@ func (s *Server) RecordProjectSwarmMicroVMExit(ctx context.Context, projectID, r
 	if op == nil || op.Implementation == nil || op.ChildID == "" || op.Allocation != "ready" || op.Integration != nil ||
 		run.State == "cancelled" || swarmTask(&run, op.TaskID) == nil ||
 		(op.Status != "running" && op.Status != "dispatching" && op.Status != "review-required") ||
-		req.Identity.ProjectID != projectID || req.Identity.TaskID != op.TaskID || req.Identity.AttemptID != op.ID || req.Identity.OperationID != op.ChildID ||
+		req.Identity.ProjectID != projectID || req.Identity.RunID != runID || req.Identity.TaskID != op.TaskID || req.Identity.AttemptID != op.ID || req.Identity.OperationID != op.ChildID ||
 		req.SourceDigest != implementationDigest(swarmStartingCommit(*op)) || req.ContextDigest != implementationDigest(op.Implementation) ||
 		!record.LaunchRequested || !record.CaptureRequested || e2bbe.ValidateNativeExitReceipt(record.NativeExit, record) != nil ||
 		e2bbe.ValidateCaptureReceipt(record.Capture, record.LaunchKernel, record) != nil {
@@ -111,7 +111,7 @@ func (s *Server) ImportProjectSwarmMicroVMCandidate(ctx context.Context, project
 		return "", ErrProjectRunConflict
 	}
 	req := record.Request
-	if req.Identity.ProjectID != projectID || req.Identity.TaskID != op.TaskID || req.Identity.AttemptID != op.ID || req.Identity.OperationID != op.ChildID ||
+	if req.Identity.ProjectID != projectID || req.Identity.RunID != runID || req.Identity.TaskID != op.TaskID || req.Identity.AttemptID != op.ID || req.Identity.OperationID != op.ChildID ||
 		req.SourceDigest != implementationDigest(swarmStartingCommit(*op)) || req.ContextDigest != implementationDigest(op.Implementation) ||
 		!record.CaptureRequested || e2bbe.ValidateCaptureReceipt(record.Capture, record.LaunchKernel, record) != nil ||
 		e2bbe.ValidateNativeExitReceipt(record.NativeExit, record) != nil || changes.InputBundleSHA256 != req.BundleDigest ||
