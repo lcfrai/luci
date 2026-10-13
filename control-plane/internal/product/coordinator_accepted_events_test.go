@@ -12,8 +12,8 @@ import (
 )
 
 func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testing.T) {
-	s, p, _, ctx, req, starts := coordinatorContinuationFixture(t)
-	anchor := coordinatorReadyFixture(t, s, p, ctx, req)
+	s, p, h, ctx, req, starts := coordinatorContinuationFixture(t)
+	anchor := coordinatorCreate(t, h, p, req, 201)
 	s.mu.Lock()
 	rows, err := s.readContinuations(p, "alice")
 	if err == nil {
@@ -70,6 +70,19 @@ func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testi
 	if err != nil || len(rows.Rows) != 2 || len(rows.Rows[1].AcceptedEvents) != 1 || rows.Rows[1].OriginTurnID != turn.ID || rows.Rows[1].Status != "queued" || len(rows.Rows[1].Run.ImplementationContext.TaskIDs) != 1 || rows.Rows[1].Run.ImplementationContext.TaskIDs[0] != "task-save" {
 		t.Fatalf("accepted event did not reserve exact changed task: %+v %v", rows, err)
 	}
+	queue, err := s.ProjectSwarmQueueSnapshot(p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldBlocked := false
+	for _, item := range queue.Items {
+		if item.ID == anchor.QueueIDs[0] {
+			oldBlocked = item.State == "blocked" && item.ReasonCode == "context_superseded"
+		}
+	}
+	if !oldBlocked || queue.Counts.Queued != 1 || *starts != 0 {
+		t.Fatal("amendment left old-version task runnable or blocked the new one", queue)
+	}
 	actual, err := s.projectRuns.Get(p.ID, p.Path, rows.Rows[1].RunID)
 	if err != nil || actual.Input.Implementation.PlanRevision != snapshot.Plan.Revision+1 || *starts != 0 {
 		t.Fatalf("changed reviewed input was not retained: %+v %v", actual, err)
@@ -101,6 +114,39 @@ func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testi
 	retained, err = reopened.readContinuations(p, "alice")
 	if err != nil || len(retained.Rows) != 2 {
 		t.Fatal("revoked authority changed durable work", err)
+	}
+}
+
+func TestSupersededContextLeavesActiveTaskAndCurrentVersionAlone(t *testing.T) {
+	s, p, h, _, req, _ := coordinatorContinuationFixture(t)
+	old := coordinatorCreate(t, h, p, req, 201)
+	current := req.Run.ImplementationContext
+	if err := s.blockSupersededQueuedTasks(p.ID, current); err != nil {
+		t.Fatal(err)
+	}
+	queue, err := s.ProjectSwarmQueueSnapshot(p.ID)
+	if err != nil || len(queue.Items) != 1 || queue.Items[0].ID != old.QueueIDs[0] || queue.Items[0].State != "queued" {
+		t.Fatal("same-version waiting task was changed", queue, err)
+	}
+	s.swarmScheduler.mu.Lock()
+	ledger, err := s.readSwarmScheduler()
+	if err == nil {
+		ledger.Items[0].State = "running"
+		ledger.Items[0].Revision++
+		err = s.saveSwarmScheduler(&ledger)
+	}
+	s.swarmScheduler.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := current
+	changed.PlanRevision++
+	if err = s.blockSupersededQueuedTasks(p.ID, changed); err != nil {
+		t.Fatal(err)
+	}
+	queue, err = s.ProjectSwarmQueueSnapshot(p.ID)
+	if err != nil || len(queue.Items) != 1 || queue.Items[0].State != "running" || queue.Items[0].ReasonCode == "context_superseded" {
+		t.Fatal("active owned task lost its observation path", queue, err)
 	}
 }
 

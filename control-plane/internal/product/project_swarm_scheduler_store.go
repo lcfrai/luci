@@ -354,3 +354,50 @@ func (s *Server) cancelQueuedSwarmRun(projectID, runID string) error {
 	}
 	return s.saveSwarmScheduler(&row)
 }
+
+// An accepted context amendment invalidates only waiting copies of the tasks
+// it actually changes. Already active/uncertain attempts retain their exact
+// child and lease for normal observation; unrelated tasks keep progressing.
+// Repeated coordinator ticks are idempotent, including after a restart.
+func (s *Server) blockSupersededQueuedTasks(projectID string, current ImplementationContextRequest) error {
+	selected := map[string]bool{}
+	for _, taskID := range current.TaskIDs {
+		selected[taskID] = true
+	}
+	s.swarmScheduler.mu.Lock()
+	defer s.swarmScheduler.mu.Unlock()
+	row, err := s.readSwarmScheduler()
+	if err != nil {
+		return err
+	}
+	p, err := s.resolveProject(projectID)
+	if err != nil {
+		return err
+	}
+	changed := false
+	for i := range row.Items {
+		item := &row.Items[i]
+		if item.ProjectID != projectID || !selected[item.TaskID] ||
+			(item.State != "queued" && item.State != "paused" && item.State != "blocked") ||
+			item.ReasonCode == "context_superseded" {
+			continue
+		}
+		run, readErr := s.projectRuns.Get(projectID, p.Path, item.RunID)
+		if readErr != nil {
+			return readErr // Never guess which task input a retained queue owns.
+		}
+		prior := ImplementationContextSelection(&run.Input.Implementation)
+		if prior == nil || prior.BriefRevision == current.BriefRevision && prior.PlanRevision == current.PlanRevision &&
+			prior.SpecificationRevision == current.SpecificationRevision && prior.DesignPlanRevision == current.DesignPlanRevision {
+			continue
+		}
+		schedulerReason(item, "blocked", "context_superseded", "An accepted context amendment changed this task. Its waiting old-version work will not launch; review the new affected run.")
+		item.Revision++
+		item.UpdatedAt = s.schedulerNow().Format(time.RFC3339Nano)
+		changed = true
+	}
+	if changed {
+		return s.saveSwarmScheduler(&row)
+	}
+	return nil
+}
