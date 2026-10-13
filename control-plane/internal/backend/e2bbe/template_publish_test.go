@@ -148,6 +148,11 @@ func TestUnknownPrivateTemplateCreationIsNotRetried(t *testing.T) {
 	journal := filepath.Join(t.TempDir(), "creation.json")
 	posts := 0
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v2/templates" {
+			_ = json.NewEncoder(w).Encode([]map[string]any{{"templateID": "template-one", "names": []string{"luci-guest-one"}, "public": false,
+				"builds": []map[string]any{{"buildID": "build-one", "cpuCount": 2, "memoryMB": 2048}}}})
+			return
+		}
 		posts++
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
@@ -164,5 +169,40 @@ func TestUnknownPrivateTemplateCreationIsNotRetried(t *testing.T) {
 	}
 	if _, err := p.ReadTemplateCreation(); !errors.Is(err, ErrUnknown) {
 		t.Fatal("absent provider acknowledgement was fabricated", err)
+	}
+	if recovered, err := p.ReconcileTemplateCreation(context.Background()); err != nil || recovered.TemplateID != "template-one" || recovered.BuildID != "build-one" || posts != 1 {
+		t.Fatal("exact read-only inventory did not settle lost acknowledgement", recovered, posts, err)
+	}
+	if _, err := p.CreateTemplate(context.Background()); !errors.Is(err, ErrConflict) || posts != 1 {
+		t.Fatal("reconciled result caused a second provider Create", posts, err)
+	}
+}
+
+func TestTemplateCreationReconcileRefusesAmbiguousProviderInventory(t *testing.T) {
+	journal := filepath.Join(t.TempDir(), "creation.json")
+	posts := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			posts++
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		row := func(id string) map[string]any {
+			return map[string]any{"templateID": id, "names": []string{"luci-guest-one"}, "public": false,
+				"builds": []map[string]any{{"buildID": "build-one", "cpuCount": 2, "memoryMB": 2048}}}
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]any{row("template-one"), row("template-two")})
+	}))
+	defer server.Close()
+	roots := x509.NewCertPool()
+	roots.AddCert(server.Certificate())
+	p := TemplateCreation{Endpoint: server.URL, APIKey: "operator-test-key", RootCAs: roots,
+		Name: "luci-guest-one", CPUCount: 2, MemoryMiB: 2048, JournalPath: journal}
+	_, _ = p.CreateTemplate(context.Background())
+	if _, err := p.ReconcileTemplateCreation(context.Background()); !errors.Is(err, ErrUnknown) || posts != 1 {
+		t.Fatal("ambiguous provider identity was adopted or Create replayed", posts, err)
+	}
+	if _, err := p.ReadTemplateCreation(); !errors.Is(err, ErrUnknown) {
+		t.Fatal("ambiguous provider identity became a durable success", err)
 	}
 }

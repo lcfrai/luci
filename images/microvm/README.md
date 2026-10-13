@@ -29,6 +29,7 @@ image pinned by `@sha256:<64 lowercase hex>`. From `control-plane`:
 ```sh
 go run ./microvm-template.go -mode create -config /private/template-create.json
 go run ./microvm-template.go -mode created -config /private/template-create.json
+go run ./microvm-template.go -mode reconcile -config /private/template-create.json
 go run ./microvm-template.go -mode start -config /private/template-build.json
 go run ./microvm-template.go -mode status -config /private/template-build.json
 ```
@@ -40,9 +41,12 @@ and a **different** `journalPath`. Keep the key/config and
 the journal's directory private and outside Git. The tool requires protected
 HTTPS management, checkpoints each intent before its **single** provider POST,
 and refuses another POST for that journal even after a lost response. `created`
-reads only the acknowledged template/build IDs; `status` reads only the same
-build ID. On an uncertain response, inspect provider state and retain the
-journal; never delete it to guess at a retry. The image must already exist in
+reads only the acknowledged template/build IDs; `reconcile` uses one bounded
+read-only provider inventory to settle a unique private name, exact CPU/memory
+and sole build after a lost Create response. Missing, paginated or ambiguous
+inventory remains unknown and never causes another Create. `status` reads only
+the same build ID. On any uncertain response retain the journal; never delete
+it to guess at a retry. The image must already exist in
 a registry reachable by Embed. This tool neither proves final guest bytes, KVM
 isolation nor model execution. Independently bind
 the source inventory, OCI digest and resulting ready provider build before

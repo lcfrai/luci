@@ -93,12 +93,14 @@ func run(mode, configPath string) error {
 	auth := strings.TrimSpace(string(key))
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	if mode == "create" || mode == "created" {
+	if mode == "create" || mode == "created" || mode == "reconcile" {
 		p := e2bbe.TemplateCreation{Endpoint: input.Endpoint, APIKey: auth, RootCAs: roots,
 			Name: input.Name, CPUCount: input.CPUCount, MemoryMiB: input.MemoryMiB, JournalPath: input.JournalPath}
 		var receipt e2bbe.TemplateCreateReceipt
 		if mode == "create" {
 			receipt, err = p.CreateTemplate(ctx)
+		} else if mode == "reconcile" {
+			receipt, err = p.ReconcileTemplateCreation(ctx)
 		} else {
 			receipt, err = p.ReadTemplateCreation()
 		}
@@ -124,13 +126,13 @@ func run(mode, configPath string) error {
 		}
 		fmt.Printf("pinned provider build status: %s\n", status)
 	default:
-		return errors.New("mode must be create, created, start or status")
+		return errors.New("mode must be create, created, reconcile, start or status")
 	}
 	return nil
 }
 
 func main() {
-	mode := flag.String("mode", "status", "create, created, start or status")
+	mode := flag.String("mode", "status", "create, created, reconcile, start or status")
 	config := flag.String("config", "", "absolute path to private operator JSON")
 	flag.Parse()
 	if flag.NArg() != 0 {

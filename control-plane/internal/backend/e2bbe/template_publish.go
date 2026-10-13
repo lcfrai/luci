@@ -129,6 +129,71 @@ func (p TemplateCreation) ReadTemplateCreation() (TemplateCreateReceipt, error) 
 	return result, nil
 }
 
+// ReconcileTemplateCreation performs one bounded read after a lost Create
+// response. Only one exact private template with the requested unique name
+// and one resource-matched build can establish the result. Missing, paginated
+// or ambiguous inventory remains unknown; no second Create is ever sent.
+func (p TemplateCreation) ReconcileTemplateCreation(ctx context.Context) (TemplateCreateReceipt, error) {
+	if result, err := p.ReadTemplateCreation(); err == nil {
+		return result, nil
+	}
+	var result TemplateCreateReceipt
+	if !privateTemplateName.MatchString(p.Name) || privatePublicationDirectory(p.JournalPath) != nil {
+		return result, ErrUnsupported
+	}
+	intentData, err := readPublicationFile(p.JournalPath)
+	var intent TemplateCreateIntent
+	if err != nil || json.Unmarshal(intentData, &intent) != nil || intent != (TemplateCreateIntent{
+		RuntimeRevision: RuntimeRevision, Name: p.Name, CPUCount: p.CPUCount, MemoryMiB: p.MemoryMiB,
+	}) {
+		return result, ErrUnknown
+	}
+	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs})
+	if err != nil {
+		return result, err
+	}
+	var templates []struct {
+		TemplateID string   `json:"templateID"`
+		Names      []string `json:"names"`
+		Public     *bool    `json:"public"`
+		Builds     []struct {
+			BuildID   string `json:"buildID"`
+			CPUCount  int64  `json:"cpuCount"`
+			MemoryMiB int64  `json:"memoryMB"`
+		} `json:"builds"`
+	}
+	status, headers, err := client.call(ctx, http.MethodGet, "/v2/templates", url.Values{"limit": {"100"}}, nil, &templates)
+	if err != nil || status != http.StatusOK || headers.Get("X-Next-Token") != "" || len(templates) > 100 {
+		return result, ErrUnknown
+	}
+	matches := 0
+	for _, candidate := range templates {
+		for _, name := range candidate.Names {
+			if name != p.Name {
+				continue
+			}
+			matches++
+			if matches != 1 || candidate.Public == nil || *candidate.Public ||
+				!validID(candidate.TemplateID) || len(candidate.Builds) != 1 ||
+				!validID(candidate.Builds[0].BuildID) || candidate.Builds[0].CPUCount != p.CPUCount ||
+				candidate.Builds[0].MemoryMiB != p.MemoryMiB {
+				return TemplateCreateReceipt{}, ErrUnknown
+			}
+			result = TemplateCreateReceipt{TemplateCreateIntent: intent, TemplateID: candidate.TemplateID, BuildID: candidate.Builds[0].BuildID}
+		}
+	}
+	if matches != 1 {
+		return TemplateCreateReceipt{}, ErrUnknown
+	}
+	data, _ := json.Marshal(result)
+	if err = checkpointPublicationIntent(p.JournalPath+".response", data); errors.Is(err, ErrConflict) {
+		return p.ReadTemplateCreation()
+	} else if err != nil {
+		return TemplateCreateReceipt{}, ErrUnknown
+	}
+	return result, nil
+}
+
 func checkpointPublicationIntent(path string, data []byte) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if errors.Is(err, os.ErrExist) {
