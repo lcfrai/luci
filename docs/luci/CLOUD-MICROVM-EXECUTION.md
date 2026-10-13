@@ -1,8 +1,10 @@
 # Cloud microVM execution: configured task path and reuse evidence
 
+**Azure offline source delta (14 October 2026):** [the exact source handoff](AZURE-OFFLINE-SOURCE-HANDOFF-2026-10-14.md) records a new Azure-selectable identity, protected gateway client/secret and mounted-controller/readback boundary. The AWS-specific configuration and historical evidence below retain their original scope. Rendered Envoy YAML and fake ARM/Key Vault tests are not a deployed gateway, installed template, live microVM or provider acceptance. Local Docker acceptance continues independently.
+
 **Azure-first correction, 14 October 2026:** [the provider-order amendment](PROVIDER-ORDER-AMENDMENT-2026-10-14.md) places local Docker acceptance first and Azure microVM Develop second; AWS is later. All detailed E2B Embed configuration, AWS `m8i` host claims, preflights and source outcomes below describe the preserved **AWS-targeted implementation**, not a verified Azure route. Before Azure code or support claims, reconcile the selected Azure nested-virtualization host, pinned E2B runtime/guest, authenticated private management, transfer, independently durable restore, exact ownership/retirement, quota/spend and evidence requirements; obtain the local architecture audit. No generic Azure VM/SSH Docker substitution.
 
-The [Azure architecture proposal](AZURE-MICROVM-ARCHITECTURE-PROPOSAL-2026-10-14.md) is a reviewable candidate contract with pinned primary sources. It does not alter the AWS-specific operator instructions or enable an Azure backend; local audit and local readiness precede Azure implementation.
+The [Azure architecture proposal](AZURE-MICROVM-ARCHITECTURE-PROPOSAL-2026-10-14.md) was audited at `6bf391dc`. Root later authorized offline Azure code while local readiness stays open. The selected source boundary and its remaining deployable gateway/host gaps are in the later handoff; no live Azure backend is accepted.
 
 
 ## Current status — scope audit passed, implementation resumed (12 October 2026)
