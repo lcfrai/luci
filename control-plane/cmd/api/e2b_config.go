@@ -26,23 +26,26 @@ import (
 // These are operator-reviewed identities and file paths. Secrets stay in
 // separate private files, never in JSON task input, Git or provider metadata.
 type e2bOperatorConfig struct {
-	Endpoint                string            `json:"endpoint"`
-	APIKeyFile              string            `json:"apiKeyFile"`
-	AdminAPIKeyFile         string            `json:"adminApiKeyFile"`
-	HostNodeID              string            `json:"hostNodeId"`
-	AttachKeyFile           string            `json:"attachKeyFile"`
-	RootCAFile              string            `json:"rootCaFile,omitempty"`
-	ControllerStateDir      string            `json:"controllerStateDir"`
-	StagingDir              string            `json:"stagingDir"`
-	EnvdOriginTemplate      string            `json:"envdOriginTemplate"`
-	SandboxOriginTemplate   string            `json:"sandboxOriginTemplate"`
-	Deployment              e2bbe.Deployment  `json:"deployment"`
-	Template                e2bbe.Template    `json:"template"`
-	Limits                  e2bbe.Limits      `json:"limits"`
-	Store                   e2bbe.StoreConfig `json:"store"`
-	TaskMaxSeconds          int               `json:"taskMaxSeconds"`
-	TaskEstimatedCostMicros int64             `json:"taskEstimatedCostMicros"`
-	ModelEgressDomains      []string          `json:"modelEgressDomains"`
+	Endpoint                  string            `json:"endpoint"`
+	APIKeyFile                string            `json:"apiKeyFile"`
+	AdminAPIKeyFile           string            `json:"adminApiKeyFile"`
+	HostNodeID                string            `json:"hostNodeId"`
+	AttachKeyFile             string            `json:"attachKeyFile"`
+	RootCAFile                string            `json:"rootCaFile,omitempty"`
+	ControllerStateDir        string            `json:"controllerStateDir"`
+	StagingDir                string            `json:"stagingDir"`
+	EnvdOriginTemplate        string            `json:"envdOriginTemplate"`
+	SandboxOriginTemplate     string            `json:"sandboxOriginTemplate"`
+	Deployment                e2bbe.Deployment  `json:"deployment"`
+	Template                  e2bbe.Template    `json:"template"`
+	TemplateCreateJournalPath string            `json:"templateCreateJournalPath"`
+	TemplateBuildJournalPath  string            `json:"templateBuildJournalPath"`
+	TemplateFromImage         string            `json:"templateFromImage"`
+	Limits                    e2bbe.Limits      `json:"limits"`
+	Store                     e2bbe.StoreConfig `json:"store"`
+	TaskMaxSeconds            int               `json:"taskMaxSeconds"`
+	TaskEstimatedCostMicros   int64             `json:"taskEstimatedCostMicros"`
+	ModelEgressDomains        []string          `json:"modelEgressDomains"`
 }
 
 func readPrivateE2BFile(path string, max int64) ([]byte, error) {
@@ -116,8 +119,14 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		selected.TaskEstimatedCostMicros < 1 || selected.TaskEstimatedCostMicros > selected.Limits.EstimatedCostMicros ||
 		len(selected.ModelEgressDomains) == 0 || !e2bbe.ValidEgressDomains(selected.ModelEgressDomains) ||
 		!validE2BOriginTemplate(selected.EnvdOriginTemplate) || !validE2BOriginTemplate(selected.SandboxOriginTemplate) ||
-		!filepath.IsAbs(selected.ControllerStateDir) || !filepath.IsAbs(selected.StagingDir) {
+		!filepath.IsAbs(selected.ControllerStateDir) || !filepath.IsAbs(selected.StagingDir) ||
+		!filepath.IsAbs(selected.TemplateCreateJournalPath) || !filepath.IsAbs(selected.TemplateBuildJournalPath) {
 		return nil, nil, errors.New("cloud microVM configuration has incomplete scope, limits, storage or trusted guest origins")
+	}
+	if _, err = (e2bbe.TemplatePublication{TemplateID: selected.Template.ID, BuildID: selected.Template.BuildID,
+		FromImage: selected.TemplateFromImage, CreateJournalPath: selected.TemplateCreateJournalPath,
+		JournalPath: selected.TemplateBuildJournalPath}).ReadTemplateBuildIntent(); err != nil {
+		return nil, nil, fmt.Errorf("selected cloud microVM template lacks its exact private Create/build intent: %w", err)
 	}
 	apiKey, err := readPrivateE2BFile(selected.APIKeyFile, 4096)
 	if err != nil {

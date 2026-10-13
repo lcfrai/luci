@@ -79,6 +79,9 @@ func TestPinnedTemplatePublicationCheckpointsBeforeOneBuildAndInspects(t *testin
 	if err != nil || !intent.Valid() || TemplateImageBinding(intent) == "" {
 		t.Fatal("exact build did not start", err)
 	}
+	if saved, err := p.ReadTemplateBuildIntent(); err != nil || saved != intent {
+		t.Fatal("selected template lost its exact private build intent", saved, err)
+	}
 	if _, err := p.StartTemplateBuild(context.Background()); !errors.Is(err, ErrConflict) || posts != 1 {
 		t.Fatal("repeated operator request replayed the provider build", posts, err)
 	}
@@ -86,6 +89,9 @@ func TestPinnedTemplatePublicationCheckpointsBeforeOneBuildAndInspects(t *testin
 		t.Fatal("pinned status was not readable after the exact mutation", status, err)
 	}
 	p.FromImage = "registry.example/luci/other@sha256:" + strings.Repeat("b", 64)
+	if _, err := p.ReadTemplateBuildIntent(); !errors.Is(err, ErrConflict) {
+		t.Fatal("changed image adopted the saved build intent", err)
+	}
 	if _, err := p.InspectTemplateBuild(context.Background()); !errors.Is(err, ErrConflict) {
 		t.Fatal("different image adopted the saved intent", err)
 	}

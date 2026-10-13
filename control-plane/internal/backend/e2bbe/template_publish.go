@@ -339,24 +339,34 @@ func (p TemplatePublication) StartTemplateBuild(ctx context.Context) (TemplateBu
 	return intent, nil
 }
 
+// ReadTemplateBuildIntent binds the private Create acknowledgement, the one
+// immutable image POST intent, and the exact IDs selected for dispatch. It is
+// local readback only; provider image/guest bytes need separate verification.
+func (p TemplatePublication) ReadTemplateBuildIntent() (TemplateBuildIntent, error) {
+	want, err := p.intent()
+	if err != nil || privatePublicationDirectory(p.JournalPath) != nil {
+		return TemplateBuildIntent{}, ErrUnsupported
+	}
+	if err = p.createdTemplate(); err != nil {
+		return TemplateBuildIntent{}, err
+	}
+	data, err := readPublicationFile(p.JournalPath)
+	if err != nil {
+		return TemplateBuildIntent{}, ErrUnknown
+	}
+	var saved TemplateBuildIntent
+	if json.Unmarshal(data, &saved) != nil || saved != want {
+		return TemplateBuildIntent{}, ErrConflict
+	}
+	return saved, nil
+}
+
 // InspectTemplateBuild is read-only and can run after an uncertain POST. It
 // reports only the pinned provider status; guest bytes and KVM behavior still
 // need independent verification before configuring this build for dispatch.
 func (p TemplatePublication) InspectTemplateBuild(ctx context.Context) (string, error) {
-	want, err := p.intent()
-	if err != nil || privatePublicationDirectory(p.JournalPath) != nil {
-		return "", ErrUnsupported
-	}
-	if err = p.createdTemplate(); err != nil {
+	if _, err := p.ReadTemplateBuildIntent(); err != nil {
 		return "", err
-	}
-	data, err := readPublicationFile(p.JournalPath)
-	if err != nil {
-		return "", ErrUnknown
-	}
-	var saved TemplateBuildIntent
-	if json.Unmarshal(data, &saved) != nil || saved != want {
-		return "", ErrConflict
 	}
 	client, err := p.client()
 	if err != nil {

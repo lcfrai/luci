@@ -57,6 +57,10 @@ a registry reachable by Embed. This tool neither proves final guest bytes, KVM
 isolation nor model execution. Independently bind
 the source inventory, OCI digest and resulting ready provider build before
 using `template.buildId` and `template.buildDigest` in worker configuration.
+The managed worker also requires absolute private `templateCreateJournalPath`
+and `templateBuildJournalPath` plus the same immutable `templateFromImage`.
+Startup checks both intents and the acknowledged Create IDs before enabling
+the selected build. This local binding is not proof of guest bytes or isolation.
 
 The helper reuses the existing sandbox image's Git, unprivileged `dev` identity,
 `entrypoint.sh`, `sandboxd` and upstream coding engines. It does not implement an
