@@ -267,6 +267,45 @@ func TestProjectSwarmHTTPReviewRejectsDirtyOutsideScopeAndChangedTarget(t *testi
 		t.Fatal(review)
 	}
 }
+
+func TestProjectSwarmOldContextCandidateRetainsPatchButCannotIntegrateAfterAmendment(t *testing.T) {
+	s, mux, p, run, base, _ := swarmHTTPFixture(t)
+	run = swarmReserveHTTP(t, mux, base, run, "task-a", "amendment-old-context-123456")
+	op := run.Operations[0]
+	path := mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID)
+	swarmCommitFixture(t, path, "alpha.txt", "old-context candidate\n")
+	run = swarmFinishFixture(t, s, p, run, op.ID)
+	before := swarmReviewHTTP(t, mux, base, "task-a")
+	if !before.CanIntegrate || before.Patch == "" {
+		t.Fatal("initial reviewed candidate was unavailable", before)
+	}
+	// An accepted amendment can update canonical private context before its
+	// generated Git export is committed. The primary HEAD therefore stays the
+	// same: source drift alone cannot protect this old-context candidate.
+	s.mu.Lock()
+	state, err := s.readApprovedJourney(p.Path, p.ID)
+	if err == nil {
+		state.Plan.Revision++
+		state.Plan.Tasks[0].Acceptance = "The amended acceptance needs new work."
+		err = writeJourney(p.Path, state)
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	after := swarmReviewHTTP(t, mux, base, "task-a")
+	if after.CanIntegrate || after.Patch != before.Patch || after.SourceCommit != before.SourceCommit ||
+		!strings.Contains(after.Reason, "reviewed project context changed") {
+		t.Fatal("old-context candidate was hidden or offered as current", after)
+	}
+	journeyRequest(t, mux, "POST", base+"/tasks/task-a/integrate", map[string]any{
+		"expectedRevision": run.Revision, "reviewDigest": before.ReviewDigest,
+	}, 409)
+	loaded, err := s.projectRuns.Get(p.ID, p.Path, run.ID)
+	if err != nil || swarmTask(&loaded, "task-a").Integration != nil {
+		t.Fatal("stale context created an integration reservation", err)
+	}
+}
 func TestProjectSwarmHTTPUnknownAllocationRetiredWithoutReplay(t *testing.T) {
 	s, mux, p, run, base, _ := swarmHTTPFixture(t)
 	runner := s.runner

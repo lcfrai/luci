@@ -76,10 +76,6 @@ func (s *Server) swarmReview(ctx context.Context, p project.Project, run Project
 		review.Reason = "The agent checkout contains uncommitted changes. Ask the agent to inspect, verify and commit them before reviewing integration."
 		return review, nil
 	}
-	if target.Status != "" {
-		review.Reason = "The main checkout has uncommitted changes. Preserve and commit them before integration."
-		return review, nil
-	}
 	if !deliverySHA.MatchString(source.Head) || !deliverySHA.MatchString(target.Head) {
 		return review, errors.New("Both checkouts need identifiable commits before integration.")
 	}
@@ -131,7 +127,20 @@ func (s *Server) swarmReview(ctx context.Context, p project.Project, run Project
 		handoffDigest = op.Handoff.Digest
 	}
 	review.ReviewDigest = implementationDigest(struct{ Source, Target, Base, Task, Operation, Patch, Handoff string }{source.Digest, target.Digest, op.BaseCommit, task.ID, op.ID, patch, handoffDigest})
+	// A task may finish after another person's accepted amendment changed its
+	// reviewed plan while its source branch stayed at the same commit. Keep its
+	// complete patch available for inspection, but never offer integration of
+	// old-context work as if it satisfied the current requirements. The same
+	// review is reopened inside the exclusive integration mutation.
+	s.mu.RLock()
+	currentContext, contextErr := s.readApprovedJourney(p.Path, p.ID)
+	s.mu.RUnlock()
+	freshness := projectRunContextFreshness(run, currentContext, contextErr)
 	switch {
+	case freshness.Status != "current":
+		review.Reason = "The reviewed project context changed while this task was running. Keep this candidate for inspection and use the new affected run; its old-context result cannot be integrated automatically."
+	case target.Status != "":
+		review.Reason = "The main checkout has uncommitted changes. Preserve and commit them before integration."
 	case target.Head != swarmExpectedHead(run):
 		review.Reason = "The main source moved outside this swarm's reviewed integrations. Prepare a new run for the changed source."
 	case task.Integration != nil:
