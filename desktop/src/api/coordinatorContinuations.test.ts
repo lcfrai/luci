@@ -65,3 +65,52 @@ it.each(['wrong target', 'missing target', 'unverified check'])('refuses preview
   if (fault === 'unverified check') { value.status = 'checking'; value.delivery!.status = 'running'; }
   vi.mocked(productApi.request).mockResolvedValue(value); await expect(api.get('p-1', 'alice', value.id)).rejects.toThrow(/could not be verified/);
 });
+
+const deployedRow = (): CoordinatorContinuation => {
+  const value = previewRow(); value.status = 'deployed';
+  value.delivery!.gitPublication = { actionId: 'continue-one-git', status: 'verified', repository: 'https://github.com/test/app', branch: 'main', commit: value.delivery!.commit, startedAt: value.createdAt, updatedAt: value.updatedAt, message: 'Exact remote branch observed' };
+  value.delivery!.deployment = { actionId: 'continue-one-deploy', releaseId: 'cloud-rel-one', status: 'ready', message: 'Exact provider application and HTTPS observed', startedAt: value.createdAt, updatedAt: value.updatedAt, evidence: { ...value.delivery!.preview!.evidence!, releaseId: 'cloud-rel-one', target: 'target-one', outcome: 'publish', url: 'https://app.example.com' } };
+  return value;
+};
+it('keeps exact source publication, local preview and observed public deployment evidence separate', async () => {
+  const value = deployedRow(); vi.mocked(productApi.request).mockResolvedValue(value);
+  expect(await api.get('p-1', 'alice', value.id)).toEqual(value);
+  value.status = 'unknown'; value.delivery!.deployment!.status = 'unknown'; delete value.delivery!.deployment!.evidence;
+  expect(await api.get('p-1', 'alice', value.id)).toEqual(value);
+});
+it.each(['no-deployment', 'no-evidence', 'no-preview', 'no-git', 'git-unknown', 'git-commit', 'git-action', 'action', 'release', 'project', 'check', 'commit', 'digest', 'target', 'outcome', 'observed', 'url', 'credentials'])('refuses unsupported deployment completion: %s', async fault => {
+  const value = deployedRow(), delivery = value.delivery!, action = delivery.deployment!, evidence = action.evidence!;
+  if (fault === 'no-deployment') delete delivery.deployment;
+  if (fault === 'no-evidence') delete action.evidence;
+  if (fault === 'no-preview') delete delivery.preview;
+  if (fault === 'no-git') delete delivery.gitPublication;
+  if (fault === 'git-unknown') delivery.gitPublication!.status = 'unknown';
+  if (fault === 'git-commit') delivery.gitPublication!.commit = 'c'.repeat(40);
+  if (fault === 'git-action') delivery.gitPublication!.actionId = 'foreign-git';
+  if (fault === 'action') action.actionId = 'foreign-deploy';
+  if (fault === 'release') evidence.releaseId = 'cloud-rel-other';
+  if (fault === 'project') evidence.projectId = 'p-2';
+  if (fault === 'check') evidence.checkId = 'check-other';
+  if (fault === 'commit') evidence.commit = 'c'.repeat(40);
+  if (fault === 'digest') evidence.sourceDigest = 'c'.repeat(64);
+  if (fault === 'target') evidence.target = 'local';
+  if (fault === 'outcome') evidence.outcome = 'preview';
+  if (fault === 'observed') evidence.observedAt = 'not observed';
+  if (fault === 'url') evidence.url = 'javascript:alert(1)';
+  if (fault === 'credentials') evidence.url = 'https://secret@example.com';
+  vi.mocked(productApi.request).mockResolvedValue(value);
+  await expect(api.get('p-1', 'alice', value.id)).rejects.toThrow(/could not be verified/);
+});
+
+it.each(['valid', 'no-checks', 'no-preview', 'preview-outcome', 'missing-cost-consent'])('keeps deployment-plan prerequisites bound in a saved route: %s', async condition => {
+  const route = saved(); route.route.outcome = 'publish';
+  route.previewPlan = { dockerfile: 'Dockerfile', port: 3000, expectedConfigurationRevision: 3, acknowledgePreviewBuild: true };
+  route.deploymentPlan = { targetId: 'target-one', targetFingerprint: 'd'.repeat(64), serverUuid: 'server-one', repository: 'https://github.com/test/app', branch: 'main', domain: 'https://app.example.com', port: 3000, healthPath: '/', dockerfile: 'Dockerfile', source: 'public', dataClientFramework: 'none', expectedConfigurationRevision: 3, expectedDataDomainRevision: 0, expectedDataBindingFingerprint: '', acknowledgeRepositoryPush: true, acknowledgePublic: true, acknowledgeDeploymentCosts: true };
+  if (condition === 'no-checks') delete route.checkPlan;
+  if (condition === 'no-preview') delete route.previewPlan;
+  if (condition === 'preview-outcome') route.route.outcome = 'preview';
+  if (condition === 'missing-cost-consent') route.deploymentPlan.acknowledgeDeploymentCosts = false;
+  vi.mocked(productApi.request).mockResolvedValue({ continuations: [], savedRoute: route });
+  if (condition === 'valid') expect((await api.listState('p-1', 'alice')).savedRoute).toEqual(route);
+  else await expect(api.listState('p-1', 'alice')).rejects.toThrow(/saved continuation route/);
+});

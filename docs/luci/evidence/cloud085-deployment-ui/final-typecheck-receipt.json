@@ -1,0 +1,9 @@
+{
+  "command": "npm --prefix desktop run typecheck",
+  "workingDirectory": "/workspace/luci",
+  "exitCode": 0,
+  "scope": "source and test TypeScript after deleting unused waitFor import",
+  "output": "tsc --noEmit exited without diagnostics; npm printed a version notice after completion",
+  "sourceBinding": "final-source-bindings.json",
+  "earlierFailedTypecheckRetained": "typecheck.log and typecheck.exit"
+}

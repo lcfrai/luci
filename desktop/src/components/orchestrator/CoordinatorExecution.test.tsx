@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { CoordinatorExecution } from './CoordinatorExecution';
 import { coordinatorContinuationsApi as api, type CoordinatorContinuation, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
+import { coordinatorDeploymentApi, type CoordinatorDeploymentPlan } from '../../api/coordinatorDeployment';
 import { coordinatorPolicyApi, type CoordinatorPolicy } from '../../api/coordinatorPolicy';
 import { ApiError } from '../../api/client';
 import type { CreateSessionRequest } from '../../api/client';
@@ -299,4 +300,131 @@ it('labels a ready preview as local and opens Deploy without claiming exact rele
   render(<CoordinatorExecution {...input} />); await screen.findByRole('region', { name: 'Checked-source preview' });
   expect(screen.getByText(/This is a local preview, not public deployment or semantic acceptance/)).not.toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Open Deploy' })); expect(input.onNavigate).toHaveBeenCalledExactlyOnceWith('deploy'); expect(api.advance).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
+});
+
+const deploymentPlan = (): CoordinatorDeploymentPlan => ({ targetId: 'target-one', targetFingerprint: 'd'.repeat(64), serverUuid: 'server-one', repository: 'https://github.com/test/app', branch: 'main', domain: 'https://app.example.com', port: 3000, healthPath: '/', dockerfile: 'Dockerfile', source: 'public', dataClientFramework: 'none', expectedConfigurationRevision: 3, expectedDataDomainRevision: 0, expectedDataBindingFingerprint: '', acknowledgeRepositoryPush: true, acknowledgePublic: true, acknowledgeDeploymentCosts: true });
+const deploymentRoute = (): CoordinatorSavedRoute => ({ ...savedRoute(), route: { ...savedRoute().route, outcome: 'publish' }, previewPlan: { dockerfile: 'Dockerfile', port: 3000, expectedConfigurationRevision: 3, acknowledgePreviewBuild: true }, deploymentPlan: deploymentPlan() });
+it('requires separate existing-target permission and does not mutate other policy dimensions', async () => {
+  const input = props(), ui = render(<CoordinatorExecution {...input} />);
+  await screen.findByText('Existing-target deployment permission');
+  expect(screen.getByRole('button', { name: 'Enable existing-target deployment' })).toHaveProperty('disabled', true);
+  ui.rerender(<CoordinatorExecution {...input} canDeploy />);
+  const consent = screen.getByRole('checkbox', { name: /Allow existing-target deployment/ }); await waitFor(() => expect(consent).toHaveProperty('disabled', false));
+  vi.mocked(coordinatorPolicyApi.save).mockResolvedValue(policy({ revision: 3, deploymentMode: 'existing-target' }));
+  await userEvent.click(consent); await userEvent.click(screen.getByRole('button', { name: 'Enable existing-target deployment' }));
+  await waitFor(() => expect(coordinatorPolicyApi.save).toHaveBeenCalledExactlyOnceWith('p-1', { expectedRevision: 2, mode: 'review', allowedTargets: ['specification'], deploymentMode: 'existing-target' }));
+  expect(api.create).not.toHaveBeenCalled();
+});
+it.each(['matched', 'target', 'config', 'data', 'repository', 'revoked', 'manual'])('reuses deployment only with %s exact current binding and policy', async condition => {
+  const route = deploymentRoute(); vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: route });
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source', deploymentMode: condition === 'manual' ? 'manual' : 'existing-target' }));
+  vi.spyOn(productApi, 'request').mockResolvedValue({ revision: 3, variables: [], updatedAt: '' });
+  const prepared = { ...deploymentPlan(), acknowledgeRepositoryPush: false, acknowledgePublic: false, acknowledgeDeploymentCosts: false };
+  if (condition === 'target') prepared.targetFingerprint = 'e'.repeat(64);
+  if (condition === 'config') prepared.expectedConfigurationRevision = 4;
+  if (condition === 'data') { prepared.expectedDataDomainRevision = 2; prepared.expectedDataBindingFingerprint = 'e'.repeat(64); }
+  if (condition === 'repository') prepared.repository = 'https://github.com/other/app';
+  const prepare = vi.spyOn(coordinatorDeploymentApi, 'prepare').mockResolvedValue(prepared);
+  render(<CoordinatorExecution {...withRequirements()} canDeploy={condition !== 'revoked'} />);
+  await screen.findByText(/Saved upstream route/);
+  if (condition === 'matched') {
+    await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ expectedRouteRevision: 5, deploymentPlan: route.deploymentPlan, previewPlan: route.previewPlan, checkPlan: route.checkPlan, run: { outcome: 'publish' } });
+    expect(prepare).toHaveBeenCalledTimes(1);
+  } else expect(api.create).not.toHaveBeenCalled();
+  if (condition === 'revoked' || condition === 'manual') expect(prepare).not.toHaveBeenCalled();
+});
+it('retains an uncertain saved deployment continuation through remount and never repeats its POST', async () => {
+  const route = deploymentRoute(); vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: route });
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source', deploymentMode: 'existing-target' }));
+  vi.spyOn(productApi, 'request').mockResolvedValue({ revision: 3, variables: [] });
+  vi.spyOn(coordinatorDeploymentApi, 'prepare').mockResolvedValue({ ...deploymentPlan(), acknowledgeRepositoryPush: false, acknowledgePublic: false, acknowledgeDeploymentCosts: false });
+  vi.mocked(api.create).mockRejectedValue(new Error('Deployment continuation reply lost'));
+  const input = withRequirements(), ui = render(<CoordinatorExecution {...input} canDeploy />);
+  await screen.findByText(/Deployment continuation reply lost/); const raw = localStorage.getItem(records()[0]); ui.unmount();
+  render(<CoordinatorExecution {...input} canDeploy />); await screen.findByText(/New requests are paused/);
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await screen.findByText(/Saved upstream route/);
+  expect(api.create).toHaveBeenCalledTimes(1); expect(localStorage.getItem(records()[0])).toBe(raw);
+});
+it('retains deployment-policy uncertainty across permission churn and pauses without stopping existing releases', async () => {
+  const held = deferred<CoordinatorPolicy>(); vi.mocked(coordinatorPolicyApi.save).mockReturnValue(held.promise);
+  const input = props(), ui = render(<CoordinatorExecution {...input} canDeploy />);
+  await waitFor(() => expect(screen.getByRole('checkbox', { name: /Allow existing-target deployment/ })).toHaveProperty('disabled', false));
+  await userEvent.click(screen.getByRole('checkbox', { name: /Allow existing-target deployment/ })); await userEvent.click(screen.getByRole('button', { name: 'Enable existing-target deployment' }));
+  ui.rerender(<CoordinatorExecution {...input} canDeploy={false} />); ui.rerender(<CoordinatorExecution {...input} canDeploy />);
+  await act(async () => held.resolve(policy({ revision: 3, deploymentMode: 'existing-target' })));
+  expect(records()).toHaveLength(1); expect(screen.queryByText(/deployment permission is saved/)).toBeNull();
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ revision: 3, deploymentMode: 'existing-target' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await screen.findByText(/Current authoritative state was read/); expect(records()).toHaveLength(0);
+  vi.mocked(coordinatorPolicyApi.save).mockResolvedValue(policy({ revision: 4, deploymentMode: 'manual' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Pause delegated deployments' })); await screen.findByText(/Existing releases and their costs have not been stopped/);
+  expect(vi.mocked(coordinatorPolicyApi.save).mock.calls[1][1]).toEqual({ expectedRevision: 3, mode: 'review', allowedTargets: ['specification'], deploymentMode: 'manual' });
+  expect(api.advance).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
+});
+
+it('shows source publication separately from a recorded healthy deployment and preserves unconfirmed status', async () => {
+  const delivery: NonNullable<CoordinatorContinuation['delivery']> = { actionId: 'continue-one-checks', checkId: 'check-one', status: 'verified', commit: 'a'.repeat(40), sourceDigest: 'b'.repeat(64), integrationDigest: 'c'.repeat(64), message: 'Independent checks observed', startedAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:01Z', gitPublication: { actionId: 'continue-one-git', status: 'verified', repository: 'https://github.com/test/app', branch: 'main', commit: 'a'.repeat(40), startedAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:01Z', message: 'Exact remote commit' }, deployment: { actionId: 'continue-one-deploy', releaseId: 'cloud-rel-one', status: 'ready', message: 'Provider identity and HTTPS observed', startedAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:01Z', evidence: { projectId: 'p-1', releaseId: 'cloud-rel-one', checkId: 'check-one', target: 'target-one', outcome: 'publish', commit: 'a'.repeat(40), sourceDigest: 'b'.repeat(64), observedAt: '2026-10-12T00:00:01Z', url: 'https://app.example.com', limitations: 'Behavior acceptance remains separate', joinedAt: '', approvals: { briefDigest: 'd'.repeat(64), specificationApprovalId: 'a', specificationRevision: 1, specificationDigest: 'e'.repeat(64), sketchDigest: 'f'.repeat(64), designApprovalId: 'b', designRevision: 1, designDigest: 'g'.repeat(64) } } } };
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row({ status: 'deployed', delivery })], savedRoute: null });
+  render(<CoordinatorExecution {...props()} />);
+  expect((await screen.findByRole('link', { name: 'Open deployed application' })).getAttribute('href')).toBe('https://app.example.com');
+  expect(screen.getByRole('region', { name: 'Source publication' }).textContent).toContain('does not establish application deployment');
+  expect(screen.getByRole('region', { name: 'Application deployment' }).textContent).toContain('do not prove all product behavior');
+  const uncertain = structuredClone(delivery); uncertain.deployment!.status = 'unknown'; delete uncertain.deployment!.evidence;
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row({ status: 'unknown', delivery: uncertain })], savedRoute: null });
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await screen.findByText('Outcome unconfirmed');
+  expect(screen.queryByRole('link', { name: 'Open deployed application' })).toBeNull(); expect(api.advance).not.toHaveBeenCalled();
+});
+it('does not start from a deployment binding read that completes after Deploy authority is revoked', async () => {
+  const route = deploymentRoute(), held = deferred<CoordinatorDeploymentPlan>();
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: route });
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source', deploymentMode: 'existing-target' }));
+  vi.spyOn(productApi, 'request').mockResolvedValue({ revision: 3, variables: [] });
+  const prepare = vi.spyOn(coordinatorDeploymentApi, 'prepare').mockReturnValue(held.promise);
+  const input = withRequirements(), ui = render(<CoordinatorExecution {...input} canDeploy />);
+  await waitFor(() => expect(prepare).toHaveBeenCalledTimes(1)); const signal = prepare.mock.calls[0][2]!;
+  ui.rerender(<CoordinatorExecution {...input} canDeploy={false} />);
+  expect(signal.aborted).toBe(true);
+  await act(async () => held.resolve({ ...deploymentPlan(), acknowledgeRepositoryPush: false, acknowledgePublic: false, acknowledgeDeploymentCosts: false }));
+  await screen.findByText(/saved deployment requires current Deploy access/); expect(api.create).not.toHaveBeenCalled();
+});
+it('records one exact check-preview-deployment delegation through the existing route picker', async () => {
+  const input = withRequirements(); vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source', deploymentMode: 'existing-target' }));
+  vi.spyOn(productApi, 'request').mockResolvedValue({ revision: 3, variables: [], updatedAt: '' });
+  vi.spyOn(coordinatorDeploymentApi, 'targets').mockResolvedValue([{ id: 'target-one', name: 'Connected server', serverUuid: 'server-one', baseUrl: 'https://control.example.com' }]);
+  vi.spyOn(coordinatorDeploymentApi, 'prepare').mockResolvedValue({ ...deploymentPlan(), acknowledgeRepositoryPush: false, acknowledgePublic: false, acknowledgeDeploymentCosts: false });
+  render(<CoordinatorExecution {...input} canDeploy />); await waitFor(() => expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', false));
+  await userEvent.click(screen.getByText('Independent checks for continued work')); await screen.findByLabelText('Executable'); await userEvent.type(screen.getByLabelText('Executable'), 'npm'); fireEvent.change(screen.getByLabelText('Arguments · JSON array'), { target: { value: '["test"]' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Add check command' })); await userEvent.click(screen.getByRole('checkbox', { name: /REQ-1/ })); await userEvent.click(screen.getByRole('checkbox', { name: /I delegate these exact/ }));
+  await userEvent.click(screen.getByText(/Preview after independent checks/)); await userEvent.click(await screen.findByRole('button', { name: 'Read preview configuration' })); await screen.findByText(/configuration revision 3/); await userEvent.click(screen.getByRole('checkbox', { name: /I delegate this exact Dockerfile/ }));
+  await userEvent.click(screen.getByText(/Deploy after checks and local preview/)); await userEvent.click(await screen.findByRole('button', { name: 'Read connected deployment servers' }));
+  await screen.findByRole('option', { name: 'Connected server' }); await userEvent.selectOptions(screen.getByLabelText('Deployment server'), 'target-one');
+  await userEvent.selectOptions(screen.getByLabelText('Repository access'), 'public'); fireEvent.change(screen.getByLabelText('Repository URL · HTTPS'), { target: { value: 'https://github.com/test/app' } }); fireEvent.change(screen.getByLabelText('Application domain'), { target: { value: 'https://app.example.com' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Read current deployment plan' })); await screen.findByRole('region', { name: 'Review current deployment plan' });
+  await userEvent.click(screen.getByRole('checkbox', { name: /authorize pushing/ })); await userEvent.click(screen.getByRole('checkbox', { name: /authorize public deployment/ }));
+  expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true);
+  await userEvent.click(screen.getByRole('checkbox', { name: /accept ongoing deployment/ })); await configure();
+  expect(screen.getByLabelText('Intended delivery outcome')).toHaveProperty('value', 'publish');
+  await userEvent.click(screen.getByRole('checkbox', { name: /Reuse this upstream route/ })); await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' })); await screen.findByText(/continuation is retained/);
+  expect(api.create).toHaveBeenCalledTimes(1); expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ rememberRoute: true, deploymentPlan: deploymentPlan(), checkPlan: savedRoute().checkPlan, previewPlan: deploymentRoute().previewPlan, run: { outcome: 'publish' } });
+  await waitFor(() => expect(screen.getByRole('checkbox', { name: /authorize pushing/ })).toHaveProperty('checked', false));
+});
+it('keeps readable continuation history and reconfiguration usable after saved deployment preparation is refused', async () => {
+  const saved = deploymentRoute(); vi.mocked(api.listState).mockResolvedValue({ continuations: [row()], savedRoute: saved });
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source', deploymentMode: 'existing-target' }));
+  vi.spyOn(productApi, 'request').mockResolvedValue({ revision: 3, variables: [] });
+  vi.spyOn(coordinatorDeploymentApi, 'prepare').mockRejectedValue(new ProductApiError('conflict', 'Target was removed', 409, { error: 'stale_target' }));
+  render(<CoordinatorExecution {...withRequirements()} canDeploy />);
+  expect(await screen.findByRole('article', { name: 'Selected continuation' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Pause delegated deployments' })).toHaveProperty('disabled', false);
+  expect(screen.getByRole('button', { name: 'Inspect this build' })).toHaveProperty('disabled', false);
+  expect(api.create).not.toHaveBeenCalled();
+});
+it('keeps readable history when Edit is revoked and does not perform Edit-only deployment preparation', async () => {
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row()], savedRoute: deploymentRoute() });
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source', deploymentMode: 'existing-target' }));
+  vi.spyOn(productApi, 'request').mockResolvedValue({ revision: 3, variables: [] });
+  const prepare = vi.spyOn(coordinatorDeploymentApi, 'prepare').mockRejectedValue(new ApiError('conflict', 'Edit revoked', 403));
+  render(<CoordinatorExecution {...withRequirements()} canDeploy canEdit={false} />);
+  expect(await screen.findByRole('article', { name: 'Selected continuation' })).not.toBeNull();
+  expect(prepare).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
 });

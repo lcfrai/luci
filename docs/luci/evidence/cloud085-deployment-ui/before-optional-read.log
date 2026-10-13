@@ -1,0 +1,253 @@
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx (65 tests | 2 failed | 63 skipped) 2069ms
+   × keeps readable continuation history and reconfiguration usable after saved deployment preparation is refused 1056ms
+   × keeps readable history when Edit is revoked and does not perform Edit-only deployment preparation 1011ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > keeps readable continuation history and reconfiguration usable after saved deployment preparation is refused
+TestingLibraryElementError: Unable to find role="article" and name "Selected continuation"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Continued work"[39m
+      [33mclass[39m=[32m"orchestrator-agent"[39m
+    [36m>[39m
+      [36m<h3>[39m
+        [0mContinue with Luci[0m
+      [36m</h3>[39m
+      [36m<p>[39m
+        [0mRun on: [0m
+        [0mThis computer · Docker[0m
+        [0m. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mTarget was removed[0m
+      [36m</p>[39m
+      [36m<details>[39m
+        [36m<summary>[39m
+          [0mIndependent checks for continued work[0m
+        [36m</summary>[39m
+      [36m</details>[39m
+      [36m<details>[39m
+        [36m<summary>[39m
+          [0mPreview after independent checks[0m
+        [36m</summary>[39m
+      [36m</details>[39m
+      [36m<details>[39m
+        [36m<summary>[39m
+          [0mDeploy after checks and local preview[0m
+        [36m</summary>[39m
+      [36m</details>[39m
+      [36m<p>[39m
+        [0mRead current continuation and policy status first.[0m
+      [36m</p>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"default"[39m
+        [33mdisabled[39m=[32m""[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mConfigure continued work[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"ghost"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRefresh continued work[0m
+        [36m</span>[39m
+      [36m</button>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Continued work"[39m
+      [33mclass[39m=[32m"orchestrator-agent"[39m
+    [36m>[39m
+      [36m<h3>[39m
+        [0mContinue with Luci[0m
+      [36m</h3>[39m
+      [36m<p>[39m
+        [0mRun on: [0m
+        [0mThis computer · Docker[0m
+        [0m. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mTarget was removed[0m
+      [36m</p>[39m
+      [36m<details>[39m
+        [36m<summary>[39m
+          [0mIndependent checks for continued work[0m
+        [36m</summary>[39m
+      [36m</details>[39m
+      [36m<details>[39m
+        [36m<summary>[39m
+          [0mPreview after independent checks[0m
+        [36m</summary>[39m
+      [36m</details>[39m
+      [36m<details>[39m
+        [36m<summary>[39m
+          [0mDeploy after checks and local preview[0m
+        [36m</summary>[39m
+      [36m</details>[39m
+      [36m<p>[39m
+        [0mRead current continuation and policy status first.[0m
+      [36m</p>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"default"[39m
+        [33mdisabled[39m=[32m""[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mConfigure continued work[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"ghost"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRefresh continued work[0m
+        [36m</span>[39m
+      [36m</button>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx:417:23
+    415|   vi.spyOn(coordinatorDeploymentApi, 'prepare').mockRejectedValue(new …
+    416|   render(<CoordinatorExecution {...withRequirements()} canDeploy />);
+    417|   expect(await screen.findByRole('article', { name: 'Selected continua…
+       |                       ^
+    418|   expect(screen.getByRole('button', { name: 'Pause delegated deploymen…
+    419|   expect(screen.getByRole('button', { name: 'Inspect this build' })).t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > keeps readable history when Edit is revoked and does not perform Edit-only deployment preparation
+TestingLibraryElementError: Unable to find role="article" and name "Selected continuation"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Continued work"[39m
+      [33mclass[39m=[32m"orchestrator-agent"[39m
+    [36m>[39m
+      [36m<h3>[39m
+        [0mContinue with Luci[0m
+      [36m</h3>[39m
+      [36m<p>[39m
+        [0mRun on: [0m
+        [0mThis computer · Docker[0m
+        [0m. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mEdit revoked[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mCurrent access was refused. Retained private work is hidden.[0m
+      [36m</p>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"ghost"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRefresh continued work[0m
+        [36m</span>[39m
+      [36m</button>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Continued work"[39m
+      [33mclass[39m=[32m"orchestrator-agent"[39m
+    [36m>[39m
+      [36m<h3>[39m
+        [0mContinue with Luci[0m
+      [36m</h3>[39m
+      [36m<p>[39m
+        [0mRun on: [0m
+        [0mThis computer · Docker[0m
+        [0m. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mEdit revoked[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mCurrent access was refused. Retained private work is hidden.[0m
+      [36m</p>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"ghost"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRefresh continued work[0m
+        [36m</span>[39m
+      [36m</button>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx:428:23
+    426|   const prepare = vi.spyOn(coordinatorDeploymentApi, 'prepare').mockRe…
+    427|   render(<CoordinatorExecution {...withRequirements()} canDeploy canEd…
+    428|   expect(await screen.findByRole('article', { name: 'Selected continua…
+       |                       ^
+    429|   expect(prepare).not.toHaveBeenCalled(); expect(api.create).not.toHav…
+    430| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 63 skipped (65)
+   Start at  17:20:47
+   Duration  5.23s (tests 41%, transform 26%, environment 24%, import 5%, setup 3%)
+

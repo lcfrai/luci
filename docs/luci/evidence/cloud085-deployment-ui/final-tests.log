@@ -1,0 +1,509 @@
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ src/components/orchestrator/CoordinatorDeploymentSetup.test.tsx (13 tests | 1 failed) 3199ms
+   × rejects a changed connected server and clears metadata when current read access is refused 1110ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/orchestrator/CoordinatorDeploymentSetup.test.tsx > rejects a changed connected server and clears metadata when current read access is refused
+TestingLibraryElementError: Found multiple elements with the text: Current access to deployment settings was refused.
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<p[39m
+  [33mrole[39m=[32m"alert"[39m
+[36m>[39m
+  [0mCurrent access to deployment settings was refused.[0m
+[36m</p>[39m
+
+Ignored nodes: comments, script, style
+[36m<p[39m
+  [33mrole[39m=[32m"status"[39m
+[36m>[39m
+  [0mCurrent access to deployment settings was refused.[0m
+[36m</p>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<details[39m
+      [33mopen[39m=[32m""[39m
+    [36m>[39m
+      [36m<summary>[39m
+        [0mDeploy after checks and local preview[0m
+      [36m</summary>[39m
+      [36m<p>[39m
+        [0mDelegate delivery of independently checked source to an existing connected server after its local preview succeeds. Reading this plan does not push code, create infrastructure or deploy the app.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mCurrent access to deployment settings was refused.[0m
+      [36m</p>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"secondary"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRead connected deployment servers[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"ghost"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mOpen Deploy[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"luci-field"[39m
+      [36m>[39m
+        [0mDeployment server[0m
+        [36m<select>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mChoose your server[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"target-1"[39m
+          [36m>[39m
+            [0mSaved target · read current servers[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"setup-field-grid"[39m
+      [36m>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"luci-field"[39m
+        [36m>[39m
+          [0mRepository URL · HTTPS[0m
+          [36m<input[39m
+            [33mplaceholder[39m=[32m"https://github.com/you/project"[39m
+            [33mvalue[39m=[32m"https://github.com/team/app"[39m
+          [36m/>[39m
+        [36m</label>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"luci-field"[39m
+        [36m>[39m
+          [0mRepository branch[0m
+          [36m<input[39m
+            [33mvalue[39m=[32m"main"[39m
+          [36m/>[39m
+        [36m</label>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"luci-field"[39m
+        [36m>[39m
+          [0mApplication domain[0m
+          [36m<input[39m
+            [33mplaceholder[39m=[32m"https://app.example.com"[39m
+            [33mvalue[39m=[32m"https://app.example.com"[39m
+          [36m/>[39m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<details[39m
+        [33mclass[39m=[32m"deployment-details"[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mBuild and health options[0m
+        [36m</summary>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"setup-field-grid"[39m
+        [36m>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"luci-field"[39m
+          [36m>[39m
+            [0mCloud Dockerfile[0m
+            [36m<input[39m
+              [33mvalue[39m=[32m"Dockerfile"[39m
+            [36m/>[39m
+          [36m</label>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"luci-field"[39m
+          [36m>[39m
+            [0mCloud app port[0m
+            [36m<input[39m
+              [33mmax[39m=[32m"65535"[39m
+              [33mmin[39m=[32m"1"[39m
+              [33mtype[39m=[32m"number"[39m
+              [33mvalue[39m=[32m"3000"[39m
+            [36m/>[39m
+          [36m</label>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"luci-field"[39m
+          [36m>[39m
+            [0mHealth check path[0m
+            [36m<input[39m
+              [33mvalue[39m=[32m"/"[39m
+            [36m/>[39m
+          [36m</label>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"luci-field"[39m
+        [36m>[39m
+          [0mBrowser data variables[0m
+          [36m<select>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"none"[39m
+            [36m>[39m
+              [0mRuntime only[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"vite"[39m
+            [36m>[39m
+              [0mVite · VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"nextjs"[39m
+            [36m>[39m
+              [0mNext.js · NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY[0m
+            [36m</option>[39m
+          [36m</select>[39m
+          [36m<small>[39m
+            [0mVite and Next.js embed the connected public Data API values in the browser build. Your Dockerfile must declare and use the matching ARG names. Administrator keys stay private.[0m
+          [36m</small>[39m
+        [36m</label>[39m
+      [36m</details>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"luci-field"[39m
+      [36m>[39m
+        [0mRepository access[0m
+        [36m<select>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"private"[39m
+          [36m>[39m
+            [0mPrivate repository · read-only deploy key[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"public"[39m
+          [36m>[39m
+            [0mPublic repository[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"secondary"[39m
+        [33mdisabled[39m=[32m""[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRead current deployment plan[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"setup-check"[39m
+      [36m>[39m
+        [36m<input[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"checkbox"[39m
+        [36m/>[39m
+        [0mI authorize pushing the reviewed source to this exact repository and branch.[0m
+      [36m</label>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"setup-check"[39m
+      [36m>[39m
+        [36m<input[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"checkbox"[39m
+        [36m/>[39m
+        [0mI authorize public deployment of this application at the reviewed HTTPS domain.[0m
+      [36m</label>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"setup-check"[39m
+      [36m>[39m
+        [36m<input[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"checkbox"[39m
+        [36m/>[39m
+        [0mI accept ongoing deployment and provider costs on this existing target.[0m
+      [36m</label>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mCurrent access to deployment settings was refused.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mDeployment settings are retained in this browser; approvals and current bindings are not.[0m
+      [36m</p>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"outline"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mDiscard continued-work deployment setup[0m
+        [36m</span>[39m
+      [36m</button>[39m
+    [36m</details>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<details[39m
+      [33mopen[39m=[32m""[39m
+    [36m>[39m
+      [36m<summary>[39m
+        [0mDeploy after checks and local preview[0m
+      [36m</summary>[39m
+      [36m<p>[39m
+        [0mDelegate delivery of independently checked source to an existing connected server after its local preview succeeds. Reading this plan does not push code, create infrastructure or deploy the app.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mCurrent access to deployment settings was refused.[0m
+      [36m</p>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"secondary"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRead connected deployment servers[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"ghost"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mOpen Deploy[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"luci-field"[39m
+      [36m>[39m
+        [0mDeployment server[0m
+        [36m<select>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mChoose your server[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"target-1"[39m
+          [36m>[39m
+            [0mSaved target · read current servers[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"setup-field-grid"[39m
+      [36m>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"luci-field"[39m
+        [36m>[39m
+          [0mRepository URL · HTTPS[0m
+          [36m<input[39m
+            [33mplaceholder[39m=[32m"https://github.com/you/project"[39m
+            [33mvalue[39m=[32m"https://github.com/team/app"[39m
+          [36m/>[39m
+        [36m</label>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"luci-field"[39m
+        [36m>[39m
+          [0mRepository branch[0m
+          [36m<input[39m
+            [33mvalue[39m=[32m"main"[39m
+          [36m/>[39m
+        [36m</label>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"luci-field"[39m
+        [36m>[39m
+          [0mApplication domain[0m
+          [36m<input[39m
+            [33mplaceholder[39m=[32m"https://app.example.com"[39m
+            [33mvalue[39m=[32m"https://app.example.com"[39m
+          [36m/>[39m
+        [36m</label>[39m
+      [36m</div>[39m
+      [36m<details[39m
+        [33mclass[39m=[32m"deployment-details"[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mBuild and health options[0m
+        [36m</summary>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"setup-field-grid"[39m
+        [36m>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"luci-field"[39m
+          [36m>[39m
+            [0mCloud Dockerfile[0m
+            [36m<input[39m
+              [33mvalue[39m=[32m"Dockerfile"[39m
+            [36m/>[39m
+          [36m</label>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"luci-field"[39m
+          [36m>[39m
+            [0mCloud app port[0m
+            [36m<input[39m
+              [33mmax[39m=[32m"65535"[39m
+              [33mmin[39m=[32m"1"[39m
+              [33mtype[39m=[32m"number"[39m
+              [33mvalue[39m=[32m"3000"[39m
+            [36m/>[39m
+          [36m</label>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"luci-field"[39m
+          [36m>[39m
+            [0mHealth check path[0m
+            [36m<input[39m
+              [33mvalue[39m=[32m"/"[39m
+            [36m/>[39m
+          [36m</label>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"luci-field"[39m
+        [36m>[39m
+          [0mBrowser data variables[0m
+          [36m<select>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"none"[39m
+            [36m>[39m
+              [0mRuntime only[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"vite"[39m
+            [36m>[39m
+              [0mVite · VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"nextjs"[39m
+            [36m>[39m
+              [0mNext.js · NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY[0m
+            [36m</option>[39m
+          [36m</select>[39m
+          [36m<small>[39m
+            [0mVite and Next.js embed the connected public Data API values in the browser build. Your Dockerfile must declare and use the matching ARG names. Administrator keys stay private.[0m
+          [36m</small>[39m
+        [36m</label>[39m
+      [36m</details>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"luci-field"[39m
+      [36m>[39m
+        [0mRepository access[0m
+        [36m<select>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"private"[39m
+          [36m>[39m
+            [0mPrivate repository · read-only deploy key[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"public"[39m
+          [36m>[39m
+            [0mPublic repository[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"secondary"[39m
+        [33mdisabled[39m=[32m""[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRead current deployment plan[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"setup-check"[39m
+      [36m>[39m
+        [36m<input[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"checkbox"[39m
+        [36m/>[39m
+        [0mI authorize pushing the reviewed source to this exact repository and branch.[0m
+      [36m</label>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"setup-check"[39m
+      [36m>[39m
+        [36m<input[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"checkbox"[39m
+        [36m/>[39m
+        [0mI authorize public deployment of this application at the reviewed HTTPS domain.[0m
+      [36m</label>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"setup-check"[39m
+      [36m>[39m
+        [36m<input[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"checkbox"[39m
+        [36m/>[39m
+        [0mI accept ongoing deployment and provider costs on this existing target.[0m
+      [36m</label>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mCurrent access to deployment settings was refused.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mDeployment settings are retained in this browser; approvals and current bindings are not.[0m
+      [36m</p>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"outline"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mDiscard continued-work deployment setup[0m
+        [36m</span>[39m
+      [36m</button>[39m
+    [36m</details>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/orchestrator/CoordinatorDeploymentSetup.test.tsx:77:114
+     75|   await userEvent.click(screen.getByRole('button', { name: 'Read curre…
+     76|   vi.mocked(coordinatorDeploymentApi.targets).mockRejectedValue(new Ap…
+     77|   await userEvent.click(screen.getByRole('button', { name: 'Read conne…
+       |                                                                                                                  ^
+     78|   expect(screen.queryByRole('option', { name: target.name })).toBeNull…
+     79| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 7 passed (8)
+      Tests  1 failed | 368 passed (369)
+   Start at  17:22:48
+   Duration  64.77s (tests 77%, environment 15%, transform 4%, import 2%, setup 2%)
+
+    Isolate  8 workers spawned · ~1.42s startup each (spawn + environment, per file)
+             at least ~9.95s faster with isolate: false — reuses workers across files instead of one per file
+

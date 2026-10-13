@@ -47,3 +47,13 @@ it('preserves omitted preview policy and binds explicit checked-source changes w
   request.mockResolvedValue({ ...saved, previewMode: 'manual' }); await expect(coordinatorPolicyApi.save('p-1', input)).rejects.toThrow(/did not match/);
   request.mockResolvedValue({ ...saved, previewMode: 'public-auto' }); await expect(coordinatorPolicyApi.get('p-1')).rejects.toThrow(/could not be verified/);
 });
+
+it('preserves existing-target permission on draft-only writes and requires exact explicit deployment policy readback', async () => {
+  const response = { ...policy(), revision: 2, deploymentMode: 'existing-target' as const, previewMode: 'checked-source' as const };
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue(response);
+  const draftOnly = { expectedRevision: 1, mode: 'review' as const, allowedTargets: ['specification' as const] };
+  expect(await coordinatorPolicyApi.save('p-1', draftOnly)).toEqual(response);
+  expect(request).toHaveBeenLastCalledWith('/v1/product/projects/p-1/orchestrator/policy', draftOnly);
+  await expect(coordinatorPolicyApi.save('p-1', { ...draftOnly, deploymentMode: 'manual' })).rejects.toThrow(/did not match/);
+  expect(await coordinatorPolicyApi.save('p-1', { ...draftOnly, deploymentMode: 'existing-target' })).toEqual(response);
+});

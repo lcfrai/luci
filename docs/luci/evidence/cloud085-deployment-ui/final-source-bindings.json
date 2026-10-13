@@ -1,0 +1,52 @@
+[
+  {
+    "path": "desktop/src/api/coordinatorContinuations.ts",
+    "sha256": "86e842bb8c1c7e44b9736c56b18125760f75289a135b3d6365000d1c5b678c4c",
+    "bytes": 15284
+  },
+  {
+    "path": "desktop/src/api/coordinatorContinuations.test.ts",
+    "sha256": "5f31f6f1c301880848af4d12efa6c6f2e75ade127fa711c2e7e3a21288eed713",
+    "bytes": 13180
+  },
+  {
+    "path": "desktop/src/api/coordinatorPolicy.ts",
+    "sha256": "694c5aedea0c0f678ea6c7e63d3ddaa0e1e3549c7d6b0d933212a96af57363c8",
+    "bytes": 2888
+  },
+  {
+    "path": "desktop/src/api/coordinatorPolicy.test.ts",
+    "sha256": "34619d1eb9ef8bef93b927e001132ba4827b3df9ab2be55fefd61a99fb5764a7",
+    "bytes": 5079
+  },
+  {
+    "path": "desktop/src/api/coordinatorDeployment.ts",
+    "sha256": "4ebde629e6a2be35b09108db23374eaecd7c623235077e2f49c12862a776ae37",
+    "bytes": 7226
+  },
+  {
+    "path": "desktop/src/api/coordinatorDeployment.test.ts",
+    "sha256": "46eaa6d00d9202d3c583bf2a122790305c07ecca896f7f157b2871cd6227f7f4",
+    "bytes": 6976
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorExecution.tsx",
+    "sha256": "a9cf85a1f14f4c2fff522edf7e61eb24fda57b1665df66fddd5fccdd32b5f72d",
+    "bytes": 38550
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorExecution.test.tsx",
+    "sha256": "23c5791e8fe31ffe73226e7e4df6d0d7b20605896aaf5c6e5b14c23d87337c17",
+    "bytes": 52233
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorDeploymentSetup.tsx",
+    "sha256": "7ebe04d76c049a6af7eba44457d009390c48cb63059361abda7b9c333b5f9ebe",
+    "bytes": 14222
+  },
+  {
+    "path": "desktop/src/components/orchestrator/CoordinatorDeploymentSetup.test.tsx",
+    "sha256": "5f091f3412da5e6438c3407c182a9300095ce4b733051064313f8719d9b4123b",
+    "bytes": 10202
+  }
+]

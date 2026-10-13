@@ -1,0 +1,9 @@
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+
+ Test Files  1 passed (1)
+      Tests  13 passed (13)
+   Start at  17:25:13
+   Duration  5.37s (tests 48%, environment 25%, transform 20%, import 5%, setup 3%)
+

@@ -1,0 +1,15 @@
+{
+  "classification": "reconstructed-byte-equivalent",
+  "description": "One-line inverse replacement of the corrected ApiError test constructor. Exact original bytes were reconstructed and verified against the pre-test capture; this is not claimed as a preserved original file copy.",
+  "sourcePath": "desktop/src/components/orchestrator/CoordinatorDeploymentSetup.test.tsx",
+  "capturedManifest": "initial-inputs-before.json",
+  "artifact": "initial-CoordinatorDeploymentSetup.test.reconstructed.txt",
+  "sha256": "714e4a36a509d165d6edfa61cc824957056bde7fb00c2914edb4012724293a5a",
+  "bytes": 10174,
+  "currentSha256": "432827e862d752b83b8e8a31d3f048d56e625f6f8d29ed66a89f443a83cd926d",
+  "replacement": {
+    "corrected": "new ApiError('forbidden', 'Denied', 403)",
+    "initial": "new ApiError(403, 'forbidden', 'Denied')"
+  },
+  "testExecution": "None; reconstruction and hash verification only."
+}

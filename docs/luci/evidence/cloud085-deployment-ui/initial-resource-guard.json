@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-11T17:17:55.911368+00:00",
+  "workspaceFreeBytes": 496156672,
+  "requiredFreeBytes": 536870912,
+  "cgroupRemainingBytes": 8772870144,
+  "testProcessLaunched": false,
+  "reason": "Workspace disk guard refused before source capture or Node launch"
+}

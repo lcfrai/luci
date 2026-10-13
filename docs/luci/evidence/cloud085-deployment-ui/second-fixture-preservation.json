@@ -1,0 +1,10 @@
+{
+  "classification": "original-file-copy-before-correction",
+  "sourcePath": "desktop/src/components/orchestrator/CoordinatorDeploymentSetup.test.tsx",
+  "capturedManifest": "final-inputs-before.json",
+  "artifact": "second-CoordinatorDeploymentSetup.test.original.txt",
+  "sha256": "432827e862d752b83b8e8a31d3f048d56e625f6f8d29ed66a89f443a83cd926d",
+  "bytes": 10174,
+  "failure": "Text query matched both correct alert and status. Type correction also uses a member of ProblemCode; HTTP refusal status remains 403.",
+  "testExecution": "None during preservation."
+}
