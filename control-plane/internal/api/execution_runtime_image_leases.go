@@ -67,10 +67,25 @@ func addRuntimeImageReservationView(view *executionReservationView, rows []runti
 	}
 }
 func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy) (executionDecision, runtimeImageExecutionLease, error) {
+	return g.reserveRuntimeImageStage(ctx, prepared, actor, authority, policy, false)
+}
+
+// Once both pinned base pulls have returned complete streams and exact image
+// readbacks, their retained host demand is already in the fresh observation.
+// Evaluate only the remaining capped build, while retaining the original
+// conservative lease for competing admissions until exact build settlement.
+func (g *executionAdmission) reserveRuntimeImageAfterPull(ctx context.Context, prepared backend.PreparedRuntimeImage, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy) (executionDecision, runtimeImageExecutionLease, error) {
+	return g.reserveRuntimeImageStage(ctx, prepared, actor, authority, policy, true)
+}
+
+func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepared backend.PreparedRuntimeImage, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy, afterPull bool) (executionDecision, runtimeImageExecutionLease, error) {
 	id, resources := prepared.Spec.Identity, prepared.Spec.Resources
 	admissionMemory := max(resources.MemoryMiB, prepared.AdmissionMemoryMiB)
 	admissionResources := resources
 	admissionResources.MemoryMiB = admissionMemory
+	if afterPull {
+		admissionResources.MemoryMiB = resources.MemoryMiB
+	}
 	out := executionDecision{State: "waiting", Code: "resource_observation_unavailable", Message: "Current machine capacity is unavailable; runtime installation has not started.", Resources: resources}
 	var result runtimeImageExecutionLease
 	candidate := runtimeImageExecutionLease{ID: id.AllocationID, Scope: g.scope, Actor: actor, Identity: id, Resources: resources,
@@ -101,7 +116,7 @@ func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared b
 		existing := false
 		for _, v := range l.RuntimeImages {
 			if v.Scope == g.scope && v.ID == id.AllocationID {
-				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.State != "reserved" && v.State != "building" {
+				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.State != "reserved" && v.State != "building" || afterPull && v.State != "building" {
 					return errors.New("runtime installer allocation already claimed, changed or settled")
 				}
 				existing, result = true, v

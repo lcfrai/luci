@@ -114,7 +114,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	if id.Protocol != spec.Identity.Protocol || id.JobID != req.JobID || id.AllocationID != allocation || id.ScopeDigest != a.execution.scope || !checkHex(id.SourceDigest, 32) || id.EngineID == "" || backend.ValidateInstance(id.InstanceID) != nil || prepared.Spec.ImageTag != canonicalTag || prepared.Spec.Resources != resources || prepared.Spec.SourceDirectory != req.SourceDirectory || prepared.RequiredDiskBytes < backend.RuntimeImageRequiredDiskBytes || prepared.AdmissionMemoryMiB != 0 && (prepared.AdmissionMemoryMiB < resources.MemoryMiB || prepared.AdmissionMemoryMiB > 65536) {
 		return fail("runtime_install_identity_changed", "The prepared runtime identity changed; nothing was started.", backend.ErrLaunchFenceOwnership)
 	}
-	admit := func() (executionDecision, runtimeImageExecutionLease, error) {
+	admit := func(afterPull bool) (executionDecision, runtimeImageExecutionLease, error) {
 		authority, e := a.authorizeRuntimeInstaller(ctx, req.Actor)
 		if e != nil {
 			return executionDecision{}, runtimeImageExecutionLease{}, e
@@ -123,9 +123,12 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		if e != nil {
 			return executionDecision{}, runtimeImageExecutionLease{}, e
 		}
+		if afterPull {
+			return a.execution.reserveRuntimeImageAfterPull(ctx, prepared, req.Actor, authority, policy)
+		}
 		return a.execution.reserveRuntimeImage(ctx, prepared, req.Actor, authority, policy)
 	}
-	decision, lease, err := admit()
+	decision, lease, err := admit(false)
 	if err != nil || decision.State != "admitted" {
 		if decision.Code == "" {
 			decision.Code = "runtime_install_admission_unavailable"
@@ -158,7 +161,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	if err = publish(out); err != nil {
 		return unstarted(err)
 	}
-	nextDecision, nextLease, admitErr := admit()
+	nextDecision, nextLease, admitErr := admit(false)
 	if admitErr != nil || nextDecision.State != "admitted" {
 		out.Admission = runtimeAdmissionRefusal(nextDecision, "before-build")
 		return unstarted(errors.Join(admitErr, errors.New("runtime build admission changed")))
@@ -184,8 +187,9 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		if err := stageCtx.Err(); err != nil {
 			return err
 		}
-		decision, _, e := admit()
+		decision, nextLease, e := admit(true)
 		if e == nil && decision.State == "admitted" {
+			lease = nextLease
 			return nil
 		}
 		afterPullCode, afterPullMessage = decision.Code, decision.Message
