@@ -56,3 +56,45 @@ refusal. Azure CLI stdout is bounded while the process runs. New Go tests are
 identity, excluded inherited secrets, out-of-mount paths, inline credential and
 duplicate selection refusal. No Windows-specific behavior is expected; existing
 private-file permission guards intentionally differ by operating system.
+
+Root's independent Linux run of checkpoint `ef50d02d` passed both new management
+tests and all 21 then-current setup Python tests; root integrated that checkpoint
+in `563ac8af`. Those unchanged checks were not repeated locally.
+
+The operator batch below is still uncommitted while its controller-only gateway
+execution order is reconciled. Its signature tests are source checks, not a
+claim that a setup host can directly reach the protected gateway.
+
+The next source batch adds `azure-setup/operator.py`: generated deferred operator
+and exact private template-tool configuration, signed guest selection bound to a
+chosen immutable OCI digest and Luci/runtime revisions, existing journaled Embed
+template create/build/status adapters, then provider/gateway/node-bound signed
+operator finalization. The mount adapter verifies the source-pinned signature
+before any disk formatting and installs exact durable template journals. A
+pending remote operator installation can only be reconciled through a readback
+branch; it cannot repeat its write. Private template-tool roots now exclude
+public system CAs. Controller image preparation generates its previously missing
+service environment, and binds measured package hashes automatically; both exact
+gallery receipts can be bound with `bind-images`, without editing Terraform JSON.
+
+Five new focused portable Python tests pass with actual ECDSA/OpenSSL verification
+(Git-bundled OpenSSL on Windows), including tampered signatures, multiple/stale
+runtime identities and lost installation ACK. The nine prior portable adapter
+tests pass. Full Linux installer/controller checks and compilation remain pending
+for this newer source. No provider call or product acceptance is claimed.
+
+The independent identity API checkpoint adds authenticated
+`GET /v1/setup/cloud/azure/identity` with version/state/sourceCommit/scope/generation,
+controllerResourceID/dataDiskID/bootID and `microVMExecutionVerified:false`.
+Optional `SSHRequest.azureIdentity` carries that exact pin plus its fingerprint;
+the server requires RFC1918/luci/22 and only accepts the matching inspected key.
+Activation, restart reconnect and status compare authenticated current controller
+source, disk and boot/generation against the imported pin. A changed controller
+cannot replace the chosen workspace. A pinned Azure connection refuses the old
+compatibility Docker installer. `desktop/src/api/product.ts` exposes the same
+optional type; AzureSetup UI/client ownership is with root's cloud UI worker.
+Descriptor timestamps use `observedAtUTC`; `dataDiskID` is explicit. Three focused
+new product tests are written but not run locally while the host reserve is low:
+`GOMAXPROCS=1 GOMEMLIMIT=512MiB go test -p 1 ./internal/product -run
+'^TestAzure(ConnectionPin|SSHInspect|WorkspaceActivation)' -count=1` from
+`control-plane`. No full compile, Vite or browser work was run.
