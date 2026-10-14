@@ -28,7 +28,18 @@ bundle; it does not run Linux image construction in PowerShell.
    Terraform state is required. It must be separate from the Luci controller
    disk and the off-disk writer-fence Blob. Authenticate with your own Azure
    sign-in; no token or Key Vault secret value belongs in this JSON.
-3. Supply immutable source-bound host/controller packages, exact Azure Compute
+3. On a private setup host, `generate-secrets` creates a private CA, gateway
+   server and controller client certificates and independent API material for
+   the selected scope/generation. Select an existing private Key Vault using
+   `configure-account --key-vault-id ... --key-vault-name ...`, then run
+   `publish-secrets --acknowledge-credential-publication` and `bind-secrets`.
+   Publication journals each exact secret before a write. An uncertain write
+   is never repeated: `reconcile-secrets` reads exact versions and either
+   settles one unique matching version or keeps the operation unknown. Keep
+   `azure-credentials/` owner-private for controlled rotation; no secret value
+   enters Terraform state or the plan API. These commands require Azure CLI
+   authentication and explicit authority; the offline plan itself does not.
+4. Supply immutable source-bound host/controller packages, exact Azure Compute
    Gallery image version IDs and a selected signed E2B guest template. Obtain
    the exact Luci commit named in `manifest.json` from
    `https://github.com/lcfrai/luci.git` using your existing source access.
@@ -53,12 +64,12 @@ bundle; it does not run Linux image construction in PowerShell.
    The image roots still need to be published as immutable Azure Compute
    Gallery versions by the account owner; `prepare-images` does not upload,
    provision or start anything.
-4. Run `python3 azure-setup/installer.py plan --bundle . --selection
+5. Run `python3 azure-setup/installer.py plan --bundle . --selection
    /private/selection.json` from this extracted directory. `plan` is
    offline and reports each missing input. Then run only its exact `prepare`
    command after the prerequisites are configured. `prepare` performs
    authenticated Azure read-only Terraform planning; it does not provision.
-5. Review the provider plan, actual account/region pricing, limits and the
+6. Review the provider plan, actual account/region pricing, limits and the
    exact resource inventory. Run the exact `apply` command with its two
    acknowledgments only when the existing authority and budget permit it.
    A lost `apply` response leaves `apply_pending`; inspect and run the

@@ -42,7 +42,7 @@ type azureSetupBundleManifest struct {
 var azureSetupSHA = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var azureSetupGit = regexp.MustCompile(`^[0-9a-f]{40}$`)
 var azureSetupRequired = []string{
-	"LICENSE", "azure-setup/installer.py", "azure-setup/README.md",
+	"LICENSE", "azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/README.md",
 	"azure-embed-host/package.py", "azure-embed-host/service.py", "azure-embed-host/deliver.py",
 	"azure-controller-disk/package.py", "azure-controller-disk/mount.py", "azure-controller-disk/recover.py",
 	"terraform/.terraform.lock.hcl", "terraform/compute.tf", "terraform/fence.tf", "terraform/identity.tf",
@@ -59,17 +59,41 @@ func readAzureSetupBundle(runtimeDir, projectRoot string) ([]byte, string, strin
 	}
 	archive := filepath.Join(root, "azure-setup.tar")
 	identity := filepath.Join(root, "azure-setup.sha256")
-	for _, path := range []string{archive, identity} {
+	for index, path := range []string{archive, identity} {
 		info, statErr := os.Lstat(path)
-		if statErr != nil || !info.Mode().IsRegular() {
+		limit := int64(4 << 20)
+		if index == 1 {
+			limit = 80
+		}
+		if statErr != nil || !info.Mode().IsRegular() || info.Size() < 1 || info.Size() > limit {
 			return nil, "", "", errors.New("Azure setup bundle is incomplete")
 		}
 	}
-	data, err := os.ReadFile(archive)
+	readBounded := func(name string, limit int64) ([]byte, error) {
+		original, statErr := os.Lstat(name)
+		if statErr != nil || !original.Mode().IsRegular() || original.Size() < 1 || original.Size() > limit {
+			return nil, errors.New("Azure setup bundle member is not an ordinary bounded file")
+		}
+		file, openErr := os.Open(name)
+		if openErr != nil {
+			return nil, openErr
+		}
+		defer file.Close()
+		opened, statErr := file.Stat()
+		if statErr != nil || !opened.Mode().IsRegular() || !os.SameFile(original, opened) || opened.Size() < 1 || opened.Size() > limit {
+			return nil, errors.New("Azure setup bundle member changed while opening")
+		}
+		contents, readErr := io.ReadAll(io.LimitReader(file, limit+1))
+		if readErr != nil || int64(len(contents)) > limit {
+			return nil, errors.New("Azure setup bundle member exceeds its size limit")
+		}
+		return contents, nil
+	}
+	data, err := readBounded(archive, 4<<20)
 	if err != nil || len(data) == 0 || len(data) > 4<<20 {
 		return nil, "", "", errors.New("Azure setup bundle is unavailable")
 	}
-	expected, err := os.ReadFile(identity)
+	expected, err := readBounded(identity, 80)
 	if err != nil || len(expected) > 80 || !azureSetupSHA.MatchString(strings.TrimSpace(string(expected))) {
 		return nil, "", "", errors.New("Azure setup bundle identity is invalid")
 	}
@@ -179,6 +203,13 @@ func (s *Server) planAzureDevelop(w http.ResponseWriter, r *http.Request) {
 			"terraformVariables": map[string]any{"name": requested.Name, "location": requested.Region, "subscription_id": ""},
 		},
 		"missingInputs": []string{"existing_durable_Azure_Blob_Terraform_backend", "exact_runtime_and_controller_packages", "immutable_gallery_image_versions", "private_network_and_ssh_settings", "key_vault_exact_version_references", "controller_operator_template", "reviewed_Azure_quote_and_account_capacity"},
+		"guidedStages": []map[string]string{
+			{"id": "select", "action": "Choose account, private location, capacity and reviewed budget; the installer generates scope and generation IDs."},
+			{"id": "credentials", "action": "Generate private TLS and API material locally; explicitly publish and read back exact Key Vault versions, retaining unknown writes."},
+			{"id": "images", "action": "Prepare pinned host and controller image roots, then review immutable gallery publication and signed guest template."},
+			{"id": "connect", "action": "Apply only after reviewed cost authority, reconcile exact private resources, and verify protected controller connectivity."},
+			{"id": "retire", "action": "Settle each owned VM and retained reservation before infrastructure retirement; provider invoice remains a separate later record."},
+		},
 		"commands": []string{
 			"python3 -c 'import hashlib,sys; assert hashlib.sha256(open(sys.argv[1], \"rb\").read()).hexdigest() == sys.argv[2]' luci-azure-setup.tar " + digest,
 			"mkdir -m 700 luci-azure-setup", "tar -xf luci-azure-setup.tar -C luci-azure-setup",

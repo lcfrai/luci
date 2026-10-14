@@ -29,7 +29,7 @@ GIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 REGION = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
-SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/README.md", "azure-embed-host/package.py",
+SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/README.md", "azure-embed-host/package.py",
                 "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-controller-disk/package.py",
                 "azure-controller-disk/mount.py", "azure-controller-disk/recover.py"}
 EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
@@ -305,14 +305,20 @@ def make_plan(selection, manifest, selection_path, bundle_root):
             "priceNote": "Account, region, quota, image and recurring price are not queried by this offline plan; review Azure's current quote before applying."}
     plan["nextSteps"] = [
         "Select the Azure subscription, existing resource group, durable Blob state and an unused private network.",
-        "Select KVM-capable host/controller sizes and publish exact runtime/controller gallery image versions.",
-        "Choose a private Key Vault and exact certificate/secret versions for the separate host and controller identities.",
+        "Select KVM-capable host/controller sizes and prepare exact runtime/controller gallery image versions.",
+        "Generate credentials locally, then explicitly publish exact versions to the selected private Key Vault.",
         "Select a signed E2B guest template, model egress and reviewed task/concurrency limits.",
         "Review the account's actual monthly quote and quota before the explicit provider plan/apply.",
     ] if missing else ["Review the exact Terraform plan and account price before any effect."]
     plan["planDigest"] = digest(plan)
     script = Path(bundle_root).resolve() / "azure-setup/installer.py"
-    plan["commands"] = [shlex.join(["python3", str(script), "prepare-images", "--bundle", str(Path(bundle_root).resolve()),
+    common = ["--bundle", str(Path(bundle_root).resolve()), "--selection", str(Path(selection_path).resolve())]
+    plan["commands"] = [shlex.join(["python3", str(script), "generate-secrets", *common]),
+                        shlex.join(["python3", str(script), "publish-secrets", *common,
+                                    "--acknowledge-credential-publication"]),
+                        shlex.join(["python3", str(script), "reconcile-secrets", *common]),
+                        shlex.join(["python3", str(script), "bind-secrets", *common]),
+                        shlex.join(["python3", str(script), "prepare-images", "--bundle", str(Path(bundle_root).resolve()),
                                     "--selection", str(Path(selection_path).resolve()), "--image-inputs",
                                     str(Path(selection_path).resolve().parent / "image-inputs.json"),
                                     "--acknowledge-image-roots"]),
@@ -334,6 +340,30 @@ def plan_command(bundle_root, selection_path):
     manifest = bundle(bundle_root)
     selection = private_json(selection_path)
     return make_plan(selection, manifest, selection_path, bundle_root)
+
+
+def credential_step(bundle_root, selection_path, action, *, acknowledge=False):
+    bundle(bundle_root)
+    selected = private_json(selection_path)
+    requested(selected)
+    root = Path(selection_path).resolve().parent / "azure-credentials"
+    module_path = Path(bundle_root) / "azure-setup/credentials.py"
+    module_spec = importlib.util.spec_from_file_location("luci_azure_setup_credentials", module_path)
+    module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(module)
+    if action == "generate-secrets":
+        if any((root.parent / name).exists() for name in ("azure-setup-state.json", "azure-image-prep-state.json", "azure-terraform")):
+            raise ValueError("Azure setup already has retained work; credentials cannot be regenerated")
+        return module.generate(selected, root, atomic_json)
+    if action == "publish-secrets":
+        return module.publish(selected, root, atomic_json, acknowledge=acknowledge)
+    if action == "reconcile-secrets":
+        return module.reconcile_pending(selected, root, atomic_json)
+    if action == "bind-secrets":
+        if any((root.parent / name).exists() for name in ("azure-setup-state.json", "azure-image-prep-state.json", "azure-terraform")):
+            raise ValueError("Azure setup already has retained work; selection cannot be rebound")
+        return module.bind_selection(selected, root, atomic_json, selection_path)
+    raise ValueError("Unknown Azure credential action")
 
 
 def work_paths(selection_path):
@@ -706,7 +736,9 @@ def bootstrap(bundle_root, selection_path, plan_digest):
 def main():
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="action", required=True)
-    for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "prepare-images", "prepare", "apply", "reconcile", "bootstrap", "status"):
+    for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "generate-secrets",
+                   "publish-secrets", "reconcile-secrets", "bind-secrets", "prepare-images", "prepare", "apply",
+                   "reconcile", "bootstrap", "status"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
@@ -730,6 +762,8 @@ def main():
         if action == "prepare-images":
             row.add_argument("--image-inputs", type=Path, required=True)
             row.add_argument("--acknowledge-image-roots", action="store_true")
+        if action == "publish-secrets":
+            row.add_argument("--acknowledge-credential-publication", action="store_true")
         if action in ("prepare", "apply", "reconcile", "bootstrap"):
             row.add_argument("--plan-digest", required=True)
         if action == "apply":
@@ -763,6 +797,10 @@ def main():
         return
     if args.action == "plan":
         print(json.dumps(plan_command(args.bundle, args.selection), sort_keys=True))
+        return
+    if args.action in ("generate-secrets", "publish-secrets", "reconcile-secrets", "bind-secrets"):
+        print(json.dumps(credential_step(args.bundle, args.selection, args.action,
+                                         acknowledge=getattr(args, "acknowledge_credential_publication", False)), sort_keys=True))
         return
     if args.action == "status":
         path = args.selection.parent / "azure-setup-state.json"

@@ -108,3 +108,31 @@ func TestAzureDevelopSetupPlanAndBundleAreSourceBoundReads(t *testing.T) {
 		t.Fatal("tampered archive identity was served", w.Code)
 	}
 }
+
+func TestAzureSetupBundleRejectsOversizedInputsBeforeReading(t *testing.T) {
+	root := t.TempDir()
+	for _, row := range []struct {
+		name string
+		size int64
+	}{
+		{"azure-setup.tar", (4 << 20) + 1},
+		{"azure-setup.sha256", 81},
+	} {
+		runtimeDir := filepath.Join(root, row.name+"-runtime")
+		if err := os.Mkdir(runtimeDir, 0700); err != nil {
+			t.Fatal(err)
+		}
+		testAzureSetupArchive(t, runtimeDir)
+		file, err := os.OpenFile(filepath.Join(runtimeDir, row.name), os.O_WRONLY, 0600)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := file.Truncate(row.size); err != nil {
+			t.Fatal(err)
+		}
+		file.Close()
+		if _, _, _, err := readAzureSetupBundle(runtimeDir, filepath.Join(runtimeDir, "projects")); err == nil {
+			t.Fatalf("oversized %s was read", row.name)
+		}
+	}
+}
