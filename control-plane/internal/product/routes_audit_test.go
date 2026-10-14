@@ -67,6 +67,7 @@ var productReadOnlyRoutes = map[string]string{
 	"GET /v1/product/projects/{id}/specification/history":                                      "Reads immutable saved definition snapshots; no resources or writes.",
 	"GET /v1/product/projects/{id}/configuration":                                              "Reads only names/revision from private runtime configuration; no values, writes or execution.",
 	"GET /v1/setup/status":                                  "Reads local setup or bounded remote setup status; no provisioning.",
+	"GET /v1/setup/cloud/azure/bundle":                      "Verifies and streams the immutable installed Azure Develop setup archive; cannot contact Azure or create resources.",
 	"GET /v1/setup/cloud/jobs":                              "Reads cached provisioning history.",
 	"GET /v1/setup/cloud/login":                             "Reads cached explicit-login jobs.",
 	"GET /v1/setup/targets":                                 "Reads saved connection descriptions without their tokens.",
@@ -252,6 +253,9 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			}
 			if pattern == "GET /v1/setup/workspace/auth" {
 				status = 409
+			}
+			if pattern == "GET /v1/setup/cloud/azure/bundle" {
+				status = 503 // This private test server has no installed source-bound setup archive.
 			}
 			if strings.HasPrefix(pattern, "GET /v1/setup/workspace/admin/") {
 				status = 403 // Standalone fixtures have no trusted management actor.

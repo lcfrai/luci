@@ -99,6 +99,15 @@ try {
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $luciDestination) | Out-Null
         Copy-Item -LiteralPath (Join-Path $luciRoot $luciFile) -Destination $luciDestination
     }
+    if ($luciSource.sourceDirty -eq $false) {
+        $luciAzureArchive = Join-Path $luciRuntime 'azure-setup.tar'
+        $luciAzureHash = (& python (Join-Path $PSScriptRoot 'azure-setup/package.py') build --source $luciRoot --revision $luciSource.sourceCommit --output $luciAzureArchive | Select-Object -Last 1)
+        Confirm-Exit 'Source-bound Azure Develop setup bundle'
+        if ($luciAzureHash -notmatch '^[0-9a-f]{64}$') { throw 'Azure Develop setup bundle hash is invalid.' }
+        & python (Join-Path $PSScriptRoot 'azure-setup/package.py') verify --archive $luciAzureArchive --sha256 $luciAzureHash | Out-Null
+        Confirm-Exit 'Azure Develop setup bundle verification'
+        [IO.File]::WriteAllText((Join-Path $luciRuntime 'azure-setup.sha256'), ($luciAzureHash + "`n"), [Text.UTF8Encoding]::new($false))
+    }
     $luciTargets = @(@{os='windows';arch='amd64';suffix='.exe'},@{os='linux';arch='amd64';suffix=''},@{os='darwin';arch='arm64';suffix=''})
     $luciPackages = @()
     $env:CGO_ENABLED = '0'; $env:GOFLAGS = '-mod=readonly'

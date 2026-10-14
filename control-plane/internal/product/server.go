@@ -257,6 +257,8 @@ func (s *Server) Register(mux Registrar) {
 	mux.HandleFunc("POST /v1/setup/check", s.handleCheck)
 	mux.HandleFunc("POST /v1/setup/config", s.handleConfig)
 	mux.HandleFunc("POST /v1/setup/cloud/plan", s.handleCloudPlan)
+	mux.HandleFunc("POST /v1/setup/cloud/azure/plan", s.planAzureDevelop)
+	mux.HandleFunc("GET /v1/setup/cloud/azure/bundle", s.getAzureDevelopBundle)
 	s.registerProjects(mux)
 	s.registerCloudJobs(mux)
 	s.registerConnections(mux)

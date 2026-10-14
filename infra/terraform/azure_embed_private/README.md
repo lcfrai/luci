@@ -12,6 +12,16 @@ ports 3000–3002 and unauthenticated 5008 are never published by this module.
 The guest/task isolation boundary is E2B Firecracker: **one newly owned guest
 microVM per Luci task**, not one process/container per task on the VMSS host.
 
+The shipped BYO installer is in the installed Luci `runtime/azure-setup.tar`
+and is served by `GET /v1/setup/cloud/azure/bundle` with its SHA-256. It
+requires an **existing, separately durable Azure Blob Terraform backend**
+with Azure AD authentication. The backend is selected by private JSON; the
+installer refuses a local `terraform.tfstate`, a nonempty first-use state,
+unreviewed cost or changed source/package digest. This Terraform state is
+distinct from the controller managed disk and from the off-disk writer-fence
+Blob. A lost apply response remains `apply_pending`; the only continuation is
+read-only refreshed identity reconciliation, not another apply.
+
 ## Immutable image/package build inputs
 
 Use an isolated Ubuntu 24.04 **image build root**, not a shared user host. It
