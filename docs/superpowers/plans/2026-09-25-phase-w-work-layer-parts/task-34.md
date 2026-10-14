@@ -1,0 +1,526 @@
+### Task 34: the `forced-colors` layer; the reduced-motion running shape and static tick
+
+Stream **WD1**, about 2 hours (an estimate, not a measurement). Depends on task 29 (the running
+shape, `.gl-agent-live`, `.dot-run`) and task 33 (the `data-motion="reduce"` hook and the
+forced-colours screen this layer is looked at through). No Hub, no wire shape.
+
+Two floors land together because both are about a signal surviving when the usual carrier is
+gone (05 §4.4 work rule 4 and C7, revision 2; 07 D C4, D I8):
+
+- **Windows contrast themes.** Under `forced-colors: active` Chromium forces every `box-shadow`
+  to `none` and repaints backgrounds in `Canvas`. This design system draws elevation, the focused
+  pane, the selected palette row and every panel edge as a `box-shadow`, and the rail's status
+  dots as a background. In a contrast theme today they all vanish. A `@media (forced-colors:
+  active)` layer redraws each as a `border` or `outline` in system colours.
+- **Reduced motion.** With the breath stopped, running keeps task 29's own shape (a disc in an
+  open ring), so shape alone separates running, idle, exited and failed. The state flash becomes
+  a **static 2px leading tick in `--ink`** that stays while the row is unseen. And every
+  reduced-motion rule is written twice, as the media query and as the `:root[data-motion="reduce"]`
+  twin that task 33's set writes, so a reviewer can see the reduced look without changing Windows.
+
+**Five corrections to the scope, verified against the tree at `b8bd64e` and the written parts:**
+
+1. **The unseen attribute is `data-changed="unseen"`,** not the scope's `data-unseen="true"`.
+   Task 41's part is written and sets `data-changed="unseen"` on every held row, saying task 34
+   draws it (`task-41.md:53-56`). One attribute, the one already in a plan: this task keys on it.
+2. **The tick is in `tokens.css`, not `glyphs.css`.** It marks a row, not a glyph, and
+   `glyphs.css` owns `.gl-*` and no other prefix (task 28's file map). The only global
+   reduced-motion rules in the tree are the floor at `tokens.css:173-183`; the tick is the floor's
+   second rule and sits beside it. `glyphs.css` gains only the `.gl-agent-live` twin.
+3. **The ring rule covers every `box-shadow`, not only `--e-*`, `--thread` and `--accent-ring`.**
+   Every one of the tree's 36 non-token `box-shadow` declarations is a ring, an elevation or a
+   one-pixel edge (`rail.css:10`, `subrail.css:9`, `topbar.css:10` and nine more are `--line`
+   edges; `common.css:56`, `:101` and `:121` are the dots' `currentColor` rings). Chromium drops all
+   of them. A rule that checked three token families would pass a contrast theme with no panel
+   edges and no hollow *starting* dot. Two exclusions: a value of `none`, and a selector under
+   `:root[data-look="old"]` (task 30's convention; task 39 deletes the old look).
+4. **The dots need an opt-out, not an outline.** `.dot`'s fill is `background: currentColor`
+   (`common.css:37-47`), which forced colours repaint as `Canvas`: every rail dot would disappear,
+   running or not. `.dot` takes `forced-color-adjust: none` and `color: CanvasText`, so the fill,
+   the ring and task 29's `.dot-run` outline all draw in the one system ink.
+5. **`lease.ring` does not exist yet.** 02 C9 puts it on the team strip's chip, which no Phase W
+   task before this one builds. The ring audit fails it the day its stylesheet lands without a
+   forced-colours line, which is the point of an audit over the tree rather than a list.
+
+**What stays as it is.** The focus ring is already an `outline` (`tokens.css:187-191`) and forced
+colours keep outlines, so it is not touched. Glyphs are SVG in `currentColor` (tasks 28, 29), which
+forced colours map to `CanvasText`, so their shapes carry the meaning on their own.
+`prototype/work-layer.html:379-386` sketches forced-colours rules; they are rewritten here against
+the real class names, not copied.
+
+**Files:**
+- `desktop/src/styles/forced-colors.css` — the layer (new)
+- `desktop/src/main.tsx` ⚑ (13 lines; `import App` at `:7`) — imports the layer after `./App`
+  (modified; the scope named `app.css`, see below)
+- `desktop/src/styles/tokens.css` ⚑ (191 lines; the floor at `:173-183`) — the floor's twin, the
+  tick and its twin, after `:183` (modified)
+- `desktop/src/components/glyphs/glyphs.css` ⚑ (task 29) — the `.gl-agent-live` twin (modified)
+- `desktop/src/components/common/common.css` ⚑ (179 lines; the reduced block at `:119-123`) —
+  its twin (modified)
+- `desktop/src/components/palette/palette.css` ⚑ (the reduced block at `:131-135`) — its twin
+  (modified)
+- `desktop/src/components/devtools/devtools.css`, `stress.css` ⚑ (tasks 32, 33) — each gains its
+  own forced-colours lines, so no production file names a dev class (modified)
+- `desktop/src/styles/designsystem.test.ts` ⚑ — four rules and their canaries (modified)
+- `desktop/src/styles/tokens.test.ts` ⚑ (91 lines) — the tick (modified)
+- `desktop/src/components/glyphs/AgentGlyph.test.tsx` ⚑ (task 29) — one test (modified)
+
+**Why the layer is imported last, from `main.tsx`, not from `app.css`.** A forced-colours rule
+and a component rule of equal specificity resolve by source order. `main.tsx:1-4` imports
+`app.css` first so the token layer sits **under** every component sheet; a layer imported there
+would lose every tie (`.top-btn { border: 0 }` would erase its forced border). So `main.tsx`
+imports `./styles/forced-colors.css` **after** `import App from "./App";` (`:7`), which Vite emits
+after every component sheet. `app.css` is not edited.
+
+#### Interfaces — complete: `desktop/src/styles/forced-colors.css`
+
+```css
+/* desktop/src/styles/forced-colors.css
+ *
+ * Windows contrast themes (Phase W task 34; 05 §4.4 work rule 4; 07 D I8). Under
+ * forced-colors: active, Chromium forces every box-shadow to none and repaints backgrounds as
+ * Canvas. Here every ring, elevation and edge the tree draws as a shadow is redrawn as a border or
+ * outline in a system colour. designsystem.test.ts fails any box-shadow selector with no line here.
+ *
+ * Imported LAST, from main.tsx after ./App, so it wins every tie with a component sheet. Borders,
+ * not outlines, for rings: the focus ring (tokens.css :focus-visible) is an outline and must stay
+ * one. The dev toolbar's own lines live in devtools.css and stress.css. */
+@import "./tokens.css";
+
+@media (forced-colors: active) {
+  /* Elevation and control rings. */
+  .pop, .toast, .toast-undo, .pane, .pane-attach--corner, .pane-exit-restart, .pane-empty-go,
+  .cv-tile, .cv-tile[data-cv-dragging="resize"], .menu-rename-input, .pal, .pal-hint,
+  .rail-kbd, .top-seg, .top-btn, .vh-route {
+    border: 1px solid CanvasText;
+  }
+
+  /* Focus within a pane or tile is a selection: 2px Highlight, drawn inside the box. */
+  .pane--focused, .cv-tile:focus-within, .cv-tile[data-cv-dragging="resize"]:focus-within {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  /* One-pixel panel edges, each on its own side. */
+  .rail, .sub {
+    border-inline-end: 1px solid CanvasText;
+  }
+  .rail-machine, .sub-head, .top, .vh, .pal-input, .pane-head {
+    border-block-end: 1px solid CanvasText;
+  }
+  .rail-footer, .pane-exit, .pane-foot, .pane > .pane-gitnote {
+    border-block-start: 1px solid CanvasText;
+  }
+  .cv-resize {
+    border-inline-end: 2px solid CanvasText;
+    border-block-end: 2px solid CanvasText;
+  }
+
+  /* The selected row: 2px Highlight, and the tick (task 31) in Highlight. Not while focused, so
+   * the focus ring is never replaced; the tick still marks the selection then. */
+  .rail-row[aria-selected="true"]:not(:focus-visible),
+  .sub-row[aria-current="page"]:not(:focus-visible) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .rail-row[aria-selected="true"]::before,
+  .sub-row[aria-current="page"]::before {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+
+  /* The cursor row: 1px. The palette's active option is its cursor. */
+  .pal-row-on {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+
+  /* Status dots draw their fill as a background. Opting out keeps every dot shape (disc, inset
+   * ring, the running ring, the halo) in one system ink; the shape carries the status. */
+  .dot, .dot-ring, .dot-live, .dot-flash::after {
+    forced-color-adjust: none;
+  }
+  .dot {
+    color: CanvasText;
+  }
+
+  /* The unseen tick (tokens.css, reduced motion only) keeps its ink. */
+  [data-changed="unseen"]::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  /* Grain over system colours is noise over someone's chosen contrast. Task 35 does not repeat
+   * this rule; its test counts one. */
+  .grain::after {
+    display: none;
+  }
+}
+```
+
+#### Interfaces — complete: `main.tsx`, and the dev sheets' own lines
+
+`main.tsx`, after `import App from "./App";` (`:7`):
+
+```ts
+// LAST, after every component sheet App pulls in: a forced-colours rule must win each tie with
+// the component rule it redraws (Phase W task 34). Vite emits CSS in module-graph order.
+import "./styles/forced-colors.css";
+```
+
+Appended to `devtools.css` (task 32) and `stress.css` (task 33) respectively:
+
+```css
+@media (forced-colors: active) {
+  .dt, .dt-reset {
+    border: 1px solid CanvasText;
+  }
+}
+```
+
+```css
+@media (forced-colors: active) {
+  .ss-bar {
+    border-block-end: 1px solid CanvasText;
+  }
+}
+```
+
+#### Interfaces — complete: the reduced-motion twins and the tick
+
+`tokens.css`, after the floor (`:183`):
+
+```css
+/* The floor's twin. data-motion="reduce" (task 33's stress set, through flags.ts) forces the same
+ * floor on a machine whose OS setting is off. Every reduced-motion rule in the tree has a twin
+ * with IDENTICAL declarations; designsystem.test.ts fails one that drifts. */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* The unseen tick (05 §4.4 C7, revision 2; AX §6.1's read cursor). With motion reduced a state
+ * change cannot flash, so a row whose change the reader has not seen carries a static 2px
+ * leading tick in --ink. The attribute is the contract: the lens that owns "seen" sets and clears
+ * data-changed="unseen" (task 41), and the tick goes when the attribute goes. --ink, never
+ * accent: it is news, not selection. inset-inline-start makes it the leading edge in RTL too. */
+[data-changed="unseen"] {
+  position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-changed="unseen"]::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: 2px;
+    background: var(--ink);
+    pointer-events: none;
+  }
+}
+
+:root[data-motion="reduce"] [data-changed="unseen"]::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 2px;
+  background: var(--ink);
+  pointer-events: none;
+}
+```
+
+`glyphs.css`, after task 29's reduced block; `common.css`, after `:123`; `palette.css`, after
+`:135`. Each is its file's media rule, restated under the attribute:
+
+```css
+:root[data-motion="reduce"] .gl-agent-live {
+  opacity: 1;
+}
+```
+
+```css
+:root[data-motion="reduce"] .dot-live {
+  box-shadow: 0 0 0 1.5px currentColor;
+}
+
+:root[data-motion="reduce"] .dot-run.dot-live {
+  box-shadow: none;
+}
+```
+
+```css
+:root[data-motion="reduce"] .pal {
+  animation: none;
+}
+```
+
+The second `common.css` twin is task 29's addition to the reduced block (`task-29.md:378-383`).
+If a Work row (task 40) draws its own `::before`, the tick and it collide on one pseudo-element;
+task 40's part was not on the tree at this writing, so that is **UNVERIFIED**, and the fix would
+be task 40's (an `::after` or a child), because the tick is the floor.
+
+#### Tests to write first — `desktop/src/styles/designsystem.test.ts`, the four predicates
+
+Appended after task 31's predicates, reusing `rulesOf`, `splitTop`, `REDUCED_MOTION` and task
+31's `OLD_LOOK`:
+
+```ts
+const FORCED = /forced-colors:\s*active/;
+const TWIN = ':root[data-motion="reduce"]';
+/** CSS Color 4's system colours: legal only inside a forced-colours block. */
+const SYSTEM_COLOUR =
+  /(?<![\w-])(?:CanvasText|Canvas|Highlight|HighlightText|LinkText|VisitedText|ActiveText|ButtonFace|ButtonText|ButtonBorder|Field|FieldText|GrayText|Mark|MarkText|SelectedItem|SelectedItemText|AccentColor|AccentColorText)(?![\w-])/g;
+
+const parts = (selector: string): string[] => splitTop(selector, ",").map((s) => s.trim());
+const inForced = (r: Rule): boolean => r.within.some((at) => FORCED.test(at));
+
+/** Every selector whose box-shadow Chromium drops needs a forced-colours line that draws it
+ *  another way: a border, an outline, or an opt-out. Old-look and twin selectors are exempt:
+ *  the first is deleted at task 39, the second restates a rule that is itself checked. */
+function ringsWithoutForcedColours(t: Tree): string[] {
+  const all = t.css.flatMap((file) => rulesOf(t.read(file)).map((r) => ({ file, r })));
+  const redrawn = new Set(
+    all
+      .filter(({ r }) => inForced(r))
+      .filter(({ r }) => r.decls.some((d) => /^(?:border|outline|forced-color-adjust)/.test(d.property)))
+      .flatMap(({ r }) => parts(r.selector).map((p) => p.replace(/:not\(:focus-visible\)$/, ""))),
+  );
+  const offenders: string[] = [];
+  for (const { file, r } of all) {
+    if (inForced(r) || r.within.some((at) => at.startsWith("@keyframes"))) continue;
+    if (!r.decls.some((d) => d.property === "box-shadow" && d.value !== "none")) continue;
+    for (const p of parts(r.selector)) {
+      if (p.startsWith(OLD_LOOK) || p.startsWith(TWIN) || redrawn.has(p)) continue;
+      offenders.push(`${file}  ${p}  box-shadow with no forced-colors border, outline or opt-out`);
+    }
+  }
+  return offenders;
+}
+
+/** Each rule inside a reduced-motion media block has, in the same file, a top-level twin whose
+ *  every selector is prefixed with the attribute and whose declarations are identical. */
+function twinFaults(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    const rules = rulesOf(t.read(file));
+    for (const r of rules.filter((x) => x.within.some((at) => REDUCED_MOTION.test(at)))) {
+      const want = parts(r.selector).map((p) => `${TWIN} ${p}`).join(", ");
+      const twin = rules.find((x) => x.within.length === 0 && parts(x.selector).join(", ") === want);
+      if (twin === undefined) offenders.push(`${file}  ${r.selector}  has no ${TWIN} twin`);
+      else if (JSON.stringify(twin.decls) !== JSON.stringify(r.decls)) {
+        offenders.push(`${file}  ${r.selector}  twin declarations differ`);
+      }
+    }
+  }
+  return offenders;
+}
+
+/** A system colour outside a forced-colours block bypasses the palette in the normal look. */
+function systemColoursOutside(t: Tree): string[] {
+  const offenders: string[] = [];
+  for (const file of t.css) {
+    for (const r of rulesOf(t.read(file))) {
+      if (inForced(r)) continue;
+      for (const d of r.decls) {
+        for (const m of d.value.matchAll(SYSTEM_COLOUR)) offenders.push(`${file}  ${r.selector}  ${m[0]}`);
+      }
+    }
+  }
+  return offenders;
+}
+
+/** The forced-colours rules that declare `property: value` for exactly `selector`. */
+function forcedDecl(t: Tree, selector: string, property: string): string[] {
+  return t.css.flatMap((file) =>
+    rulesOf(t.read(file))
+      .filter((r) => inForced(r) && parts(r.selector).includes(selector))
+      .flatMap((r) => r.decls.filter((d) => d.property === property).map((d) => d.value)),
+  );
+}
+```
+
+`SYSTEM_COLOUR` is case-sensitive on purpose: CSS keywords are case-insensitive, but the tree
+writes them in this case, and a lowercase `canvas` is far likelier to be a word in a comment than a
+colour. `rulesOf` strips comments first (`designsystem.test.ts:116`), so comments never reach it.
+
+#### Tests to write first — `designsystem.test.ts`, the tests and their canaries
+
+Appended to `describe("the design-system audit")`:
+
+```ts
+  it("gives every ring a forced-colors border or outline", () => {
+    // Kills: a ring, elevation or edge that vanishes under a Windows contrast theme.
+    expect(ringsWithoutForcedColours(REAL)).toEqual([]);
+    // Not vacuous: the pane's elevation is one of the rings, and it is redrawn.
+    expect(forcedDecl(REAL, ".pane", "border")).toEqual(["1px solid CanvasText"]);
+  });
+
+  it("turns grain off under forced colours", () => {
+    // Kills: grain painted over someone's chosen contrast; a second copy of the rule.
+    expect(forcedDecl(REAL, ".grain::after", "display")).toEqual(["none"]);
+  });
+
+  it("outlines the selected row in Highlight", () => {
+    // Kills: an invisible selection, and a selection outline that replaces the focus ring.
+    for (const row of ['.rail-row[aria-selected="true"]', '.sub-row[aria-current="page"]']) {
+      expect(forcedDecl(REAL, `${row}:not(:focus-visible)`, "outline")).toEqual(["2px solid Highlight"]);
+      expect(forcedDecl(REAL, `${row}::before`, "background")).toEqual(["Highlight"]);
+    }
+    expect(forcedDecl(REAL, ".pal-row-on", "outline")).toEqual(["1px solid Highlight"]);
+  });
+
+  it("keeps each reduced-motion twin identical to its media rule", () => {
+    // Kills: a twin that drifts, and a reduced-motion rule the stress set cannot reach.
+    expect(twinFaults(REAL)).toEqual([]);
+  });
+
+  it("uses system colours only inside a forced-colors block", () => {
+    // Kills: Highlight or CanvasText leaking into the normal look, bypassing the palette.
+    expect(systemColoursOutside(REAL)).toEqual([]);
+  });
+```
+
+Appended to `CANARIES`:
+
+```ts
+  // Task 34: forced colours and the reduced-motion twins.
+  { fault: "a ring with no forced-colors line", rule: ringsWithoutForcedColours, file: PLANT_CSS, text: sheet(".p { box-shadow: var(--e-card); }") },
+  { fault: "an edge with no forced-colors line", rule: ringsWithoutForcedColours, file: PLANT_CSS, text: sheet(".p { box-shadow: inset 0 -1px 0 var(--line); }") },
+  { fault: "a forced-colors line that only recolours", rule: ringsWithoutForcedColours, file: PLANT_CSS, text: sheet(".p { box-shadow: var(--e-hair); }\n@media (forced-colors: active) {\n  .p { color: CanvasText; }\n}") },
+  { fault: "a reduced-motion rule with no twin", rule: twinFaults, file: PLANT_CSS, text: sheet("@media (prefers-reduced-motion: reduce) {\n  .p { animation: none; }\n}") },
+  { fault: "a twin that drifts", rule: twinFaults, file: PLANT_CSS, text: sheet('@media (prefers-reduced-motion: reduce) {\n  .p { opacity: 1; }\n}\n:root[data-motion="reduce"] .p { opacity: 0.9; }') },
+  { fault: "a system colour in the normal look", rule: systemColoursOutside, file: PLANT_CSS, text: sheet(".p { outline: 1px solid Highlight; }") },
+```
+
+The *only recolours* canary is the one that separates this rule from a weaker one: a
+forced-colours block exists for `.p`, so a rule that only asked "is `.p` mentioned under forced
+colours?" would pass it, and a ring would still vanish.
+
+#### Tests to write first — `tokens.test.ts` and `AgentGlyph.test.tsx`
+
+`tokens.test.ts`, appended inside its `describe`, with its existing `tokensCss` raw import and
+`stripCssComments`:
+
+```ts
+  it("shows the tick only on an unseen row, in ink", () => {
+    // Kills: a tick keyed on a class nobody clears or on the attribute's presence; a tick drawn
+    // in accent; a tick that also shows with motion on, where the flash already says it.
+    const css = stripCssComments(tokensCss);
+    const media = /@media \(prefers-reduced-motion: reduce\) \{\s*\[data-changed="unseen"\]::before \{([^}]*)\}/.exec(css);
+    expect(media).not.toBeNull();
+    const body = media![1];
+    expect(body).toMatch(/background: var\(--ink\);/);
+    expect(body).toMatch(/inline-size: 2px;/);
+    expect(body).toMatch(/inset-inline-start: 0;/);
+    expect(body).not.toMatch(/--accent/);
+    const bare = css.replace(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/g, "");
+    const drawn = [...bare.matchAll(/([^{}]*)\{[^}]*content:/g)].map((m) => m[1].trim());
+    expect(drawn.filter((s) => s.includes("data-changed"))).toEqual([
+      ':root[data-motion="reduce"] [data-changed="unseen"]::before',
+    ]);
+  });
+```
+
+`AgentGlyph.test.tsx`, appended inside task 29's `describe`, with `glyphsCss` read `?raw`:
+
+```tsx
+  it("keeps running and idle apart with motion reduced", () => {
+    // Kills: a colour-only difference once the breath stops, and a reduced rule that hides the
+    // running glyph's ring.
+    document.documentElement.setAttribute("data-motion", "reduce");
+    const shapes = (status: "running" | "idle") => {
+      const { container, unmount } = render(<AgentGlyph status={status} label={status} />);
+      const d = [...container.querySelectorAll("path")].map((p) => p.getAttribute("d"));
+      unmount();
+      return d;
+    };
+    expect(shapes("running")).not.toEqual(shapes("idle"));
+    expect(shapes("running")).toHaveLength(2);
+    const reduced = stripCssComments(glyphsCss)
+      .split("}")
+      .filter((b) => /prefers-reduced-motion|data-motion="reduce"/.test(b) || b.includes(".gl-agent-live"));
+    for (const block of reduced) expect(block).not.toMatch(/opacity:\s*0[;\s]|display:\s*none|visibility:\s*hidden/);
+    document.documentElement.removeAttribute("data-motion");
+  });
+```
+
+#### Steps
+
+1. Write the four predicates, the five audit tests, the six canaries, the tick test and the glyph
+   test. Run `npm --prefix desktop test -- designsystem tokens glyphs`: the ring test fails,
+   naming every selector in the `forced-colors.css` block above (that failure **is** the list;
+   if it names one this part does not, that selector gets a line in the same group); grain,
+   selection and twin tests fail; the system-colour test passes (nothing uses one yet); the six
+   canaries pass already (each reads only its planted file, which the real tree lacks); the tick
+   test fails; the glyph test passes (task 29's shapes already differ) and is
+   a guard for step 4.
+2. Write `forced-colors.css` and its `main.tsx` import; append the dev sheets' lines. The ring,
+   grain and selection tests pass.
+3. Append the floor twin, the tick and its twin to `tokens.css`. The tick test passes.
+4. Append the three twins to `glyphs.css`, `common.css` and `palette.css`. The twin test passes.
+5. Mutate by hand, one at a time, and watch the named test go red, then revert: delete `.top`
+   from the edge group; change `.grain::after`'s `display: none` to `opacity: 0`; drop
+   `:not(:focus-visible)` from the rail row; set the palette twin to `animation: pal-in 0s`;
+   change the tick's `var(--ink)` to `var(--accent)`; key the tick on `[data-changed]`.
+6. Run the typecheck and the full desktop suite (`never transitions all` covers the new file
+   with no edit: the audit globs `/src/**/*.css`). Commit the eight files with
+   `git commit -F <msg> -- <paths>`.
+7. By hand, in `npm --prefix desktop run tauri dev`, open task 33's *Windows contrast theme* set
+   and turn a contrast theme on: the rail's edge, the dots, the focused pane and the selected row
+   should each be visible. That is a look, recorded for the owner, not an acceptance.
+
+#### Acceptance
+
+```bash
+npm --prefix desktop test -- designsystem tokens glyphs
+# expect: every test passes: the audit's five new tests and six canaries, the tick test, the
+# glyph test, and every existing test in the three files
+
+npm --prefix desktop run typecheck
+# expect: exit 0, no output from tsc
+
+grep -c "forced-colors: active" desktop/src/styles/forced-colors.css
+# expect: 1 until task 36 appends its own block, then 2
+
+grep -rn "CanvasText\|Highlight" desktop/src --include=*.css | grep -v "forced-colors.css\|devtools.css\|stress.css"
+# expect: nothing; system colours live only in forced-colours blocks
+```
+
+#### What this task does not claim
+
+- **How a real Windows contrast theme looks.** The layer is pinned; the look is the owner's
+  eyes through task 33's screen, recorded at task 39.
+- **That WebView2 honours `forced-colors` exactly as Chromium does.** WebView2 is Chromium, but
+  whether it follows the OS contrast theme without an app-level setting is **UNVERIFIED**.
+- **That every edge was the right one to draw.** `--line-soft` separators inside a pane are drawn
+  too; whether the contrast look is then too busy is a review question.
+- **`lease.ring` or the escalated lease chip.** Neither exists; the ring audit fails either the
+  day it lands without a line here, and the chip's needs-you shape is its own task's to keep.
+- **The live region** (task 66), grid roles, or screen-reader wording.
+- **That the tick and a Work row's own `::before` do not collide** (task 40, **UNVERIFIED**).
+- Design: 05 §4.4 C7 (reduced motion, revision 2), work rule 4, §5.3 row 17; 07 D C4, D I8.
+  Parity: no 01 row; with task 66 it is W1's accessibility floor.
+
+**Interfaces:**
+- Produces: `desktop/src/styles/forced-colors.css`, imported last from `main.tsx`; the contract
+  that every `box-shadow` selector has a forced-colours `border`, `outline` or opt-out, and that
+  system colours appear only inside `@media (forced-colors: active)`
+- Produces the tick: `[data-changed="unseen"]::before`, 2px, `--ink`, leading edge, under
+  reduced motion and its twin only; the lens sets and clears the attribute (task 41)
+- Produces the twin rule: every rule in a `prefers-reduced-motion: reduce` block has a top-level
+  `:root[data-motion="reduce"]` twin with identical declarations, in the same file (tasks 36, 41
+  already write theirs)
+- Produces for task 35: `.grain::after { display: none }` under forced colours, the one copy
+- Produces for task 36: the block task 36 appends to; the predicates `ringsWithoutForcedColours`,
+  `twinFaults`, `systemColoursOutside`, `forcedDecl`
+- Consumes: task 29's `AgentGlyph`, `.gl-agent-live`, `.dot-run`; task 31's two tick selectors and
+  `OLD_LOOK`; task 33's `data-motion` flag; tasks 32 and 33's `.dt`, `.dt-reset`, `.ss-bar`; the
+  built `rulesOf`, `splitTop`, `REDUCED_MOTION` (`designsystem.test.ts:115`, `:156`, `:233`),
+  `.dot` (`common.css:37-47`), the 36 `box-shadow` selectors (verified by listing the tree)
+- Amends: nothing in the Hub. No wire shape changes.

@@ -100,18 +100,29 @@ az acr repository show-tags --name <your-acr> --repository panacea-app/sandbox
 
 ## Stage 3 — the Kata node pool
 
+> **Two things about this block, both checked on 2026-09-28.**
+> 1. **The engine is `tofu`, not `terraform` (`OD-32`).** HashiCorp Terraform has been BUSL-1.1
+>    since August 2023 and this product ships to customers who run it on their own cloud, so the
+>    binary is OpenTofu (MPL-2.0). `.tf` syntax and the flags below are unchanged. The providers
+>    do not move: `hashicorp/azurerm` is MPL-2.0.
+> 2. **`infra/terraform` no longer holds a root module, so this block cannot be run as written.**
+>    `ls infra/terraform/*.tf` returns nothing: phase 8 replaced the flat `kata.tf` layout with
+>    `infra/terraform/{modules,stacks}/…`, and the Kata pool moves into a stack there. Do not
+>    "fix" this by re-creating a root module. The live procedure is phase 8's first-apply
+>    runbook; until that exists, treat this stage as history.
+
 ```bash
 export TF_VAR_aks_cluster_id=$(az aks show -g rg-aks-panacea-dev -n aks-panacea-dev --query id -o tsv)
 
 cd infra/terraform
-terraform init
-terraform plan -var-file=dev.tfvars -out=kata.plan   # REVIEW THIS before applying
-terraform apply kata.plan
+tofu init
+tofu plan -var-file=dev.tfvars -out=kata.plan   # REVIEW THIS before applying
+tofu apply kata.plan
 
 kubectl get nodes -l panacea-app/role=sandbox
 ```
 
-`aks_cluster_id` deliberately has no default and no tfvars entry, so Terraform prompts rather than silently targeting the wrong cluster.
+`aks_cluster_id` deliberately has no default and no tfvars entry, so OpenTofu prompts rather than silently targeting the wrong cluster.
 
 ### The identifier trap — read before debugging anything
 
@@ -119,11 +130,11 @@ Three strings look interchangeable and are not:
 
 | Where | Value |
 |---|---|
-| Terraform `workload_runtime` | `KataVmIsolation` |
+| OpenTofu `workload_runtime` | `KataVmIsolation` |
 | `az aks --workload-runtime` | `KataMshvVmIsolation` |
 | Kubernetes `runtimeClassName` | `kata-mshv-vm-isolation` |
 
-The plan originally specified the wrong Terraform value; the provider rejected it and it is fixed. **The third one is unverified.** Nothing guarantees that setting `KataVmIsolation` produces a RuntimeClass registered under exactly `kata-mshv-vm-isolation`, which the pod spec hardcodes.
+The plan originally specified the wrong value in the `.tf`; the provider rejected it and it is fixed. **The third one is unverified.** Nothing guarantees that setting `KataVmIsolation` produces a RuntimeClass registered under exactly `kata-mshv-vm-isolation`, which the pod spec hardcodes.
 
 ```bash
 kubectl get runtimeclass

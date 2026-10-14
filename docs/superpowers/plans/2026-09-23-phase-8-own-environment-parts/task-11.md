@@ -1,0 +1,275 @@
+### Task 11: `deploy/charts/platform` — namespaces, Pod Security, priority, quotas, network policy
+
+Kata isolates a sandbox's **kernel**; it does nothing for its **network** or its **API access**
+(survey G-4, `:420`): today a sandbox pod could reach the metadata endpoint, the API server with a
+default token, and every other sandbox. Task 14 fixes the pod spec; this chart makes the cluster
+**refuse** a pod that regresses (Pod Security `restricted` enforced on `panacea-sandboxes`) and
+**drop** the traffic a pod must never send (default-deny plus the few allows of P8-D12). It also
+carries Panacea's scheduling lesson (survey §1.4, `:111`, `:114-117`): a priority ladder so a burst
+of sessions can never preempt login.
+
+Installed by the `deploy` pipeline before every other chart (task 30). OpenTofu never touches it
+(P8-D3).
+
+**Tooling.** Helm is not on the build laptop (`which helm` fails, 2026-09-23). Step 1 installs the
+version pinned by task 28 (`scoop install helm@<pin>`; if scoop cannot reach GitHub through the
+proxy, stop and report — do not vendor a binary into the repo), plus the `helm-unittest` plugin
+(MIT) at its pinned version. `kubeconform` (Apache-2.0) runs in CI only.
+
+**Amended 2026-09-28, measured.** `scoop install helm@4.3.0` resolves the right manifest — the
+`main` bucket carries exactly the pinned 4.3.0 — but the download fails: `get.helm.sh` returns
+HTTP 403 with a Netskope block page (31798 bytes of interstitial HTML, not a zip), and
+`helm/helm`'s GitHub release `v4.3.0` attaches **only** `.asc` and `.sha256` signatures, never the
+binary. GitHub itself is reachable (HTTP 206 on a ranged GET). So the plan's stop condition —
+"scoop cannot reach GitHub" — is not the one that fires; the one that fires is "the vendor's own
+download host is category-blocked", and no amount of scoop retry fixes it.
+The resolution, and it is the same trust model task 28 already uses for its two Go tools:
+`GOWORK=off GOTOOLCHAIN=local GOFLAGS=-mod=readonly go install helm.sh/helm/v4/cmd/helm@v4.3.0`,
+built from the checksum-verified `proxy.golang.org` zip (HTTP 200). That is the pinned version from
+the pinned source, and it vendors nothing into the repo. CI (task 28, `ubuntu-latest`) is a
+different egress path and may still use `install-tool.sh`'s release download; if the hosted agent
+hits the same block, `install-tool.sh` needs the same Go-built row for helm.
+
+**Files:**
+- `deploy/charts/platform/Chart.yaml`, `values.yaml`, `values.schema.json` (new)
+- `deploy/charts/platform/templates/{_helpers.tpl,namespaces.yaml,priorityclasses.yaml,quota.yaml,networkpolicy-defaults.yaml,networkpolicy-sandboxes.yaml,storageclasses.yaml}` (new)
+- `deploy/charts/platform/tests/*_test.yaml` (new, helm-unittest)
+
+#### Contract — `Chart.yaml` and `values.yaml` (complete)
+
+```yaml
+# Chart.yaml
+apiVersion: v2
+name: platform
+description: PanaceaApp cluster baseline - namespaces, Pod Security, priority classes, quotas, network policy, storage classes.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+```
+
+```yaml
+# values.yaml — every key is required by values.schema.json (additionalProperties: false)
+namespaces:
+  hub: panacea-hub
+  broker: panacea-broker
+  sandboxes: panacea-sandboxes
+  edge: panacea-edge
+  identity: panacea-identity  # our Keycloak (OD-30, ruling §9; task 29's keycloak chart)
+
+network:
+  # From foundation outputs, passed by the deploy pipeline. Empty fails the render.
+  vnetCidr: ""
+  podCidr: ""
+  serviceCidr: ""
+  privateEndpointsCidr: ""
+
+sandboxes:
+  # P8-D15. Must equal the broker's PANACEA_APP_RUNTIME_CLASS (task 29 passes both from one value).
+  runtimeClass: kata-vm-isolation
+  quota:                      # a ceiling for the whole namespace, not per user (the broker enforces per-user limits)
+    requestsCpu: "64"
+    requestsMemory: 128Gi
+    pods: "64"
+    persistentVolumeClaims: "64"
+    requestsStorage: 4Ti
+  limitRange:
+    # The largest single container the cluster will admit, DERIVED FROM THE SANDBOX SKU (b05
+    # re-review 2): the largest session that fits beside a machine pod on an empty node. It MUST
+    # equal the broker's PANACEA_APP_BROKER_MAX_CPU_MILLIS / _MAX_MEMORY_MIB (task 17); task 29's
+    # session_size_is_one_value holds them equal. Arithmetic for Standard_D8s_v5, UNVERIFIED;
+    # task 32's P07 measures and rewrites all three places.
+    maxCpu: 6000m
+    maxMemory: 20480Mi
+    # What an unsized container gets (review I4): one session, never the max. MUST equal the
+    # broker's PANACEA_APP_BROKER_SESSION_CPU_MILLIS / _MEMORY_MIB and warm.balloons (task 12);
+    # task 29's netpolcover case session_size_is_one_value holds all three equal per env.
+    defaultCpu: 2000m
+    defaultMemory: 4096Mi
+
+storage:
+  machineDisk:
+    name: panacea-machine-disk
+    skuName: Premium_ZRS      # zone-redundant: a machine's disk can re-attach in another zone
+  nfsFallback:                # P8-D6's fallback, off unless task 32 finds RWO sharing fails under Kata
+    enabled: false
+    name: panacea-machine-nfs
+
+warm: {}                      # task 12 fills this block
+```
+
+`values.schema.json` is JSON Schema draft-07 generated from the block above: every key
+`required`, every object `additionalProperties: false`, the four CIDRs `"pattern":
+"^[0-9]{1,3}(\\.[0-9]{1,3}){3}/[0-9]{1,2}$"`, the SKU an enum of `Premium_LRS`, `Premium_ZRS`,
+`StandardSSD_ZRS`. Helm validates values against it on `lint`, `template` and `install`.
+
+#### What the templates render (described; each object is named here exactly)
+
+`namespaces.yaml` — five `Namespace`s. Labels on each: `app.kubernetes.io/part-of: panacea-app`,
+**`pod-security.kubernetes.io/enforce: restricted`**, `pod-security.kubernetes.io/enforce-version:
+latest`, and the same for `audit` and `warn`. `panacea-hub`, `panacea-broker` and
+`panacea-identity` (Keycloak, whose `auth.<zone>` the system browser reaches, OD-30) also carry
+`panacea-app/edge-routes: "true"`, the label task 13's Gateway admits routes from; no other
+namespace carries it, so a route created in `panacea-sandboxes` is never attached to the edge. `restricted` on `panacea-sandboxes` is the point:
+task 14's pod (non-root, no escalation, all capabilities dropped, `RuntimeDefault` seccomp,
+volumes of type emptyDir / PVC / secret only) passes; a regression is rejected by the API server,
+not merely missed by a review.
+
+`priorityclasses.yaml` — four `PriorityClass`es, none `globalDefault`:
+
+| Name | value | preemptionPolicy | Who |
+|---|---|---|---|
+| `panacea-platform-critical` | 1000000 | PreemptLowerPriority | Hub, broker, Traefik, cert-manager |
+| `panacea-machine` | 100000 | PreemptLowerPriority | machine pods — they anchor a user's sessions (P8-D6) |
+| `panacea-session` | 10000 | PreemptLowerPriority | session pods |
+| `panacea-balloon` | -10 | **Never** | warm-capacity balloons (task 12): evicted first, never evict anything |
+
+**The balloon's -10 is a floor, not a free choice (review m10).** The cluster autoscaler treats a
+pod whose priority is *below* `--expendable-pods-priority-cutoff` (default `-10`) as expendable: a
+Pending one triggers no scale-up, and a node holding only such pods counts as empty at scale-down
+(training knowledge of the cluster autoscaler, **UNVERIFIED** here). A preempted balloon must stay
+Pending *and* ask for a node, or the warm pool never refills (task 12), so the value must be
+`>= -10`. It sits exactly on the cutoff, so the ladder has no room below it: any "make balloons
+even lower" edit silently turns the warm pool off. AKS does not expose the cutoff in
+`auto_scaler_profile` (task 06), so the default is the one in force (training knowledge of the
+`azurerm` provider, **UNVERIFIED**). The proof on a real cluster is task 32's P06 (d): the balloon
+that run preempts must go Pending and bring the pool a new node, read only when no other node has
+room for it and the pool is below `max_count`, and a missing scale-up is blamed on the cutoff only
+when the balloon has no `NotTriggerScaleUp` event either (b09 re-review 5).
+
+`quota.yaml` — `ResourceQuota/sandboxes` and `LimitRange/sandboxes` in `panacea-sandboxes` from
+`sandboxes.quota` and `sandboxes.limitRange`: one `type: Container` item with `max` (from
+`maxCpu`/`maxMemory`) **and** `default` and `defaultRequest` (both from `defaultCpu`/
+`defaultMemory`, so a defaulted container is `requests == limits`, as Kata needs). Without them, a
+container LimitRange with only `max` gives an unsized container `default = max` and
+`defaultRequest = default`, and LimitRanger defaults init containers too (training knowledge of
+Kubernetes, **UNVERIFIED** here): one unsized container asked for the max, which was then 8 CPU /
+32 GiB, more than a `Standard_D8s_v5` can allocate, and sat Pending while counting against the
+quota (review I4). The max is now the SKU-derived session ceiling (6 CPU / 20 GiB), which fits on
+an empty node but would still take most of one, so the default stays one session.
+The default is a backstop, not a sizing policy: every pod this repo renders or the broker creates
+sizes every container itself, and task 13's `netpolcover` case `every_sandbox_container_is_sized`
+fails the build if one in this namespace does not.
+
+`networkpolicy-defaults.yaml` — in each of the five namespaces, `NetworkPolicy/default-deny`:
+`podSelector: {}`, `policyTypes: [Ingress, Egress]`, no rules. This chart lays allows only in
+`panacea-sandboxes` (below). Every other chart that puts a pod in a denied namespace brings its own
+allows: `cert-manager` and `edge` in `panacea-edge` (task 13), `broker` and `hub` in theirs
+(task 29). Because helm-unittest cannot see across charts, `deploy/tests/netpolcover` (task 13)
+renders this chart with the others and fails if any workload in a denied namespace lacks an allow
+in a direction it needs (egress always; ingress when a Service or webhook points at it), or if a
+`pre-install` hook's allow does not exist before the hook runs (review C1: without it,
+`panacea-edge` was silently sealed; re-review I1, I2).
+
+`networkpolicy-sandboxes.yaml` — in `panacea-sandboxes` (standard `networking.k8s.io/v1`,
+enforced by Cilium):
+- `allow-dns` — egress from every pod to `kube-system` pods labelled `k8s-app: kube-dns`,
+  UDP and TCP 53.
+- `session-ingress-from-broker` — pods `panacea-app/component: sandbox` accept TCP **8080** only
+  from pods `app.kubernetes.io/name: broker` in namespace `panacea-broker`.
+- `machine-ingress-from-broker` — pods `panacea-app/component: machine` accept TCP **8081** only
+  from the broker.
+- `egress-internet` — every pod (sessions, machines, balloons) may send to `ipBlock 0.0.0.0/0`
+  **except** `169.254.169.254/32` (IMDS), `168.63.129.16/32` (the Azure host's DNS and wire
+  server), `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, and each of `network.*` if it lies
+  outside those. No rule allows a sandbox to reach another pod, so sandbox↔sandbox and
+  sandbox→Hub/broker traffic is denied by the default.
+
+Cilium applies `ipBlock` to traffic leaving the cluster and matches in-cluster pods by identity,
+so the pod-to-pod deny does not depend on the `except` list. **That this is how AKS's managed
+Cilium treats `ipBlock` is from training knowledge, UNVERIFIED**; task 32 probes every deny from
+inside a real Kata pod.
+
+`storageclasses.yaml` — `StorageClass/panacea-machine-disk`: `provisioner: disk.csi.azure.com`,
+`parameters.skuName`, `reclaimPolicy: Delete` (the broker deletes a machine's claim only on an
+explicit machine delete, or to roll back a claim its own request created over the cap, task 19), `volumeBindingMode: WaitForFirstConsumer`,
+`allowVolumeExpansion: true`. And, when `storage.nfsFallback.enabled`,
+`StorageClass/panacea-machine-nfs` on `file.csi.azure.com` with `protocol: nfs`,
+`skuName: Premium_LRS`.
+
+**Machine disks are not backed up in v1, and nothing may say they are (review m13; seam
+S8-D6.1).** This chart renders no `VolumeSnapshotClass` and nothing schedules a snapshot. A
+machine's disk is the only copy of its worktrees, of every lane's unpushed commits and of its
+conversation store (OD-10's cloud store, task 20). On a cloud machine the lane fetch-back is
+local to that same disk (`task-21.md:7-8`), so nothing reaches the laptop or a git host until
+it is pushed (OD-4). The disk's own redundancy is the storage SKU's (zone-
+redundant if task 32's P14 finds `Premium_ZRS`). That covers a failed disk or zone. It does not
+cover a logical loss: an explicit machine delete, which `reclaimPolicy: Delete` makes final, or a
+broker defect that deletes a claim. Snapshots are **not** added here because they collide with an
+owner decision: OD-10 says Forget *deletes* a transcript, and a disk snapshot would keep a
+forgotten transcript for its whole retention, and a deleted machine's disk for the same window
+(a snapshot outlives its claim until it ages out: the seam's CronJob cannot tell an explicit
+delete from a claim lost to a defect, b09 re-review 6). Whether to accept that window is the
+owner's call (the b09 owner question). The design the seam names is ready to build once the owner answers.
+Task 06's `snapshot_controller_enabled = true` stays on for that reason: it adds no object and
+needs no grant, and leaving it on means the seam lands with no cluster update.
+
+#### Tests to write first (helm-unittest suites in `tests/`)
+
+| Suite / test | Asserts | Mutant it kills |
+|---|---|---|
+| `namespaces_test` / `sandboxes_enforce_restricted` | the `panacea-sandboxes` Namespace has `pod-security.kubernetes.io/enforce: restricted` | `baseline`, which admits a pod that keeps capabilities |
+| `namespaces_test` / `five_namespaces` | exactly five Namespace documents with the five names from values (`panacea-identity` among them, OD-30) | a namespace dropped (its default-deny with it) |
+| `namespaces_test` / `identity_is_restricted_and_takes_edge_routes` | `panacea-identity` has `enforce: restricted` and `panacea-app/edge-routes: "true"` | Keycloak in a namespace that admits a privileged pod, or one the Gateway cannot route to, so no browser reaches the realm |
+| `netpol_test` / `every_namespace_denies_by_default` | five `default-deny` policies, each `podSelector: {}` and both policy types | a default-deny covering Ingress only, leaving egress open |
+| `netpol_test` / `imds_and_private_ranges_are_excluded` | `egress-internet`'s `except` contains `169.254.169.254/32`, `168.63.129.16/32` and the three RFC 1918 blocks | IMDS reachable — an agent reads the node's identity token |
+| `netpol_test` / `sessions_accept_only_the_broker_on_8080` | `session-ingress-from-broker` has one `from` (the broker's labels in `panacea-broker`) and one port, 8080/TCP | a `from: []` that admits every pod |
+| `netpol_test` / `machines_accept_only_the_broker_on_8081` | the same for 8081 and `component: machine` | a machine agent reachable from a session pod |
+| `netpol_test` / `no_sandbox_to_sandbox_allow` | no policy in `panacea-sandboxes` has an egress `to` with a `podSelector` other than kube-dns | a convenience rule that lets sessions talk |
+| `priority_test` / `ladder_is_ordered` | balloon < session < machine < platform-critical; balloon `preemptionPolicy: Never`; none `globalDefault` | a balloon that preempts a session, or a global default that silently prioritises everything |
+| `priority_test` / `balloon_is_not_expendable` | `panacea-balloon`'s `value >= -10` (the autoscaler's default expendable cutoff), with that reason in the test's name and a comment (review m10) | `-11` (or `-100`, `-1000`), under which a preempted balloon never triggers scale-up and the warm pool silently stops refilling |
+| `storage_test` / `machine_disk_waits_for_its_pod` | `volumeBindingMode: WaitForFirstConsumer`, `provisioner: disk.csi.azure.com` | `Immediate`, which provisions the disk in a zone the pod may not schedule in |
+| `storage_test` / `nfs_only_when_enabled` | default values render exactly one document, the managed-disk class, so no `panacea-machine-nfs` and no `VolumeSnapshotClass` | the fallback always present |
+| `storage_test` / `nfs_only_when_enabled_renders_when_on` | `enabled: true` renders `panacea-machine-nfs` on `file.csi.azure.com`, `protocol: nfs`, `Premium_LRS` | the flag ignored, so P8-D6's fallback cannot be turned on |
+| `quota_test` / `quota_caps_the_whole_namespace` | `ResourceQuota/sandboxes` hard limits equal the five `sandboxes.quota` values | a quota key renamed (`requests.storage` → `storage`), which Kubernetes silently ignores |
+| `values_test` / `empty_pod_cidr_fails` | `network.podCidr: ""` → the render fails naming `network.podCidr` | only `vnetCidr` guarded, so the other three still render an empty `except` entry |
+| `values_test` / `empty_vnet_cidr_fails` | `network.vnetCidr: ""` → the render fails with the schema's message | a policy rendered with an empty `except` entry |
+| `quota_test` / `limitrange_defaults_to_one_session` | `LimitRange/sandboxes` has one `Container` item whose `default` and `defaultRequest` both equal `{cpu: 2000m, memory: 4096Mi}` and whose `max` is `{cpu: 6000m, memory: 20480Mi}` with default values (review I4; b05 re-review 2) | a `max`-only LimitRange, under which an unsized container is defaulted to the max: most or all of a node, holding the quota |
+
+And in CI (task 28): `helm lint deploy/charts/platform -f <test values>` and
+`helm template … | kubeconform -strict -summary`.
+
+#### Steps
+
+- [ ] **Step 1:** Install the pinned helm and helm-unittest; `helm version` prints the pin.
+- [ ] **Step 2:** `Chart.yaml`, `values.yaml`, `values.schema.json`; the suites; `helm unittest`
+  fails (no templates).
+- [ ] **Step 3:** Templates one file at a time until every suite passes.
+- [ ] **Step 4:** `helm lint` with a test-values file holding plausible CIDRs; commit.
+
+#### Acceptance
+
+```bash
+helm lint deploy/charts/platform -f deploy/charts/platform/tests/values-test.yaml
+# 1 chart(s) linted, 0 chart(s) failed
+
+helm unittest --skip-schema-validation deploy/charts/platform
+# Charts:      1 passed, 1 total
+# Test Suites: 6 passed, 6 total
+# Tests:       17 passed, 17 total
+
+bash deploy/charts/platform/tests/schema-gate.sh deploy/charts/platform
+# schema-gate: PASS
+```
+
+**Why three commands, and why `--skip-schema-validation`** (measured against helm-unittest 1.1.2,
+2026-09-28). `values.schema.json` rejects an empty CIDR *before* any template renders, so
+helm-unittest reports it as a suite **error**, not as a failed template, and no assertion can catch
+it; a suite-level `skipSchemaValidation` key is silently ignored. Left as the part had it, the whole
+chart's `helm unittest` exits 1 for a rule that is working exactly as designed. So the schema gate
+moved to `tests/schema-gate.sh`, which requires `helm template` to fail — and to name the key — for
+each of the four CIDRs emptied in turn, and `values_test`'s two cases now prove the **second** gate,
+the `required` in `_helpers.tpl`. Both gates removed on a scratch copy turns `schema-gate.sh` red,
+so the script is not vacuous. `helm lint` still validates the schema, so a schema that stops
+matching its own `values.yaml` is caught by the first command. Task 28's `charts.yml` needs the
+`--skip-schema-validation` flag and the `schema-gate.sh` step added to its per-chart job.
+
+#### What this task does not claim
+
+- That AKS's Cilium enforces these policies on Kata pods exactly as on runc pods — **UNVERIFIED**,
+  task 32.
+- That `restricted` admits AKS's own add-on pods in these namespaces — none run there by design;
+  any that do (a CSI helper, say) show up at install and are a task 31 finding.
+- That `Premium_ZRS` managed disks are offered in the chosen region — **UNVERIFIED**; the value is
+  one line to change.
+- That Keycloak's image runs under `restricted` Pod Security (non-root, no capabilities) — from
+  training knowledge, **UNVERIFIED** until task 29's release installs it (task 31).

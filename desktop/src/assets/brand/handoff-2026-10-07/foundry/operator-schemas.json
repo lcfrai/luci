@@ -1,0 +1,271 @@
+[
+  {
+    "id": "vf.geometry.polyline",
+    "version": "1.0.0",
+    "inputs": {},
+    "outputs": {
+      "paths": {
+        "type": "PathSet",
+        "optional": false,
+        "cardinality": "one"
+      }
+    },
+    "parameterSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "points": {
+          "minItems": 2,
+          "maxItems": 256,
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "closed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "points",
+        "closed"
+      ],
+      "additionalProperties": false
+    },
+    "defaults": {
+      "points": [
+        [
+          0.1,
+          0.5
+        ],
+        [
+          0.5,
+          0.1
+        ],
+        [
+          0.9,
+          0.5
+        ]
+      ],
+      "closed": false
+    },
+    "bounds": {}
+  },
+  {
+    "id": "vf.style.path-stroke",
+    "version": "1.0.0",
+    "inputs": {
+      "paths": {
+        "type": "PathSet",
+        "optional": false,
+        "cardinality": "one"
+      },
+      "palette": {
+        "type": "Palette",
+        "optional": false,
+        "cardinality": "one"
+      }
+    },
+    "outputs": {
+      "shape": {
+        "type": "Shape",
+        "optional": false,
+        "cardinality": "one"
+      }
+    },
+    "parameterSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "strokeWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 64
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "colourIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "fill": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "strokeWidth",
+        "opacity",
+        "colourIndex",
+        "fill"
+      ],
+      "additionalProperties": false
+    },
+    "defaults": {
+      "strokeWidth": 2,
+      "opacity": 1,
+      "colourIndex": 0,
+      "fill": false
+    },
+    "bounds": {
+      "strokeWidth": {
+        "min": 0.1,
+        "max": 64
+      },
+      "opacity": {
+        "min": 0,
+        "max": 1
+      },
+      "colourIndex": {
+        "min": 0,
+        "max": 7,
+        "integer": true
+      }
+    }
+  },
+  {
+    "id": "vf.composition.scene",
+    "version": "1.0.0",
+    "inputs": {
+      "shape": {
+        "type": "Shape",
+        "optional": false,
+        "cardinality": "one"
+      }
+    },
+    "outputs": {
+      "scene": {
+        "type": "Scene",
+        "optional": false,
+        "cardinality": "one"
+      }
+    },
+    "parameterSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "background": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decorative": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "background",
+        "label",
+        "decorative"
+      ],
+      "additionalProperties": false
+    },
+    "defaults": {
+      "background": "profile",
+      "label": "A deterministic focus field",
+      "decorative": false
+    },
+    "bounds": {}
+  },
+  {
+    "id": "vf.composition.layer",
+    "version": "1.0.0",
+    "inputs": {
+      "shapes": {
+        "type": "Shape",
+        "optional": false,
+        "cardinality": "many"
+      }
+    },
+    "outputs": {
+      "shape": {
+        "type": "Shape",
+        "optional": false,
+        "cardinality": "one"
+      }
+    },
+    "parameterSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "opacity"
+      ],
+      "additionalProperties": false
+    },
+    "defaults": {
+      "opacity": 1
+    },
+    "bounds": {
+      "opacity": {
+        "min": 0,
+        "max": 1
+      }
+    }
+  },
+  {
+    "id": "vf.source.palette",
+    "version": "1.0.0",
+    "inputs": {},
+    "outputs": {
+      "palette": {
+        "type": "Palette",
+        "optional": false,
+        "cardinality": "one"
+      }
+    },
+    "parameterSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "colours": {
+          "minItems": 2,
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^#[a-f0-9]{6}(?:[a-f0-9]{2})?$"
+          }
+        }
+      },
+      "required": [
+        "colours"
+      ],
+      "additionalProperties": false
+    },
+    "defaults": {
+      "colours": [
+        "#171a19",
+        "#f25f42"
+      ]
+    },
+    "bounds": {}
+  }
+]

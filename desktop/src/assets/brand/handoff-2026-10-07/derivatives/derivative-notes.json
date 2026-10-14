@@ -1,0 +1,26 @@
+{
+  "source": "../canonical/luci-four-ds-fourfold.svg",
+  "canonicalSha256": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155",
+  "changes": [
+    {
+      "file": "luci-fourfold-currentcolor.svg",
+      "change": "Only stroke ink #18181b to currentColor. Geometry and transparency unchanged."
+    },
+    {
+      "file": "luci-fourfold-light-ink.svg",
+      "change": "Only stroke ink #18181b to #fafafa. Geometry and transparency unchanged."
+    }
+  ],
+  "rasterization": {
+    "renderer": "Sharp",
+    "version": "0.35.4",
+    "source": "Vector originals, never a raster upscale",
+    "sizes": [
+      32,
+      64,
+      128,
+      256,
+      512
+    ]
+  }
+}

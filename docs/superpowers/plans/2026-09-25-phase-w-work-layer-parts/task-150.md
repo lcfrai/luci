@@ -1,0 +1,1214 @@
+### Task 150: tracker sync, part 1: the engine, the integration principal, links by `(source, externalId)`, one way in to `triage`
+
+W5, stream WH. Seam **SW.6**, consumed (task 15's import batch). Depends on task 15 (the import
+path into `triage`, *not tied · imported*) and task 145 (the W5 guards: no sync principal writes a
+state, a fact or `done`). Estimate 0.375 (3 h). Closes nothing alone; the three adapters close
+**L-202** (Azure Boards, task 151), **L-215** (GitHub Issues, task 152) and the W5 half of **L-220**
+(Jira, task 153). Every `server/` and `store/` path is **UNVERIFIED until merge** (rule H1).
+
+A team that already keeps work in Azure Boards, GitHub Issues or Jira should not have to move it by
+hand, and should not be made to stop using the old tracker the day it starts here. Sync brings
+their items **in**, one way, into the team's Triage as *not tied · imported* issues, and keeps
+bringing new ones. It never writes back (part 4 adds comments only), and it **never moves our
+issue**: when an item is closed or reassigned upstream, our issue says so, *closed in Azure Boards
+at 11:02*, and a person decides. This task is the engine and its rules; tasks 151-153 are the three
+adapters that talk to each tracker.
+
+Eight decisions the scope left open, made here.
+
+1. **The engine owns the loop; the server owns the writes.** `worksync` cannot import
+   `internal/hub/server` (the server imports `worksync` for the janitor), so the engine talks to a
+   `Sink` the server implements. The engine pulls a page from the adapter with **no transaction
+   open**, then hands it to `Sink.ApplyPage`, which runs the whole page in **one** transaction:
+   imports, links, upstream changes, the run's page count and the cursor. The cursor moves in the
+   same commit as the page, so *"the cursor advances only after the page commits"* holds by
+   construction, and a crash between pull and commit re-reads the page next run, which links make
+   harmless.
+2. **The integration principal is the connection, and it is marked in the database.** The
+   `ApplyPage` transaction sets `hub.work_actor_kind = 'integration'` (task 07's setting) and a new
+   `hub.work_sync_connection = 'tc-…'`. Task 145's guard (below, a requirement on it) refuses, with
+   `principal_cannot_move_state`, any `UPDATE OF state` on `issues`, any `issue_revisions` insert
+   past revision 1, any `issue_labels` insert and any assignee change while that setting is set.
+   Task 07's own guard already refuses a fact state to any non-person; this one is stricter because
+   a sync may not move **any** state, which task 07 allows an `integration` for `backlog`
+   (`task-07.md:510`). The Go code never tries; the guard is there for the day it does.
+3. **Who it acts as, and what the events say.** No Entra token: the Hub's own process acts, on a
+   janitor transaction with no principal, so every event it appends has `actor: null` (Hub task
+   24's rule, as task 121 cites it). The issue's `created_by` is the connection's creator, as task
+   121 makes a recurring issue's (`task-121.md:241-246`), so the list reads *"imported by Ada's Azure
+   Boards connection"*. Task 13's `IssueCreatedData` has no `via` field and this task does not
+   change a W1 type; the connection's id and creator ride on one **`tracker.page`** event per
+   committed page, `{connectionId, run, created, existing, upstream, by}`, exactly as task 121 puts
+   a schedule's author on `template.schedule_ran` (decision 5 there). The scope's *"`data.via` the
+   `tc-` id"* is held by that event, not by `issue.created`; this is recorded in *Gaps*.
+4. **A link is `(connection, externalId)` → issue, and it outlives the connection.** Idempotency is
+   task 15's: `IssuesByExternal` on the connection's project finds an item imported before, and
+   `issues_external_once` is the second layer (`task-15.md:417-418`). The link row adds what the
+   issue row cannot hold: which connection brought it, its upstream URL at link time, and the last
+   upstream change. `DELETE /v1/trackers/{id}` **disconnects** (sets `disconnected_at`, stops runs,
+   drops the credential reference) and keeps every link, so an imported issue still reads *from
+   Azure Boards, 1432* and its link still resolves.
+5. **Upstream changes are shown, never applied.** An adapter reports an item it has seen before as
+   an `UpstreamChange{externalId, field, at}` with `field` one of `closed`, `reopened`, `assignee`,
+   `title`, `description`, `deleted`: **which** thing changed, never the new value, since a new
+   title is a customer's words and would be written by nobody. The link keeps the latest change;
+   the run log keeps every one; the issue view (task 170) reads *closed in Azure Boards at 11:02*.
+   Whether an upstream edit should ever update our text is a choice recorded for the owner
+   (*does not claim*).
+6. **"Run now" asks; the janitor runs.** `POST /v1/trackers/{id}/run` sets `run_requested_at` and
+   answers 202; the next sweep runs it. A request handler never waits on a tracker's network.
+   Scheduled runs happen every `PANACEA_APP_HUB_SYNC_INTERVAL` (default 5 minutes) after the last
+   finished run.
+7. **A page that fails validation fails the run and moves nothing.** An adapter maps an item into
+   SW.6's `ImportItem`; `hubapi.ValidateImportBatch` (task 15) checks the page. A page that fails
+   is recorded on the run as `failed` with the first failing field, the transaction rolls back,
+   the cursor stays, and the next run retries the same page. A tracker that keeps sending an item
+   we refuse therefore stops that connection, visibly, until an adapter fix; skipping the item
+   would lose a customer's ask without a word.
+8. **Connections need an id prefix, and the skeleton has none.** The scope names `tc-`; it is not
+   in the skeleton's list (`:185-187`) or 05 §3.6, and collides with none of them. Task 02's
+   `workids.go` and its disjointness test must add it (gap 1).
+
+#### Files
+
+- `control-plane/internal/hub/worksync/engine.go`, `engine_test.go` (new): `Adapter`, `Sink`,
+  `Engine`, `Pulled`, `UpstreamChange`, `Cursor`, and the fake adapter the tests use.
+- `control-plane/internal/hub/worksync/links.go`, `links_test.go` (new): the pure page planner
+  that splits a pulled page into new items, known items and upstream changes.
+- `control-plane/internal/hub/server/work_trackers.go` (new): the five routes and the `Sink`.
+- `control-plane/internal/hub/store/work_trackers.go` (new) and
+  `server/work_trackers_integration_test.go` (new, `-tags integration`).
+- ⚑ `control-plane/internal/hub/server/janitor.go`: one sync step after task 149's, outside the
+  per-org transaction, under the advisory lock.
+- ⚑ `control-plane/internal/hub/server/work_imports.go` (task 15): `importOne` gains a `createdBy`
+  argument (the principal's id on the route, the connection's creator here); nothing else changes.
+- ⚑ `hubapi/work.go` (task 15's `ImportSources`), ⚑ `hubapi/work_intake.go` (task 143),
+  ⚑ `hubapi/workevents.go`, ⚑ `hubapi/workids.go` (`tc-`), ⚑ `server/work_matrix_rows_integration_test.go`.
+
+#### The tables and the guard this task needs from task 145's migration (requirement; complete)
+
+```sql
+-- ── task 150 (in task 145's NNNN_work_w5.sql): tracker connections, links, runs ─────
+ALTER TABLE issues DROP CONSTRAINT issues_external_source_known;          -- task 06's; W1 had two
+ALTER TABLE issues ADD CONSTRAINT issues_external_source_known
+  CHECK (external_source IS NULL OR external_source IN ('linear', 'csv', 'azure_boards', 'github', 'jira'));
+
+CREATE TABLE work_tracker_connections (
+  id               text PRIMARY KEY CHECK (id ~ '^tc-[0-9a-f]{16}$'),
+  org_id           text NOT NULL REFERENCES orgs (id),
+  team_id          text NOT NULL,
+  project_id       text NOT NULL,
+  source           text NOT NULL CHECK (source IN ('azure_boards', 'github', 'jira')),
+  target           jsonb NOT NULL,
+  mode             text NOT NULL CHECK (mode IN ('in', 'in_and_comments')),
+  credential_kind  text NOT NULL CHECK (credential_kind IN ('secret_ref', 'workload')),
+  credential_ref   text NOT NULL DEFAULT '' CHECK (octet_length(credential_ref) <= 512),
+  cursor           text NOT NULL DEFAULT '' CHECK (octet_length(cursor) <= 4096),
+  run_requested_at timestamptz,
+  last_finished_at timestamptz,
+  created_at       timestamptz NOT NULL,
+  created_by       text NOT NULL,
+  disconnected_at  timestamptz,
+  FOREIGN KEY (org_id, team_id)    REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, created_by) REFERENCES users (org_id, id),
+  CONSTRAINT work_tracker_ref_iff_secret CHECK ((credential_kind = 'secret_ref') = (credential_ref <> '')
+                                                OR disconnected_at IS NOT NULL)
+);
+
+CREATE TABLE work_external_links (
+  org_id              text NOT NULL REFERENCES orgs (id),
+  connection_id       text NOT NULL REFERENCES work_tracker_connections (id),
+  external_id         text NOT NULL CHECK (char_length(external_id) BETWEEN 1 AND 200),
+  issue_id            text NOT NULL,
+  linked_at           timestamptz NOT NULL,
+  upstream_field      text CHECK (upstream_field IN ('closed', 'reopened', 'assignee', 'title', 'description', 'deleted')),
+  upstream_changed_at timestamptz,
+  PRIMARY KEY (connection_id, external_id),
+  FOREIGN KEY (org_id, issue_id) REFERENCES issues (org_id, id),
+  CONSTRAINT work_links_upstream_whole CHECK ((upstream_field IS NULL) = (upstream_changed_at IS NULL))
+);
+
+CREATE TABLE work_sync_runs (
+  org_id        text NOT NULL REFERENCES orgs (id),
+  connection_id text NOT NULL REFERENCES work_tracker_connections (id),
+  n             integer NOT NULL CHECK (n >= 1),
+  started_at    timestamptz NOT NULL,
+  finished_at   timestamptz,
+  state         text NOT NULL CHECK (state IN ('running', 'ok', 'failed')),
+  pages         integer NOT NULL DEFAULT 0,
+  created       integer NOT NULL DEFAULT 0,
+  existing      integer NOT NULL DEFAULT 0,
+  upstream      jsonb NOT NULL DEFAULT '[]'::jsonb,   -- [{externalId, field, at}], ids and words we chose
+  failure       text NOT NULL DEFAULT '' CHECK (octet_length(failure) <= 300), -- a code and a field, never upstream text
+  PRIMARY KEY (connection_id, n)
+);
+-- RLS org_isolation on all three, as task 149's loop does; grants:
+GRANT SELECT, INSERT ON work_tracker_connections, work_external_links, work_sync_runs TO hub_app;
+GRANT UPDATE (cursor, run_requested_at, last_finished_at, disconnected_at, credential_kind, credential_ref)
+  ON work_tracker_connections TO hub_app;
+GRANT UPDATE (upstream_field, upstream_changed_at) ON work_external_links TO hub_app;
+GRANT UPDATE (finished_at, state, pages, created, existing, upstream, failure) ON work_sync_runs TO hub_app;
+
+-- ── the sync principal's guard (decision 2; SW.3, task 145's to own) ───────────────
+CREATE FUNCTION guard_sync_principal() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+DECLARE v_conn text := coalesce(current_setting('hub.work_sync_connection', true), '');
+BEGIN
+  IF v_conn = '' THEN
+    RETURN NEW;
+  END IF;
+  IF TG_TABLE_NAME = 'issues' AND TG_OP = 'UPDATE'
+     AND (NEW.state IS DISTINCT FROM OLD.state OR NEW.assignee_user_id IS DISTINCT FROM OLD.assignee_user_id) THEN
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: % may not change issue %', v_conn, NEW.id
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF TG_TABLE_NAME = 'issues' AND TG_OP = 'INSERT'
+     AND (NEW.state <> 'triage' OR NEW.assignee_user_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: % creates only in triage, unassigned', v_conn
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF TG_TABLE_NAME = 'issue_revisions' AND NEW.revision > 1 THEN
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: % writes revision 1 only', v_conn
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF TG_TABLE_NAME = 'issue_labels' THEN
+    RAISE EXCEPTION 'hub: work: principal_cannot_move_state: % sets no label', v_conn
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER issues_sync_guard BEFORE INSERT OR UPDATE ON issues
+  FOR EACH ROW EXECUTE FUNCTION guard_sync_principal();
+CREATE TRIGGER issue_revisions_sync_guard BEFORE INSERT ON issue_revisions
+  FOR EACH ROW EXECUTE FUNCTION guard_sync_principal();
+CREATE TRIGGER issue_labels_sync_guard BEFORE INSERT ON issue_labels
+  FOR EACH ROW EXECUTE FUNCTION guard_sync_principal();
+```
+
+`assignee_user_id` is task 06's column (`task-06.md:164`). An `INSERT` with an assignee is refused
+too, by the same rule as a state: task 15's `importOne` never sets one. The guard is keyed on `hub.work_sync_connection`, not on `hub.work_actor_kind`, so it binds exactly the
+sync engine and leaves task 07's rows for other integrations as they are. **Labels are not
+attached on import** as a result: task 15's `importOne` attaches matched labels, and a sync item's
+labels are reported as `unmatchedLabels`-style names on the run log instead (task 151-153's adapters
+still map them, for the day the owner allows it). A person adds labels in Triage. This differs
+from a person's CSV import, which is the person's act and keeps its labels.
+
+#### `hubapi` additions (requirement on task 143, and task 15's list; complete)
+
+```go
+// ── Task 150: tracker sync (SW.21; SW.6 widened) ────────────────────────────
+
+const (
+	PrefixTrackerConnection = "tc-" // decision 8; task 02's workids.go gains it
+	ImportSourceAzureBoards = "azure_boards"
+	ImportSourceGitHub      = "github"
+	ImportSourceJira        = "jira"
+)
+
+// ImportSources, task 15's list, widened in this task:
+//	var ImportSources = []string{ImportSourceLinear, ImportSourceCSV,
+//		ImportSourceAzureBoards, ImportSourceGitHub, ImportSourceJira}
+// POST /v1/projects/{projectId}/imports still refuses the three tracker sources
+// (field: source): they come in only through a connection, so their issues are
+// always the sync principal's.
+var TrackerSources = []string{ImportSourceAzureBoards, ImportSourceGitHub, ImportSourceJira}
+
+type TrackerMode string
+
+const (
+	TrackerIn            TrackerMode = "in"
+	TrackerInAndComments TrackerMode = "in_and_comments" // task 153
+)
+
+// TrackerTarget says which items; each adapter names the fields it needs and
+// refuses the rest (Adapter.CheckTarget).
+type TrackerTarget struct {
+	Organization string `json:"organization,omitempty"` // Azure DevOps org; GitHub owner
+	Project      string `json:"project,omitempty"`      // Azure DevOps project; Jira project key
+	Repository   string `json:"repository,omitempty"`   // GitHub repo
+	Site         string `json:"site,omitempty"`         // Jira https host
+	Filter       string `json:"filter,omitempty"`       // WIQL area path, GitHub label or JQL; adapter-checked
+}
+
+type TrackerCredential struct {
+	Kind string `json:"kind"`          // "secret_ref" or "workload"
+	Ref  string `json:"ref,omitempty"` // a Key Vault secret reference (task 145); never a secret
+}
+
+type TrackerConnection struct {
+	ID             string            `json:"id"`
+	TeamID         string            `json:"teamId"`
+	ProjectID      string            `json:"projectId"`
+	Source         string            `json:"source"`
+	Target         TrackerTarget     `json:"target"`
+	Mode           TrackerMode       `json:"mode"`
+	Credential     TrackerCredential `json:"credential"`
+	CreatedAt      string            `json:"createdAt"`
+	CreatedBy      User              `json:"createdBy"`
+	DisconnectedAt string            `json:"disconnectedAt,omitempty"`
+	LastRun        *SyncRun          `json:"lastRun"`
+}
+
+type CreateTrackerRequest struct {
+	Source     string            `json:"source"`
+	Target     TrackerTarget     `json:"target"`
+	Mode       TrackerMode       `json:"mode"`
+	Credential TrackerCredential `json:"credential"`
+}
+
+// UpstreamChange names which thing changed on an item already imported, never
+// its new value (decision 5).
+type UpstreamChange struct {
+	ExternalID string `json:"externalId"`
+	Field      string `json:"field"` // closed, reopened, assignee, title, description, deleted
+	At         string `json:"at"`    // the tracker's own time, RFC 3339
+}
+
+var UpstreamFields = []string{"closed", "reopened", "assignee", "title", "description", "deleted"}
+
+// SyncRun is one run of one connection; N counts from 1 per connection.
+type SyncRun struct {
+	ConnectionID string           `json:"connectionId"`
+	N            int              `json:"n"`
+	State        string           `json:"state"` // running, ok, failed
+	StartedAt    string           `json:"startedAt"`
+	FinishedAt   string           `json:"finishedAt,omitempty"`
+	Pages        int              `json:"pages"`
+	Created      int              `json:"created"`
+	Existing     int              `json:"existing"`
+	Upstream     []UpstreamChange `json:"upstream"`
+	Failure      string           `json:"failure,omitempty"` // e.g. "page 3: items[7].title"
+}
+
+// ExternalLink is how an issue reads where it came from, on the issue view.
+type ExternalLink struct {
+	ConnectionID      string `json:"connectionId"`
+	Source            string `json:"source"`
+	ExternalID        string `json:"externalId"`
+	IssueID           string `json:"issueId"`
+	LinkedAt          string `json:"linkedAt"`
+	UpstreamField     string `json:"upstreamField,omitempty"`
+	UpstreamChangedAt string `json:"upstreamChangedAt,omitempty"`
+	Disconnected      bool   `json:"disconnected"`
+}
+
+const (
+	EventTrackerConnected    = "tracker.connected"
+	EventTrackerDisconnected = "tracker.disconnected"
+	EventTrackerPage         = "tracker.page"
+)
+
+type TrackerConnectedData struct {
+	Source string `json:"source"`
+	Mode   string `json:"mode"`
+}
+type TrackerDisconnectedData struct{}
+
+// TrackerPageData is decision 3's event: one per committed page, the
+// connection and its creator named, counts only.
+type TrackerPageData struct {
+	ConnectionID string `json:"connectionId"`
+	Run          int64  `json:"run"`
+	Created      int64  `json:"created"`
+	Existing     int64  `json:"existing"`
+	Upstream     int64  `json:"upstream"`
+	By           string `json:"by"` // the connection's creator, a u- id
+}
+// Appended to WorkEventKinds, all ScopeProject, VisibleToReaders:
+//	{EventTrackerConnected, TrackerConnectedData{}, …}, {EventTrackerDisconnected, …}, {EventTrackerPage, …}
+```
+
+`tracker.` joins task 13's prefix list. The feed never carries a target (it may name a client's
+Azure DevOps organisation), a credential reference, or any upstream text.
+
+#### `worksync/engine.go` (complete)
+
+```go
+// Package worksync brings items from outside trackers into a team's Triage,
+// one way. It never writes back (task 153 adds comments only) and it never
+// moves an issue: the Sink's transaction is the sync principal (decision 2).
+package worksync
+
+// Cursor is an adapter's own position, opaque to the engine; "" is the start.
+type Cursor string
+
+// Pulled is one page from a tracker. Items are new or known; the planner
+// (links.go) decides which by the connection's links.
+type Pulled struct {
+	Items    []hubapi.ImportItem     // SW.6's shape, mapped by the adapter
+	Upstream []hubapi.UpstreamChange // changes the adapter saw on items it reported before
+	Comments []ExternalComment       // task 153's; ignored in mode "in"
+	Next     Cursor
+	More     bool // another page follows in this run
+}
+
+// ExternalComment is task 153's; declared here so the page type is whole.
+type ExternalComment struct {
+	ExternalID string // the item's
+	CommentID  string
+	AuthorName string
+	Text       string
+	At         string
+}
+
+// Adapter talks to one tracker. Pull must be safe to repeat with the same
+// cursor: the engine re-pulls a page whose commit failed.
+type Adapter interface {
+	Source() string
+	CheckTarget(t hubapi.TrackerTarget) *hubapi.FieldError
+	Pull(ctx context.Context, conn hubapi.TrackerConnection, cur Cursor) (Pulled, error)
+}
+
+// Sink is the server side (decision 1). ApplyPage runs the page, the links,
+// the run's counts and the cursor in one transaction as the sync principal.
+type Sink interface {
+	StartRun(ctx context.Context, connID string) (hubapi.TrackerConnection, Cursor, hubapi.SyncRun, error)
+	ApplyPage(ctx context.Context, conn hubapi.TrackerConnection, run *hubapi.SyncRun, p Pulled) error
+	FinishRun(ctx context.Context, run hubapi.SyncRun, failure string) (hubapi.SyncRun, error)
+}
+
+// ErrPageRefused is ApplyPage's answer for a page that fails SW.6's check.
+type ErrPageRefused struct{ Field string }
+
+func (e *ErrPageRefused) Error() string { return "worksync: page refused at " + e.Field }
+
+type Engine struct {
+	Adapters map[string]Adapter
+	Sink     Sink
+	MaxPages int // per run; 0 means 20
+}
+
+// Run pulls and applies pages until the adapter says there are no more, the
+// page cap is reached, or a page fails. It never holds a transaction while a
+// tracker is being called.
+func (e *Engine) Run(ctx context.Context, connID string) (hubapi.SyncRun, error) {
+	conn, cur, run, err := e.Sink.StartRun(ctx, connID)
+	if err != nil {
+		return hubapi.SyncRun{}, err
+	}
+	a, ok := e.Adapters[conn.Source]
+	if !ok {
+		return e.Sink.FinishRun(ctx, run, "no adapter for "+conn.Source)
+	}
+	limit := e.MaxPages
+	if limit == 0 {
+		limit = 20
+	}
+	for page := 1; page <= limit; page++ {
+		p, err := a.Pull(ctx, conn, cur)
+		if err != nil {
+			return e.Sink.FinishRun(ctx, run, fmt.Sprintf("page %d: pull failed", page)) // no upstream text
+		}
+		if conn.Mode != hubapi.TrackerInAndComments {
+			p.Comments = nil
+		}
+		if err := e.Sink.ApplyPage(ctx, conn, &run, p); err != nil {
+			var refused *ErrPageRefused
+			if errors.As(err, &refused) {
+				return e.Sink.FinishRun(ctx, run, fmt.Sprintf("page %d: %s", page, refused.Field))
+			}
+			return e.Sink.FinishRun(ctx, run, fmt.Sprintf("page %d: not committed", page))
+		}
+		cur = p.Next // only after the commit, which moved the stored cursor too
+		if !p.More {
+			break
+		}
+	}
+	return e.Sink.FinishRun(ctx, run, "")
+}
+```
+
+A pull error's text is **not** stored: a tracker's error body can echo a query or an item, and
+`work_sync_runs.failure` is capped at 300 bytes of our own words. The adapter logs the error with
+the connection id (Hub task 24's logger, no body), so an operator can find it. The 20-page cap
+keeps one connection from holding the janitor for a whole sweep; a run that hits it leaves the
+cursor where the last page put it and the next run continues.
+
+#### `worksync/links.go` (complete)
+
+```go
+package worksync
+
+// PagePlan is what one page will write. Known items are never written again:
+// an item seen before adds no revision, however its text changed upstream.
+type PagePlan struct {
+	New      []hubapi.ImportItem
+	Known    map[string]string // externalId → issueId, for the run's existing count
+	Upstream []hubapi.UpstreamChange
+}
+
+// Plan splits a page by the connection's links. known maps an externalId the
+// connection has linked to its issue. An upstream change on an id with no link
+// is dropped (the adapter saw it before our first import, or on an item we
+// refused); a change whose field is not in UpstreamFields is dropped too.
+// Two changes to one item in one page are kept in order, each shown.
+func Plan(p Pulled, known map[string]string) PagePlan {
+	plan := PagePlan{Known: map[string]string{}}
+	seen := map[string]bool{}
+	for _, it := range p.Items {
+		if id, ok := known[it.ExternalID]; ok {
+			plan.Known[it.ExternalID] = id
+			continue
+		}
+		if seen[it.ExternalID] {
+			continue // a tracker that repeats an item in one page: once
+		}
+		seen[it.ExternalID] = true
+		plan.New = append(plan.New, it)
+	}
+	for _, u := range p.Upstream {
+		if _, ok := known[u.ExternalID]; ok && slices.Contains(hubapi.UpstreamFields, u.Field) {
+			plan.Upstream = append(plan.Upstream, u)
+		}
+	}
+	return plan
+}
+```
+
+`Plan` is pure and gets the links the Sink read **inside** the page's transaction, under the org's
+write lock, so two runs of one connection can never both see an item as new (the advisory lock
+already makes that impossible across replicas; the write lock covers a run and a person's import
+of the same source at once, and `issues_external_once` is the third layer). A duplicate inside
+one page is dropped here, before `ValidateImportBatch`, which would refuse the whole page for it
+(`ErrImportDuplicate`, `task-15.md:193`): a tracker's paging glitch should not stop a connection.
+
+#### The Sink (`server/work_trackers.go`, contract complete)
+
+```go
+package server
+
+// ApplyPage, in one s.inOrg transaction for conn.OrgID, in this order:
+//  1. set_config('hub.work_actor_kind', 'integration', true) and
+//     set_config('hub.work_sync_connection', conn.ID, true) (decision 2);
+//  2. LockConnection(conn.ID): disconnected since StartRun → ErrPageRefused{"connection"};
+//  3. known := LinksOf(conn.ID, ids of p.Items and p.Upstream); plan := worksync.Plan(p, known);
+//  4. ValidateImportBatch({source: conn.Source, items: plan.New}) when plan.New is not
+//     empty → a failure is ErrPageRefused{field} and the transaction rolls back;
+//  5. IssuesByExternal (task 15) on conn.ProjectID for plan.New: a hit made by another path
+//     (a person's CSV of the same ids is refused by source; this is the third layer) is
+//     linked, not created;
+//  6. for each remaining item: importOne(ctx, tx, conn.TeamID, conn.ProjectID, conn.Source,
+//     item, nil /* no labels: decision 2's guard */, conn.CreatedBy.ID); InsertLink;
+//  7. for each plan.Upstream: SetLinkUpstream(conn.ID, externalId, field, at);
+//  8. run.Pages++, run.Created += new, run.Existing += len(plan.Known), run.Upstream += plan.Upstream;
+//     UpdateRunCounts; SetConnectionCursor(conn.ID, p.Next);
+//  9. emitWork(tx, tracker.page, conn.TeamID, conn.ProjectID, conn.ID, TrackerPageData{…}).
+func (s *Server) ApplyPage(ctx context.Context, conn hubapi.TrackerConnection, run *hubapi.SyncRun, p worksync.Pulled) error
+
+// StartRun: in one transaction, the connection (not disconnected), the next n,
+// INSERT work_sync_runs (state running), clear run_requested_at.
+func (s *Server) StartRun(ctx context.Context, connID string) (hubapi.TrackerConnection, worksync.Cursor, hubapi.SyncRun, error)
+
+// FinishRun: state ok when failure is "", else failed; finished_at; the
+// connection's last_finished_at. A failed run's pages that committed stay.
+func (s *Server) FinishRun(ctx context.Context, run hubapi.SyncRun, failure string) (hubapi.SyncRun, error)
+```
+
+`importOne`'s new last argument is the issue's `created_by` and the revision's `written_by`; task
+15's route passes `tx.P.UserID`, exactly as before. `importOne` also reads `tx.P.OrgID`; a janitor
+transaction from `s.inOrg` must carry the org there with an empty user and a nil actor, which is
+how task 121's passes already need it (`task-121.md:241-246`); that Hub task 24's janitor `Tx` has
+this shape is **UNVERIFIED** until it lands, and if it does not, `importOne` takes the org as an
+argument too.
+
+#### The routes (`server/work_trackers.go`)
+
+- `POST /v1/projects/{projectId}/trackers` (team admin of the project's team): `Decode`;
+  `ProjectRole` + `Require(admin)`; `source` in `TrackerSources` (`field: source`); the adapter's
+  `CheckTarget` (`field: target.<name>`); `mode` in the two (`field: mode`); the credential is
+  `workload`, or `secret_ref` with a `ref` of task 145's Key Vault reference form (`field:
+  credential`) and **never** anything that looks like a secret value (a `ref` that does not parse
+  as a reference is 400, so a pasted token is refused, not stored); insert with `ids.Wide("tc-")`;
+  emit `tracker.connected`; 201 `TrackerConnection`.
+- `GET /v1/teams/{teamId}/trackers` (viewer) → `Page[TrackerConnection]`, disconnected ones
+  included, newest first.
+- `DELETE /v1/trackers/{connectionId}` (admin): sets `disconnected_at`, blanks `credential_ref`,
+  clears `run_requested_at`; links stay (decision 4); emit `tracker.disconnected`; 200. A second
+  DELETE is 200 with nothing written.
+- `GET /v1/trackers/{connectionId}/runs` (viewer) → `Page[SyncRun]`, newest first.
+- `POST /v1/trackers/{connectionId}/run` (admin): disconnected → 409 `tracker_disconnected`;
+  sets `run_requested_at`; 202 `{requestedAt}` (decision 6). No event: a request to run is not a
+  change to the record anyone reads.
+
+`GET /v1/issues/{issueId}` (task 08) gains `links: [ExternalLink]` on the head, read by the issue
+id, so an imported issue says where it came from and what changed upstream; an issue with none
+reads `[]`. This is an additive field on task 03's `IssueHead` (shown as a diff in the part's
+commit).
+
+**The janitor step** (⚑ `janitor.go`, after task 149's): after the per-org loop, list the
+connections that are not disconnected and are due (`run_requested_at` set, or `last_finished_at`
+older than the interval, or never run), oldest first, at most 10 per sweep; `Engine.Run` each.
+The advisory lock is held for the step, so a second replica skips it.
+
+#### Wire shapes
+
+```jsonc
+// POST /v1/projects/pj-…/trackers                     team admin; 201
+{ "source": "azure_boards", "mode": "in",
+  "target": { "organization": "acme-eng", "project": "Payments", "filter": "Payments\\Uploads" },
+  "credential": { "kind": "workload" } }
+// → 201
+{ "id": "tc-8d41…", "teamId": "tm-…", "projectId": "pj-…", "source": "azure_boards", "mode": "in",
+  "target": { … }, "credential": { "kind": "workload" }, "createdAt": "…", "createdBy": { "id": "u-ada…", … },
+  "lastRun": null }
+
+// GET /v1/trackers/tc-8d41…/runs                       viewer; 200
+{ "items": [ { "connectionId": "tc-8d41…", "n": 3, "state": "ok", "pages": 2, "created": 0, "existing": 57,
+               "upstream": [ { "externalId": "1432", "field": "closed", "at": "2026-09-26T01:02:00Z" } ],
+               "startedAt": "…", "finishedAt": "…" } ], "next": null }
+
+// GET /v1/issues/is-…  (an issue it imported)
+{ "state": "triage", "threadState": { "kind": "not_tied", "reason": "imported" }, "source": "intake",
+  "external": { "source": "azure_boards", "externalId": "1432", "url": "https://dev.azure.com/…", … },
+  "links": [ { "connectionId": "tc-8d41…", "source": "azure_boards", "externalId": "1432", "issueId": "is-…",
+               "upstreamField": "closed", "upstreamChangedAt": "2026-09-26T01:02:00Z", "disconnected": false } ], … }
+
+// the feed for one page: task 13's issue.created per new item (actor null), and
+{ "kind": "tracker.page", "actor": null, "subject": "tc-8d41…",
+  "data": { "connectionId": "tc-8d41…", "run": 3, "created": 0, "existing": 57, "upstream": 1, "by": "u-ada…" } }
+
+400 bad_request          { "field": "credential" }  // a pasted token in ref
+400 bad_request          { "field": "source" }      // "trello"; or POST …/imports with "azure_boards"
+409 tracker_disconnected                            // run now after DELETE
+```
+ With `matched` nil, `importOne` attaches no
+label and returns every name as missing; the page records them nowhere else (the names are
+upstream words). `run.Upstream` is capped at 500 entries per run on the row; later ones still
+update their links and are counted in the page event.
+
+#### Reconciliation with the committed wire (task 143) and the adapters (tasks 151-153)
+
+Task 143's part fixed the W5 wire after this part's first half was written, and tasks 151-153 were
+written against the scope and name what they need from this engine. **Where this section and the
+blocks above disagree, this section wins**; the blocks above stay as the record of what was
+proposed. Each point cites what it follows.
+
+1. **The wire types are task 143's** (`task-143.md:178-280`): `TrackerConnection` (raw `target`,
+   `principalId`, `state`, `lastRunAt`), the three target variants, `UpstreamChange` with `to`,
+   `ExternalLink` with an `xl-` id, `SyncError`, `SyncRun` (one pass: `at`, four counts,
+   `errors`) and `ConnectTrackerRequest {target, mode}`. The `hubapi` block above (`:197-320`) is
+   withdrawn except `TrackerSources` and the event data below. The prefixes are task 143's `tc`
+   and `xl` (its decision 6), which closes decision 8's missing prefix.
+2. **The source rides in the target.** The create route reads the target's own `source` key, then
+   calls `hubapi.ParseTrackerTarget(source, raw)` (`task-143.md:585-600`), which refuses an unknown
+   key. A source with no adapter registered in the engine is 400 `field: target` as well, so no
+   Boards connection can be made before task 151 lands. `Adapter.CheckTarget` is withdrawn: an
+   adapter is `Source()` and `Pull()`, as the scope and tasks 151-153 have it (`task-151.md:419-442`).
+3. **No credential is stored or sent.** Task 143 has no credential on the wire, and task 151 reaches
+   a tracker as the Hub's own identity through a `TokenFunc` (`task-151.md:51-56`, `:105-108`),
+   wired where the engine is built. The `credential_*` columns, the route's credential check and
+   the `credential` wire key are withdrawn. A pasted token has nowhere to go: any key outside the
+   variant is refused by `ParseTrackerTarget`.
+4. **`principalId` is the connection's own id.** Decision 3 stands (no Entra token; the Hub's
+   process acts; `actor: null`), so `principalId == id` on every connection this task makes. Task
+   143's *"That Entra issues the integration … principals"* (`task-143.md:1134`) is not needed here.
+5. **`UpstreamChange` inside `worksync` is the adapters' type**, with `At time.Time`
+   (`task-151.md:494`, `task-152.md:331`, `task-153.md:406`). The fields they emit are `state` and
+   `assignees` (`task-152.md:309-310`), not decision 5's six, so `UpstreamFields` changes (below).
+   `To` carries the tracker's own word for display only (task 143's decision 7). The Sink converts
+   it to `hubapi.UpstreamChange` with `at` in RFC 3339 UTC.
+6. **Pull until the cursor stops** (`task-151.md`, its gap 3). The adapters set no `More`; the
+   engine pulls again while the cursor it gets back differs from the one it sent, up to
+   `MaxPages`. `More` is withdrawn.
+7. **One refused item does not stop the page** (`task-151.md`, its gap 2; task 143's `SyncError`).
+   Decision 7 is replaced: the Sink checks each new item alone with `ValidateImportBatch`; a
+   refused item becomes `SyncError{externalId, code: "item_refused"}` on the run, its field name
+   goes to the Hub's log (no value), and the rest of the page lands. The item is not silent (the
+   run shows it) and it comes back the next time it changes upstream, because every adapter pulls
+   by change time. A page that fails to **commit** still moves nothing and keeps the cursor.
+8. **Links are keyed by task 143's `(projectId, source, externalId)`**, not by connection
+   (decision 4 is narrowed): two connections of one project and source that both see an item share
+   one link and one issue. A link also records the connection that made it, and `UNIQUE (issue_id)`
+   holds task 169's *"at most one per issue"* (`task-169.md:616`).
+9. **The events are the ones the desktop already names** (`task-169.md:569`, `task-172.md:174-182`):
+   `tracker.connected`, `tracker.disconnected`, `sync.run` (one per run, in `FinishRun`'s
+   transaction) and `external_link.created` (one per new link). `tracker.page` is withdrawn, and
+   `tracker.mode_set` is task 153's.
+10. **The issue head gains nothing.** The `links` addition to task 08's `GET /v1/issues/{issueId}`
+    is withdrawn; the desktop reads links through `GET /v1/trackers/{connectionId}/links` (task 169's
+    `ListTrackerLinks`, added below), so no W1 type changes.
+11. **`PullError` and its four codes move here.** Task 151's `fetch.go` declares them
+    (`task-151.md:110-132`), but this task lands first and the engine must read a pull error's
+    code and retry time. They are declared in `engine.go` exactly as task 151 wrote them, and task
+    151's block drops those lines (gap 3).
+12. **Files this section adds**: `worksync/fake.go` (new; the fake adapter, outside a `_test.go` file
+    so the server's integration tests can drive it), ⚑ `server/config.go` (the engine's adapters
+    and `PANACEA_APP_HUB_SYNC_INTERVAL`) and ⚑ `hubapi/work_intake_test.go` (two rows).
+
+#### `worksync/engine.go`, reconciled (complete; replaces the block at `:325-420`)
+
+```go
+package worksync
+
+type Cursor string // unchanged: an adapter's own position, "" is the start
+
+// UpstreamChange is what an adapter saw change on an item it reported before
+// (points 5 and 8). To is the tracker's word, shown and never mapped to ours.
+type UpstreamChange struct {
+	ExternalID string
+	Field      string // one of UpstreamFields
+	At         time.Time
+	To         string // the Sink keeps at most 60 code points
+}
+
+// UpstreamFields replaces decision 5's list: what tasks 151-153 emit, and
+// three kept for the day one does.
+var UpstreamFields = []string{"state", "assignees", "title", "description", "deleted"}
+
+// Pulled is one page from a tracker; the engine sees no More (point 6).
+type Pulled struct {
+	Items    []hubapi.ImportItem
+	Upstream []UpstreamChange
+	Comments []hubapi.ExternalComment // task 153's type (task-153.md:115); nil in mode "in"
+	Next     Cursor
+}
+
+// Adapter talks to one tracker. Pull must be safe to repeat with one cursor:
+// the engine re-pulls a page whose commit failed.
+type Adapter interface {
+	Source() string
+	Pull(ctx context.Context, conn hubapi.TrackerConnection, cur Cursor) (Pulled, error)
+}
+
+// RunRef names a run inside the Hub; the wire's SyncRun has no number.
+type RunRef struct {
+	ConnectionID string
+	N            int
+}
+
+// Sink is the server side (decision 1). ApplyPage writes one page, its links,
+// the run's counts and the cursor in one transaction as the sync principal.
+type Sink interface {
+	StartRun(ctx context.Context, connID string) (hubapi.TrackerConnection, Cursor, RunRef, error)
+	ApplyPage(ctx context.Context, conn hubapi.TrackerConnection, run RunRef, p Pulled) error
+	FinishRun(ctx context.Context, run RunRef, failure *hubapi.SyncError) (hubapi.SyncRun, error)
+}
+
+// PullError is task 151's (task-151.md:110-126), declared here (point 11).
+type PullError struct {
+	Code    string
+	RetryAt time.Time
+	Err     error
+}
+
+func (e *PullError) Error() string {
+	if e.RetryAt.IsZero() {
+		return fmt.Sprintf("worksync: %s: %v", e.Code, e.Err)
+	}
+	return fmt.Sprintf("worksync: %s until %s: %v", e.Code, e.RetryAt.UTC().Format(time.RFC3339), e.Err)
+}
+func (e *PullError) Unwrap() error { return e.Err }
+
+// SyncError codes: worksync constants, never HTTP codes (task 143's decision 7).
+const (
+	CodeTrackerThrottled   = "tracker_throttled"   // 429, or a rate limit at zero (task 152)
+	CodeTrackerUnreachable = "tracker_unreachable" // transport error or 5xx
+	CodeTrackerRefused     = "tracker_refused"     // 401, 403 (not a rate limit), 404
+	CodeTrackerShape       = "tracker_shape"       // a body we could not decode
+	CodeItemRefused        = "item_refused"        // SW.6 refused one item (point 7)
+	CodePageNotCommitted   = "page_not_committed"  // the page's transaction failed
+	CodeNoAdapter          = "tracker_no_adapter"  // a connection whose source has no adapter
+	CodeRunInterrupted     = "run_interrupted"     // a run left running by a stopped process
+	CodeTrackerDisconnect  = "tracker_disconnected" // disconnected while the run was in flight
+)
+```
+
+```go
+// engine.go, continued
+
+type Engine struct {
+	Adapters map[string]Adapter // by Source(); config.go fills it (point 12)
+	Sink     Sink
+	MaxPages int // per run; 0 means 20
+}
+
+// Run pulls and applies pages until the cursor stops moving, the page cap is
+// reached, or a pull or a commit fails. It never holds a transaction while a
+// tracker is being called, and it stores no upstream text.
+func (e *Engine) Run(ctx context.Context, connID string) (hubapi.SyncRun, error) {
+	conn, cur, run, err := e.Sink.StartRun(ctx, connID)
+	if err != nil {
+		return hubapi.SyncRun{}, err
+	}
+	a, ok := e.Adapters[conn.Source]
+	if !ok {
+		return e.Sink.FinishRun(ctx, run, &hubapi.SyncError{Code: CodeNoAdapter})
+	}
+	limit := e.MaxPages
+	if limit == 0 {
+		limit = 20
+	}
+	for page := 1; page <= limit; page++ {
+		p, err := a.Pull(ctx, conn, cur)
+		if err != nil {
+			return e.Sink.FinishRun(ctx, run, pullFailure(err))
+		}
+		if conn.Mode != hubapi.TrackerInAndComments {
+			p.Comments = nil
+		}
+		if err := e.Sink.ApplyPage(ctx, conn, run, p); err != nil {
+			code := CodePageNotCommitted
+			if errors.Is(err, ErrDisconnected) {
+				code = CodeTrackerDisconnect
+			}
+			return e.Sink.FinishRun(ctx, run, &hubapi.SyncError{Code: code})
+		}
+		if p.Next == cur {
+			break // nothing past this cursor (point 6)
+		}
+		cur = p.Next // only after the commit, which moved the stored cursor too
+	}
+	return e.Sink.FinishRun(ctx, run, nil)
+}
+
+// ErrDisconnected is ApplyPage's answer when the connection was disconnected
+// after StartRun; the page is not written.
+var ErrDisconnected = errors.New("worksync: connection disconnected")
+
+// pullFailure keeps a PullError's code and retry time and drops its text: a
+// tracker's error body can echo a query or an item.
+func pullFailure(err error) *hubapi.SyncError {
+	var pe *PullError
+	if !errors.As(err, &pe) || pe.Code == "" {
+		return &hubapi.SyncError{Code: CodeTrackerUnreachable}
+	}
+	se := &hubapi.SyncError{Code: pe.Code}
+	if !pe.RetryAt.IsZero() {
+		at := pe.RetryAt.UTC().Format(time.RFC3339)
+		se.RetryAt = &at
+	}
+	return se
+}
+```
+
+`links.go`'s `Plan` (`:446-466`) keeps its body; only its types change: `Plan(p Pulled, known
+map[string]string) PagePlan` reads `p.Upstream` as `[]worksync.UpstreamChange`, `PagePlan.Upstream`
+is `[]UpstreamChange`, and the filter is the new `UpstreamFields`. `known` is now keyed by the
+project's links for the connection's source (point 8), not by the connection's own.
+
+#### The tables, reconciled (requirement on task 145; complete; replaces `:96-151`)
+
+The `issues_external_source_known` change (`:92-94`) and the guard (`:153-187`) stand as written.
+
+```sql
+CREATE TABLE work_tracker_connections (
+  id               text PRIMARY KEY CHECK (id ~ '^tc-[0-9a-f]{16}$'),
+  org_id           text NOT NULL REFERENCES orgs (id),
+  team_id          text NOT NULL,
+  project_id       text NOT NULL,
+  source           text NOT NULL CHECK (source IN ('azure_boards', 'github', 'jira')),
+  target           jsonb NOT NULL CHECK (target ->> 'source' = source),     -- point 2
+  mode             text NOT NULL CHECK (mode IN ('in', 'in_and_comments')),
+  cursor           text NOT NULL DEFAULT '' CHECK (octet_length(cursor) <= 4096),
+  run_requested_at timestamptz,
+  last_finished_at timestamptz,
+  created_at       timestamptz NOT NULL,
+  created_by       text NOT NULL,
+  disconnected_at  timestamptz,
+  FOREIGN KEY (org_id, team_id)    REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, created_by) REFERENCES users (org_id, id)
+);
+-- tracker_exists (task 143's 409): one live connection per project and target.
+CREATE UNIQUE INDEX work_tracker_live_once ON work_tracker_connections (project_id, target)
+  WHERE disconnected_at IS NULL;
+
+CREATE TABLE work_external_links (
+  id                  text PRIMARY KEY CHECK (id ~ '^xl-[0-9a-f]{16}$'),
+  org_id              text NOT NULL REFERENCES orgs (id),
+  project_id          text NOT NULL,
+  source              text NOT NULL CHECK (source IN ('azure_boards', 'github', 'jira')),
+  external_id         text NOT NULL CHECK (char_length(external_id) BETWEEN 1 AND 200),
+  connection_id       text NOT NULL REFERENCES work_tracker_connections (id), -- the one that linked it
+  issue_id            text NOT NULL,
+  url                 text NOT NULL DEFAULT '' CHECK (octet_length(url) <= 2048), -- MaxExternalURLBytes
+  linked_at           timestamptz NOT NULL,
+  last_seen_at        timestamptz NOT NULL,
+  upstream_field      text CHECK (upstream_field IN ('state', 'assignees', 'title', 'description', 'deleted')),
+  upstream_to         text NOT NULL DEFAULT '' CHECK (char_length(upstream_to) <= 60),
+  upstream_changed_at timestamptz,
+  UNIQUE (project_id, source, external_id),   -- task 143's key (point 8)
+  UNIQUE (issue_id),                          -- at most one link per issue
+  FOREIGN KEY (org_id, project_id) REFERENCES projects (org_id, id),
+  FOREIGN KEY (org_id, issue_id)   REFERENCES issues (org_id, id),
+  CONSTRAINT work_links_upstream_whole CHECK ((upstream_field IS NULL) = (upstream_changed_at IS NULL))
+);
+
+CREATE TABLE work_sync_runs (
+  org_id        text NOT NULL REFERENCES orgs (id),
+  connection_id text NOT NULL REFERENCES work_tracker_connections (id),
+  n             integer NOT NULL CHECK (n >= 1),
+  started_at    timestamptz NOT NULL,            -- the wire's "at"
+  finished_at   timestamptz,
+  state         text NOT NULL CHECK (state IN ('running', 'ok', 'failed')),
+  pages         integer NOT NULL DEFAULT 0,
+  created       integer NOT NULL DEFAULT 0,
+  existing      integer NOT NULL DEFAULT 0,
+  comments_in   integer NOT NULL DEFAULT 0,      -- task 153's
+  comments_out  integer NOT NULL DEFAULT 0,      -- task 153's
+  upstream      integer NOT NULL DEFAULT 0,      -- a count; the change itself is on the link
+  errors        jsonb NOT NULL DEFAULT '[]'::jsonb
+                CHECK (jsonb_typeof(errors) = 'array' AND jsonb_array_length(errors) <= 500),
+  PRIMARY KEY (connection_id, n)
+);
+CREATE UNIQUE INDEX work_sync_one_running ON work_sync_runs (connection_id) WHERE state = 'running';
+-- RLS org_isolation on all three, as task 149's tables have it; grants:
+GRANT SELECT, INSERT ON work_tracker_connections, work_external_links, work_sync_runs TO hub_app;
+GRANT UPDATE (cursor, run_requested_at, last_finished_at, disconnected_at) ON work_tracker_connections TO hub_app;
+GRANT UPDATE (last_seen_at, upstream_field, upstream_to, upstream_changed_at) ON work_external_links TO hub_app;
+GRANT UPDATE (finished_at, state, pages, created, existing, comments_in, comments_out, upstream, errors)
+  ON work_sync_runs TO hub_app;
+```
+
+`errors` holds `{externalId, code, retryAt}` objects built by the Sink from our constants and the
+tracker's ids; no title, description or tracker message is ever in it. The 501st error of a run
+is counted in the log line and not stored. `work_sync_one_running` makes a second `StartRun` of a
+connection with a run in flight fail on the database, not only under the advisory lock.
+
+#### The Sink, reconciled (`server/work_trackers.go`, contract complete; replaces `:478-506`)
+
+```go
+package server
+
+// StartRun, in one transaction: the connection (disconnected → ErrDisconnected);
+// any run of it still "running" is closed failed with {code: run_interrupted}
+// (a stopped process left it); the next n; INSERT work_sync_runs (running);
+// clear run_requested_at. The cursor returned is the stored one.
+func (s *Server) StartRun(ctx context.Context, connID string) (hubapi.TrackerConnection, worksync.Cursor, worksync.RunRef, error)
+
+// ApplyPage, in one s.inOrg transaction for the connection's org, in order:
+//  1. set_config('hub.work_actor_kind', 'integration', true) and
+//     set_config('hub.work_sync_connection', conn.ID, true) (decision 2);
+//  2. LockConnection(conn.ID): disconnected since StartRun → worksync.ErrDisconnected;
+//  3. known := LinksByExternal(conn.ProjectID, conn.Source, ids of p.Items and p.Upstream);
+//     plan := worksync.Plan(p, known);
+//  4. each plan.New item alone through ValidateImportBatch({source, [item]}): refused →
+//     SyncError{externalId, item_refused}, the field name logged, the item skipped (point 7);
+//  5. each accepted item: importOne(ctx, tx, conn.TeamID, conn.ProjectID, conn.Source, item,
+//     nil /* no labels: the guard */, conn.CreatedBy.ID); InsertLink(ids.Wide("xl-"), …,
+//     url = item.URL, linked_at = last_seen_at = now); emitWork(external_link.created);
+//  6. TouchLinks(plan.Known, now): last_seen_at only;
+//  7. each plan.Upstream: SetLinkUpstream(field, cut(To, 60), At) where At is after the stored
+//     upstream_changed_at, so a re-pulled page never moves it back;
+//  8. AddRunCounts(run, pages+1, created, len(plan.Known), len(plan.Upstream), errors);
+//     SetConnectionCursor(conn.ID, p.Next).
+// Any error rolls the whole page back: no issue, link, count or cursor from it.
+func (s *Server) ApplyPage(ctx context.Context, conn hubapi.TrackerConnection, run worksync.RunRef, p worksync.Pulled) error
+
+// FinishRun: state ok when failure is nil, else failed with failure appended to
+// errors; finished_at; the connection's last_finished_at; emitWork(sync.run) with
+// SyncRunData, actor null. Pages that committed before a failure stay.
+func (s *Server) FinishRun(ctx context.Context, run worksync.RunRef, failure *hubapi.SyncError) (hubapi.SyncRun, error)
+```
+
+#### The events (`hubapi/workevents.go` ⚑, complete; replaces `:296-319`)
+
+```go
+const (
+	EventTrackerConnected    = "tracker.connected"
+	EventTrackerDisconnected = "tracker.disconnected"
+	EventSyncRun             = "sync.run"
+	EventExternalLinkCreated = "external_link.created"
+)
+
+type TrackerConnectedData struct {
+	Source string `json:"source"`
+	Mode   string `json:"mode"`
+}
+type TrackerDisconnectedData struct{}
+
+// SyncRunData is decision 3's event, one per run: counts only, the
+// connection and its creator named. Subject: the tc- id.
+type SyncRunData struct {
+	ConnectionID string `json:"connectionId"`
+	Run          int64  `json:"run"`
+	Created      int64  `json:"created"`
+	Existing     int64  `json:"existing"`
+	Upstream     int64  `json:"upstream"`
+	Errors       int64  `json:"errors"`
+	By           string `json:"by"` // the connection's creator, a u- id
+}
+
+// ExternalLinkCreatedData names no external id: it can name a client's
+// organisation or repository (the feed carries no target). Subject: the xl- id.
+type ExternalLinkCreatedData struct {
+	ConnectionID string `json:"connectionId"`
+	Source       string `json:"source"`
+	IssueID      string `json:"issueId"`
+}
+// Appended to WorkEventKinds, all ScopeProject, VisibleToReaders; task 13's
+// prefix list gains "tracker.", "sync." and "external_link.".
+```
+
+#### The routes, reconciled (`server/work_trackers.go`; replaces `:517-537`)
+
+- `POST /v1/projects/{projectId}/trackers` (team admin of the project's team): `Decode` into
+  `ConnectTrackerRequest`; `ProjectRole` + `Require(admin)`; the target's `source` in
+  `TrackerSources` with an adapter registered (`field: target`); `ParseTrackerTarget` (`field:
+  target`); `ValidTrackerMode` (`field: mode`); insert with `ids.Wide("tc-")`, `principalId` its own
+  id; a live connection of the project with the same target → 409 `tracker_exists` (the index,
+  not a read first); emit `tracker.connected`; 201 `TrackerConnection` with `state: active`,
+  `lastRunAt: null`.
+- `GET /v1/teams/{teamId}/trackers` (viewer) → `Page[TrackerConnection]`, disconnected ones
+  included, newest first. `lastRunAt` is the last finished run's `started_at`.
+- `DELETE /v1/trackers/{connectionId}` (admin): sets `disconnected_at`, clears `run_requested_at`;
+  links stay (decision 4); emit `tracker.disconnected`; 200 `TrackerConnection` with `state:
+  disconnected`. A second DELETE is 200, the same body, nothing written, no event.
+- `GET /v1/trackers/{connectionId}/runs` (viewer) → `Page[SyncRun]`, newest first; task 143's
+  shape, `at` the run's start, `errors` never null.
+- `GET /v1/trackers/{connectionId}/links` (viewer) → `Page[ExternalLink]`, newest `linked_at`
+  first: the links this connection made, `upstream` the latest change or `null` (task 169's
+  `ListTrackerLinks`, `task-169.md:381`).
+- `POST /v1/trackers/{connectionId}/run` (admin): disconnected → 409 `tracker_disconnected`; sets
+  `run_requested_at`; 202 `{requestedAt}` (decision 6). No event.
+
+Every `{connectionId}` route reads the connection under the org's row-level security and then the
+caller's role on its team: another team's or another org's id is 404 `tracker_not_found`, with
+identical bodies. There is **no** batch route: task 143's `ApplySyncBatch` and `POST …/batches`
+(`task-143.md:846`, `:944`) have no caller, because the engine runs in the Hub and no integration
+token exists (decision 1, point 4; gap 1).
+
+#### Wire shapes, reconciled (replaces `:546-573`)
+
+```jsonc
+// POST /v1/projects/pj-…/trackers                     team admin; 201
+{ "mode": "in",
+  "target": { "source": "azure_boards", "organisation": "acme-eng", "project": "Payments",
+              "areaPath": "Payments\\Uploads" } }
+// → 201
+{ "id": "tc-8d41…", "teamId": "tm-…", "projectId": "pj-…", "source": "azure_boards",
+  "target": { … as sent … }, "mode": "in", "principalId": "tc-8d41…", "state": "active",
+  "lastRunAt": null, "createdBy": { "id": "u-ada…", … } }
+
+// GET /v1/trackers/tc-8d41…/runs                       viewer; 200
+{ "items": [ { "connectionId": "tc-8d41…", "at": "2026-09-26T01:05:00Z", "created": 2,
+               "existing": 57, "commentsIn": 0, "commentsOut": 0,
+               "errors": [ { "externalId": "acme-eng#1433", "code": "item_refused", "retryAt": null } ] } ],
+  "next": null }
+
+// GET /v1/trackers/tc-8d41…/links                      viewer; 200
+{ "items": [ { "id": "xl-3c…", "source": "azure_boards", "externalId": "acme-eng#1432",
+               "issueId": "is-…", "url": "https://dev.azure.com/…", "lastSeenAt": "…",
+               "upstream": { "externalId": "acme-eng#1432", "field": "state",
+                             "at": "2026-09-26T01:02:00Z", "to": "Closed" } } ], "next": null }
+
+// the feed for one run: task 13's issue.created and one external_link.created per new item
+// (actor null), then
+{ "kind": "sync.run", "actor": null, "subject": "tc-8d41…",
+  "data": { "connectionId": "tc-8d41…", "run": 3, "created": 2, "existing": 57, "upstream": 1,
+            "errors": 1, "by": "u-ada…" } }
+
+400 bad_request          { "field": "target" }   // "trello"; an unknown key such as "token"
+400 bad_request          { "field": "source" }   // POST …/imports with "azure_boards"
+409 tracker_exists                               // the same target twice on one project
+409 tracker_disconnected                         // run now after DELETE
+404 tracker_not_found                            // another team's or org's connection
+```
+
+The fragment at `:575-578` is superseded too: labels are never passed (`nil`), the names are not
+recorded, and the 500 cap is on a run's `errors`, not on upstream changes, which live on the link.
+
+#### `worksync/fake.go` (new, complete)
+
+```go
+package worksync
+
+// Fake is the adapter the engine's tests and the server's integration tests
+// drive: pages scripted by cursor, errors on demand. Src is set per test, so
+// one fake stands for any of the three trackers. It talks to no network.
+type Fake struct {
+	mu     sync.Mutex
+	Src    string
+	Pages  map[Cursor]Pulled // the page answered for a cursor
+	FailAt map[Cursor]error  // a pull error for a cursor, answered instead
+	Pulls  []Cursor          // every cursor asked for, in order
+}
+
+func (f *Fake) Source() string { return f.Src }
+
+func (f *Fake) Pull(_ context.Context, _ hubapi.TrackerConnection, cur Cursor) (Pulled, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Pulls = append(f.Pulls, cur)
+	if err := f.FailAt[cur]; err != nil {
+		return Pulled{}, err
+	}
+	if p, ok := f.Pages[cur]; ok {
+		return p, nil
+	}
+	return Pulled{Next: cur}, nil // nothing past this cursor
+}
+
+// Set replaces one page, for a test that changes upstream between runs.
+func (f *Fake) Set(cur Cursor, p Pulled) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.Pages == nil {
+		f.Pages = map[Cursor]Pulled{}
+	}
+	f.Pages[cur] = p
+}
+
+// PullCount is len(Pulls), under the lock.
+func (f *Fake) PullCount() int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.Pulls) }
+```
+
+#### The wiring (⚑ `server/config.go`, ⚑ `server/janitor.go`)
+
+`Config` gains `SyncAdapters []worksync.Adapter` and `SyncInterval time.Duration`
+(`PANACEA_APP_HUB_SYNC_INTERVAL`, a Go duration, default `5m`, refused below `1m`). `New` builds
+`s.sync = &worksync.Engine{Adapters: bySource(cfg.SyncAdapters), Sink: s}`; two adapters with one
+`Source()` fail `New`. `cmd/hub` passes none in this task, so production makes no connection
+until tasks 151-153 add theirs (point 2); tests pass `&worksync.Fake{Src: "github"}` and the
+others. The janitor step stands as written (`:539-542`): due connections, oldest first, at most
+10 per sweep, each `s.sync.Run`, under the advisory lock. It is also a pass of task 121's
+`RunJanitorOnce`, so the integration tests drive it without a clock.
+
+#### Tests to write first, part 1 — `worksync/engine_test.go`, `links_test.go`, ⚑ `hubapi/work_intake_test.go` (pure)
+
+The engine tests run a `Fake` against a recording `Sink` in the test file that keeps the cursor
+only when `ApplyPage` returns nil and can be told to fail page *n*. The canary is `CANARY-ts-91`.
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestTheCursorMovesOnlyAfterACommit` | pages `""→c1→c2`; the sink fails page 2 → `FinishRun` gets `page_not_committed`, the stored cursor is `c1`; a second `Run` asks the fake for `c1` first | `cur = p.Next` before `ApplyPage`, or the sink storing the cursor outside the page |
+| `TestAPullErrorKeepsItsCodeAndDropsItsText` | `&PullError{Code: tracker_throttled, RetryAt: 11:30Z, Err: "CANARY-ts-91"}` → failure `{"", tracker_throttled, "2026-09-26T11:30:00Z"}`; a plain error → `tracker_unreachable`; no recorded byte holds the canary | a tracker's error text stored; `RetryAt` dropped |
+| `TestPullingStopsWhenTheCursorStops` | pages `""→c1→c2`, `c2` answers `Next: c2` → three pulls, three pages, run ok | one page per run, the rest waiting a whole interval (task 151's gap 3) |
+| `TestTheRunStopsAtThePageCap` | a fake whose cursor always moves, `MaxPages: 3` → three pulls, run ok | an unbounded loop holding the janitor |
+| `TestCommentsOnlyInModeInAndComments` | a page with two comments: mode `in` → the sink sees `Comments == nil`; `in_and_comments` → two | comments written in mode `in` |
+| `TestNoAdapterFailsTheRunWithoutAPull` | source `jira`, no adapter → `FinishRun` with `tracker_no_adapter`, zero pulls | a nil-adapter panic; a run left `running` |
+| `TestPlanSplitsNewFromKnown` | known `{a#1: is-1}`; items `a#1, a#2` → `New [a#2]`, `Known {a#1: is-1}` | a known item imported again (a second issue) |
+| `TestPlanDropsARepeatInOnePage` | `a#2` twice → `New` holds it once | a paging glitch refusing the whole page (`ErrImportDuplicate`) |
+| `TestPlanKeepsOnlyLinkedKnownFields` | `state` and `assignees` on `a#1` kept; `priority` on `a#1` and `state` on unlinked `a#9` dropped | decision 5's list (every change tasks 151-153 emit dropped); a change on no link reaching `SetLinkUpstream` |
+| `TestPlanKeepsTwoChangesInOrder` | `state` at 11:02 then `state` at 11:05 on `a#1` → both, in that order | a collapse that loses the close before a reopen |
+| `TestTrackerEventsCarryNoTargetOrText` | every field of the four `*Data` types is in `connectionId, run, created, existing, upstream, errors, by, source, mode, issueId` | a target, URL, external id or title added to the feed |
+| `TestTrackerKindsAreProjectScoped` | the four kinds are in `WorkEventKinds` with `ScopeProject` | a kind missing from the registry (`emitWork` would 500) |
+
+#### Tests to write first, part 2 — `server/work_trackers_integration_test.go` (`//go:build integration`)
+
+Against the compose stack, through task 17's `devissuer` fixture, with `Config.SyncAdapters` set
+to `Fake`s and `RunJanitorOnce` (task 121's hook) running the sync step. The canary is
+`CANARY-tc-44`.
+
+| Test | Holds | Mutant it kills |
+|---|---|---|
+| `TestTheSamePageTwiceIsOneIssueEach` | a page of three items; run; the fake answers the same three for the next cursor; run → three issues, three links, three `issue.created`, the second run `created 0, existing 3` | links not idempotent |
+| `TestAnUpstreamChangeIsShownNotApplied` | after import, a page reports `state` on `a#1` with `To: "Closed"` → the issue stays `triage`, revision 1, `updatedAt` unchanged; its link reads `upstream {state, 11:02, Closed}`; the run's `upstream` count is 1 | sync writes a state |
+| `TestARefusedItemIsNamedAndTheRestLand` | a page of three, the second with an `http:` URL → two issues, run ok, `errors [{a#2, item_refused}]`, cursor moved | one bad item stopping a connection; a refused item dropped without a word |
+| `TestAFailedCommitLeavesTheCursor` | the test adds (and drops in cleanup) a trigger refusing an issue titled `FAIL-COMMIT`; page 2's second item has that title → page 1's issues exist, page 2's first item does not, the stored cursor is page 1's, the run `failed` with `page_not_committed`; drop the trigger, run → page 2 lands whole | the cursor moved before commit; half a page committed |
+| `TestTheGuardRefusesASyncStateMove` | as `hub_app` with `hub.work_sync_connection` set: `UPDATE issues SET state`, an assignee change, an `INSERT` in `backlog`, a revision 2 and an `issue_labels` row each fail with SQLSTATE `42501` and `principal_cannot_move_state`; without the setting a person's state move succeeds | a Go-only guard |
+| `TestSyncAttachesNoLabels` | an item naming the team's label `bug` → the issue has no labels, the run no error | labels passed to `importOne` (the guard would fail every page) |
+| `TestTwoReplicasRunAConnectionOnce` | two janitors sweep at once (task 121's pattern) → one run row, the fake asked for `""` once | double sync |
+| `TestAnInterruptedRunIsClosed` | a `running` row left by a stopped process → the next sweep marks it `failed` `run_interrupted` and runs `n + 1` | a connection stuck behind `work_sync_one_running` forever |
+| `TestTwoConnectionsShareOneLink` | two Boards connections on one project, area paths `A` and `B`, both see `acme#7` → one issue, one link, the second run `existing 1` | per-connection links duplicating the issue, or `issues_external_once` failing the page |
+| `TestDisconnectKeepsLinks` | DELETE → 200 `state: disconnected`; `…/links` still lists every link and each `issueId` resolves; run now → 409 `tracker_disconnected`; a sweep runs nothing; a second DELETE → 200, one `tracker.disconnected` | disconnect deletes history |
+| `TestSyncEventsAreNobodysAndNameTheConnection` | every event from a run has `actor: null`; `sync.run` names the `tc-` id and `by` the creator; each issue's `createdBy` is the creator | sync writes as a person |
+| `TestAnUnknownTargetKeyIsRefused` | a target holding `"token": "CANARY-tc-44"` → 400 `field: target`; no column of the three tables holds the canary | a pasted secret stored |
+| `TestTrackerSourcesComeOnlyThroughAConnection` | `POST …/imports` with `source: azure_boards` → 400 `field: source` | a person forging a sync principal's issue |
+| `TestRunNowAsksAndTheJanitorRuns` | `POST …/run` → 202 and zero pulls; `RunJanitorOnce` → one pull; the feed of the request holds no event | a handler waiting on a tracker's network |
+
+#### The matrix rows (`server/work_matrix_rows_integration_test.go` ⚑, key `"150"`)
+
+```go
+"150": {
+	wadmin("POST /v1/projects/{projectId}/trackers", "POST", "/v1/projects/{ProjectID}/trackers", 201, "project_not_found",
+		func(*fixture) any {
+			return map[string]any{"mode": "in", "target": map[string]any{"source": "github",
+				"owner": "matrix", "repository": "matrix-row"}}
+		}),
+	wread("GET /v1/teams/{teamId}/trackers", "/v1/teams/{TeamID}/trackers", "team_not_found"),
+	wread("GET /v1/trackers/{connectionId}/runs", "/v1/trackers/{ConnectionID}/runs", "tracker_not_found"),
+	wread("GET /v1/trackers/{connectionId}/links", "/v1/trackers/{ConnectionID}/links", "tracker_not_found"),
+	wadmin("POST /v1/trackers/{connectionId}/run", "POST", "/v1/trackers/{ConnectionID}/run", 202, "tracker_not_found", empty),
+	wadmin("DELETE /v1/trackers/{connectionId}", "DELETE", "/v1/trackers/{FreshConnectionID}", 200, "tracker_not_found", empty),
+},
+```
+
+The matrix server is built with `SyncAdapters: {&worksync.Fake{Src: "github"}}`, so the create row
+has an adapter. The fixture gains `ConnectionID` (a live connection on `ProjectID`, target owner
+`fixture`) and `FreshConnectionID` (a live one per column, since DELETE disconnects the one it
+touches), as task 146 adds `FreshRequestID`; both are **UNVERIFIED** until H16b's fixture lands.
+
+#### Steps
+
+- [ ] **Step 1:** Confirm the sync base (rule H1): tasks 15 and 143 committed; task 145's migration
+  holds the three reconciled tables, `work_tracker_live_once`, `work_sync_one_running` and the
+  guard (`\d hub.work_external_links`; `\df hub.guard_sync_principal`).
+- [ ] **Step 2:** Confirm task 143's types are present (`TrackerConnection`, `ParseTrackerTarget`,
+  `SyncRun`, `SyncError`, `ExternalLink`) and task 153's `hubapi.ExternalComment`, or add that one
+  type as task 153's part gives it (`task-153.md:115`). Append the events block; add the three
+  prefixes to task 13's list; write the two `hubapi` rows; green.
+- [ ] **Step 3:** Write `links_test.go` and `engine_test.go`; they fail to compile. Write
+  `engine.go` (reconciled), `links.go` and `fake.go`; green. Apply the mutants by hand (advance the
+  cursor before `ApplyPage`; store `err.Error()`; drop the cursor-stop rule; restore decision 5's
+  field list); each fails a named test; revert.
+- [ ] **Step 4:** Write the integration tests; every row fails. Write `store/work_trackers.go`
+  (`LockConnection`, `LinksByExternal`, `InsertLink`, `TouchLinks`, `SetLinkUpstream`,
+  `AddRunCounts`, `SetConnectionCursor`, the run and list reads), then `StartRun`, `ApplyPage`,
+  `FinishRun`, the six routes, `importOne`'s `createdBy` argument (task 15's route passes
+  `tx.P.UserID`), `config.go`'s two fields and the janitor step. Run until green.
+- [ ] **Step 5:** The matrix rows under `"150"`; append `"150"` to `workMatrixLive`. Rerun task 15's
+  import tests and tasks 146-149's integration tests; all green. `git diff -- go.work
+  control-plane/go.mod` shows nothing; commit by pathspec.
+
+#### Acceptance
+
+```bash
+cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/work
+go test ./control-plane/internal/hub/worksync/ -race -count=1 -v \
+  -run '^Test(TheCursorMovesOnlyAfterACommit|APullErrorKeepsItsCodeAndDropsItsText|PullingStopsWhenTheCursorStops|TheRunStopsAtThePageCap|CommentsOnlyInModeInAndComments|NoAdapterFailsTheRunWithoutAPull|PlanSplitsNewFromKnown|PlanDropsARepeatInOnePage|PlanKeepsOnlyLinkedKnownFields|PlanKeepsTwoChangesInOrder)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 10
+go test ./control-plane/internal/hub/hubapi/ -race -count=1 \
+  -run '^Test(TrackerEventsCarryNoTargetOrText|TrackerKindsAreProjectScoped)$'                  # ok
+go test -tags integration ./control-plane/internal/hub/server/ -race -count=1 -v \
+  -run '^Test(TheSamePageTwiceIsOneIssueEach|AnUpstreamChangeIsShownNotApplied|ARefusedItemIsNamedAndTheRestLand|AFailedCommitLeavesTheCursor|TheGuardRefusesASyncStateMove|SyncAttachesNoLabels|TwoReplicasRunAConnectionOnce|AnInterruptedRunIsClosed|TwoConnectionsShareOneLink|DisconnectKeepsLinks|SyncEventsAreNobodysAndNameTheConnection|AnUnknownTargetKeyIsRefused|TrackerSourcesComeOnlyThroughAConnection|RunNowAsksAndTheJanitorRuns)$' \
+  2>&1 | grep -c "^--- PASS"                                                                    # 14
+go test -tags integration ./control-plane/internal/hub/... -race -count=1                      # ok
+go test ./control-plane/... -race -count=1                                                      # ok
+```
+
+No run against a real tracker is part of this acceptance: every pull is the `Fake`'s, and the three
+trackers are tasks 151-153's, proved there against `httptest`.
+
+#### What this task does not claim
+
+- That any tracker is reachable from the Hub's network, or that any Azure DevOps organisation,
+  GitHub installation or Jira site has granted the Hub's identity access: tenant acts,
+  **UNVERIFIED** (tasks 151-153 wire the tokens).
+- That an upstream edit should never update our text. Shown, never applied, is this task's rule;
+  whether an owner-approved edit may flow in is a choice recorded for the owner (Q-150).
+- The history of every upstream change: the link keeps the latest, the run keeps a count, and no
+  wire field holds more (task 143's `SyncRun` has none).
+- That a refused item comes back soon: it returns when it next changes upstream; until then it
+  is visible only in its run's `errors`.
+- Per-item *imported* rows in the sync log (task 169's decision 7 asks for them): the log reads
+  the links and the runs' errors, nothing more.
+- Any tracker's comments: mode `in_and_comments` is accepted and stored, and its comments are
+  task 153's.
+
+#### Gaps
+
+1. **Task 143's route table and `WorkIntake`** (`task-143.md:842-847`, `:944`): disconnect is
+   `DELETE /v1/trackers/{connectionId}` here, as task 169 has it (`task-169.md:379`), not `POST
+   …/disconnect`; `ApplySyncBatch` and `POST …/batches` have no route and no caller (decision 1)
+   and should be withdrawn, with task 144's fake rule for them; `RequestTrackerRun` (`POST …/run`)
+   and `ListTrackerLinks` (`GET …/links`) are missing; `ListTrackers` returns a slice where this
+   route answers `Page[TrackerConnection]`.
+2. **Task 143's codes lack `tracker_not_found` (404) and `tracker_disconnected` (409)**, and its
+   status map with them.
+3. **Task 151's `fetch.go` declares `PullError` and the four tracker codes** (`task-151.md:110-132`);
+   this part declares them in `engine.go` (point 11), so task 151's block must drop those lines.
+4. **Task 145 is not written**; the three reconciled tables, their two indexes and the guard are
+   this task's requirement on it.
+5. **The skeleton's File map** (`:252`) lacks `worksync/fake.go`, ⚑ `server/config.go` and
+   ⚑ `server/work_imports.go`; the scope's `server/work_matrix_rows.go` is
+   `work_matrix_rows_integration_test.go` in every part.
+6. **The first half of this part is superseded in places** (the *Reconciliation* section names each
+   block it replaces), because task 143 fixed the wire after that half was written. An
+   implementer reads the reconciled blocks; the originals are the record.
+7. **Q-150 (owner):** upstream edits are shown and never applied, and a refused item waits for its
+   next upstream change rather than stopping the connection (point 7, against decision 7 and the
+   scope's *"a page that fails validation leaves the cursor where it was"*).
+8. **`ConnectionID`, `FreshConnectionID` and the matrix server's `SyncAdapters`** stand for H16b's
+   fixture; the janitor `Tx` with an org and no principal is Hub task 24's (**UNVERIFIED**, `:508-513`).

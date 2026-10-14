@@ -1,0 +1,400 @@
+### Task 03: Panacea reads — the DTOs, the mapping, and a recorded-body server
+
+**Half:** 7a. **Hours:** 3. **Depends on:** 02.
+
+Every read the watcher and the drill-ins make, as `deploy.Identity` and `deploy.Reader` methods on
+`*panacea.Client`. Each DTO declares **only the fields phase 7 reads**, and names the Panacea line it
+mirrors, so a reviewer can re-check it against `406d0da95` (the plan's commit, plan §2; every
+cited line is unchanged at `b02424691`) in one open. No Panacea source is copied
+(`OD-13`); these are re-declarations of a wire format.
+
+**Files:**
+- `control-plane/internal/deploy/panacea/wire.go` (new) — the read DTOs below
+- `control-plane/internal/deploy/panacea/reads.go` (new) — the methods and the mapping
+- `control-plane/internal/deploy/panacea/panaceatest/server.go` (new) — a fake `panacea-api` over `httptest` that implements `deploytest.Seeder`
+- `control-plane/internal/deploy/panacea/testdata/*.json` (new) — one body per route and state, listed below
+- `control-plane/internal/deploy/panacea/reads_test.go` (new)
+- `control-plane/internal/deploy/panacea/conformance_test.go` (new) — `deploytest.Conformance` over the connector
+- `control-plane/internal/deploy/deploytest/conformance.go` (modified) — the rows below
+
+#### Wire DTOs — complete (`wire.go`, read half)
+
+```go
+package panacea
+
+// Envelopes. Panacea uses three, per route (plan §4): bare, list and data.
+
+// listDTO mirrors models.ListResponse (models/models.go:2153).
+type listDTO[T any] struct {
+	Items      []T `json:"items"`
+	TotalCount int `json:"totalCount"`
+}
+
+// dataDTO mirrors models.APIResponse (models/models.go:2147-2151).
+type dataDTO[T any] struct {
+	Data    T      `json:"data"`
+	Error   string `json:"error"`
+	Message string `json:"message"`
+}
+
+// meDTO mirrors handlers/me.go:48-59. Approved is a pointer: me.go:36-37 says the signal is
+// read STRICTLY (approved === true) and a partial response must read as NOT approved.
+type meDTO struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	IsAdmin  bool   `json:"isAdmin"`
+	Role     string `json:"role"`
+	Approved *bool  `json:"approved"`
+}
+
+// projectDTO mirrors the fields of models.Project (models/models.go:563-625) phase 7 reads.
+type projectDTO struct {
+	Name          string `json:"name"`
+	DisplayName   string `json:"displayName"`
+	RepoURL       string `json:"repoUrl"`
+	DefaultBranch string `json:"defaultBranch"`
+}
+
+// environmentDTO mirrors one row of ListEnvironments (handlers/projects.go:2116-2148).
+// replicas is present ONLY when the namespace was read (:2125-2140).
+type environmentDTO struct {
+	Name      string `json:"name"`
+	Branch    string `json:"branch"` // a LABEL: == Name for every non-base row (:2109-2111); not the git branch
+	Primary   bool   `json:"primary"`
+	Subdomain string `json:"subdomain"`
+	Status    string `json:"status"`
+	Replicas  *struct {
+		Current int `json:"current"`
+		Desired int `json:"desired"`
+	} `json:"replicas"`
+}
+
+// branchEnvDTO mirrors the ONE field EnvironmentFor reads from GetBranchAccessMode's data
+// (handlers/project_security.go:668-677): Panacea's own environment name for any branch.
+type branchEnvDTO struct {
+	Env string `json:"env"`
+}
+
+// deploymentDTO mirrors models.Deployment (models/models.go:665-770). BuildLogs is NOT declared:
+// it can be large and phase 7 never shows it from this field.
+type deploymentDTO struct {
+	ID                string                 `json:"id"`
+	Status            string                 `json:"status"`
+	Image             string                 `json:"image"`
+	Version           string                 `json:"version"`
+	Commit            string                 `json:"commit"`
+	Branch            string                 `json:"branch"`
+	Environment       string                 `json:"environment"`
+	FailedStep        string                 `json:"failedStep"`
+	ErrorMessage      string                 `json:"errorMessage"`
+	CreatedAt         time.Time              `json:"createdAt"`
+	// Duration is Go's time.Duration.String() of completionTime − creationTimestamp, rounded to a
+	// second ("4m12s"), and "" while the run has no completionTime (clients/kubernetes.go:5683-5689;
+	// kept by the durable store, clients/deployment_store.go:83; absent on a backfilled row,
+	// clients/deployment_backfill.go:167-175). The mapper sets Deployment.CompletedAt =
+	// CreatedAt + time.ParseDuration(Duration); "" or an unparseable value → zero, never a guess
+	// (review I3). Exact only when CreatedAt is the PipelineRun's creation: the store keeps the
+	// earliest CreatedAt (deployment_store.go:88), so a backfilled row (CreatedAt = MintedAt,
+	// deployment_backfill.go:172) merged with a live one reads early (task 08 does-not-claim).
+	Duration          string                 `json:"duration"`
+	Provisioning      []provisioningDTO      `json:"provisioning"`
+	RollbackWarmth    string                 `json:"rollbackWarmth"`
+	ColdStartSeconds  int                    `json:"coldStartSeconds"`
+	LiveReadyReplicas *int                   `json:"liveReadyReplicas"` // models.go:723 — the pointer is the point
+	ScanStatus        map[string]scanGateDTO `json:"scanStatus"`        // nil = no gate ran
+	DeployedBy        string                 `json:"deployedBy"`
+	Trigger           string                 `json:"trigger"`
+	Backfilled        bool                   `json:"backfilled"`
+}
+
+// provisioningDTO mirrors models.ProvisioningStatus (models/models.go:794-804).
+type provisioningDTO struct {
+	Component string `json:"component"`
+	Status    string `json:"status"`
+	Detail    string `json:"detail"`
+}
+
+// scanGateDTO mirrors models.ScanGate (models/models.go:782-787).
+type scanGateDTO struct {
+	Status    string `json:"status"`
+	Criticals *int   `json:"criticals"`
+	Highs     *int   `json:"highs"`
+	Findings  *int   `json:"findings"`
+}
+
+// pipelineRunDTO mirrors models.PipelineRunStatus (models/models.go:2385-2410).
+type pipelineRunDTO struct {
+	Name            string   `json:"name"`
+	Status          string   `json:"status"`
+	StartTime       string   `json:"startTime"`
+	FailedStep      string   `json:"failedStep"`
+	ErrorMessage    string   `json:"errorMessage"`
+	CompletedSteps  []string `json:"completedSteps"`
+	CurrentStep     string   `json:"currentStep"`
+	IgnoredFailures []string `json:"ignoredFailures"`
+}
+
+// securityStatusDTO mirrors models.SecurityStatus (models/security.go:205-242).
+type securityStatusDTO struct {
+	Overall         string          `json:"overall"`
+	Blocking        []scanNoteDTO   `json:"blocking"`
+	Incomplete      []scanNoteDTO   `json:"incomplete"`
+	Scans           []scanResultDTO `json:"scans"`
+	LastUpdated     string          `json:"lastUpdated"`
+	DeployID        string          `json:"deployId"`
+	DetailsRetained *bool           `json:"detailsRetained"`
+	DetailsSource   string          `json:"detailsSource"`
+}
+
+// scanNoteDTO mirrors models.BlockingItem (models/security.go:199-202).
+type scanNoteDTO struct {
+	Scan   string `json:"scan"`
+	Reason string `json:"reason"`
+}
+
+// scanResultDTO mirrors models.ScanResult (models/security.go:117-197).
+type scanResultDTO struct {
+	Scan           string         `json:"scan"`
+	Status         string         `json:"status"`
+	Mode           string         `json:"mode"`
+	Counts         map[string]int `json:"counts"`
+	Summary        string         `json:"summary"`
+	IsBlocking     bool           `json:"isBlocking"`
+	LastScanTime   string         `json:"lastScanTime"`
+	SkipReason     string         `json:"skipReason"`
+	ErrorReason    string         `json:"errorReason"`
+	FindingsSource string         `json:"findingsSource"`
+}
+
+// podDTO mirrors clients.PodStatus (clients/pod_introspection.go:47-61).
+type podDTO struct {
+	Name     string `json:"name"`
+	Phase    string `json:"phase"`
+	Ready    bool   `json:"ready"`
+	Restarts int    `json:"restarts"`
+	Reason   string `json:"reason"`
+	Message  string `json:"message"`
+}
+
+// eventDTO mirrors clients.NamespaceEvent (clients/pod_introspection.go:95-104).
+type eventDTO struct {
+	Time    string `json:"time"`
+	Type    string `json:"type"`
+	Reason  string `json:"reason"`
+	Object  string `json:"object"`
+	Message string `json:"message"`
+	Count   int32  `json:"count"`
+}
+
+// diagnoseDTO mirrors handlers.DiagnoseResponse (handlers/diagnose.go:70-79).
+type diagnoseDTO struct {
+	Health   string       `json:"health"`
+	Summary  string       `json:"summary"`
+	Findings []findingDTO `json:"findings"`
+	Source   string       `json:"source"`
+}
+
+// findingDTO mirrors handlers.DiagnoseFinding (handlers/diagnose.go:60-67).
+type findingDTO struct {
+	Problem      string   `json:"problem"`
+	LikelyCause  string   `json:"likelyCause"`
+	SuggestedFix string   `json:"suggestedFix"`
+	Evidence     []string `json:"evidence"`
+	Severity     string   `json:"severity"`
+	Owner        string   `json:"owner"`
+}
+```
+
+#### The routes and their envelopes (`reads.go`)
+
+`P` is `/api/v1/projects/` + `url.PathEscape(string(p))`.
+
+| Method | Route (`routes.go`) | Envelope | Special case |
+|---|---|---|---|
+| `Whoami` | `GET /api/v1/me` (3038) | bare `meDTO` | `Approved: dto.Approved != nil && *dto.Approved` |
+| `Projects` | `GET /api/v1/projects` (1018) | `listDTO[projectDTO]` | — |
+| `Environments` | `GET P/environments` (1126) | `listDTO[environmentDTO]` | `Replicas` nil when the key is absent; `Host = Subdomain`; `Branch` is the row's label verbatim — `Env` for every non-base row (`handlers/projects.go:2109-2118`), so never a join key |
+| `EnvironmentFor` | `GET P/branches/{branch}/access` (1430), the branch `url.PathEscape`d | `dataDTO[branchEnvDTO]`, where `branchEnvDTO` is `{Env string \`json:"env"\`}` only | returns `data.env` verbatim. Panacea computes it with `branchEnv` → `mapBranchToEnvWithProd` (`handlers/branch_security.go:29-37`, called at `project_security.go:646`, written at `:668-677`), **with no existence check** — so it answers for a branch never deployed. **It is the access handler's mapping, not the deploy's (b02 round 2, R1).** `branchEnv` reads the production branch from the raw `production-branch` LABEL only (`branch_security.go:32`). The deploy resolves it with `ResolveProjectProductionBranch` — label → `primary-branch` annotation → `"main"`, skipping a label whose value is `prod`/`production` (`clients/pipeline.go:233-237`, `clients/kubernetes.go:10179-10204` at 406d0da95; 10184-10209 at 7e771df25), and so does the environments list (`kubernetes.go:5189`). So for a project whose production branch is annotation-only or mislabelled, `data.env` disagrees with where the deploy lands: annotation `primary-branch=develop` with no label answers `develop` for `develop` (deployed to `prod`) and `prod` for `main` (deployed to `main`). Phase 7 does not copy the resolver to correct it; it detects the disagreement from the Deployment the run wrote (task 08, rule 5a) and lives with the defect (plan §12). A **404** on this route is rewritten, keeping `KindNotFound`, to the message *"Panacea could not read this branch name. It may contain `/`, which the route cannot carry."* The route's own chain never answers 404: `authedProject` (`routes.go:3279-3285`) runs `RequireProjectAccess`, which answers 401 or 403 (`middleware/rbac.go:181-183`, `:221-228`), and `GetBranchAccessMode` writes only 400, 503 or 200 (`project_security.go:636-677`). So a 404 here is a router's `404 page not found` for a path whose `%2F` was decoded into an extra segment, never *no such project* (R2; re-review b02-2 M-2, which corrected the reason given here before). A **400 whose body names no problem** (`readProblem` returns `""`: an ingress's plain-text or HTML refusal) is rewritten to the **same sentence**, keeping `KindRejected` (re-review b02-2 M-3); the handler's own 400 is JSON, only for a blank name or branch (`project_security.go:637-639`), and keeps Panacea's sentence. `data.env == ""` or a missing `data` → `KindUnavailable` with **`Status` 200**, the status received (re-review M-4) (Panacea never writes one: `mapBranchToEnv` and `sanitizeBranchEnv` never return `""`, `projects.go:3783-3826`). Its 503 *"kubernetes client unavailable"* (`:641-644`) is the ordinary 5xx rule. Task 04's `Posture` reads the same route into its own `postureDTO`; the two share the route, not a struct |
+| `Latest` | `GET P/deploys/latest` (1025) | bare `deploymentDTO` | **404 → `(Deployment{}, false, nil)`**; the watcher calls `Environments` first in the same cycle, so a missing *project* has already surfaced as its own error |
+| `Deployments` | `GET P/deployments` (1024) | `listDTO[deploymentDTO]` | order kept as served (newest first, `projects.go:1532-1536`) |
+| `Run` | `GET P/pipelines/{run}` (1290) | `dataDTO[pipelineRunDTO]` | 404 → `KindNotFound` (it is also Panacea's cross-project IDOR answer, `projects.go:3595-3601`) |
+| `Scans` | `GET P/security-status?env=&deployId=` (1043) | `dataDTO[securityStatusDTO]` | `deployId` is a run name (`handlers/security_status.go:211-214`). **`env` is the deployment's `Environment`, set with `url.Values` whenever it is non-empty** and omitted otherwise, exactly as the portal builds it (`backstage/packages/app/src/plugins/SecurityScanReview.tsx:437-440`). Without it `resolveEnv` reads `"production"` (`security_status.go:192-201`), `collectScans` lists the base namespace (`:232`, `tier_store.go:106-113`) and keeps only ConfigMaps labelled with that env (`:526-534`), so a branch release would show production's verdicts, or `NOT_RUN` rows, as its own (review C3). `"prod"` needs no special case: Panacea maps it to the same namespace |
+| `Pods` | `GET P/environments/{env}/pods` (1148) | `listDTO[podDTO]` | — |
+| `Events` | `GET P/environments/{env}/events` (1150) | `listDTO[eventDTO]` | `Time` parsed as RFC 3339; unparseable → zero |
+| `Diagnosis` | `GET P/environments/{env}/diagnose` (1151) | `dataDTO[diagnoseDTO]` | — |
+
+**The status mapping** — `Deployment.Status` comes from `derivePipelineStatus`
+(`clients/pipeline.go:2073-2084`: `True`→`"Succeeded"`, `False`→`"Failed"`, else `"Pending"`),
+from `"Unknown"` when a run has no condition yet (`clients/kubernetes.go:5662`), and from
+`"historical"` for a reconstructed row (`clients/deployment_backfill.go:173`).
+`PipelineRunStatus.Status` is documented as *"Unknown, Running, Succeeded, Failed"*
+(`models/models.go:2390`). One table serves both:
+
+| Panacea word | `deploy.BuildState` |
+|---|---|
+| `Succeeded` | `BuildSucceeded` |
+| `Failed` | `BuildFailed` |
+| `Pending`, `Running` | `BuildRunning` |
+| `Unknown` | `BuildPending` |
+| `historical` | `BuildHistorical` |
+| anything else | `BuildUnknown`, with `BuildRaw` kept |
+
+**The environment-name equivalence** (plan 7P-8) lives here and nowhere else:
+
+```go
+// SameEnvironment implements deploy.Reader.SameEnvironment: exact equality plus the ONE
+// equivalence Panacea itself applies — tenantNamespace treats "prod" and "production" as the
+// base namespace (clients/kubernetes.go:4210-4217). deploywatch calls it through the interface,
+// so the orchestration layer never imports this package.
+// tenantNamespace sends "" to the base namespace as well (:4213), and that is NOT adopted: "" is
+// a legacy run with no environment label, which Panacea's own environments list attributes by
+// its branch label (:5396-5415), not to production. So "" is the same as no other name; task 08
+// rule 1b joins it by label (review M5).
+func (c *Client) SameEnvironment(a, b string) bool
+```
+
+`deploytest.Fake.SameEnvironment` is exact equality only, and `Seeder` gains nothing for it: the
+Panacea equivalence is tested here, against the connector, not through the suite. (`Seeder` does
+gain `BranchEnvironment`, for `EnvironmentFor` — task 01, review b02.)
+
+#### The recorded bodies (`testdata/`)
+
+Each file is a response body as the cited writer would produce it, hand-written from the source
+line, with a first-line JSON comment key `"_source"` removed before serving. They are the ground
+truth the mapping tests read.
+
+| File | Route and state |
+|---|---|
+| `me-approved.json`, `me-pending.json`, `me-no-approved-field.json` | `/me` |
+| `projects.json` | two projects, one with `repoUrl`, one without |
+| `me-scoped-deploy.json`, `projects-scoped.json` | the same two routes answered to a key the portal restricted to `engagement-portal` at *Deploy* (review I5). `/me`: `groups: ["project-engagement-portal"]` — the synthetic group `scopedGroups` builds (`middleware/api_key.go:380-385`), `-viewer` appended for a *Read only* key — `isAdmin: false` and `role: "developer"`, because `IsSuperAdmin`, `IsAdmin` and `IsOwner` are false for every scoped key (`models/models.go:218-221`, `:247-249`, `:262`) while `Role()` falls through to `"developer"` (`:286-300`), and `approved: true` (`HasAnyGrant`, `:332-337`). `/projects`: **one** project, however many the owner can see — `projectVisibleTo` applies `ScopeAllows` first (`clients/kubernetes.go:1237-1249`). Nothing in either body says the key is scoped |
+| `error-scope-owner-403.txt` | `GET …/branches/main/auto-deploy` (the owner probe, 7P-9) with the same key: `403`, `Content-Type: text/plain`, body `{"error":"forbidden: this token's scope does not permit owner access to this project"}` (`middleware/rbac.go:265-276`, `http.Error`). A *Read only* key's Ship gets the same sentence with `developer`; a project outside the scope gets `{"error":"forbidden: this token is scoped to a different project"}` (`:194-202`) |
+| `environments.json` | `production` (primary, `branch: "main"`, `replicas` present), and `feat-evidence-upload` with **`branch: "feat-evidence-upload"`** — Panacea's `Env == Branch` for a non-base row (`projects.go:2109-2118`), never `feat/evidence-upload` — and no `replicas` key |
+| `branch-access-feat-x.json`, `branch-access-long.json`, `branch-access-main.json` | `branches/{branch}/access` (`project_security.go:668-677`) for `feat/x` → `env: "feat-x"`; `lane/7-deploy-connector-watcher` (31 characters) → `env: "lane-7-deploy-connec"` (`sanitizeBranchEnv`'s 20-character cut, `projects.go:3818-3820`); `main` → `env: "prod"` (`mapBranchToEnv`, `projects.go:3785-3786`). Each `_source` line names the handler line; the values are Panacea's rule applied by hand to write the fixture, and appear nowhere in production code |
+| `branch-access-custom-release.json`, `branch-access-custom-main.json` (added in the t03 build) | the same route on `risk-register`, a project **labelled** `production-branch=release`: `release` → `env: "prod"` (`mapBranchToEnvWithProd`, `projects.go:3840-3841`), `main` → `env: "main"` (`sanitizeBranchEnv`, `:3846`). The three bodies above are answers a local copy of the naming rule also produces, so mutant M12 (a fourth `sanitizeBranchEnv` in the connector) survived them; these two kill it |
+| `branch-access-annotation-only.json` | the same route for `develop` on a project whose production branch is the annotation `primary-branch=develop` with no label → `env: "develop"` (`branch_security.go:32` reads the label only; the deploy would land `develop` in `prod`, `pipeline.go:233-237`). Pins the divergence (b02 round 2, R1) |
+| `latest.json`, `latest-404.json` | `deploys/latest`; the 404 is `{"error":"no deployments yet for project engagement-portal"}` (`projects.go:1539`) |
+| `deployments.json` | four rows: a `Succeeded` newest with `liveReadyReplicas: 0` and a `scanStatus`; a `Failed` with `failedStep`; a `historical` backfilled row; one with an empty `version` |
+| `run-running.json`, `run-failed.json` | `pipelines/{run}` |
+| `security-status.json` | `FAIL` with one blocking and one incomplete, `detailsSource: "unverified"`. Rewritten in the t03 build to what Panacea writes: a deploy with no findings snapshot, so every live row is an env-keyed scanner's with no `deployId` and `findingsSource: "unverified"` (`security_status.go:999-1004`); rows scan-name sorted (`:465`); `trivy` blocking with `blockingReason`'s sentence (`:768-780`); `dast` `ERROR` with `errorReason: "TaskRunImagePullFailed"` (`:602`), incomplete with `incompleteReason`'s sentence (`:748-749`); `secret` is `offScanRow` (`:429-439`); `findings` on every row (`models/security.go:122`). The first version's hand-written reasons, a `deployId` on the env-keyed `trivy` row, and an `errorReason: ""` that omitempty never writes let mutant X2 (ErrorReason dropped) survive |
+| `pods.json`, `events.json`, `diagnose-ai.json` | drill-ins; the diagnosis has `source: "rules+ai"` |
+| `error-text-plain-403.txt` | `{"error":"no access yet: your account is waiting for team approval — finish onboarding first"}` served as `text/plain` (`rbac.go:398-400`) |
+
+#### `panaceatest.Server` — the harness for the conformance suite
+
+```go
+package panaceatest
+
+// Server is a fake panacea-api: an httptest.Server that holds a model and answers the routes of
+// plan §4 in Panacea's exact envelopes, rendered from the same DTO shapes. It implements
+// deploytest.Seeder, so deploytest.Conformance runs unchanged against the real connector.
+type Server struct{ /* unexported */ }
+
+func New(t *testing.T) *Server             // closes with t.Cleanup
+func (s *Server) URL() string              // the https origin
+func (s *Server) HTTPClient() *http.Client // trusts the server's certificate
+func (s *Server) Token() string            // the only token it accepts: "pnc_test"
+func (s *Server) Requests() []string       // "METHOD /path" in order
+
+var _ deploytest.Seeder = (*Server)(nil)
+```
+
+`Server.BranchEnvironment` fills a table, and `GET P/branches/{branch}/access` answers `data.env`
+from it after `url.PathUnescape` of the segment. The server holds **no** naming rule. The route
+has **two** seeds, because task 04's `Posture` reads the same body (b02 round 2, R3): the server
+answers from both tables — `env` from `BranchEnvironment`, and the posture fields from task 04's
+posture seed — and **omits `env`** when only a posture is seeded. A branch seeded in **neither**
+is a test bug, answered `500` with `t.Errorf("panaceatest: branch %q seeded in neither table")`,
+where real Panacea would answer for any branch. So conformance row `UnknownPostureFailsClosed`
+(task 01), which seeds only a posture word, still runs over the connector, and no fixture ever
+matches a branch to a row by name. `EnvironmentFor` on a posture-only branch reads the missing
+`env` as `KindUnavailable` (the empty-answer rule above).
+
+`Server.Scans` fills a table keyed by `(env, deployId)`, and `GET P/security-status` answers from
+it the way Panacea resolves the env (review C3): a seed under `""`, `prod` or `production` is
+production's, and a request **without `env`**, or with `prod` or `production`, answers
+production's report — `resolveEnv` defaults to `"production"`
+(`handlers/security_status.go:192-201`) and `tenantNamespaceForEnv` sends all three to the base
+namespace (`handlers/tier_store.go:106-113`). Any other `env` is looked up exactly. This is the one
+place the server copies a Panacea rule, because it is the rule the C3 mutant hides behind: a
+connector that drops `env` is answered with production's report, as live Panacea would answer it.
+A pair seeded in neither form is a test bug, answered `500` with
+`t.Errorf("panaceatest: no scans seeded for env %q, deploy %q")`.
+
+#### Conformance rows this task adds (`deploytest/conformance.go`)
+
+| Row | Assertion | Mutant it kills |
+|---|---|---|
+| `ProvisioningSurvives` | a seeded deployment with one `failed` database provisioning reads back with it | dropping `provisioning[]`, so *"app deployed, database failed"* reads green |
+| `EmptyVersionIsUnknown` | `Version: ""` reads back `""`, never `Commit[:7]` | fabricating a version the target did not report |
+| `ReplicasAbsentIsNil` | an environment seeded with `Replicas: nil` reads back `nil` | rendering an unread namespace as `0/0 pods` (`projects.go:2125-2137`) |
+
+**Over the connector before task 04 (found while building, declared in the t03 report).**
+`Harness` returns a `deploy.Deployer`, and `*panacea.Client` has no `Actor`, `Governor` or
+`Stream` until tasks 04 and 12. So `conformance_test.go`'s harness embeds the client beside an
+`unbuilt` stub whose every method calls `t.Skipf("<method> over the connector is task NN's")`.
+Rows `ShipNamesTheRun`, `RollbackCreatesNoDeployment` and `UnknownPostureFailsClosed` run their
+seeding and reads over the connector, then skip at the act; no row is removed. When `Client`
+gains the methods, the embedded pair is an ambiguous selector, `connector` stops satisfying
+`deploy.Deployer`, and the file does not compile until task 04 deletes the stub.
+
+#### Tests to write first (`reads_test.go`)
+
+| Test | Assertion | Mutant it kills |
+|---|---|---|
+| `TestWhoamiApprovedIsStrict` | the three `/me` bodies → `Approved` true, false, **false** | reading a missing field as approved — the pending user then sees a full lens and every act 403s (`me.go:29-37`) |
+| `TestScopedKeyIsOneApprovedProject` | `me-scoped-deploy.json` → `Approved` true, `Admin` false; `projects-scoped.json` → exactly one `Project`; `error-scope-owner-403.txt` → `KindForbidden` whose `Message` is Panacea's sentence verbatim (review I5) | a scoped key read as *"waiting for approval"*, or its refusal reworded into *"you are not an owner"* — the sentence is the only place Panacea says the **key**, not the person, is the limit |
+| `TestLatest404IsNotAnError` | `latest-404.json` → `ok == false`, `err == nil` | a red error banner on a project that has simply never shipped |
+| `TestLiveReadyPointer` | the newest row's `liveReadyReplicas: 0` → `*LiveReady == 0`; a row without the key → `nil` | `LiveReadyReplicas int` in the DTO |
+| `TestGatesAbsentIsNil` | a row without `scanStatus` → `Gates == nil` | `make(map…)` in the mapper |
+| `TestCompletedAtFromDuration` | `createdAt "2026-09-23T10:00:00Z"`, `duration "4m12s"` → `CompletedAt` 10:04:12Z; `duration "1h2m3s"` → 11:02:03Z; a row without `duration`, with `""`, or with `"soon"` → `CompletedAt.IsZero()`; a `historical` backfilled row → zero (review I3) | `CompletedAt = CreatedAt` when the duration is missing, which makes a running build read as live the moment it starts |
+| `TestStatusMappingTable` | every row of the status table, both DTOs; and `Pending` maps to a state whose `Terminal()` is false | `Pending` read as terminal, e.g. mapped to `BuildFailed` (the "not `True` is failure" reading of `pipeline.go:2073-2084`, where `Pending` is a run whose condition is neither `True` nor `False`, so still running). Then `Track` stops driving the 3 s cadence while the build runs (t07:75-76) and `Advance` writes a result for a build that has none (t01:563). (Mapping `Pending` to `BuildPending` instead is caught by the row check only: both are non-terminal and keep the 3 s cadence, review M4) |
+| `TestSameEnvironment` | `("prod","production")`, `("production","prod")` → true; `("prod","prod-eu")`, `("feat-a","feat-b")` → false; `("","production")`, `("","prod")`, `("production","")` → false; the test's comment quotes `clients/kubernetes.go:4213` | a prefix match that joins `production` to `production-eu`; or a full copy of `tenantNamespace`'s condition, which reads a legacy run with no environment label as production's (review M5) |
+| `TestPathEscapesBranchAndEnv` | `Pods(p, "feat/x")` requests `/environments/feat%2Fx/pods` | an unescaped `/` routing to a different Panacea handler |
+| `TestEnvironmentForReadsPanaceasName` | the three `branch-access-*.json` bodies: `EnvironmentFor(p, "feat/x")` requests `GET /api/v1/projects/engagement-portal/branches/feat%2Fx/access` and returns `"feat-x"`; the 31-character branch returns `"lane-7-deploy-connec"`; `main` returns `"prod"`; on `risk-register` (labelled `production-branch=release`) `release` returns `"prod"` and `main` returns `"main"`; a body with `"env": ""` → `KindUnavailable` with `Status == 200`; and **no** request to `/environments` is made | returning the branch unchanged, or a fourth `sanitizeBranchEnv` in the connector (review C2) |
+| `TestEnvironmentForRouteNotFound` | the route answering Go's router body `404 page not found` → `KindNotFound` with the message *"Panacea could not read this branch name. It may contain `/`, which the route cannot carry."*, never the router's text (b02 round 2, R2); a JSON 404 → the same; an ingress 400 with a plain-text or HTML body → `KindRejected`, `Status` 400, the same sentence (re-review b02-2 M-3); the handler's JSON 400 *"project name and branch are required"* → kept verbatim; a 403 → kept verbatim | a refusal that tells the user their project does not exist; a card reading *"Panacea did not name this branch's environment: "* with nothing after it |
+| `TestEnvironmentForIsTheAccessRoutesMapping` | recorded body `branch-access-annotation-only.json` — the access route for `develop` on a project with annotation `primary-branch=develop` and no `production-branch` label, where `branchEnv` passes `prodBranch ""` (`branch_security.go:32`) and `mapBranchToEnv("develop")` answers `develop` — → `EnvironmentFor(p, "develop") == "develop"`, **not** `prod`, although the deploy lands that branch in `prod` (`pipeline.go:233-237`). The test's comment names the divergence and Q-P7-6 (b02 round 2, R1) | a connector that "fixes" Panacea's answer with a copy of `ResolveProductionBranch`, or a test suite that forgets the answer can be wrong |
+| `TestEnvironmentForJoinsProduction` | `SameEnvironment(EnvironmentFor(p,"main"), "production")` is true against `environments.json` — the prod row joins | an exact-name join that leaves production's branch with no card (review I8's twin) |
+| `TestScansSendsTheEnvironment` | `Scans(p, "feat-x", "d-feat")` requests `GET /api/v1/projects/engagement-portal/security-status?deployId=d-feat&env=feat-x` (`url.Values.Encode` order); `Scans(p, "prod", "d1")` sends `env=prod`; `Scans(p, "", "d1")` sends `?deployId=d1` with **no** `env` key, never `env=` (review C3) | dropping `env`, which shows production's verdict as a branch release's; or sending `env=` empty, which Panacea also reads as production |
+| `TestTextPlain403` | `error-text-plain-403.txt` → `KindForbidden` with the full sentence | a decoder gated on `Content-Type: application/json` that loses Panacea's most actionable sentence |
+| `TestConformanceOverConnector` | `deploytest.Conformance(t, panaceaHarness)` | the connector and the fake disagreeing about any row |
+
+Added in the t03 build, each for a mutant that survived the rows above:
+
+| Test | Assertion | Mutant it kills |
+|---|---|---|
+| `TestRunNameIsTheOneAsked` | a run answered with no `name` reads `Run` as the name asked | N1: the run-to-deployment join broken by `Run ""` |
+| `TestReadsAcceptOnly200` | 201, 202, 203 and 206 on every read → `KindUnavailable` with that status; `Latest` not ok | N2: any 2xx accepted |
+| `TestGatesEmptyMapIsNil` | `"scanStatus": {}` → `Gates == nil` | G3: an empty map read as "all gates clean" |
+| `TestScansMapping` (whole report) | the rewritten `security-status.json`, compared whole, `ErrorReason` included | X2: `ErrorReason` dropped, so an incomplete gate loses its why |
+| `TestDrillInsMapping` (diagnosis whole) | every `DiagnoseFinding` field (`diagnose.go:60-67`) compared whole | X1, X3: `SuggestedFix` or `Problem` dropped |
+| `TestPodReadyIsPanaceas` | a ready and a not-ready pod read `Ready` verbatim (`pod_introspection.go:50`) | X4: `Ready` dropped (both recorded pods are not ready) |
+
+#### Steps
+
+- [ ] Write the testdata bodies first, each from its cited source line; open the line while writing.
+- [ ] Write `reads_test.go` and `conformance_test.go`; run; they fail to compile.
+- [ ] Write `wire.go` (read half), `reads.go`, then `panaceatest/server.go`.
+- [ ] Add the three conformance rows; run the whole package and `deploytest` green.
+- [ ] Commit by pathspec.
+
+#### Acceptance
+
+```
+go test ./control-plane/internal/deploy/... -race -count=1
+→ ok for deploy, deploy/deploytest, deploy/panacea, deploy/panacea/panaceatest
+
+grep -cE '^// [a-z][A-Za-z]*DTO mirrors ' control-plane/internal/deploy/panacea/wire.go
+grep -cE '^type [a-z][A-Za-z]*DTO(\[T any\])? struct' control-plane/internal/deploy/panacea/wire.go
+→ 17, then 17: every read DTO above opens with "// xDTO mirrors <Panacea source>" (review I1;
+  counted at this task's commit — task 04's write half adds more DTOs to the same file)
+```
+
+#### What this task does NOT claim
+
+- That the recorded bodies match live Panacea. They match Panacea's **source** at `406d0da95` (and
+  `b02424691`, plan §2). Task
+  20 fetches each route once with the owner's token (OD-12) and diffs the keys.
+- That `GET /api/v1/projects` returns `repoUrl` to a non-admin token (plan §12). If it does not,
+  task 06's `NoRepoInfo` state applies (the user chooses from every project, t06:154; no by-name fallback, M15).
+- Acts. Task 04.
