@@ -141,6 +141,52 @@ func createReviewedFixture(t *testing.T, provider string) (*sessionsEnv, registr
 	return env, saved, done
 }
 
+func TestReviewedOpenCodeInstructionPolicyFollowsCapturedBindingAcrossRestart(t *testing.T) {
+	readInstructions := func(t *testing.T, env *sessionsEnv, index int) []string {
+		t.Helper()
+		var config struct {
+			Instructions []string `json:"instructions"`
+		}
+		if err := json.Unmarshal([]byte(env.be.spec(t, index).Env["OPENCODE_CONFIG_CONTENT"]), &config); err != nil {
+			t.Fatal(err)
+		}
+		return config.Instructions
+	}
+	env, saved, _ := createReviewedFixture(t, "opencode")
+	if saved.ProjectRunID != "" || saved.ProjectRunOperationID != "" || saved.ImplementationContext == nil || saved.ReviewedContext == nil {
+		t.Fatal("fixture must match the normal UI's captured task without a project run identity")
+	}
+	if got := readInstructions(t, env, 0); len(got) != 0 {
+		t.Fatalf("reviewed create loaded mutable checkout instructions: %v", got)
+	}
+	done := sessionsWatchDone(t)
+	restarted := sessionsDecodeOne(t, env.do(t, "POST", "/v1/sessions/"+saved.ID+"/restart", "{}"), 200)
+	sessionsAwaitWatch(t, done)
+	if restarted.ReviewedContextDelivery == nil || restarted.ReviewedContextDelivery.Digest != saved.ReviewedContext.Digest {
+		t.Fatal("restart lost the exact captured context")
+	}
+	if got := readInstructions(t, env, 1); len(got) != 0 {
+		t.Fatalf("reviewed restart loaded mutable checkout instructions: %v", got)
+	}
+
+	ordinary, _, wt, _ := sessionsPrimaryBranchFixture(t)
+	connection := sessionSaveConnection(t, ordinary, 0, "", "opencode", true)
+	sessionsStubReady(t, nil)
+	done = sessionsWatchDone(t)
+	body, _ := json.Marshal(map[string]any{"worktreeId": wt.ID, "harness": "opencode", "agentConnectionId": connection.ID})
+	ordinarySession := sessionsDecodeOne(t, ordinary.do(t, "POST", "/v1/sessions", string(body)), 201)
+	sessionsAwaitWatch(t, done)
+	if got := readInstructions(t, ordinary, 0); !reflect.DeepEqual(got, []string{"LUCI.md"}) {
+		t.Fatalf("ordinary session lost its saved instructions: %v", got)
+	}
+	done = sessionsWatchDone(t)
+	sessionsDecodeOne(t, ordinary.do(t, "POST", "/v1/sessions/"+ordinarySession.ID+"/restart", "{}"), 200)
+	sessionsAwaitWatch(t, done)
+	if got := readInstructions(t, ordinary, 1); !reflect.DeepEqual(got, []string{"LUCI.md"}) {
+		t.Fatalf("ordinary restart lost its saved instructions: %v", got)
+	}
+}
+
 func TestReviewedSessionAllHarnessesReceivePrivateCapturedAuthority(t *testing.T) {
 	for _, provider := range []string{"codex", "claude-code", "opencode"} {
 		t.Run(provider, func(t *testing.T) {

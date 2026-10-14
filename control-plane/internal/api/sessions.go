@@ -1372,7 +1372,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		nativeDockerEndpoint(sandboxEnv)
 	}
 	if harnessID == harness.OpenCode {
-		if req.ProjectRunID != "" {
+		if implementationContext != nil {
 			if err := clearReviewedOpenCodeInstructions(sandboxEnv); err != nil {
 				httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
 				return
@@ -2218,6 +2218,12 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		nativeDockerEndpoint(sandboxEnv)
 	}
 	if sess.Harness == string(harness.OpenCode) {
+		if sess.ImplementationContext != nil {
+			if err := clearReviewedOpenCodeInstructions(sandboxEnv); err != nil {
+				httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
+				return
+			}
+		}
 		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend); err != nil {
 			httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
 			return
