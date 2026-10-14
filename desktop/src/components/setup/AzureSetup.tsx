@@ -70,8 +70,8 @@ export function AzureSetup({ client, disabled, budget = 30 }: { client: ProductC
     });
   };
   return <section className="azure-setup" aria-label="Guided Azure setup">
-    <p>A rendered plan is not a connected workspace or a verified microVM runtime. Preparing instructions does not provision resources or change your active connection.</p>
-    <p>Use a Linux computer or WSL2 for setup. Windows PowerShell cannot perform the Linux image preparation. Model access is separate; AWS setup follows later.</p>
+    <p>Set up Luci in your Azure account. Choose a name, region and budget to prepare your setup instructions.</p>
+    <p>Run the installer on Linux or WSL2. You will review the resources and costs before creating anything, then connect your workspace. Model access is configured separately.</p>
     {disabled && <p role="status" className="journey-warning">An administrator with cloud provisioning permission must prepare this setup.</p>}
     <form onSubmit={prepare}>
       <fieldset disabled={disabled || !!busy}>
@@ -89,7 +89,7 @@ export function AzureSetup({ client, disabled, budget = 30 }: { client: ProductC
     {notice && <p role="status">{notice}</p>}
     {plan && <div className="setup-plan azure-setup-plan">
       <h3>Instructions prepared · not connected</h3>
-      <p>Download the installer, then use its guide to finish the prerequisites and review resources, ownership, charges and cleanup. Keep passwords, tokens and private keys out of this form and copied commands.</p>
+      <p>Download the verified installer and follow its setup guide. Your workspace will be ready for cloud work after the connection checks succeed. Enter credentials only when the guide directs you to a secure sign-in or secret store.</p>
       <div className="setup-actions">
         <Button type="button" disabled={disabled || !!busy} onClick={download}>{busy === "Verifying installer…" ? busy : "Download verified Azure installer"}</Button>
         <Button type="button" variant="secondary" disabled={disabled || !!busy || !verified} onClick={copy}>Copy setup commands</Button>
