@@ -31,6 +31,7 @@ type workspaceCompanion struct {
 	metadataHash    string
 	metadataSize    int64
 	bundle          *runtimeoci.Bundle
+	pull            *runtimeoci.PullBundle
 	coreHash        string
 	coreSize        int64
 	markerHash      string
@@ -54,6 +55,49 @@ func (c *workspaceCompanion) close() {
 	if c.bundle != nil {
 		_ = c.bundle.Close()
 	}
+	if c.pull != nil {
+		_ = c.pull.Close()
+	}
+}
+
+func (s *Server) openWorkspacePullCompanion(ctx context.Context) (_ *workspaceCompanion, err error) {
+	dir, err := s.runtimeSource()
+	if err != nil {
+		return nil, err
+	}
+	pull, err := runtimeoci.OpenPullContext(ctx, dir)
+	if err != nil {
+		return nil, fmt.Errorf("the installed runtime pull companion cannot be verified: %w", err)
+	}
+	result := &workspaceCompanion{pull: pull}
+	defer func() {
+		if err != nil {
+			result.close()
+		}
+	}()
+	info, e := os.Lstat(s.cloudBundle)
+	if e != nil || !info.Mode().IsRegular() || info.Size() < 1 || info.Size() > maxWorkspaceCoreBytes {
+		return nil, errors.New("the bundled Linux core is missing, linked or oversized")
+	}
+	result.core, err = os.Open(s.cloudBundle)
+	if err != nil {
+		return nil, err
+	}
+	opened, e := result.core.Stat()
+	if e != nil || !os.SameFile(info, opened) {
+		return nil, errors.New("the bundled Linux core changed before inspection")
+	}
+	result.markerHash, err = scanWorkspacePullCore(result.core, pull)
+	if err != nil {
+		return nil, err
+	}
+	result.metadata, result.metadataPath, result.metadataHash, result.metadataSize, err = buildWorkspacePullMetadata(pull, filepath.Join(s.stateDir, "workspace-transfer-staging"))
+	if err != nil {
+		return nil, err
+	}
+	result.coreHash, err = hashWorkspaceFile(result.core, info.Size(), "")
+	result.coreSize = info.Size()
+	return result, err
 }
 
 func (s *Server) openWorkspaceCompanion() (*workspaceCompanion, error) {
@@ -109,6 +153,27 @@ func scanWorkspaceCore(file *os.File, bundle *runtimeoci.Bundle) (string, error)
 	if file == nil || bundle == nil {
 		return "", errors.New("bundled Linux core unavailable")
 	}
+	wanted := map[string]runtimeoci.Member{}
+	for _, source := range bundle.Manifest.SourceFiles {
+		wanted["runtime/"+source.Path] = source.Member
+	}
+	wanted["runtime/source-receipt.json"] = runtimeoci.Member{SHA256: bundle.SourceReceiptSHA256}
+	return scanWorkspaceCoreMembers(file, wanted, func(data []byte) error { return runtimeoci.VerifyCompanionMarker(data, bundle) })
+}
+
+func scanWorkspacePullCore(file *os.File, bundle *runtimeoci.PullBundle) (string, error) {
+	if file == nil || bundle == nil {
+		return "", errors.New("bundled Linux core unavailable")
+	}
+	wanted := map[string]runtimeoci.Member{}
+	for _, source := range bundle.Manifest.SourceFiles {
+		wanted["runtime/"+source.Path] = source.Member
+	}
+	wanted["runtime/source-receipt.json"] = runtimeoci.Member{SHA256: bundle.SourceReceiptSHA256}
+	return scanWorkspaceCoreMembers(file, wanted, func(data []byte) error { return runtimeoci.VerifyPullCompanionMarker(data, bundle) })
+}
+
+func scanWorkspaceCoreMembers(file *os.File, wanted map[string]runtimeoci.Member, verifyMarker func([]byte) error) (string, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return "", errors.New("bundled Linux core unavailable")
 	}
@@ -117,11 +182,6 @@ func scanWorkspaceCore(file *os.File, bundle *runtimeoci.Bundle) (string, error)
 		return "", err
 	}
 	defer gz.Close()
-	wanted := map[string]runtimeoci.Member{}
-	for _, source := range bundle.Manifest.SourceFiles {
-		wanted["runtime/"+source.Path] = source.Member
-	}
-	wanted["runtime/source-receipt.json"] = runtimeoci.Member{SHA256: bundle.SourceReceiptSHA256}
 	seen := map[string]bool{}
 	var expanded int64
 	var markerHash string
@@ -142,7 +202,7 @@ func scanWorkspaceCore(file *os.File, bundle *runtimeoci.Bundle) (string, error)
 		}
 		expanded += header.Size
 		seen[header.Name] = true
-		if header.Name == "runtime/"+bundle.Manifest.Archive.FileName || header.Name == "runtime/runtime-oci-manifest-v1.json" || header.Name == "runtime/runtime-build-receipt.json" || header.Name == "runtime/runtime-source-reuse-v1.json" || header.Name == "runtime/runtime-prior-manifest-v1.json" || header.Name == "runtime/runtime-prior-build-receipt.json" || strings.HasPrefix(header.Name, "licenses/runtime-image/") || strings.HasPrefix(header.Name, "runtime/sandboxd/") && wanted[header.Name].SHA256 == "" || strings.HasPrefix(header.Name, "runtime/images/sandbox/") && wanted[header.Name].SHA256 == "" {
+		if strings.HasPrefix(header.Name, "runtime/runtime-") && header.Name != "runtime/runtime-payload-companion.json" && wanted[header.Name].SHA256 == "" || strings.HasPrefix(header.Name, "licenses/runtime-image/") || strings.HasPrefix(header.Name, "licenses/runtime-bootstrap/") || strings.HasPrefix(header.Name, "runtime/sandboxd/") && wanted[header.Name].SHA256 == "" || strings.HasPrefix(header.Name, "runtime/images/sandbox/") && wanted[header.Name].SHA256 == "" {
 			return "", errors.New("bundled Linux core has unexpected runtime content")
 		}
 		if header.Name == "runtime/runtime-payload-companion.json" {
@@ -150,7 +210,7 @@ func scanWorkspaceCore(file *os.File, bundle *runtimeoci.Bundle) (string, error)
 				return "", errors.New("runtime companion marker oversized")
 			}
 			data, readErr := io.ReadAll(io.LimitReader(reader, header.Size+1))
-			if readErr != nil || int64(len(data)) != header.Size || runtimeoci.VerifyCompanionMarker(data, bundle) != nil {
+			if readErr != nil || int64(len(data)) != header.Size || verifyMarker(data) != nil {
 				return "", errors.New("runtime companion marker does not match the installed payload")
 			}
 			markerHash = hashWorkspaceBytes(data)
@@ -230,6 +290,46 @@ func buildWorkspaceMetadata(bundle *runtimeoci.Bundle, stagingDir string) (*os.F
 	for _, grant := range bundle.Manifest.Licenses {
 		wanted[grant.Path] = grant.SHA256
 	}
+	return buildWorkspaceMetadataMembers(packageRoot, wanted, stagingDir)
+}
+
+func buildWorkspacePullMetadata(bundle *runtimeoci.PullBundle, stagingDir string) (*os.File, string, string, int64, error) {
+	if bundle == nil || bundle.Store == nil || bundle.Bootstrap == nil {
+		return nil, "", "", 0, errors.New("verified runtime pull metadata unavailable")
+	}
+	runtimeRoot := filepath.Dir(bundle.Store.Name())
+	packageRoot := filepath.Dir(runtimeRoot)
+	m := bundle.Manifest
+	wanted := map[string]string{
+		"runtime/runtime-oci-pull-manifest-v2.json":           bundle.ManifestSHA256,
+		"runtime/runtime-build-receipt.json":                  m.Producer.OriginalBuildReceiptSHA256,
+		"runtime/runtime-pull-producer-receipt-v2.json":       m.Producer.PullProducerReceiptSHA256,
+		"runtime/runtime-registry-conversion-receipt-v2.json": m.Producer.ConversionReceiptSHA256,
+		"runtime/runtime-bootstrap-build-receipt-v1.json":     m.Bootstrap.BuildReceiptSHA256,
+	}
+	if m.Producer.ReuseEvidenceSHA256 != "" {
+		wanted["runtime/runtime-source-reuse-v1.json"] = m.Producer.ReuseEvidenceSHA256
+		reuseBytes, err := readWorkspaceMetadataMember(packageRoot, "runtime/runtime-source-reuse-v1.json", m.Producer.ReuseEvidenceSHA256)
+		if err != nil {
+			return nil, "", "", 0, err
+		}
+		var reuse struct {
+			PriorManifestSHA256     string `json:"priorManifestSHA256"`
+			PriorBuildReceiptSHA256 string `json:"priorBuildReceiptSHA256"`
+		}
+		if json.Unmarshal(reuseBytes, &reuse) != nil || len(reuse.PriorManifestSHA256) != 64 || len(reuse.PriorBuildReceiptSHA256) != 64 {
+			return nil, "", "", 0, errors.New("runtime pull reuse originals unavailable")
+		}
+		wanted["runtime/runtime-prior-manifest-v1.json"] = reuse.PriorManifestSHA256
+		wanted["runtime/runtime-prior-build-receipt.json"] = reuse.PriorBuildReceiptSHA256
+	}
+	for _, grant := range m.Licenses {
+		wanted[grant.Path] = grant.SHA256
+	}
+	return buildWorkspaceMetadataMembers(packageRoot, wanted, stagingDir)
+}
+
+func buildWorkspaceMetadataMembers(packageRoot string, wanted map[string]string, stagingDir string) (*os.File, string, string, int64, error) {
 	if err := prepareWorkspaceStagingDir(stagingDir); err != nil {
 		return nil, "", "", 0, err
 	}

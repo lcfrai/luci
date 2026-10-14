@@ -20,6 +20,7 @@ import (
 
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeoci"
 )
 
 type Workspace struct {
@@ -34,12 +35,13 @@ type savedWorkspace struct {
 	KnownHost string     `json:"knownHost"`
 }
 type WorkspaceInstall struct {
-	ID           string    `json:"id"`
-	ConnectionID string    `json:"connectionId"`
-	Status       string    `json:"status"`
-	Message      string    `json:"message"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	ID               string    `json:"id"`
+	ConnectionID     string    `json:"connectionId"`
+	RuntimeTransport string    `json:"runtimeTransport,omitempty"`
+	Status           string    `json:"status"`
+	Message          string    `json:"message"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }
 type workspacePreview struct {
 	projectID, releaseID                                       string
@@ -349,13 +351,21 @@ func (s *Server) activateLocalWorkspace(w http.ResponseWriter, r *http.Request) 
 }
 func (s *Server) installCloudWorkspace(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		AcknowledgeInstall bool `json:"acknowledgeInstall"`
+		AcknowledgeInstall bool   `json:"acknowledgeInstall"`
+		RuntimeTransport   string `json:"runtimeTransport,omitempty"`
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
 	if !req.AcknowledgeInstall {
 		problem(w, 400, "install_acknowledgement_required", "Accept installation of Luci and its system service on your selected machine.")
+		return
+	}
+	if req.RuntimeTransport == "" {
+		req.RuntimeTransport = "v2"
+	}
+	if req.RuntimeTransport != "v2" && req.RuntimeTransport != "v1-diagnostic" {
+		problem(w, 400, "runtime_transport_invalid", "Choose the verified runtime pull package or explicitly select the advanced v1 diagnostic transport.")
 		return
 	}
 	s.mu.Lock()
@@ -383,15 +393,28 @@ func (s *Server) installCloudWorkspace(w http.ResponseWriter, r *http.Request) {
 		problem(w, 503, "bundle_unavailable", "This build does not contain the cloud runtime bundle. Install an official packaged Luci build.")
 		return
 	}
-	if s.workspaceCompanionOpen == nil {
-		payload, payloadErr := os.Lstat(filepath.Join(s.runtimeDir, "runtime-image-linux-amd64.tar"))
-		if payloadErr != nil || !payload.Mode().IsRegular() || payload.Size() < 1 || payload.Size() > 8<<30 {
+	if s.workspaceCompanionOpen == nil && (req.RuntimeTransport != "v2" || s.workspacePullCompanionOpen == nil) {
+		files := []struct {
+			name string
+			max  int64
+		}{{"runtime-oci-pull-manifest-v2.json", 1 << 20}, {"runtime-registry-store-v2.tar", runtimeoci.MaxPullStoreBytes}, {"runtime-registry-bootstrap-linux-amd64.tar", runtimeoci.MaxBootstrapBytes}}
+		if req.RuntimeTransport == "v1-diagnostic" {
+			files = []struct {
+				name string
+				max  int64
+			}{{"runtime-image-linux-amd64.tar", runtimeoci.MaxArchiveBytes}}
+		}
+		for _, expected := range files {
+			payload, payloadErr := os.Lstat(filepath.Join(s.runtimeDir, expected.name))
+			if payloadErr == nil && payload.Mode().IsRegular() && payload.Size() > 0 && payload.Size() <= expected.max {
+				continue
+			}
 			s.mu.Unlock()
-			problem(w, 503, "runtime_companion_required", "This installation lacks its verified runtime image companion. Install the complete matching Luci package before transferring a workspace; the source build will not start automatically.")
+			problem(w, 503, "runtime_companion_required", "This installation lacks its matching verified runtime companion. Install the complete Luci package before transferring a workspace; no source build starts automatically.")
 			return
 		}
 	}
-	job := WorkspaceInstall{ID: newID("install-"), ConnectionID: t.ID, Status: "installing", Message: "Transferring the bundled runtime through verified SSH.", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	job := WorkspaceInstall{ID: newID("install-"), ConnectionID: t.ID, RuntimeTransport: req.RuntimeTransport, Status: "installing", Message: "Transferring the bundled runtime through verified SSH.", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 	s.workspaceInstalls[job.ID] = job
 	if err := atomicJSON(filepath.Join(s.stateDir, "workspace-installs.json"), s.workspaceInstalls); err != nil {
 		delete(s.workspaceInstalls, job.ID)
@@ -414,6 +437,10 @@ func (s *Server) finishWorkspaceInstall(job WorkspaceInstall, status, message st
 	_ = atomicJSON(filepath.Join(s.stateDir, "workspace-installs.json"), s.workspaceInstalls)
 }
 func (s *Server) installWorkspace(job WorkspaceInstall, t Tunnel) {
+	if job.RuntimeTransport == "v2" && s.workspaceCompanionOpen == nil {
+		s.installPullWorkspace(job, t)
+		return
+	}
 	ctx, cancel := context.WithTimeout(s.workspaceContext, 15*time.Minute)
 	defer cancel()
 	open := s.workspaceCompanionOpen
