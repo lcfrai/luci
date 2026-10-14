@@ -41,6 +41,13 @@ trap cleanup EXIT
 (cd "$root/desktop" && npm run build)
 guides="$stage/package-guides"
 python3 "$root/scripts/stage-release-docs.py" "$root" "$guides" --source-commit="$source_commit" --source-dirty="${source_dirty:-unknown}"
+azure_setup="$stage/azure-setup"
+mkdir -p "$azure_setup"
+if [[ "$source_dirty" == false ]]; then
+  azure_sha=$(python3 "$root/scripts/azure-setup/package.py" build --source "$root" --revision "$source_commit" --output "$azure_setup/azure-setup.tar")
+  python3 "$root/scripts/azure-setup/package.py" verify --archive "$azure_setup/azure-setup.tar" --sha256 "$azure_sha" >/dev/null
+  printf '%s\n' "$azure_sha" > "$azure_setup/azure-setup.sha256"
+fi
 build_package() {
   local goos=$1 goarch=$2 package=$3
   mkdir -p "$package/runtime/sandboxd" "$package/runtime/images" "$package/docs/luci"
@@ -50,6 +57,7 @@ build_package() {
     cp -R "$root/sandboxd/$source" "$package/runtime/sandboxd/$source"
   done
   cp -R "$root/images/sandbox" "$package/runtime/images/sandbox"
+  if [[ "$source_dirty" == false ]]; then cp "$azure_setup/azure-setup.tar" "$azure_setup/azure-setup.sha256" "$package/runtime/"; fi
   cp -R "$guides/." "$package/"
   cp "$root/scripts/launch-unix.sh" "$package/start-luci.sh"
   chmod 755 "$package/luci" "$package/start-luci.sh"
