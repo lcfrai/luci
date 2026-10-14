@@ -70,3 +70,27 @@ Focused checks (fixtures/adapters, not Docker acceptance):
 ```sh
 python -m unittest discover -s scripts/runtime-oci -p 'test_*.py' -v
 ```
+
+If the original image build positively completed but later licence collection
+or export refused, retain its clean checkout, context, terminal receipt, image
+ID and raw logs. `finalize.py` can finish that exact owned image from a new clean
+tooling checkout without recompilation:
+
+```powershell
+$finalizerRevision = git rev-parse HEAD
+if ($LASTEXITCODE -ne 0) { throw 'Finalizer source identity failed' }
+python scripts/runtime-oci/finalize.py --revision $finalizerRevision --build-repo E:/private/original-clean-source --original E:/private/original-producer-output --output E:/private/finalized-unique --producer-wsl-cache-assistance
+if ($LASTEXITCODE -ne 0) { throw 'Preserve both original and finalization evidence' }
+```
+
+Failed, cancelled, reserve-breaching or unknown builders cannot use this route.
+It verifies the original terminal, exact engine/image/producer label, immutable
+Git inputs and reconstructed generated context, then records fresh actual
+version argv/results and bounded licence/export operations. Separate external
+finalization journals bind the new tooling revision; strict installed manifest
+and receipt schemas remain unchanged and keep the original build revision.
+Original raw evidence is copied byte-for-byte and retained in its original
+location. An exact-version SPDX match can use a source-controlled, hashed
+upstream grant when the npm package omits it: Codex 0.160.0 uses LICENSE and
+NOTICE from its peeled `rust-v0.160.0` commit. Other versions, components,
+licences and byte drift are refused rather than assigned an invented grant.

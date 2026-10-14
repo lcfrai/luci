@@ -11,32 +11,41 @@ import re
 import sys
 import tarfile
 import subprocess
+import base64
 
 MAX_FILES, MAX_BYTES = 4096, 64 << 20
+
+
+def find_fallback(name, version, grant):
+    return next((item for item in globals().get('SOURCE_GRANT_FALLBACKS', []) if item['name'] == name and version in item['versions'] and item['grant'] == grant), None)
 
 
 def collect():
     rows, bodies, total = [], {}, 0
 
-    def add(path, component, version, grant, provenance, suffix=None):
+    def add_body(data, component, version, grant, provenance, suffix):
         nonlocal total
+        if not 0 < len(data) <= 16 << 20:
+            raise ValueError('missing/oversized actual runtime grant')
+        name = re.sub(r"[^A-Za-z0-9._-]", "_", component + "-" + version)
+        relative = 'licenses/runtime-image/' + name + '/' + suffix
+        if relative in bodies:
+            raise ValueError('duplicate runtime grant destination')
+        total += len(data)
+        if len(rows) >= MAX_FILES or total > MAX_BYTES or len(relative) > 256:
+            raise ValueError('runtime licence inventory exceeds its bounds')
+        bodies[relative] = data
+        rows.append({'path': relative, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data),
+                     'component': component, 'version': version, 'grant': grant[:160], 'provenance': provenance[:512]})
+
+    def add(path, component, version, grant, provenance, suffix=None):
         original = Path(path)
         path = original.resolve()
         if not path.is_file() or path.stat().st_size == 0 or path.stat().st_size > 16 << 20:
             raise ValueError("missing/oversized installed runtime grant: " + str(original))
         if not any(path.is_relative_to(Path(root)) for root in ("/usr/share/doc", "/usr/share/common-licenses", "/usr/local/lib/node_modules", "/usr/local/go", '/usr/local/share/doc/node')) and path != Path('/usr/local/LICENSE'):
             raise ValueError("runtime grant escapes installed notice roots")
-        name = re.sub(r"[^A-Za-z0-9._-]", "_", component + "-" + version)
-        relative = "licenses/runtime-image/" + name + "/" + (suffix or original.name)
-        if relative in bodies:
-            raise ValueError("duplicate runtime grant destination")
-        data = path.read_bytes()
-        total += len(data)
-        if len(rows) >= MAX_FILES or total > MAX_BYTES or len(relative) > 256:
-            raise ValueError("runtime licence inventory exceeds its bounds")
-        bodies[relative] = data
-        rows.append({"path": relative, "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data),
-                     "component": component, "version": version, "grant": grant[:160], "provenance": provenance[:512]})
+        add_body(path.read_bytes(), component, version, grant, provenance, suffix or original.name)
 
     status = Path("/var/lib/dpkg/status").read_text(encoding="utf-8")
     for paragraph in status.split("\n\n"):
@@ -80,7 +89,14 @@ def collect():
             if child.is_dir():
                 notices.extend(p for p in child.rglob("*") if p.is_file() and re.match(r"^(licen[cs]e|copying|notice|copyright)([._-].*)?$", p.name, re.I))
         if not notices:
-            raise ValueError("installed npm component lacks packaged grant: " + name + "@" + version)
+            fallback = find_fallback(name, version, grant)
+            if fallback is None:
+                raise ValueError("installed npm component lacks packaged grant: " + name + "@" + version)
+            for item in fallback['files']:
+                raw = base64.b64decode(item['data'], validate=True)
+                if len(raw) != item['bytes'] or hashlib.sha256(raw).hexdigest() != item['sha256']:
+                    raise ValueError('source-controlled fallback grant hash mismatch')
+                add_body(raw, 'npm:' + name, version, grant, 'Exact installed npm metadata; authoritative version-pinned upstream ' + item['url'], item['file'])
         for index, notice in enumerate(sorted(set(notices))):
             add(notice, "npm:" + name, version, grant, "Installed npm " + name + "@" + version + "; " + str(notice), str(index) + "-" + notice.name)
     go_version = Path("/usr/local/go/VERSION").read_text(encoding="utf-8").splitlines()[0]
