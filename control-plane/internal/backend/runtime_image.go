@@ -25,7 +25,10 @@ type RuntimeImageSpec struct {
 	Identity        RuntimeImageIdentity
 	Resources       Resources
 	SourceDirectory string
-	ImageTag        string
+	// PullStagingDirectory is a fresh private path on the selected local
+	// Docker storage volume. It is assigned by the trusted coordinator only.
+	PullStagingDirectory string
+	ImageTag             string
 }
 
 type PreparedRuntimeImage struct {
@@ -37,11 +40,17 @@ type PreparedRuntimeImage struct {
 	// daemon allowance. It is host/engine admission, not a daemon memory cap;
 	// any Docker RUN hard cap remains Spec.Resources.MemoryMiB.
 	AdmissionMemoryMiB int
-	StorageDriver      string
-	BaseImages         []string
+	// BootstrapAdmissionMemoryMiB is the separately admitted small helper
+	// ImageLoad demand. Main pull demand remains AdmissionMemoryMiB.
+	BootstrapAdmissionMemoryMiB int
+	StorageDriver               string
+	BaseImages                  []string
 	// Bundle holds the exact verified packaged tar descriptor for the ordinary
 	// installed path. It is never serialized into the durable lease.
 	Bundle *runtimeoci.Bundle
+	// PullBundle is v2's verified compressed store and small bootstrap archive.
+	// It cannot be interchanged with the v1 diagnostic ImageLoad bundle.
+	PullBundle *runtimeoci.PullBundle
 }
 
 type RuntimeImageBuildResult struct {
