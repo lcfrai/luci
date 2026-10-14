@@ -27,6 +27,39 @@ type runtimeImageLoadClient interface {
 	ImageInspect(context.Context, string, ...client.ImageInspectOption) (image.InspectResponse, error)
 }
 
+// Docker 28.5 classic ImageLoad untars the complete save archive to daemon
+// temporary storage before registering its layers. Reserve for that staged
+// archive, another layer-sized write/cache footprint, and bounded daemon
+// bookkeeping. This is a host admission estimate, never a daemon memory cap.
+const runtimeImportDaemonAllowanceMiB uint64 = 512
+
+func packagedLoadAdmissionMiB(m runtimeoci.Manifest, workerMiB int) (int, error) {
+	if workerMiB < 128 || workerMiB > 32768 || m.Archive.Bytes < 1024 || m.Archive.Bytes > runtimeoci.MaxArchiveBytes || len(m.Image.LayerPaths) == 0 || len(m.Image.LayerPaths) != len(m.Image.DiffIDs) {
+		return 0, backend.ErrUnsupported
+	}
+	members := make(map[string]runtimeoci.Member, len(m.Archive.Members))
+	for _, member := range m.Archive.Members {
+		if member.Bytes < 1 {
+			return 0, backend.ErrUnsupported
+		}
+		if _, duplicate := members[member.Path]; duplicate {
+			return 0, backend.ErrUnsupported
+		}
+		members[member.Path] = member
+	}
+	var layerBytes uint64
+	for i, path := range m.Image.LayerPaths {
+		member, found := members[path]
+		if !found || member.SHA256 != strings.TrimPrefix(m.Image.DiffIDs[i], "sha256:") || uint64(member.Bytes) > uint64(m.Archive.Bytes)-layerBytes {
+			return 0, backend.ErrUnsupported
+		}
+		layerBytes += uint64(member.Bytes)
+	}
+	const mib = uint64(1 << 20)
+	bytes := uint64(m.Archive.Bytes) + layerBytes + runtimeImportDaemonAllowanceMiB*mib
+	return max(workerMiB, int((bytes+mib-1)/mib)), nil
+}
+
 // PreparePackagedRuntimeImage performs all package reads and engine checks
 // before any daemon mutation. The caller retains and closes the held bundle.
 func (b *Backend) PreparePackagedRuntimeImage(ctx context.Context, spec backend.RuntimeImageSpec) (backend.PreparedRuntimeImage, error) {
@@ -81,10 +114,14 @@ func (b *Backend) PreparePackagedRuntimeImage(ctx context.Context, spec backend.
 	if _, ok = b.api.(runtimeImageClient); !ok {
 		return backend.PreparedRuntimeImage{}, backend.ErrUnsupported
 	}
+	loadAdmissionMiB, err := packagedLoadAdmissionMiB(bundle.Manifest, spec.Resources.MemoryMiB)
+	if err != nil {
+		return backend.PreparedRuntimeImage{}, err
+	}
 	// Preserve the existing 32 GiB admission until installed import measurements
-	// justify a smaller exact disk allowance. No RUN memory or cold pull is used.
+	// justify a smaller exact disk allowance. ImageLoad has no RUN memory cap.
 	closeBundle = false
-	return backend.PreparedRuntimeImage{Spec: spec, ContextDigest: bundle.Manifest.CanonicalInputDigest, RequiredDiskBytes: backend.RuntimeImageRequiredDiskBytes, AdmissionMemoryMiB: spec.Resources.MemoryMiB, StorageDriver: info.Driver, Bundle: bundle}, nil
+	return backend.PreparedRuntimeImage{Spec: spec, ContextDigest: bundle.Manifest.CanonicalInputDigest, RequiredDiskBytes: backend.RuntimeImageRequiredDiskBytes, AdmissionMemoryMiB: loadAdmissionMiB, StorageDriver: info.Driver, Bundle: bundle}, nil
 }
 
 func (b *Backend) inspectSharedRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage) error {
