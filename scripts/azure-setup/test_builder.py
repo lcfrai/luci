@@ -113,6 +113,10 @@ class BuilderTests(unittest.TestCase):
         self.assertTrue(builder.observed_packages(core, path, {'luciRevision': 'a' * 40}))
         selected = core.private_json(path)
         original = copy.deepcopy(selected)
+        selected['stateBackend']['subscriptionId'] = selected['stateBackend']['subscriptionId'].upper()
+        core.atomic_json(path, selected)
+        self.assertTrue(builder.observed_packages(core, path, {'luciRevision': 'a' * 40}))
+        selected = copy.deepcopy(original)
         selected['terraformVariables']['controller_secret_ids'] = ['later exact private credential reference']
         core.atomic_json(path, selected)
         self.assertTrue(builder.observed_packages(core, path, {'luciRevision': 'a' * 40}))

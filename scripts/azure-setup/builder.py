@@ -619,7 +619,7 @@ def observed_packages(core, selection_path, manifest):
     # Key Vault bindings and deferred operator selection legitimately advance
     # later. Bind image proof to immutable producer identity and image/package
     # bytes, not the mutable digest of all subsequent setup fields.
-    prefix = '/subscriptions/' + selected['stateBackend']['subscriptionId'] + '/resourcegroups/' + variables['resource_group_name'].lower() + '/providers/microsoft.compute/galleries/'
+    prefix = '/subscriptions/' + selected['stateBackend']['subscriptionId'].lower() + '/resourcegroups/' + variables['resource_group_name'].lower() + '/providers/microsoft.compute/galleries/'
     for role in ('runtime', 'controller'):
         receipt = journal.get('receipts', {}).get(role + ':install', {})
         if role + ':retired' not in journal.get('completed', []) or role + ':capture' not in journal.get('completed', []) or receipt.get('sourceCommit') != manifest['luciRevision'] or receipt.get('role') != role or receipt.get('packageSHA256') != selected[role + 'Package']['sha256'] or variables[role + '_image_version_id'] != proposal['roles'][role]['imageVersionID'] or not proposal['roles'][role]['imageVersionID'].lower().startswith(prefix):
