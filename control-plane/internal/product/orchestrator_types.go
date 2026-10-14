@@ -131,6 +131,7 @@ type OrchestratorTurn struct {
 	ContextDigest      string              `json:"contextDigest"`
 	Context            OrchestratorContext `json:"context"`
 	Status             string              `json:"status"`
+	FailureCode        string              `json:"failureCode,omitempty"`
 	CreatedAt          string              `json:"createdAt"`
 	UpdatedAt          string              `json:"updatedAt"`
 	Answer             *OrchestratorAnswer `json:"answer,omitempty"`

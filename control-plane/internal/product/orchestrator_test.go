@@ -36,6 +36,28 @@ func reserveOrchestratorTest(t *testing.T, s *Server, id string, ctx context.Con
 	}
 	return turn, snapshot
 }
+func TestOrchestratorMemoryLimitFailureIsDurableAndIdempotent(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "orchestrator-memory-limit")
+	ctx := orchestratorActor(t, "alice")
+	turn, _ := reserveOrchestratorTest(t, s, p.ID, ctx, "Clarify the feature", "")
+	if err := s.CompleteOrchestratorTurnWithFailure(p.ID, turn.ID, turn.JobID, "failed", nil, "memory_limit"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CompleteOrchestratorTurnWithFailure(p.ID, turn.ID, turn.JobID, "failed", nil, "memory_limit"); err != nil {
+		t.Fatal("replay", err)
+	}
+	if err := s.CompleteOrchestratorTurnWithFailure(p.ID, turn.ID, turn.JobID, "failed", nil, "provider-output"); !errors.Is(err, ErrOrchestratorInvalid) {
+		t.Fatal("untrusted cause accepted", err)
+	}
+	view, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(view.Turns) != 1 || view.Turns[0].FailureCode != "memory_limit" {
+		t.Fatal(view.Turns)
+	}
+}
 func TestOrchestratorDurableTurnIdentityScopeAndReadOnlyRecovery(t *testing.T) {
 	s, mux := journeyFixture(t)
 	p := createJourneyProject(t, mux, "orchestrator-scope")

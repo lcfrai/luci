@@ -717,6 +717,23 @@ func TestGetMapsInspectOntoASandbox(t *testing.T) {
 	}
 }
 
+func TestGetReportsOnlyStoppedDockerOOMFlag(t *testing.T) {
+	for _, tc := range []struct {
+		status    string
+		oom, want bool
+	}{
+		{"exited", true, true}, {"exited", false, false}, {"running", true, false},
+	} {
+		resp := inspectOf("c0ffeecafe", tc.status, "127.0.0.1", "51000", labelsFor("s-3f2a91c0", "sess-1"))
+		resp.State.OOMKilled = tc.oom
+		b := newBackend(t, &fakeDocker{inspects: []inspectResult{{resp: resp}}})
+		got, err := b.Get(context.Background(), "s-3f2a91c0")
+		if err != nil || got.OOMKilled != tc.want {
+			t.Fatal(tc, got, err)
+		}
+	}
+}
+
 func TestGetIsErrNotFoundForAnUnknownSandbox(t *testing.T) {
 	b := newBackend(t, &fakeDocker{})
 

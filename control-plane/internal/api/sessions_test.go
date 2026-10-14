@@ -423,6 +423,7 @@ type sessionsBackend struct {
 	// sandbox does in its last moments — its CLI writing a transcript's first
 	// line — is observable only from inside the call that ends it.
 	onDestroy func(id string)
+	observed  *backend.Sandbox
 
 	specs    []backend.Spec
 	destroys []string
@@ -467,6 +468,11 @@ func (f *sessionsBackend) Create(ctx context.Context, spec backend.Spec) (backen
 }
 
 func (f *sessionsBackend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.observed != nil && f.observed.ID == id {
+		return *f.observed, nil
+	}
 	return backend.Sandbox{ID: id, Kind: f.kind, Endpoint: f.endpoint, State: backend.StateRunning}, nil
 }
 

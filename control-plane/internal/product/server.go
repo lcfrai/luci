@@ -106,6 +106,9 @@ type Server struct {
 	browserRegistry                 *previewgateway.Registry
 	cloudBundle                     string
 	workspaceCompanionOpen          func() (*workspaceCompanion, error)
+	workspacePullCompanionOpen      func(context.Context) (*workspaceCompanion, error)
+	workspaceTransferAvailable      func(string) (uint64, error)
+	workspaceTransferMu             sync.Mutex
 	workspace                       Workspace
 	workspaceInstalls               map[string]WorkspaceInstall
 	workspaceCancel                 context.CancelFunc

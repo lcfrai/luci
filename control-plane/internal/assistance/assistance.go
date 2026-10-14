@@ -55,6 +55,7 @@ type Job struct {
 	SessionID               string          `json:"sessionId"`
 	Status                  string          `json:"status"`
 	Message                 string          `json:"message"`
+	FailureCode             string          `json:"failureCode,omitempty"`
 	CreatedAt               string          `json:"createdAt"`
 	UpdatedAt               string          `json:"updatedAt"`
 	Result                  *Result         `json:"result,omitempty"`
