@@ -147,7 +147,7 @@ def continue_setup(core, bundle_root, selection_path, ask=input, emit=print, cli
             return stage_module(bundle_root, 'retirement').run(core, bundle_root, Path(active), ask, emit, cli)
         successor = stage_module(bundle_root, 'successor')
         return successor.finish(core, bundle_root, selection_path,
-            successor.run(core, bundle_root, selection_path, cli, ask, emit), cli)
+            successor.run(core, bundle_root, selection_path, cli, ask, emit), cli, ask, emit)
     modules = modules or {name: stage_module(bundle_root, name) for name in ('foundation', 'builder', 'operator_setup')}
     foundation, builder, operator = (modules[name] for name in ('foundation', 'builder', 'operator_setup'))
     arm = foundation.AzureARM(cli)
@@ -275,7 +275,9 @@ def progress(core, bundle_root, selection_path):
                                  ("infrastructure", "azure-setup-state.json"),
                                  ("connection", "azure-connection-state.json"),
                                  ("controller-recovery", "azure-successor-state.json"),
-                                 ("retirement", "azure-retirement-state.json")):
+                                 ("retirement", "azure-retirement-state.json"),
+                                 ("retirement-cancellation", "azure-retirement-cancel-state.json"),
+                                 ("standby-restoration", "azure-standby-state.json")):
         path = parent / relative
         record = core.private_json(path) if path.exists() else {}
         state = record.get("state", "not_started")

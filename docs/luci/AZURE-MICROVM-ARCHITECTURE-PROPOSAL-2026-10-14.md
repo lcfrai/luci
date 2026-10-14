@@ -77,4 +77,3 @@ Only then may the existing recovery identity be assigned, with exact readback.
 Current mounted-generation and authenticated host-configuration receipts control
 future replacement; stale Terraform must never restore predecessor authority.
 These are offline implementation requirements, not live provider acceptance.
-

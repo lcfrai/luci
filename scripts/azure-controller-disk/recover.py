@@ -607,7 +607,7 @@ def run(selection, store, compute, host_delivery=None, service=None, reconcile=F
             raise RuntimeError("old controller deallocation is unknown; no repeated stop or disk mutation")
         record, etag = transition(store, record, etag, 'identity_revoke_pending')
         old_identities, vm_etag = compute.vm_identities(selection['oldControllerID'])
-        if old_identities != {selection['controllerIdentityID']}:
+        if old_identities not in ({selection['controllerIdentityID']}, {selection['controllerIdentityID'], selection['recoveryIdentityID']}):
             raise ValueError('old controller identity changed before exact revocation')
         try:
             compute.patch_identities(selection['oldControllerID'], [], vm_etag)

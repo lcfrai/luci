@@ -119,3 +119,14 @@ remain visible. No additional VM/role/MI grant or live authority is added.
 Source ownership: scripts/azure-setup/successor.py and installer/guided join;
 current mounted/config receipts use scripts/azure-controller-disk/recover.py.
 
+The implementation checkpoint adds scripts/azure-setup/standby.py: exact
+predecessor descriptor/VM/NIC/disk capture precedes recovery effects; finalization
+and `continue` invoke its reviewed snapshot→Detach→supported reimage→replacement
+disk lineage→clean boot→existing recovery-MI sequence. Package and product bundle
+inventories include it. Pending effects remain inspect-only, current active
+fence/data-disk ownership is checked before effects, and old/new OS-disk public
+export is denied. Final retirement exposes retained standby disk/snapshot IDs
+and charges. Focused Windows provider fixtures: standby8, journey8 and the
+existing-pair identity revocation case1 pass. These do not establish actual
+Azure reboot/reimage/backup restore/private connectivity, task/model acceptance
+or invoices. Independent POSIX/Go checks remain required.
