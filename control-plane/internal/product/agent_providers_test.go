@@ -63,3 +63,38 @@ func TestLocalProviderRejectsUnsafeOrIncompleteEndpointsWithoutRequests(t *testi
 		journeyRequest(t, mux, "POST", "/v1/setup/agents/local", LocalAgentConfig{BaseURL: endpoint, Model: "model"}, 200)
 	}
 }
+
+func TestLocalModelEditPreservesOmittedPrivateKeyAndExplicitDisconnectClearsIt(t *testing.T) {
+	s, mux := journeyFixture(t)
+	s.registerSetupTools(mux)
+	const key = "fixture-local-private-key"
+	journeyRequest(t, mux, "POST", "/v1/setup/agents/local", LocalAgentConfig{BaseURL: "http://localhost:11434/v1", Model: "first", APIKey: key}, 200)
+	response := journeyRequest(t, mux, "POST", "/v1/setup/agents/local", map[string]string{
+		"baseUrl": "http://localhost:11434/v1", "model": "second",
+	}, 200)
+	if strings.Contains(response.Body.String(), key) {
+		t.Fatal("model save exposed retained private key")
+	}
+	env := s.AgentEnvironment("opencode")
+	if env["OPENCODE_LOCAL_API_KEY"] != key || !strings.Contains(env["OPENCODE_CONFIG_CONTENT"], `"luci-local/second"`) {
+		t.Fatal("omitted key did not survive model update")
+	}
+	restarted, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restarted.AgentEnvironment("opencode")["OPENCODE_LOCAL_API_KEY"] != key {
+		t.Fatal("retained key did not survive restart")
+	}
+	journeyRequest(t, mux, "POST", "/v1/setup/agents/local", LocalAgentConfig{}, 200)
+	if len(s.AgentEnvironment("opencode")) != 0 {
+		t.Fatal("explicit connection removal retained local credential")
+	}
+	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reopened.AgentEnvironment("opencode")) != 0 {
+		t.Fatal("removed local credential returned after restart")
+	}
+}

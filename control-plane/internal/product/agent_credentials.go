@@ -247,12 +247,12 @@ func validLocalAgent(c LocalAgentConfig) bool {
 }
 
 func (s *Server) setLocalAgent(w http.ResponseWriter, r *http.Request) {
-	var req LocalAgentConfig
-	if !readJSON(w, r, &req) {
-		return
+	var req struct {
+		BaseURL string  `json:"baseUrl"`
+		Model   string  `json:"model"`
+		APIKey  *string `json:"apiKey"`
 	}
-	if !validLocalAgent(req) {
-		problem(w, 400, "invalid_local_model", "Set a model ID and a compatible /v1 endpoint: HTTP on a local/private address or HTTPS. Empty all fields to disconnect.")
+	if !readJSON(w, r, &req) {
 		return
 	}
 	path, err := s.agentCredentialPath()
@@ -261,9 +261,22 @@ func (s *Server) setLocalAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Lock()
-	err = writePrivateAgentCredentials(path, agentCredentials{AnthropicAPIKey: s.agentAPIKey, OpenAIAPIKey: s.agentOpenAIKey, Local: req})
+	next := LocalAgentConfig{BaseURL: req.BaseURL, Model: req.Model}
+	// A model or endpoint edit leaves the private key intact when the UI omits
+	// the blank key field. Clearing the connection still removes every field.
+	if req.APIKey != nil {
+		next.APIKey = *req.APIKey
+	} else if next.BaseURL != "" || next.Model != "" {
+		next.APIKey = s.agentLocal.APIKey
+	}
+	if !validLocalAgent(next) {
+		s.mu.Unlock()
+		problem(w, 400, "invalid_local_model", "Set a model ID and a compatible /v1 endpoint: HTTP on a local/private address or HTTPS. Empty all fields to disconnect.")
+		return
+	}
+	err = writePrivateAgentCredentials(path, agentCredentials{AnthropicAPIKey: s.agentAPIKey, OpenAIAPIKey: s.agentOpenAIKey, Local: next})
 	if err == nil {
-		s.agentLocal = req
+		s.agentLocal = next
 	}
 	s.mu.Unlock()
 	if err != nil {
