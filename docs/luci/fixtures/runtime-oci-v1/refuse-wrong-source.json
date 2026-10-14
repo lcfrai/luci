@@ -1,0 +1,81 @@
+{
+  "archive": {
+    "bytes": 4096,
+    "fileName": "runtime-image-linux-amd64.tar",
+    "members": [
+      {
+        "bytes": 64,
+        "path": "manifest.json",
+        "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      {
+        "bytes": 512,
+        "path": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd.json",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      {
+        "bytes": 2048,
+        "path": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/layer.tar",
+        "sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+      }
+    ],
+    "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "image": {
+    "configPath": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd.json",
+    "diffIDs": [
+      "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+    ],
+    "id": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "layerPaths": [
+      "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/layer.tar"
+    ],
+    "repoTags": []
+  },
+  "kind": "luci-runtime-docker-save",
+  "licenses": [
+    {
+      "bytes": 512,
+      "path": "licenses/MIT.txt",
+      "sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+    }
+  ],
+  "producer": {
+    "buildReceiptSHA256": "6666666666666666666666666666666666666666666666666666666666666666",
+    "dockerfileSHA256": "3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "runtime": {
+    "entrypoint": [
+      "/usr/local/bin/entrypoint.sh"
+    ],
+    "exposedPorts": [
+      "8080/tcp"
+    ],
+    "harnesses": {
+      "claudeCode": "2.1.274",
+      "codex": "0.160.0",
+      "openCode": "1.18.34"
+    },
+    "user": "dev",
+    "workingDir": "/home/dev"
+  },
+  "runtimeContextDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+  "sourceCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "sourceFiles": [
+    {
+      "bytes": 1024,
+      "path": "images/sandbox/Dockerfile",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "bytes": 256,
+      "path": "sandboxd/go.mod",
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+    }
+  ],
+  "target": {
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "version": 1
+}
