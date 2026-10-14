@@ -383,7 +383,7 @@ it("keeps active-job observation running before discussion presentation is opene
   vi.useFakeTimers();
   try {
     vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn({ status: "running", answer: undefined })] }));
-    vi.mocked(orchestratorApi.job).mockResolvedValue(job({ id: "job-1", status: "succeeded" }));
+    vi.mocked(orchestratorApi.job).mockResolvedValue(job({ id: "job-1", orchestratorTurnId: "turn-1", status: "succeeded" }));
     render(<OrchestratorPanel projectId="p-1" />);
     await act(async () => {});
     expect(document.querySelector(".orchestrator-composer")).toBeNull();
@@ -1195,12 +1195,35 @@ it("restores an active request without replay and cancels only on an explicit cl
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
+it("shows exact observed job progress over a reserved turn without inventing completion or replaying it", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn({ status: "reserved", answer: undefined })] }));
+    vi.mocked(orchestratorApi.job).mockResolvedValueOnce(job({ id: "job-1", orchestratorTurnId: "other-turn", status: "running" }))
+      .mockResolvedValueOnce(job({ id: "job-1", orchestratorTurnId: "turn-1", status: "running" }))
+      .mockResolvedValueOnce(job({ id: "job-1", orchestratorTurnId: "turn-1", status: "failed" }));
+    render(<OrchestratorPanel projectId="p-1" primary />);
+    await act(async () => {});
+    expect(screen.getByText("Request reserved · outcome not yet confirmed")).toBeTruthy();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    expect(screen.getByText("Request reserved · outcome not yet confirmed")).toBeTruthy();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    expect(screen.getByText("Luci is working")).toBeTruthy();
+    expect(screen.queryByText(/The request is unconfirmed/)).toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    expect(screen.getByText("Agent request finished · response not recorded")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Recover recorded response" })).toBeTruthy();
+    expect(orchestratorApi.send).not.toHaveBeenCalled();
+    expect(orchestratorApi.reconcile).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
+});
+
 it.each(["terminal", "missing"] as const)("recovers a %s job only with an explicit recording action, without inference", async kind => {
   vi.useFakeTimers();
   try {
     vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn({ status: "reserved", answer: undefined })] }));
     if (kind === "missing") vi.mocked(orchestratorApi.job).mockRejectedValue(new ApiError("project_not_found", "The agent job could not be found", 404));
-    else vi.mocked(orchestratorApi.job).mockResolvedValue(job({ id: "job-1", status: "succeeded" }));
+    else vi.mocked(orchestratorApi.job).mockResolvedValue(job({ id: "job-1", orchestratorTurnId: "turn-1", status: "succeeded" }));
     render(<OrchestratorPanel projectId="p-1" />);
     await act(async () => {});
     act(() => window.dispatchEvent(new CustomEvent(ORCHESTRATOR_OPEN, { detail: { projectId: "p-1" } })));

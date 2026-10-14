@@ -38,6 +38,18 @@ const statuses: Record<OrchestratorTurn["status"], string> = {
   reserved: "Request reserved · outcome not yet confirmed", queued: "Waiting for the agent", running: "Luci is working",
   succeeded: "Response ready", failed: "Request failed", cancelled: "Request cancelled", unknown: "Outcome not confirmed",
 };
+function turnStatusLabel(turn: OrchestratorTurn, observed: OrchestratorJob | null): string {
+  // The conversation reservation is durable, while its exact assistance job
+  // owns current execution progress. Show a verified observation without
+  // rewriting the ledger or treating a missing job as proof of completion.
+  if (!observed || observed.id !== turn.jobId || observed.orchestratorTurnId !== turn.id || observed.projectId !== turn.projectId ||
+      !pendingStatus(turn.status)) return statuses[turn.status];
+  if (["succeeded", "failed", "cancelled"].includes(observed.status)) return "Agent request finished · response not recorded";
+  if (turn.status === "unknown" || observed.status === "unknown") return statuses.unknown;
+  if (observed.status === "running") return statuses.running;
+  if (observed.status === "queued" && turn.status === "reserved") return statuses.queued;
+  return statuses[turn.status];
+}
 const failureAdvice = new Map<string, string>([
   ["memory_limit", "Luci stopped this request because the agent exceeded its memory limit. Your project context is saved. Increase the agent memory limit in your local policy when capacity allows, then retry."],
   ["local_model_context_limit", "This local model's serving context is too small for the full request and response. No project answer was accepted. Choose a supported model configured for at least 8,192 context tokens before sending a new request."],
@@ -362,7 +374,8 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
 
   const activeTurn = view?.turns.find(turn => pendingStatus(turn.status));
   const activeJobId = pendingJob && pendingStatus(pendingJob.status) ? pendingJob.id : activeTurn?.jobId;
-  const completedUnrecorded = !!activeTurn && pendingJob?.id === activeTurn.jobId && !pendingStatus(pendingJob.status);
+  const completedUnrecorded = !!activeTurn && pendingJob?.id === activeTurn.jobId && pendingJob.orchestratorTurnId === activeTurn.id &&
+    pendingJob.projectId === activeTurn.projectId && ["succeeded", "failed", "cancelled"].includes(pendingJob.status);
   const missingReservedJob = !!activeTurn && activeTurn.status === "reserved" && missingJobId === activeTurn.jobId;
   useEffect(() => {
     if (!canRead) return;
@@ -722,7 +735,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
             <div className="orchestrator-turn-meta"><strong>{turn.actor.displayName}</strong><time dateTime={turn.createdAt}>{new Date(turn.createdAt).toLocaleString()}</time></div>
             <p className="orchestrator-message">{turn.message}</p>
             {turn.replyToTurnId && <p className="orchestrator-muted">Reply to an earlier question</p>}
-            <p className="orchestrator-muted">{statuses[turn.status]}{turn.appliedRevision ? ` · Applied as draft revision ${turn.appliedRevision}` : ""}</p>
+            <p className="orchestrator-muted">{turnStatusLabel(turn, pendingJob)}{turn.appliedRevision ? ` · Applied as draft revision ${turn.appliedRevision}` : ""}</p>
             {turn.status === "failed" && turn.failureCode && failureAdvice.has(turn.failureCode) && <div role="alert"><p>{failureAdvice.get(turn.failureCode)}</p><Button variant="secondary" size="compact" disabled={!canAssist} onClick={() => { if (agentDetails.current) { agentDetails.current.open = true; agentDetails.current.querySelector("summary")?.focus(); } }}>Review agent and model</Button></div>}
             {turn.answer && <div className="orchestrator-answer"><strong>Luci</strong><p>{turn.answer.summary}</p>
               {turn.answer.question && <section className="orchestrator-question" aria-label="Luci question"><p><strong>{turn.answer.blocking && !turn.questionResolvedBy ? "Decision needed: " : "Question: "}</strong>{turn.answer.question}</p><p>{turn.answer.rationale}</p>
@@ -737,7 +750,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
               </section> : <Button variant="secondary" disabled={!!busy} onClick={() => { setReview({ turn, revision: view.revision, digest: view.context.digest }); setError(""); }}>Review amendment</Button>}</div>}
               {turn.answer.nextAction && <p className="orchestrator-muted">Suggested next step: {turn.answer.nextAction}</p>}
             </div>}
-            {(turn.status === "unknown" || turn.status === "reserved") && <p>The request is unconfirmed. Refresh to observe it; Luci will not start a duplicate request automatically.</p>}
+            {turnStatusLabel(turn, pendingJob) === statuses.unknown || turnStatusLabel(turn, pendingJob) === statuses.reserved ? <p>The request is unconfirmed. Refresh to observe it; Luci will not start a duplicate request automatically.</p> : null}
             <details className="orchestrator-provenance"><summary>Context used for this turn</summary><p>Definition {turn.context.specification.revision} · Design {turn.context.designPlan.revision} · Plan {turn.context.plan.revision}</p><p>{turn.context.sourceKnown ? `Source ${turn.context.sourceCommit.slice(0, 10) || "without a commit"}${turn.context.sourceDirty ? " with local changes" : ""}` : "Source state was unavailable"}</p></details>
           </li>)}</ol>
           <div ref={conversationEnd} />
