@@ -15,6 +15,21 @@ import producer
 
 
 class GrantAndFinalizeTests(unittest.TestCase):
+    def test_pre_effect_refusal_reports_native_memory_cpu_and_inventory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repo = root / 'finalizer'
+            repo.mkdir()
+            build, original, output = root / 'build', root / 'original', root / 'new'
+            build.mkdir()
+            original.mkdir()
+            with patch.object(producer, 'clean_source'), patch.object(finalize, 'completed_proof', return_value=({'sourceCommit': 'a' * 40}, {}, {}, 'image')), patch.object(producer, 'docker_ids', return_value=['foreign']), patch.object(producer, 'cpu_busy', return_value=92.5), patch.object(producer, 'available_memory', return_value=123), patch.object(producer, 'command') as command:
+                with self.assertRaisesRegex(ValueError, '"nativeAvailableBytes": 123.*"requiredBytes": 2684354560.*"runningCount": 1') as refused:
+                    finalize.finalize(repo, 'b' * 40, build, original, output)
+                self.assertIn('"cpuBusyPercent": 92.5', str(refused.exception))
+                command.assert_not_called()
+                self.assertFalse(output.exists())
+
     def test_short_rm_probe_disappearance_is_sampling_only_not_settlement(self):
         import subprocess
         failure = producer.CommandFailure(['docker', 'inspect', 'abc123'], subprocess.CompletedProcess([], 1, b'', b'Error: No such object: abc123\n'))
