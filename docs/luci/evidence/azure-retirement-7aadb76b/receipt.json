@@ -1,0 +1,27 @@
+{
+  "sourceRevision": "7aadb76bfce4eda370bdc842c4b565dca53cec03",
+  "scope": "Three changed Linux Azure retirement modules only; no Go rerun, Docker or provider calls",
+  "results": [
+    {
+      "name": "setup_retirement",
+      "command": "python3 -m unittest discover -s scripts/azure-setup -p test_retirement.py -v",
+      "tests": 12,
+      "passed": true,
+      "logSHA256": "aa21734f2c9ff659dd3d3b2396092ac8d9ad82abf86deb0e913b12566f3270ff"
+    },
+    {
+      "name": "disk_retire",
+      "command": "python3 -m unittest discover -s scripts/azure-controller-disk -p test_retire.py -v",
+      "tests": 9,
+      "passed": true,
+      "logSHA256": "768820bc3f75d152f5cc996b0f8dca010a957505ef9fd4a0e637c983a938cfd6"
+    },
+    {
+      "name": "host_retirement",
+      "command": "python3 -m unittest discover -s scripts/azure-embed-host -p test_retirement.py -v",
+      "tests": 6,
+      "passed": true,
+      "logSHA256": "be0cff0c5127022f81fb23e2d0f403092e9726368c793743fe2c53707fd06ed7"
+    }
+  ]
+}
