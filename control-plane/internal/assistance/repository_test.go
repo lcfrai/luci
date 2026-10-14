@@ -32,6 +32,11 @@ func TestRepositoryProviderSelectionAndOpenCodeConfigurationAreExplicitReadOnly(
 	if len(config["instructions"].([]any)) != 0 || len(config["plugin"].([]any)) != 0 || config["tools"].(map[string]any)["*"] != false || config["permission"].(map[string]any)["*"] != "deny" || env["OPENCODE_LOCAL_API_KEY"] != "selected-secret" {
 		t.Fatal("read-only config changed provider or enabled tools")
 	}
+	model := config["provider"].(map[string]any)["luci-local"].(map[string]any)["models"].(map[string]any)["model"].(map[string]any)
+	limit := model["limit"].(map[string]any)
+	if limit["context"] != float64(4096) || limit["output"] != float64(512) || env["OPENCODE_LUCI_INPUT_BYTES"] != "14000" {
+		t.Fatal("local Ollama analysis did not reserve a bounded output and input window")
+	}
 	for _, required := range []string{"'--model', model", "'--tools', ''", "'--pure'", "'--sandbox', 'read-only'", "stderr=subprocess.DEVNULL", "source.read(LIMIT+1)", "overflow[0]", "env.pop('OPENAI_API_KEY', None)"} {
 		if !strings.Contains(RepositoryLauncher, required) {
 			t.Fatalf("verified batch adapter boundary missing %s", required)
@@ -66,7 +71,7 @@ args=sys.argv[2:]
 provider=sys.argv[1]
 model=args[args.index('--model')+1]
 prompt=sys.stdin.read()
-receipt={'selectedModel':model=='chosen-fixture-model','sourceSeen':prompt.endswith('Actual bounded source snapshot'),'schemaSeen':provider!='opencode' or ('Response schema:' in prompt and '"type": "object"' in prompt and '--file' not in args),'rawSecretInArgs':any('fixture-private-key' in arg for arg in args),'apiPresent':bool(os.environ.get('OPENAI_API_KEY')),'toolsEmpty':provider!='claude-code' or args[args.index('--tools')+1]==''}
+receipt={'selectedModel':model=='chosen-fixture-model','sourceSeen':prompt.endswith('Actual bounded source snapshot'),'schemaSeen':provider!='opencode' or ('Response schema:' in prompt and '"type":"object"' in prompt and '--file' not in args),'rawSecretInArgs':any('fixture-private-key' in arg for arg in args),'apiPresent':bool(os.environ.get('OPENAI_API_KEY')),'toolsEmpty':provider!='claude-code' or args[args.index('--tools')+1]==''}
 pathlib.Path(os.environ['FIXTURE_RECEIPT']).write_text(json.dumps(receipt))
 result={'question':'Who uses it?','options':[],'rationale':'A bounded source sample.','proposal':None,'findings':[{'kind':'inference','summary':'A product question remains.','paths':[]}]}
 sys.stderr.write('fixture-private-key-must-not-be-copied')
@@ -153,7 +158,17 @@ func TestOpenCodeReceivesLongContextTailAndExactSchemaThroughStdin(t *testing.T)
 	if len(payload) <= 3000 || !strings.HasSuffix(string(prompt), `"}`) || !strings.Contains(string(prompt), currentRequest) {
 		t.Fatal("fixture did not retain a long line and its tail")
 	}
-	schema := []byte(`{"type":"object","additionalProperties":false,"required":["question"],"properties":{"question":{"type":"string"}}}`)
+	fields := map[string]any{}
+	for i := 0; i < 200; i++ {
+		fields["field-"+strings.Repeat("a", i%12)+string(rune('A'+i%26))+string(rune('a'+i/26))] = map[string]string{"type": "string"}
+	}
+	schema, err := json.Marshal(map[string]any{"type": "object", "properties": fields})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schema) < 5000 {
+		t.Fatal("fixture must exercise the full response contract")
+	}
 	for name, data := range map[string][]byte{"prompt.txt": prompt, "schema.json": schema, "selection.json": []byte(`{"harness":"opencode","model":"luci-local/fixture","authMode":"configured"}`)} {
 		if err := os.WriteFile(filepath.Join(input, name), data, 0600); err != nil {
 			t.Fatal(err)
@@ -162,6 +177,8 @@ func TestOpenCodeReceivesLongContextTailAndExactSchemaThroughStdin(t *testing.T)
 	fake := filepath.Join(dir, "opencode.py")
 	code := `import json,os,pathlib,sys
 args=sys.argv[1:]
+if os.environ.get('FIXTURE_INVOCATION'):
+ pathlib.Path(os.environ['FIXTURE_INVOCATION']).write_text('started')
 received=sys.stdin.read()
 expected=pathlib.Path(os.environ['FIXTURE_EXPECTED']).read_text()
 schema_text=received.split('Response schema:\n',1)[1].split('\nComplete project request:\n',1)[0]
@@ -189,7 +206,7 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 	for _, fenced := range []bool{false, true} {
 		os.Remove(filepath.Join(output, "result.json"))
 		cmd := exec.Command(python, entry)
-		cmd.Env = append(os.Environ(), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_FENCED="+map[bool]string{true: "1", false: "0"}[fenced])
+		cmd.Env = append(os.Environ(), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_FENCED="+map[bool]string{true: "1", false: "0"}[fenced], "OPENCODE_LUCI_INPUT_BYTES=14000")
 		logs, runErr := cmd.CombinedOutput()
 		if len(logs) != 0 {
 			t.Fatal("provider output escaped launcher")
@@ -220,6 +237,30 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 				t.Fatal("valid structured answer missing", err)
 			}
 		}
+	}
+	// The local route refuses an input that cannot fit its conservative serving
+	// window before invoking OpenCode. The full current request remains intact.
+	tooLarge := append([]byte(strings.Repeat("x", 14000)), prompt...)
+	if err := os.WriteFile(filepath.Join(input, "prompt.txt"), tooLarge, 0600); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(filepath.Join(output, "result.json"))
+	cmd := exec.Command(python, entry)
+	invocation := filepath.Join(dir, "oversized-provider-invocation")
+	cmd.Env = append(os.Environ(), "OPENCODE_LUCI_INPUT_BYTES=14000", "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_INVOCATION="+invocation)
+	if logs, err := cmd.CombinedOutput(); err == nil || len(logs) != 0 {
+		t.Fatal("oversized local input was not refused privately")
+	}
+	var refusal struct {
+		ExitCode    int    `json:"exitCode"`
+		FailureCode string `json:"failureCode"`
+	}
+	data, err := os.ReadFile(filepath.Join(output, "exit.json"))
+	if err != nil || json.Unmarshal(data, &refusal) != nil || refusal.ExitCode != 2 || refusal.FailureCode != "local_model_context_limit" {
+		t.Fatal("missing bounded local model refusal", err, string(data))
+	}
+	if _, err := os.Stat(invocation); !os.IsNotExist(err) {
+		t.Fatal("oversized prompt started the provider")
 	}
 }
 
