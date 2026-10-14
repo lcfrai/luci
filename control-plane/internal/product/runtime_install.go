@@ -47,13 +47,13 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if req.Mode != "" && req.Mode != "packaged" && req.Mode != "advanced-build" {
-		problem(w, 400, "runtime_install_mode_invalid", "Select packaged runtime preparation or the advanced bounded source build.")
+	if req.Mode != "" && req.Mode != "packaged" && req.Mode != "compressed-pull" && req.Mode != "advanced-build" {
+		problem(w, 400, "runtime_install_mode_invalid", "Select the compressed packaged runtime or an explicit diagnostic install mode.")
 		return
 	}
-	mode := "packaged"
-	if req.Mode == "advanced-build" {
-		mode = "advanced-build"
+	mode := "compressed-pull"
+	if req.Mode != "" {
+		mode = req.Mode
 	}
 	s.mu.RLock()
 	active, closed, runtime := s.runtimeJob, s.runtimeInstall.closed, s.runtimeInstall.runtime

@@ -153,3 +153,11 @@ type RuntimeImagePullExecutor interface {
 	RetirePullHelper(context.Context, PreparedRuntimeImage, RuntimePullHelper) error
 	DerivePullRuntimeImage(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
 }
+
+// RuntimeImagePullRecoveryExecutor retires only positively identified owned
+// helper/network objects after an interrupted coordinator. It has no payload
+// or publication permission and never treats absence alone as a terminal
+// receipt for an unknown create, pull or delete acknowledgement.
+type RuntimeImagePullRecoveryExecutor interface {
+	RetireKnownPullOwnership(context.Context, RuntimeImageIdentity, string, string, string, RuntimePullHelper) error
+}

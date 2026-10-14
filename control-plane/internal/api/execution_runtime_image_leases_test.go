@@ -24,6 +24,43 @@ func runtimeImageReserve(t *testing.T, g *executionAdmission, p backend.Prepared
 	}
 	return v
 }
+
+func TestRuntimePullPhasesRetainExactAllocationAcrossRestart(t *testing.T) {
+	g := previewTestGate(t)
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Execution.EngineID = httpCheckEngine
+		s.Execution.DaemonDisk.AvailableBytes = executionPointer(uint64(64 << 30))
+		return s
+	}
+	p := runtimeImagePrepared(g, "pull-one")
+	p.PullBundle = &runtimeoci.PullBundle{ManifestSHA256: strings.Repeat("b", 64)}
+	lease := runtimeImageReserve(t, g, p)
+	if lease.DistributionMode != "compressed-pull" || lease.PullManifestSHA256 != p.PullBundle.ManifestSHA256 {
+		t.Fatal("compressed pull reservation did not retain package identity", lease)
+	}
+	var err error
+	lease, err = g.transitionRuntimeImage(context.Background(), lease, "building")
+	if err != nil || lease.ImportStage != "staging" {
+		t.Fatal("pull staging intent missing", lease, err)
+	}
+	before := lease
+	lease, err = g.advanceRuntimeImagePull(context.Background(), lease, "staging", "bootstrap-loading", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g = newExecutionAdmission(g.api)
+	if _, err := g.advanceRuntimeImagePull(context.Background(), before, "staging", "bootstrap-loading", ""); err == nil {
+		t.Fatal("restart replayed a completed bootstrap intent")
+	}
+	stored, err := g.runtimeImageLease(context.Background(), lease.ID)
+	if err != nil || stored != lease {
+		t.Fatal("restart lost exact charged pull phase", stored, err)
+	}
+	if _, err := g.advanceRuntimeImagePull(context.Background(), lease, "bootstrap-loading", "bootstrap-loaded", "not-an-id"); err == nil {
+		t.Fatal("invalid bootstrap output entered durable ledger")
+	}
+}
 func TestRuntimeImageColdAdmissionPreservesFortyGiBFloor(t *testing.T) {
 	for _, disk := range []uint64{39, 40} {
 		t.Run(string(rune('a'+disk-39)), func(t *testing.T) {

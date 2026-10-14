@@ -7,6 +7,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -107,7 +108,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		}
 		return out, cause
 	}
-	if publish == nil || !checkLogicalID(req.JobID) || req.ImageTag == "" || req.SourceDirectory == "" || req.Retained() || req.EngineID != "" || req.InstanceID != "" || req.SourceDigest != "" || req.ImageID != "" || req.Mode != "" && req.Mode != "packaged" && req.Mode != "advanced-build" {
+	if publish == nil || !checkLogicalID(req.JobID) || req.ImageTag == "" || req.SourceDirectory == "" || req.Retained() || req.EngineID != "" || req.InstanceID != "" || req.SourceDigest != "" || req.ImageID != "" || req.Mode != "" && req.Mode != "packaged" && req.Mode != "compressed-pull" && req.Mode != "advanced-build" {
 		return fail("runtime_install_request_invalid", "The bundled runtime request is invalid; nothing was started.", backend.ErrUnsupported)
 	}
 	if _, err := a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
@@ -136,6 +137,13 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		return out, err
 	}
 	spec := backend.RuntimeImageSpec{Identity: backend.RuntimeImageIdentity{Protocol: backend.RuntimeImageExecutionProtocol, JobID: req.JobID, AllocationID: allocation, ScopeDigest: a.execution.scope}, Resources: resources, SourceDirectory: req.SourceDirectory, ImageTag: req.ImageTag}
+	if req.Mode == "compressed-pull" {
+		root, e := a.execution.prepareExecutionDirectory()
+		if e != nil {
+			return fail("runtime_pull_stage_unavailable", "Private runtime staging is unavailable; no Docker work was started.", e)
+		}
+		spec.PullStagingDirectory = filepath.Join(root, "runtime-pull-"+allocation)
+	}
 	name, err := reference.ParseNormalizedNamed(req.ImageTag)
 	if err != nil {
 		return fail("runtime_image_tag_invalid", "The runtime image tag is invalid.", err)
@@ -143,6 +151,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	canonicalTag := reference.TagNameOnly(name).String()
 	var prepared backend.PreparedRuntimeImage
 	var importer backend.RuntimeImageImportExecutor
+	var puller backend.RuntimeImagePullExecutor
 	if req.Mode == "packaged" {
 		var supported bool
 		importer, supported = a.deps.Backend.(backend.RuntimeImageImportExecutor)
@@ -150,6 +159,13 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 			return fail("runtime_import_unsupported", "This installation cannot verify and import its packaged runtime; the advanced build was not started.", backend.ErrUnsupported)
 		}
 		prepared, err = importer.PreparePackagedRuntimeImage(ctx, spec)
+	} else if req.Mode == "compressed-pull" {
+		var supported bool
+		puller, supported = a.deps.Backend.(backend.RuntimeImagePullExecutor)
+		if !supported {
+			return fail("runtime_pull_unsupported", "This installation cannot verify its compressed runtime distribution; no Docker work was started.", backend.ErrUnsupported)
+		}
+		prepared, err = puller.PreparePullRuntimeImage(ctx, spec)
 	} else {
 		prepared, err = executor.PrepareRuntimeImage(ctx, spec)
 	}
@@ -159,8 +175,11 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	if prepared.Bundle != nil {
 		defer prepared.Bundle.Close()
 	}
+	if prepared.PullBundle != nil {
+		defer prepared.PullBundle.Close()
+	}
 	id := prepared.Spec.Identity
-	if id.Protocol != spec.Identity.Protocol || id.JobID != req.JobID || id.AllocationID != allocation || id.ScopeDigest != a.execution.scope || !checkHex(id.SourceDigest, 32) || id.EngineID == "" || backend.ValidateInstance(id.InstanceID) != nil || prepared.Spec.ImageTag != canonicalTag || prepared.Spec.Resources != resources || prepared.Spec.SourceDirectory != req.SourceDirectory || prepared.RequiredDiskBytes < backend.RuntimeImageRequiredDiskBytes || prepared.AdmissionMemoryMiB != 0 && (prepared.AdmissionMemoryMiB < resources.MemoryMiB || prepared.AdmissionMemoryMiB > 65536) || (req.Mode == "packaged") != (prepared.Bundle != nil) || req.Mode == "packaged" && (prepared.ContextDigest != id.SourceDigest || prepared.Bundle.Manifest.CanonicalInputDigest != id.SourceDigest) {
+	if id.Protocol != spec.Identity.Protocol || id.JobID != req.JobID || id.AllocationID != allocation || id.ScopeDigest != a.execution.scope || !checkHex(id.SourceDigest, 32) || id.EngineID == "" || backend.ValidateInstance(id.InstanceID) != nil || prepared.Spec.ImageTag != canonicalTag || prepared.Spec.Resources != resources || prepared.Spec.SourceDirectory != req.SourceDirectory || prepared.Spec.PullStagingDirectory != spec.PullStagingDirectory || prepared.RequiredDiskBytes < backend.RuntimeImageRequiredDiskBytes || prepared.AdmissionMemoryMiB != 0 && (prepared.AdmissionMemoryMiB < resources.MemoryMiB || prepared.AdmissionMemoryMiB > 65536) || (req.Mode == "packaged") != (prepared.Bundle != nil) || (req.Mode == "compressed-pull") != (prepared.PullBundle != nil) || req.Mode == "packaged" && (prepared.ContextDigest != id.SourceDigest || prepared.Bundle.Manifest.CanonicalInputDigest != id.SourceDigest) || req.Mode == "compressed-pull" && (prepared.ContextDigest != id.SourceDigest || prepared.PullBundle.Manifest.CanonicalInputDigest != id.SourceDigest) {
 		return fail("runtime_install_identity_changed", "The prepared runtime identity changed; nothing was started.", backend.ErrLaunchFenceOwnership)
 	}
 	admit := func(afterPull bool) (executionDecision, runtimeImageExecutionLease, error) {
@@ -245,6 +264,9 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	}
 	if req.Mode == "packaged" {
 		return a.importRuntimeImage(ctx, req, publish, out, lease, prepared, importer, admit)
+	}
+	if req.Mode == "compressed-pull" {
+		return a.pullRuntimeImage(ctx, req, publish, out, lease, prepared, puller, admit)
 	}
 	staged, okay := executor.(backend.RuntimeImagePreBuildExecutor)
 	if !okay {
@@ -517,6 +539,61 @@ func (a *API) reconcileRuntimeImage(ctx context.Context, id runtimeinstall.Ident
 		if err != nil {
 			return invalid(err)
 		}
+	}
+	if lease.State == "building" && lease.DistributionMode == "compressed-pull" {
+		if lease.ImportStage == "network-created" || lease.ImportStage == "helper-created" || lease.ImportStage == "helper-started" || lease.ImportStage == "pulled" {
+			root, e := a.execution.prepareExecutionDirectory()
+			if e != nil {
+				return invalid(e)
+			}
+			stage := filepath.Join(root, "runtime-pull-"+lease.ID)
+			retirer, ok := a.deps.Backend.(backend.RuntimeImagePullRecoveryExecutor)
+			if !ok {
+				return invalid(backend.ErrUnsupported)
+			}
+			lease, e = a.execution.advanceRuntimeImagePull(ctx, lease, lease.ImportStage, "recovery-retiring", "")
+			if e != nil {
+				return invalid(e)
+			}
+			out.ResourcesHeld, out.ReasonCode, out.Message = true, "runtime_pull_recovery_retiring", "Retiring the exact owned helper and network; its charge remains held until positive readback."
+			if e = publish(out); e != nil {
+				return out, e
+			}
+			helper := backend.RuntimePullHelper{NetworkID: lease.PullNetworkID, ContainerID: lease.PullHelperID}
+			if e = retirer.RetireKnownPullOwnership(ctx, lease.Identity, lease.PullManifestSHA256, lease.PullBootstrapID, stage, helper); e != nil {
+				out.ReasonCode, out.Message = "runtime_pull_recovery_unconfirmed", "Owned helper or network retirement is unconfirmed. The allocation remains held; no cleanup request will be replayed."
+				return out, errors.Join(e, publish(out))
+			}
+			lease, e = a.execution.advanceRuntimeImagePull(ctx, lease, "recovery-retiring", "recovery-retired", "")
+			if e != nil {
+				return invalid(e)
+			}
+		}
+		// These stages have a positive no-live-helper boundary. Retire only the
+		// exact private staging path before releasing their charge. Every other
+		// stage may have an owned Docker mutation whose response was lost; the
+		// generic build/tag observer cannot prove its network was retired.
+		if lease.ImportStage == "staging" || lease.ImportStage == "bootstrap-loaded" || lease.ImportStage == "helper-retired" || lease.ImportStage == "recovery-retired" {
+			root, e := a.execution.prepareExecutionDirectory()
+			if e != nil {
+				return invalid(e)
+			}
+			if e = a.execution.retireRuntimePullStage(filepath.Join(root, "runtime-pull-"+lease.ID), lease.ID); e != nil {
+				out.ResourcesHeld, out.ReasonCode, out.Message = true, "runtime_pull_stage_cleanup_unconfirmed", "Private staging cleanup is unconfirmed; this exact allocation remains held."
+				return out, publish(out)
+			}
+			lease, e = a.execution.completeRuntimeImage(ctx, lease, true, "")
+			if e != nil {
+				return invalid(e)
+			}
+			out.Phase, out.CleanupConfirmed, out.ReasonCode, out.Message = "cancelled", true, "runtime_pull_not_started", "The exact pull had no live helper or uncertain derivative; its private stage and charge are retired."
+			if e = publish(out); e != nil {
+				return out, e
+			}
+			return out, a.execution.acknowledgeRuntimeImageCompletion(ctx, lease)
+		}
+		out.ResourcesHeld, out.ReasonCode, out.Message = true, "runtime_pull_effect_unconfirmed", "A Docker pull or owned helper effect lacks a terminal receipt. The exact allocation remains held; no image or helper effect was replayed."
+		return out, publish(out)
 	}
 	// The shared payload import has a positive terminal receipt, while the
 	// allocation-specific derivative cannot start before a separate durable

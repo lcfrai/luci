@@ -42,6 +42,11 @@ func inspectOwnedPullNetwork(ctx context.Context, client runtimePullNetworkClien
 	if row.ID != networkID || row.Name != name || row.Driver != "bridge" || row.Scope != "local" || row.Internal || row.Attachable || row.Ingress || row.Labels["luci.runtime-pull"] != "true" || row.Labels[runtimeImagePrefix+"allocation"] != id.AllocationID || row.Labels[backend.LabelInstance] != id.InstanceID {
 		return backend.ErrLaunchFenceOwnership
 	}
+	for key, value := range runtimeIdentityLabels(id) {
+		if row.Labels[key] != value {
+			return backend.ErrLaunchFenceOwnership
+		}
+	}
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -12,9 +13,45 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeoci"
 )
 
 const pullProgressLimit int64 = 32 << 20
+
+var _ backend.RuntimeImagePullRecoveryExecutor = (*Backend)(nil)
+
+func (b *Backend) RetireKnownPullOwnership(ctx context.Context, id backend.RuntimeImageIdentity, manifestSHA, bootstrapID, stage string, helper backend.RuntimePullHelper) error {
+	if !validRuntimeIdentity(id, true) || !fenceHex(manifestSHA, 32) || !runtimeImageID(bootstrapID) || !filepath.IsAbs(stage) || helper.NetworkID == "" || helper.HostPort != "" {
+		return backend.ErrLaunchFenceOwnership
+	}
+	bundle := &runtimeoci.PullBundle{ManifestSHA256: manifestSHA}
+	bundle.Manifest.Bootstrap.ImageID = bootstrapID
+	prepared := backend.PreparedRuntimeImage{Spec: backend.RuntimeImageSpec{Identity: id, PullStagingDirectory: stage}, PullBundle: bundle}
+	if helper.ContainerID != "" {
+		return b.RetirePullHelper(ctx, prepared, helper)
+	}
+	if err := b.runtimeImageIdentity(ctx, id); err != nil {
+		return err
+	}
+	client, ok := b.api.(runtimePullNetworkClient)
+	if !ok {
+		return backend.ErrUnsupported
+	}
+	if err := inspectOwnedPullNetwork(ctx, client, id, helper.NetworkID); err != nil {
+		return err
+	}
+	if err := client.NetworkRemove(ctx, helper.NetworkID); err != nil {
+		return backend.ErrUnavailable
+	}
+	name, _, _ := pullHelperNames(id)
+	if _, err := client.NetworkInspect(ctx, helper.NetworkID, network.InspectOptions{}); !errdefs.IsNotFound(err) {
+		return backend.ErrUnavailable
+	}
+	if _, err := client.NetworkInspect(ctx, name, network.InspectOptions{}); !errdefs.IsNotFound(err) {
+		return backend.ErrUnavailable
+	}
+	return b.runtimeImageIdentity(ctx, id)
+}
 
 func (b *Backend) DerivePullRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
 	if prepared.PullBundle == nil || prepared.Bundle != nil {
