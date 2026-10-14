@@ -1,5 +1,7 @@
 # Controlling Luci product contract
 
+> **Installation reconciliations, 14 October 2026:** [ordinary verified prebuilt local runtime installation](LOCAL-RUNTIME-DISTRIBUTION-RECONCILIATION-2026-10-14.md) and [guided private Azure foundation/controller staging](AZURE-PRIVATE-FOUNDATION-STAGING-2026-10-14.md) preserve LC-01–16. Their exact owner/implementation/acceptance maps and recorded worker ACKs control these source changes; neither document proves acceptance or authorizes live cloud operations.
+
 > **Setup and delivery amendment, 14 October 2026:** [three setup modes, guided Azure BYO commands, future Luci Cloud, and a product-focused `main` handoff](SETUP-AND-MAIN-AMENDMENT-2026-10-14.md). LC-01–16 remain intact. This is authorized scope; implementation and acceptance are tracked separately.
 
 > **Provider-order amendment, 14 October 2026 (Australia/Brisbane):** [Local Docker first; Azure microVM next; AWS later](PROVIDER-ORDER-AMENDMENT-2026-10-14.md). LC-01–LC-16 and all safety/acceptance gates are unchanged. The existing E2B Embed implementation and 38694462 source handoff are AWS-targeted history, not Azure feature completeness. Local Windows/Docker work proceeds now; Azure implementation follows the recorded architecture reconciliation and local audit. No cloud provisioning is authorized by this notice.
