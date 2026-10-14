@@ -68,6 +68,7 @@ var productReadOnlyRoutes = map[string]string{
 	"GET /v1/product/projects/{id}/configuration":                                              "Reads only names/revision from private runtime configuration; no values, writes or execution.",
 	"GET /v1/setup/status":                                  "Reads local setup or bounded remote setup status; no provisioning.",
 	"GET /v1/setup/cloud/azure/bundle":                      "Verifies and streams the immutable installed Azure Develop setup archive; cannot contact Azure or create resources.",
+	"GET /v1/setup/cloud/azure/identity":                    "Requires an authenticated managed Azure workspace and reads bounded pinned controller and generation files plus the current boot ID; no cloud request, repair or mutation.",
 	"GET /v1/setup/cloud/jobs":                              "Reads cached provisioning history.",
 	"GET /v1/setup/cloud/login":                             "Reads cached explicit-login jobs.",
 	"GET /v1/setup/targets":                                 "Reads saved connection descriptions without their tokens.",
@@ -151,6 +152,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 	}
 	// The only permitted process requests are the documented bounded Git
 	// inspections. No real process is started by this audit fixture.
+	sourceStatusReads := 0
 	s.runner = func(_ context.Context, exe string, args []string, dir string) (string, error) {
 		if exe != "git" {
 			t.Fatalf("read route requested %s %v", exe, args)
@@ -188,6 +190,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			"ls-files\x00-v\x00-z":                                             true,
 			"ls-files\x00-z\x00--cached\x00--others\x00--exclude-standard":     true,
 			"status\x00--porcelain=v1\x00-z\x00--untracked-files=normal":       true,
+			"status\x00--porcelain=v1\x00--untracked-files=normal":             true,
 			"status\x00--porcelain=v2\x00--branch\x00--untracked-files=normal": true,
 			"log\x00-10\x00--format=%H%x00%s%x00":                              true,
 			"rev-parse\x00--verify\x00HEAD":                                    true,
@@ -195,6 +198,10 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 		}
 		if !allowed[read] {
 			t.Fatalf("read route requested a new Git operation requiring audit: %v", args)
+		}
+		if read == "status\x00--porcelain=v2\x00--branch\x00--untracked-files=normal" {
+			sourceStatusReads++
+			return "# branch.oid (initial)\n# branch.head main\n", nil
 		}
 		if read == "rev-parse\x00--show-object-format" {
 			return "sha1\n", nil
@@ -257,6 +264,9 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			if pattern == "GET /v1/setup/cloud/azure/bundle" {
 				status = 503 // This private test server has no installed source-bound setup archive.
 			}
+			if pattern == "GET /v1/setup/cloud/azure/identity" {
+				status = 403 // No authenticated managed Azure workspace or controller generation exists in this fixture.
+			}
 			if strings.HasPrefix(pattern, "GET /v1/setup/workspace/admin/") {
 				status = 403 // Standalone fixtures have no trusted management actor.
 			}
@@ -295,6 +305,9 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 	}
 	if !seen[previewPattern] {
 		t.Fatal("preview bridge gate was not exercised")
+	}
+	if sourceStatusReads == 0 {
+		t.Fatal("registered conversation read did not exercise the fresh combined Git source status")
 	}
 	if !reflect.DeepEqual(beforeState, auditTree(t, s.stateDir)) || !reflect.DeepEqual(beforeProject, auditTree(t, p.Path)) {
 		t.Fatal("a read changed the persisted project/state tree")
