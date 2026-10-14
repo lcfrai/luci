@@ -125,3 +125,22 @@ The authority store, returned task artifacts, owned microVM retirement and
 final provider billing are distinct. An installed archive, generated plan or
 Terraform output does not establish live Azure, KVM, guest isolation, a
 completed task, released Luci reservations or a final provider invoice.
+
+Controller template staging uses `prepare-operator --guest-image IMAGE@sha256:...
+--cpu-count N --memory-mib N --task-max-seconds N
+--task-estimated-cost-micros N --model-domain api.example.com`, with the same
+`--bundle` and `--selection` arguments. It generates the deferred operator and
+signed source selection after exact Key Vault credential publication. Use the
+generated operator-template path for image preparation. Its package hashes are
+bound automatically; `bind-images` consumes both exact observed gallery receipts.
+After infrastructure readback and bootstrap, `template-step --mode create` and
+`--mode start` require `--acknowledge-template-publication`; `--mode reconcile`
+and `--mode status` read retained provider/journal state. These operations run
+only on the protected controller using its managed identity. The setup host
+never accesses the runtime gateway or receives private credential material.
+Then `finalize-operator` signs the exact current controller/template receipts;
+`install-operator --finalization-digest SHA256` installs that verified result.
+An unknown installation requires `reconcile-operator` with the same digest.
+Do not delete pending records. Account management can start while setup is
+deferred, but task execution remains refused until finalization. The signature
+on a chosen OCI digest does not establish guest execution or Azure readiness.

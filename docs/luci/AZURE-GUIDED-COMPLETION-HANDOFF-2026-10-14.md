@@ -61,11 +61,9 @@ Root's independent Linux run of checkpoint `ef50d02d` passed both new management
 tests and all 21 then-current setup Python tests; root integrated that checkpoint
 in `563ac8af`. Those unchanged checks were not repeated locally.
 
-The operator batch below is still uncommitted while its controller-only gateway
-execution order is reconciled. Its signature tests are source checks, not a
-claim that a setup host can directly reach the protected gateway.
-
-The next source batch adds `azure-setup/operator.py`: generated deferred operator
+The controller staging batch follows the authorized `34f7bab2` reconciliation.
+Its signature tests do not establish live gateway access. It adds
+`azure-setup/operator_setup.py`: generated deferred operator
 and exact private template-tool configuration, signed guest selection bound to a
 chosen immutable OCI digest and Luci/runtime revisions, existing journaled Embed
 template create/build/status adapters, then provider/gateway/node-bound signed
@@ -77,7 +75,7 @@ public system CAs. Controller image preparation generates its previously missing
 service environment, and binds measured package hashes automatically; both exact
 gallery receipts can be bound with `bind-images`, without editing Terraform JSON.
 
-Five new focused portable Python tests pass with actual ECDSA/OpenSSL verification
+Seven focused portable Python tests pass with actual ECDSA/OpenSSL verification
 (Git-bundled OpenSSL on Windows), including tampered signatures, multiple/stale
 runtime identities and lost installation ACK. The nine prior portable adapter
 tests pass. Full Linux installer/controller checks and compilation remain pending
@@ -99,7 +97,7 @@ new product tests are written but not run locally while the host reserve is low:
 '^TestAzure(ConnectionPin|SSHInspect|WorkspaceActivation)' -count=1` from
 `control-plane`. No full compile, Vite or browser work was run.
 
-SETUP-02-R1 adds an actual request boundary check, because a disconnected status
+SETUP-02-R2 adds an actual request boundary check, because a disconnected status
 alone did not stop forwarding through an existing SSH tunnel. Project/harness/
 deployment proxy requests now compare the current authenticated Azure identity
 before forwarding or requesting a websocket ticket. Release preview preparation,
@@ -112,3 +110,28 @@ and generic-SSH controls. These checks are not a runtime reproduction or accepta
 Run `GOMAXPROCS=1 GOMEMLIMIT=512MiB go test -p 1 ./internal/product -run
 '^TestAzureWorkspace(RequestGate|PreviewGate)' -count=1` for the affected new cases;
 they have not been run locally while the host reserve is low.
+
+The earlier handoff called this proxy issue R1; the canonical issue is R2.
+R1 remains the bounded archive/identity-read issue fixed in `596a4925`.
+
+The controller-only `luci-api azure-setup` command uses managed identity and the
+existing private Embed template adapters. The setup host sends only nonsecret
+source/resource/template choices through authenticated ARM RunCommand and reads
+bounded receipts. Template create/build intents remain on the durable disk;
+unknown responses cannot replay mutations. Initial disk initialization starts
+account management with an explicitly deferred, unrunnable task operator.
+Finalization requires the exact controller boot, ARM ownership, generation,
+gateway, ready node and immutable template journals. The image-pinned signing
+key verifies the final operator before installation on the existing filesystem;
+disk and generation receipts are preserved. The service tmpfs is explicitly
+mode 0700. A guest selection signature binds an OCI digest; it is not a guest
+execution or content measurement receipt.
+
+Current lightweight checks: seven operator tests, nine guided adapter tests,
+one controller package test, Python syntax and `git diff --check`. New Go checks
+remain unrun locally. From `control-plane`, the independent Linux check is
+`GOMAXPROCS=1 GOMEMLIMIT=512MiB go test -p 1 ./cmd/api ./internal/management -run
+'TestAzureSetup|TestAzureWorkerSelection' -count=1`; also run the setup and
+controller-disk Python suites on POSIX. No Windows-specific Go expectation is
+introduced. New-account private foundation, actual base-disk image staging and
+owned retirement remain unfinished source, alongside all live Azure outcomes.

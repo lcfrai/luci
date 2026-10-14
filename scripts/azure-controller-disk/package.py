@@ -114,6 +114,7 @@ ExecStart=/opt/luci/azure-controller/bin/luci-api
 Restart=no
 UMask=0077
 RuntimeDirectory=luci
+RuntimeDirectoryMode=0700
 NoNewPrivileges=yes
 ProtectSystem=strict
 ReadWritePaths=__MOUNT__ /run/luci

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -86,5 +87,20 @@ func TestAzureWorkerSelectionRefusesInlineSecretsAndDuplicateSelection(t *testin
 	}
 	if got, err := prepareAzureWorkerConfig(nil, mount); err != nil || got != "" {
 		t.Fatal("changed non-Azure launcher")
+	}
+}
+
+func TestAzureWorkerSelectionRefusesDeferredTaskOperator(t *testing.T) {
+	mount := t.TempDir()
+	selection := filepath.Join(mount, "operator.json")
+	if err := os.WriteFile(selection, []byte(`{"setupDeferred":{"version":1}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(mount, "users", "one")
+	if err := os.MkdirAll(filepath.Join(root, "state"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := prepareAzureWorkerConfig([]string{"LUCI_AZURE_OPERATOR_TEMPLATE=" + selection}, root); err == nil || !strings.Contains(err.Error(), "deferred") {
+		t.Fatal("deferred management bootstrap could start a task operator", err)
 	}
 }

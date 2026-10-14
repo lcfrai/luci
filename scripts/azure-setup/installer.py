@@ -29,7 +29,7 @@ GIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 REGION = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
-SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/README.md", "azure-embed-host/package.py",
+SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
                 "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-controller-disk/package.py",
                 "azure-controller-disk/mount.py", "azure-controller-disk/recover.py"}
 EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
@@ -223,7 +223,7 @@ def configure_account(bundle_root, selection_path, *, subscription_id, resource_
     selected = private_json(selection_path)
     requested(selected)
     parent = Path(selection_path).resolve().parent
-    if any((parent / name).exists() for name in ("azure-setup-state.json", "azure-image-prep-state.json", "azure-terraform")):
+    if any((parent / name).exists() for name in ("azure-setup-state.json", "azure-image-prep-state.json", "azure-terraform", "operator-template.json")):
         raise ValueError("Azure setup has retained work; selection cannot change until exact review")
     if not re.fullmatch(r"[0-9a-f-]{36}", subscription_id) or not all(
             re.fullmatch(r"[a-zA-Z0-9_.()-]{1,90}", value) for value in (resource_group, state_resource_group)) or \
@@ -458,13 +458,20 @@ def prepare_images(bundle_root, selection_path, inputs_path, acknowledge_roots=F
     if len(template_bytes) == 0 or len(template_bytes) > 16384:
         raise ValueError("Controller operator template is missing or oversized")
     operator = json.loads(template_bytes)
+    deferred = operator.get("setupDeferred")
+    if deferred is not None and (not isinstance(deferred, dict) or deferred.get("version") != 1 or
+            deferred.get("sourceCommit") != manifest["luciRevision"] or
+            deferred.get("scope") != private_json(selection_path)["terraformVariables"]["scope"] or
+            deferred.get("generation") != private_json(selection_path)["terraformVariables"]["generation"] or
+            not deferred.get("signerPublicKey", "").startswith("-----BEGIN PUBLIC KEY-----")):
+        raise ValueError("Deferred operator selection differs from the exact setup source and generation")
     secrets = operator.get("azureSecrets", {})
     refs = ("apiKey", "adminKey", "attachKey", "clientCert", "clientKey")
     if (operator.get("deployment", {}).get("provider") != "azure" or
             any(operator.get(name) for name in ("apiKeyFile", "adminApiKeyFile", "attachKeyFile", "clientCertFile", "clientKeyFile")) or
             not isinstance(secrets, dict) or set(secrets) != {"vaultUrl", "clientId", "directory", *refs} or
             not isinstance(secrets["vaultUrl"], str) or not re.fullmatch(r"https://[a-z0-9-]+\.vault\.azure\.net", secrets["vaultUrl"]) or
-            not isinstance(secrets["clientId"], str) or not re.fullmatch(r"[0-9a-f-]{36}", secrets["clientId"]) or
+            not isinstance(secrets["clientId"], str) or not (deferred and secrets["clientId"] == "" or re.fullmatch(r"[0-9a-f-]{36}", secrets["clientId"])) or
             not isinstance(secrets["directory"], str) or not secrets["directory"].startswith("/run/") or
             any(not isinstance(secrets[name], dict) or set(secrets[name]) != {"name", "version"} or
                 not isinstance(secrets[name]["name"], str) or not isinstance(secrets[name]["version"], str) or
@@ -477,6 +484,10 @@ def prepare_images(bundle_root, selection_path, inputs_path, acknowledge_roots=F
     if not isinstance(template_target, str) or not re.fullmatch(r"/etc/luci/[a-z0-9.-]+", template_target) or \
             hashlib.sha256(template_bytes).hexdigest() != variables.get("controller_operator_template_sha256"):
         raise ValueError("Controller image template differs from Terraform selection")
+    if deferred and any((paths["controllerImageRoot"] / "etc/luci" / name).exists() or
+                        (paths["controllerImageRoot"] / "etc/luci" / name).is_symlink()
+                        for name in ("azure-private-ca.crt", "azure-controller.env")):
+        raise ValueError("Controller image already has private trust or service configuration")
     state_path = Path(selection_path).parent / "azure-image-prep-state.json"
     if state_path.exists():
         raise ValueError("Previous image preparation is retained; inspect before a new build")
@@ -521,11 +532,32 @@ def prepare_images(bundle_root, selection_path, inputs_path, acknowledge_roots=F
     template_destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     template_destination.write_bytes(template_bytes)
     template_destination.chmod(0o600)
+    if deferred:
+        credentials = Path(selection_path).parent / "azure-credentials"
+        journal = private_json(credentials / "journal.json")
+        ca_data = (credentials / "ca.crt").read_bytes()
+        if hashlib.sha256(ca_data).hexdigest() != journal.get("files", {}).get("client-ca"):
+            raise ValueError("Deferred controller root CA changed")
+        ca_target = paths["controllerImageRoot"] / "etc/luci/azure-private-ca.crt"
+        ca_target.write_bytes(ca_data)
+        ca_target.chmod(0o600)
+        env_target = paths["controllerImageRoot"] / "etc/luci/azure-controller.env"
+        env_target.write_text("LUCI_ADDR=127.0.0.1:8730\nLUCI_BACKING=azure\n"
+            "LUCI_AZURE_OPERATOR_TEMPLATE=/etc/luci/operator.json\n"
+            "LUCI_STATE_DIR=" + variables["controller_mount_path"] + "/luci/control\n"
+            "LUCI_PROJECTS_DIR=" + variables["controller_mount_path"] + "/luci/projects\n"
+            "LUCI_EXECUTION_STATE_DIR=" + variables["controller_mount_path"] + "/luci/execution\n")
+        env_target.chmod(0o600)
     result = dict(binding, state="image_roots_prepared_pending_gallery_publication",
                   runtimePackage={"path": str(host_tar), "sha256": host_sha},
                   controllerPackage={"path": str(controller_tar), "sha256": controller_sha},
                   templateSHA256=hashlib.sha256(template_bytes).hexdigest())
     atomic_json(state_path, result)
+    selected = private_json(selection_path)
+    selected["runtimePackage"] = result["runtimePackage"]
+    selected["controllerPackage"] = result["controllerPackage"]
+    selected["terraformVariables"]["runtime_package_sha256"] = result["runtimePackage"]["sha256"]
+    atomic_json(selection_path, selected)
     return result
 
 
@@ -741,10 +773,22 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "generate-secrets",
                    "publish-secrets", "reconcile-secrets", "bind-secrets", "prepare-images", "prepare", "apply",
-                   "reconcile", "bootstrap", "status", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile"):
+                   "reconcile", "bootstrap", "status", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
+        if action == "template-step":
+            row.add_argument("--mode", choices=("create", "created", "reconcile", "start", "status"), required=True)
+            row.add_argument("--acknowledge-template-publication", action="store_true")
+        if action in ("install-operator", "reconcile-operator"):
+            row.add_argument("--finalization-digest", required=True)
+        if action == "prepare-operator":
+            row.add_argument("--guest-image", required=True)
+            row.add_argument("--cpu-count", type=int, required=True)
+            row.add_argument("--memory-mib", type=int, required=True)
+            row.add_argument("--task-max-seconds", type=int, required=True)
+            row.add_argument("--task-estimated-cost-micros", type=int, required=True)
+            row.add_argument("--model-domain", action="append", required=True)
         if action == "configure-private":
             row.add_argument("--private-network-cidr", required=True)
             row.add_argument("--management-source-cidr", required=True)
@@ -787,7 +831,34 @@ def main():
             row.add_argument("--acknowledge-costs", action="store_true")
             row.add_argument("--acknowledge-unverified-price", action="store_true")
     args = parser.parse_args()
-    if args.action in ("configure-guided", "configure-private", "connection-descriptor", "status", "gallery-plan", "gallery-publish", "gallery-reconcile"):
+    if args.action in ("prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator"):
+        bundle(args.bundle)
+        spec = importlib.util.spec_from_file_location("luci_azure_operator", args.bundle / "azure-setup/operator_setup.py")
+        operator_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(operator_module)
+        core = sys.modules[__name__]
+        if args.action == "prepare-operator":
+            result = operator_module.deferred(core, args.bundle, args.selection,
+                args.guest_image, args.cpu_count, args.memory_mib, args.task_max_seconds,
+                args.task_estimated_cost_micros, args.model_domain)
+        elif args.action == "template-step":
+            spec = importlib.util.spec_from_file_location("luci_azure_guided", args.bundle / "azure-setup/guided.py")
+            guided_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(guided_module)
+            result = operator_module.controller_step(core, args.bundle, args.selection,
+                args.mode, guided_module.az_json, args.acknowledge_template_publication)
+        else:
+            spec = importlib.util.spec_from_file_location("luci_azure_guided", args.bundle / "azure-setup/guided.py")
+            guided_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(guided_module)
+            if args.action == "finalize-operator":
+                result = operator_module.finalize(core, args.bundle, args.selection, guided_module.az_json)
+            else:
+                result = operator_module.install(core, args.bundle, args.selection,
+                    args.finalization_digest, guided_module.az_json, args.action == "reconcile-operator")
+        print(json.dumps(result, sort_keys=True))
+        return
+    if args.action in ("configure-guided", "configure-private", "connection-descriptor", "bind-images", "status", "gallery-plan", "gallery-publish", "gallery-reconcile"):
         manifest = bundle(args.bundle)
         spec = importlib.util.spec_from_file_location("luci_azure_guided", args.bundle / "azure-setup/guided.py")
         guided = importlib.util.module_from_spec(spec)
@@ -800,6 +871,8 @@ def main():
                 args.private_network_cidr, args.management_source_cidr, args.acknowledge_existing_private_route)
         elif args.action == "connection-descriptor":
             result = guided.connection_descriptor(core, args.bundle, args.selection)
+        elif args.action == "bind-images":
+            result = guided.bind_images(core, args.bundle, args.selection)
         elif args.action == "status":
             result = guided.progress(core, args.bundle, args.selection)
         elif args.action == "gallery-plan":
