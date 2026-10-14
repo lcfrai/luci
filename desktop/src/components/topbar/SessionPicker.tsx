@@ -12,6 +12,7 @@ import { useDismissable } from "../../hooks/useDismissable";
 import { productApi } from "../../api/product";
 import { useAgentConnections, selectedAgentConnection, configuredAgentModel, agentConnectionIssue } from "../../hooks/useAgentConnections";
 import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
+import { useSetup } from "../setup/SetupProvider";
 import type {
   Effort,
   ImplementationContextRequest,
@@ -61,9 +62,11 @@ export function SessionPicker(props: {
   const worktrees = useCockpit(useShallow(selectWorktrees(branchId ?? "")));
   const setBranchDefaults = useCockpit((s) => s.setBranchDefaults);
   const createSession = useCreateSession();
+  const setup = useSetup();
   const working = useRef(false);
   const generation = useRef(0);
   const modelsId = useId();
+  const modelHelpId = useId();
   const ref = useDismissable<HTMLDivElement>(open, () => {
     if (!working.current) onClose();
   });
@@ -168,7 +171,14 @@ export function SessionPicker(props: {
           {harness.id !== "shell" && <AgentConnectionSelect catalogue={catalogue} value={effective.agentConnectionId} onChange={id => { setDraft({ ...draft, agentConnectionId: id }); setConnectionChanged(true); }} className="pick-field" />}
           {harness.id !== "shell" && (connectionIssue || connectionError) && <p className="journey-error" role="alert">{connectionIssue || connectionError}</p>}
 
-          {harness.supportsCustomModel ? <><label className="pick-field">Model<input value={effective.model} readOnly={modelReadOnly} onChange={event => setDraft({ ...draft, model: event.target.value })} placeholder="Exact available model ID" list={modelsId} /></label><datalist id={modelsId}>{harness.models.map(model => <option key={model.id} value={model.id}>{model.name}</option>)}</datalist></> : harness.models.length === 0 ? null : (
+          {harness.supportsCustomModel ? <>
+            <label className="pick-field">Model<input value={effective.model} readOnly={modelReadOnly} aria-describedby={modelReadOnly ? modelHelpId : undefined} onChange={event => setDraft({ ...draft, model: event.target.value })} placeholder="Exact available model ID" list={modelsId} /></label>
+            <datalist id={modelsId}>{harness.models.map(model => <option key={model.id} value={model.id}>{model.name}</option>)}</datalist>
+            {modelReadOnly && <p className="pick-note" id={modelHelpId}>
+              {connection ? "The selected agent connection" : "Your saved local model endpoint"} supplies this model. To change it, update the saved model in{" "}
+              <button type="button" className="top-btn" onClick={() => { onClose(); setup?.openAgents(); }}>Agent connections</button>, then reopen this session setup.
+            </p>}
+          </> : harness.models.length === 0 ? null : (
             <label className="pick-field">
               Model
               <select

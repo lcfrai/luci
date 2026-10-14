@@ -13,8 +13,9 @@ import {
 import { ApiError } from "../../api/client";
 import { productApi } from "../../api/product";
 
-const { createSession } = vi.hoisted(() => ({ createSession: vi.fn() }));
+const { createSession, openAgents } = vi.hoisted(() => ({ createSession: vi.fn(), openAgents: vi.fn() }));
 vi.mock("../../api", () => ({ api: { createSession } }));
+vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ openAgents }) }));
 
 const claude = aHarness({
   id: "claude-code",
@@ -67,6 +68,7 @@ describe("SessionPicker", () => {
     vi.spyOn(productApi, "agentConnections").mockResolvedValue({ revision: 0, activeConnectionId: "", connections: [] });
     vi.spyOn(productApi, "agents").mockResolvedValue({ providers: [] });
     createSession.mockReset();
+    openAgents.mockReset();
     createSession.mockResolvedValue(
       aSession({ id: "s-new", worktreeId: "w-1" }),
     );
@@ -98,6 +100,21 @@ describe("SessionPicker", () => {
     expect((screen.getByLabelText("Model") as HTMLInputElement).readOnly).toBe(true);
     await userEvent.click(screen.getByRole("button", { name: "Create session" }));
     await waitFor(() => expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ model: "company-coder", agentConnectionId: "saved-gateway", harness: "codex" })));
+  });
+
+  it("explains a locked local model and opens Agent connections without creating a session", async () => {
+    const openCode = aHarness({ ...claude, id: "opencode", name: "OpenCode", supportsCustomModel: true });
+    const close = vi.fn();
+    useCockpit.setState({ harnesses: [openCode], defaults: { harness: "opencode", model: "", effort: "", permissionMode: "ask" } });
+    vi.mocked(productApi.agents).mockResolvedValue({ providers: [{ id: "local", name: "Local model", configured: true, model: "coder-8k" }] });
+    render(<SessionPicker open worktreeId="w-1" onClose={close} initialPrompt="Implement the reviewed task" />);
+    await waitFor(() => expect((screen.getByLabelText("Model") as HTMLInputElement).value).toBe("luci-local/coder-8k"));
+    expect((screen.getByLabelText("Model") as HTMLInputElement).readOnly).toBe(true);
+    expect(screen.getByText(/saved local model endpoint supplies this model/)).toBeDefined();
+    await userEvent.click(screen.getByRole("button", { name: "Agent connections" }));
+    expect(close).toHaveBeenCalledOnce();
+    expect(openAgents).toHaveBeenCalledOnce();
+    expect(createSession).not.toHaveBeenCalled();
   });
 
   it("passes the exact saved handoff context and returns the created session ID", async () => {
