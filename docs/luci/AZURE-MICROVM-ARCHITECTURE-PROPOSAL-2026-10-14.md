@@ -54,3 +54,27 @@ Only after those gates and established authority should one real upstream-harnes
 - Envoy [`2eff6e8ccfcf7ed5ac2de5880499995ea29f8648` mTLS guide](https://github.com/envoyproxy/envoy/blob/2eff6e8ccfcf7ed5ac2de5880499995ea29f8648/docs/root/start/quick-start/securing.rst), observed SHA-256 `f7584bb29572682fd9d085b5e8a3b5b5d86d0ff2ceeb460cdf22a88fe94534e3`. It documents downstream client certificate validation; the exact Luci Envoy route config and upstream protection are design work, not demonstrated deployment.
 - Official Azure Go SDK [`8fdac475541196d5e68bbd9c6c4c35cc73854bba` managed identity](https://github.com/Azure/azure-sdk-for-go/blob/8fdac475541196d5e68bbd9c6c4c35cc73854bba/sdk/azidentity/README.md), observed SHA-256 `9b54fa69408379dd52e9d410068547a8b61c312b400161c62debeb78b35a1224`; [Key Vault secret client](https://github.com/Azure/azure-sdk-for-go/blob/8fdac475541196d5e68bbd9c6c4c35cc73854bba/sdk/security/keyvault/azsecrets/README.md), observed SHA-256 `8a5fef9d02fb5f82d25a857eda40b4ced79544de47b9227257cd09e8ec1a6ec1`. These support the chosen credential mechanism, not proof of granted access or deployed secret delivery.
 - MicrosoftDocs [`azure-compute-docs` `38164b4abefebfaac6966d71eec8c36c781b7bf9`](https://github.com/MicrosoftDocs/azure-compute-docs/tree/38164b4abefebfaac6966d71eec8c36c781b7bf9): Dv5 sizes SHA-256 `4df07213379e0d8ccb7dffa4dce10d7852dcad815e15d5bc7ad0239f97677025`; managed disks `acacc4518fe5fd3ccd91112b47d195c3eebc72194df8a3981421b0829e0de2d`; quotas `ee13c7d7229cbe8934455f8866082d5b7a9d0c638b9227e844468e16d6ea7ecf`; billing states `1f8e58ba69b6590056ed690ad6ef79d88dde90be6ffee044ad74bb129d7814ef`. These are source constraints, not checks of Dylan's Azure account or a live host.
+# Managed OS-disk standby restoration clarification — 14 October 2026
+
+Root approved this narrow offline correction to the existing predecessor-VM
+restoration scope; Azure Sol `/root/main_branch_reconciliation` ACKs it. “No new
+resource” must not imply an OS-disk reimage is in place: the supported
+[Compute Reimage API 2024-07-01](https://learn.microsoft.com/en-us/rest/api/compute/virtual-machines/reimage?view=rest-compute-2024-07-01)
+can replace a managed OS disk, retaining the predecessor only when its explicit
+`deleteOption` is `Detach`. Keep the same exact owned, positively deallocated
+predecessor VM, NIC and pinned generic image; no additional VM, role or managed
+identity grant is permitted. Its authoritative data disk must be detached and
+the current active controller/fence/source/generation verified.
+
+Before reimage, actor review and durable intent account separately for the old
+OS disk, an observed private old-OS snapshot preserving logs/receipts, the
+replacement OS disk and resumed standby compute. Persist/read back `Detach`
+before the destructive request. Preserve old disk/snapshot recovery bytes.
+Observe the replacement disk's actual immutable identity and source lineage,
+plus a positively new clean generic guest boot; unchanged image metadata alone
+cannot establish completion. Unknown reimage is inspected without retry.
+Only then may the existing recovery identity be assigned, with exact readback.
+Current mounted-generation and authenticated host-configuration receipts control
+future replacement; stale Terraform must never restore predecessor authority.
+These are offline implementation requirements, not live provider acceptance.
+
