@@ -608,9 +608,20 @@ def observed_packages(core, selection_path, manifest):
     journal = core.private_json(state)
     proposal = core.private_json(parent / 'azure-builder-plan.json')
     selected = core.private_json(selection_path)
-    if journal.get('state') not in ('private_images_bound_staging_retirement_pending', 'private_images_bound_staging_retired') or proposal['sourceCommit'] != manifest['luciRevision'] or journal.get('planDigest') != proposal.get('planDigest') or journal.get('selectionDigest') != core.digest(selected): return False
+    variables = core.requested(selected)
+    if (journal.get('state') not in ('private_images_bound_staging_retirement_pending', 'private_images_bound_staging_retired') or
+            journal.get('abortRequested') or proposal['sourceCommit'] != manifest['luciRevision'] or
+            journal.get('planDigest') != proposal.get('planDigest') or
+            core.digest({key:value for key,value in proposal.items() if key != 'planDigest'}) != proposal['planDigest'] or
+            variables.get('scope') != proposal.get('scope') or variables.get('generation') != proposal.get('generation') or
+            variables.get('controller_owner_id') != proposal.get('tags', {}).get('luci-owner')):
+        return False
+    # Key Vault bindings and deferred operator selection legitimately advance
+    # later. Bind image proof to immutable producer identity and image/package
+    # bytes, not the mutable digest of all subsequent setup fields.
+    prefix = '/subscriptions/' + selected['stateBackend']['subscriptionId'] + '/resourcegroups/' + variables['resource_group_name'].lower() + '/providers/microsoft.compute/galleries/'
     for role in ('runtime', 'controller'):
         receipt = journal.get('receipts', {}).get(role + ':install', {})
-        if role + ':retired' not in journal.get('completed', []) or role + ':capture' not in journal.get('completed', []) or receipt.get('sourceCommit') != manifest['luciRevision'] or receipt.get('role') != role or receipt.get('packageSHA256') != selected[role + 'Package']['sha256'] or selected['terraformVariables'][role + '_image_version_id'] != proposal['roles'][role]['imageVersionID']:
+        if role + ':retired' not in journal.get('completed', []) or role + ':capture' not in journal.get('completed', []) or receipt.get('sourceCommit') != manifest['luciRevision'] or receipt.get('role') != role or receipt.get('packageSHA256') != selected[role + 'Package']['sha256'] or variables[role + '_image_version_id'] != proposal['roles'][role]['imageVersionID'] or not proposal['roles'][role]['imageVersionID'].lower().startswith(prefix):
             return False
     return True

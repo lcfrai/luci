@@ -321,3 +321,12 @@ and affected host package checks. No broad compiler or Docker ran. Outer release
 scripts/package paths remain owned by Windows worker/root; pass --e2b-source there
 before final packaging. Remaining: single-command normal progression, authenticated
 successor installer join, whole-installation retirement and real environment gates.
+
+
+Normal image-proof join correction: later legitimate Key Vault bindings/deferred
+operator fields change selectionDigest. `observed_packages` now validates exact
+source/plan digest, owner/scope/generation, selected account/resource-group gallery
+IDs, completed capture+builder retirement and package hashes, while allowing those
+later credential/operator fields to advance. Substituted image/generation and
+aborted producer remain refused. The affected sequential capture test now checks
+that outcome directly and passes; no unchanged suite was repeated.

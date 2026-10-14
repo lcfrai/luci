@@ -111,6 +111,16 @@ class BuilderTests(unittest.TestCase):
         result = builder.bind_images(*common)
         self.assertFalse(result['connected'])
         self.assertTrue(builder.observed_packages(core, path, {'luciRevision': 'a' * 40}))
+        selected = core.private_json(path)
+        original = copy.deepcopy(selected)
+        selected['terraformVariables']['controller_secret_ids'] = ['later exact private credential reference']
+        core.atomic_json(path, selected)
+        self.assertTrue(builder.observed_packages(core, path, {'luciRevision': 'a' * 40}))
+        for key in ('generation', 'runtime_image_version_id'):
+            selected = copy.deepcopy(original); selected['terraformVariables'][key] += '-substituted'
+            core.atomic_json(path, selected)
+            self.assertFalse(builder.observed_packages(core, path, {'luciRevision': 'a' * 40}))
+        core.atomic_json(path, original)
         for _ in range(3): builder.retire_staging(*common, arm, cli, acknowledge=True)
         self.assertNotIn(proposal['containerID'], resources)
         for role in ('runtime', 'controller'): self.assertIn(proposal['roles'][role]['imageVersionID'], resources)
