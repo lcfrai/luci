@@ -167,6 +167,25 @@ type GitSummary struct {
 // fsmonitor commands, pagers or external diff/textconv programs.
 var journeyGitFlags = []string{"--no-pager", "--no-optional-locks", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "color.ui=false", "-c", "commit.gpgsign=false"}
 
+// These exact commands read refs or index metadata. None asks Git to read a
+// tracked file through a clean/smudge/process filter, so a separate Git
+// filter-config probe before each one only starts another host process.
+// Status, diff, staging, show and unknown commands keep the fail-closed probe.
+func journeyGitMetadataOnly(command []string) bool {
+	switch strings.Join(command, "\x00") {
+	case "symbolic-ref\x00--quiet\x00HEAD",
+		"symbolic-ref\x00--quiet\x00--short\x00HEAD",
+		"rev-parse\x00--verify\x00--quiet\x00HEAD^{commit}",
+		"rev-parse\x00--shared-index-path",
+		"rev-parse\x00--show-object-format",
+		"ls-files\x00--stage\x00-z",
+		"ls-files\x00-v\x00-z",
+		"ls-files\x00-z\x00--cached\x00--others\x00--exclude-standard":
+		return true
+	}
+	return false
+}
+
 type managedJourneyGitContextKey struct{}
 type journeyGitRootContextKey struct{}
 
@@ -273,7 +292,7 @@ func (s *Server) journeyGit(ctx context.Context, dir string, args ...string) (st
 		all = append(all, bounded[:len(bounded)-len(command)]...)
 	}
 	ctx = context.WithValue(ctx, managedJourneyGitContextKey{}, true)
-	if command[0] != "config" && command[0] != "init" {
+	if command[0] != "config" && command[0] != "init" && !journeyGitMetadataOnly(command) {
 		// Even `git status` may run a clean filter when it compares a tracked
 		// file to the index. Neutralize configured drivers before every command
 		// that can inspect the worktree, not only before staging a commit.

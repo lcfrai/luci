@@ -108,6 +108,7 @@ type Service struct {
 	opts            Options
 	dir, instance   string
 	nativeSocket    string
+	nativeInfo      bool
 	mu              sync.Mutex
 	busy            map[string]bool
 	ctx             context.Context
@@ -159,13 +160,14 @@ func New(opts Options) (*Service, error) {
 	if os.Getenv("DOCKER_CONTEXT") != "" {
 		nativeSocket = ""
 	}
+	nativeInfo := opts.Runner == nil
 	if opts.Runner == nil {
 		opts.Runner = commandRunner(opts.DockerHost)
 	}
 	if opts.HTTPClient == nil {
 		opts.HTTPClient = providerHTTPClient()
 	}
-	s := &Service{opts: opts, dir: dir, instance: instance, nativeSocket: nativeSocket, busy: map[string]bool{}, ctx: ctx, cancel: cancel}
+	s := &Service{opts: opts, dir: dir, instance: instance, nativeSocket: nativeSocket, nativeInfo: nativeInfo, busy: map[string]bool{}, ctx: ctx, cancel: cancel}
 	if opts.BrowserPreviewPort != 0 {
 		var err error
 		s.browserRegistry, err = previewgateway.NewRegistryWithDomain(opts.StateDir, opts.BrowserPreviewPort, opts.BrowserPreviewDomain)
@@ -341,8 +343,8 @@ func (s *Service) Handler() http.Handler {
 func (s *Service) status(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	version, err := s.opts.Runner(ctx, "docker", []string{"info", "--format", "{{.ServerVersion}}"}, s.dir, nil)
-	dockerReady := err == nil && strings.TrimSpace(string(version)) != ""
+	info, err := s.engineInfo(ctx)
+	dockerReady := err == nil && strings.TrimSpace(info.ServerVersion) != ""
 	_, policy, _ := management.ActorFromContext(r.Context())
 	limits := s.limits(r)
 	respond(w, 200, map[string]any{"dockerReady": dockerReady, "limits": map[string]int{"memoryMiB": limits.MemoryMiB, "cpuMillis": limits.CPUMillis}, "permissions": map[string]bool{"connectPanacea": admin(r), "deployPanacea": policy.AllowCloudProvisioning}, "capabilities": map[string]bool{"persistentLocalDeployments": dockerReady && s.previewRuntime().Start != nil, "postgres": dockerReady, "postgresBackups": dockerReady, "panaceaConnector": true, "supabaseAvailable": true}, "scope": "Local deployments persist on this Docker host. Public hosting requires a connected hosting provider. Application builds and serving containers require shared host capacity admission. Database service limits and billing are separate.", "supabase": map[string]any{"status": "available", "message": "Optional Supabase Auth, Storage, REST and Realtime are installed per project with a separate resource acknowledgement.", "upstream": "https://supabase.com/docs/guides/self-hosting/docker"}})

@@ -383,8 +383,15 @@ func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status s
 	if !terminalOrchestrator(status) {
 		return ErrOrchestratorInvalid
 	}
-	if failureCode != "" && (status != "failed" || failureCode != "memory_limit") {
-		return ErrOrchestratorInvalid
+	if failureCode != "" {
+		if status != "failed" {
+			return ErrOrchestratorInvalid
+		}
+		switch failureCode {
+		case "memory_limit", "local_model_context_limit", "local_model_context_unverified", "local_model_structured_output_invalid":
+		default:
+			return ErrOrchestratorInvalid
+		}
 	}
 	p, err := s.resolveProject(id)
 	if err != nil {

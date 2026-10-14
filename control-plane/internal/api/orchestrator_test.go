@@ -422,6 +422,39 @@ func TestOrchestratorTerminalJobReconcilesConversationWithoutInference(t *testin
 	}
 }
 
+func TestOrchestratorStructuredOutputFailureRecordsWithoutNewInference(t *testing.T) {
+	e, p := repositoryFixture(t)
+	ctx := orchestratorExecutionActor(t)
+	view, err := e.api.deps.Product.OrchestratorView(ctx, p.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn, _, _, err := e.api.deps.Product.ReserveOrchestratorTurn(ctx, p.ID, product.OrchestratorTurnRequest{ExpectedRevision: view.Revision, ExpectedContextDigest: view.Context.Digest, IdempotencyKey: "structured-output-failed", Message: "Draft the saved specification.", RouteDigest: strings.Repeat("a", 64)}, "assist-structured-failed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := assistance.Job{ID: turn.JobID, ProjectID: p.ID, Status: "failed", Kind: "orchestrator", OrchestratorTurnID: turn.ID, FailureCode: "local_model_structured_output_invalid"}
+	e.be.mu.Lock()
+	before := len(e.be.specs)
+	e.be.mu.Unlock()
+	if err := e.api.completeOrchestratorJob(job); err != nil {
+		t.Fatal("terminal failure did not settle the conversation", err)
+	}
+	if err := e.api.completeOrchestratorJob(job); err != nil {
+		t.Fatal("duplicate completion was not idempotent", err)
+	}
+	saved, err := e.api.deps.Product.OrchestratorTurn(p.ID, turn.ID)
+	if err != nil || saved.Status != "failed" || saved.FailureCode != job.FailureCode || saved.Answer != nil {
+		t.Fatal("terminal result remained unconfirmed", saved, err)
+	}
+	e.be.mu.Lock()
+	after := len(e.be.specs)
+	e.be.mu.Unlock()
+	if after != before {
+		t.Fatal("terminal failure started a new provider attempt")
+	}
+}
+
 func TestOrchestratorCancellationWhileWaitingForProviderNeverAllocates(t *testing.T) {
 	e, p := repositoryFixture(t)
 	route := saveAssistanceGateway(t, e)

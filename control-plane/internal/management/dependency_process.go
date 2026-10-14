@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/dockerinfo"
 )
 
 type dependencySystemRunner struct {
@@ -18,6 +20,9 @@ type dependencySystemRunner struct {
 }
 
 func (dependencySystemRunner) platform() string { return dependencyHostPlatform() }
+func (r dependencySystemRunner) engineInfo(ctx context.Context, executable string) (dockerinfo.Info, error) {
+	return dockerinfo.Probe(ctx, executable, "", dependencyProcessEnvironment(r.environment), false)
+}
 func (dependencySystemRunner) installationLease(ctx context.Context) (func(), error) {
 	return acquireDependencyHostInstallation(ctx)
 }

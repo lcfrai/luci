@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/dockerinfo"
 )
 
 type dependencyDefinition struct{ id, name, packageID, executable string }
@@ -85,6 +87,7 @@ type dependencyRunner interface {
 	platform() string
 	lookup(string) (string, error)
 	run(context.Context, string, ...string) dependencyCommandResult
+	engineInfo(context.Context, string) (dockerinfo.Info, error)
 	installationLease(context.Context) (func(), error)
 }
 type dependencyManager struct {
@@ -496,8 +499,8 @@ func (m *dependencyManager) checkTool(parent context.Context, def dependencyDefi
 	}
 	check.Version, check.Status, check.Message = version, "ready", def.name+" is installed and its version check succeeded."
 	if def.id == "docker" {
-		engine := m.runner.run(ctx, path, "info", "--format", "{{.ServerVersion}}")
-		if engine.Err != nil || engine.Code != 0 || strings.TrimSpace(engine.Output) == "" {
+		engine, engineErr := m.runner.engineInfo(ctx, path)
+		if engineErr != nil || strings.TrimSpace(engine.ServerVersion) == "" {
 			check.Status, check.Message = "action_required", "Docker CLI is installed, but its engine is not available. Open Docker Desktop and wait for its engine; workspace readiness checks the selected execution host separately."
 			return check, "start_docker"
 		}

@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/dockerinfo"
 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
@@ -143,6 +144,7 @@ type Server struct {
 	setupChoice                     SetupChoice
 	stateDir                        string
 	runner                          Runner
+	nativeInfo                      bool
 	configure                       func(string) error
 	sandboxImage                    string
 	checkMemoryMiB                  int
@@ -181,6 +183,7 @@ func New(opts Options) (*Server, error) {
 		}
 	}
 	if s.runner == nil {
+		s.nativeInfo = true
 		s.runner = RunCommand
 	}
 	if s.sandboxImage == "" {
@@ -528,7 +531,14 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 			defer pending.Done()
 			ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 			defer cancel()
-			output, err := s.runner(ctx, p.exe, p.args, "")
+			output, err := "", error(nil)
+			if i == 1 && s.nativeInfo {
+				var info dockerinfo.Info
+				info, err = dockerinfo.Probe(ctx, "docker", "", dockerinfo.Environment(), false)
+				output = info.ServerVersion
+			} else {
+				output, err = s.runner(ctx, p.exe, p.args, "")
+			}
 			// Each independent probe owns one stable result slot. Publish the
 			// complete ordered snapshot only after every probe has settled.
 			// Zero exit, empty output or late proof after cancellation is not

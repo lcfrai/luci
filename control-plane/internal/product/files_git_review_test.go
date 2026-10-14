@@ -37,6 +37,33 @@ func readReview(t *testing.T, handler http.Handler, base string) GitSummary {
 	return review
 }
 
+func TestJourneyGitSkipsFilterProbeOnlyForExactMetadataReads(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "metadata-probe")
+	original := s.runner
+	probes := 0
+	s.runner = func(ctx context.Context, executable string, args []string, dir string) (string, error) {
+		if executable == "git" && strings.Contains(strings.Join(args, "\x00"), "--get-regexp\x00^filter\\.") {
+			probes++
+		}
+		return original(ctx, executable, args, dir)
+	}
+	for _, command := range [][]string{{"symbolic-ref", "--quiet", "HEAD"}, {"rev-parse", "--show-object-format"}, {"ls-files", "--stage", "-z"}} {
+		if _, err := s.journeyGit(context.Background(), p.Path, command...); err != nil {
+			t.Fatal(command, err)
+		}
+	}
+	if probes != 0 {
+		t.Fatal("metadata-only reads launched a filter-config Git child", probes)
+	}
+	if _, err := s.journeyGit(context.Background(), p.Path, "status", "--porcelain=v1", "-z", "--untracked-files=all"); err != nil || probes != 1 {
+		t.Fatal("worktree status did not keep its filter guard", err, probes)
+	}
+	if journeyGitMetadataOnly([]string{"ls-files", "--eol"}) || journeyGitMetadataOnly([]string{"diff", "--no-ext-diff"}) {
+		t.Fatal("unreviewed worktree command bypassed filter guard")
+	}
+}
+
 func TestReviewedCommitRequiresIdentityAndRejectsEveryUnseenInputBeforeStaging(t *testing.T) {
 	for _, mutation := range []string{"missing", "source", "untracked", "context", "index", "branch", "head", "delete", "mode"} {
 		t.Run(mutation, func(t *testing.T) {
