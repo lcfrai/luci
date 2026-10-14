@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -39,8 +40,8 @@ func TestRepositoryProviderSelectionAndOpenCodeConfigurationAreExplicitReadOnly(
 		t.Fatal("read-only config changed provider or enabled tools")
 	}
 	agent := config["agent"].(map[string]any)["luci-analysis"].(map[string]any)
-	if config["permission"].(map[string]any)["StructuredOutput"] != "allow" || config["tools"].(map[string]any)["StructuredOutput"] != true || agent["permission"].(map[string]any)["*"] != "deny" || agent["permission"].(map[string]any)["StructuredOutput"] != "allow" || agent["tools"].(map[string]any)["*"] != false || agent["tools"].(map[string]any)["StructuredOutput"] != true || env["OPENCODE_PERMISSION"] != `{"*":"deny","StructuredOutput":"allow"}` {
-		t.Fatal("dedicated output tool is not the only permission exception")
+	if config["permission"].(map[string]any)["*"] != "deny" || config["tools"].(map[string]any)["*"] != false || agent["permission"].(map[string]any)["*"] != "deny" || agent["tools"].(map[string]any)["*"] != false || agent["tools"].(map[string]any)["StructuredOutput"] != nil || env["OPENCODE_PERMISSION"] != `{"*":"deny"}` || env["OPENCODE_LUCI_NATIVE_JSON"] != "1" {
+		t.Fatal("native structured response enabled an executable tool or lost its exact mode")
 	}
 	model := config["provider"].(map[string]any)["luci-local"].(map[string]any)["models"].(map[string]any)["model"].(map[string]any)
 	limit := model["limit"].(map[string]any)
@@ -220,15 +221,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
   elif self.path=='/session/ses_fixture12345678/message':
    fmt=body.get('format',{})
    received=body['parts'][0]['text']
-   if fmt.get('type')!='json_schema' or fmt.get('retryCount')!=0 or fmt.get('schema')!=expected_schema or not received.endswith(expected) or 'TAIL_CURRENT_REQUEST_WHO_APPROVES_THE_RELEASE' not in received or body.get('agent')!='luci-analysis' or body.get('model')!={'providerID':'luci-local','modelID':'fixture'}:
+   native=os.environ.get('FIXTURE_NATIVE_JSON')=='1'
+   if (not native and (fmt.get('type')!='json_schema' or fmt.get('retryCount')!=0 or fmt.get('schema')!=expected_schema)) or (native and 'format' in body) or not received.endswith(expected) or 'TAIL_CURRENT_REQUEST_WHO_APPROVES_THE_RELEASE' not in received or body.get('agent')!='luci-analysis' or body.get('model')!={'providerID':'luci-local','modelID':'fixture'}:
     self.send_error(400); return
    base=json.loads(os.environ['OPENCODE_CONFIG_CONTENT'])['provider']['luci-local']['options']['baseURL']
    tool=[] if os.environ.get('FIXTURE_NO_TOOL')=='1' else [{'type':'function','function':{'name':'StructuredOutput','parameters':{'type':'object'}}}]
    if os.environ.get('FIXTURE_EXTRA_TOOL')=='1': tool.append({'type':'function','function':{'name':'shell','parameters':{'type':'object'}}})
-   request=urllib.request.Request(base+'/chat/completions',data=json.dumps({'model':'fixture','messages':[{'role':'user','content':'PRIVATE_PROMPT_SENT_TO_MODEL'}],'tools':tool,'tool_choice':'required'}).encode(),headers={'Content-Type':'application/json'},method='POST')
+   model_body={'model':'fixture','messages':[{'role':'user','content':'PRIVATE_PROMPT_SENT_TO_MODEL'}]}
+   if not native: model_body.update({'tools':tool,'tool_choice':'required'})
+   request=urllib.request.Request(base+'/chat/completions',data=json.dumps(model_body).encode(),headers={'Content-Type':'application/json'},method='POST')
+   native_answer=None
    def send():
+    nonlocal native_answer
     try:
-     with urllib.request.urlopen(request,timeout=5) as upstream: upstream.read()
+     with urllib.request.urlopen(request,timeout=5) as upstream:
+      raw=upstream.read()
+      if native:
+       events=[json.loads(line[6:]) for line in raw.decode().splitlines() if line.startswith('data: {')]
+       native_answer=''.join(event['choices'][0]['delta'].get('content','') for event in events)
     except Exception:
      pass
    if os.environ.get('FIXTURE_CONCURRENT')=='1':
@@ -240,13 +250,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
    else: send()
    if os.environ.get('FIXTURE_CHANGE'):
     urllib.request.urlopen(os.environ['FIXTURE_CHANGE'],timeout=2).close()
-   if os.environ.get('FIXTURE_INCOMPLETE')=='1':
+   if native:
+    response={'info':{},'parts':[{'type':'text','text':native_answer}]} if native_answer else {'info':{'error':{'name':'invalid-response'}}}
+   elif os.environ.get('FIXTURE_INCOMPLETE')=='1':
     result={'blocking':False,'impact':['Development'],'nextAction':'Propose a complete specification','options':[],'proposal':None}
    elif os.environ.get('FIXTURE_INCOMPLETE')=='2':
     result={'question':'','options':[],'rationale':'','proposal':None,'nextAction':'Propose a complete specification'}
    else:
     result={'question':'Who approves?','options':[],'rationale':'Ask the owner.','proposal':None,'nextAction':'answer-question'}
-   response={'info':{'structured':result}}
+   if not native: response={'info':{'structured':result}}
   else:
    self.send_error(404); return
   encoded=json.dumps(response).encode()
@@ -258,7 +270,7 @@ server.serve_forever()
 	if err := os.WriteFile(fake, []byte(code), 0600); err != nil {
 		t.Fatal(err)
 	}
-	var servingContext, evaluatedTokens, forwardedRequests, responseMode atomic.Int64
+	var servingContext, evaluatedTokens, forwardedRequests, responseMode, nativeRequests, nativeMode atomic.Int64
 	servingContext.Store(8192)
 	evaluatedTokens.Store(1800)
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +292,40 @@ server.serve_forever()
 			json.NewEncoder(w).Encode(map[string]any{"model": "fixture", "prompt_eval_count": evaluatedTokens.Load(), "eval_count": 1, "done": true})
 		case "/api/ps":
 			json.NewEncoder(w).Encode(map[string]any{"models": []map[string]any{{"name": "fixture", "context_length": servingContext.Load(), "digest": "sha256:fixture-exact-model"}}})
+		case "/api/chat":
+			nativeRequests.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			var request struct {
+				Model    string                           `json:"model"`
+				Stream   bool                             `json:"stream"`
+				Format   map[string]any                   `json:"format"`
+				Messages []struct{ Role, Content string } `json:"messages"`
+				Options  struct {
+					NumPredict int `json:"num_predict"`
+				} `json:"options"`
+			}
+			if r.Method != "POST" || json.NewDecoder(http.MaxBytesReader(w, r.Body, 128<<10)).Decode(&request) != nil || request.Model != "fixture" || request.Stream || request.Options.NumPredict != 2048 || len(request.Format) == 0 || len(request.Messages) != 1 || request.Messages[0].Role != "user" || request.Messages[0].Content != "PRIVATE_PROMPT_SENT_TO_MODEL" {
+				http.Error(w, "bad native schema request", 400)
+				return
+			}
+			var exact map[string]any
+			if json.Unmarshal(schema, &exact) != nil || !reflect.DeepEqual(request.Format, exact) {
+				http.Error(w, "wrong exact schema", 400)
+				return
+			}
+			answer := map[string]any{"question": "Who approves?", "options": []string{}, "rationale": "Ask the owner.", "proposal": nil, "nextAction": "answer-question"}
+			if nativeMode.Load() == 1 {
+				delete(answer, "rationale")
+			}
+			if nativeMode.Load() == 2 {
+				answer["nextAction"] = "Propose a complete specification"
+			}
+			encoded, _ := json.Marshal(answer)
+			message := map[string]any{"role": "assistant", "content": string(encoded)}
+			if nativeMode.Load() == 3 {
+				message["tool_calls"] = []map[string]any{{"function": map[string]any{"name": "shell"}}}
+			}
+			json.NewEncoder(w).Encode(map[string]any{"model": "fixture", "done": true, "done_reason": "stop", "message": message})
 		case "/v1/chat/completions":
 			forwardedRequests.Add(1)
 			switch responseMode.Load() {
@@ -412,6 +458,45 @@ server.serve_forever()
 				t.Fatal("valid structured answer missing", err)
 			}
 		}
+	}
+	for _, tc := range []struct {
+		name     string
+		mode     int64
+		accepted bool
+	}{
+		{"native-complete-answer", 0, true},
+		{"native-missing-required-field", 1, false},
+		{"native-deferred-proposal", 2, false},
+		{"native-tool-call-refused", 3, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			os.Remove(filepath.Join(output, "result.json"))
+			nativeMode.Store(tc.mode)
+			before := nativeRequests.Load()
+			cmd := exec.Command(python, entry)
+			cmd.Env = append(os.Environ(), "FIXTURE_NATIVE_JSON=1", "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_LUCI_NATIVE_JSON=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig))
+			logs, runErr := cmd.CombinedOutput()
+			if len(logs) != 0 || (runErr == nil) != tc.accepted || nativeRequests.Load() != before+1 {
+				t.Fatal("native route did not make exactly one bounded request and enforce the result", runErr, string(logs), nativeRequests.Load()-before)
+			}
+			data, err := os.ReadFile(filepath.Join(output, "tool-offer.json"))
+			var receipt struct {
+				Version                                                                                                                   int
+				DispatchAttempted, ResponseReceived, UpstreamCompleted, NativeSchemaRequested, NativeSchemaValidated, AdapterResponseSent bool
+				StructuredOutputOffered                                                                                                   bool
+				OtherToolCount, DuplicateRequestsBlocked                                                                                  int
+			}
+			if err != nil || json.Unmarshal(data, &receipt) != nil || receipt.Version != 2 || !receipt.DispatchAttempted || !receipt.ResponseReceived || !receipt.UpstreamCompleted || !receipt.NativeSchemaRequested || receipt.StructuredOutputOffered || receipt.OtherToolCount != 0 || receipt.DuplicateRequestsBlocked != 0 || strings.Contains(string(data), "PRIVATE_PROMPT_SENT_TO_MODEL") {
+				t.Fatal("native request receipt was not bounded, exact and secret-free", err, string(data))
+			}
+			if receipt.NativeSchemaValidated != (tc.mode == 0 || tc.mode == 2) || receipt.AdapterResponseSent != (tc.mode == 0 || tc.mode == 2) {
+				t.Fatal("native response validation state was inaccurate", string(data))
+			}
+			_, statErr := os.Stat(filepath.Join(output, "result.json"))
+			if (statErr == nil) != tc.accepted {
+				t.Fatal("native answer publication did not match strict acceptance", statErr)
+			}
+		})
 	}
 	for _, refusedTool := range []string{"FIXTURE_NO_TOOL=1", "FIXTURE_EXTRA_TOOL=1"} {
 		os.Remove(filepath.Join(output, "result.json"))
