@@ -47,7 +47,7 @@ class RetirementFenceTests(unittest.TestCase):
                 if 'retirement-resume-observe' in script and self.stopped: raise RuntimeError('account still stopped')
                 value = {key: selected[value] for key, value in (('sourceCommit', 'sourceCommit'), ('scope', 'scope'),
                     ('generation', 'generation'), ('controllerResourceID', 'controllerID'), ('dataDiskID', 'diskID'), ('retirementPlanDigest', 'planDigest'))}
-                value.update(state='controller_setup_readback', taskReservationsSettled=True, settledJournalDigests={'owned-ledger': 'd' * 64}, observedAtUTC='2026-10-14T12:00:00Z')
+                value.update(state='controller_setup_readback', taskReservationsSettled=True, taskReservationsReleased=False, settledJournalDigests={'owned-ledger': 'd' * 64}, observedAtUTC='2026-10-14T12:00:00Z')
                 return 'LUCI_AZURE_RETIREMENT_SETTLED=' + json.dumps(value)
         return selected, store, Compute()
 
@@ -124,6 +124,19 @@ class RetirementFenceTests(unittest.TestCase):
         calls, writes = len(compute.calls), store.writes
         with self.assertRaisesRegex(ValueError, 'cannot be cancelled'): retire.cancel(selected, store, compute)
         self.assertEqual((len(compute.calls), store.writes), (calls, writes))
+
+    def test_fresh_actor_can_retire_and_cancel_but_all_cancelled_plans_stay_revoked(self):
+        selected, store, compute = self.fixture()
+        retire.quiesce(selected, store, compute); retire.cancel(selected, store, compute)
+        first = selected['planDigest']
+        selected['planDigest'] = 'f' * 64; selected['toolSelection']['retirementPlanDigest'] = selected['planDigest']
+        retire.quiesce(selected, store, compute); retire.cancel(selected, store, compute)
+        self.assertEqual(set(store.record['retirementCancelledPlans']), {first, 'f' * 64})
+        for digest in (first, 'f' * 64):
+            selected['planDigest'] = digest; selected['toolSelection']['retirementPlanDigest'] = digest
+            calls, writes = len(compute.calls), store.writes
+            with self.assertRaisesRegex(ValueError, 'Actor cancelled'): retire.quiesce(selected, store, compute)
+            self.assertEqual((len(compute.calls), store.writes), (calls, writes))
 
 
 if __name__ == '__main__': unittest.main()

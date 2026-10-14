@@ -258,6 +258,9 @@ def private_cidr(value):
 
 def progress(core, bundle_root, selection_path):
     manifest = core.bundle(bundle_root)
+    if (Path(selection_path).parent / 'azure-retirement-next.json').exists():
+        target = stage_module(bundle_root, 'retirement').next_actor(core, bundle_root, selection_path)
+        return progress(core, bundle_root, target)
     selection = core.private_json(selection_path)
     variables = core.requested(selection)
     parent = Path(selection_path).parent
@@ -275,6 +278,7 @@ def progress(core, bundle_root, selection_path):
                                  ("infrastructure", "azure-setup-state.json"),
                                  ("connection", "azure-connection-state.json"),
                                  ("controller-recovery", "azure-successor-state.json"),
+                                 ("retirement-plan", "azure-retirement-plan.json"),
                                  ("retirement", "azure-retirement-state.json"),
                                  ("retirement-cancellation", "azure-retirement-cancel-state.json"),
                                  ("standby-restoration", "azure-standby-state.json")):

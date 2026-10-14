@@ -808,6 +808,7 @@ def main():
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
+        if action == 'retire': row.add_argument('--new-actor-plan', action='store_true')
         if action == 'builder-source':
             for key in ('luci-source', 'runtime-source', 'envoy-binary', 'envoy-license'):
                 row.add_argument('--' + key, default='', help='Explicit compatibility input; normal setup uses packaged source')
@@ -895,7 +896,7 @@ def main():
         bundle(args.bundle)
         spec = importlib.util.spec_from_file_location('luci_azure_retirement', args.bundle / 'azure-setup/retirement.py')
         retirement = importlib.util.module_from_spec(spec); spec.loader.exec_module(retirement)
-        action = retirement.cancel if args.action == 'cancel-retirement' else retirement.run
+        action = retirement.cancel if args.action == 'cancel-retirement' else retirement.fresh_actor if args.new_actor_plan else retirement.run
         print(json.dumps(action(sys.modules[__name__], args.bundle, args.selection), sort_keys=True))
         return
     if args.action == 'recover-controller':
