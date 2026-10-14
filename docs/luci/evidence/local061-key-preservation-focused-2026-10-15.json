@@ -1,0 +1,18 @@
+{
+  "issue": "LOCAL-061",
+  "scope": "focused offline source regression; no provider or Docker execution",
+  "toolchain": "/dev/shm/luci-toolchain/go/bin/go (go1.25.0 linux/amd64)",
+  "command": "GOWORK=off GOMAXPROCS=1 GOMEMLIMIT=512MiB GOGC=20 GOCACHE=/dev/shm/luci-go-cache GOMODCACHE=/dev/shm/luci-gomodcache TMPDIR=/dev/shm/luci-go-tmp /dev/shm/luci-toolchain/go/bin/go test -vet=off -p 1 ./internal/product -run '^TestLocalModelEditPreservesOmittedPrivateKeyAndExplicitDisconnectClearsIt$' -count=1",
+  "workingDirectory": "control-plane",
+  "result": "PASS: ok github.com/lcfrai/luci/control-plane/internal/product 0.024s",
+  "adjacentCommand": "GOWORK=off GOMAXPROCS=1 GOMEMLIMIT=512MiB GOGC=20 GOCACHE=/dev/shm/luci-go-cache GOMODCACHE=/dev/shm/luci-gomodcache TMPDIR=/dev/shm/luci-go-tmp /dev/shm/luci-toolchain/go/bin/go test -vet=off -p 1 ./internal/product -run '^Test(ProviderCredentialsRemainSeparateAndLocalModelCannotFallback|LocalProviderRejectsUnsafeOrIncompleteEndpointsWithoutRequests)$' -count=1",
+  "adjacentResult": "PASS: ok github.com/lcfrai/luci/control-plane/internal/product 0.035s",
+  "coverage": [
+    "same-endpoint model edit retains omitted private key across restart",
+    "changed-endpoint omitted key returns actionable refusal with unchanged saved bytes",
+    "explicit replacement and empty key are respected",
+    "whole connection removal remains cleared after restart",
+    "response does not disclose the retained key"
+  ],
+  "limitations": "Source regression only; installed Windows route and user-facing error display remain unverified."
+}
