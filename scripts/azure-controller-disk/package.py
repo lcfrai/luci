@@ -23,7 +23,7 @@ SHA = re.compile(r"[0-9a-f]{64}\Z")
 REVISION = re.compile(r"[0-9a-f]{40}\Z")
 MAX_ARCHIVE = 128 << 20
 MAX_FILE = 96 << 20
-SOURCES = ("mount.py", "recover.py")
+SOURCES = ("mount.py", "recover.py", "retire.py")
 
 
 def sha(data):
@@ -91,7 +91,7 @@ def read_archive(path, expected):
             if not row.isfile() or row.name in files or name.is_absolute() or any(part in ("", ".", "..") for part in name.parts) or row.size < 1 or row.size > MAX_FILE:
                 raise ValueError("controller package has an unsafe entry")
             files[row.name] = tar.extractfile(row).read()
-    required = {"bin/luci-api", "bin/mount.py", "bin/recover.py", "bin/deliver.py", "licences/LUCI-LICENSE", "manifest.json"}
+    required = {"bin/luci-api", "bin/mount.py", "bin/recover.py", "bin/retire.py", "bin/deliver.py", "licences/LUCI-LICENSE", "manifest.json"}
     if set(files) != required:
         raise ValueError("controller package inventory changed")
     manifest = json.loads(files["manifest.json"])

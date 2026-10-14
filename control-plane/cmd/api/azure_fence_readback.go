@@ -34,6 +34,8 @@ type azureFenceRecord struct {
 	FenceReceiptDigest      string `json:"fenceReceiptDigest"`
 	TargetControllerID      string `json:"targetControllerID"`
 	TargetGeneration        string `json:"targetGeneration"`
+	RetirementPlanDigest    string `json:"retirementPlanDigest"`
+	RetirementSourceCommit  string `json:"retirementSourceCommit"`
 }
 
 type azureFenceReader interface {

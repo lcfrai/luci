@@ -137,8 +137,14 @@ def continue_setup(core, bundle_root, selection_path, ask=input, emit=print, cli
     """Normal user-run journey; a bounded stage walk, no background retry loop."""
     cli = cli or az_json
     manifest = core.bundle(bundle_root)
+    if (Path(selection_path).parent / 'azure-retirement-state.json').exists():
+        return stage_module(bundle_root, 'retirement').run(core, bundle_root, selection_path, ask, emit, cli)
     successor_path = Path(selection_path).parent / 'azure-successor-state.json'
     if successor_path.exists():
+        retained = core.private_json(successor_path)
+        active = retained.get('activeSelectionPath')
+        if active and (Path(active).parent / 'azure-retirement-state.json').exists():
+            return stage_module(bundle_root, 'retirement').run(core, bundle_root, Path(active), ask, emit, cli)
         successor = stage_module(bundle_root, 'successor')
         return successor.finish(core, bundle_root, selection_path,
             successor.run(core, bundle_root, selection_path, cli, ask, emit), cli)
