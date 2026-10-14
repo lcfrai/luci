@@ -99,24 +99,30 @@ it("bounds and validates nonsecret controller/progress receipts before any SSH e
 
 it("imports a private controller receipt into protected SSH inspection without importing credentials or silently connecting", async () => {
   const f = fixture(); render(<AzureSetup client={f.client} disabled={false} />); await prepare(f);
-  await f.user.upload(screen.getByLabelText(/Azure controller connection JSON/), new File([JSON.stringify(descriptor)], "azure-connection.json", { type: "application/json" }));
-  expect(await screen.findByText(/Private controller identity loaded/)).toBeTruthy();
+  await f.user.upload(screen.getByLabelText(/^Connection file/), new File([JSON.stringify(descriptor)], "azure-connection.json", { type: "application/json" }));
+  expect(await screen.findByText(/Connection file loaded/)).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "3. Connect workspace" })).toBeTruthy();
+  expect(screen.getByText(/controller VM/).closest("details")?.open).toBe(false);
   expect(screen.getByLabelText("Server address")).toHaveProperty("value", descriptor.host);
   expect(screen.getByLabelText("Server address")).toHaveProperty("disabled", true);
   expect(screen.getByLabelText("Private key path")).toHaveProperty("value", "");
   expect(f.fetcher.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual(["/v1/setup/cloud/azure/plan", "/v1/setup/ssh/connections"]);
   await f.user.click(screen.getByRole("button", { name: "Inspect server fingerprint" }));
-  expect(await screen.findByRole("checkbox", { name: /authenticated Azure controller readback/ })).toBeTruthy();
+  expect(await screen.findByRole("checkbox", { name: /host key shown by my authenticated Azure setup command/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Trust and connect" })).toHaveProperty("disabled", true);
   expect(f.fetcher.mock.calls.map(([url]) => new URL(String(url)).pathname)).not.toContain("/v1/setup/ssh/connect");
 });
 
 it("shows uncertain installer stages and refuses a different observed SSH host key", async () => {
   const f = fixture(["SHA256:" + "z".repeat(43)]); render(<AzureSetup client={f.client} disabled={false} />); await prepare(f);
-  await f.user.upload(screen.getByLabelText(/Installer progress JSON/), new File([JSON.stringify(progress)], "status.json", { type: "application/json" }));
-  expect(await screen.findByText(/outcome uncertain; reconcile before continuing/)).toBeTruthy();
-  await f.user.upload(screen.getByLabelText(/Azure controller connection JSON/), new File([JSON.stringify(descriptor)], "azure-connection.json", { type: "application/json" }));
-  await screen.findByText(/Private controller identity loaded/);
+  await f.user.upload(screen.getByLabelText(/^Setup progress file/), new File([JSON.stringify(progress)], "status.json", { type: "application/json" }));
+  expect(await screen.findByText(/Outcome uncertain · reconcile before continuing/)).toBeTruthy();
+  await f.user.click(screen.getByText("Commands to save these files"));
+  expect(screen.getByText(/installer.py status --bundle luci-azure-setup --selection luci-azure-private\/selection.json > luci-azure-private\/status.json/)).toBeTruthy();
+  expect(screen.getAllByText(/Coding environment image/).length).toBe(2);
+  expect(screen.getAllByText(/Cloud resources/).length).toBe(2);
+  await f.user.upload(screen.getByLabelText(/^Connection file/), new File([JSON.stringify(descriptor)], "azure-connection.json", { type: "application/json" }));
+  await screen.findByText(/Connection file loaded/);
   await f.user.click(screen.getByRole("button", { name: "Inspect server fingerprint" }));
   expect((await screen.findByRole("alert")).textContent).toMatch(/server key differs/);
   expect(screen.getByRole("button", { name: "Trust and connect" })).toHaveProperty("disabled", true);
