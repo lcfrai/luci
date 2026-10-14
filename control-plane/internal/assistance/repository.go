@@ -162,8 +162,12 @@ elif provider == 'opencode' and auth == 'configured':
             selected = configured['model']
             provider_id, actual_model = selected.split('/',1)
             base = urllib.parse.urlsplit(configured['provider'][provider_id]['options']['baseURL'])
-            if selected != model or base.scheme != 'http' or base.hostname not in ('localhost','127.0.0.1','host.docker.internal') or base.port != 11434 or base.path.rstrip('/') != '/v1' or base.username is not None or base.password is not None or base.query or base.fragment:
+            if selected != model or base.scheme != 'http' or base.hostname not in ('localhost','127.0.0.1','::1','host.docker.internal') or base.port != 11434 or base.path.rstrip('/') != '/v1' or base.username is not None or base.password is not None or base.query or base.fragment:
                 raise ValueError('unverified local model route')
+            limit = configured['provider'][provider_id]['models'][actual_model]['limit']
+            declared_context, declared_output = limit['context'], limit['output']
+            if type(declared_context) is not int or declared_context != 8192 or type(declared_output) is not int or declared_output != 2048:
+                raise ValueError('unverified OpenCode model window')
             origin = 'http://' + base.netloc
             direct = urllib.request.build_opener(urllib.request.ProxyHandler({}))
             # Generation models need not support embeddings. A one-token raw
@@ -187,7 +191,7 @@ elif provider == 'opencode' and auth == 'configured':
             loaded = [item for item in json.loads(raw)['models'] if item.get('name') in model_names or item.get('model') in model_names]
             if len(loaded)!=1 or type(loaded[0].get('context_length')) is not int or not isinstance(loaded[0].get('digest'),str) or not loaded[0]['digest']:
                 raise ValueError('missing exact loaded model')
-            if loaded[0]['context_length']<8192 or tokens+2048+2048>loaded[0]['context_length']:
+            if loaded[0]['context_length']<declared_context or tokens+declared_output+2048>min(loaded[0]['context_length'],declared_context):
                 raise InsufficientContext()
             loaded_context, loaded_digest = loaded[0]['context_length'], loaded[0]['digest']
         except Exception as error:

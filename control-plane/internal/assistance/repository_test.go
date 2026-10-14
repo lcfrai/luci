@@ -45,6 +45,10 @@ func TestRepositoryProviderSelectionAndOpenCodeConfigurationAreExplicitReadOnly(
 	if !strings.Contains(env["OPENCODE_CONFIG_CONTENT"], "You are Luci's read-only analysis model") {
 		t.Fatal("large upstream coding prompt was not replaced for read-only analysis")
 	}
+	ipv6Env := map[string]string{"OPENCODE_CONFIG_CONTENT": `{"model":"luci-local/model","provider":{"luci-local":{"options":{"baseURL":"http://[::1]:11434/v1"}}}}`}
+	if err := ReadOnlyOpenCode(ipv6Env, "luci-local/model"); err != nil || ipv6Env["OPENCODE_LUCI_OLLAMA_PREFLIGHT"] != "1" || !strings.Contains(RepositoryLauncher, "'::1'") {
+		t.Fatal("IPv6 loopback analysis route was not supported by both guards", err)
+	}
 	for _, required := range []string{"'--model', model", "'--tools', ''", "'--pure'", "'--sandbox', 'read-only'", "stderr=subprocess.DEVNULL", "source.read(LIMIT+1)", "overflow[0]", "env.pop('OPENAI_API_KEY', None)"} {
 		if !strings.Contains(RepositoryLauncher, required) {
 			t.Fatalf("verified batch adapter boundary missing %s", required)
@@ -242,7 +246,7 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	modelConfig, _ := json.Marshal(map[string]any{"model": "luci-local/fixture", "provider": map[string]any{"luci-local": map[string]any{"options": map[string]string{"baseURL": modelServer.URL + "/v1"}}}})
+	modelConfig, _ := json.Marshal(map[string]any{"model": "luci-local/fixture", "provider": map[string]any{"luci-local": map[string]any{"options": map[string]string{"baseURL": modelServer.URL + "/v1"}, "models": map[string]any{"fixture": map[string]any{"limit": map[string]int{"context": 8192, "output": 2048}}}}}})
 	launcher := strings.ReplaceAll(RepositoryLauncher, "/luci-input", filepath.ToSlash(input))
 	launcher = strings.ReplaceAll(launcher, "/luci-output", filepath.ToSlash(output))
 	launcher = strings.Replace(launcher, "base.port != 11434", "base.port != "+strconv.Itoa(port), 1)
@@ -326,7 +330,9 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 	}
 	// A high-token request can remain below the UTF-8 byte cap. Ollama's own
 	// token count must still prevent OpenCode from receiving a truncated input.
-	servingContext.Store(8192)
+	// A larger Ollama serving window cannot expand OpenCode's declared 8k
+	// context. This request is below the byte cap but exceeds that 8k budget.
+	servingContext.Store(16384)
 	evaluatedTokens.Store(5000)
 	os.Remove(filepath.Join(output, "exit.json"))
 	cmd = exec.Command(python, entry)
@@ -336,7 +342,7 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 	}
 	refusedData, err = os.ReadFile(filepath.Join(output, "exit.json"))
 	if err != nil || json.Unmarshal(refusedData, &refused) != nil || refused.FailureCode != "local_model_context_limit" || refused.ExitCode != 2 {
-		t.Fatal("high-token request was not refused", err, string(refusedData))
+		t.Fatal("high-token request exceeded declared OpenCode context but was not refused", err, string(refusedData))
 	}
 	// The local route refuses an input that cannot fit its conservative serving
 	// window before invoking OpenCode. The full current request remains intact.
