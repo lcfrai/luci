@@ -120,7 +120,7 @@ def guest(core, proposal, provider, arm, action, inspect=False, backups_sha=''):
     for identifier in dict.fromkeys((proposal['recoveryID'], proposal['controllerID'])):
         owned_compute(arm, proposal, identifier)
     data = base64.b64encode(core.canonical(guest_selection(proposal))).decode()
-    mode = 'inspect' if action == 'quiesce' and inspect else action
+    mode = ('inspect' if action == 'quiesce' else 'cancel-inspect') if inspect and action in ('quiesce', 'cancel') else action
     options = (' --backups-sha256 ' + backups_sha + (' --inspect' if inspect else '')) if action == 'close' else ''
     script = """set -eu
 python3 - <<'PY'
@@ -139,7 +139,7 @@ else:
 PY
 receipt=$(python3 /opt/luci/azure-controller/bin/retire.py %s /etc/luci/azure-installation-retirement.json%s)
 printf 'LUCI_AZURE_INSTALLATION_RETIREMENT=%%s\\n' "$receipt"
-""" % (repr(data), repr(inspect or action != 'quiesce'), mode, options)
+""" % (repr(data), repr(inspect or action == 'close'), mode, options)
     response = provider(['vm', 'run-command', 'invoke', '--ids', proposal['recoveryID'], '--command-id', 'RunShellScript', '--scripts', script])
     rows = [line.removeprefix('LUCI_AZURE_INSTALLATION_RETIREMENT=') for item in response.get('value', []) for line in item.get('message', '').splitlines() if line.startswith('LUCI_AZURE_INSTALLATION_RETIREMENT=')]
     if len(rows) != 1: raise RuntimeError('Exact installation retirement readback remains uncertain')
@@ -150,6 +150,23 @@ printf 'LUCI_AZURE_INSTALLATION_RETIREMENT=%%s\\n' "$receipt"
         raise ValueError('Actual task/provider/reservation settlement is unavailable')
     if action == 'close' and (result.get('state') != 'retirement_closed_pending_compute' or result.get('backupsSHA256') != backups_sha):
         raise ValueError('Exact backup-bound off-disk retirement closure is unavailable')
+    if action == 'cancel' and (result.get('sourceCommit') != proposal['sourceCommit'] or result.get('state') != 'retirement_cancelled_active' or result.get('taskReservationsReleased') is not False):
+        raise ValueError('Exact active cancellation readback preserving task leases is unavailable')
+    return result
+
+
+def runtime(core, proposal, provider, arm, mode):
+    owned_compute(arm, proposal, proposal['runtimeID'])
+    script = 'set -eu\nreceipt=$(python3 /opt/luci/azure-embed/package/bin/service.py retirement-' + mode + ' /etc/luci/azure-embed-deployment.json ' + proposal['planDigest'] + ')\nprintf "LUCI_AZURE_RUNTIME_RETIRED=%s\\n" "$receipt"'
+    response = provider(['vmss', 'run-command', 'invoke', '--ids', proposal['runtimeID'], '--command-id', 'RunShellScript', '--scripts', script])
+    rows = [line.removeprefix('LUCI_AZURE_RUNTIME_RETIRED=') for item in response.get('value', []) for line in item.get('message', '').splitlines() if line.startswith('LUCI_AZURE_RUNTIME_RETIRED=')]
+    if len(rows) != 1: raise RuntimeError('Runtime retirement/resume remains uncertain')
+    result = json.loads(rows[0])
+    resume = mode.startswith('resume')
+    if (any(result.get(key) != proposal[key] for key in ('sourceCommit', 'scope', 'generation', 'planDigest')) or
+            result.get('state') != ('retirement_cancelled_active' if resume else 'retirement_stopped') or
+            (result.get('taskReservationsReleased') is not False if resume else result.get('runtimeStorageOnOSDiskVerified') is not True)):
+        raise ValueError('Exact runtime retirement/resume proof is unavailable')
     return result
 
 
@@ -194,6 +211,8 @@ def run(core, bundle, selection_path, ask=input, emit=print, provider=None, arm=
         active = core.private_json(successor).get('activeSelectionPath')
         if not active: raise ValueError('Controller recovery is still pending; retirement cannot replace its fence')
         return run(core, bundle, Path(active), ask, emit, provider, arm)
+    if (parent / 'azure-retirement-cancel-state.json').exists():
+        return cancel(core, bundle, selection_path, ask, emit, provider, arm)
     proposal = plan(core, bundle, selection_path, arm, provider)
     selected = core.private_json(selection_path)
     if not guided.approve_stage(core, parent, core.bundle(bundle), selected, 'installation-retirement', proposal, ask, emit):
@@ -209,16 +228,7 @@ def run(core, bundle, selection_path, ask=input, emit=print, provider=None, arm=
     if 'host-stop' not in state['completed']:
         returned = {}
         def host(inspect):
-            owned_compute(arm, proposal, proposal['runtimeID'])
-            script = 'set -eu\nreceipt=$(python3 /opt/luci/azure-embed/package/bin/service.py retirement-' + ('inspect' if inspect else 'stop') + ' /etc/luci/azure-embed-deployment.json ' + proposal['planDigest'] + ')\nprintf "LUCI_AZURE_RUNTIME_RETIRED=%s\\n" "$receipt"'
-            response = provider(['vmss', 'run-command', 'invoke', '--ids', proposal['runtimeID'], '--command-id', 'RunShellScript', '--scripts', script])
-            rows = [line.removeprefix('LUCI_AZURE_RUNTIME_RETIRED=') for item in response.get('value', []) for line in item.get('message', '').splitlines() if line.startswith('LUCI_AZURE_RUNTIME_RETIRED=')]
-            if len(rows) != 1: raise RuntimeError('Runtime quiescence remains uncertain')
-            result = json.loads(rows[0])
-            if (any(result.get(key) != proposal[key] for key in ('sourceCommit', 'scope', 'generation', 'planDigest')) or
-                    result.get('state') != 'retirement_stopped' or result.get('runtimeStorageOnOSDiskVerified') is not True):
-                raise ValueError('Exact runtime quiescence/durable source OS disk proof is unavailable')
-            return result
+            return runtime(core, proposal, provider, arm, 'inspect' if inspect else 'stop')
         effect(core, path, state, 'host-stop', lambda: returned.update(value=host(False)), lambda: returned.get('value') or host(True))
     for role, item in proposal['snapshots'].items():
         key = 'backup-' + role
@@ -262,4 +272,45 @@ def run(core, bundle, selection_path, ask=input, emit=print, provider=None, arm=
     state.update(state='owned_compute_deallocation_observed_storage_retained', backups=backups, retainedCharges=proposal['retainedCharges'],
         connected=False, providerInvoiceVerified=False, taskReservationsSettled=True, volumesDeleted=False,
         message='Owned compute closure and actual private backup resources observed. Disks, snapshots, gallery, storage and other retained resources can still charge; final invoice is separate. Backup restoration has not been tested.')
+    core.atomic_json(path, state); return state
+
+
+def cancel(core, bundle, selection_path, ask=input, emit=print, provider=None, arm=None):
+    guided = module(bundle, 'guided'); provider = provider or guided.az_json
+    arm = arm or module(bundle, 'foundation').AzureARM(provider)
+    parent = Path(selection_path).parent
+    successor = parent / 'azure-successor-state.json'
+    if successor.exists():
+        active = core.private_json(successor).get('activeSelectionPath')
+        if not active: raise ValueError('Controller recovery is pending; cancellation cannot replace its fence')
+        return cancel(core, bundle, Path(active), ask, emit, provider, arm)
+    original_path = parent / 'azure-retirement-state.json'
+    original = core.private_json(original_path)
+    proposal = plan(core, bundle, selection_path, arm, provider)
+    if original.get('planDigest') != proposal['planDigest']: raise ValueError('Original retirement actor plan changed')
+    effects = original.get('completed', []) + [original.get('pending', '')]
+    if any(key == 'fence-close' or key.startswith('deallocate:') for key in effects):
+        raise ValueError('Backup-bound closure/deallocation has begun; cancellation cannot reopen it')
+    review = dict(proposal, action='cancel-retirement', originalPending=original.get('pending'),
+        message='Resume the same owned generation. Held task reservations remain held. Existing/uncertain snapshots and all original receipts are retained; storage and resumed compute may charge.')
+    if not guided.approve_stage(core, parent, core.bundle(bundle), core.private_json(selection_path), 'installation-retirement-cancel', review, ask, emit):
+        return {'state': 'installation_retirement_cancel_review_paused', 'connected': False}
+    path = parent / 'azure-retirement-cancel-state.json'
+    state = core.private_json(path) if path.exists() else {'version': 1, 'sourceCommit': proposal['sourceCommit'],
+        'scope': proposal['scope'], 'generation': proposal['generation'], 'planDigest': proposal['planDigest'],
+        'originalRetirementSHA256': core.digest(original), 'completed': [], 'receipts': {}}
+    if state.get('planDigest') != proposal['planDigest'] or state.get('originalRetirementSHA256') != core.digest(original):
+        raise ValueError('Original uncertain retirement receipt changed; preserve both actor journals')
+    # Activate the existing private gateway before controller readback/start.
+    # Both guest programs serialize stop/resume and reject late cancelled work.
+    for key, operation, observe in (
+            ('host-resume', lambda: runtime(core, proposal, provider, arm, 'resume'), lambda: runtime(core, proposal, provider, arm, 'resume-inspect')),
+            ('controller-resume', lambda: guest(core, proposal, provider, arm, 'cancel'), lambda: guest(core, proposal, provider, arm, 'cancel', inspect=True))):
+        if key in state['completed']: continue
+        returned = {}
+        effect(core, path, state, key, lambda operation=operation: returned.update(value=operation()),
+            lambda observe=observe: returned.get('value') or observe())
+    state.update(state='retirement_cancelled_predecessor_resumed_storage_retained', taskReservationsReleased=False,
+        originalPending=original.get('pending'), retainedCharges=proposal['retainedCharges'], connected=False,
+        providerInvoiceVerified=False, message='Exact owned runtime/controller resume observed. Original unknown effects and held task leases remain unchanged; refresh the protected connection. This actor plan cannot silently retire again.')
     core.atomic_json(path, state); return state

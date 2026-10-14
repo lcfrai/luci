@@ -50,9 +50,19 @@ describe these provider identities and selected-instance transport.
 Run `retire` or `continue` again for an uncertain stage: exact readback replaces
 repeated stop/copy/deallocate mutations. Disk, snapshot, gallery, Blob, Key Vault
 and applicable private-network charges remain retained and the final invoice is
-unverified. Snapshot restoration and live Azure settlement are untested. Explicit
-cancel/resume after quiescence is still unfinished; an unknown or held lease is
-preserved and cannot be cleared by retirement metadata.
+unverified. Snapshot restoration and live Azure settlement are untested.
+
+Before backup-bound closure/deallocation begins, `cancel-retirement --bundle .
+--selection /private/selection.json` reviews a separate actor action to resume
+the same owned runtime/controller generation. It preserves the original
+retirement journal, including uncertain copies/stops, and every held task lease.
+Only existing owned Compose containers are started; no task VM or container is
+created by this cancellation. A lost start acknowledgment is inspected without
+repeating the start. Controller stop/start is serialized and validates the
+actual source/generation/fence before effects. Late requests from the cancelled
+plan refuse; `continue` follows the cancellation receipt instead of silently
+retiring again. Closed/deallocating installations cannot be reopened. Retained
+snapshots and resumed compute can charge; refresh the protected connection.
 
 `recover-controller --bundle . --selection /private/selection.json` prepares
 and runs the supported first replacement onto the existing generic private

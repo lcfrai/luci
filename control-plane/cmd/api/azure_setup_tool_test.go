@@ -123,3 +123,22 @@ func TestAzureSetupRetirementReadsExactPrivateOwnershipJournals(t *testing.T) {
 		t.Fatal("invalid shared reservation ledger was ignored")
 	}
 }
+
+func TestAzureSetupRetirementCancellationRequiresExactActorPlan(t *testing.T) {
+	input := azureSetupToolInput{SourceCommit: strings.Repeat("a", 40), RetirementPlanDigest: strings.Repeat("b", 64)}
+	record := azureFenceRecord{State: "active", RetirementSourceCommit: input.SourceCommit, RetirementCancelledPlanDigest: input.RetirementPlanDigest}
+	if err := azureSetupRetirementCancellationIdentity(record, input); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*azureFenceRecord){
+		func(r *azureFenceRecord) { r.State = "retirement_closed_pending_compute" },
+		func(r *azureFenceRecord) { r.RetirementSourceCommit = strings.Repeat("c", 40) },
+		func(r *azureFenceRecord) { r.RetirementCancelledPlanDigest = strings.Repeat("d", 64) },
+	} {
+		changed := record
+		mutate(&changed)
+		if azureSetupRetirementCancellationIdentity(changed, input) == nil {
+			t.Fatal("foreign/closed cancellation accepted")
+		}
+	}
+}
