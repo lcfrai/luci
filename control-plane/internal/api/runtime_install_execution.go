@@ -182,12 +182,18 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		if decision.Code == "" {
 			decision.Code = "runtime_install_admission_unavailable"
 			decision.Message = "Current administrator access or shared capacity could not be verified. No build was started."
+			if req.Mode == "packaged" {
+				decision.Message = "Current administrator access or shared capacity could not be verified. No image import was started."
+			}
 		}
 		out.Admission = runtimeAdmissionRefusal(decision, "initial")
 		return fail(decision.Code, decision.Message, err)
 	}
 	out.AllocationID, out.EngineID, out.InstanceID, out.SourceDigest = allocation, id.EngineID, id.InstanceID, id.SourceDigest
 	out.Phase, out.ResourcesHeld, out.Message = "reserved", true, "Shared capacity is reserved; the runtime build has not started."
+	if req.Mode == "packaged" {
+		out.Message = "Shared capacity is reserved; the verified runtime import has not started."
+	}
 	// Before Build is issued we can prove there is no daemon work. Even a failed
 	// progress write retains its no-work receipt until explicit reconciliation.
 	unstarted := func(cause error) (runtimeinstall.Outcome, error) {
@@ -202,6 +208,9 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 			out.Phase = "cancelled"
 		}
 		out.ReasonCode, out.Message = "runtime_install_not_started", "Runtime preparation stopped before any image build was issued."
+		if req.Mode == "packaged" {
+			out.Message = "Runtime preparation stopped before any image import was issued."
+		}
 		if persistErr := publish(out); persistErr != nil {
 			return out, errors.Join(cause, persistErr)
 		}
@@ -212,8 +221,12 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	}
 	nextDecision, nextLease, admitErr := admit(false)
 	if admitErr != nil || nextDecision.State != "admitted" {
-		out.Admission = runtimeAdmissionRefusal(nextDecision, "before-build")
-		return unstarted(errors.Join(admitErr, errors.New("runtime build admission changed")))
+		stage, effect := "before-build", "runtime build"
+		if req.Mode == "packaged" {
+			stage, effect = "before-import", "runtime import"
+		}
+		out.Admission = runtimeAdmissionRefusal(nextDecision, stage)
+		return unstarted(errors.Join(admitErr, errors.New(effect+" admission changed")))
 	}
 	lease = nextLease
 	lease, err = a.execution.transitionRuntimeImage(ctx, lease, "building")

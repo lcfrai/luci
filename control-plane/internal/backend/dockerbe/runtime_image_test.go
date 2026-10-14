@@ -77,6 +77,38 @@ func runtimeTestSHA(data []byte) string {
 	return fmt.Sprintf("%x", h[:])
 }
 
+func TestPackagedLoadAdmissionUsesVerifiedArchiveAndLayerSizes(t *testing.T) {
+	const mib = int64(1 << 20)
+	digest := strings.Repeat("a", 64)
+	m := runtimeoci.Manifest{}
+	m.Archive.Bytes = 2048 * mib
+	m.Archive.Members = []runtimeoci.Member{{Path: "first/layer.tar", Bytes: 1024 * mib, SHA256: digest}, {Path: "second/layer.tar", Bytes: 512 * mib, SHA256: digest}}
+	m.Image.LayerPaths = []string{"first/layer.tar", "second/layer.tar"}
+	m.Image.DiffIDs = []string{"sha256:" + digest, "sha256:" + digest}
+	got, err := packagedLoadAdmissionMiB(m, 1024)
+	if err != nil || got != 4096 {
+		t.Fatalf("full daemon staging and layer registration were not reserved: %d, %v", got, err)
+	}
+	if got, err = packagedLoadAdmissionMiB(m, 6144); err != nil || got != 6144 {
+		t.Fatalf("load allowance weakened a larger configured worker: %d, %v", got, err)
+	}
+	for _, mutate := range []func(*runtimeoci.Manifest){
+		func(v *runtimeoci.Manifest) { v.Image.LayerPaths[1] = "missing/layer.tar" },
+		func(v *runtimeoci.Manifest) { v.Image.DiffIDs[1] = "sha256:" + strings.Repeat("b", 64) },
+		func(v *runtimeoci.Manifest) { v.Archive.Members[1].Bytes = 2048 * mib },
+		func(v *runtimeoci.Manifest) { v.Archive.Bytes = runtimeoci.MaxArchiveBytes + 1 },
+	} {
+		bad := m
+		bad.Archive.Members = append([]runtimeoci.Member(nil), m.Archive.Members...)
+		bad.Image.LayerPaths = append([]string(nil), m.Image.LayerPaths...)
+		bad.Image.DiffIDs = append([]string(nil), m.Image.DiffIDs...)
+		mutate(&bad)
+		if _, err := packagedLoadAdmissionMiB(bad, 1024); err == nil {
+			t.Fatal("invalid archive/layer inventory produced an admission allowance")
+		}
+	}
+}
+
 func TestRuntimePackagedLoadUsesOnlyHeldTaglessArchiveAndExactReadback(t *testing.T) {
 	b, f, spec := newRuntimeImageProbe(t)
 	p := runtimeFixturePrepare(t, b, spec)

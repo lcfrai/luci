@@ -225,6 +225,9 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 		capacity := evaluateExecutionCapacityWithEvidence(snap, policy, admissionResources, demand, now)
 		if capacity.Code != "" {
 			out.Code, out.Message, out.Evidence = capacity.Code, capacity.Message, capacity.Evidence
+			if prepared.Bundle != nil && capacity.Code == "memory_pressure" {
+				out.Message = "Waiting for memory to import the verified runtime. Docker stages the image archive before registering its layers; this load allowance and the host reserve cannot fit now. You can keep using Luci while capacity recovers."
+			}
 			return nil
 		}
 		if !existing {
@@ -236,6 +239,9 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 			result = candidate
 		}
 		out.State, out.Code, out.Message = "admitted", "capacity_reserved", "Shared capacity reserved for the exact bundled runtime build."
+		if prepared.Bundle != nil {
+			out.Message = "Shared capacity reserved for the verified runtime import."
+		}
 		return nil
 	})
 	return out, result, err

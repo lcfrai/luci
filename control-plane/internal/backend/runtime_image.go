@@ -33,8 +33,9 @@ type PreparedRuntimeImage struct {
 	PreparedContext   []byte
 	ContextDigest     string
 	RequiredDiskBytes uint64
-	// AdmissionMemoryMiB includes a conservative cold-base/daemon allowance.
-	// The Docker RUN hard cap remains Spec.Resources.MemoryMiB.
+	// AdmissionMemoryMiB includes a conservative cold-base or packaged-load
+	// daemon allowance. It is host/engine admission, not a daemon memory cap;
+	// any Docker RUN hard cap remains Spec.Resources.MemoryMiB.
 	AdmissionMemoryMiB int
 	StorageDriver      string
 	BaseImages         []string

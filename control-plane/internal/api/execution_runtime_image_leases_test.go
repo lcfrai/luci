@@ -10,6 +10,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeoci"
 )
 
 func runtimeImagePrepared(g *executionAdmission, id string) backend.PreparedRuntimeImage {
@@ -69,6 +70,45 @@ func TestRuntimeImageColdPullChargeRefusesLowHostHeadroomWithoutRaisingRunCap(t 
 	d, lease, err := g.reserveRuntimeImage(context.Background(), p, management.ExecutionActorRef{Local: true}, management.ExecutionAuthority{}, executionFixturePolicy())
 	if err != nil || d.State != "admitted" || lease.AdmissionMemoryMiB != 4096 {
 		t.Fatalf("warm capped build did not admit: %+v %+v %v", d, lease, err)
+	}
+}
+
+func TestPackagedRuntimeLoadAllowanceRefusesAndSurvivesReopen(t *testing.T) {
+	g := previewTestGate(t)
+	available := uint64(7 << 30)
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Execution.EngineID = httpCheckEngine
+		s.Execution.ImageVirtualSizeBytes = nil
+		s.Execution.DaemonDisk.AvailableBytes = executionPointer(uint64(64 << 30))
+		s.Host.Memory.EffectiveAvailableBytes = executionPointer(available)
+		return s
+	}
+	p := runtimeImagePrepared(g, "packaged-load")
+	p.Spec.Resources.MemoryMiB = 1024
+	p.AdmissionMemoryMiB = 4096 // verified 2 GiB archive + 1.5 GiB layers + 512 MiB daemon allowance
+	p.Bundle = &runtimeoci.Bundle{}
+	actor := management.ExecutionActorRef{Local: true}
+	policy := executionFixturePolicy()
+	d, _, err := g.reserveRuntimeImage(context.Background(), p, actor, management.ExecutionAuthority{}, policy)
+	if err != nil || d.Code != "memory_pressure" || d.Evidence.RequiredBytes != uint64(8<<30) || !strings.Contains(d.Message, "You can keep using Luci") {
+		t.Fatal("load staging pressure did not refuse before Docker effect", d, err)
+	}
+	if view := g.reservationObservation(context.Background()); view.Count != 0 {
+		t.Fatal("capacity refusal retained an unstarted charge", view)
+	}
+	available = 9 << 30
+	d, lease, err := g.reserveRuntimeImage(context.Background(), p, actor, management.ExecutionAuthority{}, policy)
+	if err != nil || d.State != "admitted" || lease.DistributionMode != "packaged" || lease.AdmissionMemoryMiB != 4096 || p.Spec.Resources.MemoryMiB != 1024 {
+		t.Fatal("import allowance changed worker limit or lease identity", d, lease, err)
+	}
+	lease, err = g.transitionRuntimeImage(context.Background(), lease, "building")
+	if err != nil || lease.ImportStage != "importing" {
+		t.Fatal("import phase did not retain exact charge", lease, err)
+	}
+	g = newExecutionAdmission(g.api)
+	if view := g.reservationObservation(context.Background()); view.Count != 1 || view.MemoryMiB != 4096 {
+		t.Fatal("restart dropped uncertain import allowance", view)
 	}
 }
 func TestRuntimeImageAfterPullChecksRemainingWorkButRetainsCompetingCharge(t *testing.T) {
