@@ -156,7 +156,37 @@ type reuseReceipt struct {
 type Bundle struct {
 	Manifest            Manifest
 	Archive             *os.File
+	ManifestSHA256      string
 	SourceReceiptSHA256 string
+}
+
+type CompanionMarker struct {
+	Version                      int    `json:"version"`
+	Kind                         string `json:"kind"`
+	SourceCommit                 string `json:"sourceCommit"`
+	ManifestSHA256               string `json:"manifestSHA256"`
+	ArchiveSHA256                string `json:"archiveSHA256"`
+	ArchiveBytes                 int64  `json:"archiveBytes"`
+	FileName                     string `json:"fileName"`
+	OrdinaryLocalInstall         string `json:"ordinaryLocalInstall"`
+	AutomaticSourceBuildFallback bool   `json:"automaticSourceBuildFallback"`
+}
+
+// VerifyCompanionMarker binds the core's fixed marker to the held, verified
+// outer payload. A marker or archive alone grants no install authority.
+func VerifyCompanionMarker(data []byte, bundle *Bundle) error {
+	if bundle == nil || len(data) == 0 || len(data) > 4096 {
+		return errors.New("runtime companion marker unavailable or oversized")
+	}
+	var fields map[string]json.RawMessage
+	if err := decodeStrict(data, &fields); err != nil || len(fields) != 9 || !bytes.Equal(bytes.TrimSpace(fields["automaticSourceBuildFallback"]), []byte("false")) {
+		return errors.New("runtime companion marker fields invalid")
+	}
+	var marker CompanionMarker
+	if err := decodeStrict(data, &marker); err != nil || marker.Version != 1 || marker.Kind != "luci-runtime-companion-required" || marker.SourceCommit != bundle.Manifest.SourceCommit || marker.ManifestSHA256 != bundle.ManifestSHA256 || marker.ArchiveSHA256 != bundle.Manifest.Archive.SHA256 || marker.ArchiveBytes != bundle.Manifest.Archive.Bytes || marker.FileName != bundle.Manifest.Archive.FileName || marker.OrdinaryLocalInstall != "requires-verified-companion" || marker.AutomaticSourceBuildFallback {
+		return errors.New("runtime companion marker does not match installed payload")
+	}
+	return nil
 }
 
 func (b *Bundle) Close() error {
@@ -525,7 +555,7 @@ func Open(root string) (*Bundle, error) {
 		f.Close()
 		return nil, errors.New("runtime archive changed")
 	}
-	b := &Bundle{Manifest: m, Archive: f, SourceReceiptSHA256: sumHex(sourceBytes)}
+	b := &Bundle{Manifest: m, Archive: f, ManifestSHA256: sumHex(manifestBytes), SourceReceiptSHA256: sumHex(sourceBytes)}
 	if err = b.verifyArchive(); err != nil {
 		b.Close()
 		return nil, err

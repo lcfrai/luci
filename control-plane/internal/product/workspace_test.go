@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeoci"
 )
 
 func workspaceTunnel(s *Server, remote string) *Tunnel {
@@ -526,11 +527,16 @@ func TestCloudWorkspaceInstallRequiresAcknowledgementBundleAndVerifiedTransfer(t
 	tunnel := workspaceTunnel(s, remote.URL)
 	var calls atomic.Int32
 	var failInstall atomic.Bool
-	var transferArgs, installArgs []string
+	var failPayload atomic.Bool
+	var transferArgs [][]string
+	var installArgs []string
 	s.runner = func(_ context.Context, exe string, args []string, _ string) (string, error) {
 		calls.Add(1)
 		if exe == "scp" {
-			transferArgs = append([]string{}, args...)
+			transferArgs = append(transferArgs, append([]string{}, args...))
+			if failPayload.Load() && strings.Contains(args[len(args)-1], ".runtime-image-linux-amd64.tar") {
+				return "", errors.New("fixture lost companion transfer acknowledgement")
+			}
 			return "", nil
 		}
 		if exe == "ssh" {
@@ -550,21 +556,60 @@ func TestCloudWorkspaceInstallRequiresAcknowledgementBundleAndVerifiedTransfer(t
 		t.Fatal("read, missing bundle or unacknowledged request launched SSH/SCP")
 	}
 	s.cloudBundle = cloudWorkspaceBundle(t)
+	journeyRequest(t, mux, "POST", path, map[string]bool{"acknowledgeInstall": true}, 503)
+	if calls.Load() != 0 {
+		t.Fatal("missing companion caused a remote command")
+	}
+	payload := filepath.Join(t.TempDir(), "runtime-image-linux-amd64.tar")
+	payloadBytes := []byte("synthetic held runtime payload")
+	metadata := filepath.Join(t.TempDir(), "runtime-metadata.tar")
+	metadataBytes := []byte("synthetic verified runtime metadata")
+	if err := os.WriteFile(payload, payloadBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(metadata, metadataBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
+	s.workspaceCompanionOpen = func() (*workspaceCompanion, error) {
+		core, err := os.Open(s.cloudBundle)
+		if err != nil {
+			return nil, err
+		}
+		archive, err := os.Open(payload)
+		if err != nil {
+			core.Close()
+			return nil, err
+		}
+		meta, err := os.Open(metadata)
+		if err != nil {
+			core.Close()
+			archive.Close()
+			return nil, err
+		}
+		coreBytes, err := os.ReadFile(s.cloudBundle)
+		if err != nil {
+			core.Close()
+			archive.Close()
+			meta.Close()
+			return nil, err
+		}
+		return &workspaceCompanion{core: core, metadata: meta, bundle: &runtimeoci.Bundle{Archive: archive}, coreHash: hashWorkspaceBytes(coreBytes), coreSize: int64(len(coreBytes)), metadataHash: hashWorkspaceBytes(metadataBytes), metadataSize: int64(len(metadataBytes)), payloadHash: hashWorkspaceBytes(payloadBytes), payloadSize: int64(len(payloadBytes)), payloadFileName: "runtime-image-linux-amd64.tar", markerHash: strings.Repeat("a", 64), verifyArchive: func() error { return nil }}, nil
+	}
 	w := journeyRequest(t, mux, "POST", path, map[string]bool{"acknowledgeInstall": true}, 202)
 	var accepted WorkspaceInstall
 	_ = json.Unmarshal(w.Body.Bytes(), &accepted)
 	job := awaitWorkspaceInstall(t, s, accepted.ID)
-	if job.Status != "ready" || calls.Load() != 2 {
+	if job.Status != "ready" || calls.Load() != 4 {
 		t.Fatalf("verified installation did not become ready: %#v", job)
 	}
-	for _, args := range [][]string{transferArgs, installArgs} {
+	for _, args := range append(transferArgs, installArgs) {
 		joined := strings.Join(args, "\n")
 		if !strings.Contains(joined, "StrictHostKeyChecking=yes") || !strings.Contains(joined, "UserKnownHostsFile="+tunnel.KnownHostsPath) || !strings.Contains(joined, "BatchMode=yes") {
 			t.Fatal("installation did not use pinned noninteractive SSH")
 		}
 	}
-	if transferArgs[len(transferArgs)-2] != s.cloudBundle || !strings.HasSuffix(transferArgs[len(transferArgs)-1], "/"+accepted.ID+".tar.gz") {
-		t.Fatal("transfer did not use the bundled archive and unique destination")
+	if len(transferArgs) != 3 || !strings.HasSuffix(transferArgs[0][len(transferArgs[0])-2], ".part") || !strings.HasSuffix(transferArgs[0][len(transferArgs[0])-1], "/"+accepted.ID+".tar.gz") || !strings.HasSuffix(transferArgs[1][len(transferArgs[1])-1], "/"+accepted.ID+".runtime-metadata.tar") || !strings.HasSuffix(transferArgs[2][len(transferArgs[2])-1], "/"+accepted.ID+".runtime-image-linux-amd64.tar") {
+		t.Fatal("transfer did not stage both verified archives at unique destinations", transferArgs)
 	}
 	bundle, err := os.ReadFile(s.cloudBundle)
 	if err != nil {
@@ -572,7 +617,7 @@ func TestCloudWorkspaceInstallRequiresAcknowledgementBundleAndVerifiedTransfer(t
 	}
 	sum := sha256.Sum256(bundle)
 	script := installArgs[len(installArgs)-1]
-	if !strings.Contains(script, hex.EncodeToString(sum[:])) || !strings.Contains(script, "sha256sum --check") || !strings.Contains(script, "LUCI_ADDR=127.0.0.1:8730") {
+	if strings.Contains(script, "%!") || !strings.Contains(script, hex.EncodeToString(sum[:])) || !strings.Contains(script, hashWorkspaceBytes(metadataBytes)) || !strings.Contains(script, hashWorkspaceBytes(payloadBytes)) || !strings.Contains(script, strings.Repeat("a", 64)) || !strings.Contains(script, "sha256sum --check") || !strings.Contains(script, "LUCI_ADDR=127.0.0.1:8730") {
 		t.Fatal("remote installation omitted integrity verification or loopback binding")
 	}
 	if !strings.Contains(script, "install -d -m 755 /opt/luci /opt/luci/releases /opt/luci/releases/"+accepted.ID) || !strings.Contains(script, "User="+tunnel.Request.User+"\n") || !strings.Contains(script, "install -d -m 700 -o "+tunnel.Request.User+" /home/"+tunnel.Request.User+"/projects /home/"+tunnel.Request.User+"/.local/state/luci") || !strings.Contains(script, "UMask=0077") {
@@ -581,7 +626,34 @@ func TestCloudWorkspaceInstallRequiresAcknowledgementBundleAndVerifiedTransfer(t
 	failInstall.Store(true)
 	w = journeyRequest(t, mux, "POST", path, map[string]bool{"acknowledgeInstall": true}, 202)
 	_ = json.Unmarshal(w.Body.Bytes(), &accepted)
-	if job = awaitWorkspaceInstall(t, s, accepted.ID); job.Status != "failed" {
-		t.Fatal("SSH installation failure was labelled successful")
+	if job = awaitWorkspaceInstall(t, s, accepted.ID); job.Status != "unknown" {
+		t.Fatal("SSH installation uncertainty was cleared")
+	}
+	before := calls.Load()
+	w = journeyRequest(t, mux, "POST", path, map[string]bool{"acknowledgeInstall": true}, 200)
+	var retained WorkspaceInstall
+	_ = json.Unmarshal(w.Body.Bytes(), &retained)
+	if retained.ID != accepted.ID || calls.Load() != before {
+		t.Fatal("unknown installation was replayed")
+	}
+	failInstall.Store(false)
+	tunnel = workspaceTunnel(s, remote.URL)
+	s.mu.Lock()
+	delete(s.tunnels, tunnel.ID)
+	tunnel.ID = "tunnel-second"
+	s.tunnels[tunnel.ID] = tunnel
+	s.mu.Unlock()
+	path = "/v1/setup/ssh/connections/" + tunnel.ID + "/install-luci"
+	failPayload.Store(true)
+	w = journeyRequest(t, mux, "POST", path, map[string]bool{"acknowledgeInstall": true}, 202)
+	_ = json.Unmarshal(w.Body.Bytes(), &accepted)
+	if job = awaitWorkspaceInstall(t, s, accepted.ID); job.Status != "unknown" {
+		t.Fatal("lost companion transfer acknowledgement was cleared")
+	}
+	before = calls.Load()
+	w = journeyRequest(t, mux, "POST", path, map[string]bool{"acknowledgeInstall": true}, 200)
+	_ = json.Unmarshal(w.Body.Bytes(), &retained)
+	if retained.ID != accepted.ID || calls.Load() != before {
+		t.Fatal("lost companion transfer was replayed")
 	}
 }

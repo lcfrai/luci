@@ -138,6 +138,28 @@ func TestBundleEquivalentInputReuseRequiresExactPriorBytes(t *testing.T) {
 	}
 }
 
+func TestBundleCompanionMarkerBindsExactInstalledPayload(t *testing.T) {
+	root, m := fixtureBundle(t, false)
+	b, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	marker := map[string]any{"version": 1, "kind": "luci-runtime-companion-required", "sourceCommit": m.SourceCommit, "manifestSHA256": b.ManifestSHA256, "archiveSHA256": m.Archive.SHA256, "archiveBytes": m.Archive.Bytes, "fileName": m.Archive.FileName, "ordinaryLocalInstall": "requires-verified-companion", "automaticSourceBuildFallback": false}
+	if err := VerifyCompanionMarker(fixtureJSON(t, marker), b); err != nil {
+		t.Fatal(err)
+	}
+	marker["archiveBytes"] = m.Archive.Bytes + 1
+	if VerifyCompanionMarker(fixtureJSON(t, marker), b) == nil {
+		t.Fatal("wrong archive length accepted")
+	}
+	marker["archiveBytes"] = m.Archive.Bytes
+	marker["automaticSourceBuildFallback"] = nil
+	if VerifyCompanionMarker(fixtureJSON(t, marker), b) == nil {
+		t.Fatal("null fallback accepted")
+	}
+}
+
 func TestBundleRequiresExactSourceReceiptFieldsAndUnlinkedLicenceTree(t *testing.T) {
 	root, m := fixtureBundle(t, false)
 	fixtureWrite(t, root, "source-receipt.json", fixtureJSON(t, map[string]any{"version": 1, "sourceCommit": m.SourceCommit}))

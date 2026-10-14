@@ -105,6 +105,7 @@ type Server struct {
 	cloudDataBindings               func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
 	browserRegistry                 *previewgateway.Registry
 	cloudBundle                     string
+	workspaceCompanionOpen          func() (*workspaceCompanion, error)
 	workspace                       Workspace
 	workspaceInstalls               map[string]WorkspaceInstall
 	workspaceCancel                 context.CancelFunc

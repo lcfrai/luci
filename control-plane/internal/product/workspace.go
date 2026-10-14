@@ -3,9 +3,7 @@ package product
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -373,7 +371,7 @@ func (s *Server) installCloudWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, j := range s.workspaceInstalls {
-		if j.ConnectionID == t.ID && j.Status == "installing" {
+		if j.ConnectionID == t.ID && (j.Status == "installing" || j.Status == "unknown") {
 			s.mu.Unlock()
 			writeJSON(w, 200, j)
 			return
@@ -384,6 +382,14 @@ func (s *Server) installCloudWorkspace(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 		problem(w, 503, "bundle_unavailable", "This build does not contain the cloud runtime bundle. Install an official packaged Luci build.")
 		return
+	}
+	if s.workspaceCompanionOpen == nil {
+		payload, payloadErr := os.Lstat(filepath.Join(s.runtimeDir, "runtime-image-linux-amd64.tar"))
+		if payloadErr != nil || !payload.Mode().IsRegular() || payload.Size() < 1 || payload.Size() > 8<<30 {
+			s.mu.Unlock()
+			problem(w, 503, "runtime_companion_required", "This installation lacks its verified runtime image companion. Install the complete matching Luci package before transferring a workspace; the source build will not start automatically.")
+			return
+		}
 	}
 	job := WorkspaceInstall{ID: newID("install-"), ConnectionID: t.ID, Status: "installing", Message: "Transferring the bundled runtime through verified SSH.", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 	s.workspaceInstalls[job.ID] = job
@@ -410,34 +416,75 @@ func (s *Server) finishWorkspaceInstall(job WorkspaceInstall, status, message st
 func (s *Server) installWorkspace(job WorkspaceInstall, t Tunnel) {
 	ctx, cancel := context.WithTimeout(s.workspaceContext, 15*time.Minute)
 	defer cancel()
-	file, err := os.Open(s.cloudBundle)
+	open := s.workspaceCompanionOpen
+	if open == nil {
+		open = s.openWorkspaceCompanion
+	}
+	companion, err := open()
 	if err != nil {
-		s.finishWorkspaceInstall(job, "failed", "Could not read the cloud runtime bundle.")
+		s.finishWorkspaceInstall(job, "failed", "The Linux core and its source-bound runtime companion could not be verified. Reinstall the complete matching Luci package before retrying.")
 		return
 	}
-	hash := sha256.New()
-	_, err = io.Copy(hash, file)
-	file.Close()
-	if err != nil {
-		s.finishWorkspaceInstall(job, "failed", "Could not verify the runtime bundle.")
+	defer companion.close()
+	if companion.core == nil || companion.metadata == nil || companion.bundle == nil || companion.bundle.Archive == nil || companion.verifyArchive == nil || companion.verifyArchive() != nil || companion.payloadFileName != "runtime-image-linux-amd64.tar" {
+		s.finishWorkspaceInstall(job, "failed", "The runtime companion changed before transfer. No remote installation started.")
 		return
 	}
-	checksum := hex.EncodeToString(hash.Sum(nil))
+	stagingDir := filepath.Join(s.stateDir, "workspace-transfer-staging")
+	coreStaged, err := stageWorkspaceFile(ctx, companion.core, companion.coreSize, companion.coreHash, stagingDir, job.ID+"-core")
+	if err != nil {
+		s.finishWorkspaceInstall(job, "failed", "Could not stage the verified Linux core. No remote installation started.")
+		return
+	}
+	defer os.Remove(coreStaged)
+	metadataStaged, err := stageWorkspaceFile(ctx, companion.metadata, companion.metadataSize, companion.metadataHash, stagingDir, job.ID+"-metadata")
+	if err != nil {
+		s.finishWorkspaceInstall(job, "failed", "Could not stage the verified runtime metadata. No remote installation started.")
+		return
+	}
+	defer os.Remove(metadataStaged)
+	payloadStaged, err := stageWorkspaceFile(ctx, companion.bundle.Archive, companion.payloadSize, companion.payloadHash, stagingDir, job.ID+"-runtime")
+	if err != nil {
+		s.finishWorkspaceInstall(job, "failed", "Could not stage the verified runtime companion. No remote installation started.")
+		return
+	}
+	defer os.Remove(payloadStaged)
 	destination := "/home/" + t.Request.User + "/" + job.ID + ".tar.gz"
+	metadataDestination := "/home/" + t.Request.User + "/" + job.ID + ".runtime-metadata.tar"
+	payloadDestination := "/home/" + t.Request.User + "/" + job.ID + ".runtime-image-linux-amd64.tar"
 	args := sshArguments(t, true)
 	host := t.Request.Host
 	if net.ParseIP(host) != nil && strings.Contains(host, ":") {
 		host = "[" + host + "]"
 	}
-	args = append(args, s.cloudBundle, t.Request.User+"@"+host+":"+destination)
+	args = append(args, coreStaged, t.Request.User+"@"+host+":"+destination)
 	if _, err = s.runner(ctx, "scp", args, ""); err != nil {
-		s.finishWorkspaceInstall(job, "failed", "Transfer failed. Check the SSH connection and available server disk space.")
+		s.finishWorkspaceInstall(job, "unknown", "The Linux core transfer did not confirm completion. Inspect only this installation's remote temporary files before retrying.")
+		return
+	}
+	args = sshArguments(t, true)
+	args = append(args, metadataStaged, t.Request.User+"@"+host+":"+metadataDestination)
+	if _, err = s.runner(ctx, "scp", args, ""); err != nil {
+		s.finishWorkspaceInstall(job, "unknown", "The runtime metadata transfer did not confirm completion. Inspect only this installation's remote temporary files before retrying.")
+		return
+	}
+	args = sshArguments(t, true)
+	args = append(args, payloadStaged, t.Request.User+"@"+host+":"+payloadDestination)
+	if _, err = s.runner(ctx, "scp", args, ""); err != nil {
+		s.finishWorkspaceInstall(job, "unknown", "The Linux core transfer completed, but the runtime companion transfer did not confirm completion. Inspect only this installation's remote temporary files before retrying.")
 		return
 	}
 	script := fmt.Sprintf(`set -euo pipefail
 printf '%%s  %%s\n' '%s' '%s' | sha256sum --check --status
+printf '%%s  %%s\n' '%s' '%s' | sha256sum --check --status
+printf '%%s  %%s\n' '%s' '%s' | sha256sum --check --status
+test "$(stat -c %%s -- '%s')" = '%d'
 install -d -m 755 /opt/luci /opt/luci/releases /opt/luci/releases/%s
 tar --extract --gzip --file '%s' --directory /opt/luci/releases/%s --no-same-owner
+printf '%%s  %%s\n' '%s' '/opt/luci/releases/%s/runtime/runtime-payload-companion.json' | sha256sum --check --status
+tar --extract --file '%s' --directory /opt/luci/releases/%s --no-same-owner
+install -m 644 -- '%s' '/opt/luci/releases/%s/runtime/runtime-image-linux-amd64.tar'
+printf '%%s  %%s\n' '%s' '/opt/luci/releases/%s/runtime/runtime-image-linux-amd64.tar' | sha256sum --check --status
 chmod 755 /opt/luci/releases/%s/luci
 ln -sfn /opt/luci/releases/%s /opt/luci/current
 cat > /etc/systemd/system/luci.service <<'UNIT'
@@ -464,11 +511,13 @@ systemctl daemon-reload
 systemctl enable luci
 systemctl restart luci
 rm -f -- '%s'
-`, checksum, destination, job.ID, destination, job.ID, job.ID, job.ID, t.Request.User, t.Request.User, t.Request.User, t.Request.User, t.Request.User, t.Request.User, t.Request.User, destination)
+rm -f -- '%s'
+rm -f -- '%s'
+`, companion.coreHash, destination, companion.metadataHash, metadataDestination, companion.payloadHash, payloadDestination, payloadDestination, companion.payloadSize, job.ID, destination, job.ID, companion.markerHash, job.ID, metadataDestination, job.ID, payloadDestination, job.ID, companion.payloadHash, job.ID, job.ID, job.ID, t.Request.User, t.Request.User, t.Request.User, t.Request.User, t.Request.User, t.Request.User, t.Request.User, destination, metadataDestination, payloadDestination)
 	args = sshArguments(t, false)
 	args = append(args, t.Request.User+"@"+t.Request.Host, "sudo -n /usr/bin/bash -c "+shellQuote(script))
 	if _, err = s.runner(ctx, "ssh", args, ""); err != nil {
-		s.finishWorkspaceInstall(job, "failed", "Installation failed. The SSH account needs sudo access; inspect the selected server before retrying.")
+		s.finishWorkspaceInstall(job, "unknown", "Remote installation did not confirm completion. Inspect the selected server and its service before retrying.")
 		return
 	}
 	ticker := time.NewTicker(time.Second)
