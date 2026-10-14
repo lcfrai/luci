@@ -28,12 +28,13 @@ const sshFingerprint = "SHA256:" + btoa(String.fromCharCode(...sshFingerprintByt
 const descriptor: AzureConnectionDescriptor = {
   version: 1, state: "host_identity_observed_private_route_unverified", sourceCommit: plan.sourceCommit,
   scope: "luci-123456789abc", generation: "gen-123456789abc",
-  controllerResourceID: `/subscriptions/${"a".repeat(8)}-${"a".repeat(4)}-${"a".repeat(4)}-${"a".repeat(4)}-${"a".repeat(12)}/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/luci-controller`,
+  controllerResourceID: `/subscriptions/${"a".repeat(8)}-${"a".repeat(4)}-${"a".repeat(4)}-${"a".repeat(4)}-${"a".repeat(12)}/resourcegroups/rg/providers/microsoft.compute/virtualmachines/luci-controller`,
+  dataDiskID: `/subscriptions/${"a".repeat(8)}-${"a".repeat(4)}-${"a".repeat(4)}-${"a".repeat(4)}-${"a".repeat(12)}/resourcegroups/rg/providers/microsoft.compute/disks/luci-controller`,
   vmID: "a".repeat(8) + "-" + "a".repeat(4) + "-" + "a".repeat(4) + "-" + "a".repeat(4) + "-" + "a".repeat(12),
   bootID: "b".repeat(8) + "-" + "b".repeat(4) + "-" + "b".repeat(4) + "-" + "b".repeat(4) + "-" + "b".repeat(12),
   host: "10.0.1.10", port: 22, user: "luci", hostKey: "ssh-ed25519 " + btoa(String.fromCharCode(...sshKey)),
   fingerprint: sshFingerprint, productAPI: "http://127.0.0.1:8730", readbackDigest: "a".repeat(64), connected: false,
-  selectionDigest: "b".repeat(64), bundleDigest: "c".repeat(64),
+  selectionDigest: "b".repeat(64), bundleDigest: "c".repeat(64), observedAtUTC: "2026-10-14T03:00:00.123456Z",
 };
 const progress = { version: 1, sourceCommit: plan.sourceCommit, scope: descriptor.scope, selectionDigest: descriptor.selectionDigest,
   stages: ["credentials", "images", "runtime-gallery", "controller-gallery", "infrastructure", "connection", "retirement"].map(id => ({ id, state: id === "connection" ? "host_identity_readback_pending" : "not_started", uncertain: id === "connection", receiptPath: "/private/receipt.json" })),
@@ -94,6 +95,8 @@ it("bounds and validates nonsecret controller/progress receipts before any SSH e
   await expect(readAzureConnectionDescriptor(new File(["x".repeat(16385)], "too-large.json"), plan)).rejects.toThrow(/too large/);
   await expect(readAzureConnectionDescriptor(new File([JSON.stringify({ ...descriptor, host: "8.8.8.8" })], "public.json"), plan)).rejects.toThrow(/private host contract/);
   await expect(readAzureConnectionDescriptor(new File([JSON.stringify({ ...descriptor, fingerprint: "SHA256:wrong" })], "wrong-key.json"), plan)).rejects.toThrow(/differs/);
+  await expect(readAzureConnectionDescriptor(new File([JSON.stringify({ ...descriptor, dataDiskID: "" })], "missing-disk.json"), plan)).rejects.toThrow(/private host contract/);
+  await expect(readAzureConnectionDescriptor(new File([JSON.stringify({ ...descriptor, observedAtUTC: "yesterday" })], "bad-time.json"), plan)).rejects.toThrow(/private host contract/);
   await expect(readAzureSetupProgress(new File([JSON.stringify({ ...progress, selectionDigest: "d".repeat(64) })], "stale.json"), plan, descriptor)).rejects.toThrow(/stale/);
 });
 
@@ -108,6 +111,15 @@ it("imports a private controller receipt into protected SSH inspection without i
   expect(screen.getByLabelText("Private key path")).toHaveProperty("value", "");
   expect(f.fetcher.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual(["/v1/setup/cloud/azure/plan", "/v1/setup/ssh/connections"]);
   await f.user.click(screen.getByRole("button", { name: "Inspect server fingerprint" }));
+  const inspect = f.fetcher.mock.calls.find(([url]) => new URL(String(url)).pathname === "/v1/setup/ssh/inspect");
+  expect(JSON.parse(String(inspect?.[1]?.body))).toMatchObject({
+    host: descriptor.host, port: 22, user: "luci", privateKeyPath: "",
+    azureIdentity: {
+      sourceCommit: descriptor.sourceCommit, scope: descriptor.scope, generation: descriptor.generation,
+      controllerResourceID: descriptor.controllerResourceID, dataDiskID: descriptor.dataDiskID,
+      bootID: descriptor.bootID, fingerprint: descriptor.fingerprint,
+    },
+  });
   expect(await screen.findByRole("checkbox", { name: /host key shown by my authenticated Azure setup command/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Trust and connect" })).toHaveProperty("disabled", true);
   expect(f.fetcher.mock.calls.map(([url]) => new URL(String(url)).pathname)).not.toContain("/v1/setup/ssh/connect");
