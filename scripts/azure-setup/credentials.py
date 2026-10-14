@@ -136,12 +136,14 @@ def _generate_material(root, scope, generation, gateway, atomic_json, retained=N
         cert.chmod(0o600)
         csr.unlink()
         ext.unlink()
-    save(root / "team-api.txt", (team_api_key() + "\n").encode())
-    save(root / "admin-token.txt", (secrets.token_hex(32) + "\n").encode())
-    save(root / "sandbox-seed.txt", (secrets.token_hex(32) + "\n").encode())
-    save(root / "attach-key.txt", (secrets.token_hex(32) + "\n").encode())
-    for kind, value in (retained or {}).items():
-        save(root / MATERIAL[kind], value['data'])
+    for kind in ('team-api', 'admin-token', 'sandbox-seed', 'attach-key'):
+        # Select bytes before the exclusive create. A successor never writes
+        # a random replacement and then weakens save() to overwrite it.
+        if kind in (retained or {}):
+            data = retained[kind]['data']
+        else:
+            data = ((team_api_key() if kind == 'team-api' else secrets.token_hex(32)) + '\n').encode()
+        save(root / MATERIAL[kind], data)
     files = {kind: sha(private_file(root / filename)) for kind, filename in MATERIAL.items()}
     manifest = {"version": 1, "state": "generated_unpublished", "scope": scope, "generation": generation,
                 "files": files, "names": {kind: scope + "-" + suffix for kind, suffix in
