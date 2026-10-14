@@ -1371,6 +1371,18 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	if a.deps.Backend.Kind() == backend.KindDocker {
 		nativeDockerEndpoint(sandboxEnv)
 	}
+	if harnessID == harness.OpenCode {
+		if implementationContext != nil {
+			if err := clearReviewedOpenCodeInstructions(sandboxEnv); err != nil {
+				httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
+				return
+			}
+		}
+		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend); err != nil {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
+			return
+		}
+	}
 	argv = nativeArgs(string(harnessID), argv, sandboxEnv, req.AuthOnly)
 	nativeSandboxEnvironment(sandboxEnv)
 
@@ -2204,6 +2216,18 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	args = codexSubscriptionArgs(args, sandboxEnv, authMode)
 	if a.deps.Backend.Kind() == backend.KindDocker {
 		nativeDockerEndpoint(sandboxEnv)
+	}
+	if sess.Harness == string(harness.OpenCode) {
+		if sess.ImplementationContext != nil {
+			if err := clearReviewedOpenCodeInstructions(sandboxEnv); err != nil {
+				httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
+				return
+			}
+		}
+		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend); err != nil {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
+			return
+		}
 	}
 	args = nativeArgs(sess.Harness, args, sandboxEnv, false)
 	nativeSandboxEnvironment(sandboxEnv)

@@ -1,0 +1,83 @@
+{
+  "kind": "source-only-local060-evidence",
+  "dateBrisbane": "2026-10-15",
+  "upstreamTag": "v1.18.34",
+  "upstreamCommit": "aec0b9a6d8898f68f923aaf08b7306d931fd9d76",
+  "sources": [
+    {
+      "url": "https://github.com/anomalyco/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/provider/provider.ts#L1610",
+      "file": "packages/opencode/src/provider/provider.ts",
+      "sha256": "9fb8958a521bbc5a70e5e6d4ecb130149115fe891fb78bca0ae73a966b9f547a",
+      "lines": "1610-1612",
+      "finding": "Custom model context and output limits fall back to zero without configured or catalogued limits."
+    },
+    {
+      "url": "https://github.com/anomalyco/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/overflow.ts#L10",
+      "file": "packages/opencode/src/session/overflow.ts",
+      "sha256": "fa0d52e8a59b737e8129d6473f9f6416567cd765c6068f854e4ea0dd3d351d10",
+      "lines": "10-33",
+      "finding": "Zero context disables overflow; otherwise usable context subtracts max output tokens and compares the finished step token count."
+    },
+    {
+      "url": "https://github.com/anomalyco/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/provider/transform.ts#L1481",
+      "file": "packages/opencode/src/provider/transform.ts",
+      "sha256": "ddfea009d85f61172d056216addeeabd920cd368d4d27b2f652629f7e3bcb0d2",
+      "lines": "1481-1483",
+      "finding": "The configured output limit becomes the maximum output reservation when below the global maximum."
+    },
+    {
+      "url": "https://github.com/anomalyco/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/processor.ts#L491",
+      "file": "packages/opencode/src/session/processor.ts",
+      "sha256": "0b31e207beda56bd9a4b9b88c9e42d89a0651dd011773748c8e2938dfc3dcb74",
+      "lines": "491-497",
+      "finding": "Checks overflow after a completed step and flags compaction."
+    },
+    {
+      "url": "https://github.com/anomalyco/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/prompt.ts#L1161",
+      "file": "packages/opencode/src/session/prompt.ts",
+      "sha256": "f0c5bc64c0f0e966693d4a57f7ede1e9d6e188b396152f04b55303dc75b9b768",
+      "lines": "1161-1167",
+      "finding": "Checks prior finished step and creates compaction before the next model turn."
+    },
+    {
+      "url": "https://github.com/anomalyco/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/instruction.ts#L122",
+      "file": "packages/opencode/src/session/instruction.ts",
+      "sha256": "fee79c023eae44f720d4d600f334a987ad5f7615c4a008a20c89131a92684a8f",
+      "lines": "122-150",
+      "finding": "Configured relative instructions load matching project files in addition to standard instruction discovery."
+    }
+  ],
+  "calculation": {
+    "configuredAliasNumCtx": 8192,
+    "declaredOutputReservation": 2048,
+    "usableContextAfterCorrection": 6144,
+    "observedFirstInputTokens": 8008,
+    "interpretation": "The first reported input already exceeds the corrected overflow threshold; pinned OpenCode can compact only after that step completes. This does not prove server truncation or model quality."
+  },
+  "retainedWindowsReceipt": {
+    "path": "E:/Luci-local-acceptance/evidence/local-develop-7c080f9f-coding-cap-pdh-20261015/local060-context-limit-compaction-evidence.json",
+    "sha256": "3df3933925ef8d16a82fe79bae80331900c508cbb65f8b2aec1ed78db6eec6dc",
+    "limits": "No resolved provider object, loaded context, or server-side truncation observation was retained."
+  },
+  "newPreflight": {
+    "createTrigger": "bound implementationContext != nil, including projectRunId null",
+    "restartTrigger": "stored session.ImplementationContext != nil after captured bundle verification",
+    "order": "After session execution reservation and endpoint rewrite, before session record, reviewed bundle copy, Docker sandbox create or old sandbox destroy on restart.",
+    "dockerRead": "backend LaunchFenceIdentity -> dockerbe.Backend.api.Info through the configured Docker SDK client; checks selected local socket/npipe and engine identity. This is one new selected-engine Info read per qualifying local session start/restart; it does not call docker CLI, docker system dial-stdio, or producer engine_info.read. The added identity call now receives a child context with a two-second deadline and respects prior caller cancellation; a timeout refuses before the model read or dispatch.",
+    "modelRead": "bounded two-second HTTP POST to host loopback Ollama /api/show for the exact saved alias; no generation, model load, credentials, or Docker mutation.",
+    "gate": "Do not execute local test while LOCAL-047 selected-context transport hold remains; root must assess these additional reads first."
+  },
+  "providerAnchorVerification": {
+    "method": "GitHub Contents API and raw commit URL independently returned identical bytes",
+    "commit": "aec0b9a6d8898f68f923aaf08b7306d931fd9d76",
+    "path": "packages/opencode/src/provider/provider.ts",
+    "gitBlob": "97f83bb51d1c6ffb6eca2605b40fcfd6116fb774",
+    "sha256": "9fb8958a521bbc5a70e5e6d4ecb130149115fe891fb78bca0ae73a966b9f547a",
+    "actualLimitDefaultLines": [
+      1610,
+      1611,
+      1612
+    ],
+    "suggestedLines1513To1515": "These lines select the provider and auth; they do not set model limits. The source anchor remains 1610-1612."
+  }
+}
