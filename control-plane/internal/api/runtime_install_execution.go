@@ -413,7 +413,7 @@ func (a *API) reconcileRuntimeImage(ctx context.Context, id runtimeinstall.Ident
 		out.ResourcesHeld = true
 		switch lease.EngineRecoveryStage {
 		case "watching":
-			out.ReasonCode, out.Message = "runtime_engine_retirement_watch", "The exact build remains charged. A bounded observer is watching for the selected Docker Desktop engine to stop; Luci will not restart it or touch unrelated work."
+			out.ReasonCode, out.Message = "runtime_engine_retirement_watch", "The exact build remains charged. Its selected Docker Desktop engine must be observed stopping during a bounded watch; check again to renew the watch before any later controlled restart. Luci will not restart it or touch unrelated work."
 		case "stopped":
 			out.ReasonCode, out.Message = "runtime_engine_stopped", "The selected Docker Desktop engine was observed stopped. Restore it, then reconcile this exact job for owned output and charge settlement."
 		default:
