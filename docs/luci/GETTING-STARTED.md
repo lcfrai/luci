@@ -29,6 +29,6 @@ You can request changes in the conversation and switch between projects while wo
 
 Close the portable launch terminal when finished. Your project files and Luci state live outside the extracted application folder. Before an update, stop the old launcher and back up both. Extract the new package into a separate folder, then launch it; do not overwrite a running installation.
 
-If another service occupies the default port, use the package's `Start-Luci.ps1 -Port 8731` from PowerShell with a free port. A package-identity warning means a different package is already using that workspace: close its launcher before trying the new package. It does not mean your projects need resetting.
+If another service occupies the default port, run `.\Start-Luci.ps1 -Port 8731` from the extracted package folder in PowerShell, using a free port. A package-identity warning means a different package is already using that workspace: close its launcher before trying the new package. It does not mean your projects need resetting.
 
 For build details, package integrity, licences and the limits of each candidate's testing, see the [release guide](RELEASE.md) and the notes attached to your exact download.
