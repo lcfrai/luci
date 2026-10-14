@@ -222,10 +222,18 @@ def prepare_effect(session, output, demand, assistance):
 def scoped_run(args, session, output, stdout_path, stderr_path, memory, timeout, script=None):
     """Observe the complete short-lived producer container, including cleanup."""
     with stdout_path.open('wb') as stdout, stderr_path.open('wb') as stderr:
-        process = subprocess.Popen(args, stdin=subprocess.PIPE if script is not None else subprocess.DEVNULL, stdout=stdout, stderr=stderr)
+        incoming = None
         if script is not None:
-            process.stdin.write(script)
-            process.stdin.close()
+            if len(script) > 4 << 20:
+                raise ValueError('source-controlled licence collector input exceeds bound')
+            source = output / 'license-collector-input.py'
+            source.write_bytes(script)
+            incoming = source.open('rb')
+        try:
+            process = subprocess.Popen(args, stdin=incoming if incoming is not None else subprocess.DEVNULL, stdout=stdout, stderr=stderr)
+        finally:
+            if incoming is not None:
+                incoming.close()
         deadline = time.monotonic() + timeout
         failure = None
         while process.poll() is None:
@@ -305,7 +313,8 @@ def export_image(image_id, session, output, assistance):
 
 def collect_licenses(repo, image_id, session, output):
     target = output / "licenses.tar"
-    script = Path(__file__).with_name("image_licenses.py").read_bytes()
+    from grant_fallbacks import load
+    script = ('SOURCE_GRANT_FALLBACKS = ' + repr(load(repo)) + '\n').encode('utf-8') + Path(__file__).with_name("image_licenses.py").read_bytes()
     args = ["docker", "run", "--rm", "--network", "none", "--memory", str(256 << 20), "--memory-swap", str(256 << 20), "--cpus", "1", "--label", SESSION_LABEL + "=" + session, "-i", "--entrypoint", "python3", image_id, "-"]
     exit_code = scoped_run(args, session, output, target, output / 'licenses.err.log', 256 << 20, 90, script)
     if exit_code or target.stat().st_size > 65 << 20:
@@ -401,6 +410,10 @@ def produce(repo, revision, output, assistance=False):
             raise
     assert_settled(session)
     image_id = (output / "image.id").read_text(encoding="utf-8").strip()
+    return finalize_image(repo, revision, output, session, inputs, bases, generated, argv, image_id, actions, assistance)
+
+
+def finalize_image(repo, revision, output, session, inputs, bases, generated, argv, image_id, actions, assistance, license_repo=None):
     inspected = json.loads(command(["docker", "image", "inspect", image_id]))[0]
     archive.config_policy({"os": inspected["Os"], "architecture": inspected["Architecture"], "config": inspected["Config"], "rootfs": {"type": "layers", "diff_ids": inspected["RootFS"]["Layers"]}})
     probes = []
@@ -408,7 +421,7 @@ def produce(repo, revision, output, assistance=False):
         actions += prepare_effect(session, output, 512 << 20, assistance)
         probes.append(probe(image_id, exe, version, tool, session, output))
     actions += prepare_effect(session, output, 256 << 20, assistance)
-    licenses = collect_licenses(repo, image_id, session, output)
+    licenses = collect_licenses(license_repo or repo, image_id, session, output)
     assert_settled(session)
     actions += prepare_effect(session, output, BUILD_MEMORY, assistance)
     actions += export_image(image_id, session, output, assistance)
