@@ -228,11 +228,8 @@ func buildWorkspaceMetadata(bundle *runtimeoci.Bundle, stagingDir string) (*os.F
 	for _, grant := range bundle.Manifest.Licenses {
 		wanted[grant.Path] = grant.SHA256
 	}
-	if err := os.MkdirAll(stagingDir, 0700); err != nil {
+	if err := prepareWorkspaceStagingDir(stagingDir); err != nil {
 		return nil, "", "", 0, err
-	}
-	if info, err := os.Lstat(stagingDir); err != nil || !info.IsDir() || info.Mode().Perm()&0077 != 0 {
-		return nil, "", "", 0, errors.New("private workspace staging directory unavailable")
 	}
 	file, err := os.CreateTemp(stagingDir, "verified-runtime-metadata-*.part")
 	if err != nil {
@@ -245,7 +242,7 @@ func buildWorkspaceMetadata(bundle *runtimeoci.Bundle, stagingDir string) (*os.F
 			_ = os.Remove(file.Name())
 		}
 	}()
-	if err = file.Chmod(0600); err != nil {
+	if err = restrictPrivateFile(file.Name()); err != nil {
 		return nil, "", "", 0, err
 	}
 	hash := sha256.New()
@@ -346,11 +343,8 @@ func stageWorkspaceFile(ctx context.Context, source *os.File, expectedSize int64
 	if info, err := source.Stat(); err != nil || !info.Mode().IsRegular() || info.Size() != expectedSize {
 		return "", errors.New("verified workspace file changed")
 	}
-	if err := os.MkdirAll(stagingDir, 0700); err != nil {
+	if err := prepareWorkspaceStagingDir(stagingDir); err != nil {
 		return "", err
-	}
-	if info, err := os.Lstat(stagingDir); err != nil || !info.IsDir() || info.Mode().Perm()&0077 != 0 {
-		return "", errors.New("private workspace staging directory unavailable")
 	}
 	staged, err := os.CreateTemp(stagingDir, prefix+"-*.part")
 	if err != nil {
@@ -364,7 +358,7 @@ func stageWorkspaceFile(ctx context.Context, source *os.File, expectedSize int64
 			_ = os.Remove(name)
 		}
 	}()
-	if err = staged.Chmod(0600); err != nil {
+	if err = restrictPrivateFile(staged.Name()); err != nil {
 		return "", err
 	}
 	if _, err = source.Seek(0, io.SeekStart); err != nil {
