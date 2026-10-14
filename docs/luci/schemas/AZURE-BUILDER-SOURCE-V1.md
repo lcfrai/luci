@@ -35,7 +35,8 @@ the commit. Luci selection: `LICENSE`, `NOTICE`, `go.work`, `go.work.sum`, all
 of `control-plane/`, `sandboxd/`, `images/microvm/`, `images/sandbox/`,
 `scripts/azure-controller-disk/`, `scripts/azure-embed-host/` (including
 `guest_registry.py` once committed),
-`third-party/licenses/openai-codex-0.160.0/`, plus
+`third-party/licenses/` (all source-bound original grant bytes, including
+the current Codex and any approved exact-version npm/OpenCode fallbacks), plus
 `scripts/runtime-oci/{image_licenses.py,grant_fallbacks.py,archive.py,common.py}`.
 The sandboxd selection retains vendored licence files and `vendor/modules.txt`.
 E2B selection: original `LICENSE` and `embed/compose/` at the pinned revision.

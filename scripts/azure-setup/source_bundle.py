@@ -29,7 +29,7 @@ HEX64 = re.compile(r'[0-9a-f]{64}\Z')
 SOURCE_FILES = ('LICENSE', 'NOTICE', 'go.work', 'go.work.sum')
 SOURCE_PREFIXES = ('control-plane/', 'sandboxd/', 'images/microvm/', 'images/sandbox/',
                    'scripts/azure-controller-disk/', 'scripts/azure-embed-host/',
-                   'third-party/licenses/openai-codex-0.160.0/')
+                   'third-party/licenses/')
 SOURCE_EXTRA = ('scripts/runtime-oci/image_licenses.py', 'scripts/runtime-oci/grant_fallbacks.py',
                 'scripts/runtime-oci/archive.py', 'scripts/runtime-oci/common.py')
 RUNTIME_FILES = ('LICENSE',)

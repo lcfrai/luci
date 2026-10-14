@@ -26,6 +26,7 @@ class SourceBundleTests(unittest.TestCase):
             'scripts/azure-embed-host/package.py': 'print("source")\n',
             'sandboxd/vendor/modules.txt': 'fixture modules\n',
             'third-party/licenses/openai-codex-0.160.0/LICENSE': 'original grant\n',
+            'third-party/licenses/opencode-exact/NOTICE': 'other original grant\n',
             'outside/ignored.txt': 'out of scope\n',
         })
         self.e2b = self.repository('e2b', {'LICENSE': 'E2B original licence\n',
@@ -68,6 +69,7 @@ class SourceBundleTests(unittest.TestCase):
             self.assertEqual(subprocess.check_output(['git', '-C', str(target), 'status', '--porcelain']), b'')
             self.assertFalse((target / ('outside' if role == 'luci' else 'other')).exists())
         self.assertEqual((result['luci'] / 'NOTICE').read_text(), 'NOTICE\n')
+        self.assertEqual((result['luci'] / 'third-party/licenses/opencode-exact/NOTICE').read_text(), 'other original grant\n')
 
     def test_changed_pack_and_manifest_refused(self):
         paths = self.collect()
