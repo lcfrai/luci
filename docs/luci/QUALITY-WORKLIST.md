@@ -1262,3 +1262,19 @@ The local tester reports a successful locked npm install and production TypeScri
 | CLOUD-081 | P1 / installed disk-refusal scope passed; cold installation open | Runtime image installer bypasses shared capacity and has no bounded cancel/close settlement. | Source-confirmed setup_tools.go background Docker build; no overload reproduction. Shared build admission, cancel and explicit outcome reconciliation integrated; installed577 disk refusal makes no Docker mutation or charge. Real cold build/cancel/recovery and Windows checks remain pending. |
 | CLOUD-082 | P1 / source and installed warm multistage scopes verified; cold/Windows pending | Standard project previews refuse missing declared Docker base images before admission, requiring manual Docker preparation. | Read-only base planning, admitted bounded pulls, immutable base pinning and per-mutation current Deploy/source/exact-lease checks integrated. Initial 186 race outcomes and compile-only pass predate the separate nine-case COPY correction. Matching `80462898` warm cached-base multistage RUN/build/serve/Stop passes with exact resource observations and closure; no captured Docker wire or zero-pull-count claim. Interrupted cold pull remains charged; no automatic retries. [Source receipts and Windows cases](evidence/cloud082-preview-bases/README.md); actual cold-image/Windows journey remains open. |
 | CLOUD-083 | P2 / acceptance helper / fixing | Classic-build stage logs are unreadable; helper shutdown grace overlaps HTTP drain. | Original installed edc attempt sends no Cancel and leaves Start unconfirmed/one charged build. Exact controller/RUN absent on independent inspection; original58-file fixture preserved. Replace log-only observation with a bounded source-bound read-only proof and retain authoritative lifecycle/ownership limits. No product cancellation or SIGKILL-causality claim. |
+
+
+### SETUP-02 guided normal progression (offline source)
+
+`azure-setup/installer.py continue` and `guided.py` now join the normal private
+foundation, embedded source, sequential fresh builders, gallery cleanup,
+credentials, task/model inputs, reviewed Terraform apply/readback, fenced
+controller/template/operator and descriptor stages. Exact source/scope/generation
+plan approvals are durable. Pending operations select reconciliation, waiting
+builds stop, aborted production and interrupted key generation refuse progress.
+`recover.py reconcile-initialize` cannot create an absent initial fence or repeat
+an uncertain attach/format. The plan API returns the one normal continuation
+command. Focused offline journey tests pass; guest recovery checks require Linux.
+This is not live Azure/KVM/task/private-connection or billing acceptance. Signed
+replacement-controller installer join and full installation retirement remain
+owned implementation work; builder retirement is only temporary-resource cleanup.

@@ -5,16 +5,30 @@ This archive is supplied by an installed Luci package at
 with the `bundleSHA256` from `POST /v1/setup/cloud/azure/plan`. The archive
 manifest binds every member to the exact Luci source commit. This is for
 **Develop microVM execution**, not the older deployment-target cloud VM.
-Run the commands on Linux or WSL2 with Python 3, Go, Terraform, Azure CLI and
-isolated Ubuntu image build roots. The Windows app supplies and verifies the
-bundle; it does not run Linux image construction in PowerShell.
+Run the commands on Linux or WSL2 with Python 3, OpenSSL, Terraform and Azure
+CLI, using an existing authenticated account and private route. The Windows
+app supplies and verifies the bundle. Compilers and image construction run
+on the explicitly reviewed temporary private builder, not the setup PC.
 
-After `init-selection`, run `configure-guided --bundle . --selection
-/private/selection.json` for ordinary account, durable-state, host-size, public
-SSH-key and Key Vault questions. This reuses the same account validator as the
-flag-based command; no Terraform or operator JSON needs to be authored for
-those selections. `status` reads the retained local stage journals, including
-uncertain operations, without querying Azure or claiming a connected workspace.
+After `init-selection`, run `continue --bundle . --selection
+/private/selection.json`. It guides the account/private-location and capacity
+questions, private foundation or verified reuse, packaged-source builders and
+image publication/cleanup, private credential publication, task limits/model
+DNS, reviewed Terraform plan, controller initialization, template publication,
+signed operator installation and authenticated connection descriptor. No user
+Terraform/operator JSON, checkout, image root or binary is required. It shows
+each exact resource/cost plan and requires its displayed approval digest before
+effects. An approval binds source, scope, generation and that plan; estimates,
+budgets and admission deadlines do not cap actual charges.
+
+Run the same `continue` command after interruption or a waiting template build.
+It resumes retained stages through exact readback branches rather than replaying
+uncertain mutations. An absent/changed pending operation remains unresolved.
+`status` reads local stage receipts without querying Azure or claiming a
+connected workspace. The descriptor must still be imported through Luci's
+protected connection flow, with actual private reachability/authentication.
+Replacement-controller recovery and whole-installation retirement are separate
+unfinished guided joins; builder cleanup alone does not retire an installation.
 
 For an existing generalized managed image containing the exact prepared root,
 `gallery-plan --bundle . --selection /private/selection.json --role runtime
@@ -212,7 +226,8 @@ grant and delete only the owned VM and positively bound unattached OS disk/NIC.
 Run abort for both roles (including a never-allocated role), then retire-staging.
 Published gallery artifacts and other foundation/runtime resources remain retained;
 abort receipts do not establish a zero bill. New production/image binding is refused
-after abort. Normal single-command progression remains in development.
+after abort. The normal `continue` entrypoint drives the production sequence;
+individual commands remain available for explicit inspection and compatibility.
 
 
 Normal private image production also builds the exact Luci microVM guest source

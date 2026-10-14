@@ -15,6 +15,223 @@ from datetime import datetime, timezone
 RFC1918 = tuple(ipaddress.ip_network(value) for value in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
 
 
+def stage_module(bundle_root, name):
+    spec = importlib.util.spec_from_file_location('luci_azure_' + name, Path(bundle_root) / ('azure-setup/' + name + '.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def journey_action(selected, records):
+    """Choose one finite setup stage from durable receipts, never retry a write."""
+    foundation = records.get('azure-foundation-state.json', {})
+    if foundation.get('state') != 'foundation_bound_private_data_route_observed':
+        if 'azure-foundation-plan.json' not in records:
+            return ('configure', '')
+        if foundation.get('state') == 'foundation_observed_pending_private_data_route':
+            return ('foundation-bind', '')
+        return ('foundation', 'reconcile' if foundation.get('pending') else 'step')
+    if not selected['terraformVariables'].get('controller_admin_ssh_public_key'):
+        return ('configure', '')
+    if 'azure-builder-source.json' not in records:
+        return ('builder-source', '')
+    if 'azure-builder-plan.json' not in records:
+        return ('builder-plan', '')
+    builder = records.get('azure-builder-state.json', {})
+    if builder.get('abortRequested'):
+        raise ValueError('Builder abort is retained; finish its owned abort/retirement before starting a fresh setup')
+    completed = builder.get('completed', [])
+    stages = [('source:container', 'staging', ''), ('source:upload', 'staging', '')]
+    for role in ('runtime', 'controller'):
+        stages.extend((role + ':' + key, method, role) for key, method in (
+            ('nic', 'allocate'), ('vm', 'allocate'), ('disk-tag', 'allocate'), ('grant', 'grant'),
+            ('install', 'install'), ('deprovision', 'deprovision'), ('deallocate', 'deallocate'),
+            ('generalize', 'generalize'), ('capture', 'capture'), ('retired', 'retire')))
+    for key, method, role in stages:
+        if key not in completed:
+            # capture/retire themselves advance several journaled substeps.
+            pending = builder.get('pending', '')
+            if pending and not (pending == key or method == 'capture' and pending in ('gallery:create', role + ':definition') or
+                                method == 'retire' and pending.startswith(role + ':delete-')):
+                raise ValueError('Retained builder operation differs from the next stage; preserve it for exact reconciliation')
+            return ('builder', (method, role, bool(pending)))
+    variables = selected['terraformVariables']
+    proposal = records['azure-builder-plan.json']
+    if any(variables.get(role + '_image_version_id') != proposal['roles'][role]['imageVersionID'] for role in ('runtime', 'controller')):
+        return ('builder-bind', '')
+    if 'source:delete-container' not in completed or builder.get('state') != 'private_images_bound_staging_retired':
+        return ('builder', ('retire-staging', '', bool(builder.get('pending'))))
+    credentials = records.get('azure-credentials/journal.json', {})
+    if not credentials:
+        return ('credentials', 'generate-secrets')
+    if credentials.get('state') == 'generation_pending':
+        raise RuntimeError('Credential generation was interrupted; preserve the private directory for explicit recovery')
+    if credentials.get('pending'):
+        return ('credentials', 'reconcile-secrets')
+    if credentials.get('state') != 'published':
+        return ('credentials', 'publish-secrets')
+    if not variables.get('host_secret_refs') or not variables.get('controller_secret_ids'):
+        return ('credentials', 'bind-secrets')
+    if 'operator-template.json' not in records:
+        return ('operator-inputs', '')
+    infrastructure = records.get('azure-setup-state.json', {})
+    if not infrastructure:
+        return ('prepare', '')
+    state = infrastructure.get('state')
+    if state == 'prepared':
+        return ('apply', '')
+    if state in ('apply_pending', 'apply_returned_pending_provider_readback'):
+        return ('reconcile', '')
+    if state in ('infrastructure_observed_pending_private_handoff', 'bootstrap_pending'):
+        return ('bootstrap', state == 'bootstrap_pending')
+    if state not in ('controller_bootstrapped_gateway_unverified', 'controller_finalized_private_route_unverified'):
+        raise ValueError('Unknown infrastructure stage; preserve receipts instead of replaying effects')
+    installed = records.get('azure-operator-install-state.json', {})
+    if installed:
+        if installed.get('state') == 'operator_install_pending': return ('operator-install', True)
+        if installed.get('state') != 'operator_finalized_private_route_unverified':
+            raise ValueError('Unknown retained operator installation; no automatic handoff')
+        return ('connection', '')
+    if 'azure-operator-finalization.json' in records:
+        return ('operator-install', False)
+    template = records.get('azure-template-state.json', {})
+    if template.get('state') == 'template_ready_provider_guest_unverified':
+        return ('finalize', '')
+    pending = template.get('pendingAction')
+    if pending:
+        if pending not in ('create', 'start'): raise ValueError('Unknown retained template operation')
+        return ('template', 'reconcile' if pending == 'create' else 'status')
+    if 'template/create.json.response' not in records:
+        return ('template', 'create')
+    return ('template', 'status' if 'template/build.json' in records else 'start')
+
+
+JOURNEY_RECORDS = ('azure-foundation-plan.json', 'azure-foundation-state.json', 'azure-builder-source.json',
+    'azure-builder-plan.json', 'azure-builder-state.json', 'azure-credentials/journal.json', 'operator-template.json',
+    'azure-setup-state.json', 'azure-operator-finalization.json', 'azure-operator-install-state.json',
+    'azure-template-state.json', 'template/create.json.response', 'template/build.json')
+
+
+def approve_stage(core, parent, manifest, selected, stage, proposal, ask, emit):
+    """Remember explicit authority for exact source/scope/generation/plan only."""
+    binding = {'sourceCommit': manifest['luciRevision'], 'scope': selected['terraformVariables']['scope'],
+        'generation': selected['terraformVariables']['generation'], 'stage': stage, 'plan': proposal}
+    identity = core.digest(binding)
+    path = parent / 'azure-guided-review.json'
+    record = core.private_json(path) if path.exists() else {'version': 1, 'approvals': {}}
+    if record.get('approvals', {}).get(identity) == binding:
+        return True
+    emit(json.dumps({'review': binding, 'approvalDigest': identity, 'priceVerified': False, 'finalInvoiceVerified': False,
+        'message': 'Review the Azure account quote and retained resources. Budget and lifetime do not cap the bill.'}, sort_keys=True))
+    if ask('To authorize this exact stage, type approve ' + identity + ' (anything else pauses): ').strip() != 'approve ' + identity:
+        return False
+    record.setdefault('approvals', {})[identity] = binding
+    core.atomic_json(path, record)
+    return True
+
+
+def continue_setup(core, bundle_root, selection_path, ask=input, emit=print, cli=None, modules=None):
+    """Normal user-run journey; a bounded stage walk, no background retry loop."""
+    cli = cli or az_json
+    manifest = core.bundle(bundle_root)
+    modules = modules or {name: stage_module(bundle_root, name) for name in ('foundation', 'builder', 'operator_setup')}
+    foundation, builder, operator = (modules[name] for name in ('foundation', 'builder', 'operator_setup'))
+    arm = foundation.AzureARM(cli)
+    parent = Path(selection_path).parent
+    for _ in range(192):
+        selected = core.private_json(selection_path)
+        core.requested(selected)
+        records = {name: core.private_json(parent / name) for name in JOURNEY_RECORDS if (parent / name).exists()}
+        before = core.digest([selected, records])
+        action, detail = journey_action(selected, records)
+        emit('Azure setup: ' + action + (': ' + str(detail) if detail else ''))
+        common = (core, bundle_root, selection_path)
+        review = lambda stage, proposal: approve_stage(core, parent, manifest, selected, stage, proposal, ask, emit)
+        if action == 'configure':
+            result = wizard(*common, ask=ask, cli=cli, foundation=foundation)
+        elif action.startswith('foundation'):
+            if action == 'foundation-bind':
+                result = foundation.bind(*common, arm, cli)
+            else:
+                proposal = records['azure-foundation-plan.json']
+                if detail != 'reconcile' and not review('foundation', proposal):
+                    return {'state': 'foundation_review_paused', 'connected': False}
+                result = foundation.step(*common, proposal['planDigest'], arm, detail != 'reconcile', detail == 'reconcile')
+        elif action == 'builder-source':
+            result = builder.source_payload(*common)
+        elif action == 'builder-plan':
+            versions = cli(['vm', 'image', 'list', '--location', selected['region'], '--publisher', 'Canonical',
+                '--offer', 'ubuntu-24_04-lts', '--sku', 'server', '--all', '--query', '[].version'])
+            if not isinstance(versions, list) or not 1 <= len(versions) <= 512 or any(not re.fullmatch(r'[0-9.]{3,90}', v) for v in versions):
+                raise ValueError('Bounded available exact Canonical image versions are required')
+            version = sorted(versions, key=lambda v: tuple(int(p) for p in v.split('.')))[-1]
+            size = ask('Temporary builder size [Standard_D4s_v5; review quote]: ').strip() or 'Standard_D4s_v5'
+            if not re.fullmatch(r'Standard_[A-Za-z0-9_]{2,80}', size): raise ValueError('Invalid temporary builder size')
+            skus = cli(['vm', 'list-skus', '--location', selected['region'], '--resource-type', 'virtualMachines', '--size', size,
+                '--query', "[?name=='" + size + "' && length(restrictions)==`0`].name"])
+            if skus != [size]: raise ValueError('Temporary builder size is unavailable or restricted')
+            gallery = 'luci' + core.digest([manifest['luciRevision'], selected['terraformVariables']['scope']])[:16]
+            result = builder.plan(*common, {'publisher': 'Canonical', 'offer': 'ubuntu-24_04-lts', 'sku': 'server', 'version': version},
+                size, gallery, '1.0.0', 14400)
+        elif action.startswith('builder'):
+            proposal = records['azure-builder-plan.json']
+            digest = proposal['planDigest']
+            if action == 'builder-bind':
+                result = builder.bind_images(*common, digest)
+            else:
+                method, role, reconcile = detail
+                if not reconcile and not review('image-production-and-owned-cleanup', proposal):
+                    return {'state': 'builder_review_paused', 'connected': False}
+                args = (*common, digest)
+                if method in ('staging', 'retire-staging'):
+                    result = getattr(builder, method.replace('-', '_'))(*args, arm, cli, not reconcile, reconcile)
+                elif method in ('install', 'deprovision'):
+                    result = builder.install(*args, role, arm, lambda args: cli(args, timeout=7200) if cli is az_json else cli(args), not reconcile, reconcile, method == 'deprovision')
+                else:
+                    result = getattr(builder, method)(*args, role, arm, not reconcile, reconcile)
+        elif action == 'credentials':
+            if detail == 'publish-secrets' and not review('private-key-vault-publication', {'vaultID': selected['terraformVariables']['key_vault_id'],
+                    'journal': records['azure-credentials/journal.json']['files']}):
+                return {'state': 'credential_review_paused', 'connected': False}
+            result = core.credential_step(bundle_root, selection_path, detail, acknowledge=detail == 'publish-secrets')
+        elif action == 'operator-inputs':
+            cpu = int(ask('Per-agent vCPUs [2]: ').strip() or '2')
+            memory = int(ask('Per-agent memory MiB [2048]: ').strip() or '2048')
+            seconds = int(ask('Maximum task seconds [3600]: ').strip() or '3600')
+            estimate = int(ask('Reviewed per-task estimate, micro USD (not a billing cap): ').strip())
+            domains = ask('Allowed model provider DNS names, comma separated: ').strip().split(',')
+            result = operator.deferred(*common, '', cpu, memory, seconds, estimate, [v.strip().lower() for v in domains])
+        elif action in ('prepare', 'apply', 'reconcile', 'bootstrap'):
+            proposal = core.plan_command(bundle_root, selection_path)
+            if proposal['missing']: raise ValueError('Setup prerequisites incomplete: ' + ', '.join(proposal['missing']))
+            digest = proposal['planDigest']
+            if action == 'prepare': result = core.prepare(bundle_root, selection_path, digest)
+            elif action == 'apply':
+                prepared = records['azure-setup-state.json']
+                if not review('infrastructure', {'plan': proposal, 'prepared': prepared}):
+                    return {'state': 'infrastructure_review_paused', 'connected': False}
+                result = core.apply(bundle_root, selection_path, digest, prepared['terraformPlanSHA256'], True, True)
+            elif action == 'reconcile': result = core.observed_outputs(bundle_root, selection_path, digest)
+            else: result = core.bootstrap(bundle_root, selection_path, digest, reconcile=detail)
+        elif action == 'template':
+            if detail in ('create', 'start') and not review('template-publication', {'operator': records['operator-template.json']}):
+                return {'state': 'template_review_paused', 'connected': False}
+            result = operator.controller_step(*common, detail, cli, detail in ('create', 'start'))
+            if detail == 'status' and result.get('state') != 'template_ready_provider_guest_unverified':
+                return dict(result, nextAction='continue', connected=False, message='Template build is still pending. Run the same continue command later; no automatic mutation retry.')
+        elif action == 'finalize': result = operator.finalize(*common, cli)
+        elif action == 'operator-install':
+            envelope = records['azure-operator-finalization.json']
+            result = operator.install(*common, core.digest(envelope), cli, reconcile=detail)
+        else:
+            return connection_descriptor(*common, provider=cli)
+        emit(json.dumps(result, sort_keys=True))
+        after = core.digest([core.private_json(selection_path), {name: core.private_json(parent / name) for name in JOURNEY_RECORDS if (parent / name).exists()}])
+        if before == after:
+            raise RuntimeError('Setup stage made no durable progress; preserve receipts and inspect, without retrying effects')
+    raise RuntimeError('Setup reached its bounded stage limit; retain receipts and continue explicitly')
+
+
 def private_cidr(value):
     try:
         network = ipaddress.ip_network(value, strict=True)

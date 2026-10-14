@@ -399,9 +399,19 @@ class DiskRecoveryTest(unittest.TestCase):
         self.assertEqual(self.store.record["state"], "bootstrap_mount_pending")
         self.assertEqual(self.compute.patches, 1)
         self.assertEqual(self.compute.mount_commands, 1)
-        self.assertEqual(recover.initialize(self.selection, self.store, self.compute)["state"], "active")
+        self.assertEqual(recover.initialize(self.selection, self.store, self.compute, reconcile=True)["state"], "active")
         self.assertEqual(self.compute.patches, 1)
         self.assertEqual(self.compute.mount_commands, 2)
+
+    def test_reconcile_initial_absent_fence_has_zero_effects(self):
+        self.store = FakeStore()
+        self.compute.owner = ''
+        self.compute.rows[OLD] = []
+        with self.assertRaisesRegex(RuntimeError, 'no repeated bootstrap'):
+            recover.initialize(self.selection, self.store, self.compute, reconcile=True)
+        self.assertIsNone(self.store.record)
+        self.assertEqual(self.compute.patches, 0)
+        self.assertEqual(self.compute.mount_commands, 0)
 
     def test_signed_successor_lost_stage_ack_inspects_without_duplicate_write(self):
         successor = self.signed_successor()
