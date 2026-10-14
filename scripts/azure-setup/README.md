@@ -204,5 +204,12 @@ packages/images without downloading binaries to the setup PC;
 owned container. Compute, disk, staging, gallery and final invoice outcomes
 remain separate. Missing egress/private reachability or an incomplete operation
 stays unresolved; no public connectivity is added. These adapters have offline
-fixture evidence only. Normal single-command progression and explicit abort of
-incomplete builders remain in development.
+fixture evidence only. `--stage abort --role ROLE --acknowledge-costs` records an
+explicit stop request for an incomplete builder. An unknown create/install/capture
+blocks deletion until its exact readback resolves; no intent is discarded.
+Subsequent abort steps observe deallocation, revoke only the exact temporary
+grant and delete only the owned VM and positively bound unattached OS disk/NIC.
+Run abort for both roles (including a never-allocated role), then retire-staging.
+Published gallery artifacts and other foundation/runtime resources remain retained;
+abort receipts do not establish a zero bill. New production/image binding is refused
+after abort. Normal single-command progression remains in development.

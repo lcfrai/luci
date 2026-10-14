@@ -230,3 +230,22 @@ progression/source-prerequisite simplification, incomplete-builder abort,
 retirement fence/backup/compute adapter. Signed successor recovery ownership is
 exclusively transferred to root's cloud Sol (operator_setup.py, mount.py,
 recover.py, test_operator.py, test_recovery.py); installer joins await its schema.
+
+
+Producer abort follow-on (14 October): `builder-step --stage abort` now durably
+records explicit cancellation, prevents new production/image binding and advances
+at most one provider mutation per invocation. It preserves unknown prior intents
+and requires their exact read-only reconciliation; observed deallocation precedes
+VM deletion. Temporary container-scoped grant principal/role/scope is exact. An OS
+disk that precedes the tagging PATCH is bound by provider immutable uniqueId while
+the owned VM still proves attachment, then deleted only after owned VM deletion
+and exact unattached identity readback. Planned resources with no completed create
+are never adopted; unrelated or replaced resources remain preserved. Both aborted
+roles allow only owned staging cleanup. Gallery/foundation/runtime retention and
+unverified final charges remain explicit. Three new offline regressions cover
+incomplete untagged-disk cleanup, unknown create/delete acknowledgments with no
+mutation replay, and replaced-disk/retained-gallery refusal. Full builder file:
+11 tests passed; Python syntax/CLI and diff checks passed. No live Azure, compiler,
+Docker, KVM, cloud task or billing acceptance. Remaining normal guided progression,
+source guest/loopback registry, signed replacement successor (transferred owner),
+and final whole-installation retirement are still tracked independently.

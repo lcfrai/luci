@@ -55,9 +55,11 @@ class BuilderTests(unittest.TestCase):
                     role = next(role for role, row in proposal['roles'].items() if row['vmID'] == identifier)
                     resources[identifier]['identity']['principalId'] = '87654321-1234-1234-1234-123456789abc'
                     resources[identifier]['properties']['storageProfile']['osDisk']['managedDisk']['id'] = proposal['roles'][role]['diskID']
-                    resources[proposal['roles'][role]['diskID']] = {'id': proposal['roles'][role]['diskID'], 'etag': 'one', 'managedBy': identifier, 'properties': {'diskState': 'Attached'}}
+                    resources[proposal['roles'][role]['diskID']] = {'id': proposal['roles'][role]['diskID'], 'etag': 'one', 'managedBy': identifier, 'properties': {'diskState': 'Attached', 'uniqueId': '55555555-5555-5555-5555-555555555555'}}
             elif method == 'PATCH':
-                resources[identifier].update(copy.deepcopy(body))
+                patched = copy.deepcopy(body)
+                resources[identifier].setdefault('properties', {}).update(patched.pop('properties', {}))
+                resources[identifier].update(patched)
             elif method == 'POST':
                 vm = identifier.rsplit('/', 1)[0]
                 code = 'PowerState/deallocated' if identifier.endswith('/deallocate') else 'OSState/generalized'
@@ -205,6 +207,70 @@ class BuilderTests(unittest.TestCase):
         resources[entry['grantID']]['properties']['roleDefinitionId'] = '/subscriptions/foreign/providers/Microsoft.Authorization/roleDefinitions/' + builder.READER
         with self.assertRaisesRegex(ValueError, 'principal/role/scope'): builder.retire(*common, 'runtime', arm, acknowledge=True)
         self.assertIn(entry['grantID'], resources)
+
+
+    def test_abort_incomplete_vm_deallocates_and_cleans_exact_untagged_disk(self):
+        root, core, path, proposal, resources, calls, arm, cli = self.fixture()
+        common = (core, root, path, proposal['planDigest'])
+        for _ in range(2): builder.allocate(*common, 'runtime', arm, acknowledge=True)
+        entry = proposal['roles']['runtime']
+        self.assertNotIn('tags', resources[entry['diskID']])
+        result = builder.abort(*common, 'runtime', arm, acknowledge=True)
+        self.assertIn('runtime:abort-deallocate', result['completed'])
+        with self.assertRaisesRegex(ValueError, 'abort is retained'):
+            builder.allocate(*common, 'runtime', arm, acknowledge=True)
+        for _ in range(4): result = builder.abort(*common, 'runtime', arm, acknowledge=True)
+        self.assertIn('runtime:aborted', result['completed'])
+        for identifier in (entry['vmID'], entry['diskID'], entry['nicID']): self.assertNotIn(identifier, resources)
+        builder.abort(*common, 'controller', arm, acknowledge=True)
+        result = builder.retire_staging(*common, arm, cli, acknowledge=True)
+        self.assertEqual(result['state'], 'builder_aborted_staging_retired_gallery_retained')
+        self.assertFalse(result['finalInvoiceVerified'])
+        self.assertFalse(builder.observed_packages(core, path, {'luciRevision': 'a' * 40}))
+
+    def test_abort_unknown_create_preserves_intent_and_only_exact_reconcile_may_continue(self):
+        root, core, path, proposal, resources, calls, arm, cli = self.fixture()
+        common = (core, root, path, proposal['planDigest'])
+        def lost(method, *arguments, **kwargs):
+            value = arm(method, *arguments, **kwargs)
+            if method == 'PUT': raise TimeoutError('lost owned NIC acknowledgment')
+            return value
+        with self.assertRaises(TimeoutError): builder.allocate(*common, 'runtime', lost, acknowledge=True)
+        before = len(calls)
+        blocked = builder.abort(*common, 'runtime', arm, acknowledge=True)
+        self.assertEqual(blocked['blockedEffect'], 'runtime:nic')
+        self.assertEqual(core.private_json(root / 'azure-builder-state.json')['pending'], 'runtime:nic')
+        self.assertTrue(all(method == 'GET' for method, _ in calls[before:]))
+        builder.allocate(*common, 'runtime', arm, reconcile=True)
+        before = len(calls)
+        def lost_delete(method, *arguments, **kwargs):
+            value = arm(method, *arguments, **kwargs)
+            if method == 'DELETE': raise TimeoutError('lost owned delete acknowledgment')
+            return value
+        with self.assertRaises(TimeoutError): builder.abort(*common, 'runtime', lost_delete, acknowledge=True)
+        self.assertEqual(sum(method == 'DELETE' for method, _ in calls[before:]), 1)
+        before = len(calls)
+        builder.abort(*common, 'runtime', arm, reconcile=True)
+        self.assertTrue(all(method == 'GET' for method, _ in calls[before:]))
+        builder.abort(*common, 'runtime', arm, acknowledge=True)
+        with self.assertRaisesRegex(ValueError, 'abort is retained'):
+            builder.allocate(*common, 'runtime', arm, acknowledge=True)
+
+    def test_abort_refuses_replaced_disk_and_preserves_published_gallery(self):
+        root, core, path, proposal, resources, calls, arm, cli = self.fixture()
+        common = (core, root, path, proposal['planDigest'])
+        for _ in range(3): builder.allocate(*common, 'runtime', arm, acknowledge=True)
+        entry = proposal['roles']['runtime']
+        resources[entry['imageVersionID']] = {'id': entry['imageVersionID'], 'tags': entry['tags']}
+        builder.abort(*common, 'runtime', arm, acknowledge=True)
+        builder.abort(*common, 'runtime', arm, acknowledge=True)
+        resources[entry['diskID']]['properties']['uniqueId'] = '66666666-6666-6666-6666-666666666666'
+        before = len(calls)
+        with self.assertRaisesRegex(ValueError, 'replaced'):
+            builder.abort(*common, 'runtime', arm, acknowledge=True)
+        self.assertTrue(all(method == 'GET' for method, _ in calls[before:]))
+        self.assertIn(entry['diskID'], resources)
+        self.assertIn(entry['imageVersionID'], resources)
 
     @unittest.skipUnless(shutil.which('git'), 'Git is a setup prerequisite')
     def test_real_source_bytes_restore_exact_clean_git_revision_without_history(self):

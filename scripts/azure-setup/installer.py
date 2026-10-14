@@ -817,7 +817,7 @@ def main():
             row.add_argument('--lifetime-seconds', type=int, default=7200)
         if action == 'builder-step':
             row.add_argument('--plan-digest', required=True)
-            row.add_argument('--stage', choices=('staging', 'allocate', 'grant', 'install', 'deprovision', 'deallocate', 'generalize', 'capture', 'retire', 'bind', 'retire-staging'), required=True)
+            row.add_argument('--stage', choices=('staging', 'allocate', 'grant', 'install', 'deprovision', 'deallocate', 'generalize', 'capture', 'retire', 'abort', 'bind', 'retire-staging'), required=True)
             row.add_argument('--role', choices=('runtime', 'controller'), default='runtime')
             row.add_argument('--acknowledge-costs', action='store_true')
             row.add_argument('--reconcile', action='store_true')
@@ -915,7 +915,7 @@ def main():
                 result = builder_module.install(*common, args.role, arm, cli, args.acknowledge_costs, args.reconcile, args.stage == 'deprovision')
             else:
                 method = {'allocate': builder_module.allocate, 'grant': builder_module.grant, 'deallocate': builder_module.deallocate,
-                    'generalize': builder_module.generalize, 'capture': builder_module.capture, 'retire': builder_module.retire}[args.stage]
+                    'generalize': builder_module.generalize, 'capture': builder_module.capture, 'retire': builder_module.retire, 'abort': builder_module.abort}[args.stage]
                 result = method(*common, args.role, arm, args.acknowledge_costs, args.reconcile)
         print(json.dumps(result, sort_keys=True))
         return

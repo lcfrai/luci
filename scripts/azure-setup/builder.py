@@ -146,11 +146,13 @@ def load(core, bundle_root, selection_path, plan_digest):
 
 def write_stage(core, path, journal, key, operation, observe, acknowledge, reconcile):
     if key in journal['completed']: return journal
+    if journal.get('abortRequested') and not journal.get('pending') and ':abort-' not in key and not key.startswith('source:delete-'):
+        raise ValueError('Builder abort is retained; no new production effect is allowed')
     if journal.get('pending'):
         if journal['pending'] != key or not reconcile: raise ValueError('Builder effect uncertain; use exact read-only reconciliation')
     else:
         if reconcile or not acknowledge: raise ValueError('Exact resource and recurring-cost acknowledgment is required')
-        if not any(marker in key for marker in (':delete-', ':retired', ':deallocate')) and datetime.now(timezone.utc) >= datetime.fromisoformat(journal['admissionDeadlineUTC'].replace('Z', '+00:00')):
+        if not any(marker in key for marker in (':delete-', ':retired', ':deallocate', ':abort-')) and datetime.now(timezone.utc) >= datetime.fromisoformat(journal['admissionDeadlineUTC'].replace('Z', '+00:00')):
             raise ValueError('Builder admission deadline elapsed; reconcile/retire retained operations and review a fresh plan')
         journal.update(state='builder_effect_pending', pending=key)
         core.atomic_json(path, journal)
@@ -405,9 +407,104 @@ def retire(core, bundle_root, selection_path, plan_digest, role, arm, acknowledg
     return journal
 
 
+
+def abort(core, bundle_root, selection_path, plan_digest, role, arm, acknowledge=False, reconcile=False):
+    """Stop an incomplete producer using only exact, positively owned resources.
+
+    A retained unknown create/install/capture must be reconciled first; abort
+    never overwrites that intent or guesses that an in-flight operation ended.
+    Each invocation performs at most one provider mutation.
+    """
+    _, proposal, path, journal = load(core, bundle_root, selection_path, plan_digest)
+    if role not in proposal['roles']: raise ValueError('Exact builder role required')
+    if not journal.get('abortRequested'):
+        if reconcile or not acknowledge: raise ValueError('Exact builder abort and retained-charge acknowledgment is required')
+        journal.update(abortRequested=True, abortRequestedAtUTC=datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'))
+        core.atomic_json(path, journal)
+    pending = journal.get('pending', '')
+    if pending and ':abort-' not in pending:
+        # Do not replace a possible live RunCommand/capture/create with deletion.
+        return dict(journal, state='builder_abort_blocked_uncertain_effect', nextAction='reconcile_exact_retained_effect',
+                    blockedEffect=pending, connected=False, finalInvoiceVerified=False)
+    entry = proposal['roles'][role]
+    completed = journal['completed']
+    if role + ':aborted' in completed: return journal
+    if role + ':vm' in completed and role + ':abort-disk-binding' not in completed:
+        owned_vm(proposal, role, arm)
+        disk = arm('GET', entry['diskID'], '2023-10-02')
+        unique = (disk or {}).get('properties', {}).get('uniqueId', '')
+        if (not disk or disk.get('id', '').lower() != entry['diskID'].lower() or
+                disk.get('managedBy', '').lower() != entry['vmID'].lower() or
+                not re.fullmatch(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}', unique) or
+                disk.get('tags', {}) not in ({}, entry['tags'])):
+            raise ValueError('Exact VM-owned immutable OS disk identity is required before abort')
+        # The disk may precede its tag PATCH. Retain its immutable provider
+        # uniqueId while the positively owned VM still proves attachment.
+        journal.setdefault('receipts', {})[role + ':abort-disk-binding'] = {
+            'diskID': entry['diskID'], 'uniqueID': unique, 'tags': disk.get('tags', {}), 'readbackDigest': core.digest(disk)}
+        completed.append(role + ':abort-disk-binding')
+        core.atomic_json(path, journal)
+    if role + ':vm' in completed and role + ':abort-deallocate' not in completed:
+        owned_vm(proposal, role, arm)
+        def observe_power():
+            view = arm('GET', entry['vmID'] + '/instanceView', '2023-09-01')
+            if view and any(row.get('code') == 'PowerState/deallocated' for row in view.get('statuses', [])):
+                return {'vmID': entry['vmID'], 'powerState': 'deallocated'}
+            return None
+        return write_stage(core, path, journal, role + ':abort-deallocate',
+            lambda: arm('POST', entry['vmID'] + '/deallocate', '2023-09-01'), observe_power, acknowledge, reconcile)
+    for name, identifier, api, created in (
+            ('grant', entry['grantID'], '2022-04-01', role + ':grant'),
+            ('vm', entry['vmID'], '2023-09-01', role + ':vm'),
+            ('disk', entry['diskID'], '2023-10-02', role + ':vm'),
+            ('nic', entry['nicID'], '2023-09-01', role + ':nic')):
+        key = role + ':abort-delete-' + name
+        if key in completed: continue
+        if created not in completed:
+            if arm('GET', identifier, api) is not None:
+                raise ValueError('Resource has no completed owned creation; preserve it and reconcile the original intent')
+            journal.setdefault('receipts', {})[key] = {'id': identifier, 'absent': True, 'neverAllocated': True}
+            completed.append(key)
+            core.atomic_json(path, journal)
+            continue
+        def operation():
+            row = arm('GET', identifier, api)
+            if not row or row.get('id', '').lower() != identifier.lower():
+                raise ValueError('Owned abort resource unavailable; absence without our delete intent is not retirement proof')
+            if name == 'grant':
+                properties = row.get('properties', {})
+                expected = '/subscriptions/' + entry['vmID'].split('/')[2] + '/providers/Microsoft.Authorization/roleDefinitions/' + READER
+                if (properties.get('principalId') != journal.get('roles', {}).get(role, {}).get('principalID') or
+                        properties.get('roleDefinitionId', '').lower() != expected.lower() or
+                        properties.get('scope', proposal['containerID']).lower() != proposal['containerID'].lower()):
+                    raise ValueError('Abort reader principal/role/scope changed')
+            elif name == 'disk':
+                binding = journal['receipts'][role + ':abort-disk-binding']
+                if (role + ':abort-delete-vm' not in completed or row.get('managedBy') or
+                        row.get('properties', {}).get('diskState') != 'Unattached' or
+                        row.get('properties', {}).get('uniqueId') != binding['uniqueID'] or row.get('tags', {}) != binding['tags']):
+                    raise ValueError('Abort OS disk is attached, replaced or ownership changed')
+            elif row.get('tags') != entry['tags']:
+                raise ValueError('Abort resource ownership changed')
+            if name == 'nic' and row.get('properties', {}).get('virtualMachine'):
+                raise ValueError('Abort NIC remains attached')
+            arm('DELETE', identifier, api)
+        def observe_absence():
+            return {'id': identifier, 'absent': True} if arm('GET', identifier, api) is None else None
+        return write_stage(core, path, journal, key, operation, observe_absence, acknowledge, reconcile)
+    completed.append(role + ':aborted')
+    journal.update(state='builder_role_aborted_retained_artifacts', connected=False, finalInvoiceVerified=False,
+        retainedCharges=['owned staging bytes/container until observed cleanup',
+                         'any previously published gallery image/version replicas remain retained',
+                         'other foundation/runtime resources are outside this builder abort'])
+    core.atomic_json(path, journal)
+    return journal
+
+
 def bind_images(core, bundle_root, selection_path, plan_digest):
     _, proposal, path, journal = load(core, bundle_root, selection_path, plan_digest)
     if any(role + ':retired' not in journal['completed'] for role in ('runtime', 'controller')): raise ValueError('Both exact image publications and temporary builder retirements are required')
+    if journal.get('abortRequested'): raise ValueError('Aborted production cannot bind images')
     selected = core.private_json(selection_path)
     if any((Path(selection_path).parent / name).exists() for name in ('azure-setup-state.json', 'azure-terraform')): raise ValueError('Infrastructure preparation already retained')
     for role in ('runtime', 'controller'):
@@ -422,9 +519,28 @@ def bind_images(core, bundle_root, selection_path, plan_digest):
 
 def retire_staging(core, bundle_root, selection_path, plan_digest, arm, cli, acknowledge=False, reconcile=False):
     _, proposal, path, journal = load(core, bundle_root, selection_path, plan_digest)
-    if any(role + ':retired' not in journal['completed'] for role in ('runtime', 'controller')):
-        raise ValueError('Both role builders and temporary grants must be retired first')
+    if any(not any(role + suffix in journal['completed'] for suffix in (':retired', ':aborted')) for role in ('runtime', 'controller')):
+        raise ValueError('Both role builders and temporary grants must be retired or aborted first')
     arguments = ['--account-name', proposal['storageAccountName'], '--container-name', proposal['containerName'], '--name', 'source.tar', '--auth-mode', 'login']
+    if journal.get('abortRequested'):
+        if 'source:container' not in journal['completed']:
+            if journal.get('pending') or arm('GET', proposal['containerID'], '2023-05-01') is not None:
+                raise ValueError('Uncertain or unowned staging container must be preserved')
+            for key in ('source:delete-blob', 'source:delete-container'):
+                if key not in journal['completed']:
+                    journal['completed'].append(key)
+                    journal.setdefault('receipts', {})[key] = {'absent': True, 'neverAllocated': True}
+            core.atomic_json(path, journal)
+        elif 'source:upload' not in journal['completed'] and 'source:delete-blob' not in journal['completed']:
+            if journal.get('pending'): raise ValueError('Uncertain upload must be reconciled before staging cleanup')
+            container = arm('GET', proposal['containerID'], '2023-05-01')
+            if not container or container.get('properties', {}).get('metadata', {}).get('luci_operation') != proposal['operationID']:
+                raise ValueError('Staging container ownership changed')
+            if cli(['storage', 'blob', 'exists', *arguments]).get('exists') is not False:
+                raise ValueError('Source bytes lack an owned completed upload; preserve them')
+            journal['completed'].append('source:delete-blob')
+            journal.setdefault('receipts', {})['source:delete-blob'] = {'absent': True, 'neverUploaded': True}
+            core.atomic_json(path, journal)
     if 'source:delete-blob' not in journal['completed']:
         def operation():
             row = cli(['storage', 'blob', 'show', *arguments])
@@ -444,7 +560,7 @@ def retire_staging(core, bundle_root, selection_path, plan_digest, arm, cli, ack
             arm('DELETE', proposal['containerID'], '2023-05-01')
         def observe(): return {'absent': True} if arm('GET', proposal['containerID'], '2023-05-01') is None else None
         return write_stage(core, path, journal, 'source:delete-container', operation, observe, acknowledge, reconcile)
-    journal.update(state='private_images_bound_staging_retired', finalInvoiceVerified=False, connected=False)
+    journal.update(state='builder_aborted_staging_retired_gallery_retained' if journal.get('abortRequested') else 'private_images_bound_staging_retired', finalInvoiceVerified=False, connected=False)
     core.atomic_json(path, journal)
     return journal
 
