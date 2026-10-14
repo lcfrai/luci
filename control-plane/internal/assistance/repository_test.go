@@ -37,6 +37,10 @@ func TestRepositoryProviderSelectionAndOpenCodeConfigurationAreExplicitReadOnly(
 	if len(config["instructions"].([]any)) != 0 || len(config["plugin"].([]any)) != 0 || config["tools"].(map[string]any)["*"] != false || config["permission"].(map[string]any)["*"] != "deny" || env["OPENCODE_LOCAL_API_KEY"] != "selected-secret" {
 		t.Fatal("read-only config changed provider or enabled tools")
 	}
+	agent := config["agent"].(map[string]any)["luci-analysis"].(map[string]any)
+	if config["permission"].(map[string]any)["StructuredOutput"] != "allow" || config["tools"].(map[string]any)["StructuredOutput"] != true || agent["permission"].(map[string]any)["*"] != "deny" || agent["permission"].(map[string]any)["StructuredOutput"] != "allow" || agent["tools"].(map[string]any)["*"] != false || agent["tools"].(map[string]any)["StructuredOutput"] != true || env["OPENCODE_PERMISSION"] != `{"*":"deny","StructuredOutput":"allow"}` {
+		t.Fatal("dedicated output tool is not the only permission exception")
+	}
 	model := config["provider"].(map[string]any)["luci-local"].(map[string]any)["models"].(map[string]any)["model"].(map[string]any)
 	limit := model["limit"].(map[string]any)
 	if limit["context"] != float64(8192) || limit["output"] != float64(2048) || env["OPENCODE_LUCI_INPUT_BYTES"] != "14000" || env["OPENCODE_LUCI_OLLAMA_PREFLIGHT"] != "1" {
