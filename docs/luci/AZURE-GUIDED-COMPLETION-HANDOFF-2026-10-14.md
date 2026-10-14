@@ -171,3 +171,17 @@ Python syntax and diff checks pass. POSIX installer/package and Terraform
 validation are not run locally; no account/provider operation or compiler was
 started. No real Azure/KVM/recovery acceptance is claimed. Next source remains
 actual image staging, signed replacement-controller successor and retirement.
+
+Under exact image-producer reconciliation `308507c5`, normal guided controller
+images now omit the selected deferred operator, public CA and service environment.
+These bounded nonsecret files instead enter the existing authenticated recovery-
+to-controller initial RunCommand after concrete resource readback. The same
+off-disk bootstrap intent precedes staging/mount; retained files must match exact
+bytes and reconciliation only inspects them. Private-key content is refused.
+The account gateway/loopback API and managed-identity references remain intact.
+Nine operator fixtures pass, including post-create staging/refusal, and Python
+syntax passes. The two variables.tf formatting lines reported by independent
+Terraform checks are corrected. Legacy advanced complete-operator image input
+retains its compatibility behavior; generated normal images are generic.
+Private builder implementation proceeds under the now-aligned `308507c5` gate;
+no builder or provider was started by this worker.

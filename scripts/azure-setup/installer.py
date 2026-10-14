@@ -529,25 +529,20 @@ def prepare_images(bundle_root, selection_path, inputs_path, acknowledge_roots=F
     template_destination = paths["controllerImageRoot"] / template_target.lstrip("/")
     if template_destination.exists() or template_destination.is_symlink():
         raise ValueError("Controller image already has an operator template; retained image preparation needs review")
-    template_destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    template_destination.write_bytes(template_bytes)
-    template_destination.chmod(0o600)
+    if not deferred:
+        # Legacy advanced image path; normal guided images stay generic.
+        template_destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        template_destination.write_bytes(template_bytes)
+        template_destination.chmod(0o600)
     if deferred:
         credentials = Path(selection_path).parent / "azure-credentials"
         journal = private_json(credentials / "journal.json")
         ca_data = (credentials / "ca.crt").read_bytes()
         if hashlib.sha256(ca_data).hexdigest() != journal.get("files", {}).get("client-ca"):
             raise ValueError("Deferred controller root CA changed")
-        ca_target = paths["controllerImageRoot"] / "etc/luci/azure-private-ca.crt"
-        ca_target.write_bytes(ca_data)
-        ca_target.chmod(0o600)
-        env_target = paths["controllerImageRoot"] / "etc/luci/azure-controller.env"
-        env_target.write_text("LUCI_ADDR=127.0.0.1:8730\nLUCI_BACKING=azure\n"
-            "LUCI_AZURE_OPERATOR_TEMPLATE=/etc/luci/operator.json\n"
-            "LUCI_STATE_DIR=" + variables["controller_mount_path"] + "/luci/control\n"
-            "LUCI_PROJECTS_DIR=" + variables["controller_mount_path"] + "/luci/projects\n"
-            "LUCI_EXECUTION_STATE_DIR=" + variables["controller_mount_path"] + "/luci/execution\n")
-        env_target.chmod(0o600)
+        # Source-bound public trust and references are staged only after the
+        # concrete controller exists. Captured generic images carry no active
+        # account/generation selection, key material, projects or journals.
     result = dict(binding, state="image_roots_prepared_pending_gallery_publication",
                   runtimePackage={"path": str(host_tar), "sha256": host_sha},
                   controllerPackage={"path": str(controller_tar), "sha256": controller_sha},
@@ -686,6 +681,32 @@ def initial_recovery_selection(selection, identities):
             "ownerID": variables["controller_owner_id"], "scope": variables["scope"]}
 
 
+def controller_setup_files(selection_path):
+    selected = private_json(selection_path)
+    variables = requested(selected)
+    parent = Path(selection_path).parent
+    template = (parent / 'operator-template.json').read_bytes()
+    if hashlib.sha256(template).hexdigest() != variables['controller_operator_template_sha256']:
+        raise ValueError('Post-create operator source differs from exact selection')
+    operator = json.loads(template)
+    if 'setupDeferred' not in operator:
+        return None
+    if any(operator.get(key) for key in ('apiKeyFile', 'adminApiKeyFile', 'attachKeyFile', 'clientCertFile', 'clientKeyFile')):
+        raise ValueError('Controller initialization accepts managed identity references only')
+    credentials = parent / 'azure-credentials'
+    ca_data = (credentials / 'ca.crt').read_bytes()
+    if hashlib.sha256(ca_data).hexdigest() != private_json(credentials / 'journal.json').get('files', {}).get('client-ca'):
+        raise ValueError('Post-create public trust changed')
+    environment = ('LUCI_ADDR=127.0.0.1:8730\nLUCI_BACKING=azure\n'
+        'LUCI_AZURE_OPERATOR_TEMPLATE=/etc/luci/operator.json\n'
+        'LUCI_STATE_DIR=' + variables['controller_mount_path'] + '/luci/control\n'
+        'LUCI_PROJECTS_DIR=' + variables['controller_mount_path'] + '/luci/projects\n'
+        'LUCI_EXECUTION_STATE_DIR=' + variables['controller_mount_path'] + '/luci/execution\n')
+    return [{'path': path, 'content': data.decode(), 'sha256': hashlib.sha256(data).hexdigest()} for path, data in (
+        (variables['controller_operator_template_path'], template), ('/etc/luci/azure-private-ca.crt', ca_data),
+        ('/etc/luci/azure-controller.env', environment.encode()))]
+
+
 def initial_guest_script(recovery):
     # Only source-selected resource names and nonsecret Key Vault references
     # enter ARM RunCommand. The script writes an owner-private exact selection
@@ -717,13 +738,11 @@ printf 'LUCI_AZURE_INITIALIZE_RECEIPT=%%s\\n' "$receipt"
 def invoke_initial_controller(script, subscription, group, vm_name):
     if shutil.which("az") is None:
         raise ValueError("Azure CLI is required for the protected private guest handoff")
-    result = subprocess.run(["az", "vm", "run-command", "invoke", "--subscription", subscription,
-                             "--resource-group", group, "--name", vm_name,
-                             "--command-id", "RunShellScript", "--scripts", script,
-                             "--output", "json"], capture_output=True, timeout=300, check=False)
-    if result.returncode or len(result.stdout) > 64 << 10:
-        raise RuntimeError("Azure controller bootstrap response is missing or uncertain")
-    return json.loads(result.stdout)
+    spec = importlib.util.spec_from_file_location('luci_azure_guided', Path(__file__).with_name('guided.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.az_json(['vm', 'run-command', 'invoke', '--subscription', subscription,
+        '--resource-group', group, '--name', vm_name, '--command-id', 'RunShellScript', '--scripts', script])
 
 
 def bootstrap(bundle_root, selection_path, plan_digest):
@@ -736,6 +755,10 @@ def bootstrap(bundle_root, selection_path, plan_digest):
         raise ValueError("Azure infrastructure needs exact provider readback before controller handoff")
     selection = private_json(selection_path)
     recovery = initial_recovery_selection(selection, state["resourceIDs"])
+    if (Path(selection_path).parent / 'operator-template.json').exists():
+        files = controller_setup_files(selection_path)
+        if files is not None:
+            recovery['controllerSetupFiles'] = files
     # Validate the static format with the shipped recovery adapter before any
     # ARM effect. It checks exact immutable IDs, fence and private paths.
     import importlib.util as util

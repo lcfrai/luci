@@ -15,8 +15,8 @@ variable "existing_vnet_resource_group_name" {
   }
 }
 variable "foundation_private_dns_resource_group_name" {
-  type    = string
-  default = ""
+  type        = string
+  default     = ""
   description = "Verified existing private Blob/Key Vault DNS zones linked to the selected VNet; foundation ownership remains separate."
 }
 variable "zone" { type = string }

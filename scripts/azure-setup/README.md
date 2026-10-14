@@ -170,3 +170,10 @@ the offered sizes are choices for a quote, not KVM or workload acceptance. See
 and [private DNS integration](https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-dns-integration).
 Foundation journals precede remote state and preserve separate ownership.
 Existing private infrastructure is never silently imported or overwritten.
+
+Normal guided controller images contain the installed service/binaries and
+licences, with no active account/generation selection. The public CA, deferred
+operator references and loopback service environment are staged by the existing
+authenticated initialization channel only after exact controller creation.
+They are not private credential values. Unknown staging/mount results retain
+the off-disk bootstrap journal and cannot repeat the write/format branch.
