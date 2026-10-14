@@ -1,5 +1,7 @@
 # Luci development
 
+**Latest setup and delivery direction, 14 October 2026:** first setup offers Local, Bring your own cloud (Azure first, guided setup commands), and Luci Cloud (truthfully unavailable until the hosted service is developed). Consolidate completed branch work on `main` and make the README product-focused. The [committed amendment and owner/acceptance map](docs/luci/SETUP-AND-MAIN-AMENDMENT-2026-10-14.md) controls this addition; it preserves LC-01–16 and the live cloud authority gates.
+
 **Active provider order, 14 October 2026:** make the integrated local Docker lifecycle work first and complete isolated Windows acceptance; Azure is the first cloud Develop microVM target, with exact protected-runtime architecture and local audit before implementation; AWS follows later. The AWS-specific E2B source remains historical and cannot be presented as Azure support. This sequencing does not narrow LC-01–LC-16, per-agent VM isolation, recovery, authority, charge or delivery gates. See [the dated amendment](docs/luci/PROVIDER-ORDER-AMENDMENT-2026-10-14.md).
 
 ## Controlling direction — scope audit passed, 12 October 2026

@@ -89,5 +89,13 @@
       "requirement": "Swarm operation supports clear concurrency, resource and spending policy, priority/backpressure, durable task outputs/checkpoints, bounded retry, cancellation and restart reconciliation. It must not require humans to provision each VM or manage routine agent handoffs.",
       "acceptance": "A representative small-task fan-out workload has an explicit measured concurrency target within configured limits, with no arbitrary low product ceiling or claim of unlimited scale. Tests cover a mid-swarm context change, conflicting outputs, failure/cancel/restart, duplicate-create prevention and observed settlement of owned VM identities and retained charges. Uncertain provider outcomes remain visible and are reconciled, not silently dropped."
     }
-  ]
+  ],
+  "deliveryAmendment": {
+    "id": "LUCI-2026-10-14-SETUP-AND-MAIN",
+    "authority": "Direct Dylan request: Local, Bring your own cloud, Luci Cloud; easy BYO setup commands; product README; merge completed branch work onto main",
+    "document": "SETUP-AND-MAIN-AMENDMENT-2026-10-14.md",
+    "canonicalLcEntriesUnchanged": true,
+    "hostedLuciCloudAvailable": false,
+    "liveCloudTestsAuthorized": false
+  }
 }

@@ -1,8 +1,10 @@
 # Controlling Luci product contract
 
+> **Setup and delivery amendment, 14 October 2026:** [three setup modes, guided Azure BYO commands, future Luci Cloud, and a product-focused `main` handoff](SETUP-AND-MAIN-AMENDMENT-2026-10-14.md). LC-01–16 remain intact. This is authorized scope; implementation and acceptance are tracked separately.
+
 > **Provider-order amendment, 14 October 2026 (Australia/Brisbane):** [Local Docker first; Azure microVM next; AWS later](PROVIDER-ORDER-AMENDMENT-2026-10-14.md). LC-01–LC-16 and all safety/acceptance gates are unchanged. The existing E2B Embed implementation and 38694462 source handoff are AWS-targeted history, not Azure feature completeness. Local Windows/Docker work proceeds now; Azure implementation follows the recorded architecture reconciliation and local audit. No cloud provisioning is authorized by this notice.
 >
-> **Azure architecture review:** [The source-bound proposal](AZURE-MICROVM-ARCHITECTURE-PROPOSAL-2026-10-14.md) is pending the originating local audit. It supplies no Azure feature-completeness or live acceptance claim.
+> **Azure architecture review:** [The source-bound proposal](AZURE-MICROVM-ARCHITECTURE-PROPOSAL-2026-10-14.md) passed the originating local audit at `6bf391dc956a451f9c0ce9af578650658ab269df`. Offline implementation is authorized; this supplies no Azure feature-completeness or live acceptance claim.
 
 ## Current status — scope audit passed, implementation resumed (12 October 2026)
 
