@@ -22,6 +22,9 @@ class AzureSetupTest(unittest.TestCase):
         bundle = root / "bundle"
         bundle.mkdir()
         files = {}
+        packed = b'fixture packed source'
+        source_header = {role: {'revision': 'a'*40 if role == 'luci' else 'cf536c284434fdd2f09bbab35ec807a5dacc87e4',
+            'pack': {'sha256': hashlib.sha256(packed).hexdigest(), 'bytes': len(packed)}} for role in ('luci','e2b')}
         for name in installer.EXPECTED_FILES:
             if name.startswith("terraform/"):
                 source = ROOT / "infra/terraform/azure_embed_private" / Path(name).name
@@ -31,7 +34,7 @@ class AzureSetupTest(unittest.TestCase):
                 source = ROOT / "scripts" / name
             target = bundle / name
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(source.read_bytes())
+            target.write_bytes((json.dumps(source_header).encode() if name.endswith('source.json') else packed) if name in installer.SOURCE_FILES else source.read_bytes())
             files[name] = {"sha256": hashlib.sha256(target.read_bytes()).hexdigest(), "size": target.stat().st_size}
         (bundle / "manifest.json").write_text(json.dumps({"version": 1, "luciRevision": "a" * 40, "files": files}))
         work = root / "private"

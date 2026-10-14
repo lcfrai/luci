@@ -25,7 +25,7 @@ def file_sha(path):
     with Path(path).open('rb') as source: return hashlib.file_digest(source, 'sha256').hexdigest()
 
 
-def source_payload(core, bundle_root, selection_path, luci_source, runtime_source, envoy_binary, envoy_license):
+def source_payload(core, bundle_root, selection_path, luci_source='', runtime_source='', envoy_binary='', envoy_license=''):
     manifest = core.bundle(bundle_root)
     selected = core.private_json(selection_path)
     core.requested(selected)
@@ -33,6 +33,37 @@ def source_payload(core, bundle_root, selection_path, luci_source, runtime_sourc
     target = parent / 'azure-builder-source.tar'
     if target.exists() or (parent / 'azure-builder-source.json').exists():
         raise ValueError('Builder source operation is retained; preserve its exact archive')
+    if not any((luci_source, runtime_source, envoy_binary, envoy_license)):
+        # The authenticated source-bound setup bundle already includes exact
+        # private Luci source. No user checkout, GitHub login or local compiler.
+        source_manifest = core.bounded_json(Path(bundle_root) / 'builder-source/source.json', limit=2 << 20)
+        if source_manifest.get('luci', {}).get('revision') != manifest['luciRevision'] or source_manifest.get('e2b', {}).get('revision') != RUNTIME:
+            raise ValueError('Embedded builder source differs from installer revision')
+        files = {name: Path(bundle_root) / name for name in ('builder-source/source.json', 'builder-source/luci.pack', 'builder-source/e2b.pack')}
+        files['source_bundle.py'] = Path(bundle_root) / 'azure-setup/source_bundle.py'
+        for role in ('luci', 'e2b'):
+            path = files['builder-source/' + role + '.pack']
+            if source_manifest[role]['pack'] != {'sha256': file_sha(path), 'bytes': path.stat().st_size}:
+                raise ValueError('Embedded source pack changed')
+        source_binding = {'version': 1, 'kind': 'luci-azure-builder-stage', 'sourceCommit': manifest['luciRevision'], 'runtimeRevision': RUNTIME,
+            'files': {name: {'sha256': file_sha(path), 'size': path.stat().st_size} for name, path in files.items()}}
+        core.atomic_json(parent / 'azure-builder-source.json', {'version': 1, 'state': 'source_archive_pending', 'sourceCommit': manifest['luciRevision']})
+        with tarfile.open(target, 'w') as archive:
+            for name, path in files.items():
+                info = tarfile.TarInfo(name); info.size, info.mode = path.stat().st_size, 0o600
+                with path.open('rb') as stream: archive.addfile(info, stream)
+            data = core.canonical(source_binding)
+            import io
+            info = tarfile.TarInfo('manifest.json'); info.size, info.mode = len(data), 0o600
+            archive.addfile(info, io.BytesIO(data))
+        if target.stat().st_size > 12 << 20: raise ValueError('Embedded builder stage exceeds its bound')
+        target.chmod(0o600)
+        receipt = {'version': 1, 'state': 'source_archive_prepared', 'sourceCommit': manifest['luciRevision'],
+            'payloadPath': str(target), 'payloadSHA256': file_sha(target), 'size': target.stat().st_size, 'inputs': source_binding, 'connected': False}
+        core.atomic_json(parent / 'azure-builder-source.json', receipt)
+        return receipt
+    if not all((luci_source, runtime_source, envoy_binary, envoy_license)):
+        raise ValueError('Explicit compatibility source inputs must be supplied together')
     roots = [(Path(luci_source), manifest['luciRevision'], 'luci'), (Path(runtime_source), RUNTIME, 'runtime')]
     for root, revision, _ in roots:
         if not root.is_absolute() or root.is_symlink() or core.local_command(['git', '-C', str(root), 'rev-parse', 'HEAD']) != revision or core.local_command(['git', '-C', str(root), 'status', '--porcelain']):

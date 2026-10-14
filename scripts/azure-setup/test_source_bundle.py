@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -70,6 +71,21 @@ class SourceBundleTests(unittest.TestCase):
             self.assertFalse((target / ('outside' if role == 'luci' else 'other')).exists())
         self.assertEqual((result['luci'] / 'NOTICE').read_text(), 'NOTICE\n')
         self.assertEqual((result['luci'] / 'third-party/licenses/opencode-exact/NOTICE').read_text(), 'other original grant\n')
+
+    @unittest.skipUnless(os.name == 'nt', 'Actual Windows CRLF collector fixture')
+    def test_windows_collector_normalization_is_explicit_and_dirty_refused(self):
+        for repo in (self.luci,self.e2b):
+            subprocess.run(['git','-C',str(repo),'config','core.autocrlf','true'],check=True)
+            self.assertEqual(source_bundle._collector_autocrlf(repo),'true')
+        self.collect()
+        manifest=json.loads(self.manifest().read_bytes())
+        self.assertEqual(manifest['luci']['revision'],self.revision(self.luci))
+        (self.e2b/'LICENSE').write_text('changed original licence\n')
+        with self.assertRaisesRegex(ValueError,'exact clean'): self.collect_to_new_path()
+
+    def collect_to_new_path(self):
+        with mock.patch.object(source_bundle,'RUNTIME_REVISION',self.revision(self.e2b)):
+            return source_bundle.collect(self.luci,self.revision(self.luci),self.e2b,self.revision(self.e2b),self.root/'second-source')
 
     def test_changed_pack_and_manifest_refused(self):
         paths = self.collect()

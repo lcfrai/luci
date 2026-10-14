@@ -13,6 +13,7 @@ import re
 import stat
 import subprocess
 import tempfile
+import time
 
 
 VERSION = 1
@@ -36,16 +37,49 @@ RUNTIME_FILES = ('LICENSE',)
 RUNTIME_PREFIXES = ('embed/compose/',)
 
 
-def _git(repo, *args, input_bytes=None, output=None):
+def _git(repo, *args, input_bytes=None, output=None, autocrlf=None):
     env = os.environ.copy()
     env.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull,
                GIT_NO_REPLACE_OBJECTS='1', GIT_TERMINAL_PROMPT='0', GIT_OPTIONAL_LOCKS='0')
-    command = ['git', '-C', str(repo), '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', *args]
+    if autocrlf not in (None, 'true', 'false', 'input'):
+        raise ValueError('Collector Git normalization is not allowlisted')
+    normalization = ['-c', 'core.autocrlf=' + autocrlf] if autocrlf is not None else []
+    command = ['git', '-C', str(repo), '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', *normalization, *args]
     result = subprocess.run(command, input=input_bytes, stdout=output or subprocess.PIPE,
                             stderr=subprocess.PIPE, timeout=TIMEOUT, env=env, check=False)
     if result.returncode:
         raise ValueError('Exact local Git source is unavailable: ' + ' '.join(args[:2]))
     return result.stdout if output is None else b''
+
+
+def _collector_autocrlf(repo):
+    """Discover exactly one canonical source-repo setting; never inherit config.
+
+    Git for Windows commonly checks out CRLF while retaining original LF
+    blobs. Clearing its system config must not relabel that clean checkout as
+    dirty. Only this allowlisted value is passed to the isolated status read.
+    Restored repositories continue using the unchanged hermetic Git path.
+    """
+    with tempfile.TemporaryFile() as output:
+        process = subprocess.Popen(['git', '-C', str(repo.resolve()), 'config', '--get', 'core.autocrlf'],
+            stdout=output, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+        try:
+            deadline = time.monotonic() + TIMEOUT
+            while process.poll() is None:
+                if time.monotonic() > deadline or output.seek(0, 2) > 64:
+                    raise ValueError('Collector normalization discovery exceeded its bound')
+                time.sleep(0.01)
+            if process.returncode not in (0, 1) or output.seek(0, 2) > 64:
+                raise ValueError('Collector normalization discovery is unavailable')
+            output.seek(0)
+            value = output.read().decode('ascii').strip().lower()
+            if process.returncode == 1 and not value: return 'false'
+            if value not in ('true', 'false', 'input'):
+                raise ValueError('Collector normalization is not true, false or input')
+            return value
+        finally:
+            if process.poll() is None: process.kill()
+            process.wait()
 
 
 def _safe_path(name):
@@ -157,10 +191,13 @@ def collect(luci_repo, luci_revision, e2b_repo, e2b_revision, output_dir):
         stage = Path(temporary) / 'builder-source'
         stage.mkdir(mode=0o700)
         for role, repo, revision in (('luci', Path(luci_repo), luci_revision), ('e2b', Path(e2b_repo), e2b_revision)):
+            if not repo.is_absolute() or repo.is_symlink():
+                raise ValueError('Builder source requires an exact clean local checkout')
+            normalization = _collector_autocrlf(repo)
             if (not repo.is_absolute() or repo.is_symlink() or
                     _git(repo, 'rev-parse', '--show-object-format=storage').strip() != b'sha1' or
                     _git(repo, 'rev-parse', 'HEAD').strip().decode() != revision or
-                    _git(repo, 'status', '--porcelain', '--untracked-files=all').strip()):
+                    _git(repo, 'status', '--porcelain', '--untracked-files=all', autocrlf=normalization).strip()):
                 raise ValueError('Builder source requires an exact clean local checkout')
             tree, paths, ids, expanded = _tree(repo, revision, role)
             target = stage / (role + '.pack')

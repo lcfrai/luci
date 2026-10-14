@@ -290,3 +290,34 @@ Remaining owned implementation: normal continue progression and source-helper jo
 verified builder Envoy extraction, signed successor installer join (returned five
 files), and whole-installation retirement fence/backup/compute handoff. These are
 unfinished capabilities, not provider/environment-only acceptance gaps.
+
+
+Normal source/Envoy join includes source helper 780a16b4. Maintainer-only bundle
+build adds required `--e2b-source ABS_PINNED_E2B`; exact source.json/luci.pack/e2b.pack
+and source_bundle.py are hash-bound under 8 MiB outer/4 MiB entry limits. Normal
+`builder-source` needs no source or binary flags, stages only those embedded bytes,
+and the existing private runtime builder restores original clean sparse checkouts.
+Explicit four-input full-source compatibility remains separate. The builder obtains
+Envoy 1.40.0 from an actually resolved immutable official image, copies only its
+bounded amd64 ELF from a never-started positively owned container, verifies exact
+source 9e5580933739775e8bce696a57a2e1bc99368f23/version, and retains original licence
+cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30 and NOTICE
+329d90738f1ee3633da8e7439ea6f9624ec6274a9cbd72437aafa0e8df9de32e.
+Unknown/foreign extraction cannot delete another container or complete preparation.
+The actual official image pull/native Envoy/package build remains unrun here.
+
+LOCAL039 fixes a source-confirmed Windows maintainer collector refusal: isolated
+Git status lost the effective source checkout's CRLF policy. The collector discovers
+only core.autocrlf, validates true/false/input, and passes only that value to its
+otherwise isolated status command. Discovery is time/output bounded; no global or
+repository settings change. Original commit/tree/blob/pack bytes and hermetic
+sparse restoration stay intact. Focused actual Windows clean/dirty fixture passes;
+normal embedded staging and real original-object sparse restore plus two mocked
+Envoy ownership/lost-ACK/refusal tests pass (3/3). Existing installer tests were
+attempted natively but cannot exercise their POSIX os.fchmod path on Windows;
+this is applicability, not a new native installer promise. Independent Linux still
+needs changed installer8, new source join3, source helper7 (one Windows-only skip),
+and affected host package checks. No broad compiler or Docker ran. Outer release
+scripts/package paths remain owned by Windows worker/root; pass --e2b-source there
+before final packaging. Remaining: single-command normal progression, authenticated
+successor installer join, whole-installation retirement and real environment gates.
