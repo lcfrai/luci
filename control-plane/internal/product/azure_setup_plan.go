@@ -167,7 +167,8 @@ func (s *Server) planAzureDevelop(w http.ResponseWriter, r *http.Request) {
 		"version": 1, "status": "needs_prerequisites", "purpose": "develop-microvm", "provider": "azure",
 		"setupHostRequirement": "Linux or WSL2 with Python 3, Go, Terraform, Azure CLI and an isolated Ubuntu image build environment; the installed Windows app can download this exact bundle but does not run Linux image preparation in Windows PowerShell.",
 		"sourceCommit":         revision, "bundleSHA256": digest, "bundleURL": "/v1/setup/cloud/azure/bundle",
-		"sourceRepository": "https://github.com/lcfrai/luci.git",
+		"sourceRepository":      "https://github.com/lcfrai/luci.git",
+		"advancedAccountInputs": []string{"Azure subscription", "existing resource group and durable state Blob", "unused private network", "KVM-capable VM sizes and zone", "SSH public key", "immutable gallery images", "exact private Key Vault references"},
 		"advancedSelectionTemplate": map[string]any{
 			"version": 1, "mode": "byo-azure-develop", "name": requested.Name, "region": requested.Region,
 			"monthlyBudgetUsd": requested.MonthlyBudgetUSD, "maxConcurrentVMs": requested.MaxConcurrentVMs,

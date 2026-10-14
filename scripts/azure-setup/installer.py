@@ -213,6 +213,55 @@ def initial_image_inputs(bundle_root, target, *, luci_source, e2b_source, image_
     return {"imageInputsPath": str(target), "inputsDigest": digest(inputs), "providerEffects": False}
 
 
+def configure_account(bundle_root, selection_path, *, subscription_id, resource_group,
+                      state_resource_group, state_storage_account, state_container,
+                      zone, runtime_size, controller_size, ssh_public_key_file,
+                      key_vault_id="", key_vault_name="", fence_storage_account="",
+                      runtime_image_version_id="", controller_image_version_id=""):
+    """Fill ordinary account/host fields without exposing selection internals."""
+    bundle(bundle_root)
+    selected = private_json(selection_path)
+    requested(selected)
+    parent = Path(selection_path).resolve().parent
+    if any((parent / name).exists() for name in ("azure-setup-state.json", "azure-image-prep-state.json", "azure-terraform")):
+        raise ValueError("Azure setup has retained work; selection cannot change until exact review")
+    if not re.fullmatch(r"[0-9a-f-]{36}", subscription_id) or not all(
+            re.fullmatch(r"[a-zA-Z0-9_.()-]{1,90}", value) for value in (resource_group, state_resource_group)) or \
+            not re.fullmatch(r"[a-z0-9]{3,24}", state_storage_account) or \
+            not re.fullmatch(r"[a-z0-9-]{3,63}", state_container) or \
+            not re.fullmatch(r"[1-9][0-9]?", zone) or \
+            not all(re.fullmatch(r"Standard_[A-Za-z0-9_]{2,80}", value) for value in (runtime_size, controller_size)):
+        raise ValueError("Azure account, state, zone or VM size selection is invalid")
+    key_path = Path(ssh_public_key_file)
+    if not key_path.is_absolute() or key_path.is_symlink() or not key_path.is_file() or key_path.stat().st_size > 4096:
+        raise ValueError("Use an existing absolute SSH public-key file")
+    key = key_path.read_text().strip()
+    if not re.fullmatch(r"(?:ssh-ed25519|ssh-rsa) [A-Za-z0-9+/=]{32,4096}(?: [^\r\n]{0,128})?", key):
+        raise ValueError("SSH public key is not a supported public-key line")
+    arm_image = re.compile(r"/subscriptions/[0-9a-f-]{36}/resourceGroups/[a-zA-Z0-9_.()-]+/providers/Microsoft.Compute/galleries/[a-zA-Z0-9_.-]+/images/[a-zA-Z0-9_.-]+/versions/[a-zA-Z0-9_.-]+", re.I)
+    if any(value and not arm_image.fullmatch(value) for value in (runtime_image_version_id, controller_image_version_id)) or \
+            key_vault_name and not re.fullmatch(r"[a-z0-9-]{3,24}", key_vault_name) or \
+            fence_storage_account and not re.fullmatch(r"[a-z0-9]{3,24}", fence_storage_account) or \
+            key_vault_id and not re.fullmatch(r"/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.KeyVault/vaults/[^/]+", key_vault_id, re.I):
+        raise ValueError("Selected image, Key Vault or fence storage identity is invalid")
+    variables = selected["terraformVariables"]
+    variables.update(subscription_id=subscription_id, resource_group_name=resource_group, zone=zone,
+                     runtime_vm_size=runtime_size, controller_vm_size=controller_size,
+                     controller_admin_ssh_public_key=key, runtime_admin_ssh_public_key=key,
+                     runtime_image_version_id=runtime_image_version_id,
+                     controller_image_version_id=controller_image_version_id,
+                     key_vault_id=key_vault_id, key_vault_name=key_vault_name,
+                     fence_storage_account_name=fence_storage_account)
+    selected["stateBackend"] = {"subscriptionId": subscription_id, "resourceGroupName": state_resource_group,
+                                "storageAccountName": state_storage_account, "containerName": state_container,
+                                "key": "luci/" + variables["scope"] + ".tfstate"}
+    requested(selected)
+    atomic_json(selection_path, selected)
+    plan = make_plan(selected, bundle(bundle_root), selection_path, bundle_root)
+    return {"selectionDigest": plan["selectionDigest"], "planDigest": plan["planDigest"],
+            "missing": plan["missing"], "nextSteps": plan["nextSteps"], "providerEffects": False}
+
+
 def package_ready(value):
     if not value["path"] or not SHA.fullmatch(value["sha256"]):
         return False
@@ -657,7 +706,7 @@ def bootstrap(bundle_root, selection_path, plan_digest):
 def main():
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="action", required=True)
-    for action in ("init-selection", "init-image-inputs", "plan", "prepare-images", "prepare", "apply", "reconcile", "bootstrap", "status"):
+    for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "prepare-images", "prepare", "apply", "reconcile", "bootstrap", "status"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
@@ -671,6 +720,13 @@ def main():
             for key in ("luci-source", "e2b-source", "image-digests", "envoy-binary", "envoy-license",
                         "runtime-image-root", "controller-image-root", "operator-template"):
                 row.add_argument("--" + key, required=True)
+        if action == "configure-account":
+            for key in ("subscription-id", "resource-group", "state-resource-group", "state-storage-account",
+                        "state-container", "zone", "runtime-size", "controller-size", "ssh-public-key-file"):
+                row.add_argument("--" + key, required=True)
+            for key in ("key-vault-id", "key-vault-name", "fence-storage-account",
+                        "runtime-image-version-id", "controller-image-version-id"):
+                row.add_argument("--" + key, default="")
         if action == "prepare-images":
             row.add_argument("--image-inputs", type=Path, required=True)
             row.add_argument("--acknowledge-image-roots", action="store_true")
@@ -693,6 +749,17 @@ def main():
             envoy_license=args.envoy_license, runtime_image_root=args.runtime_image_root,
             controller_image_root=args.controller_image_root,
             operator_template=args.operator_template), sort_keys=True))
+        return
+    if args.action == "configure-account":
+        print(json.dumps(configure_account(args.bundle, args.selection,
+            subscription_id=args.subscription_id, resource_group=args.resource_group,
+            state_resource_group=args.state_resource_group,
+            state_storage_account=args.state_storage_account, state_container=args.state_container,
+            zone=args.zone, runtime_size=args.runtime_size, controller_size=args.controller_size,
+            ssh_public_key_file=args.ssh_public_key_file, key_vault_id=args.key_vault_id,
+            key_vault_name=args.key_vault_name, fence_storage_account=args.fence_storage_account,
+            runtime_image_version_id=args.runtime_image_version_id,
+            controller_image_version_id=args.controller_image_version_id), sort_keys=True))
         return
     if args.action == "plan":
         print(json.dumps(plan_command(args.bundle, args.selection), sort_keys=True))

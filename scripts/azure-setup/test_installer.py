@@ -88,6 +88,25 @@ class AzureSetupTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "new file"):
             installer.initial_image_inputs(bundle, target, **paths)
 
+    def test_account_command_sets_exact_selection_and_refuses_after_preparation(self):
+        bundle, previous, _ = self.fixture()
+        target = previous.parent / "new-selection.json"
+        installer.initial_selection(bundle, target, "luci-team", "australiaeast", 200, 4)
+        public = previous.parent / "owner.pub"
+        public.write_text("ssh-ed25519 " + "A" * 48 + " luci\n")
+        choices = dict(subscription_id="1" * 36, resource_group="luci-rg",
+                       state_resource_group="luci-state-rg", state_storage_account="lucistateowned",
+                       state_container="terraform-state", zone="1", runtime_size="Standard_D8s_v5",
+                       controller_size="Standard_D4s_v5", ssh_public_key_file=str(public))
+        result = installer.configure_account(bundle, target, **choices)
+        self.assertFalse(result["providerEffects"])
+        selected = installer.private_json(target)
+        self.assertEqual(selected["terraformVariables"]["runtime_vm_size"], "Standard_D8s_v5")
+        self.assertTrue(selected["stateBackend"]["key"].startswith("luci/luci-team-"))
+        (target.parent / "azure-image-prep-state.json").write_text("retained")
+        with self.assertRaisesRegex(ValueError, "retained work"):
+            installer.configure_account(bundle, target, **choices)
+
     def test_offline_plan_checks_bundle_and_existing_remote_state(self):
         bundle, selected, selection = self.fixture()
         plan = installer.plan_command(bundle, selected)

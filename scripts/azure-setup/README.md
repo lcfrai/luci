@@ -17,7 +17,14 @@ bundle; it does not run Linux image construction in PowerShell.
    DNS and service paths. An optional `--private-network-cidr` derives
    runtime/controller subnets from an unused private `/16`; confirm it does
    not overlap an existing network. Run `plan` to see account-specific missing
-   inputs. An **existing** Azure Blob container for
+   inputs. Use `configure-account --bundle . --selection
+   /private/selection.json --subscription-id ... --resource-group ...
+   --state-resource-group ... --state-storage-account ... --state-container ...
+   --zone ... --runtime-size ... --controller-size ...
+   --ssh-public-key-file /absolute/path/to/public-key.pub` to save common
+   account/host choices without editing Terraform JSON. The command refuses
+   changes once image preparation or provisioning has a retained record. An
+   **existing** Azure Blob container for
    Terraform state is required. It must be separate from the Luci controller
    disk and the off-disk writer-fence Blob. Authenticate with your own Azure
    sign-in; no token or Key Vault secret value belongs in this JSON.
