@@ -30,10 +30,11 @@ type storedTarget struct {
 	Token  string           `json:"token"`
 }
 type SSHRequest struct {
-	Host           string `json:"host"`
-	Port           int    `json:"port"`
-	User           string `json:"user"`
-	PrivateKeyPath string `json:"privateKeyPath"`
+	Host           string              `json:"host"`
+	Port           int                 `json:"port"`
+	User           string              `json:"user"`
+	PrivateKeyPath string              `json:"privateKeyPath"`
+	AzureIdentity  *AzureConnectionPin `json:"azureIdentity,omitempty"`
 }
 type SSHScan struct {
 	ID           string            `json:"id"`
@@ -180,6 +181,9 @@ func (s *Server) connectTarget(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 201, t)
 }
 func validateSSH(r SSHRequest) error {
+	if err := validateAzureConnectionPin(r); err != nil {
+		return err
+	}
 	if !(validDomain(r.Host) || net.ParseIP(r.Host) != nil) || strings.ContainsAny(r.Host, "\r\n\x00") {
 		return errors.New("Use a server hostname or IP address without a URL scheme.")
 	}
@@ -238,6 +242,9 @@ func (s *Server) inspectSSH(w http.ResponseWriter, r *http.Request) {
 		}
 		sum := sha256.Sum256(data)
 		fingerprint := "SHA256:" + base64.RawStdEncoding.EncodeToString(sum[:])
+		if req.AzureIdentity != nil && fingerprint != req.AzureIdentity.Fingerprint {
+			continue
+		}
 		scan.Keys[fingerprint] = strings.Join(fields, " ")
 		scan.Fingerprints = append(scan.Fingerprints, fingerprint)
 	}

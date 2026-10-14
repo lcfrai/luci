@@ -8,6 +8,7 @@ import re
 import subprocess
 import tempfile
 import time
+from datetime import datetime, timezone
 
 
 RFC1918 = tuple(ipaddress.ip_network(value) for value in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
@@ -30,6 +31,9 @@ def progress(core, bundle_root, selection_path):
     parent = Path(selection_path).parent
     stages = []
     for identifier, relative in (("credentials", "azure-credentials/journal.json"),
+                                 ("operator-selection", "azure-operator-prep-state.json"),
+                                 ("template", "azure-template-state.json"),
+                                 ("operator", "azure-operator-install-state.json"),
                                  ("images", "azure-image-prep-state.json"),
                                  ("runtime-gallery", "azure-gallery-runtime.json"),
                                  ("controller-gallery", "azure-gallery-controller.json"),
@@ -69,7 +73,7 @@ def configure_private(core, bundle_root, selection_path, network_cidr, managemen
     selection = core.private_json(selection_path)
     variables = core.requested(selection)
     parent = Path(selection_path).parent
-    if any((parent / name).exists() for name in ("azure-setup-state.json", "azure-image-prep-state.json", "azure-terraform")):
+    if any((parent / name).exists() for name in ("azure-setup-state.json", "azure-image-prep-state.json", "azure-terraform", "operator-template.json")):
         raise ValueError("Private network selection cannot change after retained preparation")
     network = ipaddress.ip_network(private_cidr(network_cidr), strict=True)
     management = private_cidr(management_cidr)
@@ -159,8 +163,10 @@ def connection_descriptor(core, bundle_root, selection_path, provider=None):
     if len(raw) != 51 or raw[:19] != b'\x00\x00\x00\x0bssh-ed25519\x00\x00\x00\x20':
         raise ValueError("Controller SSH public key is malformed")
     descriptor = dict(journal, state="host_identity_observed_private_route_unverified",
+        observedAtUTC=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         sourceCommit=manifest["luciRevision"], bundleDigest=core.digest(manifest), scope=variables["scope"],
         vmID=vm_id, bootID=observed["bootID"], host=host, port=22, user="luci",
+        dataDiskID=identities["controller_disk_id"].lower(),
         hostKey=" ".join(key[:2]), fingerprint="SHA256:" + base64.b64encode(hashlib.sha256(raw).digest()).decode().rstrip("="),
         productAPI="http://127.0.0.1:8730", readbackDigest=core.digest(observed), connected=False)
     core.atomic_json(parent / "azure-connection.json", descriptor)
@@ -261,3 +267,22 @@ def gallery_publish(core, bundle_root, selection_path, role, plan_digest, acknow
                "priceVerified": False, "finalInvoiceVerified": False}
     core.atomic_json(journal_path, receipt)
     return receipt
+
+
+def bind_images(core, bundle_root, selection_path):
+    core.bundle(bundle_root)
+    selection = core.private_json(selection_path)
+    core.requested(selection)
+    parent = Path(selection_path).parent
+    if any((parent / name).exists() for name in ("azure-setup-state.json", "azure-terraform")):
+        raise ValueError("Image selection cannot change after retained infrastructure preparation")
+    original_digest = core.digest(selection)
+    for role in ("runtime", "controller"):
+        plan = core.private_json(parent / ("azure-gallery-" + role + "-plan.json"))
+        receipt = core.private_json(parent / ("azure-gallery-" + role + ".json"))
+        if (plan.get("selectionDigest") != original_digest or receipt.get("state") != "gallery_observed" or
+                receipt.get("planDigest") != plan.get("planDigest") or receipt.get("imageVersionID") != plan.get("imageVersionID")):
+            raise ValueError("Both exact gallery publications need authenticated source readback before binding")
+        selection["terraformVariables"][role + "_image_version_id"] = receipt["imageVersionID"]
+    core.atomic_json(selection_path, selection)
+    return {"state": "gallery_versions_bound_private_infrastructure_pending", "selectionDigest": core.digest(selection), "connected": False}

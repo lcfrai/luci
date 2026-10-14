@@ -154,6 +154,12 @@ func (s *Server) reconnectWorkspace(saved savedWorkspace) {
 		case <-ticker.C:
 		}
 		if workspaceReady(s.workspaceContext, t.APIURL) == nil {
+			if saved.Request.AzureIdentity != nil {
+				_, credential, authErr := s.connectedWorkspace(t.ID)
+				if authErr != nil || verifyAzureWorkspaceIdentity(s.workspaceContext, t.APIURL, credential.Token, saved.Request.AzureIdentity) != nil {
+					return
+				}
+			}
 			s.mu.Lock()
 			if s.workspace.Mode == "cloud" && s.workspace.ConnectionID == t.ID {
 				s.workspace.Ready = true
@@ -227,12 +233,17 @@ func (s *Server) workspaceStatus(ctx context.Context, method string) Status {
 		address = t.APIURL
 	}
 	cached := s.remoteStatus
+	var azurePin *AzureConnectionPin
 	token := ""
 	if t != nil {
 		token = s.workspaceAuth[workspaceCredentialKey(*t)].Token
+		azurePin = t.Request.AzureIdentity
 	}
 	s.mu.RUnlock()
 	remote, err := remoteWorkspaceStatus(ctx, address, method, token)
+	if err == nil && azurePin != nil {
+		err = verifyAzureWorkspaceIdentity(ctx, address, token, azurePin)
+	}
 	if address != "" && err == nil {
 		s.mu.Lock()
 		s.remoteStatus = &remote
@@ -309,6 +320,10 @@ func (s *Server) activateWorkspace(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "backing_sign_in_required", "Sign in to this backing before activating it.")
 		return
 	}
+	if err := verifyAzureWorkspaceIdentity(r.Context(), address, credential.Token, ssh.AzureIdentity); err != nil {
+		problem(w, 409, "azure_generation_changed", err.Error())
+		return
+	}
 	ws := Workspace{Mode: "cloud", ConnectionID: req.ConnectionID, Host: host, Ready: true}
 	if err := atomicJSON(filepath.Join(s.stateDir, "workspace.json"), savedWorkspace{ws, ssh, key}); err != nil {
 		problem(w, 500, "save_failed", "Could not save this workspace.")
@@ -350,6 +365,11 @@ func (s *Server) installCloudWorkspace(w http.ResponseWriter, r *http.Request) {
 	if !ok || t.Status != "connected" {
 		s.mu.Unlock()
 		problem(w, 409, "connection_required", "Connect the server through SSH first.")
+		return
+	}
+	if t.Request.AzureIdentity != nil {
+		s.mu.Unlock()
+		problem(w, 409, "azure_installer_required", "Complete the verified Azure microVM installer. The compatibility Docker installer cannot replace this controller.")
 		return
 	}
 	for _, j := range s.workspaceInstalls {

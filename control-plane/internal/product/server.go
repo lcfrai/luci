@@ -53,6 +53,7 @@ type Options struct {
 	CloudBundle             string
 	Shutdown                func()
 	RuntimeDir              string
+	AzureOperatorPath       string
 	StateDir                string
 	ProjectsDir             string
 	SandboxImage            string
@@ -131,6 +132,7 @@ type Server struct {
 	runtimeResourceSnapshot         func() resourcebudget.Snapshot
 	authJobs                        map[string]*ProviderLoginJob
 	runtimeDir                      string
+	azureOperatorPath               string
 	mu                              sync.RWMutex
 	functionSourceMu                sync.RWMutex
 	config                          Config
@@ -166,6 +168,7 @@ func New(opts Options) (*Server, error) {
 		sandboxImage: opts.SandboxImage, plans: make(map[string]CloudPlan),
 		managedWorkspace: opts.ManagedWorkspace, configured: opts.ManagedWorkspace,
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}
+	s.azureOperatorPath = opts.AzureOperatorPath
 	if opts.BrowserPreviewPort != 0 {
 		var err error
 		s.browserRegistry, err = previewgateway.NewRegistryWithDomain(opts.StateDir, opts.BrowserPreviewPort, opts.BrowserPreviewDomain)
@@ -264,6 +267,7 @@ func (s *Server) Register(mux Registrar) {
 	mux.HandleFunc("POST /v1/setup/cloud/plan", s.handleCloudPlan)
 	mux.HandleFunc("POST /v1/setup/cloud/azure/plan", s.planAzureDevelop)
 	mux.HandleFunc("GET /v1/setup/cloud/azure/bundle", s.getAzureDevelopBundle)
+	mux.HandleFunc("GET /v1/setup/cloud/azure/identity", s.getAzureControllerIdentity)
 	s.registerProjects(mux)
 	s.registerCloudJobs(mux)
 	s.registerConnections(mux)

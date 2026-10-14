@@ -27,6 +27,7 @@ import (
 // These are operator-reviewed identities and file paths. Secrets stay in
 // separate private files, never in JSON task input, Git or provider metadata.
 type e2bOperatorConfig struct {
+	SourceCommit              string                      `json:"sourceCommit,omitempty"`
 	Endpoint                  string                      `json:"endpoint"`
 	APIKeyFile                string                      `json:"apiKeyFile"`
 	AdminAPIKeyFile           string                      `json:"adminApiKeyFile"`

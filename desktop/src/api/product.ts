@@ -338,11 +338,21 @@ export interface DeploymentTarget {
   baseUrl: string;
   serverUuid: string;
 }
+export interface AzureConnectionPin {
+  sourceCommit: string;
+  scope: string;
+  generation: string;
+  controllerResourceID: string;
+  dataDiskID: string;
+  bootID: string;
+  fingerprint: string;
+}
 export interface SSHRequest {
   host: string;
   port: number;
   user: string;
   privateKeyPath: string;
+  azureIdentity?: AzureConnectionPin;
 }
 export interface SSHScan {
   id: string;
