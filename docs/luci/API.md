@@ -1269,3 +1269,24 @@ source review, independently executed checks and release controls remain the
 next actions. Download success means transfer started, not proof that a user
 retained it. A lost write acknowledgement requires explicit saved-record readback
 before another mutation; the UI retains a bounded project-scoped report draft.
+
+## Workspace setup preference
+
+`GET /v1/setup/status` includes `setupChoice: { revision, mode, updatedAt? }`.
+Revision 1 with an empty mode means no explicit choice has been saved. The
+independent private `setup-choice.json` preserves the selected mode across reload
+and service restart without rewriting legacy `Config.mode`, projects or backing
+connections. Existing users continue to their retained projects.
+
+`PUT /v1/setup/choice` accepts exactly `{ expectedRevision, mode }`, where mode is
+`local`, `bring-your-own-cloud` or `luci-cloud`, and returns the next choice receipt.
+A stale revision returns 409 `setup_choice_changed`; an uncertain write requires
+explicit readback before another choice. Current setup-write authority and trusted
+personal account state still apply. Team backing is not changed by this endpoint.
+It performs no provider/model call, folder configuration, connection activation,
+payment or provisioning. A saved `luci-cloud` preference means the future hosted
+service is **not available yet**, and cannot block access to existing projects.
+
+Bring-your-own-cloud command planning and protected connection handoff are separate
+from this preference. Existing VM deployment-target and SSH compatibility tools do
+not prove an Azure microVM workspace is installed or working.

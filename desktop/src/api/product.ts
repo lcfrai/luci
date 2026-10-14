@@ -75,6 +75,7 @@ export interface GitDelivery {
   message?: string;
 }
 export interface SetupStatus {
+	setupChoice?: SetupChoice;
   product: string;
   version: string;
   platform: string;
@@ -94,6 +95,8 @@ export interface SetupStatus {
     description: string;
   }[];
 }
+export type SetupMode = 'local' | 'bring-your-own-cloud' | 'luci-cloud';
+export interface SetupChoice { revision: number; mode: SetupMode | ''; updatedAt?: string }
 export interface Workspace {
   mode: "local" | "cloud";
   connectionId: string;
@@ -584,6 +587,11 @@ export function createProductClient(
       method: options.method ?? "GET", headers: options.headers, budgetMs, signal, kind: "file",
     }),
     status: () => request<SetupStatus>("/v1/setup/status"),
+    chooseSetup: async (expectedRevision: number, mode: SetupMode) => {
+      const choice = await request<SetupChoice>('/v1/setup/choice', {expectedRevision, mode}, 'PUT');
+      if (!choice || !Number.isSafeInteger(choice.revision) || choice.revision <= expectedRevision || choice.mode !== mode) throw new Error('The saved setup choice could not be confirmed. Refresh before trying again.');
+      return choice;
+    },
     check: (signal?: AbortSignal) =>
       request<SetupStatus>("/v1/setup/check", {}, "POST", 120_000, signal),
     configure: (config: SetupConfig) =>

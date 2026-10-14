@@ -32,7 +32,7 @@ function fixture(value = storage(), portal = false) {
     if (path === '/v1/setup/git/identity') return new Response(JSON.stringify({name:'Fixture owner',email:'owner@example.invalid'}));
     throw new Error(`Unexpected fixture request ${path}`);
   });
-  return {client:createProductClient('http://localhost:8730',fetcher),fetcher,checkCount:()=>checks,readCount:()=>reads,confirmationCount:()=>confirmations,observe:(value:ExecutionStorage)=>{observed=value;},allowReadiness:(value:SetupStatus)=>{checkReply=value;}};
+  return {client:setupClient('http://localhost:8730',fetcher),fetcher,checkCount:()=>checks,readCount:()=>reads,confirmationCount:()=>confirmations,observe:(value:ExecutionStorage)=>{observed=value;},allowReadiness:(value:SetupStatus)=>{checkReply=value;}};
 }
 beforeEach(()=>{vi.restoreAllMocks();resetCockpit();});
 
@@ -54,7 +54,7 @@ it('refreshes cached storage without running a full readiness check or locking S
 it('keeps portal continuation usable without restarting preparation when storage is refreshed', async () => {
   const f=fixture(storage(),true), close=vi.fn();
   render(<SetupPanel initialStatus={ready()} presentation="portal" client={f.client} onStatus={vi.fn()} onClose={close} onProjectsChanged={vi.fn()}/>);
-  await userEvent.click(screen.getByRole('button',{name:'On this computer'}));
+  await userEvent.click(screen.getByRole('button',{name:'Local'}));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Continue to projects'})).toHaveProperty('disabled',false));
   expect(f.checkCount()).toBe(1);
   await userEvent.click(screen.getByRole('button',{name:'Refresh Docker storage status'}));
@@ -110,7 +110,7 @@ it('keeps navigation usable while a cached refresh is pending and ignores its re
 it('shows stale storage in portal preparation without probing again or blocking continuing to projects', async () => {
   const f=fixture(storage(),true);
   render(<SetupPanel initialStatus={ready()} presentation="portal" client={f.client} onStatus={vi.fn()} onClose={vi.fn()} onProjectsChanged={vi.fn()}/>);
-  await userEvent.click(screen.getByRole('button',{name:'On this computer'}));
+  await userEvent.click(screen.getByRole('button',{name:'Local'}));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Continue to projects'})).toHaveProperty('disabled',false));
   f.observe(storage({revision:2,state:'invalidated',message:'The storage settings changed.'}));
   await userEvent.click(screen.getByRole('button',{name:'Refresh Docker storage status'}));
@@ -121,3 +121,15 @@ it('shows stale storage in portal preparation without probing again or blocking 
   expect(screen.getByRole('button',{name:'Continue to projects'})).toHaveProperty('disabled',false);
   expect(screen.getByRole('button',{name:'Choose another setup option'})).toHaveProperty('disabled',false);
 });
+
+// Mode persistence has dedicated network/CAS tests. These older regressions
+// isolate storage, project and legacy deployment controls behind a valid receipt.
+function setupClient(baseUrl: string, fetcher: typeof fetch) {
+  return createProductClient(baseUrl, (input, init) => {
+    if (new URL(String(input)).pathname === '/v1/setup/choice') {
+      const request = JSON.parse(String(init?.body));
+      return Promise.resolve(new Response(JSON.stringify({revision: request.expectedRevision + 1, mode: request.mode})));
+    }
+    return fetcher(input, init);
+  });
+}

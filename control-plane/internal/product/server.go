@@ -134,6 +134,7 @@ type Server struct {
 	mu                              sync.RWMutex
 	functionSourceMu                sync.RWMutex
 	config                          Config
+	setupChoice                     SetupChoice
 	stateDir                        string
 	runner                          Runner
 	configure                       func(string) error
@@ -213,6 +214,9 @@ func New(opts Options) (*Server, error) {
 	if err := stateOutsideProjects(s.config.ProjectsDir, s.stateDir); err != nil {
 		return nil, err
 	}
+	if err := s.loadSetupChoice(); err != nil {
+		return nil, err
+	}
 	if s.configure != nil {
 		if err := s.configure(s.config.ProjectsDir); err != nil {
 			return nil, err
@@ -256,6 +260,7 @@ func (s *Server) Register(mux Registrar) {
 	mux.HandleFunc("GET /v1/setup/status", s.handleStatus)
 	mux.HandleFunc("POST /v1/setup/check", s.handleCheck)
 	mux.HandleFunc("POST /v1/setup/config", s.handleConfig)
+	mux.HandleFunc("PUT /v1/setup/choice", s.handleSetupChoice)
 	mux.HandleFunc("POST /v1/setup/cloud/plan", s.handleCloudPlan)
 	s.registerProjects(mux)
 	s.registerCloudJobs(mux)
@@ -435,6 +440,7 @@ type SetupAccess struct {
 }
 
 type Status struct {
+	SetupChoice    SetupChoice  `json:"setupChoice"`
 	Access         *SetupAccess `json:"access,omitempty"`
 	Workspace      Workspace    `json:"workspace"`
 	Product        string       `json:"product"`
@@ -448,6 +454,9 @@ type Status struct {
 
 func (s *Server) statusForActor(ctx context.Context) Status {
 	status := s.status()
+	s.mu.RLock()
+	status.SetupChoice = s.setupChoice
+	s.mu.RUnlock()
 	if user, policy, ok := management.ActorFromContext(ctx); ok {
 		status.Access = &SetupAccess{ManageBacking: management.PermissionsFor(user, policy).ManageBacking, ProjectsDirManaged: s.managedWorkspace}
 		status.Access.User.Username = user.Username

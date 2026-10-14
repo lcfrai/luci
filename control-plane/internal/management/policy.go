@@ -42,6 +42,15 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 	}
 	mutating := r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS"
 	admin := u.Role == "admin" || u.Role == "super-admin"
+	if mutating && path == "/v1/setup/choice" {
+		g.mu.Lock()
+		owner := g.state.OwnerID
+		g.mu.Unlock()
+		if teamScoped || (u.ID == owner && u.Role != "super-admin") {
+			fail(w, 403, "permission_denied", "Use your personal workspace setup; only its current administrator can reconfigure the initial host's selection.")
+			return
+		}
+	}
 	if mutating && (strings.HasPrefix(path, "/v1/setup/cloud/") || strings.HasPrefix(path, "/v1/setup/ssh/") || path == "/v1/setup/targets" || path == "/v1/setup/workspace/activate" || path == "/v1/setup/workspace/login" || path == "/v1/setup/workspace/bootstrap" || (path == "/v1/setup/runtime/install" || strings.HasPrefix(path, "/v1/setup/runtime/install/"))) {
 		if !admin {
 			fail(w, 403, "permission_denied", "Backing infrastructure is managed by an administrator.")

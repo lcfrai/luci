@@ -31,6 +31,11 @@ must separately have room for all observed and pending workload limits, that
 worker and its own reserve. This is an admission calculation, not a claim that a
 4 GiB Windows computer can always run Docker and a local model comfortably.
 
+This reserve belongs to the controller's shared machine admission for workers,
+checks, previews and runtime preparation. Cloud task microVM admission uses its
+separate provider limits, exact template sizing, retained VM usage and spending
+authority; the local RAM profile does not resize those VMs or relax those limits.
+
 Existing saved policies keep their uncapped percentage reserve and custom floors.
 They change only after the administrator selects a profile and saves its review.
 The RAM target cap and floor are editable. The UI reports the effective host and
