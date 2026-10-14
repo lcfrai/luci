@@ -91,7 +91,7 @@ func ValidateSelection(harness, model, authMode string) error {
 // RepositoryLauncher runs verified non-interactive CLIs in an empty utility
 // workspace. No source mounts or shell interpolation exist. Raw provider output
 // is bounded in memory and discarded, never copied to a terminal, log or DTO.
-const RepositoryLauncher = `import base64, http.server, json, os, re, secrets, select, subprocess, sys, threading, time, urllib.parse, urllib.request
+const RepositoryLauncher = `import base64, http.client, http.server, json, os, re, secrets, select, socket, subprocess, sys, threading, time, urllib.parse, urllib.request
 LIMIT = 262144
 with open('/luci-input/prompt.txt', 'rb') as source:
     prompt = source.read(LIMIT+1)
@@ -227,31 +227,67 @@ if provider == 'opencode' and ollama_preflight == '1':
     try:
         # Observe the actual selected-model HTTP request, after OpenCode has
         # inserted and filtered its tools. Never retain a prompt, tool schema,
-        # provider response, credential or request header. One forwarded model
-        # request is allowed; an absent output tool cannot consume inference.
-        offer = {'version':1,'modelRequestObserved':False,'selectedModelMatched':False,'structuredOutputOffered':False,'otherToolCount':0,'requiredToolChoice':False,'forwarded':False,'upstreamCompleted':False}
+        # provider response, credential or request header. A dispatch attempt
+        # remains uncertain until an upstream response and complete stream.
+        REQUEST_DEADLINE = 165
+        offer = {'version':1,'modelRequestObserved':False,'selectedModelMatched':False,'structuredOutputOffered':False,'otherToolCount':0,'requiredToolChoice':False,'dispatchAttempted':False,'responseReceived':False,'upstreamCompleted':False,'duplicateRequestsBlocked':0}
+        claim_lock = threading.Lock()
+        receipt_lock = threading.Lock()
         def save_offer():
-            with open('/luci-output/tool-offer.json.tmp','w') as target:
-                json.dump(offer,target,separators=(',',':'))
-            os.replace('/luci-output/tool-offer.json.tmp','/luci-output/tool-offer.json')
+            with receipt_lock:
+                with open('/luci-output/tool-offer.json.tmp','w') as target:
+                    json.dump(offer,target,separators=(',',':'))
+                os.replace('/luci-output/tool-offer.json.tmp','/luci-output/tool-offer.json')
         save_offer()
         class ModelRequestGate(http.server.BaseHTTPRequestHandler):
             protocol_version = 'HTTP/1.1'
             def log_message(self,*args):
                 pass
+            def handle(self):
+                self.request_deadline = time.monotonic()+REQUEST_DEADLINE
+                def expire_request():
+                    try: self.connection.shutdown(socket.SHUT_RDWR)
+                    except OSError: pass
+                    try: self.connection.close()
+                    except OSError: pass
+                request_timer = threading.Timer(REQUEST_DEADLINE,expire_request)
+                request_timer.daemon = True
+                request_timer.start()
+                try: super().handle()
+                finally: request_timer.cancel()
             def do_POST(self):
-                self.connection.settimeout(180)
-                length = self.headers.get('Content-Length','')
-                if self.path != '/v1/chat/completions' or self.headers.get('Transfer-Encoding') or not length.isdecimal() or not 0<int(length)<=LIMIT:
-                    self.send_error(400)
-                    return
-                if offer['modelRequestObserved']:
-                    self.send_error(409)
-                    return
-                offer['modelRequestObserved'] = True
-                save_offer()
-                body = self.rfile.read(int(length))
+                deadline = self.request_deadline
+                active = [None]
+                response_socket = [None]
+                expired = threading.Event()
+                def expire():
+                    expired.set()
+                    for stream in (self.connection, active[0].sock if active[0] is not None else None, response_socket[0]):
+                        if stream is not None:
+                            try: stream.shutdown(socket.SHUT_RDWR)
+                            except OSError: pass
+                            try: stream.close()
+                            except OSError: pass
+                timer = threading.Timer(max(0,deadline-time.monotonic()),expire)
+                timer.daemon = True
+                timer.start()
                 try:
+                    self.connection.settimeout(REQUEST_DEADLINE)
+                    length = self.headers.get('Content-Length','')
+                    if self.path != '/v1/chat/completions' or self.headers.get('Transfer-Encoding') or len(length)>8 or not length.isdecimal() or not 0<int(length)<=LIMIT:
+                        self.send_error(400)
+                        return
+                    with claim_lock:
+                        if offer['modelRequestObserved']:
+                            offer['duplicateRequestsBlocked'] += 1
+                            save_offer()
+                            self.send_error(409)
+                            return
+                        offer['modelRequestObserved'] = True
+                        save_offer()
+                    body = self.rfile.read(int(length))
+                    if expired.is_set() or time.monotonic()>=deadline:
+                        raise TimeoutError('model request deadline')
                     request_body = json.loads(body)
                     if not isinstance(request_body,dict):
                         raise ValueError('invalid model request')
@@ -272,37 +308,76 @@ if provider == 'opencode' and ollama_preflight == '1':
                     if not offer['structuredOutputOffered'] or offer['otherToolCount'] or not offer['requiredToolChoice']:
                         self.send_error(422)
                         return
-                    upstream = urllib.request.Request(origin+self.path,data=body,headers={'Content-Type':'application/json','Accept':'text/event-stream'},method='POST')
-                    with direct.open(upstream,timeout=180) as response:
-                        content_type = response.headers.get('Content-Type','').split(';',1)[0].strip().lower()
-                        if response.status!=200 or content_type not in ('text/event-stream','application/json') or response.headers.get('Content-Encoding','identity')!='identity':
-                            raise ValueError('unexpected model transport')
-                        offer['forwarded'] = True
-                        save_offer()
-                        self.send_response(200)
-                        self.send_header('Content-Type',content_type)
-                        self.send_header('Transfer-Encoding','chunked')
-                        self.send_header('Cache-Control','no-store')
-                        self.end_headers()
-                        total = 0
-                        while True:
-                            chunk = response.read(8192)
-                            if not chunk:
-                                break
-                            total += len(chunk)
-                            if total>LIMIT*4:
-                                raise ValueError('oversized model stream')
-                            self.wfile.write(('%x\r\n'%len(chunk)).encode()+chunk+b'\r\n')
-                            self.wfile.flush()
-                        self.wfile.write(b'0\r\n\r\n')
+                    remaining = deadline-time.monotonic()
+                    if remaining<=0:
+                        raise TimeoutError('model request deadline')
+                    active[0] = http.client.HTTPConnection(base.hostname,base.port,timeout=remaining)
+                    offer['dispatchAttempted'] = True
+                    save_offer()
+                    active[0].request('POST',self.path,body=body,headers={'Content-Type':'application/json','Accept':'text/event-stream'})
+                    if active[0].sock is not None:
+                        active[0].sock.settimeout(max(0.001,deadline-time.monotonic()))
+                    response = active[0].getresponse()
+                    response_socket[0] = getattr(getattr(getattr(response,'fp',None),'raw',None),'_sock',None)
+                    offer['responseReceived'] = True
+                    save_offer()
+                    content_type = response.headers.get('Content-Type','').split(';',1)[0].strip().lower()
+                    if response.status!=200 or content_type not in ('text/event-stream','application/json') or response.headers.get('Content-Encoding','identity')!='identity' or expired.is_set():
+                        raise ValueError('unexpected model transport')
+                    self.send_response(200)
+                    self.send_header('Content-Type',content_type)
+                    self.send_header('Transfer-Encoding','chunked')
+                    self.send_header('Cache-Control','no-store')
+                    self.end_headers()
+                    total = 0
+                    while True:
+                        if expired.is_set() or time.monotonic()>=deadline:
+                            raise TimeoutError('model request deadline')
+                        if active[0].sock is not None:
+                            active[0].sock.settimeout(max(0.001,deadline-time.monotonic()))
+                        chunk = response.read(8192)
+                        if not chunk:
+                            break
+                        total += len(chunk)
+                        if total>LIMIT*4:
+                            raise ValueError('oversized model stream')
+                        self.wfile.write(('%x\r\n'%len(chunk)).encode()+chunk+b'\r\n')
                         self.wfile.flush()
-                        offer['upstreamCompleted'] = True
-                        save_offer()
+                    if expired.is_set() or time.monotonic()>=deadline:
+                        raise TimeoutError('model request deadline')
+                    self.wfile.write(b'0\r\n\r\n')
+                    self.wfile.flush()
+                    offer['upstreamCompleted'] = True
+                    save_offer()
                 except Exception:
-                    if not offer['forwarded']:
-                        self.send_error(502)
+                    if not offer['responseReceived'] and not expired.is_set():
+                        try: self.send_error(502)
+                        except OSError: pass
                     self.close_connection = True
-        probe_server = http.server.ThreadingHTTPServer(('127.0.0.1',0),ModelRequestGate)
+                finally:
+                    timer.cancel()
+                    if active[0] is not None:
+                        active[0].close()
+        class BoundedModelServer(http.server.ThreadingHTTPServer):
+            def __init__(self,*args):
+                self.slots = threading.BoundedSemaphore(2)
+                super().__init__(*args)
+            def get_request(self):
+                request, address = super().get_request()
+                request.settimeout(5)
+                return request, address
+            def process_request(self,request,address):
+                if not self.slots.acquire(blocking=False):
+                    request.close()
+                    return
+                try: super().process_request(request,address)
+                except Exception:
+                    self.slots.release()
+                    raise
+            def process_request_thread(self,request,address):
+                try: super().process_request_thread(request,address)
+                finally: self.slots.release()
+        probe_server = BoundedModelServer(('127.0.0.1',0),ModelRequestGate)
         probe_server.daemon_threads = True
         threading.Thread(target=probe_server.serve_forever,daemon=True).start()
         provider_config = json.loads(env['OPENCODE_CONFIG_CONTENT'])
@@ -360,7 +435,7 @@ if provider == 'opencode' and ollama_preflight == '1':
             raise ValueError('invalid private session identity')
         provider_id, model_id = model.split('/',1)
         response = local_post('/session/'+session_id+'/message',{'agent':'luci-analysis','model':{'providerID':provider_id,'modelID':model_id},'parts':[{'type':'text','text':opencode_input.decode('utf-8')}],'format':{'type':'json_schema','schema':schema,'retryCount':0}},180)
-        if not offer['modelRequestObserved'] or not offer['selectedModelMatched'] or not offer['structuredOutputOffered'] or offer['otherToolCount'] or not offer['requiredToolChoice'] or not offer['upstreamCompleted']:
+        if not offer['modelRequestObserved'] or not offer['selectedModelMatched'] or not offer['structuredOutputOffered'] or offer['otherToolCount'] or not offer['requiredToolChoice'] or not offer['dispatchAttempted'] or not offer['responseReceived'] or not offer['upstreamCompleted'] or offer['duplicateRequestsBlocked']:
             raise ValueError('structured model request was not verified')
         info = response.get('info') if isinstance(response,dict) else None
         result = info.get('structured') if isinstance(info,dict) and not info.get('error') else None

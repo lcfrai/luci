@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestRepositoryProviderSelectionAndOpenCodeConfigurationAreExplicitReadOnly(t *testing.T) {
@@ -196,7 +197,7 @@ func TestOpenCodeLocalStructuredSessionReceivesLongContextTailAndExactSchema(t *
 		}
 	}
 	fake := filepath.Join(dir, "opencode.py")
-	code := `import base64,http.server,json,os,pathlib,sys,urllib.request
+	code := `import base64,http.server,json,os,pathlib,sys,threading,urllib.request
 args=sys.argv[1:]
 if os.environ.get('FIXTURE_INVOCATION'):
  pathlib.Path(os.environ['FIXTURE_INVOCATION']).write_text('started')
@@ -225,10 +226,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
    tool=[] if os.environ.get('FIXTURE_NO_TOOL')=='1' else [{'type':'function','function':{'name':'StructuredOutput','parameters':{'type':'object'}}}]
    if os.environ.get('FIXTURE_EXTRA_TOOL')=='1': tool.append({'type':'function','function':{'name':'shell','parameters':{'type':'object'}}})
    request=urllib.request.Request(base+'/chat/completions',data=json.dumps({'model':'fixture','messages':[{'role':'user','content':'PRIVATE_PROMPT_SENT_TO_MODEL'}],'tools':tool,'tool_choice':'required'}).encode(),headers={'Content-Type':'application/json'},method='POST')
-   try:
-    with urllib.request.urlopen(request,timeout=5) as upstream: upstream.read()
-   except Exception:
-    pass
+   def send():
+    try:
+     with urllib.request.urlopen(request,timeout=5) as upstream: upstream.read()
+    except Exception:
+     pass
+   if os.environ.get('FIXTURE_CONCURRENT')=='1':
+    start=threading.Event()
+    workers=[threading.Thread(target=lambda: (start.wait(),send())) for _ in range(2)]
+    for worker in workers: worker.start()
+    start.set()
+    for worker in workers: worker.join()
+   else: send()
    if os.environ.get('FIXTURE_CHANGE'):
     urllib.request.urlopen(os.environ['FIXTURE_CHANGE'],timeout=2).close()
    if os.environ.get('FIXTURE_INCOMPLETE')=='1':
@@ -249,7 +258,7 @@ server.serve_forever()
 	if err := os.WriteFile(fake, []byte(code), 0600); err != nil {
 		t.Fatal(err)
 	}
-	var servingContext, evaluatedTokens, forwardedRequests atomic.Int64
+	var servingContext, evaluatedTokens, forwardedRequests, responseMode atomic.Int64
 	servingContext.Store(8192)
 	evaluatedTokens.Store(1800)
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -273,8 +282,20 @@ server.serve_forever()
 			json.NewEncoder(w).Encode(map[string]any{"models": []map[string]any{{"name": "fixture", "context_length": servingContext.Load(), "digest": "sha256:fixture-exact-model"}}})
 		case "/v1/chat/completions":
 			forwardedRequests.Add(1)
+			switch responseMode.Load() {
+			case 1:
+				http.Error(w, "private model failure", 500)
+				return
+			case 2:
+				time.Sleep(500 * time.Millisecond)
+			}
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Write([]byte("data: {\"choices\":[]}\n\n"))
+			if responseMode.Load() == 3 {
+				w.(http.Flusher).Flush()
+				time.Sleep(500 * time.Millisecond)
+				w.Write([]byte("data: [DONE]\n\n"))
+			}
 		case "/test/change":
 			servingContext.Store(4096)
 			w.WriteHeader(204)
@@ -322,10 +343,11 @@ server.serve_forever()
 		}
 		offerBytes, err := os.ReadFile(filepath.Join(output, "tool-offer.json"))
 		var offer struct {
-			ModelRequestObserved, SelectedModelMatched, StructuredOutputOffered, RequiredToolChoice, Forwarded, UpstreamCompleted bool
-			OtherToolCount                                                                                                        int
+			ModelRequestObserved, SelectedModelMatched, StructuredOutputOffered, RequiredToolChoice, DispatchAttempted, ResponseReceived, UpstreamCompleted bool
+			OtherToolCount                                                                                                                                  int
+			DuplicateRequestsBlocked                                                                                                                        int
 		}
-		if err != nil || json.Unmarshal(offerBytes, &offer) != nil || !offer.ModelRequestObserved || !offer.SelectedModelMatched || !offer.StructuredOutputOffered || !offer.RequiredToolChoice || !offer.Forwarded || !offer.UpstreamCompleted || offer.OtherToolCount != 0 || strings.Contains(string(offerBytes), "PRIVATE_PROMPT_SENT_TO_MODEL") {
+		if err != nil || json.Unmarshal(offerBytes, &offer) != nil || !offer.ModelRequestObserved || !offer.SelectedModelMatched || !offer.StructuredOutputOffered || !offer.RequiredToolChoice || !offer.DispatchAttempted || !offer.ResponseReceived || !offer.UpstreamCompleted || offer.OtherToolCount != 0 || offer.DuplicateRequestsBlocked != 0 || strings.Contains(string(offerBytes), "PRIVATE_PROMPT_SENT_TO_MODEL") {
 			t.Fatal("actual model-request tool offer was not captured without private request data", err)
 		}
 		if incomplete != "0" {
@@ -355,10 +377,10 @@ server.serve_forever()
 		}
 		offerBytes, err := os.ReadFile(filepath.Join(output, "tool-offer.json"))
 		var observed struct {
-			ModelRequestObserved, SelectedModelMatched, StructuredOutputOffered, Forwarded bool
-			OtherToolCount                                                                 int
+			ModelRequestObserved, SelectedModelMatched, StructuredOutputOffered, DispatchAttempted, ResponseReceived, UpstreamCompleted bool
+			OtherToolCount                                                                                                              int
 		}
-		if err != nil || json.Unmarshal(offerBytes, &observed) != nil || !observed.ModelRequestObserved || !observed.SelectedModelMatched || observed.Forwarded ||
+		if err != nil || json.Unmarshal(offerBytes, &observed) != nil || !observed.ModelRequestObserved || !observed.SelectedModelMatched || observed.DispatchAttempted || observed.ResponseReceived || observed.UpstreamCompleted ||
 			refusedTool == "FIXTURE_NO_TOOL=1" && observed.StructuredOutputOffered || refusedTool == "FIXTURE_EXTRA_TOOL=1" && (!observed.StructuredOutputOffered || observed.OtherToolCount != 1) || strings.Contains(string(offerBytes), "PRIVATE_PROMPT_SENT_TO_MODEL") {
 			t.Fatal("invalid model tool offer was not retained as bounded metadata", refusedTool, err)
 		}
@@ -368,6 +390,57 @@ server.serve_forever()
 		if _, err := os.Stat(filepath.Join(output, "result.json")); !os.IsNotExist(err) {
 			t.Fatal("unverified model request published a result")
 		}
+	}
+	for _, test := range []struct {
+		name                 string
+		mode                 int64
+		concurrent           bool
+		shortDeadline        bool
+		wantResponse         bool
+		wantCompleted        bool
+		wantDuplicateBlocked int
+	}{
+		{name: "upstream-error-after-dispatch", mode: 1, wantResponse: true},
+		{name: "header-timeout-after-dispatch", mode: 2, shortDeadline: true},
+		{name: "stream-timeout-after-response", mode: 3, shortDeadline: true, wantResponse: true},
+		{name: "second-request-blocked", concurrent: true, wantResponse: true, wantCompleted: true, wantDuplicateBlocked: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			responseMode.Store(test.mode)
+			defer responseMode.Store(0)
+			os.Remove(filepath.Join(output, "result.json"))
+			before := forwardedRequests.Load()
+			runEntry := entry
+			if test.shortDeadline {
+				runEntry = filepath.Join(dir, "run-short-deadline.py")
+				short := strings.Replace(launcher, "REQUEST_DEADLINE = 165", "REQUEST_DEADLINE = 0.2", 1)
+				if short == launcher || os.WriteFile(runEntry, []byte(short), 0600) != nil {
+					t.Fatal("short absolute deadline fixture unavailable")
+				}
+			}
+			cmd := exec.Command(python, runEntry)
+			cmd.Env = append(os.Environ(), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig))
+			if test.concurrent {
+				cmd.Env = append(cmd.Env, "FIXTURE_CONCURRENT=1")
+			}
+			if logs, err := cmd.CombinedOutput(); err == nil || len(logs) != 0 {
+				t.Fatal("uncertain or duplicate model request was accepted", err, string(logs))
+			}
+			data, err := os.ReadFile(filepath.Join(output, "tool-offer.json"))
+			var receipt struct {
+				DispatchAttempted, ResponseReceived, UpstreamCompleted bool
+				DuplicateRequestsBlocked                               int
+			}
+			if err != nil || json.Unmarshal(data, &receipt) != nil || !receipt.DispatchAttempted || receipt.ResponseReceived != test.wantResponse || receipt.UpstreamCompleted != test.wantCompleted || receipt.DuplicateRequestsBlocked != test.wantDuplicateBlocked || strings.Contains(string(data), "PRIVATE_PROMPT_SENT_TO_MODEL") {
+				t.Fatal("effect/response/duplicate receipt was not truthful and bounded", err, string(data))
+			}
+			if forwardedRequests.Load() != before+1 {
+				t.Fatal("request count escaped the single exact upstream effect")
+			}
+			if _, err := os.Stat(filepath.Join(output, "result.json")); !os.IsNotExist(err) {
+				t.Fatal("uncertain model request published a result")
+			}
+		})
 	}
 	os.Remove(filepath.Join(output, "result.json"))
 	cmd := exec.Command(python, entry)
