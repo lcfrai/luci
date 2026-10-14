@@ -98,3 +98,17 @@ new product tests are written but not run locally while the host reserve is low:
 `GOMAXPROCS=1 GOMEMLIMIT=512MiB go test -p 1 ./internal/product -run
 '^TestAzure(ConnectionPin|SSHInspect|WorkspaceActivation)' -count=1` from
 `control-plane`. No full compile, Vite or browser work was run.
+
+SETUP-02-R1 adds an actual request boundary check, because a disconnected status
+alone did not stop forwarding through an existing SSH tunnel. Project/harness/
+deployment proxy requests now compare the current authenticated Azure identity
+before forwarding or requesting a websocket ticket. Release preview preparation,
+existing release preview bridges, platform browser/data joins and backing admin
+operations use the same check. Failure marks the selected workspace unready and
+keeps every remote mutation behind the refusal; generic SSH retains its existing
+behavior. New mocked remote-counter tests cover stale project/harness/deployment
+POSTs, websocket tickets, new and already opened preview joins, plus matching-pin
+and generic-SSH controls. These checks are not a runtime reproduction or acceptance.
+Run `GOMAXPROCS=1 GOMEMLIMIT=512MiB go test -p 1 ./internal/product -run
+'^TestAzureWorkspace(RequestGate|PreviewGate)' -count=1` for the affected new cases;
+they have not been run locally while the host reserve is low.

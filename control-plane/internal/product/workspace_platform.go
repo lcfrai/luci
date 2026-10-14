@@ -2,6 +2,7 @@ package product
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -30,7 +31,7 @@ func platformPreviewKey(kind, projectID, resourceID string) string {
 // Preparing data transport is part of the user's explicit deployment POST.
 // A read never starts a listener, and no browser-supplied URL becomes an input.
 func (s *Server) cloudDeploymentBrowserData(r *http.Request, connectionID, projectID string) (platform.BrowserTarget, string, error) {
-	tunnel, credential, err := s.platformWorkspaceConnection(connectionID, "")
+	tunnel, credential, err := s.platformWorkspaceConnection(r.Context(), connectionID, "")
 	if err != nil {
 		return platform.BrowserTarget{}, "", err
 	}
@@ -63,7 +64,7 @@ func (s *Server) cloudDeploymentBrowserData(r *http.Request, connectionID, proje
 	return platform.BrowserTarget{ProjectID: projectID, Kind: "data", ResourceID: opened.ResourceID}, opened.URL, nil
 }
 
-func (s *Server) platformWorkspaceConnection(connectionID, userID string) (Tunnel, workspaceCredential, error) {
+func (s *Server) platformWorkspaceConnection(ctx context.Context, connectionID, userID string) (Tunnel, workspaceCredential, error) {
 	tunnel, credential, err := s.connectedWorkspace(connectionID)
 	if err != nil || tunnel.KnownHost == "" || credential.Token == "" || credential.User.ID == "" || (userID != "" && credential.User.ID != userID) {
 		return tunnel, credential, errors.New("reconnect and sign in to this backing")
@@ -73,6 +74,9 @@ func (s *Server) platformWorkspaceConnection(connectionID, userID string) (Tunne
 	s.mu.RUnlock()
 	if !active {
 		return tunnel, credential, errors.New("workspace changed")
+	}
+	if err := s.gateAzureWorkspaceRequest(ctx, connectionID, tunnel.APIURL, credential.Token, tunnel.Request.AzureIdentity); err != nil {
+		return tunnel, credential, err
 	}
 	return tunnel, credential, nil
 }
@@ -95,7 +99,7 @@ func (s *Server) prepareWorkspacePlatformBrowser(w http.ResponseWriter, r *http.
 	s.mu.RLock()
 	ws := s.workspace
 	s.mu.RUnlock()
-	tunnel, credential, err := s.platformWorkspaceConnection(ws.ConnectionID, "")
+	tunnel, credential, err := s.platformWorkspaceConnection(r.Context(), ws.ConnectionID, "")
 	if err != nil {
 		problem(w, 409, "backing_sign_in_required", "Reconnect and sign in to your selected cloud workspace.")
 		return
@@ -167,7 +171,7 @@ func (s *Server) platformBridgeHandler(bridge *workspacePreview, origin, bridgeK
 			problem(w, 403, "host_rejected", "Use the separate browser address shown by Luci.")
 			return
 		}
-		tunnel, credential, err := s.platformWorkspaceConnection(bridge.connectionID, bridge.remoteUserID)
+		tunnel, credential, err := s.platformWorkspaceConnection(r.Context(), bridge.connectionID, bridge.remoteUserID)
 		if err != nil {
 			problem(w, 503, "workspace_disconnected", "Reconnect and sign in to this workspace in Luci.")
 			return

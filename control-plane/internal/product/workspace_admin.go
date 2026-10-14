@@ -66,9 +66,11 @@ func (s *Server) workspaceAdmin(w http.ResponseWriter, r *http.Request, remotePa
 	ws := s.workspace
 	t := s.tunnels[ws.ConnectionID]
 	address, token := "", ""
+	var azurePin *AzureConnectionPin
 	if ws.Mode == "cloud" && ws.Ready && t != nil && t.Status == "connected" && t.KnownHost != "" {
 		address = t.APIURL
 		token = s.workspaceAuth[workspaceCredentialKey(*t)].Token
+		azurePin = t.Request.AzureIdentity
 	}
 	s.mu.RUnlock()
 	if ws.Mode != "cloud" {
@@ -81,6 +83,10 @@ func (s *Server) workspaceAdmin(w http.ResponseWriter, r *http.Request, remotePa
 	}
 	if token == "" {
 		problem(w, 409, "backing_sign_in_required", "Sign in to the selected backing in Settings.")
+		return
+	}
+	if err := s.gateAzureWorkspaceRequest(r.Context(), ws.ConnectionID, address, token, azurePin); err != nil {
+		problem(w, 409, "azure_generation_changed", err.Error())
 		return
 	}
 	body, password, ok := workspaceAdminBody(w, r, kind)

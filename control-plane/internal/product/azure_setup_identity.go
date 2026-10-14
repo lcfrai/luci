@@ -134,3 +134,28 @@ func verifyAzureWorkspaceIdentity(ctx context.Context, address, token string, pi
 	}
 	return nil
 }
+
+// Check at the request boundary: a prior status observation is not authority
+// to forward another mutation, obtain a socket ticket or open a preview join.
+func (s *Server) gateAzureWorkspaceRequest(ctx context.Context, connectionID, address, token string, pin *AzureConnectionPin) error {
+	if pin == nil {
+		return nil // Retained generic SSH behavior is unchanged.
+	}
+	if err := verifyAzureWorkspaceIdentity(ctx, address, token, pin); err != nil {
+		s.mu.Lock()
+		if s.workspace.Mode == "cloud" && s.workspace.ConnectionID == connectionID {
+			s.workspace.Ready = false
+		}
+		s.mu.Unlock()
+		return err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	tunnel := s.tunnels[connectionID]
+	if s.workspace.Mode != "cloud" || s.workspace.ConnectionID != connectionID || tunnel == nil ||
+		tunnel.Status != "connected" || tunnel.APIURL != address || tunnel.Request.AzureIdentity == nil || *tunnel.Request.AzureIdentity != *pin ||
+		s.workspaceAuth[workspaceCredentialKey(*tunnel)].Token != token {
+		return errors.New("The selected Azure management connection changed before this request.")
+	}
+	return nil
+}
