@@ -2,6 +2,7 @@ package runtimeoci
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -353,6 +354,13 @@ func pullSourceReceipt(root string, m PullManifest) (string, error) {
 // OpenPull is a metadata and held-file boundary. It performs no Docker work.
 // Full tar, blob and bootstrap checks are carried out by VerifyPullPayload.
 func OpenPull(root string) (_ *PullBundle, err error) {
+	return OpenPullContext(context.Background(), root)
+}
+
+func OpenPullContext(ctx context.Context, root string) (_ *PullBundle, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	manifestData, err := readRegular(root, "runtime-oci-pull-manifest-v2.json", maxMetadata)
 	if err != nil {
 		return nil, err
@@ -404,7 +412,7 @@ func OpenPull(root string) (_ *PullBundle, err error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = bundle.VerifyPullPayload(); err != nil {
+	if err = bundle.VerifyPullPayloadContext(ctx); err != nil {
 		return nil, err
 	}
 	return bundle, nil

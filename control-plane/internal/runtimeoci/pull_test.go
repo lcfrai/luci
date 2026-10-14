@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -39,6 +40,24 @@ func pullFixtureManifest() PullManifest {
 	m.Producer.OriginalBuildReceiptSHA256, m.Producer.ConversionReceiptSHA256, m.Producer.PullProducerReceiptSHA256 = hash, hash, hash
 	m.Licenses = []LicenseFile{{Member: Member{Path: "licenses/runtime-bootstrap/distribution", SHA256: hash, Bytes: 1}}, {Member: Member{Path: "licenses/runtime-image/fixture", SHA256: hash, Bytes: 1}}}
 	return m
+}
+
+func TestPullStageCancellationBeforePrivateWrite(t *testing.T) {
+	file, err := os.CreateTemp(t.TempDir(), "store-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	bundle := &PullBundle{Store: file}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	destination := filepath.Join(t.TempDir(), "stage")
+	if err := bundle.StageStoreContext(ctx, destination); err != context.Canceled {
+		t.Fatalf("cancelled stage returned %v", err)
+	}
+	if _, err := os.Lstat(destination); !os.IsNotExist(err) {
+		t.Fatalf("cancelled stage wrote a path: %v", err)
+	}
 }
 
 func TestPullStoreBindsOriginalConfigAndCompressedLayer(t *testing.T) {

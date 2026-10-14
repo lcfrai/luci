@@ -57,7 +57,7 @@ func (b *Backend) LoadPullBootstrap(ctx context.Context, prepared backend.Prepar
 	if err := b.runtimeImageIdentity(ctx, prepared.Spec.Identity); err != nil {
 		return backend.RuntimeImageBuildResult{Settled: true}, err
 	}
-	if err := bundle.VerifyPullPayload(); err != nil {
+	if err := bundle.VerifyPullPayloadContext(ctx); err != nil {
 		return backend.RuntimeImageBuildResult{Settled: true}, err
 	}
 	if err := b.inspectPullBootstrap(ctx, prepared); err == nil {

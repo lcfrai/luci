@@ -141,7 +141,7 @@ func (b *Backend) PullPackagedRuntimeImage(ctx context.Context, prepared backend
 	if prepared.PullBundle == nil || helper.NetworkID == "" || helper.ContainerID == "" || helper.HostPort == "" {
 		return backend.RuntimeImageBuildResult{Settled: true}, backend.ErrLaunchFenceOwnership
 	}
-	if err := prepared.PullBundle.VerifyPullPayload(); err != nil {
+	if err := prepared.PullBundle.VerifyPullPayloadContext(ctx); err != nil {
 		return backend.RuntimeImageBuildResult{Settled: true}, err
 	}
 	if _, err := prepared.PullBundle.VerifyPullStage(prepared.Spec.PullStagingDirectory); err != nil {

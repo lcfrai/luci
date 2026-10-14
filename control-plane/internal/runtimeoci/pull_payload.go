@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -199,12 +200,19 @@ func verifyPullDockerManifest(m PullManifest, data []byte) error {
 }
 
 func verifyPullStore(b *PullBundle) error {
+	return verifyPullStoreContext(context.Background(), b)
+}
+
+func verifyPullStoreContext(ctx context.Context, b *PullBundle) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	m := b.Manifest
 	if _, err := b.Store.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
 	whole := sha256.New()
-	tee := io.TeeReader(io.LimitReader(b.Store, m.RegistryStore.Bytes+1), whole)
+	tee := io.TeeReader(io.LimitReader(pullContextReader{context: ctx, reader: b.Store}, m.RegistryStore.Bytes+1), whole)
 	reader := tar.NewReader(tee)
 	wanted := expectedPullMembers(m)
 	if len(wanted) != len(m.RegistryStore.Members) {
@@ -298,11 +306,15 @@ func minTime(a, b time.Time) time.Time {
 
 // VerifyPullPayload rechecks held bytes immediately before a Docker effect.
 func (b *PullBundle) VerifyPullPayload() error {
+	return b.VerifyPullPayloadContext(context.Background())
+}
+
+func (b *PullBundle) VerifyPullPayloadContext(ctx context.Context) error {
 	if b == nil || b.Store == nil || b.Bootstrap == nil {
 		return errors.New("runtime pull package unavailable")
 	}
-	if err := verifyPullStore(b); err != nil {
+	if err := verifyPullStoreContext(ctx, b); err != nil {
 		return err
 	}
-	return verifyPullBootstrap(b)
+	return verifyPullBootstrapContext(ctx, b)
 }

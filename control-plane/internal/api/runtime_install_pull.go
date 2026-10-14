@@ -62,7 +62,7 @@ func (a *API) pullRuntimeImage(ctx context.Context, req runtimeinstall.Request, 
 	}
 	// Staging writes only bounded, reverified private files. This happens after
 	// admission, before any Docker effect or bootstrap loading intent.
-	if err := prepared.PullBundle.StageStore(prepared.Spec.PullStagingDirectory); err != nil {
+	if err := prepared.PullBundle.StageStoreContext(ctx, prepared.Spec.PullStagingDirectory); err != nil {
 		return settleWithoutHelper("runtime_pull_stage_failed", err)
 	}
 	receipt, err := prepared.PullBundle.VerifyPullStage(prepared.Spec.PullStagingDirectory)

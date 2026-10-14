@@ -3,6 +3,7 @@ package runtimeoci
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -109,12 +110,19 @@ func verifyBootstrapConfig(m PullManifest, data []byte) error {
 }
 
 func verifyPullBootstrap(b *PullBundle) error {
+	return verifyPullBootstrapContext(context.Background(), b)
+}
+
+func verifyPullBootstrapContext(ctx context.Context, b *PullBundle) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	m := b.Manifest
 	if _, err := b.Bootstrap.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
 	whole := sha256.New()
-	tee := io.TeeReader(io.LimitReader(b.Bootstrap, m.Bootstrap.Bytes+1), whole)
+	tee := io.TeeReader(io.LimitReader(pullContextReader{context: ctx, reader: b.Bootstrap}, m.Bootstrap.Bytes+1), whole)
 	reader := tar.NewReader(tee)
 	deadline := time.Now().Add(bootstrapDeadline)
 	var configData, manifestData []byte

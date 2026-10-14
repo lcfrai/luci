@@ -70,7 +70,7 @@ func (b *Backend) PreparePullRuntimeImage(ctx context.Context, spec backend.Runt
 		return backend.PreparedRuntimeImage{}, err
 	}
 	spec.ImageTag = tag
-	bundle, err := runtimeoci.OpenPull(spec.SourceDirectory)
+	bundle, err := runtimeoci.OpenPullContext(ctx, spec.SourceDirectory)
 	if err != nil {
 		return backend.PreparedRuntimeImage{}, fmt.Errorf("installed compressed runtime distribution is unavailable: %w", err)
 	}

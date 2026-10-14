@@ -3,6 +3,7 @@ package runtimeoci
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -35,6 +36,22 @@ type pullAllowlist struct {
 		Digest string `json:"digest"`
 		Bytes  int64  `json:"bytes"`
 	} `json:"layers"`
+}
+
+type pullContextReader struct {
+	context context.Context
+	reader  io.Reader
+}
+
+func (r pullContextReader) Read(data []byte) (int, error) {
+	if err := r.context.Err(); err != nil {
+		return 0, err
+	}
+	n, err := r.reader.Read(data)
+	if r.context.Err() != nil {
+		return n, r.context.Err()
+	}
+	return n, err
 }
 
 func (b *PullBundle) pullAllowlistBytes() ([]byte, error) {
@@ -153,10 +170,17 @@ func (b *PullBundle) VerifyPullStage(destination string) (PullStageReceipt, erro
 // a fresh private directory. The caller must durably own destination and have
 // admitted the stage's disk and host demand before calling this method.
 func (b *PullBundle) StageStore(destination string) error {
+	return b.StageStoreContext(context.Background(), destination)
+}
+
+func (b *PullBundle) StageStoreContext(ctx context.Context, destination string) error {
 	if b == nil || b.Store == nil || !filepath.IsAbs(destination) {
 		return errors.New("runtime pull stage destination invalid")
 	}
-	if err := b.VerifyPullPayload(); err != nil {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := b.VerifyPullPayloadContext(ctx); err != nil {
 		return err
 	}
 	parent := filepath.Dir(destination)
@@ -187,7 +211,7 @@ func (b *PullBundle) StageStore(destination string) error {
 		return err
 	}
 	whole := sha256.New()
-	tee := io.TeeReader(io.LimitReader(b.Store, b.Manifest.RegistryStore.Bytes+1), whole)
+	tee := io.TeeReader(io.LimitReader(pullContextReader{context: ctx, reader: b.Store}, b.Manifest.RegistryStore.Bytes+1), whole)
 	reader := tar.NewReader(tee)
 	deadline := time.Now().Add(pullTotalDeadline)
 	for _, want := range b.Manifest.RegistryStore.Members {
