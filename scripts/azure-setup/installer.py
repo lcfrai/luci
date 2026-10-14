@@ -552,6 +552,7 @@ def prepare(bundle_root, selection_path, selected_digest):
     if tfplan.is_symlink() or not tfplan.is_file() or tfplan.stat().st_size > 16 << 20:
         raise ValueError("Azure provider plan identity is incomplete")
     record = {"version": 1, "state": "prepared", "planDigest": selected_digest,
+              "selectionDigest": plan["selectionDigest"], "sourceCommit": plan["luciRevision"],
               "terraformPlanSHA256": hashlib.sha256(tfplan.read_bytes()).hexdigest(),
               "resourceCreates": sum(action == ["create"] for action in actions),
               "resourceNoops": 0,
@@ -624,6 +625,8 @@ def observed_outputs(bundle_root, selection_path, plan_digest):
             identities["controller_disk_id"].lower().split("/providers/")[0] != prefix.split("/providers/")[0]):
         raise RuntimeError("Azure readback changed the selected package, image or disk scope")
     receipt = dict(state, state="infrastructure_observed_pending_private_handoff", resourceIDs=identities,
+                   selectionDigest=plan["selectionDigest"], sourceCommit=plan["luciRevision"],
+                   scope=variables["scope"], generation=variables["generation"],
                    readbackPlanSHA256=hashlib.sha256(refresh.read_bytes()).hexdigest())
     atomic_json(state_path, receipt)
     return receipt

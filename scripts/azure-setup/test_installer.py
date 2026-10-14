@@ -137,6 +137,8 @@ class AzureSetupTest(unittest.TestCase):
 
         with mock.patch.object(installer, "terraform", fake_terraform):
             prepared = installer.prepare(bundle, selected, plan["planDigest"])
+            self.assertEqual(prepared["selectionDigest"], plan["selectionDigest"])
+            self.assertEqual(prepared["sourceCommit"], plan["luciRevision"])
             backend = (selected.parent / "azure-terraform/backend.hcl").read_text()
             self.assertIn('use_azuread_auth = true', backend)
             self.assertNotIn('backend=false', backend)
@@ -217,6 +219,7 @@ class AzureSetupTest(unittest.TestCase):
         with mock.patch.object(installer, "terraform", fake_terraform):
             result = installer.observed_outputs(bundle, selected, plan["planDigest"])
         self.assertEqual(result["state"], "infrastructure_observed_pending_private_handoff")
+        self.assertEqual(result["selectionDigest"], plan["selectionDigest"])
         self.assertEqual(calls, ["plan", "show"])
 
     def test_unknown_private_controller_bootstrap_cannot_dispatch_again(self):
