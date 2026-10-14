@@ -553,6 +553,9 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 				} else if exit.FailureCode == "local_model_context_unverified" && job.Harness == "opencode" {
 					failureCode = exit.FailureCode
 					message = "Luci could not verify this local model's serving context and exact token count. Check that the saved endpoint is Ollama's local API and the model is available; no response was accepted."
+				} else if exit.FailureCode == "local_model_structured_output_invalid" && job.Harness == "opencode" {
+					failureCode = exit.FailureCode
+					message = "The selected local model did not produce a complete structured answer. Your project context is saved; no proposal was accepted. Try again or select a more capable supported model."
 				}
 				return
 			}

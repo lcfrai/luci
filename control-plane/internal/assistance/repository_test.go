@@ -151,7 +151,7 @@ else:
 	}
 }
 
-func TestOpenCodeReceivesLongContextTailAndExactSchemaThroughStdin(t *testing.T) {
+func TestOpenCodeLocalStructuredSessionReceivesLongContextTailAndExactSchema(t *testing.T) {
 	python, err := exec.LookPath("python3")
 	if err != nil {
 		t.Skip("Python runtime required for the actual launcher")
@@ -174,7 +174,12 @@ func TestOpenCodeReceivesLongContextTailAndExactSchemaThroughStdin(t *testing.T)
 	for i := 0; i < 200; i++ {
 		fields["field-"+strings.Repeat("a", i%12)+string(rune('A'+i%26))+string(rune('a'+i/26))] = map[string]string{"type": "string"}
 	}
-	schema, err := json.Marshal(map[string]any{"type": "object", "properties": fields})
+	for _, name := range []string{"question", "rationale", "nextAction"} {
+		fields[name] = map[string]string{"type": "string"}
+	}
+	fields["options"] = map[string]any{"type": "array", "items": map[string]string{"type": "string"}}
+	fields["proposal"] = map[string]any{"anyOf": []any{map[string]string{"type": "object"}, map[string]string{"type": "null"}}}
+	schema, err := json.Marshal(map[string]any{"type": "object", "properties": fields, "required": []string{"question", "options", "rationale", "proposal", "nextAction"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,23 +192,47 @@ func TestOpenCodeReceivesLongContextTailAndExactSchemaThroughStdin(t *testing.T)
 		}
 	}
 	fake := filepath.Join(dir, "opencode.py")
-	code := `import json,os,pathlib,sys,urllib.request
+	code := `import base64,http.server,json,os,pathlib,sys,urllib.request
 args=sys.argv[1:]
 if os.environ.get('FIXTURE_INVOCATION'):
  pathlib.Path(os.environ['FIXTURE_INVOCATION']).write_text('started')
-if os.environ.get('FIXTURE_CHANGE'):
- urllib.request.urlopen(os.environ['FIXTURE_CHANGE'],timeout=2).close()
-received=sys.stdin.read()
 expected=pathlib.Path(os.environ['FIXTURE_EXPECTED']).read_text()
-schema_text=received.split('Response schema:\n',1)[1].split('\nComplete project request:\n',1)[0]
 expected_schema=json.loads(pathlib.Path(os.environ['FIXTURE_SCHEMA']).read_text())
-if '--file' in args or not received.endswith(expected) or 'TAIL_CURRENT_REQUEST_WHO_APPROVES_THE_RELEASE' not in received or json.loads(schema_text)!=expected_schema:
+if 'serve' not in args or '--hostname' not in args or args[args.index('--hostname')+1]!='127.0.0.1' or args[args.index('--port')+1]!='0':
  sys.exit(9)
-if os.environ.get('FIXTURE_FENCED') == '1':
- reply='''` + "```json\n" + `{"question":"Who approves?"}` + "\n```" + `'''
-else:
- reply=json.dumps({'question':'Who approves?','options':[],'rationale':'Ask the owner.','proposal':None})
-print(json.dumps({'type':'text','part':{'text':reply}}))
+class Handler(http.server.BaseHTTPRequestHandler):
+ def log_message(self,*args): pass
+ def do_POST(self):
+  auth=self.headers.get('Authorization','')
+  if not auth.startswith('Basic ') or base64.b64decode(auth[6:]).decode()!='opencode:'+os.environ['OPENCODE_SERVER_PASSWORD']:
+   self.send_error(401); return
+  size=int(self.headers.get('Content-Length','0'))
+  if size<1 or size>524288:
+   self.send_error(413); return
+  body=json.loads(self.rfile.read(size))
+  if self.path=='/session':
+   response={'id':'ses_fixture12345678'}
+  elif self.path=='/session/ses_fixture12345678/message':
+   fmt=body.get('format',{})
+   received=body['parts'][0]['text']
+   if fmt.get('type')!='json_schema' or fmt.get('retryCount')!=0 or fmt.get('schema')!=expected_schema or not received.endswith(expected) or 'TAIL_CURRENT_REQUEST_WHO_APPROVES_THE_RELEASE' not in received or body.get('agent')!='luci-analysis' or body.get('model')!={'providerID':'luci-local','modelID':'fixture'}:
+    self.send_error(400); return
+   if os.environ.get('FIXTURE_CHANGE'):
+    urllib.request.urlopen(os.environ['FIXTURE_CHANGE'],timeout=2).close()
+   if os.environ.get('FIXTURE_INCOMPLETE')=='1':
+    result={'blocking':False,'impact':['Development'],'nextAction':'Propose a complete specification','options':[],'proposal':None}
+   elif os.environ.get('FIXTURE_INCOMPLETE')=='2':
+    result={'question':'','options':[],'rationale':'','proposal':None,'nextAction':'Propose a complete specification'}
+   else:
+    result={'question':'Who approves?','options':[],'rationale':'Ask the owner.','proposal':None,'nextAction':'answer-question'}
+   response={'info':{'structured':result}}
+  else:
+   self.send_error(404); return
+  encoded=json.dumps(response).encode()
+  self.send_response(200); self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(encoded))); self.end_headers(); self.wfile.write(encoded)
+server=http.server.HTTPServer(('127.0.0.1',0),Handler)
+print('opencode server listening on http://127.0.0.1:'+str(server.server_port),flush=True)
+server.serve_forever()
 `
 	if err := os.WriteFile(fake, []byte(code), 0600); err != nil {
 		t.Fatal(err)
@@ -252,15 +281,15 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 	launcher = strings.Replace(launcher, "base.port != 11434", "base.port != "+strconv.Itoa(port), 1)
 	quoted, _ := json.Marshal(filepath.ToSlash(python))
 	quotedFake, _ := json.Marshal(filepath.ToSlash(fake))
-	launcher = strings.Replace(launcher, "['opencode',", "["+string(quoted)+","+string(quotedFake)+",", 1)
+	launcher = strings.ReplaceAll(launcher, "['opencode',", "["+string(quoted)+","+string(quotedFake)+",")
 	entry := filepath.Join(dir, "run.py")
 	if err := os.WriteFile(entry, []byte(launcher), 0600); err != nil {
 		t.Fatal(err)
 	}
-	for _, fenced := range []bool{false, true} {
+	for _, incomplete := range []string{"0", "1", "2"} {
 		os.Remove(filepath.Join(output, "result.json"))
 		cmd := exec.Command(python, entry)
-		cmd.Env = append(os.Environ(), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_FENCED="+map[bool]string{true: "1", false: "0"}[fenced], "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig))
+		cmd.Env = append(os.Environ(), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_INCOMPLETE="+incomplete, "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig))
 		logs, runErr := cmd.CombinedOutput()
 		if len(logs) != 0 {
 			t.Fatal("provider output escaped launcher")
@@ -275,19 +304,19 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 		if json.Unmarshal(data, &exit) != nil {
 			t.Fatal("invalid exit receipt")
 		}
-		if fenced {
+		if incomplete != "0" {
 			if runErr == nil || exit.ExitCode == 0 {
-				t.Fatal("fenced echo was accepted")
+				t.Fatal("the observed incomplete, deferred-proposal shape was accepted")
 			}
 			if _, err := os.Stat(filepath.Join(output, "result.json")); !os.IsNotExist(err) {
-				t.Fatal("fenced output was published")
+				t.Fatal("incomplete structured output was published")
 			}
 		} else {
 			if runErr != nil || exit.ExitCode != 0 {
 				t.Fatal("complete stdin request failed", runErr)
 			}
 			result, err := os.ReadFile(filepath.Join(output, "result.json"))
-			if err != nil || !strings.Contains(string(result), `"question": "Who approves?"`) {
+			if err != nil || !strings.Contains(string(result), `"question":"Who approves?"`) {
 				t.Fatal("valid structured answer missing", err)
 			}
 		}
