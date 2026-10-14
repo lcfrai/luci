@@ -139,6 +139,9 @@ func (b *Backend) LoadPackagedRuntimeImage(ctx context.Context, prepared backend
 	}
 	response, err := images.ImageLoad(ctx, io.LimitReader(prepared.Bundle.Archive, prepared.Bundle.Manifest.Archive.Bytes))
 	if err != nil || response.Body == nil {
+		if response.Body != nil {
+			_ = response.Body.Close()
+		}
 		return backend.RuntimeImageBuildResult{}, backend.ErrUnavailable
 	}
 	reader := &io.LimitedReader{R: response.Body, N: runtimeImageStreamLimit + 1}
@@ -217,6 +220,9 @@ func (b *Backend) DerivePackagedRuntimeImage(ctx context.Context, prepared backe
 	defer cancel()
 	response, err := images.ImageBuild(buildCtx, bytes.NewReader(contextTar.Bytes()), options)
 	if err != nil || response.Body == nil {
+		if response.Body != nil {
+			_ = response.Body.Close()
+		}
 		return backend.RuntimeImageBuildResult{}, backend.ErrUnavailable
 	}
 	stream, streamErr := consumeRuntimeBuild(buildCtx, response.Body)
