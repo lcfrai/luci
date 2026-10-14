@@ -363,14 +363,18 @@ export function CloudManager({
       )}
       <section className="setup-plan">
         <h2>
-          {activeConnectionId
+          {azureDescriptor
+            ? "Private server connection"
+            : activeConnectionId
             ? "Your private server connection"
             : mode === "existing"
               ? "Connect to your workspace server"
               : "Connect your server securely"}
         </h2>
         <p className="journey-muted">
-          {activeConnectionId
+          {azureDescriptor
+            ? "Inspect the server key before connecting. You will sign in to your Luci workspace afterward."
+            : activeConnectionId
             ? "Your selected workspace is already connected. Manage its sign-in above. Use the SSH controls below only if you need to reconnect the server."
             : mode === "existing"
               ? "Use the SSH details supplied by your workspace administrator. After verifying the server, sign in with your Luci workspace account below. Connecting does not create cloud resources."
@@ -435,7 +439,7 @@ export function CloudManager({
         </form>
         {scan && (
           <div className="cloud-confirm">
-            <p>{azureDescriptor ? "Compare the observed host key with the exact authenticated Azure controller readback before trusting this private server. The imported file alone does not prove ownership or a usable private route." : "Compare this host key with your provider’s console before trusting this server. A key shown here alone does not prove ownership."}</p>
+            <p>{azureDescriptor ? "The server key must match your Azure setup readback. The imported file alone does not prove who owns this server." : "Compare this host key with your provider’s console before trusting this server. A key shown here alone does not prove ownership."}</p>
             {azureDescriptor && !scan.fingerprints.includes(azureDescriptor.fingerprint) && <p role="alert" className="journey-error">The server key differs from the imported Azure controller identity. Check the authenticated Azure readback; do not connect this server.</p>}
             <label className="luci-field">
               Server fingerprint
@@ -462,7 +466,7 @@ export function CloudManager({
                 checked={accepted}
                 onChange={(e) => setAccepted(e.target.checked)}
               />
-              {azureDescriptor ? "I compared this fingerprint with the authenticated Azure controller readback for this exact VM and generation." : "I compared this fingerprint with my server’s trusted console."}
+              {azureDescriptor ? "This matches the host key shown by my authenticated Azure setup command." : "I compared this fingerprint with my server’s trusted console."}
             </label>
             <Button type="button"
               variant="primary"
