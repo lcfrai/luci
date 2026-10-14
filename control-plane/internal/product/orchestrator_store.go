@@ -23,6 +23,41 @@ const orchestratorFileLimit = 16 << 20
 const orchestratorContextLimit = 224 << 10
 const orchestratorAnswerLimit = 384 << 10
 
+// A status response is display evidence, not a substitute for source
+// admission. Refuse a missing/ambiguous HEAD header rather than report a
+// clean source when Git returned an incomplete or unfamiliar response.
+func orchestratorSourceStatus(raw string) (known, dirty bool, commit string) {
+	if len(raw) > 1<<20 {
+		return false, false, ""
+	}
+	seen := false
+	for _, line := range strings.Split(strings.TrimSuffix(raw, "\n"), "\n") {
+		if strings.HasPrefix(line, "# branch.oid ") {
+			if seen {
+				return false, false, ""
+			}
+			seen = true
+			commit = strings.TrimPrefix(line, "# branch.oid ")
+			if commit == "(initial)" {
+				commit = ""
+			} else if !deliverySHA.MatchString(commit) {
+				return false, false, ""
+			}
+		} else if strings.HasPrefix(line, "# branch.") || strings.HasPrefix(line, "# stash ") {
+			continue
+		} else if line != "" {
+			if !strings.HasPrefix(line, "1 ") && !strings.HasPrefix(line, "2 ") && !strings.HasPrefix(line, "u ") && !strings.HasPrefix(line, "? ") && !strings.HasPrefix(line, "! ") {
+				return false, false, ""
+			}
+			dirty = true
+		}
+	}
+	if !seen {
+		return false, false, ""
+	}
+	return true, dirty, commit
+}
+
 type storedOrchestratorTurn struct {
 	OrchestratorTurn
 	AdmissionRevision   *int   `json:"admissionRevision,omitempty"`
@@ -221,14 +256,12 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 	}
 	readCtx, cancel := context.WithTimeout(context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir), 3*time.Second)
 	defer cancel()
-	head, headErr := s.journeyGit(readCtx, p.Path, "rev-parse", "--verify", "HEAD")
-	status, statusErr := s.journeyGit(readCtx, p.Path, "status", "--porcelain=v1", "--untracked-files=normal")
+	// The primary conversation refreshes this snapshot while visible. One
+	// fresh porcelain-v2 read supplies both HEAD and worktree status, avoiding
+	// a separate Git child per refresh without caching source authority.
+	status, statusErr := s.journeyGit(readCtx, p.Path, "status", "--porcelain=v2", "--branch", "--untracked-files=normal")
 	if statusErr == nil {
-		value.SourceKnown = true
-		value.SourceDirty = strings.TrimSpace(status) != ""
-	}
-	if headErr == nil && deliverySHA.MatchString(strings.TrimSpace(head)) {
-		value.SourceCommit = strings.TrimSpace(head)
+		value.SourceKnown, value.SourceDirty, value.SourceCommit = orchestratorSourceStatus(status)
 	}
 	if checks, err := s.readCheckHistory(p.ID); err == nil && len(checks) > 0 {
 		last := checks[0]
