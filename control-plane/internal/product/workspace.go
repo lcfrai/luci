@@ -378,7 +378,7 @@ func (s *Server) installCloudWorkspace(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	info, err := os.Lstat(s.cloudBundle)
-	if err != nil || !info.Mode().IsRegular() || info.Size() > 300<<20 {
+	if err != nil || !info.Mode().IsRegular() || info.Size() > maxWorkspaceCoreBytes {
 		s.mu.Unlock()
 		problem(w, 503, "bundle_unavailable", "This build does not contain the cloud runtime bundle. Install an official packaged Luci build.")
 		return
