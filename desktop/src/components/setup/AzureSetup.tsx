@@ -124,6 +124,7 @@ export function AzureSetup({ client, disabled, budget = 30 }: { client: ProductC
       <section className="azure-setup-followup" aria-label="Azure installer progress and connection">
         <h3>Continue after running the installer</h3>
         <p>Import only the nonsecret receipts from your exact installer working folder. They show prepared stages and a proposed controller identity; they are not proof of Azure authentication, private reachability, cloud pricing or a connected workspace.</p>
+        <details><summary>Commands for these receipts</summary><p>From the private working folder used for the verified installer, save the <code>status</code> command’s JSON output as a local file. After the controller bootstrap succeeds, run the following installed stage to obtain its authenticated host readback and <code>azure-connection.json</code>. Do not rerun an uncertain stage without reconciling its retained receipt.</p><pre tabIndex={0}>python3 luci-azure-setup/azure-setup/installer.py connection-descriptor --bundle luci-azure-setup --selection luci-azure-private/selection.json</pre></details>
         <div className="azure-setup-receipts">
           <label className="luci-field">Installer progress JSON
             <input type="file" accept=".json,application/json" disabled={disabled || !!busy} onChange={event => { importProgress(event.target.files?.[0]); event.target.value = ""; }} />
