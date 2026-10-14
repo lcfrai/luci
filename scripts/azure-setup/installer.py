@@ -254,6 +254,13 @@ def make_plan(selection, manifest, selection_path, bundle_root):
                           "dedicated E2B runtime host and private mTLS gateway", "one newly allocated microVM per running agent"],
             "missing": sorted(set(missing)), "priceVerified": False,
             "priceNote": "Account, region, quota, image and recurring price are not queried by this offline plan; review Azure's current quote before applying."}
+    plan["nextSteps"] = [
+        "Select the Azure subscription, existing resource group, durable Blob state and an unused private network.",
+        "Select KVM-capable host/controller sizes and publish exact runtime/controller gallery image versions.",
+        "Choose a private Key Vault and exact certificate/secret versions for the separate host and controller identities.",
+        "Select a signed E2B guest template, model egress and reviewed task/concurrency limits.",
+        "Review the account's actual monthly quote and quota before the explicit provider plan/apply.",
+    ] if missing else ["Review the exact Terraform plan and account price before any effect."]
     plan["planDigest"] = digest(plan)
     script = Path(bundle_root).resolve() / "azure-setup/installer.py"
     plan["commands"] = [shlex.join(["python3", str(script), "prepare-images", "--bundle", str(Path(bundle_root).resolve()),

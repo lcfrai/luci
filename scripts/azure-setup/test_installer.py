@@ -69,6 +69,7 @@ class AzureSetupTest(unittest.TestCase):
         self.assertEqual(created["terraformVariables"]["controller_private_ip"], "10.240.1.10")
         self.assertTrue(created["terraformVariables"]["controller_filesystem_uuid"])
         self.assertIn("state_backend_subscriptionId", result["missing"])
+        self.assertEqual(len(installer.plan_command(bundle, path)["nextSteps"]), 5)
         with self.assertRaisesRegex(ValueError, "new file"):
             installer.initial_selection(bundle, path, "luci-team", "australiaeast", 200, 4)
         self.assertEqual(installer.private_json(path), created)
