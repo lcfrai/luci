@@ -451,7 +451,7 @@ def initial_guest_script(health_url, inspect=False, setup_files=None):
             "printf '%s\\n' 'LUCI_AZURE_CONTROLLER_MOUNT_RECEIPT='\"$receipt\"\n")
 
 
-def initialize(selection, store, compute):
+def initialize(selection, store, compute, reconcile=False):
     """Initial nonshared disk attach/format and off-disk authority creation.
 
     The first effect is recorded in the same private Blob used for recovery.
@@ -460,6 +460,8 @@ def initialize(selection, store, compute):
     validate(selection)
     record, etag = store.read()
     if record is None:
+        if reconcile:
+            raise RuntimeError('initial fence write remains absent or uncertain; no repeated bootstrap effect')
         if compute.disk_owner(selection["diskID"]) != ("", "Unattached"):
             raise ValueError("initial controller disk is not unattached")
         vm, vm_etag = compute.get(selection["oldControllerID"])
@@ -693,7 +695,7 @@ def deliver_host(selection, generation_digest):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("initialize", "recover"))
+    parser.add_argument("action", choices=("initialize", "reconcile-initialize", "recover"))
     parser.add_argument("selection", type=Path)
     args = parser.parse_args()
     selected = private(args.selection, 96 << 10)
@@ -705,7 +707,7 @@ def main():
         raise ValueError("disk lifecycle must run on the selected private recovery VM")
     store = FenceBlob(transport, selected["fenceBlobURL"])
     compute = Compute(transport)
-    record = initialize(selected, store, compute) if args.action == "initialize" else run(
+    record = initialize(selected, store, compute, args.action == 'reconcile-initialize') if args.action != "recover" else run(
         selected, store, compute, deliver_host, Service(selected["apiHealthURL"]))
     print(json.dumps({"state": record["state"], "generation": record.get("generation"), "diskID": record["diskID"]}, sort_keys=True))
 

@@ -131,8 +131,9 @@ func TestAzureDevelopSetupPlanAndBundleAreSourceBoundReads(t *testing.T) {
 		t.Fatal("plan lost source binding or pretended readiness", w.Body.String())
 	}
 	commands, okay := plan["commands"].([]any)
-	if !okay || len(commands) < 4 || !strings.Contains(commands[4].(string), "init-selection") ||
-		!strings.Contains(commands[4].(string), "--max-concurrent-vms 4") {
+	if !okay || len(commands) != 6 || !strings.Contains(commands[4].(string), "init-selection") ||
+		!strings.Contains(commands[4].(string), "--max-concurrent-vms 4") ||
+		!strings.Contains(commands[5].(string), "installer.py continue --bundle") {
 		t.Fatal("the small-input setup command is unavailable")
 	}
 	w = httptest.NewRecorder()

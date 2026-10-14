@@ -330,26 +330,8 @@ def make_plan(selection, manifest, selection_path, bundle_root):
     plan["planDigest"] = digest(plan)
     script = Path(bundle_root).resolve() / "azure-setup/installer.py"
     common = ["--bundle", str(Path(bundle_root).resolve()), "--selection", str(Path(selection_path).resolve())]
-    plan["commands"] = [shlex.join(["python3", str(script), "generate-secrets", *common]),
-                        shlex.join(["python3", str(script), "publish-secrets", *common,
-                                    "--acknowledge-credential-publication"]),
-                        shlex.join(["python3", str(script), "reconcile-secrets", *common]),
-                        shlex.join(["python3", str(script), "bind-secrets", *common]),
-                        shlex.join(["python3", str(script), "prepare-images", "--bundle", str(Path(bundle_root).resolve()),
-                                    "--selection", str(Path(selection_path).resolve()), "--image-inputs",
-                                    str(Path(selection_path).resolve().parent / "image-inputs.json"),
-                                    "--acknowledge-image-roots"]),
-                        shlex.join(["python3", str(script), "prepare", "--bundle", str(Path(bundle_root).resolve()),
-                                    "--selection", str(Path(selection_path).resolve()), "--plan-digest", plan["planDigest"]]),
-                        shlex.join(["python3", str(script), "apply", "--bundle", str(Path(bundle_root).resolve()),
-                                    "--selection", str(Path(selection_path).resolve()), "--plan-digest", plan["planDigest"],
-                                    "--tfplan-digest", "<digest-from-prepare>", "--acknowledge-costs", "--acknowledge-unverified-price"]),
-                        shlex.join(["python3", str(script), "reconcile", "--bundle", str(Path(bundle_root).resolve()),
-                                    "--selection", str(Path(selection_path).resolve()), "--plan-digest", plan["planDigest"]]),
-                        shlex.join(["python3", str(script), "bootstrap", "--bundle", str(Path(bundle_root).resolve()),
-                                    "--selection", str(Path(selection_path).resolve()), "--plan-digest", plan["planDigest"]]),
-                        shlex.join(["python3", str(script), "status", "--bundle", str(Path(bundle_root).resolve()),
-                                    "--selection", str(Path(selection_path).resolve())])]
+    plan["commands"] = [shlex.join(["python3", str(script), "continue", *common]),
+                        shlex.join(["python3", str(script), "status", *common])]
     return plan
 
 
@@ -724,11 +706,12 @@ def controller_setup_files(selection_path):
         ('/etc/luci/azure-controller.env', environment.encode()))]
 
 
-def initial_guest_script(recovery):
+def initial_guest_script(recovery, reconcile=False):
     # Only source-selected resource names and nonsecret Key Vault references
     # enter ARM RunCommand. The script writes an owner-private exact selection
     # and invokes the already-installed recovery managed identity adapter.
     encoded = base64.b64encode(canonical(recovery)).decode()
+    action = 'reconcile-initialize' if reconcile else 'initialize'
     return """set -eu
 install -d -m 700 /etc/luci
 python3 - <<'PY'
@@ -747,9 +730,9 @@ else:
         os.fsync(output.fileno())
     os.replace(name, target)
 PY
-receipt=$(python3 /opt/luci/azure-controller/bin/recover.py initialize /etc/luci/azure-controller-recovery.json)
+receipt=$(python3 /opt/luci/azure-controller/bin/recover.py %s /etc/luci/azure-controller-recovery.json)
 printf 'LUCI_AZURE_INITIALIZE_RECEIPT=%%s\\n' "$receipt"
-""" % encoded
+""" % (encoded, action)
 
 
 def invoke_initial_controller(script, subscription, group, vm_name):
@@ -762,13 +745,14 @@ def invoke_initial_controller(script, subscription, group, vm_name):
         '--resource-group', group, '--name', vm_name, '--command-id', 'RunShellScript', '--scripts', script])
 
 
-def bootstrap(bundle_root, selection_path, plan_digest):
+def bootstrap(bundle_root, selection_path, plan_digest, reconcile=False):
     plan = plan_command(bundle_root, selection_path)
     if plan["planDigest"] != plan_digest or plan["missing"]:
         raise ValueError("Azure controller bootstrap selection is stale or incomplete")
     state_path, _ = work_paths(selection_path)
     state = private_json(state_path)
-    if state.get("state") != "infrastructure_observed_pending_private_handoff" or state.get("planDigest") != plan_digest:
+    expected = 'bootstrap_pending' if reconcile else 'infrastructure_observed_pending_private_handoff'
+    if state.get("state") != expected or state.get("planDigest") != plan_digest:
         raise ValueError("Azure infrastructure needs exact provider readback before controller handoff")
     selection = private_json(selection_path)
     recovery = initial_recovery_selection(selection, state["resourceIDs"])
@@ -776,6 +760,8 @@ def bootstrap(bundle_root, selection_path, plan_digest):
         files = controller_setup_files(selection_path)
         if files is not None:
             recovery['controllerSetupFiles'] = files
+    if reconcile and state.get('recoverySelectionSHA256') != digest(recovery):
+        raise ValueError('Retained bootstrap source or exact recovery selection changed')
     # Validate the static format with the shipped recovery adapter before any
     # ARM effect. It checks exact immutable IDs, fence and private paths.
     import importlib.util as util
@@ -783,13 +769,14 @@ def bootstrap(bundle_root, selection_path, plan_digest):
     module = util.module_from_spec(spec)
     spec.loader.exec_module(module)
     module.validate(recovery)
-    script = initial_guest_script(recovery)
+    script = initial_guest_script(recovery, reconcile)
     if shutil.which("az") is None:
         raise ValueError("Azure CLI is required before a protected controller handoff can be attempted")
     vm_name = state["resourceIDs"]["controller_recovery_instance_id"].rsplit("/", 1)[-1]
     pending = dict(state, state="bootstrap_pending", recoverySelectionSHA256=digest(recovery),
                    guestScriptSHA256=hashlib.sha256(script.encode()).hexdigest())
-    atomic_json(state_path, pending)
+    if not reconcile:
+        atomic_json(state_path, pending)
     try:
         response = invoke_initial_controller(script, selection["stateBackend"]["subscriptionId"],
                                              selection["terraformVariables"]["resource_group_name"], vm_name)
@@ -814,7 +801,7 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "generate-secrets",
                    "publish-secrets", "reconcile-secrets", "bind-secrets", "prepare-images", "prepare", "apply",
-                   "reconcile", "bootstrap", "status", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile", "foundation-inventory", "foundation-plan", "foundation-step", "foundation-reconcile", "foundation-bind", "foundation-reuse", "builder-source", "builder-plan", "builder-step"):
+                   "reconcile", "bootstrap", "status", "continue", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile", "foundation-inventory", "foundation-plan", "foundation-step", "foundation-reconcile", "foundation-bind", "foundation-reuse", "builder-source", "builder-plan", "builder-step"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
@@ -901,6 +888,12 @@ def main():
             row.add_argument("--acknowledge-costs", action="store_true")
             row.add_argument("--acknowledge-unverified-price", action="store_true")
     args = parser.parse_args()
+    if args.action == 'continue':
+        bundle(args.bundle)
+        spec = importlib.util.spec_from_file_location('luci_azure_guided', args.bundle / 'azure-setup/guided.py')
+        guided_module = importlib.util.module_from_spec(spec); spec.loader.exec_module(guided_module)
+        print(json.dumps(guided_module.continue_setup(sys.modules[__name__], args.bundle, args.selection), sort_keys=True))
+        return
     if args.action.startswith('builder-'):
         bundle(args.bundle)
         modules = []

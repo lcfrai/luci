@@ -37,3 +37,19 @@ The immediate host-loss slice restores the exact off-host journal and transfer o
 ## Deferred acceptance, separate from code status
 
 Every LC-01–LC-16 entry has a separate, exact `acceptance` predicate in [the canonical tracked JSON](PRODUCT-CONTRACT-LC.json). **All sixteen integrated acceptance predicates remain open.** They are not counted as missing code in the table above merely because a real-provider or Windows test has not run. The next acceptance priority is conversational amendment through a real **local Docker** harness, independent checks, permitted live delivery and isolated Windows behavior. Azure architecture and implementation must then be reconciled and audited before testing twelve tasks/four projects/four simultaneous separately owned **Azure** microVMs with midflight amendment, review, exact retirement and retained charges. Two authenticated teammate Lucis resolving compatible and contradictory changes across restart remain required. Higher configured concurrency must work within observed capacity/budget, not a fixed product ceiling. Real provider quality, Windows/native setup, responsiveness (switch p95 <300 ms, input p95 <100 ms, interaction p99 <1 second), whole-machine resource use and failed/unknown recovery remain open. Fixture/source passes do not close these gates or invite Dylan to user testing.
+
+
+### SETUP-02 guided normal progression (offline source)
+
+`azure-setup/installer.py continue` and `guided.py` now join the normal private
+foundation, embedded source, sequential fresh builders, gallery cleanup,
+credentials, task/model inputs, reviewed Terraform apply/readback, fenced
+controller/template/operator and descriptor stages. Exact source/scope/generation
+plan approvals are durable. Pending operations select reconciliation, waiting
+builds stop, aborted production and interrupted key generation refuse progress.
+`recover.py reconcile-initialize` cannot create an absent initial fence or repeat
+an uncertain attach/format. The plan API returns the one normal continuation
+command. Focused offline journey tests pass; guest recovery checks require Linux.
+This is not live Azure/KVM/task/private-connection or billing acceptance. Signed
+replacement-controller installer join and full installation retirement remain
+owned implementation work; builder retirement is only temporary-resource cleanup.
