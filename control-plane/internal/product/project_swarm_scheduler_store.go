@@ -19,7 +19,7 @@ const swarmQueueLimit = MaxSwarmScheduledTasks
 const swarmQueueFileLimit = 2 << 20
 
 func defaultSwarmSchedulerPolicy() SwarmSchedulerPolicy {
-	return SwarmSchedulerPolicy{MaxActive: 4, MaxPerProject: 2, HeadroomPercent: 25, MinHeadroomMiB: 2048, DiskReserveMiB: 2048}
+	return SwarmSchedulerPolicy{MaxActive: 4, MaxPerProject: 2, HeadroomPercent: 25, MinHeadroomMiB: 512, MaxHeadroomMiB: 1024, DiskReserveMiB: 2048}
 }
 func swarmSupersededStopReason(code string) bool {
 	return code == "context_superseded_stop_pending" || code == "context_superseded_unallocated_claim" || code == "context_superseded_identity_pending" || code == "operator_stop_pending"
@@ -208,7 +208,7 @@ func (s *Server) stopSupersededActiveTasks(ctx context.Context, projectID string
 	return allSettled, nil
 }
 func validateSwarmSchedulerPolicy(p SwarmSchedulerPolicy) bool {
-	return p.MaxActive >= 1 && p.MaxActive <= MaxSwarmScheduledTasks && p.MaxPerProject >= 1 && p.MaxPerProject <= MaxSwarmParallelTasks && p.MaxPerProject <= p.MaxActive && p.HeadroomPercent >= 10 && p.HeadroomPercent <= 75 && p.MinHeadroomMiB >= 512 && p.MinHeadroomMiB <= 65536 && p.DiskReserveMiB >= 512 && p.DiskReserveMiB <= 1048576
+	return p.MaxActive >= 1 && p.MaxActive <= MaxSwarmScheduledTasks && p.MaxPerProject >= 1 && p.MaxPerProject <= MaxSwarmParallelTasks && p.MaxPerProject <= p.MaxActive && p.HeadroomPercent >= 10 && p.HeadroomPercent <= 75 && p.MinHeadroomMiB >= 512 && p.MinHeadroomMiB <= 65536 && (p.MaxHeadroomMiB == 0 || p.MaxHeadroomMiB >= p.MinHeadroomMiB && p.MaxHeadroomMiB <= 65536) && p.DiskReserveMiB >= 512 && p.DiskReserveMiB <= 1048576
 }
 func swarmQueuePriority(priority string) bool {
 	return priority == "low" || priority == "normal" || priority == "high"

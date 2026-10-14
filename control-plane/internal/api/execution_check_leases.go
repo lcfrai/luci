@@ -250,12 +250,8 @@ func (g *executionAdmission) reserveCheck(ctx context.Context, prepared backend.
 			if covered {
 				continue
 			}
-			legacy := g.api.sessionResources(ctx)
-			memory := uint64(legacy.MemoryMiB) << 20
-			demand.PendingMemory += memory
-			demand.AllMemory += memory
-			demand.CPU += int64(legacy.CPUMillis)
-			demand.PendingAllocations++
+			out.Code, out.Message = "execution_legacy_demand_unknown", "An existing worker's allocation is not verified. Wait for its exact Docker observation or recovery before starting a check."
+			return nil
 		}
 		if err := addCheckCapacity(snap, l.Checks, g.scope, identity.AllocationID, &demand); err != nil {
 			return err

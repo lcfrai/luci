@@ -9,6 +9,28 @@ vi.mock('../teams/TeamWorkspaceProvider', () => ({ useTeamWorkspace: () => ({ te
 const snapshot = (): SwarmScheduler => ({ revision: 7, observedAt: '', dispatchPaused: false, policy: { maxActive: 4, maxPerProject: 2, headroomPercent: 25, minHeadroomMiB: 2048, diskReserveMiB: 2048 }, resources: null });
 beforeEach(() => { vi.restoreAllMocks(); access.role = 'admin'; access.team = ''; vi.spyOn(swarmSchedulerApi, 'get').mockResolvedValue(snapshot()); vi.spyOn(swarmSchedulerApi, 'configure').mockResolvedValue({ ...snapshot(), revision: 8, dispatchPaused: true }); });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
+
+it('keeps legacy settings until a reviewed responsive profile is saved', async () => {
+  const user = userEvent.setup(); render(<HostCapacity />); await expandCapacity();
+  await user.click(screen.getByRole('button', { name: 'Scheduling settings' }));
+  expect((screen.getByRole('combobox', { name: 'Memory reserve profile' }) as HTMLSelectElement).value).toBe('percentage');
+  expect(swarmSchedulerApi.configure).not.toHaveBeenCalled();
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Memory reserve profile' }), 'responsive');
+  expect((screen.getByRole('spinbutton', { name: 'Minimum RAM reserve (MiB)' }) as HTMLInputElement).value).toBe('512');
+  expect((screen.getByRole('spinbutton', { name: 'Maximum percentage RAM reserve (MiB)' }) as HTMLInputElement).value).toBe('1024');
+  await user.click(screen.getByRole('button', { name: 'Save scheduling ceilings' }));
+  expect(swarmSchedulerApi.configure).toHaveBeenCalledWith(expect.objectContaining({ revision: 7 }), { ...snapshot().policy, minHeadroomMiB: 512, maxHeadroomMiB: 1024 }, false);
+});
+
+it('reports enforced worker and independent build limits with effective reserves', async () => {
+  const now = new Date().toISOString();
+  vi.mocked(swarmSchedulerApi.get).mockResolvedValue({ ...snapshot(), resources: { limits: { worker: { memoryMiB: 512, cpuMillis: 500 }, runtimeBuild: { memoryMiB: 1024, cpuMillis: 1000 } }, memoryReserve: { hostBytes: 1024 ** 3, executionBytes: 1024 ** 3 }, host: { observedAt: now, status: 'ready', platform: 'windows', scope: 'host', memory: { effectiveTotalBytes: 32 * 1024 ** 3, effectiveAvailableBytes: 3 * 1024 ** 3, limitSource: 'physical' }, cpu: { logicalProcessors: 8, effectiveMillis: 8000, utilizationPercent: 10 }, disks: [], unavailable: [] }, execution: { observedAt: now, status: 'ready', scope: 'docker', totalMemoryBytes: 8 * 1024 ** 3, cpuMillis: 8000, unavailable: [] } } });
+  render(<HostCapacity />); await expandCapacity();
+  expect(screen.getByText(/Actual new agent allocation: 512 MiB · 0.5 CPU cores/)).toBeTruthy();
+  expect(screen.getByText(/One-time runtime build: 1024 MiB · 1 CPU cores/)).toBeTruthy();
+  expect(screen.getByText(/Effective RAM reserve: 1.0 GiB on this computer/)).toBeTruthy();
+  expect(screen.getByText(/Waiting work stays queued/)).toBeTruthy();
+});
 async function expandCapacity() {
   await userEvent.click(await screen.findByRole('button', { name: 'Expand capacity and settings' }));
 }

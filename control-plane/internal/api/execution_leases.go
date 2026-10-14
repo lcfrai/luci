@@ -348,7 +348,7 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 	decision := executionDecision{State: "waiting", Code: "resource_observation_unavailable", Message: "Current machine capacity is not available. The task remains queued."}
 	resources := g.api.sessionResources(ctx)
 	if actor.UserID != "" {
-		resources = clampSessionResources(resources, authority.Policy)
+		resources = g.api.applySessionResourcePolicy(resources, authority.Policy)
 	}
 	decision.Resources = resources
 	if resources.MemoryMiB < 128 || resources.MemoryMiB > 32768 || resources.CPUMillis < 100 || resources.CPUMillis > 16000 || providerLimit < 1 || providerLimit > product.MaxSwarmScheduledTasks || actor.ProjectID != projectID || id == "" || len(id) > 200 || len(provider) > 200 || provider == "" {
@@ -392,6 +392,7 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 		active, projectActive, actorActive, providerActive := 0, 0, 0, 0
 		var pendingMemory, allMemory uint64
 		pendingAllocations := 0
+		legacyDemandUnknown := false
 		var cpu int64
 		observed := map[string]bool{}
 		counted := map[string]bool{}
@@ -467,14 +468,10 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 				providerActive++
 			}
 			if !observed[row.SandboxID] {
-				// A legacy starting row may predate its next Docker sample.
-				// Its configured ceiling remains a reservation, not measured zero.
+				// A retained legacy worker has no pinned allocation here. Today's
+				// smaller defaults cannot stand in for its old resource demand.
 				active++
-				bytes := uint64(resources.MemoryMiB) << 20
-				pendingMemory += bytes
-				allMemory += bytes
-				cpu += int64(resources.CPUMillis)
-				pendingAllocations++
+				legacyDemandUnknown = true
 			} else if !counted[row.SandboxID] {
 				active++
 				counted[row.SandboxID] = true
@@ -494,6 +491,10 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 		}
 		if provider != "" && providerActive >= providerLimit {
 			waiting("provider_limit", "This model connection has reached its concurrency limit.")
+			return nil
+		}
+		if legacyDemandUnknown {
+			waiting("execution_legacy_demand_unknown", "An existing worker's allocation is not yet verified. Waiting for its exact Docker observation or recovery; saved project context remains available.")
 			return nil
 		}
 		demand := executionCapacityDemand{PendingMemory: pendingMemory, AllMemory: allMemory, CPU: cpu, PendingAllocations: pendingAllocations}

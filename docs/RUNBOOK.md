@@ -30,6 +30,7 @@ The control service defaults to `127.0.0.1:8730`. Open the application and choos
 | `LUCI_GIT_NAME`, `LUCI_GIT_EMAIL` | Optional explicit identity overrides; never substitute invented authors |
 | `LUCI_CA_BUNDLE` | Optional trusted CA file for networks that require one; mounted read-only at `/etc/luci/ca-bundle.pem` and passed with `NODE_EXTRA_CA_CERTS` |
 | `LUCI_SESSION_CPU_MILLIS`, `LUCI_SESSION_MEMORY_MIB` | Resource limits for agent containers |
+| `LUCI_RUNTIME_BUILD_CPU_MILLIS`, `LUCI_RUNTIME_BUILD_MEMORY_MIB` | Independent one-time runtime RUN-container budget, default one CPU / 1024 MiB; administrator check ceilings still apply |
 | `LUCI_LOG_LEVEL` | `debug`, `info`, `warn` or `error` |
 | `LUCI_BROWSER_PREVIEW_ADDR` | Separate main-process browser listener, for example `127.0.0.1:8731`; configure together with the advertised port |
 | `LUCI_BROWSER_PREVIEW_PORT` | Browser gateway port advertised to owned workers, for example `8731`; distinct from the control listener |

@@ -13,6 +13,27 @@ func (a *API) runtimeInstaller() runtimeinstall.Runtime {
 	return runtimeinstall.Runtime{CaptureActor: a.captureRuntimeInstallerActor, Run: a.installRuntimeImage, Reconcile: a.reconcileRuntimeImage}
 }
 
+// Build demand is independent of a worker's configured size. Administrator
+// check ceilings still constrain the actual allocation, including overrides.
+func (a *API) runtimeBuildResources(policy *management.Policy) backend.Resources {
+	resources := a.deps.RuntimeBuildResources
+	if resources.MemoryMiB == 0 {
+		resources.MemoryMiB = backend.DefaultRuntimeBuildResources.MemoryMiB
+	}
+	if resources.CPUMillis == 0 {
+		resources.CPUMillis = backend.DefaultRuntimeBuildResources.CPUMillis
+	}
+	if policy != nil {
+		if policy.CheckMemoryMiB > 0 {
+			resources.MemoryMiB = min(resources.MemoryMiB, policy.CheckMemoryMiB)
+		}
+		if policy.CheckCPUMillis > 0 {
+			resources.CPUMillis = min(resources.CPUMillis, policy.CheckCPUMillis)
+		}
+	}
+	return resources
+}
+
 func (a *API) authorizeRuntimeInstaller(ctx context.Context, actor management.ExecutionActorRef) (management.ExecutionAuthority, error) {
 	if err := ctx.Err(); err != nil {
 		return management.ExecutionAuthority{}, err
@@ -70,16 +91,11 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	if err != nil {
 		return fail("runtime_install_forbidden", "Current administrator access is required.", err)
 	}
-	resources := a.deps.Resources
+	var buildPolicy *management.Policy
 	if !req.Actor.Local {
-		resources = backend.Resources{MemoryMiB: authority.Policy.CheckMemoryMiB, CPUMillis: authority.Policy.CheckCPUMillis}
+		buildPolicy = &authority.Policy
 	}
-	if resources.MemoryMiB == 0 {
-		resources.MemoryMiB = 1024
-	}
-	if resources.CPUMillis == 0 {
-		resources.CPUMillis = 1000
-	}
+	resources := a.runtimeBuildResources(buildPolicy)
 	allocation, err := previewAllocationID("runtime-build-")
 	if err != nil {
 		return out, err

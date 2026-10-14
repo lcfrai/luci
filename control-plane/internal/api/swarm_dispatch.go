@@ -347,12 +347,20 @@ func (a *API) queuedResourceView(ctx context.Context) any {
 	if ctx.Err() != nil {
 		return nil
 	}
+	var buildPolicy *management.Policy
+	if _, policy, ok := management.ActorFromContext(ctx); ok {
+		buildPolicy = &policy
+	}
+	publicLimit := func(r backend.Resources) map[string]int {
+		return map[string]int{"memoryMiB": r.MemoryMiB, "cpuMillis": r.CPUMillis}
+	}
+	limits := map[string]any{"worker": publicLimit(a.sessionResources(ctx)), "runtimeBuild": publicLimit(a.runtimeBuildResources(buildPolicy))}
 	if a.deps.ResourceSnapshot == nil {
 		reservations := a.execution.reservationObservation(ctx)
 		if ctx.Err() != nil {
 			return nil
 		}
-		return map[string]any{"status": "unavailable", "reservations": reservations}
+		return map[string]any{"status": "unavailable", "reservations": reservations, "limits": limits}
 	}
 	snapshot := a.deps.ResourceSnapshot()
 	if ctx.Err() != nil {
@@ -362,11 +370,17 @@ func (a *API) queuedResourceView(ctx context.Context) any {
 	if ctx.Err() != nil {
 		return nil
 	}
+	var memoryReserve any
+	if policy, err := a.deps.Product.SwarmSchedulerPolicy(); err == nil && snapshot.Host.Memory.EffectiveTotalBytes != nil && snapshot.Execution.TotalMemoryBytes != nil {
+		memoryReserve = map[string]any{"hostBytes": policy.MemoryHeadroomBytes(*snapshot.Host.Memory.EffectiveTotalBytes), "executionBytes": policy.MemoryHeadroomBytes(*snapshot.Execution.TotalMemoryBytes)}
+	}
 	return struct {
-		Host         any                             `json:"host"`
-		Execution    any                             `json:"execution"`
-		Reservations executionReservationObservation `json:"reservations"`
-	}{snapshot.Host, map[string]any{"observedAt": snapshot.Execution.ObservedAt, "status": snapshot.Execution.Status, "scope": snapshot.Execution.Scope, "totalMemoryBytes": snapshot.Execution.TotalMemoryBytes, "cpuMillis": snapshot.Execution.CPUMillis, "hostStorage": snapshot.Execution.HostStorage, "unavailable": snapshot.Execution.Unavailable}, reservations}
+		Host          any                             `json:"host"`
+		Execution     any                             `json:"execution"`
+		Reservations  executionReservationObservation `json:"reservations"`
+		Limits        any                             `json:"limits"`
+		MemoryReserve any                             `json:"memoryReserve"`
+	}{snapshot.Host, map[string]any{"observedAt": snapshot.Execution.ObservedAt, "status": snapshot.Execution.Status, "scope": snapshot.Execution.Scope, "totalMemoryBytes": snapshot.Execution.TotalMemoryBytes, "cpuMillis": snapshot.Execution.CPUMillis, "hostStorage": snapshot.Execution.HostStorage, "unavailable": snapshot.Execution.Unavailable}, reservations, limits, memoryReserve}
 }
 
 func existingQueuedDispatch(row registry.Session) product.SwarmDispatchResult {

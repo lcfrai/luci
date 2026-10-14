@@ -52,6 +52,8 @@ const (
 	envReapInterval           = "LUCI_REAP_INTERVAL"
 	envSessionCPUMillis       = "LUCI_SESSION_CPU_MILLIS"
 	envSessionMemoryMiB       = "LUCI_SESSION_MEMORY_MIB"
+	envRuntimeBuildMemoryMiB  = "LUCI_RUNTIME_BUILD_MEMORY_MIB"
+	envRuntimeBuildCPUMillis  = "LUCI_RUNTIME_BUILD_CPU_MILLIS"
 	envDockerHost             = "LUCI_DOCKER_HOST"
 	envKubeconfig             = "LUCI_KUBECONFIG"
 	envNamespace              = "LUCI_NAMESPACE"
@@ -191,19 +193,23 @@ type Config struct {
 	// ConversationsDir is the root every worktree's conversation store lives
 	// under, derived from StateDir beside the registry. Absolute always: it
 	// becomes a bind mount's host path.
-	ConversationsDir string
-	ProjectsDir      string // "" means no projects, and therefore no worktrees
-	AllowedOrigins   []string
-	IdleAfter        time.Duration // 0 disables idle derivation
-	IdleTimeout      time.Duration // 0 means never destroy an idle sandbox
-	ReapInterval     time.Duration
-	ReadyTimeout     time.Duration
-	CPUMillis        int
-	MemoryMiB        int
-	DockerHost       string
-	Kubeconfig       string // parsed so kubeClient can refuse it by name
-	Namespace        string
-	LogLevel         slog.Level
+	ConversationsDir               string
+	ProjectsDir                    string // "" means no projects, and therefore no worktrees
+	AllowedOrigins                 []string
+	IdleAfter                      time.Duration // 0 disables idle derivation
+	IdleTimeout                    time.Duration // 0 means never destroy an idle sandbox
+	ReapInterval                   time.Duration
+	ReadyTimeout                   time.Duration
+	CPUMillis                      int
+	MemoryMiB                      int
+	RuntimeBuildMemoryMiB          int
+	RuntimeBuildCPUMillis          int
+	SessionMemoryUsesAccountPolicy bool
+	SessionCPUUsesAccountPolicy    bool
+	DockerHost                     string
+	Kubeconfig                     string // parsed so kubeClient can refuse it by name
+	Namespace                      string
+	LogLevel                       slog.Level
 
 	HarnessAllowUnverified bool
 
@@ -225,6 +231,10 @@ type Config struct {
 // Resources renders the two size variables for backend.Spec.
 func (c Config) Resources() backend.Resources {
 	return backend.Resources{CPUMillis: c.CPUMillis, MemoryMiB: c.MemoryMiB}
+}
+
+func (c Config) RuntimeBuildResources() backend.Resources {
+	return backend.Resources{CPUMillis: c.RuntimeBuildCPUMillis, MemoryMiB: c.RuntimeBuildMemoryMiB}
 }
 
 // logWarnings emits everything loadConfig collected, one line each. It is a
@@ -378,10 +388,22 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	if cfg.ReadyTimeout <= 0 {
 		return Config{}, fmt.Errorf("%s=%q: a sandbox given no time to answer %s can never start", envReadyTimeout, raw(envReadyTimeout), backend.HealthPath)
 	}
-	if cfg.CPUMillis, err = parsePositiveInt(envSessionCPUMillis, raw(envSessionCPUMillis), backend.DefaultResources.CPUMillis); err != nil {
+	defaults := backend.DefaultResources
+	if cfg.Backend == string(backend.KindDocker) {
+		defaults = backend.DefaultLocalResources
+		cfg.SessionMemoryUsesAccountPolicy = raw(envSessionMemoryMiB) == ""
+		cfg.SessionCPUUsesAccountPolicy = raw(envSessionCPUMillis) == ""
+	}
+	if cfg.CPUMillis, err = parsePositiveInt(envSessionCPUMillis, raw(envSessionCPUMillis), defaults.CPUMillis); err != nil {
 		return Config{}, err
 	}
-	if cfg.MemoryMiB, err = parsePositiveInt(envSessionMemoryMiB, raw(envSessionMemoryMiB), backend.DefaultResources.MemoryMiB); err != nil {
+	if cfg.MemoryMiB, err = parsePositiveInt(envSessionMemoryMiB, raw(envSessionMemoryMiB), defaults.MemoryMiB); err != nil {
+		return Config{}, err
+	}
+	if cfg.RuntimeBuildMemoryMiB, err = parsePositiveInt(envRuntimeBuildMemoryMiB, raw(envRuntimeBuildMemoryMiB), backend.DefaultRuntimeBuildResources.MemoryMiB); err != nil {
+		return Config{}, err
+	}
+	if cfg.RuntimeBuildCPUMillis, err = parsePositiveInt(envRuntimeBuildCPUMillis, raw(envRuntimeBuildCPUMillis), backend.DefaultRuntimeBuildResources.CPUMillis); err != nil {
 		return Config{}, err
 	}
 

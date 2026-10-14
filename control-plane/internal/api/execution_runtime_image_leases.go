@@ -146,11 +146,8 @@ func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared b
 				}
 			}
 			if !covered {
-				memory := uint64(g.api.deps.Resources.MemoryMiB) << 20
-				demand.PendingMemory += memory
-				demand.AllMemory += memory
-				demand.CPU += int64(g.api.deps.Resources.CPUMillis)
-				demand.PendingAllocations++
+				out.Code, out.Message = "execution_legacy_demand_unknown", "An existing worker's allocation is not verified. Wait for its exact Docker observation or recovery before installing the runtime."
+				return nil
 			}
 		}
 		if err = addCheckCapacity(snap, l.Checks, "", "", &demand); err != nil {

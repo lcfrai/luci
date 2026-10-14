@@ -95,6 +95,10 @@ func (s *Server) readSharedSwarmPolicy() (sharedSwarmPolicy, error) {
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
+	// Defaults apply only to a missing file. Missing optional fields in an
+	// existing policy must retain their legacy zero meaning, not inherit a new
+	// default (which could silently change its reserve or invalidate its floor).
+	row = sharedSwarmPolicy{}
 	if len(data) > 16384 || decoder.Decode(&row) != nil || decoder.Decode(new(any)) != io.EOF || row.Version != 1 || row.HostScope != reviewDigest(dir) || row.Revision < 1 || !validateSwarmSchedulerPolicy(row.Policy) {
 		return sharedSwarmPolicy{}, ErrProjectRunInvalid
 	}

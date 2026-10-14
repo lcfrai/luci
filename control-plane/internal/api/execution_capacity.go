@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"runtime"
 	"time"
 
@@ -52,13 +53,14 @@ func evaluateExecutionCapacityWithEvidence(snap resourcebudget.Snapshot, policy 
 		return refused("resource_observation_unavailable", "Current machine capacity is not available.")
 	}
 	required := uint64(resources.MemoryMiB) << 20
-	headroom := max(uint64(policy.MinHeadroomMiB)<<20, *snap.Host.Memory.EffectiveTotalBytes*uint64(policy.HeadroomPercent)/100)
-	executionHeadroom := max(uint64(policy.MinHeadroomMiB)<<20, *snap.Execution.TotalMemoryBytes*uint64(policy.HeadroomPercent)/100)
+	headroom := policy.MemoryHeadroomBytes(*snap.Host.Memory.EffectiveTotalBytes)
+	executionHeadroom := policy.MemoryHeadroomBytes(*snap.Execution.TotalMemoryBytes)
 	if *snap.Host.Memory.EffectiveAvailableBytes < headroom+required+demand.PendingMemory || *snap.Execution.TotalMemoryBytes < demand.AllMemory+required+executionHeadroom {
-		result := refused("memory_pressure", "Available memory cannot preserve the configured headroom for another worker.")
+		result := refused("memory_pressure", fmt.Sprintf("Waiting for memory: this operation needs %d MiB plus %d MiB pending demand and %d MiB host reserve; %d MiB is available. You can keep planning while capacity recovers.", resources.MemoryMiB, demand.PendingMemory>>20, headroom>>20, *snap.Host.Memory.EffectiveAvailableBytes>>20))
 		// Preserve the existing host-first predicate, using its exact operands.
 		result.Evidence = registry.StartAdmissionEvidence{Metric: "host_available_memory", ObservedAt: snap.Host.ObservedAt.UTC(), DecidedAt: now.UTC(), ObservedBytes: *snap.Host.Memory.EffectiveAvailableBytes, RequiredBytes: headroom + required + demand.PendingMemory}
 		if *snap.Host.Memory.EffectiveAvailableBytes >= headroom+required+demand.PendingMemory {
+			result.Message = fmt.Sprintf("Waiting for Docker memory: %d MiB existing and pending demand plus %d MiB for this operation and %d MiB reserve exceeds the %d MiB engine capacity. You can keep planning while capacity recovers.", demand.AllMemory>>20, resources.MemoryMiB, executionHeadroom>>20, *snap.Execution.TotalMemoryBytes>>20)
 			result.Evidence = registry.StartAdmissionEvidence{Metric: "execution_total_memory", ObservedAt: snap.Execution.ObservedAt.UTC(), DecidedAt: now.UTC(), ObservedBytes: *snap.Execution.TotalMemoryBytes, RequiredBytes: demand.AllMemory + required + executionHeadroom}
 		}
 		return result

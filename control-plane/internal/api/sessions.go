@@ -942,13 +942,26 @@ func (a *API) sessionImage() string {
 // both numbers and under-requesting either causes a guest OOM.
 func (a *API) sessionResources(ctx context.Context) backend.Resources {
 	resources := backend.DefaultResources
+	if a.deps.Backend != nil && a.deps.Backend.Kind() == backend.KindDocker {
+		resources = backend.DefaultLocalResources
+	}
 	if a.deps.Resources.CPUMillis > 0 && a.deps.Resources.MemoryMiB > 0 {
 		resources = a.deps.Resources
 	}
 	if _, policy, ok := management.ActorFromContext(ctx); ok {
-		resources = clampSessionResources(resources, policy)
+		resources = a.applySessionResourcePolicy(resources, policy)
 	}
 	return resources
+}
+
+func (a *API) applySessionResourcePolicy(resources backend.Resources, policy management.Policy) backend.Resources {
+	if a.deps.SessionMemoryUsesAccountPolicy && policy.SessionMemoryMiB > 0 {
+		resources.MemoryMiB = policy.SessionMemoryMiB
+	}
+	if a.deps.SessionCPUUsesAccountPolicy && policy.SessionCPUMillis > 0 {
+		resources.CPUMillis = policy.SessionCPUMillis
+	}
+	return clampSessionResources(resources, policy)
 }
 
 func clampSessionResources(resources backend.Resources, policy management.Policy) backend.Resources {
@@ -1474,7 +1487,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			}
 			resources := a.sessionResources(ctx)
 			if executionActor.UserID != "" {
-				resources = clampSessionResources(resources, current.Policy)
+				resources = a.applySessionResourcePolicy(resources, current.Policy)
 			}
 			if resources != allocatedResources {
 				return admissionFailure("resource_policy_changed", errors.New("The worker resource policy changed before allocation."))

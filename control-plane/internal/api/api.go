@@ -170,6 +170,14 @@ type Deps struct {
 	// Resources sizes every sandbox. The zero value means
 	// backend.DefaultResources.
 	Resources backend.Resources
+	// RuntimeBuildResources bounds one-time image preparation independently of
+	// ordinary sessions. Zero uses backend.DefaultRuntimeBuildResources.
+	RuntimeBuildResources backend.Resources
+	// An unset local service limit uses the current account's requested size,
+	// including previously saved larger values. Explicit operator limits still
+	// cap each dimension independently. False retains the legacy Deps contract.
+	SessionMemoryUsesAccountPolicy bool
+	SessionCPUUsesAccountPolicy    bool
 
 	// ReadyTimeout bounds the post-create readiness watch of contract §5.1
 	// step 7. Zero means backend.ReadyTimeout. Task 13 feeds it from
