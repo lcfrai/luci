@@ -7,7 +7,42 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
+	"sync"
+	"time"
 )
+
+var runtimeEngineWatch sync.Map
+
+// The desktop restart can pass through its stopped interval between two UI
+// requests. Keep one bounded, read-only watcher per exact charged allocation;
+// the durable ledger receipt survives API restart. Missing the interval leaves
+// the charge held and allows a later new watch, never a guessed settlement.
+func (a *API) watchRuntimeImageEngineStop(lease runtimeImageExecutionLease, observer backend.RuntimeImageEngineRetirementExecutor) {
+	key := a.execution.path + "\x00" + lease.ID
+	if _, loaded := runtimeEngineWatch.LoadOrStore(key, struct{}{}); loaded {
+		return
+	}
+	defer runtimeEngineWatch.Delete(key)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		state, err := observer.ObserveRuntimeImageEngine(ctx)
+		if err == nil && state.State == "stopped" {
+			current, readErr := a.execution.runtimeImageLease(ctx, lease.ID)
+			if readErr == nil && current.Identity == lease.Identity && current.EngineRecoveryStage == "watching" && current.EngineWatchStartedAt == lease.EngineWatchStartedAt {
+				_, _ = a.execution.advanceRuntimeImageEngineRetirement(ctx, current, "stopped")
+			}
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
 
 func (a *API) runtimeInstaller() runtimeinstall.Runtime {
 	return runtimeinstall.Runtime{CaptureActor: a.captureRuntimeInstallerActor, Run: a.installRuntimeImage, Reconcile: a.reconcileRuntimeImage}
@@ -320,9 +355,70 @@ func (a *API) reconcileRuntimeImage(ctx context.Context, id runtimeinstall.Ident
 			return invalid(err)
 		}
 	}
+	if lease.State == "building" {
+		observer, supported := a.deps.Backend.(backend.RuntimeImageEngineRetirementExecutor)
+		if supported {
+			state, observeErr := observer.ObserveRuntimeImageEngine(ctx)
+			if observeErr == nil {
+				switch {
+				case lease.EngineRecoveryStage == "" && state.State == "running" && state.EngineID == lease.Identity.EngineID:
+					lease, err = a.execution.advanceRuntimeImageEngineRetirement(ctx, lease, "watching")
+					if err != nil {
+						return invalid(err)
+					}
+					go a.watchRuntimeImageEngineStop(lease, observer)
+				case lease.EngineRecoveryStage == "watching" && state.State == "stopped":
+					lease, err = a.execution.advanceRuntimeImageEngineRetirement(ctx, lease, "stopped")
+					if err != nil {
+						lease, err = a.execution.runtimeImageLease(ctx, lease.ID)
+						if err != nil || lease.EngineRecoveryStage != "stopped" || lease.Identity != i {
+							return invalid(errors.Join(err, backend.ErrLaunchFenceOwnership))
+						}
+					}
+				case lease.EngineRecoveryStage == "watching" && state.State == "running" && state.EngineID == lease.Identity.EngineID:
+					go a.watchRuntimeImageEngineStop(lease, observer)
+				case lease.EngineRecoveryStage == "stopped" && state.State == "running" && state.EngineID == lease.Identity.EngineID:
+					retired, e := observer.ObserveRetiredRuntimeImage(ctx, lease.Identity, lease.ImageTag)
+					if e == nil {
+						if _, e = a.authorizeRuntimeInstaller(ctx, actor); e != nil {
+							return invalid(e)
+						}
+						lease, e = a.execution.completeRuntimeImage(ctx, lease, true, retired.ImageID)
+						if e != nil {
+							return invalid(e)
+						}
+						out.ImageID, out.ResourcesHeld, out.CleanupConfirmed = retired.ImageID, false, true
+						if retired.ImageID == "" {
+							out.Phase, out.ReasonCode, out.Message = "cancelled", "runtime_engine_retired", "The selected Docker engine was observed stopped and restored; this exact build has no surviving output or intermediate."
+							if e = publish(out); e != nil {
+								return out, e
+							}
+							return out, a.execution.acknowledgeRuntimeImageCompletion(ctx, lease)
+						}
+						if retired.Publication == "published" {
+							out.Phase, out.ReasonCode, out.Message = "ready", "", "The exact image and its tag survived the observed engine retirement."
+							if e = publish(out); e != nil {
+								return out, e
+							}
+							return out, a.execution.acknowledgeRuntimeImageCompletion(ctx, lease)
+						}
+						out.ReasonCode, out.Message = "runtime_publication_unconfirmed", "The build executor is retired and its charge released, but its exact image is not published by the configured tag. No tag request was replayed."
+						return out, publish(out)
+					}
+				}
+			}
+		}
+	}
 	if lease.State != "finished" {
 		out.ResourcesHeld = true
-		out.ReasonCode = "runtime_build_unconfirmed"
+		switch lease.EngineRecoveryStage {
+		case "watching":
+			out.ReasonCode, out.Message = "runtime_engine_retirement_watch", "The exact build remains charged. Its selected Docker Desktop engine must be observed stopping during a bounded watch; check again to renew the watch before any later controlled restart. Luci will not restart it or touch unrelated work."
+		case "stopped":
+			out.ReasonCode, out.Message = "runtime_engine_stopped", "The selected Docker Desktop engine was observed stopped. Restore it, then reconcile this exact job for owned output and charge settlement."
+		default:
+			out.ReasonCode = "runtime_build_unconfirmed"
+		}
 		return out, publish(out)
 	}
 	out.ImageID, out.ResourcesHeld, out.CleanupConfirmed = lease.Image, false, true
@@ -333,14 +429,28 @@ func (a *API) reconcileRuntimeImage(ctx context.Context, id runtimeinstall.Ident
 		if !ok {
 			return invalid(backend.ErrUnsupported)
 		}
-		observation, e := executor.ObserveRuntimeImage(ctx, lease.Identity, lease.Image, lease.ImageTag)
-		if e != nil {
-			return invalid(e)
+		publication := ""
+		if lease.EngineRecoveryStage == "stopped" {
+			retired, ok := a.deps.Backend.(backend.RuntimeImageEngineRetirementExecutor)
+			if !ok {
+				return invalid(backend.ErrUnsupported)
+			}
+			observed, e := retired.ObserveRetiredRuntimeImage(ctx, lease.Identity, lease.ImageTag)
+			if e != nil || observed.ImageID != lease.Image {
+				return invalid(errors.Join(e, backend.ErrLaunchFenceOwnership))
+			}
+			publication = observed.Publication
+		} else {
+			observation, e := executor.ObserveRuntimeImage(ctx, lease.Identity, lease.Image, lease.ImageTag)
+			if e != nil {
+				return invalid(e)
+			}
+			if observation.ImageID != lease.Image || observation.ImageTag != lease.ImageTag {
+				return invalid(backend.ErrLaunchFenceOwnership)
+			}
+			publication = observation.Publication
 		}
-		if observation.ImageID != lease.Image || observation.ImageTag != lease.ImageTag {
-			return invalid(backend.ErrLaunchFenceOwnership)
-		}
-		if observation.Publication != "published" {
+		if publication != "published" {
 			out.ReasonCode, out.Message = "runtime_publication_unconfirmed", "The build is settled but its configured tag is not confirmed. No rebuild or tag mutation was attempted."
 			return out, publish(out)
 		}

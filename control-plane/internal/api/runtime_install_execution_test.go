@@ -9,8 +9,143 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
 	"os"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
+
+type retirementInstallerFixture struct {
+	*installerFixture
+	mu      sync.Mutex
+	state   backend.RuntimeImageEngineState
+	retired backend.RuntimeImageRetiredOutput
+	reads   int
+}
+
+func (f *retirementInstallerFixture) ObserveRuntimeImageEngine(context.Context) (backend.RuntimeImageEngineState, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.reads++
+	return f.state, nil
+}
+
+func (f *retirementInstallerFixture) ObserveRetiredRuntimeImage(context.Context, backend.RuntimeImageIdentity, string) (backend.RuntimeImageRetiredOutput, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.retired, nil
+}
+
+func (f *retirementInstallerFixture) setState(state string, engine string) {
+	f.mu.Lock()
+	f.state = backend.RuntimeImageEngineState{State: state, EngineID: engine}
+	f.mu.Unlock()
+}
+
+func TestRuntimeInstallerUnknownBuildRequiresObservedEngineRetirementAcrossRestart(t *testing.T) {
+	a, f, req := installerRuntimeFixture(t)
+	f.build = func(context.Context, backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
+		return backend.RuntimeImageBuildResult{}, backend.ErrUnavailable
+	}
+	witness := &retirementInstallerFixture{installerFixture: f}
+	a.deps.Backend = witness
+	out, err := a.installRuntimeImage(context.Background(), req, installerPublish)
+	if err == nil || out.Phase != "unknown" || !out.ResourcesHeld || f.builds != 1 {
+		t.Fatal("original lost stream was not retained", out, err)
+	}
+	witness.setState("running", httpCheckEngine)
+	watch, err := a.reconcileRuntimeImage(context.Background(), out.Identity, req.Actor, installerPublish)
+	if err != nil || watch.ReasonCode != "runtime_engine_retirement_watch" || !watch.ResourcesHeld {
+		t.Fatal("running engine incorrectly settled build", watch, err)
+	}
+	witness.setState("stopped", "")
+	// Let the original process's bounded watcher finish its durable stop write
+	// before reopening the ledger through a new admission object.
+	watchKey := a.execution.path + "\x00" + out.AllocationID
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		current, readErr := a.execution.runtimeImageLease(context.Background(), out.AllocationID)
+		_, watching := runtimeEngineWatch.Load(watchKey)
+		if readErr == nil && current.EngineRecoveryStage == "stopped" && !watching {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("bounded watcher did not retain the exact stopped engine", current, readErr, watching)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	a.execution = newExecutionAdmission(a)
+	stopped, err := a.reconcileRuntimeImage(context.Background(), out.Identity, req.Actor, installerPublish)
+	if err != nil || stopped.ReasonCode != "runtime_engine_stopped" || !stopped.ResourcesHeld {
+		t.Fatal("engine stop was not durably retained with its charge", stopped, err)
+	}
+	witness.setState("running", "foreign-engine")
+	foreign, err := a.reconcileRuntimeImage(context.Background(), out.Identity, req.Actor, installerPublish)
+	if err != nil || !foreign.ResourcesHeld || foreign.Phase != "unknown" || f.builds != 1 {
+		t.Fatal("a different restored engine released the original charge", foreign, err)
+	}
+	if _, err := a.execution.runtimeImageLease(context.Background(), out.AllocationID); err != nil {
+		t.Fatal("foreign engine removed original lease", err)
+	}
+	a.execution = newExecutionAdmission(a)
+	witness.setState("running", httpCheckEngine)
+	witness.mu.Lock()
+	witness.retired = backend.RuntimeImageRetiredOutput{Publication: "tag-absent"}
+	witness.mu.Unlock()
+	a.deps.AuthorizeRuntimeInstaller = func(context.Context, management.ExecutionActorRef) (management.ExecutionAuthority, error) {
+		return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+	}
+	if _, err := a.reconcileRuntimeImage(context.Background(), out.Identity, req.Actor, installerPublish); err == nil {
+		t.Fatal("revoked actor settled the original charge")
+	}
+	if _, err := a.execution.runtimeImageLease(context.Background(), out.AllocationID); err != nil {
+		t.Fatal("revoked actor removed original lease", err)
+	}
+	a.deps.AuthorizeRuntimeInstaller = nil
+	settled, err := a.reconcileRuntimeImage(context.Background(), out.Identity, req.Actor, installerPublish)
+	if err != nil || settled.Phase != "cancelled" || settled.ReasonCode != "runtime_engine_retired" || settled.ResourcesHeld || !settled.CleanupConfirmed || f.builds != 1 || f.publishes != 0 {
+		t.Fatal("exact engine retirement did not settle only the original build", settled, err, f)
+	}
+	if _, err := a.execution.runtimeImageLease(context.Background(), out.AllocationID); !errors.Is(err, errRuntimeImageLeaseAbsent) {
+		t.Fatal("retired engine kept the exact capacity lease", err)
+	}
+}
+
+func TestRuntimeInstallerStoppedEngineCanBeWitnessedAfterControllerRestart(t *testing.T) {
+	a, f, req := installerRuntimeFixture(t)
+	f.build = func(context.Context, backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
+		return backend.RuntimeImageBuildResult{}, backend.ErrUnavailable
+	}
+	witness := &retirementInstallerFixture{installerFixture: f}
+	a.deps.Backend = witness
+	out, err := a.installRuntimeImage(context.Background(), req, installerPublish)
+	if err == nil || out.Phase != "unknown" || !out.ResourcesHeld {
+		t.Fatal("lost build outcome was not retained", out, err)
+	}
+	lease, err := a.execution.runtimeImageLease(context.Background(), out.AllocationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// This is the durable receipt left by the first process when it armed the
+	// observer. Its goroutine is intentionally absent in the reopened process.
+	if _, err := a.execution.advanceRuntimeImageEngineRetirement(context.Background(), lease, "watching"); err != nil {
+		t.Fatal(err)
+	}
+	a.execution = newExecutionAdmission(a)
+	witness.setState("stopped", "")
+	stopped, err := a.reconcileRuntimeImage(context.Background(), out.Identity, req.Actor, installerPublish)
+	if err != nil || stopped.ReasonCode != "runtime_engine_stopped" || !stopped.ResourcesHeld {
+		t.Fatal("reopened controller lost the exact engine-stop receipt", stopped, err)
+	}
+	a.execution = newExecutionAdmission(a)
+	witness.setState("running", httpCheckEngine)
+	witness.mu.Lock()
+	witness.retired = backend.RuntimeImageRetiredOutput{Publication: "tag-absent"}
+	witness.mu.Unlock()
+	settled, err := a.reconcileRuntimeImage(context.Background(), out.Identity, req.Actor, installerPublish)
+	if err != nil || settled.Phase != "cancelled" || settled.ResourcesHeld || !settled.CleanupConfirmed || f.builds != 1 || f.publishes != 0 {
+		t.Fatal("reopened controller replayed or failed exact settlement", settled, err, f)
+	}
+}
 
 type installerFixture struct {
 	backend.Backend
