@@ -94,3 +94,9 @@ location. An exact-version SPDX match can use a source-controlled, hashed
 upstream grant when the npm package omits it: Codex 0.160.0 uses LICENSE and
 NOTICE from its peeled `rust-v0.160.0` commit. Other versions, components,
 licences and byte drift are refused rather than assigned an invented grant.
+Short-lived `--rm` probes may disappear between inventory and inspection. Only
+an exact Docker NoSuchObject/NoSuchContainer response, fresh absence in that
+sampling inventory and a fresh matching engine identity omit that sample.
+They never settle work: the foreground exit and exact owned cleanup remain
+required. Real daemon, permission and foreign-work errors still refuse. Every
+new probe retains its argv intent and terminal result separately.
