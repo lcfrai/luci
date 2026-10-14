@@ -128,6 +128,23 @@ def mount_exact(value):
         raise ValueError("controller mounted device changed")
 
 
+def bound_operator(operator, value, disk_path, generation_path, disk_data, generation_data):
+    operator = json.loads(json.dumps(operator))
+    operator["azureMount"] = {"mountPath": value["mountPath"], "filesystemUuid": value["filesystemUuid"],
+                              "receiptPath": str(disk_path), "generation": value["generation"],
+                              "controllerInstanceId": value["controllerInstanceId"],
+                              "generationReceiptPath": str(generation_path), "generationReceiptDigest": sha(generation_data),
+                              "fenceBlobURL": value["fenceBlobURL"]}
+    operator["store"]["separationReceiptDigest"] = sha(disk_data)
+    operator["deployment"]["hostGeneration"] = value["generation"]
+    if value['mode'] == 'restore':
+        operator['deployment']['restoreReceiptDigest'] = value['previousFenceReceiptDigest']
+    gateway_contract = ["luci-azure-e2b-gateway-v1", operator["deployment"]["azureGatewayHost"],
+                        value["scope"], value["generation"], "api:3000", "guest:3002", "envd:49983", "sandboxd:8080"]
+    operator["azureGatewayReceiptDigest"] = sha(canonical(gateway_contract))
+    return operator
+
+
 def bind(value, finalize_only=False):
     selected(value)
     template_bytes = private(Path(value["operatorTemplatePath"]))
@@ -203,18 +220,7 @@ def bind(value, finalize_only=False):
         atomic(Path(value['mountPath']) / 'luci/operator-finalization-receipt.json', canonical({
             'version': 1, 'envelopeSHA256': sha(envelope_data), 'generation': value['generation'],
             'controllerInstanceId': value['controllerInstanceId']}))
-    operator["azureMount"] = {"mountPath": value["mountPath"], "filesystemUuid": value["filesystemUuid"],
-                              "receiptPath": str(disk_path), "generation": value["generation"],
-                              "controllerInstanceId": value["controllerInstanceId"],
-                              "generationReceiptPath": str(generation_path), "generationReceiptDigest": sha(generation_data),
-                              "fenceBlobURL": value["fenceBlobURL"]}
-    operator["store"]["separationReceiptDigest"] = sha(disk_data)
-    operator["deployment"]["hostGeneration"] = value["generation"]
-    if value['mode'] == 'restore':
-        operator['deployment']['restoreReceiptDigest'] = value['previousFenceReceiptDigest']
-    gateway_contract = ["luci-azure-e2b-gateway-v1", operator["deployment"]["azureGatewayHost"],
-                        value["scope"], value["generation"], "api:3000", "guest:3002", "envd:49983", "sandboxd:8080"]
-    operator["azureGatewayReceiptDigest"] = sha(canonical(gateway_contract))
+    operator = bound_operator(operator, value, disk_path, generation_path, disk_data, generation_data)
     atomic(Path(value["operatorOutputPath"]), canonical(operator))
     if "previousFinalizationSHA256" in value:
         envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), 64 << 10)
@@ -360,6 +366,17 @@ def inspect(value, retained=False):
                        "generation": value["generation"], "controllerInstanceId": value["controllerInstanceId"],
                        "previousEnvelopeSHA256": value["previousFinalizationSHA256"]}:
             raise ValueError("successor installation receipt is absent or changed")
+        template = private(Path(value['operatorTemplatePath']))
+        if sha(template) != value['operatorTemplateSHA256']:
+            raise ValueError('successor operator template changed')
+        signed_operator, journals = finalized_operator(value, json.loads(template), retained=retained)
+        expected_operator = bound_operator(signed_operator, value, Path(value['diskReceiptPath']),
+                                           Path(value['generationReceiptPath']), disk_data, generation_data)
+        if output != canonical(expected_operator):
+            raise ValueError('successor installed operator differs from signed source and fence')
+        for path, expected in journals:
+            if json.loads(private(path)) != expected:
+                raise ValueError('successor retained task template journal changed')
     if operator.get("azureMount", {}).get("generationReceiptDigest") != sha(generation_data) or operator.get("store", {}).get("separationReceiptDigest") != sha(disk_data):
         raise ValueError("controller operator selection is stale")
     return {"state": "mounted", "generation": value["generation"], "diskReceiptSHA256": sha(disk_data),

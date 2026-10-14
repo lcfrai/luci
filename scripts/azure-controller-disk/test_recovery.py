@@ -3,7 +3,9 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import stat
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -28,6 +30,58 @@ UUID = "12345678-1234-1234-1234-123456789abc"
 
 
 class DiskMountTest(unittest.TestCase):
+    def test_successor_inspection_requires_exact_signed_operator_and_retained_journal(self):
+        disk = {'version': 1, 'azureDataDiskId': DISK, 'filesystemUuid': UUID, 'ownerId': 'owner-one',
+                'scope': 'scope-one', 'controllerHostId': 'controller-one', 'runtimeHostId': 'runtime-one'}
+        generation = {'version': 1, 'generation': 'new-generation', 'controllerInstanceId': NEW,
+                      'azureDataDiskId': DISK, 'previousGeneration': 'old-generation',
+                      'previousFenceReceiptDigest': 'f' * 64}
+        disk_data, generation_data = mount.canonical(disk), mount.canonical(generation)
+        template = b'{"setupDeferred":{"sourceCommit":"' + b'a' * 40 + b'"}}'
+        value = {'mode': 'restore', 'device': '/dev/disk/azure/scsi1/lun0', 'mountPath': '/mnt/luci-controller',
+                 'filesystemUuid': UUID, 'azureDataDiskId': DISK, 'ownerId': 'owner-one', 'scope': 'scope-one',
+                 'controllerHostId': 'controller-one', 'runtimeHostId': 'runtime-one',
+                 'controllerInstanceId': NEW, 'generation': 'new-generation',
+                 'previousGeneration': 'old-generation', 'previousFenceReceiptDigest': 'f' * 64,
+                 'diskReceiptPath': '/mnt/luci-controller/luci/disk.json',
+                 'generationReceiptPath': '/mnt/luci-controller/luci/generation.json',
+                 'operatorOutputPath': '/etc/luci/operator.json', 'operatorTemplatePath': '/etc/luci/operator-template.json',
+                 'operatorTemplateSHA256': mount.sha(template),
+                 'fenceBlobURL': 'https://lucifence.blob.core.windows.net/controller-fence/controller-fence.json',
+                 'previousFinalizationSHA256': 'c' * 64, 'finalizationSHA256': mount.sha(b'{}'),
+                 'targetBootID': UUID}
+        signed = {'store': {}, 'deployment': {'azureGatewayHost': 'private.example'}}
+        journal_path = Path('/mnt/luci-controller/luci/template/create.json')
+        expected_journal = {'reservation': 'retained'}
+        output = mount.canonical(mount.bound_operator(signed, value, Path(value['diskReceiptPath']),
+                                                     Path(value['generationReceiptPath']), disk_data, generation_data))
+        records = {value['diskReceiptPath']: disk_data, value['generationReceiptPath']: generation_data,
+                   value['operatorOutputPath']: output, value['operatorTemplatePath']: template,
+                   '/etc/luci/azure-operator-finalization.json': b'{}', str(journal_path): mount.canonical(expected_journal),
+                   '/mnt/luci-controller/luci/operator-finalization-receipt.json': mount.canonical({
+                       'version': 1, 'envelopeSHA256': value['finalizationSHA256'], 'generation': 'new-generation',
+                       'controllerInstanceId': NEW, 'previousEnvelopeSHA256': 'c' * 64})}
+
+        def blkid(arguments):
+            return (0, 'ext4' if arguments[5] == 'TYPE' else UUID)
+
+        with patch.object(mount, 'selected'), patch.object(mount.os.path, 'ismount', return_value=True), \
+                patch.object(mount.Path, 'exists', return_value=True), \
+                patch.object(mount.Path, 'stat', return_value=SimpleNamespace(st_mode=stat.S_IFBLK, st_rdev=99)), \
+                patch.object(mount.os, 'stat', return_value=SimpleNamespace(st_dev=99, st_rdev=99, st_mode=stat.S_IFBLK)), \
+                patch.object(mount, 'call', side_effect=blkid), \
+                patch.object(mount, 'boot_identity', return_value=UUID), \
+                patch.object(mount, 'private', side_effect=lambda path, *args: records[str(path)]), \
+                patch.object(mount, 'finalized_operator', return_value=(signed, [(journal_path, expected_journal)])):
+            self.assertEqual(mount.inspect(value)['state'], 'mounted')
+            records[value['operatorOutputPath']] = output.replace(b'private.example', b'foreign.example')
+            with self.assertRaisesRegex(ValueError, 'signed source'):
+                mount.inspect(value)
+            records[value['operatorOutputPath']] = output
+            records[str(journal_path)] = b'{}'
+            with self.assertRaisesRegex(ValueError, 'task template journal'):
+                mount.inspect(value)
+
     def test_signed_successor_preserves_durable_artifacts_and_replaces_only_fenced_receipts(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
