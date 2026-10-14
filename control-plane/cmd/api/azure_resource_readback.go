@@ -97,7 +97,10 @@ func verifyAzureARMOwnership(ctx context.Context, selected e2bOperatorConfig, re
 	if err := reader.Read(ctx, selected.Store.AzureDataDiskID, "2023-10-02", &disk); err != nil ||
 		strings.ToLower(disk.ID) != selected.Store.AzureDataDiskID ||
 		strings.ToLower(disk.ManagedBy) != selected.AzureMount.ControllerInstanceID || disk.Properties.DiskState != "Attached" ||
-		disk.Properties.MaxShares == nil || *disk.Properties.MaxShares != 1 ||
+		// Azure's ordinary nonshared disk leaves maxShares unset; only an
+		// explicit value above one enables sharing. Terraform's managed-disk
+		// schema likewise permits max_shares only for shared values 2..10.
+		disk.Properties.MaxShares != nil && *disk.Properties.MaxShares != 1 ||
 		len(disk.ManagedByExtended) > 1 || len(disk.ManagedByExtended) == 1 && strings.ToLower(disk.ManagedByExtended[0]) != selected.AzureMount.ControllerInstanceID {
 		return errors.New("Azure controller data disk attachment is unverified")
 	}

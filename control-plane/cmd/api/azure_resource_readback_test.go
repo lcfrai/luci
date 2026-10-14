@@ -51,6 +51,12 @@ func TestAzureARMRequiresExactControllerDiskAndRuntimeHostReadback(t *testing.T)
 	if len(reader.reads) != 3 || reader.reads[0] != selected.Store.AzureDataDiskID || reader.reads[1] != selected.AzureMount.ControllerInstanceID {
 		t.Fatal("ARM readback did not bind the disk and controller first", reader.reads)
 	}
+	ordinary := reader.resources[selected.Store.AzureDataDiskID]
+	ordinary.Properties.MaxShares = nil
+	reader.resources[selected.Store.AzureDataDiskID] = ordinary
+	if err := verifyAzureARMOwnership(context.Background(), selected, reader); err != nil {
+		t.Fatal("nonshared disk with implicit maxShares default was refused", err)
+	}
 	for _, changed := range []func(*e2bOperatorConfig, *fakeAzureARM){
 		func(s *e2bOperatorConfig, f *fakeAzureARM) { f.fail = s.Store.AzureDataDiskID },
 		func(s *e2bOperatorConfig, f *fakeAzureARM) {

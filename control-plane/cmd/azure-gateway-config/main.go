@@ -55,7 +55,9 @@ func validConfig(c config) bool {
 
 // This dedicated-host firewall has a default-deny ingress chain. Loopback
 // keeps E2B's host-network API/proxy/orchestrator working; only the selected
-// controller can reach the private mTLS listener. Other inbound traffic,
+// controller can reach the private mTLS listener. Azure's documented
+// 168.63.129.16 fabric address may perform only the TCP load-balancer probe
+// on that listener; it cannot pass mTLS or reach E2B. Other inbound traffic,
 // including 3000-3002 and unauthenticated 5008, is dropped. It is emitted as
 // a separate reviewable artifact: rendering never changes the host firewall.
 func renderFirewall(c config) ([]byte, error) {
@@ -68,9 +70,10 @@ func renderFirewall(c config) ([]byte, error) {
     iifname "lo" accept
     ct state established,related accept
     ip saddr %s/32 ip daddr %s tcp dport 443 accept
+    ip saddr 168.63.129.16/32 ip daddr %s tcp dport 443 accept
   }
 }
-`, c.ControllerIP, c.PrivateListenIP)), nil
+`, c.ControllerIP, c.PrivateListenIP, c.PrivateListenIP)), nil
 }
 
 type allowedRoute struct{ method, path, auth, cluster string }

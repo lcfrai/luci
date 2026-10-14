@@ -1,0 +1,369 @@
+#!/usr/bin/env python3
+"""Dedicated-host Azure Embed install and generation rotation controller.
+
+Only this host's boot/rotate command is effectful. Every uncertain external
+effect is journaled before it starts, and an interrupted effect is not replayed.
+The controller's own durable disk/generation fence remains authoritative.
+"""
+
+import argparse
+import fcntl
+import hashlib
+import ipaddress
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import subprocess
+import sys
+import tarfile
+from urllib.parse import urlsplit
+
+
+PACKAGE = Path("/opt/luci/azure-embed/package")
+PACKAGE_HASH = Path("/opt/luci/azure-embed/package.sha256")
+PACKAGE_ARCHIVE = Path("/opt/luci/azure-embed/package.tar")
+PRIVATE = Path("/run/luci_embed")
+JOURNAL = Path("/var/lib/luci/azure-embed/host-state.json")
+HEX = re.compile(r"[0-9a-f]{64}\Z")
+IDENTITY = re.compile(r"[a-z0-9][a-z0-9-]{1,127}\Z")
+REFS = ("teamApiKey", "adminToken", "sandboxTokenSeed", "gatewayServerCert", "gatewayServerKey", "gatewayClientCa")
+REQUIRED_RUNNING = {"api", "client-proxy", "orchestrator"}
+RFC1918 = tuple(ipaddress.ip_network(prefix) for prefix in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def command(argv, timeout=30):
+    result = subprocess.run(argv, check=False, capture_output=True, text=True, timeout=timeout)
+    if result.returncode:
+        # Never echo stdout/stderr: Compose or provider tools might include a token.
+        raise RuntimeError("owned host command failed: " + argv[0])
+    return result.stdout.strip()
+
+
+def strict_json(path):
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode) or path.is_symlink() or info.st_mode & 0o077 or info.st_size > 16 << 10:
+        raise ValueError("private host configuration is unavailable")
+    return json.loads(path.read_text())
+
+
+def config(path):
+    value = strict_json(path)
+    required = {
+        "version", "scope", "generation", "runtimePackageSHA256", "vaultURL", "gatewayHost",
+        "gatewayPrivateIP", "controllerPrivateIP", "runtimeSubnetCIDR", "hostClientID",
+        "controllerClientID", "secretRefs",
+    }
+    if not required.issubset(value) or not set(value).issubset(required | {"previousGeneration"}):
+        raise ValueError("host configuration fields are invalid")
+    if value["version"] != 1 or not all(IDENTITY.fullmatch(value[k]) for k in ("scope", "generation")):
+        raise ValueError("host generation is invalid")
+    if "previousGeneration" in value and not IDENTITY.fullmatch(value["previousGeneration"]):
+        raise ValueError("previous host generation is invalid")
+    if not HEX.fullmatch(value["runtimePackageSHA256"]):
+        raise ValueError("host package binding is invalid")
+    addresses = [ipaddress.ip_address(value[key]) for key in ("gatewayPrivateIP", "controllerPrivateIP")]
+    if addresses[0] == addresses[1] or any(
+        address.version != 4 or not any(address in block for block in RFC1918) for address in addresses
+    ):
+        raise ValueError("host network boundary is invalid")
+    subnet = ipaddress.ip_network(value["runtimeSubnetCIDR"], strict=True)
+    if subnet.version != 4 or not any(subnet.subnet_of(block) for block in RFC1918) or addresses[0] not in subnet or addresses[1] in subnet:
+        raise ValueError("runtime subnet is invalid")
+    if set(value["secretRefs"]) != set(REFS) or any(
+        set(ref) != {"name", "version"} or not re.fullmatch(r"[0-9a-f]{32}", ref["version"])
+        for ref in value["secretRefs"].values()
+    ):
+        raise ValueError("exact host secret references are invalid")
+    vault = urlsplit(value["vaultURL"])
+    if vault.scheme != "https" or vault.username or vault.password or vault.port or vault.path or vault.query or vault.fragment or not vault.hostname or not re.fullmatch(r"[a-z0-9-]+\.vault\.azure\.net", vault.hostname):
+        raise ValueError("private Key Vault address is invalid")
+    if not re.fullmatch(r"[a-z0-9][a-z0-9.-]{2,252}", value["gatewayHost"]):
+        raise ValueError("gateway host is invalid")
+    for key in ("hostClientID", "controllerClientID"):
+        if not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", value[key]):
+            raise ValueError("host identity is invalid")
+    if value["hostClientID"] == value["controllerClientID"]:
+        raise ValueError("host and controller identities must differ")
+    return value
+
+
+def private_tmpfs():
+    if PRIVATE.is_symlink() or not PRIVATE.is_dir() or PRIVATE.stat().st_mode & 0o077:
+        raise ValueError("host private tmpfs is unavailable")
+    for line in Path("/proc/self/mountinfo").read_text().splitlines():
+        before, _, after = line.partition(" - ")
+        if before.split()[4] == str(PRIVATE) and after.startswith("tmpfs "):
+            return
+    raise ValueError("host private directory is not a dedicated tmpfs mount")
+
+
+def pinned_package(c):
+    if PACKAGE_HASH.read_text().strip() != c["runtimePackageSHA256"]:
+        raise ValueError("image package does not match deployment generation")
+    if PACKAGE_ARCHIVE.is_symlink() or sha(PACKAGE_ARCHIVE.read_bytes()) != c["runtimePackageSHA256"]:
+        raise ValueError("installed host package archive changed")
+    manifest_bytes = (PACKAGE / "manifest.json").read_bytes()
+    with tarfile.open(PACKAGE_ARCHIVE, mode="r:") as archive:
+        entry = archive.extractfile("manifest.json")
+        if entry is None or entry.read() != manifest_bytes:
+            raise ValueError("installed host manifest changed")
+    manifest = json.loads(manifest_bytes)
+    if manifest.get("version") != 1 or manifest.get("e2bRevision") != "cf536c284434fdd2f09bbab35ec807a5dacc87e4":
+        raise ValueError("host package source binding is invalid")
+    for name, record in manifest["files"].items():
+        path = PACKAGE / name
+        if path.is_symlink() or not path.is_file() or path.stat().st_size != record["size"] or sha(path.read_bytes()) != record["sha256"]:
+            raise ValueError("host package file changed")
+    for required in ("compose/compose.yaml", "compose/.env", "compose/image-lock.yaml", "bin/azure-embed-host-bootstrap", "bin/azure-gateway-config", "bin/envoy"):
+        if required not in manifest["files"]:
+            raise ValueError("host package is incomplete")
+    return manifest
+
+
+def host_ip(c):
+    network = ipaddress.ip_network(c["runtimeSubnetCIDR"], strict=True)
+    interfaces = json.loads(command(["ip", "-j", "-4", "addr", "show"]))
+    found = {
+        detail["local"] for iface in interfaces for detail in iface.get("addr_info", [])
+        if detail.get("family") == "inet" and ipaddress.ip_address(detail["local"]) in network
+        and detail["local"] not in (c["gatewayPrivateIP"], c["controllerPrivateIP"])
+    }
+    if len(found) != 1:
+        raise ValueError("runtime host private interface is ambiguous")
+    return found.pop()
+
+
+def atomic_json(path, value):
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    temp = path.with_name(path.name + ".next")
+    with temp.open("x") as out:
+        os.fchmod(out.fileno(), 0o600)
+        json.dump(value, out, sort_keys=True, separators=(",", ":"))
+        out.flush()
+        os.fsync(out.fileno())
+    os.replace(temp, path)
+    parent = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(parent)
+    finally:
+        os.close(parent)
+
+
+def write_private(path, data):
+    if path.exists() or path.is_symlink():
+        raise ValueError("private host output already exists")
+    with path.open("xb") as out:
+        os.fchmod(out.fileno(), 0o600)
+        out.write(data)
+        out.flush()
+        os.fsync(out.fileno())
+
+
+def journal():
+    if not JOURNAL.exists():
+        return None
+    return strict_json(JOURNAL)
+
+
+def save(record):
+    atomic_json(JOURNAL, record)
+
+
+def compose_args(stage):
+    return ["docker", "compose", "-p", "e2b", "--env-file", str(stage / "runtime.env"),
+            "-f", str(PACKAGE / "compose/compose.yaml"), "-f", str(PACKAGE / "compose/image-lock.yaml")]
+
+
+def running(stage):
+    names = set(command(compose_args(stage) + ["ps", "--status", "running", "--services"]).splitlines())
+    return REQUIRED_RUNNING.issubset(names)
+
+
+def running_by_label():
+    names = set(command(["docker", "ps", "--filter", "label=com.docker.compose.project=e2b",
+                         "--format", '{{.Label "com.docker.compose.service"}}']).splitlines())
+    return REQUIRED_RUNNING.issubset(names)
+
+
+def has_kvm():
+    try:
+        return stat.S_ISCHR(Path("/dev/kvm").stat().st_mode)
+    except OSError:
+        return False
+
+
+def host_input(c, manifest, address):
+    fields = {
+        "vaultUrl": c["vaultURL"], "gatewayHost": c["gatewayHost"], "privateListenIp": address,
+        "controllerPrivateIp": c["controllerPrivateIP"], "scope": c["scope"], "generation": c["generation"],
+        "hostClientId": c["hostClientID"], "controllerClientId": c["controllerClientID"],
+        "privateDirectory": str(PRIVATE), "composePath": str(PACKAGE / "compose/compose.yaml"),
+        "composeSha256": manifest["files"]["compose/compose.yaml"]["sha256"],
+        "composeEnvBase": str(PACKAGE / "compose/.env"),
+        "composeEnvSha256": manifest["files"]["compose/.env"]["sha256"],
+    }
+    fields.update(c["secretRefs"])
+    return fields
+
+
+def prepare(c, manifest, address):
+    suffix = c["generation"]
+    source = PRIVATE / ("host-" + suffix + ".json")
+    write_private(source, (json.dumps(host_input(c, manifest, address), sort_keys=True) + "\n").encode())
+    stage = None
+    try:
+        stage = Path(command([str(PACKAGE / "bin/azure-embed-host-bootstrap"), str(source)], 120))
+        if stage.parent != PRIVATE or not stage.name.startswith("luci-embed-"):
+            raise ValueError("host bootstrap returned an unowned stage")
+        gateway = stage / "gateway.json"
+        envoy = PRIVATE / ("envoy-" + suffix + ".yaml")
+        nft = PRIVATE / ("firewall-" + suffix + ".nft")
+        write_private(envoy, command([str(PACKAGE / "bin/azure-gateway-config"), str(gateway)]).encode())
+        write_private(nft, command([str(PACKAGE / "bin/azure-gateway-config"), "--nftables", str(gateway)]).encode())
+        command([str(PACKAGE / "bin/envoy"), "--mode", "validate", "-c", str(envoy)])
+        command(["nft", "-c", "-f", str(nft)])
+        command(compose_args(stage) + ["config", "--quiet"], 90)
+        return {"stage": str(stage), "source": str(source), "envoy": str(envoy), "nft": str(nft)}
+    except Exception:
+        # No runtime effect started. Retire only a returned exact owned stage;
+        # an ambiguous bootstrap response remains visible and is never guessed.
+        if stage is not None and stage.parent == PRIVATE and stage.name.startswith("luci-embed-"):
+            command([str(PACKAGE / "bin/azure-embed-host-bootstrap"), "--retire", str(source), str(stage)])
+        for path in (PRIVATE / ("envoy-" + suffix + ".yaml"), PRIVATE / ("firewall-" + suffix + ".nft"), source):
+            if path.exists():
+                path.unlink()
+        raise
+
+
+def switch_gateway(prepared):
+    link = PRIVATE / "active-envoy.yaml"
+    next_link = PRIVATE / "active-envoy.yaml.next"
+    if next_link.exists() or next_link.is_symlink():
+        raise ValueError("gateway switch has an unresolved prior attempt")
+    next_link.symlink_to(prepared["envoy"])
+    os.replace(next_link, link)
+    command(["systemctl", "restart", "luci-azure-embed-gateway.service"], 45)
+    if command(["systemctl", "is-active", "luci-azure-embed-gateway.service"]) != "active":
+        raise RuntimeError("private gateway did not become active")
+
+
+def boot(c):
+    private_tmpfs()
+    manifest = pinned_package(c)
+    address = host_ip(c)
+    if not has_kvm():
+        raise RuntimeError("dedicated runtime host has no KVM device")
+    old = journal()
+    if old:
+        if old.get("state") == "active" and old.get("scope") == c["scope"] and old.get("generation") == c["generation"] and old.get("packageSHA256") == c["runtimePackageSHA256"] and old.get("secretRefs") == c["secretRefs"] and old.get("hostIP") == address:
+            stage = Path(old["prepared"]["stage"])
+            if stage.exists() and running(stage) and command(["systemctl", "is-active", "luci-azure-embed-gateway.service"]) == "active":
+                return
+            if not stage.exists() and running_by_label():
+                # VM reboot removed tmpfs, while Docker restarted its exact
+                # already-owned services. Restore the same secret versions and
+                # gateway only; never rerun Compose up or allocate guests.
+                prepared = prepare(c, manifest, address)
+                old["state"] = "gateway_restage_pending"
+                old["nextPrepared"] = prepared
+                save(old)
+                switch_gateway(prepared)
+                old["prepared"] = prepared
+                old.pop("nextPrepared")
+                old["state"] = "active"
+                save(old)
+                return
+        raise RuntimeError("retained host state needs exact reconciliation; no startup replay")
+    if command(["docker", "ps", "--filter", "label=com.docker.compose.project=e2b", "--format", "{{.ID}}"]):
+        raise RuntimeError("unowned E2B Compose containers are present")
+    if command(["nft", "list", "tables"]).find("table inet luci_embed") >= 0:
+        raise RuntimeError("unowned dedicated-host firewall table is present")
+    prepared = prepare(c, manifest, address)
+    record = {"version": 1, "state": "firewall_pending", "scope": c["scope"], "generation": c["generation"],
+              "packageSHA256": c["runtimePackageSHA256"], "hostIP": address, "prepared": prepared,
+              "secretRefs": c["secretRefs"]}
+    save(record)
+    command(["nft", "-f", prepared["nft"]])
+    record["state"] = "compose_pending"
+    save(record)
+    command(compose_args(Path(prepared["stage"])) + ["up", "-d"], 150)
+    record["state"] = "gateway_pending"
+    save(record)
+    switch_gateway(prepared)
+    record["state"] = "active"
+    save(record)
+
+
+def rotate(c):
+    private_tmpfs()
+    manifest = pinned_package(c)
+    old = journal()
+    if not old or old.get("state") != "active" or old.get("scope") != c["scope"] or old.get("generation") != c.get("previousGeneration") or old.get("packageSHA256") != c["runtimePackageSHA256"]:
+        raise RuntimeError("host rotation requires the exact settled previous generation")
+    if any(old.get("secretRefs", {}).get(key) != c["secretRefs"][key] for key in REFS[:3]):
+        raise RuntimeError("E2B task keys require a drained, fenced replacement host")
+    address = host_ip(c)
+    if address != old["hostIP"] or not running(Path(old["prepared"]["stage"])):
+        raise RuntimeError("owned E2B services are not settled on the selected host")
+    prepared = prepare(c, manifest, address)
+    old["state"] = "rotation_pending"
+    old["nextGeneration"] = c["generation"]
+    old["nextPrepared"] = prepared
+    save(old)
+    switch_gateway(prepared)
+    old_prepared = old["prepared"]
+    old["generation"] = c["generation"]
+    old["secretRefs"] = c["secretRefs"]
+    old["prepared"] = prepared
+    old["oldPrepared"] = old_prepared
+    old["state"] = "retirement_pending"
+    old.pop("nextGeneration")
+    old.pop("nextPrepared")
+    save(old)
+    # Only the old stage's five known private files are removed by the pinned
+    # bootstrap. A failure retains the journal and does not claim retirement.
+    command([str(PACKAGE / "bin/azure-embed-host-bootstrap"), "--retire", old_prepared["source"], old_prepared["stage"]])
+    for key in ("source", "envoy", "nft"):
+        Path(old_prepared[key]).unlink()
+    old.pop("oldPrepared")
+    old["state"] = "active"
+    save(old)
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("action", choices=("boot", "rotate", "status"))
+    p.add_argument("config")
+    args = p.parse_args()
+    c = config(Path(args.config))
+    JOURNAL.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if JOURNAL.parent.is_symlink() or JOURNAL.parent.stat().st_mode & 0o077:
+        raise ValueError("owned host journal directory is not private")
+    with (JOURNAL.parent / "host.lock").open("a+b") as lock:
+        os.fchmod(lock.fileno(), 0o600)
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RuntimeError("owned host lifecycle is already running") from error
+        if args.action == "boot":
+            boot(c)
+        elif args.action == "rotate":
+            rotate(c)
+        else:
+            record = journal()
+            print(json.dumps({"state": record.get("state", "absent") if record else "absent",
+                              "generation": record.get("generation") if record else None}, sort_keys=True))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (ValueError, RuntimeError, OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

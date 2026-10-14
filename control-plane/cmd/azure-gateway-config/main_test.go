@@ -130,6 +130,7 @@ func TestAzureGatewayDedicatedHostFirewallDeniesDirectRuntimePorts(t *testing.T)
 	for _, required := range []string{
 		"table inet luci_embed", "policy drop", `iifname "lo" accept`,
 		"ct state established,related accept", "ip saddr 10.20.0.5/32 ip daddr 10.20.0.4 tcp dport 443 accept",
+		"ip saddr 168.63.129.16/32 ip daddr 10.20.0.4 tcp dport 443 accept",
 	} {
 		if !strings.Contains(s, required) {
 			t.Fatal("dedicated-host ingress rule missing", required)
