@@ -300,12 +300,12 @@ class Helper:
         write_json(self.output / 'registry-helper-retirement.json', receipt)
         return receipt
 
-    def capture_logs(self):
+    def capture_logs(self, prefix='registry-helper'):
         result = producer.subprocess.run(['docker', 'logs', self.container_id], capture_output=True, timeout=10, check=False)
         if result.returncode or len(result.stdout) + len(result.stderr) > 12 << 20:
             raise ValueError('helper log exceeds bound')
-        (self.output / 'registry-helper.out.log').write_bytes(result.stdout)
-        (self.output / 'registry-helper.err.log').write_bytes(result.stderr)
+        (self.output / (prefix + '.out.log')).write_bytes(result.stdout)
+        (self.output / (prefix + '.err.log')).write_bytes(result.stderr)
 
 
 def placement(repo, revision, build_repo, original, distribution, output):
@@ -349,15 +349,85 @@ def placement(repo, revision, build_repo, original, distribution, output):
     return output
 
 
+def validate_failed_prewrite(row, intent, created, placement_intent, unknown, operations):
+    owner, image_id = intent['owner'], intent['imageID']
+    validate_helper(row, owner, image_id)
+    state = row.get('State', {})
+    if (row.get('Id') != created.get('containerID') or intent.get('engineID') != created.get('engineID') or
+            placement_intent.get('session') != owner['session'] or placement_intent.get('imageID') != image_id or
+            placement_intent.get('pushStarted') is not False or unknown.get('pushStarted') is not False or
+            unknown.get('containerID') != row['Id'] or unknown.get('session') != owner['session'] or
+            state.get('Status') != 'exited' or state.get('Running') is not False or state.get('Pid') != 0 or
+            type(state.get('ExitCode')) is not int or state['ExitCode'] == 0 or
+            not isinstance(state.get('FinishedAt'), str) or state['FinishedAt'].startswith('0001-') or not state['FinishedAt']):
+        raise ValueError('failed prewrite helper lacks exact positive nonzero container terminal')
+    for operation in operations:
+        args = operation.get('argv')
+        if operation.get('session') != owner['session'] or operation.get('engineID') != intent['engineID'] or not isinstance(args, list) or not args or (args[0] == 'docker' and any(value in ('push', 'tag') for value in args[1:3])):
+            raise ValueError('failed-start generation has foreign or possible push/tag intent')
+    return state
+
+
+def retire_failed_start(repo, revision, output):
+    """Positive exited prewrite container, never missing-process settlement."""
+    producer.clean_source(repo, revision)
+    output = plain_directory(output)
+    intent = read_json(output / 'registry-helper-intent.json')
+    created = read_json(output / 'registry-helper-created.json')
+    place = read_json(output / 'registry-placement-intent.json')
+    unknown = read_json(output / 'registry-generation-unknown.json')
+    operations_file = output / 'registry-operations.jsonl'
+    if archive.file_record(operations_file)['bytes'] > 1 << 20:
+        raise ValueError('failed-start operation evidence exceeds bound')
+    operations = [archive.json_bytes(line) for line in operations_file.read_bytes().splitlines()]
+    if not operations or (output / 'registry-push-intent.json').exists() or (output / 'registry-placement-complete.json').exists():
+        raise ValueError('failed-start generation may have crossed the prewrite boundary')
+    helper = Helper.__new__(Helper)
+    helper.repo, helper.output = Path(repo), output
+    helper.owner, helper.image_id = intent['owner'], intent['imageID']
+    if helper.owner != identity(helper.owner.get('session'), helper.owner.get('port')) or not all(isinstance(created.get(key), str) and re.fullmatch('[0-9a-f]{64}', created[key]) for key in ('containerID', 'networkID')):
+        raise ValueError('failed-start resource identities are not exact owned IDs')
+    helper.session, helper.engine = helper.owner['session'], intent['engineID']
+    helper.container_id, helper.network_id = created['containerID'], created['networkID']
+    helper.tools, helper.data = output / 'registry-tools', output / 'registry-data'
+    producer.ENGINE_IDENTITIES[helper.session] = helper.engine
+    helper.fence()
+    row = json.loads(producer.command(['docker', 'inspect', helper.container_id]))[0]
+    state = validate_failed_prewrite(row, intent, created, place, unknown, operations)
+    validate_helper(row, helper.owner, helper.image_id, helper.tools, helper.data)
+    helper.capture_logs('failed-start-retirement-helper')
+    write_json(output / 'failed-start-retirement-intent.json', {'sourceCommit': revision, 'engineID': helper.engine,
+               'containerID': helper.container_id, 'state': state, 'pushStarted': False, 'originalFailurePreserved': True})
+    helper.operation(['docker', 'rm', helper.container_id])
+    producer.assert_settled(helper.session)
+    network = json.loads(producer.command(['docker', 'network', 'inspect', helper.network_id]))[0]
+    if network.get('Id') != helper.network_id or network.get('Internal') is not True or network.get('Labels', {}).get(producer.SESSION_LABEL) != helper.session or network.get('Containers'):
+        raise ValueError('failed-start network ownership changed; preserve it')
+    helper.operation(['docker', 'network', 'rm', helper.network_id])
+    write_json(output / 'failed-start-retirement.json', {'version': 1, 'state': 'failed_before_ready_retired', 'sourceCommit': revision,
+               'engineID': helper.engine, 'containerID': helper.container_id, 'networkID': helper.network_id,
+               'positiveContainerTerminal': state, 'exactOwnedContainerAbsent': True, 'networkRemoved': True,
+               'pushStarted': False, 'gateProtocolVerified': False, 'exportVerified': False, 'engineRetired': False,
+               'originalFailurePreserved': True, 'imagePreserved': helper.image_id})
+    return output
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['placement'])
+    parser.add_argument('action', choices=['placement', 'retire-failed-start'])
     parser.add_argument('--revision', required=True)
-    for key in ('build-repo', 'original', 'distribution-dir', 'output'):
-        parser.add_argument('--' + key, required=True, type=Path)
+    for key in ('build-repo', 'original', 'distribution-dir'):
+        parser.add_argument('--' + key, type=Path)
+    parser.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
     try:
-        result = placement(Path(__file__).resolve().parents[2], args.revision, args.build_repo, args.original, args.distribution_dir, args.output)
+        repo = Path(__file__).resolve().parents[2]
+        if args.action == 'placement':
+            if any(value is None for value in (args.build_repo, args.original, args.distribution_dir)):
+                parser.error('placement requires --build-repo, --original and --distribution-dir')
+            result = placement(repo, args.revision, args.build_repo, args.original, args.distribution_dir, args.output)
+        else:
+            result = retire_failed_start(repo, args.revision, args.output)
     except (ValueError, OSError, producer.subprocess.SubprocessError, http.client.HTTPException) as error:
         parser.exit(1, 'Placement refused/unknown; retain generation: ' + str(error) + '\n')
     print(json.dumps({'output': str(result), 'pushStarted': False}))
