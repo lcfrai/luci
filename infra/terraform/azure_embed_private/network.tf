@@ -73,9 +73,24 @@ resource "azurerm_network_security_group" "controller" {
   resource_group_name = var.resource_group_name
   tags                = var.tags
 
+  dynamic "security_rule" {
+    for_each = var.management_source_cidr == "" ? [] : [var.management_source_cidr]
+    content {
+      name                       = "PrivateDesktopToControllerManagement"
+      priority                   = 100
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "22"
+      source_address_prefix      = security_rule.value
+      destination_address_prefix = "${var.controller_private_ip}/32"
+    }
+  }
+
   security_rule {
     name                       = "DenyUnconfiguredInbound"
-    priority                   = 100
+    priority                   = 200
     direction                  = "Inbound"
     access                     = "Deny"
     protocol                   = "*"

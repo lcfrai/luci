@@ -42,7 +42,7 @@ type azureSetupBundleManifest struct {
 var azureSetupSHA = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var azureSetupGit = regexp.MustCompile(`^[0-9a-f]{40}$`)
 var azureSetupRequired = []string{
-	"LICENSE", "azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/README.md",
+	"LICENSE", "azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/README.md",
 	"azure-embed-host/package.py", "azure-embed-host/service.py", "azure-embed-host/deliver.py",
 	"azure-controller-disk/package.py", "azure-controller-disk/mount.py", "azure-controller-disk/recover.py",
 	"terraform/.terraform.lock.hcl", "terraform/compute.tf", "terraform/fence.tf", "terraform/identity.tf",
@@ -215,6 +215,7 @@ func (s *Server) planAzureDevelop(w http.ResponseWriter, r *http.Request) {
 			"mkdir -m 700 luci-azure-setup", "tar -xf luci-azure-setup.tar -C luci-azure-setup",
 			"mkdir -m 700 luci-azure-private",
 			"python3 luci-azure-setup/azure-setup/installer.py init-selection --bundle luci-azure-setup --selection luci-azure-private/selection.json --name " + requested.Name + " --region " + requested.Region + " --monthly-budget-usd " + strconv.FormatFloat(requested.MonthlyBudgetUSD, 'f', -1, 64) + " --max-concurrent-vms " + strconv.Itoa(requested.MaxConcurrentVMs),
+			"python3 luci-azure-setup/azure-setup/installer.py configure-guided --bundle luci-azure-setup --selection luci-azure-private/selection.json",
 			"python3 luci-azure-setup/azure-setup/installer.py plan --bundle luci-azure-setup --selection luci-azure-private/selection.json",
 		},
 		"note": "The existing deployment-target cloud setup creates an ordinary VM. This Azure plan prepares Develop microVM infrastructure and does not connect or provision anything by itself.",

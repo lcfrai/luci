@@ -9,6 +9,28 @@ Run the commands on Linux or WSL2 with Python 3, Go, Terraform, Azure CLI and
 isolated Ubuntu image build roots. The Windows app supplies and verifies the
 bundle; it does not run Linux image construction in PowerShell.
 
+After `init-selection`, run `configure-guided --bundle . --selection
+/private/selection.json` for ordinary account, durable-state, host-size, public
+SSH-key and Key Vault questions. This reuses the same account validator as the
+flag-based command; no Terraform or operator JSON needs to be authored for
+those selections. `status` reads the retained local stage journals, including
+uncertain operations, without querying Azure or claiming a connected workspace.
+
+For an existing generalized managed image containing the exact prepared root,
+`gallery-plan --bundle . --selection /private/selection.json --role runtime
+--image-definition-id <exact-existing-definition-ARM-ID> --version 1.0.1
+--managed-image-id <exact-generalized-managed-image-ARM-ID>` saves a source and
+package-bound publication plan. Repeat for `--role controller`. Review its
+region, single replica, source, costs and `planDigest`, then use
+`gallery-publish --role runtime --plan-digest <exact-digest> --acknowledge-costs`
+with the same bundle/selection. It establishes bounded version absence before
+one journaled ARM write and requires exact source/identity readback. An unknown
+write must use `gallery-reconcile`, which performs only GET, never another PUT.
+The source managed image must actually contain the prepared root; tags and a
+gallery receipt do not prove filesystem contents, KVM or successful tasks.
+Building/generalizing/uploading a VHD from the prepared root remains a distinct
+prerequisite. No live publication has been exercised by these offline checks.
+
 1. Extract into a private directory with `mkdir -m 700 luci-azure-setup` and
    `tar -xf luci-azure-setup.tar -C luci-azure-setup`.
 2. Run the exact `init-selection` command returned by the plan API. It takes

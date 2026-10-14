@@ -271,6 +271,14 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 	if rt.teamID != "" {
 		cmd.Env = isolatedTeamEnvironment(g.opts.BaseEnvironment, root, rt.secret, addressFile, rt.teamID, rt.user)
 	}
+	azureConfig, azureErr := prepareAzureWorkerConfig(g.opts.BaseEnvironment, root)
+	if azureErr != nil {
+		finish("Protected Azure worker configuration could not be prepared. Existing state has been preserved.")
+		return
+	}
+	if azureConfig != "" {
+		cmd.Env = append(cmd.Env, "LUCI_E2B_CONFIG="+azureConfig)
+	}
 	cmd.Env = append(cmd.Env, "LUCI_CONVERSATIONS_DIR="+conversations)
 	// The worker rereads the controller's atomically persisted authority before
 	// every deferred allocation. Only this trusted launcher supplies its scope.

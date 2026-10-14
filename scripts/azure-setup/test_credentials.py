@@ -81,6 +81,7 @@ class AzureCredentialTests(unittest.TestCase):
         self.assertIn("URI:spiffe://luci/controller/luci-team-a1/gen-a1", client)
         self.assertEqual((self.root / "client.key").stat().st_mode & 0o777, 0o600)
         self.assertEqual(json.loads((self.root / "journal.json").read_text())["state"], "generated_unpublished")
+        self.assertRegex((self.root / "team-api.txt").read_text().strip(), r"^e2b_[0-9a-f]{32}$")
 
     def test_exact_publication_and_binding_do_not_copy_values_to_selection(self):
         with self.assertRaisesRegex(ValueError, "acknowledgement"):
