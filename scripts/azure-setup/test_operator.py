@@ -55,6 +55,7 @@ class OperatorTests(unittest.TestCase):
                 "runtime_vm_size": "Standard_D8s_v5", "subscription_id": "12345678-1234-1234-1234-123456789abc",
                 "resource_group_name": "luci-rg", "zone": "1", "controller_owner_id": "owner-one",
                 "controller_filesystem_uuid": "12345678-1234-1234-1234-123456789abc", "controller_operator_template_path": "/etc/luci/operator-template.json",
+                "controller_operator_output_path": "/etc/luci/operator.json",
                 "controller_host_id": "controller-one", "runtime_host_id": "runtime-one"}}
         path = root / "selection.json"
         write(path, selection)
@@ -249,6 +250,78 @@ class OperatorTests(unittest.TestCase):
                 mount.resume(value)
             with self.assertRaisesRegex(ValueError, 'source, disk and generation'):
                 mount.finalized_operator(value, draft)
+
+    def test_successor_signs_new_boot_and_generation_without_reusing_tls_or_journals(self):
+        root, core, path, _, _, _ = self.finalized()
+        prior = core.private_json(root / 'azure-operator-finalization.json')
+        old = prior['payload']
+        recovery_selection = root / 'recovery-selection.json'
+        replacement = old['controllerInstanceId'].replace('/controller', '/successor')
+        recovery_record = {'scope': old['scope'], 'ownerID': old['operator']['store']['ownerID'],
+                    'diskID': old['diskID'], 'oldControllerID': old['controllerInstanceId'],
+                    'newControllerID': replacement, 'oldGeneration': old['generation'],
+                    'newGeneration': 'gen-two', 'oldGenerationReceiptSHA256': 'd' * 64,
+                    'filesystemUUID': '12345678-1234-1234-1234-123456789abc',
+                    'fenceBlobURL': 'https://lucifence.blob.core.windows.net/controller-fence/controller-fence.json'}
+        core.atomic_json(recovery_selection, recovery_record)
+        credentials = root / 'successor-credentials'
+        credentials.mkdir()
+        subprocess.run(['openssl', 'ecparam', '-name', 'prime256v1', '-genkey', '-noout',
+                        '-out', str(credentials / 'ca.key')], check=True, capture_output=True)
+        subprocess.run(['openssl', 'req', '-new', '-x509', '-key', str(credentials / 'ca.key'),
+                        '-subj', '/CN=successor-test', '-out', str(credentials / 'ca.crt')], check=True, capture_output=True)
+        new_journal = {'state': 'published', 'scope': old['scope'], 'generation': 'gen-two',
+                       'files': {'client-ca': hashlib.sha256((credentials / 'ca.crt').read_bytes()).hexdigest()},
+                       'published': {kind: {'id': 'https://luci-vault.vault.azure.net/secrets/' + kind + '/' + 'c' * 32}
+                                     for kind in operator.REFS.values()}}
+        core.atomic_json(credentials / 'journal.json', new_journal)
+        new_boot = 'aaaaaaaa-1234-1234-1234-123456789abc'
+        new_journal['published']['client-key']['id'] = new_journal['published']['client-key']['id'].replace('c' * 32, 'b' * 32)
+        core.atomic_json(credentials / 'journal.json', new_journal)
+        with self.assertRaisesRegex(ValueError, 'Key Vault reference is stale'):
+            operator.prepare_successor(core, root, path, recovery_selection, core.digest(prior), new_boot, credentials)
+        new_journal['published']['client-key']['id'] = new_journal['published']['client-key']['id'].replace('b' * 32, 'c' * 32)
+        core.atomic_json(credentials / 'journal.json', new_journal)
+        result = operator.prepare_successor(core, root, path, recovery_selection, core.digest(prior), new_boot, credentials)
+        successor = core.private_json(Path(result['successorPath']))
+        selection = dict(recovery_record, version=1, recoveryClientID='12345678-1234-1234-1234-123456789abc',
+                         filesystemUUID='12345678-1234-1234-1234-123456789abc',
+                         controllerIdentityID=old['controllerInstanceId'].replace('microsoft.compute/virtualmachines/controller', 'microsoft.managedidentity/userassignedidentities/controller'),
+                         recoveryIdentityID=old['controllerInstanceId'].replace('microsoft.compute/virtualmachines/controller', 'microsoft.managedidentity/userassignedidentities/recovery'),
+                         fenceBlobURL='https://lucifence.blob.core.windows.net/controller-fence/controller-fence.json',
+                         mountSelectionPath='/etc/luci/recovery-mount.json', hostDeliverySelectionPath='/etc/luci/deliver.json',
+                         apiService='luci-api.service', apiHealthURL='http://127.0.0.1:8730/v1/healthz',
+                         controllerSuccessor=successor)
+        recovery.validate(selection)
+        files = {row['path']: row['content'] for row in successor['files']}
+        draft = json.loads(files['/etc/luci/operator-template.json'])
+        envelope = json.loads(files['/etc/luci/azure-operator-finalization.json'])
+        self.assertEqual(draft['setupDeferred']['generation'], 'gen-two')
+        self.assertNotEqual(draft['setupDeferred']['signerPublicKey'],
+                            core.private_json(root / 'operator-template.json')['setupDeferred']['signerPublicKey'])
+        self.assertEqual(envelope['payload']['operator']['azureSecrets']['clientKey']['version'], 'c' * 32)
+        value = {'scope': old['scope'], 'generation': 'gen-two', 'operatorTemplateSHA256': successor['newTemplateSHA256'],
+                 'controllerInstanceId': replacement, 'azureDataDiskId': old['diskID'], 'ownerId': recovery_record['ownerID'],
+                 'mountPath': '/mnt/luci-controller', 'previousFinalizationSHA256': successor['priorEnvelopeSHA256'],
+                 'previousControllerInstanceID': recovery_record['oldControllerID'], 'previousGeneration': 'gen-one',
+                 'previousBootID': old['controllerBootID'], 'targetBootID': new_boot,
+                 'finalizationSHA256': successor['newEnvelopeSHA256']}
+        with mock.patch.object(mount, 'private', side_effect=lambda *_: mount.canonical(envelope)), \
+                mock.patch.object(mount, 'boot_identity', return_value=new_boot):
+            self.assertEqual(mount.finalized_operator(value, draft)[0]['sourceCommit'], 'a' * 40)
+            envelope['payload']['previousBootID'] = new_boot
+            with self.assertRaisesRegex(ValueError, 'signed successor'):
+                mount.finalized_operator(value, draft)
+            envelope['payload']['previousBootID'] = old['controllerBootID']
+            envelope['payload']['operator']['hostNodeId'] = 'tampered-node'
+            value['finalizationSHA256'] = mount.sha(mount.canonical(envelope))
+            with self.assertRaisesRegex(ValueError, 'signature'):
+                mount.finalized_operator(value, draft)
+        self.assertNotIn('PRIVATE KEY-----', json.dumps(successor))
+        self.assertTrue(Path(result['successorPath']).exists())
+        self.assertEqual(str(path.parent / 'azure-successor-gen-two.json'), result['successorPath'])
+        with self.assertRaisesRegex(ValueError, 'without resigning'):
+            operator.prepare_successor(core, root, path, recovery_selection, core.digest(prior), new_boot, credentials)
 
 
 if __name__ == "__main__":
