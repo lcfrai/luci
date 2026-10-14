@@ -171,11 +171,8 @@ elif provider == 'opencode' and auth == 'configured':
             # prompt count after its runner's truncation. A truncated prompt is
             # near the context limit and fails the output/system reservation.
             request = urllib.request.Request(origin+'/api/generate',data=json.dumps({'model':actual_model,'prompt':opencode_input.decode('utf-8'),'raw':True,'stream':False,'options':{'num_predict':1},'keep_alive':'5m'}).encode(),headers={'Content-Type':'application/json'},method='POST')
-            try:
-                with direct.open(request,timeout=30) as response:
-                    raw = response.read(1048577)
-            except urllib.error.HTTPError:
-                raise
+            with direct.open(request,timeout=30) as response:
+                raw = response.read(1048577)
             if len(raw)>1048576:
                 raise ValueError('unbounded model response')
             counted = json.loads(raw)
@@ -214,6 +211,7 @@ def drain():
         if not overflow[0]:
             captured.extend(chunk)
 reader = None
+failure_code = None
 if provider != 'codex':
     reader = threading.Thread(target=drain,daemon=True)
     reader.start()
@@ -226,13 +224,17 @@ try:
     if overflow[0] or (reader and reader.is_alive()):
         code = 2
     if code == 0 and provider == 'opencode' and ollama_preflight == '1':
-        with direct.open(origin+'/api/ps',timeout=5) as response:
-            raw = response.read(65537)
-        if len(raw)>65536:
-            raise ValueError('unbounded model status')
-        observed = [item for item in json.loads(raw)['models'] if item.get('name') in model_names or item.get('model') in model_names]
-        if len(observed)!=1 or observed[0].get('context_length')!=loaded_context or observed[0].get('digest')!=loaded_digest:
-            raise ValueError('model changed during analysis')
+        try:
+            with direct.open(origin+'/api/ps',timeout=5) as response:
+                raw = response.read(65537)
+            if len(raw)>65536:
+                raise ValueError('unbounded model status')
+            observed = [item for item in json.loads(raw)['models'] if item.get('name') in model_names or item.get('model') in model_names]
+            if len(observed)!=1 or observed[0].get('context_length')!=loaded_context or observed[0].get('digest')!=loaded_digest:
+                raise ValueError('model changed during analysis')
+        except Exception:
+            failure_code = 'local_model_context_unverified'
+            raise
     if code == 0 and provider != 'codex':
         if provider == 'claude-code':
             envelope = json.loads(captured)
@@ -262,7 +264,7 @@ except Exception:
         process.kill()
         process.wait()
 with open('/luci-output/exit.json.tmp','w') as target:
-    json.dump({'exitCode':code},target)
+    json.dump({'exitCode':code,**({'failureCode':failure_code} if failure_code else {})},target)
 os.replace('/luci-output/exit.json.tmp','/luci-output/exit.json')
 sys.exit(code)
 `

@@ -183,10 +183,12 @@ func TestOpenCodeReceivesLongContextTailAndExactSchemaThroughStdin(t *testing.T)
 		}
 	}
 	fake := filepath.Join(dir, "opencode.py")
-	code := `import json,os,pathlib,sys
+	code := `import json,os,pathlib,sys,urllib.request
 args=sys.argv[1:]
 if os.environ.get('FIXTURE_INVOCATION'):
  pathlib.Path(os.environ['FIXTURE_INVOCATION']).write_text('started')
+if os.environ.get('FIXTURE_CHANGE'):
+ urllib.request.urlopen(os.environ['FIXTURE_CHANGE'],timeout=2).close()
 received=sys.stdin.read()
 expected=pathlib.Path(os.environ['FIXTURE_EXPECTED']).read_text()
 schema_text=received.split('Response schema:\n',1)[1].split('\nComplete project request:\n',1)[0]
@@ -224,6 +226,9 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 			json.NewEncoder(w).Encode(map[string]any{"model": "fixture", "prompt_eval_count": evaluatedTokens.Load(), "eval_count": 1, "done": true})
 		case "/api/ps":
 			json.NewEncoder(w).Encode(map[string]any{"models": []map[string]any{{"name": "fixture", "context_length": servingContext.Load(), "digest": "sha256:fixture-exact-model"}}})
+		case "/test/change":
+			servingContext.Store(4096)
+			w.WriteHeader(204)
 		default:
 			http.NotFound(w, r)
 		}
@@ -283,9 +288,26 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 			}
 		}
 	}
-	servingContext.Store(4096)
 	os.Remove(filepath.Join(output, "result.json"))
 	cmd := exec.Command(python, entry)
+	cmd.Env = append(os.Environ(), "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_CHANGE="+modelServer.URL+"/test/change")
+	if logs, err := cmd.CombinedOutput(); err == nil || len(logs) != 0 {
+		t.Fatal("changed loaded model was accepted", err)
+	}
+	var changed struct {
+		ExitCode    int    `json:"exitCode"`
+		FailureCode string `json:"failureCode"`
+	}
+	changedData, err := os.ReadFile(filepath.Join(output, "exit.json"))
+	if err != nil || json.Unmarshal(changedData, &changed) != nil || changed.FailureCode != "local_model_context_unverified" || changed.ExitCode != 2 {
+		t.Fatal("changed model did not retain an explicit uncertain failure", err, string(changedData))
+	}
+	if _, err := os.Stat(filepath.Join(output, "result.json")); !os.IsNotExist(err) {
+		t.Fatal("response from changed model was published")
+	}
+	servingContext.Store(4096)
+	os.Remove(filepath.Join(output, "result.json"))
+	cmd = exec.Command(python, entry)
 	invocation := filepath.Join(dir, "inadequate-context-provider-invocation")
 	cmd.Env = append(os.Environ(), "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_INVOCATION="+invocation)
 	if logs, err := cmd.CombinedOutput(); err == nil || len(logs) != 0 {
