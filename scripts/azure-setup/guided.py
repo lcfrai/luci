@@ -2,6 +2,7 @@
 import ipaddress
 import base64
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -30,7 +31,9 @@ def progress(core, bundle_root, selection_path):
     variables = core.requested(selection)
     parent = Path(selection_path).parent
     stages = []
-    for identifier, relative in (("credentials", "azure-credentials/journal.json"),
+    for identifier, relative in (("private-location", "azure-private-location.json"),
+                                 ("foundation", "azure-foundation-state.json"),
+                                 ("credentials", "azure-credentials/journal.json"),
                                  ("operator-selection", "azure-operator-prep-state.json"),
                                  ("template", "azure-template-state.json"),
                                  ("operator", "azure-operator-install-state.json"),
@@ -52,20 +55,82 @@ def progress(core, bundle_root, selection_path):
             "message": "Local stage receipts do not prove a reachable or authorized workspace."}
 
 
-def wizard(core, bundle_root, selection_path, ask=input):
-    """Ordinary questions only; the existing validator owns account selection."""
-    questions = (
-        ("subscription_id", "Azure subscription ID"), ("resource_group", "Existing resource group"),
-        ("state_resource_group", "Existing Terraform state resource group"),
-        ("state_storage_account", "Existing state storage account"),
-        ("state_container", "Existing private state Blob container"),
-        ("zone", "Availability zone"), ("runtime_size", "KVM-capable runtime VM size"),
-        ("controller_size", "Controller VM size"),
-        ("ssh_public_key_file", "Absolute SSH public-key file"),
-        ("key_vault_id", "Existing Key Vault ARM ID"), ("key_vault_name", "Key Vault name"),
-        ("fence_storage_account", "Unused off-disk fence storage account name"))
-    choices = {key: ask(label + ": ").strip() for key, label in questions}
-    return core.configure_account(bundle_root, selection_path, **choices)
+def wizard(core, bundle_root, selection_path, ask=input, cli=None, foundation=None):
+    """Stage normal private setup without hand-written operator/Terraform JSON.
+
+    Discovery is read-only. Newly proposed foundation effects always stop at an
+    exact reviewable cost plan; the operator invokes acknowledged stages later.
+    """
+    cli = cli or az_json
+    manifest = core.bundle(bundle_root)
+    selected = core.private_json(selection_path)
+    variables = core.requested(selected)
+    parent = Path(selection_path).parent
+    journal_path = parent / 'azure-foundation-state.json'
+    if (parent / 'azure-foundation-plan.json').exists():
+        journal = core.private_json(journal_path) if journal_path.exists() else {}
+        if journal.get('state') != 'foundation_bound_private_data_route_observed':
+            proposal = core.private_json(parent / 'azure-foundation-plan.json')
+            return {'state': journal.get('state', 'foundation_review_required'), 'planDigest': proposal['planDigest'],
+                'resources': [row['id'] for row in proposal['resources']], 'retainedCharges': proposal['retainedCharges'],
+                'nextAction': 'foundation-reconcile' if journal.get('pending') else 'foundation-bind' if journal.get('state') == 'foundation_observed_pending_private_data_route' else 'foundation-step',
+                'requiresExplicitCostAcknowledgment': not journal.get('pending'), 'connected': False, 'priceVerified': False}
+    else:
+        if foundation is None:
+            spec = importlib.util.spec_from_file_location('luci_azure_foundation', Path(bundle_root) / 'azure-setup/foundation.py')
+            foundation = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(foundation)
+        account = cli(['account', 'show'])
+        principal = cli(['ad', 'signed-in-user', 'show', '--query', 'id']) if account.get('user', {}).get('type') == 'user' else cli(['ad', 'sp', 'show', '--id', account.get('user', {}).get('name', ''), '--query', 'id'])
+        networks = cli(['network', 'vnet', 'list', '--subscription', account['id'], '--query', "[?location=='" + selected['region'] + "'].{id:id,name:name,subnets:subnets}"])
+        if not isinstance(networks, list) or not 1 <= len(networks) <= 128:
+            raise ValueError('An existing privately reachable VNet in the selected region is required; no public connectivity is created')
+        prompt = 'Existing private location (' + ', '.join(str(i + 1) + ': ' + row['name'] for i, row in enumerate(networks)) + '), number: '
+        try:
+            index = int(ask(prompt).strip()) - 1
+            if index < 0 or index >= len(networks): raise ValueError('selection')
+            chosen = networks[index]
+        except (ValueError, IndexError):
+            raise ValueError('Choose one displayed existing private VNet') from None
+        arm = foundation.AzureARM(cli)
+        endpoint = ask('Existing private-endpoint subnet name (policies disabled): ').strip()
+        route_host = ask('Existing reachable private listener IPv4 address in that VNet: ').strip()
+        route_port = int(ask('Listener port [22]: ').strip() or '22')
+        source = ask('Your existing private management source CIDR: ').strip()
+        foundation.inventory(core, bundle_root, selection_path, chosen['id'], endpoint, route_host,
+            route_port, source, principal, arm, account)
+        if ask('Reuse existing private state and Key Vault? [yes/no]: ').strip().lower() == 'yes':
+            result = foundation.reuse(core, bundle_root, selection_path,
+                ask('Existing state storage ARM ID (private luci-state container): ').strip(),
+                ask('Existing private Key Vault ARM ID: ').strip(),
+                ask('Existing linked private Blob/vault DNS resource group: ').strip(), arm)
+            return dict(result, nextAction='foundation-bind', connected=False)
+        group = ask('New separately owned foundation resource group [' + selected['name'] + '-foundation]: ').strip() or selected['name'] + '-foundation'
+        return foundation.plan(core, bundle_root, selection_path, group)
+    backend = selected['stateBackend']
+    # Dsv5 is a documented nested-virtualization series. Availability and zones
+    # are checked for this account; actual KVM/guest acceptance is still separate.
+    runtime_size = ask('Runtime size [Standard_D8s_v5; review its Azure quote]: ').strip() or 'Standard_D8s_v5'
+    controller_size = ask('Controller size [Standard_D2s_v5; review its Azure quote]: ').strip() or 'Standard_D2s_v5'
+    supported_zones = []
+    for size in (runtime_size, controller_size):
+        if not re.fullmatch(r'Standard_[A-Za-z0-9_]{2,80}', size): raise ValueError('Invalid selected VM size')
+        rows = cli(['vm', 'list-skus', '--location', selected['region'], '--resource-type', 'virtualMachines', '--size', size,
+                    '--query', "[?name=='" + size + "' && length(restrictions)==`0`].{name:name,locationInfo:locationInfo}"])
+        if not isinstance(rows, list) or len(rows) != 1:
+            raise ValueError('Selected VM size is restricted or unavailable in this account/region')
+        supported_zones.append({zone for row in rows[0].get('locationInfo', []) for zone in row.get('zones', [])})
+    zone = ask('Availability zone [1; must be supported by both selected sizes]: ').strip() or '1'
+    if any(zone not in zones for zones in supported_zones):
+        raise ValueError('Select a zone supported by both available VM sizes')
+    key_path = ask('Absolute SSH public-key file: ').strip()
+    return core.configure_account(bundle_root, selection_path, subscription_id=backend['subscriptionId'],
+        resource_group=variables['resource_group_name'], state_resource_group=backend['resourceGroupName'],
+        state_storage_account=backend['storageAccountName'], state_container=backend['containerName'],
+        zone=zone, runtime_size=runtime_size, controller_size=controller_size, ssh_public_key_file=key_path,
+        key_vault_id=variables['key_vault_id'], key_vault_name=variables['key_vault_name'],
+        fence_storage_account='lucifn' + core.digest([manifest['luciRevision'], variables['scope']])[:16],
+        runtime_image_version_id=variables.get('runtime_image_version_id', ''), controller_image_version_id=variables.get('controller_image_version_id', ''))
 
 
 def configure_private(core, bundle_root, selection_path, network_cidr, management_cidr, acknowledge_route):

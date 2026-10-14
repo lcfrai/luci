@@ -2,6 +2,23 @@ variable "subscription_id" { type = string }
 variable "location" { type = string }
 variable "resource_group_name" { type = string }
 variable "name" { type = string }
+variable "existing_vnet_name" {
+  type    = string
+  default = ""
+}
+variable "existing_vnet_resource_group_name" {
+  type    = string
+  default = ""
+  validation {
+    condition     = (var.existing_vnet_name == "") == (var.existing_vnet_resource_group_name == "")
+    error_message = "Existing VNet name and resource group must be selected together."
+  }
+}
+variable "foundation_private_dns_resource_group_name" {
+  type    = string
+  default = ""
+  description = "Verified existing private Blob/Key Vault DNS zones linked to the selected VNet; foundation ownership remains separate."
+}
 variable "zone" { type = string }
 variable "runtime_vm_size" { type = string }
 variable "controller_vm_size" { type = string }

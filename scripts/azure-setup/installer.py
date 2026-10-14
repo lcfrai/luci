@@ -28,8 +28,8 @@ SHA = re.compile(r"[0-9a-f]{64}\Z")
 GIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 REGION = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
-MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
-SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
+MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
+SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
                 "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-controller-disk/package.py",
                 "azure-controller-disk/mount.py", "azure-controller-disk/recover.py"}
 EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
@@ -281,7 +281,7 @@ def make_plan(selection, manifest, selection_path, bundle_root):
             missing.append("state_backend_" + name)
     if not selection["nextGeneration"] or selection["nextGeneration"] == variables.get("generation"):
         missing.append("distinct_next_controller_generation")
-    declared = set(re.findall(r'^variable "([a-z0-9_]+)"', (Path(bundle_root) / "terraform/variables.tf").read_text(), re.M)) - {"previous_generation", "tags", "management_source_cidr"}
+    declared = set(re.findall(r'^variable "([a-z0-9_]+)"', (Path(bundle_root) / "terraform/variables.tf").read_text(), re.M)) - {"previous_generation", "tags", "management_source_cidr", "existing_vnet_name", "existing_vnet_resource_group_name", "foundation_private_dns_resource_group_name"}
     for name in sorted(declared):
         if variables.get(name) in (None, "", [], {}):
             missing.append("terraform_" + name)
@@ -577,8 +577,9 @@ def prepare(bundle_root, selection_path, selected_digest):
     raw = terraform(work, "show", "-json", "selected.tfplan")
     shown = json.loads(raw)
     changes = shown.get("resource_changes", [])
-    actions = [row.get("change", {}).get("actions", []) for row in changes]
-    if not changes or any(action != ["create"] for action in actions):
+    managed = [row for row in changes if row.get('mode', 'managed') == 'managed']
+    reads = [row for row in changes if row.get('mode') == 'data']
+    if not managed or len(managed) + len(reads) != len(changes) or any(row.get('change', {}).get('actions') != ['create'] for row in managed) or any(row.get('change', {}).get('actions') not in (['read'], ['no-op']) for row in reads):
         raise ValueError("Azure setup needs a fresh empty durable state; existing or changed resources require exact recovery review")
     tfplan = work / "selected.tfplan"
     if tfplan.is_symlink() or not tfplan.is_file() or tfplan.stat().st_size > 16 << 20:
@@ -586,8 +587,8 @@ def prepare(bundle_root, selection_path, selected_digest):
     record = {"version": 1, "state": "prepared", "planDigest": selected_digest,
               "selectionDigest": plan["selectionDigest"], "sourceCommit": plan["luciRevision"],
               "terraformPlanSHA256": hashlib.sha256(tfplan.read_bytes()).hexdigest(),
-              "resourceCreates": sum(action == ["create"] for action in actions),
-              "resourceNoops": 0,
+              "resourceCreates": len(managed),
+              "resourceNoops": len(reads),
               "resourceName": plan["name"], "region": plan["region"], "monthlyBudgetUsd": plan["monthlyBudgetUsd"],
               "priceVerified": False}
     atomic_json(state_path, record)
@@ -773,10 +774,24 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "generate-secrets",
                    "publish-secrets", "reconcile-secrets", "bind-secrets", "prepare-images", "prepare", "apply",
-                   "reconcile", "bootstrap", "status", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile"):
+                   "reconcile", "bootstrap", "status", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile", "foundation-inventory", "foundation-plan", "foundation-step", "foundation-reconcile", "foundation-bind", "foundation-reuse"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
+        if action == 'foundation-inventory':
+            for key in ('vnet-id', 'endpoint-subnet', 'route-host', 'management-source-cidr'):
+                row.add_argument('--' + key, required=True)
+            row.add_argument('--route-port', type=int, default=22)
+            row.add_argument('--operator-object-id', default='')
+        if action == 'foundation-plan':
+            row.add_argument('--foundation-resource-group', required=True)
+        if action in ('foundation-step', 'foundation-reconcile'):
+            row.add_argument('--plan-digest', required=True)
+            row.add_argument('--acknowledge-costs', action='store_true')
+        if action == 'foundation-reuse':
+            row.add_argument('--storage-id', required=True)
+            row.add_argument('--vault-id', required=True)
+            row.add_argument('--private-dns-resource-group', required=True)
         if action == "template-step":
             row.add_argument("--mode", choices=("create", "created", "reconcile", "start", "status"), required=True)
             row.add_argument("--acknowledge-template-publication", action="store_true")
@@ -831,6 +846,39 @@ def main():
             row.add_argument("--acknowledge-costs", action="store_true")
             row.add_argument("--acknowledge-unverified-price", action="store_true")
     args = parser.parse_args()
+    if args.action.startswith('foundation-'):
+        bundle(args.bundle)
+        modules = []
+        for name in ('guided', 'foundation'):
+            spec = importlib.util.spec_from_file_location('luci_azure_' + name, args.bundle / ('azure-setup/' + name + '.py'))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            modules.append(module)
+        guided_module, foundation_module = modules
+        core = sys.modules[__name__]
+        # Local proposal does not need account authentication.
+        if args.action == 'foundation-plan':
+            result = foundation_module.plan(core, args.bundle, args.selection, args.foundation_resource_group)
+        else:
+            arm = foundation_module.AzureARM(guided_module.az_json)
+            if args.action == 'foundation-inventory':
+                account = guided_module.az_json(['account', 'show'])
+                principal = args.operator_object_id
+                if not principal:
+                    principal = guided_module.az_json(['ad', 'signed-in-user', 'show', '--query', 'id']) if account.get('user', {}).get('type') == 'user' else guided_module.az_json(['ad', 'sp', 'show', '--id', account.get('user', {}).get('name', ''), '--query', 'id'])
+                result = foundation_module.inventory(core, args.bundle, args.selection, args.vnet_id,
+                    args.endpoint_subnet, args.route_host, args.route_port, args.management_source_cidr,
+                    principal, arm, account)
+            elif args.action == 'foundation-reuse':
+                result = foundation_module.reuse(core, args.bundle, args.selection, args.storage_id,
+                    args.vault_id, args.private_dns_resource_group, arm)
+            elif args.action == 'foundation-bind':
+                result = foundation_module.bind(core, args.bundle, args.selection, arm, guided_module.az_json)
+            else:
+                result = foundation_module.step(core, args.bundle, args.selection, args.plan_digest, arm,
+                    args.acknowledge_costs, args.action == 'foundation-reconcile')
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.action in ("prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator"):
         bundle(args.bundle)
         spec = importlib.util.spec_from_file_location("luci_azure_operator", args.bundle / "azure-setup/operator_setup.py")

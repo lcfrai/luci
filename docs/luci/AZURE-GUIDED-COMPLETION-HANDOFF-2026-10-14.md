@@ -148,3 +148,26 @@ is retained for subsequent restarts. The API still enforces the off-disk fence;
 the desktop's old boot pin remains invalid. Eight operator fixtures and the
 controller package test pass locally. Replacement-controller signed successor
 staging remains unfinished; these fixtures are not live recovery acceptance.
+
+The authorized `34f7bab2` foundation implementation adds `foundation.py`, its
+installer commands and read-only guided discovery. Account/tenant/operator,
+existing VNet/subnets/DNS and an explicit private listener probe precede any
+proposal. It derives two collision-free /24s, reviews exact privately configured
+state storage/container, vault, endpoints, DNS and minimal operator RBAC, then
+journals each operation locally before a PUT. Unknown responses reconcile by
+GET without replay, including an absent read. Verified existing private
+state/vault/DNS resources remain externally owned. Existing linked DNS zones
+are dependencies rather than recreated resources. Private DNS plus real
+authenticated Blob/vault data reads precede backend handoff. Terraform reuses
+the selected existing VNet and foundation DNS, with moved blocks for older
+owned resource addresses. Read-only data actions are separated from fresh
+managed creates in the installer plan guard; managed adoption/update is still
+refused. Budget and all final bills remain unverified.
+
+Eight new foundation fixtures and ten affected guided fixtures pass locally,
+covering success/backend handoff, reuse, existing DNS, collisions, missing
+route, cost/absence refusal, private drift and interrupted response/restart.
+Python syntax and diff checks pass. POSIX installer/package and Terraform
+validation are not run locally; no account/provider operation or compiler was
+started. No real Azure/KVM/recovery acceptance is claimed. Next source remains
+actual image staging, signed replacement-controller successor and retirement.
