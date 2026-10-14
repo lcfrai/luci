@@ -46,6 +46,115 @@ func TestCoordinationOpposingIntentNeedsOwnedResolutionAndCannotBypass(t *testin
 	}
 }
 
+func TestCoordinationNewReviewedProposalSupersedesOnlyOwnUnusableOrigin(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "unusable-prior-origin")
+	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+	orchard := func(audience, constraints, prefix string) OrchestratorTurn {
+		t.Helper()
+		turn, snapshot := reserveOrchestratorTest(t, s, p.ID, orchestratorActor(t, "alice"), "Complete the Orchard task list brief", "")
+		spec := snapshot.Specification
+		spec.Status, spec.Digest = "draft", ""
+		spec.Audience, spec.Constraints = audience, constraints
+		spec.Requirements = []SpecificationRequirement{
+			{ID: "req-001", Title: "Add a task", Priority: "must", Acceptance: prefix + " adding a named task shows it in the list."},
+			{ID: "req-002", Title: "Complete a task", Priority: "must", Acceptance: prefix + " toggling a task changes its completion state."},
+			{ID: "req-003", Title: "Delete a task", Priority: "must", Acceptance: prefix + " deleting a task removes it from the list."},
+			{ID: "req-004", Title: "Persist tasks", Priority: "must", Acceptance: prefix + " reloading restores the remaining saved tasks."},
+		}
+		answer := OrchestratorAnswer{Summary: "Four reviewable Orchard task behaviors", Options: []string{}, Impact: []string{}, Proposal: &OrchestratorProposal{Target: "specification", Summary: "Complete task list", Specification: &spec}, NextAction: "specification"}
+		if err := s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
+			t.Fatal(err)
+		}
+		return turn
+	}
+	old := orchard("Earlier audience", "Earlier constraints", "Earlier draft:")
+	// This answer was completed when routine nonblocking questions were still
+	// permitted. Preserve its exact historical bytes and durable origin, then
+	// apply today's quality gate to a newer reviewed answer.
+	s.mu.Lock()
+	stored, err := s.readOrchestrator(p)
+	if err == nil {
+		prior := coordinationTurn(stored, old.ID)
+		if prior == nil {
+			err = ErrOrchestratorInvalid
+		} else {
+			prior.Answer.Question = "Which implementation step should come first?"
+			err = s.saveOrchestrator(stored)
+		}
+	}
+	s.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	newer := orchard("People planning their own tasks", "Local storage only", "Reviewed draft:")
+	initial, err := s.CoordinationViewForProject(orchestratorActor(t, "alice"), p.ID)
+	if err != nil || len(initial.Conflicts) == 0 || len(initial.Intents[0].ChangedPaths) != 6 || len(initial.Intents[1].ChangedPaths) != 6 {
+		t.Fatal("fixture did not retain two overlapping six-path Orchard intents", err)
+	}
+	coordinationApplyTest(t, s, p.ID, "alice", newer.ID, 200)
+	view, err := s.CoordinationViewForProject(orchestratorActor(t, "alice"), p.ID)
+	if err != nil || len(view.Intents) != 2 || len(view.Events) != 4 {
+		t.Fatal("accepted replacement lost exact coordination history", err, view)
+	}
+	if view.Intents[0].Status != "superseded" || view.Intents[0].SupersededBy != view.Intents[1].ID || view.Intents[1].Status != "applied" || view.Events[2].Kind != "superseded" || view.Events[3].Kind != "applied" {
+		t.Fatal("older unusable origin was not durably superseded by the accepted revision", view)
+	}
+	history, err := s.OrchestratorHistory(p.ID)
+	if err != nil || len(history) != 2 || history[0].Answer.Question != "Which implementation step should come first?" {
+		t.Fatal("prior raw conversation was rewritten or lost", err)
+	}
+	current, err := s.OrchestratorView(orchestratorActor(t, "alice"), p.ID, 0)
+	if err != nil || current.Context.Specification.Audience != "People planning their own tasks" || len(current.Context.Specification.Requirements) != 4 {
+		t.Fatal("accepted reviewed target was not saved", err)
+	}
+	restarted, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+	coordinationApplyTest(t, restarted, p.ID, "alice", newer.ID, 200)
+	replayed, err := restarted.CoordinationViewForProject(orchestratorActor(t, "alice"), p.ID)
+	if err != nil || len(replayed.Events) != 4 {
+		t.Fatal("restart replay duplicated the canonical apply or supersession", err)
+	}
+
+	// A quality-valid competing human proposal retains the existing explicit
+	// resolution requirement even when both requests came from one actor.
+	s2, mux2 := journeyFixture(t)
+	p2 := createJourneyProject(t, mux2, "valid-prior-opposition")
+	s2.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+	coordinationProposalTest(t, s2, p2.ID, "alice", "purpose", "One valid direction")
+	newValid := coordinationProposalTest(t, s2, p2.ID, "alice", "purpose", "A different valid direction")
+	current2, err := s2.OrchestratorView(orchestratorActor(t, "alice"), p2.ID, 0)
+	if err != nil || !errors.Is(s2.applyOrchestratorProposal(orchestratorActor(t, "alice"), p2.ID, newValid.ID, current2.Revision, current2.Context.Digest), ErrOrchestratorOpposition) {
+		t.Fatal("valid opposing request lost its explicit resolution gate", err)
+	}
+
+	// An older low-quality model answer from a different person still carries
+	// that person's unanswered request; Alice cannot supersede it by applying
+	// her own proposal.
+	s3, mux3 := journeyFixture(t)
+	p3 := createJourneyProject(t, mux3, "teammate-prior-opposition")
+	s3.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+	teammate := coordinationProposalTest(t, s3, p3.ID, "bob", "purpose", "A different team direction")
+	s3.mu.Lock()
+	third, readErr := s3.readOrchestrator(p3)
+	if readErr == nil {
+		coordinationTurn(third, teammate.ID).Answer.Question = "Which implementation step should come first?"
+		readErr = s3.saveOrchestrator(third)
+	}
+	s3.mu.Unlock()
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	alice := coordinationProposalTest(t, s3, p3.ID, "alice", "purpose", "Alice's new direction")
+	current3, err := s3.OrchestratorView(orchestratorActor(t, "alice"), p3.ID, 0)
+	if err != nil || !errors.Is(s3.applyOrchestratorProposal(orchestratorActor(t, "alice"), p3.ID, alice.ID, current3.Revision, current3.Context.Digest), ErrOrchestratorOpposition) {
+		t.Fatal("another person's intent was silently superseded", err)
+	}
+}
+
 func TestOrchestratorSnapshotShowsPendingTeamIntentsWithoutAcceptingThem(t *testing.T) {
 	s, mux := journeyFixture(t)
 	p := createJourneyProject(t, mux, "team-intent-snapshot")

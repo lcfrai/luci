@@ -1052,6 +1052,19 @@ it("preserves an amendment on a save conflict and leaves edited source untouched
   expect(useCockpit.getState().projectSourceRevisions["p-1"]).toBeUndefined();
 });
 
+it("shows a pending intent resolution instead of a reload loop", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [proposalTurn()] }));
+  vi.mocked(orchestratorApi.apply).mockRejectedValue(new ApiError("conflict", "A pending project change conflicts with this proposal. Review Team coordination and resolve the pending intent before applying; reloading alone will not resolve it.", 409));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Review amendment" }));
+  await userEvent.click(screen.getByRole("checkbox"));
+  await userEvent.click(screen.getByRole("button", { name: "Apply reviewed amendment" }));
+  await waitFor(() => expect(screen.getByRole("dialog").textContent).toContain("Review Team coordination"));
+  expect(screen.getByRole("dialog").textContent).not.toContain("refresh the conversation and review the current context before applying again");
+  expect(orchestratorApi.apply).toHaveBeenCalledTimes(1);
+  expect(useCockpit.getState().projectSourceRevisions["p-1"]).toBeUndefined();
+});
+
 it("blocks sending/applying over unsaved edits and also preserves edits begun while Apply is in flight", async () => {
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [proposalTurn()] }));
   render(<OrchestratorPanel projectId="p-1" />); await ready();

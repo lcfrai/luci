@@ -285,6 +285,8 @@ func orchestratorProblem(w http.ResponseWriter, err error) {
 		status, code, message = 400, "invalid_orchestrator_request", err.Error()
 	case errors.Is(err, ErrOrchestratorConflict):
 		status, code, message = 409, "revision_conflict", err.Error()
+	case errors.Is(err, ErrOrchestratorOpposition):
+		status, code, message = 409, "conflict", err.Error()
 	case errors.Is(err, ErrOrchestratorBusy):
 		status, code, message = 409, "orchestrator_busy", err.Error()
 	case errors.Is(err, ErrOrchestratorCapacity):

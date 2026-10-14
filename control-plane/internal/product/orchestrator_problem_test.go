@@ -46,6 +46,7 @@ func TestOrchestratorProblemKeepsConflictAndStorageFailureDistinct(t *testing.T)
 		{"invalid", ErrOrchestratorInvalid, 400, "invalid_orchestrator_request"},
 		{"wrapped-invalid", fmt.Errorf("request: %w", ErrOrchestratorInvalid), 400, "invalid_orchestrator_request"},
 		{"conflict", ErrOrchestratorConflict, 409, "revision_conflict"},
+		{"pending-opposition", ErrOrchestratorOpposition, 409, "conflict"},
 		{"storage", errors.New("private storage failed"), 500, "orchestrator_unavailable"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

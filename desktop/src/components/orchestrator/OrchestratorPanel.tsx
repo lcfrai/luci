@@ -519,7 +519,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
       if (!alive.current || !permission.current.canRead || ticket !== generation.current) return;
       remember(value); setReview(null); setRefreshEditor(true);
       setNotice("Amendment saved as a draft. Review the updated context and any affected approvals before implementation.");
-    } catch (cause) { if (alive.current && ticket === generation.current) setError(`${errorText(cause)} Keep this proposal, refresh the conversation and review the current context before applying again.`); }
+    } catch (cause) { if (alive.current && ticket === generation.current) setError(cause instanceof ApiError && cause.code === "conflict" ? errorText(cause) : `${errorText(cause)} Keep this proposal, refresh the conversation and review the current context before applying again.`); }
     finally { if (ticket === generation.current) { working.current = false; if (alive.current) setBusy(""); } }
   }
   async function advanceDraft(turnId: string, input: OrchestratorAdvanceRequest): Promise<OrchestratorView> {

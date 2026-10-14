@@ -3,11 +3,12 @@ package product
 import "errors"
 
 var (
-	ErrOrchestratorConflict = errors.New("The conversation or project context changed. Reload before continuing; your message is still a draft.")
-	ErrOrchestratorInvalid  = errors.New("The private project conversation is unavailable or invalid.")
-	ErrOrchestratorBusy     = errors.New("An earlier Luci turn is still running or unconfirmed. Observe or cancel it before starting another.")
-	ErrOrchestratorCapacity = errors.New("This private conversation reached its storage limit. Download the history and use Start a continued discussion in Conversation history and storage. Unanswered material questions and pending amendment receipts are retained.")
-	ErrOrchestratorQuestion = errors.New("Answer Luci's unresolved material question before starting new implementation work.")
+	ErrOrchestratorConflict   = errors.New("The conversation or project context changed. Reload before continuing; your message is still a draft.")
+	ErrOrchestratorOpposition = errors.New("A pending project change conflicts with this proposal. Review Team coordination and resolve the pending intent before applying; reloading alone will not resolve it.")
+	ErrOrchestratorInvalid    = errors.New("The private project conversation is unavailable or invalid.")
+	ErrOrchestratorBusy       = errors.New("An earlier Luci turn is still running or unconfirmed. Observe or cancel it before starting another.")
+	ErrOrchestratorCapacity   = errors.New("This private conversation reached its storage limit. Download the history and use Start a continued discussion in Conversation history and storage. Unanswered material questions and pending amendment receipts are retained.")
+	ErrOrchestratorQuestion   = errors.New("Answer Luci's unresolved material question before starting new implementation work.")
 )
 
 type OrchestratorRunTask struct {

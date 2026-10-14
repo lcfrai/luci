@@ -647,7 +647,7 @@ func (s *Server) prepareCoordinationApplyLocked(ctx context.Context, p project.P
 			if other.Status == "pending" && other.Target == turn.Answer.Proposal.Target {
 				peer := coordinationTurn(turns, other.TurnID)
 				if peer == nil || len(coordinationOverlaps(coordinationChanges(&turn), coordinationChanges(peer))) > 0 {
-					return OrchestratorAnswer{}, ErrOrchestratorConflict
+					return OrchestratorAnswer{}, ErrOrchestratorOpposition
 				}
 			}
 		}
@@ -666,9 +666,17 @@ func (s *Server) prepareCoordinationApplyLocked(ctx context.Context, p project.P
 	if err != nil {
 		return OrchestratorAnswer{}, err
 	}
+	actor, _ := authenticatedContextActor(ctx)
 	for _, conflict := range coordinationConflicts(saved, turns, current) {
 		if conflict.IntentID == intent.ID || conflict.OtherIntentID == intent.ID {
-			return OrchestratorAnswer{}, ErrOrchestratorConflict
+			other := conflict.IntentID
+			if other == intent.ID {
+				other = conflict.OtherIntentID
+			}
+			if other != "" && earlierUnusableOwnIntent(saved, turns, turn, other, actor) {
+				continue
+			}
+			return OrchestratorAnswer{}, ErrOrchestratorOpposition
 		}
 	}
 	answer, conflicts := coordinationRebase(turn, current)
@@ -687,6 +695,38 @@ func (s *Server) prepareCoordinationApplyLocked(ctx context.Context, p project.P
 		}
 	}
 	return answer, nil
+}
+
+// A person's newer reviewed proposal may replace only their own older,
+// unapproved model proposal that no longer passes current review quality.
+// This never resolves a teammate's request, a valid opposing proposal, an
+// intent with dependents, or a possibly started application. The old bytes
+// and intent remain durable until an accepted replacement records an event.
+func earlierUnusableOwnIntent(saved coordinationLedger, turns orchestratorLedger, applying storedOrchestratorTurn, otherID string, actor ContextActor) bool {
+	if actor.ID == "" || actor.ID != applying.Actor.ID || applying.Answer == nil || applying.Answer.Proposal == nil || ValidateOrchestratorAnswer(applying.Context, *applying.Answer) != nil {
+		return false
+	}
+	var other *storedCoordinationIntent
+	for i := range saved.Intents {
+		if saved.Intents[i].ID == otherID {
+			other = &saved.Intents[i]
+			break
+		}
+	}
+	if other == nil || other.Status != "pending" || other.Actor.ID != applying.Actor.ID || other.Target != applying.Answer.Proposal.Target || len(other.DependsOn) != 0 || other.ApplyBaseContextDigest != "" || other.CandidateProposalDigest != "" {
+		return false
+	}
+	for _, peer := range saved.Intents {
+		if peer.Status != "superseded" {
+			for _, dep := range peer.DependsOn {
+				if dep == other.ID {
+					return false
+				}
+			}
+		}
+	}
+	prior := coordinationTurn(turns, other.TurnID)
+	return prior != nil && prior.Sequence < applying.Sequence && prior.ApplyIntent == "" && prior.AppliedRevision == 0 && prior.Answer != nil && prior.Answer.Proposal != nil && reviewDigest(prior.Answer.Proposal) == other.ProposalDigest && ValidateOrchestratorAnswer(prior.Context, *prior.Answer) != nil
 }
 
 func (s *Server) finishCoordinationApplyLocked(ctx context.Context, p project.Project, turn storedOrchestratorTurn) error {
@@ -724,11 +764,26 @@ func (s *Server) finishCoordinationApplyLocked(ctx context.Context, p project.Pr
 	intent.Status = "applied"
 	intent.AppliedRevision = turn.AppliedRevision
 	intent.AppliedTargetDigest = turn.ApplyTargetDigest
+	turns, err := s.readOrchestrator(p)
+	if err != nil {
+		return err
+	}
+	actor, _ := authenticatedContextActor(ctx)
+	for i := range saved.Intents {
+		if earlierUnusableOwnIntent(saved, turns, turn, saved.Intents[i].ID, actor) {
+			prior := &saved.Intents[i]
+			prior.Status = "superseded"
+			prior.SupersededBy = intent.ID
+			prior.ResolutionReason = "The same person applied a newer reviewed proposal; this earlier unapproved model proposal fails current review quality."
+			if err = coordinationEvent(&saved, prior.CoordinationIntent, "superseded", intent.ApplyBaseContextDigest, actor); err != nil {
+				return err
+			}
+		}
+	}
 	// The existing apply receipt proves the target, not every other document
 	// at that instant. A delayed finalize must not label today's whole context
 	// as yesterday's acceptance. Consumers fetch and admit current context.
 	value := intent.CoordinationIntent
-	actor, _ := authenticatedContextActor(ctx)
 	if err = coordinationEvent(&saved, value, "applied", intent.ApplyBaseContextDigest, actor); err != nil {
 		return err
 	}
