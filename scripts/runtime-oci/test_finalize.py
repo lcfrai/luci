@@ -67,6 +67,53 @@ class GrantAndFinalizeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'bytes differ'):
                 grant_fallbacks.load(root)
 
+    def test_all_observed_missing_declarations_are_exact_and_bounded(self):
+        values = grant_fallbacks.load(Path(__file__).resolve().parents[2])
+        with patch.object(image_licenses, 'SOURCE_GRANT_FALLBACKS', values, create=True):
+            for name, version, grant in (('@npmcli/agent', '4.0.2', 'ISC'), ('@sigstore/verify', '3.1.1', 'Apache-2.0'), ('spdx-exceptions', '2.5.0', 'CC-BY-3.0'), ('spdx-license-ids', '3.0.23', 'CC0-1.0')):
+                value = image_licenses.find_fallback(name, version, grant)
+                self.assertTrue(value['files'])
+                self.assertIsNone(image_licenses.find_fallback(name, version + '-changed', grant))
+                self.assertIsNone(image_licenses.find_fallback(name, version, 'MIT'))
+            claude = image_licenses.find_fallback('@anthropic-ai/claude-code', '2.1.274', 'SEE LICENSE IN README.md')
+            self.assertTrue(claude['supplemental'])
+
+    def test_distribution_grant_never_inherits_from_unrelated_parent(self):
+        repo = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary) / 'opencode-ai'
+            child = parent / 'node_modules/opencode-linux-x64'
+            child.mkdir(parents=True)
+            package = {'name': 'opencode-linux-x64', 'version': '1.18.34'}
+            metadata = child / 'package.json'
+            write_json(metadata, package)
+            (parent / 'LICENSE').write_bytes((repo / 'third-party/licenses/opencode-ai-1.18.34/LICENSE').read_bytes())
+            declaration = {'name': 'opencode-ai', 'version': '1.18.34', 'license': 'MIT', 'optionalDependencies': {'opencode-linux-x64': '1.18.34'}}
+            write_json(parent / 'package.json', declaration)
+            self.assertEqual(image_licenses.distribution_notice(metadata, package), parent / 'LICENSE')
+            for field, value in (('name', 'unrelated'), ('version', '1.18.35'), ('license', 'ISC'), ('optionalDependencies', {})):
+                write_json(parent / 'package.json', dict(declaration, **{field: value}))
+                self.assertIsNone(image_licenses.distribution_notice(metadata, package))
+            write_json(parent / 'package.json', declaration)
+            (parent / 'LICENSE').write_bytes(b'wrong grant')
+            with self.assertRaisesRegex(ValueError, 'parent grant differs'):
+                image_licenses.distribution_notice(metadata, package)
+
+    def test_new_npm_grant_and_provenance_drift_are_refused(self):
+        original = Path(__file__).resolve().parents[2] / 'third-party/licenses'
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / 'third-party/licenses'
+            shutil.copytree(original, target)
+            changed = target / 'npmcli-agent-4.0.2/LICENSE'
+            changed.write_bytes(b'replaced upstream grant')
+            with self.assertRaisesRegex(ValueError, 'bytes differ'):
+                grant_fallbacks.load(root)
+            shutil.copyfile(original / 'npmcli-agent-4.0.2/LICENSE', changed)
+            (target / 'npmcli-agent-4.0.2/provenance.json').write_bytes(b'{}')
+            with self.assertRaisesRegex(ValueError, 'provenance changed'):
+                grant_fallbacks.load(root)
+
     def test_unknown_failed_cancelled_or_wrong_session_never_reaches_docker(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
