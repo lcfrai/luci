@@ -27,8 +27,42 @@ uncertain mutations. An absent/changed pending operation remains unresolved.
 `status` reads local stage receipts without querying Azure or claiming a
 connected workspace. The descriptor must still be imported through Luci's
 protected connection flow, with actual private reachability/authentication.
-Whole-installation retirement is a separate unfinished guided join; builder
-cleanup alone does not retire an installation.
+Builder cleanup alone does not retire an installation. `retire --bundle .
+--selection /private/selection.json` reviews the exact owned compute and two
+new private snapshot IDs, then drives whole-installation retirement. It first
+proves actual task/provider/reservation settlement, writes the off-disk retiring
+fence, stops the account service and rechecks authoritative journals. The owned
+runtime stack/gateway is quiesced without deleting task/template volumes.
+Template/cache/Docker paths must actually reside on the selected runtime OS
+disk, and unrelated running containers block compute retirement.
+
+Both the authoritative controller data disk and runtime template/metadata OS
+disk are flushed and copied to private snapshots. Readback must match the exact
+source disk and server-populated immutable `sourceUniqueId`, snapshot identity,
+ownership and private export policy. Tags alone do not prove a backup. Only then
+can the backup-bound fence close and each exact VM/VMSS instance be observed
+deallocated (or positively absent), with the recovery host last. No managed
+identity gets a new snapshot or scale-set mutation grant; the reviewed account
+user owns those operations. The [Azure snapshot API](https://learn.microsoft.com/is-is/rest/api/compute/snapshots/get?view=rest-compute-2024-03-01)
+and [VMSS RunCommand interface](https://learn.microsoft.com/en-us/cli/azure/vmss/run-command?view=azure-cli-latest)
+describe these provider identities and selected-instance transport.
+
+Run `retire` or `continue` again for an uncertain stage: exact readback replaces
+repeated stop/copy/deallocate mutations. Disk, snapshot, gallery, Blob, Key Vault
+and applicable private-network charges remain retained and the final invoice is
+unverified. Snapshot restoration and live Azure settlement are untested.
+
+Before backup-bound closure/deallocation begins, `cancel-retirement --bundle .
+--selection /private/selection.json` reviews a separate actor action to resume
+the same owned runtime/controller generation. It preserves the original
+retirement journal, including uncertain copies/stops, and every held task lease.
+Only existing owned Compose containers are started; no task VM or container is
+created by this cancellation. A lost start acknowledgment is inspected without
+repeating the start. Controller stop/start is serialized and validates the
+actual source/generation/fence before effects. Late requests from the cancelled
+plan refuse; `continue` follows the cancellation receipt instead of silently
+retiring again. Closed/deallocating installations cannot be reopened. Retained
+snapshots and resumed compute can charge; refresh the protected connection.
 
 `recover-controller --bundle . --selection /private/selection.json` prepares
 and runs the supported first replacement onto the existing generic private
@@ -56,6 +90,12 @@ signature or repeated uncertain write. Original selections, credentials and
 signed envelopes remain preserved. The recovered generation gets a new private
 folder and authenticated descriptor; import it through the protected desktop
 connection flow. Retained predecessor Terraform cannot replay old authority.
+The new folder retains the actual mounted generation, fence and authenticated
+host-delivery digests. A later replacement uses that current configuration and
+receipt, including the current TLS versions, rather than original Terraform
+outputs or a reconstructed generation digest. Prior signed host links are
+verified with their saved configuration and removed before signing the next
+transition.
 A later replacement still requires a fresh generic standby with the exact
 recovery identity; automatic standby restoration is not implemented. Actual
 Azure recovery/private connectivity, retained-task access and invoices remain

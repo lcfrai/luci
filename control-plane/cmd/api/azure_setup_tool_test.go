@@ -56,6 +56,41 @@ func TestAzureSetupGatewayRefusesChangedDestinationBeforeDial(t *testing.T) {
 	}
 }
 
+func TestAzureSetupRetirementFenceDoesNotRestoreOrdinaryDispatchAuthority(t *testing.T) {
+	selected, _ := azureARMFixture()
+	selected.SourceCommit = strings.Repeat("a", 40)
+	selected.Store.OwnerID, selected.Store.RuntimeScope = "owner-one", "scope-one"
+	selected.AzureMount.FilesystemUUID = "12345678-1234-1234-1234-123456789abc"
+	selected.AzureMount.FenceBlobURL = "https://lucifence.blob.core.windows.net/controller-fence/controller-fence.json"
+	input := azureSetupToolInput{SourceCommit: selected.SourceCommit, RetirementPlanDigest: strings.Repeat("b", 64)}
+	record := azureFenceRecord{Version: 1, State: "retirement_quiesce_pending", DiskID: selected.Store.AzureDataDiskID,
+		FilesystemUUID: selected.AzureMount.FilesystemUUID, OwnerID: selected.Store.OwnerID, Scope: selected.Store.RuntimeScope,
+		ControllerID: selected.AzureMount.ControllerInstanceID, Generation: selected.AzureMount.Generation,
+		GenerationReceiptSHA256: selected.AzureMount.GenerationReceiptDigest, RetirementPlanDigest: input.RetirementPlanDigest,
+		RetirementSourceCommit: selected.SourceCommit}
+	if err := azureSetupRetirementFenceIdentity(record, selected, input); err != nil {
+		t.Fatal("exact retirement observation refused", err)
+	}
+	if err := verifyAzureFence(context.Background(), selected, fixedAzureFence{record: record}, false); err == nil {
+		t.Fatal("retiring fence restored ordinary dispatch authority")
+	}
+	for _, mutate := range []func(*azureFenceRecord){
+		func(r *azureFenceRecord) { r.State = "active" },
+		func(r *azureFenceRecord) { r.State = "retirement_closed_pending_compute" },
+		func(r *azureFenceRecord) { r.RetirementPlanDigest = strings.Repeat("c", 64) },
+		func(r *azureFenceRecord) { r.RetirementSourceCommit = strings.Repeat("d", 40) },
+		func(r *azureFenceRecord) { r.ControllerID += "-foreign" },
+		func(r *azureFenceRecord) { r.Generation += "-stale" },
+		func(r *azureFenceRecord) { r.GenerationReceiptSHA256 = strings.Repeat("e", 64) },
+	} {
+		changed := record
+		mutate(&changed)
+		if err := azureSetupRetirementFenceIdentity(changed, selected, input); err == nil {
+			t.Fatal("stale/closed retirement authority accepted", changed)
+		}
+	}
+}
+
 func TestAzureSetupRetirementReadsExactPrivateOwnershipJournals(t *testing.T) {
 	root := t.TempDir()
 	input := azureSetupToolInput{MountPath: root, Scope: "luci-fixture"}
@@ -86,5 +121,24 @@ func TestAzureSetupRetirementReadsExactPrivateOwnershipJournals(t *testing.T) {
 	}
 	if _, err := azureSetupRetirementJournals(input, selected); err == nil {
 		t.Fatal("invalid shared reservation ledger was ignored")
+	}
+}
+
+func TestAzureSetupRetirementCancellationRequiresExactActorPlan(t *testing.T) {
+	input := azureSetupToolInput{SourceCommit: strings.Repeat("a", 40), RetirementPlanDigest: strings.Repeat("b", 64)}
+	record := azureFenceRecord{State: "active", RetirementSourceCommit: input.SourceCommit, RetirementCancelledPlanDigest: input.RetirementPlanDigest}
+	if err := azureSetupRetirementCancellationIdentity(record, input); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*azureFenceRecord){
+		func(r *azureFenceRecord) { r.State = "retirement_closed_pending_compute" },
+		func(r *azureFenceRecord) { r.RetirementSourceCommit = strings.Repeat("c", 40) },
+		func(r *azureFenceRecord) { r.RetirementCancelledPlanDigest = strings.Repeat("d", 64) },
+	} {
+		changed := record
+		mutate(&changed)
+		if azureSetupRetirementCancellationIdentity(changed, input) == nil {
+			t.Fatal("foreign/closed cancellation accepted")
+		}
 	}
 }

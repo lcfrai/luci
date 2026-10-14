@@ -1,5 +1,6 @@
 """Exact ARM NIC/guest target joins and stale predecessor refusal, offline only."""
 import copy
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -83,6 +84,30 @@ class SuccessorJoinTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'no stale apply'):
                 installer.selected_workspace(root / 'absent-bundle', root / 'selection.json', {})
             self.assertFalse((root / 'azure-terraform').exists())
+
+    def test_repeated_recovery_uses_authenticated_current_host_not_original_terraform(self):
+        digest = lambda value: hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+        host = {'generation': 'gen-current', 'controllerPrivateIP': '10.2.0.8',
+            'secretRefs': {'retained-task': 'same'}, 'controllerSuccessorLink': {'prior': 'signature'}}
+        saved = {'hostConfig': host, 'generationReceiptSHA256': 'c' * 64, 'hostReceiptSHA256': 'd' * 64}
+        ids = {'controller_generation_receipt_sha256': 'c' * 64, 'runtime_host_config_sha256': digest(host)}
+        core = SimpleNamespace(private_json=lambda _: saved, digest=digest,
+            terraform=lambda *args: self.fail('stale predecessor Terraform was read'))
+        selected = {'terraformVariables': {'generation': 'gen-current', 'controller_private_ip': '10.2.0.8'}}
+        result = successor.current_host(core, Path('private'), {'predecessorGeneration': 'gen-old', 'resourceIDs': ids}, selected)
+        self.assertNotIn('controllerSuccessorLink', result)
+        self.assertIn('controllerSuccessorLink', host)
+        self.assertEqual(result['secretRefs'], host['secretRefs'])
+        saved['generationReceiptSHA256'] = 'e' * 64
+        with self.assertRaisesRegex(ValueError, 'current generation'): successor.current_host(core, Path('private'), {'predecessorGeneration': 'gen-old', 'resourceIDs': ids}, selected)
+
+    def test_recovery_selection_uses_actual_current_mounted_receipt(self):
+        selected = {'terraformVariables': {'generation': 'gen-current', 'controller_filesystem_uuid': 'uuid',
+            'controller_owner_id': 'owner', 'scope': 'scope'}, 'nextGeneration': 'gen-next', 'controllerHealthURL': 'loopback'}
+        ids = {key: key for key in ('controller_recovery_identity_client_id', 'controller_instance_id', 'controller_recovery_instance_id',
+            'controller_disk_id', 'controller_fence_blob_url', 'controller_identity_resource_id', 'controller_recovery_identity_resource_id')}
+        ids['controller_generation_receipt_sha256'] = 'f' * 64
+        self.assertEqual(installer.initial_recovery_selection(selected, ids)['oldGenerationReceiptSHA256'], 'f' * 64)
 
 
 if __name__ == '__main__': unittest.main()

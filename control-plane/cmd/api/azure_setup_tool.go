@@ -43,6 +43,7 @@ type azureSetupToolInput struct {
 	CPUCount               int64  `json:"cpuCount"`
 	MemoryMiB              int64  `json:"memoryMiB"`
 	FromImage              string `json:"fromImage"`
+	RetirementPlanDigest   string `json:"retirementPlanDigest,omitempty"`
 }
 
 type azureSetupRuntimeInstance struct {
@@ -92,6 +93,7 @@ func readAzureSetupToolSelection(path string) (azureSetupToolInput, e2bOperatorC
 		!azureControllerInstancePattern.MatchString(input.ControllerResourceID) || !azureClientIDPattern.MatchString(input.ControllerClientID) ||
 		!azureUUIDPattern.MatchString(input.FilesystemUUID) || !azureDigestPattern.MatchString(input.OperatorTemplateSHA256) ||
 		input.CPUCount < 1 || input.CPUCount > 16 || input.MemoryMiB < 128 || input.MemoryMiB > 32768 ||
+		(input.RetirementPlanDigest != "" && !azureDigestPattern.MatchString(input.RetirementPlanDigest)) ||
 		!filepath.IsAbs(input.MountPath) || filepath.Dir(input.OperatorTemplatePath) != "/etc/luci" || filepath.Clean(input.OperatorTemplatePath) != input.OperatorTemplatePath {
 		return input, selected, errors.New("invalid private Azure controller setup selection")
 	}
@@ -190,7 +192,7 @@ func azureSetupGatewayRead(ctx context.Context, client *http.Client, host, path,
 }
 
 func runAzureSetupCommand(action, path string, output io.Writer) error {
-	if runtime.GOOS != "linux" || (action != "template-create" && action != "template-reconcile" && action != "template-start" && action != "template-status" && action != "observe" && action != "retirement-observe") {
+	if runtime.GOOS != "linux" || (action != "template-create" && action != "template-reconcile" && action != "template-start" && action != "template-status" && action != "observe" && action != "retirement-observe" && action != "retirement-preflight" && action != "retirement-verify" && action != "retirement-resume-observe") {
 		return errors.New("unsupported protected controller setup action")
 	}
 	input, selected, err := readAzureSetupToolSelection(path)
@@ -219,7 +221,23 @@ func runAzureSetupCommand(action, path string, output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := verifyAzureFence(ctx, selected, fence, false); err != nil {
+	verifyFence := func() error { return verifyAzureFence(ctx, selected, fence, false) }
+	if (action == "retirement-observe" || action == "retirement-verify") && input.RetirementPlanDigest != "" {
+		verifyFence = func() error { return verifyAzureSetupRetirementFence(ctx, selected, fence, input) }
+	}
+	if action == "retirement-resume-observe" {
+		verifyFence = func() error {
+			if err := verifyAzureFence(ctx, selected, fence, false); err != nil {
+				return err
+			}
+			record, err := fence.Read(ctx, input.FenceBlobURL)
+			if err != nil {
+				return err
+			}
+			return azureSetupRetirementCancellationIdentity(record, input)
+		}
+	}
+	if err := verifyFence(); err != nil {
 		return err
 	}
 	if action == "template-create" || action == "template-start" {
@@ -332,8 +350,13 @@ func runAzureSetupCommand(action, path string, output io.Writer) error {
 		return errors.New("initial protected runtime node is not ready")
 	}
 	receipt["nodes"] = nodeRows
-	if action == "retirement-observe" {
-		if err := azureSetupAccountQuiesced(ctx); err != nil {
+	if action == "retirement-observe" || action == "retirement-preflight" || action == "retirement-verify" {
+		if action == "retirement-observe" {
+			if err := azureSetupAccountQuiesced(ctx); err != nil {
+				return err
+			}
+		}
+		if err := verifyFence(); err != nil {
 			return err
 		}
 		if *nodeRows[0].SandboxCount != 0 || *nodeRows[0].SandboxStartingCount != 0 {
@@ -345,6 +368,15 @@ func runAzureSetupCommand(action, path string, output io.Writer) error {
 		}
 		receipt["settledJournalDigests"] = digests
 		receipt["taskReservationsSettled"] = true
+		receipt["retirementPlanDigest"] = input.RetirementPlanDigest
+	}
+	if action == "retirement-resume-observe" {
+		if err := verifyFence(); err != nil {
+			return err
+		}
+		receipt["retirementPlanDigest"] = input.RetirementPlanDigest
+		// Held reservations remain held. Cancellation never settles task ledgers.
+		receipt["taskReservationsReleased"] = false
 	}
 	boot, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
 	if err != nil {
@@ -359,6 +391,52 @@ func runAzureSetupCommand(action, path string, output io.Writer) error {
 	}
 	_, err = output.Write(append(data, '\n'))
 	return err
+}
+
+func azureSetupRetirementFenceIdentity(record azureFenceRecord, selected e2bOperatorConfig, input azureSetupToolInput) error {
+	m := selected.AzureMount
+	if m == nil || !azureDigestPattern.MatchString(input.RetirementPlanDigest) || input.SourceCommit != selected.SourceCommit ||
+		record.Version != 1 || (record.State != "retirement_quiesce_pending" && record.State != "retirement_settled") ||
+		record.DiskID != selected.Store.AzureDataDiskID || record.FilesystemUUID != m.FilesystemUUID ||
+		record.OwnerID != selected.Store.OwnerID || record.Scope != selected.Store.RuntimeScope ||
+		record.ControllerID != m.ControllerInstanceID || record.Generation != m.Generation ||
+		record.GenerationReceiptSHA256 != m.GenerationReceiptDigest || record.RetirementPlanDigest != input.RetirementPlanDigest ||
+		record.RetirementSourceCommit != input.SourceCommit {
+		return errors.New("retirement fence differs from exact source, plan or controller generation")
+	}
+	return nil
+}
+
+func azureSetupRetirementCancellationIdentity(record azureFenceRecord, input azureSetupToolInput) error {
+	if record.State != "active" || !azureDigestPattern.MatchString(input.RetirementPlanDigest) ||
+		record.RetirementCancelledPlanDigest != input.RetirementPlanDigest || record.RetirementSourceCommit != input.SourceCommit {
+		return errors.New("retirement cancellation differs from exact active source and actor plan")
+	}
+	return nil
+}
+
+func verifyAzureSetupRetirementFence(ctx context.Context, selected e2bOperatorConfig, reader azureFenceReader, input azureSetupToolInput) error {
+	if selected.AzureMount == nil || reader == nil || !validAzureFenceBlobURL(selected.AzureMount.FenceBlobURL) {
+		return errors.New("retirement fence inputs are invalid")
+	}
+	record, err := reader.Read(ctx, selected.AzureMount.FenceBlobURL)
+	if err != nil {
+		return err
+	}
+	if err := azureSetupRetirementFenceIdentity(record, selected, input); err != nil {
+		return err
+	}
+	data, err := readPrivateE2BFile(selected.AzureMount.GenerationReceiptPath, 4096)
+	if err != nil {
+		return errors.New("retirement on-disk generation receipt is unavailable")
+	}
+	var generation azureGenerationReceipt
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if decoder.Decode(&generation) != nil || decoder.Decode(new(any)) != io.EOF ||
+		(generation.PreviousGeneration != "" && (!azureDigestPattern.MatchString(record.FenceReceiptDigest) || record.FenceReceiptDigest != generation.PreviousFenceReceiptDigest)) {
+		return errors.New("retirement prior fence is not durably bound")
+	}
+	return nil
 }
 
 func azureSetupRetirementJournals(input azureSetupToolInput, selected e2bOperatorConfig) (map[string]string, error) {

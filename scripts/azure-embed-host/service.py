@@ -445,13 +445,92 @@ def inspect(c):
     return {'state': 'active', 'generation': c['generation'], 'configSHA256': expected}
 
 
+def retirement(c, plan_digest, inspect_only=False):
+    """Stop only this owned runtime stack; preserve all task/template volumes."""
+    if not HEX.fullmatch(plan_digest): raise ValueError('Exact retirement plan digest is required')
+    manifest = pinned_package(c); guest_source_ready(manifest)
+    record = journal()
+    if (not record or record.get('scope') != c['scope'] or record.get('generation') != c['generation'] or
+            record.get('packageSHA256') != c['runtimePackageSHA256'] or record.get('secretRefs') != c['secretRefs']):
+        raise ValueError('Retirement runtime source or owned generation changed')
+    if record.get('state') == 'active':
+        if record.get('retirementCancelledPlanDigest') == plan_digest:
+            raise ValueError('Actor cancelled this runtime retirement plan; no late stop')
+        if inspect_only: raise RuntimeError('Runtime stop remains absent/unknown; no repeated stop')
+        if not running(Path(record['prepared']['stage'])): raise ValueError('Owned runtime stack is not settled before retirement')
+        record.update(state='retirement_stop_pending', retirementPlanDigest=plan_digest,
+            retirementConfigSHA256=sha(json.dumps(c, sort_keys=True, separators=(',', ':')).encode()))
+        save(record)
+        command(['systemctl', 'stop', 'luci-azure-embed-gateway.service'])
+        command(compose_args(Path(record['prepared']['stage'])) + ['stop', '--timeout', '30'], 90)
+    if record.get('state') not in ('retirement_stop_pending', 'retirement_stopped') or record.get('retirementPlanDigest') != plan_digest or record.get('retirementConfigSHA256') != sha(json.dumps(c, sort_keys=True, separators=(',', ':')).encode()):
+        raise ValueError('Runtime retirement differs from retained source/plan')
+    if command(['systemctl', 'show', 'luci-azure-embed-gateway.service', '--property=ActiveState', '--value']) != 'inactive':
+        raise RuntimeError('Owned gateway stop is uncertain; no repeated stop')
+    if Path(record['prepared']['stage']).exists() and command(compose_args(Path(record['prepared']['stage'])) + ['ps', '--status', 'running', '--services']):
+        raise RuntimeError('Owned runtime containers still run; no repeated stop')
+    if command(['docker', 'ps', '--format', '{{.ID}}']):
+        raise RuntimeError('Other running containers are present; preserve this host instead of deallocating unrelated work')
+    if command(['docker', 'info', '--format', '{{.DockerRootDir}}']) != '/var/lib/docker':
+        raise ValueError('Runtime durable Docker data is outside the selected OS-disk backup')
+    root_device = os.stat('/').st_dev
+    if any(Path(name).is_symlink() or not Path(name).is_dir() or os.stat(name).st_dev != root_device for name in ('/var/lib/docker', '/var/lib/e2b/storage/templates', '/var/lib/e2b/storage/build-cache')):
+        raise ValueError('Runtime task/template storage is not on the selected source OS disk')
+    record['state'] = 'retirement_stopped'; save(record)
+    command(['sync', '-f', '/'])
+    return {'state': record['state'], 'sourceCommit': manifest['luciRevision'], 'scope': c['scope'],
+        'generation': c['generation'], 'planDigest': plan_digest, 'runtimePackageSHA256': c['runtimePackageSHA256'],
+        'taskAndTemplateVolumesPreserved': True, 'runtimeStorageOnOSDiskVerified': True, 'computeDeallocationVerified': False}
+
+
+def retirement_resume(c, plan_digest, inspect_only=False):
+    """Resume only retained owned containers, without creating guests or clearing leases."""
+    if not HEX.fullmatch(plan_digest): raise ValueError('Exact retirement cancellation plan is required')
+    manifest = pinned_package(c); guest_source_ready(manifest)
+    record = journal()
+    expected = sha(json.dumps(c, sort_keys=True, separators=(',', ':')).encode())
+    if (not record or record.get('scope') != c['scope'] or record.get('generation') != c['generation'] or
+            record.get('packageSHA256') != c['runtimePackageSHA256'] or record.get('secretRefs') != c['secretRefs']):
+        raise ValueError('Runtime cancellation source or owned generation changed')
+    cancelled = record.get('retirementCancelledPlanDigest')
+    if cancelled and cancelled != plan_digest: raise ValueError('Runtime cancellation belongs to another exact actor plan')
+    if not cancelled:
+        if inspect_only: raise RuntimeError('Runtime cancellation intent is absent/unknown; no repeated start')
+        if record.get('state') not in ('active', 'retirement_stop_pending', 'retirement_stopped'):
+            raise ValueError('Runtime has another pending transition; preserve it')
+        if record['state'] != 'active' and (record.get('retirementPlanDigest') != plan_digest or record.get('retirementConfigSHA256') != expected):
+            raise ValueError('Runtime cancellation differs from exact stopped plan/configuration')
+        prior = record['state']
+        record.update(state='retirement_resume_pending', retirementCancelledPlanDigest=plan_digest,
+            retirementResumePriorState=prior, retirementResumeConfigSHA256=expected)
+        save(record)
+        stage = Path(record['prepared']['stage'])
+        if not stage.exists():
+            private_tmpfs()
+            # Rehydrate the exact existing generation/versioned credentials;
+            # Compose start cannot create containers or task microVMs.
+            record['prepared'] = prepare(c, manifest, host_ip(c)); save(record)
+        if prior != 'active':
+            command(compose_args(Path(record['prepared']['stage'])) + ['start'], 90)
+            switch_gateway(record['prepared'])
+    if record.get('state') not in ('retirement_resume_pending', 'active') or record.get('retirementResumeConfigSHA256') != expected:
+        raise ValueError('Runtime cancellation configuration or pending intent changed')
+    if not running(Path(record['prepared']['stage'])) or command(['systemctl', 'is-active', 'luci-azure-embed-gateway.service']) != 'active':
+        raise RuntimeError('Owned runtime resume remains uncertain; inspect only, no second start')
+    record['state'] = 'active'; save(record)
+    return {'state': 'retirement_cancelled_active', 'sourceCommit': manifest['luciRevision'], 'scope': c['scope'],
+        'generation': c['generation'], 'planDigest': plan_digest, 'runtimePackageSHA256': c['runtimePackageSHA256'],
+        'taskReservationsReleased': False, 'taskAndTemplateVolumesPreserved': True}
+
+
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("action", choices=("boot", "rotate", "status", "deliver", "inspect"))
+    p.add_argument("action", choices=("boot", "rotate", "status", "deliver", "inspect", "retirement-stop", "retirement-inspect", "retirement-resume", "retirement-resume-inspect"))
     p.add_argument("config")
     p.add_argument("incoming", nargs="?")
     args = p.parse_args()
-    if args.action == "deliver" and not args.incoming or args.action != "deliver" and args.incoming:
+    needs_argument = args.action in ('deliver', 'retirement-stop', 'retirement-inspect', 'retirement-resume', 'retirement-resume-inspect')
+    if needs_argument != bool(args.incoming):
         raise ValueError("host delivery input is invalid")
     c = config(Path(args.config))
     if args.action == 'inspect':
@@ -472,6 +551,10 @@ def main():
             rotate(c)
         elif args.action == "deliver":
             print(json.dumps(deliver(Path(args.config), Path(args.incoming)), sort_keys=True))
+        elif args.action in ('retirement-stop', 'retirement-inspect'):
+            print(json.dumps(retirement(c, args.incoming, args.action == 'retirement-inspect'), sort_keys=True))
+        elif args.action in ('retirement-resume', 'retirement-resume-inspect'):
+            print(json.dumps(retirement_resume(c, args.incoming, args.action == 'retirement-resume-inspect'), sort_keys=True))
         else:
             record = journal()
             print(json.dumps({"state": record.get("state", "absent") if record else "absent",

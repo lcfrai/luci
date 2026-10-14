@@ -22,18 +22,21 @@ import (
 // only by the recovery identity. The ordinary controller identity can read it
 // but has no Blob write or VM mutation grant.
 type azureFenceRecord struct {
-	Version                 int    `json:"version"`
-	State                   string `json:"state"`
-	DiskID                  string `json:"diskID"`
-	FilesystemUUID          string `json:"filesystemUUID"`
-	OwnerID                 string `json:"ownerID"`
-	Scope                   string `json:"scope"`
-	ControllerID            string `json:"controllerID"`
-	Generation              string `json:"generation"`
-	GenerationReceiptSHA256 string `json:"generationReceiptSHA256"`
-	FenceReceiptDigest      string `json:"fenceReceiptDigest"`
-	TargetControllerID      string `json:"targetControllerID"`
-	TargetGeneration        string `json:"targetGeneration"`
+	Version                       int    `json:"version"`
+	State                         string `json:"state"`
+	DiskID                        string `json:"diskID"`
+	FilesystemUUID                string `json:"filesystemUUID"`
+	OwnerID                       string `json:"ownerID"`
+	Scope                         string `json:"scope"`
+	ControllerID                  string `json:"controllerID"`
+	Generation                    string `json:"generation"`
+	GenerationReceiptSHA256       string `json:"generationReceiptSHA256"`
+	FenceReceiptDigest            string `json:"fenceReceiptDigest"`
+	TargetControllerID            string `json:"targetControllerID"`
+	TargetGeneration              string `json:"targetGeneration"`
+	RetirementPlanDigest          string `json:"retirementPlanDigest"`
+	RetirementSourceCommit        string `json:"retirementSourceCommit"`
+	RetirementCancelledPlanDigest string `json:"retirementCancelledPlanDigest"`
 }
 
 type azureFenceReader interface {

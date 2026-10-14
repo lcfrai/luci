@@ -1308,3 +1308,37 @@ fresh standby restoration for a second controller loss; whole-installation
 settlement/backup/retirement and retained-charge handoff. Temporary builder
 cleanup does not establish either outcome. No new resource, role, public route,
 cloud call or product acceptance is authorized/claimed by this checkpoint.
+
+
+### SETUP-02 owned installation retirement source checkpoint
+
+Local Azure Sol owns `azure-setup/retirement.py`, `azure-controller-disk/retire.py`,
+installer/bundle/controller-image inventory and narrow Go retirement-only fence
+observation. The normal `retire` command reviews exact source/scope/generation,
+VM/instance identities, two owned private snapshot IDs, rights and retained
+charges. Actual provider-zero plus shared/personal/team journal settlement is
+required before retiring authority; no lease is cleared by metadata. Account
+stop and owned stack/gateway stop are journaled and reconciled without replay.
+The controller ext4 data disk and runtime OS disk (verified to contain Docker,
+template and cache data) are flushed, then actual snapshot source/immutable IDs
+and private policy are read back before the backup-bound off-disk closure and
+per-resource compute deallocation. Unrelated running containers, foreign source
+disks/incarnations, changed backups and unknown effects refuse continuation.
+Recovery host closure is last; volumes, disks, snapshots, gallery, Blob/KV and
+other retained charges stay explicit. Ordinary dispatch continues to reject all
+retiring/closed fence states; special retirement readback does not project them
+into active authority.
+
+Eleven focused native Python adapter cases and one controller-package regression
+pass offline. New Go retirement fence test and POSIX host-quiescence cases are
+not run locally while the runtime owner holds the heavy slot. Snapshot restoration,
+actual Azure/KVM/private connection and invoice outcomes remain untested. Remaining
+owned source work: explicit retirement cancel/resume (especially a race discovered
+after preflight) and approved existing-predecessor reimage/fresh-standby restoration.
+Do not mark SETUP-02 or provider acceptance complete from this checkpoint.
+
+- LOCAL-042 (first observed 63c26633, integrated c3083d99): fixed the accidental third positional argument to the bundled recovery loader in installer.bootstrap. Actual module-load/validation and mocked handoff regression passes on Windows; no Azure effects. Retirement now checks immutable compute IDs before guest transfers/quiesce/closure, including runtime stop (7 focused fixture tests pass). Live setup/recovery acceptance remains pending.
+
+- SETUP-02 retirement actor cancellation: `cancel-retirement` preserves the original uncertain-operation journal, resumes only retained owned containers and the same controller generation, and never clears task reservations. Exact source/plan markers reject late stops; serialized controller stop/start revalidates the fence. Unknown starts inspect only; backup-bound closure/deallocation refuses cancellation. Focused Windows provider-fixture checks: setup retirement 10/10 and controller fence 8/8 pass. New POSIX host resume cases and Go cancellation gate require independent platform checks; live cloud remains untested. Fresh standby/repeated-recovery source join remains in progress.
+
+- SETUP-02 repeated recovery join: recovered guest readback now transports actual mounted generation, fence and host-delivery digests into the active generation folder. Next recovery uses this saved authenticated host configuration and receipt rather than stale original Terraform/reconstructed hashes; the previous signed link is removed before the new signature. A recovered active controller may retain only the existing controller+recovery MI pair, which the established successor flow revokes before transfer. Pure Windows checks: successor join 6/6, recovered readback 2/2. Fresh standby restoration, full POSIX successor path and live provider/private-route outcomes remain unverified/in progress.
