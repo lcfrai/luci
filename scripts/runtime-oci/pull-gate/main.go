@@ -30,7 +30,7 @@ const (
 	frontAddress      = "0.0.0.0:5000"
 	backendAddress    = "127.0.0.1:5001"
 	storeDirectory    = "/registry-data"
-	allowlistPath     = "/luci-config/allowlist.json"
+	allowlistPath     = "/registry-data/runtime-pull-allowlist.json"
 	registryBinary    = "/usr/local/bin/registry"
 	configPath        = "/run/registry/config.yml"
 	maxAllowlistBytes = 1 << 20
@@ -320,7 +320,7 @@ func run(ctx context.Context, a allowlist) error {
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
-		fmt.Println("luci-runtime-pull-gate 1")
+		fmt.Println("luci-registry-gate 1")
 		return
 	}
 	if len(os.Args) != 1 {
