@@ -27,6 +27,7 @@ type checkExecutionLease struct {
 	Actor           management.ExecutionActorRef `json:"actor"`
 	Identity        backend.CheckIdentity        `json:"identity"`
 	Resources       backend.Resources            `json:"resources"`
+	HostLaunchBytes uint64                       `json:"hostLaunchBytes,omitempty"`
 	CreateDiskBytes uint64                       `json:"createDiskBytes"`
 	State           string                       `json:"state"`
 	ResultDigest    string                       `json:"resultDigest,omitempty"`
@@ -64,7 +65,7 @@ func validCheckExecutionLease(v checkExecutionLease) bool {
 		v.Actor.ProjectID != v.Identity.ProjectID || len(v.Actor.UserID) > 200 || len(v.Actor.TeamID) > 200 ||
 		v.Actor.Local && (v.Actor.UserID != "" || v.Actor.TeamID != "") || !v.Actor.Local && v.Actor.UserID == "" ||
 		v.Resources.MemoryMiB < 128 || v.Resources.MemoryMiB > 32768 || v.Resources.CPUMillis < 100 || v.Resources.CPUMillis > 16000 ||
-		v.CreateDiskBytes == 0 || v.CreateDiskBytes > 1<<50 || v.CreatedAt.IsZero() || v.UpdatedAt.Before(v.CreatedAt) {
+		v.CreateDiskBytes == 0 || v.CreateDiskBytes > 1<<50 || v.HostLaunchBytes > 4<<30 || v.CreatedAt.IsZero() || v.UpdatedAt.Before(v.CreatedAt) {
 		return false
 	}
 	if v.State != "finished" && v.ResultDigest != "" {
@@ -140,6 +141,11 @@ func addCheckCapacity(snapshot resourcebudget.Snapshot, checks []checkExecutionL
 			demand.CPU += int64(v.Resources.CPUMillis)
 			demand.PendingDiskBytes += v.CreateDiskBytes
 		}
+		allowance := v.HostLaunchBytes
+		if allowance == 0 && snapshot.Host.Platform == "windows" {
+			allowance = 2048 << 20
+		}
+		demand.PendingHostLaunchBytes += pendingHostLaunch(snapshot, allowance, v.State == "running", observed, v.UpdatedAt)
 	}
 	return nil
 }
@@ -231,6 +237,7 @@ func (g *executionAdmission) reserveCheck(ctx context.Context, prepared backend.
 				demand.PendingAllocations++
 			}
 		}
+		addWorkerHostLaunchCapacity(snap, l.Leases, "", "", g.api.deps.Backend.Kind(), &demand)
 		// Preserve pending legacy workers that have not yet reached Docker.
 		rows, err := g.api.deps.Store.List()
 		if err != nil {
@@ -271,7 +278,7 @@ func (g *executionAdmission) reserveCheck(ctx context.Context, prepared backend.
 			if len(l.Leases)+len(l.Checks)+len(l.Previews)+len(l.RuntimeImages) >= 4096 {
 				return errors.New("execution capacity history needs reconciliation")
 			}
-			l.Checks = append(l.Checks, checkExecutionLease{ID: identity.AllocationID, Scope: g.scope, Actor: actor, Identity: identity, Resources: resources, CreateDiskBytes: estimate.Bytes, State: "reserved", CreatedAt: now, UpdatedAt: now})
+			l.Checks = append(l.Checks, checkExecutionLease{ID: identity.AllocationID, Scope: g.scope, Actor: actor, Identity: identity, Resources: resources, HostLaunchBytes: demand.HostLaunchBytes, CreateDiskBytes: estimate.Bytes, State: "reserved", CreatedAt: now, UpdatedAt: now})
 		}
 		out.State, out.Code, out.Message = "admitted", "", "Check capacity reserved."
 		return nil

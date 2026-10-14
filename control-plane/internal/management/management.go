@@ -86,6 +86,11 @@ type Options struct {
 	WorkerArgs, BaseEnvironment                          []string
 	InitialHandler                                       http.Handler
 	TeamHandler                                          func(context.Context, string) (http.Handler, error)
+	// The inline owner's API remains in this process. Other owned runtimes are
+	// reached through their private worker token by the pressure coordinator.
+	HostPressureInitialObservation func(context.Context, uint64) (HostPressureObservation, error)
+	HostPressureInitialStop        func(context.Context, HostPressureCandidate) (bool, error)
+	HostPressureLog                func(error)
 }
 type userRecord struct {
 	User         User   `json:"user"`
@@ -142,6 +147,7 @@ type Gateway struct {
 	teamRequests        map[*teamRequest]context.CancelFunc
 	teamSockets         map[net.Conn]teamSocketScope
 	teamBrowser         *teamBrowserAccess
+	hostPressure        hostPressureState
 }
 
 func New(opts Options) (*Gateway, error) {
@@ -378,6 +384,10 @@ func (g *Gateway) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/setup/dependencies/{id}/install", g.installDependency)
 	mux.HandleFunc("/", g.route)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == hostPressurePath || r.URL.Path == "/api"+hostPressurePath {
+			fail(w, 404, "not_found", "This route is private to the local controller.")
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/v1/") {
 			clone := r.Clone(r.Context())
 			u := *r.URL

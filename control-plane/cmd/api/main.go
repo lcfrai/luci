@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"io"
@@ -402,16 +403,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("build the HTTP surface: %w", err)
 	}
-	// A Docker container limit does not bound Docker Desktop/WSL or an auth
-	// browser. Observe host memory independently of the slower daemon sampler;
-	// only the exact newest owned local session may be stopped on sustained
-	// pressure. The controller and lightweight project work remain available.
-	if !cfg.Worker && be.Kind() == backend.KindDocker {
-		pressureCtx, stopPressure := context.WithCancel(context.Background())
-		pressureDone := make(chan struct{})
-		go func() { defer close(pressureDone); handler.RunLocalHostPressureGuard(pressureCtx) }()
-		defer func() { stopPressure(); <-pressureDone }()
-	}
+	// The single host-wide pressure loop starts on the management gateway below,
+	// after it can see every active per-person and team worker.
 	cleanupProof.publish(handler.ConfirmStoppedTaskCleanup)
 	defer cleanupProof.publish(nil)
 
@@ -429,6 +422,14 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 
 	platformHandler := platformService.Handler()
 	combined := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/internal/host-pressure" {
+			if !cfg.Worker || subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Luci-Host-Pressure-Control")), []byte(cfg.WorkerToken)) != 1 {
+				http.NotFound(w, r)
+				return
+			}
+			workerHostPressure(w, r, handler)
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, "/v1/platform/") {
 			platformHandler.ServeHTTP(w, r)
 			return
@@ -449,7 +450,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
 		}
 		storage, _ := be.(management.ExecutionStorageConfigurer)
-		control, err = management.New(management.Options{ExecutionStateDir: executionStateDir, ExecutionStorage: storage, StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess, PortablePackageID: cfg.PortablePackageID})
+		control, err = management.New(management.Options{ExecutionStateDir: executionStateDir, ExecutionStorage: storage, StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess, PortablePackageID: cfg.PortablePackageID, HostPressureInitialObservation: handler.HostPressureObservation, HostPressureInitialStop: handler.StopHostPressureCandidate, HostPressureLog: func(err error) { log.Warn("local host pressure response", "err", err) }})
 		if err != nil {
 			_ = ln.Close()
 			return fmt.Errorf("initialise control-plane management: %w", err)
@@ -465,6 +466,12 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			defer cancel()
 			_ = control.Close(cleanup)
 		}()
+		if be.Kind() == backend.KindDocker {
+			pressureCtx, stopPressure := context.WithCancel(context.Background())
+			pressureDone := make(chan struct{})
+			go func() { defer close(pressureDone); control.RunLocalHostPressureGuard(pressureCtx) }()
+			defer func() { stopPressure(); <-pressureDone }()
+		}
 		if cfg.PublicAppOrigin != "" && control.ManagedTeamID() == "" {
 			_ = ln.Close()
 			return errors.New("public HTTPS ingress requires this installation to be bound to one managed team")

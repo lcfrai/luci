@@ -276,6 +276,7 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 				demand.PendingAllocations++
 			}
 		}
+		addWorkerHostLaunchCapacity(snap, l.Leases, "", "", g.api.deps.Backend.Kind(), &demand)
 		rows, err := g.api.deps.Store.List()
 		if err != nil {
 			return err

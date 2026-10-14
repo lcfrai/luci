@@ -22,6 +22,7 @@ type executionCapacityDemand struct {
 	// container's hard memory limit. It is charged while admitting a new local
 	// Docker worker, check or preview; observed host memory replaces it later.
 	HostLaunchBytes         uint64
+	PendingHostLaunchBytes  uint64
 	CPU                     int64
 	PendingAllocations      int
 	PendingDiskBytes        uint64
@@ -39,6 +40,37 @@ func windowsDockerHostLaunchBytes(snap resourcebudget.Snapshot, kind backend.Kin
 		return 2048 << 20
 	}
 	return 0
+}
+
+// A concurrent reservation retains its separate host launch allowance until
+// the exact container and launch completion have both been observed by a host
+// sample newer than settlement. Container limits alone do not prove this host
+// demand has appeared in Windows available memory.
+func pendingHostLaunch(snap resourcebudget.Snapshot, recorded uint64, settled, observed bool, updatedAt time.Time) uint64 {
+	if recorded == 0 || settled && observed && snap.Host.ObservedAt.After(updatedAt) && snap.Execution.ObservedAt.After(updatedAt) {
+		return 0
+	}
+	return recorded
+}
+
+func addWorkerHostLaunchCapacity(snap resourcebudget.Snapshot, leases []executionLease, skipScope, skipID string, kind backend.Kind, demand *executionCapacityDemand) {
+	for _, lease := range leases {
+		if lease.Scope == skipScope && lease.ID == skipID {
+			continue
+		}
+		observed := false
+		for _, container := range snap.Execution.Containers {
+			if container.SandboxID != "" && container.SandboxID == lease.sandboxID() && container.Owned {
+				observed = true
+				break
+			}
+		}
+		allowance := lease.HostLaunchBytes
+		if allowance == 0 && snap.Host.Platform == "windows" {
+			allowance = windowsDockerHostLaunchBytes(snap, kind)
+		}
+		demand.PendingHostLaunchBytes += pendingHostLaunch(snap, allowance, lease.State == "backend-settled", observed, lease.UpdatedAt)
+	}
 }
 
 func freshExecutionCapacity(snap resourcebudget.Snapshot, now time.Time) bool {
@@ -71,9 +103,9 @@ func evaluateExecutionCapacityWithEvidence(snap resourcebudget.Snapshot, policy 
 	required := uint64(resources.MemoryMiB) << 20
 	headroom := policy.MemoryHeadroomBytes(*snap.Host.Memory.EffectiveTotalBytes)
 	executionHeadroom := policy.MemoryHeadroomBytes(*snap.Execution.TotalMemoryBytes)
-	hostRequired := headroom + required + demand.PendingMemory + demand.HostLaunchBytes
+	hostRequired := headroom + required + demand.PendingMemory + demand.HostLaunchBytes + demand.PendingHostLaunchBytes
 	if *snap.Host.Memory.EffectiveAvailableBytes < hostRequired || *snap.Execution.TotalMemoryBytes < demand.AllMemory+required+executionHeadroom {
-		result := refused("memory_pressure", fmt.Sprintf("Waiting for memory: this operation needs %d MiB plus %d MiB pending demand, %d MiB launch allowance and %d MiB host reserve; %d MiB is available. You can keep planning while capacity recovers.", resources.MemoryMiB, demand.PendingMemory>>20, demand.HostLaunchBytes>>20, headroom>>20, *snap.Host.Memory.EffectiveAvailableBytes>>20))
+		result := refused("memory_pressure", fmt.Sprintf("Waiting for memory: this operation needs %d MiB plus %d MiB pending demand, %d MiB new launch allowance, %d MiB other unsettled launch allowance and %d MiB host reserve; %d MiB is available. You can keep planning while capacity recovers.", resources.MemoryMiB, demand.PendingMemory>>20, demand.HostLaunchBytes>>20, demand.PendingHostLaunchBytes>>20, headroom>>20, *snap.Host.Memory.EffectiveAvailableBytes>>20))
 		// Preserve the existing host-first predicate, using its exact operands.
 		result.Evidence = registry.StartAdmissionEvidence{Metric: "host_available_memory", ObservedAt: snap.Host.ObservedAt.UTC(), DecidedAt: now.UTC(), ObservedBytes: *snap.Host.Memory.EffectiveAvailableBytes, RequiredBytes: hostRequired}
 		if *snap.Host.Memory.EffectiveAvailableBytes >= hostRequired {

@@ -41,6 +41,7 @@ type executionLease struct {
 	FenceInstanceID string                       `json:"fenceInstanceId,omitempty"`
 	FenceIntentID   string                       `json:"fenceIntentId,omitempty"`
 	Resources       backend.Resources            `json:"resources"`
+	HostLaunchBytes uint64                       `json:"hostLaunchBytes,omitempty"`
 	CreatedAt       time.Time                    `json:"createdAt"`
 	UpdatedAt       time.Time                    `json:"updatedAt"`
 }
@@ -499,6 +500,7 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 		}
 		demand := executionCapacityDemand{PendingMemory: pendingMemory, AllMemory: allMemory, CPU: cpu, PendingAllocations: pendingAllocations}
 		demand.HostLaunchBytes = windowsDockerHostLaunchBytes(snap, g.api.deps.Backend.Kind())
+		addWorkerHostLaunchCapacity(snap, ledger.Leases, g.scope, id, g.api.deps.Backend.Kind(), &demand)
 		if err := addCheckCapacity(snap, ledger.Checks, "", "", &demand); err != nil {
 			return err
 		}
@@ -530,7 +532,7 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 			ledger.Leases = kept
 		}
 		if !existing {
-			lease := executionLease{ID: id, Scope: g.scope, Actor: actor, ProjectID: projectID, Provider: provider, ProviderLimit: providerLimit, State: "reserved", LaunchGuard: 1, Resources: resources, CreatedAt: now, UpdatedAt: now}
+			lease := executionLease{ID: id, Scope: g.scope, Actor: actor, ProjectID: projectID, Provider: provider, ProviderLimit: providerLimit, State: "reserved", LaunchGuard: 1, Resources: resources, HostLaunchBytes: demand.HostLaunchBytes, CreatedAt: now, UpdatedAt: now}
 			if replacement != nil {
 				lease.SessionID, lease.SandboxID, lease.State = replacement.ID, replacement.SandboxID, "replacing"
 			}
@@ -660,7 +662,7 @@ func executionSessionProvider(row registry.Session) string {
 
 func validExecutionLease(lease executionLease) bool {
 	scope, err := hex.DecodeString(lease.Scope)
-	if err != nil || len(scope) != 32 || lease.LaunchGuard < 0 || lease.LaunchGuard > 1 || lease.ID == "" || len(lease.ID) > 200 || lease.ProjectID == "" || len(lease.ProjectID) > 200 || lease.Actor.ProjectID != lease.ProjectID || len(lease.Actor.UserID) > 200 || len(lease.Actor.TeamID) > 200 || lease.Provider == "" || len(lease.Provider) > 200 || lease.ProviderLimit < 1 || lease.ProviderLimit > product.MaxSwarmScheduledTasks || lease.Resources.MemoryMiB < 128 || lease.Resources.MemoryMiB > 32768 || lease.Resources.CPUMillis < 100 || lease.Resources.CPUMillis > 16000 || lease.CreatedAt.IsZero() || lease.UpdatedAt.Before(lease.CreatedAt) || len(lease.SessionID) > 200 || len(lease.SandboxID) > 200 {
+	if err != nil || len(scope) != 32 || lease.LaunchGuard < 0 || lease.LaunchGuard > 1 || lease.ID == "" || len(lease.ID) > 200 || lease.ProjectID == "" || len(lease.ProjectID) > 200 || lease.Actor.ProjectID != lease.ProjectID || len(lease.Actor.UserID) > 200 || len(lease.Actor.TeamID) > 200 || lease.Provider == "" || len(lease.Provider) > 200 || lease.ProviderLimit < 1 || lease.ProviderLimit > product.MaxSwarmScheduledTasks || lease.Resources.MemoryMiB < 128 || lease.Resources.MemoryMiB > 32768 || lease.Resources.CPUMillis < 100 || lease.Resources.CPUMillis > 16000 || lease.HostLaunchBytes > 4<<30 || lease.CreatedAt.IsZero() || lease.UpdatedAt.Before(lease.CreatedAt) || len(lease.SessionID) > 200 || len(lease.SandboxID) > 200 {
 		return false
 	}
 	if lease.Actor.Local && (lease.Actor.UserID != "" || lease.Actor.TeamID != "") || !lease.Actor.Local && lease.Actor.UserID == "" {

@@ -150,6 +150,46 @@ func TestLocal044WindowsDockerLaunchChargesHostOutsideContainerLimit(t *testing.
 	}
 }
 
+func TestLocal044SecondManagedOwnerCannotReuseFirstUnobservedLaunchAllowance(t *testing.T) {
+	g := executionTestGate(t, filepath.Join(t.TempDir(), "capacity"))
+	g.api.deps.Resources = backend.Resources{MemoryMiB: 512, CPUMillis: 1000}
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Host.Platform = "windows"
+		s.Host.Memory.EffectiveAvailableBytes = executionPointer(uint64(4) << 30)
+		return s
+	}
+	first := management.ExecutionActorRef{UserID: "person-one", ProjectID: "p-one"}
+	second := management.ExecutionActorRef{UserID: "person-two", ProjectID: "p-two"}
+	authority := management.ExecutionAuthority{Policy: management.Policy{MaxSessionsPerUser: 2, SessionMemoryMiB: 512, SessionCPUMillis: 1000}}
+	decision, err := g.reserve(context.Background(), "local044-first-owner", first.ProjectID, "harness:codex", 4, first, authority, responsiveTestPolicy())
+	if err != nil || decision.State != "admitted" {
+		t.Fatal("first finite launch could not reserve", decision, err)
+	}
+	other := &executionAdmission{api: g.api, path: g.path, scope: strings.Repeat("a", 64)}
+	decision, err = other.reserve(context.Background(), "local044-second-owner", second.ProjectID, "harness:codex", 4, second, authority, responsiveTestPolicy())
+	if err != nil || decision.Code != "memory_pressure" || decision.Evidence.RequiredBytes != 6144<<20 {
+		t.Fatal("second managed owner spent the first owner's unobserved Docker/WSL allowance", decision, err)
+	}
+}
+
+func TestLocal044PendingCheckAndPreviewKeepSeparateHostAllowances(t *testing.T) {
+	snap := executionFixtureSnapshot()
+	snap.Host.Platform = "windows"
+	demand := executionCapacityDemand{}
+	check := checkExecutionLease{Resources: backend.Resources{MemoryMiB: 512, CPUMillis: 1000}, HostLaunchBytes: 2 << 30, State: "reserved", UpdatedAt: time.Now()}
+	preview := previewExecutionLease{Resources: backend.Resources{MemoryMiB: 512, CPUMillis: 1000}, HostLaunchBytes: 2 << 30, State: "reserved", UpdatedAt: time.Now()}
+	if err := addCheckCapacity(snap, []checkExecutionLease{check}, "", "", &demand); err != nil {
+		t.Fatal(err)
+	}
+	if err := addPreviewCapacity(snap, []previewExecutionLease{preview}, "", "", &demand); err != nil {
+		t.Fatal(err)
+	}
+	if demand.PendingHostLaunchBytes != 4<<30 || demand.PendingMemory != 1<<30 {
+		t.Fatal("pending check and preview spent each other's host launch headroom", demand)
+	}
+}
+
 func TestResponsiveCapacityRetainsGuestCPUAndFreshnessGuards(t *testing.T) {
 	for _, c := range []struct {
 		name, want string

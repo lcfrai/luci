@@ -25,6 +25,7 @@ type previewExecutionLease struct {
 	Identity        backend.PreviewIdentity      `json:"identity"`
 	Kind            string                       `json:"kind"`
 	Resources       backend.Resources            `json:"resources"`
+	HostLaunchBytes uint64                       `json:"hostLaunchBytes,omitempty"`
 	CreateDiskBytes uint64                       `json:"createDiskBytes"`
 	State           string                       `json:"state"`
 	Ref             string                       `json:"ref,omitempty"`
@@ -46,7 +47,7 @@ func validPreviewExecutionLease(v previewExecutionLease) bool {
 		v.Actor.ProjectID != v.Identity.ProjectID || len(v.Actor.UserID) > 200 || len(v.Actor.TeamID) > 200 ||
 		v.Actor.Local && (v.Actor.UserID != "" || v.Actor.TeamID != "") || !v.Actor.Local && v.Actor.UserID == "" ||
 		v.Resources.MemoryMiB < 128 || v.Resources.MemoryMiB > 32768 || v.Resources.CPUMillis < 100 || v.Resources.CPUMillis > 16000 ||
-		v.CreateDiskBytes == 0 || v.CreateDiskBytes > 1<<50 || v.Revision < 1 || v.CreatedAt.IsZero() || v.UpdatedAt.Before(v.CreatedAt) {
+		v.CreateDiskBytes == 0 || v.CreateDiskBytes > 1<<50 || v.HostLaunchBytes > 4<<30 || v.Revision < 1 || v.CreatedAt.IsZero() || v.UpdatedAt.Before(v.CreatedAt) {
 		return false
 	}
 	if v.Image != "" && (!strings.HasPrefix(v.Image, "sha256:") || !checkHex(strings.TrimPrefix(v.Image, "sha256:"), 32)) {
@@ -97,6 +98,11 @@ func addPreviewCapacity(snapshot resourcebudget.Snapshot, rows []previewExecutio
 			demand.CPU += int64(v.Resources.CPUMillis)
 			demand.PendingDiskBytes += v.CreateDiskBytes
 		}
+		allowance := v.HostLaunchBytes
+		if allowance == 0 && snapshot.Host.Platform == "windows" {
+			allowance = 2048 << 20
+		}
+		demand.PendingHostLaunchBytes += pendingHostLaunch(snapshot, allowance, v.State == "running", observed, v.UpdatedAt)
 	}
 	return nil
 }
@@ -180,6 +186,7 @@ func (g *executionAdmission) reservePreview(ctx context.Context, prepared backen
 				demand.PendingAllocations++
 			}
 		}
+		addWorkerHostLaunchCapacity(snap, l.Leases, "", "", g.api.deps.Backend.Kind(), &demand)
 		rows, err := g.api.deps.Store.List()
 		if err != nil {
 			return err
@@ -220,6 +227,7 @@ func (g *executionAdmission) reservePreview(ctx context.Context, prepared backen
 				return errors.New("execution capacity history needs reconciliation")
 			}
 			candidate.CreatedAt, candidate.UpdatedAt = now, now
+			candidate.HostLaunchBytes = demand.HostLaunchBytes
 			l.Previews = append(l.Previews, candidate)
 			result = candidate
 		}

@@ -126,7 +126,7 @@ func WorkerHandler(token string, next http.Handler) http.Handler {
 					u.Role = "admin"
 				}
 				ctx = WithTeamAccess(withActor(ctx, u, p), access)
-			} else if !(r.Method == http.MethodGet && (r.URL.Path == "/v1/setup/status" || r.URL.Path == "/v1/healthz")) && !(r.Method == http.MethodPost && r.URL.Path == "/v1/setup/shutdown") {
+			} else if !(r.Method == http.MethodGet && (r.URL.Path == "/v1/setup/status" || r.URL.Path == "/v1/healthz" || r.URL.Path == hostPressurePath)) && !(r.Method == http.MethodPost && (r.URL.Path == "/v1/setup/shutdown" || r.URL.Path == hostPressurePath)) {
 				fail(w, 403, "worker_team_scope_required", "This runtime requires an authorized team membership scope.")
 				return
 			}
