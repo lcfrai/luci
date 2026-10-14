@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -115,6 +116,10 @@ func TestLocal044LostManagedStopAcknowledgmentDoesNotCascade(t *testing.T) {
 	}
 	if calls.Load() != 1 {
 		t.Fatal("uncertain managed stop retried or cascaded", calls.Load())
+	}
+	var recorded hostPressureEpisode
+	if data, err := os.ReadFile(g.pressureEpisodePath()); err != nil || json.Unmarshal(data, &recorded) != nil || recorded.Cause != "host_memory_pressure" {
+		t.Fatal("the private episode lost its stable machine cause", err)
 	}
 	g.hostPressure = hostPressureState{} // Recreate the process-local guard state.
 	if err := g.loadPressureEpisode(); err != nil || !g.hostPressure.acted {

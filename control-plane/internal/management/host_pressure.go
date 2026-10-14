@@ -43,6 +43,7 @@ type hostPressureState struct {
 type hostPressureEpisode struct {
 	Version   int                    `json:"version"`
 	Acted     bool                   `json:"acted"`
+	Cause     string                 `json:"cause,omitempty"`
 	OwnerKey  string                 `json:"ownerKey,omitempty"`
 	Candidate *HostPressureCandidate `json:"candidate,omitempty"`
 	At        time.Time              `json:"at,omitempty"`
@@ -54,6 +55,9 @@ func (g *Gateway) pressureEpisodePath() string {
 
 func (g *Gateway) savePressureEpisode(episode hostPressureEpisode) error {
 	episode.Version = 1
+	if episode.Acted {
+		episode.Cause = "host_memory_pressure"
+	}
 	data, err := json.Marshal(episode)
 	if err != nil {
 		return err
@@ -83,7 +87,7 @@ func (g *Gateway) loadPressureEpisode() error {
 		return errors.New("retained host pressure intent exceeded its bound")
 	}
 	var episode hostPressureEpisode
-	if json.Unmarshal(data, &episode) != nil || episode.Version != 1 || episode.Acted && (episode.Candidate == nil || episode.Candidate.SessionID == "" || episode.Candidate.LeaseID == "") {
+	if json.Unmarshal(data, &episode) != nil || episode.Version != 1 || episode.Acted && (episode.Cause != "host_memory_pressure" || episode.Candidate == nil || episode.Candidate.SessionID == "" || episode.Candidate.LeaseID == "") {
 		return errors.New("retained host pressure intent cannot be verified")
 	}
 	g.hostPressure.acted = episode.Acted
