@@ -108,11 +108,11 @@
         },
         "memoryBytes": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 1
         },
         "cpuQuotaMicros": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 1
         },
         "exitCode": {
           "const": 0

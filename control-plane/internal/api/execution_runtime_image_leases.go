@@ -23,6 +23,9 @@ type runtimeImageExecutionLease struct {
 	AdmissionMemoryMiB   int                          `json:"admissionMemoryMiB,omitempty"`
 	CreateDiskBytes      uint64                       `json:"createDiskBytes"`
 	ImageTag             string                       `json:"imageTag"`
+	DistributionMode     string                       `json:"distributionMode,omitempty"`
+	ImportStage          string                       `json:"importStage,omitempty"`
+	PayloadImageID       string                       `json:"payloadImageId,omitempty"`
 	State                string                       `json:"state"`
 	Image                string                       `json:"image,omitempty"`
 	Revision             int                          `json:"revision"`
@@ -43,6 +46,7 @@ func validRuntimeImageExecutionLease(v runtimeImageExecutionLease) bool {
 		v.CreateDiskBytes >= backend.RuntimeImageRequiredDiskBytes && v.CreateDiskBytes <= 1<<50 && v.ImageTag != "" && len(v.ImageTag) <= 300 && !strings.ContainsAny(v.ImageTag, "\x00\r\n \t") &&
 		v.Revision >= 1 && !v.CreatedAt.IsZero() && !v.UpdatedAt.Before(v.CreatedAt) &&
 		(v.State == "reserved" && v.Image == "" || v.State == "building" && v.Image == "" || v.State == "finished" && (v.Image == "" || strings.HasPrefix(v.Image, "sha256:") && checkHex(strings.TrimPrefix(v.Image, "sha256:"), 32))) &&
+		(v.DistributionMode == "" && v.ImportStage == "" && v.PayloadImageID == "" || v.DistributionMode == "packaged" && (v.ImportStage == "" && (v.State == "reserved" || v.State == "finished") && v.PayloadImageID == "" || v.ImportStage == "importing" && (v.State == "building" || v.State == "finished") && v.PayloadImageID == "" || (v.ImportStage == "imported" || v.ImportStage == "deriving") && (v.State == "building" || v.State == "finished") && strings.HasPrefix(v.PayloadImageID, "sha256:") && checkHex(strings.TrimPrefix(v.PayloadImageID, "sha256:"), 32))) &&
 		(v.EngineRecoveryStage == "" && v.EngineWatchStartedAt.IsZero() && v.EngineStoppedAt.IsZero() ||
 			v.EngineRecoveryStage == "watching" && !v.EngineWatchStartedAt.IsZero() && v.EngineStoppedAt.IsZero() ||
 			v.EngineRecoveryStage == "stopped" && !v.EngineWatchStartedAt.IsZero() && !v.EngineStoppedAt.Before(v.EngineWatchStartedAt))
@@ -125,6 +129,9 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 	candidate := runtimeImageExecutionLease{ID: id.AllocationID, Scope: g.scope, Actor: actor, Identity: id, Resources: resources,
 		AdmissionMemoryMiB: admissionMemory, CreateDiskBytes: prepared.RequiredDiskBytes,
 		ImageTag: prepared.Spec.ImageTag, State: "reserved", Revision: 1, CreatedAt: time.Now().UTC()}
+	if prepared.Bundle != nil {
+		candidate.DistributionMode = "packaged"
+	}
 	candidate.UpdatedAt = candidate.CreatedAt
 	if !validRuntimeImageExecutionLease(candidate) || id.ScopeDigest != g.scope {
 		return out, result, errors.New("runtime installer allocation identity or budget is invalid")
@@ -150,7 +157,7 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 		existing := false
 		for _, v := range l.RuntimeImages {
 			if v.Scope == g.scope && v.ID == id.AllocationID {
-				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.State != "reserved" && v.State != "building" || afterPull && v.State != "building" {
+				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.DistributionMode != candidate.DistributionMode || v.State != "reserved" && v.State != "building" || afterPull && v.State != "building" {
 					return errors.New("runtime installer allocation already claimed, changed or settled")
 				}
 				existing, result = true, v
@@ -242,6 +249,51 @@ func (g *executionAdmission) transitionRuntimeImage(ctx context.Context, before 
 					return errors.New("runtime installer phase already changed")
 				}
 				v.State, v.UpdatedAt = next, time.Now().UTC()
+				if v.DistributionMode == "packaged" {
+					v.ImportStage = "importing"
+				}
+				v.Revision++
+				l.RuntimeImages[i], out = v, v
+				return nil
+			}
+		}
+		return errRuntimeImageLeaseAbsent
+	})
+	return out, err
+}
+func (g *executionAdmission) advanceRuntimeImageImport(ctx context.Context, before runtimeImageExecutionLease, payloadID string) (runtimeImageExecutionLease, error) {
+	var out runtimeImageExecutionLease
+	if !strings.HasPrefix(payloadID, "sha256:") || !checkHex(strings.TrimPrefix(payloadID, "sha256:"), 32) {
+		return out, errors.New("runtime payload image ID invalid")
+	}
+	err := g.mutate(ctx, func(l *executionLeaseLedger) error {
+		for i, v := range l.RuntimeImages {
+			if v.Scope == g.scope && v.ID == before.ID {
+				if v != before || v.DistributionMode != "packaged" || v.State != "building" || v.ImportStage != "importing" {
+					return errors.New("runtime import phase changed")
+				}
+				v.ImportStage, v.PayloadImageID, v.UpdatedAt = "imported", payloadID, time.Now().UTC()
+				v.Revision++
+				if !validRuntimeImageExecutionLease(v) {
+					return errors.New("runtime import receipt invalid")
+				}
+				l.RuntimeImages[i], out = v, v
+				return nil
+			}
+		}
+		return errRuntimeImageLeaseAbsent
+	})
+	return out, err
+}
+func (g *executionAdmission) beginRuntimeImageDerivation(ctx context.Context, before runtimeImageExecutionLease) (runtimeImageExecutionLease, error) {
+	var out runtimeImageExecutionLease
+	err := g.mutate(ctx, func(l *executionLeaseLedger) error {
+		for i, v := range l.RuntimeImages {
+			if v.Scope == g.scope && v.ID == before.ID {
+				if v != before || v.DistributionMode != "packaged" || v.State != "building" || v.ImportStage != "imported" {
+					return errors.New("runtime derivative phase changed")
+				}
+				v.ImportStage, v.UpdatedAt = "deriving", time.Now().UTC()
 				v.Revision++
 				l.RuntimeImages[i], out = v, v
 				return nil

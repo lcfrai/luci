@@ -4,12 +4,15 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -20,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeoci"
 )
 
 // These fixtures exercise SDK calls and response ownership only. They never
@@ -41,6 +45,9 @@ type runtimeImageProbe struct {
 	buildOptions   []build.ImageBuildOptions
 	contexts       [][]byte
 	buildBudget    time.Duration
+	loadCalls      int
+	loadHook       func()
+	loadStream     string
 	tags           [][2]string
 	tagError       error
 	tagNoEffect    bool
@@ -51,6 +58,101 @@ type runtimeImageProbe struct {
 	retiredHistory map[string][]image.HistoryResponseItem
 	killed         []string
 	killHook       func(string) error
+}
+
+func (f *runtimeImageProbe) ImageLoad(_ context.Context, source io.Reader, _ ...client.ImageLoadOption) (image.LoadResponse, error) {
+	f.loadCalls++
+	f.mutations = append(f.mutations, "load")
+	if _, err := io.Copy(io.Discard, source); err != nil {
+		return image.LoadResponse{}, err
+	}
+	if f.loadHook != nil {
+		f.loadHook()
+	}
+	return image.LoadResponse{Body: io.NopCloser(strings.NewReader(f.loadStream)), JSON: true}, nil
+}
+
+func runtimeTestSHA(data []byte) string {
+	h := sha256.Sum256(data)
+	return fmt.Sprintf("%x", h[:])
+}
+
+func TestRuntimePackagedLoadUsesOnlyHeldTaglessArchiveAndExactReadback(t *testing.T) {
+	b, f, spec := newRuntimeImageProbe(t)
+	p := runtimeFixturePrepare(t, b, spec)
+	layer := []byte("small uncompressed layer")
+	diff := "sha256:" + runtimeTestSHA(layer)
+	config, err := json.Marshal(map[string]any{"os": "linux", "architecture": "amd64", "config": map[string]any{"User": "dev", "WorkingDir": "/home/dev", "Entrypoint": []string{"/usr/local/bin/entrypoint.sh"}, "ExposedPorts": map[string]any{"8080/tcp": map[string]any{}}, "Labels": map[string]string{"org.example.producer": "fixture"}}, "rootfs": map[string]any{"diff_ids": []string{diff}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "sha256:" + runtimeTestSHA(config)
+	configPath := runtimeTestSHA(config) + ".json"
+	layerPath := "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/layer.tar"
+	saved, err := json.Marshal([]map[string]any{{"Config": configPath, "RepoTags": nil, "Layers": []string{layerPath}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := map[string][]byte{configPath: config, layerPath: layer, "manifest.json": saved}
+	names := []string{configPath, layerPath, "manifest.json"}
+	sort.Strings(names)
+	var archive bytes.Buffer
+	w := tar.NewWriter(&archive)
+	m := runtimeoci.Manifest{}
+	m.Image.ID, m.Image.ConfigPath = id, configPath
+	m.Image.LayerPaths, m.Image.DiffIDs = []string{layerPath}, []string{diff}
+	m.Runtime.User, m.Runtime.WorkingDir = "dev", "/home/dev"
+	m.Runtime.Entrypoint, m.Runtime.ExposedPorts = []string{"/usr/local/bin/entrypoint.sh"}, []string{"8080/tcp"}
+	m.CanonicalInputDigest = strings.Repeat("b", 64)
+	for _, name := range names {
+		data := parts[name]
+		if err := w.WriteHeader(&tar.Header{Name: name, Mode: 0644, Size: int64(len(data)), Typeflag: tar.TypeReg}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write(data); err != nil {
+			t.Fatal(err)
+		}
+		m.Archive.Members = append(m.Archive.Members, runtimeoci.Member{Path: name, SHA256: runtimeTestSHA(data), Bytes: int64(len(data))})
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	m.Archive.Bytes, m.Archive.SHA256 = int64(archive.Len()), runtimeTestSHA(archive.Bytes())
+	filename := filepath.Join(t.TempDir(), "archive.tar")
+	if err := os.WriteFile(filename, archive.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	p.Bundle = &runtimeoci.Bundle{Manifest: m, Archive: file}
+	p.ContextDigest, p.Spec.Identity.SourceDigest = m.CanonicalInputDigest, m.CanonicalInputDigest
+	shared := f.bases["node:24-bookworm-slim"]
+	shared.ID, shared.Architecture = id, "amd64"
+	row := *shared.Config
+	row.User, row.WorkingDir = "dev", "/home/dev"
+	row.Entrypoint = []string{"/usr/local/bin/entrypoint.sh"}
+	row.Labels = map[string]string{"org.example.producer": "fixture"}
+	shared.Config = &row
+	f.loadStream = "{}\n"
+	f.loadHook = func() { f.images[id] = shared }
+	result, err := b.LoadPackagedRuntimeImage(context.Background(), p)
+	if err != nil || !result.Settled || result.ImageID != id || f.loadCalls != 1 || len(f.mutations) != 1 || f.mutations[0] != "load" {
+		t.Fatal("tagless load did not settle by exact image readback", result, err, f.mutations)
+	}
+	result, err = b.LoadPackagedRuntimeImage(context.Background(), p)
+	if err != nil || !result.Settled || f.loadCalls != 1 {
+		t.Fatal("existing immutable payload caused duplicate load", result, err)
+	}
+	if err := os.WriteFile(filename, append(archive.Bytes(), 'x'), 0600); err != nil {
+		t.Fatal(err)
+	}
+	result, err = b.LoadPackagedRuntimeImage(context.Background(), p)
+	if err == nil || !result.Settled || f.loadCalls != 1 {
+		t.Fatal("changed held archive reached Docker", result, err)
+	}
 }
 
 func (f *runtimeImageProbe) ImageList(_ context.Context, _ image.ListOptions) ([]image.Summary, error) {
@@ -224,6 +326,45 @@ func runtimeFixturePrepare(t *testing.T, b *Backend, spec backend.RuntimeImageSp
 		t.Fatal(err)
 	}
 	return p
+}
+
+func TestRuntimePackagedDerivativeContainsOnlyOwnedMetadata(t *testing.T) {
+	b, f, spec := newRuntimeImageProbe(t)
+	p := runtimeFixturePrepare(t, b, spec)
+	sharedID := "sha256:" + strings.Repeat("a", 64)
+	p.Bundle = &runtimeoci.Bundle{}
+	p.Bundle.Manifest.Image.ID = sharedID
+	shared := f.bases["node:24-bookworm-slim"]
+	shared.ID, shared.Architecture = sharedID, "amd64"
+	config := *shared.Config
+	config.User, config.WorkingDir = "dev", "/home/dev"
+	config.Entrypoint = []string{"/usr/local/bin/entrypoint.sh"}
+	config.Labels = map[string]string{"org.example.producer": "fixture"}
+	shared.Config = &config
+	f.images[sharedID] = shared
+	if err := b.inspectSharedRuntimeImage(context.Background(), p); err != nil {
+		t.Fatalf("shared image setup invalid: %v identity=%+v row=%+v", err, p.Spec.Identity, shared)
+	}
+	derivedID := runtimeFixtureOutput(f, p)
+	if err := b.inspectSharedRuntimeImage(context.Background(), p); err != nil {
+		t.Fatalf("shared image changed after output fixture: %v", err)
+	}
+	f.buildStream = runtimeFixtureSuccess(t, derivedID)
+	result, err := b.DerivePackagedRuntimeImage(context.Background(), p)
+	if err != nil || !result.Settled || result.ImageID != derivedID || len(f.buildOptions) != 1 || len(f.contexts) != 1 {
+		t.Fatal("metadata-only derivative did not settle exactly", result, err, f.mutations)
+	}
+	dockerfile := runtimeFixtureTar(t, f.contexts[0])["Dockerfile"]
+	if !strings.HasPrefix(dockerfile, "FROM "+sharedID+"\nLABEL ") || strings.Contains(dockerfile, "RUN ") || !strings.Contains(dockerfile, runtimeImagePrefix+"allocation") {
+		t.Fatal("derivative introduced a source build or lost exact ownership", dockerfile)
+	}
+	options := f.buildOptions[0]
+	if len(options.Tags) != 0 || options.PullParent || !options.NoCache || options.NetworkMode != "none" || options.Memory != p.Spec.Resources.MemoryBytes() || options.CPUQuota != int64(p.Spec.Resources.CPUMillis)*100 {
+		t.Fatal("metadata-only derivative widened Docker effects", options)
+	}
+	if len(f.mutations) != 1 || f.mutations[0] != "build" {
+		t.Fatal("unexpected daemon mutation", f.mutations)
+	}
 }
 
 func TestRuntimeImageRetiredReadbackSeparatesFinalOutputFromOwnedIntermediates(t *testing.T) {

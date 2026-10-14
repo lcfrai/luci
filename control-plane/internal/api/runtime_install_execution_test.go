@@ -7,6 +7,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
 	"github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeoci"
 	"os"
 	"strings"
 	"sync"
@@ -150,10 +151,126 @@ func TestRuntimeInstallerStoppedEngineCanBeWitnessedAfterControllerRestart(t *te
 type installerFixture struct {
 	backend.Backend
 	builds, publishes, observes int
+	imports, derives            int
+	importEffect                func(context.Context, backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error)
+	deriveEffect                func(context.Context, backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error)
 	build                       func(context.Context, backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error)
 	beforeAdmission             func()
 	publishError                error
 	observation                 string
+}
+
+func (f *installerFixture) PreparePackagedRuntimeImage(ctx context.Context, s backend.RuntimeImageSpec) (backend.PreparedRuntimeImage, error) {
+	p, err := f.PrepareRuntimeImage(ctx, s)
+	if err != nil {
+		return p, err
+	}
+	p.Bundle = &runtimeoci.Bundle{}
+	p.Bundle.Manifest.Image.ID = "sha256:" + strings.Repeat("d", 64)
+	p.Bundle.Manifest.CanonicalInputDigest = p.Spec.Identity.SourceDigest
+	return p, nil
+}
+func (f *installerFixture) LoadPackagedRuntimeImage(ctx context.Context, p backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
+	f.imports++
+	if f.importEffect != nil {
+		return f.importEffect(ctx, p)
+	}
+	return backend.RuntimeImageBuildResult{Settled: true, ImageID: p.Bundle.Manifest.Image.ID}, nil
+}
+func (f *installerFixture) DerivePackagedRuntimeImage(ctx context.Context, p backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
+	f.derives++
+	if f.deriveEffect != nil {
+		return f.deriveEffect(ctx, p)
+	}
+	return backend.RuntimeImageBuildResult{Settled: true, ImageID: "sha256:" + strings.Repeat("f", 64)}, nil
+}
+
+func TestPackagedRuntimeImportHasDurableSeparateEffectsAndNoSourceBuild(t *testing.T) {
+	a, f, req := installerRuntimeFixture(t)
+	req.Mode = "packaged"
+	var phases []string
+	out, err := a.installRuntimeImage(context.Background(), req, func(v runtimeinstall.Outcome) error {
+		phases = append(phases, v.Phase)
+		if v.Phase == "importing" && f.imports != 0 || v.Phase == "deriving" && (f.imports != 1 || f.derives != 0) || v.Phase == "publishing" && (f.derives != 1 || f.publishes != 0) {
+			t.Fatal("effect preceded durable phase", v, f)
+		}
+		return nil
+	})
+	if err != nil || out.Phase != "ready" || out.ResourcesHeld || !out.CleanupConfirmed || f.builds != 0 || f.imports != 1 || f.derives != 1 || f.publishes != 1 || strings.Join(phases, ",") != "reserved,importing,deriving,publishing,ready" {
+		t.Fatal(out, err, phases, f)
+	}
+	previewRetained(t, a, 0)
+}
+
+func TestPackagedRuntimeLostEffectsRetainChargeAcrossRestartWithoutReplay(t *testing.T) {
+	for _, stage := range []string{"import", "derivative"} {
+		t.Run(stage, func(t *testing.T) {
+			a, f, req := installerRuntimeFixture(t)
+			req.Mode = "packaged"
+			if stage == "import" {
+				f.importEffect = func(context.Context, backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
+					return backend.RuntimeImageBuildResult{}, backend.ErrUnavailable
+				}
+			}
+			if stage == "derivative" {
+				f.deriveEffect = func(context.Context, backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
+					return backend.RuntimeImageBuildResult{}, backend.ErrUnavailable
+				}
+			}
+			out, err := a.installRuntimeImage(context.Background(), req, installerPublish)
+			if err == nil || out.Phase != "unknown" || !out.ResourcesHeld || f.publishes != 0 || f.builds != 0 {
+				t.Fatal(out, err, f)
+			}
+			lease, e := a.execution.runtimeImageLease(context.Background(), out.AllocationID)
+			if e != nil || lease.DistributionMode != "packaged" || lease.ImportStage != map[bool]string{true: "importing", false: "deriving"}[stage == "import"] {
+				t.Fatal(lease, e)
+			}
+			a.execution = newExecutionAdmission(a)
+			seen, e := a.reconcileRuntimeImage(context.Background(), out.Identity, req.Actor, installerPublish)
+			if e != nil || seen.Phase != "unknown" || !seen.ResourcesHeld || f.imports != 1 || f.derives != map[bool]int{true: 0, false: 1}[stage == "import"] {
+				t.Fatal(seen, e, f)
+			}
+			previewRetained(t, a, 1)
+		})
+	}
+}
+
+func TestPackagedRuntimeRevokedAfterImportSettlesWithoutDerivative(t *testing.T) {
+	a, f, req := installerRuntimeFixture(t)
+	req.Mode = "packaged"
+	f.importEffect = func(_ context.Context, p backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
+		a.deps.AuthorizeRuntimeInstaller = func(context.Context, management.ExecutionActorRef) (management.ExecutionAuthority, error) {
+			return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+		}
+		return backend.RuntimeImageBuildResult{Settled: true, ImageID: p.Bundle.Manifest.Image.ID}, nil
+	}
+	out, err := a.installRuntimeImage(context.Background(), req, installerPublish)
+	if err == nil || out.Phase != "cancelled" || out.ResourcesHeld || !out.CleanupConfirmed || f.imports != 1 || f.derives != 0 || f.publishes != 0 {
+		t.Fatal("revoked actor started an owned derivative or retained an unstarted charge", out, err, f)
+	}
+	a.execution = newExecutionAdmission(a)
+	if _, err := a.execution.runtimeImageLease(context.Background(), out.AllocationID); !errors.Is(err, errRuntimeImageLeaseAbsent) {
+		t.Fatal("unstarted derivative retained a charge across restart", err)
+	}
+}
+
+func TestPackagedRuntimeRestartAfterConfirmedImportDoesNotCreateDerivative(t *testing.T) {
+	a, f, req := installerRuntimeFixture(t)
+	req.Mode = "packaged"
+	out, err := a.installRuntimeImage(context.Background(), req, func(v runtimeinstall.Outcome) error {
+		if v.Phase == "deriving" {
+			return errors.New("lost progress publication before derivative")
+		}
+		return nil
+	})
+	if err == nil || !out.ResourcesHeld || f.imports != 1 || f.derives != 0 {
+		t.Fatal("interrupted imported stage unexpectedly started a derivative", out, err, f)
+	}
+	a.execution = newExecutionAdmission(a)
+	settled, err := a.reconcileRuntimeImage(context.Background(), out.Identity, req.Actor, installerPublish)
+	if err != nil || settled.Phase != "cancelled" || settled.ReasonCode != "runtime_derivative_not_started" || settled.ResourcesHeld || !settled.CleanupConfirmed || f.derives != 0 || f.publishes != 0 {
+		t.Fatal("restarted controller did not retire imported-only charge", settled, err, f)
+	}
 }
 
 func (f *installerFixture) PrepareRuntimeImage(ctx context.Context, s backend.RuntimeImageSpec) (backend.PreparedRuntimeImage, error) {

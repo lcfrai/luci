@@ -41,9 +41,19 @@ func runtimeInstallUnresolved(job RuntimeJob) bool {
 }
 
 func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
-	var req struct{}
+	var req struct {
+		Mode string `json:"mode,omitempty"`
+	}
 	if !readJSON(w, r, &req) {
 		return
+	}
+	if req.Mode != "" && req.Mode != "packaged" && req.Mode != "advanced-build" {
+		problem(w, 400, "runtime_install_mode_invalid", "Select packaged runtime preparation or the advanced bounded source build.")
+		return
+	}
+	mode := "packaged"
+	if req.Mode == "advanced-build" {
+		mode = "advanced-build"
 	}
 	s.mu.RLock()
 	active, closed, runtime := s.runtimeJob, s.runtimeInstall.closed, s.runtimeInstall.runtime
@@ -108,7 +118,7 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 		if err := s.runtimeStoragePreflight(); err != nil {
 			return runtimeinstall.Outcome{}, err
 		}
-		return runtime.Run(ctx, runtimeinstall.Request{Identity: job.Execution.Identity, SourceDirectory: dir, Actor: actor}, publish)
+		return runtime.Run(ctx, runtimeinstall.Request{Identity: job.Execution.Identity, SourceDirectory: dir, Actor: actor, Mode: mode}, publish)
 	})
 	writeJSON(w, 202, job)
 }

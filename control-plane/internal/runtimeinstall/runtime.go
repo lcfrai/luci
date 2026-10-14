@@ -23,6 +23,9 @@ type Request struct {
 	Identity
 	SourceDirectory string
 	Actor           management.ExecutionActorRef
+	// packaged is the ordinary source-bound import; an empty mode retains the
+	// existing explicitly selected advanced builder contract.
+	Mode string
 }
 
 type Outcome struct {

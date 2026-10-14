@@ -1,6 +1,9 @@
 package backend
 
-import "context"
+import (
+	"context"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeoci"
+)
 
 const RuntimeImageExecutionProtocol = 1
 const RuntimeImageRequiredDiskBytes uint64 = 32 << 30
@@ -35,6 +38,9 @@ type PreparedRuntimeImage struct {
 	AdmissionMemoryMiB int
 	StorageDriver      string
 	BaseImages         []string
+	// Bundle holds the exact verified packaged tar descriptor for the ordinary
+	// installed path. It is never serialized into the durable lease.
+	Bundle *runtimeoci.Bundle
 }
 
 type RuntimeImageBuildResult struct {
@@ -101,4 +107,14 @@ type RuntimeImageExecutor interface {
 type RuntimeImagePreBuildExecutor interface {
 	RuntimeImageExecutor
 	BuildRuntimeImageWithAdmission(context.Context, PreparedRuntimeImage, func(context.Context) error) (RuntimeImageBuildResult, error)
+}
+
+// RuntimeImageImportExecutor is the ordinary low-memory installed path. Each
+// method is a separate daemon effect with its own durable coordinator phase.
+// The caller closes prepared.Bundle after all effects/settlement handling.
+type RuntimeImageImportExecutor interface {
+	RuntimeImageExecutor
+	PreparePackagedRuntimeImage(context.Context, RuntimeImageSpec) (PreparedRuntimeImage, error)
+	LoadPackagedRuntimeImage(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
+	DerivePackagedRuntimeImage(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
 }
