@@ -26,6 +26,7 @@ PACKAGE_HASH = Path("/opt/luci/azure-embed/package.sha256")
 PACKAGE_ARCHIVE = Path("/opt/luci/azure-embed/package.tar")
 PRIVATE = Path("/run/luci_embed")
 JOURNAL = Path("/var/lib/luci/azure-embed/host-state.json")
+HOST_CONFIG = Path("/etc/luci/azure-embed-deployment.json")
 HEX = re.compile(r"[0-9a-f]{64}\Z")
 IDENTITY = re.compile(r"[a-z0-9][a-z0-9-]{1,127}\Z")
 REFS = ("teamApiKey", "adminToken", "sandboxTokenSeed", "gatewayServerCert", "gatewayServerKey", "gatewayClientCa")
@@ -336,11 +337,50 @@ def rotate(c):
     save(old)
 
 
+def deliver(current_path, incoming_path):
+    """Apply a protected RunCommand selection to this exact running host.
+
+    The caller's Azure role authorizes RunCommand; this host still checks the
+    selected previous generation and immutable package/identity boundary.
+    The host journal records the rotation before its gateway effect. A lost
+    response is read back, never retried as another delivery.
+    """
+    if current_path != HOST_CONFIG:
+        raise ValueError("host configuration destination is not owned")
+    private_tmpfs()
+    current = config(current_path)
+    next_config = config(incoming_path)
+    old = journal()
+    if old is None or old.get("state") != "active" or old.get("generation") != current["generation"]:
+        raise RuntimeError("host generation is not settled")
+    if next_config.get("previousGeneration") != current["generation"] or next_config["generation"] == current["generation"]:
+        raise ValueError("host rotation generation is not consecutive")
+    for field in ("scope", "runtimePackageSHA256", "vaultURL", "gatewayHost", "gatewayPrivateIP",
+                  "controllerPrivateIP", "runtimeSubnetCIDR", "hostClientID", "controllerClientID"):
+        if next_config[field] != current[field]:
+            raise ValueError("host deployment boundary changed; replace a drained host")
+    if any(next_config["secretRefs"][key] != current["secretRefs"][key] for key in REFS[:3]):
+        raise ValueError("task credentials changed; replace a drained host")
+    # rotate() journals each uncertain effect. The persistent selection is
+    # replaced only after rotation has settled; a crash between these steps
+    # leaves a visible mismatch and boot refuses replay.
+    rotate(next_config)
+    atomic_json(current_path, next_config)
+    updated = journal()
+    updated["configSHA256"] = sha(current_path.read_bytes())
+    save(updated)
+    return {"state": updated["state"], "generation": updated["generation"],
+            "configSHA256": updated["configSHA256"]}
+
+
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("action", choices=("boot", "rotate", "status"))
+    p.add_argument("action", choices=("boot", "rotate", "status", "deliver"))
     p.add_argument("config")
+    p.add_argument("incoming", nargs="?")
     args = p.parse_args()
+    if args.action == "deliver" and not args.incoming or args.action != "deliver" and args.incoming:
+        raise ValueError("host delivery input is invalid")
     c = config(Path(args.config))
     JOURNAL.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     if JOURNAL.parent.is_symlink() or JOURNAL.parent.stat().st_mode & 0o077:
@@ -355,10 +395,13 @@ def main():
             boot(c)
         elif args.action == "rotate":
             rotate(c)
+        elif args.action == "deliver":
+            print(json.dumps(deliver(Path(args.config), Path(args.incoming)), sort_keys=True))
         else:
             record = journal()
             print(json.dumps({"state": record.get("state", "absent") if record else "absent",
-                              "generation": record.get("generation") if record else None}, sort_keys=True))
+                              "generation": record.get("generation") if record else None,
+                              "configSHA256": record.get("configSHA256") if record else None}, sort_keys=True))
 
 
 if __name__ == "__main__":

@@ -73,13 +73,23 @@ key changes require a drained, fenced replacement host because existing
 guests and Compose containers may still hold the old values. A rotation with
 an uncertain gateway restart retains both generations in the host journal;
 the service refuses replay. VMSS uses **Manual** upgrade mode so a Terraform
-model change cannot replace a host with live guests. The operator must deliver
-the new nonsecret config through an authenticated, protected host-management
-channel and run `systemctl reload luci-azure-embed-host.service` only after
-Luci's current controller generation/host ownership and task drain decision.
-The module emits `runtime_host_config_sha256` for comparison. Automatic
-controller-to-host rotation delivery is still a separate integration task;
-Terraform model update alone is not asserted to rotate a running instance.
+model change cannot replace a host with live guests. The module emits
+`runtime_host_config_sha256` for comparison. `scripts/azure-embed-host/deliver.py`
+is the protected delivery path on the currently fenced controller. Its private
+selection binds the current mounted ext4 UUID/generation receipt, exact
+disk/controller/VMSS instance, selected nonsecret host config and digest. It
+verifies current Azure readback and saves an fsynced `run_command_pending`
+record on the authoritative disk **before** calling the selected VMSS
+instance's Azure guest-agent RunCommand. The controller identity's custom
+role permits only instance read and RunCommand on this VMSS. The host command
+calls `service.py deliver`, which refuses changed deployment/credential
+boundaries, journals gateway rotation before the effect, and persists the new
+config only after rotation settles. Only an exact returned host receipt marks
+delivery observed. A missing acknowledgment or output retains the action and
+operation identity for read-only reconciliation; repeating the command is
+refused. Terraform's manual model update and a successful ARM POST alone do
+not prove the running host rotated. The existing private gateway generation
+readback remains mandatory before new task effects.
 
 ## Boundary and remaining run gates
 

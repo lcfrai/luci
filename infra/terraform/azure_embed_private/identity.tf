@@ -37,3 +37,27 @@ resource "azurerm_role_assignment" "controller_secret" {
 }
 
 data "azurerm_client_config" "current" {}
+
+# Only the separately hosted controller identity can read one runtime VMSS
+# instance and invoke its protected guest-agent RunCommand. The role grants no
+# VM create/delete, public SSH, disk mutation or broader resource-group rights.
+resource "azurerm_role_definition" "controller_host_rotation" {
+  name              = "${var.name}-host-rotation"
+  scope             = azurerm_linux_virtual_machine_scale_set.runtime.id
+  assignable_scopes = [azurerm_linux_virtual_machine_scale_set.runtime.id]
+  permissions {
+    actions = [
+      "Microsoft.Compute/virtualMachineScaleSets/virtualMachines/read",
+      "Microsoft.Compute/virtualMachineScaleSets/virtualMachines/runCommand/action",
+    ]
+    not_actions = []
+  }
+}
+
+resource "azurerm_role_assignment" "controller_host_rotation" {
+  scope                            = azurerm_linux_virtual_machine_scale_set.runtime.id
+  role_definition_id               = azurerm_role_definition.controller_host_rotation.role_definition_resource_id
+  principal_id                     = azurerm_user_assigned_identity.controller.principal_id
+  principal_type                   = "ServicePrincipal"
+  skip_service_principal_aad_check = true
+}
