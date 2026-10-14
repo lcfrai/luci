@@ -19,6 +19,8 @@ import (
 // A local Ollama alias has a serving window, which is distinct from the
 // model's trained window. OpenCode's custom-provider default is zero; with a
 // zero window its overflow check never compacts a coding conversation.
+const localEngineIdentityDeadline = 2 * time.Second
+
 func prepareLocalOpenCodeCodingContext(ctx context.Context, env map[string]string, selectedEngine backend.Backend) error {
 	return prepareLocalOpenCodeCodingContextWith(ctx, env, func(ctx context.Context) error {
 		fencer, ok := selectedEngine.(backend.LaunchFencer)
@@ -59,8 +61,18 @@ func prepareLocalOpenCodeCodingContextWith(ctx context.Context, env map[string]s
 	if entry == nil {
 		return errors.New("The saved OpenCode model is missing from its provider configuration.")
 	}
-	if err := localEngine(ctx); err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
+	}
+	engineCtx, cancel := context.WithTimeout(ctx, localEngineIdentityDeadline)
+	engineErr := localEngine(engineCtx)
+	deadlineErr := engineCtx.Err()
+	cancel()
+	if deadlineErr != nil {
+		return errors.New("The selected local Docker engine did not confirm its identity in time. No model request or worker was started.")
+	}
+	if engineErr != nil {
+		return engineErr
 	}
 	// The Docker host alias is meaningful inside the worker. The local API
 	// observes the same host's loopback Ollama before dispatching the worker.

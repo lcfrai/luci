@@ -63,8 +63,21 @@
     "createTrigger": "bound implementationContext != nil, including projectRunId null",
     "restartTrigger": "stored session.ImplementationContext != nil after captured bundle verification",
     "order": "After session execution reservation and endpoint rewrite, before session record, reviewed bundle copy, Docker sandbox create or old sandbox destroy on restart.",
-    "dockerRead": "backend LaunchFenceIdentity -> dockerbe.Backend.api.Info through the configured Docker SDK client; checks selected local socket/npipe and engine identity. This is one new selected-engine Info read per qualifying local session start/restart; it does not call docker CLI, docker system dial-stdio, or producer engine_info.read.",
+    "dockerRead": "backend LaunchFenceIdentity -> dockerbe.Backend.api.Info through the configured Docker SDK client; checks selected local socket/npipe and engine identity. This is one new selected-engine Info read per qualifying local session start/restart; it does not call docker CLI, docker system dial-stdio, or producer engine_info.read. The added identity call now receives a child context with a two-second deadline and respects prior caller cancellation; a timeout refuses before the model read or dispatch.",
     "modelRead": "bounded two-second HTTP POST to host loopback Ollama /api/show for the exact saved alias; no generation, model load, credentials, or Docker mutation.",
     "gate": "Do not execute local test while LOCAL-047 selected-context transport hold remains; root must assess these additional reads first."
+  },
+  "providerAnchorVerification": {
+    "method": "GitHub Contents API and raw commit URL independently returned identical bytes",
+    "commit": "aec0b9a6d8898f68f923aaf08b7306d931fd9d76",
+    "path": "packages/opencode/src/provider/provider.ts",
+    "gitBlob": "97f83bb51d1c6ffb6eca2605b40fcfd6116fb774",
+    "sha256": "9fb8958a521bbc5a70e5e6d4ecb130149115fe891fb78bca0ae73a966b9f547a",
+    "actualLimitDefaultLines": [
+      1610,
+      1611,
+      1612
+    ],
+    "suggestedLines1513To1515": "These lines select the provider and auth; they do not set model limits. The source anchor remains 1610-1612."
   }
 }

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func codingModelEnvironment() map[string]string {
@@ -99,4 +100,51 @@ func TestOpenCodeContextRefusesUnverifiedSelectedEngineBeforeModelProbe(t *testi
 	if err == nil || called || env["OPENCODE_CONFIG_CONTENT"] != before {
 		t.Fatalf("unverified remote engine reached host model: err=%v called=%t", err, called)
 	}
+}
+
+func TestOpenCodeEngineIdentityDeadlineAndCallerCancellationPreventDispatch(t *testing.T) {
+	check := func(t *testing.T, ctx context.Context, wantEngine bool) {
+		t.Helper()
+		env := codingModelEnvironment()
+		before := env["OPENCODE_CONFIG_CONTENT"]
+		engineCalled, modelCalled := false, false
+		start := time.Now()
+		err := prepareLocalOpenCodeCodingContextWith(ctx, env, func(ctx context.Context) error {
+			engineCalled = true
+			deadline, ok := ctx.Deadline()
+			if !ok || deadline.Sub(start) > localEngineIdentityDeadline+time.Second {
+				t.Fatal("selected engine read has no short deadline")
+			}
+			<-ctx.Done()
+			return ctx.Err()
+		}, func(context.Context, string, string) (int, error) { modelCalled = true; return 8192, nil })
+		if err == nil || engineCalled != wantEngine || modelCalled || env["OPENCODE_CONFIG_CONTENT"] != before {
+			t.Fatalf("deadline/cancellation leaked into model or dispatch: err=%v engine=%t model=%t", err, engineCalled, modelCalled)
+		}
+		if time.Since(start) > localEngineIdentityDeadline+time.Second {
+			t.Fatal("engine preflight exceeded its deadline")
+		}
+	}
+	t.Run("identity deadline", func(t *testing.T) { check(t, context.Background(), true) })
+	t.Run("caller cancelled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		defer cancel()
+		check(t, ctx, false)
+	})
+	t.Run("caller cancels during identity", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		env := codingModelEnvironment()
+		before := env["OPENCODE_CONFIG_CONTENT"]
+		modelCalled := false
+		err := prepareLocalOpenCodeCodingContextWith(ctx, env, func(child context.Context) error {
+			cancel()
+			<-child.Done()
+			return child.Err()
+		}, func(context.Context, string, string) (int, error) { modelCalled = true; return 8192, nil })
+		if err == nil || modelCalled || env["OPENCODE_CONFIG_CONTENT"] != before {
+			t.Fatalf("cancelled identity reached model metadata: err=%v model=%t", err, modelCalled)
+		}
+	})
 }
