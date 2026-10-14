@@ -65,8 +65,8 @@ func TestRepositoryBatchAdaptersExecuteWithoutRawOutputAndRejectOversizedProvide
 args=sys.argv[2:]
 provider=sys.argv[1]
 model=args[args.index('--model')+1]
-prompt=sys.stdin.read() if provider != 'opencode' else pathlib.Path(args[args.index('--file')+1]).read_text()
-receipt={'selectedModel':model=='chosen-fixture-model','sourceSeen':prompt=='Actual bounded source snapshot','rawSecretInArgs':any('fixture-private-key' in arg for arg in args),'apiPresent':bool(os.environ.get('OPENAI_API_KEY')),'toolsEmpty':provider!='claude-code' or args[args.index('--tools')+1]==''}
+prompt=sys.stdin.read()
+receipt={'selectedModel':model=='chosen-fixture-model','sourceSeen':prompt.endswith('Actual bounded source snapshot'),'schemaSeen':provider!='opencode' or ('Response schema:' in prompt and '"type": "object"' in prompt and '--file' not in args),'rawSecretInArgs':any('fixture-private-key' in arg for arg in args),'apiPresent':bool(os.environ.get('OPENAI_API_KEY')),'toolsEmpty':provider!='claude-code' or args[args.index('--tools')+1]==''}
 pathlib.Path(os.environ['FIXTURE_RECEIPT']).write_text(json.dumps(receipt))
 result={'question':'Who uses it?','options':[],'rationale':'A bounded source sample.','proposal':None,'findings':[{'kind':'inference','summary':'A product question remains.','paths':[]}]}
 sys.stderr.write('fixture-private-key-must-not-be-copied')
@@ -101,9 +101,9 @@ else:
 			if len(logs) != 0 {
 				t.Fatal("raw provider output escaped launcher")
 			}
-			var receipt struct{ SelectedModel, SourceSeen, RawSecretInArgs, APIPresent, ToolsEmpty bool }
+			var receipt struct{ SelectedModel, SourceSeen, SchemaSeen, RawSecretInArgs, APIPresent, ToolsEmpty bool }
 			data, _ := os.ReadFile(filepath.Join(dir, "receipt.json"))
-			if json.Unmarshal(data, &receipt) != nil || !receipt.SelectedModel || !receipt.SourceSeen || receipt.RawSecretInArgs || !receipt.ToolsEmpty {
+			if json.Unmarshal(data, &receipt) != nil || !receipt.SelectedModel || !receipt.SourceSeen || !receipt.SchemaSeen || receipt.RawSecretInArgs || !receipt.ToolsEmpty {
 				t.Fatal("argv/stdin/provider isolation failed")
 			}
 			if test.provider == "codex" && test.auth == "chatgpt" && receipt.APIPresent {
@@ -131,6 +131,95 @@ else:
 				t.Fatal("structured result not safely extracted", err)
 			}
 		})
+	}
+}
+
+func TestOpenCodeReceivesLongContextTailAndExactSchemaThroughStdin(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("Python runtime required for the actual launcher")
+	}
+	dir := t.TempDir()
+	input, output := filepath.Join(dir, "input"), filepath.Join(dir, "output")
+	if err := os.Mkdir(input, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(output, 0700); err != nil {
+		t.Fatal(err)
+	}
+	currentRequest := "TAIL_CURRENT_REQUEST_WHO_APPROVES_THE_RELEASE"
+	payload, _ := json.Marshal(map[string]string{"currentSpecification": strings.Repeat("long-context-", 300), "userMessage": currentRequest})
+	prompt := []byte("Review the complete saved project context and current request.\n" + string(payload))
+	if len(payload) <= 3000 || !strings.HasSuffix(string(prompt), `"}`) || !strings.Contains(string(prompt), currentRequest) {
+		t.Fatal("fixture did not retain a long line and its tail")
+	}
+	schema := []byte(`{"type":"object","additionalProperties":false,"required":["question"],"properties":{"question":{"type":"string"}}}`)
+	for name, data := range map[string][]byte{"prompt.txt": prompt, "schema.json": schema, "selection.json": []byte(`{"harness":"opencode","model":"luci-local/fixture","authMode":"configured"}`)} {
+		if err := os.WriteFile(filepath.Join(input, name), data, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fake := filepath.Join(dir, "opencode.py")
+	code := `import json,os,pathlib,sys
+args=sys.argv[1:]
+received=sys.stdin.read()
+expected=pathlib.Path(os.environ['FIXTURE_EXPECTED']).read_text()
+schema_text=received.split('Response schema:\n',1)[1].split('\nComplete project request:\n',1)[0]
+expected_schema=json.loads(pathlib.Path(os.environ['FIXTURE_SCHEMA']).read_text())
+if '--file' in args or not received.endswith(expected) or 'TAIL_CURRENT_REQUEST_WHO_APPROVES_THE_RELEASE' not in received or json.loads(schema_text)!=expected_schema:
+ sys.exit(9)
+if os.environ.get('FIXTURE_FENCED') == '1':
+ reply='''` + "```json\n" + `{"question":"Who approves?"}` + "\n```" + `'''
+else:
+ reply=json.dumps({'question':'Who approves?','options':[],'rationale':'Ask the owner.','proposal':None})
+print(json.dumps({'type':'text','part':{'text':reply}}))
+`
+	if err := os.WriteFile(fake, []byte(code), 0600); err != nil {
+		t.Fatal(err)
+	}
+	launcher := strings.ReplaceAll(RepositoryLauncher, "/luci-input", filepath.ToSlash(input))
+	launcher = strings.ReplaceAll(launcher, "/luci-output", filepath.ToSlash(output))
+	quoted, _ := json.Marshal(filepath.ToSlash(python))
+	quotedFake, _ := json.Marshal(filepath.ToSlash(fake))
+	launcher = strings.Replace(launcher, "['opencode',", "["+string(quoted)+","+string(quotedFake)+",", 1)
+	entry := filepath.Join(dir, "run.py")
+	if err := os.WriteFile(entry, []byte(launcher), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, fenced := range []bool{false, true} {
+		os.Remove(filepath.Join(output, "result.json"))
+		cmd := exec.Command(python, entry)
+		cmd.Env = append(os.Environ(), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_FENCED="+map[bool]string{true: "1", false: "0"}[fenced])
+		logs, runErr := cmd.CombinedOutput()
+		if len(logs) != 0 {
+			t.Fatal("provider output escaped launcher")
+		}
+		data, err := os.ReadFile(filepath.Join(output, "exit.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var exit struct {
+			ExitCode int `json:"exitCode"`
+		}
+		if json.Unmarshal(data, &exit) != nil {
+			t.Fatal("invalid exit receipt")
+		}
+		if fenced {
+			if runErr == nil || exit.ExitCode == 0 {
+				t.Fatal("fenced echo was accepted")
+			}
+			if _, err := os.Stat(filepath.Join(output, "result.json")); !os.IsNotExist(err) {
+				t.Fatal("fenced output was published")
+			}
+		} else {
+			if runErr != nil || exit.ExitCode != 0 {
+				t.Fatal("complete stdin request failed", runErr)
+			}
+			result, err := os.ReadFile(filepath.Join(output, "result.json"))
+			if err != nil || !strings.Contains(string(result), `"question": "Who approves?"`) {
+				t.Fatal("valid structured answer missing", err)
+			}
+		}
 	}
 }
 
