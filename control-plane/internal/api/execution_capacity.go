@@ -18,9 +18,9 @@ import (
 // PendingDiskBytes carries individually pinned check image-copy demand.
 type executionCapacityDemand struct {
 	PendingMemory, AllMemory uint64
-	// HostLaunchBytes is transient host/daemon/browser demand outside the
-	// container's hard memory limit. It is charged while admitting a new local
-	// Docker worker, check or preview; observed host memory replaces it later.
+	// HostLaunchBytes and PendingHostLaunchBytes reserve host/daemon/browser
+	// demand outside container hard limits. A container or one newer host sample
+	// cannot prove that later auth-browser or WSL cache demand has settled.
 	HostLaunchBytes         uint64
 	PendingHostLaunchBytes  uint64
 	CPU                     int64
@@ -42,34 +42,19 @@ func windowsDockerHostLaunchBytes(snap resourcebudget.Snapshot, kind backend.Kin
 	return 0
 }
 
-// A concurrent reservation retains its separate host launch allowance until
-// the exact container and launch completion have both been observed by a host
-// sample newer than settlement. Container limits alone do not prove this host
-// demand has appeared in Windows available memory.
-func pendingHostLaunch(snap resourcebudget.Snapshot, recorded uint64, settled, observed bool, updatedAt time.Time) uint64 {
-	if recorded == 0 || settled && observed && snap.Host.ObservedAt.After(updatedAt) && snap.Execution.ObservedAt.After(updatedAt) {
-		return 0
-	}
-	return recorded
-}
-
 func addWorkerHostLaunchCapacity(snap resourcebudget.Snapshot, leases []executionLease, skipScope, skipID string, kind backend.Kind, demand *executionCapacityDemand) {
 	for _, lease := range leases {
 		if lease.Scope == skipScope && lease.ID == skipID {
 			continue
 		}
-		observed := false
-		for _, container := range snap.Execution.Containers {
-			if container.SandboxID != "" && container.SandboxID == lease.sandboxID() && container.Owned {
-				observed = true
-				break
-			}
-		}
 		allowance := lease.HostLaunchBytes
 		if allowance == 0 && snap.Host.Platform == "windows" {
 			allowance = windowsDockerHostLaunchBytes(snap, kind)
 		}
-		demand.PendingHostLaunchBytes += pendingHostLaunch(snap, allowance, lease.State == "backend-settled", observed, lease.UpdatedAt)
+		// The lease itself is the finite ownership bound. Only its positive
+		// lifecycle settlement removes the allowance; an observed container
+		// is not proof that sign-in/browser/WSL host demand has peaked.
+		demand.PendingHostLaunchBytes += allowance
 	}
 }
 

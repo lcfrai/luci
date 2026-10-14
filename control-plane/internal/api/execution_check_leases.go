@@ -145,7 +145,7 @@ func addCheckCapacity(snapshot resourcebudget.Snapshot, checks []checkExecutionL
 		if allowance == 0 && snapshot.Host.Platform == "windows" {
 			allowance = 2048 << 20
 		}
-		demand.PendingHostLaunchBytes += pendingHostLaunch(snapshot, allowance, v.State == "running", observed, v.UpdatedAt)
+		demand.PendingHostLaunchBytes += allowance
 	}
 	return nil
 }

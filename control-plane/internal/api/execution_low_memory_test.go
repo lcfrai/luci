@@ -177,8 +177,8 @@ func TestLocal044PendingCheckAndPreviewKeepSeparateHostAllowances(t *testing.T) 
 	snap := executionFixtureSnapshot()
 	snap.Host.Platform = "windows"
 	demand := executionCapacityDemand{}
-	check := checkExecutionLease{Resources: backend.Resources{MemoryMiB: 512, CPUMillis: 1000}, HostLaunchBytes: 2 << 30, State: "reserved", UpdatedAt: time.Now()}
-	preview := previewExecutionLease{Resources: backend.Resources{MemoryMiB: 512, CPUMillis: 1000}, HostLaunchBytes: 2 << 30, State: "reserved", UpdatedAt: time.Now()}
+	check := checkExecutionLease{ID: "check-owned", Scope: "scope-one", Resources: backend.Resources{MemoryMiB: 512, CPUMillis: 1000}, HostLaunchBytes: 2 << 30, State: "reserved", UpdatedAt: time.Now()}
+	preview := previewExecutionLease{ID: "preview-owned", Scope: "scope-two", Resources: backend.Resources{MemoryMiB: 512, CPUMillis: 1000}, HostLaunchBytes: 2 << 30, State: "reserved", UpdatedAt: time.Now()}
 	if err := addCheckCapacity(snap, []checkExecutionLease{check}, "", "", &demand); err != nil {
 		t.Fatal(err)
 	}
@@ -187,6 +187,18 @@ func TestLocal044PendingCheckAndPreviewKeepSeparateHostAllowances(t *testing.T) 
 	}
 	if demand.PendingHostLaunchBytes != 4<<30 || demand.PendingMemory != 1<<30 {
 		t.Fatal("pending check and preview spent each other's host launch headroom", demand)
+	}
+}
+
+func TestLocal044ObservedContainerDoesNotCreditLaterBrowserOrWSLOverhead(t *testing.T) {
+	snap := executionFixtureSnapshot()
+	snap.Host.Platform = "windows"
+	snap.Execution.Containers = []resourcebudget.ContainerUsage{{SandboxID: "s-owned", Owned: true, Kind: "agent"}}
+	lease := executionLease{ID: "allocation-owned", Scope: "scope-one", SessionID: "s-owned", SandboxID: "s-owned", State: "backend-settled", HostLaunchBytes: 2 << 30, UpdatedAt: time.Now().Add(-time.Minute)}
+	demand := executionCapacityDemand{}
+	addWorkerHostLaunchCapacity(snap, []executionLease{lease}, "", "", backend.KindDocker, &demand)
+	if demand.PendingHostLaunchBytes != 2<<30 {
+		t.Fatal("Docker observation credited host demand that could still arrive after sign-in", demand)
 	}
 }
 

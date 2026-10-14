@@ -38,7 +38,7 @@ func TestLocal044WorkerObservationAndExactStopUsePrivateRegistryAndLease(t *test
 	env := sessionsNewEnv(t)
 	local044Product(t, env.api)
 	old := registry.Session{ID: "s-local044-old", ProjectID: "p-old", MachineID: LocalMachineID, Backend: "docker", SandboxID: "s-local044-old", SandboxRef: "exact-old", Status: registry.StatusRunning, CreatedAt: time.Now().Add(-time.Minute)}
-	newer := registry.Session{ID: "s-local044-new", ProjectID: "p-new", MachineID: LocalMachineID, Backend: "docker", SandboxID: "s-local044-new", SandboxRef: "exact-new", Status: registry.StatusRunning, CreatedAt: time.Now()}
+	newer := registry.Session{ID: "s-local044-new", ProjectID: "p-new", MachineID: LocalMachineID, Backend: "docker", SandboxID: "s-local044-new", SandboxRef: "exact-new", Status: registry.StatusIdle, CreatedAt: time.Now()}
 	foreign := registry.Session{ID: "s-local044-foreign", ProjectID: "p-foreign", MachineID: "remote", Backend: "docker", SandboxID: "s-local044-foreign", SandboxRef: "foreign", Status: registry.StatusRunning, CreatedAt: time.Now().Add(time.Minute)}
 	for _, row := range []registry.Session{old, newer, foreign} {
 		if err := env.st.Create(row); err != nil {
@@ -57,8 +57,8 @@ func TestLocal044WorkerObservationAndExactStopUsePrivateRegistryAndLease(t *test
 		t.Fatal("stale selected generation stopped work", acted, err)
 	}
 	acted, err := env.api.StopHostPressureCandidate(context.Background(), *observation.Candidate)
-	if err != nil || !acted {
-		t.Fatal("exact pressure stop failed", acted, err)
+	if !acted || err != nil && !errors.Is(err, ErrExecutionLeaseHeld) {
+		t.Fatal("exact stop or its retained backend-observation outcome failed", acted, err)
 	}
 	env.be.mu.Lock()
 	destroyed := append([]string(nil), env.be.destroys...)

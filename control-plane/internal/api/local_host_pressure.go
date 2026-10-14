@@ -32,7 +32,7 @@ func (a *API) HostPressureObservation(ctx context.Context, hostTotal uint64) (ma
 	for i := len(rows) - 1; i >= 0; i-- {
 		row := rows[i]
 		if row.Backend != string(backend.KindDocker) || row.MachineID != LocalMachineID || row.SandboxID == "" || row.SandboxRef == "" ||
-			(row.Status != registry.StatusStarting && row.Status != registry.StatusRunning) {
+			(row.Status != registry.StatusStarting && row.Status != registry.StatusRunning && row.Status != registry.StatusIdle) {
 			continue
 		}
 		lease, err := a.pressureLease(ctx, row)
@@ -78,7 +78,7 @@ func (a *API) StopHostPressureCandidate(parent context.Context, candidate manage
 	if err != nil {
 		return false, err
 	}
-	if chosen.SandboxID != candidate.SandboxID || chosen.SandboxRef != candidate.SandboxRef || !chosen.CreatedAt.Equal(candidate.CreatedAt) || chosen.Backend != string(backend.KindDocker) || chosen.MachineID != LocalMachineID || (chosen.Status != registry.StatusStarting && chosen.Status != registry.StatusRunning) {
+	if chosen.SandboxID != candidate.SandboxID || chosen.SandboxRef != candidate.SandboxRef || !chosen.CreatedAt.Equal(candidate.CreatedAt) || chosen.Backend != string(backend.KindDocker) || chosen.MachineID != LocalMachineID || (chosen.Status != registry.StatusStarting && chosen.Status != registry.StatusRunning && chosen.Status != registry.StatusIdle) {
 		return false, nil
 	}
 	lease, err := a.pressureLease(parent, chosen)
@@ -94,7 +94,7 @@ func (a *API) StopHostPressureCandidate(parent context.Context, candidate manage
 		return false, err
 	}
 	if current.SandboxID != chosen.SandboxID || current.SandboxRef != chosen.SandboxRef ||
-		(current.Status != registry.StatusStarting && current.Status != registry.StatusRunning) {
+		(current.Status != registry.StatusStarting && current.Status != registry.StatusRunning && current.Status != registry.StatusIdle) {
 		return false, nil
 	}
 	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
@@ -104,7 +104,7 @@ func (a *API) StopHostPressureCandidate(parent context.Context, candidate manage
 	}
 	_, err = a.deps.Store.Update(current.ID, func(row *registry.Session) error {
 		if row.SandboxID != current.SandboxID || row.SandboxRef != current.SandboxRef || row.Backend != current.Backend || row.MachineID != current.MachineID ||
-			(row.Status != registry.StatusStarting && row.Status != registry.StatusRunning) {
+			(row.Status != registry.StatusStarting && row.Status != registry.StatusRunning && row.Status != registry.StatusIdle) {
 			return sessionErrMoved
 		}
 		row.Status = registry.StatusExited
