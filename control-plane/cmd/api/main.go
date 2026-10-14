@@ -402,6 +402,16 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("build the HTTP surface: %w", err)
 	}
+	// A Docker container limit does not bound Docker Desktop/WSL or an auth
+	// browser. Observe host memory independently of the slower daemon sampler;
+	// only the exact newest owned local session may be stopped on sustained
+	// pressure. The controller and lightweight project work remain available.
+	if !cfg.Worker && be.Kind() == backend.KindDocker {
+		pressureCtx, stopPressure := context.WithCancel(context.Background())
+		pressureDone := make(chan struct{})
+		go func() { defer close(pressureDone); handler.RunLocalHostPressureGuard(pressureCtx) }()
+		defer func() { stopPressure(); <-pressureDone }()
+	}
 	cleanupProof.publish(handler.ConfirmStoppedTaskCleanup)
 	defer cleanupProof.publish(nil)
 

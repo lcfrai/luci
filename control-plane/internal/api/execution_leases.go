@@ -498,6 +498,7 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 			return nil
 		}
 		demand := executionCapacityDemand{PendingMemory: pendingMemory, AllMemory: allMemory, CPU: cpu, PendingAllocations: pendingAllocations}
+		demand.HostLaunchBytes = windowsDockerHostLaunchBytes(snap, g.api.deps.Backend.Kind())
 		if err := addCheckCapacity(snap, ledger.Checks, "", "", &demand); err != nil {
 			return err
 		}

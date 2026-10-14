@@ -103,6 +103,53 @@ func TestResponsiveCapacityOnFourEightSixteenAndThirtyTwoGiBMachines(t *testing.
 	}
 }
 
+func TestLocal044WindowsDockerLaunchChargesHostOutsideContainerLimit(t *testing.T) {
+	g := executionTestGate(t, filepath.Join(t.TempDir(), "capacity"))
+	g.api.deps.Resources = backend.Resources{MemoryMiB: 512, CPUMillis: 1000}
+	available := uint64(2015 * 1000000) // observed Windows preflight, in decimal bytes
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Host.Platform = "windows"
+		s.Host.Memory.EffectiveAvailableBytes = &available
+		return s
+	}
+	actor := management.ExecutionActorRef{Local: true, ProjectID: "p-local044"}
+	reserve := func(id string) executionDecision {
+		t.Helper()
+		d, err := g.reserve(context.Background(), id, actor.ProjectID, "api", 4, actor, management.ExecutionAuthority{}, responsiveTestPolicy())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	if d := reserve("local044-first"); d.State != "waiting" || d.Code != "memory_pressure" || d.Evidence.RequiredBytes != 3584<<20 {
+		t.Fatal("container-only preflight would admit the crashing launch", d)
+	}
+	available = 3480 * 1000000 // reported idle recovery still needs launch headroom
+	if d := reserve("local044-first"); d.State != "waiting" || d.Code != "memory_pressure" {
+		t.Fatal("persistent host pressure was ignored after the worker exited", d)
+	}
+	available = 4 << 30
+	if d := reserve("local044-first"); d.State != "admitted" || d.Resources.MemoryMiB != 512 {
+		t.Fatal("bounded launch allowance changed the worker cap or blocked sufficient capacity", d)
+	}
+	// This observation is specific to Windows Docker Desktop. Linux containers
+	// and the host's lightweight project routes must not inherit a RAM wall.
+	g2 := executionTestGate(t, filepath.Join(t.TempDir(), "linux-capacity"))
+	g2.api.deps.Resources = backend.Resources{MemoryMiB: 512, CPUMillis: 1000}
+	g2.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Host.Platform = "linux"
+		v := uint64(2015 * 1000000)
+		s.Host.Memory.EffectiveAvailableBytes = &v
+		return s
+	}
+	d, err := g2.reserve(context.Background(), "local044-linux", actor.ProjectID, "api", 4, actor, management.ExecutionAuthority{}, responsiveTestPolicy())
+	if err != nil || d.State != "admitted" {
+		t.Fatal("unobserved Linux launch allowance added", d, err)
+	}
+}
+
 func TestResponsiveCapacityRetainsGuestCPUAndFreshnessGuards(t *testing.T) {
 	for _, c := range []struct {
 		name, want string

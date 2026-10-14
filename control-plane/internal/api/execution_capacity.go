@@ -18,11 +18,27 @@ import (
 // PendingDiskBytes carries individually pinned check image-copy demand.
 type executionCapacityDemand struct {
 	PendingMemory, AllMemory uint64
-	CPU                      int64
-	PendingAllocations       int
-	PendingDiskBytes         uint64
-	RequiredCreateDiskBytes  uint64
-	CreateAcknowledged       bool
+	// HostLaunchBytes is transient host/daemon/browser demand outside the
+	// container's hard memory limit. It is charged while admitting a new local
+	// Docker worker, check or preview; observed host memory replaces it later.
+	HostLaunchBytes         uint64
+	CPU                     int64
+	PendingAllocations      int
+	PendingDiskBytes        uint64
+	RequiredCreateDiskBytes uint64
+	CreateAcknowledged      bool
+}
+
+// LOCAL-044: Docker Desktop host availability fell by more than 1.8 GB while
+// a 512 MiB worker was bounded, and remained low after that worker exited.
+// The exact causes are still under investigation. Charge a finite 2 GiB host
+// launch allowance for each new Windows Docker worker/check/preview effect;
+// do not charge reads, Linux workers or already-observed running demand.
+func windowsDockerHostLaunchBytes(snap resourcebudget.Snapshot, kind backend.Kind) uint64 {
+	if kind == backend.KindDocker && snap.Host.Platform == "windows" {
+		return 2048 << 20
+	}
+	return 0
 }
 
 func freshExecutionCapacity(snap resourcebudget.Snapshot, now time.Time) bool {
@@ -55,11 +71,12 @@ func evaluateExecutionCapacityWithEvidence(snap resourcebudget.Snapshot, policy 
 	required := uint64(resources.MemoryMiB) << 20
 	headroom := policy.MemoryHeadroomBytes(*snap.Host.Memory.EffectiveTotalBytes)
 	executionHeadroom := policy.MemoryHeadroomBytes(*snap.Execution.TotalMemoryBytes)
-	if *snap.Host.Memory.EffectiveAvailableBytes < headroom+required+demand.PendingMemory || *snap.Execution.TotalMemoryBytes < demand.AllMemory+required+executionHeadroom {
-		result := refused("memory_pressure", fmt.Sprintf("Waiting for memory: this operation needs %d MiB plus %d MiB pending demand and %d MiB host reserve; %d MiB is available. You can keep planning while capacity recovers.", resources.MemoryMiB, demand.PendingMemory>>20, headroom>>20, *snap.Host.Memory.EffectiveAvailableBytes>>20))
+	hostRequired := headroom + required + demand.PendingMemory + demand.HostLaunchBytes
+	if *snap.Host.Memory.EffectiveAvailableBytes < hostRequired || *snap.Execution.TotalMemoryBytes < demand.AllMemory+required+executionHeadroom {
+		result := refused("memory_pressure", fmt.Sprintf("Waiting for memory: this operation needs %d MiB plus %d MiB pending demand, %d MiB launch allowance and %d MiB host reserve; %d MiB is available. You can keep planning while capacity recovers.", resources.MemoryMiB, demand.PendingMemory>>20, demand.HostLaunchBytes>>20, headroom>>20, *snap.Host.Memory.EffectiveAvailableBytes>>20))
 		// Preserve the existing host-first predicate, using its exact operands.
-		result.Evidence = registry.StartAdmissionEvidence{Metric: "host_available_memory", ObservedAt: snap.Host.ObservedAt.UTC(), DecidedAt: now.UTC(), ObservedBytes: *snap.Host.Memory.EffectiveAvailableBytes, RequiredBytes: headroom + required + demand.PendingMemory}
-		if *snap.Host.Memory.EffectiveAvailableBytes >= headroom+required+demand.PendingMemory {
+		result.Evidence = registry.StartAdmissionEvidence{Metric: "host_available_memory", ObservedAt: snap.Host.ObservedAt.UTC(), DecidedAt: now.UTC(), ObservedBytes: *snap.Host.Memory.EffectiveAvailableBytes, RequiredBytes: hostRequired}
+		if *snap.Host.Memory.EffectiveAvailableBytes >= hostRequired {
 			result.Message = fmt.Sprintf("Waiting for Docker memory: %d MiB existing and pending demand plus %d MiB for this operation and %d MiB reserve exceeds the %d MiB engine capacity. You can keep planning while capacity recovers.", demand.AllMemory>>20, resources.MemoryMiB, executionHeadroom>>20, *snap.Execution.TotalMemoryBytes>>20)
 			result.Evidence = registry.StartAdmissionEvidence{Metric: "execution_total_memory", ObservedAt: snap.Execution.ObservedAt.UTC(), DecidedAt: now.UTC(), ObservedBytes: *snap.Execution.TotalMemoryBytes, RequiredBytes: demand.AllMemory + required + executionHeadroom}
 		}

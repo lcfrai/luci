@@ -209,6 +209,7 @@ func (g *executionAdmission) reservePreview(ctx context.Context, prepared backen
 		if err := addRuntimeImageCapacity(l.RuntimeImages, "", "", &demand); err != nil {
 			return err
 		}
+		demand.HostLaunchBytes = windowsDockerHostLaunchBytes(snap, g.api.deps.Backend.Kind())
 		capacity := evaluateExecutionCapacityWithEvidence(snap, policy, resources, demand, now)
 		if capacity.Code != "" {
 			out.Code, out.Message, out.Evidence = capacity.Code, capacity.Message, capacity.Evidence
