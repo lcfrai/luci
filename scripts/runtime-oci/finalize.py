@@ -92,7 +92,7 @@ def finalize(repo, revision, build_repo, original, output, assistance=False):
     available, busy = admit_finalize()
     if shutil.disk_usage(output.parent).free < 2 * archive.MAX_ARCHIVE + (2 << 30):
         raise ValueError('finalization needs raw plus normalized archive disk budget')
-    current = json.loads(producer.command(['docker', 'info', '--format', '{{json .}}']))
+    current = producer.engine_info(terminal['engineID'])
     if current['ID'] != terminal['engineID']:
         raise ValueError('original builder engine differs; no arbitrary image adoption')
     producer.assert_settled(pending['session'])

@@ -25,6 +25,7 @@ import uuid
 import archive
 from canonical_inputs import stage
 from common import plain_directory, read_json, schema_validate, write_json
+from engine_info import read as engine_info
 
 SESSION_LABEL = "luci.runtime-payload.producer-session"
 RESERVE = 1 << 30
@@ -107,7 +108,7 @@ def owned_running(session, reject_unrelated=True):
             missing = any(marker in error.stderr for marker in (('No such object: ' + identifier).encode('ascii'), ('No such container: ' + identifier).encode('ascii')))
             if error.returncode == 1 and missing and identifier not in docker_ids():
                 expected_engine = ENGINE_IDENTITIES.get(session)
-                current_engine = command(['docker', 'info', '--format', '{{.ID}}']).strip().decode('ascii') if expected_engine else None
+                current_engine = engine_info(expected_engine)['ID'] if expected_engine else None
                 if expected_engine and current_engine == expected_engine:
                     continue
             raise
@@ -131,7 +132,7 @@ def assert_settled(session):
 
 def cache_assist(session, output):
     baseline = read_json(output / 'producer-engine.json')
-    current = json.loads(command(['docker', 'info', '--format', '{{json .}}']))
+    current = engine_info(baseline['engineID'])
     if os.name != 'nt' or current['ID'] != baseline['engineID'] or 'Docker Desktop' not in current.get('OperatingSystem', ''):
         raise ValueError('producer cache assistance requires the same exact Docker Desktop engine')
     owned_running(session)  # Any unrelated live work refuses mutation.
@@ -215,7 +216,11 @@ def monitor_build(process, session, output, assistance):
             process.wait(timeout=5)
             raise ValueError("producer build outcome unknown; receipts and ownership retained")
         time.sleep(2)
-    engine = json.loads(command(['docker', 'info', '--format', '{{json .}}']))
+    try:
+        engine = engine_info(read_json(output / 'producer-engine.json')['engineID'])
+    except (ValueError, OSError, subprocess.SubprocessError):
+        write_json(output / 'producer-unknown.json', {'session': session, 'reason': 'Builder terminal has unavailable/changed selected engine readback; retain ownership, no absence-only settlement'})
+        raise
     if engine['ID'] != read_json(output / 'producer-engine.json')['engineID']:
         write_json(output / 'producer-unknown.json', {'session': session, 'reason': 'Builder terminal returned across engine identity change; retain ownership, no absence-only settlement'})
         raise ValueError('producer engine changed before terminal verification')
@@ -471,7 +476,7 @@ def produce(repo, revision, output, assistance=False):
         raise ValueError('Docker Desktop host storage lacks build disk budget')
     output.mkdir(mode=0o700)
     session = uuid.uuid4().hex
-    engine = json.loads(command(['docker', 'info', '--format', '{{json .}}']))
+    engine = engine_info()
     ENGINE_IDENTITIES[session] = engine['ID']
     write_json(output / 'producer-engine.json', {'engineID': engine['ID'], 'operatingSystem': engine.get('OperatingSystem', ''), 'session': session, 'availableBytes': available_memory(), 'cpuBusyPercent': busy})
     inputs = stage(repo, revision, output / "canonical")

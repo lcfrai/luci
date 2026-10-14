@@ -6,6 +6,22 @@ ordinary setup needs Docker and the packaged Luci executable, with no Go,
 Node, Python, source checkout or download. This source does not establish
 Docker Desktop routing, a measured memory pass or actual upstream model work.
 
+Producer identity/health reads use a fixed bounded `GET /info` request through
+`docker system dial-stdio`, retaining Docker's selected context, endpoint and
+TLS/SSH transport. No default pipe or alternate host is introduced. A 5-second
+deadline, 1 MiB JSON body, 64 KiB headers/stderr, strict HTTP framing and exact
+expected engine ID govern each read; client/reader retirement is required and
+errors never fall back. Installed application setup is unchanged.
+
+This avoids `docker info` plugin metadata fan-out: the pinned official CLI
+[info implementation](https://github.com/docker/cli/blob/v28.5.1/cli/command/system/info.go)
+unconditionally calls plugin discovery even for an ID-only format; its
+[plugin manager](https://github.com/docker/cli/blob/v28.5.1/cli-plugins/manager/manager.go)
+runs candidates concurrently. The official
+[dial-stdio implementation](https://github.com/docker/cli/blob/v28.5.1/cli/command/system/dial_stdio.go)
+instead obtains the existing selected client's transport dialer. No Docker
+configuration, plugin, credential, context or daemon setting is changed.
+
 ## Sequential producer prerequisites
 
 Use clean exact source checkouts, a positively completed original builder and

@@ -25,7 +25,7 @@ class ProducerSafetyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary)
             write_json(output / 'producer-engine.json', {'engineID': 'original'})
-            with patch.object(producer, 'command', return_value=b'{"ID":"original"}'), patch.object(producer, 'assert_settled') as settled:
+            with patch.object(producer, 'engine_info', return_value={'ID': 'original'}), patch.object(producer, 'assert_settled') as settled:
                 with self.assertRaisesRegex(ValueError, 'failed'):
                     producer.monitor_build(Finished(), 'session', output, True)
                 settled.assert_called_once_with('session')
@@ -47,15 +47,29 @@ class ProducerSafetyTests(unittest.TestCase):
                 producer.owned_running('session')
             self.assertEqual([row['id'] for row in producer.owned_running('session', reject_unrelated=False)], ['own'])
 
+    def test_unavailable_selected_engine_after_builder_terminal_retains_unknown(self):
+        class Finished:
+            returncode = 0
+            def poll(self): return 0
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            write_json(output / 'producer-engine.json', {'engineID': 'original'})
+            with patch.object(producer, 'engine_info', side_effect=ValueError('selected engine identity changed')), patch.object(producer, 'assert_settled') as settled:
+                with self.assertRaisesRegex(ValueError, 'identity changed'):
+                    producer.monitor_build(Finished(), 'session', output, False)
+            self.assertTrue((output / 'producer-unknown.json').exists())
+            self.assertFalse((output / 'producer-terminal.json').exists())
+            settled.assert_not_called()
+
     def test_cache_assistance_refuses_engine_change_before_wsl_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary)
             write_json(output / 'producer-engine.json', {'engineID': 'original'})
-            with patch.object(producer, 'command', return_value=b'{"ID":"replacement","OperatingSystem":"Docker Desktop"}') as command:
+            with patch.object(producer, 'engine_info', return_value={'ID': 'replacement', 'OperatingSystem': 'Docker Desktop'}) as info, patch.object(producer, 'command') as command:
                 with self.assertRaisesRegex(ValueError, 'same exact'):
                     producer.cache_assist('session', output)
-                self.assertEqual(command.call_count, 1)
-                self.assertEqual(command.call_args.args[0][:2], ['docker', 'info'])
+                info.assert_called_once_with('original')
+                command.assert_not_called()
 
     def test_context_uses_inspected_immutable_bases_and_only_producer_labels(self):
         with tempfile.TemporaryDirectory() as temporary:

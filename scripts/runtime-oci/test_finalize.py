@@ -38,10 +38,10 @@ class GrantAndFinalizeTests(unittest.TestCase):
             if args[1] == 'inspect':
                 raise failure
             return b'original\n'
-        with patch.dict(producer.ENGINE_IDENTITIES, {'session': 'original'}), patch.object(producer, 'docker_ids', side_effect=[['abc123'], []]), patch.object(producer, 'command', side_effect=command), patch.object(producer, 'assert_settled') as settle:
+        with patch.dict(producer.ENGINE_IDENTITIES, {'session': 'original'}), patch.object(producer, 'docker_ids', side_effect=[['abc123'], []]), patch.object(producer, 'command', side_effect=command), patch.object(producer, 'engine_info', return_value={'ID': 'original'}), patch.object(producer, 'assert_settled') as settle:
             self.assertEqual(producer.owned_running('session'), [])
             settle.assert_not_called()
-        with patch.dict(producer.ENGINE_IDENTITIES, {'session': 'changed'}), patch.object(producer, 'docker_ids', side_effect=[['abc123'], []]), patch.object(producer, 'command', side_effect=command):
+        with patch.dict(producer.ENGINE_IDENTITIES, {'session': 'changed'}), patch.object(producer, 'docker_ids', side_effect=[['abc123'], []]), patch.object(producer, 'command', side_effect=command), patch.object(producer, 'engine_info', return_value={'ID': 'original'}):
             with self.assertRaises(producer.CommandFailure):
                 producer.owned_running('session')
         for stderr in (b'permission denied', b'connection refused'):

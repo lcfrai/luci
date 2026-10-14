@@ -129,14 +129,14 @@ def produce(repo, revision, build_repo, original, v1_payload, bootstrap_dir, dis
         normalized = bootstrap.normalize(bootstrap_dir / bootstrap.NAME, temp / bootstrap.NAME, b['imageID'], b['gateBinarySHA256'], b['distributionBinarySHA256'])
         if any(normalized[k] != b[k] for k in normalized) or archive.file_record(bootstrap_dir / bootstrap.RECEIPT)['sha256'] != b['buildReceiptSHA256']:
             raise ValueError('producer bootstrap identity changed')
-    engine = producer.command(['docker', 'info', '--format', '{{.ID}}']).strip().decode('ascii')
+    engine = producer.engine_info(terminal['engineID'])['ID']
     inspected = archive.json_bytes(producer.command(['docker', 'image', 'inspect', image_id]))[0]
     if (engine != terminal['engineID'] or inspected.get('Id') != image_id or inspected.get('Config', {}).get('Labels', {}).get(producer.SESSION_LABEL) != pending['session'] or
             inspected.get('RootFS', {}).get('Layers') != v1['image']['diffIDs']):
         raise ValueError('producer exact original engine/image/owner changed')
     session = uuid.uuid4().hex
     output.mkdir(mode=0o700)
-    helper = registry_producer.Helper(repo, image_id, session, output, distribution, daemon_probe)
+    helper = registry_producer.Helper(repo, image_id, session, output, distribution, daemon_probe, engine_id=engine)
     write_json(output / 'producer-engine.json', {'session': session, 'engineID': engine, 'instanceID': instance})
     write_json(output / 'pull-producer-intent.json', {'sourceCommit': revision, 'buildSourceCommit': pending['sourceCommit'],
         'imageID': image_id, 'session': session, 'imageRebuilt': False, 'ordinaryInstalledAcceptance': False})
