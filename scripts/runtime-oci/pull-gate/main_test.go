@@ -83,6 +83,9 @@ func TestFixedReadOnlyGate(t *testing.T) {
 		{http.MethodGet, "/v2/" + repository + "/blobs/" + a.ConfigDigest, map[string]string{"Range": "bytes=5-"}, 416},
 	} {
 		req := httptest.NewRequest(tc.method, "http://127.0.0.1:5000"+tc.path, nil)
+		// net/http servers receive origin-form URLs; httptest constructs an
+		// absolute URL here, which the gate correctly rejects as proxy input.
+		req.URL.Scheme, req.URL.Host = "", ""
 		for name, value := range tc.headers {
 			req.Header.Set(name, value)
 		}
@@ -103,6 +106,7 @@ func TestBackendRedirectRefused(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusTemporaryRedirect, Header: http.Header{"Location": {"http://elsewhere.invalid"}}, Body: io.NopCloser(strings.NewReader(""))}, nil
 	})})
 	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:5000/v2/"+repository+"/blobs/"+a.ConfigDigest, nil)
+	req.URL.Scheme, req.URL.Host = "", ""
 	out := httptest.NewRecorder()
 	gate.ServeHTTP(out, req)
 	if out.Code != http.StatusBadGateway {
