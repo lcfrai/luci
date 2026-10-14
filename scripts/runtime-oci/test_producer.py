@@ -62,7 +62,7 @@ class ProducerSafetyTests(unittest.TestCase):
             root = Path(temporary)
             canonical = root / 'canonical'
             (canonical / 'images/sandbox').mkdir(parents=True)
-            original = b'FROM golang:1.26-bookworm AS build\nRUN true\nFROM node:24-bookworm-slim\n'
+            original = b'FROM golang:1.26-bookworm AS build\nRUN tar -C /usr/local -czf /out/go-toolchain.tar.gz go\nFROM node:24-bookworm-slim\nCOPY --from=build /out/go-toolchain.tar.gz /tmp/go-toolchain.tar.gz\nRUN tar -C /usr/local -xzf /tmp/go-toolchain.tar.gz && rm /tmp/go-toolchain.tar.gz\n'
             (canonical / 'images/sandbox/Dockerfile').write_bytes(original)
             bases = [{'reference': name, 'imageID': 'sha256:' + char * 64} for name, char in [('golang:1.26-bookworm', 'a'), ('node:24-bookworm-slim', 'b')]]
             producer.context_tar(canonical, root / 'context.tar', bases, 'exactsession')
@@ -72,6 +72,8 @@ class ProducerSafetyTests(unittest.TestCase):
             self.assertNotIn('FROM golang:', value)
             self.assertIn('FROM sha256:' + 'a' * 64 + ' AS build', value)
             self.assertEqual(value.count(producer.SESSION_LABEL + '="exactsession"'), 2)
+            self.assertEqual([line for line in value.splitlines() if not line.startswith(('FROM ', 'LABEL '))],
+                             [line for line in original.decode().splitlines() if not line.startswith('FROM ')])
             self.assertEqual((canonical / 'images/sandbox/Dockerfile').read_bytes(), original)
 
 
