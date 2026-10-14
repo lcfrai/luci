@@ -549,7 +549,7 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 			if exit.ExitCode != 0 {
 				if exit.FailureCode == "local_model_context_limit" && job.Harness == "opencode" {
 					failureCode = exit.FailureCode
-					message = "This local model's serving context is too small for the full request and response. No partial request was generated. Connect an Ollama model configured for at least 8,192 context tokens, or choose a larger supported model."
+					message = "This local model's serving context is too small for the full request and response. No project answer was accepted. Connect an Ollama model configured for at least 8,192 context tokens, or choose a larger supported model."
 				} else if exit.FailureCode == "local_model_context_unverified" && job.Harness == "opencode" {
 					failureCode = exit.FailureCode
 					message = "Luci could not verify this local model's serving context and exact token count. Check that the saved endpoint is Ollama's local API and the model is available; no response was accepted."
