@@ -1,5 +1,7 @@
 # Controlling Luci product contract
 
+> **Guided Azure guest source:** [the source-bound loopback registry reconciliation](AZURE-LOCAL-GUEST-REGISTRY-2026-10-14.md) completes private runtime-image preparation without adding an Azure registry resource. Its owner/acceptance map and root-recorded exact ACKs apply before implementation; LC-01–16 and live cloud gates remain intact.
+
 > **Installation reconciliations, 14 October 2026:** [ordinary verified prebuilt local runtime installation](LOCAL-RUNTIME-DISTRIBUTION-RECONCILIATION-2026-10-14.md) and [guided private Azure foundation/controller staging](AZURE-PRIVATE-FOUNDATION-STAGING-2026-10-14.md) preserve LC-01–16. Their exact owner/implementation/acceptance maps and recorded worker ACKs control these source changes; neither document proves acceptance or authorizes live cloud operations.
 
 > **Setup and delivery amendment, 14 October 2026:** [three setup modes, guided Azure BYO commands, future Luci Cloud, and a product-focused `main` handoff](SETUP-AND-MAIN-AMENDMENT-2026-10-14.md). LC-01–16 remain intact. This is authorized scope; implementation and acceptance are tracked separately.

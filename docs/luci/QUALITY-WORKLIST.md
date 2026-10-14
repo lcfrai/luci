@@ -1,5 +1,7 @@
 # Continuing product-quality work
 
+**Current SETUP-02 guest publication:** [source-bound loopback registry reconciliation](AZURE-LOCAL-GUEST-REGISTRY-2026-10-14.md) assigns Azure Sol actual guest OCI preparation, immutable loopback publication, bootstrap ordering and durable source restoration. Root records exact ACKs before this service change. Cloud Sol exclusively owns the five transferred signed-successor/recovery files; Azure Sol owns installer/guided joins. No live provider acceptance is implied.
+
 **Additional SETUP-02 image preparation:** [private temporary image-producer reconciliation](AZURE-PRIVATE-IMAGE-PRODUCER-2026-10-14.md) assigns the local Azure Sol explicit source-bound builder VM/NIC/disk and gallery lifecycle work, with cost-reviewed authority, retained uncertainty and no live cloud execution. Root records acknowledgments before this resource scope is implemented.
 
 **LOCAL-035 P1 — Windows runtime companion staging:** source fix ready for Windows retest on the `codex/runtime-oci-import-20261014` branch. The SSH companion staging directory now uses the existing protected current-user DACL on Windows and keeps the strict Unix private-mode check; staged files receive the protected file DACL. Focused Linux transfer/privacy tests and Windows test-binary crosscompile pass. The Windows test binary has not been executed, and no installed SSH/Docker transfer pass is claimed. Root retains main integration and Windows acceptance.
