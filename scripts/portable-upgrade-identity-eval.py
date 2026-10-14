@@ -19,6 +19,11 @@ import sys
 import tarfile
 import tempfile
 import time
+import importlib.util
+
+_package_spec = importlib.util.spec_from_file_location('luci_package_tool', Path(__file__).with_name('package.py'))
+_package_tool = importlib.util.module_from_spec(_package_spec)
+_package_spec.loader.exec_module(_package_tool)
 
 
 def sha(path):
@@ -60,10 +65,7 @@ def verify_package(package, metadata, archive=False):
             actual[entry.relative_to(package).as_posix()] = sha(entry)
         assert actual == expected, 'Candidate files differ from verified archive'
         result['verifiedFiles'] = len(actual)
-        identity = hashlib.sha256(b'luci-portable-package-v1\n')
-        for name in ['luci', *sorted(name for name in actual if name.startswith('web/'))]:
-            identity.update(name.encode() + b'\0' + bytes.fromhex(actual[name]))
-        result['packageIdentity'] = identity.hexdigest()
+        result['packageIdentity'] = _package_tool.package_identity(package, 'linux')
         assert (package / 'package-identity').read_text() == result['packageIdentity'] + '\n'
     return result
 

@@ -10,6 +10,13 @@ import sys
 import tarfile
 import zipfile
 
+# The runtime module is source-controlled tooling, never a package-supplied module.
+sys.path.insert(0, str(pathlib.Path(__file__).parent / 'runtime-oci'))
+import payload as runtime_payload
+
+CORE_LIMIT = 512 << 20
+PAYLOAD_LIMIT = 8 << 30
+
 
 def package_identity(root, platform):
     root = pathlib.Path(root)
@@ -24,7 +31,19 @@ def package_identity(root, platform):
             raise ValueError('Package identity refuses linked or special web assets')
         if stat.S_ISREG(mode):
             files.append(entry)
-    digest = hashlib.sha256(b'luci-portable-package-v1\n')
+    runtime = root / 'runtime'
+    bound_runtime = []
+    if (runtime / runtime_payload.MANIFEST).exists():
+        manifest = runtime_payload.verify(runtime, package=root, canonical=runtime)
+        runtime_payload.source_receipt(runtime_payload.read_json(runtime / runtime_payload.SOURCE), manifest['sourceCommit'])
+        bound_runtime = [runtime / name for name in (runtime_payload.MANIFEST, runtime_payload.RECEIPT, runtime_payload.SOURCE, runtime_payload.PAYLOAD)]
+        if 'reuseEvidenceSHA256' in manifest['producer']:
+            bound_runtime.extend(runtime / name for name in (runtime_payload.REUSE, runtime_payload.PRIOR_MANIFEST, runtime_payload.PRIOR_RECEIPT))
+    elif (runtime / runtime_payload.COMPANION).exists():
+        runtime_payload.verify_companion(runtime)
+        bound_runtime = [runtime / runtime_payload.COMPANION, runtime / runtime_payload.SOURCE]
+    files.extend(bound_runtime)
+    digest = hashlib.sha256(b'luci-portable-package-v2\n' if bound_runtime else b'luci-portable-package-v1\n')
     for file in files:
         if file.is_symlink() or not stat.S_ISREG(file.lstat().st_mode):
             raise ValueError('Package identity requires an ordinary service binary')
@@ -37,11 +56,23 @@ def package_identity(root, platform):
 
 
 def build_package(root, platform):
-    root = pathlib.Path(root).resolve()
+    root = runtime_payload.plain_directory(pathlib.Path(root).absolute())
+    core_bytes, payload_bytes = 0, 0
+    for file in root.rglob('*'):
+        mode = file.lstat().st_mode
+        if file.is_symlink() or getattr(file.lstat(), 'st_file_attributes', 0) & 1024 or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+            raise ValueError('Package refuses linked or special members')
+        if stat.S_ISREG(mode):
+            if file.relative_to(root).as_posix() == 'runtime/' + runtime_payload.PAYLOAD:
+                payload_bytes += file.stat().st_size
+            else:
+                core_bytes += file.stat().st_size
+    if payload_bytes > PAYLOAD_LIMIT or core_bytes > CORE_LIMIT:
+        raise ValueError('Package exceeds role-specific core/runtime payload bounds')
     identity = root / 'package-identity'
     if identity.is_symlink() or (identity.exists() and not identity.is_file()):
         raise ValueError('Package identity must be an ordinary file')
-    identity.write_text(package_identity(root, platform) + '\n', encoding='ascii')
+    identity.write_bytes((package_identity(root, platform) + '\n').encode('ascii'))
     if platform == 'windows':
         with zipfile.ZipFile(str(root) + '.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
             for file in sorted(root.rglob('*')):

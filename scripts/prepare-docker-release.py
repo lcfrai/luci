@@ -12,6 +12,10 @@ import stat
 import subprocess
 import tarfile
 import zipfile
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent / 'runtime-oci'))
+import payload as runtime_payload
 
 VERSION = re.compile(r"^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$")
 TOP_LEVEL = {"luci", "web", "runtime", "cloud", "licenses", "docs", "LICENSE", "NOTICE", "README.md", "DESIGN.md", "start-luci.sh", "package-identity"}
@@ -19,6 +23,7 @@ REQUIRED = {"luci", "web/index.html", "runtime/images/sandbox/Dockerfile", "runt
 PACKAGING_FILES = ("Dockerfile", "compose.yaml", "entrypoint.sh", "engine-entrypoint.sh", "workspace-init.sh", "healthcheck.sh", "start-luci.sh", "Start-Luci.ps1", "Start-Luci.cmd", "README.md", ".dockerignore")
 MAX_FILES = 20000
 MAX_BYTES = 512 * 1024 * 1024
+MAX_RUNTIME_BYTES = 8 * 1024 * 1024 * 1024
 
 
 def digest(path: Path) -> str:
@@ -70,6 +75,7 @@ def verify_release(release: Path, version: str) -> tuple[dict, dict[str, tuple[s
     expected: dict[str, tuple[str, int, int]] = {}
     seen: set[str] = set()
     total = 0
+    runtime_total = 0
     with tarfile.open(archive_path, "r:gz") as archive:
         for member in archive:
             relative = safe_member(member.name)
@@ -80,8 +86,11 @@ def verify_release(release: Path, version: str) -> tuple[dict, dict[str, tuple[s
                 raise ValueError("Linked, special or oversized release archive refused")
             if member.isdir():
                 continue
-            total += member.size
-            if member.size < 0 or total > MAX_BYTES:
+            if relative == 'runtime/' + runtime_payload.PAYLOAD:
+                runtime_total += member.size
+            else:
+                total += member.size
+            if member.size < 0 or total > MAX_BYTES or runtime_total > MAX_RUNTIME_BYTES:
                 raise ValueError("Release archive exceeds the bounded context size")
             stream = archive.extractfile(member)
             if stream is None:
@@ -109,6 +118,8 @@ def verify_release(release: Path, version: str) -> tuple[dict, dict[str, tuple[s
     licenses = json.loads((bundle / "licenses/manifest.json").read_text(encoding="utf-8"))
     if licenses.get("missingLicenses") != [] or (bundle / "licenses/MISSING-LICENSES.txt").stat().st_size != 0:
         raise ValueError("The portable bundle has incomplete licence evidence")
+    runtime_payload.verify(bundle / 'runtime', package=bundle, canonical=bundle / 'runtime', source_commit=manifest['sourceCommit'])
+    runtime_payload.source_receipt(runtime_payload.read_json(bundle / 'runtime' / runtime_payload.SOURCE), manifest['sourceCommit'])
     return manifest, expected
 
 
@@ -191,7 +202,9 @@ def archive_distribution(repo: Path, output: Path) -> dict:
             record.create_system = 3
             record.compress_type = zipfile.ZIP_DEFLATED
             record.external_attr = (0o100755 if relative.endswith(".sh") or relative == "bundle/luci" else 0o100644) << 16
-            packaged.writestr(record, source.read_bytes())
+            # The sole OCI payload can be several GiB; never materialize it in RAM.
+            with source.open('rb') as incoming, packaged.open(record, 'w', force_zip64=True) as outgoing:
+                shutil.copyfileobj(incoming, outgoing, 1024 * 1024)
     return {"name": archive.name, "bytes": archive.stat().st_size, "sha256": digest(archive)}
 
 
