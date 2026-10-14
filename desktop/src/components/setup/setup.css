@@ -61,6 +61,11 @@
   margin-inline-start: 8px;
   letter-spacing: 0;
 }
+.setup-brand > .luci-mark {
+  color: inherit;
+  margin-inline: 0 8px;
+  vertical-align: middle;
+}
 .setup-header h1 {
   font-size: 29px;
   line-height: 1.2;

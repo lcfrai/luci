@@ -1,0 +1,11 @@
+.azure-setup { min-inline-size: 0; }
+.azure-setup form { margin-block: 24px; }
+.azure-setup fieldset { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
+.azure-setup legend { font-size: 16px; font-weight: 600; margin-block-end: 18px; }
+.azure-setup-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-block-end: 20px; }
+.azure-setup-fields input { inline-size: 100%; min-inline-size: 0; }
+.azure-setup-fields small { line-height: 1.5; }
+.azure-setup-plan dd { margin-inline-start: 0; overflow-wrap: anywhere; margin-block-end: 12px; }
+.azure-setup-plan details section { margin-block: 18px; }
+.azure-setup-plan pre { font-size: 12px; line-height: 1.6; }
+@media (max-width: 650px) { .azure-setup-fields { grid-template-columns: minmax(0, 1fr); } }
