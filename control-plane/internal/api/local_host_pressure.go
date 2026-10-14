@@ -38,8 +38,14 @@ func (g *localHostPressureGuard) step(ctx context.Context) {
 	reserve := p.MemoryHeadroomBytes(*s.Memory.EffectiveTotalBytes)
 	if *s.Memory.EffectiveAvailableBytes >= reserve {
 		g.below = 0
-		g.healthy++
-		if g.healthy >= 4 {
+		// Re-arm only after a stable recovery with a margin. A Docker/WSL
+		// cache oscillating around the reserve must not stop another project.
+		if *s.Memory.EffectiveAvailableBytes >= reserve+(256<<20) {
+			g.healthy++
+		} else {
+			g.healthy = 0
+		}
+		if g.healthy >= 8 {
 			g.acted = false
 		}
 		return

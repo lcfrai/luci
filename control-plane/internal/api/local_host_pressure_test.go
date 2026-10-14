@@ -50,7 +50,7 @@ func TestLocal044PressureResponseIsSustainedAndOneOwnedStopPerEpisode(t *testing
 		t.Fatal("one recovered sample reset the guard", stops)
 	}
 	available = 2 << 30
-	for range 4 {
+	for range 8 {
 		g.step(ctx)
 	}
 	available = 900 << 20
