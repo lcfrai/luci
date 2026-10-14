@@ -18,6 +18,28 @@ from common import plain_directory, read_json, write_json
 import payload
 import producer
 
+# Initial admission covers bounded tools, without charging an absent compiler.
+# Export later admits its exact image-size cold-cache estimate separately.
+# Ordinary producer builds retain their separate 1 GiB RUN allocation.
+FINALIZE_MEMORY = max(producer.PROBE_MEMORY, producer.EXPORT_MEMORY)
+
+
+def admit_finalize():
+    running = producer.docker_ids()
+    busy = producer.cpu_busy()
+    available = producer.available_memory()
+    required = producer.RESERVE + FINALIZE_MEMORY + producer.MARGIN
+    causes = []
+    if running:
+        causes.append('running-containers')
+    if available < required:
+        causes.append('insufficient-native-memory')
+    if busy > 90:
+        causes.append('host-cpu-margin')
+    if causes:
+        raise ValueError('finalization admission refused: ' + json.dumps({'time': producer.time.time(), 'causes': causes, 'nativeAvailableBytes': available, 'requiredBytes': required, 'runningCount': len(running), 'cpuBusyPercent': busy}, sort_keys=True))
+    return available, busy
+
 
 def completed_proof(original):
     original = plain_directory(original)
@@ -67,11 +89,7 @@ def finalize(repo, revision, build_repo, original, output, assistance=False):
     plain_directory(output.parent)
     if output.exists() or output.is_relative_to(repo) or output.is_relative_to(build_repo) or output.is_relative_to(original):
         raise ValueError('finalization needs a fresh private output outside source/original evidence')
-    if producer.docker_ids() or producer.available_memory() < producer.RESERVE + producer.BUILD_MEMORY + producer.MARGIN:
-        raise ValueError('finalization requires idle Docker and unchanged reserve/demand/margin')
-    busy = producer.cpu_busy()
-    if busy > 90:
-        raise ValueError('finalization requires observed CPU margin for one bounded CPU')
+    available, busy = admit_finalize()
     if shutil.disk_usage(output.parent).free < 2 * archive.MAX_ARCHIVE + (2 << 30):
         raise ValueError('finalization needs raw plus normalized archive disk budget')
     current = json.loads(producer.command(['docker', 'info', '--format', '{{json .}}']))

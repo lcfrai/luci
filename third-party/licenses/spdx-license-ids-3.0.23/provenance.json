@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "component": "spdx-license-ids",
+  "packageVersion": "3.0.23",
+  "grant": "CC0-1.0",
+  "sourceCommit": "a2a975daf48bbc2afdc8e7c304405b44c656fd53",
+  "registryMetadataURL": "https://registry.npmjs.org/spdx-license-ids/3.0.23",
+  "registryMetadataSHA256": "46a25a08a8d24098579f0cd3dc9962a22d8ccf314379d385208722bb4c5110cb",
+  "registryTarball": "https://registry.npmjs.org/spdx-license-ids/-/spdx-license-ids-3.0.23.tgz",
+  "registryIntegrity": "sha512-CWLcCCH7VLu13TgOH+r8p1O/Znwhqv/dbb6lqWy67G+pT1kHmeD/+V36AVb/vq8QMIQwVShJ6Ssl5FPh0fuSdw==",
+  "files": [
+    {
+      "file": "README.md",
+      "url": "https://raw.githubusercontent.com/jslicense/spdx-license-ids/a2a975daf48bbc2afdc8e7c304405b44c656fd53/README.md",
+      "sha256": "b4807793db6058c819f76c023362b7d522b3d19c9b41563fcc01c2b2c5b1ccd3",
+      "bytes": 1394
+    },
+    {
+      "file": "LICENSE",
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/3ac5a9c241d97f95b22a5e366c9c841404a35639/text/CC0-1.0.txt",
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "bytes": 7048
+    }
+  ]
+}

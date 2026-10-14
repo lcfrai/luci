@@ -20,6 +20,22 @@ def find_fallback(name, version, grant):
     return next((item for item in globals().get('SOURCE_GRANT_FALLBACKS', []) if item['name'] == name and version in item['versions'] and item['grant'] == grant), None)
 
 
+def distribution_notice(metadata, package):
+    """Only the exact OpenCode distribution's own binary siblings share MIT."""
+    if package.get('name') not in ('opencode-linux-x64', 'opencode-linux-x64-baseline') or package.get('version') != '1.18.34' or package.get('license') is not None:
+        return None
+    parent = metadata.parent.parent.parent
+    if metadata.parent.parent.name != 'node_modules' or parent.name != 'opencode-ai':
+        return None
+    value = json.loads((parent / 'package.json').read_text(encoding='utf-8'))
+    if value.get('name') != 'opencode-ai' or value.get('version') != '1.18.34' or value.get('license') != 'MIT' or value.get('optionalDependencies', {}).get(package['name']) != '1.18.34':
+        return None
+    path = parent / 'LICENSE'
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != '625f0f619133f89bbbb2abe37369613dfa1885eba1e50d02170deb62bb42cb6b':
+        raise ValueError('exact OpenCode parent grant differs')
+    return path
+
+
 def collect():
     rows, bodies, total = [], {}, 0
 
@@ -88,15 +104,19 @@ def collect():
         for child in (metadata.parent / "licenses", metadata.parent / "vendor"):
             if child.is_dir():
                 notices.extend(p for p in child.rglob("*") if p.is_file() and re.match(r"^(licen[cs]e|copying|notice|copyright)([._-].*)?$", p.name, re.I))
-        if not notices:
-            fallback = find_fallback(name, version, grant)
+        shared = distribution_notice(metadata, package) if not notices else None
+        if shared:
+            grant = 'MIT'
+            add(shared, 'npm:' + name, version, grant, 'Exact opencode-ai@1.18.34 optionalDependencies binary sibling; installed distribution LICENSE; registry tarball SHA512 verified', 'DISTRIBUTION-LICENSE')
+        fallback = find_fallback(name, version, grant)
+        if (not notices and not shared) or (fallback and fallback.get('supplemental')):
             if fallback is None:
                 raise ValueError("installed npm component lacks packaged grant: " + name + "@" + version)
             for item in fallback['files']:
                 raw = base64.b64decode(item['data'], validate=True)
                 if len(raw) != item['bytes'] or hashlib.sha256(raw).hexdigest() != item['sha256']:
                     raise ValueError('source-controlled fallback grant hash mismatch')
-                add_body(raw, 'npm:' + name, version, grant, 'Exact installed npm metadata; authoritative version-pinned upstream ' + item['url'], item['file'])
+                add_body(raw, 'npm:' + name, version, grant, 'Exact installed npm metadata; retained authoritative source attribution ' + item['url'], item['file'])
         for index, notice in enumerate(sorted(set(notices))):
             add(notice, "npm:" + name, version, grant, "Installed npm " + name + "@" + version + "; " + str(notice), str(index) + "-" + notice.name)
     go_version = Path("/usr/local/go/VERSION").read_text(encoding="utf-8").splitlines()[0]

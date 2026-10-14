@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "component": "@sigstore/verify",
+  "packageVersion": "3.1.1",
+  "grant": "Apache-2.0",
+  "sourceCommit": "c1dc7d4778a450787fc72b083f2490ad02b714c6",
+  "registryMetadataURL": "https://registry.npmjs.org/@sigstore%2fverify/3.1.1",
+  "registryMetadataSHA256": "7cead1cde06711831659064e65f873652590c787a6239baed755b5bba04323e9",
+  "registryTarball": "https://registry.npmjs.org/@sigstore/verify/-/verify-3.1.1.tgz",
+  "registryIntegrity": "sha512-qv7+G3J2cc6wwFj3yKvXOamzqhMwSk1ogPGmhpS8iXllcPrJaIIBA+4HbttlHVu1pqWTdmaCH/WE7UOC51kdoA==",
+  "files": [
+    {
+      "file": "LICENSE",
+      "url": "https://raw.githubusercontent.com/sigstore/sigstore-js/c1dc7d4778a450787fc72b083f2490ad02b714c6/LICENSE",
+      "sha256": "364a130d2ca340bd56eb1e6d045fc6929bb0f9d0aa018f2c1949b29517e1cdd0",
+      "bytes": 11351
+    }
+  ]
+}
