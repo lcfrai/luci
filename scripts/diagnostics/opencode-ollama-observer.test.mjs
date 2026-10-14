@@ -32,7 +32,7 @@ function send(port, payload = body(), auth = `Bearer ${token}`) {
       headers:{authorization:auth,'content-type':'application/json','content-length':Buffer.byteLength(payload)}}, res => {
       const chunks=[]; let ended=false;
       res.on('data',c=>chunks.push(c));
-      res.on('end',()=>{ended=true;resolve({status:res.statusCode,body:Buffer.concat(chunks).toString()});});
+      res.on('end',()=>{ended=true;const rawBody=Buffer.concat(chunks);resolve({status:res.statusCode,body:rawBody.toString(),rawBody});});
       res.on('error',reject);
       res.on('close',()=>{if(!ended)reject(new Error('response_incomplete'));});
     }); req.on('error',reject); req.end(payload);
@@ -77,11 +77,73 @@ test('nonstreaming text-shaped command stays text with zero native calls', async
   } finally { await cleanup(f); }
 });
 
+test('arbitrary UTF-8 byte splits preserve stream and nonstream bytes and text counts', async () => {
+  for (const stream of [true,false]) {
+    const answer=stream
+      ? 'data: '+JSON.stringify({choices:[{index:0,delta:{content:'🍎 café'},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n'
+      : JSON.stringify({choices:[{index:0,message:{role:'assistant',content:'🍎 café'},finish_reason:'stop'}]});
+    const expected=Buffer.from(answer);
+    const f=await fixture((_req,res)=>{
+      res.writeHead(200,{'content-type':stream?'text/event-stream':'application/json'});
+      for (const byte of expected) res.write(Buffer.from([byte]));
+      res.end();
+    });
+    try {
+      const result=await send(f.observer.port,body(stream));
+      assert.deepEqual(result.rawBody,expected);
+      const [r]=rows(f); assert.equal(r.textBytes,Buffer.byteLength('🍎 café'));
+      assert.equal(r.metadataIncomplete,false);
+      assert(!readFileSync(f.receipt,'utf8').includes('🍎 café'));
+    } finally { await cleanup(f); }
+  }
+});
+
+test('fragmented tool names are assembled per choice and tool index without arguments', async () => {
+  const requestBody=JSON.parse(body());
+  requestBody.tools.push({type:'function',function:{name:'edit',parameters:{type:'object'}}});
+  const events=[
+    {choices:[{index:0,delta:{tool_calls:[{index:0,function:{name:'ba',arguments:'PRIVATE ARG'}},{index:1,function:{name:'ed'}}]},finish_reason:null},
+      {index:1,delta:{tool_calls:[{index:0,function:{name:'re'}}]},finish_reason:null}]},
+    {choices:[{index:0,delta:{tool_calls:[{index:0,function:{name:'sh'}},{index:1,function:{name:'it'}}]},finish_reason:'tool_calls'},
+      {index:1,delta:{tool_calls:[{index:0,function:{name:'ad'}}]},finish_reason:'tool_calls'}]},
+  ];
+  const raw=events.map(e=>'data: '+JSON.stringify(e)+'\n\n').join('')+'data: [DONE]\n\n';
+  const f=await fixture((_req,res)=>{res.writeHead(200,{'content-type':'text/event-stream'});res.end(raw);});
+  try {
+    assert.equal((await send(f.observer.port,JSON.stringify(requestBody))).body,raw);
+    const [r]=rows(f); assert.equal(r.nativeToolCallCount,3);
+    assert.deepEqual(r.nativeToolNames,['bash','edit','read']); assert.equal(r.metadataIncomplete,false);
+    assert(!readFileSync(f.receipt,'utf8').includes('PRIVATE ARG'));
+  } finally { await cleanup(f); }
+});
+
 test('truncated SSE and oversized metadata line remain explicit without content retention', () => {
   const e=createMetadataExtractor(true,['read']); e.feed(Buffer.from('data: {"choices":[{"delta":{"content":"PRIVATE"'));
   assert.equal(e.finish().metadataIncomplete,true);
   const huge=createMetadataExtractor(true,['read']); huge.feed(Buffer.from('data: '+ 'x'.repeat(65*1024)));
   assert.equal(huge.finish().metadataIncomplete,true);
+});
+
+test('unknown finish, missing choices and malformed tool calls stay incomplete and sanitized', () => {
+  for (const response of [
+    {choices:[{message:{content:'PRIVATE'},finish_reason:'PRIVATE SECRET FINISH'}]},
+    {},
+    {choices:[{message:{content:null,tool_calls:{private:'PRIVATE ARG'}},finish_reason:'stop'}]},
+    {choices:[{message:{},finish_reason:'stop'}]},
+  ]) {
+    const e=createMetadataExtractor(false,['read']);e.feed(Buffer.from(JSON.stringify(response)));
+    const metadata=e.finish(); assert.equal(metadata.metadataIncomplete,true);
+    assert(!JSON.stringify(metadata).includes('PRIVATE'));
+  }
+  const fragmented=createMetadataExtractor(true,['bash']);
+  fragmented.feed(Buffer.from('data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"name":"ba"}}]},"finish_reason":"tool_calls"}]}\n\ndata: [DONE]\n\n'));
+  const metadata=fragmented.finish();assert.equal(metadata.metadataIncomplete,true);
+  assert.deepEqual(metadata.nativeToolNames,['unoffered']);
+  for (const stream of [true,false]) {
+    const invalid=createMetadataExtractor(stream,['read']);
+    invalid.feed(Buffer.from([0xc3,0x28]));
+    assert.equal(invalid.finish().metadataIncomplete,true);
+  }
 });
 
 test('truncated upstream stream is forwarded but receipt does not claim complete metadata', async () => {

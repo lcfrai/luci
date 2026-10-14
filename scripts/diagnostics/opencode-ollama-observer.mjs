@@ -36,59 +36,95 @@ function safeToolChoice(choice, offered) {
 }
 
 export function createMetadataExtractor(stream, offered) {
-  let bytes = 0, incomplete = false, line = '', json = '';
+  let bytes = 0, incomplete = false, line = '', sawChoice = false;
+  const raw = [], decoder = stream ? new TextDecoder('utf-8', {fatal:true}) : null;
   const calls = new Map();
   let finishReason = null, textBytes = 0, done = false;
-  const name = n => offered.includes(n) ? n : 'unoffered';
-  const observe = (choice, incremental) => {
-    if (!choice || typeof choice !== 'object') return;
-    if (typeof choice.finish_reason === 'string' && choice.finish_reason.length <= 64) finishReason = choice.finish_reason;
+  const allowedFinish = new Set(['stop','tool_calls','length','content_filter','function_call']);
+  const observe = (choice, incremental, choiceIndex) => {
+    if (!choice || typeof choice !== 'object' || Array.isArray(choice)) { incomplete = true; return; }
+    sawChoice = true;
+    if (choice.finish_reason !== null && choice.finish_reason !== undefined) {
+      if (allowedFinish.has(choice.finish_reason)) finishReason = choice.finish_reason;
+      else { finishReason = 'unknown'; incomplete = true; }
+    }
     const msg = incremental ? choice.delta : choice.message;
-    if (!msg || typeof msg !== 'object') return;
+    if (!msg || typeof msg !== 'object' || Array.isArray(msg)) { incomplete = true; return; }
+    if (!incremental && msg.content === undefined && msg.tool_calls == null) incomplete = true;
     if (typeof msg.content === 'string') textBytes += Buffer.byteLength(msg.content);
-    if (!Array.isArray(msg.tool_calls)) return;
-    for (const tc of msg.tool_calls.slice(0, MAX_CALLS)) {
-      const id = incremental ? tc?.index : (tc?.id ?? calls.size);
-      if ((typeof id !== 'number' && typeof id !== 'string') || calls.size >= MAX_CALLS && !calls.has(id)) { incomplete = true; continue; }
-      const n = tc?.function?.name;
-      if (typeof n === 'string' && n.length <= 64) calls.set(id, name(n));
-      else if (!calls.has(id)) calls.set(id, 'name_unavailable');
+    else if (msg.content !== null && msg.content !== undefined) incomplete = true;
+    if (msg.tool_calls === undefined || msg.tool_calls === null) return;
+    if (!Array.isArray(msg.tool_calls) || msg.tool_calls.length > MAX_CALLS) { incomplete = true; return; }
+    for (const [position, tc] of msg.tool_calls.entries()) {
+      const toolIndex = incremental ? tc?.index : position;
+      if (!Number.isInteger(toolIndex) || toolIndex < 0 || toolIndex >= MAX_CALLS) { incomplete = true; continue; }
+      const key = `${choiceIndex}:${toolIndex}`;
+      if (!calls.has(key)) {
+        if (calls.size >= MAX_CALLS) { incomplete = true; continue; }
+        calls.set(key, {fragments:'', seenName:false});
+      }
+      const call = calls.get(key);
+      const fragment = tc?.function?.name;
+      if (fragment === undefined) continue; // Argument-only delta; arguments are never retained.
+      if (typeof fragment !== 'string' || Buffer.byteLength(call.fragments) + Buffer.byteLength(fragment) > 64) {
+        incomplete = true; continue;
+      }
+      call.fragments += fragment;
+      call.seenName = true;
+    }
+  };
+  const choices = (parsed, incremental) => {
+    if (!Array.isArray(parsed?.choices) || parsed.choices.length === 0 || parsed.choices.length > 2) {
+      incomplete = true; return;
+    }
+    for (const [position, choice] of parsed.choices.entries()) {
+      const index = Number.isInteger(choice?.index) ? choice.index : (parsed.choices.length === 1 ? 0 : -1);
+      if (index < 0 || index > 1) { incomplete = true; continue; }
+      observe(choice, incremental, index);
     }
   };
   const event = raw => {
     if (raw === '[DONE]') { done = true; return; }
-    try {
-      const parsed = JSON.parse(raw);
-      for (const c of (Array.isArray(parsed.choices) ? parsed.choices : []).slice(0, 2)) observe(c, true);
-    } catch { incomplete = true; }
+    try { choices(JSON.parse(raw), true); } catch { incomplete = true; }
+  };
+  const lines = value => {
+    line += value;
+    let pos;
+    while ((pos = line.indexOf('\n')) >= 0) {
+      const row = line.slice(0, pos).trimEnd(); line = line.slice(pos + 1);
+      if (Buffer.byteLength(row) > MAX_EVENT) { incomplete = true; continue; }
+      if (row.startsWith('data:')) event(row.slice(5).trimStart());
+    }
+    if (Buffer.byteLength(line) > MAX_EVENT) { incomplete = true; line = ''; }
   };
   return {
     feed(chunk) {
       bytes += chunk.length;
       if (bytes > MAX_RESPONSE) throw new Error('response_limit');
       if (!stream) {
-        if (!incomplete && Buffer.byteLength(json) + chunk.length <= MAX_RESPONSE) json += chunk.toString('utf8');
-        else incomplete = true;
+        raw.push(chunk);
         return;
       }
-      line += chunk.toString('utf8');
-      let pos;
-      while ((pos = line.indexOf('\n')) >= 0) {
-        const row = line.slice(0, pos).trimEnd(); line = line.slice(pos + 1);
-        if (Buffer.byteLength(row) > MAX_EVENT) { incomplete = true; continue; }
-        if (row.startsWith('data:')) event(row.slice(5).trimStart());
-      }
-      if (Buffer.byteLength(line) > MAX_EVENT) { incomplete = true; line = ''; }
+      try { lines(decoder.decode(chunk, {stream:true})); } catch { incomplete = true; }
     },
     finish() {
-      if (!stream && !incomplete) {
-        try {
-          const parsed = JSON.parse(json);
-          for (const c of (Array.isArray(parsed.choices) ? parsed.choices : []).slice(0, 2)) observe(c, false);
-        } catch { incomplete = true; }
+      if (stream) {
+        try { lines(decoder.decode()); } catch { incomplete = true; }
+        if (line.trim()) incomplete = true;
+      } else {
+        try { choices(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(raw,bytes))), false); }
+        catch { incomplete = true; }
       }
-      if (stream && line.trim()) incomplete = true;
-      return {nativeToolCallCount: calls.size, nativeToolNames: [...calls.values()].sort(), finishReason,
+      if (!sawChoice || finishReason === null) incomplete = true;
+      const names = [...calls.values()].map(call => {
+        if (!call.seenName || !/^[A-Za-z_][A-Za-z0-9_.-]{0,63}$/.test(call.fragments)) {
+          incomplete = true; return 'name_unavailable';
+        }
+        if (offered.includes(call.fragments)) return call.fragments;
+        incomplete = true;
+        return 'unoffered';
+      });
+      return {nativeToolCallCount: calls.size, nativeToolNames: names.sort(), finishReason,
         textPresent: textBytes > 0, textBytes, streamDone: stream ? done : null, metadataIncomplete: incomplete || (stream && !done)};
     },
   };
