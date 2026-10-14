@@ -126,6 +126,7 @@ def finalize(repo, revision, build_repo, original, output, assistance=False):
         shutil.copyfile(log, output / 'producer-cache-assistance.jsonl')
         actions = sum(1 for line in log.read_text(encoding='utf-8').splitlines() if line)
     session = uuid.uuid4().hex
+    producer.ENGINE_IDENTITIES[session] = current['ID']
     write_json(output / 'canonical-inputs.json', inputs)
     write_json(output / 'producer-engine.json', {'engineID': current['ID'], 'operatingSystem': current.get('OperatingSystem', ''), 'session': session, 'availableBytes': producer.available_memory(), 'cpuBusyPercent': busy})
     write_json(output / 'producer-finalization-intent.json', {'version': 1, 'finalizerSourceCommit': revision, 'buildSourceCommit': build_revision, 'originalSession': pending['session'], 'session': session, 'imageID': image_id, 'generatedContextSHA256': generated, 'originalTerminalSHA256': archive.file_record(original / 'producer-terminal.json')['sha256'], 'recompile': False})

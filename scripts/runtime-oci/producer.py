@@ -32,12 +32,20 @@ BUILD_MEMORY = 1 << 30
 CACHE_TRIGGER = RESERVE + BUILD_MEMORY + MARGIN
 CACHE_INTERVAL_SECONDS = 5
 MAX_CACHE_ACTIONS = 36
+ENGINE_IDENTITIES = {}
+
+
+class CommandFailure(ValueError):
+    def __init__(self, args, result):
+        super().__init__('producer command failed: ' + args[0] + ' ' + args[1] + ' (exit ' + str(result.returncode) + ')')
+        self.returncode, self.stderr = result.returncode, result.stderr
+        self.operation = args[:2]
 
 
 def command(args, **kwargs):
     result = subprocess.run(args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=kwargs.pop("timeout", 15), **kwargs)
     if result.returncode:
-        raise ValueError("producer command failed: " + args[0] + " " + args[1] + " (exit " + str(result.returncode) + ")")
+        raise CommandFailure(args, result)
     return result.stdout
 
 
@@ -85,7 +93,19 @@ def docker_ids(running=True):
 def owned_running(session, reject_unrelated=True):
     rows, unrelated = [], []
     for identifier in docker_ids():
-        row = json.loads(command(["docker", "inspect", identifier]))[0]
+        try:
+            row = json.loads(command(["docker", "inspect", identifier]))[0]
+        except CommandFailure as error:
+            # A --rm probe can finish between ps and inspect. This only omits a
+            # disappeared sampling row, never settles a build/lease: callers
+            # still require the foreground terminal plus exact cleanup.
+            missing = any(marker in error.stderr for marker in (('No such object: ' + identifier).encode('ascii'), ('No such container: ' + identifier).encode('ascii')))
+            if error.returncode == 1 and missing and identifier not in docker_ids():
+                expected_engine = ENGINE_IDENTITIES.get(session)
+                current_engine = command(['docker', 'info', '--format', '{{.ID}}']).strip().decode('ascii') if expected_engine else None
+                if expected_engine and current_engine == expected_engine:
+                    continue
+            raise
         if row["Config"].get("Labels", {}).get(SESSION_LABEL) != session:
             unrelated.append(row["Id"])
             continue
@@ -204,6 +224,8 @@ def monitor_build(process, session, output, assistance):
 def prepare_effect(session, output, demand, assistance):
     """A producer-only recovery before the next bounded probe/export."""
     required = RESERVE + demand + MARGIN
+    if owned_running(session):
+        raise ValueError('producer next effect overlaps an active owned container')
     if available_memory() >= required:
         return 0
     if not assistance or os.name != "nt" or owned_running(session):
@@ -246,7 +268,8 @@ def scoped_run(args, session, output, stdout_path, stderr_path, memory, timeout,
                     failure = 'producer effect output bound exceeded'
                 with (output / 'producer-resource-monitor.jsonl').open('a', encoding='utf-8') as log:
                     log.write(json.dumps({'time': time.time(), 'phase': 'bounded version/licence container', 'availableBytes': free, 'containers': rows}, sort_keys=True) + '\n')
-            except (ValueError, subprocess.SubprocessError):
+            except (ValueError, subprocess.SubprocessError) as error:
+                write_json(output / 'producer-effect-error.json', {'session': session, 'errorType': type(error).__name__, 'reason': str(error), 'operation': getattr(error, 'operation', []), 'returncode': getattr(error, 'returncode', None)})
                 failure = 'producer effect inventory unavailable or foreign work appeared'
             if failure:
                 for row in owned_running(session, reject_unrelated=False):
@@ -269,12 +292,15 @@ def probe(image_id, executable, version, tool, session, output):
     args = ["docker", "run", "--rm", "--name", name, "--network", "none", "--memory", str(512 << 20), "--memory-swap", str(512 << 20), "--cpus", "1", "--label", SESSION_LABEL + "=" + session,
             "--entrypoint", executable, image_id, "--version"]
     stdout_path, stderr_path = output / (tool + ".out.log"), output / (tool + ".err.log")
+    write_json(output / (tool + '.probe-intent.json'), {'tool': tool, 'argv': argv, 'imageID': image_id, 'session': session, 'memoryBytes': 512 << 20, 'cpuCount': 1})
     exit_code = scoped_run(args, session, output, stdout_path, stderr_path, 512 << 20, 20)
     actual_stdout = stdout_path.read_text(encoding='utf-8', errors='strict') if stdout_path.stat().st_size <= 1 << 20 else ''
     if exit_code or stdout_path.stat().st_size + stderr_path.stat().st_size > 1 << 20 or not re.search(r'(?<![0-9.])' + re.escape(version) + r'(?![0-9.])', actual_stdout) or tool == 'sandboxd' and actual_stdout != 'sandboxd ' + version + '\n':
         raise ValueError("actual runtime version probe failed: " + tool)
-    return {"tool": tool, "argv": argv, "reportedVersion": version, "exitCode": exit_code,
-            "stdoutSHA256": archive.file_record(stdout_path)["sha256"], "stderrSHA256": archive.file_record(stderr_path)["sha256"]}
+    result = {"tool": tool, "argv": argv, "reportedVersion": version, "exitCode": exit_code,
+              "stdoutSHA256": archive.file_record(stdout_path)["sha256"], "stderrSHA256": archive.file_record(stderr_path)["sha256"]}
+    write_json(output / (tool + '.probe-result.json'), result)
+    return result
 
 
 def export_image(image_id, session, output, assistance):
@@ -377,6 +403,7 @@ def produce(repo, revision, output, assistance=False):
     output.mkdir(mode=0o700)
     session = uuid.uuid4().hex
     engine = json.loads(command(['docker', 'info', '--format', '{{json .}}']))
+    ENGINE_IDENTITIES[session] = engine['ID']
     write_json(output / 'producer-engine.json', {'engineID': engine['ID'], 'operatingSystem': engine.get('OperatingSystem', ''), 'session': session, 'availableBytes': available_memory(), 'cpuBusyPercent': busy})
     inputs = stage(repo, revision, output / "canonical")
     write_json(output / "canonical-inputs.json", inputs)

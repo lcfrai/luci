@@ -15,6 +15,25 @@ import producer
 
 
 class GrantAndFinalizeTests(unittest.TestCase):
+    def test_short_rm_probe_disappearance_is_sampling_only_not_settlement(self):
+        import subprocess
+        failure = producer.CommandFailure(['docker', 'inspect', 'abc123'], subprocess.CompletedProcess([], 1, b'', b'Error: No such object: abc123\n'))
+        def command(args):
+            if args[1] == 'inspect':
+                raise failure
+            return b'original\n'
+        with patch.dict(producer.ENGINE_IDENTITIES, {'session': 'original'}), patch.object(producer, 'docker_ids', side_effect=[['abc123'], []]), patch.object(producer, 'command', side_effect=command), patch.object(producer, 'assert_settled') as settle:
+            self.assertEqual(producer.owned_running('session'), [])
+            settle.assert_not_called()
+        with patch.dict(producer.ENGINE_IDENTITIES, {'session': 'changed'}), patch.object(producer, 'docker_ids', side_effect=[['abc123'], []]), patch.object(producer, 'command', side_effect=command):
+            with self.assertRaises(producer.CommandFailure):
+                producer.owned_running('session')
+        for stderr in (b'permission denied', b'connection refused'):
+            error = producer.CommandFailure(['docker', 'inspect', 'abc123'], subprocess.CompletedProcess([], 1, b'', stderr))
+            with patch.object(producer, 'docker_ids', return_value=['abc123']), patch.object(producer, 'command', side_effect=error):
+                with self.assertRaises(producer.CommandFailure):
+                    producer.owned_running('session')
+
     def test_version_and_spdx_must_match_original_authoritative_grant(self):
         repo = Path(__file__).resolve().parents[2]
         values = grant_fallbacks.load(repo)
