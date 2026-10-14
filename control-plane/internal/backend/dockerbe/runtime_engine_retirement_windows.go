@@ -2,7 +2,6 @@ package dockerbe
 
 import (
 	"context"
-	"errors"
 	"io"
 	"os/exec"
 	"path/filepath"
@@ -29,48 +28,31 @@ func (b *Backend) ObserveRuntimeImageEngine(ctx context.Context) (backend.Runtim
 	if endpoint != "npipe:////./pipe/docker_engine" && endpoint != "npipe:////./pipe/dockerdesktoplinuxengine" {
 		return backend.RuntimeImageEngineState{}, backend.ErrUnsupported
 	}
-	probe, cancel := context.WithTimeout(ctx, 4*time.Second)
-	defer cancel()
 	systemDirectory, err := windows.GetSystemDirectory()
 	if err != nil {
 		return backend.RuntimeImageEngineState{}, backend.ErrUnavailable
 	}
-	cmd := exec.CommandContext(probe, filepath.Join(systemDirectory, "wsl.exe"), "--list", "--running", "--quiet")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	var output capacityOutput // 4 KiB cap; never buffer arbitrary child output
-	cmd.Stdout, cmd.Stderr = &output, io.Discard
-	err = cmd.Run()
-	if err != nil || probe.Err() != nil {
-		return backend.RuntimeImageEngineState{}, errors.Join(err, backend.ErrUnavailable)
-	}
-	running, err := dockerDesktopWSLRunning(output.Bytes())
-	if err != nil {
-		return backend.RuntimeImageEngineState{}, err
-	}
-	info, infoErr := cli.Info(probe)
-	if running {
-		if infoErr != nil || info.ID == "" || info.OSType != "linux" || !strings.Contains(strings.ToLower(info.OperatingSystem), "docker desktop") || probe.Err() != nil {
-			return backend.RuntimeImageEngineState{}, backend.ErrUnavailable
+	observeWSL := func(probe context.Context) (bool, error) {
+		cmd := exec.CommandContext(probe, filepath.Join(systemDirectory, "wsl.exe"), "--list", "--running", "--quiet")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		var output capacityOutput // 4 KiB cap; never buffer arbitrary child output
+		cmd.Stdout, cmd.Stderr = &output, io.Discard
+		if cmd.Run() != nil || probe.Err() != nil {
+			return false, backend.ErrUnavailable
 		}
-		return backend.RuntimeImageEngineState{State: "running", EngineID: info.ID}, nil
+		return dockerDesktopWSLRunning(output.Bytes())
 	}
-	if infoErr == nil || probe.Err() != nil {
-		return backend.RuntimeImageEngineState{}, backend.ErrUnavailable
+	observeInfo := func(probe context.Context) (string, error) {
+		info, err := cli.Info(probe)
+		if err != nil || probe.Err() != nil {
+			return "", backend.ErrUnavailable
+		}
+		if info.ID == "" || info.OSType != "linux" || !strings.Contains(strings.ToLower(info.OperatingSystem), "docker desktop") {
+			return "", nil // API answered, but not as the selected engine
+		}
+		return info.ID, nil
 	}
-	// A transient API outage is not an engine stop. Recheck the host boundary
-	// after the failed Info request before retaining a stopped receipt.
-	cmd = exec.CommandContext(probe, filepath.Join(systemDirectory, "wsl.exe"), "--list", "--running", "--quiet")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	output.Reset()
-	cmd.Stdout, cmd.Stderr = &output, io.Discard
-	if cmd.Run() != nil || probe.Err() != nil {
-		return backend.RuntimeImageEngineState{}, backend.ErrUnavailable
-	}
-	running, err = dockerDesktopWSLRunning(output.Bytes())
-	if err != nil || running {
-		return backend.RuntimeImageEngineState{}, backend.ErrUnavailable
-	}
-	return backend.RuntimeImageEngineState{State: "stopped"}, nil
+	return observeRuntimeImageEngineRetirement(ctx, 2*time.Second, observeWSL, observeInfo)
 }
 
 func dockerDesktopWSLRunning(output []byte) (bool, error) {
