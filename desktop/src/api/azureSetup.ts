@@ -23,6 +23,96 @@ export interface AzureSetupPlan {
   commands: string[];
   note: string;
 }
+export interface AzureConnectionDescriptor {
+  version: 1;
+  state: "host_identity_observed_private_route_unverified";
+  sourceCommit: string;
+  scope: string;
+  generation: string;
+  controllerResourceID: string;
+  vmID: string;
+  bootID: string;
+  host: string;
+  port: 22;
+  user: "luci";
+  hostKey: string;
+  fingerprint: string;
+  productAPI: "http://127.0.0.1:8730";
+  readbackDigest: string;
+  connected: false;
+  selectionDigest: string;
+  bundleDigest: string;
+  observedAtUTC?: string;
+}
+export interface AzureSetupProgress {
+  version: 1;
+  sourceCommit: string;
+  scope: string;
+  selectionDigest: string;
+  stages: { id: string; state: string; uncertain: boolean; receiptPath: string }[];
+  connected: false;
+  priceVerified: false;
+  finalInvoiceVerified: false;
+}
+const sha256 = /^[a-f0-9]{64}$/;
+const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const stageIds = ["credentials", "images", "runtime-gallery", "controller-gallery", "infrastructure", "connection", "retirement"];
+function record(value: unknown): value is Record<string, unknown> { return !!value && typeof value === "object" && !Array.isArray(value); }
+function rfc1918(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const octets = value.split(".");
+  if (octets.length !== 4 || octets.some(part => !/^(0|[1-9][0-9]{0,2})$/.test(part) || Number(part) > 255)) return false;
+  const [a, b] = octets.map(Number);
+  return a === 10 || a === 172 && b >= 16 && b <= 31 || a === 192 && b === 168;
+}
+async function parseBoundedFile(file: File): Promise<unknown> {
+  if (!file || file.size < 2 || file.size > 16 * 1024) throw new Error("This Azure receipt is too large or empty. Choose the exact installer JSON receipt.");
+  const value = JSON.parse(await file.text()) as unknown;
+  return value;
+}
+export async function readAzureConnectionDescriptor(file: File, plan: AzureSetupPlan): Promise<AzureConnectionDescriptor> {
+  const value = await parseBoundedFile(file);
+  if (!record(value)) throw new Error("The Azure connection receipt is malformed.");
+  const keys = ["version", "state", "sourceCommit", "scope", "generation", "controllerResourceID", "vmID", "bootID", "host", "port", "user", "hostKey", "fingerprint", "productAPI", "readbackDigest", "connected", "selectionDigest", "bundleDigest", "observedAtUTC"];
+  if (Object.keys(value).some(key => !keys.includes(key)) || value.version !== 1 || value.state !== "host_identity_observed_private_route_unverified" ||
+    value.sourceCommit !== plan.sourceCommit || typeof value.scope !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(value.scope) ||
+    typeof value.generation !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(value.generation) ||
+    typeof value.controllerResourceID !== "string" || !/^\/subscriptions\/[0-9a-f-]{36}\/resourcegroups\/[^/]+\/providers\/microsoft\.compute\/virtualmachines\/[^/]+$/i.test(value.controllerResourceID) ||
+    !uuid.test(String(value.vmID)) || !uuid.test(String(value.bootID)) || !rfc1918(value.host) || value.port !== 22 || value.user !== "luci" ||
+    value.productAPI !== "http://127.0.0.1:8730" || value.connected !== false ||
+    typeof value.readbackDigest !== "string" || !sha256.test(value.readbackDigest) ||
+    typeof value.selectionDigest !== "string" || !sha256.test(value.selectionDigest) ||
+    typeof value.bundleDigest !== "string" || !sha256.test(value.bundleDigest) ||
+    value.observedAtUTC !== undefined && (typeof value.observedAtUTC !== "string" || !/^\d{4}-\d\d-\d\dT/.test(value.observedAtUTC))) {
+    throw new Error("The Azure connection receipt does not match this plan or the supported private host contract.");
+  }
+  const parts = typeof value.hostKey === "string" ? value.hostKey.split(" ") : [];
+  if (parts.length !== 2 || parts[0] !== "ssh-ed25519" || !/^[A-Za-z0-9+/]+={0,2}$/.test(parts[1])) throw new Error("The Azure controller host key is invalid.");
+  let raw: Uint8Array;
+  try { raw = Uint8Array.from(atob(parts[1]), char => char.charCodeAt(0)); }
+  catch { throw new Error("The Azure controller host key is invalid."); }
+  const prefix = new Uint8Array([0, 0, 0, 11, ...new TextEncoder().encode("ssh-ed25519"), 0, 0, 0, 32]);
+  if (raw.length !== 51 || prefix.some((byte, index) => raw[index] !== byte) || !globalThis.crypto?.subtle) throw new Error("The Azure controller host key cannot be verified.");
+  const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", Uint8Array.from(raw).buffer));
+  const fingerprint = "SHA256:" + btoa(String.fromCharCode(...digest)).replace(/=+$/, "");
+  if (value.fingerprint !== fingerprint) throw new Error("The Azure controller fingerprint differs from its host key.");
+  return value as unknown as AzureConnectionDescriptor;
+}
+export async function readAzureSetupProgress(file: File, plan: AzureSetupPlan, descriptor?: AzureConnectionDescriptor | null): Promise<AzureSetupProgress> {
+  const value = await parseBoundedFile(file);
+  if (!record(value) || value.version !== 1 || value.sourceCommit !== plan.sourceCommit ||
+    typeof value.scope !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(value.scope) ||
+    typeof value.selectionDigest !== "string" || !sha256.test(value.selectionDigest) ||
+    descriptor && (value.scope !== descriptor.scope || value.selectionDigest !== descriptor.selectionDigest) ||
+    value.connected !== false || value.priceVerified !== false || value.finalInvoiceVerified !== false ||
+    !Array.isArray(value.stages) || value.stages.length !== stageIds.length ||
+    value.stages.some((row: unknown, index: number) => !record(row) || row.id !== stageIds[index] ||
+      typeof row.state !== "string" || !/^[a-z][a-z0-9_]{0,79}$/.test(row.state) ||
+      typeof row.uncertain !== "boolean" || typeof row.receiptPath !== "string" || row.receiptPath.length > 1024)) {
+    throw new Error("The Azure progress receipt is stale or invalid for this plan.");
+  }
+  return value as unknown as AzureSetupProgress;
+}
 const bundlePath = "/v1/setup/cloud/azure/bundle";
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.length <= 64 && value.every(item => typeof item === "string" && item.length <= 20000);
 function checkedPlan(value: AzureSetupPlan): AzureSetupPlan {

@@ -13,6 +13,7 @@ import {
   type Tunnel,
 } from "../../api/product";
 import { WorkspaceInstaller } from "./WorkspaceInstaller";
+import type { AzureConnectionDescriptor } from "../../api/azureSetup";
 
 export function CloudManager({
   client,
@@ -21,6 +22,7 @@ export function CloudManager({
   mode = "all",
   activeConnectionId,
   manageTargets = false,
+  azureDescriptor,
 }: {
   client: ProductClient;
   plan: CloudPlan | null;
@@ -28,6 +30,7 @@ export function CloudManager({
   mode?: "all" | "managed" | "existing";
   activeConnectionId?: string;
   manageTargets?: boolean;
+  azureDescriptor?: AzureConnectionDescriptor;
 }) {
   const [jobs, setJobs] = useState<CloudJob[]>([]);
   const [targets, setTargets] = useState<DeploymentTarget[]>([]);
@@ -92,6 +95,11 @@ export function CloudManager({
   useEffect(() => {
     if (privateKeyPath) setSSH((value) => ({ ...value, privateKeyPath }));
   }, [privateKeyPath]);
+  useEffect(() => {
+    if (!azureDescriptor) return;
+    setSSH({ host: azureDescriptor.host, port: 22, user: "luci", privateKeyPath: "" });
+    setScan(null); setAccepted(false); setFingerprint("");
+  }, [azureDescriptor]);
   useEffect(() => {
     if (!tunnels.some((t) => t.status === "connecting")) return;
     const timer = setInterval(() => {
@@ -355,14 +363,18 @@ export function CloudManager({
       )}
       <section className="setup-plan">
         <h2>
-          {activeConnectionId
+          {azureDescriptor
+            ? "Private server connection"
+            : activeConnectionId
             ? "Your private server connection"
             : mode === "existing"
               ? "Connect to your workspace server"
               : "Connect your server securely"}
         </h2>
         <p className="journey-muted">
-          {activeConnectionId
+          {azureDescriptor
+            ? "Inspect the server key before connecting. You will sign in to your Luci workspace afterward."
+            : activeConnectionId
             ? "Your selected workspace is already connected. Manage its sign-in above. Use the SSH controls below only if you need to reconnect the server."
             : mode === "existing"
               ? "Use the SSH details supplied by your workspace administrator. After verifying the server, sign in with your Luci workspace account below. Connecting does not create cloud resources."
@@ -383,18 +395,18 @@ export function CloudManager({
               Server address
               <input
                 id="cloud-ssh-host"
-                disabled={!!busy}
+                disabled={!!busy || !!azureDescriptor}
                 required
                 value={ssh.host}
                 onChange={(e) => changeSSH({ host: e.target.value })}
-                placeholder="Your server’s public IP"
+                placeholder={azureDescriptor ? "Private Azure controller address" : "Your server’s address"}
               />
             </label>
             <label className="luci-field">
               SSH port
               <input
                 type="number"
-                disabled={!!busy}
+                disabled={!!busy || !!azureDescriptor}
                 min="1"
                 max="65535"
                 required
@@ -406,7 +418,7 @@ export function CloudManager({
               SSH user
               <input
                 required
-                disabled={!!busy}
+                disabled={!!busy || !!azureDescriptor}
                 value={ssh.user}
                 onChange={(e) => changeSSH({ user: e.target.value })}
               />
@@ -427,11 +439,8 @@ export function CloudManager({
         </form>
         {scan && (
           <div className="cloud-confirm">
-            <p>
-              Compare this host key with your provider’s console before trusting{" "}
-              <strong>{scan.host}</strong>. A key shown here alone does not
-              prove ownership.
-            </p>
+            <p>{azureDescriptor ? "The server key must match your Azure setup readback. The imported file alone does not prove who owns this server." : "Compare this host key with your provider’s console before trusting this server. A key shown here alone does not prove ownership."}</p>
+            {azureDescriptor && !scan.fingerprints.includes(azureDescriptor.fingerprint) && <p role="alert" className="journey-error">The server key differs from the imported Azure controller identity. Check the authenticated Azure readback; do not connect this server.</p>}
             <label className="luci-field">
               Server fingerprint
               <select
@@ -443,7 +452,7 @@ export function CloudManager({
                 }}
               >
                 <option value="">Choose the matching fingerprint</option>
-                {scan.fingerprints.map((f) => (
+                {scan.fingerprints.filter(f => !azureDescriptor || f === azureDescriptor.fingerprint).map((f) => (
                   <option key={f} value={f}>
                     {f}
                   </option>
@@ -457,11 +466,11 @@ export function CloudManager({
                 checked={accepted}
                 onChange={(e) => setAccepted(e.target.checked)}
               />
-              I compared this fingerprint with my server’s trusted console.
+              {azureDescriptor ? "This matches the host key shown by my authenticated Azure setup command." : "I compared this fingerprint with my server’s trusted console."}
             </label>
             <Button type="button"
               variant="primary"
-              disabled={!!busy || !fingerprint || !accepted}
+              disabled={!!busy || !fingerprint || !accepted || !!azureDescriptor && (scan.host !== azureDescriptor.host || fingerprint !== azureDescriptor.fingerprint)}
               onClick={() =>
                 void run("Connecting SSH", async () => {
                   const tunnel = await client.connectSSH(scan.id, fingerprint);
