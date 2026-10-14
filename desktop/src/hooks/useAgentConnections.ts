@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { errorText, productApi, type AgentConnection, type AgentConnectionCatalogue, type ProductClient } from "../api/product";
 
 export const AGENT_CONNECTIONS_CHANGED = "luci:agent-connections-changed";
+// Own-provider saves use a separate signal: the saved OpenCode model is read
+// from /setup/agents, not from the saved connection catalogue above.
+export const OWN_AGENT_PROVIDER_CHANGED = "luci:own-agent-provider-changed";
 
 export function useAgentConnections(client: ProductClient = productApi, enabled = true) {
   const [catalogue, storeCatalogue] = useState<AgentConnectionCatalogue | null>(null);

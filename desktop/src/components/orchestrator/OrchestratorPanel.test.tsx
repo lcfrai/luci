@@ -14,6 +14,7 @@ import { useCockpit, resetCockpit } from "../../store/store";
 import { ORCHESTRATOR_OPEN, OrchestratorPanel } from "./OrchestratorPanel";
 import { notifyProjectContextChanged, takeProjectContextEdit } from "../../api/projectContextEvents";
 import { DefinitionWorkspace } from "../definition/DefinitionWorkspace";
+import { AgentConnections } from "../setup/AgentConnections";
 import { ProjectChecks } from "../journey/ProjectChecks";
 import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
 import { definitionApi } from "../../api/definition";
@@ -113,6 +114,42 @@ it("shows a stopped agent memory limit in the saved thread and selects the saved
   await userEvent.click(screen.getByText("Agent and model"));
   await userEvent.selectOptions(screen.getByLabelText("Luci agent"), "opencode");
   expect((screen.getByLabelText("Luci model") as HTMLInputElement).value).toBe("luci-local/installed-model");
+});
+
+it("refreshes the saved own-model route after mounted settings saves without losing drafts or changing an in-flight request", async () => {
+  let savedModel = "coder-8k";
+  vi.spyOn(productApi, "agents").mockImplementation(async () => ({ providers: [{ id: "local", name: "OpenCode", configured: true, model: savedModel }] }));
+  vi.spyOn(productApi, "saveLocalAgent").mockImplementation(async (_baseUrl, model) => {
+    savedModel = model;
+    return { providers: [{ id: "local", name: "OpenCode", configured: true, model }] };
+  });
+  vi.mocked(productApi.agentConnections).mockResolvedValue(catalogue(""));
+  useCockpit.setState(state => ({ defaults: { ...state.defaults, harness: "opencode", model: "" } }));
+  let finishSend: ((value: OrchestratorJob) => void) | undefined;
+  vi.mocked(orchestratorApi.send).mockImplementation(() => new Promise(resolve => { finishSend = resolve; }));
+  render(<><OrchestratorPanel projectId="p-1" primary /><AgentConnections client={productApi} cloud={false} /></>);
+  await userEvent.click(await screen.findByText("Agent and model"));
+  await waitFor(() => expect((screen.getByLabelText("Luci model") as HTMLInputElement).value).toBe("luci-local/coder-8k"));
+  const composer = screen.getByLabelText("Message Luci") as HTMLTextAreaElement;
+  await userEvent.type(composer, "Make the Orchard brief easier to review.");
+  await userEvent.selectOptions(screen.getByLabelText("Coding agent"), "local");
+  const installed = screen.getByLabelText("Installed model ID");
+  await userEvent.clear(installed);
+  await userEvent.type(installed, "general-8k");
+  await userEvent.click(screen.getByRole("button", { name: "Save agent connection" }));
+  await waitFor(() => expect((screen.getByLabelText("Luci model") as HTMLInputElement).value).toBe("luci-local/general-8k"));
+  expect(composer.value).toBe("Make the Orchard brief easier to review.");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
+  await waitFor(() => expect(orchestratorApi.send).toHaveBeenCalledWith("p-1", expect.objectContaining({ model: "luci-local/general-8k", message: "Make the Orchard brief easier to review." })));
+  await userEvent.clear(installed);
+  await userEvent.type(installed, "next-8k");
+  await userEvent.click(screen.getByRole("button", { name: "Save agent connection" }));
+  await waitFor(() => expect((screen.getByLabelText("Luci model") as HTMLInputElement).value).toBe("luci-local/next-8k"));
+  expect(orchestratorApi.send).toHaveBeenCalledTimes(1);
+  await act(async () => finishSend?.(job()));
+  expect(orchestratorApi.send).toHaveBeenCalledTimes(1);
 });
 
 it.each([

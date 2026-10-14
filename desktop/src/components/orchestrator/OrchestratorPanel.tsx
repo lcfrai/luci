@@ -5,7 +5,7 @@ import { ApiError } from "../../api/client";
 import { PROJECT_CONTEXT_CHANGED, requestProjectContextEdit, type ContextEditor, type ProjectContextIdentity } from "../../api/projectContextEvents";
 import { useProjectDraftScope } from "../../hooks/useProjectDraft";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
-import { agentConnectionIssue, configuredAgentModel, selectedAgentConnection, useAgentConnections } from "../../hooks/useAgentConnections";
+import { OWN_AGENT_PROVIDER_CHANGED, agentConnectionIssue, configuredAgentModel, selectedAgentConnection, useAgentConnections } from "../../hooks/useAgentConnections";
 import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
@@ -94,18 +94,33 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
   const [agent, setAgent] = useState<OrchestratorAgent>(() => readAgentPreference(scope, projectId));
   const { catalogue, error: connectionError } = useAgentConnections(undefined, canRead);
   const [localModel, setLocalModel] = useState("");
+  const [localModelSync, setLocalModelSync] = useState<"ready" | "refreshing" | "unavailable">("ready");
   useEffect(() => {
-    if (!canRead) { setLocalModel(""); return; }
-    let stopped = false;
-    void productApi.agents().then(value => {
-      const local = value.providers.find(item => item.id === "local" && item.configured);
-      if (!stopped) setLocalModel(local?.model ? `luci-local/${local.model}` : "");
-    }).catch(() => { if (!stopped) setLocalModel(""); });
-    return () => { stopped = true; };
+    if (!canRead) { setLocalModel(""); setLocalModelSync("ready"); return; }
+    let stopped = false, request = 0;
+    const refresh = (savedChange = false) => {
+      const ticket = ++request;
+      if (savedChange) setLocalModelSync("refreshing");
+      void productApi.agents().then(value => {
+        if (stopped || ticket !== request) return;
+        const local = value.providers.find(item => item.id === "local" && item.configured);
+        setLocalModel(local?.model ? `luci-local/${local.model}` : "");
+        setLocalModelSync("ready");
+      }).catch(() => {
+        if (stopped || ticket !== request) return;
+        if (savedChange) setLocalModelSync("unavailable");
+        else setLocalModel("");
+      });
+    };
+    const changed = () => refresh(true);
+    refresh();
+    window.addEventListener(OWN_AGENT_PROVIDER_CHANGED, changed);
+    return () => { stopped = true; request++; window.removeEventListener(OWN_AGENT_PROVIDER_CHANGED, changed); };
   }, [canRead]);
   const connection = selectedAgentConnection(catalogue, agent.agentConnectionId);
   const model = configuredAgentModel(connection, agent.harness) || (!connection && agent.harness === "opencode" && localModel ? localModel : agent.model);
   const routeIssue = agentConnectionIssue(connection, agent.harness, agent.agentConnectionId ?? catalogue?.activeConnectionId)
+    || (!connection && agent.harness === "opencode" && localModelSync !== "ready" ? localModelSync === "refreshing" ? "Refreshing the saved local model before a new request…" : "The saved local model could not be refreshed. Check Agent connections before sending a new request." : "")
     || (!catalogue ? connectionError || "Loading agent connections…" : !connection && !model.trim() ? "Choose a saved connection, or enter the exact model for your own agent settings." : "");
   const sourceRevision = useCockpit(state => state.projectSourceRevisions[projectId] ?? 0);
   const lens = useCockpit(state => state.lens), setLens = useCockpit(state => state.setLens);

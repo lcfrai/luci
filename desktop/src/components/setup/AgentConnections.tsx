@@ -7,6 +7,7 @@ import {
   type ProductClient,
 } from "../../api/product";
 import { useCockpit } from "../../store/store";
+import { OWN_AGENT_PROVIDER_CHANGED } from "../../hooks/useAgentConnections";
 import { AgentConnectionManager } from "./AgentConnectionManager";
 
 export function AgentConnections({
@@ -150,6 +151,7 @@ export function AgentConnections({
                 clear ? "" : model.trim(),
                 clear ? undefined : apiKey,
               );
+      if (providerId === "local") window.dispatchEvent(new Event(OWN_AGENT_PROVIDER_CHANGED));
       if (alive.current) {
         setProviders(value.providers);
         setApiKey("");
