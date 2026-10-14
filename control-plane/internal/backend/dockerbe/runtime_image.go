@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 )
@@ -28,6 +29,7 @@ const runtimeImageStreamLimit = 8 << 20
 const runtimeColdBaseAdmissionMiB = 1024
 
 var _ backend.RuntimeImageExecutor = (*Backend)(nil)
+var _ backend.RuntimeImageEngineRetirementExecutor = (*Backend)(nil)
 
 type runtimeImageClient interface {
 	imageResourceClient
@@ -397,6 +399,96 @@ func (b *Backend) runtimeIntermediatesAbsent(ctx context.Context, identity backe
 		return backend.ErrUnavailable
 	}
 	return b.runtimeImageIdentity(ctx, identity)
+}
+
+// After a separately witnessed full engine stop, the old classic builder
+// cannot still run. Inspect every item with this allocation label; a foreign
+// collision, incomplete response or more than one output remains uncertain.
+// No tag, image or container is changed by this readback.
+func (b *Backend) ObserveRetiredRuntimeImage(ctx context.Context, identity backend.RuntimeImageIdentity, tag string) (backend.RuntimeImageRetiredOutput, error) {
+	var result backend.RuntimeImageRetiredOutput
+	if !validRuntimeIdentity(identity, true) {
+		return result, backend.ErrLaunchFenceOwnership
+	}
+	if err := b.runtimeImageIdentity(ctx, identity); err != nil {
+		return result, err
+	}
+	canonical, err := runtimeImageTag(tag)
+	if err != nil || canonical != tag {
+		return result, backend.ErrUnsupported
+	}
+	images, ok := b.api.(interface {
+		ImageList(context.Context, image.ListOptions) ([]image.Summary, error)
+		ImageInspect(context.Context, string, ...client.ImageInspectOption) (image.InspectResponse, error)
+		ImageHistory(context.Context, string, ...client.ImageHistoryOption) ([]image.HistoryResponseItem, error)
+	})
+	if !ok {
+		return result, backend.ErrUnsupported
+	}
+	filter := filters.NewArgs(filters.Arg("label", runtimeImagePrefix+"allocation="+identity.AllocationID))
+	containers, err := b.api.ContainerList(ctx, container.ListOptions{All: true, Filters: filter})
+	if err != nil || len(containers) != 0 || ctx.Err() != nil {
+		return result, backend.ErrUnavailable
+	}
+	rows, err := images.ImageList(ctx, image.ListOptions{All: true, Filters: filter})
+	if err != nil || len(rows) > 128 || ctx.Err() != nil {
+		return result, backend.ErrUnavailable
+	}
+	for _, row := range rows {
+		if !runtimeImageID(row.ID) {
+			return result, backend.ErrLaunchFenceOwnership
+		}
+		for key, value := range runtimeIdentityLabels(identity) {
+			if row.Labels[key] != value {
+				return result, backend.ErrLaunchFenceOwnership
+			}
+		}
+		inspected, inspectErr := images.ImageInspect(ctx, row.ID)
+		if inspectErr != nil || inspected.ID != row.ID || inspected.Config == nil || ctx.Err() != nil {
+			return backend.RuntimeImageRetiredOutput{}, backend.ErrUnavailable
+		}
+		if inspected.Config.User != "dev" || inspected.Config.WorkingDir != "/home/dev" || len(inspected.Config.Entrypoint) != 1 || inspected.Config.Entrypoint[0] != "/usr/local/bin/entrypoint.sh" {
+			continue // exact owned intermediate, not the completed runtime image
+		}
+		history, historyErr := images.ImageHistory(ctx, row.ID)
+		if historyErr != nil || len(history) == 0 || ctx.Err() != nil {
+			return backend.RuntimeImageRetiredOutput{}, backend.ErrUnavailable
+		}
+		// ENTRYPOINT and EXPOSE are metadata steps after the final RUN in the
+		// bundled Dockerfile, so the marker is near the head, not necessarily
+		// history[0]. A final-looking config without that marker is ambiguous.
+		finalStep := false
+		for _, step := range history[:min(len(history), 8)] {
+			if strings.Contains(step.CreatedBy, "mkdir -p /home/dev/.claude/projects") {
+				finalStep = true
+				break
+			}
+		}
+		if !finalStep {
+			return backend.RuntimeImageRetiredOutput{}, backend.ErrUnavailable
+		}
+		if result.ImageID != "" {
+			return backend.RuntimeImageRetiredOutput{}, backend.ErrLaunchFenceOwnership
+		}
+		result.ImageID = row.ID
+	}
+	result.Publication = "tag-absent"
+	if result.ImageID == "" {
+		return result, b.runtimeImageIdentity(ctx, identity)
+	}
+	tagged, err := images.ImageInspect(ctx, tag)
+	if errdefs.IsNotFound(err) {
+		return result, b.runtimeImageIdentity(ctx, identity)
+	}
+	if err != nil || ctx.Err() != nil {
+		return backend.RuntimeImageRetiredOutput{}, backend.ErrUnavailable
+	}
+	if tagged.ID == result.ImageID {
+		result.Publication = "published"
+	} else {
+		result.Publication = "tag-different"
+	}
+	return result, b.runtimeImageIdentity(ctx, identity)
 }
 
 func (b *Backend) verifyRuntimeImage(ctx context.Context, api runtimeImageClient, identity backend.RuntimeImageIdentity, id string) error {

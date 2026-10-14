@@ -15,19 +15,22 @@ import (
 var errRuntimeImageLeaseAbsent = errors.New("exact runtime installer allocation is absent")
 
 type runtimeImageExecutionLease struct {
-	ID                 string                       `json:"id"`
-	Scope              string                       `json:"scope"`
-	Actor              management.ExecutionActorRef `json:"actor"`
-	Identity           backend.RuntimeImageIdentity `json:"identity"`
-	Resources          backend.Resources            `json:"resources"`
-	AdmissionMemoryMiB int                          `json:"admissionMemoryMiB,omitempty"`
-	CreateDiskBytes    uint64                       `json:"createDiskBytes"`
-	ImageTag           string                       `json:"imageTag"`
-	State              string                       `json:"state"`
-	Image              string                       `json:"image,omitempty"`
-	Revision           int                          `json:"revision"`
-	CreatedAt          time.Time                    `json:"createdAt"`
-	UpdatedAt          time.Time                    `json:"updatedAt"`
+	ID                   string                       `json:"id"`
+	Scope                string                       `json:"scope"`
+	Actor                management.ExecutionActorRef `json:"actor"`
+	Identity             backend.RuntimeImageIdentity `json:"identity"`
+	Resources            backend.Resources            `json:"resources"`
+	AdmissionMemoryMiB   int                          `json:"admissionMemoryMiB,omitempty"`
+	CreateDiskBytes      uint64                       `json:"createDiskBytes"`
+	ImageTag             string                       `json:"imageTag"`
+	State                string                       `json:"state"`
+	Image                string                       `json:"image,omitempty"`
+	Revision             int                          `json:"revision"`
+	CreatedAt            time.Time                    `json:"createdAt"`
+	UpdatedAt            time.Time                    `json:"updatedAt"`
+	EngineRecoveryStage  string                       `json:"engineRecoveryStage,omitempty"`
+	EngineWatchStartedAt time.Time                    `json:"engineWatchStartedAt,omitzero"`
+	EngineStoppedAt      time.Time                    `json:"engineStoppedAt,omitzero"`
 }
 
 func validRuntimeImageExecutionLease(v runtimeImageExecutionLease) bool {
@@ -39,7 +42,38 @@ func validRuntimeImageExecutionLease(v runtimeImageExecutionLease) bool {
 		(v.AdmissionMemoryMiB == 0 || v.AdmissionMemoryMiB >= v.Resources.MemoryMiB && v.AdmissionMemoryMiB <= 65536) &&
 		v.CreateDiskBytes >= backend.RuntimeImageRequiredDiskBytes && v.CreateDiskBytes <= 1<<50 && v.ImageTag != "" && len(v.ImageTag) <= 300 && !strings.ContainsAny(v.ImageTag, "\x00\r\n \t") &&
 		v.Revision >= 1 && !v.CreatedAt.IsZero() && !v.UpdatedAt.Before(v.CreatedAt) &&
-		(v.State == "reserved" && v.Image == "" || v.State == "building" && v.Image == "" || v.State == "finished" && (v.Image == "" || strings.HasPrefix(v.Image, "sha256:") && checkHex(strings.TrimPrefix(v.Image, "sha256:"), 32)))
+		(v.State == "reserved" && v.Image == "" || v.State == "building" && v.Image == "" || v.State == "finished" && (v.Image == "" || strings.HasPrefix(v.Image, "sha256:") && checkHex(strings.TrimPrefix(v.Image, "sha256:"), 32))) &&
+		(v.EngineRecoveryStage == "" && v.EngineWatchStartedAt.IsZero() && v.EngineStoppedAt.IsZero() ||
+			v.EngineRecoveryStage == "watching" && !v.EngineWatchStartedAt.IsZero() && v.EngineStoppedAt.IsZero() ||
+			v.EngineRecoveryStage == "stopped" && !v.EngineWatchStartedAt.IsZero() && !v.EngineStoppedAt.Before(v.EngineWatchStartedAt))
+}
+
+func (g *executionAdmission) advanceRuntimeImageEngineRetirement(ctx context.Context, before runtimeImageExecutionLease, stage string) (runtimeImageExecutionLease, error) {
+	var out runtimeImageExecutionLease
+	err := g.mutate(ctx, func(l *executionLeaseLedger) error {
+		for i, v := range l.RuntimeImages {
+			if v.Scope == g.scope && v.ID == before.ID {
+				if v != before || v.State != "building" || stage == "watching" && v.EngineRecoveryStage != "" || stage == "stopped" && v.EngineRecoveryStage != "watching" || stage != "watching" && stage != "stopped" {
+					return errors.New("runtime engine retirement observation changed")
+				}
+				now := time.Now().UTC()
+				if stage == "watching" {
+					v.EngineWatchStartedAt = now
+				} else {
+					v.EngineStoppedAt = now
+				}
+				v.EngineRecoveryStage, v.UpdatedAt = stage, now
+				v.Revision++
+				if !validRuntimeImageExecutionLease(v) {
+					return errors.New("runtime engine retirement receipt is invalid")
+				}
+				l.RuntimeImages[i], out = v, v
+				return nil
+			}
+		}
+		return errRuntimeImageLeaseAbsent
+	})
+	return out, err
 }
 func addRuntimeImageCapacity(rows []runtimeImageExecutionLease, skipScope, skipID string, demand *executionCapacityDemand) error {
 	for _, v := range rows {

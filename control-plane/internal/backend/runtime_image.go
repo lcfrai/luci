@@ -59,6 +59,29 @@ type RuntimeImageObservation struct {
 	Publication string
 }
 
+// RuntimeImageEngineState is a read-only observation of the selected local
+// Docker engine's lifetime. Stopped must be backed by the platform's actual
+// engine host boundary, not just a failed Docker request. An engine-wide stop
+// after the build began retires its classic builder, which has no build ID.
+type RuntimeImageEngineState struct {
+	State    string // running or stopped
+	EngineID string // current engine ID when running
+}
+
+type RuntimeImageRetiredOutput struct {
+	ImageID     string
+	Publication string // published, tag-absent or tag-different
+}
+
+// RuntimeImageEngineRetirementExecutor supports an explicit maintenance
+// recovery for a lost classic-build stream. The coordinator durably records
+// running -> stopped -> running in order before accepting exact result readback.
+// This interface never restarts the engine or modifies unrelated workloads.
+type RuntimeImageEngineRetirementExecutor interface {
+	ObserveRuntimeImageEngine(context.Context) (RuntimeImageEngineState, error)
+	ObserveRetiredRuntimeImage(context.Context, RuntimeImageIdentity, string) (RuntimeImageRetiredOutput, error)
+}
+
 // Prepare is bounded and read-only. The trusted coordinator must durably reserve
 // memory, CPU and RequiredDiskBytes before Build, retain uncertain reservations,
 // and reauthorize/persist publication intent before Publish. No mutating RPC is

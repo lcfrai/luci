@@ -25,28 +25,38 @@ import (
 // open a Docker endpoint, invoke a process, or compile the bundled source.
 type runtimeImageProbe struct {
 	*checkProbe
-	images       map[string]image.InspectResponse
-	bases        map[string]image.InspectResponse
-	pullStreams  map[string]string
-	pullBody     func(context.Context, string) io.ReadCloser
-	pullError    error
-	pulls        []string
-	pullOptions  []image.PullOptions
-	buildStream  string
-	buildBody    io.ReadCloser
-	buildError   error
-	buildHook    func(context.Context)
-	buildOptions []build.ImageBuildOptions
-	contexts     [][]byte
-	buildBudget  time.Duration
-	tags         [][2]string
-	tagError     error
-	tagNoEffect  bool
-	mutations    []string
-	lists        []container.ListOptions
-	listError    error
-	killed       []string
-	killHook     func(string) error
+	images         map[string]image.InspectResponse
+	bases          map[string]image.InspectResponse
+	pullStreams    map[string]string
+	pullBody       func(context.Context, string) io.ReadCloser
+	pullError      error
+	pulls          []string
+	pullOptions    []image.PullOptions
+	buildStream    string
+	buildBody      io.ReadCloser
+	buildError     error
+	buildHook      func(context.Context)
+	buildOptions   []build.ImageBuildOptions
+	contexts       [][]byte
+	buildBudget    time.Duration
+	tags           [][2]string
+	tagError       error
+	tagNoEffect    bool
+	mutations      []string
+	lists          []container.ListOptions
+	listError      error
+	retiredRows    []image.Summary
+	retiredHistory map[string][]image.HistoryResponseItem
+	killed         []string
+	killHook       func(string) error
+}
+
+func (f *runtimeImageProbe) ImageList(_ context.Context, _ image.ListOptions) ([]image.Summary, error) {
+	return f.retiredRows, nil
+}
+
+func (f *runtimeImageProbe) ImageHistory(_ context.Context, id string, _ ...client.ImageHistoryOption) ([]image.HistoryResponseItem, error) {
+	return f.retiredHistory[id], nil
 }
 
 func (f *runtimeImageProbe) ContainerKill(_ context.Context, id, signal string) error {
@@ -209,6 +219,47 @@ func runtimeFixturePrepare(t *testing.T, b *Backend, spec backend.RuntimeImageSp
 		t.Fatal(err)
 	}
 	return p
+}
+
+func TestRuntimeImageRetiredReadbackSeparatesFinalOutputFromOwnedIntermediates(t *testing.T) {
+	b, f, spec := newRuntimeImageProbe(t)
+	p := runtimeFixturePrepare(t, b, spec)
+	labels := runtimeIdentityLabels(p.Spec.Identity)
+	intermediateID := "sha256:" + strings.Repeat("d", 64)
+	finalID := "sha256:" + strings.Repeat("e", 64)
+	intermediate := f.bases["golang:1.26-bookworm"]
+	intermediate.ID = intermediateID
+	final := f.bases["node:24-bookworm-slim"]
+	final.ID = finalID
+	config := *final.Config
+	config.User, config.WorkingDir = "dev", "/home/dev"
+	config.Entrypoint = append(config.Entrypoint[:0], "/usr/local/bin/entrypoint.sh")
+	final.Config = &config
+	f.images[intermediateID], f.images[finalID] = intermediate, final
+	f.retiredRows = []image.Summary{{ID: intermediateID, Labels: labels}, {ID: finalID, Labels: labels}}
+	f.retiredHistory = map[string][]image.HistoryResponseItem{finalID: {
+		{CreatedBy: "#(nop) ENTRYPOINT"}, {CreatedBy: "#(nop) EXPOSE"},
+		{CreatedBy: "/bin/sh -c mkdir -p /home/dev/.claude/projects"},
+	}}
+	f.images[p.Spec.ImageTag] = final
+	retired, err := b.ObserveRetiredRuntimeImage(context.Background(), p.Spec.Identity, p.Spec.ImageTag)
+	if err != nil || retired.ImageID != finalID || retired.Publication != "published" || len(f.mutations) != 0 {
+		t.Fatal("exact owned final image was not read without mutation", retired, err, f.mutations)
+	}
+	f.retiredRows[0].Labels = map[string]string{runtimeImagePrefix + "allocation": p.Spec.Identity.AllocationID}
+	if _, err := b.ObserveRetiredRuntimeImage(context.Background(), p.Spec.Identity, p.Spec.ImageTag); err == nil {
+		t.Fatal("colliding owned intermediate was ignored")
+	}
+	f.retiredRows[0].Labels = labels
+	f.retiredHistory[finalID] = []image.HistoryResponseItem{{CreatedBy: "#(nop) ENTRYPOINT"}}
+	if _, err := b.ObserveRetiredRuntimeImage(context.Background(), p.Spec.Identity, p.Spec.ImageTag); err == nil {
+		t.Fatal("ambiguous final-looking output was declared absent")
+	}
+	f.retiredHistory[finalID] = []image.HistoryResponseItem{{CreatedBy: "/bin/sh -c mkdir -p /home/dev/.claude/projects"}}
+	f.info.ID = "foreign-engine"
+	if _, err := b.ObserveRetiredRuntimeImage(context.Background(), p.Spec.Identity, p.Spec.ImageTag); err == nil {
+		t.Fatal("different restored engine was accepted as the original")
+	}
 }
 
 func TestRuntimeImageColdPullDemandIsSeparateFromRunCap(t *testing.T) {
