@@ -74,7 +74,7 @@ function durable(path, value) {
   try { fsyncSync(directory); } finally { closeSync(directory); }
 }
 
-function load(path, session) {
+function load(path, session, publicPort) {
   const repo = repository(session);
   if (existsSync(path + '.next')) throw new Error('registry gate journal has an unsettled replacement');
   if (!existsSync(path)) {
@@ -92,7 +92,11 @@ function load(path, session) {
       (state.active.phase === 'creating' ? state.active.uuid !== null : !UUID.test(state.active.uuid || '')))) throw new Error('registry gate active upload changed');
   if (state.manifest && (!['publishing', 'committed'].includes(state.manifest.phase) ||
       (state.manifest.phase === 'committed' && !SHA.test(state.manifest.digest || '')))) throw new Error('registry gate manifest state changed');
-  if (state.completed.some(row => !UUID.test(row.uuid || '') || !SHA.test(row.digest || '') || typeof row.location !== 'string' || row.location.length > 2048)) throw new Error('registry gate completed upload changed');
+  if (state.completed.some(row => {
+    if (!UUID.test(row.uuid || '') || !SHA.test(row.digest || '') || typeof row.location !== 'string' || row.location.length > 2048) return true;
+    try { return committedLocation(row.location, publicPort, publicPort, repo, row.digest) !== row.location; }
+    catch { return true; }
+  })) throw new Error('registry gate completed upload changed');
   return state;
 }
 
@@ -173,7 +177,7 @@ export function createGate({ session, dataRoot, backendPort, frontPort, publicPo
   if (backendPort === frontPort) throw new Error('registry backend/frontend port collision');
   const root = strictDir(dataRoot);
   const journal = join(root, 'luci-serial-upload-v1.json');
-  let state = load(journal, session);
+  let state = load(journal, session, publicPort);
   const waiters = [];
   const commit = change => {
     const next = structuredClone(state);

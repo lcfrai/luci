@@ -84,7 +84,7 @@ afterEach(async () => {
 });
 
 test('one upload holds the next POST until positive final PUT, with streamed PATCH and replayed receipt', async () => {
-  const { gate, counts, frontPort, root } = await setup();
+  const { gate, counts, frontPort, backendPort, root } = await setup();
   const createPath = `/v2/${repo}/blobs/uploads/`;
   const first = await call(frontPort, createPath, 'POST');
   assert.equal(first.status, 202);
@@ -108,6 +108,7 @@ test('one upload holds the next POST until positive final PUT, with streamed PAT
   assert.equal((await call(frontPort, '/luci/status')).status, 200);
   assert.equal(gate.snapshot().completed.length, 1);
   assert.equal(gate.snapshot().active.phase, 'active');
+  assert.equal(createGate({ session, dataRoot: root, backendPort, frontPort, publicPort: frontPort }).snapshot().completed[0].digest, digest);
   assert.equal((await call(frontPort, `/v2/${repo}/blobs/uploads/${'d'.repeat(32)}?_state=token`, 'DELETE')).status, 204);
   assert.equal(counts.del, 1);
 });
