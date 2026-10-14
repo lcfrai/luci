@@ -33,6 +33,7 @@ def progress(core, bundle_root, selection_path):
     stages = []
     for identifier, relative in (("private-location", "azure-private-location.json"),
                                  ("foundation", "azure-foundation-state.json"),
+                                 ("image-builder", "azure-builder-state.json"),
                                  ("credentials", "azure-credentials/journal.json"),
                                  ("operator-selection", "azure-operator-prep-state.json"),
                                  ("template", "azure-template-state.json"),
@@ -239,13 +240,13 @@ def connection_descriptor(core, bundle_root, selection_path, provider=None):
     return descriptor
 
 
-def az_json(arguments):
+def az_json(arguments, timeout=300):
     # Bound the child output while it runs. A post-hoc capture_output length
     # check would already have buffered an arbitrarily large CLI response.
     with tempfile.TemporaryFile() as output:
         process = subprocess.Popen(["az", *arguments, "--only-show-errors", "--output", "json"],
                                    stdout=output, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
-        deadline = time.monotonic() + 300
+        deadline = time.monotonic() + min(max(timeout, 1), 7200)
         try:
             while process.poll() is None:
                 if output.seek(0, 2) > 128 << 10 or time.monotonic() >= deadline:

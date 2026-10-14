@@ -199,3 +199,53 @@ are written and formatted but not run locally: `go test -p 1 ./cmd/api
 with `GOMAXPROCS=1 GOMEMLIMIT=512MiB` on independent Linux. This checkpoint is
 groundwork only: durable retirement fence, backup and owned compute lifecycle
 adapter are still being implemented, with all real Azure outcomes untested.
+
+The image producer batch follows exact `308507c5` and `f32a6929` ACK/gates.
+`builder.py` prepares source archives without local compilation, plans exact
+temporary resources/cost/lifetime, and journals each private staging/allocation/
+reader grant/guest install/deprovision/deallocate/generalize/VM-source gallery
+capture/owned retirement operation. It enforces sequential fresh role builders,
+private NICs, tagged private OS disks and no active generation configuration.
+The temporary system MI reader is container-scoped; source bytes are downloaded
+and fully hashed rather than trusted from metadata. `builder_guest.py` verifies
+original commit/tree bytes (without shipping Git history), compiles exact clean
+source on the temporary VM, resolves immutable upstream service image digests,
+installs the existing source package and preserves original licence/NOTICE
+inventory. No service/task or microVM is started as preparation evidence.
+Generalized VMs are never reused. Published versions retain source VM/package
+bindings separately from temporary resources, grants and staging cleanup.
+The installer accepts only exact bound producer receipts as the remote package
+path, retaining the local-package compatibility path.
+
+Eight new lightweight fixtures pass: complete two-role source/capture/cleanup,
+cost/private/single-active refusal, source byte drift, exact reader identity/
+role/scope, lost create/install/generalize ACK with read-only restart, traversal
+refusal and real local Git source reconstruction. Python syntax/diff checks pass;
+no remote build, Go compile, Docker or provider operation ran locally. New Go
+changes are bundle inventory only; independent Linux should run the new builder
+suite plus affected installer/bundle tests. Real guest apt/Go/registry commands,
+private egress, provider property normalization, gallery timing/permissions and
+all live outcomes remain untested. Material source work remains: normal guided
+progression/source-prerequisite simplification, incomplete-builder abort,
+retirement fence/backup/compute adapter. Signed successor recovery ownership is
+exclusively transferred to root's cloud Sol (operator_setup.py, mount.py,
+recover.py, test_operator.py, test_recovery.py); installer joins await its schema.
+
+
+Producer abort follow-on (14 October): `builder-step --stage abort` now durably
+records explicit cancellation, prevents new production/image binding and advances
+at most one provider mutation per invocation. It preserves unknown prior intents
+and requires their exact read-only reconciliation; observed deallocation precedes
+VM deletion. Temporary container-scoped grant principal/role/scope is exact. An OS
+disk that precedes the tagging PATCH is bound by provider immutable uniqueId while
+the owned VM still proves attachment, then deleted only after owned VM deletion
+and exact unattached identity readback. Planned resources with no completed create
+are never adopted; unrelated or replaced resources remain preserved. Both aborted
+roles allow only owned staging cleanup. Gallery/foundation/runtime retention and
+unverified final charges remain explicit. Three new offline regressions cover
+incomplete untagged-disk cleanup, unknown create/delete acknowledgments with no
+mutation replay, and replaced-disk/retained-gallery refusal. Full builder file:
+11 tests passed; Python syntax/CLI and diff checks passed. No live Azure, compiler,
+Docker, KVM, cloud task or billing acceptance. Remaining normal guided progression,
+source guest/loopback registry, signed replacement successor (transferred owner),
+and final whole-installation retirement are still tracked independently.

@@ -177,3 +177,39 @@ operator references and loopback service environment are staged by the existing
 authenticated initialization channel only after exact controller creation.
 They are not private credential values. Unknown staging/mount results retain
 the off-disk bootstrap journal and cannot repeat the write/format branch.
+
+Private VM-source image preparation is available through `builder-source`,
+`builder-plan` and `builder-step`. `builder-source` archives the exact clean
+Luci and pinned E2B runtime checkouts plus a selected Envoy binary/original
+licence; it performs no compiler work on the setup PC. `builder-plan` selects
+an exact `Canonical:ubuntu-24_04-lts:server:VERSION`, available builder size,
+new gallery name/version and admission lifetime, and prints all temporary and
+retained resources/permissions for price review. Never use `latest` as a base
+image version. Original source trees/commit bytes and licence inventory are
+verified on the builder before building its role package.
+
+For the reviewed plan digest, `builder-step --stage STAGE --role ROLE
+--plan-digest SHA256 --acknowledge-costs` advances one explicit operation.
+Stages are staging, allocate, grant, install, deprovision, deallocate,
+generalize, capture and retire. Run the runtime role first, then the controller;
+the second allocation is refused until the first builder's observed retirement.
+Use `--reconcile` for an unknown response; it reads exact retained state without
+repeating create/upload/install/generalize/capture/delete. The temporary system
+identity has Blob Data Reader at the separate owned staging container only.
+Complete-byte download verification is required; metadata/tags are insufficient.
+Each VM-source capture retains its gallery version separately from temporary
+VM, private OS disk, NIC and grant cleanup. `--stage bind` binds both observed
+packages/images without downloading binaries to the setup PC;
+`--stage retire-staging` removes only exact owned staging bytes and an empty
+owned container. Compute, disk, staging, gallery and final invoice outcomes
+remain separate. Missing egress/private reachability or an incomplete operation
+stays unresolved; no public connectivity is added. These adapters have offline
+fixture evidence only. `--stage abort --role ROLE --acknowledge-costs` records an
+explicit stop request for an incomplete builder. An unknown create/install/capture
+blocks deletion until its exact readback resolves; no intent is discarded.
+Subsequent abort steps observe deallocation, revoke only the exact temporary
+grant and delete only the owned VM and positively bound unattached OS disk/NIC.
+Run abort for both roles (including a never-allocated role), then retire-staging.
+Published gallery artifacts and other foundation/runtime resources remain retained;
+abort receipts do not establish a zero bill. New production/image binding is refused
+after abort. Normal single-command progression remains in development.
