@@ -165,7 +165,7 @@ func decodeOrchestratorLedger(data []byte, out orchestratorLedger) (orchestrator
 		if _, err := time.Parse(time.RFC3339Nano, turn.CreatedAt); err != nil {
 			return out, ErrOrchestratorInvalid
 		}
-		if turn.Answer != nil && ValidateOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
+		if turn.Answer != nil && validateStoredOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
 			return out, ErrOrchestratorInvalid
 		}
 		seen[turn.ID] = true
@@ -447,18 +447,21 @@ func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status s
 		if turn.JobID != jobID {
 			return ErrOrchestratorInvalid
 		}
+		if terminalOrchestrator(turn.Status) {
+			// An exact completion replay confirms the already persisted outcome.
+			// Revalidating it with newer model-quality rules would strand a
+			// historical turn and its entire conversation after restart.
+			if turn.Status == status && turn.FailureCode == failureCode && reviewDigest(turn.Answer) == reviewDigest(answer) {
+				return s.recordCoordinationProposalLocked(p, *turn)
+			}
+			return ErrOrchestratorConflict
+		}
 		if status == "succeeded" {
 			if answer == nil || ValidateOrchestratorAnswer(turn.Context, *answer) != nil {
 				return ErrOrchestratorInvalid
 			}
 		} else if answer != nil {
 			return ErrOrchestratorInvalid
-		}
-		if terminalOrchestrator(turn.Status) {
-			if turn.Status == status && turn.FailureCode == failureCode && reviewDigest(turn.Answer) == reviewDigest(answer) {
-				return s.recordCoordinationProposalLocked(p, *turn)
-			}
-			return ErrOrchestratorConflict
 		}
 		turn.Status, turn.Answer, turn.FailureCode, turn.UpdatedAt = status, cloneOrchestratorAnswer(answer), failureCode, time.Now().UTC().Format(time.RFC3339Nano)
 		if status == "succeeded" && turn.ReplyToTurnID != "" {

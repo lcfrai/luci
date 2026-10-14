@@ -107,6 +107,84 @@ func TestOrchestratorCompleteTaskListRequiresObservableAcceptanceAndNoRoutineQue
 		t.Fatal("complete observable draft was refused", err)
 	}
 }
+
+func TestOrchestratorOldLowQualityAnswerRemainsReadableButCannotApply(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "old-answer-remains-readable")
+	ctx := orchestratorActor(t, "alice")
+	turn, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Draft a task list", "")
+	specification := snapshot.Specification
+	specification.Requirements = []SpecificationRequirement{{ID: "req-001", Title: "Add a task", Priority: "must", Acceptance: "must"}}
+	answer := OrchestratorAnswer{
+		Summary:  "A task list draft was returned for review.",
+		Question: "Should HTML or JavaScript be written first?", Rationale: "Choose an implementation order.",
+		Proposal:   &OrchestratorProposal{Target: "specification", Summary: "Task list draft", Specification: &specification},
+		NextAction: "specification",
+	}
+	if validateStoredOrchestratorAnswer(snapshot, answer) != nil || ValidateOrchestratorAnswer(snapshot, answer) == nil {
+		t.Fatal("historical and current validation boundaries were not distinct")
+	}
+	// Seed a turn completed under the earlier quality rules. The persisted bytes
+	// must remain intact; recovery must not migrate or silently approve them.
+	saved, err := s.readOrchestrator(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved.Turns[0].Status, saved.Turns[0].Answer = "succeeded", &answer
+	saved.Revision++
+	if err := s.saveOrchestrator(saved); err != nil {
+		t.Fatal(err)
+	}
+	path, err := s.orchestratorPath(p.ID, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restarted.Close()
+	restarted.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+	restarted.mu.Lock()
+	err = restarted.ensureCoordinationOriginsLocked(p)
+	intents := -1
+	if err == nil {
+		coordination, readErr := restarted.readCoordination(p)
+		err = readErr
+		intents = len(coordination.Intents)
+	}
+	restarted.mu.Unlock()
+	if err != nil {
+		t.Fatal("old proposal blocked coordination recovery", err)
+	}
+	if intents != 0 {
+		t.Fatal("old unusable proposal became a team intent")
+	}
+	view, err := restarted.OrchestratorView(ctx, p.ID, 0)
+	if err != nil || len(view.Turns) != 1 || view.Turns[0].Answer == nil || view.Turns[0].Answer.Proposal == nil {
+		t.Fatal("old answer disappeared on restart", err)
+	}
+	if err := restarted.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
+		t.Fatal("exact historical completion replay became an error", err)
+	}
+	if err := restarted.applyOrchestratorProposal(ctx, p.ID, turn.ID, view.Revision, view.Context.Digest); !errors.Is(err, ErrOrchestratorInvalid) {
+		t.Fatal("old low-quality proposal became applicable", err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || string(after) != string(before) {
+		t.Fatal("read/refused apply rewrote old evidence", err)
+	}
+	if _, _, existing, err := restarted.ReserveOrchestratorTurn(ctx, p.ID, OrchestratorTurnRequest{
+		ExpectedRevision: view.Revision, ExpectedContextDigest: view.Context.Digest,
+		IdempotencyKey: "after-old-answer", Message: "Add a new request", RouteDigest: strings.Repeat("a", 64),
+	}, "assist-after-old-answer"); err != nil || existing {
+		t.Fatal("old answer blocked a new conversation turn", err)
+	}
+}
 func TestOrchestratorDurableTurnIdentityScopeAndReadOnlyRecovery(t *testing.T) {
 	s, mux := journeyFixture(t)
 	p := createJourneyProject(t, mux, "orchestrator-scope")

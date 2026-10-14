@@ -14,11 +14,23 @@ import (
 )
 
 func ValidateOrchestratorAnswer(snapshot OrchestratorContext, answer OrchestratorAnswer) error {
+	return validateOrchestratorAnswer(snapshot, answer, true)
+}
+
+// Stored answers were accepted under the rules in force when they completed.
+// Keep their bounded structure readable without granting an old proposal new
+// application authority; every completion and application uses the current
+// quality rules above.
+func validateStoredOrchestratorAnswer(snapshot OrchestratorContext, answer OrchestratorAnswer) error {
+	return validateOrchestratorAnswer(snapshot, answer, false)
+}
+
+func validateOrchestratorAnswer(snapshot OrchestratorContext, answer OrchestratorAnswer, currentQuality bool) error {
 	raw, err := json.MarshalIndent(answer, "", "  ")
 	if err != nil || len(raw) > orchestratorAnswerLimit {
 		return ErrOrchestratorInvalid
 	}
-	if strings.TrimSpace(answer.Summary) == "" || len(answer.Summary) > 8000 || len(answer.Question) > 4000 || len(answer.Rationale) > 8000 || len(answer.Options) > 6 || len(answer.Impact) > 12 || len(answer.NextAction) > 100 || (answer.Blocking && strings.TrimSpace(answer.Question) == "") || (!answer.Blocking && strings.TrimSpace(answer.Question) != "") {
+	if strings.TrimSpace(answer.Summary) == "" || len(answer.Summary) > 8000 || len(answer.Question) > 4000 || len(answer.Rationale) > 8000 || len(answer.Options) > 6 || len(answer.Impact) > 12 || len(answer.NextAction) > 100 || (answer.Blocking && strings.TrimSpace(answer.Question) == "") || (currentQuality && !answer.Blocking && strings.TrimSpace(answer.Question) != "") {
 		return ErrOrchestratorInvalid
 	}
 	for _, option := range answer.Options {
@@ -50,10 +62,12 @@ func ValidateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		if next == nil || next.ProjectID != snapshot.ProjectID || next.Revision != snapshot.Specification.Revision || next.BriefRevision != snapshot.Specification.BriefRevision || next.Status != "draft" || next.Digest != "" {
 			return ErrOrchestratorInvalid
 		}
-		for _, requirement := range next.Requirements {
-			criterion := strings.TrimSpace(requirement.Acceptance)
-			if utf8.RuneCountInString(criterion) < 12 || strings.EqualFold(criterion, requirement.Priority) || strings.EqualFold(criterion, requirement.Title) {
-				return ErrOrchestratorInvalid
+		if currentQuality {
+			for _, requirement := range next.Requirements {
+				criterion := strings.TrimSpace(requirement.Acceptance)
+				if utf8.RuneCountInString(criterion) < 12 || strings.EqualFold(criterion, requirement.Priority) || strings.EqualFold(criterion, requirement.Title) {
+					return ErrOrchestratorInvalid
+				}
 			}
 		}
 		return validateSpecification(*next)

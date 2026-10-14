@@ -76,7 +76,9 @@ func (s *Server) recordCoordinationProposalLocked(p project.Project, turn stored
 		return nil
 	}
 	if ValidateOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
-		return ErrOrchestratorInvalid
+		// A completed pre-quality-gate proposal stays in the person's
+		// conversation, but cannot become a new coordination intent.
+		return nil
 	}
 	saved, err := s.readCoordination(p)
 	if err != nil {
@@ -136,7 +138,8 @@ func (s *Server) ensureCoordinationOriginsLocked(p project.Project) error {
 			continue
 		}
 		if ValidateOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
-			return ErrOrchestratorInvalid
+			// Do not retroactively backfill an unusable old proposal.
+			continue
 		}
 		if err = s.compactCoordinationLocked(p, &saved, 1); err != nil {
 			return err
