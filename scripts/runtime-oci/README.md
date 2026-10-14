@@ -31,12 +31,18 @@ occur. Actual `sandboxd`, `codex`, `claude` and `opencode` version commands and
 installed grants are collected without network or credentials.
 
 On a dedicated Windows release producer only, the optional
-`--producer-wsl-cache-assistance` flag permits at most six transient cache
-reclaims per build/export, spaced by at least 30 seconds, plus bounded reclaims
+`--producer-wsl-cache-assistance` flag permits at most 36 transient cache
+reclaims per build/export, spaced by at least five seconds, plus bounded reclaims
 between effects. Each checks the same Docker Desktop engine and refuses foreign
 running containers. It preserves all images, stopped containers and volumes.
 Every action is logged and marked in the build receipt. This assistance is
 never enabled by ordinary installed setup and is not a product resource pass.
+The trigger is 2.5 GiB available, leaving 1.5 GiB above the unchanged 1 GiB
+reserve. This cadence addresses measured daemon cache growth of about 0.95 GB
+within 16 seconds during the pinned NPM install; the earlier 30-second cadence
+could not react in time. Crossing the reserve still cancels exact owned work.
+Logs include each reclaim's elapsed time and observed host availability before
+and after, and explicitly mark exhaustion of the finite assistance budget.
 
 Canonical input staging reads immutable Git blobs using the versioned shared
 algorithm; it never relies on Windows CRLF checkout bytes. The normalized

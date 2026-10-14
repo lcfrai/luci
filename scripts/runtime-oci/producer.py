@@ -29,6 +29,9 @@ SESSION_LABEL = "luci.runtime-payload.producer-session"
 RESERVE = 1 << 30
 MARGIN = 512 << 20
 BUILD_MEMORY = 1 << 30
+CACHE_TRIGGER = RESERVE + BUILD_MEMORY + MARGIN
+CACHE_INTERVAL_SECONDS = 5
+MAX_CACHE_ACTIONS = 36
 
 
 def command(args, **kwargs):
@@ -107,7 +110,10 @@ def cache_assist(session, output):
     if os.name != 'nt' or current['ID'] != baseline['engineID'] or 'Docker Desktop' not in current.get('OperatingSystem', ''):
         raise ValueError('producer cache assistance requires the same exact Docker Desktop engine')
     owned_running(session)  # Any unrelated live work refuses mutation.
+    started, available_before = time.monotonic(), available_memory()
     command(['wsl.exe', '-d', 'docker-desktop', '--', 'sh', '-c', 'sync; echo 3 > /proc/sys/vm/drop_caches'], timeout=10)
+    return {'elapsedSeconds': time.monotonic() - started, 'availableBefore': available_before,
+            'availableAfter': available_memory(), 'exitCode': 0, 'engineID': current['ID']}
 
 
 def context_tar(canonical, destination, bases, session):
@@ -155,13 +161,15 @@ def monitor_build(process, session, output, assistance):
         if any(container['memory'] != BUILD_MEMORY or container['memorySwap'] != BUILD_MEMORY or container['cpuPeriod'] != 100000 or container['cpuQuota'] != 100000 for container in containers):
             cancelled = True
             row['limitsMismatch'] = True
-        if assistance and free < RESERVE + BUILD_MEMORY + MARGIN and actions < 6 and time.monotonic() - last_action >= 30:
+        if assistance and free < CACHE_TRIGGER and actions < MAX_CACHE_ACTIONS and time.monotonic() - last_action >= CACHE_INTERVAL_SECONDS:
             if os.name != "nt":
                 raise ValueError("WSL cache assistance is Windows producer-only")
-            cache_assist(session, output)
+            row['cacheResult'] = cache_assist(session, output)
             actions += 1
             last_action = time.monotonic()
             row["cacheAssistance"] = "exact-owned-engine transient caches; no persistent data removed"
+        if assistance and free < CACHE_TRIGGER and actions >= MAX_CACHE_ACTIONS:
+            row['cacheAssistanceExhausted'] = True
         if free < RESERVE or time.monotonic() > deadline or cancelled:
             for container in row["containers"]:
                 try:
@@ -182,6 +190,12 @@ def monitor_build(process, session, output, assistance):
             process.wait(timeout=5)
             raise ValueError("producer build outcome unknown; receipts and ownership retained")
         time.sleep(2)
+    engine = json.loads(command(['docker', 'info', '--format', '{{json .}}']))
+    if engine['ID'] != read_json(output / 'producer-engine.json')['engineID']:
+        write_json(output / 'producer-unknown.json', {'session': session, 'reason': 'Builder terminal returned across engine identity change; retain ownership, no absence-only settlement'})
+        raise ValueError('producer engine changed before terminal verification')
+    assert_settled(session)
+    write_json(output / 'producer-terminal.json', {'session': session, 'builderExitCode': process.returncode, 'cancelRequested': cancelled, 'exactOwnedContainersRemaining': [], 'engineID': engine['ID'], 'terminalStreamReturned': True})
     if cancelled or process.returncode:
         raise ValueError("producer build cancelled/failed; inspect retained logs")
     return actions
@@ -194,9 +208,9 @@ def prepare_effect(session, output, demand, assistance):
         return 0
     if not assistance or os.name != "nt" or owned_running(session):
         raise ValueError("producer next effect lacks normal reserve and margin")
-    cache_assist(session, output)
+    cache_result = cache_assist(session, output)
     with (output / "producer-cache-assistance.jsonl").open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps({"time": time.time(), "phase": "between producer effects", "demandBytes": demand, "scope": "idle exact producer engine transient cache"}, sort_keys=True) + "\n")
+        stream.write(json.dumps({"time": time.time(), "phase": "between producer effects", "demandBytes": demand, "scope": "idle exact producer engine transient cache", 'cacheResult': cache_result}, sort_keys=True) + "\n")
     deadline = time.monotonic() + 15
     while available_memory() < required and time.monotonic() < deadline:
         time.sleep(1)
@@ -266,13 +280,15 @@ def export_image(image_id, session, output, assistance):
                 if owned_running(session):
                     raise ValueError("producer export unexpectedly overlaps running containers")
                 row = {"time": time.time(), "phase": "read-only image export", "availableBytes": free, "reserveBytes": RESERVE}
-                if assistance and os.name == "nt" and free < RESERVE + BUILD_MEMORY + MARGIN and actions < 6 and time.monotonic() - last_action >= 30:
-                    cache_assist(session, output)
+                if assistance and os.name == "nt" and free < CACHE_TRIGGER and actions < MAX_CACHE_ACTIONS and time.monotonic() - last_action >= CACHE_INTERVAL_SECONDS:
+                    row['cacheResult'] = cache_assist(session, output)
                     actions += 1
                     last_action = time.monotonic()
                     row["cacheAssistance"] = "idle owned producer engine during read-only export"
                     with (output / "producer-cache-assistance.jsonl").open("a", encoding="utf-8") as stream:
                         stream.write(json.dumps(row, sort_keys=True) + "\n")
+                if assistance and free < CACHE_TRIGGER and actions >= MAX_CACHE_ACTIONS:
+                    row['cacheAssistanceExhausted'] = True
                 with (output / "producer-resource-monitor.jsonl").open("a", encoding="utf-8") as stream:
                     stream.write(json.dumps(row, sort_keys=True) + "\n")
                 if free < RESERVE or time.monotonic() > deadline:

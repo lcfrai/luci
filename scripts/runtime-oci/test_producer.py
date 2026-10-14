@@ -10,6 +10,30 @@ from common import write_json
 
 
 class ProducerSafetyTests(unittest.TestCase):
+    def test_assistance_policy_is_finite_and_cannot_lower_normal_reserve(self):
+        self.assertEqual(producer.RESERVE, 1073741824)
+        self.assertEqual(producer.BUILD_MEMORY, 1073741824)
+        self.assertEqual(producer.CACHE_TRIGGER - producer.RESERVE, 1536 << 20)
+        self.assertEqual(producer.MAX_CACHE_ACTIONS, 36)
+        self.assertEqual(producer.CACHE_INTERVAL_SECONDS, 5)
+
+    def test_failed_builder_terminal_is_recorded_with_exact_engine_and_cleanup(self):
+        class Finished:
+            returncode = 137
+            def poll(self):
+                return self.returncode
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            write_json(output / 'producer-engine.json', {'engineID': 'original'})
+            with patch.object(producer, 'command', return_value=b'{"ID":"original"}'), patch.object(producer, 'assert_settled') as settled:
+                with self.assertRaisesRegex(ValueError, 'failed'):
+                    producer.monitor_build(Finished(), 'session', output, True)
+                settled.assert_called_once_with('session')
+            from common import read_json
+            value = read_json(output / 'producer-terminal.json')
+            self.assertEqual(value['builderExitCode'], 137)
+            self.assertTrue(value['terminalStreamReturned'])
+            self.assertFalse((output / 'producer-unknown.json').exists())
     def test_foreign_container_is_never_returned_for_owned_cancellation(self):
         def command(args, **kwargs):
             if args[1] == 'ps':
