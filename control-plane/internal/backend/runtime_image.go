@@ -25,7 +25,10 @@ type RuntimeImageSpec struct {
 	Identity        RuntimeImageIdentity
 	Resources       Resources
 	SourceDirectory string
-	ImageTag        string
+	// PullStagingDirectory is a fresh private path on the selected local
+	// Docker storage volume. It is assigned by the trusted coordinator only.
+	PullStagingDirectory string
+	ImageTag             string
 }
 
 type PreparedRuntimeImage struct {
@@ -37,11 +40,17 @@ type PreparedRuntimeImage struct {
 	// daemon allowance. It is host/engine admission, not a daemon memory cap;
 	// any Docker RUN hard cap remains Spec.Resources.MemoryMiB.
 	AdmissionMemoryMiB int
-	StorageDriver      string
-	BaseImages         []string
+	// BootstrapAdmissionMemoryMiB is the separately admitted small helper
+	// ImageLoad demand. Main pull demand remains AdmissionMemoryMiB.
+	BootstrapAdmissionMemoryMiB int
+	StorageDriver               string
+	BaseImages                  []string
 	// Bundle holds the exact verified packaged tar descriptor for the ordinary
 	// installed path. It is never serialized into the durable lease.
 	Bundle *runtimeoci.Bundle
+	// PullBundle is v2's verified compressed store and small bootstrap archive.
+	// It cannot be interchanged with the v1 diagnostic ImageLoad bundle.
+	PullBundle *runtimeoci.PullBundle
 }
 
 type RuntimeImageBuildResult struct {
@@ -118,4 +127,38 @@ type RuntimeImageImportExecutor interface {
 	PreparePackagedRuntimeImage(context.Context, RuntimeImageSpec) (PreparedRuntimeImage, error)
 	LoadPackagedRuntimeImage(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
 	DerivePackagedRuntimeImage(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
+}
+
+// RuntimePullHelper is the exact owned, short-lived local distribution
+// boundary. IDs are journaled after positive readback; names derive from the
+// allocation so lost acknowledgements can be inspected without replay.
+type RuntimePullHelper struct {
+	NetworkID   string
+	ContainerID string
+	HostPort    string
+}
+
+// RuntimeImagePullExecutor exposes separate effects so the coordinator can
+// persist a phase before every Docker call and retain uncertain outcomes.
+// It never substitutes the v1 full ImageLoad path for a missing v2 package.
+type RuntimeImagePullExecutor interface {
+	RuntimeImageExecutor
+	PreparePullRuntimeImage(context.Context, RuntimeImageSpec) (PreparedRuntimeImage, error)
+	LoadPullBootstrap(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
+	CreatePullNetwork(context.Context, PreparedRuntimeImage) (string, error)
+	CreatePullHelper(context.Context, PreparedRuntimeImage, runtimeoci.PullStageReceipt, string) (string, error)
+	StartPullHelper(context.Context, PreparedRuntimeImage, RuntimePullHelper) (string, error)
+	ProbePullHelper(context.Context, PreparedRuntimeImage, RuntimePullHelper) error
+	PullPackagedRuntimeImage(context.Context, PreparedRuntimeImage, RuntimePullHelper) (RuntimeImageBuildResult, error)
+	RetirePullHelper(context.Context, PreparedRuntimeImage, RuntimePullHelper) error
+	DerivePullRuntimeImage(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
+}
+
+// RuntimeImagePullRecoveryExecutor retires only positively identified owned
+// helper/network objects after an interrupted coordinator. It has no payload
+// or publication permission and never treats absence alone as a terminal
+// receipt for an unknown create, pull or delete acknowledgement.
+type RuntimeImagePullRecoveryExecutor interface {
+	RetireKnownPullOwnership(context.Context, RuntimeImageIdentity, string, string, string, RuntimePullHelper) error
+	ObserveRetiredPullOwnership(context.Context, RuntimeImageIdentity, string, string, string) (RuntimePullHelper, error)
 }

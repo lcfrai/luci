@@ -125,8 +125,11 @@ func (b *Backend) PreparePackagedRuntimeImage(ctx context.Context, spec backend.
 }
 
 func (b *Backend) inspectSharedRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage) error {
-	if prepared.Bundle == nil || b.runtimeImageIdentity(ctx, prepared.Spec.Identity) != nil {
+	if prepared.Bundle == nil && prepared.PullBundle == nil || prepared.Bundle != nil && prepared.PullBundle != nil || b.runtimeImageIdentity(ctx, prepared.Spec.Identity) != nil {
 		return backend.ErrLaunchFenceOwnership
+	}
+	if prepared.PullBundle != nil {
+		return b.inspectPulledOriginal(ctx, prepared)
 	}
 	images, ok := b.api.(runtimeImageLoadClient)
 	if !ok {
@@ -217,7 +220,7 @@ func (b *Backend) LoadPackagedRuntimeImage(ctx context.Context, prepared backend
 // DerivePackagedRuntimeImage builds a metadata-only FROM/LABEL Dockerfile from
 // the exact imported immutable ID. It contains no RUN, pull, npm, apt or Go.
 func (b *Backend) DerivePackagedRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
-	if prepared.Bundle == nil {
+	if prepared.Bundle == nil && prepared.PullBundle == nil || prepared.Bundle != nil && prepared.PullBundle != nil {
 		return backend.RuntimeImageBuildResult{Settled: true}, backend.ErrUnsupported
 	}
 	if err := b.inspectSharedRuntimeImage(ctx, prepared); err != nil {
@@ -231,7 +234,13 @@ func (b *Backend) DerivePackagedRuntimeImage(ctx context.Context, prepared backe
 	}
 	sort.Strings(keys)
 	var dockerfile strings.Builder
-	dockerfile.WriteString("FROM " + prepared.Bundle.Manifest.Image.ID + "\nLABEL")
+	sharedImageID := ""
+	if prepared.Bundle != nil {
+		sharedImageID = prepared.Bundle.Manifest.Image.ID
+	} else {
+		sharedImageID = prepared.PullBundle.Manifest.Image.ID
+	}
+	dockerfile.WriteString("FROM " + sharedImageID + "\nLABEL")
 	for _, key := range keys {
 		dockerfile.WriteString(" " + key + "=" + fmt.Sprintf("%q", labels[key]))
 	}

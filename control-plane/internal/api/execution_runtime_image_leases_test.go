@@ -24,6 +24,138 @@ func runtimeImageReserve(t *testing.T, g *executionAdmission, p backend.Prepared
 	}
 	return v
 }
+
+func TestRuntimePullPhasesRetainExactAllocationAcrossRestart(t *testing.T) {
+	g := previewTestGate(t)
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Execution.EngineID = httpCheckEngine
+		s.Execution.DaemonDisk.AvailableBytes = executionPointer(uint64(64 << 30))
+		return s
+	}
+	p := runtimeImagePrepared(g, "pull-one")
+	p.PullBundle = &runtimeoci.PullBundle{ManifestSHA256: strings.Repeat("b", 64)}
+	lease := runtimeImageReserve(t, g, p)
+	if lease.DistributionMode != "compressed-pull" || lease.PullManifestSHA256 != p.PullBundle.ManifestSHA256 {
+		t.Fatal("compressed pull reservation did not retain package identity", lease)
+	}
+	var err error
+	lease, err = g.transitionRuntimeImage(context.Background(), lease, "building")
+	if err != nil || lease.ImportStage != "staging" {
+		t.Fatal("pull staging intent missing", lease, err)
+	}
+	before := lease
+	lease, err = g.advanceRuntimeImagePull(context.Background(), lease, "staging", "bootstrap-loading", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g = newExecutionAdmission(g.api)
+	if _, err := g.advanceRuntimeImagePull(context.Background(), before, "staging", "bootstrap-loading", ""); err == nil {
+		t.Fatal("restart replayed a completed bootstrap intent")
+	}
+	stored, err := g.runtimeImageLease(context.Background(), lease.ID)
+	if err != nil || stored != lease {
+		t.Fatal("restart lost exact charged pull phase", stored, err)
+	}
+	if _, err := g.advanceRuntimeImagePull(context.Background(), lease, "bootstrap-loading", "bootstrap-loaded", "not-an-id"); err == nil {
+		t.Fatal("invalid bootstrap output entered durable ledger")
+	}
+}
+
+func TestRuntimePullLostCleanupRequiresNewEngineStopWitness(t *testing.T) {
+	g := previewTestGate(t)
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Execution.EngineID = httpCheckEngine
+		s.Execution.DaemonDisk.AvailableBytes = executionPointer(uint64(64 << 30))
+		return s
+	}
+	p := runtimeImagePrepared(g, "pull-retire")
+	p.PullBundle = &runtimeoci.PullBundle{ManifestSHA256: strings.Repeat("b", 64)}
+	lease := runtimeImageReserve(t, g, p)
+	var err error
+	lease, err = g.transitionRuntimeImage(context.Background(), lease, "building")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, step := range []struct{ from, to, output string }{
+		{"staging", "bootstrap-loading", ""},
+		{"bootstrap-loading", "bootstrap-loaded", "sha256:" + strings.Repeat("c", 64)},
+		{"bootstrap-loaded", "network-creating", ""},
+	} {
+		lease, err = g.advanceRuntimeImagePull(context.Background(), lease, step.from, step.to, step.output)
+		if err != nil {
+			t.Fatal(step, err)
+		}
+	}
+	lease, err = g.advanceRuntimeImageEngineRetirement(context.Background(), lease, "watching")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease, err = g.advanceRuntimeImageEngineRetirement(context.Background(), lease, "stopped")
+	if err != nil {
+		t.Fatal(err)
+	}
+	owned := backend.RuntimePullHelper{NetworkID: strings.Repeat("d", 64)}
+	lease, err = g.beginRuntimeImagePullRetirement(context.Background(), lease, owned)
+	if err != nil || lease.ImportStage != "recovery-retiring" || lease.PullNetworkID != owned.NetworkID || !lease.EngineStoppedAt.Before(lease.PullCleanupIntentAt) {
+		t.Fatal("retirement intent lost exact witness or object", lease, err)
+	}
+	if _, err := g.beginRuntimeImagePullRetirement(context.Background(), lease, owned); err == nil {
+		t.Fatal("uncertain cleanup was blindly replayed")
+	}
+	lease, err = g.renewRuntimePullEngineRetirement(context.Background(), lease)
+	if err != nil || lease.EngineRecoveryStage != "watching" || !lease.EngineStoppedAt.IsZero() {
+		t.Fatal("new engine watch was not required", lease, err)
+	}
+	lease, err = g.advanceRuntimeImageEngineRetirement(context.Background(), lease, "stopped")
+	if err != nil || !lease.EngineStoppedAt.After(lease.PullCleanupIntentAt) {
+		t.Fatal("second stop witness unavailable", lease, err)
+	}
+}
+
+func TestRuntimePullResultRequiresRetiredHelperBeforeOwnedDerivative(t *testing.T) {
+	g := previewTestGate(t)
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Execution.EngineID = httpCheckEngine
+		s.Execution.DaemonDisk.AvailableBytes = executionPointer(uint64(64 << 30))
+		return s
+	}
+	p := runtimeImagePrepared(g, "pull-ready")
+	p.PullBundle = &runtimeoci.PullBundle{ManifestSHA256: strings.Repeat("b", 64)}
+	lease := runtimeImageReserve(t, g, p)
+	var err error
+	lease, err = g.transitionRuntimeImage(context.Background(), lease, "building")
+	if err != nil {
+		t.Fatal(err)
+	}
+	steps := []struct{ from, to, output string }{
+		{"staging", "bootstrap-loading", ""},
+		{"bootstrap-loading", "bootstrap-loaded", "sha256:" + strings.Repeat("c", 64)},
+		{"bootstrap-loaded", "network-creating", ""},
+		{"network-creating", "network-created", strings.Repeat("d", 64)},
+		{"network-created", "helper-creating", ""},
+		{"helper-creating", "helper-created", strings.Repeat("e", 64)},
+		{"helper-created", "helper-starting", ""},
+		{"helper-starting", "helper-started", "49152"},
+		{"helper-started", "pulling", ""},
+		{"pulling", "pulled", "sha256:" + strings.Repeat("f", 64)},
+		{"pulled", "helper-retiring", ""},
+		{"helper-retiring", "helper-retired", ""},
+		{"helper-retired", "deriving", ""},
+	}
+	for _, step := range steps {
+		lease, err = g.advanceRuntimeImagePull(context.Background(), lease, step.from, step.to, step.output)
+		if err != nil {
+			t.Fatalf("%s to %s: %v", step.from, step.to, err)
+		}
+	}
+	lease, err = g.completeRuntimeImage(context.Background(), lease, true, "sha256:"+strings.Repeat("1", 64))
+	if err != nil || lease.State != "finished" || lease.ImportStage != "deriving" {
+		t.Fatal("owned derivative could not settle after helper retirement", lease, err)
+	}
+}
 func TestRuntimeImageColdAdmissionPreservesFortyGiBFloor(t *testing.T) {
 	for _, disk := range []uint64{39, 40} {
 		t.Run(string(rune('a'+disk-39)), func(t *testing.T) {

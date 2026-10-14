@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +27,12 @@ type runtimeImageExecutionLease struct {
 	DistributionMode     string                       `json:"distributionMode,omitempty"`
 	ImportStage          string                       `json:"importStage,omitempty"`
 	PayloadImageID       string                       `json:"payloadImageId,omitempty"`
+	PullManifestSHA256   string                       `json:"pullManifestSHA256,omitempty"`
+	PullBootstrapID      string                       `json:"pullBootstrapID,omitempty"`
+	PullNetworkID        string                       `json:"pullNetworkID,omitempty"`
+	PullHelperID         string                       `json:"pullHelperID,omitempty"`
+	PullHostPort         string                       `json:"pullHostPort,omitempty"`
+	PullCleanupIntentAt  time.Time                    `json:"pullCleanupIntentAt,omitzero"`
 	State                string                       `json:"state"`
 	Image                string                       `json:"image,omitempty"`
 	Revision             int                          `json:"revision"`
@@ -38,6 +45,9 @@ type runtimeImageExecutionLease struct {
 
 func validRuntimeImageExecutionLease(v runtimeImageExecutionLease) bool {
 	i := v.Identity
+	if v.DistributionMode != "compressed-pull" && (v.PullManifestSHA256 != "" || v.PullBootstrapID != "" || v.PullNetworkID != "" || v.PullHelperID != "" || v.PullHostPort != "" || !v.PullCleanupIntentAt.IsZero()) {
+		return false
+	}
 	return i.Protocol == backend.RuntimeImageExecutionProtocol && i.EngineID != "" && len(i.EngineID) <= 200 && !strings.ContainsAny(i.EngineID, "\x00\r\n") && backend.ValidateInstance(i.InstanceID) == nil &&
 		checkLogicalID(i.AllocationID) && checkLogicalID(i.JobID) && checkHex(i.ScopeDigest, 32) && checkHex(i.SourceDigest, 32) && v.ID == i.AllocationID && v.Scope == i.ScopeDigest &&
 		v.Actor.ProjectID == "" && len(v.Actor.UserID) <= 200 && len(v.Actor.TeamID) <= 200 && (v.Actor.Local && v.Actor.UserID == "" && v.Actor.TeamID == "" || !v.Actor.Local && v.Actor.UserID != "") &&
@@ -46,10 +56,45 @@ func validRuntimeImageExecutionLease(v runtimeImageExecutionLease) bool {
 		v.CreateDiskBytes >= backend.RuntimeImageRequiredDiskBytes && v.CreateDiskBytes <= 1<<50 && v.ImageTag != "" && len(v.ImageTag) <= 300 && !strings.ContainsAny(v.ImageTag, "\x00\r\n \t") &&
 		v.Revision >= 1 && !v.CreatedAt.IsZero() && !v.UpdatedAt.Before(v.CreatedAt) &&
 		(v.State == "reserved" && v.Image == "" || v.State == "building" && v.Image == "" || v.State == "finished" && (v.Image == "" || strings.HasPrefix(v.Image, "sha256:") && checkHex(strings.TrimPrefix(v.Image, "sha256:"), 32))) &&
-		(v.DistributionMode == "" && v.ImportStage == "" && v.PayloadImageID == "" || v.DistributionMode == "packaged" && (v.ImportStage == "" && (v.State == "reserved" || v.State == "finished") && v.PayloadImageID == "" || v.ImportStage == "importing" && (v.State == "building" || v.State == "finished") && v.PayloadImageID == "" || (v.ImportStage == "imported" || v.ImportStage == "deriving") && (v.State == "building" || v.State == "finished") && strings.HasPrefix(v.PayloadImageID, "sha256:") && checkHex(strings.TrimPrefix(v.PayloadImageID, "sha256:"), 32))) &&
+		(v.DistributionMode == "" && v.ImportStage == "" && v.PayloadImageID == "" || v.DistributionMode == "packaged" && (v.ImportStage == "" && (v.State == "reserved" || v.State == "finished") && v.PayloadImageID == "" || v.ImportStage == "importing" && (v.State == "building" || v.State == "finished") && v.PayloadImageID == "" || (v.ImportStage == "imported" || v.ImportStage == "deriving") && (v.State == "building" || v.State == "finished") && strings.HasPrefix(v.PayloadImageID, "sha256:") && checkHex(strings.TrimPrefix(v.PayloadImageID, "sha256:"), 32)) || v.DistributionMode == "compressed-pull" && validRuntimePullLease(v)) &&
 		(v.EngineRecoveryStage == "" && v.EngineWatchStartedAt.IsZero() && v.EngineStoppedAt.IsZero() ||
 			v.EngineRecoveryStage == "watching" && !v.EngineWatchStartedAt.IsZero() && v.EngineStoppedAt.IsZero() ||
 			v.EngineRecoveryStage == "stopped" && !v.EngineWatchStartedAt.IsZero() && !v.EngineStoppedAt.Before(v.EngineWatchStartedAt))
+}
+
+func validRuntimePullLease(v runtimeImageExecutionLease) bool {
+	if !checkHex(v.PullManifestSHA256, 32) || v.PullBootstrapID != "" && (!strings.HasPrefix(v.PullBootstrapID, "sha256:") || !checkHex(strings.TrimPrefix(v.PullBootstrapID, "sha256:"), 32)) || v.PullNetworkID != "" && !checkHex(v.PullNetworkID, 32) || v.PullHelperID != "" && !checkHex(v.PullHelperID, 32) {
+		return false
+	}
+	if v.PullHostPort != "" && !validPullHostPort(v.PullHostPort) {
+		return false
+	}
+	if v.State == "reserved" || v.State == "finished" && v.ImportStage == "" {
+		return v.ImportStage == "" && v.PullBootstrapID == "" && v.PullNetworkID == "" && v.PullHelperID == "" && v.PullHostPort == "" && v.PayloadImageID == "" && v.PullCleanupIntentAt.IsZero()
+	}
+	if v.State != "building" && v.State != "finished" {
+		return false
+	}
+	if v.ImportStage == "recovery-retiring" || v.ImportStage == "recovery-retired" {
+		return !v.PullCleanupIntentAt.IsZero() && v.PullBootstrapID != "" && v.PullNetworkID != "" && (v.PullHostPort == "" || v.PullHelperID != "") && (v.PayloadImageID == "" || strings.HasPrefix(v.PayloadImageID, "sha256:") && checkHex(strings.TrimPrefix(v.PayloadImageID, "sha256:"), 32))
+	}
+	if !v.PullCleanupIntentAt.IsZero() {
+		return false
+	}
+	stages := map[string]int{"staging": 0, "bootstrap-loading": 1, "bootstrap-loaded": 2, "network-creating": 3, "network-created": 4, "helper-creating": 5, "helper-created": 6, "helper-starting": 7, "helper-started": 8, "pulling": 9, "pulled": 10, "helper-retiring": 11, "helper-retired": 12, "deriving": 13}
+	step, ok := stages[v.ImportStage]
+	if !ok || step < 2 && v.PullBootstrapID != "" || step >= 2 && v.PullBootstrapID == "" || step < 4 && v.PullNetworkID != "" || step >= 4 && v.PullNetworkID == "" || step < 6 && v.PullHelperID != "" || step >= 6 && v.PullHelperID == "" || step < 8 && v.PullHostPort != "" || step >= 8 && v.PullHostPort == "" {
+		return false
+	}
+	if step < 10 {
+		return v.PayloadImageID == ""
+	}
+	return strings.HasPrefix(v.PayloadImageID, "sha256:") && checkHex(strings.TrimPrefix(v.PayloadImageID, "sha256:"), 32)
+}
+
+func validPullHostPort(value string) bool {
+	port, err := strconv.Atoi(value)
+	return err == nil && strconv.Itoa(port) == value && port >= 1024 && port <= 65535
 }
 
 func (g *executionAdmission) advanceRuntimeImageEngineRetirement(ctx context.Context, before runtimeImageExecutionLease, stage string) (runtimeImageExecutionLease, error) {
@@ -74,6 +119,30 @@ func (g *executionAdmission) advanceRuntimeImageEngineRetirement(ctx context.Con
 				l.RuntimeImages[i], out = v, v
 				return nil
 			}
+		}
+		return errRuntimeImageLeaseAbsent
+	})
+	return out, err
+}
+
+func (g *executionAdmission) renewRuntimePullEngineRetirement(ctx context.Context, before runtimeImageExecutionLease) (runtimeImageExecutionLease, error) {
+	var out runtimeImageExecutionLease
+	err := g.mutate(ctx, func(l *executionLeaseLedger) error {
+		for i, v := range l.RuntimeImages {
+			if v.Scope != g.scope || v.ID != before.ID {
+				continue
+			}
+			if v != before || v.DistributionMode != "compressed-pull" || v.ImportStage != "recovery-retiring" || v.State != "building" || v.EngineRecoveryStage != "stopped" {
+				return backend.ErrLaunchFenceOwnership
+			}
+			now := time.Now().UTC()
+			v.EngineRecoveryStage, v.EngineWatchStartedAt, v.EngineStoppedAt = "watching", now, time.Time{}
+			v.Revision++
+			if !validRuntimeImageExecutionLease(v) {
+				return backend.ErrLaunchFenceOwnership
+			}
+			l.RuntimeImages[i], out = v, v
+			return nil
 		}
 		return errRuntimeImageLeaseAbsent
 	})
@@ -105,7 +174,16 @@ func addRuntimeImageReservationView(view *executionReservationView, rows []runti
 	}
 }
 func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy) (executionDecision, runtimeImageExecutionLease, error) {
-	return g.reserveRuntimeImageStage(ctx, prepared, actor, authority, policy, false)
+	return g.reserveRuntimeImageStage(ctx, prepared, actor, authority, policy, 0, false)
+}
+
+// The small tagless bootstrap ImageLoad has its own current-stage allowance.
+// The ledger continues to hold the full verified pull claim for other work.
+func (g *executionAdmission) reserveRuntimeImageBootstrap(ctx context.Context, prepared backend.PreparedRuntimeImage, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy) (executionDecision, runtimeImageExecutionLease, error) {
+	if prepared.PullBundle == nil || prepared.BootstrapAdmissionMemoryMiB < prepared.Spec.Resources.MemoryMiB || prepared.BootstrapAdmissionMemoryMiB > prepared.AdmissionMemoryMiB {
+		return executionDecision{}, runtimeImageExecutionLease{}, backend.ErrUnsupported
+	}
+	return g.reserveRuntimeImageStage(ctx, prepared, actor, authority, policy, prepared.BootstrapAdmissionMemoryMiB, false)
 }
 
 // Once both pinned base pulls have returned complete streams and exact image
@@ -113,16 +191,18 @@ func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared b
 // Evaluate only the remaining capped build, while retaining the original
 // conservative lease for competing admissions until exact build settlement.
 func (g *executionAdmission) reserveRuntimeImageAfterPull(ctx context.Context, prepared backend.PreparedRuntimeImage, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy) (executionDecision, runtimeImageExecutionLease, error) {
-	return g.reserveRuntimeImageStage(ctx, prepared, actor, authority, policy, true)
+	return g.reserveRuntimeImageStage(ctx, prepared, actor, authority, policy, 0, true)
 }
 
-func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepared backend.PreparedRuntimeImage, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy, afterPull bool) (executionDecision, runtimeImageExecutionLease, error) {
+func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepared backend.PreparedRuntimeImage, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy, currentStageMiB int, afterPull bool) (executionDecision, runtimeImageExecutionLease, error) {
 	id, resources := prepared.Spec.Identity, prepared.Spec.Resources
 	admissionMemory := max(resources.MemoryMiB, prepared.AdmissionMemoryMiB)
 	admissionResources := resources
 	admissionResources.MemoryMiB = admissionMemory
 	if afterPull {
 		admissionResources.MemoryMiB = resources.MemoryMiB
+	} else if currentStageMiB > 0 {
+		admissionResources.MemoryMiB = currentStageMiB
 	}
 	out := executionDecision{State: "waiting", Code: "resource_observation_unavailable", Message: "Current machine capacity is unavailable; runtime installation has not started.", Resources: resources}
 	var result runtimeImageExecutionLease
@@ -131,6 +211,9 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 		ImageTag: prepared.Spec.ImageTag, State: "reserved", Revision: 1, CreatedAt: time.Now().UTC()}
 	if prepared.Bundle != nil {
 		candidate.DistributionMode = "packaged"
+	} else if prepared.PullBundle != nil {
+		candidate.DistributionMode = "compressed-pull"
+		candidate.PullManifestSHA256 = prepared.PullBundle.ManifestSHA256
 	}
 	candidate.UpdatedAt = candidate.CreatedAt
 	if !validRuntimeImageExecutionLease(candidate) || id.ScopeDigest != g.scope {
@@ -157,7 +240,7 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 		existing := false
 		for _, v := range l.RuntimeImages {
 			if v.Scope == g.scope && v.ID == id.AllocationID {
-				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.DistributionMode != candidate.DistributionMode || v.State != "reserved" && v.State != "building" || afterPull && v.State != "building" {
+				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.DistributionMode != candidate.DistributionMode || v.PullManifestSHA256 != candidate.PullManifestSHA256 || v.State != "reserved" && v.State != "building" || afterPull && v.State != "building" {
 					return errors.New("runtime installer allocation already claimed, changed or settled")
 				}
 				existing, result = true, v
@@ -257,6 +340,8 @@ func (g *executionAdmission) transitionRuntimeImage(ctx context.Context, before 
 				v.State, v.UpdatedAt = next, time.Now().UTC()
 				if v.DistributionMode == "packaged" {
 					v.ImportStage = "importing"
+				} else if v.DistributionMode == "compressed-pull" {
+					v.ImportStage = "staging"
 				}
 				v.Revision++
 				l.RuntimeImages[i], out = v, v
@@ -286,6 +371,87 @@ func (g *executionAdmission) advanceRuntimeImageImport(ctx context.Context, befo
 				l.RuntimeImages[i], out = v, v
 				return nil
 			}
+		}
+		return errRuntimeImageLeaseAbsent
+	})
+	return out, err
+}
+
+// Each pull effect has a durable intent row before it can reach Docker. A
+// response is bound to the one expected transition; restart never reissues a
+// write whose intent row exists without a positive terminal receipt.
+func (g *executionAdmission) advanceRuntimeImagePull(ctx context.Context, before runtimeImageExecutionLease, from, to, output string) (runtimeImageExecutionLease, error) {
+	allowed := map[string]string{"staging": "bootstrap-loading", "bootstrap-loading": "bootstrap-loaded", "bootstrap-loaded": "network-creating", "network-creating": "network-created", "network-created": "helper-creating", "helper-creating": "helper-created", "helper-created": "helper-starting", "helper-starting": "helper-started", "helper-started": "pulling", "pulling": "pulled", "pulled": "helper-retiring", "helper-retiring": "helper-retired", "helper-retired": "deriving"}
+	var out runtimeImageExecutionLease
+	recovery := to == "recovery-retiring" && (from == "network-created" || from == "helper-created" || from == "helper-started" || from == "pulled") || from == "recovery-retiring" && to == "recovery-retired"
+	if allowed[from] != to && !recovery {
+		return out, backend.ErrLaunchFenceOwnership
+	}
+	err := g.mutate(ctx, func(l *executionLeaseLedger) error {
+		for i, v := range l.RuntimeImages {
+			if v.Scope != g.scope || v.ID != before.ID {
+				continue
+			}
+			if v != before || v.DistributionMode != "compressed-pull" || v.State != "building" || v.ImportStage != from {
+				return backend.ErrLaunchFenceOwnership
+			}
+			switch to {
+			case "bootstrap-loaded":
+				v.PullBootstrapID = output
+			case "network-created":
+				v.PullNetworkID = output
+			case "helper-created":
+				v.PullHelperID = output
+			case "helper-started":
+				v.PullHostPort = output
+			case "pulled":
+				v.PayloadImageID = output
+			default:
+				if output != "" {
+					return backend.ErrLaunchFenceOwnership
+				}
+			}
+			v.ImportStage, v.UpdatedAt = to, time.Now().UTC()
+			if to == "recovery-retiring" {
+				v.PullCleanupIntentAt = v.UpdatedAt
+			}
+			v.Revision++
+			if !validRuntimeImageExecutionLease(v) {
+				return backend.ErrLaunchFenceOwnership
+			}
+			l.RuntimeImages[i], out = v, v
+			return nil
+		}
+		return errRuntimeImageLeaseAbsent
+	})
+	return out, err
+}
+
+// A previously uncertain Docker request may be reconciled only after the
+// selected engine was positively stopped and restored. Record the exact owned
+// objects seen after restore before issuing their one cleanup request.
+func (g *executionAdmission) beginRuntimeImagePullRetirement(ctx context.Context, before runtimeImageExecutionLease, observed backend.RuntimePullHelper) (runtimeImageExecutionLease, error) {
+	var out runtimeImageExecutionLease
+	if observed.NetworkID == "" || observed.HostPort != "" {
+		return out, backend.ErrLaunchFenceOwnership
+	}
+	err := g.mutate(ctx, func(l *executionLeaseLedger) error {
+		for i, v := range l.RuntimeImages {
+			if v.Scope != g.scope || v.ID != before.ID {
+				continue
+			}
+			if v != before || v.DistributionMode != "compressed-pull" || v.State != "building" || v.EngineRecoveryStage != "stopped" || v.ImportStage == "deriving" || v.ImportStage == "recovery-retiring" || v.PullNetworkID != "" && v.PullNetworkID != observed.NetworkID || v.PullHelperID != "" && observed.ContainerID != "" && v.PullHelperID != observed.ContainerID {
+				return backend.ErrLaunchFenceOwnership
+			}
+			v.PullNetworkID, v.PullHelperID = observed.NetworkID, observed.ContainerID
+			v.ImportStage, v.UpdatedAt = "recovery-retiring", time.Now().UTC()
+			v.PullCleanupIntentAt = v.UpdatedAt
+			v.Revision++
+			if !validRuntimeImageExecutionLease(v) {
+				return backend.ErrLaunchFenceOwnership
+			}
+			l.RuntimeImages[i], out = v, v
+			return nil
 		}
 		return errRuntimeImageLeaseAbsent
 	})

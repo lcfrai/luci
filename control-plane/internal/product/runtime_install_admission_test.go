@@ -57,3 +57,26 @@ func TestRuntimeInstallAdmissionReceiptSurvivesReadsAndRestartWithoutRetry(t *te
 		t.Fatal("status reads rewrote admission evidence", err)
 	}
 }
+
+func TestRuntimeInstallOrdinaryModeUsesCompressedPullWithoutFallback(t *testing.T) {
+	s, mux := journeyFixture(t)
+	defer s.Close()
+	s.registerSetupTools(mux)
+	s.runtimeDir = runtimeSourceFixture(t)
+	seen := make(chan string, 1)
+	s.SetRuntimeInstaller(runtimeinstall.Runtime{CaptureActor: runtimeActorFixture, Run: func(_ context.Context, req runtimeinstall.Request, publish runtimeinstall.Publish) (runtimeinstall.Outcome, error) {
+		seen <- req.Mode
+		out := runtimeinstall.Outcome{Identity: req.Identity, Phase: "blocked", ReasonCode: "runtime_pull_package_missing", Message: "Compressed package unavailable; no Docker work started."}
+		return out, publish(out)
+	}})
+	journeyRequest(t, mux, "POST", "/v1/setup/runtime/install", map[string]any{}, 202)
+	select {
+	case mode := <-seen:
+		if mode != "compressed-pull" {
+			t.Fatalf("ordinary installer selected %q", mode)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("ordinary installer did not dispatch")
+	}
+	awaitRuntimeStatus(t, mux, "blocked")
+}

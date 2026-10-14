@@ -23,8 +23,8 @@ type Request struct {
 	Identity
 	SourceDirectory string
 	Actor           management.ExecutionActorRef
-	// packaged is the ordinary source-bound import; an empty mode retains the
-	// existing explicitly selected advanced builder contract.
+	// compressed-pull is the ordinary source-bound install. The v1 packaged
+	// ImageLoad and source build remain explicit diagnostic modes only.
 	Mode string
 }
 
