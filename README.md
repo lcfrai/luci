@@ -30,7 +30,11 @@ Running an application you built and running Luci's development workers are sepa
 
 ## Get started
 
-1. Get the Windows installer or portable package from the [releases page](https://github.com/lcfrai/luci/releases), using the candidate and setup notes supplied with that build. For a portable package, extract it before running its launcher.
+The next verified Windows package is still being prepared. Current development is on `main`; the [source setup instructions](docs/luci/RELEASE.md) are available for contributors. A draft release is not a verified testing handoff.
+
+When a verified candidate is available:
+
+1. Get its Windows installer or portable package from the [releases page](https://github.com/lcfrai/luci/releases), following the setup notes supplied with that build. Extract portable packages before running their launcher.
 2. Create your account and choose **Local** or **Bring your own cloud**. Setup explains the required tools and connection steps. Local coding work needs a running Docker engine; a local model is optional.
 3. Connect a supported coding harness and model. Codex subscription sign-in and API-based access are separate connection choices.
 4. Create a project, clone an existing repository, or open your work. Tell Luci what you want to build.
