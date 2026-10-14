@@ -444,6 +444,7 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 		Instance:         labels[backend.LabelInstance],
 		CreatedOnly:      status == "created",
 		CreationInFlight: creatingBefore || creatingAfter,
+		OOMKilled:        resp.State != nil && stateFrom(status) == backend.StateStopped && resp.State.OOMKilled,
 		State:            stateFrom(status),
 		CreatedAt:        parseCreated(resp.Created, labels),
 		Labels:           labels,

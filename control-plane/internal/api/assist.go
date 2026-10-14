@@ -22,6 +22,7 @@ import (
 const codexSignInRoute = "/v1/setup/agents/codex/sign-in"
 const assistWorktree = "setup-codex"
 const assistDeadline = 5 * time.Minute
+const assistMemoryLimitMessage = "The assistant exceeded this session's memory limit. Your project context is saved. Increase the agent memory limit in your local policy when capacity allows, then retry."
 
 func (a *API) registerAssistance(mux *routes) {
 	mux.HandleFunc("POST "+codexSignInRoute, a.handleCodexSignIn)
@@ -422,16 +423,42 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 	}
 	var result *assistance.Result
 	var orchestratorResult json.RawMessage
+	failureCode := ""
 	defer func() {
+		// Inspect the exact still-owned stopped container before cleanup erases
+		// Docker's OOMKilled evidence. Exit 137 and missing output alone are not
+		// proof: cancellation and uncertain transport can produce both.
+		if status == "failed" && a.deps.Backend.Kind() == backend.KindDocker {
+			probe, done := context.WithTimeout(context.Background(), 2*time.Second)
+			observed, observeErr := a.deps.Backend.Get(probe, job.SessionID)
+			current, currentErr := a.deps.Store.Get(job.SessionID)
+			done()
+			if observeErr == nil && currentErr == nil && observed.ID == job.SessionID && observed.Ref != "" && observed.Ref == current.SandboxRef && observed.State == backend.StateStopped && observed.OOMKilled {
+				failureCode, message = "memory_limit", assistMemoryLimitMessage
+			}
+		}
 		cleanup, c := context.WithTimeout(context.Background(), sessionDestroyTimeout)
 		defer c()
 		if err := a.deps.Backend.Destroy(cleanup, job.SessionID); err != nil && !errors.Is(err, backend.ErrNotFound) {
 			message = "The assistant ended, but its owned Docker session could not be stopped. Stop it before retrying."
 			status = "failed"
+			failureCode = ""
 			result = nil
 			orchestratorResult = nil
 		} else {
-			a.markSessionExited(job.SessionID, "definition assistant finished")
+			exitReason := "definition assistant finished"
+			if failureCode == "memory_limit" {
+				exitReason = assistMemoryLimitMessage
+			}
+			a.markSessionExited(job.SessionID, exitReason)
+			if failureCode == "memory_limit" {
+				_, _ = a.deps.Store.Update(job.SessionID, func(current *registry.Session) error {
+					if current.Status == registry.StatusExited && (current.ExitReason == "definition assistant finished" || current.ExitReason == "process exited") {
+						current.ExitReason = assistMemoryLimitMessage
+					}
+					return nil
+				})
+			}
 			if session.Harness == "codex" && session.AuthMode == "chatgpt" {
 				a.codexAccountMu.Lock()
 				account, err := a.readCodexConnection()
@@ -455,6 +482,7 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 			if j.Status != "cancelled" {
 				j.Status = status
 				j.Message = message
+				j.FailureCode = failureCode
 				j.Result = result
 				j.OrchestratorResult = orchestratorResult
 			}

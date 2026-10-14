@@ -338,6 +338,9 @@ type Sandbox struct {
 	// after that read, so completion cannot make an older Created snapshot safe
 	// to reap. This is not a durable claim and is false after worker restart.
 	CreationInFlight bool
+	// OOMKilled is an exact stopped-container observation. It is never inferred
+	// from exit 137, a lost inspect, or an absent container.
+	OOMKilled bool
 
 	State     State
 	CreatedAt time.Time

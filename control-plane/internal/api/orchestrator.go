@@ -396,7 +396,7 @@ func (a *API) completeOrchestratorJob(job assistance.Job) error {
 			return err
 		}
 	}
-	if err := a.deps.Product.CompleteOrchestratorTurn(job.ProjectID, job.OrchestratorTurnID, job.ID, job.Status, answer); err != nil {
+	if err := a.deps.Product.CompleteOrchestratorTurnWithFailure(job.ProjectID, job.OrchestratorTurnID, job.ID, job.Status, answer, job.FailureCode); err != nil {
 		a.sessionLog().Warn("orchestrator result awaits durable conversation reconciliation", "job", job.ID)
 		return err
 	}

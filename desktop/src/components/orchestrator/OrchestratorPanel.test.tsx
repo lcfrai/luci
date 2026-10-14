@@ -104,6 +104,17 @@ it("puts the primary thread and composer before optional context and refresh con
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
+it("shows a stopped agent memory limit in the saved thread and selects the saved local OpenCode model", async () => {
+  vi.spyOn(productApi, "agents").mockResolvedValue({ providers: [{ id: "local", name: "OpenCode", configured: true, model: "installed-model" }] });
+  vi.mocked(productApi.agentConnections).mockResolvedValue(catalogue(""));
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [{ ...turn(), status: "failed", failureCode: "memory_limit" }] }));
+  render(<OrchestratorPanel projectId="p-1" primary />);
+  expect(await screen.findByText(/agent exceeded its memory limit/i)).toBeTruthy();
+  await userEvent.click(screen.getByText("Agent and model"));
+  await userEvent.selectOptions(screen.getByLabelText("Luci agent"), "opencode");
+  expect((screen.getByLabelText("Luci model") as HTMLInputElement).value).toBe("luci-local/installed-model");
+});
+
 it("brings a blocked delivery finding into the same conversation without sending or replacing a draft", async () => {
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ activity: { accepted: [], earlierAvailable: false, work: [{
     id: "continue-blocked", originTurnId: "turn-1", contextDigest: "d".repeat(64), acceptedEvents: [],

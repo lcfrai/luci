@@ -374,7 +374,16 @@ func (s *Server) ReserveOrchestratorTurn(ctx context.Context, id string, req Orc
 // The exclusive source-admission lock serializes publishing a new blocking
 // question with the final admission/creation of a coordinated coding session.
 func (s *Server) CompleteOrchestratorTurn(id, turnID, jobID, status string, answer *OrchestratorAnswer) error {
+	return s.CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status, answer, "")
+}
+
+// CompleteOrchestratorTurnWithFailure carries only a fixed machine cause into
+// the person's durable conversation. Provider output is never a cause value.
+func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status string, answer *OrchestratorAnswer, failureCode string) error {
 	if !terminalOrchestrator(status) {
+		return ErrOrchestratorInvalid
+	}
+	if failureCode != "" && (status != "failed" || failureCode != "memory_limit") {
 		return ErrOrchestratorInvalid
 	}
 	p, err := s.resolveProject(id)
@@ -406,12 +415,12 @@ func (s *Server) CompleteOrchestratorTurn(id, turnID, jobID, status string, answ
 			return ErrOrchestratorInvalid
 		}
 		if terminalOrchestrator(turn.Status) {
-			if turn.Status == status && reviewDigest(turn.Answer) == reviewDigest(answer) {
+			if turn.Status == status && turn.FailureCode == failureCode && reviewDigest(turn.Answer) == reviewDigest(answer) {
 				return s.recordCoordinationProposalLocked(p, *turn)
 			}
 			return ErrOrchestratorConflict
 		}
-		turn.Status, turn.Answer, turn.UpdatedAt = status, cloneOrchestratorAnswer(answer), time.Now().UTC().Format(time.RFC3339Nano)
+		turn.Status, turn.Answer, turn.FailureCode, turn.UpdatedAt = status, cloneOrchestratorAnswer(answer), failureCode, time.Now().UTC().Format(time.RFC3339Nano)
 		if status == "succeeded" && turn.ReplyToTurnID != "" {
 			for j := range saved.Turns {
 				if saved.Turns[j].ID == turn.ReplyToTurnID {

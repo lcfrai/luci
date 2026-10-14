@@ -265,6 +265,42 @@ func TestDefineAssistantCancellationAndInvalidProposalCannotApplyOrLeaveActiveCr
 	}
 }
 
+func TestAssistantReportsOnlyObservedOwnedOOMWithoutProviderOutput(t *testing.T) {
+	for _, oom := range []bool{true, false} {
+		t.Run(map[bool]string{true: "observed-oom", false: "unproven-exit"}[oom], func(t *testing.T) {
+			e, p := assistanceFixture(t)
+			started := make(chan backend.Spec, 1)
+			release := make(chan struct{})
+			e.be.onCreate = func(spec backend.Spec) { started <- spec; <-release }
+			job := decodeAssist(t, e, "POST", "/v1/product/projects/"+p.ID+"/assist", `{"expectedRevision":0,"message":"Clarify my idea."}`, 202)
+			spec := <-started
+			e.be.mu.Lock()
+			e.be.observed = &backend.Sandbox{ID: job.SessionID, Ref: "ref-" + job.SessionID, Kind: backend.KindDocker, State: backend.StateStopped, OOMKilled: oom}
+			e.be.mu.Unlock()
+			for _, mount := range spec.Mounts {
+				if mount.ContainerPath == "/luci-output" {
+					if err := os.WriteFile(filepath.Join(mount.HostPath, "exit.json"), []byte(`{"exitCode":137}`), 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			close(release)
+			got := awaitAssist(t, e, job)
+			session, err := e.st.Get(job.SessionID)
+			if err != nil || got.Status != "failed" || strings.Contains(got.Message, "provider output") {
+				t.Fatal(got, session, err)
+			}
+			if oom {
+				if got.FailureCode != "memory_limit" || got.Message != assistMemoryLimitMessage || session.ExitReason != assistMemoryLimitMessage {
+					t.Fatal(got, session)
+				}
+			} else if got.FailureCode != "" || got.Message == assistMemoryLimitMessage || session.ExitReason == assistMemoryLimitMessage {
+				t.Fatal(got, session)
+			}
+		})
+	}
+}
+
 func TestDefineAssistantRecoveryOnlyObservesExistingJobAndNeverRepeatsInference(t *testing.T) {
 	e, p := assistanceFixture(t)
 	account, err := e.api.readCodexConnection()

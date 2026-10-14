@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { orchestratorApi, type OrchestratorAdvanceRequest, type OrchestratorJob, type OrchestratorRequest, type OrchestratorTurn, type OrchestratorView } from "../../api/orchestrator";
-import { errorText } from "../../api/product";
+import { errorText, productApi } from "../../api/product";
 import { ApiError } from "../../api/client";
 import { PROJECT_CONTEXT_CHANGED, requestProjectContextEdit, type ContextEditor, type ProjectContextIdentity } from "../../api/projectContextEvents";
 import { useProjectDraftScope } from "../../hooks/useProjectDraft";
@@ -87,8 +87,18 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
   const [refreshEditor, setRefreshEditor] = useState(false);
   const [agent, setAgent] = useState<OrchestratorAgent>(() => readAgentPreference(scope, projectId));
   const { catalogue, error: connectionError } = useAgentConnections(undefined, canRead);
+  const [localModel, setLocalModel] = useState("");
+  useEffect(() => {
+    if (!canRead) { setLocalModel(""); return; }
+    let stopped = false;
+    void productApi.agents().then(value => {
+      const local = value.providers.find(item => item.id === "local" && item.configured);
+      if (!stopped) setLocalModel(local?.model ? `luci-local/${local.model}` : "");
+    }).catch(() => { if (!stopped) setLocalModel(""); });
+    return () => { stopped = true; };
+  }, [canRead]);
   const connection = selectedAgentConnection(catalogue, agent.agentConnectionId);
-  const model = configuredAgentModel(connection, agent.harness) || agent.model;
+  const model = configuredAgentModel(connection, agent.harness) || (!connection && agent.harness === "opencode" && localModel ? localModel : agent.model);
   const routeIssue = agentConnectionIssue(connection, agent.harness, agent.agentConnectionId ?? catalogue?.activeConnectionId)
     || (!catalogue ? connectionError || "Loading agent connections…" : !connection && !model.trim() ? "Choose a saved connection, or enter the exact model for your own agent settings." : "");
   const sourceRevision = useCockpit(state => state.projectSourceRevisions[projectId] ?? 0);
@@ -692,6 +702,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
             <p className="orchestrator-message">{turn.message}</p>
             {turn.replyToTurnId && <p className="orchestrator-muted">Reply to an earlier question</p>}
             <p className="orchestrator-muted">{statuses[turn.status]}{turn.appliedRevision ? ` · Applied as draft revision ${turn.appliedRevision}` : ""}</p>
+            {turn.status === "failed" && turn.failureCode === "memory_limit" && <p role="alert">Luci stopped this request because the agent exceeded its memory limit. Your project context is saved. Increase the agent memory limit in your local policy when capacity allows, then retry.</p>}
             {turn.answer && <div className="orchestrator-answer"><strong>Luci</strong><p>{turn.answer.summary}</p>
               {turn.answer.question && <section className="orchestrator-question" aria-label="Luci question"><p><strong>{turn.answer.blocking && !turn.questionResolvedBy ? "Decision needed: " : "Question: "}</strong>{turn.answer.question}</p><p>{turn.answer.rationale}</p>
                 {!!turn.answer.impact?.length && <div><strong>Why it matters</strong><ul>{turn.answer.impact.map((impact, index) => <li key={index}>{impact}</li>)}</ul></div>}
@@ -737,7 +748,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
             <fieldset disabled={!!busy || !canAssist || !!pendingRequest}>
               <label className="luci-field">Luci agent<select value={agent.harness} onChange={event => chooseAgent({ ...agent, harness: event.target.value as OrchestratorAgent["harness"], model: "" })}><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="opencode">OpenCode</option></select></label>
               <AgentConnectionSelect catalogue={catalogue} value={agent.agentConnectionId} label="Luci connection" onChange={id => chooseAgent({ ...agent, agentConnectionId: id === undefined ? catalogue?.activeConnectionId || "" : id })} />
-              <label className="luci-field">Luci model<input value={model} readOnly={!!configuredAgentModel(connection, agent.harness)} onChange={event => chooseAgent({ ...agent, model: event.target.value })} placeholder="Exact model, or subscription default" maxLength={512} /></label>
+              <label className="luci-field">Luci model<input value={model} readOnly={!!configuredAgentModel(connection, agent.harness) || !connection && agent.harness === "opencode" && !!localModel} onChange={event => chooseAgent({ ...agent, model: event.target.value })} placeholder="Exact model, or subscription default" maxLength={512} /></label>
             </fieldset>
             {primary && conversationContext}
             <p className="orchestrator-muted">Luci proposes context changes and continues within your configured policy. Unresolved decisions, current approvals and deployment controls still apply.</p>
