@@ -1,0 +1,11 @@
+test_guest_ip_substitution_refuses_authenticated_target (test_successor_join.SuccessorJoinTests.test_guest_ip_substitution_refuses_authenticated_target) ... ok
+test_public_nic_foreign_subnet_changed_image_and_identity_refuse_before_guest (test_successor_join.SuccessorJoinTests.test_public_nic_foreign_subnet_changed_image_and_identity_refuse_before_guest) ... ok
+test_recovery_selection_uses_actual_current_mounted_receipt (test_successor_join.SuccessorJoinTests.test_recovery_selection_uses_actual_current_mounted_receipt) ... ok
+test_repeated_recovery_uses_authenticated_current_host_not_original_terraform (test_successor_join.SuccessorJoinTests.test_repeated_recovery_uses_authenticated_current_host_not_original_terraform) ... ok
+test_retained_recovery_blocks_stale_terraform_before_any_source_or_provider_effect (test_successor_join.SuccessorJoinTests.test_retained_recovery_blocks_stale_terraform_before_any_source_or_provider_effect) ... ok
+test_target_binds_exact_nic_subnet_ip_and_guest_boot_without_new_roles (test_successor_join.SuccessorJoinTests.test_target_binds_exact_nic_subnet_ip_and_guest_boot_without_new_roles) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.040s
+
+OK

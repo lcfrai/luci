@@ -1,0 +1,53 @@
+{
+  "sourceRevision": "0f0d1ea5d5800079a2c6cba4144b6a8dbd0c71b4",
+  "scope": "offline selected Azure source tests only; no provider or Docker actions",
+  "results": [
+    {
+      "name": "standby",
+      "command": "python3 -m unittest discover -s scripts/azure-setup -p 'test_standby.py' -v",
+      "tests": 8,
+      "passed": true,
+      "logSHA256": "0e2bac01d13f65a28e7d7dd7a14b7bd1c554ff435bba370c291559b64fa06871"
+    },
+    {
+      "name": "successor_join",
+      "command": "python3 -m unittest discover -s scripts/azure-setup -p 'test_successor_join.py' -v",
+      "tests": 6,
+      "passed": true,
+      "logSHA256": "0e6201555594c6cacb470b6ede3b537af4f21e9c8e799c7a352b77e835e4952a"
+    },
+    {
+      "name": "installer",
+      "command": "python3 -m unittest discover -s scripts/azure-setup -p 'test_installer.py' -v",
+      "tests": 8,
+      "passed": true,
+      "logSHA256": "07371182f17ef11bf84b611ef99a7af7329bd5d335ed2abcc6ad3d415e2e1c68"
+    },
+    {
+      "name": "recovery",
+      "command": "python3 -m unittest discover -s scripts/azure-controller-disk -p 'test_recovery.py' -v",
+      "tests": 17,
+      "passed": true,
+      "logSHA256": "e3f22d182712d4f72a41a556eb56d612de9679cdfe1f379d8ccf08bb849b44f8"
+    },
+    {
+      "name": "retirement",
+      "command": "python3 -m unittest discover -s scripts/azure-embed-host -p 'test_retirement.py' -v",
+      "tests": 5,
+      "passed": true,
+      "logSHA256": "4617667730e66f675a625e76861dc7bf4eca34d53b15f02abc33155ef97d32c0"
+    },
+    {
+      "name": "go-api",
+      "command": "GOMAXPROCS=1 GOMEMLIMIT=450MiB GOGC=20 GOCACHE=/dev/shm/luci-go-cache GOMODCACHE=/dev/shm/luci-gomodcache GOWORK=off /dev/shm/luci-toolchain/go/bin/go test -p 1 ./cmd/api -run '^TestAzureSetupRetirement' -count=1",
+      "passed": true,
+      "logSHA256": "2a4e566d5ff9b128e0c8451b811495da5b867f7e5b73c595324089037bc28aa1"
+    },
+    {
+      "name": "go-product",
+      "command": "GOMAXPROCS=1 GOMEMLIMIT=450MiB GOGC=20 GOCACHE=/dev/shm/luci-go-cache GOMODCACHE=/dev/shm/luci-gomodcache GOWORK=off /dev/shm/luci-toolchain/go/bin/go test -p 1 ./internal/product -run '^TestAzureDevelopSetupPlanAndBundleAreSourceBoundReads' -count=1",
+      "passed": true,
+      "logSHA256": "1588b0ea4bcd7498ac426651a1867d5b3c4f0267943550d39cd2409ec0aa13ff"
+    }
+  ]
+}
