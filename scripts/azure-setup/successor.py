@@ -15,6 +15,28 @@ def module(bundle, name, directory='azure-setup'):
     return result
 
 
+def current_host(core, parent, infrastructure, selected):
+    """Use authenticated current delivery after recovery, never stale Terraform."""
+    ids = infrastructure['resourceIDs']
+    if infrastructure.get('predecessorGeneration'):
+        saved = core.private_json(parent / 'azure-active-host-config.json')
+        host = saved.get('hostConfig', {})
+        if (saved.get('generationReceiptSHA256') != ids.get('controller_generation_receipt_sha256') or
+                not re.fullmatch(r'[0-9a-f]{64}', saved.get('hostReceiptSHA256', '')) or
+                host.get('generation') != selected['terraformVariables']['generation'] or
+                host.get('controllerPrivateIP') != selected['terraformVariables']['controller_private_ip'] or
+                core.digest(host) != ids['runtime_host_config_sha256']):
+            raise ValueError('Authenticated current generation host configuration changed')
+    else:
+        outputs = json.loads(core.terraform(parent / 'azure-terraform', 'output', '-json'))
+        host = json.loads(outputs['runtime_host_config_json']['value'])
+        if core.digest(host) != ids['runtime_host_config_sha256']:
+            raise ValueError('Retained original runtime configuration differs from provider state')
+    result = copy.deepcopy(host)
+    result.pop('controllerSuccessorLink', None)
+    return result
+
+
 def target(core, bundle, selected, recovery, provider, selection_parent):
     variables = core.requested(selected)
     identifier = recovery['newControllerID']
@@ -125,10 +147,7 @@ def prepare(core, bundle, selection_path, provider, ask=input, emit=print):
     successor = core.private_json(signed_path)
     recovery['controllerSuccessor'] = successor
     recovery_module.validate_successor(recovery, successor)
-    outputs = json.loads(core.terraform(parent / 'azure-terraform', 'output', '-json'))
-    host = json.loads(outputs['runtime_host_config_json']['value'])
-    if core.digest(host) != infrastructure['resourceIDs']['runtime_host_config_sha256']:
-        raise ValueError('Retained original runtime configuration differs from provider state')
+    host = current_host(core, parent, infrastructure, selected)
     host.update(generation=recovery['newGeneration'], previousGeneration=recovery['oldGeneration'],
         controllerPrivateIP=observed['newPrivateIP'], secretRefs=next_selection['terraformVariables']['host_secret_refs'])
     link_payload = dict(proposal, version=1, hostConfigSHA256=core.digest(host))
@@ -188,9 +207,13 @@ printf 'LUCI_AZURE_RECOVERED=%%s\\n' "$receipt"
         journal['state'] = 'successor_effect_pending'; core.atomic_json(path, journal)
     response = provider(['vm', 'run-command', 'invoke', '--ids', recovery['newControllerID'], '--command-id', 'RunShellScript', '--scripts', script])
     rows = [line.removeprefix('LUCI_AZURE_RECOVERED=') for item in response.get('value', []) for line in item.get('message', '').splitlines() if line.startswith('LUCI_AZURE_RECOVERED=')]
-    if len(rows) != 1 or json.loads(rows[0]) != {'state': 'active', 'generation': recovery['newGeneration'], 'diskID': recovery['diskID']}:
+    result = json.loads(rows[0]) if len(rows) == 1 else {}
+    if (any(result.get(key) != value for key, value in {'state': 'active', 'generation': recovery['newGeneration'],
+            'diskID': recovery['diskID'], 'controllerID': recovery['newControllerID'], 'sourceCommit': journal['sourceCommit'],
+            'hostConfigSHA256': recovery['controllerHostDelivery']['hostConfigSHA256']}.items()) or
+            not all(re.fullmatch(r'[0-9a-f]{64}', result.get(key, '')) for key in ('generationReceiptSHA256', 'fenceReceiptDigest', 'hostReceiptSHA256'))):
         raise RuntimeError('Controller recovery remains uncertain; retain exact successor without repeated mutation')
-    journal.update(state='successor_active', connected=False, oldControllerDeallocationObserved=True,
+    journal.update(state='successor_active', recoveryReceipt=result, connected=False, oldControllerDeallocationObserved=True,
         oldControllerIdentityRevocationObserved=True, finalInvoiceVerified=False,
         message='Exact recovered generation observed. Import a fresh protected connection; retained disks/gallery/storage and private standby replacement remain separate.')
     core.atomic_json(path, journal)
@@ -223,6 +246,11 @@ def finish(core, bundle, selection_path, journal, provider):
     infrastructure = core.private_json(parent / 'azure-setup-state.json')
     infrastructure['resourceIDs']['controller_instance_id'] = recovery['newControllerID']
     infrastructure['resourceIDs']['controller_recovery_instance_id'] = recovery['oldControllerID']
+    receipt = journal['recoveryReceipt']
+    infrastructure['resourceIDs']['controller_generation_receipt_sha256'] = receipt['generationReceiptSHA256']
+    infrastructure['resourceIDs']['runtime_host_config_sha256'] = receipt['hostConfigSHA256']
+    exact(directory / 'azure-active-host-config.json', {'hostConfig': recovery['controllerHostDelivery']['hostConfig'],
+        'generationReceiptSHA256': receipt['generationReceiptSHA256'], 'hostReceiptSHA256': receipt['hostReceiptSHA256']})
     infrastructure.update(selectionDigest=core.digest(selected), generation=recovery['newGeneration'], state='controller_finalized_private_route_unverified',
         predecessorGeneration=recovery['oldGeneration'], predecessorControllerID=recovery['oldControllerID'])
     exact(directory / 'azure-setup-state.json', infrastructure)

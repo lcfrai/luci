@@ -586,7 +586,7 @@ def run(selection, store, compute, host_delivery=None, service=None, reconcile=F
             raise ValueError("old controller generation does not match the durable fence")
         if compute.disk_owner(selection["diskID"]) != (selection["oldControllerID"], "Attached"):
             raise ValueError("old controller disk ownership is not current")
-        if compute.vm_identities(selection["oldControllerID"])[0] != {selection["controllerIdentityID"]}:
+        if compute.vm_identities(selection["oldControllerID"])[0] not in ({selection["controllerIdentityID"]}, {selection["controllerIdentityID"], selection["recoveryIdentityID"]}):
             raise ValueError("old controller identity is not current")
         new_vm, _ = compute.get(selection["newControllerID"])
         if new_vm.get("properties", {}).get("provisioningState") != "Succeeded" or new_vm.get("properties", {}).get("storageProfile", {}).get("dataDisks", []) or compute.vm_identities(selection["newControllerID"])[0] != {selection["recoveryIdentityID"]}:
@@ -759,6 +759,20 @@ def deliver_host(selection, generation_digest):
     return method(host_selection, module.AzureTransport(host_selection["controllerClientID"]))
 
 
+def recovered_readback(selection, record):
+    """Expose actual mounted/fenced digests needed by a later replacement."""
+    fields = ('generationReceiptSHA256', 'fenceReceiptDigest', 'hostReceiptSHA256')
+    if (record.get('state') != 'active' or record.get('controllerID') != selection['newControllerID'] or
+            record.get('generation') != selection['newGeneration'] or record.get('diskID') != selection['diskID'] or
+            not all(HEX.fullmatch(record.get(key, '')) for key in fields)):
+        raise ValueError('Exact recovered generation/delivery receipt is unavailable')
+    delivery = selection['controllerHostDelivery']
+    if delivery.get('hostConfigSHA256') != digest(delivery.get('hostConfig')):
+        raise ValueError('Exact recovered host configuration is unavailable')
+    return dict({key: record[key] for key in ('state', 'generation', 'diskID', 'controllerID') + fields},
+        sourceCommit=selection['controllerSuccessor']['sourceCommit'], hostConfigSHA256=delivery['hostConfigSHA256'])
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("initialize", "reconcile-initialize", "recover", "reconcile-recover"))
@@ -775,7 +789,9 @@ def main():
     compute = Compute(transport)
     record = initialize(selected, store, compute, args.action == 'reconcile-initialize') if args.action in ('initialize', 'reconcile-initialize') else run(
         selected, store, compute, deliver_host, Service(selected["apiHealthURL"]), reconcile=args.action == 'reconcile-recover')
-    print(json.dumps({"state": record["state"], "generation": record.get("generation"), "diskID": record["diskID"]}, sort_keys=True))
+    result = recovered_readback(selected, record) if args.action in ('recover', 'reconcile-recover') else {
+        "state": record["state"], "generation": record.get("generation"), "diskID": record["diskID"]}
+    print(json.dumps(result, sort_keys=True))
 
 
 if __name__ == "__main__":
