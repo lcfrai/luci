@@ -38,6 +38,12 @@ const statuses: Record<OrchestratorTurn["status"], string> = {
   reserved: "Request reserved · outcome not yet confirmed", queued: "Waiting for the agent", running: "Luci is working",
   succeeded: "Response ready", failed: "Request failed", cancelled: "Request cancelled", unknown: "Outcome not confirmed",
 };
+const failureAdvice = new Map<string, string>([
+  ["memory_limit", "Luci stopped this request because the agent exceeded its memory limit. Your project context is saved. Increase the agent memory limit in your local policy when capacity allows, then retry."],
+  ["local_model_context_limit", "This local model's serving context is too small for the full request and response. No project answer was accepted. Choose a supported model configured for at least 8,192 context tokens before sending a new request."],
+  ["local_model_context_unverified", "Luci could not verify this local model's serving context and exact token count. Check the saved local connection and model before sending a new request; no answer was accepted."],
+  ["local_model_structured_output_invalid", "The selected local model did not produce a complete structured answer. Your project context is saved; no proposal was accepted. Review the agent and model, then choose whether to try again or select a more capable supported model."],
+]);
 
 export function OrchestratorPanel({ projectId, primary = false }: { projectId: string; primary?: boolean }) {
   const scope = useProjectDraftScope(projectId);
@@ -124,7 +130,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
   const permission = useRef(access); permission.current = access;
   const messageRef = useRef(message); messageRef.current = message;
   const replyToRef = useRef(replyTo); replyToRef.current = replyTo;
-  const composer = useRef<HTMLTextAreaElement>(null), conversationEnd = useRef<HTMLDivElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null), conversationEnd = useRef<HTMLDivElement>(null), agentDetails = useRef<HTMLDetailsElement>(null);
   const overviewBody = useRef<HTMLDivElement>(null);
   const contentId = useId();
   const cancelEditRequest = useRef<(() => void) | null>(null);
@@ -702,7 +708,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
             <p className="orchestrator-message">{turn.message}</p>
             {turn.replyToTurnId && <p className="orchestrator-muted">Reply to an earlier question</p>}
             <p className="orchestrator-muted">{statuses[turn.status]}{turn.appliedRevision ? ` · Applied as draft revision ${turn.appliedRevision}` : ""}</p>
-            {turn.status === "failed" && turn.failureCode === "memory_limit" && <p role="alert">Luci stopped this request because the agent exceeded its memory limit. Your project context is saved. Increase the agent memory limit in your local policy when capacity allows, then retry.</p>}
+            {turn.status === "failed" && turn.failureCode && failureAdvice.has(turn.failureCode) && <div role="alert"><p>{failureAdvice.get(turn.failureCode)}</p><Button variant="secondary" size="compact" disabled={!canAssist} onClick={() => { if (agentDetails.current) { agentDetails.current.open = true; agentDetails.current.querySelector("summary")?.focus(); } }}>Review agent and model</Button></div>}
             {turn.answer && <div className="orchestrator-answer"><strong>Luci</strong><p>{turn.answer.summary}</p>
               {turn.answer.question && <section className="orchestrator-question" aria-label="Luci question"><p><strong>{turn.answer.blocking && !turn.questionResolvedBy ? "Decision needed: " : "Question: "}</strong>{turn.answer.question}</p><p>{turn.answer.rationale}</p>
                 {!!turn.answer.impact?.length && <div><strong>Why it matters</strong><ul>{turn.answer.impact.map((impact, index) => <li key={index}>{impact}</li>)}</ul></div>}
@@ -744,7 +750,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
           {canAssist && replyTo && <div className="orchestrator-actions"><span>{replyQuestion ? `Replying to: ${replyQuestion}` : "Replying to a project decision"}</span><Button type="button" variant="ghost" size="compact" disabled={!!pendingRequest || !canAssist} onClick={() => editComposer(message, "")}>Clear reply</Button></div>}
           <label className="luci-field">Message Luci<textarea ref={composer} rows={3} value={canAssist ? message : ""} maxLength={16000} disabled={!canAssist || busy === "send" || !!pendingRequest || !!recoveredDraft || storageConflict} onChange={event => editComposer(event.target.value, replyTo)} placeholder="What should we build, clarify or change?" /></label>
           <div className="orchestrator-actions"><Button type="submit" disabled={!canAssist || !view || !message.trim() || !!contextDrafts || !!routeIssue || !!busy || loading || contextStale || contextRefreshQueued || !!activeTurn || !!activeJobId || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict || !!localRecovery.error}>{busy === "send" ? "Sending…" : "Send to Luci"}</Button>{activeJobId && !completedUnrecorded && !missingReservedJob && <Button type="button" variant="secondary" disabled={!canExecute || !!busy} onClick={() => void cancel()}>Cancel Luci request</Button>}</div>
-          <details className="orchestrator-agent"><summary>Agent and model</summary>
+          <details ref={agentDetails} className="orchestrator-agent"><summary tabIndex={0}>Agent and model</summary>
             <fieldset disabled={!!busy || !canAssist || !!pendingRequest}>
               <label className="luci-field">Luci agent<select value={agent.harness} onChange={event => chooseAgent({ ...agent, harness: event.target.value as OrchestratorAgent["harness"], model: "" })}><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="opencode">OpenCode</option></select></label>
               <AgentConnectionSelect catalogue={catalogue} value={agent.agentConnectionId} label="Luci connection" onChange={id => chooseAgent({ ...agent, agentConnectionId: id === undefined ? catalogue?.activeConnectionId || "" : id })} />

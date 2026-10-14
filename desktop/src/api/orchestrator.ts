@@ -40,7 +40,9 @@ export type TurnStatus = "reserved" | "queued" | "running" | "succeeded" | "fail
 export interface OrchestratorTurn {
   id: string; projectId: string; sequence: number; actor: { id: string; displayName: string };
   message: string; jobId: string; replyToTurnId?: string; contextDigest: string;
-  context: OrchestratorContext; status: TurnStatus; failureCode?: "memory_limit"; createdAt: string; updatedAt: string;
+  context: OrchestratorContext; status: TurnStatus;
+  failureCode?: "memory_limit" | "local_model_context_limit" | "local_model_context_unverified" | "local_model_structured_output_invalid";
+  createdAt: string; updatedAt: string;
   answer?: OrchestratorAnswer; appliedRevision?: number; questionResolvedBy?: string;
 }
 export interface OrchestratorActivity {

@@ -115,6 +115,34 @@ it("shows a stopped agent memory limit in the saved thread and selects the saved
   expect((screen.getByLabelText("Luci model") as HTMLInputElement).value).toBe("luci-local/installed-model");
 });
 
+it.each([
+  ["local_model_context_limit", "serving context is too small"],
+  ["local_model_context_unverified", "could not verify this local model's serving context"],
+  ["local_model_structured_output_invalid", "did not produce a complete structured answer"],
+] as const)("shows safe %s guidance in the saved conversation without retrying", async (failureCode, guidance) => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [{ ...turn(), status: "failed", failureCode, answer: undefined }] }));
+  const mounted = render(<OrchestratorPanel projectId="p-1" primary />);
+  const alert = await screen.findByRole("alert");
+  expect(within(alert).getByText(new RegExp(guidance))).toBeTruthy();
+  expect(screen.getByText("Request failed")).toBeTruthy();
+  await userEvent.click(within(alert).getByRole("button", { name: "Review agent and model" }));
+  expect(screen.getByText("Agent and model").closest("details")?.open).toBe(true);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+  mounted.unmount();
+  render(<OrchestratorPanel projectId="p-1" primary />);
+  expect(await screen.findByText(new RegExp(guidance))).toBeTruthy();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it.each(["raw-provider-error", "__proto__"])("keeps unknown failure code %s generic without rendering untrusted details", async failureCode => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [{ ...turn(), status: "failed", failureCode: failureCode as never, answer: undefined }] }));
+  render(<OrchestratorPanel projectId="p-1" primary />);
+  expect(await screen.findByText("Request failed")).toBeTruthy();
+  expect(screen.queryByText(failureCode)).toBeNull();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
 it("brings a blocked delivery finding into the same conversation without sending or replacing a draft", async () => {
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ activity: { accepted: [], earlierAvailable: false, work: [{
     id: "continue-blocked", originTurnId: "turn-1", contextDigest: "d".repeat(64), acceptedEvents: [],
