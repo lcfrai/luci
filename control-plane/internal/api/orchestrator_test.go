@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -69,6 +70,73 @@ func orchestratorPrompt(t *testing.T, spec backend.Spec) []byte {
 	}
 	t.Fatal("missing orchestrator input")
 	return nil
+}
+
+func TestOrchestratorSchemaFencesDraftDigestAndPriority(t *testing.T) {
+	data, err := assistance.StrictSchema(product.OrchestratorAnswer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(data, &schema); err != nil {
+		t.Fatal(err)
+	}
+	properties := schema["properties"].(map[string]any)
+	proposal := properties["proposal"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)["properties"].(map[string]any)
+	specification := proposal["specification"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)["properties"].(map[string]any)
+	for name, expected := range map[string]string{"digest": "", "status": "draft"} {
+		values := specification[name].(map[string]any)["enum"].([]any)
+		if len(values) != 1 || values[0] != expected {
+			t.Fatal("model contract omitted a server-owned draft field", name, values)
+		}
+	}
+	requirement := specification["requirements"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)
+	priority := requirement["priority"].(map[string]any)["enum"].([]any)
+	if !reflect.DeepEqual(priority, []any{"must", "should", "could"}) {
+		t.Fatal("model contract omitted exact saved priority values", priority)
+	}
+}
+
+func TestOrchestratorCompletedLocalModelInvalidPriorityRetainsSafeCause(t *testing.T) {
+	e, p := repositoryFixture(t)
+	route := saveAssistanceGateway(t, e)
+	useMissingAssistantRoot(t, e)
+	before, err := e.api.deps.Product.OrchestratorSnapshot(context.Background(), p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proposal := before.Specification
+	proposal.Status, proposal.Digest = "draft", strings.Repeat("a", 64)
+	proposal.Requirements = append(proposal.Requirements, product.SpecificationRequirement{ID: "req-001", Title: "Keep tasks", Priority: "High", Acceptance: "A task survives reload."})
+	contextBytes, _ := json.Marshal(before)
+	check := assistance.Job{ProjectID: p.ID, OrchestratorContext: contextBytes}
+	answer := product.OrchestratorAnswer{Summary: "Review the Orchard task list.", Options: []string{}, Impact: []string{"Definition"}, Proposal: &product.OrchestratorProposal{Target: "specification", Summary: "Keep tasks", Specification: &proposal}, NextAction: "specification"}
+	for _, invalid := range []product.ProjectSpecification{proposal, func() product.ProjectSpecification { copy := proposal; copy.Digest = ""; return copy }()} {
+		answer.Proposal.Specification = &invalid
+		data, _ := json.Marshal(answer)
+		if _, err := decodeOrchestratorAnswer(check, data); !errors.Is(err, errOrchestratorAnswerContract) {
+			t.Fatal("generated digest or priority escaped product response validation", err)
+		}
+	}
+	answer.Proposal.Specification = &proposal
+	e.be.onCreate = func(spec backend.Spec) {
+		orchestratorOutput(t, spec, answer)
+	}
+	request := orchestratorRequestFor(t, e, p.ID, "Propose a complete local task list.", "invalid-priority", "", route)
+	request["harness"] = "opencode"
+	job := orchestratorDo(t, e, p.ID, request, 202)
+	got := awaitAssist(t, e, job)
+	if got.Status != "failed" || got.FailureCode != "local_model_project_answer_invalid" || got.OrchestratorResult != nil || !strings.Contains(got.Message, "draft rules") {
+		t.Fatal("post-generation contract rejection was mistaken for a connection failure", got.Status, got.FailureCode, got.Message)
+	}
+	turn, err := e.api.deps.Product.OrchestratorTurn(p.ID, job.OrchestratorTurnID)
+	if err != nil || turn.Status != "failed" || turn.FailureCode != got.FailureCode || turn.Answer != nil {
+		t.Fatal("safe post-result failure did not reach the durable conversation", err, turn)
+	}
+	after, err := e.api.deps.Product.OrchestratorSnapshot(context.Background(), p.ID)
+	if err != nil || after.Digest != before.Digest {
+		t.Fatal("invalid priority changed project context", err)
+	}
 }
 
 func TestOrchestratorUsesSelectedProviderRetainsAnswersAndDoesNotApplyProposals(t *testing.T) {

@@ -31,15 +31,15 @@ type ProjectSpecification struct {
 	Glossary      []SpecificationTerm        `json:"glossary"`
 	Decisions     []SpecificationDecision    `json:"decisions"`
 	Questions     []SpecificationQuestion    `json:"questions"`
-	Status        string                     `json:"status"`
-	Digest        string                     `json:"digest"`
+	Status        string                     `json:"status" enum:"draft"`
+	Digest        string                     `json:"digest" output:"empty"`
 	UpdatedAt     string                     `json:"updatedAt"`
 }
 
 type SpecificationRequirement struct {
 	ID         string `json:"id"`
 	Title      string `json:"title"`
-	Priority   string `json:"priority"`
+	Priority   string `json:"priority" enum:"must,should,could"`
 	Acceptance string `json:"acceptance"`
 }
 type SpecificationJourney struct {

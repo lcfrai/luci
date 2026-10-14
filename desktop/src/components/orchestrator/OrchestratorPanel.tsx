@@ -55,6 +55,7 @@ const failureAdvice = new Map<string, string>([
   ["local_model_context_limit", "This local model's serving context is too small for the full request and response. No project answer was accepted. Choose a supported model configured for at least 8,192 context tokens before sending a new request."],
   ["local_model_context_unverified", "Luci could not verify this local model's serving context and exact token count. Check the saved local connection and model before sending a new request; no answer was accepted."],
   ["local_model_structured_output_invalid", "The selected local model did not produce a complete structured answer. Your project context is saved; no proposal was accepted. Review the agent and model, then choose whether to try again or select a more capable supported model."],
+  ["local_model_project_answer_invalid", "The local model completed, but its answer did not meet this project's draft rules. Your context is saved and no proposal was accepted. Review your request or choose a more capable supported model before trying again."],
 ]);
 
 export function OrchestratorPanel({ projectId, primary = false }: { projectId: string; primary?: boolean }) {

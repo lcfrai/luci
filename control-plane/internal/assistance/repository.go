@@ -269,6 +269,8 @@ if provider == 'opencode' and ollama_preflight == '1':
         def matches_schema(value, shape, depth=0):
             if depth>32 or not isinstance(shape,dict):
                 return False
+            if 'enum' in shape and (not isinstance(shape['enum'],list) or value not in shape['enum']):
+                return False
             if 'anyOf' in shape:
                 variants = shape['anyOf']
                 return isinstance(variants,list) and len(variants)<=8 and any(matches_schema(value,item,depth+1) for item in variants)

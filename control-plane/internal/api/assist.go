@@ -566,6 +566,10 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 			if job.Kind == "orchestrator" {
 				answer, decodeErr := decodeOrchestratorAnswer(job, data)
 				if decodeErr != nil {
+					if job.Harness == "opencode" && errors.Is(decodeErr, errOrchestratorAnswerContract) {
+						failureCode = "local_model_project_answer_invalid"
+						message = "The local model completed, but its answer did not meet this project's draft rules. Your context is saved and no proposal was accepted. Review the request or choose a more capable supported model before trying again."
+					}
 					return
 				}
 				orchestratorResult, err = json.Marshal(answer)

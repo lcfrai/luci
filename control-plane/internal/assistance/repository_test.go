@@ -184,6 +184,7 @@ func TestOpenCodeLocalStructuredSessionReceivesLongContextTailAndExactSchema(t *
 		fields[name] = map[string]string{"type": "string"}
 	}
 	fields["options"] = map[string]any{"type": "array", "items": map[string]string{"type": "string"}}
+	fields["priority"] = map[string]any{"type": "string", "enum": []string{"must", "should", "could"}}
 	fields["proposal"] = map[string]any{"anyOf": []any{map[string]string{"type": "object"}, map[string]string{"type": "null"}}}
 	schema, err := json.Marshal(map[string]any{"type": "object", "properties": fields, "required": []string{"question", "options", "rationale", "proposal", "nextAction"}})
 	if err != nil {
@@ -313,12 +314,15 @@ server.serve_forever()
 				http.Error(w, "wrong exact schema", 400)
 				return
 			}
-			answer := map[string]any{"question": "Who approves?", "options": []string{}, "rationale": "Ask the owner.", "proposal": nil, "nextAction": "answer-question"}
+			answer := map[string]any{"question": "Who approves?", "options": []string{}, "rationale": "Ask the owner.", "proposal": nil, "nextAction": "answer-question", "priority": "must"}
 			if nativeMode.Load() == 1 {
 				delete(answer, "rationale")
 			}
 			if nativeMode.Load() == 2 {
 				answer["nextAction"] = "Propose a complete specification"
+			}
+			if nativeMode.Load() == 4 {
+				answer["priority"] = "High"
 			}
 			encoded, _ := json.Marshal(answer)
 			message := map[string]any{"role": "assistant", "content": string(encoded)}
@@ -468,6 +472,7 @@ server.serve_forever()
 		{"native-missing-required-field", 1, false},
 		{"native-deferred-proposal", 2, false},
 		{"native-tool-call-refused", 3, false},
+		{"native-enum-refused", 4, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			os.Remove(filepath.Join(output, "result.json"))

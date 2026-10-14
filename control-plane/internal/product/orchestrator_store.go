@@ -421,7 +421,7 @@ func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status s
 			return ErrOrchestratorInvalid
 		}
 		switch failureCode {
-		case "memory_limit", "local_model_context_limit", "local_model_context_unverified", "local_model_structured_output_invalid":
+		case "memory_limit", "local_model_context_limit", "local_model_context_unverified", "local_model_structured_output_invalid", "local_model_project_answer_invalid":
 		default:
 			return ErrOrchestratorInvalid
 		}

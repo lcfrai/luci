@@ -87,3 +87,25 @@ func TestStructuredAssistantSchemaRequiresNullableProposalFields(t *testing.T) {
 		t.Fatal("untyped schema accepted")
 	}
 }
+
+func TestStructuredAssistantSchemaCarriesExactPriorityValues(t *testing.T) {
+	type requirement struct {
+		Priority string `json:"priority" enum:"must,should,could"`
+	}
+	type proposal struct {
+		Requirements []requirement `json:"requirements"`
+	}
+	data, err := StrictSchema(proposal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(data, &schema); err != nil {
+		t.Fatal(err)
+	}
+	priority := schema["properties"].(map[string]any)["requirements"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)["priority"].(map[string]any)
+	values := priority["enum"].([]any)
+	if len(values) != 3 || values[0] != "must" || values[1] != "should" || values[2] != "could" {
+		t.Fatal("priority output contract does not match saved specification validation", priority)
+	}
+}

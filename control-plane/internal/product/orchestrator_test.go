@@ -62,7 +62,7 @@ func TestOrchestratorLocalModelFailureCompletesWithoutManualReconcile(t *testing
 	s, mux := journeyFixture(t)
 	p := createJourneyProject(t, mux, "orchestrator-local-model-failure")
 	ctx := orchestratorActor(t, "alice")
-	for _, code := range []string{"local_model_context_limit", "local_model_context_unverified", "local_model_structured_output_invalid"} {
+	for _, code := range []string{"local_model_context_limit", "local_model_context_unverified", "local_model_structured_output_invalid", "local_model_project_answer_invalid"} {
 		turn, _ := reserveOrchestratorTest(t, s, p.ID, ctx, "Draft the specification", "")
 		if err := s.CompleteOrchestratorTurnWithFailure(p.ID, turn.ID, turn.JobID, "failed", nil, code); err != nil {
 			t.Fatal(code, err)

@@ -232,7 +232,14 @@ func schemaFor(t reflect.Type) map[string]any {
 			if name == "" {
 				name = f.Name
 			}
-			properties[name] = schemaFor(f.Type)
+			fieldSchema := schemaFor(f.Type)
+			if values := f.Tag.Get("enum"); f.Type.Kind() == reflect.String && values != "" {
+				fieldSchema["enum"] = strings.Split(values, ",")
+			}
+			if f.Type.Kind() == reflect.String && f.Tag.Get("output") == "empty" {
+				fieldSchema["enum"] = []string{""}
+			}
+			properties[name] = fieldSchema
 			required = append(required, name)
 		}
 		return map[string]any{"type": "object", "additionalProperties": false, "properties": properties, "required": required}

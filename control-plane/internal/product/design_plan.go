@@ -23,8 +23,8 @@ type ProjectDesignPlan struct {
 	ImplementationNotes   string         `json:"implementationNotes"`
 	PrototypeReleaseID    string         `json:"prototypeReleaseId"`
 	PrototypeCommit       string         `json:"prototypeCommit"`
-	Status                string         `json:"status"`
-	Digest                string         `json:"digest"`
+	Status                string         `json:"status" enum:"draft"`
+	Digest                string         `json:"digest" output:"empty"`
 	UpdatedAt             string         `json:"updatedAt"`
 }
 type DesignScreen struct {
