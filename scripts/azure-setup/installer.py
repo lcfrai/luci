@@ -29,10 +29,11 @@ GIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 REGION = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
-SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
+SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/source_bundle.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
                 "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-embed-host/guest_registry.py", "azure-controller-disk/package.py",
                 "azure-controller-disk/mount.py", "azure-controller-disk/recover.py"}
-EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
+SOURCE_FILES = {'builder-source/source.json', 'builder-source/luci.pack', 'builder-source/e2b.pack'}
+EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | SOURCE_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
 PLAN_VERSION = 1
 BACKEND_KEYS = {"subscriptionId", "resourceGroupName", "storageAccountName", "containerName", "key"}
 
@@ -88,13 +89,24 @@ def bundle(root):
     files = manifest.get("files", {})
     if not isinstance(files, dict) or set(files) != EXPECTED_FILES:
         raise ValueError("Azure setup bundle is incomplete")
+    if any(not isinstance(row, dict) or set(row) != {'sha256','size'} or not isinstance(row['size'], int) or isinstance(row['size'], bool) or not 0 < row['size'] <= 4 << 20 for row in files.values()):
+        raise ValueError('Azure setup bundle member bound is invalid')
+    if sum(row.get('size', 8 << 20) for row in files.values()) > 8 << 20:
+        raise ValueError('Azure setup bundle exceeds its bounded source inventory')
     for name, binding in files.items():
         path = root / name
         if (name.startswith("/") or "\\" in name or any(part in ("", ".", "..") for part in name.split("/")) or
                 any(parent.is_symlink() for parent in (path, *path.parents) if parent == root or root in parent.parents) or
-                not path.is_file() or path.stat().st_size != binding.get("size") or
+                not path.is_file() or not 0 < path.stat().st_size <= 4 << 20 or path.stat().st_size != binding.get("size") or
                 hashlib.sha256(path.read_bytes()).hexdigest() != binding.get("sha256")):
             raise ValueError("Azure setup bundle member changed")
+    source = bounded_json(root / 'builder-source/source.json', limit=2 << 20)
+    if source.get('luci', {}).get('revision') != manifest['luciRevision'] or source.get('e2b', {}).get('revision') != 'cf536c284434fdd2f09bbab35ec807a5dacc87e4':
+        raise ValueError('Embedded source revision differs from setup bundle')
+    for role in ('luci', 'e2b'):
+        binding = files['builder-source/' + role + '.pack']
+        if source.get(role, {}).get('pack') != {'sha256': binding['sha256'], 'bytes': binding['size']}:
+            raise ValueError('Embedded source pack differs from setup bundle')
     return manifest
 
 
@@ -808,7 +820,7 @@ def main():
         row.add_argument("--selection", type=Path, required=True)
         if action == 'builder-source':
             for key in ('luci-source', 'runtime-source', 'envoy-binary', 'envoy-license'):
-                row.add_argument('--' + key, required=True)
+                row.add_argument('--' + key, default='', help='Explicit compatibility input; normal setup uses packaged source')
         if action == 'builder-plan':
             row.add_argument('--base-image', required=True, help='Exact Canonical:ubuntu-24_04-lts:server:VERSION')
             row.add_argument('--builder-size', default='Standard_D4s_v5')

@@ -97,6 +97,8 @@ def collect(args):
     files["licences/E2B-LICENSE"] = regular_bytes(upstream / "LICENSE")
     files["licences/LUCI-LICENSE"] = regular_bytes(luci / "LICENSE")
     files["licences/ENVOY-LICENSE"] = regular_bytes(Path(args.envoy_license))
+    if getattr(args, 'envoy_notice', None):
+        files['licences/ENVOY-NOTICE'] = regular_bytes(Path(args.envoy_notice))
     for name, path in {
         "azure-embed-host-bootstrap": args.bootstrap,
         "azure-gateway-config": args.gateway,
@@ -251,6 +253,7 @@ def main():
     for flag in ("upstream", "luci", "luci-revision", "image-digests", "bootstrap", "gateway", "envoy", "envoy-license", "output"):
         build.add_argument("--" + flag, required=True)
     build.add_argument('--guest-receipt')
+    build.add_argument('--envoy-notice')
     verify = commands.add_parser("verify")
     verify.add_argument("--archive", required=True)
     verify.add_argument("--sha256", required=True)

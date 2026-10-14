@@ -235,3 +235,23 @@ restoration from the exact gallery image does not restore tasks, template metada
 projects, artifacts or active journals; their existing independent durable recovery
 and predecessor fence still apply. No actual Azure, KVM, guest task, native registry
 or billing outcome is established by the offline tests.
+
+
+Normal `builder-source` now needs only the verified setup bundle and selection.
+The embedded minimal Git packs retain original Luci/E2B commits and selected
+licensed source; the temporary builder verifies/restores clean sparse checkouts.
+It obtains the exact official Envoy image on that builder, extracts only the
+bounded Linux amd64 executable from a never-started owned container, verifies its
+source/version, and retains original LICENSE/NOTICE and measured provenance.
+There is no normal user GitHub credential, source-checkout, Envoy binary or local
+compiler prerequisite. The four explicit compatibility source inputs remain
+available together; they are not the normal path.
+
+Maintainer packaging changes: `azure-setup/package.py build --source ABS_LUCI
+--revision EXACT_COMMIT --e2b-source ABS_PINNED_E2B --output azure-setup.tar`.
+The source repositories must be clean at exact revisions. This is a release
+preparation input; installed users receive all source bytes in the 8 MiB bounded
+setup bundle. `LOCAL039` preserves only an explicitly discovered allowlisted
+core.autocrlf value for collector clean-status checks, while pack bytes stay
+original and restored repositories remain hermetic. Outer native/portable release
+staging must pass the pinned E2B source path before shipping this installer.

@@ -22,6 +22,7 @@ import tempfile
 import time
 import urllib.parse
 import urllib.request
+import uuid
 
 RUNTIME = 'cf536c284434fdd2f09bbab35ec807a5dacc87e4'
 ROOT = Path('/var/lib/luci-image-builder')
@@ -29,6 +30,10 @@ HEX = re.compile(r'[0-9a-f]{64}\Z')
 REV = re.compile(r'[0-9a-f]{40}\Z')
 sys.dont_write_bytecode = True
 os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
+ENVOY_VERSION = '1.40.0'
+ENVOY_SOURCE = '9e5580933739775e8bce696a57a2e1bc99368f23'
+ENVOY_LICENSE = 'cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30'
+ENVOY_NOTICE = '329d90738f1ee3633da8e7439ea6f9624ec6274a9cbd72437aafa0e8df9de32e'
 
 
 def sha_file(path):
@@ -65,6 +70,77 @@ def command(arguments, timeout=1800, cwd=None):
         finally:
             if process.poll() is None: process.kill()
             process.wait()
+
+
+def copy_envoy_binary(container, target):
+    """Copy one known official-image file; never extract an arbitrary archive."""
+    target = Path(target)
+    with tempfile.TemporaryFile() as diagnostics:
+        process = subprocess.Popen(['docker', 'cp', container + ':/usr/local/bin/envoy', str(target)],
+            stdout=diagnostics, stderr=diagnostics, stdin=subprocess.DEVNULL)
+        try:
+            deadline = time.monotonic() + 60
+            while process.poll() is None:
+                if time.monotonic() > deadline or diagnostics.seek(0, 2) > 1 << 20 or target.exists() and target.stat().st_size > 128 << 20:
+                    raise ValueError('Envoy extraction exceeded its time/byte bound')
+                time.sleep(0.1)
+            if process.returncode or target.is_symlink() or not target.is_file() or not 64 <= target.stat().st_size <= 128 << 20:
+                raise ValueError('Official Envoy extraction is incomplete')
+        finally:
+            if process.poll() is None: process.kill()
+            process.wait()
+    with target.open('rb') as source: header = source.read(64)
+    if header[:6] != b'\x7fELF\x02\x01' or header[18:20] != b'\x3e\x00':
+        raise ValueError('Envoy executable is not Linux amd64 ELF')
+    target.chmod(0o755)
+
+
+def envoy_inputs(target, fetch, run=command, copy_binary=copy_envoy_binary):
+    """Fresh private runtime builder only; public source bytes, no entrypoint."""
+    target = Path(target)
+    if target.exists(): raise ValueError('Envoy source preparation is retained; no replay')
+    target.mkdir(mode=0o700)
+    image = 'docker.io/envoyproxy/envoy:v' + ENVOY_VERSION
+    checksum = run(['skopeo', 'inspect', '--override-os', 'linux', '--override-arch', 'amd64', '--format', '{{.Digest}}', 'docker://' + image], timeout=120)
+    if not re.fullmatch(r'sha256:[0-9a-f]{64}', checksum): raise ValueError('Official Envoy image digest unavailable')
+    pinned = image + '@' + checksum
+    run(['docker', 'pull', '--platform', 'linux/amd64', pinned], timeout=1200)
+    rows = json.loads(run(['docker', 'image', 'inspect', pinned]))
+    if len(rows) != 1 or rows[0].get('Architecture') != 'amd64' or rows[0].get('Os') != 'linux':
+        raise ValueError('Official Envoy image architecture differs')
+    image_id = rows[0]['Id']
+    operation = uuid.uuid4().hex
+    container = 'luci-envoy-source-' + operation
+    journal = target / 'operation.json'
+    if run(['docker', 'container', 'ls', '--all', '--filter', 'name=^/' + container + '$', '--format', '{{.ID}}']):
+        raise ValueError('Envoy extraction container already exists; no adoption')
+    save(journal, {'state': 'owned_container_create_pending', 'image': pinned, 'imageID': image_id, 'container': container, 'operation': operation})
+    def owned():
+        values = json.loads(run(['docker', 'container', 'inspect', container]))
+        if (len(values) != 1 or values[0].get('Image') != image_id or values[0].get('State', {}).get('Running') is not False or
+                values[0].get('Config', {}).get('Labels', {}).get('luci.envoy-source') != operation):
+            raise ValueError('Envoy extraction container is foreign, running or uncertain')
+        return values[0]['Id']
+    try:
+        run(['docker', 'create', '--name', container, '--network', 'none', '--label', 'luci.envoy-source=' + operation,
+             '--entrypoint', '/bin/false', image_id])
+        identifier = owned()
+        copy_binary(identifier, target / 'envoy')
+        version = run([str(target / 'envoy'), '--version'], timeout=10)
+        if ENVOY_VERSION not in version or ENVOY_SOURCE not in version:
+            raise ValueError('Official Envoy executable source/version differs')
+        for name, expected in (('LICENSE', ENVOY_LICENSE), ('NOTICE', ENVOY_NOTICE)):
+            fetch('https://raw.githubusercontent.com/envoyproxy/envoy/' + ENVOY_SOURCE + '/' + name, expected, target / name, 128 << 10)
+        receipt = {'state': 'envoy_source_prepared', 'sourceCommit': ENVOY_SOURCE, 'version': ENVOY_VERSION, 'image': pinned,
+            'imageID': image_id, 'binarySHA256': sha_file(target / 'envoy'), 'licenseSHA256': ENVOY_LICENSE, 'noticeSHA256': ENVOY_NOTICE}
+    finally:
+        identifier = owned()  # Never delete by name without exact owner readback.
+        run(['docker', 'container', 'rm', identifier])
+        if run(['docker', 'container', 'ls', '--all', '--filter', 'name=^/' + container + '$', '--format', '{{.ID}}']):
+            raise ValueError('Envoy extraction container removal remains uncertain')
+        save(journal, {'state': 'owned_container_absent', 'container': container, 'operation': operation})
+    save(target / 'receipt.json', receipt)
+    return receipt
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -152,18 +228,31 @@ def prepare(config, provider_download=download):
     source = ROOT / 'payload'
     extract(payload, source)
     manifest = json.loads((source / 'manifest.json').read_bytes())
-    wanted = {'luci.tar', 'luci.commit', 'runtime.tar', 'runtime.commit', 'envoy', 'envoy-license'}
-    if set(manifest.get('files', {})) != wanted or manifest.get('sourceCommit') != config['sourceCommit'] or manifest.get('runtimeRevision') != RUNTIME:
+    legacy = {'luci.tar', 'luci.commit', 'runtime.tar', 'runtime.commit', 'envoy', 'envoy-license'}
+    embedded = {'builder-source/source.json', 'builder-source/luci.pack', 'builder-source/e2b.pack', 'source_bundle.py'}
+    wanted = set(manifest.get('files', {}))
+    if wanted not in (legacy, embedded) or manifest.get('sourceCommit') != config['sourceCommit'] or manifest.get('runtimeRevision') != RUNTIME:
         raise ValueError('Role payload source/licence inventory changed')
+    if {path.relative_to(source).as_posix() for path in source.rglob('*') if path.is_file()} != wanted | {'manifest.json'}:
+        raise ValueError('Role payload contains undeclared files')
     for name, binding in manifest['files'].items():
         path = source / name
         if not path.is_file() or path.is_symlink() or path.stat().st_size != binding['size'] or sha_file(path) != binding['sha256']:
             raise ValueError('Source payload bytes changed')
-    luci, upstream = ROOT / 'luci', ROOT / 'runtime'
     command(['apt-get', 'update'])
     command(['apt-get', 'install', '-y', 'git', 'golang-go', 'python3-yaml', 'docker.io', 'docker-compose-v2', 'skopeo', 'openssl', 'ca-certificates'])
-    checkout(source / 'luci.tar', (source / 'luci.commit').read_bytes(), config['sourceCommit'], luci)
-    checkout(source / 'runtime.tar', (source / 'runtime.commit').read_bytes(), RUNTIME, upstream)
+    if wanted == embedded:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('luci_source_restore', source / 'source_bundle.py')
+        helper = importlib.util.module_from_spec(spec); spec.loader.exec_module(helper)
+        restored = helper.restore(source, ROOT / 'checkouts')
+        if restored['sourceCommit'] != config['sourceCommit'] or restored['runtimeRevision'] != RUNTIME:
+            raise ValueError('Restored sparse source differs from builder selection')
+        luci, upstream = restored['luci'], restored['e2b']
+    else:
+        luci, upstream = ROOT / 'luci', ROOT / 'runtime'
+        checkout(source / 'luci.tar', (source / 'luci.commit').read_bytes(), config['sourceCommit'], luci)
+        checkout(source / 'runtime.tar', (source / 'runtime.commit').read_bytes(), RUNTIME, upstream)
     environment = os.environ.copy()
     os.environ.update(GOTOOLCHAIN='go1.25.0', GOMAXPROCS='2', GOMEMLIMIT='2GiB')
     try:
@@ -192,18 +281,29 @@ def prepare(config, provider_download=download):
         import importlib.util
         spec = importlib.util.spec_from_file_location('luci_guest_registry', luci / 'scripts/azure-embed-host/guest_registry.py')
         registry = importlib.util.module_from_spec(spec); spec.loader.exec_module(registry)
+        if wanted == embedded:
+            envoy_receipt = envoy_inputs(ROOT / 'envoy-artifact', registry.public_download)
+            envoy_binary, envoy_license = ROOT / 'envoy-artifact/envoy', ROOT / 'envoy-artifact/LICENSE'
+        else:
+            envoy_binary, envoy_license = source / 'envoy', source / 'envoy-license'
         guest_source = registry.prepare(luci, config['sourceCommit'], command)
         script = luci / 'scripts/azure-embed-host/package.py'
-        digest = command(['python3', str(script), 'build', '--upstream', str(upstream), '--luci', str(luci), '--luci-revision', config['sourceCommit'],
+        package_arguments = ['python3', str(script), 'build', '--upstream', str(upstream), '--luci', str(luci), '--luci-revision', config['sourceCommit'],
             '--image-digests', str(ROOT / 'image-digests.json'), '--bootstrap', str(ROOT / 'azure-embed-host-bootstrap'), '--gateway', str(ROOT / 'azure-gateway-config'),
-            '--envoy', str(source / 'envoy'), '--envoy-license', str(source / 'envoy-license'), '--output', str(package),
-            '--guest-receipt', '/opt/luci/guest-registry/receipt.json'])
+            '--envoy', str(envoy_binary), '--envoy-license', str(envoy_license), '--output', str(package),
+            '--guest-receipt', '/opt/luci/guest-registry/receipt.json']
+        if wanted == embedded: package_arguments += ['--envoy-notice', str(ROOT / 'envoy-artifact/NOTICE')]
+        digest = command(package_arguments)
         command(['python3', str(script), 'install-image', '--archive', str(package), '--sha256', digest, '--root', '/'])
         command(['docker', 'compose', 'version'])
     if not HEX.fullmatch(digest) or sha_file(package) != digest: raise ValueError('Installed package differs from measured source')
     licences = Path('/opt/luci/licences')
     licences.mkdir(parents=True, exist_ok=True)
-    for name, origin in (('LUCI-LICENSE', luci / 'LICENSE'), ('LUCI-NOTICE', luci / 'NOTICE'), ('E2B-LICENSE', upstream / 'LICENSE'), ('ENVOY-LICENSE', source / 'envoy-license')):
+    retained = [('LUCI-LICENSE', luci / 'LICENSE'), ('LUCI-NOTICE', luci / 'NOTICE'), ('E2B-LICENSE', upstream / 'LICENSE')]
+    if config['role'] == 'runtime':
+        retained.append(('ENVOY-LICENSE', envoy_license))
+        if wanted == embedded: retained.append(('ENVOY-NOTICE', ROOT / 'envoy-artifact/NOTICE'))
+    for name, origin in retained:
         if not origin.is_file() or origin.is_symlink(): raise ValueError('Original licence/NOTICE unavailable')
         shutil.copyfile(origin, licences / name)
     if any(Path(path).exists() for path in ('/etc/luci/operator-template.json', '/etc/luci/azure-controller.env', '/etc/luci/azure-private-ca.crt', '/etc/luci/operator.json', '/var/lib/luci/azure-embed/host-state.json')):
@@ -215,6 +315,7 @@ def prepare(config, provider_download=download):
         receipt['guestSource'] = {name: guest_source[name] for name in ('sourceCommit', 'imageDigest', 'fromImage', 'registryBinarySHA256', 'registrySourceCommit', 'registryArchiveSHA256', 'harnessVersions')}
         receipt['guestSource']['receiptSHA256'] = sha_file('/opt/luci/guest-registry/receipt.json')
         receipt['dependencyImagesPreloaded'] = True
+        if wanted == embedded: receipt['envoySource'] = envoy_receipt
     save('/opt/luci/image-source-receipt.json', receipt)
     save(state, receipt)
     return receipt
@@ -238,7 +339,7 @@ def main():
             save(ROOT / 'deprovision.json', {'state': 'deprovision_pending'})
             # Build sources, temporary credentials/cache and account state do not
             # belong in the image. Keep the generic source/licence receipt only.
-            for name in ('luci', 'runtime', 'payload', 'payload.tar', 'role.tar', 'image-digests.json'):
+            for name in ('luci', 'runtime', 'checkouts', 'envoy-artifact', 'payload', 'payload.tar', 'role.tar', 'image-digests.json'):
                 path = ROOT / name
                 if path.is_dir(): shutil.rmtree(path)
                 elif path.exists(): path.unlink()
