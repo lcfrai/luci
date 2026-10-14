@@ -1,0 +1,22 @@
+{
+  "algorithm": "luci-git-blobs-v1",
+  "description": "Git blob bytes are LF even when the checked-out worktree uses CRLF and mode 0666.",
+  "files": [
+    {
+      "path": "images/sandbox/Dockerfile",
+      "mode": "0644",
+      "utf8": "FROM node:24-bookworm-slim\nRUN true\n"
+    },
+    {
+      "path": "sandboxd/go.mod",
+      "mode": "0644",
+      "utf8": "module example.test/sandboxd\n"
+    },
+    {
+      "path": "sandboxd/vendor/empty.txt",
+      "mode": "0644",
+      "utf8": ""
+    }
+  ],
+  "expectedCanonicalInputDigest": "e96cfb7bce4f225be0a6408615307604039dceee42de3325d88dc1ca8202a8ca"
+}

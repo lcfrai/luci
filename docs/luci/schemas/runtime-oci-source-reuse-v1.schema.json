@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lcfr.ai/schemas/runtime-oci-source-reuse-v1.schema.json",
+  "title": "Luci equivalent-input runtime source reuse receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "kind", "priorManifestSHA256", "priorBuildReceiptSHA256", "priorBuildSourceCommit", "installedSourceCommit", "installedSourceReceiptSHA256", "canonicalInputAlgorithm", "canonicalInputDigest", "imageID", "archiveSHA256", "archiveBytes"],
+  "properties": {
+    "version": {"const": 1},
+    "kind": {"const": "luci-runtime-equivalent-input-reuse"},
+    "priorManifestSHA256": {"$ref": "#/$defs/digest"},
+    "priorBuildReceiptSHA256": {"$ref": "#/$defs/digest"},
+    "priorBuildSourceCommit": {"$ref": "#/$defs/commit"},
+    "installedSourceCommit": {"$ref": "#/$defs/commit"},
+    "installedSourceReceiptSHA256": {"$ref": "#/$defs/digest"},
+    "canonicalInputAlgorithm": {"const": "luci-git-blobs-v1"},
+    "canonicalInputDigest": {"$ref": "#/$defs/digest"},
+    "imageID": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "archiveSHA256": {"$ref": "#/$defs/digest"},
+    "archiveBytes": {"type": "integer", "minimum": 1024, "maximum": 8589934592}
+  },
+  "$defs": {
+    "commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

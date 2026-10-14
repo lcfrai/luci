@@ -4,70 +4,324 @@
   "title": "Luci packaged Docker runtime image manifest v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "kind", "sourceCommit", "runtimeContextDigest", "target", "archive", "image", "runtime", "sourceFiles", "licenses", "producer"],
+  "required": [
+    "version",
+    "kind",
+    "sourceCommit",
+    "target",
+    "archive",
+    "image",
+    "runtime",
+    "sourceFiles",
+    "licenses",
+    "producer",
+    "canonicalInputAlgorithm",
+    "canonicalInputDigest"
+  ],
   "properties": {
-    "version": { "const": 1 },
-    "kind": { "const": "luci-runtime-docker-save" },
-    "sourceCommit": { "$ref": "#/$defs/commit" },
-    "runtimeContextDigest": { "$ref": "#/$defs/digest" },
+    "version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "luci-runtime-docker-save"
+    },
+    "sourceCommit": {
+      "$ref": "#/$defs/commit"
+    },
     "target": {
-      "type": "object", "additionalProperties": false, "required": ["os", "architecture"],
-      "properties": { "os": { "const": "linux" }, "architecture": { "const": "amd64" } }
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os",
+        "architecture"
+      ],
+      "properties": {
+        "os": {
+          "const": "linux"
+        },
+        "architecture": {
+          "const": "amd64"
+        }
+      }
     },
     "archive": {
-      "type": "object", "additionalProperties": false, "required": ["fileName", "sha256", "bytes", "members"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fileName",
+        "sha256",
+        "bytes",
+        "members"
+      ],
       "properties": {
-        "fileName": { "const": "runtime-image-linux-amd64.tar" },
-        "sha256": { "$ref": "#/$defs/digest" },
-        "bytes": { "type": "integer", "minimum": 1024, "maximum": 8589934592 },
-        "members": { "type": "array", "minItems": 3, "maxItems": 4096, "items": { "$ref": "#/$defs/file" } }
-      }
-    },
-    "image": {
-      "type": "object", "additionalProperties": false, "required": ["id", "configPath", "layerPaths", "diffIDs", "repoTags"],
-      "properties": {
-        "id": { "$ref": "#/$defs/imageID" },
-        "configPath": { "$ref": "#/$defs/path" },
-        "layerPaths": { "type": "array", "minItems": 1, "maxItems": 2048, "items": { "$ref": "#/$defs/path" } },
-        "diffIDs": { "type": "array", "minItems": 1, "maxItems": 2048, "items": { "$ref": "#/$defs/imageID" } },
-        "repoTags": { "type": "array", "maxItems": 0 }
-      }
-    },
-    "runtime": {
-      "type": "object", "additionalProperties": false, "required": ["user", "workingDir", "entrypoint", "exposedPorts", "harnesses"],
-      "properties": {
-        "user": { "const": "dev" },
-        "workingDir": { "const": "/home/dev" },
-        "entrypoint": { "const": ["/usr/local/bin/entrypoint.sh"] },
-        "exposedPorts": { "const": ["8080/tcp"] },
-        "harnesses": {
-          "type": "object", "additionalProperties": false, "required": ["codex", "claudeCode", "openCode"],
-          "properties": {
-            "codex": { "const": "0.160.0" },
-            "claudeCode": { "const": "2.1.274" },
-            "openCode": { "const": "1.18.34" }
+        "fileName": {
+          "const": "runtime-image-linux-amd64.tar"
+        },
+        "sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 8589934592
+        },
+        "members": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/archiveFile"
           }
         }
       }
     },
-    "sourceFiles": { "type": "array", "minItems": 2, "maxItems": 8192, "items": { "$ref": "#/$defs/file" } },
-    "licenses": { "type": "array", "minItems": 1, "maxItems": 4096, "items": { "$ref": "#/$defs/file" } },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "configPath",
+        "layerPaths",
+        "diffIDs",
+        "repoTags"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/imageID"
+        },
+        "configPath": {
+          "$ref": "#/$defs/path"
+        },
+        "layerPaths": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2048,
+          "items": {
+            "$ref": "#/$defs/path"
+          }
+        },
+        "diffIDs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2048,
+          "items": {
+            "$ref": "#/$defs/imageID"
+          }
+        },
+        "repoTags": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user",
+        "workingDir",
+        "entrypoint",
+        "exposedPorts",
+        "harnesses"
+      ],
+      "properties": {
+        "user": {
+          "const": "dev"
+        },
+        "workingDir": {
+          "const": "/home/dev"
+        },
+        "entrypoint": {
+          "const": [
+            "/usr/local/bin/entrypoint.sh"
+          ]
+        },
+        "exposedPorts": {
+          "const": [
+            "8080/tcp"
+          ]
+        },
+        "harnesses": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "codex",
+            "claudeCode",
+            "openCode"
+          ],
+          "properties": {
+            "codex": {
+              "const": "0.160.0"
+            },
+            "claudeCode": {
+              "const": "2.1.274"
+            },
+            "openCode": {
+              "const": "1.18.34"
+            }
+          }
+        }
+      }
+    },
+    "sourceFiles": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 8192,
+      "items": {
+        "$ref": "#/$defs/sourceFile"
+      }
+    },
+    "licenses": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/licenseFile"
+      }
+    },
     "producer": {
-      "type": "object", "additionalProperties": false, "required": ["dockerfileSHA256", "buildReceiptSHA256"],
-      "properties": { "dockerfileSHA256": { "$ref": "#/$defs/digest" }, "buildReceiptSHA256": { "$ref": "#/$defs/digest" } }
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dockerfileSHA256",
+        "buildReceiptSHA256",
+        "buildSourceCommit"
+      ],
+      "properties": {
+        "dockerfileSHA256": {
+          "$ref": "#/$defs/digest"
+        },
+        "buildReceiptSHA256": {
+          "$ref": "#/$defs/digest"
+        },
+        "buildSourceCommit": {
+          "$ref": "#/$defs/commit"
+        },
+        "reuseEvidenceSHA256": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "canonicalInputAlgorithm": {
+      "const": "luci-git-blobs-v1"
+    },
+    "canonicalInputDigest": {
+      "$ref": "#/$defs/digest"
     }
   },
   "$defs": {
-    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
-    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "imageID": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
-    "path": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[A-Za-z0-9._/-]+$" },
-    "file": {
-      "type": "object", "additionalProperties": false, "required": ["path", "sha256", "bytes"],
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "imageID": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9._/-]+$"
+    },
+    "archiveFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
       "properties": {
-        "path": { "$ref": "#/$defs/path" },
-        "sha256": { "$ref": "#/$defs/digest" },
-        "bytes": { "type": "integer", "minimum": 1, "maximum": 8589934592 }
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8589934592
+        }
+      }
+    },
+    "sourceFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "mode",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "mode": {
+          "const": "0644"
+        },
+        "sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 67108864
+        }
+      }
+    },
+    "licenseFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "component",
+        "version",
+        "grant",
+        "provenance"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^licenses/[A-Za-z0-9._/-]+$",
+          "maxLength": 256
+        },
+        "sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "component": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "grant": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
       }
     }
   }
