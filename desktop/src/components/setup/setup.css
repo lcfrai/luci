@@ -2,6 +2,15 @@
 .workspace-loading {
   padding: clamp(24px, 6vw, 80px);
 }
+.setup-existing-link {
+  padding: 8px 0;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-align: start;
+}
+.setup-mode-detail { display: grid; gap: 16px; }
+.setup-route-choice[aria-pressed="true"] { box-shadow: inset 3px 0 var(--accent-hi); }
 .workspace-loading h1 {
   font-size: 28px;
   margin-block-start: 42px;

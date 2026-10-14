@@ -15,6 +15,7 @@ import {
   type SetupConfig,
   type SetupStatus,
   type ProductClient,
+  type SetupMode,
 } from "../../api/product";
 import { useDismissable } from "../../hooks/useDismissable";
 import { Button } from "../fluid/components/button";
@@ -31,13 +32,14 @@ import { DockerStorageConfirmation } from "./DockerStorageConfirmation";
 import { createExecutionStorageClient, storagePreparationBlock } from "../../api/executionStorage";
 import { AgentConnections } from "./AgentConnections";
 import { DependencySetup } from "./DependencySetup";
+import { SetupModeChoices } from './SetupModeChoices';
 import { createDependencyClient } from "../../api/dependencies";
 import { projectNameError, projectNameHelp } from "../../lib/projectName";
 import "./setup.css";
 
 interface Props {
   initialStatus: SetupStatus | null;
-  initialSection?: "local" | "project" | "cloud" | "appearance" | "agents";
+  initialSection?: "local" | "project" | "cloud" | "appearance" | "agents" | "setup";
   presentation?: "dialog" | "portal";
   onOpenProject?(): void;
   onSessionStarted?(): void;
@@ -46,7 +48,7 @@ interface Props {
   onProjectsChanged(): void;
   client?: ProductClient;
 }
-type SetupRoute = "local" | "managed" | "existing";
+type SetupRoute = "local" | "managed" | "existing" | "byo" | "hosted";
 
 function SetupRoutes({
   includeLocal,
@@ -161,10 +163,11 @@ export function SetupPanel({
   const [config, setConfig] = useState<SetupConfig | null>(
     initialStatus?.config ?? null,
   );
-  const [section, setSection] = useState(initialSection);
+  const [section, setSection] = useState(initialSection === 'local' && (presentation === 'portal' || initialStatus?.configured === false) && (initialStatus?.setupChoice?.mode === 'bring-your-own-cloud' || initialStatus?.setupChoice?.mode === 'luci-cloud') ? 'setup' : initialSection);
   const [route, setRoute] = useState<SetupRoute | null>(
-    initialSection === "project" ? "local" : null,
+    initialSection === "project" ? "local" : (presentation === 'portal' || initialStatus?.configured === false) ? initialStatus?.setupChoice?.mode === 'local' ? 'local' : initialStatus?.setupChoice?.mode === 'bring-your-own-cloud' ? 'byo' : initialStatus?.setupChoice?.mode === 'luci-cloud' ? 'hosted' : null : null,
   );
+  const [choiceNeedsRefresh, setChoiceNeedsRefresh] = useState(false);
   const cloudWorkspace = status?.workspace?.mode === "cloud";
   const manageBacking =
     status?.access?.manageBacking ?? (!cloudWorkspace && localManageBacking);
@@ -309,6 +312,30 @@ export function SetupPanel({
       });
     }
   };
+  const chooseSetupMode = (mode: SetupMode, nextRoute?: 'existing') => {
+    if (choiceNeedsRefresh) return;
+    void run('Saving setup choice', async () => {
+      try {
+        const choice = await client.chooseSetup(latestStatus.current?.setupChoice?.revision ?? 1, mode);
+        if (!alive.current) return;
+        const previous = latestStatus.current;
+        if (previous) receive({ ...previous, setupChoice: choice }, undefined, false);
+        if (mode === 'local' && portal && config && !previous?.configured && canChooseProjectsDir) {
+          receive(await client.configure(config)); onProjectsChanged();
+        }
+        if (!alive.current) return;
+        if (mode === 'local') setRuntimePending(true);
+        setRoute(nextRoute ?? (mode === 'local' ? 'local' : mode === 'bring-your-own-cloud' ? 'byo' : 'hosted'));
+        setSection(mode === 'local' ? 'local' : 'setup');
+        setNotice('Setup preference saved. Your active connection and existing projects are unchanged.');
+      } catch (cause) { if (alive.current) setChoiceNeedsRefresh(true); throw cause; }
+    });
+  };
+  const refreshSetupChoice = () => void run('Refreshing setup choice', async () => {
+    const value = await client.status();
+    if (!value.setupChoice || !Number.isSafeInteger(value.setupChoice.revision) || value.setupChoice.revision < 1) throw new Error('This service does not report the saved setup choice. Update Luci before saving a mode.');
+    if (alive.current) { receive(value, undefined, false); setChoiceNeedsRefresh(false); }
+  });
   const createProject = () => {
     if (inFlight.current || runtimePendingRef.current) return;
     if (onOpenProject) onOpenProject();
@@ -320,6 +347,7 @@ export function SetupPanel({
     setError("");
     setNotice("");
     if (onboarding) setSection("local");
+    else setSection('setup');
     heading.current?.focus();
   };
   function trapFocus(event: KeyboardEvent<HTMLDivElement>) {
@@ -411,6 +439,10 @@ export function SetupPanel({
                     ? section === "project"
                       ? "Create your first project"
                       : "Set up this computer"
+                    : route === 'byo'
+                      ? 'Set up your own cloud'
+                    : route === 'hosted'
+                      ? 'Luci Cloud · not available yet'
                     : route === "managed"
                       ? "Set up a cloud workspace"
                       : route === "existing"
@@ -448,6 +480,7 @@ export function SetupPanel({
               (
                 [
                   ["local", cloudWorkspace ? "This workspace" : "This machine"],
+                  ["setup", "Workspace setup"],
                   ["project", "New project"],
                   [
                     "cloud",
@@ -467,6 +500,7 @@ export function SetupPanel({
                     aria-current={section === id ? "page" : undefined}
                     onClick={() => {
                       if (id === "local" && portal) setRuntimePending(true);
+                      if (id === 'setup') setRoute(null);
                       setSection(id);
                     }}
                   >
@@ -508,14 +542,20 @@ export function SetupPanel({
             </div>
           ) : (
             <>
-              {onboarding && !route && (
-                <SetupRoutes
-                  includeLocal
+              {choiceNeedsRefresh && <p role="status">The saved choice is unconfirmed. Refresh before choosing again. <Button type="button" variant="secondary" disabled={!!busy} onClick={refreshSetupChoice}>Refresh saved setup choice</Button></p>}
+              {(onboarding && !route || section === 'setup' && !route) && (
+                <SetupModeChoices
+                  selected={status?.setupChoice?.mode}
+                  busy={!!busy || choiceNeedsRefresh}
                   manageBacking={localManageBacking}
                   allowProvision={allowProvision}
-                  onChoose={chooseRoute}
+                  onChoose={chooseSetupMode}
+                  onExisting={() => chooseSetupMode('bring-your-own-cloud', 'existing')}
                 />
               )}
+              {section === 'setup' && route === 'hosted' && <section className="setup-mode-detail" aria-label="Luci Cloud availability"><h2>Luci Cloud is not available yet</h2><p>The Luci-hosted service is being developed before launch. This choice does not create a hosted account, take payment, provision resources or connect a runtime.</p><p>Your existing projects remain accessible. Choose Local or Bring your own cloud to work now.</p><SetupModeChoices selected="luci-cloud" busy={!!busy || choiceNeedsRefresh} manageBacking={localManageBacking} allowProvision={allowProvision} onChoose={chooseSetupMode} onExisting={() => chooseSetupMode('bring-your-own-cloud', 'existing')} /></section>}
+              {section === 'setup' && route === 'byo' && <section className="setup-mode-detail"><h2>Bring your own cloud</h2><p role="status" className="journey-warning">Guided Azure setup commands are not available in this build yet. Keep working locally or connect an existing workspace; saving this preference does not create infrastructure.</p><p>Azure is the first supported setup target. Guided commands prepare infrastructure you own; a rendered plan is not a connected workspace or a verified microVM runtime.</p><p>Review resources, ownership, expected charges and cleanup before running any setup command. Model access is separate. AWS setup follows later.</p><Button type="button" variant="secondary" disabled={!!busy || !localManageBacking} onClick={() => { setRoute('existing'); setSection('cloud'); }}>Connect an existing workspace</Button><Button type="button" variant="ghost" disabled={!!busy} onClick={chooseAgain}>Choose another setup option</Button></section>}
+              {section === 'setup' && route === 'existing' && <CloudManager client={client} plan={null} mode="existing" />}
               {section === "local" && (!onboarding || route === "local") && (
                 <>
                   {cloudWorkspace && (

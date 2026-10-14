@@ -73,7 +73,7 @@ it("takes an already selected cloud member straight to their assigned projects w
   render(
     <SetupPanel
       initialStatus={memberCloud}
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={refresh}
       onClose={close}
@@ -86,7 +86,7 @@ it("takes an already selected cloud member straight to their assigned projects w
   expect(
     screen.queryByRole("group", { name: "Workspace setup options" }),
   ).toBeNull();
-  expect(screen.queryByRole("button", { name: "On this computer" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Local" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
   expect(
     (
@@ -164,7 +164,7 @@ it("uses remote member permission for runtime controls while retaining personal 
   render(
     <SetupPanel
       initialStatus={{ ...memberCloud, configured: true }}
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={vi.fn()}
       onClose={vi.fn()}
@@ -285,7 +285,7 @@ it("retains deployment-target configuration for an authorized active cloud admin
         },
       }}
       initialSection="cloud"
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={vi.fn()}
       onClose={vi.fn()}
@@ -350,7 +350,7 @@ it("keeps remote sign-in recovery reachable when the expired account cannot load
         },
       }}
       initialSection="cloud"
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={vi.fn()}
       onClose={vi.fn()}
@@ -376,14 +376,14 @@ it("saves local configuration, shows the server result and refreshes the project
   render(
     <SetupPanel
       initialStatus={status}
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={changed}
       onProjectsChanged={refresh}
       onClose={vi.fn()}
     />,
   );
   await userEvent.click(
-    screen.getByRole("button", { name: "On this computer" }),
+    screen.getByRole("button", { name: "Local" }),
   );
   const folder = screen.getByRole("textbox", { name: /Projects folder/ });
   await userEvent.clear(folder);
@@ -397,7 +397,8 @@ it("saves local configuration, shows the server result and refreshes the project
     "C:\\MyProjects",
   );
   expect(refresh).toHaveBeenCalledOnce();
-  expect(changed).toHaveBeenCalledOnce();
+  expect(changed).toHaveBeenCalledTimes(2); // preference receipt, then configured folder
+  expect(changed.mock.calls[0][0].setupChoice.mode).toBe('local');
   expect(screen.getByText("Docker is not running")).not.toBeNull();
 });
 
@@ -429,7 +430,7 @@ it("preserves an unsuccessful new project and selects a successful project in Di
     <SetupPanel
       initialStatus={status}
       initialSection="project"
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={refresh}
       onClose={close}
@@ -485,9 +486,9 @@ it("labels an unverified cloud plan honestly and never creates resources while p
   );
   render(
     <SetupPanel
-      initialStatus={status}
+      initialStatus={{ ...status, configured: true }}
       initialSection="cloud"
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={vi.fn()}
       onClose={vi.fn()}
@@ -523,7 +524,7 @@ it("shows initial connection progress before offering retry and keeps settings k
   render(
     <SetupPanel
       initialStatus={null}
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={vi.fn()}
       onClose={vi.fn()}
@@ -536,7 +537,7 @@ it("shows initial connection progress before offering retry and keeps settings k
     await pending;
   });
   await userEvent.click(
-    await screen.findByRole("button", { name: "On this computer" }),
+    await screen.findByRole("button", { name: "Local" }),
   );
   await screen.findByLabelText(/Projects folder/);
   await userEvent.click(screen.getByRole("button", { name: "Close settings" }));
@@ -568,7 +569,7 @@ it("holds the cloud-plan inputs and section in place until the displayed plan ma
     <SetupPanel
       initialStatus={{ ...status, configured: true }}
       initialSection="cloud"
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={vi.fn()}
       onClose={vi.fn()}
@@ -648,27 +649,27 @@ it("offers three clear first-run routes before loading cloud tools and allows ba
   render(
     <SetupPanel
       initialStatus={status}
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={vi.fn()}
       onClose={vi.fn()}
     />,
   );
   expect(
-    screen.getByRole("button", { name: "On this computer" }),
+    screen.getByRole("button", { name: "Local" }),
   ).not.toBeNull();
   expect(
-    screen.getByRole("button", { name: "AWS" }),
+    screen.getByRole("button", { name: "Bring your own cloud" }),
   ).not.toBeNull();
   expect(
     screen.getByRole("button", { name: "Connect to an existing workspace" }),
   ).not.toBeNull();
-  expect(screen.getByText(/Recommended · lowest ongoing cost/)).not.toBeNull();
+  expect(screen.getByText(/Recommended · no cloud hosting bill/)).not.toBeNull();
   expect(screen.queryByLabelText("Provider")).toBeNull();
   expect(screen.queryByLabelText("Server address")).toBeNull();
   expect(fetcher).not.toHaveBeenCalled();
   await userEvent.click(
-    screen.getByRole("button", { name: "On this computer" }),
+    screen.getByRole("button", { name: "Local" }),
   );
   const folder = screen.getByRole("textbox", { name: /Projects folder/ });
   await userEvent.clear(folder);
@@ -680,7 +681,7 @@ it("offers three clear first-run routes before loading cloud tools and allows ba
     screen.getByRole("heading", { name: "Choose your workspace" }),
   );
   await userEvent.click(
-    screen.getByRole("button", { name: "On this computer" }),
+    screen.getByRole("button", { name: "Local" }),
   );
   expect(
     (
@@ -700,7 +701,7 @@ it("recovers failed initial settings loading into the route choices without show
   render(
     <SetupPanel
       initialStatus={null}
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={vi.fn()}
       onClose={vi.fn()}
@@ -763,7 +764,7 @@ it("connects an existing workspace through host verification and its account wit
   render(
     <SetupPanel
       initialStatus={status}
-      client={createProductClient("http://localhost:8730", fetcher)}
+      client={setupClient("http://localhost:8730", fetcher)}
       onStatus={vi.fn()}
       onProjectsChanged={vi.fn()}
       onClose={vi.fn()}
@@ -834,8 +835,8 @@ it("hands automatic preparation to the backend before leaving the portal and per
     throw new Error("Unexpected portal request");
   });
   const close = vi.fn(), openProject = vi.fn();
-  const { unmount } = render(<SetupPanel presentation="portal" initialStatus={current} client={createProductClient("http://localhost:8730", fetcher)} onStatus={vi.fn()} onProjectsChanged={vi.fn()} onClose={close} onOpenProject={openProject} />);
-  await userEvent.click(screen.getByRole("button", { name: "On this computer" }));
+  const { unmount } = render(<SetupPanel presentation="portal" initialStatus={current} client={setupClient("http://localhost:8730", fetcher)} onStatus={vi.fn()} onProjectsChanged={vi.fn()} onClose={close} onOpenProject={openProject} />);
+  await userEvent.click(screen.getByRole("button", { name: "Local" }));
   const proceed = screen.getByRole("button", { name: "Continue to projects" }) as HTMLButtonElement;
   expect(proceed.disabled).toBe(true);
   expect((screen.getByRole("button", { name: "Choose another setup option" }) as HTMLButtonElement).disabled).toBe(true);
@@ -868,8 +869,8 @@ it("allows the portal to continue after a real unavailable-Docker check without 
     throw new Error("Unexpected portal request");
   });
   const close = vi.fn();
-  render(<SetupPanel presentation="portal" initialStatus={{ ...status, configured: true }} client={createProductClient("http://localhost:8730", fetcher)} onStatus={vi.fn()} onProjectsChanged={vi.fn()} onClose={close} />);
-  await userEvent.click(screen.getByRole("button", { name: "On this computer" }));
+  render(<SetupPanel presentation="portal" initialStatus={{ ...status, configured: true }} client={setupClient("http://localhost:8730", fetcher)} onStatus={vi.fn()} onProjectsChanged={vi.fn()} onClose={close} />);
+  await userEvent.click(screen.getByRole("button", { name: "Local" }));
   await screen.findByText(/Open Docker Desktop and wait for its engine to start/);
   const proceed = screen.getByRole("button", { name: "Continue to projects" }) as HTMLButtonElement;
   await waitFor(() => expect(proceed.disabled).toBe(false));
@@ -877,3 +878,15 @@ it("allows the portal to continue after a real unavailable-Docker check without 
   expect(close).toHaveBeenCalledOnce();
   expect(fetcher.mock.calls.some(([url, init]) => String(url).endsWith("/runtime/install") && init?.method === "POST")).toBe(false);
 });
+
+// Mode persistence has dedicated network/CAS tests. These older regressions
+// isolate storage, project and legacy deployment controls behind a valid receipt.
+function setupClient(baseUrl: string, fetcher: typeof fetch) {
+  return createProductClient(baseUrl, (input, init) => {
+    if (new URL(String(input)).pathname === '/v1/setup/choice') {
+      const request = JSON.parse(String(init?.body));
+      return Promise.resolve(new Response(JSON.stringify({revision: request.expectedRevision + 1, mode: request.mode})));
+    }
+    return fetcher(input, init);
+  });
+}
