@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 // open a Docker endpoint, invoke a process, or compile the bundled source.
 type runtimeImageProbe struct {
 	*checkProbe
+	listMu         sync.Mutex
 	images         map[string]image.InspectResponse
 	bases          map[string]image.InspectResponse
 	pullStreams    map[string]string
@@ -141,9 +143,12 @@ func (f *runtimeImageProbe) ImageTag(_ context.Context, source, target string) e
 }
 
 func (f *runtimeImageProbe) ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error) {
+	f.listMu.Lock()
 	f.lists = append(f.lists, options)
-	if f.listError != nil {
-		return nil, f.listError
+	listError := f.listError
+	f.listMu.Unlock()
+	if listError != nil {
+		return nil, listError
 	}
 	return f.checkProbe.ContainerList(ctx, options)
 }

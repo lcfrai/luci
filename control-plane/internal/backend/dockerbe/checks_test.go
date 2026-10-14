@@ -31,6 +31,7 @@ import (
 // This models acknowledged objects and protocol errors, not a real Docker
 // daemon. No test shells out, opens Docker, or uses the source checkout as data.
 type checkProbe struct {
+	infoMu                                             sync.Mutex
 	info                                               system.Info
 	image                                              image.InspectResponse
 	endpoint                                           string
@@ -90,6 +91,8 @@ func (f *checkProbe) DaemonHost() string                       { return f.endpoi
 func (f *checkProbe) Ping(context.Context) (types.Ping, error) { return types.Ping{}, nil }
 func (f *checkProbe) Close() error                             { return nil }
 func (f *checkProbe) Info(context.Context) (system.Info, error) {
+	f.infoMu.Lock()
+	defer f.infoMu.Unlock()
 	f.infoCalls++
 	value := f.info
 	if f.infoHook != nil {
