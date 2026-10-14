@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, test } from 'node:test';
 import { setTimeout as pause } from 'node:timers/promises';
-import { createGate, registryChildEnv } from './registry_gate.mjs';
+import { createGate, registryChildEnv, registryConfig } from './registry_gate.mjs';
 
 const session = 'a'.repeat(32);
 const repo = `luci/runtime-export-${session}`;
@@ -23,12 +23,18 @@ test('pinned registry child has bounded Go environment without host inheritance'
       GOMEMLIMIT: '192MiB',
       GOMAXPROCS: '1',
       REGISTRY_STORAGE_DELETE_ENABLED: 'false',
-      REGISTRY_STORAGE_MAINTENANCE_UPLOADPURGING_ENABLED: 'false',
     });
   } finally {
     if (before === undefined) delete process.env.LUCI_REGISTRY_ENV_SENTINEL;
     else process.env.LUCI_REGISTRY_ENV_SENTINEL = before;
   }
+});
+
+test('pinned Distribution upload-purge configuration is a complete disabled map', () => {
+  const config = registryConfig('/registry-data', 5001);
+  assert.match(config, /storage:\n  filesystem:\n    rootdirectory: \/registry-data\/blobs\n  maintenance:\n    uploadpurging:\n      enabled: false\n      age: 168h\n      interval: 24h\n      dryrun: false\n/);
+  assert.match(config, /http:\n  addr: 127\.0\.0\.1:5001\n$/);
+  assert.ok(!Object.keys(registryChildEnv()).some(key => key.startsWith('REGISTRY_STORAGE_MAINTENANCE_')));
 });
 
 async function listen(server) {

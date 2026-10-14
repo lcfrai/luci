@@ -28,7 +28,14 @@ export function registryChildEnv() {
   // Never inherit producer/host environment or expose its credentials to the
   // pinned registry. Go's own heap target stays inside the helper cgroup.
   return { PATH: '/usr/bin:/bin', GOMEMLIMIT: '192MiB', GOMAXPROCS: '1',
-    REGISTRY_STORAGE_DELETE_ENABLED: 'false', REGISTRY_STORAGE_MAINTENANCE_UPLOADPURGING_ENABLED: 'false' };
+    REGISTRY_STORAGE_DELETE_ENABLED: 'false' };
+}
+
+export function registryConfig(dataRoot, backendPort) {
+  // Distribution 3.0.0 handlers/app.go requires uploadpurging to be a map.
+  // Keep the complete pinned shape even when disabled; a scalar environment
+  // override replaces the map and panics before the registry can serve.
+  return `version: 0.1\nlog:\n  level: warn\nstorage:\n  filesystem:\n    rootdirectory: ${join(dataRoot, 'blobs')}\n  maintenance:\n    uploadpurging:\n      enabled: false\n      age: 168h\n      interval: 24h\n      dryrun: false\nhttp:\n  addr: 127.0.0.1:${backendPort}\n`;
 }
 
 function port(value) {
@@ -325,7 +332,7 @@ async function main() {
   strictDir(dataRoot);
   const config = join(dataRoot, 'luci-distribution-v3.yml');
   if (existsSync(config)) throw new Error('registry config already exists; reconcile prior generation');
-  writeFileSync(config, `version: 0.1\nlog:\n  level: warn\nstorage:\n  filesystem:\n    rootdirectory: ${join(dataRoot, 'blobs')}\nhttp:\n  addr: 127.0.0.1:${backendPort}\n`, { flag: 'wx', mode: 0o600 });
+  writeFileSync(config, registryConfig(dataRoot, backendPort), { flag: 'wx', mode: 0o600 });
   mkdirSync(join(dataRoot, 'blobs'), { mode: 0o700 });
   const child = spawn(binary, ['serve', config], { stdio: ['ignore', 'inherit', 'inherit'],
     env: registryChildEnv() });
