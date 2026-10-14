@@ -27,8 +27,39 @@ uncertain mutations. An absent/changed pending operation remains unresolved.
 `status` reads local stage receipts without querying Azure or claiming a
 connected workspace. The descriptor must still be imported through Luci's
 protected connection flow, with actual private reachability/authentication.
-Replacement-controller recovery and whole-installation retirement are separate
-unfinished guided joins; builder cleanup alone does not retire an installation.
+Whole-installation retirement is a separate unfinished guided join; builder
+cleanup alone does not retire an installation.
+
+`recover-controller --bundle . --selection /private/selection.json` prepares
+and runs the supported first replacement onto the existing generic private
+standby. It observes the exact target ARM NIC/subnet/IP and guest boot, reads
+the active predecessor fence/ETag, and requests explicit review before effects.
+It preserves the four exact task identities (team API, admin, sandbox seed and
+attach) and appends fresh CA/server/client TLS versions at the same owned
+Key Vault names, preserving name-scoped managed-identity permissions. The
+predecessor versions remain retained. Unknown publication is reconciled by
+exact version/bytes, without repeating its write.
+
+A predecessor-CA-signed public link binds the exact next host configuration,
+source, generations, owner/disk, NIC/subnet/IP/boot and predecessor fence
+ETag/hash. The old controller must be observed deallocated; its controller
+identity is journaled/revoked and read back before successor assignment and
+disk transfer. Removing an identity does not prove cached tokens invalidated;
+the old generation/boot/fence and rotated mTLS still deny old authority.
+The protected gateway verifies its installed predecessor CA before accepting
+only the approved controller-IP and generation TLS change. No extra identity
+grant, public endpoint or cloud resource is introduced.
+
+Run the same command (or `continue`) after interruption. Pending public transfer
+and guest/identity operations use exact inspection/reconciliation, not a new
+signature or repeated uncertain write. Original selections, credentials and
+signed envelopes remain preserved. The recovered generation gets a new private
+folder and authenticated descriptor; import it through the protected desktop
+connection flow. Retained predecessor Terraform cannot replay old authority.
+A later replacement still requires a fresh generic standby with the exact
+recovery identity; automatic standby restoration is not implemented. Actual
+Azure recovery/private connectivity, retained-task access and invoices remain
+untested by the offline source checks.
 
 For an existing generalized managed image containing the exact prepared root,
 `gallery-plan --bundle . --selection /private/selection.json --role runtime

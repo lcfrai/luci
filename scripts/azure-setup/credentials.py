@@ -65,10 +65,40 @@ def command(args):
     return result.stdout
 
 
-def generate(selection, root, atomic_json):
+def retained_task_material(selection, predecessor):
+    """Keep live task identities while replacing generation-specific TLS only."""
+    previous = json.loads(private_file(Path(predecessor) / 'journal.json', 64 << 10))
+    variables = selection['terraformVariables']
+    if previous.get('state') != 'published' or previous.get('scope') != variables['scope'] or previous.get('generation') == variables['generation']:
+        raise ValueError('Successor needs the exact separately published predecessor generation')
+    retained = {}
+    # The runtime's three stable refs include its sandbox seed. Attach is also
+    # retained for existing guest/task reconnection and checked by the signer.
+    for kind in ('team-api', 'admin-token', 'sandbox-seed', 'attach-key'):
+        data = private_file(Path(predecessor) / MATERIAL[kind])
+        row = previous.get('published', {}).get(kind, {})
+        match = VERSIONED_ID.fullmatch(row.get('id', ''))
+        if (match is None or match.groups() != (variables['key_vault_name'], previous.get('names', {}).get(kind), row.get('version')) or
+                row.get('name') != match[2] or row.get('sha256') != sha(data) or previous.get('files', {}).get(kind) != sha(data)):
+            raise ValueError('Predecessor task bytes/name/version/hash changed')
+        retained[kind] = {'data': data, 'published': row}
+    return retained
+
+
+def generate(selection, root, atomic_json, predecessor=None):
     variables = selection["terraformVariables"]
     scope, generation, gateway = variables["scope"], variables["generation"], variables["gateway_zone_name"]
     root = Path(root)
+    retained = retained_task_material(selection, predecessor) if predecessor is not None else {}
+    prior = json.loads(private_file(Path(predecessor) / 'journal.json', 64 << 10)) if predecessor is not None else None
+    if prior is not None:
+        for kind, filename in MATERIAL.items():
+            row = prior.get('published', {}).get(kind, {})
+            match = VERSIONED_ID.fullmatch(row.get('id', ''))
+            if (match is None or match.groups() != (variables['key_vault_name'], prior.get('names', {}).get(kind), row.get('version')) or
+                    row.get('name') != match[2] or row.get('sha256') != sha(private_file(Path(predecessor) / filename)) or
+                    prior.get('files', {}).get(kind) != row.get('sha256')):
+                raise ValueError('Predecessor managed-identity secret name/version/bytes changed')
     if root.exists() or root.is_symlink() or not root.parent.is_dir() or root.parent.stat().st_mode & 0o077:
         raise ValueError("Use a new Azure credential directory under an owner-private parent")
     if not re.fullmatch(r"[a-z][a-z0-9-]{1,63}", scope) or not re.fullmatch(r"[a-z][a-z0-9-]{1,63}", generation) or \
@@ -79,12 +109,12 @@ def generate(selection, root, atomic_json):
                                         "generation": generation})
     original_umask = os.umask(0o077)
     try:
-        return _generate_material(root, scope, generation, gateway, atomic_json)
+        return _generate_material(root, scope, generation, gateway, atomic_json, retained, prior)
     finally:
         os.umask(original_umask)
 
 
-def _generate_material(root, scope, generation, gateway, atomic_json):
+def _generate_material(root, scope, generation, gateway, atomic_json, retained=None, predecessor=None):
     ca_key, ca_cert = root / "ca.key", root / "ca.crt"
     command(["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", str(ca_key)])
     ca_key.chmod(0o600)
@@ -110,10 +140,20 @@ def _generate_material(root, scope, generation, gateway, atomic_json):
     save(root / "admin-token.txt", (secrets.token_hex(32) + "\n").encode())
     save(root / "sandbox-seed.txt", (secrets.token_hex(32) + "\n").encode())
     save(root / "attach-key.txt", (secrets.token_hex(32) + "\n").encode())
+    for kind, value in (retained or {}).items():
+        save(root / MATERIAL[kind], value['data'])
     files = {kind: sha(private_file(root / filename)) for kind, filename in MATERIAL.items()}
     manifest = {"version": 1, "state": "generated_unpublished", "scope": scope, "generation": generation,
                 "files": files, "names": {kind: scope + "-" + suffix for kind, suffix in
                                    ((kind, kind) for kind in MATERIAL)}, "published": {}}
+    if retained:
+        manifest['predecessorSecrets'] = predecessor['published']
+        manifest['names'] = dict(predecessor['names'])
+        manifest['retainedTaskIdentity'] = {kind: {'name': row['published']['name'], 'version': row['published']['version'],
+            'sha256': files[kind]} for kind, row in retained.items()}
+        for kind, row in retained.items():
+            manifest['names'][kind] = row['published']['name']
+            manifest['published'][kind] = row['published']
     atomic_json(root / "journal.json", manifest)
     return {"state": manifest["state"], "scope": scope, "generation": generation,
             "fileCount": len(files), "journalSHA256": sha((root / "journal.json").read_bytes())}
@@ -186,7 +226,18 @@ def publish(selection, root, atomic_json, *, acknowledge=False, az_call=az):
         if state.get("pending"):
             raise RuntimeError("Key Vault publication outcome is unknown; inspect before retry")
         if name in names_present:
-            raise ValueError("Selected Key Vault secret name already exists; no overwrite is allowed")
+            # A successor appends one new TLS version at the exact already
+            # owned name, preserving existing name-scoped MI permissions.
+            # Ordinary setup still refuses adoption or arbitrary overwrite.
+            predecessor = state.get('predecessorSecrets', {}).get(kind)
+            identity = VERSIONED_ID.fullmatch((predecessor or {}).get('id', ''))
+            if (identity is None or identity.groups() != (vault, name, predecessor.get('version')) or
+                    predecessor.get('name') != name or kind in ('team-api', 'admin-token', 'sandbox-seed', 'attach-key')):
+                raise ValueError("Selected Key Vault secret name already exists; no overwrite is allowed")
+            exact_read(vault, name, predecessor['version'], predecessor['sha256'], az_call)
+            latest = az_call(['keyvault', 'secret', 'show', '--vault-name', vault, '--name', name])
+            if latest.get('id') != predecessor['id'] or sha(latest.get('value', '').encode()) != predecessor['sha256']:
+                raise ValueError('Owned predecessor secret changed before successor version publication')
         state = dict(state, state="publishing", pending={"kind": kind, "name": name, "sha256": expected})
         atomic_json(journal, state)
         try:

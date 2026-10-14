@@ -293,6 +293,20 @@ class OperatorTests(unittest.TestCase):
                        'files': {'client-ca': hashlib.sha256((credentials / 'ca.crt').read_bytes()).hexdigest()},
                        'published': {kind: {'id': 'https://luci-vault.vault.azure.net/secrets/' + kind + '/' + 'c' * 32}
                                      for kind in operator.REFS.values()}}
+        old_journal = core.private_json(root / 'azure-credentials/journal.json')
+        new_journal['retainedTaskIdentity'] = {}
+        for kind, filename in (('team-api', 'team-api.txt'), ('admin-token', 'admin-token.txt'), ('attach-key', 'attach-key.txt')):
+            data = ('retained-' + kind).encode()
+            for directory in (root / 'azure-credentials', credentials):
+                (directory / filename).write_bytes(data)
+                (directory / filename).chmod(0o600)
+            original = old_journal['published'][kind]
+            original.update(name=kind, version='b' * 32, sha256=hashlib.sha256(data).hexdigest())
+            old_journal['files'][kind] = original['sha256']
+            new_journal['files'][kind] = original['sha256']
+            new_journal['published'][kind] = dict(original)
+            new_journal['retainedTaskIdentity'][kind] = {key: original[key] for key in ('name', 'version', 'sha256')}
+        core.atomic_json(root / 'azure-credentials/journal.json', old_journal)
         core.atomic_json(credentials / 'journal.json', new_journal)
         new_boot = 'aaaaaaaa-1234-1234-1234-123456789abc'
         new_journal['published']['client-key']['id'] = new_journal['published']['client-key']['id'].replace('c' * 32, 'b' * 32)

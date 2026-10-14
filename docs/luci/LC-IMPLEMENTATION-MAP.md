@@ -53,3 +53,29 @@ command. Focused offline journey tests pass; guest recovery checks require Linux
 This is not live Azure/KVM/task/private-connection or billing acceptance. Signed
 replacement-controller installer join and full installation retirement remain
 owned implementation work; builder retirement is only temporary-resource cleanup.
+
+
+### LOCAL040 / SETUP-02 signed successor normal join (offline source)
+
+Local Azure Sol owns `azure-setup/successor.py`, installer/package inventory,
+credential/operator binding and the existing recovery/host-delivery joins.
+`recover-controller` derives the exact existing standby selection and signed
+public transfer without user-authored JSON. It preserves all four task refs
+(team-api/admin-token/sandbox-seed/attach-key) bytes/name/version/hash, appends
+fresh TLS versions at the same owned names with predecessor/latest checks,
+and binds target ARM NIC/subnet/IP/boot plus predecessor fence ETag/hash into
+a predecessor-CA-signed next-host link. Positive old-controller deallocation,
+durable identity revocation/readback, fencing and fresh mTLS remain independent
+requirements; identity removal does not establish cached-token invalidation.
+Host IP rotation requires the installed predecessor CA and exact source/config
+link. Unknown delivery inspects rather than repeats rotation. Stale predecessor
+Terraform is refused. New active-generation files preserve all predecessor
+source/envelopes/credentials and produce a fresh protected-connection descriptor.
+
+Focused native pure-adapter tests cover exact target/refusal/stale plan and task
+identity. POSIX credential/signature/recovery/delivery tests are separate affected
+checks, not live Azure acceptance. Remaining normal-user source gaps: automatic
+fresh standby restoration for a second controller loss; whole-installation
+settlement/backup/retirement and retained-charge handoff. Temporary builder
+cleanup does not establish either outcome. No new resource, role, public route,
+cloud call or product acceptance is authorized/claimed by this checkpoint.

@@ -24,6 +24,9 @@ def stage_module(bundle_root, name):
 
 def journey_action(selected, records):
     """Choose one finite setup stage from durable receipts, never retry a write."""
+    if (records.get('azure-setup-state.json', {}).get('state') == 'controller_finalized_private_route_unverified' and
+            records.get('azure-operator-install-state.json', {}).get('state') == 'operator_finalized_private_route_unverified'):
+        return ('connection', '')
     foundation = records.get('azure-foundation-state.json', {})
     if foundation.get('state') != 'foundation_bound_private_data_route_observed':
         if 'azure-foundation-plan.json' not in records:
@@ -134,6 +137,11 @@ def continue_setup(core, bundle_root, selection_path, ask=input, emit=print, cli
     """Normal user-run journey; a bounded stage walk, no background retry loop."""
     cli = cli or az_json
     manifest = core.bundle(bundle_root)
+    successor_path = Path(selection_path).parent / 'azure-successor-state.json'
+    if successor_path.exists():
+        successor = stage_module(bundle_root, 'successor')
+        return successor.finish(core, bundle_root, selection_path,
+            successor.run(core, bundle_root, selection_path, cli, ask, emit), cli)
     modules = modules or {name: stage_module(bundle_root, name) for name in ('foundation', 'builder', 'operator_setup')}
     foundation, builder, operator = (modules[name] for name in ('foundation', 'builder', 'operator_setup'))
     arm = foundation.AzureARM(cli)
@@ -260,6 +268,7 @@ def progress(core, bundle_root, selection_path):
                                  ("controller-gallery", "azure-gallery-controller.json"),
                                  ("infrastructure", "azure-setup-state.json"),
                                  ("connection", "azure-connection-state.json"),
+                                 ("controller-recovery", "azure-successor-state.json"),
                                  ("retirement", "azure-retirement-state.json")):
         path = parent / relative
         record = core.private_json(path) if path.exists() else {}
