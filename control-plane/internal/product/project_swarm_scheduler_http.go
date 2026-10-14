@@ -179,7 +179,7 @@ func (s *Server) configureSwarmScheduler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if !validateSwarmSchedulerPolicy(req.Policy) {
-		problem(w, 400, "invalid_scheduler_policy", fmt.Sprintf("Choose 1–%d active agents, 1–%d per project, and retain at least 10%% memory and 512 MiB memory/disk headroom. Actual starts remain subject to resource, account and provider limits.", MaxSwarmScheduledTasks, MaxSwarmParallelTasks))
+		problem(w, 400, "invalid_scheduler_policy", fmt.Sprintf("Choose 1–%d active agents, 1–%d per project, 10–75%% CPU headroom and RAM target, and at least 512 MiB memory/disk reserve. An optional RAM target cap must be at least the RAM floor. Actual starts remain subject to resource, account and provider limits.", MaxSwarmScheduledTasks, MaxSwarmParallelTasks))
 		return
 	}
 	if s.swarmSchedulerPolicyDir != "" {

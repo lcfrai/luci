@@ -70,8 +70,20 @@ type SwarmSchedulerPolicy struct {
 	MaxPerProject   int `json:"maxPerProject"`
 	HeadroomPercent int `json:"headroomPercent"`
 	MinHeadroomMiB  int `json:"minHeadroomMiB"`
-	DiskReserveMiB  int `json:"diskReserveMiB"`
+	// Zero preserves saved percentage-only policies. A positive cap bounds the
+	// percentage RAM reserve, never the explicit floor or the CPU margin.
+	MaxHeadroomMiB int `json:"maxHeadroomMiB,omitempty"`
+	DiskReserveMiB int `json:"diskReserveMiB"`
 }
+
+func (p SwarmSchedulerPolicy) MemoryHeadroomBytes(total uint64) uint64 {
+	reserve := total * uint64(p.HeadroomPercent) / 100
+	if p.MaxHeadroomMiB > 0 {
+		reserve = min(reserve, uint64(p.MaxHeadroomMiB)<<20)
+	}
+	return max(uint64(p.MinHeadroomMiB)<<20, reserve)
+}
+
 type SwarmQueueItem struct {
 	Revision    int    `json:"revision"`
 	ID          string `json:"id"`

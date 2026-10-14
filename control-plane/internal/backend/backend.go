@@ -142,6 +142,11 @@ type Resources struct {
 // DefaultResources is what a session gets when nothing overrides it.
 var DefaultResources = Resources{CPUMillis: 2000, MemoryMiB: 4096}
 
+// Local Docker starts small; larger tasks can use explicit operator limits.
+// Remote VM defaults remain separate from this laptop execution profile.
+var DefaultLocalResources = Resources{CPUMillis: 1000, MemoryMiB: 1024}
+var DefaultRuntimeBuildResources = Resources{CPUMillis: 1000, MemoryMiB: 1024}
+
 // NanoCPUs renders CPUMillis for container.Resources.NanoCPUs.
 func (r Resources) NanoCPUs() int64 { return int64(r.CPUMillis) * 1_000_000 }
 

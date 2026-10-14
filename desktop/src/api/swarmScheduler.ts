@@ -1,7 +1,9 @@
 import { productApi } from './product';
-export interface SchedulerPolicy { maxActive: number; maxPerProject: number; headroomPercent: number; minHeadroomMiB: number; diskReserveMiB: number }
+export interface SchedulerPolicy { maxActive: number; maxPerProject: number; headroomPercent: number; minHeadroomMiB: number; maxHeadroomMiB?: number; diskReserveMiB: number }
 export type SchedulerReservations = { status: 'ready'; observedAt: string; count: number; memoryMiB: number; cpuMillis: number } | { status: 'unavailable' };
 export interface SchedulerResources {
+	limits?: { worker: { memoryMiB: number; cpuMillis: number }; runtimeBuild: { memoryMiB: number; cpuMillis: number } };
+	memoryReserve?: { hostBytes: number; executionBytes: number } | null;
   status?: string;
   host?: { observedAt: string; status: string; platform: string; scope: string;
     memory: { effectiveTotalBytes: number | null; effectiveAvailableBytes: number | null; limitSource: string };
@@ -30,7 +32,8 @@ function checkedReservations(value: unknown): SchedulerReservations {
 }
 function checked(value: SwarmScheduler): SwarmScheduler {
   if (!value || !Number.isInteger(value.revision) || value.revision < 0 || typeof value.dispatchPaused !== 'boolean' || !value.policy ||
-    !['maxActive', 'maxPerProject', 'headroomPercent', 'minHeadroomMiB', 'diskReserveMiB'].every(key => Number.isSafeInteger(value.policy[key as keyof SchedulerPolicy]))) {
+    !['maxActive', 'maxPerProject', 'headroomPercent', 'minHeadroomMiB', 'diskReserveMiB'].every(key => Number.isSafeInteger(value.policy[key as keyof SchedulerPolicy])) ||
+    (value.policy.maxHeadroomMiB !== undefined && (!Number.isSafeInteger(value.policy.maxHeadroomMiB) || value.policy.maxHeadroomMiB < 0))) {
     throw new Error('Workspace capacity could not be read. Refresh before changing it.');
   }
   return value.resources ? { ...value, resources: { ...value.resources, reservations: checkedReservations(value.resources.reservations) } } : value;

@@ -36,8 +36,10 @@ func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {
 		{"IdleTimeout", cfg.IdleTimeout, time.Duration(0)},
 		{"ReapInterval", cfg.ReapInterval, 30 * time.Second},
 		{"ReadyTimeout", cfg.ReadyTimeout, backend.ReadyTimeout},
-		{"CPUMillis", cfg.CPUMillis, 2000},
-		{"MemoryMiB", cfg.MemoryMiB, 4096},
+		{"CPUMillis", cfg.CPUMillis, 1000},
+		{"MemoryMiB", cfg.MemoryMiB, 1024},
+		{"RuntimeBuildCPUMillis", cfg.RuntimeBuildCPUMillis, 1000},
+		{"RuntimeBuildMemoryMiB", cfg.RuntimeBuildMemoryMiB, 1024},
 		{"Namespace", cfg.Namespace, "luci"},
 		{"LogLevel", cfg.LogLevel, slog.LevelInfo},
 		{"SessionsPath", cfg.SessionsPath, filepath.Join(dir, "sessions", "sessions.json")},
@@ -56,6 +58,29 @@ func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {
 	}
 	if cfg.AllowPublicBind || cfg.HarnessAllowUnverified {
 		t.Error("an unset boolean must be false")
+	}
+}
+
+func TestLocalResourceDefaultsPreserveExplicitAndRemoteSizing(t *testing.T) {
+	for _, c := range []struct {
+		name                               string
+		values                             map[string]string
+		memory, cpu, buildMemory, buildCPU int
+	}{
+		{"local", map[string]string{}, 1024, 1000, 1024, 1000},
+		{"explicit", map[string]string{"LUCI_SESSION_MEMORY_MIB": "3072", "LUCI_SESSION_CPU_MILLIS": "1500", "LUCI_RUNTIME_BUILD_MEMORY_MIB": "2048", "LUCI_RUNTIME_BUILD_CPU_MILLIS": "1200"}, 3072, 1500, 2048, 1200},
+		{"remote", map[string]string{"LUCI_BACKEND": "kata"}, 4096, 2000, 1024, 1000},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			c.values["LUCI_STATE_DIR"] = t.TempDir()
+			got, err := loadConfig(env(c.values))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.MemoryMiB != c.memory || got.CPUMillis != c.cpu || got.RuntimeBuildMemoryMiB != c.buildMemory || got.RuntimeBuildCPUMillis != c.buildCPU {
+				t.Fatal(got.Resources(), got.RuntimeBuildResources())
+			}
+		})
 	}
 }
 
