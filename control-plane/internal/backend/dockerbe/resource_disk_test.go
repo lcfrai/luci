@@ -5,7 +5,38 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
+
+	"github.com/docker/docker/api/types/system"
+	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
 )
+
+func TestDaemonDiskProbeCacheKeepsOriginalSampleAndFailsClosed(t *testing.T) {
+	now := time.Now().UTC()
+	info := system.Info{ID: "engine-a", DockerRootDir: "/var/lib/docker"}
+	bytes := uint64(3 << 30)
+	good := &daemonDiskCache{engine: info.ID, root: info.DockerRootDir, disk: resourcebudget.Disk{ObservedAt: now, AvailableBytes: &bytes}}
+	if !good.matches(info, now.Add(3*time.Second)) || good.disk.ObservedAt != now {
+		t.Fatal("matching disk sample lost its original observation time")
+	}
+	if good.matches(info, now.Add(daemonDiskProbeInterval)) || good.matches(info, now.Add(-time.Second)) {
+		t.Fatal("stale or future disk sample accepted")
+	}
+	changed := info
+	changed.ID = "engine-b"
+	if good.matches(changed, now.Add(time.Second)) {
+		t.Fatal("other engine reused disk capacity")
+	}
+	changed = info
+	changed.DockerRootDir = "/other"
+	if good.matches(changed, now.Add(time.Second)) {
+		t.Fatal("other daemon root reused disk capacity")
+	}
+	failed := &daemonDiskCache{engine: info.ID, root: info.DockerRootDir, failedAt: now}
+	if !failed.matches(info, now.Add(3*time.Second)) || failed.disk.AvailableBytes != nil || failed.matches(info, now.Add(daemonDiskProbeInterval)) {
+		t.Fatal("failed probe retry bound did not retain unavailable capacity")
+	}
+}
 
 func TestDaemonDiskParsingBindsIdentityAndChecksUnits(t *testing.T) {
 	good := []byte("engine-id\n/dev/vdb 10000 1000 9000 10% /var/lib/docker\n")

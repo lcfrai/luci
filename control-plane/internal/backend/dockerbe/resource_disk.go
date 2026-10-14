@@ -16,15 +16,39 @@ import (
 type daemonDiskCache struct {
 	disk         resourcebudget.Disk
 	engine, root string
+	failedAt     time.Time
+}
+
+// Disk capacity is needed within five seconds at admission. A four-second
+// engine-bound cache leaves one sampler interval for publication, while the
+// one-second native host and Docker API observations remain unchanged. Failed
+// WSL probes are cached only as failure, so they never grant capacity.
+const daemonDiskProbeInterval = 4 * time.Second
+
+func (c *daemonDiskCache) matches(info system.Info, now time.Time) bool {
+	if c == nil || c.engine != info.ID || c.root != info.DockerRootDir {
+		return false
+	}
+	at := c.disk.ObservedAt
+	if !c.failedAt.IsZero() {
+		at = c.failedAt
+	}
+	return !at.IsZero() && !at.After(now) && now.Sub(at) < daemonDiskProbeInterval
 }
 
 func (b *Backend) observeDaemonDisk(ctx context.Context, info system.Info) *resourcebudget.Disk {
-	if cached := b.resourceDisk; cached != nil && cached.engine == info.ID && cached.root == info.DockerRootDir && time.Since(cached.disk.ObservedAt) < 2*time.Second {
+	if cached := b.resourceDisk; cached.matches(info, time.Now()) {
+		if !cached.failedAt.IsZero() {
+			return nil
+		}
 		d := cached.disk
 		return &d
 	}
 	d, e := probeDaemonDisk(ctx, b.api, info)
 	if e != nil {
+		if ctx.Err() == nil {
+			b.resourceDisk = &daemonDiskCache{engine: info.ID, root: info.DockerRootDir, failedAt: time.Now()}
+		}
 		return nil
 	}
 	b.resourceDisk = &daemonDiskCache{disk: d, engine: info.ID, root: info.DockerRootDir}
