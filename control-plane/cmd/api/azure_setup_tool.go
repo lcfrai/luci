@@ -222,6 +222,11 @@ func runAzureSetupCommand(action, path string, output io.Writer) error {
 	if err := verifyAzureFence(ctx, selected, fence, false); err != nil {
 		return err
 	}
+	if action == "template-create" || action == "template-start" {
+		if err := arm.inspectGuestRegistry(ctx, selected.Deployment.AzureScaleSetID+"/virtualMachines/"+instance.InstanceID, input.SourceCommit, input.FromImage); err != nil {
+			return err
+		}
+	}
 	source, err := newAzureSecretSource(*selected.AzureSecrets)
 	if err != nil {
 		return err

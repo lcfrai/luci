@@ -27,13 +27,13 @@ class PackageTest(unittest.TestCase):
             source.mkdir(parents=True)
             (root / "LICENSE").write_text("Luci test license")
             (root / "e2b/LICENSE").write_text("E2B test license")
-            (source / "compose.yaml").write_text("services:\n  api: {image: upstream/api:tag}\n  host: {image: upstream/host:tag}\n")
+            (source / "compose.yaml").write_text("services:\n  api: {image: upstream/api:tag}\n  host: {image: upstream/host:tag}\n  base-template: {image: upstream/node:tag}\n  ready: {image: upstream/node:tag}\n")
             (source / ".env").write_text("ENV=base\n")
             (source / "config").mkdir()
             (source / "config/config.txt").write_text("pinned\n")
             images = root / "images.json"
             images.write_text(json.dumps({"api": "upstream/api@sha256:" + "a" * 64,
-                                          "host": "upstream/host@sha256:" + "b" * 64}))
+                                          "host": "upstream/host@sha256:" + "b" * 64, "base-template": "upstream/node@sha256:" + "d"*64, "ready": "upstream/node@sha256:" + "d"*64}))
             binary = root / "binary"
             binary.write_bytes(b"binary fixture")
             licence = root / "envoy-license"
@@ -50,6 +50,11 @@ class PackageTest(unittest.TestCase):
             self.assertEqual((root / "image/opt/luci/azure-embed/package.sha256").read_text().strip(), expected)
             self.assertIn("run-luci_embed.mount", [p.name for p in (root / "image/etc/systemd/system").iterdir()])
             self.assertIn("@sha256:", (root / "image/opt/luci/azure-embed/package/compose/image-lock.yaml").read_text())
+            self.assertIn('guest_registry.py', '\n'.join(files))
+            self.assertIn('azure-services.yaml', '\n'.join(files))
+            excluded = package.yaml.safe_load(files['compose/azure-services.yaml'])['services']
+            self.assertEqual(set(excluded), {'base-template','ready'})
+            self.assertTrue(all(value['profiles'] == ['luci-manual-template-only'] for value in excluded.values()))
             with self.assertRaisesRegex(ValueError, "already contains"):
                 package.install(files, root / "image", expected, archive)
             archive.write_bytes(archive.read_bytes() + b"tampered")
@@ -210,6 +215,16 @@ class HostLifecycleTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "exact settled previous"):
             service.rotate(next_c)
         self.assertEqual(sum(call[:2] == ("systemctl", "restart") for call in self.calls), old_restarts)
+
+    def test_registry_drift_blocks_initial_and_reboot_without_compose_effect(self):
+        with patch.object(service, 'guest_source_ready', side_effect=ValueError('registry source drift')):
+            with self.assertRaisesRegex(ValueError, 'registry source drift'): service.boot(self.c)
+        self.assertFalse(any(call[-2:] == ('up', '-d') for call in self.calls))
+        service.boot(self.c)
+        before = len(self.calls)
+        with patch.object(service, 'guest_source_ready', side_effect=ValueError('registry source drift')):
+            with self.assertRaisesRegex(ValueError, 'registry source drift'): service.boot(self.c)
+        self.assertEqual(len(self.calls),before)
 
     def test_nonsecret_deployment_selection_refuses_unsafe_address_or_identity(self):
         c = dict(self.c, version=1, gatewayPrivateIP="10.20.0.4", runtimeSubnetCIDR="10.20.0.0/24")

@@ -30,7 +30,7 @@ NAME = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 REGION = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
 SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
-                "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-controller-disk/package.py",
+                "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-embed-host/guest_registry.py", "azure-controller-disk/package.py",
                 "azure-controller-disk/mount.py", "azure-controller-disk/recover.py"}
 EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
 PLAN_VERSION = 1
@@ -841,7 +841,7 @@ def main():
         if action in ("install-operator", "reconcile-operator"):
             row.add_argument("--finalization-digest", required=True)
         if action == "prepare-operator":
-            row.add_argument("--guest-image", required=True)
+            row.add_argument("--guest-image", default="", help="Optional verified existing registry image; normal setup derives measured source")
             row.add_argument("--cpu-count", type=int, required=True)
             row.add_argument("--memory-mib", type=int, required=True)
             row.add_argument("--task-max-seconds", type=int, required=True)

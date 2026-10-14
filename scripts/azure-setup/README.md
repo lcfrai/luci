@@ -213,3 +213,25 @@ Run abort for both roles (including a never-allocated role), then retire-staging
 Published gallery artifacts and other foundation/runtime resources remain retained;
 abort receipts do not establish a zero bill. New production/image binding is refused
 after abort. Normal single-command progression remains in development.
+
+
+Normal private image production also builds the exact Luci microVM guest source
+on the existing runtime builder. Its base image digests, actual harness version
+probes, complete OCI manifest/config/layers and original grants are retained with
+an immutable source receipt. The runtime image carries those nonsecret bytes in
+a read-only Distribution registry bound only to `127.0.0.1:5055`; no Azure registry,
+public port, private registry credential or additional managed service is created.
+The exact upstream Distribution 3.0.0 executable archive and original licence are
+checksum-bound, and the runtime service cannot upload, delete, proxy or rebuild.
+Upstream runtime service images are actually preloaded before capture. The Azure
+stack disables the independent automatic `e2bdev/base` build/ready services.
+
+`prepare-operator` normally omits `--guest-image`: it derives the observed guest
+digest from the completed image producer and refuses source/reference substitution.
+The explicit verified existing-registry path remains available. Startup and reboot
+verify all retained source bytes and the owned loopback listener. Protected template
+create/start inspect the actual runtime source before provider mutation. Source
+restoration from the exact gallery image does not restore tasks, template metadata,
+projects, artifacts or active journals; their existing independent durable recovery
+and predecessor fence still apply. No actual Azure, KVM, guest task, native registry
+or billing outcome is established by the offline tests.
