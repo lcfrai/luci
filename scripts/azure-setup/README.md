@@ -90,6 +90,12 @@ signature or repeated uncertain write. Original selections, credentials and
 signed envelopes remain preserved. The recovered generation gets a new private
 folder and authenticated descriptor; import it through the protected desktop
 connection flow. Retained predecessor Terraform cannot replay old authority.
+The new folder retains the actual mounted generation, fence and authenticated
+host-delivery digests. A later replacement uses that current configuration and
+receipt, including the current TLS versions, rather than original Terraform
+outputs or a reconstructed generation digest. Prior signed host links are
+verified with their saved configuration and removed before signing the next
+transition.
 A later replacement still requires a fresh generic standby with the exact
 recovery identity; automatic standby restoration is not implemented. Actual
 Azure recovery/private connectivity, retained-task access and invoices remain

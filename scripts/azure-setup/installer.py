@@ -676,7 +676,7 @@ def initial_recovery_selection(selection, identities):
             "recoveryIdentityID": identities["controller_recovery_identity_resource_id"],
             "oldGeneration": variables["generation"], "newGeneration": selection["nextGeneration"],
             "filesystemUUID": variables["controller_filesystem_uuid"],
-            "oldGenerationReceiptSHA256": digest(generation),
+            "oldGenerationReceiptSHA256": identities.get('controller_generation_receipt_sha256', digest(generation)),
             "mountSelectionPath": "/etc/luci/azure-controller-disk-restore.json",
             "hostDeliverySelectionPath": "/etc/luci/azure-host-delivery.json",
             "apiService": "luci-api.service", "apiHealthURL": selection["controllerHealthURL"],
