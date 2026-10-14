@@ -2,10 +2,15 @@ package assistance
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -34,8 +39,11 @@ func TestRepositoryProviderSelectionAndOpenCodeConfigurationAreExplicitReadOnly(
 	}
 	model := config["provider"].(map[string]any)["luci-local"].(map[string]any)["models"].(map[string]any)["model"].(map[string]any)
 	limit := model["limit"].(map[string]any)
-	if limit["context"] != float64(4096) || limit["output"] != float64(512) || env["OPENCODE_LUCI_INPUT_BYTES"] != "14000" {
+	if limit["context"] != float64(8192) || limit["output"] != float64(2048) || env["OPENCODE_LUCI_INPUT_BYTES"] != "14000" || env["OPENCODE_LUCI_OLLAMA_PREFLIGHT"] != "1" {
 		t.Fatal("local Ollama analysis did not reserve a bounded output and input window")
+	}
+	if !strings.Contains(env["OPENCODE_CONFIG_CONTENT"], "You are Luci's read-only analysis model") {
+		t.Fatal("large upstream coding prompt was not replaced for read-only analysis")
 	}
 	for _, required := range []string{"'--model', model", "'--tools', ''", "'--pure'", "'--sandbox', 'read-only'", "stderr=subprocess.DEVNULL", "source.read(LIMIT+1)", "overflow[0]", "env.pop('OPENAI_API_KEY', None)"} {
 		if !strings.Contains(RepositoryLauncher, required) {
@@ -194,8 +202,45 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 	if err := os.WriteFile(fake, []byte(code), 0600); err != nil {
 		t.Fatal(err)
 	}
+	var servingContext, evaluatedTokens atomic.Int64
+	servingContext.Store(8192)
+	evaluatedTokens.Store(1800)
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/generate":
+			var request struct {
+				Model   string `json:"model"`
+				Prompt  string `json:"prompt"`
+				Raw     bool   `json:"raw"`
+				Stream  bool   `json:"stream"`
+				Options struct {
+					NumPredict int `json:"num_predict"`
+				} `json:"options"`
+			}
+			if r.Method != "POST" || json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&request) != nil || request.Model != "fixture" || !request.Raw || request.Stream || request.Options.NumPredict != 1 || !strings.Contains(request.Prompt, currentRequest) {
+				http.Error(w, "bad exact-model preflight", 400)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"model": "fixture", "prompt_eval_count": evaluatedTokens.Load(), "eval_count": 1, "done": true})
+		case "/api/ps":
+			json.NewEncoder(w).Encode(map[string]any{"models": []map[string]any{{"name": "fixture", "context_length": servingContext.Load(), "digest": "sha256:fixture-exact-model"}}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer modelServer.Close()
+	u, err := url.Parse(modelServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		t.Fatal(err)
+	}
+	modelConfig, _ := json.Marshal(map[string]any{"model": "luci-local/fixture", "provider": map[string]any{"luci-local": map[string]any{"options": map[string]string{"baseURL": modelServer.URL + "/v1"}}}})
 	launcher := strings.ReplaceAll(RepositoryLauncher, "/luci-input", filepath.ToSlash(input))
 	launcher = strings.ReplaceAll(launcher, "/luci-output", filepath.ToSlash(output))
+	launcher = strings.Replace(launcher, "base.port != 11434", "base.port != "+strconv.Itoa(port), 1)
 	quoted, _ := json.Marshal(filepath.ToSlash(python))
 	quotedFake, _ := json.Marshal(filepath.ToSlash(fake))
 	launcher = strings.Replace(launcher, "['opencode',", "["+string(quoted)+","+string(quotedFake)+",", 1)
@@ -206,7 +251,7 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 	for _, fenced := range []bool{false, true} {
 		os.Remove(filepath.Join(output, "result.json"))
 		cmd := exec.Command(python, entry)
-		cmd.Env = append(os.Environ(), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_FENCED="+map[bool]string{true: "1", false: "0"}[fenced], "OPENCODE_LUCI_INPUT_BYTES=14000")
+		cmd.Env = append(os.Environ(), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_FENCED="+map[bool]string{true: "1", false: "0"}[fenced], "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig))
 		logs, runErr := cmd.CombinedOutput()
 		if len(logs) != 0 {
 			t.Fatal("provider output escaped launcher")
@@ -238,6 +283,39 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 			}
 		}
 	}
+	servingContext.Store(4096)
+	os.Remove(filepath.Join(output, "result.json"))
+	cmd := exec.Command(python, entry)
+	invocation := filepath.Join(dir, "inadequate-context-provider-invocation")
+	cmd.Env = append(os.Environ(), "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_INVOCATION="+invocation)
+	if logs, err := cmd.CombinedOutput(); err == nil || len(logs) != 0 {
+		t.Fatal("unverified model context reached provider", err)
+	}
+	var refused struct {
+		ExitCode    int    `json:"exitCode"`
+		FailureCode string `json:"failureCode"`
+	}
+	refusedData, err := os.ReadFile(filepath.Join(output, "exit.json"))
+	if err != nil || json.Unmarshal(refusedData, &refused) != nil || refused.FailureCode != "local_model_context_limit" || refused.ExitCode != 2 {
+		t.Fatal("small actual serving context was not refused", err, string(refusedData))
+	}
+	if _, err := os.Stat(invocation); !os.IsNotExist(err) {
+		t.Fatal("small context started provider")
+	}
+	// A high-token request can remain below the UTF-8 byte cap. Ollama's own
+	// token count must still prevent OpenCode from receiving a truncated input.
+	servingContext.Store(8192)
+	evaluatedTokens.Store(5000)
+	os.Remove(filepath.Join(output, "exit.json"))
+	cmd = exec.Command(python, entry)
+	cmd.Env = append(os.Environ(), "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig), "FIXTURE_INVOCATION="+invocation)
+	if logs, err := cmd.CombinedOutput(); err == nil || len(logs) != 0 {
+		t.Fatal("high-token prompt reached the model", err)
+	}
+	refusedData, err = os.ReadFile(filepath.Join(output, "exit.json"))
+	if err != nil || json.Unmarshal(refusedData, &refused) != nil || refused.FailureCode != "local_model_context_limit" || refused.ExitCode != 2 {
+		t.Fatal("high-token request was not refused", err, string(refusedData))
+	}
 	// The local route refuses an input that cannot fit its conservative serving
 	// window before invoking OpenCode. The full current request remains intact.
 	tooLarge := append([]byte(strings.Repeat("x", 14000)), prompt...)
@@ -245,8 +323,8 @@ print(json.dumps({'type':'text','part':{'text':reply}}))
 		t.Fatal(err)
 	}
 	os.Remove(filepath.Join(output, "result.json"))
-	cmd := exec.Command(python, entry)
-	invocation := filepath.Join(dir, "oversized-provider-invocation")
+	cmd = exec.Command(python, entry)
+	invocation = filepath.Join(dir, "oversized-provider-invocation")
 	cmd.Env = append(os.Environ(), "OPENCODE_LUCI_INPUT_BYTES=14000", "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "FIXTURE_INVOCATION="+invocation)
 	if logs, err := cmd.CombinedOutput(); err == nil || len(logs) != 0 {
 		t.Fatal("oversized local input was not refused privately")
