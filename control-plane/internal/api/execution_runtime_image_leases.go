@@ -101,7 +101,7 @@ func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared b
 		existing := false
 		for _, v := range l.RuntimeImages {
 			if v.Scope == g.scope && v.ID == id.AllocationID {
-				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.State != "reserved" {
+				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.State != "reserved" && v.State != "building" {
 					return errors.New("runtime installer allocation already claimed, changed or settled")
 				}
 				existing, result = true, v

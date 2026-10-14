@@ -419,6 +419,10 @@ func (b *Backend) verifyRuntimeImage(ctx context.Context, api runtimeImageClient
 }
 
 func (b *Backend) BuildRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
+	return b.BuildRuntimeImageWithAdmission(ctx, prepared, nil)
+}
+
+func (b *Backend) BuildRuntimeImageWithAdmission(ctx context.Context, prepared backend.PreparedRuntimeImage, afterPull func(context.Context) error) (backend.RuntimeImageBuildResult, error) {
 	// The caller has already persisted this exact allocation and its capacity
 	// claim. Even a pre-dispatch refusal returns no settlement claim here.
 	requestCtx := ctx
@@ -471,6 +475,11 @@ func (b *Backend) BuildRuntimeImage(ctx context.Context, prepared backend.Prepar
 		// The only daemon mutations before this point are fully consumed base
 		// pulls. No image build has been issued for this allocation.
 		return backend.RuntimeImageBuildResult{Settled: true}, err
+	}
+	if afterPull != nil {
+		if err := afterPull(requestCtx); err != nil {
+			return backend.RuntimeImageBuildResult{Settled: true}, err
+		}
 	}
 	// The classic builder enforces these RUN-container limits. Pull/download and
 	// daemon bookkeeping share the admitted allowance, not a separate cgroup.

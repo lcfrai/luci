@@ -16,6 +16,7 @@ type installerFixture struct {
 	backend.Backend
 	builds, publishes, observes int
 	build                       func(context.Context, backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error)
+	beforeAdmission             func()
 	publishError                error
 	observation                 string
 }
@@ -34,6 +35,34 @@ func (f *installerFixture) BuildRuntimeImage(ctx context.Context, p backend.Prep
 		return f.build(ctx, p)
 	}
 	return backend.RuntimeImageBuildResult{Settled: true, ImageID: "sha256:" + strings.Repeat("f", 64)}, nil
+}
+func (f *installerFixture) BuildRuntimeImageWithAdmission(ctx context.Context, p backend.PreparedRuntimeImage, afterPull func(context.Context) error) (backend.RuntimeImageBuildResult, error) {
+	if f.beforeAdmission != nil {
+		f.beforeAdmission()
+	}
+	if err := afterPull(ctx); err != nil {
+		return backend.RuntimeImageBuildResult{Settled: true}, err
+	}
+	return f.BuildRuntimeImage(ctx, p)
+}
+func TestRuntimeInstallerFreshAdmissionAfterBasePullRefusesBeforeBuild(t *testing.T) {
+	a, f, req := installerRuntimeFixture(t)
+	f.beforeAdmission = func() {
+		a.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+			s := executionFixtureSnapshot()
+			s.Execution.EngineID = httpCheckEngine
+			s.Execution.ImageVirtualSizeBytes = nil
+			s.Execution.DaemonDisk.AvailableBytes = executionPointer(uint64(64 << 30))
+			s.Host.Memory.EffectiveAvailableBytes = executionPointer(uint64(1 << 30))
+			return s
+		}
+	}
+	out, err := a.installRuntimeImage(context.Background(), req, installerPublish)
+	if err == nil || out.Phase != "blocked" || out.ReasonCode != "memory_pressure" || out.ResourcesHeld || !out.CleanupConfirmed ||
+		out.Admission == nil || out.Admission.Stage != "after-pull" || f.builds != 0 || f.publishes != 0 {
+		t.Fatal("after-pull host pressure issued or retained an unstarted build", out, err, f)
+	}
+	previewRetained(t, a, 0)
 }
 func (f *installerFixture) PublishRuntimeImage(ctx context.Context, p backend.PreparedRuntimeImage, id string) (backend.RuntimeImagePublishResult, error) {
 	f.publishes++

@@ -71,3 +71,11 @@ type RuntimeImageExecutor interface {
 	PublishRuntimeImage(context.Context, PreparedRuntimeImage, string) (RuntimeImagePublishResult, error)
 	ObserveRuntimeImage(context.Context, RuntimeImageIdentity, string, string) (RuntimeImageObservation, error)
 }
+
+// A staged installer rechecks current authority and whole-machine capacity
+// after acknowledged base pulls and immediately before its first build RPC.
+// A callback refusal has a positive no-build result; an ambiguous pull does not.
+type RuntimeImagePreBuildExecutor interface {
+	RuntimeImageExecutor
+	BuildRuntimeImageWithAdmission(context.Context, PreparedRuntimeImage, func(context.Context) error) (RuntimeImageBuildResult, error)
+}

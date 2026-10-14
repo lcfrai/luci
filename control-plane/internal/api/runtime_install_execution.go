@@ -175,7 +175,26 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	if _, err = a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
 		return unstarted(err)
 	}
-	result, buildErr := executor.BuildRuntimeImage(ctx, prepared)
+	staged, okay := executor.(backend.RuntimeImagePreBuildExecutor)
+	if !okay {
+		return unstarted(backend.ErrUnsupported)
+	}
+	afterPullCode, afterPullMessage := "", ""
+	result, buildErr := staged.BuildRuntimeImageWithAdmission(ctx, prepared, func(stageCtx context.Context) error {
+		if err := stageCtx.Err(); err != nil {
+			return err
+		}
+		decision, _, e := admit()
+		if e == nil && decision.State == "admitted" {
+			return nil
+		}
+		afterPullCode, afterPullMessage = decision.Code, decision.Message
+		if afterPullCode == "" {
+			afterPullCode, afterPullMessage = "runtime_install_admission_unavailable", "Current administrator access or shared capacity changed after base-image preparation. No build was started."
+		}
+		out.Admission = runtimeAdmissionRefusal(decision, "after-pull")
+		return errors.Join(e, errors.New("runtime build admission changed after base-image preparation"))
+	})
 	if !result.Settled {
 		out.Phase = "unknown"
 		return fail("runtime_build_unconfirmed", "The build outcome is unconfirmed. Its exact reservation remains held; no retry was started.", errors.Join(buildErr, backend.ErrUnavailable))
@@ -197,6 +216,11 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	}
 	if buildErr != nil || result.ImageID == "" {
 		out.Phase, out.ReasonCode, out.Message = "failed", "runtime_build_failed", "The runtime build settled without a usable image."
+		if afterPullCode != "" {
+			out.Phase, out.ReasonCode, out.Message = "blocked", afterPullCode, afterPullMessage
+		} else if ctx.Err() != nil {
+			out.Phase, out.ReasonCode, out.Message = "cancelled", "runtime_build_cancelled", "The exact runtime build ended without a usable image after cancellation."
+		}
 		return finish(buildErr)
 	}
 	if _, err = a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
