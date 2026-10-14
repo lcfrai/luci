@@ -30,8 +30,11 @@ type PreparedRuntimeImage struct {
 	PreparedContext   []byte
 	ContextDigest     string
 	RequiredDiskBytes uint64
-	StorageDriver     string
-	BaseImages        []string
+	// AdmissionMemoryMiB includes a conservative cold-base/daemon allowance.
+	// The Docker RUN hard cap remains Spec.Resources.MemoryMiB.
+	AdmissionMemoryMiB int
+	StorageDriver      string
+	BaseImages         []string
 }
 
 type RuntimeImageBuildResult struct {
@@ -67,4 +70,12 @@ type RuntimeImageExecutor interface {
 	BuildRuntimeImage(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
 	PublishRuntimeImage(context.Context, PreparedRuntimeImage, string) (RuntimeImagePublishResult, error)
 	ObserveRuntimeImage(context.Context, RuntimeImageIdentity, string, string) (RuntimeImageObservation, error)
+}
+
+// A staged installer rechecks current authority and whole-machine capacity
+// after acknowledged base pulls and immediately before its first build RPC.
+// A callback refusal has a positive no-build result; an ambiguous pull does not.
+type RuntimeImagePreBuildExecutor interface {
+	RuntimeImageExecutor
+	BuildRuntimeImageWithAdmission(context.Context, PreparedRuntimeImage, func(context.Context) error) (RuntimeImageBuildResult, error)
 }

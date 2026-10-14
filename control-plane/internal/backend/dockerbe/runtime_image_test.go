@@ -45,6 +45,19 @@ type runtimeImageProbe struct {
 	mutations    []string
 	lists        []container.ListOptions
 	listError    error
+	killed       []string
+	killHook     func(string) error
+}
+
+func (f *runtimeImageProbe) ContainerKill(_ context.Context, id, signal string) error {
+	if signal != "SIGKILL" {
+		return errors.New("unexpected cancellation signal")
+	}
+	f.killed = append(f.killed, id)
+	if f.killHook != nil {
+		return f.killHook(id)
+	}
+	return checkMissing{}
 }
 
 func (f *runtimeImageProbe) ImageInspect(_ context.Context, ref string, _ ...client.ImageInspectOption) (image.InspectResponse, error) {
@@ -196,6 +209,21 @@ func runtimeFixturePrepare(t *testing.T, b *Backend, spec backend.RuntimeImageSp
 		t.Fatal(err)
 	}
 	return p
+}
+
+func TestRuntimeImageColdPullDemandIsSeparateFromRunCap(t *testing.T) {
+	b, f, spec := newRuntimeImageProbe(t)
+	cold := runtimeFixturePrepare(t, b, spec)
+	if cold.AdmissionMemoryMiB != spec.Resources.MemoryMiB+2*runtimeColdBaseAdmissionMiB {
+		t.Fatal("two absent pinned bases were not charged before build", cold.AdmissionMemoryMiB)
+	}
+	for base, row := range f.bases {
+		f.images[base] = row
+	}
+	warm := runtimeFixturePrepare(t, b, spec)
+	if warm.AdmissionMemoryMiB != spec.Resources.MemoryMiB || warm.Spec.Resources != spec.Resources {
+		t.Fatal("warm bases or hard RUN limits changed", warm)
+	}
 }
 
 func runtimeFixtureOutput(f *runtimeImageProbe, p backend.PreparedRuntimeImage) string {
@@ -515,6 +543,10 @@ func TestRuntimeImageBuildRequiresTerminalTransportAndExactSettlement(t *testing
 				if err == nil || !result.Settled || result.ImageID != "" {
 					t.Fatalf("complete failed build did not settle honestly: %+v %v", result, err)
 				}
+			} else if mode == "cancelled" {
+				if err != nil || !result.Settled || result.ImageID != id {
+					t.Fatalf("cancelled caller still received an exact terminal build: %+v %v", result, err)
+				}
 			} else if err == nil || result.Settled || result.ImageID != "" {
 				t.Fatalf("uncertain/unowned result acknowledged: %+v %v", result, err)
 			}
@@ -522,6 +554,69 @@ func TestRuntimeImageBuildRequiresTerminalTransportAndExactSettlement(t *testing
 				t.Fatalf("response/replay/cleanup ownership: closes=%d builds=%d tags=%v removes=%v", body.closed, len(f.buildOptions), f.tags, f.removes)
 			}
 		})
+	}
+}
+
+func TestRuntimeImageCancelledOwnedBuilderRequiresTerminalFailureAndAbsence(t *testing.T) {
+	b, f, spec := newRuntimeImageProbe(t)
+	p := runtimeFixturePrepare(t, b, spec)
+	ref := strings.Repeat("d", 64)
+	f.rows[ref] = container.InspectResponse{ContainerJSONBase: &container.ContainerJSONBase{
+		ID: ref, State: &container.State{Status: "running"}},
+		Config: &container.Config{Labels: runtimeIdentityLabels(p.Spec.Identity)}}
+	reader, writer := io.Pipe()
+	f.buildBody = reader
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	f.buildHook = func(context.Context) { cancel() }
+	f.killHook = func(id string) error {
+		if id != ref {
+			return errors.New("foreign intermediate")
+		}
+		delete(f.rows, ref)
+		_, err := io.WriteString(writer, runtimeFixtureJSON(t, map[string]string{"error": "owned RUN stopped"}))
+		_ = writer.Close()
+		return err
+	}
+	result, err := b.BuildRuntimeImage(ctx, p)
+	if err == nil || !result.Settled || result.ImageID != "" || len(f.killed) != 1 || f.killed[0] != ref {
+		t.Fatalf("exact cancelled build did not settle from terminal transport: %+v %v killed=%v", result, err, f.killed)
+	}
+}
+
+func TestRuntimeImageCancelRefusesCollidingContainerWithoutKillingIt(t *testing.T) {
+	b, f, spec := newRuntimeImageProbe(t)
+	p := runtimeFixturePrepare(t, b, spec)
+	ref := strings.Repeat("e", 64)
+	labels := runtimeIdentityLabels(p.Spec.Identity)
+	labels[runtimeImagePrefix+"job"] = "unrelated-job"
+	f.rows[ref] = container.InspectResponse{ContainerJSONBase: &container.ContainerJSONBase{
+		ID: ref, State: &container.State{Status: "running"}},
+		Config: &container.Config{Labels: labels}}
+	request, cancelRequest := context.WithCancel(context.Background())
+	cancelRequest()
+	monitor, stopMonitor := context.WithCancel(context.Background())
+	defer stopMonitor()
+	cancelled := false
+	b.cancelOwnedRuntimeBuild(request, monitor, p.Spec.Identity, make(chan struct{}), func() { cancelled = true })
+	if !cancelled || len(f.killed) != 0 || f.rows[ref].State.Status != "running" {
+		t.Fatal("foreign/colliding container was mutated or treated as settled", cancelled, f.killed)
+	}
+}
+
+func TestRuntimeImageCancellationAfterAcknowledgedPullStopsBeforeBuild(t *testing.T) {
+	b, f, spec := newRuntimeImageProbe(t)
+	p := runtimeFixturePrepare(t, b, spec)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	f.pullBody = func(_ context.Context, base string) io.ReadCloser {
+		cancel()
+		return io.NopCloser(strings.NewReader(runtimeFixtureJSON(t,
+			map[string]string{"status": "Status: Downloaded newer image for " + base})))
+	}
+	result, err := b.BuildRuntimeImage(ctx, p)
+	if err == nil || !result.Settled || len(f.pulls) != 1 || len(f.buildOptions) != 0 {
+		t.Fatalf("completed pull did not stop before an image build: %+v %v pulls=%v", result, err, f.pulls)
 	}
 }
 
@@ -548,6 +643,7 @@ func TestRuntimeImageFailedPullNeverSettlesFromImageVisibilityOrEmptyInventory(t
 					body.closeError = errors.New("controlled pull close error")
 				case "cancelled":
 					cancel()
+					stream = runtimeFixtureJSON(t, map[string]string{"status": "Extracting"})
 				}
 				body.Reader = strings.NewReader(stream)
 				return body

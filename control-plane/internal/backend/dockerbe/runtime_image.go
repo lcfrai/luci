@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -24,6 +25,7 @@ import (
 const runtimeImagePrefix = "luci.runtime-image-"
 const runtimeImageBuildBudget = 30 * time.Minute
 const runtimeImageStreamLimit = 8 << 20
+const runtimeColdBaseAdmissionMiB = 1024
 
 var _ backend.RuntimeImageExecutor = (*Backend)(nil)
 
@@ -32,6 +34,76 @@ type runtimeImageClient interface {
 	ImageBuild(context.Context, io.Reader, build.ImageBuildOptions) (build.ImageBuildResponse, error)
 	ImagePull(context.Context, string, image.PullOptions) (io.ReadCloser, error)
 	ImageTag(context.Context, string, string) error
+}
+
+type runtimeImageKillClient interface {
+	ContainerKill(context.Context, string, string) error
+}
+
+// Classic ImageBuild has no durable build-status/readback API. Keep its
+// transport open briefly after caller cancellation so an exact owned RUN
+// container can be interrupted and the daemon's terminal response drained.
+// A missing container or a cancelled transport alone never proves settlement.
+func (b *Backend) cancelOwnedRuntimeBuild(ctx, monitorCtx context.Context, identity backend.RuntimeImageIdentity, done <-chan struct{}, cancelBuild context.CancelFunc) {
+	select {
+	case <-ctx.Done():
+	case <-done:
+		return
+	}
+	killer, ok := b.api.(runtimeImageKillClient)
+	if !ok {
+		cancelBuild()
+		return
+	}
+	probe, cancel := context.WithTimeout(monitorCtx, 20*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	killed := map[string]bool{}
+	for {
+		select {
+		case <-done:
+			return
+		default:
+		}
+		if err := b.runtimeImageIdentity(probe, identity); err != nil {
+			cancelBuild()
+			return
+		}
+		rows, err := b.api.ContainerList(probe, container.ListOptions{All: true,
+			Filters: filters.NewArgs(filters.Arg("label", runtimeImagePrefix+"allocation="+identity.AllocationID))})
+		if err != nil || len(rows) > 128 {
+			cancelBuild()
+			return
+		}
+		for _, row := range rows {
+			if len(row.ID) != 64 || !fenceHex(row.ID, 32) || row.Labels["luci.runtime-image"] != "true" {
+				cancelBuild()
+				return
+			}
+			for key, value := range runtimeIdentityLabels(identity) {
+				if row.Labels[key] != value {
+					cancelBuild()
+					return
+				}
+			}
+			if row.State == "running" && !killed[row.ID] {
+				if err := killer.ContainerKill(probe, row.ID, "SIGKILL"); err != nil {
+					cancelBuild()
+					return
+				}
+				killed[row.ID] = true
+			}
+		}
+		select {
+		case <-done:
+			return
+		case <-probe.Done():
+			cancelBuild() // outcome stays unknown unless a terminal response was read
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 func runtimeImageID(id string) bool {
@@ -146,9 +218,11 @@ func (b *Backend) PrepareRuntimeImage(ctx context.Context, spec backend.RuntimeI
 	if err != nil {
 		return backend.PreparedRuntimeImage{}, err
 	}
+	coldBases := 0
 	for _, base := range bases {
 		row, err := api.ImageInspect(ctx, base)
 		if errdefs.IsNotFound(err) {
+			coldBases++
 			continue
 		}
 		if err != nil {
@@ -161,7 +235,15 @@ func (b *Backend) PrepareRuntimeImage(ctx context.Context, spec backend.RuntimeI
 	if ctx.Err() != nil {
 		return backend.PreparedRuntimeImage{}, ctx.Err()
 	}
-	return backend.PreparedRuntimeImage{Spec: spec, PreparedContext: prepared, ContextDigest: digest, RequiredDiskBytes: backend.RuntimeImageRequiredDiskBytes, StorageDriver: info.Driver, BaseImages: bases}, nil
+	// The observed cold Go and Node pulls consume daemon/host memory before a
+	// capped RUN exists. Charge those separately instead of raising the RUN cap.
+	admission := spec.Resources.MemoryMiB + coldBases*runtimeColdBaseAdmissionMiB
+	if admission > 65536 {
+		return backend.PreparedRuntimeImage{}, backend.ErrUnsupported
+	}
+	return backend.PreparedRuntimeImage{Spec: spec, PreparedContext: prepared, ContextDigest: digest,
+		RequiredDiskBytes: backend.RuntimeImageRequiredDiskBytes, AdmissionMemoryMiB: admission,
+		StorageDriver: info.Driver, BaseImages: bases}, nil
 }
 
 type runtimeStreamMessage struct {
@@ -225,9 +307,12 @@ func consumeRuntimePull(ctx context.Context, body io.Reader, base string) error 
 	return nil
 }
 
-func (b *Backend) runtimeBases(ctx context.Context, api runtimeImageClient, bases []string) (map[string]string, error) {
+func (b *Backend) runtimeBases(ctx, requestCtx context.Context, api runtimeImageClient, bases []string) (map[string]string, error) {
 	ids := make(map[string]string, len(bases))
 	for _, base := range bases {
+		if err := requestCtx.Err(); err != nil {
+			return nil, err
+		}
 		// Context preparation establishes exactly this fixed allowlist.
 		if base != "golang:1.26-bookworm" && base != "node:24-bookworm-slim" {
 			return nil, backend.ErrUnsupported
@@ -334,8 +419,16 @@ func (b *Backend) verifyRuntimeImage(ctx context.Context, api runtimeImageClient
 }
 
 func (b *Backend) BuildRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
+	return b.BuildRuntimeImageWithAdmission(ctx, prepared, nil)
+}
+
+func (b *Backend) BuildRuntimeImageWithAdmission(ctx context.Context, prepared backend.PreparedRuntimeImage, afterPull func(context.Context) error) (backend.RuntimeImageBuildResult, error) {
 	// The caller has already persisted this exact allocation and its capacity
 	// claim. Even a pre-dispatch refusal returns no settlement claim here.
+	requestCtx := ctx
+	if err := requestCtx.Err(); err != nil {
+		return backend.RuntimeImageBuildResult{Settled: true}, err
+	}
 	fresh, err := b.PrepareRuntimeImage(ctx, prepared.Spec)
 	if err != nil {
 		return backend.RuntimeImageBuildResult{}, err
@@ -343,18 +436,32 @@ func (b *Backend) BuildRuntimeImage(ctx context.Context, prepared backend.Prepar
 	if !reflect.DeepEqual(fresh, prepared) {
 		return backend.RuntimeImageBuildResult{}, backend.ErrLaunchFenceOwnership
 	}
+	if err := requestCtx.Err(); err != nil {
+		return backend.RuntimeImageBuildResult{Settled: true}, err
+	}
 	api, ok := b.api.(runtimeImageClient)
 	if !ok {
 		return backend.RuntimeImageBuildResult{}, backend.ErrUnsupported
 	}
-	ctx, cancel := context.WithTimeout(ctx, runtimeImageBuildBudget)
+	deadline := time.Now().Add(runtimeImageBuildBudget)
+	if callerDeadline, okay := ctx.Deadline(); okay && callerDeadline.Before(deadline) {
+		deadline = callerDeadline
+	}
+	// An acknowledged base pull is independent of the job's cancellation.
+	// Drain its terminal transport before deciding whether the build started.
+	ctx, cancel := context.WithDeadline(context.WithoutCancel(ctx), deadline)
 	defer cancel()
 	files, digest, err := runtimeContext(prepared.Spec)
 	if err != nil || digest != prepared.ContextDigest {
 		return backend.RuntimeImageBuildResult{}, backend.ErrLaunchFenceOwnership
 	}
-	ids, err := b.runtimeBases(ctx, api, prepared.BaseImages)
+	ids, err := b.runtimeBases(ctx, requestCtx, api, prepared.BaseImages)
 	if err != nil {
+		if requestCtx.Err() != nil && errors.Is(err, requestCtx.Err()) && ctx.Err() == nil {
+			// Every earlier pull was fully consumed and closed. No build request
+			// has been issued, so this allocation has a positive no-build result.
+			return backend.RuntimeImageBuildResult{Settled: true}, err
+		}
 		return backend.RuntimeImageBuildResult{}, err
 	}
 	if err = b.runtimeImageIdentity(ctx, prepared.Spec.Identity); err != nil {
@@ -364,25 +471,44 @@ func (b *Backend) BuildRuntimeImage(ctx context.Context, prepared backend.Prepar
 	if err != nil {
 		return backend.RuntimeImageBuildResult{}, err
 	}
+	if err := requestCtx.Err(); err != nil {
+		// The only daemon mutations before this point are fully consumed base
+		// pulls. No image build has been issued for this allocation.
+		return backend.RuntimeImageBuildResult{Settled: true}, err
+	}
+	if afterPull != nil {
+		if err := afterPull(requestCtx); err != nil {
+			return backend.RuntimeImageBuildResult{Settled: true}, err
+		}
+	}
 	// The classic builder enforces these RUN-container limits. Pull/download and
 	// daemon bookkeeping share the admitted allowance, not a separate cgroup.
 	options := build.ImageBuildOptions{Version: build.BuilderV1, Dockerfile: "images/sandbox/Dockerfile", Remove: true, ForceRemove: true, PullParent: false, NoCache: true,
 		Memory: prepared.Spec.Resources.MemoryBytes(), MemorySwap: prepared.Spec.Resources.MemoryBytes(), CPUPeriod: 100000, CPUQuota: int64(prepared.Spec.Resources.CPUMillis) * 100,
 		NetworkMode: "default", Labels: runtimeIdentityLabels(prepared.Spec.Identity), Ulimits: []*container.Ulimit{{Name: "nproc", Soft: 256, Hard: 256}}}
 	// No Tags: publication is a distinct, reauthorized operation.
-	response, err := api.ImageBuild(ctx, bytes.NewReader(archive), options)
+	buildCtx, buildCancel := context.WithDeadline(context.WithoutCancel(ctx), deadline)
+	monitorCtx, stopMonitor := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	watchDone := make(chan struct{})
+	go func() {
+		defer close(watchDone)
+		b.cancelOwnedRuntimeBuild(requestCtx, monitorCtx, prepared.Spec.Identity, done, buildCancel)
+	}()
+	defer func() { close(done); stopMonitor(); <-watchDone; buildCancel() }()
+	response, err := api.ImageBuild(buildCtx, bytes.NewReader(archive), options)
 	if err != nil || response.Body == nil {
 		return backend.RuntimeImageBuildResult{}, backend.ErrUnavailable
 	}
-	stream, streamErr := consumeRuntimeBuild(ctx, response.Body)
+	stream, streamErr := consumeRuntimeBuild(buildCtx, response.Body)
 	closeErr := response.Body.Close()
 	if streamErr != nil {
 		return backend.RuntimeImageBuildResult{}, streamErr
 	}
-	if closeErr != nil || ctx.Err() != nil {
+	if closeErr != nil || buildCtx.Err() != nil {
 		return backend.RuntimeImageBuildResult{}, backend.ErrUnavailable
 	}
-	if err = b.runtimeIntermediatesAbsent(ctx, prepared.Spec.Identity); err != nil {
+	if err = b.runtimeIntermediatesAbsent(buildCtx, prepared.Spec.Identity); err != nil {
 		return backend.RuntimeImageBuildResult{}, err
 	}
 	if stream.failure != "" {
@@ -391,7 +517,7 @@ func (b *Backend) BuildRuntimeImage(ctx context.Context, prepared backend.Prepar
 	if !stream.success {
 		return backend.RuntimeImageBuildResult{}, backend.ErrUnavailable
 	}
-	if err = b.verifyRuntimeImage(ctx, api, prepared.Spec.Identity, stream.imageID); err != nil {
+	if err = b.verifyRuntimeImage(buildCtx, api, prepared.Spec.Identity, stream.imageID); err != nil {
 		return backend.RuntimeImageBuildResult{}, err
 	}
 	return backend.RuntimeImageBuildResult{ImageID: stream.imageID, Settled: true}, nil

@@ -45,6 +45,32 @@ func TestRuntimeImageColdAdmissionPreservesFortyGiBFloor(t *testing.T) {
 		})
 	}
 }
+
+func TestRuntimeImageColdPullChargeRefusesLowHostHeadroomWithoutRaisingRunCap(t *testing.T) {
+	g := previewTestGate(t)
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Execution.EngineID = httpCheckEngine
+		s.Execution.ImageVirtualSizeBytes = nil
+		s.Execution.DaemonDisk.AvailableBytes = executionPointer(uint64(64 << 30))
+		s.Host.Memory.EffectiveAvailableBytes = executionPointer(uint64(9 << 30))
+		return s
+	}
+	p := runtimeImagePrepared(g, "cold-first")
+	p.AdmissionMemoryMiB = p.Spec.Resources.MemoryMiB + 2048
+	d, _, err := g.reserveRuntimeImage(context.Background(), p, management.ExecutionActorRef{Local: true}, management.ExecutionAuthority{}, executionFixturePolicy())
+	if err != nil || d.Code != "memory_pressure" || d.Evidence.RequiredBytes != uint64(10<<30) {
+		t.Fatalf("cold pull was not charged: %+v %v", d, err)
+	}
+	if p.Spec.Resources.MemoryMiB != 4096 {
+		t.Fatal("cold allowance changed Docker RUN cap")
+	}
+	p.AdmissionMemoryMiB = p.Spec.Resources.MemoryMiB
+	d, lease, err := g.reserveRuntimeImage(context.Background(), p, management.ExecutionActorRef{Local: true}, management.ExecutionAuthority{}, executionFixturePolicy())
+	if err != nil || d.State != "admitted" || lease.AdmissionMemoryMiB != 4096 {
+		t.Fatalf("warm capped build did not admit: %+v %+v %v", d, lease, err)
+	}
+}
 func TestRuntimeImageUnknownBuildSurvivesRestartAndChargesEveryAllocationPath(t *testing.T) {
 	g := previewTestGate(t)
 	p := runtimeImagePrepared(g, "runtime-one")
