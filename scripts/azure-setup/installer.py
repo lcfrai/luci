@@ -29,9 +29,9 @@ GIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 REGION = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
-SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/source_bundle.py", "azure-setup/successor.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
+SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/source_bundle.py", "azure-setup/successor.py", "azure-setup/retirement.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
                 "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-embed-host/guest_registry.py", "azure-controller-disk/package.py",
-                "azure-controller-disk/mount.py", "azure-controller-disk/recover.py"}
+                "azure-controller-disk/mount.py", "azure-controller-disk/recover.py", "azure-controller-disk/retire.py"}
 SOURCE_FILES = {'builder-source/source.json', 'builder-source/luci.pack', 'builder-source/e2b.pack'}
 EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | SOURCE_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
 PLAN_VERSION = 1
@@ -768,7 +768,7 @@ def bootstrap(bundle_root, selection_path, plan_digest, reconcile=False):
     # Validate the static format with the shipped recovery adapter before any
     # ARM effect. It checks exact immutable IDs, fence and private paths.
     import importlib.util as util
-    spec = util.spec_from_file_location("luci_azure_recovery", Path(bundle_root) / "azure-controller-disk/recover.py")
+    spec = util.spec_from_file_location("luci_azure_recovery", Path(bundle_root) / "azure-controller-disk/recover.py", "azure-controller-disk/retire.py")
     module = util.module_from_spec(spec)
     spec.loader.exec_module(module)
     module.validate(recovery)
@@ -804,7 +804,7 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "generate-secrets",
                    "publish-secrets", "reconcile-secrets", "bind-secrets", "prepare-images", "prepare", "apply",
-                   "reconcile", "bootstrap", "status", "continue", "recover-controller", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile", "foundation-inventory", "foundation-plan", "foundation-step", "foundation-reconcile", "foundation-bind", "foundation-reuse", "builder-source", "builder-plan", "builder-step"):
+                   "reconcile", "bootstrap", "status", "continue", "retire", "recover-controller", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile", "foundation-inventory", "foundation-plan", "foundation-step", "foundation-reconcile", "foundation-bind", "foundation-reuse", "builder-source", "builder-plan", "builder-step"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
@@ -891,6 +891,12 @@ def main():
             row.add_argument("--acknowledge-costs", action="store_true")
             row.add_argument("--acknowledge-unverified-price", action="store_true")
     args = parser.parse_args()
+    if args.action == 'retire':
+        bundle(args.bundle)
+        spec = importlib.util.spec_from_file_location('luci_azure_retirement', args.bundle / 'azure-setup/retirement.py')
+        retirement = importlib.util.module_from_spec(spec); spec.loader.exec_module(retirement)
+        print(json.dumps(retirement.run(sys.modules[__name__], args.bundle, args.selection), sort_keys=True))
+        return
     if args.action == 'recover-controller':
         bundle(args.bundle)
         modules = {}

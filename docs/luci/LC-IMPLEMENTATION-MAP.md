@@ -81,3 +81,31 @@ fresh standby restoration for a second controller loss; whole-installation
 settlement/backup/retirement and retained-charge handoff. Temporary builder
 cleanup does not establish either outcome. No new resource, role, public route,
 cloud call or product acceptance is authorized/claimed by this checkpoint.
+
+
+### SETUP-02 owned installation retirement source checkpoint
+
+Local Azure Sol owns `azure-setup/retirement.py`, `azure-controller-disk/retire.py`,
+installer/bundle/controller-image inventory and narrow Go retirement-only fence
+observation. The normal `retire` command reviews exact source/scope/generation,
+VM/instance identities, two owned private snapshot IDs, rights and retained
+charges. Actual provider-zero plus shared/personal/team journal settlement is
+required before retiring authority; no lease is cleared by metadata. Account
+stop and owned stack/gateway stop are journaled and reconciled without replay.
+The controller ext4 data disk and runtime OS disk (verified to contain Docker,
+template and cache data) are flushed, then actual snapshot source/immutable IDs
+and private policy are read back before the backup-bound off-disk closure and
+per-resource compute deallocation. Unrelated running containers, foreign source
+disks/incarnations, changed backups and unknown effects refuse continuation.
+Recovery host closure is last; volumes, disks, snapshots, gallery, Blob/KV and
+other retained charges stay explicit. Ordinary dispatch continues to reject all
+retiring/closed fence states; special retirement readback does not project them
+into active authority.
+
+Eleven focused native Python adapter cases and one controller-package regression
+pass offline. New Go retirement fence test and POSIX host-quiescence cases are
+not run locally while the runtime owner holds the heavy slot. Snapshot restoration,
+actual Azure/KVM/private connection and invoice outcomes remain untested. Remaining
+owned source work: explicit retirement cancel/resume (especially a race discovered
+after preflight) and approved existing-predecessor reimage/fresh-standby restoration.
+Do not mark SETUP-02 or provider acceptance complete from this checkpoint.
