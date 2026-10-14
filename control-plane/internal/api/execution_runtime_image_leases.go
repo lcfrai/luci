@@ -15,18 +15,19 @@ import (
 var errRuntimeImageLeaseAbsent = errors.New("exact runtime installer allocation is absent")
 
 type runtimeImageExecutionLease struct {
-	ID              string                       `json:"id"`
-	Scope           string                       `json:"scope"`
-	Actor           management.ExecutionActorRef `json:"actor"`
-	Identity        backend.RuntimeImageIdentity `json:"identity"`
-	Resources       backend.Resources            `json:"resources"`
-	CreateDiskBytes uint64                       `json:"createDiskBytes"`
-	ImageTag        string                       `json:"imageTag"`
-	State           string                       `json:"state"`
-	Image           string                       `json:"image,omitempty"`
-	Revision        int                          `json:"revision"`
-	CreatedAt       time.Time                    `json:"createdAt"`
-	UpdatedAt       time.Time                    `json:"updatedAt"`
+	ID                 string                       `json:"id"`
+	Scope              string                       `json:"scope"`
+	Actor              management.ExecutionActorRef `json:"actor"`
+	Identity           backend.RuntimeImageIdentity `json:"identity"`
+	Resources          backend.Resources            `json:"resources"`
+	AdmissionMemoryMiB int                          `json:"admissionMemoryMiB,omitempty"`
+	CreateDiskBytes    uint64                       `json:"createDiskBytes"`
+	ImageTag           string                       `json:"imageTag"`
+	State              string                       `json:"state"`
+	Image              string                       `json:"image,omitempty"`
+	Revision           int                          `json:"revision"`
+	CreatedAt          time.Time                    `json:"createdAt"`
+	UpdatedAt          time.Time                    `json:"updatedAt"`
 }
 
 func validRuntimeImageExecutionLease(v runtimeImageExecutionLease) bool {
@@ -35,6 +36,7 @@ func validRuntimeImageExecutionLease(v runtimeImageExecutionLease) bool {
 		checkLogicalID(i.AllocationID) && checkLogicalID(i.JobID) && checkHex(i.ScopeDigest, 32) && checkHex(i.SourceDigest, 32) && v.ID == i.AllocationID && v.Scope == i.ScopeDigest &&
 		v.Actor.ProjectID == "" && len(v.Actor.UserID) <= 200 && len(v.Actor.TeamID) <= 200 && (v.Actor.Local && v.Actor.UserID == "" && v.Actor.TeamID == "" || !v.Actor.Local && v.Actor.UserID != "") &&
 		v.Resources.MemoryMiB >= 128 && v.Resources.MemoryMiB <= 32768 && v.Resources.CPUMillis >= 100 && v.Resources.CPUMillis <= 16000 &&
+		(v.AdmissionMemoryMiB == 0 || v.AdmissionMemoryMiB >= v.Resources.MemoryMiB && v.AdmissionMemoryMiB <= 65536) &&
 		v.CreateDiskBytes >= backend.RuntimeImageRequiredDiskBytes && v.CreateDiskBytes <= 1<<50 && v.ImageTag != "" && len(v.ImageTag) <= 300 && !strings.ContainsAny(v.ImageTag, "\x00\r\n \t") &&
 		v.Revision >= 1 && !v.CreatedAt.IsZero() && !v.UpdatedAt.Before(v.CreatedAt) &&
 		(v.State == "reserved" && v.Image == "" || v.State == "building" && v.Image == "" || v.State == "finished" && (v.Image == "" || strings.HasPrefix(v.Image, "sha256:") && checkHex(strings.TrimPrefix(v.Image, "sha256:"), 32)))
@@ -44,7 +46,7 @@ func addRuntimeImageCapacity(rows []runtimeImageExecutionLease, skipScope, skipI
 		if v.State == "finished" || v.Scope == skipScope && v.ID == skipID {
 			continue
 		}
-		memory := uint64(v.Resources.MemoryMiB) << 20
+		memory := uint64(max(v.Resources.MemoryMiB, v.AdmissionMemoryMiB)) << 20
 		if demand.PendingMemory > ^uint64(0)-memory || demand.AllMemory > ^uint64(0)-memory || demand.PendingDiskBytes > ^uint64(0)-v.CreateDiskBytes {
 			return errors.New("runtime installer demand exceeds supported capacity accounting")
 		}
@@ -59,16 +61,21 @@ func addRuntimeImageReservationView(view *executionReservationView, rows []runti
 	for _, v := range rows {
 		if v.State != "finished" {
 			view.Count++
-			view.MemoryMiB += v.Resources.MemoryMiB
+			view.MemoryMiB += max(v.Resources.MemoryMiB, v.AdmissionMemoryMiB)
 			view.CPUMillis += v.Resources.CPUMillis
 		}
 	}
 }
 func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy) (executionDecision, runtimeImageExecutionLease, error) {
 	id, resources := prepared.Spec.Identity, prepared.Spec.Resources
+	admissionMemory := max(resources.MemoryMiB, prepared.AdmissionMemoryMiB)
+	admissionResources := resources
+	admissionResources.MemoryMiB = admissionMemory
 	out := executionDecision{State: "waiting", Code: "resource_observation_unavailable", Message: "Current machine capacity is unavailable; runtime installation has not started.", Resources: resources}
 	var result runtimeImageExecutionLease
-	candidate := runtimeImageExecutionLease{ID: id.AllocationID, Scope: g.scope, Actor: actor, Identity: id, Resources: resources, CreateDiskBytes: prepared.RequiredDiskBytes, ImageTag: prepared.Spec.ImageTag, State: "reserved", Revision: 1, CreatedAt: time.Now().UTC()}
+	candidate := runtimeImageExecutionLease{ID: id.AllocationID, Scope: g.scope, Actor: actor, Identity: id, Resources: resources,
+		AdmissionMemoryMiB: admissionMemory, CreateDiskBytes: prepared.RequiredDiskBytes,
+		ImageTag: prepared.Spec.ImageTag, State: "reserved", Revision: 1, CreatedAt: time.Now().UTC()}
 	candidate.UpdatedAt = candidate.CreatedAt
 	if !validRuntimeImageExecutionLease(candidate) || id.ScopeDigest != g.scope {
 		return out, result, errors.New("runtime installer allocation identity or budget is invalid")
@@ -94,7 +101,7 @@ func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared b
 		existing := false
 		for _, v := range l.RuntimeImages {
 			if v.Scope == g.scope && v.ID == id.AllocationID {
-				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.State != "reserved" {
+				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.State != "reserved" {
 					return errors.New("runtime installer allocation already claimed, changed or settled")
 				}
 				existing, result = true, v
@@ -159,7 +166,7 @@ func (g *executionAdmission) reserveRuntimeImage(ctx context.Context, prepared b
 		if err := addRuntimeImageCapacity(l.RuntimeImages, g.scope, id.AllocationID, &demand); err != nil {
 			return err
 		}
-		capacity := evaluateExecutionCapacityWithEvidence(snap, policy, resources, demand, now)
+		capacity := evaluateExecutionCapacityWithEvidence(snap, policy, admissionResources, demand, now)
 		if capacity.Code != "" {
 			out.Code, out.Message, out.Evidence = capacity.Code, capacity.Message, capacity.Evidence
 			return nil

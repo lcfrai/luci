@@ -111,7 +111,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		return fail("runtime_install_prepare_failed", "The bundled runtime source or engine limits could not be verified. No build was started.", err)
 	}
 	id := prepared.Spec.Identity
-	if id.Protocol != spec.Identity.Protocol || id.JobID != req.JobID || id.AllocationID != allocation || id.ScopeDigest != a.execution.scope || !checkHex(id.SourceDigest, 32) || id.EngineID == "" || backend.ValidateInstance(id.InstanceID) != nil || prepared.Spec.ImageTag != canonicalTag || prepared.Spec.Resources != resources || prepared.Spec.SourceDirectory != req.SourceDirectory || prepared.RequiredDiskBytes < backend.RuntimeImageRequiredDiskBytes {
+	if id.Protocol != spec.Identity.Protocol || id.JobID != req.JobID || id.AllocationID != allocation || id.ScopeDigest != a.execution.scope || !checkHex(id.SourceDigest, 32) || id.EngineID == "" || backend.ValidateInstance(id.InstanceID) != nil || prepared.Spec.ImageTag != canonicalTag || prepared.Spec.Resources != resources || prepared.Spec.SourceDirectory != req.SourceDirectory || prepared.RequiredDiskBytes < backend.RuntimeImageRequiredDiskBytes || prepared.AdmissionMemoryMiB != 0 && (prepared.AdmissionMemoryMiB < resources.MemoryMiB || prepared.AdmissionMemoryMiB > 65536) {
 		return fail("runtime_install_identity_changed", "The prepared runtime identity changed; nothing was started.", backend.ErrLaunchFenceOwnership)
 	}
 	admit := func() (executionDecision, runtimeImageExecutionLease, error) {
