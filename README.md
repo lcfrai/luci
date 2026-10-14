@@ -37,7 +37,7 @@ Running an application you built and running Luci's development workers are sepa
 
 The interface and saved projects remain available when a worker must wait for capacity. Resource settings control concurrent work and retain space for the rest of your computer. Local model requirements depend on the model and available CPU/GPU memory; using a connected model provider is a separate choice from where coding work runs.
 
-For setup details, source builds and package prerequisites, see the [installation and release guide](docs/luci/RELEASE.md). The [Docker distribution](distribution/docker/README.md) can also package the application and its private execution engine without host Go, Node.js or Python.
+Follow the [getting started guide](docs/luci/GETTING-STARTED.md) for Windows download, first setup and your first project. Source builds, package prerequisites and verification details are in the [release guide](docs/luci/RELEASE.md). The [Docker distribution](distribution/docker/README.md) can also package the application and its private execution engine without host Go, Node.js or Python.
 
 ## Your work and your control
 
