@@ -185,3 +185,17 @@ Terraform checks are corrected. Legacy advanced complete-operator image input
 retains its compatibility behavior; generated normal images are generic.
 Private builder implementation proceeds under the now-aligned `308507c5` gate;
 no builder or provider was started by this worker.
+
+Retirement readback groundwork adds the controller-only `retirement-observe`
+action. It requires a stopped account unit and empty service cgroup, zero ready
+node sandbox/starting counts, authoritative capacity-ledger decoding and exact
+owner/scope task-journal validation across personal/team workers. It returns
+only state-file digests and settlement flags, never releases capacity or marks
+provider billing settled. The new read-only helpers reuse existing decoders;
+fixtures allocate actual mock-provider attempts/shared reservations and refuse
+retirement until exact settlement, plus foreign/schema refusal. New Go checks
+are written and formatted but not run locally: `go test -p 1 ./cmd/api
+./internal/api ./internal/backend/e2bbe -run 'TestAzureSetupRetirement|TestAzureRetirement' -count=1`
+with `GOMAXPROCS=1 GOMEMLIMIT=512MiB` on independent Linux. This checkpoint is
+groundwork only: durable retirement fence, backup and owned compute lifecycle
+adapter are still being implemented, with all real Azure outcomes untested.

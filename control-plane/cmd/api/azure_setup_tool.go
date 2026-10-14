@@ -13,11 +13,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/api"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
 )
@@ -187,7 +190,7 @@ func azureSetupGatewayRead(ctx context.Context, client *http.Client, host, path,
 }
 
 func runAzureSetupCommand(action, path string, output io.Writer) error {
-	if runtime.GOOS != "linux" || (action != "template-create" && action != "template-reconcile" && action != "template-start" && action != "template-status" && action != "observe") {
+	if runtime.GOOS != "linux" || (action != "template-create" && action != "template-reconcile" && action != "template-start" && action != "template-status" && action != "observe" && action != "retirement-observe") {
 		return errors.New("unsupported protected controller setup action")
 	}
 	input, selected, err := readAzureSetupToolSelection(path)
@@ -324,16 +327,116 @@ func runAzureSetupCommand(action, path string, output io.Writer) error {
 		return errors.New("initial protected runtime node is not ready")
 	}
 	receipt["nodes"] = nodeRows
+	if action == "retirement-observe" {
+		if err := azureSetupAccountQuiesced(ctx); err != nil {
+			return err
+		}
+		if *nodeRows[0].SandboxCount != 0 || *nodeRows[0].SandboxStartingCount != 0 {
+			return errors.New("provider still reports active or starting microVMs")
+		}
+		digests, err := azureSetupRetirementJournals(input, selected)
+		if err != nil {
+			return err
+		}
+		receipt["settledJournalDigests"] = digests
+		receipt["taskReservationsSettled"] = true
+	}
 	boot, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
 	if err != nil {
 		return err
 	}
 	receipt["bootID"] = strings.TrimSpace(string(boot))
 	receipt["state"] = "controller_setup_readback"
+	receipt["observedAtUTC"] = time.Now().UTC().Format(time.RFC3339)
 	data, err := json.Marshal(receipt)
 	if err != nil || len(data) > 32<<10 {
 		return errors.New("controller setup receipt exceeds bound")
 	}
 	_, err = output.Write(append(data, '\n'))
 	return err
+}
+
+func azureSetupRetirementJournals(input azureSetupToolInput, selected e2bOperatorConfig) (map[string]string, error) {
+	digests := map[string]string{}
+	read := func(path string, limit int64, validate func([]byte) error) error {
+		for current := path; current != input.MountPath; current = filepath.Dir(current) {
+			info, err := os.Lstat(current)
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			if err != nil || info.Mode()&os.ModeSymlink != 0 {
+				return errors.New("retirement journal path changed")
+			}
+		}
+		if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		data, err := readPrivateE2BFile(path, limit)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := validate(data); err != nil {
+			return err
+		}
+		sum := sha256.Sum256(data)
+		digests[path] = hex.EncodeToString(sum[:])
+		return nil
+	}
+	if err := read(filepath.Join(input.MountPath, "luci", "execution", "leases.json"), 2<<20, api.AzureRetirementLedgerSettled); err != nil {
+		return nil, err
+	}
+	for _, category := range []string{"users", "teams"} {
+		base := filepath.Join(input.MountPath, "luci", "control", "control-plane", category)
+		if info, err := os.Lstat(base); err == nil && (info.Mode()&os.ModeSymlink != 0 || !info.IsDir()) {
+			return nil, errors.New("account workspace root changed")
+		}
+		entries, err := os.ReadDir(base)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil || len(entries) > 1000 {
+			return nil, errors.New("bounded account workspace inventory unavailable")
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
+				return nil, errors.New("account workspace identity changed")
+			}
+			path := filepath.Join(base, entry.Name(), "runtime", "state", "cloud-controller", "attempts.json")
+			if err := read(path, 4<<20, func(data []byte) error { return e2bbe.InspectSettledJournal(data, selected.Store.OwnerID, input.Scope) }); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return digests, nil
+}
+
+func azureSetupAccountQuiesced(ctx context.Context) error {
+	data, err := exec.CommandContext(ctx, "systemctl", "show", "luci-api.service", "--property=ActiveState,SubState,ControlGroup").Output()
+	if err != nil || len(data) > 4096 {
+		return errors.New("account service quiescence unavailable")
+	}
+	values := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			return errors.New("account service readback invalid")
+		}
+		values[key] = value
+	}
+	if values["ActiveState"] != "inactive" || values["SubState"] != "dead" {
+		return errors.New("account service must be stopped before retirement")
+	}
+	if group := values["ControlGroup"]; group != "" {
+		if group != "/system.slice/luci-api.service" {
+			return errors.New("account service cgroup changed")
+		}
+		data, err := os.ReadFile("/sys/fs/cgroup" + group + "/cgroup.events")
+		if err != nil || !strings.Contains(string(data), "populated 0\n") {
+			return errors.New("account service still owns processes")
+		}
+	}
+	return nil
 }

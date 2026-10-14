@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -51,5 +53,38 @@ func TestAzureSetupGatewayRefusesChangedDestinationBeforeDial(t *testing.T) {
 	}
 	if _, err := transport.DialContext(context.Background(), "tcp", "scope-one.internal:5008"); err == nil {
 		t.Fatal("private gateway accepted the direct service port")
+	}
+}
+
+func TestAzureSetupRetirementReadsExactPrivateOwnershipJournals(t *testing.T) {
+	root := t.TempDir()
+	input := azureSetupToolInput{MountPath: root, Scope: "luci-fixture"}
+	selected := e2bOperatorConfig{}
+	selected.Store.OwnerID = "owner-one"
+	path := filepath.Join(root, "luci", "control", "control-plane", "users", "user-one", "runtime", "state", "cloud-controller", "attempts.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"version":1,"ownerId":"owner-one","scope":"luci-fixture","records":{}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	digests, err := azureSetupRetirementJournals(input, selected)
+	if err != nil || len(digests) != 1 {
+		t.Fatal("settled private journal refused", err, digests)
+	}
+	selected.Store.OwnerID = "foreign-owner"
+	if _, err := azureSetupRetirementJournals(input, selected); err == nil {
+		t.Fatal("foreign journal accepted")
+	}
+	selected.Store.OwnerID = "owner-one"
+	lease := filepath.Join(root, "luci", "execution", "leases.json")
+	if err := os.MkdirAll(filepath.Dir(lease), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lease, []byte(`{"version":1,"leases":[],"unknown":true}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := azureSetupRetirementJournals(input, selected); err == nil {
+		t.Fatal("invalid shared reservation ledger was ignored")
 	}
 }
