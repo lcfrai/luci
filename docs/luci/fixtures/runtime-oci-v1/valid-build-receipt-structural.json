@@ -1,0 +1,93 @@
+{
+  "archive": {
+    "bytes": 4096,
+    "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "baseImages": [
+    {
+      "imageID": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "reference": "golang:1.26-bookworm",
+      "repoDigest": "docker.io/library/golang@sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    {
+      "imageID": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "reference": "node:24-bookworm-slim",
+      "repoDigest": "docker.io/library/node@sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    }
+  ],
+  "buildSourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "builder": {
+    "argv": [
+      "docker",
+      "build",
+      "-f",
+      "images/sandbox/Dockerfile",
+      "."
+    ],
+    "backend": "docker-builder-v1",
+    "cacheAssistance": false,
+    "cacheAssistanceLogSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "cpuQuotaMicros": 100000,
+    "exitCode": 0,
+    "memoryBytes": 1073741824,
+    "stderrSHA256": "7777777777777777777777777777777777777777777777777777777777777777",
+    "stdoutSHA256": "6666666666666666666666666666666666666666666666666666666666666666",
+    "version": "28.5.1"
+  },
+  "canonicalInputAlgorithm": "luci-git-blobs-v1",
+  "canonicalInputDigest": "c28a811d829c9b7c41862759c358bd0270f54a5d06385157e11fa2d0da506ac0",
+  "generatedContextSHA256": "3333333333333333333333333333333333333333333333333333333333333333",
+  "imageID": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "kind": "luci-runtime-producer-build",
+  "probes": [
+    {
+      "argv": [
+        "sandboxd",
+        "--version"
+      ],
+      "exitCode": 0,
+      "reportedVersion": "0.5.0",
+      "stderrSHA256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "stdoutSHA256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "tool": "sandboxd"
+    },
+    {
+      "argv": [
+        "codex",
+        "--version"
+      ],
+      "exitCode": 0,
+      "reportedVersion": "0.160.0",
+      "stderrSHA256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "stdoutSHA256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "tool": "codex"
+    },
+    {
+      "argv": [
+        "claudeCode",
+        "--version"
+      ],
+      "exitCode": 0,
+      "reportedVersion": "2.1.274",
+      "stderrSHA256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "stdoutSHA256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "tool": "claudeCode"
+    },
+    {
+      "argv": [
+        "openCode",
+        "--version"
+      ],
+      "exitCode": 0,
+      "reportedVersion": "1.18.34",
+      "stderrSHA256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "stdoutSHA256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "tool": "openCode"
+    }
+  ],
+  "target": {
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "version": 1
+}

@@ -1,0 +1,107 @@
+{
+  "archive": {
+    "bytes": 4096,
+    "fileName": "runtime-image-linux-amd64.tar",
+    "members": [
+      {
+        "bytes": 512,
+        "path": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd.json",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      {
+        "bytes": 2048,
+        "path": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/layer.tar",
+        "sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      {
+        "bytes": 64,
+        "path": "manifest.json",
+        "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      }
+    ],
+    "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "canonicalInputAlgorithm": "luci-git-blobs-v1",
+  "canonicalInputDigest": "c28a811d829c9b7c41862759c358bd0270f54a5d06385157e11fa2d0da506ac0",
+  "image": {
+    "configPath": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd.json",
+    "diffIDs": [
+      "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+    ],
+    "id": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "layerPaths": [
+      "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/layer.tar"
+    ],
+    "repoTags": []
+  },
+  "kind": "luci-runtime-docker-save",
+  "licenses": [
+    {
+      "bytes": 512,
+      "component": "example-runtime",
+      "grant": "MIT",
+      "path": "licenses/MIT.txt",
+      "provenance": "https://example.invalid/upstream/LICENSE",
+      "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "version": "1.0.0"
+    }
+  ],
+  "producer": {
+    "buildReceiptSHA256": "0137ca119678990f23c84a40b5917b5b25a879a29b603b583fcdcfe7c4beccad",
+    "buildSourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "dockerfileSHA256": "3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "runtime": {
+    "entrypoint": [
+      "/usr/local/bin/entrypoint.sh"
+    ],
+    "exposedPorts": [
+      "8080/tcp"
+    ],
+    "harnesses": {
+      "claudeCode": "2.1.274",
+      "codex": "0.160.0",
+      "openCode": "1.18.34"
+    },
+    "user": "dev",
+    "workingDir": "/home/dev"
+  },
+  "sourceCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "sourceFiles": [
+    {
+      "bytes": 1024,
+      "mode": "0644",
+      "path": "images/sandbox/Dockerfile",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "bytes": 0,
+      "mode": "0644",
+      "path": "images/sandbox/entrypoint.sh",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 256,
+      "mode": "0644",
+      "path": "sandboxd/go.mod",
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    {
+      "bytes": 1,
+      "mode": "0644",
+      "path": "sandboxd/go.sum",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "bytes": 1,
+      "mode": "0644",
+      "path": "sandboxd/vendor/modules.txt",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  ],
+  "target": {
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "version": 1
+}
