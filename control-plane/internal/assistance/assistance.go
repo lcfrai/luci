@@ -217,29 +217,35 @@ func StrictSchema(value any) ([]byte, error) {
 	return json.Marshal(schemaFor(reflect.TypeOf(value)))
 }
 
-// StrictQuestionSchema retains the full response contract and constrains the
-// relationship between blocking and question without duplicating the large
-// proposal schema in each branch. The native response verifier enforces both
-// the root fields and this anyOf condition before forwarding an answer.
+// StrictQuestionSchema constrains blocking and question in complete object
+// alternatives. The pinned llama.cpp grammar converter ignores sibling
+// properties when anyOf is present, so each branch must repeat every required
+// response field and its exact nested constraints.
 func StrictQuestionSchema(value any) ([]byte, error) {
 	if value == nil {
 		return nil, errors.New("assistant schema requires a concrete type")
 	}
-	schema := schemaFor(reflect.TypeOf(value))
-	fields, ok := schema["properties"].(map[string]any)
+	base := schemaFor(reflect.TypeOf(value))
+	fields, ok := base["properties"].(map[string]any)
 	if !ok || !reflect.DeepEqual(fields["blocking"], map[string]any{"type": "boolean"}) || !reflect.DeepEqual(fields["question"], map[string]any{"type": "string"}) {
 		return nil, errors.New("assistant question schema requires blocking and question fields")
 	}
 	branch := func(blocking bool, question map[string]any) map[string]any {
-		return map[string]any{"type": "object", "required": []string{"blocking", "question"}, "properties": map[string]any{
-			"blocking": map[string]any{"type": "boolean", "enum": []bool{blocking}}, "question": question,
-		}}
+		full := schemaFor(reflect.TypeOf(value))
+		properties := full["properties"].(map[string]any)
+		properties["blocking"] = map[string]any{"type": "boolean", "enum": []bool{blocking}}
+		properties["question"] = question
+		return full
 	}
-	schema["anyOf"] = []any{
+	schema := map[string]any{"anyOf": []any{
 		branch(false, map[string]any{"type": "string", "enum": []string{""}}),
 		branch(true, map[string]any{"type": "string", "minLength": 8}),
+	}}
+	if data, err := json.Marshal(schema); err != nil || len(data) > 32<<10 {
+		return nil, errors.New("assistant conditional question schema is too large")
+	} else {
+		return data, nil
 	}
-	return json.Marshal(schema)
 }
 
 func schemaFor(t reflect.Type) map[string]any {

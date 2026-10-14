@@ -83,6 +83,13 @@ func orchestratorPromptHistory(history []product.OrchestratorTurn, current produ
 	return previous
 }
 
+func orchestratorResponseSchema(nativeLocalModel bool) ([]byte, error) {
+	if nativeLocalModel {
+		return assistance.StrictQuestionSchema(product.OrchestratorAnswer{})
+	}
+	return assistance.StrictSchema(product.OrchestratorAnswer{})
+}
+
 func validOrchestratorRequest(req orchestratorRequest) bool {
 	validKey := len(req.IdempotencyKey) >= 16 && len(req.IdempotencyKey) <= 128
 	for _, ch := range req.IdempotencyKey {
@@ -265,7 +272,9 @@ func (a *API) handleOrchestratorCreate(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteProblem(w, 413, "orchestrator_context_too_large", "The project context and discussion exceed one bounded assistant turn.", nil)
 		return
 	}
-	schema, err := assistance.StrictQuestionSchema(product.OrchestratorAnswer{})
+	// Only the verified local native route uses the complete-object union.
+	// Other upstream harnesses keep their established strict root-object schema.
+	schema, err := orchestratorResponseSchema(env["OPENCODE_LUCI_NATIVE_JSON"] == "1")
 	if err != nil {
 		codexAccountProblem(w, err)
 		return

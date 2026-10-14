@@ -73,43 +73,54 @@ func orchestratorPrompt(t *testing.T, spec backend.Spec) []byte {
 }
 
 func TestOrchestratorSchemaFencesDraftDigestAndPriority(t *testing.T) {
-	data, err := assistance.StrictQuestionSchema(product.OrchestratorAnswer{})
+	data, err := orchestratorResponseSchema(true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	base, err := assistance.StrictSchema(product.OrchestratorAnswer{})
-	if err != nil || len(data) > len(base)+400 {
-		t.Fatal("conditional question contract duplicated the full response schema", err)
+	if err != nil || len(data) > 2*len(base)+500 || len(data) > 32<<10 {
+		t.Fatal("conditional question contract exceeded the bounded two-branch schema", err)
+	}
+	upstream, err := orchestratorResponseSchema(false)
+	if err != nil || !bytes.Equal(upstream, base) {
+		t.Fatal("existing nonnative upstream harness schema changed", err)
 	}
 	var schema map[string]any
 	if err := json.Unmarshal(data, &schema); err != nil {
 		t.Fatal(err)
 	}
-	properties := schema["properties"].(map[string]any)
 	branches := schema["anyOf"].([]any)
 	if len(branches) != 2 {
 		t.Fatal("blocking/question relation missing from model contract")
+	}
+	for _, raw := range branches {
+		branch := raw.(map[string]any)
+		if branch["type"] != "object" || branch["additionalProperties"] != false || len(branch["required"].([]any)) != 8 {
+			t.Fatal("conditional branch lost the complete strict answer object")
+		}
 	}
 	closed := branches[0].(map[string]any)["properties"].(map[string]any)
 	open := branches[1].(map[string]any)["properties"].(map[string]any)
 	if !reflect.DeepEqual(closed["blocking"].(map[string]any)["enum"], []any{false}) || !reflect.DeepEqual(closed["question"].(map[string]any)["enum"], []any{""}) || !reflect.DeepEqual(open["blocking"].(map[string]any)["enum"], []any{true}) || open["question"].(map[string]any)["minLength"] != float64(8) {
 		t.Fatal("model contract permits an unanswered nonblocking or empty blocking question")
 	}
-	proposal := properties["proposal"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)["properties"].(map[string]any)
-	specification := proposal["specification"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)["properties"].(map[string]any)
-	for name, expected := range map[string]string{"digest": "", "status": "draft"} {
-		values := specification[name].(map[string]any)["enum"].([]any)
-		if len(values) != 1 || values[0] != expected {
-			t.Fatal("model contract omitted a server-owned draft field", name, values)
+	for _, properties := range []map[string]any{closed, open} {
+		proposal := properties["proposal"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)["properties"].(map[string]any)
+		specification := proposal["specification"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)["properties"].(map[string]any)
+		for name, expected := range map[string]string{"digest": "", "status": "draft"} {
+			values := specification[name].(map[string]any)["enum"].([]any)
+			if len(values) != 1 || values[0] != expected {
+				t.Fatal("model contract omitted a server-owned draft field", name, values)
+			}
 		}
-	}
-	requirement := specification["requirements"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)
-	priority := requirement["priority"].(map[string]any)["enum"].([]any)
-	if !reflect.DeepEqual(priority, []any{"must", "should", "could"}) {
-		t.Fatal("model contract omitted exact saved priority values", priority)
-	}
-	if requirement["acceptance"].(map[string]any)["minLength"] != float64(12) {
-		t.Fatal("model contract permits a priority label as acceptance")
+		requirement := specification["requirements"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)
+		priority := requirement["priority"].(map[string]any)["enum"].([]any)
+		if !reflect.DeepEqual(priority, []any{"must", "should", "could"}) {
+			t.Fatal("model contract omitted exact saved priority values", priority)
+		}
+		if requirement["acceptance"].(map[string]any)["minLength"] != float64(12) {
+			t.Fatal("model contract permits a priority label as acceptance")
+		}
 	}
 }
 

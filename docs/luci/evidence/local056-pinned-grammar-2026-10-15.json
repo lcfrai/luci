@@ -1,0 +1,28 @@
+{
+  "issue": "LOCAL-056",
+  "scope": "offline source/schema conversion; no Ollama inference or installed runtime validation",
+  "upstream": {
+    "ollamaTag": "v0.40.2",
+    "ollamaCommit": "b061384d90ff455462bc32745dd0de479de717a3",
+    "ollamaLLAMACPPVersion": "b11351",
+    "llamaCommit": "631109b34da437a3c4a5ebd75091d677671392e3",
+    "converter": "common/json-schema-to-grammar.cpp and common/json-schema.cpp"
+  },
+  "method": "Compiled the pinned C++ converter offline with minimal dependency shims for common.h and ggml.h; converter/parser algorithms were unchanged. Generated schemas from Luci's Go helpers and passed both to the converter.",
+  "priorMixedSchema": {
+    "schemaFile": "local056-held-mixed-schema.json",
+    "schemaSHA256": "b6faaef035534f242e4856ba5cc378a5cce86d7cc849e2b7544e6b4aecc21844",
+    "grammarSHA256": "8907667f60bd9c51770f02c5c48eda741ddf4681a41c89dd6f2da5c0645b720d",
+    "grammarBytes": 840,
+    "finding": "Both alternatives contained only blocking/question; summary, nextAction, acceptance and priority were absent from generated grammar. The converter ignored sibling properties."
+  },
+  "completeBranchSchema": {
+    "schemaFile": "local056-complete-branch-schema.json",
+    "schemaSHA256": "c3cf209de111d080cad5d37048e11b493f9152f123101d19bc48a7659cd94c59",
+    "schemaBytes": 12180,
+    "grammarSHA256": "41354b2868a853ab07f09cd9171a019c778653748b87ecba190570ca25dc9695",
+    "grammarBytes": 48494,
+    "finding": "root ::= alternative-0 | alternative-1; both object alternatives include all eight required answer fields and nested proposal rules. The false branch generates question ::= empty string; the true branch generates question ::= quoted char{8,}."
+  },
+  "limits": "Converter output verifies grammar construction from this pinned source. It does not prove live Ollama generation, model quality or application acceptance."
+}
