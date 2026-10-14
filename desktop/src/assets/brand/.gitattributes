@@ -1,0 +1,4 @@
+# Preserve exact approved artwork, Foundry files and bundle checksum bytes.
+* -text
+# Original Foundry manifests include a blank final line; retain their hashes.
+*.manifest.json whitespace=-blank-at-eof

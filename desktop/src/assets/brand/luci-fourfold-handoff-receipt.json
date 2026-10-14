@@ -1,0 +1,11 @@
+{
+  "bytes": 54797,
+  "archive": "luci-fourfold-approved.zip",
+  "receivedDate": "2026-10-07",
+  "extractedDirectory": "handoff-2026-10-07",
+  "sha256": "de6ef24343e5e46b146aa85f3868db35bfaef3cef16fa02f532f99c3d1460981",
+  "members": 23,
+  "declaredMemberChecksPassed": 22,
+  "canonicalSha256": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155",
+  "animationGenerated": false
+}

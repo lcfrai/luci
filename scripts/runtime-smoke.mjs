@@ -307,6 +307,10 @@ try {
   await api("POST", `/v1/product/projects/${project.id}/git/commit`, { message: "Runtime smoke committed preview", expectedReviewDigest: (await api("GET", `/v1/product/projects/${project.id}/git`)).reviewDigest });
   const git = await api("GET", `/v1/product/projects/${project.id}/git`);
   assert.equal(git.clean, true);
+  for (const contextPath of ["LUCI.md", ".luci/specification.json", ".luci/specification.md", ".luci/design-handoff.json", ".luci/design-handoff.md"]) {
+    const committed = execFileSync("git", ["-C", project.path, "show", `${git.log[0].hash}:${contextPath}`], { timeout: 15_000 });
+    assert.deepEqual(committed, readFileSync(join(project.path, contextPath)), `Committed ${contextPath} differs from the authenticated reviewed context`);
+  }
   const applicationFixtureValue = "fixture-runtime-only-" + randomUUID();
   const configuration = await api("POST", `/v1/product/projects/${project.id}/configuration`, { expectedRevision: 0, updates: [
     { name: "APP_GREETING", value: "Luci configured preview OK" },

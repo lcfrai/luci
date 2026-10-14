@@ -1,0 +1,13 @@
+{
+  "verified": true,
+  "expected": {
+    "recipeHash": "ca63ee1300ad3de02597a81a3ee6413fa8f7446c4204274798332241948d0caf",
+    "renderKey": "413549213130d05219577b3956f4da727e52d1a455561f1cb9c4fd3da6d96c06",
+    "outputHash": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155"
+  },
+  "actual": {
+    "recipeHash": "ca63ee1300ad3de02597a81a3ee6413fa8f7446c4204274798332241948d0caf",
+    "renderKey": "413549213130d05219577b3956f4da727e52d1a455561f1cb9c4fd3da6d96c06",
+    "outputHash": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155"
+  }
+}

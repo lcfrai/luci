@@ -235,6 +235,17 @@ function processes() {
 }
 const readProjectJSON = (path) => JSON.parse(readFileSync(join(fixture.projectRoot, fixture.projectName, path), "utf8"));
 const productStateDir = () => join(result.stateDir, "sessions");
+function assertCommittedContext() {
+  const root = join(fixture.projectRoot, fixture.projectName);
+  const contextFiles = ["LUCI.md"];
+  if (fixture.hasSpecification) contextFiles.push(".luci/specification.json", ".luci/specification.md");
+  if (structuredUI) contextFiles.push(".luci/design.json");
+  if (fixture.hasPlan) contextFiles.push(".luci/plan.json");
+  for (const contextPath of contextFiles) {
+    const committed = execFileSync("git", ["-C", root, "show", `HEAD:${contextPath}`], { windowsHide: true, timeout: 15_000 });
+    assert.deepEqual(committed, readFileSync(join(root, contextPath)), `Committed ${contextPath} differs from saved installed project context`);
+  }
+}
 async function snapshot(name) {
   const png = await command("/screenshot", "GET", undefined);
   writeFileSync(join(evidence, `${mode}-${name}.png`), Buffer.from(png, "base64"));
@@ -398,7 +409,7 @@ async function verifyProject() {
   result.stage = "verify-project";
   await dismissSetup();
   await click('[data-kind="project"]', "css");
-  await click("Define");
+  await click(await lookupElement("button", "Discover") ? "Discover" : "Define");
   if (structuredUI) await click("Specification");
   result.stage = "verify-definition";
   const idea = await element("label", "The idea");
@@ -626,7 +637,8 @@ try {
     await click("Commit changes");
     await bodyHas("Everything is committed");
     await bodyHas(fixture.commitMessage);
-    recordCheck("Normal installed UI saved project settings, Git identity, brief, actual canvas rectangle and Git commit");
+    assertCommittedContext();
+    recordCheck("Normal installed UI saved project settings, Git identity, brief, actual canvas rectangle and Git commit, with exact saved context bytes in HEAD");
     await snapshot("git");
     if (!result.applicationVersion.startsWith("0.3.")) {
       await click("Deploy");

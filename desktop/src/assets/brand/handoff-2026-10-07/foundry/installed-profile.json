@@ -1,0 +1,47 @@
+{
+  "profileVersion": "1.0.0",
+  "id": "microscopy-signal",
+  "version": "1.0.0",
+  "name": "Microscopy Signal",
+  "palette": {
+    "background": "#edf0ed",
+    "foreground": "#17201d",
+    "muted": "#68716c",
+    "signal": "#e95f42",
+    "additional": [
+      "#b8c0bb",
+      "#f7f8f5"
+    ]
+  },
+  "strokeWidth": 1.25,
+  "strokeIrregularity": 0.04,
+  "hatchAngles": [
+    18,
+    72
+  ],
+  "hatchDensity": 0.62,
+  "stippleSpacing": 8,
+  "stippleRadius": [
+    0.72,
+    1.08
+  ],
+  "densityCurve": [
+    0,
+    0.18,
+    0.62,
+    1
+  ],
+  "edgeEmphasis": 0.42,
+  "grain": 0.035,
+  "paper": "cool optical polymer",
+  "inkBehaviour": {
+    "spread": 0.08,
+    "absorption": 0.16
+  },
+  "signalColourBudget": 0.16,
+  "motionAmplitude": 0.065,
+  "motionTiming": {
+    "responseMs": 180,
+    "settleMs": 620
+  }
+}

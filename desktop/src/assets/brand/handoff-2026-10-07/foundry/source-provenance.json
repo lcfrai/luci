@@ -1,0 +1,923 @@
+{
+  "skill": "C:/Users/DylanMackie/.codex/plugins/cache/personal/glasses/0.3.0+codex.20260904075810/skills/glasses/SKILL.md",
+  "operatorDiscovery": {
+    "categories": {
+      "composition": [
+        {
+          "id": "vf.composition.blend",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.composition.clip",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.composition.displace",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.composition.focal-weight",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.composition.layer",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.composition.mask",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.composition.protected-region",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.composition.responsive-crop",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.composition.scene",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "low"
+        }
+      ],
+      "dynamics": [
+        {
+          "id": "vf.dynamics.advection",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.dynamics.attractor",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.dynamics.focus",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "low"
+        },
+        {
+          "id": "vf.dynamics.orbit",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.dynamics.propagation",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.dynamics.repulsor",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.dynamics.settle",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.dynamics.spring",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.dynamics.trail",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        }
+      ],
+      "field": [
+        {
+          "id": "vf.field.curl",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.field.distance",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.field.fractal-noise",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.field.radial",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "low"
+        },
+        {
+          "id": "vf.field.simplex-noise",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.field.vector-compose",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.field.voronoi",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        }
+      ],
+      "geometry": [
+        {
+          "id": "vf.geometry.bezier",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "low"
+        },
+        {
+          "id": "vf.geometry.boolean",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.geometry.connect-nearest",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.geometry.contour",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.geometry.flow-trace",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.geometry.l-system",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.geometry.line",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "low"
+        },
+        {
+          "id": "vf.geometry.path-offset",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.geometry.polyline",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "low"
+        },
+        {
+          "id": "vf.geometry.subdivide",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        }
+      ],
+      "population": [
+        {
+          "id": "vf.population.exclude-protected",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "low"
+        },
+        {
+          "id": "vf.population.grid",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.population.packing",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.population.path-sample",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.population.poisson-disk",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.population.scatter",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        }
+      ],
+      "signal": [
+        {
+          "id": "vf.signal.application-state",
+          "version": "1.0.0",
+          "grade": "B",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.signal.loading-progress",
+          "version": "1.0.0",
+          "grade": "B",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.signal.pointer",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "low"
+        },
+        {
+          "id": "vf.signal.scroll",
+          "version": "1.0.0",
+          "grade": "B",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.signal.time",
+          "version": "1.0.0",
+          "grade": "B",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.signal.viewport-visibility",
+          "version": "1.0.0",
+          "grade": "B",
+          "cost": "medium"
+        }
+      ],
+      "source": [
+        {
+          "id": "vf.source.palette",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "low"
+        },
+        {
+          "id": "vf.source.point",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "low"
+        }
+      ],
+      "style": [
+        {
+          "id": "vf.style.cross-hatch",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.style.dot-density",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.style.duotone",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.style.engraving",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.style.error-diffusion",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.style.halftone",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.style.hatch",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.style.ink-spread",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.style.ordered-dither",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.style.palette-map",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.style.paper-grain",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "high"
+        },
+        {
+          "id": "vf.style.path-stroke",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.style.stipple",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        },
+        {
+          "id": "vf.style.threshold",
+          "version": "1.0.0",
+          "grade": "A",
+          "cost": "medium"
+        }
+      ]
+    }
+  },
+  "recommended": {
+    "operators": [
+      {
+        "id": "vf.geometry.bezier",
+        "version": "1.0.0",
+        "score": 210,
+        "verbMatches": [
+          "connect",
+          "transform"
+        ],
+        "typeMatches": [
+          "PathSet"
+        ],
+        "cost": "low",
+        "outputs": {
+          "paths": {
+            "type": "PathSet",
+            "optional": false,
+            "cardinality": "one"
+          }
+        }
+      },
+      {
+        "id": "vf.geometry.polyline",
+        "version": "1.0.0",
+        "score": 210,
+        "verbMatches": [
+          "connect",
+          "transform"
+        ],
+        "typeMatches": [
+          "PathSet"
+        ],
+        "cost": "low",
+        "outputs": {
+          "paths": {
+            "type": "PathSet",
+            "optional": false,
+            "cardinality": "one"
+          }
+        }
+      },
+      {
+        "id": "vf.geometry.line",
+        "version": "1.0.0",
+        "score": 110,
+        "verbMatches": [
+          "connect"
+        ],
+        "typeMatches": [
+          "PathSet"
+        ],
+        "cost": "low",
+        "outputs": {
+          "paths": {
+            "type": "PathSet",
+            "optional": false,
+            "cardinality": "one"
+          }
+        }
+      },
+      {
+        "id": "vf.source.palette",
+        "version": "1.0.0",
+        "score": 100,
+        "verbMatches": [
+          "remember"
+        ],
+        "typeMatches": [],
+        "cost": "low",
+        "outputs": {
+          "palette": {
+            "type": "Palette",
+            "optional": false,
+            "cardinality": "one"
+          }
+        }
+      },
+      {
+        "id": "vf.source.point",
+        "version": "1.0.0",
+        "score": 100,
+        "verbMatches": [
+          "connect"
+        ],
+        "typeMatches": [],
+        "cost": "low",
+        "outputs": {
+          "point": {
+            "type": "Vec2",
+            "optional": false,
+            "cardinality": "one"
+          }
+        }
+      },
+      {
+        "id": "vf.composition.scene",
+        "version": "1.0.0",
+        "score": 20,
+        "verbMatches": [],
+        "typeMatches": [
+          "Shape",
+          "Scene"
+        ],
+        "cost": "low",
+        "outputs": {
+          "scene": {
+            "type": "Scene",
+            "optional": false,
+            "cardinality": "one"
+          }
+        }
+      }
+    ]
+  },
+  "schemas": [
+    {
+      "id": "vf.geometry.bezier",
+      "version": "1.0.0",
+      "inputs": {},
+      "outputs": {
+        "paths": {
+          "type": "PathSet",
+          "optional": false,
+          "cardinality": "one"
+        }
+      },
+      "parameterSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "control1": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "control2": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "end": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "segments": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 256
+          }
+        },
+        "required": [
+          "start",
+          "control1",
+          "control2",
+          "end",
+          "segments"
+        ],
+        "additionalProperties": false
+      },
+      "defaults": {
+        "start": [
+          0.1,
+          0.8
+        ],
+        "control1": [
+          0.25,
+          0.1
+        ],
+        "control2": [
+          0.75,
+          0.9
+        ],
+        "end": [
+          0.9,
+          0.2
+        ],
+        "segments": 48
+      },
+      "bounds": {
+        "segments": {
+          "min": 2,
+          "max": 256,
+          "integer": true
+        }
+      }
+    },
+    {
+      "id": "vf.geometry.polyline",
+      "version": "1.0.0",
+      "inputs": {},
+      "outputs": {
+        "paths": {
+          "type": "PathSet",
+          "optional": false,
+          "cardinality": "one"
+        }
+      },
+      "parameterSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "points": {
+            "minItems": 2,
+            "maxItems": 256,
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "closed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "points",
+          "closed"
+        ],
+        "additionalProperties": false
+      },
+      "defaults": {
+        "points": [
+          [
+            0.1,
+            0.5
+          ],
+          [
+            0.5,
+            0.1
+          ],
+          [
+            0.9,
+            0.5
+          ]
+        ],
+        "closed": false
+      },
+      "bounds": {}
+    },
+    {
+      "id": "vf.style.path-stroke",
+      "version": "1.0.0",
+      "inputs": {
+        "paths": {
+          "type": "PathSet",
+          "optional": false,
+          "cardinality": "one"
+        },
+        "palette": {
+          "type": "Palette",
+          "optional": false,
+          "cardinality": "one"
+        }
+      },
+      "outputs": {
+        "shape": {
+          "type": "Shape",
+          "optional": false,
+          "cardinality": "one"
+        }
+      },
+      "parameterSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "strokeWidth": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 64
+          },
+          "opacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "colourIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "fill": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "strokeWidth",
+          "opacity",
+          "colourIndex",
+          "fill"
+        ],
+        "additionalProperties": false
+      },
+      "defaults": {
+        "strokeWidth": 2,
+        "opacity": 1,
+        "colourIndex": 0,
+        "fill": false
+      },
+      "bounds": {
+        "strokeWidth": {
+          "min": 0.1,
+          "max": 64
+        },
+        "opacity": {
+          "min": 0,
+          "max": 1
+        },
+        "colourIndex": {
+          "min": 0,
+          "max": 7,
+          "integer": true
+        }
+      }
+    },
+    {
+      "id": "vf.composition.scene",
+      "version": "1.0.0",
+      "inputs": {
+        "shape": {
+          "type": "Shape",
+          "optional": false,
+          "cardinality": "one"
+        }
+      },
+      "outputs": {
+        "scene": {
+          "type": "Scene",
+          "optional": false,
+          "cardinality": "one"
+        }
+      },
+      "parameterSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "background": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decorative": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "background",
+          "label",
+          "decorative"
+        ],
+        "additionalProperties": false
+      },
+      "defaults": {
+        "background": "profile",
+        "label": "A deterministic focus field",
+        "decorative": false
+      },
+      "bounds": {}
+    }
+  ],
+  "additionalSchemas": [
+    {
+      "id": "vf.composition.layer",
+      "version": "1.0.0",
+      "inputs": {
+        "shapes": {
+          "type": "Shape",
+          "optional": false,
+          "cardinality": "many"
+        }
+      },
+      "outputs": {
+        "shape": {
+          "type": "Shape",
+          "optional": false,
+          "cardinality": "one"
+        }
+      },
+      "parameterSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "opacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "opacity"
+        ],
+        "additionalProperties": false
+      },
+      "defaults": {
+        "opacity": 1
+      },
+      "bounds": {
+        "opacity": {
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    {
+      "id": "vf.source.palette",
+      "version": "1.0.0",
+      "inputs": {},
+      "outputs": {
+        "palette": {
+          "type": "Palette",
+          "optional": false,
+          "cardinality": "one"
+        }
+      },
+      "parameterSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "colours": {
+            "minItems": 2,
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^#[a-f0-9]{6}(?:[a-f0-9]{2})?$"
+            }
+          }
+        },
+        "required": [
+          "colours"
+        ],
+        "additionalProperties": false
+      },
+      "defaults": {
+        "colours": [
+          "#171a19",
+          "#f25f42"
+        ]
+      },
+      "bounds": {}
+    }
+  ],
+  "seed": "luci-four-ds-20261007",
+  "semanticAssetId": "luci-four-ds-brand",
+  "source": "Original authored geometry; canonical rendering and regeneration performed by Glasses Visual Foundry MCP.",
+  "profileNote": "The current Foundry service resolves only its installed microscopy-signal profile. Actual recipes pin its exact hash; explicit palette/stroke/scene parameters provide monochrome geometry without grain, fields or dynamics. monochrome-intent-profile.json is a portable design-intent record, not an installed runtime profile.",
+  "selected": false
+}
