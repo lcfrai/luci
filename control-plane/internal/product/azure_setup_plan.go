@@ -39,12 +39,33 @@ type azureSetupBundleManifest struct {
 	} `json:"files"`
 }
 
+type azureBuilderSourceRef struct {
+	Version int `json:"version"`
+	Kind string `json:"kind"`
+	Luci azureBuilderSourceRole `json:"luci"`
+	E2B azureBuilderSourceRole `json:"e2b"`
+}
+
+type azureBuilderSourceRole struct {
+	Revision string `json:"revision"`
+	Tree string `json:"tree"`
+	Pack struct {
+		SHA256 string `json:"sha256"`
+		Bytes int64 `json:"bytes"`
+	} `json:"pack"`
+}
+
+const azureSetupBundleMax = 8 << 20
+const azureSetupEntryMax = 4 << 20
+const azureBuilderE2BRevision = "cf536c284434fdd2f09bbab35ec807a5dacc87e4"
+
 var azureSetupSHA = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var azureSetupGit = regexp.MustCompile(`^[0-9a-f]{40}$`)
 var azureSetupRequired = []string{
 	"LICENSE", "azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/operator_setup.py", "azure-setup/README.md",
-	"azure-setup/builder.py", "azure-setup/builder_guest.py",
-	"azure-embed-host/package.py", "azure-embed-host/service.py", "azure-embed-host/deliver.py",
+	"azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/source_bundle.py",
+	"builder-source/source.json", "builder-source/luci.pack", "builder-source/e2b.pack",
+	"azure-embed-host/package.py", "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-embed-host/guest_registry.py",
 	"azure-controller-disk/package.py", "azure-controller-disk/mount.py", "azure-controller-disk/recover.py",
 	"terraform/.terraform.lock.hcl", "terraform/compute.tf", "terraform/fence.tf", "terraform/identity.tf",
 	"terraform/moved.tf", "terraform/network.tf", "terraform/outputs.tf", "terraform/variables.tf", "terraform/versions.tf",
@@ -62,7 +83,7 @@ func readAzureSetupBundle(runtimeDir, projectRoot string) ([]byte, string, strin
 	identity := filepath.Join(root, "azure-setup.sha256")
 	for index, path := range []string{archive, identity} {
 		info, statErr := os.Lstat(path)
-		limit := int64(4 << 20)
+		limit := int64(azureSetupBundleMax)
 		if index == 1 {
 			limit = 80
 		}
@@ -90,8 +111,8 @@ func readAzureSetupBundle(runtimeDir, projectRoot string) ([]byte, string, strin
 		}
 		return contents, nil
 	}
-	data, err := readBounded(archive, 4<<20)
-	if err != nil || len(data) == 0 || len(data) > 4<<20 {
+	data, err := readBounded(archive, azureSetupBundleMax)
+	if err != nil || len(data) == 0 || len(data) > azureSetupBundleMax {
 		return nil, "", "", errors.New("Azure setup bundle is unavailable")
 	}
 	expected, err := readBounded(identity, 80)
@@ -110,9 +131,9 @@ func readAzureSetupBundle(runtimeDir, projectRoot string) ([]byte, string, strin
 		if errors.Is(nextErr, io.EOF) {
 			break
 		}
-		if nextErr != nil || entry == nil || entry.Typeflag != tar.TypeReg || entry.Size < 1 || entry.Size > 2<<20 ||
+		if nextErr != nil || entry == nil || entry.Typeflag != tar.TypeReg || entry.Size < 1 || entry.Size > azureSetupEntryMax ||
 			path.IsAbs(entry.Name) || path.Clean(entry.Name) != entry.Name || strings.Contains(entry.Name, `\`) ||
-			strings.HasPrefix(entry.Name, "../") || entry.Name == ".." || len(files) > 30 {
+			strings.HasPrefix(entry.Name, "../") || entry.Name == ".." || len(files) >= 40 {
 			return nil, "", "", errors.New("Azure setup bundle entry is unsafe")
 		}
 		if _, exists := files[entry.Name]; exists {
@@ -148,6 +169,22 @@ func readAzureSetupBundle(runtimeDir, projectRoot string) ([]byte, string, strin
 	for _, name := range azureSetupRequired {
 		if _, okay := files[name]; !okay {
 			return nil, "", "", errors.New("Azure setup bundle member is missing")
+		}
+	}
+	var source azureBuilderSourceRef
+	if json.Unmarshal(files["builder-source/source.json"], &source) != nil || source.Version != 1 ||
+		source.Kind != "luci-azure-builder-source" || source.Luci.Revision != manifest.LuciRevision ||
+		source.E2B.Revision != azureBuilderE2BRevision || !azureSetupGit.MatchString(source.Luci.Tree) ||
+		!azureSetupGit.MatchString(source.E2B.Tree) {
+		return nil, "", "", errors.New("Azure builder source revision is invalid")
+	}
+	for _, role := range []struct { name string; ref azureBuilderSourceRole }{
+		{"luci", source.Luci}, {"e2b", source.E2B},
+	} {
+		part := files["builder-source/"+role.name+".pack"]
+		sum := sha256.Sum256(part)
+		if role.ref.Pack.Bytes != int64(len(part)) || role.ref.Pack.SHA256 != hex.EncodeToString(sum[:]) {
+			return nil, "", "", errors.New("Azure builder source pack binding changed")
 		}
 	}
 	return data, actual, manifest.LuciRevision, nil
