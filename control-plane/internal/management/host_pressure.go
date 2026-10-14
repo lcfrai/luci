@@ -38,15 +38,17 @@ const hostPressurePath = "/v1/internal/host-pressure"
 type hostPressureState struct {
 	below, healthy int
 	acted          bool
+	reserveBytes   uint64
 }
 
 type hostPressureEpisode struct {
-	Version   int                    `json:"version"`
-	Acted     bool                   `json:"acted"`
-	Cause     string                 `json:"cause,omitempty"`
-	OwnerKey  string                 `json:"ownerKey,omitempty"`
-	Candidate *HostPressureCandidate `json:"candidate,omitempty"`
-	At        time.Time              `json:"at,omitempty"`
+	Version      int                    `json:"version"`
+	Acted        bool                   `json:"acted"`
+	Cause        string                 `json:"cause,omitempty"`
+	ReserveBytes uint64                 `json:"reserveBytes,omitempty"`
+	OwnerKey     string                 `json:"ownerKey,omitempty"`
+	Candidate    *HostPressureCandidate `json:"candidate,omitempty"`
+	At           time.Time              `json:"at,omitempty"`
 }
 
 func (g *Gateway) pressureEpisodePath() string {
@@ -87,10 +89,11 @@ func (g *Gateway) loadPressureEpisode() error {
 		return errors.New("retained host pressure intent exceeded its bound")
 	}
 	var episode hostPressureEpisode
-	if json.Unmarshal(data, &episode) != nil || episode.Version != 1 || episode.Acted && (episode.Cause != "host_memory_pressure" || episode.Candidate == nil || episode.Candidate.SessionID == "" || episode.Candidate.LeaseID == "") {
+	if json.Unmarshal(data, &episode) != nil || episode.Version != 1 || episode.Acted && (episode.Cause != "host_memory_pressure" || episode.ReserveBytes == 0 || episode.ReserveBytes > 64<<40 || episode.Candidate == nil || episode.Candidate.SessionID == "" || episode.Candidate.LeaseID == "") {
 		return errors.New("retained host pressure intent cannot be verified")
 	}
 	g.hostPressure.acted = episode.Acted
+	g.hostPressure.reserveBytes = episode.ReserveBytes
 	return nil
 }
 
@@ -203,9 +206,9 @@ func (g *Gateway) pressureObservations(ctx context.Context, total uint64) (uint6
 		if err != nil {
 			return 0, nil, nil, err // Never pick a global newest while a worker is unreadable.
 		}
-		if observation.Candidate != nil {
-			reserve = max(reserve, observation.ReserveBytes)
-		}
+		// A running worker's policy remains applicable after its last candidate
+		// retires or becomes temporarily ineligible.
+		reserve = max(reserve, observation.ReserveBytes)
 		ownerKey := ""
 		if owner != nil {
 			ownerKey = owner.key
@@ -247,6 +250,9 @@ func (g *Gateway) pressureStep(ctx context.Context, sample resourcebudget.HostSn
 		g.hostPressure.healthy = 0
 		return
 	}
+	// A disappeared worker must not make the prior stop episode look recovered.
+	// Its selected reserve is durable until genuinely healthy samples clear it.
+	reserve = max(reserve, g.hostPressure.reserveBytes)
 	available := *sample.Memory.EffectiveAvailableBytes
 	if available >= reserve {
 		g.hostPressure.below = 0
@@ -263,6 +269,7 @@ func (g *Gateway) pressureStep(ctx context.Context, sample resourcebudget.HostSn
 				return
 			}
 			g.hostPressure.acted = false
+			g.hostPressure.reserveBytes = 0
 		}
 		return
 	}
@@ -275,13 +282,14 @@ func (g *Gateway) pressureStep(ctx context.Context, sample resourcebudget.HostSn
 	if owner != nil {
 		ownerKey = owner.key
 	}
-	if err := g.savePressureEpisode(hostPressureEpisode{Acted: true, OwnerKey: ownerKey, Candidate: candidate, At: time.Now().UTC()}); err != nil {
+	if err := g.savePressureEpisode(hostPressureEpisode{Acted: true, ReserveBytes: reserve, OwnerKey: ownerKey, Candidate: candidate, At: time.Now().UTC()}); err != nil {
 		if g.opts.HostPressureLog != nil {
 			g.opts.HostPressureLog(err)
 		}
 		return // Never perform an effect without the durable one-stop fence.
 	}
 	g.hostPressure.acted = true
+	g.hostPressure.reserveBytes = reserve
 	acted := false
 	if owner == nil {
 		if g.opts.HostPressureInitialStop == nil {

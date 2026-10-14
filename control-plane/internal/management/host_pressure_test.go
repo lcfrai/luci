@@ -132,3 +132,81 @@ func TestLocal044LostManagedStopAcknowledgmentDoesNotCascade(t *testing.T) {
 		t.Fatal("restart replayed an uncertain managed stop", calls.Load())
 	}
 }
+
+func TestLocal044RetiredWorkerCannotClearReserveBeforeHostRecovery(t *testing.T) {
+	g, _, _, _ := fixture(t, nil)
+	user := User{ID: "person-one", Role: "member"}
+	secret := randomToken()
+	candidate := HostPressureCandidate{SessionID: "s-owned", SandboxID: "exact", SandboxRef: "ref", LeaseID: "lease", CreatedAt: time.Now().UTC()}
+	var stops atomic.Int32
+	var eligible atomic.Bool
+	eligible.Store(true)
+	server := httptest.NewServer(WorkerHandler(secret, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			observation := HostPressureObservation{ReserveBytes: 1 << 30}
+			if eligible.Load() {
+				observation.Candidate = &candidate
+			}
+			_ = json.NewEncoder(w).Encode(observation)
+			return
+		}
+		stops.Add(1)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"acted": true})
+	})))
+	defer server.Close()
+	rt := &userRuntime{user: user, policy: g.state.Policy, secret: secret, address: server.URL, status: RuntimeStatus{Status: "running"}, ready: make(chan struct{}), done: make(chan struct{})}
+	g.mu.Lock()
+	g.runtimes[user.ID] = rt
+	g.mu.Unlock()
+	defer func() { g.mu.Lock(); delete(g.runtimes, user.ID); g.mu.Unlock() }()
+	g.opts.HostPressureInitialObservation = func(context.Context, uint64) (HostPressureObservation, error) {
+		return HostPressureObservation{ReserveBytes: 1 << 30}, nil
+	}
+	total, available := uint64(8<<30), uint64(900<<20)
+	sample := func() resourcebudget.HostSnapshot {
+		return resourcebudget.HostSnapshot{ObservedAt: time.Now().UTC(), Memory: resourcebudget.Memory{EffectiveTotalBytes: &total, EffectiveAvailableBytes: &available}}
+	}
+	g.pressureStep(context.Background(), sample())
+	g.pressureStep(context.Background(), sample())
+	if stops.Load() != 1 || !g.hostPressure.acted || g.hostPressure.reserveBytes != 1<<30 {
+		t.Fatal("the exact managed stop or selected reserve was not retained")
+	}
+	eligible.Store(false) // The active worker has no eligible session but keeps its policy.
+	available = 500 << 20
+	for range 3 {
+		g.pressureStep(context.Background(), sample())
+	}
+	if !g.hostPressure.acted {
+		t.Fatal("an active worker without a candidate cleared its reserve")
+	}
+	g.mu.Lock()
+	delete(g.runtimes, user.ID) // The last eligible worker disappears.
+	g.mu.Unlock()
+	g.hostPressure = hostPressureState{}
+	if err := g.loadPressureEpisode(); err != nil {
+		t.Fatal(err)
+	}
+	for range 9 {
+		g.pressureStep(context.Background(), sample())
+	}
+	if !g.hostPressure.acted || g.hostPressure.reserveBytes != 1<<30 {
+		t.Fatal("500 MiB falsely rearmed a stop below the retained 1 GiB reserve")
+	}
+	available = 2 << 30
+	for range 8 {
+		g.pressureStep(context.Background(), sample())
+	}
+	if g.hostPressure.acted || g.hostPressure.reserveBytes != 0 {
+		t.Fatal("sustained reserve-plus-margin recovery did not clear the stop episode")
+	}
+	g.mu.Lock()
+	g.runtimes[user.ID] = rt
+	g.mu.Unlock()
+	eligible.Store(true)
+	available = 900 << 20
+	g.pressureStep(context.Background(), sample())
+	g.pressureStep(context.Background(), sample())
+	if stops.Load() != 2 {
+		t.Fatal("a genuinely recovered episode did not permit one later owned stop", stops.Load())
+	}
+}
