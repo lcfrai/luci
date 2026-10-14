@@ -247,11 +247,19 @@ func validLocalAgent(c LocalAgentConfig) bool {
 }
 
 func (s *Server) setLocalAgent(w http.ResponseWriter, r *http.Request) {
-	var req LocalAgentConfig
+	var req struct {
+		BaseURL string  `json:"baseUrl"`
+		Model   string  `json:"model"`
+		APIKey  *string `json:"apiKey"`
+	}
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if !validLocalAgent(req) {
+	next := LocalAgentConfig{BaseURL: req.BaseURL, Model: req.Model}
+	if req.APIKey != nil {
+		next.APIKey = *req.APIKey
+	}
+	if !validLocalAgent(next) {
 		problem(w, 400, "invalid_local_model", "Set a model ID and a compatible /v1 endpoint: HTTP on a local/private address or HTTPS. Empty all fields to disconnect.")
 		return
 	}
@@ -261,9 +269,19 @@ func (s *Server) setLocalAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Lock()
-	err = writePrivateAgentCredentials(path, agentCredentials{AnthropicAPIKey: s.agentAPIKey, OpenAIAPIKey: s.agentOpenAIKey, Local: req})
+	// An omitted key survives a model-only edit on the exact same endpoint.
+	// A new endpoint must never inherit the old endpoint's credential.
+	if req.APIKey == nil && next.BaseURL != "" && s.agentLocal.APIKey != "" {
+		if next.BaseURL != s.agentLocal.BaseURL {
+			s.mu.Unlock()
+			problem(w, 409, "local_key_required_for_endpoint_change", "This endpoint differs from the saved connection. Enter its key, explicitly clear the key, or remove the old connection before saving.")
+			return
+		}
+		next.APIKey = s.agentLocal.APIKey
+	}
+	err = writePrivateAgentCredentials(path, agentCredentials{AnthropicAPIKey: s.agentAPIKey, OpenAIAPIKey: s.agentOpenAIKey, Local: next})
 	if err == nil {
-		s.agentLocal = req
+		s.agentLocal = next
 	}
 	s.mu.Unlock()
 	if err != nil {
