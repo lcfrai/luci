@@ -183,6 +183,19 @@ def deferred(core, bundle_root, selection_path, from_image, cpu_count, memory_mi
     selection = core.private_json(selection_path)
     variables = core.requested(selection)
     parent = Path(selection_path).parent
+    if not from_image or from_image.startswith('127.0.0.1:5055/'):
+        produced = core.private_json(parent / 'azure-builder-state.json')
+        measured = core.private_json(parent / 'azure-guest-source.json')
+        retained = produced.get('receipts', {}).get('runtime:install', {}).get('guestSource')
+        if (measured != retained or measured.get('sourceCommit') != manifest['luciRevision'] or
+                not re.fullmatch(r'[0-9a-f]{64}', measured.get('imageDigest', '')) or
+                measured.get('fromImage') != '127.0.0.1:5055/luci/guest@sha256:' + measured['imageDigest'] or
+                not re.fullmatch(r'[0-9a-f]{64}', measured.get('receiptSHA256', '')) or
+                'runtime:retired' not in produced.get('completed', []) or produced.get('abortRequested')):
+            raise ValueError('Normal setup requires the exact observed immutable guest producer receipt')
+        if from_image and from_image != measured['fromImage']:
+            raise ValueError('Guest reference differs from observed source bytes')
+        from_image = measured['fromImage']
     if any((parent / name).exists() for name in ("azure-setup-state.json", "azure-image-prep-state.json", "azure-terraform", "operator-template.json")):
         raise ValueError("Operator preparation is retained; do not replace its source binding")
     if (not OCI.fullmatch(from_image) or isinstance(cpu_count, bool) or not 1 <= cpu_count <= 16 or

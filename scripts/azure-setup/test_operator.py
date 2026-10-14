@@ -62,6 +62,25 @@ class OperatorTests(unittest.TestCase):
         result = operator.deferred(core, root, path, "registry.example/guest@sha256:" + "c" * 64, 2, 2048, 300, 10000, ["api.openai.com"])
         return root, core, path, result
 
+    def test_normal_guest_is_derived_and_substitution_refused(self):
+        root,core,path,_ = self.fixture()
+        for name in ('operator-template.json','azure-operator-prep-state.json','signed-guest-selection.json'):
+            (root/name).unlink()
+        temporary_template=root/'template'
+        assert temporary_template.resolve().is_relative_to(root.resolve())
+        shutil.rmtree(temporary_template)
+        measured={'sourceCommit':'a'*40,'imageDigest':'e'*64,'fromImage':'127.0.0.1:5055/luci/guest@sha256:'+'e'*64,'receiptSHA256':'f'*64}
+        core.atomic_json(root/'azure-guest-source.json',measured)
+        core.atomic_json(root/'azure-builder-state.json',{'completed':['runtime:retired'], 'receipts':{'runtime:install':{'guestSource':measured}}})
+        operator.deferred(core,root,path,'',2,2048,300,10000,['api.openai.com'])
+        signed=core.private_json(root/'signed-guest-selection.json')
+        self.assertEqual(signed['selection']['fromImage'],measured['fromImage'])
+        with self.assertRaisesRegex(ValueError,'differs'):
+            operator.deferred(core,root,path,'127.0.0.1:5055/luci/guest@sha256:'+'d'*64,2,2048,300,10000,['api.openai.com'])
+        core.atomic_json(root/'azure-guest-source.json',dict(measured,sourceCommit='b'*40))
+        with self.assertRaisesRegex(ValueError,'observed'):
+            operator.deferred(core,root,path,'',2,2048,300,10000,['api.openai.com'])
+
     def finalized(self):
         root, core, path, result = self.fixture()
         selection = core.private_json(path)

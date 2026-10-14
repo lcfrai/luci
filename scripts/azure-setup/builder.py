@@ -511,6 +511,11 @@ def bind_images(core, bundle_root, selection_path, plan_digest):
         selected['terraformVariables'][role + '_image_version_id'] = proposal['roles'][role]['imageVersionID']
         if role == 'runtime': selected['terraformVariables']['runtime_package_sha256'] = journal['receipts'][role + ':install']['packageSHA256']
         selected[role + 'Package'] = {'path': '', 'sha256': journal['receipts'][role + ':install']['packageSHA256']}
+    guest_source = journal['receipts']['runtime:install'].get('guestSource')
+    if guest_source:
+        if guest_source.get('sourceCommit') != proposal['sourceCommit'] or not HEX.fullmatch(guest_source.get('imageDigest', '')) or guest_source.get('fromImage') != '127.0.0.1:5055/luci/guest@sha256:' + guest_source['imageDigest'] or not HEX.fullmatch(guest_source.get('receiptSHA256', '')):
+            raise ValueError('Measured guest source receipt differs from exact producer')
+        core.atomic_json(Path(selection_path).parent / 'azure-guest-source.json', guest_source)
     core.atomic_json(selection_path, selected)
     journal.update(state='private_images_bound_staging_retired' if 'source:delete-container' in journal['completed'] else 'private_images_bound_staging_retirement_pending', selectionDigest=core.digest(selected), connected=False, finalInvoiceVerified=False)
     core.atomic_json(path, journal)

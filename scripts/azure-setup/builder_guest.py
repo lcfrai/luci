@@ -16,6 +16,7 @@ import re
 import shutil
 import ssl
 import subprocess
+import sys
 import tarfile
 import tempfile
 import time
@@ -26,6 +27,8 @@ RUNTIME = 'cf536c284434fdd2f09bbab35ec807a5dacc87e4'
 ROOT = Path('/var/lib/luci-image-builder')
 HEX = re.compile(r'[0-9a-f]{64}\Z')
 REV = re.compile(r'[0-9a-f]{40}\Z')
+sys.dont_write_bytecode = True
+os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
 
 
 def sha_file(path):
@@ -183,11 +186,18 @@ def prepare(config, provider_download=download):
             digest = command(['skopeo', 'inspect', '--format', '{{.Digest}}', 'docker://' + image], timeout=120)
             if not re.fullmatch(r'sha256:[0-9a-f]{64}', digest): raise ValueError('Immutable runtime image digest unavailable')
             pins[name] = image.split('@')[0] + '@' + digest
+            # This is an actual preload, not merely a measured remote tag.
+            command(['docker', 'pull', '--platform', 'linux/amd64', pins[name]], timeout=1800)
         save(ROOT / 'image-digests.json', pins)
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('luci_guest_registry', luci / 'scripts/azure-embed-host/guest_registry.py')
+        registry = importlib.util.module_from_spec(spec); spec.loader.exec_module(registry)
+        guest_source = registry.prepare(luci, config['sourceCommit'], command)
         script = luci / 'scripts/azure-embed-host/package.py'
         digest = command(['python3', str(script), 'build', '--upstream', str(upstream), '--luci', str(luci), '--luci-revision', config['sourceCommit'],
             '--image-digests', str(ROOT / 'image-digests.json'), '--bootstrap', str(ROOT / 'azure-embed-host-bootstrap'), '--gateway', str(ROOT / 'azure-gateway-config'),
-            '--envoy', str(source / 'envoy'), '--envoy-license', str(source / 'envoy-license'), '--output', str(package)])
+            '--envoy', str(source / 'envoy'), '--envoy-license', str(source / 'envoy-license'), '--output', str(package),
+            '--guest-receipt', '/opt/luci/guest-registry/receipt.json'])
         command(['python3', str(script), 'install-image', '--archive', str(package), '--sha256', digest, '--root', '/'])
         command(['docker', 'compose', 'version'])
     if not HEX.fullmatch(digest) or sha_file(package) != digest: raise ValueError('Installed package differs from measured source')
@@ -201,6 +211,10 @@ def prepare(config, provider_download=download):
     receipt = {'version': 1, 'state': 'role_prepared_guest_unverified', 'sourceCommit': config['sourceCommit'], 'role': config['role'],
         'runtimeRevision': RUNTIME, 'payloadSHA256': config['payloadSHA256'], 'packageSHA256': digest, 'microVMExecutionVerified': False,
         'observedAtUTC': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')}
+    if config['role'] == 'runtime':
+        receipt['guestSource'] = {name: guest_source[name] for name in ('sourceCommit', 'imageDigest', 'fromImage', 'registryBinarySHA256', 'registrySourceCommit', 'registryArchiveSHA256', 'harnessVersions')}
+        receipt['guestSource']['receiptSHA256'] = sha_file('/opt/luci/guest-registry/receipt.json')
+        receipt['dependencyImagesPreloaded'] = True
     save('/opt/luci/image-source-receipt.json', receipt)
     save(state, receipt)
     return receipt

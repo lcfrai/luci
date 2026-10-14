@@ -8,6 +8,7 @@ contacts Azure, pulls images, starts Docker, or reads credentials.
 import argparse
 import hashlib
 import io
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -79,6 +80,20 @@ def collect(args):
         {"services": {key: {"image": locks[key]} for key in sorted(locks)}},
         sort_keys=True,
     ).encode()
+    # The ordinary upstream Compose default builds e2bdev/base independently.
+    # Azure publishes the signed selected guest through a durable controller
+    # journal, so its default stack must never run that second build/ready path.
+    files["compose/azure-services.yaml"] = yaml.safe_dump({"services": {
+        name: {"profiles": ["luci-manual-template-only"]}
+        for name in ("base-template", "ready") if name in services}}, sort_keys=True).encode()
+    guest_receipt = getattr(args, 'guest_receipt', None)
+    if guest_receipt:
+        spec = importlib.util.spec_from_file_location('luci_guest_registry', Path(__file__).with_name('guest_registry.py'))
+        registry = importlib.util.module_from_spec(spec); spec.loader.exec_module(registry)
+        selected = registry.verify(Path(guest_receipt).parent, args.luci_revision)
+        if json.loads(regular_bytes(Path(guest_receipt))) != selected:
+            raise ValueError('Selected guest registry receipt differs')
+        files['guest-source-receipt.json'] = regular_bytes(Path(guest_receipt))
     files["licences/E2B-LICENSE"] = regular_bytes(upstream / "LICENSE")
     files["licences/LUCI-LICENSE"] = regular_bytes(luci / "LICENSE")
     files["licences/ENVOY-LICENSE"] = regular_bytes(Path(args.envoy_license))
@@ -87,6 +102,7 @@ def collect(args):
         "azure-gateway-config": args.gateway,
         "envoy": args.envoy,
         "service.py": Path(__file__).with_name("service.py"),
+        "guest_registry.py": Path(__file__).with_name("guest_registry.py"),
     }.items():
         files["bin/" + name] = regular_bytes(Path(path))
     manifest = {
@@ -183,6 +199,11 @@ TimeoutStartSec=180
 WantedBy=multi-user.target
 """
 
+REGISTRY_DEPENDENCY = """[Unit]
+Requires=luci-azure-guest-registry.service
+After=luci-azure-guest-registry.service
+"""
+
 
 def install(files, root, expected, archive):
     """Image-build operation: no systemctl, container or firewall effect."""
@@ -213,6 +234,10 @@ def install(files, root, expected, archive):
             "luci-azure-embed-host.service": HOST_UNIT,
         }.items():
             (units / name).write_text(content)
+        if 'guest-source-receipt.json' in files:
+            dropin = units / 'luci-azure-embed-host.service.d'
+            dropin.mkdir()
+            (dropin / 'guest-registry.conf').write_text(REGISTRY_DEPENDENCY)
     except Exception:
         if stage.exists():
             shutil.rmtree(stage)
@@ -225,6 +250,7 @@ def main():
     build = commands.add_parser("build")
     for flag in ("upstream", "luci", "luci-revision", "image-digests", "bootstrap", "gateway", "envoy", "envoy-license", "output"):
         build.add_argument("--" + flag, required=True)
+    build.add_argument('--guest-receipt')
     verify = commands.add_parser("verify")
     verify.add_argument("--archive", required=True)
     verify.add_argument("--sha256", required=True)

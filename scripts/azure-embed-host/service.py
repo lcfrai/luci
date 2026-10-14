@@ -178,7 +178,18 @@ def save(record):
 
 def compose_args(stage):
     return ["docker", "compose", "-p", "e2b", "--env-file", str(stage / "runtime.env"),
-            "-f", str(PACKAGE / "compose/compose.yaml"), "-f", str(PACKAGE / "compose/image-lock.yaml")]
+            "-f", str(PACKAGE / "compose/compose.yaml"), "-f", str(PACKAGE / "compose/image-lock.yaml"),
+            "-f", str(PACKAGE / "compose/azure-services.yaml")]
+
+
+def guest_source_ready(manifest):
+    if 'guest-source-receipt.json' not in manifest['files']:
+        return  # Explicit existing-registry compatibility package.
+    expected = json.loads((PACKAGE / 'guest-source-receipt.json').read_bytes())
+    observed = json.loads(command(['python3', str(PACKAGE / 'bin/guest_registry.py'), 'ready',
+                                  '--source-commit', manifest['luciRevision']], 180))
+    if observed != expected:
+        raise ValueError('Installed/served guest source differs from pinned host package')
 
 
 def running(stage):
@@ -257,6 +268,7 @@ def switch_gateway(prepared):
 def boot(c):
     private_tmpfs()
     manifest = pinned_package(c)
+    guest_source_ready(manifest)
     address = host_ip(c)
     if not has_kvm():
         raise RuntimeError("dedicated runtime host has no KVM device")
@@ -304,6 +316,7 @@ def boot(c):
 def rotate(c):
     private_tmpfs()
     manifest = pinned_package(c)
+    guest_source_ready(manifest)
     old = journal()
     if not old or old.get("state") != "active" or old.get("scope") != c["scope"] or old.get("generation") != c.get("previousGeneration") or old.get("packageSHA256") != c["runtimePackageSHA256"]:
         raise RuntimeError("host rotation requires the exact settled previous generation")

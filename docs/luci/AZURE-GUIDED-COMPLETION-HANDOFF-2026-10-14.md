@@ -249,3 +249,44 @@ mutation replay, and replaced-disk/retained-gallery refusal. Full builder file:
 Docker, KVM, cloud task or billing acceptance. Remaining normal guided progression,
 source guest/loopback registry, signed replacement successor (transferred owner),
 and final whole-installation retirement are still tracked independently.
+
+
+Loopback guest source checkpoint follows exact fa7cc890 reconciliation. New
+`azure-embed-host/guest_registry.py` uses Distribution source commit
+9ed95e7365224025ee89365e12cf128e1f1bf965 and the official 3.0.0 linux-amd64 archive
+SHA256 61c9a2c0d5981a78482025b6b69728521fbc78506d68b223d4a2eb825de5ca3d;
+original LICENSE SHA256 cb5e8e7e5f4a3988e1063c142c60dc2df75605f4c46515e776e3aca6df976e14.
+The existing temporary runtime builder resolves guest FROM digests, builds the exact
+microVM source, preserves original application/vendor/upstream grants plus an
+installed-grant inventory, probes actual harness versions in positively owned
+network-isolated containers and removes only observed owned probes. It preloads
+actual pinned Embed service images, seeds actual OCI bytes into the local registry,
+then tests GET/HEAD and exact write refusal before sealing the root-owned source.
+No source preparation occurs on runtime boot. The installed host package binds the
+full source receipt, includes the source verifier, and profiles the upstream default
+base-template/ready path out of the Azure default. Native systemd ordering, immutable
+configuration and full filesystem/manifest/config/layer verification cover initial
+boot/reboot. A fixed read-only ARM RunCommand inspector gates actual controller
+`template-create`/`template-start` on the exact source and signed guest digest; its
+unknown result cannot permit a template mutation. It adds no cloud resource/RBAC
+or public/private-interface listener. The normal signed guest is derived from
+producer readback rather than a user-authored digest. Registry source restoration
+explicitly does not restore task/template metadata, projects or reservations.
+
+Local evidence: new registry tests 8/8 pass, new normal guest derivation/substitution
+test 1/1 passes, affected builder tests 11/11 pass before the later bytecode-only
+guard (unchanged behavior), AST checks and Go formatting pass. Host package tests
+were attempted once but local Python lacks PyYAML; no dependency was installed.
+Go compilation/test, actual released native registry behavior, Docker build/probes,
+Azure readbacks, KVM/task execution and provider billing remain unrun here.
+Independent Linux commands (sequential):
+`python3 -m unittest discover -s scripts/azure-embed-host -p 'test_*.py' -v`;
+`python3 -m unittest discover -s scripts/azure-setup -p test_operator.py -v`;
+`GOMAXPROCS=1 GOMEMLIMIT=512MiB go test -p 1 ./cmd/api -run TestAzureGuestRegistry -count=1`
+from control-plane. Source-bundle helper/inventory ownership is separately with
+root's cloud Sol; join requires the packaged sparse source helper and its inventory
+(including the new registry module), not ordinary user private-GitHub access.
+Remaining owned implementation: normal continue progression and source-helper join,
+verified builder Envoy extraction, signed successor installer join (returned five
+files), and whole-installation retirement fence/backup/compute handoff. These are
+unfinished capabilities, not provider/environment-only acceptance gaps.
