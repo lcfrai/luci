@@ -113,6 +113,49 @@ func TestRuntimePullLostCleanupRequiresNewEngineStopWitness(t *testing.T) {
 		t.Fatal("second stop witness unavailable", lease, err)
 	}
 }
+
+func TestRuntimePullResultRequiresRetiredHelperBeforeOwnedDerivative(t *testing.T) {
+	g := previewTestGate(t)
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Execution.EngineID = httpCheckEngine
+		s.Execution.DaemonDisk.AvailableBytes = executionPointer(uint64(64 << 30))
+		return s
+	}
+	p := runtimeImagePrepared(g, "pull-ready")
+	p.PullBundle = &runtimeoci.PullBundle{ManifestSHA256: strings.Repeat("b", 64)}
+	lease := runtimeImageReserve(t, g, p)
+	var err error
+	lease, err = g.transitionRuntimeImage(context.Background(), lease, "building")
+	if err != nil {
+		t.Fatal(err)
+	}
+	steps := []struct{ from, to, output string }{
+		{"staging", "bootstrap-loading", ""},
+		{"bootstrap-loading", "bootstrap-loaded", "sha256:" + strings.Repeat("c", 64)},
+		{"bootstrap-loaded", "network-creating", ""},
+		{"network-creating", "network-created", strings.Repeat("d", 64)},
+		{"network-created", "helper-creating", ""},
+		{"helper-creating", "helper-created", strings.Repeat("e", 64)},
+		{"helper-created", "helper-starting", ""},
+		{"helper-starting", "helper-started", "49152"},
+		{"helper-started", "pulling", ""},
+		{"pulling", "pulled", "sha256:" + strings.Repeat("f", 64)},
+		{"pulled", "helper-retiring", ""},
+		{"helper-retiring", "helper-retired", ""},
+		{"helper-retired", "deriving", ""},
+	}
+	for _, step := range steps {
+		lease, err = g.advanceRuntimeImagePull(context.Background(), lease, step.from, step.to, step.output)
+		if err != nil {
+			t.Fatalf("%s to %s: %v", step.from, step.to, err)
+		}
+	}
+	lease, err = g.completeRuntimeImage(context.Background(), lease, true, "sha256:"+strings.Repeat("1", 64))
+	if err != nil || lease.State != "finished" || lease.ImportStage != "deriving" {
+		t.Fatal("owned derivative could not settle after helper retirement", lease, err)
+	}
+}
 func TestRuntimeImageColdAdmissionPreservesFortyGiBFloor(t *testing.T) {
 	for _, disk := range []uint64{39, 40} {
 		t.Run(string(rune('a'+disk-39)), func(t *testing.T) {
