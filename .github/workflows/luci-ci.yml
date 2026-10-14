@@ -10,6 +10,10 @@ on:
         description: 'Run only Windows build and installed-app diagnostics; does not establish full release acceptance'
         type: boolean
         default: false
+      portable_probe:
+        description: 'With native_windows_only: collect source-bound PowerShell diagnostics from the fresh Windows package; not application acceptance'
+        type: boolean
+        default: false
       ssh_only:
         description: 'Run only the real existing-workspace SSH browser acceptance'
         type: boolean
@@ -52,12 +56,12 @@ env:
 jobs:
   reject-conflicting-native-diagnostics:
     name: Validate native diagnostic inputs
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.native_windows_only && (inputs.ssh_only || inputs.installer_run || inputs.installer_release || inputs.upgrade_from_03 || inputs.upgrade_from_release) }}
+    if: ${{ github.event_name == 'workflow_dispatch' && ((inputs.native_windows_only && (inputs.ssh_only || inputs.installer_run || inputs.installer_release || inputs.upgrade_from_03 || inputs.upgrade_from_release)) || (inputs.portable_probe && !inputs.native_windows_only)) }}
     runs-on: ubuntu-24.04
     steps:
       - name: Reject conflicting diagnostic modes
         run: |
-          printf '%s\n' 'native_windows_only runs a fresh Windows build/install. Do not combine it with SSH, existing-installer, or previous-version inputs.' >&2
+          printf '%s\n' 'native_windows_only runs a fresh Windows build/install. Do not combine it with SSH, existing-installer, or previous-version inputs. portable_probe additionally requires native_windows_only.' >&2
           exit 1
 
   verify:
@@ -380,6 +384,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Portable acceptance failed' }
           node scripts/control-plane-smoke.mjs --binary "artifacts/releases/$env:LUCI_VERSION/luci-windows-amd64/luci.exe" --output artifacts/package-eval/windows/control-plane-smoke.json
           if ($LASTEXITCODE -ne 0) { throw 'Multi-user acceptance failed' }
+      # This optional probe follows normal checks and never starts the app.
+      # Its receipt states that the CI host may already be warm.
+      - name: Diagnose current-package PowerShell child startup
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.native_windows_only && inputs.portable_probe }}
+        run: |
+          node scripts/windows-powershell-probe.mjs "artifacts/releases/$env:LUCI_VERSION/luci-windows-amd64" artifacts/package-eval/windows/powershell-probe
+          if ($LASTEXITCODE -ne 0) { throw 'PowerShell diagnostic failed; normal package acceptance remains separate' }
       - name: Verify native installer exists
         run: |
           $installers = @(Get-ChildItem -LiteralPath desktop/src-tauri/target/release/bundle/nsis -Filter '*-setup.exe' -File)
@@ -402,6 +413,7 @@ jobs:
             artifacts/native-installed-eval/*-failure-text.txt
             artifacts/native-installed-eval/driver-*.log
             artifacts/package-eval/windows/*.json
+            artifacts/package-eval/windows/powershell-probe/*.json
             artifacts/windows-source-launcher/results.json
           if-no-files-found: warn
           retention-days: 14
