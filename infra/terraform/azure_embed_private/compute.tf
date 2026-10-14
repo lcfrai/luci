@@ -32,6 +32,72 @@ resource "azurerm_linux_virtual_machine" "controller" {
     identity_ids = [azurerm_user_assigned_identity.controller.id]
   }
   source_image_id = var.controller_image_version_id
+  custom_data     = base64encode("#cloud-config\nwrite_files:\n  - path: /etc/luci/azure-controller-disk-initial.json\n    permissions: '0600'\n    owner: root:root\n    content: '${base64encode(jsonencode(local.controller_disk_boot))}'\n    encoding: b64\n")
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Premium_LRS"
+  }
+}
+
+locals {
+  controller_disk_boot = {
+    version                = 1
+    mode                   = "initialize"
+    device                 = "/dev/disk/azure/scsi1/lun0"
+    mountPath              = var.controller_mount_path
+    filesystemUuid         = var.controller_filesystem_uuid
+    azureDataDiskId        = lower(azurerm_managed_disk.controller.id)
+    ownerId                = var.controller_owner_id
+    scope                  = var.scope
+    controllerHostId       = var.controller_host_id
+    runtimeHostId          = var.runtime_host_id
+    controllerInstanceId   = lower("${data.azurerm_resource_group.selected.id}/providers/Microsoft.Compute/virtualMachines/${var.name}-controller")
+    generation             = var.generation
+    diskReceiptPath        = "${var.controller_mount_path}/luci/disk-receipt.json"
+    generationReceiptPath  = "${var.controller_mount_path}/luci/generation.json"
+    fenceBlobURL           = "https://${azurerm_storage_account.fence.name}.blob.core.windows.net/${azurerm_storage_container.fence.name}/controller-fence.json"
+    operatorTemplatePath   = var.controller_operator_template_path
+    operatorTemplateSHA256 = var.controller_operator_template_sha256
+    operatorOutputPath     = var.controller_operator_output_path
+  }
+}
+
+# This separately owned, private standby has no authoritative disk at boot.
+# Only its recovery identity may fence the old controller and move the one
+# nonshared disk; its controller identity becomes useful after exact restore.
+resource "azurerm_network_interface" "controller_recovery" {
+  name                = "${var.name}-controller-recovery"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  tags                = var.tags
+
+  ip_configuration {
+    name                          = "private"
+    subnet_id                     = azurerm_subnet.controller.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+resource "azurerm_linux_virtual_machine" "controller_recovery" {
+  name                            = "${var.name}-controller-recovery"
+  location                        = var.location
+  resource_group_name             = var.resource_group_name
+  size                            = var.controller_vm_size
+  network_interface_ids           = [azurerm_network_interface.controller_recovery.id]
+  admin_username                  = "luci"
+  disable_password_authentication = true
+  zone                            = var.zone
+  tags                            = var.tags
+
+  admin_ssh_key {
+    username   = "luci"
+    public_key = var.controller_admin_ssh_public_key
+  }
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.recovery.id]
+  }
+  source_image_id = var.controller_image_version_id
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Premium_LRS"
@@ -55,12 +121,8 @@ resource "azurerm_managed_disk" "controller" {
   }
 }
 
-resource "azurerm_virtual_machine_data_disk_attachment" "controller" {
-  managed_disk_id    = azurerm_managed_disk.controller.id
-  virtual_machine_id = azurerm_linux_virtual_machine.controller.id
-  lun                = 0
-  caching            = "None"
-}
+# The recovery controller, not Terraform state, owns the mutable attachment.
+# Terraform must never race a fenced recovery by reattaching the old VM.
 
 locals {
   host_boot = merge({

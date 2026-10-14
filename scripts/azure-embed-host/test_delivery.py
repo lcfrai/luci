@@ -130,6 +130,17 @@ class ControllerDeliveryTest(unittest.TestCase):
         self.assertFalse(self.journal.exists())
         self.assertEqual(transport.posts, 0)
 
+    def test_current_controller_generation_is_exact_or_fenced_successor(self):
+        selected = self.selection
+        predecessor = {"generation": "g-one", "controllerInstanceId": selected["controllerInstanceID"],
+                       "azureDataDiskId": selected["azureDataDiskID"]}
+        self.assertTrue(delivery.bound_generation_receipt(predecessor, self.host, selected))
+        successor = dict(predecessor, generation="g-two", previousGeneration="g-one", previousFenceReceiptDigest="f" * 64)
+        self.assertTrue(delivery.bound_generation_receipt(successor, self.host, selected))
+        for changed in (dict(successor, previousFenceReceiptDigest=""), dict(successor, previousGeneration="foreign"),
+                        dict(successor, controllerInstanceId="foreign"), dict(successor, azureDataDiskId="foreign")):
+            self.assertFalse(delivery.bound_generation_receipt(changed, self.host, selected))
+
 
 if __name__ == "__main__":
     unittest.main()

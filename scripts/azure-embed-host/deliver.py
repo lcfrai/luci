@@ -66,6 +66,16 @@ def atomic(path, value):
             os.unlink(name)
 
 
+def bound_generation_receipt(receipt, host, selection):
+    same_generation = receipt.get("generation") == host["previousGeneration"]
+    fenced_successor = (receipt.get("generation") == host["generation"] and
+                        receipt.get("previousGeneration") == host["previousGeneration"] and
+                        HEX.fullmatch(receipt.get("previousFenceReceiptDigest", "")) is not None)
+    return (receipt.get("controllerInstanceId") == selection["controllerInstanceID"] and
+            receipt.get("azureDataDiskId") == selection["azureDataDiskID"] and
+            (same_generation or fenced_successor))
+
+
 def validate(selection, host):
     required = {"version", "controllerClientID", "controllerInstanceID", "azureDataDiskID", "scaleSetID",
                 "instanceID", "controllerGenerationReceiptSHA256", "controllerGenerationReceiptPath",
@@ -97,7 +107,7 @@ def validate(selection, host):
     if not device.exists() or os.stat(device).st_rdev != os.stat(mount).st_dev or os.stat(receipt_path).st_dev != os.stat(mount).st_dev or os.stat(journal_path.parent).st_dev != os.stat(mount).st_dev:
         raise ValueError("controller delivery disk identity changed")
     receipt = private_json(receipt_path, 4096)
-    if digest(receipt_path.read_bytes()) != selection["controllerGenerationReceiptSHA256"] or receipt.get("controllerInstanceId") != selection["controllerInstanceID"] or receipt.get("generation") != host["previousGeneration"] or receipt.get("azureDataDiskId") != selection["azureDataDiskID"]:
+    if digest(receipt_path.read_bytes()) != selection["controllerGenerationReceiptSHA256"] or not bound_generation_receipt(receipt, host, selection):
         raise ValueError("current controller generation receipt changed")
     if journal_path.exists():
         raise ValueError("previous host delivery requires exact reconciliation")
