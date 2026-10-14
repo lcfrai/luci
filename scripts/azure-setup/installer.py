@@ -29,7 +29,7 @@ GIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 REGION = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
-SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
+SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
                 "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-controller-disk/package.py",
                 "azure-controller-disk/mount.py", "azure-controller-disk/recover.py"}
 EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
@@ -285,8 +285,13 @@ def make_plan(selection, manifest, selection_path, bundle_root):
     for name in sorted(declared):
         if variables.get(name) in (None, "", [], {}):
             missing.append("terraform_" + name)
+    builder_ready = False
+    if (Path(selection_path).parent / 'azure-builder-state.json').exists():
+        spec = importlib.util.spec_from_file_location('luci_azure_builder', Path(bundle_root) / 'azure-setup/builder.py')
+        builder_module = importlib.util.module_from_spec(spec); spec.loader.exec_module(builder_module)
+        builder_ready = builder_module.observed_packages(sys.modules[__name__], selection_path, manifest)
     for key, source in (("runtime_package", "runtimePackage"), ("controller_package", "controllerPackage")):
-        if not package_ready(selection[source]):
+        if not builder_ready and not package_ready(selection[source]):
             missing.append(key + "_exact_archive")
     if variables.get("runtime_package_sha256") != selection["runtimePackage"]["sha256"]:
         missing.append("runtime_package_terraform_binding")
@@ -797,10 +802,25 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "generate-secrets",
                    "publish-secrets", "reconcile-secrets", "bind-secrets", "prepare-images", "prepare", "apply",
-                   "reconcile", "bootstrap", "status", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile", "foundation-inventory", "foundation-plan", "foundation-step", "foundation-reconcile", "foundation-bind", "foundation-reuse"):
+                   "reconcile", "bootstrap", "status", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile", "foundation-inventory", "foundation-plan", "foundation-step", "foundation-reconcile", "foundation-bind", "foundation-reuse", "builder-source", "builder-plan", "builder-step"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
+        if action == 'builder-source':
+            for key in ('luci-source', 'runtime-source', 'envoy-binary', 'envoy-license'):
+                row.add_argument('--' + key, required=True)
+        if action == 'builder-plan':
+            row.add_argument('--base-image', required=True, help='Exact Canonical:ubuntu-24_04-lts:server:VERSION')
+            row.add_argument('--builder-size', default='Standard_D4s_v5')
+            row.add_argument('--gallery-name', required=True)
+            row.add_argument('--image-version', required=True)
+            row.add_argument('--lifetime-seconds', type=int, default=7200)
+        if action == 'builder-step':
+            row.add_argument('--plan-digest', required=True)
+            row.add_argument('--stage', choices=('staging', 'allocate', 'grant', 'install', 'deprovision', 'deallocate', 'generalize', 'capture', 'retire', 'bind', 'retire-staging'), required=True)
+            row.add_argument('--role', choices=('runtime', 'controller'), default='runtime')
+            row.add_argument('--acknowledge-costs', action='store_true')
+            row.add_argument('--reconcile', action='store_true')
         if action == 'foundation-inventory':
             for key in ('vnet-id', 'endpoint-subnet', 'route-host', 'management-source-cidr'):
                 row.add_argument('--' + key, required=True)
@@ -869,6 +889,36 @@ def main():
             row.add_argument("--acknowledge-costs", action="store_true")
             row.add_argument("--acknowledge-unverified-price", action="store_true")
     args = parser.parse_args()
+    if args.action.startswith('builder-'):
+        bundle(args.bundle)
+        modules = []
+        for name in ('guided', 'foundation', 'builder'):
+            spec = importlib.util.spec_from_file_location('luci_azure_' + name, args.bundle / ('azure-setup/' + name + '.py'))
+            module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module); modules.append(module)
+        guided_module, foundation_module, builder_module = modules
+        core = sys.modules[__name__]
+        if args.action == 'builder-source':
+            result = builder_module.source_payload(core, args.bundle, args.selection, args.luci_source, args.runtime_source, args.envoy_binary, args.envoy_license)
+        elif args.action == 'builder-plan':
+            pieces = args.base_image.split(':')
+            if len(pieces) != 4: raise ValueError('Exact publisher:offer:sku:version base image required')
+            result = builder_module.plan(core, args.bundle, args.selection, dict(zip(('publisher', 'offer', 'sku', 'version'), pieces)), args.builder_size, args.gallery_name, args.image_version, args.lifetime_seconds)
+        else:
+            arm = foundation_module.AzureARM(guided_module.az_json)
+            cli = lambda arguments: guided_module.az_json(arguments, timeout=7200)
+            common = (core, args.bundle, args.selection, args.plan_digest)
+            if args.stage == 'bind': result = builder_module.bind_images(*common)
+            elif args.stage in ('staging', 'retire-staging'):
+                method = builder_module.staging if args.stage == 'staging' else builder_module.retire_staging
+                result = method(*common, arm, cli, args.acknowledge_costs, args.reconcile)
+            elif args.stage in ('install', 'deprovision'):
+                result = builder_module.install(*common, args.role, arm, cli, args.acknowledge_costs, args.reconcile, args.stage == 'deprovision')
+            else:
+                method = {'allocate': builder_module.allocate, 'grant': builder_module.grant, 'deallocate': builder_module.deallocate,
+                    'generalize': builder_module.generalize, 'capture': builder_module.capture, 'retire': builder_module.retire}[args.stage]
+                result = method(*common, args.role, arm, args.acknowledge_costs, args.reconcile)
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.action.startswith('foundation-'):
         bundle(args.bundle)
         modules = []

@@ -41,12 +41,12 @@ class AzureARM:
             raise RuntimeError("Azure management authentication unavailable")
         self.client = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
 
-    def __call__(self, method, path, api, body=None):
-        if method not in ("GET", "PUT") or not path.startswith("/subscriptions/") or "?" in path or "#" in path:
+    def __call__(self, method, path, api, body=None, headers=None):
+        if method not in ("GET", "PUT", "PATCH", "POST", "DELETE") or not path.startswith("/subscriptions/") or "?" in path or "#" in path:
             raise ValueError("Exact Azure resource operation required")
         request = urllib.request.Request(ARM + path + "?api-version=" + api,
             data=json.dumps(body).encode() if body is not None else None, method=method,
-            headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/json"})
+            headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/json", **(headers or {})})
         try:
             with self.client.open(request, timeout=30) as response:
                 data = response.read((128 << 10) + 1)

@@ -43,6 +43,7 @@ var azureSetupSHA = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var azureSetupGit = regexp.MustCompile(`^[0-9a-f]{40}$`)
 var azureSetupRequired = []string{
 	"LICENSE", "azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/operator_setup.py", "azure-setup/README.md",
+	"azure-setup/builder.py", "azure-setup/builder_guest.py",
 	"azure-embed-host/package.py", "azure-embed-host/service.py", "azure-embed-host/deliver.py",
 	"azure-controller-disk/package.py", "azure-controller-disk/mount.py", "azure-controller-disk/recover.py",
 	"terraform/.terraform.lock.hcl", "terraform/compute.tf", "terraform/fence.tf", "terraform/identity.tf",
