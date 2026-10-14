@@ -16,11 +16,29 @@ import (
 )
 
 func testAzureSetupArchive(t *testing.T, runtimeDir string) string {
+	return testAzureSetupArchiveWithSource(t, runtimeDir, strings.Repeat("a", 40))
+}
+
+func testAzureSetupArchiveWithSource(t *testing.T, runtimeDir, sourceRevision string) string {
 	t.Helper()
 	files := make(map[string][]byte)
 	for _, name := range azureSetupRequired {
 		files[name] = []byte("verified " + name + "\n")
 	}
+	source := azureBuilderSourceRef{Version: 1, Kind: "luci-azure-builder-source"}
+	source.Luci.Revision = sourceRevision
+	source.Luci.Tree = strings.Repeat("b", 40)
+	source.E2B.Revision = azureBuilderE2BRevision
+	source.E2B.Tree = strings.Repeat("c", 40)
+	for _, role := range []struct{ name string; ref *azureBuilderSourceRole }{
+		{"luci", &source.Luci}, {"e2b", &source.E2B},
+	} {
+		part := files["builder-source/"+role.name+".pack"]
+		sum := sha256.Sum256(part)
+		role.ref.Pack.SHA256 = hex.EncodeToString(sum[:])
+		role.ref.Pack.Bytes = int64(len(part))
+	}
+	files["builder-source/source.json"], _ = json.Marshal(source)
 	manifest := azureSetupBundleManifest{Version: 1, LuciRevision: strings.Repeat("a", 40)}
 	manifest.Files = make(map[string]struct {
 		SHA256 string `json:"sha256"`
@@ -60,6 +78,14 @@ func testAzureSetupArchive(t *testing.T, runtimeDir string) string {
 		t.Fatal(err)
 	}
 	return digest
+}
+
+func TestAzureSetupBundleRefusesCrossRevisionBuilderSource(t *testing.T) {
+	root := t.TempDir()
+	testAzureSetupArchiveWithSource(t, root, strings.Repeat("f", 40))
+	if _, _, _, err := readAzureSetupBundle(root, filepath.Join(root, "projects")); err == nil || !strings.Contains(err.Error(), "builder source revision") {
+		t.Fatalf("cross-revision builder source was accepted: %v", err)
+	}
 }
 
 func TestAzureDevelopSetupPlanAndBundleAreSourceBoundReads(t *testing.T) {
@@ -115,7 +141,7 @@ func TestAzureSetupBundleRejectsOversizedInputsBeforeReading(t *testing.T) {
 		name string
 		size int64
 	}{
-		{"azure-setup.tar", (4 << 20) + 1},
+		{"azure-setup.tar", azureSetupBundleMax + 1},
 		{"azure-setup.sha256", 81},
 	} {
 		runtimeDir := filepath.Join(root, row.name+"-runtime")
