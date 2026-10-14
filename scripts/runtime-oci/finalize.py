@@ -18,8 +18,9 @@ from common import plain_directory, read_json, write_json
 import payload
 import producer
 
-# This path never compiles. Its largest bounded effect is a version probe;
-# ordinary producer builds retain their separate 1 GiB RUN allocation.
+# Initial admission covers bounded tools, without charging an absent compiler.
+# Export later admits its exact image-size cold-cache estimate separately.
+# Ordinary producer builds retain their separate 1 GiB RUN allocation.
 FINALIZE_MEMORY = max(producer.PROBE_MEMORY, producer.EXPORT_MEMORY)
 
 

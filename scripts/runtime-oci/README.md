@@ -84,6 +84,16 @@ if ($LASTEXITCODE -ne 0) { throw 'Preserve both original and finalization eviden
 ```
 
 Failed, cancelled, reserve-breaching or unknown builders cannot use this route.
+Initial no-build finalization admits its 512 MiB tools plus the unchanged 1 GiB
+host reserve and 512 MiB margin. Export separately admits at least the exact
+inspected uncompressed `image.Size`, retaining the same reserve and margin.
+This estimates cold overlay2 tar/page-cache demand; it is not a daemon memory
+cap or a measured export success. A 2,367,237,019-byte image therefore needs
+3,977,849,755 bytes available before export. Missing/invalid image size refuses.
+The exporter samples native memory/CPU every 100 ms independently of Docker
+inventory and WSL cache calls, cancelling its owned read-only client below
+reserve plus margin. It retains fast samples and cancellation/terminal receipts.
+Ordinary consumer import never uses this dedicated producer assistance.
 It verifies the original terminal, exact engine/image/producer label, immutable
 Git inputs and reconstructed generated context, then records fresh actual
 version argv/results and bounded licence/export operations. Separate external

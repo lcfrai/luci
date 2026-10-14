@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import tarfile
 import time
+import threading
 import uuid
 
 import archive
@@ -30,8 +31,8 @@ RESERVE = 1 << 30
 MARGIN = 512 << 20
 BUILD_MEMORY = 1 << 30
 PROBE_MEMORY = 512 << 20
-# Streaming Docker-save estimate, not a daemon hard cap. The exporter monitors
-# actual whole-host reserve and stops its read-only client on pressure.
+# Minimum streaming Docker-save estimate; actual export also charges image.Size.
+# This is not a daemon hard cap. The exporter monitors whole-host reserve.
 EXPORT_MEMORY = 512 << 20
 CACHE_TRIGGER = RESERVE + BUILD_MEMORY + MARGIN
 CACHE_INTERVAL_SECONDS = 5
@@ -308,15 +309,29 @@ def probe(image_id, executable, version, tool, session, output):
 
 
 def export_image(image_id, session, output, assistance):
+    inspected = json.loads(command(['docker', 'image', 'inspect', image_id]))[0]
+    demand = export_demand(inspected)
+    preparation_actions = prepare_effect(session, output, demand, assistance)
+    write_json(output / 'export-intent.json', {'imageID': image_id, 'imageSizeBytes': inspected['Size'], 'estimatedMemoryBytes': demand,
+               'reserveBytes': RESERVE, 'marginBytes': MARGIN, 'requiredBytes': RESERVE + demand + MARGIN,
+               'daemonHardMemoryCap': False, 'sampleIntervalSeconds': 0.1, 'cancelBelowBytes': RESERVE + MARGIN})
     args = ["docker", "image", "save", "-o", str(output / "docker-save.raw.tar"), image_id]
-    actions, last_action, deadline = 0, 0, time.monotonic() + 300
+    actions, last_action, deadline = preparation_actions, 0, time.monotonic() + 300
     with (output / "export.out.log").open("wb") as stdout, (output / "export.err.log").open("wb") as stderr:
         process = subprocess.Popen(args, stdout=stdout, stderr=stderr)
+        stop, observations, failures = threading.Event(), [], []
+        watcher = threading.Thread(target=watch_export, args=(process, stop, observations, failures), name='luci-export-resource-watch')
+        watcher.start()
         try:
             while process.poll() is None:
                 free = available_memory()
                 if owned_running(session):
                     raise ValueError("producer export unexpectedly overlaps running containers")
+                if failures or process.poll() is not None:
+                    break
+                free = available_memory()
+                if free < RESERVE + MARGIN:
+                    raise ValueError('read-only producer export reached preemptive host margin')
                 row = {"time": time.time(), "phase": "read-only image export", "availableBytes": free, "reserveBytes": RESERVE}
                 if assistance and os.name == "nt" and free < CACHE_TRIGGER and actions < MAX_CACHE_ACTIONS and time.monotonic() - last_action >= CACHE_INTERVAL_SECONDS:
                     row['cacheResult'] = cache_assist(session, output)
@@ -331,14 +346,64 @@ def export_image(image_id, session, output, assistance):
                     stream.write(json.dumps(row, sort_keys=True) + "\n")
                 if free < RESERVE or time.monotonic() > deadline:
                     raise ValueError("read-only producer export breached reserve or time budget")
-                time.sleep(2)
+                stop.wait(0.5)
         finally:
             if process.poll() is None:
                 process.terminate()  # read-only export client, no image publication/mutation
                 process.wait(timeout=5)
+            stop.set()
+            watcher.join(timeout=2)
+            if watcher.is_alive():
+                raise ValueError('export resource watcher failed to finish')
+            with (output / 'export-fast-resource-monitor.jsonl').open('w', encoding='utf-8', newline='\n') as stream:
+                for row in observations:
+                    stream.write(json.dumps(row, sort_keys=True) + '\n')
+            write_json(output / 'export-resource-summary.json', {'sampleIntervalSeconds': 0.1, 'samples': len(observations),
+                       'minimumAvailableBytes': min((row['availableBytes'] for row in observations), default=None),
+                       'maximumSampledCPUPercent': max((row['cpuBusyPercent'] for row in observations if 'cpuBusyPercent' in row), default=None),
+                       'failures': failures, 'clientExitCode': process.returncode, 'daemonHardMemoryCap': False})
+    if failures:
+        raise ValueError('read-only producer export cancelled: ' + '; '.join(failures))
     if process.returncode:
         raise ValueError("producer image export failed; partial owned archive retained")
     return actions
+
+
+def export_demand(inspected):
+    size = inspected.get('Size')
+    if type(size) is not int or not 0 < size <= archive.MAX_ARCHIVE:
+        raise ValueError('exact image size unavailable or outside export bound')
+    # Cold overlay2 tar serialization reads the uncompressed image through the
+    # guest page cache. This is a producer estimate, never a Docker hard cap.
+    return max(EXPORT_MEMORY, size)
+
+
+def watch_export(process, stop, observations, failures):
+    """Keep native pressure cancellation independent of slow Docker/WSL reads."""
+    try:
+        previous = cpu_sample()
+        while not stop.is_set() and process.poll() is None:
+            free, current = available_memory(), cpu_sample()
+            row = {'time': time.time(), 'availableBytes': free}
+            if current[1] > previous[1]:
+                row['cpuBusyPercent'] = 100 * (1 - (current[0] - previous[0]) / (current[1] - previous[1]))
+            previous = current
+            observations.append(row)
+            if free < RESERVE + MARGIN:
+                failures.append('preemptive host margin reached')
+                if process.poll() is None:
+                    process.terminate()
+                return
+            if len(observations) >= 3100:
+                failures.append('bounded export sample budget exhausted')
+                if process.poll() is None:
+                    process.terminate()
+                return
+            stop.wait(0.1)
+    except (ValueError, OSError) as error:
+        failures.append('native resource watch unavailable: ' + type(error).__name__)
+        if process.poll() is None:
+            process.terminate()
 
 
 def collect_licenses(repo, image_id, session, output):
@@ -454,7 +519,6 @@ def finalize_image(repo, revision, output, session, inputs, bases, generated, ar
     actions += prepare_effect(session, output, 256 << 20, assistance)
     licenses = collect_licenses(license_repo or repo, image_id, session, output)
     assert_settled(session)
-    actions += prepare_effect(session, output, EXPORT_MEMORY, assistance)
     actions += export_image(image_id, session, output, assistance)
     normalized = archive.normalize(output / "docker-save.raw.tar", output / "runtime-image-linux-amd64.tar", image_id)
     assert_settled(session)

@@ -3,6 +3,7 @@ import copy
 from pathlib import Path
 import shutil
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -147,6 +148,31 @@ class GrantAndFinalizeTests(unittest.TestCase):
             with patch.object(producer, 'scoped_run', side_effect=run) as run:
                 self.assertEqual(producer.probe('image', 'sandboxd', '0.5.0', 'sandboxd', 'session', root)['exitCode'], 0)
                 run.assert_called_once()
+
+    def test_export_charges_exact_cold_image_and_cancels_independently_of_inventory(self):
+        image_size = 2367237019
+        demand = producer.export_demand({'Size': image_size})
+        required = producer.RESERVE + demand + producer.MARGIN
+        self.assertEqual(required, 3977849755)
+        for invalid in (0, -1, True, '2367237019', archive.MAX_ARCHIVE + 1):
+            with self.assertRaisesRegex(ValueError, 'image size unavailable'):
+                producer.export_demand({'Size': invalid})
+        with patch.object(producer, 'owned_running', return_value=[]):
+            with patch.object(producer, 'available_memory', return_value=required - 1):
+                with self.assertRaisesRegex(ValueError, 'lacks normal reserve'):
+                    producer.prepare_effect('session', Path('unused'), demand, False)
+            with patch.object(producer, 'available_memory', return_value=required):
+                self.assertEqual(producer.prepare_effect('session', Path('unused'), demand, False), 0)
+        from unittest.mock import Mock
+        process = Mock()
+        process.poll.return_value = None
+        stop, rows, failures = threading.Event(), [], []
+        with patch.object(producer, 'available_memory', return_value=producer.RESERVE + producer.MARGIN - 1), patch.object(producer, 'cpu_sample', return_value=(1, 10)), patch.object(producer, 'command') as command:
+            producer.watch_export(process, stop, rows, failures)
+            command.assert_not_called()  # A blocked Docker/WSL call cannot delay pressure cancellation.
+        process.terminate.assert_called_once()
+        self.assertEqual(failures, ['preemptive host margin reached'])
+        self.assertEqual(rows[0]['availableBytes'], producer.RESERVE + producer.MARGIN - 1)
 
     def test_unknown_failed_cancelled_or_wrong_session_never_reaches_docker(self):
         with tempfile.TemporaryDirectory() as temporary:
