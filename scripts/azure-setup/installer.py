@@ -768,7 +768,7 @@ def bootstrap(bundle_root, selection_path, plan_digest, reconcile=False):
     # Validate the static format with the shipped recovery adapter before any
     # ARM effect. It checks exact immutable IDs, fence and private paths.
     import importlib.util as util
-    spec = util.spec_from_file_location("luci_azure_recovery", Path(bundle_root) / "azure-controller-disk/recover.py", "azure-controller-disk/retire.py")
+    spec = util.spec_from_file_location("luci_azure_recovery", Path(bundle_root) / "azure-controller-disk/recover.py")
     module = util.module_from_spec(spec)
     spec.loader.exec_module(module)
     module.validate(recovery)

@@ -1336,3 +1336,5 @@ actual Azure/KVM/private connection and invoice outcomes remain untested. Remain
 owned source work: explicit retirement cancel/resume (especially a race discovered
 after preflight) and approved existing-predecessor reimage/fresh-standby restoration.
 Do not mark SETUP-02 or provider acceptance complete from this checkpoint.
+
+- LOCAL-042 (first observed 63c26633, integrated c3083d99): fixed the accidental third positional argument to the bundled recovery loader in installer.bootstrap. Actual module-load/validation and mocked handoff regression passes on Windows; no Azure effects. Retirement now checks immutable compute IDs before guest transfers/quiesce/closure, including runtime stop (7 focused fixture tests pass). Live setup/recovery acceptance remains pending.
