@@ -1378,7 +1378,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv); err != nil {
+		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend); err != nil {
 			httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
 			return
 		}
@@ -2218,7 +2218,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		nativeDockerEndpoint(sandboxEnv)
 	}
 	if sess.Harness == string(harness.OpenCode) {
-		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv); err != nil {
+		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend); err != nil {
 			httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
 			return
 		}

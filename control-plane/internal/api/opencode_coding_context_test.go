@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,7 +26,7 @@ func TestReviewedOpenCodeTaskUsesCapturedContextAndVerifiedModelLimit(t *testing
 	if err := clearReviewedOpenCodeInstructions(env); err != nil {
 		t.Fatal(err)
 	}
-	if err := prepareLocalOpenCodeCodingContextWith(ctx, env, read); err != nil {
+	if err := prepareLocalOpenCodeCodingContextWith(ctx, env, func(context.Context) error { return nil }, read); err != nil {
 		t.Fatal(err)
 	}
 	var config struct {
@@ -50,7 +51,7 @@ func TestReviewedOpenCodeTaskUsesCapturedContextAndVerifiedModelLimit(t *testing
 		t.Fatal("lost the private key placeholder")
 	}
 	ordinary := codingModelEnvironment()
-	if err := prepareLocalOpenCodeCodingContextWith(ctx, ordinary, func(context.Context, string, string) (int, error) { return 8192, nil }); err != nil {
+	if err := prepareLocalOpenCodeCodingContextWith(ctx, ordinary, func(context.Context) error { return nil }, func(context.Context, string, string) (int, error) { return 8192, nil }); err != nil {
 		t.Fatalf("ordinary bounded 8k session: %v", err)
 	}
 	if !strings.Contains(ordinary["OPENCODE_CONFIG_CONTENT"], `"instructions":["LUCI.md"]`) {
@@ -82,10 +83,20 @@ func TestOllamaCodingContextProbeIsBoundedAndExact(t *testing.T) {
 func TestOpenCodeContextRefusesUnknownWindowWithoutChangingRoute(t *testing.T) {
 	env := codingModelEnvironment()
 	before := env["OPENCODE_CONFIG_CONTENT"]
-	if err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context, string, string) (int, error) { return 0, nil }); err == nil || !strings.Contains(err.Error(), "explicit supported serving context") {
+	if err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { return nil }, func(context.Context, string, string) (int, error) { return 0, nil }); err == nil || !strings.Contains(err.Error(), "explicit supported serving context") {
 		t.Fatalf("missing alias window accepted: %v", err)
 	}
 	if env["OPENCODE_CONFIG_CONTENT"] != before {
 		t.Fatal("failed preflight changed the saved model route")
+	}
+}
+
+func TestOpenCodeContextRefusesUnverifiedSelectedEngineBeforeModelProbe(t *testing.T) {
+	env := codingModelEnvironment()
+	before := env["OPENCODE_CONFIG_CONTENT"]
+	called := false
+	err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { return errors.New("unverified selected engine") }, func(context.Context, string, string) (int, error) { called = true; return 8192, nil })
+	if err == nil || called || env["OPENCODE_CONFIG_CONTENT"] != before {
+		t.Fatalf("unverified remote engine reached host model: err=%v called=%t", err, called)
 	}
 }

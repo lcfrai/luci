@@ -12,16 +12,27 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 )
 
 // A local Ollama alias has a serving window, which is distinct from the
 // model's trained window. OpenCode's custom-provider default is zero; with a
 // zero window its overflow check never compacts a coding conversation.
-func prepareLocalOpenCodeCodingContext(ctx context.Context, env map[string]string) error {
-	return prepareLocalOpenCodeCodingContextWith(ctx, env, readLocalOllamaContext)
+func prepareLocalOpenCodeCodingContext(ctx context.Context, env map[string]string, selectedEngine backend.Backend) error {
+	return prepareLocalOpenCodeCodingContextWith(ctx, env, func(ctx context.Context) error {
+		fencer, ok := selectedEngine.(backend.LaunchFencer)
+		if !ok {
+			return errors.New("The selected Docker engine cannot verify this local Ollama connection.")
+		}
+		if _, err := fencer.LaunchFenceIdentity(ctx); err != nil {
+			return errors.New("The selected Docker engine cannot verify this local Ollama connection. Choose a local Docker engine or a supported remote model route.")
+		}
+		return nil
+	}, readLocalOllamaContext)
 }
 
-func prepareLocalOpenCodeCodingContextWith(ctx context.Context, env map[string]string, readContext func(context.Context, string, string) (int, error)) error {
+func prepareLocalOpenCodeCodingContextWith(ctx context.Context, env map[string]string, localEngine func(context.Context) error, readContext func(context.Context, string, string) (int, error)) error {
 	var config map[string]any
 	if json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config) != nil {
 		return nil // The existing connection validator owns malformed configs.
@@ -47,6 +58,9 @@ func prepareLocalOpenCodeCodingContextWith(ctx context.Context, env map[string]s
 	entry, _ := models[alias].(map[string]any)
 	if entry == nil {
 		return errors.New("The saved OpenCode model is missing from its provider configuration.")
+	}
+	if err := localEngine(ctx); err != nil {
+		return err
 	}
 	// The Docker host alias is meaningful inside the worker. The local API
 	// observes the same host's loopback Ollama before dispatching the worker.
