@@ -3,7 +3,7 @@
 This module is the **offline deployable infrastructure definition** for the
 audited Azure design at `6bf391dc`. It is not a live Azure receipt. It creates
 one dedicated runtime VMSS host model, a separately identified controller VM
-and protected managed disk, private VNet/DNS/load balancer, a Key Vault private
+and recovery VM, protected managed disk and off-disk Blob fence, private VNet/DNS/load balancer, a Key Vault private
 endpoint, distinct managed identities and exact per-secret read grants. The
 runtime subnet NSG admits only the selected controller to private TLS port 443
 and the Azure fabric TCP health probe; it denies all other inbound traffic.
@@ -49,10 +49,27 @@ The `build` command prints `PACKAGE_SHA256`; bind that exact value to
 `runtime_package_sha256` and publish the image as one immutable Azure Compute
 Gallery image version. Bind its full ARM version ID to
 `runtime_image_version_id`. The controller image is **separate** and has its
-own immutable `controller_image_version_id`. The image root installation
+own immutable `controller_image_version_id`. The host image root installation
 places the archive, checked manifest, binaries, Compose tree and three systemd
-units, but does not enable units or contact Azure/Docker. An actual image build
-and original-image/licence verification remain deployment prerequisites.
+units, but does not enable units or contact Azure/Docker. Build the controller
+API binary from the same clean Luci revision and use
+`scripts/azure-controller-disk/package.py build`, `verify`, `install-image`
+with its exact archive hash. That package binds the API binary, mount,
+recovery and delivery code to a version and installs `luci-api.service`.
+Protected setup still must supply the nonsecret operator template, private
+selection and owner-only service environment. An actual image build and
+original-image/licence verification remain deployment prerequisites.
+
+```
+python3 scripts/azure-controller-disk/package.py build \
+  --source /private-build/luci-checkout --revision "$EXACT_LUCI_COMMIT" \
+  --api /private-build/luci-api --output /private-build/azure-controller.tar
+python3 scripts/azure-controller-disk/package.py verify \
+  --archive /private-build/azure-controller.tar --sha256 "$CONTROLLER_PACKAGE_SHA256"
+python3 scripts/azure-controller-disk/package.py install-image \
+  --archive /private-build/azure-controller.tar --sha256 "$CONTROLLER_PACKAGE_SHA256" \
+  --root /private-build/controller-image-root --mount /mnt/luci-controller
+```
 
 The module's VMSS custom data contains only a nonsecret deployment selection:
 scope/generation, source package digest, private addresses, managed-identity
@@ -73,13 +90,44 @@ key changes require a drained, fenced replacement host because existing
 guests and Compose containers may still hold the old values. A rotation with
 an uncertain gateway restart retains both generations in the host journal;
 the service refuses replay. VMSS uses **Manual** upgrade mode so a Terraform
-model change cannot replace a host with live guests. The operator must deliver
-the new nonsecret config through an authenticated, protected host-management
-channel and run `systemctl reload luci-azure-embed-host.service` only after
-Luci's current controller generation/host ownership and task drain decision.
-The module emits `runtime_host_config_sha256` for comparison. Automatic
-controller-to-host rotation delivery is still a separate integration task;
-Terraform model update alone is not asserted to rotate a running instance.
+model change cannot replace a host with live guests. The module emits
+`runtime_host_config_sha256` for comparison. `scripts/azure-embed-host/deliver.py`
+is the protected delivery path on the currently fenced controller. Its private
+selection binds the current mounted ext4 UUID/generation receipt, exact
+disk/controller/VMSS instance, selected nonsecret host config and digest. It
+verifies current Azure readback and saves an fsynced `run_command_pending`
+record on the authoritative disk **before** calling the selected VMSS
+instance's Azure guest-agent RunCommand. The controller identity's custom
+role permits only instance read and RunCommand on this VMSS. The host command
+calls `service.py deliver`, which refuses changed deployment/credential
+boundaries, journals gateway rotation before the effect, and persists the new
+config only after rotation settles. Only an exact returned host receipt marks
+delivery observed. A missing acknowledgment or output retains the action and
+operation identity for read-only reconciliation; repeating the command is
+refused. Terraform's manual model update and a successful ARM POST alone do
+not prove the running host rotated. The existing private gateway generation
+readback remains mandatory before new task effects.
+
+## Controller writer fence and recovery
+
+The authoritative disk is initially unattached. The separate recovery
+identity owns a private, versioned Blob journal outside that disk and writes
+it with ETag conditions. Initial attach, one-time blank-disk ext4 format,
+host-loss deallocation, exact detach, reattach, managed-identity grant and
+replacement generation each have a pre-effect journal state and readback
+gate in `scripts/azure-controller-disk/recover.py`. A lost effect response
+is never blindly retried. The standby has only the recovery identity at
+creation; the controller identity is granted only after the old VM is
+deallocated and the nonshared disk is detached.
+
+`mount.py` binds the disk and generation receipts and operator config to
+the selected block device. `cmd/api/azure_fence_readback.go` checks the
+independently durable Blob at startup and before fresh cloud effects. The
+replacement API may start during `api_start_pending` only for its exact
+generation, but it cannot dispatch until the recovery identity commits
+`active`. The controller identity can read the Blob but cannot update it.
+This path neither releases Luci reservations nor infers final billing from
+observed VM absence. Exact selection delivery is part of the BYO installer.
 
 ## Boundary and remaining run gates
 
@@ -88,10 +136,9 @@ Terraform model update alone is not asserted to rotate a running instance.
 must use RBAC and its private endpoint. No PEM, API key, access token or SAS
 belongs in Terraform variables, state, cloud-init or logs. The protected
 controller must read the gateway generation receipt and verify current ARM
-disk/instance ownership before fresh E2B effects. This module creates and
-attaches a controller disk but does **not** format/mount/fence/restore the
-authoritative Luci journal on it. That required automation remains the next
-source implementation gap, not an operator attestation substitute.
+disk/instance ownership and the off-disk writer fence before fresh E2B effects.
+Terraform must not manage the mutable disk attachment after creation; only
+the fenced recovery tool owns attach/detach transitions.
 
 Subscription, region, SKU/nested-KVM capability, quota, private DNS/TLS/Key
 Vault setup, actual image and guest template, budget, controller disk fencing,

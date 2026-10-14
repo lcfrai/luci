@@ -44,6 +44,7 @@ type azureDurableMount struct {
 	ControllerInstanceID    string `json:"controllerInstanceId"`
 	GenerationReceiptPath   string `json:"generationReceiptPath"`
 	GenerationReceiptDigest string `json:"generationReceiptDigest"`
+	FenceBlobURL            string `json:"fenceBlobURL"`
 }
 
 type azureDiskReceipt struct {

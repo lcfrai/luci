@@ -180,6 +180,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		selected.Deployment.Provider != "azure" && selected.Store.AzureDataDiskID != "" ||
 		selected.Deployment.Provider == "azure" && (selected.AzureSecrets == nil || selected.APIKeyFile != "" || selected.AdminAPIKeyFile != "" || selected.AttachKeyFile != "" || selected.ClientCertFile != "" || selected.ClientKeyFile != "") ||
 		selected.Deployment.Provider == "azure" && selected.AzureMount == nil ||
+		selected.Deployment.Provider == "azure" && selected.AzureMount != nil && !validAzureFenceBlobURL(selected.AzureMount.FenceBlobURL) ||
 		selected.Deployment.Provider == "azure" && selected.RootCAFile == "" ||
 		selected.Deployment.Provider == "azure" && selected.AzureMount != nil && selected.AzureGatewayReceiptDigest != e2bbe.GatewayReceiptDigest(selected.Deployment.AzureGatewayHost, selected.Store.RuntimeScope, selected.AzureMount.Generation) ||
 		selected.Deployment.Provider != "azure" && selected.AzureSecrets != nil ||
@@ -209,6 +210,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	}
 	var azureSecretsCleanup func()
 	var azureARM azureARMReader
+	var azureFence azureFenceReader
 	if selected.AzureSecrets != nil {
 		source, sourceErr := newAzureSecretSource(*selected.AzureSecrets)
 		if sourceErr != nil {
@@ -222,6 +224,11 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		selected.APIKeyFile, selected.AdminAPIKeyFile, selected.AttachKeyFile = files.APIKey, files.AdminKey, files.AttachKey
 		selected.ClientCertFile, selected.ClientKeyFile = files.ClientCert, files.ClientKey
 		azureARM, err = newAzureARMReader(selected.AzureSecrets.ClientID)
+		if err != nil {
+			cleanup()
+			return nil, nil, err
+		}
+		azureFence, err = newAzureFenceReader(selected.AzureSecrets.ClientID)
 		if err != nil {
 			cleanup()
 			return nil, nil, err
@@ -360,9 +367,15 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 				strings.ReplaceAll(selected.SandboxOriginTemplate, "{sandboxID}", id), e2bbe.EnvdVersion, nil
 		}}
 	if azureARM != nil {
+		if err := verifyAzureFence(ctx, selected, azureFence, true); err != nil {
+			return nil, nil, fmt.Errorf("verify off-disk Azure controller fence: %w", err)
+		}
 		controllerConfig.GatewayReceiptDigest = selected.AzureGatewayReceiptDigest
 		controllerConfig.DeploymentReadback = func(readCtx context.Context) error {
 			if err := verifyAzureDurableMount(*selected.AzureMount, selected, cfg); err != nil {
+				return err
+			}
+			if err := verifyAzureFence(readCtx, selected, azureFence, false); err != nil {
 				return err
 			}
 			return verifyAzureARMOwnership(readCtx, selected, azureARM)

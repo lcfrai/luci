@@ -81,8 +81,53 @@ variable "controller_disk_size_gb" {
     error_message = "Authoritative controller disk size must be an integer of at least 64 GiB."
   }
 }
+variable "controller_mount_path" {
+  type = string
+  validation {
+    condition     = can(regex("^/mnt/[a-z0-9-]+$", var.controller_mount_path))
+    error_message = "Controller disk mount must be a dedicated /mnt path."
+  }
+}
+variable "controller_filesystem_uuid" {
+  type = string
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$", var.controller_filesystem_uuid))
+    error_message = "Controller filesystem UUID must be exact lowercase UUID."
+  }
+}
+variable "controller_owner_id" { type = string }
+variable "controller_host_id" { type = string }
+variable "runtime_host_id" { type = string }
+variable "controller_operator_template_path" {
+  type = string
+  validation {
+    condition     = can(regex("^/etc/luci/[a-z0-9.-]+$", var.controller_operator_template_path))
+    error_message = "Controller operator template must be a selected /etc/luci file."
+  }
+}
+variable "controller_operator_template_sha256" {
+  type = string
+  validation {
+    condition     = can(regex("^[0-9a-f]{64}$", var.controller_operator_template_sha256))
+    error_message = "Controller operator template must be pinned by SHA-256."
+  }
+}
+variable "controller_operator_output_path" {
+  type = string
+  validation {
+    condition     = can(regex("^/etc/luci/[a-z0-9.-]+$", var.controller_operator_output_path))
+    error_message = "Controller operator output must be a selected /etc/luci file."
+  }
+}
 variable "key_vault_id" { type = string }
 variable "key_vault_name" { type = string }
+variable "fence_storage_account_name" {
+  type = string
+  validation {
+    condition     = can(regex("^[a-z0-9]{3,24}$", var.fence_storage_account_name))
+    error_message = "Fence storage account name must be an exact Azure Storage account name."
+  }
+}
 variable "host_secret_ids" {
   description = "Exact Key Vault secret ARM IDs for the host identity; no values."
   type        = set(string)
