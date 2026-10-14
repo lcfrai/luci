@@ -230,7 +230,8 @@ if provider == 'opencode' and ollama_preflight == '1':
         # provider response, credential or request header. A dispatch attempt
         # remains uncertain until an upstream response and complete stream.
         REQUEST_DEADLINE = 165
-        offer = {'version':1,'modelRequestObserved':False,'selectedModelMatched':False,'structuredOutputOffered':False,'otherToolCount':0,'requiredToolChoice':False,'dispatchAttempted':False,'responseReceived':False,'upstreamCompleted':False,'duplicateRequestsBlocked':0}
+        offer = {'version':1,'modelRequestObserved':False,'selectedModelMatched':False,'structuredOutputOffered':False,'otherToolCount':0,'requiredToolChoice':False,'dispatchAttempted':False,'responseReceived':False,'upstreamCompleted':False,'duplicateRequestsBlocked':0,
+                 'upstreamEvents':0,'upstreamMalformedEvents':0,'upstreamTextParts':0,'upstreamToolCallCount':0,'upstreamStructuredToolCalls':0,'upstreamOtherToolCalls':0,'upstreamArgumentsJSONValid':None,'upstreamRequiredFieldsPresent':None,'upstreamFinishReason':'missing','upstreamDoneMarker':False}
         claim_lock = threading.Lock()
         receipt_lock = threading.Lock()
         def save_offer():
@@ -239,6 +240,87 @@ if provider == 'opencode' and ollama_preflight == '1':
                     json.dump(offer,target,separators=(',',':'))
                 os.replace('/luci-output/tool-offer.json.tmp','/luci-output/tool-offer.json')
         save_offer()
+        class StreamSignals:
+            # Inspect structure in bounded memory. Never retain model text,
+            # tool arguments, IDs or headers in a receipt or process log.
+            def __init__(self, content_type):
+                self.content_type = content_type
+                self.pending = b''
+                self.calls = {}
+            def event(self, raw):
+                if raw == b'[DONE]':
+                    offer['upstreamDoneMarker'] = True
+                    return
+                try:
+                    event = json.loads(raw)
+                    choices = event.get('choices')
+                    if not isinstance(choices,list):
+                        raise ValueError('missing choices')
+                    offer['upstreamEvents'] += 1
+                    for choice in choices[:2]:
+                        if not isinstance(choice,dict):
+                            raise ValueError('invalid choice')
+                        reason = choice.get('finish_reason')
+                        if reason is not None:
+                            offer['upstreamFinishReason'] = reason if reason in ('tool_calls','stop','length','content_filter') else 'other'
+                        delta = choice.get('delta',choice.get('message',{}))
+                        if not isinstance(delta,dict):
+                            raise ValueError('invalid delta')
+                        if isinstance(delta.get('content'),str) and delta['content']:
+                            offer['upstreamTextParts'] += 1
+                        calls = delta.get('tool_calls',[])
+                        if not isinstance(calls,list) or len(calls)>8:
+                            raise ValueError('invalid tool calls')
+                        for position, call in enumerate(calls):
+                            if not isinstance(call,dict):
+                                raise ValueError('invalid tool call')
+                            index = call.get('index',position)
+                            if not isinstance(index,int) or not 0<=index<8:
+                                raise ValueError('invalid tool index')
+                            saved = self.calls.setdefault(index,{'name':'','arguments':''})
+                            function = call.get('function',{})
+                            if not isinstance(function,dict):
+                                raise ValueError('invalid function')
+                            for key, bound in (('name',80),('arguments',65536)):
+                                fragment = function.get(key,'')
+                                if not isinstance(fragment,str) or len(saved[key])+len(fragment)>bound:
+                                    raise ValueError('unbounded tool fragment')
+                                saved[key] += fragment
+                except (ValueError,TypeError,KeyError):
+                    offer['upstreamMalformedEvents'] += 1
+            def feed(self, chunk):
+                if self.content_type == 'application/json':
+                    if len(self.pending)+len(chunk)>65536:
+                        offer['upstreamMalformedEvents'] += 1
+                        self.pending = b''
+                    else:
+                        self.pending += chunk
+                    return
+                self.pending += chunk
+                while b'\n' in self.pending:
+                    line, self.pending = self.pending.split(b'\n',1)
+                    line = line.rstrip(b'\r')
+                    if line.startswith(b'data:'):
+                        self.event(line[5:].strip())
+                if len(self.pending)>65536:
+                    self.pending = b''
+                    offer['upstreamMalformedEvents'] += 1
+            def finish(self):
+                if self.content_type == 'application/json' and self.pending:
+                    self.event(self.pending)
+                elif self.pending.startswith(b'data:'):
+                    self.event(self.pending[5:].strip())
+                offer['upstreamToolCallCount'] = len(self.calls)
+                offer['upstreamStructuredToolCalls'] = sum(call['name']=='StructuredOutput' for call in self.calls.values())
+                offer['upstreamOtherToolCalls'] = len(self.calls)-offer['upstreamStructuredToolCalls']
+                if len(self.calls)==1:
+                    try:
+                        arguments = json.loads(next(iter(self.calls.values()))['arguments'])
+                        offer['upstreamArgumentsJSONValid'] = isinstance(arguments,dict)
+                        offer['upstreamRequiredFieldsPresent'] = isinstance(arguments,dict) and all(field in arguments for field in schema.get('required',[]))
+                    except (ValueError,TypeError):
+                        offer['upstreamArgumentsJSONValid'] = False
+                        offer['upstreamRequiredFieldsPresent'] = False
         class ModelRequestGate(http.server.BaseHTTPRequestHandler):
             protocol_version = 'HTTP/1.1'
             def log_message(self,*args):
@@ -324,6 +406,7 @@ if provider == 'opencode' and ollama_preflight == '1':
                     content_type = response.headers.get('Content-Type','').split(';',1)[0].strip().lower()
                     if response.status!=200 or content_type not in ('text/event-stream','application/json') or response.headers.get('Content-Encoding','identity')!='identity' or expired.is_set():
                         raise ValueError('unexpected model transport')
+                    signals = StreamSignals(content_type)
                     self.send_response(200)
                     self.send_header('Content-Type',content_type)
                     self.send_header('Transfer-Encoding','chunked')
@@ -341,10 +424,13 @@ if provider == 'opencode' and ollama_preflight == '1':
                         total += len(chunk)
                         if total>LIMIT*4:
                             raise ValueError('oversized model stream')
+                        signals.feed(chunk)
                         self.wfile.write(('%x\r\n'%len(chunk)).encode()+chunk+b'\r\n')
                         self.wfile.flush()
                     if expired.is_set() or time.monotonic()>=deadline:
                         raise TimeoutError('model request deadline')
+                    signals.finish()
+                    save_offer()
                     self.wfile.write(b'0\r\n\r\n')
                     self.wfile.flush()
                     offer['upstreamCompleted'] = True

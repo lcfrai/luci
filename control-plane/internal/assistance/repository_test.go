@@ -290,6 +290,17 @@ server.serve_forever()
 				time.Sleep(500 * time.Millisecond)
 			}
 			w.Header().Set("Content-Type", "text/event-stream")
+			if responseMode.Load() >= 4 {
+				switch responseMode.Load() {
+				case 4:
+					w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"PRIVATE_MODEL_TEXT\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"))
+				case 5:
+					w.Write([]byte("data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"name\":\"StructuredOutput\",\"arguments\":\"{\\\"question\\\":\\\"PRIVATE_QUESTION\\\",\\\"options\\\":[],\\\"rationale\\\":\\\"Why\\\",\\\"proposal\\\":null,\\\"nextAction\\\":\\\"answer-question\\\"}\"}}]}}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"))
+				case 6:
+					w.Write([]byte("data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"name\":\"StructuredOutput\",\"arguments\":\"{PRIVATE_INVALID_JSON\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"))
+				}
+				return
+			}
 			w.Write([]byte("data: {\"choices\":[]}\n\n"))
 			if responseMode.Load() == 3 {
 				w.(http.Flusher).Flush()
@@ -322,6 +333,38 @@ server.serve_forever()
 	entry := filepath.Join(dir, "run.py")
 	if err := os.WriteFile(entry, []byte(launcher), 0600); err != nil {
 		t.Fatal(err)
+	}
+	boolPtr := func(value bool) *bool { return &value }
+	for _, test := range []struct {
+		name         string
+		mode         int64
+		calls, text  int
+		valid        *bool
+		finishReason string
+	}{
+		{name: "plain-text-with-required-tool", mode: 4, text: 1, finishReason: "stop"},
+		{name: "structured-call-with-valid-arguments", mode: 5, calls: 1, valid: boolPtr(true), finishReason: "tool_calls"},
+		{name: "structured-call-with-malformed-arguments", mode: 6, calls: 1, valid: boolPtr(false), finishReason: "tool_calls"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			responseMode.Store(test.mode)
+			defer responseMode.Store(0)
+			cmd := exec.Command(python, entry)
+			cmd.Env = append(os.Environ(), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig))
+			if logs, err := cmd.CombinedOutput(); err != nil || len(logs) != 0 {
+				t.Fatal("fixture launcher failed or leaked model output", err, string(logs))
+			}
+			data, err := os.ReadFile(filepath.Join(output, "tool-offer.json"))
+			var receipt struct {
+				UpstreamToolCallCount, UpstreamStructuredToolCalls, UpstreamTextParts, UpstreamMalformedEvents int
+				UpstreamArgumentsJSONValid, UpstreamRequiredFieldsPresent                                      *bool
+				UpstreamFinishReason                                                                           string
+				UpstreamDoneMarker                                                                             bool
+			}
+			if err != nil || json.Unmarshal(data, &receipt) != nil || receipt.UpstreamToolCallCount != test.calls || receipt.UpstreamStructuredToolCalls != test.calls || receipt.UpstreamTextParts != test.text || receipt.UpstreamMalformedEvents != 0 || receipt.UpstreamFinishReason != test.finishReason || !receipt.UpstreamDoneMarker || (receipt.UpstreamArgumentsJSONValid == nil) != (test.valid == nil) || test.valid != nil && (*receipt.UpstreamArgumentsJSONValid != *test.valid || *receipt.UpstreamRequiredFieldsPresent != *test.valid) || strings.Contains(string(data), "PRIVATE_MODEL_TEXT") || strings.Contains(string(data), "PRIVATE_QUESTION") || strings.Contains(string(data), "PRIVATE_INVALID_JSON") {
+				t.Fatal("stream structure was not bounded and redacted", err, string(data))
+			}
+		})
 	}
 	for _, incomplete := range []string{"0", "1", "2"} {
 		os.Remove(filepath.Join(output, "result.json"))
