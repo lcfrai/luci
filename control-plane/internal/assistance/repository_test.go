@@ -298,6 +298,8 @@ server.serve_forever()
 					w.Write([]byte("data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"name\":\"StructuredOutput\",\"arguments\":\"{\\\"question\\\":\\\"PRIVATE_QUESTION\\\",\\\"options\\\":[],\\\"rationale\\\":\\\"Why\\\",\\\"proposal\\\":null,\\\"nextAction\\\":\\\"answer-question\\\"}\"}}]}}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"))
 				case 6:
 					w.Write([]byte("data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"name\":\"StructuredOutput\",\"arguments\":\"{PRIVATE_INVALID_JSON\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"))
+				case 7:
+					w.Write([]byte("data: [\"PRIVATE_NON_OBJECT_EVENT\"]\n\ndata: [DONE]\n\n"))
 				}
 				return
 			}
@@ -336,15 +338,16 @@ server.serve_forever()
 	}
 	boolPtr := func(value bool) *bool { return &value }
 	for _, test := range []struct {
-		name         string
-		mode         int64
-		calls, text  int
-		valid        *bool
-		finishReason string
+		name                   string
+		mode                   int64
+		calls, text, malformed int
+		valid                  *bool
+		finishReason           string
 	}{
 		{name: "plain-text-with-required-tool", mode: 4, text: 1, finishReason: "stop"},
 		{name: "structured-call-with-valid-arguments", mode: 5, calls: 1, valid: boolPtr(true), finishReason: "tool_calls"},
 		{name: "structured-call-with-malformed-arguments", mode: 6, calls: 1, valid: boolPtr(false), finishReason: "tool_calls"},
+		{name: "malformed-event-does-not-break-forwarding", mode: 7, malformed: 1, finishReason: "missing"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			responseMode.Store(test.mode)
@@ -361,7 +364,7 @@ server.serve_forever()
 				UpstreamFinishReason                                                                           string
 				UpstreamDoneMarker                                                                             bool
 			}
-			if err != nil || json.Unmarshal(data, &receipt) != nil || receipt.UpstreamToolCallCount != test.calls || receipt.UpstreamStructuredToolCalls != test.calls || receipt.UpstreamTextParts != test.text || receipt.UpstreamMalformedEvents != 0 || receipt.UpstreamFinishReason != test.finishReason || !receipt.UpstreamDoneMarker || (receipt.UpstreamArgumentsJSONValid == nil) != (test.valid == nil) || test.valid != nil && (*receipt.UpstreamArgumentsJSONValid != *test.valid || *receipt.UpstreamRequiredFieldsPresent != *test.valid) || strings.Contains(string(data), "PRIVATE_MODEL_TEXT") || strings.Contains(string(data), "PRIVATE_QUESTION") || strings.Contains(string(data), "PRIVATE_INVALID_JSON") {
+			if err != nil || json.Unmarshal(data, &receipt) != nil || receipt.UpstreamToolCallCount != test.calls || receipt.UpstreamStructuredToolCalls != test.calls || receipt.UpstreamTextParts != test.text || receipt.UpstreamMalformedEvents != test.malformed || receipt.UpstreamFinishReason != test.finishReason || !receipt.UpstreamDoneMarker || (receipt.UpstreamArgumentsJSONValid == nil) != (test.valid == nil) || test.valid != nil && (*receipt.UpstreamArgumentsJSONValid != *test.valid || *receipt.UpstreamRequiredFieldsPresent != *test.valid) || strings.Contains(string(data), "PRIVATE_MODEL_TEXT") || strings.Contains(string(data), "PRIVATE_QUESTION") || strings.Contains(string(data), "PRIVATE_INVALID_JSON") || strings.Contains(string(data), "PRIVATE_NON_OBJECT_EVENT") {
 				t.Fatal("stream structure was not bounded and redacted", err, string(data))
 			}
 		})

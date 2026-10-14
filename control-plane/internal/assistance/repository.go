@@ -253,6 +253,8 @@ if provider == 'opencode' and ollama_preflight == '1':
                     return
                 try:
                     event = json.loads(raw)
+                    if not isinstance(event,dict):
+                        raise ValueError('invalid event')
                     choices = event.get('choices')
                     if not isinstance(choices,list):
                         raise ValueError('missing choices')
