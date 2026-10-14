@@ -1,0 +1,31 @@
+{
+  "kind": "source-only-local060-focused-test",
+  "dateBrisbane": "2026-10-15",
+  "sourceRevision": "fcc8b8e269d62c440bc77c37fe81b2a70b667a1a",
+  "environment": "Codex cloud Linux executor; no Docker or model request",
+  "firstAttempt": {
+    "result": "product package compilation killed; focused test unrun",
+    "availableHostBytesAfterFailure": 1556692992,
+    "cgroupLimitBytes": 34359738368,
+    "cgroupCurrentBytes": 33825894400
+  },
+  "boundedCorrection": {
+    "action": "go clean -cache on the positively task-owned /dev/shm/luci-go-cache, with no active Go compiler",
+    "cacheBefore": "3.3G",
+    "cacheAfter": "8.0K",
+    "availableHostBytesAfterCleanup": 4696690688,
+    "cgroupCurrentBytesAfterCleanup": 30299885568
+  },
+  "focusedCheck": {
+    "command": "GOWORK=off GOMAXPROCS=1 GOMEMLIMIT=512MiB GOGC=20 GOCACHE=/dev/shm/luci-go-cache GOMODCACHE=/dev/shm/luci-gomodcache TMPDIR=/dev/shm/luci-go-tmp /dev/shm/luci-toolchain/go/bin/go test -vet=off -p 1 ./internal/product -run '^TestReviewedTaskBriefKeepsAssignmentNarrowAndAcceptanceExact$' -count=1",
+    "workingDirectory": "control-plane",
+    "exitCode": 0,
+    "output": "ok  github.com/lcfrai/luci/control-plane/internal/product  0.026s",
+    "cgroupOOMBeforeAfter": 13,
+    "cgroupOOMKillsBeforeAfter": 9,
+    "cgroupCurrentBytesAfter": 30583685120,
+    "availableHostBytesAfter": 4826714112,
+    "cacheAfter": "269M"
+  },
+  "scope": "The reviewed-task capture regression passed. This is not a real OpenCode coding run or product acceptance; LOCAL-060 remains open."
+}

@@ -83,7 +83,9 @@ func TestReviewedTaskBriefKeepsAssignmentNarrowAndAcceptanceExact(t *testing.T) 
 		t.Fatal("linked acceptance text was truncated, substituted or duplicated", brief.LinkedRequirements)
 	}
 	if !bytes.Contains(files["LUCI.md"], []byte("not current process status or evidence of successful checks or integration")) ||
-		!bytes.Contains(files["LUCI.md"], []byte("does not replace those documents or waive unlisted project constraints")) {
+		!bytes.Contains(files["LUCI.md"], []byte("does not replace those documents or waive unlisted project constraints")) ||
+		!bytes.Contains(files["LUCI.md"], []byte("writePaths name intended file or directory edit/create scopes, not an inventory or a claim that those paths already exist")) ||
+		!bytes.Contains(files["LUCI.md"], []byte("create it; a file-not-found read alone does not mean the task needs different paths")) {
 		t.Fatal("contract hides its planning/evidence distinction or full-context obligation")
 	}
 	exports, err := journeyContextExports(state)
