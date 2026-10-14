@@ -454,7 +454,7 @@ def retirement(c, plan_digest, inspect_only=False):
             record.get('packageSHA256') != c['runtimePackageSHA256'] or record.get('secretRefs') != c['secretRefs']):
         raise ValueError('Retirement runtime source or owned generation changed')
     if record.get('state') == 'active':
-        if record.get('retirementCancelledPlanDigest') == plan_digest:
+        if plan_digest in retirement_cancelled_plans(record):
             raise ValueError('Actor cancelled this runtime retirement plan; no late stop')
         if inspect_only: raise RuntimeError('Runtime stop remains absent/unknown; no repeated stop')
         if not running(Path(record['prepared']['stage'])): raise ValueError('Owned runtime stack is not settled before retirement')
@@ -483,6 +483,15 @@ def retirement(c, plan_digest, inspect_only=False):
         'taskAndTemplateVolumesPreserved': True, 'runtimeStorageOnOSDiskVerified': True, 'computeDeallocationVerified': False}
 
 
+def retirement_cancelled_plans(record):
+    values = record.get('retirementCancelledPlans', [])
+    if not isinstance(values, list) or not all(isinstance(value, str) and HEX.fullmatch(value) for value in values):
+        raise ValueError('Retained runtime cancelled plans are invalid')
+    marker = record.get('retirementCancelledPlanDigest')
+    if marker and (not isinstance(marker, str) or not HEX.fullmatch(marker)): raise ValueError('Retained cancelled runtime marker is invalid')
+    return list(dict.fromkeys(values + ([marker] if marker else [])))
+
+
 def retirement_resume(c, plan_digest, inspect_only=False):
     """Resume only retained owned containers, without creating guests or clearing leases."""
     if not HEX.fullmatch(plan_digest): raise ValueError('Exact retirement cancellation plan is required')
@@ -493,8 +502,8 @@ def retirement_resume(c, plan_digest, inspect_only=False):
             record.get('packageSHA256') != c['runtimePackageSHA256'] or record.get('secretRefs') != c['secretRefs']):
         raise ValueError('Runtime cancellation source or owned generation changed')
     cancelled = record.get('retirementCancelledPlanDigest')
-    if cancelled and cancelled != plan_digest: raise ValueError('Runtime cancellation belongs to another exact actor plan')
-    if not cancelled:
+    if cancelled != plan_digest:
+        if plan_digest in retirement_cancelled_plans(record): raise ValueError('Prior actor plan is cancelled; it cannot resume another transition')
         if inspect_only: raise RuntimeError('Runtime cancellation intent is absent/unknown; no repeated start')
         if record.get('state') not in ('active', 'retirement_stop_pending', 'retirement_stopped'):
             raise ValueError('Runtime has another pending transition; preserve it')
@@ -502,6 +511,7 @@ def retirement_resume(c, plan_digest, inspect_only=False):
             raise ValueError('Runtime cancellation differs from exact stopped plan/configuration')
         prior = record['state']
         record.update(state='retirement_resume_pending', retirementCancelledPlanDigest=plan_digest,
+            retirementCancelledPlans=list(dict.fromkeys(retirement_cancelled_plans(record) + [plan_digest])),
             retirementResumePriorState=prior, retirementResumeConfigSHA256=expected)
         save(record)
         stage = Path(record['prepared']['stage'])

@@ -51,7 +51,7 @@ def write(store, record, etag):
 def tool_script(selection, action, stop=False, start=False):
     if action not in ('retirement-preflight', 'retirement-observe', 'retirement-resume-observe'): raise ValueError('Unsupported retirement observation')
     encoded = base64.b64encode(recovery.canonical(selection['toolSelection'])).decode()
-    return """set -eu
+    script = """set -eu
 exec 9>/run/luci-retirement-controller.lock
 flock -n 9 || exit 1
 python3 - <<'PY'
@@ -75,6 +75,7 @@ printf 'LUCI_AZURE_RETIREMENT_SETTLED=%%s\\n' "$receipt"
         '/opt/luci/azure-controller/bin/luci-api azure-setup retirement-resume-observe /etc/luci/azure-retirement-tool.json >/dev/null\nsystemctl start luci-api.service\nsystemctl is-active --quiet luci-api.service' if start else
         'systemctl is-active --quiet luci-api.service' if action == 'retirement-resume-observe' else ':',
         action, selection['toolSelection']['mountPath'])
+    return script.replace('/etc/luci/azure-retirement-tool.json', '/etc/luci/azure-retirement-tool-' + selection['planDigest'] + '.json')
 
 
 def observation(selection, compute, action, stop=False, start=False):
@@ -84,7 +85,7 @@ def observation(selection, compute, action, stop=False, start=False):
     result = json.loads(rows[0])
     settled = action != 'retirement-resume-observe'
     if (result.get('state') != 'controller_setup_readback' or (settled and (result.get('taskReservationsSettled') is not True or
-            not isinstance(result.get('settledJournalDigests'), dict))) or any(result.get(key) != selection[target] for key, target in (
+            not isinstance(result.get('settledJournalDigests'), dict))) or (not settled and result.get('taskReservationsReleased') is not False) or any(result.get(key) != selection[target] for key, target in (
                 ('sourceCommit', 'sourceCommit'), ('scope', 'scope'), ('generation', 'generation'),
                 ('controllerResourceID', 'controllerID'), ('dataDiskID', 'diskID'), ('retirementPlanDigest', 'planDigest')))):
         raise ValueError('Task/provider/reservation readback is not exact settled ownership proof')
@@ -97,7 +98,7 @@ def quiesce(selection, store, compute, inspect=False):
     if compute.disk_owner(selection['diskID']) != (selection['controllerID'], 'Attached'):
         raise ValueError('Retirement authoritative disk attachment changed')
     if record['state'] == 'active':
-        if record.get('retirementCancelledPlanDigest') == selection['planDigest']:
+        if selection['planDigest'] in cancelled_plans(record):
             raise ValueError('Actor cancelled this retirement plan; no late stop or rearm')
         if inspect: raise RuntimeError('Retirement fence effect remains absent/unknown; no repeated stop')
         observation(selection, compute, 'retirement-preflight')
@@ -124,6 +125,16 @@ def quiesce(selection, store, compute, inspect=False):
         'providerInvoiceVerified': False}
 
 
+def cancelled_plans(record):
+    result = record.get('retirementCancelledPlans', [])
+    if not isinstance(result, list) or not all(isinstance(value, str) and recovery.HEX.fullmatch(value) for value in result):
+        raise ValueError('Retained cancelled actor plans are invalid; preserve authority')
+    marker = record.get('retirementCancelledPlanDigest')
+    if marker and (not isinstance(marker, str) or not recovery.HEX.fullmatch(marker)):
+        raise ValueError('Retained cancelled actor marker is invalid')
+    return list(dict.fromkeys(result + ([marker] if marker else [])))
+
+
 def cancel(selection, store, compute, inspect=False):
     """Explicit actor recovery of the same generation, preserving held task leases."""
     validate(selection)
@@ -131,11 +142,13 @@ def cancel(selection, store, compute, inspect=False):
     if compute.disk_owner(selection['diskID']) != (selection['controllerID'], 'Attached'):
         raise ValueError('Cancellation authoritative disk attachment changed')
     marker = record.get('retirementCancelledPlanDigest')
-    if marker:
+    if marker == selection['planDigest']:
         if record['state'] != 'active' or marker != selection['planDigest'] or record.get('retirementSourceCommit') != selection['sourceCommit']:
             raise ValueError('Cancellation differs from retained source/plan or is no longer active')
         observed = observation(selection, compute, 'retirement-resume-observe')
     else:
+        if selection['planDigest'] in cancelled_plans(record):
+            raise ValueError('Prior actor plan is cancelled; it cannot resume another actor transition')
         if inspect: raise RuntimeError('Cancellation fence effect remains absent/unknown; no repeated write/start')
         if record['state'] == 'active':
             predecessor = dict(record)
@@ -151,6 +164,7 @@ def cancel(selection, store, compute, inspect=False):
         # Retain the stopped/uncertain fence in the cancellation receipt. Never
         # clear task ledgers or pretend identity removal invalidated tokens.
         record, etag = write(store, dict(predecessor, retirementCancelledPlanDigest=selection['planDigest'],
+            retirementCancelledPlans=list(dict.fromkeys(cancelled_plans(predecessor) + [selection['planDigest']])),
             retirementSourceCommit=selection['sourceCommit'], retirementCancelPriorFenceSHA256=recovery.digest(record),
             retirementCancelStartPending=True), etag)
         observed = observation(selection, compute, 'retirement-resume-observe', start=True)

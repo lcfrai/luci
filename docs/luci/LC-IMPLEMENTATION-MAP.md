@@ -130,3 +130,14 @@ and charges. Focused Windows provider fixtures: standby8, journey8 and the
 existing-pair identity revocation case1 pass. These do not establish actual
 Azure reboot/reimage/backup restore/private connectivity, task/model acceptance
 or invoices. Independent POSIX/Go checks remain required.
+
+The final retirement actor join is `retire --new-actor-plan` after observed
+cancellation, owned by the same Azure Sol in installer.py/retirement.py and
+retire.py/service.py. It keeps original/unknown receipts, chooses new private
+actor paths and snapshot IDs, requires fresh cost review, and exposes prior
+uncertain retained resources. Controller/runtime cancelled-plan revocations
+survive later actors; delayed old stop/resume requests refuse. Ordinary continue
+and status follow only a validated private forward pointer. No new architecture,
+provider resource class, grant or live authority is introduced. LOCAL-043 fixes
+the standby Path/VM-ID collision in normal retirement plan construction; its
+existing actual-inventory fixture now includes retained standby facts.

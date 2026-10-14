@@ -130,6 +130,12 @@ class RetirementTests(unittest.TestCase):
                 'runtime_scale_set_id': scale, 'controller_disk_id': sample['snapshots']['controller-state']['sourceDiskID'],
                 'controller_recovery_identity_resource_id': identity, 'controller_recovery_identity_client_id': sample['recoveryClientID'],
                 'controller_fence_blob_url': sample['fenceBlobURL'], 'controller_identity_client_id': sample['recoveryClientID']}})
+        core.atomic_json(root / 'azure-standby-state.json', {'state': 'fresh_private_standby_observed',
+            'proposal': {'predecessor': {'osDiskID': 'retained-old-os'}, 'snapshot': {'snapshotID': 'retained-old-snapshot'}},
+            'replacementOSDisk': {'diskID': 'replacement-os', 'uniqueID': 'replacement-identity'},
+            'retainedCharges': ['retained old OS disk and snapshot']})
+        core.atomic_json(root / 'azure-prior-retirement.json', {'sourceCommit': 'a' * 40, 'scope': 'scope-one', 'generation': 'gen-one',
+            'originalPending': 'backup-controller-state', 'providerAbsenceVerified': False, 'snapshots': {'uncertain': 'retained-planned-id'}})
         def arm(method, identifier, api, body=None):
             if identifier == scale:
                 calls.append((method, identifier)); return {'id': scale, 'properties': {'virtualMachineProfile': {'storageProfile': {'imageReference': {'id': image}}}}}
@@ -140,6 +146,8 @@ class RetirementTests(unittest.TestCase):
         self.assertEqual(result['recoveryID'], sample['recoveryID'])
         self.assertEqual(len(result['snapshots']), 2)
         self.assertEqual(result['toolSelection']['memoryMiB'], 2048)
+        self.assertEqual(result['retainedStandbyResources']['oldOSDiskID'], 'retained-old-os')
+        self.assertFalse(result['priorRetirement']['providerAbsenceVerified'])
         self.assertTrue(all(method == 'GET' for method, _ in calls))
         self.assertEqual(core.digest({key: value for key, value in result.items() if key != 'planDigest'}), result['planDigest'])
 
@@ -217,6 +225,54 @@ class RetirementTests(unittest.TestCase):
         core.atomic_json(path, {'planDigest': proposal['planDigest'], 'completed': [], 'receipts': {}, 'pending': 'fence-close'})
         with self.assertRaisesRegex(ValueError, 'cannot reopen'): self.cancel_fixture(fixture)
         self.assertEqual(fixture[5], [])
+
+    def test_explicit_fresh_actor_preserves_unknown_predecessor_and_requires_new_cost_review(self):
+        fixture = self.fixture(); root, core, selection, proposal = fixture[:4]
+        proposal['selectionDigest'] = core.digest(core.private_json(selection))
+        original = {'planDigest': proposal['planDigest'], 'completed': [], 'receipts': {}, 'pending': 'backup-controller-state'}
+        core.atomic_json(root / 'azure-retirement-state.json', original)
+        core.atomic_json(root / 'azure-retirement-plan.json', proposal)
+        self.cancel_fixture(fixture)
+        retained = {name: (root / name).read_bytes() for name in ('azure-retirement-plan.json', 'azure-retirement-state.json', 'azure-retirement-cancel-state.json')}
+        fixture[5].clear()
+        def fresh_plan(core, bundle, path, arm, provider):
+            self.assertNotEqual(path, selection)
+            target = path.parent / 'azure-retirement-plan.json'
+            if target.exists(): return core.private_json(target)
+            proposal['planDigest'] = 'f' * 64
+            for item in proposal['snapshots'].values(): item['snapshotID'] += '-fresh'
+            core.atomic_json(target, proposal)
+            return proposal
+        approve = lambda prompt: prompt.split('type ', 1)[1].split(' (anything', 1)[0]
+        with patch.object(retirement, 'plan', side_effect=fresh_plan):
+            paused = retirement.fresh_actor(core, Path(__file__).parent.parent, selection, lambda _: 'no', lambda _: None, fixture[7], fixture[6])
+            self.assertEqual(paused['state'], 'installation_retirement_review_paused')
+            self.assertEqual(fixture[5], [])
+            child = Path(core.private_json(root / 'azure-retirement-next.json')['selectionPath'])
+            prior = core.private_json(child.parent / 'azure-prior-retirement.json')
+            self.assertEqual(prior['originalPending'], 'backup-controller-state')
+            self.assertFalse(prior['providerAbsenceVerified'])
+            result = retirement.run(core, Path(__file__).parent.parent, selection, approve, lambda _: None, fixture[7], fixture[6])
+        self.assertEqual(result['state'], 'owned_compute_deallocation_observed_storage_retained')
+        self.assertEqual(result['planDigest'], 'f' * 64)
+        for name, value in retained.items(): self.assertEqual((root / name).read_bytes(), value)
+        scripts = [script for method, script in fixture[5] if method == 'guest']
+        self.assertTrue(any('azure-installation-retirement-' + 'f' * 64 + '.json' in script for script in scripts))
+        status = retirement.module(Path(__file__).parent.parent, 'guided').progress(core, Path(__file__).parent.parent, selection)
+        self.assertEqual(next(row for row in status['stages'] if row['id'] == 'retirement')['state'], result['state'])
+
+    def test_fresh_actor_requires_observed_cancel_and_private_forward_only_pointer(self):
+        fixture = self.fixture(); root, core, selection, proposal = fixture[:4]
+        proposal['selectionDigest'] = core.digest(core.private_json(selection))
+        core.atomic_json(root / 'azure-retirement-plan.json', proposal)
+        core.atomic_json(root / 'azure-retirement-state.json', {'pending': 'quiesce'})
+        core.atomic_json(root / 'azure-retirement-cancel-state.json', {'state': 'retirement_effect_pending'})
+        with self.assertRaisesRegex(ValueError, 'positively observed'):
+            retirement.fresh_actor(core, Path(__file__).parent.parent, selection)
+        self.assertFalse((root / 'azure-retirement-next.json').exists())
+        core.atomic_json(root / 'azure-retirement-next.json', {'sourceCommit': 'a' * 40, 'selectionPath': str(root.parent / 'foreign' / 'selection.json')})
+        with self.assertRaisesRegex(ValueError, 'outside its exact'):
+            retirement.next_actor(core, Path(__file__).parent.parent, selection)
 
 
 if __name__ == '__main__': unittest.main()

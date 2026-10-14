@@ -65,6 +65,19 @@ plan refuse; `continue` follows the cancellation receipt instead of silently
 retiring again. Closed/deallocating installations cannot be reopened. Retained
 snapshots and resumed compute can charge; refresh the protected connection.
 
+To retire again after a positively observed cancellation, explicitly run
+`retire --new-actor-plan --bundle . --selection /private/selection.json`.
+This creates a fresh actor selection/plan and requires its new resource/cost
+review. Original plans, cancellation and unknown-effect receipts stay at their
+original paths; prior snapshot IDs and uncertain charges remain in the new
+review. `continue` and `status` follow the private forward pointer to the current
+actor. Each actor uses distinct private guest selection files. Both controller
+and runtime retain cancelled-plan revocations, so delayed requests from older
+actors cannot stop or resume the current actor. Repeating the explicit command
+resumes its existing unknown operation; it cannot create another plan over it.
+All durable receipt bounds still refuse overflow rather than dropping history,
+clearing leases or weakening authority.
+
 `recover-controller --bundle . --selection /private/selection.json` prepares
 and runs the supported first replacement onto the existing generic private
 standby. It observes the exact target ARM NIC/subnet/IP and guest boot, reads

@@ -22,8 +22,8 @@ def exact_resource(arm, identifier, api):
 def plan(core, bundle, selection_path, arm, provider):
     manifest = core.bundle(bundle); selected = core.private_json(selection_path); variables = core.requested(selected)
     parent = Path(selection_path).parent; path = parent / 'azure-retirement-plan.json'
-    standby = parent / 'azure-standby-state.json'
-    if standby.exists() and core.private_json(standby).get('state') != 'fresh_private_standby_observed':
+    standby_path = parent / 'azure-standby-state.json'
+    if standby_path.exists() and core.private_json(standby_path).get('state') != 'fresh_private_standby_observed':
         raise ValueError('Standby restoration remains pending; retirement cannot overlap it')
     if path.exists():
         result = core.private_json(path)
@@ -101,11 +101,18 @@ def plan(core, bundle, selection_path, arm, provider):
         'fenceBlobURL': ids['controller_fence_blob_url'], 'filesystemUUID': variables['controller_filesystem_uuid'], 'mountPath': variables['controller_mount_path'],
         'operatorTemplatePath': variables['controller_operator_template_path'], 'operatorTemplateSHA256': variables['controller_operator_template_sha256'],
         'templateName': template.get('name', selected['name']), 'cpuCount': cpu, 'memoryMiB': memory, 'fromImage': guest}
-    if standby.exists():
-        restored = core.private_json(standby)
+    if standby_path.exists():
+        restored = core.private_json(standby_path)
         result['retainedStandbyResources'] = {'oldOSDiskID': restored['proposal']['predecessor']['osDiskID'],
             'oldOSSnapshotID': restored['proposal']['snapshot']['snapshotID'], 'replacementOSDisk': restored['replacementOSDisk']}
         result['retainedCharges'].extend(value for value in restored['retainedCharges'] if value not in result['retainedCharges'])
+    prior = parent / 'azure-prior-retirement.json'
+    if prior.exists():
+        previous = core.private_json(prior)
+        if any(previous.get(key) != result[key] for key in ('sourceCommit', 'scope', 'generation')):
+            raise ValueError('Previous retained retirement actor/source changed')
+        result['priorRetirement'] = previous
+        result['retainedCharges'].append('prior cancelled actor snapshots/uncertain operations remain retained; their source receipts do not prove absence or settle charges')
     result['planDigest'] = core.digest(result)
     core.atomic_json(path, result); return result
 
@@ -148,6 +155,7 @@ PY
 receipt=$(python3 /opt/luci/azure-controller/bin/retire.py %s /etc/luci/azure-installation-retirement.json%s)
 printf 'LUCI_AZURE_INSTALLATION_RETIREMENT=%%s\\n' "$receipt"
 """ % (repr(data), repr(inspect or action == 'close'), mode, options)
+    script = script.replace('/etc/luci/azure-installation-retirement.json', '/etc/luci/azure-installation-retirement-' + proposal['planDigest'] + '.json')
     response = provider(['vm', 'run-command', 'invoke', '--ids', proposal['recoveryID'], '--command-id', 'RunShellScript', '--scripts', script])
     rows = [line.removeprefix('LUCI_AZURE_INSTALLATION_RETIREMENT=') for item in response.get('value', []) for line in item.get('message', '').splitlines() if line.startswith('LUCI_AZURE_INSTALLATION_RETIREMENT=')]
     if len(rows) != 1: raise RuntimeError('Exact installation retirement readback remains uncertain')
@@ -212,6 +220,8 @@ def run(core, bundle, selection_path, ask=input, emit=print, provider=None, arm=
     guided = module(bundle, 'guided'); provider = provider or guided.az_json
     arm = arm or module(bundle, 'foundation').AzureARM(provider)
     parent = Path(selection_path).parent
+    next_path = next_actor(core, bundle, selection_path)
+    if next_path != Path(selection_path): return run(core, bundle, next_path, ask, emit, provider, arm)
     # The predecessor's immutable source remains available after recovery; use
     # the newly active generation's exact local files for final retirement.
     successor = parent / 'azure-successor-state.json'
@@ -287,6 +297,8 @@ def cancel(core, bundle, selection_path, ask=input, emit=print, provider=None, a
     guided = module(bundle, 'guided'); provider = provider or guided.az_json
     arm = arm or module(bundle, 'foundation').AzureARM(provider)
     parent = Path(selection_path).parent
+    next_path = next_actor(core, bundle, selection_path)
+    if next_path != Path(selection_path): return cancel(core, bundle, next_path, ask, emit, provider, arm)
     successor = parent / 'azure-successor-state.json'
     if successor.exists():
         active = core.private_json(successor).get('activeSelectionPath')
@@ -322,3 +334,62 @@ def cancel(core, bundle, selection_path, ask=input, emit=print, provider=None, a
         originalPending=original.get('pending'), retainedCharges=proposal['retainedCharges'], connected=False,
         providerInvoiceVerified=False, message='Exact owned runtime/controller resume observed. Original unknown effects and held task leases remain unchanged; refresh the protected connection. This actor plan cannot silently retire again.')
     core.atomic_json(path, state); return state
+
+
+def next_actor(core, bundle, selection_path):
+    """A forward-only local pointer; original actor receipts stay immutable."""
+    path = Path(selection_path).parent / 'azure-retirement-next.json'
+    if not path.exists(): return Path(selection_path)
+    value = core.private_json(path); target = Path(value.get('selectionPath', ''))
+    parent = Path(selection_path).parent
+    if (value.get('sourceCommit') != core.bundle(bundle)['luciRevision'] or
+            target.parent.parent != parent or not re.fullmatch(r'azure-retirement-[0-9a-f]{32}', target.parent.name) or
+            target.name != 'selection.json' or target.parent.is_symlink() or target.is_symlink()):
+        raise ValueError('Fresh retirement actor pointer is outside its exact private source parent')
+    cancelled = core.private_json(parent / 'azure-retirement-cancel-state.json')
+    if cancelled.get('state') != 'retirement_cancelled_predecessor_resumed_storage_retained' or core.digest(cancelled) != value.get('cancelledReceiptSHA256'):
+        raise ValueError('Fresh retirement actor predecessor cancellation receipt changed')
+    return target
+
+
+def fresh_actor(core, bundle, selection_path, ask=input, emit=print, provider=None, arm=None):
+    parent = Path(selection_path).parent
+    successor = parent / 'azure-successor-state.json'
+    if successor.exists():
+        active = core.private_json(successor).get('activeSelectionPath')
+        if not active: raise ValueError('Controller recovery is pending; no fresh retirement actor')
+        return fresh_actor(core, bundle, Path(active), ask, emit, provider, arm)
+    next_path = next_actor(core, bundle, selection_path)
+    if next_path != Path(selection_path):
+        # Repeating the explicit command resumes its already-created new actor;
+        # it never creates another intent over an unknown operation.
+        if (next_path.parent / 'azure-retirement-cancel-state.json').exists():
+            return fresh_actor(core, bundle, next_path, ask, emit, provider, arm)
+        return run(core, bundle, next_path, ask, emit, provider, arm)
+    cancelled = core.private_json(parent / 'azure-retirement-cancel-state.json')
+    original = core.private_json(parent / 'azure-retirement-state.json')
+    proposal = core.private_json(parent / 'azure-retirement-plan.json')
+    selected = core.private_json(selection_path); variables = core.requested(selected)
+    if (cancelled.get('state') != 'retirement_cancelled_predecessor_resumed_storage_retained' or
+            cancelled.get('originalRetirementSHA256') != core.digest(original) or
+            any(proposal.get(key) != value for key, value in {'sourceCommit': core.bundle(bundle)['luciRevision'],
+                'scope': variables['scope'], 'generation': variables['generation'], 'selectionDigest': core.digest(selected)}.items()) or
+            cancelled.get('planDigest') != proposal.get('planDigest')):
+        raise ValueError('A positively observed same-generation cancellation is required for a fresh actor plan')
+    directory = parent / ('azure-retirement-' + uuid.uuid4().hex)
+    directory.mkdir(mode=0o700)
+    target = directory / 'selection.json'; core.atomic_json(target, selected)
+    # Copy only bounded parsed metadata. Keys, journals and original unknown
+    # receipts stay at their original paths, without overwrite/move/deletion.
+    for name in ('azure-setup-state.json', 'operator-template.json', 'template/operator.json', 'azure-standby-state.json'):
+        source = parent / name
+        if source.exists():
+            destination = directory / name; destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            core.atomic_json(destination, core.private_json(source))
+    core.atomic_json(directory / 'azure-prior-retirement.json', {'sourceCommit': proposal['sourceCommit'], 'scope': proposal['scope'],
+        'generation': proposal['generation'], 'cancelledPlanDigest': proposal['planDigest'], 'cancelledReceiptSHA256': core.digest(cancelled),
+        'originalReceiptSHA256': core.digest(original), 'originalPending': original.get('pending'), 'snapshots': proposal['snapshots'],
+        'previousActors': proposal.get('priorRetirement'), 'providerAbsenceVerified': False, 'finalInvoiceVerified': False})
+    core.atomic_json(parent / 'azure-retirement-next.json', {'version': 1, 'sourceCommit': proposal['sourceCommit'],
+        'cancelledReceiptSHA256': core.digest(cancelled), 'selectionPath': str(target)})
+    return run(core, bundle, target, ask, emit, provider, arm)

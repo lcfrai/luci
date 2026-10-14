@@ -35,13 +35,13 @@ class HostRetirementTests(unittest.TestCase):
             return ''
         return selected, record, calls, flags, command
 
-    def run_case(self, selected, record, command, inspect=False, resume=False):
+    def run_case(self, selected, record, command, inspect=False, resume=False, plan='c' * 64):
         with patch.object(service, 'pinned_package', return_value={'luciRevision': 'b' * 40}), patch.object(service, 'guest_source_ready'), \
                 patch.object(service, 'journal', return_value=record), patch.object(service, 'save'), patch.object(service, 'command', side_effect=command), \
                 patch.object(service.Path, 'exists', return_value=True), patch.object(service.Path, 'is_dir', return_value=True), \
                 patch.object(service.Path, 'is_symlink', return_value=False), patch.object(service.os, 'stat', return_value=SimpleNamespace(st_dev=1, st_mode=stat.S_IFDIR)), \
                 patch.object(service, 'switch_gateway', side_effect=lambda _: command(['systemctl', 'restart', 'luci-azure-embed-gateway.service'])):
-            return (service.retirement_resume if resume else service.retirement)(selected, 'c' * 64, inspect)
+            return (service.retirement_resume if resume else service.retirement)(selected, plan, inspect)
 
     def test_stops_only_owned_stack_preserves_volumes_and_verifies_os_disk_storage(self):
         selected, record, calls, _, command = self.fixture()
@@ -84,6 +84,18 @@ class HostRetirementTests(unittest.TestCase):
         self.assertEqual(sum('start' in args and args[:2] == ['docker', 'compose'] for args in calls), 1)
         flags['active'] = True
         self.assertEqual(self.run_case(selected, record, command, True, True)['state'], 'retirement_cancelled_active')
+
+    def test_new_actor_preserves_all_revoked_plans(self):
+        selected, record, calls, flags, command = self.fixture()
+        self.run_case(selected, record, command); self.run_case(selected, record, command, resume=True)
+        self.run_case(selected, record, command, plan='d' * 64)
+        self.run_case(selected, record, command, resume=True, plan='d' * 64)
+        self.assertEqual(set(record['retirementCancelledPlans']), {'c' * 64, 'd' * 64})
+        # A delayed previously cancelled stop remains denied even though the
+        # most recent marker belongs to another actor.
+        before = len(calls)
+        with self.assertRaisesRegex(ValueError, 'cancelled'): self.run_case(selected, record, command)
+        self.assertEqual(len(calls), before)
 
 
 if __name__ == '__main__': unittest.main()
