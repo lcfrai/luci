@@ -1,6 +1,10 @@
 # LC-01–LC-16 implementation map
 
+<<<<<<< HEAD
 **Current ownership and acceptance:** [verified local runtime distribution](LOCAL-RUNTIME-DISTRIBUTION-RECONCILIATION-2026-10-14.md) maps LOCAL-033 to the cloud Sol importer/API and Windows Sol producer/package, followed by actual constrained-PC acceptance. Its shared cross-OS manifest agreement precedes effect implementation. [Private Azure foundation/controller staging](AZURE-PRIVATE-FOUNDATION-STAGING-2026-10-14.md) extends the [management join](AZURE-MANAGEMENT-JOIN-RECONCILIATION-2026-10-14.md): local Sol `/root/main_branch_reconciliation` owns the offline installer/operator/template/image/retirement and management API; cloud Sol owns the guided desktop UI identity join. Root owns integration, gate recording and acceptance. These assignments supersede historical owner statements below. Actual runtime installation/model work and live Azure acceptance remain open.
+=======
+**Current setup ownership and connection reconciliation:** [the private management join](AZURE-MANAGEMENT-JOIN-RECONCILIATION-2026-10-14.md) maps the desktop/controller connection, deferred operator identities, acceptance and allowed network change. Local Sol `/root/main_branch_reconciliation` owns offline SETUP-02 installer/operator/template/image/retirement and management/API identity. Cloud Sol owns the guided Azure desktop UI/client join at this source handoff and LOCAL-033/034 runtime recovery. Root owns integration and acceptance. These current assignments supersede older scheduling/owner statements below; live Azure acceptance remains open.
+>>>>>>> 67ab451ab2803ea80b9f4d61bd771d28462305a0
 
 **Setup and delivery:** [SETUP-01–03 and DELIVERY-01–02](SETUP-AND-MAIN-AMENDMENT-2026-10-14.md) map the three setup modes, guided BYO commands, future hosted-service state, product README and `main` integration. The three choices, product README and historical branch consolidation are integrated on `main`; active source branches, guided Azure completion and the coherent installed-package handoff remain in progress. This preserves the canonical LC entries and makes no product acceptance claim.
 

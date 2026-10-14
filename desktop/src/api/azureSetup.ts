@@ -30,6 +30,7 @@ export interface AzureConnectionDescriptor {
   scope: string;
   generation: string;
   controllerResourceID: string;
+  dataDiskID: string;
   vmID: string;
   bootID: string;
   host: string;
@@ -42,7 +43,7 @@ export interface AzureConnectionDescriptor {
   connected: false;
   selectionDigest: string;
   bundleDigest: string;
-  observedAtUTC?: string;
+  observedAtUTC: string;
 }
 export interface AzureSetupProgress {
   version: 1;
@@ -73,17 +74,19 @@ async function parseBoundedFile(file: File): Promise<unknown> {
 export async function readAzureConnectionDescriptor(file: File, plan: AzureSetupPlan): Promise<AzureConnectionDescriptor> {
   const value = await parseBoundedFile(file);
   if (!record(value)) throw new Error("The Azure connection receipt is malformed.");
-  const keys = ["version", "state", "sourceCommit", "scope", "generation", "controllerResourceID", "vmID", "bootID", "host", "port", "user", "hostKey", "fingerprint", "productAPI", "readbackDigest", "connected", "selectionDigest", "bundleDigest", "observedAtUTC"];
+  const keys = ["version", "state", "sourceCommit", "scope", "generation", "controllerResourceID", "dataDiskID", "vmID", "bootID", "host", "port", "user", "hostKey", "fingerprint", "productAPI", "readbackDigest", "connected", "selectionDigest", "bundleDigest", "observedAtUTC"];
   if (Object.keys(value).some(key => !keys.includes(key)) || value.version !== 1 || value.state !== "host_identity_observed_private_route_unverified" ||
     value.sourceCommit !== plan.sourceCommit || typeof value.scope !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(value.scope) ||
     typeof value.generation !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(value.generation) ||
-    typeof value.controllerResourceID !== "string" || !/^\/subscriptions\/[0-9a-f-]{36}\/resourcegroups\/[^/]+\/providers\/microsoft\.compute\/virtualmachines\/[^/]+$/i.test(value.controllerResourceID) ||
+    typeof value.controllerResourceID !== "string" || !/^\/subscriptions\/[0-9a-f-]{36}\/resourcegroups\/[a-z0-9_-]+\/providers\/microsoft\.compute\/virtualmachines\/[a-z0-9_-]+$/.test(value.controllerResourceID) ||
+    typeof value.dataDiskID !== "string" || !/^\/subscriptions\/[0-9a-f-]{36}\/resourcegroups\/[a-z0-9_-]+\/providers\/microsoft\.compute\/disks\/[a-z0-9_-]+$/.test(value.dataDiskID) ||
+    value.controllerResourceID.split("/providers/")[0] !== value.dataDiskID.split("/providers/")[0] ||
     !uuid.test(String(value.vmID)) || !uuid.test(String(value.bootID)) || !rfc1918(value.host) || value.port !== 22 || value.user !== "luci" ||
     value.productAPI !== "http://127.0.0.1:8730" || value.connected !== false ||
     typeof value.readbackDigest !== "string" || !sha256.test(value.readbackDigest) ||
     typeof value.selectionDigest !== "string" || !sha256.test(value.selectionDigest) ||
     typeof value.bundleDigest !== "string" || !sha256.test(value.bundleDigest) ||
-    value.observedAtUTC !== undefined && (typeof value.observedAtUTC !== "string" || !/^\d{4}-\d\d-\d\dT/.test(value.observedAtUTC))) {
+    typeof value.observedAtUTC !== "string" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?Z$/.test(value.observedAtUTC) || !Number.isFinite(Date.parse(value.observedAtUTC))) {
     throw new Error("The Azure connection receipt does not match this plan or the supported private host contract.");
   }
   const parts = typeof value.hostKey === "string" ? value.hostKey.split(" ") : [];

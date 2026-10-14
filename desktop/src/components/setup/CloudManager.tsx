@@ -384,7 +384,18 @@ export function CloudManager({
           onSubmit={(e) => {
             e.preventDefault();
             void run("Inspecting host", async () => {
-              setScan(await client.inspectSSH(ssh));
+              setScan(await client.inspectSSH(azureDescriptor ? {
+                ...ssh,
+                azureIdentity: {
+                  sourceCommit: azureDescriptor.sourceCommit,
+                  scope: azureDescriptor.scope,
+                  generation: azureDescriptor.generation,
+                  controllerResourceID: azureDescriptor.controllerResourceID,
+                  dataDiskID: azureDescriptor.dataDiskID,
+                  bootID: azureDescriptor.bootID,
+                  fingerprint: azureDescriptor.fingerprint,
+                },
+              } : ssh));
               setAccepted(false);
               setFingerprint("");
             });
