@@ -1,0 +1,11 @@
+test_actor_resume_starts_only_retained_containers_and_refuses_late_stop (test_retirement.HostRetirementTests.test_actor_resume_starts_only_retained_containers_and_refuses_late_stop) ... ok
+test_new_actor_preserves_all_revoked_plans (test_retirement.HostRetirementTests.test_new_actor_preserves_all_revoked_plans) ... ok
+test_stops_only_owned_stack_preserves_volumes_and_verifies_os_disk_storage (test_retirement.HostRetirementTests.test_stops_only_owned_stack_preserves_volumes_and_verifies_os_disk_storage) ... ok
+test_unknown_gateway_stop_inspects_without_repeating_stop (test_retirement.HostRetirementTests.test_unknown_gateway_stop_inspects_without_repeating_stop) ... ok
+test_unknown_resume_does_not_start_twice (test_retirement.HostRetirementTests.test_unknown_resume_does_not_start_twice) ... ok
+test_unrelated_running_container_refuses_backup_and_compute_claim (test_retirement.HostRetirementTests.test_unrelated_running_container_refuses_backup_and_compute_claim) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.030s
+
+OK

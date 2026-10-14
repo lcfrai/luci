@@ -1,0 +1,14 @@
+test_absent_pending_effect_and_stale_generation_have_zero_mutations (test_retire.RetirementFenceTests.test_absent_pending_effect_and_stale_generation_have_zero_mutations) ... ok
+test_actor_cancel_restores_same_generation_and_preserves_held_reservations (test_retire.RetirementFenceTests.test_actor_cancel_restores_same_generation_and_preserves_held_reservations) ... ok
+test_cancel_closed_or_stale_plan_has_zero_effects (test_retire.RetirementFenceTests.test_cancel_closed_or_stale_plan_has_zero_effects) ... ok
+test_cancel_unknown_start_inspects_without_repeating_or_releasing_leases (test_retire.RetirementFenceTests.test_cancel_unknown_start_inspects_without_repeating_or_releasing_leases) ... ok
+test_close_needs_exact_settlement_backups_and_no_unknown_replay (test_retire.RetirementFenceTests.test_close_needs_exact_settlement_backups_and_no_unknown_replay) ... ok
+test_fresh_actor_can_retire_and_cancel_but_all_cancelled_plans_stay_revoked (test_retire.RetirementFenceTests.test_fresh_actor_can_retire_and_cancel_but_all_cancelled_plans_stay_revoked) ... ok
+test_held_reservation_refuses_before_fence_or_stop (test_retire.RetirementFenceTests.test_held_reservation_refuses_before_fence_or_stop) ... ok
+test_preflight_fence_stop_and_actual_settlement_precede_closure (test_retire.RetirementFenceTests.test_preflight_fence_stop_and_actual_settlement_precede_closure) ... ok
+test_unknown_stop_restart_only_inspects_and_preserves_original_receipts (test_retire.RetirementFenceTests.test_unknown_stop_restart_only_inspects_and_preserves_original_receipts) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.004s
+
+OK
