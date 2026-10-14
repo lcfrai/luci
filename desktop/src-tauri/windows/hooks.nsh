@@ -3,6 +3,13 @@
 ; package files explicitly. Never recurse or touch saved workspace/user data.
 !include "LogicLib.nsh"
 
+; Tauri CLI 2.12.1 includes this file before expanding the standard MUI pages.
+; Keep the upstream template and its licence/upgrade/shortcut behaviour.
+!define MUI_WELCOMEPAGE_TITLE "Welcome to Luci"
+!define MUI_WELCOMEPAGE_TEXT "Discover, Design, Develop and Deploy in one desktop workspace.$\r$\n$\r$\nThis installs Luci for your Windows account. On first launch, choose Local or connect your own supported cloud.$\r$\n$\r$\nFor local coding sessions, Docker Desktop must be installed and running. Luci Cloud is not yet available.$\r$\n$\r$\nClick Next to continue."
+!define MUI_FINISHPAGE_TITLE "Luci is installed"
+!define MUI_FINISHPAGE_TEXT "Open Luci to set up your workspace and choose where coding sessions run.$\r$\n$\r$\nProject review and runtime setup continue inside the app."
+
 !macro LUCI_CHECK_UNLINKED PATH
   System::Call 'kernel32::GetFileAttributesW(w "${PATH}") i .r0'
   ${If} $0 != -1

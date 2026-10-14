@@ -30,7 +30,11 @@
     "licenseFile": "../../LICENSE",
     "windows": {
       "nsis": {
-        "installerHooks": "./windows/hooks.nsh"
+        "installerHooks": "./windows/hooks.nsh",
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "startMenuFolder": "Luci"
       }
     },
     "resources": {
@@ -54,6 +58,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "publisher": "lcfr ai",
+    "shortDescription": "Discover, design, develop and deploy with Luci.",
+    "longDescription": "Luci brings your project context, isolated coding sessions and reviewed delivery into one desktop workspace. Choose local Docker or connect your own supported cloud in first setup."
   }
 }
