@@ -7,6 +7,7 @@ The controller's own durable disk/generation fence remains authoritative.
 """
 
 import argparse
+import base64
 import fcntl
 import hashlib
 import ipaddress
@@ -18,6 +19,7 @@ import stat
 import subprocess
 import sys
 import tarfile
+import tempfile
 from urllib.parse import urlsplit
 
 
@@ -60,7 +62,7 @@ def config(path):
         "gatewayPrivateIP", "controllerPrivateIP", "runtimeSubnetCIDR", "hostClientID",
         "controllerClientID", "secretRefs",
     }
-    if not required.issubset(value) or not set(value).issubset(required | {"previousGeneration"}):
+    if not required.issubset(value) or not set(value).issubset(required | {"previousGeneration", "controllerSuccessorLink"}):
         raise ValueError("host configuration fields are invalid")
     if value["version"] != 1 or not all(IDENTITY.fullmatch(value[k]) for k in ("scope", "generation")):
         raise ValueError("host generation is invalid")
@@ -369,9 +371,11 @@ def deliver(current_path, incoming_path):
     if next_config.get("previousGeneration") != current["generation"] or next_config["generation"] == current["generation"]:
         raise ValueError("host rotation generation is not consecutive")
     for field in ("scope", "runtimePackageSHA256", "vaultURL", "gatewayHost", "gatewayPrivateIP",
-                  "controllerPrivateIP", "runtimeSubnetCIDR", "hostClientID", "controllerClientID"):
+                  "runtimeSubnetCIDR", "hostClientID", "controllerClientID"):
         if next_config[field] != current[field]:
             raise ValueError("host deployment boundary changed; replace a drained host")
+    if next_config['controllerPrivateIP'] != current['controllerPrivateIP'] or 'controllerSuccessorLink' in next_config:
+        verify_successor_link(current, next_config, old)
     if any(next_config["secretRefs"][key] != current["secretRefs"][key] for key in REFS[:3]):
         raise ValueError("task credentials changed; replace a drained host")
     # rotate() journals each uncertain effect. The persistent selection is
@@ -386,15 +390,73 @@ def deliver(current_path, incoming_path):
             "configSHA256": updated["configSHA256"]}
 
 
+def verify_successor_link(current, incoming, record):
+    """Only the predecessor signer may authorize the observed replacement IP.
+
+    ARM NIC/boot/fence observations are checked by the existing recovery owner
+    before this protected RunCommand, without adding runtime identity grants.
+    The runtime independently checks the predecessor public CA and exact next
+    config, rather than accepting an arbitrary address in a private subnet.
+    """
+    link = incoming.get('controllerSuccessorLink', {})
+    payload = link.get('payload', {})
+    required = {'version', 'sourceCommit', 'scope', 'ownerID', 'oldGeneration', 'newGeneration', 'oldControllerID',
+        'newControllerID', 'newBootID', 'diskID', 'oldPrivateIP', 'newPrivateIP', 'newNICID', 'newNICETag',
+        'controllerSubnetID', 'predecessorFenceETag', 'predecessorFenceSHA256', 'hostConfigSHA256'}
+    unsigned = {key: value for key, value in incoming.items() if key != 'controllerSuccessorLink'}
+    manifest = pinned_package(current)
+    if (set(link) != {'payload', 'signature', 'signatureAlgorithm'} or link.get('signatureAlgorithm') != 'ecdsa-sha256' or
+            set(payload) != required or payload.get('version') != 1 or payload.get('sourceCommit') != manifest['luciRevision'] or
+            payload.get('scope') != current['scope'] or payload.get('oldGeneration') != current['generation'] or
+            payload.get('newGeneration') != incoming['generation'] or payload.get('oldPrivateIP') != current['controllerPrivateIP'] or
+            payload.get('newPrivateIP') != incoming['controllerPrivateIP'] or
+            payload.get('hostConfigSHA256') != sha(json.dumps(unsigned, sort_keys=True, separators=(',', ':')).encode()) or
+            not HEX.fullmatch(payload.get('predecessorFenceSHA256', '')) or
+            not all(isinstance(payload.get(key), str) and 1 <= len(payload[key]) <= 1024 for key in ('predecessorFenceETag', 'newNICETag', 'newNICID', 'controllerSubnetID'))):
+        raise ValueError('controller successor link differs from exact source, predecessor or host configuration')
+    stage = Path(record['prepared']['stage'])
+    if stage.parent != PRIVATE or not stage.name.startswith('luci-embed-') or stage.is_symlink():
+        raise ValueError('predecessor public trust stage is not owned')
+    ca = stage / 'client-ca.crt'
+    if ca.is_symlink() or not ca.is_file() or not 0 < ca.stat().st_size <= 16384:
+        raise ValueError('predecessor public trust is unavailable')
+    try:
+        signature = base64.b64decode(link['signature'], validate=True)
+    except (ValueError, TypeError) as error:
+        raise ValueError('controller successor signature is malformed') from error
+    if not 1 <= len(signature) <= 256: raise ValueError('controller successor signature exceeds bound')
+    with tempfile.TemporaryDirectory(dir=PRIVATE) as directory:
+        root = Path(directory)
+        (root / 'key').write_text(command(['openssl', 'x509', '-in', str(ca), '-pubkey', '-noout']))
+        (root / 'message').write_bytes(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode())
+        (root / 'signature').write_bytes(signature)
+        command(['openssl', 'dgst', '-sha256', '-verify', str(root / 'key'), '-signature', str(root / 'signature'), str(root / 'message')])
+
+
+def inspect(c):
+    manifest = pinned_package(c)
+    guest_source_ready(manifest)
+    record = journal()
+    expected = sha(json.dumps(c, sort_keys=True, separators=(',', ':')).encode())
+    if (not record or record.get('state') != 'active' or record.get('scope') != c['scope'] or
+            record.get('generation') != c['generation'] or record.get('packageSHA256') != c['runtimePackageSHA256'] or
+            record.get('configSHA256') != expected or not running(Path(record['prepared']['stage']))):
+        raise RuntimeError('exact owned host generation remains uncertain')
+    return {'state': 'active', 'generation': c['generation'], 'configSHA256': expected}
+
+
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("action", choices=("boot", "rotate", "status", "deliver"))
+    p.add_argument("action", choices=("boot", "rotate", "status", "deliver", "inspect"))
     p.add_argument("config")
     p.add_argument("incoming", nargs="?")
     args = p.parse_args()
     if args.action == "deliver" and not args.incoming or args.action != "deliver" and args.incoming:
         raise ValueError("host delivery input is invalid")
     c = config(Path(args.config))
+    if args.action == 'inspect':
+        print(json.dumps(inspect(c), sort_keys=True))
+        return
     JOURNAL.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     if JOURNAL.parent.is_symlink() or JOURNAL.parent.stat().st_mode & 0o077:
         raise ValueError("owned host journal directory is not private")

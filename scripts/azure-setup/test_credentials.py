@@ -39,9 +39,9 @@ class FakeVault:
             name = args[-1]
             return [{"id": row["id"]} for key, row in self.records.items() if key == name]
         if args[:3] == prefix + ["show"]:
-            name, version = args[args.index("--name") + 1], args[args.index("--version") + 1]
+            name = args[args.index("--name") + 1]
             row = self.records[name]
-            if row["id"].rsplit("/", 1)[1] != version:
+            if '--version' in args and row["id"].rsplit("/", 1)[1] != args[args.index('--version') + 1]:
                 raise ValueError("wrong version")
             return row
         if args[:3] == prefix + ["set"]:
@@ -82,6 +82,29 @@ class AzureCredentialTests(unittest.TestCase):
         self.assertEqual((self.root / "client.key").stat().st_mode & 0o777, 0o600)
         self.assertEqual(json.loads((self.root / "journal.json").read_text())["state"], "generated_unpublished")
         self.assertRegex((self.root / "team-api.txt").read_text().strip(), r"^e2b_[0-9a-f]{32}$")
+
+    def test_successor_preserves_four_task_refs_and_appends_five_fresh_tls_versions_at_owned_names(self):
+        credentials.publish(self.selection, self.root, installer.atomic_json, acknowledge=True, az_call=self.fake)
+        before = json.loads((self.root / 'journal.json').read_text())
+        original_key = (self.root / 'client.key').read_bytes()
+        self.selection['terraformVariables']['generation'] = 'gen-next'
+        target = self.parent / 'successor-credentials'
+        credentials.generate(self.selection, target, installer.atomic_json, predecessor=self.root)
+        generated = json.loads((target / 'journal.json').read_text())
+        self.assertEqual(set(generated['published']), {'team-api', 'admin-token', 'sandbox-seed', 'attach-key'})
+        self.assertNotEqual((target / 'client.key').read_bytes(), original_key)
+        # This provider fixture keeps only latest values. Exact predecessor
+        # reads happen before each version append; production retains versions.
+        credentials.publish(self.selection, target, installer.atomic_json, acknowledge=True, az_call=self.fake)
+        after = json.loads((target / 'journal.json').read_text())
+        for kind in credentials.MATERIAL:
+            self.assertEqual(after['names'][kind], before['names'][kind])
+            if kind in generated['published']:
+                self.assertEqual(after['published'][kind], before['published'][kind])
+                self.assertEqual((target / credentials.MATERIAL[kind]).read_bytes(), (self.root / credentials.MATERIAL[kind]).read_bytes())
+            else:
+                self.assertNotEqual(after['published'][kind]['version'], before['published'][kind]['version'])
+        self.assertEqual(self.fake.set_calls, 14)
 
     def test_exact_publication_and_binding_do_not_copy_values_to_selection(self):
         with self.assertRaisesRegex(ValueError, "acknowledgement"):

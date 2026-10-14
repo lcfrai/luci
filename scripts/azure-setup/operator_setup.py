@@ -114,8 +114,26 @@ def prepare_successor(core, bundle_root, selection_path, recovery_selection_path
     for target, kind in REFS.items():
         row = journal.get('published', {}).get(kind, {})
         match = re.fullmatch(r'https://([a-z0-9-]+)\.vault\.azure\.net/secrets/([a-zA-Z0-9-]+)/([0-9a-f]{32})', row.get('id', ''))
-        if match is None or 'https://' + match[1] + '.vault.azure.net' != vault or old_refs.get(target, {}).get('version') == match[3]:
+        retained_task = target in ('apiKey', 'adminKey', 'attachKey')
+        old_ref = old_refs.get(target, {})
+        if (match is None or 'https://' + match[1] + '.vault.azure.net' != vault or
+                (not retained_task and old_ref.get('version') == match[3]) or
+                (retained_task and old_ref != {'name': match[2], 'version': match[3]})):
             raise ValueError('successor Key Vault reference is stale or outside the selected vault')
+        if retained_task:
+            predecessor_journal = core.private_json(parent / 'azure-credentials/journal.json')
+            retained = journal.get('retainedTaskIdentity', {}).get(kind, {})
+            old_row = predecessor_journal.get('published', {}).get(kind, {})
+            if (row != old_row or retained != {'name': match[2], 'version': match[3], 'sha256': predecessor_journal.get('files', {}).get(kind)} or
+                    journal.get('files', {}).get(kind) != retained.get('sha256')):
+                raise ValueError('successor task identity differs from exact predecessor bytes/name/version/hash')
+            filename = {'team-api': 'team-api.txt', 'admin-token': 'admin-token.txt', 'attach-key': 'attach-key.txt'}[kind]
+            for task_root in (parent / 'azure-credentials', credentials):
+                task_file = task_root / filename
+                task_info = task_file.lstat()
+                if (task_file.is_symlink() or not stat.S_ISREG(task_info.st_mode) or task_info.st_mode & 0o077 or
+                        not 0 < task_info.st_size <= 4096 or hashlib.sha256(task_file.read_bytes()).hexdigest() != retained['sha256']):
+                    raise ValueError('successor retained task bytes changed')
         references[target] = {'name': match[2], 'version': match[3]}
     draft = json.loads(json.dumps(old_draft))
     draft['setupDeferred'].update(generation=recovery['newGeneration'], signerPublicKey=signer)

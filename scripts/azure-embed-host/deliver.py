@@ -109,8 +109,6 @@ def validate(selection, host):
     receipt = private_json(receipt_path, 4096)
     if digest(receipt_path.read_bytes()) != selection["controllerGenerationReceiptSHA256"] or not bound_generation_receipt(receipt, host, selection):
         raise ValueError("current controller generation receipt changed")
-    if journal_path.exists():
-        raise ValueError("previous host delivery requires exact reconciliation")
 
 
 class AzureTransport:
@@ -233,6 +231,40 @@ def run(selection, transport):
     record["state"] = "host_rotation_observed"
     record["hostReceipt"] = exact_receipt(payload, host, expected_host_hash)
     atomic(journal, record)
+    return record
+
+
+def reconcile(selection, transport):
+    """Inspect the exact retained host; never repeat its delivery/rotation."""
+    validate(selection, selection['hostConfig'])
+    path = Path(selection['journalPath'])
+    record = private_json(path)
+    if any(record.get(key) != selection[key] for key in ('scaleSetID', 'instanceID', 'controllerInstanceID', 'azureDataDiskID', 'hostConfigSHA256')) or record.get('generation') != selection['hostConfig']['generation']:
+        raise ValueError('retained host delivery selects another generation or resource')
+    readback(transport, selection)
+    inspection = "set -eu\npython3 /opt/luci/azure-embed/package/bin/service.py inspect /etc/luci/azure-embed-deployment.json | sed 's/^/" + RECEIPT_PREFIX + "/'"
+    status, headers, response = transport.request('POST', ARM + selection['scaleSetID'] + '/virtualMachines/' + selection['instanceID'] + '/runCommand?api-version=2023-09-01',
+        {'commandId': 'RunShellScript', 'script': [inspection]})
+    if status == 202:
+        operation = headers.get('Azure-AsyncOperation') or headers.get('azure-asyncoperation')
+        result = headers.get('Location') or headers.get('location')
+        prefix = '/subscriptions/' + selection['scaleSetID'].split('/')[2] + '/'
+        for url in (operation, result):
+            parsed = urllib.parse.urlsplit(url or '')
+            if parsed.scheme != 'https' or parsed.netloc != 'management.azure.com' or not parsed.path.lower().startswith(prefix.lower()):
+                raise RuntimeError('host inspection has no exact trusted operation/result identity')
+        for _ in range(6):
+            time.sleep(2)
+            polled_status, _, polled = transport.request('GET', operation)
+            if polled_status == 200 and polled.get('status') == 'Succeeded':
+                status, _, response = transport.request('GET', result)
+                break
+            if polled.get('status') in ('Failed', 'Canceled'): break
+    receipt = exact_receipt(response, selection['hostConfig'], selection['hostConfigSHA256']) if status == 200 else None
+    if receipt is None: raise RuntimeError('exact host delivery remains uncertain; no repeated rotation')
+    readback(transport, selection)
+    record.update(state='host_rotation_observed', hostReceipt=receipt)
+    atomic(path, record)
     return record
 
 

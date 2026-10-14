@@ -350,8 +350,9 @@ class DiskRecoveryTest(unittest.TestCase):
         self.assertEqual(self.compute.owner, NEW)
         self.assertEqual(self.compute.deallocations, 1)
         self.assertEqual(self.compute.patches, 2)
-        self.assertEqual(self.compute.identity_patches, 1)
+        self.assertEqual(self.compute.identity_patches, 2)
         self.assertEqual(self.compute.identities[NEW], {RECOVERY_IDENTITY, CONTROLLER_IDENTITY})
+        self.assertEqual(self.compute.identities[OLD], set())
         self.assertEqual(self.service.starts, 1)
         self.assertEqual(restore.call_args.args[1], result["fenceReceiptDigest"])
         with self.assertRaisesRegex(ValueError, "old controller generation"):
@@ -374,6 +375,38 @@ class DiskRecoveryTest(unittest.TestCase):
                                          lambda _s, _g: {"state": "host_rotation_observed", "generation": "new-generation"}, self.service)["state"], "active")
         self.assertEqual(self.compute.deallocations, 1)
 
+    def test_old_identity_revocation_uncertainty_blocks_detach_and_never_replays(self):
+        original = self.compute.patch_identities
+        calls = []
+        def uncertain(vm, identities, etag):
+            calls.append((vm, identities))
+            if vm == OLD: raise TimeoutError('unknown old identity revoke')
+            return original(vm, identities, etag)
+        self.compute.patch_identities = uncertain
+        for _ in range(2):
+            with self.assertRaisesRegex(RuntimeError, 'revocation is unknown'):
+                recover.run(self.selection, self.store, self.compute)
+        self.assertEqual(calls, [(OLD, [])])
+        self.assertEqual(self.compute.patches, 0)
+        self.assertEqual(self.compute.identities[NEW], {RECOVERY_IDENTITY})
+        self.assertEqual(self.store.record['state'], 'identity_revoke_pending')
+
+    def test_signed_host_link_stale_fence_etag_refuses_before_old_deallocate(self):
+        successor = self.signed_successor()
+        host = {'controllerPrivateIP': '10.2.0.9'}
+        payload = dict(scope=self.selection['scope'], ownerID=self.selection['ownerID'], diskID=DISK,
+            oldControllerID=OLD, newControllerID=NEW, oldGeneration='old-generation', newGeneration='new-generation',
+            sourceCommit=successor['sourceCommit'], newBootID=successor['newBootID'],
+            predecessorFenceSHA256=recover.digest(self.store.record), predecessorFenceETag='stale', hostConfigSHA256=recover.digest(host))
+        host['controllerSuccessorLink'] = {'payload': payload}
+        self.selection['controllerHostDelivery'] = {'controllerInstanceID': NEW, 'azureDataDiskID': DISK,
+            'hostConfig': host, 'hostConfigSHA256': recover.digest(host)}
+        with self.assertRaisesRegex(ValueError, 'exact predecessor fence'):
+            recover.run(self.selection, self.store, self.compute)
+        self.assertEqual(self.compute.deallocations, 0)
+        self.assertEqual(self.compute.identity_patches, 0)
+        self.assertEqual(self.compute.patches, 0)
+
     def test_foreign_disk_prevents_fence_claim(self):
         self.compute.owner = "foreign"
         with self.assertRaisesRegex(ValueError, "ownership"):
@@ -387,7 +420,7 @@ class DiskRecoveryTest(unittest.TestCase):
             result = recover.run(self.selection, self.store, self.compute,
                                  lambda _s, _g: {"state": "host_rotation_observed", "generation": "new-generation"}, self.service)
         self.assertEqual(result["state"], "active")
-        self.assertEqual(self.compute.identity_patches, 1)
+        self.assertEqual(self.compute.identity_patches, 2)
 
     def test_initial_attach_and_lost_mount_ack_use_read_only_inspection(self):
         self.store = FakeStore()

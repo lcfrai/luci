@@ -65,7 +65,7 @@ def validate(value):
                 "controllerIdentityID", "recoveryIdentityID",
                 "oldGeneration", "newGeneration", "filesystemUUID", "oldGenerationReceiptSHA256",
                 "mountSelectionPath", "hostDeliverySelectionPath", "apiService", "apiHealthURL", "ownerID", "scope"}
-    if set(value) not in (required, required | {'controllerSetupFiles'}, required | {'controllerSuccessor'}) or value["version"] != 1 or not UUID.fullmatch(value["recoveryClientID"]) or not UUID.fullmatch(value["filesystemUUID"]):
+    if set(value) not in (required, required | {'controllerSetupFiles'}, required | {'controllerSuccessor'}, required | {'controllerSuccessor', 'controllerHostDelivery'}) or value["version"] != 1 or not UUID.fullmatch(value["recoveryClientID"]) or not UUID.fullmatch(value["filesystemUUID"]):
         raise ValueError("controller recovery selection fields are invalid")
     if not VM.fullmatch(value["oldControllerID"]) or not VM.fullmatch(value["newControllerID"]) or value["oldControllerID"] == value["newControllerID"] or not DISK.fullmatch(value["diskID"]):
         raise ValueError("controller recovery ARM identities are invalid")
@@ -207,7 +207,7 @@ PY
 """ % (repr(base64.b64encode(canonical(files)).decode()), repr(inspect))
 
 
-def successor_script(successor, fence_digest, inspect=False, mount_path='/etc/luci/azure-controller-disk-restore.json'):
+def successor_script(successor, fence_digest, inspect=False, mount_path='/etc/luci/azure-controller-disk-restore.json', host_delivery=None):
     """Bounded public staging on the selected boot; inspect never writes."""
     if not HEX.fullmatch(fence_digest) or not re.fullmatch(r'/etc/luci/[a-z0-9.-]+', mount_path):
         raise ValueError('successor staging needs exact durable fence and mount path')
@@ -219,13 +219,24 @@ def successor_script(successor, fence_digest, inspect=False, mount_path='/etc/lu
     if mount_path != service_mount_path:
         files.append({'path': service_mount_path, 'content': mount_bytes.decode(),
                       'sha256': hashlib.sha256(mount_bytes).hexdigest()})
+    if host_delivery is not None:
+        delivery_bytes = canonical(host_delivery)
+        if len(delivery_bytes) > 16384: raise ValueError('successor host delivery exceeds the public bound')
+        files.append({'path': '/etc/luci/azure-host-delivery.json', 'content': delivery_bytes.decode(),
+            'sha256': hashlib.sha256(delivery_bytes).hexdigest()})
     payload = base64.b64encode(canonical({'boot': successor['newBootID'], 'files': files,
+                                         'privateIP': host_delivery['hostConfig']['controllerPrivateIP'] if host_delivery else '',
                                          'digest': digest(successor)})).decode()
     return """python3 - <<'PY'
-import base64, hashlib, json, os, pathlib, stat, tempfile
+import base64, hashlib, json, os, pathlib, stat, tempfile, urllib.request
 item = json.loads(base64.b64decode(%s))
 if pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip() != item['boot']:
     raise SystemExit('replacement controller boot differs from signed selection')
+if item.get('privateIP'):
+    request=urllib.request.Request('http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2021-02-01&format=text',headers={'Metadata':'true'})
+    with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(request,timeout=3) as response:
+        if response.read(64).decode().strip()!=item['privateIP']:
+            raise SystemExit('replacement private IP differs from signed ARM NIC observation')
 for row in item['files']:
     target = pathlib.Path(row['path'])
     data = row['content'].encode()
@@ -397,7 +408,7 @@ class Compute:
         if not etag:
             raise ValueError("controller VM ETag is missing")
         self.transport.request("PATCH", ARM + vm_id + "?api-version=2023-09-01",
-                               {"identity": {"type": "UserAssigned", "userAssignedIdentities": {key: {} for key in identities}}},
+                               {"identity": {"type": "UserAssigned" if identities else "None", "userAssignedIdentities": {key: {} for key in identities}}},
                                {"If-Match": etag})
 
     def run_command(self, vm_id, script):
@@ -524,7 +535,19 @@ def restore_local(selection, fence_digest, inspect=False):
     return module.inspect(spec) if inspect else module.bind(spec)
 
 
-def run(selection, store, compute, host_delivery=None, service=None):
+def target_identity_script():
+    return """set -eu
+python3 - <<'PY'
+import pathlib, urllib.request
+request=urllib.request.Request('http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2021-02-01&format=text',headers={'Metadata':'true'})
+with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(request,timeout=3) as response:
+    address=response.read(64).decode().strip()
+print('LUCI_AZURE_SUCCESSOR_TARGET='+pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip()+'|'+address)
+PY
+"""
+
+
+def run(selection, store, compute, host_delivery=None, service=None, reconcile=False):
     validate(selection)
     successor = selection.get('controllerSuccessor')
     successor_hash = digest(successor) if successor else None
@@ -535,7 +558,30 @@ def run(selection, store, compute, host_delivery=None, service=None):
         raise ValueError("pending recovery belongs to another exact controller generation")
     if record['state'] != 'active' and record.get('successorDigest') != successor_hash:
         raise ValueError('pending recovery belongs to another signed successor')
+    delivery = selection.get('controllerHostDelivery')
+    if delivery:
+        link = delivery.get('hostConfig', {}).get('controllerSuccessorLink', {}).get('payload', {})
+        predecessor_hash = digest(record) if record['state'] == 'active' and record.get('generation') == selection['oldGeneration'] else record.get('predecessorFenceSHA256')
+        predecessor_etag = etag if record['state'] == 'active' and record.get('generation') == selection['oldGeneration'] else record.get('predecessorFenceETag')
+        if (any(link.get(key) != selection[target] for key, target in (('scope', 'scope'), ('ownerID', 'ownerID'), ('diskID', 'diskID'),
+                ('oldControllerID', 'oldControllerID'), ('newControllerID', 'newControllerID'), ('oldGeneration', 'oldGeneration'), ('newGeneration', 'newGeneration'))) or
+                link.get('sourceCommit') != successor['sourceCommit'] or link.get('newBootID') != successor['newBootID'] or
+                link.get('predecessorFenceSHA256') != predecessor_hash or link.get('predecessorFenceETag') != predecessor_etag or
+                delivery.get('controllerInstanceID') != selection['newControllerID'] or delivery.get('azureDataDiskID') != selection['diskID'] or
+                delivery.get('hostConfigSHA256') != digest(delivery.get('hostConfig')) or
+                link.get('hostConfigSHA256') != digest({key: value for key, value in delivery['hostConfig'].items() if key != 'controllerSuccessorLink'})):
+            raise ValueError('successor host delivery differs from exact predecessor fence, boot or configuration')
+    if record['state'] == 'active' and record.get('controllerID') == selection['newControllerID'] and reconcile:
+        if (record.get('generation') != selection['newGeneration'] or record.get('successorDigest') != successor_hash or
+                not compute.power(selection['oldControllerID']) or compute.vm_identities(selection['oldControllerID'])[0] or compute.disk_owner(selection['diskID']) != (selection['newControllerID'], 'Attached') or
+                compute.vm_identities(selection['newControllerID'])[0] != {selection['controllerIdentityID'], selection['recoveryIdentityID']}):
+            raise ValueError('retained recovered generation is no longer exact')
+        mounted = restore_local(selection, record['fenceReceiptDigest'], inspect=True)
+        if mounted.get('generationReceiptSHA256') != record.get('generationReceiptSHA256') or service is None or not service.ready():
+            raise RuntimeError('retained recovered controller is not healthy at the exact generation')
+        return record
     if record["state"] == "active":
+        if reconcile: raise RuntimeError('no retained recovery effect exists; no repeated mutation')
         if record.get("controllerID") != selection["oldControllerID"] or record.get("generation") != selection["oldGeneration"] or record.get("generationReceiptSHA256") != selection["oldGenerationReceiptSHA256"]:
             raise ValueError("old controller generation does not match the durable fence")
         if compute.disk_owner(selection["diskID"]) != (selection["oldControllerID"], "Attached"):
@@ -545,7 +591,13 @@ def run(selection, store, compute, host_delivery=None, service=None):
         new_vm, _ = compute.get(selection["newControllerID"])
         if new_vm.get("properties", {}).get("provisioningState") != "Succeeded" or new_vm.get("properties", {}).get("storageProfile", {}).get("dataDisks", []) or compute.vm_identities(selection["newControllerID"])[0] != {selection["recoveryIdentityID"]}:
             raise ValueError("replacement controller disk or identity is not selected")
-        record, etag = transition(store, record, etag, "deallocate_pending", targetControllerID=selection["newControllerID"], targetGeneration=selection["newGeneration"], successorDigest=successor_hash)
+        if delivery:
+            expected = successor['newBootID'] + '|' + delivery['hostConfig']['controllerPrivateIP']
+            output = compute.run_command(selection['newControllerID'], target_identity_script())
+            if [line.removeprefix('LUCI_AZURE_SUCCESSOR_TARGET=') for line in output.splitlines() if line.startswith('LUCI_AZURE_SUCCESSOR_TARGET=')] != [expected]:
+                raise ValueError('successor actual boot/private IP changed before predecessor fencing')
+        record, etag = transition(store, record, etag, "deallocate_pending", targetControllerID=selection["newControllerID"], targetGeneration=selection["newGeneration"], successorDigest=successor_hash,
+            predecessorFenceETag=etag, predecessorFenceSHA256=digest(record))
         try:
             compute.deallocate(selection["oldControllerID"])
         except Exception:
@@ -553,6 +605,17 @@ def run(selection, store, compute, host_delivery=None, service=None):
     if record["state"] == "deallocate_pending":
         if not compute.power(selection["oldControllerID"]):
             raise RuntimeError("old controller deallocation is unknown; no repeated stop or disk mutation")
+        record, etag = transition(store, record, etag, 'identity_revoke_pending')
+        old_identities, vm_etag = compute.vm_identities(selection['oldControllerID'])
+        if old_identities != {selection['controllerIdentityID']}:
+            raise ValueError('old controller identity changed before exact revocation')
+        try:
+            compute.patch_identities(selection['oldControllerID'], [], vm_etag)
+        except Exception:
+            pass
+    if record['state'] == 'identity_revoke_pending':
+        if not compute.power(selection['oldControllerID']) or compute.vm_identities(selection['oldControllerID'])[0]:
+            raise RuntimeError('old controller identity revocation is unknown; no repeated identity write')
         record, etag = transition(store, record, etag, "detach_pending")
         rows, vm_etag = compute.vm_disks(selection["oldControllerID"])
         if not exact_disk_row(rows, selection["diskID"]):
@@ -561,6 +624,8 @@ def run(selection, store, compute, host_delivery=None, service=None):
             compute.patch_disks(selection["oldControllerID"], [], vm_etag)
         except Exception:
             pass  # never replay; exact disk and VM readback below
+    if record['state'] not in ('active', 'deallocate_pending', 'identity_revoke_pending') and compute.vm_identities(selection['oldControllerID'])[0]:
+        raise RuntimeError('old controller authority was reattached; successor progress refused')
     if record["state"] == "detach_pending":
         rows, _ = compute.vm_disks(selection["oldControllerID"])
         if rows or compute.disk_owner(selection["diskID"]) != ("", "Unattached") or not compute.power(selection["oldControllerID"]):
@@ -602,7 +667,7 @@ def run(selection, store, compute, host_delivery=None, service=None):
         if successor:
             try:
                 output = compute.run_command(selection['newControllerID'], successor_script(
-                    successor, record['fenceReceiptDigest'], mount_path=selection['mountSelectionPath']))
+                    successor, record['fenceReceiptDigest'], mount_path=selection['mountSelectionPath'], host_delivery=delivery))
                 successor_receipt(output, successor)
             except Exception as error:
                 raise RuntimeError('signed successor staging uncertain; inspect exact target without replay') from error
@@ -613,7 +678,7 @@ def run(selection, store, compute, host_delivery=None, service=None):
     if record['state'] == 'successor_stage_pending':
         try:
             output = compute.run_command(selection['newControllerID'], successor_script(
-                successor, record['fenceReceiptDigest'], inspect=True, mount_path=selection['mountSelectionPath']))
+                successor, record['fenceReceiptDigest'], inspect=True, mount_path=selection['mountSelectionPath'], host_delivery=delivery))
             successor_receipt(output, successor)
         except Exception as error:
             raise RuntimeError('signed successor staging remains uncertain; no repeat write') from error
@@ -690,25 +755,26 @@ def deliver_host(selection, generation_digest):
     spec = importlib.util.spec_from_file_location("luci_azure_delivery", source)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.run(host_selection, module.AzureTransport(host_selection["controllerClientID"]))
+    method = module.reconcile if Path(host_selection['journalPath']).exists() else module.run
+    return method(host_selection, module.AzureTransport(host_selection["controllerClientID"]))
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("initialize", "reconcile-initialize", "recover"))
+    parser.add_argument("action", choices=("initialize", "reconcile-initialize", "recover", "reconcile-recover"))
     parser.add_argument("selection", type=Path)
     args = parser.parse_args()
     selected = private(args.selection, 96 << 10)
     validate(selected)
-    if args.action == 'recover' and 'controllerSuccessor' not in selected:
+    if args.action in ('recover', 'reconcile-recover') and 'controllerSuccessor' not in selected:
         raise ValueError('replacement recovery requires a source-bound signed successor')
     transport = AzureHTTP(selected["recoveryClientID"])
     if transport.local_instance_id() != selected["newControllerID"]:
         raise ValueError("disk lifecycle must run on the selected private recovery VM")
     store = FenceBlob(transport, selected["fenceBlobURL"])
     compute = Compute(transport)
-    record = initialize(selected, store, compute, args.action == 'reconcile-initialize') if args.action != "recover" else run(
-        selected, store, compute, deliver_host, Service(selected["apiHealthURL"]))
+    record = initialize(selected, store, compute, args.action == 'reconcile-initialize') if args.action in ('initialize', 'reconcile-initialize') else run(
+        selected, store, compute, deliver_host, Service(selected["apiHealthURL"]), reconcile=args.action == 'reconcile-recover')
     print(json.dumps({"state": record["state"], "generation": record.get("generation"), "diskID": record["diskID"]}, sort_keys=True))
 
 
