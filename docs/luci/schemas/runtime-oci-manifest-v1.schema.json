@@ -291,7 +291,7 @@
       "properties": {
         "path": {
           "type": "string",
-          "pattern": "^licenses/[A-Za-z0-9._/-]+$",
+          "pattern": "^licenses/runtime-image/[A-Za-z0-9._/-]+$",
           "maxLength": 256
         },
         "sha256": {

@@ -62,8 +62,8 @@ func fixtureBundle(t *testing.T, ownedLabel bool) (string, Manifest) {
 	m.CanonicalInputDigest = hex.EncodeToString(canonical.Sum(nil))
 	m.Producer.BuildSourceCommit = m.SourceCommit
 	notice := []byte("Fixture licence\n")
-	fixtureWrite(t, parent, "licenses/fixture.txt", notice)
-	m.Licenses = []LicenseFile{{Member: Member{Path: "licenses/fixture.txt", SHA256: sumHex(notice), Bytes: int64(len(notice))}, Component: "fixture", Version: "1.0", Grant: "MIT", Provenance: "https://example.invalid/LICENSE"}}
+	fixtureWrite(t, parent, "licenses/runtime-image/fixture.txt", notice)
+	m.Licenses = []LicenseFile{{Member: Member{Path: "licenses/runtime-image/fixture.txt", SHA256: sumHex(notice), Bytes: int64(len(notice))}, Component: "fixture", Version: "1.0", Grant: "MIT", Provenance: "https://example.invalid/LICENSE"}}
 	layer := []byte("fixture layer contents")
 	m.Image.DiffIDs = []string{"sha256:" + sumHex(layer)}
 	m.Image.LayerPaths = []string{"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/layer.tar"}
@@ -146,12 +146,27 @@ func TestBundleRequiresExactSourceReceiptFieldsAndUnlinkedLicenceTree(t *testing
 		t.Fatal("missing sourceDirty accepted")
 	}
 	fixtureWrite(t, root, "source-receipt.json", fixtureJSON(t, map[string]any{"version": 1, "sourceCommit": m.SourceCommit, "sourceDirty": false}))
-	if err := os.Symlink("fixture.txt", filepath.Join(filepath.Dir(root), "licenses", "linked.txt")); err != nil {
+	if err := os.Symlink("fixture.txt", filepath.Join(filepath.Dir(root), "licenses", "runtime-image", "linked.txt")); err != nil {
 		t.Skipf("symlink unavailable: %v", err)
 	}
 	if b, err := Open(root); err == nil {
 		b.Close()
 		t.Fatal("unlisted linked licence accepted")
+	}
+}
+
+func TestBundleSourceDirtyNullAndUnrelatedPackageLicence(t *testing.T) {
+	root, m := fixtureBundle(t, false)
+	fixtureWrite(t, filepath.Dir(root), "licenses/frontend/notice.txt", []byte("frontend licence\n"))
+	b, err := Open(root)
+	if err != nil {
+		t.Fatal("unrelated package licence rejected", err)
+	}
+	b.Close()
+	fixtureWrite(t, root, "source-receipt.json", []byte(`{"version":1,"sourceCommit":"`+m.SourceCommit+`","sourceDirty":null}`))
+	if b, err := Open(root); err == nil {
+		b.Close()
+		t.Fatal("sourceDirty null accepted as clean")
 	}
 }
 
