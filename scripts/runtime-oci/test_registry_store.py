@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import archive
 import registry_store
+import pull_metadata
 import test_registry_export as fixtures
 
 
@@ -27,6 +28,9 @@ class RegistryStoreTests(unittest.TestCase):
         self.assertEqual(first['registryStore']['repository'], 'luci/runtime-installed')
         self.assertEqual(first['receipt']['selectedImageID'], self.fixture.image_id)
         self.assertEqual(first['receipt']['layers'][0]['uncompressedBytes'], len(self.fixture.layer))
+        raw = (self.fixture.root / 'store' / registry_store.RECEIPT_NAME).read_bytes()
+        self.assertEqual(raw, pull_metadata.encoded(first['receipt']))
+        self.assertFalse(raw.endswith(b'\n'))
         with tarfile.open(self.fixture.root / 'store' / registry_store.STORE_NAME) as tar:
             members = tar.getmembers()
             self.assertEqual([m.name for m in members], sorted(m.name for m in members))

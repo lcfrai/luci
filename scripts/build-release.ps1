@@ -1,5 +1,5 @@
 #requires -Version 7.0
-param([string]$Version = '0.5.0', [switch]$Native, [string]$CertificateThumbprint = '', [string]$TimestampUrl = 'https://timestamp.digicert.com', [Parameter(Mandatory=$true)][string]$RuntimePayloadDir, [ValidateSet('all','windows-amd64','linux-amd64','darwin-arm64')][string]$Target = 'all', [string]$E2BSource = '')
+param([string]$Version = '0.5.0', [switch]$Native, [string]$CertificateThumbprint = '', [string]$TimestampUrl = 'https://timestamp.digicert.com', [Parameter(Mandatory=$true)][string]$RuntimePayloadDir, [ValidateSet('v2','advanced-v1')][string]$RuntimeFormat = 'v2', [ValidateSet('all','windows-amd64','linux-amd64','darwin-arm64')][string]$Target = 'all', [string]$E2BSource = '')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($CertificateThumbprint -and -not $Native) { throw 'CertificateThumbprint requires -Native.' }
@@ -9,6 +9,7 @@ $luciOutput = Join-Path $luciRoot ('artifacts/releases/' + $Version)
 $luciStage = Join-Path $luciOutput ('.stage-' + [guid]::NewGuid().ToString('N'))
 $luciNativeRoot = Join-Path $luciRoot 'desktop/src-tauri'
 $luciSavedEnvironment = @{}
+$luciPayloadTool = Join-Path $PSScriptRoot $(if ($RuntimeFormat -eq 'v2') { 'runtime-oci/pull_payload.py' } else { 'runtime-oci/payload.py' })
 $luciBuildSucceeded = $false
 . (Join-Path $PSScriptRoot 'owned-build-stage.ps1')
 foreach ($luciKey in @('PATH','GOOS','GOARCH','CGO_ENABLED','GOFLAGS','CARGO_TARGET_DIR','GOMAXPROCS','GOMEMLIMIT','NODE_OPTIONS','VITE_LUCI_API')) { $luciSavedEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process') }
@@ -83,7 +84,7 @@ try {
     $luciCargoBin = Join-Path $env:USERPROFILE '.cargo/bin'
     if (Test-Path -LiteralPath $luciCargoBin) { $env:PATH = $luciCargoBin + [IO.Path]::PathSeparator + $env:PATH }
     foreach ($luciTool in @('go','python','npm')) { Get-Command $luciTool -ErrorAction Stop | Out-Null }
-    & python (Join-Path $PSScriptRoot 'runtime-oci/payload.py') verify --payload $RuntimePayloadDir
+    & python $luciPayloadTool verify --payload $RuntimePayloadDir
     Confirm-Exit 'Preverified source-bound runtime payload'
     # npm.ps1 reparses MyInvocation.Statement and can corrupt arguments inside a
     # script block. Use Node's command shim explicitly on Windows.
@@ -136,7 +137,7 @@ try {
         & python (Join-Path $PSScriptRoot 'collect-licenses.py') $luciRoot $luciLicenses
         Confirm-Exit ($luciName + ' strict licence collection')
         $luciCount = Confirm-Licenses $luciLicenses
-        & python (Join-Path $PSScriptRoot 'runtime-oci/payload.py') stage --payload $RuntimePayloadDir --repo $luciRoot --revision $luciSource.sourceCommit --package $luciPackage
+        & python $luciPayloadTool stage --payload $RuntimePayloadDir --repo $luciRoot --revision $luciSource.sourceCommit --package $luciPackage
         Confirm-Exit ($luciName + ' verified runtime payload and source receipt')
         if ($luciTarget.os -eq 'windows') {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'launch-windows.ps1') -Destination (Join-Path $luciPackage 'Start-Luci.ps1')
@@ -148,7 +149,7 @@ try {
     # Archive the Linux core BEFORE inserting cloud/ into portable packages. It cannot contain itself.
     $luciCloudRoot = Join-Path $luciStage 'luci-cloud-linux-amd64'
     $luciLinux = ($luciPackages | Where-Object { $_.os -eq 'linux' }).path
-    & python (Join-Path $PSScriptRoot 'runtime-oci/payload.py') core-from-package --package $luciLinux --output $luciCloudRoot
+    & python $luciPayloadTool core-from-package --package $luciLinux --output $luciCloudRoot
     Confirm-Exit 'Explicit management-core runtime companion contract'
     & python (Join-Path $PSScriptRoot 'package.py') $luciCloudRoot linux
     Confirm-Exit 'Linux cloud runtime archive'
@@ -174,6 +175,7 @@ try {
         Confirm-Exit 'Native strict licence collection'
         $luciNativeCount = Confirm-Licenses $luciNativeLicenses
         Copy-Tree (Join-Path $luciWindowsPackage 'licenses/runtime-image') (Join-Path $luciNativeLicenses 'runtime-image')
+        if ($RuntimeFormat -eq 'v2') { Copy-Tree (Join-Path $luciWindowsPackage 'licenses/runtime-bootstrap') (Join-Path $luciNativeLicenses 'runtime-bootstrap') }
         Replace-GeneratedTree $luciGuides (Join-Path $luciNativeRoot 'guides')
         Replace-GeneratedTree (Join-Path $luciWindowsPackage 'runtime') (Join-Path $luciNativeRoot 'runtime')
         Replace-GeneratedTree $luciNativeLicenses (Join-Path $luciNativeRoot 'licenses')
@@ -214,7 +216,7 @@ try {
         Copy-Item -LiteralPath $luciArtifact -Destination $luciDestination -Force
         $luciArtifactRecords += @{name=(Split-Path -Leaf $luciArtifact); bytes=(Get-Item -LiteralPath $luciDestination).Length; sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath $luciDestination).Hash.ToLowerInvariant()}
     }
-    $luciRuntimeRecord = (& python (Join-Path $PSScriptRoot 'runtime-oci/payload.py') describe-package --package $luciLinux)
+    $luciRuntimeRecord = (& python $luciPayloadTool describe-package --package $luciLinux)
     Confirm-Exit 'Runtime distribution release provenance'
     $luciRuntimeRecord = $luciRuntimeRecord | ConvertFrom-Json
     foreach ($luciPackage in $luciPackages) { if ($luciPackage.selected) { Replace-GeneratedTree $luciPackage.path (Join-Path $luciOutput $luciPackage.name) } }

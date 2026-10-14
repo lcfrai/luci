@@ -13,8 +13,9 @@ import tarfile
 import time
 
 import archive
-from common import plain_directory, write_json
+from common import plain_directory
 import registry_export
+import pull_metadata
 
 STORE_NAME = 'runtime-registry-store-v2.tar'
 RECEIPT_NAME = 'runtime-registry-conversion-receipt-v2.json'
@@ -64,7 +65,9 @@ def create(conversion_directory, conversion, image_id, diffids, output):
     plain_directory(output.parent)
     if output.exists() or output.is_symlink():
         raise ValueError('registry store requires a fresh output')
-    if (conversion.get('version') != 1 or conversion.get('state') != 'registry_readback_normalized_original_image_verified' or
+    if ((conversion.get('version'), conversion.get('state')) not in (
+            (1, 'registry_readback_normalized_original_image_verified'),
+            (2, 'registry_readback_compressed_original_image_verified')) or
             conversion.get('imageID') != image_id or conversion.get('image', {}).get('diffIDs') != diffids or
             conversion.get('pushAndRegistryOwnershipVerified') is not False):
         raise ValueError('registry conversion/original image identity differs')
@@ -146,6 +149,6 @@ def create(conversion_directory, conversion, image_id, diffids, output):
                'registryManifestDigest': manifest_digest, 'config': {'digest': image_id, 'bytes': config_record['bytes']},
                'layers': result_layers, 'registryStore': {'sha256': stored['sha256'], 'bytes': stored['bytes'], 'memberCount': len(records)},
                'verification': {'compressedDigestsVerified': True, 'diffIDsVerified': True, 'configVerified': True}}
-    write_json(output / RECEIPT_NAME, receipt)
+    pull_metadata.write(output / RECEIPT_NAME, receipt)
     return {'registryStore': {'fileName': STORE_NAME, 'sha256': stored['sha256'], 'bytes': stored['bytes'],
                              'repository': INSTALLED_REPOSITORY, 'members': records}, 'receipt': receipt}

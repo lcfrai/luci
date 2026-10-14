@@ -13,6 +13,7 @@ import zipfile
 # The runtime module is source-controlled tooling, never a package-supplied module.
 sys.path.insert(0, str(pathlib.Path(__file__).parent / 'runtime-oci'))
 import payload as runtime_payload
+import pull_payload
 
 CORE_LIMIT = 512 << 20
 PAYLOAD_LIMIT = 8 << 30
@@ -33,14 +34,23 @@ def package_identity(root, platform):
             files.append(entry)
     runtime = root / 'runtime'
     bound_runtime = []
-    if (runtime / runtime_payload.MANIFEST).exists():
+    if (runtime / pull_payload.MANIFEST).exists():
+        manifest = pull_payload.verify(runtime, package=root, canonical=runtime)
+        bound_runtime = [runtime / name for name in pull_payload.FILES]
+        if 'reuseEvidenceSHA256' in manifest['producer']:
+            bound_runtime.extend(runtime / name for name in pull_payload.REUSE_FILES)
+    elif (runtime / runtime_payload.MANIFEST).exists():
         manifest = runtime_payload.verify(runtime, package=root, canonical=runtime)
         runtime_payload.source_receipt(runtime_payload.read_json(runtime / runtime_payload.SOURCE), manifest['sourceCommit'])
         bound_runtime = [runtime / name for name in (runtime_payload.MANIFEST, runtime_payload.RECEIPT, runtime_payload.SOURCE, runtime_payload.PAYLOAD)]
         if 'reuseEvidenceSHA256' in manifest['producer']:
             bound_runtime.extend(runtime / name for name in (runtime_payload.REUSE, runtime_payload.PRIOR_MANIFEST, runtime_payload.PRIOR_RECEIPT))
     elif (runtime / runtime_payload.COMPANION).exists():
-        runtime_payload.verify_companion(runtime)
+        marker = runtime_payload.read_json(runtime / runtime_payload.COMPANION)
+        if marker.get('version') == 2:
+            pull_payload.verify_companion(runtime)
+        else:
+            runtime_payload.verify_companion(runtime)
         bound_runtime = [runtime / runtime_payload.COMPANION, runtime / runtime_payload.SOURCE]
     files.extend(bound_runtime)
     digest = hashlib.sha256(b'luci-portable-package-v2\n' if bound_runtime else b'luci-portable-package-v1\n')
@@ -63,7 +73,8 @@ def build_package(root, platform):
         if file.is_symlink() or getattr(file.lstat(), 'st_file_attributes', 0) & 1024 or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
             raise ValueError('Package refuses linked or special members')
         if stat.S_ISREG(mode):
-            if file.relative_to(root).as_posix() == 'runtime/' + runtime_payload.PAYLOAD:
+            if file.relative_to(root).as_posix() in ('runtime/' + runtime_payload.PAYLOAD,
+                                                    'runtime/' + pull_payload.registry_store.STORE_NAME):
                 payload_bytes += file.stat().st_size
             else:
                 core_bytes += file.stat().st_size
