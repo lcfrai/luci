@@ -33,6 +33,8 @@ import { createExecutionStorageClient, storagePreparationBlock } from "../../api
 import { AgentConnections } from "./AgentConnections";
 import { DependencySetup } from "./DependencySetup";
 import { SetupModeChoices } from './SetupModeChoices';
+import { AzureSetup } from './AzureSetup';
+import { LuciMark } from '../common/LuciMark';
 import { createDependencyClient } from "../../api/dependencies";
 import { projectNameError, projectNameHelp } from "../../lib/projectName";
 import "./setup.css";
@@ -424,6 +426,7 @@ export function SetupPanel({
         <header className="setup-header">
           <div>
             <span className="setup-brand">
+              <LuciMark />
               Luci <span>by lcfr.ai</span>
             </span>
             <h1 id="setup-title" ref={heading} tabIndex={-1}>
@@ -554,7 +557,7 @@ export function SetupPanel({
                 />
               )}
               {section === 'setup' && route === 'hosted' && <section className="setup-mode-detail" aria-label="Luci Cloud availability"><h2>Luci Cloud is not available yet</h2><p>The Luci-hosted service is being developed before launch. This choice does not create a hosted account, take payment, provision resources or connect a runtime.</p><p>Your existing projects remain accessible. Choose Local or Bring your own cloud to work now.</p><SetupModeChoices selected="luci-cloud" busy={!!busy || choiceNeedsRefresh} manageBacking={localManageBacking} allowProvision={allowProvision} onChoose={chooseSetupMode} onExisting={() => chooseSetupMode('bring-your-own-cloud', 'existing')} /></section>}
-              {section === 'setup' && route === 'byo' && <section className="setup-mode-detail"><h2>Bring your own cloud</h2><p role="status" className="journey-warning">Guided Azure setup commands are not available in this build yet. Keep working locally or connect an existing workspace; saving this preference does not create infrastructure.</p><p>Azure is the first supported setup target. Guided commands prepare infrastructure you own; a rendered plan is not a connected workspace or a verified microVM runtime.</p><p>Review resources, ownership, expected charges and cleanup before running any setup command. Model access is separate. AWS setup follows later.</p><Button type="button" variant="secondary" disabled={!!busy || !localManageBacking} onClick={() => { setRoute('existing'); setSection('cloud'); }}>Connect an existing workspace</Button><Button type="button" variant="ghost" disabled={!!busy} onClick={chooseAgain}>Choose another setup option</Button></section>}
+              {section === 'setup' && route === 'byo' && <section className="setup-mode-detail"><h2>Bring your own cloud</h2><AzureSetup client={client} disabled={!!busy || choiceNeedsRefresh || !localManageBacking || !manageBacking || !allowProvision} budget={config?.monthlyBudgetUsd} /><Button type="button" variant="secondary" disabled={!!busy || !localManageBacking} onClick={() => { setRoute('existing'); setSection('cloud'); }}>Connect an existing workspace</Button><Button type="button" variant="ghost" disabled={!!busy} onClick={chooseAgain}>Choose another setup option</Button></section>}
               {section === 'setup' && route === 'existing' && <CloudManager client={client} plan={null} mode="existing" />}
               {section === "local" && (!onboarding || route === "local") && (
                 <>
