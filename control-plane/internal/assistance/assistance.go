@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -238,6 +239,9 @@ func schemaFor(t reflect.Type) map[string]any {
 			}
 			if f.Type.Kind() == reflect.String && f.Tag.Get("output") == "empty" {
 				fieldSchema["enum"] = []string{""}
+			}
+			if minimum, err := strconv.Atoi(f.Tag.Get("modelMinLength")); f.Type.Kind() == reflect.String && err == nil && minimum > 0 && minimum <= 1000 {
+				fieldSchema["minLength"] = minimum
 			}
 			properties[name] = fieldSchema
 			required = append(required, name)

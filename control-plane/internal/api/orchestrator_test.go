@@ -95,6 +95,9 @@ func TestOrchestratorSchemaFencesDraftDigestAndPriority(t *testing.T) {
 	if !reflect.DeepEqual(priority, []any{"must", "should", "could"}) {
 		t.Fatal("model contract omitted exact saved priority values", priority)
 	}
+	if requirement["acceptance"].(map[string]any)["minLength"] != float64(12) {
+		t.Fatal("model contract permits a priority label as acceptance")
+	}
 }
 
 func TestOrchestratorCompletedLocalModelInvalidPriorityRetainsSafeCause(t *testing.T) {

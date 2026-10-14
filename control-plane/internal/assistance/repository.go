@@ -271,6 +271,8 @@ if provider == 'opencode' and ollama_preflight == '1':
                 return False
             if 'enum' in shape and (not isinstance(shape['enum'],list) or value not in shape['enum']):
                 return False
+            if 'minLength' in shape and (not isinstance(value,str) or type(shape['minLength']) is not int or len(value)<shape['minLength']):
+                return False
             if 'anyOf' in shape:
                 variants = shape['anyOf']
                 return isinstance(variants,list) and len(variants)<=8 and any(matches_schema(value,item,depth+1) for item in variants)

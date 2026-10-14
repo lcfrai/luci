@@ -76,6 +76,37 @@ func TestOrchestratorLocalModelFailureCompletesWithoutManualReconcile(t *testing
 		}
 	}
 }
+
+func TestOrchestratorCompleteTaskListRequiresObservableAcceptanceAndNoRoutineQuestion(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "orchard-complete-task-list")
+	ctx := orchestratorActor(t, "alice")
+	_, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Draft a local task list with add, complete, delete and reload persistence", "")
+	specification := snapshot.Specification
+	specification.Requirements = []SpecificationRequirement{
+		{ID: "req-001", Title: "Add a task", Priority: "must", Acceptance: "must"},
+		{ID: "req-002", Title: "Complete a task", Priority: "must", Acceptance: "must"},
+		{ID: "req-003", Title: "Delete a task", Priority: "must", Acceptance: "must"},
+		{ID: "req-004", Title: "Persist tasks", Priority: "must", Acceptance: "must"},
+	}
+	answer := OrchestratorAnswer{Summary: "A local task list can be reviewed as a draft.", Options: []string{}, Impact: []string{}, Proposal: &OrchestratorProposal{Target: "specification", Summary: "Four task behaviors", Specification: &specification}, NextAction: "specification"}
+	if err := ValidateOrchestratorAnswer(snapshot, answer); err == nil {
+		t.Fatal("placeholder priority labels were accepted as observable criteria")
+	}
+	criteria := []string{"Adding a named task shows it in the list.", "Toggling a task visibly changes its completion state.", "Deleting a task removes it from the list.", "Reloading restores the remaining saved tasks."}
+	for i := range specification.Requirements {
+		specification.Requirements[i].Acceptance = criteria[i]
+	}
+	answer.Question = "Should we make HTML or JavaScript first?"
+	answer.Rationale = "Choose a routine implementation order."
+	if err := ValidateOrchestratorAnswer(snapshot, answer); err == nil {
+		t.Fatal("routine nonblocking question was attached to a complete draft")
+	}
+	answer.Question, answer.Rationale = "", ""
+	if err := ValidateOrchestratorAnswer(snapshot, answer); err != nil {
+		t.Fatal("complete observable draft was refused", err)
+	}
+}
 func TestOrchestratorDurableTurnIdentityScopeAndReadOnlyRecovery(t *testing.T) {
 	s, mux := journeyFixture(t)
 	p := createJourneyProject(t, mux, "orchestrator-scope")

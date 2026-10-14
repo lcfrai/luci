@@ -40,7 +40,7 @@ type SpecificationRequirement struct {
 	ID         string `json:"id"`
 	Title      string `json:"title"`
 	Priority   string `json:"priority" enum:"must,should,could"`
-	Acceptance string `json:"acceptance"`
+	Acceptance string `json:"acceptance" modelMinLength:"12"`
 }
 type SpecificationJourney struct {
 	ID             string   `json:"id"`

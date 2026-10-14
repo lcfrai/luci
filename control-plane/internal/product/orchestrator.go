@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
@@ -17,7 +18,7 @@ func ValidateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 	if err != nil || len(raw) > orchestratorAnswerLimit {
 		return ErrOrchestratorInvalid
 	}
-	if strings.TrimSpace(answer.Summary) == "" || len(answer.Summary) > 8000 || len(answer.Question) > 4000 || len(answer.Rationale) > 8000 || len(answer.Options) > 6 || len(answer.Impact) > 12 || len(answer.NextAction) > 100 || (answer.Blocking && strings.TrimSpace(answer.Question) == "") {
+	if strings.TrimSpace(answer.Summary) == "" || len(answer.Summary) > 8000 || len(answer.Question) > 4000 || len(answer.Rationale) > 8000 || len(answer.Options) > 6 || len(answer.Impact) > 12 || len(answer.NextAction) > 100 || (answer.Blocking && strings.TrimSpace(answer.Question) == "") || (!answer.Blocking && strings.TrimSpace(answer.Question) != "") {
 		return ErrOrchestratorInvalid
 	}
 	for _, option := range answer.Options {
@@ -48,6 +49,12 @@ func ValidateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		next := proposal.Specification
 		if next == nil || next.ProjectID != snapshot.ProjectID || next.Revision != snapshot.Specification.Revision || next.BriefRevision != snapshot.Specification.BriefRevision || next.Status != "draft" || next.Digest != "" {
 			return ErrOrchestratorInvalid
+		}
+		for _, requirement := range next.Requirements {
+			criterion := strings.TrimSpace(requirement.Acceptance)
+			if utf8.RuneCountInString(criterion) < 12 || strings.EqualFold(criterion, requirement.Priority) || strings.EqualFold(criterion, requirement.Title) {
+				return ErrOrchestratorInvalid
+			}
 		}
 		return validateSpecification(*next)
 	case "design-plan":
