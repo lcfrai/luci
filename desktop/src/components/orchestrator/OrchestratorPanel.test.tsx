@@ -156,6 +156,7 @@ it.each([
   ["local_model_context_limit", "serving context is too small"],
   ["local_model_context_unverified", "could not verify this local model's serving context"],
   ["local_model_structured_output_invalid", "did not produce a complete structured answer"],
+  ["local_model_response_schema_invalid", "No model request was sent"],
   ["local_model_project_answer_invalid", "did not meet this project's draft rules"],
 ] as const)("shows safe %s guidance in the saved conversation without retrying", async (failureCode, guidance) => {
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [{ ...turn(), status: "failed", failureCode, answer: undefined }] }));

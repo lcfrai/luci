@@ -556,6 +556,9 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 				} else if exit.FailureCode == "local_model_structured_output_invalid" && job.Harness == "opencode" {
 					failureCode = exit.FailureCode
 					message = "The selected local model did not produce a complete structured answer. Your project context is saved; no proposal was accepted. Try again or select a more capable supported model."
+				} else if exit.FailureCode == "local_model_response_schema_invalid" && job.Harness == "opencode" {
+					failureCode = exit.FailureCode
+					message = "Luci could not prepare the local model's response format. No model request was sent and your project context is saved. Update Luci before trying again."
 				}
 				return
 			}

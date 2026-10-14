@@ -156,13 +156,41 @@ elif provider == 'opencode' and auth == 'configured':
     # actual text part; give it the full bounded request and response contract.
     with open('/luci-input/schema.json', 'rb') as source:
         raw_schema = source.read(LIMIT+1)
-    if len(raw_schema)>LIMIT:
-        sys.exit(2)
-    schema = json.loads(raw_schema)
-    if not isinstance(schema, dict) or schema.get('type') != 'object':
-        sys.exit(2)
     ollama_preflight = env.pop('OPENCODE_LUCI_OLLAMA_PREFLIGHT', None)
     native_format = env.pop('OPENCODE_LUCI_NATIVE_JSON', None)
+    def refuse_schema():
+        # This is a local contract error before any model request. Keep its
+        # durable cause distinct from an unknown provider or connection error.
+        with open('/luci-output/exit.json.tmp','w') as target:
+            json.dump({'exitCode':2,'failureCode':'local_model_response_schema_invalid'},target)
+        os.replace('/luci-output/exit.json.tmp','/luci-output/exit.json')
+        sys.exit(2)
+    try:
+        if len(raw_schema)>LIMIT:
+            refuse_schema()
+        schema = json.loads(raw_schema)
+    except (ValueError, TypeError):
+        refuse_schema()
+    if not isinstance(schema,dict):
+        refuse_schema()
+    if native_format == '1' and schema.get('type') == 'object' and 'anyOf' in schema:
+        # The pinned grammar converter drops sibling properties in this form.
+        refuse_schema()
+    if native_format == '1' and schema.get('type') != 'object':
+        fields = {'summary','question','options','rationale','blocking','impact','proposal','nextAction'}
+        branches = schema.get('anyOf')
+        if ollama_preflight != '1' or set(schema) != {'anyOf'} or not isinstance(branches,list) or len(branches)!=2:
+            refuse_schema()
+        for branch in branches:
+            if not isinstance(branch,dict) or set(branch)!={'type','additionalProperties','required','properties'} or branch.get('type')!='object' or branch.get('additionalProperties') is not False or not isinstance(branch.get('required'),list) or len(branch['required'])!=len(fields) or any(not isinstance(field,str) for field in branch['required']) or set(branch['required'])!=fields or not isinstance(branch.get('properties'),dict) or set(branch['properties'])!=fields:
+                refuse_schema()
+        closed, open_question = branches
+        if closed['properties']['blocking']!={'type':'boolean','enum':[False]} or closed['properties']['question']!={'type':'string','enum':['']} or open_question['properties']['blocking']!={'type':'boolean','enum':[True]} or open_question['properties']['question']!={'type':'string','minLength':8} or any(closed['properties'][field]!=open_question['properties'][field] for field in fields-{'blocking','question'}):
+            refuse_schema()
+    elif schema.get('type')!='object' or native_format not in (None,'1'):
+        # Codex, Claude and the older OpenCode tool route keep their ordinary
+        # root-object schema. A root union is permitted only for native JSON.
+        refuse_schema()
     if ollama_preflight == '1':
         # Keep the text compact. The exact schema travels as a separate
         # native format field for local Ollama, or the OpenCode output tool
