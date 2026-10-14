@@ -251,12 +251,8 @@ func (s *Service) dataDomainHost(ctx context.Context, id string, requireHealthy 
 	if !alias {
 		return DataDomainHost{}, errors.New("native data gateway does not own the stable application alias")
 	}
-	b, e = s.docker(ctx, "info", "--format", "{{json .}}")
-	var engine struct {
-		ID, OSType string
-		Swarm      struct{ LocalNodeState string }
-	}
-	if e != nil || json.Unmarshal(b, &engine) != nil || engine.OSType != "linux" || engine.ID == "" || len(engine.ID) > 128 || strings.ContainsAny(engine.ID, "\x00\r\n ") || engine.Swarm.LocalNodeState != "inactive" {
+	engine, e := s.engineInfo(ctx)
+	if e != nil || engine.OSType != "linux" || engine.ID == "" || len(engine.ID) > 128 || strings.ContainsAny(engine.ID, "\x00\r\n ") || engine.Swarm.LocalNodeState != "inactive" {
 		return DataDomainHost{}, errors.New("a verified non-Swarm Linux Docker engine is required")
 	}
 	return DataDomainHost{ProjectID: id, StableTenant: i.storageTenant(), ApplicationNetwork: network, NetworkID: networks[0].Id, DockerEngineID: engine.ID, PublishableKey: secret.Anon, AllowStopped: !requireHealthy}, nil

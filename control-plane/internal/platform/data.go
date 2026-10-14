@@ -399,18 +399,14 @@ func signDataJWT(secret, role string) string {
 	return value + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 func (s *Service) dataCapacity(ctx context.Context, id string, additional bool) error {
-	b, e := s.docker(ctx, "info", "--format", "{{json .}}")
+	info, e := s.engineInfo(ctx)
 	if e != nil {
 		return &dataFailure{"Docker is unavailable. Start the Linux Docker engine and install Docker Compose before installing data services."}
 	}
-	var info struct {
-		OSType   string
-		MemTotal int64
-		NCPU     int
-	}
-	if json.Unmarshal(b, &info) != nil || info.OSType != "linux" {
+	if info.OSType != "linux" {
 		return &dataFailure{"The Supabase data stack requires a Linux Docker engine."}
 	}
+	var b []byte
 	if info.MemTotal < 4<<30 || info.NCPU < 2 {
 		return &dataFailure{"Docker needs at least 4 GiB of allocated RAM and 2 CPU cores for this stack, with additional capacity for Luci agents and applications."}
 	}

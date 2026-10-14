@@ -79,8 +79,8 @@ func newFunctionFixture(t *testing.T) *functionFixture {
 }
 
 func (x *functionFixture) run(ctx context.Context, exe string, args []string, dir string, input []byte) ([]byte, error) {
-	if len(args) > 2 && args[0] == "info" && args[2] == "{{.ID}}" {
-		return []byte(x.engine), nil
+	if len(args) > 2 && args[0] == "info" && args[2] == "{{json .}}" {
+		return json.Marshal(map[string]any{"ID": x.engine, "OSType": "linux", "MemTotal": int64(16 << 30), "NCPU": 8, "Swarm": map[string]string{"LocalNodeState": "inactive"}})
 	}
 	if len(args) == 2 && args[0] == "inspect" && strings.HasSuffix(args[1], "-functions") {
 		x.f.mu.Lock()

@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/dockerinfo"
 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
@@ -57,6 +58,22 @@ func (l resourceLimits) args() []string {
 }
 func (s *Service) docker(ctx context.Context, args ...string) ([]byte, error) {
 	return s.opts.Runner(ctx, "docker", args, s.dir, nil)
+}
+func (s *Service) engineInfo(ctx context.Context) (dockerinfo.Info, error) {
+	if s.nativeInfo {
+		return dockerinfo.Probe(ctx, "docker", s.opts.DockerHost, dockerinfo.Environment(), true)
+	}
+	// An injected runner must keep its selected transport in controlled tests.
+	// Production uses dial-stdio above and never invokes Docker's info formatter.
+	var info dockerinfo.Info
+	data, err := s.docker(ctx, "info", "--format", "{{json .}}")
+	if err != nil {
+		return info, err
+	}
+	if err = json.Unmarshal(data, &info); err != nil {
+		return dockerinfo.Info{}, err
+	}
+	return info, nil
 }
 func (s *Service) labels(id, resource string) []string {
 	return []string{"--label", labelInstance + "=" + s.instance, "--label", labelProject + "=" + id, "--label", labelResource + "=" + resource}

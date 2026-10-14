@@ -203,8 +203,8 @@ func DataFunctionDigest(auth string, files []DataFunctionFile) string {
 	return dataSum(b)
 }
 func (s *Service) functionEngine(ctx context.Context, i dataInstallation, v *dataFunctionState) error {
-	b, e := s.docker(ctx, "info", "--format", "{{.ID}}")
-	id := strings.TrimSpace(string(b))
+	info, e := s.engineInfo(ctx)
+	id := strings.TrimSpace(info.ID)
 	if e != nil || id == "" || len(id) > 128 || strings.ContainsAny(id, "\r\n\x00 \t") || (v.EngineID != "" && v.EngineID != id) || (v.StableTenant != "" && v.StableTenant != i.storageTenant()) {
 		return errors.New("function host identity changed")
 	}

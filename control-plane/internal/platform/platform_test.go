@@ -275,7 +275,7 @@ func TestPlatformCapabilitiesRequireDockerServerEvidence(t *testing.T) {
 		{"empty-success", "", nil, false},
 		{"whitespace-success", " \r\n", nil, false},
 		{"failed-version", "28.3.3", errors.New("engine unavailable"), false},
-		{"verified-version", "28.3.3\n", nil, true},
+		{"verified-version", `{"ServerVersion":"28.3.3"}`, nil, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := fixture(t, func(context.Context, string, []string, string, []byte) ([]byte, error) {

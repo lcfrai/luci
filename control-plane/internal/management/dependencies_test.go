@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/dockerinfo"
 )
 
 const dependencyTrustedSourceFixture = `{"Arg":"https://cdn.winget.microsoft.com/cache","Data":"Microsoft.Winget.Source_8wekyb3d8bbwe","Identifier":"Microsoft.Winget.Source_8wekyb3d8bbwe","Name":"winget","TrustLevel":["Trusted","StoreOrigin"],"Type":"Microsoft.PreIndexed.Package"}`
@@ -39,6 +41,15 @@ func newFakeDependencyRunner() *fakeDependencyRunner {
 	return &fakeDependencyRunner{installed: map[string]bool{}, sourceTrusted: true, engineRunning: true, started: make(chan string, 10), platformName: "windows"}
 }
 func (f *fakeDependencyRunner) platform() string { return f.platformName }
+func (f *fakeDependencyRunner) engineInfo(context.Context, string) (dockerinfo.Info, error) {
+	f.mu.Lock()
+	ready := f.engineRunning
+	f.mu.Unlock()
+	if !ready {
+		return dockerinfo.Info{}, errors.New("private-context-path must never be returned")
+	}
+	return dockerinfo.Info{ServerVersion: "28.5.1"}, nil
+}
 func (f *fakeDependencyRunner) installationLease(context.Context) (func(), error) {
 	return func() {}, nil
 }
