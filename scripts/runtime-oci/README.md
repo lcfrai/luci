@@ -29,6 +29,10 @@ stream; ambiguous outcomes retain the ownership journal and prohibit a blind
 retry. No registry publication, global pruning or host configuration changes
 occur. Actual `sandboxd`, `codex`, `claude` and `opencode` version commands and
 installed grants are collected without network or credentials.
+The canonical Dockerfile packs the complete Go toolchain in the capped builder
+RUN, copies a single compressed file between stages, and unpacks it in a capped
+runtime RUN. It avoids daemon-only materialization of the full directory tree;
+the extra compressed layer remains honestly included in archive size/digests.
 
 On a dedicated Windows release producer only, the optional
 `--producer-wsl-cache-assistance` flag permits at most 36 transient cache

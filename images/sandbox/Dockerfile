@@ -2,7 +2,8 @@ FROM golang:1.26-bookworm AS build
 WORKDIR /src
 # Committed dependencies keep the Go build independent of module downloads.
 COPY sandboxd ./sandboxd
-RUN cd sandboxd && CGO_ENABLED=0 GOMAXPROCS=1 GOMEMLIMIT=512MiB GOFLAGS="-mod=vendor -p=1" go build -o /out/sandboxd ./cmd/sandboxd
+RUN cd sandboxd && CGO_ENABLED=0 GOMAXPROCS=1 GOMEMLIMIT=512MiB GOFLAGS="-mod=vendor -p=1" go build -o /out/sandboxd ./cmd/sandboxd \
+    && tar -C /usr/local -czf /out/go-toolchain.tar.gz go
 
 # Claude Code 2.1.274 requires Node >=22 (verified with npm view). Node 24
 # is a supported LTS line; the previous Node 20 image is end-of-life.
@@ -17,7 +18,11 @@ RUN NODE_OPTIONS=--max-old-space-size=512 npm_config_jobs=1 npm install -g @anth
 
 RUN useradd -m -u 1001 -s /bin/bash dev
 COPY --from=build /out/sandboxd /usr/local/bin/sandboxd
-COPY --from=build /usr/local/go /usr/local/go
+# A directory COPY makes the classic daemon materialize the entire Go tree
+# outside the RUN memory/CPU limits. Transfer one compressed ordinary file,
+# then expand it inside a resource-capped RUN instead. Keep the full toolchain.
+COPY --from=build /out/go-toolchain.tar.gz /tmp/go-toolchain.tar.gz
+RUN tar -C /usr/local -xzf /tmp/go-toolchain.tar.gz && rm /tmp/go-toolchain.tar.gz
 ENV PATH="/usr/local/go/bin:${PATH}"
 COPY images/sandbox/entrypoint.sh /usr/local/bin/entrypoint.sh
 # Source packages built on Windows may contain CRLF even before Git attributes
