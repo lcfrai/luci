@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "component": "distribution/distribution",
+  "versionString": "3.0.0",
+  "archiveURL": "https://github.com/distribution/distribution/releases/download/v3.0.0/registry_3.0.0_linux_amd64.tar.gz",
+  "archiveSHA256": "61c9a2c0d5981a78482025b6b69728521fbc78506d68b223d4a2eb825de5ca3d",
+  "archiveBytes": 14340894,
+  "upstreamProvenanceSHA256": "a6285d35161e92abf25f26a5806db109c459de06b1165cc5a4980d82f5b68d01",
+  "files": [
+    {
+      "file": "LICENSE",
+      "sha256": "cb5e8e7e5f4a3988e1063c142c60dc2df75605f4c46515e776e3aca6df976e14",
+      "bytes": 11325
+    },
+    {
+      "file": "README.md",
+      "sha256": "f53492a6ce94577a1aeeb3456db5fba1726bfd054a57fa8f2f3081389e57a348",
+      "bytes": 5172
+    },
+    {
+      "file": "registry",
+      "sha256": "7e293ee23c59f5f0e5ba162e483af1ce1bca074891d769302bd2cffefbe4363b",
+      "bytes": 49340568
+    }
+  ]
+}
