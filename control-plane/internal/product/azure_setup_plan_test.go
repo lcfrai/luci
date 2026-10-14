@@ -85,8 +85,20 @@ func testAzureSetupArchiveWithSource(t *testing.T, runtimeDir, sourceRevision st
 
 func TestAzureSetupBundleRefusesCrossRevisionBuilderSource(t *testing.T) {
 	root := t.TempDir()
-	testAzureSetupArchiveWithSource(t, root, strings.Repeat("f", 40))
-	if _, _, _, err := readAzureSetupBundle(root, filepath.Join(root, "projects")); err == nil || !strings.Contains(err.Error(), "builder source revision") {
+	runtimeDir, projectsDir := filepath.Join(root, "runtime"), filepath.Join(root, "projects")
+	for _, directory := range []string{runtimeDir, projectsDir} {
+		if err := os.Mkdir(directory, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// First prove that this fixture passes the real path and archive guards.
+	// The following refusal must come from the changed source revision.
+	testAzureSetupArchive(t, runtimeDir)
+	if _, _, source, err := readAzureSetupBundle(runtimeDir, projectsDir); err != nil || source != strings.Repeat("a", 40) {
+		t.Fatalf("positive source fixture did not reach source validation: %v", err)
+	}
+	testAzureSetupArchiveWithSource(t, runtimeDir, strings.Repeat("f", 40))
+	if _, _, _, err := readAzureSetupBundle(runtimeDir, projectsDir); err == nil || !strings.Contains(err.Error(), "builder source revision") {
 		t.Fatalf("cross-revision builder source was accepted: %v", err)
 	}
 }
