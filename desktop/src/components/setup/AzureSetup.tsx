@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { errorText, type ProductClient } from "../../api/product";
-import { azurePrerequisites, createAzureSetupClient, type AzureSetupPlan, type AzureSetupRequest } from "../../api/azureSetup";
+import { azurePrerequisites, createAzureSetupClient, readAzureConnectionDescriptor, readAzureSetupProgress, type AzureConnectionDescriptor, type AzureSetupPlan, type AzureSetupProgress, type AzureSetupRequest } from "../../api/azureSetup";
 import { TEAM_WORKSPACE_CHANGED } from "../../api/teamScope";
 import { AUTH_EXPIRED } from "../../api/authSession";
 import { Button } from "../fluid/components/button";
+import { CloudManager } from "./CloudManager";
 import "./azure-setup.css";
 
 export function AzureSetup({ client, disabled, budget = 30 }: { client: ProductClient; disabled: boolean; budget?: number }) {
@@ -11,13 +12,15 @@ export function AzureSetup({ client, disabled, budget = 30 }: { client: ProductC
   const id = useId();
   const [input, setInput] = useState<AzureSetupRequest>({ name: "luci", region: "australiaeast", monthlyBudgetUsd: budget > 0 ? budget : 30, maxConcurrentVMs: 1 });
   const [plan, setPlan] = useState<AzureSetupPlan | null>(null);
+  const [descriptor, setDescriptor] = useState<AzureConnectionDescriptor | null>(null);
+  const [progress, setProgress] = useState<AzureSetupProgress | null>(null);
   const [verified, setVerified] = useState(false), [busy, setBusy] = useState("");
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
   const alive = useRef(true), allowed = useRef(!disabled), generation = useRef(0), pending = useRef<AbortController | null>(null);
   allowed.current = !disabled;
   const invalidate = useCallback(() => {
     generation.current++; pending.current?.abort(); pending.current = null;
-    setPlan(null); setVerified(false); setBusy(""); setError(""); setNotice("");
+    setPlan(null); setDescriptor(null); setProgress(null); setVerified(false); setBusy(""); setError(""); setNotice("");
   }, []);
   useLayoutEffect(() => { invalidate(); }, [client, disabled, invalidate]);
   useEffect(() => {
@@ -42,7 +45,7 @@ export function AzureSetup({ client, disabled, budget = 30 }: { client: ProductC
   }
   const prepare = (event: FormEvent) => {
     event.preventDefault();
-    setPlan(null); setVerified(false);
+    setPlan(null); setDescriptor(null); setProgress(null); setVerified(false);
     void run("Preparing instructions…", async (signal, current) => {
       const result = await api.plan(input, signal);
       if (current()) setPlan(result);
@@ -67,6 +70,23 @@ export function AzureSetup({ client, disabled, budget = 30 }: { client: ProductC
       if (!navigator.clipboard?.writeText) throw new Error("Copy is unavailable here. Select the verified commands below and copy them manually.");
       await navigator.clipboard.writeText(plan.commands.join("\n"));
       if (current()) setNotice("Setup commands copied. Run them on your Linux or WSL2 setup computer after reviewing the installer guide.");
+    });
+  };
+  const importProgress = (file?: File) => {
+    if (!file || !plan) return;
+    void run("Reading stage receipt…", async (_signal, current) => {
+      const result = await readAzureSetupProgress(file, plan, descriptor);
+      if (current()) { setProgress(result); setNotice("Installer stages loaded from a local receipt. Cloud access, cost and workspace connection are still unverified."); }
+    });
+  };
+  const importConnection = (file?: File) => {
+    if (!file || !plan) return;
+    void run("Reading controller identity…", async (_signal, current) => {
+      const result = await readAzureConnectionDescriptor(file, plan);
+      if (!current()) return;
+      setDescriptor(result);
+      setProgress(value => value && (value.scope !== result.scope || value.selectionDigest !== result.selectionDigest) ? null : value);
+      setNotice("Private controller identity loaded. Verify its pin against authenticated Azure readback and inspect the reachable SSH host before connecting.");
     });
   };
   return <section className="azure-setup" aria-label="Guided Azure setup">
@@ -101,6 +121,22 @@ export function AzureSetup({ client, disabled, budget = 30 }: { client: ProductC
         {azurePrerequisites(plan.missingInputs).map(group => <section key={group.title}><h4>{group.title}</h4><ul>{group.items.map(item => <li key={item}>{item}</li>)}</ul></section>)}
         <dl><dt>Installer source commit</dt><dd><code>{plan.sourceCommit}</code></dd><dt>Download SHA-256</dt><dd><code>{plan.bundleSHA256}</code></dd></dl>
       </details>
+      <section className="azure-setup-followup" aria-label="Azure installer progress and connection">
+        <h3>Continue after running the installer</h3>
+        <p>Import only the nonsecret receipts from your exact installer working folder. They show prepared stages and a proposed controller identity; they are not proof of Azure authentication, private reachability, cloud pricing or a connected workspace.</p>
+        <div className="azure-setup-receipts">
+          <label className="luci-field">Installer progress JSON
+            <input type="file" accept=".json,application/json" disabled={disabled || !!busy} onChange={event => { importProgress(event.target.files?.[0]); event.target.value = ""; }} />
+            <small>Choose the output of <code>status</code>. Keep the original receipt for recovery.</small>
+          </label>
+          <label className="luci-field">Azure controller connection JSON
+            <input type="file" accept=".json,application/json" disabled={disabled || !!busy} onChange={event => { importConnection(event.target.files?.[0]); event.target.value = ""; }} />
+            <small>Choose <code>azure-connection.json</code> after the installer completes authenticated host readback. No SSH key or cloud credential is imported.</small>
+          </label>
+        </div>
+        {progress && <div role="status" className="azure-setup-progress"><h4>Installer stages · local receipts only</h4><ol>{progress.stages.map(stage => <li key={stage.id}><strong>{stage.id.replace(/-/g, " ")}</strong>: {stage.state.replace(/_/g, " ")}{stage.uncertain ? " · outcome uncertain; reconcile before continuing" : ""}</li>)}</ol><p>Connection and final provider invoice remain unverified.</p></div>}
+        {descriptor && <div className="azure-setup-controller"><h4>Protected workspace connection</h4><p>Controller VM <code>{descriptor.vmID}</code>, generation <code>{descriptor.generation}</code>, private address <code>{descriptor.host}</code>. This file claims a host readback; compare its fingerprint with Azure’s authenticated readback before trusting it. A private route, SSH credential and workspace sign-in are still required.</p><CloudManager key={`${descriptor.scope}:${descriptor.generation}:${descriptor.fingerprint}`} client={client} plan={null} mode="existing" azureDescriptor={descriptor} /></div>}
+      </section>
     </div>}
   </section>;
 }

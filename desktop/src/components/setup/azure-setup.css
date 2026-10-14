@@ -8,4 +8,11 @@
 .azure-setup-plan dd { margin-inline-start: 0; overflow-wrap: anywhere; margin-block-end: 12px; }
 .azure-setup-plan details section { margin-block: 18px; }
 .azure-setup-plan pre { font-size: 12px; line-height: 1.6; }
-@media (max-width: 650px) { .azure-setup-fields { grid-template-columns: minmax(0, 1fr); } }
+.azure-setup-followup { margin-block-start: 24px; border-block-start: 1px solid var(--border, #40504d); padding-block-start: 20px; }
+.azure-setup-receipts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-block: 16px; }
+.azure-setup-receipts input { max-inline-size: 100%; }
+.azure-setup-progress { margin-block: 16px; padding: 16px; border-radius: 8px; background: var(--muted, #263230); }
+.azure-setup-progress ol { margin-block: 8px; padding-inline-start: 24px; }
+.azure-setup-controller { margin-block-start: 20px; }
+.azure-setup-controller code { overflow-wrap: anywhere; }
+@media (max-width: 650px) { .azure-setup-fields, .azure-setup-receipts { grid-template-columns: minmax(0, 1fr); } }

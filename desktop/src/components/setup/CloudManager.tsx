@@ -13,6 +13,7 @@ import {
   type Tunnel,
 } from "../../api/product";
 import { WorkspaceInstaller } from "./WorkspaceInstaller";
+import type { AzureConnectionDescriptor } from "../../api/azureSetup";
 
 export function CloudManager({
   client,
@@ -21,6 +22,7 @@ export function CloudManager({
   mode = "all",
   activeConnectionId,
   manageTargets = false,
+  azureDescriptor,
 }: {
   client: ProductClient;
   plan: CloudPlan | null;
@@ -28,6 +30,7 @@ export function CloudManager({
   mode?: "all" | "managed" | "existing";
   activeConnectionId?: string;
   manageTargets?: boolean;
+  azureDescriptor?: AzureConnectionDescriptor;
 }) {
   const [jobs, setJobs] = useState<CloudJob[]>([]);
   const [targets, setTargets] = useState<DeploymentTarget[]>([]);
@@ -92,6 +95,11 @@ export function CloudManager({
   useEffect(() => {
     if (privateKeyPath) setSSH((value) => ({ ...value, privateKeyPath }));
   }, [privateKeyPath]);
+  useEffect(() => {
+    if (!azureDescriptor) return;
+    setSSH({ host: azureDescriptor.host, port: 22, user: "luci", privateKeyPath: "" });
+    setScan(null); setAccepted(false); setFingerprint("");
+  }, [azureDescriptor]);
   useEffect(() => {
     if (!tunnels.some((t) => t.status === "connecting")) return;
     const timer = setInterval(() => {
@@ -383,18 +391,18 @@ export function CloudManager({
               Server address
               <input
                 id="cloud-ssh-host"
-                disabled={!!busy}
+                disabled={!!busy || !!azureDescriptor}
                 required
                 value={ssh.host}
                 onChange={(e) => changeSSH({ host: e.target.value })}
-                placeholder="Your server’s public IP"
+                placeholder={azureDescriptor ? "Private Azure controller address" : "Your server’s address"}
               />
             </label>
             <label className="luci-field">
               SSH port
               <input
                 type="number"
-                disabled={!!busy}
+                disabled={!!busy || !!azureDescriptor}
                 min="1"
                 max="65535"
                 required
@@ -406,7 +414,7 @@ export function CloudManager({
               SSH user
               <input
                 required
-                disabled={!!busy}
+                disabled={!!busy || !!azureDescriptor}
                 value={ssh.user}
                 onChange={(e) => changeSSH({ user: e.target.value })}
               />
@@ -427,11 +435,8 @@ export function CloudManager({
         </form>
         {scan && (
           <div className="cloud-confirm">
-            <p>
-              Compare this host key with your provider’s console before trusting{" "}
-              <strong>{scan.host}</strong>. A key shown here alone does not
-              prove ownership.
-            </p>
+            <p>{azureDescriptor ? "Compare the observed host key with the exact authenticated Azure controller readback before trusting this private server. The imported file alone does not prove ownership or a usable private route." : "Compare this host key with your provider’s console before trusting this server. A key shown here alone does not prove ownership."}</p>
+            {azureDescriptor && !scan.fingerprints.includes(azureDescriptor.fingerprint) && <p role="alert" className="journey-error">The server key differs from the imported Azure controller identity. Check the authenticated Azure readback; do not connect this server.</p>}
             <label className="luci-field">
               Server fingerprint
               <select
@@ -443,7 +448,7 @@ export function CloudManager({
                 }}
               >
                 <option value="">Choose the matching fingerprint</option>
-                {scan.fingerprints.map((f) => (
+                {scan.fingerprints.filter(f => !azureDescriptor || f === azureDescriptor.fingerprint).map((f) => (
                   <option key={f} value={f}>
                     {f}
                   </option>
@@ -457,11 +462,11 @@ export function CloudManager({
                 checked={accepted}
                 onChange={(e) => setAccepted(e.target.checked)}
               />
-              I compared this fingerprint with my server’s trusted console.
+              {azureDescriptor ? "I compared this fingerprint with the authenticated Azure controller readback for this exact VM and generation." : "I compared this fingerprint with my server’s trusted console."}
             </label>
             <Button type="button"
               variant="primary"
-              disabled={!!busy || !fingerprint || !accepted}
+              disabled={!!busy || !fingerprint || !accepted || !!azureDescriptor && (scan.host !== azureDescriptor.host || fingerprint !== azureDescriptor.fingerprint)}
               onClick={() =>
                 void run("Connecting SSH", async () => {
                   const tunnel = await client.connectSSH(scan.id, fingerprint);
