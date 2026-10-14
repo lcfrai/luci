@@ -1,0 +1,81 @@
+{
+  "checks": [
+    {
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "scripts/azure-embed-host",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "cwd": ".",
+      "durationSeconds": 0.298,
+      "exitCode": 0,
+      "log": "python-host.log",
+      "logSHA256": "aed035f1386f06cd25bd6dce82ae6dcf508990b7436bb9250de8bc0276d7b0d1",
+      "name": "python-host"
+    },
+    {
+      "argv": [
+        "/dev/shm/luci-terraform-tool/terraform",
+        "-chdir=infra/terraform/azure_embed_private",
+        "validate",
+        "-no-color"
+      ],
+      "cwd": ".",
+      "durationSeconds": 1.404,
+      "exitCode": 0,
+      "log": "terraform-validate.log",
+      "logSHA256": "f7997225125835fdd14060ac776d273f394b874f9a481b9e2122c83dc8adc5c1",
+      "name": "terraform-validate"
+    },
+    {
+      "argv": [
+        "/dev/shm/luci-toolchain/go/bin/go",
+        "test",
+        "./cmd/api",
+        "./cmd/azure-gateway-config",
+        "-run",
+        "^(TestAzureARMRequiresExactControllerDiskAndRuntimeHostReadback|TestAzureGatewayDedicatedHostFirewallDeniesDirectRuntimePorts)$",
+        "-count=1"
+      ],
+      "cwd": "control-plane",
+      "durationSeconds": 3.777,
+      "exitCode": 0,
+      "log": "go-affected.log",
+      "logSHA256": "593b50ef589cc1acb8d2fe25cdcf27eb00454845fe0c644dcaeb3341c5248373",
+      "name": "go-affected"
+    }
+  ],
+  "deferred": [
+    "controller disk fence/restore automation",
+    "protected live rotation delivery",
+    "actual gallery image and guest template",
+    "live Azure/KVM/12-task-4-project-4-concurrent microVM acceptance",
+    "provider usage and final invoice"
+  ],
+  "scope": "Offline selected-source configuration, package and host lifecycle only. No Azure/E2B account, VM, image, firewall or Docker effect.",
+  "sourceBindings": {
+    "control-plane/cmd/api/azure_resource_readback.go": "baaebd5d2ef8019121cff41e91136f4055938969f6d363d8e0bab4c186dcd1fd",
+    "control-plane/cmd/api/azure_resource_readback_test.go": "ceb0e3c5fd0360a272c1fb831fae4b920823868122d286da6fdc0c0952065fc5",
+    "control-plane/cmd/azure-gateway-config/main.go": "3a995272ffaad0704352cc7cfdf6b866109c5b97f688dc3b2e762a6a4d6be940",
+    "control-plane/cmd/azure-gateway-config/main_test.go": "1b6185b2d1226f81d53b93f197a0738d18b8159f0889293d86d6a9c2f6437939",
+    "infra/terraform/azure_embed_private/.terraform.lock.hcl": "4685d589736fa548e390a1093abe20fb2ede4e63dbd21a74bd34bb5649e56c93",
+    "infra/terraform/azure_embed_private/README.md": "6abcb37b70fa7a290d8160d56de808e9f88e752079beb9bc928e65e7173e9710",
+    "infra/terraform/azure_embed_private/compute.tf": "456e28b358770bd3e1373d8c0559dfaa6e6c79e014f68a8686461e36f8336265",
+    "infra/terraform/azure_embed_private/identity.tf": "b54674697fdd005c9da1626df7894f590595e46fcc07730433809eaa332d8ee6",
+    "infra/terraform/azure_embed_private/network.tf": "646276a6053594344d568214c1182804bad6ab01f889fd7c7a4c59e602caac65",
+    "infra/terraform/azure_embed_private/outputs.tf": "6595932d0eb5f9666ed85f706f8cd9d26b85fb0ce428f21d75e2b3a6c40032e5",
+    "infra/terraform/azure_embed_private/variables.tf": "72ee7e304d2681886dbf231c20e8e3a61d8646603e0a5c00932484bdb1149408",
+    "infra/terraform/azure_embed_private/versions.tf": "bd17127e3de9e239252fc7605426de28684fb904799957174f332a51a87e08ad",
+    "scripts/azure-embed-host/package.py": "609684b430314029fe4c3060f09dd0c82ac26a34c45e9bd8a1a97aad334dcaf9",
+    "scripts/azure-embed-host/service.py": "778164c9e0d2f969caa331055310b96ac7a870f0932987fd3eced016f26dede0",
+    "scripts/azure-embed-host/test_host_package.py": "4acdda7dfeea3bc124786f6993567b1dfb173bf2cf4a456a7b81d2f051ec70ab"
+  },
+  "sourceCommit": "254a6fa699f87f2923888c2713f495cb07eb2e75",
+  "version": 1
+}
