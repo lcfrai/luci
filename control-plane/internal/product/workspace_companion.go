@@ -19,8 +19,10 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/runtimeoci"
 )
 
-const maxWorkspaceCoreBytes int64 = 300 << 20
-const maxWorkspaceCoreExpandedBytes int64 = 1 << 30
+// The release verifier permits 512 MiB of non-image package content. The
+// management core is a subset of that inventory; the OCI image is separate.
+const maxWorkspaceCoreBytes int64 = 512 << 20
+const maxWorkspaceCoreExpandedBytes int64 = (512 + 1) << 20 // tar trailer allowance
 
 type workspaceCompanion struct {
 	core            *os.File
