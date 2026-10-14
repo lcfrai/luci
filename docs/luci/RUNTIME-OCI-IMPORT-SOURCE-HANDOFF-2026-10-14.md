@@ -1,6 +1,6 @@
 # Ordinary packaged runtime import: source handoff
 
-Source implementation: `d929ce80d8c07df59477774926bfd9f46277c91d` on `codex/runtime-oci-import-20261014`, based on `b61b7bc4368aed2bee2fe159ea78f3b3b8e85718`. This is LOCAL-033 source implementation, not an installed runtime or local Docker acceptance result. LOCAL-034's earlier engine-retirement recovery remains separate.
+The core source implementation was published at `d929ce80d8c07df59477774926bfd9f46277c91d` on `codex/runtime-oci-import-20261014`, based on `b61b7bc4368aed2bee2fe159ea78f3b3b8e85718`; the dedicated runtime-grant and strict clean-receipt follow-up is `3a8dfdadd7f45556274e45de399ab122b393e4eb`. This is LOCAL-033 source implementation, not an installed runtime or local Docker acceptance result. LOCAL-034's earlier engine-retirement recovery remains separate.
 
 `POST /v1/setup/runtime/install` defaults to `mode=packaged`. `mode=advanced-build` explicitly selects the retained capped source builder. The ordinary path reads only the fixed installed `runtime/` bundle and sibling `licenses/` tree. Missing or mismatched assets refuse before Docker mutation; there is no automatic source-build fallback. The package's exact `source-receipt.json` has `version=1`, a clean 40-hex `sourceCommit`, and `sourceDirty=false`. Existing packaging must still bind this receipt, manifest, build receipt and one outer archive by hash and stage its required companion consistently.
 
