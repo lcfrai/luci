@@ -9,7 +9,21 @@ root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 version=${1:-0.5.0}
 selected=${2:-all}
 runtime_payload=${3:-${LUCI_RUNTIME_PAYLOAD_DIR:-}}
+if (( $# > 3 )); then shift 3; else set --; fi
+e2b_source=
+while (( $# )); do
+  case "$1" in
+    --e2b-source)
+      [[ -z "$e2b_source" && $# -ge 2 && -n "$2" ]] || { printf '%s\n' 'Supply --e2b-source once with the absolute pinned E2B checkout path.' >&2; exit 2; }
+      e2b_source=$2
+      shift 2 ;;
+    *) printf 'Unknown release argument: %s\n' "$1" >&2; exit 2 ;;
+  esac
+done
 [[ -n "$runtime_payload" ]] || { printf '%s\n' 'Supply the verified producer runtime payload directory as argument 3 or LUCI_RUNTIME_PAYLOAD_DIR.' >&2; exit 2; }
+[[ "$e2b_source" = /* && -d "$e2b_source" && ! -L "$e2b_source" ]] || {
+  printf '%s\n' 'Supply --e2b-source with an existing absolute, ordinary pinned E2B checkout; this is a maintainer build input.' >&2; exit 2;
+}
 if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
   printf '%s\n' 'Use a release version such as 0.5.0 or 0.5.0-rc.1.' >&2
   exit 2
@@ -44,16 +58,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
-(cd "$root/desktop" && npm run build)
-guides="$stage/package-guides"
-python3 "$root/scripts/stage-release-docs.py" "$root" "$guides" --source-commit="$source_commit" --source-dirty="${source_dirty:-unknown}"
 azure_setup="$stage/azure-setup"
 mkdir -p "$azure_setup"
 if [[ "$source_dirty" == false ]]; then
-  azure_sha=$(python3 "$root/scripts/azure-setup/package.py" build --source "$root" --revision "$source_commit" --output "$azure_setup/azure-setup.tar")
+  azure_sha=$(python3 "$root/scripts/azure-setup/package.py" build --source "$root" --revision "$source_commit" --e2b-source "$e2b_source" --output "$azure_setup/azure-setup.tar")
   python3 "$root/scripts/azure-setup/package.py" verify --archive "$azure_setup/azure-setup.tar" --sha256 "$azure_sha" >/dev/null
   printf '%s\n' "$azure_sha" > "$azure_setup/azure-setup.sha256"
 fi
+(cd "$root/desktop" && npm run build)
+guides="$stage/package-guides"
+python3 "$root/scripts/stage-release-docs.py" "$root" "$guides" --source-commit="$source_commit" --source-dirty="${source_dirty:-unknown}"
 build_package() {
   local goos=$1 goarch=$2 package=$3
   mkdir -p "$package/runtime/sandboxd" "$package/runtime/images" "$package/docs/luci"

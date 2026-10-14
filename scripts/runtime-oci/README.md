@@ -17,7 +17,7 @@ python scripts/runtime-oci/producer.py --repo . --revision $revision --output E:
 if ($LASTEXITCODE -ne 0) { throw 'Preserve producer output and failure logs; do not retry blindly' }
 python scripts/runtime-oci/payload.py verify --payload E:/private/luci-runtime-unique
 if ($LASTEXITCODE -ne 0) { throw 'Runtime payload verification failed' }
-./scripts/build-release.ps1 -Version 0.5.0 -Target windows-amd64 -RuntimePayloadDir E:/private/luci-runtime-unique
+./scripts/build-release.ps1 -Version 0.5.0 -Target windows-amd64 -RuntimePayloadDir E:/private/luci-runtime-unique -E2BSource E:/private/e2b-runtime-cf536c28
 ```
 
 The fresh output must be outside the checkout. The producer reserves 1 GiB host

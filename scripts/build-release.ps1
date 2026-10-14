@@ -1,5 +1,5 @@
 #requires -Version 7.0
-param([string]$Version = '0.5.0', [switch]$Native, [string]$CertificateThumbprint = '', [string]$TimestampUrl = 'https://timestamp.digicert.com', [Parameter(Mandatory=$true)][string]$RuntimePayloadDir, [ValidateSet('all','windows-amd64','linux-amd64','darwin-arm64')][string]$Target = 'all')
+param([string]$Version = '0.5.0', [switch]$Native, [string]$CertificateThumbprint = '', [string]$TimestampUrl = 'https://timestamp.digicert.com', [Parameter(Mandatory=$true)][string]$RuntimePayloadDir, [ValidateSet('all','windows-amd64','linux-amd64','darwin-arm64')][string]$Target = 'all', [string]$E2BSource = '')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($CertificateThumbprint -and -not $Native) { throw 'CertificateThumbprint requires -Native.' }
@@ -71,6 +71,7 @@ try {
     # inputs at build start, not a later repository state.
     $luciSource = Get-SourceMetadata $luciRoot
     if ($luciSource.sourceDirty -ne $false) { throw 'Verified runtime distribution requires the full clean source checkout.' }
+    if (-not [IO.Path]::IsPathFullyQualified($E2BSource) -or -not (Test-Path -LiteralPath $E2BSource -PathType Container) -or (Get-Item -LiteralPath $E2BSource -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Supply -E2BSource with an existing absolute, ordinary pinned E2B checkout; this is a maintainer build input.' }
     if ($Native -and $Target -notin @('all','windows-amd64')) { throw 'Native Windows packaging requires a Windows target.' }
     & python (Join-Path $PSScriptRoot 'release-version.py') check $Version
     Confirm-Exit 'Authoritative release version alignment'
@@ -91,6 +92,15 @@ try {
     New-Item -ItemType Directory -Force -Path $luciStage | Out-Null
     $env:GOMAXPROCS = '1'; $env:GOMEMLIMIT = '512MiB'; $env:NODE_OPTIONS = '--max-old-space-size=1024'
     [Environment]::SetEnvironmentVariable('VITE_LUCI_API', $null, 'Process')
+    $luciRuntime = Join-Path $luciStage 'runtime'
+    New-Item -ItemType Directory -Force -Path $luciRuntime | Out-Null
+    $luciAzureArchive = Join-Path $luciRuntime 'azure-setup.tar'
+    $luciAzureHash = (& python (Join-Path $PSScriptRoot 'azure-setup/package.py') build --source $luciRoot --revision $luciSource.sourceCommit --e2b-source $E2BSource --output $luciAzureArchive | Select-Object -Last 1)
+    Confirm-Exit 'Source-bound Azure Develop setup bundle'
+    if ($luciAzureHash -notmatch '^[0-9a-f]{64}$') { throw 'Azure Develop setup bundle hash is invalid.' }
+    & python (Join-Path $PSScriptRoot 'azure-setup/package.py') verify --archive $luciAzureArchive --sha256 $luciAzureHash | Out-Null
+    Confirm-Exit 'Azure Develop setup bundle verification'
+    [IO.File]::WriteAllText((Join-Path $luciRuntime 'azure-setup.sha256'), ($luciAzureHash + "`n"), [Text.UTF8Encoding]::new($false))
     Push-Location (Join-Path $luciRoot 'desktop')
     try { & $luciNpm run build; Confirm-Exit 'Desktop production build' } finally { Pop-Location }
 
@@ -100,21 +110,11 @@ try {
     Confirm-Exit 'Source-bound package documentation'
 
     # Runtime allowlist: only the sandbox build context, never the whole repository or user state.
-    $luciRuntime = Join-Path $luciStage 'runtime'
     foreach ($luciTree in @('sandboxd/cmd','sandboxd/internal','sandboxd/vendor')) { Copy-Tree (Join-Path $luciRoot $luciTree) (Join-Path $luciRuntime $luciTree) }
     foreach ($luciFile in @('sandboxd/go.mod','sandboxd/go.sum','images/sandbox/Dockerfile','images/sandbox/entrypoint.sh')) {
         $luciDestination = Join-Path $luciRuntime $luciFile
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $luciDestination) | Out-Null
         Copy-Item -LiteralPath (Join-Path $luciRoot $luciFile) -Destination $luciDestination
-    }
-    if ($luciSource.sourceDirty -eq $false) {
-        $luciAzureArchive = Join-Path $luciRuntime 'azure-setup.tar'
-        $luciAzureHash = (& python (Join-Path $PSScriptRoot 'azure-setup/package.py') build --source $luciRoot --revision $luciSource.sourceCommit --output $luciAzureArchive | Select-Object -Last 1)
-        Confirm-Exit 'Source-bound Azure Develop setup bundle'
-        if ($luciAzureHash -notmatch '^[0-9a-f]{64}$') { throw 'Azure Develop setup bundle hash is invalid.' }
-        & python (Join-Path $PSScriptRoot 'azure-setup/package.py') verify --archive $luciAzureArchive --sha256 $luciAzureHash | Out-Null
-        Confirm-Exit 'Azure Develop setup bundle verification'
-        [IO.File]::WriteAllText((Join-Path $luciRuntime 'azure-setup.sha256'), ($luciAzureHash + "`n"), [Text.UTF8Encoding]::new($false))
     }
     $luciTargets = @(@{os='windows';arch='amd64';suffix='.exe'},@{os='linux';arch='amd64';suffix=''},@{os='darwin';arch='arm64';suffix=''})
     # Linux management core is still needed by the supported compatibility

@@ -140,14 +140,14 @@ The accompanying `release-manifest.json` records the version, artifact hashes an
 
 ## Rebuilding locally
 
-Use Go 1.26.3, Node 24.19.0, Python 3.11 or newer, and the committed lockfiles. Install desktop dependencies with `npm ci` from `desktop/`. The scripts build the desktop assets themselves.
+Use Go 1.26.3, Node 24.19.0, Python 3.11 or newer, and the committed lockfiles. Install desktop dependencies with `npm ci` from `desktop/`. The scripts build the desktop assets themselves. Maintainer builds require the separately verified producer runtime payload and a clean checkout of E2B runtime at pinned revision `cf536c284434fdd2f09bbab35ec807a5dacc87e4`. The E2B checkout is embedded in the Azure setup bundle; installed users do not need it or its build tools. The build refuses a missing or changed E2B source before compiling the desktop.
 
 On Windows:
 
 ```powershell
-./scripts/build-release.ps1 -Version 0.5.0
+./scripts/build-release.ps1 -Version 0.5.0 -RuntimePayloadDir C:\verified-runtime-payload -E2BSource C:\e2b-runtime-pinned
 # Also build the native Windows NSIS installer:
-./scripts/build-release.ps1 -Version 0.5.0 -Native
+./scripts/build-release.ps1 -Version 0.5.0 -RuntimePayloadDir C:\verified-runtime-payload -E2BSource C:\e2b-runtime-pinned -Native
 ```
 
 Native Windows builds also need stable Rust with the MSVC target and the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/). Tauri receives the Cargo lock flag after its argument separator: `npm run tauri -- build --bundles nsis -- --locked`. The [NSIS distribution documentation](https://v2.tauri.app/distribute/windows-installer/) describes the installer and signing options.
@@ -155,8 +155,8 @@ Native Windows builds also need stable Rust with the MSVC target and the [Tauri 
 On Linux or macOS:
 
 ```bash
-bash scripts/build-release.sh 0.5.0 linux-amd64
-bash scripts/build-release.sh 0.5.0 darwin-arm64
+bash scripts/build-release.sh 0.5.0 linux-amd64 /absolute/verified-runtime-payload --e2b-source /absolute/e2b-runtime-pinned
+bash scripts/build-release.sh 0.5.0 darwin-arm64 /absolute/verified-runtime-payload --e2b-source /absolute/e2b-runtime-pinned
 ```
 
 Archives and their checksums are written under `artifacts/releases/0.5.0/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
