@@ -36,7 +36,7 @@ type azureARMClient struct {
 	http       *http.Client
 }
 
-func newAzureARMReader(clientID string) (azureARMReader, error) {
+func newAzureARMReader(clientID string) (*azureARMClient, error) {
 	if !azureClientIDPattern.MatchString(clientID) {
 		return nil, errors.New("Azure controller managed identity is invalid")
 	}
@@ -51,6 +51,13 @@ func newAzureARMReader(clientID string) (azureARMReader, error) {
 }
 
 func (c *azureARMClient) Read(ctx context.Context, path, apiVersion string, out *azureARMResource) error {
+	if out == nil {
+		return errors.New("Azure ARM resource destination missing")
+	}
+	return c.readJSON(ctx, path, apiVersion, out)
+}
+
+func (c *azureARMClient) readJSON(ctx context.Context, path, apiVersion string, out any) error {
 	if out == nil || !strings.HasPrefix(path, "/subscriptions/") || strings.ContainsAny(path, "?#") ||
 		apiVersion != "2023-10-02" && apiVersion != "2023-09-01" {
 		return errors.New("Azure ARM resource request is unsupported")

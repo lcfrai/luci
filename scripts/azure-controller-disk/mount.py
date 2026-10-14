@@ -17,6 +17,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import urllib.request
 
 
 UUID = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\Z")
@@ -180,6 +181,11 @@ def bind(value, finalize_only=False):
                 raise ValueError("retained template journal differs from signed finalization")
         else:
             atomic(path, data)
+    if finalize_only and journals:
+        envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), 64 << 10)
+        atomic(Path(value['mountPath']) / 'luci/operator-finalization-receipt.json', canonical({
+            'version': 1, 'envelopeSHA256': sha(envelope_data), 'generation': value['generation'],
+            'controllerInstanceId': value['controllerInstanceId']}))
     operator["azureMount"] = {"mountPath": value["mountPath"], "filesystemUuid": value["filesystemUuid"],
                               "receiptPath": str(disk_path), "generation": value["generation"],
                               "controllerInstanceId": value["controllerInstanceId"],
@@ -191,11 +197,12 @@ def bind(value, finalize_only=False):
                         value["scope"], value["generation"], "api:3000", "guest:3002", "envd:49983", "sandboxd:8080"]
     operator["azureGatewayReceiptDigest"] = sha(canonical(gateway_contract))
     atomic(Path(value["operatorOutputPath"]), canonical(operator))
+    atomic(Path('/etc/luci/azure-controller-disk-active.json'), canonical(value))
     return {"state": "mounted", "generation": value["generation"], "diskReceiptSHA256": sha(disk_data),
             "generationReceiptSHA256": sha(generation_data), "operatorSHA256": sha(canonical(operator))}
 
 
-def finalized_operator(value, draft, allow_deferred=False):
+def finalized_operator(value, draft, allow_deferred=False, retained=False):
     """Verify the image-pinned source and operator signature before formatting.
 
     Legacy complete operator selections retain their existing behavior. A
@@ -215,7 +222,8 @@ def finalized_operator(value, draft, allow_deferred=False):
             payload.get("sourceCommit") != binding.get("sourceCommit") or
             payload.get("templateSHA256") != value["operatorTemplateSHA256"] or
             payload.get("scope") != value["scope"] or payload.get("generation") != value["generation"] or
-            payload.get("controllerBootID") != boot_identity() or
+            not UUID.fullmatch(payload.get("controllerBootID", "")) or
+            not retained and payload.get("controllerBootID") != boot_identity() or
             payload.get("controllerInstanceId") != value["controllerInstanceId"] or payload.get("diskID") != value["azureDataDiskId"]):
         raise ValueError("deferred operator finalization is not bound to the selected source, disk and generation")
     with tempfile.TemporaryDirectory() as directory:
@@ -238,6 +246,45 @@ def finalized_operator(value, draft, allow_deferred=False):
     return operator, [(Path(expected_create), payload["createJournal"]),
                       (Path(str(expected_create) + ".response"), payload["createResponse"]),
                       (Path(expected_build), payload["buildJournal"])]
+
+
+def current_controller():
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    request = urllib.request.Request('http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01', headers={'Metadata': 'true'})
+    with opener.open(request, timeout=3) as response:
+        data = response.read(8193)
+    if len(data) > 8192:
+        raise ValueError('controller metadata exceeded bounds')
+    return json.loads(data)['resourceId']
+
+
+def resume(value):
+    """Explicit same-controller/generation reboot; no format, writes or resign.
+
+    The original signed boot is installation evidence. A retained receipt on
+    the authoritative disk permits remount after reboot; the account API still
+    checks the off-disk writer fence and the desktop must import its new boot pin.
+    Replacement controller/generation uses the separate fenced recovery path.
+    """
+    selected(value)
+    if current_controller().lower() != value['controllerInstanceId'].lower():
+        raise ValueError('resume is only for the exact existing controller')
+    template_data = private(Path(value['operatorTemplatePath']))
+    if sha(template_data) != value['operatorTemplateSHA256']:
+        raise ValueError('resume operator template source changed')
+    mount_exact(dict(value, mode='restore'))
+    installed = json.loads(private(Path(value['operatorOutputPath'])))
+    operator, journals = finalized_operator(value, json.loads(template_data), allow_deferred='setupDeferred' in installed, retained=True)
+    if journals:
+        envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), 64 << 10)
+        expected = {'version': 1, 'envelopeSHA256': sha(envelope_data), 'generation': value['generation'],
+                    'controllerInstanceId': value['controllerInstanceId']}
+        receipt = json.loads(private(Path(value['mountPath']) / 'luci/operator-finalization-receipt.json'))
+        if receipt != expected:
+            raise ValueError('resume requires the retained exact signed installation receipt')
+        if installed.get('template') != operator.get('template') or installed.get('sourceCommit') != operator.get('sourceCommit') or 'setupDeferred' in installed:
+            raise ValueError('retained operator changed after signed installation')
+    return inspect(value)
 
 
 def boot_identity():
@@ -277,12 +324,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--inspect", action="store_true")
     parser.add_argument("--finalize", action="store_true")
+    parser.add_argument("--resume", action="store_true")
     parser.add_argument("selection", type=Path)
     args = parser.parse_args()
-    value = json.loads(private(args.selection))
-    if args.inspect and args.finalize:
-        raise ValueError("choose inspection or signed finalization")
-    print(json.dumps(inspect(value) if args.inspect else bind(value, args.finalize), sort_keys=True))
+    active = Path('/etc/luci/azure-controller-disk-active.json')
+    value = json.loads(private(active if args.resume and active.exists() else args.selection))
+    if sum((args.inspect, args.finalize, args.resume)) > 1:
+        raise ValueError("choose inspection, explicit resume or signed finalization")
+    print(json.dumps(resume(value) if args.resume else inspect(value) if args.inspect else bind(value, args.finalize), sort_keys=True))
 
 
 if __name__ == "__main__":

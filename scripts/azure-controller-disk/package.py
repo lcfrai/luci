@@ -110,6 +110,7 @@ RequiresMountsFor=__MOUNT__
 [Service]
 Type=simple
 EnvironmentFile=/etc/luci/azure-controller.env
+ExecStartPre=/usr/bin/python3 /opt/luci/azure-controller/bin/mount.py --resume /etc/luci/azure-controller-disk-initial.json
 ExecStart=/opt/luci/azure-controller/bin/luci-api
 Restart=no
 UMask=0077
