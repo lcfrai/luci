@@ -322,10 +322,10 @@ server.serve_forever()
 		}
 		offerBytes, err := os.ReadFile(filepath.Join(output, "tool-offer.json"))
 		var offer struct {
-			ModelRequestObserved, StructuredOutputOffered, RequiredToolChoice, Forwarded, UpstreamCompleted bool
-			OtherToolCount                                                                                  int
+			ModelRequestObserved, SelectedModelMatched, StructuredOutputOffered, RequiredToolChoice, Forwarded, UpstreamCompleted bool
+			OtherToolCount                                                                                                        int
 		}
-		if err != nil || json.Unmarshal(offerBytes, &offer) != nil || !offer.ModelRequestObserved || !offer.StructuredOutputOffered || !offer.RequiredToolChoice || !offer.Forwarded || !offer.UpstreamCompleted || offer.OtherToolCount != 0 || strings.Contains(string(offerBytes), "PRIVATE_PROMPT_SENT_TO_MODEL") {
+		if err != nil || json.Unmarshal(offerBytes, &offer) != nil || !offer.ModelRequestObserved || !offer.SelectedModelMatched || !offer.StructuredOutputOffered || !offer.RequiredToolChoice || !offer.Forwarded || !offer.UpstreamCompleted || offer.OtherToolCount != 0 || strings.Contains(string(offerBytes), "PRIVATE_PROMPT_SENT_TO_MODEL") {
 			t.Fatal("actual model-request tool offer was not captured without private request data", err)
 		}
 		if incomplete != "0" {
@@ -355,10 +355,10 @@ server.serve_forever()
 		}
 		offerBytes, err := os.ReadFile(filepath.Join(output, "tool-offer.json"))
 		var observed struct {
-			ModelRequestObserved, StructuredOutputOffered, Forwarded bool
-			OtherToolCount                                           int
+			ModelRequestObserved, SelectedModelMatched, StructuredOutputOffered, Forwarded bool
+			OtherToolCount                                                                 int
 		}
-		if err != nil || json.Unmarshal(offerBytes, &observed) != nil || !observed.ModelRequestObserved || observed.Forwarded ||
+		if err != nil || json.Unmarshal(offerBytes, &observed) != nil || !observed.ModelRequestObserved || !observed.SelectedModelMatched || observed.Forwarded ||
 			refusedTool == "FIXTURE_NO_TOOL=1" && observed.StructuredOutputOffered || refusedTool == "FIXTURE_EXTRA_TOOL=1" && (!observed.StructuredOutputOffered || observed.OtherToolCount != 1) || strings.Contains(string(offerBytes), "PRIVATE_PROMPT_SENT_TO_MODEL") {
 			t.Fatal("invalid model tool offer was not retained as bounded metadata", refusedTool, err)
 		}

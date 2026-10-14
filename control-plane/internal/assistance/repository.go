@@ -229,7 +229,7 @@ if provider == 'opencode' and ollama_preflight == '1':
         # inserted and filtered its tools. Never retain a prompt, tool schema,
         # provider response, credential or request header. One forwarded model
         # request is allowed; an absent output tool cannot consume inference.
-        offer = {'version':1,'modelRequestObserved':False,'structuredOutputOffered':False,'otherToolCount':0,'requiredToolChoice':False,'forwarded':False,'upstreamCompleted':False}
+        offer = {'version':1,'modelRequestObserved':False,'selectedModelMatched':False,'structuredOutputOffered':False,'otherToolCount':0,'requiredToolChoice':False,'forwarded':False,'upstreamCompleted':False}
         def save_offer():
             with open('/luci-output/tool-offer.json.tmp','w') as target:
                 json.dump(offer,target,separators=(',',':'))
@@ -253,7 +253,11 @@ if provider == 'opencode' and ollama_preflight == '1':
                 body = self.rfile.read(int(length))
                 try:
                     request_body = json.loads(body)
-                    if not isinstance(request_body,dict) or request_body.get('model') != actual_model:
+                    if not isinstance(request_body,dict):
+                        raise ValueError('invalid model request')
+                    offer['selectedModelMatched'] = request_body.get('model') == actual_model
+                    save_offer()
+                    if not offer['selectedModelMatched']:
                         raise ValueError('wrong selected model')
                     tools = request_body.get('tools',[])
                     if not isinstance(tools,list) or len(tools)>16:
@@ -356,7 +360,7 @@ if provider == 'opencode' and ollama_preflight == '1':
             raise ValueError('invalid private session identity')
         provider_id, model_id = model.split('/',1)
         response = local_post('/session/'+session_id+'/message',{'agent':'luci-analysis','model':{'providerID':provider_id,'modelID':model_id},'parts':[{'type':'text','text':opencode_input.decode('utf-8')}],'format':{'type':'json_schema','schema':schema,'retryCount':0}},180)
-        if not offer['modelRequestObserved'] or not offer['structuredOutputOffered'] or offer['otherToolCount'] or not offer['requiredToolChoice'] or not offer['upstreamCompleted']:
+        if not offer['modelRequestObserved'] or not offer['selectedModelMatched'] or not offer['structuredOutputOffered'] or offer['otherToolCount'] or not offer['requiredToolChoice'] or not offer['upstreamCompleted']:
             raise ValueError('structured model request was not verified')
         info = response.get('info') if isinstance(response,dict) else None
         result = info.get('structured') if isinstance(info,dict) and not info.get('error') else None
