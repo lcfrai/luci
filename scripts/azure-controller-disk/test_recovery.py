@@ -52,15 +52,26 @@ class DiskMountTest(unittest.TestCase):
                      "generationReceiptPath": str(gen_path), "operatorTemplatePath": str(template),
                      "operatorTemplateSHA256": mount.sha(template.read_bytes()), "operatorOutputPath": str(base / "operator.json"),
                      "fenceBlobURL": "https://lucifence.blob.core.windows.net/controller-fence/controller-fence.json"}
-            with patch.object(mount, "selected"), patch.object(mount, "mount_exact") as exact:
+            active = base / "azure-controller-disk-active.json"
+            original_atomic = mount.atomic
+
+            def fixture_atomic(path, data):
+                if path == Path('/etc/luci/azure-controller-disk-active.json'):
+                    return original_atomic(active, data)
+                return original_atomic(path, data)
+
+            with patch.object(mount, "selected"), patch.object(mount, "mount_exact") as exact, \
+                    patch.object(mount, "atomic", side_effect=fixture_atomic):
                 receipt = mount.bind(value)
                 self.assertEqual(receipt["generation"], "new-generation")
                 self.assertEqual(mount.bind(value), receipt)
                 exact.assert_called()
+            self.assertEqual(json.loads(active.read_bytes())["generation"], "new-generation")
             self.assertEqual(json.loads(gen_path.read_bytes())["previousFenceReceiptDigest"], "f" * 64)
             self.assertEqual(json.loads((base / "operator.json").read_bytes())["azureMount"]["generationReceiptDigest"], receipt["generationReceiptSHA256"])
             value["previousFenceReceiptDigest"] = "e" * 64
-            with patch.object(mount, "selected"), patch.object(mount, "mount_exact"):
+            with patch.object(mount, "selected"), patch.object(mount, "mount_exact"), \
+                    patch.object(mount, "atomic", side_effect=fixture_atomic):
                 with self.assertRaisesRegex(ValueError, "predecessor generation"):
                     mount.bind(value)
 
