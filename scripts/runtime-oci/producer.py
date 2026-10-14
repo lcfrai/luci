@@ -29,6 +29,10 @@ SESSION_LABEL = "luci.runtime-payload.producer-session"
 RESERVE = 1 << 30
 MARGIN = 512 << 20
 BUILD_MEMORY = 1 << 30
+PROBE_MEMORY = 512 << 20
+# Streaming Docker-save estimate, not a daemon hard cap. The exporter monitors
+# actual whole-host reserve and stops its read-only client on pressure.
+EXPORT_MEMORY = 512 << 20
 CACHE_TRIGGER = RESERVE + BUILD_MEMORY + MARGIN
 CACHE_INTERVAL_SECONDS = 5
 MAX_CACHE_ACTIONS = 36
@@ -289,11 +293,11 @@ def scoped_run(args, session, output, stdout_path, stderr_path, memory, timeout,
 def probe(image_id, executable, version, tool, session, output):
     argv = [executable, "--version"]
     name = "luci-producer-" + session + "-" + tool.lower()
-    args = ["docker", "run", "--rm", "--name", name, "--network", "none", "--memory", str(512 << 20), "--memory-swap", str(512 << 20), "--cpus", "1", "--label", SESSION_LABEL + "=" + session,
+    args = ["docker", "run", "--rm", "--name", name, "--network", "none", "--memory", str(PROBE_MEMORY), "--memory-swap", str(PROBE_MEMORY), "--cpus", "1", "--label", SESSION_LABEL + "=" + session,
             "--entrypoint", executable, image_id, "--version"]
     stdout_path, stderr_path = output / (tool + ".out.log"), output / (tool + ".err.log")
-    write_json(output / (tool + '.probe-intent.json'), {'tool': tool, 'argv': argv, 'imageID': image_id, 'session': session, 'memoryBytes': 512 << 20, 'cpuCount': 1})
-    exit_code = scoped_run(args, session, output, stdout_path, stderr_path, 512 << 20, 20)
+    write_json(output / (tool + '.probe-intent.json'), {'tool': tool, 'argv': argv, 'imageID': image_id, 'session': session, 'memoryBytes': PROBE_MEMORY, 'cpuCount': 1})
+    exit_code = scoped_run(args, session, output, stdout_path, stderr_path, PROBE_MEMORY, 20)
     actual_stdout = stdout_path.read_text(encoding='utf-8', errors='strict') if stdout_path.stat().st_size <= 1 << 20 else ''
     if exit_code or stdout_path.stat().st_size + stderr_path.stat().st_size > 1 << 20 or not re.search(r'(?<![0-9.])' + re.escape(version) + r'(?![0-9.])', actual_stdout) or tool == 'sandboxd' and actual_stdout != 'sandboxd ' + version + '\n':
         raise ValueError("actual runtime version probe failed: " + tool)
@@ -445,12 +449,12 @@ def finalize_image(repo, revision, output, session, inputs, bases, generated, ar
     archive.config_policy({"os": inspected["Os"], "architecture": inspected["Architecture"], "config": inspected["Config"], "rootfs": {"type": "layers", "diff_ids": inspected["RootFS"]["Layers"]}})
     probes = []
     for tool, exe, version in (("sandboxd", "sandboxd", "0.5.0"), ("codex", "codex", "0.160.0"), ("claudeCode", "claude", "2.1.274"), ("openCode", "opencode", "1.18.34")):
-        actions += prepare_effect(session, output, 512 << 20, assistance)
+        actions += prepare_effect(session, output, PROBE_MEMORY, assistance)
         probes.append(probe(image_id, exe, version, tool, session, output))
     actions += prepare_effect(session, output, 256 << 20, assistance)
     licenses = collect_licenses(license_repo or repo, image_id, session, output)
     assert_settled(session)
-    actions += prepare_effect(session, output, BUILD_MEMORY, assistance)
+    actions += prepare_effect(session, output, EXPORT_MEMORY, assistance)
     actions += export_image(image_id, session, output, assistance)
     normalized = archive.normalize(output / "docker-save.raw.tar", output / "runtime-image-linux-amd64.tar", image_id)
     assert_settled(session)
