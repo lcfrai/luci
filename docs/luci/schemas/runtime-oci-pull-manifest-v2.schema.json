@@ -96,20 +96,37 @@
     },
     "bootstrap": {
       "type": "object", "additionalProperties": false,
-      "required": ["fileName", "sha256", "bytes", "imageID", "configSHA256", "diffIDs", "entrypoint", "distributionVersion", "distributionArchiveSHA256", "distributionBinarySHA256", "gateSourceSHA256", "gateBinarySHA256", "buildReceiptSHA256"],
+      "required": ["fileName", "sha256", "bytes", "imageID", "configSHA256", "configBytes", "layers", "user", "workingDir", "entrypoint", "exposedPorts", "environment", "distributionVersion", "distributionArchiveSHA256", "distributionBinarySHA256", "distributionLicenseSHA256", "gateSourceSHA256", "gateBinarySHA256", "buildRecipeSHA256", "buildReceiptSHA256"],
       "properties": {
         "fileName": {"const": "runtime-registry-bootstrap-linux-amd64.tar"},
         "sha256": {"$ref": "#/$defs/hash"},
         "bytes": {"type": "integer", "minimum": 1024, "maximum": 268435456},
         "imageID": {"$ref": "#/$defs/imageID"},
         "configSHA256": {"$ref": "#/$defs/hash"},
-        "diffIDs": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/imageID"}},
+        "configBytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
+        "layers": {
+          "type": "array", "minItems": 1, "maxItems": 8,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["diffID", "uncompressedBytes"],
+            "properties": {
+              "diffID": {"$ref": "#/$defs/imageID"},
+              "uncompressedBytes": {"type": "integer", "minimum": 1, "maximum": 536870912}
+            }
+          }
+        },
+        "user": {"const": "65532:65532"},
+        "workingDir": {"const": "/"},
         "entrypoint": {"const": ["/luci-registry-gate"]},
+        "exposedPorts": {"const": ["5000/tcp"]},
+        "environment": {"const": []},
         "distributionVersion": {"const": "3.0.0"},
         "distributionArchiveSHA256": {"const": "61c9a2c0d5981a78482025b6b69728521fbc78506d68b223d4a2eb825de5ca3d"},
         "distributionBinarySHA256": {"$ref": "#/$defs/hash"},
+        "distributionLicenseSHA256": {"$ref": "#/$defs/hash"},
         "gateSourceSHA256": {"$ref": "#/$defs/hash"},
         "gateBinarySHA256": {"$ref": "#/$defs/hash"},
+        "buildRecipeSHA256": {"$ref": "#/$defs/hash"},
         "buildReceiptSHA256": {"$ref": "#/$defs/hash"}
       }
     },
