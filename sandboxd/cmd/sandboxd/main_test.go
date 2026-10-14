@@ -1,9 +1,27 @@
 package main
 
 import (
+	"flag"
+	"os"
+	"os/exec"
 	"reflect"
 	"testing"
 )
+
+func TestVersionDoesNotStartSession(t *testing.T) {
+	if os.Getenv("LUCI_SANDBOX_VERSION_TEST") == "1" {
+		flag.CommandLine = flag.NewFlagSet("sandboxd", flag.ExitOnError)
+		os.Args = []string{"sandboxd", "--version", "--command", "/does/not/exist"}
+		main()
+		os.Exit(0)
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^TestVersionDoesNotStartSession$")
+	cmd.Env = append(os.Environ(), "LUCI_SANDBOX_VERSION_TEST=1")
+	out, err := cmd.CombinedOutput()
+	if err != nil || string(out) != "sandboxd 0.5.0\n" {
+		t.Fatalf("version probe: output %q, error %v", out, err)
+	}
+}
 
 func TestParseArgsPrefersJSON(t *testing.T) {
 	got, err := parseArgs("ignored,csv", `["--model","opus","add tests, then refactor"]`)

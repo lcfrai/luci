@@ -1,5 +1,5 @@
 #requires -Version 7.0
-param([string]$Version = '0.5.0', [switch]$Native, [string]$CertificateThumbprint = '', [string]$TimestampUrl = 'https://timestamp.digicert.com')
+param([string]$Version = '0.5.0', [switch]$Native, [string]$CertificateThumbprint = '', [string]$TimestampUrl = 'https://timestamp.digicert.com', [Parameter(Mandatory=$true)][string]$RuntimePayloadDir, [ValidateSet('all','windows-amd64','linux-amd64','darwin-arm64')][string]$Target = 'all')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($CertificateThumbprint -and -not $Native) { throw 'CertificateThumbprint requires -Native.' }
@@ -11,18 +11,20 @@ $luciNativeRoot = Join-Path $luciRoot 'desktop/src-tauri'
 $luciSavedEnvironment = @{}
 $luciBuildSucceeded = $false
 . (Join-Path $PSScriptRoot 'owned-build-stage.ps1')
-foreach ($luciKey in @('PATH','GOOS','GOARCH','CGO_ENABLED','GOFLAGS','CARGO_TARGET_DIR')) { $luciSavedEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process') }
+foreach ($luciKey in @('PATH','GOOS','GOARCH','CGO_ENABLED','GOFLAGS','CARGO_TARGET_DIR','GOMAXPROCS','GOMEMLIMIT','NODE_OPTIONS','VITE_LUCI_API')) { $luciSavedEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process') }
 
 function Confirm-Exit([string]$Operation) {
     if ($LASTEXITCODE -ne 0) { throw ($Operation + ' failed (exit ' + $LASTEXITCODE + ').') }
 }
-function Copy-Tree([string]$Source, [string]$Destination) {
+function Copy-Tree([string]$Source, [string]$Destination, [string[]]$ExcludePaths = @()) {
     if (-not (Test-Path -LiteralPath $Source -PathType Container)) { throw ('Missing source directory: ' + $Source) }
     $luciInputs = @((Get-Item -LiteralPath $Source -Force)) + @(Get-ChildItem -LiteralPath $Source -Recurse -Force)
     foreach ($luciInput in $luciInputs) { if ($luciInput.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw ('Linked release input refused: ' + $luciInput.FullName) } }
     New-Item -ItemType Directory -Force -Path $Destination | Out-Null
     foreach ($luciFile in $luciInputs | Where-Object { -not $_.PSIsContainer }) {
         $luciRelative = [IO.Path]::GetRelativePath($Source, $luciFile.FullName)
+        $luciPortableRelative = $luciRelative.Replace('\','/')
+        if (@($ExcludePaths | Where-Object { $luciPortableRelative -eq $_ -or $luciPortableRelative.StartsWith($_ + '/', [StringComparison]::Ordinal) }).Count -gt 0) { continue }
         if ($luciRelative -match '(^|[\\/])(\.git|node_modules|target|artifacts)([\\/]|$)' -or $luciFile.Name -match '^\.env(?:\.|$)' -or $luciFile.Extension -eq '.exe') { throw ('Unexpected file in allowlisted source tree: ' + $luciRelative) }
         $luciDestinationFile = Join-Path $Destination $luciRelative
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $luciDestinationFile) | Out-Null
@@ -68,6 +70,8 @@ try {
     # Capture before generated files are staged; source metadata describes the
     # inputs at build start, not a later repository state.
     $luciSource = Get-SourceMetadata $luciRoot
+    if ($luciSource.sourceDirty -ne $false) { throw 'Verified runtime distribution requires the full clean source checkout.' }
+    if ($Native -and $Target -notin @('all','windows-amd64')) { throw 'Native Windows packaging requires a Windows target.' }
     & python (Join-Path $PSScriptRoot 'release-version.py') check $Version
     Confirm-Exit 'Authoritative release version alignment'
     $luciPackageVersion = (Get-Content -Raw -LiteralPath (Join-Path $luciRoot 'desktop/package.json') | ConvertFrom-Json).version
@@ -78,11 +82,15 @@ try {
     $luciCargoBin = Join-Path $env:USERPROFILE '.cargo/bin'
     if (Test-Path -LiteralPath $luciCargoBin) { $env:PATH = $luciCargoBin + [IO.Path]::PathSeparator + $env:PATH }
     foreach ($luciTool in @('go','python','npm')) { Get-Command $luciTool -ErrorAction Stop | Out-Null }
+    & python (Join-Path $PSScriptRoot 'runtime-oci/payload.py') verify --payload $RuntimePayloadDir
+    Confirm-Exit 'Preverified source-bound runtime payload'
     # npm.ps1 reparses MyInvocation.Statement and can corrupt arguments inside a
     # script block. Use Node's command shim explicitly on Windows.
     $luciNpm = if ($IsWindows) { (Get-Command npm.cmd -ErrorAction Stop).Source } else { (Get-Command npm -ErrorAction Stop).Source }
     if ($Native) { Get-Command cargo -ErrorAction Stop | Out-Null }
     New-Item -ItemType Directory -Force -Path $luciStage | Out-Null
+    $env:GOMAXPROCS = '1'; $env:GOMEMLIMIT = '512MiB'; $env:NODE_OPTIONS = '--max-old-space-size=1024'
+    [Environment]::SetEnvironmentVariable('VITE_LUCI_API', $null, 'Process')
     Push-Location (Join-Path $luciRoot 'desktop')
     try { & $luciNpm run build; Confirm-Exit 'Desktop production build' } finally { Pop-Location }
 
@@ -109,8 +117,11 @@ try {
         [IO.File]::WriteAllText((Join-Path $luciRuntime 'azure-setup.sha256'), ($luciAzureHash + "`n"), [Text.UTF8Encoding]::new($false))
     }
     $luciTargets = @(@{os='windows';arch='amd64';suffix='.exe'},@{os='linux';arch='amd64';suffix=''},@{os='darwin';arch='arm64';suffix=''})
+    # Linux management core is still needed by the supported compatibility
+    # transfer; do not build the unrelated Darwin target for a Windows review.
+    if ($Target -ne 'all') { $luciTargets = @($luciTargets | Where-Object { ($_.os + '-' + $_.arch) -eq $Target -or $_.os -eq 'linux' }) }
     $luciPackages = @()
-    $env:CGO_ENABLED = '0'; $env:GOFLAGS = '-mod=readonly'
+    $env:CGO_ENABLED = '0'; $env:GOFLAGS = '-mod=readonly -p=1'
     foreach ($luciTarget in $luciTargets) {
         $luciName = 'luci-' + $luciTarget.os + '-' + $luciTarget.arch
         $luciPackage = Join-Path $luciStage $luciName
@@ -125,22 +136,26 @@ try {
         & python (Join-Path $PSScriptRoot 'collect-licenses.py') $luciRoot $luciLicenses
         Confirm-Exit ($luciName + ' strict licence collection')
         $luciCount = Confirm-Licenses $luciLicenses
+        & python (Join-Path $PSScriptRoot 'runtime-oci/payload.py') stage --payload $RuntimePayloadDir --repo $luciRoot --revision $luciSource.sourceCommit --package $luciPackage
+        Confirm-Exit ($luciName + ' verified runtime payload and source receipt')
         if ($luciTarget.os -eq 'windows') {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'launch-windows.ps1') -Destination (Join-Path $luciPackage 'Start-Luci.ps1')
             Set-Content -LiteralPath (Join-Path $luciPackage 'Start-Luci.cmd') -Value '@powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-Luci.ps1"' -Encoding ascii
         } else { Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'launch-unix.sh') -Destination (Join-Path $luciPackage 'start-luci.sh') }
-        $luciPackages += @{ name=$luciName; os=$luciTarget.os; path=$luciPackage; licenses=$luciCount }
+        $luciPackages += @{ name=$luciName; os=$luciTarget.os; path=$luciPackage; licenses=$luciCount; selected=($Target -eq 'all' -or $luciName -eq ('luci-' + $Target)) }
     }
 
     # Archive the Linux core BEFORE inserting cloud/ into portable packages. It cannot contain itself.
     $luciCloudRoot = Join-Path $luciStage 'luci-cloud-linux-amd64'
     $luciLinux = ($luciPackages | Where-Object { $_.os -eq 'linux' }).path
-    Copy-Item -LiteralPath $luciLinux -Destination $luciCloudRoot -Recurse
+    & python (Join-Path $PSScriptRoot 'runtime-oci/payload.py') core-from-package --package $luciLinux --output $luciCloudRoot
+    Confirm-Exit 'Explicit management-core runtime companion contract'
     & python (Join-Path $PSScriptRoot 'package.py') $luciCloudRoot linux
     Confirm-Exit 'Linux cloud runtime archive'
     $luciCloudArchive = $luciCloudRoot + '.tar.gz'
     $luciArtifacts = @($luciCloudArchive)
     foreach ($luciPackage in $luciPackages) {
+        if (-not $luciPackage.selected) { continue }
         $luciCloudDestination = Join-Path $luciPackage.path 'cloud'
         New-Item -ItemType Directory -Path $luciCloudDestination | Out-Null
         Copy-Item -LiteralPath $luciCloudArchive -Destination $luciCloudDestination
@@ -152,13 +167,15 @@ try {
     $luciNativeSigning = @{requested=$false;verified=$false;status='unsigned'}
     $luciNativeCount = 0
     if ($Native) {
+        $luciWindowsPackage = ($luciPackages | Where-Object { $_.os -eq 'windows' }).path
         $env:GOOS = 'windows'; $env:GOARCH = 'amd64'
         $luciNativeLicenses = Join-Path $luciStage 'native-licenses'
         & python (Join-Path $PSScriptRoot 'collect-licenses.py') $luciRoot $luciNativeLicenses --native
         Confirm-Exit 'Native strict licence collection'
         $luciNativeCount = Confirm-Licenses $luciNativeLicenses
+        Copy-Tree (Join-Path $luciWindowsPackage 'licenses/runtime-image') (Join-Path $luciNativeLicenses 'runtime-image')
         Replace-GeneratedTree $luciGuides (Join-Path $luciNativeRoot 'guides')
-        Replace-GeneratedTree $luciRuntime (Join-Path $luciNativeRoot 'runtime')
+        Replace-GeneratedTree (Join-Path $luciWindowsPackage 'runtime') (Join-Path $luciNativeRoot 'runtime')
         Replace-GeneratedTree $luciNativeLicenses (Join-Path $luciNativeRoot 'licenses')
         Replace-GeneratedTree (Join-Path (($luciPackages | Where-Object { $_.os -eq 'windows' }).path) 'cloud') (Join-Path $luciNativeRoot 'cloud')
         $luciSidecars = Join-Path $luciNativeRoot 'binaries'
@@ -197,7 +214,10 @@ try {
         Copy-Item -LiteralPath $luciArtifact -Destination $luciDestination -Force
         $luciArtifactRecords += @{name=(Split-Path -Leaf $luciArtifact); bytes=(Get-Item -LiteralPath $luciDestination).Length; sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath $luciDestination).Hash.ToLowerInvariant()}
     }
-    foreach ($luciPackage in $luciPackages) { Replace-GeneratedTree $luciPackage.path (Join-Path $luciOutput $luciPackage.name) }
+    $luciRuntimeRecord = (& python (Join-Path $PSScriptRoot 'runtime-oci/payload.py') describe-package --package $luciLinux)
+    Confirm-Exit 'Runtime distribution release provenance'
+    $luciRuntimeRecord = $luciRuntimeRecord | ConvertFrom-Json
+    foreach ($luciPackage in $luciPackages) { if ($luciPackage.selected) { Replace-GeneratedTree $luciPackage.path (Join-Path $luciOutput $luciPackage.name) } }
     $luciHashes = $luciArtifactRecords | Sort-Object name | ForEach-Object { $_.sha256 + '  ' + $_.name }
     [IO.File]::WriteAllLines((Join-Path $luciOutput 'SHA256SUMS'), [string[]]$luciHashes, [Text.UTF8Encoding]::new($false))
     if ($luciSource.sourceDirty -eq $false) {
@@ -205,6 +225,7 @@ try {
         if ($luciEndingSource.sourceCommit -ne $luciSource.sourceCommit -or $luciEndingSource.sourceDirty -ne $false) { throw 'Source changed during packaging; no clean release manifest was written.' }
     }
     $luciRelease = @{version=$Version;sourceCommit=$luciSource.sourceCommit;sourceDirty=$luciSource.sourceDirty;builtAt=[DateTime]::UtcNow.ToString('o');artifacts=$luciArtifactRecords;portableLicenseComponents=@($luciPackages | ForEach-Object {@{target=$_.name;count=$_.licenses;missing=0}});nativeLicenseComponents=$luciNativeCount;nativeRequested=[bool]$Native;nativeSigning=$luciNativeSigning;stage=$luciStage}
+    $luciRelease.runtimeDistribution = $luciRuntimeRecord
     $luciRelease | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $luciOutput 'release-manifest.json') -Encoding utf8NoBOM
     $luciBuildSucceeded = $true
 } finally {

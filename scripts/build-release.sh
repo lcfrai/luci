@@ -2,10 +2,14 @@
 # Build portable review artifacts. This script never creates cloud resources or
 # publishes a release. Run npm ci in desktop before invoking it.
 set -euo pipefail
+export GOMAXPROCS=1 GOMEMLIMIT=512MiB GOFLAGS='-mod=readonly -p=1' NODE_OPTIONS='--max-old-space-size=1024'
+unset VITE_LUCI_API
 
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 version=${1:-0.5.0}
 selected=${2:-all}
+runtime_payload=${3:-${LUCI_RUNTIME_PAYLOAD_DIR:-}}
+[[ -n "$runtime_payload" ]] || { printf '%s\n' 'Supply the verified producer runtime payload directory as argument 3 or LUCI_RUNTIME_PAYLOAD_DIR.' >&2; exit 2; }
 if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
   printf '%s\n' 'Use a release version such as 0.5.0 or 0.5.0-rc.1.' >&2
   exit 2
@@ -29,6 +33,8 @@ if [[ -e "$root/.git" ]]; then
   source_dirty=false
   [[ -z "$source_status" ]] || source_dirty=true
 fi
+[[ "$source_dirty" == false ]] || { printf '%s\n' 'Runtime distribution requires the full clean source checkout.' >&2; exit 1; }
+python3 "$root/scripts/runtime-oci/payload.py" verify --payload "$runtime_payload"
 output="$root/artifacts/releases/$version"
 mkdir -p "$output"
 stage=$(mktemp -d "$output/.luci-build-XXXXXX")
@@ -62,12 +68,15 @@ build_package() {
   cp "$root/scripts/launch-unix.sh" "$package/start-luci.sh"
   chmod 755 "$package/luci" "$package/start-luci.sh"
   GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 python3 "$root/scripts/collect-licenses.py" "$root" "$package/licenses"
+  python3 "$root/scripts/runtime-oci/payload.py" stage --payload "$runtime_payload" --repo "$root" --revision "$source_commit" --package "$package"
 }
 
 # Snapshot the Linux runtime before adding cloud/ to any desktop package.
 # This makes the transferred runtime self-contained without nesting itself.
 cloud_package="$stage/luci-cloud-linux-amd64"
-build_package linux amd64 "$cloud_package"
+linux_base="$stage/luci-linux-runtime-base"
+build_package linux amd64 "$linux_base"
+python3 "$root/scripts/runtime-oci/payload.py" core-from-package --package "$linux_base" --output "$cloud_package"
 python3 "$root/scripts/package.py" "$cloud_package" linux
 cp "$cloud_package.tar.gz" "$output/luci-cloud-linux-amd64.tar.gz"
 built_targets=()
@@ -77,7 +86,7 @@ for target in linux-amd64 darwin-arm64; do
   goarch=${target#*-}
   package="$stage/luci-$target"
   if [[ "$target" == linux-amd64 ]]; then
-    cp -R "$cloud_package" "$package"
+    cp -R "$linux_base" "$package"
   else
     build_package "$goos" "$goarch" "$package"
   fi
@@ -94,7 +103,7 @@ if [[ "$source_dirty" == false ]]; then
     exit 1
   }
 fi
-python3 - "$output" "$version" "$source_commit" "$source_dirty" "$stage" "${built_targets[@]}" <<'PY'
+PYTHONPATH="$root/scripts/runtime-oci" python3 - "$output" "$version" "$source_commit" "$source_dirty" "$stage" "${built_targets[@]}" <<'PY'
 import datetime, hashlib, json, pathlib, sys
 output, version, commit, dirty, stage, *targets = sys.argv[1:]
 output, stage = pathlib.Path(output), pathlib.Path(stage)
@@ -116,6 +125,8 @@ manifest = {'version': version, 'builtAt': datetime.datetime.now(datetime.timezo
             'sourceCommit': commit or None, 'sourceDirty': dirty == 'true' if dirty else None,
             'artifacts': artifacts, 'portableLicenseComponents': components,
             'nativeLicenseComponents': 0, 'nativeRequested': False}
+import payload
+manifest['runtimeDistribution'] = payload.distribution_record(stage / 'luci-linux-runtime-base')
 (output / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 PY
 printf 'Reviewable Luci packages: %s\n' "$output"

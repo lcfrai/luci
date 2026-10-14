@@ -21,6 +21,8 @@ import (
 // why its session ended.
 const exitLinger = 2 * time.Second
 
+const sandboxVersion = "0.5.0"
+
 // sandboxServer is what the entrypoint needs from the session: something to
 // serve, and a channel that closes when the one process this container exists
 // to run has ended.
@@ -110,6 +112,7 @@ func parseArgs(argsCSV, argsJSON string) ([]string, error) {
 }
 
 func main() {
+	version := flag.Bool("version", false, "print the sandbox runtime version and exit")
 	addr := flag.String("addr", ":8080", "listen address")
 	command := flag.String("command", "/bin/bash", "command to run in the PTY")
 	argsCSV := flag.String("args", "", "comma-separated arguments (legacy; prefer -args-json)")
@@ -119,6 +122,10 @@ func main() {
 	allowUnauthenticated := flag.Bool("allow-unauthenticated", false,
 		"run without an attach token; local development only")
 	flag.Parse()
+	if *version {
+		fmt.Printf("sandboxd %s\n", sandboxVersion)
+		return
+	}
 
 	argv, err := parseArgs(*argsCSV, *argsJSON)
 	if err != nil {

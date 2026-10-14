@@ -16,6 +16,7 @@ TEXT_SLOTS = {
     "desktop/src-tauri/Cargo.toml": r'(?ms)^\[package\]\n(?:(?!^\[).)*?^version = "(?P<version>[^\"]+)"',
     "desktop/src-tauri/Cargo.lock": r'(?m)^name = "luci"\nversion = "(?P<version>[^\"]+)"',
     "control-plane/internal/product/server.go": r'const Version = "(?P<version>[^\"]+)"',
+    "sandboxd/cmd/sandboxd/main.go": r'const sandboxVersion = "(?P<version>[^\"]+)"',
     ".github/workflows/luci-ci.yml": r"LUCI_VERSION:\s*'(?P<version>[^']+)'",
     "scripts/build-release.sh": r'version=\$\{1:-(?P<version>[^}]+)\}',
     "scripts/build-release.ps1": r"param\(\[string\]\$Version = '(?P<version>[^']+)'",
@@ -25,14 +26,14 @@ TEXT_SLOTS = {
 def declarations(root: Path):
     values = {}
     for name, slots in JSON_SLOTS.items():
-        data = json.loads((root / name).read_text())
+        data = json.loads((root / name).read_text(encoding='utf-8'))
         for slot in slots:
             value = data
             for key in slot:
                 value = value[key]
             values[name + ":" + "/".join(slot)] = value
     for name, pattern in TEXT_SLOTS.items():
-        matches = list(re.finditer(pattern, (root / name).read_text()))
+        matches = list(re.finditer(pattern, (root / name).read_text(encoding='utf-8')))
         expected = 2 if name == "distribution/docker/compose.yaml" else 1
         if len(matches) != expected:
             raise ValueError(f"Expected {expected} version declaration(s) in {name}")
@@ -56,7 +57,7 @@ def set_version(root: Path, version: str):
     declarations(root)
     changes = {}
     for name, slots in JSON_SLOTS.items():
-        data = json.loads((root / name).read_text())
+        data = json.loads((root / name).read_text(encoding='utf-8'))
         for slot in slots:
             target = data
             for key in slot[:-1]:
@@ -64,13 +65,13 @@ def set_version(root: Path, version: str):
             target[slot[-1]] = version
         changes[name] = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
     for name, pattern in TEXT_SLOTS.items():
-        text = (root / name).read_text()
+        text = (root / name).read_text(encoding='utf-8')
         for match in reversed(list(re.finditer(pattern, text))):
             start, end = match.span("version")
             text = text[:start] + version + text[end:]
         changes[name] = text
     for name, content in changes.items():
-        (root / name).write_text(content)
+        (root / name).write_text(content, encoding='utf-8')
     return check(root, version)
 
 def main():
