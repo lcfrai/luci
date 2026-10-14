@@ -7,10 +7,11 @@ All application state, journal and task artifacts remain on the same disk.
 """
 
 import argparse
+import base64
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import stat
 import subprocess
@@ -119,17 +120,25 @@ def mount_exact(value):
         raise ValueError("controller mounted device changed")
 
 
-def bind(value):
+def bind(value, finalize_only=False):
     selected(value)
+    template_bytes = private(Path(value["operatorTemplatePath"]))
+    if sha(template_bytes) != value["operatorTemplateSHA256"]:
+        raise ValueError("controller operator template changed")
+    operator, journals = finalized_operator(value, json.loads(template_bytes), allow_deferred=not finalize_only and value["mode"] == "initialize")
     Path(value["mountPath"]).mkdir(mode=0o700, parents=True, exist_ok=True)
-    mount_exact(value)
+    # Finalization uses the existing-filesystem branch, never mkfs.
+    mount_exact(dict(value, mode="restore") if finalize_only else value)
     disk_path = Path(value["diskReceiptPath"])
     generation_path = Path(value["generationReceiptPath"])
     disk_record = {"version": 1, "azureDataDiskId": value["azureDataDiskId"], "filesystemUuid": value["filesystemUuid"],
                    "ownerId": value["ownerId"], "scope": value["scope"], "controllerHostId": value["controllerHostId"],
                    "runtimeHostId": value["runtimeHostId"]}
     disk_data = canonical(disk_record)
-    if value["mode"] == "initialize":
+    if finalize_only:
+        if private(disk_path, 4096) != disk_data:
+            raise ValueError("finalization controller disk receipt changed")
+    elif value["mode"] == "initialize":
         if disk_path.exists() or generation_path.exists() or any(Path(value["mountPath"]).iterdir()):
             # Newly formatted ext4 normally has lost+found; exclude only it.
             contents = {p.name for p in Path(value["mountPath"]).iterdir()}
@@ -159,13 +168,18 @@ def bind(value):
     generation_data = canonical(generation)
     # For recovery the on-disk prior receipt is replaced only after the
     # independently durable fence has committed and the disk is attached here.
-    if not already_new:
+    if finalize_only:
+        if private(generation_path, 4096) != generation_data:
+            raise ValueError("finalization fenced generation changed")
+    elif not already_new:
         atomic(generation_path, generation_data)
-    template_path = Path(value["operatorTemplatePath"])
-    template_bytes = private(template_path)
-    if sha(template_bytes) != value["operatorTemplateSHA256"]:
-        raise ValueError("controller operator template changed")
-    operator = json.loads(template_bytes)
+    for path, journal in journals:
+        data = canonical(journal)
+        if path.exists():
+            if json.loads(private(path)) != journal:
+                raise ValueError("retained template journal differs from signed finalization")
+        else:
+            atomic(path, data)
     operator["azureMount"] = {"mountPath": value["mountPath"], "filesystemUuid": value["filesystemUuid"],
                               "receiptPath": str(disk_path), "generation": value["generation"],
                               "controllerInstanceId": value["controllerInstanceId"],
@@ -179,6 +193,55 @@ def bind(value):
     atomic(Path(value["operatorOutputPath"]), canonical(operator))
     return {"state": "mounted", "generation": value["generation"], "diskReceiptSHA256": sha(disk_data),
             "generationReceiptSHA256": sha(generation_data), "operatorSHA256": sha(canonical(operator))}
+
+
+def finalized_operator(value, draft, allow_deferred=False):
+    """Verify the image-pinned source and operator signature before formatting.
+
+    Legacy complete operator selections retain their existing behavior. A
+    deferred selection is never runnable without exact signed finalization.
+    """
+    binding = draft.get("setupDeferred")
+    if binding is None:
+        return draft, []
+    if allow_deferred and not Path("/etc/luci/azure-operator-finalization.json").exists():
+        # Account management may initialize its owned disk, while the trusted
+        # worker launcher explicitly refuses this deferred task operator.
+        return draft, []
+    envelope = json.loads(private(Path("/etc/luci/azure-operator-finalization.json"), 64 << 10))
+    payload = envelope.get("payload", {})
+    if (envelope.get("signatureAlgorithm") != "ecdsa-sha256" or
+            payload.get("version") != 1 or payload.get("kind") != "luci-azure-operator-finalization" or
+            payload.get("sourceCommit") != binding.get("sourceCommit") or
+            payload.get("templateSHA256") != value["operatorTemplateSHA256"] or
+            payload.get("scope") != value["scope"] or payload.get("generation") != value["generation"] or
+            payload.get("controllerBootID") != boot_identity() or
+            payload.get("controllerInstanceId") != value["controllerInstanceId"] or payload.get("diskID") != value["azureDataDiskId"]):
+        raise ValueError("deferred operator finalization is not bound to the selected source, disk and generation")
+    with tempfile.TemporaryDirectory() as directory:
+        key, message, signature = (Path(directory) / name for name in ("key", "message", "signature"))
+        key.write_text(binding["signerPublicKey"])
+        message.write_bytes(canonical(payload))
+        signature.write_bytes(base64.b64decode(envelope.get("signature", ""), validate=True))
+        if call(["openssl", "dgst", "-sha256", "-verify", str(key), "-signature", str(signature), str(message)])[0] != 0:
+            raise ValueError("deferred operator signature is invalid")
+    operator = payload["operator"]
+    if ("setupDeferred" in operator or operator.get("deployment", {}).get("scope") != value["scope"] or
+            operator.get("sourceCommit") != binding.get("sourceCommit") or
+            operator.get("deployment", {}).get("azureDataDiskId") != value["azureDataDiskId"] or
+            operator.get("store", {}).get("ownerID") != value["ownerId"]):
+        raise ValueError("finalized operator changes the selected controller authority")
+    expected_create = PurePosixPath(value["mountPath"]) / "luci/template/create.json"
+    expected_build = PurePosixPath(value["mountPath"]) / "luci/template/build.json"
+    if operator.get("templateCreateJournalPath") != str(expected_create) or operator.get("templateBuildJournalPath") != str(expected_build):
+        raise ValueError("finalized template journals are outside the exact durable location")
+    return operator, [(Path(expected_create), payload["createJournal"]),
+                      (Path(str(expected_create) + ".response"), payload["createResponse"]),
+                      (Path(expected_build), payload["buildJournal"])]
+
+
+def boot_identity():
+    return Path("/proc/sys/kernel/random/boot_id").read_text().strip()
 
 
 def inspect(value):
@@ -213,10 +276,13 @@ def inspect(value):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--inspect", action="store_true")
+    parser.add_argument("--finalize", action="store_true")
     parser.add_argument("selection", type=Path)
     args = parser.parse_args()
     value = json.loads(private(args.selection))
-    print(json.dumps(inspect(value) if args.inspect else bind(value), sort_keys=True))
+    if args.inspect and args.finalize:
+        raise ValueError("choose inspection or signed finalization")
+    print(json.dumps(inspect(value) if args.inspect else bind(value, args.finalize), sort_keys=True))
 
 
 if __name__ == "__main__":

@@ -21,6 +21,13 @@ Start-Luci.cmd (Windows) from the extracted package.
 // or backend setup. Keeping every startup side effect inside startService also
 // lets argument-only invocations run when the service configuration is invalid.
 func runCommand(args []string, out, errOut io.Writer, startService func() int) int {
+	if len(args) == 3 && args[0] == "azure-setup" {
+		if err := runAzureSetupCommand(args[1], args[2], out); err != nil {
+			fmt.Fprintln(errOut, "luci: protected Azure setup is incomplete or uncertain; retain and inspect its exact journal.")
+			return 1
+		}
+		return 0
+	}
 	if len(args) == 0 {
 		return startService()
 	}

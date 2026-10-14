@@ -56,6 +56,9 @@ func prepareAzureWorkerConfig(base []string, root string) (string, error) {
 	if dec.Decode(&config) != nil || dec.Decode(new(any)) != io.EOF {
 		return "", errors.New("invalid Azure controller selection")
 	}
+	if _, deferred := config["setupDeferred"]; deferred {
+		return "", errors.New("Azure task operator is deferred; complete exact template and signed controller finalization first")
+	}
 	var deployment struct {
 		Provider string `json:"provider"`
 	}

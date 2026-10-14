@@ -124,7 +124,7 @@ def connection_descriptor(core, bundle_root, selection_path, provider=None):
     private_cidr(host + "/32")
     parent = Path(selection_path).parent
     state = core.private_json(parent / "azure-setup-state.json")
-    if state.get("state") != "controller_bootstrapped_gateway_unverified" or state.get("selectionDigest") != core.digest(selection):
+    if state.get("state") not in ("controller_bootstrapped_gateway_unverified", "controller_finalized_private_route_unverified") or state.get("selectionDigest") != core.digest(selection):
         raise ValueError("Connection needs exact bootstrapped infrastructure readback")
     identities = state["resourceIDs"]
     controller_id = identities["controller_instance_id"].lower()

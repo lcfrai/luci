@@ -89,10 +89,8 @@ func run(mode, configPath string) error {
 		if err != nil {
 			return err
 		}
-		roots, _ = x509.SystemCertPool()
-		if roots == nil {
-			roots = x509.NewCertPool()
-		}
+		// A selected private gateway root replaces public system roots.
+		roots = x509.NewCertPool()
 		if !roots.AppendCertsFromPEM(pem) {
 			return errors.New("invalid private TLS root certificate")
 		}

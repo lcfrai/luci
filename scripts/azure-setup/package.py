@@ -16,7 +16,7 @@ SHA = re.compile(r"[0-9a-f]{64}\Z")
 REV = re.compile(r"[0-9a-f]{40}\Z")
 MAX_ARCHIVE = 4 << 20
 MODULE = ("compute.tf", "fence.tf", "identity.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf", ".terraform.lock.hcl")
-SCRIPTS = ("azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/README.md", "azure-embed-host/package.py", "azure-embed-host/service.py",
+SCRIPTS = ("azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py", "azure-embed-host/service.py",
            "azure-embed-host/deliver.py", "azure-controller-disk/package.py", "azure-controller-disk/mount.py",
            "azure-controller-disk/recover.py")
 
