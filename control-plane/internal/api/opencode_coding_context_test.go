@@ -78,3 +78,14 @@ func TestOllamaCodingContextProbeIsBoundedAndExact(t *testing.T) {
 		t.Fatalf("window=%d err=%v", window, err)
 	}
 }
+
+func TestOpenCodeContextRefusesUnknownWindowWithoutChangingRoute(t *testing.T) {
+	env := codingModelEnvironment()
+	before := env["OPENCODE_CONFIG_CONTENT"]
+	if err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context, string, string) (int, error) { return 0, nil }); err == nil || !strings.Contains(err.Error(), "explicit supported serving context") {
+		t.Fatalf("missing alias window accepted: %v", err)
+	}
+	if env["OPENCODE_CONFIG_CONTENT"] != before {
+		t.Fatal("failed preflight changed the saved model route")
+	}
+}
