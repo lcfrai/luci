@@ -1,0 +1,945 @@
+### Task 01: ADR-H1 "delegated callers" amendment and the team-records contract
+
+**Slice:** TM1-α. **Size:** 3 focused hours. **dependsOn:** the sync-merge of `feat/hub` into
+`feat/team-mode`. **Seams defined:** ST.2 (the Hub's team records), ST.3 (delegation).
+
+This task is documents only, and it is the gate for every line of team-mode code
+(`05-design.md` §11.1 row 4, critique `06` I4). The Hub was designed with one caller, the user's
+own laptop control plane, and four of its rules say so in plain words: `azp` must be the desktop's
+client id (`ADR-H1:370`), a token with no `scp` is rejected (`:369`), the principal comes from the
+token (`:372`) and no body carries an actor (`:434-435`), and tenancy is the token's org under RLS
+(G4, `:253`). Team mode adds a second caller, Fleet, which writes in a member's name while that
+member is away (`05-design.md` §2.4). If that caller arrives as code before it arrives as a rule,
+each route will invent its own answer to *"whose write is this?"*, and at least one will take the
+answer from the body. So the rule is written first, in the two documents the Hub is built from,
+and tasks 03 to 08 build what it says.
+
+Five decisions the design left open are made here, so no later task re-derives them. (The fifth,
+(e), is fix batch b02's, review S02-C5.)
+
+**(a) Fleet is an app-only caller, and the amendment says so.** Fleet runs as an AKS workload
+identity. Its Entra token is app-only (no `scp`), which `ADR-H1:369` refuses today. The Hub reads
+the absence of `scp`, never `idtyp`: Entra emits `idtyp` only as a configured optional claim
+(**UNVERIFIED** for our registration; task 05, decision (a)).
+The amendment therefore changes **five** lines, not the four the design lists: `:369` gains the
+app-only case, gated on an app role (`Hub.Fleet`) **and** on `azp` being Fleet's client id **and**
+on the request naming a delegation. The design's §2.4 list misses `:369`; this is recorded as a
+skeleton gap in the return.
+
+**(b) Exactly two Fleet routes name no delegation, and both are listed by name.** The per-org
+change feed (amendment (d)) is read by Fleet for every team project in an org at once, so no
+single member's delegation can cover it. The **principal read** (`GET /v1/principals`, row 88) is
+the other, and it is **this second amendment**, made by fix batch b02 for review S02-C2: it is
+what tells Fleet *who a caller is*, so it is called before any delegation is in hand — a Fleet
+route that required one could never authorise the desktop caller it exists to describe, and
+without it no Fleet route authorises at all (task 12's `Membership`). Both serve metadata only
+(the feed never held text, contract §8; the principal answer carries ids, roles and flags, and no
+free text), both are named in §5.10 rule 2 and in §7.28, and a **third** exception needs a third
+amendment. (Row 88 and §7.28, not the 80 and §7.27 review S02-C2 proposed: **rows 80 to 86 and
+§7.27 are already claimed** by later tasks — see the note under §7.0's table.)
+
+**(c) Records Fleet itself authors still name a delegation.** A conflict, a thread, a Fleet
+escalation and a templated `answer` are written by Fleet, not by an agent. Each names the
+delegation of the owner the record is **first about** (the conflict's `agentA`, the thread's
+opener, the escalation's owner, the Orchestrator the answer speaks for) and records
+`author = fleet`. The Hub's owner check is then *"at least that owner's `ag-…` is on the record"*,
+so Fleet cannot write a conflict between two agents neither of which belongs to the named owner.
+
+**(d) The audit record gains `via` and `delegationId` without moving a single existing digest.**
+Contract §3.6's audit event is hashed into the G5 chain. A delegated write is canonicalised as
+audit-event **`"v": 2`**, with two added fields; every non-delegated event stays `"v": 1`, byte for
+byte, so the golden vectors in `hubapi/canonical_test.go` (contract §3.5) do not change.
+
+**(e) The sandbox broker is a third app-only identity, and it may read one route.** *(Fix batch
+b02, review S02-C5, closing gap S17-1.)* Phase 8's broker exists so that nothing takes Fleet's
+word for whose pod a sandbox is (`task-17.md:47-54`): under a delegation it must derive the pod's
+owner label itself, which means reading route 47 **as itself**, not under the delegation it is
+checking, and getting the owner's `tid` and `oid` back. So `Hub.DelegationReader` is a second app
+role on a second client id (`PANACEA_APP_HUB_BROKER_CLIENT_ID`), it reaches **route 47 only**, it
+may read **any** delegation in its enrolled org, and route 47's answer to it alone carries
+`ownerTid` and `ownerOid`. It writes nothing, it is never a principal, and every other route
+refuses it 403 `forbidden` with `details.required = "fleet"`. Fleet's own token does **not** carry
+this role, and the broker's does not carry `Hub.Fleet`: two identities, two blast radii.
+
+**Files** (all on `feat/team-mode`, after the Hub's sync-merge; paths relative to the repo root):
+- `docs/superpowers/adr/ADR-H1-hub-architecture.md` — a new **§5.10 Delegated callers**; the five
+  replaced lines marked in place with a pointer to §5.10; risk **R12** in §8 (modified)
+- `docs/superpowers/contracts/2026-09-23-hub-contract.md` — §3.1 prefix rows; §3.6 the audit
+  event v2; §4.2 sixteen codes (the scope's six; `delegation_revoked`, so Fleet can tell
+  *renew* from *stop*; eight `*_not_found`; `team_state`); §5.1 the delegated step; §5.2 two org
+  capabilities; §5.3 the team rows; §7.0 a team routes table, rows 46 to 79, 87 and 88; §7.4 a
+  project's `mode` and route 87 (fix batch b01, X-C1);
+  new **§7.13 to §7.26 and §7.28** (§7.28 and row 88 are fix batch b02's, S02-C2; §7.27 and row 80
+  are task 14's); §8 the team events; §12.2 four variables (modified)
+- `docs/superpowers/contracts/team-records-fieldcheck.txt` — one line per `05-design.md` §3.3
+  field, the acceptance script's input (new)
+
+The ADR and contract live at `.claude/worktrees/hub/docs/superpowers/…` on 2026-09-25
+(`ADR-H1-hub-architecture.md`, 776 lines; `2026-09-23-hub-contract.md`, 2,298 lines). Every line
+number below was read there on that date; step 1 re-reads them after the merge.
+
+**Interfaces:**
+- Produces (as documents; task 03 turns them into Go, task 04 into SQL, task 05 into auth):
+  - **ST.3** — the `X-Panacea-Delegation: dl-…` header; the delegable route names of §7.13; the
+    actor rule (`actor = owner, via = fleet, delegationId = dl-…`); the `ag-…` owner check
+  - **ST.2** — every Hub-owned record of `05-design.md` §3.3: id prefix, fields, bounds, author
+    class, route, audit event kind, feed kind
+  - the sixteen problem codes of Step 4, in their table order: `delegation_required`,
+    `delegation_expired`, `delegation_revoked`, `agent_not_owner`, `delegation_not_found`,
+    `task_not_found`, `agent_not_found`, `lease_not_found`, `conflict_not_found`,
+    `thread_not_found`, `escalation_not_found`, `team_state`, `text_refused`, `glob_refused`,
+    `breadth_exceeded`, `principal_not_found` (the last is fix batch b02's, S02-C2)
+  - the app roles `Hub.Fleet`, `Hub.Auditor`, `Hub.Compliance`, `Hub.DelegationReader` (the last
+    is the broker's, fix batch b02, S02-C5, and reaches route 47 alone)
+  - **Id minting:** the Hub mints `dl`, `hm`, `nt`; Fleet mints the other nine with `ids.Wide`
+    and sends each as the body's `id` (Step 4)
+  - `PANACEA_APP_HUB_FLEET_CLIENT_ID`, `PANACEA_APP_HUB_DELEGATION_TTL`,
+    `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED`, `PANACEA_APP_HUB_BROKER_CLIENT_ID` (contract §12.2;
+    the last is fix batch b02's, S02-C5)
+  - (fix batch b01, X-C1) `Project.mode`, route 87 and the `project.mode_set` event (§7.4, §7.0,
+    §8), which task 03 turns into `hubapi.Project.Mode`, task 04 into a `team_event_kinds` row and
+    task 06 into the handler
+- Consumes: the Hub's ADR and contract as merged; `05-design.md` §2.4, §3.3, §3.4, §11.1.
+- Amends: `ADR-H1:253`, `:369`, `:370`, `:372`, `:434-435`, and contract §3.6's audit-event row.
+  Both are locked documents; the owner accepts this amendment before task 03 starts
+  (`CLAUDE.md`: the owner reviews plans before code).
+
+- [ ] **Step 1: Re-read the lines this amendment replaces, after the merge**
+
+The line numbers above were read on the Hub worktree. A sync-merge can move them. Run, from the
+repo root:
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'sed -n "252,253p;369,372p;434,435p;467,474p;698,700p" docs/superpowers/adr/ADR-H1-hub-architecture.md | cut -c1-90'
+```
+
+Expected, in order: the G3 row (`| G3 | **An ordered change feed.**`), the G4 row (`| G4 |
+**Postgres row-level security on`), the `scp` row, the `azp` row (`in
+PANACEA_APP_HUB_ALLOWED_CLIENTS`), the `exp`/`nbf` row, the `Principal` row (`**(tid, oid)**`),
+the two lines ending `no request body carries an actor, an approver or a recorder field**.`, the
+A5 paragraph (`**What the desktop may cache`), and `## 8. Open risks`. If any line moved, use its
+new number everywhere below and in the commit message; if any line's **text** changed, stop and
+raise it: the amendment was written against the text, not the number.
+
+- [ ] **Step 2: Write ADR-H1 §5.10, "Delegated callers"**
+
+Insert it after §5.9 and before `## 6. Rejected alternatives`. The complete text:
+
+```markdown
+### 5.10 Delegated callers — Fleet writes in a member's name (team projects only)
+
+*Amendment of 2026-09-25, for Phase T (OD-14, OD-16). It changes five lines of §4.2 and §5.2–§5.4,
+each marked in place with "→ §5.10".*
+
+A team project's agents run centrally, as managed sessions that Fleet coordinates (OD-14), and they
+keep working while their owner's laptop is shut. Their records (tasks, agent starts and ends, lease
+state changes, messages, directives) are still the owner's records. They reach the Hub through a
+**delegation**: a record the owner creates with an ordinary call of their own, at launch, that
+names the project, the session class, the routes Fleet may call on the owner's behalf, and an
+expiry of 24 hours. Nothing about a solo project changes.
+
+**The rule, in the order the Hub applies it.**
+
+1. **Two app-only callers, no more.** A token with no `scp` is accepted only in one of two
+   cases: its `azp` equals `PANACEA_APP_HUB_FLEET_CLIENT_ID` **and** its `roles` contain
+   `Hub.Fleet` (**Fleet**, rules 2 to 7); or its `azp` equals
+   `PANACEA_APP_HUB_BROKER_CLIENT_ID` **and** its `roles` contain `Hub.DelegationReader` (**the
+   broker**, rule 10). Neither variable may be empty for the case it gates, neither client id may
+   equal the other, and neither token may carry the other's role: a token bearing both is
+   refused. Any other app-only token is refused, as before. *(Replaces `:369`, "A token with no
+   `scp` … is rejected: the Hub is delegated-only", for these two identities.)*
+2. **Fleet must name a delegation.** A request authenticated as Fleet carries
+   `X-Panacea-Delegation: dl-…`, or is refused 401 `delegation_required`. The delegation must
+   exist in the token's org, have `revokedAt` null (else 401 `delegation_revoked`), have
+   `expiresAt` in the future (else 401 `delegation_expired`), and list the route being called
+   (else 403 `forbidden`). **Two routes are exempt, by name, and only these two**:
+   `GET /v1/orgs/{orgId}/changes`, the per-org feed of rule 7, and `GET /v1/principals`, the
+   principal read of §7.28 — the one Fleet calls *before* it knows a delegation, to learn who a
+   caller is. A Fleet token that carries the header on either exempt route is refused 400
+   `bad_request`, so the exemption cannot be used to launder a delegation into a read that has
+   none. A desktop token that carries the header is refused 403 `forbidden`
+   with `details.required = "fleet"`: the header is Fleet's, so no client can borrow a delegation.
+   *(Replaces `:370`, "`azp` in `PANACEA_APP_HUB_ALLOWED_CLIENTS`", which stays true for every
+   non-Fleet token.)*
+3. **The principal is the delegation's owner.** Fleet's own `(tid, oid)` is never a principal and
+   is never provisioned as a user. The handler runs as the owner, with the owner's memberships, and
+   §5.3's matrix is applied to the owner. *(Replaces `:372` for delegated requests.)*
+4. **The actor is recorded, never supplied.** Every audit event of a delegated write records
+   `actorUserId = owner`, `via = "fleet"`, `delegationId = dl-…`, as audit-event `v: 2`
+   (contract §3.6). A non-delegated event stays `v: 1`, byte for byte. **No request body carries an
+   actor, an owner, a `via` or a delegation field**; strict decoding (contract §1, `httpx.DecodeJSON`)
+   refuses one that does with 400 `bad_request`. *(Extends `:434-435`; it does not relax it.)*
+5. **An agent id must be the owner's.** Every team write that names an `ag-…` (a task's
+   Orchestrator, an agent start's parent, a message's sender, a directive's two ends, a conflict's
+   pair, a thread's opener) is checked **in the write's transaction** against the agent-start rows:
+   at least the record's first-named agent belongs to the delegation's owner, and every agent the
+   record says *acts* (sender, directive `from` and `to`) belongs to them. A mismatch is 403
+   `agent_not_owner`, and nothing is written. A Fleet mis-stamp therefore fails closed at the Hub.
+6. **Tenancy comes from the delegation.** For a delegated request the Hub sets
+   `hub.org_id` (contract §10.3) from the delegation's org, looked up by a `SECURITY DEFINER`
+   function, and refuses one whose org is not the token's `tid`'s enrolled org. *(Replaces `:253`'s
+   "tenancy from the token" for delegated requests; RLS itself is unchanged.)*
+7. **Fleet's feed.** `GET /v1/orgs/{orgId}/changes?after=&kinds=` serves Fleet, and only Fleet, the
+   G3 feed of every **team** project in the org, metadata only, as contract §7.11 serves a member.
+   It is how Fleet sees a revoked delegation or a removed member within one poll. *(Extends `:252`.)*
+8. **`devissuer` issues client-credentials tokens.** For the offline stack (§5.7), `devissuer` gains
+   `grant_type=client_credentials` for one configured client, minting the app-only token of rule 1,
+   so the Hub's offline proof exercises this path without Entra. It mints the broker's token of
+   rule 10 the same way, under a second configured client.
+9. **Reserved: the gateway caller.** Phase T task 66 writes this rule, and has already drafted its
+   text (`task-66.md:144-152`) and its `auth.go` hunk against the number 9. Fix batch b02 left it
+   empty rather than renumber a drafted rule, and took 10 for the broker. Until task 66 lands, the
+   Hub admits no `Hub.Gateway` token, and §7.25 says so.
+10. **The broker reads one route, as itself.** *(Fix batch b02, S02-C5.)* A `Hub.DelegationReader`
+   token (rule 1) reaches `GET /v1/delegations/{delegationId}` and **nothing else**: every other
+   path is 403 `forbidden`, `details.required = "fleet"`, checked before the route runs — **rule
+   2's two exempt routes included**, which the gate must test by role and not by "is this token
+   app-only", or a pod-level component reads the org feed (route 78) as a second Fleet. It
+   carries no `X-Panacea-Delegation` (one that does is 400 `bad_request`), and it may read **any**
+   delegation of the org enrolled for its `tid`, revoked or expired included, because knowing a
+   delegation has lapsed is exactly what it is for. It is never a principal, no `hub.org_id` is
+   set from a delegation for it (tenancy is its own `tid`'s org, rule 6's ordinary case), and it
+   writes nothing, so no audit event is `v: 2` on its account; the read is audited as §8's
+   `delegation.read_by_broker` with the delegation id as subject. **Only for this caller** the
+   answer carries `ownerTid` and `ownerOid` beside `ownerUserId` (§7.13), which is what lets the
+   broker form a pod's owner label without taking Fleet's word for it (`task-17.md:47-54`).
+
+**What does not change.** `ADR-H1:467-474` holds: Fleet is a client, persists no Hub record, keeps
+Hub records in memory only and rebuilds from the Hub after a restart; its own Postgres holds Fleet
+state and the outbox of Hub-bound writes. The Hub still never sees a terminal byte (`:88`).
+```
+
+- [ ] **Step 3: Mark the five replaced lines in place, and add risk R12**
+
+Append ` → §5.10 for Fleet` to the last cell of the `scp` row (`:369`), the `azp` row (`:370`) and
+the `Principal` row (`:372`); append ` A delegated write records its actor per §5.10 rule 4.` to
+the sentence ending at `:435`; append ` Delegated requests take \`org_id\` from the delegation
+(§5.10 rule 6).` to the last cell of the G4 row (`:253`). No other word of those lines changes.
+
+Then add one row to §8's table, after R11:
+
+```markdown
+| R12 | **Fleet is a trusted deputy.** Within a live delegation Fleet writes in a member's name; a compromised Fleet can write, for up to a day, any record the member's own agents could, on the routes the delegation lists (`05-design.md` §2.4 item 5) | low · a day of false records in one member's name, per compromised delegation | workload identity only, and no user token ever held by Fleet; 24-hour delegations naming routes; the Hub's `ag-…` owner check in the write's transaction (§5.10 rule 5); every delegated write in the audit chain as `v: 2` with `via` and `delegationId`; removing a member revokes their delegations (Phase T task 44). **What remains:** within those bounds the Hub cannot tell a true Fleet write from a forged one. Anchoring the chain outside the database (Phase T task 45) makes the forgery visible afterwards, not impossible. Since fix batch b06 round 2, a compromised Fleet can also plant a false `delegation.named_by_another`: a record that accuses a member, not an act in their name, bounded by the same trust |
+```
+
+- [ ] **Step 4: Contract — ids, the audit event v2, codes, the principal step, variables**
+
+**§3.1**, append six rows to the prefix table, in its own two-pairs-per-row shape (the Hub's
+`TestPrefixesAndReasonsAreTheContracts`, `hubapi/keys_test.go:737-775`, reads exactly five cells a
+row and takes the entity cell as the entity's name, so no annotation goes in it):
+
+```markdown
+| `dl-` | delegation | | `th-` | thread |
+| `hm-` | human message | | `ms-` | message |
+| `nt-` | note | | `es-` | escalation |
+| `tk-` | task | | `dv-` | directive |
+| `ag-` | agent | | `ot-` | orchestrator turn |
+| `ls-` | lease | | `cf-` | conflict |
+```
+
+and two sentences under it: *"The Hub mints `dl-`, `hm-` and `nt-`. Fleet mints the other nine
+with `ids.Wide` and sends each as the body's `id`, because it writes through an outbox that must
+name a record before the Hub has answered (Phase T task 11); such an id is validated by
+`hubapi.ValidID` and must be new in its org: a reuse with a different body is 409 `conflict`, a
+retry with the same `Idempotency-Key` replays (§1)."* All twelve are disjoint from the ten above
+and from the control plane's five.
+
+**§3.6**, replace the audit event row's field list with: `v` (`1`, or `2` for a delegated write),
+`kind`, `orgId`, `seq`, `at`, `actorUserId` (or `""`), `event`, `teamId` (or `""`; the key
+`hubapi.AuditEnvelope` already writes, `hubapi/envelope.go:264-276`, plan correction A10),
+`projectId` (or `""`), `subject`, `data`, and **only when `v` is 2**, `via` (`"fleet"`) and `delegationId`. Add: *"A v1 event's bytes
+are unchanged by this amendment; the §3.5 golden vectors stand. A v2 golden vector is added by
+Phase T task 03."*
+
+**§4.2**, append sixteen rows at the **end** of the codes table, after `unavailable`, in exactly
+this order. The Hub's `TestHubCodesAreContractSection42s` (`hubapi/keys_test.go:530-625`) requires
+`codes.go` to declare its own codes in the table's order and each `details` cell to hold the keys
+in backticks, so task 03 appends the constants in this order and names these keys:
+
+```markdown
+| `delegation_required` | 401 | a Fleet token, on a route other than the per-org feed, with no `X-Panacea-Delegation` | — |
+| `delegation_expired` | 401 | the named delegation's `expiresAt` has passed | `delegationId` |
+| `delegation_revoked` | 401 | the named delegation has `revokedAt` set, or is unknown to this org | `delegationId`, `reason` |
+| `agent_not_owner` | 403 | an `ag-…` in the write does not belong to the delegation's owner (§5.10 rule 5) | `agentId` |
+| `delegation_not_found` | 404 | the owner's own delegation route names none of theirs | — |
+| `task_not_found` | 404 | no such task in this project | — |
+| `agent_not_found` | 404 | no such agent in this project | — |
+| `lease_not_found` | 404 | no lease events for this lease in this project | — |
+| `conflict_not_found` | 404 | no such conflict in this project | — |
+| `thread_not_found` | 404 | no such thread in this project, or the caller is not a party | — |
+| `escalation_not_found` | 404 | no such escalation of the caller's | — |
+| `team_state` | 409 | a team record's state does not allow this move | `from`, `to` |
+| `text_refused` | 422 | a free-text field fails a bound or the hygiene check (Phase T task 02) | `field`, `rule` |
+| `glob_refused` | 422 | a path or glob is empty, absolute, has `..` or `\`, a bad segment, is whole-repo, or exceeds 200 characters | `field`, `index`, `rule` |
+| `breadth_exceeded` | 422 | a glob set exceeds 20 globs, or one glob matches more than 10% of tracked files | `field`, `index` |
+| `principal_not_found` | 404 | route 88: the `(tid, oid)` asked about has never signed in, or is in a tenant this Hub does not serve (§7.28 rule 4). A user provisioned in **another** org is 200 with three false flags, never this | — |
+```
+
+`principal_not_found` is fix batch b02's (S02-C2). It is appended **last**, after the scope's
+fifteen, so no earlier row moves and `codes.go`'s declaration order is unchanged above it.
+
+The not-found and state rows are the ones tasks 06 and 07 need (their parts' "Gaps"); listing them
+here keeps §4.2 and `codes.go` one list. A transition refused by a team record's state is 409
+`team_state`, not the generic `conflict`, which stays for id reuse. A named delegation that is
+absent, or in another org, is **401 `delegation_revoked` with `details.reason = "unknown"`**, not
+404, so a Fleet caller cannot probe for another org's delegation ids; `delegation_not_found` is
+served only on the owner's own `GET`/`renew`/`DELETE` routes (§7.13).
+
+**§5.1**, insert between steps 3 and 4: *"3a. If the token is Fleet's (§5.10 rule 1), apply §5.10
+rules 2, 3 and 6: resolve the named delegation, refuse it or take its owner as the principal and its
+org as `hub.org_id`. Step 5 then resolves the **owner**, never Fleet."*
+
+**§12.2**, append four rows (the third is fix batch b01's, X-C1, and the fourth fix batch b02's,
+S02-C5; task 06 reads both):
+
+```markdown
+| `PANACEA_APP_HUB_FLEET_CLIENT_ID` | `""` (Fleet disabled) | Fleet's workload-identity client id. Empty refuses every app-only token, as before this amendment |
+| `PANACEA_APP_HUB_DELEGATION_TTL` | `24h` | a delegation's life from creation or renewal; a Go duration, at most `24h` |
+| `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` | `false` | `true` lets route 87 make a team project while the audit is not streamed out of the Hub. A start-up error unless `ENV` is `local` or `dev`. Development only: the audit then stays where an owner-role credential can rewrite it (T5) |
+| `PANACEA_APP_HUB_BROKER_CLIENT_ID` | `""` (the broker disabled) | the sandbox broker's workload-identity client id (§5.10 rules 1 and 10). Empty refuses every `Hub.DelegationReader` token. A start-up error if it equals `PANACEA_APP_HUB_FLEET_CLIENT_ID` |
+```
+
+- [ ] **Step 5: Contract §7.0 — rows 46 to 79 and 87, and the delegable route names**
+
+Add a second table to §7.0, directly under the first, headed **Team routes (Phase T)**; it has one
+more column than the first, so it is a table of its own, not appended rows. Its numbering
+continues from row 45. **Caller** `Fleet·O` is Fleet under an `orchestrator`-class delegation,
+`Fleet·W` under a `worker`-class one, `Fleet` under either; `desk` is the member's own desktop
+token. The **route name** is what a delegation lists; a route with no name cannot be delegated.
+
+```markdown
+| # | Method | Path | Caller and role | Route name | Task | Section |
+|---|---|---|---|---|---|---|
+| 46 | POST | `/v1/delegations` | desk, M of the body's project | — | T06 | §7.13 |
+| 47 | GET | `/v1/delegations/{delegationId}` | its owner (desk), or Fleet under it (at launch with `?for=`, b06 round 2), or **the broker** (app-only, role `Hub.DelegationReader`, §5.10 rule 10, any delegation of its org; b02) | `delegations.read` | T06 | §7.13 |
+| 48 | POST | `/v1/delegations/{delegationId}/renew` | its owner (desk) | — | T06 | §7.13 |
+| 49 | DELETE | `/v1/delegations/{delegationId}` | its owner, or A of its project (desk) | — | T06 | §7.13 |
+| 50 | POST | `/v1/projects/{projectId}/tasks` | Fleet·O | `tasks.create` | T06 | §7.14 |
+| 51 | PATCH | `/v1/projects/{projectId}/tasks/{taskId}` | Fleet·O, the task's owner | `tasks.update` | T06 | §7.14 |
+| 52 | GET | `/v1/projects/{projectId}/tasks` | V (desk), or Fleet | `tasks.read` | T06 | §7.14 |
+| 53 | POST | `/v1/projects/{projectId}/agents` | Fleet | `agents.start` | T06 | §7.15 |
+| 54 | POST | `/v1/projects/{projectId}/agents/{agentId}/end` | Fleet, the agent's owner | `agents.end` | T06 | §7.15 |
+| 55 | GET | `/v1/projects/{projectId}/agents` | V (desk), or Fleet | `agents.read` | T06 | §7.15 |
+| 56 | POST | `/v1/projects/{projectId}/leases/{leaseId}/events` | Fleet, the holder's owner | `leases.events` | T06 | §7.16 |
+| 57 | POST | `/v1/projects/{projectId}/conflicts` | Fleet, owner of `agentA` | `conflicts.create` | T06 | §7.17 |
+| 58 | PATCH | `/v1/projects/{projectId}/conflicts/{conflictId}` | Fleet, owner of either agent | `conflicts.update` | T06 | §7.17 |
+| 59 | GET | `/v1/projects/{projectId}/conflicts` | V (desk), or Fleet | `conflicts.read` | T06 | §7.17 |
+| 60 | POST | `/v1/projects/{projectId}/threads` | Fleet·O, owner of the opener | `threads.create` | T07 | §7.18 |
+| 61 | PATCH | `/v1/projects/{projectId}/threads/{threadId}` | Fleet·O, owner of a participant | `threads.update` | T07 | §7.18 |
+| 62 | POST | `/v1/projects/{projectId}/threads/{threadId}/messages` | Fleet·O, owner of the sender | `messages.append` | T07 | §7.18 |
+| 63 | GET | `/v1/projects/{projectId}/threads/{threadId}/messages` | Fleet·O for a participant's owner; org *auditor* (desk) | `messages.read` | T07 | §7.18 |
+| 64 | POST | `/v1/projects/{projectId}/escalations` | Fleet·O, the escalation's owner | `escalations.create` | T07 | §7.19 |
+| 65 | POST | `/v1/escalations/{escalationId}/answer` | its owner (desk) only | — | T07 | §7.19 |
+| 66 | GET | `/v1/projects/{projectId}/escalations` | own only (desk, or Fleet·O); org *auditor* | `escalations.read` | T07 | §7.19 |
+| 67 | POST | `/v1/projects/{projectId}/directives` | Fleet·O, owner of both ends | `directives.append` | T07 | §7.20 |
+| 68 | GET | `/v1/projects/{projectId}/directives` | own only (desk, or Fleet·O); org *auditor* | `directives.read` | T07 | §7.20 |
+| 69 | POST | `/v1/projects/{projectId}/turns` | Fleet·O, the Orchestrator's owner | `turns.record` | T07 | §7.21 |
+| 70 | POST | `/v1/projects/{projectId}/human-messages` | desk, M, to their own Orchestrator | — | T07 | §7.22 |
+| 71 | GET | `/v1/projects/{projectId}/human-messages` | own only (desk, or Fleet·O); org *auditor* | `human_messages.read` | T07 | §7.22 |
+| 72 | POST | `/v1/projects/{projectId}/notes` | desk, M, as themselves | — | T46 | §7.23 |
+| 73 | GET | `/v1/projects/{projectId}/notes` | V (desk), or Fleet·O | `notes.read` | T46 | §7.23 |
+| 74 | GET | `/v1/projects/{projectId}/team-policy` | V (desk), or Fleet | `policy.read` | T43 | §7.24 |
+| 75 | PUT | `/v1/projects/{projectId}/team-policy` | desk, A within floors; the route lowered only by org *compliance* | — | T43 | §7.24 |
+| 76 | POST | `/v1/orgs/{orgId}/usage-rollups` | the gateway's identity — **caller rule open**, see §7.25 | — | T66 | §7.25 |
+| 77 | GET | `/v1/projects/{projectId}/usage` | A (every member), M (own) | — | T66 | §7.25 |
+| 78 | GET | `/v1/orgs/{orgId}/changes?after=&kinds=` | Fleet, **no delegation** (§5.10 rule 7) | — | T08 | §7.26 |
+| 79 | POST | `/v1/projects/{projectId}/team-policy/route` | desk: M raises to `au`; only org *compliance* lowers to `global` | — | T43 | §7.24 |
+| 87 | POST | `/v1/projects/{projectId}/mode` | desk, A; one way, `solo` to `team`, behind the audit gate | — | T06 | §7.4 |
+| 88 | GET | `/v1/principals?tid=&oid=&projectId=` | Fleet, **no delegation** (§5.10 rule 2, the second and last exemption) | — | T06 | §7.28 |
+```
+
+Row 87 is fix batch b01's (X-C1); row 88 is fix batch b02's (S02-C2). Rows 80 to 86 are left to
+the later tasks that add them, and **all seven are already spoken for**, which is why b02 took 88:
+80 is task 14's `POST /v1/orgs/{orgId}/policy-versions` in a new §7.27 (`task-14.md:797`, contract
+row at `task-14.md:817`), 81 to 83
+are task 46's erasure routes (`task-46.md:109-110`), and 84 to 86 are task 49's land approvals
+(`task-49.md:137,150,156`). **Two later parts also say "route 80" for something else** —
+`task-66.md:56` (the gateway reading an org ceiling) and `task-52.md:1188` (a proposed
+cross-project read) — and they collide with task 14, not with this table. Recorded here by fix
+batch b02, not resolved: whichever of those two parts is built second must take a free row and
+say so. The next free rows are 89 onward.
+
+`T06` means Phase T task 06. §7.0's closing sentence becomes *"Nothing else is routed than these two
+tables."*
+
+**The class route sets.** A delegation's `routes` must be a subset of its class's set, or the create
+is 422 `bad_request` with `details.route`:
+
+- `orchestrator`: every route name above.
+- `worker` (a worker the member launched with no Orchestrator): `delegations.read`,
+  `tasks.read`, `agents.start`, `agents.end`, `agents.read`, `leases.events`, `conflicts.create`,
+  `conflicts.update`, `conflicts.read`, `policy.read`.
+
+A worker-class delegation can therefore never carry a message, a directive or an escalation: those
+are the cross-user channel, and OD-16 gives it to the Orchestrator alone.
+
+- [ ] **Step 6: Contract §7.13 to §7.17 — delegation, task, agent, lease event, conflict**
+
+Conventions for every team section. **Requests** carry free text as plain strings; the Hub bounds
+and cleans them (task 02), stamps the author class from the route (a `Fleet` route writes `agent`,
+a `desk` route writes `human`) and returns them as a `Text` object:
+`{"body", "author": "agent"|"human", "authorAgentId" (agent text only), "ownerUserId", "at"}`.
+**Globs** are repo-relative, validated by `teamtext.ValidGlob`, ≤ 20 per set, each matching ≤ 10%
+of the project's tracked files when Fleet supplies the count (`teamtext.Breadth`; the Hub holds no
+file list, so it checks the count Fleet sends in `trackedFiles` and the glob grammar; Fleet checks
+the match). **No request body carries an owner, an actor, a `via`, a delegation or a session id**;
+strict decoding refuses them (§5.10 rule 4, `hub-contract.md:941-942`). Every write is one
+metadata-only audit event and one feed row, in the §10.6 transaction. **Status for a refused
+move:** wherever a section below says 409 `conflict` for a *state* (a terminal task or conflict, a
+second agent end, renewing a revoked delegation, a second answer, an event after a terminal lease
+state), the code is 409 **`team_state`** with `details.from` and `details.to`; 409 `conflict` stays
+only for an id reused with a different body and a lease `seq` out of order.
+
+**§7.13 Delegations.** `POST /v1/delegations`, body `{"projectId","class","routes"}`, 201:
+
+```json
+{ "id": "dl-3f2a91c07b1e4d2a", "projectId": "pj-…", "ownerUserId": "u-…",
+  "class": "orchestrator", "routes": ["tasks.create", "agents.start"],
+  "createdAt": "2026-09-25T01:00:00Z", "expiresAt": "2026-09-26T01:00:00Z",
+  "renewedAt": null, "revokedAt": null, "revokedReason": null }
+```
+
+**Route 47's answer to the broker only** (fix batch b02, S02-C5; §5.10 rule 10) carries two more
+fields, `"ownerTid"` and `"ownerOid"`, the owner's Entra tenant and object ids as the Hub holds
+them for that user. No other caller sees them: the owner's own desktop and Fleet get the record
+above, byte for byte, so nothing a member or Fleet can read gains a field. They are what lets the
+broker build a pod's owner label itself instead of trusting Fleet's statement of it
+(`task-17.md:47-54`), and route 47 is the only route that serves them. **Fleet's `?for=` (fix batch b06 round 2).** Fleet's launch read may carry `?for=<userId>`, the person the launch is for; no other caller may send it (400 `bad_request`). It changes nothing in the answer and admits or refuses nothing. When it is not the delegation's owner, the Hub appends §8's `delegation.named_by_another`. So a member who names someone else's `dl-…` shows in the org's audit, though Fleet refuses the launch itself.
+
+`class` is `orchestrator`·`worker`. `routes` is 1 to 25 distinct names from the class's set.
+`renew` sets `expiresAt = now + PANACEA_APP_HUB_DELEGATION_TTL` and `renewedAt = now`; a lapsed but
+unrevoked delegation may be renewed (the event carries `"lapsed": true`), a revoked one may not (409
+`conflict`). `DELETE` sets `revokedAt` and `revokedReason` = `owner` or `admin`; removing a member
+revokes theirs with `member_removed` (task 44), and a failed account check with `account_disabled`.
+
+**§7.14 Tasks.** `POST …/tasks`, body:
+
+```json
+{ "id": "tk-…", "orchestratorAgentId": "ag-…", "title": "Add the export route",
+  "titleSource": "hm-…", "reason": { "briefRef": "brief:bf-…@3#export", "why": "…" },
+  "scope": ["src/export/**"], "trackedFiles": 812, "state": "planned" }
+```
+
+`title` ≤ 140; `why` ≤ 200; `titleSource` optional: the owner's own `hm-…` whose trimmed body
+**equals** the title, which makes the title `human`, else it is `agent`. `briefRef` is a brief key
+(§3.2) plus `#` and a section id `^[a-z0-9][a-z0-9-]{0,63}$` (**UNVERIFIED** against phase 4's
+section ids until P4's merge). `state` is `planned`·`active`·`blocked`·`done`·`abandoned`, default
+`planned`; `done` and `abandoned` are terminal (409 `conflict`). `PATCH` body `{"revision", "state"?,
+"scope"?, "trackedFiles"?, "why"?}`, 409 `revision_conflict` on a stale revision. The record adds
+`projectId`, `ownerUserId`, `revision`, `createdAt`, `updatedAt`. **`title` and `reason.why` are
+returned only to Fleet·O**; every other reader gets the record without them (`05-design.md` §5.1).
+
+**§7.15 Agents.** `POST …/agents` (start), body:
+
+```json
+{ "id": "ag-…", "role": "worker", "parentAgentId": "ag-…", "taskId": "tk-…",
+  "harness": { "id": "claude-code", "version": "2.1.4" },
+  "laneRef": "refs/panacea/lanes/ag-…/main", "policy": { "version": 3, "digest": "sha256:…" } }
+```
+
+`role` is `orchestrator`·`worker`; an Orchestrator has no parent; a worker's parent, when given,
+is an Orchestrator of the **same owner**. `harness.id` `^[a-z][a-z0-9-]{0,31}$`, `version`
+`^[0-9A-Za-z.+-]{1,32}$`. `laneRef` starts `refs/panacea/lanes/` (OD-2) and passes
+`hubapi.ValidBranchRef`'s component rules. `policy` is the OD-23 version and digest the sandbox was
+started with (Phase T task 13). `POST …/agents/{agentId}/end`, body `{"exitClass"}`, one of
+`done`·`stopped`·`failed`·`access_removed`·`lapsed`; a second end is 409 `conflict`. The record
+is the start body plus `projectId`, `ownerUserId`, `startedAt`, `endedAt` and `exitClass`, the
+last two `null` while the agent runs. Status
+(`working`, `waiting`, …) is Fleet state and never reaches the Hub. Solo projects keep §7.8's
+`session_link`; a team project's route 33 is 409 `conflict` with `details.use = "agents"`.
+
+**§7.16 Lease events.** `POST …/leases/{leaseId}/events`, body
+`{"seq", "holderAgentId", "mode", "globs", "trackedFiles", "state", "expiresAt", "at"}`. `mode`
+`intent`·`hold`·`bulk`; `state` `requested`·`granted`·`contested`·`yielded`·`released`·`expired`·
+`admin-released`. The 201 is `{"leaseId", "seq", "state", "at"}`. Fleet stays authoritative: the Hub checks shape, owner and that `seq` is the
+lease's last `seq` + 1 (409 `conflict` otherwise), and that nothing follows a terminal state
+(`yielded`, `released`, `expired`, `admin-released`). **One exception to "the holder's owner"**:
+an `admin-released` event is written under the delegation of an A of the project, and records it.
+
+**§7.17 Conflicts.** `POST …/conflicts`, body:
+
+```json
+{ "id": "cf-…", "agentA": "ag-…", "agentB": "ag-…", "tier": "H",
+  "paths": [ { "path": "src/export/route.ts", "lines": [[10, 24]] } ],
+  "basis": { "a": "<40 or 64 hex>", "b": "<40 or 64 hex>" } }
+```
+
+`tier` `P`·`H`·`M`·`S`; ≤ 50 paths, ≤ 20 line ranges each, `1 ≤ start ≤ end`; the two agents
+differ. The record adds `state` (`raised` at create; then `negotiating`·`accepted`·`resolved`·
+`escalated`·`cleared`), `resolution` (`split`·`sequence`·`yield`·`build-on`·`proceed-both`, or
+`null`), `threadId` (or `null`), `projectId`, `revision`, `createdAt`, `updatedAt`. `PATCH` body `{"revision", "state",
+"resolution"?, "threadId"?}`; `resolution` is required with `resolved` and `accepted`.
+
+- [ ] **Step 7: Contract §7.18 to §7.22 — thread, message, escalation, directive, turn, human message**
+
+**§7.18 Threads and messages.** `POST …/threads`, body `{"id", "openerAgentId", "participants",
+"subject": {"kind": "conflict"|"lease"|"free", "id": "cf-…"|"ls-…"|""}, "deadline"}`:
+`participants` is exactly the 2 distinct Orchestrator `ag-…` of **different** owners, the opener
+among them; `deadline` is Fleet-set, 30 minutes to 24 hours after now. The record adds `state`
+(`open`, then `resolved`·`escalated`·`expired`), `rounds` (0), `revision`, `createdAt`. `PATCH`
+body `{"revision", "state"?, "rounds"?}`; `rounds` only grows. `POST …/threads/{threadId}/messages`
+is **append-only**, body `{"id", "senderAgentId", "kind", "fields", "text"?, "templated"}`:
+
+| `kind` | `fields` (typed) | `text` |
+|---|---|---|
+| `ask` | `{"subject": {"kind": "task"\|"lease"\|"path"\|"conflict", "ref"}}` | question ≤ 600, required |
+| `answer` | `{"inReplyTo": "ms-…"}` | ≤ 600; only with `"templated": false`, which Fleet sets only under the owner's standing permission (§6.5) |
+| `inform` | `{"subject": …}` as `ask` | ≤ 600, required |
+| `propose` · `counter` | `{"resolution": Resolution}` | rationale ≤ 600, optional |
+| `accept` · `reject` | `{"proposal": "ms-…"}` | reason ≤ 300, optional |
+| `withdraw` | `{"proposal": "ms-…"}`, the sender's own | none |
+
+`Resolution` is one of `{"kind": "split", "sides": {"<ag>": [globs], "<ag>": [globs]}}`,
+`{"kind": "sequence", "first": "ag-…"}`, `{"kind": "yield", "globs": [globs]}`,
+`{"kind": "build-on", "base": "ag-…"}`, `{"kind": "proceed-both", "paths": [globs]}`. A message
+whose `senderAgentId` is not a participant is 403 `forbidden`; not the owner's, 403
+`agent_not_owner`. `GET` returns messages to Fleet·O **for a participant's owner** and to an org
+*auditor*, to nobody else; text is always a `Text` with `author = "agent"`. A message record is
+the body plus `threadId`, `projectId`, `senderUserId` (the sender's owner), `createdAt` and
+`tombstonedAt` (erasure, task 46); a thread record adds `projectId` too.
+
+**§7.19 Escalations.** `POST …/escalations`, body `{"id", "fromAgentId" ("" when Fleet raises it
+for itself), "kind": "inform"|"decide", "threadId"?, "question", "options", "default",
+"deadline", "evidence"?}`. `question` ≤ 300. `options`: 0 for `inform`, 2 to 4 for `decide`, each
+`{"label" ≤ 80, "consequence" ≤ 200}`. `default` is an option index, required for `decide`, and is
+**Fleet's** choice, always the safe one (§6.5); `deadline` ≥ 30 minutes after now. The owner is the
+delegation's owner; `fromAgentId`, when set, is the owner's Orchestrator. **`evidence`** (fix batch b07 round 3, N-C1) is what a decide the taint rule wrote (§7.2 item 2) showed the human, so the Hub keeps it: `{"verb", "toAgentId"?, "taskId"?, "text"?, "read", "readTotal"}`, on a `decide` with a `fromAgentId` only (else 422 `bad_request`, `details.field = "evidence"`). `verb` is the held act, one of `free`·`task-create`·`scope-widen`·`task-abandon`·`worker-spawn`·`build-on`; `toAgentId` an agent of the owner (else 403 `agent_not_owner`); `taskId` a `tk-…` of the org; `text` ≤ 600, required for `free` and refused otherwise, stored as Text·agent whose author is the `fromAgentId` (never a spawn's opening prompt, OD-24); `read` ≤ 100 ids (`ms-`, `tk-`, `nt-`, `es-`), as §7.20's; `readTotal` ≥ their count. The record adds
+`ownerUserId`, `evidence` (`null`, or the body's with `text` a Text), `answer` (`null` or `{"choice", "text": Text·human, "answeredAt"}`), `createdAt`.
+`POST /v1/escalations/{escalationId}/answer`, body `{"choice", "text"?}`, `text` ≤ 300, **by the
+owner's own desktop token only**: anyone else, Fleet included, is 403 `forbidden`; a second answer
+is 409 `conflict`. Past its deadline with no answer, an escalation *reads* as defaulted; Fleet
+acts on the default and cites the `es-…` in the directive it issues. Readable by the owner and an
+org *auditor* only: another member's `GET` is filtered to their own, so a teammate's `es-…` never
+appears, and their `answer` on it is 403 `forbidden`.
+
+**§7.20 Directives.** `POST …/directives`, **append-only**, body `{"id", "fromAgentId",
+"toAgentId", "kind", "params", "text"?, "rung", "origin", "read", "approvedBy"?}`. `kind`
+`pause`·`resume`·`narrow`·`wait-for`·`rebase`·`free`; `params` is `{"globs": [globs]}` for
+`narrow`, `{"leaseId": "ls-…"}` for `wait-for`, `{}` otherwise; `text` ≤ 600, required for `free`
+and refused otherwise;
+`rung` `piggyback`·`inbox-socket`·`pty-nudge`; `origin` `human`·`fleet`; `read` ≤ 100 ids
+(`ms-`, `tk-`, `nt-`, `es-`) the Orchestrator session read since its human last spoke;
+`approvedBy` an `es-…`. `from` is the owner's Orchestrator, `to` the owner's worker. **The Hub
+re-checks the kind half of the taint rule** (`05-design.md` §7.2 item 2) as a second layer to
+Fleet's verb handler: when `origin` is `fleet` and `kind` is `free`, `approvedBy` must name a
+`decide` escalation of the same owner **answered by that owner**, else 403 `forbidden` with
+`details.required = "decide"`. The typed five (`pause`, `resume`, `narrow`, `wait-for`, `rebase`)
+pass; whether a `narrow` stays inside the task's scope is Fleet's check alone, since the Hub does
+not evaluate glob containment. Readable by the owner and an org *auditor* only.
+
+**§7.21 Orchestrator turns.** `POST …/turns`, body `{"id", "orchestratorAgentId", "origin",
+"consumed" (≤ 200 event ids), "issued" (≤ 100 `dv-`/`ms-`/`es-` ids), "tokens": {"input",
+"output"}}`, 201 with `{"id"}`. It writes **one audit event and no table row**
+(`05-design.md` §3.3: "audit event only").
+
+**§7.22 Human messages.** `POST …/human-messages`, body `{"toAgentId", "text"}`, `text` ≤ 2,000,
+**append-only**, by the owner's desktop; `toAgentId` must be the owner's own Orchestrator (403
+`agent_not_owner` otherwise). The Hub mints `hm-…`; the record is `{"id", "projectId",
+"ownerUserId", "toAgentId", "text": Text·human, "createdAt", "tombstonedAt": null}`. Readable by the
+owner (desk, or Fleet·O under the owner's delegation) and an org *auditor* only. Erasure tombstones
+it (task 46): `text` becomes `null`, the audit event stays.
+
+- [ ] **Step 8: Contract §7.23 to §7.26 and §7.28 — note, team policy, usage roll-up, Fleet's
+      feed, the principal read**
+
+**§7.23 Notes.** `POST …/notes`, body `{"target": {"kind": "project"|"task"|"user", "id"}, "text"}`,
+`text` ≤ 1,000, by any M as themselves; the Hub mints `nt-…`; the author is the token's user. The
+record is `{"id", "projectId", "authorUserId", "target", "text": Text·human, "createdAt",
+"tombstonedAt": null}`, **immutable**. `GET` serves V and Fleet·O; Fleet passes a note to an
+Orchestrator only through `panacea inbox`, quoted with its author's name, and to no worker
+(`07` M2, task 46).
+
+**§7.24 Team policy.** One record per team project:
+
+```json
+{ "projectId": "pj-…", "dataClass": "…", "route": "global",
+  "quotas": { "memberDailyCents": 2500, "projectDailyCents": 20000 },
+  "orchestratorTurnsPerHour": 30,
+  "escalationFloors": ["yield-unedited", "accept-split", "proceed-both-ps", "sequence-short"],
+  "messageBudgets": { "perPairPerHour": 20, "roundsPerSide": 3, "threadDeadlineMinutes": 30 },
+  "revision": 4, "updatedAt": "…" }
+```
+
+`PUT` (an A, body without `projectId`, `dataClass`, `route`, `updatedAt`) enforces, each as 422
+`bad_request` with `details.field`: every quota > 0 (OD-24, budgets on by default);
+`orchestratorTurnsPerHour` 1 to 30; `perPairPerHour` 1 to 20, `roundsPerSide` 1 to 3 (tighten only,
+§6.6); `threadDeadlineMinutes` 30 to 1,440 (lengthen only, §6.4); `escalationFloors` a subset of
+the four §6.5 rows whose default is *act*, since a floor only adds asking. `dataClass` is the
+project's own, set at creation (OD-24), read-only here; its values and its home on the project
+record are **UNVERIFIED until merge** (task 43 reuses whatever the merged project record carries).
+Route 79 moves `route`: any M may raise it to `au`; only a token whose `roles` contain
+`Hub.Compliance` may lower it to `global`, and that write's audit event says so.
+
+**§7.25 Usage roll-ups.** `POST /v1/orgs/{orgId}/usage-rollups`, body `{"day": "2026-09-25",
+"rows": [ {"userId", "teamId", "projectId", "agentId", "route", "counterpartUserId" (or ""),
+"inputTokens", "outputTokens", "costCents"} ]}`, ≤ 5,000 rows, one post per `(org, day)`,
+replacing any earlier post for that day. **Its caller is open:** it is the gateway's own
+workload identity, a **fourth** caller (after the desktop, Fleet and the broker) that §5.10 does
+not admit. This contract fixes the record only; the caller rule is Phase T task 66's to write, as
+§5.10 **rule 9**, which fix batch b02 left reserved and empty for it; the broker took rule 10
+instead, so no drafted text of task 66's renumbers. Until task 66 lands, no `Hub.Gateway` token is
+admitted at all.
+`GET …/usage?from=&to=` serves an A every row of the project, an M their own.
+
+**§7.26 Fleet's feed.** `GET /v1/orgs/{orgId}/changes?after=&kinds=`, Fleet only, no delegation.
+The same response and cursor as §7.11, over **team projects only** (a project whose mode is
+`team`, set by route 87 of §7.4, which Share calls, `05-design.md` §2.3, §10.1), plus
+`team.member_removed` and every `delegation.*` event of the org. `kinds` is an optional comma list of §8 kinds. `orgId` must be
+the org of Fleet's token `tid`, else 404 `route_not_found`. Metadata only, as every feed row.
+
+**§7.28 The principal read** *(fix batch b02, S02-C2; row 88. §7.27 is task 14's, so this section
+is numbered past it.)* `GET /v1/principals?tid=&oid=&projectId=`, **Fleet only, no delegation**
+(§5.10 rule 2's second and last exemption; a desktop token is 403 `forbidden`,
+`details.required = "fleet"`, and a Fleet token carrying `X-Panacea-Delegation` here is 400
+`bad_request`). It answers the one question every Fleet route must answer before it can
+authorise — *who is this caller, and what is their standing on this project* — and it is the only
+route that answers it. All three parameters are required; a missing one is 400 `bad_request` with
+`details.field`. `projectId` must pass `hubapi.ValidID`, else 400, so no invented id reaches the
+database. 200:
+
+```json
+{ "userId": "u-…", "orgId": "org-…", "projectId": "pj-…", "role": "member",
+  "orgAdmin": false, "auditor": false, "compliance": false }
+```
+
+Five rules, each of which a later task leans on:
+
+1. **`orgId` is the *project's* org, never the caller's.** The Hub resolves `projectId` first and
+   answers that project's org. Fleet compares it with nothing it was told; it is the value Fleet's
+   `authorize` binds an org-level grant to (review S02-I6 turns on this sentence, so it is pinned
+   here and not left to the caller).
+2. **`role` is the caller's role *on that project*** — `viewer`·`member`·`admin`, exactly §5.3's
+   values — or `""` when the user is provisioned but is not a member of the project's team. A
+   `""` role with `auditor: false` means "no standing here", and Fleet refuses on it.
+3. **The three flags are org-level and are the org of `orgId`.** `orgAdmin`, `auditor` and
+   `compliance` are the standing §5.2 and §5.3 give that user **in the project's org**; a user with
+   `Hub.Auditor` in org A asking about a project of org B gets all three false, which is what stops
+   an auditor of one org reading another's (S02-I6). A flag is never carried across orgs.
+4. **An unprovisioned `(tid, oid)` is 404 `principal_not_found`** — the user has never signed in,
+   or is in a tenant this Hub does not serve. A *known* user with no standing is 200 with `role`
+   `""` and three false flags, so Fleet can tell "who?" from "not yours", and neither answer says
+   whether the project exists: an unknown, another org's, or a `pj-…` no such user may see is the
+   same 404 `route_not_found`.
+5. **Metadata only, and no free text.** No name, no mail address, no project title. The whole
+   answer is ids, one enum and three booleans, so an unbounded read by Fleet leaks nothing a feed
+   row would not. The read is audited as §8's `principal.read` — audit only, on neither feed —
+   with the `u-…` as subject and `{"projectId"}` as data.
+
+Fleet caches the answer for at most 60 s (task 12's `MembershipTTL`), which bounds how long a
+removed member keeps their standing; the `team.member_removed` event on Fleet's feed (§7.26) is
+the faster path, and the cache is the floor, not the mechanism.
+
+**§7.4, amended (fix batch b01, X-C1): a project's mode.** Append to §7.4: *"A `Project` carries
+`"mode": "solo" | "team"`, `solo` when created; every response that returns a `Project` carries
+it. **`POST /v1/projects/{projectId}/mode`** (route 87), body `{"mode": "team"}`, desktop only, an
+A of the project's team; no route name, so no delegation reaches it. It is **one way**: any other
+value, `"solo"` included, is 400 `bad_request` with `details.field = "mode"`. It is gated on the
+audit leaving the Hub: until the audit sink streams (Phase T task 45) it is 503 `unavailable`,
+`details.reason = "audit_not_streaming"`, and nothing is written, unless
+`PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` (§12.2) admits it in `local` or `dev`. A project already
+`team` answers 200 with no event. The move writes one `project.mode_set` (§8) and answers
+`200 Project`. A delegation (route 46) is 409 `conflict`, `details.reason = "not_team_project"`, on a
+`solo` project, so every team record sits behind this route."*
+
+And §7.1's `// Project` example (`hub-contract.md:637-638`) gains the key, after `"name"`:
+
+```jsonc
+// Project
+{ "id": "pj-…", "teamId": "tm-…", "name": "Engagement Portal", "mode": "solo" | "team",
+  "remotes": [Remote], "createdAt": "…", "createdBy": User }
+```
+
+`hubapi`'s `TestFieldNamesMatchTheContractExamples` compares `hubapi.Project`'s keys with that
+example (`hubapi/types_test.go:167`, `:179`, `:196`), so Phase T task 03's `Mode` field and this
+line land together.
+
+- [ ] **Step 9: Contract §8 — the team events**
+
+Append to §8's table. Every kind matches the audit table's `CHECK (kind ~
+'^[a-z]+(_[a-z]+)*\.[a-z]+(_[a-z]+)*$')` (`hub-contract.md:1766`). **In the feed** is now three
+values: `yes` (the member feed of §7.11 **and** Fleet's feed), `fleet` (Fleet's feed only; the
+audit row's new `fleet_feed` flag, task 04), `no` (audit only). `data` never holds text.
+
+```markdown
+| `delegation.created` | ✓ | ✓ | delegation id | `{"class","expiresAt"}` | fleet |
+| `delegation.renewed` | ✓ | ✓ | delegation id | `{"expiresAt","lapsed"}` | fleet |
+| `delegation.revoked` | ✓ | ✓ | delegation id | `{"reason"}` | fleet |
+| `task.created` | ✓ | ✓ | task id | `{"state","orchestratorAgentId"}` | yes |
+| `task.updated` | ✓ | ✓ | task id | `{"state","revision"}` | yes |
+| `agent.started` | ✓ | ✓ | agent id | `{"role","parentAgentId","harnessId","harnessVersion","policyVersion"}` | yes |
+| `agent.ended` | ✓ | ✓ | agent id | `{"exitClass"}` | yes |
+| `lease.state_changed` | ✓ | ✓ | lease id | `{"seq","state","mode","holderAgentId"}` | yes |
+| `conflict.raised` | ✓ | ✓ | conflict id | `{"tier","agentA","agentB"}` | yes |
+| `conflict.updated` | ✓ | ✓ | conflict id | `{"state","resolution"}` | yes |
+| `thread.opened` | ✓ | ✓ | thread id | `{"subjectKind","participantA","participantB"}` | fleet |
+| `thread.updated` | ✓ | ✓ | thread id | `{"state","rounds"}` | fleet |
+| `message.appended` | ✓ | ✓ | message id | `{"threadId","kind","senderAgentId"}` | fleet |
+| `escalation.created` | ✓ | ✓ | escalation id | `{"kind","deadline","fromAgentId"}` | fleet |
+| `escalation.answered` | ✓ | ✓ | escalation id | `{"choice"}` | fleet |
+| `directive.appended` | ✓ | ✓ | directive id | `{"kind","rung","origin","fromAgentId","toAgentId","approvedBy"}` | fleet |
+| `orchestrator_turn.recorded` | ✓ | ✓ | turn id | `{"orchestratorAgentId","origin","consumed","issued","inputTokens","outputTokens"}` | no |
+| `human_message.appended` | ✓ | ✓ | human message id | `{"toAgentId"}` | fleet |
+| `note.created` | ✓ | ✓ | note id | `{"targetKind","targetId"}` | yes |
+| `team_policy.updated` | ✓ | ✓ | project id | `{"revision"}` | yes |
+| `team_policy.route_changed` | ✓ | ✓ | project id | `{"route","by"}`; `by` is `member` or `compliance` | yes |
+| `usage.rolled_up` | — | — | org id | `{"day","rows"}` | no |
+| `project.mode_set` | ✓ | ✓ | project id | `{"from","to"}` | yes |
+| `principal.read` | ✓ | ✓ | user id | `{"projectId"}` | no |
+| `delegation.read_by_broker` | ✓ | ✓ | delegation id | `{"projectId"}` | no |
+| `delegation.named_by_another` | ✓ | ✓ | delegation id | `{"projectId","ownerUserId","namedBy"}` | no |
+```
+`principal.read` and `delegation.read_by_broker` are fix batch b02's (S02-C2, S02-C5). Both are
+**reads**, and both are `no`: audit only, on neither feed, because a feed row per authorisation
+check would swamp both feeds (route 88 runs once per Fleet request that misses the 60 s cache) and
+tells a member nothing they can act on. They are audited all the same because the stream lens
+requires every cross-owner directive to be auditable **with its cause**, and these two reads are
+the cause every other Fleet and broker act cites. **Neither has an actor** (b02 round 3): no Fleet
+identity is ever a principal (§5.10 rule 3), nor is the broker (rule 10), and the user asked about
+did not act, so each `actorUserId` is `""`, the shape §3.6 allows; that user is `principal.read`'s
+subject. Task 06 runs both under `Write`, which appends them. Neither is `v: 2`: `v: 2` marks a
+delegated **write** (rule 4), and neither of these is delegated or a write. `delegation.named_by_another` is fix batch b06 round 2's and follows the same rules: audit only, `v: 1`, actor `""`, written by task 06 under `Write` from route 47's `for` (§7.13). The delegation's owner is that request's principal (rule 3) but did not act; the person Fleet read for (`namedBy`) acted on Fleet, not on the Hub. It is the org's one record of a member naming another member's `dl-…`. Fleet refuses that launch, and no Fleet write could record it: every Fleet write goes under the caller's own delegation, which that caller chooses, or does not hold.
+
+`project.mode_set` (fix batch b01, X-C1) is a desktop write by the team admin, so `v: 1` and no
+delegation. It is `yes` so that it is the first row of a new team project on Fleet's feed (§7.26),
+which is how Fleet learns the project exists (`05-design.md` §10.1 step 2).
+
+**`data` values are strings, integers and booleans only** (`hubapi.AuditEnvelope.check`,
+`hubapi/envelope.go:287-311`), so no event carries a list: a thread's two participants are two
+keys, and a turn's `consumed` and `issued` are its ids joined by `,` in the order Fleet consumed or
+issued them (at most 200 and 100 ids, so at most about 4 KB).
+
+Escalations, directives and human messages are `fleet`, never `yes`, because §3.4 makes them
+readable by their owner and an auditor only, and the member feed is read by every member. Every
+delegated write's event is the audit-event `v: 2` of §3.6.
+
+- [ ] **Step 10: Contract §5.2 and §5.3 — the two org capabilities and the team rows**
+
+**§5.2**, append: *"**Org auditor** (`Hub.Auditor`) reads escalations, directives, human messages
+and thread messages across owners, in every project of the org, and nothing else of project
+content. **Org compliance** (`Hub.Compliance`) may lower a team project's route to `global` (route
+79), audited. Both are Entra app roles read from each token, like `Hub.OrgAdmin`, and grant no
+write of any team record."*
+
+**§5.3**, add a second table, **Team rows**. Columns: `V`, `M` (a member, on their **own** record),
+`M′` (a member, on **another** member's record), `A` (an admin, on another's), `Au` (org auditor,
+not a member), `N`, `X`, as §5.3; `F` Fleet under the record owner's live delegation listing the
+route; `F∅` Fleet with no delegation; `Fx` Fleet under **another** owner's delegation; `D` a desktop
+token carrying `X-Panacea-Delegation`. **401d** is `delegation_required`; **403a** is
+`agent_not_owner`; **—** means the caller cannot reach the route at all (a Fleet-only or desk-only
+route).
+
+```markdown
+| Operation | V | M | M′ | A | Au | N | X | F | F∅ | Fx | D |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| create a delegation (46) | 403 | ✓ | — | ✓ own | 404 | 404 | 404 | — | 401d | — | 403 |
+| revoke a delegation (49) | 403 | ✓ | 403 | ✓ | 404 | 404 | 404 | — | 401d | — | 403 |
+| create or update a task (50, 51) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| start or end an agent (53, 54) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| append a lease event (56) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| raise or update a conflict (57, 58) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| open or update a thread; append a message (60–62) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| read a thread's messages (63) | — | — | — | — | ✓ | 404 | 404 | ✓ party | 401d | 403 | 403 |
+| create an escalation (64) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| answer an escalation (65) | 403 | ✓ | 403 | 403 | 403 | 404 | 404 | 403 | 403 | 403 | 403 |
+| read escalations, directives, human messages (66, 68, 71) | ∅ | ✓ own | ∅ | ∅ | ✓ | 404 | 404 | ✓ own | 401d | ∅ | 403 |
+| append a directive; record a turn (67, 69) | — | — | — | — | — | — | — | ✓ | 401d | 403a | 403 |
+| write a human message (70) | 403 | ✓ | — | ✓ own | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
+| write a note (72) | 403 | ✓ | ✓ | ✓ | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
+| set team policy (75) | 403 | 403 | 403 | ✓ | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
+| make the project a team project (87) | 403 | 403 | 403 | ✓ | 404 | 404 | 404 | 403 | 401d | 403 | 403 |
+| read tasks, agents, conflicts, notes, policy (52, 55, 59, 73, 74) | ✓ | ✓ | ✓ | ✓ | 404 | 404 | 404 | ✓ | 401d | ✓ | 403 |
+```
+
+`∅` means 200 with an empty list: the route answers, the other person's rows are absent. A `—` in
+a desk column is 403 `forbidden` with `details.required = "fleet"` when a desktop calls a Fleet-only
+route. **Nobody writes another person's task, lease, message, directive or escalation, whatever
+their role**: no `✓` stands in an `M′` or `A` cell of a write row, and `Fx` is refused on every
+owner-bound write.
+
+- [ ] **Step 11: The field check — written before the check is run, so it is the test**
+
+For a documents task the test is a list the documents must satisfy. Write
+`docs/superpowers/contracts/team-records-fieldcheck.txt`, one line per `05-design.md` §3.3 field
+of a Hub-owned record, `record|field as the design names it|the token the contract must contain`:
+
+```text
+delegation|owner|"ownerUserId"
+delegation|project|"projectId"
+delegation|class|"class": "orchestrator"
+delegation|allowed routes|"routes"
+delegation|expiresAt (24 h)|"expiresAt"
+delegation|revokedAt|"revokedAt"
+task|orchestrator ag|"orchestratorAgentId"
+task|title <= 140, text·H or text·A|"titleSource"
+task|reason briefRef|"briefRef"
+task|why-line <= 200|"why"
+task|intended scope <= 20 globs|"scope"
+task|state planned..abandoned|`abandoned`
+agent|role orchestrator·worker|"role"
+agent|parent orchestrator|"parentAgentId"
+agent|harness id and pinned version|"harness"
+agent|task|"taskId"
+agent|lane ref|"laneRef"
+agent|exitClass|"exitClass"
+lease|holder ag|"holderAgentId"
+lease|globs|"globs"
+lease|mode intent·hold·bulk|`bulk`
+lease|expiresAt|"expiresAt"
+lease|state incl. admin-released|`admin-released`
+conflict|agent pair|"agentB"
+conflict|tier P·H·M·S|"tier"
+conflict|paths and line ranges|"lines"
+conflict|basis shas|"basis"
+conflict|state raised..cleared|`cleared`
+conflict|resolution kind|`proceed-both`
+thread|participants|"participants"
+thread|subject conflict·lease·free|"subject"
+thread|state open..expired|`expired`
+thread|round count|"rounds"
+thread|deadline (Fleet-set, 30 min)|"deadline"
+message|thread|"threadId"
+message|sender ag and its owner|"senderAgentId"
+message|kind|`withdraw`
+message|typed fields per kind|"fields"
+message|free-text answer only under standing permission|"templated"
+escalation|owner (a human)|"ownerUserId"
+escalation|from orchestrator or Fleet|"fromAgentId"
+escalation|kind inform·decide|"kind": "inform"
+escalation|question <= 300|"question"
+escalation|up to 4 options with consequence|"consequence"
+escalation|default set by Fleet|"default"
+escalation|answer text·H|"answer"
+escalation|answeredAt|"answeredAt"
+directive|from Orchestrator ag|"fromAgentId"
+directive|to worker ag|"toAgentId"
+directive|typed kind pause..free|`wait-for`
+directive|delivery rung|"rung"
+directive|turn origin human·fleet|"origin"
+directive|peer messages and cards read|"read"
+directive|approving es|"approvedBy"
+orchestrator turn|event ids consumed|"consumed"
+orchestrator turn|directives and messages issued|"issued"
+orchestrator turn|tokens used|"tokens"
+human message|to own Orchestrator|"toAgentId"
+human message|tombstoned on erasure|"tombstonedAt"
+note|author from token|"authorUserId"
+note|target project·task·person|"target"
+team policy|data classification|"dataClass"
+team policy|route|"route"
+team policy|non-zero default quotas|"quotas"
+team policy|Orchestrator turn budget|"orchestratorTurnsPerHour"
+team policy|escalation floors|"escalationFloors"
+team policy|message budgets|"messageBudgets"
+usage|counterpart for peer-triggered turns|"counterpartUserId"
+usage|tokens and cost|"costCents"
+```
+
+The mutant this list kills: a record section that drops a design field (for example, a directive
+with no `"read"`, which loses §7.2's taint evidence) fails the check by name.
+
+Then write the check itself to `.superpowers/sdd/team/t01-check.sh` (git-ignored; a script, not a
+heredoc, per the shell rules):
+
+```bash
+#!/usr/bin/env bash
+# Phase T task 01 acceptance. Run from the repo root.
+set -u
+C=docs/superpowers/contracts/2026-09-23-hub-contract.md
+A=docs/superpowers/adr/ADR-H1-hub-architecture.md
+F=docs/superpowers/contracts/team-records-fieldcheck.txt
+S=$(awk '/^### 7\.13 /,/^## 8\. /' "$C")
+E=$(awk '/^## 8\. /,/^## 9\. /' "$C")
+fail=0
+while IFS='|' read -r rec field tok; do
+  [ -z "$rec" ] && continue
+  printf '%s\n' "$S" | grep -qF -- "$tok" || { echo "MISSING $rec: $field ($tok)"; fail=1; }
+done < "$F"
+echo "fields: $(grep -c . "$F")"
+if printf '%s\n' "$S" | grep -nE '"(actor|actorUserId|via|delegationId|sessionId)"'; then
+  echo "A TEAM SECTION NAMES AN ACTOR FIELD"; fail=1
+fi
+bad=$(printf '%s\n' "$E" | grep -oE '^\| `[^`]+`' | sed 's/^| `//; s/`$//' \
+  | grep -vcE '^[a-z]+(_[a-z]+)*\.[a-z]+(_[a-z]+)*$')
+echo "bad event kinds: $bad"; [ "$bad" = 0 ] || fail=1
+[ "$(grep -c '^### 5\.10 Delegated callers' "$A")" = 1 ] || { echo "NO 5.10"; fail=1; }
+[ "$(grep -c '^| R12 |' "$A")" = 1 ] || { echo "NO R12"; fail=1; }
+[ "$(grep -c '→ §5.10 for Fleet' "$A")" = 3 ] || { echo "REPLACED ROWS NOT MARKED"; fail=1; }
+[ "$(grep -cE '^### 7\.(1[3-9]|2[0-6]|28) ' "$C")" = 15 ] || { echo "NOT 15 TEAM SECTIONS"; fail=1; }
+# fix batch b02: the principal read (S02-C2) and the broker's one route (S02-C5)
+P=$(awk '/^### 7\.28 /,/^### 7\.29 |^## 8\. /' "$C")
+grep -qE '^\| 88 \| GET \| `/v1/principals' "$C" || { echo "NO ROW 88"; fail=1; }
+printf '%s\n' "$P" | grep -qF "the *project's* org" || { echo "7.28 DOES NOT PIN THE PROJECT ORG"; fail=1; }
+printf '%s\n' "$P" | grep -qF '`principal_not_found`' || { echo "7.28 HAS NO NOT-FOUND CODE"; fail=1; }
+grep -qF 'Hub.DelegationReader' "$A" || { echo "NO BROKER ROLE IN 5.10"; fail=1; }
+[ "$(grep -c '^10\. \*\*The broker reads one route' "$A")" = 1 ] || { echo "NO 5.10 RULE 10"; fail=1; }
+[ "$(grep -c '^9\. \*\*Reserved: the gateway caller' "$A")" = 1 ] || { echo "RULE 9 NOT RESERVED"; fail=1; }
+D=$(awk '/^### 7\.13 /,/^### 7\.14 /' "$C")
+printf '%s\n' "$D" | grep -qF '"ownerTid"' || { echo "ROUTE 47 HAS NO ownerTid"; fail=1; }; printf '%s\n' "$D" | grep -qF '?for=' || { echo "ROUTE 47 HAS NO for"; fail=1; }
+printf '%s\n' "$E" | grep -qF '| `principal.read` |' || { echo "NO PRINCIPAL READ EVENT"; fail=1; }
+printf '%s\n' "$E" | grep -qF '| `delegation.read_by_broker` |' || { echo "NO BROKER READ EVENT"; fail=1; }; printf '%s\n' "$E" | grep -qF '| `delegation.named_by_another` |' || { echo "NO NAMED-BY-ANOTHER EVENT"; fail=1; }
+# fix batch b01 (X-C1): the one writer of projects.mode, in 7.4, 7.0 and 8
+M=$(awk '/^### 7\.4 /,/^### 7\.5 /' "$C")
+printf '%s\n' "$M" | grep -qF 'POST /v1/projects/{projectId}/mode' || { echo "NO MODE ROUTE"; fail=1; }
+grep -qE '^\| 87 \| POST \| `/v1/projects/\{projectId\}/mode`' "$C" || { echo "NO ROW 87"; fail=1; }
+printf '%s\n' "$E" | grep -qF '| `project.mode_set` |' || { echo "NO MODE EVENT"; fail=1; }; V=$(awk '/^### 7\.19 /,/^### 7\.20 /' "$C"); printf '%s\n' "$V" | grep -qF '"readTotal"' && printf '%s\n' "$V" | grep -qF '"evidence"' || { echo "7.19 HAS NO DECIDE EVIDENCE"; fail=1; } # b07 round 3, N-C1
+echo "result: $([ "$fail" = 0 ] && echo PASS || echo FAIL)"
+exit "$fail"
+```
+
+Run it **now, before Steps 2 to 10 are written into the two documents**:
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'bash .superpowers/sdd/team/t01-check.sh | tail -4'
+```
+
+Expected: `MISSING` lines for every field, `NO 5.10`, `NO R12`, `REPLACED ROWS NOT MARKED`,
+`NOT 15 TEAM SECTIONS`, `NO MODE ROUTE`, `NO ROW 87`, `NO MODE EVENT`, `NO ROW 88`,
+`7.28 DOES NOT PIN THE PROJECT ORG`, `7.28 HAS NO NOT-FOUND CODE`, `NO BROKER ROLE IN 5.10`,
+`NO 5.10 RULE 10`, `RULE 9 NOT RESERVED`, `ROUTE 47 HAS NO ownerTid`, `NO PRINCIPAL READ EVENT`,
+`NO BROKER READ EVENT`, `ROUTE 47 HAS NO for` and `NO NAMED-BY-ANOTHER EVENT` (b06 round 2: they kill §7.13 and §8 written without route 47's audited `for`, which leaves a member who names another's `dl-…` out of the org's audit), `7.19 HAS NO DECIDE EVIDENCE` (b07 round 3, N-C1: it kills §7.19 written without a decide's `evidence`, which leaves the Hub no record of what a held act showed the human and task 07 no body to validate), and `result: FAIL`. That is the failing test. `NO MODE ROUTE`,
+`NO ROW 87` and `NO MODE EVENT` kill the b01 mutant "§7.4's mode amendment dropped", which would
+leave `projects.mode` with a column and no writer (review X-C1). The **nine** new b02 lines
+(`NO ROW 88` through `NO BROKER READ EVENT`), and the modified `NOT 15 TEAM SECTIONS`, kill its
+twin: §5.10 and §7.28 written without the two reads nobody owned, which would leave every Fleet
+route unable to authorise (S02-C2) and the broker unable to name a pod's owner (S02-C5).
+`RULE 9 NOT RESERVED` kills a third: the broker written as rule 9, which silently renumbers the
+gateway rule task 66 has already drafted.
+
+- [ ] **Step 12: Write Steps 2 to 10 into the documents, then run the check to green**
+
+Write each section from Steps 2 to 10. **The fenced blocks are normative and copied verbatim**; the
+Conventions paragraph of Step 6 is the first paragraph of §7.13. Then:
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'bash .superpowers/sdd/team/t01-check.sh'
+```
+
+Expected, exactly:
+
+```text
+fields: 69
+bad event kinds: 0
+result: PASS
+```
+
+Then the one check the script cannot make: read §5.3's team rows against §3.4 of `05-design.md`
+row by row, and confirm no `✓` is in an `M′` or `A` cell of a write row. Record *"matrix read
+against §3.4: yes"* in the commit message.
+
+- [ ] **Step 13: Commit**
+
+```bash
+~/.claude/tools/claudezsh/claudezsh 'git add docs/superpowers/contracts/team-records-fieldcheck.txt && git commit -F .superpowers/sdd/team/msg/t01.txt -- docs/superpowers/adr/ADR-H1-hub-architecture.md docs/superpowers/contracts/2026-09-23-hub-contract.md docs/superpowers/contracts/team-records-fieldcheck.txt'
+```
+
+The message file's subject: `docs(hub): ADR-H1 5.10 delegated callers; contract 7.13-7.26, 7.28
+team records (Phase T task 01)`, then the matrix line, then the `Co-Authored-By` line.
+
+**What this task does not claim.**
+- That the Hub accepts any of it. Tasks 03 (types), 04 (tables), 05 (auth), 06 and 07 (routes),
+  08 (feed and client), 43 (policy and matrix), 46 (notes and erasure) build it.
+- That the caller of route 76 is settled. §7.25 leaves it open for task 66, on purpose.
+- That the data class values, or the project's `mode` flag, exist on the merged project record:
+  both are **UNVERIFIED until merge**; §7.24 and §7.26 name them, and task 43 reuses or adds them.
+- That the section ids in `briefRef` match phase 4's: **UNVERIFIED** until P4's merge.
+- That a delegation makes Fleet safe. R12 says what it bounds and what remains.
