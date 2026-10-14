@@ -1,0 +1,520 @@
+### Task 116: the W4 migration, its guards and matrix rows
+
+**Slice:** W4. **Size:** 3 focused hours (an estimate, not a measurement). **Stream:** WH.
+**dependsOn:** 114 (SW.20's shapes and words), and the W1-W3 migrations it builds on (tasks 06-07,
+74, 99's), sync-merged from `feat/hub` first (rule H1). **Seams:** none new; it extends **SW.3**
+(no sync or integration principal writes a Work fact) to every W4 table.
+
+Tasks 117-123 each write one family of W4 rows. If the database trusted Go to keep an update
+immutable, a dependency acyclic, a cursor one-way and the sync principal out, one handler bug
+would break a rule the product promises (L-76's pinned update, OD-27's measured-only insights).
+So the rules live in the schema: `CHECK`s, triggers and row-level security, each with a test
+that fails when the guard is dropped. This task also adds the matrix's new principal, a member of
+a **granted** team, so every route task can add its rows for it.
+
+**Anchors, re-read on 2026-09-25 at `feat/hub` `1271ddb`:** the contract
+`docs/superpowers/contracts/2026-09-23-hub-contract.md:309` (`set_config('hub.org_id', …)`, the
+row-level-security key), `:333` (*"There are no per-project grants in v1"*, which this task's
+table begins to change, additively), `:335-359` (§5.3: the columns `V M A O N X`, *"the
+authorisation test (H2) runs every row as every column"*).
+
+**Read in this branch's parts, UNVERIFIED until merge:** task 06's row-level-security loop
+(`task-06.md:370-381`, `TO hub_app`, `current_setting('hub.org_id', true)`) and its explicit
+grants (`:383-386`); task 07's actor setting `hub.work_actor_kind` ∈ {`person`, `integration`,
+`app`} and its guard shape (`task-07.md:29-31`, `:205-222`), its matrix files and
+`workMatrixLive` (`:44-51`, `:57-66`); task 74's `features`, `templates` and `teams`-side tables
+(scope `tasks-61-80.md:469-497`; no part yet); TM-46's `notes` table (Phase T plan; **UNVERIFIED**
+name). The sibling parts that append to this file: task 119 (`work_update_pins`, reusing this
+part's `guard_work_update_meta()`, `task-119.md:112-137`) and task 120 (`work_brief_templates`
+columns and `work_brief_criteria`, `task-120.md:128-161`; the cycle trigger's `P0001` and message
+prefix `hub: dependency_cycle`, `:241-242`).
+
+#### Decisions the scope left open, made here
+
+1. **No text lives in `work_update_meta`, so its guard has no erase exception.** The update's
+   words are TM-46's note (`text·H`); this table holds the subject, the health word, the pin and
+   the cite keys. TM-46's erase blanks the note's text and never touches this row, so the trigger
+   refuses **every** `UPDATE` and `DELETE`, and the scope's "except through the erase function" is
+   unneeded. The erase test proves the row survives the note's erase whole.
+2. **The cycle guard serialises per org.** Two concurrent inserts, A→B and B→A, would each pass a
+   recursive check that cannot see the other. The trigger takes
+   `pg_advisory_xact_lock(hashtext('work_feature_deps:' || org_id))` before its CTE, so the second
+   waits and then sees the first. It raises `P0001` with the message prefix `hub: dependency_cycle`,
+   which task 120's store maps (`task-120.md:241-242`).
+3. **A lower cursor is kept, not refused.** A `BEFORE UPDATE` trigger sets
+   `NEW.seq := GREATEST(OLD.seq, NEW.seq)`, so the store's upsert may send any seq and the row
+   never goes back (task 115's row sends 7 then 5 and reads 7). No `DELETE` grant.
+4. **SW.3 extends by one trigger function on every W4 table.** `guard_work_w4_actor()` refuses any
+   write unless `hub.work_actor_kind` is `person`, with one exception: the janitor (task 121) may
+   `UPDATE` only `last_fired_on` on `work_template_schedules` and `last_reminded_on` on
+   `work_reminder_policies`, under the actor kind task 77's janitor sets (`janitor`,
+   **UNVERIFIED** spelling until task 77's part).
+5. **Cursors are private by a second policy.** Like task 74's drafts, `work_read_cursors` adds a
+   policy on `user_id = current_setting('hub.user_id', true)` (task 74's key, **UNVERIFIED**), so
+   no query in any handler can read another person's cursor.
+6. **The granted-team member is rows, not a column** (the scope's rule): the fixture gains a
+   principal `G`, and the G rows are grouped under task **117**'s id in `workMatrixLive`, so they
+   switch on with the route that makes a grant mean something (task 07's decision 6).
+7. **`features.initiative_id`** gets its foreign key here. Task 72's `Feature.initiativeId` puts
+   the column in task 74's table; this task adds the column if absent and the constraint.
+
+#### Files
+
+| Path (under `control-plane/internal/hub/`) | Change |
+|---|---|
+| `migrate/sql/NNNN_work_roadmap.sql` | new, the **next free number at sync time**, renumbered on a clash (rule H1); tasks 119 and 120 append sections |
+| `migrate/work_roadmap_integration_test.go` | new: the migration and guard tests below |
+| `server/matrix_integration_test.go` ⚑ | H16b's `fixture` gains `Granted` (a member of team U, which holds a grant on T's project) and one `buildW4Fixture(t, f)` call; additive only |
+| `server/work_matrix_rows_integration_test.go` ⚑ | task 07's file: the `G` guard rows, grouped under `"117"` |
+
+#### `NNNN_work_roadmap.sql`, complete: the tables
+
+```sql
+-- ── Phase W, W4 (task 116): initiatives, updates, milestones, dependencies,
+--    brief templates, the janitor's policies, read cursors, project grants ──
+SET search_path = hub, pg_temp;
+
+CREATE TABLE work_initiatives (
+  org_id      text NOT NULL,
+  id          text PRIMARY KEY CHECK (id ~ '^in-[0-9a-f]{16}$'),
+  team_id     text NOT NULL REFERENCES teams (id),
+  name        text NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 120),
+  owner_id    text NOT NULL REFERENCES users (id),
+  target_date date,
+  state       text NOT NULL DEFAULT 'planned'
+              CHECK (state IN ('planned', 'active', 'paused', 'done', 'cancelled')),
+  created_at  timestamptz NOT NULL,
+  created_by  text NOT NULL REFERENCES users (id),
+  updated_at  timestamptz NOT NULL
+);
+CREATE INDEX work_initiatives_team ON work_initiatives (team_id, created_at DESC);
+
+-- The span (Q12): ord 0 is the owning team; the others are linked by a grant (task 117).
+CREATE TABLE work_initiative_teams (
+  org_id        text NOT NULL,
+  initiative_id text NOT NULL REFERENCES work_initiatives (id),
+  team_id       text NOT NULL REFERENCES teams (id),
+  ord           int  NOT NULL CHECK (ord >= 0 AND ord < 10),
+  PRIMARY KEY (initiative_id, team_id),
+  UNIQUE (initiative_id, ord)
+);
+
+ALTER TABLE features ADD COLUMN IF NOT EXISTS initiative_id text;
+ALTER TABLE features ADD CONSTRAINT features_initiative_fk
+  FOREIGN KEY (initiative_id) REFERENCES work_initiatives (id);
+
+-- A status update's Work half, keyed by TM-46's note (decision 1). No text here.
+CREATE TABLE work_update_meta (
+  org_id       text NOT NULL,
+  note_id      text PRIMARY KEY REFERENCES notes (id),
+  subject_kind text NOT NULL CHECK (subject_kind IN ('feature', 'initiative')),
+  subject_id   text NOT NULL,
+  health       text NOT NULL CHECK (health IN ('on_track', 'at_risk', 'off_track')),
+  pinned_brief text NOT NULL CHECK (pinned_brief ~ '^brief:bf-[0-9a-f]{16}@[1-9][0-9]{0,8}$'),
+  cites        text[] NOT NULL DEFAULT '{}' CHECK (cardinality(cites) <= 20),
+  created_at   timestamptz NOT NULL,
+  CHECK ((subject_kind = 'feature'    AND subject_id ~ '^ft-[0-9a-f]{16}$')
+      OR (subject_kind = 'initiative' AND subject_id ~ '^in-[0-9a-f]{16}$'))
+);
+CREATE INDEX work_update_meta_subject ON work_update_meta (subject_kind, subject_id, created_at DESC);
+
+CREATE TABLE work_milestones (
+  org_id     text NOT NULL,
+  id         text PRIMARY KEY CHECK (id ~ '^ml-[0-9a-f]{16}$'),
+  feature_id text NOT NULL REFERENCES features (id),
+  name       text NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 120),
+  date       date,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL
+);
+
+-- A named subset of the branch brief's criteria; reached is never stored (04 §2.5).
+CREATE TABLE work_milestone_criteria (
+  org_id       text NOT NULL,
+  milestone_id text NOT NULL REFERENCES work_milestones (id),
+  ord          int  NOT NULL CHECK (ord >= 0 AND ord < 100),
+  criterion_id text NOT NULL CHECK (char_length(criterion_id) BETWEEN 1 AND 128),
+  PRIMARY KEY (milestone_id, ord),
+  UNIQUE (milestone_id, criterion_id)
+);
+
+-- "from blocks blocks_id". orderViolated is derived at read; there is no column for it.
+CREATE TABLE work_feature_deps (
+  org_id     text NOT NULL,
+  from_id    text NOT NULL REFERENCES features (id),
+  blocks_id  text NOT NULL REFERENCES features (id),
+  created_at timestamptz NOT NULL,
+  created_by text NOT NULL REFERENCES users (id),
+  PRIMARY KEY (from_id, blocks_id),
+  CHECK (from_id <> blocks_id)
+);
+CREATE INDEX work_feature_deps_blocks ON work_feature_deps (blocks_id);
+
+-- Beside task 78's issue templates, in the same tp- space; task 120 appends content columns.
+CREATE TABLE work_brief_templates (
+  org_id             text NOT NULL,
+  id                 text PRIMARY KEY CHECK (id ~ '^tp-[0-9a-f]{16}$'),
+  team_id            text REFERENCES teams (id),                -- NULL is an org template
+  name               text NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 120),
+  criteria           jsonb NOT NULL CHECK (jsonb_typeof(criteria) = 'array'
+                                           AND jsonb_array_length(criteria) BETWEEN 1 AND 50),
+  issue_template_ids text[] NOT NULL DEFAULT '{}',
+  created_at         timestamptz NOT NULL,
+  updated_at         timestamptz NOT NULL
+);
+
+CREATE TABLE work_template_schedules (
+  org_id        text NOT NULL,
+  template_id   text PRIMARY KEY REFERENCES templates (id),   -- task 74's issue templates
+  every_n       int  NOT NULL CHECK (every_n BETWEEN 1 AND 365),
+  every_unit    text NOT NULL CHECK (every_unit IN ('day', 'week', 'month')),
+  at_time       time NOT NULL,
+  tz            text NOT NULL CHECK (tz <> '' AND tz <> 'Local'),
+  last_fired_on date,                                           -- the janitor's, decision 4
+  updated_at    timestamptz NOT NULL,
+  updated_by    text NOT NULL REFERENCES users (id)
+);
+
+CREATE TABLE work_reminder_policies (
+  org_id           text NOT NULL,
+  subject_kind     text NOT NULL CHECK (subject_kind IN ('feature', 'initiative')),
+  subject_id       text NOT NULL,
+  every_days       int  NOT NULL CHECK (every_days BETWEEN 1 AND 90),
+  last_reminded_on date,                                        -- the janitor's, decision 4
+  updated_at       timestamptz NOT NULL,
+  updated_by       text NOT NULL REFERENCES users (id),
+  PRIMARY KEY (subject_kind, subject_id)
+);
+
+CREATE TABLE work_triage_rotations (
+  org_id      text NOT NULL,
+  team_id     text PRIMARY KEY REFERENCES teams (id),
+  members     text[] NOT NULL CHECK (cardinality(members) BETWEEN 1 AND 50),
+  period_days int  NOT NULL CHECK (period_days BETWEEN 1 AND 28),
+  starts_on   date NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  updated_by  text NOT NULL REFERENCES users (id)
+);
+
+-- One row per person and scope (task 123). seq is a feed seq; it only increases (decision 3).
+CREATE TABLE work_read_cursors (
+  org_id     text NOT NULL,
+  user_id    text NOT NULL REFERENCES users (id),
+  scope_kind text NOT NULL CHECK (scope_kind IN ('project', 'feature', 'issue')),
+  scope_id   text NOT NULL,
+  seq        bigint NOT NULL CHECK (seq >= 0),
+  updated_at timestamptz NOT NULL,
+  PRIMARY KEY (user_id, scope_kind, scope_id)
+);
+
+-- Q12's project-scoped read-and-comment grant. Revocation deletes the row.
+CREATE TABLE work_project_grants (
+  org_id     text NOT NULL,
+  project_id text NOT NULL REFERENCES projects (id),
+  team_id    text NOT NULL REFERENCES teams (id),
+  scope      text NOT NULL DEFAULT 'read_comment' CHECK (scope = 'read_comment'),
+  granted_by text NOT NULL REFERENCES users (id),
+  granted_at timestamptz NOT NULL,
+  PRIMARY KEY (project_id, team_id)
+);
+CREATE INDEX work_project_grants_team ON work_project_grants (team_id);
+```
+
+`teams`, `users`, `projects` are H's tables (`0001_init.sql`); `features` and `templates` are
+task 74's; `notes` is TM-46's. All five names are **UNVERIFIED** until those migrations merge, and
+are renamed mechanically at Step 1 if they differ. Task 119's part references `work_features (id)`
+for its pins (`task-119.md:122`); the table is task 74's `features`, and 119's line takes that name
+at build.
+
+#### `NNNN_work_roadmap.sql`, continued: the guards
+
+```sql
+-- ── an update never changes (decision 1). Task 119 reuses this for its pins. ──
+CREATE FUNCTION guard_work_update_meta() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+BEGIN
+  RAISE EXCEPTION 'hub: update_immutable: % on %', TG_OP, TG_TABLE_NAME
+    USING ERRCODE = 'insufficient_privilege';
+END $$;
+CREATE TRIGGER work_update_meta_immutable
+  BEFORE UPDATE OR DELETE ON work_update_meta
+  FOR EACH ROW EXECUTE FUNCTION guard_work_update_meta();
+
+-- ── a dependency never closes a cycle (decision 2) ──
+CREATE FUNCTION guard_work_feature_deps() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('work_feature_deps:' || NEW.org_id));
+  IF EXISTS (
+    WITH RECURSIVE reach(id) AS (
+      SELECT d.blocks_id FROM work_feature_deps d WHERE d.from_id = NEW.blocks_id
+      UNION
+      SELECT d.blocks_id FROM work_feature_deps d JOIN reach r ON d.from_id = r.id
+    )
+    SELECT 1 FROM reach WHERE id = NEW.from_id
+  ) OR NEW.blocks_id = NEW.from_id THEN
+    RAISE EXCEPTION 'hub: dependency_cycle: % blocks %', NEW.from_id, NEW.blocks_id
+      USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER work_feature_deps_acyclic
+  BEFORE INSERT ON work_feature_deps
+  FOR EACH ROW EXECUTE FUNCTION guard_work_feature_deps();
+
+-- ── a cursor never goes back (decision 3) ──
+CREATE FUNCTION guard_work_read_cursor() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+BEGIN
+  NEW.seq := GREATEST(OLD.seq, NEW.seq);
+  RETURN NEW;
+END $$;
+CREATE TRIGGER work_read_cursors_forward
+  BEFORE UPDATE ON work_read_cursors
+  FOR EACH ROW EXECUTE FUNCTION guard_work_read_cursor();
+
+-- ── SW.3, extended: a person writes W4; the janitor touches two columns (decision 4) ──
+CREATE FUNCTION guard_work_w4_actor() RETURNS trigger
+LANGUAGE plpgsql SET search_path = hub, pg_temp AS $$
+DECLARE v_kind text := coalesce(current_setting('hub.work_actor_kind', true), '');
+BEGIN
+  IF v_kind = 'person' THEN
+    RETURN CASE TG_OP WHEN 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
+  IF v_kind = 'janitor' AND TG_OP = 'UPDATE' AND (
+       (TG_TABLE_NAME = 'work_template_schedules'
+          AND (to_jsonb(NEW) - 'last_fired_on') = (to_jsonb(OLD) - 'last_fired_on'))
+    OR (TG_TABLE_NAME = 'work_reminder_policies'
+          AND (to_jsonb(NEW) - 'last_reminded_on') = (to_jsonb(OLD) - 'last_reminded_on'))) THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'hub: work: a % principal does not write %', nullif(v_kind, ''), TG_TABLE_NAME
+    USING ERRCODE = 'insufficient_privilege';
+END $$;
+
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['work_initiatives', 'work_initiative_teams', 'work_update_meta',
+      'work_milestones', 'work_milestone_criteria', 'work_feature_deps', 'work_brief_templates',
+      'work_template_schedules', 'work_reminder_policies', 'work_triage_rotations',
+      'work_read_cursors', 'work_project_grants'] LOOP
+    EXECUTE format('CREATE TRIGGER %I BEFORE INSERT OR UPDATE OR DELETE ON hub.%I
+                    FOR EACH ROW EXECUTE FUNCTION hub.guard_work_w4_actor()', t || '_actor', t);
+  END LOOP;
+END $$;
+```
+
+Trigger order: Postgres fires `BEFORE` row triggers in name order, so on `work_update_meta` the
+actor guard (`…_actor`) fires before `…_immutable`, and on `work_feature_deps` before
+`…_acyclic`; either order refuses the same writes, and the tests name the error they expect.
+`features.initiative_id` is written by task 118 on `features`, whose guard is task 74's.
+
+#### `NNNN_work_roadmap.sql`, continued: row-level security and grants
+
+```sql
+-- hub-contract §10.3's loop (task 06's shape), over exactly the W4 tables.
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['work_initiatives', 'work_initiative_teams', 'work_update_meta',
+      'work_milestones', 'work_milestone_criteria', 'work_feature_deps', 'work_brief_templates',
+      'work_template_schedules', 'work_reminder_policies', 'work_triage_rotations',
+      'work_read_cursors', 'work_project_grants'] LOOP
+    EXECUTE format('ALTER TABLE hub.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY org_isolation ON hub.%I TO hub_app
+                    USING (org_id = current_setting(''hub.org_id'', true))
+                    WITH CHECK (org_id = current_setting(''hub.org_id'', true))', t);
+  END LOOP;
+END $$;
+
+-- A cursor is its person's own (decision 5): a second, restrictive policy.
+CREATE POLICY own_cursor ON work_read_cursors AS RESTRICTIVE TO hub_app
+  USING (user_id = current_setting('hub.user_id', true))
+  WITH CHECK (user_id = current_setting('hub.user_id', true));
+
+-- Explicit grants (task 06's rule: 0001's GRANT covered only the tables that existed then).
+GRANT SELECT, INSERT ON work_initiatives, work_initiative_teams, work_update_meta,
+      work_milestones, work_milestone_criteria, work_feature_deps, work_brief_templates,
+      work_template_schedules, work_reminder_policies, work_triage_rotations,
+      work_read_cursors, work_project_grants TO hub_app;
+GRANT UPDATE (name, owner_id, target_date, state, updated_at) ON work_initiatives TO hub_app;
+GRANT UPDATE (name, date, updated_at) ON work_milestones TO hub_app;
+GRANT UPDATE (name, criteria, issue_template_ids, updated_at) ON work_brief_templates TO hub_app;
+GRANT UPDATE (every_n, every_unit, at_time, tz, last_fired_on, updated_at, updated_by)
+      ON work_template_schedules TO hub_app;
+GRANT UPDATE (every_days, last_reminded_on, updated_at, updated_by) ON work_reminder_policies TO hub_app;
+GRANT UPDATE (members, period_days, starts_on, updated_at, updated_by) ON work_triage_rotations TO hub_app;
+GRANT UPDATE (seq, updated_at) ON work_read_cursors TO hub_app;
+GRANT UPDATE (initiative_id) ON features TO hub_app;
+-- DELETE only where a row's removal is the operation: a span replaced, a criteria list
+-- replaced, an edge removed, a schedule cleared, a grant revoked. Never an update or a cursor.
+GRANT DELETE ON work_initiative_teams, work_milestone_criteria, work_feature_deps,
+      work_template_schedules, work_project_grants TO hub_app;
+```
+
+No `UPDATE` or `DELETE` on `work_update_meta` is granted at all, so the immutability trigger is the
+second defence, not the only one; the test disables neither and expects the privilege error first
+(`42501`), then, as the table owner, the trigger's.
+
+#### Tests first: `migrate/work_roadmap_integration_test.go` (`//go:build integration`)
+
+Each test runs against `control-plane/cmd/hub/compose.yaml`'s Postgres with the Hub's migrations
+applied, on task 06's `seedWork` (two orgs, team T with a project and a feature, team U).
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestW4AppliesOnEmptyAndOnW3` | the full chain applies to an empty database; and, from a dump of W3's schema with rows, `NNNN` alone applies | depends on unapplied state |
+| `TestW4EveryTableHasRLS` | for each of the twelve tables, a row inserted in org A is invisible to `hub_app` with `hub.org_id` = B (the `X` column), with the Go check off through H16b's test-only hook | RLS missing on a table |
+| `TestW4HealthIsThreeWords` | inserting `health = 'green'` fails the `CHECK` (`23514`) | free-text health |
+| `TestW4UpdatesNeverChange` | as `hub_app`: `UPDATE … SET health` is `42501`; as owner: the trigger raises `hub: update_immutable`; `DELETE` likewise | updates editable |
+| `TestW4EraseKeepsTheUpdate` | TM-46's erase of the note blanks its text; the meta row keeps `note_id`, `health`, `pinned_brief`, `cites` byte for byte | erase drops the row |
+| `TestW4CycleRefused` | A→B, B→C inserted; C→A is `P0001` `hub: dependency_cycle`; A→A fails the `CHECK`; two sessions inserting A→D and D→A concurrently: exactly one commits | cycle accepted; a race past the check |
+| `TestW4CursorNeverGoesBack` | seq 7, then `UPDATE … seq = 5` reads 7; then 9 reads 9 | cursor goes back |
+| `TestW4CursorIsPrivate` | with `hub.user_id` = Grace, a `SELECT` of Linus's cursor returns no row | a teammate reads a cursor |
+| `TestW4SyncPrincipalWritesNothing` | with `hub.work_actor_kind` = `integration`, then `app`, then `''`, an `INSERT` into each of the twelve tables is `42501` | SW.3 not extended |
+| `TestW4JanitorTouchesTwoColumns` | as `janitor`, `UPDATE work_template_schedules SET last_fired_on` succeeds; `SET every_n` in the same statement fails; an `INSERT` fails | the janitor as a person |
+| `TestW4GrantsAreExactlyTheList` | the privileges of `hub_app` on the twelve tables, read from `information_schema.role_column_grants` and `role_table_grants`, equal the literal list above | a grant widened by accident |
+
+#### The matrix: the principal `G` and its guard rows
+
+H16b's `row` runs as all six columns (`want [6]int`, `task-07.md:379-387`). A granted member is not
+a seventh column (the scope's rule, so §5.3 stays additive): `G` runs **its own** rows, through a
+second, small runner in task 07's file. The fixture gains the principal; nothing in H16b's `row`
+changes.
+
+```go
+// server/matrix_integration_test.go ⚑ (H16b's fixture, fields "added by later tasks, never renamed")
+//	Granted  *client // a member of team U only; U holds a read_comment grant on T's project
+//	TeamUID  string
+
+// buildW4Fixture makes team U and its member, and writes the grant row directly as the
+// table owner, so the G rows need no route of task 117's to set up.
+func buildW4Fixture(t *testing.T, f *fixture) {
+	t.Helper()
+	f.TeamUID, f.Granted = f.newTeamWithMember(t, "Risk", "g@example.test") // H16b's helper (UNVERIFIED name)
+	f.ownerExec(t, `INSERT INTO hub.work_project_grants
+	  (org_id, project_id, team_id, granted_by, granted_at) VALUES ($1, $2, $3, $4, now())`,
+		f.OrgID, f.ProjectID, f.TeamUID, f.AdminID)
+}
+```
+
+```go
+// server/work_matrix_rows_integration_test.go ⚑ (task 07's file), appended
+
+// grantedRow is one route as G, the member of a granted team. G's rows switch
+// on with task 117 ("117" in workMatrixLive), which makes a grant mean anything.
+type grantedRow struct {
+	pattern string
+	method  string
+	path    string
+	want    int
+	body    func(*fixture) any
+}
+
+// grantedExpect is the one rule (Q12): a Work read of the granted project is
+// 200, a comment is 201, every other Work write is 403, and anything scoped to
+// team T itself (its labels, policy, cadence, states, initiatives) is 404.
+func grantedExpect(pattern string) int {
+	method, path, _ := strings.Cut(pattern, " ")
+	switch {
+	case strings.HasPrefix(path, "/v1/teams/{teamId}"):
+		return 404
+	case pattern == "POST /v1/issues/{issueId}/comments":
+		return 201
+	case strings.HasSuffix(path, "/erase"):
+		return 403 // org admin only, as for every member
+	case method == "GET":
+		return 200
+	}
+	return 403
+}
+
+func TestWorkGrantedPrincipal(t *testing.T) {
+	if !slices.Contains(workMatrixLive, "117") {
+		t.Skip("task 117 has not registered the grant reach")
+	}
+	f := buildFixture(t) // H16b's builder, which now calls buildW4Fixture
+	for _, p := range allWorkRoutes() {
+		t.Run("G/"+p, func(t *testing.T) {
+			r := grantedRowFor(f, p) // fills path ids from f, and a valid body per route
+			if got := f.Granted.do(t, r.method, r.path, r.body(f)); got != r.want {
+				t.Errorf("%s as G: %d, want %d", p, got, r.want)
+			}
+		})
+	}
+}
+```
+
+`allWorkRoutes()` is `workW1Routes` plus task 74's and task 99's lists (**UNVERIFIED** names) plus
+each W4 route task's own list (117-123 append theirs); `grantedRowFor` takes the path and body
+builders from the route's row in `workMatrixRows`, so no route is described twice. The expected
+status is `grantedExpect(pattern)`, except where a route task registers an override (for example
+task 123's own-cursor routes, 200 for G on G's own cursor). **Mutant it kills:** a Work route whose
+handler forgets `workAccess` (a G read comes back 404) or uses it for writes (a G write comes back
+200). `TestEveryWorkRouteHasAGrantedRow`, the meta-test, fails a registered Work pattern that
+`allWorkRoutes()` lacks once `"117"` is live.
+
+#### Steps
+
+- [ ] **Step 1: Sync and number (15 min).** Sync-merge `feat/hub` (rule H1). Take the next free
+  migration number; confirm the names `teams`, `users`, `projects` (H), `features`, `templates`
+  (task 74), `notes` (TM-46), `hub.user_id` (task 74's draft policy) and the janitor's actor kind
+  (task 77). A differing name is a mechanical rename in this part and in 119's and 120's sections.
+- [ ] **Step 2: Tests first (50 min).** Write `work_roadmap_integration_test.go` and the matrix
+  additions. Run: every test fails (no tables); `TestWorkGrantedPrincipal` skips.
+- [ ] **Step 3: The migration (70 min).** Write the three SQL blocks in order: tables, guards,
+  security and grants. Run until green; then run task 06's and task 07's guard tests and H16b's
+  whole matrix, which must be unchanged.
+- [ ] **Step 4: Mutants (20 min).** Drop each guard in turn (the `health` `CHECK`, the immutable
+  trigger, the acyclic trigger, the forward trigger, one table from the RLS loop, one from the actor
+  loop, the `own_cursor` policy) and see its test fail; restore.
+- [ ] **Step 5: Commit by pathspec (5 min)**, the four files, naming the migration number in the
+  message, `feat(hub-w4): the W4 migration, guards and the granted principal`, ending with the
+  attribution line.
+
+#### Acceptance
+
+```bash
+docker compose -f control-plane/cmd/hub/compose.yaml up -d --wait
+export PANACEA_APP_HUB_TEST_DATABASE_URL='postgres://postgres@127.0.0.1:5433/postgres?sslmode=disable'
+go test ./control-plane/internal/hub/migrate/ -tags integration -race -count=1 -v -run '^TestW4' 2>&1 | grep -c '^--- PASS'
+# 11
+go test ./control-plane/internal/hub/... -tags integration -race -count=1
+# ok for every package; TestWorkGrantedPrincipal SKIP until task 117
+grep -c "EXECUTE FUNCTION" control-plane/internal/hub/migrate/sql/*_work_roadmap.sql
+# 5   (three named triggers, the actor loop's one format string, 119's pins trigger once appended)
+```
+
+The last count is 4 before task 119 appends its section and 5 after; read it as a check that no
+trigger was lost, not as a fixed number.
+
+#### What this task does not claim
+
+- **Not the migration number.** It is taken at sync time and renumbered on a clash.
+- **Not that any handler uses these tables.** Tasks 117-123 write the stores and routes; this task
+  proves the guards alone.
+- **Not that the janitor's actor kind is `janitor`.** The spelling is task 77's; decision 4 names
+  the exception, and Step 1 binds the spelling.
+- **Not that a grant reaches the brief.** `work_project_grants` is read by Work routes only (task
+  117's `workAccess`); H's brief, refs and design reads never join it.
+- **No measured cost.** The cycle check is a recursive query under a per-org lock; its cost on a
+  large graph has not been measured.
+
+**Parity rows:** closes none; it is the storage of L-32, L-50, L-67, L-72, L-74, L-76, L-77,
+L-83 to L-88, L-118, L-119, L-122 and L-150, closed by tasks 117-123 with their surfaces.
+
+#### Gaps found
+
+1. **Task 119 names `work_features (id)`** for its pin's foreign key (`task-119.md:122`); the
+   feature table is task 74's `features` (scope `tasks-61-80.md:475`). One of the two parts is
+   renamed at build; this part follows task 74's scope.
+2. **The janitor's actor kind** is not fixed by any part yet (task 07 fixes `person`,
+   `integration`, `app`); task 77 or 121 must name it, and task 07's guard must accept it for
+   `cycle_id` as task 74's scope requires.
+3. **`hub.user_id`** as a session setting is assumed from task 74's scope (drafts readable only by
+   their author); H's contract sets only `hub.org_id` (`hub-contract.md:309`). If no task sets
+   `hub.user_id`, both policies need it added to §5.1 step 6, a contract proposal.
+4. **A cross-org grant** is refused only by the foreign keys meeting RLS (a team of org B is
+   invisible under org A's `hub.org_id`); there is no explicit `CHECK`. Task 117's handler checks
+   it too.
