@@ -534,6 +534,7 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 		ws := s.workspace
 		t := s.tunnels[ws.ConnectionID]
 		address, management := "", ""
+		var azurePin *AzureConnectionPin
 		if t != nil && t.Status == "connected" {
 			address = t.APIURL
 			management = t.LocalURL
@@ -541,6 +542,7 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 		token := ""
 		if t != nil {
 			token = s.workspaceAuth[workspaceCredentialKey(*t)].Token
+			azurePin = t.Request.AzureIdentity
 		}
 		s.mu.RUnlock()
 		if ws.Mode != "cloud" {
@@ -553,6 +555,10 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 		}
 		if token == "" {
 			problem(w, 409, "backing_sign_in_required", "Sign in to the selected backing in Settings.")
+			return
+		}
+		if err := s.gateAzureWorkspaceRequest(r.Context(), ws.ConnectionID, address, token, azurePin); err != nil {
+			problem(w, 409, "azure_generation_changed", err.Error())
 			return
 		}
 		if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
@@ -755,12 +761,18 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 		address = t.APIURL
 	}
 	token := ""
+	var azurePin *AzureConnectionPin
 	if t != nil {
 		token = s.workspaceAuth[workspaceCredentialKey(*t)].Token
+		azurePin = t.Request.AzureIdentity
 	}
 	s.mu.RUnlock()
 	if ws.Mode != "cloud" || address == "" {
 		problem(w, 409, "workspace_required", "Activate your connected cloud workspace first.")
+		return
+	}
+	if err := s.gateAzureWorkspaceRequest(r.Context(), ws.ConnectionID, address, token, azurePin); err != nil {
+		problem(w, 409, "azure_generation_changed", err.Error())
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -889,6 +901,10 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 		s.mu.RUnlock()
 		if !active || !connected {
 			problem(w, 503, "workspace_disconnected", "Reconnect this workspace in Luci.")
+			return
+		}
+		if err := s.gateAzureWorkspaceRequest(r.Context(), ws.ConnectionID, address, token, azurePin); err != nil {
+			problem(w, 409, "azure_generation_changed", err.Error())
 			return
 		}
 		if r.Method == "GET" && r.URL.Path == previewgateway.BridgeProbePath && bridgeKey != "" {
