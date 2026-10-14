@@ -54,7 +54,7 @@ func TestReviewedOpenCodeTaskUsesCapturedContextAndVerifiedModelLimit(t *testing
 		t.Fatalf("wrong exact model limits: %+v", limit)
 	}
 	build := config.Agent["build"]
-	if !strings.Contains(build.Prompt, "automatic reminder") || !strings.Contains(build.Prompt, "/home/dev/.luci-reviewed-context") || strings.Contains(build.Prompt, "luci-acceptance-qwen") {
+	if !strings.Contains(build.Prompt, "automatic reminder") || !strings.Contains(build.Prompt, "/home/dev/.luci-reviewed-context") || !strings.Contains(build.Prompt, "file that does not exist yet") || strings.Contains(build.Prompt, "luci-acceptance-qwen") {
 		t.Fatal("reviewed local coding prompt lost stable, source-only task guidance")
 	}
 	for _, tool := range []string{"task", "webfetch", "websearch"} {
