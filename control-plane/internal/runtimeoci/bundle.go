@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -135,6 +136,20 @@ type sourceReceipt struct {
 	SourceCommit string `json:"sourceCommit"`
 	SourceDirty  bool   `json:"sourceDirty"`
 }
+type reuseReceipt struct {
+	Version                      int    `json:"version"`
+	Kind                         string `json:"kind"`
+	PriorManifestSHA256          string `json:"priorManifestSHA256"`
+	PriorBuildReceiptSHA256      string `json:"priorBuildReceiptSHA256"`
+	PriorBuildSourceCommit       string `json:"priorBuildSourceCommit"`
+	InstalledSourceCommit        string `json:"installedSourceCommit"`
+	InstalledSourceReceiptSHA256 string `json:"installedSourceReceiptSHA256"`
+	CanonicalInputAlgorithm      string `json:"canonicalInputAlgorithm"`
+	CanonicalInputDigest         string `json:"canonicalInputDigest"`
+	ImageID                      string `json:"imageID"`
+	ArchiveSHA256                string `json:"archiveSHA256"`
+	ArchiveBytes                 int64  `json:"archiveBytes"`
+}
 
 // Bundle owns the already-verified descriptor. The caller must close it. Seek
 // to zero immediately before Docker ImageLoad; never reopen by pathname.
@@ -178,6 +193,9 @@ func readRegular(root, name string, limit int64) ([]byte, error) {
 	if !safePath(name) {
 		return nil, errors.New("unsafe packaged path")
 	}
+	if err := rejectLinkedPath(root, name); err != nil {
+		return nil, err
+	}
 	filename := filepath.Join(root, filepath.FromSlash(name))
 	info, err := os.Lstat(filename)
 	if err != nil || !info.Mode().IsRegular() || info.Size() < 0 || info.Size() > limit {
@@ -201,6 +219,29 @@ func readRegular(root, name string, limit int64) ([]byte, error) {
 		return nil, errors.New("packaged file changed")
 	}
 	return data, nil
+}
+func rejectLinkedPath(root, name string) error {
+	for current := filepath.Clean(root); ; current = filepath.Dir(current) {
+		info, err := os.Lstat(current)
+		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return errors.New("packaged root or ancestor is missing or linked")
+		}
+		if filepath.Dir(current) == current {
+			break
+		}
+	}
+	current := root
+	var info os.FileInfo
+	var err error
+	parts := strings.Split(filepath.FromSlash(name), string(filepath.Separator))
+	for i, part := range parts {
+		current = filepath.Join(current, part)
+		info, err = os.Lstat(current)
+		if err != nil || info.Mode()&os.ModeSymlink != 0 || i < len(parts)-1 && !info.IsDir() || i == len(parts)-1 && !info.Mode().IsRegular() {
+			return errors.New("packaged path is missing or linked")
+		}
+	}
+	return nil
 }
 func decodeStrict(data []byte, out any) error {
 	// Decoder.DisallowUnknownFields does not reject duplicate keys. The token
@@ -261,8 +302,8 @@ func verifyManifest(m Manifest) error {
 	if m.Version != 1 || m.Kind != "luci-runtime-docker-save" || !commitPattern.MatchString(m.SourceCommit) || m.CanonicalInputAlgorithm != "luci-git-blobs-v1" || !digestPattern.MatchString(m.CanonicalInputDigest) || m.Target.OS != "linux" || m.Target.Architecture != "amd64" || m.Archive.FileName != "runtime-image-linux-amd64.tar" || m.Archive.Bytes < 1024 || m.Archive.Bytes > MaxArchiveBytes || !digestPattern.MatchString(m.Archive.SHA256) || !imagePattern.MatchString(m.Image.ID) || m.Image.ConfigPath != strings.TrimPrefix(m.Image.ID, "sha256:")+".json" || len(m.Image.RepoTags) != 0 || len(m.Image.LayerPaths) < 1 || len(m.Image.LayerPaths) > 2048 || len(m.Image.LayerPaths) != len(m.Image.DiffIDs) || len(m.SourceFiles) < 2 || len(m.SourceFiles) > 8192 || len(m.Licenses) < 1 || len(m.Licenses) > 4096 || !digestPattern.MatchString(m.Producer.DockerfileSHA256) || !digestPattern.MatchString(m.Producer.BuildReceiptSHA256) || !commitPattern.MatchString(m.Producer.BuildSourceCommit) {
 		return errors.New("runtime manifest identity or bounds invalid")
 	}
-	if m.Producer.ReuseEvidenceSHA256 != "" || m.Producer.BuildSourceCommit != m.SourceCommit {
-		return errors.New("runtime source reuse requires separately verified prior package evidence")
+	if m.Producer.BuildSourceCommit != m.SourceCommit && !digestPattern.MatchString(m.Producer.ReuseEvidenceSHA256) || m.Producer.BuildSourceCommit == m.SourceCommit && m.Producer.ReuseEvidenceSHA256 != "" {
+		return errors.New("runtime source reuse evidence missing or unexpected")
 	}
 	if m.Runtime.User != "dev" || m.Runtime.WorkingDir != "/home/dev" || !equalStrings(m.Runtime.Entrypoint, []string{"/usr/local/bin/entrypoint.sh"}) || !equalStrings(m.Runtime.ExposedPorts, []string{"8080/tcp"}) || m.Runtime.Harnesses.Codex != "0.160.0" || m.Runtime.Harnesses.ClaudeCode != "2.1.274" || m.Runtime.Harnesses.OpenCode != "1.18.34" {
 		return errors.New("runtime config differs from pinned harness contract")
@@ -286,6 +327,34 @@ func verifyManifest(m Manifest) error {
 				return errors.New("runtime uncompressed layer digest changed")
 			}
 		}
+	}
+	return nil
+}
+
+func verifyReuse(root string, current Manifest, sourceReceiptHash string) error {
+	data, err := readRegular(root, "runtime-source-reuse-v1.json", maxMetadata)
+	if err != nil || sumHex(data) != current.Producer.ReuseEvidenceSHA256 {
+		return errors.New("runtime reuse receipt bytes changed")
+	}
+	var reuse reuseReceipt
+	if err = decodeStrict(data, &reuse); err != nil || reuse.Version != 1 || reuse.Kind != "luci-runtime-equivalent-input-reuse" || reuse.InstalledSourceCommit != current.SourceCommit || reuse.InstalledSourceReceiptSHA256 != sourceReceiptHash || reuse.PriorBuildSourceCommit != current.Producer.BuildSourceCommit || reuse.CanonicalInputAlgorithm != current.CanonicalInputAlgorithm || reuse.CanonicalInputDigest != current.CanonicalInputDigest || reuse.ImageID != current.Image.ID || reuse.ArchiveSHA256 != current.Archive.SHA256 || reuse.ArchiveBytes != current.Archive.Bytes {
+		return errors.New("runtime reuse receipt identity changed")
+	}
+	priorBytes, err := readRegular(root, "runtime-prior-manifest-v1.json", maxMetadata)
+	if err != nil || sumHex(priorBytes) != reuse.PriorManifestSHA256 {
+		return errors.New("runtime prior manifest bytes changed")
+	}
+	var prior Manifest
+	if err = decodeStrict(priorBytes, &prior); err != nil || verifyManifest(prior) != nil || prior.SourceCommit != reuse.PriorBuildSourceCommit || prior.Producer.ReuseEvidenceSHA256 != "" || prior.CanonicalInputDigest != current.CanonicalInputDigest || !reflect.DeepEqual(prior.SourceFiles, current.SourceFiles) || !reflect.DeepEqual(prior.Image, current.Image) || !reflect.DeepEqual(prior.Archive, current.Archive) || !reflect.DeepEqual(prior.Runtime, current.Runtime) || !reflect.DeepEqual(prior.Licenses, current.Licenses) || prior.Producer.DockerfileSHA256 != current.Producer.DockerfileSHA256 {
+		return errors.New("runtime prior source or payload differs")
+	}
+	priorReceipt, err := readRegular(root, "runtime-prior-build-receipt.json", maxMetadata)
+	if err != nil || sumHex(priorReceipt) != reuse.PriorBuildReceiptSHA256 || sumHex(priorReceipt) != prior.Producer.BuildReceiptSHA256 || sumHex(priorReceipt) != current.Producer.BuildReceiptSHA256 {
+		return errors.New("runtime prior build receipt bytes changed")
+	}
+	currentReceipt, err := readRegular(root, "runtime-build-receipt.json", maxMetadata)
+	if err != nil || !bytes.Equal(currentReceipt, priorReceipt) {
+		return errors.New("runtime reused build receipt differs from trusted prior bytes")
 	}
 	return nil
 }
@@ -335,14 +404,34 @@ func verifySources(root string, m Manifest) error {
 			return err
 		}
 	}
+	seenLicenses := map[string]bool{}
 	for i, v := range m.Licenses {
 		if !strings.HasPrefix(v.Path, "licenses/") || !safePath(v.Path) || v.Bytes < 1 || !digestPattern.MatchString(v.SHA256) || v.Component == "" || v.Version == "" || v.Grant == "" || v.Provenance == "" || i > 0 && m.Licenses[i-1].Path >= v.Path {
 			return errors.New("runtime licence inventory invalid")
 		}
+		seenLicenses[v.Path] = true
 		data, e := readRegular(filepath.Dir(root), v.Path, 16<<20)
 		if e != nil || int64(len(data)) != v.Bytes || sumHex(data) != v.SHA256 {
 			return errors.New("runtime licence bytes changed")
 		}
+	}
+	if err := filepath.WalkDir(filepath.Join(filepath.Dir(root), "licenses"), func(name string, entry os.DirEntry, e error) error {
+		if e != nil {
+			return e
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return errors.New("runtime licence path is linked")
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		relative, e := filepath.Rel(filepath.Dir(root), name)
+		if e != nil || !seenLicenses[filepath.ToSlash(relative)] || !entry.Type().IsRegular() {
+			return errors.New("runtime licence inventory has unexpected member")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	if !seen["images/sandbox/Dockerfile"] {
 		return errors.New("runtime Dockerfile missing")
@@ -378,18 +467,27 @@ func Open(root string) (*Bundle, error) {
 		return nil, err
 	}
 	var source sourceReceipt
+	var sourceFields map[string]json.RawMessage
+	if err = decodeStrict(sourceBytes, &sourceFields); err != nil || len(sourceFields) != 3 || sourceFields["version"] == nil || sourceFields["sourceCommit"] == nil || sourceFields["sourceDirty"] == nil {
+		return nil, errors.New("installed runtime source receipt fields missing")
+	}
 	if err = decodeStrict(sourceBytes, &source); err != nil || source.Version != 1 || source.SourceDirty || source.SourceCommit != m.SourceCommit {
 		return nil, errors.New("installed runtime source receipt changed")
+	}
+	if m.Producer.ReuseEvidenceSHA256 != "" {
+		if err = verifyReuse(root, m, sumHex(sourceBytes)); err != nil {
+			return nil, err
+		}
 	}
 	receiptBytes, err := readRegular(root, "runtime-build-receipt.json", maxMetadata)
 	if err != nil || sumHex(receiptBytes) != m.Producer.BuildReceiptSHA256 {
 		return nil, errors.New("runtime producer receipt changed")
 	}
 	var receipt buildReceipt
-	if err = decodeStrict(receiptBytes, &receipt); err != nil || receipt.Version != 1 || receipt.Kind != "luci-runtime-producer-build" || receipt.BuildSourceCommit != m.SourceCommit || receipt.CanonicalInputAlgorithm != m.CanonicalInputAlgorithm || receipt.CanonicalInputDigest != m.CanonicalInputDigest || receipt.Target.OS != "linux" || receipt.Target.Architecture != "amd64" || receipt.ImageID != m.Image.ID || receipt.Archive.SHA256 != m.Archive.SHA256 || receipt.Archive.Bytes != m.Archive.Bytes || receipt.Builder.ExitCode != 0 || receipt.Builder.Backend != "docker-builder-v1" || !digestPattern.MatchString(receipt.GeneratedContextSHA256) || len(receipt.BaseImages) != 2 || len(receipt.Probes) != 4 {
+	if err = decodeStrict(receiptBytes, &receipt); err != nil || receipt.Version != 1 || receipt.Kind != "luci-runtime-producer-build" || receipt.BuildSourceCommit != m.Producer.BuildSourceCommit || receipt.CanonicalInputAlgorithm != m.CanonicalInputAlgorithm || receipt.CanonicalInputDigest != m.CanonicalInputDigest || receipt.Target.OS != "linux" || receipt.Target.Architecture != "amd64" || receipt.ImageID != m.Image.ID || receipt.Archive.SHA256 != m.Archive.SHA256 || receipt.Archive.Bytes != m.Archive.Bytes || receipt.Builder.ExitCode != 0 || receipt.Builder.Backend != "docker-builder-v1" || !digestPattern.MatchString(receipt.GeneratedContextSHA256) || len(receipt.BaseImages) != 2 || len(receipt.Probes) != 4 {
 		return nil, errors.New("runtime producer result is invalid or mismatched")
 	}
-	if receipt.Builder.Version == "" || len(receipt.Builder.Argv) < 3 || len(receipt.Builder.Argv) > 64 || receipt.Builder.MemoryBytes < 0 || receipt.Builder.CPUQuotaMicros < 0 || !digestPattern.MatchString(receipt.Builder.StdoutSHA256) || !digestPattern.MatchString(receipt.Builder.StderrSHA256) || !digestPattern.MatchString(receipt.Builder.CacheAssistanceLogSHA256) || !receipt.Builder.CacheAssistance && receipt.Builder.CacheAssistanceLogSHA256 != sumHex(nil) {
+	if receipt.Builder.Version == "" || len(receipt.Builder.Argv) < 3 || len(receipt.Builder.Argv) > 64 || receipt.Builder.MemoryBytes <= 0 || receipt.Builder.CPUQuotaMicros <= 0 || !digestPattern.MatchString(receipt.Builder.StdoutSHA256) || !digestPattern.MatchString(receipt.Builder.StderrSHA256) || !digestPattern.MatchString(receipt.Builder.CacheAssistanceLogSHA256) || !receipt.Builder.CacheAssistance && receipt.Builder.CacheAssistanceLogSHA256 != sumHex(nil) {
 		return nil, errors.New("runtime producer builder receipt is invalid")
 	}
 	baseRefs := map[string]bool{"golang:1.26-bookworm": false, "node:24-bookworm-slim": false}
@@ -475,9 +573,20 @@ func (b *Bundle) verifyArchive() error {
 	if _, err := reader.Next(); err != io.EOF {
 		return errors.New("runtime archive has extra members")
 	}
-	count, err := io.Copy(io.Discard, tee)
-	if err != nil || count < 0 {
-		return errors.New("runtime archive cannot be fully read")
+	var remaining [32 * 1024]byte
+	for {
+		n, err := tee.Read(remaining[:])
+		for _, value := range remaining[:n] {
+			if value != 0 {
+				return errors.New("runtime archive has nonzero trailing bytes")
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil || n == 0 {
+			return errors.New("runtime archive cannot be fully read")
+		}
 	}
 	info, err := b.Archive.Stat()
 	if err != nil || info.Size() != b.Manifest.Archive.Bytes || hex.EncodeToString(whole.Sum(nil)) != b.Manifest.Archive.SHA256 {
@@ -488,6 +597,16 @@ func (b *Bundle) verifyArchive() error {
 	}
 	_, err = b.Archive.Seek(0, io.SeekStart)
 	return err
+}
+
+// VerifyArchive rechecks the held descriptor immediately before a daemon
+// import. The importer keeps this descriptor open instead of resolving its
+// pathname a second time.
+func (b *Bundle) VerifyArchive() error {
+	if b == nil || b.Archive == nil {
+		return errors.New("runtime archive is unavailable")
+	}
+	return b.verifyArchive()
 }
 
 func verifyImageMetadata(m Manifest, configBytes, manifestBytes []byte) error {

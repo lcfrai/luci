@@ -107,7 +107,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		}
 		return out, cause
 	}
-	if publish == nil || !checkLogicalID(req.JobID) || req.ImageTag == "" || req.SourceDirectory == "" || req.Retained() || req.EngineID != "" || req.InstanceID != "" || req.SourceDigest != "" || req.ImageID != "" {
+	if publish == nil || !checkLogicalID(req.JobID) || req.ImageTag == "" || req.SourceDirectory == "" || req.Retained() || req.EngineID != "" || req.InstanceID != "" || req.SourceDigest != "" || req.ImageID != "" || req.Mode != "" && req.Mode != "packaged" && req.Mode != "advanced-build" {
 		return fail("runtime_install_request_invalid", "The bundled runtime request is invalid; nothing was started.", backend.ErrUnsupported)
 	}
 	if _, err := a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
@@ -141,9 +141,23 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		return fail("runtime_image_tag_invalid", "The runtime image tag is invalid.", err)
 	}
 	canonicalTag := reference.TagNameOnly(name).String()
-	prepared, err := executor.PrepareRuntimeImage(ctx, spec)
+	var prepared backend.PreparedRuntimeImage
+	var importer backend.RuntimeImageImportExecutor
+	if req.Mode == "packaged" {
+		var supported bool
+		importer, supported = a.deps.Backend.(backend.RuntimeImageImportExecutor)
+		if !supported {
+			return fail("runtime_import_unsupported", "This installation cannot verify and import its packaged runtime; the advanced build was not started.", backend.ErrUnsupported)
+		}
+		prepared, err = importer.PreparePackagedRuntimeImage(ctx, spec)
+	} else {
+		prepared, err = executor.PrepareRuntimeImage(ctx, spec)
+	}
 	if err != nil {
-		return fail("runtime_install_prepare_failed", "The bundled runtime source or engine limits could not be verified. No build was started.", err)
+		return fail("runtime_install_prepare_failed", "The bundled runtime package or engine limits could not be verified. No Docker work was started.", err)
+	}
+	if prepared.Bundle != nil {
+		defer prepared.Bundle.Close()
 	}
 	id := prepared.Spec.Identity
 	if id.Protocol != spec.Identity.Protocol || id.JobID != req.JobID || id.AllocationID != allocation || id.ScopeDigest != a.execution.scope || !checkHex(id.SourceDigest, 32) || id.EngineID == "" || backend.ValidateInstance(id.InstanceID) != nil || prepared.Spec.ImageTag != canonicalTag || prepared.Spec.Resources != resources || prepared.Spec.SourceDirectory != req.SourceDirectory || prepared.RequiredDiskBytes < backend.RuntimeImageRequiredDiskBytes || prepared.AdmissionMemoryMiB != 0 && (prepared.AdmissionMemoryMiB < resources.MemoryMiB || prepared.AdmissionMemoryMiB > 65536) {
@@ -207,11 +221,17 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		return out, err
 	}
 	out.Phase, out.Message = "building", "Preparing the bundled runtime within the admitted CPU, memory and disk budget."
+	if req.Mode == "packaged" {
+		out.Phase, out.Message = "importing", "Importing the verified, tagless runtime payload. No local source compilation is started."
+	}
 	if err = publish(out); err != nil {
 		return unstarted(err)
 	}
 	if _, err = a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
 		return unstarted(err)
+	}
+	if req.Mode == "packaged" {
+		return a.importRuntimeImage(ctx, req, publish, out, lease, prepared, importer, admit)
 	}
 	staged, okay := executor.(backend.RuntimeImagePreBuildExecutor)
 	if !okay {
@@ -281,6 +301,136 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	}
 	out.Phase, out.ReasonCode, out.Message = "ready", "", "The bundled runtime image is ready."
 	return finish(nil)
+}
+
+func (a *API) importRuntimeImage(ctx context.Context, req runtimeinstall.Request, publish runtimeinstall.Publish, out runtimeinstall.Outcome, lease runtimeImageExecutionLease, prepared backend.PreparedRuntimeImage, importer backend.RuntimeImageImportExecutor, admit func(bool) (executionDecision, runtimeImageExecutionLease, error)) (runtimeinstall.Outcome, error) {
+	finish := func(cause error) (runtimeinstall.Outcome, error) {
+		if err := publish(out); err != nil {
+			return out, errors.Join(cause, err)
+		}
+		record, cancel := previewRecordContext(ctx)
+		defer cancel()
+		return out, errors.Join(cause, a.execution.acknowledgeRuntimeImageCompletion(record, lease))
+	}
+	settle := func(result backend.RuntimeImageBuildResult, cause error, failedCode string) (runtimeinstall.Outcome, bool, error) {
+		if !result.Settled {
+			out.Phase, out.ReasonCode, out.Message = "unknown", failedCode+"_unconfirmed", "The exact Docker effect has no confirmed terminal result. Its charge remains held; no import or derivative will be replayed."
+			return out, true, errors.Join(cause, publish(out), backend.ErrUnavailable)
+		}
+		if cause != nil || result.ImageID == "" {
+			record, cancel := previewRecordContext(ctx)
+			var err error
+			lease, err = a.execution.completeRuntimeImage(record, lease, true, "")
+			cancel()
+			if err != nil {
+				return out, true, errors.Join(cause, err)
+			}
+			out.Phase, out.ResourcesHeld, out.CleanupConfirmed = "failed", false, true
+			out.ReasonCode, out.Message = failedCode+"_failed", "The Docker effect returned a terminal failure; its exact allocation is settled without publishing a runtime tag."
+			if ctx.Err() != nil {
+				out.Phase, out.ReasonCode = "cancelled", failedCode+"_cancelled"
+			}
+			out, err = finish(cause)
+			return out, true, err
+		}
+		return out, false, nil
+	}
+	if lease.DistributionMode != "packaged" || lease.ImportStage != "importing" || prepared.Bundle == nil {
+		return out, backend.ErrLaunchFenceOwnership
+	}
+	if _, err := a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
+		return out, err
+	}
+	loaded, loadErr := importer.LoadPackagedRuntimeImage(ctx, prepared)
+	if result, done, err := settle(loaded, loadErr, "runtime_import"); done {
+		return result, err
+	}
+	if loaded.ImageID != prepared.Bundle.Manifest.Image.ID {
+		return out, backend.ErrLaunchFenceOwnership
+	}
+	record, cancel := previewRecordContext(ctx)
+	var err error
+	lease, err = a.execution.advanceRuntimeImageImport(record, lease, loaded.ImageID)
+	cancel()
+	if err != nil {
+		return out, err
+	}
+	out.Phase, out.Message = "deriving", "The shared payload is verified. Adding this installation's small ownership metadata before publication."
+	if err = publish(out); err != nil {
+		return out, err
+	}
+	if _, err = a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
+		return a.stopImportedRuntimeImage(ctx, publish, out, lease, err)
+	}
+	decision, nextLease, admitErr := admit(false)
+	if admitErr != nil || decision.State != "admitted" {
+		out.Phase, out.ReasonCode, out.Message = "blocked", "runtime_derivative_not_started", "The shared payload imported, but current capacity or authority prevents the owned derivative. No derivative was started."
+		out.Admission = runtimeAdmissionRefusal(decision, "before-derivative")
+		return a.stopImportedRuntimeImage(ctx, publish, out, lease, admitErr)
+	}
+	lease = nextLease
+	record, cancel = previewRecordContext(ctx)
+	lease, err = a.execution.beginRuntimeImageDerivation(record, lease)
+	cancel()
+	if err != nil {
+		return out, err
+	}
+	derived, deriveErr := importer.DerivePackagedRuntimeImage(ctx, prepared)
+	if result, done, err := settle(derived, deriveErr, "runtime_derivative"); done {
+		return result, err
+	}
+	record, cancel = previewRecordContext(ctx)
+	lease, err = a.execution.completeRuntimeImage(record, lease, true, derived.ImageID)
+	cancel()
+	if err != nil {
+		return out, err
+	}
+	out.ImageID, out.ResourcesHeld, out.CleanupConfirmed = derived.ImageID, false, true
+	if _, err = a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
+		out.Phase, out.ReasonCode, out.Message = "cancelled", "runtime_publication_not_started", "The owned image settled, but current administrator access or cancellation stopped publication."
+		return finish(err)
+	}
+	out.Phase, out.Message = "publishing", "The exact owned runtime image is ready for tag publication."
+	if err = publish(out); err != nil {
+		return out, err
+	}
+	if _, err = a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
+		out.Phase, out.ReasonCode, out.Message = "cancelled", "runtime_publication_not_started", "Current administrator access or cancellation stopped publication before its request."
+		return finish(err)
+	}
+	publication, publishErr := importer.PublishRuntimeImage(ctx, prepared, derived.ImageID)
+	if publishErr != nil || !publication.Acknowledged || publication.ImageID != derived.ImageID || publication.ImageTag != prepared.Spec.ImageTag {
+		out.Phase, out.ReasonCode, out.Message = "unknown", "runtime_publication_unconfirmed", "The image is settled but tag publication is unconfirmed. Review this exact installation; it will not import or retag automatically."
+		return out, errors.Join(publishErr, publish(out), backend.ErrUnavailable)
+	}
+	out.Phase, out.ReasonCode, out.Message = "ready", "", "The verified packaged runtime is ready."
+	return finish(nil)
+}
+
+// A positively imported shared payload has no allocation-specific effect until
+// the derivative begins. A revoked actor or fresh capacity refusal at this
+// boundary can settle only this lease without claiming an unknown Docker write.
+func (a *API) stopImportedRuntimeImage(ctx context.Context, publish runtimeinstall.Publish, out runtimeinstall.Outcome, lease runtimeImageExecutionLease, cause error) (runtimeinstall.Outcome, error) {
+	if lease.DistributionMode != "packaged" || lease.ImportStage != "imported" || lease.State != "building" {
+		return out, errors.Join(cause, backend.ErrLaunchFenceOwnership)
+	}
+	record, cancel := previewRecordContext(ctx)
+	settled, err := a.execution.completeRuntimeImage(record, lease, true, "")
+	if err != nil {
+		cancel()
+		return out, errors.Join(cause, err)
+	}
+	out.ResourcesHeld, out.CleanupConfirmed = false, true
+	if out.ReasonCode == "" {
+		out.Phase, out.ReasonCode, out.Message = "cancelled", "runtime_derivative_not_started", "Current administrator access ended before the owned derivative was started."
+	}
+	if err = publish(out); err != nil {
+		cancel()
+		return out, errors.Join(cause, err)
+	}
+	err = a.execution.acknowledgeRuntimeImageCompletion(record, settled)
+	cancel()
+	return out, errors.Join(cause, err)
 }
 
 func (a *API) reconcileRuntimeImage(ctx context.Context, id runtimeinstall.Identity, actor management.ExecutionActorRef, publish runtimeinstall.Publish) (runtimeinstall.Outcome, error) {
@@ -354,6 +504,21 @@ func (a *API) reconcileRuntimeImage(ctx context.Context, id runtimeinstall.Ident
 		if err != nil {
 			return invalid(err)
 		}
+	}
+	// The shared payload import has a positive terminal receipt, while the
+	// allocation-specific derivative cannot start before a separate durable
+	// "deriving" transition. The lifecycle lock excludes a concurrent old
+	// controller; after restart this exact stage is safe to retire unchanged.
+	if lease.State == "building" && lease.DistributionMode == "packaged" && lease.ImportStage == "imported" {
+		lease, err = a.execution.completeRuntimeImage(ctx, lease, true, "")
+		if err != nil {
+			return invalid(err)
+		}
+		out.Phase, out.CleanupConfirmed, out.ReasonCode, out.Message = "cancelled", true, "runtime_derivative_not_started", "The shared payload was imported, but no owned derivative was started before interruption. This exact charge is released."
+		if err = publish(out); err != nil {
+			return out, err
+		}
+		return out, a.execution.acknowledgeRuntimeImageCompletion(ctx, lease)
 	}
 	if lease.State == "building" {
 		observer, supported := a.deps.Backend.(backend.RuntimeImageEngineRetirementExecutor)

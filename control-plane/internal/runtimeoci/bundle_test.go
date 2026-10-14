@@ -108,6 +108,73 @@ func fixtureBundle(t *testing.T, ownedLabel bool) (string, Manifest) {
 	fixtureWrite(t, root, "runtime-oci-manifest-v1.json", fixtureJSON(t, m))
 	return root, m
 }
+
+func TestBundleEquivalentInputReuseRequiresExactPriorBytes(t *testing.T) {
+	root, m := fixtureBundle(t, false)
+	priorManifest := fixtureJSON(t, m)
+	priorReceipt, err := os.ReadFile(filepath.Join(root, "runtime-build-receipt.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixtureWrite(t, root, "runtime-prior-manifest-v1.json", priorManifest)
+	fixtureWrite(t, root, "runtime-prior-build-receipt.json", priorReceipt)
+	m.SourceCommit = strings.Repeat("b", 40)
+	source := fixtureJSON(t, map[string]any{"version": 1, "sourceCommit": m.SourceCommit, "sourceDirty": false})
+	fixtureWrite(t, root, "source-receipt.json", source)
+	reuse := map[string]any{"version": 1, "kind": "luci-runtime-equivalent-input-reuse", "priorManifestSHA256": sumHex(priorManifest), "priorBuildReceiptSHA256": sumHex(priorReceipt), "priorBuildSourceCommit": m.Producer.BuildSourceCommit, "installedSourceCommit": m.SourceCommit, "installedSourceReceiptSHA256": sumHex(source), "canonicalInputAlgorithm": m.CanonicalInputAlgorithm, "canonicalInputDigest": m.CanonicalInputDigest, "imageID": m.Image.ID, "archiveSHA256": m.Archive.SHA256, "archiveBytes": m.Archive.Bytes}
+	reuseBytes := fixtureJSON(t, reuse)
+	fixtureWrite(t, root, "runtime-source-reuse-v1.json", reuseBytes)
+	m.Producer.ReuseEvidenceSHA256 = sumHex(reuseBytes)
+	fixtureWrite(t, root, "runtime-oci-manifest-v1.json", fixtureJSON(t, m))
+	b, err := Open(root)
+	if err != nil {
+		t.Fatal("equivalent installed source refused", err)
+	}
+	b.Close()
+	fixtureWrite(t, root, "runtime-prior-build-receipt.json", append(priorReceipt, ' '))
+	if b, err = Open(root); err == nil {
+		b.Close()
+		t.Fatal("changed original producer receipt accepted")
+	}
+}
+
+func TestBundleRequiresExactSourceReceiptFieldsAndUnlinkedLicenceTree(t *testing.T) {
+	root, m := fixtureBundle(t, false)
+	fixtureWrite(t, root, "source-receipt.json", fixtureJSON(t, map[string]any{"version": 1, "sourceCommit": m.SourceCommit}))
+	if b, err := Open(root); err == nil {
+		b.Close()
+		t.Fatal("missing sourceDirty accepted")
+	}
+	fixtureWrite(t, root, "source-receipt.json", fixtureJSON(t, map[string]any{"version": 1, "sourceCommit": m.SourceCommit, "sourceDirty": false}))
+	if err := os.Symlink("fixture.txt", filepath.Join(filepath.Dir(root), "licenses", "linked.txt")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if b, err := Open(root); err == nil {
+		b.Close()
+		t.Fatal("unlisted linked licence accepted")
+	}
+}
+
+func TestBundleRefusesZeroBuilderLimits(t *testing.T) {
+	root, m := fixtureBundle(t, false)
+	data, err := os.ReadFile(filepath.Join(root, "runtime-build-receipt.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var receipt map[string]any
+	if err := json.Unmarshal(data, &receipt); err != nil {
+		t.Fatal(err)
+	}
+	receipt["builder"].(map[string]any)["memoryBytes"] = 0
+	data = fixtureJSON(t, receipt)
+	fixtureWrite(t, root, "runtime-build-receipt.json", data)
+	m.Producer.BuildReceiptSHA256 = sumHex(data)
+	fixtureWrite(t, root, "runtime-oci-manifest-v1.json", fixtureJSON(t, m))
+	if b, err := Open(root); err == nil {
+		b.Close()
+		t.Fatal("producer without a hard memory limit accepted")
+	}
+}
 func decimal(v int64) string { return strconv.FormatInt(v, 10) }
 
 func TestBundleOpenVerifiesExactTaglessArchiveAndSources(t *testing.T) {
