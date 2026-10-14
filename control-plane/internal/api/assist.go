@@ -425,15 +425,17 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 	var orchestratorResult json.RawMessage
 	failureCode := ""
 	defer func() {
-		// Inspect the exact still-owned stopped container before cleanup erases
-		// Docker's OOMKilled evidence. Exit 137 and missing output alone are not
-		// proof: cancellation and uncertain transport can produce both.
+		// Inspect the exact still-owned container before cleanup erases Docker's
+		// OOMKilled evidence. Moby sets that flag on a child OOM even while
+		// sandbox init keeps running. Exit 137 and missing output are not proof.
 		if status == "failed" && a.deps.Backend.Kind() == backend.KindDocker {
 			probe, done := context.WithTimeout(context.Background(), 2*time.Second)
 			observed, observeErr := a.deps.Backend.Get(probe, job.SessionID)
 			current, currentErr := a.deps.Store.Get(job.SessionID)
 			done()
-			if observeErr == nil && currentErr == nil && observed.ID == job.SessionID && observed.Ref != "" && observed.Ref == current.SandboxRef && observed.State == backend.StateStopped && observed.OOMKilled {
+			if observeErr == nil && currentErr == nil && observed.Kind == backend.KindDocker && observed.ID == job.SessionID && observed.Ref != "" && observed.Ref == current.SandboxRef &&
+				(observed.State == backend.StateRunning || observed.State == backend.StateStopped) && observed.OOMKilled &&
+				observed.Labels[backend.LabelManaged] == "true" && observed.Labels[backend.LabelSandboxID] == job.SessionID && observed.Labels[backend.LabelSessionID] == job.SessionID {
 				failureCode, message = "memory_limit", assistMemoryLimitMessage
 			}
 		}

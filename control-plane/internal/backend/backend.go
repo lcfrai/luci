@@ -338,8 +338,9 @@ type Sandbox struct {
 	// after that read, so completion cannot make an older Created snapshot safe
 	// to reap. This is not a durable claim and is false after worker restart.
 	CreationInFlight bool
-	// OOMKilled is an exact stopped-container observation. It is never inferred
-	// from exit 137, a lost inspect, or an absent container.
+	// OOMKilled is Docker's inspected OOM state for this exact container. Docker
+	// also sets it when a child is OOM-killed while sandbox init remains running.
+	// It is never inferred from exit 137, a lost inspect or absence.
 	OOMKilled bool
 
 	State     State

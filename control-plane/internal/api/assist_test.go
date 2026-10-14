@@ -266,8 +266,18 @@ func TestDefineAssistantCancellationAndInvalidProposalCannotApplyOrLeaveActiveCr
 }
 
 func TestAssistantReportsOnlyObservedOwnedOOMWithoutProviderOutput(t *testing.T) {
-	for _, oom := range []bool{true, false} {
-		t.Run(map[bool]string{true: "observed-oom", false: "unproven-exit"}[oom], func(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		oom   bool
+		state backend.State
+		owned bool
+	}{
+		{"running-init-child-oom", true, backend.StateRunning, true},
+		{"stopped-init-oom", true, backend.StateStopped, true},
+		{"exit-without-oom", false, backend.StateStopped, true},
+		{"foreign-label", true, backend.StateRunning, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			e, p := assistanceFixture(t)
 			started := make(chan backend.Spec, 1)
 			release := make(chan struct{})
@@ -275,7 +285,11 @@ func TestAssistantReportsOnlyObservedOwnedOOMWithoutProviderOutput(t *testing.T)
 			job := decodeAssist(t, e, "POST", "/v1/product/projects/"+p.ID+"/assist", `{"expectedRevision":0,"message":"Clarify my idea."}`, 202)
 			spec := <-started
 			e.be.mu.Lock()
-			e.be.observed = &backend.Sandbox{ID: job.SessionID, Ref: "ref-" + job.SessionID, Kind: backend.KindDocker, State: backend.StateStopped, OOMKilled: oom}
+			labels := map[string]string{backend.LabelManaged: "true", backend.LabelSandboxID: job.SessionID, backend.LabelSessionID: job.SessionID}
+			if !tc.owned {
+				labels[backend.LabelSessionID] = "another-session"
+			}
+			e.be.observed = &backend.Sandbox{ID: job.SessionID, Ref: "ref-" + job.SessionID, Kind: backend.KindDocker, State: tc.state, OOMKilled: tc.oom, Labels: labels}
 			e.be.mu.Unlock()
 			for _, mount := range spec.Mounts {
 				if mount.ContainerPath == "/luci-output" {
@@ -290,7 +304,7 @@ func TestAssistantReportsOnlyObservedOwnedOOMWithoutProviderOutput(t *testing.T)
 			if err != nil || got.Status != "failed" || strings.Contains(got.Message, "provider output") {
 				t.Fatal(got, session, err)
 			}
-			if oom {
+			if tc.oom && tc.owned {
 				if got.FailureCode != "memory_limit" || got.Message != assistMemoryLimitMessage || session.ExitReason != assistMemoryLimitMessage {
 					t.Fatal(got, session)
 				}
