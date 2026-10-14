@@ -40,18 +40,18 @@ type azureSetupBundleManifest struct {
 }
 
 type azureBuilderSourceRef struct {
-	Version int `json:"version"`
-	Kind string `json:"kind"`
-	Luci azureBuilderSourceRole `json:"luci"`
-	E2B azureBuilderSourceRole `json:"e2b"`
+	Version int                    `json:"version"`
+	Kind    string                 `json:"kind"`
+	Luci    azureBuilderSourceRole `json:"luci"`
+	E2B     azureBuilderSourceRole `json:"e2b"`
 }
 
 type azureBuilderSourceRole struct {
 	Revision string `json:"revision"`
-	Tree string `json:"tree"`
-	Pack struct {
+	Tree     string `json:"tree"`
+	Pack     struct {
 		SHA256 string `json:"sha256"`
-		Bytes int64 `json:"bytes"`
+		Bytes  int64  `json:"bytes"`
 	} `json:"pack"`
 }
 
@@ -178,7 +178,10 @@ func readAzureSetupBundle(runtimeDir, projectRoot string) ([]byte, string, strin
 		!azureSetupGit.MatchString(source.E2B.Tree) {
 		return nil, "", "", errors.New("Azure builder source revision is invalid")
 	}
-	for _, role := range []struct { name string; ref azureBuilderSourceRole }{
+	for _, role := range []struct {
+		name string
+		ref  azureBuilderSourceRole
+	}{
 		{"luci", source.Luci}, {"e2b", source.E2B},
 	} {
 		part := files["builder-source/"+role.name+".pack"]

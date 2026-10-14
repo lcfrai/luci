@@ -30,7 +30,10 @@ func testAzureSetupArchiveWithSource(t *testing.T, runtimeDir, sourceRevision st
 	source.Luci.Tree = strings.Repeat("b", 40)
 	source.E2B.Revision = azureBuilderE2BRevision
 	source.E2B.Tree = strings.Repeat("c", 40)
-	for _, role := range []struct{ name string; ref *azureBuilderSourceRole }{
+	for _, role := range []struct {
+		name string
+		ref  *azureBuilderSourceRole
+	}{
 		{"luci", &source.Luci}, {"e2b", &source.E2B},
 	} {
 		part := files["builder-source/"+role.name+".pack"]
