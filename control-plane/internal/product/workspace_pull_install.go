@@ -78,22 +78,33 @@ func (s *Server) installPullWorkspace(job WorkspaceInstall, t Tunnel) {
 		{source: c.pull.Store, size: m.RegistryStore.Bytes, hash: m.RegistryStore.SHA256, suffix: "." + m.RegistryStore.FileName},
 		{source: c.pull.Bootstrap, size: m.Bootstrap.Bytes, hash: m.Bootstrap.SHA256, suffix: "." + m.Bootstrap.FileName},
 	}
-	if err := s.pullStageCapacity(stagingDir, files[0].size, files[1].size, files[2].size, files[3].size); err != nil {
-		s.finishWorkspaceInstall(job, "failed", err.Error()+". No remote installation started.")
-		return
-	}
-	for i := range files {
-		files[i].staged, err = stageWorkspaceFile(ctx, files[i].source, files[i].size, files[i].hash, stagingDir, job.ID+"-pull")
-		if err != nil {
-			for j := range files {
-				if files[j].staged != "" {
-					_ = os.Remove(files[j].staged)
-				}
+	// A second accepted job must observe the first job's actual staged bytes
+	// before making its own capacity decision. The private copies remain owned
+	// by their job until its transfer outcome is recorded.
+	s.workspaceTransferMu.Lock()
+	capacityErr := s.pullStageCapacity(stagingDir, files[0].size, files[1].size, files[2].size, files[3].size)
+	if capacityErr == nil {
+		for i := range files {
+			files[i].staged, err = stageWorkspaceFile(ctx, files[i].source, files[i].size, files[i].hash, stagingDir, job.ID+"-pull")
+			if err != nil {
+				break
 			}
-			s.finishWorkspaceInstall(job, "failed", "Could not stage the exact verified runtime files. No remote installation started.")
-			return
+			files[i].remote = "/home/" + t.Request.User + "/" + job.ID + files[i].suffix
 		}
-		files[i].remote = "/home/" + t.Request.User + "/" + job.ID + files[i].suffix
+	}
+	s.workspaceTransferMu.Unlock()
+	if capacityErr != nil || err != nil {
+		for _, file := range files {
+			if file.staged != "" {
+				_ = os.Remove(file.staged)
+			}
+		}
+		message := "Could not stage the exact verified runtime files. No remote installation started."
+		if capacityErr != nil {
+			message = capacityErr.Error() + ". No remote installation started."
+		}
+		s.finishWorkspaceInstall(job, "failed", message)
+		return
 	}
 	defer func() {
 		for _, file := range files {
