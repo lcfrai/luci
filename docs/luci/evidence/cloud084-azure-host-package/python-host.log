@@ -1,0 +1,12 @@
+test_boot_retry_does_not_replay_and_gateway_rotation_keeps_compose (test_host_package.HostLifecycleTest.test_boot_retry_does_not_replay_and_gateway_rotation_keeps_compose) ... ok
+test_exact_rotation_does_not_restart_runtime_or_rotate_task_keys (test_host_package.HostLifecycleTest.test_exact_rotation_does_not_restart_runtime_or_rotate_task_keys) ... ok
+test_lost_rotation_ack_preserves_both_generations_and_refuses_replay (test_host_package.HostLifecycleTest.test_lost_rotation_ack_preserves_both_generations_and_refuses_replay) ... ok
+test_nonsecret_deployment_selection_refuses_unsafe_address_or_identity (test_host_package.HostLifecycleTest.test_nonsecret_deployment_selection_refuses_unsafe_address_or_identity) ... ok
+test_reboot_restages_same_gateway_without_compose_dispatch (test_host_package.HostLifecycleTest.test_reboot_restages_same_gateway_without_compose_dispatch) ... ok
+test_exact_archive_and_image_install (test_host_package.PackageTest.test_exact_archive_and_image_install) ... ok
+test_missing_image_digest_and_link_refused (test_host_package.PackageTest.test_missing_image_digest_and_link_refused) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.029s
+
+OK
