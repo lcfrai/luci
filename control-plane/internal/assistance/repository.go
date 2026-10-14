@@ -275,8 +275,9 @@ if provider == 'opencode' and ollama_preflight == '1':
                 return False
             if 'anyOf' in shape:
                 variants = shape['anyOf']
-                return isinstance(variants,list) and len(variants)<=8 and any(matches_schema(value,item,depth+1) for item in variants)
+                if not isinstance(variants,list) or len(variants)>8 or not any(matches_schema(value,item,depth+1) for item in variants): return False
             kind = shape.get('type')
+            if kind is None: return 'anyOf' in shape
             if kind == 'null': return value is None
             if kind == 'string': return isinstance(value,str)
             if kind == 'boolean': return type(value) is bool
@@ -288,7 +289,7 @@ if provider == 'opencode' and ollama_preflight == '1':
                 fields, required = shape.get('properties',{}), shape.get('required',[])
                 if not isinstance(fields,dict) or not isinstance(required,list) or any(not isinstance(key,str) for key in required) or any(key not in value for key in required): return False
                 if shape.get('additionalProperties') is False and any(key not in fields for key in value): return False
-                return all(key in fields and matches_schema(item,fields[key],depth+1) for key,item in value.items())
+                return all(key not in fields or matches_schema(item,fields[key],depth+1) for key,item in value.items())
             return False
         class StreamSignals:
             # Inspect structure in bounded memory. Never retain model text,

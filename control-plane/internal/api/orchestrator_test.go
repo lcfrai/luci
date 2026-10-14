@@ -73,15 +73,28 @@ func orchestratorPrompt(t *testing.T, spec backend.Spec) []byte {
 }
 
 func TestOrchestratorSchemaFencesDraftDigestAndPriority(t *testing.T) {
-	data, err := assistance.StrictSchema(product.OrchestratorAnswer{})
+	data, err := assistance.StrictQuestionSchema(product.OrchestratorAnswer{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	base, err := assistance.StrictSchema(product.OrchestratorAnswer{})
+	if err != nil || len(data) > len(base)+400 {
+		t.Fatal("conditional question contract duplicated the full response schema", err)
 	}
 	var schema map[string]any
 	if err := json.Unmarshal(data, &schema); err != nil {
 		t.Fatal(err)
 	}
 	properties := schema["properties"].(map[string]any)
+	branches := schema["anyOf"].([]any)
+	if len(branches) != 2 {
+		t.Fatal("blocking/question relation missing from model contract")
+	}
+	closed := branches[0].(map[string]any)["properties"].(map[string]any)
+	open := branches[1].(map[string]any)["properties"].(map[string]any)
+	if !reflect.DeepEqual(closed["blocking"].(map[string]any)["enum"], []any{false}) || !reflect.DeepEqual(closed["question"].(map[string]any)["enum"], []any{""}) || !reflect.DeepEqual(open["blocking"].(map[string]any)["enum"], []any{true}) || open["question"].(map[string]any)["minLength"] != float64(8) {
+		t.Fatal("model contract permits an unanswered nonblocking or empty blocking question")
+	}
 	proposal := properties["proposal"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)["properties"].(map[string]any)
 	specification := proposal["specification"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)["properties"].(map[string]any)
 	for name, expected := range map[string]string{"digest": "", "status": "draft"} {
@@ -97,6 +110,78 @@ func TestOrchestratorSchemaFencesDraftDigestAndPriority(t *testing.T) {
 	}
 	if requirement["acceptance"].(map[string]any)["minLength"] != float64(12) {
 		t.Fatal("model contract permits a priority label as acceptance")
+	}
+}
+
+func TestOrchestratorPromptHistorySeparatesOldRejectedAnswerAndValidQuestion(t *testing.T) {
+	e, p := repositoryFixture(t)
+	snapshot, err := e.api.deps.Product.OrchestratorSnapshot(context.Background(), p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := product.OrchestratorAnswer{Summary: "A draft task list was returned.", Question: "Should HTML, JavaScript or CSS come first?", Blocking: false, Rationale: "Choose an implementation order.", NextAction: "specification"}
+	spec := snapshot.Specification
+	spec.Requirements = []product.SpecificationRequirement{{ID: "req-001", Title: "Add a task", Priority: "must", Acceptance: "must"}}
+	old.Proposal = &product.OrchestratorProposal{Target: "specification", Summary: "Task list draft", Specification: &spec}
+	valid := product.OrchestratorAnswer{Summary: "Sharing needs an owner decision.", Question: "Who may view the saved tasks?", Blocking: true, Rationale: "Access changes privacy.", NextAction: "answer-question"}
+	current := product.OrchestratorTurn{ID: "turn-current", Sequence: 3}
+	history := []product.OrchestratorTurn{
+		{ID: "turn-old", Sequence: 1, Status: "succeeded", Message: "Draft a task list", Context: snapshot, Answer: &old},
+		{ID: "turn-question", Sequence: 2, Status: "succeeded", Message: "Clarify sharing", Context: snapshot, Answer: &valid},
+	}
+	previous := orchestratorPromptHistory(history, current)
+	if len(previous) != 2 || previous[0].Answer != nil || previous[0].AnswerState != "historical-answer-fails-current-contract" || previous[1].Answer == nil || previous[1].Answer.Question != valid.Question {
+		t.Fatal("historical model output was treated as an accepted decision or a genuine question was lost")
+	}
+	encoded, _ := json.Marshal(previous)
+	if bytes.Contains(encoded, []byte(old.Question)) || !bytes.Contains(encoded, []byte("Draft a task list")) || !bytes.Contains(encoded, []byte(valid.Question)) {
+		t.Fatal("model excerpt copied a rejected question or lost an authorized discussion", string(encoded))
+	}
+	validDraft := valid
+	validDraft.Question, validDraft.Blocking = "", false
+	validDraft.Proposal = &product.OrchestratorProposal{Target: "specification", Summary: "Concrete task list", Specification: &spec}
+	validDraft.Proposal.Specification.Requirements[0].Acceptance = "Adding a named task shows it in the visible list."
+	history[1].Answer = &validDraft
+	previous = orchestratorPromptHistory(history, current)
+	if previous[1].AnswerState != "proposal-unapplied" || previous[1].Answer == nil || previous[1].Answer.Proposal != nil {
+		t.Fatal("reviewable but unapplied draft appeared as accepted context")
+	}
+}
+
+func TestOrchestratorAnswerRejectsRoutineQuestionWithCompleteOrchardDraft(t *testing.T) {
+	e, p := repositoryFixture(t)
+	snapshot, err := e.api.deps.Product.OrchestratorSnapshot(context.Background(), p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := snapshot.Specification
+	spec.Requirements = []product.SpecificationRequirement{
+		{ID: "req-001", Title: "Add tasks", Priority: "must", Acceptance: "Adding a named task shows it in the list."},
+		{ID: "req-002", Title: "Complete tasks", Priority: "must", Acceptance: "Toggling completion changes the task's visible state."},
+		{ID: "req-003", Title: "Delete tasks", Priority: "must", Acceptance: "Deleting a task removes it from the visible list."},
+		{ID: "req-004", Title: "Persist tasks", Priority: "must", Acceptance: "Reloading restores the remaining saved tasks."},
+	}
+	contextBytes, _ := json.Marshal(snapshot)
+	job := assistance.Job{ProjectID: p.ID, OrchestratorContext: contextBytes}
+	answer := product.OrchestratorAnswer{
+		Summary: "Review the complete Orchard task list draft.", Question: "Which of the following steps should be prioritized first in the development of Orchard: creating the HTML structure, implementing the JavaScript functions, or styling the interface with CSS?", Blocking: false,
+		Rationale: "Choose the routine implementation order.", Options: []string{"HTML", "JavaScript", "CSS"},
+		Proposal: &product.OrchestratorProposal{Target: "specification", Summary: "Four observable task behaviors", Specification: &spec}, NextAction: "specification",
+	}
+	data, _ := json.Marshal(answer)
+	if _, err := decodeOrchestratorAnswer(job, data); !errors.Is(err, errOrchestratorAnswerContract) {
+		t.Fatal("nonblocking routine question escaped the application contract", err)
+	}
+	answer.Question = ""
+	data, _ = json.Marshal(answer)
+	if _, err := decodeOrchestratorAnswer(job, data); err != nil {
+		t.Fatal("complete observable draft without an unnecessary question was refused", err)
+	}
+	answer.Proposal = nil
+	answer.Blocking, answer.Question = true, "Who may view the saved tasks?"
+	data, _ = json.Marshal(answer)
+	if _, err := decodeOrchestratorAnswer(job, data); err != nil {
+		t.Fatal("genuine consequential clarification was refused", err)
 	}
 }
 

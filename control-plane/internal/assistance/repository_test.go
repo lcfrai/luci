@@ -62,6 +62,57 @@ func TestRepositoryProviderSelectionAndOpenCodeConfigurationAreExplicitReadOnly(
 	}
 }
 
+func TestNativeQuestionSchemaChecksRootFieldsAndBlockingBranch(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("Python is required to exercise the embedded native verifier")
+	}
+	type answer struct {
+		Summary  string `json:"summary"`
+		Blocking bool   `json:"blocking"`
+		Question string `json:"question"`
+	}
+	schema, err := StrictQuestionSchema(answer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "schema.json")
+	if err := os.WriteFile(path, schema, 0600); err != nil {
+		t.Fatal(err)
+	}
+	start := strings.Index(RepositoryLauncher, "        def matches_schema(value, shape, depth=0):")
+	end := -1
+	if start >= 0 {
+		if offset := strings.Index(RepositoryLauncher[start:], "        class StreamSignals:"); offset >= 0 {
+			end = start + offset
+		}
+	}
+	if start < 0 || end <= start {
+		t.Fatal("native schema verifier was not found in the actual launcher")
+	}
+	checks := `import json,sys,textwrap
+namespace={}
+exec(textwrap.dedent(sys.stdin.read()),namespace)
+verify=namespace['matches_schema']
+shape=json.load(open(sys.argv[1]))
+cases=[
+ ({'summary':'A complete draft.','blocking':False,'question':''},True),
+ ({'summary':'A complete draft.','blocking':False,'question':'Which should come first: HTML, JavaScript or CSS?'},False),
+ ({'summary':'Access needs a decision.','blocking':True,'question':'Who may view saved tasks?'},True),
+ ({'summary':'Access needs a decision.','blocking':True,'question':''},False),
+ ({'summary':'Access needs a decision.','blocking':True,'question':'Why?'},False),
+ ({'blocking':False,'question':''},False),
+ ({'summary':'A complete draft.','blocking':False,'question':'','extra':'unrequested'},False),
+]
+assert all(verify(value,shape)==expected for value,expected in cases)
+`
+	cmd := exec.Command(python, "-c", checks, path)
+	cmd.Stdin = strings.NewReader(RepositoryLauncher[start:end])
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatal("native verifier did not enforce the complete correlated schema", err, string(output))
+	}
+}
+
 func TestRepositoryBatchAdaptersExecuteWithoutRawOutputAndRejectOversizedProviderResponses(t *testing.T) {
 	python, err := exec.LookPath("python3")
 	if err != nil {

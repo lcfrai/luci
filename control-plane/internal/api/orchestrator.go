@@ -43,6 +43,46 @@ type orchestratorRequest struct {
 	AgentConnectionID     *string `json:"agentConnectionId"`
 }
 
+type orchestratorPreviousTurn struct {
+	ID            string                      `json:"id"`
+	Message       string                      `json:"message"`
+	ReplyToTurnID string                      `json:"replyToTurnId"`
+	Status        string                      `json:"status"`
+	AnswerState   string                      `json:"answerState"`
+	Answer        *product.OrchestratorAnswer `json:"answer"`
+}
+
+func orchestratorPromptHistory(history []product.OrchestratorTurn, current product.OrchestratorTurn) []orchestratorPreviousTurn {
+	previous := []orchestratorPreviousTurn{}
+	for _, row := range history {
+		if row.ID == current.ID || row.Sequence >= current.Sequence {
+			continue
+		}
+		var answer *product.OrchestratorAnswer
+		state := "none"
+		if row.Answer != nil {
+			if product.ValidateOrchestratorAnswer(row.Context, *row.Answer) != nil {
+				// The complete original answer stays in the private ledger/UI. It
+				// must not become an example for another model request.
+				state = "historical-answer-fails-current-contract"
+			} else {
+				copy := *row.Answer
+				copy.Proposal = nil
+				answer = &copy
+				state = "answer-no-proposal"
+				if row.Answer.Proposal != nil {
+					state = "proposal-unapplied"
+					if row.AppliedRevision > 0 {
+						state = "proposal-applied-in-current-context"
+					}
+				}
+			}
+		}
+		previous = append(previous, orchestratorPreviousTurn{row.ID, row.Message, row.ReplyToTurnID, row.Status, state, answer})
+	}
+	return previous
+}
+
 func validOrchestratorRequest(req orchestratorRequest) bool {
 	validKey := len(req.IdempotencyKey) >= 16 && len(req.IdempotencyKey) <= 128
 	for _, ch := range req.IdempotencyKey {
@@ -195,29 +235,11 @@ func (a *API) handleOrchestratorCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	// Historical documents are already represented by the current snapshot. Keep
 	// only bounded discussion and answers, with no duplicate old context payloads.
-	type previousTurn struct {
-		ID            string                      `json:"id"`
-		Message       string                      `json:"message"`
-		ReplyToTurnID string                      `json:"replyToTurnId"`
-		Status        string                      `json:"status"`
-		Answer        *product.OrchestratorAnswer `json:"answer"`
-	}
-	previous := []previousTurn{}
-	for _, row := range history {
-		if row.ID != turn.ID && row.Sequence < turn.Sequence {
-			var answer *product.OrchestratorAnswer
-			if row.Answer != nil {
-				copy := *row.Answer
-				copy.Proposal = nil
-				answer = &copy
-			}
-			previous = append(previous, previousTurn{row.ID, row.Message, row.ReplyToTurnID, row.Status, answer})
-		}
-	}
+	previous := orchestratorPromptHistory(history, turn)
 	var prompt []byte
 	omitted := 0
 	for {
-		payload, marshalErr := json.Marshal(map[string]any{"context": snapshot, "previousTurns": previous, "previousTurnsOmitted": omitted, "historyLimitation": "A bounded conversation excerpt; previous proposal documents are omitted because only the current project context is authoritative.", "userMessage": req.Message, "replyToTurnId": req.ReplyToTurnID})
+		payload, marshalErr := json.Marshal(map[string]any{"context": snapshot, "previousTurns": previous, "previousTurnsOmitted": omitted, "historyLimitation": "A bounded conversation excerpt. Earlier proposals are omitted; answerState distinguishes applied context, unapplied drafts and historical answers that fail today's response contract. Only current canonical context and recorded human decisions are authoritative. The original conversation remains in private history.", "userMessage": req.Message, "replyToTurnId": req.ReplyToTurnID})
 		if marshalErr != nil {
 			codexAccountProblem(w, marshalErr)
 			return
@@ -243,7 +265,7 @@ func (a *API) handleOrchestratorCreate(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteProblem(w, 413, "orchestrator_context_too_large", "The project context and discussion exceed one bounded assistant turn.", nil)
 		return
 	}
-	schema, err := assistance.StrictSchema(product.OrchestratorAnswer{})
+	schema, err := assistance.StrictQuestionSchema(product.OrchestratorAnswer{})
 	if err != nil {
 		codexAccountProblem(w, err)
 		return

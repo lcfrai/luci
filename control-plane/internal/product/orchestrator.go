@@ -30,7 +30,7 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 	if err != nil || len(raw) > orchestratorAnswerLimit {
 		return ErrOrchestratorInvalid
 	}
-	if strings.TrimSpace(answer.Summary) == "" || len(answer.Summary) > 8000 || len(answer.Question) > 4000 || len(answer.Rationale) > 8000 || len(answer.Options) > 6 || len(answer.Impact) > 12 || len(answer.NextAction) > 100 || (answer.Blocking && strings.TrimSpace(answer.Question) == "") || (currentQuality && !answer.Blocking && strings.TrimSpace(answer.Question) != "") {
+	if strings.TrimSpace(answer.Summary) == "" || len(answer.Summary) > 8000 || len(answer.Question) > 4000 || len(answer.Rationale) > 8000 || len(answer.Options) > 6 || len(answer.Impact) > 12 || len(answer.NextAction) > 100 || (answer.Blocking && strings.TrimSpace(answer.Question) == "") || (currentQuality && answer.Blocking && utf8.RuneCountInString(strings.TrimSpace(answer.Question)) < 8) || (currentQuality && !answer.Blocking && strings.TrimSpace(answer.Question) != "") {
 		return ErrOrchestratorInvalid
 	}
 	for _, option := range answer.Options {
