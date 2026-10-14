@@ -91,7 +91,7 @@ func ValidateSelection(harness, model, authMode string) error {
 // RepositoryLauncher runs verified non-interactive CLIs in an empty utility
 // workspace. No source mounts or shell interpolation exist. Raw provider output
 // is bounded in memory and discarded, never copied to a terminal, log or DTO.
-const RepositoryLauncher = `import base64, json, os, re, secrets, select, subprocess, sys, threading, time, urllib.parse, urllib.request
+const RepositoryLauncher = `import base64, http.server, json, os, re, secrets, select, subprocess, sys, threading, time, urllib.parse, urllib.request
 LIMIT = 262144
 with open('/luci-input/prompt.txt', 'rb') as source:
     prompt = source.read(LIMIT+1)
@@ -179,7 +179,10 @@ elif provider == 'opencode' and auth == 'configured':
             if type(declared_context) is not int or declared_context != 8192 or type(declared_output) is not int or declared_output != 2048:
                 raise ValueError('unverified OpenCode model window')
             origin = 'http://' + base.netloc
-            direct = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            class NoRedirect(urllib.request.HTTPRedirectHandler):
+                def redirect_request(self,*args,**kwargs):
+                    return None
+            direct = urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
             # Generation models need not support embeddings. A one-token raw
             # generation uses their own tokenizer; Ollama reports the evaluated
             # prompt count after its runner's truncation. A truncated prompt is
@@ -218,11 +221,91 @@ if provider == 'opencode' and ollama_preflight == '1':
     # StructuredOutput tool for format=json_schema. This server is loopback
     # inside the owned sandbox, never published or used for coding tools.
     server = None
+    probe_server = None
     code = 2
     failure_code = 'local_model_structured_output_invalid'
     try:
+        # Observe the actual selected-model HTTP request, after OpenCode has
+        # inserted and filtered its tools. Never retain a prompt, tool schema,
+        # provider response, credential or request header. One forwarded model
+        # request is allowed; an absent output tool cannot consume inference.
+        offer = {'version':1,'modelRequestObserved':False,'structuredOutputOffered':False,'otherToolCount':0,'requiredToolChoice':False,'forwarded':False,'upstreamCompleted':False}
+        def save_offer():
+            with open('/luci-output/tool-offer.json.tmp','w') as target:
+                json.dump(offer,target,separators=(',',':'))
+            os.replace('/luci-output/tool-offer.json.tmp','/luci-output/tool-offer.json')
+        save_offer()
+        class ModelRequestGate(http.server.BaseHTTPRequestHandler):
+            protocol_version = 'HTTP/1.1'
+            def log_message(self,*args):
+                pass
+            def do_POST(self):
+                self.connection.settimeout(180)
+                length = self.headers.get('Content-Length','')
+                if self.path != '/v1/chat/completions' or self.headers.get('Transfer-Encoding') or not length.isdecimal() or not 0<int(length)<=LIMIT:
+                    self.send_error(400)
+                    return
+                if offer['modelRequestObserved']:
+                    self.send_error(409)
+                    return
+                offer['modelRequestObserved'] = True
+                save_offer()
+                body = self.rfile.read(int(length))
+                try:
+                    request_body = json.loads(body)
+                    if not isinstance(request_body,dict) or request_body.get('model') != actual_model:
+                        raise ValueError('wrong selected model')
+                    tools = request_body.get('tools',[])
+                    if not isinstance(tools,list) or len(tools)>16:
+                        raise ValueError('invalid tool inventory')
+                    names = [item.get('function',{}).get('name') for item in tools if isinstance(item,dict)]
+                    if len(names)!=len(tools) or any(not isinstance(name,str) or len(name)>80 for name in names):
+                        raise ValueError('invalid tool name')
+                    offer['structuredOutputOffered'] = names.count('StructuredOutput') == 1
+                    offer['otherToolCount'] = len(names)-names.count('StructuredOutput')
+                    offer['requiredToolChoice'] = request_body.get('tool_choice') == 'required'
+                    save_offer()
+                    if not offer['structuredOutputOffered'] or offer['otherToolCount'] or not offer['requiredToolChoice']:
+                        self.send_error(422)
+                        return
+                    upstream = urllib.request.Request(origin+self.path,data=body,headers={'Content-Type':'application/json','Accept':'text/event-stream'},method='POST')
+                    with direct.open(upstream,timeout=180) as response:
+                        content_type = response.headers.get('Content-Type','').split(';',1)[0].strip().lower()
+                        if response.status!=200 or content_type not in ('text/event-stream','application/json') or response.headers.get('Content-Encoding','identity')!='identity':
+                            raise ValueError('unexpected model transport')
+                        offer['forwarded'] = True
+                        save_offer()
+                        self.send_response(200)
+                        self.send_header('Content-Type',content_type)
+                        self.send_header('Transfer-Encoding','chunked')
+                        self.send_header('Cache-Control','no-store')
+                        self.end_headers()
+                        total = 0
+                        while True:
+                            chunk = response.read(8192)
+                            if not chunk:
+                                break
+                            total += len(chunk)
+                            if total>LIMIT*4:
+                                raise ValueError('oversized model stream')
+                            self.wfile.write(('%x\r\n'%len(chunk)).encode()+chunk+b'\r\n')
+                            self.wfile.flush()
+                        self.wfile.write(b'0\r\n\r\n')
+                        self.wfile.flush()
+                        offer['upstreamCompleted'] = True
+                        save_offer()
+                except Exception:
+                    if not offer['forwarded']:
+                        self.send_error(502)
+                    self.close_connection = True
+        probe_server = http.server.ThreadingHTTPServer(('127.0.0.1',0),ModelRequestGate)
+        probe_server.daemon_threads = True
+        threading.Thread(target=probe_server.serve_forever,daemon=True).start()
+        provider_config = json.loads(env['OPENCODE_CONFIG_CONTENT'])
+        provider_config['provider'][provider_id]['options']['baseURL'] = 'http://127.0.0.1:'+str(probe_server.server_port)+'/v1'
         password = secrets.token_hex(24)
         server_env = dict(env)
+        server_env['OPENCODE_CONFIG_CONTENT'] = json.dumps(provider_config,separators=(',',':'))
         server_env['OPENCODE_SERVER_PASSWORD'] = password
         server_env['OPENCODE_SERVER_USERNAME'] = 'opencode'
         server = subprocess.Popen(['opencode','serve','--hostname','127.0.0.1','--port','0'],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,env=server_env)
@@ -273,6 +356,8 @@ if provider == 'opencode' and ollama_preflight == '1':
             raise ValueError('invalid private session identity')
         provider_id, model_id = model.split('/',1)
         response = local_post('/session/'+session_id+'/message',{'agent':'luci-analysis','model':{'providerID':provider_id,'modelID':model_id},'parts':[{'type':'text','text':opencode_input.decode('utf-8')}],'format':{'type':'json_schema','schema':schema,'retryCount':0}},180)
+        if not offer['modelRequestObserved'] or not offer['structuredOutputOffered'] or offer['otherToolCount'] or not offer['requiredToolChoice'] or not offer['upstreamCompleted']:
+            raise ValueError('structured model request was not verified')
         info = response.get('info') if isinstance(response,dict) else None
         result = info.get('structured') if isinstance(info,dict) and not info.get('error') else None
         if not isinstance(result,dict) or any(field not in result for field in schema.get('required',[])):
@@ -299,6 +384,9 @@ if provider == 'opencode' and ollama_preflight == '1':
     except Exception:
         code = 2
     finally:
+        if probe_server is not None:
+            probe_server.shutdown()
+            probe_server.server_close()
         if server is not None:
             if server.poll() is None:
                 server.kill()

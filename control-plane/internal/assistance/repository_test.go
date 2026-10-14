@@ -221,6 +221,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
    received=body['parts'][0]['text']
    if fmt.get('type')!='json_schema' or fmt.get('retryCount')!=0 or fmt.get('schema')!=expected_schema or not received.endswith(expected) or 'TAIL_CURRENT_REQUEST_WHO_APPROVES_THE_RELEASE' not in received or body.get('agent')!='luci-analysis' or body.get('model')!={'providerID':'luci-local','modelID':'fixture'}:
     self.send_error(400); return
+   base=json.loads(os.environ['OPENCODE_CONFIG_CONTENT'])['provider']['luci-local']['options']['baseURL']
+   tool=[] if os.environ.get('FIXTURE_NO_TOOL')=='1' else [{'type':'function','function':{'name':'StructuredOutput','parameters':{'type':'object'}}}]
+   if os.environ.get('FIXTURE_EXTRA_TOOL')=='1': tool.append({'type':'function','function':{'name':'shell','parameters':{'type':'object'}}})
+   request=urllib.request.Request(base+'/chat/completions',data=json.dumps({'model':'fixture','messages':[{'role':'user','content':'PRIVATE_PROMPT_SENT_TO_MODEL'}],'tools':tool,'tool_choice':'required'}).encode(),headers={'Content-Type':'application/json'},method='POST')
+   try:
+    with urllib.request.urlopen(request,timeout=5) as upstream: upstream.read()
+   except Exception:
+    pass
    if os.environ.get('FIXTURE_CHANGE'):
     urllib.request.urlopen(os.environ['FIXTURE_CHANGE'],timeout=2).close()
    if os.environ.get('FIXTURE_INCOMPLETE')=='1':
@@ -241,7 +249,7 @@ server.serve_forever()
 	if err := os.WriteFile(fake, []byte(code), 0600); err != nil {
 		t.Fatal(err)
 	}
-	var servingContext, evaluatedTokens atomic.Int64
+	var servingContext, evaluatedTokens, forwardedRequests atomic.Int64
 	servingContext.Store(8192)
 	evaluatedTokens.Store(1800)
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -263,6 +271,10 @@ server.serve_forever()
 			json.NewEncoder(w).Encode(map[string]any{"model": "fixture", "prompt_eval_count": evaluatedTokens.Load(), "eval_count": 1, "done": true})
 		case "/api/ps":
 			json.NewEncoder(w).Encode(map[string]any{"models": []map[string]any{{"name": "fixture", "context_length": servingContext.Load(), "digest": "sha256:fixture-exact-model"}}})
+		case "/v1/chat/completions":
+			forwardedRequests.Add(1)
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Write([]byte("data: {\"choices\":[]}\n\n"))
 		case "/test/change":
 			servingContext.Store(4096)
 			w.WriteHeader(204)
@@ -308,6 +320,14 @@ server.serve_forever()
 		if json.Unmarshal(data, &exit) != nil {
 			t.Fatal("invalid exit receipt")
 		}
+		offerBytes, err := os.ReadFile(filepath.Join(output, "tool-offer.json"))
+		var offer struct {
+			ModelRequestObserved, StructuredOutputOffered, RequiredToolChoice, Forwarded, UpstreamCompleted bool
+			OtherToolCount                                                                                  int
+		}
+		if err != nil || json.Unmarshal(offerBytes, &offer) != nil || !offer.ModelRequestObserved || !offer.StructuredOutputOffered || !offer.RequiredToolChoice || !offer.Forwarded || !offer.UpstreamCompleted || offer.OtherToolCount != 0 || strings.Contains(string(offerBytes), "PRIVATE_PROMPT_SENT_TO_MODEL") {
+			t.Fatal("actual model-request tool offer was not captured without private request data", err)
+		}
 		if incomplete != "0" {
 			if runErr == nil || exit.ExitCode == 0 {
 				t.Fatal("the observed incomplete, deferred-proposal shape was accepted")
@@ -323,6 +343,30 @@ server.serve_forever()
 			if err != nil || !strings.Contains(string(result), `"question":"Who approves?"`) {
 				t.Fatal("valid structured answer missing", err)
 			}
+		}
+	}
+	for _, refusedTool := range []string{"FIXTURE_NO_TOOL=1", "FIXTURE_EXTRA_TOOL=1"} {
+		os.Remove(filepath.Join(output, "result.json"))
+		before := forwardedRequests.Load()
+		cmd := exec.Command(python, entry)
+		cmd.Env = append(os.Environ(), "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), refusedTool, "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig))
+		if logs, err := cmd.CombinedOutput(); err == nil || len(logs) != 0 {
+			t.Fatal("invalid structured tool offer was accepted", refusedTool, err)
+		}
+		offerBytes, err := os.ReadFile(filepath.Join(output, "tool-offer.json"))
+		var observed struct {
+			ModelRequestObserved, StructuredOutputOffered, Forwarded bool
+			OtherToolCount                                           int
+		}
+		if err != nil || json.Unmarshal(offerBytes, &observed) != nil || !observed.ModelRequestObserved || observed.Forwarded ||
+			refusedTool == "FIXTURE_NO_TOOL=1" && observed.StructuredOutputOffered || refusedTool == "FIXTURE_EXTRA_TOOL=1" && (!observed.StructuredOutputOffered || observed.OtherToolCount != 1) || strings.Contains(string(offerBytes), "PRIVATE_PROMPT_SENT_TO_MODEL") {
+			t.Fatal("invalid model tool offer was not retained as bounded metadata", refusedTool, err)
+		}
+		if forwardedRequests.Load() != before {
+			t.Fatal("invalid tool inventory reached the model")
+		}
+		if _, err := os.Stat(filepath.Join(output, "result.json")); !os.IsNotExist(err) {
+			t.Fatal("unverified model request published a result")
 		}
 	}
 	os.Remove(filepath.Join(output, "result.json"))
