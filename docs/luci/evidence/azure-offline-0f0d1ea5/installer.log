@@ -1,0 +1,13 @@
+test_account_command_sets_exact_selection_and_refuses_after_preparation (test_installer.AzureSetupTest.test_account_command_sets_exact_selection_and_refuses_after_preparation) ... ok
+test_apply_uncertainty_is_journaled_and_never_replayed (test_installer.AzureSetupTest.test_apply_uncertainty_is_journaled_and_never_replayed) ... ok
+test_image_input_command_binds_paths_without_provider_effect (test_installer.AzureSetupTest.test_image_input_command_binds_paths_without_provider_effect) ... ok
+test_image_preparation_requires_selected_roots_and_retains_uncertain_build (test_installer.AzureSetupTest.test_image_preparation_requires_selected_roots_and_retains_uncertain_build) ... ok
+test_lost_apply_reconciles_only_exact_readback_without_retry (test_installer.AzureSetupTest.test_lost_apply_reconciles_only_exact_readback_without_retry) ... ok
+test_offline_plan_checks_bundle_and_existing_remote_state (test_installer.AzureSetupTest.test_offline_plan_checks_bundle_and_existing_remote_state) ... ok
+test_small_input_initializer_generates_private_ids_without_provider_effect (test_installer.AzureSetupTest.test_small_input_initializer_generates_private_ids_without_provider_effect) ... ok
+test_unknown_private_controller_bootstrap_cannot_dispatch_again (test_installer.AzureSetupTest.test_unknown_private_controller_bootstrap_cannot_dispatch_again) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.199s
+
+OK
