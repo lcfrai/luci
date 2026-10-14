@@ -168,6 +168,7 @@ func (f *installerFixture) PreparePackagedRuntimeImage(ctx context.Context, s ba
 	p.Bundle = &runtimeoci.Bundle{}
 	p.Bundle.Manifest.Image.ID = "sha256:" + strings.Repeat("d", 64)
 	p.Bundle.Manifest.CanonicalInputDigest = p.Spec.Identity.SourceDigest
+	p.ContextDigest = p.Spec.Identity.SourceDigest
 	return p, nil
 }
 func (f *installerFixture) LoadPackagedRuntimeImage(ctx context.Context, p backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {

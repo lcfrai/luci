@@ -160,7 +160,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		defer prepared.Bundle.Close()
 	}
 	id := prepared.Spec.Identity
-	if id.Protocol != spec.Identity.Protocol || id.JobID != req.JobID || id.AllocationID != allocation || id.ScopeDigest != a.execution.scope || !checkHex(id.SourceDigest, 32) || id.EngineID == "" || backend.ValidateInstance(id.InstanceID) != nil || prepared.Spec.ImageTag != canonicalTag || prepared.Spec.Resources != resources || prepared.Spec.SourceDirectory != req.SourceDirectory || prepared.RequiredDiskBytes < backend.RuntimeImageRequiredDiskBytes || prepared.AdmissionMemoryMiB != 0 && (prepared.AdmissionMemoryMiB < resources.MemoryMiB || prepared.AdmissionMemoryMiB > 65536) {
+	if id.Protocol != spec.Identity.Protocol || id.JobID != req.JobID || id.AllocationID != allocation || id.ScopeDigest != a.execution.scope || !checkHex(id.SourceDigest, 32) || id.EngineID == "" || backend.ValidateInstance(id.InstanceID) != nil || prepared.Spec.ImageTag != canonicalTag || prepared.Spec.Resources != resources || prepared.Spec.SourceDirectory != req.SourceDirectory || prepared.RequiredDiskBytes < backend.RuntimeImageRequiredDiskBytes || prepared.AdmissionMemoryMiB != 0 && (prepared.AdmissionMemoryMiB < resources.MemoryMiB || prepared.AdmissionMemoryMiB > 65536) || (req.Mode == "packaged") != (prepared.Bundle != nil) || req.Mode == "packaged" && (prepared.ContextDigest != id.SourceDigest || prepared.Bundle.Manifest.CanonicalInputDigest != id.SourceDigest) {
 		return fail("runtime_install_identity_changed", "The prepared runtime identity changed; nothing was started.", backend.ErrLaunchFenceOwnership)
 	}
 	admit := func(afterPull bool) (executionDecision, runtimeImageExecutionLease, error) {
