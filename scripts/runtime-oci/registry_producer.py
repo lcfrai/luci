@@ -153,6 +153,35 @@ def validate_helper(row, owner, image_id, tools=None, data=None):
     return row
 
 
+def validate_published_ports(row, owner):
+    """HostConfig is intent; only NetworkSettings proves enforced publication."""
+    ports = row.get('NetworkSettings', {}).get('Ports')
+    expected = [{'HostIp': '127.0.0.1', 'HostPort': str(owner['port'])}]
+    if not isinstance(ports, dict) or ports.get('5000/tcp') != expected or any(value for key, value in ports.items() if key != '5000/tcp'):
+        raise ValueError('actual helper publication is missing, public or has extra bindings')
+    return ports
+
+
+def validate_network(row, owner, *, internal=False):
+    if row.get('Name') != owner['networkName'] or row.get('Driver') != 'bridge' or row.get('Internal') is not internal or row.get('Labels', {}).get(producer.SESSION_LABEL) != owner['session'] or row.get('Containers'):
+        raise ValueError('owned empty registry bridge identity changed')
+
+
+def validate_daemon_witness(value, owner, engine, logs):
+    if (not isinstance(value, dict) or value.get('version') != 1 or value.get('engineID') != engine or
+            value.get('session') != owner['session'] or value.get('reference') != owner['tag'] or
+            value.get('operation') != 'Engine.DistributionInspect' or value.get('outcome') != 'not_found' or
+            value.get('registryAuthProvided') is not False or value.get('tagOrPushPerformed') is not False):
+        raise ValueError('daemon-originated distribution inspection proof differs')
+    path = ('/v2/' + owner['repository'] + '/manifests/payload').encode('ascii')
+    matched = [line for line in logs.splitlines() if path in line and
+               (b'http.response.status=404' in line or b'"http.response.status":404' in line)]
+    if not matched:
+        raise ValueError('fresh exact manifest not-found request witness unavailable')
+    return {'matchingRequestCount': len(matched), 'requestPath': path.decode('ascii'),
+            'rawLogsSHA256': hashlib.sha256(logs).hexdigest()}
+
+
 def validate_status(value, owner, *, completed=False):
     if not isinstance(value, dict):
         raise ValueError('registry status must be an owned object')
@@ -195,7 +224,7 @@ def read_loopback(owner, path, limit=1 << 20):
 class Helper:
     """Exact helper generation. Failed retirement retains identities and data."""
 
-    def __init__(self, repo, image_id, session, output, distribution):
+    def __init__(self, repo, image_id, session, output, distribution, daemon_probe=None):
         self.repo, self.output = Path(repo), Path(output)
         self.image_id, self.session = image_id, session
         self.engine = producer.command(['docker', 'info', '--format', '{{.ID}}']).strip().decode('ascii')
@@ -211,6 +240,7 @@ class Helper:
         self.owner = identity(session, port)
         self.container_id, self.network_id = None, None
         self.tools, self.data = self.output / 'registry-tools', self.output / 'registry-data'
+        self.daemon_probe = Path(daemon_probe) if daemon_probe else None
 
     def fence(self):
         if producer.command(['docker', 'info', '--format', '{{.ID}}']).strip().decode('ascii') != self.engine:
@@ -225,6 +255,19 @@ class Helper:
         return result
 
     def start(self, *, placement_only=False):
+        if self.daemon_probe is None:
+            raise ValueError('source-bound daemon probe binary required before helper effects')
+        probe_record = archive.file_record(self.daemon_probe)
+        probe_identity = archive.json_bytes(producer.command([str(self.daemon_probe), '--identity']))
+        revision = producer.command(['git', '-C', str(self.repo), 'rev-parse', 'HEAD']).strip().decode('ascii')
+        if probe_record['bytes'] > 64 << 20 or probe_identity != {'version': 1, 'sourceCommit': revision}:
+            raise ValueError('daemon probe compiled source identity differs')
+        context = producer.command(['docker', 'context', 'show']).strip().decode('utf-8')
+        endpoint = archive.json_bytes(producer.command(['docker', 'context', 'inspect', context]))[0]['Endpoints']['docker']['Host']
+        if endpoint not in ('npipe:////./pipe/dockerDesktopLinuxEngine', 'npipe:////./pipe/docker_engine', 'unix:///var/run/docker.sock'):
+            raise ValueError('daemon probe requires a supported selected local endpoint')
+        write_json(self.output / 'daemon-probe-binary.json', {'sourceCommit': revision, 'binary': probe_record,
+                   'selectedContext': context, 'endpoint': endpoint})
         estimate = self.estimate
         if placement_only:
             estimate = {'helperMemoryBytes': HELPER_MEMORY, 'daemonEstimatedMemoryBytes': 0, 'daemonHardMemoryCap': False,
@@ -241,16 +284,19 @@ class Helper:
         if os.name != 'nt':
             (self.tools / 'registry').chmod(0o555)
         write_json(self.output / 'registry-helper-intent.json', {'owner': self.owner, 'engineID': self.engine, 'imageID': self.image_id,
-                   'distribution': self.distribution, 'gateSHA256': hashlib.sha256(gate).hexdigest(), 'history': self.history, 'resourceEstimate': self.estimate})
-        self.network_id = self.operation(['docker', 'network', 'create', '--internal', '--driver', 'bridge', '--label', producer.SESSION_LABEL + '=' + self.session, self.owner['networkName']]).strip().decode('ascii')
+                   'distribution': self.distribution, 'gateSHA256': hashlib.sha256(gate).hexdigest(), 'history': self.history, 'resourceEstimate': self.estimate, 'networkInternal': False})
+        self.network_id = self.operation(['docker', 'network', 'create', '--driver', 'bridge', '--label', producer.SESSION_LABEL + '=' + self.session, self.owner['networkName']]).strip().decode('ascii')
         network = json.loads(producer.command(['docker', 'network', 'inspect', self.network_id]))[0]
-        if network.get('Internal') is not True or network.get('Labels', {}).get(producer.SESSION_LABEL) != self.session or network.get('Containers'):
-            raise ValueError('owned registry network isolation differs')
+        validate_network(network, self.owner)
         self.container_id = self.operation(helper_args(self.image_id, self.owner, self.tools, self.data)).strip().decode('ascii')
         inspected = json.loads(producer.command(['docker', 'inspect', self.container_id]))[0]
         validate_helper(inspected, self.owner, self.image_id, self.tools, self.data)
         write_json(self.output / 'registry-helper-created.json', {'engineID': self.engine, 'containerID': self.container_id, 'networkID': self.network_id, 'limitsVerified': True})
         self.operation(['docker', 'start', self.container_id])
+        published = json.loads(producer.command(['docker', 'inspect', self.container_id]))[0]
+        validate_helper(published, self.owner, self.image_id, self.tools, self.data)
+        actual_ports = validate_published_ports(published, self.owner)
+        write_json(self.output / 'registry-actual-port-bindings.json', actual_ports)
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             if producer.available_memory() < producer.RESERVE + producer.MARGIN:
@@ -269,10 +315,22 @@ class Helper:
         (self.output / 'distribution-version.out.log').write_bytes(version)
         write_json(self.output / 'distribution-version-result.json', {'argv': ['/tools/registry', '--version'], 'exitCode': 0,
                    'stdoutSHA256': hashlib.sha256(version).hexdigest(), 'binarySHA256': next(item['sha256'] for item in self.distribution['files'] if item['file'] == 'registry')})
-        # This is the exact engine distribution, not a second host browser view.
-        raw = self.operation(['wsl.exe', '-d', 'docker-desktop', '--', 'wget', '-q', '-T', '5', '-O', '-', 'http://127.0.0.1:' + str(self.owner['port']) + '/luci/status'])
-        validate_status(archive.json_bytes(raw), self.owner)
-        self.operation(['wsl.exe', '-d', 'docker-desktop', '--', 'wget', '-q', '-T', '5', '-O', '-', 'http://127.0.0.1:' + str(self.owner['port']) + '/v2/'])
+        # Only this Engine API phase requests the fresh missing manifest. Host
+        # checks above read status/ping only, and no tag/push has happened.
+        self.capture_logs('before-daemon-probe')
+        before_logs = b''.join((self.output / ('before-daemon-probe.' + key + '.log')).read_bytes() for key in ('out', 'err'))
+        manifest_path = ('/v2/' + self.owner['repository'] + '/manifests/payload').encode('ascii')
+        if manifest_path in before_logs:
+            raise ValueError('fresh daemon manifest route was already requested')
+        raw = self.operation([str(self.daemon_probe), '--endpoint', endpoint, '--engine', self.engine,
+                              '--session', self.session, '--port', str(self.owner['port'])])
+        daemon = archive.json_bytes(raw)
+        self.capture_logs('daemon-probe')
+        logs = b''.join((self.output / ('daemon-probe.' + key + '.log')).read_bytes() for key in ('out', 'err'))
+        witness = validate_daemon_witness(daemon, self.owner, self.engine, logs)
+        if daemon.get('sourceCommit') != revision:
+            raise ValueError('daemon probe source identity changed')
+        write_json(self.output / 'daemon-distribution-probe.json', {'result': daemon, 'witness': witness})
         write_json(self.output / 'registry-placement.json', {'engineID': self.engine, 'containerID': self.container_id, 'owner': self.owner,
                    'hostLoopback': True, 'daemonLoopback': True, 'status': status, 'pushStarted': False})
         return status
@@ -291,8 +349,8 @@ class Helper:
         self.operation(['docker', 'rm', self.container_id])
         producer.assert_settled(self.session)
         network = json.loads(producer.command(['docker', 'network', 'inspect', self.network_id]))[0]
-        if network.get('Internal') is not True or network.get('Labels', {}).get(producer.SESSION_LABEL) != self.session or network.get('Containers'):
-            raise ValueError('registry network ownership changed; preserve it')
+        internal = read_json(self.output / 'registry-helper-intent.json').get('networkInternal', True)
+        validate_network(network, self.owner, internal=internal)
         self.operation(['docker', 'network', 'rm', self.network_id])
         receipt = {'version': 1, 'engineID': self.engine, 'containerID': self.container_id, 'networkID': self.network_id,
                    'containerExitCode': row['State']['ExitCode'], 'gateTerminal': terminal, 'exactOwnedContainerAbsent': True,
@@ -308,7 +366,7 @@ class Helper:
         (self.output / (prefix + '.err.log')).write_bytes(result.stderr)
 
 
-def placement(repo, revision, build_repo, original, distribution, output):
+def placement(repo, revision, build_repo, original, distribution, output, daemon_probe=None):
     """Minimal real helper/readiness/retirement; deliberately no tag or push."""
     from finalize import completed_proof
     repo, build_repo, original, output = map(lambda value: Path(value).absolute(), (repo, build_repo, original, output))
@@ -324,7 +382,7 @@ def placement(repo, revision, build_repo, original, distribution, output):
         raise ValueError('placement source/image/engine proof changed')
     session = uuid.uuid4().hex
     output.mkdir(mode=0o700)
-    helper = Helper(repo, image_id, session, output, distribution)
+    helper = Helper(repo, image_id, session, output, distribution, daemon_probe)
     write_json(output / 'producer-engine.json', {'engineID': engine, 'session': session})
     write_json(output / 'registry-placement-intent.json', {'sourceCommit': revision, 'originalBuildSourceCommit': pending['sourceCommit'],
                'originalSession': pending['session'], 'imageID': image_id, 'session': session, 'pushStarted': False, 'imageRebuilt': False})
@@ -401,8 +459,9 @@ def retire_failed_start(repo, revision, output):
     helper.operation(['docker', 'rm', helper.container_id])
     producer.assert_settled(helper.session)
     network = json.loads(producer.command(['docker', 'network', 'inspect', helper.network_id]))[0]
-    if network.get('Id') != helper.network_id or network.get('Internal') is not True or network.get('Labels', {}).get(producer.SESSION_LABEL) != helper.session or network.get('Containers'):
-        raise ValueError('failed-start network ownership changed; preserve it')
+    if network.get('Id') != helper.network_id:
+        raise ValueError('failed-start network ID changed; preserve it')
+    validate_network(network, helper.owner, internal=intent.get('networkInternal', True))
     helper.operation(['docker', 'network', 'rm', helper.network_id])
     write_json(output / 'failed-start-retirement.json', {'version': 1, 'state': 'failed_before_ready_retired', 'sourceCommit': revision,
                'engineID': helper.engine, 'containerID': helper.container_id, 'networkID': helper.network_id,
@@ -416,16 +475,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['placement', 'retire-failed-start'])
     parser.add_argument('--revision', required=True)
-    for key in ('build-repo', 'original', 'distribution-dir'):
+    for key in ('build-repo', 'original', 'distribution-dir', 'daemon-probe'):
         parser.add_argument('--' + key, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
     try:
         repo = Path(__file__).resolve().parents[2]
         if args.action == 'placement':
-            if any(value is None for value in (args.build_repo, args.original, args.distribution_dir)):
-                parser.error('placement requires --build-repo, --original and --distribution-dir')
-            result = placement(repo, args.revision, args.build_repo, args.original, args.distribution_dir, args.output)
+            if any(value is None for value in (args.build_repo, args.original, args.distribution_dir, args.daemon_probe)):
+                parser.error('placement requires --build-repo, --original, --distribution-dir and --daemon-probe')
+            result = placement(repo, args.revision, args.build_repo, args.original, args.distribution_dir, args.output, args.daemon_probe)
         else:
             result = retire_failed_start(repo, args.revision, args.output)
     except (ValueError, OSError, producer.subprocess.SubprocessError, http.client.HTTPException) as error:

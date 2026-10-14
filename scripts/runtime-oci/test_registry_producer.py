@@ -49,7 +49,7 @@ class RegistryProducerTests(unittest.TestCase):
             with self.assertRaises((ValueError, FileNotFoundError)):
                 registry.verify_distribution(Path(temporary))
 
-    def test_helper_argv_has_no_socket_privilege_public_publish_or_extra_egress(self):
+    def test_helper_argv_has_no_socket_privilege_or_public_publish(self):
         owner = registry.identity('a' * 32, 19379)
         with tempfile.TemporaryDirectory() as temporary:
             tools, data = Path(temporary) / 'tools', Path(temporary) / 'data'
@@ -61,6 +61,37 @@ class RegistryProducerTests(unittest.TestCase):
         self.assertEqual(args[args.index('--memory') + 1], '536870912')
         self.assertEqual(args[args.index('--memory-swap') + 1], '536870912')
         self.assertEqual(args[-2:], ['--max-old-space-size=128', '/tools/registry_gate.mjs'])
+
+    def test_actual_publication_and_owned_ordinary_bridge_required(self):
+        owner = registry.identity('a' * 32, 19379)
+        ports = {'5000/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '19379'}], '8080/tcp': None}
+        self.assertEqual(registry.validate_published_ports({'NetworkSettings': {'Ports': ports}}, owner), ports)
+        for bad in ({}, None, {'5000/tcp': None},
+                    {'5000/tcp': [{'HostIp': '0.0.0.0', 'HostPort': '19379'}]},
+                    {'5000/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '19378'}]},
+                    dict(ports, **{'8080/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '19380'}]})):
+            with self.assertRaisesRegex(ValueError, 'actual helper publication'):
+                registry.validate_published_ports({'NetworkSettings': {'Ports': bad}}, owner)
+        net = {'Name': owner['networkName'], 'Driver': 'bridge', 'Internal': False,
+               'Labels': {producer.SESSION_LABEL: owner['session']}, 'Containers': {}}
+        registry.validate_network(net, owner)
+        for key, value in (('Internal', True), ('Name', 'bridge'), ('Driver', 'host'), ('Containers', {'foreign': {}})):
+            with self.assertRaises(ValueError):
+                registry.validate_network(dict(net, **{key: value}), owner)
+
+    def test_daemon_probe_requires_independent_exact_manifest_404_witness(self):
+        owner = registry.identity('a' * 32, 19379)
+        result = {'version': 1, 'engineID': 'engine', 'session': owner['session'], 'reference': owner['tag'],
+                  'operation': 'Engine.DistributionInspect', 'outcome': 'not_found',
+                  'registryAuthProvided': False, 'tagOrPushPerformed': False}
+        log = ('time="2026-10-14T07:00:00Z" http.request.uri=/v2/' + owner['repository'] + '/manifests/payload http.response.status=404').encode()
+        self.assertEqual(registry.validate_daemon_witness(result, owner, 'engine', log)['matchingRequestCount'], 1)
+        for bad in (b'', log.replace(b'payload', b'foreign'), log.replace(b'status=404', b'status=500'), b'GET /v2/ 200'):
+            with self.assertRaisesRegex(ValueError, 'witness unavailable'):
+                registry.validate_daemon_witness(result, owner, 'engine', bad)
+        for key, value in (('engineID', 'foreign'), ('operation', 'Windows.HTTPGet'), ('outcome', 'success'), ('registryAuthProvided', True), ('tagOrPushPerformed', True)):
+            with self.assertRaises(ValueError):
+                registry.validate_daemon_witness(dict(result, **{key: value}), owner, 'engine', log)
 
     def test_terminal_signal_or_absence_alone_never_settles(self):
         owner = registry.identity('a' * 32, 19379)
