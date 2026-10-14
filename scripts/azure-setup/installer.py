@@ -29,7 +29,7 @@ GIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 REGION = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
-SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/README.md", "azure-embed-host/package.py",
+SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/README.md", "azure-embed-host/package.py",
                 "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-controller-disk/package.py",
                 "azure-controller-disk/mount.py", "azure-controller-disk/recover.py"}
 EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
@@ -738,10 +738,19 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "generate-secrets",
                    "publish-secrets", "reconcile-secrets", "bind-secrets", "prepare-images", "prepare", "apply",
-                   "reconcile", "bootstrap", "status"):
+                   "reconcile", "bootstrap", "status", "configure-guided", "gallery-plan", "gallery-publish", "gallery-reconcile"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
+        if action.startswith("gallery-"):
+            row.add_argument("--role", choices=("runtime", "controller"), required=True)
+            if action == "gallery-plan":
+                row.add_argument("--image-definition-id", required=True)
+                row.add_argument("--version", required=True)
+                row.add_argument("--managed-image-id", required=True)
+            else:
+                row.add_argument("--plan-digest", required=True)
+                row.add_argument("--acknowledge-costs", action="store_true")
         if action == "init-selection":
             row.add_argument("--name", required=True)
             row.add_argument("--region", required=True)
@@ -771,6 +780,24 @@ def main():
             row.add_argument("--acknowledge-costs", action="store_true")
             row.add_argument("--acknowledge-unverified-price", action="store_true")
     args = parser.parse_args()
+    if args.action in ("configure-guided", "status", "gallery-plan", "gallery-publish", "gallery-reconcile"):
+        manifest = bundle(args.bundle)
+        spec = importlib.util.spec_from_file_location("luci_azure_guided", args.bundle / "azure-setup/guided.py")
+        guided = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(guided)
+        core = sys.modules[__name__]
+        if args.action == "configure-guided":
+            result = guided.wizard(core, args.bundle, args.selection)
+        elif args.action == "status":
+            result = guided.progress(core, args.bundle, args.selection)
+        elif args.action == "gallery-plan":
+            result = guided.gallery_plan(core, args.bundle, args.selection, args.role,
+                                         args.image_definition_id, args.version, args.managed_image_id)
+        else:
+            result = guided.gallery_publish(core, args.bundle, args.selection, args.role,
+                args.plan_digest, args.acknowledge_costs, args.action == "gallery-reconcile")
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.action == "init-selection":
         print(json.dumps(initial_selection(args.bundle, args.selection, args.name, args.region,
                                            args.monthly_budget_usd, args.max_concurrent_vms,
@@ -802,10 +829,6 @@ def main():
         print(json.dumps(credential_step(args.bundle, args.selection, args.action,
                                          acknowledge=getattr(args, "acknowledge_credential_publication", False)), sort_keys=True))
         return
-    if args.action == "status":
-        path = args.selection.parent / "azure-setup-state.json"
-        print(json.dumps(private_json(path) if path.exists() else {"state": "not_started"}, sort_keys=True))
-        return
     if args.action == "prepare":
         print(json.dumps(prepare(args.bundle, args.selection, args.plan_digest), sort_keys=True))
     elif args.action == "prepare-images":
@@ -823,6 +846,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (ValueError, RuntimeError, OSError, subprocess.CalledProcessError) as error:
+    except (ValueError, RuntimeError, OSError, subprocess.SubprocessError) as error:
         print(str(error), file=sys.stderr)
         sys.exit(1)
