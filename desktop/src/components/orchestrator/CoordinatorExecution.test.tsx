@@ -66,10 +66,18 @@ it('activates the existing cloud task continuation from the primary surface with
   expect(records()).toHaveLength(0);
 });
 it('names missing cloud setup and keeps activation disabled without touching a saved message or making a request', async () => {
-  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: { ...configuredCloud(), provider: '', setupNeeds: ['A protected microVM service is not configured.'] } });
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: { ...configuredCloud(), provider: '', setupNeeds: ['Cloud task execution is not connected. Open Bring your own cloud in Setup to prepare an Azure workspace.'] } });
   render(<CoordinatorExecution {...props()} />);
-  expect(await screen.findByText('A protected microVM service is not configured.')).toBeTruthy();
+  expect(await screen.findByText(/Bring your own cloud in Setup/)).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Review cloud swarm activation' })).toHaveProperty('disabled', true);
+  expect(api.create).not.toHaveBeenCalled();
+});
+it('allows the configured Azure provider into review while retaining exact effect-time admission', async () => {
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: { ...configuredCloud(), provider: 'azure-e2b-embed', region: 'configured-region' } });
+  render(<CoordinatorExecution {...props()} />);
+  const action = await screen.findByRole('button', { name: 'Review cloud swarm activation' });
+  await waitFor(() => expect(action).toHaveProperty('disabled', false));
+  expect(screen.getByText(/Azure microVM · configured-region/)).toBeTruthy();
   expect(api.create).not.toHaveBeenCalled();
 });
 it('keeps exact recovery controls reachable when a retained VM charge blocks fresh activation', async () => {

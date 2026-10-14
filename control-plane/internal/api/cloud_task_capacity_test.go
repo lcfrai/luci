@@ -10,7 +10,7 @@ import (
 
 func TestCloudCapacityAdviceNamesUnconfiguredServiceWithoutClaimingProviderSlots(t *testing.T) {
 	view, err := (&API{}).cloudTaskCapacity(orchestratorExecutionActor(t), "p-one", "u-reviewed-task-fixture")
-	if err != nil || view.Provider != "" || view.ConfiguredAvailableSlots != 0 || len(view.SetupNeeds) != 1 || !strings.Contains(view.SetupNeeds[0], "not configured") {
+	if err != nil || view.Provider != "" || view.ConfiguredAvailableSlots != 0 || len(view.SetupNeeds) != 1 || !strings.Contains(view.SetupNeeds[0], "Bring your own cloud") || !strings.Contains(view.SetupNeeds[0], "Azure") || strings.Contains(view.SetupNeeds[0], "E2B Embed host") {
 		t.Fatal("unconfigured service was presented as usable cloud capacity", view, err)
 	}
 }

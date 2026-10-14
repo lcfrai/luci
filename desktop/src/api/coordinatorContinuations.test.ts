@@ -18,6 +18,19 @@ it('accepts explicit missing cloud setup without inventing a configured provider
   expect(state.cloudCapacity?.provider).toBe('');
   expect(state.cloudCapacity?.setupNeeds).toEqual(['Managed microVM service is not configured.']);
 });
+it('accepts configured Azure capacity but rejects an unknown provider', async () => {
+  const capacity = {
+    provider: 'azure-e2b-embed', region: 'configured-region', configuredGlobalSlots: 4, configuredProjectSlots: 2,
+    configuredAvailableSlots: 1, estimatedTaskCostMicros: 100, estimatedMonthMicros: 0,
+    monthlyBudgetMicros: 1000, maxTaskSeconds: 60, observedAt: '2026-10-13T12:00:00Z',
+    limitation: 'Configured limits only; actual admission is checked later.',
+    retainedProjectVMs: 0, moreRetainedAttempts: 0, retainedAttempts: []
+  };
+  vi.spyOn(productApi, 'request').mockResolvedValueOnce({ continuations: [], savedRoute: null, cloudCapacity: capacity });
+  expect((await api.listState('p-1', 'alice')).cloudCapacity?.provider).toBe('azure-e2b-embed');
+  vi.mocked(productApi.request).mockResolvedValueOnce({ continuations: [], savedRoute: null, cloudCapacity: { ...capacity, provider: 'unknown-cloud' } });
+  await expect(api.listState('p-1', 'alice')).rejects.toThrow(/capacity observation/);
+});
 it('refuses an empty or oversized missing-prerequisite claim', async () => {
   for (const setupNeeds of [[], ['x'.repeat(501)]]) {
     vi.spyOn(productApi, 'request').mockResolvedValueOnce({ continuations: [], savedRoute: null, cloudCapacity: { provider: '', setupNeeds } });

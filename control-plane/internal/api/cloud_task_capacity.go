@@ -33,7 +33,7 @@ func (a *API) cloudTaskCapacity(ctx context.Context, projectID, actorID string) 
 	}
 	cloud := a.deps.CloudTasks
 	if cloud == nil {
-		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"The managed microVM service is not configured for this workspace. An operator must connect a protected E2B Embed host before cloud tasks can start."}}, nil
+		return product.CoordinatorCloudCapacity{SetupNeeds: []string{"Cloud task execution is not connected for this workspace. A workspace administrator can open Bring your own cloud in Setup to prepare and verify a protected Azure workspace. Luci Cloud is not available yet."}}, nil
 	}
 	// A person who may control the exact owned task must still see its retained
 	// identity and cost after Execute, model access or provisioning is revoked.
