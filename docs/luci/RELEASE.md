@@ -239,18 +239,37 @@ private key into Luci. The optional builder interface is:
 
 ```powershell
 ./scripts/build-release.ps1 -Version 0.5.0 -Native `
+  -RequireSigned -RuntimePayloadDir 'E:\verified-runtime-payload' `
+  -E2BSource 'E:\pinned-e2b-source' `
   -CertificateThumbprint '<public certificate thumbprint>' `
+  -SignToolPath 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe' `
   -TimestampUrl 'https://timestamp.digicert.com'
 ```
 
-Tauri receives the certificate thumbprint, SHA-256 digest and HTTPS RFC3161
-timestamp configuration. The build verifies trusted Authenticode signatures,
-the expected certificate and timestamps on the native application and installer
-before recording `nativeSigning.verified: true` and hashing final bytes. A
-missing/expired/wrong-purpose certificate or failed signature stops the build.
-Without a supplied certificate it explicitly records an unsigned candidate.
-This path is schema-reviewed implementation; Windows SDK/certificate-backed
-execution and SmartScreen/clean-host acceptance remain unverified here.
+`-RequireSigned` refuses a missing explicit signer before build work; it never
+falls back to unsigned output. Signer validity, code-signing purpose, private-key
+availability, SignTool presence and an HTTPS timestamp URL are checked before
+building. The builder signs the Windows service **before** calculating its
+package identity or making its archive, then copies those signed bytes as the
+native sidecar. Tauri receives SHA-256 and RFC3161 timestamp configuration for
+the native shell and NSIS installer through the same bounded signing helper.
+`-SignToolPath` supports an SDK tool outside PATH; Tauri receives its object-form
+command so paths containing spaces are preserved. The portable core, NSIS source
+sidecar, runtime sidecar copy, native application and installer must pass SignTool's Authenticode policy,
+expected-signer and timestamp checks. `nativeSigning.files` records final hashes,
+public signer identity and timestamp signer; final download checksums cover the
+signed installer/archive bytes. Re-signing the API core during bundling is
+refused; both sidecar copies must remain byte-identical to the already archived
+signed core or release preparation fails. This is not a detached signature for the ZIP.
+
+Without a certificate and without `-RequireSigned`, the builder still explicitly
+records an unsigned candidate. A self-signed or locally trusted test certificate
+does not establish public publisher trust. Signing does not establish malware
+clearance, SmartScreen reputation, product quality or installation acceptance.
+See [Windows release prerequisites and verification](WINDOWS-SIGNING.md).
+Windows SDK/certificate-backed execution and clean-host installation remain
+unverified; LOCAL-047 producer and LOCAL-049 security/execution/publication holds
+remain in force until separately resolved by their owners.
 
 Native macOS app signing/notarization and automatic updates remain separate
 unimplemented distribution paths; the current macOS artifact is a portable

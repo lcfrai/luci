@@ -1,7 +1,8 @@
 #requires -Version 7.0
-param([string]$Version = '0.5.0', [switch]$Native, [string]$CertificateThumbprint = '', [string]$TimestampUrl = 'https://timestamp.digicert.com', [Parameter(Mandatory=$true)][string]$RuntimePayloadDir, [ValidateSet('v2','advanced-v1')][string]$RuntimeFormat = 'v2', [ValidateSet('all','windows-amd64','linux-amd64','darwin-arm64')][string]$Target = 'all', [string]$E2BSource = '')
+param([string]$Version = '0.5.0', [switch]$Native, [switch]$RequireSigned, [string]$CertificateThumbprint = '', [string]$SignToolPath = '', [string]$TimestampUrl = 'https://timestamp.digicert.com', [Parameter(Mandatory=$true)][string]$RuntimePayloadDir, [ValidateSet('v2','advanced-v1')][string]$RuntimeFormat = 'v2', [ValidateSet('all','windows-amd64','linux-amd64','darwin-arm64')][string]$Target = 'all', [string]$E2BSource = '')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+if ($RequireSigned -and (-not $Native -or -not $CertificateThumbprint)) { throw 'RequireSigned requires -Native and an explicit CertificateThumbprint; unsigned fallback is refused.' }
 if ($CertificateThumbprint -and -not $Native) { throw 'CertificateThumbprint requires -Native.' }
 if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$') { throw 'Version must be a semantic version.' }
 $luciRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
@@ -12,6 +13,15 @@ $luciSavedEnvironment = @{}
 $luciPayloadTool = Join-Path $PSScriptRoot $(if ($RuntimeFormat -eq 'v2') { 'runtime-oci/pull_payload.py' } else { 'runtime-oci/payload.py' })
 $luciBuildSucceeded = $false
 . (Join-Path $PSScriptRoot 'owned-build-stage.ps1')
+. (Join-Path $PSScriptRoot 'windows-signing.ps1')
+$luciSigningContext = $null
+$luciSigningFiles = [Collections.Generic.List[object]]::new()
+$luciNativeSigning = @{requested=$false;verified=$false;status='unsigned';required=[bool]$RequireSigned;files=@()}
+# Refuse missing signer/tool before any build, payload staging or package writes.
+if ($CertificateThumbprint) {
+    $luciSigningContext = Get-LuciWindowsSigningContext $CertificateThumbprint $TimestampUrl $SignToolPath
+    $luciNativeSigning = @{requested=$true;verified=$false;status='pending';required=[bool]$RequireSigned;certificateThumbprint=$luciSigningContext.thumbprint;signerSubject=$luciSigningContext.subject;timestampUrl=$TimestampUrl;files=@()}
+}
 foreach ($luciKey in @('PATH','GOOS','GOARCH','CGO_ENABLED','GOFLAGS','CARGO_TARGET_DIR','GOMAXPROCS','GOMEMLIMIT','NODE_OPTIONS','VITE_LUCI_API')) { $luciSavedEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process') }
 
 function Confirm-Exit([string]$Operation) {
@@ -130,6 +140,11 @@ try {
         $env:GOOS = $luciTarget.os; $env:GOARCH = $luciTarget.arch
         Push-Location $luciRoot
         try { & go build -trimpath -ldflags '-s -w' -o (Join-Path $luciPackage ('luci' + $luciTarget.suffix)) ./control-plane/cmd/api; Confirm-Exit ($luciName + ' service build') } finally { Pop-Location }
+        if ($luciTarget.os -eq 'windows' -and $luciSigningContext) {
+            # Sign BEFORE package identity/archive creation. This exact signed core
+            # is later copied as the native app's executable sidecar.
+            $luciSigningFiles.Add((Set-LuciWindowsSignature (Join-Path $luciPackage 'luci.exe') $luciSigningContext 'windows-portable-core'))
+        }
         Copy-Tree (Join-Path $luciRoot 'desktop/dist') (Join-Path $luciPackage 'web')
         Copy-Tree $luciRuntime (Join-Path $luciPackage 'runtime')
         Copy-Tree $luciGuides $luciPackage
@@ -165,7 +180,6 @@ try {
         $luciArtifacts += $luciPackage.path + $(if ($luciPackage.os -eq 'windows') { '.zip' } else { '.tar.gz' })
     }
 
-    $luciNativeSigning = @{requested=$false;verified=$false;status='unsigned'}
     $luciNativeCount = 0
     if ($Native) {
         $luciWindowsPackage = ($luciPackages | Where-Object { $_.os -eq 'windows' }).path
@@ -186,26 +200,25 @@ try {
         $env:CARGO_TARGET_DIR = Join-Path $luciNativeRoot 'target'
         $luciTauriOverride = Join-Path $luciStage 'tauri.release.json'
         $luciOverride = @{build=@{beforeBuildCommand=''}}
-        if ($CertificateThumbprint) {
-            if (-not $IsWindows -or $CertificateThumbprint -notmatch '^[0-9a-fA-F]{40}$') { throw 'Native signing requires a Windows certificate-store SHA1 thumbprint.' }
-            $luciTimestamp = [Uri]$TimestampUrl
-            if ($luciTimestamp.Scheme -ne 'https' -or -not $luciTimestamp.Host -or $luciTimestamp.UserInfo -or $luciTimestamp.Fragment) { throw 'Use an HTTPS RFC3161 timestamp endpoint without credentials.' }
-            $luciCertificate = Get-Item -LiteralPath ('Cert:\CurrentUser\My\' + $CertificateThumbprint)
-            $luciCodeSigningUsage = @($luciCertificate.Extensions | Where-Object { $_.Oid.Value -eq '2.5.29.37' } | ForEach-Object { $_.EnhancedKeyUsages } | ForEach-Object { $_.Value })
-            if (-not $luciCertificate.HasPrivateKey -or $luciCertificate.NotAfter -le [DateTime]::Now -or $luciCertificate.NotBefore -gt [DateTime]::Now -or $luciCodeSigningUsage -notcontains '1.3.6.1.5.5.7.3.3') { throw 'The provisioned certificate must be current, contain a private key, and permit code signing.' }
-            $luciOverride.bundle = @{windows=@{certificateThumbprint=$CertificateThumbprint;digestAlgorithm='sha256';timestampUrl=$TimestampUrl;tsp=$true}}
-            $luciNativeSigning = @{requested=$true;verified=$false;status='pending';certificateThumbprint=$CertificateThumbprint.ToUpperInvariant();timestampUrl=$TimestampUrl}
+        if ($luciSigningContext) {
+            $luciOverride.bundle = @{windows=@{certificateThumbprint=$luciSigningContext.thumbprint;digestAlgorithm='sha256';timestampUrl=$TimestampUrl;tsp=$true;signCommand=(Get-LuciTauriSigningCommand $luciSigningContext (Join-Path $PSHOME 'pwsh.exe') (Join-Path $PSScriptRoot 'sign-windows-file.ps1') $luciSigningFiles[0].sha256)}}
         }
-        $luciOverride | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $luciTauriOverride -Encoding utf8NoBOM
+        $luciOverride | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $luciTauriOverride -Encoding utf8NoBOM
         Push-Location (Join-Path $luciRoot 'desktop')
         try { & $luciNpm run tauri -- build --config $luciTauriOverride --bundles nsis -- --locked; Confirm-Exit 'Native NSIS build' } finally { Pop-Location }
         $luciInstaller = Join-Path $env:CARGO_TARGET_DIR ('release/bundle/nsis/Luci_' + $Version + '_x64-setup.exe')
         if (-not (Test-Path -LiteralPath $luciInstaller -PathType Leaf)) { throw ('Missing expected installer: ' + $luciInstaller) }
-        if ($CertificateThumbprint) {
-            foreach ($luciSignedPath in @((Join-Path $env:CARGO_TARGET_DIR 'release/luci.exe'), $luciInstaller)) {
-                $luciSignature = Get-AuthenticodeSignature -LiteralPath $luciSignedPath
-                if ($luciSignature.Status -ne 'Valid' -or -not $luciSignature.SignerCertificate -or $luciSignature.SignerCertificate.Thumbprint -ne $CertificateThumbprint -or -not $luciSignature.TimeStamperCertificate) { throw ('Publisher signature/timestamp verification failed: ' + $luciSignedPath) }
+        if ($luciSigningContext) {
+            # NSIS consumes the externalBin source; tauri-build also makes a
+            # runtime copy. Neither may diverge from the archived signed core.
+            foreach ($luciCorePath in @((Join-Path $luciWindowsPackage 'luci.exe'), (Join-Path $luciSidecars 'luci-api-x86_64-pc-windows-msvc.exe'), (Join-Path $env:CARGO_TARGET_DIR 'release/luci-api.exe'))) {
+                Confirm-LuciWindowsCoreIdentity $luciCorePath $luciSigningFiles[0].sha256
             }
+            $luciSigningFiles.Add((Confirm-LuciWindowsSignature (Join-Path $env:CARGO_TARGET_DIR 'release/luci-api.exe') $luciSigningContext 'native-runtime-api-copy'))
+            $luciSigningFiles.Add((Confirm-LuciWindowsSignature (Join-Path $luciSidecars 'luci-api-x86_64-pc-windows-msvc.exe') $luciSigningContext 'native-api-sidecar'))
+            $luciSigningFiles.Add((Confirm-LuciWindowsSignature (Join-Path $env:CARGO_TARGET_DIR 'release/luci.exe') $luciSigningContext 'native-application'))
+            $luciSigningFiles.Add((Confirm-LuciWindowsSignature $luciInstaller $luciSigningContext 'native-installer'))
+            $luciNativeSigning.files = @($luciSigningFiles.ToArray())
             $luciNativeSigning.verified = $true; $luciNativeSigning.status = 'verified-authenticode'
         }
         $luciArtifacts += $luciInstaller
