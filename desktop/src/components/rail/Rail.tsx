@@ -18,6 +18,7 @@ import { RailFooter } from "./RailFooter";
 import { useSetup } from "../setup/SetupProvider";
 import { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
 import { NavigationIcon } from "../common/NavigationIcon";
+import { LuciMark } from "../common/LuciMark";
 import "./rail.css";
 
 export function Rail({
@@ -166,6 +167,7 @@ export function Rail({
               onClose?.();
             }}
           >
+            <LuciMark />
             Luci
           </button>
           <div className="rail-brand-actions">

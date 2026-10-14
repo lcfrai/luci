@@ -22,6 +22,8 @@ The [exact branch/path index](HISTORICAL-BRANCH-DISPOSITIONS-2026-10-14.json) en
 
 ## Distinct retained work
 
+The historical checkpoint below is `ee307c4347c9f3fc1c2b47eb2dcf9d8715bc7f99`. Its outstanding favicon/native/Rail application was subsequently completed in source by the [bounded Fourfold follow-on](FOURFOLD-APPLICATION-2026-10-14.md). SetupPanel remains owned by the setup worker; its reusable mark is available from `LuciMark.tsx`.
+
 The approved Fourfold source, derivatives, PNGs, recipe, manifests, ZIP and approval/provenance receipts are retained under desktop/src/assets/brand. The canonical SVG is 3,801 bytes with SHA-256 `e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155`. DESIGN.md and IDENTITY.md describe the approved static mark and current four concurrent activities. No motion or visual redesign is claimed. The remaining application work is concrete: desktop/public/luci.svg still contains the earlier L; desktop/index.html references it; configured native icons in desktop/src-tauri/icons have not been regenerated. Rail.tsx and SetupPanel.tsx remain text-only brand placements. Applying the approved mark and checking native/favicon results is a separate outstanding integration task.
 
 Current native and Docker evaluation drivers gain exact saved-context-to-Git-commit byte assertions while preserving newer reviewed-source admission and failure reporting. The native restart driver recognizes the current Discover navigation and retained historical Define installations. Older approval helpers are preserved in history because they bypass newer required screen/handoff details.

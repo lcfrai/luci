@@ -1,0 +1,491 @@
+{
+  "schemaVersion": 1,
+  "approvalDate": "2026-10-07",
+  "applicationDate": "2026-10-14",
+  "canonicalSha256": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155",
+  "geometry": "Unchanged 256-square viewBox, silhouette, stroke proportions, aperture and built-in clear space; no background tile or animation.",
+  "renderer": {
+    "sharp": "0.35.5",
+    "vips": "8.18.7"
+  },
+  "sourceChecksumsVerified": 22,
+  "outputs": [
+    {
+      "file": "desktop/src-tauri/icons/128x128.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/png/light-surface/luci-fourfold-128.png",
+      "method": "exact-approved-png",
+      "width": 128,
+      "height": 128,
+      "bytes": 1783,
+      "sha256": "0338296bebfafa76dd9733bbbf4e8487531259750a4ee54d5d3262a0d32bf51f"
+    },
+    {
+      "file": "desktop/src-tauri/icons/128x128@2x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/png/light-surface/luci-fourfold-256.png",
+      "method": "exact-approved-png",
+      "width": 256,
+      "height": 256,
+      "bytes": 4794,
+      "sha256": "1adb787d61e8ad9203e1f540bb842ef2b926e61636672119d31af9c64f9c0980"
+    },
+    {
+      "file": "desktop/src-tauri/icons/32x32.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/png/light-surface/luci-fourfold-32.png",
+      "method": "exact-approved-png",
+      "width": 32,
+      "height": 32,
+      "bytes": 392,
+      "sha256": "8426628bb4902b1fafef786866f3fa29855c8d511b5428a40fec6427b562fe75"
+    },
+    {
+      "file": "desktop/src-tauri/icons/64x64.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/png/light-surface/luci-fourfold-64.png",
+      "method": "exact-approved-png",
+      "width": 64,
+      "height": 64,
+      "bytes": 763,
+      "sha256": "5ceaa265d195a4edd44fd0d3d2563be32b1be1be2953796e7c1bf7a1150b3fba"
+    },
+    {
+      "file": "desktop/src-tauri/icons/Square107x107Logo.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 107,
+      "height": 107,
+      "bytes": 1301,
+      "sha256": "33047e35390d26e8c34dca14de9c65062dba2a84940203991e822cf14f9eb8f8"
+    },
+    {
+      "file": "desktop/src-tauri/icons/Square142x142Logo.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 142,
+      "height": 142,
+      "bytes": 2201,
+      "sha256": "ac7f196a0da82685e793dab9999826bbd795307be70a0e7df23e990420210066"
+    },
+    {
+      "file": "desktop/src-tauri/icons/Square150x150Logo.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 150,
+      "height": 150,
+      "bytes": 2456,
+      "sha256": "92ba4f8699c41703c2f6b528d49cd4071d233e1567eff5b6a1a6207f47b1e323"
+    },
+    {
+      "file": "desktop/src-tauri/icons/Square284x284Logo.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 284,
+      "height": 284,
+      "bytes": 5370,
+      "sha256": "b27de0ea444c911ee540f56485f18b10fc5736cf90adf956c1feffc9c3d8366f"
+    },
+    {
+      "file": "desktop/src-tauri/icons/Square30x30Logo.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 30,
+      "height": 30,
+      "bytes": 408,
+      "sha256": "e2bf0d1f833d24451d0e4ffa9cd4f84f64a33479ef73df1981a3b4dabaa2d4fb"
+    },
+    {
+      "file": "desktop/src-tauri/icons/Square310x310Logo.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 310,
+      "height": 310,
+      "bytes": 5909,
+      "sha256": "f71fc0a436a8b3a440473ee14cac189b1cbae49cbaf3c17ab0ed4467d7c61ff3"
+    },
+    {
+      "file": "desktop/src-tauri/icons/Square44x44Logo.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 44,
+      "height": 44,
+      "bytes": 524,
+      "sha256": "243e40e966e822221b7126c1cff24fff63f2d93f6f9fcc886802a84065d1750c"
+    },
+    {
+      "file": "desktop/src-tauri/icons/Square71x71Logo.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 71,
+      "height": 71,
+      "bytes": 841,
+      "sha256": "fafaeb7de6f937a825652493bee6b688bf0728eff231c5b0c0b3166debd0b420"
+    },
+    {
+      "file": "desktop/src-tauri/icons/Square89x89Logo.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 89,
+      "height": 89,
+      "bytes": 1035,
+      "sha256": "9d786ed50aa3f32cf7d1eb043d0380452e6fb17960408631ab5b914b1bb364c0"
+    },
+    {
+      "file": "desktop/src-tauri/icons/StoreLogo.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 50,
+      "height": 50,
+      "bytes": 593,
+      "sha256": "f99b6c9d96bd235a51bed4518ff5924236ad76077c600d10c5ea9e8c2034b22a"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-hdpi/ic_launcher.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 49,
+      "height": 49,
+      "bytes": 590,
+      "sha256": "060c2434d4b77b3cea4066449acd7a07fcb92930a6cd7524d610c95f7b517649"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-hdpi/ic_launcher_foreground.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 162,
+      "height": 162,
+      "bytes": 2722,
+      "sha256": "c89cbb94a79879e0ea77d0806eb92b31ddb73f232d6134ec391e31adc557a212"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-hdpi/ic_launcher_round.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 49,
+      "height": 49,
+      "bytes": 590,
+      "sha256": "060c2434d4b77b3cea4066449acd7a07fcb92930a6cd7524d610c95f7b517649"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-mdpi/ic_launcher.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 48,
+      "height": 48,
+      "bytes": 585,
+      "sha256": "a2ec8aee5c81fd57791d2229e933bbc4745589f8c5fd08b9969eb9682f66ef51"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-mdpi/ic_launcher_foreground.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 108,
+      "height": 108,
+      "bytes": 1305,
+      "sha256": "fb12c4651078a98a7aaf86f0cbdeebc74c2f81ebe3783f4775aade4138dac1ee"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-mdpi/ic_launcher_round.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 48,
+      "height": 48,
+      "bytes": 585,
+      "sha256": "a2ec8aee5c81fd57791d2229e933bbc4745589f8c5fd08b9969eb9682f66ef51"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-xhdpi/ic_launcher.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 96,
+      "height": 96,
+      "bytes": 1111,
+      "sha256": "2abbce6f90fbb25188082ba8a654eedc79a5f10fa4adcf32cc7c89d98943759e"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-xhdpi/ic_launcher_foreground.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 216,
+      "height": 216,
+      "bytes": 3892,
+      "sha256": "0e8b0cc20d6cc277d8c1f847605630ce13d2dc00af4df32697cff42f529f5add"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-xhdpi/ic_launcher_round.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 96,
+      "height": 96,
+      "bytes": 1111,
+      "sha256": "2abbce6f90fbb25188082ba8a654eedc79a5f10fa4adcf32cc7c89d98943759e"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-xxhdpi/ic_launcher.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 144,
+      "height": 144,
+      "bytes": 2278,
+      "sha256": "bebaa3308f2bb5a50d3abcd4b3d5c6a865326e7b11e25ca3e90cbb4b54f57d1f"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_foreground.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 324,
+      "height": 324,
+      "bytes": 6371,
+      "sha256": "5eb32a728676313af19ae3fbfed00a3bf6b6f28a09c0ff4b97d80724dd2d89a4"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_round.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 144,
+      "height": 144,
+      "bytes": 2278,
+      "sha256": "bebaa3308f2bb5a50d3abcd4b3d5c6a865326e7b11e25ca3e90cbb4b54f57d1f"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 192,
+      "height": 192,
+      "bytes": 3378,
+      "sha256": "d515fbd8aa28803d0eab1fdcbd02946b75baa947f171e5b4f475313dc1efa420"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 432,
+      "height": 432,
+      "bytes": 9205,
+      "sha256": "3c7d501ebcb856510f7787078977e8e2ada2d7c72c683a13075ea0c2e40d73d2"
+    },
+    {
+      "file": "desktop/src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_round.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 192,
+      "height": 192,
+      "bytes": 3378,
+      "sha256": "d515fbd8aa28803d0eab1fdcbd02946b75baa947f171e5b4f475313dc1efa420"
+    },
+    {
+      "file": "desktop/src-tauri/icons/icon.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/png/light-surface/luci-fourfold-512.png",
+      "method": "exact-approved-png",
+      "width": 512,
+      "height": 512,
+      "bytes": 11331,
+      "sha256": "3b360b53945f239f47261c1f377fdfc67856a0a007ba6a6f46d4db8ed193007f"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-20x20@1x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 20,
+      "height": 20,
+      "bytes": 268,
+      "sha256": "375b0df6c9db968f5617a8c9d27d7e232218c74769ee4165bb3a0242e5b7a421"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-20x20@2x-1.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 40,
+      "height": 40,
+      "bytes": 500,
+      "sha256": "61e976a2a2ba493ff2cc6e1014201228953ab7996e91ff5011d6c908cb2796e0"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-20x20@2x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 40,
+      "height": 40,
+      "bytes": 500,
+      "sha256": "61e976a2a2ba493ff2cc6e1014201228953ab7996e91ff5011d6c908cb2796e0"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-20x20@3x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 60,
+      "height": 60,
+      "bytes": 731,
+      "sha256": "9b3c207fccc1f29d4fc36b69f2fdefb4674c9351bcc3164e4bfc56ef0cb7dffe"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-29x29@1x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 29,
+      "height": 29,
+      "bytes": 389,
+      "sha256": "411b369e2276f64e7a5de8cb9abad06d25a5a2e83338aa6630d95a5bc336bc30"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-29x29@2x-1.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 58,
+      "height": 58,
+      "bytes": 679,
+      "sha256": "dd3d87b1365d1a01ae228c2c8a5fe5910023ed801db26471dbdd4e7770ea6563"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-29x29@2x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 58,
+      "height": 58,
+      "bytes": 679,
+      "sha256": "dd3d87b1365d1a01ae228c2c8a5fe5910023ed801db26471dbdd4e7770ea6563"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-29x29@3x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 87,
+      "height": 87,
+      "bytes": 1027,
+      "sha256": "47fbc6900ed53f67c46c484a9597ccd48247ccdf863a2320a48e7d025d7f5c15"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-40x40@1x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 40,
+      "height": 40,
+      "bytes": 500,
+      "sha256": "61e976a2a2ba493ff2cc6e1014201228953ab7996e91ff5011d6c908cb2796e0"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-40x40@2x-1.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 80,
+      "height": 80,
+      "bytes": 900,
+      "sha256": "68646f7aea2e3594ceffbb2276316083259c94fd1396109ef0ef5206ac5749fc"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-40x40@2x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 80,
+      "height": 80,
+      "bytes": 900,
+      "sha256": "68646f7aea2e3594ceffbb2276316083259c94fd1396109ef0ef5206ac5749fc"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-40x40@3x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 120,
+      "height": 120,
+      "bytes": 1651,
+      "sha256": "d7f154a8018f2e20b79594c579a1a84c91c08d19ce0af9472b1b0d425b033161"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-512@2x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 27055,
+      "sha256": "ea0c578d8048a9ac7d0941d637cac299eab2b0d46ae50fc772e5a7a1aa2cac84"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-60x60@2x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 120,
+      "height": 120,
+      "bytes": 1651,
+      "sha256": "d7f154a8018f2e20b79594c579a1a84c91c08d19ce0af9472b1b0d425b033161"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-60x60@3x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 180,
+      "height": 180,
+      "bytes": 3141,
+      "sha256": "c285204821da494a6be500cc51d7cb6dc9ec27f2ab66b7edd353052efb880e4c"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-76x76@1x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 76,
+      "height": 76,
+      "bytes": 902,
+      "sha256": "c02f3624e0295e5ebb5659c05e92dc6262c021a9a4b3cbc395aa5b88fcd0884b"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-76x76@2x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 152,
+      "height": 152,
+      "bytes": 2504,
+      "sha256": "b91c141a8772640cf6c57d3c60e7930188864a7ccaa064000faaf67c80696bf1"
+    },
+    {
+      "file": "desktop/src-tauri/icons/ios/AppIcon-83.5x83.5@2x.png",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "direct-canonical-svg-rasterization",
+      "width": 167,
+      "height": 167,
+      "bytes": 2758,
+      "sha256": "5359ca4886ed0f0259e9f379c84b6bcc7cf4422163f59333cc98aa3d9d87d6a7"
+    },
+    {
+      "file": "desktop/src-tauri/icons/icon.ico",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07",
+      "method": "ico-png-container",
+      "sizes": [
+        16,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "bytes": 9007,
+      "sha256": "653fd5ec7b8d8f4f0643acd22f1c740935e48d33aac015f3fb87935d64229ac9"
+    },
+    {
+      "file": "desktop/src-tauri/icons/icon.icns",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07",
+      "method": "icns-png-container",
+      "sizes": [
+        32,
+        64,
+        128,
+        256,
+        512,
+        1024
+      ],
+      "bytes": 46174,
+      "sha256": "c745d0266dd270db8880cfb9eca63d059ec11e0632e0b22af442669bb7fca736"
+    },
+    {
+      "file": "desktop/public/luci.svg",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/canonical/luci-four-ds-fourfold.svg",
+      "method": "exact-approved-svg",
+      "bytes": 3801,
+      "sha256": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155"
+    },
+    {
+      "file": "desktop/public/luci-light.svg",
+      "source": "desktop/src/assets/brand/handoff-2026-10-07/derivatives/luci-fourfold-light-ink.svg",
+      "method": "exact-approved-svg",
+      "bytes": 3801,
+      "sha256": "b3164cf343889dee26923842d7febe35bb151857c37f976e905e2ab3e342bb26"
+    }
+  ]
+}
