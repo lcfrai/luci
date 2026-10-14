@@ -1,4 +1,5 @@
 resource "azurerm_virtual_network" "private" {
+  count               = var.existing_vnet_name == "" ? 1 : 0
   name                = "${var.name}-private"
   location            = var.location
   resource_group_name = var.resource_group_name
@@ -6,17 +7,29 @@ resource "azurerm_virtual_network" "private" {
   tags                = var.tags
 }
 
+data "azurerm_virtual_network" "existing" {
+  count               = var.existing_vnet_name == "" ? 0 : 1
+  name                = var.existing_vnet_name
+  resource_group_name = var.existing_vnet_resource_group_name
+}
+
+locals {
+  private_vnet_id   = var.existing_vnet_name == "" ? azurerm_virtual_network.private[0].id : data.azurerm_virtual_network.existing[0].id
+  private_vnet_name = var.existing_vnet_name == "" ? azurerm_virtual_network.private[0].name : var.existing_vnet_name
+  private_vnet_rg   = var.existing_vnet_name == "" ? var.resource_group_name : var.existing_vnet_resource_group_name
+}
+
 resource "azurerm_subnet" "runtime" {
   name                 = "${var.name}-runtime"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.private.name
+  resource_group_name  = local.private_vnet_rg
+  virtual_network_name = local.private_vnet_name
   address_prefixes     = [var.runtime_subnet_cidr]
 }
 
 resource "azurerm_subnet" "controller" {
   name                              = "${var.name}-controller"
-  resource_group_name               = var.resource_group_name
-  virtual_network_name              = azurerm_virtual_network.private.name
+  resource_group_name               = local.private_vnet_rg
+  virtual_network_name              = local.private_vnet_name
   address_prefixes                  = [var.controller_subnet_cidr]
   private_endpoint_network_policies = "Disabled"
 }
@@ -154,7 +167,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "gateway" {
   name                  = "${var.name}-gateway"
   resource_group_name   = var.resource_group_name
   private_dns_zone_name = azurerm_private_dns_zone.gateway.name
-  virtual_network_id    = azurerm_virtual_network.private.id
+  virtual_network_id    = local.private_vnet_id
   registration_enabled  = false
   tags                  = var.tags
 }
@@ -178,21 +191,24 @@ resource "azurerm_private_dns_a_record" "guest" {
 }
 
 resource "azurerm_private_dns_zone" "vault" {
+  count               = var.foundation_private_dns_resource_group_name == "" ? 1 : 0
   name                = "privatelink.vaultcore.azure.net"
   resource_group_name = var.resource_group_name
   tags                = var.tags
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "vault" {
+  count                 = var.foundation_private_dns_resource_group_name == "" ? 1 : 0
   name                  = "${var.name}-vault"
   resource_group_name   = var.resource_group_name
-  private_dns_zone_name = azurerm_private_dns_zone.vault.name
-  virtual_network_id    = azurerm_virtual_network.private.id
+  private_dns_zone_name = azurerm_private_dns_zone.vault[0].name
+  virtual_network_id    = local.private_vnet_id
   registration_enabled  = false
   tags                  = var.tags
 }
 
 resource "azurerm_private_endpoint" "vault" {
+  count               = var.foundation_private_dns_resource_group_name == "" ? 1 : 0
   name                = "${var.name}-vault"
   location            = var.location
   resource_group_name = var.resource_group_name
@@ -207,6 +223,6 @@ resource "azurerm_private_endpoint" "vault" {
   }
   private_dns_zone_group {
     name                 = "vault"
-    private_dns_zone_ids = [azurerm_private_dns_zone.vault.id]
+    private_dns_zone_ids = [azurerm_private_dns_zone.vault[0].id]
   }
 }

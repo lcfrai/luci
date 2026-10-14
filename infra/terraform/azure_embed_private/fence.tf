@@ -36,18 +36,26 @@ resource "azurerm_storage_container" "fence" {
 }
 
 resource "azurerm_private_dns_zone" "blob" {
+  count               = var.foundation_private_dns_resource_group_name == "" ? 1 : 0
   name                = "privatelink.blob.core.windows.net"
   resource_group_name = var.resource_group_name
   tags                = var.tags
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "blob" {
+  count                 = var.foundation_private_dns_resource_group_name == "" ? 1 : 0
   name                  = "${var.name}-blob"
   resource_group_name   = var.resource_group_name
-  private_dns_zone_name = azurerm_private_dns_zone.blob.name
-  virtual_network_id    = azurerm_virtual_network.private.id
+  private_dns_zone_name = azurerm_private_dns_zone.blob[0].name
+  virtual_network_id    = local.private_vnet_id
   registration_enabled  = false
   tags                  = var.tags
+}
+
+data "azurerm_private_dns_zone" "foundation_blob" {
+  count               = var.foundation_private_dns_resource_group_name == "" ? 0 : 1
+  name                = "privatelink.blob.core.windows.net"
+  resource_group_name = var.foundation_private_dns_resource_group_name
 }
 
 resource "azurerm_private_endpoint" "blob" {
@@ -65,6 +73,6 @@ resource "azurerm_private_endpoint" "blob" {
   }
   private_dns_zone_group {
     name                 = "blob"
-    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+    private_dns_zone_ids = [var.foundation_private_dns_resource_group_name == "" ? azurerm_private_dns_zone.blob[0].id : data.azurerm_private_dns_zone.foundation_blob[0].id]
   }
 }

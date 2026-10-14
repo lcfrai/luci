@@ -148,3 +148,40 @@ is retained for subsequent restarts. The API still enforces the off-disk fence;
 the desktop's old boot pin remains invalid. Eight operator fixtures and the
 controller package test pass locally. Replacement-controller signed successor
 staging remains unfinished; these fixtures are not live recovery acceptance.
+
+The authorized `34f7bab2` foundation implementation adds `foundation.py`, its
+installer commands and read-only guided discovery. Account/tenant/operator,
+existing VNet/subnets/DNS and an explicit private listener probe precede any
+proposal. It derives two collision-free /24s, reviews exact privately configured
+state storage/container, vault, endpoints, DNS and minimal operator RBAC, then
+journals each operation locally before a PUT. Unknown responses reconcile by
+GET without replay, including an absent read. Verified existing private
+state/vault/DNS resources remain externally owned. Existing linked DNS zones
+are dependencies rather than recreated resources. Private DNS plus real
+authenticated Blob/vault data reads precede backend handoff. Terraform reuses
+the selected existing VNet and foundation DNS, with moved blocks for older
+owned resource addresses. Read-only data actions are separated from fresh
+managed creates in the installer plan guard; managed adoption/update is still
+refused. Budget and all final bills remain unverified.
+
+Eight new foundation fixtures and ten affected guided fixtures pass locally,
+covering success/backend handoff, reuse, existing DNS, collisions, missing
+route, cost/absence refusal, private drift and interrupted response/restart.
+Python syntax and diff checks pass. POSIX installer/package and Terraform
+validation are not run locally; no account/provider operation or compiler was
+started. No real Azure/KVM/recovery acceptance is claimed. Next source remains
+actual image staging, signed replacement-controller successor and retirement.
+
+Under exact image-producer reconciliation `308507c5`, normal guided controller
+images now omit the selected deferred operator, public CA and service environment.
+These bounded nonsecret files instead enter the existing authenticated recovery-
+to-controller initial RunCommand after concrete resource readback. The same
+off-disk bootstrap intent precedes staging/mount; retained files must match exact
+bytes and reconciliation only inspects them. Private-key content is refused.
+The account gateway/loopback API and managed-identity references remain intact.
+Nine operator fixtures pass, including post-create staging/refusal, and Python
+syntax passes. The two variables.tf formatting lines reported by independent
+Terraform checks are corrected. Legacy advanced complete-operator image input
+retains its compatibility behavior; generated normal images are generic.
+Private builder implementation proceeds under the now-aligned `308507c5` gate;
+no builder or provider was started by this worker.

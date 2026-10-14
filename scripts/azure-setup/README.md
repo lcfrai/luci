@@ -144,3 +144,36 @@ An unknown installation requires `reconcile-operator` with the same digest.
 Do not delete pending records. Account management can start while setup is
 deferred, but task execution remains refused until finalization. The signature
 on a chosen OCI digest does not establish guest execution or Azure readiness.
+
+`configure-guided` now discovers the signed-in subscription and private VNets in
+the selected region. Choose an existing endpoint subnet and listener to prove
+your existing route. The command proposes two unused /24 task/controller
+subnets only after authenticated address-space and DNS inventory. It stops for
+review of a new separately owned foundation, or verifies reuse of existing
+private state/Key Vault/DNS resources. No public IP, VPN, Bastion or peering is
+created. An existing private route and endpoint subnet remain prerequisites.
+
+The exact foundation proposal lists private StorageV2 state/version retention,
+private container, RBAC-only private Key Vault with purge protection, the two
+private endpoints and necessary DNS/RBAC resources. Existing linked DNS zones
+stay externally owned; only the new endpoints' reviewed zone groups reference
+them. Review the actual account quote, retained resources and access authority.
+Run `foundation-step --plan-digest SHA256 --acknowledge-costs` for one operation
+at a time. A pending operation permits only `foundation-reconcile --plan-digest
+SHA256` (GET readback), even if a read returns absent. Never erase its journal.
+After all exact properties are observed, `foundation-bind` requires private DNS
+and authenticated Blob/Key Vault data-plane reads before selecting the remote
+Terraform backend. Then rerun `configure-guided` for account-available sizes,
+zone and an SSH public key. Dsv5 is a documented nested-virtualization family;
+the offered sizes are choices for a quote, not KVM or workload acceptance. See
+[Azure Dsv5](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/dsv5-series)
+and [private DNS integration](https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-dns-integration).
+Foundation journals precede remote state and preserve separate ownership.
+Existing private infrastructure is never silently imported or overwritten.
+
+Normal guided controller images contain the installed service/binaries and
+licences, with no active account/generation selection. The public CA, deferred
+operator references and loopback service environment are staged by the existing
+authenticated initialization channel only after exact controller creation.
+They are not private credential values. Unknown staging/mount results retain
+the off-disk bootstrap journal and cannot repeat the write/format branch.

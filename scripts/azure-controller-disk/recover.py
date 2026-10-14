@@ -9,6 +9,7 @@ reservations nor claims a final Azure billing receipt.
 """
 
 import argparse
+import base64
 from datetime import datetime, timezone
 import hashlib
 import ipaddress
@@ -59,7 +60,7 @@ def validate(value):
                 "controllerIdentityID", "recoveryIdentityID",
                 "oldGeneration", "newGeneration", "filesystemUUID", "oldGenerationReceiptSHA256",
                 "mountSelectionPath", "hostDeliverySelectionPath", "apiService", "apiHealthURL", "ownerID", "scope"}
-    if set(value) != required or value["version"] != 1 or not UUID.fullmatch(value["recoveryClientID"]) or not UUID.fullmatch(value["filesystemUUID"]):
+    if set(value) not in (required, required | {'controllerSetupFiles'}) or value["version"] != 1 or not UUID.fullmatch(value["recoveryClientID"]) or not UUID.fullmatch(value["filesystemUUID"]):
         raise ValueError("controller recovery selection fields are invalid")
     if not VM.fullmatch(value["oldControllerID"]) or not VM.fullmatch(value["newControllerID"]) or value["oldControllerID"] == value["newControllerID"] or not DISK.fullmatch(value["diskID"]):
         raise ValueError("controller recovery ARM identities are invalid")
@@ -80,6 +81,48 @@ def validate(value):
     url = urllib.parse.urlsplit(value["fenceBlobURL"])
     if url.scheme != "https" or not re.fullmatch(r"[a-z0-9]{3,24}\.blob\.core\.windows\.net", url.netloc) or url.path != "/controller-fence/controller-fence.json" or url.query or url.fragment:
         raise ValueError("controller fence blob is not the selected private resource")
+    if 'controllerSetupFiles' in value:
+        validate_setup_files(value['controllerSetupFiles'])
+
+
+def validate_setup_files(files):
+    paths = {'/etc/luci/operator-template.json', '/etc/luci/azure-private-ca.crt', '/etc/luci/azure-controller.env'}
+    if not isinstance(files, list) or len(files) != 3 or {row.get('path') for row in files} != paths:
+        raise ValueError('Controller post-create setup inventory differs')
+    for row in files:
+        if set(row) != {'path', 'content', 'sha256'} or not isinstance(row['content'], str) or not 0 < len(row['content']) <= 16384 or \
+                hashlib.sha256(row['content'].encode()).hexdigest() != row['sha256'] or 'PRIVATE KEY-----' in row['content']:
+            raise ValueError('Controller setup is not exact bounded nonsecret input')
+    operator = json.loads(next(row['content'] for row in files if row['path'].endswith('operator-template.json')))
+    if not operator.get('setupDeferred') or any(operator.get(key) for key in ('apiKeyFile', 'adminApiKeyFile', 'attachKeyFile', 'clientCertFile', 'clientKeyFile')):
+        raise ValueError('Controller setup must remain deferred with managed identity references')
+    environment = next(row['content'] for row in files if row['path'].endswith('.env'))
+    if not environment.startswith('LUCI_ADDR=127.0.0.1:8730\nLUCI_BACKING=azure\nLUCI_AZURE_OPERATOR_TEMPLATE=/etc/luci/operator.json\n'):
+        raise ValueError('Controller management setup must retain account gateway and loopback API')
+
+
+def setup_script(files, inspect=False):
+    validate_setup_files(files)
+    return """python3 - <<'PY'
+import base64, hashlib, json, os, pathlib, tempfile
+files = json.loads(base64.b64decode(%s))
+for row in files:
+    target = pathlib.Path(row['path'])
+    data = row['content'].encode()
+    if target.exists() or target.is_symlink():
+        if target.is_symlink() or target.stat().st_mode & 0o077 or target.read_bytes() != data:
+            raise SystemExit('retained post-create controller configuration changed')
+    elif %s:
+        raise SystemExit('post-create controller setup remains uncertain')
+    else:
+        target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        fd, name = tempfile.mkstemp(dir=target.parent)
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, 'wb') as output:
+            output.write(data); output.flush(); os.fsync(output.fileno())
+        os.replace(name, target)
+PY
+""" % (repr(base64.b64encode(canonical(files)).decode()), repr(inspect))
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -260,11 +303,11 @@ def mount_receipt_from_output(output, generation):
     return value
 
 
-def initial_guest_script(health_url, inspect=False):
+def initial_guest_script(health_url, inspect=False, setup_files=None):
     selection = "/etc/luci/azure-controller-disk-initial.json"
     command = "python3 /opt/luci/azure-controller/bin/mount.py " + ("--inspect " if inspect else "") + selection
     health = "python3 -c 'import urllib.request; assert urllib.request.urlopen(\"" + health_url + "\", timeout=3).status == 200'"
-    return ("set -eu\nreceipt=$(" + command + ")\n" + ("" if inspect else "systemctl start luci-api.service\n") +
+    return ("set -eu\n" + (setup_script(setup_files, inspect) if setup_files is not None else '') + "receipt=$(" + command + ")\n" + ("" if inspect else "systemctl start luci-api.service\n") +
             "systemctl is-active --quiet luci-api.service\n" + health + "\n" +
             "printf '%s\\n' 'LUCI_AZURE_CONTROLLER_MOUNT_RECEIPT='\"$receipt\"\n")
 
@@ -301,14 +344,14 @@ def initialize(selection, store, compute):
             raise RuntimeError("initial disk attach is unknown; no duplicate attach")
         record, etag = transition(store, record, etag, "bootstrap_mount_pending")
         try:
-            output = compute.run_command(selection["oldControllerID"], initial_guest_script(selection["apiHealthURL"]))
+            output = compute.run_command(selection["oldControllerID"], initial_guest_script(selection["apiHealthURL"], setup_files=selection.get('controllerSetupFiles')))
         except Exception:
             raise RuntimeError("initial mount or format is uncertain; inspect the exact guest before retry") from None
         mount_receipt_from_output(output, selection["oldGeneration"])
     if record["state"] == "bootstrap_mount_pending":
         # Inspection reads exact block/receipt/config only. It cannot rerun
         # mkfs or create a second Luci controller from an uncertain POST.
-        output = compute.run_command(selection["oldControllerID"], initial_guest_script(selection["apiHealthURL"], inspect=True))
+        output = compute.run_command(selection["oldControllerID"], initial_guest_script(selection["apiHealthURL"], inspect=True, setup_files=selection.get('controllerSetupFiles')))
         guest = mount_receipt_from_output(output, selection["oldGeneration"])
         if guest["generationReceiptSHA256"] != selection["oldGenerationReceiptSHA256"]:
             raise ValueError("initial controller generation differs from the selected immutable receipt")

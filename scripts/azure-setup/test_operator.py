@@ -18,6 +18,12 @@ spec.loader.exec_module(operator)
 mount_spec = importlib.util.spec_from_file_location("mount_setup", HERE.parent / "azure-controller-disk/mount.py")
 mount = importlib.util.module_from_spec(mount_spec)
 mount_spec.loader.exec_module(mount)
+installer_spec = importlib.util.spec_from_file_location('installer_setup', HERE / 'installer.py')
+installer = importlib.util.module_from_spec(installer_spec)
+installer_spec.loader.exec_module(installer)
+recovery_spec = importlib.util.spec_from_file_location('recovery_setup', HERE.parent / 'azure-controller-disk/recover.py')
+recovery = importlib.util.module_from_spec(recovery_spec)
+recovery_spec.loader.exec_module(recovery)
 
 
 @unittest.skipUnless(shutil.which("openssl"), "OpenSSL is a required Linux installer prerequisite")
@@ -146,6 +152,23 @@ class OperatorTests(unittest.TestCase):
     def test_egress_selection_matches_runtime_refusals(self):
         for names in (["localhost"], ["127.0.0.1"], ["host.internal"], ["api.openai.com", "api.openai.com"], ["-bad.example"]):
             self.assertFalse(operator.domains_valid(names))
+
+    def test_generation_configuration_is_staged_after_create_with_no_secret_values(self):
+        root, core, path, _ = self.fixture()
+        with mock.patch.object(installer, 'private_json', side_effect=core.private_json), mock.patch.object(installer, 'requested', side_effect=core.requested):
+            files = installer.controller_setup_files(path)
+        recovery.validate_setup_files(files)
+        self.assertEqual({row['path'] for row in files}, {'/etc/luci/operator-template.json', '/etc/luci/azure-private-ca.crt', '/etc/luci/azure-controller.env'})
+        self.assertNotIn('PRIVATE KEY-----', json.dumps(files))
+        self.assertIn('LUCI_AZURE_OPERATOR_TEMPLATE=', next(row['content'] for row in files if row['path'].endswith('.env')))
+        script = recovery.initial_guest_script('http://127.0.0.1:8730/v1/healthz', setup_files=files)
+        self.assertLess(script.index('for row in files'), script.index('mount.py'))
+        inspect = recovery.initial_guest_script('http://127.0.0.1:8730/v1/healthz', inspect=True, setup_files=files)
+        self.assertIn('elif True:', inspect)
+        files[0]['content'] += 'PRIVATE KEY-----'
+        files[0]['sha256'] = hashlib.sha256(files[0]['content'].encode()).hexdigest()
+        with self.assertRaisesRegex(ValueError, 'nonsecret'):
+            recovery.validate_setup_files(files)
 
     def test_controller_template_lost_ack_resumes_by_readback_without_host_gateway_or_secrets(self):
         root, core, path, _, _, readback = self.finalized()

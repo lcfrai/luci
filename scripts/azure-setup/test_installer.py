@@ -130,7 +130,7 @@ class AzureSetupTest(unittest.TestCase):
             if args[0] == "plan":
                 (work / "selected.tfplan").write_bytes(b"exact-plan")
             if args[0] == "show":
-                return json.dumps({"resource_changes": [{"change": {"actions": ["create"]}}]}).encode()
+                return json.dumps({"resource_changes": [{"change": {"actions": ["create"]}}, {'mode': 'data', 'change': {'actions': ['no-op']}}]}).encode()
             if args[0] == "apply":
                 raise RuntimeError("lost response")
             return b""
@@ -139,6 +139,8 @@ class AzureSetupTest(unittest.TestCase):
             prepared = installer.prepare(bundle, selected, plan["planDigest"])
             self.assertEqual(prepared["selectionDigest"], plan["selectionDigest"])
             self.assertEqual(prepared["sourceCommit"], plan["luciRevision"])
+            self.assertEqual(prepared['resourceCreates'], 1)
+            self.assertEqual(prepared['resourceNoops'], 1)
             backend = (selected.parent / "azure-terraform/backend.hcl").read_text()
             self.assertIn('use_azuread_auth = true', backend)
             self.assertNotIn('backend=false', backend)

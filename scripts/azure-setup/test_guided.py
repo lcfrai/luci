@@ -106,14 +106,35 @@ class GuidedTest(unittest.TestCase):
         self.assertFalse(state["connected"])
         self.assertTrue(next(row for row in state["stages"] if row["id"] == "runtime-gallery")["uncertain"])
 
-    def test_wizard_passes_ordinary_choices_to_existing_validator(self):
+    def test_wizard_pending_foundation_returns_review_without_queries_or_replay(self):
         root, core, selected, _, _ = self.fixture()
         calls = []
-        core.configure_account = lambda *args, **kwargs: calls.append(kwargs) or {"providerEffects": False}
-        result = guided.wizard(core, root, selected, ask=lambda question: " selected ")
-        self.assertFalse(result["providerEffects"])
-        self.assertEqual(len(calls[0]), 12)
-        self.assertEqual(calls[0]["ssh_public_key_file"], "selected")
+        core.atomic_json(root / 'azure-foundation-plan.json', {'planDigest': 'pinned-plan', 'resources': [{'id': 'private-resource'}], 'retainedCharges': ['private endpoints']})
+        core.atomic_json(root / 'azure-foundation-state.json', {'state': 'foundation_write_pending', 'pending': 'private-resource'})
+        result = guided.wizard(core, root, selected, ask=lambda _: self.fail('pending stage asked new choices'), cli=lambda _: self.fail('pending stage called provider'))
+        self.assertFalse(result['connected'])
+        self.assertEqual(result['nextAction'], 'foundation-reconcile')
+        self.assertEqual(result['planDigest'], 'pinned-plan')
+
+    def test_wizard_discovers_private_location_and_stops_before_new_foundation_effects(self):
+        root, core, selected, _, _ = self.fixture()
+        selection = core.private_json(selected)
+        selection.update(name='luci-fixture')
+        core.atomic_json(selected, selection)
+        answers = iter(['1', 'endpoints', '10.20.0.5', '', '10.30.0.0/24', 'no', ''])
+        calls = []
+        module = SimpleNamespace(AzureARM=lambda cli: 'fixture-arm',
+            inventory=lambda *a: calls.append(a),
+            plan=lambda *a: {'state': 'foundation_review_required', 'connected': False, 'priceVerified': False})
+        def cli(arguments):
+            if arguments[:2] == ['account', 'show']: return {'id': 'subscription', 'user': {'type': 'user'}}
+            if arguments[:2] == ['ad', 'signed-in-user']: return 'operator-id'
+            if arguments[:3] == ['network', 'vnet', 'list']: return [{'id': 'existing-private-vnet', 'name': 'private'}]
+            self.fail('unexpected CLI mutation/query')
+        result = guided.wizard(core, root, selected, ask=lambda _: next(answers), cli=cli, foundation=module)
+        self.assertEqual(result['state'], 'foundation_review_required')
+        self.assertFalse(result['connected'])
+        self.assertEqual(calls[0][3:8], ('existing-private-vnet', 'endpoints', '10.20.0.5', 22, '10.30.0.0/24'))
 
     def test_private_location_requires_route_ack_and_refuses_retained_preparation(self):
         root, core, selected, _, _ = self.fixture()

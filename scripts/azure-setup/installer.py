@@ -28,8 +28,8 @@ SHA = re.compile(r"[0-9a-f]{64}\Z")
 GIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 REGION = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
-MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
-SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
+MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
+SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
                 "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-controller-disk/package.py",
                 "azure-controller-disk/mount.py", "azure-controller-disk/recover.py"}
 EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
@@ -281,7 +281,7 @@ def make_plan(selection, manifest, selection_path, bundle_root):
             missing.append("state_backend_" + name)
     if not selection["nextGeneration"] or selection["nextGeneration"] == variables.get("generation"):
         missing.append("distinct_next_controller_generation")
-    declared = set(re.findall(r'^variable "([a-z0-9_]+)"', (Path(bundle_root) / "terraform/variables.tf").read_text(), re.M)) - {"previous_generation", "tags", "management_source_cidr"}
+    declared = set(re.findall(r'^variable "([a-z0-9_]+)"', (Path(bundle_root) / "terraform/variables.tf").read_text(), re.M)) - {"previous_generation", "tags", "management_source_cidr", "existing_vnet_name", "existing_vnet_resource_group_name", "foundation_private_dns_resource_group_name"}
     for name in sorted(declared):
         if variables.get(name) in (None, "", [], {}):
             missing.append("terraform_" + name)
@@ -529,25 +529,20 @@ def prepare_images(bundle_root, selection_path, inputs_path, acknowledge_roots=F
     template_destination = paths["controllerImageRoot"] / template_target.lstrip("/")
     if template_destination.exists() or template_destination.is_symlink():
         raise ValueError("Controller image already has an operator template; retained image preparation needs review")
-    template_destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    template_destination.write_bytes(template_bytes)
-    template_destination.chmod(0o600)
+    if not deferred:
+        # Legacy advanced image path; normal guided images stay generic.
+        template_destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        template_destination.write_bytes(template_bytes)
+        template_destination.chmod(0o600)
     if deferred:
         credentials = Path(selection_path).parent / "azure-credentials"
         journal = private_json(credentials / "journal.json")
         ca_data = (credentials / "ca.crt").read_bytes()
         if hashlib.sha256(ca_data).hexdigest() != journal.get("files", {}).get("client-ca"):
             raise ValueError("Deferred controller root CA changed")
-        ca_target = paths["controllerImageRoot"] / "etc/luci/azure-private-ca.crt"
-        ca_target.write_bytes(ca_data)
-        ca_target.chmod(0o600)
-        env_target = paths["controllerImageRoot"] / "etc/luci/azure-controller.env"
-        env_target.write_text("LUCI_ADDR=127.0.0.1:8730\nLUCI_BACKING=azure\n"
-            "LUCI_AZURE_OPERATOR_TEMPLATE=/etc/luci/operator.json\n"
-            "LUCI_STATE_DIR=" + variables["controller_mount_path"] + "/luci/control\n"
-            "LUCI_PROJECTS_DIR=" + variables["controller_mount_path"] + "/luci/projects\n"
-            "LUCI_EXECUTION_STATE_DIR=" + variables["controller_mount_path"] + "/luci/execution\n")
-        env_target.chmod(0o600)
+        # Source-bound public trust and references are staged only after the
+        # concrete controller exists. Captured generic images carry no active
+        # account/generation selection, key material, projects or journals.
     result = dict(binding, state="image_roots_prepared_pending_gallery_publication",
                   runtimePackage={"path": str(host_tar), "sha256": host_sha},
                   controllerPackage={"path": str(controller_tar), "sha256": controller_sha},
@@ -577,8 +572,9 @@ def prepare(bundle_root, selection_path, selected_digest):
     raw = terraform(work, "show", "-json", "selected.tfplan")
     shown = json.loads(raw)
     changes = shown.get("resource_changes", [])
-    actions = [row.get("change", {}).get("actions", []) for row in changes]
-    if not changes or any(action != ["create"] for action in actions):
+    managed = [row for row in changes if row.get('mode', 'managed') == 'managed']
+    reads = [row for row in changes if row.get('mode') == 'data']
+    if not managed or len(managed) + len(reads) != len(changes) or any(row.get('change', {}).get('actions') != ['create'] for row in managed) or any(row.get('change', {}).get('actions') not in (['read'], ['no-op']) for row in reads):
         raise ValueError("Azure setup needs a fresh empty durable state; existing or changed resources require exact recovery review")
     tfplan = work / "selected.tfplan"
     if tfplan.is_symlink() or not tfplan.is_file() or tfplan.stat().st_size > 16 << 20:
@@ -586,8 +582,8 @@ def prepare(bundle_root, selection_path, selected_digest):
     record = {"version": 1, "state": "prepared", "planDigest": selected_digest,
               "selectionDigest": plan["selectionDigest"], "sourceCommit": plan["luciRevision"],
               "terraformPlanSHA256": hashlib.sha256(tfplan.read_bytes()).hexdigest(),
-              "resourceCreates": sum(action == ["create"] for action in actions),
-              "resourceNoops": 0,
+              "resourceCreates": len(managed),
+              "resourceNoops": len(reads),
               "resourceName": plan["name"], "region": plan["region"], "monthlyBudgetUsd": plan["monthlyBudgetUsd"],
               "priceVerified": False}
     atomic_json(state_path, record)
@@ -685,6 +681,32 @@ def initial_recovery_selection(selection, identities):
             "ownerID": variables["controller_owner_id"], "scope": variables["scope"]}
 
 
+def controller_setup_files(selection_path):
+    selected = private_json(selection_path)
+    variables = requested(selected)
+    parent = Path(selection_path).parent
+    template = (parent / 'operator-template.json').read_bytes()
+    if hashlib.sha256(template).hexdigest() != variables['controller_operator_template_sha256']:
+        raise ValueError('Post-create operator source differs from exact selection')
+    operator = json.loads(template)
+    if 'setupDeferred' not in operator:
+        return None
+    if any(operator.get(key) for key in ('apiKeyFile', 'adminApiKeyFile', 'attachKeyFile', 'clientCertFile', 'clientKeyFile')):
+        raise ValueError('Controller initialization accepts managed identity references only')
+    credentials = parent / 'azure-credentials'
+    ca_data = (credentials / 'ca.crt').read_bytes()
+    if hashlib.sha256(ca_data).hexdigest() != private_json(credentials / 'journal.json').get('files', {}).get('client-ca'):
+        raise ValueError('Post-create public trust changed')
+    environment = ('LUCI_ADDR=127.0.0.1:8730\nLUCI_BACKING=azure\n'
+        'LUCI_AZURE_OPERATOR_TEMPLATE=/etc/luci/operator.json\n'
+        'LUCI_STATE_DIR=' + variables['controller_mount_path'] + '/luci/control\n'
+        'LUCI_PROJECTS_DIR=' + variables['controller_mount_path'] + '/luci/projects\n'
+        'LUCI_EXECUTION_STATE_DIR=' + variables['controller_mount_path'] + '/luci/execution\n')
+    return [{'path': path, 'content': data.decode(), 'sha256': hashlib.sha256(data).hexdigest()} for path, data in (
+        (variables['controller_operator_template_path'], template), ('/etc/luci/azure-private-ca.crt', ca_data),
+        ('/etc/luci/azure-controller.env', environment.encode()))]
+
+
 def initial_guest_script(recovery):
     # Only source-selected resource names and nonsecret Key Vault references
     # enter ARM RunCommand. The script writes an owner-private exact selection
@@ -716,13 +738,11 @@ printf 'LUCI_AZURE_INITIALIZE_RECEIPT=%%s\\n' "$receipt"
 def invoke_initial_controller(script, subscription, group, vm_name):
     if shutil.which("az") is None:
         raise ValueError("Azure CLI is required for the protected private guest handoff")
-    result = subprocess.run(["az", "vm", "run-command", "invoke", "--subscription", subscription,
-                             "--resource-group", group, "--name", vm_name,
-                             "--command-id", "RunShellScript", "--scripts", script,
-                             "--output", "json"], capture_output=True, timeout=300, check=False)
-    if result.returncode or len(result.stdout) > 64 << 10:
-        raise RuntimeError("Azure controller bootstrap response is missing or uncertain")
-    return json.loads(result.stdout)
+    spec = importlib.util.spec_from_file_location('luci_azure_guided', Path(__file__).with_name('guided.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.az_json(['vm', 'run-command', 'invoke', '--subscription', subscription,
+        '--resource-group', group, '--name', vm_name, '--command-id', 'RunShellScript', '--scripts', script])
 
 
 def bootstrap(bundle_root, selection_path, plan_digest):
@@ -735,6 +755,10 @@ def bootstrap(bundle_root, selection_path, plan_digest):
         raise ValueError("Azure infrastructure needs exact provider readback before controller handoff")
     selection = private_json(selection_path)
     recovery = initial_recovery_selection(selection, state["resourceIDs"])
+    if (Path(selection_path).parent / 'operator-template.json').exists():
+        files = controller_setup_files(selection_path)
+        if files is not None:
+            recovery['controllerSetupFiles'] = files
     # Validate the static format with the shipped recovery adapter before any
     # ARM effect. It checks exact immutable IDs, fence and private paths.
     import importlib.util as util
@@ -773,10 +797,24 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "generate-secrets",
                    "publish-secrets", "reconcile-secrets", "bind-secrets", "prepare-images", "prepare", "apply",
-                   "reconcile", "bootstrap", "status", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile"):
+                   "reconcile", "bootstrap", "status", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile", "foundation-inventory", "foundation-plan", "foundation-step", "foundation-reconcile", "foundation-bind", "foundation-reuse"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
+        if action == 'foundation-inventory':
+            for key in ('vnet-id', 'endpoint-subnet', 'route-host', 'management-source-cidr'):
+                row.add_argument('--' + key, required=True)
+            row.add_argument('--route-port', type=int, default=22)
+            row.add_argument('--operator-object-id', default='')
+        if action == 'foundation-plan':
+            row.add_argument('--foundation-resource-group', required=True)
+        if action in ('foundation-step', 'foundation-reconcile'):
+            row.add_argument('--plan-digest', required=True)
+            row.add_argument('--acknowledge-costs', action='store_true')
+        if action == 'foundation-reuse':
+            row.add_argument('--storage-id', required=True)
+            row.add_argument('--vault-id', required=True)
+            row.add_argument('--private-dns-resource-group', required=True)
         if action == "template-step":
             row.add_argument("--mode", choices=("create", "created", "reconcile", "start", "status"), required=True)
             row.add_argument("--acknowledge-template-publication", action="store_true")
@@ -831,6 +869,39 @@ def main():
             row.add_argument("--acknowledge-costs", action="store_true")
             row.add_argument("--acknowledge-unverified-price", action="store_true")
     args = parser.parse_args()
+    if args.action.startswith('foundation-'):
+        bundle(args.bundle)
+        modules = []
+        for name in ('guided', 'foundation'):
+            spec = importlib.util.spec_from_file_location('luci_azure_' + name, args.bundle / ('azure-setup/' + name + '.py'))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            modules.append(module)
+        guided_module, foundation_module = modules
+        core = sys.modules[__name__]
+        # Local proposal does not need account authentication.
+        if args.action == 'foundation-plan':
+            result = foundation_module.plan(core, args.bundle, args.selection, args.foundation_resource_group)
+        else:
+            arm = foundation_module.AzureARM(guided_module.az_json)
+            if args.action == 'foundation-inventory':
+                account = guided_module.az_json(['account', 'show'])
+                principal = args.operator_object_id
+                if not principal:
+                    principal = guided_module.az_json(['ad', 'signed-in-user', 'show', '--query', 'id']) if account.get('user', {}).get('type') == 'user' else guided_module.az_json(['ad', 'sp', 'show', '--id', account.get('user', {}).get('name', ''), '--query', 'id'])
+                result = foundation_module.inventory(core, args.bundle, args.selection, args.vnet_id,
+                    args.endpoint_subnet, args.route_host, args.route_port, args.management_source_cidr,
+                    principal, arm, account)
+            elif args.action == 'foundation-reuse':
+                result = foundation_module.reuse(core, args.bundle, args.selection, args.storage_id,
+                    args.vault_id, args.private_dns_resource_group, arm)
+            elif args.action == 'foundation-bind':
+                result = foundation_module.bind(core, args.bundle, args.selection, arm, guided_module.az_json)
+            else:
+                result = foundation_module.step(core, args.bundle, args.selection, args.plan_digest, arm,
+                    args.acknowledge_costs, args.action == 'foundation-reconcile')
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.action in ("prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator"):
         bundle(args.bundle)
         spec = importlib.util.spec_from_file_location("luci_azure_operator", args.bundle / "azure-setup/operator_setup.py")
