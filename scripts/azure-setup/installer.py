@@ -804,7 +804,7 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "generate-secrets",
                    "publish-secrets", "reconcile-secrets", "bind-secrets", "prepare-images", "prepare", "apply",
-                   "reconcile", "bootstrap", "status", "continue", "retire", "recover-controller", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile", "foundation-inventory", "foundation-plan", "foundation-step", "foundation-reconcile", "foundation-bind", "foundation-reuse", "builder-source", "builder-plan", "builder-step"):
+                   "reconcile", "bootstrap", "status", "continue", "retire", "cancel-retirement", "recover-controller", "prepare-operator", "template-step", "finalize-operator", "install-operator", "reconcile-operator", "bind-images", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile", "foundation-inventory", "foundation-plan", "foundation-step", "foundation-reconcile", "foundation-bind", "foundation-reuse", "builder-source", "builder-plan", "builder-step"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
@@ -891,11 +891,12 @@ def main():
             row.add_argument("--acknowledge-costs", action="store_true")
             row.add_argument("--acknowledge-unverified-price", action="store_true")
     args = parser.parse_args()
-    if args.action == 'retire':
+    if args.action in ('retire', 'cancel-retirement'):
         bundle(args.bundle)
         spec = importlib.util.spec_from_file_location('luci_azure_retirement', args.bundle / 'azure-setup/retirement.py')
         retirement = importlib.util.module_from_spec(spec); spec.loader.exec_module(retirement)
-        print(json.dumps(retirement.run(sys.modules[__name__], args.bundle, args.selection), sort_keys=True))
+        action = retirement.cancel if args.action == 'cancel-retirement' else retirement.run
+        print(json.dumps(action(sys.modules[__name__], args.bundle, args.selection), sort_keys=True))
         return
     if args.action == 'recover-controller':
         bundle(args.bundle)

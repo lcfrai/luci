@@ -61,8 +61,11 @@ class RetirementTests(unittest.TestCase):
             calls.append(('guest', script))
             identity = {'sourceCommit': proposal['sourceCommit'], 'scope': proposal['scope'], 'generation': proposal['generation'], 'planDigest': proposal['planDigest']}
             if args[0] == 'vmss':
-                value = dict(identity, state='retirement_stopped', runtimeStorageOnOSDiskVerified=True)
+                value = dict(identity, state='retirement_cancelled_active', taskReservationsReleased=False) if 'retirement-resume' in script else dict(identity, state='retirement_stopped', runtimeStorageOnOSDiskVerified=True)
                 marker = 'LUCI_AZURE_RUNTIME_RETIRED='
+            elif 'retire.py cancel' in script:
+                value = dict(identity, state='retirement_cancelled_active', taskReservationsReleased=False)
+                marker = 'LUCI_AZURE_INSTALLATION_RETIREMENT='
             elif 'retire.py close' in script:
                 backup_sha = re.search(r'--backups-sha256 ([0-9a-f]{64})', script)[1]
                 value = dict(identity, state='retirement_closed_pending_compute', backupsSHA256=backup_sha)
@@ -171,6 +174,49 @@ class RetirementTests(unittest.TestCase):
         with self.assertRaises(TimeoutError): self.execute(fixture, arm=arm)
         self.execute(fixture, arm=arm)
         self.assertEqual(sum(value[0] == 'POST' for value in fixture[5]), 3)
+
+    def cancel_fixture(self, fixture, provider=None, ask=None):
+        root, core, selection, proposal, _, _, arm, original_provider = fixture
+        approve = lambda prompt: prompt.split('type ', 1)[1].split(' (anything', 1)[0]
+        with patch.object(retirement, 'plan', return_value=proposal):
+            return retirement.cancel(core, Path(__file__).parent.parent, selection, ask or approve, lambda _: None, provider or original_provider, arm)
+
+    def test_actor_cancel_preserves_original_unknown_journal_and_never_deallocates(self):
+        fixture = self.fixture(); root, core, _, proposal = fixture[:4]
+        original = {'planDigest': proposal['planDigest'], 'completed': [], 'receipts': {}, 'pending': 'quiesce'}
+        core.atomic_json(root / 'azure-retirement-state.json', original)
+        result = self.cancel_fixture(fixture)
+        self.assertEqual(core.private_json(root / 'azure-retirement-state.json'), original)
+        self.assertFalse(result['taskReservationsReleased']); self.assertEqual(result['originalPending'], 'quiesce')
+        self.assertFalse(any(method in ('POST', 'PUT') for method, _ in fixture[5]))
+        # Continue follows the actor cancellation, never resumes old retirement.
+        self.assertEqual(self.execute(fixture)['state'], result['state'])
+        self.assertEqual(sum(method == 'guest' for method, _ in fixture[5]), 2)
+
+    def test_cancel_unknown_resume_ack_only_inspects_on_restart(self):
+        fixture = self.fixture(); root, core, _, proposal = fixture[:4]
+        core.atomic_json(root / 'azure-retirement-state.json', {'planDigest': proposal['planDigest'], 'completed': [], 'receipts': {}, 'pending': 'host-stop'})
+        lost = [False]
+        def provider(args):
+            value = fixture[7](args)
+            if not lost[0]: lost[0] = True; raise TimeoutError('lost runtime resume ACK')
+            return value
+        with self.assertRaises(TimeoutError): self.cancel_fixture(fixture, provider)
+        result = self.cancel_fixture(fixture, provider)
+        self.assertFalse(result['taskReservationsReleased'])
+        scripts = [script for method, script in fixture[5] if method == 'guest']
+        self.assertEqual(sum('service.py retirement-resume /' in script for script in scripts), 1)
+        self.assertEqual(sum('service.py retirement-resume-inspect /' in script for script in scripts), 1)
+
+    def test_cancel_cost_refusal_and_closed_retirement_never_mutate(self):
+        fixture = self.fixture(); root, core, _, proposal = fixture[:4]
+        path = root / 'azure-retirement-state.json'
+        core.atomic_json(path, {'planDigest': proposal['planDigest'], 'completed': [], 'receipts': {}, 'pending': 'quiesce'})
+        self.assertEqual(self.cancel_fixture(fixture, ask=lambda _: 'no')['state'], 'installation_retirement_cancel_review_paused')
+        self.assertEqual(fixture[5], [])
+        core.atomic_json(path, {'planDigest': proposal['planDigest'], 'completed': [], 'receipts': {}, 'pending': 'fence-close'})
+        with self.assertRaisesRegex(ValueError, 'cannot reopen'): self.cancel_fixture(fixture)
+        self.assertEqual(fixture[5], [])
 
 
 if __name__ == '__main__': unittest.main()

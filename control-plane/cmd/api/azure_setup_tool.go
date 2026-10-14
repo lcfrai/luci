@@ -192,7 +192,7 @@ func azureSetupGatewayRead(ctx context.Context, client *http.Client, host, path,
 }
 
 func runAzureSetupCommand(action, path string, output io.Writer) error {
-	if runtime.GOOS != "linux" || (action != "template-create" && action != "template-reconcile" && action != "template-start" && action != "template-status" && action != "observe" && action != "retirement-observe" && action != "retirement-preflight") {
+	if runtime.GOOS != "linux" || (action != "template-create" && action != "template-reconcile" && action != "template-start" && action != "template-status" && action != "observe" && action != "retirement-observe" && action != "retirement-preflight" && action != "retirement-verify" && action != "retirement-resume-observe") {
 		return errors.New("unsupported protected controller setup action")
 	}
 	input, selected, err := readAzureSetupToolSelection(path)
@@ -222,8 +222,20 @@ func runAzureSetupCommand(action, path string, output io.Writer) error {
 		return err
 	}
 	verifyFence := func() error { return verifyAzureFence(ctx, selected, fence, false) }
-	if action == "retirement-observe" && input.RetirementPlanDigest != "" {
+	if (action == "retirement-observe" || action == "retirement-verify") && input.RetirementPlanDigest != "" {
 		verifyFence = func() error { return verifyAzureSetupRetirementFence(ctx, selected, fence, input) }
+	}
+	if action == "retirement-resume-observe" {
+		verifyFence = func() error {
+			if err := verifyAzureFence(ctx, selected, fence, false); err != nil {
+				return err
+			}
+			record, err := fence.Read(ctx, input.FenceBlobURL)
+			if err != nil {
+				return err
+			}
+			return azureSetupRetirementCancellationIdentity(record, input)
+		}
 	}
 	if err := verifyFence(); err != nil {
 		return err
@@ -338,7 +350,7 @@ func runAzureSetupCommand(action, path string, output io.Writer) error {
 		return errors.New("initial protected runtime node is not ready")
 	}
 	receipt["nodes"] = nodeRows
-	if action == "retirement-observe" || action == "retirement-preflight" {
+	if action == "retirement-observe" || action == "retirement-preflight" || action == "retirement-verify" {
 		if action == "retirement-observe" {
 			if err := azureSetupAccountQuiesced(ctx); err != nil {
 				return err
@@ -357,6 +369,14 @@ func runAzureSetupCommand(action, path string, output io.Writer) error {
 		receipt["settledJournalDigests"] = digests
 		receipt["taskReservationsSettled"] = true
 		receipt["retirementPlanDigest"] = input.RetirementPlanDigest
+	}
+	if action == "retirement-resume-observe" {
+		if err := verifyFence(); err != nil {
+			return err
+		}
+		receipt["retirementPlanDigest"] = input.RetirementPlanDigest
+		// Held reservations remain held. Cancellation never settles task ledgers.
+		receipt["taskReservationsReleased"] = false
 	}
 	boot, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
 	if err != nil {
@@ -383,6 +403,14 @@ func azureSetupRetirementFenceIdentity(record azureFenceRecord, selected e2bOper
 		record.GenerationReceiptSHA256 != m.GenerationReceiptDigest || record.RetirementPlanDigest != input.RetirementPlanDigest ||
 		record.RetirementSourceCommit != input.SourceCommit {
 		return errors.New("retirement fence differs from exact source, plan or controller generation")
+	}
+	return nil
+}
+
+func azureSetupRetirementCancellationIdentity(record azureFenceRecord, input azureSetupToolInput) error {
+	if record.State != "active" || !azureDigestPattern.MatchString(input.RetirementPlanDigest) ||
+		record.RetirementCancelledPlanDigest != input.RetirementPlanDigest || record.RetirementSourceCommit != input.SourceCommit {
+		return errors.New("retirement cancellation differs from exact active source and actor plan")
 	}
 	return nil
 }

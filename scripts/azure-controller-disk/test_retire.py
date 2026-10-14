@@ -32,15 +32,19 @@ class RetirementFenceTests(unittest.TestCase):
         record.update(state='active', generationReceiptSHA256='c' * 64)
         store = Store(record)
         class Compute:
-            def __init__(self): self.calls, self.stopped, self.lost_stop, self.settled = [], False, False, True
+            def __init__(self): self.calls, self.stopped, self.lost_stop, self.settled, self.lost_start = [], False, False, True, False
             def disk_owner(self, _): return selected['controllerID'], 'Attached'
             def run_command(self, vm, script):
                 self.calls.append(script)
                 if 'systemctl stop' in script:
                     self.stopped = True
                     if self.lost_stop: raise TimeoutError('lost stop acknowledgment')
+                if 'systemctl start' in script:
+                    self.stopped = False
+                    if self.lost_start: raise TimeoutError('lost start acknowledgment')
                 if 'retirement-observe' in script and not self.stopped: raise RuntimeError('account still active')
-                if not self.settled: raise RuntimeError('held task reservation')
+                if not self.settled and 'retirement-resume-observe' not in script: raise RuntimeError('held task reservation')
+                if 'retirement-resume-observe' in script and self.stopped: raise RuntimeError('account still stopped')
                 value = {key: selected[value] for key, value in (('sourceCommit', 'sourceCommit'), ('scope', 'scope'),
                     ('generation', 'generation'), ('controllerResourceID', 'controllerID'), ('dataDiskID', 'diskID'), ('retirementPlanDigest', 'planDigest'))}
                 value.update(state='controller_setup_readback', taskReservationsSettled=True, settledJournalDigests={'owned-ledger': 'd' * 64}, observedAtUTC='2026-10-14T12:00:00Z')
@@ -88,6 +92,38 @@ class RetirementFenceTests(unittest.TestCase):
         retire.close(selected, store, 'e' * 64)
         self.assertEqual(retire.close(selected, store, 'e' * 64, inspect=True)['state'], 'retirement_closed_pending_compute')
         with self.assertRaisesRegex(ValueError, 'handoff changed'): retire.close(selected, store, 'f' * 64, inspect=True)
+
+    def test_actor_cancel_restores_same_generation_and_preserves_held_reservations(self):
+        selected, store, compute = self.fixture()
+        retire.quiesce(selected, store, compute)
+        predecessor = dict(store.record['retirementPredecessor'])
+        compute.settled = False
+        result = retire.cancel(selected, store, compute)
+        self.assertFalse(result['taskReservationsReleased']); self.assertEqual(store.record['state'], 'active')
+        for key, value in predecessor.items(): self.assertEqual(store.record[key], value)
+        self.assertEqual(store.record['retirementCancelledPlanDigest'], selected['planDigest'])
+        self.assertEqual(sum('systemctl start' in script for script in compute.calls), 1)
+        with self.assertRaisesRegex(ValueError, 'Actor cancelled'): retire.quiesce(selected, store, compute)
+        with self.assertRaises(ValueError): retire.close(selected, store, 'e' * 64)
+
+    def test_cancel_unknown_start_inspects_without_repeating_or_releasing_leases(self):
+        selected, store, compute = self.fixture()
+        compute.lost_stop = True
+        with self.assertRaises(RuntimeError): retire.quiesce(selected, store, compute)
+        compute.settled = False; compute.lost_start = True
+        with self.assertRaises(TimeoutError): retire.cancel(selected, store, compute)
+        self.assertTrue(store.record['retirementCancelStartPending'])
+        result = retire.cancel(selected, store, compute, inspect=True)
+        self.assertFalse(result['taskReservationsReleased'])
+        self.assertEqual(sum('systemctl start' in script for script in compute.calls), 1)
+        self.assertFalse(store.record['retirementCancelStartPending'])
+
+    def test_cancel_closed_or_stale_plan_has_zero_effects(self):
+        selected, store, compute = self.fixture()
+        retire.quiesce(selected, store, compute); retire.close(selected, store, 'e' * 64)
+        calls, writes = len(compute.calls), store.writes
+        with self.assertRaisesRegex(ValueError, 'cannot be cancelled'): retire.cancel(selected, store, compute)
+        self.assertEqual((len(compute.calls), store.writes), (calls, writes))
 
 
 if __name__ == '__main__': unittest.main()

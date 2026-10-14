@@ -48,10 +48,12 @@ def write(store, record, etag):
     return record, store.write(record, etag)
 
 
-def tool_script(selection, action, stop=False):
-    if action not in ('retirement-preflight', 'retirement-observe'): raise ValueError('Unsupported retirement observation')
+def tool_script(selection, action, stop=False, start=False):
+    if action not in ('retirement-preflight', 'retirement-observe', 'retirement-resume-observe'): raise ValueError('Unsupported retirement observation')
     encoded = base64.b64encode(recovery.canonical(selection['toolSelection'])).decode()
     return """set -eu
+exec 9>/run/luci-retirement-controller.lock
+flock -n 9 || exit 1
 python3 - <<'PY'
 import base64,os,pathlib,stat,tempfile
 data=base64.b64decode(%s)
@@ -68,16 +70,21 @@ PY
 receipt=$(/opt/luci/azure-controller/bin/luci-api azure-setup %s /etc/luci/azure-retirement-tool.json)
 sync -f %s
 printf 'LUCI_AZURE_RETIREMENT_SETTLED=%%s\\n' "$receipt"
-""" % (repr(encoded), 'systemctl stop luci-api.service' if stop else ':', action, selection['toolSelection']['mountPath'])
+""" % (repr(encoded),
+        '/opt/luci/azure-controller/bin/luci-api azure-setup retirement-verify /etc/luci/azure-retirement-tool.json >/dev/null\nsystemctl stop luci-api.service' if stop else
+        '/opt/luci/azure-controller/bin/luci-api azure-setup retirement-resume-observe /etc/luci/azure-retirement-tool.json >/dev/null\nsystemctl start luci-api.service\nsystemctl is-active --quiet luci-api.service' if start else
+        'systemctl is-active --quiet luci-api.service' if action == 'retirement-resume-observe' else ':',
+        action, selection['toolSelection']['mountPath'])
 
 
-def observation(selection, compute, action, stop=False):
-    output = compute.run_command(selection['controllerID'], tool_script(selection, action, stop))
+def observation(selection, compute, action, stop=False, start=False):
+    output = compute.run_command(selection['controllerID'], tool_script(selection, action, stop, start))
     rows = [line.removeprefix('LUCI_AZURE_RETIREMENT_SETTLED=') for line in output.splitlines() if line.startswith('LUCI_AZURE_RETIREMENT_SETTLED=')]
     if len(rows) != 1: raise RuntimeError('Authoritative retirement observation remains unavailable')
     result = json.loads(rows[0])
-    if (result.get('state') != 'controller_setup_readback' or result.get('taskReservationsSettled') is not True or
-            not isinstance(result.get('settledJournalDigests'), dict) or any(result.get(key) != selection[target] for key, target in (
+    settled = action != 'retirement-resume-observe'
+    if (result.get('state') != 'controller_setup_readback' or (settled and (result.get('taskReservationsSettled') is not True or
+            not isinstance(result.get('settledJournalDigests'), dict))) or any(result.get(key) != selection[target] for key, target in (
                 ('sourceCommit', 'sourceCommit'), ('scope', 'scope'), ('generation', 'generation'),
                 ('controllerResourceID', 'controllerID'), ('dataDiskID', 'diskID'), ('retirementPlanDigest', 'planDigest')))):
         raise ValueError('Task/provider/reservation readback is not exact settled ownership proof')
@@ -90,6 +97,8 @@ def quiesce(selection, store, compute, inspect=False):
     if compute.disk_owner(selection['diskID']) != (selection['controllerID'], 'Attached'):
         raise ValueError('Retirement authoritative disk attachment changed')
     if record['state'] == 'active':
+        if record.get('retirementCancelledPlanDigest') == selection['planDigest']:
+            raise ValueError('Actor cancelled this retirement plan; no late stop or rearm')
         if inspect: raise RuntimeError('Retirement fence effect remains absent/unknown; no repeated stop')
         observation(selection, compute, 'retirement-preflight')
         predecessor = dict(record)
@@ -113,6 +122,46 @@ def quiesce(selection, store, compute, inspect=False):
         'settlementSHA256': record['retirementSettlementSHA256'], 'taskReservationsSettled': True,
         'settledJournalDigests': observed['settledJournalDigests'], 'observedAtUTC': observed['observedAtUTC'],
         'providerInvoiceVerified': False}
+
+
+def cancel(selection, store, compute, inspect=False):
+    """Explicit actor recovery of the same generation, preserving held task leases."""
+    validate(selection)
+    record, etag = store.read(); identity(selection, record)
+    if compute.disk_owner(selection['diskID']) != (selection['controllerID'], 'Attached'):
+        raise ValueError('Cancellation authoritative disk attachment changed')
+    marker = record.get('retirementCancelledPlanDigest')
+    if marker:
+        if record['state'] != 'active' or marker != selection['planDigest'] or record.get('retirementSourceCommit') != selection['sourceCommit']:
+            raise ValueError('Cancellation differs from retained source/plan or is no longer active')
+        observed = observation(selection, compute, 'retirement-resume-observe')
+    else:
+        if inspect: raise RuntimeError('Cancellation fence effect remains absent/unknown; no repeated write/start')
+        if record['state'] == 'active':
+            predecessor = dict(record)
+        elif record['state'] in ('retirement_quiesce_pending', 'retirement_settled'):
+            if record.get('retirementPlanDigest') != selection['planDigest'] or record.get('retirementSourceCommit') != selection['sourceCommit']:
+                raise ValueError('Cancellation belongs to another retirement source/plan')
+            predecessor = record.get('retirementPredecessor', {})
+            identity(selection, predecessor)
+            if predecessor.get('state') != 'active' or recovery.digest(predecessor) != record.get('retirementPredecessorSHA256'):
+                raise ValueError('Exact active predecessor fence is unavailable')
+        else:
+            raise ValueError('Closed or deallocating retirement cannot be cancelled')
+        # Retain the stopped/uncertain fence in the cancellation receipt. Never
+        # clear task ledgers or pretend identity removal invalidated tokens.
+        record, etag = write(store, dict(predecessor, retirementCancelledPlanDigest=selection['planDigest'],
+            retirementSourceCommit=selection['sourceCommit'], retirementCancelPriorFenceSHA256=recovery.digest(record),
+            retirementCancelStartPending=True), etag)
+        observed = observation(selection, compute, 'retirement-resume-observe', start=True)
+    # CAS prevents completion over a concurrent recovery or closure. A lost
+    # start ACK only reaches the observation branch above, never a second start.
+    if record.get('retirementCancelStartPending'):
+        record, etag = write(store, dict(record, retirementCancelStartPending=False,
+            retirementCancelObservedAtUTC=observed['observedAtUTC']), etag)
+    return {'state': 'retirement_cancelled_active', 'sourceCommit': selection['sourceCommit'], 'scope': selection['scope'],
+        'generation': selection['generation'], 'planDigest': selection['planDigest'], 'taskReservationsReleased': False,
+        'observedAtUTC': observed['observedAtUTC'], 'providerInvoiceVerified': False}
 
 
 def close(selection, store, backups_sha, inspect=False):
@@ -156,7 +205,7 @@ class LocalCompute(recovery.Compute):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=('quiesce', 'inspect', 'close'))
+    parser.add_argument('action', choices=('quiesce', 'inspect', 'close', 'cancel', 'cancel-inspect'))
     parser.add_argument('selection', type=Path)
     parser.add_argument('--backups-sha256', default='')
     parser.add_argument('--inspect', action='store_true')
@@ -167,7 +216,10 @@ def main():
     if local_id != selection['recoveryID']: raise ValueError('Retirement must run on the exact selected recovery identity host')
     store = recovery.FenceBlob(transport, selection['fenceBlobURL'])
     compute = LocalCompute(transport, local_id)
-    result = close(selection, store, args.backups_sha256, args.inspect) if args.action == 'close' else quiesce(selection, store, compute, args.action == 'inspect')
+    if args.action in ('cancel', 'cancel-inspect'):
+        result = cancel(selection, store, compute, args.action == 'cancel-inspect')
+    elif args.action == 'close': result = close(selection, store, args.backups_sha256, args.inspect)
+    else: result = quiesce(selection, store, compute, args.action == 'inspect')
     print(json.dumps(result, sort_keys=True))
 
 
