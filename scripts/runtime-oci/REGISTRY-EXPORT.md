@@ -5,7 +5,11 @@ fake registry; an actual Docker Desktop daemon, helper container, image push,
 memory envelope, and retirement remain unverified.
 
 The producer starts one capped helper container from the **exact inspected
-runtime image**, with no Docker socket, privilege, or network egress. Mount the
+runtime image**, with no Docker socket or privilege, on its own ordinary
+user-defined bridge. Only literal host loopback is published; this permits
+Docker Desktop forwarding but is not an enforced egress ban. The trusted
+registry/gate has no credentials/workload and connects only to container
+loopback. Mount the
 official Distribution 3.0.0 Linux amd64 `registry` executable and `LICENSE`
 read-only at `/tools/registry` and `/tools/LICENSE`, and an owned E: directory
 read/write at `/registry-data`. The official archive SHA-256 is
@@ -28,7 +32,9 @@ Run `node /tools/registry_gate.mjs` with:
 The only repository is `luci/runtime-export-<session>` and the only tag is
 `payload`. Distribution binds container loopback port 5001; Node binds the
 container front port 5000. The producer must first prove **both host and
-daemon** `http://127.0.0.1:<published-port>/v2/` reach this exact helper.
+daemon** loopback reaches this exact helper. Host checks use `/v2/`; the
+daemon proof is an Engine `DistributionInspect` of the fresh absent own
+`:payload` manifest with matching exact request/404 in registry logs.
 Windows host loopback reachability alone is insufficient. No daemon-wide
 insecure-registry configuration or `host.docker.internal` substitution is
 allowed. If the Docker Desktop port mapping is not daemon-reachable, stop here.
