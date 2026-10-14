@@ -160,4 +160,5 @@ type RuntimeImagePullExecutor interface {
 // receipt for an unknown create, pull or delete acknowledgement.
 type RuntimeImagePullRecoveryExecutor interface {
 	RetireKnownPullOwnership(context.Context, RuntimeImageIdentity, string, string, string, RuntimePullHelper) error
+	ObserveRetiredPullOwnership(context.Context, RuntimeImageIdentity, string, string, string) (RuntimePullHelper, error)
 }

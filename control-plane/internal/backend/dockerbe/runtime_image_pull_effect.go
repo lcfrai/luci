@@ -92,8 +92,13 @@ func inspectOwnedPullContainer(ctx context.Context, b *Backend, prepared backend
 	if err != nil {
 		return row, err
 	}
-	if row.ID != containerID || row.Name != "/"+name || row.Image != prepared.PullBundle.Manifest.Bootstrap.ImageID || row.Config == nil || row.HostConfig == nil || row.Config.Labels["luci.runtime-pull"] != "true" || row.Config.Labels["luci.runtime-pull-manifest"] != prepared.PullBundle.ManifestSHA256 || row.Config.Labels[runtimeImagePrefix+"allocation"] != id.AllocationID || row.Config.Labels[backend.LabelInstance] != id.InstanceID || row.HostConfig.Memory != 256<<20 || row.HostConfig.MemorySwap != 256<<20 || row.HostConfig.NanoCPUs != 1_000_000_000 || !row.HostConfig.ReadonlyRootfs || len(row.HostConfig.Mounts) != 1 || !row.HostConfig.Mounts[0].ReadOnly || row.HostConfig.Mounts[0].Source != prepared.Spec.PullStagingDirectory {
+	if row.ID != containerID || row.Name != "/"+name || row.Image != prepared.PullBundle.Manifest.Bootstrap.ImageID || row.Config == nil || row.HostConfig == nil || row.Config.Labels["luci.runtime-pull"] != "true" || row.Config.Labels["luci.runtime-pull-manifest"] != prepared.PullBundle.ManifestSHA256 || row.Config.Labels[runtimeImagePrefix+"allocation"] != id.AllocationID || row.Config.Labels[backend.LabelInstance] != id.InstanceID || row.Config.User != "65532:65532" || row.HostConfig.Memory != 256<<20 || row.HostConfig.MemorySwap != 256<<20 || row.HostConfig.NanoCPUs != 1_000_000_000 || !row.HostConfig.ReadonlyRootfs || row.HostConfig.NetworkMode != container.NetworkMode("luci-runtime-pull-net-"+id.AllocationID) || row.HostConfig.PublishAllPorts || len(row.HostConfig.Mounts) != 1 || !row.HostConfig.Mounts[0].ReadOnly || row.HostConfig.Mounts[0].Source != prepared.Spec.PullStagingDirectory || row.HostConfig.Mounts[0].Target != "/registry-data" || row.HostConfig.Mounts[0].Type != "bind" || len(row.HostConfig.CapDrop) != 1 || row.HostConfig.CapDrop[0] != "ALL" || len(row.HostConfig.SecurityOpt) != 1 || row.HostConfig.SecurityOpt[0] != "no-new-privileges:true" || row.HostConfig.PidsLimit == nil || *row.HostConfig.PidsLimit != 64 {
 		return container.InspectResponse{}, backend.ErrLaunchFenceOwnership
+	}
+	for key, value := range runtimeIdentityLabels(id) {
+		if row.Config.Labels[key] != value {
+			return container.InspectResponse{}, backend.ErrLaunchFenceOwnership
+		}
 	}
 	return row, nil
 }

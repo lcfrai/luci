@@ -61,6 +61,58 @@ func TestRuntimePullPhasesRetainExactAllocationAcrossRestart(t *testing.T) {
 		t.Fatal("invalid bootstrap output entered durable ledger")
 	}
 }
+
+func TestRuntimePullLostCleanupRequiresNewEngineStopWitness(t *testing.T) {
+	g := previewTestGate(t)
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Execution.EngineID = httpCheckEngine
+		s.Execution.DaemonDisk.AvailableBytes = executionPointer(uint64(64 << 30))
+		return s
+	}
+	p := runtimeImagePrepared(g, "pull-retire")
+	p.PullBundle = &runtimeoci.PullBundle{ManifestSHA256: strings.Repeat("b", 64)}
+	lease := runtimeImageReserve(t, g, p)
+	var err error
+	lease, err = g.transitionRuntimeImage(context.Background(), lease, "building")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, step := range []struct{ from, to, output string }{
+		{"staging", "bootstrap-loading", ""},
+		{"bootstrap-loading", "bootstrap-loaded", "sha256:" + strings.Repeat("c", 64)},
+		{"bootstrap-loaded", "network-creating", ""},
+	} {
+		lease, err = g.advanceRuntimeImagePull(context.Background(), lease, step.from, step.to, step.output)
+		if err != nil {
+			t.Fatal(step, err)
+		}
+	}
+	lease, err = g.advanceRuntimeImageEngineRetirement(context.Background(), lease, "watching")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease, err = g.advanceRuntimeImageEngineRetirement(context.Background(), lease, "stopped")
+	if err != nil {
+		t.Fatal(err)
+	}
+	owned := backend.RuntimePullHelper{NetworkID: strings.Repeat("d", 64)}
+	lease, err = g.beginRuntimeImagePullRetirement(context.Background(), lease, owned)
+	if err != nil || lease.ImportStage != "recovery-retiring" || lease.PullNetworkID != owned.NetworkID || !lease.EngineStoppedAt.Before(lease.PullCleanupIntentAt) {
+		t.Fatal("retirement intent lost exact witness or object", lease, err)
+	}
+	if _, err := g.beginRuntimeImagePullRetirement(context.Background(), lease, owned); err == nil {
+		t.Fatal("uncertain cleanup was blindly replayed")
+	}
+	lease, err = g.renewRuntimePullEngineRetirement(context.Background(), lease)
+	if err != nil || lease.EngineRecoveryStage != "watching" || !lease.EngineStoppedAt.IsZero() {
+		t.Fatal("new engine watch was not required", lease, err)
+	}
+	lease, err = g.advanceRuntimeImageEngineRetirement(context.Background(), lease, "stopped")
+	if err != nil || !lease.EngineStoppedAt.After(lease.PullCleanupIntentAt) {
+		t.Fatal("second stop witness unavailable", lease, err)
+	}
+}
 func TestRuntimeImageColdAdmissionPreservesFortyGiBFloor(t *testing.T) {
 	for _, disk := range []uint64{39, 40} {
 		t.Run(string(rune('a'+disk-39)), func(t *testing.T) {

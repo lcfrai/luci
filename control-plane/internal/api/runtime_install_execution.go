@@ -592,8 +592,9 @@ func (a *API) reconcileRuntimeImage(ctx context.Context, id runtimeinstall.Ident
 			}
 			return out, a.execution.acknowledgeRuntimeImageCompletion(ctx, lease)
 		}
-		out.ResourcesHeld, out.ReasonCode, out.Message = true, "runtime_pull_effect_unconfirmed", "A Docker pull or owned helper effect lacks a terminal receipt. The exact allocation remains held; no image or helper effect was replayed."
-		return out, publish(out)
+		if lease.ImportStage != "deriving" {
+			return a.reconcileRuntimePullEngine(ctx, lease, out, publish)
+		}
 	}
 	// The shared payload import has a positive terminal receipt, while the
 	// allocation-specific derivative cannot start before a separate durable

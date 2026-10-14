@@ -53,6 +53,52 @@ func (b *Backend) RetireKnownPullOwnership(ctx context.Context, id backend.Runti
 	return b.runtimeImageIdentity(ctx, id)
 }
 
+// Only a controller with a durable selected-engine stopped witness may use
+// this readback as cleanup evidence. The backend still fences current engine,
+// exact generated names, labels, image config and the staging bind.
+func (b *Backend) ObserveRetiredPullOwnership(ctx context.Context, id backend.RuntimeImageIdentity, manifestSHA, bootstrapID, stage string) (backend.RuntimePullHelper, error) {
+	var owned backend.RuntimePullHelper
+	if !validRuntimeIdentity(id, true) || !fenceHex(manifestSHA, 32) || bootstrapID != "" && !runtimeImageID(bootstrapID) || !filepath.IsAbs(stage) {
+		return owned, backend.ErrLaunchFenceOwnership
+	}
+	if err := b.runtimeImageIdentity(ctx, id); err != nil {
+		return owned, err
+	}
+	client, ok := b.api.(runtimePullNetworkClient)
+	if !ok {
+		return owned, backend.ErrUnsupported
+	}
+	networkName, helperName, err := pullHelperNames(id)
+	if err != nil {
+		return owned, err
+	}
+	networkRow, err := client.NetworkInspect(ctx, networkName, network.InspectOptions{})
+	if err == nil {
+		if err = inspectOwnedPullNetwork(ctx, client, id, networkRow.ID); err != nil {
+			return owned, err
+		}
+		owned.NetworkID = networkRow.ID
+	} else if !errdefs.IsNotFound(err) {
+		return owned, backend.ErrUnavailable
+	}
+	containerRow, err := b.api.ContainerInspect(ctx, helperName)
+	if err == nil {
+		if owned.NetworkID == "" || bootstrapID == "" {
+			return owned, backend.ErrLaunchFenceOwnership
+		}
+		bundle := &runtimeoci.PullBundle{ManifestSHA256: manifestSHA}
+		bundle.Manifest.Bootstrap.ImageID = bootstrapID
+		prepared := backend.PreparedRuntimeImage{Spec: backend.RuntimeImageSpec{Identity: id, PullStagingDirectory: stage}, PullBundle: bundle}
+		if _, err = inspectOwnedPullContainer(ctx, b, prepared, containerRow.ID); err != nil {
+			return owned, err
+		}
+		owned.ContainerID = containerRow.ID
+	} else if !errdefs.IsNotFound(err) {
+		return owned, backend.ErrUnavailable
+	}
+	return owned, b.runtimeImageIdentity(ctx, id)
+}
+
 func (b *Backend) DerivePullRuntimeImage(ctx context.Context, prepared backend.PreparedRuntimeImage) (backend.RuntimeImageBuildResult, error) {
 	if prepared.PullBundle == nil || prepared.Bundle != nil {
 		return backend.RuntimeImageBuildResult{Settled: true}, backend.ErrUnsupported
