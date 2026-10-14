@@ -224,10 +224,10 @@ def read_loopback(owner, path, limit=1 << 20):
 class Helper:
     """Exact helper generation. Failed retirement retains identities and data."""
 
-    def __init__(self, repo, image_id, session, output, distribution, daemon_probe=None):
+    def __init__(self, repo, image_id, session, output, distribution, daemon_probe=None, engine_id=None):
         self.repo, self.output = Path(repo), Path(output)
         self.image_id, self.session = image_id, session
-        self.engine = producer.command(['docker', 'info', '--format', '{{.ID}}']).strip().decode('ascii')
+        self.engine = producer.engine_info(engine_id)['ID']
         producer.ENGINE_IDENTITIES[session] = self.engine
         inspected = json.loads(producer.command(['docker', 'image', 'inspect', image_id]))[0]
         self.history = original_history(image_id, inspected)
@@ -243,7 +243,7 @@ class Helper:
         self.daemon_probe = Path(daemon_probe) if daemon_probe else None
 
     def fence(self):
-        if producer.command(['docker', 'info', '--format', '{{.ID}}']).strip().decode('ascii') != self.engine:
+        if producer.engine_info(self.engine)['ID'] != self.engine:
             raise ValueError('registry producer engine changed; retain owned generation')
         producer.owned_running(self.session)
 
@@ -376,13 +376,13 @@ def placement(repo, revision, build_repo, original, distribution, output, daemon
     plain_directory(output.parent)
     if output.exists() or any(output.is_relative_to(value) for value in (repo, build_repo, original)):
         raise ValueError('fresh private placement output outside source/evidence required')
-    engine = producer.command(['docker', 'info', '--format', '{{.ID}}']).strip().decode('ascii')
+    engine = producer.engine_info(terminal['engineID'])['ID']
     inspected = json.loads(producer.command(['docker', 'image', 'inspect', image_id]))[0]
     if engine != terminal['engineID'] or inspected.get('Id') != image_id or inspected.get('Config', {}).get('Labels', {}).get(producer.SESSION_LABEL) != pending['session']:
         raise ValueError('placement source/image/engine proof changed')
     session = uuid.uuid4().hex
     output.mkdir(mode=0o700)
-    helper = Helper(repo, image_id, session, output, distribution, daemon_probe)
+    helper = Helper(repo, image_id, session, output, distribution, daemon_probe, engine_id=engine)
     write_json(output / 'producer-engine.json', {'engineID': engine, 'session': session})
     write_json(output / 'registry-placement-intent.json', {'sourceCommit': revision, 'originalBuildSourceCommit': pending['sourceCommit'],
                'originalSession': pending['session'], 'imageID': image_id, 'session': session, 'pushStarted': False, 'imageRebuilt': False})
