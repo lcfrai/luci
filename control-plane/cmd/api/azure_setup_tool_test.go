@@ -5,9 +5,31 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
+
+func TestAzureSetupSourceRequiresExplicitCleanBuild(t *testing.T) {
+	revision := strings.Repeat("a", 40)
+	for _, test := range []struct {
+		revision, modified string
+		want               bool
+	}{
+		{revision, "false", true}, {revision, "true", false}, {revision, "", false}, {strings.Repeat("b", 40), "false", false},
+	} {
+		info := &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: test.revision}}}
+		if test.modified != "" {
+			info.Settings = append(info.Settings, debug.BuildSetting{Key: "vcs.modified", Value: test.modified})
+		}
+		if azureSetupCleanSource(info, revision) != test.want {
+			t.Fatalf("clean source check accepted changed/unknown build: %+v", test)
+		}
+	}
+	if azureSetupCleanSource(nil, revision) {
+		t.Fatal("missing build info accepted")
+	}
+}
 
 func TestAzureSetupCommandRefusalDoesNotStartServiceOrEchoInput(t *testing.T) {
 	var output, diagnostic bytes.Buffer

@@ -39,6 +39,7 @@ class ControllerPackageTest(unittest.TestCase):
             self.assertEqual((image / "opt/luci/azure-controller/bin/luci-api").read_bytes(), b"binary")
             unit = (image / "etc/systemd/system/luci-api.service").read_text()
             self.assertIn("RuntimeDirectoryMode=0700", unit)
+            self.assertIn("mount.py --resume /etc/luci/azure-controller-disk-initial.json", unit)
             self.assertIn("RequiresMountsFor=/mnt/luci-controller", unit)
             self.assertIn("EnvironmentFile=/etc/luci/azure-controller.env", unit)
             with self.assertRaisesRegex(ValueError, "already contains"):

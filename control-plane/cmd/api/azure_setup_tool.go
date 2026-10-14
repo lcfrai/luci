@@ -58,6 +58,23 @@ type azureSetupNodeReceipt struct {
 	MaxSandboxes         *int64 `json:"maxSandboxes"`
 }
 
+func azureSetupCleanSource(info *debug.BuildInfo, revision string) bool {
+	_, err := hex.DecodeString(revision)
+	if info == nil || len(revision) != 40 || revision != strings.ToLower(revision) || err != nil {
+		return false
+	}
+	matched, clean := false, false
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			matched = setting.Value == revision
+		case "vcs.modified":
+			clean = setting.Value == "false"
+		}
+	}
+	return matched && clean
+}
+
 func readAzureSetupToolSelection(path string) (azureSetupToolInput, e2bOperatorConfig, error) {
 	var input azureSetupToolInput
 	var selected e2bOperatorConfig
@@ -76,15 +93,7 @@ func readAzureSetupToolSelection(path string) (azureSetupToolInput, e2bOperatorC
 		return input, selected, errors.New("invalid private Azure controller setup selection")
 	}
 	info, ok := debug.ReadBuildInfo()
-	matching := false
-	if ok {
-		for _, setting := range info.Settings {
-			if setting.Key == "vcs.revision" && setting.Value == input.SourceCommit {
-				matching = true
-			}
-		}
-	}
-	if !matching {
+	if !ok || !azureSetupCleanSource(info, input.SourceCommit) {
 		return input, selected, errors.New("controller binary differs from the selected source")
 	}
 	data, err = readPrivateE2BFile(input.OperatorTemplatePath, 16<<10)
@@ -195,7 +204,7 @@ func runAzureSetupCommand(action, path string, output io.Writer) error {
 		Value    []azureSetupRuntimeInstance `json:"value"`
 		NextLink string                      `json:"nextLink"`
 	}
-	if arm.Read(ctx, input.RuntimeScaleSetID+"/virtualMachines", "2023-09-01", &instances) != nil || len(instances.Value) != 1 || instances.NextLink != "" || instances.Value[0].Properties.ProvisioningState != "Succeeded" {
+	if arm.readJSON(ctx, input.RuntimeScaleSetID+"/virtualMachines", "2023-09-01", &instances) != nil || len(instances.Value) != 1 || instances.NextLink != "" || instances.Value[0].Properties.ProvisioningState != "Succeeded" {
 		return errors.New("initial runtime instance readback is ambiguous")
 	}
 	instance := instances.Value[0]

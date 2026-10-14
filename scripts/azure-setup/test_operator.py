@@ -193,8 +193,39 @@ class OperatorTests(unittest.TestCase):
             result = mount.bind(value, finalize_only=True)
         self.assertEqual(result["state"], "mounted")
         self.assertEqual(filesystem.call_args.args[0]["mode"], "restore")
-        self.assertEqual(write.call_count, 1)
-        self.assertEqual(write.call_args.args[0].name, "operator.json")
+        # Legacy complete operators have no signed deferred-install receipt.
+        self.assertEqual([call.args[0].name for call in write.call_args_list], ['operator.json', 'azure-controller-disk-active.json'])
+
+    def test_same_generation_reboot_requires_retained_signed_receipt_without_resigning(self):
+        root, core, path, _, _, _ = self.finalized()
+        envelope = core.private_json(root / 'azure-operator-finalization.json')
+        selection = core.private_json(path)
+        value = {'controllerInstanceId': envelope['payload']['controllerInstanceId'], 'generation': 'gen-one',
+            'scope': 'luci-fixture', 'operatorTemplatePath': '/etc/luci/operator-template.json',
+            'operatorTemplateSHA256': selection['terraformVariables']['controller_operator_template_sha256'],
+            'azureDataDiskId': envelope['payload']['diskID'], 'ownerId': 'owner-one',
+            'operatorOutputPath': '/etc/luci/operator.json', 'mountPath': '/mnt/luci-controller'}
+        draft = core.private_json(root / 'operator-template.json')
+        receipt = {'version': 1, 'envelopeSHA256': mount.sha(core.canonical(envelope)), 'generation': 'gen-one',
+                   'controllerInstanceId': value['controllerInstanceId']}
+        def private(target, *args):
+            if target.name == 'operator-template.json': return (root / 'operator-template.json').read_bytes()
+            if target.name == 'azure-operator-finalization.json': return core.canonical(envelope)
+            if target.name == 'operator.json': return core.canonical(envelope['payload']['operator'])
+            return core.canonical(receipt)
+        with mock.patch.object(mount, 'private', side_effect=private), mock.patch.object(mount, 'selected'), \
+                mock.patch.object(mount, 'current_controller', return_value=value['controllerInstanceId']), \
+                mock.patch.object(mount, 'boot_identity', return_value='87654321-1234-1234-1234-123456789abc'), \
+                mock.patch.object(mount, 'mount_exact') as filesystem, mock.patch.object(mount, 'atomic') as write, \
+                mock.patch.object(mount, 'inspect', return_value={'state': 'mounted'}):
+            self.assertEqual(mount.resume(value)['state'], 'mounted')
+            self.assertEqual(filesystem.call_args.args[0]['mode'], 'restore')
+            write.assert_not_called()
+            receipt['envelopeSHA256'] = '0' * 64
+            with self.assertRaisesRegex(ValueError, 'retained exact'):
+                mount.resume(value)
+            with self.assertRaisesRegex(ValueError, 'source, disk and generation'):
+                mount.finalized_operator(value, draft)
 
 
 if __name__ == "__main__":

@@ -135,3 +135,16 @@ remain unrun locally. From `control-plane`, the independent Linux check is
 controller-disk Python suites on POSIX. No Windows-specific Go expectation is
 introduced. New-account private foundation, actual base-disk image staging and
 owned retirement remain unfinished source, alongside all live Azure outcomes.
+
+Follow-up SETUP-02-R3 requires explicit `vcs.modified=false` as well as the
+exact revision; absent/dirty build information is refused by a focused helper
+test. The ARM list reader now reuses the bounded authenticated JSON transport
+without passing list data to the single-resource interface (Linux identified
+the original compile failure). SETUP-02-R4 adds explicit same-controller reboot
+resume: systemd mounts the already initialized UUID, verifies the original
+signature plus retained installation receipt, and reads unchanged generation/
+disk receipts without formatting, writing or signing. Active restore selection
+is retained for subsequent restarts. The API still enforces the off-disk fence;
+the desktop's old boot pin remains invalid. Eight operator fixtures and the
+controller package test pass locally. Replacement-controller signed successor
+staging remains unfinished; these fixtures are not live recovery acceptance.
