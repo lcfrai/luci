@@ -1,0 +1,51 @@
+{
+  "approvedCanonicalSha256": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155",
+  "approvedSourceChecksums": 22,
+  "generatedOutputHashes": 52,
+  "icoSizes": [
+    16,
+    24,
+    32,
+    48,
+    64,
+    128,
+    256
+  ],
+  "icnsSizes": [
+    32,
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "configuredNativeReferences": 5,
+  "faviconCopies": "exact approved dark/light ink SVG bytes with dark-media selection",
+  "railMark": "approved vector alpha mask with inherited theme ink; decorative beside visible Luci text; existing action label retained",
+  "glassesRegeneration": {
+    "verified": true,
+    "recipeHash": "ca63ee1300ad3de02597a81a3ee6413fa8f7446c4204274798332241948d0caf",
+    "renderKey": "413549213130d05219577b3956f4da727e52d1a455561f1cb9c4fd3da6d96c06",
+    "outputHash": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155"
+  },
+  "tsxSyntaxFiles": 2,
+  "iconScriptSyntax": true,
+  "impeccableDetectorFindings": 0,
+  "notRun": [
+    "full app build",
+    "OS installer/native launch",
+    "mobile app packaging"
+  ],
+  "limitations": "Static native platform icons use approved dark ink on the preserved transparent canvas; no new tile/background or OS theme-switching icon service was invented. Mobile PNG filenames/dimensions are mechanically preserved, not mobile acceptance.",
+  "independentContainerDecode": {
+    "PillowICO": [
+      256,
+      256
+    ],
+    "PillowICNS": [
+      1024,
+      1024
+    ]
+  },
+  "staticPreviewInspected": true
+}

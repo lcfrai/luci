@@ -1,5 +1,7 @@
 # Luci identity — approved 7 October 2026
 
+Source application on 14 October is recorded in [the Fourfold integration handoff](FOURFOLD-APPLICATION-2026-10-14.md): approved favicon variants, native icon packaging and the reusable Rail mark. SetupPanel remains with its setup owner; source integration is not installed-product acceptance.
+
 The owner selected **A / Fourfold** as Luci's mark, replacing the earlier
 looping-L and code-bracket directions. Four equal parts form one continuous
 loop, with no privileged first or last activity.
