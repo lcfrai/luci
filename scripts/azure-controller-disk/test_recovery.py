@@ -364,6 +364,7 @@ class DiskRecoveryTest(unittest.TestCase):
             recover.run(self.selection, self.store, self.compute)
         self.assertEqual(self.store.record["state"], "deallocate_pending")
         self.assertEqual(self.compute.deallocations, 1)
+
         self.assertEqual(self.compute.identity_patches, 0)
         self.assertEqual(self.compute.patches, 0)
         with self.assertRaisesRegex(RuntimeError, "deallocation is unknown"):
@@ -374,6 +375,20 @@ class DiskRecoveryTest(unittest.TestCase):
             self.assertEqual(recover.run(self.selection, self.store, self.compute,
                                          lambda _s, _g: {"state": "host_rotation_observed", "generation": "new-generation"}, self.service)["state"], "active")
         self.assertEqual(self.compute.deallocations, 1)
+
+    def test_repeated_recovery_revokes_both_existing_identities_before_disk_transfer(self):
+        self.compute.identities[OLD] = {CONTROLLER_IDENTITY, RECOVERY_IDENTITY}
+        with tempfile.TemporaryDirectory() as directory:
+            self.selection['mountSelectionPath'] = str(Path(directory) / 'mount.json')
+            self.selection['hostDeliverySelectionPath'] = str(Path(directory) / 'host.json')
+            with patch.object(recover, 'restore_local', return_value={'generation': 'new-generation', 'generationReceiptSHA256': 'b' * 64, 'operatorSHA256': 'c' * 64}):
+                result = recover.run(self.selection, self.store, self.compute,
+                    lambda _s, _g: {'state': 'host_rotation_observed', 'generation': 'new-generation'}, self.service)
+        self.assertEqual(result['state'], 'active')
+        self.assertEqual(self.compute.identities[OLD], set())
+        self.assertEqual(self.compute.identities[NEW], {CONTROLLER_IDENTITY, RECOVERY_IDENTITY})
+        self.assertEqual(self.compute.identity_patches, 2)
+        self.assertEqual(self.compute.owner, NEW)
 
     def test_old_identity_revocation_uncertainty_blocks_detach_and_never_replays(self):
         original = self.compute.patch_identities

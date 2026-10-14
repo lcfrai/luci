@@ -63,7 +63,7 @@ var azureSetupSHA = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var azureSetupGit = regexp.MustCompile(`^[0-9a-f]{40}$`)
 var azureSetupRequired = []string{
 	"LICENSE", "azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/operator_setup.py", "azure-setup/README.md",
-	"azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/source_bundle.py", "azure-setup/successor.py", "azure-setup/retirement.py",
+	"azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/source_bundle.py", "azure-setup/successor.py", "azure-setup/standby.py", "azure-setup/retirement.py",
 	"builder-source/source.json", "builder-source/luci.pack", "builder-source/e2b.pack",
 	"azure-embed-host/package.py", "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-embed-host/guest_registry.py",
 	"azure-controller-disk/package.py", "azure-controller-disk/mount.py", "azure-controller-disk/recover.py", "azure-controller-disk/retire.py",

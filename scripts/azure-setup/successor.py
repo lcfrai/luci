@@ -113,12 +113,15 @@ def prepare(core, bundle, selection_path, provider, ask=input, emit=print):
         oldControllerID=recovery['oldControllerID'], oldGeneration=recovery['oldGeneration'], newGeneration=recovery['newGeneration'],
         diskID=recovery['diskID'], predecessorFenceETag=etag, predecessorFenceSHA256=core.digest(fence),
         oldPrivateIP=variables['controller_private_ip'])
+    predecessor = module(bundle, 'standby').capture(core, bundle, selected, recovery, provider, parent)
     if retained and (retained.get('proposal') != proposal or retained.get('selectionDigest') != core.digest(selected)):
         raise ValueError('Retained successor target/fence/source changed; no automatic fallback or resigning')
     guided = module(bundle, 'guided')
     if not guided.approve_stage(core, parent, manifest, selected, 'controller-recovery', proposal, ask, emit):
         return {'state': 'successor_review_paused', 'connected': False}
-    journal = dict(retained, version=1, state='successor_preparation_pending', sourceCommit=manifest['luciRevision'],
+    if retained.get('standbyPredecessor', predecessor) != predecessor:
+        raise ValueError('Retained predecessor immutable VM/OS-disk identity changed')
+    journal = dict(retained, version=1, state='successor_preparation_pending', sourceCommit=manifest['luciRevision'], standbyPredecessor=predecessor,
         scope=variables['scope'], generation=recovery['newGeneration'], selectionDigest=core.digest(selected), proposal=proposal)
     core.atomic_json(path, journal)
     credentials = module(bundle, 'credentials')
@@ -220,7 +223,7 @@ printf 'LUCI_AZURE_RECOVERED=%%s\\n' "$receipt"
     return journal
 
 
-def finish(core, bundle, selection_path, journal, provider):
+def finish(core, bundle, selection_path, journal, provider, ask=input, emit=print):
     """Create a new active generation folder; never overwrite predecessor data."""
     if journal.get('state') != 'successor_active': return journal
     if core.bundle(bundle)['luciRevision'] != journal['sourceCommit'] or core.digest(core.private_json(selection_path)) != journal['selectionDigest']:
@@ -274,5 +277,7 @@ def finish(core, bundle, selection_path, journal, provider):
     journal['activeSelectionPath'] = str(active_path)
     core.atomic_json(parent / 'azure-successor-state.json', journal)
     descriptor = module(bundle, 'guided').connection_descriptor(core, bundle, active_path, provider=provider)
-    return dict(journal, connectionDescriptor=descriptor, connected=False,
-        nextRecoveryPrerequisite='A fresh generic standby with the exact recovery identity is required before a later replacement; the retired predecessor is not silently reused.')
+    restored = module(bundle, 'standby').restore(core, bundle, selection_path, provider, ask, emit)
+    return dict(journal, connectionDescriptor=descriptor, standbyRestoration=restored, connected=False,
+        nextRecoveryCommand=['python3', str(Path(bundle) / 'azure-setup/installer.py'), 'recover-controller', '--bundle', str(bundle), '--selection', str(active_path)],
+        nextRecoveryPrerequisite='Exact same-VM standby restoration must finish before a later replacement; retained old/new OS disks and snapshot can charge.')

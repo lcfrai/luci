@@ -109,3 +109,26 @@ actual Azure/KVM/private connection and invoice outcomes remain untested. Remain
 owned source work: explicit retirement cancel/resume (especially a race discovered
 after preflight) and approved existing-predecessor reimage/fresh-standby restoration.
 Do not mark SETUP-02 or provider acceptance complete from this checkpoint.
+# Standby managed OS-disk clarification (14 October 2026)
+
+SETUP-02 / LC-12/14 recovery remains owned by Azure Sol. The narrow architecture
+clarification in AZURE-MICROVM-ARCHITECTURE-PROPOSAL-2026-10-14.md permits supported
+same-VM managed OS-disk reimage with explicit Detach retention, private old-OS
+snapshot, new disk identity/source lineage and positive clean new boot before
+existing recovery-MI reassignment. Each effect is journaled and uncertain
+effects are read-only reconciled. Separate old/new disk and snapshot charges
+remain visible. No additional VM/role/MI grant or live authority is added.
+Source ownership: scripts/azure-setup/successor.py and installer/guided join;
+current mounted/config receipts use scripts/azure-controller-disk/recover.py.
+
+The implementation checkpoint adds scripts/azure-setup/standby.py: exact
+predecessor descriptor/VM/NIC/disk capture precedes recovery effects; finalization
+and `continue` invoke its reviewed snapshot→Detach→supported reimage→replacement
+disk lineage→clean boot→existing recovery-MI sequence. Package and product bundle
+inventories include it. Pending effects remain inspect-only, current active
+fence/data-disk ownership is checked before effects, and old/new OS-disk public
+export is denied. Final retirement exposes retained standby disk/snapshot IDs
+and charges. Focused Windows provider fixtures: standby8, journey8 and the
+existing-pair identity revocation case1 pass. These do not establish actual
+Azure reboot/reimage/backup restore/private connectivity, task/model acceptance
+or invoices. Independent POSIX/Go checks remain required.

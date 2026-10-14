@@ -56,8 +56,9 @@ Before backup-bound closure/deallocation begins, `cancel-retirement --bundle .
 --selection /private/selection.json` reviews a separate actor action to resume
 the same owned runtime/controller generation. It preserves the original
 retirement journal, including uncertain copies/stops, and every held task lease.
-Only existing owned Compose containers are started; no task VM or container is
-created by this cancellation. A lost start acknowledgment is inspected without
+Only existing owned Compose containers are started; cancellation issues no
+container-create or task-VM-create request and preserves upstream task recovery
+and its held leases. A lost start acknowledgment is inspected without
 repeating the start. Controller stop/start is serialized and validates the
 actual source/generation/fence before effects. Late requests from the cancelled
 plan refuse; `continue` follows the cancellation receipt instead of silently
@@ -96,8 +97,22 @@ receipt, including the current TLS versions, rather than original Terraform
 outputs or a reconstructed generation digest. Prior signed host links are
 verified with their saved configuration and removed before signing the next
 transition.
-A later replacement still requires a fresh generic standby with the exact
-recovery identity; automatic standby restoration is not implemented. Actual
+The same recovery/`continue` journey then reviews restoration of the retired
+predecessor as the next private standby. It first preserves an actual private
+old-OS snapshot, reads back explicit `Detach`, and invokes supported managed
+OS-disk reimage on that same exact VM, NIC and pinned gallery version. It retains
+the old OS disk and observes the replacement disk's immutable identity and
+gallery lineage. Only a new generic boot with verified source/package bytes,
+no predecessor configuration, no authoritative data disk and an inactive API
+can receive the existing recovery identity. Old/replacement OS disks deny public
+export; no additional VM, role or identity grant is created. Unknown reimage,
+startup or identity effects inspect their original receipts without repeating
+the mutation. The old disk, snapshot, replacement disk and running standby have
+separate retained costs. `restore-standby` is also available for explicit resume;
+the returned `nextRecoveryCommand` selects the actual current generation for a
+later actor-requested replacement. [Azure's Reimage API](https://learn.microsoft.com/en-us/rest/api/compute/virtual-machines/reimage?view=rest-compute-2024-07-01)
+and [disk creation lineage](https://learn.microsoft.com/en-us/rest/api/compute/disks/get?view=rest-compute-2025-04-01)
+describe the provider boundaries used here. Actual
 Azure recovery/private connectivity, retained-task access and invoices remain
 untested by the offline source checks.
 

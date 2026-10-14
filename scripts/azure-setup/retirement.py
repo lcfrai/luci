@@ -22,6 +22,9 @@ def exact_resource(arm, identifier, api):
 def plan(core, bundle, selection_path, arm, provider):
     manifest = core.bundle(bundle); selected = core.private_json(selection_path); variables = core.requested(selected)
     parent = Path(selection_path).parent; path = parent / 'azure-retirement-plan.json'
+    standby = parent / 'azure-standby-state.json'
+    if standby.exists() and core.private_json(standby).get('state') != 'fresh_private_standby_observed':
+        raise ValueError('Standby restoration remains pending; retirement cannot overlap it')
     if path.exists():
         result = core.private_json(path)
         if (result.get('sourceCommit') != manifest['luciRevision'] or result.get('selectionDigest') != core.digest(selected) or
@@ -98,6 +101,11 @@ def plan(core, bundle, selection_path, arm, provider):
         'fenceBlobURL': ids['controller_fence_blob_url'], 'filesystemUUID': variables['controller_filesystem_uuid'], 'mountPath': variables['controller_mount_path'],
         'operatorTemplatePath': variables['controller_operator_template_path'], 'operatorTemplateSHA256': variables['controller_operator_template_sha256'],
         'templateName': template.get('name', selected['name']), 'cpuCount': cpu, 'memoryMiB': memory, 'fromImage': guest}
+    if standby.exists():
+        restored = core.private_json(standby)
+        result['retainedStandbyResources'] = {'oldOSDiskID': restored['proposal']['predecessor']['osDiskID'],
+            'oldOSSnapshotID': restored['proposal']['snapshot']['snapshotID'], 'replacementOSDisk': restored['replacementOSDisk']}
+        result['retainedCharges'].extend(value for value in restored['retainedCharges'] if value not in result['retainedCharges'])
     result['planDigest'] = core.digest(result)
     core.atomic_json(path, result); return result
 
