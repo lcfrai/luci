@@ -1,5 +1,7 @@
 # Luci build plan
 
+**Latest delivery sequence:** finish LOCAL-032 and real local Docker acceptance; implement the reconciled [three-mode setup and guided Azure BYO command flow](SETUP-AND-MAIN-AMENDMENT-2026-10-14.md), keep future Luci Cloud visibly unavailable, then publish a coherent `main` revision with product README and another-machine instructions. Root owns integration, Local Sol owns setup UI, Cloud Sol owns Azure command/tool preparation. Preserve independent offline Azure progress and all live-provider gates.
+
 > **Provider-order amendment, 14 October 2026 (Australia/Brisbane):** [Local Docker first; Azure microVM next; AWS later](PROVIDER-ORDER-AMENDMENT-2026-10-14.md). LC-01–LC-16 and all safety/acceptance gates are unchanged. The existing E2B Embed implementation and 38694462 source handoff are AWS-targeted history, not Azure feature completeness. Local Windows/Docker work proceeds now; Azure implementation follows the recorded architecture reconciliation and local audit. No cloud provisioning is authorized by this notice.
 
 **Active sequence:** finish the real local upstream-harness Docker journey and independent Windows acceptance first. Reconcile and audit an Azure microVM architecture, implement its exact provider adapter/lifecycle, then run Azure live acceptance under existing authority and cost policy. AWS follows Azure. The later “guided AWS/Azure template” plan below concerns management/app deployment presets and does not make either provider a supported Develop microVM backend.
