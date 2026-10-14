@@ -95,6 +95,15 @@ class RetirementTests(unittest.TestCase):
         self.assertEqual(result['state'], 'installation_retirement_review_paused')
         self.assertEqual(fixture[5], [])
 
+    def test_replaced_compute_refuses_before_any_guest_effect(self):
+        for role in ('controllerID', 'recoveryID', 'runtimeID'):
+            fixture = self.fixture()
+            fixture[4][fixture[3][role]]['properties']['vmId'] = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+            with self.assertRaisesRegex(ValueError, 'Compute was replaced'): self.execute(fixture)
+            guest_calls = [value for value in fixture[5] if value[0] == 'guest']
+            self.assertEqual(len(guest_calls), 1 if role == 'runtimeID' else 0)
+            self.assertFalse(any(value[0] in ('POST', 'PUT') for value in fixture[5]))
+
     def test_normal_generated_plan_binds_real_resource_inventory_without_mutation(self):
         root, core, path, sample, resources, calls, original, provider = self.fixture()
         selected = core.private_json(path)

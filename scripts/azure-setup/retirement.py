@@ -109,7 +109,16 @@ def guest_selection(proposal):
     return result
 
 
-def guest(core, proposal, provider, action, inspect=False, backups_sha=''):
+def owned_compute(arm, proposal, identifier):
+    row = exact_resource(arm, identifier, '2023-09-01')
+    if row.get('properties', {}).get('vmId', '').lower() != proposal['immutableComputeIDs'][identifier]:
+        raise ValueError('Compute was replaced; preserve the foreign resource before any guest effect')
+    return row
+
+
+def guest(core, proposal, provider, arm, action, inspect=False, backups_sha=''):
+    for identifier in dict.fromkeys((proposal['recoveryID'], proposal['controllerID'])):
+        owned_compute(arm, proposal, identifier)
     data = base64.b64encode(core.canonical(guest_selection(proposal))).decode()
     mode = 'inspect' if action == 'quiesce' and inspect else action
     options = (' --backups-sha256 ' + backups_sha + (' --inspect' if inspect else '')) if action == 'close' else ''
@@ -195,11 +204,12 @@ def run(core, bundle, selection_path, ask=input, emit=print, provider=None, arm=
     if state.get('planDigest') != proposal['planDigest']: raise ValueError('Retained retirement journal changed')
     if 'quiesce' not in state['completed']:
         returned = {}
-        effect(core, path, state, 'quiesce', lambda: returned.update(value=guest(core, proposal, provider, 'quiesce')),
-            lambda: returned.get('value') or guest(core, proposal, provider, 'quiesce', inspect=True))
+        effect(core, path, state, 'quiesce', lambda: returned.update(value=guest(core, proposal, provider, arm, 'quiesce')),
+            lambda: returned.get('value') or guest(core, proposal, provider, arm, 'quiesce', inspect=True))
     if 'host-stop' not in state['completed']:
         returned = {}
         def host(inspect):
+            owned_compute(arm, proposal, proposal['runtimeID'])
             script = 'set -eu\nreceipt=$(python3 /opt/luci/azure-embed/package/bin/service.py retirement-' + ('inspect' if inspect else 'stop') + ' /etc/luci/azure-embed-deployment.json ' + proposal['planDigest'] + ')\nprintf "LUCI_AZURE_RUNTIME_RETIRED=%s\\n" "$receipt"'
             response = provider(['vmss', 'run-command', 'invoke', '--ids', proposal['runtimeID'], '--command-id', 'RunShellScript', '--scripts', script])
             rows = [line.removeprefix('LUCI_AZURE_RUNTIME_RETIRED=') for item in response.get('value', []) for line in item.get('message', '').splitlines() if line.startswith('LUCI_AZURE_RUNTIME_RETIRED=')]
@@ -232,8 +242,8 @@ def run(core, bundle, selection_path, ask=input, emit=print, provider=None, arm=
         for role, receipt in backups.items()})
     if 'fence-close' not in state['completed']:
         returned = {}
-        effect(core, path, state, 'fence-close', lambda: returned.update(value=guest(core, proposal, provider, 'close', backups_sha=backup_sha)),
-            lambda: returned.get('value') or guest(core, proposal, provider, 'close', inspect=True, backups_sha=backup_sha))
+        effect(core, path, state, 'fence-close', lambda: returned.update(value=guest(core, proposal, provider, arm, 'close', backups_sha=backup_sha)),
+            lambda: returned.get('value') or guest(core, proposal, provider, arm, 'close', inspect=True, backups_sha=backup_sha))
     for identifier in proposal['computeIDs']:
         key = 'deallocate:' + identifier.lower()
         if key in state['completed']: continue
