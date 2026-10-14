@@ -71,6 +71,42 @@ func TestRuntimeImageColdPullChargeRefusesLowHostHeadroomWithoutRaisingRunCap(t 
 		t.Fatalf("warm capped build did not admit: %+v %+v %v", d, lease, err)
 	}
 }
+func TestRuntimeImageAfterPullChecksRemainingWorkButRetainsCompetingCharge(t *testing.T) {
+	g := previewTestGate(t)
+	available := uint64(11 << 30)
+	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		s := executionFixtureSnapshot()
+		s.Execution.EngineID = httpCheckEngine
+		s.Execution.ImageVirtualSizeBytes = nil
+		s.Execution.DaemonDisk.AvailableBytes = executionPointer(uint64(64 << 30))
+		s.Host.Memory.EffectiveAvailableBytes = executionPointer(available)
+		return s
+	}
+	p := runtimeImagePrepared(g, "cold-stage")
+	p.AdmissionMemoryMiB = p.Spec.Resources.MemoryMiB + 2048
+	actor := management.ExecutionActorRef{Local: true}
+	policy := executionFixturePolicy()
+	first, lease, err := g.reserveRuntimeImage(context.Background(), p, actor, management.ExecutionAuthority{}, policy)
+	if err != nil || first.State != "admitted" {
+		t.Fatal("cold work was not initially admitted", first, err)
+	}
+	lease, err = g.transitionRuntimeImage(context.Background(), lease, "building")
+	if err != nil {
+		t.Fatal(err)
+	}
+	available = uint64(9 << 30) // base pulls have consumed observed host memory
+	full, _, err := g.reserveRuntimeImage(context.Background(), p, actor, management.ExecutionAuthority{}, policy)
+	if err != nil || full.Code != "memory_pressure" {
+		t.Fatal("fixture did not expose cold allowance double count", full, err)
+	}
+	remaining, after, err := g.reserveRuntimeImageAfterPull(context.Background(), p, actor, management.ExecutionAuthority{}, policy)
+	if err != nil || remaining.State != "admitted" || after != lease {
+		t.Fatal("remaining capped build did not pass without rewriting lease", remaining, after, err)
+	}
+	if view := g.reservationObservation(context.Background()); view.Count != 1 || view.MemoryMiB != p.AdmissionMemoryMiB {
+		t.Fatal("competing work lost the conservative retained claim", view)
+	}
+}
 func TestRuntimeImageUnknownBuildSurvivesRestartAndChargesEveryAllocationPath(t *testing.T) {
 	g := previewTestGate(t)
 	p := runtimeImagePrepared(g, "runtime-one")
