@@ -167,7 +167,7 @@ def initial_selection(bundle_root, selection_path, name, region, budget, concurr
             network = ipaddress.ip_network(private_network_cidr, strict=True)
         except ValueError as error:
             raise ValueError("Choose an unused private /16 network for Azure Develop") from error
-        if network.version != 4 or network.prefixlen != 16 or not network.is_private:
+        if network.version != 4 or network.prefixlen != 16 or not any(network.subnet_of(ipaddress.ip_network(parent)) for parent in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")):
             raise ValueError("Choose an unused private /16 network for Azure Develop")
         children = list(network.subnets(new_prefix=24))
         variables.update(runtime_subnet_cidr=str(children[0]), controller_subnet_cidr=str(children[1]),
@@ -281,7 +281,7 @@ def make_plan(selection, manifest, selection_path, bundle_root):
             missing.append("state_backend_" + name)
     if not selection["nextGeneration"] or selection["nextGeneration"] == variables.get("generation"):
         missing.append("distinct_next_controller_generation")
-    declared = set(re.findall(r'^variable "([a-z0-9_]+)"', (Path(bundle_root) / "terraform/variables.tf").read_text(), re.M)) - {"previous_generation", "tags"}
+    declared = set(re.findall(r'^variable "([a-z0-9_]+)"', (Path(bundle_root) / "terraform/variables.tf").read_text(), re.M)) - {"previous_generation", "tags", "management_source_cidr"}
     for name in sorted(declared):
         if variables.get(name) in (None, "", [], {}):
             missing.append("terraform_" + name)
@@ -738,10 +738,14 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     for action in ("init-selection", "configure-account", "init-image-inputs", "plan", "generate-secrets",
                    "publish-secrets", "reconcile-secrets", "bind-secrets", "prepare-images", "prepare", "apply",
-                   "reconcile", "bootstrap", "status", "configure-guided", "gallery-plan", "gallery-publish", "gallery-reconcile"):
+                   "reconcile", "bootstrap", "status", "configure-guided", "configure-private", "connection-descriptor", "gallery-plan", "gallery-publish", "gallery-reconcile"):
         row = commands.add_parser(action)
         row.add_argument("--bundle", type=Path, required=True)
         row.add_argument("--selection", type=Path, required=True)
+        if action == "configure-private":
+            row.add_argument("--private-network-cidr", required=True)
+            row.add_argument("--management-source-cidr", required=True)
+            row.add_argument("--acknowledge-existing-private-route", action="store_true")
         if action.startswith("gallery-"):
             row.add_argument("--role", choices=("runtime", "controller"), required=True)
             if action == "gallery-plan":
@@ -780,7 +784,7 @@ def main():
             row.add_argument("--acknowledge-costs", action="store_true")
             row.add_argument("--acknowledge-unverified-price", action="store_true")
     args = parser.parse_args()
-    if args.action in ("configure-guided", "status", "gallery-plan", "gallery-publish", "gallery-reconcile"):
+    if args.action in ("configure-guided", "configure-private", "connection-descriptor", "status", "gallery-plan", "gallery-publish", "gallery-reconcile"):
         manifest = bundle(args.bundle)
         spec = importlib.util.spec_from_file_location("luci_azure_guided", args.bundle / "azure-setup/guided.py")
         guided = importlib.util.module_from_spec(spec)
@@ -788,6 +792,11 @@ def main():
         core = sys.modules[__name__]
         if args.action == "configure-guided":
             result = guided.wizard(core, args.bundle, args.selection)
+        elif args.action == "configure-private":
+            result = guided.configure_private(core, args.bundle, args.selection,
+                args.private_network_cidr, args.management_source_cidr, args.acknowledge_existing_private_route)
+        elif args.action == "connection-descriptor":
+            result = guided.connection_descriptor(core, args.bundle, args.selection)
         elif args.action == "status":
             result = guided.progress(core, args.bundle, args.selection)
         elif args.action == "gallery-plan":

@@ -26,6 +26,12 @@ MATERIAL = {"team-api": "team-api.txt", "admin-token": "admin-token.txt", "sandb
 VERSIONED_ID = re.compile(r"https://([a-z0-9-]+)\.vault\.azure\.net/secrets/([a-zA-Z0-9-]+)/([0-9a-f]{32})\Z")
 
 
+def team_api_key():
+    # The pinned Embed host accepts the e2b_ + 128-bit API-key format.
+    # Other independent admin/seed/attach material remains 256-bit hex.
+    return "e2b_" + secrets.token_hex(16)
+
+
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -100,7 +106,7 @@ def _generate_material(root, scope, generation, gateway, atomic_json):
         cert.chmod(0o600)
         csr.unlink()
         ext.unlink()
-    save(root / "team-api.txt", (secrets.token_hex(32) + "\n").encode())
+    save(root / "team-api.txt", (team_api_key() + "\n").encode())
     save(root / "admin-token.txt", (secrets.token_hex(32) + "\n").encode())
     save(root / "sandbox-seed.txt", (secrets.token_hex(32) + "\n").encode())
     save(root / "attach-key.txt", (secrets.token_hex(32) + "\n").encode())

@@ -10,9 +10,17 @@ import unittest
 spec = importlib.util.spec_from_file_location("guided", Path(__file__).with_name("guided.py"))
 guided = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(guided)
+credential_spec = importlib.util.spec_from_file_location("credentials", Path(__file__).with_name("credentials.py"))
+credentials = importlib.util.module_from_spec(credential_spec)
+credential_spec.loader.exec_module(credentials)
 
 
 class GuidedTest(unittest.TestCase):
+    def test_generated_team_key_matches_pinned_embed_host_format(self):
+        first, second = credentials.team_api_key(), credentials.team_api_key()
+        self.assertRegex(first, r"^e2b_[0-9a-f]{32}$")
+        self.assertNotEqual(first, second)
+
     def fixture(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -106,6 +114,47 @@ class GuidedTest(unittest.TestCase):
         self.assertFalse(result["providerEffects"])
         self.assertEqual(len(calls[0]), 12)
         self.assertEqual(calls[0]["ssh_public_key_file"], "selected")
+
+    def test_private_location_requires_route_ack_and_refuses_retained_preparation(self):
+        root, core, selected, _, _ = self.fixture()
+        (root / "azure-image-prep-state.json").unlink()
+        with self.assertRaisesRegex(ValueError, "acknowledge"):
+            guided.configure_private(core, root, selected, "10.240.0.0/16", "192.168.1.0/24", False)
+        result = guided.configure_private(core, root, selected, "10.240.0.0/16", "192.168.1.0/24", True)
+        self.assertFalse(result["connected"])
+        self.assertEqual(core.private_json(selected)["terraformVariables"]["controller_private_ip"], "10.240.1.10")
+        core.atomic_json(root / "azure-setup-state.json", {"state": "apply_pending"})
+        with self.assertRaisesRegex(ValueError, "retained"):
+            guided.configure_private(core, root, selected, "10.241.0.0/16", "192.168.1.0/24", True)
+
+    def test_authenticated_host_key_binding_and_stale_generation_refusal(self):
+        root, core, selected, _, _ = self.fixture()
+        selection = core.private_json(selected)
+        selection["terraformVariables"].update(management_source_cidr="192.168.1.0/24", controller_private_ip="10.240.1.10",
+            resource_group_name="luci-rg", controller_mount_path="/mnt/luci-controller", generation="gen-one", controller_owner_id="owner-one")
+        core.atomic_json(selected, selection)
+        controller_id = "/subscriptions/" + "1" * 36 + "/resourcegroups/luci-rg/providers/microsoft.compute/virtualmachines/luci-controller"
+        disk_id = controller_id.replace("virtualmachines/luci-controller", "disks/luci-state")
+        core.atomic_json(root / "azure-setup-state.json", {"state": "controller_bootstrapped_gateway_unverified",
+            "selectionDigest": core.digest(selection), "resourceIDs": {"controller_instance_id": controller_id, "controller_disk_id": disk_id}})
+        vm_id = "12345678-1234-1234-1234-123456789abc"
+        raw = b'\x00\x00\x00\x0bssh-ed25519\x00\x00\x00\x20' + b'K' * 32
+        observed = {"vmID": vm_id, "bootID": vm_id, "generation": {"generation": "gen-one", "controllerInstanceId": controller_id, "azureDataDiskId": disk_id},
+            "disk": {"scope": "luci-fixture", "ownerId": "owner-one", "azureDataDiskId": disk_id},
+            "hostKey": "ssh-ed25519 " + guided.base64.b64encode(raw).decode() + " fixture"}
+        def provider(arguments):
+            if arguments[0] == "rest":
+                return {"id": controller_id, "properties": {"vmId": vm_id}}
+            self.assertEqual(core.private_json(root / "azure-connection-state.json")["state"], "host_identity_readback_pending")
+            return {"value": [{"message": "LUCI_AZURE_HOST_IDENTITY=" + json.dumps(observed)}]}
+        receipt = guided.connection_descriptor(core, root, selected, provider=provider)
+        self.assertFalse(receipt["connected"])
+        self.assertEqual(receipt["host"], "10.240.1.10")
+        self.assertTrue(receipt["fingerprint"].startswith("SHA256:"))
+        observed["generation"]["generation"] = "stale-generation"
+        with self.assertRaisesRegex(RuntimeError, "fenced generation"):
+            guided.connection_descriptor(core, root, selected, provider=provider)
+        self.assertEqual(core.private_json(root / "azure-connection-state.json")["state"], "host_identity_readback_pending")
 
 
 if __name__ == "__main__":

@@ -65,6 +65,19 @@ variable "controller_private_ip" {
     error_message = "Controller address must be private IPv4."
   }
 }
+variable "management_source_cidr" {
+  type        = string
+  default     = ""
+  description = "Optional explicit RFC1918 desktop management source; requires an existing private route. No public connectivity is created."
+  validation {
+    condition = var.management_source_cidr == "" || (
+      can(cidrnetmask(var.management_source_cidr)) &&
+      can(regex("^(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)", cidrhost(var.management_source_cidr, 0))) &&
+      can(regex("^(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)", cidrhost(var.management_source_cidr, -1)))
+    )
+    error_message = "Management source must be an explicit IPv4 CIDR entirely inside RFC1918, or empty to deny SSH."
+  }
+}
 variable "gateway_private_ip" {
   type = string
   validation {

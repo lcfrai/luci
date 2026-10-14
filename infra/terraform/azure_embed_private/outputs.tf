@@ -1,4 +1,6 @@
 output "controller_instance_id" { value = lower(azurerm_linux_virtual_machine.controller.id) }
+output "controller_management_private_ip" { value = var.controller_private_ip }
+output "management_source_cidr" { value = var.management_source_cidr }
 output "controller_recovery_instance_id" { value = lower(azurerm_linux_virtual_machine.controller_recovery.id) }
 output "controller_disk_id" { value = lower(azurerm_managed_disk.controller.id) }
 output "controller_recovery_identity_client_id" { value = azurerm_user_assigned_identity.recovery.client_id }
