@@ -9,7 +9,7 @@ Luci brings your conversation, project decisions, design, coding work and review
 3. Extract the **whole ZIP** into a new folder. Keep its files together, then open `Start-Luci.cmd`. Luci opens in your browser; leave the launch terminal open while you use it.
 4. Complete account setup and choose where you want Luci to run.
 
-You do not need Go, Node.js or Python to run the portable app. Local project work needs Git, and coding sessions need a running Docker engine. The first sandbox build downloads its runtime dependencies. Setup identifies missing prerequisites. A model running on your computer is optional: you can instead connect a supported model account or API.
+You do not need Go, Node.js or Python to run the portable app. Local project work needs Git, and coding sessions need a running Docker engine. The complete release package includes the coding runtime. Setup verifies and imports it into Docker, so ordinary installation does not compile the coding tools on your computer. Keep the bundled runtime and licence files with the app. Setup identifies missing prerequisites. A model running on your computer is optional: you can instead connect a supported model account or API.
 
 ## Choose your environment
 
