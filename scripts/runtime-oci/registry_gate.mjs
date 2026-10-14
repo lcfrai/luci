@@ -24,6 +24,13 @@ const NONCE = /^[0-9a-f]{32}$/;
 const UUID = /^[a-f0-9-]{16,64}$/;
 const HOP = new Set(['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'host', 'forwarded', 'x-forwarded-host', 'x-forwarded-for', 'x-forwarded-proto', 'content-location', 'set-cookie']);
 
+export function registryChildEnv() {
+  // Never inherit producer/host environment or expose its credentials to the
+  // pinned registry. Go's own heap target stays inside the helper cgroup.
+  return { PATH: '/usr/bin:/bin', GOMEMLIMIT: '192MiB', GOMAXPROCS: '1',
+    REGISTRY_STORAGE_DELETE_ENABLED: 'false', REGISTRY_STORAGE_MAINTENANCE_UPLOADPURGING_ENABLED: 'false' };
+}
+
 function port(value) {
   const number = Number(value);
   if (!Number.isInteger(number) || number < 1024 || number > 65535) throw new Error('invalid owned registry port');
@@ -321,7 +328,7 @@ async function main() {
   writeFileSync(config, `version: 0.1\nlog:\n  level: warn\nstorage:\n  filesystem:\n    rootdirectory: ${join(dataRoot, 'blobs')}\nhttp:\n  addr: 127.0.0.1:${backendPort}\n`, { flag: 'wx', mode: 0o600 });
   mkdirSync(join(dataRoot, 'blobs'), { mode: 0o700 });
   const child = spawn(binary, ['serve', config], { stdio: ['ignore', 'inherit', 'inherit'],
-    env: { PATH: '/usr/bin:/bin', REGISTRY_STORAGE_DELETE_ENABLED: 'false', REGISTRY_STORAGE_MAINTENANCE_UPLOADPURGING_ENABLED: 'false' } });
+    env: registryChildEnv() });
   child.on('error', error => { process.stderr.write(`pinned registry child failed: ${error.message}\n`); process.exitCode = 1; });
   let ready = false;
   for (let attempt = 0; attempt < 50 && child.exitCode === null; attempt++) {

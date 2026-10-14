@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, test } from 'node:test';
 import { setTimeout as pause } from 'node:timers/promises';
-import { createGate } from './registry_gate.mjs';
+import { createGate, registryChildEnv } from './registry_gate.mjs';
 
 const session = 'a'.repeat(32);
 const repo = `luci/runtime-export-${session}`;
@@ -13,6 +13,23 @@ const uuid = 'b'.repeat(32);
 const digest = `sha256:${'c'.repeat(64)}`;
 const openServers = [];
 const roots = [];
+
+test('pinned registry child has bounded Go environment without host inheritance', () => {
+  const before = process.env.LUCI_REGISTRY_ENV_SENTINEL;
+  process.env.LUCI_REGISTRY_ENV_SENTINEL = 'host-secret';
+  try {
+    assert.deepEqual(registryChildEnv(), {
+      PATH: '/usr/bin:/bin',
+      GOMEMLIMIT: '192MiB',
+      GOMAXPROCS: '1',
+      REGISTRY_STORAGE_DELETE_ENABLED: 'false',
+      REGISTRY_STORAGE_MAINTENANCE_UPLOADPURGING_ENABLED: 'false',
+    });
+  } finally {
+    if (before === undefined) delete process.env.LUCI_REGISTRY_ENV_SENTINEL;
+    else process.env.LUCI_REGISTRY_ENV_SENTINEL = before;
+  }
+});
 
 async function listen(server) {
   await new Promise((resolve, reject) => server.once('error', reject).listen(0, '127.0.0.1', resolve));
