@@ -104,6 +104,28 @@ class RegistryProducerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             registry.validate_helper(changed, owner, image, '/private/tools', '/private/data')
 
+    def test_failed_prewrite_requires_positive_nonzero_exit_and_no_push_intent(self):
+        owner = registry.identity('a' * 32, 19379)
+        image, container = 'sha256:' + 'b' * 64, 'c' * 64
+        row = {'Id': container, 'State': {'Status': 'exited', 'Running': False, 'Pid': 0, 'ExitCode': 1,
+               'FinishedAt': '2026-10-14T06:42:46.268942792Z', 'OOMKilled': False}}
+        intent = {'owner': owner, 'imageID': image, 'engineID': 'engine'}
+        created = {'containerID': container, 'engineID': 'engine'}
+        place = {'session': owner['session'], 'imageID': image, 'pushStarted': False}
+        unknown = {'containerID': container, 'session': owner['session'], 'pushStarted': False}
+        operations = [{'session': owner['session'], 'engineID': 'engine', 'argv': ['docker', 'start', container]}]
+        with patch.object(registry, 'validate_helper'):
+            self.assertEqual(registry.validate_failed_prewrite(row, intent, created, place, unknown, operations), row['State'])
+            for key, value in (('Status', 'running'), ('Running', True), ('Pid', 100), ('ExitCode', 0), ('FinishedAt', '0001-01-01T00:00:00Z')):
+                changed = copy.deepcopy(row); changed['State'][key] = value
+                with self.assertRaises(ValueError):
+                    registry.validate_failed_prewrite(changed, intent, created, place, unknown, operations)
+            operations[0]['argv'] = ['docker', 'push', owner['tag']]
+            with self.assertRaisesRegex(ValueError, 'possible push/tag'):
+                registry.validate_failed_prewrite(row, intent, created, place, unknown, operations)
+            with self.assertRaises(ValueError):
+                registry.validate_failed_prewrite(row, intent, created, dict(place, pushStarted=True), unknown, [])
+
 
 if __name__ == '__main__':
     unittest.main()
