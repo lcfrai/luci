@@ -31,8 +31,13 @@ func TestReviewedOpenCodeTaskUsesCapturedContextAndVerifiedModelLimit(t *testing
 		t.Fatal(err)
 	}
 	var config struct {
-		Instructions []string `json:"instructions"`
-		Provider     map[string]struct {
+		Instructions []string        `json:"instructions"`
+		Tools        map[string]bool `json:"tools"`
+		Agent        map[string]struct {
+			Prompt     string            `json:"prompt"`
+			Permission map[string]string `json:"permission"`
+		} `json:"agent"`
+		Provider map[string]struct {
 			Models map[string]struct {
 				Limit struct {
 					Context int `json:"context"`
@@ -48,6 +53,23 @@ func TestReviewedOpenCodeTaskUsesCapturedContextAndVerifiedModelLimit(t *testing
 	if limit.Context != 8192 || limit.Output != 2048 || len(config.Instructions) != 0 {
 		t.Fatalf("wrong exact model limits: %+v", limit)
 	}
+	build := config.Agent["build"]
+	if !strings.Contains(build.Prompt, "automatic reminder") || !strings.Contains(build.Prompt, "/home/dev/.luci-reviewed-context") || strings.Contains(build.Prompt, "luci-acceptance-qwen") {
+		t.Fatal("reviewed local coding prompt lost stable, source-only task guidance")
+	}
+	for _, tool := range []string{"task", "webfetch", "websearch"} {
+		if config.Tools[tool] || build.Permission[tool] != "deny" {
+			t.Fatalf("unneeded reviewed local tool %s remains available", tool)
+		}
+	}
+	for _, tool := range []string{"read", "edit", "write", "bash"} {
+		if enabled, present := config.Tools[tool]; present && !enabled {
+			t.Fatalf("reviewed local coding tool %s was disabled", tool)
+		}
+		if build.Permission[tool] != "" {
+			t.Fatalf("reviewed local coding tool %s changed Ask authority", tool)
+		}
+	}
 	if !strings.Contains(env["OPENCODE_CONFIG_CONTENT"], "{env:OPENCODE_LOCAL_API_KEY}") {
 		t.Fatal("lost the private key placeholder")
 	}
@@ -57,6 +79,45 @@ func TestReviewedOpenCodeTaskUsesCapturedContextAndVerifiedModelLimit(t *testing
 	}
 	if !strings.Contains(ordinary["OPENCODE_CONFIG_CONTENT"], `"instructions":["LUCI.md"]`) {
 		t.Fatal("ordinary session lost its project instructions")
+	}
+	if strings.Contains(ordinary["OPENCODE_CONFIG_CONTENT"], "automatic reminder") {
+		t.Fatal("ordinary coding session received reviewed task guidance")
+	}
+}
+
+func TestReviewedOpenCodeOnlyNarrowsSelectedLocalBuildAgent(t *testing.T) {
+	env := codingModelEnvironment()
+	var config map[string]any
+	if err := json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config); err != nil {
+		t.Fatal(err)
+	}
+	config["tools"] = map[string]any{"edit": true, "webfetch": true}
+	config["agent"] = map[string]any{
+		"build": map[string]any{"permission": map[string]any{"edit": "ask", "webfetch": "allow"}},
+		"plan":  map[string]any{"prompt": "preserved plan route"},
+	}
+	encoded, _ := json.Marshal(config)
+	env["OPENCODE_CONFIG_CONTENT"] = string(encoded)
+	if err := clearReviewedOpenCodeInstructions(env); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config); err != nil {
+		t.Fatal(err)
+	}
+	agents := config["agent"].(map[string]any)
+	build := agents["build"].(map[string]any)
+	permission := build["permission"].(map[string]any)
+	tools := config["tools"].(map[string]any)
+	if permission["edit"] != "ask" || tools["edit"] != true || permission["webfetch"] != "deny" || tools["webfetch"] != false || agents["plan"].(map[string]any)["prompt"] != "preserved plan route" {
+		t.Fatal("reviewed local policy changed unrelated tool, agent, or Ask settings")
+	}
+
+	gateway := map[string]string{"OPENCODE_CONFIG_CONTENT": `{"model":"luci-gateway/selected","instructions":["LUCI.md"]}`}
+	if err := clearReviewedOpenCodeInstructions(gateway); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(gateway["OPENCODE_CONFIG_CONTENT"], "automatic reminder") || !strings.Contains(gateway["OPENCODE_CONFIG_CONTENT"], `"instructions":[]`) {
+		t.Fatal("nonlocal reviewed route acquired local coding policy")
 	}
 }
 
