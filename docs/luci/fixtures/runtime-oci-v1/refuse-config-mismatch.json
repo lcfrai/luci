@@ -40,7 +40,7 @@
       "bytes": 512,
       "component": "example-runtime",
       "grant": "MIT",
-      "path": "licenses/MIT.txt",
+      "path": "licenses/runtime-image/MIT.txt",
       "provenance": "https://example.invalid/upstream/LICENSE",
       "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
       "version": "1.0.0"

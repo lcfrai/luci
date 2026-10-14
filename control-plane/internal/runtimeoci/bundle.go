@@ -406,7 +406,7 @@ func verifySources(root string, m Manifest) error {
 	}
 	seenLicenses := map[string]bool{}
 	for i, v := range m.Licenses {
-		if !strings.HasPrefix(v.Path, "licenses/") || !safePath(v.Path) || v.Bytes < 1 || !digestPattern.MatchString(v.SHA256) || v.Component == "" || v.Version == "" || v.Grant == "" || v.Provenance == "" || i > 0 && m.Licenses[i-1].Path >= v.Path {
+		if !strings.HasPrefix(v.Path, "licenses/runtime-image/") || !safePath(v.Path) || v.Bytes < 1 || !digestPattern.MatchString(v.SHA256) || v.Component == "" || v.Version == "" || v.Grant == "" || v.Provenance == "" || i > 0 && m.Licenses[i-1].Path >= v.Path {
 			return errors.New("runtime licence inventory invalid")
 		}
 		seenLicenses[v.Path] = true
@@ -415,7 +415,7 @@ func verifySources(root string, m Manifest) error {
 			return errors.New("runtime licence bytes changed")
 		}
 	}
-	if err := filepath.WalkDir(filepath.Join(filepath.Dir(root), "licenses"), func(name string, entry os.DirEntry, e error) error {
+	if err := filepath.WalkDir(filepath.Join(filepath.Dir(root), "licenses", "runtime-image"), func(name string, entry os.DirEntry, e error) error {
 		if e != nil {
 			return e
 		}
@@ -468,7 +468,7 @@ func Open(root string) (*Bundle, error) {
 	}
 	var source sourceReceipt
 	var sourceFields map[string]json.RawMessage
-	if err = decodeStrict(sourceBytes, &sourceFields); err != nil || len(sourceFields) != 3 || sourceFields["version"] == nil || sourceFields["sourceCommit"] == nil || sourceFields["sourceDirty"] == nil {
+	if err = decodeStrict(sourceBytes, &sourceFields); err != nil || len(sourceFields) != 3 || sourceFields["version"] == nil || sourceFields["sourceCommit"] == nil || !bytes.Equal(bytes.TrimSpace(sourceFields["sourceDirty"]), []byte("false")) {
 		return nil, errors.New("installed runtime source receipt fields missing")
 	}
 	if err = decodeStrict(sourceBytes, &source); err != nil || source.Version != 1 || source.SourceDirty || source.SourceCommit != m.SourceCommit {
