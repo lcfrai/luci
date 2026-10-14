@@ -1,9 +1,11 @@
 """Generate source-bound deferred Azure operator inputs without hand-written JSON."""
 import base64
+import binascii
 import hashlib
 import json
 from pathlib import Path
 import re
+import stat
 import subprocess
 import tempfile
 import uuid
@@ -29,6 +31,150 @@ def sign(core, payload, credentials):
                         "-out", str(signature), str(message)], check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
         return base64.b64encode(signature.read_bytes()).decode()
+
+
+def verify_signed_payload(core, envelope, public_key):
+    if envelope.get('signatureAlgorithm') != 'ecdsa-sha256' or not isinstance(envelope.get('payload'), dict):
+        raise ValueError('prior operator envelope is not signed')
+    with tempfile.TemporaryDirectory() as directory:
+        key, message, signature = (Path(directory) / name for name in ('key', 'message', 'signature'))
+        key.write_text(public_key)
+        message.write_bytes(core.canonical(envelope['payload']))
+        try:
+            signature.write_bytes(base64.b64decode(envelope['signature'], validate=True))
+        except (KeyError, ValueError, binascii.Error) as error:
+            raise ValueError('prior operator signature is invalid') from error
+        result = subprocess.run(['openssl', 'dgst', '-sha256', '-verify', str(key), '-signature', str(signature), str(message)],
+                                capture_output=True, timeout=10, check=False)
+        if result.returncode:
+            raise ValueError('prior operator signature is invalid')
+
+
+def prepare_successor(core, bundle_root, selection_path, recovery_selection_path, prior_envelope_sha,
+                      new_boot_id, new_credentials_dir):
+    """Sign a replacement controller without copying old-generation TLS or task state.
+
+    The account-side caller supplies an authenticated target boot observation and
+    a separately published new-generation credential journal. The guest still
+    checks its own boot before any staged write; no provider effect occurs here.
+    """
+    manifest = core.bundle(bundle_root)
+    selection = core.private_json(selection_path)
+    variables = core.requested(selection)
+    recovery = core.private_json(recovery_selection_path)
+    parent = Path(selection_path).parent
+    successor_path = parent / ('azure-successor-' + recovery['newGeneration'] + '.json')
+    if successor_path.exists():
+        raise ValueError('retained signed successor exists; inspect it without resigning')
+    old_draft = core.private_json(parent / 'operator-template.json')
+    old_envelope = core.private_json(parent / 'azure-operator-finalization.json')
+    old_payload = old_envelope.get('payload', {})
+    if (not re.fullmatch(r'[0-9a-f]{64}', prior_envelope_sha) or core.digest(old_envelope) != prior_envelope_sha or
+            not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', new_boot_id) or
+            old_payload.get('sourceCommit') != manifest['luciRevision'] or
+            old_payload.get('templateSHA256') != hashlib.sha256((parent / 'operator-template.json').read_bytes()).hexdigest() or
+            old_payload.get('scope') != recovery.get('scope') or
+            old_payload.get('scope') != variables['scope'] or
+            old_payload.get('generation') != recovery.get('oldGeneration') or
+            old_payload.get('controllerInstanceId') != recovery.get('oldControllerID') or
+            old_payload.get('diskID') != recovery.get('diskID') or
+            recovery.get('newControllerID') == recovery.get('oldControllerID') or
+            recovery.get('newGeneration') == recovery.get('oldGeneration') or
+            not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', old_payload.get('controllerBootID', '')) or
+            new_boot_id == old_payload.get('controllerBootID') or
+            old_payload.get('operator', {}).get('store', {}).get('ownerID') != recovery.get('ownerID')):
+        raise ValueError('signed predecessor or replacement controller selection is stale')
+    binding = old_draft.get('setupDeferred', {})
+    if binding.get('sourceCommit') != manifest['luciRevision'] or binding.get('generation') != recovery['oldGeneration']:
+        raise ValueError('prior source-pinned operator draft changed')
+    verify_signed_payload(core, old_envelope, binding['signerPublicKey'])
+    credentials = Path(new_credentials_dir)
+    journal = core.private_json(credentials / 'journal.json')
+    key_path = credentials / 'ca.key'
+    key_info = key_path.lstat()
+    if key_path.is_symlink() or not stat.S_ISREG(key_info.st_mode) or key_info.st_mode & 0o077 or not 0 < key_info.st_size <= 16384:
+        raise ValueError('new-generation private signer is unavailable')
+    ca_path = credentials / 'ca.crt'
+    ca_info = ca_path.lstat()
+    if ca_path.is_symlink() or not ca_path.is_file() or ca_info.st_size < 1 or ca_info.st_size > 16384:
+        raise ValueError('new-generation public CA is unavailable')
+    with ca_path.open('rb') as source:
+        ca_data = source.read(16385)
+    if (journal.get('state') != 'published' or journal.get('scope') != recovery['scope'] or
+            journal.get('generation') != recovery['newGeneration'] or
+            hashlib.sha256(ca_data).hexdigest() != journal.get('files', {}).get('client-ca') or
+            len(ca_data) > 16384):
+        raise ValueError('new-generation public CA and Key Vault versions are unavailable')
+    signer = core.local_command(['openssl', 'x509', '-in', str(credentials / 'ca.crt'), '-pubkey', '-noout'])
+    if signer == binding['signerPublicKey']:
+        raise ValueError('successor must use new-generation controller mTLS material')
+    references = {}
+    old_refs = old_payload['operator']['azureSecrets']
+    vault = old_refs['vaultUrl']
+    for target, kind in REFS.items():
+        row = journal.get('published', {}).get(kind, {})
+        match = re.fullmatch(r'https://([a-z0-9-]+)\.vault\.azure\.net/secrets/([a-zA-Z0-9-]+)/([0-9a-f]{32})', row.get('id', ''))
+        if match is None or 'https://' + match[1] + '.vault.azure.net' != vault or old_refs.get(target, {}).get('version') == match[3]:
+            raise ValueError('successor Key Vault reference is stale or outside the selected vault')
+        references[target] = {'name': match[2], 'version': match[3]}
+    draft = json.loads(json.dumps(old_draft))
+    draft['setupDeferred'].update(generation=recovery['newGeneration'], signerPublicKey=signer)
+    draft['deployment']['hostGeneration'] = recovery['newGeneration']
+    draft['azureSecrets'].update(references)
+    operator = json.loads(json.dumps(old_payload['operator']))
+    operator['deployment'].update(hostGeneration=recovery['newGeneration'], managementReceiptDigest='', restoreReceiptDigest='')
+    operator['azureSecrets'].update(references)
+    payload = dict(old_payload, templateSHA256=core.digest(draft), generation=recovery['newGeneration'],
+                   controllerInstanceId=recovery['newControllerID'], controllerBootID=new_boot_id,
+                   operator=operator, previousFinalizationSHA256=prior_envelope_sha,
+                   previousControllerInstanceID=recovery['oldControllerID'], previousGeneration=recovery['oldGeneration'],
+                   previousBootID=old_payload['controllerBootID'])
+    envelope = {'payload': payload, 'signatureAlgorithm': 'ecdsa-sha256',
+                'signature': sign(core, payload, credentials)}
+    env = ('LUCI_ADDR=127.0.0.1:8730\nLUCI_BACKING=azure\n'
+           'LUCI_AZURE_OPERATOR_TEMPLATE=/etc/luci/operator.json\n'
+           'LUCI_STATE_DIR=' + variables['controller_mount_path'] + '/luci/control\n'
+           'LUCI_PROJECTS_DIR=' + variables['controller_mount_path'] + '/luci/projects\n'
+           'LUCI_EXECUTION_STATE_DIR=' + variables['controller_mount_path'] + '/luci/execution\n')
+    files = []
+    for path, content in (('/etc/luci/operator-template.json', core.canonical(draft).decode()),
+                          ('/etc/luci/azure-private-ca.crt', ca_data.decode()),
+                          ('/etc/luci/azure-controller.env', env),
+                          ('/etc/luci/azure-operator-finalization.json', core.canonical(envelope).decode())):
+        if not 0 < len(content) <= 16384:
+            raise ValueError('bounded successor public configuration is unavailable')
+        files.append({'path': path, 'content': content, 'sha256': hashlib.sha256(content.encode()).hexdigest()})
+    mount_root = variables['controller_mount_path']
+    mount_template = {'version': 1, 'mode': 'restore', 'device': '/dev/disk/azure/scsi1/lun0',
+                      'mountPath': mount_root, 'filesystemUuid': recovery['filesystemUUID'],
+                      'azureDataDiskId': recovery['diskID'], 'ownerId': recovery['ownerID'], 'scope': recovery['scope'],
+                      'controllerHostId': variables['controller_host_id'], 'runtimeHostId': variables['runtime_host_id'],
+                      'controllerInstanceId': recovery['newControllerID'], 'generation': recovery['newGeneration'],
+                      'diskReceiptPath': mount_root + '/luci/disk-receipt.json',
+                      'generationReceiptPath': mount_root + '/luci/generation.json',
+                      'operatorTemplatePath': variables['controller_operator_template_path'],
+                      'operatorTemplateSHA256': core.digest(draft),
+                      'operatorOutputPath': variables['controller_operator_output_path'],
+                      'fenceBlobURL': recovery['fenceBlobURL'],
+                      'previousGeneration': recovery['oldGeneration'],
+                      'previousGenerationReceiptSHA256': recovery['oldGenerationReceiptSHA256'],
+                      'previousControllerInstanceID': recovery['oldControllerID'],
+                      'previousFinalizationSHA256': prior_envelope_sha,
+                      'previousBootID': old_payload['controllerBootID'], 'targetBootID': new_boot_id,
+                      'finalizationSHA256': core.digest(envelope)}
+    successor = {'version': 1, 'sourceCommit': manifest['luciRevision'], 'scope': recovery['scope'],
+                 'ownerID': recovery['ownerID'], 'diskID': recovery['diskID'],
+                 'oldControllerID': recovery['oldControllerID'], 'newControllerID': recovery['newControllerID'],
+                 'oldGeneration': recovery['oldGeneration'], 'newGeneration': recovery['newGeneration'],
+                 'oldBootID': old_payload['controllerBootID'], 'newBootID': new_boot_id,
+                 'oldGenerationReceiptSHA256': recovery['oldGenerationReceiptSHA256'],
+                 'priorEnvelopeSHA256': prior_envelope_sha, 'newEnvelopeSHA256': core.digest(envelope),
+                 'newTemplateSHA256': core.digest(draft), 'newPublicCASHA256': hashlib.sha256(ca_data).hexdigest(),
+                 'files': files, 'mountTemplate': mount_template}
+    core.atomic_json(successor_path, successor)
+    return {'state': 'successor_signed_pending_fence', 'successorPath': str(successor_path),
+            'successorDigest': core.digest(successor), 'sourceCommit': manifest['luciRevision'],
+            'oldGeneration': recovery['oldGeneration'], 'newGeneration': recovery['newGeneration']}
 
 
 def deferred(core, bundle_root, selection_path, from_image, cpu_count, memory_mib,

@@ -70,7 +70,9 @@ def selected(value):
     required = {"version", "mode", "device", "mountPath", "filesystemUuid", "azureDataDiskId", "ownerId", "scope",
                 "controllerHostId", "runtimeHostId", "controllerInstanceId", "generation", "diskReceiptPath",
                 "generationReceiptPath", "operatorTemplatePath", "operatorTemplateSHA256", "operatorOutputPath", "fenceBlobURL"}
-    if set(value) not in (required, required | {"previousGeneration", "previousGenerationReceiptSHA256", "previousFenceReceiptDigest"}) or value["version"] != 1 or value["mode"] not in ("initialize", "restore") or value["device"] != str(DEVICE):
+    predecessor = {"previousGeneration", "previousGenerationReceiptSHA256", "previousFenceReceiptDigest"}
+    successor = {"previousControllerInstanceID", "previousFinalizationSHA256", "previousBootID", "targetBootID", "finalizationSHA256"}
+    if set(value) not in (required, required | predecessor, required | predecessor | successor) or value["version"] != 1 or value["mode"] not in ("initialize", "restore") or value["device"] != str(DEVICE):
         raise ValueError("controller disk selection is invalid")
     if not UUID.fullmatch(value["filesystemUuid"]) or not GEN.fullmatch(value["generation"]) or not HEX.fullmatch(value["operatorTemplateSHA256"]):
         raise ValueError("controller disk generation or UUID is invalid")
@@ -82,6 +84,11 @@ def selected(value):
         raise ValueError("controller predecessor fence is incomplete")
     if value["mode"] == "initialize" and set(value) != required:
         raise ValueError("initial controller disk cannot claim a predecessor")
+    if successor.issubset(value) and (value["mode"] != "restore" or
+            value["previousControllerInstanceID"] == value["controllerInstanceId"] or
+            not all(UUID.fullmatch(value[key]) for key in ("previousBootID", "targetBootID")) or
+            not all(HEX.fullmatch(value[key]) for key in ("previousFinalizationSHA256", "finalizationSHA256"))):
+        raise ValueError("signed successor mount selection is incomplete")
     mount = Path(value["mountPath"])
     if not re.fullmatch(r"/mnt/[a-z0-9-]+", str(mount)) or mount.is_symlink() or mount.exists() and not mount.is_dir():
         raise ValueError("controller mount point is invalid")
@@ -161,6 +168,16 @@ def bind(value, finalize_only=False):
             already_new = True
         elif sha(old_bytes) != value["previousGenerationReceiptSHA256"] or old_generation.get("generation") != value["previousGeneration"] or old_generation.get("azureDataDiskId") != value["azureDataDiskId"]:
             raise ValueError("controller predecessor generation changed")
+    if "previousFinalizationSHA256" in value:
+        prior = json.loads(private(Path(value["mountPath"]) / "luci/operator-finalization-receipt.json", 4096))
+        expected = ({"version": 1, "envelopeSHA256": value["finalizationSHA256"],
+                     "generation": value["generation"], "controllerInstanceId": value["controllerInstanceId"],
+                     "previousEnvelopeSHA256": value["previousFinalizationSHA256"]} if already_new else
+                    {"version": 1, "envelopeSHA256": value["previousFinalizationSHA256"],
+                     "generation": value["previousGeneration"],
+                     "controllerInstanceId": value["previousControllerInstanceID"]})
+        if prior != expected:
+            raise ValueError("signed predecessor/operator receipt differs from the fenced generation")
     generation = {"version": 1, "generation": value["generation"], "controllerInstanceId": value["controllerInstanceId"],
                   "azureDataDiskId": value["azureDataDiskId"]}
     if old_generation:
@@ -193,10 +210,18 @@ def bind(value, finalize_only=False):
                               "fenceBlobURL": value["fenceBlobURL"]}
     operator["store"]["separationReceiptDigest"] = sha(disk_data)
     operator["deployment"]["hostGeneration"] = value["generation"]
+    if value['mode'] == 'restore':
+        operator['deployment']['restoreReceiptDigest'] = value['previousFenceReceiptDigest']
     gateway_contract = ["luci-azure-e2b-gateway-v1", operator["deployment"]["azureGatewayHost"],
                         value["scope"], value["generation"], "api:3000", "guest:3002", "envd:49983", "sandboxd:8080"]
     operator["azureGatewayReceiptDigest"] = sha(canonical(gateway_contract))
     atomic(Path(value["operatorOutputPath"]), canonical(operator))
+    if "previousFinalizationSHA256" in value:
+        envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), 64 << 10)
+        atomic(Path(value['mountPath']) / 'luci/operator-finalization-receipt.json', canonical({
+            'version': 1, 'envelopeSHA256': sha(envelope_data), 'generation': value['generation'],
+            'controllerInstanceId': value['controllerInstanceId'],
+            'previousEnvelopeSHA256': value['previousFinalizationSHA256']}))
     atomic(Path('/etc/luci/azure-controller-disk-active.json'), canonical(value))
     return {"state": "mounted", "generation": value["generation"], "diskReceiptSHA256": sha(disk_data),
             "generationReceiptSHA256": sha(generation_data), "operatorSHA256": sha(canonical(operator))}
@@ -226,6 +251,14 @@ def finalized_operator(value, draft, allow_deferred=False, retained=False):
             not retained and payload.get("controllerBootID") != boot_identity() or
             payload.get("controllerInstanceId") != value["controllerInstanceId"] or payload.get("diskID") != value["azureDataDiskId"]):
         raise ValueError("deferred operator finalization is not bound to the selected source, disk and generation")
+    if "previousFinalizationSHA256" in value and (
+            sha(canonical(envelope)) != value["finalizationSHA256"] or
+            payload.get("previousFinalizationSHA256") != value["previousFinalizationSHA256"] or
+            payload.get("previousControllerInstanceID") != value["previousControllerInstanceID"] or
+            payload.get("previousGeneration") != value["previousGeneration"] or
+            payload.get("previousBootID") != value["previousBootID"] or
+            payload.get("controllerBootID") != value["targetBootID"]):
+        raise ValueError("signed successor does not bind the predecessor envelope and target boot")
     with tempfile.TemporaryDirectory() as directory:
         key, message, signature = (Path(directory) / name for name in ("key", "message", "signature"))
         key.write_text(binding["signerPublicKey"])
@@ -279,19 +312,21 @@ def resume(value):
         envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), 64 << 10)
         expected = {'version': 1, 'envelopeSHA256': sha(envelope_data), 'generation': value['generation'],
                     'controllerInstanceId': value['controllerInstanceId']}
+        if 'previousFinalizationSHA256' in value:
+            expected['previousEnvelopeSHA256'] = value['previousFinalizationSHA256']
         receipt = json.loads(private(Path(value['mountPath']) / 'luci/operator-finalization-receipt.json'))
         if receipt != expected:
             raise ValueError('resume requires the retained exact signed installation receipt')
         if installed.get('template') != operator.get('template') or installed.get('sourceCommit') != operator.get('sourceCommit') or 'setupDeferred' in installed:
             raise ValueError('retained operator changed after signed installation')
-    return inspect(value)
+    return inspect(value, retained=True)
 
 
 def boot_identity():
     return Path("/proc/sys/kernel/random/boot_id").read_text().strip()
 
 
-def inspect(value):
+def inspect(value, retained=False):
     """Read back a prior attach/mount without formatting or writing a byte."""
     selected(value)
     mount = Path(value["mountPath"])
@@ -314,6 +349,17 @@ def inspect(value):
         raise ValueError("controller predecessor fence changed")
     output = private(Path(value["operatorOutputPath"]))
     operator = json.loads(output)
+    if "previousFinalizationSHA256" in value:
+        if not retained and boot_identity() != value["targetBootID"]:
+            raise ValueError("successor controller boot changed")
+        envelope = private(Path('/etc/luci/azure-operator-finalization.json'), 64 << 10)
+        if sha(envelope) != value["finalizationSHA256"]:
+            raise ValueError("successor signed envelope changed")
+        receipt = json.loads(private(mount / 'luci/operator-finalization-receipt.json', 4096))
+        if receipt != {"version": 1, "envelopeSHA256": value["finalizationSHA256"],
+                       "generation": value["generation"], "controllerInstanceId": value["controllerInstanceId"],
+                       "previousEnvelopeSHA256": value["previousFinalizationSHA256"]}:
+            raise ValueError("successor installation receipt is absent or changed")
     if operator.get("azureMount", {}).get("generationReceiptDigest") != sha(generation_data) or operator.get("store", {}).get("separationReceiptDigest") != sha(disk_data):
         raise ValueError("controller operator selection is stale")
     return {"state": "mounted", "generation": value["generation"], "diskReceiptSHA256": sha(disk_data),

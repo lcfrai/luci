@@ -20,6 +20,7 @@ from pathlib import Path
 import re
 import socket
 import ssl
+import stat
 import subprocess
 import sys
 import time
@@ -48,11 +49,15 @@ def digest(value):
     return hashlib.sha256(canonical(value)).hexdigest()
 
 
-def private(path):
+def private(path, limit=16 << 10):
     info = path.lstat()
-    if path.is_symlink() or not path.is_file() or info.st_mode & 0o077 or info.st_size < 1 or info.st_size > 16 << 10:
+    if path.is_symlink() or not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_size < 1 or info.st_size > limit:
         raise ValueError("private recovery selection is unavailable")
-    return json.loads(path.read_bytes())
+    with path.open('rb') as source:
+        data = source.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError("private recovery selection exceeded its bound")
+    return json.loads(data)
 
 
 def validate(value):
@@ -60,7 +65,7 @@ def validate(value):
                 "controllerIdentityID", "recoveryIdentityID",
                 "oldGeneration", "newGeneration", "filesystemUUID", "oldGenerationReceiptSHA256",
                 "mountSelectionPath", "hostDeliverySelectionPath", "apiService", "apiHealthURL", "ownerID", "scope"}
-    if set(value) not in (required, required | {'controllerSetupFiles'}) or value["version"] != 1 or not UUID.fullmatch(value["recoveryClientID"]) or not UUID.fullmatch(value["filesystemUUID"]):
+    if set(value) not in (required, required | {'controllerSetupFiles'}, required | {'controllerSuccessor'}) or value["version"] != 1 or not UUID.fullmatch(value["recoveryClientID"]) or not UUID.fullmatch(value["filesystemUUID"]):
         raise ValueError("controller recovery selection fields are invalid")
     if not VM.fullmatch(value["oldControllerID"]) or not VM.fullmatch(value["newControllerID"]) or value["oldControllerID"] == value["newControllerID"] or not DISK.fullmatch(value["diskID"]):
         raise ValueError("controller recovery ARM identities are invalid")
@@ -83,6 +88,83 @@ def validate(value):
         raise ValueError("controller fence blob is not the selected private resource")
     if 'controllerSetupFiles' in value:
         validate_setup_files(value['controllerSetupFiles'])
+    if 'controllerSuccessor' in value:
+        validate_successor(value, value['controllerSuccessor'])
+
+
+def validate_successor(selection, successor):
+    required = {'version', 'sourceCommit', 'scope', 'ownerID', 'diskID', 'oldControllerID', 'newControllerID',
+                'oldGeneration', 'newGeneration', 'oldBootID', 'newBootID', 'oldGenerationReceiptSHA256',
+                'priorEnvelopeSHA256', 'newEnvelopeSHA256', 'newTemplateSHA256', 'newPublicCASHA256', 'files',
+                'mountTemplate'}
+    if not isinstance(successor, dict) or set(successor) != required or successor['version'] != 1 or \
+            not re.fullmatch(r'[0-9a-f]{40}', successor['sourceCommit']) or \
+            not all(UUID.fullmatch(successor[key]) for key in ('oldBootID', 'newBootID')) or \
+            successor['oldBootID'] == successor['newBootID'] or \
+            not all(HEX.fullmatch(successor[key]) for key in ('priorEnvelopeSHA256', 'newEnvelopeSHA256',
+                                                           'newTemplateSHA256', 'newPublicCASHA256')) or \
+            any(successor[key] != selection[key] for key in ('scope', 'ownerID', 'diskID', 'oldControllerID',
+                                                               'newControllerID', 'oldGeneration', 'newGeneration',
+                                                               'oldGenerationReceiptSHA256')):
+        raise ValueError('signed successor differs from the exact recovery selection')
+    files = successor['files']
+    expected = {'/etc/luci/operator-template.json', '/etc/luci/azure-private-ca.crt',
+                '/etc/luci/azure-controller.env', '/etc/luci/azure-operator-finalization.json'}
+    if not isinstance(files, list) or len(files) != 4 or {row.get('path') for row in files if isinstance(row, dict)} != expected:
+        raise ValueError('signed successor public file inventory differs')
+    contents = {}
+    for row in files:
+        if set(row) != {'path', 'content', 'sha256'} or not isinstance(row['content'], str) or \
+                not 0 < len(row['content'].encode()) <= 16384 or 'PRIVATE KEY-----' in row['content'] or \
+                hashlib.sha256(row['content'].encode()).hexdigest() != row['sha256']:
+            raise ValueError('signed successor public file is not bounded and exact')
+        contents[row['path']] = row['content']
+    draft = json.loads(contents['/etc/luci/operator-template.json'])
+    envelope = json.loads(contents['/etc/luci/azure-operator-finalization.json'])
+    payload = envelope.get('payload', {})
+    if digest(draft) != successor['newTemplateSHA256'] or digest(envelope) != successor['newEnvelopeSHA256'] or \
+            hashlib.sha256(contents['/etc/luci/azure-private-ca.crt'].encode()).hexdigest() != successor['newPublicCASHA256'] or \
+            envelope.get('signatureAlgorithm') != 'ecdsa-sha256' or \
+            any(payload.get(key) != successor[value] for key, value in (
+                ('sourceCommit', 'sourceCommit'), ('scope', 'scope'), ('generation', 'newGeneration'),
+                ('controllerInstanceId', 'newControllerID'), ('controllerBootID', 'newBootID'),
+                ('diskID', 'diskID'), ('templateSHA256', 'newTemplateSHA256'),
+                ('previousFinalizationSHA256', 'priorEnvelopeSHA256'),
+                ('previousControllerInstanceID', 'oldControllerID'),
+                ('previousGeneration', 'oldGeneration'), ('previousBootID', 'oldBootID'))) or \
+            draft.get('setupDeferred', {}).get('sourceCommit') != successor['sourceCommit'] or \
+            draft.get('setupDeferred', {}).get('generation') != successor['newGeneration'] or \
+            not contents['/etc/luci/azure-controller.env'].startswith(
+                'LUCI_ADDR=127.0.0.1:8730\nLUCI_BACKING=azure\nLUCI_AZURE_OPERATOR_TEMPLATE=/etc/luci/operator.json\n'):
+        raise ValueError('signed successor source, public configuration or predecessor binding changed')
+    mount = successor['mountTemplate']
+    mount_keys = {'version', 'mode', 'device', 'mountPath', 'filesystemUuid', 'azureDataDiskId', 'ownerId',
+                  'scope', 'controllerHostId', 'runtimeHostId', 'controllerInstanceId', 'generation',
+                  'diskReceiptPath', 'generationReceiptPath', 'operatorTemplatePath', 'operatorTemplateSHA256',
+                  'operatorOutputPath', 'fenceBlobURL', 'previousGeneration', 'previousGenerationReceiptSHA256',
+                  'previousControllerInstanceID', 'previousFinalizationSHA256', 'previousBootID', 'targetBootID',
+                  'finalizationSHA256'}
+    if not isinstance(mount, dict) or set(mount) != mount_keys or mount['version'] != 1 or mount['mode'] != 'restore' or \
+            mount['device'] != '/dev/disk/azure/scsi1/lun0' or \
+            not re.fullmatch(r'/mnt/[a-z0-9-]+', mount['mountPath']) or \
+            not re.fullmatch(r'/etc/luci/[a-z0-9.-]+', selection['mountSelectionPath']) or \
+            not re.fullmatch(r'/etc/luci/[a-z0-9.-]+', mount['operatorTemplatePath']) or \
+            not re.fullmatch(r'/etc/luci/[a-z0-9.-]+', mount['operatorOutputPath']) or \
+            mount['operatorTemplatePath'] != '/etc/luci/operator-template.json' or \
+            mount['operatorOutputPath'] != '/etc/luci/operator.json' or \
+            not all(GEN.fullmatch(mount[key]) for key in ('controllerHostId', 'runtimeHostId')) or \
+            any(mount[key] != selection[selection_key] for key, selection_key in (
+                ('filesystemUuid', 'filesystemUUID'), ('azureDataDiskId', 'diskID'), ('ownerId', 'ownerID'),
+                ('scope', 'scope'), ('controllerInstanceId', 'newControllerID'), ('generation', 'newGeneration'),
+                ('fenceBlobURL', 'fenceBlobURL'), ('previousGeneration', 'oldGeneration'),
+                ('previousGenerationReceiptSHA256', 'oldGenerationReceiptSHA256'))) or \
+            any(mount[key] != successor[successor_key] for key, successor_key in (
+                ('operatorTemplateSHA256', 'newTemplateSHA256'), ('previousControllerInstanceID', 'oldControllerID'),
+                ('previousFinalizationSHA256', 'priorEnvelopeSHA256'), ('previousBootID', 'oldBootID'),
+                ('targetBootID', 'newBootID'), ('finalizationSHA256', 'newEnvelopeSHA256'))) or \
+            mount['diskReceiptPath'] != mount['mountPath'] + '/luci/disk-receipt.json' or \
+            mount['generationReceiptPath'] != mount['mountPath'] + '/luci/generation.json':
+        raise ValueError('signed successor mount template is not exact source-bound restore input')
 
 
 def validate_setup_files(files):
@@ -123,6 +205,63 @@ for row in files:
         os.replace(name, target)
 PY
 """ % (repr(base64.b64encode(canonical(files)).decode()), repr(inspect))
+
+
+def successor_script(successor, fence_digest, inspect=False, mount_path='/etc/luci/azure-controller-disk-restore.json'):
+    """Bounded public staging on the selected boot; inspect never writes."""
+    if not HEX.fullmatch(fence_digest) or not re.fullmatch(r'/etc/luci/[a-z0-9.-]+', mount_path):
+        raise ValueError('successor staging needs exact durable fence and mount path')
+    mount = dict(successor['mountTemplate'], previousFenceReceiptDigest=fence_digest)
+    mount_bytes = canonical(mount)
+    files = successor['files'] + [{'path': mount_path, 'content': mount_bytes.decode(),
+                                   'sha256': hashlib.sha256(mount_bytes).hexdigest()}]
+    service_mount_path = '/etc/luci/azure-controller-disk-initial.json'
+    if mount_path != service_mount_path:
+        files.append({'path': service_mount_path, 'content': mount_bytes.decode(),
+                      'sha256': hashlib.sha256(mount_bytes).hexdigest()})
+    payload = base64.b64encode(canonical({'boot': successor['newBootID'], 'files': files,
+                                         'digest': digest(successor)})).decode()
+    return """python3 - <<'PY'
+import base64, hashlib, json, os, pathlib, stat, tempfile
+item = json.loads(base64.b64decode(%s))
+if pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip() != item['boot']:
+    raise SystemExit('replacement controller boot differs from signed selection')
+for row in item['files']:
+    target = pathlib.Path(row['path'])
+    data = row['content'].encode()
+    if hashlib.sha256(data).hexdigest() != row['sha256']:
+        raise SystemExit('signed successor public file changed')
+    if target.parent.is_symlink() or target.parent.exists() and not target.parent.is_dir():
+        raise SystemExit('replacement configuration parent is unsafe')
+    if target.is_symlink() or target.exists():
+        if target.is_symlink() or not stat.S_ISREG(target.stat().st_mode) or target.stat().st_mode & 0o077 or target.stat().st_size != len(data) or target.read_bytes() != data:
+            raise SystemExit('retained replacement controller configuration changed')
+    elif %s:
+        raise SystemExit('replacement controller staging remains uncertain')
+    else:
+        target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if target.parent.is_symlink():
+            raise SystemExit('replacement configuration parent changed')
+        fd, name = tempfile.mkstemp(dir=target.parent)
+        try:
+            os.fchmod(fd, 0o600)
+            with os.fdopen(fd, 'wb') as output:
+                output.write(data); output.flush(); os.fsync(output.fileno())
+            os.replace(name, target)
+            parent = os.open(target.parent, os.O_RDONLY)
+            try: os.fsync(parent)
+            finally: os.close(parent)
+        finally:
+            if os.path.exists(name): os.unlink(name)
+print('LUCI_AZURE_SUCCESSOR_STAGED=' + item['digest'])
+PY
+""" % (repr(payload), repr(inspect))
+
+
+def successor_receipt(output, successor):
+    rows = [line.split('=', 1)[1] for line in output.splitlines() if line.startswith('LUCI_AZURE_SUCCESSOR_STAGED=')]
+    if rows != [digest(successor)]:
+        raise RuntimeError('successor public staging has no exact boot-bound readback')
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -364,24 +503,36 @@ def transition(store, record, etag, state, **changes):
     return updated, store.write(updated, etag)
 
 
-def restore_local(selection, fence_digest):
+def restore_local(selection, fence_digest, inspect=False):
     spec = private(Path(selection["mountSelectionPath"]))
     if spec.get("mode") != "restore" or spec.get("azureDataDiskId") != selection["diskID"] or spec.get("controllerInstanceId") != selection["newControllerID"] or spec.get("generation") != selection["newGeneration"] or spec.get("ownerId") != selection["ownerID"] or spec.get("scope") != selection["scope"] or spec.get("previousGeneration") != selection["oldGeneration"] or spec.get("previousGenerationReceiptSHA256") != selection["oldGenerationReceiptSHA256"] or spec.get("previousFenceReceiptDigest") != fence_digest:
         raise ValueError("controller mount selection does not bind the off-disk fence")
+    successor = selection.get('controllerSuccessor')
+    if successor and any(spec.get(key) != expected for key, expected in (
+            ('previousControllerInstanceID', successor['oldControllerID']),
+            ('previousFinalizationSHA256', successor['priorEnvelopeSHA256']),
+            ('previousBootID', successor['oldBootID']), ('targetBootID', successor['newBootID']),
+            ('finalizationSHA256', successor['newEnvelopeSHA256']),
+            ('operatorTemplateSHA256', successor['newTemplateSHA256']))):
+        raise ValueError('controller mount selection does not bind the signed successor')
     module_path = Path(__file__).with_name("mount.py")
     spec_module = importlib.util.spec_from_file_location("luci_azure_mount", module_path)
     module = importlib.util.module_from_spec(spec_module)
     spec_module.loader.exec_module(module)
-    return module.bind(spec)
+    return module.inspect(spec) if inspect else module.bind(spec)
 
 
 def run(selection, store, compute, host_delivery=None, service=None):
     validate(selection)
+    successor = selection.get('controllerSuccessor')
+    successor_hash = digest(successor) if successor else None
     record, etag = store.read()
     if record is None or record.get("version") != 1 or record.get("diskID") != selection["diskID"] or record.get("filesystemUUID") != selection["filesystemUUID"] or record.get("ownerID") != selection["ownerID"] or record.get("scope") != selection["scope"]:
         raise ValueError("selected authoritative fence is absent or foreign")
     if record["state"] != "active" and (record.get("targetControllerID") != selection["newControllerID"] or record.get("targetGeneration") != selection["newGeneration"] or record.get("controllerID") != selection["oldControllerID"] or record.get("generation") != selection["oldGeneration"]):
         raise ValueError("pending recovery belongs to another exact controller generation")
+    if record['state'] != 'active' and record.get('successorDigest') != successor_hash:
+        raise ValueError('pending recovery belongs to another signed successor')
     if record["state"] == "active":
         if record.get("controllerID") != selection["oldControllerID"] or record.get("generation") != selection["oldGeneration"] or record.get("generationReceiptSHA256") != selection["oldGenerationReceiptSHA256"]:
             raise ValueError("old controller generation does not match the durable fence")
@@ -392,7 +543,7 @@ def run(selection, store, compute, host_delivery=None, service=None):
         new_vm, _ = compute.get(selection["newControllerID"])
         if new_vm.get("properties", {}).get("provisioningState") != "Succeeded" or new_vm.get("properties", {}).get("storageProfile", {}).get("dataDisks", []) or compute.vm_identities(selection["newControllerID"])[0] != {selection["recoveryIdentityID"]}:
             raise ValueError("replacement controller disk or identity is not selected")
-        record, etag = transition(store, record, etag, "deallocate_pending", targetControllerID=selection["newControllerID"], targetGeneration=selection["newGeneration"])
+        record, etag = transition(store, record, etag, "deallocate_pending", targetControllerID=selection["newControllerID"], targetGeneration=selection["newGeneration"], successorDigest=successor_hash)
         try:
             compute.deallocate(selection["oldControllerID"])
         except Exception:
@@ -445,13 +596,41 @@ def run(selection, store, compute, host_delivery=None, service=None):
         identities, _ = compute.vm_identities(selection["newControllerID"])
         if identities != {selection["recoveryIdentityID"], selection["controllerIdentityID"]} or not compute.power(selection["oldControllerID"]):
             raise RuntimeError("controller identity grant is unknown; restoration refused")
-        record, etag = transition(store, record, etag, "restore_pending")
-    if record["state"] in ("restore_pending", "gateway_pending", "api_start_pending") and (
+        record, etag = transition(store, record, etag, "successor_stage_pending" if successor else "restore_pending")
+        if successor:
+            try:
+                output = compute.run_command(selection['newControllerID'], successor_script(
+                    successor, record['fenceReceiptDigest'], mount_path=selection['mountSelectionPath']))
+                successor_receipt(output, successor)
+            except Exception as error:
+                raise RuntimeError('signed successor staging uncertain; inspect exact target without replay') from error
+    if record["state"] in ("successor_stage_pending", "restore_pending", "restore_observe_pending", "gateway_pending", "api_start_pending") and (
             compute.disk_owner(selection["diskID"]) != (selection["newControllerID"], "Attached") or
             not compute.power(selection["oldControllerID"])):
         raise RuntimeError("single-writer controller fence changed during restore")
+    if record['state'] == 'successor_stage_pending':
+        try:
+            output = compute.run_command(selection['newControllerID'], successor_script(
+                successor, record['fenceReceiptDigest'], inspect=True, mount_path=selection['mountSelectionPath']))
+            successor_receipt(output, successor)
+        except Exception as error:
+            raise RuntimeError('signed successor staging remains uncertain; no repeat write') from error
+        record, etag = transition(store, record, etag, 'restore_pending')
     if record["state"] == "restore_pending":
-        mounted = restore_local(selection, record["fenceReceiptDigest"])
+        if successor:
+            record, etag = transition(store, record, etag, 'restore_observe_pending')
+            try:
+                restore_local(selection, record['fenceReceiptDigest'])
+            except Exception as error:
+                raise RuntimeError('successor restore uncertain; inspect exact mounted receipts') from error
+    if record['state'] == 'restore_observe_pending':
+        try:
+            mounted = restore_local(selection, record['fenceReceiptDigest'], inspect=True)
+        except Exception as error:
+            raise RuntimeError('successor mount remains uncertain; no repeat restore') from error
+    elif record['state'] == 'restore_pending':
+        mounted = restore_local(selection, record['fenceReceiptDigest'])
+    if record['state'] in ('restore_pending', 'restore_observe_pending'):
         if mounted["generation"] != selection["newGeneration"]:
             raise ValueError("mounted controller generation changed")
         record, etag = transition(store, record, etag, "gateway_pending", generationReceiptSHA256=mounted["generationReceiptSHA256"], operatorSHA256=mounted["operatorSHA256"])
@@ -517,8 +696,10 @@ def main():
     parser.add_argument("action", choices=("initialize", "recover"))
     parser.add_argument("selection", type=Path)
     args = parser.parse_args()
-    selected = private(args.selection)
+    selected = private(args.selection, 96 << 10)
     validate(selected)
+    if args.action == 'recover' and 'controllerSuccessor' not in selected:
+        raise ValueError('replacement recovery requires a source-bound signed successor')
     transport = AzureHTTP(selected["recoveryClientID"])
     if transport.local_instance_id() != selected["newControllerID"]:
         raise ValueError("disk lifecycle must run on the selected private recovery VM")
