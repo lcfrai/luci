@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "component": "spdx-exceptions",
+  "packageVersion": "2.5.0",
+  "grant": "CC-BY-3.0",
+  "sourceCommit": "3aa64bec339abc6a3eca00c3436aaa7e154b8799",
+  "registryMetadataURL": "https://registry.npmjs.org/spdx-exceptions/2.5.0",
+  "registryMetadataSHA256": "1b2795b394da9b14d39f328441e9be1c099c32d9833bd2ddf9234ecc7c68db08",
+  "registryTarball": "https://registry.npmjs.org/spdx-exceptions/-/spdx-exceptions-2.5.0.tgz",
+  "registryIntegrity": "sha512-PiU42r+xO4UbUS1buo3LPJkjlO7430Xn5SVAhdpzzsPHsjbYVflnnFdATgabnLude+Cqu25p6N+g2lw/PFsa4w==",
+  "files": [
+    {
+      "file": "README.md",
+      "url": "https://raw.githubusercontent.com/kemitchell/spdx-exceptions.json/3aa64bec339abc6a3eca00c3436aaa7e154b8799/README.md",
+      "sha256": "554b19eee11d2964e9f7b244e47944c08d52ca75539260a04f3227e6c0144513",
+      "bytes": 1243
+    },
+    {
+      "file": "LICENSE",
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/3ac5a9c241d97f95b22a5e366c9c841404a35639/text/CC-BY-3.0.txt",
+      "sha256": "e6bc9e9c474700b708f568bac9e5a8a9bcb2b1dad53442f5ba449fcb848b8e76",
+      "bytes": 19467
+    }
+  ]
+}

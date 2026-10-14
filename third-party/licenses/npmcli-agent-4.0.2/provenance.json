@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "component": "@npmcli/agent",
+  "packageVersion": "4.0.2",
+  "grant": "ISC",
+  "sourceCommit": "db7852869c74ceb8985d7c36b291a2e7a866741c",
+  "registryMetadataURL": "https://registry.npmjs.org/@npmcli%2fagent/4.0.2",
+  "registryMetadataSHA256": "90cefd98869a94ef76706acbb011162ca2171f1a5454053ea48dc080bcb3c42c",
+  "registryTarball": "https://registry.npmjs.org/@npmcli/agent/-/agent-4.0.2.tgz",
+  "registryIntegrity": "sha512-EUEuWAxnL07Sp5/iC/1X6Xj+XThUvnbei9zfRWZdEXa7lss9RTHMhAHBeg+MZ5To9s/gGaSI+UwZTPdYMvKSeg==",
+  "files": [
+    {
+      "file": "package.json",
+      "url": "https://raw.githubusercontent.com/npm/agent/db7852869c74ceb8985d7c36b291a2e7a866741c/package.json",
+      "sha256": "3612c09c2741e44541faddecee97c4618794909ecf0e3555e56ebabf38a379a8",
+      "bytes": 1566
+    },
+    {
+      "file": "LICENSE",
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/3ac5a9c241d97f95b22a5e366c9c841404a35639/text/ISC.txt",
+      "sha256": "521c6f0ed8e64736684f89843d16a4df6b4b7449acbcfc6ca6630a3037ca8c53",
+      "bytes": 737
+    }
+  ]
+}

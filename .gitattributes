@@ -4,3 +4,4 @@
 third-party/** -text
 control-plane/internal/platform/supabase_assets/** -text
 docs/legacy/** -text
+third-party/licenses/npmcli-agent-4.0.2/LICENSE whitespace=-blank-at-eol
