@@ -23,3 +23,14 @@ func protectPullPath(name string, directory bool) error {
 	}
 	return windows.SetNamedSecurityInfo(name, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, acl, nil)
 }
+
+// The staged files are individually flushed. Windows directory handles do
+// not support os.File.Sync; every continuation reopens and hashes the stage.
+func syncPullDirectory(string) error { return nil }
+
+// The trusted coordinator validates the enclosing Windows execution-state
+// DACL before it assigns this staging path; the child inherits its protected
+// current-user ACL and the selected Docker Desktop bind mount is read-only.
+func validatePullPrivateParent(string) error { return nil }
+
+func exposePullReadOnlyTree(string) error { return nil }

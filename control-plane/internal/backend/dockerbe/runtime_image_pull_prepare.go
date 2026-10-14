@@ -17,6 +17,8 @@ const (
 	runtimePullDaemonMiB = uint64(512)
 )
 
+var _ backend.RuntimeImagePullExecutor = (*Backend)(nil)
+
 // pullAdmissionMiB charges every verified uncompressed final layer and every
 // compressed blob Moby may keep in temporary storage at once. Serial HTTP
 // delivery is not treated as proof of serial daemon extraction. The small

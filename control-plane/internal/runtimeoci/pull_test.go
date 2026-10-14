@@ -184,3 +184,60 @@ func TestPullLayerRejectsSecondMemberAndTrailingBytes(t *testing.T) {
 		}
 	}
 }
+
+func TestPullAllowlistBindsOnlyInstalledDigest(t *testing.T) {
+	m := pullFixtureManifest()
+	m.RegistryStore.Members = []Member{{Path: pullBlobPath(m.Image.ManifestDigest), Bytes: 199}}
+	b := &PullBundle{Manifest: m}
+	data, err := b.pullAllowlistBytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got pullAllowlist
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Repository != "luci/runtime-installed" || got.ManifestDigest != m.Image.ManifestDigest || got.ManifestBytes != 199 || got.ConfigDigest != m.Image.ID || len(got.Layers) != 1 || got.Layers[0].Digest != m.Image.Layers[0].CompressedDigest {
+		t.Fatalf("installed allowlist drift: %+v", got)
+	}
+	b.Manifest.RegistryStore.Members = nil
+	if _, err := b.pullAllowlistBytes(); err == nil {
+		t.Fatal("missing exact manifest blob accepted")
+	}
+}
+
+func TestPullStageReceiptRefusesChangedAllowlist(t *testing.T) {
+	m := pullFixtureManifest()
+	m.RegistryStore.Members = []Member{{Path: pullBlobPath(m.Image.ManifestDigest), Bytes: 199}}
+	b := &PullBundle{Manifest: m, ManifestSHA256: strings.Repeat("b", 64)}
+	allowlist, err := b.pullAllowlistBytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent := t.TempDir()
+	stage := filepath.Join(parent, "stage")
+	if err := os.Mkdir(stage, 0700); err != nil {
+		t.Fatal(err)
+	}
+	receipt := PullStageReceipt{Version: 1, ManifestSHA256: b.ManifestSHA256, StoreSHA256: m.RegistryStore.SHA256, Repository: m.RegistryStore.Repository, ManifestDigest: m.Image.ManifestDigest, AllowlistSHA256: sumHex(allowlist), AllowlistBytes: len(allowlist)}
+	data, err := json.Marshal(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stage, "runtime-pull-stage.json"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	allowlistPath := filepath.Join(stage, "runtime-pull-allowlist.json")
+	if err := os.WriteFile(allowlistPath, allowlist, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.ReadPullStage(stage); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(allowlistPath, []byte(`{}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.ReadPullStage(stage); err == nil {
+		t.Fatal("changed stage allowlist accepted")
+	}
+}

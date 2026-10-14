@@ -128,3 +128,28 @@ type RuntimeImageImportExecutor interface {
 	LoadPackagedRuntimeImage(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
 	DerivePackagedRuntimeImage(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
 }
+
+// RuntimePullHelper is the exact owned, short-lived local distribution
+// boundary. IDs are journaled after positive readback; names derive from the
+// allocation so lost acknowledgements can be inspected without replay.
+type RuntimePullHelper struct {
+	NetworkID   string
+	ContainerID string
+	HostPort    string
+}
+
+// RuntimeImagePullExecutor exposes separate effects so the coordinator can
+// persist a phase before every Docker call and retain uncertain outcomes.
+// It never substitutes the v1 full ImageLoad path for a missing v2 package.
+type RuntimeImagePullExecutor interface {
+	RuntimeImageExecutor
+	PreparePullRuntimeImage(context.Context, RuntimeImageSpec) (PreparedRuntimeImage, error)
+	LoadPullBootstrap(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
+	CreatePullNetwork(context.Context, PreparedRuntimeImage) (string, error)
+	CreatePullHelper(context.Context, PreparedRuntimeImage, runtimeoci.PullStageReceipt, string) (string, error)
+	StartPullHelper(context.Context, PreparedRuntimeImage, RuntimePullHelper) (string, error)
+	ProbePullHelper(context.Context, PreparedRuntimeImage, RuntimePullHelper) error
+	PullPackagedRuntimeImage(context.Context, PreparedRuntimeImage, RuntimePullHelper) (RuntimeImageBuildResult, error)
+	RetirePullHelper(context.Context, PreparedRuntimeImage, RuntimePullHelper) error
+	DerivePullRuntimeImage(context.Context, PreparedRuntimeImage) (RuntimeImageBuildResult, error)
+}
