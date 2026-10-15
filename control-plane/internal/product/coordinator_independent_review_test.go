@@ -61,7 +61,6 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	swarmCommitFixture(t, path, "alpha.txt", "candidate content\n")
 	selection := *selected
 	selection.WorktreeID = candidate.WorktreeID
 	child := projectRunCandidate(selection, candidate.Implementation)
@@ -77,6 +76,15 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 		return nil, nil
 	})
 	run = projectRunHTTPResponse(t, journeyRequest(t, mux, "POST", base+"/reconcile", map[string]int{"expectedRevision": run.Revision}, 200)).ProjectRun
+	if err := s.RunSwarmSchedulerOnce(ctx); err != nil || starts != 0 {
+		t.Fatal("reviewer started without a committed candidate", err, starts)
+	}
+	uncommitted, err := s.ProjectSwarmQueueSnapshot(p.ID)
+	if err != nil || uncommitted.Items[0].OperationID != "" || uncommitted.Items[0].ReasonCode != "review_candidate_unready" {
+		t.Fatal("uncommitted candidate allocated a reviewer checkout", uncommitted, err)
+	}
+	swarmCommitFixture(t, path, "alpha.txt", "candidate content\n")
+	s.WakeSwarmScheduler()
 	if err := s.RunSwarmSchedulerOnce(ctx); err != nil || starts != 0 {
 		t.Fatal("unassigned reviewer dispatched", err, starts)
 	}

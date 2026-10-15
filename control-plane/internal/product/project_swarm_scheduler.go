@@ -271,6 +271,24 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				}
 				continue
 			}
+			if item.OperationID == "" && task.Role == "reviewer" && run.Input.OrchestrationContract != nil {
+				candidateTask := swarmTask(&run, task.ReviewOfTaskID)
+				review, reviewErr := s.swarmReview(ctx, p, run, task.ReviewOfTaskID)
+				if candidateTask == nil || reviewErr != nil || !review.CanIntegrate || !hexDigest(review.ReviewDigest) {
+					if err = s.schedulerSetReason(item.ID, "queued", "review_candidate_unready", "Waiting for a stopped candidate with complete committed changes before allocating its reviewer."); err != nil {
+						return err
+					}
+					s.deferSwarmQueueAttempt(item.ID)
+					continue
+				}
+				candidate := swarmOperation(&run, candidateTask.OperationID)
+				if candidate == nil || swarmReviewRepairSuccessor(run, candidateTask.ID, *candidate, review.SourceCommit) != nil {
+					if err = s.schedulerSetReason(item.ID, "blocked", "review_repair_required", "The last independent finding requires an exact repaired successor before this candidate can be reviewed again."); err != nil {
+						return err
+					}
+					continue
+				}
+			}
 			if item.State == "reserved" && item.OperationID != "" && task.Role == "reviewer" && run.Input.OrchestrationContract != nil && swarmReviewAssignmentDigest(run, item.OperationID) == "" {
 				// The coordinator, rather than this scheduler's unscoped runtime
 				// context, must reauthorize and save the candidate assignment.

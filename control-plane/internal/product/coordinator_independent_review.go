@@ -138,10 +138,11 @@ func (s *Server) continueCoordinatorReviewOutcome(ctx context.Context, p project
 			continue
 		}
 		key := "coordinator-finding-" + implementationDigest(struct{ Run, Obligation, Handoff string }{run.ID, obligation.ID, reviewer.Handoff.Digest})
+		request := swarmMessagePostRequest{ExpectedRevision: run.Revision, IdempotencyKey: key, RecipientTaskID: obligation.TaskID, Kind: "review-finding", Evidence: ProjectSwarmMessageEvidence{Kind: "handoff", ID: reviewer.ID, Digest: reviewer.Handoff.Digest}, Summary: report.Summary}
 		messageID := ""
 		for _, message := range run.Swarm.Messages {
 			if message.Sender.OperationID == reviewer.ID && message.KeyDigest == implementationDigest(key) {
-				if message.Kind != "review-finding" || message.RecipientTaskID != obligation.TaskID || message.Evidence != (ProjectSwarmMessageEvidence{Kind: "handoff", ID: reviewer.ID, Digest: reviewer.Handoff.Digest}) {
+				if message.RequestDigest != swarmMessageRequestDigest(request) || message.Kind != "review-finding" || message.RecipientTaskID != obligation.TaskID || message.Evidence != request.Evidence {
 					return false, nil
 				}
 				messageID = message.ID
@@ -152,7 +153,6 @@ func (s *Server) continueCoordinatorReviewOutcome(ctx context.Context, p project
 			if !s.coordinatorIndependentReviewCurrent(ctx, p, row) {
 				return false, nil
 			}
-			request := swarmMessagePostRequest{ExpectedRevision: run.Revision, IdempotencyKey: key, RecipientTaskID: obligation.TaskID, Kind: "review-finding", Evidence: ProjectSwarmMessageEvidence{Kind: "handoff", ID: reviewer.ID, Digest: reviewer.Handoff.Digest}, Summary: report.Summary}
 			body, marshalErr := json.Marshal(request)
 			if marshalErr != nil {
 				return false, marshalErr
@@ -175,13 +175,13 @@ func (s *Server) continueCoordinatorReviewOutcome(ctx context.Context, p project
 		if !s.coordinatorIndependentReviewCurrent(ctx, p, row) {
 			return false, nil
 		}
-		request := struct {
+		resolveRequest := struct {
 			ExpectedRevision      int    `json:"expectedRevision"`
 			Outcome               string `json:"outcome"`
 			ReviewerHandoffDigest string `json:"reviewerHandoffDigest"`
 			FindingMessageID      string `json:"findingMessageId"`
 		}{run.Revision, outcome, reviewer.Handoff.Digest, messageID}
-		body, marshalErr := json.Marshal(request)
+		body, marshalErr := json.Marshal(resolveRequest)
 		if marshalErr != nil {
 			return false, marshalErr
 		}
