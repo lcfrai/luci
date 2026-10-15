@@ -133,6 +133,11 @@ func TestTeamControlsCompareImportAssessmentAndRevocation(t *testing.T) {
 	if json.Unmarshal(imported.Body.Bytes(), &library) != nil || library.Revision != 1 || library.Controls[0].Unmapped["G"] != "Unknown source column" {
 		t.Fatal(imported.Body.String())
 	}
+	firstPath, firstLedger, err := s.readTeamControls("team-test-control")
+	otherPath, otherLedger, otherErr := s.readTeamControls("team-other-control")
+	if err != nil || otherErr != nil || firstPath == otherPath || len(firstLedger.Revisions) != 1 || len(otherLedger.Revisions) != 0 {
+		t.Fatal("team libraries share state", err, otherErr)
+	}
 	controlTestRequest(t, h, "POST", root+"/import", base, 200)
 	base["idempotencyKey"] = "control-import-key-654321"
 	controlTestRequest(t, h, "POST", root+"/import", base, 409)
@@ -294,7 +299,7 @@ type ControlDiffReceiptForTest struct {
 
 func TestTeamControlsDesignSaveRequiresObservedLibrary(t *testing.T) {
 	s, h, id := controlTestHandler(t)
-	path, err := teamControlPath(s)
+	path, err := teamControlPath(s, "team-test-control")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,7 +345,7 @@ func TestTeamControlsDesignSaveRequiresObservedLibrary(t *testing.T) {
 func TestTeamControlsBindAndStaleOrchestrationContract(t *testing.T) {
 	s, handler, req, base, _, _ := contractFixture(t)
 	teamID := "team-contract-controls"
-	path, err := teamControlPath(s)
+	path, err := teamControlPath(s, teamID)
 	if err != nil {
 		t.Fatal(err)
 	}

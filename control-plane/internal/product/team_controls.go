@@ -103,11 +103,14 @@ func teamControlAccess(w http.ResponseWriter, r *http.Request, admin bool) (mana
 	}
 	return access, true
 }
-func teamControlPath(s *Server) (string, error) {
-	return guardedProjectPath(s.stateDir, "team-controls-v1.json", true)
+func teamControlPath(s *Server, teamID string) (string, error) {
+	if teamID == "" || len(teamID) > 256 {
+		return "", errControlWorkbook
+	}
+	return guardedProjectPath(s.stateDir, "team-controls-"+controlSourceHash([]byte(teamID))+"-v1.json", true)
 }
 func (s *Server) readTeamControls(teamID string) (string, teamControlLedger, error) {
-	path, err := teamControlPath(s)
+	path, err := teamControlPath(s, teamID)
 	ledger := teamControlLedger{Version: 1, TeamID: teamID, Revisions: []TeamControlRevision{}}
 	if err != nil {
 		return "", ledger, err
