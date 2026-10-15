@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "scope": "existing private project and actor workspace; no separate agent, database, execution or publication authority",
+  "kinds": ["risk", "go-to-market", "proposal", "pricing", "presentation"],
+  "states": ["draft", "reviewed", "outdated"],
+  "routes": {
+    "GET /v1/product/projects/{id}/distribute/artifacts": "project read; bounded metadata pages, no raw source bodies",
+    "POST /v1/product/projects/{id}/distribute/artifacts/prepare": "project edit; effects-free generated draft from exact saved project context and selected evidence, with explicit gaps and assumptions",
+    "POST /v1/product/projects/{id}/distribute/artifacts": "project edit; exact prepare digest, source binding, idempotency key and context CAS; persists one private draft revision",
+    "GET /v1/product/projects/{id}/distribute/artifacts/{artifactId}": "project read; exact scoped saved draft/review/history",
+    "POST /v1/product/projects/{id}/distribute/artifacts/{artifactId}/revise": "project edit; expected artifact revision plus source/context CAS; saves edited sections and resets review",
+    "POST /v1/product/projects/{id}/distribute/artifacts/{artifactId}/review": "project edit and authenticated actor; expected revision/digest and source freshness; records review without publication authority",
+    "GET /v1/product/projects/{id}/distribute/artifacts/{artifactId}/exports/{format}": "project read; source-bound private download; supported format must preserve all reviewed text, tables, evidence labels and stale/draft warning"
+  },
+  "artifact": {
+    "id": "server-owned stable identifier",
+    "projectId": "server-owned exact project",
+    "revision": "CAS integer; immutable prior revisions retained",
+    "kind": "risk | go-to-market | proposal | pricing | presentation",
+    "source": "exact brief/specification/Design/plan revisions and digests, assessment revision/library digest, selected immutable run check and accepted release evidence; unselected or unavailable source is explicit",
+    "title": "bounded editable title",
+    "sections": "bounded ordered headings, prose, bullets and tables; source references carry stable IDs and never instructions or authority",
+    "gaps": "explicit missing facts, unavailable evidence and unconfirmed claims",
+    "assumptions": "explicit unverified commercial or product assumptions, never fabricated prices or regulatory conclusions",
+    "state": "draft or reviewed; current/outdated is recomputed from exact sources on read/export",
+    "review": "authenticated actor, revision/digest and timestamp; review is not publication or compliance approval"
+  },
+  "bounds": {"artifactBytes": 262144, "sections": 40, "textUTF8Bytes": 8192, "historyRevisions": 20, "projectArtifacts": 100, "exportBytes": 16777216},
+  "trust": "No client-provided source identity is trusted without private readback. No model answer, draft, exported file or user review grants execution, spending, deployment, external delivery or compliance authority."
+}
