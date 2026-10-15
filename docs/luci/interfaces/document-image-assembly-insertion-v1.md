@@ -78,3 +78,12 @@ The closed manifest constructor cannot use the unresolved existing SBOM lock or
 invent a completed source/notice/authentication claim. Current authority/source
 revalidation still runs before both Create and Start. No shared insertion, default
 configuration or new runtime is authorized by this document.
+
+The coherent successor implements the private `runDocumentImageAssembly` and
+retire/fence-only `recoverDocumentImageAssembly` plus the dedicated adapter/helper.
+`DocumentImageAssemblyStream.Close() error` now reports native close uncertainty.
+The Windows source guard retains mandatory no-write/delete handles through
+uncertain cleanup; other host platforms refuse before effects. No shared hook
+implementation/field/recognizer has been inserted by local. See the helper's
+`images/document-extractor/assembler/REVIEW-AND-ACCEPTANCE.md` for exact source,
+deferred checks, finite compile/runtime order and still-unresolved dependency facts.

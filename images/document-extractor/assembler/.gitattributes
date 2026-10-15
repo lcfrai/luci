@@ -1,0 +1,4 @@
+# Helper sources and review plan are byte-addressed before any future compile.
+*.go -text
+go.mod -text
+REVIEW-AND-ACCEPTANCE.md -text

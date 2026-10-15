@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
+	"math"
 )
 
 // Called by every shared admission while holding its existing host ledger lock.
@@ -20,14 +21,14 @@ func addDocumentImageAssemblyCapacity(snapshot resourcebudget.Snapshot, values [
 		}
 		observed := false
 		for _, row := range snapshot.Execution.Containers {
-			if lease.Ref != "" && lease.Identity.EngineID == snapshot.Execution.EngineID && row.ID == lease.Ref && row.Kind == "document-image-assembly" {
+			if lease.Ref != "" && lease.Identity.EngineID == snapshot.Execution.EngineID && row.ID == lease.Ref && row.Owned && row.Kind == "document-image-assembly" && row.MemoryLimitBytes != nil && *row.MemoryLimitBytes == 2<<30 && row.CPULimitMillis != nil && *row.CPULimitMillis == 1000 {
 				observed = true
 				break
 			}
 		}
 		if !observed {
 			memory := uint64(lease.Resources.MemoryMiB) << 20
-			if demand.PendingMemory > ^uint64(0)-memory || demand.AllMemory > ^uint64(0)-memory || demand.PendingDiskBytes > ^uint64(0)-lease.CreateDiskBytes {
+			if demand.PendingMemory > ^uint64(0)-memory || demand.AllMemory > ^uint64(0)-memory || demand.PendingDiskBytes > ^uint64(0)-lease.CreateDiskBytes || demand.CPU > math.MaxInt64-int64(lease.Resources.CPUMillis) {
 				return errors.New("assembly demand overflow")
 			}
 			demand.PendingMemory += memory
