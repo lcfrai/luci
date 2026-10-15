@@ -88,6 +88,10 @@ func TestTeamControlsXLSXBoundedSafetyAndPreview(t *testing.T) {
 	if _, err := parseControlWorkbook(context.Background(), controlTestWorkbook(t, duplicateEmpty, nil)); err == nil {
 		t.Fatal("duplicate empty cell accepted")
 	}
+	deep := strings.Repeat("<x>", 33) + strings.Repeat("</x>", 33)
+	if err := boundedControlXML(context.Background(), []byte(deep), false); err == nil {
+		t.Fatal("deep XML accepted before object decoding")
+	}
 	formula := strings.Replace(controlTestSheet, `<c r="G2" t="inlineStr"><is><t>Unknown source column</t></is></c>`, `<c r="G2"><f>NOW()</f><v>0</v></c>`, 1)
 	book, err = parseControlWorkbook(context.Background(), controlTestWorkbook(t, formula, nil))
 	if err != nil || len(book.Issues) != 1 {

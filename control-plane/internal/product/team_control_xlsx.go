@@ -125,6 +125,11 @@ func parseControlWorkbook(ctx context.Context, raw []byte) (controlWorkbook, err
 		members[name] = body
 	}
 	for name, body := range members {
+		if strings.HasSuffix(strings.ToLower(name), ".xml") || strings.HasSuffix(strings.ToLower(name), ".rels") {
+			if err := boundedControlXML(ctx, body, strings.HasPrefix(name, "xl/worksheets/") && strings.HasSuffix(name, ".xml")); err != nil {
+				return result, errControlWorkbook
+			}
+		}
 		if strings.HasSuffix(strings.ToLower(name), ".rels") {
 			var links xlsxRelationships
 			if xml.Unmarshal(body, &links) != nil {
@@ -236,6 +241,57 @@ func parseControlWorkbook(ctx context.Context, raw []byte) (controlWorkbook, err
 		result.Sheets = append(result.Sheets, sheet)
 	}
 	return result, nil
+}
+
+// Count worksheet structure before xml.Unmarshal allocates cell objects. ZIP
+// expansion limits alone do not bound the number of tiny XML elements.
+func boundedControlXML(ctx context.Context, body []byte, worksheet bool) error {
+	decoder := xml.NewDecoder(bytes.NewReader(body))
+	depth, tokens, rows, cells := 0, 0, 0, 0
+	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		token, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			if depth == 0 {
+				return nil
+			}
+			return errControlWorkbook
+		}
+		if err != nil {
+			return errControlWorkbook
+		}
+		tokens++
+		if tokens > 500000 {
+			return errControlWorkbook
+		}
+		switch value := token.(type) {
+		case xml.StartElement:
+			depth++
+			if depth > 32 {
+				return errControlWorkbook
+			}
+			if worksheet {
+				switch value.Name.Local {
+				case "row":
+					rows++
+				case "c":
+					cells++
+				}
+				if rows > controlRowLimit || cells > controlRowLimit*controlColumnLimit {
+					return errControlWorkbook
+				}
+			}
+		case xml.EndElement:
+			depth--
+			if depth < 0 {
+				return errControlWorkbook
+			}
+		case xml.Directive:
+			return errControlWorkbook
+		}
+	}
 }
 
 func columnIndex(value string) int {
