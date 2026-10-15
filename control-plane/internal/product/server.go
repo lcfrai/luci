@@ -93,6 +93,7 @@ type Server struct {
 	cloudTaskObserver               cloudTaskObserver
 	projectSwarmWorktreeObserver    func(context.Context, string, string) (bool, error)
 	projectRuns                     *ProjectRunStore
+	orchestrationContractMu         sync.Mutex
 	projectRunDispatchMu            sync.Mutex
 	projectRunSelectionResolver     func(context.Context, ProjectRunSelectionRequest) (ProjectRunSelection, error)
 	projectRunSessionObserver       func(context.Context, string, string, string) ([]registry.Session, error)

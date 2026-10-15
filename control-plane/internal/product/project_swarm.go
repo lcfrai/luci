@@ -465,6 +465,9 @@ func (s *Server) CaptureProjectRunTaskContext(ctx context.Context, projectID, ru
 	if err = s.validateProjectRunApprovals(projectID, run.Input.Approvals); err != nil {
 		return nil, err
 	}
+	if err = s.contractCurrentForRun(p, run); err != nil {
+		return nil, err
+	}
 	capture, err := s.swarmTaskCapture(ctx, run, *op, path)
 	if err != nil || !reflect.DeepEqual(capture.Binding, op.Implementation) {
 		return nil, errors.New("The reserved task source or reviewed context changed. Inspect this attempt before continuing.")

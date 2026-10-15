@@ -64,6 +64,9 @@ func (a *API) admitQueuedSwarm(ctx context.Context, req product.SwarmAdmissionRe
 		a.sessionLog().Debug("queued admission authority refused", "projectId", req.ProjectID, "err", err)
 		return blocked("access_changed", management.ErrExecutionAuthority.Error())
 	}
+	if !product.OrchestrationAuthorityMatches(run, authority) {
+		return blocked("control_changed", "The team's saved execution policy or grant changed. Review a new contract before starting this task.")
+	}
 	if err := harness.ValidateTask(harness.ID(run.Input.Route.Harness), harness.PermissionMode(run.Input.Route.PermissionMode)); err != nil {
 		return blocked("task_permission_requires_interactive", err.Error())
 	}
@@ -128,6 +131,9 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	authority, err := a.authorizeExecution(ctx, req.Actor, route.Harness, route.Connection.ID != "")
 	if err != nil {
 		return refuse("access_changed", err)
+	}
+	if !product.OrchestrationAuthorityMatches(run, authority) {
+		return refuse("control_changed", management.ErrExecutionAuthority)
 	}
 	if route.ExecutionLocation == "cloud-microvm" {
 		_ = authority // current authority was checked before cloud selection

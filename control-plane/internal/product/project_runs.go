@@ -54,6 +54,7 @@ func (s *Server) SetProjectRunSelectionResolver(resolve func(context.Context, Pr
 
 func (s *Server) registerProjectRuns(mux Registrar) {
 	s.registerProjectSwarm(mux)
+	s.registerOrchestrationContracts(mux)
 	const base = "/v1/product/projects/{id}/runs"
 	mux.HandleFunc("GET "+base, s.listProjectRuns)
 	mux.HandleFunc("POST "+base, s.createProjectRun)
@@ -217,16 +218,17 @@ func (s *Server) getProjectRun(w http.ResponseWriter, r *http.Request) {
 }
 
 type projectRunCreateRequest struct {
-	IdempotencyKey        string                       `json:"idempotencyKey"`
-	WorktreeID            string                       `json:"worktreeId"`
-	Harness               string                       `json:"harness"`
-	Model                 string                       `json:"model"`
-	PermissionMode        string                       `json:"permissionMode"`
-	Effort                string                       `json:"effort,omitempty"`
-	ExecutionLocation     string                       `json:"executionLocation,omitempty"`
-	AgentConnectionID     *string                      `json:"agentConnectionId,omitempty"`
-	Outcome               string                       `json:"outcome"`
-	ImplementationContext ImplementationContextRequest `json:"implementationContext"`
+	IdempotencyKey        string                          `json:"idempotencyKey"`
+	WorktreeID            string                          `json:"worktreeId"`
+	Harness               string                          `json:"harness"`
+	Model                 string                          `json:"model"`
+	PermissionMode        string                          `json:"permissionMode"`
+	Effort                string                          `json:"effort,omitempty"`
+	ExecutionLocation     string                          `json:"executionLocation,omitempty"`
+	AgentConnectionID     *string                         `json:"agentConnectionId,omitempty"`
+	Outcome               string                          `json:"outcome"`
+	ImplementationContext ImplementationContextRequest    `json:"implementationContext"`
+	OrchestrationContract *OrchestrationContractSelection `json:"orchestrationContract,omitempty"`
 }
 
 func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
@@ -328,6 +330,14 @@ func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	input := ProjectRunInput{Implementation: *implementation, Approvals: approvals, Route: ProjectRunRoute{Harness: selected.Harness, Model: selected.Model, PermissionMode: selected.PermissionMode, Effort: selected.Effort, ExecutionLocation: req.ExecutionLocation, Connection: selected.Connection}, Outcome: req.Outcome, Requirements: binding.RequirementSnapshots}
+	if req.OrchestrationContract != nil {
+		contract, err := s.contractApprovedForRun(r.Context(), p, *req.OrchestrationContract, input)
+		if err != nil {
+			projectRunProblem(w, err)
+			return
+		}
+		input.OrchestrationContract = contract
+	}
 	run, created, err := s.projectRuns.Create(p.ID, p.Path, key, input, selected.CodexConnectionID, digest)
 	if err != nil {
 		projectRunProblem(w, err)
@@ -372,6 +382,9 @@ func (s *Server) resolveProjectRunSelection(ctx context.Context, run ProjectRun)
 		return zero, err
 	}
 	if err := s.validateProjectRunApprovals(p.ID, run.Input.Approvals); err != nil {
+		return zero, err
+	}
+	if err := s.contractCurrentForRun(p, run); err != nil {
 		return zero, err
 	}
 	return selected, nil

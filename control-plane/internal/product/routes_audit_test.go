@@ -59,6 +59,7 @@ var productReadOnlyRoutes = map[string]string{
 	"GET /v1/product/projects/{id}/context/archive":                                            "Reads bounded immutable context history chunks and retention metadata without pruning or writes.",
 	"GET /v1/product/projects/{id}/runs":                                                       "Reads bounded private run history and original evidence availability; no observation, repair or dispatch.",
 	"GET /v1/product/projects/{id}/runs/{runId}":                                               "Reads one private run and retained evidence availability; no observation, repair or dispatch.",
+	"GET /v1/product/projects/{id}/orchestration-contracts/{contractId}":                       "Reads one actor-owned private contract and compares current Design, policy and selected route in memory; no approval, run creation, allocation or dispatch.",
 	"GET /v1/product/projects/{id}/git/branches":                                               "Inspects bounded native refs, HEAD and clean state, then reads session state and private receipts; no checkout, sessions or writes.",
 	"GET /v1/product/projects/{id}/git/branch-operations/{operationId}":                        "Reads the private intent/result and may observe matching native HEAD in memory; never retries checkout or updates the journal.",
 	"GET /v1/product/projects/{id}/design-plan":                                                "Reads saved screen/state handoff and compares in-memory revisions; no writes or execution.",
@@ -247,7 +248,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 		if pattern != previewPattern && productReadOnlyRoutes[pattern] == "" {
 			t.Fatalf("unaudited read route %q", pattern)
 		}
-		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{runId}", "missing-run", "{handoffId}", "missing-handoff", "{continuationId}", "missing-continuation", "{intentId}", "intent-000000000000000000000000", "{eventId}", "event-000000000000000000000000", "{taskId}", "missing-task", "{path...}", "").Replace(path)
+		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{runId}", "missing-run", "{contractId}", "missing-contract", "{handoffId}", "missing-handoff", "{continuationId}", "missing-continuation", "{intentId}", "intent-000000000000000000000000", "{eventId}", "event-000000000000000000000000", "{taskId}", "missing-task", "{path...}", "").Replace(path)
 		if strings.HasSuffix(pattern, "/swarm/operations/{operationId}/workspace/file") {
 			path += "?path=ordinary.txt"
 		}
@@ -272,6 +273,9 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			}
 			if pattern == "GET /v1/product/projects/{id}/checks/{runId}" || pattern == "GET /v1/product/projects/{id}/checks/{runId}/recovery" || pattern == "GET /v1/product/projects/{id}/runs/{runId}" {
 				status = 404
+			}
+			if pattern == "GET /v1/product/projects/{id}/orchestration-contracts/{contractId}" {
+				status = 403 // This audit request has no authenticated contract owner.
 			}
 			if strings.Contains(pattern, "/orchestrator/continuations/{continuationId}") {
 				status = 404
