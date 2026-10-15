@@ -112,7 +112,7 @@ it('does not wait for a report from a positively recorded pre-launch failure and
   render(<Harness initial={initial}/>);await tick(60_000);
   expect(screen.getByText('Start blocked')).toBeTruthy();expect(screen.getByText(/Admission refused/)).toBeTruthy();
   expect(screen.queryByRole('button',{name:'Review task changes'})).toBeNull();expect(screen.queryByRole('button',{name:'Task result and questions'})).toBeNull();
-  const task=screen.getByRole('heading',{name:'Build a'}).closest('li')!;
+  const task=screen.getAllByRole('heading',{name:'Build a'}).map(heading=>heading.closest('li')).find(item=>item && within(item).queryByText('More task actions'))!;
   fireEvent.click(within(task).getByText('More task actions'));
   expect(within(task).getByRole('button',{name:'Inspect workspace output'})).toBeTruthy();
   expect(within(task).getByRole('button',{name:'Retain changes and retry'})).toBeTruthy();

@@ -10,42 +10,54 @@
       "queueRevision": 1,
       "observedAt": "RFC3339Nano; run and queue snapshots carry separate revisions",
       "context": { "briefRevision": 1, "planRevision": 1, "contractDigest": "64 lowercase hex or empty for legacy-unassessed", "freshness": "current|changed|unavailable" },
-      "activityPhase": "ready|working|paused|blocked|stopped|unknown",
+      "activityPhase": "ready|queued|working|paused|blocked|stopped|unknown",
       "qualityPhase": "not-started|needs-review|repair-required|awaiting-checks|checked|unknown",
       "settlement": "confirmed|uncertain",
-      "tasks": [{ "taskId": "saved task ID", "operationId": "exact current operation or empty", "role": "coding|review-only", "state": "queued|working|review-required|review-passed|integrated|blocked|unknown", "integrationState": "none|integrating|integrated|unknown" }],
+      "tasks": [{ "taskId": "saved task ID", "operationId": "exact current operation or empty", "role": "coding|review-only", "state": "queued|reserved|working|review-required|review-passed|integrated|blocked|unknown", "integrationState": "none|integrating|integrated|unknown" }],
       "messages": [{ "id": "msg-...", "sequence": 1, "kind": "discovery|question|dependency-result|review-finding|decision|lifecycle-request", "sender": { "taskId": "saved task ID", "operationId": "op-...", "childId": "s-...", "worktreeId": "w-...", "contextDigest": "64 lowercase hex" }, "recipientTaskId": "saved task ID", "causalMessageId": "msg-... or omitted", "evidence": { "kind": "handoff|source-commit|none", "id": "exact sender operation or source commit, empty for none", "digest": "64 lowercase hex or empty for none" }, "summary": "1..1000 UTF-8 bytes, attributed claim", "attribution": "coordinator-recorded|owned-worker-report", "createdAt": "RFC3339Nano", "ack": null, "keyDigest": "64 lowercase hex", "requestDigest": "64 lowercase hex" }],
       "reviewObligations": [{ "id": "review-...", "taskId": "candidate task", "candidateOperationId": "op-...", "candidateChildId": "exact candidate child", "candidateCommit": "40 lowercase hex", "contextDigest": "64 lowercase hex", "reviewDigest": "64 lowercase hex", "reviewerOperationId": "different reserved op-...", "reviewerChildId": "exact reviewer child", "reviewerHandoffDigest": "64 lowercase hex after resolution or omitted", "findingMessageId": "msg-... after resolution or omitted", "repairOperationId": "op-... after retained checkpoint or omitted", "state": "pending|passed|repair-required|unknown", "attempt": 1, "createdAt": "RFC3339Nano", "resolvedAt": "RFC3339Nano or omitted", "keyDigest": "64 lowercase hex", "requestDigest": "64 lowercase hex", "repairLimit": 2, "repairsConsumed": 0 }],
       "page": { "after": 0, "nextCursor": 1, "hasMore": false, "omitted": 0 },
       "attention": [{ "id": "stable message/obligation/operation ID", "kind": "question|review|repair|unknown", "taskId": "saved task ID", "action": { "kind": "open-message|open-review-obligation|inspect-recovery", "targetId": "saved message, obligation, or operation ID" } }],
       "metrics": { "routineDecisions": null, "latency": null, "quality": null, "throughput": null, "cost": null }
-    }
+    },
+    "GET /v1/product/projects/{id}/runs/{runId}/swarm/messages/{messageId}": {"projectId": "exact scoped project", "runId": "exact scoped run", "message": "one complete saved message including nullable ack, independent of display window", "runRevision": 1},
+    "GET /v1/product/projects/{id}/runs/{runId}/swarm/review-obligations/{obligationId}": {"projectId": "exact scoped project", "runId": "exact scoped run", "obligation": "one complete saved obligation with repair accounting", "runRevision": 1}
   },
   "writes": {
     "POST /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/messages": {
       "request": { "expectedRevision": 1, "idempotencyKey": "caller-generated stable key", "recipientTaskId": "saved task ID", "kind": "discovery|question|dependency-result|review-finding|decision|lifecycle-request", "causalMessageId": "msg-... or empty", "evidence": { "kind": "handoff|source-commit|none", "id": "sender operation ID or exact starting commit, empty for none", "digest": "exact captured handoff digest or implementationDigest(JSON commit string), empty for none" }, "summary": "bounded attributed claim" },
       "response": { "message": "same message shape as supervision", "runRevision": 2 }
     },
+    "POST /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/messages/disposition": {"request": "byte-identical normalized original message request", "response": {"projectId": "exact scoped project", "runId": "exact scoped run", "operationId": "exact sender", "state": "recorded|rejected|unconfirmed|key-conflict", "runRevision": 2, "message": "complete matching message for recorded, null otherwise"}},
+    "POST /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/messages/retire": {"request": "exact original message request at its original expectedRevision", "response": {"state": "rejected", "runRevision": 2, "message": null}},
     "POST /v1/product/projects/{id}/runs/{runId}/swarm/messages/{messageId}/ack": {
       "request": { "expectedRevision": 2, "recipientOperationId": "exact current recipient operation" },
       "response": { "message": "same message with ack {operationId, childId, actorId, at}; ack is null before the first exact recipient acknowledgement", "runRevision": 3 }
     },
+    "POST /v1/product/projects/{id}/runs/{runId}/swarm/messages/{messageId}/ack/retire": {"request": {"expectedRevision": 2, "recipientOperationId": "exact original recipient operation"}, "response": {"state": "rejected", "runRevision": 3}},
     "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/review-obligations": {
       "request": { "expectedRevision": 3, "idempotencyKey": "stable key", "candidateOperationId": "exact task attempt", "reviewerOperationId": "different saved task attempt", "reviewDigest": "exact existing candidate review digest" },
       "response": { "obligation": "same full obligation shape as supervision.reviewObligations, with repairLimit and repairsConsumed", "runRevision": 4 }
     },
+    "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/review-obligations/disposition": {"request": "exact original create request", "response": {"projectId": "exact scoped project", "runId": "exact scoped run", "taskId": "exact candidate task", "state": "recorded|rejected|unconfirmed|key-conflict", "runRevision": 4, "obligation": "matching full obligation for recorded, null otherwise"}},
+    "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/review-obligations/retire": {"request": "exact original create request at its original expectedRevision", "response": {"state": "rejected", "runRevision": 4, "obligation": null}},
     "POST /v1/product/projects/{id}/runs/{runId}/swarm/review-obligations/{obligationId}/resolve": {
       "request": { "expectedRevision": 4, "outcome": "passed|repair-required", "reviewerHandoffDigest": "exact captured reviewer handoff digest", "findingMessageId": "addressed review-finding from that reviewer with that handoff evidence" },
       "response": { "obligation": "same full obligation shape as supervision.reviewObligations after resolution", "runRevision": 5 }
-    }
+    },
+    "POST /v1/product/projects/{id}/runs/{runId}/swarm/review-obligations/{obligationId}/resolve/retire": {"request": "exact original resolution request at its original expectedRevision", "response": {"state": "rejected", "runRevision": 5}}
   },
   "invariants": [
     "Project and actor read/edit authority is rechecked before every read/write; never derive ownership from caller text.",
     "Sender and recipient operation identities, child, worktree, context and contract are resolved from the private run.",
     "Writes are idempotent by scoped key and exact normalized payload; replay does not allocate or dispatch.",
+    "A definitive rejection can be archived locally only after exact disposition. An unconfirmed request can be explicitly retired through the matching run-revision CAS; the retirement readback or a later revision proves the original CAS cannot still commit. Retirement does not infer success from absence, and it never silently retries a request.",
     "Messages are claims and evidence references only; coordinator ack is an attributed read receipt, not proof that the worker saw it and not approval, integration, execution or deployment authority.",
     "Up to 512 retained messages per run, 200 review obligations, and 50 messages per read. A worker handoff may report up to eight addressed messages. Each reported message has a 1000-byte summary. Ack has no caller key: retry only after exact readback of message ack and run revision; never infer successful delivery from an uncertain response.",
     "Legacy runs are explicitly legacy-unassessed. A contracted run needs a passed distinct-attempt review with a captured handoff and addressed finding before integration. A deliberate zero-write-scope review-only task is satisfied by its passed exact reviewer receipt and is never counted as a source merge; existing combined checks and acceptance still follow.",
+    "Reviewer role and candidate task are explicit approved contract fields. Empty write paths alone retain coding semantics. A failed finding requires its exact reserved repair attempt and a changed candidate before another pass; a later pass for unchanged source cannot erase it.",
+    "A reviewer operation stores the digest of the exact pending obligation delivered in its immutable capture at final claim. New assignments after capture refuse dispatch; passed resolution requires that stored delivered digest, a saved handoff, an addressed finding and reported candidate checks.",
+    "Reserved work is queued; dispatching without observed child is uncertain. Only positively observed running children are working. A complete owned handoff survives optional invalid/full addressed coordination and marks coordinationOmitted for explicit inspection.",
     "New worker capture includes only messages addressed to its saved task and exact current context; prior captured bytes never change.",
     "An optional bounded addressedMessages array in the existing version 1 worker handoff is captured after owned child retirement; the controller supplies immutable sender task, operation, child, worktree and handoff evidence. It never executes message text.",
     "No read starts, reconciles or polls a provider. Unknown effects remain unknown; absent metrics are null, observed zero is numeric zero."

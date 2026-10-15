@@ -55,30 +55,31 @@ type ProjectRunInput struct {
 }
 
 type ProjectRunOperation struct {
-	Handoff             *TaskHandoffReference           `json:"handoff,omitempty"`
-	DependencyContext   *TaskDependencyReference        `json:"dependencyContext,omitempty"`
-	Checkpoint          *ProjectSwarmCheckpoint         `json:"checkpoint,omitempty"`
-	UnclaimedRetirement bool                            `json:"unclaimedRetirement,omitempty"`
-	LaunchRecovery      *ProjectSwarmRecoveryIntent     `json:"launchRecovery,omitempty"`
-	LaunchRecoveryProof *ProjectSwarmRecoveryProof      `json:"launchRecoveryProof,omitempty"`
-	Recovery            *ProjectSwarmRecoveryView       `json:"recovery,omitempty"`
-	AbsenceRetirement   *ProjectSwarmRecoveryProof      `json:"absenceRetirement,omitempty"`
-	Integration         *ProjectSwarmIntegration        `json:"integration,omitempty"`
-	TaskID              string                          `json:"taskId,omitempty"`
-	WorktreeID          string                          `json:"worktreeId,omitempty"`
-	BaseCommit          string                          `json:"baseCommit,omitempty"`
-	Implementation      *registry.ImplementationContext `json:"implementation,omitempty"`
-	Allocation          string                          `json:"allocation,omitempty"`
-	ID                  string                          `json:"id"`
-	Kind                string                          `json:"kind"`
-	ChildID             string                          `json:"childId"`
-	Attempt             int                             `json:"attempt"`
-	Status              string                          `json:"status"`
-	RequestDigest       string                          `json:"requestDigest"`
-	CreatedAt           string                          `json:"createdAt"`
-	UpdatedAt           string                          `json:"updatedAt"`
-	Message             string                          `json:"message,omitempty"`
-	StartFailure        registry.SessionStartFailure    `json:"startFailure,omitzero"`
+	Handoff                *TaskHandoffReference           `json:"handoff,omitempty"`
+	DependencyContext      *TaskDependencyReference        `json:"dependencyContext,omitempty"`
+	Checkpoint             *ProjectSwarmCheckpoint         `json:"checkpoint,omitempty"`
+	UnclaimedRetirement    bool                            `json:"unclaimedRetirement,omitempty"`
+	LaunchRecovery         *ProjectSwarmRecoveryIntent     `json:"launchRecovery,omitempty"`
+	LaunchRecoveryProof    *ProjectSwarmRecoveryProof      `json:"launchRecoveryProof,omitempty"`
+	Recovery               *ProjectSwarmRecoveryView       `json:"recovery,omitempty"`
+	AbsenceRetirement      *ProjectSwarmRecoveryProof      `json:"absenceRetirement,omitempty"`
+	Integration            *ProjectSwarmIntegration        `json:"integration,omitempty"`
+	TaskID                 string                          `json:"taskId,omitempty"`
+	ReviewAssignmentDigest string                          `json:"reviewAssignmentDigest,omitempty"`
+	WorktreeID             string                          `json:"worktreeId,omitempty"`
+	BaseCommit             string                          `json:"baseCommit,omitempty"`
+	Implementation         *registry.ImplementationContext `json:"implementation,omitempty"`
+	Allocation             string                          `json:"allocation,omitempty"`
+	ID                     string                          `json:"id"`
+	Kind                   string                          `json:"kind"`
+	ChildID                string                          `json:"childId"`
+	Attempt                int                             `json:"attempt"`
+	Status                 string                          `json:"status"`
+	RequestDigest          string                          `json:"requestDigest"`
+	CreatedAt              string                          `json:"createdAt"`
+	UpdatedAt              string                          `json:"updatedAt"`
+	Message                string                          `json:"message,omitempty"`
+	StartFailure           registry.SessionStartFailure    `json:"startFailure,omitzero"`
 }
 
 type ProjectRunCommandEvidence struct {
@@ -634,7 +635,7 @@ func validateStoredProjectRun(row storedProjectRun) error {
 	attempts := map[string]int{}
 	for _, op := range r.Operations {
 		attempts[op.Kind]++
-		if !strings.HasPrefix(op.ID, "op-") || len(op.ID) != 27 || !prototypeReleaseID.MatchString(op.ID) || seen[op.ID] || op.Kind != "session" || !strings.HasPrefix(op.ChildID, "s-") || len(op.ChildID) != 10 || !prototypeReleaseID.MatchString(op.ChildID) || children[op.ChildID] || op.Attempt != attempts[op.Kind] || !hexDigest(op.RequestDigest) || !validOperationStatus(op.Status) || len(op.Message) > 4000 {
+		if !strings.HasPrefix(op.ID, "op-") || len(op.ID) != 27 || !prototypeReleaseID.MatchString(op.ID) || seen[op.ID] || op.Kind != "session" || !strings.HasPrefix(op.ChildID, "s-") || len(op.ChildID) != 10 || !prototypeReleaseID.MatchString(op.ChildID) || children[op.ChildID] || op.Attempt != attempts[op.Kind] || !hexDigest(op.RequestDigest) || op.ReviewAssignmentDigest != "" && !hexDigest(op.ReviewAssignmentDigest) || !validOperationStatus(op.Status) || len(op.Message) > 4000 {
 			return ErrProjectRunInvalid
 		}
 		if !op.StartFailure.IsZero() && (!op.StartFailure.Valid() || op.Status != "failed" && op.Status != "cancelled") {
@@ -806,7 +807,10 @@ func (s *ProjectRunStore) ReserveOperation(projectID, projectPath, id string, ex
 // ClaimOperation is the only transition granting dispatch ownership. The
 // caller must not dispatch when claimed is false. Unknown/dispatching work is
 // observed by identity; it is never automatically replayed after interruption.
-func (s *ProjectRunStore) ClaimOperation(projectID, projectPath, id string, expectedRevision int, operationID string) (ProjectRun, ProjectRunOperation, bool, error) {
+func (s *ProjectRunStore) ClaimOperation(projectID, projectPath, id string, expectedRevision int, operationID string, assignment ...string) (ProjectRun, ProjectRunOperation, bool, error) {
+	if len(assignment) > 1 || len(assignment) == 1 && assignment[0] != "" && !hexDigest(assignment[0]) {
+		return ProjectRun{}, ProjectRunOperation{}, false, ErrProjectRunInvalid
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var op ProjectRunOperation
@@ -828,6 +832,9 @@ func (s *ProjectRunStore) ClaimOperation(projectID, projectPath, id string, expe
 				return false, nil
 			}
 			current.Status = "dispatching"
+			if len(assignment) == 1 {
+				current.ReviewAssignmentDigest = assignment[0]
+			}
 			current.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 			op = *current
 			claimed = true

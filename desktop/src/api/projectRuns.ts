@@ -16,6 +16,8 @@ export interface RunOperation {
   id: string; kind: string; childId: string; attempt: number; status: RunOperationStatus;
   requestDigest: string; createdAt: string; updatedAt: string; message?: string;
   taskId?: string; worktreeId?: string; baseCommit?: string; implementation?: ImplementationContext;
+	/** Exact delivered independent-review assignment, never integration authority. */
+	reviewAssignmentDigest?: string;
   allocation?: 'allocating' | 'ready' | 'unknown' | 'abandoned';
   /** Durable missing-child proof; recovery finalization may still need retry. */
   absenceRetirement?: {childId: string; queueId?: string; leaseId: string; backend: string; observedAt: string; inventoryObservedAt: string; finalizedAt?: string};
@@ -34,6 +36,7 @@ export const runOperationNeedsReview = (operation?: RunOperation) => !!operation
 export const runHasTaskReview = (run?: ProjectRun) => !!run?.swarm?.tasks.some(task => task.integration?.state !== 'integrated' && runOperationNeedsReview(run.operations.find(operation => operation.id === task.operationId)));
 export interface SwarmTask {
   id: string; title: string; dependsOn: string[]; writePaths: string[]; acceptance: string;
+	role?: 'coding' | 'reviewer'; reviewOfTaskId?: string; reviewOnly?: boolean;
   operationId?: string;
   integration?: { state: 'integrating' | 'integrated' | 'unknown'; commit?: string; sourceCommit: string; targetCommit: string; reviewDigest: string; integratedAt?: string };
 }

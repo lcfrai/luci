@@ -32,9 +32,17 @@ func (s *Server) registerProjectSwarm(mux Registrar) {
 	mux.HandleFunc("POST "+base+"/tasks/{taskId}/abandon", s.abandonProjectSwarmTask)
 	mux.HandleFunc("GET "+base+"/supervision", s.getProjectSwarmSupervision)
 	mux.HandleFunc("POST "+base+"/operations/{operationId}/messages", s.postProjectSwarmMessage)
+	mux.HandleFunc("POST "+base+"/operations/{operationId}/messages/disposition", s.projectSwarmMessageDisposition)
+	mux.HandleFunc("POST "+base+"/operations/{operationId}/messages/retire", s.retireProjectSwarmMessageRequest)
+	mux.HandleFunc("GET "+base+"/messages/{messageId}", s.getProjectSwarmMessage)
 	mux.HandleFunc("POST "+base+"/messages/{messageId}/ack", s.ackProjectSwarmMessage)
+	mux.HandleFunc("POST "+base+"/messages/{messageId}/ack/retire", s.retireProjectSwarmAckRequest)
 	mux.HandleFunc("POST "+base+"/tasks/{taskId}/review-obligations", s.createProjectSwarmReviewObligation)
+	mux.HandleFunc("POST "+base+"/tasks/{taskId}/review-obligations/disposition", s.projectSwarmReviewObligationDisposition)
+	mux.HandleFunc("POST "+base+"/tasks/{taskId}/review-obligations/retire", s.retireProjectSwarmReviewRequest)
+	mux.HandleFunc("GET "+base+"/review-obligations/{obligationId}", s.getProjectSwarmReviewObligation)
 	mux.HandleFunc("POST "+base+"/review-obligations/{obligationId}/resolve", s.resolveProjectSwarmReviewObligation)
+	mux.HandleFunc("POST "+base+"/review-obligations/{obligationId}/resolve/retire", s.retireProjectSwarmReviewResolution)
 	mux.HandleFunc("GET "+base+"/operations/{operationId}/recovery", s.projectSwarmRecoveryAvailability)
 	mux.HandleFunc("GET "+base+"/operations/{operationId}/workspace", s.inspectProjectSwarmWorkspace)
 	mux.HandleFunc("GET "+base+"/operations/{operationId}/workspace/file", s.readProjectSwarmWorkspaceFile)
@@ -132,7 +140,7 @@ func (s *Server) initializeProjectSwarm(w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 
-		tasks = append(tasks, ProjectSwarmTask{ID: task.ID, TaskInputDigest: inputDigests[task.ID], Title: task.Title, DependsOn: append([]string{}, task.DependsOn...), WritePaths: append([]string{}, task.WritePaths...), Acceptance: task.Acceptance})
+		tasks = append(tasks, ProjectSwarmTask{ID: task.ID, TaskInputDigest: inputDigests[task.ID], Title: task.Title, Role: task.Role, ReviewOfTaskID: task.ReviewOfTaskID, DependsOn: append([]string{}, task.DependsOn...), WritePaths: append([]string{}, task.WritePaths...), Acceptance: task.Acceptance})
 	}
 	if len(tasks) != len(selected) {
 		projectRunProblem(w, ErrProjectRunConflict)

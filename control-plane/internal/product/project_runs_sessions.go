@@ -137,6 +137,12 @@ func (s *Server) FindProjectRunSession(projectID, runID, operationID string, loo
 // The caller holds Git/session admission through backend allocation, which also
 // fences publication of new orchestrator questions and approved amendments.
 func (s *Server) BeginProjectRunSession(projectID, runID, operationID string, candidate registry.Session, lookup func(string) (registry.Session, error)) (ProjectRunSessionAdmission, error) {
+	return s.BeginProjectRunSessionWithAssignment(projectID, runID, operationID, candidate, "", lookup)
+}
+
+// The assignment comes only from the server-generated reviewed capture. A
+// reviewer cannot start with bytes captured before its obligation was saved.
+func (s *Server) BeginProjectRunSessionWithAssignment(projectID, runID, operationID string, candidate registry.Session, assignment string, lookup func(string) (registry.Session, error)) (ProjectRunSessionAdmission, error) {
 	s.projectRunDispatchMu.Lock()
 	var once sync.Once
 	release := func() { once.Do(s.projectRunDispatchMu.Unlock) }
@@ -179,6 +185,15 @@ func (s *Server) BeginProjectRunSession(projectID, runID, operationID string, ca
 		}
 		if current.State == "complete" {
 			return ErrProjectRunConflict
+		}
+		if op.TaskID != "" {
+			task := swarmTask(&current, op.TaskID)
+			if task != nil && task.ReviewOnly && assignment == "" {
+				return errors.New("The independent reviewer has no captured candidate assignment. Inspect and save its obligation before dispatch.")
+			}
+			if swarmReviewAssignmentDigest(current, op.ID) != assignment {
+				return errors.New("The independent review assignment changed after the context was captured. Refresh the reserved task before dispatch.")
+			}
 		}
 		if err := s.contractCurrentForRun(p, current); err != nil {
 			return errors.New("The reviewed execution contract changed before this session could start. Inspect the contract and prepare a fresh run.")
@@ -228,7 +243,7 @@ func (s *Server) BeginProjectRunSession(projectID, runID, operationID string, ca
 	if err := validate(); err != nil {
 		return fail(err)
 	}
-	_, claimedOperation, claimed, err := s.projectRuns.ClaimOperation(projectID, p.Path, runID, run.Revision, operationID)
+	_, claimedOperation, claimed, err := s.projectRuns.ClaimOperation(projectID, p.Path, runID, run.Revision, operationID, assignment)
 	if err != nil {
 		return fail(err)
 	}

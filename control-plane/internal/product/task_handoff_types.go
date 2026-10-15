@@ -61,6 +61,9 @@ type TaskHandoffReference struct {
 	Unanswered    int    `json:"unanswered"`
 	AnswersDigest string `json:"answersDigest,omitempty"`
 	CapturedAt    string `json:"capturedAt"`
+	// A complete immutable report can be retained even when its optional
+	// addressed coordination cannot fit or has an invalid recipient.
+	CoordinationOmitted bool `json:"coordinationOmitted,omitempty"`
 }
 type TaskDependencyReference struct {
 	Digest string `json:"digest"`

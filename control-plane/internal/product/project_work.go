@@ -22,6 +22,8 @@ type ProjectTask struct {
 	ID             string   `json:"id"`
 	Title          string   `json:"title"`
 	Status         string   `json:"status"`
+	Role           string   `json:"role,omitempty"`
+	ReviewOfTaskID string   `json:"reviewOfTaskId,omitempty"`
 	RequirementIDs []string `json:"requirementIds,omitempty"`
 	DependsOn      []string `json:"dependsOn,omitempty"`
 	WritePaths     []string `json:"writePaths,omitempty"`

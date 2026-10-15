@@ -18,6 +18,9 @@ type ReviewedContextFile struct {
 type ReviewedContextCapture struct {
 	Binding *registry.ImplementationContext
 	Files   []ReviewedContextFile
+	// ReviewAssignmentDigest binds a reserved reviewer to the exact obligation
+	// included in these immutable bytes. It is private dispatch metadata.
+	ReviewAssignmentDigest string
 }
 
 // Current canonical state is bounded to 8 MiB. The bundle also contains its

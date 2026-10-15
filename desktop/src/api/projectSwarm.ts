@@ -4,6 +4,7 @@ import type { ProjectRun, RunOperation } from './projectRuns';
 export interface SwarmReview {
   taskId: string; operationId: string; sourceCommit: string; targetCommit: string;
   reviewDigest: string; paths: string[]; patch: string; canIntegrate: boolean; reason: string;
+	independentReviewState?: 'legacy-unassessed' | 'pending' | 'passed';
 }
 /** Both actions identify the saved attempt; destructive consent is never inferred. */
 export type SwarmAttemptRecovery = {operationId: string; childId: string} & (

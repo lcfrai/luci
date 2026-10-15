@@ -1421,7 +1421,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			AgentConnectionKind: agentConnection.Kind, AgentConnectionProtocol: agentConnection.Protocol,
 			ImplementationContext: implementationContext, ProjectRunID: req.ProjectRunID,
 			ProjectRunOperationID: req.ProjectRunOperationID,
-		})
+		}, reviewedCapture)
 		if !ok {
 			return
 		}

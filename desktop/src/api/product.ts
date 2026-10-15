@@ -211,6 +211,8 @@ export interface ImplementationTask {
   requirementIds?: string[];
   dependsOn?: string[];
   writePaths?: string[];
+	role?: 'coding' | 'reviewer';
+	reviewOfTaskId?: string;
   acceptance?: string;
 }
 /** Planning advice derived from saved tasks; human-recorded Done is not a verified result. */

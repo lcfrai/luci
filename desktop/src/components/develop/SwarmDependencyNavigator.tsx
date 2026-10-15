@@ -12,7 +12,7 @@ type Filter = 'all' | 'attention' | 'waiting' | 'active' | 'integrated' | 'unkno
 const filters: {id: Filter; label: string}[] = [
   {id: 'all', label: 'All tasks'}, {id: 'attention', label: 'Needs attention'},
   {id: 'waiting', label: 'Waiting on dependencies'}, {id: 'active', label: 'Recorded working'},
-  {id: 'integrated', label: 'Integrated'}, {id: 'unknown', label: 'Unconfirmed'},
+  {id: 'integrated', label: 'Integrated tasks'}, {id: 'unknown', label: 'Unconfirmed'},
 ];
 interface Props { run: ProjectRun; queue?: ProjectSwarmQueue; onOpenTask(id: string): void }
 

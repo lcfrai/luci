@@ -379,7 +379,9 @@ func swarmAllIntegrated(run ProjectRun) bool {
 			passed := false
 			for _, item := range run.Swarm.ReviewObligations {
 				candidate := swarmTask(&run, item.TaskID)
-				if item.ReviewerOperationID == op.ID && item.State == "passed" && item.ReviewerHandoffDigest == op.Handoff.Digest && candidate != nil && candidate.Integration != nil && candidate.Integration.State == "integrated" {
+				candidateOp := swarmOperation(&run, item.CandidateOperationID)
+				validContractedReview := run.Input.OrchestrationContract == nil || swarmContractReviewerRole(run, task, item.TaskID) && op.ReviewAssignmentDigest == swarmResolvedReviewAssignmentDigest(item) && candidateOp != nil && swarmReviewRepairSuccessor(run, item.TaskID, *candidateOp, item.CandidateCommit) == nil
+				if validContractedReview && item.ReviewerOperationID == op.ID && item.State == "passed" && item.ReviewerHandoffDigest == op.Handoff.Digest && candidate != nil && candidate.Integration != nil && candidate.Integration.State == "integrated" {
 					passed = true
 					break
 				}

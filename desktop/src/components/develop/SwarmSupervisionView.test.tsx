@@ -42,9 +42,10 @@ it('retains uncertain exact post request before sending and never automatically 
   await screen.findByText(/connection lost/); const retained = readMessageRecovery(p.recoveryScope);
   expect(retained?.type).toBe('post'); expect(post).toHaveBeenCalledOnce();
   page.unmount(); render(<SwarmSupervisionPanel {...p} />); await screen.findByText(swarmMessageFixture().summary);
-  expect(post).toHaveBeenCalledOnce(); fireEvent.click(screen.getByRole('button', {name: 'Retry exact retained message request'}));
-  await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-  expect(post.mock.calls[1][3]).toEqual(post.mock.calls[0][3]); expect(readMessageRecovery(p.recoveryScope)).toEqual(retained);
+  const disposition = vi.spyOn(swarmSupervisionApi, 'disposition').mockResolvedValue({projectId: p.run.projectId, runId: p.run.id, operationId: 'op-a', state: 'unconfirmed', runRevision: 1, message: null});
+  expect(post).toHaveBeenCalledOnce(); fireEvent.click(screen.getByRole('button', {name: 'Check exact saved outcome'}));
+  await waitFor(() => expect(disposition).toHaveBeenCalledOnce());
+  expect(post).toHaveBeenCalledOnce(); expect(readMessageRecovery(p.recoveryScope)).toEqual(retained);
 });
 it('acknowledges only the exact saved recipient and reconciles uncertain delivery by read, without replay', async () => {
   const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture());
@@ -55,6 +56,34 @@ it('acknowledges only the exact saved recipient and reconciles uncertain deliver
   get.mockResolvedValueOnce(swarmSupervisionFixture({runRevision: 2, messages: [swarmMessageFixture({ack: {operationId: 'op-b', childId: 'session-b', actorId: 'reader', at: 'now'}})]}));
   fireEvent.click(screen.getByRole('button', {name: 'Refresh saved messages'}));
   await screen.findByText(/Delivery receipt confirmed in saved history/); expect(readMessageRecovery(p.recoveryScope)).toBeNull(); expect(ack).toHaveBeenCalledOnce();
+});
+it('reads an uncertain acknowledgement by exact ID outside the display window and never replays it', async () => {
+  vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture({messages: [], page: {after: 0, nextCursor: 0, hasMore: false, omitted: 0}}));
+  const ack = vi.spyOn(swarmSupervisionApi, 'ack'), exact = vi.spyOn(swarmSupervisionApi, 'message').mockResolvedValue({projectId: 'p-1', runId: 'run-1', runRevision: 2,
+    message: swarmMessageFixture({ack: {operationId: 'op-b', childId: 'session-b', actorId: 'reader', at: 'now'}})});
+  const p = props(), pending = {type: 'ack' as const, messageId: 'msg-1', request: {expectedRevision: 1, recipientOperationId: 'op-b'}};
+  localStorage.setItem(`luci.swarm-message-pending.v1:${encodeURIComponent(p.recoveryScope)}`, JSON.stringify(pending));
+  render(<SwarmSupervisionPanel {...p} />);
+  await screen.findByText(/Delivery for saved message msg-1/);
+  fireEvent.click(screen.getByRole('button', {name: 'Check exact saved outcome'}));
+  await waitFor(() => expect(readMessageRecovery(p.recoveryScope)).toBeNull());
+  expect(exact).toHaveBeenCalledWith('p-1', 'run-1', 'msg-1', expect.any(AbortSignal));
+  expect(ack).not.toHaveBeenCalled();
+});
+it('archives a definitively rejected exact claim before allowing new work', async () => {
+  vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture());
+  const post = vi.spyOn(swarmSupervisionApi, 'post').mockRejectedValue(new Error('connection lost'));
+  const p = props(); render(<SwarmSupervisionPanel {...p} />); await screen.findByText(swarmMessageFixture().summary);
+  fireEvent.click(screen.getByText('Record an attributed message'));
+  fireEvent.change(screen.getByLabelText('Sender attempt'), {target: {value: 'op-a'}});
+  fireEvent.change(screen.getByLabelText('Recipient task'), {target: {value: 'b'}});
+  fireEvent.change(screen.getByLabelText('Attributed claim'), {target: {value: 'Claim only'}});
+  fireEvent.click(screen.getByRole('button', {name: 'Record message claim'}));
+  await screen.findByText(/connection lost/);
+  vi.spyOn(swarmSupervisionApi, 'disposition').mockResolvedValue({projectId: 'p-1', runId: 'run-1', operationId: 'op-a', state: 'rejected', runRevision: 2, message: null});
+  fireEvent.click(screen.getByRole('button', {name: 'Check exact saved outcome'}));
+  await waitFor(() => expect(readMessageRecovery(p.recoveryScope)).toBeNull());
+  expect(post).toHaveBeenCalledOnce(); expect(screen.getByText(/original rejected request was preserved/)).toBeTruthy();
 });
 it('cancels reads on revocation, hides retained private claims and drops late results on owner unmount', async () => {
   let resolve!: (value: ReturnType<typeof swarmSupervisionFixture>) => void;

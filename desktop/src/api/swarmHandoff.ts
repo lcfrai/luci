@@ -12,6 +12,7 @@ export interface TaskHandoffReport {
 export interface TaskHandoffReference {
   digest: string; status: Exclude<TaskHandoffStatus, 'not-recorded'>; summary: string;
   questions: number; unanswered: number; answersDigest?: string; capturedAt: string;
+	coordinationOmitted?: boolean;
 }
 export interface TaskHandoffReceipt {
   version: 1; projectId: string; runId: string; taskId: string; operationId: string; childId: string; worktreeId: string;

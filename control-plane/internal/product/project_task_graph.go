@@ -64,10 +64,29 @@ func projectPlanResponse(plan ProjectPlan) any {
 
 func validateProjectTaskGraph(tasks []ProjectTask) error {
 	ids := make(map[string]bool, len(tasks))
+	roles := make(map[string]string, len(tasks))
 	for _, task := range tasks {
 		ids[task.ID] = true
+		roles[task.ID] = task.Role
 	}
 	for _, task := range tasks {
+		if task.Role != "" && task.Role != "coding" && task.Role != "reviewer" {
+			return fmt.Errorf("Task %s has an unsupported role. Choose coding or independent reviewer.", task.ID)
+		}
+		if task.Role == "reviewer" {
+			if task.ReviewOfTaskID == task.ID || !ids[task.ReviewOfTaskID] || roles[task.ReviewOfTaskID] == "reviewer" || len(task.WritePaths) != 0 || len(task.DependsOn) != 0 || strings.TrimSpace(task.Acceptance) == "" {
+				return fmt.Errorf("Reviewer task %s needs a different saved coding task, no write paths or dependencies, and explicit review acceptance.", task.ID)
+			}
+		} else if task.ReviewOfTaskID != "" {
+			return fmt.Errorf("Coding task %s cannot claim an independent review assignment.", task.ID)
+		}
+		for _, other := range tasks {
+			for _, dependency := range other.DependsOn {
+				if dependency == task.ID && task.Role == "reviewer" {
+					return fmt.Errorf("Reviewer task %s cannot be a source dependency for another task.", task.ID)
+				}
+			}
+		}
 		if len(task.DependsOn) > 199 {
 			return fmt.Errorf("Task %s can depend on at most 199 other tasks.", task.ID)
 		}

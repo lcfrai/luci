@@ -250,7 +250,7 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	if err != nil || !enabled {
 		return refuse("dispatch_paused", errors.New("New queued dispatch is paused."))
 	}
-	admission, err := a.deps.Product.BeginProjectRunSession(req.ProjectID, req.RunID, req.OperationID, candidate, a.deps.Store.Get)
+	admission, err := a.deps.Product.BeginProjectRunSessionWithAssignment(req.ProjectID, req.RunID, req.OperationID, candidate, capture.ReviewAssignmentDigest, a.deps.Store.Get)
 	if err != nil {
 		return refuse("dispatch_changed", err)
 	}

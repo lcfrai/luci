@@ -104,7 +104,18 @@ func (s *Server) getProjectSwarmSupervision(w http.ResponseWriter, r *http.Reque
 		}
 		if op := swarmOperation(&run, task.OperationID); op != nil && task.Integration == nil {
 			switch op.Status {
-			case "reserved", "dispatching", "running":
+			case "reserved":
+				view.State = "reserved"
+				if activity == "ready" {
+					activity = "queued"
+				}
+			case "dispatching":
+				view.State = "unknown"
+				settlement = "uncertain"
+				if activity != "working" {
+					activity = "unknown"
+				}
+			case "running":
 				view.State = "working"
 				activity = "working"
 			case "review-required", "succeeded":
@@ -214,6 +225,104 @@ func (s *Server) getProjectSwarmSupervision(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+// An exact scoped read bypasses the bounded display window. Missing remains
+// missing; it is not evidence that an in-flight acknowledgement failed.
+func (s *Server) getProjectSwarmMessage(w http.ResponseWriter, r *http.Request) {
+	if !swarmCoordinationAccess(w, r, false) {
+		return
+	}
+	p, ok := s.requestProject(w, r)
+	if !ok {
+		return
+	}
+	run, err := s.projectRuns.Get(p.ID, p.Path, r.PathValue("runId"))
+	if err != nil || run.Swarm == nil {
+		if err == nil {
+			err = ErrProjectRunNotFound
+		}
+		projectRunProblem(w, err)
+		return
+	}
+	for _, msg := range run.Swarm.Messages {
+		if msg.ID == r.PathValue("messageId") {
+			journeyJSON(w, 200, map[string]any{"projectId": p.ID, "runId": run.ID, "message": msg, "runRevision": run.Revision})
+			return
+		}
+	}
+	projectRunProblem(w, ErrProjectRunNotFound)
+}
+
+type swarmMessagePostRequest struct {
+	ExpectedRevision int                         `json:"expectedRevision"`
+	IdempotencyKey   string                      `json:"idempotencyKey"`
+	RecipientTaskID  string                      `json:"recipientTaskId"`
+	Kind             string                      `json:"kind"`
+	CausalMessageID  string                      `json:"causalMessageId"`
+	Evidence         ProjectSwarmMessageEvidence `json:"evidence"`
+	Summary          string                      `json:"summary"`
+}
+
+func swarmMessageRequestDigest(req swarmMessagePostRequest) string {
+	return implementationDigest(struct {
+		Recipient, Kind, Causal string
+		Evidence                ProjectSwarmMessageEvidence
+		Summary                 string
+	}{req.RecipientTaskID, req.Kind, req.CausalMessageID, req.Evidence, req.Summary})
+}
+
+// This POST is effect-free: the body contains the original claim, so no
+// private summary or stable key appears in a URL or intermediary access log.
+// An absent key is definitively rejected only after the saved run revision
+// passes its CAS revision. At the same revision, an in-flight write may win.
+func (s *Server) projectSwarmMessageDisposition(w http.ResponseWriter, r *http.Request) {
+	if !swarmCoordinationAccess(w, r, false) {
+		return
+	}
+	p, ok := s.requestProject(w, r)
+	if !ok {
+		return
+	}
+	var req swarmMessagePostRequest
+	if !journeyDecode(w, r, &req) {
+		return
+	}
+	if req.ExpectedRevision < 1 || !validRunKey(req.IdempotencyKey) || !swarmMessageKind(req.Kind) || !handoffText(req.Summary, 1000) || strings.TrimSpace(req.Summary) == "" || !validSwarmMessageEvidenceShape(req.Evidence) {
+		projectRunProblem(w, ErrProjectRunConflict)
+		return
+	}
+	run, err := s.projectRuns.Get(p.ID, p.Path, r.PathValue("runId"))
+	if err != nil || run.Swarm == nil {
+		if err == nil {
+			err = ErrProjectRunNotFound
+		}
+		projectRunProblem(w, err)
+		return
+	}
+	state := "unconfirmed"
+	var found *ProjectSwarmMessage
+	for i := range run.Swarm.Messages {
+		msg := &run.Swarm.Messages[i]
+		if msg.Sender.OperationID != r.PathValue("operationId") || msg.KeyDigest != implementationDigest(req.IdempotencyKey) {
+			continue
+		}
+		if msg.RequestDigest == swarmMessageRequestDigest(req) {
+			state = "recorded"
+			found = msg
+		} else {
+			state = "key-conflict"
+		}
+		break
+	}
+	if state == "unconfirmed" && run.Revision > req.ExpectedRevision {
+		state = "rejected"
+	}
+	if run.Revision < req.ExpectedRevision {
+		projectRunProblem(w, ErrProjectRunConflict)
+		return
+	}
+	journeyJSON(w, 200, map[string]any{"projectId": p.ID, "runId": run.ID, "operationId": r.PathValue("operationId"), "state": state, "runRevision": run.Revision, "message": found})
+}
+
 func (s *Server) postProjectSwarmMessage(w http.ResponseWriter, r *http.Request) {
 	if !swarmCoordinationAccess(w, r, true) {
 		return
@@ -226,15 +335,7 @@ func (s *Server) postProjectSwarmMessage(w http.ResponseWriter, r *http.Request)
 		projectRunProblem(w, err)
 		return
 	}
-	var req struct {
-		ExpectedRevision int                         `json:"expectedRevision"`
-		IdempotencyKey   string                      `json:"idempotencyKey"`
-		RecipientTaskID  string                      `json:"recipientTaskId"`
-		Kind             string                      `json:"kind"`
-		CausalMessageID  string                      `json:"causalMessageId"`
-		Evidence         ProjectSwarmMessageEvidence `json:"evidence"`
-		Summary          string                      `json:"summary"`
-	}
+	var req swarmMessagePostRequest
 	if !journeyDecode(w, r, &req) {
 		return
 	}
@@ -242,11 +343,7 @@ func (s *Server) postProjectSwarmMessage(w http.ResponseWriter, r *http.Request)
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}
-	digest := implementationDigest(struct {
-		Recipient, Kind, Causal string
-		Evidence                ProjectSwarmMessageEvidence
-		Summary                 string
-	}{req.RecipientTaskID, req.Kind, req.CausalMessageID, req.Evidence, req.Summary})
+	digest := swarmMessageRequestDigest(req)
 	previous, err := s.projectRuns.Get(p.ID, p.Path, r.PathValue("runId"))
 	if err != nil {
 		projectRunProblem(w, err)

@@ -63,6 +63,33 @@ func TestProjectTaskGraphRejectsUnusableDependenciesAndWritePaths(t *testing.T) 
 	}
 }
 
+func TestProjectTaskGraphReviewerRoleMustBeExplicitAndCannotReplaceCoding(t *testing.T) {
+	coding := graphTask("code")
+	coding.WritePaths = nil // an unscoped coding task remains coding
+	reviewer := graphTask("review")
+	reviewer.Role, reviewer.ReviewOfTaskID, reviewer.Acceptance = "reviewer", coding.ID, "Inspect exact candidate source and report checks"
+	if err := validatePlan(ProjectPlan{Tasks: []ProjectTask{coding, reviewer}}); err != nil {
+		t.Fatal(err)
+	}
+	for name, change := range map[string]func(*[]ProjectTask){
+		"reviewer edits": func(tasks *[]ProjectTask) { (*tasks)[1].WritePaths = []string{"src"} },
+		"reviewer targets reviewer": func(tasks *[]ProjectTask) {
+			(*tasks)[0].Role = "reviewer"
+			(*tasks)[0].ReviewOfTaskID = "review"
+			(*tasks)[0].Acceptance = "Review review"
+		},
+		"coding depends on reviewer": func(tasks *[]ProjectTask) { (*tasks)[0].DependsOn = []string{"review"} },
+	} {
+		t.Run(name, func(t *testing.T) {
+			tasks := []ProjectTask{coding, reviewer}
+			change(&tasks)
+			if validatePlan(ProjectPlan{Tasks: tasks}) == nil {
+				t.Fatal("review role escaped approved task semantics")
+			}
+		})
+	}
+}
+
 func TestProjectTaskGraphSeparatesStructuralWavesRecordedProgressAndFileConflicts(t *testing.T) {
 	// Saved order is deliberately not topological. The independent documentation
 	// task can run with either the schema or API work, though it appears in wave 1.

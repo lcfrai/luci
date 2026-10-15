@@ -21,6 +21,8 @@ type ProjectSwarm struct {
 type ProjectSwarmTask struct {
 	ID              string                   `json:"id"`
 	ReviewOnly      bool                     `json:"reviewOnly,omitempty"`
+	Role            string                   `json:"role,omitempty"`
+	ReviewOfTaskID  string                   `json:"reviewOfTaskId,omitempty"`
 	TaskInputDigest string                   `json:"taskInputDigest,omitempty"`
 	Title           string                   `json:"title"`
 	DependsOn       []string                 `json:"dependsOn"`
@@ -73,7 +75,7 @@ func validateProjectSwarm(run ProjectRun) error {
 	seen := map[string]bool{}
 	planTasks := []ProjectTask{}
 	for _, task := range swarm.Tasks {
-		planTasks = append(planTasks, ProjectTask{ID: task.ID, Title: task.Title, Status: "todo", DependsOn: task.DependsOn, WritePaths: task.WritePaths, Acceptance: task.Acceptance})
+		planTasks = append(planTasks, ProjectTask{ID: task.ID, Title: task.Title, Status: "todo", Role: task.Role, ReviewOfTaskID: task.ReviewOfTaskID, DependsOn: task.DependsOn, WritePaths: task.WritePaths, Acceptance: task.Acceptance})
 		if !designIDPattern.MatchString(task.ID) || seen[task.ID] || len(task.Title) == 0 || len(task.Title) > 2000 || len(task.Acceptance) > 8000 {
 			return ErrProjectRunInvalid
 		}
@@ -81,7 +83,7 @@ func validateProjectSwarm(run ProjectRun) error {
 		if task.TaskInputDigest != "" && !hexDigest(task.TaskInputDigest) {
 			return ErrProjectRunInvalid
 		}
-		if task.ReviewOnly && (len(task.WritePaths) != 0 || task.Integration != nil) {
+		if task.ReviewOnly && (len(task.WritePaths) != 0 || task.Integration != nil || run.Input.OrchestrationContract != nil && task.Role != "reviewer") {
 			return ErrProjectRunInvalid
 		}
 		selected := false

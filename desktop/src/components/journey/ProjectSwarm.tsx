@@ -453,6 +453,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
           {operation?.recovery && <p>{launchRecoveryStatus(operation)}</p>}
           {runOperationNeedsReview(operation) && !integrated(task) && !operation?.message && <p>Review the retained changes before integration, then verify the combined build.</p>}
           {unansweredQuestions(operation) > 0 && <p className="journey-warning">{unansweredQuestions(operation)} agent-reported {unansweredQuestions(operation) === 1 ? 'question needs' : 'questions need'} an answer. Open Task result and questions to review their impact; answering does not start an agent.</p>}
+		  {operation?.handoff?.coordinationOmitted && <p className="journey-warning">The owned task report is saved, but its addressed team messages could not be recorded. Inspect the complete task result before depending on that claim.</p>}
           {earlierQuestions > 0 && <p className="journey-warning">{earlierQuestions} agent-reported {earlierQuestions === 1 ? 'question remains' : 'questions remain'} unanswered in earlier attempts. <Button variant="tertiary" disabled={busy || !projectAccess.canRead} onClick={() => {
             const details = taskRows.current.get(task.id)?.querySelector<HTMLDetailsElement>('[data-task-scope]');
             if (details) { details.open = true; details.querySelector('summary')?.focus(); }

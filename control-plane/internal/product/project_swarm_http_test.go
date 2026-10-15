@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
@@ -17,6 +18,9 @@ func swarmHTTPFixture(t *testing.T, taskOverrides ...ProjectTask) (*Server, *htt
 	return swarmHTTPFixtureWithLocation(t, "", taskOverrides...)
 }
 func swarmHTTPFixtureWithLocation(t *testing.T, location string, taskOverrides ...ProjectTask) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
+	return swarmHTTPFixtureConfigured(t, location, false, taskOverrides...)
+}
+func swarmHTTPFixtureConfigured(t *testing.T, location string, reviewContract bool, taskOverrides ...ProjectTask) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
 	t.Helper()
 	s, mux, p, req, selected, _ := projectRunHTTPFixture(t)
 	if location == "cloud-microvm" {
@@ -39,7 +43,18 @@ func swarmHTTPFixtureWithLocation(t *testing.T, location string, taskOverrides .
 	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Save parallel task contracts"), 200)
 	req.ImplementationContext.PlanRevision = plan.Revision
 	req.ImplementationContext.TaskIDs = []string{"task-a", "task-b", "task-c"}
-	run := projectRunHTTPResponse(t, journeyRequest(t, mux, "POST", base+"/runs", req, 201)).ProjectRun
+	var runHandler http.Handler = mux
+	if reviewContract {
+		s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+		actor := contextHistoryActorHandler(mux, management.User{ID: "review-owner", Username: "owner", Role: "member"})
+		runHandler = actor
+		prepare := contractRequest(req)
+		endpoint := base + "/orchestration-contracts"
+		view := contractResponse(t, journeyRequest(t, actor, "POST", endpoint+"/prepare", prepare, 201).Body.Bytes())
+		approved := contractResponse(t, journeyRequest(t, actor, "POST", endpoint+"/"+view.Contract.ID+"/approve", map[string]any{"expectedRevision": 1, "expectedDigest": view.Contract.Digest}, 200).Body.Bytes())
+		req.OrchestrationContract = &OrchestrationContractSelection{ID: approved.Contract.ID, Revision: approved.Contract.Revision, Digest: approved.Contract.Digest, ApprovalID: approved.Contract.Approval.ID}
+	}
+	run := projectRunHTTPResponse(t, journeyRequest(t, runHandler, "POST", base+"/runs", req, 201)).ProjectRun
 	run = projectRunHTTPResponse(t, journeyRequest(t, mux, "POST", base+"/runs/"+run.ID+"/swarm", map[string]int{"expectedRevision": run.Revision, "maxParallel": 2}, 201)).ProjectRun
 	return s, mux, p, run, base + "/runs/" + run.ID + "/swarm", selected
 }

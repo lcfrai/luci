@@ -100,8 +100,12 @@ func projectRunSessionRequestMatches(req sessionCreateRequest, existing registry
 	return false
 }
 
-func (a *API) beginProjectRunSession(w http.ResponseWriter, r *http.Request, req sessionCreateRequest, candidate registry.Session) (product.ProjectRunSessionAdmission, bool) {
-	admission, err := a.deps.Product.BeginProjectRunSession(candidate.ProjectID, req.ProjectRunID, req.ProjectRunOperationID, candidate, a.deps.Store.Get)
+func (a *API) beginProjectRunSession(w http.ResponseWriter, r *http.Request, req sessionCreateRequest, candidate registry.Session, capture *product.ReviewedContextCapture) (product.ProjectRunSessionAdmission, bool) {
+	assignment := ""
+	if capture != nil {
+		assignment = capture.ReviewAssignmentDigest
+	}
+	admission, err := a.deps.Product.BeginProjectRunSessionWithAssignment(candidate.ProjectID, req.ProjectRunID, req.ProjectRunOperationID, candidate, assignment, a.deps.Store.Get)
 	if err != nil {
 		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, err.Error(), nil)
 		return product.ProjectRunSessionAdmission{}, false

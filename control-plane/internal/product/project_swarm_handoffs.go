@@ -134,41 +134,52 @@ func (s *Server) captureTaskHandoff(ctx context.Context, projectPath string, run
 		}
 		selected.Handoff = ref
 		if current.Swarm != nil && selected.Implementation != nil {
-			for _, task := range current.Swarm.Tasks {
-				depends := false
-				for _, dependency := range task.DependsOn {
-					if dependency == selected.TaskID {
-						depends = true
-						break
+			priorMessages := append([]ProjectSwarmMessage(nil), current.Swarm.Messages...)
+			coordinationErr := func() error {
+				for _, task := range current.Swarm.Tasks {
+					depends := false
+					for _, dependency := range task.DependsOn {
+						if dependency == selected.TaskID {
+							depends = true
+							break
+						}
 					}
-				}
-				if !depends {
-					continue
-				}
-				summary := ref.Summary
-				if summary == "" {
-					summary = "An owned task report was captured with status " + ref.Status + ". Inspect its complete retained receipt before relying on the result."
-				}
-				key := implementationDigest(struct{ Sender, Recipient, Digest string }{selected.ID, task.ID, ref.Digest})
-				message := ProjectSwarmMessage{ID: newID("msg-"), Kind: "dependency-result", Sender: ProjectSwarmMessageSender{TaskID: selected.TaskID, OperationID: selected.ID, ChildID: selected.ChildID, WorktreeID: selected.WorktreeID, ContextDigest: implementationDigest(selected.Implementation)}, RecipientTaskID: task.ID, Evidence: ProjectSwarmMessageEvidence{Kind: "handoff", ID: selected.ID, Digest: ref.Digest}, Summary: summary, Attribution: "owned-worker-report", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), KeyDigest: key, RequestDigest: key}
-				if _, err := appendSwarmMessage(current, message); err != nil {
-					return err
-				}
-			}
-			if receipt.Reported != nil {
-				for i, reported := range receipt.Reported.AddressedMessages {
-					if reported.RecipientTaskID == selected.TaskID || swarmTask(current, reported.RecipientTaskID) == nil {
-						return ErrProjectRunConflict
+					if !depends {
+						continue
 					}
-					key := implementationDigest(struct {
-						Handoff string
-						Index   int
-					}{ref.Digest, i})
-					message := ProjectSwarmMessage{ID: newID("msg-"), Kind: reported.Kind, Sender: ProjectSwarmMessageSender{TaskID: selected.TaskID, OperationID: selected.ID, ChildID: selected.ChildID, WorktreeID: selected.WorktreeID, ContextDigest: implementationDigest(selected.Implementation)}, RecipientTaskID: reported.RecipientTaskID, CausalMessageID: reported.CausalMessageID, Evidence: ProjectSwarmMessageEvidence{Kind: "handoff", ID: selected.ID, Digest: ref.Digest}, Summary: reported.Summary, Attribution: "owned-worker-report", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), KeyDigest: key, RequestDigest: implementationDigest(reported)}
+					summary := ref.Summary
+					if summary == "" {
+						summary = "An owned task report was captured with status " + ref.Status + ". Inspect its complete retained receipt before relying on the result."
+					}
+					key := implementationDigest(struct{ Sender, Recipient, Digest string }{selected.ID, task.ID, ref.Digest})
+					message := ProjectSwarmMessage{ID: newID("msg-"), Kind: "dependency-result", Sender: ProjectSwarmMessageSender{TaskID: selected.TaskID, OperationID: selected.ID, ChildID: selected.ChildID, WorktreeID: selected.WorktreeID, ContextDigest: implementationDigest(selected.Implementation)}, RecipientTaskID: task.ID, Evidence: ProjectSwarmMessageEvidence{Kind: "handoff", ID: selected.ID, Digest: ref.Digest}, Summary: summary, Attribution: "owned-worker-report", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), KeyDigest: key, RequestDigest: key}
 					if _, err := appendSwarmMessage(current, message); err != nil {
 						return err
 					}
 				}
+				if receipt.Reported != nil {
+					for i, reported := range receipt.Reported.AddressedMessages {
+						if reported.RecipientTaskID == selected.TaskID || swarmTask(current, reported.RecipientTaskID) == nil {
+							return ErrProjectRunConflict
+						}
+						key := implementationDigest(struct {
+							Handoff string
+							Index   int
+						}{ref.Digest, i})
+						message := ProjectSwarmMessage{ID: newID("msg-"), Kind: reported.Kind, Sender: ProjectSwarmMessageSender{TaskID: selected.TaskID, OperationID: selected.ID, ChildID: selected.ChildID, WorktreeID: selected.WorktreeID, ContextDigest: implementationDigest(selected.Implementation)}, RecipientTaskID: reported.RecipientTaskID, CausalMessageID: reported.CausalMessageID, Evidence: ProjectSwarmMessageEvidence{Kind: "handoff", ID: selected.ID, Digest: ref.Digest}, Summary: reported.Summary, Attribution: "owned-worker-report", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), KeyDigest: key, RequestDigest: implementationDigest(reported)}
+						if _, err := appendSwarmMessage(current, message); err != nil {
+							return err
+						}
+					}
+				}
+				return nil
+			}()
+			if coordinationErr != nil {
+				// Message delivery is an attributed claim, separate from the
+				// immutable owned report. A malformed/full ledger must not
+				// turn repeated observation into timestamped orphan reports.
+				current.Swarm.Messages = priorMessages
+				ref.CoordinationOmitted = true
 			}
 		}
 		return nil

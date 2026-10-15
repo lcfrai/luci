@@ -9,7 +9,66 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestTaskHandoffRetainsReportWhenCoordinationCannotBeRecorded(t *testing.T) {
+	for _, scenario := range []string{"unknown-recipient", "unknown-causal", "full-ledger"} {
+		t.Run(scenario, func(t *testing.T) {
+			s, mux, p, run, base, _ := swarmHTTPFixture(t)
+			s.registerTaskHandoffs(mux)
+			run = swarmReserveHTTP(t, mux, base, run, "task-a", "handoff-omission-123456789")
+			op := run.Operations[0]
+			swarmCommitFixture(t, mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID), "alpha.txt", "candidate source\n")
+			run = swarmFinishFixture(t, s, p, run, op.ID)
+			if scenario == "full-ledger" {
+				var err error
+				run, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, run.Revision, func(current *ProjectRun) error {
+					for i := 0; i < maxSwarmMessages; i++ {
+						key := implementationDigest(i)
+						message := ProjectSwarmMessage{ID: newID("msg-"), Kind: "discovery", Sender: ProjectSwarmMessageSender{TaskID: op.TaskID, OperationID: op.ID, ChildID: op.ChildID, WorktreeID: op.WorktreeID, ContextDigest: implementationDigest(op.Implementation)}, RecipientTaskID: "task-b", Evidence: ProjectSwarmMessageEvidence{Kind: "none"}, Summary: "Earlier attributed claim", Attribution: "coordinator-recorded", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), KeyDigest: key, RequestDigest: key}
+						if _, err := appendSwarmMessage(current, message); err != nil {
+							return err
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			report := &TaskHandoffReport{Version: 1, Summary: "Owned attempt report remains inspectable", ChangedFiles: []string{}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}
+			if scenario != "full-ledger" {
+				addressed := TaskHandoffAddressedMessage{Kind: "question", RecipientTaskID: "task-b", Summary: "Inspect the exact candidate"}
+				if scenario == "unknown-recipient" {
+					addressed.RecipientTaskID = "task-missing"
+				} else {
+					addressed.CausalMessageID = "msg-000000000000000000000999"
+				}
+				report.AddressedMessages = []TaskHandoffAddressedMessage{addressed}
+			}
+			collected := 0
+			s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(context.Context, TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
+				collected++
+				return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("retained source context"), Report: report}, nil
+			})
+			var response struct {
+				Run     ProjectRun      `json:"run"`
+				Handoff TaskHandoffView `json:"handoff"`
+			}
+			route := base + "/operations/" + op.ID + "/handoff/collect"
+			decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", route, map[string]any{"expectedRevision": run.Revision}, 200).Body.Bytes(), &response)
+			if response.Handoff.Receipt == nil || response.Handoff.Receipt.Reported.Summary != report.Summary || !swarmOperation(&response.Run, op.ID).Handoff.CoordinationOmitted || len(response.Run.Swarm.Messages) != len(run.Swarm.Messages) {
+				t.Fatal("owned report or bounded omission lost", response.Run)
+			}
+			before := auditTree(t, s.stateDir)
+			decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", route, map[string]any{"expectedRevision": response.Run.Revision}, 200).Body.Bytes(), &response)
+			if collected != 2 || !reflect.DeepEqual(before, auditTree(t, s.stateDir)) {
+				t.Fatal("repeated observation produced another orphan or changed report", collected)
+			}
+		})
+	}
+}
 
 func TestTaskHandoffReportStrictClaimSchema(t *testing.T) {
 	valid := `{"version":1,"summary":"Actual worker claim","changedFiles":["src/main.go"],"decisions":[],"reportedChecks":[{"command":"go test ./...","outcome":"passed","detail":"Worker reported exit zero"}],"questions":[{"question":"Which retention period?","impact":"Data lifecycle","blocking":true}],"limitations":[]}`

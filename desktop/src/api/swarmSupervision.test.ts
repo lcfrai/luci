@@ -4,11 +4,18 @@ import { checkedSupervision, mergeSwarmMessages, swarmSupervisionApi, type PostS
 import { swarmMessageFixture, swarmSupervisionFixture } from '../test/swarmSupervisionFixtures';
 afterEach(() => vi.restoreAllMocks());
 it('reads only the exact project/run cursor with cancellation; preserves unknown fields and observed zero', async () => {
-  const value = swarmSupervisionFixture({futurePolicy: {state: 'unknown'}, activityPhase: 'future-phase', metrics: {routineDecisions: 0, latency: null, quality: null, throughput: null, cost: null}});
+  const value = swarmSupervisionFixture({projectId: 'p/1', futurePolicy: {state: 'unknown'}, activityPhase: 'future-phase', metrics: {routineDecisions: 0, latency: null, quality: null, throughput: null, cost: null}});
   const request = vi.spyOn(productApi, 'request').mockResolvedValue(value), controller = new AbortController();
   expect(await swarmSupervisionApi.get('p/1', 'run-1', 0, controller.signal)).toBe(value);
   expect(request).toHaveBeenCalledWith('/v1/product/projects/p%2F1/runs/run-1/swarm/supervision?after=0&limit=50', undefined, 'GET', 30_000, controller.signal);
   expect(value.metrics.routineDecisions).toBe(0);
+});
+it('accepts the final Go JSON shape with omitted causal ID, typed attention and nullable ack; rejects UTF-8 overflow', () => {
+  const {causalMessageId: _omitted, ...saved} = swarmMessageFixture();
+  const value = swarmSupervisionFixture({messages: [saved], activityPhase: 'queued', tasks: [{taskId: 'a', operationId: 'op-a', role: 'coding', state: 'reserved', integrationState: 'none'}]});
+  expect(checkedSupervision('p-1', 'run-1', 0, value)).toBe(value);
+  expect(() => checkedSupervision('p-1', 'run-1', 0, swarmSupervisionFixture({messages: [{...saved, summary: 'é'.repeat(501)}]}))).toThrow();
+  expect(() => checkedSupervision('p-1', 'run-1', 0, swarmSupervisionFixture({attention: [{id: 'msg-1', kind: 'question', taskId: 'b', action: {kind: 'execute' as 'open-message', targetId: 'msg-1'}}]}))).toThrow();
 });
 it('rejects foreign scope, nonadvancing cursors, oversized pages and identity collisions', () => {
   expect(() => checkedSupervision('p-1', 'run-1', 0, swarmSupervisionFixture({projectId: 'foreign'}))).toThrow();
