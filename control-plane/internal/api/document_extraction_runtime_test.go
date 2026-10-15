@@ -27,6 +27,8 @@ type inertDocumentExecutor struct {
 	createErr, startErr, retireErr error
 	started                        chan struct{}
 	retireHook                     func() error
+	stayRunning                    bool
+	blockedReader                  <-chan struct{}
 }
 
 func (f *inertDocumentExecutor) DocumentImageID() string { return "sha256:" + strings.Repeat("a", 64) }
@@ -55,6 +57,9 @@ func (f *inertDocumentExecutor) StartDocument(_ context.Context, identity backen
 	}
 	f.starts++
 	f.state = "exited"
+	if f.stayRunning {
+		f.state = "running"
+	}
 	close(f.started)
 	return f.startErr
 }
@@ -88,6 +93,10 @@ func (f *inertDocumentExecutor) AttachDocumentResult(_ context.Context, identity
 	return &inertDocumentStream{executor: f, closed: make(chan struct{})}, nil
 }
 func (s *inertDocumentStream) Capture(ctx context.Context) (backend.DocumentExtractionOutput, error) {
+	if s.executor.blockedReader != nil {
+		<-s.executor.blockedReader
+		return backend.DocumentExtractionOutput{}, errors.New("inert blocked reader finally settled")
+	}
 	select {
 	case <-s.executor.started:
 		return backend.DocumentExtractionOutput{Data: []byte("complete inert capture"), Digest: fixtureFenceHash("complete inert capture")}, nil
@@ -261,7 +270,7 @@ func TestDocumentLifecycleRechecksCurrentExecutionAuthorityBeforeStart(t *testin
 	}
 }
 
-func TestDocumentLifecycleCapturePublicationFailurePreservesLastContainerAndCapacity(t *testing.T) {
+func TestDocumentLifecycleExitedCapturePublicationFailurePreservesLastContainerAndCapacity(t *testing.T) {
 	a, f, req := inertDocumentFixture(t)
 	out, err := a.executeDocumentExtraction(context.Background(), req, func(out product.DiscoveryExtractionOutcome) error {
 		if len(out.Result.Data) > 0 {
@@ -275,6 +284,94 @@ func TestDocumentLifecycleCapturePublicationFailurePreservesLastContainerAndCapa
 	lease, readErr := a.execution.documentLease(context.Background(), req.ProjectID, req.DocumentID, req.AttemptID)
 	if readErr != nil || lease.State != "running" {
 		t.Fatal("capture publication failure discarded claim", lease, readErr)
+	}
+}
+
+func TestDocumentRunningEmergencyRetiresBeforeBlockedReaderSettles(t *testing.T) {
+	a, f, req := inertDocumentFixture(t)
+	f.stayRunning = true
+	readerRelease := make(chan struct{})
+	var readerOnce sync.Once
+	defer readerOnce.Do(func() { close(readerRelease) })
+	f.blockedReader = readerRelease
+	retireRequested := make(chan struct{})
+	f.retireHook = func() error { close(retireRequested); return nil }
+	running := make(chan struct{})
+	var runningOnce sync.Once
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	type result struct {
+		out product.DiscoveryExtractionOutcome
+		err error
+	}
+	finished := make(chan result, 1)
+	go func() {
+		out, err := a.executeDocumentExtraction(ctx, req, func(out product.DiscoveryExtractionOutcome) error {
+			if out.Stage == "running" {
+				runningOnce.Do(func() { close(running) })
+			}
+			return nil
+		})
+		finished <- result{out, err}
+	}()
+	select {
+	case <-running:
+	case <-time.After(2 * time.Second):
+		t.Fatal("inert parser did not reach running")
+	}
+	cancel()
+	select {
+	case <-retireRequested:
+	case <-time.After(2 * time.Second):
+		t.Fatal("emergency stop waited for blocked capture reader")
+	}
+	select {
+	case <-finished:
+		t.Fatal("blocked reader falsely settled complete lifecycle")
+	default:
+	}
+	lease, err := a.execution.documentLease(context.Background(), req.ProjectID, req.DocumentID, req.AttemptID)
+	if err != nil || lease.State == "finished" {
+		t.Fatal("blocked reader released shared capacity", lease, err)
+	}
+	if unlock, err := a.execution.lockChildLifecycle(context.Background(), req.AllocationID); err == nil {
+		unlock()
+		t.Fatal("blocked reader lost exact lifecycle lock")
+	}
+	readerOnce.Do(func() { close(readerRelease) })
+	select {
+	case value := <-finished:
+		if value.err != nil || value.out.State == "complete" || !value.out.ReaderSettled || !value.out.CleanupConfirmed || value.out.ResourcesHeld {
+			t.Fatal("cancelled parser became accepted evidence or failed settlement", value.out, value.err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("settled inert reader left lifecycle hanging")
+	}
+}
+
+func TestDocumentRunningPublisherFailureCannotPreventEmergencyRetirement(t *testing.T) {
+	a, f, req := inertDocumentFixture(t)
+	f.stayRunning = true
+	retireRequested := false
+	f.retireHook = func() error { retireRequested = true; return nil }
+	out, err := a.executeDocumentExtraction(context.Background(), req, func(out product.DiscoveryExtractionOutcome) error {
+		if out.Stage == "running" {
+			return errors.New("inert running publication failure")
+		}
+		if out.Stage == "cleanup" {
+			if !retireRequested {
+				t.Fatal("failed publisher ran before emergency stop")
+			}
+			return errors.New("inert cleanup publication failure")
+		}
+		return nil
+	})
+	if err == nil || !retireRequested || f.retires != 1 || !out.ResourcesHeld || out.State == "complete" {
+		t.Fatal("running publication failure defeated stop or released uncertainty", out, err)
+	}
+	lease, readErr := a.execution.documentLease(context.Background(), req.ProjectID, req.DocumentID, req.AttemptID)
+	if readErr != nil || lease.State == "finished" {
+		t.Fatal("failed durable publication released capacity", lease, readErr)
 	}
 }
 

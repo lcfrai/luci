@@ -116,7 +116,7 @@ func validDiscoveryNativeOutcome(req DiscoveryExtractionRequest, out DiscoveryEx
 	if out.Ref != "" && !hexDigest(out.Ref) {
 		return false
 	}
-	if out.CleanupConfirmed && !out.ReaderSettled || !out.ResourcesHeld && out.Identity != (backend.DocumentExtractionIdentity{}) && !out.CleanupConfirmed {
+	if !out.ResourcesHeld && out.Identity != (backend.DocumentExtractionIdentity{}) && (!out.CleanupConfirmed || !out.ReaderSettled) {
 		return false
 	}
 	switch out.State {

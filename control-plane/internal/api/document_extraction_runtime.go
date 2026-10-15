@@ -150,6 +150,28 @@ func (a *API) executeDocumentExtraction(ctx context.Context, req product.Discove
 		bounded, stop := context.WithDeadline(context.Background(), req.WholeDeadline)
 		defer stop()
 		out.Stage, out.ReasonCode, out.Message = "cleanup", code, message
+		var absent backend.DocumentExtractionObservation
+		retired := false
+		retire := func() {
+			if err := executor.RetireDocument(bounded, identity, out.Ref); err != nil {
+				out.State, out.ReasonCode = "unknown", "document_cleanup_unconfirmed"
+				return
+			}
+			observed, err := executor.InspectDocument(bounded, identity, out.Ref)
+			if err != nil || observed.State != "absent" || observed.Ref != out.Ref {
+				out.State, out.ReasonCode = "unknown", "document_absence_unconfirmed"
+				return
+			}
+			absent, retired, out.CleanupConfirmed = observed, true, true
+		}
+		// Emergency retirement of a positively ACKed CID must not depend on
+		// capture closure, private receipt publication or a ledger write. The
+		// typed backend revalidates its exact identity/config before removal.
+		// Keep the lease/lock charged until reader and durable state catch up.
+		emergency := code != "" && out.Ref != ""
+		if emergency {
+			retire()
+		}
 		if stream != nil {
 			stream.Close()
 			if captured != nil {
@@ -171,7 +193,8 @@ func (a *API) executeDocumentExtraction(ctx context.Context, req product.Discove
 				}
 			}
 		}
-		// Publish complete captured bytes before retiring the only container.
+		// Ordinary already-exited success preserves complete capture before
+		// retirement. Emergency stop has already been attempted independently.
 		if _, err := publish(); err != nil {
 			return out, err
 		}
@@ -190,15 +213,10 @@ func (a *API) executeDocumentExtraction(ctx context.Context, req product.Discove
 			out.State = "unknown"
 			return publish()
 		}
-		if err := executor.RetireDocument(bounded, identity, out.Ref); err != nil {
-			out.State = "unknown"
-			out.ReasonCode = "document_cleanup_unconfirmed"
-			return publish()
+		if !emergency {
+			retire()
 		}
-		absent, err := executor.InspectDocument(bounded, identity, out.Ref)
-		if err != nil || absent.State != "absent" || absent.Ref != out.Ref {
-			out.State = "unknown"
-			out.ReasonCode = "document_absence_unconfirmed"
+		if !retired {
 			return publish()
 		}
 		out = documentSettled(out)
