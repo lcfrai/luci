@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { distributeArtifactsApi, type DistributeArtifact } from '../../api/distributeArtifacts';
+import { projectRunsApi } from '../../api/projectRuns';
 import { resetCockpit } from '../../store/store';
 import { ArtifactWorkspace } from './ArtifactWorkspace';
 
@@ -14,18 +15,21 @@ it('keeps preparation private, saves exact source, then records a review without
   const prepare=vi.spyOn(distributeArtifactsApi,'prepare').mockResolvedValue({draft,prepareDigest:digest});
   const save=vi.spyOn(distributeArtifactsApi,'save').mockResolvedValue({artifact:draft,freshness:'current'});
   const review=vi.spyOn(distributeArtifactsApi,'review').mockResolvedValue({artifact:{...draft,revision:2,state:'reviewed',review:{actor:{id:'u-one',displayName:'Reviewer'},at:'now',digest}},freshness:'current'});
+  const download=vi.spyOn(distributeArtifactsApi,'download').mockResolvedValue();
   render(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
   await userEvent.selectOptions(screen.getByLabelText('Artifact kind'),'risk');
   await userEvent.click(screen.getByRole('button',{name:'Prepare source draft'}));
   expect(await screen.findByText('Gap: No exact check receipt was selected.')).toBeTruthy();
-  expect(prepare).toHaveBeenCalledExactlyOnceWith('p-one','risk');
+  expect(prepare).toHaveBeenCalledExactlyOnceWith('p-one','risk','');
   expect(save).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button',{name:'Save private draft'}));
   await screen.findByText(/Private draft saved/);
-  expect(save).toHaveBeenCalledWith('p-one','risk',digest,expect.stringMatching(/^distribute-artifact-/));
+  expect(save).toHaveBeenCalledWith('p-one','risk','',digest,expect.stringMatching(/^distribute-artifact-/));
   await userEvent.click(screen.getByRole('button',{name:'Mark reviewed'}));
   await screen.findByText(/Review recorded/);
   expect(review).toHaveBeenCalledWith('p-one',draft,expect.stringMatching(/^distribute-artifact-/));
+  await userEvent.click(screen.getByRole('button',{name:'Download DOCX'}));
+  expect(download).toHaveBeenCalledWith('p-one',expect.objectContaining({revision:2,state:'reviewed'}),'docx',expect.any(Function));
   expect(screen.queryByRole('button',{name:/Publish/})).toBeNull();
 });
 
@@ -39,4 +43,17 @@ it('preserves unsaved edits and blocks review when the saved source is outdated'
   expect(screen.getByRole('button',{name:'Mark reviewed'}).hasAttribute('disabled')).toBe(true);
   expect(review).not.toHaveBeenCalled();
   await waitFor(()=>expect(screen.getByLabelText('Title')).toHaveProperty('value',draft.title));
+});
+
+it('selects only a read-back accepted run and keeps its exact receipt in preparation',async()=>{
+  vi.spyOn(projectRunsApi,'list').mockResolvedValue([{id:'run-accepted',state:'complete',acceptance:{checkId:'check-one',releaseId:'release-one',acceptedAt:'2026-10-15T00:00:00Z'}},{id:'run-waiting',state:'awaiting-release'}] as Awaited<ReturnType<typeof projectRunsApi.list>>);
+  const prepare=vi.spyOn(distributeArtifactsApi,'prepare').mockResolvedValue({draft:{...draft,source:{...draft.source,selectedEvidence:{runId:'run-accepted',runRevision:4,checkId:'check-one',releaseId:'release-one',commit:'b'.repeat(40),sourceDigest:digest,checkDigest:digest,releaseDigest:digest,acceptedAt:'2026-10-15T00:00:00Z'}}},prepareDigest:digest});
+  render(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+  await userEvent.click(screen.getByRole('button',{name:'Load accepted run evidence'}));
+  expect(await screen.findByRole('option',{name:/run-accepted/})).toBeTruthy();
+  expect(screen.queryByRole('option',{name:/run-waiting/})).toBeNull();
+  await userEvent.selectOptions(screen.getByLabelText('Exact check and release'),'run-accepted');
+  await userEvent.click(screen.getByRole('button',{name:'Prepare source draft'}));
+  await screen.findByText(/accepted run run-accepted/);
+  expect(prepare).toHaveBeenCalledWith('p-one','proposal','run-accepted');
 });

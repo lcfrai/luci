@@ -85,6 +85,7 @@ var teamRouteRules = []teamRouteRule{
 	{"POST /v1/product/projects/{projectId}/distribute/artifacts/prepare", teamEdit},
 	{"POST /v1/product/projects/{projectId}/distribute/artifacts", teamEdit},
 	{"GET /v1/product/projects/{projectId}/distribute/artifacts/{artifactId}", teamRead},
+	{"GET /v1/product/projects/{projectId}/distribute/artifacts/{artifactId}/exports/{format}", teamRead},
 	{"POST /v1/product/projects/{projectId}/distribute/artifacts/{artifactId}/revise", teamEdit},
 	{"POST /v1/product/projects/{projectId}/distribute/artifacts/{artifactId}/review", teamEdit},
 	{"GET /v1/healthz", teamRead},

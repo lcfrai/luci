@@ -37,6 +37,7 @@ var productReadOnlyRoutes = map[string]string{
 	"GET /v1/product/projects/{id}/control-assessment/report.xlsx":                             "Renders an inert bounded private XLSX from saved current assessment bytes without running macros or writes.",
 	"GET /v1/product/projects/{id}/distribute/artifacts":                                       "Reads bounded saved project artifact metadata and source revisions without generating, reviewing or exporting.",
 	"GET /v1/product/projects/{id}/distribute/artifacts/{artifactId}":                          "Reads one exact saved private artifact and its bounded immutable revision history without mutation.",
+	"GET /v1/product/projects/{id}/distribute/artifacts/{artifactId}/exports/{format}":         "Renders a bounded inert native document from the exact saved revision; creates no files or publication effect.",
 	"GET /v1/product/projects/{id}/runs/{runId}/swarm/supervision":                             "Projects bounded saved run/task/message/review evidence with no provider observation or dispatch.",
 	"GET /v1/product/projects/{id}/runs/{runId}/swarm/messages/{messageId}":                    "Reads one exact saved attributed message without delivery, ack or replay.",
 	"GET /v1/product/projects/{id}/runs/{runId}/swarm/review-obligations/{obligationId}":       "Reads one exact saved reviewer obligation without assigning or resolving it.",
@@ -261,7 +262,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 		if pattern != previewPattern && productReadOnlyRoutes[pattern] == "" {
 			t.Fatalf("unaudited read route %q", pattern)
 		}
-		path = strings.NewReplacer("{id}", p.ID, "{artifactId}", "missing-artifact", "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{runId}", "missing-run", "{contractId}", "missing-contract", "{handoffId}", "missing-handoff", "{continuationId}", "missing-continuation", "{intentId}", "intent-000000000000000000000000", "{eventId}", "event-000000000000000000000000", "{taskId}", "missing-task", "{path...}", "").Replace(path)
+		path = strings.NewReplacer("{id}", p.ID, "{artifactId}", "missing-artifact", "{format}", "docx", "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{runId}", "missing-run", "{contractId}", "missing-contract", "{handoffId}", "missing-handoff", "{continuationId}", "missing-continuation", "{intentId}", "intent-000000000000000000000000", "{eventId}", "event-000000000000000000000000", "{taskId}", "missing-task", "{path...}", "").Replace(path)
 		if strings.HasSuffix(pattern, "/swarm/operations/{operationId}/workspace/file") {
 			path += "?path=ordinary.txt"
 		}

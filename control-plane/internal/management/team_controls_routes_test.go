@@ -31,6 +31,7 @@ func TestTeamControlRoutesSeparateAdminAndProjectAuthority(t *testing.T) {
 		{"POST", "/v1/product/projects/p-one/distribute/artifacts/prepare", viewer, false, "p-one"},
 		{"POST", "/v1/product/projects/p-one/distribute/artifacts", editor, true, "p-one"},
 		{"GET", "/v1/product/projects/p-one/distribute/artifacts/artifact-one", viewer, true, "p-one"},
+		{"GET", "/v1/product/projects/p-one/distribute/artifacts/artifact-one/exports/docx", viewer, true, "p-one"},
 		{"POST", "/v1/product/projects/p-one/distribute/artifacts/artifact-one/revise", viewer, false, "p-one"},
 		{"POST", "/v1/product/projects/p-one/distribute/artifacts/artifact-one/review", editor, true, "p-one"},
 	} {

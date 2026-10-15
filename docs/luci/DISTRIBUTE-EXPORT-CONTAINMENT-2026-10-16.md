@@ -22,14 +22,17 @@ content digest, exact project/revision and visible draft/stale notice.
 
 Workbook admission must account for the existing 2 MiB compressed and 8 MiB
 expanded XML limits, at most 2,000 rows and one decoded workbook per request.
-Use one shared in-process parse/export slot with a bounded acquisition wait and
-request cancellation; a busy slot returns a recoverable response before ZIP
+Use the host-owned `ExecutionStateDir/distribute-work.lock` and the existing
+execution-admission OS file-lock primitive to permit one parse/export across
+managed user/API worker processes. Exact regular-file/private-path checks and
+a fresh host-memory sample require the configured policy reserve plus 256 MiB
+before work begins. Acquisition and work use the request's 30-second deadline;
+a busy or low-capacity slot returns a recoverable response before ZIP
 decode or output allocation. Serial assessment reports and future artifact
-exports charge their complete projected output and one active encoder to the
-same slot. Never queue unbounded request bodies, retain multiple expanded
+exports share that permit and retain their individual bounded output checks.
+Never queue unbounded request bodies, retain multiple expanded
 workbooks, or run conversion in the UI thread. The current XLSX route bounds
-individual requests; the shared concurrency admission is required before
-claiming constrained-PC export acceptance.
+individual requests; source admission is not an installed Windows capacity pass.
 
 PDF needs a concrete font and layout renderer with original licence,
 version/digest, packaging for each supported host, bounded memory/time/output,

@@ -17,7 +17,7 @@
     "projectId": "server-owned exact project",
     "revision": "CAS integer; immutable prior revisions retained",
     "kind": "risk | go-to-market | proposal | pricing | presentation",
-    "source": "exact brief/specification/Design/plan revisions and digests, assessment revision/library digest, selected immutable run check and accepted release evidence; unselected or unavailable source is explicit",
+    "source": "exact brief/specification/Design/plan revisions and digests, assessment revision/library digest; optional selectedEvidence carries exact accepted run revision, check/release IDs and snapshot digests, candidate commit/source digest and acceptance time. Missing or unavailable evidence remains explicit",
     "title": "bounded editable title",
     "sections": "bounded ordered headings, prose, bullets and tables; source references carry stable IDs and never instructions or authority",
     "gaps": "explicit missing facts, unavailable evidence and unconfirmed claims",
@@ -26,5 +26,6 @@
     "review": "authenticated actor, revision/digest and timestamp; review is not publication or compliance approval"
   },
   "bounds": {"artifactBytes": 262144, "sections": 40, "textUTF8Bytes": 8192, "historyRevisions": 20, "projectArtifacts": 100, "exportBytes": 16777216},
+  "exportStatus": "Native private DOCX and XLSX include all saved section text, source references, gaps, assumptions, review and source-freshness warning. PDF and PPTX remain unavailable until faithful bounded renderers and dependency/font closure are verified.",
   "trust": "No client-provided source identity is trusted without private readback. No model answer, draft, exported file or user review grants execution, spending, deployment, external delivery or compliance authority."
 }

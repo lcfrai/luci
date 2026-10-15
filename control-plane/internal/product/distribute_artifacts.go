@@ -19,20 +19,33 @@ const artifactLedgerLimit = 8 << 20
 
 var errArtifact = errors.New("The private artifact or its exact source is unavailable or invalid.")
 
+type DistributeArtifactEvidence struct {
+	RunID         string `json:"runId"`
+	CheckID       string `json:"checkId"`
+	ReleaseID     string `json:"releaseId"`
+	Commit        string `json:"commit"`
+	SourceDigest  string `json:"sourceDigest"`
+	RunRevision   int    `json:"runRevision"`
+	CheckDigest   string `json:"checkDigest"`
+	ReleaseDigest string `json:"releaseDigest"`
+	AcceptedAt    string `json:"acceptedAt"`
+}
+
 type DistributeArtifactSource struct {
-	BriefRevision         int    `json:"briefRevision"`
-	BriefDigest           string `json:"briefDigest"`
-	SpecificationRevision int    `json:"specificationRevision"`
-	SpecificationDigest   string `json:"specificationDigest"`
-	DesignRevision        int    `json:"designRevision"`
-	DesignDigest          string `json:"designDigest"`
-	PlanRevision          int    `json:"planRevision"`
-	PlanDigest            string `json:"planDigest"`
-	TeamID                string `json:"teamId,omitempty"`
-	LibraryRevision       int    `json:"libraryRevision,omitempty"`
-	LibraryDigest         string `json:"libraryDigest,omitempty"`
-	AssessmentRevision    int    `json:"assessmentRevision,omitempty"`
-	AssessmentDigest      string `json:"assessmentDigest,omitempty"`
+	BriefRevision         int                         `json:"briefRevision"`
+	BriefDigest           string                      `json:"briefDigest"`
+	SpecificationRevision int                         `json:"specificationRevision"`
+	SpecificationDigest   string                      `json:"specificationDigest"`
+	DesignRevision        int                         `json:"designRevision"`
+	DesignDigest          string                      `json:"designDigest"`
+	PlanRevision          int                         `json:"planRevision"`
+	PlanDigest            string                      `json:"planDigest"`
+	TeamID                string                      `json:"teamId,omitempty"`
+	LibraryRevision       int                         `json:"libraryRevision,omitempty"`
+	LibraryDigest         string                      `json:"libraryDigest,omitempty"`
+	AssessmentRevision    int                         `json:"assessmentRevision,omitempty"`
+	AssessmentDigest      string                      `json:"assessmentDigest,omitempty"`
+	SelectedEvidence      *DistributeArtifactEvidence `json:"selectedEvidence,omitempty"`
 	// A report does not imply a check or release. Those evidence joins remain
 	// explicit gaps until selected immutable receipts can be validated.
 	Checks  string `json:"checks"`
@@ -92,24 +105,54 @@ func artifactDigest(value DistributeArtifact) string {
 	value.RequestDigest = ""
 	return reviewDigest(value)
 }
+func validArtifactXMLText(value string) bool {
+	if !utf8.ValidString(value) {
+		return false
+	}
+	for _, char := range value {
+		if char < 0x20 && char != '\t' && char != '\n' && char != '\r' {
+			return false
+		}
+	}
+	return true
+}
+func validArtifactSource(value DistributeArtifactSource) bool {
+	if !hexDigest(value.BriefDigest) || !hexDigest(value.SpecificationDigest) || !hexDigest(value.DesignDigest) || !hexDigest(value.PlanDigest) || value.BriefRevision < 0 || value.SpecificationRevision < 0 || value.DesignRevision < 0 || value.PlanRevision < 0 || value.LibraryRevision < 0 || value.AssessmentRevision < 0 {
+		return false
+	}
+	if value.LibraryRevision > 0 && (!hexDigest(value.LibraryDigest) || value.TeamID == "") || value.AssessmentRevision > 0 && (!hexDigest(value.AssessmentDigest) || value.LibraryRevision == 0) {
+		return false
+	}
+	if selected := value.SelectedEvidence; selected != nil {
+		if value.Checks != "accepted-selected" || value.Release != "accepted-selected" || !prototypeReleaseID.MatchString(selected.RunID) || !prototypeReleaseID.MatchString(selected.CheckID) || !prototypeReleaseID.MatchString(selected.ReleaseID) || selected.RunRevision < 1 || !deliverySHA.MatchString(selected.Commit) || !hexDigest(selected.SourceDigest) || !hexDigest(selected.CheckDigest) || !hexDigest(selected.ReleaseDigest) {
+			return false
+		}
+		if _, err := time.Parse(time.RFC3339Nano, selected.AcceptedAt); err != nil {
+			return false
+		}
+	} else if value.Checks != "not-selected" || value.Release != "not-selected" {
+		return false
+	}
+	return true
+}
 func validArtifactContent(value DistributeArtifact) bool {
-	if !validArtifactKind(value.Kind) || !utf8.ValidString(value.Title) || strings.TrimSpace(value.Title) == "" || len(value.Title) > 200 || len(value.Sections) == 0 || len(value.Sections) > 40 || len(value.Gaps) > 100 || len(value.Assumptions) > 100 {
+	if !validArtifactKind(value.Kind) || !validArtifactSource(value.Source) || !validArtifactXMLText(value.Title) || strings.TrimSpace(value.Title) == "" || len(value.Title) > 200 || len(value.Sections) == 0 || len(value.Sections) > 40 || len(value.Gaps) > 100 || len(value.Assumptions) > 100 {
 		return false
 	}
 	seen := map[string]bool{}
 	for _, section := range value.Sections {
-		if !controlIDPattern.MatchString(section.ID) || seen[section.ID] || strings.TrimSpace(section.Heading) == "" || !utf8.ValidString(section.Heading) || len(section.Heading) > 200 || len(section.Body) > 8192 || !utf8.ValidString(section.Body) || len(section.Bullets) > 100 || len(section.SourceRefs) > 100 {
+		if !controlIDPattern.MatchString(section.ID) || seen[section.ID] || strings.TrimSpace(section.Heading) == "" || !validArtifactXMLText(section.Heading) || len(section.Heading) > 200 || len(section.Body) > 8192 || !validArtifactXMLText(section.Body) || len(section.Bullets) > 100 || len(section.SourceRefs) > 100 {
 			return false
 		}
 		seen[section.ID] = true
 		for _, item := range append(append([]string{}, section.Bullets...), section.SourceRefs...) {
-			if len(item) > 8192 || !utf8.ValidString(item) {
+			if len(item) > 8192 || !validArtifactXMLText(item) {
 				return false
 			}
 		}
 	}
 	for _, item := range append(append([]string{}, value.Gaps...), value.Assumptions...) {
-		if len(item) > 8192 || !utf8.ValidString(item) {
+		if len(item) > 8192 || !validArtifactXMLText(item) {
 			return false
 		}
 	}
@@ -165,13 +208,53 @@ func writeArtifactLedger(path string, ledger distributeArtifactLedger) error {
 
 // Caller holds s.mu then teamControlsMu. All source claims are server-derived from one private
 // project snapshot; no selected check/release is invented from generic status.
-func (s *Server) artifactSource(ctx context.Context, p project.Project) (DistributeArtifactSource, journeyState, *TeamControlRevision, *ControlAssessment, error) {
+func acceptedArtifactEvidence(run ProjectRun) (*DistributeArtifactEvidence, error) {
+	if run.State != "complete" || run.Acceptance == nil || run.Acceptance.CheckID == "" || run.Acceptance.ReleaseID == "" {
+		return nil, errArtifact
+	}
+	var check *ProjectRunCheckEvidence
+	for i := range run.Checks {
+		if run.Checks[i].CheckID == run.Acceptance.CheckID {
+			check = &run.Checks[i]
+			break
+		}
+	}
+	var release *ProjectRunReleaseEvidence
+	for i := range run.Releases {
+		if run.Releases[i].ReleaseID == run.Acceptance.ReleaseID {
+			release = &run.Releases[i]
+			break
+		}
+	}
+	if check == nil || release == nil || !check.OriginalAvailable || release.CheckID != check.CheckID || release.Commit != check.Commit || release.SourceDigest != check.SourceDigest {
+		return nil, errArtifact
+	}
+	return &DistributeArtifactEvidence{RunID: run.ID, RunRevision: run.Revision, CheckID: check.CheckID, ReleaseID: release.ReleaseID, Commit: check.Commit, SourceDigest: check.SourceDigest, CheckDigest: reviewDigest(check), ReleaseDigest: reviewDigest(release), AcceptedAt: run.Acceptance.AcceptedAt}, nil
+}
+
+func (s *Server) artifactSource(ctx context.Context, p project.Project, selectedRun string) (DistributeArtifactSource, journeyState, *TeamControlRevision, *ControlAssessment, error) {
 	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		return DistributeArtifactSource{}, state, nil, nil, err
 	}
 	spec, design, plan := currentSpecification(state), currentDesignPlan(state), currentPlan(state, p.ID)
 	source := DistributeArtifactSource{BriefRevision: state.Brief.Revision, BriefDigest: reviewDigest(state.Brief), SpecificationRevision: spec.Revision, SpecificationDigest: reviewDigest(spec), DesignRevision: design.Revision, DesignDigest: reviewDigest(design), PlanRevision: plan.Revision, PlanDigest: reviewDigest(plan), Checks: "not-selected", Release: "not-selected"}
+	if selectedRun != "" {
+		if !prototypeReleaseID.MatchString(selectedRun) {
+			return source, state, nil, nil, errArtifact
+		}
+		run, e := s.projectRuns.Get(p.ID, p.Path, selectedRun)
+		if e != nil {
+			return source, state, nil, nil, e
+		}
+		selected, e := acceptedArtifactEvidence(run)
+		if e != nil {
+			return source, state, nil, nil, e
+		}
+		source.SelectedEvidence = selected
+		source.Checks = "accepted-selected"
+		source.Release = "accepted-selected"
+	}
 	access, scoped := management.TeamAccessFromContext(ctx)
 	if !scoped {
 		return source, state, nil, nil, nil
@@ -255,17 +338,30 @@ func generatedArtifact(kind, projectID string, source DistributeArtifactSource, 
 			value.Gaps = append(value.Gaps, "The current team control library has no current project assessment.")
 		}
 	}
-	value.Gaps = append(value.Gaps, "No exact implementation-check receipt was selected for this artifact.", "No accepted release evidence was selected for this artifact.")
+	if source.SelectedEvidence == nil {
+		value.Gaps = append(value.Gaps, "No exact implementation-check receipt was selected for this artifact.", "No accepted release evidence was selected for this artifact.")
+	} else {
+		selected := source.SelectedEvidence
+		add("verification", "Selected accepted run evidence", "The named run retains an exact checked candidate and accepted observed release. The evidence records this project's past outcome; it does not verify new edits.", []string{"Run: " + selected.RunID, "Check: " + selected.CheckID, "Release: " + selected.ReleaseID, "Candidate commit: " + selected.Commit}, "run:"+selected.RunID+":"+selected.CheckDigest, "release:"+selected.ReleaseID+":"+selected.ReleaseDigest)
+	}
 	switch kind {
 	case "risk":
+		add("risk-register", "Risks to review", "This is a review queue, not a scored or mitigated risk register.", []string{"Evidence quality: check each cited source and unresolved assessment gap.", "Delivery: confirm the saved tasks have passing independent checks before claiming readiness.", "Operations: confirm an accepted release and recovery evidence before external delivery."}, fmt.Sprintf("specification:%d:%s", source.SpecificationRevision, source.SpecificationDigest))
 		value.Assumptions = append(value.Assumptions, "Likelihood and impact require review against real incidents and check evidence.")
 	case "go-to-market":
+		add("audience", "Audience and value", "The saved audience and purpose supply a starting value statement; demand and positioning have not been tested.", []string{"Audience: " + brief.Audience, "Purpose: " + brief.Purpose}, fmt.Sprintf("brief:%d:%s", source.BriefRevision, source.BriefDigest))
+		add("launch-readiness", "Launch readiness", "Choose channels and timing only after saved requirement checks, release observation and commercial review.", []string{"Channel: unconfirmed", "Launch date: unconfirmed", "Distribution owner: unconfirmed"})
+		value.Gaps = append(value.Gaps, "No observed demand, channel decision or launch date was selected.")
 		value.Assumptions = append(value.Assumptions, "Distribution channel, launch timing, adoption and demand are not verified by saved project context.")
 	case "proposal":
+		add("scope", "Proposed scope and acceptance", "Use the saved requirements and their criteria as the reviewable scope. Amend the source before treating a changed promise as approved.", []string{"Deliverables require a reviewed implementation plan and exact check evidence.", "Schedule, service terms and external commitments remain unconfirmed."}, fmt.Sprintf("specification:%d:%s", source.SpecificationRevision, source.SpecificationDigest))
 		value.Assumptions = append(value.Assumptions, "Delivery estimate and customer commitment require separate evidence and approval.")
 	case "pricing":
+		add("commercial-basis", "Pricing basis", "No rate, unit, currency, tax treatment or margin can be calculated from the saved project context alone.", []string{"Unit and quantity: not selected", "Price and currency: not selected", "Cost evidence and payment terms: not selected"})
+		value.Gaps = append(value.Gaps, "A real price quote needs reviewed units, costs, currency, tax and commercial approval.")
 		value.Assumptions = append(value.Assumptions, "No product price, currency, margin or external cost is known from this project; enter and review real commercial evidence before quoting.")
 	case "presentation":
+		add("narrative", "Presentation sequence", "Use the saved purpose, criteria, Design screens and implementation plan as the presentation outline. Keep unresolved claims visible.", []string{"Problem and audience: saved brief", "Solution and acceptance: saved requirements", "Experience: saved Design", "Evidence, risks and next decision: selected receipts or explicit gaps"}, fmt.Sprintf("brief:%d:%s", source.BriefRevision, source.BriefDigest), fmt.Sprintf("design:%d:%s", source.DesignRevision, source.DesignDigest))
 		value.Assumptions = append(value.Assumptions, "Claims in presentation material require exact current check and release evidence before external use.")
 	}
 	return value
@@ -274,9 +370,10 @@ func generatedArtifact(kind, projectID string, source DistributeArtifactSource, 
 func (s *Server) registerDistributeArtifacts(mux Registrar) {
 	base := "/v1/product/projects/{id}/distribute/artifacts"
 	mux.HandleFunc("GET "+base, s.listDistributeArtifacts)
-	mux.HandleFunc("POST "+base+"/prepare", s.prepareDistributeArtifact)
-	mux.HandleFunc("POST "+base, s.saveDistributeArtifact)
+	mux.HandleFunc("POST "+base+"/prepare", s.boundedDistributeWork(s.prepareDistributeArtifact))
+	mux.HandleFunc("POST "+base, s.boundedDistributeWork(s.saveDistributeArtifact))
 	mux.HandleFunc("GET "+base+"/{artifactId}", s.getDistributeArtifact)
+	mux.HandleFunc("GET "+base+"/{artifactId}/exports/{format}", s.boundedDistributeWork(s.exportDistributeArtifact))
 	mux.HandleFunc("POST "+base+"/{artifactId}/revise", s.reviseDistributeArtifact)
 	mux.HandleFunc("POST "+base+"/{artifactId}/review", s.reviewDistributeArtifact)
 }
@@ -301,7 +398,8 @@ func (s *Server) prepareDistributeArtifact(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var req struct {
-		Kind string `json:"kind"`
+		Kind  string `json:"kind"`
+		RunID string `json:"runId"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
@@ -312,7 +410,7 @@ func (s *Server) prepareDistributeArtifact(w http.ResponseWriter, r *http.Reques
 	}
 	s.mu.RLock()
 	s.teamControlsMu.Lock()
-	source, state, library, assessment, err := s.artifactSource(r.Context(), p)
+	source, state, library, assessment, err := s.artifactSource(r.Context(), p, req.RunID)
 	s.teamControlsMu.Unlock()
 	s.mu.RUnlock()
 	if err != nil {
@@ -367,7 +465,7 @@ func (s *Server) saveDistributeArtifact(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	actor, _ := authenticatedContextActor(r.Context())
-	var req struct{ Kind, PrepareDigest, IdempotencyKey string }
+	var req struct{ Kind, RunID, PrepareDigest, IdempotencyKey string }
 	if !journeyDecode(w, r, &req) {
 		return
 	}
@@ -397,7 +495,7 @@ func (s *Server) saveDistributeArtifact(w http.ResponseWriter, r *http.Request) 
 		journeyError(w, 409, "artifact_history_full", "This project reached its bounded artifact history. Existing records remain readable.")
 		return
 	}
-	source, state, library, assessment, err := s.artifactSource(r.Context(), p)
+	source, state, library, assessment, err := s.artifactSource(r.Context(), p, req.RunID)
 	if err != nil {
 		artifactProblem(w, err)
 		return
@@ -434,7 +532,7 @@ func (s *Server) listDistributeArtifacts(w http.ResponseWriter, r *http.Request)
 		artifactProblem(w, err)
 		return
 	}
-	source, _, _, _, err := s.artifactSource(r.Context(), p)
+	source, _, _, _, err := s.artifactSource(r.Context(), p, "")
 	if err != nil {
 		artifactProblem(w, err)
 		return
@@ -445,7 +543,11 @@ func (s *Server) listDistributeArtifacts(w http.ResponseWriter, r *http.Request)
 		if row.Source.TeamID != "" && row.Source.TeamID != source.TeamID {
 			continue
 		}
-		rows = append(rows, map[string]any{"id": row.ID, "kind": row.Kind, "title": row.Title, "revision": row.Revision, "state": row.State, "freshness": artifactCurrentView(row, source)["freshness"], "digest": row.Digest})
+		freshness := artifactCurrentView(row, source)["freshness"]
+		if row.Source.SelectedEvidence != nil {
+			freshness = "requires-readback"
+		}
+		rows = append(rows, map[string]any{"id": row.ID, "kind": row.Kind, "title": row.Title, "revision": row.Revision, "state": row.State, "freshness": freshness, "digest": row.Digest})
 	}
 	journeyJSON(w, 200, map[string]any{"projectId": p.ID, "artifacts": rows})
 }
@@ -471,12 +573,21 @@ func (s *Server) getDistributeArtifact(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 404, "artifact_unavailable", "This artifact is not retained in the current project.")
 		return
 	}
-	source, _, _, _, err := s.artifactSource(r.Context(), p)
-	if err != nil {
-		artifactProblem(w, err)
+	row := record.Revisions[len(record.Revisions)-1]
+	access, scoped := management.TeamAccessFromContext(r.Context())
+	if row.Source.TeamID != "" && (!scoped || access.Team.ID != row.Source.TeamID || !access.Permissions.Read || access.ProjectID != p.ID) {
+		journeyError(w, 403, "artifact_scope_changed", "Current team access does not cover this artifact.")
 		return
 	}
-	row := record.Revisions[len(record.Revisions)-1]
+	selectedRun := ""
+	if row.Source.SelectedEvidence != nil {
+		selectedRun = row.Source.SelectedEvidence.RunID
+	}
+	source, _, _, _, err := s.artifactSource(r.Context(), p, selectedRun)
+	if err != nil {
+		journeyJSON(w, 200, map[string]any{"artifact": row, "history": record.Revisions, "freshness": "unavailable"})
+		return
+	}
 	if row.Source.TeamID != "" && row.Source.TeamID != source.TeamID {
 		journeyError(w, 403, "artifact_scope_changed", "Current team access does not cover this artifact.")
 		return
@@ -530,7 +641,11 @@ func (s *Server) reviseDistributeArtifact(w http.ResponseWriter, r *http.Request
 		return
 	}
 	prior := record.Revisions[len(record.Revisions)-1]
-	source, _, _, _, err := s.artifactSource(r.Context(), p)
+	selectedRun := ""
+	if prior.Source.SelectedEvidence != nil {
+		selectedRun = prior.Source.SelectedEvidence.RunID
+	}
+	source, _, _, _, err := s.artifactSource(r.Context(), p, selectedRun)
 	if err != nil {
 		artifactProblem(w, err)
 		return
@@ -621,7 +736,11 @@ func (s *Server) reviewDistributeArtifact(w http.ResponseWriter, r *http.Request
 		journeyError(w, 409, "artifact_already_reviewed", "This exact revision has already been reviewed.")
 		return
 	}
-	source, _, _, _, err := s.artifactSource(r.Context(), p)
+	selectedRun := ""
+	if prior.Source.SelectedEvidence != nil {
+		selectedRun = prior.Source.SelectedEvidence.RunID
+	}
+	source, _, _, _, err := s.artifactSource(r.Context(), p, selectedRun)
 	if err != nil {
 		artifactProblem(w, err)
 		return

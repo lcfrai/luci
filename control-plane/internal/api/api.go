@@ -440,6 +440,7 @@ func New(d Deps) (*API, error) {
 	a := &API{deps: d}
 	a.execution = newExecutionAdmission(a)
 	if d.Product != nil {
+		d.Product.SetDistributeWorkAdmission(a.admitDistributeWork)
 		d.Product.SetPreviewRuntime(a.previewRuntime())
 		d.Product.SetRuntimeInstaller(a.runtimeInstaller())
 		d.Product.SetProjectSwarmRecovery(a.proveSwarmMissingChild, a.finalizeSwarmMissingChild)
