@@ -101,6 +101,9 @@ type Deps struct {
 	// Backend runs sandboxes. This task calls only Kind(); tasks 11 to 13 use
 	// the rest of the interface.
 	Backend backend.Backend
+	// Optional exact selected-engine contained document executor. Nil leaves
+	// PDF/image extraction unavailable without affecting text intake.
+	DocumentExtractor backend.DocumentExtractionExecutor
 
 	// BackendReady is the cached liveness of that backend, refreshed by task
 	// 13's reaper on its own timer. Contract §3.3 calls it "a cached result of
@@ -441,6 +444,7 @@ func New(d Deps) (*API, error) {
 	a.execution = newExecutionAdmission(a)
 	if d.Product != nil {
 		d.Product.SetPreviewRuntime(a.previewRuntime())
+		d.Product.SetDiscoveryExtractionRuntime(a.documentExtractionRuntime())
 		d.Product.SetRuntimeInstaller(a.runtimeInstaller())
 		d.Product.SetProjectSwarmRecovery(a.proveSwarmMissingChild, a.finalizeSwarmMissingChild)
 		d.Product.SetProjectSwarmFenceRecovery(a.projectSwarmFenceRecoveryAvailability, a.authorizeSwarmFenceRecovery, a.acquireSwarmFenceRecovery, a.proveSwarmFencedLaunch, a.finalizeSwarmFencedLaunch)

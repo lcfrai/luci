@@ -78,13 +78,19 @@ type DiscoveryDocumentExtraction struct {
 	Actor            ContextActor            `json:"actor"`
 }
 type DiscoveryDocumentAttempt struct {
-	ID         string       `json:"id"`
-	Status     string       `json:"status"`
-	StartedAt  string       `json:"startedAt"`
-	ExpiresAt  string       `json:"expiresAt"`
-	FinishedAt string       `json:"finishedAt,omitempty"`
-	Actor      ContextActor `json:"actor"`
+	ID               string       `json:"id"`
+	ExecutionProfile string       `json:"executionProfile,omitempty"`
+	Status           string       `json:"status"`
+	StartedAt        string       `json:"startedAt"`
+	ExpiresAt        string       `json:"expiresAt"`
+	FinishedAt       string       `json:"finishedAt,omitempty"`
+	Actor            ContextActor `json:"actor"`
 }
+
+func (s *Server) SetDiscoveryExtractionRuntime(value DiscoveryExtractionRuntime) {
+	s.discoveryExtractionRuntime = prepareDiscoveryExtractionRuntime(value)
+}
+
 type DiscoveryDocument struct {
 	ID          string                        `json:"id"`
 	ProjectID   string                        `json:"projectId"`

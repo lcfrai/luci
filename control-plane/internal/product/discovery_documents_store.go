@@ -139,7 +139,7 @@ func validateDiscoveryDocument(document DiscoveryDocument) error {
 		ids[attempt.ID] = true
 		started, e1 := time.Parse(time.RFC3339Nano, attempt.StartedAt)
 		expires, e2 := time.Parse(time.RFC3339Nano, attempt.ExpiresAt)
-		if e1 != nil || e2 != nil || !expires.After(started) || expires.Sub(started) > discoveryAttemptLifetime || attempt.Status != "extracting" && !discoveryTerminal(attempt.Status) {
+		if e1 != nil || e2 != nil || !validDiscoveryAttemptProfile(attempt.ExecutionProfile, started, expires) || attempt.Status != "extracting" && !discoveryTerminal(attempt.Status) {
 			return errDiscoveryDocument
 		}
 		if discoveryTerminal(attempt.Status) {

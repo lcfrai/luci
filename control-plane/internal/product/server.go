@@ -133,6 +133,7 @@ type Server struct {
 	projectChecks                   map[string]*projectCheckJob
 	projectCheckRuntime             ProjectCheckRuntime
 	previewRuntime                  previewruntime.Runtime
+	discoveryExtractionRuntime      DiscoveryExtractionRuntime
 	runtimeInstall                  runtimeInstallState
 	runtimeJob                      RuntimeJob
 	runtimeResourceSnapshot         func() resourcebudget.Snapshot
