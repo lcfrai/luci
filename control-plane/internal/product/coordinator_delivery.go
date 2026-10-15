@@ -20,11 +20,24 @@ func coordinatorIntegratedRun(run ProjectRun, row coordinatorContinuationRecord)
 	for _, id := range row.Run.ImplementationContext.TaskIDs {
 		wanted[id] = true
 	}
+	// A contract-designated reviewer contributes an exact passed independent
+	// receipt, not a source integration. The swarm gate verifies its candidate,
+	// finding, handoff and repaired successor before combined checks can start.
+	if !swarmAllIntegrated(run) {
+		return "", false
+	}
 	for _, task := range run.Swarm.Tasks {
 		in := task.Integration
 		op := swarmOperation(&run, task.OperationID)
-		if !wanted[task.ID] || in == nil || in.State != "integrated" || !deliverySHA.MatchString(in.Commit) || !hexDigest(in.ReviewDigest) ||
-			op == nil || op.TaskID != task.ID || (op.Status != "succeeded" && op.Status != "review-required" && op.Status != "failed") || op.Allocation != "ready" {
+		if !wanted[task.ID] || op == nil || op.TaskID != task.ID || op.Allocation != "ready" {
+			return "", false
+		}
+		if task.ReviewOnly {
+			if in != nil || op.Handoff == nil || (op.Status != "succeeded" && op.Status != "review-required") {
+				return "", false
+			}
+		} else if in == nil || in.State != "integrated" || !deliverySHA.MatchString(in.Commit) || !hexDigest(in.ReviewDigest) ||
+			(op.Status != "succeeded" && op.Status != "review-required" && op.Status != "failed") {
 			return "", false
 		}
 		delete(wanted, task.ID)
