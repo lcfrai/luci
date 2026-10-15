@@ -63,10 +63,13 @@ type OrchestrationExecutionLimits struct {
 }
 
 type OrchestrationStandards struct {
-	Status   string `json:"status"` // legacy-unassessed or not-configured
-	Source   string `json:"source"`
-	Revision int    `json:"revision"`
-	Digest   string `json:"digest"`
+	Status             string `json:"status"` // legacy-unassessed or not-configured
+	Source             string `json:"source"`
+	Revision           int    `json:"revision"`
+	Digest             string `json:"digest"`
+	TeamID             string `json:"teamId,omitempty"`
+	AssessmentRevision int    `json:"assessmentRevision,omitempty"`
+	AssessmentDigest   string `json:"assessmentDigest,omitempty"`
 }
 
 type OrchestrationDecisionPolicy struct {
@@ -302,6 +305,25 @@ func (s *Server) prepareOrchestrationInput(ctx context.Context, p project.Projec
 	if strings.TrimSpace(notes) != "" || strings.TrimSpace(state.Brief.Constraints) != "" {
 		standards = OrchestrationStandards{Status: "legacy-unassessed", Source: "approved-freeform-context", Revision: designRevision, Digest: reviewDigest(struct{ Constraints, Notes string }{state.Brief.Constraints, notes})}
 	}
+	if team, scoped := management.TeamAccessFromContext(ctx); scoped {
+		standards.TeamID = team.Team.ID
+		library, readErr := s.currentTeamLibrary(ctx)
+		if readErr != nil {
+			return out, readErr
+		}
+		if library != nil {
+			standards = OrchestrationStandards{Status: "team-library-unassessed", Source: "team-control-library", Revision: library.Revision, Digest: library.Digest, TeamID: team.Team.ID}
+			_, assessment, readErr := s.readControlAssessment(p)
+			if readErr != nil {
+				return out, readErr
+			}
+			if assessment.Revision > 0 && assessment.TeamID == team.Team.ID && assessment.LibraryRevision == library.Revision && assessment.LibraryDigest == library.Digest && assessment.ContextDigest == assessmentContextDigest(state) {
+				standards.Status = "team-library-assessed"
+				standards.AssessmentRevision = assessment.Revision
+				standards.AssessmentDigest = reviewDigest(assessment)
+			}
+		}
+	}
 	policy, err := s.readCoordinatorPolicy(p)
 	if err != nil {
 		return out, err
@@ -338,6 +360,38 @@ func (s *Server) orchestrationFreshness(p project.Project, c OrchestrationContra
 		approvals, err = projectRunApprovalSelection(state)
 		if err == nil && approvals != c.Input.Approvals {
 			err = ErrProjectRunConflict
+		}
+	}
+	if err == nil {
+		standards := c.Input.Standards
+		if c.Input.Controls.TeamID != standards.TeamID {
+			err = ErrProjectRunConflict
+		}
+		if standards.TeamID != "" {
+			var library *TeamControlRevision
+			library, err = s.teamLibraryForID(standards.TeamID)
+			if err == nil {
+				if library == nil {
+					if standards.Source == "team-control-library" {
+						err = ErrProjectRunConflict
+					}
+				} else if standards.Source != "team-control-library" || standards.Revision != library.Revision || standards.Digest != library.Digest {
+					err = ErrProjectRunConflict
+				}
+			}
+			if err == nil && standards.AssessmentRevision > 0 {
+				var assessment ControlAssessment
+				_, assessment, err = s.readControlAssessment(p)
+				if err == nil && (assessment.Revision != standards.AssessmentRevision || reviewDigest(assessment) != standards.AssessmentDigest || assessment.ContextDigest != assessmentContextDigest(state)) {
+					err = ErrProjectRunConflict
+				}
+			} else if err == nil && standards.Source == "team-control-library" {
+				var assessment ControlAssessment
+				_, assessment, err = s.readControlAssessment(p)
+				if err == nil && library != nil && assessment.Revision > 0 && assessment.TeamID == standards.TeamID && assessment.LibraryRevision == library.Revision && assessment.LibraryDigest == library.Digest && assessment.ContextDigest == assessmentContextDigest(state) {
+					err = ErrProjectRunConflict
+				}
+			}
 		}
 	}
 	if err == nil {

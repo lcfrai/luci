@@ -590,6 +590,9 @@ export function createProductClient(
   return {
     get baseUrl() { return baseUrl.replace(/\/$/, "") + teamScopePrefix(); },
     request,
+    uploadJSON: <T>(path: string, body: Blob, signal?: AbortSignal) => transfer<T>(path, body, response => response.json() as Promise<T>, {
+      method: "POST", headers: { "Content-Type": body.type || "application/octet-stream" }, budgetMs: 30_000, signal, kind: "file",
+    }),
     requestBlob: (
       path: string,
       options: { method?: "GET" | "POST"; body?: Blob; headers?: Record<string, string> } = {},

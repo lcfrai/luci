@@ -9,6 +9,7 @@ export type NavigationIconName =
   | "design"
   | "develop"
   | "deploy"
+  | "distribute"
   | "chevron-down"
   | "chevron-right"
   | "check";
@@ -25,6 +26,7 @@ const paths: Record<NavigationIconName, string> = {
   design: "M2.5 3h11v10h-11zM2.5 6h11M6 6v7",
   develop: "m5.5 4-4 4 4 4m5-8 4 4-4 4M9 2.5l-2 11",
   deploy: "M3 10v3h10v-3M8 11V2m-4 4 4-4 4 4",
+  distribute: "M2.5 4h11v8h-11zM4 7h8M5 9.5h3",
 };
 
 /** The navigation vocabulary shares one small, quiet stroke system. */

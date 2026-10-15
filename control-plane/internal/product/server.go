@@ -65,6 +65,7 @@ type Options struct {
 }
 
 type Server struct {
+	teamControlsMu                  sync.Mutex
 	coordinatorAuthorize            func(context.Context, string) error
 	coordinatorExecuteAuthorize     func(context.Context, string, string, bool) error
 	coordinatorDeploymentAuthorize  management.DeploymentAuthorizer

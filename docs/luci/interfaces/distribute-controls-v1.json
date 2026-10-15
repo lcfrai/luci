@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "scope": "existing private team product workspace; personal workspaces report not-configured",
+  "routes": {
+    "GET /v1/product/team-controls": "team member read; returns current revision and bounded controls, or not-configured",
+    "POST /v1/product/team-controls/preview": "team admin; raw XLSX body (maximum 2 MiB); effects-free sheet/header/row/issues preview and source SHA-256",
+    "POST /v1/product/team-controls/compare": "team admin; JSON {expectedRevision, sourceSHA256, sheet, columns, workbookBase64}; effects-free complete row validation and added/changed/removed IDs with diffDigest",
+    "POST /v1/product/team-controls/import": "team admin; JSON {expectedRevision, idempotencyKey, sourceSHA256, sheet, columns, workbookBase64, expectedDiffDigest}; repeat exact workbook bytes and reviewed mapping/diff; CAS; returns new immutable revision",
+    "GET /v1/product/projects/{id}/control-assessment": "project read; current saved assessment and library freshness",
+    "POST /v1/product/projects/{id}/control-assessment": "project edit; JSON {expectedRevision, libraryRevision, libraryDigest, idempotencyKey, results:[{controlId,status,evidenceRefs,note}]}; CAS, no inferred compliance",
+    "POST /v1/product/projects/{id}/control-assessment/gaps/{controlId}/proposal": "project edit; JSON {assessmentRevision,target,summary}; durable reviewed amendment proposal, never auto-applied",
+    "POST /v1/product/projects/{id}/control-assessment/gaps/{controlId}/proposal/{proposalId}/apply": "project edit; JSON {expectedAssessmentRevision,expectedContextDigest,expectedTargetRevision}; explicit CAS applies the saved proposal to a new Discover/Design draft using existing review revocation and history, never approves it"
+  },
+  "control": {
+    "id": "stable nonempty sheet cell",
+    "requirement": "sheet cell",
+    "category": "sheet cell",
+    "applicability": "sheet cell",
+    "owner": "sheet cell",
+    "evidenceExpected": "sheet cell",
+    "severity": "optional sheet cell",
+    "reviewCadence": "optional sheet cell",
+    "source": "sheet name, row number and preserved unknown column values"
+  },
+  "assessmentStatuses": ["supported", "partial", "missing", "not-applicable", "unreviewed", "unknown"],
+  "limits": {
+    "compressedWorkbookBytes": 2097152,
+    "expandedWorkbookBytes": 8388608,
+    "members": 128,
+    "sheets": 8,
+    "rowsPerSheet": 2000,
+    "columnsPerSheet": 64,
+    "cellUTF8Bytes": 4096,
+    "controlsPerRevision": 2000,
+    "retainedRevisions": 16
+  },
+  "trust": "No macro, external link, formula or hyperlink is executed. A preview never writes. An assessment is a reviewer record, not a compliance or delivery claim."
+}
