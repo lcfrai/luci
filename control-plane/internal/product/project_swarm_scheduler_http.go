@@ -434,6 +434,8 @@ func (s *Server) controlProjectSwarmQueue(w http.ResponseWriter, r *http.Request
 			case "resume":
 				if item.State != "paused" {
 					err = ErrProjectRunConflict
+				} else if item.RepairObligationID != "" {
+					err = errors.New("This failed review has an exact repair checkpoint intent. Inspect its retained result; a normal queue resume cannot replace that fenced source attempt.")
 				} else {
 					// This route uses private receipts only, so it remains usable
 					// while source admission is held. Never upgrade legacy task

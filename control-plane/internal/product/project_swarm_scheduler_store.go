@@ -294,6 +294,11 @@ func (s *Server) validateSwarmScheduler(row swarmSchedulerLedger) error {
 		if item.OperationID != "" && !prototypeReleaseID.MatchString(item.OperationID) || item.ChildID != "" && !prototypeReleaseID.MatchString(item.ChildID) {
 			return ErrProjectRunInvalid
 		}
+		if item.RepairObligationID != "" || item.RepairSourceOperationID != "" || item.RepairReviewDigest != "" {
+			if !prototypeReleaseID.MatchString(item.RepairObligationID) || !prototypeReleaseID.MatchString(item.RepairSourceOperationID) || !hexDigest(item.RepairReviewDigest) {
+				return ErrProjectRunInvalid
+			}
+		}
 		if item.StopActor.ProjectID != "" && (item.StopActor.ProjectID != item.ProjectID || item.StopActor.Local && (item.StopActor.UserID != "" || item.StopActor.TeamID != "") || !item.StopActor.Local && item.StopActor.UserID == "") || item.ReasonCode == "operator_stop_pending" && item.StopActor.ProjectID != item.ProjectID {
 			return ErrProjectRunInvalid
 		}
@@ -456,7 +461,7 @@ func (s *Server) SwarmQueueIDForOperation(projectID, runID, operationID string) 
 		if item.OperationID == operationID {
 			return item.ID, nil
 		}
-		if item.OperationID == "" && swarmQueueActive(item.State) {
+		if item.OperationID == "" && (swarmQueueActive(item.State) || item.State == "paused" && item.RepairObligationID != "") {
 			_, op, found, readErr := s.projectRuns.FindOperationByKey(p.ID, p.Path, runID, schedulerReserveKey(item), "session")
 			if readErr != nil {
 				return "", readErr

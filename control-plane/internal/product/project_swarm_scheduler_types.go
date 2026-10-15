@@ -129,6 +129,11 @@ type swarmQueueRecord struct {
 	KeyDigest      string                       `json:"keyDigest"`
 	BatchKeyDigest string                       `json:"batchKeyDigest"`
 	RequestDigest  string                       `json:"requestDigest"`
+	// Internal automatic repair is tied to one retained failed finding and
+	// stopped source attempt. These fields never replace its run receipts.
+	RepairObligationID      string `json:"repairObligationId,omitempty"`
+	RepairSourceOperationID string `json:"repairSourceOperationId,omitempty"`
+	RepairReviewDigest      string `json:"repairReviewDigest,omitempty"`
 }
 type swarmSchedulerLedger struct {
 	Version        int                  `json:"version"`

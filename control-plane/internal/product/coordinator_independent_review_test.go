@@ -68,18 +68,22 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 		t.Fatal(err)
 	}
 	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ProjectID: p.ID, Actor: ContextActor{ID: "review-owner"}, RunID: run.ID, Status: "queued", PolicyRevision: policy.Revision, Actions: []CoordinatorAction{{}, {}, {Status: "confirmed"}}}, Run: projectRunCreateRequest{ImplementationContext: selectionContext, Harness: run.Input.Route.Harness}, CanonicalDigest: digest, CheckPlan: &CoordinatorCheckPlan{}}
-	starts := 0
+	starts, admissions := 0, 0
+	admittedIDs := []string{}
 	s.swarmScheduler.runtime = SwarmSchedulerRuntime{
 		CaptureActor: management.CaptureExecutionActor,
-		Admit: func(context.Context, SwarmAdmissionRequest) (SwarmAdmissionResult, error) {
+		Admit: func(_ context.Context, req SwarmAdmissionRequest) (SwarmAdmissionResult, error) {
+			admissions++
+			admittedIDs = append(admittedIDs, req.QueueID)
 			return SwarmAdmissionResult{State: "admitted", MemoryMiB: 1024, CPUMillis: 1000}, nil
 		},
 		Release: func(context.Context, string) error { return nil },
 		Dispatch: func(_ context.Context, req SwarmDispatchRequest) (SwarmDispatchResult, error) {
 			starts++
 			current, e := s.GetProjectSwarmRun(req.ProjectID, req.RunID)
-			if e != nil || swarmReviewAssignmentDigest(current, req.OperationID) == "" {
-				t.Fatal("reviewer dispatched without exact candidate assignment", e)
+			op := swarmOperation(&current, req.OperationID)
+			if e != nil || op == nil || op.TaskID == "task-b" && swarmReviewAssignmentDigest(current, req.OperationID) == "" || op.TaskID == "task-a" && (op.Checkpoint == nil || current.Swarm.ReviewObligations[0].RepairOperationID != op.ID) {
+				t.Fatal("work dispatched without exact review or repair binding", e)
 			}
 			return SwarmDispatchResult{State: "waiting", ReasonCode: "test_no_runtime", Message: "No child started in this fixture."}, nil
 		},
@@ -179,6 +183,65 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	}
 	if repeated, e := s.continueCoordinatorReviewOutcome(ctx, p, row); e != nil || repeated {
 		t.Fatal("resolved review replayed", e, repeated)
+	}
+	// The old reviewed candidate remains retained. A repair intent must first
+	// bind that failed finding, then create a separate protected checkpoint;
+	// it must never turn a worker's failed report into an integration pass.
+	s.SetProjectSwarmCheckpointGuard(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(_ context.Context, req ProjectSwarmRecoveryRequest) (func(), error) {
+		if req.ProjectID != p.ID || req.RunID != run.ID || req.OperationID != candidate.ID || req.ChildID != candidate.ChildID {
+			t.Fatal("repair checkpoint used another child", req)
+		}
+		return func() {}, nil
+	})
+	if advanced, e := s.continueCoordinatorRepair(ctx, p, row); e != nil || !advanced {
+		t.Fatal("failed independent review did not retain a repair intent", e, advanced)
+	}
+	queueAfterFailure, e := s.ProjectSwarmQueueSnapshot(p.ID)
+	if e != nil || len(queueAfterFailure.Items) != 2 || queueAfterFailure.Items[1].State != "paused" || queueAfterFailure.Items[1].ReasonCode != "repair_checkpoint_pending" || queueAfterFailure.Items[1].OperationID != "" || starts != 1 {
+		t.Fatal("repair intent dispatched before protected checkpoint", queueAfterFailure, starts, e)
+	}
+	if advanced, e := s.continueCoordinatorRepair(ctx, p, row); e != nil || !advanced {
+		t.Fatal("retained repair intent did not continue exact checkpoint", e, advanced)
+	}
+	repaired, e := s.GetProjectSwarmRun(p.ID, run.ID)
+	queueAfterCheckpoint, queueErr := s.ProjectSwarmQueueSnapshot(p.ID)
+	if e != nil || queueErr != nil || len(repaired.Operations) != 3 || len(queueAfterCheckpoint.Items) != 2 || queueAfterCheckpoint.Items[1].State != "reserved" || queueAfterCheckpoint.Items[1].OperationID != repaired.Operations[2].ID || repaired.Swarm.ReviewObligations[0].RepairOperationID != repaired.Operations[2].ID || starts != 1 {
+		t.Fatal("repair checkpoint was not bound to failed finding and scheduler", repaired, queueAfterCheckpoint, e, queueErr)
+	}
+	// Simulate an interrupted response after the run saved its new operation but
+	// before the private scheduler observed it. The same durable key must read
+	// back that operation; no second checkout or attempt is allowed.
+	s.swarmScheduler.mu.Lock()
+	retainedQueue, e := s.readSwarmScheduler()
+	if e == nil {
+		retainedQueue.Items[1].State = "paused"
+		retainedQueue.Items[1].ReasonCode = "repair_checkpoint_pending"
+		retainedQueue.Items[1].OperationID = ""
+		retainedQueue.Items[1].ChildID = ""
+		e = s.saveSwarmScheduler(&retainedQueue)
+	}
+	s.swarmScheduler.mu.Unlock()
+	if e != nil {
+		t.Fatal(e)
+	}
+	if owner, e := s.SwarmQueueIDForOperation(p.ID, run.ID, repaired.Operations[2].ID); e != nil || owner != queueAfterCheckpoint.Items[1].ID {
+		t.Fatal("paused repair lost private queue ownership before response readback", owner, e)
+	}
+	if advanced, e := s.continueCoordinatorRepair(ctx, p, row); e != nil || !advanced {
+		t.Fatal("saved checkpoint could not be read back after interrupted queue update", e, advanced)
+	}
+	afterReadback, e := s.GetProjectSwarmRun(p.ID, run.ID)
+	if e != nil || len(afterReadback.Operations) != 3 {
+		t.Fatal("interrupted repair created a replacement checkout", e, afterReadback)
+	}
+	// The scheduler may first settle the older reviewer queue for this project;
+	// fairness then advances the reserved repair on its next bounded turn.
+	if e := s.RunSwarmSchedulerOnce(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if e := s.RunSwarmSchedulerOnce(ctx); e != nil || starts != 2 || admittedIDs[len(admittedIDs)-1] != queueAfterCheckpoint.Items[1].ID {
+		latestQueue, _ := s.ProjectSwarmQueueSnapshot(p.ID)
+		t.Fatal("exact repaired checkout did not reach ordinary scheduler admission", e, starts, admissions, admittedIDs, latestQueue)
 	}
 }
 

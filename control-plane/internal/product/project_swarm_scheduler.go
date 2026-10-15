@@ -207,6 +207,22 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				}
 				continue
 			}
+			if item.RepairObligationID != "" {
+				validRepair := false
+				for _, obligation := range run.Swarm.ReviewObligations {
+					if obligation.ID != item.RepairObligationID || obligation.State != "repair-required" || obligation.TaskID != item.TaskID || obligation.CandidateOperationID != item.RepairSourceOperationID {
+						continue
+					}
+					op := swarmOperation(&run, item.OperationID)
+					validRepair = op != nil && obligation.RepairOperationID == op.ID && op.TaskID == item.TaskID && op.Checkpoint != nil && op.Checkpoint.SourceOperationID == item.RepairSourceOperationID && op.Checkpoint.ReviewDigest == item.RepairReviewDigest
+				}
+				if !validRepair {
+					if err = s.schedulerSetReason(item.ID, "unknown", "repair_binding_unconfirmed", "The exact failed review, retained source or repair reservation cannot be confirmed. Inspect its saved receipts before any new start."); err != nil {
+						return err
+					}
+					continue
+				}
+			}
 			if item.OperationID == "" && task.Role == "reviewer" && run.Input.OrchestrationContract != nil {
 				if !swarmContractReviewerRole(run, *task, task.ReviewOfTaskID) {
 					if err = s.schedulerSetReason(item.ID, "blocked", "review_role_changed", "This task no longer has an approved independent reviewer role."); err != nil {
@@ -383,7 +399,23 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 			}
 			continue
 		}
-		run, op, reserveErr := s.reserveSwarmTask(ctx, p, item.RunID, item.TaskID, schedulerReserveKey(item), run.Revision)
+		var op ProjectRunOperation
+		var reserveErr error
+		if item.RepairObligationID != "" {
+			var found bool
+			run, op, found, reserveErr = s.projectRuns.FindOperationByKey(p.ID, p.Path, item.RunID, schedulerReserveKey(item), "session")
+			if reserveErr == nil && (!found || op.ID != item.OperationID || op.ChildID != item.ChildID || op.Checkpoint == nil || op.Checkpoint.SourceOperationID != item.RepairSourceOperationID || op.Checkpoint.ReviewDigest != item.RepairReviewDigest) {
+				reserveErr = ErrProjectRunConflict
+			}
+			if reserveErr != nil {
+				if err = s.schedulerSetReason(item.ID, "unknown", "repair_reservation_unconfirmed", "The exact retained repair reservation cannot be confirmed. No replacement allocation will be made."); err != nil {
+					return err
+				}
+				continue
+			}
+		} else {
+			run, op, reserveErr = s.reserveSwarmTask(ctx, p, item.RunID, item.TaskID, schedulerReserveKey(item), run.Revision)
+		}
 		if reserveErr != nil {
 			// A reservation may have been persisted before an I/O error. The next
 			// turn must inspect its receipt, never repeat allocation optimistically.

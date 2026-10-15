@@ -234,6 +234,10 @@ func (s *ProjectRunStore) ReserveSwarmTask(projectID, path, id string, revision 
 }
 
 func (s *ProjectRunStore) reserveSwarmTask(projectID, path, id string, revision int, key, taskID, base string, worktree func(string) string, checkpoint *ProjectSwarmCheckpoint) (ProjectRun, ProjectRunOperation, bool, error) {
+	return s.reserveSwarmTaskGated(projectID, path, id, revision, key, taskID, base, worktree, checkpoint, nil)
+}
+
+func (s *ProjectRunStore) reserveSwarmTaskGated(projectID, path, id string, revision int, key, taskID, base string, worktree func(string) string, checkpoint *ProjectSwarmCheckpoint, gate func(ProjectRun) error) (ProjectRun, ProjectRunOperation, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !validRunKey(key) || !deliverySHA.MatchString(base) {
@@ -256,6 +260,11 @@ func (s *ProjectRunStore) reserveSwarmTask(projectID, path, id string, revision 
 	}
 	var op ProjectRunOperation
 	run, err := s.mutate(projectID, path, id, revision, func(row *storedProjectRun) (bool, error) {
+		if gate != nil {
+			if err := gate(row.Run); err != nil {
+				return false, err
+			}
+		}
 		task := swarmTask(&row.Run, taskID)
 		if task == nil {
 			return false, ErrProjectRunNotFound
