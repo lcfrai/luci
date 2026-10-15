@@ -3,9 +3,10 @@
 ## Current implementation and acceptance split — 16 October 2026
 
 This table updates the older source-path map below without rewriting its historical
-receipts. `main` was `9cf93471`; Distribute corrections/artifacts are separate
-reviewable source heads `6f9afc00c` and `ad116af86`, and the contained Discover
-join is `798aaba3`. A source check is never an installed or live acceptance pass.
+receipts. `main` is `798aaba3`; the reviewable Distribute branch joins its
+artifact/XML corrections at `eb40b516` and pins the revised PDF dependency
+proposal at `e3ae1d6f`. The focused [joined source receipt](evidence/distribute-extractor-join-20261016/README.md)
+is separate from installed or live acceptance.
 The exact acceptance wording remains in [PRODUCT-CONTRACT-LC.json](PRODUCT-CONTRACT-LC.json).
 
 | ID | Source state | Concrete implementation still missing | Execution acceptance still open |
@@ -27,10 +28,10 @@ The exact acceptance wording remains in [PRODUCT-CONTRACT-LC.json](PRODUCT-CONTR
 | LC-15 | Per-task microVM scheduler and selected Azure route exist offline. | Complete protected host/template delivery. | Distinct task VMs, parallel workload and positive retirement. |
 | LC-16 | Limits, uncertain outcomes and retained ownership source paths exist. | No new scheduler assigned; provider join remains open. | Real interruption, retry, charge and restart settlement. |
 | LC-17 | Personal pins, all-project Home, deduped rail and exact stop acknowledgments are source implemented. | No additional Home source gap established. | Installed navigation, actor isolation, retention and simultaneous activity. |
-| LC-18 | Bounded text evidence and UI exist; contained extractor/shared join is source-tested candidate `798aaba3`. | Pinned, built and verified OCR/PDF image and final lifecycle join remain missing. | Actual scanned/text document extraction, corrections and strategic chat. |
+| LC-18 | Bounded text evidence and UI exist; contained extractor/shared join is source-tested on main `798aaba3`. | Pinned, built and verified OCR/PDF image remains missing. | Actual scanned/text document extraction, corrections and strategic chat. |
 | LC-19 | Editable scene, assets, CAS, review and captured Design source paths exist. | Agent-produced scene quality and raster/package integration need confirmation. | Real generation, edit/undo/reload and exact approved handoff. |
 | LC-20 | Tiled real terminal/files/diff/preview source layout exists. | No new decorative substitute is needed. | Real coding/Ask/permission and pane lifecycle on installed UI. |
-| LC-21 | Candidate `ad116af86` generates source-linked risk/GTM/proposal/pricing/presentation drafts with actor review, exact accepted run evidence and native DOCX/PPTX/XLSX. | PDF exporter is missing pending [renderer/font reconciliation](DISTRIBUTE-PDF-RENDERER-PROPOSAL-2026-10-16.md); candidate integration is pending. | Useful real outputs, Office/PDF fidelity, review and accurate release claims. |
+| LC-21 | Candidate `1447a6c6` generates source-linked risk/GTM/proposal/pricing/presentation drafts with actor review, exact accepted run evidence, native DOCX/PPTX/XLSX and XML-fidelity refusal; joined source checks pass. | PDF exporter is missing pending [glyph/font/subset reconciliation](DISTRIBUTE-PDF-RENDERER-PROPOSAL-2026-10-16.md); candidate integration to main is pending. | Useful real outputs, Office/PDF fidelity, review and accurate release claims. |
 | LC-22 | Candidate `6f9afc00c` has bounded XLSX admin import, project assessments/evidence, Design/task standards capture and gap proposals. | Integrate reviewed corrections; contained OCR source remains separate. | Real team import/reimport, assessment and amendment loop. |
 | LC-23 | Design-derived contract, digest approval, immutable run capture and stale dispatch fences are source implemented. | No second scheduler or separate JSON authority needed. | Real approved selection reaches the correct upstream worker. |
 | LC-24 | Durable addressed messages, independent review/repair, reviewed integration and combined-check gates are source implemented. | **Next code seam:** failed combined checks currently become `blocked`; the bounded repair path handles failed reviewer findings only. A checked-failure diagnostic → fresh repair candidate → independent re-review → new exact check continuation is still missing. | Real worker communication, reviewer quality, repair, merged app checks, latency/intervention and permitted Deploy. |
