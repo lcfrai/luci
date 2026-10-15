@@ -79,6 +79,9 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		if err := validateDesignPlan(*next); err != nil {
 			return err
 		}
+		if currentQuality && designSceneOmission(snapshot.DesignPlan, *next) != nil {
+			return ErrOrchestratorInvalid
+		}
 		return validateDesignLinks(*next, snapshot.Specification)
 	case "plan":
 		next := proposal.Plan
@@ -437,6 +440,11 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 	proposal = answer.Proposal
 	if err := ValidateOrchestratorAnswer(snapshot, answer); err != nil {
 		return ErrOrchestratorInvalid
+	}
+	if proposal.Target == "design-plan" {
+		if err := s.validateDesignAssetBindings(context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir), p.Path, *proposal.DesignPlan); err != nil {
+			return err
+		}
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	mutations := []contextMutation{}

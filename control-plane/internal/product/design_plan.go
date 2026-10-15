@@ -12,20 +12,21 @@ import (
 )
 
 type ProjectDesignPlan struct {
-	ProjectID             string         `json:"projectId"`
-	Revision              int            `json:"revision"`
-	BriefRevision         int            `json:"briefRevision"`
-	SpecificationRevision int            `json:"specificationRevision"`
-	SketchRevision        int            `json:"sketchRevision"`
-	Screens               []DesignScreen `json:"screens"`
-	Tokens                []DesignToken  `json:"tokens"`
-	Assets                []DesignAsset  `json:"assets"`
-	ImplementationNotes   string         `json:"implementationNotes"`
-	PrototypeReleaseID    string         `json:"prototypeReleaseId"`
-	PrototypeCommit       string         `json:"prototypeCommit"`
-	Status                string         `json:"status" enum:"draft"`
-	Digest                string         `json:"digest" output:"empty"`
-	UpdatedAt             string         `json:"updatedAt"`
+	Scene                 *ProjectDesignScene `json:"scene,omitempty"`
+	ProjectID             string              `json:"projectId"`
+	Revision              int                 `json:"revision"`
+	BriefRevision         int                 `json:"briefRevision"`
+	SpecificationRevision int                 `json:"specificationRevision"`
+	SketchRevision        int                 `json:"sketchRevision"`
+	Screens               []DesignScreen      `json:"screens"`
+	Tokens                []DesignToken       `json:"tokens"`
+	Assets                []DesignAsset       `json:"assets"`
+	ImplementationNotes   string              `json:"implementationNotes"`
+	PrototypeReleaseID    string              `json:"prototypeReleaseId"`
+	PrototypeCommit       string              `json:"prototypeCommit"`
+	Status                string              `json:"status" enum:"draft"`
+	Digest                string              `json:"digest" output:"empty"`
+	UpdatedAt             string              `json:"updatedAt"`
 }
 type DesignScreen struct {
 	ID             string   `json:"id"`
@@ -43,13 +44,16 @@ type DesignToken struct {
 	Purpose string `json:"purpose"`
 }
 type DesignAsset struct {
-	ID      string `json:"id"`
-	Path    string `json:"path"`
-	Purpose string `json:"purpose"`
-	Licence string `json:"licence"`
+	Content *DesignRasterPin `json:"content,omitempty"`
+	ID      string           `json:"id"`
+	Path    string           `json:"path"`
+	Purpose string           `json:"purpose"`
+	Licence string           `json:"licence"`
 }
 
 func (s *Server) registerDesignPlan(mux Registrar) {
+	mux.HandleFunc("GET /v1/product/projects/{id}/design-plan/asset-binding", s.bindDesignAsset)
+	mux.HandleFunc("GET /v1/product/projects/{id}/design-plan/{revision}/assets/{assetId}", s.getDesignAsset)
 	mux.HandleFunc("GET /v1/product/projects/{id}/design-plan", s.getDesignPlan)
 	mux.HandleFunc("POST /v1/product/projects/{id}/design-plan", s.saveDesignPlan)
 	mux.HandleFunc("POST /v1/product/projects/{id}/design-plan/approve", s.approveDesignPlan)
@@ -107,12 +111,15 @@ func validateDesignPlan(plan ProjectDesignPlan) error {
 		names[token.Name] = true
 	}
 	for _, asset := range plan.Assets {
+		if asset.Content != nil && !validDesignRasterPin(asset.Content) {
+			return errors.New("The design asset's immutable raster binding is invalid.")
+		}
 		if !designIDPattern.MatchString(asset.ID) || ids[asset.ID] || blockedProjectFile(asset.Path) || !validBackupEntry("files/"+asset.Path) || len(asset.Purpose) > 2000 || len(asset.Licence) > 2000 {
 			return errors.New("Assets need unique IDs and safe project paths with provenance.")
 		}
 		ids[asset.ID] = true
 	}
-	return nil
+	return validateDesignScene(plan)
 }
 func (s *Server) getDesignPlan(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)
@@ -182,6 +189,10 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 		problem(w, 400, "wrong_project", "The design belongs to another project.")
 		return
 	}
+	if err := s.validateDesignAssetBindings(r.Context(), p.Path, plan); err != nil {
+		problem(w, 422, "asset_unavailable", err.Error())
+		return
+	}
 	if plan.PrototypeReleaseID != "" {
 		rows, err := s.prototypeReleases(r.Context(), p.ID)
 		if err != nil {
@@ -208,6 +219,10 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	spec := currentSpecification(state)
 	old := currentDesignPlan(state)
+	if err := designSceneOmission(old, plan); err != nil {
+		problem(w, 400, "scene_omitted", err.Error())
+		return
+	}
 	if req.ExpectedRevision != old.Revision || req.ExpectedBriefRevision != state.Brief.Revision || req.ExpectedSpecificationRevision != spec.Revision {
 		problem(w, 409, "revision_conflict", "The definition or design changed. Reload saved work before merging your draft.")
 		return
@@ -275,6 +290,10 @@ func (s *Server) approveDesignPlan(w http.ResponseWriter, r *http.Request) {
 		problem(w, 422, "screens_required", "Add the application screens and states before approving the design.")
 		return
 	}
+	if plan.Scene != nil && len(plan.Scene.Frames) == 0 {
+		problem(w, 422, "scene_empty", "The scene is empty. Add its frames before approving this design.")
+		return
+	}
 	for _, screen := range plan.Screens {
 		if strings.TrimSpace(screen.Purpose) == "" || len(screen.States) == 0 || len(screen.Widths) == 0 {
 			problem(w, 422, "screen_incomplete", "Every screen needs its purpose, states and responsive targets.")
@@ -336,5 +355,6 @@ func renderDesignPlan(plan ProjectDesignPlan) []byte {
 		fmt.Fprintf(&out, "- %s: %s. %s. Licence/source: %s\n", asset.ID, asset.Path, asset.Purpose, asset.Licence)
 	}
 	fmt.Fprintf(&out, "\n## Prototype\n\nRelease: %s\nCommit: %s\n\n## Implementation notes\n\n%s\n", plan.PrototypeReleaseID, plan.PrototypeCommit, plan.ImplementationNotes)
+	out.WriteString(renderDesignScene(plan.Scene))
 	return []byte(out.String())
 }
