@@ -1,0 +1,18 @@
+.discover-documents { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.discover-document-toolbar, .discover-document-pagination { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.discover-document-layout { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.discover-document-layout aside { min-width: 0; position: sticky; top: 8px; }
+.discover-document-layout aside ul { padding: 0; margin: 8px 0; list-style: none; }
+.discover-document-layout aside li button { width: 100%; text-align: left; background: transparent; color: var(--ink); border: 1px solid transparent; border-radius: var(--r-ctl); padding: 10px; cursor: pointer; }
+.discover-document-layout aside li button[aria-pressed="true"] { border-color: var(--accent); background: var(--surface); }
+.discover-document-layout aside li button span, .discover-document-layout aside li button small { display: block; overflow-wrap: anywhere; }
+.discover-document-layout aside li button small { color: var(--ink-2); margin-top: 4px; }
+.discover-document-inspection, .discover-extraction, .discover-discussion, .discover-context-links { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.discover-evidence-segment { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.discover-source-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.discover-source-identity { color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
+.discover-correction { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.discover-correction label, .discover-discussion label { display: flex; flex-direction: column; gap: 6px; }
+.discover-correction textarea, .discover-discussion textarea { width: 100%; resize: vertical; }
+.discover-document-layout button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 700px) { .discover-document-layout { grid-template-columns: minmax(0, 1fr); } .discover-document-layout aside { position: static; } }

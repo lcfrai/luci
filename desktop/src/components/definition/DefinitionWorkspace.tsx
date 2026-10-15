@@ -11,6 +11,7 @@ import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { ContextStorage } from "../journey/ContextStorage";
 import { JourneyHeader } from "../journey/shared";
 import { RepositoryAnalysisPanel } from "./RepositoryAnalysisPanel";
+import { SpecificationEvidenceLinks } from "../discover/SpecificationEvidenceLinks";
 import { Button } from "../fluid/components/button";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 import "./definition.css";
@@ -287,6 +288,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
               {questionNotice && <p role="status" className="journey-warning">{questionNotice}</p>}
               <RecordGroup title="Open questions" help="Capture the gaps. Answer them before approving the definition." items={spec.questions} fields={[{ key: "question", label: "Question" }, { key: "answer", label: "Answer" }]} create={() => ({ id: recordId("question"), question: "", answer: "" })} onChange={(questions) => patch({ questions })}
                 focusTarget={questionTarget && canEdit && !locked && !draft.pending ? { id: questionTarget, field: "answer" } : undefined} onFocused={questionFocused} />
+              <SpecificationEvidenceLinks specification={spec} disabled={!canEdit || locked || !!draft.pending} onChange={evidence => patch({ evidence })} />
             </div>}
           </fieldset>
           {tab === "repository" && <RepositoryAnalysisPanel projectId={projectId} specification={spec} dirty={dirty || locked || !!draft.pending} onApplied={value => {

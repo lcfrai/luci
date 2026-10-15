@@ -1,4 +1,5 @@
 import { productApi } from "./product";
+import type { DiscoverySourceLink } from "./discoveryDocuments";
 
 export interface Requirement { id: string; title: string; priority: "must" | "should" | "could"; acceptance: string }
 export interface UserJourney { id: string; name: string; actor: string; steps: string; requirementIds: string[] }
@@ -9,6 +10,7 @@ export interface GlossaryTerm { id: string; term: string; meaning: string }
 export interface ProductDecision { id: string; title: string; decision: string; reason: string; alternatives: string }
 export interface OpenQuestion { id: string; question: string; answer: string }
 export interface ProjectSpecification {
+ evidence?: DiscoverySourceLink[];
   projectId: string; version: 1; revision: number; briefRevision: number;
   startingPoint: "new" | "existing"; purpose: string; audience: string; constraints: string;
   outOfScope: string[]; requirements: Requirement[]; journeys: UserJourney[]; roles: AccessRole[];
