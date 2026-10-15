@@ -22,3 +22,25 @@ TMPDIR=/dev/shm NODE_OPTIONS=--max-old-space-size=768 npm run typecheck
 ```
 
 These are source checks. The joined desktop, API, approved-contract continuation, independent review and integration have not been exercised in an installed local run. An accepted amendment without a new current approved contract remains pending for human review; it does not automatically inherit the old route's approval.
+
+## LOCAL-099 accepted amendment reconciliation successor
+
+The accepted-event background path now reads back its exact pending context commit before considering new work. A confirmed journal entry is not treated as a perpetual reservation. An ambiguous commit remains pending and neither repeats the Git write nor starts a replacement. Once the source is clean, an actor-private read projects the precise changed task selection and a waiting or review-required reason. The user must prepare and approve a new current contract; the approved route then resumes under its normal authority and freshness gates. Task ordering differences between the sorted request and approved plan no longer reject the same exact unique selection.
+
+Focused source fixture covers pending to confirmed readback, ambiguous retained pending without replay, refusal before approval, actual prepare and approval handlers, replacement run capture, candidate handoff, addressed independent reviewer finding, passed review, reviewed integration, and combined check reservation. The two older accepted-event fixtures now explicitly approve the changed scope before testing restart and stop uncertainty.
+
+Retained checks from the current successor, run serially without Docker, model, provider, or cloud effects:
+
+```sh
+cd control-plane
+GOWORK=off GOMAXPROCS=1 GOMEMLIMIT=384MiB GOGC=10 GOCACHE=/dev/shm/luci-go-cache GOMODCACHE=/dev/shm/luci-gomodcache TMPDIR=/dev/shm GOTMPDIR=/dev/shm /dev/shm/luci-toolchain/go/bin/go test -p 1 ./internal/product -run 'Test(AcceptedAmendment|CoordinatorAccepted)' -count=1
+# exit 0; ok github.com/lcfrai/luci/control-plane/internal/product 8.012s
+
+cd ../desktop
+TMPDIR=/dev/shm NODE_OPTIONS=--max-old-space-size=768 npm test -- --run src/components/orchestrator/CoordinatorExecution.test.tsx src/api/coordinatorContinuations.test.ts
+# exit 0; 2 files, 131 tests
+TMPDIR=/dev/shm NODE_OPTIONS=--max-old-space-size=768 npm run typecheck
+# exit 0
+```
+
+These checks establish source behavior only. Installed Windows execution and actual independent agent review/check outcomes remain open.

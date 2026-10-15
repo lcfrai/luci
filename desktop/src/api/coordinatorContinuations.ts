@@ -37,7 +37,10 @@ export interface CoordinatorCloudCapacity {
   retainedAttempts: { runId: string; taskId: string; attemptId: string; operationId: string; state: string; recoveryPending?: boolean;
     resourcesHeld: true; estimatedCostMicros: number; updatedAt: string }[];
 }
-export interface CoordinatorContinuationState { continuations: CoordinatorContinuation[]; savedRoute: CoordinatorSavedRoute | null; contextCommits?: CoordinatorContextCommitView[]; cloudCapacity?: CoordinatorCloudCapacity | null }
+export interface CoordinatorAcceptedReview { eventId: string; status: 'waiting' | 'review-required' | 'approved'; reason: string; selection?: {
+  projectId: string; briefRevision: number; planRevision: number; specificationRevision: number; designPlanRevision: number; taskIds: string[];
+} }
+export interface CoordinatorContinuationState { continuations: CoordinatorContinuation[]; savedRoute: CoordinatorSavedRoute | null; contextCommits?: CoordinatorContextCommitView[]; cloudCapacity?: CoordinatorCloudCapacity | null; acceptedReview?: CoordinatorAcceptedReview | null }
 export interface CoordinatorContinuationRequest {
   idempotencyKey: string; originTurnId: string; expectedContextDigest: string; expectedPolicyRevision: number;
   run: Omit<CreateProjectRun, 'idempotencyKey'>; maxParallel: number;
@@ -128,6 +131,9 @@ async function listState(project: string, actor: string, signal?: AbortSignal): 
   const result = await productApi.request<CoordinatorContinuationState>(base(project), undefined, 'GET', 30_000, signal);
   if (!Array.isArray(result?.continuations) || result.continuations.length > 40 || new Set(result.continuations.map(row => row.id)).size !== result.continuations.length || new Set(result.continuations.map(row => row.idempotencyKey)).size !== result.continuations.length) throw new Error('The continuation history could not be verified. Refresh before continuing.');
   if (result.contextCommits !== undefined && (!Array.isArray(result.contextCommits) || result.contextCommits.length > 40 || result.contextCommits.some(item => !text(item.eventId) || !['pending', 'confirmed'].includes(item.status) || item.status === 'confirmed' && !/^[0-9a-f]{40,64}$/.test(item.commit ?? '') || !Number.isFinite(Date.parse(item.createdAt))))) throw new Error('The accepted context source history could not be verified. Refresh before continuing.');
+  const accepted = result.acceptedReview;
+  if (accepted != null && (!/^coord-event-[a-zA-Z0-9_-]+$/.test(accepted.eventId) || !['waiting', 'review-required', 'approved'].includes(accepted.status) || typeof accepted.reason !== 'string' || new TextEncoder().encode(accepted.reason).length > 1000 ||
+    (accepted.status === 'waiting') !== (accepted.selection === undefined) || accepted.selection && (accepted.selection.projectId !== project || ![accepted.selection.briefRevision, accepted.selection.planRevision, accepted.selection.specificationRevision, accepted.selection.designPlanRevision].every(x => Number.isSafeInteger(x) && x > 0) || !Array.isArray(accepted.selection.taskIds) || !accepted.selection.taskIds.length || accepted.selection.taskIds.length > 200 || accepted.selection.taskIds.some(id => !text(id) || id.length > 256) || new Set(accepted.selection.taskIds).size !== accepted.selection.taskIds.length))) throw new Error('The accepted change review could not be verified. Refresh its exact outcome.');
   const capacity = result.cloudCapacity;
   if (capacity != null && (!Array.isArray(capacity.setupNeeds ?? []) || (capacity.setupNeeds ?? []).length > 4 || (capacity.setupNeeds ?? []).some(need => !text(need) || need.length > 500) ||
     capacity.provider === '' && !(capacity.setupNeeds ?? []).length ||
@@ -136,7 +142,7 @@ async function listState(project: string, actor: string, signal?: AbortSignal): 
     !Array.isArray(capacity.retainedAttempts) || capacity.retainedAttempts.length > 20 || capacity.retainedProjectVMs !== capacity.retainedAttempts.length + capacity.moreRetainedAttempts ||
     capacity.retainedAttempts.some(row => !text(row.runId) || !text(row.taskId) || !text(row.attemptId) || !text(row.operationId) || !['creating', 'allocated', 'unknown', 'cancelling'].includes(row.state) || row.resourcesHeld !== true || row.recoveryPending !== undefined && typeof row.recoveryPending !== 'boolean' || !Number.isSafeInteger(row.estimatedCostMicros) || row.estimatedCostMicros <= 0 || !Number.isFinite(Date.parse(row.updatedAt))) ||
     ![capacity.estimatedTaskCostMicros, capacity.estimatedMonthMicros, capacity.monthlyBudgetMicros].every(value => Number.isSafeInteger(value) && value >= 0)))) throw new Error('The cloud task capacity observation could not be verified. Refresh before choosing cloud execution.');
-  return { continuations: result.continuations.map(row => verified(row, project, actor)), savedRoute: savedRoute(result.savedRoute), contextCommits: result.contextCommits ?? [], cloudCapacity: capacity ?? null };
+  return { continuations: result.continuations.map(row => verified(row, project, actor)), savedRoute: savedRoute(result.savedRoute), contextCommits: result.contextCommits ?? [], cloudCapacity: capacity ?? null, acceptedReview: accepted ?? null };
 }
 export const coordinatorContinuationsApi = {
   listState,

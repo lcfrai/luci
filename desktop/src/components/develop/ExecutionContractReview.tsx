@@ -10,7 +10,7 @@ const ordinaryReviewBytes = 65536;
 const continuationReviewBytes = 1 << 20; // exact retained checks may include eight bounded argument lists
 export interface ExecutionContractReviewRequest {
   version: 1; projectId: string; actorId: string; request: PrepareOrchestrationContract;
-  runKey: string; contractId?: string; continuation?: CoordinatorContinuationRequest;
+  runKey: string; contractId?: string; continuation?: CoordinatorContinuationRequest; acceptedEventId?: string;
 }
 export function contractReviewKey(scope: string): string { return prefix + encodeURIComponent(scope); }
 export function readContractReview(scope: string | null, projectId: string, actorId: string): ExecutionContractReviewRequest | null {
@@ -34,7 +34,8 @@ export function readContractReview(scope: string | null, projectId: string, acto
       value.continuation !== undefined && (value.continuation.idempotencyKey !== value.runKey || value.continuation.run?.implementationContext?.projectId !== projectId || value.continuation.run?.orchestrationContract !== undefined ||
         value.continuation.run?.worktreeId !== request.worktreeId || value.continuation.run?.harness !== route.harness || value.continuation.run?.model !== route.model || value.continuation.run?.permissionMode !== route.permissionMode || value.continuation.run?.outcome !== request.outcome ||
         JSON.stringify(value.continuation.run?.implementationContext) !== JSON.stringify(context)) ||
-      !fields(value, ['version', 'projectId', 'actorId', 'request', 'runKey', 'contractId', 'continuation']) ||
+      value.acceptedEventId !== undefined && (!/^coord-event-[a-zA-Z0-9_-]+$/.test(value.acceptedEventId) || value.continuation !== undefined) ||
+      !fields(value, ['version', 'projectId', 'actorId', 'request', 'runKey', 'contractId', 'continuation', 'acceptedEventId']) ||
       !fields(request, ['idempotencyKey', 'worktreeId', 'implementationContext', 'route', 'outcome']) ||
       !fields(route, ['harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'agentConnectionId']) ||
       !fields(context, ['projectId', 'briefRevision', 'planRevision', 'specificationRevision', 'designPlanRevision', 'taskIds'])) {
@@ -51,7 +52,7 @@ export function retainContractReview(scope: string | null, value: ExecutionContr
   if (prior) {
     if (prior.length * 2 > continuationReviewBytes) throw new Error('Existing review recovery exceeds its limit.');
     const previous = JSON.parse(prior) as ExecutionContractReviewRequest;
-    if (previous.actorId !== value.actorId || previous.projectId !== value.projectId || previous.runKey !== value.runKey || JSON.stringify(previous.request) !== JSON.stringify(value.request) || JSON.stringify(previous.continuation) !== JSON.stringify(value.continuation)) {
+    if (previous.actorId !== value.actorId || previous.projectId !== value.projectId || previous.runKey !== value.runKey || previous.acceptedEventId !== value.acceptedEventId || JSON.stringify(previous.request) !== JSON.stringify(value.request) || JSON.stringify(previous.continuation) !== JSON.stringify(value.continuation)) {
       throw new Error('Another execution contract review is retained. Inspect it before replacing its request.');
     }
   }
@@ -79,11 +80,12 @@ export function archiveContractReview(scope: string, value: ExecutionContractRev
   localStorage.removeItem(key);
 }
 
-export function ExecutionContractReview({ pending, initialView, scope, actorId, canRead, canEdit, preparing = false, continuation = false, onPrepared, onCreate, onComplete, onReviewInputs }: {
+export function ExecutionContractReview({ pending, initialView, scope, actorId, canRead, canEdit, preparing = false, continuation = false, approvalOnly = false, onPrepared, onCreate, onComplete, onReviewInputs }: {
   pending: ExecutionContractReviewRequest; initialView: OrchestrationContractView | null; scope: string | null;
   actorId: string; canRead: boolean; canEdit: boolean;
   preparing?: boolean;
   continuation?: boolean;
+  approvalOnly?: boolean;
   onPrepared(pending: ExecutionContractReviewRequest, view: OrchestrationContractView): void;
   onCreate(request: PrepareOrchestrationContract, reference: OrchestrationContractReference, idempotencyKey: string): Promise<void>;
   onComplete(): void;
@@ -165,7 +167,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
   const c = view?.contract;
   return <section className="execution-contract-review" aria-label="Execution contract review">
     <h3>Review how Luci will build</h3>
-    <p>{continuation ? 'Review and approve the exact contract before the retained continuation can prepare or queue work. Coding, public deployment and paid resources keep their existing controls.' : 'This saves an exact contract and a project run. Coding, public deployment and paid resources keep their existing separate controls.'}</p>
+    <p>{approvalOnly ? 'Review and approve the changed contract. This step starts no new run; Luci resumes the accepted change only after a fresh authority and source check.' : continuation ? 'Review and approve the exact contract before the retained continuation can prepare or queue work. Coding, public deployment and paid resources keep their existing controls.' : 'This saves an exact contract and a project run. Coding, public deployment and paid resources keep their existing separate controls.'}</p>
     {error && <p role="alert">{error}</p>}
     {!view ? <p>The preparation outcome is not yet confirmed. Inspect the retained request before preparing another selection.</p> : <>
       <p role={view.freshness.status === 'current' ? undefined : 'status'}><strong>{view.freshness.status === 'current' ? 'Current context and policy' : 'Context needs reconciliation'}</strong>{view.freshness.reason && ` · ${view.freshness.reason}`}</p>
@@ -181,7 +183,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
       <label className="setup-check"><input type="checkbox" checked={consent} disabled={!allowed || !!busy || preparing || view.freshness.status !== 'current'} onChange={event => setConsent(event.target.checked)} />I reviewed these exact scopes, acceptance criteria and decision boundaries.</label>
     </>}
     <div className="workflow-actions"><Button variant="secondary" disabled={!!busy || preparing || !canRead || !pending.contractId && !allowed} onClick={() => void refresh()}>Refresh contract status</Button>
-      {view && <Button disabled={!allowed || !consent || !!busy || preparing || view.freshness.status !== 'current'} loading={!!busy} onClick={() => void approveAndCreate()}>{continuation ? c!.state === 'approved' ? 'Continue reviewed work' : 'Approve contract and continue reviewed work' : c!.state === 'approved' ? 'Save reviewed project run' : 'Approve contract and save project run'}</Button>}</div>
+      {view && <Button disabled={!allowed || !consent || !!busy || preparing || view.freshness.status !== 'current'} loading={!!busy} onClick={() => void approveAndCreate()}>{approvalOnly ? c!.state === 'approved' ? 'Confirm changed contract approval' : 'Approve changed execution contract' : continuation ? c!.state === 'approved' ? 'Continue reviewed work' : 'Approve contract and continue reviewed work' : c!.state === 'approved' ? 'Save reviewed project run' : 'Approve contract and save project run'}</Button>}</div>
     {(!view || view.freshness.status !== 'current') && <><p>Choosing updated inputs preserves this original request and its exact keys. It does not cancel or settle any previously saved run.</p>
       <Button variant="ghost" disabled={!allowed || !!busy || preparing} onClick={reviewUpdatedInputs}>Keep original request and review updated plan</Button></>}
   </section>;

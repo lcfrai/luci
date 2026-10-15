@@ -299,7 +299,11 @@ func (s *Server) listCoordinatorContinuations(w http.ResponseWriter, r *http.Req
 	if r.Context().Err() != nil {
 		return
 	}
-	journeyJSON(w, 200, map[string]any{"continuations": out, "savedRoute": rows.SavedRoute, "contextCommits": commits, "cloudCapacity": capacity})
+	acceptedReview := s.acceptedCoordinatorReview(r.Context(), p, rows)
+	if r.Context().Err() != nil {
+		return
+	}
+	journeyJSON(w, 200, map[string]any{"continuations": out, "savedRoute": rows.SavedRoute, "contextCommits": commits, "cloudCapacity": capacity, "acceptedReview": acceptedReview})
 }
 func (s *Server) getCoordinatorContinuation(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)
@@ -413,7 +417,7 @@ func (s *Server) coordinatorContractSelectionCurrent(ctx context.Context, p proj
 		c.Input.Implementation.ProjectID != p.ID || c.Input.Implementation.WorktreeID != run.WorktreeID ||
 		c.Input.Implementation.BriefRevision != run.ImplementationContext.BriefRevision || c.Input.Implementation.PlanRevision != run.ImplementationContext.PlanRevision ||
 		c.Input.Implementation.SpecificationRevision != run.ImplementationContext.SpecificationRevision || c.Input.Implementation.DesignPlanRevision != run.ImplementationContext.DesignPlanRevision ||
-		!reflect.DeepEqual(c.Input.Implementation.TaskIDs, run.ImplementationContext.TaskIDs) || c.Input.Route.Harness != run.Harness || (run.Model != "" && c.Input.Route.Model != run.Model) ||
+		!sameReviewedTaskIDs(c.Input.Implementation.TaskIDs, run.ImplementationContext.TaskIDs) || c.Input.Route.Harness != run.Harness || (run.Model != "" && c.Input.Route.Model != run.Model) ||
 		c.Input.Route.PermissionMode != run.PermissionMode || (run.Effort != "" && c.Input.Route.Effort != run.Effort) || c.Input.Outcome != run.Outcome ||
 		(c.Input.Route.ExecutionLocation != "" && c.Input.Route.ExecutionLocation != run.ExecutionLocation) || (c.Input.Route.ExecutionLocation == "" && run.ExecutionLocation != "" && run.ExecutionLocation != "local-docker") ||
 		(run.AgentConnectionID != nil && c.Input.Route.Connection.ID != *run.AgentConnectionID) || s.contractView(ctx, p, *c).Freshness.Status != "current" {

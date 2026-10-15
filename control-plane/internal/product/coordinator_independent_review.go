@@ -34,7 +34,7 @@ func (s *Server) checkCoordinatorIndependentReviewGate(ctx context.Context, p pr
 	}
 	row := gate.Row
 	if gate.Kind != kind || row.ProjectID != p.ID || row.RunID != run.ID || row.Status != "queued" || row.CheckPlan == nil || run.Swarm == nil || run.State == "cancelled" || run.State == "blocked" || run.Input.OrchestrationContract == nil ||
-		implementationDigest(*ImplementationContextSelection(&run.Input.Implementation)) != implementationDigest(row.Run.ImplementationContext) || !s.coordinatorIndependentReviewCurrent(ctx, p, row) || s.contractCurrentForRun(p, run) != nil {
+		!sameImplementationSelection(*ImplementationContextSelection(&run.Input.Implementation), row.Run.ImplementationContext) || !s.coordinatorIndependentReviewCurrent(ctx, p, row) || s.contractCurrentForRun(p, run) != nil {
 		return ErrProjectRunConflict
 	}
 	return nil

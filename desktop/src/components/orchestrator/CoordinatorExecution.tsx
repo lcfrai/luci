@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { coordinatorContinuationsApi, type CoordinatorCloudCapacity, type CoordinatorContinuation, type CoordinatorContinuationRequest, type CoordinatorContinuationState, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
+import { coordinatorContinuationsApi, type CoordinatorAcceptedReview, type CoordinatorCloudCapacity, type CoordinatorContinuation, type CoordinatorContinuationRequest, type CoordinatorContinuationState, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
 import { coordinatorPolicyApi, type CoordinatorPolicy } from '../../api/coordinatorPolicy';
 import type { OrchestratorView } from '../../api/orchestrator';
 import type { CreateSessionRequest } from '../../api/client';
@@ -54,6 +54,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const [contractView, setContractView] = useState<OrchestrationContractView | null>(null);
   const [storageError, setStorageError] = useState(initial.error || initialReview.error);
   const [rows, setRows] = useState<CoordinatorContinuation[]>([]), [contextCommits, setContextCommits] = useState<NonNullable<CoordinatorContinuationState['contextCommits']>>([]), [selected, setSelected] = useState('');
+  const [acceptedReview, setAcceptedReview] = useState<CoordinatorAcceptedReview | null>(null);
   const [policy, setPolicy] = useState<CoordinatorPolicy | null>(null), [fresh, setFresh] = useState(false);
   const [deliveryReadWarning, setDeliveryReadWarning] = useState('');
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(''), [readDenied, setReadDenied] = useState(false);
@@ -118,7 +119,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
           persist(null); setNotice(match ? 'The exact retained request was observed. It was not submitted again.' : 'Current authoritative state was read. The retained request was not replayed.');
         }
       }
-      setPolicy(nextPolicy); setDeploymentFresh(!!deployment && !!state.savedRoute?.deploymentPlan && sameCoordinatorDeploymentBinding(deployment, state.savedRoute.deploymentPlan)); setConfigurationRevision(configuration); setSavedRoute(state.savedRoute); setCloudCapacity(state.cloudCapacity ?? null); setRows(nextRows); setContextCommits(state.contextCommits ?? []); setSelected(previous => nextRows.some(row => row.id === previous) ? previous : nextRows[nextRows.length - 1]?.id ?? '');
+      setPolicy(nextPolicy); setDeploymentFresh(!!deployment && !!state.savedRoute?.deploymentPlan && sameCoordinatorDeploymentBinding(deployment, state.savedRoute.deploymentPlan)); setConfigurationRevision(configuration); setSavedRoute(state.savedRoute); setCloudCapacity(state.cloudCapacity ?? null); setRows(nextRows); setContextCommits(state.contextCommits ?? []); setAcceptedReview(state.acceptedReview ?? null); setSelected(previous => nextRows.some(row => row.id === previous) ? previous : nextRows[nextRows.length - 1]?.id ?? '');
       setFresh(true); setReadDenied(false); setError('');
     } catch (cause) { if (current(ticket) && !signal?.aborted) { setError(errorText(cause)); if (denied(cause)) { setRows([]); setPolicy(null); setSavedRoute(null); setReadDenied(true); } } }
     finally { if (readController.current === controller) readController.current = null; if (current(ticket)) setBusy(''); }
@@ -126,7 +127,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; readController.current?.abort(); }; }, []);
   useEffect(() => {
     generation.current++; setConsent(false); setIntegrationConsent(false); setPreviewConsent(false); setDeploymentConsent(false); setFindingConsent(false); setDeploymentFresh(false); setPicker(null); setFresh(false); setRememberRoute(false); setAutoDiscussFindings(false);
-    if (!canRead) { setRows([]); setContextCommits([]); setPolicy(null); setSavedRoute(null); setCloudCapacity(null); return; }
+    if (!canRead) { setRows([]); setContextCommits([]); setAcceptedReview(null); setPolicy(null); setSavedRoute(null); setCloudCapacity(null); return; }
     void load(false);
     return () => readController.current?.abort();
   }, [projectId, actorId, canRead, canEdit, canExecute, canDeploy, view.context.digest, policyEpoch]);
@@ -189,6 +190,26 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const row = rows.find(value => value.id === selected);
   const cloudReady = (cloudCapacity?.provider === 'e2b-embed' || cloudCapacity?.provider === 'azure-e2b-embed') && !cloudCapacity.setupNeeds?.length;
   const cloudProviderLabel = cloudCapacity?.provider === 'azure-e2b-embed' ? 'Azure microVM' : 'Configured microVM';
+  async function reviewAcceptedChange() {
+    const accepted = acceptedReview, route = savedRoute?.route;
+    if (!accepted?.selection || accepted.status !== 'review-required' || !route || !fresh || !canEdit || !canExecute || pendingRef.current || contractReview || working.current || storageError || readDenied) return;
+    if (!['codex', 'claude-code', 'opencode'].includes(route.harness) || !['ask', 'bypass'].includes(route.permissionMode) || !worktree?.isPrimary || route.worktreeId !== worktree.id || worktree.projectId !== projectId) {
+      setError('The saved route cannot prepare this changed contract. Review the current upstream connection and project checkout before continuing.'); return;
+    }
+    const key = crypto.randomUUID();
+    const request: PrepareOrchestrationContract = { idempotencyKey: key, worktreeId: route.worktreeId, implementationContext: accepted.selection,
+      route: { harness: route.harness as PrepareOrchestrationContract['route']['harness'], model: route.model, permissionMode: route.permissionMode as 'ask' | 'bypass', executionLocation: route.executionLocation === 'cloud-microvm' ? 'cloud-microvm' : 'local-docker', ...(route.effort ? { effort: route.effort } : {}), ...(route.agentConnectionId !== undefined ? { agentConnectionId: route.agentConnectionId } : {}) }, outcome: route.outcome };
+    const review: ExecutionContractReviewRequest = { version: 1, projectId, actorId, runKey: key, request, acceptedEventId: accepted.eventId };
+    try { retainContractReview(reviewScope, review); setContractReview(review); setContractView(null); }
+    catch (cause) { setError(errorText(cause)); return; }
+    try {
+      const value = await orchestrationContractsApi.prepare(projectId, request);
+      if (!alive.current || !latest.current.canRead) return;
+      if (value.contract.actor.id !== actorId) throw new Error('The prepared contract belongs to another person.');
+      const retained = { ...review, contractId: value.contract.id };
+      retainContractReview(reviewScope, retained); setContractReview(retained); setContractView(value);
+    } catch (cause) { if (alive.current) setError(`${errorText(cause)} The exact changed-contract review is retained for readback; no replacement run was started.`); }
+  }
   const start = (location: 'local-docker' | 'cloud-microvm' = 'local-docker') => {
     if (issue || deliverySetupIssue || checkSelection.problem || previewSelection.problem || deploymentSelection.problem || pendingRef.current || contractReview || working.current || storageError || !policy || !ownTurn || !worktree) return;
     if (location === 'cloud-microvm' && !cloudReady) return;
@@ -228,6 +249,14 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     const ok = await mutate('create', { kind: 'create', projectId, actorId, input }, () => coordinatorContinuationsApi.create(projectId, actorId, input), value => { remember(value); if (input.checkPlan) setRecordedDraft(checkSelection.draftDigest); if (input.previewPlan) setRecordedPreview(previewSelection.draftDigest); if (input.deploymentPlan) setRecordedDeployment(deploymentSelection.draftDigest); setPicker(null); setNotice('The approved continuation is retained. Queued work is not yet verified or deployed.'); });
     if (!ok) throw new Error('The exact continuation needs readback. Do not submit another request.');
   }
+  async function finishAcceptedReview(prepared: PrepareOrchestrationContract, reference: OrchestrationContractReference, key: string) {
+    const review = contractReview;
+    if (!review?.acceptedEventId || review.runKey !== key || JSON.stringify(review.request) !== JSON.stringify(prepared) || !reference.approvalId || !latest.current.canEdit || !latest.current.canExecute) throw new Error('The accepted change review changed. Read its exact retained approval.');
+    const observed = await coordinatorContinuationsApi.listState(projectId, actorId);
+    if (observed.acceptedReview?.eventId !== review.acceptedEventId || observed.acceptedReview.status !== 'approved') throw new Error('The accepted change or its current approval could not be confirmed. Keep this review for exact readback.');
+    setAcceptedReview(observed.acceptedReview); setRows(observed.continuations); setContextCommits(observed.contextCommits ?? []);
+    setNotice('The changed execution contract is approved. Luci will resume the accepted work only after current source, policy, authority and earlier outcomes are checked. Refresh continued work to inspect its retained result.');
+  }
   async function advance() {
     if (!row || !canExecute || blocked) return;
     await mutate('advance', { kind: 'advance', actorId, projectId, id: row.id, revision: row.revision }, () => coordinatorContinuationsApi.advance(projectId, actorId, row.id, row.revision), remember);
@@ -238,7 +267,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     <p>Run on: {runOn}. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.</p>
     {deliveryReadWarning && <p role="status">{deliveryReadWarning} Automatic reuse remains blocked. Review current configuration or pause the delegation.</p>}{error && <p role="alert">{error}</p>}{storageError && <p role="alert">{storageError}</p>}{notice && <p role="status">{notice}</p>}
     {pending && <p role="status">A continuation request is retained. New requests are paused until its exact outcome is read back.</p>}
-    {contractReview && !pending && <ExecutionContractReview key={contractReview.request.idempotencyKey} pending={contractReview} initialView={contractView} scope={reviewScope} actorId={actorId} canRead={canRead} canEdit={canEdit && canExecute && fresh && !readDenied} continuation onPrepared={(next, value) => { setContractReview(next); setContractView(value); }} onCreate={createReviewedContinuation} onComplete={() => { setContractReview(null); setContractView(null); }} onReviewInputs={() => { setContractReview(null); setContractView(null); setPicker(null); }} />}
+    {contractReview && !pending && <ExecutionContractReview key={contractReview.request.idempotencyKey} pending={contractReview} initialView={contractView} scope={reviewScope} actorId={actorId} canRead={canRead} canEdit={canEdit && canExecute && fresh && !readDenied} continuation={!contractReview.acceptedEventId} approvalOnly={!!contractReview.acceptedEventId} onPrepared={(next, value) => { setContractReview(next); setContractView(value); }} onCreate={contractReview.acceptedEventId ? finishAcceptedReview : createReviewedContinuation} onComplete={() => { setContractReview(null); setContractView(null); }} onReviewInputs={() => { setContractReview(null); setContractView(null); setPicker(null); }} />}
     {!readDenied && canRead && <section aria-label="Cloud task swarm activation">
       <h4>Build with a cloud agent swarm</h4>
       <p>{tasks.length} unfinished reviewed task{tasks.length === 1 ? '' : 's'} in this plan. Luci schedules saved dependencies and gives each admitted upstream agent its own owned microVM. Run on the selected cloud service; deploy to is a separate reviewed decision.</p>
@@ -253,6 +282,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     {readDenied ? <p role="alert">Current access was refused. Retained private work is hidden.</p> : <>
       {rows.length > 0 && <label className="luci-field">Retained continuation<select value={selected} onChange={event => setSelected(event.target.value)}>{rows.map(value => <option value={value.id} key={value.id}>{states[value.status]} · {value.originTurnId}</option>)}</select></label>}
       {contextCommits.some(value => value.status === 'pending') && <p role="status">An accepted context Git commit has an uncertain outcome. Luci will inspect its exact parent, paths and bytes without replaying the write. Review this project’s source if it remains pending.</p>}
+      {acceptedReview && <section aria-label="Accepted change continuation"><p role="status">{acceptedReview.reason}</p>{acceptedReview.status === 'review-required' && <Button variant="secondary" disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending || !!contractReview || !!storageError || readDenied} onClick={() => void reviewAcceptedChange()}>Review changed execution contract</Button>}</section>}
       {row && <article aria-label="Selected continuation"><p role="status"><strong>{states[row.status]}</strong> · {row.message}</p>
         {!!row.acceptedEvents?.length && <p>Continued from {row.acceptedEvents.length} accepted project change{row.acceptedEvents.length === 1 ? '' : 's'}, through event {row.acceptedEvents[row.acceptedEvents.length - 1].sequence}. The saved input still requires current review and authority.</p>}
         {row.contextDigest !== view.context.digest && <p>The current context observation differs from this work’s captured snapshot. Luci rechecks the exact reviewed selection before continuing; it does not replace captured context.</p>}

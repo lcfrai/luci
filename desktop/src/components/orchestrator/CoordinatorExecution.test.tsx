@@ -317,6 +317,28 @@ it('leaves accepted-event admission to the durable service while showing the sav
   expect(screen.queryByRole('dialog')).toBeNull(); ui.rerender(<CoordinatorExecution {...input} />);
   expect(api.create).not.toHaveBeenCalled();
 });
+it('shows reconciliation first, then reviews the exact accepted selection without creating a second run', async () => {
+  const saved = savedRoute(), selection = { projectId: 'p-1', briefRevision: 1, planRevision: 1, specificationRevision: 2, designPlanRevision: 1, taskIds: ['T-1'] };
+  vi.mocked(api.listState).mockResolvedValueOnce({ continuations: [row()], savedRoute: saved, acceptedReview: { eventId: 'coord-event-changed', status: 'waiting', reason: 'The accepted context commit has an unconfirmed outcome.' } })
+    .mockResolvedValueOnce({ continuations: [row()], savedRoute: saved, acceptedReview: { eventId: 'coord-event-changed', status: 'review-required', reason: 'Review and approve its new execution contract.', selection } })
+    .mockResolvedValue({ continuations: [row()], savedRoute: saved, acceptedReview: { eventId: 'coord-event-changed', status: 'approved', reason: 'Current approval observed.', selection } });
+  render(<CoordinatorExecution {...withRequirements()} />);
+  await screen.findByText('The accepted context commit has an unconfirmed outcome.');
+  expect(screen.queryByRole('button', { name: 'Review changed execution contract' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' }));
+  await screen.findByRole('button', { name: 'Review changed execution contract' });
+  await userEvent.click(screen.getByRole('button', { name: 'Review changed execution contract' }));
+  await screen.findByRole('region', { name: 'Execution contract review' });
+  const calls = vi.mocked(orchestrationContractsApi.prepare).mock.calls;
+  const prepared = calls[calls.length - 1]?.[1];
+  expect(prepared?.implementationContext).toEqual(selection);
+  expect(prepared?.route).toMatchObject({ harness: 'codex', model: 'model', permissionMode: 'bypass', agentConnectionId: 'configured' });
+  expect(api.create).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('checkbox', { name: /I reviewed these exact scopes/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Approve changed execution contract' }));
+  await screen.findByText(/changed execution contract is approved/);
+  expect(api.create).not.toHaveBeenCalled();
+});
 it.each(['acceptance', 'coverage', 'no-plan', 'manual-policy', 'unapplied', 'other-person', 'existing', 'draft', 'authority', 'checkout'])('does not automatically reuse a saved route when %s changed', async condition => {
   const input = withRequirements(), saved = savedRoute(); let rows: CoordinatorContinuation[] = [];
   if (condition === 'acceptance') input.view.context.specification.requirements[0].acceptance = 'Changed acceptance';

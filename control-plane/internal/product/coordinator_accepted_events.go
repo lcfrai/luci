@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"reflect"
 	"sort"
 
 	"github.com/lcfrai/luci/control-plane/internal/management"
@@ -31,9 +30,9 @@ func (s *Server) acceptedEventApprovedContract(ctx context.Context, p project.Pr
 		i := c.Input.Implementation
 		if c.Actor.ID != actor || c.Approval == nil || c.State != "approved" || c.Approval.Actor.ID != actor || c.ProjectID != p.ID ||
 			i.ProjectID != selection.ProjectID || i.WorktreeID != route.Route.WorktreeID || i.BriefRevision != selection.BriefRevision || i.PlanRevision != selection.PlanRevision ||
-			i.SpecificationRevision != selection.SpecificationRevision || i.DesignPlanRevision != selection.DesignPlanRevision || exactTasks && !reflect.DeepEqual(i.TaskIDs, selection.TaskIDs) ||
+			i.SpecificationRevision != selection.SpecificationRevision || i.DesignPlanRevision != selection.DesignPlanRevision || exactTasks && !sameReviewedTaskIDs(i.TaskIDs, selection.TaskIDs) ||
 			c.Input.Route.Harness != route.Route.Harness || (route.Route.Model != "" && c.Input.Route.Model != route.Route.Model) || c.Input.Route.PermissionMode != route.Route.PermissionMode || (route.Route.Effort != "" && c.Input.Route.Effort != route.Route.Effort) ||
-			c.Input.Route.ExecutionLocation != route.Route.ExecutionLocation || c.Input.Outcome != route.Route.Outcome {
+			(c.Input.Route.ExecutionLocation != route.Route.ExecutionLocation && !(route.Route.ExecutionLocation == "" && c.Input.Route.ExecutionLocation == "local-docker")) || c.Input.Outcome != route.Route.Outcome {
 			continue
 		}
 		if !exactTasks {
@@ -123,6 +122,78 @@ func coordinatorAffectedTaskIDs(tasks []ProjectTask, events []CoordinationEventO
 	return out
 }
 
+// The request is sorted for durable replay while captured task order follows
+// the approved plan. Both sides must still name the exact same unique tasks.
+func sameReviewedTaskIDs(a, b []string) bool {
+	if len(a) != len(b) || len(a) == 0 {
+		return false
+	}
+	seen := make(map[string]bool, len(a))
+	for _, id := range a {
+		if id == "" || seen[id] {
+			return false
+		}
+		seen[id] = true
+	}
+	for _, id := range b {
+		if !seen[id] {
+			return false
+		}
+		delete(seen, id)
+	}
+	return len(seen) == 0
+}
+
+func sameImplementationSelection(a, b ImplementationContextRequest) bool {
+	return a.ProjectID == b.ProjectID && a.BriefRevision == b.BriefRevision && a.PlanRevision == b.PlanRevision && a.SpecificationRevision == b.SpecificationRevision && a.DesignPlanRevision == b.DesignPlanRevision && sameReviewedTaskIDs(a.TaskIDs, b.TaskIDs)
+}
+
+// pendingAcceptedCoordinatorEvents is a read of exact applied event receipts.
+// Both background dispatch and the review projection use this same selection;
+// a UI cannot guess a different event or task set from presentation history.
+func (s *Server) pendingAcceptedCoordinatorEvents(ctx context.Context, p project.Project, rows coordinatorContinuations, view CoordinationView) ([]CoordinationEventObservation, error) {
+	refs := make([]CoordinationEventReceipt, 0, len(view.Events)+len(view.Archives))
+	for _, archive := range view.Archives {
+		for _, event := range archive.Events {
+			refs = append(refs, CoordinationEventReceipt{EventID: event.ID, Sequence: event.Sequence, OriginIntentID: event.OriginIntentID, ArchiveDigest: archive.Digest})
+		}
+	}
+	for _, event := range view.Events {
+		refs = append(refs, CoordinationEventReceipt{EventID: event.ID, Sequence: event.Sequence, OriginIntentID: event.IntentID})
+	}
+	sort.Slice(refs, func(i, j int) bool { return refs[i].Sequence < refs[j].Sequence })
+	consumed := map[string]bool{}
+	for _, row := range rows.Rows {
+		for _, receipt := range row.AcceptedEvents {
+			consumed[receipt.EventID] = true
+		}
+	}
+	events := []CoordinationEventObservation{}
+	for _, receipt := range refs {
+		if consumed[receipt.EventID] {
+			continue
+		}
+		observation, err := s.CoordinationEventByIdentity(ctx, p.ID, receipt)
+		if err != nil {
+			return nil, err
+		}
+		if observation.Event.Kind != "applied" || observation.Intent.Status != "applied" || observation.Intent.Actor.ID != observation.Event.Actor.ID {
+			continue
+		}
+		manual := false
+		for _, row := range rows.Rows {
+			manual = manual || row.OriginTurnID == observation.Intent.TurnID
+		}
+		if !manual {
+			events = append(events, observation)
+		}
+	}
+	if len(events) > 16 {
+		return nil, ErrOrchestratorCapacity
+	}
+	return events, nil
+}
+
 // A single actor's saved route is an explicit preference, never standing
 // authority. Current team/edit/execute grants, approvals and check coverage
 // are re-read by the production continuation handler before reservation.
@@ -163,43 +234,9 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 	if !snapshot.SourceKnown || !deliverySHA.MatchString(snapshot.SourceCommit) {
 		return false, nil
 	}
-	refs := make([]CoordinationEventReceipt, 0, len(view.Events)+len(view.Archives))
-	for _, archive := range view.Archives {
-		for _, event := range archive.Events {
-			refs = append(refs, CoordinationEventReceipt{EventID: event.ID, Sequence: event.Sequence, OriginIntentID: event.OriginIntentID, ArchiveDigest: archive.Digest})
-		}
-	}
-	for _, event := range view.Events {
-		refs = append(refs, CoordinationEventReceipt{EventID: event.ID, Sequence: event.Sequence, OriginIntentID: event.IntentID})
-	}
-	sort.Slice(refs, func(i, j int) bool { return refs[i].Sequence < refs[j].Sequence })
-	consumed := map[string]bool{}
-	for _, row := range rows.Rows {
-		for _, receipt := range row.AcceptedEvents {
-			consumed[receipt.EventID] = true
-		}
-	}
-	events := []CoordinationEventObservation{}
-	for _, receipt := range refs {
-		if consumed[receipt.EventID] {
-			continue
-		}
-		observation, e := s.CoordinationEventByIdentity(fresh, p.ID, receipt)
-		if e != nil {
-			return false, e
-		}
-		if observation.Event.Kind != "applied" || observation.Intent.Status != "applied" || observation.Intent.Actor.ID != observation.Event.Actor.ID {
-			continue
-		}
-		// A manually reserved continuation for this exact accepted turn is
-		// already its work; never create a second run for the same intent.
-		manual := false
-		for _, row := range rows.Rows {
-			manual = manual || row.OriginTurnID == observation.Intent.TurnID
-		}
-		if !manual {
-			events = append(events, observation)
-		}
+	events, err := s.pendingAcceptedCoordinatorEvents(fresh, p, rows, view)
+	if err != nil {
+		return false, err
 	}
 	if len(events) == 0 || len(events) > 16 {
 		return false, nil
@@ -245,9 +282,6 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 	if _, err = implementationSnapshot(state, selection, ""); err != nil {
 		return false, nil // Accepted intent can precede required context approval.
 	}
-	if s.acceptedEventApprovedContract(fresh, p, rows.ActorID, selection, route, false) == nil {
-		return false, nil // No current exact approval: leave accepted intent for human review.
-	}
 	for _, prior := range rows.Rows {
 		old := prior.Run.ImplementationContext
 		if old.BriefRevision == selection.BriefRevision && old.PlanRevision == selection.PlanRevision &&
@@ -259,6 +293,23 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 		}
 	}
 	lastEventID := events[len(events)-1].Event.ID
+	pendingCommit := false
+	for _, commit := range rows.ContextCommits {
+		pendingCommit = pendingCommit || commit.EventID == lastEventID && commit.Status == "pending"
+	}
+	if snapshot.SourceDirty || pendingCommit {
+		// Reconcile only the already accepted canonical context under its exact
+		// journal. This does not approve the changed execution contract or start
+		// replacement work. Unknown Git effects stay pending for readback.
+		confirmed, commitErr := s.commitAcceptedCoordinatorContext(fresh, p, lastEventID, snapshot.SourceCommit)
+		if commitErr != nil || !confirmed {
+			return false, commitErr
+		}
+		return false, nil // A later observation must bind a fresh approved contract to the committed source.
+	}
+	if s.acceptedEventApprovedContract(fresh, p, rows.ActorID, selection, route, false) == nil {
+		return false, nil // No current exact approval: leave accepted intent for human review.
+	}
 	// A changed downstream task can depend on previously integrated work. Reuse
 	// only exact reviewed prerequisites; otherwise include those ancestors in
 	// the new run so the person need not shuttle a dependency by hand.
@@ -277,13 +328,6 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 	contract := s.acceptedEventApprovedContract(fresh, p, rows.ActorID, selection, route, true)
 	if contract == nil {
 		return false, nil
-	}
-	reservedCommit := false
-	for _, commit := range rows.ContextCommits {
-		reservedCommit = reservedCommit || commit.EventID == lastEventID
-	}
-	if snapshot.SourceDirty || reservedCommit {
-		return false, nil // Commit/reconcile source before approving its exact contract.
 	}
 	if err = s.blockSupersededQueuedTasks(p.ID, selection); err != nil {
 		return false, err // Retry the same accepted event before creating new work.
