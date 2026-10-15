@@ -371,7 +371,11 @@ func (s *Server) postProjectSwarmMessage(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	var msg ProjectSwarmMessage
+	coordinatorIndependentReviewBeforeMutation(r.Context())
 	run, err := s.projectRuns.mutateSwarm(p.ID, p.Path, r.PathValue("runId"), req.ExpectedRevision, func(run *ProjectRun) error {
+		if err := s.checkCoordinatorIndependentReviewGate(r.Context(), p, *run, "finding"); err != nil {
+			return err
+		}
 		if run.Swarm == nil || run.State == "cancelled" || swarmTask(run, req.RecipientTaskID) == nil {
 			return ErrProjectRunConflict
 		}

@@ -225,7 +225,11 @@ func (s *Server) createProjectSwarmReviewObligation(w http.ResponseWriter, r *ht
 		return
 	}
 	item := ProjectSwarmReviewObligation{ID: newID("review-"), TaskID: candidate.TaskID, CandidateOperationID: candidate.ID, CandidateChildID: candidate.ChildID, CandidateCommit: review.SourceCommit, ContextDigest: implementationDigest(candidate.Implementation), ReviewDigest: review.ReviewDigest, ReviewerOperationID: reviewer.ID, ReviewerChildID: reviewer.ChildID, State: "pending", Attempt: candidate.Attempt, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), KeyDigest: implementationDigest(req.IdempotencyKey), RequestDigest: digest}
+	coordinatorIndependentReviewBeforeMutation(r.Context())
 	run, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, req.ExpectedRevision, func(current *ProjectRun) error {
+		if err := s.checkCoordinatorIndependentReviewGate(r.Context(), p, *current, "create"); err != nil {
+			return err
+		}
 		if current.Swarm == nil || len(current.Swarm.ReviewObligations) >= maxSwarmReviewObligations {
 			return ErrProjectRunLimit
 		}
@@ -280,7 +284,11 @@ func (s *Server) resolveProjectSwarmReviewObligation(w http.ResponseWriter, r *h
 		return
 	}
 	var item ProjectSwarmReviewObligation
+	coordinatorIndependentReviewBeforeMutation(r.Context())
 	run, err := s.projectRuns.mutateSwarm(p.ID, p.Path, r.PathValue("runId"), req.ExpectedRevision, func(run *ProjectRun) error {
+		if err := s.checkCoordinatorIndependentReviewGate(r.Context(), p, *run, "resolve"); err != nil {
+			return err
+		}
 		if run.Swarm == nil {
 			return ErrProjectRunNotFound
 		}

@@ -198,6 +198,15 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				}
 				continue
 			}
+			if run.Swarm.State == "cancelled" || run.State == "cancelled" {
+				if err = s.schedulerSetReason(item.ID, "cancelled", "swarm_cancelled", "This swarm was cancelled; future queued work will not start."); err != nil {
+					return err
+				}
+				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
+					return releaseErr
+				}
+				continue
+			}
 			if item.OperationID == "" && task.Role == "reviewer" && run.Input.OrchestrationContract != nil {
 				if !swarmContractReviewerRole(run, *task, task.ReviewOfTaskID) {
 					if err = s.schedulerSetReason(item.ID, "blocked", "review_role_changed", "This task no longer has an approved independent reviewer role."); err != nil {
@@ -216,15 +225,6 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 					}
 					continue
 				}
-			}
-			if run.Swarm.State == "cancelled" || run.State == "cancelled" {
-				if err = s.schedulerSetReason(item.ID, "cancelled", "swarm_cancelled", "This swarm was cancelled; future queued work will not start."); err != nil {
-					return err
-				}
-				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
-					return releaseErr
-				}
-				continue
 			}
 			if run.Swarm.State != "ready" {
 				if err = s.schedulerSetReason(item.ID, item.State, "swarm_paused", "The swarm is paused. Resume it to allow queued work to start."); err != nil {
