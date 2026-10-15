@@ -88,9 +88,9 @@
     "plan": "BUILD-AND-ACCEPTANCE.md"
   },
   "unresolvedBeforeAcquisitionOrBuild": [
-    "dependency-lock.json contains174 pinned concrete Debian packages, the88-package base inventory and127 source metadata records;42 unresolved entries mean this is not a closed SBOM.",
-    "Authenticate exact Debian controls/source signatures and verify all selected dependency/provider/conflict/version relations.",
-    "Resolve13 missing copyright texts and review22 freeform notices; fulfill exact corresponding-source/notice obligations.",
+    "dependency-lock.json contains174 pinned concrete Debian packages, the88-package base inventory and127 source metadata records;8 unresolved entries mean this is not a closed SBOM.",
+    "All464 selected retained-metadata version relations pass; authenticate exact controls/source signatures and verify binary provider/conflict/transaction relations.",
+    "34 of35 targeted source notices now have full retained texts and concrete obligations; inspect exact libarchive3.6.2-1+deb12u5 notice and fulfill corresponding-source/notice obligations.",
     "Verify pinned wheel native members, compiled dependency subset, feature flags, trained-data/notice member hashes and complete installed-image package set.",
     "Root must review an actual bounded selected builder and exact acquisition/build/acceptance helper; no local effect authorization is present."
   ],
@@ -101,5 +101,8 @@
   ],
   "dependencyLock": "dependency-lock.json",
   "recipe": "Dockerfile.review",
-  "recipeGate": "closure.status deliberately unresolved-not-authorized"
+  "recipeGate": "closure.status deliberately unresolved-not-authorized",
+  "noticeReview": "notice-review.json",
+  "finiteInspectionInputs": "acquisition-inspection-manifest.json",
+  "inspectionAndBuilderPlan": "INSPECTION-AND-BUILDER-PLAN.md"
 }

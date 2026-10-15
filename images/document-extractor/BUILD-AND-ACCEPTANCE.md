@@ -22,9 +22,10 @@ unresolved entries, **not a closed SBOM** or an installed-image observation.
   Noto core20201225-1 / Noto CJK1:20220127+repack1-1 are pinned in that set.
   The two existing wheel hashes remain unchanged in `wheel-requirements.txt`.
 - 127 Debian source descriptors have metadata digests and source-archive hashes.
-  Available exact copyright texts are identified by URL/digest. Thirteen copyright
-  metadata texts were unavailable; twenty-two notices have freeform declarations
-  requiring review. Those cases remain explicit rather than guessed SPDX claims.
+  Exact copyright is now retained or identified for126 source groups. Of the35
+  targeted notice items,34 have full retained texts and concrete source/notice
+  obligations in `notice-review.json`; only libarchive3.6.2-1+deb12u5 remains.
+  Binary applicability and fulfilled distribution obligations remain unverified.
 - Exact upstream helper/Pillow commits, twenty declared Pillow native components,
   twenty-nine upstream notices and PDFium8076 dependency revisions are recorded.
   Upstream declarations are not proof of the native members in the selected wheels.
@@ -35,6 +36,9 @@ Primary base provenance:
 [amd64 inventory](https://github.com/debuerreotype/docker-debian-artifacts/blob/8f962b15d7884a90e17876a9303cbac909d119aa/bookworm/slim/rootfs.manifest),
 [amd64 OCI metadata](https://github.com/debuerreotype/docker-debian-artifacts/blob/8f962b15d7884a90e17876a9303cbac909d119aa/bookworm/slim/oci/index.json).
 Per-component primary links/hashes are retained in the lock.
+The exact finite next inputs, data-only inspector proposal, authentication gap and
+source-identified unsupported builder primitive are in
+[INSPECTION-AND-BUILDER-PLAN.md](INSPECTION-AND-BUILDER-PLAN.md).
 
 ## Closure before an effect release
 

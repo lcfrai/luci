@@ -1,0 +1,2 @@
+# Retained upstream copyright and licence bytes must match recorded SHA256.
+*.copyright -text whitespace=-blank-at-eol,-blank-at-eof

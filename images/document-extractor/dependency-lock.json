@@ -730,9 +730,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
+        "sha256": "fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23",
+        "retainedFile": "notices/debian/base-files.fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/b/base-files/base-files_12.4+deb12u15_copyright",
-        "bytes": 1208,
-        "sha256": "fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23"
+        "bytes": 1208
       },
       "copyrightInstalledPath": "/usr/share/doc/base-files/copyright"
     },
@@ -989,7 +990,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/c/ca-certificates/ca-certificates_20250419~deb12u1.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c",
+        "retainedFile": "notices/debian/ca-certificates.e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fca-certificates/repository/files/debian%2Fcopyright/raw?ref=2990fc00e7799dbc172d199f2f6aa53334805e3d",
+        "bytes": 18940
+      },
       "copyrightInstalledPath": "/usr/share/doc/ca-certificates/copyright"
     },
     {
@@ -1196,9 +1202,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
+        "sha256": "b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732",
+        "retainedFile": "notices/debian/debian-archive-keyring.b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/d/debian-archive-keyring/debian-archive-keyring_2023.3+deb12u2_copyright",
-        "bytes": 1243,
-        "sha256": "b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732"
+        "bytes": 1243
       },
       "copyrightInstalledPath": "/usr/share/doc/debian-archive-keyring/copyright"
     },
@@ -1670,9 +1677,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 1301,
+        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db",
+        "retainedFile": "notices/debian/fontconfig.b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/f/fontconfig/fontconfig_2.14.1-4_copyright",
-        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db"
+        "bytes": 1301
       },
       "copyrightInstalledPath": "/usr/share/doc/fontconfig/copyright"
     },
@@ -1761,9 +1769,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 1301,
+        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db",
+        "retainedFile": "notices/debian/fontconfig.b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/f/fontconfig/fontconfig_2.14.1-4_copyright",
-        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db"
+        "bytes": 1301
       },
       "copyrightInstalledPath": "/usr/share/doc/fontconfig-config/copyright"
     },
@@ -1906,9 +1915,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 68194,
+        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+        "retainedFile": "notices/debian/gcc-12.da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1_copyright",
-        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+        "bytes": 68194
       },
       "copyrightInstalledPath": "/usr/share/doc/gcc-12-base/copyright"
     },
@@ -2957,9 +2967,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 25467,
+        "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987",
+        "retainedFile": "notices/debian/glibc.40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/g/glibc/glibc_2.36-9+deb12u14_copyright",
-        "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+        "bytes": 25467
       },
       "copyrightInstalledPath": "/usr/share/doc/libc-bin/copyright"
     },
@@ -3002,9 +3013,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 25467,
+        "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987",
+        "retainedFile": "notices/debian/glibc.40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/g/glibc/glibc_2.36-9+deb12u14_copyright",
-        "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+        "bytes": 25467
       },
       "copyrightInstalledPath": "/usr/share/doc/libc6/copyright"
     },
@@ -3157,9 +3169,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 28461,
+        "sha256": "408fb9e704e875cd42d432e7c9b3b378f568e3c89db2b5c5ef3d11c025319574",
+        "retainedFile": "notices/debian/cairo.408fb9e704e875cd42d432e7c9b3b378f568e3c89db2b5c5ef3d11c025319574.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/c/cairo/cairo_1.16.0-7_copyright",
-        "sha256": "408fb9e704e875cd42d432e7c9b3b378f568e3c89db2b5c5ef3d11c025319574"
+        "bytes": 28461
       },
       "copyrightInstalledPath": "/usr/share/doc/libcairo2/copyright"
     },
@@ -3356,7 +3369,12 @@
       "sourceRef": "http://deb.debian.org/debian/pool/main/libx/libxcrypt/libxcrypt_4.4.33-2.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16",
+        "retainedFile": "notices/debian/libxcrypt.5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/md%2Flibxcrypt/repository/files/debian%2Frules/raw?ref=1120d6a32fb9cd3c67c6150ba8ffba5774ea8660",
+        "bytes": 6010
+      },
       "copyrightInstalledPath": "/usr/share/doc/libcrypt1/copyright"
     },
     {
@@ -3763,7 +3781,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/e/expat/expat_2.5.0-1+deb12u4.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "60919fe1a156395ff14511bb6ff79756c50ade2fff59ac60c9bae1d8a7fe6292",
+        "retainedFile": "notices/debian/expat.60919fe1a156395ff14511bb6ff79756c50ade2fff59ac60c9bae1d8a7fe6292.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fexpat/repository/files/debian%2Fcopyright/raw?ref=a664ce8900365b8bb1e3080942bb7ee0b9922a7b",
+        "bytes": 1756
+      },
       "copyrightInstalledPath": "/usr/share/doc/libexpat1/copyright"
     },
     {
@@ -3943,9 +3966,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 1301,
+        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db",
+        "retainedFile": "notices/debian/fontconfig.b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/f/fontconfig/fontconfig_2.14.1-4_copyright",
-        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db"
+        "bytes": 1301
       },
       "copyrightInstalledPath": "/usr/share/doc/libfontconfig1/copyright"
     },
@@ -4130,9 +4154,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 68194,
+        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+        "retainedFile": "notices/debian/gcc-12.da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1_copyright",
-        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+        "bytes": 68194
       },
       "copyrightInstalledPath": "/usr/share/doc/libgcc-s1/copyright"
     },
@@ -4185,9 +4210,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 24896,
         "sha256": "95db2f9da663f2bfe2aabe9c72fce9d6c9ae767b912f397d7823f50bd55a1a7d",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/libg/libgcrypt20/libgcrypt20_1.10.1-3+deb12u1_copyright"
+        "retainedFile": "notices/debian/libgcrypt20.95db2f9da663f2bfe2aabe9c72fce9d6c9ae767b912f397d7823f50bd55a1a7d.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/libg/libgcrypt20/libgcrypt20_1.10.1-3+deb12u1_copyright",
+        "bytes": 24896
       },
       "copyrightInstalledPath": "/usr/share/doc/libgcrypt20/copyright"
     },
@@ -4584,9 +4610,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 68194,
+        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+        "retainedFile": "notices/debian/gcc-12.da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1_copyright",
-        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+        "bytes": 68194
       },
       "copyrightInstalledPath": "/usr/share/doc/libgomp1/copyright"
     },
@@ -4776,9 +4803,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 63047,
         "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/k/krb5/krb5_1.20.1-2+deb12u5_copyright"
+        "retainedFile": "notices/debian/krb5.936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/k/krb5/krb5_1.20.1-2+deb12u5_copyright",
+        "bytes": 63047
       },
       "copyrightInstalledPath": "/usr/share/doc/libgssapi-krb5-2/copyright"
     },
@@ -5226,9 +5254,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 63047,
         "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/k/krb5/krb5_1.20.1-2+deb12u5_copyright"
+        "retainedFile": "notices/debian/krb5.936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/k/krb5/krb5_1.20.1-2+deb12u5_copyright",
+        "bytes": 63047
       },
       "copyrightInstalledPath": "/usr/share/doc/libk5crypto3/copyright"
     },
@@ -5369,9 +5398,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 63047,
         "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/k/krb5/krb5_1.20.1-2+deb12u5_copyright"
+        "retainedFile": "notices/debian/krb5.936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/k/krb5/krb5_1.20.1-2+deb12u5_copyright",
+        "bytes": 63047
       },
       "copyrightInstalledPath": "/usr/share/doc/libkrb5-3/copyright"
     },
@@ -5414,9 +5444,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 63047,
         "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/k/krb5/krb5_1.20.1-2+deb12u5_copyright"
+        "retainedFile": "notices/debian/krb5.936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/k/krb5/krb5_1.20.1-2+deb12u5_copyright",
+        "bytes": 63047
       },
       "copyrightInstalledPath": "/usr/share/doc/libkrb5support0/copyright"
     },
@@ -5642,9 +5673,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 1766,
         "sha256": "cff4f0cb5db14528a8b84f4a3389012d5c6e0f5a75a882509367b2147c05a83e",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/l/leptonlib/leptonlib_1.82.0-3_copyright"
+        "retainedFile": "notices/debian/leptonlib.cff4f0cb5db14528a8b84f4a3389012d5c6e0f5a75a882509367b2147c05a83e.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/l/leptonlib/leptonlib_1.82.0-3_copyright",
+        "bytes": 1766
       },
       "copyrightInstalledPath": "/usr/share/doc/liblept5/copyright"
     },
@@ -5800,7 +5832,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/x/xz-utils/xz-utils_5.4.1-1+deb12u2.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "a2dc8fac0f496e1c58aff67018cf0c6b88336316afa5642f9335b71642e28aa8",
+        "retainedFile": "notices/debian/xz-utils.a2dc8fac0f496e1c58aff67018cf0c6b88336316afa5642f9335b71642e28aa8.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/debian%2Fxz-utils/repository/files/debian%2Fcopyright/raw?ref=21770ca23126455d5c3f1b3f93f411c896d153e1",
+        "bytes": 15465
+      },
       "copyrightInstalledPath": "/usr/share/doc/liblzma5/copyright"
     },
     {
@@ -7058,7 +7095,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/p/pcre2/pcre2_10.42-1+deb12u2.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "030511beb4d9d620ad09914c369c36ec0528dcf301d1923cc643c948ee7c6a38",
+        "retainedFile": "notices/debian/pcre2.030511beb4d9d620ad09914c369c36ec0528dcf301d1923cc643c948ee7c6a38.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/debian%2Fpcre2/repository/files/debian%2Fcopyright/raw?ref=1321318642e6a27f564623f3683eb0836d194d60",
+        "bytes": 6626
+      },
       "copyrightInstalledPath": "/usr/share/doc/libpcre2-8-0/copyright"
     },
     {
@@ -7100,9 +7142,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 2247,
         "sha256": "1b3fb5690861e15ca4fd6640fd4def4b2576617942eec04b6fcb7d8bc6c4c9da",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/pixman/pixman_0.42.2-1_copyright"
+        "retainedFile": "notices/debian/pixman.1b3fb5690861e15ca4fd6640fd4def4b2576617942eec04b6fcb7d8bc6c4c9da.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/pixman/pixman_0.42.2-1_copyright",
+        "bytes": 2247
       },
       "copyrightInstalledPath": "/usr/share/doc/libpixman-1-0/copyright"
     },
@@ -7154,7 +7197,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/libp/libpng1.6/libpng1.6_1.6.39-2+deb12u6.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "68bd3997355bc44ccb97ff5e2bb146360e762c7d9c721945a4fabf77d1349e4a",
+        "retainedFile": "notices/debian/libpng1.6.68bd3997355bc44ccb97ff5e2bb146360e762c7d9c721945a4fabf77d1349e4a.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/debian%2Flibpng1.6/repository/files/debian%2Fcopyright/raw?ref=5339c5d653a5905495df80f037afb0c0417477b2",
+        "bytes": 12976
+      },
       "copyrightInstalledPath": "/usr/share/doc/libpng16-16/copyright"
     },
     {
@@ -7274,7 +7322,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/p/python3.11/python3.11_3.11.2-6+deb12u9.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382",
+        "retainedFile": "notices/debian/python3.11.f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fpython3.11/repository/files/debian%2Fcopyright/raw?ref=c437d96170c1eda0031de8e0e5f5759c9b3f5461",
+        "bytes": 49855
+      },
       "copyrightInstalledPath": "/usr/share/doc/libpython3.11-minimal/copyright"
     },
     {
@@ -7459,7 +7512,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/p/python3.11/python3.11_3.11.2-6+deb12u9.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382",
+        "retainedFile": "notices/debian/python3.11.f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fpython3.11/repository/files/debian%2Fcopyright/raw?ref=c437d96170c1eda0031de8e0e5f5759c9b3f5461",
+        "bytes": 49855
+      },
       "copyrightInstalledPath": "/usr/share/doc/libpython3.11-stdlib/copyright"
     },
     {
@@ -7622,9 +7680,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 2726,
         "sha256": "4302abcc1ea1b6cbe8d19c79b892acf78878030220210707c19006828866207c",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/r/rtmpdump/rtmpdump_2.4+20151223.gitfa8646d.1-2_copyright"
+        "retainedFile": "notices/debian/rtmpdump.4302abcc1ea1b6cbe8d19c79b892acf78878030220210707c19006828866207c.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/r/rtmpdump/rtmpdump_2.4+20151223.gitfa8646d.1-2_copyright",
+        "bytes": 2726
       },
       "copyrightInstalledPath": "/usr/share/doc/librtmp1/copyright"
     },
@@ -7889,6 +7948,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b",
+        "retainedFile": "notices/debian/libselinux.641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libs/libselinux/libselinux_3.4-1_copyright",
         "bytes": 3131
       },
@@ -7923,6 +7983,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51",
+        "retainedFile": "notices/debian/libsemanage.e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libs/libsemanage/libsemanage_3.4-1_copyright",
         "bytes": 1830
       },
@@ -8018,6 +8079,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51",
+        "retainedFile": "notices/debian/libsemanage.e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libs/libsemanage/libsemanage_3.4-1_copyright",
         "bytes": 1830
       },
@@ -8302,7 +8364,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/libs/libssh2/libssh2_1.10.0-3+deb12u1.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "98978241c573785aa7c8504e399bb66cfb3c40c1f20507a0d3c7580bfbf9d8d4",
+        "retainedFile": "notices/debian/libssh2.98978241c573785aa7c8504e399bb66cfb3c40c1f20507a0d3c7580bfbf9d8d4.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Flibssh2/repository/files/debian%2Fcopyright/raw?ref=5224e8c83dc89aad3a7654ade7b9cd7b2b272743",
+        "bytes": 2099
+      },
       "copyrightInstalledPath": "/usr/share/doc/libssh2-1/copyright"
     },
     {
@@ -8343,7 +8410,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/o/openssl/openssl_3.0.22-1~deb12u1.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35",
+        "retainedFile": "notices/debian/openssl.6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/debian%2Fopenssl/repository/files/debian%2Fcopyright/raw?ref=5a61fdc0376b2d5a8af1cfc5608361c62950418a",
+        "bytes": 2543
+      },
       "copyrightInstalledPath": "/usr/share/doc/libssl3/copyright"
     },
     {
@@ -8405,9 +8477,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 68194,
+        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+        "retainedFile": "notices/debian/gcc-12.da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1_copyright",
-        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+        "bytes": 68194
       },
       "copyrightInstalledPath": "/usr/share/doc/libstdc++6/copyright"
     },
@@ -8553,6 +8626,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "572ad60ad184d8f52c6dc66d83a61a68f137db560b3452ce00588c9ecf128a65",
+        "retainedFile": "notices/debian/libtasn1-6.572ad60ad184d8f52c6dc66d83a61a68f137db560b3452ce00588c9ecf128a65.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libt/libtasn1-6/libtasn1-6_4.19.0-2+deb12u1_copyright",
         "bytes": 3451
       },
@@ -9262,6 +9336,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "01eb328708a9454061dd13931b19135e1c2c6251a7e6a6d0efc4b9bc436109c7",
+        "retainedFile": "notices/debian/libwebp.01eb328708a9454061dd13931b19135e1c2c6251a7e6a6d0efc4b9bc436109c7.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libw/libwebp/libwebp_1.2.4-0.2+deb12u1_copyright",
         "bytes": 2027
       },
@@ -9317,6 +9392,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "01eb328708a9454061dd13931b19135e1c2c6251a7e6a6d0efc4b9bc436109c7",
+        "retainedFile": "notices/debian/libwebp.01eb328708a9454061dd13931b19135e1c2c6251a7e6a6d0efc4b9bc436109c7.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libw/libwebp/libwebp_1.2.4-0.2+deb12u1_copyright",
         "bytes": 2027
       },
@@ -9382,6 +9458,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e",
+        "retainedFile": "notices/debian/libx11.0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libx11/libx11_1.8.4-2+deb12u2_copyright",
         "bytes": 47102
       },
@@ -9416,6 +9493,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e",
+        "retainedFile": "notices/debian/libx11.0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libx11/libx11_1.8.4-2+deb12u2_copyright",
         "bytes": 47102
       },
@@ -9461,6 +9539,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "118dd263a7b91c8f21c489f949bf13281dff9e766deea92b829dac4dce66601a",
+        "retainedFile": "notices/debian/libxau.118dd263a7b91c8f21c489f949bf13281dff9e766deea92b829dac4dce66601a.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libxau/libxau_1.0.9-1_copyright",
         "bytes": 1224
       },
@@ -9514,7 +9593,12 @@
       "sourceRef": "http://deb.debian.org/debian/pool/main/libx/libxcb/libxcb_1.15-1.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80",
+        "retainedFile": "notices/debian/libxcb.4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/xorg-team%2Flib%2Flibxcb/repository/files/debian%2Frules/raw?ref=00e1bed7c0d1af2b5ba3d051ddde5834b8ca2314",
+        "bytes": 1781
+      },
       "copyrightInstalledPath": "/usr/share/doc/libxcb-render0/copyright"
     },
     {
@@ -9565,7 +9649,12 @@
       "sourceRef": "http://deb.debian.org/debian/pool/main/libx/libxcb/libxcb_1.15-1.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80",
+        "retainedFile": "notices/debian/libxcb.4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/xorg-team%2Flib%2Flibxcb/repository/files/debian%2Frules/raw?ref=00e1bed7c0d1af2b5ba3d051ddde5834b8ca2314",
+        "bytes": 1781
+      },
       "copyrightInstalledPath": "/usr/share/doc/libxcb-shm0/copyright"
     },
     {
@@ -9626,7 +9715,12 @@
       "sourceRef": "http://deb.debian.org/debian/pool/main/libx/libxcb/libxcb_1.15-1.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80",
+        "retainedFile": "notices/debian/libxcb.4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/xorg-team%2Flib%2Flibxcb/repository/files/debian%2Frules/raw?ref=00e1bed7c0d1af2b5ba3d051ddde5834b8ca2314",
+        "bytes": 1781
+      },
       "copyrightInstalledPath": "/usr/share/doc/libxcb1/copyright"
     },
     {
@@ -9679,6 +9773,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "1bcbb50f8603fe8b86d330bfa460b772ea04fbd3c70e4499f0768b5340b9fd6e",
+        "retainedFile": "notices/debian/libxdmcp.1bcbb50f8603fe8b86d330bfa460b772ea04fbd3c70e4499f0768b5340b9fd6e.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libxdmcp/libxdmcp_1.1.2-3_copyright",
         "bytes": 1265
       },
@@ -9734,6 +9829,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "bc57e445ca1d9fe082c8d54189dd411ff26caa8552c9c63d44ea06a982f32124",
+        "retainedFile": "notices/debian/libxext.bc57e445ca1d9fe082c8d54189dd411ff26caa8552c9c63d44ea06a982f32124.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libxext/libxext_1.3.4-1_copyright",
         "bytes": 10421
       },
@@ -9867,6 +9963,7 @@
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
         "sha256": "ed2a78123a5076b4f11da38cb1ffb85b5cb9fdc26b5746c517b1d7e7a9029704",
+        "retainedFile": "notices/debian/libxrender.ed2a78123a5076b4f11da38cb1ffb85b5cb9fdc26b5746c517b1d7e7a9029704.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libxrender/libxrender_0.9.10-1.1_copyright",
         "bytes": 2252
       },
@@ -10452,7 +10549,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/o/openssl/openssl_3.0.22-1~deb12u1.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35",
+        "retainedFile": "notices/debian/openssl.6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/debian%2Fopenssl/repository/files/debian%2Fcopyright/raw?ref=5a61fdc0376b2d5a8af1cfc5608361c62950418a",
+        "bytes": 2543
+      },
       "copyrightInstalledPath": "/usr/share/doc/openssl/copyright"
     },
     {
@@ -10623,7 +10725,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/p/perl/perl_5.36.0-7+deb12u4.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d",
+        "retainedFile": "notices/debian/perl.b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fperl/repository/files/debian%2Fcopyright/raw?ref=eb31a4cf5ee0991d31eadb05f4a68a8799fb89ea",
+        "bytes": 109772
+      },
       "copyrightInstalledPath": "/usr/share/doc/perl-base/copyright"
     },
     {
@@ -10665,9 +10772,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 16122,
         "sha256": "5b274dbb44b28a54b795b9471c07ab045054d6b8a86273cb9feb632b6fd2760d",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/python3-defaults/python3-defaults_3.11.2-1_copyright"
+        "retainedFile": "notices/debian/python3-defaults.5b274dbb44b28a54b795b9471c07ab045054d6b8a86273cb9feb632b6fd2760d.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/python3-defaults/python3-defaults_3.11.2-1_copyright",
+        "bytes": 16122
       },
       "copyrightInstalledPath": "/usr/share/doc/python3/copyright"
     },
@@ -10720,9 +10828,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
+        "sha256": "183860dfd4168e0608fb99fe53cef26088ba7275ce38a41e3c737d4217c0ccc1",
+        "retainedFile": "notices/debian/python3-stdlib-extensions.183860dfd4168e0608fb99fe53cef26088ba7275ce38a41e3c737d4217c0ccc1.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/python3-stdlib-extensions/python3-stdlib-extensions_3.11.2-3_copyright",
-        "bytes": 13992,
-        "sha256": "183860dfd4168e0608fb99fe53cef26088ba7275ce38a41e3c737d4217c0ccc1"
+        "bytes": 13992
       },
       "copyrightInstalledPath": "/usr/share/doc/python3-distutils/copyright"
     },
@@ -10765,9 +10874,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
+        "sha256": "183860dfd4168e0608fb99fe53cef26088ba7275ce38a41e3c737d4217c0ccc1",
+        "retainedFile": "notices/debian/python3-stdlib-extensions.183860dfd4168e0608fb99fe53cef26088ba7275ce38a41e3c737d4217c0ccc1.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/python3-stdlib-extensions/python3-stdlib-extensions_3.11.2-3_copyright",
-        "bytes": 13992,
-        "sha256": "183860dfd4168e0608fb99fe53cef26088ba7275ce38a41e3c737d4217c0ccc1"
+        "bytes": 13992
       },
       "copyrightInstalledPath": "/usr/share/doc/python3-lib2to3/copyright"
     },
@@ -10810,9 +10920,10 @@
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
       "licenceNotice": {
-        "bytes": 16122,
         "sha256": "5b274dbb44b28a54b795b9471c07ab045054d6b8a86273cb9feb632b6fd2760d",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/python3-defaults/python3-defaults_3.11.2-1_copyright"
+        "retainedFile": "notices/debian/python3-defaults.5b274dbb44b28a54b795b9471c07ab045054d6b8a86273cb9feb632b6fd2760d.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/python3-defaults/python3-defaults_3.11.2-1_copyright",
+        "bytes": 16122
       },
       "copyrightInstalledPath": "/usr/share/doc/python3-minimal/copyright"
     },
@@ -11147,7 +11258,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/p/python3.11/python3.11_3.11.2-6+deb12u9.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382",
+        "retainedFile": "notices/debian/python3.11.f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fpython3.11/repository/files/debian%2Fcopyright/raw?ref=c437d96170c1eda0031de8e0e5f5759c9b3f5461",
+        "bytes": 49855
+      },
       "copyrightInstalledPath": "/usr/share/doc/python3.11/copyright"
     },
     {
@@ -11188,7 +11304,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/p/python3.11/python3.11_3.11.2-6+deb12u9.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382",
+        "retainedFile": "notices/debian/python3.11.f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fpython3.11/repository/files/debian%2Fcopyright/raw?ref=c437d96170c1eda0031de8e0e5f5759c9b3f5461",
+        "bytes": 49855
+      },
       "copyrightInstalledPath": "/usr/share/doc/python3.11-minimal/copyright"
     },
     {
@@ -11744,7 +11865,12 @@
       "sourceRef": "http://security.debian.org/debian-security/pool/updates/main/t/tzdata/tzdata_2026c-0+deb12u1.dsc",
       "licenceDeclared": "NOASSERTION",
       "licenceConcluded": "NOASSERTION",
-      "licenceNotice": null,
+      "licenceNotice": {
+        "sha256": "cb61132bc0fc7b26ef5a82ee18b2fb644a1362f4f286ed980ff22e408471f59a",
+        "retainedFile": "notices/debian/tzdata.cb61132bc0fc7b26ef5a82ee18b2fb644a1362f4f286ed980ff22e408471f59a.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/glibc-team%2Ftzdata/repository/files/debian%2Fcopyright/raw?ref=4b8aa954b5e31b44aef688b22f744575767c75ba",
+        "bytes": 375
+      },
       "copyrightInstalledPath": "/usr/share/doc/tzdata/copyright"
     },
     {
@@ -12277,17 +12403,23 @@
         "sha256": "e531274d0c3916dacfe55bbd27148d775b004e1836bc2fbb01549f142d524e8c"
       },
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/b/base-files/base-files_12.4+deb12u15_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "version": "12.4+deb12u15",
       "licenceIdentifiers": [],
       "copyright": {
+        "sha256": "fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23",
+        "retainedFile": "notices/debian/base-files.fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/b/base-files/base-files_12.4+deb12u15_copyright",
-        "bytes": 1208,
-        "sha256": "fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23"
+        "bytes": 1208
       },
-      "source": "base-files"
+      "source": "base-files",
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/base-files.fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "sourceArchiveAcquired": false,
@@ -12441,9 +12573,7 @@
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/c/ca-certificates/ca-certificates_20250419~deb12u1_copyright",
       "sourceDescriptorUrl": "http://security.debian.org/debian-security/pool/updates/main/c/ca-certificates/ca-certificates_20250419~deb12u1.dsc",
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
+      "unresolved": [],
       "version": "20250419~deb12u1",
       "source": "ca-certificates",
       "sourceArchiveAcquired": false,
@@ -12452,7 +12582,20 @@
         "url": "https://security.debian.org/debian-security/pool/updates/main/c/ca-certificates/ca-certificates_20250419~deb12u1.dsc",
         "sha256": "72339e810ef8237a4c346540b52baf49607172cc849c2680328a608ce0f6a34b"
       },
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "copyright": {
+        "sha256": "e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c",
+        "retainedFile": "notices/debian/ca-certificates.e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fca-certificates/repository/files/debian%2Fcopyright/raw?ref=2990fc00e7799dbc172d199f2f6aa53334805e3d",
+        "bytes": 18940
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/ca-certificates.e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "archives": [
@@ -12469,15 +12612,14 @@
       ],
       "sourceSigningVerified": false,
       "copyright": {
-        "bytes": 28461,
+        "sha256": "408fb9e704e875cd42d432e7c9b3b378f568e3c89db2b5c5ef3d11c025319574",
+        "retainedFile": "notices/debian/cairo.408fb9e704e875cd42d432e7c9b3b378f568e3c89db2b5c5ef3d11c025319574.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/c/cairo/cairo_1.16.0-7_copyright",
-        "sha256": "408fb9e704e875cd42d432e7c9b3b378f568e3c89db2b5c5ef3d11c025319574"
+        "bytes": 28461
       },
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/c/cairo/cairo_1.16.0-7_copyright",
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/c/cairo/cairo_1.16.0-7.dsc",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "version": "1.16.0-7",
       "source": "cairo",
       "sourceArchiveAcquired": false,
@@ -12486,7 +12628,14 @@
         "url": "https://deb.debian.org/debian/pool/main/c/cairo/cairo_1.16.0-7.dsc",
         "sha256": "96b21b7b9c9ab4ae689b1191830b53d0b3c38e5664105c36a3c39dee6bcf29a4"
       },
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/cairo.408fb9e704e875cd42d432e7c9b3b378f568e3c89db2b5c5ef3d11c025319574.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "descriptor": {
@@ -12794,17 +12943,23 @@
         "sha256": "e0b44b75906f4f448bba242294e9191ee796e2553f49cb906d19fc8f199b6e7d"
       },
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/d/debian-archive-keyring/debian-archive-keyring_2023.3+deb12u2_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "version": "2023.3+deb12u2",
       "licenceIdentifiers": [],
       "copyright": {
+        "sha256": "b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732",
+        "retainedFile": "notices/debian/debian-archive-keyring.b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/d/debian-archive-keyring/debian-archive-keyring_2023.3+deb12u2_copyright",
-        "bytes": 1243,
-        "sha256": "b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732"
+        "bytes": 1243
       },
-      "source": "debian-archive-keyring"
+      "source": "debian-archive-keyring",
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/debian-archive-keyring.b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "sourceArchiveAcquired": false,
@@ -12998,9 +13153,20 @@
         }
       ],
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/e/expat/expat_2.5.0-1+deb12u4_copyright",
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ]
+      "unresolved": [],
+      "copyright": {
+        "sha256": "60919fe1a156395ff14511bb6ff79756c50ade2fff59ac60c9bae1d8a7fe6292",
+        "retainedFile": "notices/debian/expat.60919fe1a156395ff14511bb6ff79756c50ade2fff59ac60c9bae1d8a7fe6292.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fexpat/repository/files/debian%2Fcopyright/raw?ref=a664ce8900365b8bb1e3080942bb7ee0b9922a7b",
+        "bytes": 1756
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/expat.60919fe1a156395ff14511bb6ff79756c50ade2fff59ac60c9bae1d8a7fe6292.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "sourceArchiveAcquired": false,
@@ -13074,15 +13240,14 @@
       ],
       "sourceSigningVerified": false,
       "copyright": {
-        "bytes": 1301,
+        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db",
+        "retainedFile": "notices/debian/fontconfig.b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/f/fontconfig/fontconfig_2.14.1-4_copyright",
-        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db"
+        "bytes": 1301
       },
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/f/fontconfig/fontconfig_2.14.1-4_copyright",
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/f/fontconfig/fontconfig_2.14.1-4.dsc",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "version": "2.14.1-4",
       "source": "fontconfig",
       "sourceArchiveAcquired": false,
@@ -13091,7 +13256,14 @@
         "url": "https://deb.debian.org/debian/pool/main/f/fontconfig/fontconfig_2.14.1-4.dsc",
         "sha256": "8bb59d9c96ff8ef77df06dc65273fa398bf248f7e2448a8314989ec01ce74a58"
       },
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/fontconfig.b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "archives": [
@@ -13311,15 +13483,14 @@
       ],
       "sourceSigningVerified": false,
       "copyright": {
-        "bytes": 68194,
+        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+        "retainedFile": "notices/debian/gcc-12.da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1_copyright",
-        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+        "bytes": 68194
       },
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/g/gcc-12/gcc-12_12.2.0-14+deb12u1_copyright",
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1.dsc",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "version": "12.2.0-14+deb12u1",
       "source": "gcc-12",
       "sourceArchiveAcquired": false,
@@ -13328,7 +13499,14 @@
         "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1.dsc",
         "sha256": "3aed0b189189c744dc9f4b74798a51d3e512ea85e492568db788a927c88e20ba"
       },
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/gcc-12.da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
@@ -13484,15 +13662,14 @@
       ],
       "sourceSigningVerified": false,
       "copyright": {
-        "bytes": 25467,
+        "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987",
+        "retainedFile": "notices/debian/glibc.40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/g/glibc/glibc_2.36-9+deb12u14_copyright",
-        "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+        "bytes": 25467
       },
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/g/glibc/glibc_2.36-9+deb12u14_copyright",
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/g/glibc/glibc_2.36-9+deb12u14.dsc",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "version": "2.36-9+deb12u14",
       "source": "glibc",
       "sourceArchiveAcquired": false,
@@ -13501,7 +13678,14 @@
         "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.36-9+deb12u14.dsc",
         "sha256": "cfe1f0b8dc1fa211ce5a45b3725cc38b29f88667f1140ebdca6de35cf9c6f1fd"
       },
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/glibc.40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "descriptor": {
@@ -13986,9 +14170,10 @@
       "sourceArchiveAcquired": false,
       "source": "krb5",
       "copyright": {
-        "bytes": 63047,
         "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/k/krb5/krb5_1.20.1-2+deb12u5_copyright"
+        "retainedFile": "notices/debian/krb5.936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/k/krb5/krb5_1.20.1-2+deb12u5_copyright",
+        "bytes": 63047
       },
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/k/krb5/krb5_1.20.1-2+deb12u5.dsc",
       "licenceIdentifiers": [],
@@ -14012,9 +14197,14 @@
         }
       ],
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/k/krb5/krb5_1.20.1-2+deb12u5_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ]
+      "unresolved": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/krb5.936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "licenceIdentifiers": [],
@@ -14026,9 +14216,7 @@
         "sha256": "6ff7d8f81c25ac6fe6c4ac174b300a0515bbf783edbb9fd5033797ddd328de8c",
         "url": "https://deb.debian.org/debian/pool/main/l/leptonlib/leptonlib_1.82.0-3.dsc"
       },
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "sourceSigningVerified": false,
       "archives": [
         {
@@ -14043,12 +14231,20 @@
         }
       ],
       "copyright": {
-        "bytes": 1766,
         "sha256": "cff4f0cb5db14528a8b84f4a3389012d5c6e0f5a75a882509367b2147c05a83e",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/l/leptonlib/leptonlib_1.82.0-3_copyright"
+        "retainedFile": "notices/debian/leptonlib.cff4f0cb5db14528a8b84f4a3389012d5c6e0f5a75a882509367b2147c05a83e.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/l/leptonlib/leptonlib_1.82.0-3_copyright",
+        "bytes": 1766
       },
       "sourceArchiveAcquired": false,
-      "version": "1.82.0-3"
+      "version": "1.82.0-3",
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/leptonlib.cff4f0cb5db14528a8b84f4a3389012d5c6e0f5a75a882509367b2147c05a83e.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "licenceIdentifiers": [
@@ -14400,9 +14596,10 @@
       "sourceArchiveAcquired": false,
       "source": "libgcrypt20",
       "copyright": {
-        "bytes": 24896,
         "sha256": "95db2f9da663f2bfe2aabe9c72fce9d6c9ae767b912f397d7823f50bd55a1a7d",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/libg/libgcrypt20/libgcrypt20_1.10.1-3+deb12u1_copyright"
+        "retainedFile": "notices/debian/libgcrypt20.95db2f9da663f2bfe2aabe9c72fce9d6c9ae767b912f397d7823f50bd55a1a7d.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/libg/libgcrypt20/libgcrypt20_1.10.1-3+deb12u1_copyright",
+        "bytes": 24896
       },
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libg/libgcrypt20/libgcrypt20_1.10.1-3+deb12u1.dsc",
       "licenceIdentifiers": [],
@@ -14426,9 +14623,14 @@
         }
       ],
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libg/libgcrypt20/libgcrypt20_1.10.1-3+deb12u1_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ]
+      "unresolved": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libgcrypt20.95db2f9da663f2bfe2aabe9c72fce9d6c9ae767b912f397d7823f50bd55a1a7d.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "descriptor": {
@@ -14692,9 +14894,7 @@
         "sha256": "efd9099f7f74c7bcd4f1540a97be3ce1cb9bc4ff97dfc2062ea66117b17ce686",
         "url": "https://security.debian.org/debian-security/pool/updates/main/libp/libpng1.6/libpng1.6_1.6.39-2+deb12u6.dsc"
       },
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
+      "unresolved": [],
       "sourceSigningVerified": false,
       "archives": [
         {
@@ -14709,7 +14909,20 @@
         }
       ],
       "sourceArchiveAcquired": false,
-      "version": "1.6.39-2+deb12u6"
+      "version": "1.6.39-2+deb12u6",
+      "copyright": {
+        "sha256": "68bd3997355bc44ccb97ff5e2bb146360e762c7d9c721945a4fabf77d1349e4a",
+        "retainedFile": "notices/debian/libpng1.6.68bd3997355bc44ccb97ff5e2bb146360e762c7d9c721945a4fabf77d1349e4a.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/debian%2Flibpng1.6/repository/files/debian%2Fcopyright/raw?ref=5339c5d653a5905495df80f037afb0c0417477b2",
+        "bytes": 12976
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libpng1.6.68bd3997355bc44ccb97ff5e2bb146360e762c7d9c721945a4fabf77d1349e4a.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "licenceIdentifiers": [
@@ -14789,6 +15002,7 @@
     {
       "copyright": {
         "sha256": "641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b",
+        "retainedFile": "notices/debian/libselinux.641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libs/libselinux/libselinux_3.4-1_copyright",
         "bytes": 3131
       },
@@ -14819,15 +15033,21 @@
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libs/libselinux/libselinux_3.4-1.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libs/libselinux/libselinux_3.4-1_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "source": "libselinux",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libselinux.641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
         "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51",
+        "retainedFile": "notices/debian/libsemanage.e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libs/libsemanage/libsemanage_3.4-1_copyright",
         "bytes": 1830
       },
@@ -14858,11 +15078,16 @@
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libs/libsemanage/libsemanage_3.4-1.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libs/libsemanage/libsemanage_3.4-1_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "source": "libsemanage",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libsemanage.e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
@@ -14929,15 +15154,27 @@
       "sourceDescriptorUrl": "http://security.debian.org/debian-security/pool/updates/main/libs/libssh2/libssh2_1.10.0-3+deb12u1.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libs/libssh2/libssh2_1.10.0-3+deb12u1_copyright",
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
+      "unresolved": [],
       "source": "libssh2",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "copyright": {
+        "sha256": "98978241c573785aa7c8504e399bb66cfb3c40c1f20507a0d3c7580bfbf9d8d4",
+        "retainedFile": "notices/debian/libssh2.98978241c573785aa7c8504e399bb66cfb3c40c1f20507a0d3c7580bfbf9d8d4.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Flibssh2/repository/files/debian%2Fcopyright/raw?ref=5224e8c83dc89aad3a7654ade7b9cd7b2b272743",
+        "bytes": 2099
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libssh2.98978241c573785aa7c8504e399bb66cfb3c40c1f20507a0d3c7580bfbf9d8d4.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
         "sha256": "572ad60ad184d8f52c6dc66d83a61a68f137db560b3452ce00588c9ecf128a65",
+        "retainedFile": "notices/debian/libtasn1-6.572ad60ad184d8f52c6dc66d83a61a68f137db560b3452ce00588c9ecf128a65.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libt/libtasn1-6/libtasn1-6_4.19.0-2+deb12u1_copyright",
         "bytes": 3451
       },
@@ -14968,11 +15205,16 @@
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libt/libtasn1-6/libtasn1-6_4.19.0-2+deb12u1.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libt/libtasn1-6/libtasn1-6_4.19.0-2+deb12u1_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "source": "libtasn1-6",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libtasn1-6.572ad60ad184d8f52c6dc66d83a61a68f137db560b3452ce00588c9ecf128a65.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
@@ -15135,6 +15377,7 @@
     {
       "copyright": {
         "sha256": "01eb328708a9454061dd13931b19135e1c2c6251a7e6a6d0efc4b9bc436109c7",
+        "retainedFile": "notices/debian/libwebp.01eb328708a9454061dd13931b19135e1c2c6251a7e6a6d0efc4b9bc436109c7.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libw/libwebp/libwebp_1.2.4-0.2+deb12u1_copyright",
         "bytes": 2027
       },
@@ -15165,15 +15408,21 @@
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libw/libwebp/libwebp_1.2.4-0.2+deb12u1.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libw/libwebp/libwebp_1.2.4-0.2+deb12u1_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "source": "libwebp",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libwebp.01eb328708a9454061dd13931b19135e1c2c6251a7e6a6d0efc4b9bc436109c7.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
         "sha256": "0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e",
+        "retainedFile": "notices/debian/libx11.0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libx11/libx11_1.8.4-2+deb12u2_copyright",
         "bytes": 47102
       },
@@ -15204,15 +15453,21 @@
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libx/libx11/libx11_1.8.4-2+deb12u2.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libx11/libx11_1.8.4-2+deb12u2_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "source": "libx11",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libx11.0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
         "sha256": "118dd263a7b91c8f21c489f949bf13281dff9e766deea92b829dac4dce66601a",
+        "retainedFile": "notices/debian/libxau.118dd263a7b91c8f21c489f949bf13281dff9e766deea92b829dac4dce66601a.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libxau/libxau_1.0.9-1_copyright",
         "bytes": 1224
       },
@@ -15243,11 +15498,16 @@
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libx/libxau/libxau_1.0.9-1.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxau/libxau_1.0.9-1_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "source": "libxau",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libxau.118dd263a7b91c8f21c489f949bf13281dff9e766deea92b829dac4dce66601a.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "descriptor": {
@@ -15272,11 +15532,22 @@
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libx/libxcb/libxcb_1.15-1.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxcb/libxcb_1.15-1_copyright",
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
+      "unresolved": [],
       "source": "libxcb",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "copyright": {
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80",
+        "retainedFile": "notices/debian/libxcb.4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/xorg-team%2Flib%2Flibxcb/repository/files/debian%2Frules/raw?ref=00e1bed7c0d1af2b5ba3d051ddde5834b8ca2314",
+        "bytes": 1781
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libxcb.4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "sourceArchiveAcquired": false,
@@ -15300,16 +15571,28 @@
         "sha256": "910ae411c9462f07667e46540af3dbb30f46413ddd90f1f176781666042dbb38"
       },
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxcrypt/libxcrypt_4.4.33-2_copyright",
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
+      "unresolved": [],
       "version": "1:4.4.33-2",
       "licenceIdentifiers": [],
-      "source": "libxcrypt"
+      "source": "libxcrypt",
+      "copyright": {
+        "sha256": "5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16",
+        "retainedFile": "notices/debian/libxcrypt.5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/md%2Flibxcrypt/repository/files/debian%2Frules/raw?ref=1120d6a32fb9cd3c67c6150ba8ffba5774ea8660",
+        "bytes": 6010
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libxcrypt.5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
         "sha256": "1bcbb50f8603fe8b86d330bfa460b772ea04fbd3c70e4499f0768b5340b9fd6e",
+        "retainedFile": "notices/debian/libxdmcp.1bcbb50f8603fe8b86d330bfa460b772ea04fbd3c70e4499f0768b5340b9fd6e.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libxdmcp/libxdmcp_1.1.2-3_copyright",
         "bytes": 1265
       },
@@ -15335,15 +15618,21 @@
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libx/libxdmcp/libxdmcp_1.1.2-3.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxdmcp/libxdmcp_1.1.2-3_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "source": "libxdmcp",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libxdmcp.1bcbb50f8603fe8b86d330bfa460b772ea04fbd3c70e4499f0768b5340b9fd6e.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
         "sha256": "bc57e445ca1d9fe082c8d54189dd411ff26caa8552c9c63d44ea06a982f32124",
+        "retainedFile": "notices/debian/libxext.bc57e445ca1d9fe082c8d54189dd411ff26caa8552c9c63d44ea06a982f32124.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libxext/libxext_1.3.4-1_copyright",
         "bytes": 10421
       },
@@ -15369,11 +15658,16 @@
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libx/libxext/libxext_1.3.4-1.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxext/libxext_1.3.4-1_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "source": "libxext",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libxext.bc57e445ca1d9fe082c8d54189dd411ff26caa8552c9c63d44ea06a982f32124.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
@@ -15413,6 +15707,7 @@
     {
       "copyright": {
         "sha256": "ed2a78123a5076b4f11da38cb1ffb85b5cb9fdc26b5746c517b1d7e7a9029704",
+        "retainedFile": "notices/debian/libxrender.ed2a78123a5076b4f11da38cb1ffb85b5cb9fdc26b5746c517b1d7e7a9029704.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/libx/libxrender/libxrender_0.9.10-1.1_copyright",
         "bytes": 2252
       },
@@ -15438,11 +15733,16 @@
       "sourceDescriptorUrl": "http://deb.debian.org/debian/pool/main/libx/libxrender/libxrender_0.9.10-1.1.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxrender/libxrender_0.9.10-1.1_copyright",
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "source": "libxrender",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/libxrender.ed2a78123a5076b4f11da38cb1ffb85b5cb9fdc26b5746c517b1d7e7a9029704.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "copyright": {
@@ -15855,11 +16155,22 @@
       "sourceDescriptorUrl": "http://security.debian.org/debian-security/pool/updates/main/o/openssl/openssl_3.0.22-1~deb12u1.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/o/openssl/openssl_3.0.22-1~deb12u1_copyright",
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
+      "unresolved": [],
       "source": "openssl",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "copyright": {
+        "sha256": "6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35",
+        "retainedFile": "notices/debian/openssl.6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/debian%2Fopenssl/repository/files/debian%2Fcopyright/raw?ref=5a61fdc0376b2d5a8af1cfc5608361c62950418a",
+        "bytes": 2543
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/openssl.6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "licenceIdentifiers": [
@@ -16007,9 +16318,7 @@
         "sha256": "63be58a94a6d2c7f03324cc0fe1ffb32d1f366d82d0fabef581ba3cc8a8ba5a6",
         "url": "https://security.debian.org/debian-security/pool/updates/main/p/pcre2/pcre2_10.42-1+deb12u2.dsc"
       },
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
+      "unresolved": [],
       "sourceSigningVerified": false,
       "archives": [
         {
@@ -16024,7 +16333,20 @@
         }
       ],
       "sourceArchiveAcquired": false,
-      "version": "10.42-1+deb12u2"
+      "version": "10.42-1+deb12u2",
+      "copyright": {
+        "sha256": "030511beb4d9d620ad09914c369c36ec0528dcf301d1923cc643c948ee7c6a38",
+        "retainedFile": "notices/debian/pcre2.030511beb4d9d620ad09914c369c36ec0528dcf301d1923cc643c948ee7c6a38.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/debian%2Fpcre2/repository/files/debian%2Fcopyright/raw?ref=1321318642e6a27f564623f3683eb0836d194d60",
+        "bytes": 6626
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/pcre2.030511beb4d9d620ad09914c369c36ec0528dcf301d1923cc643c948ee7c6a38.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "descriptor": {
@@ -16054,11 +16376,22 @@
       "sourceDescriptorUrl": "http://security.debian.org/debian-security/pool/updates/main/p/perl/perl_5.36.0-7+deb12u4.dsc",
       "sourceSigningVerified": false,
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/p/perl/perl_5.36.0-7+deb12u4_copyright",
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
+      "unresolved": [],
       "source": "perl",
-      "licenceIdentifiers": []
+      "licenceIdentifiers": [],
+      "copyright": {
+        "sha256": "b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d",
+        "retainedFile": "notices/debian/perl.b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fperl/repository/files/debian%2Fcopyright/raw?ref=eb31a4cf5ee0991d31eadb05f4a68a8799fb89ea",
+        "bytes": 109772
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/perl.b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "licenceIdentifiers": [],
@@ -16070,9 +16403,7 @@
         "sha256": "393302f5ba22d1206c456902baa02cdd577cb74fe35ec6659f587cce67b91b3d",
         "url": "https://deb.debian.org/debian/pool/main/p/pixman/pixman_0.42.2-1.dsc"
       },
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "sourceSigningVerified": false,
       "archives": [
         {
@@ -16087,12 +16418,20 @@
         }
       ],
       "copyright": {
-        "bytes": 2247,
         "sha256": "1b3fb5690861e15ca4fd6640fd4def4b2576617942eec04b6fcb7d8bc6c4c9da",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/pixman/pixman_0.42.2-1_copyright"
+        "retainedFile": "notices/debian/pixman.1b3fb5690861e15ca4fd6640fd4def4b2576617942eec04b6fcb7d8bc6c4c9da.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/pixman/pixman_0.42.2-1_copyright",
+        "bytes": 2247
       },
       "sourceArchiveAcquired": false,
-      "version": "0.42.2-1"
+      "version": "0.42.2-1",
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/pixman.1b3fb5690861e15ca4fd6640fd4def4b2576617942eec04b6fcb7d8bc6c4c9da.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "descriptor": {
@@ -16146,9 +16485,7 @@
         "sha256": "75cac54d11a4f7bc2c88eeeabddd74dc27b072c3bd515e71c8be2641b062e980",
         "url": "https://deb.debian.org/debian/pool/main/p/python3-defaults/python3-defaults_3.11.2-1.dsc"
       },
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "sourceSigningVerified": false,
       "archives": [
         {
@@ -16158,12 +16495,20 @@
         }
       ],
       "copyright": {
-        "bytes": 16122,
         "sha256": "5b274dbb44b28a54b795b9471c07ab045054d6b8a86273cb9feb632b6fd2760d",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/python3-defaults/python3-defaults_3.11.2-1_copyright"
+        "retainedFile": "notices/debian/python3-defaults.5b274dbb44b28a54b795b9471c07ab045054d6b8a86273cb9feb632b6fd2760d.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/python3-defaults/python3-defaults_3.11.2-1_copyright",
+        "bytes": 16122
       },
       "sourceArchiveAcquired": false,
-      "version": "3.11.2-1"
+      "version": "3.11.2-1",
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/python3-defaults.5b274dbb44b28a54b795b9471c07ab045054d6b8a86273cb9feb632b6fd2760d.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "descriptor": {
@@ -16176,9 +16521,10 @@
       "source": "python3-stdlib-extensions",
       "sourceArchiveAcquired": false,
       "copyright": {
+        "sha256": "183860dfd4168e0608fb99fe53cef26088ba7275ce38a41e3c737d4217c0ccc1",
+        "retainedFile": "notices/debian/python3-stdlib-extensions.183860dfd4168e0608fb99fe53cef26088ba7275ce38a41e3c737d4217c0ccc1.copyright",
         "url": "https://metadata.ftp-master.debian.org/changelogs/main/p/python3-stdlib-extensions/python3-stdlib-extensions_3.11.2-3_copyright",
-        "bytes": 13992,
-        "sha256": "183860dfd4168e0608fb99fe53cef26088ba7275ce38a41e3c737d4217c0ccc1"
+        "bytes": 13992
       },
       "licenceIdentifiers": [],
       "copyrightUrl": "https://metadata.ftp-master.debian.org/changelogs//main/p/python3-stdlib-extensions/python3-stdlib-extensions_3.11.2-3_copyright",
@@ -16194,10 +16540,15 @@
           "sha256": "d1824aed18f046336b96dced598ae33cd67886f22823bf1d155e793ee6296f6e"
         }
       ],
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
-      "version": "3.11.2-3"
+      "unresolved": [],
+      "version": "3.11.2-3",
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/python3-stdlib-extensions.183860dfd4168e0608fb99fe53cef26088ba7275ce38a41e3c737d4217c0ccc1.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "licenceIdentifiers": [],
@@ -16209,9 +16560,7 @@
         "sha256": "49c0d6e1f0d3aeef542de2e908da11bcbcb9343654fb70b51fe4f80865c9dc92",
         "url": "https://security.debian.org/debian-security/pool/updates/main/p/python3.11/python3.11_3.11.2-6+deb12u9.dsc"
       },
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
+      "unresolved": [],
       "sourceSigningVerified": false,
       "archives": [
         {
@@ -16226,7 +16575,20 @@
         }
       ],
       "sourceArchiveAcquired": false,
-      "version": "3.11.2-6+deb12u9"
+      "version": "3.11.2-6+deb12u9",
+      "copyright": {
+        "sha256": "f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382",
+        "retainedFile": "notices/debian/python3.11.f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/lts-team%2Fpackages%2Fpython3.11/repository/files/debian%2Fcopyright/raw?ref=c437d96170c1eda0031de8e0e5f5759c9b3f5461",
+        "bytes": 49855
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/python3.11.f1cbf908e1daa8789b389fdcf17811ed36b675d736b39a103591399861350382.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "licenceIdentifiers": [
@@ -16276,9 +16638,7 @@
         "sha256": "a296819cd2ab5880b67ad963ef0867cb10e462f4403e52565aa863eb05bb1370",
         "url": "https://deb.debian.org/debian/pool/main/r/rtmpdump/rtmpdump_2.4+20151223.gitfa8646d.1-2.dsc"
       },
-      "unresolved": [
-        "Unstructured copyright requires manual full-notice review; no SPDX expression inferred"
-      ],
+      "unresolved": [],
       "sourceSigningVerified": false,
       "archives": [
         {
@@ -16293,12 +16653,20 @@
         }
       ],
       "copyright": {
-        "bytes": 2726,
         "sha256": "4302abcc1ea1b6cbe8d19c79b892acf78878030220210707c19006828866207c",
-        "url": "https://metadata.ftp-master.debian.org/changelogs/main/r/rtmpdump/rtmpdump_2.4+20151223.gitfa8646d.1-2_copyright"
+        "retainedFile": "notices/debian/rtmpdump.4302abcc1ea1b6cbe8d19c79b892acf78878030220210707c19006828866207c.copyright",
+        "url": "https://metadata.ftp-master.debian.org/changelogs/main/r/rtmpdump/rtmpdump_2.4+20151223.gitfa8646d.1-2_copyright",
+        "bytes": 2726
       },
       "sourceArchiveAcquired": false,
-      "version": "2.4+20151223.gitfa8646d.1-2"
+      "version": "2.4+20151223.gitfa8646d.1-2",
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/rtmpdump.4302abcc1ea1b6cbe8d19c79b892acf78878030220210707c19006828866207c.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "descriptor": {
@@ -16701,10 +17069,21 @@
           "sha256": "bc6f8b573203f7e3802d6106eb814d2162c8ad7a2d3e6dcbc73d4cf87fe0986d"
         }
       ],
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
-      "version": "2026c-0+deb12u1"
+      "unresolved": [],
+      "version": "2026c-0+deb12u1",
+      "copyright": {
+        "sha256": "cb61132bc0fc7b26ef5a82ee18b2fb644a1362f4f286ed980ff22e408471f59a",
+        "retainedFile": "notices/debian/tzdata.cb61132bc0fc7b26ef5a82ee18b2fb644a1362f4f286ed980ff22e408471f59a.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/glibc-team%2Ftzdata/repository/files/debian%2Fcopyright/raw?ref=4b8aa954b5e31b44aef688b22f744575767c75ba",
+        "bytes": 375
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/tzdata.cb61132bc0fc7b26ef5a82ee18b2fb644a1362f4f286ed980ff22e408471f59a.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "descriptor": {
@@ -16860,9 +17239,7 @@
         "sha256": "bffc9917562b5787661379621bb1f7510bf7271b03d8ce4181cebc84b90d3c35",
         "url": "https://security.debian.org/debian-security/pool/updates/main/x/xz-utils/xz-utils_5.4.1-1+deb12u2.dsc"
       },
-      "unresolved": [
-        "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\""
-      ],
+      "unresolved": [],
       "sourceSigningVerified": false,
       "archives": [
         {
@@ -16877,7 +17254,20 @@
         }
       ],
       "sourceArchiveAcquired": false,
-      "version": "5.4.1-1+deb12u2"
+      "version": "5.4.1-1+deb12u2",
+      "copyright": {
+        "sha256": "a2dc8fac0f496e1c58aff67018cf0c6b88336316afa5642f9335b71642e28aa8",
+        "retainedFile": "notices/debian/xz-utils.a2dc8fac0f496e1c58aff67018cf0c6b88336316afa5642f9335b71642e28aa8.copyright",
+        "url": "https://salsa.debian.org/api/v4/projects/debian%2Fxz-utils/repository/files/debian%2Fcopyright/raw?ref=21770ca23126455d5c3f1b3f93f411c896d153e1",
+        "bytes": 15465
+      },
+      "noticeReview": {
+        "distributionObligationsFulfilled": false,
+        "state": "source-notice-reviewed-retention-specified",
+        "retainedFile": "notices/debian/xz-utils.a2dc8fac0f496e1c58aff67018cf0c6b88336316afa5642f9335b71642e28aa8.copyright",
+        "binaryMemberApplicabilityVerified": false,
+        "file": "notice-review.json"
+      }
     },
     {
       "descriptor": {
@@ -17534,7 +17924,7 @@
     },
     {
       "code": "debian-relation-verification",
-      "detail": "amd64 dependency alternatives and a concrete mawk provider are declared; exact Depends/Pre-Depends/Provides/Breaks/Conflicts and version relations must be checked against authenticated controls before acquisition/build release."
+      "detail": "All 464 selected retained-metadata dependency edges satisfy exact Debian version comparisons for 174 packages; receipt is metadata-only and unauthenticated. Authenticated binary controls/Provides/Breaks/Conflicts and transaction effects remain unverified."
     },
     {
       "code": "wheel-member-closure",
@@ -17546,7 +17936,7 @@
     },
     {
       "code": "licence-review",
-      "detail": "Exact available copyright/notice hashes are recorded. Non-SPDX/freeform declarations require review; source availability/notice obligations must be fulfilled before distribution."
+      "detail": "34/35 targeted source notice items now have full retained texts and concrete notice/source/attribution/replacement requirements in notice-review.json. Exact libarchive3.6.2-1+deb12u5 notice still requires pinned patch archive inspection. Actual binary membership and fulfilled distribution obligations remain unresolved."
     },
     {
       "code": "security-review",
@@ -17554,251 +17944,13 @@
     },
     {
       "code": "builder-containment",
-      "detail": "No exact builder/host has been admitted or demonstrated to enforce full attempt CPU/memory/swap/PID/output/deadline/cleanup bounds. Windows client Job caps alone do not bound the Docker daemon/build workers."
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/g/gcc-12/gcc-12_12.2.0-14+deb12u1_copyright",
-      "source": "gcc-12",
-      "version": "12.2.0-14+deb12u1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/f/fontconfig/fontconfig_2.14.1-4_copyright",
-      "source": "fontconfig",
-      "version": "2.14.1-4",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/c/ca-certificates/ca-certificates_20250419~deb12u1_copyright",
-      "source": "ca-certificates",
-      "version": "20250419~deb12u1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/g/glibc/glibc_2.36-9+deb12u14_copyright",
-      "source": "glibc",
-      "version": "2.36-9+deb12u14",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/c/cairo/cairo_1.16.0-7_copyright",
-      "source": "cairo",
-      "version": "1.16.0-7",
-      "code": "source-metadata"
+      "detail": "Source-identified unsupported primitive: existing classic ImageBuildOptions bounds RUN memory/swap/CPU/nproc but does not allocate hard daemon/cache disk quota or complete daemon-worker cgroup/PID budget. Source ref and bounded alternative prerequisites are in INSPECTION-AND-BUILDER-PLAN.md; no builder admitted."
     },
     {
       "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
       "url": "https://metadata.ftp-master.debian.org/changelogs//main/liba/libarchive/libarchive_3.6.2-1+deb12u5_copyright",
       "source": "libarchive",
       "version": "3.6.2-1+deb12u5",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/b/base-files/base-files_12.4+deb12u15_copyright",
-      "source": "base-files",
-      "version": "12.4+deb12u15",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/d/debian-archive-keyring/debian-archive-keyring_2023.3+deb12u2_copyright",
-      "source": "debian-archive-keyring",
-      "version": "2023.3+deb12u2",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxcrypt/libxcrypt_4.4.33-2_copyright",
-      "source": "libxcrypt",
-      "version": "1:4.4.33-2",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/e/expat/expat_2.5.0-1+deb12u4_copyright",
-      "source": "expat",
-      "version": "2.5.0-1+deb12u4",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libg/libgcrypt20/libgcrypt20_1.10.1-3+deb12u1_copyright",
-      "source": "libgcrypt20",
-      "version": "1.10.1-3+deb12u1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/k/krb5/krb5_1.20.1-2+deb12u5_copyright",
-      "source": "krb5",
-      "version": "1.20.1-2+deb12u5",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/l/leptonlib/leptonlib_1.82.0-3_copyright",
-      "source": "leptonlib",
-      "version": "1.82.0-3",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/x/xz-utils/xz-utils_5.4.1-1+deb12u2_copyright",
-      "source": "xz-utils",
-      "version": "5.4.1-1+deb12u2",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/p/pcre2/pcre2_10.42-1+deb12u2_copyright",
-      "source": "pcre2",
-      "version": "10.42-1+deb12u2",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/p/pixman/pixman_0.42.2-1_copyright",
-      "source": "pixman",
-      "version": "0.42.2-1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libp/libpng1.6/libpng1.6_1.6.39-2+deb12u6_copyright",
-      "source": "libpng1.6",
-      "version": "1.6.39-2+deb12u6",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/p/python3-defaults/python3-defaults_3.11.2-1_copyright",
-      "source": "python3-defaults",
-      "version": "3.11.2-1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/p/python3.11/python3.11_3.11.2-6+deb12u9_copyright",
-      "source": "python3.11",
-      "version": "3.11.2-6+deb12u9",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/r/rtmpdump/rtmpdump_2.4+20151223.gitfa8646d.1-2_copyright",
-      "source": "rtmpdump",
-      "version": "2.4+20151223.gitfa8646d.1-2",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/p/perl/perl_5.36.0-7+deb12u4_copyright",
-      "source": "perl",
-      "version": "5.36.0-7+deb12u4",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libs/libselinux/libselinux_3.4-1_copyright",
-      "source": "libselinux",
-      "version": "3.4-1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libs/libsemanage/libsemanage_3.4-1_copyright",
-      "source": "libsemanage",
-      "version": "3.4-1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libs/libssh2/libssh2_1.10.0-3+deb12u1_copyright",
-      "source": "libssh2",
-      "version": "1.10.0-3+deb12u1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/o/openssl/openssl_3.0.22-1~deb12u1_copyright",
-      "source": "openssl",
-      "version": "3.0.22-1~deb12u1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libt/libtasn1-6/libtasn1-6_4.19.0-2+deb12u1_copyright",
-      "source": "libtasn1-6",
-      "version": "4.19.0-2+deb12u1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libw/libwebp/libwebp_1.2.4-0.2+deb12u1_copyright",
-      "source": "libwebp",
-      "version": "1.2.4-0.2+deb12u1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libx11/libx11_1.8.4-2+deb12u2_copyright",
-      "source": "libx11",
-      "version": "2:1.8.4-2+deb12u2",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxau/libxau_1.0.9-1_copyright",
-      "source": "libxau",
-      "version": "1:1.0.9-1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxcb/libxcb_1.15-1_copyright",
-      "source": "libxcb",
-      "version": "1.15-1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxdmcp/libxdmcp_1.1.2-3_copyright",
-      "source": "libxdmcp",
-      "version": "1:1.1.2-3",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxext/libxext_1.3.4-1_copyright",
-      "source": "libxext",
-      "version": "2:1.3.4-1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/libx/libxrender/libxrender_0.9.10-1.1_copyright",
-      "source": "libxrender",
-      "version": "1:0.9.10-1.1",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Unstructured copyright requires manual full-notice review; no SPDX expression inferred",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/p/python3-stdlib-extensions/python3-stdlib-extensions_3.11.2-3_copyright",
-      "source": "python3-stdlib-extensions",
-      "version": "3.11.2-3",
-      "code": "source-metadata"
-    },
-    {
-      "detail": "Exact copyright metadata unavailable: Exception calling \"EnsureSuccessStatusCode\" with \"0\" argument(s): \"Response status code does not indicate success: 404 (Not Found).\"",
-      "url": "https://metadata.ftp-master.debian.org/changelogs//main/t/tzdata/tzdata_2026c-0+deb12u1_copyright",
-      "source": "tzdata",
-      "version": "2026c-0+deb12u1",
       "code": "source-metadata"
     }
   ],
@@ -17951,5 +18103,16 @@
       "declaredVersion": "1.5.7",
       "verifiedAgainstWheel": false
     }
-  ]
+  ],
+  "noticeReview": {
+    "remaining": 1,
+    "reviewed": 34,
+    "sha256": "d395aedd9e4fb62da348b6b6c54cd12b38bba38e790e547320af097ded129185",
+    "file": "notice-review.json"
+  },
+  "finiteInspectionInputs": {
+    "sha256": "f839f2d1edaf0fbc1f039d20fcc4abd83b04accba2d0846e369174a0f2bad8b2",
+    "authorized": false,
+    "file": "acquisition-inspection-manifest.json"
+  }
 }
