@@ -24,7 +24,7 @@ export interface CoordinatorPreviewPlan { dockerfile: string; port: number; expe
 export interface CoordinatorSavedRoute {
   revision: number;
   autoDiscussFindings?: boolean;
-  route: Omit<CreateProjectRun, 'idempotencyKey' | 'implementationContext'>;
+  route: Omit<CreateProjectRun, 'idempotencyKey' | 'implementationContext' | 'orchestrationContract'>;
   maxParallel: number; updatedAt: string; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan; deploymentPlan?: CoordinatorDeploymentPlan;
 }
 export interface CoordinatorContextCommitView { eventId: string; status: 'pending' | 'confirmed'; commit?: string; createdAt: string }

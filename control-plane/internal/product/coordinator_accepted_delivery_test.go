@@ -4,14 +4,12 @@ import (
 	"context"
 	"net/http"
 	"testing"
-
-	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
-// The upstream coding exit is controlled; the amended context commit, changed
-// task reservation, candidate Git integration and independent check reservation
-// use the production product paths. This is not a model or Docker witness.
-func TestAcceptedAmendmentReachesReviewedIntegrationAndIndependentCheck(t *testing.T) {
+// An accepted amendment changes the original approved contract. The saved
+// route remains readable, but cannot approve the replacement run or integrate
+// its work by the legacy nil-contract fallback.
+func TestAcceptedAmendmentWaitsForFreshExecutionContract(t *testing.T) {
 	s, p, h, ctx, req, _ := coordinatorContinuationFixture(t)
 	base := "/v1/product/projects/" + p.ID
 	state, err := s.readApprovedJourney(p.Path, p.ID)
@@ -33,6 +31,10 @@ func TestAcceptedAmendmentReachesReviewedIntegrationAndIndependentCheck(t *testi
 	req.ExpectedContextDigest, req.ExpectedPolicyRevision = view.Context.Digest, policy.Revision
 	req.Run.ImplementationContext.PlanRevision = plan.Revision
 	anchor := coordinatorReadyFixture(t, s, p, ctx, req)
+	priorRuns, err := s.projectRuns.List(p.ID, p.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
 	state, err = s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -76,32 +78,16 @@ func TestAcceptedAmendmentReachesReviewedIntegrationAndIndependentCheck(t *testi
 		}
 	}
 	rows, err = s.readContinuations(p, "alice")
-	if err != nil || len(rows.Rows) != 2 || len(rows.Rows[1].AcceptedEvents) != 1 || rows.Rows[1].Status != "queued" {
-		t.Fatalf("amendment did not reserve affected work: %+v %v", rows, err)
+	if err != nil || len(rows.Rows) != 1 || rows.Rows[0].ID != anchor.ID {
+		t.Fatalf("changed plan reused old contract or minted work: %+v %v", rows, err)
 	}
-	run, err := s.projectRuns.Get(p.ID, p.Path, rows.Rows[1].RunID)
-	if err != nil || run.Input.Implementation.PlanRevision != snapshot.Plan.Revision+1 {
-		t.Fatal("amendment did not change exact upstream input", err)
+	runs, err := s.projectRuns.List(p.ID, p.Path)
+	if err != nil || len(runs) != len(priorRuns) {
+		t.Fatal("accepted event created a new run without approval", runs, err)
 	}
-	swarmBase := base + "/runs/" + run.ID + "/swarm"
-	run = projectRunHTTPResponse(t, journeyRequest(t, h, http.MethodPost, swarmBase+"/tasks/task-save/reserve", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "amended-candidate-123456"}, http.StatusCreated)).ProjectRun
-	op := run.Operations[len(run.Operations)-1]
-	workerPath := mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID)
-	swarmCommitFixture(t, workerPath, "result.txt", "independently integrated implementation\n")
-	run = swarmFinishFixture(t, s, p, run, op.ID)
-	s.SetProjectRunSessionObserver(func(context.Context, string, string, string) ([]registry.Session, error) { return nil, nil })
-	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	run, err = s.projectRuns.Get(p.ID, p.Path, run.ID)
-	if err != nil || run.Swarm.Tasks[0].Integration == nil || run.Swarm.Tasks[0].Integration.State != "integrated" {
-		t.Fatal("amended candidate did not integrate", err)
-	}
-	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	rows, err = s.readContinuations(p, "alice")
-	if err != nil || rows.Rows[1].Delivery == nil || rows.Rows[1].Delivery.CheckID == "" {
-		t.Fatal("amended combined result did not reserve independent check", err)
+	for i := range runs {
+		if runs[i].ID != priorRuns[i].ID {
+			t.Fatal("accepted event replaced a run without approval", runs, priorRuns)
+		}
 	}
 }

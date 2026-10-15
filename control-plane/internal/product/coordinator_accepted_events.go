@@ -6,11 +6,63 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"reflect"
 	"sort"
 
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
+
+// Only an already approved exact selection may be reused for a later accepted
+// event. This is a read: it neither prepares nor approves on behalf of the
+// person. Final run creation compares all bound bytes and current authority.
+func (s *Server) acceptedEventApprovedContract(ctx context.Context, p project.Project, actor string, selection ImplementationContextRequest, route *CoordinatorSavedRoute, exactTasks bool) *OrchestrationContractSelection {
+	if route == nil || actor == "" {
+		return nil
+	}
+	s.orchestrationContractMu.Lock()
+	_, ledger, err := s.readOrchestrationContracts(p)
+	s.orchestrationContractMu.Unlock()
+	if err != nil {
+		return nil
+	}
+	for index := len(ledger.Records) - 1; index >= 0; index-- {
+		c := ledger.Records[index].Contract
+		i := c.Input.Implementation
+		if c.Actor.ID != actor || c.Approval == nil || c.State != "approved" || c.Approval.Actor.ID != actor || c.ProjectID != p.ID ||
+			i.ProjectID != selection.ProjectID || i.WorktreeID != route.Route.WorktreeID || i.BriefRevision != selection.BriefRevision || i.PlanRevision != selection.PlanRevision ||
+			i.SpecificationRevision != selection.SpecificationRevision || i.DesignPlanRevision != selection.DesignPlanRevision || exactTasks && !reflect.DeepEqual(i.TaskIDs, selection.TaskIDs) ||
+			c.Input.Route.Harness != route.Route.Harness || c.Input.Route.Model != route.Route.Model || c.Input.Route.PermissionMode != route.Route.PermissionMode || c.Input.Route.Effort != route.Route.Effort ||
+			c.Input.Route.ExecutionLocation != route.Route.ExecutionLocation || c.Input.Outcome != route.Route.Outcome {
+			continue
+		}
+		if !exactTasks {
+			included := map[string]bool{}
+			for _, id := range i.TaskIDs {
+				included[id] = true
+			}
+			for _, id := range selection.TaskIDs {
+				if !included[id] {
+					included = nil
+					break
+				}
+			}
+			if included == nil {
+				continue
+			}
+		}
+		if route.Route.AgentConnectionID != nil && c.Input.Route.Connection.ID != *route.Route.AgentConnectionID || ctx.Err() != nil {
+			continue
+		}
+		// One bounded currentness check for the newest matching approval. An
+		// older record cannot override a newer stale or revoked selection.
+		if s.contractView(ctx, p, c).Freshness.Status != "current" {
+			return nil
+		}
+		return &OrchestrationContractSelection{ID: c.ID, Revision: c.Revision, Digest: c.Digest, ApprovalID: c.Approval.ID}
+	}
+	return nil
+}
 
 // An accepted intent selects work from the current approved plan. A removed
 // task is a blocker, never a reason to broaden execution silently.
@@ -193,6 +245,9 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 	if _, err = implementationSnapshot(state, selection, ""); err != nil {
 		return false, nil // Accepted intent can precede required context approval.
 	}
+	if s.acceptedEventApprovedContract(fresh, p, rows.ActorID, selection, route, false) == nil {
+		return false, nil // No current exact approval: leave accepted intent for human review.
+	}
 	for _, prior := range rows.Rows {
 		old := prior.Run.ImplementationContext
 		if old.BriefRevision == selection.BriefRevision && old.PlanRevision == selection.PlanRevision &&
@@ -204,16 +259,6 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 		}
 	}
 	lastEventID := events[len(events)-1].Event.ID
-	reservedCommit := false
-	for _, commit := range rows.ContextCommits {
-		reservedCommit = reservedCommit || commit.EventID == lastEventID
-	}
-	if snapshot.SourceDirty || reservedCommit {
-		confirmed, commitErr := s.commitAcceptedCoordinatorContext(fresh, p, lastEventID, snapshot.SourceCommit)
-		if commitErr != nil || !confirmed {
-			return false, commitErr
-		}
-	}
 	// A changed downstream task can depend on previously integrated work. Reuse
 	// only exact reviewed prerequisites; otherwise include those ancestors in
 	// the new run so the person need not shuttle a dependency by hand.
@@ -225,6 +270,21 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 	if _, err = implementationSnapshot(state, selection, ""); err != nil {
 		return false, nil // A new prerequisite may need renewed context review.
 	}
+	// The reusable route cannot approve a changed Design, task graph, source or
+	// controls. Require a matching current, actor-owned approval before any Git
+	// commit, supersession or replacement launch. Final create revalidates the
+	// complete contract against the selected run under its normal gate.
+	contract := s.acceptedEventApprovedContract(fresh, p, rows.ActorID, selection, route, true)
+	if contract == nil {
+		return false, nil
+	}
+	reservedCommit := false
+	for _, commit := range rows.ContextCommits {
+		reservedCommit = reservedCommit || commit.EventID == lastEventID
+	}
+	if snapshot.SourceDirty || reservedCommit {
+		return false, nil // Commit/reconcile source before approving its exact contract.
+	}
 	if err = s.blockSupersededQueuedTasks(p.ID, selection); err != nil {
 		return false, err // Retry the same accepted event before creating new work.
 	}
@@ -232,7 +292,7 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 	if stopErr != nil || !settled {
 		return false, stopErr // No revised admission while an old child/charge is uncertain.
 	}
-	run := projectRunCreateRequest{WorktreeID: route.Route.WorktreeID, Harness: route.Route.Harness, Model: route.Route.Model, PermissionMode: route.Route.PermissionMode, Effort: route.Route.Effort, ExecutionLocation: route.Route.ExecutionLocation, AgentConnectionID: route.Route.AgentConnectionID, Outcome: route.Route.Outcome, ImplementationContext: selection}
+	run := projectRunCreateRequest{WorktreeID: route.Route.WorktreeID, Harness: route.Route.Harness, Model: route.Route.Model, PermissionMode: route.Route.PermissionMode, Effort: route.Route.Effort, ExecutionLocation: route.Route.ExecutionLocation, AgentConnectionID: route.Route.AgentConnectionID, Outcome: route.Route.Outcome, ImplementationContext: selection, OrchestrationContract: contract}
 	req := coordinatorContinuationRequest{IdempotencyKey: "accepted-" + events[len(events)-1].Event.ID, OriginTurnID: events[len(events)-1].Intent.TurnID, ExpectedContextDigest: view.ContextDigest, ExpectedPolicyRevision: policy.Revision, Run: run, MaxParallel: route.MaxParallel, ExpectedRouteRevision: &route.Revision, CheckPlan: route.CheckPlan, PreviewPlan: route.PreviewPlan, DeploymentPlan: route.DeploymentPlan}
 	for _, event := range events {
 		req.AcceptedEvents = append(req.AcceptedEvents, event.Receipt)

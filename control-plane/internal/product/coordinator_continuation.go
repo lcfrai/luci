@@ -403,6 +403,13 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		journeyError(w, 400, "invalid_continuation", "Choose an exact completed turn, current reviewed tasks, saved upstream route and intended outcome.")
 		return
 	}
+	// New coordinator work must name the exact approved contract. Older
+	// continuations remain readable and recoverable through their saved rows,
+	// but cannot mint a new unreviewed run through the legacy nil fallback.
+	if req.Run.OrchestrationContract == nil {
+		journeyError(w, http.StatusConflict, "execution_contract_required", "Review and approve the current execution contract before continuing this build.")
+		return
+	}
 	if req.Run.ExecutionLocation != "" && req.Run.ExecutionLocation != "local-docker" && req.Run.ExecutionLocation != "cloud-microvm" || req.Run.ExecutionLocation == "cloud-microvm" && (req.Run.PermissionMode != "bypass" || req.Run.Harness != "codex" && req.Run.Harness != "claude-code" || req.Run.AgentConnectionID == nil || *req.Run.AgentConnectionID == "") {
 		journeyError(w, 400, "invalid_cloud_continuation", "Choose an explicit supported cloud harness, noninteractive permission and a model connection for this microVM task plan.")
 		return

@@ -2,20 +2,24 @@ import { useEffect, useRef, useState } from 'react';
 import { approvedContractReference, orchestrationContractsApi, type OrchestrationContractReference, type OrchestrationContractView, type PrepareOrchestrationContract } from '../../api/orchestrationContracts';
 import { errorText } from '../../api/product';
 import { Button } from '../fluid/components/button';
+import type { CoordinatorContinuationRequest } from '../../api/coordinatorContinuations';
 import './ExecutionContractReview.css';
 
 const prefix = 'luci.execution-contract-review.v1:';
+const ordinaryReviewBytes = 65536;
+const continuationReviewBytes = 1 << 20; // exact retained checks may include eight bounded argument lists
 export interface ExecutionContractReviewRequest {
   version: 1; projectId: string; actorId: string; request: PrepareOrchestrationContract;
-  runKey: string; contractId?: string;
+  runKey: string; contractId?: string; continuation?: CoordinatorContinuationRequest;
 }
 export function contractReviewKey(scope: string): string { return prefix + encodeURIComponent(scope); }
 export function readContractReview(scope: string | null, projectId: string, actorId: string): ExecutionContractReviewRequest | null {
   if (!scope) return null;
   const raw = localStorage.getItem(contractReviewKey(scope));
   if (!raw) return null;
-  if (raw.length * 2 > 65536) throw new Error('The retained execution contract request exceeds its limit.');
+  if (raw.length * 2 > continuationReviewBytes) throw new Error('The retained execution contract request exceeds its limit.');
   const value = JSON.parse(raw) as ExecutionContractReviewRequest;
+  if (!value.continuation && raw.length * 2 > ordinaryReviewBytes) throw new Error('The retained execution contract request exceeds its limit.');
   const request = value?.request, route = request?.route, context = request?.implementationContext;
   const fields = (v: object, allowed: string[]) => Object.keys(v).every(key => allowed.includes(key));
   const text = (v: unknown, max: number) => typeof v === 'string' && v.length <= max;
@@ -27,7 +31,10 @@ export function readContractReview(scope: string | null, projectId: string, acto
       route.agentConnectionId !== undefined && !text(route.agentConnectionId, 256) || value.contractId !== undefined && !text(value.contractId, 256) ||
       ![context.briefRevision, context.planRevision, context.specificationRevision, context.designPlanRevision].every(x => Number.isSafeInteger(x) && x > 0) ||
       !Array.isArray(context.taskIds) || context.taskIds.length < 1 || context.taskIds.length > 200 || context.taskIds.some(x => !text(x, 256) || !x) ||
-      !fields(value, ['version', 'projectId', 'actorId', 'request', 'runKey', 'contractId']) ||
+      value.continuation !== undefined && (value.continuation.idempotencyKey !== value.runKey || value.continuation.run?.implementationContext?.projectId !== projectId || value.continuation.run?.orchestrationContract !== undefined ||
+        value.continuation.run?.worktreeId !== request.worktreeId || value.continuation.run?.harness !== route.harness || value.continuation.run?.model !== route.model || value.continuation.run?.permissionMode !== route.permissionMode || value.continuation.run?.outcome !== request.outcome ||
+        JSON.stringify(value.continuation.run?.implementationContext) !== JSON.stringify(context)) ||
+      !fields(value, ['version', 'projectId', 'actorId', 'request', 'runKey', 'contractId', 'continuation']) ||
       !fields(request, ['idempotencyKey', 'worktreeId', 'implementationContext', 'route', 'outcome']) ||
       !fields(route, ['harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'agentConnectionId']) ||
       !fields(context, ['projectId', 'briefRevision', 'planRevision', 'specificationRevision', 'designPlanRevision', 'taskIds'])) {
@@ -38,13 +45,13 @@ export function readContractReview(scope: string | null, projectId: string, acto
 export function retainContractReview(scope: string | null, value: ExecutionContractReviewRequest): void {
   if (!scope) throw new Error('Account and workspace identity are required to retain this review before saving.');
   const raw = JSON.stringify(value);
-  if (raw.length * 2 > 65536) throw new Error('The execution contract request exceeds its recovery limit.');
+  if (raw.length * 2 > (value.continuation ? continuationReviewBytes : ordinaryReviewBytes)) throw new Error('The execution contract request exceeds its recovery limit.');
   const key = contractReviewKey(scope);
   const prior = localStorage.getItem(key);
   if (prior) {
-    if (prior.length * 2 > 65536) throw new Error('Existing review recovery exceeds its limit.');
+    if (prior.length * 2 > continuationReviewBytes) throw new Error('Existing review recovery exceeds its limit.');
     const previous = JSON.parse(prior) as ExecutionContractReviewRequest;
-    if (previous.actorId !== value.actorId || previous.projectId !== value.projectId || previous.runKey !== value.runKey || JSON.stringify(previous.request) !== JSON.stringify(value.request)) {
+    if (previous.actorId !== value.actorId || previous.projectId !== value.projectId || previous.runKey !== value.runKey || JSON.stringify(previous.request) !== JSON.stringify(value.request) || JSON.stringify(previous.continuation) !== JSON.stringify(value.continuation)) {
       throw new Error('Another execution contract review is retained. Inspect it before replacing its request.');
     }
   }
@@ -72,10 +79,11 @@ export function archiveContractReview(scope: string, value: ExecutionContractRev
   localStorage.removeItem(key);
 }
 
-export function ExecutionContractReview({ pending, initialView, scope, actorId, canRead, canEdit, preparing = false, onPrepared, onCreate, onComplete, onReviewInputs }: {
+export function ExecutionContractReview({ pending, initialView, scope, actorId, canRead, canEdit, preparing = false, continuation = false, onPrepared, onCreate, onComplete, onReviewInputs }: {
   pending: ExecutionContractReviewRequest; initialView: OrchestrationContractView | null; scope: string | null;
   actorId: string; canRead: boolean; canEdit: boolean;
   preparing?: boolean;
+  continuation?: boolean;
   onPrepared(pending: ExecutionContractReviewRequest, view: OrchestrationContractView): void;
   onCreate(request: PrepareOrchestrationContract, reference: OrchestrationContractReference, idempotencyKey: string): Promise<void>;
   onComplete(): void;
@@ -141,7 +149,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
       onComplete();
     } catch (cause) {
       if (generation.current === current) {
-        setError(`${errorText(cause)} The exact request is retained. Refresh its recorded status before continuing; no coding session was started here.`);
+        setError(`${errorText(cause)} The exact request is retained. ${continuation ? 'Refresh its recorded status before continuing; do not submit it again while its effect is unconfirmed.' : 'Refresh its recorded status before continuing; no coding session was started here.'}`);
         setConsent(false);
       }
     } finally { working.current = false; if (generation.current === current) setBusy(''); }
@@ -157,7 +165,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
   const c = view?.contract;
   return <section className="execution-contract-review" aria-label="Execution contract review">
     <h3>Review how Luci will build</h3>
-    <p>This saves an exact contract and a project run. Coding, public deployment and paid resources keep their existing separate controls.</p>
+    <p>{continuation ? 'Review and approve the exact contract before the retained continuation can prepare or queue work. Coding, public deployment and paid resources keep their existing controls.' : 'This saves an exact contract and a project run. Coding, public deployment and paid resources keep their existing separate controls.'}</p>
     {error && <p role="alert">{error}</p>}
     {!view ? <p>The preparation outcome is not yet confirmed. Inspect the retained request before preparing another selection.</p> : <>
       <p role={view.freshness.status === 'current' ? undefined : 'status'}><strong>{view.freshness.status === 'current' ? 'Current context and policy' : 'Context needs reconciliation'}</strong>{view.freshness.reason && ` · ${view.freshness.reason}`}</p>
@@ -173,7 +181,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
       <label className="setup-check"><input type="checkbox" checked={consent} disabled={!allowed || !!busy || preparing || view.freshness.status !== 'current'} onChange={event => setConsent(event.target.checked)} />I reviewed these exact scopes, acceptance criteria and decision boundaries.</label>
     </>}
     <div className="workflow-actions"><Button variant="secondary" disabled={!!busy || preparing || !canRead || !pending.contractId && !allowed} onClick={() => void refresh()}>Refresh contract status</Button>
-      {view && <Button disabled={!allowed || !consent || !!busy || preparing || view.freshness.status !== 'current'} loading={!!busy} onClick={() => void approveAndCreate()}>{c!.state === 'approved' ? 'Save reviewed project run' : 'Approve contract and save project run'}</Button>}</div>
+      {view && <Button disabled={!allowed || !consent || !!busy || preparing || view.freshness.status !== 'current'} loading={!!busy} onClick={() => void approveAndCreate()}>{continuation ? c!.state === 'approved' ? 'Continue reviewed work' : 'Approve contract and continue reviewed work' : c!.state === 'approved' ? 'Save reviewed project run' : 'Approve contract and save project run'}</Button>}</div>
     {(!view || view.freshness.status !== 'current') && <><p>Choosing updated inputs preserves this original request and its exact keys. It does not cancel or settle any previously saved run.</p>
       <Button variant="ghost" disabled={!allowed || !!busy || preparing} onClick={reviewUpdatedInputs}>Keep original request and review updated plan</Button></>}
   </section>;

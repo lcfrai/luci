@@ -14,6 +14,8 @@ import { coordinatorDeploymentApi, sameCoordinatorDeploymentBinding, type Coordi
 import { CoordinatorDeploymentSetup, type CoordinatorDeploymentSelection } from './CoordinatorDeploymentSetup';
 import { CoordinatorCheckSetup, type CoordinatorCheckSelection } from './CoordinatorCheckSetup';
 import { SessionPicker } from '../topbar/SessionPicker';
+import { orchestrationContractsApi, type OrchestrationContractReference, type OrchestrationContractView, type PrepareOrchestrationContract } from '../../api/orchestrationContracts';
+import { ExecutionContractReview, readContractReview, retainContractReview, archiveContractReview, type ExecutionContractReviewRequest } from '../develop/ExecutionContractReview';
 
 type Pending = { actorId: string; projectId: string; rejected?: true } & (
   { kind: 'create'; input: CoordinatorContinuationRequest } |
@@ -46,7 +48,11 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
 }) {
   const key = keyFor(scope), [initial] = useState(() => initialRequest(key, projectId, actorId));
   const [pending, setPending] = useState(initial.value), pendingRef = useRef(initial.value), rawRef = useRef(initial.raw);
-  const [storageError, setStorageError] = useState(initial.error);
+  const reviewScope = `${scope}/continued-work`;
+  const [initialReview] = useState(() => { try { return { value: readContractReview(reviewScope, projectId, actorId), error: '' }; } catch (cause) { return { value: null, error: errorText(cause) }; } });
+  const [contractReview, setContractReview] = useState<ExecutionContractReviewRequest | null>(initialReview.value);
+  const [contractView, setContractView] = useState<OrchestrationContractView | null>(null);
+  const [storageError, setStorageError] = useState(initial.error || initialReview.error);
   const [rows, setRows] = useState<CoordinatorContinuation[]>([]), [contextCommits, setContextCommits] = useState<NonNullable<CoordinatorContinuationState['contextCommits']>>([]), [selected, setSelected] = useState('');
   const [policy, setPolicy] = useState<CoordinatorPolicy | null>(null), [fresh, setFresh] = useState(false);
   const [deliveryReadWarning, setDeliveryReadWarning] = useState('');
@@ -105,7 +111,12 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
       const retained = pendingRef.current;
       if (explicit && retained) {
         const match = retained.kind === 'create' ? nextRows.find(row => row.idempotencyKey === retained.input.idempotencyKey && row.originTurnId === retained.input.originTurnId && row.contextDigest === retained.input.expectedContextDigest && row.policyRevision === retained.input.expectedPolicyRevision) : retained.kind === 'advance' ? nextRows.find(row => row.id === retained.id && row.revision > retained.revision && !row.actions.some(action => action.status === 'pending' || action.status === 'unknown')) : undefined;
-        if (retained.rejected || match || retained.kind === 'policy' && nextPolicy.revision > retained.revision) { persist(null); setNotice(match ? 'The exact retained request was observed. It was not submitted again.' : 'Current authoritative state was read. The retained request was not replayed.'); }
+        if (retained.rejected || match || retained.kind === 'policy' && nextPolicy.revision > retained.revision) {
+          if (retained.kind === 'create' && contractReview?.runKey === retained.input.idempotencyKey) {
+            archiveContractReview(reviewScope, contractReview); setContractReview(null); setContractView(null);
+          }
+          persist(null); setNotice(match ? 'The exact retained request was observed. It was not submitted again.' : 'Current authoritative state was read. The retained request was not replayed.');
+        }
       }
       setPolicy(nextPolicy); setDeploymentFresh(!!deployment && !!state.savedRoute?.deploymentPlan && sameCoordinatorDeploymentBinding(deployment, state.savedRoute.deploymentPlan)); setConfigurationRevision(configuration); setSavedRoute(state.savedRoute); setCloudCapacity(state.cloudCapacity ?? null); setRows(nextRows); setContextCommits(state.contextCommits ?? []); setSelected(previous => nextRows.some(row => row.id === previous) ? previous : nextRows[nextRows.length - 1]?.id ?? '');
       setFresh(true); setReadDenied(false); setError('');
@@ -179,7 +190,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const cloudReady = (cloudCapacity?.provider === 'e2b-embed' || cloudCapacity?.provider === 'azure-e2b-embed') && !cloudCapacity.setupNeeds?.length;
   const cloudProviderLabel = cloudCapacity?.provider === 'azure-e2b-embed' ? 'Azure microVM' : 'Configured microVM';
   const start = (location: 'local-docker' | 'cloud-microvm' = 'local-docker') => {
-    if (issue || deliverySetupIssue || checkSelection.problem || previewSelection.problem || deploymentSelection.problem || pendingRef.current || working.current || storageError || !policy || !ownTurn || !worktree) return;
+    if (issue || deliverySetupIssue || checkSelection.problem || previewSelection.problem || deploymentSelection.problem || pendingRef.current || contractReview || working.current || storageError || !policy || !ownTurn || !worktree) return;
     if (location === 'cloud-microvm' && !cloudReady) return;
     setExecutionLocation(location);
     setParallel(Math.min(2, tasks.length)); setOutcome(deploymentSelection.plan ? 'publish' : 'preview'); setRememberRoute(false);
@@ -187,15 +198,35 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   };
   async function create(selection: CreateSessionRequest) {
     if (!picker || issue || latest.current.blocked || picker.expectedContextDigest !== latest.current.view.context.digest || !selection.implementationContext || JSON.stringify(selection.implementationContext) !== JSON.stringify(picker.run.implementationContext)) return { ok: false as const, message: 'The reviewed selection changed. Close this picker and read the current context before continuing.' };
+    if (!['codex', 'claude-code', 'opencode'].includes(selection.harness ?? '') || !['ask', 'bypass'].includes(selection.permissionMode ?? 'ask')) return { ok: false as const, message: 'Choose a supported harness and an explicit Ask or approved noninteractive mode.' };
     if (!Number.isInteger(parallel) || parallel < 1 || parallel > Math.min(MAX_SWARM_PARALLEL_TASKS, tasks.length)) return { ok: false as const, message: 'Choose a concurrency limit within the selected task count.' };
     if (executionLocation === 'cloud-microvm' && !cloudReady) return { ok: false as const, message: 'Cloud setup or spending advice is unavailable or blocked. Refresh and review the exact setup need before another request.' };
     if (executionLocation === 'cloud-microvm' && (!['codex', 'claude-code'].includes(selection.harness ?? '') || selection.permissionMode !== 'bypass' || !selection.agentConnectionId)) return { ok: false as const, message: 'Cloud microVM tasks need a reviewed Codex or Claude Code route, noninteractive permission and an explicit API-key model connection. The server will verify current cloud authority and capacity.' };
     if (checkSelection.problem || checkSelection.dirty && !checkSelection.plan) return { ok: false as const, message: checkSelection.problem || 'Review the exact check command delegation first.' };
     if (previewSelection.problem || previewSelection.dirty && !previewSelection.plan || previewSelection.plan && (!checkSelection.plan || !latest.current.canDeploy || policy?.previewMode !== 'checked-source')) return { ok: false as const, message: previewSelection.problem || 'Delegate exact independent checks and current preview configuration before starting this preview-enabled continuation.' };
     if (deploymentSelection.problem || deploymentSelection.dirty && !deploymentSelection.plan || deploymentSelection.plan && (!checkSelection.plan || !previewSelection.plan || outcome !== 'publish' || !latest.current.canDeploy || policy?.deploymentMode !== 'existing-target')) return { ok: false as const, message: deploymentSelection.problem || 'Delegate exact checks, local preview and a published outcome before continuing to the selected deployment target.' };
+    if (contractReview || pendingRef.current || storageError) return { ok: false as const, message: 'Inspect the retained execution review or continuation before preparing another.' };
     const input: CoordinatorContinuationRequest = { ...picker, rememberRoute, autoDiscussFindings: rememberRoute && autoDiscussFindings, ...(deploymentSelection.plan ? { deploymentPlan: deploymentSelection.plan } : {}), ...(previewSelection.plan ? { previewPlan: previewSelection.plan } : {}), ...(checkSelection.plan ? { checkPlan: checkSelection.plan } : {}), maxParallel: parallel, run: { ...picker.run, worktreeId: selection.worktreeId, harness: selection.harness ?? '', model: selection.model ?? '', permissionMode: selection.permissionMode ?? 'ask', ...(executionLocation === 'cloud-microvm' ? { executionLocation } : {}), ...(selection.effort ? { effort: selection.effort } : {}), ...(selection.agentConnectionId !== undefined ? { agentConnectionId: selection.agentConnectionId } : {}), outcome } };
-    const ok = await mutate('create', { kind: 'create', projectId, actorId, input }, () => coordinatorContinuationsApi.create(projectId, actorId, input), value => { remember(value); if (input.checkPlan) setRecordedDraft(checkSelection.draftDigest); if (input.previewPlan) setRecordedPreview(previewSelection.draftDigest); if (input.deploymentPlan) setRecordedDeployment(deploymentSelection.draftDigest); setPicker(null); setNotice('The continuation is retained. Queued work is not yet verified or deployed.'); });
-    return ok ? { ok: true as const } : { ok: false as const, message: 'The continuation outcome needs readback in Luci. Close this picker and refresh continued work; do not submit it again.' };
+    const request: PrepareOrchestrationContract = { idempotencyKey: crypto.randomUUID(), worktreeId: input.run.worktreeId, implementationContext: input.run.implementationContext,
+      route: { harness: input.run.harness as PrepareOrchestrationContract['route']['harness'], model: input.run.model, permissionMode: input.run.permissionMode as 'ask' | 'bypass', executionLocation: input.run.executionLocation === 'cloud-microvm' ? 'cloud-microvm' : 'local-docker', ...(input.run.effort ? { effort: input.run.effort } : {}), ...(input.run.agentConnectionId !== undefined ? { agentConnectionId: input.run.agentConnectionId } : {}) }, outcome: input.run.outcome };
+    const review: ExecutionContractReviewRequest = { version: 1, projectId, actorId, runKey: input.idempotencyKey, request, continuation: input };
+    try { retainContractReview(reviewScope, review); setContractReview(review); setPicker(null); }
+    catch (cause) { return { ok: false as const, message: errorText(cause) }; }
+    try {
+      const value = await orchestrationContractsApi.prepare(projectId, request);
+      if (!alive.current || !latest.current.canRead) return { ok: true as const };
+      if (value.contract.actor.id !== actorId) throw new Error('The prepared contract belongs to another person.');
+      const retained = { ...review, contractId: value.contract.id };
+      retainContractReview(reviewScope, retained); setContractReview(retained); setContractView(value);
+    } catch (cause) { if (alive.current) setError(`${errorText(cause)} The exact preparation request is retained; refresh it before continuing.`); }
+    return { ok: true as const };
+  }
+  async function createReviewedContinuation(prepared: PrepareOrchestrationContract, reference: OrchestrationContractReference, key: string) {
+    const review = contractReview;
+    if (!review?.continuation || review.runKey !== key || JSON.stringify(review.request) !== JSON.stringify(prepared) || pendingRef.current || !fresh || !latest.current.canEdit || !latest.current.canExecute) throw new Error('The reviewed continuation changed. Read its exact retained state.');
+    const input: CoordinatorContinuationRequest = { ...review.continuation, run: { ...review.continuation.run, orchestrationContract: reference } };
+    const ok = await mutate('create', { kind: 'create', projectId, actorId, input }, () => coordinatorContinuationsApi.create(projectId, actorId, input), value => { remember(value); if (input.checkPlan) setRecordedDraft(checkSelection.draftDigest); if (input.previewPlan) setRecordedPreview(previewSelection.draftDigest); if (input.deploymentPlan) setRecordedDeployment(deploymentSelection.draftDigest); setPicker(null); setNotice('The approved continuation is retained. Queued work is not yet verified or deployed.'); });
+    if (!ok) throw new Error('The exact continuation needs readback. Do not submit another request.');
   }
   async function advance() {
     if (!row || !canExecute || blocked) return;
@@ -207,6 +238,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     <p>Run on: {runOn}. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.</p>
     {deliveryReadWarning && <p role="status">{deliveryReadWarning} Automatic reuse remains blocked. Review current configuration or pause the delegation.</p>}{error && <p role="alert">{error}</p>}{storageError && <p role="alert">{storageError}</p>}{notice && <p role="status">{notice}</p>}
     {pending && <p role="status">A continuation request is retained. New requests are paused until its exact outcome is read back.</p>}
+    {contractReview && !pending && <ExecutionContractReview key={contractReview.request.idempotencyKey} pending={contractReview} initialView={contractView} scope={reviewScope} actorId={actorId} canRead={canRead} canEdit={canEdit && canExecute && fresh && !readDenied} continuation onPrepared={(next, value) => { setContractReview(next); setContractView(value); }} onCreate={createReviewedContinuation} onComplete={() => { setContractReview(null); setContractView(null); }} onReviewInputs={() => { setContractReview(null); setContractView(null); setPicker(null); }} />}
     {!readDenied && canRead && <section aria-label="Cloud task swarm activation">
       <h4>Build with a cloud agent swarm</h4>
       <p>{tasks.length} unfinished reviewed task{tasks.length === 1 ? '' : 's'} in this plan. Luci schedules saved dependencies and gives each admitted upstream agent its own owned microVM. Run on the selected cloud service; deploy to is a separate reviewed decision.</p>
@@ -215,7 +247,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
         <p role="status">{cloudProviderLabel} · {cloudCapacity.region} · {cloudCapacity.configuredAvailableSlots} configured slot{cloudCapacity.configuredAvailableSlots === 1 ? '' : 's'} now · up to {cloudCapacity.configuredProjectSlots} for this project. Estimated reserve per task ${(cloudCapacity.estimatedTaskCostMicros / 1_000_000).toFixed(2)} USD; retained this month ${(cloudCapacity.estimatedMonthMicros / 1_000_000).toFixed(2)} of ${(cloudCapacity.monthlyBudgetMicros / 1_000_000).toFixed(2)} USD. {cloudCapacity.limitation}</p>}
       {cloudCapacity?.retainedProjectVMs ? <details><summary>{cloudCapacity.retainedProjectVMs} retained task microVM{cloudCapacity.retainedProjectVMs === 1 ? '' : 's'} in this project</summary><p>These exact allocations remain charged until retirement is confirmed. Open the task queue to inspect, recover or request an owned stop; a stop is not proof of provider billing settlement.</p><ul>{cloudCapacity.retainedAttempts.map(attempt => <li key={attempt.operationId}>{attempt.taskId} · run {attempt.runId} · attempt {attempt.attemptId} · {attempt.state}{attempt.recoveryPending ? ' · restored identity readback pending; no replacement launch' : ''} · ${(attempt.estimatedCostMicros / 1_000_000).toFixed(2)} USD estimated · operation {attempt.operationId} <Button variant="secondary" disabled={!fresh} onClick={() => onInspect(attempt.runId)}>Open exact task controls</Button></li>)}</ul>{cloudCapacity.moreRetainedAttempts > 0 && <p>{cloudCapacity.moreRetainedAttempts} more retained attempts are not shown in this bounded summary. Open the project task queue for their exact identities.</p>}</details> : null}
       {!!cloudCapacity?.retiredBillingUnconfirmed && <p role="status">{cloudCapacity.retiredBillingUnconfirmed} retired microVM{cloudCapacity.retiredBillingUnconfirmed === 1 ? '' : 's'} this month have confirmed Luci allocation release but no independent provider billing settlement. Their estimated spend remains in the monthly budget; VM absence is not a bill receipt.</p>}
-      <Button variant="primary" disabled={!cloudReady || !!issue || !!deliverySetupIssue || !!pending || !!busy || !!storageError || !!checkSelection.problem || !!previewSelection.problem || !!deploymentSelection.problem} onClick={() => start('cloud-microvm')}>Review cloud swarm activation</Button>
+      <Button variant="primary" disabled={!cloudReady || !!issue || !!deliverySetupIssue || !!pending || !!contractReview || !!busy || !!storageError || !!checkSelection.problem || !!previewSelection.problem || !!deploymentSelection.problem} onClick={() => start('cloud-microvm')}>Review cloud swarm activation</Button>
       <p>Choose the existing Codex or Claude Code connection, exact task concurrency and checks in the review. Starting requires current project execution and spending authority. An uncertain request remains saved for exact readback.</p>
     </section>}
     {readDenied ? <p role="alert">Current access was refused. Retained private work is hidden.</p> : <>
@@ -245,12 +277,12 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
       <CoordinatorPreviewSetup projectId={projectId} scope={scope} enabled={policy?.previewMode === 'checked-source'} disabled={!canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending || !!storageError || !!blocked} recordedDraft={recordedPreview} onChange={previewChanged} />
       <CoordinatorDeploymentSetup projectId={projectId} scope={scope} enabled={policy?.deploymentMode === 'existing-target'} disabled={!canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending || !!storageError || !!blocked} recordedDraft={recordedDeployment} onChange={deploymentChanged} onNavigateDeploy={() => onNavigate('deploy')} />
       {issue && <p>{issue}</p>}{deliverySetupIssue && <p role="status">{deliverySetupIssue}</p>}
-      <Button variant="primary" disabled={!!issue || !!deliverySetupIssue || !!pending || !!busy || !!storageError || !!checkSelection.problem || !!previewSelection.problem || !!deploymentSelection.problem} onClick={() => start()}>Configure continued work</Button>
+      <Button variant="primary" disabled={!!issue || !!deliverySetupIssue || !!pending || !!contractReview || !!busy || !!storageError || !!checkSelection.problem || !!previewSelection.problem || !!deploymentSelection.problem} onClick={() => start()}>Configure continued work</Button>
       {(view.context.specification.status !== 'approved' || view.context.designPlan.status !== 'approved') && <Button variant="ghost" onClick={() => onNavigate(view.context.specification.status !== 'approved' ? 'discover' : 'design')}>Review current context</Button>}
     </>}
     <Button variant="ghost" disabled={!!busy} onClick={() => void load(true)}>Refresh continued work</Button>
     {busy && <p role="status">{busy === 'read' ? 'Reading retained continuation and current policy…' : busy === 'policy' ? 'Saving implementation permission…' : 'Continuing exact reviewed work…'}</p>}
-    <SessionPicker open={!!picker && canRead && canEdit && canExecute && !readDenied} worktreeId={picker?.run.worktreeId ?? null} implementationContext={picker?.run.implementationContext} onClose={() => setPicker(null)} onSubmit={create} submitLabel="Start reviewed continuation" progressLabel="Recording this continuation and preparing its reviewed tasks. Resources may be allocated under the current limits." failureGuidance="Read the exact retained request outcome in Luci before another start." onCreated={() => setPicker(null)}>
+    <SessionPicker open={!!picker && canRead && canEdit && canExecute && !readDenied} worktreeId={picker?.run.worktreeId ?? null} implementationContext={picker?.run.implementationContext} onClose={() => setPicker(null)} onSubmit={create} submitLabel="Review execution contract" progressLabel="Preparing the exact contract for review. No coding resource is allocated by this step." failureGuidance="Inspect the retained contract preparation before choosing a new route." onCreated={() => setPicker(null)}>
       <label className="luci-field">Develop execution location<select value={executionLocation} onChange={event => setExecutionLocation(event.target.value as typeof executionLocation)}><option value="local-docker">This computer · isolated Docker</option><option value="cloud-microvm">Configured cloud · one isolated microVM per task</option></select></label>
       <p>{executionLocation === 'cloud-microvm' ? 'Cloud tasks require an operator-configured microVM service, current cloud provisioning and spending permission, and an explicit upstream API-key connection. Each VM remains charged until exact retirement is observed. Luci will refuse an unavailable cloud route rather than fall back to Docker.' : `Run on: ${runOn}.`} This starts only the selected saved tasks; successful deployment is not implied.</p>
       {executionLocation === 'cloud-microvm' && (cloudReady ? <p role="status">Configured {cloudProviderLabel} in {cloudCapacity.region}: {cloudCapacity.configuredAvailableSlots} task VM slots presently available under Luci limits (global {cloudCapacity.configuredGlobalSlots}, project {cloudCapacity.configuredProjectSlots}). Configured cost estimate per task ${(cloudCapacity.estimatedTaskCostMicros / 1_000_000).toFixed(2)} USD for up to {cloudCapacity.maxTaskSeconds} seconds; your current-month retained estimate is ${(cloudCapacity.estimatedMonthMicros / 1_000_000).toFixed(2)} of ${(cloudCapacity.monthlyBudgetMicros / 1_000_000).toFixed(2)} USD. {cloudCapacity.limitation}</p> : <p role="status">Cloud work cannot start while the setup or policy needs above remain. For an unconnected workspace, a workspace administrator can use Setup → Bring your own cloud to prepare and verify an Azure connection; Luci Cloud is not available yet.</p>)}

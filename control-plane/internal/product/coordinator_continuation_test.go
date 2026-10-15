@@ -79,6 +79,10 @@ func coordinatorContinuationFixture(t *testing.T) (*Server, project.Project, htt
 		t.Fatal(err)
 	}
 	req := coordinatorContinuationRequest{IdempotencyKey: "continue-fixture-key-12345", OriginTurnID: turn.ID, ExpectedContextDigest: view.Context.Digest, ExpectedPolicyRevision: policy.Revision, Run: run, MaxParallel: 1}
+	endpoint := "/v1/product/projects/" + p.ID + "/orchestration-contracts"
+	prepared := contractResponse(t, journeyRequest(t, h, "POST", endpoint+"/prepare", contractRequest(run), 201).Body.Bytes())
+	approved := contractResponse(t, journeyRequest(t, h, "POST", endpoint+"/"+prepared.Contract.ID+"/approve", map[string]any{"expectedRevision": prepared.Contract.Revision, "expectedDigest": prepared.Contract.Digest}, 200).Body.Bytes())
+	req.Run.OrchestrationContract = &OrchestrationContractSelection{ID: approved.Contract.ID, Revision: approved.Contract.Revision, Digest: approved.Contract.Digest, ApprovalID: approved.Contract.Approval.ID}
 	return s, p, h, ctx, req, starts
 }
 func coordinatorCreate(t *testing.T, h http.Handler, p project.Project, req coordinatorContinuationRequest, status int) CoordinatorContinuation {
@@ -141,6 +145,35 @@ func TestCoordinatorContinuationRunsTypedPreparationQueueAndExactlyOnceAdmission
 	}
 	req.Run.Model = "different"
 	journeyRequest(t, h, "POST", "/v1/product/projects/"+p.ID+"/orchestrator/continuations", req, 409)
+}
+
+func TestCoordinatorContinuationRequiresApprovedContractBeforeNewWork(t *testing.T) {
+	s, p, h, ctx, req, starts := coordinatorContinuationFixture(t)
+	approved := req.Run.OrchestrationContract
+	req.Run.OrchestrationContract = nil
+	journeyRequest(t, h, "POST", "/v1/product/projects/"+p.ID+"/orchestrator/continuations", req, http.StatusConflict)
+	if rows, err := s.readContinuations(p, "alice"); err != nil || len(rows.Rows) != 0 {
+		t.Fatal("unreviewed continuation was retained", rows, err)
+	}
+	if runs, err := s.projectRuns.List(p.ID, p.Path); err != nil || len(runs) != 0 || *starts != 0 {
+		t.Fatal("unreviewed continuation created a run or child", runs, err, *starts)
+	}
+	req.Run.OrchestrationContract = approved
+	created := coordinatorCreate(t, h, p, req, http.StatusCreated)
+	if created.RunID == "" {
+		t.Fatal("approved continuation did not create an exact run")
+	}
+	rows, err := s.readContinuations(p, "alice")
+	if err != nil || len(rows.Rows) != 1 {
+		t.Fatal("approved row missing", err)
+	}
+	// A retained legacy nil-contract row remains readable, but it must never
+	// take the new automatic integration path even with a ready candidate.
+	legacy := rows.Rows[0]
+	legacy.Run.OrchestrationContract = nil
+	if integrated, err := s.continueCoordinatorCandidateIntegration(ctx, p, legacy); err != nil || integrated {
+		t.Fatal("nil-contract continuation passed automatic integration", integrated, err)
+	}
 }
 func TestCoordinatorFirstCloudActivationQueuesExactReviewedTasksWithoutLocalFallback(t *testing.T) {
 	s, p, h, _, req, starts := coordinatorContinuationFixture(t)

@@ -12,6 +12,8 @@ import { productApi, ProductApiError } from '../../api/product';
 import { resetCockpit, useCockpit } from '../../store/store';
 import { aWorktree } from '../../test/fixtures';
 import { context, proposalTurn, view } from './fixtures';
+import { orchestrationContractsApi, type OrchestrationContractView, type PrepareOrchestrationContract } from '../../api/orchestrationContracts';
+import { contractViewFixture } from '../../test/orchestrationContractFixtures';
 
 // Tests the continuation boundary, not the separately tested picker keyboard UI.
 vi.mock('../topbar/SessionPicker', () => ({ SessionPicker: ({ open, implementationContext, onSubmit, onClose, children, progressLabel }: { open: boolean; implementationContext: CreateSessionRequest['implementationContext']; onSubmit(value: CreateSessionRequest): Promise<unknown>; onClose(): void; children: ReactNode; progressLabel: string }) => open ? <div role="dialog" aria-label="Existing upstream route picker">{children}<p>{progressLabel}</p><button onClick={() => void onSubmit({ worktreeId: 'w-1', harness: 'codex', model: 'model', permissionMode: 'bypass', agentConnectionId: 'configured', implementationContext })}>Submit reviewed route</button><button onClick={onClose}>Close picker</button></div> : null }));
@@ -23,30 +25,68 @@ const records = () => Object.keys(localStorage).filter(key => key.startsWith('lu
 const configuredCloud = (): CoordinatorCloudCapacity => ({ provider: 'e2b-embed', region: 'us-east-1', configuredGlobalSlots: 8, configuredProjectSlots: 6, configuredAvailableSlots: 2, estimatedTaskCostMicros: 150_000, estimatedMonthMicros: 250_000, monthlyBudgetMicros: 1_000_000, maxTaskSeconds: 600, observedAt: '2026-10-13T12:00:00Z', limitation: 'Configured limits only; actual admission is checked later.', retainedProjectVMs: 0, moreRetainedAttempts: 0, retainedAttempts: [] });
 function deferred<T>() { let resolve!: (value: T) => void, reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 async function configure() { const button = await screen.findByRole('button', { name: 'Configure continued work' }); await waitFor(() => expect(button).toHaveProperty('disabled', false)); await userEvent.click(button); }
+async function submitReviewedRoute() {
+  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await userEvent.click(await screen.findByRole('checkbox', { name: /I reviewed these exact scopes/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Approve contract and continue reviewed work' }));
+}
 beforeEach(() => {
   vi.restoreAllMocks(); resetCockpit(); localStorage.clear();
   useCockpit.setState({ worktreesByBranch: { b: [aWorktree({ id: 'w-1', projectId: 'p-1', branchId: 'b', isPrimary: true })] }, selection: { projectId: 'p-1', branchId: 'b', worktreeId: 'w-1', sessionId: null } });
   vi.spyOn(coordinatorPolicyApi, 'get').mockResolvedValue(policy()); vi.spyOn(api, 'listState').mockResolvedValue({ continuations: [], savedRoute: null });
   vi.spyOn(api, 'create').mockImplementation(async (_project, _actor, input) => row({ idempotencyKey: input.idempotencyKey }));
   vi.spyOn(api, 'advance').mockResolvedValue(row());
+  let contract: OrchestrationContractView = contractViewFixture();
+  vi.spyOn(orchestrationContractsApi, 'prepare').mockImplementation(async (_project: string, request: PrepareOrchestrationContract) => {
+    contract = contractViewFixture(); contract.contract.actor.id = 'alice'; contract.contract.input.implementation.projectId = request.implementationContext.projectId;
+    contract.contract.input.implementation.worktreeId = request.worktreeId; contract.contract.input.implementation.taskIds = [...request.implementationContext.taskIds];
+    contract.contract.input.route.harness = request.route.harness; contract.contract.input.route.model = request.route.model;
+    contract.contract.input.route.permissionMode = request.route.permissionMode; contract.contract.input.outcome = request.outcome;
+    return contract;
+  });
+  vi.spyOn(orchestrationContractsApi, 'get').mockImplementation(async () => contract);
+  vi.spyOn(orchestrationContractsApi, 'approve').mockImplementation(async () => {
+    contract = { ...contract, contract: { ...contract.contract, revision: 2, state: 'approved', approval: { id: 'approval-1', actor: { id: 'alice', displayName: 'Alice' }, at: '2026-10-16T00:00:00Z', digest: contract.contract.digest } } };
+    return contract;
+  });
   vi.spyOn(coordinatorPolicyApi, 'save').mockResolvedValue(policy({ revision: 3 }));
 });
 it('reads on mount without launch and uses current approved tasks in the reused explicit route picker', async () => {
   render(<CoordinatorExecution {...props()} />); await configure();
-  expect(api.create).not.toHaveBeenCalled(); expect(screen.getByText(/Resources may be allocated/)).not.toBeNull();
+  expect(api.create).not.toHaveBeenCalled(); expect(screen.getByText(/No coding resource is allocated/)).not.toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await screen.findByRole('region', { name: 'Execution contract review' });
+  expect(api.create).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('checkbox', { name: /I reviewed these exact scopes/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Approve contract and continue reviewed work' }));
   await screen.findByText(/continuation is retained/);
   const request = vi.mocked(api.create).mock.calls[0][2];
   expect(request).toMatchObject({ originTurnId: 'turn-1', expectedContextDigest: context().digest, expectedPolicyRevision: 2, maxParallel: 1, run: { harness: 'codex', model: 'model', permissionMode: 'bypass', agentConnectionId: 'configured', outcome: 'preview', implementationContext: { projectId: 'p-1', taskIds: ['T-1'], specificationRevision: 2, designPlanRevision: 1 } } });
   expect(api.create).toHaveBeenCalledTimes(1); expect(records()).toHaveLength(0);
   expect(screen.getByText(/queued task reservations/)).not.toBeNull(); expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true);
 });
+it('retains a lost contract preparation and never creates work until the same review is approved', async () => {
+  const pendingPreparation = deferred<OrchestrationContractView>();
+  vi.mocked(orchestrationContractsApi.prepare).mockReturnValueOnce(pendingPreparation.promise);
+  const first = render(<CoordinatorExecution {...props()} />); await configure();
+  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await screen.findByRole('region', { name: 'Execution contract review' });
+  const retained = localStorage.getItem('luci.execution-contract-review.v1:' + encodeURIComponent('local/alice/p-1/continued-work'));
+  expect(retained).not.toBeNull(); expect(api.create).not.toHaveBeenCalled();
+  first.unmount(); render(<CoordinatorExecution {...props()} />);
+  expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true);
+  expect(api.create).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh contract status' }));
+  await screen.findByRole('checkbox', { name: /I reviewed these exact scopes/ });
+  expect(vi.mocked(orchestrationContractsApi.prepare).mock.calls[1][1].idempotencyKey).toBe(JSON.parse(retained!).request.idempotencyKey);
+  expect(api.create).not.toHaveBeenCalled();
+});
 it('records explicit per-task cloud microVM placement without changing local defaults or delivery authority', async () => {
   vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: configuredCloud() });
   render(<CoordinatorExecution {...props()} />); await configure();
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Develop execution location' }), 'cloud-microvm');
   expect(screen.getByText(/one isolated microVM per task/)).not.toBeNull();
-  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await submitReviewedRoute();
   await screen.findByText(/continuation is retained/);
   expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ run: { executionLocation: 'cloud-microvm', harness: 'codex', permissionMode: 'bypass', agentConnectionId: 'configured', outcome: 'preview' } });
   expect(vi.mocked(api.create).mock.calls[0][2].deploymentPlan).toBeUndefined();
@@ -59,7 +99,7 @@ it('activates the existing cloud task continuation from the primary surface with
   expect(api.create).not.toHaveBeenCalled();
   await userEvent.click(action);
   expect(screen.getByRole('combobox', { name: 'Develop execution location' })).toHaveProperty('value', 'cloud-microvm');
-  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await submitReviewedRoute();
   await screen.findByText(/continuation is retained/);
   expect(api.create).toHaveBeenCalledTimes(1);
   expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ maxParallel: 1, run: { executionLocation: 'cloud-microvm', implementationContext: { taskIds: ['T-1'] } } });
@@ -98,7 +138,7 @@ it('keeps the exact cloud activation identity across a lost response and restart
   const action = await screen.findByRole('button', { name: 'Review cloud swarm activation' });
   await waitFor(() => expect(action).toHaveProperty('disabled', false));
   await userEvent.click(action);
-  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await submitReviewedRoute();
   await screen.findByText(/Cloud reply lost/);
   const sent = vi.mocked(api.create).mock.calls[0][2];
   expect(sent.run.executionLocation).toBe('cloud-microvm'); expect(records()).toHaveLength(1);
@@ -160,7 +200,7 @@ it('requires explicit execution consent and preserves existing draft policy rath
 it('retains a lost create through remount and requires exact key/actor/project readback without re-POST', async () => {
   vi.mocked(api.create).mockRejectedValue(new Error('Reply lost'));
   const input = props(), first = render(<CoordinatorExecution {...input} />); await configure();
-  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' })); await screen.findByText(/Reply lost/);
+  await submitReviewedRoute(); await screen.findByText(/Reply lost/);
   const sent = vi.mocked(api.create).mock.calls[0][2]; expect(records()).toHaveLength(1); first.unmount();
   render(<CoordinatorExecution {...input} />); await screen.findByText(/New requests are paused/);
   vi.mocked(api.listState).mockResolvedValue({ continuations: [row({ idempotencyKey: 'different-request' })], savedRoute: null });
@@ -172,7 +212,7 @@ it('retains a lost create through remount and requires exact key/actor/project r
 });
 it('preserves an uncertain create after permission churn even if its successful reply arrives later', async () => {
   const held = deferred<CoordinatorContinuation>(); vi.mocked(api.create).mockReturnValue(held.promise);
-  const input = props(), ui = render(<CoordinatorExecution {...input} />); await configure(); await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  const input = props(), ui = render(<CoordinatorExecution {...input} />); await configure(); await submitReviewedRoute();
   ui.rerender(<CoordinatorExecution {...input} canEdit={false} />); ui.rerender(<CoordinatorExecution {...input} />);
   await act(async () => held.resolve(row())); expect(records()).toHaveLength(1); expect(api.create).toHaveBeenCalledTimes(1);
   expect(screen.queryByText(/continuation is retained/)).toBeNull();
@@ -187,14 +227,14 @@ it('hides cached private work on actual read denial while retaining unknown requ
 });
 it('does not treat a client-generated scope 409 as a settled refusal', async () => {
   vi.mocked(api.create).mockRejectedValue(new ApiError('conflict', 'Workspace changed', 409)); render(<CoordinatorExecution {...props()} />); await configure();
-  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' })); await screen.findByText(/Workspace changed/); await userEvent.click(screen.getByRole('button', { name: 'Close picker' }));
+  await submitReviewedRoute(); await screen.findByText(/Workspace changed/);
   await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await waitFor(() => expect(api.listState).toHaveBeenCalledTimes(2));
   expect(records()).toHaveLength(1); expect(api.create).toHaveBeenCalledTimes(1);
 });
 it('observes a definite refusal before allowing a freshly configured new request', async () => {
   vi.mocked(api.create).mockRejectedValue(new ProductApiError('conflict', 'Approval changed', 409, { error: 'stale_context' })); render(<CoordinatorExecution {...props()} />); await configure();
-  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' })); await screen.findByText(/Approval changed/); expect(records()).toHaveLength(1);
-  await userEvent.click(screen.getByRole('button', { name: 'Close picker' })); await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' }));
+  await submitReviewedRoute(); await screen.findByText(/Approval changed/); expect(records()).toHaveLength(1);
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' }));
   await waitFor(() => expect(records()).toHaveLength(0)); expect(api.create).toHaveBeenCalledTimes(1);
 });
 it('closes route selection on changed context instead of substituting a newer approval snapshot', async () => {
@@ -204,7 +244,8 @@ it('closes route selection on changed context instead of substituting a newer ap
 });
 it('refuses launch when durable browser request storage cannot be written', async () => {
   render(<CoordinatorExecution {...props()} />); await configure(); vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Disk unavailable'); });
-  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' })); await screen.findByText('Disk unavailable'); expect(api.create).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  expect(api.create).not.toHaveBeenCalled(); expect(orchestrationContractsApi.prepare).not.toHaveBeenCalled();
 });
 it('explicitly advances only the retained exact revision and never announces queued as successful delivery', async () => {
   vi.mocked(api.listState).mockResolvedValue({ continuations: [row({ status: 'unknown', revision: 3, message: 'Check exact action settlement' })], savedRoute: null });
@@ -220,14 +261,14 @@ it('offers bounded concurrency beyond four when the reviewed task selection perm
   render(<CoordinatorExecution {...input} />); await configure();
   const limit = screen.getByLabelText('Maximum parallel tasks');
   expect(limit).toHaveProperty('max', '12'); await userEvent.clear(limit); await userEvent.type(limit, '5');
-  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await submitReviewedRoute();
   await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
   expect(vi.mocked(api.create).mock.calls[0][2].maxParallel).toBe(5);
 });
 it('suppresses a late create response after switching to another project and preserves the original request', async () => {
   const held = deferred<CoordinatorContinuation>(); vi.mocked(api.create).mockReturnValue(held.promise);
   const first = props(), ui = render(<CoordinatorExecution key={first.scope} {...first} />); await configure();
-  await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await submitReviewedRoute();
   const second = { ...props(), projectId: 'p-2', scope: 'local/alice/p-2', view: view({ projectId: 'p-2', context: context('p-2') }) };
   vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ projectId: 'p-2' }));
   ui.rerender(<CoordinatorExecution key={second.scope} {...second} />);
@@ -303,7 +344,7 @@ it('records one explicit route and exact command delegation, then clears only th
   await userEvent.click(screen.getByRole('button', { name: 'Add check command' }));
   expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true);
   await userEvent.click(screen.getByRole('checkbox', { name: /REQ-1/ })); await userEvent.click(screen.getByRole('checkbox', { name: /I delegate these exact/ })); await configure();
-  await userEvent.click(screen.getByRole('checkbox', { name: /Reuse this upstream route/ })); await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await userEvent.click(screen.getByRole('checkbox', { name: /Reuse this upstream route/ })); await submitReviewedRoute();
   await screen.findByText(/continuation is retained/); expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ rememberRoute: true, checkPlan: savedRoute().checkPlan });
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove npm' })).toBeNull()); expect(api.create).toHaveBeenCalledTimes(1);
 });
@@ -382,7 +423,7 @@ it('records the exact delegated preview with checks and does not retain preview 
   await userEvent.click(screen.getByRole('button', { name: 'Add check command' })); await userEvent.click(screen.getByRole('checkbox', { name: /REQ-1/ })); await userEvent.click(screen.getByRole('checkbox', { name: /I delegate these exact/ }));
   await userEvent.click(screen.getByText(/Preview after independent checks/)); await userEvent.click(await screen.findByRole('button', { name: 'Read preview configuration' })); await screen.findByText(/configuration revision 3/);
   await userEvent.click(screen.getByRole('checkbox', { name: /I delegate this exact Dockerfile/ })); await configure();
-  await userEvent.click(screen.getByRole('checkbox', { name: /Reuse this upstream route/ })); await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await userEvent.click(screen.getByRole('checkbox', { name: /Reuse this upstream route/ })); await submitReviewedRoute();
   await screen.findByText(/continuation is retained/); expect(api.create).toHaveBeenCalledTimes(1);
   expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ rememberRoute: true, checkPlan: savedRoute().checkPlan, previewPlan: { dockerfile: 'Dockerfile', port: 3000, expectedConfigurationRevision: 3, acknowledgePreviewBuild: true } });
   await waitFor(() => expect(screen.getByRole('checkbox', { name: /I delegate this exact Dockerfile/ })).toHaveProperty('checked', false));
@@ -493,7 +534,7 @@ it('records one exact check-preview-deployment delegation through the existing r
   expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true);
   await userEvent.click(screen.getByRole('checkbox', { name: /accept ongoing deployment/ })); await configure();
   expect(screen.getByLabelText('Intended delivery outcome')).toHaveProperty('value', 'publish');
-  await userEvent.click(screen.getByRole('checkbox', { name: /Reuse this upstream route/ })); await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' })); await screen.findByText(/continuation is retained/);
+  await userEvent.click(screen.getByRole('checkbox', { name: /Reuse this upstream route/ })); await submitReviewedRoute(); await screen.findByText(/continuation is retained/);
   expect(api.create).toHaveBeenCalledTimes(1); expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ rememberRoute: true, deploymentPlan: deploymentPlan(), checkPlan: savedRoute().checkPlan, previewPlan: deploymentRoute().previewPlan, run: { outcome: 'publish' } });
   await waitFor(() => expect(screen.getByRole('checkbox', { name: /authorize pushing/ })).toHaveProperty('checked', false));
 });

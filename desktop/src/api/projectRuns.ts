@@ -3,6 +3,7 @@ import type { CreateSessionRequest } from './client';
 import type { ImplementationContext, ImplementationContextRequest, PermissionMode, StartFailure } from '../store/types';
 import type { SwarmCheckpointProvenance } from './swarmCheckpoint';
 import type { TaskHandoffReference } from './swarmHandoff';
+import type { OrchestrationContractReference } from './orchestrationContracts';
 
 export type ProjectRunState = 'ready' | 'coding' | 'awaiting-checks' | 'awaiting-release' | 'blocked' | 'cancelled' | 'complete';
 export interface RunApprovals {
@@ -76,6 +77,7 @@ export interface ProjectRun {
 export interface CreateProjectRun {
   idempotencyKey: string; worktreeId: string; harness: string; model: string; permissionMode: PermissionMode;
   effort?: string; executionLocation?: 'cloud-microvm'; agentConnectionId?: string; outcome: 'preview' | 'publish'; implementationContext: ImplementationContextRequest;
+  orchestrationContract?: OrchestrationContractReference;
 }
 const path = (project: string, run?: string) => `/v1/product/projects/${encodeURIComponent(project)}/runs${run ? '/' + encodeURIComponent(run) : ''}`;
 // Responses must belong to the requested project before any receipt is rendered.
