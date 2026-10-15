@@ -16,6 +16,7 @@ import { SwarmTaskHandoff } from './SwarmTaskHandoff';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { swarmCheckpointApi, type SwarmCheckpointReview } from '../../api/swarmCheckpoint';
 import { SwarmRunQueue } from './SwarmRunQueue';
+import { SwarmDependencyNavigator } from '../develop/SwarmDependencyNavigator';
 import { SwarmLaunchRecoveryDialog, launchRecoveryStatus } from './SwarmLaunchRecoveryDialog';
 import type { ProjectSwarmQueue } from '../../api/swarmQueue';
 import './project-swarm.css';
@@ -106,6 +107,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   const queueRegion = useRef<HTMLDivElement>(null);
   const queueReviewButton = useRef<HTMLButtonElement>(null);
   const [queueAttention, setQueueAttention] = useState(0);
+  const [navigatorQueue, setNavigatorQueue] = useState<{projectId: string; runId: string; value: ProjectSwarmQueue} | null>(null);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [readNotice, setReadNotice] = useState(''), [readCycle, setReadCycle] = useState(0);
   useEffect(() => { setReadNotice(''); }, [run.projectId, run.id]);
@@ -269,6 +271,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     }
   }
   function queueChanged(queue: ProjectSwarmQueue) {
+    setNavigatorQueue({projectId: run.projectId, runId: run.id, value: queue});
     const items = queue.items.filter(item => item.runId === run.id);
     setQueueAttention(items.filter(item => ['blocked', 'unknown', 'failed'].includes(item.state)).length);
     const pending = items.filter(item => !['cancelled', 'completed', 'failed'].includes(item.state)).map(item => item.taskId);
@@ -383,6 +386,15 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     target?.scrollIntoView?.({block:target === control ? 'nearest' : 'start'});
     target?.focus({preventScroll:true});
   }
+  function goToTask(id: string) {
+    const row = taskRows.current.get(id);
+    if (!row?.isConnected) return;
+    const scope = row.querySelector<HTMLDetailsElement>('[data-task-scope]');
+    if (scope) scope.open = true;
+    const heading = row.querySelector<HTMLElement>('[data-task-heading]');
+    heading?.scrollIntoView?.({block: 'nearest'});
+    heading?.focus({preventScroll: true});
+  }
   return <section className="project-swarm" aria-label="Agent team">
     <div className="project-swarm-heading"><h3>Agent team</h3>{run.swarm && <span>{tasks.filter(integrated).length} of {tasks.length} integrated</span>}</div>
     {error && <p role="alert" className="journey-error">{error}</p>}
@@ -400,6 +412,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
         <span>{reviewTasks.length} awaiting review · {ready.length} ready to start</span>
         <Button variant="tertiary" onClick={goToQueueReview}>Background queue{queueAttention ? ` · ${queueAttention} need attention` : ''}</Button>
       </div>
+      <SwarmDependencyNavigator run={run} queue={navigatorQueue?.projectId === run.projectId && navigatorQueue.runId === run.id ? navigatorQueue.value : undefined} onOpenTask={goToTask} />
       {readNotice && <p role="status" className="journey-warning">{readNotice}</p>}
       <div className="journey-actions">
         <Button disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed || !batchReady.length} onClick={() => void operate('Starting ready tasks', startReady)}>Start ready tasks{batchReady.length ? ` (${batchReady.length})` : ''}</Button>
