@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "basePath": "/v1/product/projects/{projectId}/orchestration-contracts",
+  "prepare": {
+    "method": "POST",
+    "path": "/prepare",
+    "request": {
+      "idempotencyKey": "string, 16–200 characters",
+      "worktreeId": "string",
+      "implementationContext": {
+        "projectId": "string",
+        "briefRevision": "integer",
+        "planRevision": "integer",
+        "specificationRevision": "integer",
+        "designPlanRevision": "integer",
+        "taskIds": ["string"]
+      },
+      "route": {
+        "harness": "codex | claude-code | opencode",
+        "model": "string",
+        "permissionMode": "ask | bypass",
+        "effort": "optional string",
+        "executionLocation": "local-docker | cloud-microvm",
+        "agentConnectionId": "optional string"
+      },
+      "outcome": "preview | publish"
+    },
+    "response": "OrchestrationContractView; 201 first save, 200 exact replay, 409 conflicting key or stale inputs"
+  },
+  "get": {"method": "GET", "path": "/{contractId}", "response": "OrchestrationContractView"},
+  "approve": {
+    "method": "POST",
+    "path": "/{contractId}/approve",
+    "request": {"expectedRevision": "integer", "expectedDigest": "64 lowercase hex characters"},
+    "response": "OrchestrationContractView; 409 on changed selection or context"
+  },
+  "OrchestrationContractView": {
+    "contract": {
+      "id": "string",
+      "revision": "integer",
+      "digest": "64 lowercase hex characters, prepared input only",
+      "state": "prepared | approved",
+      "projectId": "string",
+      "actor": {"id": "string", "displayName": "string"},
+      "implementation": "immutable ImplementationContext snapshot",
+      "approvals": "exact private Design and definition approval selection",
+      "route": "resolved public ProjectRunRoute, no credentials",
+      "outcome": "preview | publish",
+      "tasks": [{"id": "string", "title": "string", "dependsOn": ["string"], "writePaths": ["string"], "acceptance": "string", "requirementIds": ["string"]}],
+      "controls": {"coordinatorPolicyRevision": "integer", "coordinatorPolicyDigest": "sha256", "schedulerPolicyRevision": "integer", "schedulerPolicyDigest": "sha256"},
+      "standards": {"status": "legacy-unassessed | not-configured", "source": "approved-design-notes | none", "revision": "integer", "digest": "sha256 or empty"},
+      "decisionPolicy": {"routine": "saved coordinator policy only", "humanInput": "outside saved authority, contradictory intent, or missing evidence"},
+      "approval": "optional {id, actor, at, digest}"
+    },
+    "freshness": {"status": "current | changed | unavailable", "reason": "string"}
+  },
+  "runCreateAddition": {"orchestrationContract": {"id": "string", "revision": "integer", "digest": "64 lowercase hex characters", "approvalId": "string"}},
+  "legacy": "Runs without orchestrationContract remain readable and explicitly unassessed. Preparation and approval never start an agent or grant spending or deployment authority."
+}
