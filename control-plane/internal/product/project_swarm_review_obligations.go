@@ -50,7 +50,7 @@ func (s *Server) createProjectSwarmReviewObligation(w http.ResponseWriter, r *ht
 				projectRunProblem(w, ErrProjectRunKeyConflict)
 				return
 			}
-			journeyJSON(w, 200, map[string]any{"obligation": prior, "runRevision": run.Revision})
+			journeyJSON(w, 200, map[string]any{"obligation": swarmReviewObligationView(run, prior), "runRevision": run.Revision})
 			return
 		}
 	}
@@ -64,7 +64,7 @@ func (s *Server) createProjectSwarmReviewObligation(w http.ResponseWriter, r *ht
 			repairs++
 		}
 	}
-	if repairs >= 2 {
+	if repairs >= maxSwarmReviewRepairs {
 		projectRunProblem(w, errors.New("Two independent findings already require repair for this task. Replan it before another autonomous review cycle."))
 		return
 	}
@@ -114,7 +114,7 @@ func (s *Server) createProjectSwarmReviewObligation(w http.ResponseWriter, r *ht
 		projectRunProblem(w, err)
 		return
 	}
-	journeyJSON(w, 201, map[string]any{"obligation": item, "runRevision": run.Revision})
+	journeyJSON(w, 201, map[string]any{"obligation": swarmReviewObligationView(run, item), "runRevision": run.Revision})
 }
 
 func (s *Server) resolveProjectSwarmReviewObligation(w http.ResponseWriter, r *http.Request) {
@@ -203,7 +203,7 @@ func (s *Server) resolveProjectSwarmReviewObligation(w http.ResponseWriter, r *h
 		projectRunProblem(w, err)
 		return
 	}
-	journeyJSON(w, 200, map[string]any{"obligation": item, "runRevision": run.Revision})
+	journeyJSON(w, 200, map[string]any{"obligation": swarmReviewObligationView(run, item), "runRevision": run.Revision})
 }
 
 func swarmIndependentReviewReady(run ProjectRun, taskID string, review ProjectSwarmReview) bool {

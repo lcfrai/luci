@@ -155,6 +155,21 @@ func (s *Server) captureTaskHandoff(ctx context.Context, projectPath string, run
 					return err
 				}
 			}
+			if receipt.Reported != nil {
+				for i, reported := range receipt.Reported.AddressedMessages {
+					if reported.RecipientTaskID == selected.TaskID || swarmTask(current, reported.RecipientTaskID) == nil {
+						return ErrProjectRunConflict
+					}
+					key := implementationDigest(struct {
+						Handoff string
+						Index   int
+					}{ref.Digest, i})
+					message := ProjectSwarmMessage{ID: newID("msg-"), Kind: reported.Kind, Sender: ProjectSwarmMessageSender{TaskID: selected.TaskID, OperationID: selected.ID, ChildID: selected.ChildID, WorktreeID: selected.WorktreeID, ContextDigest: implementationDigest(selected.Implementation)}, RecipientTaskID: reported.RecipientTaskID, CausalMessageID: reported.CausalMessageID, Evidence: ProjectSwarmMessageEvidence{Kind: "handoff", ID: selected.ID, Digest: ref.Digest}, Summary: reported.Summary, Attribution: "owned-worker-report", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), KeyDigest: key, RequestDigest: implementationDigest(reported)}
+					if _, err := appendSwarmMessage(current, message); err != nil {
+						return err
+					}
+				}
+			}
 		}
 		return nil
 	})

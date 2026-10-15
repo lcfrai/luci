@@ -27,6 +27,25 @@ func TestTaskHandoffReportStrictClaimSchema(t *testing.T) {
 	}
 }
 
+func TestTaskHandoffAddressedMessageBoundedOptionalClaim(t *testing.T) {
+	raw := `{"version":1,"summary":"Found one dependency issue","changedFiles":[],"decisions":[],"reportedChecks":[],"questions":[],"limitations":[],"addressedMessages":[{"kind":"question","recipientTaskId":"task-c","summary":"Does the saved task list need an export?"}]}`
+	report, err := DecodeTaskHandoffReport([]byte(raw))
+	if err != nil || len(report.AddressedMessages) != 1 {
+		t.Fatal("valid addressed claim refused", err)
+	}
+	for _, bad := range []string{
+		strings.Replace(raw, `"recipientTaskId":"task-c"`, `"recipientTaskId":"../foreign"`, 1),
+		strings.Replace(raw, `"kind":"question"`, `"kind":"execute"`, 1),
+		strings.Replace(raw, `"summary":"Does the saved task list need an export?"`, `"summary":""`, 1),
+		strings.Replace(raw, `"summary":"Does the saved task list need an export?"`, `"summary":"Does the saved task list need an export?","summary":"override"`, 1),
+		strings.Replace(raw, `"addressedMessages":[{"kind":"question","recipientTaskId":"task-c","summary":"Does the saved task list need an export?"}]`, `"addressedMessages":null`, 1),
+	} {
+		if _, err := DecodeTaskHandoffReport([]byte(bad)); err == nil {
+			t.Fatal("invalid addressed claim accepted", bad)
+		}
+	}
+}
+
 func TestTaskHandoffRecordedClaimsQuestionsAndFrozenDependency(t *testing.T) {
 	s, mux, p, run, base, _ := swarmHTTPFixture(t)
 	s.registerTaskHandoffs(mux)
@@ -35,7 +54,7 @@ func TestTaskHandoffRecordedClaimsQuestionsAndFrozenDependency(t *testing.T) {
 	path := mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID)
 	swarmCommitFixture(t, path, "alpha.txt", "actual retained source\n")
 	run = swarmFinishFixture(t, s, p, run, op.ID)
-	report := &TaskHandoffReport{Version: 1, Summary: "A claims a complete component", ChangedFiles: []string{"alpha.txt"}, Decisions: []TaskHandoffDecision{{Decision: "Keep one component", Rationale: "Avoid duplicate state"}}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "fixture check", Outcome: "passed", Detail: "A claim, not independently joined evidence"}}, Questions: []TaskHandoffQuestion{{Question: "Which retention period?", Impact: "User data", Blocking: true}}, Limitations: []string{}}
+	report := &TaskHandoffReport{Version: 1, Summary: "A claims a complete component", ChangedFiles: []string{"alpha.txt"}, Decisions: []TaskHandoffDecision{{Decision: "Keep one component", Rationale: "Avoid duplicate state"}}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "fixture check", Outcome: "passed", Detail: "A claim, not independently joined evidence"}}, Questions: []TaskHandoffQuestion{{Question: "Which retention period?", Impact: "User data", Blocking: true}}, Limitations: []string{}, AddressedMessages: []TaskHandoffAddressedMessage{{Kind: "question", RecipientTaskID: "task-c", Summary: "Which retention period should task C use?"}}}
 	collected, released := 0, 0
 	s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(_ context.Context, req TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
 		collected++
@@ -54,7 +73,7 @@ func TestTaskHandoffRecordedClaimsQuestionsAndFrozenDependency(t *testing.T) {
 	if collected != 1 || released != 1 || response.Handoff.Receipt.Reported == nil || len(response.Handoff.RecordedChecks) != 0 || len(response.Handoff.QuestionIDs) != 1 {
 		t.Fatal("claims became checks or question disappeared", response.Handoff)
 	}
-	if len(run.Swarm.Messages) != 1 || run.Swarm.Messages[0].Kind != "dependency-result" || run.Swarm.Messages[0].RecipientTaskID != "task-c" || run.Swarm.Messages[0].Evidence.Digest != response.Handoff.Digest || run.Swarm.Messages[0].Attribution != "owned-worker-report" {
+	if len(run.Swarm.Messages) != 2 || run.Swarm.Messages[0].Kind != "dependency-result" || run.Swarm.Messages[1].Kind != "question" || run.Swarm.Messages[1].RecipientTaskID != "task-c" || run.Swarm.Messages[1].Evidence.Digest != response.Handoff.Digest || run.Swarm.Messages[1].Sender.OperationID != op.ID || run.Swarm.Messages[0].Attribution != "owned-worker-report" {
 		t.Fatal("captured worker report did not create exact addressed dependency claim", run.Swarm.Messages)
 	}
 	digest := response.Handoff.Digest
@@ -72,6 +91,19 @@ func TestTaskHandoffRecordedClaimsQuestionsAndFrozenDependency(t *testing.T) {
 	journeyRequest(t, mux, "POST", route+"/collect", map[string]any{"expectedRevision": run.Revision}, 409)
 	run = swarmReserveHTTP(t, mux, base, run, "task-c", "handoff-dependent-1234567")
 	child := *swarmOperation(&run, swarmTask(&run, "task-c").OperationID)
+	captured, captureErr := s.swarmTaskCapture(context.Background(), run, child, mustSwarmPathFixture(t, s, p.ID, run.ID, child.ID))
+	if captureErr != nil {
+		t.Fatal(captureErr)
+	}
+	addressed := false
+	for _, file := range captured.Files {
+		if file.Path == "LUCI.md" {
+			addressed = strings.Contains(string(file.Data), "Which retention period should task C use?") && strings.Contains(string(file.Data), run.Swarm.Messages[1].ID)
+		}
+	}
+	if !addressed {
+		t.Fatal("frozen dependent capture missed exact addressed worker question")
+	}
 	packet, err := s.projectRuns.taskDependencyPacket(run, child)
 	if err != nil || len(packet.Dependencies) != 1 {
 		t.Fatal(packet, err)

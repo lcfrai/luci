@@ -7,6 +7,7 @@ import (
 
 const maxSwarmMessages = 512
 const maxSwarmReviewObligations = 200
+const maxSwarmReviewRepairs = 2
 
 // Messages are retained inside the existing scoped run receipt. They are
 // attributed claims, never execution instructions, permission or check proof.
@@ -42,7 +43,7 @@ type ProjectSwarmMessage struct {
 	Summary         string                      `json:"summary"`
 	Attribution     string                      `json:"attribution"`
 	CreatedAt       string                      `json:"createdAt"`
-	Ack             *ProjectSwarmMessageAck     `json:"ack,omitempty"`
+	Ack             *ProjectSwarmMessageAck     `json:"ack"`
 	KeyDigest       string                      `json:"keyDigest"`
 	RequestDigest   string                      `json:"requestDigest"`
 }
@@ -69,6 +70,36 @@ type ProjectSwarmReviewObligation struct {
 	ResolvedAt            string `json:"resolvedAt,omitempty"`
 	KeyDigest             string `json:"keyDigest"`
 	RequestDigest         string `json:"requestDigest"`
+}
+
+// The public view keeps the complete immutable obligation plus bounded repair
+// accounting derived from the same run revision. No extra store read occurs.
+type ProjectSwarmReviewObligationView struct {
+	ProjectSwarmReviewObligation
+	RepairLimit     int `json:"repairLimit"`
+	RepairsConsumed int `json:"repairsConsumed"`
+}
+
+func swarmReviewObligationView(run ProjectRun, item ProjectSwarmReviewObligation) ProjectSwarmReviewObligationView {
+	consumed := 0
+	if run.Swarm != nil {
+		for _, prior := range run.Swarm.ReviewObligations {
+			if prior.TaskID == item.TaskID && prior.State == "repair-required" {
+				consumed++
+			}
+		}
+	}
+	return ProjectSwarmReviewObligationView{ProjectSwarmReviewObligation: item, RepairLimit: maxSwarmReviewRepairs, RepairsConsumed: consumed}
+}
+
+func swarmReviewObligationViews(run ProjectRun) []ProjectSwarmReviewObligationView {
+	views := []ProjectSwarmReviewObligationView{}
+	if run.Swarm != nil {
+		for _, item := range run.Swarm.ReviewObligations {
+			views = append(views, swarmReviewObligationView(run, item))
+		}
+	}
+	return views
 }
 
 func swarmMessageKind(kind string) bool {

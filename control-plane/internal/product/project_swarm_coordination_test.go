@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
@@ -45,16 +47,31 @@ func TestSwarmAddressedMessageReplayAckAndReadOnlyProjection(t *testing.T) {
 	request["summary"] = "Different payload"
 	journeyRequest(t, actor, "POST", base+"/operations/"+a.ID+"/messages", request, 409)
 	var supervision struct {
-		Messages []ProjectSwarmMessage `json:"messages"`
-		Page     struct {
+		ProjectID  string                `json:"projectId"`
+		ObservedAt string                `json:"observedAt"`
+		Messages   []ProjectSwarmMessage `json:"messages"`
+		Attention  []struct {
+			Action struct {
+				Kind     string `json:"kind"`
+				TargetID string `json:"targetId"`
+			} `json:"action"`
+		} `json:"attention"`
+		Page struct {
 			Omitted    int `json:"omitted"`
 			NextCursor int `json:"nextCursor"`
 		} `json:"page"`
 		Metrics map[string]any `json:"metrics"`
 	}
 	decodeEvidenceResponse(t, journeyRequest(t, mux, "GET", base+"/supervision?after=0&limit=1", nil, 200).Body.Bytes(), &supervision)
-	if len(supervision.Messages) != 1 || supervision.Page.NextCursor != 1 || supervision.Page.Omitted != 0 || supervision.Metrics["quality"] != nil || !reflect.DeepEqual(before, auditTree(t, s.stateDir)) {
+	if len(supervision.Messages) != 1 || supervision.Messages[0].Ack != nil || supervision.ProjectID != p.ID || supervision.ObservedAt == "" || len(supervision.Attention) != 1 || supervision.Attention[0].Action.Kind != "open-message" || supervision.Attention[0].Action.TargetID != created.Message.ID || supervision.Page.NextCursor != 1 || supervision.Page.Omitted != 0 || supervision.Metrics["quality"] != nil || !reflect.DeepEqual(before, auditTree(t, s.stateDir)) {
 		t.Fatal("supervision mutated or fabricated measured progress", supervision)
+	}
+	revoked := httptest.NewRequest("GET", base+"/supervision", nil)
+	revoked = revoked.WithContext(management.WithTeamAccess(revoked.Context(), management.TeamAccess{ProjectID: "p-foreign", Permissions: management.TeamPermissions{Read: true, Edit: true}}))
+	denied := httptest.NewRecorder()
+	mux.ServeHTTP(denied, revoked)
+	if denied.Code != 403 || !reflect.DeepEqual(before, auditTree(t, s.stateDir)) {
+		t.Fatal("revoked project grant read private swarm projection", denied.Code)
 	}
 	journeyRequest(t, actor, "POST", base+"/messages/"+created.Message.ID+"/ack", map[string]any{"expectedRevision": created.RunRevision, "recipientOperationId": a.ID}, 409)
 	var ack struct {
@@ -112,11 +129,11 @@ func TestSwarmIndependentReviewerCaptureBindsCandidatePatch(t *testing.T) {
 	reviewer := run.Operations[1]
 	actor := coordinationHandler(s, "alice")
 	var created struct {
-		Obligation  ProjectSwarmReviewObligation `json:"obligation"`
-		RunRevision int                          `json:"runRevision"`
+		Obligation  ProjectSwarmReviewObligationView `json:"obligation"`
+		RunRevision int                              `json:"runRevision"`
 	}
 	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/tasks/task-a/review-obligations", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "independent-review-123456789", "candidateOperationId": candidate.ID, "reviewerOperationId": reviewer.ID, "reviewDigest": review.ReviewDigest}, 201).Body.Bytes(), &created)
-	if created.Obligation.CandidateCommit != commit || created.Obligation.ReviewerOperationID != reviewer.ID || created.Obligation.State != "pending" {
+	if created.Obligation.CandidateCommit != commit || created.Obligation.ReviewerOperationID != reviewer.ID || created.Obligation.State != "pending" || created.Obligation.RepairLimit != 2 || created.Obligation.RepairsConsumed != 0 {
 		t.Fatalf("review receipt mismatch: %+v", created)
 	}
 	stored, err := s.projectRuns.Get(p.ID, p.Path, run.ID)
@@ -125,6 +142,18 @@ func TestSwarmIndependentReviewerCaptureBindsCandidatePatch(t *testing.T) {
 	}
 	if !swarmTask(&stored, "task-b").ReviewOnly || swarmAllIntegrated(stored) {
 		t.Fatal("review-only task bypassed its independent receipt")
+	}
+	var projected struct {
+		ProjectID         string                             `json:"projectId"`
+		ReviewObligations []ProjectSwarmReviewObligationView `json:"reviewObligations"`
+		Tasks             []struct {
+			TaskID string `json:"taskId"`
+			Role   string `json:"role"`
+		} `json:"tasks"`
+	}
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "GET", base+"/supervision", nil, 200).Body.Bytes(), &projected)
+	if projected.ProjectID != p.ID || len(projected.ReviewObligations) != 1 || projected.ReviewObligations[0].ID != created.Obligation.ID || projected.ReviewObligations[0].RepairLimit != 2 || len(projected.Tasks) != 3 || projected.Tasks[1].TaskID != "task-b" || projected.Tasks[1].Role != "review-only" {
+		t.Fatal("supervision lost typed review and reviewer role", projected)
 	}
 	bound, err := s.swarmTaskCapture(context.Background(), stored, *swarmOperation(&stored, reviewer.ID), mustSwarmPathFixture(t, s, p.ID, run.ID, reviewer.ID))
 	if err != nil {
@@ -164,11 +193,11 @@ func TestSwarmIndependentReviewerCaptureBindsCandidatePatch(t *testing.T) {
 	}
 	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+reviewer.ID+"/messages", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "review-finding-123456789", "recipientTaskId": "task-a", "kind": "review-finding", "evidence": map[string]any{"kind": "handoff", "id": reviewer.ID, "digest": handoff.Handoff.Digest}, "summary": "Independent review found a missing acceptance case."}, 200).Body.Bytes(), &finding)
 	var resolved struct {
-		Obligation  ProjectSwarmReviewObligation `json:"obligation"`
-		RunRevision int                          `json:"runRevision"`
+		Obligation  ProjectSwarmReviewObligationView `json:"obligation"`
+		RunRevision int                              `json:"runRevision"`
 	}
 	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/review-obligations/"+created.Obligation.ID+"/resolve", map[string]any{"expectedRevision": finding.RunRevision, "outcome": "repair-required", "reviewerHandoffDigest": handoff.Handoff.Digest, "findingMessageId": finding.Message.ID}, 200).Body.Bytes(), &resolved)
-	if resolved.Obligation.State != "repair-required" || resolved.Obligation.ReviewerHandoffDigest != handoff.Handoff.Digest {
+	if resolved.Obligation.State != "repair-required" || resolved.Obligation.ReviewerHandoffDigest != handoff.Handoff.Digest || resolved.Obligation.RepairsConsumed != 1 {
 		t.Fatal("independent failure was lost", resolved)
 	}
 	stored, err = s.projectRuns.Get(p.ID, p.Path, run.ID)

@@ -16,13 +16,20 @@ const TaskDependencyPacketLimit = 8 << 20
 // Every field here is a worker claim. No outcome authorizes execution,
 // integration, requirement acceptance, or a join into recorded check evidence.
 type TaskHandoffReport struct {
-	Version        int                        `json:"version"`
-	Summary        string                     `json:"summary"`
-	ChangedFiles   []string                   `json:"changedFiles"`
-	Decisions      []TaskHandoffDecision      `json:"decisions"`
-	ReportedChecks []TaskHandoffReportedCheck `json:"reportedChecks"`
-	Questions      []TaskHandoffQuestion      `json:"questions"`
-	Limitations    []string                   `json:"limitations"`
+	Version           int                           `json:"version"`
+	Summary           string                        `json:"summary"`
+	ChangedFiles      []string                      `json:"changedFiles"`
+	Decisions         []TaskHandoffDecision         `json:"decisions"`
+	ReportedChecks    []TaskHandoffReportedCheck    `json:"reportedChecks"`
+	Questions         []TaskHandoffQuestion         `json:"questions"`
+	Limitations       []string                      `json:"limitations"`
+	AddressedMessages []TaskHandoffAddressedMessage `json:"addressedMessages,omitempty"`
+}
+type TaskHandoffAddressedMessage struct {
+	Kind            string `json:"kind"`
+	RecipientTaskID string `json:"recipientTaskId"`
+	CausalMessageID string `json:"causalMessageId,omitempty"`
+	Summary         string `json:"summary"`
 }
 type TaskHandoffDecision struct {
 	Decision  string `json:"decision"`
@@ -134,10 +141,17 @@ func DecodeTaskHandoffReport(data []byte) (*TaskHandoffReport, error) {
 	if len(data) == 0 || len(data) > TaskHandoffReportLimit || !utf8.Valid(data) || uniqueHandoffJSON(data) != nil {
 		return nil, errors.New("The task report is invalid or exceeds its 64 KiB limit.")
 	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(data, &fields) != nil {
+		return nil, errors.New("The task report is not one bounded JSON object.")
+	}
+	if raw, present := fields["addressedMessages"]; present && (len(bytes.TrimSpace(raw)) == 0 || bytes.TrimSpace(raw)[0] != '[') {
+		return nil, errors.New("Addressed worker messages must be an explicit array when provided.")
+	}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.DisallowUnknownFields()
 	var v TaskHandoffReport
-	if d.Decode(&v) != nil || d.Decode(new(any)) != io.EOF || v.Version != 1 || !handoffText(v.Summary, 4000) || len(v.ChangedFiles) > 128 || len(v.Decisions) > 8 || len(v.ReportedChecks) > 16 || len(v.Questions) > 8 || len(v.Limitations) > 16 {
+	if d.Decode(&v) != nil || d.Decode(new(any)) != io.EOF || v.Version != 1 || !handoffText(v.Summary, 4000) || len(v.ChangedFiles) > 128 || len(v.Decisions) > 8 || len(v.ReportedChecks) > 16 || len(v.Questions) > 8 || len(v.Limitations) > 16 || len(v.AddressedMessages) > 8 {
 		return nil, errors.New("The task report does not match the bounded version 1 schema.")
 	}
 	if v.ChangedFiles == nil || v.Decisions == nil || v.ReportedChecks == nil || v.Questions == nil || v.Limitations == nil {
@@ -166,6 +180,11 @@ func DecodeTaskHandoffReport(data []byte) (*TaskHandoffReport, error) {
 	for _, x := range v.Limitations {
 		if !handoffText(x, 2000) {
 			return nil, errors.New("A reported limitation exceeds its text limit.")
+		}
+	}
+	for _, x := range v.AddressedMessages {
+		if !swarmMessageKind(x.Kind) || !designIDPattern.MatchString(x.RecipientTaskID) || !handoffText(x.Summary, 1000) || strings.TrimSpace(x.Summary) == "" || x.CausalMessageID != "" && !prototypeReleaseID.MatchString(x.CausalMessageID) {
+			return nil, errors.New("An addressed worker message is invalid or exceeds its bounded claim schema.")
 		}
 	}
 	return &v, nil

@@ -166,13 +166,20 @@ func (s *Server) getProjectSwarmSupervision(w http.ResponseWriter, r *http.Reque
 		ID     string `json:"id"`
 		Kind   string `json:"kind"`
 		TaskID string `json:"taskId"`
-		Action string `json:"action"`
+		Action struct {
+			Kind     string `json:"kind"`
+			TargetID string `json:"targetId"`
+		} `json:"action"`
 	}
 	attention := []attentionView{}
-	base := "/v1/product/projects/" + p.ID + "/runs/" + run.ID + "/swarm"
+	addAttention := func(id, kind, taskID, actionKind, targetID string) {
+		item := attentionView{ID: id, Kind: kind, TaskID: taskID}
+		item.Action.Kind, item.Action.TargetID = actionKind, targetID
+		attention = append(attention, item)
+	}
 	for _, msg := range run.Swarm.Messages {
 		if msg.Kind == "question" {
-			attention = append(attention, attentionView{msg.ID, "question", msg.RecipientTaskID, base + "/supervision?after=" + strconv.Itoa(msg.Sequence-1) + "&limit=1"})
+			addAttention(msg.ID, "question", msg.RecipientTaskID, "open-message", msg.ID)
 		}
 	}
 	for _, item := range run.Swarm.ReviewObligations {
@@ -184,12 +191,12 @@ func (s *Server) getProjectSwarmSupervision(w http.ResponseWriter, r *http.Reque
 			if item.State == "unknown" {
 				kind = "unknown"
 			}
-			attention = append(attention, attentionView{item.ID, kind, item.TaskID, base + "/tasks/" + item.TaskID + "/review"})
+			addAttention(item.ID, kind, item.TaskID, "open-review-obligation", item.ID)
 		}
 	}
 	for _, op := range run.Operations {
 		if op.Status == "unknown" || op.Allocation == "unknown" || swarmRetirementPending(op) {
-			attention = append(attention, attentionView{op.ID, "unknown", op.TaskID, base + "/operations/" + op.ID + "/recovery"})
+			addAttention(op.ID, "unknown", op.TaskID, "inspect-recovery", op.ID)
 		}
 	}
 	contractDigest := ""
@@ -197,11 +204,11 @@ func (s *Server) getProjectSwarmSupervision(w http.ResponseWriter, r *http.Reque
 		contractDigest = run.Input.OrchestrationContract.Digest
 	}
 	journeyJSON(w, 200, map[string]any{
-		"version": 1, "runId": run.ID, "runRevision": run.Revision, "queueRevision": queue.Revision,
+		"version": 1, "projectId": p.ID, "runId": run.ID, "runRevision": run.Revision, "queueRevision": queue.Revision,
 		"observedAt":    time.Now().UTC().Format(time.RFC3339Nano),
 		"context":       map[string]any{"briefRevision": run.Input.Implementation.BriefRevision, "planRevision": run.Input.Implementation.PlanRevision, "contractDigest": contractDigest, "freshness": freshness.Status},
 		"activityPhase": activity, "qualityPhase": quality, "settlement": settlement,
-		"tasks": tasks, "messages": messages, "reviewObligations": run.Swarm.ReviewObligations,
+		"tasks": tasks, "messages": messages, "reviewObligations": swarmReviewObligationViews(run),
 		"page":      map[string]any{"after": after, "nextCursor": next, "hasMore": omitted > 0, "omitted": omitted},
 		"attention": attention, "metrics": map[string]any{"routineDecisions": nil, "latency": nil, "quality": nil, "throughput": nil, "cost": nil},
 	})
