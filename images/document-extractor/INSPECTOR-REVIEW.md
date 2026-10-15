@@ -131,3 +131,15 @@ does not import/install keys or turn HTTPS hashes into authenticated source clos
 The dedicated builder containment adapter is the next independent source proposal.
 Normal Codex sign-in and real Develop preparation belong to the separate assigned
 worker; this image-source batch provides no evidence that Develop works end to end.
+
+## Narrow reviewed-run corrections
+
+LOCAL097 is isolated in40faa3c2: Git now retains the byte-pinned manifest/lock
+verbatim. The first23-test inert reviewer run refused the oversized-header close
+path with22pass/1error; it acquired no HTTP/package/image data. Source73f0d9d0
+adds read-only `flush`/`closed` compatibility and close-path regressions. The
+follow-up reconciles the controller's literal worker SHA with the corrected
+worker06b77ce9d7f2d6d06ec5b532cfc965acccd4619322aaf5e17cfa138e6a90acba
+and adds a source-byte pin regression. All affected source/candidate pins must
+agree before any separately authorized controller acquisition. No local rerun or
+acquisition is performed by these corrections.

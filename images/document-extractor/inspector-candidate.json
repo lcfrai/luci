@@ -60,21 +60,21 @@
     },
     {
       "bytes": 19347,
-      "sha256": "7e5c4c1943127708f576904a8126b8db787f13a0d6ab77ca537b23a65c0906d9",
+      "sha256": "579b1b0be6de75c594533730cc3875a0b1f5585846030f4e0f7cfa9cd37b3402",
       "file": "windows_inspector_controller.py"
     },
     {
-      "bytes": 20460,
-      "sha256": "d6c497bb0a19dc5c95d14b386c3c71df3681f2ac82bb3d61a8ea6239c1dc6a98",
+      "bytes": 20909,
+      "sha256": "ba41e5d356f727d0adffcf4d8a0eced01eb354077ae5f91e3f782ba1d3f656d6",
       "file": "test_inspect_inputs.py"
     },
     {
-      "bytes": 8632,
-      "sha256": "21aeafd8cbfd6b20c05d4ac2b875a98453dc3df299c1fbe1607782a1e34a7400",
+      "bytes": 9340,
+      "sha256": "36dacb06840a8e0c8a6a928d73ff57440b5d8272315e091fd97e0865593b3e03",
       "file": "INSPECTOR-REVIEW.md"
     }
   ],
-  "state": "source-candidate-narrow-header-close-fix-not-rerun",
+  "state": "source-candidate-header-close-and-controller-pin-reconciled-not-rerun",
   "version": 1,
   "batches": [
     "wheels",

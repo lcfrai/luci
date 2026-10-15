@@ -271,6 +271,12 @@ class TransferTests(unittest.TestCase):
 
 
 class ControllerOrderingTests(unittest.TestCase):
+    def test_controller_worker_and_immutable_data_pins_match_source_bytes(self):
+        root = Path(__file__).parent
+        self.assertEqual(controller.WORKER_SHA256, worker.sha((root/'inspect_inputs.py').read_bytes()))
+        self.assertEqual(controller.MANIFEST_SHA256, worker.sha((root/'acquisition-inspection-manifest.json').read_bytes()))
+        self.assertEqual(worker.LOCK_SHA256, worker.sha((root/'dependency-lock.json').read_bytes()))
+
     def atomic_fixture(self, reject_job_list=False):
         calls, state = [], {'created': False, 'stopped': False, 'nextHandle': 301}
         class Basic(C.Structure):
