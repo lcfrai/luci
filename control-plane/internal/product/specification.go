@@ -14,6 +14,7 @@ import (
 // A specification is an immutable, revisioned product definition. The legacy
 // brief remains a compatible summary; saving either cannot silently approve it.
 type ProjectSpecification struct {
+	Evidence      []DiscoveryEvidenceLink    `json:"evidence,omitempty"`
 	ProjectID     string                     `json:"projectId"`
 	Version       int                        `json:"version"`
 	Revision      int                        `json:"revision"`
@@ -153,6 +154,9 @@ func currentSpecification(state journeyState) ProjectSpecification {
 func ValidateSpecification(spec ProjectSpecification) error { return validateSpecification(spec) }
 
 func validateSpecification(spec ProjectSpecification) error {
+	if err := validateDiscoveryEvidenceTargets(spec); err != nil {
+		return err
+	}
 	if spec.Version != 1 || spec.Revision < 0 || spec.BriefRevision < 0 {
 		return errors.New("Unsupported specification version or revision.")
 	}
@@ -301,6 +305,10 @@ func (s *Server) saveSpecification(w http.ResponseWriter, r *http.Request) {
 	current := currentSpecification(state)
 	if current.Revision != req.ExpectedRevision || state.Brief.Revision != req.ExpectedBriefRevision {
 		problem(w, 409, "revision_conflict", "The definition changed. Reload saved work before merging your draft.")
+		return
+	}
+	if err := s.validateDiscoveryEvidenceLinks(r.Context(), p, spec.Evidence); err != nil {
+		problem(w, 422, "evidence_unavailable", err.Error())
 		return
 	}
 	if _, err := guardedProjectPath(p.Path, "LUCI.md", true); err != nil {
@@ -455,5 +463,6 @@ func renderSpecification(spec ProjectSpecification) []byte {
 	for _, r := range spec.Questions {
 		fmt.Fprintf(&out, "- %s\n  Answer: %s\n", r.Question, r.Answer)
 	}
+	out.WriteString(renderDiscoveryEvidence(spec.Evidence))
 	return []byte(out.String())
 }

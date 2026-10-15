@@ -29,6 +29,7 @@ func (s *Server) registerProjects(mux Registrar) {
 	mux = s.guardProjectSourceRoutes(mux)
 	s.registerJourneyContext(mux)
 	s.registerSpecification(mux)
+	s.registerDiscoveryDocuments(mux)
 	s.registerDesignPlan(mux)
 	s.registerReleases(mux)
 	mux.HandleFunc("POST /v1/product/projects", s.createProductProject)

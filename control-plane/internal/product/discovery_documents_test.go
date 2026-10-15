@@ -115,6 +115,45 @@ func TestDiscoveryExtractionValidationRejectsClaimsAndBounds(t *testing.T) {
 		t.Fatal("private path exposed")
 	}
 }
+
+func TestDiscoveryNormalizedLocationRejectsHostileIntegerOverflow(t *testing.T) {
+	saved := discoveryCompleteFixture(t)
+	next := saved.Document.Extractions[0]
+	next.Digest = ""
+	segment := &next.Pages[0].Segments[0]
+	segment.Location = DiscoveryDocumentLocation{X: int(^uint(0) >> 1), Width: int(^uint(0) >> 1)}
+	if validateDiscoveryExtraction(next, saved.Document.Original) == nil {
+		t.Fatal("overflowing normalized horizontal geometry accepted")
+	}
+	segment.Location = DiscoveryDocumentLocation{Y: int(^uint(0) >> 1), Height: int(^uint(0) >> 1)}
+	if validateDiscoveryExtraction(next, saved.Document.Original) == nil {
+		t.Fatal("overflowing normalized vertical geometry accepted")
+	}
+	segment.Location = DiscoveryDocumentLocation{X: 9999, Y: 9999, Width: 1, Height: 1}
+	if err := validateDiscoveryExtraction(next, saved.Document.Original); err != nil {
+		t.Fatal("valid normalized boundary refused", err)
+	}
+}
+func TestDiscoveryCorrectionReasonIncludesRetainedPrefixUTF8Bytes(t *testing.T) {
+	for name, reason := range map[string]string{"exactASCII": strings.Repeat("a", discoveryCorrectionReasonBytes), "exactMultibyte": strings.Repeat("é", discoveryCorrectionReasonBytes/2), "tooManyASCII": strings.Repeat("a", discoveryCorrectionReasonBytes+1), "tooManyMultibyte": strings.Repeat("é", discoveryCorrectionReasonBytes/2+1)} {
+		t.Run(name, func(t *testing.T) {
+			saved := discoveryCompleteFixture(t)
+			segment := saved.Document.Extractions[0].Pages[0].Segments[0]
+			now, _ := time.Parse(time.RFC3339Nano, saved.Document.CreatedAt)
+			err := discoveryCorrectExtraction(&saved, 3, 1, "correction-boundary-123456", []discoveryCorrection{{Page: 1, SegmentID: segment.ID, ExpectedTextDigest: segment.TextDigest, Text: "Corrected", Reason: reason}}, saved.Document.CreatedBy, now.Add(3*time.Second))
+			if len(reason) <= discoveryCorrectionReasonBytes {
+				if err != nil {
+					t.Fatal("valid complete reason refused", err)
+				}
+				if saved.Document.Extractions[1].Pages[0].Segments[0].Uncertainty != discoveryCorrectionPrefix+reason {
+					t.Fatal("reason silently clipped")
+				}
+			} else if err == nil {
+				t.Fatal("over-limit reason accepted")
+			}
+		})
+	}
+}
 func TestDiscoveryCorrectionPreservesExactOldSourceAndReadback(t *testing.T) {
 	saved := discoveryCompleteFixture(t)
 	actor := ContextActor{ID: "editor-two", DisplayName: "Two"}

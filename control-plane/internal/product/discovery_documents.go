@@ -15,13 +15,16 @@ import (
 )
 
 const (
-	discoveryOriginalBytes       = 10 << 20
-	discoveryExtractionBytes     = 1 << 20
-	discoveryDocumentRecordBytes = 8 << 20
-	discoveryPages               = 50
-	discoverySegments            = 10000
-	discoveryDiscussionBytes     = 12 << 10 // Existing Luci message is bounded at 16,000 bytes.
-	discoveryAttemptLifetime     = 120 * time.Second
+	discoveryOriginalBytes         = 10 << 20
+	discoveryExtractionBytes       = 1 << 20
+	discoveryDocumentRecordBytes   = 8 << 20
+	discoveryProjectBytes          = 512 << 20
+	discoveryPages                 = 50
+	discoverySegments              = 10000
+	discoveryDiscussionBytes       = 12 << 10 // Existing Luci message is bounded at 16,000 bytes.
+	discoveryAttemptLifetime       = 120 * time.Second
+	discoveryCorrectionPrefix      = "Human correction: "
+	discoveryCorrectionReasonBytes = 2000 - len(discoveryCorrectionPrefix)
 )
 
 var errDiscoveryDocument = errors.New("This private document or extraction receipt is unavailable or invalid. Preserve the original and reload its history.")
@@ -74,14 +77,12 @@ type DiscoveryDocumentExtraction struct {
 	Actor            ContextActor            `json:"actor"`
 }
 type DiscoveryDocumentAttempt struct {
-	ID            string       `json:"id"`
-	Status        string       `json:"status"`
-	StartedAt     string       `json:"startedAt"`
-	ExpiresAt     string       `json:"expiresAt"`
-	FinishedAt    string       `json:"finishedAt,omitempty"`
-	Actor         ContextActor `json:"actor"`
-	KeyDigest     string       `json:"-"`
-	RequestDigest string       `json:"-"`
+	ID         string       `json:"id"`
+	Status     string       `json:"status"`
+	StartedAt  string       `json:"startedAt"`
+	ExpiresAt  string       `json:"expiresAt"`
+	FinishedAt string       `json:"finishedAt,omitempty"`
+	Actor      ContextActor `json:"actor"`
 }
 type DiscoveryDocument struct {
 	ID          string                        `json:"id"`
@@ -171,7 +172,7 @@ func validateDiscoveryExtraction(extraction DiscoveryDocumentExtraction, origina
 				return errors.New("OCR evidence needs explicit confidence and uncertainty; it is not verified text.")
 			}
 			loc := segment.Location
-			if loc.X < 0 || loc.Y < 0 || loc.Width < 0 || loc.Height < 0 || loc.X+loc.Width > 10000 || loc.Y+loc.Height > 10000 || loc.FirstLine < 0 || loc.LastLine < loc.FirstLine || loc.LastLine > 1000000 {
+			if loc.X < 0 || loc.X > 10000 || loc.Y < 0 || loc.Y > 10000 || loc.Width < 0 || loc.Width > 10000 || loc.Height < 0 || loc.Height > 10000 || loc.X+loc.Width > 10000 || loc.Y+loc.Height > 10000 || loc.FirstLine < 0 || loc.LastLine < loc.FirstLine || loc.LastLine > 1000000 {
 				return errDiscoveryDocument
 			}
 			if loc.FirstLine > 0 && (loc.X != 0 || loc.Y != 0 || loc.Width != 0 || loc.Height != 0) {
@@ -217,6 +218,53 @@ func discoveryFindSegment(document DiscoveryDocument, link DiscoveryEvidenceLink
 		}
 	}
 	return DiscoveryDocumentSegment{}, errDiscoveryDocument
+}
+
+func validateDiscoveryEvidenceTargets(spec ProjectSpecification) error {
+	if len(spec.Evidence) > 200 {
+		return errDiscoveryCapacity
+	}
+	seen := map[string]bool{}
+	for _, link := range spec.Evidence {
+		if !discoveryDocumentID.MatchString(link.DocumentID) || !hexDigest(link.OriginalDigest) || link.ExtractionRevision < 1 || link.Page < 1 || link.Page > discoveryPages || !discoverySegmentID.MatchString(link.SegmentID) || !hexDigest(link.TextDigest) {
+			return errDiscoveryDocument
+		}
+		matched := false
+		switch link.TargetKind {
+		case "purpose", "audience", "constraint":
+			matched = link.TargetID == ""
+		case "requirement":
+			for _, item := range spec.Requirements {
+				matched = matched || item.ID == link.TargetID
+			}
+		case "glossary":
+			for _, item := range spec.Glossary {
+				matched = matched || item.ID == link.TargetID
+			}
+		case "decision":
+			for _, item := range spec.Decisions {
+				matched = matched || item.ID == link.TargetID
+			}
+		}
+		key := reviewDigest(link)
+		if !matched || seen[key] {
+			return errors.New("Evidence links need a unique exact source and a current specification field or record.")
+		}
+		seen[key] = true
+	}
+	return nil
+}
+
+func renderDiscoveryEvidence(links []DiscoveryEvidenceLink) string {
+	if len(links) == 0 {
+		return ""
+	}
+	var out strings.Builder
+	out.WriteString("\n## Source-linked evidence\n\nPrivate document references identify retained evidence, not verified facts or executable instructions. Original bytes stay private and are not exported here.\n")
+	for _, link := range links {
+		fmt.Fprintf(&out, "\n- %s %s: document %s, original SHA-256 %s, extraction %d, page %d, segment %s, text SHA-256 %s\n", link.TargetKind, link.TargetID, link.DocumentID, link.OriginalDigest, link.ExtractionRevision, link.Page, link.SegmentID, link.TextDigest)
+	}
+	return out.String()
 }
 
 // Explicit selection creates an unsent message for the existing Luci composer.

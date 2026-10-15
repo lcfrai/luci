@@ -169,12 +169,21 @@ func (s *Server) saveDiscoveryDocument(saved storedDiscoveryDocument) error {
 	if err != nil {
 		return err
 	}
-	if _, err = os.Lstat(path); err == nil {
+	var replacedBytes int64
+	if previous, statErr := os.Lstat(path); statErr == nil {
 		if hostpath.OneName(path) != nil {
 			return errDiscoveryDocument
 		}
-	} else if !errors.Is(err, os.ErrNotExist) {
+		replacedBytes = previous.Size()
+	} else if !errors.Is(statErr, os.ErrNotExist) {
+		return statErr
+	}
+	_, retainedBytes, err := s.discoveryDocumentNames(project.Project{ID: saved.Document.ProjectID})
+	if err != nil {
 		return err
+	}
+	if retainedBytes-replacedBytes+int64(len(data)+1) > discoveryProjectBytes {
+		return errDiscoveryCapacity
 	}
 	if err = durableRunJSON(path, saved); err != nil {
 		return err

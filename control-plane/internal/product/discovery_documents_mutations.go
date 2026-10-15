@@ -85,7 +85,7 @@ func discoveryFinishAttempt(saved *storedDiscoveryDocument, expected int, attemp
 	// Caller identity and receipt metadata are authoritative, never client supplied.
 	extraction.Revision = 0
 	extraction.AttemptID = attemptID
-	extraction.Actor = actor
+	extraction.Actor = ContextActor{ID: actor.ID}
 	extraction.At = ""
 	extraction.Digest = ""
 	extraction.CorrectsRevision = 0
@@ -114,6 +114,7 @@ func discoveryFinishAttempt(saved *storedDiscoveryDocument, expected int, attemp
 		return errors.New("The exact extraction owner expired, was cancelled or changed. Its late output cannot become current evidence; explicitly restart after preserving the receipt.")
 	}
 	extraction.Revision = len(saved.Document.Extractions) + 1
+	extraction.Actor = actor
 	extraction.At = now.UTC().Format(time.RFC3339Nano)
 	if err := validateDiscoveryExtraction(extraction, saved.Document.Original); err != nil {
 		return err
@@ -189,7 +190,7 @@ func discoveryCorrectExtraction(saved *storedDiscoveryDocument, expected, extrac
 	}
 	seen := map[string]bool{}
 	for _, change := range changes {
-		if seen[change.SegmentID] || !discoveryPlainText(change.Text, 64<<10) || !discoveryPlainText(change.Reason, 2000) || strings.TrimSpace(change.Reason) == "" {
+		if seen[change.SegmentID] || !discoveryPlainText(change.Text, 64<<10) || !discoveryPlainText(change.Reason, discoveryCorrectionReasonBytes) || strings.TrimSpace(change.Reason) == "" {
 			return errDiscoveryDocument
 		}
 		seen[change.SegmentID] = true
@@ -204,7 +205,7 @@ func discoveryCorrectExtraction(saved *storedDiscoveryDocument, expected, extrac
 					next.Pages[i].Segments[j].TextDigest = discoveryTextDigest(change.Text)
 					next.Pages[i].Segments[j].Kind = "correction"
 					next.Pages[i].Segments[j].Confidence = nil
-					next.Pages[i].Segments[j].Uncertainty = "Human correction: " + change.Reason
+					next.Pages[i].Segments[j].Uncertainty = discoveryCorrectionPrefix + change.Reason
 					found = true
 				}
 			}
