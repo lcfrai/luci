@@ -86,6 +86,7 @@ type DocumentExtractionFenceProof struct {
 // retains shared capacity until exact positive absence/fence acknowledgment.
 // No method pulls/builds an image, retries Start, or adopts a named container.
 type DocumentExtractionExecutor interface {
+	DocumentImageID() string // Trusted immutable configuration; no lookup/pull.
 	PrepareDocument(context.Context, DocumentExtractionSpec) (PreparedDocumentExtraction, error)
 	CreateDocument(context.Context, PreparedDocumentExtraction) (string, error)
 	StartDocument(context.Context, DocumentExtractionIdentity, string) error

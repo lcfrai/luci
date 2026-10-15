@@ -17,9 +17,12 @@ import (
 type DiscoveryExtractionRequest struct {
 	ProjectID, DocumentID, AttemptID, AllocationID string
 	OriginalPath                                   string
+	OriginalUserID, OriginalGroupID                int
+	ExpectedDocumentRevision                       int
 	Original                                       DiscoveryDocumentOriginal
 	Actor                                          management.ExecutionActorRef
 	CreatedAt, ComputeDeadline, WholeDeadline      time.Time
+	ValidateCurrent                                func(context.Context) error `json:"-"`
 }
 type DiscoveryExtractionOutcome struct {
 	Identity                          backend.DocumentExtractionIdentity
@@ -28,6 +31,7 @@ type DiscoveryExtractionOutcome struct {
 	ExitCode                          *int
 	OOMKilled                         bool
 	ResourcesHeld, CleanupConfirmed   bool
+	ReaderSettled                     bool
 	Result                            backend.DocumentExtractionOutput
 }
 type DiscoveryExtractionRecoveryRequest struct {
@@ -36,8 +40,11 @@ type DiscoveryExtractionRecoveryRequest struct {
 	// Only explicit retirement/settlement is allowed; recovery never starts a
 	// missing process or automatically creates a replacement extraction.
 	Action string
+	// Supplied only from the validated private companion receipt, never HTTP.
+	Outcome DiscoveryExtractionOutcome
 }
 type DiscoveryExtractionRuntime struct {
+	jobs             *discoveryExtractionJobs
 	CaptureActor     func(context.Context, string) (management.ExecutionActorRef, error)
 	AuthorizeControl func(context.Context, string) error
 	Busy             func(context.Context, string, string) (bool, error)
@@ -49,6 +56,9 @@ type DiscoveryExtractionRuntime struct {
 
 func validDiscoveryExtractionRequest(request DiscoveryExtractionRequest) bool {
 	return prototypeReleaseID.MatchString(request.ProjectID) && discoveryDocumentID.MatchString(request.DocumentID) && prototypeReleaseID.MatchString(request.AttemptID) && prototypeReleaseID.MatchString(request.AllocationID) && request.Actor.ProjectID == request.ProjectID && request.Original.Bytes > 0 && request.Original.Bytes <= backend.DocumentOriginalMaxBytes && hexDigest(request.Original.Digest) && !request.CreatedAt.IsZero() && request.ComputeDeadline.Sub(request.CreatedAt) == backend.DocumentComputeBudget && request.WholeDeadline.Sub(request.ComputeDeadline) == backend.DocumentCleanupBudget
+}
+func ValidateDiscoveryExtractionRequest(request DiscoveryExtractionRequest) bool {
+	return validDiscoveryExtractionRequest(request)
 }
 
 type containedDiscoveryResult struct {
@@ -70,7 +80,7 @@ func decodeContainedDiscoveryResult(request DiscoveryExtractionRequest, outcome 
 	if identity.ActorDigest != backend.DocumentExtractionActorDigest(request.Actor.UserID, request.Actor.TeamID, request.Actor.ProjectID, request.Actor.Local) || !request.Actor.Local && actor.ID != request.Actor.UserID {
 		return DiscoveryDocumentExtraction{}, errDiscoveryDocument
 	}
-	if !validDiscoveryExtractionRequest(request) || !backend.ValidateDocumentExtractionIdentity(identity, true) || identity.ProjectID != request.ProjectID || identity.DocumentID != request.DocumentID || identity.AttemptID != request.AttemptID || identity.AllocationID != request.AllocationID || identity.OriginalDigest != request.Original.Digest || outcome.State != "complete" || outcome.ResourcesHeld || !outcome.CleanupConfirmed || outcome.ExitCode == nil || *outcome.ExitCode != 0 || outcome.OOMKilled || !now.Before(request.WholeDeadline) || len(outcome.Result.Data) < 1 || len(outcome.Result.Data) > backend.DocumentResultMaxBytes || discoveryTextDigest(string(outcome.Result.Data)) != outcome.Result.Digest {
+	if !validDiscoveryExtractionRequest(request) || !backend.ValidateDocumentExtractionIdentity(identity, true) || identity.ProjectID != request.ProjectID || identity.DocumentID != request.DocumentID || identity.AttemptID != request.AttemptID || identity.AllocationID != request.AllocationID || identity.OriginalDigest != request.Original.Digest || outcome.State != "complete" || outcome.ResourcesHeld || !outcome.CleanupConfirmed || !outcome.ReaderSettled || outcome.ExitCode == nil || *outcome.ExitCode != 0 || outcome.OOMKilled || !now.Before(request.WholeDeadline) || len(outcome.Result.Data) < 1 || len(outcome.Result.Data) > backend.DocumentResultMaxBytes || discoveryTextDigest(string(outcome.Result.Data)) != outcome.Result.Digest {
 		return DiscoveryDocumentExtraction{}, errors.New("The exact extraction result and positive retirement are not verified; preserve its private receipt before restarting.")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(outcome.Result.Data))

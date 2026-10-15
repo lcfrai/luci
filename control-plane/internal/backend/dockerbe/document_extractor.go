@@ -38,6 +38,8 @@ type DocumentAttachConfiguration struct{ Headers map[string]string }
 
 var _ backend.DocumentExtractionExecutor = (*DocumentExtractor)(nil)
 
+func (b *DocumentExtractor) DocumentImageID() string { return b.imageID }
+
 func NewDocumentExtractor(b *Backend, imageID string, attach DocumentAttachConfiguration) (*DocumentExtractor, error) {
 	if b == nil || !strings.HasPrefix(imageID, "sha256:") || !fenceHex(strings.TrimPrefix(imageID, "sha256:"), 32) {
 		return nil, backend.ErrUnsupported

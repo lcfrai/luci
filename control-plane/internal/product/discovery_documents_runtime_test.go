@@ -20,11 +20,11 @@ func TestContainedDiscoveryAcceptsOnlyExactResultAfterPositiveRetirement(t *test
 		t.Fatal(err)
 	}
 	zero := 0
-	outcome := DiscoveryExtractionOutcome{Identity: backend.DocumentExtractionIdentity{Protocol: 1, Profile: backend.DocumentExtractionProfile, EngineID: "fixture-engine", InstanceID: "fixture-instance", AllocationID: request.AllocationID, ScopeDigest: strings.Repeat("c", 64), ActorDigest: backend.DocumentExtractionActorDigest(actor.ID, "", request.ProjectID, false), ProjectID: request.ProjectID, DocumentID: request.DocumentID, AttemptID: request.AttemptID, OriginalDigest: request.Original.Digest, CommandDigest: strings.Repeat("d", 64)}, State: "complete", ExitCode: &zero, CleanupConfirmed: true, Result: backend.DocumentExtractionOutput{Data: raw, Digest: discoveryTextDigest(string(raw))}}
+	outcome := DiscoveryExtractionOutcome{Identity: backend.DocumentExtractionIdentity{Protocol: 1, Profile: backend.DocumentExtractionProfile, EngineID: "fixture-engine", InstanceID: "fixture-instance", AllocationID: request.AllocationID, ScopeDigest: strings.Repeat("c", 64), ActorDigest: backend.DocumentExtractionActorDigest(actor.ID, "", request.ProjectID, false), ProjectID: request.ProjectID, DocumentID: request.DocumentID, AttemptID: request.AttemptID, OriginalDigest: request.Original.Digest, CommandDigest: strings.Repeat("d", 64)}, State: "complete", ExitCode: &zero, CleanupConfirmed: true, ReaderSettled: true, Result: backend.DocumentExtractionOutput{Data: raw, Digest: discoveryTextDigest(string(raw))}}
 	if _, err = decodeContainedDiscoveryResult(request, outcome, 1, actor, now.Add(time.Second)); err != nil {
 		t.Fatal("exact positively retired result refused", err)
 	}
-	for _, scenario := range []string{"resources-held", "cleanup-unknown", "foreign-attempt", "foreign-actor", "unsupported-label", "changed-bytes", "oom"} {
+	for _, scenario := range []string{"resources-held", "cleanup-unknown", "reader-unsettled", "foreign-attempt", "foreign-actor", "unsupported-label", "changed-bytes", "oom"} {
 		t.Run(scenario, func(t *testing.T) {
 			changed := outcome
 			switch scenario {
@@ -32,6 +32,8 @@ func TestContainedDiscoveryAcceptsOnlyExactResultAfterPositiveRetirement(t *test
 				changed.ResourcesHeld = true
 			case "cleanup-unknown":
 				changed.CleanupConfirmed = false
+			case "reader-unsettled":
+				changed.ReaderSettled = false
 			case "foreign-attempt":
 				changed.Identity.AttemptID = "extract-other"
 			case "foreign-actor":
