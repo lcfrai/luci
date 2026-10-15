@@ -54,18 +54,18 @@
   },
   "pins": [
     {
-      "bytes": 38645,
-      "sha256": "2eae9c4354fed03398d302f0c83b1b0ec4c4aab23e26c426792fe3f8dcf1160c",
+      "bytes": 38849,
+      "sha256": "921eb9c01d4ac0bd61a48bcfdefef8f2d80a44ac30348931ffbce2c713627493",
       "file": "inspect_inputs.py"
     },
     {
       "bytes": 19347,
-      "sha256": "6f4c8615e1aee4f1f989182ab21cc9aafd9c0963c60144af8389e7bef154a91c",
+      "sha256": "7e5c4c1943127708f576904a8126b8db787f13a0d6ab77ca537b23a65c0906d9",
       "file": "windows_inspector_controller.py"
     },
     {
-      "bytes": 18878,
-      "sha256": "6a00aa644c16f5ad81a435276fa8c4131fabc4808e7032585453b4238a6a88de",
+      "bytes": 19245,
+      "sha256": "8afca4d4e8e268b18ad9c470e08cc41770455942df5163eb72fbfcf3ff03bd17",
       "file": "test_inspect_inputs.py"
     },
     {

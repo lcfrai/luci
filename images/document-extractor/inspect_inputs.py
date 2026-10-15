@@ -60,6 +60,13 @@ class BoundedHTTPResponse(http.client.HTTPResponse):
         super().__init__(*args, **kwargs)
         self.fp = HeaderReader(self.fp)
 
+    def begin(self):
+        try:
+            return super().begin()
+        except BaseException:
+            self.close()  # Also retire the reader when getresponse never returns it.
+            raise
+
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()

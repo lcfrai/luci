@@ -202,6 +202,13 @@ class FakeResponse:
 
 
 class TransferTests(unittest.TestCase):
+    def test_header_failure_closes_exact_reader_before_response_handoff(self):
+        raw = io.BytesIO(b'HTTP/1.1 200 OK\r\nX-Long: '+b'x'*65536+b'\r\n\r\n')
+        response = worker.BoundedHTTPResponse(types.SimpleNamespace(makefile=lambda *a: raw))
+        with self.assertRaises(worker.Refusal):
+            response.begin()
+        self.assertTrue(raw.closed)
+
     def test_exact_body_and_trailing_foreign_data(self):
         for payload, success in ((b'exact', True), (b'exactextra', False), (b'exac', False)):
             with tempfile.TemporaryDirectory() as temp:
