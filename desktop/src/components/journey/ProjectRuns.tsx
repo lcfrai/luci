@@ -6,6 +6,8 @@ import { notifyProjectContextChanged } from '../../api/projectContextEvents';
 import { projectRunsApi, runHasTaskReview, runSessionRequest, type CreateProjectRun, type ProjectRun, type RunOperation } from '../../api/projectRuns';
 import type { CreateSessionRequest } from '../../api/client';
 import type { ImplementationContextRequest } from '../../store/types';
+import { orchestrationContractsApi, type OrchestrationContractReference, type OrchestrationContractView, type PrepareOrchestrationContract } from '../../api/orchestrationContracts';
+import { ExecutionContractReview, readContractReview, retainContractReview, type ExecutionContractReviewRequest } from '../develop/ExecutionContractReview';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useProjectDraftScope } from '../../hooks/useProjectDraft';
 import { useCockpit } from '../../store/store';
@@ -117,6 +119,13 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
 }) {
   const access = useProjectAccess(projectId);
   const { canRead, canEdit, canExecute } = access;
+  const actorId = useAuth()?.profile.user.id ?? '';
+  const [recovery] = useState(() => {
+    try { return { pending: readContractReview(navigationScope, projectId, actorId), error: '' }; }
+    catch (cause) { return { pending: null, error: errorText(cause) }; }
+  });
+  const [contractReview, setContractReview] = useState<ExecutionContractReviewRequest | null>(recovery.pending);
+  const [contractView, setContractView] = useState<OrchestrationContractView | null>(null);
   const mayDispatch = useRef(canExecute); mayDispatch.current = canExecute;
   const mayRead = useRef(canRead); mayRead.current = canRead;
   const [runs, setRuns] = useState<ProjectRun[]>([]), [selected, setSelected] = useState('');
@@ -128,7 +137,6 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
   const [evidenceNotice, setEvidenceNotice] = useState('');
   const [accepted, setAccepted] = useState(false), [outcome, setOutcome] = useState<'preview' | 'publish'>('preview');
   const alive = useRef(true), working = useRef(false), request = useRef(0);
-  const creation = useRef<{ signature: string; key: string } | null>(null);
   const operationKeys = useRef(new Map<string, string>());
   const run = selected ? runs.find(item => item.id === selected) : runs[0];
   const inspection = useCockpit(state => state.projectRunInspection);
@@ -158,7 +166,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     alive.current = true; void load();
     return () => { alive.current = false; request.current++; };
   }, [projectId, canRead || runs.length > 0]);
-  useEffect(() => { if (draft) { setOutcome('preview'); creation.current = null; } }, [draft]);
+  useEffect(() => { if (draft) setOutcome('preview'); }, [draft]);
   useEffect(() => {
     if (!inspection || loading || busy || !canRead || inspecting.current === inspection) return;
     if (!navigationScope || inspection.scope !== navigationScope || inspection.projectId !== projectId) {
@@ -205,23 +213,53 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     if (!canEdit) return { ok: false as const, message: 'Editing access is required to prepare a project run.' };
     if (!draft || !selection.implementationContext || selection.implementationContext.projectId !== projectId) return { ok: false as const, message: 'Review this project’s saved plan first.' };
     if (working.current) return { ok: false as const, message: 'A run operation is already in progress.' };
-    const input: Omit<CreateProjectRun, 'idempotencyKey'> = {
-      worktreeId: selection.worktreeId, harness: selection.harness || '', model: selection.model || '',
-      permissionMode: selection.permissionMode || 'ask', ...(selection.effort ? { effort: selection.effort } : {}),
-      ...(selection.agentConnectionId !== undefined ? { agentConnectionId: selection.agentConnectionId } : {}),
-      outcome, implementationContext: selection.implementationContext,
-    };
-    const signature = JSON.stringify(input);
-    if (creation.current?.signature !== signature) creation.current = { signature, key: crypto.randomUUID() };
+    if (contractReview || recovery.error) return { ok: false as const, message: recovery.error || 'Inspect the retained execution contract before preparing another selection.' };
+    if (!['codex', 'claude-code', 'opencode'].includes(selection.harness ?? '') || !['ask', 'bypass'].includes(selection.permissionMode ?? 'ask')) {
+      return { ok: false as const, message: 'Choose a supported coding harness and Ask or an explicitly permitted execution mode before preparing this contract.' };
+    }
+    const context = selection.implementationContext;
+    const pending: ExecutionContractReviewRequest = { version: 1, projectId, actorId, runKey: crypto.randomUUID(), request: {
+      idempotencyKey: crypto.randomUUID(), worktreeId: selection.worktreeId, implementationContext: {
+        projectId, briefRevision: context.briefRevision, planRevision: context.planRevision, specificationRevision: context.specificationRevision,
+        designPlanRevision: context.designPlanRevision, taskIds: [...context.taskIds],
+      },
+      route: { harness: selection.harness as PrepareOrchestrationContract['route']['harness'], model: selection.model || '', permissionMode: (selection.permissionMode || 'ask') as 'ask' | 'bypass',
+        ...(selection.effort ? { effort: selection.effort } : {}), executionLocation: 'local-docker',
+        ...(selection.agentConnectionId !== undefined ? { agentConnectionId: selection.agentConnectionId } : {}) }, outcome,
+    } };
+    working.current = true; setBusy('Preparing execution contract');
+    try {
+      retainContractReview(navigationScope, pending); setContractReview(pending);
+      const value = await orchestrationContractsApi.prepare(projectId, pending.request);
+      if (!alive.current) return { ok: false as const, message: 'The workspace changed. Open its run history to inspect the saved result.' };
+      if (value.contract.actor.id !== actorId) throw new Error('The prepared contract belongs to another person. Refresh this workspace.');
+      const retained = { ...pending, contractId: value.contract.id };
+      retainContractReview(navigationScope, retained); setContractReview(retained); setContractView(value);
+      setNotice('Execution contract prepared. Inspect the exact scopes and standards before saving its project run. No coding session has started.');
+      return { ok: true as const };
+    } catch (cause) {
+      if (alive.current) setError(`${errorText(cause)} Inspect the retained execution contract request before preparing another selection.`);
+      return { ok: false as const, message: errorText(cause) };
+    }
+    finally { working.current = false; if (alive.current) setBusy(''); }
+  }
+
+  async function createContractRun(prepared: PrepareOrchestrationContract, reference: OrchestrationContractReference, idempotencyKey: string) {
+    if (!canEdit || !alive.current || working.current) throw new Error('Current project editing access is required to save this run.');
     working.current = true;
     try {
-      const value = await projectRunsApi.create(projectId, { ...input, idempotencyKey: creation.current.key });
-      if (!alive.current) return { ok: false as const, message: 'The workspace changed. Open its run history to inspect the saved result.' };
+      const input: CreateProjectRun & { orchestrationContract: OrchestrationContractReference } = {
+        idempotencyKey, worktreeId: prepared.worktreeId, harness: prepared.route.harness, model: prepared.route.model,
+        permissionMode: prepared.route.permissionMode, ...(prepared.route.effort ? { effort: prepared.route.effort } : {}),
+        ...(prepared.route.agentConnectionId !== undefined ? { agentConnectionId: prepared.route.agentConnectionId } : {}),
+        ...(prepared.route.executionLocation === 'cloud-microvm' ? { executionLocation: 'cloud-microvm' as const } : {}),
+        outcome: prepared.outcome, implementationContext: prepared.implementationContext, orchestrationContract: reference,
+      };
+      const value = await projectRunsApi.create(projectId, input);
+      if (!alive.current) throw new Error('The workspace changed. Inspect its saved run history before continuing.');
       request.current++; setLoading(false); remember(value); notifyProjectContextChanged(navigationScope, projectId);
       setNotice(value.codingBlocker ? 'Run saved. Review the project decisions before starting more coding.' : contextNeedsReview(value) ? 'Run saved. Review its current context before starting more coding.' : 'Reviewed run saved. Start coding when ready; no session or deployment has started.');
-      return { ok: true as const };
-    } catch (cause) { return { ok: false as const, message: errorText(cause) }; }
-    finally { working.current = false; }
+    } finally { working.current = false; }
   }
   async function startCoding() {
     if (!run || !allowed('start-coding')) return;
@@ -427,8 +465,13 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
       </details>
     </>}
     {runs.length > 0 && <details className="project-run-history"><summary>Run history · {runs.length}</summary><ul>{runs.map(item => <li key={item.id}><Button variant={item.id === run?.id ? 'secondary' : 'tertiary'} disabled={!!busy} aria-pressed={item.id === run?.id} onClick={() => { setSelected(item.id); setDialog(null); setError(''); setNotice(''); }}>{runLabel(item)} · {when(item.createdAt)}</Button><span>{item.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span></li>)}</ul></details>}
-    <SessionPicker open={!!draft && canEdit} worktreeId={draft?.worktreeId ?? null} implementationContext={draft?.implementationContext} onClose={onDraftClose} onSubmit={create} onCreated={onDraftClose} submitLabel="Create project run">
-      <p className="pick-note">Save the reviewed inputs and model route. Coding and deployment start only through their separate controls.</p><label className="pick-field">Intended outcome<select value={outcome} onChange={event => setOutcome(event.target.value as typeof outcome)}><option value="preview">Workspace preview</option><option value="publish">Public deployment</option></select></label>
+    {recovery.error && <p role="alert">{recovery.error} Retained review storage must be available before preparing a new contract.</p>}
+    {contractReview && <ExecutionContractReview key={contractReview.request.idempotencyKey} pending={contractReview} initialView={contractView} scope={navigationScope} actorId={actorId} canRead={canRead} canEdit={canEdit} preparing={busy === 'Preparing execution contract'}
+      onPrepared={(pending, view) => { setContractReview(pending); setContractView(view); }} onCreate={createContractRun}
+      onReviewInputs={() => { setContractReview(null); setContractView(null); setNotice('The original contract request remains retained. Review the current plan before preparing updated inputs.'); onDraftClose(); onReviewPlan(); }}
+      onComplete={() => { setContractReview(null); setContractView(null); }} />}
+    <SessionPicker open={!!draft && canEdit && !contractReview} worktreeId={draft?.worktreeId ?? null} implementationContext={draft?.implementationContext} onClose={onDraftClose} onSubmit={create} onCreated={onDraftClose} submitLabel="Review build contract">
+      <p className="pick-note">Prepare an execution contract from these exact reviewed inputs and your selected route. Inspect and approve it before saving a run. Coding and deployment keep separate controls.</p><label className="pick-field">Intended outcome<select value={outcome} onChange={event => setOutcome(event.target.value as typeof outcome)}><option value="preview">Workspace preview</option><option value="publish">Public deployment</option></select></label>
     </SessionPicker>
     {dialog && run && canEdit && <WorkflowDialog readAccess={access} title={actionLabel[dialog]} busy={!!busy} onClose={() => setDialog(null)} description={dialog === 'cancel' ? 'Cancel future dispatch for this run. This does not stop an existing coding session, check or application; use its separate stop control.' : dialog === 'accept' ? 'Review the selected behavior yourself. Acceptance records that review only after the server revalidates matching technical evidence.' : 'Choose an existing result. The server validates its project, current reviews, requirements and exact source before joining it. This does not execute commands or deploy anything.'}>
       {error && <p role="alert" className="journey-error">{error}</p>}
