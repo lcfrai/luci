@@ -134,6 +134,11 @@ type swarmQueueRecord struct {
 	RepairObligationID      string `json:"repairObligationId,omitempty"`
 	RepairSourceOperationID string `json:"repairSourceOperationId,omitempty"`
 	RepairReviewDigest      string `json:"repairReviewDigest,omitempty"`
+	// A coordinator-created reviewer retry remains bound to one exact saved
+	// continuation and repaired candidate through scheduler admission.
+	AutoReviewContinuationID string `json:"autoReviewContinuationId,omitempty"`
+	AutoReviewActorID        string `json:"autoReviewActorId,omitempty"`
+	AutoReviewCandidateID    string `json:"autoReviewCandidateId,omitempty"`
 }
 type swarmSchedulerLedger struct {
 	Version        int                  `json:"version"`

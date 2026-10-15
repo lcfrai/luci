@@ -68,6 +68,41 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 		t.Fatal(err)
 	}
 	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ProjectID: p.ID, Actor: ContextActor{ID: "review-owner"}, RunID: run.ID, Status: "queued", PolicyRevision: policy.Revision, Actions: []CoordinatorAction{{}, {}, {Status: "confirmed"}}}, Run: projectRunCreateRequest{ImplementationContext: selectionContext, Harness: run.Input.Route.Harness}, CanonicalDigest: digest, CheckPlan: &CoordinatorCheckPlan{}}
+	row.ID = newID("continue-")
+	row.IdempotencyKey = "review-retry-continuation-123456"
+	row.KeyDigest = reviewDigest(row.IdempotencyKey)
+	row.RequestDigest = reviewDigest("review retry fixture")
+	row.ContextDigest = reviewDigest("reviewed context fixture")
+	row.Revision, row.MaxParallel = 1, 1
+	row.ExecutionActor, err = management.CaptureExecutionActor(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	approved, err := s.readApprovedJourney(p.Path, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding, err := bindProjectRequirements(approved, p.ID, []string{"AC-save"}, &selectionContext.SpecificationRevision, &selectionContext.DesignPlanRevision, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row.CheckPlan = &CoordinatorCheckPlan{Commands: []CheckCommand{{Label: "Reviewed combined check", Executable: "node", Args: []string{"-e", "process.exit(0)"}}}, RequirementIDs: binding.RequirementIDs, RequirementSnapshots: binding.RequirementSnapshots, AcknowledgeProjectCommands: true}
+	for i, kind := range []string{"create-run", "prepare-tasks", "queue-tasks"} {
+		row.Actions[i] = CoordinatorAction{ID: row.ID + "-" + kind, Kind: kind, Status: "confirmed"}
+	}
+	s.mu.Lock()
+	continuations, saveErr := s.readContinuations(p, row.Actor.ID)
+	if saveErr == nil {
+		continuations.Rows = append(continuations.Rows, row)
+		saveErr = s.saveContinuations(continuations)
+	}
+	s.mu.Unlock()
+	if saveErr != nil {
+		t.Fatal(saveErr)
+	}
+	s.coordinatorBackground.authorize = func(bounded context.Context, _ management.ExecutionActorRef, _ string, _ bool) (context.Context, error) {
+		return management.WithExecutionAuthority(bounded, management.ExecutionAuthority{Actor: management.User{ID: row.Actor.ID, Role: "member"}}), nil
+	}
 	starts, admissions := 0, 0
 	admittedIDs := []string{}
 	s.swarmScheduler.runtime = SwarmSchedulerRuntime{
@@ -242,6 +277,80 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	if e := s.RunSwarmSchedulerOnce(ctx); e != nil || starts != 2 || admittedIDs[len(admittedIDs)-1] != queueAfterCheckpoint.Items[1].ID {
 		latestQueue, _ := s.ProjectSwarmQueueSnapshot(p.ID)
 		t.Fatal("exact repaired checkout did not reach ordinary scheduler admission", e, starts, admissions, admittedIDs, latestQueue)
+	}
+	// A stopped, changed repair candidate can be reviewed again through the
+	// same scheduler. Its old failed reviewer remains immutable evidence.
+	repair := repaired.Operations[2]
+	repairPath, e := s.swarmPath(p.ID, run.ID, repair.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	swarmCommitFixture(t, repairPath, "alpha.txt", "candidate content with the missing acceptance check\n")
+	repaired, e = s.GetProjectSwarmRun(p.ID, run.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	repaired, _, _, e = s.projectRuns.ClaimOperation(p.ID, p.Path, run.ID, repaired.Revision, repair.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	repaired, e = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, repaired.Revision, repair.ID, repair.ChildID, "succeeded", "The repair candidate stopped with changed source.")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if advanced, e := s.continueCoordinatorReviewerRetry(ctx, p, row); e != nil || !advanced {
+		t.Fatal("changed repair did not queue a distinct reviewer", advanced, e)
+	}
+	if repeated, e := s.continueCoordinatorReviewerRetry(ctx, p, row); e != nil || repeated {
+		t.Fatal("retry intent replayed", repeated, e)
+	}
+	queuedRetry, e := s.ProjectSwarmQueueSnapshot(p.ID)
+	if e != nil || len(queuedRetry.Items) != 3 || queuedRetry.Items[2].TaskID != "task-b" || queuedRetry.Items[2].OperationID != "" || starts != 2 {
+		t.Fatal("retry bypassed queue admission", e, queuedRetry, starts)
+	}
+	s.swarmScheduler.mu.Lock()
+	retryLedger, retryReadErr := s.readSwarmScheduler()
+	s.swarmScheduler.mu.Unlock()
+	if retryReadErr != nil {
+		t.Fatal(retryReadErr)
+	}
+	_, _, retryCancel, retryAuthErr := s.coordinatorReviewerRetryAuthority(ctx, p, retryLedger.Items[2])
+	if retryCancel != nil {
+		retryCancel()
+	}
+	if retryAuthErr != nil {
+		t.Fatal("saved retry lost exact authority before scheduling", retryAuthErr)
+	}
+	for i := 0; i < 3; i++ {
+		if e = s.RunSwarmSchedulerOnce(ctx); e != nil {
+			t.Fatal(e)
+		}
+	}
+	queuedRetry, e = s.ProjectSwarmQueueSnapshot(p.ID)
+	if e != nil || queuedRetry.Items[2].OperationID == "" || queuedRetry.Items[2].ReasonCode != "review_assignment_pending" || starts != 2 {
+		t.Fatal("retry did not reserve a new reviewer without starting it", e, queuedRetry, starts)
+	}
+	if advanced, e := s.continueCoordinatorIndependentReview(ctx, p, row); e != nil || !advanced {
+		t.Fatal("changed repair did not bind the new reviewer", advanced, e)
+	}
+	if e = s.RunSwarmSchedulerOnce(ctx); e != nil || starts != 3 {
+		t.Fatal("bound retry did not reach ordinary dispatch", e, starts)
+	}
+	final, e := s.GetProjectSwarmRun(p.ID, run.ID)
+	if e != nil || len(final.Swarm.ReviewObligations) != 2 || final.Swarm.ReviewObligations[0].State != "repair-required" || final.Swarm.ReviewObligations[1].CandidateOperationID != repair.ID || final.Swarm.ReviewObligations[1].ReviewerOperationID != queuedRetry.Items[2].OperationID {
+		t.Fatal("retry did not preserve exact failed and successor review receipts", e, final)
+	}
+	coordinatorSavePolicy(t, actor, p.ID, policy.Revision, "review", []string{"plan"})
+	_, _, cancelled, staleErr := s.coordinatorReviewerRetryAuthority(ctx, p, retryLedger.Items[2])
+	if cancelled != nil {
+		cancelled()
+	}
+	if staleErr == nil {
+		t.Fatal("revoked reviewed delegation could still authorize a saved automatic retry")
+	}
+	afterRevocation, e := s.GetProjectSwarmRun(p.ID, run.ID)
+	if e != nil || len(afterRevocation.Operations) != len(final.Operations) || afterRevocation.Revision != final.Revision {
+		t.Fatal("revoked retry changed the retained run", e, afterRevocation)
 	}
 }
 

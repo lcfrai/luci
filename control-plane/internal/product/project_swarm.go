@@ -362,13 +362,16 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 		return ProjectRun{}, ProjectRunOperation{}, currentErr
 	}
 	var worktreeErr error
-	run, op, created, err := s.projectRuns.ReserveSwarmTask(p.ID, p.Path, run.ID, revision, key, taskID, head, func(id string) string {
+	coordinatorIndependentReviewBeforeMutation(ctx)
+	run, op, created, err := s.projectRuns.reserveSwarmTaskGated(p.ID, p.Path, run.ID, revision, key, taskID, head, func(id string) string {
 		path, pathErr := s.swarmPath(p.ID, run.ID, id)
 		if pathErr != nil {
 			worktreeErr = pathErr
 			return "" // Invalid IDs fail ledger validation; never hash an empty path.
 		}
 		return project.WorktreeID(path)
+	}, nil, func(current ProjectRun) error {
+		return s.checkCoordinatorIndependentReviewGate(ctx, p, current, "reviewer-retry")
 	})
 	if worktreeErr != nil {
 		return ProjectRun{}, ProjectRunOperation{}, worktreeErr

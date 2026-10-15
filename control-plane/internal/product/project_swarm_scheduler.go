@@ -223,6 +223,38 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 					continue
 				}
 			}
+			if item.AutoReviewContinuationID != "" {
+				candidateTask := swarmTask(&run, task.ReviewOfTaskID)
+				bound := task.Role == "reviewer" && candidateTask != nil && candidateTask.OperationID == item.AutoReviewCandidateID
+				if bound {
+					bound = false
+					for _, prior := range run.Swarm.ReviewObligations {
+						if prior.TaskID == candidateTask.ID && prior.State == "repair-required" && prior.RepairOperationID == item.AutoReviewCandidateID {
+							bound = true
+							break
+						}
+					}
+				}
+				p, projectErr := s.resolveProject(item.ProjectID)
+				if projectErr == nil && bound {
+					_, _, cancel, authErr := s.coordinatorReviewerRetryAuthority(ctx, p, item)
+					if cancel != nil {
+						cancel()
+					}
+					projectErr = authErr
+				} else if projectErr == nil {
+					projectErr = ErrProjectRunConflict
+				}
+				if projectErr != nil {
+					if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
+						return releaseErr
+					}
+					if err = s.schedulerSetReason(item.ID, "blocked", "review_delegation_changed", "The automatic reviewer no longer matches the exact repaired candidate and current reviewed authority. No new child started."); err != nil {
+						return err
+					}
+					continue
+				}
+			}
 			if item.OperationID == "" && task.Role == "reviewer" && run.Input.OrchestrationContract != nil {
 				if !swarmContractReviewerRole(run, *task, task.ReviewOfTaskID) {
 					if err = s.schedulerSetReason(item.ID, "blocked", "review_role_changed", "This task no longer has an approved independent reviewer role."); err != nil {
@@ -401,6 +433,22 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 		}
 		var op ProjectRunOperation
 		var reserveErr error
+		reserveCtx := ctx
+		var autoReviewRow coordinatorContinuationRecord
+		if item.AutoReviewContinuationID != "" {
+			var cancel context.CancelFunc
+			reserveCtx, autoReviewRow, cancel, reserveErr = s.coordinatorReviewerRetryAuthority(ctx, p, item)
+			if reserveErr != nil {
+				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
+					return releaseErr
+				}
+				if err = s.schedulerSetReason(item.ID, "blocked", "review_delegation_changed", "The automatic reviewer lost current actor, policy or context authority before checkout allocation."); err != nil {
+					return err
+				}
+				continue
+			}
+			defer cancel()
+		}
 		if item.RepairObligationID != "" {
 			var found bool
 			run, op, found, reserveErr = s.projectRuns.FindOperationByKey(p.ID, p.Path, item.RunID, schedulerReserveKey(item), "session")
@@ -414,7 +462,7 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				continue
 			}
 		} else {
-			run, op, reserveErr = s.reserveSwarmTask(ctx, p, item.RunID, item.TaskID, schedulerReserveKey(item), run.Revision)
+			run, op, reserveErr = s.reserveSwarmTask(reserveCtx, p, item.RunID, item.TaskID, schedulerReserveKey(item), run.Revision)
 		}
 		if reserveErr != nil {
 			// A reservation may have been persisted before an I/O error. The next
@@ -470,7 +518,28 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 			s.WakeCoordinator()
 			continue
 		}
-		if err = s.schedulerSetReason(item.ID, "dispatching", "dispatching", "Starting the reserved child; an uncertain launch will never be replayed."); err != nil {
+		if item.AutoReviewContinuationID != "" {
+			// Policy/context writes take s.mu.Lock. The durable dispatching receipt
+			// is the linearization point for this already approved reviewer attempt.
+			s.mu.RLock()
+			current := s.coordinatorReviewerRetryPolicyLocked(p, autoReviewRow)
+			if current {
+				err = s.schedulerSetReason(item.ID, "dispatching", "dispatching", "Starting the exact reauthorized independent reviewer; an uncertain launch is never replayed.")
+			}
+			s.mu.RUnlock()
+			if !current {
+				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
+					return releaseErr
+				}
+				if err = s.schedulerSetReason(item.ID, "blocked", "review_delegation_changed", "The automatic reviewer lost current policy or context authority before dispatch intent. No child started."); err != nil {
+					return err
+				}
+				continue
+			}
+		} else {
+			err = s.schedulerSetReason(item.ID, "dispatching", "dispatching", "Starting the reserved child; an uncertain launch will never be replayed.")
+		}
+		if err != nil {
 			return err
 		}
 		result, dispatchErr := runtime.Dispatch(ctx, SwarmDispatchRequest{QueueID: item.ID, ProjectID: item.ProjectID, RunID: item.RunID, OperationID: op.ID, Actor: item.Actor})
