@@ -250,7 +250,13 @@ func controlsFromWorkbook(book controlWorkbook, sheetName string, columns map[st
 	}
 	used := map[string]bool{}
 	for field, col := range columns {
-		if !allowed[field] || col == "" || columnIndex(col) > controlColumnLimit || used[col] || !regexp.MustCompile(`^[A-Z]{1,2}$`).MatchString(col) {
+		if !allowed[field] {
+			return nil, errControlWorkbook
+		}
+		if col == "" && (field == "severity" || field == "reviewCadence") {
+			continue
+		}
+		if col == "" || columnIndex(col) > controlColumnLimit || used[col] || !regexp.MustCompile(`^[A-Z]{1,2}$`).MatchString(col) {
 			return nil, errControlWorkbook
 		}
 		used[col] = true
@@ -294,6 +300,7 @@ func controlsFromWorkbook(book controlWorkbook, sheetName string, columns map[st
 	return nil, fmt.Errorf("the selected sheet is unavailable")
 }
 func controlDiff(previous *TeamControlRevision, next []TeamControl) (added, changed, removed []string) {
+	added, changed, removed = []string{}, []string{}, []string{}
 	old := map[string]TeamControl{}
 	if previous != nil {
 		for _, c := range previous.Controls {

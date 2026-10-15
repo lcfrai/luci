@@ -108,6 +108,44 @@ func TestTeamControlsXLSXBoundedSafetyAndPreview(t *testing.T) {
 	}
 }
 
+func TestTeamControlsCleanSerializedCollectionsAndOptionalMappings(t *testing.T) {
+	_, handler, _ := controlTestHandler(t)
+	raw := controlTestWorkbook(t, controlTestSheet, nil)
+	preview := controlTestRequest(t, handler, "POST", "/v1/product/team-controls/preview", raw, 200)
+	var previewJSON struct {
+		Workbook struct {
+			Issues []string `json:"issues"`
+		} `json:"workbook"`
+	}
+	if err := json.Unmarshal(preview.Body.Bytes(), &previewJSON); err != nil || previewJSON.Workbook.Issues == nil || !bytes.Contains(preview.Body.Bytes(), []byte(`"issues":[]`)) {
+		t.Fatalf("clean preview must contain an array: %s %v", preview.Body.String(), err)
+	}
+	columns := controlTestColumns()
+	columns["severity"], columns["reviewCadence"] = "", ""
+	input := map[string]any{"expectedRevision": 0, "sourceSHA256": controlSourceHash(raw), "sheet": "Controls", "columns": columns, "workbookBase64": base64.StdEncoding.EncodeToString(raw)}
+	first := controlTestRequest(t, handler, "POST", "/v1/product/team-controls/compare", input, 200)
+	if !bytes.Contains(first.Body.Bytes(), []byte(`"changed":[]`)) || !bytes.Contains(first.Body.Bytes(), []byte(`"removed":[]`)) {
+		t.Fatal(first.Body.String())
+	}
+	var diff struct {
+		DiffDigest string `json:"diffDigest"`
+	}
+	if err := json.Unmarshal(first.Body.Bytes(), &diff); err != nil {
+		t.Fatal(err)
+	}
+	input["idempotencyKey"], input["expectedDiffDigest"] = "optional-fields-key-123456", diff.DiffDigest
+	controlTestRequest(t, handler, "POST", "/v1/product/team-controls/import", input, 200)
+	input["expectedRevision"] = 1
+	noOp := controlTestRequest(t, handler, "POST", "/v1/product/team-controls/compare", input, 200)
+	for _, field := range []string{`"added":[]`, `"changed":[]`, `"removed":[]`} {
+		if !bytes.Contains(noOp.Body.Bytes(), []byte(field)) {
+			t.Fatalf("missing %s: %s", field, noOp.Body.String())
+		}
+	}
+	columns["severity"] = "A"
+	controlTestRequest(t, handler, "POST", "/v1/product/team-controls/compare", input, 422)
+}
+
 func TestTeamControlsCompareImportAssessmentAndRevocation(t *testing.T) {
 	s, h, id := controlTestHandler(t)
 	raw := controlTestWorkbook(t, controlTestSheet, nil)

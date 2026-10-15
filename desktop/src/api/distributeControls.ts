@@ -21,10 +21,21 @@ export async function workbookBytes(file:File):Promise<{sourceSHA256:string;work
   return {sourceSHA256:digest,workbookBase64:btoa(binary)};
 }
 const project=(id:string)=>`/v1/product/projects/${encodeURIComponent(id)}/control-assessment`;
+function requiredList<T>(value:T[]|null|undefined):T[]{
+  if(value==null)return [];
+  if(!Array.isArray(value))throw new Error('The control library response is invalid. Refresh and try again.');
+  return value;
+}
+function previewShape(value:WorkbookPreview):WorkbookPreview{
+  return {...value,workbook:{...value.workbook,sheets:requiredList(value.workbook.sheets),issues:requiredList(value.workbook.issues)}};
+}
+function diffShape(value:ControlDiff):ControlDiff{
+  return {...value,added:requiredList(value.added),changed:requiredList(value.changed),removed:requiredList(value.removed)};
+}
 export const distributeControlsApi={
   library:(signal?:AbortSignal)=>productApi.request<ControlLibraryView>('/v1/product/team-controls',undefined,'GET',30_000,signal),
-  preview:(file:File,signal?:AbortSignal)=>productApi.uploadJSON<WorkbookPreview>('/v1/product/team-controls/preview',file,signal),
-  compare:(input:Omit<ImportInput,'idempotencyKey'|'expectedDiffDigest'>,signal?:AbortSignal)=>productApi.request<ControlDiff>('/v1/product/team-controls/compare',input,'POST',30_000,signal),
+  preview:async(file:File,signal?:AbortSignal)=>previewShape(await productApi.uploadJSON<WorkbookPreview>('/v1/product/team-controls/preview',file,signal)),
+  compare:async(input:Omit<ImportInput,'idempotencyKey'|'expectedDiffDigest'>,signal?:AbortSignal)=>diffShape(await productApi.request<ControlDiff>('/v1/product/team-controls/compare',input,'POST',30_000,signal)),
   import:(input:ImportInput,signal?:AbortSignal)=>productApi.request<ControlRevision>('/v1/product/team-controls/import',input,'POST',30_000,signal),
   assessment:(projectId:string,signal?:AbortSignal)=>productApi.request<AssessmentView>(project(projectId),undefined,'GET',30_000,signal),
   downloadReport:async(projectId:string,current:()=>boolean)=>{

@@ -86,7 +86,7 @@ type xlsxSheet struct {
 // relationships cannot fetch files or URLs and formulas are reported but never
 // evaluated. The aggregate expanded limit applies even to unused members.
 func parseControlWorkbook(ctx context.Context, raw []byte) (controlWorkbook, error) {
-	var result controlWorkbook
+	result := controlWorkbook{Sheets: []controlSheet{}, Issues: []string{}}
 	if len(raw) == 0 || len(raw) > controlWorkbookLimit {
 		return result, errControlWorkbook
 	}

@@ -1,9 +1,10 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DistributeWorkspace } from './DistributeWorkspace';
 import { distributeControlsApi, type AssessmentView, type ControlLibraryView } from '../../api/distributeControls';
 import { resetCockpit, useCockpit } from '../../store/store';
+import { productApi } from '../../api/product';
 
 const scope=vi.hoisted(()=>({teamId:'team-one',read:true,edit:true,admin:true}));
 vi.mock('../teams/TeamWorkspaceProvider',()=>({useTeamWorkspace:()=>scope.teamId?{teamId:scope.teamId,selected:{permissions:{admin:scope.admin}}}:null,useTeamProjectPermissions:()=>({permissions:{read:scope.read,edit:scope.edit},loading:false,error:null})}));
@@ -44,4 +45,21 @@ it('offers the exact saved assessment report without starting another assessment
   await userEvent.click(await screen.findByRole('button',{name:'Download assessment XLSX (marked stale)'}));
   expect(download).toHaveBeenCalledExactlyOnceWith('p-1',expect.any(Function));
   expect(save).not.toHaveBeenCalled();
+});
+
+it('renders clean serialized preview and no-op comparison through the client',async()=>{
+  const raw=new TextEncoder().encode('xlsx');
+  const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw))).map(byte=>byte.toString(16).padStart(2,'0')).join('');
+  vi.spyOn(productApi,'uploadJSON').mockResolvedValue(JSON.parse(JSON.stringify({sourceSHA256:hash,workbook:{sheets:[{name:'Controls',headers:[{column:'A',name:'ID'}],rows:[]}],issues:null},suggestedColumns:{id:'A'}})));
+  vi.spyOn(productApi,'request').mockResolvedValue(JSON.parse('{"expectedRevision":1,"sourceSHA256":"abc","sheet":"Controls","columns":{"id":"A"},"added":null,"changed":null,"removed":null,"controlCount":1,"diffDigest":"digest"}'));
+  render(<DistributeWorkspace/>);
+  await screen.findByText(/Review access controls/);
+  await userEvent.click(screen.getByText('Import or update XLSX controls'));
+  const file=new File(['xlsx'],'controls.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  Object.defineProperty(file,'arrayBuffer',{value:async()=>raw.buffer});
+  fireEvent.change(screen.getByLabelText(/Workbook \(.xlsx/),{target:{files:[file]}});
+  await userEvent.click(screen.getByRole('button',{name:'Preview workbook'}));
+  await screen.findByText(/Source SHA-256/);
+  await userEvent.click(screen.getByRole('button',{name:'Compare full revision'}));
+  await screen.findByText(/1 controls · 0 added · 0 changed · 0 removed/);
 });
