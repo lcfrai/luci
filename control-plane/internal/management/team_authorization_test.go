@@ -124,6 +124,49 @@ func TestTeamRouteCapabilitiesSeparateContextExecutionSecretsAndDeployment(t *te
 	}
 }
 
+func TestTeamCoordinationRecoveryAndDesignAssetRoutesKeepProjectReadAndEditGrants(t *testing.T) {
+	base := "/v1/product/projects/p-one/runs/run-one/swarm"
+	for _, tc := range []struct {
+		method, path string
+		edit         bool
+	}{
+		{"POST", base + "/operations/op-one/messages/disposition", false},
+		{"POST", base + "/operations/op-one/messages/retire", true},
+		{"GET", base + "/messages/msg-one", false},
+		{"POST", base + "/messages/msg-one/ack/retire", true},
+		{"POST", base + "/tasks/task-one/review-obligations/disposition", false},
+		{"POST", base + "/tasks/task-one/review-obligations/retire", true},
+		{"GET", base + "/review-obligations/review-one", false},
+		{"POST", base + "/review-obligations/review-one/resolve/retire", true},
+		{"GET", "/v1/product/projects/p-one/design-plan/asset-binding", false},
+		{"GET", "/v1/product/projects/p-one/design-plan/2/assets/asset-one", false},
+	} {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			r := httptest.NewRequest(tc.method, tc.path, nil)
+			if scope, known := ClassifyTeamRoute(r); !known || scope != (TeamRouteScope{ProjectID: "p-one"}) {
+				t.Fatalf("route scope=%+v known=%v", scope, known)
+			}
+			viewer := PermissionsForTeam("viewer", TeamGrants{})
+			editor := PermissionsForTeam("editor", TeamGrants{})
+			for _, grant := range []struct {
+				name        string
+				permissions TeamPermissions
+				want        bool
+			}{
+				{"viewer", viewer, !tc.edit},
+				{"editor", editor, true},
+				{"revoked project", IntersectTeamPermissions(editor, TeamPermissions{}), false},
+				{"outsider", TeamPermissions{}, false},
+			} {
+				w := httptest.NewRecorder()
+				if got := authorizeTeamRoute(w, r, grant.permissions); got != grant.want {
+					t.Fatalf("%s allowed=%v want=%v: %s", grant.name, got, grant.want, w.Body.String())
+				}
+			}
+		})
+	}
+}
+
 func TestTeamRouteClassificationRequiresOwnedOpaqueLookupsAndCollectionProjection(t *testing.T) {
 	for _, tc := range []struct {
 		method, path string
