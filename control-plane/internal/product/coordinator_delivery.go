@@ -53,6 +53,29 @@ func coordinatorIntegratedRun(run ProjectRun, row coordinatorContinuationRecord)
 	return reviewDigest(run.Swarm.Tasks), true
 }
 
+// Review-only workers contribute the passed receipt checked by
+// coordinatorIntegratedRun, never a source commit. Keep ancestry checks on
+// coding integrations so combined checks can follow an independent review.
+func coordinatorIntegratedSourceCommits(run ProjectRun) ([]string, error) {
+	if run.Swarm == nil {
+		return nil, ErrOrchestratorConflict
+	}
+	commits := make([]string, 0, len(run.Swarm.Tasks))
+	for _, task := range run.Swarm.Tasks {
+		if task.ReviewOnly {
+			if task.Integration != nil {
+				return nil, ErrOrchestratorConflict
+			}
+			continue
+		}
+		if task.Integration == nil || task.Integration.State != "integrated" || !deliverySHA.MatchString(task.Integration.Commit) {
+			return nil, ErrOrchestratorConflict
+		}
+		commits = append(commits, task.Integration.Commit)
+	}
+	return commits, nil
+}
+
 // Caller holds s.mu. Authority, exact review selection and delegated command
 // consent are checked again at reservation, execution and evidence publication.
 func (s *Server) coordinatorDeliveryAuthorityLocked(ctx context.Context, p project.Project, row coordinatorContinuationRecord) error {
@@ -144,9 +167,13 @@ func (s *Server) continueCoordinatorDelivery(ctx context.Context, p project.Proj
 	bounded, cancel := context.WithTimeout(ctx, 20*time.Second)
 	digest, commit, dirty, err := s.checkSource(bounded, p.Path)
 	if err == nil && !dirty && deliverySHA.MatchString(commit) && hexDigest(digest) {
-		for _, task := range run.Swarm.Tasks {
-			if _, err = s.journeyGit(bounded, p.Path, "merge-base", "--is-ancestor", task.Integration.Commit, commit); err != nil {
-				break
+		var integrated []string
+		integrated, err = coordinatorIntegratedSourceCommits(run)
+		if err == nil {
+			for _, sourceCommit := range integrated {
+				if _, err = s.journeyGit(bounded, p.Path, "merge-base", "--is-ancestor", sourceCommit, commit); err != nil {
+					break
+				}
 			}
 		}
 	}

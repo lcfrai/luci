@@ -19,6 +19,15 @@ func TestCoordinatorIntegratedRunRequiresPassedReviewerButNoReviewerSourceMerge(
 	if _, ready := coordinatorIntegratedRun(run, row); !ready {
 		t.Fatal("passed independent reviewer was incorrectly required to merge source")
 	}
+	commits, err := coordinatorIntegratedSourceCommits(run)
+	if err != nil || len(commits) != 1 || commits[0] != sha {
+		t.Fatal("combined check ancestry included a review-only worker or lost the coding integration", commits, err)
+	}
+	run.Swarm.Tasks[0].Integration = nil
+	if _, err := coordinatorIntegratedSourceCommits(run); err == nil {
+		t.Fatal("missing coding integration entered combined source checks")
+	}
+	run.Swarm.Tasks[0].Integration = &ProjectSwarmIntegration{State: "integrated", Commit: sha, ReviewDigest: digest}
 	run.Swarm.ReviewObligations[0].State = "repair-required"
 	if _, ready := coordinatorIntegratedRun(run, row); ready {
 		t.Fatal("failed independent finding opened combined checks")
