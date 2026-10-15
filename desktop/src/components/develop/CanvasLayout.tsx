@@ -12,7 +12,7 @@
 // second, through the whole persist middleware.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { JSX, PointerEvent as ReactPointerEvent } from "react";
+import type { JSX, KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { SessionPane } from "./SessionPane";
 import { selectPaneSessionIds } from "../../store/selectors";
@@ -82,7 +82,7 @@ export function raiseToTop(prev: SessionId[], id: SessionId): SessionId[] {
   return prev[prev.length - 1] === id ? prev : [...prev.filter((x) => x !== id), id];
 }
 
-export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.Element {
+export function CanvasLayout({ sessionIds, singleSessionId }: { sessionIds: SessionId[]; singleSessionId?: SessionId }): JSX.Element {
   const paneIds = useCockpit(useShallow(selectPaneSessionIds));
   const tiles = useCockpit((s) => s.tiles);
   const setTile = useCockpit((s) => s.setTile);
@@ -134,6 +134,7 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
   /* pinSession enforces the cap, but a pin list persisted by an older build rehydrates without
    * passing through it. Render the cap, not the list. */
   const visible = sessionIds.slice(0, CANVAS_MAX_TILES);
+  const singleId = singleSessionId ? (visible.includes(singleSessionId) ? singleSessionId : visible[0]) : undefined;
 
   const raise = useCallback((id: SessionId): void => {
     setStack((prev) => raiseToTop(prev, id));
@@ -170,7 +171,7 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
   );
 
   return (
-    <div className="cv-plane" data-testid="cv-plane">
+    <div className={`cv-plane${singleSessionId ? ' cv-plane--single' : ''}`} data-testid="cv-plane">
       <div className="cv-sheet" style={{ width: PLANE_W, height: PLANE_H }}>
         {visible.map((id, i) => {
           const raised = stack.indexOf(id);
@@ -189,6 +190,7 @@ export function CanvasLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.E
               onRaise={raise}
               onCommit={commit}
               onUnpin={unpinSession}
+              hidden={!!singleId && id !== singleId}
             />
           );
         })}
@@ -204,6 +206,7 @@ interface TileProps {
   onRaise: (id: SessionId) => void;
   onCommit: (id: SessionId, next: TilePosition) => void;
   onUnpin: (id: SessionId) => void;
+  hidden?: boolean;
 }
 
 function samePosition(a: TilePosition, b: TilePosition): boolean {
@@ -220,6 +223,7 @@ function CanvasTile({
   onRaise,
   onCommit,
   onUnpin,
+  hidden = false,
 }: TileProps): JSX.Element {
   /* A primitive read: stable across a poll that did not rename the session. The `?? sessionId`
    * fallback is unreachable today and no test pins it — selectCanvasSessionIds filters `pinned`
@@ -267,6 +271,18 @@ function CanvasTile({
 
   // A tile unmounted mid-gesture must not leave its window listeners behind.
   useEffect(() => () => endRef.current?.(), []);
+
+  function adjustByKeyboard(event: KeyboardEvent<HTMLElement>, mode: 'move' | 'resize') {
+    if (event.target !== event.currentTarget || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) || gesture) return;
+    event.preventDefault(); event.stopPropagation();
+    const step = event.shiftKey ? 40 : 10;
+    const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+    const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+    const current = live.current;
+    const next = clampTile(mode === 'move' ? { ...current, x: current.x + dx, y: current.y + dy }
+      : { ...current, w: current.w + dx, h: current.h + dy }, mode);
+    live.current = next; apply(next); onRaise(sessionId); onCommit(sessionId, next);
+  }
 
   function begin(e: ReactPointerEvent<HTMLElement>, mode: "move" | "resize"): void {
     /* No test pins this guard — the suite's pointer helper hardcodes `button: 0`, so deleting
@@ -355,6 +371,7 @@ function CanvasTile({
       ref={tileRef}
       className="cv-tile"
       data-cv-tile={sessionId}
+      hidden={hidden}
       data-cv-dragging={gesture ?? "none"}
       style={{ zIndex: z }}
       /* Capture, and no test can tell: nothing inside the tile stops pointerdown propagating,
@@ -368,8 +385,10 @@ function CanvasTile({
       <div
         className="cv-grip"
         role="button"
-        tabIndex={-1}
+        tabIndex={0}
         aria-label={`Move ${title}`}
+        title="Move with arrow keys; hold Shift for larger steps"
+        onKeyDown={event => adjustByKeyboard(event, 'move')}
         onPointerDown={(e) => begin(e, "move")}
       >
         <span className="cv-grip-bar" aria-hidden="true" />
@@ -396,8 +415,10 @@ function CanvasTile({
       <div
         className="cv-resize"
         role="button"
-        tabIndex={-1}
+        tabIndex={0}
         aria-label={`Resize ${title}`}
+        title="Resize with arrow keys; hold Shift for larger steps"
+        onKeyDown={event => adjustByKeyboard(event, 'resize')}
         onPointerDown={(e) => begin(e, "resize")}
       />
     </div>

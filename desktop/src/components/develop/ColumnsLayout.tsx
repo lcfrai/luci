@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { JSX } from "react";
+import type { CSSProperties, JSX } from "react";
 import { SessionPane } from "./SessionPane";
 import { selectFocusedSessionId } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
@@ -17,7 +17,7 @@ function InactiveColumn({ sessionId }: { sessionId: SessionId }) {
   </section>;
 }
 
-export function ColumnsLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.Element {
+export function ColumnsLayout({ sessionIds, singleSessionId, paneWidth = 520 }: { sessionIds: SessionId[]; singleSessionId?: SessionId; paneWidth?: number }): JSX.Element {
   const focusedId = useCockpit(selectFocusedSessionId);
   const focusSession = useCockpit((s) => s.focusSession);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -25,11 +25,17 @@ export function ColumnsLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.
   // Keep inexpensive column placeholders in server order, but allocate terminal
   // buffers and sockets only for visible output and an explicitly focused pane.
   // The cap also bounds unusually wide windows and observer delivery bursts.
-  const mounted = new Set([...(focusedId && sessionIds.includes(focusedId) ? [focusedId] : []),
-    ...visibleIds.filter(id => id !== focusedId && sessionIds.includes(id))].slice(0, MAX_MOUNTED_COLUMN_TERMINALS));
+  const retained = useRef<SessionId[]>([]);
+  const primary = singleSessionId ?? focusedId;
+  const mounted = new Set([...(primary && sessionIds.includes(primary) ? [primary] : []),
+    ...(singleSessionId ? retained.current : []), ...visibleIds].filter((id, index, all) => sessionIds.includes(id) && all.indexOf(id) === index).slice(0, MAX_MOUNTED_COLUMN_TERMINALS));
+  // Closing sibling views must not tear down their terminals. Retain the same
+  // bounded working set in Focus/narrow mode; a seventh opened output still
+  // follows the existing six-terminal resource ceiling.
+  useEffect(() => { retained.current = [...mounted]; });
   useEffect(() => {
     const host = scrollRef.current;
-    if (!host || typeof IntersectionObserver === "undefined") return;
+    if (!host || singleSessionId || typeof IntersectionObserver === "undefined") return;
     let live = true;
     const visible = new Set<string>();
     const observer = new IntersectionObserver(entries => {
@@ -44,7 +50,7 @@ export function ColumnsLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.
     }, { root: host, threshold: 0.01 });
     Array.from(host.children).forEach(pane => observer.observe(pane));
     return () => { live = false; observer.disconnect(); };
-  }, [sessionIds]);
+  }, [sessionIds, singleSessionId]);
   /** null until the first effect pass, so the effect below can tell "mounted with nine
    *  sessions" from "nine sessions just arrived".
    *
@@ -98,9 +104,9 @@ export function ColumnsLayout({ sessionIds }: { sessionIds: SessionId[] }): JSX.
   }, [focusedId, sessionIds]);
 
   return (
-    <div className="cols-scroll" ref={scrollRef} data-testid="cols-scroll">
+    <div className={`cols-scroll${singleSessionId ? ' cols-scroll--single' : ''}`} ref={scrollRef} data-testid="cols-scroll" style={{ '--pane-w': `${paneWidth}px` } as CSSProperties}>
       {sessionIds.map((id) => (
-        <div className="cols-pane" key={id} data-column-for={id}>
+        <div className="cols-pane" key={id} data-column-for={id} hidden={!!singleSessionId && id !== singleSessionId}>
           {mounted.has(id) ? <SessionPane sessionId={id} variant="column" /> : <InactiveColumn sessionId={id} />}
         </div>
       ))}
