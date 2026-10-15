@@ -128,6 +128,17 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		return refuse("operation_unavailable", errors.New("The queued task has no exact reserved coding operation."))
 	}
 	route := run.Input.Route
+	// A stored local child is recovery of an already-owned effect. Resolve it
+	// before the freshness gates that apply only to a new backend allocation.
+	if route.ExecutionLocation != "cloud-microvm" {
+		existing, lookupErr := a.deps.Product.FindProjectRunSession(req.ProjectID, req.RunID, req.OperationID, a.deps.Store.Get)
+		if lookupErr != nil {
+			return refuse("dispatch_unconfirmed", lookupErr)
+		}
+		if existing != nil {
+			return existingQueuedDispatch(*existing), nil
+		}
+	}
 	authority, err := a.authorizeExecution(ctx, req.Actor, route.Harness, route.Connection.ID != "")
 	if err != nil {
 		return refuse("access_changed", err)
@@ -138,13 +149,6 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	if route.ExecutionLocation == "cloud-microvm" {
 		_ = authority // current authority was checked before cloud selection
 		return a.dispatchCloudSwarm(ctx, req, run, *op)
-	}
-	existing, err := a.deps.Product.FindProjectRunSession(req.ProjectID, req.RunID, req.OperationID, a.deps.Store.Get)
-	if err != nil {
-		return refuse("dispatch_unconfirmed", err)
-	}
-	if existing != nil {
-		return existingQueuedDispatch(*existing), nil
 	}
 	policy, err := a.deps.Product.SwarmSchedulerPolicy()
 	if err != nil {
@@ -309,6 +313,12 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		current, err := a.authorizeExecution(ctx, req.Actor, route.Harness, connection.ID != "")
 		if err != nil {
 			return admissionFailure("execution_authority_changed", err)
+		}
+		if !product.OrchestrationAuthorityMatches(run, current) {
+			return admissionFailure("execution_contract_authority_changed", errors.New("The current team grant or execution policy differs from this reviewed contract."))
+		}
+		if err := a.deps.Product.ValidateRunExecutionContract(req.ProjectID, run); err != nil {
+			return admissionFailure("execution_contract_changed", err)
 		}
 		resources := a.sessionResources(ctx)
 		if req.Actor.UserID != "" {

@@ -180,6 +180,9 @@ func (s *Server) BeginProjectRunSession(projectID, runID, operationID string, ca
 		if current.State == "complete" {
 			return ErrProjectRunConflict
 		}
+		if err := s.contractCurrentForRun(p, current); err != nil {
+			return errors.New("The reviewed execution contract changed before this session could start. Inspect the contract and prepare a fresh run.")
+		}
 		sourcePath := p.Path
 		if op.TaskID != "" {
 			if current.Swarm == nil || current.Swarm.State != "ready" || op.Allocation != "ready" {

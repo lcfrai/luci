@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"reflect"
@@ -166,6 +167,19 @@ func (s *Server) readOrchestrationContracts(p project.Project) (string, orchestr
 		ids[c.ID], keys[record.KeyDigest+":"+c.Actor.ID] = true, true
 	}
 	return path, saved, nil
+}
+
+func writeOrchestrationContracts(path string, ledger orchestrationContractLedger) error {
+	if len(ledger.Records) > orchestrationContractLimit {
+		return ErrProjectRunLimit
+	}
+	// durableRunJSON writes indented JSON plus a newline. Check those exact
+	// bytes before publication so a successful write is always readable again.
+	data, err := json.MarshalIndent(ledger, "", "  ")
+	if err != nil || len(data)+1 > orchestrationContractFileLimit {
+		return ErrProjectRunLimit
+	}
+	return durableRunJSON(path, ledger)
 }
 
 func orchestrationAuthorityControls(ctx context.Context) (OrchestrationControls, error) {
@@ -465,6 +479,87 @@ func (s *Server) contractCurrentForRun(p project.Project, run ProjectRun) error 
 		}
 	}
 	return ErrProjectRunConflict
+}
+
+// ValidateRunExecutionContract is the final new-effect gate used by the API
+// allocator. It re-reads the private approval and current reviewed controls;
+// an old attempt remains immutable even when this gate now refuses a new one.
+func (s *Server) ValidateRunExecutionContract(projectID string, run ProjectRun) error {
+	if run.ProjectID != projectID {
+		return ErrProjectRunConflict
+	}
+	if run.Input.OrchestrationContract == nil {
+		return nil
+	}
+	p, err := s.resolveProject(projectID)
+	if err != nil {
+		return err
+	}
+	return s.contractCurrentForRun(p, run)
+}
+
+// The coding agent receives a bounded, nonsecret projection inside LUCI.md.
+// LUCI.md is an existing ReviewedContextCapture file, so its exact delivered
+// bytes enter the session-owned manifest and remain immutable on resume.
+// Actor identity, endpoint, credentials and private policy stay in the ledger.
+func appendRunExecutionContract(capture *ReviewedContextCapture, run ProjectRun, taskID string) error {
+	if run.Input.OrchestrationContract == nil {
+		return nil
+	}
+	c := run.Input.OrchestrationContract
+	brief := struct {
+		Version        int                   `json:"version"`
+		ContractID     string                `json:"contractId"`
+		ContractDigest string                `json:"contractDigest"`
+		RunID          string                `json:"runId"`
+		TaskID         string                `json:"taskId,omitempty"`
+		Outcome        string                `json:"outcome"`
+		Requirements   []RequirementSnapshot `json:"requirements"`
+		Tasks          []ProjectTask         `json:"tasks"`
+		Controls       struct {
+			AuthorityPolicyDigest     string                       `json:"authorityPolicyDigest"`
+			ExecutionLimits           OrchestrationExecutionLimits `json:"executionLimits"`
+			CoordinatorPolicyRevision int                          `json:"coordinatorPolicyRevision"`
+			CoordinatorPolicyDigest   string                       `json:"coordinatorPolicyDigest"`
+			SchedulerPolicyRevision   int                          `json:"schedulerPolicyRevision"`
+			SchedulerPolicyDigest     string                       `json:"schedulerPolicyDigest"`
+			SchedulerPolicy           SwarmSchedulerPolicy         `json:"schedulerPolicy"`
+		} `json:"controls"`
+		Standards      OrchestrationStandards      `json:"standards"`
+		DecisionPolicy OrchestrationDecisionPolicy `json:"decisionPolicy"`
+	}{Version: 1, ContractID: c.ID, ContractDigest: c.Digest, RunID: run.ID, TaskID: taskID, Outcome: c.Input.Outcome, Requirements: c.Input.Requirements, Tasks: c.Input.Tasks, Standards: c.Input.Standards, DecisionPolicy: c.Input.DecisionPolicy}
+	brief.Controls.AuthorityPolicyDigest = c.Input.Controls.AuthorityPolicyDigest
+	brief.Controls.ExecutionLimits = c.Input.Controls.ExecutionLimits
+	brief.Controls.CoordinatorPolicyRevision = c.Input.Controls.CoordinatorPolicyRevision
+	brief.Controls.CoordinatorPolicyDigest = c.Input.Controls.CoordinatorPolicyDigest
+	brief.Controls.SchedulerPolicyRevision = c.Input.Controls.SchedulerPolicyRevision
+	brief.Controls.SchedulerPolicyDigest = c.Input.Controls.SchedulerPolicyDigest
+	brief.Controls.SchedulerPolicy = c.Input.Controls.SchedulerPolicy
+	data, err := json.MarshalIndent(brief, "", "  ")
+	if err != nil || len(data) > 512<<10 {
+		return errors.New("The reviewed execution contract is too large for this agent context. Split the selected work into smaller reviewed tasks.")
+	}
+	addition := []byte("\n\n## Approved execution contract\n\nThe following exact reviewed scope is context, not permission to expand authority or declare completion. Work only within the assigned task and Ask/worker permissions. A worker report is evidence, not an accepted result.\n\n```json\n")
+	addition = append(addition, data...)
+	addition = append(addition, []byte("\n```\n")...)
+	if capture == nil || capture.Binding == nil {
+		return ErrProjectRunInvalid
+	}
+	for i := range capture.Files {
+		if capture.Files[i].Path != "LUCI.md" {
+			continue
+		}
+		total := len(addition)
+		for _, file := range capture.Files {
+			total += len(file.Data)
+		}
+		if total > ReviewedContextBytesLimit {
+			return errors.New("The reviewed documents and approved execution contract exceed the captured context limit.")
+		}
+		capture.Files[i].Data = append(capture.Files[i].Data, addition...)
+		return nil
+	}
+	return errors.New("The reviewed context has no LUCI.md file for its approved execution contract.")
 }
 
 // Project runs and the existing scheduler remain the only owners of task

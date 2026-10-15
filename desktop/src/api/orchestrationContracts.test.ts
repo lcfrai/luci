@@ -20,6 +20,19 @@ describe('orchestration contract public client', () => {
     const forged = contractViewFixture(true); forged.contract.approval!.digest = 'b'.repeat(64);
     expect(() => ownedOrchestrationContract('p-1', forged)).toThrow();
   });
+  it('accepts an actual saved task with omitted optional graph fields and keeps requirement criteria', () => {
+    // Exercise the JSON round trip and Go's omitempty shape, rather than a
+    // frontend-only class instance with every optional field populated.
+    const fromGo = JSON.parse(JSON.stringify(contractViewFixture())) as ReturnType<typeof contractViewFixture>;
+    fromGo.contract.input.tasks = [{ id: 'task-1', title: 'Build journal' }];
+    expect(ownedOrchestrationContract('p-1', fromGo).contract.input.requirements[0].acceptance).toBe('Survive reload');
+    fromGo.contract.input.requirements = [];
+    expect(() => ownedOrchestrationContract('p-1', fromGo)).toThrow();
+    const obsoleteFlat = contractViewFixture() as unknown as { contract: Record<string, unknown> };
+    Object.assign(obsoleteFlat.contract, obsoleteFlat.contract.input);
+    delete obsoleteFlat.contract.input;
+    expect(() => ownedOrchestrationContract('p-1', obsoleteFlat as unknown as ReturnType<typeof contractViewFixture>)).toThrow();
+  });
   it('never treats preparation or stale approval as a runnable contract reference', () => {
     expect(() => approvedContractReference(contractViewFixture())).toThrow();
     const stale = contractViewFixture(true); stale.freshness = { status: 'changed', reason: 'Design changed' };

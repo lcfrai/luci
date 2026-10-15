@@ -141,6 +141,43 @@ func createReviewedFixture(t *testing.T, provider string) (*sessionsEnv, registr
 	return env, saved, done
 }
 
+func TestReviewedManifestBindsAddedApprovedContractBytes(t *testing.T) {
+	env, saved, _ := createReviewedFixture(t, "codex")
+	capture, err := env.api.readReviewedContext(saved.ID, saved.ImplementationContext, saved.ReviewedContext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, original, err := reviewedManifest(capture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const approved = "\n## Approved execution contract\ncontractDigest: " + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + "\n"
+	for i := range capture.Files {
+		if capture.Files[i].Path == "LUCI.md" {
+			capture.Files[i].Data = append(capture.Files[i].Data, approved...)
+		}
+	}
+	encoded, changed, err := reviewedManifest(capture)
+	if err != nil || changed.Digest == original.Digest || reviewedHash(encoded) != changed.Digest {
+		t.Fatal("approved content did not change the immutable manifest", err)
+	}
+	var manifest reviewedContextManifest
+	if err = json.Unmarshal(encoded, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range manifest.Files {
+		if file.Path != "LUCI.md" {
+			continue
+		}
+		for _, delivered := range capture.Files {
+			if delivered.Path == "LUCI.md" && file.Digest == reviewedHash(delivered.Data) && bytes.Contains(delivered.Data, []byte(approved)) {
+				return
+			}
+		}
+	}
+	t.Fatal("manifest did not bind the added LUCI.md bytes")
+}
+
 func TestReviewedOpenCodeInstructionPolicyFollowsCapturedBindingAcrossRestart(t *testing.T) {
 	readInstructions := func(t *testing.T, env *sessionsEnv, index int) ([]string, string) {
 		t.Helper()

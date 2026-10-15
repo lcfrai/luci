@@ -35,14 +35,14 @@ beforeEach(() => {
   let approved = false;
   const contract = contractViewFixture();
   vi.spyOn(orchestrationContractsApi, 'prepare').mockImplementation(async (_project, request) => {
-    contract.contract.outcome = request.outcome;
-    contract.contract.route = { ...contract.contract.route, harness: request.route.harness, model: request.route.model, permissionMode: request.route.permissionMode };
+    contract.contract.input.outcome = request.outcome;
+    contract.contract.input.route = { ...contract.contract.input.route, harness: request.route.harness, model: request.route.model, permissionMode: request.route.permissionMode };
     return contract;
   });
-  vi.spyOn(orchestrationContractsApi, 'get').mockImplementation(async () => approved ? { ...contractViewFixture(true), contract: { ...contract.contract, ...contractViewFixture(true).contract, outcome: contract.contract.outcome, route: contract.contract.route } } : contract);
+  vi.spyOn(orchestrationContractsApi, 'get').mockImplementation(async () => approved ? { ...contractViewFixture(true), contract: { ...contractViewFixture(true).contract, input: contract.contract.input } } : contract);
   vi.spyOn(orchestrationContractsApi, 'approve').mockImplementation(async () => {
     approved = true;
-    return { ...contractViewFixture(true), contract: { ...contractViewFixture(true).contract, outcome: contract.contract.outcome, route: contract.contract.route } };
+    return { ...contractViewFixture(true), contract: { ...contractViewFixture(true).contract, input: contract.contract.input } };
   });
   useCockpit.setState({ projects: [aProject({ id: 'p-1' })], branchesByProject: { 'p-1': [aBranch({ id: 'b-1', projectId: 'p-1' })] }, worktreesByBranch: { 'b-1': [aWorktree({ id: 'w-1', projectId: 'p-1', branchId: 'b-1', isPrimary: true })] }, selection: { projectId: 'p-1', branchId: 'b-1', worktreeId: 'w-1', sessionId: null }, harnesses: [aHarness({ id: 'claude-code', available: true, supportsOpeningPrompt: true })] });
   vi.spyOn(projectRunsApi, 'list').mockResolvedValue([makeRun()]);

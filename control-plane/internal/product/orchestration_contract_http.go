@@ -22,6 +22,10 @@ func orchestrationContractProblem(w http.ResponseWriter, err error) {
 		journeyError(w, 404, "orchestration_contract_not_found", "This execution contract is unavailable in your workspace.")
 		return
 	}
+	if errors.Is(err, ErrProjectRunLimit) {
+		journeyError(w, 409, "orchestration_contract_history_full", "This project's private execution contract history reached its verified size limit. Existing contracts remain readable; archive this project before preparing more work.")
+		return
+	}
 	if errors.Is(err, ErrProjectRunInvalid) {
 		journeyError(w, 503, "orchestration_contract_unavailable", "Private execution contract history is unavailable or invalid.")
 		return
@@ -97,7 +101,7 @@ func (s *Server) prepareOrchestrationContract(w http.ResponseWriter, r *http.Req
 		return
 	}
 	ledger.Records = append(ledger.Records, orchestrationContractRecord{Contract: contract, KeyDigest: keyDigest, RequestDigest: requestDigest})
-	if err := durableRunJSON(path, ledger); err != nil {
+	if err := writeOrchestrationContracts(path, ledger); err != nil {
 		orchestrationContractProblem(w, err)
 		return
 	}
@@ -176,7 +180,7 @@ func (s *Server) approveOrchestrationContract(w http.ResponseWriter, r *http.Req
 		}
 		c.Revision, c.State = 2, "approved"
 		c.Approval = &OrchestrationApproval{ID: newID("approval-"), Actor: actor, At: time.Now().UTC().Format(time.RFC3339Nano), Digest: c.Digest}
-		if err := durableRunJSON(path, ledger); err != nil {
+		if err := writeOrchestrationContracts(path, ledger); err != nil {
 			orchestrationContractProblem(w, err)
 			return
 		}

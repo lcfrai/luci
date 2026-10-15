@@ -1297,6 +1297,21 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	allocatedResources := a.sessionResources(ctx)
 	var executionLeaseID string
 	var executionActor management.ExecutionActorRef
+	var reviewedContractRun *product.ProjectRun
+	if req.ProjectRunID != "" && a.deps.Product != nil {
+		retained, readErr := a.deps.Product.GetProjectSwarmRun(projectID, req.ProjectRunID)
+		if readErr != nil {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, "The reviewed run is unavailable. Inspect its saved status before starting work.", nil)
+			return
+		}
+		if retained.Input.OrchestrationContract != nil {
+			reviewedContractRun = &retained
+		}
+	}
+	if reviewedContractRun != nil && a.deps.ResourceSnapshot == nil {
+		httpx.WriteProblem(w, 503, httpx.CodeConflict, "Current execution authority is unavailable. The reviewed contract cannot start a session yet.", nil)
+		return
+	}
 	if a.deps.ResourceSnapshot != nil {
 		if a.deps.Product == nil {
 			httpx.WriteProblem(w, 503, httpx.CodeConflict, "Execution policy is not available. Try again after the workspace finishes starting.", nil)
@@ -1310,6 +1325,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		authority, authErr := a.authorizeExecution(ctx, executionActor, string(harnessID), agentConnection.ID != "")
 		if authErr != nil {
 			httpx.WriteProblem(w, 403, httpx.CodeConflict, authErr.Error(), nil)
+			return
+		}
+		if reviewedContractRun != nil && !product.OrchestrationAuthorityMatches(*reviewedContractRun, authority) {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, "The current team grant or execution policy differs from this reviewed contract. Prepare a new contract before starting work.", nil)
 			return
 		}
 		policy, policyErr := a.deps.Product.SwarmSchedulerPolicy()
@@ -1504,6 +1523,14 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			current, err := a.authorizeExecution(ctx, executionActor, string(harnessID), agentConnection.ID != "")
 			if err != nil {
 				return admissionFailure("execution_authority_changed", err)
+			}
+			if reviewedContractRun != nil && !product.OrchestrationAuthorityMatches(*reviewedContractRun, current) {
+				return admissionFailure("execution_contract_authority_changed", errors.New("The current team grant or execution policy differs from this reviewed contract."))
+			}
+			if reviewedContractRun != nil {
+				if err := a.deps.Product.ValidateRunExecutionContract(projectID, *reviewedContractRun); err != nil {
+					return admissionFailure("execution_contract_changed", err)
+				}
 			}
 			resources := a.sessionResources(ctx)
 			if executionActor.UserID != "" {

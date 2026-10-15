@@ -449,8 +449,24 @@ func (s *Server) CaptureProjectRunTaskContext(ctx context.Context, projectID, ru
 		return nil, err
 	}
 	op := swarmOperation(&run, operationID)
-	if op == nil || op.TaskID == "" {
-		return s.CaptureImplementationContext(ctx, selection, worktreeID, path)
+	if op == nil {
+		if run.Input.OrchestrationContract == nil {
+			return s.CaptureImplementationContext(ctx, selection, worktreeID, path)
+		}
+		return nil, errors.New("The selected run operation is unavailable.")
+	}
+	if op.TaskID == "" {
+		if err = s.contractCurrentForRun(p, run); err != nil {
+			return nil, err
+		}
+		capture, captureErr := s.CaptureImplementationContext(ctx, selection, worktreeID, path)
+		if captureErr != nil {
+			return nil, captureErr
+		}
+		if err = appendRunExecutionContract(capture, run, ""); err != nil {
+			return nil, err
+		}
+		return capture, nil
 	}
 	expected, err := s.swarmPath(projectID, runID, operationID)
 	if err != nil || filepath.Clean(path) != expected || worktreeID != op.WorktreeID || op.Allocation != "ready" || op.Implementation == nil || !reflect.DeepEqual(*ImplementationContextSelection(op.Implementation), selection) {
@@ -471,6 +487,9 @@ func (s *Server) CaptureProjectRunTaskContext(ctx context.Context, projectID, ru
 	capture, err := s.swarmTaskCapture(ctx, run, *op, path)
 	if err != nil || !reflect.DeepEqual(capture.Binding, op.Implementation) {
 		return nil, errors.New("The reserved task source or reviewed context changed. Inspect this attempt before continuing.")
+	}
+	if err = appendRunExecutionContract(capture, run, op.TaskID); err != nil {
+		return nil, err
 	}
 	return capture, nil
 }

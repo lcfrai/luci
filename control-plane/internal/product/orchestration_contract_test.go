@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/lcfrai/luci/control-plane/internal/management"
@@ -71,9 +72,28 @@ func TestOrchestrationContractPrepareApproveCaptureAndRestart(t *testing.T) {
 	if run.Input.OrchestrationContract == nil || !reflect.DeepEqual(*run.Input.OrchestrationContract, approved.Contract) {
 		t.Fatal("run did not freeze complete approved contract")
 	}
+	run = projectRunHTTPResponse(t, journeyRequest(t, handler, "POST", base+"/runs/"+run.ID+"/operations", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "contract-serial-capture-123456", "kind": "session"}, 201))
 	stored, err := s.projectRuns.Get(req.ImplementationContext.ProjectID, projectPath, run.ID)
 	if err != nil || stored.Input.OrchestrationContract == nil {
 		t.Fatal(err)
+	}
+	if len(stored.Operations) == 0 {
+		t.Fatal("reviewed run has no serial operation")
+	}
+	capture, err := s.CaptureProjectRunTaskContext(context.Background(), req.ImplementationContext.ProjectID, run.ID, stored.Operations[0].ID, req.WorktreeID, projectPath, req.ImplementationContext)
+	if err != nil {
+		t.Fatal("serial reviewed capture", err)
+	}
+	var delivered bool
+	for _, file := range capture.Files {
+		if file.Path != "LUCI.md" {
+			continue
+		}
+		body := string(file.Data)
+		delivered = strings.Contains(body, approved.Contract.Digest) && strings.Contains(body, `"controls"`) && strings.Contains(body, `"standards"`) && strings.Contains(body, `"decisionPolicy"`) && strings.Contains(body, `"tasks"`)
+	}
+	if !delivered {
+		t.Fatal("approved execution contract was absent from the serial agent's captured LUCI.md")
 	}
 	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
 	if err != nil {
@@ -191,6 +211,9 @@ func TestOrchestrationContractQueuedTaskBlockedWithoutChangingRunCapture(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := s.ValidateRunExecutionContract(req.ImplementationContext.ProjectID, run); err == nil {
+		t.Fatal("final effect gate accepted a changed scheduler policy")
+	}
 	if err := s.RunSwarmSchedulerOnce(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -202,6 +225,37 @@ func TestOrchestrationContractQueuedTaskBlockedWithoutChangingRunCapture(t *test
 	if err != nil || !reflect.DeepEqual(*retained.Input.OrchestrationContract, immutable) {
 		t.Fatal("captured run contract changed", err)
 	}
+}
+
+func TestOrchestrationContractSwarmCaptureDeliversApprovedProjection(t *testing.T) {
+	s, handler, req, base, _, selected := contractFixture(t)
+	s.SetProjectSwarmPendingLaunch(func(context.Context, string, string, string, string) (bool, error) { return false, nil })
+	s.branchSessions = func(context.Context, string, string) (bool, error) { return false, nil }
+	req.PermissionMode, selected.PermissionMode = "bypass", "bypass"
+	prepare := contractRequest(req)
+	prepare.Route.PermissionMode = "bypass"
+	endpoint := base + "/orchestration-contracts"
+	view := contractResponse(t, journeyRequest(t, handler, "POST", endpoint+"/prepare", prepare, 201).Body.Bytes())
+	approved := contractResponse(t, journeyRequest(t, handler, "POST", endpoint+"/"+view.Contract.ID+"/approve", map[string]any{"expectedRevision": 1, "expectedDigest": view.Contract.Digest}, 200).Body.Bytes())
+	req.OrchestrationContract = &OrchestrationContractSelection{ID: approved.Contract.ID, Revision: 2, Digest: approved.Contract.Digest, ApprovalID: approved.Contract.Approval.ID}
+	run := projectRunHTTPResponse(t, journeyRequest(t, handler, "POST", base+"/runs", req, 201)).ProjectRun
+	run = projectRunHTTPResponse(t, journeyRequest(t, handler, "POST", base+"/runs/"+run.ID+"/swarm", map[string]int{"expectedRevision": run.Revision, "maxParallel": 1}, 201)).ProjectRun
+	run = projectRunHTTPResponse(t, journeyRequest(t, handler, "POST", base+"/runs/"+run.ID+"/swarm/tasks/task-save/reserve", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "contract-delivery-task-1234"}, 201)).ProjectRun
+	op := run.Operations[len(run.Operations)-1]
+	path, err := s.swarmPath(req.ImplementationContext.ProjectID, run.ID, op.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capture, err := s.CaptureProjectRunTaskContext(context.Background(), req.ImplementationContext.ProjectID, run.ID, op.ID, op.WorktreeID, path, *ImplementationContextSelection(op.Implementation))
+	if err != nil {
+		t.Fatal("swarm reviewed capture", err)
+	}
+	for _, file := range capture.Files {
+		if file.Path == "LUCI.md" && strings.Contains(string(file.Data), approved.Contract.Digest) && strings.Contains(string(file.Data), op.TaskID) && strings.Contains(string(file.Data), `"controls"`) {
+			return
+		}
+	}
+	t.Fatal("approved contract/task projection absent from actual swarm capture")
 }
 
 func TestOrchestrationContractCurrentTeamAuthorityAtEffectTime(t *testing.T) {
@@ -222,4 +276,72 @@ func TestOrchestrationContractCurrentTeamAuthorityAtEffectTime(t *testing.T) {
 	if OrchestrationAuthorityMatches(run, authority) {
 		t.Fatal("changed cost policy reused approval")
 	}
+}
+
+func TestOrchestrationContractWriteRefusesUnreadableLedger(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "contract-history.json")
+	ledger := orchestrationContractLedger{Version: 1, Records: []orchestrationContractRecord{{Contract: OrchestrationContract{ID: "contract-1", Input: OrchestrationPreparedInput{Outcome: "readable"}}}}}
+	if err := writeOrchestrationContracts(path, ledger); err != nil {
+		t.Fatal(err)
+	}
+	prior, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ledger.Records[0].Contract.Input.Outcome = strings.Repeat("x", orchestrationContractFileLimit)
+	if err := writeOrchestrationContracts(path, ledger); !errors.Is(err, ErrProjectRunLimit) {
+		t.Fatal("oversized history was published", err)
+	}
+	retained, err := os.ReadFile(path)
+	if err != nil || !reflect.DeepEqual(retained, prior) {
+		t.Fatal("failed prepare changed the prior readable history", err)
+	}
+	ledger.Records[0].Contract.State = "approved"
+	if err := writeOrchestrationContracts(path, ledger); !errors.Is(err, ErrProjectRunLimit) {
+		t.Fatal("oversized approval was published", err)
+	}
+	retained, err = os.ReadFile(path)
+	if err != nil || !reflect.DeepEqual(retained, prior) {
+		t.Fatal("failed approval changed the prior readable history", err)
+	}
+}
+
+func TestOrchestrationContractNearLimitPrepareAndApprovalRetainReadableHistory(t *testing.T) {
+	s, handler, req, base, projectPath, _ := contractFixture(t)
+	endpoint := base + "/orchestration-contracts"
+	prepared := contractResponse(t, journeyRequest(t, handler, "POST", endpoint+"/prepare", contractRequest(req), 201).Body.Bytes())
+	p := project.Project{ID: req.ImplementationContext.ProjectID, Path: projectPath}
+	path, ledger, err := s.readOrchestrationContracts(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ledger.Records[0].Contract.CreatedAt = ""
+	baseBytes, err := json.MarshalIndent(ledger, "", "  ")
+	if err != nil || len(baseBytes)+2 >= orchestrationContractFileLimit {
+		t.Fatal("invalid near-limit fixture", err)
+	}
+	ledger.Records[0].Contract.CreatedAt = strings.Repeat("x", orchestrationContractFileLimit-len(baseBytes)-2)
+	if err := writeOrchestrationContracts(path, ledger); err != nil {
+		t.Fatal("bounded near-limit fixture", err)
+	}
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := contractRequest(req)
+	other.IdempotencyKey = "near-limit-other-prepare-123456"
+	journeyRequest(t, handler, "POST", endpoint+"/prepare", other, 409)
+	assertUnchanged := func() {
+		t.Helper()
+		got, readErr := os.ReadFile(path)
+		if readErr != nil || !reflect.DeepEqual(got, before) {
+			t.Fatal("failed publication replaced readable history", readErr)
+		}
+		if _, _, readErr = s.readOrchestrationContracts(p); readErr != nil {
+			t.Fatal("previous contract became unreadable", readErr)
+		}
+	}
+	assertUnchanged()
+	journeyRequest(t, handler, "POST", endpoint+"/"+prepared.Contract.ID+"/approve", map[string]any{"expectedRevision": 1, "expectedDigest": prepared.Contract.Digest}, 409)
+	assertUnchanged()
 }
