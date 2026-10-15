@@ -52,6 +52,22 @@ ligatures, Arabic joining/RTL, combining marks, CJK and copy/extract order
 before accepting the pairing. A static rendered page alone cannot prove
 faithful text extraction.
 
+The bounded subset/collection candidate is `github.com/tdewolff/font`
+**v0.0.0-20261010204837-88a7f6b56918**, upstream commit
+`88a7f6b5691888bf23e957963fc9e49ff39dc16d`, Go checksum
+`h1:z7YAbjYz/bmG0AUx2pqmClRxUI2aCxP0rQMJAMcdmok=`, MIT (pinned
+`LICENSE.md` inspected). At that source, `ParseSFNT(bytes,index)` selects a
+face from TTF/OTF/TTC, `SFNT.Subset(glyphIDs,KeepPDFTables)` returns a
+reindexed subset, and `SFNT.Write()` emits a standalone SFNT. CFF2 is
+explicitly unsupported and must refuse. The subset method imports
+`tdewolff/parse/v2`; its module `go.mod` declares a much broader set of
+requirements, including `canvas`. Review the actual lazy-module/import and
+licence closure before adding it; do not silently pull the whole graph into a
+portable release. The PDF CID-to-subset-GID map must use the returned glyph
+order and exact composite dependencies, then demonstrate ToUnicode extraction
+against the original source clusters. The source API makes a pilot possible;
+it is not proof that the proposed CJK TTC face subsets within the bounds.
+
 The inspected font candidates are original Debian-installed Noto bytes; they
 are **not** bundled release inputs yet. They must be obtained later through a
 reviewed original-source/package path, verified byte for byte, and accompanied
@@ -67,8 +83,8 @@ These three files are a starting coverage set, **not all Unicode**. The CJK
 candidate is a 19 MiB TTC collection; it cannot be assumed to fit the 16 MiB
 PDF bound or to be a directly embeddable `FontFile2`. Its selected face needs
 an exact, bounded subset/standalone-font construction with original Unicode
-mapping. The pinned modules expose shaping and PDF font objects, but this
-proposal does **not** establish a compatible subset writer. A proof must show
+mapping. The pinned modules expose shaping, PDF font objects and a subset
+candidate, but the exact three-way integration is **not yet proved**. A proof must show
 the selected CJK, Arabic and Latin font streams stay within the 32 MiB input,
 16 MiB output and 512 MiB render charge. Reject the input otherwise; do not
 ship a full TTC or silently substitute a host font. Font
