@@ -298,6 +298,11 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	if e != nil {
 		t.Fatal(e)
 	}
+	s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(context.Context, TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
+		return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("exact repaired candidate"), Report: &TaskHandoffReport{Version: 1, Summary: "Added the missing acceptance case to the changed implementation", ChangedFiles: []string{"alpha.txt"}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect repaired candidate diff", Outcome: "passed", Detail: "Changed source contains the acceptance case"}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}}, nil
+	})
+	var repairedHandoff struct{ Run ProjectRun }
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+repair.ID+"/handoff/collect", map[string]any{"expectedRevision": repaired.Revision}, 200).Body.Bytes(), &repairedHandoff)
 	if advanced, e := s.continueCoordinatorReviewerRetry(ctx, p, row); e != nil || !advanced {
 		t.Fatal("changed repair did not queue a distinct reviewer", advanced, e)
 	}
@@ -340,6 +345,39 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	if e != nil || len(final.Swarm.ReviewObligations) != 2 || final.Swarm.ReviewObligations[0].State != "repair-required" || final.Swarm.ReviewObligations[1].CandidateOperationID != repair.ID || final.Swarm.ReviewObligations[1].ReviewerOperationID != queuedRetry.Items[2].OperationID {
 		t.Fatal("retry did not preserve exact failed and successor review receipts", e, final)
 	}
+	reviewRetry := swarmOperation(&final, queuedRetry.Items[2].OperationID)
+	if reviewRetry == nil {
+		t.Fatal("retry lost its reviewer operation")
+	}
+	final, _, _, e = s.projectRuns.ClaimOperation(p.ID, p.Path, run.ID, final.Revision, reviewRetry.ID, swarmReviewAssignmentDigest(final, reviewRetry.ID))
+	if e != nil {
+		t.Fatal(e)
+	}
+	final, e = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, final.Revision, reviewRetry.ID, reviewRetry.ChildID, "succeeded", "The independent reviewer stopped after checking the repaired candidate.")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(context.Context, TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
+		return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("exact changed repair review"), Report: &TaskHandoffReport{Version: 1, Summary: "The repaired candidate passes the previously missing acceptance check", ChangedFiles: []string{}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect repaired candidate diff", Outcome: "passed", Detail: "The missing acceptance case is present"}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}}, nil
+	})
+	var passedHandoff struct{ Run ProjectRun }
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+reviewRetry.ID+"/handoff/collect", map[string]any{"expectedRevision": final.Revision}, 200).Body.Bytes(), &passedHandoff)
+	for i := 0; i < 2; i++ {
+		if recorded, outcomeErr := s.continueCoordinatorReviewOutcome(ctx, p, row); outcomeErr != nil || !recorded {
+			t.Fatal("changed candidate lacked an attributed passed-review receipt", i, outcomeErr, recorded)
+		}
+	}
+	passed, e := s.GetProjectSwarmRun(p.ID, run.ID)
+	if e != nil || passed.Swarm.ReviewObligations[0].State != "repair-required" || passed.Swarm.ReviewObligations[1].State != "passed" || !swarmIndependentReviewReady(passed, "task-a", ProjectSwarmReview{OperationID: repair.ID, SourceCommit: passed.Swarm.ReviewObligations[1].CandidateCommit, ReviewDigest: passed.Swarm.ReviewObligations[1].ReviewDigest}) {
+		t.Fatal("new pass did not retain the prior failed finding and exact repaired source", e, passed)
+	}
+	if integrated, integrationErr := s.continueCoordinatorCandidateIntegration(ctx, p, row); integrationErr != nil || !integrated {
+		t.Fatal("passed repaired candidate did not enter reviewed integration", integrationErr, integrated)
+	}
+	integratedRun, e := s.GetProjectSwarmRun(p.ID, run.ID)
+	if e != nil || swarmTask(&integratedRun, "task-a").Integration == nil {
+		t.Fatal("reviewed repair did not retain an integration receipt", e, integratedRun)
+	}
 	coordinatorSavePolicy(t, actor, p.ID, policy.Revision, "review", []string{"plan"})
 	_, _, cancelled, staleErr := s.coordinatorReviewerRetryAuthority(ctx, p, retryLedger.Items[2])
 	if cancelled != nil {
@@ -349,7 +387,7 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 		t.Fatal("revoked reviewed delegation could still authorize a saved automatic retry")
 	}
 	afterRevocation, e := s.GetProjectSwarmRun(p.ID, run.ID)
-	if e != nil || len(afterRevocation.Operations) != len(final.Operations) || afterRevocation.Revision != final.Revision {
+	if e != nil || len(afterRevocation.Operations) != len(integratedRun.Operations) || afterRevocation.Revision != integratedRun.Revision {
 		t.Fatal("revoked retry changed the retained run", e, afterRevocation)
 	}
 }
