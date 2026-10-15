@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "profile": "pdfium-tesseract-v1",
+  "state": "source-only-dependency-closure-required",
+  "acquisitionAuthorized": false,
+  "buildAuthorized": false,
+  "runtimeAuthorized": false,
+  "imageId": null,
+  "architecture": "linux/amd64",
+  "base": {
+    "image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+    "pinSource": "distribution/docker/Dockerfile at 2017e2bd27703a891c403585ef9548d57bdcece5",
+    "acquiredForExtractor": false
+  },
+  "declaredInputs": [
+    {
+      "name": "pypdfium2",
+      "version": "5.14.0",
+      "file": "pypdfium2-5.14.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+      "bytes": 3799581,
+      "sha256": "11f281613fa22313d9c7ab89947665e84eccf8ebe40e1198a84a88352305648d",
+      "source": "https://pypi.org/pypi/pypdfium2/5.14.0/json",
+      "licence": "BSD-3-Clause AND Apache-2.0 AND bundled PDFium dependency notices",
+      "requiredFeatures": "default build; PDFIUM_INFO.flags must be empty; no forms initialization",
+      "downloaded": false
+    },
+    {
+      "name": "Pillow",
+      "version": "12.3.0",
+      "file": "pillow-12.3.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "bytes": 6934408,
+      "sha256": "23d27a3e0307ec2244cc51e7287b919aa68d097504ebe19df4e76a98a3eea5bd",
+      "source": "https://pypi.org/pypi/Pillow/12.3.0/json",
+      "licence": "MIT-CMU plus bundled image-codec notices",
+      "downloaded": false
+    },
+    {
+      "name": "tesseract-ocr",
+      "version": "5.3.0-2",
+      "file": "tesseract-ocr_5.3.0-2_amd64.deb",
+      "bytes": 402216,
+      "sha256": "311fed91c7311cfee54c28a0f21d700377b8131a9d114628d36d2563f99e1730",
+      "source": "https://packages.debian.org/bookworm/amd64/tesseract-ocr/download",
+      "licence": "Apache-2.0 plus Debian copyright notices",
+      "downloaded": false
+    },
+    {
+      "name": "libtesseract5",
+      "version": "5.3.0-2",
+      "file": "libtesseract5_5.3.0-2_amd64.deb",
+      "bytes": 1278876,
+      "sha256": "19b1719f30235eaf209866b219d4dbdd4dddd813758a8d5b9715c78c40702ff1",
+      "source": "https://packages.debian.org/bookworm/amd64/libtesseract5/download",
+      "licence": "Apache-2.0 plus Debian copyright notices",
+      "downloaded": false
+    },
+    {
+      "name": "tesseract-ocr-eng",
+      "version": "4.1.0-2",
+      "file": "tesseract-ocr-eng_4.1.0-2_all.deb",
+      "bytes": 1593640,
+      "sha256": "9242d054563262398f8cf41fbd96fcc72f9dde70db16de18539882a6cff74f9d",
+      "source": "https://packages.debian.org/bookworm/all/tesseract-ocr-eng/download",
+      "licence": "Apache-2.0 trained-data and Debian copyright notices must be verified/shipped",
+      "downloaded": false
+    }
+  ],
+  "buildRecipe": {
+    "mode": "offline-only once complete dependency lock is reviewed",
+    "steps": [
+      "Verify every declared and transitive input against its immutable SHA256 and byte limit, including base-image closure.",
+      "Install only the closed local Debian package set providing Python 3.11, native Tesseract 5.3.0-2, English and orientation/script data, shared libraries and fonts; no apt resolver/network fallback.",
+      "Install only the two hash-locked local wheels with no index/dependency resolution; preserve all bundled licences.",
+      "Copy document_extractor.py to /opt/luci/document_extractor.py and fixed language data to /opt/luci/tessdata; no user project content in image.",
+      "Set exact documentEnvironment, create /input/original mount target, use nonroot default1001:1001; API selects a trusted nonroot owner matching its private original.",
+      "Generate and independently review an SPDX/CycloneDX SBOM with hashes, dependency closure and licence notices; record immutable built OCI image ID before configuration."
+    ]
+  },
+  "unresolvedBeforeAcquisitionOrBuild": [
+    "Close exact Python 3.11 Debian runtime/transitive package and font versions/hashes against the pinned base, including security review.",
+    "Resolve exact tesseract-ocr-osd package hash; the public metadata download page was unavailable during source preparation.",
+    "Review and ship the complete PDFium/Pillow native-codec/Tesseract/Leptonica/font/language-data transitive licences.",
+    "Publish the closed executable offline Docker recipe and reviewed full SBOM/input manifest; this declared-input inventory is not a complete SBOM or build authorization."
+  ],
+  "requiredActualChecks": [
+    "Digital-text, scanned, mixed-content, rotated/EXIF, Unicode, encrypted, corrupt and hostile expanded-image/font fixtures on exact image.",
+    "Cancellation, restart, lost Create/Start acknowledgement, current-grant revocation, host pressure and positive contained cleanup.",
+    "Actual Discover upload -> extract/OCR -> correction -> source-linked Luci questions -> normal context draft/approval E2E."
+  ]
+}
