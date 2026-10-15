@@ -22,6 +22,8 @@ The active product plan adds an all-project home with personal pins and distinct
 
 The fifth activity, **Distribute**, will prepare risk assessments, GTM material, proposals, pricing and presentations. A team admin will be able to upload an XLSX control checklist, assess project evidence against it, and send unresolved gaps back into Discover and Design. These additions are under implementation, not verified features of the current package. See the [five-D contract and implementation map](docs/luci/FIVE-D-AMENDMENT-2026-10-15.md).
 
+Develop is the main delivery focus: turn an approved design and team standards into coordinated coding tasks, run them in isolated environments, review and repair their results, and prove the app works. Luci aims to handle routine decisions while keeping meaningful questions, progress and outputs clear. This orchestration work is still being completed and verified; no autonomy or productivity percentage is claimed. See the [Develop implementation contract](docs/luci/DEVELOP-ORCHESTRATION-AMENDMENT-2026-10-16.md).
+
 ## Choose where to run
 
 First setup offers three options:

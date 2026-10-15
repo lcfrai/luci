@@ -6,7 +6,7 @@
     "sourcePath": "C:\\Users\\DylanMackie\\Documents\\ChatGPT\\Luci\\audit-evidence\\local-acceptance\\product-contract.json",
     "sourceSha256ReportedByLocalAudit": "F82779DBB4A78CAE5A91C3FD0DEB58E73ECC41E49E1FAB12298466A9F42F5D04",
     "scopeAlignmentRevision": "b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707",
-    "transcription": "The id, requirement and acceptance strings below are verbatim from the originating local coordinator's supplied canonical entries on 2026-10-13. This tracked projection has its own bytes and is not a copy or independent hash verification of the Windows source file. The 15 October five-D amendment explicitly supersedes LC-02 and adds LC-17–22; its prior wording is retained in fiveDWorkspaceAmendment.previousLC02."
+    "transcription": "The id, requirement and acceptance strings below are verbatim from the originating local coordinator's supplied canonical entries on 2026-10-13. This tracked projection has its own bytes and is not a copy or independent hash verification of the Windows source file. The 15 October five-D amendment explicitly supersedes LC-02 and adds LC-17–22; its prior wording is retained in fiveDWorkspaceAmendment.previousLC02. The 16 October Develop orchestration amendment adds LC-23–24 while retaining LC-01–22 verbatim."
   },
   "requirements": [
     {
@@ -118,6 +118,16 @@
       "id": "LC-22",
       "requirement": "A team admin imports and versions risk requirements or controls from XLSX. Distribute assesses each project against that library, links evidence, generates review documentation and routes unresolved gaps into Discover/Design and the normal amendment/delivery loop.",
       "acceptance": "Exercise admin-only preview/mapping/import/reimport, duplicate and invalid rows, bounded parsing without macro/external-link execution, project/team isolation, evidence-linked assessments and review. Accepted gap proposals update affected context and work idempotently; changed evidence makes affected assessments and documents stale."
+    },
+    {
+      "id": "LC-23",
+      "requirement": "Approved Design produces a durable versioned orchestration contract for project or specialist orchestrators and upstream coding agents: exact context, team risk controls and standards, dependencies, ownership, decision and authority policies, quality checks, resources and recovery. One personal Luci remains the user liaison.",
+      "acceptance": "Prepare, inspect and approve the exact contract without execution effects; capture it in real work and reconcile changed design/team policy without silently rewriting running scope. Measure routine decisions resolved without human intervention, retaining reasons and genuine escalations; the approximately 99% ambition is not an unverified guarantee."
+    },
+    {
+      "id": "LC-24",
+      "requirement": "Develop uses durable event-driven orchestrators and large policy-bounded communicating swarms to produce, independently check, review, repair and integrate real upstream work through verified running applications and permitted deployment. Task agents retain scoped isolation, causal context and replay-safe result/decision records.",
+      "acceptance": "Observe concurrent real tasks, scoped messages and artifacts, duplicate/reordered events, amendment/conflict handling, cancellation/restart and retained resource outcomes. Verify code quality and working behavior independently, with useful progress/attention/stop controls and measured completion latency, accepted throughput, interventions, cost and host responsiveness. Model prose, idle sessions and fixture fan-out do not establish completion."
     }
   ],
   "deliveryAmendment": {
@@ -153,5 +163,47 @@
       "requirement": "Discover, Design, Develop and Deploy are four revisitable, communicating phases, rather than a one-way wizard.",
       "acceptance": "A build or deployment finding can reopen discovery or design, update affected context and continue work with a traceable reason."
     }
+  },
+  "developOrchestrationAmendment": {
+    "id": "LUCI-2026-10-16-DEVELOP-ORCHESTRATION",
+    "authority": "Direct Dylan direction: prioritize exceptional Develop speed, quality, user experience, design-derived orchestrators and large communicating swarms using team risk/standards context; Herdr and Firstmate references.",
+    "document": "DEVELOP-ORCHESTRATION-AMENDMENT-2026-10-16.md",
+    "previousReconciliationRevision": "0de1be9b87b8bb66e949e3cdb988cc52c1a980aa",
+    "preservedRequirementIds": [
+      "LC-01",
+      "LC-02",
+      "LC-03",
+      "LC-04",
+      "LC-05",
+      "LC-06",
+      "LC-07",
+      "LC-08",
+      "LC-09",
+      "LC-10",
+      "LC-11",
+      "LC-12",
+      "LC-13",
+      "LC-14",
+      "LC-15",
+      "LC-16",
+      "LC-17",
+      "LC-18",
+      "LC-19",
+      "LC-20",
+      "LC-21",
+      "LC-22"
+    ],
+    "addedRequirementIds": [
+      "LC-23",
+      "LC-24"
+    ],
+    "deliveryPriority": "Real local Design -> upstream implementation -> independent checks/review/repair -> verified running app, with Develop orchestration first after active LC17/auth work; other four Ds remain required.",
+    "implementationGate": "Root exact committed review and active worker acknowledgments before added-scope implementation; existing authorized work continues.",
+    "autonomyTarget": "Approximately 99% of eligible routine decisions, measured with numerator/denominator/exclusions/reasons; not claimed achieved and no authority bypass.",
+    "runtimeAcceptanceComplete": false,
+    "liveCloudAuthorized": false,
+    "productAccepted": false,
+    "completeProductBeforeUserTesting": true,
+    "userTestingGate": "All agreed local five-D functionality integrated and meaningfully accepted, including exceptional Develop orchestration/quality/recovery; no MVP or demo handoff. Live Azure tests remain deferred; future Luci Cloud remains unavailable."
   }
 }

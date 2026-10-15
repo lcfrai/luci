@@ -89,6 +89,8 @@ All acceptance remains incomplete unless exact evidence in the central ledger sa
 
 ## Sequenced worklist
 
+The [16 October Develop amendment](DEVELOP-ORCHESTRATION-AMENDMENT-2026-10-16.md) supersedes the ordering after the active Home/auth slices: deliver core orchestration and the verified local build loop before expanding ancillary surfaces. All requirements below remain.
+
 1. Dylan's bedtime direction puts usable end-to-end development first. Finish LOCAL-065 sign-in copy/restart UX and focused checks; integrate LOCAL-063/064 reviewed source. Prepare and verify the real local idea/design/coding/check/review/run path whenever its actual prerequisites permit. The fresh Codex connection still requires the user's normal account approval; never borrow desktop credentials. While he is unavailable, continue independent source work below. Preserve exact existing actual runtime evidence.
 2. After root reconciliation review and both worker ACKs, implement LC-17 as a complete durable home/rail vertical slice, with deterministic clock/status and actor-isolation tests. Do not simultaneously refactor authentication.
 3. Reconcile typed context/artifact and job interfaces for LC-18/19/21/22, then ship document-led Discover and editable Design in bounded increments. Local Sol owns desktop/canvas files only when assigned; Cloud Sol owns the named backend files.
