@@ -226,6 +226,25 @@ func TestDistributeArtifactLegacyXMLScalarReadReviseAndExportRefusal(t *testing.
 	}
 }
 
+func TestDistributeArtifactSaveRefusesXMLIncompatibleSavedSource(t *testing.T) {
+	s, h, id := controlTestHandler(t)
+	p, err := s.resolveProject(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for revision, scalar := range []string{"\ufffe", "\uffff"} {
+		controlTestRequest(t, h, "POST", "/v1/product/projects/"+id+"/brief", map[string]any{"revision": revision, "purpose": "before" + scalar + "after", "audience": "private test", "constraints": "none"}, 200)
+		refused := controlTestRequest(t, h, "POST", "/v1/product/projects/"+id+"/distribute/artifacts/prepare", map[string]string{"kind": "risk"}, 422)
+		if !strings.Contains(refused.Body.String(), "artifact_content_invalid") {
+			t.Fatal("incompatible saved source had no precise refusal", refused.Body.String())
+		}
+	}
+	_, ledger, err := s.readArtifactLedger(p)
+	if err != nil || len(ledger.Records) != 0 {
+		t.Fatal("invalid saved source created artifact history", err)
+	}
+}
+
 func TestDistributePresentationKeepsBoundedUnicodeText(t *testing.T) {
 	long := strings.Repeat("界", 400) + "& final"
 	lines := []artifactExportLine{{Label: "Risk", Value: long}}

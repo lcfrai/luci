@@ -442,8 +442,12 @@ func (s *Server) prepareDistributeArtifact(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	draft := generatedArtifact(req.Kind, p.ID, source, state, library, assessment)
-	if !validArtifactContent(draft) || !validArtifactNewText(draft) {
+	if !validArtifactContent(draft) {
 		journeyError(w, 413, "artifact_source_too_large", "The complete saved source exceeds the bounded artifact draft; split the reviewed scope.")
+		return
+	}
+	if !validArtifactNewText(draft) {
+		journeyError(w, 422, "artifact_content_invalid", "The saved source contains text Office XML cannot preserve. Correct the source before preparing this artifact.")
 		return
 	}
 	journeyJSON(w, 200, map[string]any{"draft": draft, "prepareDigest": artifactDigest(draft)})
@@ -525,8 +529,12 @@ func (s *Server) saveDistributeArtifact(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	row := generatedArtifact(req.Kind, p.ID, source, state, library, assessment)
-	if !validArtifactContent(row) || !validArtifactNewText(row) || artifactDigest(row) != req.PrepareDigest {
+	if artifactDigest(row) != req.PrepareDigest || !validArtifactContent(row) {
 		journeyError(w, 409, "artifact_source_changed", "The prepared source changed or exceeds the artifact bound. Prepare again before saving.")
+		return
+	}
+	if !validArtifactNewText(row) {
+		journeyError(w, 422, "artifact_content_invalid", "The saved source contains text Office XML cannot preserve. Correct the source before saving this artifact.")
 		return
 	}
 	row.ID, row.Revision, row.Actor, row.At = newID("artifact-"), 1, actor, time.Now().UTC().Format(time.RFC3339Nano)
