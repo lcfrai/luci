@@ -235,6 +235,22 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	if e != nil || len(queueAfterFailure.Items) != 2 || queueAfterFailure.Items[1].State != "paused" || queueAfterFailure.Items[1].ReasonCode != "repair_checkpoint_pending" || queueAfterFailure.Items[1].OperationID != "" || starts != 1 {
 		t.Fatal("repair intent dispatched before protected checkpoint", queueAfterFailure, starts, e)
 	}
+	repairControl := "/v1/product/projects/" + p.ID + "/swarm-queue/" + queueAfterFailure.Items[1].ID
+	journeyRequest(t, actor, "POST", repairControl+"/resume", map[string]int{"expectedRevision": queueAfterFailure.Items[1].Revision}, 409)
+	journeyRequest(t, actor, "POST", repairControl+"/pause", map[string]int{"expectedRevision": queueAfterFailure.Items[1].Revision}, 200)
+	s.swarmScheduler.mu.Lock()
+	pausedLedger, pausedErr := s.readSwarmScheduler()
+	s.swarmScheduler.mu.Unlock()
+	if pausedErr != nil || pausedLedger.Items[1].State != "paused" || pausedLedger.Items[1].PausedFromState != "paused" || pausedLedger.Items[1].PausedFromCode != "repair_checkpoint_pending" || pausedLedger.Items[1].RepairObligationID != failed.Swarm.ReviewObligations[0].ID {
+		t.Fatal("operator pause replaced the internal checkpoint identity", pausedErr, pausedLedger)
+	}
+	journeyRequest(t, actor, "POST", repairControl+"/resume", map[string]int{"expectedRevision": pausedLedger.Items[1].Revision}, 200)
+	s.swarmScheduler.mu.Lock()
+	restoredPending, restoreErr := s.readSwarmScheduler()
+	s.swarmScheduler.mu.Unlock()
+	if restoreErr != nil || restoredPending.Items[1].State != "paused" || restoredPending.Items[1].ReasonCode != "repair_checkpoint_pending" || restoredPending.Items[1].BatchKeyDigest != pausedLedger.Items[1].BatchKeyDigest || restoredPending.Items[1].Actor != pausedLedger.Items[1].Actor || restoredPending.Items[1].PausedFromState != "" || starts != 1 {
+		t.Fatal("operator resume upgraded or changed the protected pending repair", restoreErr, restoredPending)
+	}
 	if advanced, e := s.continueCoordinatorRepair(ctx, p, row); e != nil || !advanced {
 		t.Fatal("retained repair intent did not continue exact checkpoint", e, advanced)
 	}
@@ -268,6 +284,23 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	afterReadback, e := s.GetProjectSwarmRun(p.ID, run.ID)
 	if e != nil || len(afterReadback.Operations) != 3 {
 		t.Fatal("interrupted repair created a replacement checkout", e, afterReadback)
+	}
+	if e = s.schedulerSetReason(queueAfterCheckpoint.Items[1].ID, "queued", "capacity", "The owned repair awaits current host capacity."); e != nil {
+		t.Fatal(e)
+	}
+	waitingRepair, e := s.ProjectSwarmQueueSnapshot(p.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	journeyRequest(t, actor, "POST", repairControl+"/pause", map[string]int{"expectedRevision": waitingRepair.Items[1].Revision}, 200)
+	pausedRepair, e := s.ProjectSwarmQueueSnapshot(p.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	journeyRequest(t, actor, "POST", repairControl+"/resume", map[string]int{"expectedRevision": pausedRepair.Items[1].Revision}, 200)
+	resumedRepair, e := s.ProjectSwarmQueueSnapshot(p.ID)
+	if e != nil || resumedRepair.Items[1].State != "queued" || resumedRepair.Items[1].ReasonCode != "capacity" || resumedRepair.Items[1].OperationID != afterReadback.Operations[2].ID || starts != 1 {
+		t.Fatal("queued repair resume lost its exact checkpoint or started a child", e, resumedRepair, starts)
 	}
 	// The scheduler may first settle the older reviewer queue for this project;
 	// fairness then advances the reserved repair on its next bounded turn.
@@ -389,6 +422,23 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	afterRevocation, e := s.GetProjectSwarmRun(p.ID, run.ID)
 	if e != nil || len(afterRevocation.Operations) != len(integratedRun.Operations) || afterRevocation.Revision != integratedRun.Revision {
 		t.Fatal("revoked retry changed the retained run", e, afterRevocation)
+	}
+	s.swarmScheduler.mu.Lock()
+	unknownLedger, unknownErr := s.readSwarmScheduler()
+	if unknownErr == nil {
+		unknownLedger.Items[1].State, unknownLedger.Items[1].ReasonCode = "unknown", "repair_allocation_unconfirmed"
+		unknownErr = s.saveSwarmScheduler(&unknownLedger)
+	}
+	s.swarmScheduler.mu.Unlock()
+	if unknownErr != nil {
+		t.Fatal(unknownErr)
+	}
+	journeyRequest(t, actor, "POST", repairControl+"/resume", map[string]int{"expectedRevision": unknownLedger.Items[1].Revision}, 409)
+	s.swarmScheduler.mu.Lock()
+	stillUnknown, unknownReadErr := s.readSwarmScheduler()
+	s.swarmScheduler.mu.Unlock()
+	if unknownReadErr != nil || stillUnknown.Items[1].State != "unknown" || stillUnknown.Items[1].OperationID != unknownLedger.Items[1].OperationID || stillUnknown.Items[1].Revision != unknownLedger.Items[1].Revision {
+		t.Fatal("uncertain repair was upgraded by ordinary resume", unknownReadErr, stillUnknown)
 	}
 }
 

@@ -403,6 +403,42 @@ func (s *Server) controlProjectSwarmQueue(w http.ResponseWriter, r *http.Request
 		return
 	}
 	action := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+	if action == "pause" || action == "resume" {
+		// The protected checkpoint also holds this exclusion through its copy.
+		// A control request may wait for that result, then retry its exact CAS;
+		// it must not reinterpret an in-flight copy as an absent reservation.
+		if !s.projectRunDispatchMu.TryLock() {
+			projectRunProblem(w, errors.New("An agent operation is changing this build. Wait for its retained result before changing queue control."))
+			return
+		}
+		defer s.projectRunDispatchMu.Unlock()
+	}
+	repairResumeValid := false
+	if action == "resume" {
+		// Contract freshness reads the scheduler's saved controls. Keep that
+		// bounded read outside its mutex, then use the item's exact CAS below.
+		s.swarmScheduler.mu.Lock()
+		preflight, preflightErr := s.readSwarmScheduler()
+		s.swarmScheduler.mu.Unlock()
+		if preflightErr != nil {
+			projectRunProblem(w, preflightErr)
+			return
+		}
+		for _, item := range preflight.Items {
+			if item.ID != r.PathValue("queueId") || item.ProjectID != p.ID || item.RepairObligationID == "" || item.Revision != req.ExpectedRevision || item.State != "paused" || item.ReasonCode != "operator_paused" {
+				continue
+			}
+			if _, preflightErr = management.CaptureExecutionControlActor(r.Context(), p.ID); preflightErr == nil {
+				preflightErr = s.validateRepairQueueResume(p, item)
+			}
+			if preflightErr != nil {
+				projectRunProblem(w, preflightErr)
+				return
+			}
+			repairResumeValid = true
+			break
+		}
+	}
 	s.swarmScheduler.mu.Lock()
 	row, err := s.readSwarmScheduler()
 	index := -1
@@ -426,41 +462,64 @@ func (s *Server) controlProjectSwarmQueue(w http.ResponseWriter, r *http.Request
 		} else if swarmQueueTerminal(item.State) {
 			err = ErrProjectRunConflict
 		} else {
+			if action == "pause" && item.RepairObligationID != "" {
+				_, err = management.CaptureExecutionControlActor(r.Context(), p.ID)
+			}
+			if err != nil {
+				s.swarmScheduler.mu.Unlock()
+				projectRunProblem(w, err)
+				return
+			}
 			switch action {
 			case "pause":
-				item.State = "paused"
-				item.ReasonCode = "operator_paused"
-				item.Reason = "Queued execution is paused. No running process was stopped."
-			case "resume":
-				if item.State != "paused" {
+				if item.State == "paused" && (item.ReasonCode != "repair_checkpoint_pending" || item.RepairObligationID == "") {
 					err = ErrProjectRunConflict
-				} else if item.RepairObligationID != "" {
-					err = errors.New("This failed review has an exact repair checkpoint intent. Inspect its retained result; a normal queue resume cannot replace that fenced source attempt.")
+				} else {
+					item.PausedFromState, item.PausedFromCode, item.PausedFromReason = item.State, item.ReasonCode, item.Reason
+					item.State = "paused"
+					item.ReasonCode = "operator_paused"
+					item.Reason = "Queued execution is paused. The exact repair checkpoint or existing child is retained; no running process was stopped."
+				}
+			case "resume":
+				if item.State != "paused" || item.ReasonCode != "operator_paused" {
+					err = ErrProjectRunConflict
 				} else {
 					// This route uses private receipts only, so it remains usable
 					// while source admission is held. Never upgrade legacy task
 					// permission settings when resuming its saved authorization.
-					var run ProjectRun
-					run, err = s.projectRuns.Get(p.ID, p.Path, item.RunID)
-					if err == nil {
-						err = validateSwarmTaskRoute(run)
+					if item.RepairObligationID != "" {
+						if !repairResumeValid {
+							err = ErrProjectRunConflict
+						}
+					} else {
+						var run ProjectRun
+						run, err = s.projectRuns.Get(p.ID, p.Path, item.RunID)
+						if err == nil {
+							err = validateSwarmTaskRoute(run)
+						}
 					}
 					if err == nil {
-						item.State = "queued"
-						item.ReasonCode = "ready"
-						item.Reason = "Queued execution is enabled."
+						if item.PausedFromState == "" { // older ordinary queue receipt
+							item.State, item.ReasonCode, item.Reason = "queued", "ready", "Queued execution is enabled."
+						} else {
+							item.State, item.ReasonCode, item.Reason = item.PausedFromState, item.PausedFromCode, item.PausedFromReason
+						}
+						item.PausedFromState, item.PausedFromCode, item.PausedFromReason = "", "", ""
 					}
 				}
 			case "cancel":
 				item.State = "cancelled"
 				item.ReasonCode = "operator_cancelled"
 				item.Reason = "Future execution was cancelled. Retained attempts and results remain available."
+				item.PausedFromState, item.PausedFromCode, item.PausedFromReason = "", "", ""
 			case "priority":
 				if !swarmQueuePriority(req.Priority) {
 					err = ErrProjectRunInvalid
 				} else {
 					item.Priority = req.Priority
 				}
+			default:
+				err = ErrProjectRunInvalid
 			}
 			if err == nil {
 				item.Revision++
@@ -475,5 +534,8 @@ func (s *Server) controlProjectSwarmQueue(w http.ResponseWriter, r *http.Request
 		return
 	}
 	s.WakeSwarmScheduler()
+	if action == "resume" && row.Items[index].RepairObligationID != "" {
+		s.WakeCoordinator()
+	}
 	journeyJSON(w, 200, map[string]any{"item": publicSwarmQueueItem(row.Items[index].SwarmQueueItem), "queue": queueProjectSnapshot(row, p.ID)})
 }

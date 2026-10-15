@@ -304,6 +304,12 @@ func (s *Server) validateSwarmScheduler(row swarmSchedulerLedger) error {
 				return ErrProjectRunInvalid
 			}
 		}
+		if item.PausedFromState != "" || item.PausedFromCode != "" || item.PausedFromReason != "" {
+			if item.State != "paused" || item.ReasonCode != "operator_paused" || item.PausedFromCode == "" || len(item.PausedFromCode) > 100 || len(item.PausedFromReason) > 2000 ||
+				item.PausedFromState != "queued" && item.PausedFromState != "blocked" && (item.PausedFromState != "paused" || item.PausedFromCode != "repair_checkpoint_pending" || item.RepairObligationID == "") {
+				return ErrProjectRunInvalid
+			}
+		}
 		if item.StopActor.ProjectID != "" && (item.StopActor.ProjectID != item.ProjectID || item.StopActor.Local && (item.StopActor.UserID != "" || item.StopActor.TeamID != "") || !item.StopActor.Local && item.StopActor.UserID == "") || item.ReasonCode == "operator_stop_pending" && item.StopActor.ProjectID != item.ProjectID {
 			return ErrProjectRunInvalid
 		}
