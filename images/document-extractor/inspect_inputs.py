@@ -51,6 +51,16 @@ class HeaderReader:
     def read(self, size):
         return self.stream.read(size)
 
+    @property
+    def closed(self):
+        return self.stream.closed
+
+    def flush(self):
+        # HTTPResponse.close() flushes its read-only fp before retiring it.
+        # This wrapper never buffers writes, so there is nothing to flush.
+        # In particular, closing a refused header must retain that refusal.
+        return None
+
     def close(self):
         self.stream.close()
 

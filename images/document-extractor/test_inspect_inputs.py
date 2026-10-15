@@ -209,6 +209,32 @@ class TransferTests(unittest.TestCase):
             response.begin()
         self.assertTrue(raw.closed)
 
+    def test_read_only_wrapper_flush_and_repeated_response_close(self):
+        class ReadOnly(io.BytesIO):
+            def flush(self):
+                raise AssertionError('read-only wrapper must not flush transport writes')
+        raw = ReadOnly(b'HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\nx')
+        response = worker.BoundedHTTPResponse(types.SimpleNamespace(makefile=lambda *a: raw))
+        response.begin()
+        owned = response.fp
+        self.assertFalse(owned.closed)
+        self.assertIsNone(owned.flush())
+        response.close()
+        response.close()
+        self.assertTrue(owned.closed)
+        self.assertTrue(response.closed)
+
+    def test_header_refusal_survives_read_only_close_lifecycle(self):
+        class ReadOnly(io.BytesIO):
+            def flush(self):
+                raise AssertionError('unexpected transport flush masks refusal')
+        raw = ReadOnly(b'HTTP/1.1 200 OK\r\nX-Long: '+b'x'*65536+b'\r\n\r\n')
+        response = worker.BoundedHTTPResponse(types.SimpleNamespace(makefile=lambda *a: raw))
+        with self.assertRaisesRegex(worker.Refusal, 'HTTP header byte bound'):
+            response.begin()
+        response.close()
+        self.assertTrue(raw.closed)
+
     def test_exact_body_and_trailing_foreign_data(self):
         for payload, success in ((b'exact', True), (b'exactextra', False), (b'exac', False)):
             with tempfile.TemporaryDirectory() as temp:
