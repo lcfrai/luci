@@ -365,6 +365,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
             ? <Button type="button" disabled={!canEdit || editorBusy || !!draft.pending || refreshingSketch} onClick={() => setLens("develop")}>Continue to Develop</Button>
             : <Button type="button" loading={pending === "approve"} disabled={!canEdit || editorBusy || !!draft.pending || refreshingSketch || !!approvalNeeds.length} onClick={() => void approve()}>Approve design handoff</Button>}
       </div><p role="status" className="journey-muted">{refreshingSketch ? "Checking the saved sketch revision…" : notice || `${plan.screens.length} ${plan.screens.length === 1 ? "screen" : "screens"} · ${linked.size} linked ${linked.size === 1 ? "requirement" : "requirements"}`}</p></footer>}
+      {plan.status === "approved" && !dirty && <p className="journey-muted">In Develop, select the saved tasks and your agent connection, then review their exact build contract. Continuing here starts no coding session.</p>}
     </>}
     <ContextStorage projectId={projectId} />
   </section>;

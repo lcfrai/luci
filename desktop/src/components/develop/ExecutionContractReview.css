@@ -1,0 +1,16 @@
+@import "../../styles/tokens.css";
+.execution-contract-review { border-block-start: 1px solid var(--line-soft); margin-block: 16px; padding-block: 16px; }
+.execution-contract-review h3 { margin-block: 0 12px; }
+.execution-contract-review p { max-inline-size: 75ch; overflow-wrap: anywhere; }
+.execution-contract-review dl { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 3fr); gap: 8px 16px; margin-block: 16px; }
+.execution-contract-review dt { color: var(--ink-2); }
+.execution-contract-review dd { margin: 0; overflow-wrap: anywhere; }
+.execution-contract-review details { margin-block: 12px; }
+.execution-contract-review summary { cursor: pointer; min-block-size: 32px; }
+.execution-contract-review details > div { padding-block: 8px; border-block-end: 1px solid var(--line-soft); }
+.execution-contract-review code { overflow-wrap: anywhere; white-space: normal; }
+.execution-contract-review [role="alert"] { color: var(--fail); }
+@media (max-width: 760px) {
+  .execution-contract-review dl { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .execution-contract-review dd { margin-block-end: 8px; }
+}

@@ -15,6 +15,8 @@ import { orchestratorApi } from '../../api/orchestrator';
 import { context as orchestratorContext, view as orchestratorView } from '../orchestrator/fixtures';
 import { swarmHarnessFixture, swarmQueueFixture, swarmRunFixture } from '../../test/swarmFixtures';
 import { swarmQueueApi } from '../../api/swarmQueue';
+import { orchestrationContractsApi } from '../../api/orchestrationContracts';
+import { contractViewFixture } from '../../test/orchestrationContractFixtures';
 
 const scope = vi.hoisted(() => ({ actor: 'owner', connection: '' }));
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ profile: { user: { id: scope.actor } } }) }));
@@ -29,6 +31,19 @@ const makeRun = (patch: Partial<ProjectRun> = {}): ProjectRun => ({
 const props = () => ({ projectId: 'p-1', onDraftClose: vi.fn(), onReviewPlan: vi.fn() });
 beforeEach(() => {
   vi.restoreAllMocks(); resetCockpit(); scope.actor = 'owner'; scope.connection = '';
+  localStorage.clear();
+  let approved = false;
+  const contract = contractViewFixture();
+  vi.spyOn(orchestrationContractsApi, 'prepare').mockImplementation(async (_project, request) => {
+    contract.contract.outcome = request.outcome;
+    contract.contract.route = { ...contract.contract.route, harness: request.route.harness, model: request.route.model, permissionMode: request.route.permissionMode };
+    return contract;
+  });
+  vi.spyOn(orchestrationContractsApi, 'get').mockImplementation(async () => approved ? { ...contractViewFixture(true), contract: { ...contract.contract, ...contractViewFixture(true).contract, outcome: contract.contract.outcome, route: contract.contract.route } } : contract);
+  vi.spyOn(orchestrationContractsApi, 'approve').mockImplementation(async () => {
+    approved = true;
+    return { ...contractViewFixture(true), contract: { ...contractViewFixture(true).contract, outcome: contract.contract.outcome, route: contract.contract.route } };
+  });
   useCockpit.setState({ projects: [aProject({ id: 'p-1' })], branchesByProject: { 'p-1': [aBranch({ id: 'b-1', projectId: 'p-1' })] }, worktreesByBranch: { 'b-1': [aWorktree({ id: 'w-1', projectId: 'p-1', branchId: 'b-1', isPrimary: true })] }, selection: { projectId: 'p-1', branchId: 'b-1', worktreeId: 'w-1', sessionId: null }, harnesses: [aHarness({ id: 'claude-code', available: true, supportsOpeningPrompt: true })] });
   vi.spyOn(projectRunsApi, 'list').mockResolvedValue([makeRun()]);
   vi.spyOn(productApi, 'agents').mockResolvedValue({ providers: [] });
@@ -270,16 +285,20 @@ it('continues the same reserved child after reload only through its explicit act
   expect(screen.queryByRole('button', { name: 'Continue reserved coding' })).toBeNull();
 });
 
-it('creates a saved run through the existing model picker without allocating a coding child', async () => {
+it('captures the approved build contract through the existing picker without allocating a coding child', async () => {
   const create = vi.spyOn(projectRunsApi, 'create').mockResolvedValue(makeRun());
   const child = vi.spyOn(api, 'createSession');
   const initial = props(), implementationContext = makeRun().input.implementation;
   render(<ProjectRuns {...initial} draft={{ worktreeId: 'w-1', implementationContext }} />);
-  const dialog = await screen.findByRole('dialog', { name: 'Create project run' });
+  const dialog = await screen.findByRole('dialog', { name: 'Review build contract' });
   await userEvent.selectOptions(within(dialog).getByLabelText('Intended outcome'), 'publish');
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Create project run' }));
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Review build contract' }));
+  await screen.findByRole('region', { name: 'Execution contract review' });
+  expect(create).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('checkbox', { name: /I reviewed these exact scopes/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Approve contract and save project run' }));
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
-  expect(create.mock.calls[0][1]).toMatchObject({ outcome: 'publish', implementationContext: { projectId: 'p-1', taskIds: ['task-1'] } });
+  expect(create.mock.calls[0][1]).toMatchObject({ outcome: 'publish', permissionMode: 'ask', implementationContext: { projectId: 'p-1', taskIds: ['task-1'] }, orchestrationContract: { id: 'contract-1', revision: 2, digest: 'a'.repeat(64), approvalId: 'approval-1' } });
   expect(create.mock.calls[0][1].idempotencyKey).toHaveLength(36);
   expect(child).not.toHaveBeenCalled();
 });
@@ -288,8 +307,11 @@ it('does not invite coding when an idempotent create response recovers a run wit
   vi.spyOn(projectRunsApi, 'create').mockResolvedValue(makeRun({ contextFreshness: { status: 'changed', reason: 'The design handoff changed after this run was prepared.' }, allowedActions: ['reconcile', 'cancel'] }));
   const child = vi.spyOn(api, 'createSession');
   render(<ProjectRuns {...props()} draft={{ worktreeId: 'w-1', implementationContext: makeRun().input.implementation }} />);
-  const dialog = await screen.findByRole('dialog', { name: 'Create project run' });
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Create project run' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Review build contract' });
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Review build contract' }));
+  await screen.findByRole('region', { name: 'Execution contract review' });
+  await userEvent.click(screen.getByRole('checkbox', { name: /I reviewed these exact scopes/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Approve contract and save project run' }));
   await screen.findByText('Run saved. Review its current context before starting more coding.');
   expect(screen.queryByText(/Start coding when ready/)).toBeNull();
   expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull();
@@ -352,10 +374,14 @@ it('keeps the create idempotency key after an uncertain response without startin
   const create = vi.spyOn(projectRunsApi, 'create').mockRejectedValueOnce(new Error('Response interrupted')).mockResolvedValue(makeRun());
   const child = vi.spyOn(api, 'createSession');
   render(<ProjectRuns {...props()} draft={{ worktreeId: 'w-1', implementationContext: makeRun().input.implementation }} />);
-  const dialog = await screen.findByRole('dialog', { name: 'Create project run' });
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Create project run' }));
-  await within(dialog).findByText(/Response interrupted/);
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Create project run' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Review build contract' });
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Review build contract' }));
+  await screen.findByRole('region', { name: 'Execution contract review' });
+  await userEvent.click(screen.getByRole('checkbox', { name: /I reviewed these exact scopes/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Approve contract and save project run' }));
+  await screen.findByText(/Response interrupted/);
+  await userEvent.click(screen.getByRole('checkbox', { name: /I reviewed these exact scopes/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Save reviewed project run' }));
   await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
   expect(create.mock.calls[0][1].idempotencyKey).toBe(create.mock.calls[1][1].idempotencyKey);
   expect(child).not.toHaveBeenCalled();
