@@ -15,9 +15,12 @@ type ProjectSwarm struct {
 	MaxParallel        int                            `json:"maxParallel"`
 	Tasks              []ProjectSwarmTask             `json:"tasks"`
 	ReusedDependencies []ProjectSwarmReusedDependency `json:"reusedDependencies,omitempty"`
+	Messages           []ProjectSwarmMessage          `json:"messages,omitempty"`
+	ReviewObligations  []ProjectSwarmReviewObligation `json:"reviewObligations,omitempty"`
 }
 type ProjectSwarmTask struct {
 	ID              string                   `json:"id"`
+	ReviewOnly      bool                     `json:"reviewOnly,omitempty"`
 	TaskInputDigest string                   `json:"taskInputDigest,omitempty"`
 	Title           string                   `json:"title"`
 	DependsOn       []string                 `json:"dependsOn"`
@@ -78,6 +81,9 @@ func validateProjectSwarm(run ProjectRun) error {
 		if task.TaskInputDigest != "" && !hexDigest(task.TaskInputDigest) {
 			return ErrProjectRunInvalid
 		}
+		if task.ReviewOnly && (len(task.WritePaths) != 0 || task.Integration != nil) {
+			return ErrProjectRunInvalid
+		}
 		selected := false
 		for _, id := range run.Input.Implementation.TaskIDs {
 			selected = selected || id == task.ID
@@ -127,6 +133,9 @@ func validateProjectSwarm(run ProjectRun) error {
 			if !seen[dep] || dep == task.ID {
 				return ErrProjectRunInvalid
 			}
+			if reviewed := swarmTask(&run, dep); reviewed != nil && reviewed.ReviewOnly {
+				return ErrProjectRunInvalid
+			}
 		}
 	}
 	for _, op := range run.Operations {
@@ -157,6 +166,9 @@ func validateProjectSwarm(run ProjectRun) error {
 		if receipt := taskHandoffIntegration(run, op); receipt != nil && receipt.HandoffDigest != "" && (op.Handoff == nil || receipt.HandoffDigest != op.Handoff.Digest) {
 			return ErrProjectRunInvalid
 		}
+	}
+	if err := validateSwarmCoordination(run); err != nil {
+		return err
 	}
 	return nil
 }
@@ -264,6 +276,14 @@ func (s *ProjectRunStore) reserveSwarmTask(projectID, path, id string, revision 
 			return false, err
 		}
 		op.RequestDigest = implementationDigest(op)
+		if checkpoint != nil {
+			for i := range row.Run.Swarm.ReviewObligations {
+				obligation := &row.Run.Swarm.ReviewObligations[i]
+				if obligation.CandidateOperationID == checkpoint.SourceOperationID && obligation.TaskID == taskID && obligation.State == "repair-required" && obligation.RepairOperationID == "" {
+					obligation.RepairOperationID = op.ID
+				}
+			}
+		}
 		row.Run.Operations = append(row.Run.Operations, op)
 		row.OperationKeys[reviewDigest(key)] = op.ID
 		task.OperationID = op.ID

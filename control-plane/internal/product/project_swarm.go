@@ -30,6 +30,11 @@ func (s *Server) registerProjectSwarm(mux Registrar) {
 	mux.HandleFunc("GET "+base+"/tasks/{taskId}/review", s.reviewProjectSwarmTask)
 	mux.HandleFunc("POST "+base+"/tasks/{taskId}/integrate", s.integrateProjectSwarmTask)
 	mux.HandleFunc("POST "+base+"/tasks/{taskId}/abandon", s.abandonProjectSwarmTask)
+	mux.HandleFunc("GET "+base+"/supervision", s.getProjectSwarmSupervision)
+	mux.HandleFunc("POST "+base+"/operations/{operationId}/messages", s.postProjectSwarmMessage)
+	mux.HandleFunc("POST "+base+"/messages/{messageId}/ack", s.ackProjectSwarmMessage)
+	mux.HandleFunc("POST "+base+"/tasks/{taskId}/review-obligations", s.createProjectSwarmReviewObligation)
+	mux.HandleFunc("POST "+base+"/review-obligations/{obligationId}/resolve", s.resolveProjectSwarmReviewObligation)
 	mux.HandleFunc("GET "+base+"/operations/{operationId}/recovery", s.projectSwarmRecoveryAvailability)
 	mux.HandleFunc("GET "+base+"/operations/{operationId}/workspace", s.inspectProjectSwarmWorkspace)
 	mux.HandleFunc("GET "+base+"/operations/{operationId}/workspace/file", s.readProjectSwarmWorkspaceFile)
@@ -434,7 +439,11 @@ func (s *Server) swarmTaskCapture(ctx context.Context, run ProjectRun, op Projec
 	if err != nil {
 		return nil, err
 	}
-	return s.appendTaskDependencies(run, op, capture)
+	capture, err = s.appendTaskDependencies(run, op, capture)
+	if err != nil {
+		return nil, err
+	}
+	return s.appendSwarmCoordinationCapture(ctx, p, run, op, capture)
 }
 
 // Called only by a reserved run operation. Ordinary reviewed sessions retain

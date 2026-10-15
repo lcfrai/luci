@@ -12,17 +12,18 @@ import (
 )
 
 type ProjectSwarmReview struct {
-	targetDigest string
-	TaskID       string                `json:"taskId"`
-	OperationID  string                `json:"operationId"`
-	SourceCommit string                `json:"sourceCommit"`
-	TargetCommit string                `json:"targetCommit"`
-	ReviewDigest string                `json:"reviewDigest"`
-	Paths        []string              `json:"paths"`
-	Patch        string                `json:"patch"`
-	CanIntegrate bool                  `json:"canIntegrate"`
-	Reason       string                `json:"reason"`
-	Handoff      *TaskHandoffReference `json:"handoff,omitempty"`
+	targetDigest           string
+	TaskID                 string                `json:"taskId"`
+	OperationID            string                `json:"operationId"`
+	SourceCommit           string                `json:"sourceCommit"`
+	TargetCommit           string                `json:"targetCommit"`
+	ReviewDigest           string                `json:"reviewDigest"`
+	Paths                  []string              `json:"paths"`
+	Patch                  string                `json:"patch"`
+	CanIntegrate           bool                  `json:"canIntegrate"`
+	IndependentReviewState string                `json:"independentReviewState"`
+	Reason                 string                `json:"reason"`
+	Handoff                *TaskHandoffReference `json:"handoff,omitempty"`
 }
 
 func (s *Server) swarmReview(ctx context.Context, p project.Project, run ProjectRun, taskID string) (ProjectSwarmReview, error) {
@@ -198,6 +199,17 @@ func (s *Server) reviewProjectSwarmTask(w http.ResponseWriter, r *http.Request) 
 		projectRunProblem(w, err)
 		return
 	}
+	if run.Input.OrchestrationContract == nil {
+		review.IndependentReviewState = "legacy-unassessed"
+	} else if swarmIndependentReviewReady(run, r.PathValue("taskId"), review) {
+		review.IndependentReviewState = "passed"
+	} else {
+		review.IndependentReviewState = "pending"
+		if review.CanIntegrate {
+			review.CanIntegrate = false
+			review.Reason = "The complete candidate is ready for an independent exact-attempt review. Retain its review obligation and finding before integrating."
+		}
+	}
 	journeyJSON(w, 200, map[string]any{"review": review})
 }
 func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Request) {
@@ -244,6 +256,10 @@ func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Reques
 	}
 	if !review.CanIntegrate || review.ReviewDigest != req.ReviewDigest {
 		projectRunProblem(w, errors.New("The reviewed source, target or task status changed. Refresh the complete integration review."))
+		return
+	}
+	if !swarmIndependentReviewReady(run, r.PathValue("taskId"), review) {
+		projectRunProblem(w, errors.New("This candidate needs an independent exact-attempt review and retained finding before integration. Inspect the review obligation and its captured evidence."))
 		return
 	}
 	if err = s.OrchestratorExecutionGate(p.ID); err != nil {
@@ -355,6 +371,24 @@ func swarmAllIntegrated(run ProjectRun) bool {
 		return false
 	}
 	for _, task := range run.Swarm.Tasks {
+		if task.ReviewOnly {
+			op := swarmOperation(&run, task.OperationID)
+			if op == nil || op.Handoff == nil || op.Status != "succeeded" && op.Status != "review-required" {
+				return false
+			}
+			passed := false
+			for _, item := range run.Swarm.ReviewObligations {
+				candidate := swarmTask(&run, item.TaskID)
+				if item.ReviewerOperationID == op.ID && item.State == "passed" && item.ReviewerHandoffDigest == op.Handoff.Digest && candidate != nil && candidate.Integration != nil && candidate.Integration.State == "integrated" {
+					passed = true
+					break
+				}
+			}
+			if !passed {
+				return false
+			}
+			continue
+		}
 		if task.Integration == nil || task.Integration.State != "integrated" {
 			return false
 		}

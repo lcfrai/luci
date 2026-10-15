@@ -93,7 +93,7 @@ func (s *Server) continueCoordinatorCandidateIntegration(ctx context.Context, p 
 			continue
 		}
 		review, reviewErr := s.swarmReview(ctx, p, run, task.ID)
-		if reviewErr != nil || !review.CanIntegrate || len(review.Paths) == 0 || !hexDigest(review.ReviewDigest) {
+		if reviewErr != nil || !review.CanIntegrate || !swarmIndependentReviewReady(run, task.ID, review) || len(review.Paths) == 0 || !hexDigest(review.ReviewDigest) {
 			return false, nil
 		}
 		for _, path := range review.Paths {

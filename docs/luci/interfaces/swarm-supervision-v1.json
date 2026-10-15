@@ -7,12 +7,14 @@
       "runId": "run-...",
       "runRevision": 1,
       "queueRevision": 1,
+      "observedAt": "RFC3339Nano; run and queue snapshots carry separate revisions",
       "context": { "briefRevision": 1, "planRevision": 1, "contractDigest": "64 lowercase hex or empty for legacy-unassessed", "freshness": "current|changed|unavailable" },
       "activityPhase": "ready|working|paused|blocked|stopped|unknown",
       "qualityPhase": "not-started|needs-review|repair-required|awaiting-checks|checked|unknown",
       "settlement": "confirmed|uncertain",
-      "tasks": [{ "taskId": "saved task ID", "operationId": "exact current operation or empty", "state": "queued|working|review-required|repair-required|integrated|blocked|unknown", "integrationState": "none|integrating|integrated|unknown" }],
-      "messages": [{ "id": "msg-...", "sequence": 1, "kind": "discovery|question|dependency-result|review-finding|decision|lifecycle-request", "sender": { "taskId": "saved task ID", "operationId": "op-...", "childId": "s-...", "worktreeId": "w-...", "contextDigest": "64 lowercase hex" }, "recipientTaskId": "saved task ID", "causalMessageId": "msg-... or empty", "evidence": { "kind": "handoff|source-commit|review|check|none", "id": "immutable receipt/commit ID or empty", "digest": "64 lowercase hex or empty" }, "summary": "bounded attributed claim", "createdAt": "RFC3339Nano", "ack": null }],
+      "tasks": [{ "taskId": "saved task ID", "operationId": "exact current operation or empty", "role": "coding|review-only", "state": "queued|working|review-required|review-passed|integrated|blocked|unknown", "integrationState": "none|integrating|integrated|unknown" }],
+      "messages": [{ "id": "msg-...", "sequence": 1, "kind": "discovery|question|dependency-result|review-finding|decision|lifecycle-request", "sender": { "taskId": "saved task ID", "operationId": "op-...", "childId": "s-...", "worktreeId": "w-...", "contextDigest": "64 lowercase hex" }, "recipientTaskId": "saved task ID", "causalMessageId": "msg-... or empty", "evidence": { "kind": "handoff|source-commit|none", "id": "exact sender operation or source commit, empty for none", "digest": "64 lowercase hex or empty for none" }, "summary": "bounded attributed claim", "createdAt": "RFC3339Nano", "ack": null }],
+      "reviewObligations": [{ "id": "review-...", "taskId": "candidate task", "candidateOperationId": "op-...", "candidateCommit": "40 lowercase hex", "reviewDigest": "64 lowercase hex", "reviewerOperationId": "different reserved op-...", "state": "pending|passed|repair-required|unknown", "reviewerHandoffDigest": "64 lowercase hex after resolution", "findingMessageId": "msg-... after resolution", "repairOperationId": "op-... after retained checkpoint" }],
       "page": { "after": 0, "nextCursor": 1, "hasMore": false, "omitted": 0 },
       "attention": [{ "id": "stable message/obligation/operation ID", "kind": "question|review|repair|unknown|blocked", "taskId": "saved task ID", "action": "existing review/checkpoint/queue/stop/recovery URL" }],
       "metrics": { "routineDecisions": null, "latency": null, "quality": null, "throughput": null, "cost": null }
@@ -20,7 +22,7 @@
   },
   "writes": {
     "POST /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/messages": {
-      "request": { "expectedRevision": 1, "idempotencyKey": "caller-generated stable key", "recipientTaskId": "saved task ID", "kind": "discovery|question|dependency-result|review-finding|decision|lifecycle-request", "causalMessageId": "msg-... or empty", "evidence": { "kind": "handoff|source-commit|review|check|none", "id": "immutable identity or empty", "digest": "64 lowercase hex or empty" }, "summary": "bounded attributed claim" },
+      "request": { "expectedRevision": 1, "idempotencyKey": "caller-generated stable key", "recipientTaskId": "saved task ID", "kind": "discovery|question|dependency-result|review-finding|decision|lifecycle-request", "causalMessageId": "msg-... or empty", "evidence": { "kind": "handoff|source-commit|none", "id": "sender operation ID or exact starting commit, empty for none", "digest": "exact captured handoff digest or implementationDigest(JSON commit string), empty for none" }, "summary": "bounded attributed claim" },
       "response": { "message": "same message shape as supervision", "runRevision": 2 }
     },
     "POST /v1/product/projects/{id}/runs/{runId}/swarm/messages/{messageId}/ack": {
@@ -30,13 +32,18 @@
     "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/review-obligations": {
       "request": { "expectedRevision": 3, "idempotencyKey": "stable key", "candidateOperationId": "exact task attempt", "reviewerOperationId": "different saved task attempt", "reviewDigest": "exact existing candidate review digest" },
       "response": { "obligation": "durable candidate/reviewer/context/limit receipt", "runRevision": 4 }
+    },
+    "POST /v1/product/projects/{id}/runs/{runId}/swarm/review-obligations/{obligationId}/resolve": {
+      "request": { "expectedRevision": 4, "outcome": "passed|repair-required", "reviewerHandoffDigest": "exact captured reviewer handoff digest", "findingMessageId": "addressed review-finding from that reviewer with that handoff evidence" },
+      "response": { "obligation": "resolved exact candidate/reviewer receipt", "runRevision": 5 }
     }
   },
   "invariants": [
     "Project and actor read/edit authority is rechecked before every read/write; never derive ownership from caller text.",
     "Sender and recipient operation identities, child, worktree, context and contract are resolved from the private run.",
     "Writes are idempotent by scoped key and exact normalized payload; replay does not allocate or dispatch.",
-    "Messages are claims and evidence references only; ack is receipt, not approval, integration, execution or deployment authority.",
+    "Messages are claims and evidence references only; coordinator ack is an attributed read receipt, not proof that the worker saw it and not approval, integration, execution or deployment authority.",
+    "Legacy runs are explicitly legacy-unassessed. A contracted run needs a passed distinct-attempt review with a captured handoff and addressed finding before integration. A deliberate zero-write-scope review-only task is satisfied by its passed exact reviewer receipt and is never counted as a source merge; existing combined checks and acceptance still follow.",
     "New worker capture includes only messages addressed to its saved task and exact current context; prior captured bytes never change.",
     "No read starts, reconciles or polls a provider. Unknown effects remain unknown; absent metrics are null, observed zero is numeric zero."
   ]

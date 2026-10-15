@@ -54,6 +54,9 @@ func TestTaskHandoffRecordedClaimsQuestionsAndFrozenDependency(t *testing.T) {
 	if collected != 1 || released != 1 || response.Handoff.Receipt.Reported == nil || len(response.Handoff.RecordedChecks) != 0 || len(response.Handoff.QuestionIDs) != 1 {
 		t.Fatal("claims became checks or question disappeared", response.Handoff)
 	}
+	if len(run.Swarm.Messages) != 1 || run.Swarm.Messages[0].Kind != "dependency-result" || run.Swarm.Messages[0].RecipientTaskID != "task-c" || run.Swarm.Messages[0].Evidence.Digest != response.Handoff.Digest || run.Swarm.Messages[0].Attribution != "owned-worker-report" {
+		t.Fatal("captured worker report did not create exact addressed dependency claim", run.Swarm.Messages)
+	}
 	digest := response.Handoff.Digest
 	question := response.Handoff.QuestionIDs[0]
 	decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", route+"/questions/"+question+"/answer", map[string]any{"expectedRevision": run.Revision, "handoffDigest": digest, "answer": "Keep 30 days; reviewed product constraints still apply."}, 200).Body.Bytes(), &response)
