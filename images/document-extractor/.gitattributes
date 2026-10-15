@@ -1,0 +1,6 @@
+# These exact review inputs are addressed by byte hash across platforms.
+acquisition-inspection-manifest.json -text
+dependency-lock.json -text
+inspect_inputs.py -text
+windows_inspector_controller.py -text
+test_inspect_inputs.py -text

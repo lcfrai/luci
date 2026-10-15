@@ -1,0 +1,86 @@
+{
+  "phases": [
+    "acquire",
+    "inspect"
+  ],
+  "sourceBase": "7cdbfa8f32d389b12990a73b9cd8b2264277670c",
+  "reviewNeeds": [
+    "Exact atomic JOB_LIST/handle lifetime/partial-construction cleanup source review.",
+    "One coherent inert fake-fixture batch, not executed locally.",
+    "Separate read-only acquisition release, then positive receipt review before inspection release.",
+    "Registry redirects/challenges refuse; compiled features and authentication remain unknown.",
+    "Root external whole420s supervisor remains required for stuck controller/OS calls."
+  ],
+  "lockSha256": "91f2739b1ccfb8c5277e41ebbcaa45ba7ba16f1018abdf0122fc39c1ec0d0423",
+  "python": {
+    "path": "C:/Users/DylanMackie/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+    "sha256": "b847bb9f4e48c19f585c8bf7d8b355f3f8c6d2125717ece9c9d7e16fb9f09de8"
+  },
+  "limits": {
+    "wholeSeconds": 420,
+    "retainedCompressedBytes": 268435456,
+    "cleanupReserveSeconds": 120,
+    "stopPhysicalAndCommitBytes": 4294967296,
+    "expandedBytes": 1073741824,
+    "processes": 4,
+    "processMemoryBytes": 1610612736,
+    "members": 100000,
+    "stdoutOrStderrBytes": 65536,
+    "startPhysicalAndCommitBytes": 8589934592,
+    "jobMemoryBytes": 2147483648,
+    "memberBytes": 134217728,
+    "resultBytes": 2097152,
+    "metadataBytes": 1048576,
+    "startCpuStrictlyBelowPercent": 50,
+    "startOutputDiskFreeBytes": 2147483648,
+    "workSeconds": 300
+  },
+  "lifecycleUnchanged": "0b8b33c6bf8dcbb1e80b6a23655794eeae17cc6a",
+  "manifestSha256": "f839f2d1edaf0fbc1f039d20fcc4abd83b04accba2d0846e369174a0f2bad8b2",
+  "nextSuggestedPhase": {
+    "authorized": false,
+    "arguments": [
+      "-I",
+      "-S",
+      "-B",
+      "E:\\Luci-local-acceptance\\checkouts\\discover-documents-2017\\images\\document-extractor\\windows_inspector_controller.py",
+      "--phase",
+      "acquire",
+      "--batch",
+      "wheels",
+      "--output",
+      "E:/Luci-local-acceptance/artifacts/extractor-wheels-acquire-review-20261016"
+    ]
+  },
+  "pins": [
+    {
+      "bytes": 38645,
+      "sha256": "2eae9c4354fed03398d302f0c83b1b0ec4c4aab23e26c426792fe3f8dcf1160c",
+      "file": "inspect_inputs.py"
+    },
+    {
+      "bytes": 19347,
+      "sha256": "6f4c8615e1aee4f1f989182ab21cc9aafd9c0963c60144af8389e7bef154a91c",
+      "file": "windows_inspector_controller.py"
+    },
+    {
+      "bytes": 18878,
+      "sha256": "6a00aa644c16f5ad81a435276fa8c4131fabc4808e7032585453b4238a6a88de",
+      "file": "test_inspect_inputs.py"
+    },
+    {
+      "bytes": 8632,
+      "sha256": "21aeafd8cbfd6b20c05d4ac2b875a98453dc3df299c1fbe1607782a1e34a7400",
+      "file": "INSPECTOR-REVIEW.md"
+    }
+  ],
+  "state": "source-candidate-not-executed-or-authorized",
+  "version": 1,
+  "batches": [
+    "wheels",
+    "missing-notice",
+    "base-layer",
+    "primary",
+    "debian-controls"
+  ]
+}
