@@ -340,6 +340,20 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				if reviewedOutcome {
 					return nil
 				}
+				repair, repairErr := s.continueCoordinatorRepair(fresh, p, row)
+				if repairErr != nil {
+					return repairErr
+				}
+				if repair {
+					return nil
+				}
+				retryReview, retryErr := s.continueCoordinatorReviewerRetry(fresh, p, row)
+				if retryErr != nil {
+					return retryErr
+				}
+				if retryReview {
+					return nil
+				}
 				integrated, integrationErr := s.continueCoordinatorCandidateIntegration(fresh, p, row)
 				if integrationErr != nil {
 					return integrationErr

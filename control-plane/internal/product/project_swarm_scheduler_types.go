@@ -129,6 +129,21 @@ type swarmQueueRecord struct {
 	KeyDigest      string                       `json:"keyDigest"`
 	BatchKeyDigest string                       `json:"batchKeyDigest"`
 	RequestDigest  string                       `json:"requestDigest"`
+	// Internal automatic repair is tied to one retained failed finding and
+	// stopped source attempt. These fields never replace its run receipts.
+	RepairObligationID      string `json:"repairObligationId,omitempty"`
+	RepairSourceOperationID string `json:"repairSourceOperationId,omitempty"`
+	RepairReviewDigest      string `json:"repairReviewDigest,omitempty"`
+	// A coordinator-created reviewer retry remains bound to one exact saved
+	// continuation and repaired candidate through scheduler admission.
+	AutoReviewContinuationID string `json:"autoReviewContinuationId,omitempty"`
+	AutoReviewActorID        string `json:"autoReviewActorId,omitempty"`
+	AutoReviewCandidateID    string `json:"autoReviewCandidateId,omitempty"`
+	// An operator pause retains the exact prior non-active state. In particular,
+	// repair_checkpoint_pending is an internal pause, not a queued dispatch.
+	PausedFromState  string `json:"pausedFromState,omitempty"`
+	PausedFromCode   string `json:"pausedFromCode,omitempty"`
+	PausedFromReason string `json:"pausedFromReason,omitempty"`
 }
 type swarmSchedulerLedger struct {
 	Version        int                  `json:"version"`

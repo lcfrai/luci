@@ -20,11 +20,24 @@ func coordinatorIntegratedRun(run ProjectRun, row coordinatorContinuationRecord)
 	for _, id := range row.Run.ImplementationContext.TaskIDs {
 		wanted[id] = true
 	}
+	// A contract-designated reviewer contributes an exact passed independent
+	// receipt, not a source integration. The swarm gate verifies its candidate,
+	// finding, handoff and repaired successor before combined checks can start.
+	if !swarmAllIntegrated(run) {
+		return "", false
+	}
 	for _, task := range run.Swarm.Tasks {
 		in := task.Integration
 		op := swarmOperation(&run, task.OperationID)
-		if !wanted[task.ID] || in == nil || in.State != "integrated" || !deliverySHA.MatchString(in.Commit) || !hexDigest(in.ReviewDigest) ||
-			op == nil || op.TaskID != task.ID || (op.Status != "succeeded" && op.Status != "review-required" && op.Status != "failed") || op.Allocation != "ready" {
+		if !wanted[task.ID] || op == nil || op.TaskID != task.ID || op.Allocation != "ready" {
+			return "", false
+		}
+		if task.ReviewOnly {
+			if in != nil || op.Handoff == nil || (op.Status != "succeeded" && op.Status != "review-required") {
+				return "", false
+			}
+		} else if in == nil || in.State != "integrated" || !deliverySHA.MatchString(in.Commit) || !hexDigest(in.ReviewDigest) ||
+			(op.Status != "succeeded" && op.Status != "review-required" && op.Status != "failed") {
 			return "", false
 		}
 		delete(wanted, task.ID)
@@ -38,6 +51,29 @@ func coordinatorIntegratedRun(run ProjectRun, row coordinatorContinuationRecord)
 		return "", false
 	}
 	return reviewDigest(run.Swarm.Tasks), true
+}
+
+// Review-only workers contribute the passed receipt checked by
+// coordinatorIntegratedRun, never a source commit. Keep ancestry checks on
+// coding integrations so combined checks can follow an independent review.
+func coordinatorIntegratedSourceCommits(run ProjectRun) ([]string, error) {
+	if run.Swarm == nil {
+		return nil, ErrOrchestratorConflict
+	}
+	commits := make([]string, 0, len(run.Swarm.Tasks))
+	for _, task := range run.Swarm.Tasks {
+		if task.ReviewOnly {
+			if task.Integration != nil {
+				return nil, ErrOrchestratorConflict
+			}
+			continue
+		}
+		if task.Integration == nil || task.Integration.State != "integrated" || !deliverySHA.MatchString(task.Integration.Commit) {
+			return nil, ErrOrchestratorConflict
+		}
+		commits = append(commits, task.Integration.Commit)
+	}
+	return commits, nil
 }
 
 // Caller holds s.mu. Authority, exact review selection and delegated command
@@ -131,9 +167,13 @@ func (s *Server) continueCoordinatorDelivery(ctx context.Context, p project.Proj
 	bounded, cancel := context.WithTimeout(ctx, 20*time.Second)
 	digest, commit, dirty, err := s.checkSource(bounded, p.Path)
 	if err == nil && !dirty && deliverySHA.MatchString(commit) && hexDigest(digest) {
-		for _, task := range run.Swarm.Tasks {
-			if _, err = s.journeyGit(bounded, p.Path, "merge-base", "--is-ancestor", task.Integration.Commit, commit); err != nil {
-				break
+		var integrated []string
+		integrated, err = coordinatorIntegratedSourceCommits(run)
+		if err == nil {
+			for _, sourceCommit := range integrated {
+				if _, err = s.journeyGit(bounded, p.Path, "merge-base", "--is-ancestor", sourceCommit, commit); err != nil {
+					break
+				}
 			}
 		}
 	}

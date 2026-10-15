@@ -148,14 +148,17 @@ func (s *Server) reserveProjectSwarmCheckpoint(w http.ResponseWriter, r *http.Re
 	}
 	checkpoint := ProjectSwarmCheckpoint{SourceOperationID: op.ID, SourceChildID: op.ChildID, SourceCommit: capture.Review.SourceCommit, SourceBaseCommit: op.BaseCommit, TargetCommit: capture.Review.TargetCommit, ReviewDigest: capture.Review.ReviewDigest, ContextDigest: implementationDigest(op.Implementation), CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	var pathErr error
-	run, next, created, err := s.projectRuns.reserveSwarmTask(p.ID, p.Path, run.ID, run.Revision, request.IdempotencyKey, op.TaskID, checkpoint.TargetCommit, func(id string) string {
+	coordinatorIndependentReviewBeforeMutation(r.Context())
+	run, next, created, err := s.projectRuns.reserveSwarmTaskGated(p.ID, p.Path, run.ID, run.Revision, request.IdempotencyKey, op.TaskID, checkpoint.TargetCommit, func(id string) string {
 		path, e := s.swarmPath(p.ID, run.ID, id)
 		if e != nil {
 			pathErr = e
 			return ""
 		}
 		return project.WorktreeID(path)
-	}, &checkpoint)
+	}, &checkpoint, func(current ProjectRun) error {
+		return s.checkCoordinatorIndependentReviewGate(r.Context(), p, current, "repair-checkpoint")
+	})
 	if err != nil {
 		projectRunProblem(w, err)
 		return
