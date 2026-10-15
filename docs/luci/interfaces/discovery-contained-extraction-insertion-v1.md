@@ -63,7 +63,10 @@ history, source links and specification approval.
 One absolute180s attempt includes compute<=120s and cleanup60s. Windows start
 requires fresh8GiB physical/commit and CPU<50%; running unknown pressure or4GiB
 reserve breach retires only the exact parser. Existing shared policy also applies.
-Complete framed capture is durable before retirement. Evidence additionally
+Ordinary already-exited success keeps framed capture durable before retirement.
+Emergency retirement of an exact ACKed CID precedes reader/publication blockers;
+its lease and lifecycle lock stay held until reader and durable state settle.
+Evidence additionally
 requires exact exit0/non-OOM, settled reader, verified retirement and unchanged
 document CAS before the original whole deadline. Unknown Create needs an explicit
 durable fence intent and a real marker ACK; readback never substitutes for ACK.
@@ -71,6 +74,11 @@ Expired or uncertain leases retain all capacity and the serial slot. A reader
 that does not settle retains its exact OS lifecycle lock until reader closure or
 process death; recovery cannot race it. Recovery has a separate bounded60s cleanup
 window, never a new compute window or automatic replacement.
+
+Before Execute, private/public claim publication failure retires only the exact
+positively unallocated stage. A lost public save ACK preserves that exact attempt
+as interrupted with a closed private receipt. Unknown or possibly allocated
+ownership is retained for explicit recovery; rollback does not dispatch a parser.
 
 Deferred checks: backend/dockerbe focused document stream/fence tests and existing
 check/fence/resource-observer tests; API document capacity/lifecycle/recovery tests

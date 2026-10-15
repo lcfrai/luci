@@ -117,10 +117,7 @@ func (s *Server) startDiscoveryExtraction(w http.ResponseWriter, r *http.Request
 	}
 	receipt := discoveryNativeReceipt{Version: 1, AccountScope: scope.AccountScope, ProjectScope: scope.ProjectScope, Request: request, Outcome: DiscoveryExtractionOutcome{State: "claimed", Stage: "claim", Message: "The exact native attempt is claimed; no parser has started.", ReaderSettled: true}}
 	if err == nil {
-		err = s.saveDiscoveryNative(p, receipt)
-	}
-	if err == nil {
-		err = s.saveDiscoveryDocument(current)
+		err = s.publishDiscoveryNativeClaim(p, current, receipt, discoveryNativeClaimWriters{private: s.saveDiscoveryNative, document: s.saveDiscoveryDocument})
 	}
 	s.mu.Unlock()
 	if err != nil {
