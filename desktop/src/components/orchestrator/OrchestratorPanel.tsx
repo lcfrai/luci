@@ -19,6 +19,8 @@ import { CoordinatorExecution } from "./CoordinatorExecution";
 import { CoordinatorTeamIntents } from "./CoordinatorTeamIntents";
 import { CoordinatorContextReview } from "./CoordinatorContextReview";
 import { useAuth } from "../auth/AuthProvider";
+import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
+import { designWorkScope, observedDesignWorkPhase, ownDesignWorkStatus } from '../../store/designWorkStatus';
 import { readAgentPreference, writeAgentPreference, type OrchestratorAgent } from "./agentPreference";
 import { finishComposerRequest, isComposerRecoveryKey, readComposerRecovery, retainComposerRequest, saveComposerDraft } from "./composerRecovery";
 import "./orchestrator.css";
@@ -68,6 +70,14 @@ export function OrchestratorPanel({ projectId, primary = false }: { projectId: s
 function ProjectConversation({ projectId, scope, primary }: { projectId: string; scope: string; primary: boolean }) {
   const access = useProjectAccess(projectId), setup = useSetup();
   const actorId = useAuth()?.profile.user.id ?? "";
+  const workTeam = useTeamWorkspace();
+  const workScope = designWorkScope(scope, actorId, workTeam?.teamId ?? '', projectId);
+  const workPublisher = useRef<ReturnType<typeof ownDesignWorkStatus> | null>(null);
+  useEffect(() => {
+    if (!workScope) return;
+    const publisher = ownDesignWorkStatus(workScope); workPublisher.current = publisher;
+    return () => { publisher.close(); if (workPublisher.current === publisher) workPublisher.current = null; };
+  }, [workScope]);
   const [policyEpoch, setPolicyEpoch] = useState(0);
   const { canRead, canEdit, canAssist, canExecute } = access;
   const [compact, setCompact] = useState(() => window.matchMedia(compactOverviewQuery).matches);
@@ -101,7 +111,9 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
   const [loading, setLoading] = useState(false), [busy, setBusy] = useState("");
   const [contextRefreshQueued, setContextRefreshQueued] = useState(false);
   const [contextStale, setContextStale] = useState(false);
-  const [uncertain, setUncertain] = useState(false), [pendingJob, setPendingJob] = useState<OrchestratorJob | null>(null);
+  const [uncertain, setUncertain] = useState(false), [pendingJob, setObservedJob] = useState<OrchestratorJob | null>(null);
+  const pendingJobScope = useRef<string | null>(null);
+  function setPendingJob(value: OrchestratorJob | null) { pendingJobScope.current = workScope; setObservedJob(value); }
   const [missingJobId, setMissingJobId] = useState("");
   const [review, setReview] = useState<{ turn: OrchestratorTurn; revision: number; digest: string } | null>(null);
   const [refreshEditor, setRefreshEditor] = useState(false);
@@ -379,6 +391,10 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
   const completedUnrecorded = !!activeTurn && pendingJob?.id === activeTurn.jobId && pendingJob.orchestratorTurnId === activeTurn.id &&
     pendingJob.projectId === activeTurn.projectId && ["succeeded", "failed", "cancelled"].includes(pendingJob.status);
   const missingReservedJob = !!activeTurn && activeTurn.status === "reserved" && missingJobId === activeTurn.jobId;
+  useEffect(() => {
+    const observed = pendingJobScope.current === workScope && pendingJob && view?.turns.some(turn => turn.jobId === pendingJob.id && turn.id === pendingJob.orchestratorTurnId && turn.actor.id === actorId);
+    workPublisher.current?.publish(canRead && !access.loading && !access.error && observed && pendingJob ? {jobId: pendingJob.id, phase: observedDesignWorkPhase(pendingJob.status), updatedAt: pendingJob.updatedAt} : null);
+  }, [workScope, canRead, access.loading, access.error, pendingJob, view, actorId]);
   useEffect(() => {
     if (!canRead) return;
     let stopped = false, polling = false;

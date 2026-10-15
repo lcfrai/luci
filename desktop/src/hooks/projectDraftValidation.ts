@@ -1,5 +1,6 @@
 import type { ProjectSpecification } from "../api/definition";
 import type { DesignPlan } from "../api/designPlan";
+import { editableDesignSceneValid, designRasterPinValid } from '../api/designScene';
 import type { CheckCommand, DesignScene, ImplementationTask } from "../api/product";
 import { draftMatches } from "./useProjectDraft";
 export const definitionDraftValid = (value: unknown): value is ProjectSpecification => draftMatches(value, {
@@ -13,7 +14,8 @@ export const designPlanDraftValid = (value: unknown): value is DesignPlan => dra
   screens: [{ id: "", name: "", route: "", purpose: "", states: [""], widths: [0], requirementIds: [""], accessibility: "" }],
   tokens: [{ name: "", value: "", purpose: "" }], assets: [{ id: "", path: "", purpose: "", licence: "" }],
   implementationNotes: "", prototypeReleaseId: "", prototypeCommit: "", status: "", digest: "", updatedAt: "",
-});
+}) && ((value as DesignPlan).scene === undefined || editableDesignSceneValid((value as DesignPlan).scene)) &&
+  (value as DesignPlan).assets.every(asset => asset.content === undefined || designRasterPinValid(asset.content));
 export interface PlanDraft { tasks: ImplementationTask[]; title: string }
 const optionalTextList = (value: unknown): boolean => value === undefined || (Array.isArray(value) && value.every(item => typeof item === "string"));
 export const planDraftValid = (value: unknown): value is PlanDraft => draftMatches(value, { title: "", tasks: [{ id: "", title: "", status: "" }] }) &&

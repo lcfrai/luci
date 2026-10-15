@@ -18,11 +18,16 @@ import { JourneyHeader } from "../journey/shared";
 import { Button } from "../fluid/components/button";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 import { PrototypeReview, prototypeScreenRoute, type OpenPrototypeSource } from "./PrototypeReview";
+import { DesignSceneCanvas } from './DesignSceneCanvas';
+import { designSceneErrors } from '../../api/designScene';
+import { designWorkScope } from '../../store/designWorkStatus';
+import { useAuth } from '../auth/AuthProvider';
+import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import "../definition/definition.css";
 import "./design.css";
 const Sketch = lazy(() => import("../journey/DesignEditor"));
-type View = "screens" | "sketch" | "prototype" | "handoff";
-const views: [View, string][] = [["screens", "Screens and states"], ["sketch", "Sketch"], ["prototype", "Prototype"], ["handoff", "Implementation handoff"]];
+type View = 'canvas' | "screens" | "sketch" | "prototype" | "handoff";
+const views: [View, string][] = [['canvas', 'Canvas'], ["screens", "Screens and states"], ["sketch", "Sketch"], ["prototype", "Prototype"], ["handoff", "Implementation handoff"]];
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 12)}`;
 const designHelpMessage = "Help me plan the experience from the saved definition. Explain how each person or role uses the screens, what they can and cannot do, what data remains saved, and what happens on first use, success and failure. Ask about consequential missing decisions before proposing a design-plan draft for my review. Do not assume every outcome belongs on one screen.";
 // Browser drafts retain unfinished text in the same field, so recovery also
@@ -42,12 +47,14 @@ function planDraftValid(value: unknown): value is PlanDraft {
 
 export default function DesignWorkspace({ projectId }: { projectId: string }) {
   const scope = useProjectDraftScope(projectId);
-  const [view, setView] = useState<View>("screens");
+  const [view, setView] = useState<View>('canvas');
   return <ProjectDesignWorkspace key={`${scope}:${projectId}`} projectId={projectId} scope={scope} view={view} setView={setView} />;
 }
 function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId: string; scope: string | null; view: View; setView(view: View): void }) {
   const access = useProjectAccess(projectId);
   const { canRead, canEdit, canExecute } = access;
+  const actorId = useAuth()?.profile.user.id ?? '', team = useTeamWorkspace();
+  const workScope = designWorkScope(scope, actorId, team?.teamId ?? '', projectId);
   const [plan, setPlan] = useState<PlanDraft | null>(null);
   const [spec, setSpec] = useState<ProjectSpecification | null>(null);
   const [baseRevision, setBaseRevision] = useState(0);
@@ -161,6 +168,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
     if (plan.screens.some(screen => !screen.name.trim() || screen.states.some(state => !state.trim()))) return;
     if (plan.screens.some(screen => responsiveWidths(screen.widths).error || screen.requirementIds.some(id => !spec.requirements.some(requirement => requirement.id === id)))) return;
     const savedInput: DesignPlan = { ...plan, screens: plan.screens.map(screen => ({ ...screen, widths: responsiveWidths(screen.widths).values })) };
+    if (savedInput.scene && designSceneErrors(savedInput.scene, savedInput).length) return;
     const requestGeneration = generation.current;
     working.current = true; setBusy(true); setPending("save"); setError("");
     try { const saved = await designPlanApi.save(projectId, savedInput, baseRevision, spec.briefRevision, spec.revision); if (alive.current && requestGeneration === generation.current) { draft.clear(); savedPlan.current = saved; setPlan(saved); setBaseRevision(saved.revision); setDirty(false); setNotice(`Design plan ${saved.revision} saved. Implementation context updated.`); notifyProjectContextChanged(scope, projectId); } }
@@ -271,12 +279,15 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
   const reviewPlan = plan && { ...plan, screens: plan.screens.map(screen => ({ ...screen, widths: responsiveWidths(screen.widths).values })) };
   const reviewScreen = reviewPlan?.screens.find(screen => screen.id === reviewScreenId) ?? reviewPlan?.screens[0];
   const invalidWidths = !!plan?.screens.some(screen => responsiveWidths(screen.widths).error);
+  const sceneNeeds = reviewPlan?.scene ? designSceneErrors(reviewPlan.scene, reviewPlan) : [];
   const unavailableLinks = !!spec && !!plan?.screens.some(screen => screen.requirementIds.some(id => !spec.requirements.some(requirement => requirement.id === id)));
   const draftNeeds = plan?.screens.flatMap((screen, index) => !screen.name.trim() ? [`Name screen ${index + 1} so you can save this draft.`] : screen.states.some(state => !state.trim()) ? [`Finish or remove empty state lines for ${screen.name} before saving.`] : []) ?? [];
   const approvalNeeds = !plan?.screens.length ? ["Describe at least one screen, or ask Luci to help plan the experience."] : plan.screens.flatMap((screen, index) => {
     const missing = [!screen.purpose.trim() && "what people do here and how their access differs", !screen.states.length && "what they see on first use, success and failure", !responsiveWidths(screen.widths).values.length && "the responsive widths to design for"].filter(Boolean);
     return missing.length ? [`${screen.name.trim() || `Screen ${index + 1}`}: describe ${missing.join("; ")}.`] : [];
   });
+  approvalNeeds.push(...sceneNeeds);
+  if (plan?.scene && !plan.scene.frames.length) approvalNeeds.push('Add scene frames before approving this design.');
   const widths = [...new Set([390, 768, 1440, width, ...(reviewScreen?.widths ?? [])])].filter(value => Number.isInteger(value) && value > 0).sort((a, b) => a - b);
   useEffect(() => { closePrototype(); }, [selectedPrototype?.id, selectedPrototype?.commit, selectedPrototype?.configurationRevision]);
   return <section className="journey-page design-workspace">
@@ -311,7 +322,12 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
       {invalidWidths && <p className="journey-warning" role="status">Finish the responsive widths in Screens and states before saving. Your exact text is kept while you edit.</p>}
       {draftNeeds.length > 0 && <div className="journey-warning" role="status">{draftNeeds.map(message => <p key={message}>{message}</p>)}<p>You can save unfinished experience details as a draft after naming the screen.</p></div>}
       {approvalNeeds.length > 0 && plan.screens.length > 0 && <section className="design-review-needs" aria-label="Design decisions still needed"><h3>Before approving this handoff</h3><ul>{approvalNeeds.map(message => <li key={message}>{message}</li>)}</ul><p>Record these details in Screens and states. Saving a draft does not approve it or start a build.</p></section>}
-      <TabsSubtlePanel idPrefix={tabsId} index={0} selectedIndex={selectedIndex}>
+      <div id={`${tabsId}-panel-0`} role="tabpanel" aria-labelledby={`${tabsId}-tab-0`} hidden={view !== 'canvas'} tabIndex={-1}>
+        <DesignSceneCanvas plan={reviewPlan!} canRead={canRead && !documentUnavailable} canEdit={canEdit && !draft.pending} busy={editorBusy || refreshingSketch} active={view === 'canvas'} workScope={workScope}
+          canAsk={!dirty && !draft.pending && !sketchDirty && !sketchBusy} onChange={scene => patch({scene})} onPlan={() => selectView('screens')}
+          onAsk={message => window.dispatchEvent(new CustomEvent('luci:orchestrator-open', {detail: {projectId, scope, message}}))} />
+      </div>
+      <TabsSubtlePanel idPrefix={tabsId} index={1} selectedIndex={selectedIndex}>
       {view === "screens" && <div className="design-plan-layout"><div className="design-plan-content"><fieldset className="definition-fields" disabled={!canEdit || editorBusy || !!draft.pending}>
         {!plan.screens.length && <div className="design-empty"><h2>Describe how someone will use the application</h2><p>Start with one place a person does something useful. Give it a name, describe their actions and access, then the states and recovery they will see. You decide how many screens the experience needs.</p><Button type="button" variant="primary" onClick={addScreen}>Describe the first screen</Button><p className="journey-muted">Describe this screen’s behavior, then link the outcomes it supports. Save the draft when you are ready to share it.</p></div>}
         {plan.screens.map((s,index) => <fieldset className="definition-record" key={s.id}><legend>Screen {index + 1}</legend>
@@ -328,10 +344,10 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
         {plan.screens.length > 0 && <Button type="button" variant="secondary" onClick={addScreen}>Add screen</Button>}
       </fieldset></div><aside className="design-definition"><h2>Definition coverage</h2><p className="journey-muted">Definition {spec.revision} · {spec.status}</p><ul>{spec.requirements.map((r) => <li key={r.id}><strong>{r.id}</strong><p>{r.title}</p><small>{linked.has(r.id) ? "Linked to a screen" : "No screen link yet"}</small></li>)}</ul><p className="journey-muted">Some backend requirements do not need a screen. Coverage records intention; checks record actual behavior.</p></aside></div>}
       </TabsSubtlePanel>
-      <TabsSubtlePanel idPrefix={tabsId} index={1} selectedIndex={selectedIndex}>
+      <TabsSubtlePanel idPrefix={tabsId} index={2} selectedIndex={selectedIndex}>
         {view === "sketch" && <div className="design-sketch"><p className="journey-muted">Sketch is a local drawing surface. Save the drawing here; screen plans and reviewed handoffs remain separate.</p><Suspense fallback={<p role="status">Opening sketch tools…</p>}><Sketch projectId={projectId} onDirtyChange={setSketchDirty} onBusyChange={setSketchBusy} /></Suspense></div>}
       </TabsSubtlePanel>
-      <TabsSubtlePanel idPrefix={tabsId} index={2} selectedIndex={selectedIndex}>
+      <TabsSubtlePanel idPrefix={tabsId} index={3} selectedIndex={selectedIndex}>
       {view === "prototype" && <section className="design-prototype"><h2>Inspect an actual running prototype</h2><p>Choose a verified application release built from your project. Its source commit will be recorded in the design handoff.</p>
         {historyBusy && <p role="status">Refreshing prototype history… Your saved design remains available.</p>}
         {historyError && <div role="alert" className="journey-error">Prototype history could not be loaded: {historyError} <Button type="button" variant="secondary" disabled={historyBusy} onClick={() => void loadPrototypeHistory()}>Retry prototype history</Button><p>Your saved design and definition remain available.</p></div>}
@@ -351,7 +367,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
         </div>
       </section>}
       </TabsSubtlePanel>
-      <TabsSubtlePanel idPrefix={tabsId} index={3} selectedIndex={selectedIndex}>
+      <TabsSubtlePanel idPrefix={tabsId} index={4} selectedIndex={selectedIndex}>
       {view === "handoff" && <section className="design-handoff"><h2>Review the implementation handoff</h2><p>Agents read the screen plan, states, tokens, assets and notes from the project's versioned context. Approval binds the saved definition and sketch revisions.</p><fieldset disabled={!canEdit || editorBusy || !!draft.pending} className="definition-fields">
         <label className="luci-field">Implementation notes<textarea rows={5} value={plan.implementationNotes} onChange={(e) => patch({ implementationNotes:e.target.value })} placeholder="Navigation, reusable components, interaction rules, animation and anything a builder must not invent." /></label>
         <h3>Design tokens</h3>{plan.tokens.map((token,i) => <div className="design-token" key={i}><label className="luci-field">Token name<input value={token.name} onChange={(e) => patch({ tokens:plan.tokens.map((t,n) => n === i ? {...t,name:e.target.value} : t) })} /></label><label className="luci-field">Value<input value={token.value} onChange={(e) => patch({ tokens:plan.tokens.map((t,n) => n === i ? {...t,value:e.target.value} : t) })} /></label><label className="luci-field">Purpose<input value={token.purpose} onChange={(e) => patch({ tokens:plan.tokens.map((t,n) => n === i ? {...t,purpose:e.target.value} : t) })} /></label><Button type="button" variant="secondary" onClick={() => patch({ tokens:plan.tokens.filter((_,n) => n !== i) })}>Remove token {i + 1}</Button></div>)}<Button type="button" variant="secondary" onClick={() => patch({ tokens:[...plan.tokens,{name:"",value:"",purpose:""}] })}>Add token</Button>
@@ -360,7 +376,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
       </TabsSubtlePanel>
       {view !== "sketch" && <footer className="definition-footer"><div className="journey-actions">
         {dirty || plan.status === "outdated" || !plan.revision
-          ? <Button type="button" loading={pending === "save"} disabled={!canEdit || editorBusy || !!draft.pending || refreshingSketch || invalidWidths || unavailableLinks || !!draftNeeds.length || (!dirty && plan.status !== "outdated")} onClick={() => void save()}>Save design plan</Button>
+          ? <Button type="button" loading={pending === "save"} disabled={!canEdit || editorBusy || !!draft.pending || refreshingSketch || invalidWidths || unavailableLinks || !!draftNeeds.length || !!sceneNeeds.length || (!dirty && plan.status !== "outdated")} onClick={() => void save()}>Save design plan</Button>
           : plan.status === "approved"
             ? <Button type="button" disabled={!canEdit || editorBusy || !!draft.pending || refreshingSketch} onClick={() => setLens("develop")}>Continue to Develop</Button>
             : <Button type="button" loading={pending === "approve"} disabled={!canEdit || editorBusy || !!draft.pending || refreshingSketch || !!approvalNeeds.length} onClick={() => void approve()}>Approve design handoff</Button>}

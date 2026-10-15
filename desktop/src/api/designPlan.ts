@@ -1,9 +1,11 @@
 import { productApi } from "./product";
+import type { EditableDesignScene, DesignRasterPin } from './designScene';
 export interface DesignScreen { id: string; name: string; route: string; purpose: string; states: string[]; widths: number[]; requirementIds: string[]; accessibility: string }
 export interface DesignPlan {
   projectId: string; revision: number; briefRevision: number; specificationRevision: number; sketchRevision: number;
+  scene?: EditableDesignScene;
   screens: DesignScreen[]; tokens: { name: string; value: string; purpose: string }[];
-  assets: { id: string; path: string; purpose: string; licence: string }[];
+  assets: { id: string; path: string; purpose: string; licence: string; content?: DesignRasterPin }[];
   implementationNotes: string; prototypeReleaseId: string; prototypeCommit: string;
   status: "draft" | "approved" | "outdated"; digest: string; updatedAt: string;
 }

@@ -16,6 +16,12 @@ vi.mock("../journey/DesignEditor", () => ({ default: ({ onDirtyChange, onBusyCha
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 beforeEach(() => resetCockpit());
 const fixture = (): DesignPlan => ({ projectId:"p-1", revision:2, briefRevision:1, specificationRevision:2, sketchRevision:0, screens:[{id:"screen-1",name:"Home",route:"/",purpose:"Save work",states:["Empty","Saved"],widths:[390,1440],requirementIds:["AC-001"],accessibility:"Keyboard"}],tokens:[],assets:[],implementationNotes:"Saved notes",prototypeReleaseId:"",prototypeCommit:"",status:"draft",digest:"",updatedAt:"" });
+async function openScreenPlan() {
+  const tab = await screen.findByRole('tab', {name: 'Screens and states'});
+  await waitFor(() => expect(tab.getAttribute('aria-disabled')).not.toBe('true'));
+  if (tab.getAttribute('aria-selected') !== 'true') await userEvent.click(tab);
+}
+async function screenPlanField(name: string) { await openScreenPlan(); return screen.findByRole('textbox', {name}); }
 it("refreshes a clean Design editor after same-window definition approval before new edits", async () => {
   ready();
   vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue("design-context-clean");
@@ -24,7 +30,7 @@ it("refreshes a clean Design editor after same-window definition approval before
   vi.mocked(designPlanApi.get).mockResolvedValueOnce(fixture()).mockResolvedValue({ ...fixture(), status: "outdated" });
   const save = vi.spyOn(designPlanApi, "save").mockImplementation(async (_id, plan) => ({ ...plan, revision: 3 }));
   render(<DesignWorkspace projectId="p-1" />);
-  await screen.findByRole("textbox", { name: "Screen name" });
+  await screenPlanField('Screen name');
   await act(async () => notifyProjectContextChanged("design-context-clean", "p-1"));
   await screen.findByText("Definition 3 · approved");
   expect(designPlanApi.get).toHaveBeenCalledTimes(2);
@@ -43,7 +49,7 @@ it("keeps a dirty Design draft on a context event and preserves stale-save refus
   const save = vi.spyOn(designPlanApi, "save").mockRejectedValue(new Error("The definition/design changed. Reload saved design before saving."));
   try {
     render(<DesignWorkspace projectId="p-1" />);
-    const name = await screen.findByRole("textbox", { name: "Screen name" }) as HTMLInputElement;
+    const name = await screenPlanField('Screen name') as HTMLInputElement;
     await userEvent.type(name, " with my draft");
     await act(async () => notifyProjectContextChanged(scope, "p-1"));
     expect(designPlanApi.get).toHaveBeenCalledTimes(1);
@@ -60,7 +66,7 @@ it("retains newly typed handoff notes when the sketch refresh completes late", a
   vi.spyOn(definitionApi,"get").mockResolvedValue({projectId:"p-1",version:1,revision:2,briefRevision:1,startingPoint:"new",purpose:"Save work",audience:"People",constraints:"",outOfScope:[],requirements:[{id:"AC-001",title:"Save work",priority:"must",acceptance:"Reopened work returns"}],journeys:[],roles:[],entities:[],integrations:[],glossary:[],decisions:[],questions:[],status:"approved",digest:"a".repeat(64),updatedAt:""});
   vi.spyOn(productApi,"prototypeReleases").mockResolvedValue({releases:[]});
   render(<DesignWorkspace projectId="p-1"/>);
-  await screen.findByRole("textbox",{name:"Screen name"});
+  await screenPlanField('Screen name');
   await userEvent.click(screen.getByRole("tab",{name:"Sketch"}));
   await screen.findByText("Drawing tools");
   await userEvent.click(screen.getByRole("tab",{name:"Implementation handoff"}));
@@ -165,6 +171,7 @@ it("blocks edits and approval while a clean design reload is pending", async () 
   let finish!: (value: DesignPlan) => void;
   const user = userEvent.setup();
   render(<DesignWorkspace projectId="p-1" />);
+  await openScreenPlan();
   await user.click(await screen.findByRole("button", { name: "Approve design handoff" }));
   vi.mocked(designPlanApi.get).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
   await user.click(await screen.findByRole("button", { name: "Reload saved design" }));
@@ -189,7 +196,7 @@ it.each(["success", "error"])("ignores an old saved design read's %s after works
   const view = render(<DesignWorkspace projectId="p-1" />);
   scope.mockReturnValue("design-read-current-workspace");
   view.rerender(<DesignWorkspace projectId="p-1" />);
-  const name = await screen.findByRole("textbox", { name: "Screen name" }) as HTMLInputElement;
+  const name = await screenPlanField('Screen name') as HTMLInputElement;
   expect(name.value).toBe("Current workspace screen");
   await act(async () => { if (outcome === "success") finish(fixture()); else fail(new Error("Old workspace read failed")); });
   expect(name.value).toBe("Current workspace screen");
@@ -203,7 +210,7 @@ it("starts an unfinished screen without invented behavior or coverage, allows a 
   const approve = vi.spyOn(designPlanApi, "approve");
   const user = userEvent.setup();
   render(<DesignWorkspace projectId="p-1" />);
-  await user.click(await screen.findByRole("button", { name: "Describe the first screen" }));
+  await openScreenPlan(); await user.click(await screen.findByRole("button", { name: "Describe the first screen" }));
   const name = screen.getByRole("textbox", { name: "Screen name" });
   expect(document.activeElement).toBe(name);
   for (const label of ["Screen name", "Route", "What this screen helps someone do", "States and recovery", "Accessibility and interaction"]) expect((screen.getByRole("textbox", { name: label }) as HTMLInputElement).value).toBe("");
@@ -237,7 +244,7 @@ it("shows actual saved roles and acceptance, then separately saves and approves 
   await user.click(await screen.findByText("People, permissions and outcomes from your definition"));
   const guidance = screen.getByRole("region", { name: "Plan the experience" });
   for (const text of ["Garden coordinators and members", "Assign shared garden tasks", "Change another member's private notes", "Mark assigned tasks complete", "Assign tasks to other members", "Reopened work returns"]) expect(guidance.textContent).toContain(text);
-  await user.click(screen.getByRole("button", { name: "Describe the first screen" }));
+  await openScreenPlan(); await user.click(screen.getByRole("button", { name: "Describe the first screen" }));
   await user.type(screen.getByRole("textbox", { name: "Screen name" }), "Garden tasks");
   const purpose = "Coordinators assign tasks; members see and complete their assigned tasks without assignment controls. Saved completion remains when either role returns.";
   const states = "No assigned tasks: members see who to contact\nSaved completion: task remains completed after reopening\nSave failed: retain the member's changes and offer retry\nMember opens assignment route: explain coordinator access is required";
@@ -266,7 +273,7 @@ it("opens existing Luci planning help with a scoped unsent request and requires 
     expect(detail.projectId).toBe("p-1"); expect(detail.message).toContain("each person or role"); expect(detail.message).toContain("design-plan draft for my review");
     expect(screen.getByText(/Opens an unsent message. Sending needs an available agent connection/)).not.toBeNull();
     expect(save).not.toHaveBeenCalled(); expect(approve).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Describe the first screen" }));
+    await openScreenPlan(); await user.click(screen.getByRole("button", { name: "Describe the first screen" }));
     expect((help as HTMLButtonElement).disabled).toBe(true);
     await user.click(help); expect(receive).toHaveBeenCalledOnce();
     expect(screen.getByText(/Save or resolve your draft first so the conversation uses the context you intend/)).not.toBeNull();
@@ -280,7 +287,7 @@ it("keeps typed comma delimiters and only saves parsed responsive widths after t
   const approve = vi.spyOn(designPlanApi, "approve");
   const user = userEvent.setup();
   const view = render(<DesignWorkspace projectId="p-1" />);
-  const input = await screen.findByRole("textbox", { name: "Responsive widths" });
+  const input = await screenPlanField('Responsive widths');
   await user.click(input);
   await user.keyboard("{End},");
   expect((input as HTMLInputElement).value).toBe("390, 1440,");
@@ -299,7 +306,7 @@ it("keeps typed comma delimiters and only saves parsed responsive widths after t
   view.unmount();
   vi.mocked(designPlanApi.get).mockResolvedValue({ ...expected, revision: 3 });
   render(<DesignWorkspace projectId="p-1" />);
-  expect(((await screen.findByRole("textbox", { name: "Responsive widths" })) as HTMLInputElement).value).toBe("390, 1440, 768");
+  expect(((await screenPlanField('Responsive widths')) as HTMLInputElement).value).toBe("390, 1440, 768");
   expect(screen.getByRole("button", { name: "Approve design handoff" })).not.toBeNull();
 });
 
@@ -310,7 +317,7 @@ it("retains exact invalid width text through blur, tabs, reload and explicit bro
   const approve = vi.spyOn(designPlanApi, "approve");
   const user = userEvent.setup();
   const view = render(<DesignWorkspace projectId="p-1" />);
-  const input = await screen.findByRole("textbox", { name: "Responsive widths" });
+  const input = await screenPlanField('Responsive widths');
   const raw = "390, tablet, 1440, ";
   await user.clear(input); await user.type(input, raw); await user.tab();
   expect((input as HTMLInputElement).value).toBe(raw);
@@ -326,7 +333,7 @@ it("retains exact invalid width text through blur, tabs, reload and explicit bro
   const restore = screen.getByRole("button", { name: "Restore draft" });
   await waitFor(() => expect((restore as HTMLButtonElement).disabled).toBe(false));
   await user.click(restore);
-  expect((screen.getByRole("textbox", { name: "Responsive widths" }) as HTMLInputElement).value).toBe(raw);
+  await openScreenPlan(); expect((screen.getByRole("textbox", { name: "Responsive widths" }) as HTMLInputElement).value).toBe(raw);
   expect((screen.getByRole("button", { name: "Save design plan" }) as HTMLButtonElement).disabled).toBe(true);
   expect(save).not.toHaveBeenCalled(); expect(approve).not.toHaveBeenCalled();
   await expect(vi.mocked(designPlanApi.get).mock.results[0].value).resolves.toEqual(fixture());
@@ -340,7 +347,7 @@ it("requires a recovery choice when unfinished widths and a teammate's saved wid
   const save = vi.spyOn(designPlanApi, "save");
   const user = userEvent.setup();
   const view = render(<DesignWorkspace projectId="p-1" />);
-  const input = await screen.findByRole("textbox", { name: "Responsive widths" });
+  const input = await screenPlanField('Responsive widths');
   await user.click(input); await user.keyboard("{End}, ");
   view.unmount();
   const peer = { ...fixture(), revision: 3, implementationNotes: "Keep the teammate's keyboard requirement", screens: [{ ...fixture().screens[0], widths: [390, 1024] }] };
@@ -352,7 +359,7 @@ it("requires a recovery choice when unfinished widths and a teammate's saved wid
   await user.click(choice);
   await user.click(screen.getByRole("checkbox", { name: "I reviewed the saved version and these recovery choices." }));
   await user.click(restore);
-  expect((screen.getByRole("textbox", { name: "Responsive widths" }) as HTMLInputElement).value).toBe("390, 1440, ");
+  await openScreenPlan(); expect((screen.getByRole("textbox", { name: "Responsive widths" }) as HTMLInputElement).value).toBe("390, 1440, ");
   await user.click(screen.getByRole("tab", { name: "Implementation handoff" }));
   expect((screen.getByRole("textbox", { name: "Implementation notes" }) as HTMLTextAreaElement).value).toBe(peer.implementationNotes);
   expect((screen.getByRole("button", { name: "Save design plan" }) as HTMLButtonElement).disabled).toBe(true);
@@ -394,7 +401,7 @@ it("keeps saved design usable after optional prototype history fails and retries
   const save = vi.spyOn(designPlanApi, "save").mockResolvedValue({ ...fixture(), revision: 3, implementationNotes: "Keep saved work" });
   const approve = vi.spyOn(designPlanApi, "approve").mockResolvedValue({ ...fixture(), revision: 4, implementationNotes: "Keep saved work", status: "approved" });
   render(<DesignWorkspace projectId="p-1" />);
-  await screen.findByLabelText("Screen name");
+  await screenPlanField('Screen name');
   expect(screen.queryByRole("alert")).toBeNull();
   await userEvent.click(screen.getByRole("tab", { name: "Implementation handoff" }));
   await userEvent.clear(screen.getByLabelText("Implementation notes")); await userEvent.type(screen.getByLabelText("Implementation notes"), "Keep saved work");
@@ -423,6 +430,8 @@ it("links design tabs to manually activated panels without opening sketch on key
   render(<DesignWorkspace projectId="p-1" />);
   const selected = await screen.findByRole("tab", { name: "Screens and states" });
   const user = userEvent.setup();
+  expect(screen.getByRole('tab', {name: 'Canvas'}).getAttribute('aria-selected')).toBe('true');
+  await openScreenPlan();
   selected.focus();
   await user.keyboard("{ArrowRight}");
   expect(screen.queryByText("Drawing tools")).toBeNull();
@@ -721,7 +730,7 @@ it("keeps saved design readable for viewers without offering screen edits or app
   ready(); teamAccess.permissions.edit = false; teamAccess.permissions.execute = false;
   const save = vi.spyOn(designPlanApi, "save"), approve = vi.spyOn(designPlanApi, "approve");
   render(<DesignWorkspace projectId="p-1" />);
-  const name = await screen.findByLabelText("Screen name");
+  const name = await screenPlanField('Screen name');
   expect((name.closest("fieldset.definition-fields") as HTMLFieldSetElement).disabled).toBe(true);
   expect((screen.getByRole("button", { name: "Approve design handoff" }) as HTMLButtonElement).disabled).toBe(true);
   await userEvent.type(name, " forbidden");

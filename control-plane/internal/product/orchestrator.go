@@ -79,6 +79,9 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		if err := validateDesignPlan(*next); err != nil {
 			return err
 		}
+		if currentQuality && designSceneOmission(snapshot.DesignPlan, *next) != nil {
+			return ErrOrchestratorInvalid
+		}
 		return validateDesignLinks(*next, snapshot.Specification)
 	case "plan":
 		next := proposal.Plan
