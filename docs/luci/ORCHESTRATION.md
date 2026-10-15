@@ -1,5 +1,7 @@
 # Project understanding and reviewed amendments
 
+**Develop priority, 16 October 2026:** [Develop orchestration amendment](DEVELOP-ORCHESTRATION-AMENDMENT-2026-10-16.md) adds LC-23–24: Design-derived execution and decision contracts, durable communicating swarms, independent review/repair/integration and measured speed, quality and intervention. LC-01–22 remain unchanged. Finish active LC-17/auth work, then prioritize the real local end-to-end Develop loop. Root records exact review and worker ACKs before added-scope implementation; existing authority, resource and live/security gates remain. The product agent hierarchy does not change this development team's sole-Astra/Sol-only policy.
+
 **Latest direction, 15 October 2026:** [FIVE D AMENDMENT 2026 10 15](FIVE-D-AMENDMENT-2026-10-15.md) controls the five-D workspace extension, project home/pins/activity, document-led Discover, editable Design canvas, Cube-style Develop and Distribute with team XLSX controls. LC-02 is explicitly amended; LC-17–22 are added. Existing LC-01 and LC-03–16 obligations and live/resource/security gates remain. Root records exact scope review and worker ACKs before new-scope implementation; existing local/auth fixes continue. Prior stage-count wording below is historical where it conflicts. Usable local end-to-end development is the delivery priority.
 
 ## Current status — scope audit passed, implementation resumed (12 October 2026)

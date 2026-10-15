@@ -1,5 +1,7 @@
 # Controlling Luci product contract
 
+**Develop priority, 16 October 2026:** [Develop orchestration amendment](DEVELOP-ORCHESTRATION-AMENDMENT-2026-10-16.md) adds LC-23–24: Design-derived execution and decision contracts, durable communicating swarms, independent review/repair/integration and measured speed, quality and intervention. LC-01–22 remain unchanged. Finish active LC-17/auth work, then prioritize the real local end-to-end Develop loop. Root records exact review and worker ACKs before added-scope implementation; existing authority, resource and live/security gates remain. The product agent hierarchy does not change this development team's sole-Astra/Sol-only policy.
+
 **Latest direction, 15 October 2026:** [FIVE D AMENDMENT 2026 10 15](FIVE-D-AMENDMENT-2026-10-15.md) controls the five-D workspace extension, project home/pins/activity, document-led Discover, editable Design canvas, Cube-style Develop and Distribute with team XLSX controls. LC-02 is explicitly amended; LC-17–22 are added. Existing LC-01 and LC-03–16 obligations and live/resource/security gates remain. Root records exact scope review and worker ACKs before new-scope implementation; existing local/auth fixes continue. Prior stage-count wording below is historical where it conflicts. Usable local end-to-end development is the delivery priority.
 
 > **Guided Azure guest source:** [the source-bound loopback registry reconciliation](AZURE-LOCAL-GUEST-REGISTRY-2026-10-14.md) completes private runtime-image preparation without adding an Azure registry resource. Its owner/acceptance map and root-recorded exact ACKs apply before implementation; LC-01–16 and live cloud gates remain intact.
@@ -29,7 +31,7 @@ The full working objective remains unfinished; aligned implementation has resume
 
 ## Required product
 
-The [canonical LC-01–LC-22 entries](PRODUCT-CONTRACT-LC.json) retain the original IDs, explicitly amend LC-02 and add LC-17–22 under the dated five-D amendment. The amendment contains the current owner/gap/acceptance map; the earlier map below remains a foundation inventory. The seven prose items below organize that contract; they do not renumber or replace any LC entry. This crosswalk records which entries each item explains:
+The [canonical LC-01–LC-24 entries](PRODUCT-CONTRACT-LC.json) retain the original IDs, explicitly amend LC-02 and add LC-17–22 under the dated five-D amendment. The five-D and Develop amendments together contain the current owner/gap/acceptance maps; the earlier map below remains a foundation inventory. The seven prose items below organize that contract; they do not renumber or replace any LC entry. This crosswalk records which entries each item explains:
 
 | Prose item | Canonical entries |
 | --- | --- |
