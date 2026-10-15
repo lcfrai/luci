@@ -230,6 +230,8 @@ func containerResourceKind(labels map[string]string) string {
 		return "check"
 	case labels["luci.preview"] == "true":
 		return "preview"
+	case labels[documentLabel] == "true":
+		return "document-extraction"
 	case labels["ai.lcfr.luci.platform.resource"] != "":
 		return "project-service"
 	default:

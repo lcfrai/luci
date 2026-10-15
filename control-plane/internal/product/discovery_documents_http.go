@@ -29,8 +29,8 @@ func (s *Server) registerDiscoveryDocuments(mux Registrar) {
 	mux.HandleFunc("POST "+base+"/discussion-context", s.discoveryDocumentDiscussion)
 	mux.HandleFunc("POST "+base+"/request-disposition", s.discoveryDocumentRequestDisposition)
 	mux.HandleFunc("POST "+base+"/{documentId}/corrections", s.correctDiscoveryDocument)
-	mux.HandleFunc("POST "+base+"/{documentId}/extractions", s.startDiscoveryTextExtraction)
-	mux.HandleFunc("PUT "+base+"/{documentId}/extractions/{attemptId}", s.cancelDiscoveryTextExtraction)
+	mux.HandleFunc("POST "+base+"/{documentId}/extractions", s.startDiscoveryExtraction)
+	mux.HandleFunc("PUT "+base+"/{documentId}/extractions/{attemptId}", s.cancelDiscoveryExtraction)
 }
 
 // Read-only exact request readback. Absence at the same CAS revision (and all
