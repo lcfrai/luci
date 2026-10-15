@@ -152,7 +152,7 @@ func TestCodexAccountOwnedStoppedAdoptionAndUserIsolation(t *testing.T) {
 	s := sessionsDecodeOne(t, e.do(t, "POST", "/v1/sessions", `{"worktreeId":"w-4a77b1c9","harness":"codex","authOnly":true}`), 201)
 	sessionsAwaitWatch(t, done)
 	r := e.do(t, "POST", codexAccountRoute, `{"sessionId":"`+s.ID+`"}`)
-	if sessionsProblemCode(t, r, 409) != "codex_account_busy" {
+	if sessionsProblemCode(t, r, 409) != "codex_sign_in_pending" {
 		t.Fatal("running sign-in adopted")
 	}
 	sessionsProblemCode(t, other.do(t, "POST", codexAccountRoute, `{"sessionId":"`+s.ID+`"}`), 404)

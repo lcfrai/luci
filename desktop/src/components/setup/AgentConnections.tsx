@@ -9,6 +9,7 @@ import {
 import { useCockpit } from "../../store/store";
 import { OWN_AGENT_PROVIDER_CHANGED } from "../../hooks/useAgentConnections";
 import { AgentConnectionManager } from "./AgentConnectionManager";
+import { codexConnectionError } from "../../api/codexConnectionErrors";
 
 export function AgentConnections({
   client,
@@ -39,6 +40,7 @@ export function AgentConnections({
   const [baseUrl, setBaseUrl] = useState("http://localhost:11434/v1");
   const [model, setModel] = useState("");
   const [account, setAccount] = useState<CodexAccountConnection | null>(null);
+  const [accountUnavailable, setAccountUnavailable] = useState(false);
   const [signInSessionId, setSignInSessionId] = useState("");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -73,13 +75,14 @@ export function AgentConnections({
     if (providerId !== "openai") return;
     let cancelled = false;
     setAccount(null);
+    setAccountUnavailable(false);
     void client
       .codexAccount()
       .then((value) => {
-        if (!cancelled) setAccount(value);
+        if (!cancelled) { setAccount(value); setAccountUnavailable(false); }
       })
       .catch((cause) => {
-        if (!cancelled) setError(errorText(cause));
+        if (!cancelled) { setAccountUnavailable(true); setError(codexConnectionError(cause, "status")); }
       });
     return () => {
       cancelled = true;
@@ -114,8 +117,11 @@ export function AgentConnections({
           : action === "disconnect"
             ? await client.disconnectCodexAccount()
             : await client.codexAccount();
+      if (action === "connect" && !value.configured)
+        throw new Error("Saving this sign-in was not confirmed. Keep the session and refresh Codex connection before trying Save again.");
       if (alive.current) {
         setAccount(value);
+        setAccountUnavailable(false);
         if (action !== "refresh")
           setNotice(
             action === "connect"
@@ -124,7 +130,10 @@ export function AgentConnections({
           );
       }
     } catch (cause) {
-      if (alive.current) setError(errorText(cause));
+      if (alive.current) {
+        setAccountUnavailable(true);
+        setError(codexConnectionError(cause, action === "connect" ? "save" : "status"));
+      }
     } finally {
       working.current = false;
       if (alive.current) setBusy(false);
@@ -179,7 +188,7 @@ export function AgentConnections({
       state.upsertSession(session);
       openSignIn(session.id);
     } catch (cause) {
-      if (alive.current) setError(errorText(cause));
+      if (alive.current) setError(codexConnectionError(cause, "start"));
     } finally {
       working.current = false;
       if (alive.current) setBusy(false);
@@ -222,7 +231,9 @@ export function AgentConnections({
         <div className="setup-plan">
           <h3>ChatGPT subscription</h3>
           <p role="status">
-            {account?.configured
+            {accountUnavailable
+              ? "Codex connection status is unavailable."
+              : account?.configured
               ? cloud
                 ? "Codex sign-in saved in your cloud workspace."
                 : "Codex sign-in saved on this machine."
@@ -315,7 +326,7 @@ export function AgentConnections({
         </div>
       )}
       {providerId === "openai" && <h3>OpenAI API credits</h3>}
-      {providerId === "openai" && account?.configured && (
+      {providerId === "openai" && account?.configured && !accountUnavailable && (
         <p className="journey-muted">
           Your subscription is selected for new Codex sessions. Disconnect it
           first to use API credits. Removing a saved API key does not disconnect
