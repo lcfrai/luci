@@ -8,21 +8,49 @@ document extractor would introduce an unowned dependency or execution path.
 
 ## Exact candidate inputs for review
 
-The Go-only candidate is `github.com/go-pdf/fpdf` **v0.9.0**, upstream commit
+The originally considered `github.com/go-pdf/fpdf` **v0.9.0**, upstream commit
 `504c6dd8cc916cd7f2097877efd52cae5f1d8b18`, Go checksum
-`h1:PPvSaUuo1iMi9KkaAn90NuKi+P4gwMedWPHhj8YlJQw=`, MIT (upstream pinned
-LICENSE inspected). Complex-script shaping candidate is
+`h1:PPvSaUuo1iMi9KkaAn90NuKi+P4gwMedWPHhj8YlJQw=`, MIT, is **rejected for
+this export**. At that exact source, `Fpdf.Text` encodes input runes as UTF-16
+and marks used runes; the Type0 font writer derives CID-to-glyph mapping from
+those runes. It has no positioned shaped-glyph input. Reversing Arabic text is
+not shaping, and feeding a pre-shaped glyph string would lose original Unicode.
+
+The replacement low-level PDF writer candidate is `github.com/benoitkugler/pdf`
+**v0.0.15**, upstream commit
+`85f51161fb69eb2439ded4532d7bf8191f055072`, Go checksum
+`h1:FDatswON2irQJv2+02Q2ojKqoUPbwPxIbLguX4kBExM=`, MIT (pinned LICENSE
+inspected). Its `contentstream.OpShowSpaceGlyph` accepts glyph IDs and spacing;
+`model.FontType0` exposes `CIDToGIDMap`, `FontFile2` and `FontDict.ToUnicode`.
+This establishes an appropriate **source interface**, not a working renderer.
+The pinned writer's direct dependencies are `benoitkugler/pstokenizer v1.0.1`,
+`hhrutter/lzw v1.0.0`, `x/image v0.9.0` and `x/text v0.11.0`; only imported
+packages and their final resolved versions should enter the release closure.
+
+Complex-script shaping candidate is
 `github.com/go-text/typesetting` **v0.3.3**, upstream commit
 `c3ca8673d4734bb5b16df1b08c5f27af6c9b6329`, Go checksum
 `h1:ihGNJU9KzdK2QRDy1Bm7FT5RFQoYb+3n3EIhI/4eaQc=`, selectable
 BSD-3-Clause under its `Unlicense OR BSD-3-Clause` upstream LICENSE. Versions,
 commits and module checksums came from read-only Go proxy/sumdb metadata;
 neither module was added to `go.mod` or fetched into this repository. The
-critical compatibility question remains **open**: fpdf must accept positioned
-glyph IDs/advances from typesetting without dropping shaping or ToUnicode
-mapping. A standalone working module name is not evidence of that join. If it
-cannot, reject this pairing and select a pinned native Go PDF writer exposing
-those primitives before any production dependency change.
+shaper declares `typesetting-utils` pseudo-version
+`v0.0.0-20250618110550-c820a94c77b8`, `x/image v0.23.0` and `x/text v0.21.0`;
+the current control plane already resolves `x/text v0.41.0`. A dependency
+closure must review the actual selected versions, source licences and package
+inventory before adding either candidate. No renderer, font or indirect
+dependency is acquired as part of this proposal.
+
+The essential unproved join is assigning bounded PDF CIDs to shaped glyphs,
+mapping each CID to its exact glyph ID and original Unicode cluster, and
+embedding a valid subset of the exact selected font. A contextual glyph may
+represent multiple source code points and one glyph ID may occur in different
+clusters, so a direct glyph-ID-to-one-rune map is insufficient. CIDs must be
+allocated per distinct glyph/cluster mapping, with measured advances and
+offsets, a bounded ToUnicode map and a refusal at the 65,535-CID limit. Test
+ligatures, Arabic joining/RTL, combining marks, CJK and copy/extract order
+before accepting the pairing. A static rendered page alone cannot prove
+faithful text extraction.
 
 The inspected font candidates are original Debian-installed Noto bytes; they
 are **not** bundled release inputs yet. They must be obtained later through a
@@ -35,7 +63,15 @@ by the original OFL grant and package notice in each release artifact:
 | NotoSansArabic-Regular.ttf, `fonts-noto-core 20201225-2` | 244,072 | `504d7407d86875acf7d04dfaa0fd7524d0b8797723bc4aa18022f29db25b0b6e` | SIL OFL 1.1 |
 | NotoSansCJK-Regular.ttc, `fonts-noto-cjk 1:20240730+repack1-1` | 19,484,784 | `b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a` | SIL OFL 1.1 |
 
-These three files are a starting coverage set, **not all Unicode**. Font
+These three files are a starting coverage set, **not all Unicode**. The CJK
+candidate is a 19 MiB TTC collection; it cannot be assumed to fit the 16 MiB
+PDF bound or to be a directly embeddable `FontFile2`. Its selected face needs
+an exact, bounded subset/standalone-font construction with original Unicode
+mapping. The pinned modules expose shaping and PDF font objects, but this
+proposal does **not** establish a compatible subset writer. A proof must show
+the selected CJK, Arabic and Latin font streams stay within the 32 MiB input,
+16 MiB output and 512 MiB render charge. Reject the input otherwise; do not
+ship a full TTC or silently substitute a host font. Font
 fallback must use an exact packaged manifest, reject a missing glyph or
 unsupported script/shaping feature before returning a PDF, and never replace
 it with a blank box or host font. Other scripts and emoji need separately
@@ -69,8 +105,8 @@ renders produce no success response. Saved artifact bytes are never mutated.
 
 ## Review gates before implementation or acceptance
 
-1. Confirm a pinned Go renderer can consume the pinned shaping output and
-   embed/subset these fonts with exact ToUnicode text. A simple Latin demo is
+1. Confirm the pinned lower-level writer can consume the pinned shaping output
+   and embed/subset these fonts with exact ToUnicode text. A simple Latin demo is
    insufficient; include Arabic shaping, CJK, combining marks, page breaks,
    multi-column source/evidence tables and an unsupported-glyph refusal.
 2. Obtain and verify original font/module licences, transitive module closure,
