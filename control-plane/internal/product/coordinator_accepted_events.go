@@ -32,7 +32,7 @@ func (s *Server) acceptedEventApprovedContract(ctx context.Context, p project.Pr
 		if c.Actor.ID != actor || c.Approval == nil || c.State != "approved" || c.Approval.Actor.ID != actor || c.ProjectID != p.ID ||
 			i.ProjectID != selection.ProjectID || i.WorktreeID != route.Route.WorktreeID || i.BriefRevision != selection.BriefRevision || i.PlanRevision != selection.PlanRevision ||
 			i.SpecificationRevision != selection.SpecificationRevision || i.DesignPlanRevision != selection.DesignPlanRevision || exactTasks && !reflect.DeepEqual(i.TaskIDs, selection.TaskIDs) ||
-			c.Input.Route.Harness != route.Route.Harness || c.Input.Route.Model != route.Route.Model || c.Input.Route.PermissionMode != route.Route.PermissionMode || c.Input.Route.Effort != route.Route.Effort ||
+			c.Input.Route.Harness != route.Route.Harness || (route.Route.Model != "" && c.Input.Route.Model != route.Route.Model) || c.Input.Route.PermissionMode != route.Route.PermissionMode || (route.Route.Effort != "" && c.Input.Route.Effort != route.Route.Effort) ||
 			c.Input.Route.ExecutionLocation != route.Route.ExecutionLocation || c.Input.Outcome != route.Route.Outcome {
 			continue
 		}

@@ -182,6 +182,16 @@ func TestCoordinatorContinuationRequiresApprovedContractBeforeNewWork(t *testing
 		t.Fatal("nil-contract continuation passed automatic integration", integrated, err)
 	}
 }
+
+func TestCoordinatorContinuationAcceptsConfiguredModelFromApprovedConnection(t *testing.T) {
+	s, p, h, _, req, _ := coordinatorContinuationFixture(t)
+	req.Run.Model = "" // The saved connection resolves its configured model.
+	out := coordinatorCreate(t, h, p, req, http.StatusCreated)
+	run, err := s.projectRuns.Get(p.ID, p.Path, out.RunID)
+	if err != nil || run.Input.Route.Model != "fixture-model" || run.Input.OrchestrationContract == nil {
+		t.Fatal("configured model was not bound to the reviewed contract", err)
+	}
+}
 func TestCoordinatorFirstCloudActivationQueuesExactReviewedTasksWithoutLocalFallback(t *testing.T) {
 	s, p, h, _, req, starts := coordinatorContinuationFixture(t)
 	req.Run.ExecutionLocation = "cloud-microvm"
