@@ -202,6 +202,8 @@
     "autonomyTarget": "Approximately 99% of eligible routine decisions, measured with numerator/denominator/exclusions/reasons; not claimed achieved and no authority bypass.",
     "runtimeAcceptanceComplete": false,
     "liveCloudAuthorized": false,
-    "productAccepted": false
+    "productAccepted": false,
+    "completeProductBeforeUserTesting": true,
+    "userTestingGate": "All agreed local five-D functionality integrated and meaningfully accepted, including exceptional Develop orchestration/quality/recovery; no MVP or demo handoff. Live Azure tests remain deferred; future Luci Cloud remains unavailable."
   }
 }
