@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -381,13 +383,13 @@ func TestTeamControlsDesignSaveRequiresObservedLibrary(t *testing.T) {
 }
 
 func TestTeamControlsBindAndStaleOrchestrationContract(t *testing.T) {
-	s, handler, req, base, _, _ := contractFixture(t)
+	s, handler, req, base, projectPath, _ := contractFixture(t)
 	teamID := "team-contract-controls"
 	path, err := teamControlPath(s, teamID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	control := TeamControl{ID: "SEC-1", Requirement: "Review access controls", Sheet: "Controls", Row: 2, Unmapped: map[string]string{}, UnmappedHeaders: map[string]string{}}
+	control := TeamControl{ID: "SEC-1", Requirement: "Require the distinctive violet ledger review before release", Applicability: "Every release", EvidenceExpected: "Signed reviewer receipt", Sheet: "Controls", Row: 2, Unmapped: map[string]string{}, UnmappedHeaders: map[string]string{}}
 	first := TeamControlRevision{Revision: 1, Digest: reviewDigest([]TeamControl{control}), SourceSHA256: strings.Repeat("a", 64), Sheet: "Controls", Columns: controlTestColumns(), Controls: []TeamControl{control}, Added: []string{"SEC-1"}, Changed: []string{}, Removed: []string{}, DiffDigest: strings.Repeat("b", 64), ActorID: "team-owner", KeyDigest: strings.Repeat("c", 64)}
 	if err := writeTeamControls(path, teamControlLedger{Version: 1, TeamID: teamID, Revisions: []TeamControlRevision{first}}); err != nil {
 		t.Fatal(err)
@@ -396,9 +398,67 @@ func TestTeamControlsBindAndStaleOrchestrationContract(t *testing.T) {
 	teamHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handler.ServeHTTP(w, r.WithContext(management.WithTeamAccess(r.Context(), access)))
 	})
+	quote := "Reviewer receipt confirms the violet ledger was checked before release."
+	document := discoveryUploadRequest(t, teamHandler, base+"/discovery/documents", "control-evidence.txt", "team-standard-source-123456", []byte(quote), 201)
+	var extraction struct{ Document DiscoveryDocument }
+	if err := json.Unmarshal(journeyRequest(t, teamHandler, "POST", base+"/discovery/documents/"+document.ID+"/extractions", map[string]any{"expectedRevision": 1, "idempotencyKey": "team-standard-extract-123456"}, 200).Body.Bytes(), &extraction); err != nil {
+		t.Fatal(err)
+	}
+	segment := extraction.Document.Extractions[0].Pages[0].Segments[0]
+	link := DiscoveryEvidenceLink{DocumentID: document.ID, OriginalDigest: document.Original.Digest, ExtractionRevision: 1, Page: 1, SegmentID: segment.ID, TextDigest: segment.TextDigest, TargetKind: "purpose"}
+	var assessmentView struct {
+		ContextDigest string `json:"contextDigest"`
+	}
+	if err := json.Unmarshal(journeyRequest(t, teamHandler, "GET", base+"/control-assessment", nil, 200).Body.Bytes(), &assessmentView); err != nil {
+		t.Fatal(err)
+	}
+	journeyRequest(t, teamHandler, "POST", base+"/control-assessment", map[string]any{"expectedRevision": 0, "libraryRevision": 1, "libraryDigest": first.Digest, "contextDigest": assessmentView.ContextDigest, "idempotencyKey": "team-standard-assessment-123456", "results": []ControlAssessmentResult{{ControlID: "SEC-1", Status: "supported", EvidenceRefs: []DiscoveryEvidenceLink{link}, Note: "Reviewed exact source"}}}, 200)
 	view := contractResponse(t, journeyRequest(t, teamHandler, "POST", base+"/orchestration-contracts/prepare", contractRequest(req), 201).Body.Bytes())
-	if view.Contract.Input.Standards.Revision != 1 || view.Contract.Input.Standards.Digest != first.Digest || view.Contract.Input.Standards.Status != "team-library-unassessed" {
+	if view.Contract.Input.Standards.Revision != 1 || view.Contract.Input.Standards.Digest != first.Digest || view.Contract.Input.Standards.Status != "team-library-assessed" {
 		t.Fatal("contract lacked exact library", view.Contract.Input.Standards)
+	}
+	if len(view.Contract.Input.Standards.Requirements) != 1 || view.Contract.Input.Standards.Requirements[0].Requirement != control.Requirement || view.Contract.Input.Standards.Requirements[0].Applicability != "Every release" || view.Contract.Input.Standards.Requirements[0].EvidenceExpected != "Signed reviewer receipt" || view.Contract.Input.Standards.Requirements[0].Evidence[0].Text != quote {
+		t.Fatal("imported control content missing from prepared execution", view.Contract.Input.Standards)
+	}
+	ctx := management.WithTeamAccess(orchestratorActor(t, "contract-owner"), access)
+	design, err := s.OrchestratorView(ctx, req.ImplementationContext.ProjectID, 0)
+	if err != nil || design.Context.TeamStandards == nil || design.Context.TeamStandards.Requirements[0].Requirement != control.Requirement {
+		t.Fatal("Design snapshot lacked imported requirement", err)
+	}
+	turn, sent, existing, err := s.ReserveOrchestratorTurn(ctx, req.ImplementationContext.ProjectID, OrchestratorTurnRequest{ExpectedRevision: design.Revision, ExpectedContextDigest: design.Context.Digest, IdempotencyKey: "team-standard-design-request-123456", Message: "Propose a Design using the saved controls.", RouteDigest: strings.Repeat("a", 64)}, "assist-team-control-design")
+	if err != nil || existing || turn.Context.TeamStandards == nil || sent.TeamStandards == nil || sent.TeamStandards.Requirements[0].Requirement != control.Requirement || sent.TeamStandards.Requirements[0].Evidence[0].Text != quote {
+		t.Fatal("Design assistance missed exact imported requirement", err, existing)
+	}
+	approved := contractResponse(t, journeyRequest(t, teamHandler, "POST", base+"/orchestration-contracts/"+view.Contract.ID+"/approve", map[string]any{"expectedRevision": 1, "expectedDigest": view.Contract.Digest}, 200).Body.Bytes())
+	req.OrchestrationContract = &OrchestrationContractSelection{ID: approved.Contract.ID, Revision: approved.Contract.Revision, Digest: approved.Contract.Digest, ApprovalID: approved.Contract.Approval.ID}
+	run := projectRunHTTPResponse(t, journeyRequest(t, teamHandler, "POST", base+"/runs", req, 201))
+	run = projectRunHTTPResponse(t, journeyRequest(t, teamHandler, "POST", base+"/runs/"+run.ID+"/operations", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "team-standard-capture-123456", "kind": "session"}, 201))
+	stored, err := s.projectRuns.Get(req.ImplementationContext.ProjectID, projectPath, run.ID)
+	if err != nil || len(stored.Operations) == 0 {
+		t.Fatal(err)
+	}
+	capture, err := s.CaptureProjectRunTaskContext(ctx, req.ImplementationContext.ProjectID, run.ID, stored.Operations[0].ID, req.WorktreeID, projectPath, req.ImplementationContext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, file := range capture.Files {
+		if file.Path == "LUCI.md" && strings.Contains(string(file.Data), control.Requirement) && strings.Contains(string(file.Data), control.EvidenceExpected) && strings.Contains(string(file.Data), quote) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("captured worker manifest omitted imported requirement/evidence")
+	}
+	designDraft := sent.DesignPlan
+	designDraft.Status, designDraft.Digest = "draft", ""
+	answer := OrchestratorAnswer{Summary: "Review a version-bound design amendment.", Options: []string{}, Impact: []string{}, Proposal: &OrchestratorProposal{Target: "design-plan", Summary: "Apply reviewed controls to Design", DesignPlan: &designDraft}}
+	if err := s.CompleteOrchestratorTurn(req.ImplementationContext.ProjectID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
+		t.Fatal("valid version-bound Design proposal was rejected", err)
+	}
+	beforeImport, err := s.OrchestratorView(ctx, req.ImplementationContext.ProjectID, 0)
+	if err != nil {
+		t.Fatal(err)
 	}
 	secondControl := control
 	secondControl.Requirement = "Review changed access controls"
@@ -417,5 +477,33 @@ func TestTeamControlsBindAndStaleOrchestrationContract(t *testing.T) {
 	}
 	if freshness := s.orchestrationFreshness(p, view.Contract); freshness.Status != "changed" {
 		t.Fatal("import did not stale future dispatch", freshness)
+	}
+	updated, err := s.OrchestratorView(ctx, req.ImplementationContext.ProjectID, 0)
+	if err != nil || updated.Context.Digest == design.Context.Digest {
+		t.Fatal("reimport did not stale Design assistance/application digest", err)
+	}
+	if err := s.applyOrchestratorProposal(ctx, req.ImplementationContext.ProjectID, turn.ID, beforeImport.Revision, beforeImport.Context.Digest); !errors.Is(err, ErrOrchestratorConflict) {
+		t.Fatal("stale team standard reached Design application", err)
+	}
+}
+
+func TestTeamStandardsOversizeRefusesRatherThanTruncatesDesignContext(t *testing.T) {
+	s, _, id := controlTestHandler(t)
+	controls := make([]TeamControl, 80)
+	for i := range controls {
+		controls[i] = TeamControl{ID: fmt.Sprintf("C-%03d", i), Requirement: strings.Repeat("distinct source requirement ", 45), Applicability: "Every release", EvidenceExpected: "Exact receipt", Sheet: "Controls", Row: i + 2, Unmapped: map[string]string{}, UnmappedHeaders: map[string]string{}}
+	}
+	revision := TeamControlRevision{Revision: 1, Digest: reviewDigest(controls), SourceSHA256: strings.Repeat("a", 64), Sheet: "Controls", Controls: controls, KeyDigest: strings.Repeat("b", 64)}
+	path, err := teamControlPath(s, "team-test-control")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = writeTeamControls(path, teamControlLedger{Version: 1, TeamID: "team-test-control", Revisions: []TeamControlRevision{revision}}); err != nil {
+		t.Fatal(err)
+	}
+	access := management.TeamAccess{Team: management.Team{ID: "team-test-control"}, ProjectID: id, Permissions: management.TeamPermissions{Read: true}}
+	ctx := management.WithTeamAccess(orchestratorActor(t, "admin"), access)
+	if _, err = s.OrchestratorSnapshot(ctx, id); !errors.Is(err, ErrTeamStandardsTooLarge) {
+		t.Fatal("oversized requirements were silently truncated or accepted", err)
 	}
 }

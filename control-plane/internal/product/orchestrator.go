@@ -79,6 +79,9 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		if err := validateDesignPlan(*next); err != nil {
 			return err
 		}
+		if snapshot.TeamStandards != nil && (next.ControlLibraryRevision != 0 && next.ControlLibraryRevision != snapshot.TeamStandards.Revision || next.ControlLibraryDigest != "" && next.ControlLibraryDigest != snapshot.TeamStandards.Digest) {
+			return ErrOrchestratorInvalid
+		}
 		if currentQuality && snapshot.DesignPlan.Revision == 0 && (next.Scene == nil || len(next.Scene.Frames) == 0) {
 			return ErrOrchestratorInvalid
 		}
@@ -287,6 +290,10 @@ func (s *Server) getOrchestrator(w http.ResponseWriter, r *http.Request) {
 func orchestratorProblem(w http.ResponseWriter, err error) {
 	status, code, message := 500, "orchestrator_unavailable", "The private project conversation could not be read or saved. Reload before retrying."
 	switch {
+	case errors.Is(err, ErrTeamStandardsTooLarge):
+		status, code, message = 413, "team_standards_too_large", err.Error()
+	case errors.Is(err, errControlWorkbook):
+		status, code, message = 409, "team_standards_unavailable", "The current team control library cannot be verified. Review the imported library before asking Luci to design or apply a draft."
 	case errors.Is(err, ErrOrchestratorInvalid):
 		status, code, message = 400, "invalid_orchestrator_request", err.Error()
 	case errors.Is(err, ErrOrchestratorConflict):
@@ -489,6 +496,10 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 		revoke, definition = true, true
 	case "design-plan":
 		plan := *proposal.DesignPlan
+		plan.CurrentControlLibraryRevision, plan.CurrentControlLibraryDigest = 0, ""
+		if snapshot.TeamStandards != nil {
+			plan.ControlLibraryRevision, plan.ControlLibraryDigest = snapshot.TeamStandards.Revision, snapshot.TeamStandards.Digest
+		}
 		plan.Status, plan.Digest = "draft", ""
 		plan.Revision = snapshot.DesignPlan.Revision + 1
 		plan.BriefRevision = state.Brief.Revision

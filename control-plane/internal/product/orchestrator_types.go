@@ -76,6 +76,7 @@ type OrchestratorTeamIntents struct {
 }
 
 type OrchestratorContext struct {
+	TeamStandards *OrchestrationStandards `json:"teamStandards,omitempty"`
 	// Optional to preserve earlier immutable snapshot digests.
 	TaskHandoffs *OrchestratorTaskHandoffs `json:"taskHandoffs,omitempty"`
 	TeamIntents  *OrchestratorTeamIntents  `json:"teamIntents,omitempty"`

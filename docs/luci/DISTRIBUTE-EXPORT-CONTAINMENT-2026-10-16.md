@@ -20,6 +20,17 @@ export refuses if its entire section/table content cannot fit the format's
 declared bounds; truncation is not fidelity. Export is a private read with a
 content digest, exact project/revision and visible draft/stale notice.
 
+Workbook admission must account for the existing 2 MiB compressed and 8 MiB
+expanded XML limits, at most 2,000 rows and one decoded workbook per request.
+Use one shared in-process parse/export slot with a bounded acquisition wait and
+request cancellation; a busy slot returns a recoverable response before ZIP
+decode or output allocation. Serial assessment reports and future artifact
+exports charge their complete projected output and one active encoder to the
+same slot. Never queue unbounded request bodies, retain multiple expanded
+workbooks, or run conversion in the UI thread. The current XLSX route bounds
+individual requests; the shared concurrency admission is required before
+claiming constrained-PC export acceptance.
+
 PDF needs a concrete font and layout renderer with original licence,
 version/digest, packaging for each supported host, bounded memory/time/output,
 positive owned cleanup and representative visual/text fidelity checks. Until
