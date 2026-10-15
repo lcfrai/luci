@@ -27,6 +27,12 @@ func TestTeamControlRoutesSeparateAdminAndProjectAuthority(t *testing.T) {
 		{"POST", "/v1/product/projects/p-one/control-assessment", viewer, false, "p-one"},
 		{"POST", "/v1/product/projects/p-one/control-assessment", editor, true, "p-one"},
 		{"POST", "/v1/product/projects/p-one/control-assessment/gaps/SEC-1/proposal", editor, true, "p-one"},
+		{"GET", "/v1/product/projects/p-one/distribute/artifacts", viewer, true, "p-one"},
+		{"POST", "/v1/product/projects/p-one/distribute/artifacts/prepare", viewer, false, "p-one"},
+		{"POST", "/v1/product/projects/p-one/distribute/artifacts", editor, true, "p-one"},
+		{"GET", "/v1/product/projects/p-one/distribute/artifacts/artifact-one", viewer, true, "p-one"},
+		{"POST", "/v1/product/projects/p-one/distribute/artifacts/artifact-one/revise", viewer, false, "p-one"},
+		{"POST", "/v1/product/projects/p-one/distribute/artifacts/artifact-one/review", editor, true, "p-one"},
 	} {
 		req := httptest.NewRequest(tc.method, tc.path, nil)
 		scope, capability, known := classifyTeamRoute(req)

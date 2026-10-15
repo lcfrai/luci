@@ -10,6 +10,7 @@ import { useCockpit } from '../../store/store';
 import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import { Button } from '../fluid/components/button';
 import { JourneyHeader, ProjectRequired } from '../journey/shared';
+import { ArtifactWorkspace } from './ArtifactWorkspace';
 import './distribute.css';
 
 const fields=[['id','Control ID'],['requirement','Requirement'],['category','Category'],['applicability','Applies to'],['owner','Owner'],['evidenceExpected','Evidence expected'],['severity','Severity (optional)'],['reviewCadence','Review cadence (optional)']] as const;
@@ -75,5 +76,6 @@ function ProjectDistribute({projectId}:{projectId:string}){
       <Button type="button" variant="primary" disabled={!canEdit||busy||results.length!==current.controls.length} onClick={()=>step(async()=>{assessmentKey.current ||= `team-assessment-${crypto.randomUUID()}`;await distributeControlsApi.saveAssessment(projectId,{expectedRevision:assessment?.assessment.revision??0,libraryRevision:current.revision,libraryDigest:current.digest,contextDigest:assessment?.contextDigest??'',idempotencyKey:assessmentKey.current,results});setEdited(false);setNotice('The project assessment was saved against exact library and project versions.');refresh(true)})}>Save reviewed assessment</Button>
       {assessment?.assessment.proposals.length>0&&<details><summary>Recorded gap proposals</summary>{assessment.assessment.proposals.map(proposal=><div key={proposal.id}><p>{proposal.controlId} · {proposal.summary} · {proposal.state==='applied-draft'?'Applied to an unapproved draft':`Pending ${proposal.target} review`}</p>{proposal.state==='pending-review'&&assessment.state==='current'&&canEdit&&<Button type="button" variant="secondary" disabled={busy||edited} onClick={()=>step(async()=>{const target=proposal.target==='discover'?await definitionApi.get(projectId):await designPlanApi.get(projectId);await distributeControlsApi.applyGap(projectId,proposal,{expectedAssessmentRevision:assessment.assessment.revision,expectedContextDigest:assessment.contextDigest,expectedTargetRevision:target.revision});setNotice(`The gap is now an unapproved ${proposal.target} draft. Review and approve it through the normal project flow.`);refresh(true);setLens(proposal.target)})}>Apply to {proposal.target} draft</Button>}<Button type="button" variant="secondary" onClick={()=>setLens(proposal.target)}>Open {proposal.target}</Button></div>)}</details>}</>}
     </section></>}
+    {access.canRead&&!access.error&&<ArtifactWorkspace projectId={projectId} canRead={access.canRead} canEdit={access.canEdit}/>}
   </section>;
 }

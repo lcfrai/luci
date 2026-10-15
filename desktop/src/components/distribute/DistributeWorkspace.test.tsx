@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DistributeWorkspace } from './DistributeWorkspace';
 import { distributeControlsApi, type AssessmentView, type ControlLibraryView } from '../../api/distributeControls';
+import { distributeArtifactsApi } from '../../api/distributeArtifacts';
 import { resetCockpit, useCockpit } from '../../store/store';
 import { productApi } from '../../api/product';
 
@@ -11,7 +12,7 @@ vi.mock('../teams/TeamWorkspaceProvider',()=>({useTeamWorkspace:()=>scope.teamId
 const control={id:'SEC-1',requirement:'Review access controls',category:'Security',applicability:'Each release',owner:'Team',evidenceExpected:'Reviewed access test',sheet:'Controls',row:2,unmapped:{},unmappedHeaders:{}};
 const library:ControlLibraryView={state:'configured',teamId:'team-one',revision:1,library:{revision:1,digest:'a'.repeat(64),sourceSHA256:'b'.repeat(64),sheet:'Controls',columns:{id:'A'},controls:[control],added:['SEC-1'],changed:[],removed:[],diffDigest:'c'.repeat(64),actorId:'admin',at:'now'}};
 const assessment:AssessmentView={state:'unreviewed',projectId:'p-1',contextDigest:'d'.repeat(64),library:library.library,assessment:{version:1,teamId:'team-one',projectId:'p-1',revision:0,libraryRevision:0,libraryDigest:'',contextDigest:'',results:[],proposals:[],actorId:'',at:''}};
-beforeEach(()=>{vi.restoreAllMocks();resetCockpit();scope.teamId='team-one';scope.read=true;scope.edit=true;scope.admin=true;useCockpit.setState(state=>({selection:{...state.selection,projectId:'p-1'}}));vi.spyOn(distributeControlsApi,'library').mockResolvedValue(library);vi.spyOn(distributeControlsApi,'assessment').mockResolvedValue(assessment)});
+beforeEach(()=>{vi.restoreAllMocks();resetCockpit();scope.teamId='team-one';scope.read=true;scope.edit=true;scope.admin=true;useCockpit.setState(state=>({selection:{...state.selection,projectId:'p-1'}}));vi.spyOn(distributeControlsApi,'library').mockResolvedValue(library);vi.spyOn(distributeControlsApi,'assessment').mockResolvedValue(assessment);vi.spyOn(distributeArtifactsApi,'list').mockResolvedValue({projectId:'p-1',artifacts:[]})});
 afterEach(cleanup);
 
 it('keeps the personal stage truthful without requesting team state',async()=>{
