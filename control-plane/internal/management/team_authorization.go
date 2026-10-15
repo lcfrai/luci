@@ -77,6 +77,7 @@ var teamRouteRules = []teamRouteRule{
 	{"POST /v1/product/team-controls/compare", teamAdmin},
 	{"POST /v1/product/team-controls/import", teamAdmin},
 	{"GET /v1/product/projects/{projectId}/control-assessment", teamRead},
+	{"GET /v1/product/projects/{projectId}/control-assessment/report.xlsx", teamRead},
 	{"POST /v1/product/projects/{projectId}/control-assessment", teamEdit},
 	{"POST /v1/product/projects/{projectId}/control-assessment/gaps/{controlId}/proposal", teamEdit},
 	{"POST /v1/product/projects/{projectId}/control-assessment/gaps/{controlId}/proposal/{proposalId}/apply", teamEdit},

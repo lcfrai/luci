@@ -23,6 +23,7 @@ func TestTeamControlRoutesSeparateAdminAndProjectAuthority(t *testing.T) {
 		{"POST", "/v1/product/team-controls/compare", admin, true, ""},
 		{"POST", "/v1/product/team-controls/import", admin, true, ""},
 		{"GET", "/v1/product/projects/p-one/control-assessment", viewer, true, "p-one"},
+		{"GET", "/v1/product/projects/p-one/control-assessment/report.xlsx", viewer, true, "p-one"},
 		{"POST", "/v1/product/projects/p-one/control-assessment", viewer, false, "p-one"},
 		{"POST", "/v1/product/projects/p-one/control-assessment", editor, true, "p-one"},
 		{"POST", "/v1/product/projects/p-one/control-assessment/gaps/SEC-1/proposal", editor, true, "p-one"},

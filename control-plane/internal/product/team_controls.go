@@ -80,6 +80,7 @@ func (s *Server) registerDistributeControls(mux Registrar) {
 	mux.HandleFunc("POST /v1/product/team-controls/compare", s.compareTeamControls)
 	mux.HandleFunc("POST /v1/product/team-controls/import", s.importTeamControls)
 	mux.HandleFunc("GET /v1/product/projects/{id}/control-assessment", s.getControlAssessment)
+	mux.HandleFunc("GET /v1/product/projects/{id}/control-assessment/report.xlsx", s.exportControlAssessment)
 	mux.HandleFunc("POST /v1/product/projects/{id}/control-assessment", s.saveControlAssessment)
 	mux.HandleFunc("POST /v1/product/projects/{id}/control-assessment/gaps/{controlId}/proposal", s.proposeControlGap)
 	mux.HandleFunc("POST /v1/product/projects/{id}/control-assessment/gaps/{controlId}/proposal/{proposalId}/apply", s.applyControlGap)

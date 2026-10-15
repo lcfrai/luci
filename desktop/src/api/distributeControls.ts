@@ -27,6 +27,14 @@ export const distributeControlsApi={
   compare:(input:Omit<ImportInput,'idempotencyKey'|'expectedDiffDigest'>,signal?:AbortSignal)=>productApi.request<ControlDiff>('/v1/product/team-controls/compare',input,'POST',30_000,signal),
   import:(input:ImportInput,signal?:AbortSignal)=>productApi.request<ControlRevision>('/v1/product/team-controls/import',input,'POST',30_000,signal),
   assessment:(projectId:string,signal?:AbortSignal)=>productApi.request<AssessmentView>(project(projectId),undefined,'GET',30_000,signal),
+  downloadReport:async(projectId:string,current:()=>boolean)=>{
+    const blob=await productApi.requestBlob(`${project(projectId)}/report.xlsx`);
+    if(!current())return;
+    if(blob.size<1||blob.size>16*1024*1024)throw new Error('The bounded assessment export is incomplete. Refresh the assessment and try again.');
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');link.href=url;link.download='luci-control-assessment.xlsx';link.click();
+    window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+  },
   saveAssessment:(projectId:string,input:{expectedRevision:number;libraryRevision:number;libraryDigest:string;contextDigest:string;idempotencyKey:string;results:ControlResult[]},signal?:AbortSignal)=>productApi.request<ControlAssessment>(project(projectId),input,'POST',30_000,signal),
   proposeGap:(projectId:string,controlId:string,input:{assessmentRevision:number;target:'discover'|'design';summary:string},signal?:AbortSignal)=>productApi.request<GapProposal>(`${project(projectId)}/gaps/${encodeURIComponent(controlId)}/proposal`,input,'POST',30_000,signal),
   applyGap:(projectId:string,proposal:GapProposal,input:{expectedAssessmentRevision:number;expectedContextDigest:string;expectedTargetRevision:number},signal?:AbortSignal)=>productApi.request<GapProposal>(`${project(projectId)}/gaps/${encodeURIComponent(proposal.controlId)}/proposal/${encodeURIComponent(proposal.id)}/apply`,input,'POST',30_000,signal),

@@ -35,3 +35,13 @@ it('enforces admin import and project read grants in the mounted view',async()=>
   scope.read=false;view.rerender(<DistributeWorkspace/>);
   expect(screen.queryByText(/Review access controls/)).toBeNull();
 });
+
+it('offers the exact saved assessment report without starting another assessment',async()=>{
+  vi.mocked(distributeControlsApi.assessment).mockResolvedValue({...assessment,state:'stale',assessment:{...assessment.assessment,revision:1}});
+  const download=vi.spyOn(distributeControlsApi,'downloadReport').mockResolvedValue();
+  const save=vi.spyOn(distributeControlsApi,'saveAssessment');
+  render(<DistributeWorkspace/>);
+  await userEvent.click(await screen.findByRole('button',{name:'Download assessment XLSX (marked stale)'}));
+  expect(download).toHaveBeenCalledExactlyOnceWith('p-1',expect.any(Function));
+  expect(save).not.toHaveBeenCalled();
+});

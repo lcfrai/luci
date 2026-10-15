@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -153,6 +154,32 @@ func TestTeamControlsCompareImportAssessmentAndRevocation(t *testing.T) {
 	if json.Unmarshal(saved.Body.Bytes(), &assessment) != nil || assessment.Revision != 1 {
 		t.Fatal(saved.Body.String())
 	}
+	report := controlTestRequest(t, h, "GET", projectPath+"/report.xlsx", nil, 200)
+	if report.Header().Get("Content-Type") != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || len(report.Header().Get("X-Content-SHA256")) != 64 {
+		t.Fatal("report lacked exact private XLSX identity")
+	}
+	archive, err := zip.NewReader(bytes.NewReader(report.Body.Bytes()), int64(report.Body.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var worksheet string
+	for _, part := range archive.File {
+		if part.Name == "xl/worksheets/sheet1.xml" {
+			reader, e := part.Open()
+			if e != nil {
+				t.Fatal(e)
+			}
+			raw, e := io.ReadAll(reader)
+			reader.Close()
+			if e != nil {
+				t.Fatal(e)
+			}
+			worksheet = string(raw)
+		}
+	}
+	if !strings.Contains(worksheet, "Show access controls") || !strings.Contains(worksheet, "Needs a reviewed access test") || !strings.Contains(worksheet, `>current<`) || strings.Contains(worksheet, "<f>") {
+		t.Fatal("report lost source, finding or truth state")
+	}
 	proposal := controlTestRequest(t, h, "POST", projectPath+"/gaps/SEC-1/proposal", map[string]any{"assessmentRevision": 1, "target": "design", "summary": "Design needs access review evidence"}, 200)
 	if !strings.Contains(proposal.Body.String(), "pending-review") {
 		t.Fatal(proposal.Body.String())
@@ -197,6 +224,10 @@ func TestTeamControlsCompareImportAssessmentAndRevocation(t *testing.T) {
 	reimport["idempotencyKey"] = "control-reimport-key-123456"
 	reimport["expectedDiffDigest"] = diff.DiffDigest
 	controlTestRequest(t, h, "POST", root+"/import", reimport, 200)
+	staleReport := controlTestRequest(t, h, "GET", projectPath+"/report.xlsx", nil, 200)
+	if staleReport.Header().Get("X-Luci-Assessment-State") != "stale" {
+		t.Fatal("old assessment export claimed current after reimport")
+	}
 	plan = controlTestRequest(t, h, "GET", "/v1/product/projects/"+id+"/design-plan", nil, 200)
 	if json.Unmarshal(plan.Body.Bytes(), &design) != nil || design.Status != "outdated" {
 		t.Fatal("changed team library did not stale Design", plan.Body.String())
