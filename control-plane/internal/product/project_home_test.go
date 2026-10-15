@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -13,6 +14,54 @@ import (
 
 func homeActor(id string) context.Context {
 	return management.WithExecutionAuthority(context.Background(), management.ExecutionAuthority{Actor: management.User{ID: id, Username: id, Role: "member"}})
+}
+
+func TestHomeAcknowledgmentCapacityRemainsReadableAndExpires(t *testing.T) {
+	server, err := New(Options{StateDir: t.TempDir(), ProjectsDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	ctx := homeActor("alice")
+	prefs, path, err := server.homePreferenceScope(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefs.Revision = 2
+	prefs.AcknowledgedStopIDs = map[string][]string{}
+	prefs.AcknowledgedAt = map[string]string{}
+	current := homeStopID("session", "p-next", "s-next", "generation", "2026-10-15T00:00:00Z")
+	for i := 0; i < 257; i++ {
+		id := fmt.Sprintf("p-%03d", i)
+		prefs.AcknowledgedStopIDs[id] = []string{homeStopID("session", id, "s-old", "generation", "2026-10-15T00:00:00Z")}
+		prefs.AcknowledgedAt[id] = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	// A prior version could save 257 keys. Loading it must recover rather than
+	// make every later Home request fail.
+	if err := saveHomePreferences(path, prefs); err != nil {
+		t.Fatal(err)
+	}
+	read, err := server.HomePreferences(ctx)
+	if err != nil || len(read.AcknowledgedStopIDs) != 257 {
+		t.Fatal(len(read.AcknowledgedStopIDs), err)
+	}
+	if _, err := server.HomeAcknowledge(ctx, "p-next", read.Revision, []string{current}, []string{current}); !errors.Is(err, ErrProjectRunLimit) {
+		t.Fatal(err)
+	}
+	if _, err := server.HomePreferences(ctx); err != nil {
+		t.Fatal("capacity refusal poisoned Home", err)
+	}
+	// Once an old acknowledgment ages out, capacity is recovered on the next
+	// write without dropping any still-current acknowledgment.
+	prefs.AcknowledgedAt["p-000"] = time.Now().UTC().Add(-25 * time.Hour).Format(time.RFC3339Nano)
+	prefs.AcknowledgedAt["p-001"] = prefs.AcknowledgedAt["p-000"]
+	if err := saveHomePreferences(path, prefs); err != nil {
+		t.Fatal(err)
+	}
+	ack, err := server.HomeAcknowledge(ctx, "p-next", read.Revision, []string{current}, []string{current})
+	if err != nil || len(ack.AcknowledgedStopIDs) != 256 || len(ack.AcknowledgedStopIDs["p-next"]) != 1 {
+		t.Fatal(len(ack.AcknowledgedStopIDs), err)
+	}
 }
 
 func TestHomePreferencesAreActorScopedDurableAndCASProtected(t *testing.T) {

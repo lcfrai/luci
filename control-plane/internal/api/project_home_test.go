@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -104,5 +105,39 @@ func TestHomeRetainsWorkingAndStoppedSessionsTogetherWithoutObservingBackend(t *
 	rows, err := e.api.homePage(orchestratorExecutionActor(t), e.loc.projects, "u-reviewed-task-fixture", product.HomePreferences{AcknowledgedStopIDs: map[string][]string{}}, time.Now().UTC(), true)
 	if err != nil || len(rows) != 1 || !rows[0].Working || len(rows[0].Stops) != 1 || rows[0].Stops[0].Kind != "stopped" {
 		t.Fatalf("working/stopped activity lost: %+v %v", rows, err)
+	}
+}
+
+func TestHomePinWriteOmitsPreviouslyPinnedRevokedProject(t *testing.T) {
+	e := sessionsNewEnv(t)
+	server, err := product.New(product.Options{StateDir: t.TempDir(), ProjectsDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	e.api.deps.Product = server
+	first, second := e.loc.projects[0].ID, "p-second"
+	e.loc.projects = append(e.loc.projects, project.Project{ID: second, Name: "Second", Path: t.TempDir()})
+	allowed := map[string]bool{first: true, second: true}
+	e.api.deps.AuthorizeProjectRead = func(_ context.Context, ref management.ExecutionActorRef) (management.ExecutionAuthority, error) {
+		if allowed[ref.ProjectID] {
+			return management.ExecutionAuthority{}, nil
+		}
+		return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+	}
+	request := func(id string, rev int) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("PUT", sessionsTarget("/v1/product/home/pins"), strings.NewReader(`{"projectId":"`+id+`","expectedRevision":`+strconv.Itoa(rev)+`,"pinned":true}`)).WithContext(orchestratorExecutionActor(t))
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		e.api.handleHomePin(w, r)
+		return w
+	}
+	if w := request(first, 1); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	allowed[first] = false
+	w := request(second, 2)
+	if w.Code != 200 || strings.Contains(w.Body.String(), first) || !strings.Contains(w.Body.String(), second) {
+		t.Fatal(w.Code, w.Body.String())
 	}
 }

@@ -334,7 +334,24 @@ func (a *API) handleHomePin(w http.ResponseWriter, r *http.Request) {
 		homeWriteError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"revision": prefs.Revision, "pinnedProjectIds": prefs.PinnedProjectIDs})
+	// A previously pinned project may have been revoked since it was saved.
+	// Recheck grants for this response; never return its identity from a write.
+	currentProjects, _, err := a.authorizedHomeProjects(r.Context())
+	if err != nil {
+		httpx.WriteProblem(w, 503, "home_unavailable", "Pin saved, but current project access could not be checked. Refresh Home.", nil)
+		return
+	}
+	accessible := make(map[string]bool, len(currentProjects))
+	for _, p := range currentProjects {
+		accessible[p.ID] = true
+	}
+	pins := make([]string, 0, len(prefs.PinnedProjectIDs))
+	for _, id := range prefs.PinnedProjectIDs {
+		if accessible[id] && a.reauthorizeHomeProject(r.Context(), actor, id) == nil {
+			pins = append(pins, id)
+		}
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"revision": prefs.Revision, "pinnedProjectIds": pins})
 }
 
 func (a *API) handleHomeAcknowledge(w http.ResponseWriter, r *http.Request) {

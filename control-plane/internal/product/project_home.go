@@ -44,6 +44,7 @@ type HomePreferences struct {
 	ActorID             string              `json:"actorId"`
 	PinnedProjectIDs    []string            `json:"pinnedProjectIds"`
 	AcknowledgedStopIDs map[string][]string `json:"acknowledgedStopIds"`
+	AcknowledgedAt      map[string]string   `json:"acknowledgedAt,omitempty"`
 }
 
 func homeStopID(source, projectID, identity, generation, at string) string {
@@ -70,7 +71,7 @@ func (s *Server) homePreferenceScope(ctx context.Context) (HomePreferences, stri
 	scope := sha256.Sum256([]byte(workspace))
 	value := HomePreferences{Version: 1, Revision: 1, AccountScope: s.projectRuns.accountScope,
 		WorkspaceScope: hex.EncodeToString(scope[:]), ActorID: actor.ID,
-		PinnedProjectIDs: []string{}, AcknowledgedStopIDs: map[string][]string{}}
+		PinnedProjectIDs: []string{}, AcknowledgedStopIDs: map[string][]string{}, AcknowledgedAt: map[string]string{}}
 	name := sha256.Sum256([]byte(value.AccountScope + "\x00" + value.WorkspaceScope + "\x00" + actor.ID))
 	path, err := guardedProjectPath(s.stateDir, "home-preferences-"+hex.EncodeToString(name[:])+".json", true)
 	return value, path, err
@@ -98,7 +99,7 @@ func (s *Server) homePreferencesLocked(ctx context.Context) (HomePreferences, st
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&saved) != nil || decoder.Decode(new(any)) != io.EOF || saved.Version != 1 || saved.Revision < 2 ||
 		saved.AccountScope != want.AccountScope || saved.WorkspaceScope != want.WorkspaceScope || saved.ActorID != want.ActorID ||
-		len(saved.PinnedProjectIDs) > 256 || len(saved.AcknowledgedStopIDs) > 256 {
+		len(saved.PinnedProjectIDs) > 256 || len(saved.AcknowledgedStopIDs) > 4096 || len(saved.AcknowledgedAt) > 4096 {
 		return want, "", errors.New("home preferences invalid")
 	}
 	seen := map[string]bool{}
@@ -125,6 +126,36 @@ func (s *Server) homePreferencesLocked(ctx context.Context) (HomePreferences, st
 	}
 	if saved.AcknowledgedStopIDs == nil {
 		saved.AcknowledgedStopIDs = map[string][]string{}
+	}
+	if saved.AcknowledgedAt == nil {
+		saved.AcknowledgedAt = map[string]string{}
+	}
+	// Older preferences predate timestamps. Their last durable write is a
+	// conservative expiry anchor; an acknowledgment only hides 24-hour stops.
+	info, err := file.Stat()
+	if err != nil {
+		return want, "", err
+	}
+	for projectID := range saved.AcknowledgedAt {
+		if _, ok := saved.AcknowledgedStopIDs[projectID]; !ok {
+			return want, "", errors.New("home preferences invalid")
+		}
+	}
+	for projectID := range saved.AcknowledgedStopIDs {
+		at := saved.AcknowledgedAt[projectID]
+		when := info.ModTime()
+		if at != "" {
+			when, err = time.Parse(time.RFC3339Nano, at)
+			if err != nil || when.After(time.Now().Add(time.Minute)) {
+				return want, "", errors.New("home preferences invalid")
+			}
+		}
+		if !when.After(time.Now().Add(-homeStopWindow)) {
+			delete(saved.AcknowledgedStopIDs, projectID)
+			delete(saved.AcknowledgedAt, projectID)
+		} else if at == "" {
+			saved.AcknowledgedAt[projectID] = when.UTC().Format(time.RFC3339Nano)
+		}
 	}
 	return saved, path, nil
 }
@@ -212,7 +243,11 @@ func (s *Server) HomeAcknowledge(ctx context.Context, projectID string, expected
 	if len(ids) > 32 {
 		ids = ids[len(ids)-32:]
 	}
+	if _, exists := prefs.AcknowledgedStopIDs[projectID]; !exists && len(prefs.AcknowledgedStopIDs) >= 256 {
+		return prefs, ErrProjectRunLimit
+	}
 	prefs.AcknowledgedStopIDs[projectID] = ids
+	prefs.AcknowledgedAt[projectID] = time.Now().UTC().Format(time.RFC3339Nano)
 	prefs.Revision++
 	if err := saveHomePreferences(path, prefs); err != nil {
 		return HomePreferences{}, err
