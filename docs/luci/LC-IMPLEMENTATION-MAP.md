@@ -1,4 +1,48 @@
-# LC-01–LC-16 implementation map
+# LC-01–LC-24 implementation map
+
+## Current implementation and acceptance split — 16 October 2026
+
+This table updates the older source-path map below without rewriting its historical
+receipts. `main` was `9cf93471`; Distribute corrections/artifacts are separate
+reviewable source heads `6f9afc00c` and `ad116af86`, and the contained Discover
+join is `798aaba3`. A source check is never an installed or live acceptance pass.
+The exact acceptance wording remains in [PRODUCT-CONTRACT-LC.json](PRODUCT-CONTRACT-LC.json).
+
+| ID | Source state | Concrete implementation still missing | Execution acceptance still open |
+| --- | --- | --- | --- |
+| LC-01 | Primary private conversation, durable turns and coordinator exist. | No separate primary-conversation engine identified. | Connected conversation quality and cross-project continuity. |
+| LC-02 | Five-D navigation and feedback paths have source joins; Distribute is a candidate branch. | Integrate the candidate and validate full stage transitions. | Real revisits, amendments and recovery across all five stages. |
+| LC-03 | Approved context, Design scene, selected standards and captured harness manifests have source paths. | Complete contained document/OCR evidence and integrate the candidate joins. | Exact real harness ingestion and unchanged captured inputs after amendment. |
+| LC-04 | Upstream harness adapters, owned sessions and coordinator dispatch are implemented. | LOCAL-060 real local coding/tool compatibility remains unresolved; do not execute assistant prose as tools. | A connected authorized upstream creates code that survives review and checks. |
+| LC-05 | Local Docker isolation/leases and runtime import have source paths. | Held producer/bootstrap package and security dispositions remain separate blockers. | Installed constrained-PC coding, retirement and computer responsiveness. |
+| LC-06 | Azure private microVM setup/runtime paths exist offline. | Finish guided image/template and protected runtime join. | No live Azure provision, guest or cost acceptance. |
+| LC-07 | Context amendments, affected-task replanning and stale-work fencing exist. | Integrate new document/scene/control inputs into normal amendments. | A real mid-build change reaches checked and permitted delivery. |
+| LC-08 | Reviewed Git, check, preview and deployment receipt paths exist. | No public-target deployment source change assigned here. | Actual reachable target, behavior and safe failure/recovery. |
+| LC-09 | Actor/team scoped durable context and exact shared-control versions exist in source. | Integrate new candidate controls/artifacts. | Two-person convergence and restart with actual grants. |
+| LC-10 | Compatible CAS and conflicting-intent handling exist in source. | No new negotiation engine identified. | Real concurrent compatible/conflicting work. |
+| LC-11 | Grants, policy and spending fences exist in source. | A saved check-command consent is still required before routine combined checks. | Genuine routine autonomy and meaningful human decisions. |
+| LC-12 | shadcn shell, Home, scene, Develop and Distribute views have source paths. | Integrate/review candidate UI. | Keyboard, phone, zoom and responsiveness with live work. |
+| LC-13 | Scheduler, host reserve, owned cancel/recovery and pressure guards exist in source. | Resolve package/runtime holds before broad local work. | Actual multitask fairness, isolation and whole-PC safety. |
+| LC-14 | Selected OSS provenance is tracked; native DOCX/PPTX/XLSX needs no renderer dependency. | PDF renderer/font closure and document image dependencies remain open. | Package licence and real image/font fidelity evidence. |
+| LC-15 | Per-task microVM scheduler and selected Azure route exist offline. | Complete protected host/template delivery. | Distinct task VMs, parallel workload and positive retirement. |
+| LC-16 | Limits, uncertain outcomes and retained ownership source paths exist. | No new scheduler assigned; provider join remains open. | Real interruption, retry, charge and restart settlement. |
+| LC-17 | Personal pins, all-project Home, deduped rail and exact stop acknowledgments are source implemented. | No additional Home source gap established. | Installed navigation, actor isolation, retention and simultaneous activity. |
+| LC-18 | Bounded text evidence and UI exist; contained extractor/shared join is source-tested candidate `798aaba3`. | Pinned, built and verified OCR/PDF image and final lifecycle join remain missing. | Actual scanned/text document extraction, corrections and strategic chat. |
+| LC-19 | Editable scene, assets, CAS, review and captured Design source paths exist. | Agent-produced scene quality and raster/package integration need confirmation. | Real generation, edit/undo/reload and exact approved handoff. |
+| LC-20 | Tiled real terminal/files/diff/preview source layout exists. | No new decorative substitute is needed. | Real coding/Ask/permission and pane lifecycle on installed UI. |
+| LC-21 | Candidate `ad116af86` generates source-linked risk/GTM/proposal/pricing/presentation drafts with actor review, exact accepted run evidence and native DOCX/PPTX/XLSX. | PDF exporter is missing pending [renderer/font reconciliation](DISTRIBUTE-PDF-RENDERER-PROPOSAL-2026-10-16.md); candidate integration is pending. | Useful real outputs, Office/PDF fidelity, review and accurate release claims. |
+| LC-22 | Candidate `6f9afc00c` has bounded XLSX admin import, project assessments/evidence, Design/task standards capture and gap proposals. | Integrate reviewed corrections; contained OCR source remains separate. | Real team import/reimport, assessment and amendment loop. |
+| LC-23 | Design-derived contract, digest approval, immutable run capture and stale dispatch fences are source implemented. | No second scheduler or separate JSON authority needed. | Real approved selection reaches the correct upstream worker. |
+| LC-24 | Durable addressed messages, independent review/repair, reviewed integration and combined-check gates are source implemented. | **Next code seam:** failed combined checks currently become `blocked`; the bounded repair path handles failed reviewer findings only. A checked-failure diagnostic → fresh repair candidate → independent re-review → new exact check continuation is still missing. | Real worker communication, reviewer quality, repair, merged app checks, latency/intervention and permitted Deploy. |
+
+The LC-24 seam is visible in `coordinator_delivery.go`: a `failed`, `blocked` or
+`cancelled` combined check persists `blocked`. `coordinator_repair.go` reserves
+repairs only for a `repair-required` review obligation. Keep the failed check's
+original result and authority; any continuation must make a new, bounded attempt
+from that exact evidence through the existing run/scheduler, never replay the
+unknown check or synthesize a passing result. Check commands remain explicitly
+delegated by `CoordinatorCheckPlan`; a source-bound suggestion may reduce setup
+work, but may not turn model text into command consent.
 
 **LC-23 added-scope source candidate, 16 October 2026:** `internal/product/orchestration_contract*.go`, `project_runs.go`, `project_swarm*.go`, `internal/api/swarm_dispatch.go` and `internal/management/team_authorization.go` join Design-derived preparation/approval to the existing immutable run and dependency-aware scheduler. [The exact interface](interfaces/orchestration-contract-v1.json) binds approved source/tasks/dependencies/requirements, selected route, legacy standard status, decision policy and current nonsecret execution controls; its approval is separate from current spend/deploy authority. Preparation is effects-free; each new task effect checks current policy/grant and changed saved inputs. LC-22 controls-library assessment, the separate LC-23 Develop UI join, LC-24 quality/speed behavior and actual local/cloud acceptance remain open. This source candidate does not alter the LC-01–16 requirements or historical acceptance evidence.
 

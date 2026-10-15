@@ -1,7 +1,8 @@
 # Distribute export and dependency boundary — 16 October 2026
 
-The current Go API and desktop release dependencies contain no pinned DOCX,
-PPTX or PDF renderer. The cloud executor has host conversion commands, but
+The current source candidate writes bounded DOCX, PPTX and XLSX with Go's ZIP
+and XML packages. The release still has no pinned PDF renderer/font path. The
+cloud executor has host conversion commands, but
 they are not verified portable/native package dependencies and must not be
 assumed present in ordinary Windows setup. The existing browser and LC18
 extractor do not authorize a new document renderer or model execution.
@@ -34,9 +35,9 @@ Never queue unbounded request bodies, retain multiple expanded
 workbooks, or run conversion in the UI thread. The current XLSX route bounds
 individual requests; source admission is not an installed Windows capacity pass.
 
-PDF needs a concrete font and layout renderer with original licence,
-version/digest, packaging for each supported host, bounded memory/time/output,
-positive owned cleanup and representative visual/text fidelity checks. Until
+The [PDF renderer/font proposal](DISTRIBUTE-PDF-RENDERER-PROPOSAL-2026-10-16.md)
+pins candidate module and font versions, hashes, licences, compatibility and
+resource gates. It is not dependency acquisition or renderer acceptance. Until
 that exact dependency and containment path is reconciled and packaged, the
 PDF route must refuse clearly; it must not fall back to an unpinned host
 `soffice`, `pandoc`, Chromium, remote service or browser print dialog.
