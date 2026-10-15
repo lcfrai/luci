@@ -21,6 +21,7 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
   const [gestureScene, setGestureScene] = useState<EditableDesignScene | null>(null), [notice, setNotice] = useState('');
   const gesture = useRef<Gesture | null>(null), stage = useRef<HTMLDivElement>(null), textInput = useRef<HTMLTextAreaElement>(null);
   const gesturePreview = useRef<EditableDesignScene | null>(null);
+  const propertiesPanel = useRef<HTMLElement>(null), paneFocus = useRef<'properties' | 'text' | null>(null);
   const live = useRef({canRead, canEdit, busy, scene}); live.current = {canRead, canEdit, busy, scene};
   const nodeElements = useRef(new Map<string, HTMLDivElement>()), pendingFocus = useRef<string | null>(null);
   const sceneValue = gestureScene ?? scene, frame = sceneValue.frames.find(item => item.id === frameId) ?? sceneValue.frames[0];
@@ -37,6 +38,7 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
     const id = pendingFocus.current;
     if (id && nodeElements.current.has(id)) { nodeElements.current.get(id)?.focus(); pendingFocus.current = null; }
   }, [fingerprint, pane]);
+  useEffect(() => { if (pane === 'properties' && paneFocus.current) { if (paneFocus.current === 'text') textInput.current?.focus(); else propertiesPanel.current?.focus(); paneFocus.current = null; } }, [pane, nodeId]);
   function commit(next: EditableDesignScene, group = '') {
     if (!editing.current) return;
     const invalid = designSceneErrors(next);
@@ -136,7 +138,7 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
       </div>
       <div className="design-scene-layout" data-pane={pane}>
         <aside className="design-scene-layers" aria-label="Scene layers"><h3>Layers</h3><p className="journey-muted">Front layers appear first.</p>
-          <ol>{[...frame.nodes].reverse().map(item => <li key={item.id}><button type="button" aria-pressed={node?.id === item.id} onClick={() => { setNodeId(item.id); pendingFocus.current = item.id; setPane('properties'); }}>{item.name} · {item.kind}{item.hidden ? ' · hidden' : ''}{item.locked ? ' · locked' : ''}</button></li>)}</ol>
+          <ol>{[...frame.nodes].reverse().map(item => <li key={item.id}><button type="button" aria-pressed={node?.id === item.id} onClick={() => { setNodeId(item.id); paneFocus.current = 'properties'; setPane('properties'); }}>{item.name} · {item.kind}{item.hidden ? ' · hidden' : ''}{item.locked ? ' · locked' : ''}</button></li>)}</ol>
           {!frame.nodes.length && <p>Add a component, then select it to edit.</p>}
         </aside>
         <div className="design-scene-stage" ref={stage}>
@@ -148,15 +150,15 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
                 onPointerDown={event => start(event, item)} onPointerMove={move} onPointerUp={event => finish(event)} onPointerCancel={event => finish(event, true)}
                 onLostPointerCapture={event => finish(event, true)} onKeyDown={event => keys(event, item)} onKeyUp={endGroup}
                 onClick={() => { setNodeId(item.id); if (preview && item.behavior.kind === 'navigate') { setFrameId(item.behavior.targetFrameId); setNodeId(''); } }}
-                onDoubleClick={() => { if (canModify && !preview) { setPane('properties'); textInput.current?.focus(); } }}
+                onDoubleClick={() => { if (canModify && !preview) { paneFocus.current = 'text'; setPane('properties'); if (pane === 'properties') { textInput.current?.focus(); paneFocus.current = null; } } }}
                 style={nodeCSS(item)}>
                 {item.kind === 'image' ? renderImage?.(item.assetId, item.text || item.name) : <span>{item.text}</span>}
-                {node?.id === item.id && !item.locked && !readOnly && <span role="button" tabIndex={-1} aria-label={`Resize ${item.name}`} className="design-scene-resize" onPointerDown={event => start(event, item, true)} />}
+                {node?.id === item.id && !item.locked && !readOnly && <span aria-hidden="true" className="design-scene-resize" onPointerDown={event => start(event, item, true)} />}
               </div>)}
             </div>
           </div>
         </div>
-        <aside className="design-scene-properties" aria-label="Selected component properties"><h3>{node ? node.name : 'Frame properties'}</h3>
+        <aside ref={propertiesPanel} tabIndex={-1} className="design-scene-properties" aria-label="Selected component properties"><h3>{node ? node.name : 'Frame properties'}</h3>
           <fieldset disabled={!canModify || preview}>
             {!node ? <>
               <TextProperty label="Frame name" value={frame.name} onCommit={value => patchFrame({name: value})} />
