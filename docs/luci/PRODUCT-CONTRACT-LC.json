@@ -6,7 +6,7 @@
     "sourcePath": "C:\\Users\\DylanMackie\\Documents\\ChatGPT\\Luci\\audit-evidence\\local-acceptance\\product-contract.json",
     "sourceSha256ReportedByLocalAudit": "F82779DBB4A78CAE5A91C3FD0DEB58E73ECC41E49E1FAB12298466A9F42F5D04",
     "scopeAlignmentRevision": "b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707",
-    "transcription": "The id, requirement and acceptance strings below are verbatim from the originating local coordinator's supplied canonical entries on 2026-10-13. This tracked projection has its own bytes and is not a copy or independent hash verification of the Windows source file."
+    "transcription": "The id, requirement and acceptance strings below are verbatim from the originating local coordinator's supplied canonical entries on 2026-10-13. This tracked projection has its own bytes and is not a copy or independent hash verification of the Windows source file. The 15 October five-D amendment explicitly supersedes LC-02 and adds LC-17–22; its prior wording is retained in fiveDWorkspaceAmendment.previousLC02."
   },
   "requirements": [
     {
@@ -16,8 +16,8 @@
     },
     {
       "id": "LC-02",
-      "requirement": "Discover, Design, Develop and Deploy are four revisitable, communicating phases, rather than a one-way wizard.",
-      "acceptance": "A build or deployment finding can reopen discovery or design, update affected context and continue work with a traceable reason."
+      "requirement": "Discover, Design, Develop, Deploy and Distribute are five revisitable, communicating phases, rather than a one-way wizard.",
+      "acceptance": "Build, deployment, risk or commercial findings can reopen discovery or design, update affected versioned context and continue work with a traceable reason and preserved authority."
     },
     {
       "id": "LC-03",
@@ -88,6 +88,36 @@
       "id": "LC-16",
       "requirement": "Swarm operation supports clear concurrency, resource and spending policy, priority/backpressure, durable task outputs/checkpoints, bounded retry, cancellation and restart reconciliation. It must not require humans to provision each VM or manage routine agent handoffs.",
       "acceptance": "A representative small-task fan-out workload has an explicit measured concurrency target within configured limits, with no arbitrary low product ceiling or claim of unlimited scale. Tests cover a mid-swarm context change, conflicting outputs, failure/cancel/restart, duplicate-create prevention and observed settlement of owned VM identities and retained charges. Uncertain provider outcomes remain visible and are reconciled, not silently dropped."
+    },
+    {
+      "id": "LC-17",
+      "requirement": "Home shows all accessible projects with durable per-person workspace-scoped pins. The rail shows each project once, with distinct working, needs-input and stopped indicators; a stopped project remains visible for 24 hours or until opened.",
+      "acceptance": "Pins survive reload and do not affect teammates. Pinned active projects never duplicate. Concurrent working and needs-input remain distinguishable; opening acknowledges only observed stop events, and 24-hour expiry hides no pending input or running work and deletes no history."
+    },
+    {
+      "id": "LC-18",
+      "requirement": "Discover is an evidence-led agent conversation with document understanding and bounded OCR, useful dependent questioning, and a durable strategic brief grounded in source-linked facts, decisions and measurable requirements.",
+      "acceptance": "A real text document and scanned-page upload can be extracted, inspected and corrected; source-linked answers and contradictions produce an accepted strategic/context revision for Design, with cancellation/restart and unsupported-document handling."
+    },
+    {
+      "id": "LC-19",
+      "requirement": "Design is a canvas with truthful agent-work animation, followed by integrated chat and direct WYSIWYG editing of the same durable versioned design. Approval produces an exact implementation context revision.",
+      "acceptance": "Real generated designs support selection, drag/resize/content/property edits, chat amendments, undo/redo, keyboard access and reload recovery. Progress reflects actual work with reduced-motion support; later changes cannot silently rewrite approved or running work."
+    },
+    {
+      "id": "LC-20",
+      "requirement": "Develop closely follows the inspected Cube.computer workspace layout with repository/task navigation and resizable tiled real agent terminals, files, diffs and previews, while retaining Luci conversation, authority and upstream-harness execution.",
+      "acceptance": "Users can operate actual agent sessions, review source and checks, rearrange panes and recover interrupted work in wide and narrow layouts. Completion advances through independently verified, reviewed and policy-permitted deployment rather than trusting model prose."
+    },
+    {
+      "id": "LC-21",
+      "requirement": "Distribute is the fifth revisitable stage for evidence-grounded risk assessment, go-to-market, presentations, proposals, pricing and supporting product documentation, with editable reviewed artifacts and useful file exports.",
+      "acceptance": "Generate and inspect representative risk/GTM/proposal/pricing and presentation outputs with context/release provenance and unresolved assumptions. Verify DOCX/PDF, PPTX and XLSX export fidelity as implemented; drafts and stale evidence cannot claim verified delivery or compliance."
+    },
+    {
+      "id": "LC-22",
+      "requirement": "A team admin imports and versions risk requirements or controls from XLSX. Distribute assesses each project against that library, links evidence, generates review documentation and routes unresolved gaps into Discover/Design and the normal amendment/delivery loop.",
+      "acceptance": "Exercise admin-only preview/mapping/import/reimport, duplicate and invalid rows, bounded parsing without macro/external-link execution, project/team isolation, evidence-linked assessments and review. Accepted gap proposals update affected context and work idempotently; changed evidence makes affected assessments and documents stale."
     }
   ],
   "deliveryAmendment": {
@@ -97,5 +127,31 @@
     "canonicalLcEntriesUnchanged": true,
     "hostedLuciCloudAvailable": false,
     "liveCloudTestsAuthorized": false
+  },
+  "fiveDWorkspaceAmendment": {
+    "id": "LUCI-2026-10-15-FIVE-D-WORKSPACE",
+    "authority": "Direct Dylan product review and explicit XLSX/rail follow-ups, 15 October 2026; bedtime direction prioritizes usable E2E development.",
+    "document": "FIVE-D-AMENDMENT-2026-10-15.md",
+    "amendedRequirementIds": [
+      "LC-02"
+    ],
+    "addedRequirementIds": [
+      "LC-17",
+      "LC-18",
+      "LC-19",
+      "LC-20",
+      "LC-21",
+      "LC-22"
+    ],
+    "previousAuditRevision": "b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707",
+    "runtimeAcceptanceComplete": false,
+    "liveCloudAuthorized": false,
+    "implementationGate": "exact committed root audit and active worker acknowledgments; existing auth/correctness fixes remain permitted",
+    "deliveryPriority": "Usable local idea -> approved design -> actual upstream code -> checks/review -> run or permitted deploy first; new five-D functionality proceeds without blocking independent lifecycle fixes.",
+    "previousLC02": {
+      "id": "LC-02",
+      "requirement": "Discover, Design, Develop and Deploy are four revisitable, communicating phases, rather than a one-way wizard.",
+      "acceptance": "A build or deployment finding can reopen discovery or design, update affected context and continue work with a traceable reason."
+    }
   }
 }

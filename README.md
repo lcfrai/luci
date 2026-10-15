@@ -12,9 +12,15 @@ Luci is an open-source workspace for planning, designing, building and deliverin
 - **Deploy reviewed work.** Preview an application, configure its runtime and publish through a supported deployment target under your approval and spending policy.
 - **Change direction without starting over.** Bring a new request back into the conversation. Luci tracks the updated context, affected work and decisions still needing review.
 
-Discover, Design, Develop and Deploy are connected activities you can revisit. You can switch between projects, prioritize work, inspect outputs and recover interrupted tasks. Projects remain ordinary files and Git repositories. Team workspaces add shared, versioned context and distinct permissions for editing, execution, secrets and review.
+Discover, Design, Develop, Deploy and Distribute are the five connected activities in Luci's product direction you can revisit. You can switch between projects, prioritize work, inspect outputs and recover interrupted tasks. Projects remain ordinary files and Git repositories. Team workspaces add shared, versioned context and distinct permissions for editing, execution, secrets and review.
 
 Luci coordinates existing coding harnesses; model access comes from the connection you choose. Model subscriptions, API usage and any cloud resources have their own costs.
+
+## The next workspace update
+
+The active product plan adds an all-project home with personal pins and distinct working, needs-input and recent-stopped indicators. Discover becomes a document-aware conversation with OCR; Design adds a canvas that you can edit directly or through chat; Develop brings real agent terminals, files and previews into a Cube-style tiled workspace.
+
+The fifth activity, **Distribute**, will prepare risk assessments, GTM material, proposals, pricing and presentations. A team admin will be able to upload an XLSX control checklist, assess project evidence against it, and send unresolved gaps back into Discover and Design. These additions are under implementation, not verified features of the current package. See the [five-D contract and implementation map](docs/luci/FIVE-D-AMENDMENT-2026-10-15.md).
 
 ## Choose where to run
 

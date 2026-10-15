@@ -1,5 +1,7 @@
 # Project understanding and reviewed amendments
 
+**Latest direction, 15 October 2026:** [FIVE D AMENDMENT 2026 10 15](FIVE-D-AMENDMENT-2026-10-15.md) controls the five-D workspace extension, project home/pins/activity, document-led Discover, editable Design canvas, Cube-style Develop and Distribute with team XLSX controls. LC-02 is explicitly amended; LC-17–22 are added. Existing LC-01 and LC-03–16 obligations and live/resource/security gates remain. Root records exact scope review and worker ACKs before new-scope implementation; existing local/auth fixes continue. Prior stage-count wording below is historical where it conflicts. Usable local end-to-end development is the delivery priority.
+
 ## Current status — scope audit passed, implementation resumed (12 October 2026)
 
 The originating local thread explicitly lifted the scope gate for contract revision `b3ecb0114dba6b6e0dfcfedbf1d3a3d177794707`. **Aligned implementation, delegation and verification are authorized to resume now; no further scope confirmation is needed.** This is scope alignment, not product acceptance or platform-goal activation. Existing provider credentials, cloud cost/authority policies and all unfinished release gates remain applicable. See [the audit-lift record](SCOPE-AUDIT-LIFT-2026-10-12.md). Any preserved paused-state wording below describes the prior gate, not a current stop instruction.
@@ -7,7 +9,7 @@ The originating local thread explicitly lifted the scope gate for contract revis
 
 [PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) controls scope; its owner audit passed and the implementation gate is lifted. This document describes existing mechanisms and their extension points, not a smaller completion contract.
 
-One persistent conversational Luci per person is the primary interface and coordinates an understandable project: agreed purpose, requirements, current phase, exact build scope, next step and amendments. Discover, Design, Develop and Deploy are revisitable tools of that coordinator. Conversation is required, while canonical versioned context, current authority and observed evidence remain the source of truth. Chat alone does not prove an application works.
+One persistent conversational Luci per person is the primary interface and coordinates an understandable project: agreed purpose, requirements, current phase, exact build scope, next step and amendments. Discover, Design, Develop, Deploy and Distribute are revisitable tools of that coordinator. Conversation is required, while canonical versioned context, current authority and observed evidence remain the source of truth. Chat alone does not prove an application works.
 
 The current project conversation/proposal mechanism is a partial foundation. CLOUD-085 must connect real upstream Docker work through independent checks/review, preview and actual authorized deployment; CLOUD-086 must coordinate distinct people's Lucis and continue affected implementation/delivery after compatible shared changes. Draft-only policy and human handoffs are insufficient. Cloud Develop additionally requires CLOUD-084's real microVM backend; remote Docker management/deployment remains separate. These extensions remain incomplete and are now being implemented under the passed scope audit.
 

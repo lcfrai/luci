@@ -1,5 +1,7 @@
 # Luci build plan
 
+**Latest direction, 15 October 2026:** [FIVE D AMENDMENT 2026 10 15](FIVE-D-AMENDMENT-2026-10-15.md) controls the five-D workspace extension, project home/pins/activity, document-led Discover, editable Design canvas, Cube-style Develop and Distribute with team XLSX controls. LC-02 is explicitly amended; LC-17–22 are added. Existing LC-01 and LC-03–16 obligations and live/resource/security gates remain. Root records exact scope review and worker ACKs before new-scope implementation; existing local/auth fixes continue. Prior stage-count wording below is historical where it conflicts. Usable local end-to-end development is the delivery priority.
+
 **Latest delivery sequence:** finish LOCAL-032 and real local Docker acceptance; implement the reconciled [three-mode setup and guided Azure BYO command flow](SETUP-AND-MAIN-AMENDMENT-2026-10-14.md), keep future Luci Cloud visibly unavailable, then publish a coherent `main` revision with product README and another-machine instructions. Root owns integration, Local Sol owns setup UI, Cloud Sol owns Azure command/tool preparation. Preserve independent offline Azure progress and all live-provider gates.
 
 > **Provider-order amendment, 14 October 2026 (Australia/Brisbane):** [Local Docker first; Azure microVM next; AWS later](PROVIDER-ORDER-AMENDMENT-2026-10-14.md). LC-01–LC-16 and all safety/acceptance gates are unchanged. The existing E2B Embed implementation and 38694462 source handoff are AWS-targeted history, not Azure feature completeness. Local Windows/Docker work proceeds now; Azure implementation follows the recorded architecture reconciliation and local audit. No cloud provisioning is authorized by this notice.
@@ -15,7 +17,7 @@ The originating local thread explicitly lifted the scope gate for contract revis
 
 [PRODUCT-CONTRACT.md](PRODUCT-CONTRACT.md) is the single controlling product direction and requirement-to-code map. **The originating local audit passed and explicitly lifted the gate for b3ecb011.** Aligned implementation, delegation and verification have resumed under the recorded authority. Contract publication alone was not the release; the audit-lift receipt is authoritative. Preserve source and failed evidence. Actual cloud spend retains its configured access and cost gates.
 
-One primary persistent conversational Luci per person coordinates Discover, Design, Develop and Deploy. The four phases are revisitable tools of that continuing workflow. Local Develop boots existing upstream harnesses in isolated Docker; cloud Develop requires a real supported provider microVM backend. Management/app-deployment Docker and SSH compatibility do not satisfy cloud microVM execution.
+One primary persistent conversational Luci per person coordinates Discover, Design, Develop, Deploy and Distribute. The five stages are revisitable tools of that continuing workflow. Local Develop boots existing upstream harnesses in isolated Docker; cloud Develop requires a real supported provider microVM backend. Management/app-deployment Docker and SSH compatibility do not satisfy cloud microVM execution.
 
 CLOUD-085 must carry conversational amendments through canonical reviewed context/design/tasks, affected upstream work, independent checks/review, preview and actual policy-permitted deployment. CLOUD-086 must coordinate distinct people's Lucis through durable authoritative intent/revision/event/ownership/dependency state, reconcile compatible changes, surface genuinely contradictory intent and continue affected implementation/delivery without human handoff management. Draft-only or preview-only slices are not completion. Current implementation owners have received the audit lift; the controlling contract retains the unchanged acceptance criteria and historical source-gap/acknowledgement baseline.
 
@@ -24,7 +26,7 @@ CLOUD-088 is a required P1 workstream dependent on CLOUD-084/085/086: easy elast
 
 ## Owner's current scope and first priority — corrected 11 October 2026 UTC
 
-**Primary path:** Discover/Design build and approve context; Develop boots/orchestrates an existing upstream harness in isolated Docker locally (cloud-provider microVMs are the cloud target); review and independently check actual changes; Deploy makes the application live; amendments feed back across all four activities. Luci owns context/environment/orchestration/review/deployment, not a replacement coding engine.
+**Primary path:** Discover/Design build and approve context; Develop boots/orchestrates an existing upstream harness in isolated Docker locally (cloud-provider microVMs are the cloud target); review and independently check actual changes; Deploy makes the application live; amendments feed back across all five activities. Luci owns context/environment/orchestration/review/deployment, not a replacement coding engine.
 
 The prior manual-external-tool emphasis was an incorrect interpretation of the owner's direction and is superseded. **LOCAL-025 is secondary interoperability**, not a prerequisite or substitute for the integrated real-provider path. Its bounded interchange implementation is committed at2cb58a8a; do not expand it at the expense of the conversational integrated journey. After gate lift, prioritize the coordinator and actual Docker provider-to-delivery loop. The local host-CLI trial was cancelled before inference.
 
@@ -36,7 +38,7 @@ Luci takes a person from an idea to a running application in one app. Distributi
 
 ## Delivery decisions
 
-The owner names the concurrent activities **Discover, Design, Develop and Deploy** (7 October clarification, relayed 11 October 2026). These replace the earlier Define/Describe labels in current product guidance; existing identifiers and recorded evidence remain unchanged.
+The owner names the concurrent activities **Discover, Design, Develop, Deploy and Distribute** (7 October clarification, relayed 11 October 2026). These replace the earlier Define/Describe labels in current product guidance; existing identifiers and recorded evidence remain unchanged.
 
 - Local is the default: desktop or packaged browser UI, one managed Go control plane, durable files, Git and Docker execution. The first owner creates a local account. No external identity provider, cluster or database server is required. The same product runs against a user-owned AWS/Azure backing.
 - The application is the end user's workspace. The backing owns management: account roles, private per-user runtime state, provider credentials, resource policy, execution and audit. Member, Admin and Super Admin are explicit roles. A member cannot modify backing configuration or run arbitrary host commands. Super Admin host execution is an optional, explicit trusted-operation policy, disabled by default.

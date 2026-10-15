@@ -5,28 +5,30 @@
 web
 
 ## Product and audience
-Luci is lcfr.ai's MIT-licensed, local-first application for people building a complete software solution. The same workspace carries discovery, design, implementation, verification, deployment and ongoing operations. People should be able to begin with an idea or an existing repository without understanding Git worktrees, container commands or infrastructure terminology.
+Luci is lcfr.ai's open-source, local-first workspace for turning ideas into working software and preparing the resulting product for use and market. One conversational Luci per person keeps intent, evidence, design, implementation, review and delivery connected across projects. People should not need to understand Git worktrees or container commands to begin.
 
 ## Outcome
-A person downloads Luci, creates or accesses an account, chooses this computer, their cloud account or an existing workspace, completes guided preparation, creates a project and reaches a working application they can operate. Each step must report actual progress and recover from failure without losing work. A successful demonstration alone does not establish that the product is finished.
+A person describes an idea, works through evidence and useful questions, approves an editable design, sees a supported coding harness implement it in an isolated environment, reviews meaningful checks and outputs, and runs or deploys the result under their policy. Distribute then supports risk, GTM, proposals, pricing and presentations. Findings can reopen any earlier stage. The controlling five-D contract is in docs/luci/FIVE-D-AMENDMENT-2026-10-15.md.
 
 ## Operating context
-Windows, macOS and Linux packages provide a browser or desktop interface and a managed Go service. Docker isolates agents, builds, checks and local application services. The user owns model access, source, infrastructure and domains. Codex subscription authentication follows the official sign-in flow. AWS and Azure setup must explain cost and obtain the in-product resource acknowledgement before creating paid resources.
+First setup offers Local, Bring your own cloud (Azure first, guided commands), and Luci Cloud (unavailable until developed and validated). Local coding uses isolated Docker. Cloud coding requires a real per-task microVM provider. Model access is separately configured through normal authorized sign-in or saved connections. No corporate tenant or private proprietary service is required. Live cloud work awaits the supplied environment and concrete authority.
 
 ## Capabilities and constraints
-Projects have private account-scoped workspaces and durable revisioned context. Define requires a guided interview, brownfield analysis, stable measurable requirements, glossary, decisions, roles, data, integrations and exclusions. Design requires screens and states, prototypes and an implementation handoff, alongside a clearly labelled sketch editor. Develop requires usable agent execution, retained actionable errors and independently recorded checks. Deploy requires application environments, data, access, storage, configuration, domains, deployment history, health, logs, backup and rollback, with controls backed by working services.
+Home lists every accessible project. The rail separates Pinned and Active without duplication. Working, needs-input and stopped have distinct indicators; stopped remains visible for 24 hours or until opened. Pins and stop acknowledgment are durable per-person/workspace preferences, not shared task state.
 
-The private lcfrai/panacea backend has substantial APIs and is being inspected separately. Its source currently has an internal-use notice; it is not implicitly relicensed by Luci's MIT licence. Luci can integrate through authenticated APIs and use permissively licensed dependencies. No corporate host, identity, subscription or cloud estate is a product default.
+Discover is a document-aware agent interview with bounded OCR and an evidence-backed strategic brief. Design is a generated canvas with truthful work animation, chat and direct WYSIWYG editing of the same versioned design. Develop follows Cube.computer's inspected tiled agent workspace using actual upstream harnesses and review tools. Deploy verifies and delivers under policy. Distribute generates useful reviewed commercial/risk artifacts; an admin's versioned XLSX control library drives project evidence assessments and gaps feed the existing context-amendment loop.
+
+All stages share durable context, actor authority and exact artifact/release provenance. Preserve pending questions, conflicting intent, partial or unknown outcomes, original documents and resource ownership. The host remains responsive; viewing projects starts no model or container. Generated text and passing fixtures do not establish live delivery, control satisfaction or installer readiness.
 
 ## Brand commitments
-Name: Luci. Publisher: lcfr.ai. The user expects the polish and operational coherence of Vercel and Supabase. Existing graphite and teal semantics are the starting point; system/light/dark, accessible accents and density are user preferences, consistently applied across embedded surfaces.
+Name: Luci. Requested installer publisher: lcfr ai, with identity/signing validation still required. Preserve the graphite/teal Luci identity and coherent accessible shadcn/ui controls. Cube.computer is the Develop layout reference; it does not replace Luci branding, lifecycle or isolation requirements.
 
 ## Evidence on hand
-The source contains working session isolation, private user runtimes, Git operations, checks, Docker previews, deployment adapters and account entry. A real packaged build is running locally and a sandbox image has been installed. Subscription inference, complete deployed solution acceptance and live cloud deployment have not passed. The user's direct inspection identified incomplete onboarding, project navigation, appearance, Define and Deploy, plus errors in Develop. That inspection is authoritative over earlier readiness claims.
+Scoped project creation, separate briefs, switching/reload isolation and several proposal/recovery fixes have passed. Actual local OpenCode coding has not produced acceptable implementation; normal Codex connection is being repaired after interrupted device sign-in. Full local lifecycle, new five-D UI, real cloud/team/swarm behavior and verified signed installer acceptance remain incomplete. Exact evidence lives in the central acceptance ledger; this file makes no runtime readiness claim.
 
 ## Product principles
-- One project and one coherent journey; integrations share navigation, language, appearance and error recovery.
-- Automatic preparation where possible, specific guided recovery where user or OS authority is necessary.
-- Cheap local operation first, with optional user-owned cloud resources and transparent costs.
-- Durable source-linked evidence; a queued job, template, saved sketch or passing fixture is not a completed application.
-- Complete realistic entry, loading, empty, failure, restart and operating states before handback.
+- Keep one persistent conversation and one versioned project context across all five stages.
+- Make routine allowed work automatic and genuine decisions specific.
+- Make activity truthful, memory bounded and interruption recoverable.
+- Produce inspectable code, useful artifacts and independently checked delivery evidence.
+- Preserve source/licence attribution, private data, authority and spending limits.

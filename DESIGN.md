@@ -1,6 +1,8 @@
 # Luci application design
 
-This is the UI design guidance subordinate to [the controlling product contract](docs/luci/PRODUCT-CONTRACT.md). The owner scope audit passed for b3ecb011 on12October2026; aligned implementation is authorized again. One persistent conversational Luci per person is the primary interface; the four phases are revisitable views/tools of its context, upstream execution and actual policy-permitted delivery loop. Team coordination and elastic per-task cloud microVM swarms belong in that same accessible journey, with clear authority/cost/resource controls. The older design-system document retains historical direction; no static screen or current fixture establishes shipped product acceptance.
+**Latest direction, 15 October 2026:** [FIVE D AMENDMENT 2026 10 15](docs/luci/FIVE-D-AMENDMENT-2026-10-15.md) controls the five-D workspace extension, project home/pins/activity, document-led Discover, editable Design canvas, Cube-style Develop and Distribute with team XLSX controls. LC-02 is explicitly amended; LC-17–22 are added. Existing LC-01 and LC-03–16 obligations and live/resource/security gates remain. Root records exact scope review and worker ACKs before new-scope implementation; existing local/auth fixes continue. Prior stage-count wording below is historical where it conflicts. Usable local end-to-end development is the delivery priority.
+
+This is the UI design guidance subordinate to [the controlling product contract](docs/luci/PRODUCT-CONTRACT.md). The owner scope audit passed for b3ecb011 on12October2026; aligned implementation is authorized again. One persistent conversational Luci per person is the primary interface; the five stages are revisitable views/tools of its context, upstream execution and actual policy-permitted delivery loop. Team coordination and elastic per-task cloud microVM swarms belong in that same accessible journey, with clear authority/cost/resource controls. The older design-system document retains historical direction; no static screen or current fixture establishes shipped product acceptance.
 
 Luci brings a project brief, visual design, implementation tasks, agent terminals,
 files, Git, checks and releases into one workspace. People should understand where
@@ -70,11 +72,11 @@ how to request a password reset. Keep first-run proof automatic when the launche
 provides it, with manual setup help only when needed. Signing out after setup and
 opening with an expired session must return to the correct entry state.
 
-First-run onboarding offers three real paths: on this computer, guided setup in
-the user's AWS/Azure account, or connection to an existing Luci workspace over
-verified SSH followed by that workspace's account sign-in. Reveal only the fields
-for the selected path and let people change their choice. Do not imply a hosted
-lcfr.ai subscription or URL-only account connection that the product does not offer.
+First-run onboarding presents Local, Bring your own cloud (Azure first, with
+guided commands), and Luci Cloud (clearly unavailable until developed). Existing
+workspace connections remain a supported secondary route. Reveal only the fields
+for the selected path and let people change their choice. Keep cloud readiness
+and required authority truthful; no hosted subscription is currently available.
 
 ## Verification
 
