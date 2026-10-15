@@ -3,7 +3,7 @@ import type { DesignPlan } from '../../api/designPlan';
 import { readDesignRaster } from '../../api/designSceneAssets';
 import { AUTH_EXPIRED } from '../../api/authSession';
 import { TEAM_WORKSPACE_CHANGED, TEAM_WORKSPACE_ACCESS_DENIED } from '../../api/teamScope';
-import type { DesignRasterPin } from '../../api/designScene';
+import { designRasterPinValid, type DesignRasterPin } from '../../api/designScene';
 import { productApi } from '../../api/product';
 import { teamScopeGeneration } from '../../api/teamScope';
 
@@ -41,6 +41,7 @@ type RasterEntry = {refs: number; controller: AbortController; ready: Promise<st
 const images = new Map<string, RasterEntry>();
 let retainedPixels = 0, retainedBytes = 0;
 function shareRaster(key: string, projectId: string, revision: number, assetId: string, pin: DesignRasterPin): {ready: Promise<string>; release(): void} {
+  if (!designRasterPinValid(pin)) return {ready: Promise.reject(new Error('This saved image binding is invalid. Preserve the revision and pin a valid raster in a new draft.')), release() {}};
   let entry = images.get(key);
   if (!entry) {
     const pixels = pin.width * pin.height;

@@ -25,3 +25,7 @@ it('auth expiry retires loaded content and unsaved pins never request saved byte
   act(()=>window.dispatchEvent(new Event(AUTH_EXPIRED))); expect(screen.queryByRole('img')).toBeNull(); expect(URL.revokeObjectURL).toHaveBeenCalledOnce(); page.unmount();
   vi.mocked(readDesignRaster).mockClear(); render(<DesignRasterLayer {...props} saved={false}/>); expect(screen.getByText('Save this pinned asset before rendering it')).toBeTruthy(); expect(readDesignRaster).not.toHaveBeenCalled();
 });
+it('refuses malformed saved pins before resource accounting or a network request',async()=>{
+  render(<DesignRasterLayer {...props} asset={{...props.asset,content:{...pin,width:NaN}}}/>);
+  await screen.findByText(/This saved image binding is invalid/); expect(readDesignRaster).not.toHaveBeenCalled();
+});
