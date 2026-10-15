@@ -7,10 +7,18 @@ import { DefinitionWorkspace } from "./DefinitionWorkspace";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { productApi } from "../../api/product";
 import { requestProjectContextEdit, takeProjectContextEdit } from "../../api/projectContextEvents";
+import { definitionDraftValid } from "../../hooks/projectDraftValidation";
 
 vi.mock("../auth/AuthProvider", () => ({ useAuth: () => ({ profile: { user: { id: "question-owner" } } }) }));
 vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ status: { access: { user: { username: "question-owner" } }, config: { projectsDir: "/question-projects" } } }) }));
 const questionScope = () => JSON.stringify([productApi.baseUrl, "question-owner", "local", "", "", "question-owner", "/question-projects", "p-1"]);
+
+it("keeps legacy definition drafts and rejects malformed retained source links", () => {
+  const legacy = fixture();
+  expect(definitionDraftValid(legacy)).toBe(true);
+  expect(definitionDraftValid({ ...legacy, evidence: [] })).toBe(true);
+  expect(definitionDraftValid({ ...legacy, evidence: [{ documentId: "foreign" }] })).toBe(false);
+});
 
 afterEach(() => { cleanup();vi.restoreAllMocks(); });
 beforeEach(() => { localStorage.clear(); resetCockpit(); vi.spyOn(definitionApi,"listAssistance").mockResolvedValue({jobs:[]}); vi.spyOn(productApi,"agentConnections").mockResolvedValue({revision:0,activeConnectionId:"",connections:[]}); vi.spyOn(productApi,"agents").mockResolvedValue({providers:[]}); });

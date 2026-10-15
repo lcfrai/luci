@@ -60,12 +60,15 @@ func orchestratorSourceStatus(raw string) (known, dirty bool, commit string) {
 
 type storedOrchestratorTurn struct {
 	OrchestratorTurn
-	AdmissionRevision   *int   `json:"admissionRevision,omitempty"`
-	KeyDigest           string `json:"keyDigest"`
-	RequestDigest       string `json:"requestDigest"`
-	ApplyIntent         string `json:"applyIntent,omitempty"`
-	ApplyTargetRevision int    `json:"applyTargetRevision,omitempty"`
-	ApplyTargetDigest   string `json:"applyTargetDigest,omitempty"`
+	// ProjectSpecification's legacy omitempty encoding cannot distinguish an
+	// explicit [] removal from an omitted evidence field after durable JSON.
+	EvidenceExplicitEmpty bool   `json:"evidenceExplicitEmpty,omitempty"`
+	AdmissionRevision     *int   `json:"admissionRevision,omitempty"`
+	KeyDigest             string `json:"keyDigest"`
+	RequestDigest         string `json:"requestDigest"`
+	ApplyIntent           string `json:"applyIntent,omitempty"`
+	ApplyTargetRevision   int    `json:"applyTargetRevision,omitempty"`
+	ApplyTargetDigest     string `json:"applyTargetDigest,omitempty"`
 }
 type orchestratorLedger struct {
 	Version       int                      `json:"version"`
@@ -463,6 +466,7 @@ func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status s
 		} else if answer != nil {
 			return ErrOrchestratorInvalid
 		}
+		turn.EvidenceExplicitEmpty = status == "succeeded" && answer != nil && answer.Proposal != nil && answer.Proposal.Specification != nil && answer.Proposal.Specification.Evidence != nil && len(answer.Proposal.Specification.Evidence) == 0
 		turn.Status, turn.Answer, turn.FailureCode, turn.UpdatedAt = status, cloneOrchestratorAnswer(answer), failureCode, time.Now().UTC().Format(time.RFC3339Nano)
 		if status == "succeeded" && turn.ReplyToTurnID != "" {
 			for j := range saved.Turns {

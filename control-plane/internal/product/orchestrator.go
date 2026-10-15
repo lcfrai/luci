@@ -455,6 +455,20 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 	switch proposal.Target {
 	case "specification":
 		spec := *proposal.Specification
+		// Omission preserves retained source anchors; an explicit empty array
+		// remains the author's deliberate removal. Validate the exact target
+		// against current private histories before changing canonical context.
+		if turn.EvidenceExplicitEmpty {
+			spec.Evidence = []DiscoveryEvidenceLink{}
+		} else if spec.Evidence == nil && state.Specification != nil {
+			spec.Evidence = append([]DiscoveryEvidenceLink(nil), state.Specification.Evidence...)
+		}
+		if err := validateDiscoveryEvidenceTargets(spec); err != nil {
+			return err
+		}
+		if err := s.validateDiscoveryEvidenceLinks(ctx, p, spec.Evidence); err != nil {
+			return err
+		}
 		spec.Status, spec.Digest = "draft", ""
 		spec.Revision, spec.BriefRevision = snapshot.Specification.Revision+1, state.Brief.Revision+1
 		spec.UpdatedAt = now

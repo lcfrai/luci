@@ -1,6 +1,7 @@
 package product
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -209,6 +210,99 @@ func TestDiscoveryDiscussionQuotesExactEvidenceWithoutAuthority(t *testing.T) {
 	link.TextDigest = strings.Repeat("0", 64)
 	if _, err := discoveryDiscussion(map[string]DiscoveryDocument{saved.Document.ID: saved.Document}, []DiscoveryEvidenceLink{link}, ""); err == nil {
 		t.Fatal("caller quote accepted without exact source")
+	}
+}
+func TestDiscoveryDiscussionBoundsMixedHistoriesAndCancellation(t *testing.T) {
+	first := discoveryCompleteFixture(t).Document
+	second := first
+	second.ID = "doc-" + strings.Repeat("b", 64)
+	segment := first.Extractions[0].Pages[0].Segments[0]
+	link := func(d DiscoveryDocument) DiscoveryEvidenceLink {
+		return DiscoveryEvidenceLink{DocumentID: d.ID, OriginalDigest: d.Original.Digest, ExtractionRevision: 1, Page: 1, SegmentID: segment.ID, TextDigest: segment.TextDigest}
+	}
+	loads := []string{}
+	load := func(id string) (DiscoveryDocument, error) {
+		loads = append(loads, id)
+		if id == first.ID {
+			return first, nil
+		}
+		if id == second.ID {
+			return second, nil
+		}
+		return DiscoveryDocument{}, errDiscoveryDocument
+	}
+	message, err := discoveryDiscussionLoad(context.Background(), []DiscoveryEvidenceLink{link(first), link(second), link(first)}, "Compare these exact excerpts.", load)
+	if err != nil || len(loads) != 2 || loads[0] != first.ID || loads[1] != second.ID || strings.Count(message, "untrustedText") != 2 {
+		t.Fatal("grouped exact source selection was lost", err, loads)
+	}
+	long := first
+	long.Extractions = append([]DiscoveryDocumentExtraction(nil), first.Extractions...)
+	long.Extractions[0].Pages = append([]DiscoveryDocumentPage(nil), first.Extractions[0].Pages...)
+	long.Extractions[0].Pages[0].Segments = append([]DiscoveryDocumentSegment(nil), first.Extractions[0].Pages[0].Segments...)
+	long.Extractions[0].Pages[0].Segments[0].Text = strings.Repeat("é", 7000)
+	long.Extractions[0].Pages[0].Segments[0].TextDigest = discoveryTextDigest(long.Extractions[0].Pages[0].Segments[0].Text)
+	largeLink := link(long)
+	largeLink.TextDigest = long.Extractions[0].Pages[0].Segments[0].TextDigest
+	if _, err := discoveryDiscussionLoad(context.Background(), []DiscoveryEvidenceLink{largeLink}, "Bound this excerpt.", func(string) (DiscoveryDocument, error) { return long, nil }); err == nil {
+		t.Fatal("oversized selected excerpt was retained")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	loads = nil
+	if _, err := discoveryDiscussionLoad(ctx, []DiscoveryEvidenceLink{link(first)}, "No read.", load); !errors.Is(err, context.Canceled) || len(loads) != 0 {
+		t.Fatal("cancelled request decoded a private history", err)
+	}
+}
+func TestOrchestratorSpecificationEvidenceOmissionPreservesAndExplicitRemovalClears(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "retained-document-anchors")
+	saved := discoveryCompleteFixture(t)
+	saved.Document.ProjectID = p.ID
+	scopes, err := s.approvalScopes(p.Path, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved.AccountScope, saved.ProjectScope = scopes.AccountScope, scopes.ProjectScope
+	if err := s.writeDiscoveryOriginal(p, saved.Document.ID, saved.Document.Original, []byte("Original document")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.saveDiscoveryDocument(saved); err != nil {
+		t.Fatal(err)
+	}
+	segment := saved.Document.Extractions[0].Pages[0].Segments[0]
+	link := DiscoveryEvidenceLink{DocumentID: saved.Document.ID, OriginalDigest: saved.Document.Original.Digest, ExtractionRevision: 1, Page: 1, SegmentID: segment.ID, TextDigest: segment.TextDigest, TargetKind: "requirement", TargetID: "AC-source"}
+	ctx := orchestratorActor(t, "alice")
+	apply := func(evidence []DiscoveryEvidenceLink, purpose string) ProjectSpecification {
+		turn, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, purpose, "")
+		spec := snapshot.Specification
+		spec.Purpose, spec.Audience = purpose, "Editors"
+		spec.Requirements = []SpecificationRequirement{{ID: "AC-source", Title: "Keep source", Priority: "must", Acceptance: "Editors can inspect the retained source"}}
+		spec.Evidence = evidence
+		answer := OrchestratorAnswer{Summary: "Review the source-linked scope.", Options: []string{}, Impact: []string{"Definition review is required"}, Proposal: &OrchestratorProposal{Target: "specification", Summary: "Source-linked scope", Specification: &spec}}
+		if err := s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
+			t.Fatal(err)
+		}
+		view, err := s.OrchestratorView(ctx, p.ID, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.applyOrchestratorProposal(ctx, p.ID, turn.ID, view.Revision, view.Context.Digest); err != nil {
+			t.Fatal(err)
+		}
+		view, err = s.OrchestratorView(ctx, p.ID, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return view.Context.Specification
+	}
+	if spec := apply([]DiscoveryEvidenceLink{link}, "First source draft"); len(spec.Evidence) != 1 {
+		t.Fatal("initial exact link was lost")
+	}
+	if spec := apply(nil, "Revised source draft"); len(spec.Evidence) != 1 || spec.Evidence[0] != link {
+		t.Fatal("omitted link silently erased retained evidence")
+	}
+	if spec := apply([]DiscoveryEvidenceLink{}, "Deliberately remove source"); len(spec.Evidence) != 0 {
+		t.Fatal("explicit empty evidence was not applied")
 	}
 }
 func TestDiscoveryPrivateArtifactScopeAndOriginalIntegrity(t *testing.T) {

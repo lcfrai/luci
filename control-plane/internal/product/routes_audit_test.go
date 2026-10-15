@@ -32,6 +32,14 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/runs/{runId}/swarm/supervision":                             "Projects bounded saved run/task/message/review evidence with no provider observation or dispatch.",
+	"GET /v1/product/projects/{id}/runs/{runId}/swarm/messages/{messageId}":                    "Reads one exact saved attributed message without delivery, ack or replay.",
+	"GET /v1/product/projects/{id}/runs/{runId}/swarm/review-obligations/{obligationId}":       "Reads one exact saved reviewer obligation without assigning or resolving it.",
+	"GET /v1/product/projects/{id}/design-plan/asset-binding":                                  "Reads the saved exact Git/blob binding for project image assets; does not create or decode an asset.",
+	"GET /v1/product/projects/{id}/design-plan/{revision}/assets/{assetId}":                    "Reads bounded immutable saved Git/blob bytes with a digest pin; no live path fallback or write.",
+	"GET /v1/product/projects/{id}/discovery/documents":                                        "Reads a bounded private list of retained document receipts without extraction or upload.",
+	"GET /v1/product/projects/{id}/discovery/documents/{documentId}":                           "Reads one exact private document history without starting extraction.",
+	"GET /v1/product/projects/{id}/discovery/documents/{documentId}/original":                  "Streams verified retained original bytes without decoding or extraction.",
 	"GET /v1/product/projects/{id}/orchestrator/coordination/intents/{intentId}":               "Reads an exact retained or archived intent without apply or allocation.",
 	"GET /v1/product/projects/{id}/orchestrator/coordination/events/{eventId}":                 "Reads an exact causal receipt without replay or allocation.",
 	"GET /v1/product/projects/{id}/orchestrator/coordination":                                  "Reads retained authoritative intent decisions; no accept, apply or allocation.",
@@ -276,6 +284,15 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			}
 			if pattern == "GET /v1/product/projects/{id}/orchestration-contracts/{contractId}" {
 				status = 403 // This audit request has no authenticated contract owner.
+			}
+			if pattern == "GET /v1/product/projects/{id}/design-plan/asset-binding" {
+				status = 422 // No immutable image pin exists in this fixture.
+			}
+			if pattern == "GET /v1/product/projects/{id}/design-plan/{revision}/assets/{assetId}" {
+				status = 400 // The audit has no saved revision or exact asset identifier.
+			}
+			if strings.Contains(pattern, "/discovery/documents") {
+				status = 401 // Private source history requires an authenticated actor, even for GET/HEAD.
 			}
 			if strings.Contains(pattern, "/orchestrator/continuations/{continuationId}") {
 				status = 404

@@ -7,6 +7,29 @@ import (
 	"testing"
 )
 
+func TestDiscoveryDocumentRoutesKeepReadAndEditAuthority(t *testing.T) {
+	base := "/v1/product/projects/p-one/discovery/documents"
+	viewer := TeamPermissions{Read: true}
+	editor := TeamPermissions{Read: true, Edit: true}
+	for _, tc := range []struct {
+		method, suffix string
+		edit           bool
+	}{
+		{"GET", "", false}, {"GET", "/doc-one", false}, {"GET", "/doc-one/original", false},
+		{"POST", "/discussion-context", false}, {"POST", "/request-disposition", false},
+		{"POST", "", true}, {"POST", "/doc-one/corrections", true},
+		{"POST", "/doc-one/extractions", true}, {"PUT", "/doc-one/extractions/attempt-one", true},
+	} {
+		req := httptest.NewRequest(tc.method, base+tc.suffix, nil)
+		if scope, ok := ClassifyTeamRoute(req); !ok || scope.ProjectID != "p-one" {
+			t.Fatalf("unclassified scoped document route %s %s", tc.method, tc.suffix)
+		}
+		if authorizeTeamRoute(httptest.NewRecorder(), req, viewer) == tc.edit || !authorizeTeamRoute(httptest.NewRecorder(), req, editor) {
+			t.Fatalf("wrong document authority %s %s", tc.method, tc.suffix)
+		}
+	}
+}
+
 func TestTeamPermissionsKeepCapabilitiesExplicitAndProjectGrantsCannotEscalate(t *testing.T) {
 	for _, role := range []string{"owner", "editor", "viewer"} {
 		got := PermissionsForTeam(role, TeamGrants{})

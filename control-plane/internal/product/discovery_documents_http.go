@@ -20,6 +20,10 @@ import (
 
 var discoveryUploadGate = make(chan struct{}, 1)
 
+// One discussion decode at a time; acquire before the product lock so a
+// canonical specification write cannot wait behind a reader holding this slot.
+var discoveryDiscussionGate = make(chan struct{}, 1)
+
 func (s *Server) registerDiscoveryDocuments(mux Registrar) {
 	const base = "/v1/product/projects/{id}/discovery/documents"
 	mux.HandleFunc("GET "+base, s.listDiscoveryDocuments)
@@ -444,21 +448,18 @@ func (s *Server) discoveryDocumentDiscussion(w http.ResponseWriter, r *http.Requ
 		problem(w, 400, "invalid_selection", "Select between 1 and 40 source segments.")
 		return
 	}
+	select {
+	case discoveryDiscussionGate <- struct{}{}:
+		defer func() { <-discoveryDiscussionGate }()
+	case <-r.Context().Done():
+		return
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	documents := map[string]DiscoveryDocument{}
-	for _, link := range req.Links {
-		if _, found := documents[link.DocumentID]; found {
-			continue
-		}
-		saved, err := s.readDiscoveryDocument(p, link.DocumentID)
-		if err != nil {
-			discoveryDocumentProblem(w, err)
-			return
-		}
-		documents[link.DocumentID] = saved.Document
-	}
-	message, err := discoveryDiscussion(documents, req.Links, req.Question)
+	message, err := discoveryDiscussionLoad(r.Context(), req.Links, req.Question, func(id string) (DiscoveryDocument, error) {
+		saved, err := s.readDiscoveryDocument(p, id)
+		return saved.Document, err
+	})
 	if err != nil {
 		problem(w, 422, "evidence_selection_unavailable", err.Error())
 		return
@@ -472,22 +473,29 @@ func (s *Server) validateDiscoveryEvidenceLinks(ctx context.Context, p project.P
 	if len(links) > 200 {
 		return errDiscoveryCapacity
 	}
-	documents := map[string]DiscoveryDocument{}
+	grouped := map[string][]DiscoveryEvidenceLink{}
+	order := []string{}
 	for _, link := range links {
+		if _, ok := grouped[link.DocumentID]; !ok {
+			order = append(order, link.DocumentID)
+		}
+		grouped[link.DocumentID] = append(grouped[link.DocumentID], link)
+	}
+	for _, id := range order {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		document, found := documents[link.DocumentID]
-		if !found {
-			saved, err := s.readDiscoveryDocument(p, link.DocumentID)
-			if err != nil {
+		saved, err := s.readDiscoveryDocument(p, id)
+		if err != nil {
+			return err
+		}
+		for _, link := range grouped[id] {
+			if err := ctx.Err(); err != nil {
 				return err
 			}
-			document = saved.Document
-			documents[link.DocumentID] = document
-		}
-		if _, err := discoveryFindSegment(document, link); err != nil {
-			return err
+			if _, err := discoveryFindSegment(saved.Document, link); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
