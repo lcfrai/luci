@@ -10,6 +10,36 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
+type coordinatorIndependentReviewContextKey struct{}
+type coordinatorIndependentReviewGate struct {
+	Row  coordinatorContinuationRecord
+	Kind string
+	// Test-only barrier for a policy or actor change after handler preflight.
+	BeforeMutation func()
+}
+
+func coordinatorIndependentReviewBeforeMutation(ctx context.Context) {
+	if gate, ok := ctx.Value(coordinatorIndependentReviewContextKey{}).(coordinatorIndependentReviewGate); ok && gate.BeforeMutation != nil {
+		gate.BeforeMutation()
+	}
+}
+
+// Only background review effects carry this gate. Explicit authorized routes
+// retain their own rules. The handler checks it inside the durable run mutation,
+// after any concurrent policy, grant, context or contract change.
+func (s *Server) checkCoordinatorIndependentReviewGate(ctx context.Context, p project.Project, run ProjectRun, kind string) error {
+	gate, ok := ctx.Value(coordinatorIndependentReviewContextKey{}).(coordinatorIndependentReviewGate)
+	if !ok {
+		return nil
+	}
+	row := gate.Row
+	if gate.Kind != kind || row.ProjectID != p.ID || row.RunID != run.ID || row.Status != "queued" || row.CheckPlan == nil || run.Swarm == nil || run.State == "cancelled" || run.State == "blocked" || run.Input.OrchestrationContract == nil ||
+		implementationDigest(*ImplementationContextSelection(&run.Input.Implementation)) != implementationDigest(row.Run.ImplementationContext) || !s.coordinatorIndependentReviewCurrent(ctx, p, row) || s.contractCurrentForRun(p, run) != nil {
+		return ErrProjectRunConflict
+	}
+	return nil
+}
+
 // The coordinator may assign only an already reserved, approved reviewer to
 // an exact stopped candidate. The existing review handler owns the CAS and
 // independent source checks; the scheduler never invents an assignment.
@@ -72,7 +102,8 @@ func (s *Server) continueCoordinatorIndependentReview(ctx context.Context, p pro
 		if err != nil {
 			return false, err
 		}
-		httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://coordinator.invalid/", bytes.NewReader(body))
+		gated := context.WithValue(ctx, coordinatorIndependentReviewContextKey{}, coordinatorIndependentReviewGate{Row: row, Kind: "create"})
+		httpRequest, err := http.NewRequestWithContext(gated, http.MethodPost, "http://coordinator.invalid/", bytes.NewReader(body))
 		if err != nil {
 			return false, err
 		}
@@ -157,7 +188,8 @@ func (s *Server) continueCoordinatorReviewOutcome(ctx context.Context, p project
 			if marshalErr != nil {
 				return false, marshalErr
 			}
-			httpRequest, requestErr := http.NewRequestWithContext(ctx, http.MethodPost, "http://coordinator.invalid/", bytes.NewReader(body))
+			gated := context.WithValue(ctx, coordinatorIndependentReviewContextKey{}, coordinatorIndependentReviewGate{Row: row, Kind: "finding"})
+			httpRequest, requestErr := http.NewRequestWithContext(gated, http.MethodPost, "http://coordinator.invalid/", bytes.NewReader(body))
 			if requestErr != nil {
 				return false, requestErr
 			}
@@ -185,7 +217,8 @@ func (s *Server) continueCoordinatorReviewOutcome(ctx context.Context, p project
 		if marshalErr != nil {
 			return false, marshalErr
 		}
-		httpRequest, requestErr := http.NewRequestWithContext(ctx, http.MethodPost, "http://coordinator.invalid/", bytes.NewReader(body))
+		gated := context.WithValue(ctx, coordinatorIndependentReviewContextKey{}, coordinatorIndependentReviewGate{Row: row, Kind: "resolve"})
+		httpRequest, requestErr := http.NewRequestWithContext(gated, http.MethodPost, "http://coordinator.invalid/", bytes.NewReader(body))
 		if requestErr != nil {
 			return false, requestErr
 		}

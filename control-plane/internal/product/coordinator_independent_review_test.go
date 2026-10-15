@@ -8,6 +8,44 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
+func TestCoordinatorReviewMutationGateRejectsPolicyChangeForEveryEffect(t *testing.T) {
+	for _, kind := range []string{"create", "finding", "resolve"} {
+		t.Run(kind, func(t *testing.T) {
+			s, _, p, run, _, _ := swarmHTTPFixtureConfiguredPolicy(t, "", true, true,
+				ProjectTask{ID: "task-a", Title: "Build component", Status: "done", RequirementIDs: []string{"AC-save"}, WritePaths: []string{"alpha.txt"}, Acceptance: "Build component"},
+				ProjectTask{ID: "task-b", Title: "Review component", Status: "todo", Role: "reviewer", ReviewOfTaskID: "task-a", RequirementIDs: []string{"AC-save"}, Acceptance: "Inspect candidate"},
+				ProjectTask{ID: "task-c", Title: "Use component", Status: "todo", RequirementIDs: []string{"AC-save"}, WritePaths: []string{"gamma.txt"}, DependsOn: []string{"task-a"}},
+			)
+			s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+			s.SetCoordinatorExecutionAuthorizer(func(context.Context, string, string, bool) error { return nil })
+			policy, err := s.readCoordinatorPolicy(p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			selection := *ImplementationContextSelection(&run.Input.Implementation)
+			digest, err := s.continuationContextLocked(p, selection)
+			if err != nil {
+				t.Fatal(err)
+			}
+			row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ProjectID: p.ID, Actor: ContextActor{ID: "review-owner"}, RunID: run.ID, Status: "queued", PolicyRevision: policy.Revision}, Run: projectRunCreateRequest{ImplementationContext: selection, Harness: run.Input.Route.Harness}, CanonicalDigest: digest, CheckPlan: &CoordinatorCheckPlan{}}
+			ctx := orchestratorActor(t, "review-owner")
+			gated := context.WithValue(ctx, coordinatorIndependentReviewContextKey{}, coordinatorIndependentReviewGate{Row: row, Kind: kind, BeforeMutation: func() {
+				coordinatorSavePolicy(t, coordinationHandler(s, "review-owner"), p.ID, policy.Revision, "review", []string{"plan"})
+			}})
+			if err := s.checkCoordinatorIndependentReviewGate(gated, p, run, kind); err != nil {
+				t.Fatal("initial reviewed gate unavailable", err)
+			}
+			coordinatorIndependentReviewBeforeMutation(gated)
+			if err := s.checkCoordinatorIndependentReviewGate(gated, p, run, kind); err == nil {
+				t.Fatal("background effect crossed a changed policy at final mutation")
+			}
+			if err := s.checkCoordinatorIndependentReviewGate(ctx, p, run, kind); err != nil {
+				t.Fatal("explicit authorized route inherited background gate", err)
+			}
+		})
+	}
+}
+
 func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *testing.T) {
 	s, mux, p, run, base, selected := swarmHTTPFixtureConfiguredPolicy(t, "", true, true,
 		ProjectTask{ID: "task-a", Title: "Build component", Status: "done", RequirementIDs: []string{"AC-save"}, WritePaths: []string{"alpha.txt"}, Acceptance: "Build component"},
@@ -141,5 +179,52 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	}
 	if repeated, e := s.continueCoordinatorReviewOutcome(ctx, p, row); e != nil || repeated {
 		t.Fatal("resolved review replayed", e, repeated)
+	}
+}
+
+func TestCancelledReviewerQueueSettlesBeforeCandidateWait(t *testing.T) {
+	for _, runningCandidate := range []bool{false, true} {
+		t.Run(map[bool]string{false: "absent candidate", true: "running candidate"}[runningCandidate], func(t *testing.T) {
+			s, mux, p, run, base, _ := swarmHTTPFixtureConfiguredPolicy(t, "", true, true,
+				ProjectTask{ID: "task-a", Title: "Build component", Status: "done", RequirementIDs: []string{"AC-save"}, WritePaths: []string{"alpha.txt"}, Acceptance: "Build component"},
+				ProjectTask{ID: "task-b", Title: "Review component", Status: "todo", Role: "reviewer", ReviewOfTaskID: "task-a", RequirementIDs: []string{"AC-save"}, Acceptance: "Inspect candidate"},
+				ProjectTask{ID: "task-c", Title: "Use component", Status: "todo", RequirementIDs: []string{"AC-save"}, WritePaths: []string{"gamma.txt"}, DependsOn: []string{"task-a"}},
+			)
+			s.registerSwarmScheduler(mux)
+			starts := 0
+			s.swarmScheduler.runtime = SwarmSchedulerRuntime{CaptureActor: management.CaptureExecutionActor,
+				Admit: func(context.Context, SwarmAdmissionRequest) (SwarmAdmissionResult, error) {
+					return SwarmAdmissionResult{State: "admitted"}, nil
+				},
+				Release: func(context.Context, string) error { return nil },
+				Dispatch: func(context.Context, SwarmDispatchRequest) (SwarmDispatchResult, error) {
+					starts++
+					return SwarmDispatchResult{State: "waiting"}, nil
+				},
+			}
+			actor := coordinationHandler(s, "review-owner")
+			journeyRequest(t, actor, "POST", base+"/queue", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "cancelled-reviewer-queue-123456", "priority": "normal", "taskIds": []string{"task-b"}}, 201)
+			if runningCandidate {
+				run = swarmReserveHTTP(t, mux, base, run, "task-a", "candidate-running-cancel-123456")
+			}
+			_, err := s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, run.Revision, func(current *ProjectRun) error {
+				current.State, current.Swarm.State = "cancelled", "cancelled"
+				if runningCandidate {
+					candidate := swarmOperation(current, swarmTask(current, "task-a").OperationID)
+					candidate.Status, candidate.Allocation = "running", "ready"
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := s.RunSwarmSchedulerOnce(orchestratorActor(t, "review-owner")); err != nil {
+				t.Fatal(err)
+			}
+			queue, err := s.ProjectSwarmQueueSnapshot(p.ID)
+			if err != nil || len(queue.Items) != 1 || queue.Items[0].State != "cancelled" || queue.Items[0].ReasonCode != "swarm_cancelled" || starts != 0 {
+				t.Fatal("cancelled reviewer kept waiting or started", queue, starts, err)
+			}
+		})
 	}
 }
