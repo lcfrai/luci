@@ -17,6 +17,7 @@ import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { swarmCheckpointApi, type SwarmCheckpointReview } from '../../api/swarmCheckpoint';
 import { SwarmRunQueue } from './SwarmRunQueue';
 import { SwarmDependencyNavigator } from '../develop/SwarmDependencyNavigator';
+import { SwarmSupervisionView } from '../develop/SwarmSupervisionView';
 import { SwarmLaunchRecoveryDialog, launchRecoveryStatus } from './SwarmLaunchRecoveryDialog';
 import type { ProjectSwarmQueue } from '../../api/swarmQueue';
 import './project-swarm.css';
@@ -108,6 +109,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   const queueReviewButton = useRef<HTMLButtonElement>(null);
   const [queueAttention, setQueueAttention] = useState(0);
   const [navigatorQueue, setNavigatorQueue] = useState<{projectId: string; runId: string; value: ProjectSwarmQueue} | null>(null);
+  const [supervisionOpen, setSupervisionOpen] = useState(false), [supervisionMounted, setSupervisionMounted] = useState(false);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [readNotice, setReadNotice] = useState(''), [readCycle, setReadCycle] = useState(0);
   useEffect(() => { setReadNotice(''); }, [run.projectId, run.id]);
@@ -413,6 +415,15 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
         <Button variant="tertiary" onClick={goToQueueReview}>Background queue{queueAttention ? ` · ${queueAttention} need attention` : ''}</Button>
       </div>
       <SwarmDependencyNavigator run={run} queue={navigatorQueue?.projectId === run.projectId && navigatorQueue.runId === run.id ? navigatorQueue.value : undefined} onOpenTask={goToTask} />
+      <details className="project-swarm-guidance" onToggle={event => { const open = event.currentTarget.open; setSupervisionOpen(open); if (open) setSupervisionMounted(true); }}>
+      <summary>Team messages and supervision</summary>
+      {supervisionMounted && <SwarmSupervisionView run={run} canRead={readReady} canEdit={canEdit && readReady} paused={pauseReads || !supervisionOpen} onOpenTask={goToTask}
+        onWrite={action => operate('Recording team message', async epoch => {
+          if (!readState.current.readReady || !current.current.canEdit) return;
+          await action();
+          if (usable(epoch) && readState.current.readReady) remember(await projectRunsApi.get(run.projectId, run.id), epoch);
+        }, 'edit')} />}
+      </details>
       {readNotice && <p role="status" className="journey-warning">{readNotice}</p>}
       <div className="journey-actions">
         <Button disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed || !batchReady.length} onClick={() => void operate('Starting ready tasks', startReady)}>Start ready tasks{batchReady.length ? ` (${batchReady.length})` : ''}</Button>

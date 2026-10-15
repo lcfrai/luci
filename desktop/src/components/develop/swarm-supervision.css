@@ -1,0 +1,16 @@
+@import "../../styles/tokens.css";
+.swarm-supervision { border-block: 1px solid var(--line-soft); padding-block: 16px; margin-block: 16px; min-inline-size: 0; overflow-wrap: anywhere; }
+.swarm-supervision h4, .swarm-supervision h5 { margin-block: 0 8px; }
+.swarm-supervision-note { color: var(--ink-2); font-size: 12px; }
+.swarm-message-list { display: grid; gap: 12px; padding-inline-start: 24px; max-block-size: 560px; overflow: auto; }
+.swarm-message-list > li { padding: 12px; border-block-end: 1px solid var(--line-soft); min-inline-size: 0; }
+.swarm-message-list p { margin-block: 4px 8px; }
+.swarm-message-claim { white-space: pre-wrap; color: var(--ink); }
+.swarm-supervision .journey-actions button { white-space: normal; block-size: auto; min-block-size: 44px; overflow-wrap: anywhere; }
+.swarm-supervision-pending { border: 1px solid var(--line-soft); padding: 12px; margin-block: 12px; }
+.swarm-message-compose summary { min-block-size: 44px; padding-block: 10px; cursor: pointer; }
+.swarm-message-compose summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.swarm-message-compose label { display: grid; gap: 4px; margin-block: 12px; font-size: 13px; }
+.swarm-message-compose select, .swarm-message-compose textarea { inline-size: 100%; min-inline-size: 0; min-block-size: 44px; border: 1px solid var(--line-soft); border-radius: var(--r-ctl); padding: 8px; background: var(--surface); color: var(--ink); }
+.swarm-message-compose textarea { resize: vertical; }
+@media (max-width: 760px) { .swarm-message-list { padding-inline-start: 20px; max-block-size: 400px; } .swarm-message-list > li { padding: 8px; } }
