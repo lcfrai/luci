@@ -63,6 +63,11 @@ type DocumentExtractionOutput struct {
 	Data   []byte
 	Digest string
 }
+type DocumentExtractionResultStream interface {
+	// EOF and complete framing are data facts, never exit/retirement proof.
+	Capture(context.Context) (DocumentExtractionOutput, error)
+	Close()
+}
 type DocumentExtractionFenceRequest struct {
 	Identity            DocumentExtractionIdentity
 	IntentID            string
@@ -85,7 +90,7 @@ type DocumentExtractionExecutor interface {
 	CreateDocument(context.Context, PreparedDocumentExtraction) (string, error)
 	StartDocument(context.Context, DocumentExtractionIdentity, string) error
 	InspectDocument(context.Context, DocumentExtractionIdentity, string) (DocumentExtractionObservation, error)
-	DocumentResult(context.Context, DocumentExtractionIdentity, string) (DocumentExtractionOutput, error)
+	AttachDocumentResult(context.Context, DocumentExtractionIdentity, string) (DocumentExtractionResultStream, error)
 	RetireDocument(context.Context, DocumentExtractionIdentity, string) error
 	FenceDocumentLaunch(context.Context, DocumentExtractionFenceRequest) (DocumentExtractionFenceProof, error)
 	VerifyDocumentLaunchFence(context.Context, DocumentExtractionFenceRequest, DocumentExtractionFenceProof) error

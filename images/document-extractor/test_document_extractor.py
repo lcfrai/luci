@@ -1,7 +1,9 @@
 """Source-level bounds/claim tests. These do not prove native PDF/OCR or E2E."""
 import importlib.util
+import hashlib
 from pathlib import Path
 import tempfile
+import struct
 import unittest
 from unittest import mock
 
@@ -11,6 +13,19 @@ SPEC.loader.exec_module(EXTRACTOR)
 
 
 class DocumentEvidenceBounds(unittest.TestCase):
+    def test_live_stream_has_exact_complete_length_digest_and_trailer(self):
+        value = {"status": "needs-review", "text": "Source evidence"}
+        frame = EXTRACTOR.result_frame(value)
+        prefix = b"LUCI-DOCUMENT-RESULT/1\n"
+        size = struct.unpack(">I", frame[len(prefix):len(prefix)+4])[0]
+        payload_at = len(prefix)+4+32
+        payload = frame[payload_at:payload_at+size]
+        self.assertEqual(payload, EXTRACTOR.encoded(value))
+        self.assertEqual(frame[len(prefix)+4:payload_at], hashlib.sha256(payload).digest())
+        self.assertEqual(frame[payload_at+size:], b"\nLUCI-DOCUMENT-END/1\n")
+        with self.assertRaises(EXTRACTOR.EvidenceFailure):
+            EXTRACTOR.result_frame({"text": "x" * EXTRACTOR.MAX_RESULT})
+
     def test_complete_atomic_result_and_over_limit_never_publish_partial_ready_data(self):
         with tempfile.TemporaryDirectory() as root:
             output = str(Path(root) / "result.json")

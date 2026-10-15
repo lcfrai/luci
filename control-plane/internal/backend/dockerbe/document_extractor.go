@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -20,22 +21,44 @@ import (
 
 const documentLabel = "luci.document-extractor"
 const documentPrefix = "luci-document-"
-const documentResultPath = "/tmp/result.json"
 
 // The wrapper shares the already selected local Docker client. It cannot
 // select an engine or use the worker/check image as an extraction fallback.
 type DocumentExtractor struct {
 	*Backend
-	imageID string
+	imageID       string
+	attachHeaders map[string]string
+	attached      sync.Map // exact immutable CID -> owned pre-Start stream; never recovered.
 }
+
+// Exact headers from the trusted owner of the selected local SDK client.
+// A nonnil empty map explicitly declares the normal no-custom-header profile;
+// an unspecified opaque client is unsupported, never silently reconstructed.
+type DocumentAttachConfiguration struct{ Headers map[string]string }
 
 var _ backend.DocumentExtractionExecutor = (*DocumentExtractor)(nil)
 
-func NewDocumentExtractor(b *Backend, imageID string) (*DocumentExtractor, error) {
+func NewDocumentExtractor(b *Backend, imageID string, attach DocumentAttachConfiguration) (*DocumentExtractor, error) {
 	if b == nil || !strings.HasPrefix(imageID, "sha256:") || !fenceHex(strings.TrimPrefix(imageID, "sha256:"), 32) {
 		return nil, backend.ErrUnsupported
 	}
-	return &DocumentExtractor{Backend: b, imageID: imageID}, nil
+	if attach.Headers == nil || len(attach.Headers) > 32 {
+		return nil, backend.ErrUnsupported
+	}
+	headers := map[string]string{}
+	total := 0
+	for name, value := range attach.Headers {
+		total += len(name) + len(value)
+		if name == "" || strings.ContainsAny(name+value, "\x00\r\n") || total > 16<<10 {
+			return nil, backend.ErrUnsupported
+		}
+		switch strings.ToLower(name) {
+		case "host", "connection", "upgrade", "content-length", "content-type":
+			return nil, backend.ErrUnsupported
+		}
+		headers[name] = value
+	}
+	return &DocumentExtractor{Backend: b, imageID: imageID, attachHeaders: headers}, nil
 }
 func documentName(identity backend.DocumentExtractionIdentity) string {
 	return documentPrefix + identity.AllocationID
@@ -88,13 +111,13 @@ func documentConfiguration(prepared backend.PreparedDocumentExtraction) (*contai
 	labels["luci.document-mime"] = spec.MimeType
 	labels["luci.document-bytes"] = strconv.Itoa(spec.OriginalBytes)
 	init, pids := true, int64(32)
-	return &container.Config{Image: spec.ImageID, Entrypoint: []string{"/usr/bin/python3"}, Cmd: []string{"-I", "/opt/luci/document_extractor.py", "--original", "/input/original", "--digest", spec.Identity.OriginalDigest, "--mime", spec.MimeType, "--bytes", strconv.Itoa(spec.OriginalBytes), "--attempt", spec.Identity.AttemptID}, User: strconv.Itoa(spec.UserID) + ":" + strconv.Itoa(spec.GroupID), WorkingDir: "/tmp", Env: documentEnvironment(), NetworkDisabled: true, Labels: labels, Healthcheck: &container.HealthConfig{Test: []string{"NONE"}}}, &container.HostConfig{Init: &init, ReadonlyRootfs: true, AutoRemove: false, RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyDisabled}, NetworkMode: "none", IpcMode: "none", CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}, Tmpfs: map[string]string{"/tmp": "rw,nosuid,nodev,noexec,size=128m,mode=1777"}, Mounts: []mount.Mount{{Type: mount.TypeBind, Source: spec.OriginalPath, Target: "/input/original", ReadOnly: true}}, LogConfig: container.LogConfig{Type: "none"}, Resources: container.Resources{Memory: 512 << 20, MemorySwap: 512 << 20, NanoCPUs: 1_000_000_000, PidsLimit: &pids}}
+	return &container.Config{Image: spec.ImageID, Entrypoint: []string{"/usr/bin/python3"}, Cmd: []string{"-I", "/opt/luci/document_extractor.py", "--original", "/input/original", "--digest", spec.Identity.OriginalDigest, "--mime", spec.MimeType, "--bytes", strconv.Itoa(spec.OriginalBytes), "--attempt", spec.Identity.AttemptID}, User: strconv.Itoa(spec.UserID) + ":" + strconv.Itoa(spec.GroupID), WorkingDir: "/tmp", Env: documentEnvironment(), NetworkDisabled: true, AttachStdout: true, Labels: labels, Healthcheck: &container.HealthConfig{Test: []string{"NONE"}}}, &container.HostConfig{Init: &init, ReadonlyRootfs: true, AutoRemove: false, RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyDisabled}, NetworkMode: "none", IpcMode: "none", CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}, Tmpfs: map[string]string{"/tmp": "rw,nosuid,nodev,noexec,size=128m,mode=1777"}, Mounts: []mount.Mount{{Type: mount.TypeBind, Source: spec.OriginalPath, Target: "/input/original", ReadOnly: true}}, LogConfig: container.LogConfig{Type: "none"}, Resources: container.Resources{Memory: 512 << 20, MemorySwap: 512 << 20, NanoCPUs: 1_000_000_000, PidsLimit: &pids}}
 }
 func (b *DocumentExtractor) PrepareDocument(ctx context.Context, spec backend.DocumentExtractionSpec) (backend.PreparedDocumentExtraction, error) {
 	if !backend.ValidateDocumentExtractionSpec(spec) || spec.ImageID != b.imageID || !verifyDocumentOriginal(spec) {
 		return backend.PreparedDocumentExtraction{}, backend.ErrUnsupported
 	}
-	if _, ok := b.api.(documentArchiveClient); !ok {
+	if _, ok := b.api.(documentAttachSource); !ok {
 		return backend.PreparedDocumentExtraction{}, backend.ErrUnsupported
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -201,7 +224,7 @@ func documentOwnedConfiguration(identity backend.DocumentExtractionIdentity, ref
 		return false
 	}
 	expected, limits := documentConfiguration(backend.PreparedDocumentExtraction{Spec: spec})
-	if cfg.Image != spec.ImageID || row.Image != spec.ImageID || !reflect.DeepEqual(cfg.Labels, expected.Labels) || !reflect.DeepEqual(cfg.Entrypoint, expected.Entrypoint) || !reflect.DeepEqual(cfg.Cmd, expected.Cmd) || cfg.User != expected.User || cfg.WorkingDir != expected.WorkingDir || !reflect.DeepEqual(cfg.Env, expected.Env) || !cfg.NetworkDisabled || cfg.Tty || cfg.OpenStdin || cfg.StdinOnce || cfg.AttachStdin || len(cfg.ExposedPorts) != 0 || len(cfg.Volumes) != 0 || cfg.Healthcheck == nil || !reflect.DeepEqual(cfg.Healthcheck.Test, expected.Healthcheck.Test) {
+	if cfg.Image != spec.ImageID || row.Image != spec.ImageID || !reflect.DeepEqual(cfg.Labels, expected.Labels) || !reflect.DeepEqual(cfg.Entrypoint, expected.Entrypoint) || !reflect.DeepEqual(cfg.Cmd, expected.Cmd) || cfg.User != expected.User || cfg.WorkingDir != expected.WorkingDir || !reflect.DeepEqual(cfg.Env, expected.Env) || !cfg.NetworkDisabled || cfg.Tty || cfg.OpenStdin || cfg.StdinOnce || cfg.AttachStdin || !cfg.AttachStdout || cfg.AttachStderr || len(cfg.ExposedPorts) != 0 || len(cfg.Volumes) != 0 || cfg.Healthcheck == nil || !reflect.DeepEqual(cfg.Healthcheck.Test, expected.Healthcheck.Test) {
 		return false
 	}
 	if host.Init == nil || !*host.Init || !host.ReadonlyRootfs || host.AutoRemove || host.Privileged || host.NetworkMode != "none" || host.IpcMode != "none" || host.PidMode != "" || host.UTSMode != "" || host.UsernsMode != "" || host.PublishAllPorts || len(host.PortBindings) != 0 || len(host.Binds) != 0 || len(host.VolumesFrom) != 0 || len(host.Devices) != 0 || len(host.DeviceRequests) != 0 || len(host.Links) != 0 || len(host.ExtraHosts) != 0 || len(host.CapAdd) != 0 || !reflect.DeepEqual(host.CapDrop, limits.CapDrop) || !reflect.DeepEqual(host.SecurityOpt, limits.SecurityOpt) || !reflect.DeepEqual(host.Tmpfs, limits.Tmpfs) || !reflect.DeepEqual(host.Mounts, limits.Mounts) || host.RestartPolicy.Name != container.RestartPolicyDisabled || host.RestartPolicy.MaximumRetryCount != 0 || host.LogConfig.Type != "none" || host.Memory != limits.Memory || host.MemorySwap != limits.MemorySwap || host.NanoCPUs != limits.NanoCPUs || host.PidsLimit == nil || *host.PidsLimit != 32 {
@@ -243,6 +266,19 @@ func (b *DocumentExtractor) StartDocument(ctx context.Context, identity backend.
 	}
 	if absent || row.State.Status != "created" || row.State.Running || row.State.Restarting || row.State.Paused || row.State.Dead || row.State.Pid != 0 {
 		return backend.ErrNotRunning
+	}
+	owned, ok := b.attached.Load(ref)
+	if !ok {
+		return backend.ErrUnavailable
+	}
+	stream, ok := owned.(*documentResultStream)
+	if !ok {
+		return backend.ErrLaunchFenceOwnership
+	}
+	stream.mu.Lock()
+	defer stream.mu.Unlock()
+	if stream.closed || stream.identity != identity {
+		return backend.ErrUnavailable
 	}
 	if b.api.ContainerStart(ctx, ref, container.StartOptions{}) != nil || ctx.Err() != nil {
 		return backend.ErrUnavailable

@@ -14,6 +14,8 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import struct
+import sys
 import time
 
 PROFILE = "pdfium-tesseract-v1"
@@ -38,6 +40,13 @@ def digest(data):
 
 def encoded(value):
     return json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8")
+
+
+def result_frame(value):
+    raw = encoded(value)
+    if not 1 <= len(raw) <= MAX_RESULT:
+        raise EvidenceFailure("over-limit", "The complete attributed stream exceeds 1 MiB.")
+    return b"LUCI-DOCUMENT-RESULT/1\n" + struct.pack(">I", len(raw)) + hashlib.sha256(raw).digest() + raw + b"\nLUCI-DOCUMENT-END/1\n"
 
 
 def read_regular(path, maximum):
@@ -248,7 +257,11 @@ def run(args):
         result.update(status=failure.status, pages=[], issues=[failure.message])
     except Exception:
         result.update(status="corrupt", pages=[], issues=["The complete document could not be decoded safely. Preserve the original before restarting."])
-    publish("/tmp/result.json", result)
+    # Docker tmpfs disappears when the container exits. The exact host SDK
+    # stream is attached BEFORE Start; emit the complete bounded result while
+    # alive, then let the controller independently prove exit and retirement.
+    sys.stdout.buffer.write(result_frame(result))
+    sys.stdout.buffer.flush()
 
 
 def main():
