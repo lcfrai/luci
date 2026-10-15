@@ -305,3 +305,7 @@
   display: grid;
   place-items: center;
 }
+
+.rail-section-title { margin: .85rem .75rem .3rem; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.rail-activity { display: inline-flex; gap: .25rem; margin-inline-start: auto; font-weight: 700; }
+.rail-activity span { min-width: 1rem; text-align: center; }

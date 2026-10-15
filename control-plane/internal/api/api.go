@@ -512,6 +512,9 @@ func New(d Deps) (*API, error) {
 	a.registerSessions(guarded)
 	a.registerCodexConnection(guarded)
 	a.registerAssistance(guarded)
+	guarded.HandleFunc("GET /v1/product/home", a.handleProjectHome)
+	guarded.HandleFunc("PUT /v1/product/home/pins", a.handleHomePin)
+	guarded.HandleFunc("POST /v1/product/home/stops/ack", a.handleHomeAcknowledge)
 	a.registerAttach(guarded)
 	// Task 12 added a.registerAttach(guarded) on the line above. One line, taking
 	// *routes, and in the SAME step that defines the method it names: a call

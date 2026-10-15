@@ -97,6 +97,7 @@ type Session struct {
 
 	Status       Status              `json:"status"`
 	ExitReason   string              `json:"exitReason"`
+	StoppedAt    time.Time           `json:"stoppedAt,omitempty"` // immutable observed terminal transition for Home
 	StartFailure SessionStartFailure `json:"startFailure,omitzero"`
 	// Private aggregate host telemetry; never projected by the shared session DTO.
 	StartAdmissionEvidence StartAdmissionEvidence `json:"startAdmissionEvidence,omitzero"`

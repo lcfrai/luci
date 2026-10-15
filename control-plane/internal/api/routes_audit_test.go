@@ -30,6 +30,7 @@ import (
 // map; they do not touch catalogAuditRoutes. Adding a side-effecting GET means a
 // failing test that names the rule before it can be made to pass.
 var catalogReadOnlyRoutes = map[string]string{
+	"GET /v1/product/home": "One bounded catalogue, registry and private projection read for the current actor; no model, sandbox, source mutation or acknowledgment on GET.",
 	"GET /v1/product/projects/{id}/assist/repository/requests/{requestId}": "Reads the authenticated actor's exact retained request in an owned project. No repair, source sampling, provider resolution, sandbox probes or allocation occurs; a missing receipt does not prove a delayed POST is absent.",
 	"GET /v1/product/projects/{id}/assist":                                 "Lists at most twenty bounded private job metadata records for an owned project. No inference, sandbox probes, recovery or project writes occur on GET.",
 	"GET /v1/product/projects/{id}/assist/{jobId}":                         "Reads a bounded private job snapshot. No model calls, sandbox probes, recovery or project writes occur on GET.",
@@ -50,7 +51,7 @@ var catalogReadOnlyRoutes = map[string]string{
 	"GET /v1/sessions/{id}": "One Store.Get. An exited session stays readable — the transcript is the " +
 		"artifact — and reading it changes nothing about the record or the sandbox.",
 	"GET /v1/sessions/{id}/reviewed-context": "Reads the owned session and verifies its bounded immutable bundle, then returns one fixed canonical document. No source refresh, current approval changes, repair, provider resolution, execution or persistence occurs; legacy/missing/corrupt capture is refused without substitution.",
-	"GET /v1/sessions/{id}/native-turn": "Explicit read of one owned session and its authenticated sandbox's bounded native turn summary. The route never sends a model request, changes a session or writes a candidate; unavailable/stale evidence returns unknown.",
+	"GET /v1/sessions/{id}/native-turn":      "Explicit read of one owned session and its authenticated sandbox's bounded native turn summary. The route never sends a model request, changes a session or writes a candidate; unavailable/stale evidence returns unknown.",
 }
 
 // catalogUpgradeGatedRoutes is the third category: a route that IS a GET, DOES

@@ -76,6 +76,9 @@ var teamRouteRules = []teamRouteRule{
 	{"GET /v1/machines", teamRead},
 	{"GET /v1/harnesses", teamRead},
 	{"GET /v1/projects", teamRead},
+	{"GET /v1/product/home", teamRead},
+	{"PUT /v1/product/home/pins", teamRead},
+	{"POST /v1/product/home/stops/ack", teamRead},
 	{"GET /v1/projects/{projectId}/branches", teamRead},
 	{"GET /v1/projects/{projectId}/worktrees", teamRead},
 	{"PATCH /v1/projects/{projectId}/worktrees/{worktreeId}", teamEdit},
@@ -299,6 +302,8 @@ func classifyTeamRoute(r *http.Request) (TeamRouteScope, teamCapability, bool) {
 	switch pattern {
 	case "GET /v1/projects":
 		scope.Collection = "projects"
+	case "GET /v1/product/home":
+		scope.Collection = "home"
 	case "GET /v1/sessions":
 		scope.Collection = "sessions"
 	case "GET /v1/machines":

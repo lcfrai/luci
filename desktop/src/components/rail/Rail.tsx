@@ -14,6 +14,7 @@ import { useCockpit } from "../../store/store";
 import { selectDefaultMachine } from "../../store/selectors";
 import { MachineChip } from "./MachineChip";
 import { ProjectRow } from "./ProjectRow";
+import { useProjectHome } from "../projects/ProjectHomeProvider";
 import { RailFooter } from "./RailFooter";
 import { useSetup } from "../setup/SetupProvider";
 import { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
@@ -36,6 +37,18 @@ export function Rail({
   const team = useTeamWorkspace();
   const canCreate = !team?.teamId || !!(team.selected?.permissions.edit && team.selected.permissions.admin);
   const projects = useCockpit(useShallow((s) => s.projects));
+  const home = useProjectHome();
+  const activity = new Map(home?.home?.projects.map(project => [project.id, project]) ?? []);
+  // A stale catalogue must not reveal a team project after its read grant is
+  // removed. While the current Home projection is unavailable, show no rows.
+  const allowed = home ? projects.filter(project => activity.has(project.id)) : projects;
+  const pinnedIDs = home?.home?.pinnedProjectIds ?? [];
+  const pinned = pinnedIDs.map(id => allowed.find(project => project.id === id)).filter((project): project is (typeof projects)[number] => !!project);
+  const pinnedSet = new Set(pinned.map(project => project.id));
+  const active = home?.home ? allowed.filter(project => {
+    const row = activity.get(project.id);
+    return !pinnedSet.has(project.id) && !!row && (row.working || row.needsInput || row.queued || row.unknown || row.stops.length > 0);
+  }) : allowed;
   const machine = useCockpit(selectDefaultMachine);
   const expandedProjects = useCockpit((s) => s.expandedProjects);
   const selectedProjectId = useCockpit((s) => s.selection.projectId);
@@ -206,7 +219,7 @@ export function Rail({
       <div
         ref={treeRef}
         className="rail-scroll"
-        role={projects.length > 0 ? "tree" : "region"}
+        role={allowed.length > 0 ? "tree" : "region"}
         aria-label="Projects"
         onKeyDown={onKeyDown}
         onFocusCapture={(event) => {
@@ -218,22 +231,15 @@ export function Rail({
             });
         }}
       >
-        {projects.length === 0 ? (
-          <p className="rail-empty">
-            {canCreate
+        {allowed.length === 0 ? (
+          <p className="rail-empty">{home?.home ? 'Open Home to choose a project.' : canCreate
               ? "No projects yet. Create a project or import a repository from your projects home."
-              : "No projects shared yet. Ask your team administrator to share a project."}
-          </p>
-        ) : (
-          projects.map((project) => (
-            <ProjectRow
-              key={project.id}
-              project={project}
-              selected={project.id === selectedProjectId}
-              expanded={expandedProjects[project.id] === true}
-            />
-          ))
-        )}
+              : "No projects shared yet. Ask your team administrator to share a project."}</p>
+        ) : <>
+          {pinned.length > 0 && <div role="group" aria-label="Pinned projects"><p className="rail-section-title">Pinned</p>{pinned.map(project => <ProjectRow key={project.id} project={project} activity={activity.get(project.id)} onOpen={home?.open} selected={project.id === selectedProjectId} expanded={expandedProjects[project.id] === true} />)}</div>}
+          {active.length > 0 && <div role="group" aria-label="Active projects"><p className="rail-section-title">Active</p>{active.map(project => <ProjectRow key={project.id} project={project} activity={activity.get(project.id)} onOpen={home?.open} selected={project.id === selectedProjectId} expanded={expandedProjects[project.id] === true} />)}</div>}
+          {home?.home && pinned.length === 0 && active.length === 0 && <p className="rail-empty">No active projects. Find all projects in Home.</p>}
+        </>}
       </div>
       <RailFooter />
     </nav>

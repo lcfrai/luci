@@ -333,6 +333,13 @@ func (s *FileStore) Update(id string, mutate func(*Session) error) (Session, err
 	// mutate function to remember.
 	working.CreatedAt = before.CreatedAt
 	working.UpdatedAt = time.Now().UTC()
+	if before.Status != StatusExited && working.Status == StatusExited {
+		working.StoppedAt = working.UpdatedAt
+	} else if before.Status == StatusExited && working.Status != StatusExited {
+		working.StoppedAt = time.Time{}
+	} else {
+		working.StoppedAt = before.StoppedAt
+	}
 
 	// Clone on commit, and clone again on return: the pointer mutate was handed
 	// still exists in the caller's closure, and if either the index or the

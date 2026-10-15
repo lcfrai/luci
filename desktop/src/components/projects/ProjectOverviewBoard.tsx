@@ -17,6 +17,7 @@ import { WorkflowDialog, type WorkflowDialogReadAccess } from '../common/Workflo
 import { RecordedRunAttention } from '../common/RecordedRunAttention';
 import { HostCapacity } from './HostCapacity';
 import './project-overview.css';
+import { useProjectHome } from './ProjectHomeProvider';
 
 type Summary = { value?: ProjectOverview; error?: string; sourceBusy?: boolean };
 type Picked = { project: Project; item: SwarmQueueItem; canExecute: boolean };
@@ -198,12 +199,13 @@ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picke
   onSelect(project: Project, item: SwarmQueueItem, selected: boolean, canExecute: boolean): void; onForget(projectId: string): void;
 }) {
   const [showQueue, setShowQueue] = useState(false);
+  const home = useProjectHome();
   const scope = useProjectDraftScope(project.id);
   const value = summary?.value;
   const counts = value?.execution;
   function openDestination(lens?: Lens, runId?: string) {
     if (!value || summary?.sourceBusy) return;
-    useCockpit.getState().selectProject(project.id, lens);
+    if (home) home.open(project.id, lens); else useCockpit.getState().selectProject(project.id, lens);
     const state = useCockpit.getState(), destination = state.pendingNavigation;
     const accepted = destination ? destination.kind === 'project' && destination.projectId === project.id && destination.lens === lens
       : state.selection.projectId === project.id && (!lens || state.lens === lens);
@@ -222,7 +224,7 @@ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picke
     if (!value || summary?.sourceBusy) return;
     // The normal project switch owns the unsaved-draft decision. Never open
     // another project's conversation while that decision is still pending.
-    useCockpit.getState().selectProject(project.id);
+    if (home) home.open(project.id); else useCockpit.getState().selectProject(project.id);
     const state = useCockpit.getState();
     if (!state.pendingNavigation && state.selection.projectId === project.id &&
         state.projects.some(item => item.id === project.id && item.path === project.path)) state.showLuci();

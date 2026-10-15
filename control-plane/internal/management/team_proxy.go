@@ -381,6 +381,16 @@ func (g *Gateway) routeTeamWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer finish()
+	if scope.Collection == "home" {
+		capture := newTeamCapture()
+		g.route(capture, inner)
+		if inner.Context().Err() != nil {
+			fail(w, 403, "team_access_changed", errTeamAccess.Error())
+			return
+		}
+		g.filterTeamHome(w, capture, teamID, actor.ID)
+		return
+	}
 	if scope.Collection == "projects" || scope.Collection == "sessions" {
 		capture := newTeamCapture()
 		g.route(capture, inner)
@@ -506,4 +516,59 @@ func copyTeamResponse(w http.ResponseWriter, c *teamCapturedResponse) {
 	}
 	w.WriteHeader(status)
 	_, _ = w.Write(c.body.Bytes())
+}
+
+// filterTeamHome is defense in depth for a collection assembled by the owned
+// worker. Recheck current read grants before any row or pin reaches the member;
+// a revocation during the worker read must not expose the earlier projection.
+func (g *Gateway) filterTeamHome(w http.ResponseWriter, capture *teamCapturedResponse, teamID, actorID string) {
+	if capture.status != 200 || capture.overflow {
+		fail(w, 503, "team_catalogue_unavailable", "Project activity could not be verified.")
+		return
+	}
+	var envelope struct {
+		Version          int               `json:"version"`
+		ObservedAt       string            `json:"observedAt"`
+		Total            int               `json:"total"`
+		NextOffset       *int              `json:"nextOffset"`
+		Revision         int               `json:"revision"`
+		PinnedProjectIDs []string          `json:"pinnedProjectIds"`
+		Projects         []json.RawMessage `json:"projects"`
+	}
+	if json.Unmarshal(capture.body.Bytes(), &envelope) != nil || envelope.Version != 1 || envelope.Revision < 1 || len(envelope.Projects) > 64 || len(envelope.PinnedProjectIDs) > 4096 {
+		fail(w, 503, "team_catalogue_unavailable", "Project activity could not be verified.")
+		return
+	}
+	visible := make([]json.RawMessage, 0, len(envelope.Projects))
+	seen := map[string]bool{}
+	for _, raw := range envelope.Projects {
+		var row struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(raw, &row) != nil || !teamProjectIDPattern.MatchString(row.ID) || seen[row.ID] {
+			fail(w, 503, "team_catalogue_unavailable", "Project activity could not be verified.")
+			return
+		}
+		seen[row.ID] = true
+		if grant, err := g.resolveTeamAccess(teamID, actorID, row.ID); err == nil && grant.Permissions.Read {
+			visible = append(visible, raw)
+		}
+	}
+	pins := make([]string, 0, len(envelope.PinnedProjectIDs))
+	seen = map[string]bool{}
+	for _, id := range envelope.PinnedProjectIDs {
+		if !teamProjectIDPattern.MatchString(id) || seen[id] {
+			fail(w, 503, "team_catalogue_unavailable", "Project activity could not be verified.")
+			return
+		}
+		seen[id] = true
+		if grant, err := g.resolveTeamAccess(teamID, actorID, id); err == nil && grant.Permissions.Read {
+			pins = append(pins, id)
+		}
+	}
+	// Total is intentionally the number of rows returned by this page: a
+	// concurrent revocation must not reveal the hidden collection's count.
+	jsonReply(w, 200, map[string]any{"version": envelope.Version, "observedAt": envelope.ObservedAt,
+		"total": len(visible), "nextOffset": envelope.NextOffset, "revision": envelope.Revision,
+		"pinnedProjectIds": pins, "projects": visible})
 }

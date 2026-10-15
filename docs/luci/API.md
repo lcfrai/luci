@@ -1290,3 +1290,9 @@ service is **not available yet**, and cannot block access to existing projects.
 Bring-your-own-cloud command planning and protected connection handoff are separate
 from this preference. Existing VM deployment-target and SSH compatibility tools do
 not prove an Azure microVM workspace is installed or working.
+
+## Project Home activity (LC-17)
+
+`GET /v1/product/home?offset=0` returns up to 64 projects that the current actor can read, with `total`, `nextOffset`, personal `revision` and `pinnedProjectIds`. Each row has independent `working`, `needsInput`, `queued` and `unknown` flags plus recent terminal `stops: [{id,at,kind}]` and `newestObservedStop`. The server reads cached project overview, the bounded scheduler ledger, private accepted findings, the session registry and bounded assistant job metadata. It does not start a model or container. A missing source is marked unknown. Terminal identities are source/generation/time bound and expire after 24 hours; only unacknowledged stops appear.
+
+`PUT /v1/product/home/pins {projectId,pinned,expectedRevision}` changes that actor's pin list. `POST /v1/product/home/stops/ack {projectId,observedStopIds,expectedRevision}` acknowledges only still-current exact stop identities after the person's project navigation completes. Both writes require current project-read authority and personal account/workspace/actor scope. A stale revision or stop returns 409; a revoked project returns 403. Neither write changes task state or teammates' preferences. The team gateway rechecks project read grants before returning rows or pins.

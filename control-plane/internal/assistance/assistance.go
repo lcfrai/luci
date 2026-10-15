@@ -59,6 +59,7 @@ type Job struct {
 	FailureCode             string          `json:"failureCode,omitempty"`
 	CreatedAt               string          `json:"createdAt"`
 	UpdatedAt               string          `json:"updatedAt"`
+	TerminalAt              string          `json:"terminalAt,omitempty"`
 	Result                  *Result         `json:"result,omitempty"`
 	Kind                    string          `json:"kind,omitempty"`
 	Harness                 string          `json:"harness,omitempty"`
@@ -133,6 +134,9 @@ func (s *Store) Update(id string, mutate func(*Job) error) (Job, error) {
 		return Job{}, err
 	}
 	job.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	if Terminal(job.Status) && job.TerminalAt == "" {
+		job.TerminalAt = job.UpdatedAt
+	}
 	b, err := json.Marshal(job)
 	if err == nil && len(b) > MaxJobBytes {
 		err = errors.New("assistant job exceeds its limit")

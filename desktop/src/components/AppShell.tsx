@@ -18,6 +18,7 @@ import { useDismissable } from "../hooks/useDismissable";
 import type { Lens } from "../store/types";
 import "./shell.css";
 import { ProjectsHome } from "./projects/ProjectsHome";
+import { ProjectHomeProvider } from "./projects/ProjectHomeProvider";
 import { ColumnsLayout } from "./develop/ColumnsLayout";
 import { useSetup } from "./setup/SetupProvider";
 import { DraftNavigationDialog } from "./common/DraftNavigationDialog";
@@ -115,7 +116,7 @@ export function AppShell(): JSX.Element {
     .join(" ");
 
   return (
-    <div className={className}>
+    <ProjectHomeProvider><div className={className}>
       <Rail
         panelRef={railRef}
         hidden={compact ? !drawerOpen : railCollapsed}
@@ -175,6 +176,6 @@ export function AppShell(): JSX.Element {
       <CommandPalette />
       <BranchManager />
       <DraftNavigationDialog />
-    </div>
+    </div></ProjectHomeProvider>
   );
 }

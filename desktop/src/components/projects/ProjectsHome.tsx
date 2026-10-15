@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ProjectOverviewBoard } from "./ProjectOverviewBoard";
+import { useProjectHome } from "./ProjectHomeProvider";
 import { Input } from "../ui/input";
 import { Button } from "../fluid/components/button";
 import { useCockpit } from "../../store/store";
@@ -12,11 +13,15 @@ export function ProjectsHome() {
   const loading = useCockpit((state) => state.loading.projects);
   const lastError = useCockpit((state) => state.lastError);
   const [query, setQuery] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
+  const home = useProjectHome();
+  const visibleIDs = home ? new Set(home.home?.projects.map(project => project.id) ?? []) : null;
+  const activity = new Map(home?.home?.projects.map(project => [project.id, project]) ?? []);
   const setup = useSetup();
   const team = useTeamWorkspace();
   const canCreate = !team?.teamId || !!(team.selected?.permissions.edit && team.selected.permissions.admin);
   const filtered = projects.filter((project) =>
-    project.name.toLowerCase().includes(query.toLowerCase()),
+    (!visibleIDs || visibleIDs.has(project.id)) && project.name.toLowerCase().includes(query.toLowerCase()),
   );
   return (
     <section className="projects-home">
@@ -133,9 +138,30 @@ export function ProjectsHome() {
           </Button>
         </div>
       ) : (
-        <ProjectOverviewBoard projects={filtered} />
+        <>
+          {home?.error && <p className="journey-error" role="status">{home.error} <Button variant="secondary" onClick={home.refresh}>Refresh activity</Button></p>}
+          {!home?.home && <p role="status">{home?.busy ? 'Loading project activity…' : 'Project activity is unavailable. Open a project to inspect its saved work.'}</p>}
+          {(!home || home.home) && <ul className="home-activity-list">{filtered.map(project => {
+            const row = activity.get(project.id);
+            const pinned = !!home?.home?.pinnedProjectIds.includes(project.id);
+            return <li key={project.id}>
+              <div><strong>{project.name}</strong><div className="home-activity-status" aria-label={`Activity for ${project.name}`}>
+                {row?.working && <span>Working</span>}{row?.needsInput && <span>Needs input</span>}
+                {row?.queued && <span>Queued</span>}{row?.stops.length ? <span>Stopped · {row.stops[row.stops.length - 1].kind}</span> : null}
+                {row?.unknown && <span>Some activity unconfirmed</span>}{!row && <span>Activity unavailable</span>}
+                {row && !row.working && !row.needsInput && !row.queued && !row.unknown && !row.stops.length && <span>Ready to open</span>}
+              </div></div>
+              <div className="home-activity-actions">
+                <Button variant="secondary" disabled={!row || !!home?.busy} aria-pressed={pinned} onClick={() => void home?.pin(project.id, !pinned)}>{pinned ? 'Unpin' : 'Pin'}</Button>
+                <Button variant="primary" onClick={() => { if (home) home.open(project.id); else useCockpit.getState().selectProject(project.id); }}>Open project</Button>
+              </div>
+            </li>;
+          })}</ul>}
+          {(!home || home.home) && <Button type="button" variant="secondary" aria-expanded={showDetails} onClick={() => setShowDetails(value => !value)}>{showDetails ? 'Hide detailed overview' : 'Detailed overview and queue controls'}</Button>}
+          {showDetails && (!home || home.home) && <ProjectOverviewBoard projects={filtered} />}
+        </>
       )}
-      {projects.length > 0 && filtered.length === 0 && (
+      {projects.length > 0 && filtered.length === 0 && query && (!home || home.home) && (
         <p>No projects match “{query}”.</p>
       )}
     </section>

@@ -10,14 +10,17 @@ import { useCockpit } from "../../store/store";
 import { selectBranches } from "../../store/selectors";
 import { BranchRow } from "./BranchRow";
 import type { Project } from "../../store/types";
+import type { HomeProject } from "../../api/projectHome";
 import "./rail.css";
 
 export function ProjectRow(props: {
   project: Project;
   selected: boolean;
   expanded: boolean;
+  activity?: HomeProject;
+  onOpen?: (id: string) => void;
 }): JSX.Element {
-  const { project, selected, expanded } = props;
+  const { project, selected, expanded, activity, onOpen } = props;
   const branches = useCockpit(useShallow(selectBranches(project.id)));
   const toggleProject = useCockpit((s) => s.toggleProject);
   const selectProject = useCockpit((s) => s.selectProject);
@@ -31,13 +34,14 @@ export function ProjectRow(props: {
         role="treeitem"
         tabIndex={-1}
         aria-label={project.name}
+        aria-describedby={activity ? `project-activity-${project.id}` : undefined}
         aria-level={1}
         aria-expanded={expanded}
         aria-selected={selected}
         data-kind="project"
         data-id={project.id}
         className="rail-row"
-        onClick={() => selectProject(project.id)}
+        onClick={() => onOpen ? onOpen(project.id) : selectProject(project.id)}
         onContextMenu={(event) => {
           event.preventDefault();
           openContextMenu({
@@ -65,6 +69,13 @@ export function ProjectRow(props: {
           <NavigationIcon name={expanded ? "chevron-down" : "chevron-right"} />
         </button>
         <span className="rail-name">{project.name}</span>
+        {activity && <span id={`project-activity-${project.id}`} className="rail-activity" aria-label={`Activity for ${project.name}`}>
+          {activity.working && <span title="Working" aria-label="Working">◔</span>}
+          {activity.needsInput && <span title="Needs input" aria-label="Needs input">!</span>}
+          {activity.queued && <span title="Queued" aria-label="Queued">…</span>}
+          {activity.stops.length > 0 && <span title="Stopped" aria-label="Stopped">■</span>}
+          {activity.unknown && <span title="Some activity unconfirmed" aria-label="Some activity unconfirmed">?</span>}
+        </span>}
       </div>
       {expanded ? (
         <div role="group">
