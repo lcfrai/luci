@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"io"
 	"strings"
@@ -19,7 +20,7 @@ func artifactZipContent(t *testing.T, data []byte) string {
 	}
 	var content string
 	for _, file := range archive.File {
-		if strings.HasSuffix(file.Name, "document.xml") || strings.HasSuffix(file.Name, "sheet1.xml") {
+		if strings.HasSuffix(file.Name, "document.xml") || strings.HasSuffix(file.Name, "sheet1.xml") || (strings.HasPrefix(file.Name, "ppt/slides/slide") && strings.HasSuffix(file.Name, ".xml")) {
 			reader, e := file.Open()
 			if e != nil {
 				t.Fatal(e)
@@ -29,7 +30,33 @@ func artifactZipContent(t *testing.T, data []byte) string {
 			if e != nil {
 				t.Fatal(e)
 			}
-			content = string(body)
+			if strings.HasPrefix(file.Name, "ppt/slides/") {
+				decoder := xml.NewDecoder(bytes.NewReader(body))
+				insideText := false
+				for {
+					token, e := decoder.Token()
+					if errors.Is(e, io.EOF) {
+						break
+					}
+					if e != nil {
+						t.Fatal("invalid presentation XML", e)
+					}
+					switch value := token.(type) {
+					case xml.StartElement:
+						insideText = value.Name.Local == "t"
+					case xml.EndElement:
+						if value.Name.Local == "t" {
+							insideText = false
+						}
+					case xml.CharData:
+						if insideText {
+							content += string(value)
+						}
+					}
+				}
+			} else {
+				content += string(body)
+			}
 		}
 	}
 	if content == "" {
@@ -95,7 +122,7 @@ func TestDistributeArtifactPrepareSaveReviewAndSourceCAS(t *testing.T) {
 	if err = json.Unmarshal(review.Body.Bytes(), &saved); err != nil || saved.Artifact.Revision != 3 || saved.Artifact.State != "reviewed" || saved.Artifact.Review == nil {
 		t.Fatal(review.Body.String(), err)
 	}
-	for _, format := range []string{"docx", "xlsx"} {
+	for _, format := range []string{"docx", "pptx", "xlsx"} {
 		exported := controlTestRequest(t, h, "GET", artifactURL+"/exports/"+format+"?digest="+saved.Artifact.Digest, nil, 200)
 		content := artifactZipContent(t, exported.Body.Bytes())
 		for _, value := range []string{"Saved product purpose", "Reviewed source-specific risk.", "No exact implementation-check receipt", "Source reference"} {
@@ -133,6 +160,37 @@ func TestDistributeArtifactPrepareSaveReviewAndSourceCAS(t *testing.T) {
 	_, retained, err := s.readArtifactLedger(p)
 	if err != nil || len(retained.Records) != 1 || len(retained.Records[0].Revisions) != 3 {
 		t.Fatal("stale refusal changed private history", err)
+	}
+}
+
+func TestDistributePresentationKeepsBoundedUnicodeText(t *testing.T) {
+	long := strings.Repeat("界", 400) + "& final"
+	lines := []artifactExportLine{{Label: "Risk", Value: long}}
+	pages, err := artifactSlideRows(lines)
+	if err != nil || len(pages) < 2 {
+		t.Fatal("long unicode text was not paginated", err, len(pages))
+	}
+	var retained strings.Builder
+	for _, page := range pages {
+		if len(page) > 7 {
+			t.Fatal("slide exceeded row limit")
+		}
+		for _, row := range page {
+			if len([]rune(row)) > 48 {
+				t.Fatal("slide exceeded rune width")
+			}
+			retained.WriteString(row)
+		}
+	}
+	if retained.String() != "Risk: "+long {
+		t.Fatal("pagination lost source text")
+	}
+	data, err := artifactPPTX(context.Background(), lines)
+	if err != nil || !strings.Contains(artifactZipContent(t, data), "& final") {
+		t.Fatal("native presentation did not retain escaped text", err)
+	}
+	if _, err := artifactSlideRows([]artifactExportLine{{Label: "Risk", Value: strings.Repeat("a", 48*7*1024)}}); err == nil {
+		t.Fatal("oversized presentation did not refuse")
 	}
 }
 

@@ -26,6 +26,6 @@
     "review": "authenticated actor, revision/digest and timestamp; review is not publication or compliance approval"
   },
   "bounds": {"artifactBytes": 262144, "sections": 40, "textUTF8Bytes": 8192, "historyRevisions": 20, "projectArtifacts": 100, "exportBytes": 16777216},
-  "exportStatus": "Native private DOCX and XLSX include all saved section text, source references, gaps, assumptions, review and source-freshness warning. PDF and PPTX remain unavailable until faithful bounded renderers and dependency/font closure are verified.",
+  "exportStatus": "Native private DOCX, PPTX and XLSX include all saved section text, source references, gaps, assumptions, review and source-freshness warning. PPTX paginates bounded text rows without truncation. PDF remains unavailable until a faithful bounded renderer and dependency/font closure are verified.",
   "trust": "No client-provided source identity is trusted without private readback. No model answer, draft, exported file or user review grants execution, spending, deployment, external delivery or compliance authority."
 }

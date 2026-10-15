@@ -175,6 +175,81 @@ func artifactDOCX(ctx context.Context, lines []artifactExportLine) ([]byte, erro
 	return artifactZip(ctx, parts)
 }
 
+// A slide has seven short text rows. Splitting by rune keeps every saved
+// character, including non-ASCII text, while bounding the visible layout.
+// Long fields continue on further slides rather than disappearing in a
+// clipped textbox or an Office autosize implementation detail.
+func artifactSlideRows(lines []artifactExportLine) ([][]string, error) {
+	const width, height, slideLimit = 48, 7, 1024
+	var slides [][]string
+	for _, line := range lines {
+		if !validArtifactXMLText(line.Label) || !validArtifactXMLText(line.Value) {
+			return nil, errArtifact
+		}
+		runes := []rune(line.Label + ": " + line.Value)
+		for start := 0; start < len(runes); start += width {
+			if len(slides) == 0 || len(slides[len(slides)-1]) == height {
+				if len(slides) == slideLimit {
+					return nil, errArtifact
+				}
+				slides = append(slides, []string{})
+			}
+			end := start + width
+			if end > len(runes) {
+				end = len(runes)
+			}
+			slides[len(slides)-1] = append(slides[len(slides)-1], string(runes[start:end]))
+		}
+	}
+	return slides, nil
+}
+
+func artifactPPTX(ctx context.Context, lines []artifactExportLine) ([]byte, error) {
+	slides, err := artifactSlideRows(lines)
+	if err != nil {
+		return nil, err
+	}
+	var contentTypes, presentation, presentationRels bytes.Buffer
+	contentTypes.WriteString(`<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>`)
+	presentation.WriteString(`<?xml version="1.0" encoding="UTF-8"?><p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:sldIdLst>`)
+	presentationRels.WriteString(`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`)
+	parts := []struct{ name, body string }{
+		{`_rels/.rels`, `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/></Relationships>`},
+	}
+	for i, rows := range slides {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		n := i + 1
+		fmt.Fprintf(&contentTypes, `<Override PartName="/ppt/slides/slide%d.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`, n)
+		fmt.Fprintf(&presentation, `<p:sldId id="%d" r:id="rId%d"/>`, 255+n, n)
+		fmt.Fprintf(&presentationRels, `<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide%d.xml"/>`, n, n)
+		var slide bytes.Buffer
+		slide.WriteString(`<?xml version="1.0" encoding="UTF-8"?><p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/><p:sp><p:nvSpPr><p:cNvPr id="2" name="Artifact text"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="457200"/><a:ext cx="11277600" cy="5943600"/></a:xfrm></p:spPr><p:txBody><a:bodyPr wrap="square"/><a:lstStyle/>`)
+		for _, row := range rows {
+			value, err := artifactEscape(row)
+			if err != nil {
+				return nil, err
+			}
+			slide.WriteString(`<a:p><a:pPr/><a:r><a:rPr lang="en-US" sz="1800"/><a:t>` + value + `</a:t></a:r><a:endParaRPr lang="en-US" sz="1800"/></a:p>`)
+		}
+		slide.WriteString(`</p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`)
+		if slide.Len() > distributeExportLimit {
+			return nil, errArtifact
+		}
+		parts = append(parts, struct{ name, body string }{fmt.Sprintf("ppt/slides/slide%d.xml", n), slide.String()})
+	}
+	contentTypes.WriteString(`</Types>`)
+	presentation.WriteString(`</p:sldIdLst><p:sldSz cx="12192000" cy="6858000"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`)
+	presentationRels.WriteString(`</Relationships>`)
+	parts = append(parts,
+		struct{ name, body string }{`[Content_Types].xml`, contentTypes.String()},
+		struct{ name, body string }{`ppt/presentation.xml`, presentation.String()},
+		struct{ name, body string }{`ppt/_rels/presentation.xml.rels`, presentationRels.String()},
+	)
+	return artifactZip(ctx, parts)
+}
+
 func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request) {
 	if !artifactAccess(w, r, false) {
 		return
@@ -184,8 +259,8 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 		return
 	}
 	format := r.PathValue("format")
-	if format != "docx" && format != "xlsx" {
-		journeyError(w, 422, "artifact_format_unavailable", "This format has no verified native exporter yet. Choose DOCX or XLSX.")
+	if format != "docx" && format != "xlsx" && format != "pptx" {
+		journeyError(w, 422, "artifact_format_unavailable", "This format has no verified native exporter yet. Choose DOCX, PPTX or XLSX.")
 		return
 	}
 	digest := r.URL.Query().Get("digest")
@@ -238,8 +313,10 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 	var data []byte
 	if format == "docx" {
 		data, err = artifactDOCX(r.Context(), lines)
-	} else {
+	} else if format == "xlsx" {
 		data, err = artifactXLSX(r.Context(), lines)
+	} else {
+		data, err = artifactPPTX(r.Context(), lines)
 	}
 	if err != nil {
 		artifactProblem(w, err)
@@ -249,8 +326,10 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="luci-%s-r%d.%s"`, row.ID, row.Revision, format))
 	if format == "docx" {
 		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-	} else {
+	} else if format == "xlsx" {
 		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	} else {
+		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation")
 	}
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	_, _ = w.Write(data)

@@ -26,7 +26,7 @@ export const distributeArtifactsApi={
   get:(projectId:string,id:string,signal?:AbortSignal)=>productApi.request<ArtifactView>(item(projectId,id),undefined,'GET',30_000,signal),
   revise:(projectId:string,row:DistributeArtifact,title:string,sections:ArtifactSection[],gaps:string[],assumptions:string[],idempotencyKey:string)=>productApi.request<ArtifactView>(`${item(projectId,row.id)}/revise`,{expectedRevision:row.revision,expectedDigest:row.digest,expectedSourceDigest:row.sourceDigest,idempotencyKey,title,sections,gaps,assumptions},'POST'),
   review:(projectId:string,row:DistributeArtifact,idempotencyKey:string)=>productApi.request<ArtifactView>(`${item(projectId,row.id)}/review`,{expectedRevision:row.revision,expectedDigest:row.digest,idempotencyKey},'POST'),
-  download:async(projectId:string,row:DistributeArtifact,format:'docx'|'xlsx',current:()=>boolean)=>{
+  download:async(projectId:string,row:DistributeArtifact,format:'docx'|'pptx'|'xlsx',current:()=>boolean)=>{
     const blob=await productApi.requestBlob(`${item(projectId,row.id)}/exports/${format}?digest=${encodeURIComponent(row.digest)}`);
     if(!current())return;
     if(blob.size<1||blob.size>16*1024*1024)throw new Error('The bounded artifact export is incomplete. Refresh this artifact and try again.');

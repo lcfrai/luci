@@ -30,6 +30,8 @@ it('keeps preparation private, saves exact source, then records a review without
   expect(review).toHaveBeenCalledWith('p-one',draft,expect.stringMatching(/^distribute-artifact-/));
   await userEvent.click(screen.getByRole('button',{name:'Download DOCX'}));
   expect(download).toHaveBeenCalledWith('p-one',expect.objectContaining({revision:2,state:'reviewed'}),'docx',expect.any(Function));
+  await userEvent.click(screen.getByRole('button',{name:'Download PPTX'}));
+  expect(download).toHaveBeenCalledWith('p-one',expect.objectContaining({revision:2,state:'reviewed'}),'pptx',expect.any(Function));
   expect(screen.queryByRole('button',{name:/Publish/})).toBeNull();
 });
 
