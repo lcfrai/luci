@@ -196,6 +196,8 @@ export interface Session {
   agentConnectionKind?: string;
   agentConnectionProtocol?: string;
   implementationContext?: ImplementationContext;
+  /** Owned native process state only. Candidate and check evidence remain separate. */
+  implementationOutcome?: { state: "starting" | "working" | "quiet" | "ended" | "stopped" | "failed" | "unknown"; evidence: "session-only" | "project-run" };
   /** Recorded delivery at allocation, not a live filesystem integrity check. */
   reviewedContextDelivery?: {
     status: "captured" | "legacy-live";

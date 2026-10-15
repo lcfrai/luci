@@ -123,6 +123,17 @@ describe("dataSlice", () => {
     expect(useCockpit.getState().sessions["s-bound"].implementationContext).toBeUndefined();
   });
 
+  it("keeps equal native implementation outcomes stable and publishes a changed phase", () => {
+    const original = aSession({ id: "s-outcome", worktreeId: "w-1", implementationOutcome: { state: "quiet", evidence: "session-only" } });
+    const s = useCockpit.getState();
+    s.replaceSessions([original], ["w-1"]);
+    s.replaceSessions([structuredClone(original)], ["w-1"]);
+    expect(useCockpit.getState().sessions[original.id]).toBe(original);
+    const ended = { ...original, status: "exited" as const, implementationOutcome: { state: "ended" as const, evidence: "session-only" as const } };
+    s.replaceSessions([ended], ["w-1"]);
+    expect(useCockpit.getState().sessions[original.id]).toBe(ended);
+  });
+
   it("keeps equal delivery receipts stable and surfaces changed or missing delivery across polls", () => {
     const original = aSession({ id: "s-delivery", worktreeId: "w-1", reviewedContextDelivery: { status: "captured", version: 1, digest: "a".repeat(64) } });
     const s = useCockpit.getState();

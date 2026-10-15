@@ -120,6 +120,46 @@ func TestSessionJSONLeaksNeitherTheTokenNorTheEndpoint(t *testing.T) {
 	}
 }
 
+func TestReviewedImplementationOutcomeDoesNotPromoteNativeExitToVerifiedWork(t *testing.T) {
+	base := sessionsFullRecord()
+	base.ImplementationContext = &registry.ImplementationContext{ProjectID: base.ProjectID, WorktreeID: base.WorktreeID, TaskIDs: []string{"orchard-task"}}
+	for _, tc := range []struct {
+		name   string
+		status registry.Status
+		reason string
+		state  string
+	}{
+		{"working", registry.StatusRunning, "", "working"},
+		{"silent native terminal", registry.StatusIdle, "", "quiet"},
+		{"normal exit without code", registry.StatusExited, "process exited", "ended"},
+		{"owned stop", registry.StatusExited, "killed", "stopped"},
+		{"known start failure", registry.StatusExited, "sandbox never became ready", "failed"},
+		{"lost runtime", registry.StatusExited, "sandbox disappeared while the app was not running", "unknown"},
+		{"unconfirmed launch", registry.StatusExited, "execution launch acknowledgment could not be recorded", "unknown"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			row := base.Clone()
+			row.Status, row.ExitReason = tc.status, tc.reason
+			got := toJSON(row, sessionBasePath).ImplementationOutcome
+			if got == nil || got.State != tc.state || got.Evidence != "session-only" {
+				t.Fatalf("implementation outcome = %+v", got)
+			}
+		})
+	}
+	base.ProjectRunID, base.ProjectRunOperationID = "run-owned", "operation-owned"
+	if got := toJSON(base, sessionBasePath).ImplementationOutcome; got == nil || got.Evidence != "project-run" {
+		t.Fatalf("run-linked evidence = %+v", got)
+	}
+	base.AuthOnly = true
+	if got := toJSON(base, sessionBasePath).ImplementationOutcome; got != nil {
+		t.Fatalf("auth-only session became coding work: %+v", got)
+	}
+	base.AuthOnly, base.Harness = false, "shell"
+	if got := toJSON(base, sessionBasePath).ImplementationOutcome; got != nil {
+		t.Fatalf("manual shell became native coding work: %+v", got)
+	}
+}
+
 // The key set, not just the values. A field added to registry.Session and
 // copied into sessionJSON without thought fails here, which is the point.
 func TestSessionJSONCarriesExactlyTheContractsTwentyOneKeys(t *testing.T) {

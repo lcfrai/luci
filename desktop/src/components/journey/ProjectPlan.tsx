@@ -19,6 +19,7 @@ import { DraftRecovery } from "../common/DraftRecovery";
 import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { SessionPicker } from "../topbar/SessionPicker";
 import { ReviewedContextNote } from "../develop/ReviewedContextNote";
+import { implementationOutcomeMessage } from "../develop/implementationOutcome";
 import { Button } from "../fluid/components/button";
 import { notifyRequirementEvidenceChanged, watchRequirementEvidence } from "./RequirementsEvidence";
 import { notifyProjectContextChanged } from "../../api/projectContextEvents";
@@ -490,10 +491,16 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
             <ul className="check-runs">{sessions.map(session => {
               const context = session.implementationContext!;
               const older = context.briefRevision !== brief.revision || context.planRevision !== plan.revision || context.specificationRevision !== coverage?.specification.revision || context.designPlanRevision !== coverage?.design.revision;
+              const task = context.taskIds.length === 1 ? plan.tasks.find(item => item.id === context.taskIds[0]) : undefined;
+              const retry = !!task && !older && session.worktreeId === worktreeId && session.status === "exited" &&
+                (session.implementationOutcome?.state === "ended" || session.implementationOutcome?.state === "stopped") &&
+                session.implementationOutcome?.evidence === "session-only" && canEdit && canExecute && !dirty && !locked && !draft.pending && !handoffIssue;
               return <li key={session.id}><div className="journey-header"><div><strong>{session.title} · {sessionStatus[session.status]}</strong><p>Brief {context.briefRevision} · Plan {context.planRevision} · Definition {context.specificationRevision} · Design {context.designPlanRevision}{older ? " · Earlier saved context" : ""}</p></div><Button type="button" variant="tertiary" disabled={!canRead || dirty} onClick={() => openSession(session)}>Open session</Button></div>
                 <p>{context.taskTitles.join("; ")}</p><p className="journey-muted">Source {context.sourceCommit ? context.sourceCommit.slice(0, 12) : "without a commit"}{context.sourceDirty ? " · included uncommitted changes at start" : " · clean at start"}. {context.requirementIds.length ? `Saved task links: ${context.requirementIds.join(", ")}.` : "No task-specific requirement links recorded."}</p>
                 <ReviewedContextNote session={session} canInspect={canRead} readPending={access.loading || !!access.error} />
+                {implementationOutcomeMessage(session) && <p role="status" className="journey-muted">{implementationOutcomeMessage(session)}</p>}
                 {session.status === "exited" && <p className="journey-muted">{session.exitReason || "Session ended."} Completion and verification are not inferred.</p>}
+                {retry && task && <Button type="button" variant="secondary" onClick={() => handoff(task)}>Try this task again</Button>}
               </li>;
             })}</ul>
           </section>}

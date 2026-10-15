@@ -152,6 +152,14 @@ describe("SessionPane", () => {
     expect(screen.queryByRole("note", { name: "Agent context" })).toBeNull();
   });
 
+  it("keeps a native coding exit unverified beside the retained terminal", () => {
+    const session = seed({ status: "exited", exitReason: "process exited", implementationContext: { projectId: "p-1", worktreeId: "w-1", taskIds: ["task-1"], briefRevision: 1, planRevision: 1, specificationRevision: 1, designPlanRevision: 1, briefDigest: "brief", planDigest: "plan", specificationDigest: "spec", designPlanDigest: "design", sourceCommit: "", sourceDigest: "source", sourceDirty: false, taskTitles: ["Build"], requirementIds: [] }, implementationOutcome: { state: "ended", evidence: "session-only" } });
+    render(<SessionPane sessionId={session.id} variant="column" />);
+    expect(screen.getByRole("status").textContent).toContain("No candidate or passing checks are linked");
+    expect(screen.getByTestId("terminal")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Restart" })).not.toBeNull();
+  });
+
   it("keeps its terminal mounted and does not redirect dialog pointer or keyboard focus into the terminal", async () => {
     const implementationContext = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"], briefDigest: "brief-2", planDigest: "plan-3", specificationDigest: "spec-6", designPlanDigest: "design-8", worktreeId: "w-1", sourceCommit: "", sourceDigest: "source-a", sourceDirty: false, taskTitles: ["Build editor"], requirementIds: [] };
     const session = seed({ implementationContext, reviewedContextDelivery: { status: "captured", version: 1, digest: "a".repeat(64) } });

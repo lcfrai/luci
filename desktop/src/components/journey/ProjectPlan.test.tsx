@@ -241,6 +241,27 @@ it("lets a viewer open immutable ended history and excludes foreign sessions wit
   expect(useCockpit.getState().selection.sessionId).toBe("s-old");
 });
 
+it("explains a reviewed coding attempt that ended without linked candidate or checks and offers a deliberate retry", async () => {
+  useCockpit.getState().upsertSession(aSession({ id: "s-no-edit", title: "Orchard task", projectId: "p-1", branchId: "b-1", worktreeId: "w-1", harness: "opencode", status: "exited", exitReason: "process exited", implementationContext: snapshot(), implementationOutcome: { state: "ended", evidence: "session-only" } }));
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  const history = await screen.findByRole("region", { name: "Implementation sessions" });
+  expect(within(history).getByText(/No candidate or passing checks are linked to this coding session/)).not.toBeNull();
+  await userEvent.click(within(history).getByRole("button", { name: "Try this task again" }));
+  expect(screen.getByRole("dialog", { name: "New session" })).not.toBeNull();
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it("keeps a quiet native agent and an uncertain lost runtime distinct from a completed attempt", async () => {
+  useCockpit.getState().upsertSession(aSession({ id: "s-quiet", title: "Agent awaiting input", projectId: "p-1", branchId: "b-1", worktreeId: "w-1", status: "idle", implementationContext: snapshot(), implementationOutcome: { state: "quiet", evidence: "session-only" } }));
+  useCockpit.getState().upsertSession(aSession({ id: "s-unknown", title: "Lost coding runtime", projectId: "p-1", branchId: "b-1", worktreeId: "w-1", status: "exited", exitReason: "sandbox disappeared", implementationContext: snapshot(), implementationOutcome: { state: "unknown", evidence: "session-only" } }));
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  const history = await screen.findByRole("region", { name: "Implementation sessions" });
+  expect(within(history).getByText(/may still be working or waiting for Ask permission/)).not.toBeNull();
+  expect(within(history).getByText(/resolve its runtime state before starting another attempt/)).not.toBeNull();
+  expect(within(history).queryByRole("button", { name: "Try this task again" })).toBeNull();
+  expect(createSession).not.toHaveBeenCalled();
+});
+
 it("closes a reviewed picker when approval revisions change rather than silently replacing its context", async () => {
   render(<ProjectPlan projectId="p-1" brief={brief} />);
   const task = (await screen.findAllByRole("button", { name: "Implement task" }))[0];

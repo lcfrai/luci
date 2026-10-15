@@ -774,6 +774,7 @@ type sessionJSON struct {
 	AgentConnectionKind     string                          `json:"agentConnectionKind,omitempty"`
 	AgentConnectionProtocol string                          `json:"agentConnectionProtocol,omitempty"`
 	ImplementationContext   *registry.ImplementationContext `json:"implementationContext,omitempty"`
+	ImplementationOutcome   *implementationOutcome          `json:"implementationOutcome,omitempty"`
 	ReviewedContextDelivery *reviewedContextDelivery        `json:"reviewedContextDelivery,omitempty"`
 	ProjectRunID            string                          `json:"projectRunId,omitempty"`
 	ProjectRunOperationID   string                          `json:"projectRunOperationId,omitempty"`
@@ -819,6 +820,7 @@ func toJSON(s registry.Session, base string) sessionJSON {
 		AgentConnectionKind:     s.AgentConnectionKind,
 		AgentConnectionProtocol: s.AgentConnectionProtocol,
 		ImplementationContext:   s.ImplementationContext.Clone(),
+		ImplementationOutcome:   implementationOutcomeFor(s),
 		ReviewedContextDelivery: sessionReviewedContextDelivery(s),
 		ProjectRunID:            s.ProjectRunID,
 		ProjectRunOperationID:   s.ProjectRunOperationID,

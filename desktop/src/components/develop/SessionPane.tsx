@@ -10,6 +10,7 @@ import { Terminal } from "../Terminal";
 import { LinkedWorktreeNote } from "./LinkedWorktreeNote";
 import { SessionPaneFooter, attachLabel } from "./SessionPaneFooter";
 import { SessionPaneHeader } from "./SessionPaneHeader";
+import { implementationOutcomeMessage } from "./implementationOutcome";
 import { ReviewedContextNote } from "./ReviewedContextNote";
 import { selectSession, selectWorktreeById } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
@@ -199,6 +200,7 @@ export function SessionPane({
       <div className="pane-heading">
         <SessionPaneHeader session={session} worktree={worktree} variant={variant} />
         <ReviewedContextNote session={session} canInspect={access.canRead} readPending={access.loading || !!access.error} className="pane-context-note" />
+        {implementationOutcomeMessage(session) && <p role="status" className="pane-context-note">{implementationOutcomeMessage(session)}</p>}
       </div>
       <div className="pane-body" ref={bodyRef} tabIndex={-1}>
         {/* Unconditional, for every status — known defect 3. readOnly is the ONLY thing

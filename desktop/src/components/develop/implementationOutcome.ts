@@ -1,0 +1,25 @@
+import type { Session } from "../../store/types";
+
+/** Native status is not a source diff, accepted candidate, or check receipt. */
+export function implementationOutcomeMessage(session: Session): string | null {
+  const outcome = session.implementationOutcome;
+  if (!session.implementationContext || !outcome) return null;
+  switch (outcome.state) {
+    case "starting":
+      return "The coding environment is starting. No implementation result has been confirmed.";
+    case "working":
+      return "The coding agent is running. Open its terminal to review progress and Ask permissions; code and checks are not yet verified.";
+    case "quiet":
+      return "No recent terminal output. The agent may still be working or waiting for Ask permission. Open its terminal; if progress has stopped, use its owned stop control before another attempt.";
+    case "unknown":
+      return "The coding outcome is unconfirmed. Inspect the retained session and resolve its runtime state before starting another attempt.";
+    case "stopped":
+      return "This coding attempt was stopped. Its reviewed task stays open; inspect retained work before choosing another attempt.";
+    case "failed":
+      return "The coding environment failed before a reviewable result. Read the recorded reason and check the agent connection or local capacity before another attempt; the reviewed task stays open.";
+    case "ended":
+      return outcome.evidence === "project-run"
+        ? "The coding process ended. Open the reviewed build to check its recorded candidate and independent checks; terminal output alone does not verify the task."
+        : "No candidate or passing checks are linked to this coding session. Inspect the retained work and run checks. If no implementation was produced, try the saved task again with a suitable agent connection; read-only reports remain available in the terminal.";
+  }
+}
