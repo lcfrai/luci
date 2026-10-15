@@ -113,7 +113,8 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
   const [contextStale, setContextStale] = useState(false);
   const [uncertain, setUncertain] = useState(false), [pendingJob, setObservedJob] = useState<OrchestratorJob | null>(null);
   const pendingJobScope = useRef<string | null>(null);
-  function setPendingJob(value: OrchestratorJob | null) { pendingJobScope.current = workScope; setObservedJob(value); }
+  const pendingJobObservedAt = useRef(0);
+  function setPendingJob(value: OrchestratorJob | null) { pendingJobScope.current = workScope; pendingJobObservedAt.current = Date.now(); setObservedJob(value); }
   const [missingJobId, setMissingJobId] = useState("");
   const [review, setReview] = useState<{ turn: OrchestratorTurn; revision: number; digest: string } | null>(null);
   const [refreshEditor, setRefreshEditor] = useState(false);
@@ -393,7 +394,7 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
   const missingReservedJob = !!activeTurn && activeTurn.status === "reserved" && missingJobId === activeTurn.jobId;
   useEffect(() => {
     const observed = pendingJobScope.current === workScope && pendingJob && view?.turns.some(turn => turn.jobId === pendingJob.id && turn.id === pendingJob.orchestratorTurnId && turn.actor.id === actorId);
-    workPublisher.current?.publish(canRead && !access.loading && !access.error && observed && pendingJob ? {jobId: pendingJob.id, phase: observedDesignWorkPhase(pendingJob.status), updatedAt: pendingJob.updatedAt} : null);
+    workPublisher.current?.publish(canRead && !access.loading && !access.error && observed && pendingJob ? {jobId: pendingJob.id, phase: observedDesignWorkPhase(pendingJob.status), updatedAt: pendingJob.updatedAt, observedAt: pendingJobObservedAt.current} : null);
   }, [workScope, canRead, access.loading, access.error, pendingJob, view, actorId]);
   useEffect(() => {
     if (!canRead) return;

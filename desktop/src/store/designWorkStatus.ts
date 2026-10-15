@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-export interface DesignWorkStatus { jobId: string; phase: 'working' | 'waiting' | 'unknown' | 'response-ready' | 'failed' | 'stopped'; updatedAt: string }
+export interface DesignWorkStatus { jobId: string; phase: 'working' | 'waiting' | 'unknown' | 'response-ready' | 'failed' | 'stopped'; updatedAt: string; observedAt: number }
 const observations = new Map<string, {owner: symbol; value: DesignWorkStatus | null}>();
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach(listener => listener());
