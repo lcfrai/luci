@@ -46,11 +46,12 @@ type ProjectRunRoute struct {
 // ProjectRunInput is constructed by admission code, never decoded from a client.
 // Its snapshot is immutable even when the coding child changes the source.
 type ProjectRunInput struct {
-	Implementation registry.ImplementationContext `json:"implementation"`
-	Approvals      ProjectRunApprovalSelection    `json:"approvals"`
-	Route          ProjectRunRoute                `json:"route"`
-	Outcome        string                         `json:"outcome"`
-	Requirements   []RequirementSnapshot          `json:"requirements"`
+	Implementation        registry.ImplementationContext `json:"implementation"`
+	Approvals             ProjectRunApprovalSelection    `json:"approvals"`
+	Route                 ProjectRunRoute                `json:"route"`
+	Outcome               string                         `json:"outcome"`
+	Requirements          []RequirementSnapshot          `json:"requirements"`
+	OrchestrationContract *OrchestrationContract         `json:"orchestrationContract,omitempty"`
 }
 
 type ProjectRunOperation struct {

@@ -240,6 +240,9 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 			if sourceErr == nil {
 				sourceErr = s.validateProjectRunApprovals(item.ProjectID, run.Input.Approvals)
 			}
+			if sourceErr == nil {
+				sourceErr = s.contractCurrentForRun(p, run)
+			}
 			if sourceErr != nil {
 				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
 					return releaseErr

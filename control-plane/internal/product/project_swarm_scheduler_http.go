@@ -327,6 +327,10 @@ func (s *Server) enqueueProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 		projectRunProblem(w, err)
 		return
 	}
+	if err = s.contractCurrentForRun(p, run); err != nil {
+		projectRunProblem(w, err)
+		return
+	}
 	now := s.schedulerNow().Format(time.RFC3339Nano)
 	records := []swarmQueueRecord{}
 	items := []SwarmQueueItem{}
