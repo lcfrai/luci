@@ -41,11 +41,12 @@ type DocumentExtractionIdentity struct {
 // ImageID and OriginalPath are supplied by the trusted local configuration
 // and product's private artifact resolver, never request argv or URLs.
 type DocumentExtractionSpec struct {
-	Identity      DocumentExtractionIdentity
-	ImageID       string
-	OriginalPath  string
-	OriginalBytes int
-	MimeType      string
+	Identity        DocumentExtractionIdentity
+	ImageID         string
+	OriginalPath    string
+	OriginalBytes   int
+	MimeType        string
+	UserID, GroupID int // Trusted nonroot identity, derived from private original ownership.
 }
 type PreparedDocumentExtraction struct {
 	Spec                  DocumentExtractionSpec
@@ -127,5 +128,8 @@ func DocumentExtractionCommandDigest(spec DocumentExtractionSpec) string {
 	return hex.EncodeToString(sum[:])
 }
 func ValidateDocumentExtractionSpec(spec DocumentExtractionSpec) bool {
+	if spec.UserID < 1 || spec.GroupID < 1 || int64(spec.UserID) > 2147483647 || int64(spec.GroupID) > 2147483647 {
+		return false
+	}
 	return ValidateDocumentExtractionIdentity(spec.Identity, false) && strings.HasPrefix(spec.ImageID, "sha256:") && documentHex(strings.TrimPrefix(spec.ImageID, "sha256:")) && filepath.IsAbs(spec.OriginalPath) && filepath.Clean(spec.OriginalPath) == spec.OriginalPath && !strings.ContainsRune(spec.OriginalPath, 0) && spec.OriginalBytes > 0 && spec.OriginalBytes <= DocumentOriginalMaxBytes && (spec.MimeType == "application/pdf" || spec.MimeType == "image/png" || spec.MimeType == "image/jpeg") && spec.Identity.CommandDigest == DocumentExtractionCommandDigest(spec)
 }

@@ -39,7 +39,7 @@ func newDocumentProbe(t *testing.T) (*DocumentExtractor, *documentProbe, backend
 	if err = os.WriteFile(original, data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	spec := backend.DocumentExtractionSpec{Identity: backend.DocumentExtractionIdentity{Protocol: 1, Profile: backend.DocumentExtractionProfile, AllocationID: "document-allocation", ScopeDigest: strings.Repeat("b", 64), ActorDigest: strings.Repeat("c", 64), ProjectID: "project-one", DocumentID: "doc-" + strings.Repeat("d", 64), AttemptID: "extract-one", OriginalDigest: documentFixtureDigest(data)}, ImageID: f.image.ID, OriginalPath: original, OriginalBytes: len(data), MimeType: "application/pdf"}
+	spec := backend.DocumentExtractionSpec{UserID: 1001, GroupID: 1001, Identity: backend.DocumentExtractionIdentity{Protocol: 1, Profile: backend.DocumentExtractionProfile, AllocationID: "document-allocation", ScopeDigest: strings.Repeat("b", 64), ActorDigest: strings.Repeat("c", 64), ProjectID: "project-one", DocumentID: "doc-" + strings.Repeat("d", 64), AttemptID: "extract-one", OriginalDigest: documentFixtureDigest(data)}, ImageID: f.image.ID, OriginalPath: original, OriginalBytes: len(data), MimeType: "application/pdf"}
 	spec.Identity.CommandDigest = backend.DocumentExtractionCommandDigest(spec)
 	return extractor, f, spec
 }

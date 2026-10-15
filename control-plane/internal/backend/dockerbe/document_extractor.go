@@ -88,7 +88,7 @@ func documentConfiguration(prepared backend.PreparedDocumentExtraction) (*contai
 	labels["luci.document-mime"] = spec.MimeType
 	labels["luci.document-bytes"] = strconv.Itoa(spec.OriginalBytes)
 	init, pids := true, int64(32)
-	return &container.Config{Image: spec.ImageID, Entrypoint: []string{"/usr/bin/python3"}, Cmd: []string{"-I", "/opt/luci/document_extractor.py", "--original", "/input/original", "--digest", spec.Identity.OriginalDigest, "--mime", spec.MimeType, "--bytes", strconv.Itoa(spec.OriginalBytes), "--attempt", spec.Identity.AttemptID}, User: "1001:1001", WorkingDir: "/tmp", Env: documentEnvironment(), NetworkDisabled: true, Labels: labels, Healthcheck: &container.HealthConfig{Test: []string{"NONE"}}}, &container.HostConfig{Init: &init, ReadonlyRootfs: true, AutoRemove: false, RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyDisabled}, NetworkMode: "none", IpcMode: "none", CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}, Tmpfs: map[string]string{"/tmp": "rw,nosuid,nodev,noexec,size=128m,mode=1777"}, Mounts: []mount.Mount{{Type: mount.TypeBind, Source: spec.OriginalPath, Target: "/input/original", ReadOnly: true}}, LogConfig: container.LogConfig{Type: "none"}, Resources: container.Resources{Memory: 512 << 20, MemorySwap: 512 << 20, NanoCPUs: 1_000_000_000, PidsLimit: &pids}}
+	return &container.Config{Image: spec.ImageID, Entrypoint: []string{"/usr/bin/python3"}, Cmd: []string{"-I", "/opt/luci/document_extractor.py", "--original", "/input/original", "--digest", spec.Identity.OriginalDigest, "--mime", spec.MimeType, "--bytes", strconv.Itoa(spec.OriginalBytes), "--attempt", spec.Identity.AttemptID}, User: strconv.Itoa(spec.UserID) + ":" + strconv.Itoa(spec.GroupID), WorkingDir: "/tmp", Env: documentEnvironment(), NetworkDisabled: true, Labels: labels, Healthcheck: &container.HealthConfig{Test: []string{"NONE"}}}, &container.HostConfig{Init: &init, ReadonlyRootfs: true, AutoRemove: false, RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyDisabled}, NetworkMode: "none", IpcMode: "none", CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}, Tmpfs: map[string]string{"/tmp": "rw,nosuid,nodev,noexec,size=128m,mode=1777"}, Mounts: []mount.Mount{{Type: mount.TypeBind, Source: spec.OriginalPath, Target: "/input/original", ReadOnly: true}}, LogConfig: container.LogConfig{Type: "none"}, Resources: container.Resources{Memory: 512 << 20, MemorySwap: 512 << 20, NanoCPUs: 1_000_000_000, PidsLimit: &pids}}
 }
 func (b *DocumentExtractor) PrepareDocument(ctx context.Context, spec backend.DocumentExtractionSpec) (backend.PreparedDocumentExtraction, error) {
 	if !backend.ValidateDocumentExtractionSpec(spec) || spec.ImageID != b.imageID || !verifyDocumentOriginal(spec) {
@@ -187,7 +187,16 @@ func documentOwnedConfiguration(identity backend.DocumentExtractionIdentity, ref
 	if err != nil {
 		return false
 	}
-	spec := backend.DocumentExtractionSpec{Identity: identity, ImageID: cfg.Labels["luci.document-image"], OriginalPath: host.Mounts[0].Source, OriginalBytes: bytes, MimeType: cfg.Labels["luci.document-mime"]}
+	ids := strings.Split(cfg.User, ":")
+	if len(ids) != 2 {
+		return false
+	}
+	uid, e1 := strconv.Atoi(ids[0])
+	gid, e2 := strconv.Atoi(ids[1])
+	if e1 != nil || e2 != nil {
+		return false
+	}
+	spec := backend.DocumentExtractionSpec{UserID: uid, GroupID: gid, Identity: identity, ImageID: cfg.Labels["luci.document-image"], OriginalPath: host.Mounts[0].Source, OriginalBytes: bytes, MimeType: cfg.Labels["luci.document-mime"]}
 	if !backend.ValidateDocumentExtractionSpec(spec) {
 		return false
 	}
