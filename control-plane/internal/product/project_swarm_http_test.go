@@ -21,6 +21,9 @@ func swarmHTTPFixtureWithLocation(t *testing.T, location string, taskOverrides .
 	return swarmHTTPFixtureConfigured(t, location, false, taskOverrides...)
 }
 func swarmHTTPFixtureConfigured(t *testing.T, location string, reviewContract bool, taskOverrides ...ProjectTask) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
+	return swarmHTTPFixtureConfiguredPolicy(t, location, reviewContract, false, taskOverrides...)
+}
+func swarmHTTPFixtureConfiguredPolicy(t *testing.T, location string, reviewContract, reviewedPolicy bool, taskOverrides ...ProjectTask) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
 	t.Helper()
 	s, mux, p, req, selected, _ := projectRunHTTPFixture(t)
 	if location == "cloud-microvm" {
@@ -48,6 +51,9 @@ func swarmHTTPFixtureConfigured(t *testing.T, location string, reviewContract bo
 		s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
 		actor := contextHistoryActorHandler(mux, management.User{ID: "review-owner", Username: "owner", Role: "member"})
 		runHandler = actor
+		if reviewedPolicy {
+			journeyRequest(t, actor, "POST", base+"/orchestrator/policy", map[string]any{"expectedRevision": 0, "mode": "review", "allowedTargets": []string{"plan"}, "executionMode": "reviewed-tasks", "integrationMode": "reviewed-scopes"}, 200)
+		}
 		prepare := contractRequest(req)
 		endpoint := base + "/orchestration-contracts"
 		view := contractResponse(t, journeyRequest(t, actor, "POST", endpoint+"/prepare", prepare, 201).Body.Bytes())

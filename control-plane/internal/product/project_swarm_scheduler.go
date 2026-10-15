@@ -198,6 +198,25 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				}
 				continue
 			}
+			if item.OperationID == "" && task.Role == "reviewer" && run.Input.OrchestrationContract != nil {
+				if !swarmContractReviewerRole(run, *task, task.ReviewOfTaskID) {
+					if err = s.schedulerSetReason(item.ID, "blocked", "review_role_changed", "This task no longer has an approved independent reviewer role."); err != nil {
+						return err
+					}
+					continue
+				}
+				candidateTask := swarmTask(&run, task.ReviewOfTaskID)
+				var candidate *ProjectRunOperation
+				if candidateTask != nil {
+					candidate = swarmOperation(&run, candidateTask.OperationID)
+				}
+				if candidate == nil || candidate.Status != "succeeded" && candidate.Status != "review-required" && candidate.Status != "failed" {
+					if err = s.schedulerSetReason(item.ID, "queued", "review_candidate_pending", "Waiting for the exact coding candidate to stop before reserving its independent reviewer."); err != nil {
+						return err
+					}
+					continue
+				}
+			}
 			if run.Swarm.State == "cancelled" || run.State == "cancelled" {
 				if err = s.schedulerSetReason(item.ID, "cancelled", "swarm_cancelled", "This swarm was cancelled; future queued work will not start."); err != nil {
 					return err
@@ -250,6 +269,11 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				if err = s.schedulerSetReason(item.ID, "blocked", "review_changed", "The task's reviewed requirements, design, plan or approvals changed. Review the new inputs and explicitly queue a fresh run."); err != nil {
 					return err
 				}
+				continue
+			}
+			if item.State == "reserved" && item.OperationID != "" && task.Role == "reviewer" && run.Input.OrchestrationContract != nil && swarmReviewAssignmentDigest(run, item.OperationID) == "" {
+				// The coordinator, rather than this scheduler's unscoped runtime
+				// context, must reauthorize and save the candidate assignment.
 				continue
 			}
 			selected = &item
@@ -381,6 +405,19 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 			if err = s.reconcileQueuedSwarm(ctx, swarmQueueRecord{SwarmQueueItem: SwarmQueueItem{ID: item.ID, ProjectID: item.ProjectID, RunID: item.RunID, OperationID: op.ID}}, runtime); err != nil {
 				return err
 			}
+			continue
+		}
+		if task := swarmTask(&run, item.TaskID); task != nil && task.Role == "reviewer" && run.Input.OrchestrationContract != nil && swarmReviewAssignmentDigest(run, op.ID) == "" {
+			// A reserved checkout is not a delivered review. Release its host
+			// capacity while the reauthorized coordinator binds the candidate;
+			// replay of the same exact operation is safe after that durable CAS.
+			if err = s.releaseQueueLease(ctx, item.ID, runtime); err != nil {
+				return s.schedulerSetReason(item.ID, "unknown", "review_capacity_release_pending", "The reviewer has no assignment and its resource release is unconfirmed. No child will start.")
+			}
+			if err = s.schedulerSetReason(item.ID, "reserved", "review_assignment_pending", "The exact reviewer checkout is reserved. Waiting for its reviewed candidate assignment before starting an agent."); err != nil {
+				return err
+			}
+			s.WakeCoordinator()
 			continue
 		}
 		if err = s.schedulerSetReason(item.ID, "dispatching", "dispatching", "Starting the reserved child; an uncertain launch will never be replayed."); err != nil {

@@ -326,6 +326,20 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				if stale {
 					return nil // retain prior results; the accepted event owns replan
 				}
+				assigned, assignmentErr := s.continueCoordinatorIndependentReview(fresh, p, row)
+				if assignmentErr != nil {
+					return assignmentErr
+				}
+				if assigned {
+					return nil
+				}
+				reviewedOutcome, reviewErr := s.continueCoordinatorReviewOutcome(fresh, p, row)
+				if reviewErr != nil {
+					return reviewErr
+				}
+				if reviewedOutcome {
+					return nil
+				}
 				integrated, integrationErr := s.continueCoordinatorCandidateIntegration(fresh, p, row)
 				if integrationErr != nil {
 					return integrationErr
