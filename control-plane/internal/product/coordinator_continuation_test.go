@@ -158,6 +158,13 @@ func TestCoordinatorContinuationRequiresApprovedContractBeforeNewWork(t *testing
 	if runs, err := s.projectRuns.List(p.ID, p.Path); err != nil || len(runs) != 0 || *starts != 0 {
 		t.Fatal("unreviewed continuation created a run or child", runs, err, *starts)
 	}
+	wrong := *approved
+	wrong.Digest = reviewDigest("wrong-approved-contract")
+	req.Run.OrchestrationContract = &wrong
+	journeyRequest(t, h, "POST", "/v1/product/projects/"+p.ID+"/orchestrator/continuations", req, http.StatusConflict)
+	if rows, err := s.readContinuations(p, "alice"); err != nil || len(rows.Rows) != 0 {
+		t.Fatal("invalid approval was durably admitted", rows, err)
+	}
 	req.Run.OrchestrationContract = approved
 	created := coordinatorCreate(t, h, p, req, http.StatusCreated)
 	if created.RunID == "" {
@@ -189,6 +196,13 @@ func TestCoordinatorFirstCloudActivationQueuesExactReviewedTasksWithoutLocalFall
 	}
 	available := true
 	s.SetCloudMicroVMAvailability(func() bool { return available })
+	prepare := contractRequest(req.Run)
+	prepare.IdempotencyKey = "prepare-cloud-contract-123456"
+	prepare.Route.ExecutionLocation = "cloud-microvm"
+	endpoint := "/v1/product/projects/" + p.ID + "/orchestration-contracts"
+	prepared := contractResponse(t, journeyRequest(t, h, "POST", endpoint+"/prepare", prepare, 201).Body.Bytes())
+	approved := contractResponse(t, journeyRequest(t, h, "POST", endpoint+"/"+prepared.Contract.ID+"/approve", map[string]any{"expectedRevision": prepared.Contract.Revision, "expectedDigest": prepared.Contract.Digest}, 200).Body.Bytes())
+	req.Run.OrchestrationContract = &OrchestrationContractSelection{ID: approved.Contract.ID, Revision: approved.Contract.Revision, Digest: approved.Contract.Digest, ApprovalID: approved.Contract.Approval.ID}
 	out := coordinatorCreate(t, h, p, req, 201)
 	if out.Status != "queued" || out.RunID == "" || len(out.QueueIDs) != 1 {
 		t.Fatal("reviewed cloud activation did not reach the existing queue", out)

@@ -390,6 +390,38 @@ func (s *Server) continuationContextLocked(p project.Project, selection Implemen
 		Approvals ProjectRunApprovalSelection
 	}{snapshot, approved}), nil
 }
+
+// An effects-free first gate for a new continuation. The ordinary run create
+// path still binds and verifies the complete contract against selected source,
+// approvals and connection immediately before allocating new work.
+func (s *Server) coordinatorContractSelectionCurrent(ctx context.Context, p project.Project, actor string, run projectRunCreateRequest) error {
+	if run.OrchestrationContract == nil {
+		return ErrOrchestratorConflict
+	}
+	s.orchestrationContractMu.Lock()
+	_, ledger, err := s.readOrchestrationContracts(p)
+	s.orchestrationContractMu.Unlock()
+	if err != nil {
+		return err
+	}
+	c, err := orchestrationContractRecordByID(ledger, run.OrchestrationContract.ID, actor)
+	if err != nil {
+		return ErrOrchestratorConflict
+	}
+	selection := run.OrchestrationContract
+	if c.State != "approved" || c.Approval == nil || c.Revision != selection.Revision || c.Digest != selection.Digest || c.Approval.ID != selection.ApprovalID ||
+		c.Input.Implementation.ProjectID != p.ID || c.Input.Implementation.WorktreeID != run.WorktreeID ||
+		c.Input.Implementation.BriefRevision != run.ImplementationContext.BriefRevision || c.Input.Implementation.PlanRevision != run.ImplementationContext.PlanRevision ||
+		c.Input.Implementation.SpecificationRevision != run.ImplementationContext.SpecificationRevision || c.Input.Implementation.DesignPlanRevision != run.ImplementationContext.DesignPlanRevision ||
+		!reflect.DeepEqual(c.Input.Implementation.TaskIDs, run.ImplementationContext.TaskIDs) || c.Input.Route.Harness != run.Harness || c.Input.Route.Model != run.Model ||
+		c.Input.Route.PermissionMode != run.PermissionMode || c.Input.Route.Effort != run.Effort || c.Input.Outcome != run.Outcome ||
+		(c.Input.Route.ExecutionLocation != "" && c.Input.Route.ExecutionLocation != run.ExecutionLocation) || (c.Input.Route.ExecutionLocation == "" && run.ExecutionLocation != "" && run.ExecutionLocation != "local-docker") ||
+		(run.AgentConnectionID != nil && c.Input.Route.Connection.ID != *run.AgentConnectionID) || s.contractView(ctx, p, *c).Freshness.Status != "current" {
+		return ErrOrchestratorConflict
+	}
+	return nil
+}
+
 func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)
 	if !ok {
@@ -473,6 +505,35 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 	if err := s.continuationAuthority(r.Context(), p, row); err != nil {
 		coordinatorPolicyProblem(w, err)
 		return
+	}
+	// A retained key is a readback of an old effect, even if its approval has
+	// since gone stale. New keys must have a current exact approved selection
+	// before this handler persists a continuation or acquires source admission.
+	s.mu.RLock()
+	priorRows, priorErr := s.readContinuations(p, actor.ID)
+	seenKey := false
+	if priorErr == nil {
+		for _, prior := range priorRows.Rows {
+			if prior.KeyDigest == key {
+				seenKey = true
+				break
+			}
+		}
+	}
+	s.mu.RUnlock()
+	if priorErr != nil {
+		coordinatorPolicyProblem(w, priorErr)
+		return
+	}
+	if !seenKey {
+		if req.Run.ExecutionLocation == "cloud-microvm" && (s.cloudMicroVMAvailable == nil || !s.cloudMicroVMAvailable()) {
+			coordinatorPolicyProblem(w, errCoordinatorCloudUnavailable)
+			return
+		}
+		if err := s.coordinatorContractSelectionCurrent(r.Context(), p, actor.ID, req.Run); err != nil {
+			coordinatorPolicyProblem(w, err)
+			return
+		}
 	}
 	release, err := s.AcquireGitSessionAdmission(r.Context(), p.ID)
 	if err != nil {
