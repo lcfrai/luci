@@ -108,7 +108,7 @@ type DocumentImageAssemblyStream interface {
 	// Streams into an exclusively owned bounded artifact sink, never a2GiB []byte.
 	// Complete framing is data evidence, not exit/retirement/registration proof.
 	Capture(context.Context, io.Writer) (DocumentImageAssemblyCapture, error)
-	Close()
+	Close() error
 }
 type DocumentImageAssemblyFenceRequest struct {
 	Identity    DocumentImageAssemblyIdentity
