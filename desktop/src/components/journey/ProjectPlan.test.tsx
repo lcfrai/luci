@@ -9,8 +9,8 @@ import { implementationPrompt, ProjectPlan } from "./ProjectPlan";
 import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
 import { planDraftValid } from "../../hooks/projectDraftValidation";
 
-const { createSession, reviewedContext, draftIdentity } = vi.hoisted(() => ({ createSession: vi.fn(), reviewedContext: vi.fn(), draftIdentity: { value: "plan-permission-test" } }));
-vi.mock("../../api", () => ({ api: { createSession, getSessionReviewedContext: reviewedContext } }));
+const { createSession, reviewedContext, nativeTurn, draftIdentity } = vi.hoisted(() => ({ createSession: vi.fn(), reviewedContext: vi.fn(), nativeTurn: vi.fn(), draftIdentity: { value: "plan-permission-test" } }));
+vi.mock("../../api", () => ({ api: { createSession, getSessionReviewedContext: reviewedContext, getSessionNativeTurn: nativeTurn } }));
 vi.mock("../../hooks/useProjectDraft", async original => ({ ...await original<typeof import("../../hooks/useProjectDraft")>(), useProjectDraftScope: (projectId: string) => `${draftIdentity.value}:${projectId}` }));
 const brief: Brief = { projectId: "p-1", revision: 2, purpose: "Journal", audience: "Writers", constraints: "Offline", criteria: [], updatedAt: "" };
 const plan: ImplementationPlan = { projectId: "p-1", revision: 3, briefRevision: 2, specificationRevision: 6, tasks: [{ id: "t-1", title: "Build editor", status: "todo" }, { id: "t-2", title: "Save entries", status: "doing" }, { id: "t-3", title: "Set up project", status: "done" }], updatedAt: "" };
@@ -18,7 +18,7 @@ const coverage: RequirementCoverage = { projectId: "p-1", specification: { revis
 const snapshot = (over: Partial<ImplementationContext> = {}): ImplementationContext => ({ projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["t-1"], briefDigest: "brief-2", planDigest: "plan-3", specificationDigest: "spec-6", designPlanDigest: "design-8", worktreeId: "w-1", sourceCommit: "a".repeat(40), sourceDigest: "source-a", sourceDirty: false, taskTitles: ["Build editor"], requirementIds: [], ...over });
 
 beforeEach(() => {
-  vi.restoreAllMocks(); localStorage.clear(); resetCockpit(); createSession.mockReset(); reviewedContext.mockReset();
+  vi.restoreAllMocks(); localStorage.clear(); resetCockpit(); createSession.mockReset(); reviewedContext.mockReset(); nativeTurn.mockReset();
   draftIdentity.value = "plan-permission-test";
   useCockpit.setState({ projects: [aProject({ id: "p-1" })], branchesByProject: { "p-1": [aBranch({ id: "b-1", projectId: "p-1" })] }, worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", projectId: "p-1", branchId: "b-1", isPrimary: true })] }, selection: { projectId: "p-1", branchId: "b-1", worktreeId: "w-1", sessionId: null }, harnesses: [aHarness({ id: "claude-code", name: "Claude Code", command: "claude", available: true, supportsOpeningPrompt: true })] });
   vi.spyOn(productApi, "plan").mockResolvedValue(plan);
@@ -263,14 +263,25 @@ it("keeps a quiet native agent and an uncertain lost runtime distinct from a com
 });
 
 it("shows an owned OpenCode final turn with only reads while its Ask process stays alive", async () => {
-  useCockpit.getState().upsertSession(aSession({ id: "s-native-finish", title: "Orchard task", projectId: "p-1", branchId: "b-1", worktreeId: "w-1", harness: "opencode", status: "idle", implementationContext: snapshot(), implementationOutcome: { state: "quiet", evidence: "session-only", nativeTurnId: "msg_67d5b111", nativeToolClass: "reads-only" } }));
+  useCockpit.getState().upsertSession(aSession({ id: "s-native-finish", title: "Orchard task", projectId: "p-1", branchId: "b-1", worktreeId: "w-1", harness: "opencode", status: "idle", executionGeneration: "generation-one", lastOutputAt: "2026-10-15T00:00:00Z", implementationContext: snapshot(), implementationOutcome: { state: "quiet", evidence: "session-only" } }));
+  nativeTurn.mockResolvedValue({ state: "finished", turnId: "msg_67d5b111", toolClass: "reads-only", executionGeneration: "generation-one", lastOutputAt: "2026-10-15T00:00:00Z" });
   render(<ProjectPlan projectId="p-1" brief={brief} />);
   const history = await screen.findByRole("region", { name: "Implementation sessions" });
+  expect(nativeTurn).not.toHaveBeenCalled();
+  expect(within(history).queryByText(/latest OpenCode turn ended/)).toBeNull();
+  await userEvent.click(within(history).getByRole("button", { name: "Check latest turn" }));
   expect(within(history).getByText(/latest OpenCode turn ended while this Ask session remains open/)).not.toBeNull();
   expect(within(history).getByText(/no implementation or checks are linked/)).not.toBeNull();
   expect(within(history).getByRole("button", { name: "Open session" })).not.toBeNull();
   expect(within(history).queryByRole("button", { name: "Try this task again" })).toBeNull();
   expect(createSession).not.toHaveBeenCalled();
+  useCockpit.getState().upsertSession({ ...useCockpit.getState().sessions["s-native-finish"], executionGeneration: "generation-two" });
+  await waitFor(() => expect(within(history).queryByText(/latest OpenCode turn ended/)).toBeNull());
+  nativeTurn.mockResolvedValueOnce({ state: "finished", turnId: "msg_old", toolClass: "reads-only", executionGeneration: "generation-two", lastOutputAt: "2026-10-15T00:00:00Z" });
+  await act(async () => { useCockpit.getState().upsertSession({ ...useCockpit.getState().sessions["s-native-finish"], lastOutputAt: "2026-10-15T00:01:00Z" }); });
+  await userEvent.click(within(history).getByRole("button", { name: "Check latest turn" }));
+  expect(await within(history).findByText(/native turn could not be confirmed/)).not.toBeNull();
+  expect(within(history).queryByText(/latest OpenCode turn ended/)).toBeNull();
 });
 
 it("closes a reviewed picker when approval revisions change rather than silently replacing its context", async () => {

@@ -132,7 +132,7 @@ describe("dataSlice", () => {
     const ended = { ...original, status: "exited" as const, implementationOutcome: { state: "ended" as const, evidence: "session-only" as const } };
     s.replaceSessions([ended], ["w-1"]);
     expect(useCockpit.getState().sessions[original.id]).toBe(ended);
-    const observed = { ...original, implementationOutcome: { state: "quiet" as const, evidence: "session-only" as const, nativeTurnId: "msg_67d5b111", nativeToolClass: "reads-only" as const } };
+    const observed = { ...original, implementationOutcome: { state: "quiet" as const, evidence: "session-only" as const } };
     s.replaceSessions([observed], ["w-1"]);
     expect(useCockpit.getState().sessions[original.id]).toBe(observed);
   });

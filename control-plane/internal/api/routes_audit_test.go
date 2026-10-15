@@ -50,6 +50,7 @@ var catalogReadOnlyRoutes = map[string]string{
 	"GET /v1/sessions/{id}": "One Store.Get. An exited session stays readable — the transcript is the " +
 		"artifact — and reading it changes nothing about the record or the sandbox.",
 	"GET /v1/sessions/{id}/reviewed-context": "Reads the owned session and verifies its bounded immutable bundle, then returns one fixed canonical document. No source refresh, current approval changes, repair, provider resolution, execution or persistence occurs; legacy/missing/corrupt capture is refused without substitution.",
+	"GET /v1/sessions/{id}/native-turn": "Explicit read of one owned session and its authenticated sandbox's bounded native turn summary. The route never sends a model request, changes a session or writes a candidate; unavailable/stale evidence returns unknown.",
 }
 
 // catalogUpgradeGatedRoutes is the third category: a route that IS a GET, DOES

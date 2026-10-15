@@ -920,6 +920,7 @@ func (a *API) registerSessions(mux *routes) {
 	mux.HandleFunc("POST "+sessionBasePath+"/sessions", a.handleSessionCreate)
 	mux.HandleFunc("GET "+sessionBasePath+"/sessions", a.handleSessionList)
 	mux.HandleFunc("GET "+sessionBasePath+"/sessions/{id}", a.handleSessionGet)
+	mux.HandleFunc("GET "+sessionBasePath+"/sessions/{id}/native-turn", a.handleSessionNativeTurn)
 	mux.HandleFunc("GET "+sessionBasePath+"/sessions/{id}/reviewed-context", a.handleSessionReviewedContext)
 	mux.HandleFunc("PATCH "+sessionBasePath+"/sessions/{id}", a.handleSessionPatch)
 	mux.HandleFunc("DELETE "+sessionBasePath+"/sessions/{id}", a.handleSessionDelete)

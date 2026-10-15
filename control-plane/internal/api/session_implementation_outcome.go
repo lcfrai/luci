@@ -12,9 +12,6 @@ import (
 type implementationOutcome struct {
 	State    string `json:"state"`
 	Evidence string `json:"evidence"`
-	// The native turn is an upstream observation, not a verified candidate.
-	NativeTurnID    string `json:"nativeTurnId,omitempty"`
-	NativeToolClass string `json:"nativeToolClass,omitempty"`
 }
 
 func implementationOutcomeFor(s registry.Session) *implementationOutcome {

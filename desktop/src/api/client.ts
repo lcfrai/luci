@@ -161,6 +161,15 @@ export interface SessionReviewedContext {
   document: { kind: ReviewedContextDocument; sha256: string; bytes: number; value: unknown };
 }
 
+/** Bounded selected-session observation; never a source or check receipt. */
+export interface SessionNativeTurn {
+  state: "finished" | "unknown";
+  executionGeneration?: string;
+  lastOutputAt?: string;
+  turnId?: string;
+  toolClass?: "none" | "reads-only" | "effects-unverified";
+}
+
 /** ws(s):// + the session's own attachPath. The path is taken from the session object and
  *  NOT reassembled from the id, so a server-side route change is one server change. */
 export function attachUrl(baseUrl: string, session: Session): string {
@@ -210,6 +219,7 @@ export interface CockpitClient {
    *  zero pixels (§4.7). */
   listSessions(filter?: ListSessionsFilter): Promise<Session[]>;
   getSession(id: SessionId): Promise<Session>;
+  getSessionNativeTurn(id: SessionId): Promise<SessionNativeTurn>;
   getSessionReviewedContext(id: SessionId, document: ReviewedContextDocument): Promise<SessionReviewedContext>;
   renameSession(id: SessionId, title: string): Promise<Session>;
   restartSession(id: SessionId): Promise<Session>;
@@ -467,6 +477,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
       ).sessions;
     },
     getSession: (id) => get<Session>(sessionPath(id)),
+    getSessionNativeTurn: (id) => get<SessionNativeTurn>(`${sessionPath(id)}/native-turn`),
     getSessionReviewedContext: (id, document) => get<SessionReviewedContext>(`${sessionPath(id)}/reviewed-context?document=${encodeURIComponent(document)}`),
     renameSession: async (id, title) => {
       const trimmed = title.trim();

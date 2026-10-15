@@ -63,12 +63,6 @@ func (a *API) beginSessionPreparation(s registry.Session) func() {
 // preserves the existing backend-based attach recovery and authorization checks.
 func (a *API) sessionJSON(s registry.Session, base string) sessionJSON {
 	view := toJSON(s, base)
-	if view.ImplementationOutcome != nil {
-		if turn := observeNativeOpenCodeTurn(s); turn != nil {
-			view.ImplementationOutcome.NativeTurnID = turn.TurnID
-			view.ImplementationOutcome.NativeToolClass = turn.ToolClass
-		}
-	}
 	if view.ExecutionGeneration == "" || view.AttachReady != nil || !sessionAttachLive(s) {
 		return view
 	}

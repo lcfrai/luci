@@ -103,7 +103,7 @@ export function sameSession(a: Session, b: Session): boolean {
       if (left !== right && (!left || !right || left.status !== right.status || left.version !== right.version || left.digest !== right.digest)) return false;
     } else if (k === "implementationOutcome") {
       const left = a.implementationOutcome, right = b.implementationOutcome;
-      if (left !== right && (!left || !right || left.state !== right.state || left.evidence !== right.evidence || left.nativeTurnId !== right.nativeTurnId || left.nativeToolClass !== right.nativeToolClass)) return false;
+      if (left !== right && (!left || !right || left.state !== right.state || left.evidence !== right.evidence)) return false;
     } else if (a[k] !== b[k]) return false;
   }
   return true;

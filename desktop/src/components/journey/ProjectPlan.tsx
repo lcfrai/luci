@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api";
+import type { SessionNativeTurn } from "../../api/client";
 import { useShallow } from "zustand/react/shallow";
 import {
   productApi,
@@ -59,6 +60,38 @@ export function implementationPrompt(
 }
 
 const sessionStatus: Record<SessionStatus, string> = { starting: "Starting", running: "Running", idle: "Idle", exited: "Ended" };
+
+// Deliberately user initiated: list polling never fans out transcript reads.
+// The key below retires an observation on allocation restart or new output.
+function NativeTurnCheck({ session }: { session: Session }) {
+  const [turn, setTurn] = useState<SessionNativeTurn>();
+  const [pending, setPending] = useState(false);
+  const request = useRef(0);
+  useEffect(() => () => { request.current++; }, []);
+  async function check() {
+    if (pending) return;
+    const sequence = ++request.current;
+    setPending(true); setTurn(undefined);
+    try {
+      const result = await api.getSessionNativeTurn(session.id);
+      const current = useCockpit.getState().sessions[session.id];
+      if (sequence !== request.current || !current) return;
+      if (current.executionGeneration !== session.executionGeneration || current.lastOutputAt !== session.lastOutputAt || current.status !== session.status || result.executionGeneration !== session.executionGeneration || result.lastOutputAt !== session.lastOutputAt) {
+        setTurn({ state: "unknown" }); return;
+      }
+      setTurn(result);
+    } catch {
+      if (sequence === request.current) setTurn({ state: "unknown" });
+    } finally {
+      if (sequence === request.current) setPending(false);
+    }
+  }
+  return <>
+    <Button type="button" variant="secondary" disabled={pending} onClick={() => void check()}>{pending ? "Checking latest turn…" : "Check latest turn"}</Button>
+    {turn?.state === "unknown" && <p role="status" className="journey-muted">The native turn could not be confirmed for this execution. Open the session to inspect current progress; no implementation was inferred.</p>}
+    {turn?.state === "finished" && <p role="status" className="journey-muted">{implementationOutcomeMessage(session, turn)}</p>}
+  </>;
+}
 
 type Props = { projectId: string; brief: Brief; onPrepareRun?: (draft: ProjectRunDraft) => void };
 export function ProjectPlan(props: Props) {
@@ -499,6 +532,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
                 <p>{context.taskTitles.join("; ")}</p><p className="journey-muted">Source {context.sourceCommit ? context.sourceCommit.slice(0, 12) : "without a commit"}{context.sourceDirty ? " · included uncommitted changes at start" : " · clean at start"}. {context.requirementIds.length ? `Saved task links: ${context.requirementIds.join(", ")}.` : "No task-specific requirement links recorded."}</p>
                 <ReviewedContextNote session={session} canInspect={canRead} readPending={access.loading || !!access.error} />
                 {implementationOutcomeMessage(session) && <p role="status" className="journey-muted">{implementationOutcomeMessage(session)}</p>}
+                {session.harness === "opencode" && session.executionGeneration && (session.status === "running" || session.status === "idle") && <NativeTurnCheck key={`${session.id}:${session.executionGeneration}:${session.lastOutputAt}`} session={session} />}
                 {session.status === "exited" && <p className="journey-muted">{session.exitReason || "Session ended."} Completion and verification are not inferred.</p>}
                 {retry && task && <Button type="button" variant="secondary" onClick={() => handoff(task)}>Try this task again</Button>}
               </li>;
