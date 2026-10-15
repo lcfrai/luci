@@ -11,7 +11,7 @@ const actions: Record<DependencyAction, string> = {
   elevation: "Finish the Windows administrator approval, then check tools again.",
   restart_app: "Save your work, close Luci and reopen it, then check tools again.",
   restart_computer: "Save your work and restart this computer, then reopen Luci and check tools.",
-  start_docker: "Open Docker Desktop and wait for its engine to start, then check workspace readiness.",
+  start_docker: "If Docker Desktop is closed, open it. Then choose Check tools again. The workspace has its own current engine observation.",
   manual_install: "Install this tool with its official installer, then check tools again.",
 };
 const purpose: Record<DependencyId, string> = {
@@ -93,6 +93,7 @@ export function DependencySetup({ client = dependencyApi, canManage, automatic =
       <div className="dependency-row-heading"><h3>{dependency.id === "docker" && status?.platform !== "windows" ? "Docker engine" : dependency.name}</h3><span className="setup-status" role={installing ? "status" : undefined}>{statusLabel(dependency)}</span></div>
       <p className="journey-muted">{purpose[dependency.id]}</p>
       <p>{dependency.job?.message || dependency.check.message || dependency.reason}</p>
+      {dependency.id === "docker" && dependency.check.status === "action_required" && <p className="journey-muted">This is the saved tool-check result{dependency.check.checkedAt ? ` from ${dependency.check.checkedAt}` : ""}, not a live report that Docker Desktop is stopped. Choose Check tools again to refresh it.</p>}
       {dependency.check.version && <p className="journey-muted">Detected version: {dependency.check.version}</p>}
       {actions[action] && <p className="preparation-action">{actions[action]}</p>}
       {needsFreshCheck && <p className="preparation-action">Choose “Check tools again” to confirm the result before trying another installation.</p>}

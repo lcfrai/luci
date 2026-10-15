@@ -224,11 +224,30 @@ func TestDependencyCheckDistinguishesDockerCLIFromEngineAndReturnsOnlySafeVersio
 			if row.Check.Status != "action_required" || row.Check.Version != "28.5.1" || row.ActionRequired != "start_docker" {
 				t.Fatalf("Docker CLI treated as missing or engine as ready: %+v", row)
 			}
+			if !strings.Contains(row.Check.Message, "this tool check could not confirm") || strings.Contains(row.Check.Message, "private-context-path") {
+				t.Fatalf("an unconfirmed probe claimed the engine was stopped or leaked diagnostics: %+v", row)
+			}
 		} else if row.Check.Status != "ready" || row.Check.Version == "" {
 			t.Fatalf("tool was not verified: %+v", row)
 		}
 	}
 	request(t, h, "POST", "/v1/setup/dependencies/docker/install", token, map[string]any{"acceptAgreements": true}, 409)
+}
+
+func TestDependencyDockerSelectionMatchesExplicitHostWithoutExposingConfigToInstallers(t *testing.T) {
+	base := []string{"PATH=/trusted", "USERPROFILE=/private/user", "DOCKER_CONFIG=/private/luci-docker", "DOCKER_CONTEXT=foreign-context", "DOCKER_HOST=tcp://foreign:2375", "LUCI_DOCKER_HOST=npipe:////./pipe/dockerDesktopLinuxEngine", "OPENAI_API_KEY=secret"}
+	host, selected := dependencyEngineSelection(base)
+	if host != "npipe:////./pipe/dockerDesktopLinuxEngine" || !strings.Contains(strings.Join(selected, "\n"), "DOCKER_CONFIG=/private/luci-docker") || strings.Contains(strings.Join(selected, "\n"), "DOCKER_CONTEXT=") || strings.Contains(strings.Join(selected, "\n"), "secret") {
+		t.Fatalf("explicit selected engine/config mismatch: host=%q environment=%v", host, selected)
+	}
+	if installer := dependencyProcessEnvironment(base); strings.Contains(strings.Join(installer, "\n"), "DOCKER_CONFIG=") || strings.Contains(strings.Join(installer, "\n"), "secret") {
+		t.Fatalf("installer received private Docker config or unrelated credentials: %v", installer)
+	}
+	base = []string{"PATH=/trusted", "DOCKER_CONFIG=/private/context", "DOCKER_CONTEXT=desktop-linux"}
+	host, selected = dependencyEngineSelection(base)
+	if host != "" || !strings.Contains(strings.Join(selected, "\n"), "DOCKER_CONTEXT=desktop-linux") || !strings.Contains(strings.Join(selected, "\n"), "DOCKER_CONFIG=/private/context") {
+		t.Fatalf("fallback Docker context was lost: host=%q environment=%v", host, selected)
+	}
 }
 
 func TestDependencyAzureVersionAcceptsExtensionMetadataButRejectsInvalidCLIVersion(t *testing.T) {

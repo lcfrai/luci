@@ -499,9 +499,13 @@ func (m *dependencyManager) checkTool(parent context.Context, def dependencyDefi
 	}
 	check.Version, check.Status, check.Message = version, "ready", def.name+" is installed and its version check succeeded."
 	if def.id == "docker" {
-		engine, engineErr := m.runner.engineInfo(ctx, path)
+		// A slow first CLI startup must not consume the selected-engine read's
+		// entire deadline. These are separate bounded observations.
+		engineCtx, cancelEngine := context.WithTimeout(parent, 5*time.Second)
+		defer cancelEngine()
+		engine, engineErr := m.runner.engineInfo(engineCtx, path)
 		if engineErr != nil || strings.TrimSpace(engine.ServerVersion) == "" {
-			check.Status, check.Message = "action_required", "Docker CLI is installed, but its engine is not available. Open Docker Desktop and wait for its engine; workspace readiness checks the selected execution host separately."
+			check.Status, check.Message = "action_required", "Docker CLI is installed, but this tool check could not confirm its selected engine. Check the Docker connection and retry this check; workspace readiness is observed separately."
 			return check, "start_docker"
 		}
 		check.Message = "Docker CLI is installed and its configured engine answered. Workspace readiness separately checks the Luci runtime image."

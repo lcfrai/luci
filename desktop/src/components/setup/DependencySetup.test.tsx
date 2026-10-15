@@ -48,6 +48,20 @@ it("requires a new check before retrying a failed installation and clears old co
   expect(api.install).not.toHaveBeenCalled();
 });
 
+it("labels an old failed Docker tool check as a saved result while workspace status may differ", async () => {
+  const value = snapshot();
+  value.dependencies[0].check = { status: "action_required", version: "28.5.1", message: "Docker CLI is installed, but this tool check could not confirm its selected engine.", checkedAt: "2026-10-15T03:36:54Z" };
+  value.dependencies[0].actionRequired = "start_docker";
+  const api = client(value);
+  render(<DependencySetup client={api} canManage />);
+  expect(await screen.findByText(/saved tool-check result from 2026-10-15T03:36:54Z/)).not.toBeNull();
+  expect(screen.getByText(/not a live report that Docker Desktop is stopped/)).not.toBeNull();
+  expect(screen.getByText(/workspace has its own current engine observation/)).not.toBeNull();
+  expect(api.check).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Check tools again" }));
+  expect(api.check).toHaveBeenCalledOnce();
+});
+
 it("explains the host boundary to a cloud member without exposing installation controls", async () => {
   const api = client();
   render(<DependencySetup client={api} canManage={false} cloudWorkspace automatic />);

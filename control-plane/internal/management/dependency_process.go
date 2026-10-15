@@ -21,7 +21,32 @@ type dependencySystemRunner struct {
 
 func (dependencySystemRunner) platform() string { return dependencyHostPlatform() }
 func (r dependencySystemRunner) engineInfo(ctx context.Context, executable string) (dockerinfo.Info, error) {
-	return dockerinfo.Probe(ctx, executable, "", dependencyProcessEnvironment(r.environment), false)
+	host, environment := dependencyEngineSelection(r.environment)
+	return dockerinfo.Probe(ctx, executable, host, environment, false)
+}
+
+// The tool check observes the same explicit host as the execution backend.
+// Docker's context may override DOCKER_HOST, so omit it only when Luci selected
+// an explicit host. Keep Docker's configuration directory for the fallback
+// context; ordinary installer subprocesses still receive neither that path nor
+// unrelated provider credentials.
+func dependencyEngineSelection(base []string) (string, []string) {
+	host := dependencyEnvironmentValue(base, "LUCI_DOCKER_HOST")
+	environment := dependencyProcessEnvironment(base)
+	if host != "" {
+		filtered := environment[:0]
+		for _, entry := range environment {
+			key, _, _ := strings.Cut(entry, "=")
+			if !strings.EqualFold(key, "DOCKER_CONTEXT") {
+				filtered = append(filtered, entry)
+			}
+		}
+		environment = filtered
+	}
+	if config := dependencyEnvironmentValue(base, "DOCKER_CONFIG"); config != "" {
+		environment = append(environment, "DOCKER_CONFIG="+config)
+	}
+	return host, environment
 }
 func (dependencySystemRunner) installationLease(ctx context.Context) (func(), error) {
 	return acquireDependencyHostInstallation(ctx)
