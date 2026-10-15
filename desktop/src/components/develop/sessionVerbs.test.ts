@@ -72,6 +72,13 @@ import {
 } from "./sessionVerbs";
 
 const DEPS = { createSession: vi.fn(), close: vi.fn(), beginRename: vi.fn() };
+it("disables generic Restart for a device sign-in utility even for its owner", () => {
+  const session = aSession({ harness: "codex", authOnly: true, authMode: "chatgpt", worktreeId: "setup-codex", projectId: "", branchId: "", status: "exited" });
+  useCockpit.getState().upsertSession(session);
+  const restart = sessionVerbs(session.id, DEPS).find(item => item.id === "restart");
+  expect(restart?.run).toBeUndefined();
+  expect(restart?.disabledReason).toContain("Start new device sign-in");
+});
 /** The fork target. IDS has one worktree and this suite needs two on the branch. */
 const SIBLING = "w-2";
 /** The third session in the rename test. IDS carries `session` and `sessionB` only. */

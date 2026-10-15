@@ -246,8 +246,9 @@ export function AgentConnections({
             {codex && !codex.available
               ? `${codex.note || "Codex is unavailable in this runtime."} `
               : ""}
-            Complete the official device sign-in in the terminal. Once it exits,
-            return here and choose Save Codex sign-in. New implementation
+            The sign-in panel provides Copy code and Open OpenAI sign-in outside
+            the terminal. Complete OpenAI’s page, then explicitly Save Codex
+            sign-in. If interrupted, choose Start new device sign-in there. New implementation
             sessions will use that subscription, even if an API key is saved.
             Credentials stay outside project Git and are private to your Luci
             account.
