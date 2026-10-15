@@ -462,6 +462,8 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
   }
 
   return items.concat(tailVerbs(session, alive, deps, act)).map(item => {
+    if (session.authOnly && item.id === "restart") return { ...item, run: undefined,
+      disabledReason: "Device sign-in cannot restart as a project session. Open its sign-in panel and choose Start new device sign-in." };
     const needsCredentials = !["shell", "kill", "forget"].includes(item.id) && session.harness !== "shell";
     const authAllowed = !session.authOnly || (deps.access?.canExecute && deps.access.canAssist !== false && deps.access.permissions?.admin !== false);
     const execute = deps.access?.canExecute && (!needsCredentials || deps.access.canAssist !== false) && authAllowed;

@@ -209,6 +209,29 @@
 
 /* The exited bar. Neutral, not red: an exited session is a completed one, and colouring
    every terminal state as a failure is how a UI teaches people to ignore red. */
+.codex-signin-panel {
+  padding: 12px 0 4px;
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font: 400 13px/1.5 var(--sans);
+}
+.codex-signin-panel h3, .codex-signin-panel p { margin: 0; }
+.codex-signin-panel h3 { font-size: 15px; }
+.codex-signin-code { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.codex-signin-code label { display: grid; gap: 4px; }
+.codex-signin-code input {
+  width: 14ch;
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  color: var(--ink);
+  background: var(--inset);
+  font: 500 16px/1.5 var(--mono);
+  user-select: text;
+}
+.codex-signin-panel button { min-height: 44px; }
 .pane-exit {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -8,6 +8,8 @@ import { ApiError } from "./client";
 import type { CockpitClient, ProblemCode } from "./client";
 import { api } from "./index";
 import type { Session, SessionId } from "../store/types";
+import { CodexDevicePromptCapture, isCodexDeviceSignIn } from "./codexDeviceSignIn";
+import type { CodexDeviceChallenge } from "./codexDeviceSignIn";
 
 /** WebSocket.OPEN, fixed at 1 by the HTML spec. Read from a constant so the registry never
  *  touches a global the test's fake socket does not own — decision (f). */
@@ -98,6 +100,7 @@ export interface RegistryDeps {
 }
 
 interface Entry {
+  devicePrompt: CodexDevicePromptCapture | null;
   id: SessionId;
   session: Session;
   term: TermLike;
@@ -169,6 +172,7 @@ export function acquireAttach(
     element.style.width = "100%";
     element.style.height = "100%";
     entry = {
+      devicePrompt: isCodexDeviceSignIn(session) ? new CodexDevicePromptCapture() : null,
       id: session.id,
       session,
       term: opts.createTerm(),
@@ -267,6 +271,7 @@ function sameSessionScope(a: Session, b: Session): boolean {
 }
 
 function publishTerminalExit(entry: Entry): void {
+  entry.devicePrompt?.clear();
   clearRetry(entry);
   entry.ladderStartedAt = 0;
   publish(entry, {
@@ -313,6 +318,10 @@ export function updateAttachSession(session: Session): void {
     !entry.terminalExit && !entry.everAttached && session.status !== "exited";
   const wasExited = entry.session.status === "exited";
   entry.session = session;
+  if (replacement || acknowledgedColdRestart || session.status === "exited" || !isCodexDeviceSignIn(session)) {
+    entry.devicePrompt?.clear();
+    notify(entry.id, entry.state);
+  }
   if (replacement || acknowledgedColdRestart) {
     entry.acknowledgedRestartGeneration = null;
     clearRetry(entry);
@@ -519,6 +528,19 @@ export function useAttachState(sessionId: SessionId): AttachState {
   return useSyncExternalStore(subscribe, snapshot);
 }
 
+export function getCodexDeviceChallenge(sessionId: SessionId): CodexDeviceChallenge | null {
+  const entry = entries.get(sessionId);
+  return entry && !entry.destroyed && entry.permitted && !entry.terminalExit &&
+    entry.session.status !== "exited" && isCodexDeviceSignIn(entry.session)
+    ? entry.devicePrompt?.challenge ?? null : null;
+}
+
+export function useCodexDeviceChallenge(sessionId: SessionId): CodexDeviceChallenge | null {
+  const subscribe = useCallback((changed: () => void) => subscribeAttach(sessionId, changed), [sessionId]);
+  const snapshot = useCallback(() => getCodexDeviceChallenge(sessionId), [sessionId]);
+  return useSyncExternalStore(subscribe, snapshot);
+}
+
 /** Test seam: drop every entry and restore the default client. */
 export function __resetAttachRegistry(): void {
   detachAllTerminals();
@@ -675,7 +697,11 @@ function bindSocket(entry: Entry, ws: WebSocket): void {
     if (entry.ws !== ws || entry.destroyed) return;
     if (!(ev.data instanceof ArrayBuffer)) return; // the attach protocol is binary-only
     const { kind, payload } = decode(new Uint8Array(ev.data));
-    if (kind === Kind.Stdout) writeOut(entry, payload);
+    if (kind === Kind.Stdout) {
+      if (entry.permitted && !entry.terminalExit && entry.session.status !== "exited" &&
+          isCodexDeviceSignIn(entry.session) && entry.devicePrompt?.observe(payload)) notify(entry.id, entry.state);
+      writeOut(entry, payload);
+    }
     else if (kind === Kind.Exit && !entry.terminalExit) {
       // The typed frame ends this allocation, irrespective of its textual reason.
       // It does not prove success, output verification, cleanup or integration.
@@ -946,6 +972,7 @@ function clearRetry(entry: Entry): void {
 function destroy(entry: Entry): void {
   if (entry.destroyed) return;
   entry.destroyed = true;
+  entry.devicePrompt?.clear();
   clearRetry(entry);
   if (entry.flushTimer !== null) {
     clearTimeout(entry.flushTimer);

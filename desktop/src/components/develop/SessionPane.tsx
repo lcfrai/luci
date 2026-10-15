@@ -12,6 +12,8 @@ import { SessionPaneFooter, attachLabel } from "./SessionPaneFooter";
 import { SessionPaneHeader } from "./SessionPaneHeader";
 import { implementationOutcomeMessage } from "./implementationOutcome";
 import { ReviewedContextNote } from "./ReviewedContextNote";
+import { CodexSignInPanel } from "./CodexSignInPanel";
+import { isCodexDeviceSignIn } from "../../api/codexDeviceSignIn";
 import { selectSession, selectWorktreeById } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
 import type { SessionId } from "../../store/types";
@@ -129,7 +131,7 @@ export function SessionPane({
 }): JSX.Element {
   const session = useCockpit(selectSession(sessionId));
   const access = useProjectAccess(session?.projectId ?? "");
-  const canRestart = access.canExecute && (session?.harness === "shell" || access.canAssist) && (!session?.authOnly || access.permissions.admin);
+  const canRestart = !session?.authOnly && access.canExecute && (session?.harness === "shell" || access.canAssist);
   // selectWorktreeById is task 18's (§3.7 + shared-shape §4); this task adds no second
   // one. Its parameter is a required WorktreeId, and `WorktreeId` is a string alias, so
   // the absent case passes "" — no worktree carries that id, the selector returns
@@ -201,6 +203,7 @@ export function SessionPane({
         <SessionPaneHeader session={session} worktree={worktree} variant={variant} />
         <ReviewedContextNote session={session} canInspect={access.canRead} readPending={access.loading || !!access.error} className="pane-context-note" />
         {implementationOutcomeMessage(session) && <p role="status" className="pane-context-note">{implementationOutcomeMessage(session)}</p>}
+        {isCodexDeviceSignIn(session) && <CodexSignInPanel key={session.id} session={session} canControl={access.canAssist && access.permissions.admin} />}
       </div>
       <div className="pane-body" ref={bodyRef} tabIndex={-1}>
         {/* Unconditional, for every status — known defect 3. readOnly is the ONLY thing
@@ -217,7 +220,7 @@ export function SessionPane({
           (`auto 1fr auto auto`), so a child above the body would take the 1fr row. Here it
           lands in an auto row, and a pane on a primary worktree renders nothing at all. */}
       <LinkedWorktreeNote worktree={worktree} />
-      {session.status === "exited" ? (
+      {session.status === "exited" && !session.authOnly ? (
         <div className="pane-exit">
           <span className="pane-exit-why">
             {session.exitReason === "" ? "the process exited" : session.exitReason}
