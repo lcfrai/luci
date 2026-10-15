@@ -54,9 +54,11 @@ type Config struct {
 
 // Server binds HTTP requests to the sandbox's hub.
 type Server struct {
-	cfg Config
-	h   *hub.Hub
-	mux *http.ServeMux
+	cfg       Config
+	h         *hub.Hub
+	mux       *http.ServeMux
+	startedAt int64
+	nativeURL string
 }
 
 // New starts the PTY and returns a Server serving /attach and /healthz. The
@@ -75,6 +77,7 @@ func New(cfg Config) (*Server, error) {
 			"set AttachToken (LUCI_ATTACH_TOKEN / -attach-token) or " +
 			"pass -allow-unauthenticated to run without one")
 	}
+	startedAt := time.Now().UnixMilli()
 	h, err := hub.Start(hub.Config{
 		Command:    cfg.Command,
 		Args:       cfg.Args,
@@ -84,8 +87,11 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: cfg, h: h, mux: http.NewServeMux()}
+	s := &Server{cfg: cfg, h: h, mux: http.NewServeMux(), startedAt: startedAt, nativeURL: "http://127.0.0.1:4096"}
 	s.mux.HandleFunc("/attach", s.attach)
+	if cfg.AttachToken != "" && nativeOpenCodeCommand(cfg.Command, cfg.Args) {
+		s.mux.HandleFunc("/native-turn", s.nativeTurn)
+	}
 	s.mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})

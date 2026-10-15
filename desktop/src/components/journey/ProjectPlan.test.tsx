@@ -262,6 +262,17 @@ it("keeps a quiet native agent and an uncertain lost runtime distinct from a com
   expect(createSession).not.toHaveBeenCalled();
 });
 
+it("shows an owned OpenCode final turn with only reads while its Ask process stays alive", async () => {
+  useCockpit.getState().upsertSession(aSession({ id: "s-native-finish", title: "Orchard task", projectId: "p-1", branchId: "b-1", worktreeId: "w-1", harness: "opencode", status: "idle", implementationContext: snapshot(), implementationOutcome: { state: "quiet", evidence: "session-only", nativeTurnId: "msg_67d5b111", nativeToolClass: "reads-only" } }));
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  const history = await screen.findByRole("region", { name: "Implementation sessions" });
+  expect(within(history).getByText(/latest OpenCode turn ended while this Ask session remains open/)).not.toBeNull();
+  expect(within(history).getByText(/no implementation or checks are linked/)).not.toBeNull();
+  expect(within(history).getByRole("button", { name: "Open session" })).not.toBeNull();
+  expect(within(history).queryByRole("button", { name: "Try this task again" })).toBeNull();
+  expect(createSession).not.toHaveBeenCalled();
+});
+
 it("closes a reviewed picker when approval revisions change rather than silently replacing its context", async () => {
   render(<ProjectPlan projectId="p-1" brief={brief} />);
   const task = (await screen.findAllByRole("button", { name: "Implement task" }))[0];

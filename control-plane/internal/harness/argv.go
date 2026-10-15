@@ -126,7 +126,10 @@ func openCodeArgv(r Request) []string {
 	if r.ReviewedContext {
 		r.OpeningPrompt = ReviewedContextPrompt + "\n\n" + r.OpeningPrompt
 	}
-	args := []string{"--pure", "--hostname", "127.0.0.1"}
+	// The pinned TUI starts its own HTTP server when --hostname is explicit.
+	// A fixed container-loopback port lets sandboxd read a bounded native turn
+	// summary without publishing the upstream server or parsing terminal text.
+	args := []string{"--pure", "--hostname", "127.0.0.1", "--port", "4096"}
 	if r.Resume != "" {
 		args = append(args, "--continue", "--fork")
 	}

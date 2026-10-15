@@ -4,6 +4,12 @@ import type { Session } from "../../store/types";
 export function implementationOutcomeMessage(session: Session): string | null {
   const outcome = session.implementationOutcome;
   if (!session.implementationContext || !outcome) return null;
+  if ((session.status === "running" || session.status === "idle") && outcome.nativeTurnId && session.harness === "opencode") {
+    if (outcome.evidence === "session-only" && (outcome.nativeToolClass === "none" || outcome.nativeToolClass === "reads-only")) {
+      return "The latest OpenCode turn ended while this Ask session remains open. Its native tools only read files or did not run; no implementation or checks are linked to this task. Open the terminal to review any report or continue. If coding is still needed, stop this session before trying the saved task with a suitable agent connection.";
+    }
+    return "The latest OpenCode turn ended while this Ask session remains open. Review its retained work and run checks; a finished turn does not verify the task.";
+  }
   switch (outcome.state) {
     case "starting":
       return "The coding environment is starting. No implementation result has been confirmed.";

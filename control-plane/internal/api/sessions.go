@@ -1415,6 +1415,11 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	token := ids.Token()
+	if harnessID == harness.OpenCode {
+		// This authenticates the upstream loopback server to sandboxd. It is
+		// private to this sandbox generation and never enters the REST view.
+		sandboxEnv["OPENCODE_SERVER_PASSWORD"] = token
+	}
 
 	// 3a. A Fork carries its source's conversation into this worktree. Last
 	// before the record, so the one failure left that must undo it is the
@@ -2327,6 +2332,9 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// record, so task 13's reaper sees an orphan and removes it.
 	sandboxID := ids.New("s")
 	token := ids.Token()
+	if sess.Harness == string(harness.OpenCode) {
+		sandboxEnv["OPENCODE_SERVER_PASSWORD"] = token
+	}
 	finishPreparation := a.beginSessionPreparation(registry.Session{ID: id, SandboxID: sandboxID, AttachToken: token})
 	defer finishPreparation()
 

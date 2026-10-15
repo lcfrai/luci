@@ -25,7 +25,7 @@ func TestNativeProviderArgumentsPreservePromptsAndForkWithoutSharingIDs(t *testi
 			if id == harness.Codex && (!strings.Contains(joined, "fork --last") || !strings.Contains(joined, "workspace-write") || !strings.Contains(joined, "on-request")) {
 				t.Fatalf("Codex continuation/permission mismatch: %q", args)
 			}
-			if id == harness.OpenCode && (!slices.Contains(args, "--continue") || !slices.Contains(args, "--fork") || !slices.Contains(args, "--pure") || slices.Contains(args, "--auto")) {
+			if id == harness.OpenCode && (!slices.Contains(args, "--continue") || !slices.Contains(args, "--fork") || !slices.Contains(args, "--pure") || slices.Contains(args, "--auto") || args[1] != "--hostname" || args[2] != "127.0.0.1" || args[3] != "--port" || args[4] != "4096") {
 				t.Fatalf("OpenCode continuation/permission mismatch: %q", args)
 			}
 		})
