@@ -310,6 +310,12 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 		freshness = artifactCurrentView(row, source)["freshness"].(string)
 	}
 	lines := artifactExportLines(row, freshness)
+	for _, line := range lines {
+		if !validArtifactXMLText(line.Label) || !validArtifactXMLText(line.Value) {
+			journeyError(w, 422, "artifact_export_unavailable", "This retained artifact contains text Office XML cannot preserve. Revise the text in a new draft before exporting.")
+			return
+		}
+	}
 	var data []byte
 	if format == "docx" {
 		data, err = artifactDOCX(r.Context(), lines)

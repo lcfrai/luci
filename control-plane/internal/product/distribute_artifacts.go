@@ -105,12 +105,36 @@ func artifactDigest(value DistributeArtifact) string {
 	value.RequestDigest = ""
 	return reviewDigest(value)
 }
-func validArtifactXMLText(value string) bool {
+
+// Older ledgers accepted every non-control UTF-8 scalar. Keep their exact
+// bytes readable so a user can revise a retained draft without rewriting it.
+func validArtifactStoredText(value string) bool {
 	if !utf8.ValidString(value) {
 		return false
 	}
 	for _, char := range value {
 		if char < 0x20 && char != '\t' && char != '\n' && char != '\r' {
+			return false
+		}
+	}
+	return true
+}
+func validArtifactXMLText(value string) bool {
+	if !validArtifactStoredText(value) {
+		return false
+	}
+	for _, char := range value {
+		// XML 1.0 Fifth Edition character range, also used by encoding/xml.
+		if char != '\t' && char != '\n' && char != '\r' &&
+			!(char >= 0x20 && char <= 0xd7ff || char >= 0xe000 && char <= 0xfffd || char >= 0x10000 && char <= 0x10ffff) {
+			return false
+		}
+	}
+	return true
+}
+func validArtifactNewText(value DistributeArtifact) bool {
+	for _, line := range artifactExportLines(value, "current") {
+		if !validArtifactXMLText(line.Label) || !validArtifactXMLText(line.Value) {
 			return false
 		}
 	}
@@ -136,23 +160,23 @@ func validArtifactSource(value DistributeArtifactSource) bool {
 	return true
 }
 func validArtifactContent(value DistributeArtifact) bool {
-	if !validArtifactKind(value.Kind) || !validArtifactSource(value.Source) || !validArtifactXMLText(value.Title) || strings.TrimSpace(value.Title) == "" || len(value.Title) > 200 || len(value.Sections) == 0 || len(value.Sections) > 40 || len(value.Gaps) > 100 || len(value.Assumptions) > 100 {
+	if !validArtifactKind(value.Kind) || !validArtifactSource(value.Source) || !validArtifactStoredText(value.Title) || strings.TrimSpace(value.Title) == "" || len(value.Title) > 200 || len(value.Sections) == 0 || len(value.Sections) > 40 || len(value.Gaps) > 100 || len(value.Assumptions) > 100 {
 		return false
 	}
 	seen := map[string]bool{}
 	for _, section := range value.Sections {
-		if !controlIDPattern.MatchString(section.ID) || seen[section.ID] || strings.TrimSpace(section.Heading) == "" || !validArtifactXMLText(section.Heading) || len(section.Heading) > 200 || len(section.Body) > 8192 || !validArtifactXMLText(section.Body) || len(section.Bullets) > 100 || len(section.SourceRefs) > 100 {
+		if !controlIDPattern.MatchString(section.ID) || seen[section.ID] || strings.TrimSpace(section.Heading) == "" || !validArtifactStoredText(section.Heading) || len(section.Heading) > 200 || len(section.Body) > 8192 || !validArtifactStoredText(section.Body) || len(section.Bullets) > 100 || len(section.SourceRefs) > 100 {
 			return false
 		}
 		seen[section.ID] = true
 		for _, item := range append(append([]string{}, section.Bullets...), section.SourceRefs...) {
-			if len(item) > 8192 || !validArtifactXMLText(item) {
+			if len(item) > 8192 || !validArtifactStoredText(item) {
 				return false
 			}
 		}
 	}
 	for _, item := range append(append([]string{}, value.Gaps...), value.Assumptions...) {
-		if len(item) > 8192 || !validArtifactXMLText(item) {
+		if len(item) > 8192 || !validArtifactStoredText(item) {
 			return false
 		}
 	}
@@ -418,7 +442,7 @@ func (s *Server) prepareDistributeArtifact(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	draft := generatedArtifact(req.Kind, p.ID, source, state, library, assessment)
-	if !validArtifactContent(draft) {
+	if !validArtifactContent(draft) || !validArtifactNewText(draft) {
 		journeyError(w, 413, "artifact_source_too_large", "The complete saved source exceeds the bounded artifact draft; split the reviewed scope.")
 		return
 	}
@@ -501,13 +525,17 @@ func (s *Server) saveDistributeArtifact(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	row := generatedArtifact(req.Kind, p.ID, source, state, library, assessment)
-	if !validArtifactContent(row) || artifactDigest(row) != req.PrepareDigest {
+	if !validArtifactContent(row) || !validArtifactNewText(row) || artifactDigest(row) != req.PrepareDigest {
 		journeyError(w, 409, "artifact_source_changed", "The prepared source changed or exceeds the artifact bound. Prepare again before saving.")
 		return
 	}
 	row.ID, row.Revision, row.Actor, row.At = newID("artifact-"), 1, actor, time.Now().UTC().Format(time.RFC3339Nano)
 	row.RequestKeyDigest, row.RequestDigest = key, digest
 	row.Digest = artifactDigest(row)
+	if !validArtifactNewText(row) {
+		journeyError(w, 422, "artifact_content_invalid", "This saved source contains text Office XML cannot preserve. Correct the source before saving this artifact.")
+		return
+	}
 	ledger.Records = append(ledger.Records, distributeArtifactRecord{ID: row.ID, Revisions: []DistributeArtifact{row}})
 	if err = writeArtifactLedger(path, ledger); err != nil {
 		artifactProblem(w, err)
@@ -677,7 +705,7 @@ func (s *Server) reviseDistributeArtifact(w http.ResponseWriter, r *http.Request
 	next.At = time.Now().UTC().Format(time.RFC3339Nano)
 	next.RequestKeyDigest, next.RequestDigest = key, digest
 	next.Digest = artifactDigest(next)
-	if !validArtifactContent(next) {
+	if !validArtifactContent(next) || !validArtifactNewText(next) {
 		journeyError(w, 422, "artifact_content_invalid", "Keep all reviewed artifact content within the declared section and size bounds.")
 		return
 	}
@@ -761,6 +789,10 @@ func (s *Server) reviewDistributeArtifact(w http.ResponseWriter, r *http.Request
 	next.Review = &DistributeArtifactReview{Actor: actor, At: next.At, Digest: prior.Digest}
 	next.RequestKeyDigest, next.RequestDigest = key, digest
 	next.Digest = artifactDigest(next)
+	if !validArtifactNewText(next) {
+		journeyError(w, 422, "artifact_content_invalid", "This retained draft contains text Office XML cannot preserve. Revise the text before review or export.")
+		return
+	}
 	record.Revisions = append(record.Revisions, next)
 	if err = writeArtifactLedger(path, ledger); err != nil {
 		artifactProblem(w, err)

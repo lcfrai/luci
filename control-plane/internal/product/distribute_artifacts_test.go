@@ -113,7 +113,12 @@ func TestDistributeArtifactPrepareSaveReviewAndSourceCAS(t *testing.T) {
 	invalidXML := append([]DistributeArtifactSection{}, sections...)
 	invalidXML[0].Body = "invalid\x01office text"
 	controlTestRequest(t, h, "POST", artifactURL+"/revise", map[string]any{"expectedRevision": 1, "expectedDigest": saved.Artifact.Digest, "expectedSourceDigest": saved.Artifact.SourceDigest, "idempotencyKey": "artifact-invalid-xml-123456", "title": saved.Artifact.Title, "sections": invalidXML, "gaps": saved.Artifact.Gaps, "assumptions": saved.Artifact.Assumptions}, 422)
-	sections[0].Body += " Reviewed source-specific risk."
+	for i, scalar := range []string{"\ufffe", "\uffff"} {
+		invalidScalar := append([]DistributeArtifactSection{}, sections...)
+		invalidScalar[0].Body = "before" + scalar + "after"
+		controlTestRequest(t, h, "POST", artifactURL+"/revise", map[string]any{"expectedRevision": 1, "expectedDigest": saved.Artifact.Digest, "expectedSourceDigest": saved.Artifact.SourceDigest, "idempotencyKey": "artifact-invalid-scalar-" + string(rune('a'+i)) + "-123456", "title": saved.Artifact.Title, "sections": invalidScalar, "gaps": saved.Artifact.Gaps, "assumptions": saved.Artifact.Assumptions}, 422)
+	}
+	sections[0].Body += " Reviewed source-specific risk. Preserve 界 and café."
 	revised := controlTestRequest(t, h, "POST", artifactURL+"/revise", map[string]any{"expectedRevision": 1, "expectedDigest": saved.Artifact.Digest, "expectedSourceDigest": saved.Artifact.SourceDigest, "idempotencyKey": "artifact-revise-request-123456", "title": saved.Artifact.Title, "sections": sections, "gaps": saved.Artifact.Gaps, "assumptions": saved.Artifact.Assumptions}, 200)
 	if err = json.Unmarshal(revised.Body.Bytes(), &saved); err != nil || saved.Artifact.Revision != 2 || saved.Artifact.State != "draft" {
 		t.Fatal(revised.Body.String(), err)
@@ -125,7 +130,7 @@ func TestDistributeArtifactPrepareSaveReviewAndSourceCAS(t *testing.T) {
 	for _, format := range []string{"docx", "pptx", "xlsx"} {
 		exported := controlTestRequest(t, h, "GET", artifactURL+"/exports/"+format+"?digest="+saved.Artifact.Digest, nil, 200)
 		content := artifactZipContent(t, exported.Body.Bytes())
-		for _, value := range []string{"Saved product purpose", "Reviewed source-specific risk.", "No exact implementation-check receipt", "Source reference"} {
+		for _, value := range []string{"Saved product purpose", "Reviewed source-specific risk.", "界 and café", "No exact implementation-check receipt", "Source reference"} {
 			if !strings.Contains(content, value) {
 				t.Fatalf("%s export lost %q", format, value)
 			}
@@ -160,6 +165,64 @@ func TestDistributeArtifactPrepareSaveReviewAndSourceCAS(t *testing.T) {
 	_, retained, err := s.readArtifactLedger(p)
 	if err != nil || len(retained.Records) != 1 || len(retained.Records[0].Revisions) != 3 {
 		t.Fatal("stale refusal changed private history", err)
+	}
+}
+
+func TestDistributeArtifactLegacyXMLScalarReadReviseAndExportRefusal(t *testing.T) {
+	s, h, id := controlTestHandler(t)
+	p, err := s.resolveProject(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := "/v1/product/projects/" + id + "/distribute/artifacts"
+	prepared := controlTestRequest(t, h, "POST", base+"/prepare", map[string]string{"kind": "risk"}, 200)
+	var draft struct {
+		PrepareDigest string `json:"prepareDigest"`
+	}
+	if err := json.Unmarshal(prepared.Body.Bytes(), &draft); err != nil {
+		t.Fatal(err)
+	}
+	controlTestRequest(t, h, "POST", base, map[string]any{"kind": "risk", "prepareDigest": draft.PrepareDigest, "idempotencyKey": "legacy-save-request-123456"}, 201)
+	path, ledger, err := s.readArtifactLedger(p)
+	if err != nil || len(ledger.Records) != 1 {
+		t.Fatal(err)
+	}
+	legacy := &ledger.Records[0].Revisions[0]
+	legacy.Sections[0].Body = "before\ufffeafter\uffff"
+	legacy.Digest = artifactDigest(*legacy)
+	if err := writeArtifactLedger(path, ledger); err != nil {
+		t.Fatal(err)
+	}
+	artifactURL := base + "/" + legacy.ID
+	read := controlTestRequest(t, h, "GET", artifactURL, nil, 200)
+	if !strings.Contains(read.Body.String(), `before￾after￿`) {
+		t.Fatal("legacy draft was hidden or rewritten")
+	}
+	for _, format := range []string{"docx", "pptx", "xlsx"} {
+		refused := controlTestRequest(t, h, "GET", artifactURL+"/exports/"+format+"?digest="+legacy.Digest, nil, 422)
+		if !strings.Contains(refused.Body.String(), "artifact_export_unavailable") || strings.Contains(refused.Body.String(), `before\ufffeafter`) {
+			t.Fatal("legacy export did not refuse explicitly without leaking content", format, refused.Body.String())
+		}
+	}
+	controlTestRequest(t, h, "POST", artifactURL+"/review", map[string]any{"expectedRevision": 1, "expectedDigest": legacy.Digest, "idempotencyKey": "legacy-review-request-123456"}, 422)
+	_, unchanged, err := s.readArtifactLedger(p)
+	if err != nil || len(unchanged.Records[0].Revisions) != 1 || unchanged.Records[0].Revisions[0].Digest != legacy.Digest {
+		t.Fatal("refused export or review changed retained draft", err)
+	}
+	sections := append([]DistributeArtifactSection{}, legacy.Sections...)
+	sections[0].Body = "before界after café"
+	revised := controlTestRequest(t, h, "POST", artifactURL+"/revise", map[string]any{"expectedRevision": 1, "expectedDigest": legacy.Digest, "expectedSourceDigest": legacy.SourceDigest, "idempotencyKey": "legacy-revise-request-123456", "title": legacy.Title, "sections": sections, "gaps": legacy.Gaps, "assumptions": legacy.Assumptions}, 200)
+	var saved struct {
+		Artifact DistributeArtifact `json:"artifact"`
+	}
+	if err := json.Unmarshal(revised.Body.Bytes(), &saved); err != nil || saved.Artifact.Revision != 2 {
+		t.Fatal(revised.Body.String(), err)
+	}
+	for _, format := range []string{"docx", "pptx", "xlsx"} {
+		data := controlTestRequest(t, h, "GET", artifactURL+"/exports/"+format+"?digest="+saved.Artifact.Digest, nil, 200)
+		if !strings.Contains(artifactZipContent(t, data.Body.Bytes()), "界after café") {
+			t.Fatal("revised Unicode was lost", format)
+		}
 	}
 }
 
