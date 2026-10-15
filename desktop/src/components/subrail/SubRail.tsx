@@ -19,6 +19,7 @@ export const LENSES: ReadonlyArray<{
   { id: "design", label: "Design", icon: "design" },
   { id: "develop", label: "Develop", icon: "develop" },
   { id: "deploy", label: "Deploy", icon: "deploy" },
+  { id: "distribute", label: "Distribute", icon: "distribute" },
 ];
 
 export function SubRail({ inert }: { inert?: boolean } = {}): JSX.Element {

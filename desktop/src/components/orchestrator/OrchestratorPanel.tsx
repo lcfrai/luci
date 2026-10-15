@@ -31,7 +31,7 @@ export interface OrchestratorOpenDetail {
   scope?: string; destination?: "decisions"; turnId?: string;
 }
 const compactOverviewQuery = "(max-width: 1100px)";
-const stageLabels = { discover: "Discover", design: "Design", develop: "Develop", deploy: "Deploy" };
+const stageLabels = { discover: "Discover", design: "Design", develop: "Develop", deploy: "Deploy", distribute: "Distribute" };
 const amendmentEditors = { specification: "definition", "design-plan": "design", plan: "plan" } as const;
 const amendmentLabels = { specification: "definition", "design-plan": "design", plan: "implementation plan" };
 const pendingStatus = (status: string) => ["reserved", "queued", "running", "unknown"].includes(status);

@@ -9,6 +9,7 @@ import { DesignLens } from "./lens/DesignLens";
 import { FilesLens } from "./lens/FilesLens";
 import { MergeLens } from "./lens/MergeLens";
 import { DeployLens } from "./lens/DeployLens";
+import { DistributeWorkspace } from "./distribute/DistributeWorkspace";
 import { DevelopLens } from "./develop/DevelopLens";
 import { ContextMenu } from "./menu/ContextMenu";
 import { Toasts } from "./common/Toasts";
@@ -41,6 +42,8 @@ function LensRouter(props: { lens: Lens }): JSX.Element {
       return <MergeLens />;
     case "deploy":
       return <DeployLens />;
+    case "distribute":
+      return <DistributeWorkspace />;
     default:
       return <></>;
   }

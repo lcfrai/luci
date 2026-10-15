@@ -24,6 +24,15 @@ it('requires explicit review and saves one approved reference without starting c
   expect(p.onCreate.mock.calls[0]).toEqual([p.pending.request, { id: 'contract-1', revision: 2, digest: 'a'.repeat(64), approvalId: 'approval-1' }, p.pending.runKey]);
   await waitFor(() => expect(p.onComplete).toHaveBeenCalledTimes(1));
 });
+it('shows exact imported requirements and marks document quotes untrusted',()=>{
+  const p=props();
+  p.initialView.contract.input.standards={status:'team-library-assessed',source:'team-control-library',revision:1,digest:'b'.repeat(64),teamId:'team-one',assessmentRevision:1,assessmentDigest:'c'.repeat(64),contentDigest:'d'.repeat(64),requirements:[{id:'SEC-1',requirement:'Require violet ledger review',category:'Security',applicability:'Every release',owner:'Team',evidenceExpected:'Reviewer receipt',assessmentStatus:'supported',evidence:[{link:{documentId:'doc-one',originalDigest:'e'.repeat(64),extractionRevision:1,page:1,segmentId:'fact',textDigest:'f'.repeat(64),targetKind:'purpose',targetId:''},text:'Exact reviewed evidence'}]}]};
+  render(<ExecutionContractReview {...p}/>);
+  expect(screen.getByText(/Team library revision 1, assessment revision 1/)).toBeTruthy();
+  fireEvent.click(screen.getByText('Imported control requirements and evidence · 1'));
+  expect(screen.getByText(/Require violet ledger review/)).toBeTruthy();
+  expect(screen.getByText(/Untrusted source quote: Exact reviewed evidence/)).toBeTruthy();
+});
 it('blocks a changed Design discovered at the actual approval boundary', async () => {
   const p = props(), stale = contractViewFixture(); stale.freshness = { status: 'changed', reason: 'Design changed' };
   vi.spyOn(orchestrationContractsApi, 'get').mockResolvedValue(stale);

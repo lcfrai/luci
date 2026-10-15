@@ -1,0 +1,3 @@
+ok  	github.com/lcfrai/luci/control-plane/internal/product	7.895s
+ok  	github.com/lcfrai/luci/control-plane/internal/api	0.089s
+ok  	github.com/lcfrai/luci/control-plane/internal/management	0.019s

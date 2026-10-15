@@ -233,7 +233,7 @@ export type Layout = "columns" | "canvas";
 /** The six lens rows of the sub-rail. No order, no numbering, no completion state —
  *  docs/AGENTIC-UX.md §4 rule 12. Only "develop" has a surface in Phase 2. */
 export type Lens =
-  "discover" | "design" | "develop" | "files" | "merge" | "deploy";
+  "discover" | "design" | "develop" | "files" | "merge" | "deploy" | "distribute";
 
 /** A hand-placed Canvas tile. Persisted per session — known defect 6. */
 export interface TilePosition {
