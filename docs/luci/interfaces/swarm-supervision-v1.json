@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "owner": "ProjectRunStore.ProjectRun.Swarm; the existing run revision is the mutation CAS",
+  "reads": {
+    "GET /v1/product/projects/{id}/runs/{runId}/swarm/supervision?after={sequence}&limit={1..50}": {
+      "version": 1,
+      "runId": "run-...",
+      "runRevision": 1,
+      "queueRevision": 1,
+      "context": { "briefRevision": 1, "planRevision": 1, "contractDigest": "64 lowercase hex or empty for legacy-unassessed", "freshness": "current|changed|unavailable" },
+      "activityPhase": "ready|working|paused|blocked|stopped|unknown",
+      "qualityPhase": "not-started|needs-review|repair-required|awaiting-checks|checked|unknown",
+      "settlement": "confirmed|uncertain",
+      "tasks": [{ "taskId": "saved task ID", "operationId": "exact current operation or empty", "state": "queued|working|review-required|repair-required|integrated|blocked|unknown", "integrationState": "none|integrating|integrated|unknown" }],
+      "messages": [{ "id": "msg-...", "sequence": 1, "kind": "discovery|question|dependency-result|review-finding|decision|lifecycle-request", "sender": { "taskId": "saved task ID", "operationId": "op-...", "childId": "s-...", "worktreeId": "w-...", "contextDigest": "64 lowercase hex" }, "recipientTaskId": "saved task ID", "causalMessageId": "msg-... or empty", "evidence": { "kind": "handoff|source-commit|review|check|none", "id": "immutable receipt/commit ID or empty", "digest": "64 lowercase hex or empty" }, "summary": "bounded attributed claim", "createdAt": "RFC3339Nano", "ack": null }],
+      "page": { "after": 0, "nextCursor": 1, "hasMore": false, "omitted": 0 },
+      "attention": [{ "id": "stable message/obligation/operation ID", "kind": "question|review|repair|unknown|blocked", "taskId": "saved task ID", "action": "existing review/checkpoint/queue/stop/recovery URL" }],
+      "metrics": { "routineDecisions": null, "latency": null, "quality": null, "throughput": null, "cost": null }
+    }
+  },
+  "writes": {
+    "POST /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/messages": {
+      "request": { "expectedRevision": 1, "idempotencyKey": "caller-generated stable key", "recipientTaskId": "saved task ID", "kind": "discovery|question|dependency-result|review-finding|decision|lifecycle-request", "causalMessageId": "msg-... or empty", "evidence": { "kind": "handoff|source-commit|review|check|none", "id": "immutable identity or empty", "digest": "64 lowercase hex or empty" }, "summary": "bounded attributed claim" },
+      "response": { "message": "same message shape as supervision", "runRevision": 2 }
+    },
+    "POST /v1/product/projects/{id}/runs/{runId}/swarm/messages/{messageId}/ack": {
+      "request": { "expectedRevision": 2, "recipientOperationId": "exact current recipient operation" },
+      "response": { "message": "same message with ack {operationId, childId, actorId, at}", "runRevision": 3 }
+    },
+    "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/review-obligations": {
+      "request": { "expectedRevision": 3, "idempotencyKey": "stable key", "candidateOperationId": "exact task attempt", "reviewerOperationId": "different saved task attempt", "reviewDigest": "exact existing candidate review digest" },
+      "response": { "obligation": "durable candidate/reviewer/context/limit receipt", "runRevision": 4 }
+    }
+  },
+  "invariants": [
+    "Project and actor read/edit authority is rechecked before every read/write; never derive ownership from caller text.",
+    "Sender and recipient operation identities, child, worktree, context and contract are resolved from the private run.",
+    "Writes are idempotent by scoped key and exact normalized payload; replay does not allocate or dispatch.",
+    "Messages are claims and evidence references only; ack is receipt, not approval, integration, execution or deployment authority.",
+    "New worker capture includes only messages addressed to its saved task and exact current context; prior captured bytes never change.",
+    "No read starts, reconciles or polls a provider. Unknown effects remain unknown; absent metrics are null, observed zero is numeric zero."
+  ]
+}
