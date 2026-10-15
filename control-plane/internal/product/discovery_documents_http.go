@@ -470,6 +470,16 @@ func (s *Server) discoveryDocumentDiscussion(w http.ResponseWriter, r *http.Requ
 // Available for the narrow existing specification save/application seam.
 // Caller supplies only links; original bytes and quoted text are never trusted.
 func (s *Server) validateDiscoveryEvidenceLinks(ctx context.Context, p project.Project, links []DiscoveryEvidenceLink) error {
+	return validateDiscoveryEvidenceLinksWith(ctx, links, func(id string) (DiscoveryDocument, error) {
+		saved, err := s.readDiscoveryDocument(p, id)
+		return saved.Document, err
+	})
+}
+
+// The loader is invoked once per unique document. Callers hold the project
+// lock and supply one aggregate request, so large histories never coexist in
+// memory or escape final saved-context validation.
+func validateDiscoveryEvidenceLinksWith(ctx context.Context, links []DiscoveryEvidenceLink, load func(string) (DiscoveryDocument, error)) error {
 	if len(links) > 200 {
 		return errDiscoveryCapacity
 	}
@@ -485,7 +495,7 @@ func (s *Server) validateDiscoveryEvidenceLinks(ctx context.Context, p project.P
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		saved, err := s.readDiscoveryDocument(p, id)
+		document, err := load(id)
 		if err != nil {
 			return err
 		}
@@ -493,7 +503,7 @@ func (s *Server) validateDiscoveryEvidenceLinks(ctx context.Context, p project.P
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			if _, err := discoveryFindSegment(saved.Document, link); err != nil {
+			if _, err := discoveryFindSegment(document, link); err != nil {
 				return err
 			}
 		}

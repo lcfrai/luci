@@ -14,6 +14,27 @@ import (
 
 const assessmentFileLimit = 2 << 20
 
+func controlAssessmentEvidenceLinks(results []ControlAssessmentResult) ([]DiscoveryEvidenceLink, error) {
+	links := make([]DiscoveryEvidenceLink, 0, len(results))
+	documents := map[string]bool{}
+	for _, result := range results {
+		for _, link := range result.EvidenceRefs {
+			if link.TargetKind != "purpose" || link.TargetID != "" {
+				return nil, errors.New("control evidence target is invalid")
+			}
+			if len(links) >= 200 {
+				return nil, errDiscoveryCapacity
+			}
+			links = append(links, link)
+			documents[link.DocumentID] = true
+			if len(documents) > 16 {
+				return nil, errDiscoveryCapacity
+			}
+		}
+	}
+	return links, nil
+}
+
 type ControlAssessmentResult struct {
 	ControlID    string                  `json:"controlId"`
 	Status       string                  `json:"status"`
@@ -196,17 +217,16 @@ func (s *Server) saveControlAssessment(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 422, "incomplete_assessment", "Review every control, including unknown and unreviewed ones.")
 		return
 	}
-	for _, result := range req.Results {
-		for _, link := range result.EvidenceRefs {
-			if link.TargetKind != "purpose" || link.TargetID != "" {
-				journeyError(w, 422, "invalid_assessment", "Link exact document segments to controls through this assessment, without changing their source targets.")
-				return
-			}
-		}
-		if err := s.validateDiscoveryEvidenceLinks(r.Context(), p, result.EvidenceRefs); err != nil {
-			journeyError(w, 422, "evidence_unavailable", "One linked private document segment cannot be verified.")
+	links, linkErr := controlAssessmentEvidenceLinks(req.Results)
+	// A history is at most 8 MiB. Limit total distinct history reads as well
+	// as references before entering the mutation exclusion.
+	if linkErr != nil {
+		if !errors.Is(linkErr, errDiscoveryCapacity) {
+			journeyError(w, 422, "invalid_assessment", "Link exact document segments to controls through this assessment, without changing their source targets.")
 			return
 		}
+		journeyError(w, 422, "evidence_limit", "This assessment links too many document histories or segments. Split the reviewed assessment into a smaller evidence selection.")
+		return
 	}
 	key := reviewDigest(struct{ Project, Actor, Key string }{p.ID, actor.ID, req.IdempotencyKey})
 	request := reviewDigest(struct {
@@ -250,6 +270,10 @@ func (s *Server) saveControlAssessment(w http.ResponseWriter, r *http.Request) {
 	}
 	if saved.Revision != req.ExpectedRevision || req.ContextDigest != currentContext || r.Context().Err() != nil {
 		journeyError(w, 409, "assessment_changed", "Project evidence or the assessment changed. Refresh before saving.")
+		return
+	}
+	if err := s.validateDiscoveryEvidenceLinks(r.Context(), p, links); err != nil {
+		journeyError(w, 422, "evidence_unavailable", "One linked private document segment cannot be verified.")
 		return
 	}
 	if len(saved.PriorKeys) >= 200 {
