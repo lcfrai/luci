@@ -536,3 +536,34 @@
   color: var(--ink-2);
 }
 .cols-inactive h3 { color: var(--ink); overflow-wrap: anywhere; }
+
+/* Workspace chrome is compact; real output owns the remaining space. */
+.develop-live-workspace { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
+.develop-workspace-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 12px; background: var(--canvas); border-block-end: 1px solid var(--line-soft); }
+.develop-workspace-views, .develop-workspace-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.develop-workspace-tools { margin-inline-start: auto; }
+.develop-column-size { display: flex; align-items: center; gap: 8px; font: 400 12px/1.4 var(--sans); color: var(--ink-2); }
+.develop-column-size input { inline-size: 112px; accent-color: var(--accent); }
+.develop-session-choices { display: flex; flex: 0 0 auto; gap: 4px; padding: 8px 12px; overflow-x: auto; background: var(--canvas); }
+.develop-session-choice { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; max-inline-size: 340px; min-block-size: 36px; padding: 6px 12px; border: 1px solid var(--line-soft); border-radius: var(--r-control); background: var(--surface); color: var(--ink-2); font: 400 12px/1.4 var(--sans); cursor: pointer; }
+.develop-session-choice:hover { background: var(--hover); color: var(--ink); }
+.develop-session-choice[aria-pressed="true"] { border-color: var(--accent-ring); color: var(--ink); }
+.develop-session-name { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.develop-session-state { max-inline-size: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.develop-layout-note { flex: 0 0 auto; padding: 4px 12px 8px; margin: 0; color: var(--ink-2); font: 400 12px/1.5 var(--sans); }
+.develop-workspace-output { flex: 1; min-block-size: 0; overflow: hidden; }
+.develop-workspace .develop-live-workspace .develop-workspace-output > .cols-scroll { height: 100%; }
+.cols-scroll--single { overflow-x: hidden; }
+.cols-scroll--single > .cols-pane { flex-basis: 100%; }
+.cols-pane[hidden], .cv-tile[hidden] { display: none; }
+.cv-plane--single { overflow: hidden; padding: 12px; }
+.cv-plane--single > .cv-sheet { inline-size: 100% !important; block-size: 100% !important; }
+.cv-plane--single .cv-tile:not([hidden]) { inline-size: 100% !important; block-size: 100% !important; transform: none !important; }
+.cv-plane--single .cv-grip, .cv-plane--single .cv-resize { display: none; }
+.develop-session-choice:focus-visible, .develop-column-size input:focus-visible,
+.cv-grip:focus-visible, .cv-resize:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .develop-workspace-tools { margin-inline-start: 0; }
+  .develop-session-choice { min-block-size: 44px; }
+  .develop-session-state { max-inline-size: 100px; }
+}
