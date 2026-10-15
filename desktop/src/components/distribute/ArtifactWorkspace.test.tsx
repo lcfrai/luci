@@ -59,3 +59,57 @@ it('selects only a read-back accepted run and keeps its exact receipt in prepara
   await screen.findByText(/accepted run run-accepted/);
   expect(prepare).toHaveBeenCalledWith('p-one','proposal','run-accepted');
 });
+
+it('uses distinct review keys for two saved artifacts',async()=>{
+  const other={...draft,id:'artifact-other',title:'Other private review',digest:'b'.repeat(64)};
+  vi.mocked(distributeArtifactsApi.list).mockResolvedValue({projectId:'p-one',artifacts:[draft,other].map(row=>({id:row.id,kind:row.kind,title:row.title,revision:row.revision,state:row.state,freshness:'current',digest:row.digest}))});
+  vi.spyOn(distributeArtifactsApi,'get').mockImplementation(async(_project,id)=>({artifact:id===draft.id?draft:other,freshness:'current'}));
+  const review=vi.spyOn(distributeArtifactsApi,'review').mockImplementation(async(_project,row)=>({artifact:{...row,revision:row.revision+1,state:'reviewed'},freshness:'current'}));
+  render(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+  await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+  await userEvent.click(screen.getByRole('button',{name:'Mark reviewed'}));
+  await waitFor(()=>expect(review).toHaveBeenCalledTimes(1));
+  await userEvent.click(await screen.findByRole('button',{name:/Other private review · revision 1/}));
+  await userEvent.click(screen.getByRole('button',{name:'Mark reviewed'}));
+  await waitFor(()=>expect(review).toHaveBeenCalledTimes(2));
+  expect(review.mock.calls[0][2]).not.toBe(review.mock.calls[1][2]);
+});
+
+it('uses a new review key after the same artifact is revised',async()=>{
+  const reviewed={...draft,revision:2,state:'reviewed' as const,digest:'b'.repeat(64)};
+  const revised={...draft,revision:3,digest:'c'.repeat(64),title:'Revised risk review'};
+  vi.mocked(distributeArtifactsApi.list).mockResolvedValue({projectId:'p-one',artifacts:[{id:draft.id,kind:draft.kind,title:draft.title,revision:1,state:'draft',freshness:'current',digest}]});
+  vi.spyOn(distributeArtifactsApi,'get').mockResolvedValue({artifact:draft,freshness:'current'});
+  const review=vi.spyOn(distributeArtifactsApi,'review').mockResolvedValueOnce({artifact:reviewed,freshness:'current'}).mockResolvedValueOnce({artifact:{...revised,revision:4,state:'reviewed'},freshness:'current'});
+  vi.spyOn(distributeArtifactsApi,'revise').mockResolvedValue({artifact:revised,freshness:'current'});
+  render(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+  await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+  await userEvent.click(screen.getByRole('button',{name:'Mark reviewed'}));
+  await waitFor(()=>expect(screen.getByText(/Review recorded/)).toBeTruthy());
+  await userEvent.clear(screen.getByLabelText('Title'));
+  await userEvent.type(screen.getByLabelText('Title'),'Revised risk review');
+  await userEvent.click(screen.getByRole('button',{name:'Save artifact edits'}));
+  await waitFor(()=>expect(screen.getByText(/New private draft revision saved/)).toBeTruthy());
+  await userEvent.click(screen.getByRole('button',{name:'Mark reviewed'}));
+  await waitFor(()=>expect(review).toHaveBeenCalledTimes(2));
+  expect(review.mock.calls[0][2]).not.toBe(review.mock.calls[1][2]);
+  expect(review.mock.calls[1][1]).toMatchObject({id:draft.id,revision:3,digest:revised.digest});
+});
+
+it('retries an uncertain exact review with the same key after switching artifacts',async()=>{
+  const other={...draft,id:'artifact-other',title:'Other private review',digest:'b'.repeat(64)};
+  vi.mocked(distributeArtifactsApi.list).mockResolvedValue({projectId:'p-one',artifacts:[draft,other].map(row=>({id:row.id,kind:row.kind,title:row.title,revision:row.revision,state:row.state,freshness:'current',digest:row.digest}))});
+  vi.spyOn(distributeArtifactsApi,'get').mockImplementation(async(_project,id)=>({artifact:id===draft.id?draft:other,freshness:'current'}));
+  const review=vi.spyOn(distributeArtifactsApi,'review').mockRejectedValueOnce(new Error('Review outcome unconfirmed')).mockResolvedValueOnce({artifact:{...draft,revision:2,state:'reviewed'},freshness:'readback'});
+  render(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+  await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+  await userEvent.click(screen.getByRole('button',{name:'Mark reviewed'}));
+  await screen.findByRole('alert');
+  await userEvent.click(screen.getByRole('button',{name:/Other private review · revision 1/}));
+  await userEvent.click(screen.getByRole('button',{name:/Risk and evidence review · revision 1/}));
+  await userEvent.click(screen.getByRole('button',{name:'Mark reviewed'}));
+  await waitFor(()=>expect(review).toHaveBeenCalledTimes(2));
+  expect(review.mock.calls[0][2]).toBe(review.mock.calls[1][2]);
+  expect(review.mock.calls[0][1]).toMatchObject({id:draft.id,revision:1,digest:draft.digest});
+  expect(review.mock.calls[1][1]).toMatchObject({id:draft.id,revision:1,digest:draft.digest});
+});
