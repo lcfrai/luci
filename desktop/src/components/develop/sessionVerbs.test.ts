@@ -74,7 +74,8 @@ import {
 const DEPS = { createSession: vi.fn(), close: vi.fn(), beginRename: vi.fn() };
 it("disables generic Restart for a device sign-in utility even for its owner", () => {
   const session = aSession({ harness: "codex", authOnly: true, authMode: "chatgpt", worktreeId: "setup-codex", projectId: "", branchId: "", status: "exited" });
-  const restart = sessionVerbs(session, DEPS).find(item => item.id === "restart");
+  useCockpit.getState().upsertSession(session);
+  const restart = sessionVerbs(session.id, DEPS).find(item => item.id === "restart");
   expect(restart?.run).toBeUndefined();
   expect(restart?.disabledReason).toContain("Start new device sign-in");
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CODEX_DEVICE_URL, CodexDevicePromptCapture, DEVICE_PROMPT_BYTES, isCodexDeviceSignIn, parseCodexDevicePrompt } from "./codexDeviceSignIn";
 import { aSession } from "../test/fixtures";
+import type { Session } from "../store/types";
 
 export const prompt = `Welcome to Codex [v0.160.0]\nFollow these steps to sign in with ChatGPT using device code authorization\n1. Open this link in your browser:\n${CODEX_DEVICE_URL}\n2. Enter this one-time code (expires in 15 minutes):\n\nAB12-C345D\n`;
 
@@ -40,7 +41,8 @@ describe("official device prompt display data", () => {
   it("accepts only the server's project-free Codex ChatGPT sign-in utility", () => {
     const auth = aSession({ harness: "codex", authOnly: true, authMode: "chatgpt", worktreeId: "setup-codex", projectId: "", branchId: "" });
     expect(isCodexDeviceSignIn(auth)).toBe(true);
-    for (const change of [{ authOnly: false }, { harness: "opencode" }, { authMode: "api" }, { projectId: "p-project" }, { worktreeId: "w-project" }]) {
+    const changes: Partial<Session>[] = [{ authOnly: false }, { harness: "opencode" }, { authMode: undefined }, { projectId: "p-project" }, { worktreeId: "w-project" }];
+    for (const change of changes) {
       expect(isCodexDeviceSignIn({ ...auth, ...change })).toBe(false);
     }
   });
