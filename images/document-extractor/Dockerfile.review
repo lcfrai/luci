@@ -1,0 +1,33 @@
+# Source-only recipe. closure.status deliberately refuses this incomplete lock.
+# Build only on a separately admitted, positively owned, offline bounded builder.
+FROM --platform=linux/amd64 debian:bookworm-slim@sha256:f3034a6ec3c1205360777c4aae76234998866ad18806ae62b63a3f84ccad782b
+
+COPY closure.status dependency-lock.json wheel-requirements.txt verify_image.py document_extractor.py /opt/luci/build/
+COPY inputs/ /inputs/
+
+# SHA256SUMS and all local inputs are materialized only after a separate exact
+# acquisition/closure review. Never apt update, resolve, fetch or build a wheel.
+RUN test "$(cat /opt/luci/build/closure.status)" = closed-reviewed \
+ && cd /inputs \
+ && sha256sum --strict -c SHA256SUMS \
+ && DEBIAN_FRONTEND=noninteractive dpkg --unpack /inputs/debs/*.deb \
+ && DEBIAN_FRONTEND=noninteractive dpkg --configure -a \
+ && PIP_NO_INDEX=1 PIP_DISABLE_PIP_VERSION_CHECK=1 python3.11 -I -m pip install \
+      --break-system-packages --no-index --no-deps --no-cache-dir --require-hashes \
+      --only-binary=:all: --find-links=/inputs/wheels \
+      -r /opt/luci/build/wheel-requirements.txt \
+ && mkdir -p /input /opt/luci/tessdata /opt/luci/licenses \
+ && touch /input/original \
+ && cp /usr/share/tesseract-ocr/5/tessdata/eng.traineddata /opt/luci/tessdata/eng.traineddata \
+ && cp /usr/share/tesseract-ocr/5/tessdata/osd.traineddata /opt/luci/tessdata/osd.traineddata \
+ && cp /opt/luci/build/document_extractor.py /opt/luci/document_extractor.py \
+ && cp /opt/luci/build/dependency-lock.json /opt/luci/dependency-lock.json \
+ && chmod 0444 /input/original /opt/luci/document_extractor.py /opt/luci/dependency-lock.json \
+ && python3.11 -I /opt/luci/build/verify_image.py /opt/luci/dependency-lock.json \
+ && rm -rf /inputs /opt/luci/build
+
+# Keep /usr/share/doc/*/copyright, common-licenses and wheel licence directories.
+# Image verification requires their reviewed exact digests before this RUN passes.
+ENV PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp TMPDIR=/tmp LANG=C.UTF-8 LC_ALL=C.UTF-8 OMP_THREAD_LIMIT=1 OMP_NUM_THREADS=1 TESSDATA_PREFIX=/opt/luci/tessdata PYTHONDONTWRITEBYTECODE=1
+USER 1001:1001
+ENTRYPOINT ["/usr/bin/python3", "-I", "/opt/luci/document_extractor.py"]

@@ -1,0 +1,9 @@
+*
+!Dockerfile.review
+!closure.status
+!dependency-lock.json
+!wheel-requirements.txt
+!verify_image.py
+!document_extractor.py
+!inputs/
+!inputs/**

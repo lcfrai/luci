@@ -1,7 +1,7 @@
 {
   "version": 1,
   "profile": "pdfium-tesseract-v1",
-  "state": "source-only-dependency-closure-required",
+  "state": "source-only-metadata-lock-unresolved",
   "acquisitionAuthorized": false,
   "buildAuthorized": false,
   "runtimeAuthorized": false,
@@ -56,13 +56,23 @@
     },
     {
       "name": "tesseract-ocr-eng",
-      "version": "4.1.0-2",
+      "version": "1:4.1.0-2",
       "file": "tesseract-ocr-eng_4.1.0-2_all.deb",
       "bytes": 1593640,
       "sha256": "9242d054563262398f8cf41fbd96fcc72f9dde70db16de18539882a6cff74f9d",
       "source": "https://packages.debian.org/bookworm/all/tesseract-ocr-eng/download",
       "licence": "Apache-2.0 trained-data and Debian copyright notices must be verified/shipped",
       "downloaded": false
+    },
+    {
+      "source": "https://packages.debian.org/bookworm/all/tesseract-ocr-osd/download",
+      "name": "tesseract-ocr-osd",
+      "downloaded": false,
+      "sha256": "72cc0ba5a04e4d38e5d7901ae2f0319f4941fddaa4a77d1a86110909c036bacb",
+      "bytes": 2992152,
+      "version": "1:4.1.0-2",
+      "file": "tesseract-ocr-osd_4.1.0-2_all.deb",
+      "licence": "Apache-2.0, exact Debian source copyright receipt pinned in dependency-lock.json"
     }
   ],
   "buildRecipe": {
@@ -74,17 +84,22 @@
       "Copy document_extractor.py to /opt/luci/document_extractor.py and fixed language data to /opt/luci/tessdata; no user project content in image.",
       "Set exact documentEnvironment, create /input/original mount target, use nonroot default1001:1001; API selects a trusted nonroot owner matching its private original.",
       "Generate and independently review an SPDX/CycloneDX SBOM with hashes, dependency closure and licence notices; record immutable built OCI image ID before configuration."
-    ]
+    ],
+    "plan": "BUILD-AND-ACCEPTANCE.md"
   },
   "unresolvedBeforeAcquisitionOrBuild": [
-    "Close exact Python 3.11 Debian runtime/transitive package and font versions/hashes against the pinned base, including security review.",
-    "Resolve exact tesseract-ocr-osd package hash; the public metadata download page was unavailable during source preparation.",
-    "Review and ship the complete PDFium/Pillow native-codec/Tesseract/Leptonica/font/language-data transitive licences.",
-    "Publish the closed executable offline Docker recipe and reviewed full SBOM/input manifest; this declared-input inventory is not a complete SBOM or build authorization."
+    "dependency-lock.json contains174 pinned concrete Debian packages, the88-package base inventory and127 source metadata records;42 unresolved entries mean this is not a closed SBOM.",
+    "Authenticate exact Debian controls/source signatures and verify all selected dependency/provider/conflict/version relations.",
+    "Resolve13 missing copyright texts and review22 freeform notices; fulfill exact corresponding-source/notice obligations.",
+    "Verify pinned wheel native members, compiled dependency subset, feature flags, trained-data/notice member hashes and complete installed-image package set.",
+    "Root must review an actual bounded selected builder and exact acquisition/build/acceptance helper; no local effect authorization is present."
   ],
   "requiredActualChecks": [
     "Digital-text, scanned, mixed-content, rotated/EXIF, Unicode, encrypted, corrupt and hostile expanded-image/font fixtures on exact image.",
     "Cancellation, restart, lost Create/Start acknowledgement, current-grant revocation, host pressure and positive contained cleanup.",
     "Actual Discover upload -> extract/OCR -> correction -> source-linked Luci questions -> normal context draft/approval E2E."
-  ]
+  ],
+  "dependencyLock": "dependency-lock.json",
+  "recipe": "Dockerfile.review",
+  "recipeGate": "closure.status deliberately unresolved-not-authorized"
 }
