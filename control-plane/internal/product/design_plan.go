@@ -52,6 +52,8 @@ type DesignAsset struct {
 }
 
 func (s *Server) registerDesignPlan(mux Registrar) {
+	mux.HandleFunc("GET /v1/product/projects/{id}/design-plan/asset-binding", s.bindDesignAsset)
+	mux.HandleFunc("GET /v1/product/projects/{id}/design-plan/{revision}/assets/{assetId}", s.getDesignAsset)
 	mux.HandleFunc("GET /v1/product/projects/{id}/design-plan", s.getDesignPlan)
 	mux.HandleFunc("POST /v1/product/projects/{id}/design-plan", s.saveDesignPlan)
 	mux.HandleFunc("POST /v1/product/projects/{id}/design-plan/approve", s.approveDesignPlan)
@@ -185,6 +187,10 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	if plan.ProjectID != p.ID {
 		problem(w, 400, "wrong_project", "The design belongs to another project.")
+		return
+	}
+	if err := s.validateDesignAssetBindings(r.Context(), p.Path, plan); err != nil {
+		problem(w, 422, "asset_unavailable", err.Error())
 		return
 	}
 	if plan.PrototypeReleaseID != "" {

@@ -50,3 +50,11 @@ it('resets draft undo on a new saved revision while retaining a validated scene 
   page.rerender(<DesignSceneCanvas {...props} plan={{...plan, revision: 3, scene: changed.mock.calls[0][0]}} />);
   expect(screen.getByRole('button', {name: 'Undo scene edit'})).toHaveProperty('disabled', true);
 });
+it('adds a real saved pinned image through the same editable scene', () => {
+  const plan = designScenePlanFixture(), changed = vi.fn();
+  const image = {id:'hero',path:'hero.png',purpose:'Hero image',licence:'Owned',content:{sourceCommit:'a'.repeat(40),gitBlob:'b'.repeat(40),digest:'c'.repeat(64),mimeType:'image/png' as const,bytes:12,width:200,height:100}};
+  plan.assets = [image];
+  render(<DesignSceneCanvas plan={plan} savedAssets={[image]} canRead canEdit busy={false} workScope={null} onChange={changed} onAsk={vi.fn()} onPlan={vi.fn()} renderImage={() => <span>Verified image</span>} />);
+  fireEvent.change(screen.getByLabelText('Add pinned image'),{target:{value:'hero'}});
+  expect(changed.mock.calls[0][0].frames[0].nodes[changed.mock.calls[0][0].frames[0].nodes.length - 1]).toMatchObject({kind:'image',assetId:'hero',width:200,height:100});
+});

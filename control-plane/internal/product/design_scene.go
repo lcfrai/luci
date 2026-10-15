@@ -73,7 +73,7 @@ var sceneColor = regexp.MustCompile(`^(#[a-fA-F0-9]{6}|transparent)$`)
 func sceneInteger(value, minimum, maximum int) bool { return value >= minimum && value <= maximum }
 func validDesignRasterPin(pin *DesignRasterPin) bool {
 	return pin != nil && deliverySHA.MatchString(pin.SourceCommit) && deliverySHA.MatchString(pin.GitBlob) && hexDigest(pin.Digest) &&
-		(pin.MimeType == "image/png" || pin.MimeType == "image/jpeg") && sceneInteger(pin.Bytes, 1, 8<<20) &&
+		(pin.MimeType == "image/png" || pin.MimeType == "image/jpeg") && sceneInteger(pin.Bytes, 1, designRasterBytes-1) &&
 		sceneInteger(pin.Width, 1, 4096) && sceneInteger(pin.Height, 1, 4096) && pin.Width*pin.Height <= 16<<20
 }
 func validateDesignScene(plan ProjectDesignPlan) error {

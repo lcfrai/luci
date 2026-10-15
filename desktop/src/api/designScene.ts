@@ -29,7 +29,7 @@ export function designRasterPinValid(pin: unknown): pin is DesignRasterPin {
   const value = pin as DesignRasterPin;
   return fields(value, ['sourceCommit', 'gitBlob', 'digest', 'mimeType', 'bytes', 'width', 'height']) &&
     /^[a-f0-9]{40}$/.test(value.sourceCommit) && /^[a-f0-9]{40}$/.test(value.gitBlob) && /^[a-f0-9]{64}$/.test(value.digest) &&
-    ['image/png', 'image/jpeg'].includes(value.mimeType) && integer(value.bytes, 1, 8 * 1024 * 1024) &&
+    ['image/png', 'image/jpeg'].includes(value.mimeType) && integer(value.bytes, 1, 2 * 1024 * 1024 - 1) &&
     integer(value.width, 1, 4096) && integer(value.height, 1, 4096) && value.width * value.height <= 16 * 1024 * 1024;
 }
 /** Shared document validation; only approved scalar render properties cross the canvas boundary. */

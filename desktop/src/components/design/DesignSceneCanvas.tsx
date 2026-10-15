@@ -5,15 +5,16 @@ import { Button } from '../fluid/components/button';
 import { DesignWorkIndicator } from './DesignWorkIndicator';
 import { editScene, redoScene, sceneHistory, undoScene } from './designSceneHistory';
 import './design-scene.css';
+import { DesignRasterLayer } from './DesignRasterLayer';
 
 const emptyScene = (): EditableDesignScene => ({version: 1, frames: []});
 interface Props {
-  plan: DesignPlan; canRead: boolean; canEdit: boolean; busy: boolean; workScope: string | null; active?: boolean; canAsk?: boolean;
+  plan: DesignPlan; canRead: boolean; canEdit: boolean; busy: boolean; workScope: string | null; active?: boolean; canAsk?: boolean; savedAssets?: DesignPlan["assets"];
   onChange(scene: EditableDesignScene): void; onAsk(message: string): void; onPlan(): void;
   renderImage?(assetId: string, alt: string): ReactNode;
 }
 type Gesture = {pointerId: number; frameId: string; node: DesignSceneNode; startX: number; startY: number; resize: boolean; scale: number; target: HTMLElement};
-export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, active = true, canAsk = true, onChange, onAsk, onPlan, renderImage}: Props) {
+export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, active = true, canAsk = true, onChange, onAsk, onPlan, renderImage, savedAssets = []}: Props) {
   const scene = plan.scene ?? emptyScene(), fingerprint = JSON.stringify(scene);
   const history = useRef(sceneHistory(scene)), [historyVersion, setHistoryVersion] = useState(0);
   const [frameId, setFrameId] = useState(''), [nodeId, setNodeId] = useState(''), [screenId, setScreenId] = useState('');
@@ -133,7 +134,12 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
     <div className="design-scene-pane-switch" aria-label="Canvas panes">{(['layers', 'canvas', 'properties'] as const).map(value => <Button key={value} variant="tertiary" aria-pressed={pane === value} onClick={() => setPane(value)}>{value[0].toUpperCase() + value.slice(1)}</Button>)}</div>
     {frame && <>
       <div className="design-scene-tools" aria-label="Add component">{(['text', 'rectangle', 'button', 'input', 'divider'] as const).map(kind => <Button key={kind} variant="tertiary" disabled={readOnly} onClick={() => add(kind)}>Add {kind}</Button>)}
-        <label>Zoom<select value={scale} onChange={event => setScale(Number(event.target.value))}>{![0.25, 0.5, 0.75, 1, 1.5, 2].includes(scale) && <option value={scale}>Fit · {Math.round(scale * 100)}%</option>}{[0.25, 0.5, 0.75, 1, 1.5, 2].map(value => <option key={value} value={value}>{value * 100}%</option>)}</select></label>
+        <label>Add pinned image<select aria-label="Add pinned image" value="" disabled={readOnly} onChange={event => {
+ const asset = savedAssets.find(item => item.id === event.target.value); if (!asset?.content) return;
+ const created = {...newDesignNode("rectangle", frame), kind: "image" as const, assetId: asset.id, name: asset.purpose || "Image", text: asset.purpose || "Image", width: Math.min(asset.content.width, frame.width), height: Math.min(asset.content.height, frame.height), x: 0, y: 0};
+ patchFrame({nodes:[...frame.nodes,created]}); setNodeId(created.id);
+ }}><option value="">Choose a saved image</option>{savedAssets.filter(asset => asset.content && JSON.stringify(asset.content) === JSON.stringify(plan.assets.find(item => item.id === asset.id)?.content)).map(asset => <option key={asset.id} value={asset.id}>{asset.path}</option>)}</select></label>
+<label>Zoom<select value={scale} onChange={event => setScale(Number(event.target.value))}>{![0.25, 0.5, 0.75, 1, 1.5, 2].includes(scale) && <option value={scale}>Fit · {Math.round(scale * 100)}%</option>}{[0.25, 0.5, 0.75, 1, 1.5, 2].map(value => <option key={value} value={value}>{value * 100}%</option>)}</select></label>
       <Button variant="tertiary" onClick={() => { const available = stage.current?.clientWidth ?? 390; setScale(Math.max(0.1, Math.min(1, (available - 24) / frame.width))); }}>Fit frame</Button>
       </div>
       <div className="design-scene-layout" data-pane={pane}>
@@ -152,7 +158,7 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
                 onClick={() => { setNodeId(item.id); if (preview && item.behavior.kind === 'navigate') { setFrameId(item.behavior.targetFrameId); setNodeId(''); } }}
                 onDoubleClick={() => { if (canModify && !preview) { paneFocus.current = 'text'; setPane('properties'); if (pane === 'properties') { textInput.current?.focus(); paneFocus.current = null; } } }}
                 style={nodeCSS(item)}>
-                {item.kind === 'image' ? renderImage?.(item.assetId, item.text || item.name) : <span>{item.text}</span>}
+                {item.kind === 'image' ? renderImage?.(item.assetId, item.text || item.name) ?? <DesignRasterLayer projectId={plan.projectId} revision={plan.revision} asset={plan.assets.find(asset => asset.id === item.assetId)} alt={item.text || item.name} canRead={canRead && active} scope={workScope} saved={savedAssets.some(asset => asset.id === item.assetId && JSON.stringify(asset.content) === JSON.stringify(plan.assets.find(current => current.id === item.assetId)?.content))} /> : <span>{item.text}</span>}
                 {node?.id === item.id && !item.locked && !readOnly && <span aria-hidden="true" className="design-scene-resize" onPointerDown={event => start(event, item, true)} />}
               </div>)}
             </div>
@@ -173,7 +179,8 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
               <fieldset disabled={node.locked}>
               <TextProperty label="Component name" value={node.name} onCommit={value => patchNode({name: value})} />
               <label>Content / image description<textarea ref={textInput} rows={3} value={node.text} maxLength={4000} onChange={event => patchNode({text: event.target.value}, `${node.id}:text`)} onBlur={endGroup} /></label>
-              <div className="design-scene-numbers">{(['x', 'y', 'width', 'height'] as const).map(key => <NumberProperty key={key} label={key === 'x' || key === 'y' ? key.toUpperCase() : key[0].toUpperCase() + key.slice(1)} value={node[key]} min={key === 'x' || key === 'y' ? 0 : 1} max={key === 'x' || key === 'width' ? frame.width : frame.height} onCommit={value => patchNode({[key]: value})} />)}</div>
+              {node.kind === "image" && <label>Image asset<select value={node.assetId} onChange={event => patchNode({assetId:event.target.value})}>{plan.assets.filter(asset => asset.content).map(asset => <option key={asset.id} value={asset.id}>{asset.path}</option>)}</select></label>}
+<div className="design-scene-numbers">{(['x', 'y', 'width', 'height'] as const).map(key => <NumberProperty key={key} label={key === 'x' || key === 'y' ? key.toUpperCase() : key[0].toUpperCase() + key.slice(1)} value={node[key]} min={key === 'x' || key === 'y' ? 0 : 1} max={key === 'x' || key === 'width' ? frame.width : frame.height} onCommit={value => patchNode({[key]: value})} />)}</div>
               {(['fill', 'stroke', 'color'] as const).map(key => <TextProperty key={key} label={key === 'color' ? 'Text colour' : key === 'fill' ? 'Fill colour' : 'Border colour'} value={node.style[key]} onCommit={value => patchStyle({[key]: value})} />)}
               {([{key: 'fontSize', label: 'Font size', min: 8, max: 96}, {key: 'padding', label: 'Padding', min: 0, max: 128}, {key: 'radius', label: 'Corner radius', min: 0, max: 64}, {key: 'strokeWidth', label: 'Border width', min: 0, max: 16}, {key: 'opacity', label: 'Opacity (%)', min: 0, max: 100}] as const).map(item => <NumberProperty key={item.key} label={item.label} value={node.style[item.key]} min={item.min} max={item.max} onCommit={value => patchStyle({[item.key]: value})} />)}
               <label>Font family<select value={node.style.fontFamily} onChange={event => patchStyle({fontFamily: event.target.value as DesignNodeStyle['fontFamily']})}>{['system', 'serif', 'mono'].map(value => <option key={value}>{value}</option>)}</select></label>

@@ -441,6 +441,11 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 	if err := ValidateOrchestratorAnswer(snapshot, answer); err != nil {
 		return ErrOrchestratorInvalid
 	}
+	if proposal.Target == "design-plan" {
+		if err := s.validateDesignAssetBindings(context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir), p.Path, *proposal.DesignPlan); err != nil {
+			return err
+		}
+	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	mutations := []contextMutation{}
 	revoke, definition := false, false
