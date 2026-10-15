@@ -271,6 +271,7 @@ it("opens existing Luci planning help with a scoped unsent request and requires 
     expect(receive).toHaveBeenCalledOnce();
     const detail = (receive.mock.calls[0][0] as CustomEvent).detail;
     expect(detail.projectId).toBe("p-1"); expect(detail.message).toContain("each person or role"); expect(detail.message).toContain("design-plan draft for my review");
+    expect(detail.message).toContain("editable scene with frames and components");
     expect(screen.getByText(/Opens an unsent message. Sending needs an available agent connection/)).not.toBeNull();
     expect(save).not.toHaveBeenCalled(); expect(approve).not.toHaveBeenCalled();
     await openScreenPlan(); await user.click(screen.getByRole("button", { name: "Describe the first screen" }));
@@ -375,6 +376,7 @@ it("exposes removed requirement links and preserves all screen content until exp
   const approve = vi.spyOn(designPlanApi, "approve").mockImplementation(async () => ({ ...fixture(), revision: 4, status: "approved" }));
   const user = userEvent.setup();
   render(<DesignWorkspace projectId="p-1" />);
+  await user.click(await screen.findByRole("tab", { name: "Screens and states" }));
   const removed = await screen.findByRole("checkbox", { name: "Remove unavailable outcome AC-removed from screen 1" });
   expect((removed as HTMLInputElement).checked).toBe(true);
   expect(screen.getByText(/An outcome linked to a screen was removed/)).not.toBeNull();

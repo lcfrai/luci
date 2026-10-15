@@ -100,6 +100,24 @@ func TestDesignSceneLegacyOmissionAndAgentPreservation(t *testing.T) {
 		t.Fatal("immutable old answer became unreadable")
 	}
 }
+func TestDesignSceneNewAgentDraftRequiresEditableFrameButLegacyReadRemains(t *testing.T) {
+	plan := designSceneFixture()
+	old := plan
+	old.Scene = nil
+	snapshot := OrchestratorContext{ProjectID: plan.ProjectID, DesignPlan: old}
+	answer := OrchestratorAnswer{Summary: "Review a screen and editable canvas", Proposal: &OrchestratorProposal{Target: "design-plan", Summary: "Home experience", DesignPlan: &plan}}
+	if err := ValidateOrchestratorAnswer(snapshot, answer); err != nil {
+		t.Fatal("new design scene refused", err)
+	}
+	plan.Scene = nil
+	answer.Proposal.DesignPlan = &plan
+	if ValidateOrchestratorAnswer(snapshot, answer) == nil {
+		t.Fatal("new design proposal omitted its editable scene")
+	}
+	if err := validateStoredOrchestratorAnswer(snapshot, answer); err != nil {
+		t.Fatal("legacy design history became unreadable", err)
+	}
+}
 func TestDesignSceneUsesExistingCASApprovalHistoryAndCapture(t *testing.T) {
 	_, mux := journeyFixture(t)
 	p := createJourneyProject(t, mux, "typed-scene")

@@ -22,6 +22,17 @@ export interface DesignRasterPin {
 const fields = (value: object, names: string[]) => Object.keys(value).every(name => names.includes(name));
 const integer = (value: unknown, min: number, max: number): value is number => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= max;
 const text = (value: unknown, max: number): value is string => typeof value === 'string' && new TextEncoder().encode(value).length <= max && !value.includes('\0');
+/** Keep the canvas label within its wire bound; the node text retains the full description. */
+export function designNodeLabel(value: string, suffix = ''): string {
+  const encoder = new TextEncoder();
+  const limit = 200 - encoder.encode(suffix).length;
+  let label = '';
+  for (const character of value) {
+    if (encoder.encode(label + character).length > limit) break;
+    label += character;
+  }
+  return (label.trim() || 'Image') + suffix;
+}
 const id = (value: unknown): value is string => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value);
 const color = (value: unknown): value is string => typeof value === 'string' && /^(#[a-fA-F0-9]{6}|transparent)$/.test(value);
 export function designRasterPinValid(pin: unknown): pin is DesignRasterPin {

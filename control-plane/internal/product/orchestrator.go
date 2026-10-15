@@ -79,6 +79,9 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		if err := validateDesignPlan(*next); err != nil {
 			return err
 		}
+		if currentQuality && snapshot.DesignPlan.Revision == 0 && (next.Scene == nil || len(next.Scene.Frames) == 0) {
+			return ErrOrchestratorInvalid
+		}
 		if currentQuality && designSceneOmission(snapshot.DesignPlan, *next) != nil {
 			return ErrOrchestratorInvalid
 		}

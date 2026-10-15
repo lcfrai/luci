@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { constrainDesignNode, designSceneErrors, newDesignFrame, newDesignId, newDesignNode, type DesignNodeKind, type DesignNodeStyle, type DesignSceneFrame, type DesignSceneNode, type EditableDesignScene } from '../../api/designScene';
+import { constrainDesignNode, designNodeLabel, designSceneErrors, newDesignFrame, newDesignId, newDesignNode, type DesignNodeKind, type DesignNodeStyle, type DesignSceneFrame, type DesignSceneNode, type EditableDesignScene } from '../../api/designScene';
 import type { DesignPlan } from '../../api/designPlan';
 import { Button } from '../fluid/components/button';
 import { DesignWorkIndicator } from './DesignWorkIndicator';
@@ -136,7 +136,7 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
       <div className="design-scene-tools" aria-label="Add component">{(['text', 'rectangle', 'button', 'input', 'divider'] as const).map(kind => <Button key={kind} variant="tertiary" disabled={readOnly} onClick={() => add(kind)}>Add {kind}</Button>)}
         <label>Add pinned image<select aria-label="Add pinned image" value="" disabled={readOnly} onChange={event => {
  const asset = savedAssets.find(item => item.id === event.target.value); if (!asset?.content) return;
- const created = {...newDesignNode("rectangle", frame), kind: "image" as const, assetId: asset.id, name: asset.purpose || "Image", text: asset.purpose || "Image", width: Math.min(asset.content.width, frame.width), height: Math.min(asset.content.height, frame.height), x: 0, y: 0};
+ const created = {...newDesignNode("rectangle", frame), kind: "image" as const, assetId: asset.id, name: designNodeLabel(asset.purpose || "Image"), text: asset.purpose || "Image", width: Math.min(asset.content.width, frame.width), height: Math.min(asset.content.height, frame.height), x: 0, y: 0};
  patchFrame({nodes:[...frame.nodes,created]}); setNodeId(created.id);
  }}><option value="">Choose a saved image</option>{savedAssets.filter(asset => asset.content && JSON.stringify(asset.content) === JSON.stringify(plan.assets.find(item => item.id === asset.id)?.content)).map(asset => <option key={asset.id} value={asset.id}>{asset.path}</option>)}</select></label>
 <label>Zoom<select value={scale} onChange={event => setScale(Number(event.target.value))}>{![0.25, 0.5, 0.75, 1, 1.5, 2].includes(scale) && <option value={scale}>Fit · {Math.round(scale * 100)}%</option>}{[0.25, 0.5, 0.75, 1, 1.5, 2].map(value => <option key={value} value={value}>{value * 100}%</option>)}</select></label>
@@ -188,7 +188,7 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
               <label>Text alignment<select value={node.style.textAlign} onChange={event => patchStyle({textAlign: event.target.value as DesignNodeStyle['textAlign']})}>{['left', 'center', 'right'].map(value => <option key={value}>{value}</option>)}</select></label>
               <label>Local frame interaction<select value={node.behavior.targetFrameId} onChange={event => patchNode({behavior: {kind: event.target.value ? 'navigate' : 'none', targetFrameId: event.target.value}})}><option value="">None</option>{scene.frames.map(item => <option key={item.id} value={item.id}>Show {item.name}</option>)}</select></label>
               <label><input type="checkbox" checked={node.hidden} onChange={event => patchNode({hidden: event.target.checked})} />Hide component</label>
-              <div className="journey-actions"><Button variant="tertiary" onClick={() => reorder(1)}>Bring forward</Button><Button variant="tertiary" onClick={() => reorder(-1)}>Send backward</Button><Button variant="tertiary" onClick={() => { const copied = {...node, id: newDesignId('node'), name: `${node.name} copy`.slice(0, 100)}; pendingFocus.current = copied.id; patchFrame({nodes: [...frame.nodes, copied]}); setNodeId(copied.id); }}>Duplicate component</Button><Button variant="tertiary" onClick={() => { patchFrame({nodes: frame.nodes.filter(item => item.id !== node.id)}); setNodeId(''); }}>Remove component</Button></div>
+              <div className="journey-actions"><Button variant="tertiary" onClick={() => reorder(1)}>Bring forward</Button><Button variant="tertiary" onClick={() => reorder(-1)}>Send backward</Button><Button variant="tertiary" onClick={() => { const copied = {...node, id: newDesignId('node'), name: designNodeLabel(node.name, ' copy')}; pendingFocus.current = copied.id; patchFrame({nodes: [...frame.nodes, copied]}); setNodeId(copied.id); }}>Duplicate component</Button><Button variant="tertiary" onClick={() => { patchFrame({nodes: frame.nodes.filter(item => item.id !== node.id)}); setNodeId(''); }}>Remove component</Button></div>
               </fieldset>
             </>}
           </fieldset>

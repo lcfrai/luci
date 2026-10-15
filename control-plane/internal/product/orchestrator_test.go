@@ -312,6 +312,7 @@ func TestOrchestratorAppliesAllAmendmentTargetsWithCASAndPrivateReview(t *testin
 	designTurn, designContext := reserveOrchestratorTest(t, s, p.ID, ctx, "Plan the notebook screens", "")
 	design := designContext.DesignPlan
 	design.Screens = []DesignScreen{{ID: "notes", Name: "Team notes", Purpose: "Write and read notes", RequirementIDs: []string{"AC-notes"}, States: []string{"loading", "empty", "ready", "error"}, Widths: []int{390, 1440}}}
+	design.Scene = &ProjectDesignScene{Version: 1, Frames: []DesignSceneFrame{{ID: "frame-notes", Name: "Team notes phone", ScreenID: "notes", Width: 390, Height: 844, Background: "#ffffff", Nodes: []DesignSceneNode{}}}}
 	answer.Proposal = &OrchestratorProposal{Target: "design-plan", Summary: "Design accessible notes", DesignPlan: &design}
 	if err := s.CompleteOrchestratorTurn(p.ID, designTurn.ID, designTurn.JobID, "succeeded", &answer); err != nil {
 		t.Fatal(err)

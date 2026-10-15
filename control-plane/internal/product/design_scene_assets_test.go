@@ -153,7 +153,7 @@ func TestDesignRasterRejectsDeclaredSizeAndForgedPin(t *testing.T) {
 	}
 }
 func TestDesignAssetRetainedRevisionAndPinValidation(t *testing.T) {
-	s, mux := journeyFixture(t)
+	_, mux := journeyFixture(t)
 	p := createJourneyProject(t, mux, "image-revisions")
 	base := "/v1/product/projects/" + p.ID + "/design-plan"
 	data := sceneAssetPNG(t, 3, 2)

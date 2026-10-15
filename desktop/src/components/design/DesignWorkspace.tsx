@@ -30,7 +30,7 @@ const Sketch = lazy(() => import("../journey/DesignEditor"));
 type View = 'canvas' | "screens" | "sketch" | "prototype" | "handoff";
 const views: [View, string][] = [['canvas', 'Canvas'], ["screens", "Screens and states"], ["sketch", "Sketch"], ["prototype", "Prototype"], ["handoff", "Implementation handoff"]];
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 12)}`;
-const designHelpMessage = "Help me plan the experience from the saved definition. Explain how each person or role uses the screens, what they can and cannot do, what data remains saved, and what happens on first use, success and failure. Ask about consequential missing decisions before proposing a design-plan draft for my review. Do not assume every outcome belongs on one screen.";
+const designHelpMessage = "Help me plan the experience from the saved definition. Explain how each person or role uses the screens, what they can and cannot do, what data remains saved, and what happens on first use, success and failure. Propose an editable scene with frames and components linked to the planned screens and states, alongside the design-plan draft for my review. Use plain text placeholders for images until I pin an actual project image; do not invent image hashes. Ask about consequential missing decisions first. Do not assume every outcome belongs on one screen.";
 // Browser drafts retain unfinished text in the same field, so recovery also
 // detects conflicting edits to widths. Only parsed numbers cross the API seam.
 type ScreenDraft = Omit<DesignScreen, "widths"> & { widths: number[] | string };

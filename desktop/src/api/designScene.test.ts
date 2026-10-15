@@ -1,6 +1,15 @@
 import { expect, it } from 'vitest';
 import { designScenePlanFixture } from '../test/designSceneFixtures';
-import { constrainDesignNode, designSceneErrors, editableDesignSceneValid, designRasterPinValid } from './designScene';
+import { constrainDesignNode, designNodeLabel, designSceneErrors, editableDesignSceneValid, designRasterPinValid } from './designScene';
+it('bounds multibyte component names and duplicate suffixes by UTF-8 bytes', () => {
+  const purpose = '🎨'.repeat(101) + ' Detailed image description';
+  const label = designNodeLabel(purpose);
+  const duplicate = designNodeLabel(label, ' copy');
+  expect(new TextEncoder().encode(label).length).toBeLessThanOrEqual(200);
+  expect(new TextEncoder().encode(duplicate).length).toBeLessThanOrEqual(200);
+  expect(duplicate.endsWith(' copy')).toBe(true);
+  expect(duplicate).not.toContain('\ufffd');
+});
 it('validates the shared integer wire document and scalar/reference limits', () => {
   const plan = designScenePlanFixture(); expect(designSceneErrors(plan.scene, plan)).toEqual([]);
   const node = plan.scene!.frames[0].nodes[0]; node.style.opacity = 0.5; expect(editableDesignSceneValid(plan.scene)).toBe(false);
