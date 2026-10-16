@@ -37,12 +37,42 @@ class PilotSourceTests(unittest.TestCase):
         self.assertEqual(manifest["moduleZipExpandedMaxBytes"], 64 << 20)
         self.assertEqual(manifest["moduleZipExpandedTotalMaxBytes"], 128 << 20)
         self.assertEqual(manifest["moduleZipEntriesMax"], 4096)
+        self.assertEqual(manifest["debianPackage"]["sha256"],
+                         "f5dc28a754e17327d99f0a612134d92c8dd6187314ae967cb77f25df60860139")
         for module in manifest["modules"]:
             self.assertTrue(module["url"].endswith("/@v/" + module["version"] + ".zip"))
             self.assertTrue(module["url"].startswith("https://proxy.golang.org/"))
             self.assertEqual(len(module["h1"]), 47)
             self.assertTrue(all(len(module[k]["sha256"]) == 64 for k in ("mod", "info")))
             self.assertTrue(all(len(grant["sha256"]) == 64 for grant in module["grants"]))
+
+    def test_signed_debian_metadata_inventory_is_finite_and_source_bound(self):
+        manifest = json.loads((ROOT / "inputs-v1.json").read_text())
+        source = json.loads((ROOT / "debian-reader-source-v1.json").read_text())
+        self.assertEqual(source["version"], 1)
+        self.assertEqual(source["fontWrapper"]["SHA256"], manifest["debianPackage"]["sha256"])
+        self.assertEqual(int(source["fontWrapper"]["Size"]), manifest["debianPackage"]["bytes"])
+        self.assertEqual(source["signedIndex"]["packageIndexBytes"], 9678380)
+        self.assertEqual(source["signedIndex"]["packageIndexSHA256"],
+                         "7778d3e3f303b7ddb8ce0fe7c8d57473a076c6bf2e8f241f75421d2396352498")
+        reader = source["reader"]
+        self.assertEqual((reader["observedELFCount"], reader["selectedPackageCount"]), (66, 114))
+        packages = reader["packages"]
+        self.assertEqual(len(packages), 114)
+        self.assertEqual(len({row["package"] for row in packages}), 114)
+        self.assertEqual(sum(row["bytes"] for row in packages), reader["selectedArchiveBytes"])
+        self.assertEqual(sum(len(row["observedELF"]) for row in packages), 66)
+        self.assertTrue(all(len(row["sha256"]) == 64 and len(row["observedGrantSHA256"]) == 64
+                            and row["filename"].startswith("pool/main/") for row in packages))
+        selected = {row["package"] for row in packages}
+        for row in packages:
+            for field in ("preDepends", "depends"):
+                for clause in filter(None, row[field].split(", ")):
+                    names = [re.split(r"[ (]", option.strip())[0].split(":")[0]
+                             for option in clause.split(" | ")]
+                    self.assertTrue(selected.intersection(names), (row["package"], clause))
+        self.assertEqual(len([row for row in packages if row["version"] != row["observedInstalledVersion"]]), 14)
+        self.assertEqual(len(reader["selectedAlternatives"]), 6)
 
     def test_missing_inputs_refuse_before_effects(self):
         with tempfile.TemporaryDirectory(dir=os.environ.get("LUCI_PDF_PILOT_TMPDIR")) as folder:

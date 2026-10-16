@@ -175,7 +175,7 @@ def preflight(inputs, platform):
     go = manifest["toolchains"][platform]
     observed.append(regular(inputs, go["input"], go["bytes"], go["bytes"], go["sha256"]))
     package = manifest["debianPackage"]
-    observed.append(regular(inputs, package["input"], package["bytes"], package["bytes"]))
+    observed.append(regular(inputs, package["input"], package["bytes"], package["bytes"], package["sha256"]))
     observed.append(regular(inputs, package["fontInput"], manifest["fontInputMaxBytes"], package["fontBytes"], package["fontSHA256"]))
     observed.append(regular(inputs, package["copyrightInput"], 1 << 20, expected_sha=package["copyrightSHA256"]))
     total = 0
