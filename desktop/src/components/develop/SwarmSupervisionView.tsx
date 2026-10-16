@@ -19,6 +19,12 @@ interface QuestionResolutionDraft {
   question: SwarmMessage; operationId: string; childId: string; worktreeId: string;
   projectId: string; runId: string; scope: string; runRevision: number; ownerRevision: number; stale: boolean;
 }
+interface AdmittedQuestionResolution {
+  readonly message: Extract<PendingSwarmMessage, {type: 'post'}>;
+  readonly scope: string; readonly projectId: string; readonly runId: string; readonly ownerRevision: number;
+  readonly taskId: string; readonly operationId: string; readonly childId: string; readonly worktreeId: string;
+  readonly allocation: 'ready'; readonly epoch: number;
+}
 export function SwarmSupervisionView(props: Props) {
   const draftScope = useProjectDraftScope(props.run.projectId), team = useTeamWorkspace();
   const scope = draftScope ? JSON.stringify([draftScope, team?.teamId ?? '', props.run.id]) : null;
@@ -58,6 +64,12 @@ export function SwarmSupervisionPanel(props: Props & {recoveryScope: string | nu
   });
   const admitted = canRead && canEdit && !paused && !reading && !writing && !!recoveryScope && !recovery.error && !!view && view.runRevision >= run.revision && view.runRevision >= confirmedResolutionRevision.current;
   const currentOperationIdentity = JSON.stringify(currentOperations.map(operation => [operation.id, operation.taskId, operation.childId, operation.worktreeId, operation.allocation]));
+  // Parent busy pauses reads while this very write awaits its response. It is
+  // not authority drift; real scope/attempt/context changes remain sticky.
+  const completionIdentity = JSON.stringify([recoveryScope, run.projectId, run.id, run.revision, canRead, canEdit, currentOperationIdentity,
+    run.contextFreshness?.status, view?.runRevision, view?.context.freshness, view?.context.contractDigest]);
+  const completionEpoch = useRef({identity: completionIdentity, value: 0});
+  if (completionEpoch.current.identity !== completionIdentity) completionEpoch.current = {identity: completionIdentity, value: completionEpoch.current.value + 1};
   useEffect(() => {
     live.current = true;
     return () => { live.current = false; readEpoch.current++; readRequest.current?.abort(); writeRequest.current?.abort(); };
@@ -78,6 +90,15 @@ export function SwarmSupervisionPanel(props: Props & {recoveryScope: string | nu
     const operation = owner.run.operations.find(item => item.id === intent.operationId);
     return !!task && !!operation && task.operationId === intent.operationId && operation.taskId === task.id && operation.childId === intent.childId &&
       operation.worktreeId === intent.worktreeId && operation.allocation === 'ready';
+  }
+  function resolutionCompletionCurrent(captured: AdmittedQuestionResolution) {
+    const owner = latest.current;
+    if (completionEpoch.current.value !== captured.epoch || !owner.canRead || !owner.canEdit || owner.recoveryScope !== captured.scope ||
+        owner.run.projectId !== captured.projectId || owner.run.id !== captured.runId || owner.run.revision !== captured.ownerRevision) return false;
+    const task = owner.run.swarm?.tasks.find(item => item.id === captured.taskId);
+    const operation = owner.run.operations.find(item => item.id === captured.operationId);
+    return !!task && !!operation && task.operationId === captured.operationId && operation.taskId === captured.taskId && operation.childId === captured.childId &&
+      operation.worktreeId === captured.worktreeId && operation.allocation === captured.allocation;
   }
   function settleAck(value: SwarmSupervision) {
     const retained = pendingRef.current;
@@ -122,21 +143,33 @@ export function SwarmSupervisionPanel(props: Props & {recoveryScope: string | nu
         setError('This resolution draft no longer matches the current question, attempt or access. Refresh saved messages and select the question again. No write was sent.');
         return;
       }
+      let captured: AdmittedQuestionResolution | null = null;
+      if (value.type === 'post' && value.request.resolvesQuestionId) {
+        const owner = latest.current, operation = owner.run.operations.find(item => item.id === value.operationId);
+        if (!operation?.taskId || !operation.worktreeId || operation.allocation !== 'ready') return;
+        captured = Object.freeze({
+          message: Object.freeze({...value, request: Object.freeze({...value.request, evidence: Object.freeze({...value.request.evidence})})}),
+          scope: recoveryScope, projectId: owner.run.projectId, runId: owner.run.id, ownerRevision: owner.run.revision,
+          taskId: operation.taskId, operationId: operation.id, childId: operation.childId, worktreeId: operation.worktreeId,
+          allocation: operation.allocation, epoch: completionEpoch.current.value,
+        });
+      }
+      const retained = captured?.message ?? value;
       const controller = new AbortController(); writeRequest.current = controller; writingRef.current = true; setWriting(true); setError(''); setNotice('');
       try {
-        retainMessageRecovery(recoveryScope, value); pendingRef.current = value; setPending(value); setRetirable(false);
-        const result = value.type === 'post'
-          ? await swarmSupervisionApi.post(run.projectId, run.id, value.operationId, value.request, controller.signal)
-          : await swarmSupervisionApi.ack(run.projectId, run.id, value.messageId, value.request, controller.signal);
+        retainMessageRecovery(recoveryScope, retained); pendingRef.current = retained; setPending(retained); setRetirable(false);
+        const result = retained.type === 'post'
+          ? await swarmSupervisionApi.post(run.projectId, run.id, retained.operationId, retained.request, controller.signal)
+          : await swarmSupervisionApi.ack(run.projectId, run.id, retained.messageId, retained.request, controller.signal);
         if (!live.current || !latest.current.canRead || !latest.current.canEdit || controller.signal.aborted) return;
-        if (value.type === 'post' && value.request.resolvesQuestionId && !resolutionReady()) return;
+        if (captured && !resolutionCompletionCurrent(captured)) return;
         const sender = operations.get(result.message.sender.operationId);
         if (!sender || sender.taskId !== result.message.sender.taskId || sender.childId !== result.message.sender.childId || sender.worktreeId !== result.message.sender.worktreeId) throw new Error('The returned sender does not match a saved attempt. Inspect history before continuing.');
-        if (value.type === 'ack' && result.message.ack?.childId !== operations.get(value.request.recipientOperationId)?.childId) throw new Error('The returned delivery receipt does not match the saved recipient attempt.');
-        if (value.type === 'post' && value.request.resolvesQuestionId) confirmedResolutionRevision.current = Math.max(confirmedResolutionRevision.current, result.runRevision);
-        clearMessageRecovery(recoveryScope, value); pendingRef.current = null; setPending(null); setRetirable(false);
+        if (retained.type === 'ack' && result.message.ack?.childId !== operations.get(retained.request.recipientOperationId)?.childId) throw new Error('The returned delivery receipt does not match the saved recipient attempt.');
+        if (retained.type === 'post' && retained.request.resolvesQuestionId) confirmedResolutionRevision.current = Math.max(confirmedResolutionRevision.current, result.runRevision);
+        clearMessageRecovery(recoveryScope, retained); pendingRef.current = null; setPending(null); setRetirable(false);
         setSummary(''); setCausalId(''); setResolution(null);
-        setNotice(value.type === 'post' ? value.request.resolvesQuestionId ? 'Question resolution recorded. This records the coordinator’s decision; answer correctness and worker delivery are not verified.' : 'Attributed message recorded. No worker was started or instructed to execute.' : 'Delivery receipt recorded. This does not approve, verify or integrate work.');
+        setNotice(retained.type === 'post' ? retained.request.resolvesQuestionId ? 'Question resolution recorded. This records the coordinator’s decision; answer correctness and worker delivery are not verified.' : 'Attributed message recorded. No worker was started or instructed to execute.' : 'Delivery receipt recorded. This does not approve, verify or integrate work.');
         await read(0, true, true);
       } catch (cause) {
         if (live.current && latest.current.canRead) setError(`${errorText(cause)} Inspect saved messages; any retained request remains unconfirmed. No automatic retry occurred.`);

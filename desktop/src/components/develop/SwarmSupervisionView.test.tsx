@@ -1,11 +1,11 @@
-import { StrictMode } from 'react';
+import { StrictMode, useState } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { swarmSupervisionApi } from '../../api/swarmSupervision';
 import type { RunOperation } from '../../api/projectRuns';
 import { swarmRunFixture } from '../../test/swarmFixtures';
 import { swarmMessageFixture, swarmSupervisionFixture } from '../../test/swarmSupervisionFixtures';
-import { readMessageRecovery, readRejectedMessageArchive } from './swarmMessageRecovery';
+import { messageRecoveryKey, readMessageRecovery, readRejectedMessageArchive } from './swarmMessageRecovery';
 import { SwarmSupervisionPanel } from './SwarmSupervisionView';
 beforeEach(() => localStorage.clear()); afterEach(() => vi.restoreAllMocks());
 function props() {
@@ -16,6 +16,89 @@ function props() {
 }
 const resolutionMessage = () => swarmMessageFixture({id: 'msg-resolution', sequence: 301, kind: 'decision', sender: {taskId: 'b', operationId: 'op-b', childId: 'session-b', worktreeId: 'isolated-b', contextDigest: 'b'.repeat(64)}, recipientTaskId: 'a', causalMessageId: 'msg-1', resolvesQuestionId: 'msg-1', summary: 'Keep archived items outside the empty state.'});
 const openQuestions = () => swarmSupervisionFixture({questionResolutions: [], tasks: ['a', 'b'].map(id => ({taskId: id, operationId: `op-${id}`, role: 'coding' as const, state: 'working', integrationState: 'none'}))});
+function BusyResolutionParent({value}: {value: ReturnType<typeof props>}) {
+  const [busy, setBusy] = useState(false);
+  return <>
+    <p>{busy ? 'Parent write pending' : 'Parent write idle'}</p>
+    <SwarmSupervisionPanel {...value} paused={busy || value.paused} onWrite={async action => {
+      setBusy(true);
+      try { await value.onWrite(action); }
+      finally { setBusy(false); }
+    }} />
+  </>;
+}
+it('LOCAL152 settles the captured resolution while its own parent is busy and reads the saved result once admitted', async () => {
+  const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(openQuestions());
+  type Result = Awaited<ReturnType<typeof swarmSupervisionApi.post>>;
+  let complete!: (result: Result) => void;
+  const delayed = new Promise<Result>(resolve => { complete = resolve; });
+  const post = vi.spyOn(swarmSupervisionApi, 'post').mockReturnValue(delayed), p = props();
+  render(<BusyResolutionParent value={p} />);
+  const receipt: Result = {message: resolutionMessage(), runRevision: 2};
+  try {
+    fireEvent.click(await screen.findByRole('button', {name: 'Resolve question 1'}));
+    fireEvent.change(screen.getByLabelText('Attributed claim'), {target: {value: receipt.message.summary}});
+    fireEvent.click(screen.getByRole('button', {name: 'Record resolution'}));
+    await screen.findByText('Parent write pending');
+    await screen.findByText(/Resolution draft is stale/);
+    expect(post).toHaveBeenCalledOnce(); expect(p.onWrite).toHaveBeenCalledOnce();
+    const retained = readMessageRecovery(p.recoveryScope);
+    expect(retained?.type === 'post' && retained.operationId).toBe('op-b');
+    expect(retained?.request).toEqual(post.mock.calls[0][3]);
+    expect(Object.isFrozen(post.mock.calls[0][3])).toBe(true);
+    expect(Object.isFrozen(post.mock.calls[0][3].evidence)).toBe(true);
+    expect(screen.queryByText(/Question resolution recorded/)).toBeNull();
+    const beforeReadback = get.mock.calls.length;
+    get.mockResolvedValue({...openQuestions(), runRevision: 2, questionResolutions: [{questionId: 'msg-1', resolutionMessageId: receipt.message.id}], attention: []});
+    await act(async () => { complete(receipt); await delayed; });
+    await screen.findByText('Parent write idle');
+    await screen.findByText(/Question resolution recorded/);
+    await screen.findByText(/Resolution recorded by decision msg-resolution/);
+    expect(readMessageRecovery(p.recoveryScope)).toBeNull();
+    expect(readRejectedMessageArchive(p.recoveryScope)).toEqual([]);
+    expect(get.mock.calls.length).toBeGreaterThan(beforeReadback);
+    expect(post).toHaveBeenCalledOnce(); expect(p.onWrite).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', {name: 'Resolve question 1'})).toBeNull();
+  } finally { await act(async () => { complete(receipt); await delayed; }); }
+});
+it.each(['scope', 'access', 'operation', 'revision', 'context'] as const)('LOCAL152 retains the admitted request after in-flight %s drift even when the original identity returns', async change => {
+  vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(openQuestions());
+  type Result = Awaited<ReturnType<typeof swarmSupervisionApi.post>>;
+  let complete!: (result: Result) => void;
+  const delayed = new Promise<Result>(resolve => { complete = resolve; });
+  const post = vi.spyOn(swarmSupervisionApi, 'post').mockReturnValue(delayed), p = props();
+  const page = render(<BusyResolutionParent value={p} />);
+  const receipt: Result = {message: resolutionMessage(), runRevision: 2};
+  try {
+    fireEvent.click(await screen.findByRole('button', {name: 'Resolve question 1'}));
+    fireEvent.change(screen.getByLabelText('Attributed claim'), {target: {value: receipt.message.summary}});
+    fireEvent.click(screen.getByRole('button', {name: 'Record resolution'}));
+    await screen.findByText('Parent write pending');
+    expect(post).toHaveBeenCalledOnce();
+    const raw = localStorage.getItem(messageRecoveryKey(p.recoveryScope));
+    expect(raw).not.toBeNull();
+    let changed = {...p};
+    if (change === 'scope') changed = {...p, recoveryScope: 'another-owner'};
+    if (change === 'access') changed = {...p, canEdit: false};
+    if (change === 'operation') changed = {...p, run: {...p.run,
+      operations: p.run.operations.map(operation => operation.id === 'op-b' ? {...operation, id: 'op-new', childId: 'session-new', worktreeId: 'isolated-new'} : operation),
+      swarm: {...p.run.swarm!, tasks: p.run.swarm!.tasks.map(task => task.id === 'b' ? {...task, operationId: 'op-new'} : task)},
+    }};
+    if (change === 'revision') changed = {...p, run: {...p.run, revision: p.run.revision + 1}};
+    if (change === 'context') changed = {...p, run: {...p.run, contextFreshness: {status: 'changed', reason: 'Reviewed source changed'}}};
+    page.rerender(<BusyResolutionParent value={changed} />);
+    expect(screen.getByText('Parent write pending')).toBeTruthy();
+    page.rerender(<BusyResolutionParent value={p} />);
+    await act(async () => { complete(receipt); await delayed; });
+    await screen.findByText('Parent write idle');
+    expect(localStorage.getItem(messageRecoveryKey(p.recoveryScope))).toBe(raw);
+    expect(readMessageRecovery(p.recoveryScope)?.request).toEqual(post.mock.calls[0][3]);
+    expect(readMessageRecovery('another-owner')).toBeNull();
+    expect(readRejectedMessageArchive(p.recoveryScope)).toEqual([]);
+    expect(screen.queryByText(/Question resolution recorded/)).toBeNull();
+    expect(post).toHaveBeenCalledOnce(); expect(p.onWrite).toHaveBeenCalledOnce();
+  } finally { await act(async () => { complete(receipt); await delayed; }); }
+});
 it('LOCAL151 drafts an exact reciprocal decision and posts only on explicit Record resolution', async () => {
   const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(openQuestions());
   const post = vi.spyOn(swarmSupervisionApi, 'post').mockResolvedValue({message: resolutionMessage(), runRevision: 2});
