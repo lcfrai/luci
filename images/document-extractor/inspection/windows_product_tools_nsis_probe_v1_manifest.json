@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "batch": "windows-product-tools-nsis-probe-v1",
+  "purpose": "fixed-original-static-firstheader-framing-only",
+  "input": {"file": "gnupg-w32-2.5.24_20260923.exe", "bytes": 5804864, "sha256": "ea6f9dee2cccd83287432625b8b399173805add81d27067fcaf019c0c4da1ad8"},
+  "framingSourceSHA256": "3fc47d45916911a48211f7f2875b9641601d6ad0d3fd9e9cca97430a3c83d75c",
+  "workerLibrarySHA256": "5fad1e22757cb4974592587b971890e7dfd6fee5aceb97e497115ad8c5ad092e",
+  "peSourceSHA256": "49c0f20562ae8020b9b9d0f90238ba01b107d7ee64a0053dac53cc5e4e09bab6",
+  "limits": {"originalBytes":33554432,"expandedBytes":0,"combinedBytes":67108864,"calls":8192,"chunkBytes":65536,"scanSites":11338,"headerBytes":28,"declaredHeaderBytes":1048576,"prefixBytes":32,"observationBytes":65536,"stderrBytes":2048},
+  "unavailable": ["accepted-actual-acquisition", "selected-NSIS-version-and-build-source", "variant", "codec", "payload-decoding", "authentication", "source-and-licence-closure", "current-host", "Product-profile"]
+}
