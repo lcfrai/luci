@@ -14,6 +14,7 @@ import (
  "unsafe"
 
  "golang.org/x/sys/windows"
+ "github.com/lcfrai/luci/control-plane/internal/backend"
  "github.com/lcfrai/luci/control-plane/internal/product"
  "github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
 )
@@ -45,6 +46,11 @@ type debianProofWindowsCalls struct {
  InitAttributes func(unsafe.Pointer,*uintptr)error
  UpdateAttributes func(unsafe.Pointer,uintptr,unsafe.Pointer,uintptr)error
  DeleteAttributes func(unsafe.Pointer)
+ FileCreate func(*uint16,uint32,uint32,*windows.SecurityAttributes,uint32,uint32,windows.Handle)(windows.Handle,error)
+ FileInfo func(windows.Handle,*windows.ByHandleFileInformation)error
+ FileWrite func(windows.Handle,[]byte,*uint32,*windows.Overlapped)error
+ FileFlush func(windows.Handle)error
+ FileReadAlias func(windows.Handle,*windows.Handle)error
 }
 func newDebianProofWindowsCalls()*debianProofWindowsCalls{return &debianProofWindowsCalls{
  CreateJob:windows.CreateJobObject,SetJob:windows.SetInformationJobObject,QueryJob:windows.QueryInformationJobObject,TerminateJob:windows.TerminateJobObject,Close:windows.CloseHandle,Pipe:windows.CreatePipe,HandleInfo:windows.SetHandleInformation,CreateProcess:windows.CreateProcess,Times:windows.GetProcessTimes,Read:windows.ReadFile,Wait:windows.WaitForSingleObject,Exit:windows.GetExitCodeProcess,Resume:windows.ResumeThread,
@@ -53,11 +59,13 @@ func newDebianProofWindowsCalls()*debianProofWindowsCalls{return &debianProofWin
  InitAttributes:func(p unsafe.Pointer,n *uintptr)error{r,_,_:=proofInitializeAttributes.Call(uintptr(p),2,0,uintptr(unsafe.Pointer(n)));if r==0{return errors.New("startup attributes unavailable")};return nil},
  UpdateAttributes:func(p unsafe.Pointer,k uintptr,v unsafe.Pointer,n uintptr)error{r,_,_:=proofUpdateAttributes.Call(uintptr(p),0,k,uintptr(v),n,0,0);if r==0{return errors.New("startup attribute unavailable")};return nil},
  DeleteAttributes:func(p unsafe.Pointer){proofDeleteAttributes.Call(uintptr(p))},
+ FileCreate:windows.CreateFile,FileInfo:windows.GetFileInformationByHandle,FileWrite:windows.WriteFile,FileFlush:windows.FlushFileBuffers,
+ FileReadAlias:func(source windows.Handle,alias *windows.Handle)error{return windows.DuplicateHandle(windows.CurrentProcess(),source,windows.CurrentProcess(),alias,windows.FILE_GENERIC_READ,false,0)},
 }}
 
 type debianProofJob struct {mu sync.Mutex;handle windows.Handle;settled,closing,terminating,terminationStarted,retirementRequested bool;borrowers int;ordinal int;generation,lastTerminationGeneration uint8}
 type debianProofTerminationBorrow struct {job *debianProofJob;handle windows.Handle;generation uint8}
-type debianProofProducedFile struct {handle windows.Handle}
+type debianProofProducedFile struct {handle windows.Handle;path string;info windows.ByHandleFileInformation;readOnly,identityKnown bool}
 type debianProofLifetime struct {handles []windows.Handle; readersSettled bool;processSettled bool;stdout,stderr chan proofPipeRead;outResult,errResult *proofPipeRead;pid uint32;creation uint64}
 type debianProofNativeOwner struct {
  calls *debianProofWindowsCalls
@@ -81,7 +89,6 @@ func(o *debianProofNativeOwner)positiveCompletion(results []debianProofChildResu
  o.observer.mu.Lock();closed:=o.observer.closed&&o.observer.err==nil;o.observer.mu.Unlock();if !closed{return false}
  for i,j:=range o.jobs{j.mu.Lock();closed:=j.settled&&j.handle==0&&j.borrowers==0&&j.ordinal==i;j.mu.Unlock();if !closed{return false}}
  for _,l:=range o.lifetimes{if !l.processSettled||!l.readersSettled{return false};for _,h:=range l.handles{if h!=0{return false}}}
- for _,f:=range o.produced{if f.handle!=0{return false}}
  for i,r:=range results{if r.Ordinal!=i||r.PID==0||r.CreationTime==0||o.lifetimes[i].pid!=r.PID||o.lifetimes[i].creation!=r.CreationTime||!r.OriginalHandleOwned||!r.ExitConfirmed||!r.JobEmpty||!r.HandlesClosed||!r.CaptureSettled{return false}}
  return true
 }
@@ -152,7 +159,6 @@ func(o *debianProofNativeOwner) settle()bool{
   if life.stdout!=nil{_ = life.finishReaders(o.wholeDeadline)}
   for i,h:=range life.handles{if h==0{continue};if (i==0||i==2)&&!life.readersSettled||i>=6&&!life.processSettled{ok=false;continue};if o.calls.Close(h)!=nil{ok=false}else{life.handles[i]=0}}
  }
- if !o.closeProduced(){ok=false}
  if ok{for _,j:=range jobs{j.mu.Lock();h:=j.handle;if h==0{j.mu.Unlock();continue};if j.borrowers!=0||j.closing{j.mu.Unlock();ok=false;continue};j.closing=true;j.mu.Unlock()
   empty:=proofJobEmpty(o.calls,h);var e error;if empty{e=o.calls.Close(h)}else{e=errors.New("Job is not empty")};j.mu.Lock();if e!=nil{ok=false;j.closing=false}else{j.handle=0;j.settled=true};j.mu.Unlock()
  }}
@@ -160,15 +166,40 @@ func(o *debianProofNativeOwner) settle()bool{
 }
 func(o *debianProofNativeOwner)readProduced(path string,maximum int64)([]byte,error){
  name,e:=windows.UTF16PtrFromString(path);if e!=nil{return nil,e}
- handle,e:=windows.CreateFile(name,windows.GENERIC_READ,windows.FILE_SHARE_READ,nil,windows.OPEN_EXISTING,windows.FILE_FLAG_OPEN_REPARSE_POINT|windows.FILE_ATTRIBUTE_NORMAL,0);if e!=nil{return nil,e}
- original:=&debianProofProducedFile{handle:handle};o.produced=append(o.produced,original)
+ handle,e:=o.calls.FileCreate(name,windows.GENERIC_READ,windows.FILE_SHARE_READ,nil,windows.OPEN_EXISTING,windows.FILE_FLAG_OPEN_REPARSE_POINT|windows.FILE_ATTRIBUTE_NORMAL,0)
+ original:=&debianProofProducedFile{handle:handle,path:path,readOnly:true};if validDebianProducedHandle(handle){o.produced=append(o.produced,original)};if e!=nil{return nil,e};if !validDebianProducedHandle(handle){return nil,errors.New("produced original handle absent")}
  var before,after windows.ByHandleFileInformation
- if e=windows.GetFileInformationByHandle(handle,&before);e!=nil{return nil,e}
+ if e=o.calls.FileInfo(handle,&before);e!=nil{return nil,e}
  size:=int64(uint64(before.FileSizeHigh)<<32|uint64(before.FileSizeLow))
  if maximum<=0||maximum>1<<20||size<0||size>maximum||before.FileAttributes&(windows.FILE_ATTRIBUTE_REPARSE_POINT|windows.FILE_ATTRIBUTE_DIRECTORY)!=0{return nil,errors.New("produced file type or bound refused")}
- data:=make([]byte,0,size);buffer:=make([]byte,4096)
- for{var n uint32;e=windows.ReadFile(handle,buffer,&n,nil);if n>0{if int64(len(data))+int64(n)>maximum{return nil,errors.New("produced file grew beyond bound")};data=append(data,buffer[:n]...)};if e==windows.ERROR_HANDLE_EOF{break};if e!=nil{return nil,e};if n==0{break}}
- if e=windows.GetFileInformationByHandle(handle,&after);e!=nil||before!=after||int64(len(data))!=size{return nil,errors.New("produced original file identity changed")};return data,nil
+ data:=make([]byte,0,size);buffer:=make([]byte,4096);remaining:=maximum+1
+ for{if remaining<=0{return nil,errors.New("produced original read debit exhausted")};request:=min(int64(len(buffer)),remaining);remaining-=request;var n uint32;e=o.calls.Read(handle,buffer[:int(request)],&n,nil);if int64(n)>request{return nil,errors.New("produced original read acknowledgement invalid")};if n>0{if int64(len(data))+int64(n)>maximum{return nil,errors.New("produced file grew beyond bound")};data=append(data,buffer[:n]...)};if e==windows.ERROR_HANDLE_EOF{break};if e!=nil{return nil,e};if n==0{break}}
+ if e=o.calls.FileInfo(handle,&after);e!=nil||!equalDebianProducedIdentity(before,after)||int64(len(data))!=size{return nil,errors.New("produced original file identity changed")};original.info,original.identityKnown=after,true;return data,nil
+}
+func equalDebianProducedIdentity(a,b windows.ByHandleFileInformation)bool{return a.VolumeSerialNumber==b.VolumeSerialNumber&&a.FileIndexHigh==b.FileIndexHigh&&a.FileIndexLow==b.FileIndexLow&&a.FileAttributes==b.FileAttributes&&a.FileSizeHigh==b.FileSizeHigh&&a.FileSizeLow==b.FileSizeLow&&a.CreationTime==b.CreationTime&&a.LastWriteTime==b.LastWriteTime}
+func validDebianProducedHandle(h windows.Handle)bool{return h!=0&&h!=windows.InvalidHandle}
+// Retain a reduced read-only alias of the CREATED original before WRITE Close.
+// Existing560 can then adopt that same file while this alias denies mutation.
+func(o *debianProofNativeOwner)writeEvidenceBytes(path string,data []byte,maximum int)error{
+ if maximum<=0||maximum>256<<10||len(data)>maximum||!time.Now().Before(o.workDeadline){return errors.New("native evidence output bound")};name,e:=windows.UTF16PtrFromString(path);if e!=nil{return e}
+ h,e:=o.calls.FileCreate(name,windows.GENERIC_READ|windows.GENERIC_WRITE,windows.FILE_SHARE_READ,nil,windows.CREATE_NEW,windows.FILE_ATTRIBUTE_NORMAL,0);writer:=&debianProofProducedFile{handle:h,path:path};if validDebianProducedHandle(h){o.produced=append(o.produced,writer)};if e!=nil{return e};if !validDebianProducedHandle(h){return errors.New("created original file handle absent")}
+ for offset:=0;offset<len(data);{if !time.Now().Before(o.workDeadline){return errors.New("evidence write deadline")};var n uint32;e=o.calls.FileWrite(h,data[offset:],&n,nil);if e!=nil{return e};if n==0||uint64(n)>uint64(len(data)-offset){return errors.New("evidence write unacknowledged")};offset+=int(n)}
+ if e=o.calls.FileFlush(h);e!=nil{return e};var info windows.ByHandleFileInformation;if e=o.calls.FileInfo(h,&info);e!=nil{return e};if info.FileAttributes&(windows.FILE_ATTRIBUTE_REPARSE_POINT|windows.FILE_ATTRIBUTE_DIRECTORY)!=0||uint64(info.FileSizeHigh)<<32|uint64(info.FileSizeLow)!=uint64(len(data)){return errors.New("created original file identity unavailable")}
+ var alias windows.Handle;e=o.calls.FileReadAlias(h,&alias);read:=&debianProofProducedFile{handle:alias,path:path,readOnly:true};if validDebianProducedHandle(alias){o.produced=append(o.produced,read)};if e!=nil{return e};if !validDebianProducedHandle(alias){return errors.New("original read alias absent")}
+ var actual windows.ByHandleFileInformation;if e=o.calls.FileInfo(alias,&actual);e!=nil||!equalDebianProducedIdentity(info,actual){return errors.New("original read alias identity mismatch")};read.info,read.identityKnown=actual,true
+ if e=o.calls.Close(h);e!=nil{return e};writer.handle=0;return nil
+}
+// Backend originals already hold this fixed namespace. Compare its FileID to
+// still-held creation/read aliases; exact content hashes alone cannot do this.
+func(o *debianProofNativeOwner)adoptProduced(ctx context.Context,guard backend.DocumentImageAssemblyEvidenceGuard,objects []backend.DocumentImageAssemblyEvidenceObject)error{
+ if guard==nil||guard.CheckCurrent(ctx)!=nil{return errors.New("produced original guard unavailable")};expected:=map[string]backend.DocumentImageAssemblyEvidenceObject{};for _,v:=range objects{key:=strings.ToLower(v.Path);if _,exists:=expected[key];exists{return errors.New("duplicate produced original purpose")};expected[key]=v}
+ originals:=append([]*debianProofProducedFile(nil),o.produced...);checked:=map[string]windows.ByHandleFileInformation{}
+ for _,original:=range originals{if original.handle==0{continue};v,exists:=expected[strings.ToLower(original.path)];if !exists||!original.readOnly||!original.identityKnown||ctx.Err()!=nil||!time.Now().Before(o.workDeadline){return errors.New("produced original ownership unavailable")}
+  var current windows.ByHandleFileInformation;if o.calls.FileInfo(original.handle,&current)!=nil||!equalDebianProducedIdentity(original.info,current)||uint64(current.FileSizeHigh)<<32|uint64(current.FileSizeLow)!=uint64(v.Bytes){return errors.New("produced original identity changed")};key:=strings.ToLower(original.path);if previous,exists:=checked[key];exists{if !equalDebianProducedIdentity(previous,current){return errors.New("conflicting original aliases for one guarded path")};continue};checked[key]=current
+  name,e:=windows.UTF16PtrFromString(original.path);if e!=nil{return e};h,e:=o.calls.FileCreate(name,windows.GENERIC_READ,windows.FILE_SHARE_READ,nil,windows.OPEN_EXISTING,windows.FILE_FLAG_OPEN_REPARSE_POINT|windows.FILE_ATTRIBUTE_NORMAL,0);joined:=&debianProofProducedFile{handle:h,path:original.path,readOnly:true};if validDebianProducedHandle(h){o.produced=append(o.produced,joined)};if e!=nil{return e};if !validDebianProducedHandle(h){return errors.New("guarded namespace original handle absent")}
+  var info windows.ByHandleFileInformation;if o.calls.FileInfo(h,&info)!=nil||!equalDebianProducedIdentity(current,info){return errors.New("guarded namespace is not the created original")};joined.info,joined.identityKnown=info,true
+ }
+ if len(checked)!=len(expected){return errors.New("guarded file lacks an original produced alias")};if e:=guard.CheckCurrent(ctx);e!=nil{return e};if !o.closeProduced(){return errors.New("produced original alias close unknown")};return nil
 }
 func(o *debianProofNativeOwner)closeProduced()bool{ok:=true;for _,f:=range o.produced{if f.handle!=0{if o.calls.Close(f.handle)!=nil{ok=false}else{f.handle=0}}};return ok}
 func(o *debianProofNativeOwner)writeBytes(path string,data []byte,maximum int)error{

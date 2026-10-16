@@ -5,6 +5,7 @@ package api
 import (
  "context"
  "time"
+ "github.com/lcfrai/luci/control-plane/internal/backend"
  "github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
 )
 
@@ -24,3 +25,5 @@ func(o *debianProofNativeOwner)positiveCompletion([]debianProofChildResult)bool{
 func(o *debianProofNativeOwner)readProduced(string,int64)([]byte,error){return nil,runtimeinstall.ErrInputProofUnavailable}
 func(o *debianProofNativeOwner)closeProduced()bool{return false}
 func(o *debianProofNativeOwner)writeBytes(string,[]byte,int)error{return runtimeinstall.ErrInputProofUnavailable}
+func(o *debianProofNativeOwner)writeEvidenceBytes(string,[]byte,int)error{return runtimeinstall.ErrInputProofUnavailable}
+func(o *debianProofNativeOwner)adoptProduced(context.Context,backend.DocumentImageAssemblyEvidenceGuard,[]backend.DocumentImageAssemblyEvidenceObject)error{return runtimeinstall.ErrInputProofUnavailable}

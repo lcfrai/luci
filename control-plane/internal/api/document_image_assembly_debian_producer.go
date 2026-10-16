@@ -29,10 +29,14 @@ type debianProducerPlan struct {
  commands [10][]string
  owner *assemblyInputOwner
  productPins assemblyDebianProductProfilePins
+ readBudget *debianProductReadBudget
+ projectionMu sync.Mutex
+ projection *debianProductProjectionEvidence
+ projectionToken *debianProductProjectionToken
 }
 // Closed contract for the separately allocated fixed-file product entry. The
-// held-original copy/guard lifetime seam is not yet implemented by the existing
-// paths-map writer below; pre-reservation eligibility therefore remains refused.
+// Copies use original evidence guards; packaged prerequisites and the actual
+// aggregate native census remain absent, so reservation is still refused.
 type debianProductProjectionChild struct {Ordinal int `json:"ordinal"`;Exit uint32 `json:"exit"`}
 type debianProductProjectionRequest struct {
  Schema string `json:"schema"`
@@ -68,6 +72,7 @@ func validateDebianProducerProfile(p runtimeinstall.BundledDebianInputProofProfi
  return validateDebianProducerProfileShape(p,false)
 }
 func validateDebianProductProfile(p runtimeinstall.BundledDebianInputProofProfile)(map[string]runtimeinstall.DebianInputProofFile,error){
+ if len(p.Files)+1+44>256{return nil,runtimeinstall.ErrInputProofUnavailable}
  files,e:=validateDebianProducerProfileShape(p,true);if e!=nil{return nil,e};if _,e=debianProductProfilePins(p,files);e!=nil{return nil,e};return files,nil
 }
 func validateDebianProducerProfileShape(p runtimeinstall.BundledDebianInputProofProfile,product bool)(map[string]runtimeinstall.DebianInputProofFile,error){
@@ -96,6 +101,7 @@ func (p *debianProducerPlan) current(ctx context.Context,a *API)error{
  value,ok:=liveDebianProducerRuns.Load(p.identity.RunID);if !ok{return runtimeinstall.ErrInputProofOwnership};run:=value.(*debianProducerLiveRun);run.mu.Lock();actor:=run.actor;run.mu.Unlock()
  if err:=(&debianProductProofBinding{api:a,identity:p.identity,actor:actor}).current(ctx);err!=nil{return err}
  snap,err:=p.owner.readCurrent(ctx);sourceFile:=p.files["catalog-source-descriptor"];if err!=nil || snap.CAS.Revision!=p.identity.ExpectedCAS.Revision || snap.CAS.Digest!=p.identity.ExpectedCAS.Digest || snap.State.SourceDescriptor.Digest!=sourceFile.SHA256 || snap.State.SourceDescriptor.Bytes!=sourceFile.Bytes{return errAssemblyCatalogConflict}
+ p.projectionMu.Lock();projection:=p.projection;p.projectionMu.Unlock();if projection!=nil{if err=projection.checkCurrent(ctx,false);err!=nil{return err}}
  return p.inputs.CheckCurrent(ctx)
 }
 func (a *API) proveBundledDebianInputs(ctx context.Context,req runtimeinstall.DebianInputProofRequest,publish runtimeinstall.PublishDebianInputProof)(runtimeinstall.DebianInputProofOutcome,error){
@@ -118,7 +124,7 @@ func (a *API) proveBundledDebianInputs(ctx context.Context,req runtimeinstall.De
  if candidate!=nil{candidate.mu.Lock();out.PublicationUnknown=out.PublicationUnknown||candidate.publicationUnknown||candidate.publicationRetired||candidate.publication!=nil&&candidate.publication.inFlight;candidate.mu.Unlock()}
  return out,errors.New("native input proof settlement unknown")
 }
-func(r *debianProducerLiveRun) retire(){r.mu.Lock();native:=r.native;r.mu.Unlock();if native!=nil{native.retire()}}
+func(r *debianProducerLiveRun) retire(){r.mu.Lock();native,plan:=r.native,r.plan;r.mu.Unlock();if native!=nil{native.retire()};if plan!=nil{plan.projectionMu.Lock();projection:=plan.projection;plan.projectionMu.Unlock();if projection!=nil{projection.requestRetirement()}}}
 func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstall.BundledDebianInputProofProfile,files map[string]runtimeinstall.DebianInputProofFile,publish runtimeinstall.PublishDebianInputProof){
  send:=func(out runtimeinstall.DebianInputProofOutcome)error{r.mu.Lock();r.outcome,r.identity=out,out.Identity;r.mu.Unlock();return publish(out)}
  var runErr error;var reserved bool
@@ -128,12 +134,14 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  workCtx,cancelWork:=context.WithDeadline(ctx,native.workLimit());defer cancelWork();ctx=workCtx
  var candidate *assemblyDebianDomainCandidate
  var ownedRun *assemblyDebianOwnedRun
- plan:=&debianProducerPlan{identity:r.identity,profile:profile,files:files,paths:map[string]string{},productPins:selected}
+ plan:=&debianProducerPlan{identity:r.identity,profile:profile,files:files,paths:map[string]string{},productPins:selected,readBudget:&debianProductReadBudget{deadline:native.workLimit()}}
  r.mu.Lock();r.plan=plan;r.mu.Unlock()
  defer func(){
   if runErr!=nil{native.retire()}
   settled:=native.settle()
+  if !native.closeProduced(){settled=false}
   if candidate!=nil{if e:=candidate.retire();e!=nil{settled=false}}else if ownedRun!=nil{if e:=ownedRun.retire();e!=nil{settled=false}}else if plan.inputs!=nil{if e:=plan.inputs.Close();e!=nil{settled=false}}
+  if candidate==nil&&ownedRun==nil&&plan.projectionToken!=nil{if e:=plan.projectionToken.Close();e!=nil{settled=false}}
   out.Identity=plan.identity;out.CleanupConfirmed=settled;out.ResourcesHeld=reserved&&!settled
   r.mu.Lock();r.resourceSettlementKnown=settled;r.mu.Unlock()
   if reserved&&settled{cleanupCtx,cancel:=context.WithTimeout(context.Background(),2*time.Second);if e:=r.api.execution.advanceDebianInputProof(cleanupCtx,plan.identity,"finished",nil);e!=nil{out.ResourcesHeld=true;out.CleanupConfirmed=false;runErr=e};cancel()}
@@ -151,8 +159,8 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  canonical,_:=canonicalDebianProducerProfile(profile)
  objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:"profile-descriptor",Path:filepath.Join(profile.Root,"profile.json"),Bytes:int64(len(canonical)),Digest:profile.SHA256})
  for _,f:=range profile.Files{path:=filepath.Join(profile.Root,filepath.FromSlash(f.RelativePath));plan.paths[f.Role]=path;objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:f.Role,Path:path,Bytes:f.Bytes,Digest:f.SHA256})}
- plan.inputs,e=dockerbe.AcquireDocumentImageAssemblyEvidence(ctx,objects);if e!=nil{runErr=e;return}
- read:=func(role string)([]byte,error){f:=files[role];if f.Bytes<=0||f.Bytes>1<<20{return nil,runtimeinstall.ErrInputProofUnavailable};return plan.inputs.ReadBounded(ctx,role,f.Bytes)}
+ if e=plan.readBudget.acquisition(ctx,objects);e!=nil{runErr=e;return};plan.inputs,e=dockerbe.AcquireDocumentImageAssemblyEvidence(ctx,objects);if e!=nil{runErr=e;return}
+ read:=func(role string)([]byte,error){f:=files[role];if f.Bytes<=0||f.Bytes>1<<20{return nil,runtimeinstall.ErrInputProofUnavailable};return readDebianProductGuard(ctx,plan.readBudget,plan.inputs,role,assemblyDebianObjectRef{role,f.SHA256,f.Bytes})}
  config,e:=read("producer-config");if e!=nil{runErr=e;return};policy,e:=read("policy-source");if e!=nil{runErr=e;return}
  // Existing domain pins are mandatory. A future packaged profile needs an
  // independently reviewed closed pin seam; digest-shaped files do not bypass it.
@@ -178,10 +186,10 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  out.Phase="reserved";out.ResourcesHeld=true;if e=send(out);e!=nil{runErr=e;return}
  results:=make([]debianProofChildResult,0,10);logBytes:=0
  for i,argv:=range plan.commands{
-  if i==9{if e=writeDebianProjectionRequest(native,plan,results);e!=nil{runErr=e;return}}
+  if i==9{if e=writeDebianProjectionRequest(ctx,native,plan,results);e!=nil{runErr=e;return}}
   child,ce:=native.child(ctx,r.api,plan,i,argv);results=append(results,child);logBytes+=len(child.Stdout)+len(child.Stderr)
   if ce!=nil||!child.OriginalHandleOwned||!child.ExitConfirmed||!child.JobEmpty||!child.HandlesClosed||!child.CaptureSettled||logBytes>256<<10||i<4&&child.Exit!=0||i>=4&&i<9&&child.Exit!=0&&child.Exit!=2||i==9&&child.Exit!=0{runErr=errors.New("fixed native stage incomplete");return}
-  if e=native.writeBytes(filepath.Join(plan.directory,fmt.Sprintf("stdout-%d",i)),child.Stdout,128<<10);e!=nil{runErr=e;return};if e=native.writeBytes(filepath.Join(plan.directory,fmt.Sprintf("stderr-%d",i)),child.Stderr,128<<10);e!=nil{runErr=e;return}
+  if e=native.writeEvidenceBytes(filepath.Join(plan.directory,fmt.Sprintf("stdout-%d",i)),child.Stdout,128<<10);e!=nil{runErr=e;return};if e=native.writeEvidenceBytes(filepath.Join(plan.directory,fmt.Sprintf("stderr-%d",i)),child.Stderr,128<<10);e!=nil{runErr=e;return}
  }
  // Original process/Job/PDH/capture completion precedes the private capability.
  if !native.settle(){runErr=errors.New("native owner did not positively settle");return}
@@ -204,7 +212,8 @@ func debianProducerProfileBeforeReservation(p runtimeinstall.BundledDebianInputP
  if _,e:=validateDebianProductProfile(p);e!=nil{return nil,e}
  // A closed metadata family is not a live eligibility capability. Product
  // packaged expected objects, actual UCRT/WOW64/current-host proof and the
- // separately reviewed held-original projection-copy protocol are absent.
+ // mandatory aggregate original-handle census remain absent. Fixed-copy
+ // plumbing alone does not prove any of those prerequisites.
  // Refuse before PID/observer/owner registration or resource reservation even
  // if a future source edit populates Product's registry with shape-valid data.
  return nil,runtimeinstall.ErrInputProofUnavailable
@@ -228,7 +237,9 @@ func debianProducerCommands(p *debianProducerPlan)(commands [10][]string){
  for i:=0;i<5;i++{commands[4+i]=[]string{gpgv,"--homedir",home,"--status-fd","1"};for k:=0;k<3;k++{commands[4+i]=append(commands[4+i],"--keyring",filepath.Join(p.directory,fmt.Sprintf("keyring-%d",k)))};commands[4+i]=append(commands[4+i],"--output",filepath.Join(p.directory,fmt.Sprintf("plaintext-%d",i)),p.paths[fmt.Sprintf("signed-release-%d",i)])}
  commands[9]=[]string{p.paths["cp-python"],"-I","-S","-B",p.paths["projection-entry"],p.paths["projection-source"],filepath.Join(p.directory,"projection-request.json"),filepath.Join(p.directory,"producer-output")};return
 }
-func writeDebianProjectionRequest(native *debianProofNativeOwner,p *debianProducerPlan,results []debianProofChildResult)error{
- input:=struct{Schema int `json:"schema"`;Config string `json:"config"`;Snapshot string `json:"snapshot"`;Paths map[string]string `json:"paths"`;Children []debianProofChildResult `json:"children"`}{1,p.paths["producer-config"],p.paths["snapshot-source"],p.paths,results}
- data,e:=json.Marshal(input);if e!=nil{return e};return native.writeBytes(filepath.Join(p.directory,"projection-request.json"),data,64<<10)
+func writeDebianProjectionRequest(ctx context.Context,native *debianProofNativeOwner,p *debianProducerPlan,results []debianProofChildResult)error{
+ if e:=prepareDebianProductProjection(ctx,native,p,results);e!=nil{return e}
+ // Reserve the actual frozen child's entire fixed data-read allowance before
+ // its Resume; the separately bounded Python counter cannot reset this owner.
+ return p.readBudget.debit(ctx,debianProductProjectionReadGrant,1)
 }
