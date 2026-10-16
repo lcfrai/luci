@@ -6,6 +6,7 @@ import (
  "encoding/json"
  "reflect"
  "strings"
+ "sync"
  "testing"
  "time"
 
@@ -80,10 +81,11 @@ type productFamilyBlockedTransferGuard struct {assemblyDebianFakeGuard;entered,r
 func(g *productFamilyBlockedTransferGuard)Transfer(context.Context)(backend.DocumentImageAssemblyEvidenceGuard,error){g.mu.Lock();g.valid=false;g.mu.Unlock();close(g.entered);<-g.release;return g.late,nil}
 func TestDebianProductFamilyLateTransferRetainsRetirementOwnership(t *testing.T){
  late:=&assemblyDebianFakeGuard{valid:true};output:=&productFamilyBlockedTransferGuard{assemblyDebianFakeGuard:assemblyDebianFakeGuard{valid:true},entered:make(chan struct{}),release:make(chan struct{}),late:late};inputs:=&assemblyDebianFakeGuard{valid:true}
+ var releaseOnce sync.Once;release:=func(){releaseOnce.Do(func(){close(output.release)})};defer release()
  r:=&assemblyDebianOwnedRun{phase:"captured",product:&debianProductProofBinding{},guard:output,inputGuard:inputs};done:=make(chan error,1)
  go func(){_,e:=finishAssemblyDebianProductCandidate(context.Background(),r,&assemblyDebianDomainCandidate{});done<-e}()
  select{case<-output.entered:case<-time.After(time.Second):t.Fatal("synthetic guard transfer not entered")}
- retired:=make(chan struct{});go func(){_ = r.retire();close(retired)}();select{case<-retired:case<-time.After(time.Second):close(output.release);t.Fatal("guard IO held the run retirement mutex")};close(output.release)
+ retired:=make(chan struct{});go func(){_ = r.retire();close(retired)}();select{case<-retired:case<-time.After(time.Second):release();t.Fatal("guard IO held the run retirement mutex")};release()
  select{case e:=<-done:if e==nil{t.Fatal("retirement became promotion success")};case<-time.After(time.Second):t.Fatal("late original token was not joined")}
  late.mu.Lock();closed:=late.closed;late.mu.Unlock();r.mu.Lock();phase:=r.phase;r.mu.Unlock();if !closed||phase!="closed"{t.Fatal("late returned token was lost instead of retired")}
 }
