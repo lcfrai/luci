@@ -1,0 +1,146 @@
+{
+  "schema": "luci-product-projection-source-contract-v1",
+  "status": "source_defined_uncompiled_unexecuted_not_eligible",
+  "executionProtocol": "luci-debian-signature-go-owner-v1",
+  "invocation": [
+    "app-selected cp-python",
+    "-I",
+    "-S",
+    "-B",
+    "app-selected projection-entry",
+    "app-selected projection-source",
+    "ownedDirectory/projection-request.json",
+    "ownedDirectory/producer-output"
+  ],
+  "stdin": {
+    "kind": "EOF",
+    "maximumBytes": 0,
+    "entryProbe": "one bounded read must return EOF; parent original stdin writer closes before Resume"
+  },
+  "request": {
+    "type": "closed object; no duplicate/unknown keys, trailing non-whitespace bytes, BOM, floats/NaN or bool-as-int; Go field order allowed, exact request original bytes held by parent",
+    "observedUnix": "integer0..253402300799 from current Go-owner clock; never caller/client time; independently checked by server policy/current gates",
+    "protocolLiteral": "luci-debian-signature-go-owner-v1",
+    "schemaLiteral": "luci-debian-product-projection-request-v1",
+    "maximumBytes": 65536,
+    "files": "array exactly13 in source-coded order; each closed {role:closed enum,bytes:nonnegative integer <= role cap,sha256:lowercase64hex}; no paths, argv, environment, native-success flags or plugin/code selectors",
+    "children": "array exactly9, ordered ordinal0..8; each closed {ordinal:int,exit:uint32}; ordinal0..3 exit0, ordinal4..8 exit0or2; Go binds to actual original results, JSON is no completion proof",
+    "required": [
+      "schema",
+      "protocol",
+      "observedUnix",
+      "children",
+      "files"
+    ]
+  },
+  "fileRoles": [
+    {
+      "maximumBytes": 65536,
+      "role": "config",
+      "filename": "config.json"
+    },
+    {
+      "maximumBytes": 4096,
+      "role": "snapshot",
+      "filename": "snapshot.json"
+    },
+    {
+      "maximumBytes": 65536,
+      "role": "key-list",
+      "filename": "key-list.txt"
+    }
+  ],
+  "expandedRoleFamilies": [
+    {
+      "parentOriginal": "actual ordinal4..8 stdout",
+      "maximumBytesEach": 131072,
+      "count": 5,
+      "filenames": "status-0.txt..status-4.txt",
+      "roles": "status-0..4"
+    },
+    {
+      "parentOriginal": "actual gpgv-produced plaintext-0..4 original handles",
+      "maximumBytesEach": 262144,
+      "count": 5,
+      "filenames": "plaintext-0.txt..plaintext-4.txt",
+      "roles": "plaintext-0..4"
+    }
+  ],
+  "config": {
+    "projectionConfig": {
+      "candidate": "closed {id,era,releaseUrl,bytes,sha256,fields,allowedRootIDs,indexCandidates,historicalAnchorID?}; era current|historical-base-anchor; no retainedText/path/diagnostic signatureVerified/tupleCoverageVerified",
+      "required": [
+        "keys",
+        "releases",
+        "historicalAnchor"
+      ],
+      "keys": "exact3 ordered closed {id,primaryFingerprint,signingSubkeyFingerprint:null-or-uppercase40hex}; IDs bookworm-archive/security/stable; unchanged13bd facts",
+      "releases": "exact5 ordered closed {id:release-0..4,inputRole:signed-release-0..4,bytes,sha256,allowedRootIDs,candidates}; exactly6 logical candidates in total, unchanged normative selection",
+      "historicalAnchor": "closed unchanged frozenv4 semantic shape {schema,id,snapshotTimestamp,snapshotSource,trustPolicySha256,dependencyLockSha256,baseSubject,releaseBindings}; snapshotSource has only role/bytes/sha256, no path. All finite fields/nested enums checked against independently normalized13bd/snapshot selection; archive/rootfs subjects remain metadata, not authenticated base/closure.",
+      "indexes": "closed {path,bytes,sha256,url,byHashUrl,read:false,releaseSignatureVerified:false}; finite exact policy tuples, locators never fetched"
+    },
+    "acquisitionManifestSHA256": "f839f2d1edaf0fbc1f039d20fcc4abd83b04accba2d0846e369174a0f2bad8b2",
+    "required": [
+      "schema",
+      "protocol",
+      "trustPolicySHA256",
+      "projectionSHA256",
+      "dependencyLockSHA256",
+      "acquisitionManifestSHA256",
+      "snapshotSourceRef",
+      "projectionConfig"
+    ],
+    "trustPolicySHA256": "13bd77f40356ef37ae01f3baf05172a035423815b33e9a292a7736ec699150a5",
+    "protocolLiteral": "luci-debian-signature-go-owner-v1",
+    "schemaLiteral": "luci-debian-product-projection-config-v1",
+    "snapshotSourceRef": {
+      "sha256": "615c3e2f894afdad54d0ff676117ae6be513b4bf500b05660cecbcb5238f7feb",
+      "role": "base-rootfs-debian-sources-snapshot",
+      "bytes": 372
+    },
+    "type": "closed sorted compactUTF8JSON wrapper with terminal LF; exact12245B digest aa05c650ad8d8175838cfbe9aeab2c2ce62feec5034480cee89caa7c13f591f4 must also be application selected; struct-field-order canonicalization is not substituted",
+    "maximumBytes": 65536,
+    "projectionSHA256": "8401b441e3ecccd386aace046d71bb7a0941f74d105addc6a22965f7bdae0f3b",
+    "dependencyLockSHA256": "91f2739b1ccfb8c5277e41ebbcaa45ba7ba16f1018abdf0122fc39c1ec0d0423"
+  },
+  "output": {
+    "missing": [
+      "index-paragraphs",
+      "package-source-bindings",
+      "installed-manifest",
+      "source-retention",
+      "notice-closure",
+      "output-proof"
+    ],
+    "canonicalEncoding": "UTF8 JSON sort_keys=true,separators comma/colon,ensure_ascii=true,allow_nan=false, one terminal LF; actual bytes hashed by original Go output guard, no supplied digest acceptance",
+    "releases": "exact5 assemblyDebianRawRelease ordered release-0..4, each {inputSha256,signedTextSha256,dispositions,logicalBindings}; exact6 logical bindings, existing closed disposition/logical/index/historical-anchor DTOs unchanged",
+    "filename": "producer-output",
+    "monotonicPolicyState": "not-updated-by-this-read-only-batch",
+    "keyObservation": "closed {state:pinned-official-key-snapshot-identities-derived,observedUtc:int,records:uppercase40hex->assemblyDebianRawKey,unseenRevocations:not-established}; each key exactly {kind,created,expires,algorithm,bits,capabilities,validity,fingerprint,primary} from pure8401",
+    "stderrMaximumBytes": 2048,
+    "error": "closed {schema:luci-product-projection-error-v1,code:finite source-coded refusal enum}; no raw input/path/exception repr/credentials; exit2, no typed success output; original partial file remains parent-owned for settlement",
+    "consumer": "server-captured AssemblyInputClosureRef; mandatory ValidateCurrent",
+    "mode": "exclusive no-replace file, serialize complete bounded value before first write; no path from request",
+    "maximumBytes": 262144,
+    "schemaLiteral": "luci-product-debian-signature-input-evidence-v1",
+    "stdoutMaximumBytes": 0,
+    "types": "Exact closed assemblyDebianRawOutput nested DTOs at immutable116ef704bc9ea9a4b4b7e452321c16c47c18f0e4 capture.go, with new product schema literal. Product-family adapter independently checks all values; no legacy inner/outer receipt fields.",
+    "required": [
+      "schema",
+      "trustPolicySha256",
+      "keyObservation",
+      "releases",
+      "consumer",
+      "missing",
+      "monotonicPolicyState"
+    ]
+  },
+  "wireStatus": "Exact source DTO definitions coordinated with immutable116ef704bc9ea9a4b4b7e452321c16c47c18f0e4: request schema/protocol/observedUnix/children ordinal+exit/files role+sha256+bytes, arbitrary JSON field order allowed with strict closure. validateDebianProducerProfile remains legacy; validateDebianProductProfile is separate pure shape only. Actual gate refuses all product profiles pending host/package/copied-original prerequisites. No copied-original lifecycle currently implemented.",
+  "byteAccounting": {
+    "aggregateReadMaximum": 2182321,
+    "readCallMaximum": 2048,
+    "roleCapsAreUpperBounds": "config is additionally exact12245B, snapshot exact372B; actual fixed sizes leave margin for one charged stdinEOF probe",
+    "originalGuards": "Go-owned and missing; Python fstat/digest/close do not establish original HANDLE identity or positive CloseHandle settlement",
+    "errors": "One fixed stderr error write is the sole permitted diagnostic after failure; filesystem/decoder/pure effects stay refused."
+  }
+}

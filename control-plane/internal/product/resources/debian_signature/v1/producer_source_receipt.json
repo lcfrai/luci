@@ -1,0 +1,262 @@
+{
+  "schema": "luci-product-debian-producer-source-receipt-v1",
+  "protocol": "luci-debian-signature-go-owner-v1",
+  "complete": false,
+  "state": "incomplete_source_only_not_eligible",
+  "sourceOrigin": {
+    "repository": "https://github.com/lcfrai/luci.git",
+    "frozenOwnerRevision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+    "meaning": "Actual immutable source bytes at116, including new closed-family checkpoint; root source approval/checks remain separate. Not source completeness, app-binary authentication, third-party tool trust or actual native containment."
+  },
+  "sourceFiles": [
+    {
+      "path": "control-plane/internal/api/document_extraction_reservation.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "8adc702929a2ec2b0b8153a01fb287211e7bdb3a",
+      "bytes": 7495,
+      "sha256": "d7014d833964c35a9fdcfa2d1a8082b6ebace4f7a7b9183373debe648341ab38"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_adoption.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "7fc328bb42568377c4ca35155844240bc0bc9552",
+      "bytes": 11753,
+      "sha256": "d7026462b1560c3793a238f92acfcec52e59f9a22d1eec827638b4b70fa8db4b"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_capture.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "c2085b6b43fc65a3260b912c172765bf662cc56a",
+      "bytes": 37750,
+      "sha256": "68d2f9ac92e3377a9ec2d7c59b3d20ac561da5d23d47d3def3ea28f8b5d351d4"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_core.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "ef567a108f68520dde08340d640d746461eca6df",
+      "bytes": 18133,
+      "sha256": "c4e60433bf196196e37e4f489d872848e68888049cdabe61bba03e38575b2a0d"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_observer_windows.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "6ec91d0b9f5e8dd6fddda06b5e7028e2cc3117c6",
+      "bytes": 3649,
+      "sha256": "bddc0b9bfc490726c687ae62125146b6904117331fbcf3a25812d02b4ec58989"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_policy.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "d8e7b95c7f2f945683afbba0f5911e41d6138c37",
+      "bytes": 14929,
+      "sha256": "a46c9ad1d4ae73a3f34dda7cd360f8e797df668f1fae2fb5976d44ab920a4809"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_producer_capture.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "1d7667a5ecd3b7dad3caded0391e03ffc3e842b3",
+      "bytes": 8084,
+      "sha256": "f7bd3cc6d810e8ee5bc20c1cf4a43cdfde975231bdd79e011c3fab8661b586de"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_producer_lease.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "1e0138c7e748d46f07b81fa6d1ecbc2fef10bafa",
+      "bytes": 13134,
+      "sha256": "340935acc9b035f8ad4aa2bc1901251830ec177bfb7c0637224f68bc585cfbe0"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_producer_other.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "8d91d3e9d0ee42ca699f88870490bc01b41058b7",
+      "bytes": 1820,
+      "sha256": "3ad4adf909ba37428b07b8f14af3fe2ee107deeb66f1955eb732556fa78f1ad9"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_producer_recovery.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "ec2cde552a393d006133d6202f712189c2c154c5",
+      "bytes": 2136,
+      "sha256": "1cee81dd5cb057bab98c71e26f04dc778288324776ee93242dc1741e41087ae4"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_producer_windows.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "5c6026fd2444a85246a4b674e5a790065203d312",
+      "bytes": 24605,
+      "sha256": "aaeb580e7ef5cecec1a8c01e2297f2882b55c9acadd98a88ba0b2bf1cd36ebd7"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_producer.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "6f41a40b114fd424e2d63bebd138236f15139a1a",
+      "bytes": 22786,
+      "sha256": "a8a4dea3f710facf057fd64707b397039d762555a376cd4ddae9dbb9d91885d3"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_debian_types.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "64224c5c775aee562905b6848edaefae8b2ceaaa",
+      "bytes": 13749,
+      "sha256": "35c0f2d603fcc6a5192eea23a99e60a837ddc5cd15f36258014e844f2e3c53b8"
+    },
+    {
+      "path": "control-plane/internal/api/document_image_assembly_shared_reservation.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "cbb7514a9648728d1925a4bcb7684ba835af7fa8",
+      "bytes": 7019,
+      "sha256": "74f476bc2a1fe0be3bdfc901447bafbb6a785bd13ecfdfd243f206abf0c69890"
+    },
+    {
+      "path": "control-plane/internal/api/execution_capacity.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "041c881da97536f7fccdef0c5e8f0bef20fd0c45",
+      "bytes": 11084,
+      "sha256": "5fca63bad802979609606dcabb25f126446ff36c16fa1e2f7d98077f37e919fe"
+    },
+    {
+      "path": "control-plane/internal/api/execution_check_leases.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "9c51ef577c10433d4b9840687253599e521c0ad6",
+      "bytes": 16113,
+      "sha256": "fff38cc6ba535c3c8e43c2c48a405aaee03dd79d9617ebe9d89010035517ae2c"
+    },
+    {
+      "path": "control-plane/internal/api/execution_leases.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "ea02395f0d73a4fb7e5e2db5dcd6c5975adbfb04",
+      "bytes": 33423,
+      "sha256": "7b5fe7d39e61973c264b0ef135b579ada9e9e66dea7c63e0bff0406b4632d3f1"
+    },
+    {
+      "path": "control-plane/internal/api/execution_preview_leases.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "d504917eac7a9b2d284e3272aa1ab74564550c00",
+      "bytes": 16169,
+      "sha256": "c2d43c4571ca874ab7677505971809560e25ff185a822b5495482f6ac91d4773"
+    },
+    {
+      "path": "control-plane/internal/api/execution_reservation_view.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "007d10bcca3121241d56c52faafb9558438dc9d9",
+      "bytes": 4143,
+      "sha256": "5b41a4c65ee305c9d1e88e1d1f9649437c9cb85823b73bbd598805a2d4c5b390"
+    },
+    {
+      "path": "control-plane/internal/api/execution_runtime_image_leases.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "ff2f74f9f11d7208bc0e11c761ff9fdeb1703627",
+      "bytes": 27361,
+      "sha256": "4615ffafaa553f8952a3d1da8d15a9b9e70511cdcba78d135829fec53a01b2ea"
+    },
+    {
+      "path": "control-plane/internal/api/runtime_install_execution.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "00a6d887a9a263ee0a1959e32a10d33c11e5eeb2",
+      "bytes": 35754,
+      "sha256": "3b13a2a4b9dca7c505786394da807af02d2f3cecc76d7e573f250197eb0904d2"
+    },
+    {
+      "path": "control-plane/internal/product/runtime_install_input_proof_decode.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "2e1d88edfcef7e5eed59477be9ac692a9d793ef0",
+      "bytes": 1335,
+      "sha256": "d7ddfdb2297934c89bff527b289c5f1fde3c92bd087667872effab97eac87fc1"
+    },
+    {
+      "path": "control-plane/internal/product/runtime_install_input_proof.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "e002f060a2d6e18b3ac14af3cea13e5155c01ba0",
+      "bytes": 8432,
+      "sha256": "3ed78872d2428e8d12d6c8eaccc6a2ee74dc830c8548488166aaaf8f689ce480"
+    },
+    {
+      "path": "control-plane/internal/product/runtime_install_profile.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "54cc58bcfd184875c928a4c880d105c38c525b11",
+      "bytes": 5931,
+      "sha256": "3ff9f1b99324648bef07d578a6a1b5e210e5531c6b095926219c9bd406224966"
+    },
+    {
+      "path": "control-plane/internal/product/runtime_install.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "b63e2f3d2079a7ec661b5df2aa4d56caddcb3ea6",
+      "bytes": 13635,
+      "sha256": "78cfedf2137210e44acdf7ff5c82f682e851fe5f58d0c5ccda07f93e83765168"
+    },
+    {
+      "path": "control-plane/internal/product/setup_tools.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "50f0fe6b676c5075390812ab5dc81acf03e8c732",
+      "bytes": 12445,
+      "sha256": "7b2a79a11c69427870a12efdc095e9581ec7e146b4d99843816f74397d4591f4"
+    },
+    {
+      "path": "control-plane/internal/runtimeinstall/input_proof.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "21ad4c31278b45a8f5153be38172f7ad7b691012",
+      "bytes": 4811,
+      "sha256": "37d238aef17b56c5eaa2a0ee77be9f033aee5c109e7bf0a2eb9f479d911899dd"
+    },
+    {
+      "path": "control-plane/internal/runtimeinstall/runtime.go",
+      "revision": "116ef704bc9ea9a4b4b7e452321c16c47c18f0e4",
+      "gitBlob": "b44dea1c524b28e997cb47ba7729a08d80d93529",
+      "bytes": 4632,
+      "sha256": "7ad4e24ecac347d13a3a664f57627d937d39922ca4d1d0ce25bdad60d63ebc01"
+    }
+  ],
+  "resourceFiles": [
+    {
+      "file": "projection_entry.py",
+      "role": "projection-entry",
+      "runtimePath": "projection/product_entry.py",
+      "bytes": 14156,
+      "sha256": "f8bdd1494dc0ee1e4c89b74d41247048988e3e60398802da4fcd8f677a211d7b"
+    },
+    {
+      "file": "status_projection.py",
+      "role": "projection-source",
+      "runtimePath": "projection/status_projection.py",
+      "bytes": 15522,
+      "sha256": "8401b441e3ecccd386aace046d71bb7a0941f74d105addc6a22965f7bdae0f3b"
+    },
+    {
+      "file": "producer_config.json",
+      "role": "producer-config",
+      "runtimePath": "inputs/product-config.json",
+      "bytes": 12245,
+      "sha256": "aa05c650ad8d8175838cfbe9aeab2c2ce62feec5034480cee89caa7c13f591f4"
+    },
+    {
+      "file": "projection_protocol.json",
+      "role": "support:projection/projection-protocol-v1.json",
+      "runtimePath": "projection/projection-protocol-v1.json",
+      "bytes": 8035,
+      "sha256": "b202c2c38735b9b01d5e02e5f59eebe5e97e24eddeabeb448c5e3798fd82158f"
+    },
+    {
+      "file": "LICENSE.txt",
+      "role": "support:licences/luci-projection-MIT.txt",
+      "runtimePath": "licences/luci-projection-MIT.txt",
+      "bytes": 1077,
+      "sha256": "fae23c36603a7c5195674d27b6df739bce9bf02824791e0d091d3ef2420c0b9a"
+    }
+  ],
+  "semanticReuse": {
+    "module": "status_projection.py",
+    "bytes": 15522,
+    "sha256": "8401b441e3ecccd386aace046d71bb7a0941f74d105addc6a22965f7bdae0f3b",
+    "frozenOrigin": "LOCAL117 v4 pure source",
+    "legacyConfigOrOwnerReceiptAdopted": false
+  },
+  "missing": [
+    "application-producer-source-closure-completeness-review",
+    "owned-copied-input-original-guard-lifetime-and-cumulative-accounting",
+    "complete-build-selected-product-resource-tool-profile",
+    "authenticated-redistributable-CPython-GPG-GPGV-stdlib-native-license-source-closure",
+    "current-supported-host-UCRT-WOW64-prerequisite-proof"
+  ],
+  "meaning": "SHA256 of these exact receipt bytes can identify this partial application source manifest. It cannot authorize a profile, native allocation, catalog adoption, source-retention domain or full dependency closure. Complete=false independently refuses actual eligibility even if the raw digest is well formed.",
+  "acyclic": "No self hash, containing profile hash or future commit hash. Only actual listed frozen owner blobs and already-authored other resource bytes are pinned. This file and test source are excluded from resourceFiles."
+}
