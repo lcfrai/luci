@@ -2,6 +2,8 @@
 .swarm-supervision { border-block: 1px solid var(--line-soft); padding-block: 16px; margin-block: 16px; min-inline-size: 0; overflow-wrap: anywhere; }
 .swarm-supervision h4, .swarm-supervision h5 { margin-block: 0 8px; }
 .swarm-supervision-note { color: var(--ink-2); font-size: 12px; }
+.swarm-supervision .project-swarm-heading > .luci-ui-button { max-inline-size: 100%; min-inline-size: 0; white-space: normal; block-size: auto; min-block-size: 44px; }
+.swarm-supervision .project-swarm-heading > .luci-ui-button > span { min-inline-size: 0; overflow-wrap: anywhere; }
 .swarm-message-list { display: grid; gap: 12px; padding-inline-start: 24px; max-block-size: 560px; overflow: auto; }
 .swarm-message-list > li { padding: 12px; border-block-end: 1px solid var(--line-soft); min-inline-size: 0; }
 .swarm-message-list p { margin-block: 4px 8px; }

@@ -29,6 +29,7 @@ function Navigator({run, queue, onOpenTask}: Props) {
   const searchId = useId(), filterId = useId(), overviewId = useId();
   const [query, setQuery] = useState(''), [filter, setFilter] = useState<DependencyFilter>('all');
   const [page, setPage] = useState(0), [selectedId, setSelectedId] = useState('');
+  const searchInput = useRef<HTMLInputElement>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const requestedFocus = useRef<string | null>(null);
   const model = useMemo(() => dependencyTasks(run, queue), [run, queue]);
@@ -64,16 +65,16 @@ function Navigator({run, queue, onOpenTask}: Props) {
     {run.codingBlocker && <p className="journey-warning">Build attention: {run.codingBlocker.reason}</p>}
     {run.contextFreshness?.status !== 'current' && <p className="journey-warning">Reviewed context: {run.contextFreshness?.reason || 'Freshness unavailable. Inspect the build before new starts.'}</p>}
     <div className="swarm-fleet-overview" role="group" aria-label="Saved fleet overview" aria-describedby={overviewId}>
-      {filters.map(item => <button key={item.id} type="button" title={item.description}
+      {filters.map(item => <Button key={item.id} variant="tertiary" type="button" title={item.description}
         aria-label={`${item.label}: ${counts[item.id]} ${counts[item.id] === 1 ? 'task' : 'tasks'}`}
         aria-pressed={filter === item.id} onClick={() => { setQuery(''); setFilter(item.id); setPage(0); setSelectedId(''); }}>
         <span>{item.label}</span><strong>{counts[item.id]}</strong>
-      </button>)}
+      </Button>)}
     </div>
     <p id={overviewId} className="swarm-navigator-note">Counts cover all {model.length} saved tasks, before search and pagination. Categories overlap; saved activity is not a live observation. Queue counts include only matching entries in this snapshot.</p>
     <p className="swarm-navigator-note">{filters.find(item => item.id === filter)?.description}</p>
     <div className="swarm-navigator-filters">
-      <label htmlFor={searchId}>Find by title or task ID<Input id={searchId} value={query} onChange={event => { setQuery(event.target.value); setPage(0); setSelectedId(''); }} /></label>
+      <label htmlFor={searchId}>Find by title or task ID<Input ref={searchInput} id={searchId} value={query} onChange={event => { setQuery(event.target.value); setPage(0); setSelectedId(''); }} /></label>
       <label htmlFor={filterId}>Show<select id={filterId} value={filter} onChange={event => { setFilter(event.target.value as DependencyFilter); setPage(0); setSelectedId(''); }}>
         {filters.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
       </select></label>
@@ -83,6 +84,12 @@ function Navigator({run, queue, onOpenTask}: Props) {
       {matches.length < model.length ? ' The filter hides other saved tasks.' : ''}</p>
     <div className="swarm-navigator-layout">
       <div>
+        {!matches.length && <div className="swarm-navigator-empty">
+          <p>{model.length ? 'No saved tasks match this search and filter. Clear them to see the full task list.' : 'No saved tasks in this run.'}</p>
+          {model.length > 0 && <Button variant="secondary" onClick={() => {
+            setQuery(''); setFilter('all'); setPage(0); setSelectedId(''); searchInput.current?.focus();
+          }}>Clear search and filters</Button>}
+        </div>}
         <ul className="swarm-navigator-list" aria-label="Matching saved tasks">
           {visible.map((item, index) => <li key={item.task.id}><button type="button" ref={element => { if (element) buttons.current.set(item.task.id, element); else buttons.current.delete(item.task.id); }}
             aria-label={`Select task ${item.task.title} (${item.task.id})`} aria-pressed={selected?.task.id === item.task.id} onClick={() => setSelectedId(item.task.id)} onKeyDown={event => navigate(event, index)}>
@@ -92,11 +99,11 @@ function Navigator({run, queue, onOpenTask}: Props) {
             {!item.integrated && item.waitingOn.length > 0 && <span>Waiting on {item.waitingOn.length} dependency/dependencies</span>}
           </button></li>)}
         </ul>
-        <div className="swarm-navigator-pages" aria-label="Task pages">
+        {matches.length > 0 && <div className="swarm-navigator-pages" aria-label="Task pages">
           <Button variant="tertiary" disabled={currentPage === 0} onClick={() => { setPage(currentPage - 1); setSelectedId(''); }}>Previous task page</Button>
           <span>Page {currentPage + 1} of {lastPage + 1}</span>
           <Button variant="tertiary" disabled={currentPage >= lastPage} onClick={() => { setPage(currentPage + 1); setSelectedId(''); }}>Next task page</Button>
-        </div>
+        </div>}
       </div>
       {selected && <section className="swarm-navigator-detail" aria-label="Selected task dependencies">
         <h5>{selected.task.title}</h5><code>{selected.task.id}</code>

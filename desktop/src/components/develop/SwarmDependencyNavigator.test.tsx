@@ -106,6 +106,30 @@ it('uses the overview as keyboard-operable local filters and opens only existing
   fireEvent.click(screen.getByRole('button', {name: 'Go to task controls'})); expect(open).toHaveBeenCalledWith('a');
   request.mockRestore();
 });
+it('clears an empty search locally, restores the full task list and returns focus to search', () => {
+  const run = swarmRunFixture(), open = vi.fn(), request = vi.spyOn(productApi, 'request');
+  const view = render(<SwarmDependencyNavigator run={run} onOpenTask={open} />);
+  const search = screen.getByLabelText('Find by title or task ID') as HTMLInputElement;
+  fireEvent.change(screen.getByLabelText('Show'), {target: {value: 'waiting'}});
+  fireEvent.change(search, {target: {value: 'no-saved-task-matches'}});
+  expect(screen.getByText('No saved tasks match this search and filter. Clear them to see the full task list.')).toBeTruthy();
+  expect(screen.queryByRole('button', {name: 'Previous task page'})).toBeNull();
+  expect(screen.queryByRole('button', {name: 'Next task page'})).toBeNull();
+  const clear = screen.getByRole('button', {name: 'Clear search and filters'});
+  clear.focus(); fireEvent.click(clear);
+  expect(search.value).toBe('');
+  expect((screen.getByLabelText('Show') as HTMLSelectElement).value).toBe('all');
+  expect(document.activeElement).toBe(search);
+  expect(within(screen.getByRole('list', {name: 'Matching saved tasks'})).getAllByRole('button')).toHaveLength(run.swarm!.tasks.length);
+  expect(screen.getByRole('button', {name: 'Select task Build a (a)'}).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.queryByRole('button', {name: 'Clear search and filters'})).toBeNull();
+  view.rerender(<SwarmDependencyNavigator run={{...run, id: 'empty-run', swarm: {...run.swarm!, tasks: []}}} onOpenTask={open} />);
+  expect(screen.getByText('No saved tasks in this run.')).toBeTruthy();
+  expect(screen.queryByRole('button', {name: 'Clear search and filters'})).toBeNull();
+  expect(screen.queryByRole('button', {name: 'Previous task page'})).toBeNull();
+  expect(screen.queryByRole('button', {name: 'Next task page'})).toBeNull();
+  expect(request).not.toHaveBeenCalled(); expect(open).not.toHaveBeenCalled(); request.mockRestore();
+});
 it('retains stale saved counts and freshness warnings, excludes old queue attempts and refreshes with props', () => {
   const run = swarmRunFixture(); run.swarm!.tasks[0].operationId = 'op-a';
   run.operations = [{id: 'op-a', kind: 'session', taskId: 'a', childId: 'session-a', attempt: 1, status: 'running', allocation: 'ready', requestDigest: 'request', createdAt: 'then', updatedAt: 'then'}];

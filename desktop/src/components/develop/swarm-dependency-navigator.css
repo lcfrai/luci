@@ -3,8 +3,8 @@
 .swarm-navigator h4 { margin: 0; }
 .swarm-navigator-note { color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
 .swarm-fleet-overview { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-block-start: 12px; }
-.swarm-fleet-overview button { display: flex; align-items: center; gap: 8px; min-block-size: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-size: 13px; }
-.swarm-fleet-overview button:hover { background: var(--hover); }
+.swarm-fleet-overview .luci-ui-button { min-block-size: 44px; padding: 8px 10px; }
+.swarm-fleet-overview .luci-ui-button > span { display: flex; align-items: center; gap: 8px; }
 .swarm-fleet-overview button[aria-pressed="true"] { border-color: var(--accent); background: var(--inset); }
 .swarm-fleet-overview strong { font-variant-numeric: tabular-nums; }
 .swarm-navigator-filters { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -12,6 +12,9 @@
 .swarm-navigator select { min-block-size: 44px; inline-size: 100%; border: 1px solid var(--line-soft); border-radius: var(--r-ctl); background: var(--surface); color: var(--ink); padding: 8px; }
 .swarm-navigator-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .swarm-navigator-layout > div, .swarm-navigator-detail { min-inline-size: 0; }
+.swarm-navigator-empty { display: grid; gap: 8px; padding-block: 12px; font-size: 13px; }
+.swarm-navigator-empty p { margin: 0; }
+.swarm-navigator-empty .luci-ui-button { justify-self: start; min-block-size: 44px; max-inline-size: 100%; white-space: normal; block-size: auto; }
 .swarm-navigator-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-block-size: 480px; overflow: auto; }
 .swarm-navigator-list button { display: grid; gap: 4px; inline-size: 100%; text-align: start; padding: 10px 12px; min-block-size: 44px; border: 1px solid transparent; border-radius: var(--r-ctl); background: transparent; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; }
 .swarm-navigator-list button:hover { background: var(--inset); }
