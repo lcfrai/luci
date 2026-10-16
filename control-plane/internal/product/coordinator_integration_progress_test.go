@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -105,6 +106,26 @@ func TestCoordinatorPendingReviewDoesNotStrandLaterReviewedIntegration(t *testin
 			t.Fatal(err)
 		}
 	}
+	clearNativeError := func() {
+		allocationCommandMu.Lock()
+		allocationCommandError = ""
+		allocationCommandMu.Unlock()
+	}
+	integrationFlags := func(taskID string) string {
+		task := swarmTask(&run, taskID)
+		if task == nil || task.Integration == nil {
+			return "absent"
+		}
+		in := task.Integration
+		return fmt.Sprintf("state=%s commit=%t source=%t target=%t", in.State, in.Commit != "", in.SourceCommit != "", in.TargetCommit != "")
+	}
+	failIntegration := func(reason string, integrationErr error) {
+		t.Helper()
+		allocationCommandMu.Lock()
+		commandError := allocationCommandError
+		allocationCommandMu.Unlock()
+		t.Fatalf("%s: error=%t last-read-run=%s alpha={%s} beta={%s} checks=%d; last native command error (possibly a benign probe): %s", reason, integrationErr != nil, run.State, integrationFlags("task-a"), integrationFlags("task-b"), len(run.Checks), commandError)
+	}
 	captureReport := func(op ProjectRunOperation, report *TaskHandoffReport) {
 		t.Helper()
 		s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(_ context.Context, req TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
@@ -195,46 +216,49 @@ func TestCoordinatorPendingReviewDoesNotStrandLaterReviewedIntegration(t *testin
 	if implementationDigest(run) != before {
 		t.Fatal("refused actor changed the retained run")
 	}
+	clearNativeError()
 	advanced, err := s.continueCoordinatorCandidateIntegration(ctx, p, row)
 	if err != nil || !advanced {
-		t.Fatal("the first task's pending review stranded a later reviewed candidate", err, advanced)
+		failIntegration("the first task's pending review stranded a later reviewed candidate", err)
 	}
 	reload()
 	a, b := swarmTask(&run, "task-a"), swarmTask(&run, "task-b")
 	if a.Integration != nil || b.Integration == nil || b.Integration.State != "integrated" || len(run.Checks) != 0 {
-		t.Fatal("integration accepted unreviewed work or lost the ready candidate", run)
+		failIntegration("integration accepted unreviewed work or lost the ready candidate", nil)
 	}
 	if _, statErr := os.Stat(filepath.Join(p.Path, "alpha.txt")); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatal("unreviewed alpha reached the target checkout", statErr)
+		failIntegration("unreviewed alpha reached the target checkout", statErr)
 	}
 	data, readErr := os.ReadFile(filepath.Join(p.Path, "beta.txt"))
 	if readErr != nil || string(data) != "beta reviewed\n" {
-		t.Fatal("reviewed beta was not actually integrated", readErr)
+		failIntegration("reviewed beta was not actually integrated", readErr)
 	}
 	row, err = s.continueCoordinatorDelivery(ctx, p, row)
 	if err != nil || row.Delivery != nil || starts.Load() != 0 {
-		t.Fatal("partial integration started or claimed combined checks", err, row.Delivery, starts.Load())
+		failIntegration(fmt.Sprintf("partial integration started or claimed combined checks: delivery=%t starts=%d", row.Delivery != nil, starts.Load()), err)
 	}
 	before = implementationDigest(run)
+	clearNativeError()
 	if advanced, repeatErr := s.continueCoordinatorCandidateIntegration(ctx, p, row); repeatErr != nil || advanced {
-		t.Fatal("repeated observation replayed integration", repeatErr, advanced)
+		failIntegration("repeated observation replayed integration", repeatErr)
 	}
 	reload()
 	if implementationDigest(run) != before {
-		t.Fatal("no-progress observation changed immutable integration")
+		failIntegration("no-progress observation changed immutable integration", nil)
 	}
 	reviewTask("task-a", "task-ra")
+	clearNativeError()
 	if advanced, integrationErr := s.continueCoordinatorCandidateIntegration(ctx, p, row); integrationErr != nil || !advanced {
-		t.Fatal("first candidate did not integrate after its own independent review", integrationErr, advanced)
+		failIntegration("first candidate did not integrate after its own independent review", integrationErr)
 	}
 	row, err = s.continueCoordinatorDelivery(ctx, p, row)
 	if err != nil || row.Delivery == nil || row.Delivery.CheckID == "" {
-		t.Fatal("fully reviewed integration did not reach the real check handler", err, row.Delivery)
+		failIntegration(fmt.Sprintf("fully reviewed integration did not reach the real check handler: delivery=%t", row.Delivery != nil), err)
 	}
 	result := finishEvidenceRun(t, s, p.ID, row.Delivery.CheckID)
 	row, err = s.continueCoordinatorDelivery(ctx, p, row)
 	reload()
 	if err != nil || result.Status != "passed" || row.Delivery.Status != "verified" || starts.Load() != 1 || len(run.Checks) != 1 || len(run.Swarm.ReviewObligations) != 2 {
-		t.Fatal("exact reviewed combined source did not reach checked completion", err, result, row.Delivery, starts.Load(), run.Checks)
+		failIntegration(fmt.Sprintf("exact reviewed combined source did not reach checked completion: result=%s starts=%d obligations=%d", result.Status, starts.Load(), len(run.Swarm.ReviewObligations)), err)
 	}
 }
