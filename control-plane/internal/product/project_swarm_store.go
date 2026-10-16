@@ -39,6 +39,8 @@ type ProjectSwarmIntegration struct {
 	TargetCommit  string `json:"targetCommit"`
 	ReviewDigest  string `json:"reviewDigest"`
 	IntegratedAt  string `json:"integratedAt,omitempty"`
+	Stage         string `json:"stage,omitempty"`
+	FailureCode   string `json:"failureCode,omitempty"`
 }
 
 func swarmTask(run *ProjectRun, id string) *ProjectSwarmTask {
@@ -100,6 +102,9 @@ func validateProjectSwarm(run ProjectRun) error {
 			}
 		}
 		if in := task.Integration; in != nil {
+			if !validSwarmIntegrationDiagnostic(*in) {
+				return ErrProjectRunInvalid
+			}
 			if (in.State != "integrating" && in.State != "integrated" && in.State != "unknown") || !deliverySHA.MatchString(in.SourceCommit) || !deliverySHA.MatchString(in.TargetCommit) || !hexDigest(in.ReviewDigest) || in.Commit != "" && !deliverySHA.MatchString(in.Commit) {
 				return ErrProjectRunInvalid
 			}
@@ -141,6 +146,9 @@ func validateProjectSwarm(run ProjectRun) error {
 		}
 	}
 	for _, op := range run.Operations {
+		if op.Integration != nil && !validSwarmIntegrationDiagnostic(*op.Integration) {
+			return ErrProjectRunInvalid
+		}
 		if !validTaskHandoffReference(op) {
 			return ErrProjectRunInvalid
 		}

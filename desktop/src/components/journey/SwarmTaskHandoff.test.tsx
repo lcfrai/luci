@@ -32,6 +32,16 @@ beforeEach(()=>{
   vi.spyOn(swarmHandoffApi,'answer').mockImplementation(async(run,_op,_digest,_question,answer)=>handoffAnswerResult(run,f.handoff,answer));
   vi.spyOn(projectRunsApi,'get').mockResolvedValue(f.run);
 });
+it.each([true, false])('shows bounded integration diagnostics in the existing result inspector (known=%s)', async known => {
+  const f = handoffFixture();
+  const integration = {state: 'unknown', sourceCommit: 'a', targetCommit: 'b', reviewDigest: 'd', stage: known ? 'candidate-merge' : 'PRIVATE_PATH', failureCode: 'operation-unconfirmed'} as unknown as TaskHandoffView['integration'];
+  vi.mocked(swarmHandoffApi.get).mockResolvedValue({...f.handoff, integration});
+  render(<Harness />);
+  await screen.findByText(/Outcome unconfirmed; inspect integration before continuing/);
+  expect(!!screen.queryByText(/Candidate merge: The operation could not be confirmed/)).toBe(known);
+  expect(screen.queryByText(/PRIVATE_PATH/)).toBeNull();
+  expect(swarmHandoffApi.collect).not.toHaveBeenCalled(); expect(swarmHandoffApi.answer).not.toHaveBeenCalled();
+});
 async function draft(answer='Exclude archived projects.') {
   await userEvent.click(await screen.findByRole('button',{name:'Answer question'}));
   await userEvent.type(screen.getByRole('textbox',{name:'Your answer'}),answer);

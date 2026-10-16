@@ -23,6 +23,18 @@ function Harness({initial = base(), canEdit = true, canExecute = true, updated =
 }
 beforeEach(() => {vi.restoreAllMocks(); resetCockpit(); useCockpit.getState().setHarnesses([swarmHarnessFixture()]);});
 
+it.each([true, false])('shows safe unknown integration context without starting or replaying work (known=%s)', known => {
+  const initial = base(), operation = op(initial, 'a', 'succeeded');
+  const run = attach(initial, operation);
+  run.swarm!.tasks[0].integration = {state: 'unknown', sourceCommit: 'a', targetCommit: 'b', reviewDigest: 'd', stage: known ? 'candidate-import' : 'PRIVATE_PATH', failureCode: 'operation-unconfirmed'} as unknown as NonNullable<ProjectRun['swarm']>['tasks'][number]['integration'];
+  const reserve = vi.spyOn(projectSwarmApi, 'reserve'), create = vi.spyOn(api, 'createSession');
+  render(<Harness initial={run} />);
+  expect(screen.getByText(/Retained integration attempt: unknown/)).not.toBeNull();
+  expect(!!screen.queryByText(/Candidate import: The operation could not be confirmed/)).toBe(known);
+  expect(screen.queryByText(/PRIVATE_PATH/)).toBeNull();
+  expect(reserve).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+});
+
 it.each(['ask', 'plan'] as const)('keeps saved %s unchanged and requires a separately reviewed build before preparing autonomous tasks', async permissionMode => {
   const initial = base(); initial.swarm = undefined; initial.input.route.permissionMode = permissionMode;
   const prepare = vi.spyOn(projectSwarmApi, 'prepare'), reserve = vi.spyOn(projectSwarmApi, 'reserve'), create = vi.spyOn(api, 'createSession'), reviewPlan = vi.fn();

@@ -1,5 +1,6 @@
 import { productApi } from './product';
 import type { ProjectRun, RunOperation, SwarmTask } from './projectRuns';
+import { safeSwarmIntegration } from './projectRuns';
 
 export type TaskHandoffStatus = 'not-recorded' | 'captured' | 'missing' | 'invalid' | 'unavailable';
 export interface TaskHandoffReport {
@@ -66,7 +67,7 @@ function verified(value: unknown, projectId: string, runId: string, operation: R
     } else if (receipt.reported !== null || value.questionIds.length || value.answers.length) throw mismatch();
   }
   const result = value as unknown as TaskHandoffView;
-  return {...result, recordedChecks: result.recordedChecks.map(check => ({...check, commands: check.commands.map(command => ({...command, args: command.args ?? []}))}))};
+  return {...result, integration: result.integration ? safeSwarmIntegration(result.integration) : result.integration, recordedChecks: result.recordedChecks.map(check => ({...check, commands: check.commands.map(command => ({...command, args: command.args ?? []}))}))};
 }
 function mutation(value: TaskHandoffMutation, original: ProjectRun, operation: RunOperation): TaskHandoffMutation {
   const run = value?.run, saved = run?.operations?.find(item => item.id === operation.id);

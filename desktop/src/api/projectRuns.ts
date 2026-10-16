@@ -35,11 +35,46 @@ export interface RunOperation {
 export const runOperationNeedsRecovery = (operation?: RunOperation) => !!operation?.absenceRetirement && !operation.absenceRetirement.finalizedAt || !!operation?.recovery && operation.recovery.state !== 'finalized';
 export const runOperationNeedsReview = (operation?: RunOperation) => !!operation && ['review-required', 'succeeded'].includes(operation.status);
 export const runHasTaskReview = (run?: ProjectRun) => !!run?.swarm?.tasks.some(task => task.integration?.state !== 'integrated' && runOperationNeedsReview(run.operations.find(operation => operation.id === task.operationId)));
+const integrationStages = {
+  'candidate-import': 'Candidate import', 'checkout-create': 'Integration checkout creation',
+  'candidate-merge': 'Candidate merge', 'candidate-readback': 'Candidate readback',
+  'candidate-record': 'Candidate receipt saving', 'target-check': 'Target revalidation',
+  'target-publish': 'Target publication', 'target-readback': 'Target readback',
+} as const;
+const integrationFailures = {
+  'operation-unconfirmed': 'The operation could not be confirmed.',
+  'command-failed': 'A Git command did not complete successfully.',
+  interrupted: 'The operation was interrupted.',
+  'target-changed': 'The target no longer matched its reviewed state.',
+  'readback-unconfirmed': 'The expected commit could not be confirmed.',
+  'persistence-unconfirmed': 'The candidate receipt could not be confirmed.',
+} as const;
+export interface SwarmIntegration {
+  state: 'integrating' | 'integrated' | 'unknown'; commit?: string; sourceCommit: string; targetCommit: string; reviewDigest: string; integratedAt?: string;
+  stage?: keyof typeof integrationStages; failureCode?: keyof typeof integrationFailures;
+}
+function knownIntegrationDiagnostic(value?: SwarmIntegration): value is SwarmIntegration & {stage: keyof typeof integrationStages; failureCode: keyof typeof integrationFailures} {
+  if (!value || value.state !== 'unknown' || typeof value.stage !== 'string' || typeof value.failureCode !== 'string' ||
+      !Object.hasOwn(integrationStages, value.stage) || !Object.hasOwn(integrationFailures, value.failureCode)) return false;
+  if (value.failureCode === 'target-changed') return value.stage === 'target-check';
+  if (value.failureCode === 'readback-unconfirmed') return value.stage === 'candidate-readback' || value.stage === 'target-readback';
+  if (value.failureCode === 'persistence-unconfirmed') return value.stage === 'candidate-record';
+  return true;
+}
+/** Unsupported optional diagnostics do not hide an otherwise readable receipt. */
+export function safeSwarmIntegration(value: SwarmIntegration): SwarmIntegration {
+  if ((value.stage === undefined && value.failureCode === undefined) || knownIntegrationDiagnostic(value)) return value;
+  const safe = {...value}; delete safe.stage; delete safe.failureCode; return safe;
+}
+export function swarmIntegrationDiagnostic(value?: SwarmIntegration): string | undefined {
+  if (!knownIntegrationDiagnostic(value)) return undefined;
+  return `${integrationStages[value.stage]}: ${integrationFailures[value.failureCode]} The outcome remains unconfirmed. Inspect this attempt and refresh history before continuing.`;
+}
 export interface SwarmTask {
   id: string; title: string; dependsOn: string[]; writePaths: string[]; acceptance: string;
 	role?: 'coding' | 'reviewer'; reviewOfTaskId?: string; reviewOnly?: boolean;
   operationId?: string;
-  integration?: { state: 'integrating' | 'integrated' | 'unknown'; commit?: string; sourceCommit: string; targetCommit: string; reviewDigest: string; integratedAt?: string };
+  integration?: SwarmIntegration;
 }
 export interface ProjectSwarmState {
   state: 'ready' | 'paused' | 'cancelled'; maxParallel: number; tasks: SwarmTask[];
@@ -93,6 +128,16 @@ function owned(project: string, value: ProjectRun, id?: string): ProjectRun {
       throw new Error('The task start diagnostic could not be verified. Refresh this project before continuing.');
     }
   }
+  let changed = false;
+  const clean = <T extends {integration?: SwarmIntegration}>(item: T): T => {
+    if (!item.integration) return item;
+    const integration = safeSwarmIntegration(item.integration);
+    if (integration === item.integration) return item;
+    changed = true; return {...item, integration};
+  };
+  const operations = (value.operations ?? []).map(clean);
+  const tasks = value.swarm?.tasks.map(clean);
+  if (changed) return {...value, operations, ...(value.swarm ? {swarm: {...value.swarm, tasks: tasks!}} : {})};
   return value;
 }
 async function mutate(project: string, run: string, action: string, body: unknown) {

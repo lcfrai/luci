@@ -1,9 +1,27 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { productApi } from './product';
-import { projectRunsApi, type ProjectRun } from './projectRuns';
+import { projectRunsApi, swarmIntegrationDiagnostic, type ProjectRun } from './projectRuns';
 
 afterEach(() => vi.restoreAllMocks());
 const receipt = { id: 'run-1', projectId: 'p-1', input: { implementation: { projectId: 'p-1' } }, operations: [{ id: 'op-1', childId: 's-1', kind: 'session' }] } as ProjectRun;
+
+it('keeps owned unknown integration readable and renders only closed diagnostic labels', async () => {
+  const integration = {state: 'unknown', sourceCommit: 'a', targetCommit: 'b', reviewDigest: 'd', stage: 'target-check', failureCode: 'target-changed'};
+  const value = {...receipt, swarm: {state: 'ready', maxParallel: 1, tasks: [{id: 'task', integration}]}} as ProjectRun;
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue({run: value});
+  const known = await projectRunsApi.get('p-1', 'run-1');
+  expect(swarmIntegrationDiagnostic(known.swarm!.tasks[0].integration)).toContain('Target revalidation: The target no longer matched its reviewed state.');
+  for (const fields of [{stage: 'PRIVATE_PATH', failureCode: 'command-failed'}, {stage: '__proto__', failureCode: 'command-failed'}, {stage: 'candidate-import'}, {stage: 'candidate-import', failureCode: 'target-changed'}]) {
+    const unsafe = {...integration, failureCode: undefined, ...fields};
+    const source = {...value, swarm: {...value.swarm!, tasks: [{...value.swarm!.tasks[0], integration: unsafe}]}} as unknown as ProjectRun;
+    request.mockResolvedValue({run: source});
+    const safe = await projectRunsApi.get('p-1', 'run-1');
+    expect(safe.swarm!.tasks[0].integration?.state).toBe('unknown');
+    expect(safe.swarm!.tasks[0].integration?.stage).toBeUndefined();
+    expect(swarmIntegrationDiagnostic(safe.swarm!.tasks[0].integration)).toBeUndefined();
+    expect(source.swarm!.tasks[0].integration?.stage).toBe(fields.stage);
+  }
+});
 
 it('uses read-only list/get and exact typed evidence/acceptance payloads', async () => {
   const request = vi.spyOn(productApi, 'request').mockResolvedValue({ run: receipt, runs: [receipt] });

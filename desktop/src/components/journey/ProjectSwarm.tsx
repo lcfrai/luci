@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
 import { ApiError } from '../../api/client';
 import { errorText } from '../../api/product';
-import { projectRunsApi, runOperationNeedsRecovery, runOperationNeedsReview, runSessionRequest, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
+import { projectRunsApi, runOperationNeedsRecovery, runOperationNeedsReview, runSessionRequest, swarmIntegrationDiagnostic, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
 import { swarmTaskCapability } from '../../api/swarmTaskCapability';
 import { MAX_SWARM_PARALLEL_TASKS } from '../../api/swarmLimits';
 import { projectSwarmApi, type SwarmReview, type SwarmRecoveryAvailability } from '../../api/projectSwarm';
@@ -433,6 +433,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       </div>
       <ol className="project-swarm-tasks">{tasks.map(task => {
         const operation = operationFor(run, task), reason = waitingReason(run, task);
+        const integrationDiagnostic = swarmIntegrationDiagnostic(task.integration);
         const uncertainStart = uncertain.current.has(task.id);
         const startAcknowledged = !!operation && acknowledgedStarts.current.has(startIdentity(run, operation));
         const acknowledgedUnconfirmed = startAcknowledged && !!operation && ['reserved', 'dispatching', 'unknown'].includes(operation.status);
@@ -468,6 +469,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
             {operation?.checkpoint && <p>Continues retained operation <code>{operation.checkpoint.sourceOperationId}</code> in a new workspace. Starting checkpoint <code>{operation.checkpoint.seedCommit || 'being prepared'}</code>. This does not mark the task integrated.</p>}
             {integrated(task) && <p>Integrated commit <code>{task.integration!.commit}</code>. Integration records the reviewed change; it does not verify the application.</p>}
             {task.integration && !integrated(task) && <p>Retained integration attempt: {task.integration.state}. Its outcome has not been confirmed.</p>}
+            {integrationDiagnostic && <p className="journey-warning">{integrationDiagnostic}</p>}
             {retained.map(item => <p key={item.id}>Retained attempt {item.attempt} · {item.status} · {item.worktreeId}. {unansweredQuestions(item) > 0 && <strong>{unansweredQuestions(item)} agent-reported {unansweredQuestions(item) === 1 ? 'question remains' : 'questions remain'} unanswered. </strong>}<Button variant="tertiary" disabled={busy} onClick={() => setWorkspace(item)}>Inspect retained attempt {item.attempt}</Button> {!item.startFailure && <Button variant="tertiary" disabled={busy || !projectAccess.canRead} onClick={() => setHandoff({projectId: run.projectId, runId: run.id, operationId: item.id, childId: item.childId})}>Result and questions for attempt {item.attempt}</Button>}</p>)}
           </details>
           <div className="journey-actions">

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -24,6 +25,58 @@ type ProjectSwarmReview struct {
 	IndependentReviewState string                `json:"independentReviewState"`
 	Reason                 string                `json:"reason"`
 	Handoff                *TaskHandoffReference `json:"handoff,omitempty"`
+}
+
+// Diagnostic labels describe a recorded unknown outcome, never replay authority.
+var swarmIntegrationStages = map[string]string{
+	"candidate-import": "candidate import", "checkout-create": "integration checkout creation",
+	"candidate-merge": "candidate merge", "candidate-readback": "candidate readback",
+	"candidate-record": "candidate receipt saving", "target-check": "target revalidation",
+	"target-publish": "target publication", "target-readback": "target readback",
+}
+var swarmIntegrationFailureLabels = map[string]string{
+	"operation-unconfirmed": "the operation could not be confirmed",
+	"command-failed": "a Git command did not complete successfully",
+	"interrupted": "the operation was interrupted",
+	"target-changed": "the target no longer matched its reviewed state",
+	"readback-unconfirmed": "the expected commit could not be confirmed",
+	"persistence-unconfirmed": "the candidate receipt could not be confirmed",
+}
+
+func validSwarmIntegrationDiagnostic(in ProjectSwarmIntegration) bool {
+	if in.Stage == "" && in.FailureCode == "" {
+		return true // Preserve omitted historical JSON exactly.
+	}
+	_, stageKnown := swarmIntegrationStages[in.Stage]
+	_, codeKnown := swarmIntegrationFailureLabels[in.FailureCode]
+	if in.State != "unknown" || !stageKnown || !codeKnown {
+		return false
+	}
+	switch in.FailureCode {
+	case "target-changed":
+		return in.Stage == "target-check"
+	case "readback-unconfirmed":
+		return in.Stage == "candidate-readback" || in.Stage == "target-readback"
+	case "persistence-unconfirmed":
+		return in.Stage == "candidate-record"
+	}
+	return true
+}
+
+func swarmIntegrationFailureCode(err error) string {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return "interrupted"
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ProcessState != nil && exit.ExitCode() != 0 {
+		return "command-failed"
+	}
+	// An untyped boundary refusal or start error is not proof a command ran.
+	return "operation-unconfirmed"
+}
+
+func swarmIntegrationFailureReason(stage, code string) string {
+	return "Integration is unconfirmed during " + swarmIntegrationStages[stage] + ": " + swarmIntegrationFailureLabels[code] + ". Source and target references remain recorded. Inspect this attempt and refresh history before continuing."
 }
 
 func (s *Server) swarmReview(ctx context.Context, p project.Project, run ProjectRun, taskID string) (ProjectSwarmReview, error) {
@@ -300,8 +353,10 @@ func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Reques
 	// From this receipt onward, interruption is an unknown outcome. Never retry a
 	// filesystem mutation merely because the caller did not receive its result.
 	candidate := ""
+	stage, failureCode := "candidate-import", ""
 	_, err = s.swarmGit(r.Context(), p.Path, "-c", "protocol.file.allow=always", "fetch", "--no-tags", "--no-write-fetch-head", "--", sourcePath, review.SourceCommit)
 	if err == nil {
+		stage = "checkout-create"
 		if _, statErr := os.Lstat(integrationPath); !errors.Is(statErr, os.ErrNotExist) {
 			err = errors.New("Integration checkout already exists and cannot be adopted.")
 		}
@@ -310,19 +365,27 @@ func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Reques
 		_, err = s.swarmGit(r.Context(), p.Path, "worktree", "add", "--detach", integrationPath, review.TargetCommit)
 	}
 	if err == nil {
+		stage = "candidate-merge"
 		_, err = s.swarmGit(r.Context(), integrationPath, "-c", "user.name=Luci", "-c", "user.email=luci@localhost", "merge", "--no-ff", "--no-edit", review.SourceCommit)
 	}
 	if err == nil {
+		stage = "candidate-readback"
 		candidate, err = s.swarmGit(r.Context(), integrationPath, "rev-parse", "HEAD")
 		candidate = strings.TrimSpace(candidate)
 	}
 	if err == nil && !deliverySHA.MatchString(candidate) {
 		err = ErrProjectRunInvalid
+		failureCode = "readback-unconfirmed"
 	}
 	if err == nil {
+		stage = "candidate-record"
 		run, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, run.Revision, func(run *ProjectRun) error { swarmTask(run, taskID).Integration.Commit = candidate; return nil })
+		if err != nil {
+			failureCode = "persistence-unconfirmed"
+		}
 	}
 	if err == nil {
+		stage = "target-check"
 		// Recheck the exact reviewed target immediately before publication. Git's
 		// ff-only command refuses branch divergence; it never stashes or resets.
 		targetErr := s.validateSwarmGit(r.Context(), p.Path)
@@ -332,22 +395,38 @@ func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Reques
 		}
 		if targetErr != nil || target.Head != review.TargetCommit || target.Status != "" || target.Digest != review.targetDigest {
 			err = errors.New("The target changed during integration. The candidate remains retained for review.")
+			if targetErr == nil {
+				failureCode = "target-changed"
+			} else {
+				failureCode = swarmIntegrationFailureCode(targetErr)
+			}
 		} else {
+			stage = "target-publish"
 			_, err = s.swarmGit(r.Context(), p.Path, "merge", "--ff-only", candidate)
 		}
 	}
 	if err == nil {
+		stage = "target-readback"
 		head, headErr := s.swarmGit(r.Context(), p.Path, "rev-parse", "HEAD")
 		if headErr != nil || strings.TrimSpace(head) != candidate {
 			err = errors.New("The integration target could not be confirmed.")
+			failureCode = "readback-unconfirmed"
+			if headErr != nil {
+				failureCode = swarmIntegrationFailureCode(headErr)
+			}
 		}
 	}
 	final, saveErr := s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, run.Revision, func(run *ProjectRun) error {
 		receipt := swarmTask(run, taskID).Integration
 		if err != nil {
 			receipt.State = "unknown"
+			receipt.Stage = stage
+			if failureCode == "" {
+				failureCode = swarmIntegrationFailureCode(err)
+			}
+			receipt.FailureCode = failureCode
 			run.State = "blocked"
-			run.Reason = "Integration did not finish with a confirmed receipt. Source, target and integration checkout were retained. Inspect them before continuing."
+			run.Reason = swarmIntegrationFailureReason(stage, failureCode)
 		} else {
 			receipt.State = "integrated"
 			receipt.IntegratedAt = time.Now().UTC().Format(time.RFC3339Nano)

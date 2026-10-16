@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
 import { errorText, productApi } from '../../api/product';
-import { projectRunsApi, runOperationNeedsRecovery, type ProjectRun, type RunOperation } from '../../api/projectRuns';
+import { projectRunsApi, runOperationNeedsRecovery, swarmIntegrationDiagnostic, type ProjectRun, type RunOperation } from '../../api/projectRuns';
 import { swarmHandoffApi, type TaskHandoffMutation, type TaskHandoffView } from '../../api/swarmHandoff';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useProjectDraftScope } from '../../hooks/useProjectDraft';
@@ -45,6 +45,7 @@ function TaskHandoff({projectId, projectName, run, operation, taskTitle, canRead
   const readKey = JSON.stringify([authority.current.readEpoch, run.revision, refresh]);
   const current = canRead && read?.key === readKey ? read : null;
   const value = current?.value;
+  const integrationDiagnostic = swarmIntegrationDiagnostic(value?.integration);
   const visibleDraft = canRead && draft?.owner === authority.current.readEpoch ? draft : null;
   const dirty = !!visibleDraft && visibleDraft.answer !== visibleDraft.original;
   const busy = !!pending && canRead;
@@ -153,6 +154,7 @@ function TaskHandoff({projectId, projectName, run, operation, taskTitle, canRead
           <section aria-label="Recorded verification evidence"><h3>Recorded verification evidence</h3><p className="handoff-muted">Checks recorded for this task’s captured source. Agent-reported checks appear separately above.</p>
             {value.recordedChecks.length ? <ul>{value.recordedChecks.map(check => <li key={check.checkId}><strong>Recorded check {check.checkId}</strong><p>{check.execution} · source <code>{check.commit}</code></p>{check.commands.map((command, index) => <p key={index}>{command.label}: {command.status} · exit {command.exitCode}</p>)}{!check.originalAvailable && <p className="handoff-muted">The original check record is no longer available; this is retained evidence.</p>}</li>)}</ul> : <p>No recorded checks match this task’s captured source.</p>}
             <p>Integration: {value.integration?.state === 'integrated' ? 'Recorded as integrated; this does not establish correctness.' : value.integration?.state === 'integrating' ? 'Integration is in progress; its outcome is not confirmed.' : value.integration?.state === 'unknown' ? 'Outcome unconfirmed; inspect integration before continuing.' : 'No recorded integration.'}</p>
+            {integrationDiagnostic && <p className="handoff-warning">{integrationDiagnostic}</p>}
           </section>
           {!!value.receipt?.reported?.questions.length && <section aria-label="Agent questions"><h3>Questions for the project</h3><p className="handoff-muted">Answers inform future tasks. Saving an answer does not start or restart an agent; existing task inputs stay unchanged.</p><ol>{value.receipt.reported.questions.map((question, index) => {
             const id = value.questionIds[index], answer = value.answers.find(item => item.questionId === id);

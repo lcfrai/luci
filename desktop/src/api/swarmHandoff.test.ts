@@ -5,6 +5,17 @@ import {handoffAnswerResult, handoffFixture} from '../test/handoffFixtures';
 import httpGolden from '../../../control-plane/internal/product/testdata/task-handoff-http.json?raw';
 
 beforeEach(() => vi.restoreAllMocks());
+it('keeps an exact unknown handoff readable when optional integration diagnostics are unsupported', async () => {
+  const f = handoffFixture();
+  const integration = {state: 'unknown', sourceCommit: 'a', targetCommit: 'b', reviewDigest: 'd', stage: 'PRIVATE_PATH', failureCode: 'command-failed'};
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue({handoff: {...f.handoff, integration}});
+  const value = await swarmHandoffApi.get(f.run.projectId, f.run.id, f.operation);
+  expect(value.integration?.state).toBe('unknown');
+  expect(value.integration?.stage).toBeUndefined();
+  expect(value.receipt).toEqual(f.handoff.receipt);
+  expect(integration.stage).toBe('PRIVATE_PATH');
+  expect(request).toHaveBeenCalledOnce();
+});
 it.each(['captured','missing','notRecorded'])('decodes the shared actual-handler %s contract without recreating its wire shape', async name => {
   const golden=JSON.parse(httpGolden)[name];
   const operation={...handoffFixture().operation,...golden.operation};
