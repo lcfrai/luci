@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { api } from '../../api';
 import { ApiError } from '../../api/client';
+import { productApi } from '../../api/product';
 import { projectRunsApi, type ProjectRun, type RunOperation } from '../../api/projectRuns';
 import { projectSwarmApi, type SwarmReview } from '../../api/projectSwarm';
 import { swarmHarnessFixture, swarmRunFixture } from '../../test/swarmFixtures';
@@ -290,6 +291,37 @@ it.each(['integrating', 'unknown'] as const)('retains %s integration uncertainty
   expect(screen.getByText('Integration outcome unconfirmed')).not.toBeNull();
   expect(screen.getByText('Waiting for reviewed integration: Build a; Build b.')).not.toBeNull();
   expect(screen.queryByText('Integrated', {exact: true})).toBeNull();
+});
+
+it.each(['integrating', 'unknown'] as const)('opens retained %s integration details locally without replay or recovery', async state => {
+  const initial = base(), run = attach(initial, op(initial, 'a', 'succeeded'));
+  run.swarm!.tasks[0].integration = {state, reviewDigest: 'retained', sourceCommit: 'b'.repeat(40), targetCommit: 'a'.repeat(40)};
+  const request = vi.spyOn(productApi, 'request'), review = vi.spyOn(projectSwarmApi, 'review'), integrate = vi.spyOn(projectSwarmApi, 'integrate');
+  const control = vi.spyOn(projectSwarmApi, 'control'), reserve = vi.spyOn(projectSwarmApi, 'reserve'), abandon = vi.spyOn(projectSwarmApi, 'abandon');
+  const create = vi.spyOn(api, 'createSession'), busy = vi.fn(), updated = vi.fn(), openSession = vi.fn();
+  const props = {canEdit: false, canExecute: false, onBusy: busy, onUpdate: updated, onOpenSession: openSession};
+  const view = render(<ProjectSwarm {...props} run={run} busy={false} />);
+  const heading = screen.getByRole('heading', {name: 'Build a', level: 4}), row = heading.closest('li')!;
+  const scope = row.querySelector<HTMLDetailsElement>('[data-task-scope]')!;
+  const otherScope = screen.getByRole('heading', {name: 'Build b', level: 4}).closest('li')!.querySelector<HTMLDetailsElement>('[data-task-scope]')!;
+  expect(scope.open).toBe(false); expect(otherScope.open).toBe(false);
+  const inspect = within(row).getByRole('button', {name: 'Inspect integration details'});
+  expect(inspect).toHaveProperty('disabled', false);
+  await userEvent.click(inspect);
+  expect(scope.open).toBe(true); expect(otherScope.open).toBe(false);
+  expect(document.activeElement).toBe(heading);
+  expect(within(row).getByText(`Retained integration attempt: ${state}. Its outcome has not been confirmed.`)).toBeTruthy();
+  expect(screen.getByRole('button', {name: 'Pause new starts'})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: /^Start ready tasks/})).toHaveProperty('disabled', true);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  scope.open = false;
+  view.rerender(<ProjectSwarm {...props} run={run} busy />);
+  expect(inspect).toHaveProperty('disabled', true);
+  await userEvent.click(inspect); expect(scope.open).toBe(false);
+  const integrated: ProjectRun = {...run, revision: run.revision + 1, swarm: {...run.swarm!, tasks: run.swarm!.tasks.map(task => task.id === 'a' ? {...task, integration: {...task.integration!, state: 'integrated' as const, commit: 'c'.repeat(40), integratedAt: '2026-10-17T00:00:00Z'}} : task)}};
+  view.rerender(<ProjectSwarm {...props} run={integrated} busy={false} />);
+  expect(screen.queryByRole('button', {name: 'Inspect integration details'})).toBeNull();
+  for (const effect of [request, review, integrate, control, reserve, abandon, create, busy, updated, openSession]) expect(effect).not.toHaveBeenCalled();
 });
 
 it('offers the saved subscription route only one slot and prepares without starting an agent', async () => {
