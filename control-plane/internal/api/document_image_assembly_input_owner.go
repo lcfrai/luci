@@ -379,12 +379,18 @@ func (o *assemblyInputOwner) writeImmutableMetadata(ctx context.Context, ref ass
 // Private shared no-replace persistence, not an adoption entry point. Raw files
 // have their own closed namespace; they cannot be selected as catalog domains.
 func (o *assemblyInputOwner) writeImmutableAssemblyObject(ctx context.Context, ref assemblyCatalogRef, data []byte, raw bool) error {
-	if ref.Bytes != int64(len(data)) || ref.Digest != assemblyCatalogDigest(data) || ctx.Err() != nil || !assemblyCatalogHex(ref.Digest) { return errAssemblyCatalogInvalid }
+	if ref.Schema != 1 || ref.Bytes != int64(len(data)) || ref.Digest != assemblyCatalogDigest(data) || ctx.Err() != nil || !assemblyCatalogHex(ref.Digest) { return errAssemblyCatalogInvalid }
 	suffix := ".json"
 	if raw {
 		if ref.Kind != "producer-raw" || len(data) > 1<<20 { return errAssemblyCatalogInvalid }
 		suffix = ".raw"
-	} else if !validAssemblyCatalogRef(ref) { return errAssemblyCatalogInvalid }
+	} else {
+		if !validAssemblyCatalogRef(ref) { return errAssemblyCatalogInvalid }
+		switch ref.Kind {
+		case "source-descriptor", "evidence-index", "official-root-policy", "key-observations", "release-signatures", "producer-raw-manifest":
+		default: return errAssemblyCatalogInvalid // no full closure/other domain writer
+		}
+	}
 	root, err := o.root()
 	if err != nil {
 		return err
