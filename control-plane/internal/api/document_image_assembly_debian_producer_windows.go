@@ -61,7 +61,7 @@ func newDebianProofWindowsCalls()*debianProofWindowsCalls{return &debianProofWin
  UpdateAttributes:func(p unsafe.Pointer,k uintptr,v unsafe.Pointer,n uintptr)error{r,_,_:=proofUpdateAttributes.Call(uintptr(p),0,k,uintptr(v),n,0,0);if r==0{return errors.New("startup attribute unavailable")};return nil},
  DeleteAttributes:func(p unsafe.Pointer){proofDeleteAttributes.Call(uintptr(p))},
  FileCreate:windows.CreateFile,FileInfo:windows.GetFileInformationByHandle,FileWrite:windows.WriteFile,FileFlush:windows.FlushFileBuffers,
- FileReOpen:func(source windows.Handle)(windows.Handle,error){h,_,e:=proofReOpenFile.Call(uintptr(source),uintptr(windows.GENERIC_READ),uintptr(windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE),uintptr(windows.FILE_FLAG_OPEN_REPARSE_POINT));handle:=windows.Handle(h);if validDebianProducedHandle(handle){return handle,nil};if e!=windows.ERROR_SUCCESS{return handle,e};return handle,errors.New("original file reopen unavailable")},
+ FileReOpen:func(source windows.Handle)(windows.Handle,error){if e:=proofReOpenFile.Find();e!=nil{return 0,e};h,_,e:=proofReOpenFile.Call(uintptr(source),uintptr(windows.GENERIC_READ),uintptr(windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE),uintptr(windows.FILE_FLAG_OPEN_REPARSE_POINT));handle:=windows.Handle(h);if validDebianProducedHandle(handle){return handle,nil};if e!=windows.ERROR_SUCCESS{return handle,e};return handle,errors.New("original file reopen unavailable")},
 }}
 
 type debianProofJob struct {mu sync.Mutex;handle windows.Handle;settled,closing,terminating,terminationStarted,retirementRequested bool;borrowers int;ordinal int;generation,lastTerminationGeneration uint8}
