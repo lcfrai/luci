@@ -325,13 +325,13 @@ func (o *assemblyInputOwner) publishMetadata(ctx context.Context, actor manageme
 	if old.CAS != expected || old.State.Revision == math.MaxUint64 {
 		return assemblyCatalogCAS{}, errAssemblyCatalogConflict
 	}
-	return o.publishCatalogHeadLocked(ctx, actor, old, source, policy, index)
+	return o.publishCatalogHeadLocked(ctx, actor, old, source, policy, index, nil)
 }
 
 // Both callers already own the same installation-wide catalog lock. This body
 // performs storage only; callers retain their distinct metadata/domain gates.
 // No arbitrary validator callback and no recursive publishMetadata lock.
-func (o *assemblyInputOwner) publishCatalogHeadLocked(ctx context.Context, actor management.ExecutionActorRef, old assemblyInputCatalogSnapshot, source assemblyCatalogSource, policy assemblyCatalogPolicy, index assemblyCatalogIndex) (assemblyCatalogCAS, error) {
+func (o *assemblyInputOwner) publishCatalogHeadLocked(ctx context.Context, actor management.ExecutionActorRef, old assemblyInputCatalogSnapshot, source assemblyCatalogSource, policy assemblyCatalogPolicy, index assemblyCatalogIndex, permit *assemblyDebianPublicationPermit) (assemblyCatalogCAS, error) {
 	if old.State.Revision == math.MaxUint64 || !validAssemblyCatalogSource(source) || !validAssemblyCatalogPolicy(policy) || !validAssemblyCatalogIndex(index) { return assemblyCatalogCAS{}, errAssemblyCatalogInvalid }
 	sourceData, _ := json.Marshal(source)
 	indexData, _ := json.Marshal(index)
@@ -352,8 +352,13 @@ func (o *assemblyInputOwner) publishCatalogHeadLocked(ctx context.Context, actor
 	if err := o.authorize(ctx, actor); err != nil {
 		return assemblyCatalogCAS{}, err
 	}
+	// Domain publication checks the exact sealed candidate after the last
+	// potentially blocking authority hook. Metadata behavior remains unchanged.
+	if permit != nil { if err:=permit.begin(ctx,o,next);err!=nil{return assemblyCatalogCAS{},err} }
 	err := writeExecutionLedger(filepath.Join(root, "current.json"), data)
-	return o.reconcilePublication(ctx, next, err)
+	result,err:=o.reconcilePublication(ctx,next,err)
+	if permit!=nil{return permit.finish(result,err)}
+	return result,err
 }
 
 // Exact lost-ACK reconciliation; a different/newer/missing head is uncertainty,

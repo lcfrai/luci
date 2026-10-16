@@ -445,6 +445,8 @@ type assemblyDebianDomainCandidate struct {
 	adopting bool
 	targetCAS assemblyCatalogCAS
 	targetIndex assemblyCatalogIndex
+	publication *assemblyDebianPublicationPermit
+	publicationUnknown, publicationRetired bool
 	capture *assemblyDebianCapturedRun
 	policy assemblyDebianRootPolicyV1
 	keys assemblyDebianKeyObservationsV1

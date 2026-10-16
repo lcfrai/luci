@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -157,4 +158,38 @@ func TestAssemblyDebianRawStorageRetainedButNotSelectableDomain(t *testing.T){
 	if err:=r.owner.writeImmutableMetadata(context.Background(),ref,data);err==nil{t.Fatal("metadata writer accepted raw storage domain")}
 	if _,err:=r.owner.publishMetadata(context.Background(),r.actor,r.expected,r.source,r.policy,assemblyCatalogIndex{1,[]assemblyCatalogRef{ref}});err==nil{t.Fatal("head selected raw storage instead of typed domain")}
 	current,err:=r.owner.Current(context.Background(),r.actor);if err!=nil||current.CAS!=r.expected{t.Fatal("raw storage changed selected head",current,err)}
+}
+
+func TestAssemblyDebianFinalPublicationAuthorityCannotReviveRetiredCandidate(t *testing.T){
+	r,now:=assemblyDebianOwnedFixture(t);captured,err:=captureDebianSignatureRun(context.Background(),r);if err!=nil{t.Fatal(err)};c,err:=newAssemblyDebianDomains(context.Background(),r.owner,captured,now);if err!=nil{t.Fatal(err)}
+	entered,release,result:=make(chan struct{}),make(chan struct{}),make(chan error,1)
+	var calls atomic.Int32
+	r.owner.api.deps.AuthorizeRuntimeInstaller=func(context.Context,management.ExecutionActorRef)(management.ExecutionAuthority,error){if calls.Add(1)==4{close(entered);<-release};return management.ExecutionAuthority{},nil}
+	go func(){_,err:=r.owner.adoptDebianDomainsAt(context.Background(),c,now);result<-err}()
+	select{case <-entered:case <-time.After(time.Second):close(release);t.Fatal("actual final publication authority hook not entered")}
+	if err:=c.retire();err!=nil{close(release);t.Fatal(err)}
+	close(release)
+	select{case err:=<-result:if err==nil{t.Fatal("late authority success published retired candidate")};case <-time.After(time.Second):t.Fatal("adoption not settled")}
+	current,err:=r.owner.Current(context.Background(),r.actor);if err!=nil||current.CAS!=r.expected{t.Fatal("head changed after precommit retirement",current,err)}
+}
+
+// Actual catalog publication/readback, then an explicit lost-ACK error through
+// the SAME reconciliation/permit methods used by the writer. This does not
+// inject a filesystem failure or claim native producer/handle proof.
+func TestAssemblyDebianPublicationPermitLostACKAndIntersectingRetirement(t *testing.T){
+	for _,retire:=range []bool{false,true}{t.Run(strconv.FormatBool(retire),func(t *testing.T){
+		r,now:=assemblyDebianOwnedFixture(t);captured,err:=captureDebianSignatureRun(context.Background(),r);if err!=nil{t.Fatal(err)};c,err:=newAssemblyDebianDomains(context.Background(),r.owner,captured,now);if err!=nil{t.Fatal(err)}
+		cas,err:=r.owner.adoptDebianDomainsAt(context.Background(),c,now);if err!=nil{t.Fatal(err)}
+		c.mu.Lock();c.adopting=true;c.mu.Unlock()
+		permit:=&assemblyDebianPublicationPermit{candidate:c}
+		if err:=permit.begin(context.Background(),r.owner,cas);err!=nil{t.Fatal(err)}
+		if retire{if err:=c.retire();err!=nil{t.Fatal(err)}}
+		observed,err:=r.owner.reconcilePublication(context.Background(),cas,errors.New("synthetic lost head-write ACK"))
+		settled,err:=permit.finish(observed,err)
+		c.mu.Lock();c.adopting=false;c.mu.Unlock()
+		if retire{
+			if !errors.Is(err,errAssemblyDebianPublicationUncertain)||settled!=(assemblyCatalogCAS{}){t.Fatal("retirement intersecting commit reported success",settled,err)}
+			if _,err:=r.owner.adoptDebianDomainsAt(context.Background(),c,now);!errors.Is(err,errAssemblyDebianPublicationUncertain){t.Fatal("retired uncertain publication became retry/readback success",err)}
+		}else{if err!=nil||settled!=cas{t.Fatal("exact unretired lost ACK failed reconciliation",settled,err)};if err:=c.retire();err!=nil{t.Fatal(err)}}
+	})}
 }
