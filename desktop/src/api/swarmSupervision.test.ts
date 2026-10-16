@@ -1,8 +1,69 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { productApi } from './product';
-import { checkedReviewObligation, checkedSupervision, mergeSwarmMessages, swarmSupervisionApi, type PostSwarmMessage, type SwarmReviewObligation } from './swarmSupervision';
+import { checkedReviewObligation, checkedSupervision, checkedSwarmMessage, mergeSwarmMessages, swarmSupervisionApi, type PostSwarmMessage, type SwarmReviewObligation } from './swarmSupervision';
 import { swarmMessageFixture, swarmSupervisionFixture } from '../test/swarmSupervisionFixtures';
 afterEach(() => vi.restoreAllMocks());
+const resolutionFixture = () => swarmMessageFixture({id: 'msg-resolution', sequence: 301, kind: 'decision', sender: {taskId: 'b', operationId: 'op-b', childId: 'session-b', worktreeId: 'isolated-b', contextDigest: 'b'.repeat(64)}, recipientTaskId: 'a', causalMessageId: 'msg-1', resolvesQuestionId: 'msg-1', summary: 'Use only active items in the empty state.'});
+it('LOCAL151 distinguishes a legacy projection from a complete empty index and accepts off-page resolution identities', () => {
+  const legacy = checkedSupervision('p-1', 'run-1', 0, swarmSupervisionFixture());
+  expect(legacy.questionResolutions).toBeUndefined();
+  expect(checkedSupervision('p-1', 'run-1', 0, swarmSupervisionFixture({questionResolutions: []})).questionResolutions).toEqual([]);
+  const index = [{questionId: 'msg-1', resolutionMessageId: 'msg-resolution'}];
+  const first = swarmSupervisionFixture({questionResolutions: index, attention: []});
+  expect(checkedSupervision('p-1', 'run-1', 0, first)).toBe(first);
+  const last = swarmSupervisionFixture({messages: [resolutionFixture()], questionResolutions: index, attention: [], page: {after: 300, nextCursor: 301, hasMore: false, omitted: 0}});
+  expect(checkedSupervision('p-1', 'run-1', 300, last)).toBe(last);
+});
+it.each([
+  null, {}, [{questionId: 'msg-1', resolutionMessageId: 'msg-1'}],
+  [{questionId: 'msg-1', resolutionMessageId: 'r1'}, {questionId: 'msg-1', resolutionMessageId: 'r2'}],
+  [{questionId: 'q1', resolutionMessageId: 'r1'}, {questionId: 'q2', resolutionMessageId: 'r1'}],
+  [{questionId: 'q1', resolutionMessageId: 'q2'}, {questionId: 'q2', resolutionMessageId: 'r2'}],
+  [{questionId: '', resolutionMessageId: 'r1'}],
+  Array.from({length: 257}, (_, i) => ({questionId: `q${i}`, resolutionMessageId: `r${i}`})),
+].map(index => ({index})))('LOCAL151 refuses malformed complete resolution index %#', ({index}) => {
+  expect(() => checkedSupervision('p-1', 'run-1', 0, Object.assign(swarmSupervisionFixture({attention: []}), {questionResolutions: index}))).toThrow();
+});
+it('LOCAL151 refuses visible role/order/index conflicts without demanding off-page messages', () => {
+  const decision = {...resolutionFixture(), sequence: 2};
+  const page = swarmSupervisionFixture({messages: [swarmMessageFixture(), decision], questionResolutions: [{questionId: 'msg-1', resolutionMessageId: decision.id}], attention: [], page: {after: 0, nextCursor: 2, hasMore: false, omitted: 0}});
+  expect(checkedSupervision('p-1', 'run-1', 0, page)).toBe(page);
+  expect(() => checkedSupervision('p-1', 'run-1', 0, {...page, messages: [swarmMessageFixture(), {...decision, recipientTaskId: 'b'}]})).toThrow();
+  expect(() => checkedSupervision('p-1', 'run-1', 0, {...page, messages: [swarmMessageFixture({kind: 'discovery'}), decision]})).toThrow();
+  expect(() => checkedSupervision('p-1', 'run-1', 0, {...page, questionResolutions: []})).toThrow();
+  expect(() => checkedSupervision('p-1', 'run-1', 0, {...page, attention: swarmSupervisionFixture().attention})).toThrow();
+  expect(() => checkedSupervision('p-1', 'run-1', 0, {...page, messages: [swarmMessageFixture({sequence: 2}), {...decision, sequence: 1}]})).toThrow();
+  const nextPage = swarmSupervisionFixture({messages: [], questionResolutions: page.questionResolutions, attention: [], page: {after: 2, nextCursor: 2, hasMore: false, omitted: 0}});
+  expect(() => checkedSupervision('p-1', 'run-1', 2, nextPage, [swarmMessageFixture({kind: 'discovery'})])).toThrow();
+  expect(() => checkedSupervision('p-1', 'run-1', 2, nextPage, [swarmMessageFixture(), {...decision, recipientTaskId: 'b'}])).toThrow();
+});
+it.each([null, true, 'msg-other', 'x'.repeat(257)])('LOCAL151 rejects malformed or causally different resolution fields %#', resolvesQuestionId => {
+  expect(() => checkedSwarmMessage(Object.assign(resolutionFixture(), {resolvesQuestionId}))).toThrow();
+});
+it('LOCAL151 binds resolution to immutable merge identity, coordinator attribution and exact post/disposition recovery', async () => {
+  const decision = resolutionFixture();
+  expect(() => checkedSwarmMessage({...decision, attribution: 'owned-worker-report'})).toThrow();
+  expect(() => checkedSwarmMessage({...decision, id: 'msg-1'})).toThrow();
+  expect(() => mergeSwarmMessages([decision], [{...decision, resolvesQuestionId: undefined}])).toThrow();
+  const legacy = swarmMessageFixture();
+  expect(mergeSwarmMessages([legacy], [{...legacy, resolvesQuestionId: ''}])).toHaveLength(1);
+  const request: PostSwarmMessage = {expectedRevision: 2, idempotencyKey: 'resolution-exact-key-123456', recipientTaskId: 'a', kind: 'decision', causalMessageId: 'msg-1', resolvesQuestionId: 'msg-1', evidence: {kind: 'none', id: '', digest: ''}, summary: decision.summary};
+  const transport = vi.spyOn(productApi, 'request').mockResolvedValue({message: decision, runRevision: 3});
+  await swarmSupervisionApi.post('p-1', 'run-1', 'op-b', request);
+  expect(transport.mock.calls[0][1]).toBe(request);
+  transport.mockResolvedValueOnce({message: {...decision, resolvesQuestionId: undefined}, runRevision: 3});
+  await expect(swarmSupervisionApi.post('p-1', 'run-1', 'op-b', request)).rejects.toThrow(/retained request/);
+  transport.mockResolvedValueOnce({projectId: 'p-1', runId: 'run-1', operationId: 'op-b', state: 'recorded', message: {...decision, resolvesQuestionId: undefined}, runRevision: 3});
+  await expect(swarmSupervisionApi.disposition('p-1', 'run-1', 'op-b', request)).rejects.toThrow(/retained request/);
+  transport.mockResolvedValueOnce({projectId: 'p-1', runId: 'run-1', operationId: 'op-b', state: 'recorded', message: decision, runRevision: 3});
+  expect((await swarmSupervisionApi.disposition('p-1', 'run-1', 'op-b', request)).message?.resolvesQuestionId).toBe('msg-1');
+  transport.mockResolvedValueOnce({projectId: 'p-1', runId: 'run-1', operationId: 'op-b', state: 'rejected', message: null, runRevision: 3});
+  await swarmSupervisionApi.retirePost('p-1', 'run-1', 'op-b', request);
+  expect(transport.mock.calls[4][1]).toBe(request);
+  const calls = transport.mock.calls.length;
+  await expect(swarmSupervisionApi.retirePost('p-1', 'run-1', 'op-b', {...request, kind: 'question'})).rejects.toThrow();
+  expect(transport).toHaveBeenCalledTimes(calls);
+});
 const repairObligation = (): SwarmReviewObligation => ({id: 'review-one', taskId: 'code', candidateOperationId: 'op-code', candidateChildId: 's-code', candidateCommit: 'a'.repeat(40), contextDigest: 'b'.repeat(64), reviewDigest: 'c'.repeat(64), reviewerOperationId: 'op-review', reviewerChildId: 's-review', state: 'repair-required', attempt: 3, createdAt: '2026-10-16T00:00:00Z', keyDigest: 'd'.repeat(64), requestDigest: 'e'.repeat(64), repairLimit: 2, repairsConsumed: 2});
 it.each([0, 1, 2])('keeps failed findings and retained over-budget reservation history readable at limit%i', repairLimit => {
   const value = {...repairObligation(), repairLimit, repairsConsumed: 3};

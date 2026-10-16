@@ -1,4 +1,4 @@
-import { SWARM_MESSAGE_KINDS, type AckSwarmMessage, type PostSwarmMessage } from '../../api/swarmSupervision';
+import { SWARM_MESSAGE_KINDS, validSwarmQuestionResolution, type AckSwarmMessage, type PostSwarmMessage } from '../../api/swarmSupervision';
 
 export type PendingSwarmMessage = {type: 'post'; operationId: string; request: PostSwarmMessage} |
   {type: 'ack'; messageId: string; request: AckSwarmMessage};
@@ -19,11 +19,12 @@ export function readMessageRecovery(scope: string): PendingSwarmMessage | null {
         !SWARM_MESSAGE_KINDS.includes(value.request.kind) || !identity(value.request.recipientTaskId) ||
         typeof value.request.summary !== 'string' || !value.request.summary.trim() || bytes(value.request.summary) > 1000 ||
         typeof value.request.causalMessageId !== 'string' || value.request.causalMessageId.length > 256 ||
+        !validSwarmQuestionResolution(value.request.kind, value.request.causalMessageId, value.request.resolvesQuestionId) ||
         !value.request.evidence || !['none', 'handoff', 'source-commit'].includes(value.request.evidence.kind) ||
         (value.request.evidence.kind === 'none' ? value.request.evidence.id !== '' || value.request.evidence.digest !== '' :
           !identity(value.request.evidence.id) || !/^[a-f0-9]{64}$/.test(value.request.evidence.digest))) ||
       !['post', 'ack'].includes(value.type)) throw new Error('The retained message request could not be verified. No write was replayed.');
-  const allowed = value.type === 'post' ? ['expectedRevision', 'idempotencyKey', 'recipientTaskId', 'kind', 'causalMessageId', 'evidence', 'summary'] : ['expectedRevision', 'recipientOperationId'];
+  const allowed = value.type === 'post' ? ['expectedRevision', 'idempotencyKey', 'recipientTaskId', 'kind', 'causalMessageId', 'resolvesQuestionId', 'evidence', 'summary'] : ['expectedRevision', 'recipientOperationId'];
   if (Object.keys(value).some(key => !(value.type === 'post' ? ['type', 'operationId', 'request'] : ['type', 'messageId', 'request']).includes(key)) ||
       Object.keys(request).some(key => !allowed.includes(key)) || value.type === 'post' && Object.keys(value.request.evidence).some(key => !['kind', 'id', 'digest'].includes(key))) {
     throw new Error('The retained message request has unsupported fields. No write was replayed.');

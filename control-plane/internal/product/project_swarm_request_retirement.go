@@ -25,7 +25,7 @@ func (s *Server) retireProjectSwarmMessageRequest(w http.ResponseWriter, r *http
 	if !journeyDecode(w, r, &req) {
 		return
 	}
-	if req.ExpectedRevision < 1 || !validRunKey(req.IdempotencyKey) || !swarmMessageKind(req.Kind) || !handoffText(req.Summary, 1000) || strings.TrimSpace(req.Summary) == "" || !validSwarmMessageEvidenceShape(req.Evidence) {
+	if req.ExpectedRevision < 1 || !validRunKey(req.IdempotencyKey) || !swarmMessageKind(req.Kind) || !handoffText(req.Summary, 1000) || strings.TrimSpace(req.Summary) == "" || !validSwarmMessageEvidenceShape(req.Evidence) || !swarmQuestionResolutionShape(req.Kind, req.CausalMessageID, req.ResolvesQuestionID) {
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}

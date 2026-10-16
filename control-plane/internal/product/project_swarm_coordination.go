@@ -33,19 +33,20 @@ type ProjectSwarmMessageAck struct {
 }
 
 type ProjectSwarmMessage struct {
-	ID              string                      `json:"id"`
-	Sequence        int                         `json:"sequence"`
-	Kind            string                      `json:"kind"`
-	Sender          ProjectSwarmMessageSender   `json:"sender"`
-	RecipientTaskID string                      `json:"recipientTaskId"`
-	CausalMessageID string                      `json:"causalMessageId,omitempty"`
-	Evidence        ProjectSwarmMessageEvidence `json:"evidence"`
-	Summary         string                      `json:"summary"`
-	Attribution     string                      `json:"attribution"`
-	CreatedAt       string                      `json:"createdAt"`
-	Ack             *ProjectSwarmMessageAck     `json:"ack"`
-	KeyDigest       string                      `json:"keyDigest"`
-	RequestDigest   string                      `json:"requestDigest"`
+	ID                 string                      `json:"id"`
+	Sequence           int                         `json:"sequence"`
+	Kind               string                      `json:"kind"`
+	Sender             ProjectSwarmMessageSender   `json:"sender"`
+	RecipientTaskID    string                      `json:"recipientTaskId"`
+	CausalMessageID    string                      `json:"causalMessageId,omitempty"`
+	ResolvesQuestionID string                      `json:"resolvesQuestionId,omitempty"`
+	Evidence           ProjectSwarmMessageEvidence `json:"evidence"`
+	Summary            string                      `json:"summary"`
+	Attribution        string                      `json:"attribution"`
+	CreatedAt          string                      `json:"createdAt"`
+	Ack                *ProjectSwarmMessageAck     `json:"ack"`
+	KeyDigest          string                      `json:"keyDigest"`
+	RequestDigest      string                      `json:"requestDigest"`
 }
 
 // Review obligations require a different exact task attempt. A failed
@@ -106,6 +107,38 @@ func swarmMessageKind(kind string) bool {
 	return false
 }
 
+// Shape validation also applies to uncertain-request readback/retirement. It
+// deliberately does not depend on the question still being open or current.
+func swarmQuestionResolutionShape(kind, causal, question string) bool {
+	return question == "" || kind == "decision" && prototypeReleaseID.MatchString(question) && causal == question
+}
+
+func swarmQuestionResolutionMatches(question, decision ProjectSwarmMessage) bool {
+	return question.Kind == "question" && question.Sequence < decision.Sequence &&
+		decision.ResolvesQuestionID == question.ID && decision.CausalMessageID == question.ID &&
+		decision.Kind == "decision" && decision.Attribution == "coordinator-recorded" &&
+		decision.Sender.TaskID == question.RecipientTaskID && decision.RecipientTaskID == question.Sender.TaskID
+}
+
+type swarmQuestionResolution struct {
+	QuestionID          string `json:"questionId"`
+	ResolutionMessageID string `json:"resolutionMessageId"`
+}
+
+// Called on a validated run; the full retained history, not a display page,
+// is the sole source of resolution identity. No original message is changed.
+func swarmQuestionResolutions(run ProjectRun) []swarmQuestionResolution {
+	items := []swarmQuestionResolution{}
+	if run.Swarm != nil {
+		for _, msg := range run.Swarm.Messages {
+			if msg.ResolvesQuestionID != "" {
+				items = append(items, swarmQuestionResolution{msg.ResolvesQuestionID, msg.ID})
+			}
+		}
+	}
+	return items
+}
+
 func validateSwarmCoordination(run ProjectRun) error {
 	if run.Swarm == nil {
 		return nil
@@ -114,6 +147,8 @@ func validateSwarmCoordination(run ProjectRun) error {
 		return ErrProjectRunLimit
 	}
 	messageIDs := make(map[string]bool, len(run.Swarm.Messages))
+	questions := map[string]ProjectSwarmMessage{}
+	resolved := map[string]bool{}
 	for i, msg := range run.Swarm.Messages {
 		op := swarmOperation(&run, msg.Sender.OperationID)
 		if msg.Sequence != i+1 || !prototypeReleaseID.MatchString(msg.ID) || messageIDs[msg.ID] || !swarmMessageKind(msg.Kind) ||
@@ -125,6 +160,16 @@ func validateSwarmCoordination(run ProjectRun) error {
 		}
 		if msg.CausalMessageID != "" && !messageIDs[msg.CausalMessageID] {
 			return ErrProjectRunInvalid
+		}
+		if !swarmQuestionResolutionShape(msg.Kind, msg.CausalMessageID, msg.ResolvesQuestionID) {
+			return ErrProjectRunInvalid
+		}
+		if msg.ResolvesQuestionID != "" {
+			question, found := questions[msg.ResolvesQuestionID]
+			if !found || resolved[question.ID] || !swarmQuestionResolutionMatches(question, msg) {
+				return ErrProjectRunInvalid
+			}
+			resolved[question.ID] = true
 		}
 		if !validSwarmMessageEvidenceShape(msg.Evidence) {
 			return ErrProjectRunInvalid
@@ -142,6 +187,9 @@ func validateSwarmCoordination(run ProjectRun) error {
 			}
 		}
 		messageIDs[msg.ID] = true
+		if msg.Kind == "question" {
+			questions[msg.ID] = msg
+		}
 	}
 	obligations := map[string]bool{}
 	obligationKeys := map[string]bool{}
@@ -228,6 +276,20 @@ func appendSwarmMessage(run *ProjectRun, msg ProjectSwarmMessage) (ProjectSwarmM
 		}
 	}
 	msg.Sequence = len(run.Swarm.Messages) + 1
+	if msg.ResolvesQuestionID != "" {
+		matched := false
+		for _, prior := range run.Swarm.Messages {
+			if prior.ResolvesQuestionID == msg.ResolvesQuestionID {
+				return ProjectSwarmMessage{}, ErrProjectRunConflict
+			}
+			if prior.ID == msg.ResolvesQuestionID {
+				matched = swarmQuestionResolutionMatches(prior, msg)
+			}
+		}
+		if !matched {
+			return ProjectSwarmMessage{}, ErrProjectRunConflict
+		}
+	}
 	run.Swarm.Messages = append(run.Swarm.Messages, msg)
 	if err := validateSwarmCoordination(*run); err != nil {
 		return ProjectSwarmMessage{}, err

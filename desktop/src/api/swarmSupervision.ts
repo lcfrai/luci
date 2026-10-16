@@ -7,7 +7,7 @@ export type SwarmMessageKind = typeof SWARM_MESSAGE_KINDS[number];
 export interface SwarmMessage {
   id: string; sequence: number; kind: string;
   sender: {taskId: string; operationId: string; childId: string; worktreeId: string; contextDigest: string};
-  recipientTaskId: string; causalMessageId?: string;
+  recipientTaskId: string; causalMessageId?: string; resolvesQuestionId?: string;
   evidence: {kind: string; id: string; digest: string}; summary: string; attribution: 'coordinator-recorded' | 'owned-worker-report'; createdAt: string;
   ack: {operationId: string; childId: string; actorId: string; at: string} | null;
   [futureField: string]: unknown;
@@ -26,6 +26,8 @@ export interface SwarmSupervision {
   activityPhase: string; qualityPhase: string; settlement: string;
   tasks: {taskId: string; operationId: string; role: 'coding' | 'review-only'; state: string; integrationState: string}[];
   messages: SwarmMessage[];
+  /** Complete index at runRevision, independent of this message page. Omitted on legacy servers. */
+  questionResolutions?: {questionId: string; resolutionMessageId: string}[];
   reviewObligations: SwarmReviewObligation[];
   page: {after: number; nextCursor: number; hasMore: boolean; omitted: number};
   attention: {id: string; kind: string; taskId: string; action: SwarmAttentionAction}[];
@@ -34,7 +36,7 @@ export interface SwarmSupervision {
 }
 export interface PostSwarmMessage {
   expectedRevision: number; idempotencyKey: string; recipientTaskId: string; kind: SwarmMessageKind;
-  causalMessageId: string; evidence: {kind: 'none'; id: ''; digest: ''} | {kind: 'handoff' | 'source-commit'; id: string; digest: string}; summary: string;
+  causalMessageId: string; resolvesQuestionId?: string; evidence: {kind: 'none'; id: ''; digest: ''} | {kind: 'handoff' | 'source-commit'; id: string; digest: string}; summary: string;
 }
 export interface AckSwarmMessage { expectedRevision: number; recipientOperationId: string }
 export interface SwarmMessageResult {message: SwarmMessage; runRevision: number}
@@ -45,10 +47,16 @@ const text = (value: unknown, max = 256): value is string => typeof value === 's
 const id = (value: unknown): value is string => text(value) && value.length > 0;
 const integer = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
 const digest = (value: unknown) => value === '' || typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+const messageId = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+export function validSwarmQuestionResolution(kind: string, causal: string | undefined, question: unknown): boolean {
+  return question === undefined || question === '' || messageId(question) && kind === 'decision' && causal === question;
+}
 export function checkedSwarmMessage(value: SwarmMessage): SwarmMessage {
   if (!value || !id(value.id) || !integer(value.sequence) || value.sequence < 1 || !id(value.kind) || !id(value.sender?.taskId) ||
       !id(value.sender?.operationId) || !id(value.sender?.childId) || !id(value.sender?.worktreeId) || !digest(value.sender?.contextDigest) || !value.sender.contextDigest ||
       !id(value.recipientTaskId) || !text(value.causalMessageId ?? '') || !id(value.evidence?.kind) || !text(value.evidence?.id) || !digest(value.evidence?.digest) ||
+      !validSwarmQuestionResolution(value.kind, value.causalMessageId, value.resolvesQuestionId) ||
+      !!value.resolvesQuestionId && (value.resolvesQuestionId === value.id || value.attribution !== 'coordinator-recorded') ||
       !text(value.summary, 1000) || !value.summary.trim() || !['coordinator-recorded', 'owned-worker-report'].includes(value.attribution) || !id(value.createdAt) || value.ack !== null && (!value.ack || !id(value.ack.operationId) || !id(value.ack.childId) || !id(value.ack.actorId) || !id(value.ack.at))) {
     throw new Error('The attributed message receipt could not be verified. Its result remains unconfirmed.');
   }
@@ -68,7 +76,7 @@ export function checkedReviewObligation(value: SwarmReviewObligation): SwarmRevi
   }
   return value;
 }
-export function checkedSupervision(projectId: string, runId: string, after: number, value: SwarmSupervision): SwarmSupervision {
+export function checkedSupervision(projectId: string, runId: string, after: number, value: SwarmSupervision, retainedMessages?: SwarmMessage[]): SwarmSupervision {
   if (!value || value.version !== 1 || value.projectId !== projectId || value.runId !== runId ||
       !id(value.observedAt) || !integer(value.runRevision) || !integer(value.queueRevision) ||
       !integer(value.context?.briefRevision) || !integer(value.context?.planRevision) || !digest(value.context?.contractDigest) || !id(value.context?.freshness) ||
@@ -84,6 +92,30 @@ export function checkedSupervision(projectId: string, runId: string, after: numb
   }
   value.messages.forEach(checkedSwarmMessage);
   value.reviewObligations.forEach(checkedReviewObligation);
+  const visibleMessages = retainedMessages ?? value.messages;
+  if (!Array.isArray(visibleMessages) || visibleMessages.length > 250 || new Set(visibleMessages.map(message => message.id)).size !== visibleMessages.length) throw new Error('The retained message window could not be verified.');
+  visibleMessages.forEach(checkedSwarmMessage);
+  if (value.questionResolutions !== undefined) {
+    const resolutions = value.questionResolutions;
+    if (!Array.isArray(resolutions) || resolutions.length > 256 || resolutions.some(item => !item || !messageId(item.questionId) || !messageId(item.resolutionMessageId) || item.questionId === item.resolutionMessageId) ||
+        new Set(resolutions.map(item => item.questionId)).size !== resolutions.length || new Set(resolutions.map(item => item.resolutionMessageId)).size !== resolutions.length) {
+      throw new Error('The complete question resolution index could not be verified. Refresh saved supervision.');
+    }
+    const byQuestion = new Map(resolutions.map(item => [item.questionId, item.resolutionMessageId]));
+    const visible = new Map(visibleMessages.map(message => [message.id, message]));
+    for (const item of resolutions) {
+      const question = visible.get(item.questionId), decision = visible.get(item.resolutionMessageId);
+      if (byQuestion.has(item.resolutionMessageId) || question && question.kind !== 'question' ||
+          decision && (decision.resolvesQuestionId !== item.questionId || decision.kind !== 'decision') ||
+          question && decision && (question.sequence >= decision.sequence || decision.sender.taskId !== question.recipientTaskId || decision.recipientTaskId !== question.sender.taskId) ||
+          value.attention.some(attention => attention.kind === 'question' && attention.id === item.questionId)) {
+        throw new Error('The question resolution index conflicts with saved message identities.');
+      }
+    }
+    if (visibleMessages.some(message => message.resolvesQuestionId && byQuestion.get(message.resolvesQuestionId) !== message.id)) {
+      throw new Error('The complete question resolution index omits a visible saved decision.');
+    }
+  }
   if (value.messages.some(message => message.sequence <= after || message.sequence > value.page.nextCursor) ||
       new Set(value.messages.map(message => message.id)).size !== value.messages.length || new Set(value.messages.map(message => message.sequence)).size !== value.messages.length) {
     throw new Error('The supervision cursor or message identities are inconsistent. Refresh its saved history.');
@@ -97,10 +129,11 @@ export const swarmSupervisionApi = {
     return checkedSupervision(projectId, runId, after, await productApi.request<SwarmSupervision>(`${path(projectId, runId)}/supervision?after=${after}&limit=50`, undefined, 'GET', 30_000, signal));
   },
   async post(projectId: string, runId: string, operationId: string, request: PostSwarmMessage, signal?: AbortSignal) {
+    if (!validSwarmQuestionResolution(request.kind, request.causalMessageId, request.resolvesQuestionId)) throw new Error('The resolution request must identify the exact question and a decision. No write was sent.');
     const result = await productApi.request<SwarmMessageResult>(`${path(projectId, runId)}/operations/${encodeURIComponent(operationId)}/messages`, request, 'POST', 30_000, signal);
     const message = checkedSwarmMessage(result?.message);
     if (!integer(result.runRevision) || result.runRevision < request.expectedRevision || message.sender.operationId !== operationId ||
-        message.recipientTaskId !== request.recipientTaskId || message.kind !== request.kind || (message.causalMessageId ?? '') !== request.causalMessageId ||
+        message.recipientTaskId !== request.recipientTaskId || message.kind !== request.kind || (message.causalMessageId ?? '') !== request.causalMessageId || (message.resolvesQuestionId ?? '') !== (request.resolvesQuestionId ?? '') ||
         message.summary !== request.summary || message.evidence.kind !== request.evidence.kind || message.evidence.id !== request.evidence.id || message.evidence.digest !== request.evidence.digest) {
       throw new Error('The message response does not match the retained request. Its result remains unconfirmed.');
     }
@@ -121,18 +154,20 @@ export const swarmSupervisionApi = {
     return value;
   },
   async disposition(projectId: string, runId: string, operationId: string, request: PostSwarmMessage, signal?: AbortSignal) {
+    if (!validSwarmQuestionResolution(request.kind, request.causalMessageId, request.resolvesQuestionId)) throw new Error('The retained resolution request could not be verified. Keep its original bytes.');
     const value = await productApi.request<SwarmMessageDisposition>(`${path(projectId, runId)}/operations/${encodeURIComponent(operationId)}/messages/disposition`, request, 'POST', 30_000, signal);
     if (value?.projectId !== projectId || value.runId !== runId || value.operationId !== operationId || !integer(value.runRevision) || value.runRevision < request.expectedRevision ||
         !['recorded', 'rejected', 'unconfirmed', 'key-conflict'].includes(value.state) || value.state === 'recorded' !== !!value.message) throw new Error('The exact message disposition could not be verified. Keep the retained request.');
     if (value.message) {
       checkedSwarmMessage(value.message);
       if (value.message.sender.operationId !== operationId || value.message.recipientTaskId !== request.recipientTaskId || value.message.kind !== request.kind ||
-          (value.message.causalMessageId ?? '') !== request.causalMessageId || value.message.summary !== request.summary || value.message.evidence.kind !== request.evidence.kind ||
+          (value.message.causalMessageId ?? '') !== request.causalMessageId || (value.message.resolvesQuestionId ?? '') !== (request.resolvesQuestionId ?? '') || value.message.summary !== request.summary || value.message.evidence.kind !== request.evidence.kind ||
           value.message.evidence.id !== request.evidence.id || value.message.evidence.digest !== request.evidence.digest) throw new Error('The recorded message differs from the retained request. Keep the exact request for inspection.');
     }
     return value;
   },
   async retirePost(projectId: string, runId: string, operationId: string, request: PostSwarmMessage, signal?: AbortSignal) {
+    if (!validSwarmQuestionResolution(request.kind, request.causalMessageId, request.resolvesQuestionId)) throw new Error('The retained resolution request could not be verified. Keep its original bytes.');
     const value = await productApi.request<SwarmMessageDisposition>(`${path(projectId, runId)}/operations/${encodeURIComponent(operationId)}/messages/retire`, request, 'POST', 30_000, signal);
     if (value?.projectId !== projectId || value.runId !== runId || value.operationId !== operationId || value.state !== 'rejected' || value.message !== null || !integer(value.runRevision) || value.runRevision <= request.expectedRevision) throw new Error('The exact message retirement was not confirmed. Keep its retained request.');
     return value;
@@ -148,7 +183,7 @@ export const swarmSupervisionApi = {
 export function mergeSwarmMessages(current: SwarmMessage[], incoming: SwarmMessage[]): SwarmMessage[] {
   const identity = (message: SwarmMessage) => JSON.stringify([message.id, message.sequence, message.kind, message.sender.taskId, message.sender.operationId,
     message.sender.childId, message.sender.worktreeId, message.sender.contextDigest, message.recipientTaskId, message.causalMessageId,
-    message.evidence.kind, message.evidence.id, message.evidence.digest, message.summary, message.attribution, message.createdAt]);
+    message.evidence.kind, message.evidence.id, message.evidence.digest, message.summary, message.attribution, message.createdAt, message.resolvesQuestionId ?? '']);
   const byId = new Map(current.map(message => [message.id, message]));
   for (const message of incoming) {
     const previous = byId.get(message.id);
