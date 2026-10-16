@@ -18,6 +18,9 @@ PYTHON = Path('C:/Users/DylanMackie/.cache/codex-runtimes/codex-primary-runtime/
 PYTHON_SHA256 = 'b847bb9f4e48c19f585c8bf7d8b355f3f8c6d2125717ece9c9d7e16fb9f09de8'
 WORKER_SHA256 = 'd27e4b7d080492b27d8430c9d22cf5f3598b02ddd9f26acd299032610117117b'
 MANIFEST_SHA256 = '99355cca07585ff558d493372f979bf26beb3152f582b37560389c9d0daca6a5'
+# Data-only prerequisites, matching the worker's closed future receipt pins.
+# They remain unset; refuse before loading native owners or allocating a Job.
+ACQUISITION_PINS = ('', '', '', '')
 PINS = {
     'windows-api-job-2g-pdh-recovery.py': 'c050bd16622be034a4ef8db050a1554c0ee492a4519ff0b581c647af14f5fd6d',
     'windows-codex-auth-only-655035ec.py': '3fa9eb79e8596a6c12f53886ca8c52d59fd2cf2feaf1620862a5657375cc6031',
@@ -238,6 +241,8 @@ def supervise(job, brake, win, output, whole_end):
 
 def run(args):
     began = time.monotonic();work_end, whole_end = began+WORK_SECONDS, began+WHOLE_SECONDS
+    if any(len(pin) != 64 or any(c not in '0123456789abcdef' for c in pin) for pin in ACQUISITION_PINS):
+        raise ValueError('future exact acquisition pins unset; no probe allocation')
     m = load('windows-api-job-2g-pdh-recovery.py')
     auth = load('windows-codex-auth-only-655035ec.py')
     inventory = load('windows-job-inventory.py')
