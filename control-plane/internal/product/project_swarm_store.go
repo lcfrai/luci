@@ -260,6 +260,15 @@ func (s *ProjectRunStore) reserveSwarmTaskGated(projectID, path, id string, revi
 	}
 	var op ProjectRunOperation
 	run, err := s.mutate(projectID, path, id, revision, func(row *storedProjectRun) (bool, error) {
+		// Exact-key readback above is historical. Every new identity, including
+		// an explicit normal reserve, must respect the same failed-task budget.
+		if checkpoint != nil {
+			if err := swarmRepairBudgetForCheckpoint(row.Run, checkpoint.SourceOperationID); err != nil {
+				return false, err
+			}
+		} else if swarmFailedReviewCount(row.Run, taskID) > 0 {
+			return false, ErrProjectRunConflict
+		}
 		if gate != nil {
 			if err := gate(row.Run); err != nil {
 				return false, err

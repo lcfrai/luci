@@ -161,6 +161,34 @@ func cloudProviderRoots(pemBytes []byte, azure bool) (*x509.CertPool, error) {
 // The artifact store must be on the durable controller host, not on the
 // replaceable Embed runtime host. The signed separation/restore receipts and
 // private authenticated TLS endpoint remain operator prerequisites.
+type cloudOperationContractReader interface {
+	GetProjectSwarmRun(string, string) (product.ProjectRun, error)
+	ValidateSwarmOperationExecutionContract(string, product.ProjectRun, string) error
+}
+
+// This is the callback installed on the actual controller. The existing
+// authorizer still owns provider/grant/spend and exact cleanup authority. Only
+// new effects additionally re-read their current approved operation budget.
+func cloudOperationEffectAuthorizer(projects cloudOperationContractReader, current func(context.Context, e2bbe.Request, string) error) func(context.Context, e2bbe.Request, string) error {
+	return func(ctx context.Context, request e2bbe.Request, action string) error {
+		if err := current(ctx, request, action); err != nil {
+			return err
+		}
+		if cloudOwnershipOnlyEffect(action) {
+			return nil
+		}
+		if action != "allocate" && action != "stage-input" && action != "start" {
+			return management.ErrExecutionAuthority
+		}
+		i := request.Identity
+		run, err := projects.GetProjectSwarmRun(i.ProjectID, i.RunID)
+		if err != nil || projects.ValidateSwarmOperationExecutionContract(i.ProjectID, run, i.AttemptID) != nil {
+			return management.ErrExecutionAuthority
+		}
+		return nil
+	}
+}
+
 func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Server, authorize management.ExecutionAuthorizer) (*api.CloudTaskRuntime, func(), error) {
 	if cfg.E2BConfigPath == "" {
 		return nil, nil, nil
@@ -359,7 +387,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	}
 	controllerConfig := e2bbe.Config{Endpoint: selected.Endpoint, APIKey: strings.TrimSpace(string(apiKey)), AdminAPIKey: strings.TrimSpace(string(adminKey)), HostNodeID: selected.HostNodeID, RootCAs: roots, ClientCertificate: clientCertificate,
 		StateDir: selected.ControllerStateDir, OwnerID: selected.Store.OwnerID, Deployment: selected.Deployment,
-		Template: selected.Template, Limits: selected.Limits, EgressAllow: selected.ModelEgressDomains, Checkpoint: store, Authorize: authorizeEffect,
+		Template: selected.Template, Limits: selected.Limits, EgressAllow: selected.ModelEgressDomains, Checkpoint: store, Authorize: cloudOperationEffectAuthorizer(projects, authorizeEffect),
 		GuestOrigins: func(id string) (string, string, string, error) {
 			if id == "" || strings.ContainsAny(id, "/\\.:@") || selected.Deployment.Provider == "azure" && !azureSandboxIDPattern.MatchString(id) {
 				return "", "", "", e2bbe.ErrConflict

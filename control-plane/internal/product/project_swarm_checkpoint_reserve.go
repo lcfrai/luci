@@ -126,6 +126,10 @@ func (s *Server) reserveProjectSwarmCheckpoint(w http.ResponseWriter, r *http.Re
 		projectRunProblem(w, errors.New("The independent review repair limit is exhausted. Review a changed plan before another attempt."))
 		return
 	}
+	if err = swarmRepairBudgetForCheckpoint(run, op.ID); err != nil {
+		projectRunProblem(w, err)
+		return
+	}
 	if err = s.requireNoSwarmPendingLaunch(r.Context(), run, op.TaskID); err != nil {
 		projectRunProblem(w, err)
 		return
@@ -153,6 +157,7 @@ func (s *Server) reserveProjectSwarmCheckpoint(w http.ResponseWriter, r *http.Re
 	checkpoint := ProjectSwarmCheckpoint{SourceOperationID: op.ID, SourceChildID: op.ChildID, SourceCommit: capture.Review.SourceCommit, SourceBaseCommit: op.BaseCommit, TargetCommit: capture.Review.TargetCommit, ReviewDigest: capture.Review.ReviewDigest, ContextDigest: implementationDigest(op.Implementation), CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	var pathErr error
 	coordinatorIndependentReviewBeforeMutation(r.Context())
+	policyLocked := false
 	run, next, created, err := s.projectRuns.reserveSwarmTaskGated(p.ID, p.Path, run.ID, run.Revision, request.IdempotencyKey, op.TaskID, checkpoint.TargetCommit, func(id string) string {
 		path, e := s.swarmPath(p.ID, run.ID, id)
 		if e != nil {
@@ -161,8 +166,21 @@ func (s *Server) reserveProjectSwarmCheckpoint(w http.ResponseWriter, r *http.Re
 		}
 		return project.WorktreeID(path)
 	}, &checkpoint, func(current ProjectRun) error {
-		return s.checkCoordinatorIndependentReviewGate(r.Context(), p, current, "repair-checkpoint")
+		if gateErr := s.checkCoordinatorIndependentReviewGate(r.Context(), p, current, "repair-checkpoint"); gateErr != nil {
+			return gateErr
+		}
+		// Acquire only after the existing gate's own s.mu reads. Keep this
+		// lock through the durable reservation, never across the later copy.
+		s.mu.RLock()
+		policyLocked = true
+		if policyErr := s.swarmRepairPolicyCurrentLocked(p, current); policyErr != nil {
+			return policyErr
+		}
+		return swarmRepairBudgetForCheckpoint(current, op.ID)
 	})
+	if policyLocked {
+		s.mu.RUnlock()
+	}
 	if err != nil {
 		projectRunProblem(w, err)
 		return

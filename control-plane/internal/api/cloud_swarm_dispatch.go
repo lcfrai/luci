@@ -119,6 +119,9 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 	}
 	launch := e2bbe.LaunchSpec{Command: command, Args: args, Environment: agentEnv,
 		AttachToken: cloud.attachToken(input.Request), ConnectionRevision: "r-" + strconv.Itoa(connection.Revision)}
+	if err := a.deps.Product.ValidateSwarmOperationExecutionContract(req.ProjectID, run, op.ID); err != nil {
+		return blocked("execution_contract_changed", "The exact task's current approved contract or repair budget no longer permits a new cloud allocation or upstream start. Its retained VM remains available for recovery.")
+	}
 	started, err := cloud.Runtime.Start(ctx, input.Request, bytes.NewReader(input.Archive), launch)
 	if err != nil {
 		if errors.Is(err, e2bbe.ErrCapacity) && started.RequestDigest == "" {

@@ -26,6 +26,7 @@ type CoordinatorPolicy struct {
 	IntegrationMode string        `json:"integrationMode"`
 	PreviewMode     string        `json:"previewMode"`
 	DeploymentMode  string        `json:"deploymentMode"`
+	AutomaticRepairLimit *int      `json:"automaticRepairLimit,omitempty"`
 	AllowedTargets  []string      `json:"allowedTargets"`
 	UpdatedAt       string        `json:"updatedAt,omitempty"`
 	Actor           *ContextActor `json:"actor,omitempty"`
@@ -149,6 +150,9 @@ func (s *Server) readCoordinatorPolicy(p project.Project) (CoordinatorPolicy, er
 		stored.Policy.DeploymentMode = "manual"
 	}
 	targets, err := coordinatorTargets(stored.Policy.AllowedTargets)
+	if _, budgetErr := effectiveAutomaticRepairLimit(stored.Policy.AutomaticRepairLimit); budgetErr != nil {
+		return policy, ErrOrchestratorInvalid
+	}
 	if err != nil || (stored.Policy.ReviewMode != "manual" && stored.Policy.ReviewMode != "approved-amendments") || (stored.Policy.ReviewMode == "approved-amendments" && stored.Policy.Mode != "auto-drafts") || (stored.Policy.ExecutionMode != "manual" && stored.Policy.ExecutionMode != "reviewed-tasks") || (stored.Policy.IntegrationMode != "manual" && stored.Policy.IntegrationMode != "reviewed-scopes") || !validCoordinatorPreviewMode(stored.Policy.PreviewMode) || (stored.Policy.DeploymentMode != "manual" && stored.Policy.DeploymentMode != "existing-target") || stored.Version != 1 || stored.AccountScope != scope.AccountScope || stored.ProjectScope != scope.ProjectScope || stored.Policy.ProjectID != p.ID || stored.Policy.Revision < 1 || (stored.Policy.Mode != "review" && stored.Policy.Mode != "auto-drafts") || (stored.Policy.Mode == "auto-drafts" && len(targets) == 0) || strings.Join(targets, ",") != strings.Join(stored.Policy.AllowedTargets, ",") || stored.Policy.Actor == nil || stored.Policy.Actor.ID == "" {
 		return policy, ErrOrchestratorInvalid
 	}
@@ -199,12 +203,17 @@ func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 		IntegrationMode  *string  `json:"integrationMode"`
 		PreviewMode      *string  `json:"previewMode"`
 		DeploymentMode   *string  `json:"deploymentMode"`
+		AutomaticRepairLimit *int `json:"automaticRepairLimit"`
 		AllowedTargets   []string `json:"allowedTargets"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
 	}
 	targets, err := coordinatorTargets(req.AllowedTargets)
+	if _, budgetErr := effectiveAutomaticRepairLimit(req.AutomaticRepairLimit); budgetErr != nil {
+		journeyError(w, 400, "invalid_coordinator_policy", "Choose an automatic repair limit of zero, one or two per task.")
+		return
+	}
 	if err != nil || (req.ReviewMode != nil && *req.ReviewMode != "manual" && *req.ReviewMode != "approved-amendments") || (req.ExecutionMode != nil && *req.ExecutionMode != "manual" && *req.ExecutionMode != "reviewed-tasks") || (req.IntegrationMode != nil && *req.IntegrationMode != "manual" && *req.IntegrationMode != "reviewed-scopes") || (req.PreviewMode != nil && !validCoordinatorPreviewMode(*req.PreviewMode)) || (req.DeploymentMode != nil && *req.DeploymentMode != "manual" && *req.DeploymentMode != "existing-target") || req.ExpectedRevision < 0 || (req.Mode != "review" && req.Mode != "auto-drafts") || (req.Mode == "auto-drafts" && len(targets) == 0) {
 		journeyError(w, 400, "invalid_coordinator_policy", "Choose review-only or automatic draft saving with explicit document targets. This grants no approval or execution permission.")
 		return
@@ -252,8 +261,17 @@ func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 	if req.DeploymentMode != nil {
 		deploymentMode = *req.DeploymentMode
 	}
+	repairLimit, err := effectiveAutomaticRepairLimit(current.AutomaticRepairLimit)
+	if err != nil {
+		coordinatorPolicyProblem(w, err)
+		return
+	}
+	if req.AutomaticRepairLimit != nil {
+		repairLimit = *req.AutomaticRepairLimit
+	}
 	actor, _ := authenticatedContextActor(r.Context())
 	policy := CoordinatorPolicy{ProjectID: p.ID, Revision: current.Revision + 1, Mode: req.Mode, ReviewMode: reviewMode, ExecutionMode: executionMode, IntegrationMode: integrationMode, PreviewMode: previewMode, DeploymentMode: deploymentMode, AllowedTargets: targets, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano), Actor: &actor}
+	policy.AutomaticRepairLimit = &repairLimit
 	scope, err := s.approvalScopes(p.Path, p.ID)
 	if err != nil {
 		coordinatorPolicyProblem(w, err)

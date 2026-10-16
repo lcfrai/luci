@@ -318,7 +318,7 @@ func TestSwarmIndependentReviewerCaptureBindsCandidatePatch(t *testing.T) {
 		RunRevision int                              `json:"runRevision"`
 	}
 	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/review-obligations/"+created.Obligation.ID+"/resolve", map[string]any{"expectedRevision": finding.RunRevision, "outcome": "repair-required", "reviewerHandoffDigest": handoff.Handoff.Digest, "findingMessageId": finding.Message.ID}, 200).Body.Bytes(), &resolved)
-	if resolved.Obligation.State != "repair-required" || resolved.Obligation.ReviewerHandoffDigest != handoff.Handoff.Digest || resolved.Obligation.RepairsConsumed != 1 {
+	if resolved.Obligation.State != "repair-required" || resolved.Obligation.ReviewerHandoffDigest != handoff.Handoff.Digest || resolved.Obligation.RepairsConsumed != 0 {
 		t.Fatal("independent failure was lost", resolved)
 	}
 	stored, err = s.projectRuns.Get(p.ID, p.Path, run.ID)

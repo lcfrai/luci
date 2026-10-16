@@ -1528,7 +1528,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 				return admissionFailure("execution_contract_authority_changed", errors.New("The current team grant or execution policy differs from this reviewed contract."))
 			}
 			if reviewedContractRun != nil {
-				if err := a.deps.Product.ValidateRunExecutionContract(projectID, *reviewedContractRun); err != nil {
+				if err := a.deps.Product.ValidateSwarmOperationExecutionContract(projectID, *reviewedContractRun, req.ProjectRunOperationID); err != nil {
 					return admissionFailure("execution_contract_changed", err)
 				}
 			}
