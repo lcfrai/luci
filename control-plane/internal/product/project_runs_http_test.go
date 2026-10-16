@@ -262,6 +262,15 @@ func TestProjectRunHTTPPersistenceErrorsDoNotExposePrivatePaths(t *testing.T) {
 	if response.Code != http.StatusInternalServerError {
 		t.Fatal(response.Code, response.Body.String())
 	}
+	var problem map[string]any
+	decodeEvidenceResponse(t, response.Body.Bytes(), &problem)
+	want := map[string]any{
+		"error":   "project_run_unavailable",
+		"message": "Private project run history is unavailable. Check the workspace's storage, then refresh run history before continuing. Do not repeat an unconfirmed action.",
+	}
+	if !reflect.DeepEqual(problem, want) {
+		t.Fatalf("unexpected persistence error envelope: %#v", problem)
+	}
 	for _, private := range []string{privatePath, "private-account-state", "run-sensitive.json"} {
 		if strings.Contains(response.Body.String(), private) {
 			t.Fatal("private persistence path leaked", response.Body.String())

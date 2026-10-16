@@ -76,7 +76,7 @@ func projectRunProblem(w http.ResponseWriter, err error) {
 		status, code = http.StatusNotFound, "project_run_not_found"
 	} else if errors.Is(err, ErrProjectRunInvalid) || errors.As(err, &pathError) || errors.As(err, &linkError) {
 		status, code = http.StatusInternalServerError, "project_run_unavailable"
-		message = "Private project run history is unavailable. Check the workspace's storage and retry."
+		message = "Private project run history is unavailable. Check the workspace's storage, then refresh run history before continuing. Do not repeat an unconfirmed action."
 	}
 	journeyError(w, status, code, message)
 }
