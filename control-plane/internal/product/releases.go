@@ -264,19 +264,17 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 			journeyError(w, 422, "static_preview_configuration_unsupported", "Reviewed-source previews serve browser assets without private application environment values.")
 			return
 		}
-		// The existing coordinator approval binds a Dockerfile, not a serving
-		// kind. Never silently reinterpret it as authority for another profile.
-		if _, internal := ctx.Value(coordinatorPreviewContextKey{}).(coordinatorPreviewOrigin); internal {
-			journeyError(w, 409, "coordinator_preview_kind_unbound", "The saved automation approval does not bind this preview kind. Review an explicit source-preview policy before automating it.")
-			return
-		}
 	}
-	reservedID, originDigest, existing, err := s.admitCoordinatorPreview(ctx, p, commit, configuration.Revision, req.Port, req.Dockerfile)
+	reservedID, originDigest, existing, err := s.admitCoordinatorPreviewKind(ctx, p, commit, configuration.Revision, req.Port, req.Kind, req.Dockerfile)
 	if err != nil {
 		journeyError(w, 409, "coordinator_preview_changed", "The reserved preview no longer matches current checked source, authority, policy or configuration.")
 		return
 	}
 	if existing != nil {
+		if !previewReleaseKindMatches(*existing, req.Kind) {
+			journeyError(w, 409, "coordinator_preview_kind_changed", "The reserved preview receipt no longer matches its exact approved serving kind. Its existing resources and history are retained.")
+			return
+		}
 		journeyJSON(w, 200, s.browserRelease(*existing))
 		return
 	}
@@ -405,6 +403,12 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.completeLocalPreview(w, &row, url)
+}
+
+// Legacy releases may predate admitted runtime receipts. An explicit source
+// kind always requires a matching runtime identity; omission never adopts it.
+func previewReleaseKindMatches(row storedRelease, kind string) bool {
+	return row.Kind == kind && (row.Runtime == nil && kind == "" || row.Runtime != nil && row.Runtime.Kind == kind)
 }
 
 func (s *Server) completeLocalPreview(w http.ResponseWriter, row *storedRelease, url string) {

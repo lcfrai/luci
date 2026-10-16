@@ -45,7 +45,7 @@ func (s *Server) storeAdmittedRelease(before storedRelease, after *storedRelease
 		if current.ID != before.ID {
 			continue
 		}
-		if current.Commit != before.Commit || current.ConfigurationRevision != before.ConfigurationRevision || current.Runtime == nil || before.Runtime == nil || current.Runtime.Identity != before.Runtime.Identity {
+		if current.Kind != before.Kind || after.Kind != before.Kind || current.Commit != before.Commit || current.ConfigurationRevision != before.ConfigurationRevision || current.Runtime == nil || before.Runtime == nil || after.Runtime == nil || current.Runtime.Kind != current.Kind || before.Runtime.Kind != before.Kind || after.Runtime.Kind != after.Kind || current.Runtime.Identity != before.Runtime.Identity {
 			return errors.New("the exact release receipt has a newer outcome")
 		}
 		if current.Revision != before.Revision {
@@ -86,7 +86,7 @@ func (s *Server) storeAdmittedRelease(before storedRelease, after *storedRelease
 }
 
 func (s *Server) publishPreviewOutcome(row *storedRelease, out previewruntime.Outcome, environment map[string]string) error {
-	if row.Runtime == nil || !previewruntime.Continues(row.Runtime.Identity, out.Identity) {
+	if row.Runtime == nil || row.Kind != out.Kind || row.Runtime.Kind != row.Kind || !previewruntime.Continues(row.Runtime.Identity, out.Identity) {
 		return errors.New("preview outcome does not match its exact source and allocation")
 	}
 	next := *row
