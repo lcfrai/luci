@@ -1,9 +1,12 @@
 """No-module, no-render source and refusal checks for the held pilot."""
 
+import base64
 import json
 import os
 from pathlib import Path
 import re
+import subprocess
+import sys
 import tempfile
 import unittest
 import hashlib
@@ -78,6 +81,48 @@ class PilotSourceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "link"):
                 preflight.regular(root, "link", 32)
 
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "FIFO requires POSIX")
+    def test_all_staged_reads_refuse_fifo_before_open(self):
+        with tempfile.TemporaryDirectory(dir=os.environ.get("LUCI_PDF_PILOT_TMPDIR")) as folder:
+            root = Path(folder)
+            os.mkfifo(root / "pipe")
+            code = """
+import pathlib, preflight, sys
+root = pathlib.Path(sys.argv[1])
+calls = (
+    lambda: preflight.regular(root, 'pipe', 32),
+    lambda: preflight.module_zip_h1(root, {'input': 'pipe'}, 32, 32, 2, '0'*64),
+    lambda: preflight.module_mod_h1(root, {'input': 'pipe', 'bytes': 1, 'sha256': '0'*64}),
+)
+for call in calls:
+    try:
+        call()
+    except ValueError as exc:
+        assert 'nonregular' in str(exc), str(exc)
+    else:
+        raise AssertionError('FIFO was accepted')
+"""
+            result = subprocess.run([sys.executable, "-c", code, str(root)], cwd=ROOT,
+                                    capture_output=True, text=True, timeout=3, check=False)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_staged_read_refuses_changed_leaf_and_linked_ancestor(self):
+        with tempfile.TemporaryDirectory(dir=os.environ.get("LUCI_PDF_PILOT_TMPDIR")) as folder:
+            root = Path(folder)
+            original = root / "input"
+            original.write_bytes(b"original")
+            with self.assertRaisesRegex(ValueError, "changed during read"):
+                with preflight.bounded_regular(root, "input", 32) as (fd, _):
+                    self.assertEqual(os.read(fd, 32), b"original")
+                    original.rename(root / "old")
+                    original.write_bytes(b"different")
+            (root / "linked").symlink_to(root, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "link or nondirectory"):
+                preflight.regular(root, "linked/input", 32)
+            linked_root = root / "linked"
+            with self.assertRaisesRegex(ValueError, "link or nondirectory"):
+                preflight.regular(linked_root, "input", 32)
+
     def test_module_h1_uses_exact_zip_members_and_rejects_unsafe_names(self):
         with tempfile.TemporaryDirectory(dir=os.environ.get("LUCI_PDF_PILOT_TMPDIR")) as folder:
             root = Path(folder)
@@ -100,6 +145,28 @@ class PilotSourceTests(unittest.TestCase):
                 preflight.module_zip_h1(root, module, 1024, 1024, 8, changed)
             with self.assertRaisesRegex(ValueError, "changed after"):
                 preflight.module_zip_h1(root, module, 1024, 1024, 8, original)
+
+    def test_module_h1_rejects_newline_alias_and_control_names(self):
+        with tempfile.TemporaryDirectory(dir=os.environ.get("LUCI_PDF_PILOT_TMPDIR")) as folder:
+            root = Path(folder)
+            prefix = "example.com/pilot@v1.0.0/"
+            alpha = hashlib.sha256(b"alpha").hexdigest()
+            beta = hashlib.sha256(b"beta").hexdigest()
+            valid_lines = f"{alpha}  {prefix}a.txt\n{beta}  {prefix}b.txt\n".encode()
+            valid_h1 = base64.b64encode(hashlib.sha256(valid_lines).digest()).decode()
+            module = {"name": "example.com/pilot", "version": "v1.0.0", "input": "pilot.zip",
+                      "h1": "h1:" + valid_h1}
+            alias = prefix + "a.txt\n" + beta + "  " + prefix + "b.txt"
+            # Without the name check, the one-member canonical hash equals
+            # the two-member hash above even though the module contents differ.
+            self.assertEqual(f"{alpha}  {alias}\n".encode(), valid_lines)
+            for bad_name in (alias, prefix + "bell\x07.txt", prefix + "delete\x7f.txt"):
+                with self.subTest(name=bad_name):
+                    with zipfile.ZipFile(root / "pilot.zip", "w") as archive:
+                        archive.writestr(bad_name, b"alpha")
+                    raw_sha = hashlib.sha256((root / "pilot.zip").read_bytes()).hexdigest()
+                    with self.assertRaisesRegex(ValueError, "outside exact module"):
+                        preflight.module_zip_h1(root, module, 1024, 1024, 8, raw_sha)
 
     def test_go_mod_h1_is_separate_from_raw_sha(self):
         with tempfile.TemporaryDirectory(dir=os.environ.get("LUCI_PDF_PILOT_TMPDIR")) as folder:

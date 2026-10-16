@@ -232,8 +232,8 @@ func makePDF(fontProgram, cmap []byte, widths []int, box [4]int, originalFontByt
 		fmt.Fprintf(&out, "%010d 00000 n \n", offset)
 	}
 	fmt.Fprintf(&out, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n", len(offsets), xref)
-	if out.Len() > maxPDFBytes {
-		return nil, errors.New("PDF output exceeds 16 MiB")
+	if out.Len() > maxPDFBytes || originalFontBytes+len(fontProgram)+out.Len() > maxCombinedBytes {
+		return nil, errors.New("completed PDF or font/subset/PDF aggregate exceeds byte bound")
 	}
 	return out.Bytes(), nil
 }

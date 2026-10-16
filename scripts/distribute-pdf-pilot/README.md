@@ -16,6 +16,8 @@ The selected module allowlist is `tdewolff/font`, `tdewolff/parse/v2`, `andybalh
 
 Only a separately approved acquisition controller may retrieve those exact public URLs. It must cap each module ZIP at 32 MiB, all module ZIPs at 128 MiB, the Debian wrapper at 56,674,044 bytes, the font at 32 MiB, and toolchain archives at their exact manifest sizes; inspect ZIP/ar/tar paths, entry counts and expanded bytes before copying to private staging. Reject links, traversal, duplicate paths, unexpected grants, byte/hash drift or unavailable inputs. The pilot and preflight never download, extract packages or clean unrelated files.
 
+The bounded preflight opener holds no-follow directory handles from the filesystem root through each staged file, opens the final file nonblocking and rechecks its original identity after reading. It refuses nonregular inputs and ZIP member control characters, including line feeds that Go dirhash forbids. A platform without these primitives refuses at preflight; the Windows pilot needs a separately reviewed equivalent before its selected archive can be used. This opener does not prove ownership of staged inputs or satisfy the held execution profile.
+
 ## Contained execution contract for the later review
 
 The concrete existing-owner binding, finite first acquisition and independent reader stop gates are in [FIRST-RUN-PLAN.md](FIRST-RUN-PLAN.md). No current source owns a runnable hard-capped pilot adapter or a closed Poppler dependency graph. In particular, the existing workbook/artifact permit charges only 256 MiB and cannot be used as a 512 MiB admission without the exact additive change described there.

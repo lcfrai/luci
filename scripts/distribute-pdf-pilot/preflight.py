@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Read-only, no-network input inventory for the held CFF1 pilot.
 
-Module h1 is deliberately NOT claimed here: Go's offline zip hash check and
-exact imported-package closure are separate required gates before a build.
+Selected module ZIP and go.mod h1 values are checked here. Exact imported-
+package closure is a separate required gate before a build.
 """
 
 import argparse
 import base64
+from contextlib import contextmanager
 import hashlib
 import io
 import json
@@ -14,6 +15,7 @@ import os
 from pathlib import Path
 import re
 import stat
+import unicodedata
 import zipfile
 
 ROOT = Path(__file__).resolve().parent
@@ -25,32 +27,83 @@ def refuse(condition, message):
         raise ValueError(message)
 
 
-def regular(root, relative, maximum, expected_size=None, expected_sha=None):
+def same_input_stat(before, after):
+    return (stat.S_ISREG(after.st_mode) and os.path.samestat(before, after)
+            and before.st_size == after.st_size and before.st_mtime_ns == after.st_mtime_ns
+            and before.st_ctime_ns == after.st_ctime_ns)
+
+
+@contextmanager
+def bounded_regular(root, relative, maximum):
+    """Open one staged ordinary file, retaining exact identity through the read.
+
+    This does not establish ownership of the input stage. The later contained
+    controller must supply that separately. Refuse platforms without the
+    required no-follow, nonblocking and directory-relative open primitives.
+    """
+    refuse(all(hasattr(os, name) for name in ("O_NOFOLLOW", "O_NONBLOCK", "O_DIRECTORY"))
+           and os.open in os.supports_dir_fd and os.stat in os.supports_dir_fd,
+           "safe staged-input open is unavailable on this platform")
     rel = Path(relative)
-    refuse(not rel.is_absolute() and ".." not in rel.parts and len(rel.parts) <= 5, "manifest input path is unsafe")
-    path = root
-    for part in rel.parts:
-        path = path / part
-        item = path.lstat()
-        refuse(not stat.S_ISLNK(item.st_mode), "input path contains a link")
+    refuse(not rel.is_absolute() and rel.parts and ".." not in rel.parts and len(rel.parts) <= 5,
+           "manifest input path is unsafe")
+    root = Path(root)
+    refuse(root.is_absolute() and ".." not in root.parts, "input stage path is unsafe")
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NONBLOCK | getattr(os, "O_CLOEXEC", 0)
+    file_flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | getattr(os, "O_CLOEXEC", 0)
+    descriptors = []
+    try:
+        directory = os.open(root.anchor, directory_flags)
+        descriptors.append(directory)
+        for part in (*root.parts[1:], *rel.parts[:-1]):
+            named = os.stat(part, dir_fd=directory, follow_symlinks=False)
+            refuse(stat.S_ISDIR(named.st_mode), "input path contains a link or nondirectory")
+            directory = os.open(part, directory_flags, dir_fd=directory)
+            descriptors.append(directory)
+            refuse(os.path.samestat(named, os.fstat(directory)), "input directory changed before open")
+        leaf = rel.parts[-1]
+        named = os.stat(leaf, dir_fd=directory, follow_symlinks=False)
+        refuse(stat.S_ISREG(named.st_mode) and 0 < named.st_size <= maximum,
+               "input is absent, linked, nonregular or oversized")
+        fd = os.open(leaf, file_flags, dir_fd=directory)
+        descriptors.append(fd)
+        opened = os.fstat(fd)
+        refuse(same_input_stat(named, opened), "input changed before bounded read")
+        yield fd, opened
+        after = os.fstat(fd)
+        current = os.stat(leaf, dir_fd=directory, follow_symlinks=False)
+        refuse(same_input_stat(opened, after) and same_input_stat(opened, current),
+               "input changed during read")
+    finally:
+        for fd in reversed(descriptors):
+            os.close(fd)
+
+
+def regular(root, relative, maximum, expected_size=None, expected_sha=None):
     digest = hashlib.sha256()
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
-    with os.fdopen(os.open(path, flags), "rb") as handle:
-        item = os.fstat(handle.fileno())
-        refuse(stat.S_ISREG(item.st_mode) and 0 < item.st_size <= maximum, "input is absent, nonregular or oversized")
+    with bounded_regular(root, relative, maximum) as (fd, item):
         if expected_size is not None:
             refuse(item.st_size == expected_size, "input byte count differs")
         total = 0
-        while block := handle.read(min(1 << 20, maximum - total + 1)):
+        while block := os.read(fd, min(1 << 20, maximum - total + 1)):
             total += len(block)
             refuse(total <= maximum, "input grew beyond read bound")
             digest.update(block)
-        after = os.fstat(handle.fileno())
-        refuse(total == item.st_size == after.st_size and (item.st_dev, item.st_ino) == (after.st_dev, after.st_ino), "input changed during read")
+        refuse(total == item.st_size, "input changed during read")
     actual = digest.hexdigest()
     if expected_sha is not None:
         refuse(actual == expected_sha, "input original-byte digest differs")
     return {"input": relative, "bytes": total, "sha256": actual}
+
+
+def read_bounded_fd(fd, maximum):
+    chunks = []
+    total = 0
+    while block := os.read(fd, min(1 << 20, maximum - total + 1)):
+        total += len(block)
+        refuse(total <= maximum, "staged input grew beyond read bound")
+        chunks.append(block)
+    return b"".join(chunks)
 
 
 def module_zip_h1(root, module, maximum, expanded_maximum, entry_maximum, raw_sha):
@@ -59,9 +112,9 @@ def module_zip_h1(root, module, maximum, expanded_maximum, entry_maximum, raw_sh
     This validates original module zip contents; it does not resolve imports.
     The caller already verified the zip's first bounded read with regular().
     """
-    path = root / module["input"]
-    with path.open("rb") as handle:
-        raw = handle.read(maximum + 1)
+    with bounded_regular(root, module["input"], maximum) as (fd, item):
+        raw = read_bounded_fd(fd, maximum)
+        refuse(len(raw) == item.st_size, "module zip changed during bounded read")
     refuse(0 < len(raw) <= maximum and hashlib.sha256(raw).hexdigest() == raw_sha, "module zip changed after original-byte check")
     prefix = module["name"] + "@" + module["version"] + "/"
     hashes = {}
@@ -77,7 +130,8 @@ def module_zip_h1(root, module, maximum, expanded_maximum, entry_maximum, raw_sh
                 mode = entry.external_attr >> 16
                 refuse(relative and len(name.encode("utf-8")) <= 512 and not name.endswith("/")
                        and all(part not in ("", ".", "..") for part in parts)
-                       and "\\" not in name and "\x00" not in name and name not in hashes,
+                       and "\\" not in name and not any(unicodedata.category(c) == "Cc" for c in name)
+                       and name not in hashes,
                        "module zip name is duplicate or outside exact module")
                 refuse((stat.S_IFMT(mode) == 0 or stat.S_ISREG(mode)) and not (entry.flag_bits & 1), "module zip contains nonfile or encrypted entry")
                 refuse(0 <= entry.file_size <= expanded_maximum - expanded, "module zip expanded bytes exceed bound")
@@ -100,9 +154,9 @@ def module_zip_h1(root, module, maximum, expanded_maximum, entry_maximum, raw_sh
 
 
 def module_mod_h1(root, metadata):
-    path = root / metadata["input"]
-    with path.open("rb") as handle:
-        raw = handle.read((1 << 16) + 1)
+    with bounded_regular(root, metadata["input"], 1 << 16) as (fd, item):
+        raw = read_bounded_fd(fd, 1 << 16)
+        refuse(len(raw) == item.st_size, "module go.mod changed during bounded read")
     refuse(len(raw) == metadata["bytes"] and len(raw) <= 1 << 16
            and hashlib.sha256(raw).hexdigest() == metadata["sha256"],
            "module go.mod changed after original-byte check")
