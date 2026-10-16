@@ -46,6 +46,8 @@ func (g *executionAdmission) reservationObservation(ctx context.Context) executi
 	}
 	addPreviewReservationView(view, ledger.Previews)
 	addRuntimeImageReservationView(view, ledger.RuntimeImages)
+	addDocumentReservationView(view, ledger.Documents)
+	addDocumentImageAssemblyReservationView(view, ledger.ImageAssemblies)
 	return executionReservationObservation{Status: "ready", executionReservationView: view}
 }
 

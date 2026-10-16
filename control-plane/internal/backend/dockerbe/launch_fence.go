@@ -160,7 +160,7 @@ func inertFenceContainer(resp container.InspectResponse) bool {
 		fenceLogicalID(labels[backend.LabelSandboxID]) && fenceLogicalID(labels[backend.LabelSessionID]) &&
 		fenceHex(labels[fenceIntentLabel], 16) && fenceHex(labels[fenceBindingLabel], 32) &&
 		resp.Name == "/"+namePrefix+labels[backend.LabelSandboxID]
-	if (!agentLabels && !inertCheckFenceLabels(resp) && !inertDocumentFenceLabels(resp)) ||
+	if (!agentLabels && !inertCheckFenceLabels(resp) && !inertDocumentFenceLabels(resp) && !inertDocumentImageAssemblyFenceLabels(resp)) ||
 		cfg.Image != "" || len(cfg.Entrypoint) != 0 ||
 		len(cfg.Cmd) != 1 || cfg.Cmd[0] != "/" || len(cfg.Env) != 0 || len(cfg.ExposedPorts) != 0 ||
 		len(cfg.Volumes) != 0 || cfg.WorkingDir != "" || cfg.User != "" || cfg.Healthcheck != nil ||

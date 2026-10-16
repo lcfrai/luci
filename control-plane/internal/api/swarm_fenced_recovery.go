@@ -163,7 +163,7 @@ func (a *API) projectSwarmFenceRecoveryAvailability(ctx context.Context, req pro
 			}
 			return view, nil
 		}
-		if len(ledger.Fences)+len(ledger.CheckFences) >= backend.MaxLaunchFences {
+		if executionFenceCount(ledger) >= backend.MaxLaunchFences {
 			view.ReasonCode, view.Message = "recovery_history_full", errLaunchFenceLimit.Error()
 			return view, nil
 		}
@@ -256,7 +256,7 @@ func (a *API) acquireSwarmFenceRecovery(ctx context.Context, req product.Project
 		if lease.State != "backend-dispatching" || lease.FenceEngineID != identity.EngineID || lease.FenceInstanceID != identity.InstanceID {
 			return errLaunchRecoveryUnproved
 		}
-		if len(current.Fences)+len(current.CheckFences) >= backend.MaxLaunchFences {
+		if executionFenceCount(*current) >= backend.MaxLaunchFences {
 			return errLaunchFenceLimit
 		}
 		if len(current.Retirements) >= 4096 {

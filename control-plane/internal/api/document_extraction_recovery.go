@@ -168,7 +168,7 @@ func (g *executionAdmission) reserveDocumentFence(ctx context.Context, lease doc
 				return nil
 			}
 		}
-		if len(ledger.Fences)+len(ledger.CheckFences)+len(ledger.DocumentFences) >= backend.MaxLaunchFences {
+		if executionFenceCount(*ledger) >= backend.MaxLaunchFences {
 			return errors.New("permanent launch fence history is full")
 		}
 		for i := range ledger.Documents {
