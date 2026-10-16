@@ -1,5 +1,7 @@
 # PDF private pilot: smallest stage and selected-SDK seam
 
+**Output transport superseded by the [bounded driver/stage proposal](pdf-private-pilot-driver-stage-proposal-v1.md).** The host writable bind described below is not an enforced 48 MiB quota and cannot be enabled as written. Its identity and Docker SDK requirements remain source considerations; the later proposal specifies a bounded tmpfs and pre-Start attach transport instead.
+
 Source plan only. No PDF pilot image, font, reader driver, numeric host-bind
 ownership profile, or selected package grant is accepted. Nothing here is a
 runnable fallback, and the four dedicated Go files remain unwired. The shared
