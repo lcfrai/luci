@@ -2,6 +2,7 @@ package product
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -25,6 +26,7 @@ import (
 )
 
 type Release struct {
+	Kind                      string `json:"kind,omitempty"`
 	Revision                  uint64 `json:"revision,omitempty"`
 	CanCancel                 bool   `json:"canCancel,omitempty"`
 	CancelRequested           bool   `json:"cancelRequested,omitempty"`
@@ -157,6 +159,7 @@ func (s *Server) listProjectReleases(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 	var req struct {
+		Kind           string `json:"kind,omitempty"`
 		ExpectedCommit string `json:"expectedCommit,omitempty"`
 		Target         string `json:"target"`
 		Port           int    `json:"port"`
@@ -176,10 +179,22 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 	if req.Port == 0 {
 		req.Port = 3000
 	}
-	if req.Dockerfile == "" {
+	if req.Kind != "" && req.Kind != previewruntime.ReviewedSourceKind {
+		journeyError(w, 400, "unsupported_preview_kind", "Choose a Dockerfile preview or an explicit reviewed-source static preview.")
+		return
+	}
+	if req.Kind == previewruntime.ReviewedSourceKind && req.ExpectedCommit == "" {
+		journeyError(w, 400, "invalid_commit", "Choose the exact full reviewed and checked commit for this source preview.")
+		return
+	}
+	if req.Kind == previewruntime.ReviewedSourceKind && req.Dockerfile != "" {
+		journeyError(w, 400, "invalid_preview", "Reviewed-source previews serve static files without building a Dockerfile.")
+		return
+	}
+	if req.Kind == "" && req.Dockerfile == "" {
 		req.Dockerfile = "Dockerfile"
 	}
-	if req.Port < 1 || req.Port > 65535 || blockedProjectFile(req.Dockerfile) {
+	if req.Port < 1 || req.Port > 65535 || req.Kind == "" && blockedProjectFile(req.Dockerfile) {
 		journeyError(w, 400, "invalid_preview", "Use a container port from 1 to 65535 and a project Dockerfile.")
 		return
 	}
@@ -197,9 +212,11 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 403, "deployment_forbidden", err.Error())
 		return
 	}
-	if _, err := guardedProjectPath(p.Path, req.Dockerfile, false); err != nil {
-		journeyError(w, 400, "dockerfile_unavailable", err.Error())
-		return
+	if req.Kind == "" {
+		if _, err := guardedProjectPath(p.Path, req.Dockerfile, false); err != nil {
+			journeyError(w, 400, "dockerfile_unavailable", err.Error())
+			return
+		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
 	defer cancel()
@@ -242,19 +259,29 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 422, "configuration_invalid", err.Error())
 		return
 	}
-	reservedID, originDigest, existing, err := s.admitCoordinatorPreview(ctx, p, commit, configuration.Revision, req.Port, req.Dockerfile)
+	if req.Kind == previewruntime.ReviewedSourceKind {
+		if len(configuration.Values) != 0 {
+			journeyError(w, 422, "static_preview_configuration_unsupported", "Reviewed-source previews serve browser assets without private application environment values.")
+			return
+		}
+	}
+	reservedID, originDigest, existing, err := s.admitCoordinatorPreviewKind(ctx, p, commit, configuration.Revision, req.Port, req.Kind, req.Dockerfile)
 	if err != nil {
 		journeyError(w, 409, "coordinator_preview_changed", "The reserved preview no longer matches current checked source, authority, policy or configuration.")
 		return
 	}
 	if existing != nil {
+		if !previewReleaseKindMatches(*existing, req.Kind) {
+			journeyError(w, 409, "coordinator_preview_kind_changed", "The reserved preview receipt no longer matches its exact approved serving kind. Its existing resources and history are retained.")
+			return
+		}
 		journeyJSON(w, 200, s.browserRelease(*existing))
 		return
 	}
 	if reservedID == "" {
 		reservedID = newID("rel-")
 	}
-	row := storedRelease{CoordinatorOriginDigest: originDigest, Release: Release{ID: reservedID, ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: "local", Status: "building", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}
+	row := storedRelease{CoordinatorOriginDigest: originDigest, Release: Release{Kind: req.Kind, ID: reservedID, ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: "local", Status: "building", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}
 	if err := s.RecordProjectRunReleaseProvenance(ctx, p.ID, row.ID, row.Target, row.Commit); err != nil {
 		problem(w, 409, "release_provenance_unavailable", err.Error())
 		return
@@ -265,7 +292,7 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row.Revision = 1
-	row.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{ProjectID: p.ID, ReleaseID: row.ID, Target: row.Target, Commit: commit, SourceDigest: digest}, Phase: "reserved"}
+	row.Runtime = &previewruntime.Outcome{Identity: previewruntime.Identity{Kind: req.Kind, ProjectID: p.ID, ReleaseID: row.ID, Target: row.Target, Commit: commit, SourceDigest: digest}, Phase: "reserved"}
 	operation, err := s.beginLocalPreview(&row, cancel)
 	if err != nil {
 		journeyError(w, 500, "release_reservation_failed", err.Error())
@@ -295,16 +322,38 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		failed("Could not prepare a safe committed build context: " + err.Error())
 		return
 	}
-	_, err = guardedProjectPath(contextDir, req.Dockerfile, false)
-	if err != nil {
-		failed("The chosen Dockerfile is missing from the committed snapshot: " + err.Error())
-		return
+	if req.Kind == "" {
+		_, err = guardedProjectPath(contextDir, req.Dockerfile, false)
+		if err != nil {
+			failed("The chosen Dockerfile is missing from the committed snapshot: " + err.Error())
+			return
+		}
+	}
+	var sourceIndex []byte
+	if req.Kind == previewruntime.ReviewedSourceKind {
+		reader, err := os.Open(filepath.Join(contextDir, "index.html"))
+		if err != nil {
+			failed("The reviewed-source snapshot requires an index.html entrypoint.")
+			return
+		}
+		sourceIndex, err = io.ReadAll(io.LimitReader(reader, (64<<10)+1))
+		closeErr := reader.Close()
+		if err != nil || closeErr != nil || len(sourceIndex) > 64<<10 {
+			failed("The reviewed entrypoint could not be captured within the static asset limit.")
+			return
+		}
 	}
 	request := previewruntime.Request{Identity: row.Runtime.Identity, SourceDirectory: contextDir, Dockerfile: req.Dockerfile, Port: req.Port, Environment: configuration.Values, Actor: actor, Network: "bridge",
 		Labels: map[string]string{"luci.release-id": row.ID, "luci.project-id": p.ID},
 		ValidateSource: func(verify context.Context) error {
 			if err := s.ValidateDeploymentSource(verify, p.ID, commit); err != nil {
 				return err
+			}
+			if req.Kind == previewruntime.ReviewedSourceKind {
+				current, err := s.applicationConfigurationSnapshot(p.ID)
+				if err != nil || current.Revision != configuration.Revision || len(current.Values) != 0 {
+					return errors.New("reviewed-source configuration changed")
+				}
 			}
 			// Retain the trusted origin even when the runtime installs freshly
 			// reauthorized actor context for a subsequent allocating effect.
@@ -339,13 +388,27 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 	}
 	url := out.URL
 	healthCtx, healthCancel := context.WithTimeout(ctx, 20*time.Second)
-	err = waitPreviewHealthy(healthCtx, url)
+	if req.Kind == previewruntime.ReviewedSourceKind {
+		err = waitReviewedSourceHealthy(healthCtx, url, sourceIndex, out.SourceDigest, out.SnapshotDigest)
+	} else {
+		err = waitPreviewHealthy(healthCtx, url)
+	}
 	healthCancel()
 	if err != nil {
-		failed("The container did not answer a successful HTTP health check: " + err.Error())
+		if req.Kind == previewruntime.ReviewedSourceKind {
+			failed("The source preview did not return the exact reviewed entrypoint and snapshot receipt. Its allocation remains retained for Stop.")
+		} else {
+			failed("The container did not answer a successful HTTP health check: " + err.Error())
+		}
 		return
 	}
 	s.completeLocalPreview(w, &row, url)
+}
+
+// Legacy releases may predate admitted runtime receipts. An explicit source
+// kind always requires a matching runtime identity; omission never adopts it.
+func previewReleaseKindMatches(row storedRelease, kind string) bool {
+	return row.Kind == kind && (row.Runtime == nil && kind == "" || row.Runtime != nil && row.Runtime.Kind == kind)
 }
 
 func (s *Server) completeLocalPreview(w http.ResponseWriter, row *storedRelease, url string) {
@@ -393,6 +456,43 @@ func waitPreviewHealthy(ctx context.Context, url string) error {
 			_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
 			_ = response.Body.Close()
 			if response.StatusCode >= 200 && response.StatusCode < 300 {
+				return nil
+			}
+		}
+		timer := time.NewTimer(250 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+// Static readiness proves the reviewed entrypoint bytes and both distinct
+// provenance digests. A generic 2xx or another process at the origin is not a
+// reviewed-source readiness receipt. This never confirms resource settlement.
+func reviewedSourceResponseMatches(response *http.Response, index []byte, sourceDigest, snapshotDigest string) bool {
+	if response.StatusCode != http.StatusOK || response.Header.Get("X-Luci-Source-Digest") != sourceDigest || response.Header.Get("X-Luci-Snapshot-Digest") != snapshotDigest || response.Header.Get("Content-Type") != "text/html; charset=utf-8" || sourceDigest == "" || snapshotDigest == "" || len(index) > 64<<10 {
+		return false
+	}
+	data, err := io.ReadAll(io.LimitReader(response.Body, (64<<10)+1))
+	return err == nil && len(data) <= 64<<10 && bytes.Equal(data, index)
+}
+
+func waitReviewedSourceHealthy(ctx context.Context, url string, index []byte, sourceDigest, snapshotDigest string) error {
+	client := &http.Client{Timeout: 2 * time.Second, Transport: &http.Transport{Proxy: nil, MaxResponseHeaderBytes: 8192}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	defer client.CloseIdleConnections()
+	for {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return err
+		}
+		response, err := client.Do(req)
+		if err == nil {
+			matches := reviewedSourceResponseMatches(response, index, sourceDigest, snapshotDigest)
+			_ = response.Body.Close()
+			if matches {
 				return nil
 			}
 		}

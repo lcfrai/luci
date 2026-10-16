@@ -30,6 +30,10 @@ type previewFile struct {
 }
 
 func previewContext(spec backend.PreviewSpec) ([]previewFile, string, error) {
+	return previewContextBounded(spec, maxPreviewContext, maxPreviewContextFiles)
+}
+
+func previewContextBounded(spec backend.PreviewSpec, byteLimit, fileLimit int) ([]previewFile, string, error) {
 	if (spec.SourceDirectory == "") == (len(spec.SourceArchive) == 0) {
 		return nil, "", backend.ErrUnsupported
 	}
@@ -37,7 +41,7 @@ func previewContext(spec backend.PreviewSpec) ([]previewFile, string, error) {
 	total := 0
 	add := func(f previewFile) error {
 		total += len(f.data)
-		if total > maxPreviewContext || len(files) >= maxPreviewContextFiles {
+		if total > byteLimit || len(files) >= fileLimit {
 			return backend.ErrUnsupported
 		}
 		files = append(files, f)
@@ -71,14 +75,14 @@ func previewContext(spec backend.PreviewSpec) ([]previewFile, string, error) {
 			}
 			f := previewFile{name: rel, mode: int64(info.Mode().Perm()), directory: info.IsDir()}
 			if !f.directory {
-				if info.Size() > int64(maxPreviewContext-total) {
+				if info.Size() > int64(byteLimit-total) {
 					return backend.ErrUnsupported
 				}
 				reader, err := os.Open(p)
 				if err != nil {
 					return err
 				}
-				f.data, err = readPreviewContextFile(reader, int64(maxPreviewContext-total))
+				f.data, err = readPreviewContextFile(reader, int64(byteLimit-total))
 				closeErr := reader.Close()
 				if err != nil {
 					return err
@@ -93,7 +97,7 @@ func previewContext(spec backend.PreviewSpec) ([]previewFile, string, error) {
 			return nil, "", err
 		}
 	} else {
-		if len(spec.SourceArchive) > maxPreviewContext {
+		if len(spec.SourceArchive) > byteLimit {
 			return nil, "", backend.ErrUnsupported
 		}
 		r := tar.NewReader(bytes.NewReader(spec.SourceArchive))
@@ -107,7 +111,7 @@ func previewContext(spec backend.PreviewSpec) ([]previewFile, string, error) {
 				return nil, "", err
 			}
 			name := strings.TrimSuffix(h.Name, "/")
-			if !previewContextPath(name) || seen[name] || h.Size < 0 || h.Size > int64(maxPreviewContext-total) {
+			if !previewContextPath(name) || seen[name] || h.Size < 0 || h.Size > int64(byteLimit-total) {
 				return nil, "", backend.ErrUnsupported
 			}
 			seen[name] = true

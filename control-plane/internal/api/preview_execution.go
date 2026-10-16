@@ -98,7 +98,7 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 		}
 		return out, err
 	}
-	if publish == nil || req.ValidateSource == nil || req.Retained() || req.EngineID != "" || req.InstanceID != "" || req.ContainerID != "" || req.Image != "" || req.Actor.ProjectID != req.ProjectID || (req.Target != "local" && req.Target != "native-docker") {
+	if publish == nil || req.ValidateSource == nil || req.Retained() || req.SnapshotDigest != "" || req.Kind != "" && req.Kind != previewruntime.ReviewedSourceKind || req.EngineID != "" || req.InstanceID != "" || req.ContainerID != "" || req.Image != "" || req.Actor.ProjectID != req.ProjectID || (req.Target != "local" && req.Target != "native-docker") {
 		return fail("preview_request_invalid", "The reviewed preview request is invalid; no allocation was started.", errors.New("invalid preview request"))
 	}
 	releaseUnlock, lockErr := a.execution.lockChildLifecycle(ctx, "preview-release-"+req.ReleaseID)
@@ -115,6 +115,9 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 	}
 	if err := req.ValidateSource(ctx); err != nil {
 		return fail("preview_source_changed", "The reviewed source or configuration changed. Review the current build before deploying.", err)
+	}
+	if req.Kind == previewruntime.ReviewedSourceKind {
+		return a.startReviewedSourcePreview(ctx, req, publish, out)
 	}
 	buildID, err := previewAllocationID("preview-build-")
 	if err != nil {
@@ -141,18 +144,7 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 		return fail("preview_runtime_identity", "The prepared build identity changed; no allocation was started.", errors.New("invalid prepared preview"))
 	}
 	admit := func(p backend.PreparedPreview) (executionDecision, previewExecutionLease, error) {
-		authority, e := a.authorizePreview(ctx, req.Actor, true)
-		if e != nil {
-			return executionDecision{}, previewExecutionLease{}, e
-		}
-		if e = req.ValidateSource(ctx); e != nil {
-			return executionDecision{}, previewExecutionLease{}, e
-		}
-		policy, e := a.deps.Product.SwarmSchedulerPolicy()
-		if e != nil {
-			return executionDecision{}, previewExecutionLease{}, e
-		}
-		return a.execution.reservePreview(ctx, p, req.Actor, authority, policy)
+		return a.admitPreparedPreview(ctx, req, p)
 	}
 	decision, lease, err := admit(prepared)
 	if err != nil || decision.State != "admitted" {
@@ -230,12 +222,40 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 	if serving.Spec.Identity != serveSpec.Identity || serving.Spec.Kind != "preview" || serving.Spec.Resources != resources || serving.Spec.ImageID != result.ImageID {
 		return fail("preview_runtime_identity", "The prepared serving identity changed; no container was allocated.", errors.New("invalid prepared serving allocation"))
 	}
-	decision, lease, err = admit(serving)
+	return a.servePreparedPreview(ctx, req, publish, serving, out)
+}
+
+// Both preview kinds use the same serving allocation, authority/CAS checks and
+// mutation acknowledgements. Source serving does not enter the build branch.
+func (a *API) servePreparedPreview(ctx context.Context, req previewruntime.Request, publish func(previewruntime.Outcome) error, serving backend.PreparedPreview, out previewruntime.Outcome) (previewruntime.Outcome, error) {
+	executor := a.deps.Backend.(backend.PreviewExecutor)
+	serveID := serving.Spec.Identity.AllocationID
+	admit := func(p backend.PreparedPreview) (executionDecision, previewExecutionLease, error) {
+		return a.admitPreparedPreview(ctx, req, p)
+	}
+	fail := func(code, message string, err error) (previewruntime.Outcome, error) {
+		out.ReasonCode, out.Message = code, message
+		if e := publish(out); e != nil {
+			return out, e
+		}
+		return out, err
+	}
+	decision, lease, err := admit(serving)
 	if err != nil || decision.State != "admitted" {
 		out.Phase = "blocked"
-		return fail(decision.Code, "The image is built; starting its preview awaits current authority and shared machine capacity.", err)
+		if req.Kind == previewruntime.ReviewedSourceKind {
+			if err == nil {
+				out.AllocationID = ""
+			} else {
+				out.Phase, out.ResourcesHeld = "unknown", true
+			}
+		}
+		return fail(decision.Code, "Starting this reviewed preview awaits current authority and shared machine capacity.", err)
 	}
 	out.Phase, out.ResourcesHeld, out.CleanupConfirmed, out.Message = "reserved", true, false, "Serving capacity reserved; no application container has started."
+	if req.Kind == previewruntime.ReviewedSourceKind {
+		out.Message = "Serving capacity reserved for the immutable static snapshot. No application image was built."
+	}
 	if err = publish(out); err != nil {
 		return out, err
 	}
@@ -248,7 +268,7 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 	if err != nil || decision.State != "admitted" {
 		return fail(decision.Code, "Serving admission changed; capacity remains retained for explicit cleanup.", err)
 	}
-	lease, err = a.execution.transitionPreview(ctx, lease, "creating", "", result.ImageID)
+	lease, err = a.execution.transitionPreview(ctx, lease, "creating", "", serving.Spec.ImageID)
 	if err != nil {
 		return out, err
 	}
@@ -264,8 +284,8 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 		out.Phase = "unknown"
 		return fail("preview_create_unconfirmed", "Container creation was not acknowledged. Its capacity remains reserved; no retry was started.", err)
 	}
-	recordCtx, recordCancel = previewRecordContext(ctx)
-	lease, err = a.execution.transitionPreview(recordCtx, lease, "created", ref, result.ImageID)
+	recordCtx, recordCancel := previewRecordContext(ctx)
+	lease, err = a.execution.transitionPreview(recordCtx, lease, "created", ref, serving.Spec.ImageID)
 	recordCancel()
 	if err != nil {
 		return out, err
@@ -278,7 +298,7 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 	if err != nil || decision.State != "admitted" {
 		return fail(decision.Code, "Container Start was refused by current authority or capacity. Use Stop to settle the retained allocation.", err)
 	}
-	lease, err = a.execution.transitionPreview(ctx, lease, "starting", ref, result.ImageID)
+	lease, err = a.execution.transitionPreview(ctx, lease, "starting", ref, serving.Spec.ImageID)
 	if err != nil {
 		return out, err
 	}
@@ -291,7 +311,7 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 		return fail("preview_start_unconfirmed", "Application Start was not acknowledged. Its capacity remains held; inspect before taking another action.", err)
 	}
 	recordCtx, recordCancel = previewRecordContext(ctx)
-	lease, err = a.execution.transitionPreview(recordCtx, lease, "running", ref, result.ImageID)
+	lease, err = a.execution.transitionPreview(recordCtx, lease, "running", ref, serving.Spec.ImageID)
 	recordCancel()
 	if err != nil {
 		return out, err
@@ -314,9 +334,61 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 	return out, err
 }
 
+func (a *API) admitPreparedPreview(ctx context.Context, req previewruntime.Request, p backend.PreparedPreview) (executionDecision, previewExecutionLease, error) {
+	authority, err := a.authorizePreview(ctx, req.Actor, true)
+	if err != nil {
+		return executionDecision{}, previewExecutionLease{}, err
+	}
+	if err = req.ValidateSource(ctx); err != nil {
+		return executionDecision{}, previewExecutionLease{}, err
+	}
+	policy, err := a.deps.Product.SwarmSchedulerPolicy()
+	if err != nil {
+		return executionDecision{}, previewExecutionLease{}, err
+	}
+	return a.execution.reservePreview(ctx, p, req.Actor, authority, policy)
+}
+
+func (a *API) startReviewedSourcePreview(ctx context.Context, req previewruntime.Request, publish func(previewruntime.Outcome) error, out previewruntime.Outcome) (previewruntime.Outcome, error) {
+	fail := func(code, message string, err error) (previewruntime.Outcome, error) {
+		out.ReasonCode, out.Message = code, message
+		if e := publish(out); e != nil {
+			return out, e
+		}
+		return out, err
+	}
+	if req.Dockerfile != "" || len(req.Environment) != 0 {
+		return fail("preview_source_profile_invalid", "Reviewed-source previews serve static files without a Dockerfile or private application environment. Nothing was allocated.", backend.ErrUnsupported)
+	}
+	serveID, err := previewAllocationID("preview-")
+	if err != nil {
+		return out, err
+	}
+	resources := backend.Resources{MemoryMiB: req.MemoryMiB, CPUMillis: req.CPUMillis}
+	if resources.MemoryMiB == 0 {
+		resources.MemoryMiB = 1024
+	}
+	if resources.CPUMillis == 0 {
+		resources.CPUMillis = 1000
+	}
+	id := backend.PreviewIdentity{Protocol: backend.PreviewExecutionProtocol, Kind: backend.ReviewedSourcePreview, AllocationID: serveID, ReleaseID: req.ReleaseID, ScopeDigest: a.execution.scope, ProjectID: req.ProjectID, SourceDigest: req.SourceDigest, Commit: req.Commit}
+	spec := backend.PreviewSpec{Identity: id, Kind: backend.ReviewedSourcePreview, Resources: resources, SourceDirectory: req.SourceDirectory, SourceArchive: req.SourceArchive, Port: req.Port, Network: req.Network, Labels: req.Labels}
+	serving, err := a.deps.Backend.(backend.PreviewExecutor).PreparePreview(ctx, spec)
+	if err != nil {
+		return fail("preview_source_unsupported", "The trusted serving runtime or bounded static snapshot is unavailable or unsupported. Nothing was allocated.", err)
+	}
+	preparedID := serving.Spec.Identity
+	id.EngineID, id.InstanceID, id.SnapshotDigest, id.CommandDigest, id.RuntimeImageID = preparedID.EngineID, preparedID.InstanceID, preparedID.SnapshotDigest, preparedID.CommandDigest, preparedID.RuntimeImageID
+	if !validPreviewIdentity(preparedID) || preparedID != id || serving.Spec.Kind != backend.ReviewedSourcePreview || serving.Spec.Resources != resources || serving.ContextDigest != id.SnapshotDigest || serving.Spec.ContextDigest != id.SnapshotDigest || !checkHex(id.SnapshotDigest, 32) || len(serving.SourcePayload) == 0 || serving.Spec.ImageID != id.RuntimeImageID {
+		return fail("preview_runtime_identity", "The prepared static snapshot or serving identity changed. Nothing was allocated.", errors.New("invalid reviewed-source preparation"))
+	}
+	out.AllocationID, out.EngineID, out.InstanceID, out.Image, out.SnapshotDigest = serveID, id.EngineID, id.InstanceID, serving.Spec.ImageID, id.SnapshotDigest
+	return a.servePreparedPreview(ctx, req, publish, serving, out)
+}
+
 func matchesPreviewReference(v previewExecutionLease, id previewruntime.Identity) bool {
-	return v.Identity.ProjectID == id.ProjectID && v.Identity.ReleaseID == id.ReleaseID && v.Identity.SourceDigest == id.SourceDigest && v.Identity.Commit == id.Commit && v.Identity.EngineID == id.EngineID && v.Identity.InstanceID == id.InstanceID &&
-		(v.Kind == "preview-build" && v.ID == id.BuildAllocationID || v.Kind == "preview" && v.ID == id.AllocationID && v.Image == id.Image && (id.ContainerID == "" || v.Ref == id.ContainerID))
+	return v.Identity.Kind == id.Kind && v.Identity.SnapshotDigest == id.SnapshotDigest && v.Identity.ProjectID == id.ProjectID && v.Identity.ReleaseID == id.ReleaseID && v.Identity.SourceDigest == id.SourceDigest && v.Identity.Commit == id.Commit && v.Identity.EngineID == id.EngineID && v.Identity.InstanceID == id.InstanceID &&
+		(v.Kind == "preview-build" && v.ID == id.BuildAllocationID || previewServingKind(v.Kind) && v.ID == id.AllocationID && v.Image == id.Image && (id.ContainerID == "" || v.Ref == id.ContainerID))
 }
 
 func (a *API) observePreview(ctx context.Context, id previewruntime.Identity) (previewruntime.Outcome, error) {
@@ -385,12 +457,23 @@ func (a *API) stopPreview(ctx context.Context, id previewruntime.Identity, publi
 	// The release lock excludes build→serve transitions. Missing serving state is
 	// only safe when the finished builder proves it never acquired an allocation
 	// and the persisted product receipt has no acknowledged container.
-	build, err := a.execution.previewLease(ctx, id.BuildAllocationID)
-	if err != nil || !matchesPreviewReference(build, id) {
-		return out, errors.New("exact preview build lineage unavailable")
+	rows := []previewExecutionLease{}
+	if id.Kind == previewruntime.ReviewedSourceKind {
+		if id.BuildAllocationID != "" || id.AllocationID == "" {
+			return out, errors.New("reviewed-source preview has invalid build or serving lineage")
+		}
+	} else {
+		build, buildErr := a.execution.previewLease(ctx, id.BuildAllocationID)
+		if buildErr != nil || !matchesPreviewReference(build, id) {
+			return out, errors.New("exact preview build lineage unavailable")
+		}
+		rows = append(rows, build)
 	}
 	serve, serveErr := a.execution.previewLease(ctx, id.AllocationID)
 	missingServe := errors.Is(serveErr, errPreviewLeaseAbsent)
+	if missingServe && id.Kind == previewruntime.ReviewedSourceKind {
+		return out, errors.New("exact reviewed-source serving lineage unavailable")
+	}
 	if serveErr != nil && !missingServe {
 		return out, serveErr
 	}
@@ -400,7 +483,6 @@ func (a *API) stopPreview(ctx context.Context, id previewruntime.Identity, publi
 	if !missingServe && !matchesPreviewReference(serve, id) {
 		return out, errors.New("preview serving identity changed")
 	}
-	rows := []previewExecutionLease{build}
 	if !missingServe {
 		rows = append(rows, serve)
 	}
@@ -495,7 +577,7 @@ func (a *API) restartPreview(ctx context.Context, req previewruntime.Request, pu
 	if err != nil {
 		return out, err
 	}
-	if !matchesPreviewReference(v, req.Identity) || v.Kind != "preview" || v.State != "running" {
+	if !matchesPreviewReference(v, req.Identity) || !previewServingKind(v.Kind) || v.State != "running" {
 		return out, errors.New("only an acknowledged running preview supports restart; settle uncertain work first")
 	}
 	executor, ok := a.deps.Backend.(backend.PreviewExecutor)
