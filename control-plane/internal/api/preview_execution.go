@@ -240,14 +240,24 @@ func (a *API) servePreparedPreview(ctx context.Context, req previewruntime.Reque
 		}
 		return out, err
 	}
-	decision, lease, err := admit(serving)
+	decision, lease, reservationAttempted, err := a.admitPreparedPreviewWithReservation(ctx, req, serving)
 	if err != nil || decision.State != "admitted" {
 		out.Phase = "blocked"
 		if req.Kind == previewruntime.ReviewedSourceKind {
-			if err == nil {
+			freshUncharged := !req.Retained() && !out.ResourcesHeld && out.BuildAllocationID == "" && out.ContainerID == "" && out.AllocationID == serveID
+			// Prerequisite failures cannot have reserved this fresh ID. A normal
+			// waiting decision with no returned lease also proves no admission.
+			// Once reservation was attempted, an error may follow a committed
+			// write; retain that uncertainty and every previously held lease.
+			if freshUncharged && (!reservationAttempted || err == nil && lease.ID == "") {
 				out.AllocationID = ""
+				out.ResourcesHeld = false
+				if err != nil {
+					return fail("preview_admission_refused", "Source preview admission was refused before reservation or container creation. Review current source, authority and policy before trying again.", err)
+				}
 			} else {
 				out.Phase, out.ResourcesHeld = "unknown", true
+				return fail("preview_reservation_unconfirmed", "The serving reservation or its existing lease could not be confirmed. Its exact identity remains retained; no container creation was sent by this attempt.", err)
 			}
 		}
 		return fail(decision.Code, "Starting this reviewed preview awaits current authority and shared machine capacity.", err)
@@ -335,18 +345,27 @@ func (a *API) servePreparedPreview(ctx context.Context, req previewruntime.Reque
 }
 
 func (a *API) admitPreparedPreview(ctx context.Context, req previewruntime.Request, p backend.PreparedPreview) (executionDecision, previewExecutionLease, error) {
+	decision, lease, _, err := a.admitPreparedPreviewWithReservation(ctx, req, p)
+	return decision, lease, err
+}
+
+// attempted records control flow, never an inference from an error string or
+// a later empty observation. Errors after reservePreview may follow a durable
+// reservation write even when no container creation was attempted.
+func (a *API) admitPreparedPreviewWithReservation(ctx context.Context, req previewruntime.Request, p backend.PreparedPreview) (executionDecision, previewExecutionLease, bool, error) {
 	authority, err := a.authorizePreview(ctx, req.Actor, true)
 	if err != nil {
-		return executionDecision{}, previewExecutionLease{}, err
+		return executionDecision{}, previewExecutionLease{}, false, err
 	}
 	if err = req.ValidateSource(ctx); err != nil {
-		return executionDecision{}, previewExecutionLease{}, err
+		return executionDecision{}, previewExecutionLease{}, false, err
 	}
 	policy, err := a.deps.Product.SwarmSchedulerPolicy()
 	if err != nil {
-		return executionDecision{}, previewExecutionLease{}, err
+		return executionDecision{}, previewExecutionLease{}, false, err
 	}
-	return a.execution.reservePreview(ctx, p, req.Actor, authority, policy)
+	decision, lease, err := a.execution.reservePreview(ctx, p, req.Actor, authority, policy)
+	return decision, lease, true, err
 }
 
 func (a *API) startReviewedSourcePreview(ctx context.Context, req previewruntime.Request, publish func(previewruntime.Outcome) error, out previewruntime.Outcome) (previewruntime.Outcome, error) {
@@ -379,6 +398,7 @@ func (a *API) startReviewedSourcePreview(ctx context.Context, req previewruntime
 	}
 	preparedID := serving.Spec.Identity
 	id.EngineID, id.InstanceID, id.SnapshotDigest, id.CommandDigest, id.RuntimeImageID = preparedID.EngineID, preparedID.InstanceID, preparedID.SnapshotDigest, preparedID.CommandDigest, preparedID.RuntimeImageID
+	id.EnvironmentDigest = preparedID.EnvironmentDigest
 	if !validPreviewIdentity(preparedID) || preparedID != id || serving.Spec.Kind != backend.ReviewedSourcePreview || serving.Spec.Resources != resources || serving.ContextDigest != id.SnapshotDigest || serving.Spec.ContextDigest != id.SnapshotDigest || !checkHex(id.SnapshotDigest, 32) || len(serving.SourcePayload) == 0 || serving.Spec.ImageID != id.RuntimeImageID {
 		return fail("preview_runtime_identity", "The prepared static snapshot or serving identity changed. Nothing was allocated.", errors.New("invalid reviewed-source preparation"))
 	}

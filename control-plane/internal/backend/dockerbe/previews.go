@@ -41,7 +41,7 @@ func previewImageID(v string) bool {
 	return strings.HasPrefix(v, "sha256:") && fenceHex(strings.TrimPrefix(v, "sha256:"), 32)
 }
 func validPreviewIdentity(v backend.PreviewIdentity, prepared bool) bool {
-	if v.Kind != "" && v.Kind != backend.ReviewedSourcePreview || v.Kind == "" && (v.SnapshotDigest != "" || v.CommandDigest != "" || v.RuntimeImageID != "") || v.Kind == backend.ReviewedSourcePreview && ((v.SnapshotDigest != "" || prepared) && !fenceHex(v.SnapshotDigest, 32) || (v.CommandDigest != "" || prepared) && !fenceHex(v.CommandDigest, 32) || (v.RuntimeImageID != "" || prepared) && !previewImageID(v.RuntimeImageID)) {
+	if v.Kind != "" && v.Kind != backend.ReviewedSourcePreview || v.Kind == "" && (v.SnapshotDigest != "" || v.CommandDigest != "" || v.EnvironmentDigest != "" || v.RuntimeImageID != "") || v.Kind == backend.ReviewedSourcePreview && ((v.SnapshotDigest != "" || prepared) && !fenceHex(v.SnapshotDigest, 32) || (v.CommandDigest != "" || prepared) && !fenceHex(v.CommandDigest, 32) || (v.EnvironmentDigest != "" || prepared) && !fenceHex(v.EnvironmentDigest, 32) || (v.RuntimeImageID != "" || prepared) && !previewImageID(v.RuntimeImageID)) {
 		return false
 	}
 	if v.Protocol != backend.PreviewExecutionProtocol || !fenceLogicalID(v.AllocationID) || !fenceLogicalID(v.ReleaseID) || !fenceLogicalID(v.ProjectID) || !fenceHex(v.ScopeDigest, 32) || !fenceHex(v.SourceDigest, 32) || (!fenceHex(v.Commit, 20) && !fenceHex(v.Commit, 32)) {
@@ -58,6 +58,7 @@ func previewIdentityLabels(v backend.PreviewIdentity) map[string]string {
 	}
 	if v.Kind != "" {
 		labels[previewPrefix+"kind"], labels[previewPrefix+"snapshot"], labels[previewPrefix+"command"], labels[previewPrefix+"image"] = v.Kind, v.SnapshotDigest, v.CommandDigest, v.RuntimeImageID
+		labels[previewPrefix+"environment"] = v.EnvironmentDigest
 	}
 	return labels
 }

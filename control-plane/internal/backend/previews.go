@@ -12,19 +12,20 @@ const ReviewedSourcePreview = "reviewed-source"
 // browser. Build and serving allocations share the reviewed release/source but
 // have separate allocation IDs, phases and capacity reservations.
 type PreviewIdentity struct {
-	Kind           string `json:"kind,omitempty"`
-	SnapshotDigest string `json:"snapshotDigest,omitempty"`
-	CommandDigest  string `json:"commandDigest,omitempty"`
-	RuntimeImageID string `json:"runtimeImageId,omitempty"`
-	Protocol       int    `json:"protocol"`
-	EngineID       string `json:"engineId"`
-	InstanceID     string `json:"instanceId"`
-	AllocationID   string `json:"allocationId"`
-	ReleaseID      string `json:"releaseId"`
-	ScopeDigest    string `json:"scopeDigest"`
-	ProjectID      string `json:"projectId"`
-	SourceDigest   string `json:"sourceDigest"`
-	Commit         string `json:"commit"`
+	Kind              string `json:"kind,omitempty"`
+	SnapshotDigest    string `json:"snapshotDigest,omitempty"`
+	CommandDigest     string `json:"commandDigest,omitempty"`
+	EnvironmentDigest string `json:"environmentDigest,omitempty"`
+	RuntimeImageID    string `json:"runtimeImageId,omitempty"`
+	Protocol          int    `json:"protocol"`
+	EngineID          string `json:"engineId"`
+	InstanceID        string `json:"instanceId"`
+	AllocationID      string `json:"allocationId"`
+	ReleaseID         string `json:"releaseId"`
+	ScopeDigest       string `json:"scopeDigest"`
+	ProjectID         string `json:"projectId"`
+	SourceDigest      string `json:"sourceDigest"`
+	Commit            string `json:"commit"`
 }
 
 type PreviewSpec struct {
@@ -58,7 +59,8 @@ type PreparedPreview struct {
 	BasePlanDigest string
 	// SourcePayload is ephemeral static content, never persisted in leases or
 	// returned to the browser. Its fixed server only reads these bytes in memory.
-	SourcePayload []byte
+	SourcePayload     []byte
+	SourceEnvironment []string
 }
 
 type PreviewBaseImage struct {
