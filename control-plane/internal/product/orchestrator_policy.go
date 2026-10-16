@@ -18,18 +18,18 @@ import (
 // can only renew an already approved document through the existing validation
 // and exact actor/context gates; it never grants execution or deployment.
 type CoordinatorPolicy struct {
-	ProjectID       string        `json:"projectId"`
-	Revision        int           `json:"revision"`
-	Mode            string        `json:"mode"`
-	ReviewMode      string        `json:"reviewMode"`
-	ExecutionMode   string        `json:"executionMode"`
-	IntegrationMode string        `json:"integrationMode"`
-	PreviewMode     string        `json:"previewMode"`
-	DeploymentMode  string        `json:"deploymentMode"`
-	AutomaticRepairLimit *int      `json:"automaticRepairLimit,omitempty"`
-	AllowedTargets  []string      `json:"allowedTargets"`
-	UpdatedAt       string        `json:"updatedAt,omitempty"`
-	Actor           *ContextActor `json:"actor,omitempty"`
+	ProjectID            string        `json:"projectId"`
+	Revision             int           `json:"revision"`
+	Mode                 string        `json:"mode"`
+	ReviewMode           string        `json:"reviewMode"`
+	ExecutionMode        string        `json:"executionMode"`
+	IntegrationMode      string        `json:"integrationMode"`
+	PreviewMode          string        `json:"previewMode"`
+	DeploymentMode       string        `json:"deploymentMode"`
+	AutomaticRepairLimit *int          `json:"automaticRepairLimit,omitempty"`
+	AllowedTargets       []string      `json:"allowedTargets"`
+	UpdatedAt            string        `json:"updatedAt,omitempty"`
+	Actor                *ContextActor `json:"actor,omitempty"`
 }
 type storedCoordinatorPolicy struct {
 	Version      int               `json:"version"`
@@ -196,15 +196,15 @@ func (s *Server) getCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ExpectedRevision int      `json:"expectedRevision"`
-		Mode             string   `json:"mode"`
-		ReviewMode       *string  `json:"reviewMode"`
-		ExecutionMode    *string  `json:"executionMode"`
-		IntegrationMode  *string  `json:"integrationMode"`
-		PreviewMode      *string  `json:"previewMode"`
-		DeploymentMode   *string  `json:"deploymentMode"`
-		AutomaticRepairLimit *int `json:"automaticRepairLimit"`
-		AllowedTargets   []string `json:"allowedTargets"`
+		ExpectedRevision     int      `json:"expectedRevision"`
+		Mode                 string   `json:"mode"`
+		ReviewMode           *string  `json:"reviewMode"`
+		ExecutionMode        *string  `json:"executionMode"`
+		IntegrationMode      *string  `json:"integrationMode"`
+		PreviewMode          *string  `json:"previewMode"`
+		DeploymentMode       *string  `json:"deploymentMode"`
+		AutomaticRepairLimit *int     `json:"automaticRepairLimit"`
+		AllowedTargets       []string `json:"allowedTargets"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return

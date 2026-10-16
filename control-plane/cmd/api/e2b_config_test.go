@@ -141,8 +141,8 @@ func TestCloudRevocationRetainsOnlyExactOwnedObservationAndCleanupEffects(t *tes
 }
 
 type cloudContractEffectFixture struct {
-	readErr, budgetErr error
-	reads, validations int
+	readErr, budgetErr            error
+	reads, validations            int
 	projectID, runID, operationID string
 }
 
