@@ -39,4 +39,12 @@ describe('orchestration contract public client', () => {
     expect(() => approvedContractReference(stale)).toThrow('Design changed');
     expect(approvedContractReference(contractViewFixture(true))).toEqual({ id: 'contract-1', revision: 2, digest: 'a'.repeat(64), approvalId: 'approval-1' });
   });
+  it('accepts bounded imported control content and rejects an identity-only team binding',()=>{
+    const view=contractViewFixture();
+    view.contract.input.standards={status:'team-library-assessed',source:'team-control-library',revision:2,digest:'b'.repeat(64),teamId:'team-one',assessmentRevision:1,assessmentDigest:'c'.repeat(64),contentDigest:'d'.repeat(64),requirements:[{id:'SEC-1',requirement:'Require violet ledger review before release',category:'Security',applicability:'Every release',owner:'Team',evidenceExpected:'Signed reviewer receipt',assessmentStatus:'supported',evidence:[{link:{documentId:'doc-1',originalDigest:'e'.repeat(64),extractionRevision:1,page:1,segmentId:'fact',textDigest:'f'.repeat(64),targetKind:'purpose',targetId:''},text:'Reviewed violet ledger evidence'}]}]};
+    const fromGo=JSON.parse(JSON.stringify(view)) as typeof view;
+    expect(ownedOrchestrationContract('p-1',fromGo).contract.input.standards.requirements?.[0].requirement).toContain('violet ledger');
+    fromGo.contract.input.standards.requirements=[];
+    expect(()=>ownedOrchestrationContract('p-1',fromGo)).toThrow();
+  });
 });

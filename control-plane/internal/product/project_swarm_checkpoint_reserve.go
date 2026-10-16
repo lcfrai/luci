@@ -122,6 +122,10 @@ func (s *Server) reserveProjectSwarmCheckpoint(w http.ResponseWriter, r *http.Re
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}
+	if swarmFailedReviewCount(run, op.TaskID) > maxSwarmReviewRepairs {
+		projectRunProblem(w, errors.New("The independent review repair limit is exhausted. Review a changed plan before another attempt."))
+		return
+	}
 	if err = s.requireNoSwarmPendingLaunch(r.Context(), run, op.TaskID); err != nil {
 		projectRunProblem(w, err)
 		return

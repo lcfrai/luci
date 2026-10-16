@@ -12,21 +12,25 @@ import (
 )
 
 type ProjectDesignPlan struct {
-	Scene                 *ProjectDesignScene `json:"scene,omitempty"`
-	ProjectID             string              `json:"projectId"`
-	Revision              int                 `json:"revision"`
-	BriefRevision         int                 `json:"briefRevision"`
-	SpecificationRevision int                 `json:"specificationRevision"`
-	SketchRevision        int                 `json:"sketchRevision"`
-	Screens               []DesignScreen      `json:"screens"`
-	Tokens                []DesignToken       `json:"tokens"`
-	Assets                []DesignAsset       `json:"assets"`
-	ImplementationNotes   string              `json:"implementationNotes"`
-	PrototypeReleaseID    string              `json:"prototypeReleaseId"`
-	PrototypeCommit       string              `json:"prototypeCommit"`
-	Status                string              `json:"status" enum:"draft"`
-	Digest                string              `json:"digest" output:"empty"`
-	UpdatedAt             string              `json:"updatedAt"`
+	Scene                         *ProjectDesignScene `json:"scene,omitempty"`
+	ControlLibraryRevision        int                 `json:"controlLibraryRevision,omitempty"`
+	ControlLibraryDigest          string              `json:"controlLibraryDigest,omitempty"`
+	CurrentControlLibraryRevision int                 `json:"currentControlLibraryRevision,omitempty"`
+	CurrentControlLibraryDigest   string              `json:"currentControlLibraryDigest,omitempty"`
+	ProjectID                     string              `json:"projectId"`
+	Revision                      int                 `json:"revision"`
+	BriefRevision                 int                 `json:"briefRevision"`
+	SpecificationRevision         int                 `json:"specificationRevision"`
+	SketchRevision                int                 `json:"sketchRevision"`
+	Screens                       []DesignScreen      `json:"screens"`
+	Tokens                        []DesignToken       `json:"tokens"`
+	Assets                        []DesignAsset       `json:"assets"`
+	ImplementationNotes           string              `json:"implementationNotes"`
+	PrototypeReleaseID            string              `json:"prototypeReleaseId"`
+	PrototypeCommit               string              `json:"prototypeCommit"`
+	Status                        string              `json:"status" enum:"draft"`
+	Digest                        string              `json:"digest" output:"empty"`
+	UpdatedAt                     string              `json:"updatedAt"`
 }
 type DesignScreen struct {
 	ID             string   `json:"id"`
@@ -126,6 +130,11 @@ func (s *Server) getDesignPlan(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	library, libraryErr := s.currentTeamLibrary(r.Context())
+	if libraryErr != nil {
+		problem(w, 409, "library_unavailable", "The current team controls cannot be verified.")
+		return
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	state, err := s.readApprovedJourney(p.Path, p.ID)
@@ -133,7 +142,14 @@ func (s *Server) getDesignPlan(w http.ResponseWriter, r *http.Request) {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
 	}
-	writeJSON(w, 200, currentDesignPlan(state))
+	plan := currentDesignPlan(state)
+	if library != nil {
+		plan.CurrentControlLibraryRevision, plan.CurrentControlLibraryDigest = library.Revision, library.Digest
+	}
+	if library != nil && plan.Revision > 0 && (plan.ControlLibraryRevision != library.Revision || plan.ControlLibraryDigest != library.Digest) {
+		plan.Status = "outdated"
+	}
+	writeJSON(w, 200, plan)
 }
 func (s *Server) designPlanHistory(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)
@@ -165,10 +181,12 @@ func validateDesignLinks(plan ProjectDesignPlan, spec ProjectSpecification) erro
 }
 func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ExpectedRevision              int               `json:"expectedRevision"`
-		ExpectedBriefRevision         int               `json:"expectedBriefRevision"`
-		ExpectedSpecificationRevision int               `json:"expectedSpecificationRevision"`
-		Plan                          ProjectDesignPlan `json:"plan"`
+		ExpectedRevision               int               `json:"expectedRevision"`
+		ExpectedBriefRevision          int               `json:"expectedBriefRevision"`
+		ExpectedSpecificationRevision  int               `json:"expectedSpecificationRevision"`
+		ExpectedControlLibraryRevision int               `json:"expectedControlLibraryRevision"`
+		ExpectedControlLibraryDigest   string            `json:"expectedControlLibraryDigest"`
+		Plan                           ProjectDesignPlan `json:"plan"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
@@ -232,6 +250,25 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	plan.Revision = old.Revision + 1
+	library, libraryErr := s.currentTeamLibrary(r.Context())
+	if libraryErr != nil {
+		problem(w, 409, "library_unavailable", "The current team controls cannot be verified.")
+		return
+	}
+	if library != nil && (req.ExpectedControlLibraryRevision != library.Revision || req.ExpectedControlLibraryDigest != library.Digest) {
+		problem(w, 409, "design_controls_changed", "The team controls changed. Reload and review the design against the current library before saving.")
+		return
+	}
+	if library == nil && (req.ExpectedControlLibraryRevision != 0 || req.ExpectedControlLibraryDigest != "") {
+		problem(w, 409, "design_controls_changed", "The team controls changed. Reload the design before saving.")
+		return
+	}
+	plan.ControlLibraryRevision, plan.ControlLibraryDigest = 0, ""
+	if library != nil {
+		plan.ControlLibraryRevision, plan.ControlLibraryDigest = library.Revision, library.Digest
+	}
+	// The current binding is a read/compare hint, never part of durable Design.
+	plan.CurrentControlLibraryRevision, plan.CurrentControlLibraryDigest = 0, ""
 	plan.BriefRevision = state.Brief.Revision
 	plan.SpecificationRevision = spec.Revision
 	plan.SketchRevision = state.Design.Revision
@@ -245,6 +282,9 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	if err := s.writeAttributedJourney(r.Context(), p.Path, state, contextMutation{"design", "save"}); err != nil {
 		problem(w, 500, "save_failed", err.Error())
 		return
+	}
+	if library != nil {
+		plan.CurrentControlLibraryRevision, plan.CurrentControlLibraryDigest = library.Revision, library.Digest
 	}
 	writeJSON(w, 200, plan)
 }
@@ -272,6 +312,15 @@ func (s *Server) approveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	plan := currentDesignPlan(state)
 	spec := currentSpecification(state)
+	library, libraryErr := s.currentTeamLibrary(r.Context())
+	if libraryErr != nil {
+		problem(w, 409, "library_unavailable", "The current team controls cannot be verified.")
+		return
+	}
+	if library != nil && (plan.ControlLibraryRevision != library.Revision || plan.ControlLibraryDigest != library.Digest) {
+		problem(w, 409, "design_controls_changed", "The team control library changed. Review and save this Design against the current version.")
+		return
+	}
 	if state.DesignPlan == nil || plan.Revision != req.Revision || plan.Status == "outdated" {
 		problem(w, 409, "revision_conflict", "Save the design against the current definition and sketch before approving it.")
 		return

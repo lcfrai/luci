@@ -297,3 +297,39 @@ it("disconnects the subscription without deleting a separate API key or claiming
       .map((call) => call[0]),
   ).toEqual(["http://localhost/v1/setup/agents/codex/account"]);
 });
+
+it("ends Checking after a status transport failure and refreshes only on request", async () => {
+  let available = false;
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+    if (String(url).endsWith("/codex/account")) {
+      if (!available) throw new TypeError("fetch unavailable");
+      return new Response(JSON.stringify({ configured: false, authMode: "chatgpt", message: "No saved connection." }));
+    }
+    return new Response(JSON.stringify({ providers: [] }));
+  });
+  render(<AgentConnections client={createProductClient("http://localhost", fetcher)} cloud={false} initialProvider="openai" />);
+  await screen.findByText("Codex connection status is unavailable.");
+  expect(screen.queryByText("Checking Codex sign-in…")).toBeNull();
+  expect((await screen.findByRole("alert")).textContent).toContain("does not show whether device sign-in succeeded");
+  expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
+  available = true;
+  await userEvent.click(screen.getByRole("button", { name: "Refresh Codex connection" }));
+  await screen.findByText("No Codex subscription sign-in saved.");
+});
+
+it("does not present a previous saved status as confirmed after an uncertain disconnect", async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+    if (init?.method === "DELETE") throw new TypeError("connection lost");
+    return new Response(JSON.stringify(String(url).endsWith("/codex/account")
+      ? { configured: true, authMode: "chatgpt", message: "Saved." }
+      : { providers: [] }));
+  });
+  render(<AgentConnections client={createProductClient("http://localhost", fetcher)} cloud={false} initialProvider="openai" />);
+  await screen.findByText("Codex sign-in saved on this machine.");
+  await userEvent.click(screen.getByRole("button", { name: "Disconnect Codex sign-in" }));
+  await screen.findByText("Codex connection status is unavailable.");
+  expect(screen.queryByText("Codex sign-in saved on this machine.")).toBeNull();
+  // Preserve the last known billing selection until an explicit refresh settles it.
+  expect((screen.getByLabelText("OpenAI API key") as HTMLInputElement).disabled).toBe(true);
+  expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
+});

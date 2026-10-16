@@ -23,7 +23,7 @@ func (s *Server) checkCoordinatorIntegrationGate(ctx context.Context, p project.
 	if !ok {
 		return nil // The ordinary explicit review route retains its own authority.
 	}
-	if gate.Row.ProjectID != p.ID || gate.Row.RunID != run.ID || gate.Row.Status != "queued" || gate.Row.CheckPlan == nil {
+	if gate.Row.ProjectID != p.ID || gate.Row.RunID != run.ID || gate.Row.Status != "queued" || gate.Row.CheckPlan == nil || run.Input.OrchestrationContract == nil || gate.Row.Run.OrchestrationContract == nil {
 		return errCoordinatorAuthority
 	}
 	if err := s.continuationAuthority(ctx, p, gate.Row); err != nil {
@@ -58,7 +58,7 @@ func (s *Server) checkCoordinatorIntegrationGate(ctx context.Context, p project.
 // preview and the separately authorized delivery plan. Any pending/unknown
 // integration receipt is retained and never invoked twice.
 func (s *Server) continueCoordinatorCandidateIntegration(ctx context.Context, p project.Project, row coordinatorContinuationRecord) (bool, error) {
-	if row.RunID == "" || row.CheckPlan == nil || len(row.Actions) != 3 || row.Actions[2].Status != "confirmed" || row.Status != "queued" {
+	if row.RunID == "" || row.CheckPlan == nil || row.Run.OrchestrationContract == nil || len(row.Actions) != 3 || row.Actions[2].Status != "confirmed" || row.Status != "queued" {
 		return false, nil
 	}
 	s.mu.RLock()
@@ -78,7 +78,7 @@ func (s *Server) continueCoordinatorCandidateIntegration(ctx context.Context, p 
 		return false, nil
 	}
 	run, err := s.projectRuns.Get(p.ID, p.Path, row.RunID)
-	if err != nil || run.Swarm == nil || run.State == "cancelled" || run.State == "blocked" {
+	if err != nil || run.Swarm == nil || run.Input.OrchestrationContract == nil || run.State == "cancelled" || run.State == "blocked" {
 		return false, err
 	}
 	if err = s.validateProjectSwarmReuseCurrent(ctx, p, run); err != nil {

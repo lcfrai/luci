@@ -22,6 +22,17 @@ it("binds a checked local preview to its exact commit while preserving independe
   expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ target: "local", port: 3000, dockerfile: "Dockerfile", expectedCommit: commit });
   await client.release("p-1", 3000, "Dockerfile");
   expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ target: "local", port: 3000, dockerfile: "Dockerfile" });
+  fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ kind: 'reviewed-source', projectId: 'p-1', commit, target: 'local' }), { status: 200 }));
+  await client.release("p-1", 3000, "", commit, "reviewed-source");
+  expect(JSON.parse(fetcher.mock.calls[2][1].body)).toEqual({ kind: "reviewed-source", target: "local", port: 3000, dockerfile: "", expectedCommit: commit });
+});
+it('refuses source kind substitution before sending and treats mismatched post-effect receipt as unconfirmed', async () => {
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ projectId: 'p-1', commit: 'a'.repeat(40), target: 'local' }), { status: 200 }));
+  const client = createProductClient('http://localhost', fetcher);
+  await expect(client.release('p-1', 3000, 'Dockerfile', 'a'.repeat(40), 'reviewed-source')).rejects.toThrow(/empty Dockerfile/);
+  expect(fetcher).not.toHaveBeenCalled();
+  await expect(client.release('p-1', 3000, '', 'a'.repeat(40), 'reviewed-source')).rejects.toThrow(/response did not match/);
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
 it("sends exact requirement revision bindings for tasks and checks without changing generic check requests", async () => {

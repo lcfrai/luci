@@ -109,6 +109,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
   const [inspectionIssue, setInspectionIssue] = useState("");
   const [port, setPort] = useState(3000);
   const [dockerfile, setDockerfile] = useState("Dockerfile");
+  const [releaseKind, setReleaseKind] = useState<'dockerfile' | 'reviewed-source'>('dockerfile');
   const [busy, setBusy] = useState("");
   const [localConfigurationBusy, setConfigurationBusy] = useState(false);
   const configurationBusy = localConfigurationBusy || externalConfigurationBusy;
@@ -292,6 +293,15 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
     }
     return build();
   };
+  const createLocalPreview = async (commit?: string) => {
+    if (releaseKind !== 'reviewed-source') return commit ? productApi.release(projectId, port, dockerfile, commit) : productApi.release(projectId, port, dockerfile);
+    // A source-serving preview needs the full exact clean commit even when it
+    // was opened directly in Deploy rather than from a checked run.
+    const [source, git, configuration] = await Promise.all([productApi.gitDelivery(projectId), productApi.git(projectId), productApi.configuration(projectId)]);
+    if (!git.clean || !/^[a-f0-9]{40}([a-f0-9]{24})?$/.test(source.head) || commit && source.head !== commit) throw new Error('The reviewed source changed or is uncommitted. Refresh its exact checked commit before starting a static preview.');
+    if (!Array.isArray(configuration.variables) || configuration.variables.length !== 0) throw new Error('Reviewed-source previews require empty runtime configuration. Remove saved values, then review this source again.');
+    return productApi.release(projectId, port, '', source.head, 'reviewed-source');
+  };
   const localUrl = (release: Release): string | null => {
     if (release.status !== "ready") return null;
     try {
@@ -351,13 +361,12 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
           onSubmit={(event) => {
             event.preventDefault();
             if (buildLocked) return;
-            void operate("Building and checking your app", () => createRelease(() =>
-              intent ? productApi.release(projectId, port, dockerfile, intent.commit) : productApi.release(projectId, port, dockerfile),
-            ));
+            void operate(releaseKind === 'reviewed-source' ? 'Serving checked static source' : 'Building and checking your app', () => createRelease(() => createLocalPreview(intent?.commit), intent?.commit));
           }}
         >
           <details className="deployment-details"><summary>Preview build options</summary><div className="setup-field-grid">
-          <label className="luci-field">
+          <label className="luci-field">Preview kind<select value={releaseKind} disabled={buildLocked} onChange={event => setReleaseKind(event.target.value as typeof releaseKind)}><option value="dockerfile">Dockerfile application build</option><option value="reviewed-source">Reviewed static source</option></select></label>
+          {releaseKind === 'dockerfile' && <label className="luci-field">
             Dockerfile
             <input
               required
@@ -365,7 +374,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
               value={dockerfile}
               onChange={(event) => setDockerfile(event.target.value)}
             />
-          </label>
+          </label>}
           <label className="luci-field">
             App port
             <input
@@ -377,11 +386,11 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
               value={port}
               onChange={(event) => setPort(Number(event.target.value))}
             />
-            <small>The port your app listens on inside its container.</small>
+            <small>{releaseKind === 'reviewed-source' ? 'The isolated static-source server port. Project server code is not executed.' : 'The port your app listens on inside its container.'}</small>
           </label>
           </div></details>
           <Button type="submit" variant="primary" loading={!!busy} disabled={buildLocked}>
-            {busy || "Build local preview"}
+            {busy || (releaseKind === 'reviewed-source' ? 'Serve reviewed source' : 'Build local preview')}
           </Button>
         </form>
       )}
@@ -600,14 +609,15 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
         <p>Earlier source: <code>{replacement.previous.commit}</code></p>
         <p>Replacement source: <code>{replacement.commit}</code></p>
         {replacement.previous.commit !== replacement.commit && <p className="journey-warning">The project has changed since that release. The replacement must be checked and reviewed again before its behavior is accepted.</p>}
-        <p>Current runtime configuration applies. Review the build options; earlier releases do not record a reusable build configuration.</p>
-        <label className="luci-field">Replacement Dockerfile<input value={dockerfile} disabled={!!busy} onChange={event => setDockerfile(event.target.value)} /></label>
+        <p>{releaseKind === 'reviewed-source' ? 'This replacement serves the exact committed static source and requires empty runtime configuration.' : 'Current runtime configuration applies. Review the build options; earlier releases do not record a reusable build configuration.'}</p>
+        <label className="luci-field">Replacement preview kind<select value={releaseKind} disabled={!!busy} onChange={event => { setReleaseKind(event.target.value as typeof releaseKind); setReplacementAccepted(false); }}><option value="dockerfile">Dockerfile application build</option><option value="reviewed-source">Reviewed static source</option></select></label>
+        {releaseKind === 'dockerfile' && <label className="luci-field">Replacement Dockerfile<input value={dockerfile} disabled={!!busy} onChange={event => setDockerfile(event.target.value)} /></label>}
         <label className="luci-field">Replacement app port<input type="number" min="1" max="65535" value={port} disabled={!!busy} onChange={event => setPort(Number(event.target.value))} /></label>
         {error && <p role="alert">{error}</p>}
-        <label className="setup-check"><input type="checkbox" checked={replacementAccepted} disabled={!!busy} onChange={event => setReplacementAccepted(event.target.checked)} />Build this selected commit as a new preview; keep the earlier release in history.</label>
-        <div className="journey-actions"><Button variant="secondary" disabled={!!busy} onClick={() => setReplacement(null)}>Keep reviewing</Button><Button disabled={locked || cancellationUnresolved || !canDeploy || !replacementAccepted || !dockerfile.trim() || !Number.isInteger(port) || port < 1 || port > 65535} onClick={() => {
+        <label className="setup-check"><input type="checkbox" checked={replacementAccepted} disabled={!!busy} onChange={event => setReplacementAccepted(event.target.checked)} />{releaseKind === 'reviewed-source' ? 'Serve this selected commit as a new static preview' : 'Build this selected commit as a new preview'}; keep the earlier release in history.</label>
+        <div className="journey-actions"><Button variant="secondary" disabled={!!busy} onClick={() => setReplacement(null)}>Keep reviewing</Button><Button disabled={locked || cancellationUnresolved || !canDeploy || !replacementAccepted || releaseKind === 'dockerfile' && !dockerfile.trim() || !Number.isInteger(port) || port < 1 || port > 65535} onClick={() => {
           void operate("Building replacement preview", async () => {
-            const created = await productApi.release(projectId, port, dockerfile, replacement.commit);
+            const created = await createLocalPreview(replacement.commit);
             if (alive.current) { setReplacement(null); setReplacementAccepted(false); }
             return created;
           });

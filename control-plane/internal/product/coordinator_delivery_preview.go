@@ -16,7 +16,7 @@ func (s *Server) continueCoordinatorPreview(ctx context.Context, p project.Proje
 	}
 	s.mu.Lock()
 	policy, err := s.readCoordinatorPolicy(p)
-	if err == nil && policy.PreviewMode != "checked-source" && row.Delivery.Preview == nil {
+	if err == nil && !coordinatorPreviewPolicyMatches(policy.PreviewMode, row.PreviewPlan) && row.Delivery.Preview == nil {
 		s.mu.Unlock()
 		return row, nil
 	}

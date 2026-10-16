@@ -40,3 +40,20 @@ it('allows abandoning a pristine failed optional preview read after preview perm
   await waitFor(() => expect(input.onChange.mock.lastCall?.[0]).toMatchObject({ plan: null, dirty: false, problem: '' }));
   expect(productApi.request).toHaveBeenCalledTimes(1); expect(screen.queryByRole('alert')).toBeNull();
 });
+it('delegates reviewed-source only with an explicit kind, empty Dockerfile and empty runtime configuration', async () => {
+  const input = props(); render(<CoordinatorPreviewSetup {...input} mode="reviewed-source" />);
+  await userEvent.click(screen.getByText(/Preview after independent checks/));
+  expect(screen.queryByLabelText('Preview Dockerfile')).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Read preview configuration' }));
+  await screen.findByText(/configuration revision 3/);
+  await userEvent.click(screen.getByRole('checkbox', { name: /I delegate checked static-source serving/ }));
+  expect(input.onChange.mock.lastCall?.[0].plan).toEqual({ kind: 'reviewed-source', dockerfile: '', port: 3000, expectedConfigurationRevision: 3, acknowledgePreviewBuild: true });
+});
+it('refuses reviewed-source delegation while any runtime configuration value exists', async () => {
+  vi.mocked(productApi.request).mockResolvedValue({ revision: 3, variables: [{ name: 'PRIVATE_VALUE' }], updatedAt: '' });
+  const input = props(); render(<CoordinatorPreviewSetup {...input} mode="reviewed-source" />);
+  await userEvent.click(screen.getByText(/Preview after independent checks/));
+  await userEvent.click(screen.getByRole('button', { name: 'Read preview configuration' }));
+  await screen.findByRole('alert');
+  expect(input.onChange.mock.lastCall?.[0].plan).toBeNull();
+});

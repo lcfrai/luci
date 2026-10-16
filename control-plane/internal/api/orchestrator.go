@@ -147,6 +147,10 @@ func (a *API) handleOrchestratorCreate(w http.ResponseWriter, r *http.Request) {
 	turn, snapshot, existing, err := a.deps.Product.ReserveOrchestratorTurn(r.Context(), r.PathValue("id"), orchestratorTurnSelection(req), ids.New("assist"))
 	if err != nil {
 		code, message := "orchestrator_changed", "The project context or conversation changed, or this turn cannot be reserved. Reload the orchestrator before continuing."
+		if errors.Is(err, product.ErrTeamStandardsTooLarge) {
+			httpx.WriteProblem(w, 413, "team_standards_too_large", err.Error(), nil)
+			return
+		}
 		if errors.Is(err, product.ErrOrchestratorBusy) {
 			code, message = "orchestrator_busy", err.Error()
 		}

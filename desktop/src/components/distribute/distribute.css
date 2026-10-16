@@ -1,0 +1,13 @@
+@import "../../styles/tokens.css";
+.distribute-workspace{max-width:1100px;margin-inline:auto;display:grid;gap:1.25rem}
+.distribute-card{border:1px solid var(--line-soft);border-radius:10px;padding:1rem;display:grid;gap:.75rem;background:var(--surface)}
+.distribute-card h2,.distribute-control h3{margin:0}
+.distribute-card details{padding:.5rem 0}
+.distribute-card summary{cursor:pointer;font-weight:600}
+.distribute-mapping{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem}
+.distribute-card label{display:grid;gap:.25rem}
+.distribute-card select,.distribute-card textarea,.distribute-card input[type=file]{width:100%;min-width:0;border:1px solid var(--line-soft);border-radius:8px;padding:.5rem;background:var(--field);color:var(--ink)}
+.distribute-controls{display:grid;gap:.75rem}
+.distribute-control{display:grid;gap:.45rem;padding:.75rem;border:1px solid var(--line-soft);border-radius:10px}
+.distribute-control p{margin:.15rem 0}
+.distribute-evidence{display:grid;gap:.5rem;padding:.75rem;border:1px solid var(--line-soft);border-radius:10px}

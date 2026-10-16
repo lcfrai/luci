@@ -62,6 +62,18 @@ func swarmReviewRepairSuccessor(run ProjectRun, taskID string, candidate Project
 	return nil
 }
 
+func swarmFailedReviewCount(run ProjectRun, taskID string) int {
+	count := 0
+	if run.Swarm != nil {
+		for _, item := range run.Swarm.ReviewObligations {
+			if item.TaskID == taskID && item.State == "repair-required" {
+				count++
+			}
+		}
+	}
+	return count
+}
+
 func (s *Server) getProjectSwarmReviewObligation(w http.ResponseWriter, r *http.Request) {
 	if !swarmCoordinationAccess(w, r, false) {
 		return
@@ -188,14 +200,11 @@ func (s *Server) createProjectSwarmReviewObligation(w http.ResponseWriter, r *ht
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}
-	repairs := 0
-	for _, prior := range run.Swarm.ReviewObligations {
-		if prior.TaskID == r.PathValue("taskId") && prior.State == "repair-required" {
-			repairs++
-		}
-	}
-	if repairs >= maxSwarmReviewRepairs {
-		projectRunProblem(w, errors.New("Two independent findings already require repair for this task. Replan it before another autonomous review cycle."))
+	// Two repairs are permitted, and the second repaired candidate still needs
+	// its own independent review. A failed final review can be retained as a
+	// finding, but it cannot authorize a third repair under this contract.
+	if swarmFailedReviewCount(run, r.PathValue("taskId")) > maxSwarmReviewRepairs {
+		projectRunProblem(w, errors.New("The independent review repair limit is exhausted. Replan this task before another review or repair."))
 		return
 	}
 	candidate := swarmOperation(&run, req.CandidateOperationID)

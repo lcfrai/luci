@@ -236,6 +236,19 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 		Plan   ProjectPlan
 		Sketch Design
 	}{value.Brief, value.Specification, value.DesignPlan, value.Plan, state.Design})
+	standards, err := s.teamStandardsContext(ctx, p, state, false)
+	if err != nil {
+		return OrchestratorContext{}, err
+	}
+	if standards != nil {
+		value.TeamStandards = standards
+		value.DesignPlan.CurrentControlLibraryRevision = standards.Revision
+		value.DesignPlan.CurrentControlLibraryDigest = standards.Digest
+		value.Digest = reviewDigest(struct {
+			Base, Team, Digest, Assessment string
+			Revision, AssessmentRevision   int
+		}{value.Digest, standards.TeamID, standards.Digest, standards.AssessmentDigest, standards.Revision, standards.AssessmentRevision})
+	}
 	coordination, err := s.readCoordination(p)
 	if err != nil {
 		return OrchestratorContext{}, ErrOrchestratorInvalid
@@ -363,6 +376,20 @@ func (s *Server) ReserveOrchestratorTurn(ctx context.Context, id string, req Orc
 	}
 	if snapshot.Digest != req.ExpectedContextDigest {
 		return OrchestratorTurn{}, snapshot, false, ErrOrchestratorConflict
+	}
+	if snapshot.TeamStandards != nil {
+		state, readErr := s.readApprovedJourney(p.Path, p.ID)
+		if readErr != nil {
+			return OrchestratorTurn{}, snapshot, false, readErr
+		}
+		full, readErr := s.teamStandardsContext(ctx, p, state, true)
+		if readErr != nil {
+			return OrchestratorTurn{}, snapshot, false, readErr
+		}
+		if full == nil || full.TeamID != snapshot.TeamStandards.TeamID || full.Revision != snapshot.TeamStandards.Revision || full.Digest != snapshot.TeamStandards.Digest || full.AssessmentDigest != snapshot.TeamStandards.AssessmentDigest || full.ContentDigest != snapshot.TeamStandards.ContentDigest {
+			return OrchestratorTurn{}, snapshot, false, ErrOrchestratorConflict
+		}
+		snapshot.TeamStandards = full
 	}
 	raw, _ := json.MarshalIndent(snapshot, "", "  ")
 	if len(raw) > orchestratorContextLimit {

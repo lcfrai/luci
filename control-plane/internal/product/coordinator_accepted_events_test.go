@@ -81,6 +81,8 @@ func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testi
 	if err != nil || len(rows.ContextCommits) != 1 || rows.ContextCommits[0].Status != "confirmed" {
 		t.Fatal("accepted context did not reach exact reviewed Git commit", err)
 	}
+	freshAuthorize := approveAcceptedChangedContract(t, s, p, h, ctx, req)
+	s.coordinatorBackground.authorize = freshAuthorize
 	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -229,6 +231,11 @@ func TestAcceptedAmendmentStopsExactActiveAttemptBeforeReplanAfterRestart(t *tes
 	}
 	s.swarmScheduler.runtime = runtime
 	s.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	freshAuthorize := approveAcceptedChangedContract(t, s, p, h, ctx, req)
+	s.coordinatorBackground.authorize = freshAuthorize
 	for i := 0; i < 3; i++ {
 		if err = s.RunCoordinatorOnce(context.Background()); err != nil {
 			t.Fatal(err)
@@ -263,7 +270,7 @@ func TestAcceptedAmendmentStopsExactActiveAttemptBeforeReplanAfterRestart(t *tes
 	reopened.swarmScheduler.runtime = runtime
 	reopened.branchSessions = s.branchSessions
 	reopened.SetProjectSwarmPendingLaunch(func(context.Context, string, string, string, string) (bool, error) { return false, nil })
-	reopened.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+	reopened.coordinatorBackground.authorize = freshAuthorize
 	settled = true
 	for i := 0; i < 4; i++ {
 		if err = reopened.RunCoordinatorOnce(context.Background()); err != nil {

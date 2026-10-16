@@ -72,6 +72,22 @@ type teamRouteRule struct {
 // data can contain secrets. A newly added API remains unavailable to teams until
 // its actual behavior and ownership scope have been classified here.
 var teamRouteRules = []teamRouteRule{
+	{"GET /v1/product/team-controls", teamRead},
+	{"POST /v1/product/team-controls/preview", teamAdmin},
+	{"POST /v1/product/team-controls/compare", teamAdmin},
+	{"POST /v1/product/team-controls/import", teamAdmin},
+	{"GET /v1/product/projects/{projectId}/control-assessment", teamRead},
+	{"GET /v1/product/projects/{projectId}/control-assessment/report.xlsx", teamRead},
+	{"POST /v1/product/projects/{projectId}/control-assessment", teamEdit},
+	{"POST /v1/product/projects/{projectId}/control-assessment/gaps/{controlId}/proposal", teamEdit},
+	{"POST /v1/product/projects/{projectId}/control-assessment/gaps/{controlId}/proposal/{proposalId}/apply", teamEdit},
+	{"GET /v1/product/projects/{projectId}/distribute/artifacts", teamRead},
+	{"POST /v1/product/projects/{projectId}/distribute/artifacts/prepare", teamEdit},
+	{"POST /v1/product/projects/{projectId}/distribute/artifacts", teamEdit},
+	{"GET /v1/product/projects/{projectId}/distribute/artifacts/{artifactId}", teamRead},
+	{"GET /v1/product/projects/{projectId}/distribute/artifacts/{artifactId}/exports/{format}", teamRead},
+	{"POST /v1/product/projects/{projectId}/distribute/artifacts/{artifactId}/revise", teamEdit},
+	{"POST /v1/product/projects/{projectId}/distribute/artifacts/{artifactId}/review", teamEdit},
 	{"GET /v1/healthz", teamRead},
 	{"GET /v1/machines", teamRead},
 	{"GET /v1/harnesses", teamRead},

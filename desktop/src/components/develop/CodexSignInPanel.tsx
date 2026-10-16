@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api";
-import { productApi, errorText, type ProductClient } from "../../api/product";
+import { productApi, type ProductClient } from "../../api/product";
+import { codexConnectionError, type CodexConnectionAction } from "../../api/codexConnectionErrors";
 import { useAttachState, useCodexDeviceChallenge } from "../../api/attachRegistry";
 import { CODEX_DEVICE_URL, DEVICE_CODE_MAX_AGE_MS, isCodexDeviceSignIn } from "../../api/codexDeviceSignIn";
 import { OWN_AGENT_PROVIDER_CHANGED } from "../../hooks/useAgentConnections";
@@ -34,12 +35,12 @@ export function CodexSignInPanel({ session, canControl, client = productApi }: {
   const ended = session.status === "exited" || attach.phase === "ended";
   const usable = !!challenge && !ended && !expired && canControl;
 
-  async function action(run: () => Promise<void>) {
+  async function action(run: () => Promise<void>, operation: CodexConnectionAction = "other") {
     if (working.current || !canControl) return;
     working.current = true;
     setBusy(true); setError(""); setNotice("");
     try { await run(); }
-    catch (cause) { if (alive.current) setError(errorText(cause)); }
+    catch (cause) { if (alive.current) setError(codexConnectionError(cause, operation)); }
     finally { working.current = false; if (alive.current) setBusy(false); }
   }
   async function stopCurrent() {
@@ -69,7 +70,7 @@ export function CodexSignInPanel({ session, canControl, client = productApi }: {
     await stopCurrent();
     if (!alive.current) return;
     const account = await client.connectCodexAccount(session.id);
-    if (!account.configured) throw new Error("The sign-in was not saved. Complete OpenAI sign-in or start again.");
+    if (!account.configured) throw new Error("Saving this sign-in was not confirmed. Keep the session and refresh Codex connection before trying Save again.");
     window.dispatchEvent(new Event(OWN_AGENT_PROVIDER_CHANGED));
     if (alive.current) { setSaved(true); setNotice("Codex sign-in saved for this Luci workspace. You can return to your project."); }
   }
@@ -101,10 +102,10 @@ export function CodexSignInPanel({ session, canControl, client = productApi }: {
       </div>}
       {!ended && !expired && !challenge && <p className="journey-muted">Waiting for Codex’s official device code. The original terminal remains below.</p>}
       <div className="setup-actions">
-        <Button type="button" disabled={busy || !canControl} onClick={() => void action(saveSignIn)}>
+        <Button type="button" disabled={busy || !canControl} onClick={() => void action(saveSignIn, "save")}>
           {busy ? "Working…" : "Save Codex sign-in"}
         </Button>
-        {(ended || expired) && <Button type="button" variant="secondary" disabled={busy || !canControl} onClick={() => void action(freshSignIn)}>Start new device sign-in</Button>}
+        {(ended || expired) && <Button type="button" variant="secondary" disabled={busy || !canControl} onClick={() => void action(freshSignIn, "start")}>Start new device sign-in</Button>}
       </div>
       {!ended && <p className="journey-muted">After completing OpenAI’s page, Save stops this terminal and asks Luci to validate and retain its sign-in. Opening the page or copying a code does not sign you in.</p>}
       {notice && <p role="status">{notice}</p>}

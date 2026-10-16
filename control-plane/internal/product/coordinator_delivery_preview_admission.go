@@ -14,10 +14,25 @@ import (
 // Preview configuration is explicit saved project delegation. It cannot grant
 // Deploy permission, approve new source, or authorize public publication.
 type CoordinatorPreviewPlan struct {
+	// Empty is the retained Dockerfile path. Only an explicit reviewed-source
+	// plan can use the static source-serving release path.
+	Kind                          string `json:"kind,omitempty"`
 	Dockerfile                    string `json:"dockerfile"`
 	Port                          int    `json:"port"`
 	ExpectedConfigurationRevision int    `json:"expectedConfigurationRevision"`
 	AcknowledgePreviewBuild       bool   `json:"acknowledgePreviewBuild"`
+}
+
+func validCoordinatorPreviewMode(mode string) bool {
+	return mode == "manual" || mode == "checked-source" || mode == "reviewed-source"
+}
+
+func coordinatorPreviewPolicyMatches(mode string, plan *CoordinatorPreviewPlan) bool {
+	return plan != nil && ((plan.Kind == "reviewed-source" && mode == "reviewed-source") || (plan.Kind == "" && mode == "checked-source"))
+}
+
+func coordinatorPreviewRequestMatchesPlan(plan *CoordinatorPreviewPlan, configurationRevision, port int, kind, dockerfile string) bool {
+	return plan != nil && plan.ExpectedConfigurationRevision == configurationRevision && plan.Port == port && plan.Kind == kind && plan.Dockerfile == dockerfile
 }
 
 type CoordinatorPreviewAction struct {
@@ -34,7 +49,10 @@ func validateCoordinatorPreviewPlan(plan *CoordinatorPreviewPlan) error {
 	if plan == nil {
 		return nil
 	}
-	if !plan.AcknowledgePreviewBuild || plan.Port < 1 || plan.Port > 65535 || plan.Dockerfile == "" || len(plan.Dockerfile) > 1024 || blockedProjectFile(plan.Dockerfile) || plan.ExpectedConfigurationRevision < 0 || plan.ExpectedConfigurationRevision >= 1_000_000_000 {
+	if !plan.AcknowledgePreviewBuild || plan.Port < 1 || plan.Port > 65535 || plan.ExpectedConfigurationRevision < 0 || plan.ExpectedConfigurationRevision >= 1_000_000_000 ||
+		(plan.Kind == "reviewed-source" && plan.Dockerfile != "") ||
+		(plan.Kind == "" && (plan.Dockerfile == "" || len(plan.Dockerfile) > 1024 || blockedProjectFile(plan.Dockerfile))) ||
+		(plan.Kind != "" && plan.Kind != "reviewed-source") {
 		return errors.New("Save an explicit trusted Dockerfile, application port and current configuration revision before delegating preview builds.")
 	}
 	return nil
@@ -96,7 +114,7 @@ func (s *Server) coordinatorPreviewAuthorityLocked(ctx context.Context, p projec
 	if err != nil {
 		return err
 	}
-	if policy.PreviewMode != "checked-source" || row.PreviewPlan == nil || row.Delivery == nil || row.Delivery.Status != "verified" {
+	if !coordinatorPreviewPolicyMatches(policy.PreviewMode, row.PreviewPlan) || row.Delivery == nil || row.Delivery.Status != "verified" {
 		return errCoordinatorPolicy
 	}
 	if err := validateCoordinatorPreviewPlan(row.PreviewPlan); err != nil {
@@ -111,6 +129,9 @@ func (s *Server) coordinatorPreviewAuthorityLocked(ctx context.Context, p projec
 		return err
 	}
 	if configuration.Revision != row.PreviewPlan.ExpectedConfigurationRevision {
+		return ErrOrchestratorConflict
+	}
+	if row.PreviewPlan.Kind == "reviewed-source" && len(configuration.Values) != 0 {
 		return ErrOrchestratorConflict
 	}
 	return nil
@@ -138,6 +159,13 @@ func coordinatorPreviewCheck(run ProjectRun, row coordinatorContinuationRecord) 
 // Existing preview handlers call this only for an unexported trusted origin.
 // Direct user previews keep their existing request shape and identity behavior.
 func (s *Server) admitCoordinatorPreview(ctx context.Context, p project.Project, commit string, configurationRevision, port int, dockerfile string) (string, string, *storedRelease, error) {
+	return s.admitCoordinatorPreviewKind(ctx, p, commit, configurationRevision, port, "", dockerfile)
+}
+
+// The release endpoint passes its explicit source kind here. The legacy
+// wrapper above can only admit the original Dockerfile path; omission never
+// inherits a reviewed-source approval or its reserved release identity.
+func (s *Server) admitCoordinatorPreviewKind(ctx context.Context, p project.Project, commit string, configurationRevision, port int, kind, dockerfile string) (string, string, *storedRelease, error) {
 	origin, internal := ctx.Value(coordinatorPreviewContextKey{}).(coordinatorPreviewOrigin)
 	if !internal {
 		return "", "", nil, nil
@@ -156,7 +184,7 @@ func (s *Server) admitCoordinatorPreview(ctx context.Context, p project.Project,
 	if err = s.coordinatorPreviewAuthorityLocked(ctx, p, row); err != nil {
 		return "", "", nil, err
 	}
-	if row.Delivery.Preview == nil || row.Delivery.Preview.Status != "pending" || origin.ActionID != row.Delivery.Preview.ActionID || origin.ReleaseID != row.Delivery.Preview.ReleaseID || origin.BindingDigest != coordinatorPreviewBinding(row) || row.Delivery.Commit != commit || row.PreviewPlan.ExpectedConfigurationRevision != configurationRevision || row.PreviewPlan.Port != port || row.PreviewPlan.Dockerfile != dockerfile {
+	if row.Delivery.Preview == nil || row.Delivery.Preview.Status != "pending" || origin.ActionID != row.Delivery.Preview.ActionID || origin.ReleaseID != row.Delivery.Preview.ReleaseID || origin.BindingDigest != coordinatorPreviewBinding(row) || row.Delivery.Commit != commit || !coordinatorPreviewRequestMatchesPlan(row.PreviewPlan, configurationRevision, port, kind, dockerfile) {
 		return "", "", nil, ErrOrchestratorConflict
 	}
 	releases, err := s.readReleases(p.ID)
@@ -226,11 +254,12 @@ func (s *Server) invokeCoordinatorPreview(ctx context.Context, p project.Project
 	}
 	defer release()
 	body := struct {
+		Kind           string `json:"kind,omitempty"`
 		ExpectedCommit string `json:"expectedCommit"`
 		Target         string `json:"target"`
 		Port           int    `json:"port"`
 		Dockerfile     string `json:"dockerfile"`
-	}{row.Delivery.Commit, "local", row.PreviewPlan.Port, row.PreviewPlan.Dockerfile}
+	}{row.PreviewPlan.Kind, row.Delivery.Commit, "local", row.PreviewPlan.Port, row.PreviewPlan.Dockerfile}
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return err
