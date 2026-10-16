@@ -1,0 +1,290 @@
+"""Fixed retained-only signature batch. SOURCE ONLY until exact root release.
+
+Atomic launch/retirement, brake and PDH are reused unchanged from frozen65.
+The independent outer60s supervisor owns this process; this process owns each
+of the nine serial native Jobs. Importing this file launches nothing.
+"""
+import argparse
+import ctypes as C
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import shutil
+import sys
+import time
+
+HERE = Path(__file__).absolute().parent
+CONFIG = HERE/'signature-config.json'
+OUTPUT = Path('E:/Luci-local-acceptance/artifacts/debian-signature-once-v4-local117-20261017/native')
+DONOR = Path('E:/Luci-local-acceptance/artifacts/extractor-wheels-65a8dafb-source-20261016/windows_inspector_controller.py')
+DONOR_SHA = '579b1b0be6de75c594533730cc3875a0b1f5585846030f4e0f7cfa9cd37b3402'
+sys.dont_write_bytecode = True
+
+
+def digest(path, maximum=64 << 20):
+    if path.stat().st_size > maximum:
+        raise ValueError('fixed_file_bound')
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def load(path, name, expected):
+    if digest(path) != expected:
+        raise ValueError('source_pin')
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def bounded(path, maximum):
+    with path.open('rb') as stream:
+        data = stream.read(maximum+1)
+    if len(data) > maximum:
+        raise ValueError('output_bound')
+    return data
+
+
+def write(path, value):
+    data = json.dumps(value, indent=2, sort_keys=True, allow_nan=False).encode('utf-8')
+    if len(data) > 256 << 10:
+        raise ValueError('receipt_bound')
+    with path.open('xb') as stream:
+        stream.write(data)
+
+
+def run(args):
+    began, whole_end = time.time(), args.whole_end
+    work_end = time.monotonic()+max(0, min(40, args.work_end-time.time()))
+    if not args.root_release or digest(Path(__file__)) != args.reviewed_sha or digest(CONFIG) != args.config_sha:
+        raise ValueError('exact_root_release_required')
+    config = json.loads(bounded(CONFIG, 128 << 10))
+    donor = load(DONOR, 'signature_frozen_controller', DONOR_SHA)
+    m = donor.load('windows-api-job-2g-pdh-recovery.py')
+    auth = donor.load('windows-codex-auth-only-655035ec.py')
+    inventory = donor.load('windows-job-inventory.py')
+    donor.load('windows-pdh-cpu-format-recovery.py')
+    m.MAX_PROCESSES = 1
+    m.PROCESS_MEMORY = m.JOB_MEMORY = 128 << 20
+    projection = load(HERE/'status_projection.py', 'signature_projection', config['projectionSha256'])
+    m.regular(OUTPUT.parent, directory=True)
+    if OUTPUT.exists() or shutil.disk_usage(OUTPUT.parent).free < 2 << 30:
+        raise ValueError('fresh_output_disk')
+    OUTPUT.mkdir(mode=0o700)
+    win = m.Windows()
+    win.inventory_module, win.inventory_path = inventory, OUTPUT/'raw-job-queries.jsonl'
+    cpu = m.PdhMonitor(OUTPUT)
+    locks, children, job, brake = [], [], None, None
+    receipt = dict(version=1, phase='retained-release-signature-verification', state='refused',
+                   supervisorSha256=args.reviewed_sha, configSha256=args.config_sha,
+                   trustPolicySha256=config['trustPolicySha256'], nativeChildMaximum=9,
+                   networkRequests=0, keyImports=0, modelDockerCompilerCalls=0,
+                   wholeSeconds=60, workSeconds=40, cleanupReserveSeconds=20,
+                   unknownResources=True, publicationUnknown=False, children=children)
+    cpu.worker.start()
+    try:
+        before, sample, fresh = win.host(), cpu.admission(), win.host()
+        if min(before['availableBytes'], before['commitAvailableBytes'], fresh['availableBytes'], fresh['commitAvailableBytes']) < 8 << 30 or sample['cpuBusyPercent'] >= 50:
+            raise ValueError('normal_admission')
+        receipt['admission'] = dict(host=fresh, cpu=sample)
+        # Hold exact installed tools/DLLs and retained source bytes read-only.
+        # Outer holds script/config pins before importing this module.
+        if sorted(p.name for p in Path(config['dllDirectory']).glob('*.dll')) != sorted(config['dllNames']):
+            raise ValueError('installed_dll_inventory_changed')
+        for pin in config['pins']:
+            path = m.regular(Path(pin['path']))
+            handle = win.k.CreateFileW(str(path), 0x80000000, 1, None, 3, 0x80, None)
+            if handle in (None, C.c_void_p(-1).value):
+                raise ValueError('input_read_handle')
+            locks.append(handle)
+            if path.stat().st_size != pin['bytes'] or digest(path) != pin['sha256']:
+                raise ValueError('input_identity')
+            if time.monotonic() >= work_end:
+                raise ValueError('work_deadline')
+        source, home = OUTPUT/'inputs', OUTPUT/'home'
+        source.mkdir(mode=0o700); home.mkdir(mode=0o700)
+        copies = {}
+        for item in config['keys']+config['releases']:
+            target = source/(item['id']+'.input')
+            data = bounded(Path(item['path']), 262144)
+            if len(data) != item['bytes'] or hashlib.sha256(data).hexdigest() != item['sha256']:
+                raise ValueError('input_copy_identity')
+            with target.open('xb') as stream:
+                stream.write(data)
+            handle = win.k.CreateFileW(str(target), 0x80000000, 1, None, 3, 0x80, None)
+            if handle in (None, C.c_void_p(-1).value):
+                raise ValueError('snapshot_read_handle')
+            locks.append(handle)
+            copies[item['id']] = target
+        env = dict(SystemRoot='C:/Windows', WINDIR='C:/Windows', TEMP=str(home), TMP=str(home))
+        common = ['--no-options', '--homedir', str(home), '--batch', '--no-tty', '--no-autostart',
+                  '--no-auto-key-retrieve', '--no-auto-key-import']
+        gpg, gpgv = config['tools'][0]['path'], config['tools'][1]['path']
+        keyrings = [OUTPUT/(item['id']+'.gpg') for item in config['keys']]
+
+        def capacity():
+            host, state = win.host(), cpu.snapshot()
+            if time.monotonic() >= work_end or min(host['availableBytes'], host['commitAvailableBytes']) < 8 << 30 or not state['known'] or state['cpuBusyPercent'] >= 50:
+                raise ValueError('prelaunch_capacity')
+            return dict(host=host, cpu=state)
+
+        def check_output_bounds():
+            files = list(OUTPUT.rglob('*'))
+            if len(files) > 96 or any(p.is_symlink() or getattr(p.lstat(), 'st_file_attributes', 0) & 1024 for p in files):
+                raise ValueError('output_inventory_bound')
+            sizes = [(p, p.stat().st_size) for p in files if p.is_file()]
+            if sum(size for _, size in sizes) > 4 << 20:
+                raise ValueError('directory_byte_bound')
+            if sum(size for p, size in sizes if p.name in {'worker.stdout.log', 'worker.stderr.log'}) > 256 << 10:
+                raise ValueError('combined_capture_bound')
+            if any(size > (32768 if p.suffix == '.gpg' else 262144) for p, size in sizes):
+                raise ValueError('file_byte_bound')
+
+        def execute(kind, argv, result_path=None, result_cap=0):
+            nonlocal job, brake
+            if len(children) >= 9:
+                raise ValueError('fixed_child_count')
+            item = dict(index=len(children), kind=kind, argv=argv, admission=capacity(),
+                        childExitConfirmed=False, jobEmpty=False, handlesClosed=False)
+            children.append(item)
+            output = OUTPUT/('child-'+str(item['index']))
+            output.mkdir(mode=0o700)
+            brake = donor.Brake(min(work_end, time.monotonic()+5), win.host, cpu)
+            def register(value):
+                nonlocal job
+                job = value; brake.job = value
+                brake.timer.start(); brake.worker.start()
+            try:
+                job = donor.AtomicOwnedJob(m, auth, win, output, argv, env, brake.check, register)
+                capacity()
+                if brake.check():
+                    raise ValueError('suspended_admission')
+                item['pid'] = job.process.dwProcessId
+                item['beganUtc'] = time.time()
+                job.resume()
+                while True:
+                    if brake.check() or time.time() >= whole_end:
+                        job.kill_now(); raise ValueError('active_brake')
+                    wait = win.k.WaitForSingleObject(job.process.hProcess, 0)
+                    if wait == 0xFFFFFFFF:
+                        job.kill_now(); raise ValueError('owned_wait')
+                    check_output_bounds()
+                    if wait == 0:
+                        code = donor.W.DWORD()
+                        win.check(win.k.GetExitCodeProcess(job.process.hProcess, C.byref(code)), 'exit code')
+                        item['exitCode'] = code.value
+                        break
+                    time.sleep(.02)
+            finally:
+                # Retire BEFORE filesystem readback, formatting or publication.
+                if job:
+                    job.kill_now()
+                item['brakeReason'] = brake.reason
+                item['brakeSettled'] = brake.close()
+                if job and item['brakeSettled']:
+                    item['cleanup'] = job.close()
+                    item.update(childExitConfirmed=item['cleanup']['terminal'], jobEmpty=item['cleanup']['jobEmpty'],
+                                handlesClosed=item['cleanup']['closedHandlesAcknowledged'])
+                    job = None
+                if not item['brakeSettled'] or not all(item.get(k) for k in ('childExitConfirmed', 'jobEmpty', 'handlesClosed')):
+                    raise ValueError('positive_native_settlement_unknown')
+                brake = None
+            if item['brakeReason']:
+                raise ValueError('native_child_braked')
+            check_output_bounds()
+            stdout = bounded(output/'worker.stdout.log', 65536 if kind == 'keys' else 262144)
+            stderr = bounded(output/'worker.stderr.log', 65536)
+            item['stdoutSha256'], item['stderrSha256'] = hashlib.sha256(stdout).hexdigest(), hashlib.sha256(stderr).hexdigest()
+            item['stdoutBytes'], item['stderrBytes'] = len(stdout), len(stderr)
+            item['endedUtc'] = time.time()
+            if result_path is not None:
+                item['outputSha256'] = hashlib.sha256(bounded(result_path, result_cap)).hexdigest()
+            return item['exitCode'], stdout
+
+        for key, keyring in zip(config['keys'], keyrings):
+            code, _ = execute('dearmor', [gpg, *common, '--output', str(keyring), '--dearmor', str(copies[key['id']])], keyring, 32768)
+            if code != 0:
+                raise ValueError('dearmor_exit')
+            handle = win.k.CreateFileW(str(keyring), 0x80000000, 1, None, 3, 0x80, None)
+            if handle in (None, C.c_void_p(-1).value):
+                raise ValueError('keyring_read_handle')
+            locks.append(handle)
+        code, listed = execute('keys', [gpg, *common, '--no-auto-check-trustdb', '--with-colons', '--fixed-list-mode',
+                              '--with-fingerprint', '--with-subkey-fingerprint', '--show-keys', *map(str, keyrings)])
+        if code != 0:
+            raise ValueError('key_listing_exit')
+        now = int(time.time())
+        records = projection.keys(listed, {k['primaryFingerprint']: k['signingSubkeyFingerprint'] for k in config['keys']}, now)
+        receipt['keyObservation'] = dict(state='pinned-official-key-snapshot-identities-derived', observedUtc=now,
+                                        records=records, unseenRevocations='not-established')
+        projected = []
+        for release in config['releases']:
+            signed = OUTPUT/(release['id']+'.signed.txt')
+            argv = [gpgv, '--homedir', str(home)]
+            for ring in keyrings:
+                argv += ['--keyring', str(ring)]
+            argv += ['--weak-digest', 'SHA1', '--status-fd', '1', '--output', str(signed), str(copies[release['id']])]
+            code, status = execute('verify', argv, signed, 262144)
+            eligible = {k['primaryFingerprint'] for k in config['keys'] if k['id'] in release['allowedRootIDs']}
+            dispositions = projection.signatures(status, code, records, eligible, int(time.time()))
+            plaintext = bounded(signed, 262144)
+            logical = projection.release(plaintext, release['candidates'], int(time.time()),
+                                         config['historicalAnchor'], bounded(Path(config['historicalAnchor']['snapshotSource']['path']), 4096))
+            projected.append(dict(inputSha256=release['sha256'], signedTextSha256=hashlib.sha256(plaintext).hexdigest(),
+                                  dispositions=dispositions, logicalBindings=logical))
+        if time.monotonic() >= work_end:
+            raise ValueError('work_deadline_before_projection')
+        write(OUTPUT/'typed-input-evidence.json', dict(schema='luci-retained-debian-signature-input-evidence-v2',
+              trustPolicySha256=config['trustPolicySha256'], keyObservation=receipt['keyObservation'], releases=projected,
+              consumer='server-captured AssemblyInputClosureRef; mandatory ValidateCurrent',
+              missing=['index-paragraphs', 'package-source-bindings', 'installed-manifest', 'source-retention', 'notice-closure', 'output-proof'],
+              monotonicPolicyState='not-updated-by-this-read-only-batch'))
+        receipt['typedEvidenceSha256'] = digest(OUTPUT/'typed-input-evidence.json')
+        receipt['state'] = 'retained-signature-evidence-complete-with-explicit-gaps'
+    except BaseException as error:
+        if job:
+            try:
+                job.kill_now()
+            except BaseException:
+                receipt['emergencyRetirementUnknown'] = True
+        receipt['errorCode'] = str(error) if isinstance(error, projection.Refusal) else type(error).__name__
+    finally:
+        # Frozen positive closure; never retire another actor or restart work.
+        if job:
+            try:
+                job.kill_now()
+                if brake and brake.close():
+                    receipt['lateJobCleanup'] = job.close()
+                    job = None
+            except BaseException:
+                receipt['lateCleanupUnknown'] = True
+        receipt['pdhCleanup'] = cpu.close()
+        pdh = receipt['pdhCleanup']
+        pdh_ok = bool(pdh['workerSettled'] and pdh['queryCleanup'] and pdh['queryCleanup'].get('closed') and
+                      pdh['queryCleanup'].get('queryAndCounterHandlesNull') and not pdh['error'])
+        failed_locks = sum(not win.k.CloseHandle(handle) for handle in locks)
+        receipt['inputHandleClosureFailures'] = failed_locks
+        receipt['unknownResources'] = bool(job or failed_locks or not pdh_ok or receipt.get('emergencyRetirementUnknown') or
+            any(not all(c.get(k) for k in ('childExitConfirmed', 'jobEmpty', 'handlesClosed', 'brakeSettled')) for c in children))
+        receipt['elapsedSeconds'] = time.time()-began
+        receipt['withinWholeDeadline'] = time.time() <= whole_end
+        try:
+            write(OUTPUT/'receipt.json', receipt)
+        except BaseException:
+            receipt['publicationUnknown'] = True
+        print(json.dumps(dict(state=receipt['state'], unknownResources=receipt['unknownResources'],
+                              publicationUnknown=receipt['publicationUnknown'], withinWholeDeadline=time.time() <= whole_end)), flush=True)
+    return 0 if receipt['state'] == 'retained-signature-evidence-complete-with-explicit-gaps' and not receipt['unknownResources'] and not receipt['publicationUnknown'] and time.time() <= whole_end else 1
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root-release', action='store_true')
+    parser.add_argument('--reviewed-sha', required=True)
+    parser.add_argument('--config-sha', required=True)
+    parser.add_argument('--work-end', type=float, required=True)
+    parser.add_argument('--whole-end', type=float, required=True)
+    raise SystemExit(run(parser.parse_args()))

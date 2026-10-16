@@ -106,7 +106,7 @@ func assemblyCatalogHex(value string) bool {
 
 func assemblyCatalogKind(kind string) bool {
 	switch kind {
-	case "source-descriptor", "evidence-index", "official-root-policy", "key-observations", "release-signatures", "signed-index-bindings", "debian-binaries", "debian-sources", "base-rootfs", "wheels", "dependency-closure", "expected-installed-files", "notices-and-sources", "luci-source-helper", "input-closure":
+	case "source-descriptor", "evidence-index", "producer-raw-manifest", "official-root-policy", "key-observations", "release-signatures", "signed-index-bindings", "debian-binaries", "debian-sources", "base-rootfs", "wheels", "dependency-closure", "expected-installed-files", "notices-and-sources", "luci-source-helper", "input-closure":
 		return true
 	}
 	return false
@@ -325,6 +325,14 @@ func (o *assemblyInputOwner) publishMetadata(ctx context.Context, actor manageme
 	if old.CAS != expected || old.State.Revision == math.MaxUint64 {
 		return assemblyCatalogCAS{}, errAssemblyCatalogConflict
 	}
+	return o.publishCatalogHeadLocked(ctx, actor, old, source, policy, index)
+}
+
+// Both callers already own the same installation-wide catalog lock. This body
+// performs storage only; callers retain their distinct metadata/domain gates.
+// No arbitrary validator callback and no recursive publishMetadata lock.
+func (o *assemblyInputOwner) publishCatalogHeadLocked(ctx context.Context, actor management.ExecutionActorRef, old assemblyInputCatalogSnapshot, source assemblyCatalogSource, policy assemblyCatalogPolicy, index assemblyCatalogIndex) (assemblyCatalogCAS, error) {
+	if old.State.Revision == math.MaxUint64 || !validAssemblyCatalogSource(source) || !validAssemblyCatalogPolicy(policy) || !validAssemblyCatalogIndex(index) { return assemblyCatalogCAS{}, errAssemblyCatalogInvalid }
 	sourceData, _ := json.Marshal(source)
 	indexData, _ := json.Marshal(index)
 	sourceRef := assemblyCatalogRef{1, "source-descriptor", assemblyCatalogDigest(sourceData), int64(len(sourceData))}
@@ -333,7 +341,7 @@ func (o *assemblyInputOwner) publishMetadata(ctx context.Context, actor manageme
 		ref  assemblyCatalogRef
 		data []byte
 	}{{sourceRef, sourceData}, {indexRef, indexData}} {
-		if err = o.writeImmutableMetadata(ctx, item.ref, item.data); err != nil {
+		if err := o.writeImmutableMetadata(ctx, item.ref, item.data); err != nil {
 			return assemblyCatalogCAS{}, err
 		}
 	}
@@ -341,10 +349,10 @@ func (o *assemblyInputOwner) publishMetadata(ctx context.Context, actor manageme
 	data, _ := json.Marshal(state)
 	next := assemblyCatalogCAS{state.Revision, assemblyCatalogDigest(data)}
 	root, _ := o.root()
-	if err = o.authorize(ctx, actor); err != nil {
+	if err := o.authorize(ctx, actor); err != nil {
 		return assemblyCatalogCAS{}, err
 	}
-	err = writeExecutionLedger(filepath.Join(root, "current.json"), data)
+	err := writeExecutionLedger(filepath.Join(root, "current.json"), data)
 	return o.reconcilePublication(ctx, next, err)
 }
 
@@ -365,6 +373,18 @@ func (o *assemblyInputOwner) writeImmutableMetadata(ctx context.Context, ref ass
 	if !validAssemblyCatalogRef(ref) || ref.Kind != "source-descriptor" && ref.Kind != "evidence-index" || ref.Bytes != int64(len(data)) || ref.Digest != assemblyCatalogDigest(data) || ctx.Err() != nil {
 		return errAssemblyCatalogInvalid
 	}
+	return o.writeImmutableAssemblyObject(ctx, ref, data, false)
+}
+
+// Private shared no-replace persistence, not an adoption entry point. Raw files
+// have their own closed namespace; they cannot be selected as catalog domains.
+func (o *assemblyInputOwner) writeImmutableAssemblyObject(ctx context.Context, ref assemblyCatalogRef, data []byte, raw bool) error {
+	if ref.Bytes != int64(len(data)) || ref.Digest != assemblyCatalogDigest(data) || ctx.Err() != nil || !assemblyCatalogHex(ref.Digest) { return errAssemblyCatalogInvalid }
+	suffix := ".json"
+	if raw {
+		if ref.Kind != "producer-raw" || len(data) > 1<<20 { return errAssemblyCatalogInvalid }
+		suffix = ".raw"
+	} else if !validAssemblyCatalogRef(ref) { return errAssemblyCatalogInvalid }
 	root, err := o.root()
 	if err != nil {
 		return err
@@ -381,9 +401,15 @@ func (o *assemblyInputOwner) writeImmutableMetadata(ctx context.Context, ref ass
 			return err
 		}
 	}
-	path := filepath.Join(dir, ref.Digest+".json")
+	path := filepath.Join(dir, ref.Digest+suffix)
+	readExact := func() ([]byte,error) {
+		if !raw { return o.readMetadata(ctx,ref) }
+		old,e := codexRead(filepath.Dir(root),path,ref.Bytes)
+		if e != nil || int64(len(old)) != ref.Bytes || assemblyCatalogDigest(old) != ref.Digest { return nil,errAssemblyCatalogInvalid }
+		return old,nil
+	}
 	if _, err = os.Lstat(path); err == nil {
-		old, readErr := o.readMetadata(ctx, ref)
+		old, readErr := readExact()
 		if readErr != nil || !bytes.Equal(old, data) {
 			return errAssemblyCatalogInvalid
 		}
@@ -424,7 +450,7 @@ func (o *assemblyInputOwner) writeImmutableMetadata(ctx context.Context, ref ass
 	// No-replace publication; fsync/write-through includes directory lifetime.
 	// On lost ACK only exact content readback may settle, never overwrite/retry.
 	publishErr := publishAssemblyCatalogObject(name, path)
-	old, readErr := o.readMetadata(ctx, ref)
+	old, readErr := readExact()
 	if readErr == nil && bytes.Equal(old, data) {
 		return nil
 	}
@@ -468,11 +494,13 @@ func boundedAssemblyCatalogHistory(ctx context.Context, root string, additional 
 					}
 					continue
 				}
-				if depth != 1 || !strings.HasSuffix(entry.Name(), ".json") || !assemblyCatalogHex(strings.TrimSuffix(entry.Name(), ".json")) {
+				suffix, limit := ".json", int64(assemblyCatalogMetadataLimit)
+				if filepath.Base(dir) == "producer-raw" { suffix, limit = ".raw", 1<<20 }
+				if depth != 1 || !strings.HasSuffix(entry.Name(), suffix) || !assemblyCatalogHex(strings.TrimSuffix(entry.Name(), suffix)) {
 					return errAssemblyCatalogInvalid
 				}
 				info, err := entry.Info()
-				if err != nil || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > assemblyCatalogMetadataLimit {
+				if err != nil || !info.Mode().IsRegular() || info.Size() < 0 || suffix == ".json" && info.Size() == 0 || info.Size() > limit {
 					return errAssemblyCatalogInvalid
 				}
 				count++

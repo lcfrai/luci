@@ -16,6 +16,7 @@ import (
 type assemblySourceHandle struct {
 	handle syscall.Handle
 	info   syscall.ByHandleFileInformation
+	path   string
 }
 
 type assemblySourceGuard struct {
@@ -63,6 +64,10 @@ func assemblySourceIdentityEqual(a, b syscall.ByHandleFileInformation) bool {
 func (g *assemblySourceGuard) CheckCurrent(ctx context.Context) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	return g.checkCurrentLocked(ctx)
+}
+
+func (g *assemblySourceGuard) checkCurrentLocked(ctx context.Context) error {
 	if !g.ready || g.closing || len(g.handles) == 0 || ctx.Err() != nil {
 		return backend.ErrUnavailable
 	}
@@ -78,7 +83,13 @@ func (g *assemblySourceGuard) CheckCurrent(ctx context.Context) error {
 	return ctx.Err()
 }
 
-func lockAssemblySources(ctx context.Context, spec backend.DocumentImageAssemblySpec, objects ...backend.DocumentImageAssemblyRetainedObject) (*assemblySourceGuard, error) {
+type assemblySourceCollector struct {
+	guard   *assemblySourceGuard
+	open    func(string, bool, int64) error
+	parents func(string) error
+}
+
+func newAssemblySourceCollector(ctx context.Context) *assemblySourceCollector {
 	g := &assemblySourceGuard{}
 	seen := map[string]syscall.ByHandleFileInformation{}
 	open := func(path string, directory bool, bytes int64) error {
@@ -106,7 +117,7 @@ func lockAssemblySources(ctx context.Context, spec backend.DocumentImageAssembly
 		if err != nil {
 			return err
 		}
-		g.handles = append(g.handles, assemblySourceHandle{handle: h})
+		g.handles = append(g.handles, assemblySourceHandle{handle: h, path: path})
 		var info syscall.ByHandleFileInformation
 		if err = syscall.GetFileInformationByHandle(h, &info); err != nil {
 			return err
@@ -137,6 +148,12 @@ func lockAssemblySources(ctx context.Context, spec backend.DocumentImageAssembly
 		}
 		return nil
 	}
+	return &assemblySourceCollector{g, open, parents}
+}
+
+func lockAssemblySources(ctx context.Context, spec backend.DocumentImageAssemblySpec, objects ...backend.DocumentImageAssemblyRetainedObject) (*assemblySourceGuard, error) {
+	collector := newAssemblySourceCollector(ctx)
+	g, open, parents := collector.guard, collector.open, collector.parents
 	if err := parents(spec.InputPath); err != nil {
 		return g, err
 	}
