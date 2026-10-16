@@ -243,9 +243,29 @@ class BinaryEntrySourceTests(unittest.TestCase):
         self.assertEqual(second.read(65536), b'')
         second.finish()
         calls = list(native.events)
+        clocks = attempt.clocks
+
+        def debits():
+            return (attempt.compressed, attempt.calls, attempt.seeks, attempt.metadata,
+                    value.compressed, value.calls, value.expanded, value.paragraphs,
+                    {key: tuple(row) for key, row in attempt.classes.items()})
+
+        before = debits()
         with self.assertRaises(entry.Refusal):
             slot.seek(0)
+        self.assertEqual(native.events, calls + [('clock',)])
+        self.assertEqual(attempt.clocks, clocks + 1)
+        self.assertEqual(debits(), before)
+        self.assertTrue(attempt.failed)
+        self.assertTrue(value.failed)
+        calls = list(native.events)
+        with self.assertRaises(entry.Refusal):
+            slot.seek(0)
+        with self.assertRaises(entry.Refusal):
+            slot.read(1)
         self.assertEqual(native.events, calls)
+        self.assertEqual(attempt.clocks, clocks + 1)
+        self.assertEqual(debits(), before)
 
     def test_interpass_wrong_offset_and_failed_eof_keep_native_charge(self):
         native, attempt = prepared()
