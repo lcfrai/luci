@@ -299,6 +299,9 @@ func (s *ProjectRunStore) reserveSwarmTaskGated(projectID, path, id string, revi
 			op.Checkpoint = &saved
 		}
 		op.WorktreeID = worktree(op.ID)
+		if op.WorktreeID == "" {
+			return false, ErrProjectRunInvalid
+		}
 		op.DependencyContext, err = s.freezeTaskDependencies(row.Run, op)
 		if err != nil {
 			return false, err

@@ -160,6 +160,9 @@ func (s *Server) reserveProjectSwarmCheckpoint(w http.ResponseWriter, r *http.Re
 	policyLocked := false
 	run, next, created, err := s.projectRuns.reserveSwarmTaskGated(p.ID, p.Path, run.ID, run.Revision, request.IdempotencyKey, op.TaskID, checkpoint.TargetCommit, func(id string) string {
 		path, e := s.swarmPath(p.ID, run.ID, id)
+		if e == nil {
+			e = swarmBootstrapFeasibility(path)
+		}
 		if e != nil {
 			pathErr = e
 			return ""
@@ -181,11 +184,15 @@ func (s *Server) reserveProjectSwarmCheckpoint(w http.ResponseWriter, r *http.Re
 	if policyLocked {
 		s.mu.RUnlock()
 	}
+	if pathErr != nil {
+		projectRunProblem(w, pathErr)
+		return
+	}
 	if err != nil {
 		projectRunProblem(w, err)
 		return
 	}
-	if !created || pathErr != nil {
+	if !created {
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}

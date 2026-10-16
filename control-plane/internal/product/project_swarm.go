@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -365,9 +366,12 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 	coordinatorIndependentReviewBeforeMutation(ctx)
 	run, op, created, err := s.projectRuns.reserveSwarmTaskGated(p.ID, p.Path, run.ID, revision, key, taskID, head, func(id string) string {
 		path, pathErr := s.swarmPath(p.ID, run.ID, id)
+		if pathErr == nil {
+			pathErr = swarmBootstrapFeasibility(path)
+		}
 		if pathErr != nil {
 			worktreeErr = pathErr
-			return "" // Invalid IDs fail ledger validation; never hash an empty path.
+			return "" // Refuse before dependency capture; never hash an empty path.
 		}
 		return project.WorktreeID(path)
 	}, nil, func(current ProjectRun) error {
@@ -581,6 +585,9 @@ func validateSwarmTaskRoute(run ProjectRun) error {
 // Each task owns complete Git metadata and copied objects: no shared writable
 // refs, host .git pointer, alternates or hardlinks enter the worker sandbox.
 func (s *Server) createSwarmCheckout(ctx context.Context, source, destination, commit string) error {
+	if err := swarmBootstrapFeasibility(destination); err != nil {
+		return err
+	}
 	if err := os.Mkdir(destination, 0700); err != nil {
 		return err
 	}
@@ -591,6 +598,18 @@ func (s *Server) createSwarmCheckout(ctx context.Context, source, destination, c
 	}
 	if _, err := s.swarmGit(ctx, destination, "init", "--initial-branch=luci-task", "--object-format="+format); err != nil {
 		return err
+	}
+	if runtime.GOOS == "windows" {
+		if _, err := s.swarmGit(ctx, destination, "config", "--local", "core.longpaths", "true"); err != nil {
+			return err
+		}
+		configured, err := s.swarmGit(ctx, destination, "config", "--local", "--type=bool", "--get", "core.longpaths")
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(configured) != "true" {
+			return errors.New("Git could not confirm long-path support in the isolated task checkout. Its partial workspace was retained; no source was fetched.")
+		}
 	}
 	if _, err := s.swarmGit(ctx, destination, "-c", "protocol.file.allow=always", "fetch", "--no-tags", "--no-write-fetch-head", "--", source, commit); err != nil {
 		return err
