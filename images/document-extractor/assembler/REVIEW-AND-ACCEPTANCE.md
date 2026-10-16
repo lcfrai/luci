@@ -103,7 +103,7 @@ not a public request or another allocation. Missing shared wiring is unsupported
 
 1. Root reviews the exact dedicated source and allocates the shared insertions.
    One coherent cloud source batch checks affected backend/API packages and this
-   standalone helper. The26 new test sources cover fake SDK purpose/config,
+   standalone helper. The27 new test sources cover fake SDK purpose/config,
    handshake/close ACKs/framing/bounded sinks/lost ACK, current authority, running
    pressure with blocked reader+publisher, EOF without exit, retained capacity,
    manifest/source mirror, safe tar/PAX/path/OCI encoding and pinned input changes.
@@ -147,3 +147,10 @@ not a public request or another allocation. Missing shared wiring is unsupported
 
 No compile/acquisition/runtime step above is authorized by this source document.
 Normal Codex sign-in and real Develop remain the separate worker's critical path.
+
+LOCAL100 source correction keeps Windows-facing staging/manifest paths strict,
+while a separate bounded relative Unix validator accepts legitimate multiarch
+rootfs/archive names such as `var/lib/dpkg/info/libc6:amd64.list`. The dedicated
+regression covers unpack, confined resolution and export inventory, plus strict
+staging refusal and traversal/control/absolute rejection. It is not an actual
+pinned-base extraction/installation result and has not run locally.

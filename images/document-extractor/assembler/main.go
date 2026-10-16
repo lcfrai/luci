@@ -188,6 +188,12 @@ func uniqueJSON(data []byte) error {
 	return nil
 }
 func inputName(name string) bool {
+	return relativeUnixName(name) && !strings.Contains(name, ":")
+}
+
+// These paths exist only inside a Linux rootfs/archive, never as Windows host
+// staging/output names. Multiarch package metadata legitimately contains ':'.
+func relativeUnixName(name string) bool {
 	if !utf8.ValidString(name) {
 		return false
 	}
@@ -196,7 +202,7 @@ func inputName(name string) bool {
 			return false
 		}
 	}
-	return name != "" && len(name) <= 1024 && !strings.ContainsAny(name, "\\\x00\r\n:") && !strings.HasPrefix(name, "/") && path.Clean(name) == name && name != ".." && !strings.HasPrefix(name, "../")
+	return name != "" && len(name) <= 1024 && !strings.ContainsAny(name, "\\\x00\r\n") && !strings.HasPrefix(name, "/") && path.Clean(name) == name && name != "." && name != ".." && !strings.HasPrefix(name, "../")
 }
 
 type contextReader struct {
@@ -217,7 +223,7 @@ func (r *contextReader) Read(p []byte) (int, error) {
 // Virtual-root resolution treats absolute symlinks as chroot paths. It never
 // follows an archive/package link into the outer /input, /tool, /proc or root.
 func rooted(root, name string) (string, error) {
-	if !inputName(name) {
+	if !relativeUnixName(name) {
 		return "", errRefused
 	}
 	for links := 0; links < 32; links++ {
@@ -252,7 +258,7 @@ func rooted(root, name string) (string, error) {
 				name = path.Join(name, strings.Join(parts[end:], "/"))
 			}
 			name = path.Clean(name)
-			if !inputName(name) {
+			if !relativeUnixName(name) {
 				return "", errRefused
 			}
 			replaced = true
@@ -265,6 +271,13 @@ func rooted(root, name string) (string, error) {
 	return "", errRefused
 }
 func makeRootDir(root, name string, mode os.FileMode) (string, error) {
+	if name == "." {
+		info, err := os.Lstat(root)
+		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return "", errRefused
+		}
+		return root, nil
+	}
 	full, err := rooted(root, name)
 	if err != nil {
 		return "", err
