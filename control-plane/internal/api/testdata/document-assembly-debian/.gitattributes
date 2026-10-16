@@ -1,0 +1,2 @@
+# Exact-byte retained metadata fixtures; preserve CRLF and compare by SHA256.
+*.json -text -diff

@@ -1,0 +1,976 @@
+{
+  "version": 2,
+  "sourceOnly": true,
+  "trustPolicySha256": "13bd77f40356ef37ae01f3baf05172a035423815b33e9a292a7736ec699150a5",
+  "projectionSha256": "8401b441e3ecccd386aace046d71bb7a0941f74d105addc6a22965f7bdae0f3b",
+  "tools": [
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\gpg.exe",
+      "bytes": 1130330,
+      "sha256": "a5140c85353e8399da8d6bd7e3741524cd76a4e69be88af12042b1c9ef022984",
+      "executed": false
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\gpgv.exe",
+      "bytes": 514306,
+      "sha256": "f4d13204d77fdf63c02b0e6742230f83a833128c28f7b715709c2c63a96c427b",
+      "executed": false
+    }
+  ],
+  "keys": [
+    {
+      "id": "bookworm-archive",
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-archive-key.metadata.txt",
+      "bytes": 11861,
+      "sha256": "c2a9a16fde95e037bafd0fa6b7e31f41b4ff1e85851de5558f19a2a2f0e955e2",
+      "primaryFingerprint": "B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8",
+      "signingSubkeyFingerprint": "4CB50190207B4758A3F73A796ED0E7B82643E131",
+      "origin": "https://ftp-master.debian.org/keys/archive-key-12.asc"
+    },
+    {
+      "id": "bookworm-security",
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-security-key.metadata.txt",
+      "bytes": 11873,
+      "sha256": "74f81645b4e3156d1e9a88c8dd9259271b89c7099d64af89a2a6996b592faa1f",
+      "primaryFingerprint": "05AB90340C0C5E797F44A8C8254CF3B5AEC0A8F0",
+      "signingSubkeyFingerprint": "B0CAB9266E8C3929798B3EEEBDE6D2B9216EC7A8",
+      "origin": "https://ftp-master.debian.org/keys/archive-key-12-security.asc"
+    },
+    {
+      "id": "bookworm-stable",
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-stable-key.metadata.txt",
+      "bytes": 461,
+      "sha256": "521e9f6a9f9b92ee8d5ce74345e8cfd04028dae9db6f571259d584b293549824",
+      "primaryFingerprint": "4D64FEC119C2029067D6E791F8D2585B8783D481",
+      "signingSubkeyFingerprint": null,
+      "origin": "https://ftp-master.debian.org/keys/release-12.asc"
+    }
+  ],
+  "releases": [
+    {
+      "id": "release-0",
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-updates-InRelease.metadata.txt",
+      "bytes": 55403,
+      "sha256": "3b7239dddb070ffe6ec71cff03de321ab5768cab4e33dc2695c0745784130909",
+      "allowedRootIDs": [
+        "bookworm-archive"
+      ],
+      "candidates": [
+        {
+          "id": "current/bookworm-updates",
+          "era": "current",
+          "releaseUrl": "https://deb.debian.org/debian/dists/bookworm-updates/InRelease",
+          "retainedText": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-updates-InRelease.metadata.txt",
+          "bytes": 55403,
+          "sha256": "3b7239dddb070ffe6ec71cff03de321ab5768cab4e33dc2695c0745784130909",
+          "fields": [
+            "Origin: Debian",
+            "Label: Debian",
+            "Suite: oldstable-updates",
+            "Codename: bookworm-updates",
+            "Date: Thu, 15 Oct 2026 20:26:31 UTC",
+            "No-Support-for-Architecture-all: Packages"
+          ],
+          "allowedRootIDs": [
+            "bookworm-archive"
+          ],
+          "indexCandidates": [
+            {
+              "path": "main/binary-amd64/Packages.xz",
+              "bytes": 6924,
+              "sha256": "87e7e94047fb7fb6f4ceecc7022d4bee55b66031cc2a7666d3196f3e0aabb846",
+              "url": "https://deb.debian.org/debian/dists/bookworm-updates/main/binary-amd64/Packages.xz",
+              "byHashUrl": "https://deb.debian.org/debian/dists/bookworm-updates/main/binary-amd64/by-hash/SHA256/87e7e94047fb7fb6f4ceecc7022d4bee55b66031cc2a7666d3196f3e0aabb846",
+              "read": false,
+              "releaseSignatureVerified": false
+            },
+            {
+              "path": "main/source/Sources.xz",
+              "bytes": 3288,
+              "sha256": "45fcd5257b7ad716ef3b674305dd678ad2d6e6198a0dd7a8f45bb0e8d3f3a7f3",
+              "url": "https://deb.debian.org/debian/dists/bookworm-updates/main/source/Sources.xz",
+              "byHashUrl": "https://deb.debian.org/debian/dists/bookworm-updates/main/source/by-hash/SHA256/45fcd5257b7ad716ef3b674305dd678ad2d6e6198a0dd7a8f45bb0e8d3f3a7f3",
+              "read": false,
+              "releaseSignatureVerified": false
+            }
+          ],
+          "signatureVerified": false,
+          "tupleCoverageVerified": false
+        }
+      ]
+    },
+    {
+      "id": "release-1",
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-InRelease.metadata.txt",
+      "bytes": 151075,
+      "sha256": "77737fa4b34f2693e982cc9ee35736816c35a7778fc2d326cc1bbf5b301fe1aa",
+      "allowedRootIDs": [
+        "bookworm-archive",
+        "bookworm-stable"
+      ],
+      "candidates": [
+        {
+          "id": "current/bookworm",
+          "era": "current",
+          "releaseUrl": "https://deb.debian.org/debian/dists/bookworm/InRelease",
+          "retainedText": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-InRelease.metadata.txt",
+          "bytes": 151075,
+          "sha256": "77737fa4b34f2693e982cc9ee35736816c35a7778fc2d326cc1bbf5b301fe1aa",
+          "fields": [
+            "Origin: Debian",
+            "Label: Debian",
+            "Suite: oldstable",
+            "Codename: bookworm",
+            "Date: Sat, 11 Jul 2026 10:16:37 UTC",
+            "No-Support-for-Architecture-all: Packages"
+          ],
+          "allowedRootIDs": [
+            "bookworm-archive",
+            "bookworm-stable"
+          ],
+          "indexCandidates": [
+            {
+              "path": "main/binary-amd64/Packages.xz",
+              "bytes": 8790396,
+              "sha256": "9e0b5aabb2465b3d2e7a7fe27f9913846277833f7a2826e7767acccff5b588c5",
+              "url": "https://deb.debian.org/debian/dists/bookworm/main/binary-amd64/Packages.xz",
+              "byHashUrl": "https://deb.debian.org/debian/dists/bookworm/main/binary-amd64/by-hash/SHA256/9e0b5aabb2465b3d2e7a7fe27f9913846277833f7a2826e7767acccff5b588c5",
+              "read": false,
+              "releaseSignatureVerified": false
+            },
+            {
+              "path": "main/source/Sources.xz",
+              "bytes": 9491888,
+              "sha256": "92d11a035571df011f06f28c61cb9825130ef1d92abb2f2e0525e8674dc44af8",
+              "url": "https://deb.debian.org/debian/dists/bookworm/main/source/Sources.xz",
+              "byHashUrl": "https://deb.debian.org/debian/dists/bookworm/main/source/by-hash/SHA256/92d11a035571df011f06f28c61cb9825130ef1d92abb2f2e0525e8674dc44af8",
+              "read": false,
+              "releaseSignatureVerified": false
+            }
+          ],
+          "signatureVerified": false,
+          "tupleCoverageVerified": false
+        },
+        {
+          "id": "historical-base-anchor/bookworm",
+          "era": "historical-base-anchor",
+          "releaseUrl": "https://snapshot.debian.org/file/736a99b8b096598d48c438eb356bd074fecfbf23/InRelease",
+          "retainedText": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-historical-releases-20261016\\bookworm-InRelease.metadata.txt",
+          "bytes": 151075,
+          "sha256": "77737fa4b34f2693e982cc9ee35736816c35a7778fc2d326cc1bbf5b301fe1aa",
+          "fields": [
+            "Origin: Debian",
+            "Label: Debian",
+            "Suite: oldstable",
+            "Codename: bookworm",
+            "Date: Sat, 11 Jul 2026 10:16:37 UTC",
+            "No-Support-for-Architecture-all: Packages"
+          ],
+          "allowedRootIDs": [
+            "bookworm-archive",
+            "bookworm-stable"
+          ],
+          "indexCandidates": [
+            {
+              "path": "main/binary-amd64/Packages.xz",
+              "bytes": 8790396,
+              "sha256": "9e0b5aabb2465b3d2e7a7fe27f9913846277833f7a2826e7767acccff5b588c5",
+              "url": "https://snapshot.debian.org/archive/debian/20260918T000000Z/dists/bookworm/main/binary-amd64/Packages.xz",
+              "byHashUrl": "https://snapshot.debian.org/archive/debian/20260918T000000Z/dists/bookworm/main/binary-amd64/by-hash/SHA256/9e0b5aabb2465b3d2e7a7fe27f9913846277833f7a2826e7767acccff5b588c5",
+              "read": false,
+              "releaseSignatureVerified": false
+            },
+            {
+              "path": "main/source/Sources.xz",
+              "bytes": 9491888,
+              "sha256": "92d11a035571df011f06f28c61cb9825130ef1d92abb2f2e0525e8674dc44af8",
+              "url": "https://snapshot.debian.org/archive/debian/20260918T000000Z/dists/bookworm/main/source/Sources.xz",
+              "byHashUrl": "https://snapshot.debian.org/archive/debian/20260918T000000Z/dists/bookworm/main/source/by-hash/SHA256/92d11a035571df011f06f28c61cb9825130ef1d92abb2f2e0525e8674dc44af8",
+              "read": false,
+              "releaseSignatureVerified": false
+            }
+          ],
+          "signatureVerified": false,
+          "tupleCoverageVerified": false,
+          "historicalAnchorID": "bookworm-base-rootfs-20260918"
+        }
+      ]
+    },
+    {
+      "id": "release-2",
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-historical-releases-20261016\\bookworm-updates-InRelease.metadata.txt",
+      "bytes": 55446,
+      "sha256": "c9bf70f517ffebac26af3eaa5745c9691eb255a2f3d9ffbafd96168d25a10f5e",
+      "allowedRootIDs": [
+        "bookworm-archive"
+      ],
+      "candidates": [
+        {
+          "id": "historical-base-anchor/bookworm-updates",
+          "era": "historical-base-anchor",
+          "releaseUrl": "https://snapshot.debian.org/file/687ccd7b002f07b47ce02cb263b8c5ebd600c537/InRelease",
+          "retainedText": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-historical-releases-20261016\\bookworm-updates-InRelease.metadata.txt",
+          "bytes": 55446,
+          "sha256": "c9bf70f517ffebac26af3eaa5745c9691eb255a2f3d9ffbafd96168d25a10f5e",
+          "fields": [
+            "Origin: Debian",
+            "Label: Debian",
+            "Suite: oldstable-updates",
+            "Codename: bookworm-updates",
+            "Date: Thu, 17 Sep 2026 20:07:48 UTC",
+            "Valid-Until: Thu, 24 Sep 2026 20:07:48 UTC",
+            "No-Support-for-Architecture-all: Packages"
+          ],
+          "allowedRootIDs": [
+            "bookworm-archive"
+          ],
+          "indexCandidates": [
+            {
+              "path": "main/binary-amd64/Packages.xz",
+              "bytes": 6924,
+              "sha256": "87e7e94047fb7fb6f4ceecc7022d4bee55b66031cc2a7666d3196f3e0aabb846",
+              "url": "https://snapshot.debian.org/archive/debian/20260918T000000Z/dists/bookworm-updates/main/binary-amd64/Packages.xz",
+              "byHashUrl": "https://snapshot.debian.org/archive/debian/20260918T000000Z/dists/bookworm-updates/main/binary-amd64/by-hash/SHA256/87e7e94047fb7fb6f4ceecc7022d4bee55b66031cc2a7666d3196f3e0aabb846",
+              "read": false,
+              "releaseSignatureVerified": false
+            },
+            {
+              "path": "main/source/Sources.xz",
+              "bytes": 3288,
+              "sha256": "45fcd5257b7ad716ef3b674305dd678ad2d6e6198a0dd7a8f45bb0e8d3f3a7f3",
+              "url": "https://snapshot.debian.org/archive/debian/20260918T000000Z/dists/bookworm-updates/main/source/Sources.xz",
+              "byHashUrl": "https://snapshot.debian.org/archive/debian/20260918T000000Z/dists/bookworm-updates/main/source/by-hash/SHA256/45fcd5257b7ad716ef3b674305dd678ad2d6e6198a0dd7a8f45bb0e8d3f3a7f3",
+              "read": false,
+              "releaseSignatureVerified": false
+            }
+          ],
+          "signatureVerified": false,
+          "tupleCoverageVerified": false,
+          "historicalAnchorID": "bookworm-base-rootfs-20260918"
+        }
+      ]
+    },
+    {
+      "id": "release-3",
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-security-InRelease.metadata.txt",
+      "bytes": 34770,
+      "sha256": "cc4faccaccd78de33d69187eedc585a398213f15df38416551e95a935e444d08",
+      "allowedRootIDs": [
+        "bookworm-security"
+      ],
+      "candidates": [
+        {
+          "id": "current/bookworm-security",
+          "era": "current",
+          "releaseUrl": "https://security.debian.org/debian-security/dists/bookworm-security/InRelease",
+          "retainedText": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-security-InRelease.metadata.txt",
+          "bytes": 34770,
+          "sha256": "cc4faccaccd78de33d69187eedc585a398213f15df38416551e95a935e444d08",
+          "fields": [
+            "Origin: Debian",
+            "Label: Debian-Security",
+            "Suite: oldstable-security",
+            "Codename: bookworm-security",
+            "Date: Thu, 15 Oct 2026 22:24:30 UTC",
+            "Valid-Until: Thu, 22 Oct 2026 22:24:30 UTC"
+          ],
+          "allowedRootIDs": [
+            "bookworm-security"
+          ],
+          "indexCandidates": [
+            {
+              "path": "main/binary-amd64/Packages.xz",
+              "bytes": 352940,
+              "sha256": "82871e4e9839feba2ad17969d5987b2317242fd429572d8321a7f91a9c702c8c",
+              "url": "https://security.debian.org/debian-security/dists/bookworm-security/main/binary-amd64/Packages.xz",
+              "byHashUrl": "https://security.debian.org/debian-security/dists/bookworm-security/main/binary-amd64/by-hash/SHA256/82871e4e9839feba2ad17969d5987b2317242fd429572d8321a7f91a9c702c8c",
+              "read": false,
+              "releaseSignatureVerified": false
+            },
+            {
+              "path": "main/source/Sources.xz",
+              "bytes": 272776,
+              "sha256": "475dbd1f9a804e3bfb42c044c571f1a6e06ab14980e690d74448a89135c97908",
+              "url": "https://security.debian.org/debian-security/dists/bookworm-security/main/source/Sources.xz",
+              "byHashUrl": "https://security.debian.org/debian-security/dists/bookworm-security/main/source/by-hash/SHA256/475dbd1f9a804e3bfb42c044c571f1a6e06ab14980e690d74448a89135c97908",
+              "read": false,
+              "releaseSignatureVerified": false
+            }
+          ],
+          "signatureVerified": false,
+          "tupleCoverageVerified": false
+        }
+      ]
+    },
+    {
+      "id": "release-4",
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-historical-releases-20261016\\bookworm-security-InRelease.metadata.txt",
+      "bytes": 34770,
+      "sha256": "d5bbca73ea2f07ed7cf308d04de4f72f0e9a778c0fcf6e9ac438517697a8c951",
+      "allowedRootIDs": [
+        "bookworm-security"
+      ],
+      "candidates": [
+        {
+          "id": "historical-base-anchor/bookworm-security",
+          "era": "historical-base-anchor",
+          "releaseUrl": "https://snapshot.debian.org/file/9251d774959e2f7d72e3dcf6c42764ac7dc45ac4/InRelease",
+          "retainedText": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-historical-releases-20261016\\bookworm-security-InRelease.metadata.txt",
+          "bytes": 34770,
+          "sha256": "d5bbca73ea2f07ed7cf308d04de4f72f0e9a778c0fcf6e9ac438517697a8c951",
+          "fields": [
+            "Origin: Debian",
+            "Label: Debian-Security",
+            "Suite: oldstable-security",
+            "Codename: bookworm-security",
+            "Date: Thu, 17 Sep 2026 22:54:06 UTC",
+            "Valid-Until: Thu, 24 Sep 2026 22:54:06 UTC"
+          ],
+          "allowedRootIDs": [
+            "bookworm-security"
+          ],
+          "indexCandidates": [
+            {
+              "path": "main/binary-amd64/Packages.xz",
+              "bytes": 339172,
+              "sha256": "e99504fa4249fdf10e73fc6352c3a42d47b1a70b29a94190190242e249a6a911",
+              "url": "https://snapshot.debian.org/archive/debian-security/20260918T000000Z/dists/bookworm-security/main/binary-amd64/Packages.xz",
+              "byHashUrl": "https://snapshot.debian.org/archive/debian-security/20260918T000000Z/dists/bookworm-security/main/binary-amd64/by-hash/SHA256/e99504fa4249fdf10e73fc6352c3a42d47b1a70b29a94190190242e249a6a911",
+              "read": false,
+              "releaseSignatureVerified": false
+            },
+            {
+              "path": "main/source/Sources.xz",
+              "bytes": 250060,
+              "sha256": "1861bcbbae05225260037d0a3a07c026c2a89f47fd34f26da27538038a1989e7",
+              "url": "https://snapshot.debian.org/archive/debian-security/20260918T000000Z/dists/bookworm-security/main/source/Sources.xz",
+              "byHashUrl": "https://snapshot.debian.org/archive/debian-security/20260918T000000Z/dists/bookworm-security/main/source/by-hash/SHA256/1861bcbbae05225260037d0a3a07c026c2a89f47fd34f26da27538038a1989e7",
+              "read": false,
+              "releaseSignatureVerified": false
+            }
+          ],
+          "signatureVerified": false,
+          "tupleCoverageVerified": false,
+          "historicalAnchorID": "bookworm-base-rootfs-20260918"
+        }
+      ]
+    }
+  ],
+  "dllDirectory": "C:/Program Files/Git/usr/bin",
+  "dllNames": [
+    "msys-2.0.dll",
+    "msys-apr-1-0.dll",
+    "msys-aprutil-1-0.dll",
+    "msys-asn1-8.dll",
+    "msys-assuan-9.dll",
+    "msys-bz2-1.dll",
+    "msys-cbor-0.11.dll",
+    "msys-com_err-1.dll",
+    "msys-crypt-2.dll",
+    "msys-crypto-3.dll",
+    "msys-edit-0.dll",
+    "msys-expat-1.dll",
+    "msys-ffi-8.dll",
+    "msys-fido2-1.dll",
+    "msys-gcc_s-seh-1.dll",
+    "msys-gcrypt-20.dll",
+    "msys-gdbm_compat-4.dll",
+    "msys-gdbm-6.dll",
+    "msys-gmp-10.dll",
+    "msys-gnutls-30.dll",
+    "msys-gpg-error-0.dll",
+    "msys-gssapi-3.dll",
+    "msys-hcrypto-4.dll",
+    "msys-heimbase-1.dll",
+    "msys-heimntlm-0.dll",
+    "msys-hogweed-6.dll",
+    "msys-hx509-5.dll",
+    "msys-iconv-2.dll",
+    "msys-idn2-0.dll",
+    "msys-intl-8.dll",
+    "msys-krb5-26.dll",
+    "msys-ksba-8.dll",
+    "msys-lz4-1.dll",
+    "msys-lzma-5.dll",
+    "msys-magic-1.dll",
+    "msys-mpfr-6.dll",
+    "msys-ncursesw6.dll",
+    "msys-nettle-8.dll",
+    "msys-npth-0.dll",
+    "msys-p11-kit-0.dll",
+    "msys-pcre-1.dll",
+    "msys-pcre2-8-0.dll",
+    "msys-pcre2-posix-3.dll",
+    "msys-perl5_42.dll",
+    "msys-psl-5.dll",
+    "msys-readline8.dll",
+    "msys-roken-18.dll",
+    "msys-sasl2-3.dll",
+    "msys-serf-1-0.dll",
+    "msys-smartcols-1.dll",
+    "msys-sqlite3-0.dll",
+    "msys-ssl-3.dll",
+    "msys-svn_client-1-0.dll",
+    "msys-svn_delta-1-0.dll",
+    "msys-svn_diff-1-0.dll",
+    "msys-svn_fs_fs-1-0.dll",
+    "msys-svn_fs_util-1-0.dll",
+    "msys-svn_fs_x-1-0.dll",
+    "msys-svn_fs-1-0.dll",
+    "msys-svn_ra_local-1-0.dll",
+    "msys-svn_ra_serf-1-0.dll",
+    "msys-svn_ra_svn-1-0.dll",
+    "msys-svn_ra-1-0.dll",
+    "msys-svn_repos-1-0.dll",
+    "msys-svn_subr-1-0.dll",
+    "msys-svn_swig_perl-1-0.dll",
+    "msys-svn_wc-1-0.dll",
+    "msys-tasn1-6.dll",
+    "msys-ticw6.dll",
+    "msys-unistring-5.dll",
+    "msys-uuid-1.dll",
+    "msys-wind-0.dll",
+    "msys-z.dll",
+    "msys-zstd-1.dll",
+    "winpty.dll"
+  ],
+  "dllInventoryQualification": "Exact installed directory superset, not dependency-resolution or system-DLL closure proof",
+  "pins": [
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-2.0.dll",
+      "bytes": 3364447,
+      "sha256": "13f0b0dc94588766ecfa1867f1a00061508ba1dc62f5b8e858ac59f01e358aa0"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-apr-1-0.dll",
+      "bytes": 180557,
+      "sha256": "bf9ce85c6994ffbeec2842cf29b84d5a5b1adaaf305da750d9487e21f0c3df51"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-aprutil-1-0.dll",
+      "bytes": 132605,
+      "sha256": "23d9e2193b6c6048fbd2a039b3c3f7739e02c49ba10d475aa5eb087410909f97"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-asn1-8.dll",
+      "bytes": 547885,
+      "sha256": "24e7a09a283ee7562c1889b5319269d838cddcab837cf3df7356b0a60bff2efb"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-assuan-9.dll",
+      "bytes": 69674,
+      "sha256": "3eaf1c57c85b1ca2303e7d9544c0a96507f483aae7ae5a1125dfde09bdb12b26"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-bz2-1.dll",
+      "bytes": 67277,
+      "sha256": "1082896c71da5e62dfd8e421fba35fa3123e6e1e2782381c08258917117b51cd"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-cbor-0.11.dll",
+      "bytes": 50025,
+      "sha256": "6b27ae38e5a01d9b60f0e40753b158043dcf1258c29bc700b97b6eeb081b41a6"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-com_err-1.dll",
+      "bytes": 10102,
+      "sha256": "541eec990f72219d49033b49a9c394610f0c98feb05ff3e94d965e1be5830e8f"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-crypt-2.dll",
+      "bytes": 219319,
+      "sha256": "9a06bdbd7a934847bc0c50c3a19a7cf2b036a86ef9960fbe22984dd2ac18d608"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-crypto-3.dll",
+      "bytes": 4007104,
+      "sha256": "1386eb252a9b79ebd3e5287a0be2f18aca671b0510795115d5c9f11b34fea43c"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-edit-0.dll",
+      "bytes": 175481,
+      "sha256": "6ad9be6549cab3102a5a31905b15103173992e69fe517650395561e9ba9b9abb"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-expat-1.dll",
+      "bytes": 163380,
+      "sha256": "19337934c53d51d30510ffc2189a986c99a6a387a4b00f48f7d56b261d263a13"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-ffi-8.dll",
+      "bytes": 31609,
+      "sha256": "a52dde4f57b41f1df2db80ab0437e9faabc6ffd663dda7e5a35c4fbe91d6df4a"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-fido2-1.dll",
+      "bytes": 213075,
+      "sha256": "fe428e64b696420ca7b508674d5a92dc9f89fea81197b0653f966b57a2162a1e"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-gcc_s-seh-1.dll",
+      "bytes": 142049,
+      "sha256": "a9cfd10e2a4bf74f60530fc2f4f8fbe4055b50ff7ccd61b9440ef2fbe9c85aef"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-gcrypt-20.dll",
+      "bytes": 1060867,
+      "sha256": "660e7e5441e6ddb9debb5db0f04b3e56c0cf7a6a22be14958a40b366e5f32e1c"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-gdbm_compat-4.dll",
+      "bytes": 13257,
+      "sha256": "48820d01556ffb64713903e646161f42b15588adc635b6834dbd4aaf5939fe21"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-gdbm-6.dll",
+      "bytes": 60583,
+      "sha256": "64835aec02b4b5b648dc3e8a15d951816dce11ca0c8d439b1d3626af248f0d86"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-gmp-10.dll",
+      "bytes": 605220,
+      "sha256": "e3d88ffc1bd3bb3bdda1d84f3f823e6f0f07c89dfd17e2d003c588f56dd80784"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-gnutls-30.dll",
+      "bytes": 1821842,
+      "sha256": "673e90ab864e852164494f1364d1520e8259068df7f86962691147aee7c6c8ac"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-gpg-error-0.dll",
+      "bytes": 155840,
+      "sha256": "83fc96e9a1d6dbf3739b96f94f0053bf902b277f3472d564ecc5052a68cbc386"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-gssapi-3.dll",
+      "bytes": 225361,
+      "sha256": "483a33bb29bc4decbcecb5298d1da6d134814abfea985501571bfc492fc66ac9"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-hcrypto-4.dll",
+      "bytes": 200624,
+      "sha256": "542bb844e0af85188e55645a53cd6c9ff33d8757214a23e7fa6cb73047f48678"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-heimbase-1.dll",
+      "bytes": 51426,
+      "sha256": "0cb52850d34714d1b3d13b4ae8b9ecab54be73e2a7b00f2c45a13827bf0a5c6a"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-heimntlm-0.dll",
+      "bytes": 32789,
+      "sha256": "5abb16fff85e9054ba552d225f6d370c5d806bb6498e6b96e7c4797c55791312"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-hogweed-6.dll",
+      "bytes": 272980,
+      "sha256": "d060c26961d4c3f64773a807319621971a2dd3fb60d94284f3d3dc3e7038433e"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-hx509-5.dll",
+      "bytes": 274850,
+      "sha256": "b3b7210e5e2f00125357fa2e377406ae220a3527a8051a28f0fcc761f83e2da0"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-iconv-2.dll",
+      "bytes": 1103690,
+      "sha256": "50012969ed96a5232220185d2fc1ac1e3abe5790f6b3027f4fc3c4cad3fd38f0"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-idn2-0.dll",
+      "bytes": 197084,
+      "sha256": "0ddf7bd2b0a7dffe80e64460f1df168a6947115a0ef636506dded262dea95b32"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-intl-8.dll",
+      "bytes": 111181,
+      "sha256": "50f7de0c712d867ddca2c9eb8562ca6ee2d69e120e798ec6126ad29dd1ed5402"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-krb5-26.dll",
+      "bytes": 483341,
+      "sha256": "1aa90c10f2f31101faeb356bf4112892b5bb983aa62d30b51b2a508cce32c1ff"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-ksba-8.dll",
+      "bytes": 259527,
+      "sha256": "f7589b00010083b8d079e004fdfc8a3a3c188b7743433348c9f699d680595ed3"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-lz4-1.dll",
+      "bytes": 149330,
+      "sha256": "a67c703cf7b2585b294469050a5fd5edef50cce2a9f487f448f5cd7c8a447ce2"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-lzma-5.dll",
+      "bytes": 181333,
+      "sha256": "e4eeb83b8fee005114204a933d47b2518f04152d05a231161e138af70a89b5a4"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-magic-1.dll",
+      "bytes": 173094,
+      "sha256": "5297d4199e45e229b0ad2531fa42295ac374be30dec8aae8322c342e886ee2de"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-mpfr-6.dll",
+      "bytes": 652490,
+      "sha256": "7be008ed823d8ce65a205669c44fd8ad56eee5838111101d29c6684f8eccc4f4"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-ncursesw6.dll",
+      "bytes": 353237,
+      "sha256": "d7feb1384b5b21ec5f87e043d9b16424ae763fda701a32442302a0f2375ec32e"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-nettle-8.dll",
+      "bytes": 298894,
+      "sha256": "de145504fb18c137a9c267acf97d7b595915b4eec5337105cc541706560596a2"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-npth-0.dll",
+      "bytes": 17194,
+      "sha256": "740e76727c26411d263788f175e4d12420a88079544bb690fd3a2f4d97f4845b"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-p11-kit-0.dll",
+      "bytes": 1578053,
+      "sha256": "55e64fb3af36e8c90bdcba4a932fa88142c8de80dd7c5798b93c98dad9c9cf1a"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-pcre-1.dll",
+      "bytes": 289270,
+      "sha256": "a94b1a5ba095ac7ff81e138a1231e42e3a07391e85eeb86c3bb5c9245244597a"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-pcre2-8-0.dll",
+      "bytes": 715403,
+      "sha256": "e2cb90c29bd44deb32ea8cb2a711a0cc84f7cdb866d18f387c9a0c7d8e4929c6"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-pcre2-posix-3.dll",
+      "bytes": 11325,
+      "sha256": "483e0bd84fcef1be116e9056b87d3040e02474066c9a3402b57b67d51ed133c8"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-perl5_42.dll",
+      "bytes": 3805287,
+      "sha256": "310449a9693cff9b18c82a416390d188a7cf5f1ad2931c0da5f6528b6dcda31f"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-psl-5.dll",
+      "bytes": 72450,
+      "sha256": "ee5275e2dc32053181d00f6af6f8c1ca4d7e89aa0d99dd7be32fc67fd5495511"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-readline8.dll",
+      "bytes": 287391,
+      "sha256": "15289513b1330e3431bec652e2bd57163f1196a4a25b179807af45e1330a8539"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-roken-18.dll",
+      "bytes": 66567,
+      "sha256": "43cd75f19c90c4383f43ef19a2721db5521c27b6daa5909c66e54d39354e7314"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-sasl2-3.dll",
+      "bytes": 99432,
+      "sha256": "31bdafb52af200ae867763a292e6763e9c99519697184329b316d89e6b655513"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-serf-1-0.dll",
+      "bytes": 97178,
+      "sha256": "fd74d0b24b0a1effc23f91970585732d7a6db3e42fde5ce4049c46681218130e"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-smartcols-1.dll",
+      "bytes": 223333,
+      "sha256": "9247b54f38798eee161f0d2022528c18951632ee81e924d88707ebf12667d04e"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-sqlite3-0.dll",
+      "bytes": 1565702,
+      "sha256": "e2032e41f1d876124a4a3ba6e2c8ecf029b94562ec73a94340d12dbb544e27dd"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-ssl-3.dll",
+      "bytes": 982612,
+      "sha256": "3baa30fdf198b46583bdddfb152ae710d91fcbff6a5a9269051a4e4cf110981a"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_client-1-0.dll",
+      "bytes": 601267,
+      "sha256": "a165ff8e8a6180156b088cc1f7e97728cc0c78dac1cb39d0a675c561a42e16a2"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_delta-1-0.dll",
+      "bytes": 108205,
+      "sha256": "51e7274c2498bf4b2e61a7373fe2bd7a93c847ea7a472c6173d8a8302f69b8ad"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_diff-1-0.dll",
+      "bytes": 91471,
+      "sha256": "a0a440d8eab373cee0ae0b5a5a402b6a5f3e05fd8491291ab079ff7a756bcee4"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_fs_fs-1-0.dll",
+      "bytes": 306968,
+      "sha256": "27154aab53c14e298b966638dc762fe243be91798593362f77276cad13852e2d"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_fs_util-1-0.dll",
+      "bytes": 11895,
+      "sha256": "cc8acbcb840ca8821236b63a0a7284b3eaa17ad6a508c4a2bbdb3f0443050c04"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_fs_x-1-0.dll",
+      "bytes": 298067,
+      "sha256": "789c837e59ba62cc4336d39d779db13bde214bc29119485b65c36f3b71ff2eb7"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_fs-1-0.dll",
+      "bytes": 44225,
+      "sha256": "9571614036658ba841479632ef2bd52370ba9446a4707101dcc58ad3591e1c5c"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_ra_local-1-0.dll",
+      "bytes": 38230,
+      "sha256": "824bb039787c9ecb505b0c8c31f3248b6df5caae355467bc17d47882f51cfd86"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_ra_serf-1-0.dll",
+      "bytes": 191081,
+      "sha256": "a10db3da90bc1abe34776abfff801fcfde2e57a552f0697f8f2b7621c3a764da"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_ra_svn-1-0.dll",
+      "bytes": 128981,
+      "sha256": "7b7603add4385573fe50a54e1be2ada5ea5c625469281f09948f2573000edfd9"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_ra-1-0.dll",
+      "bytes": 50807,
+      "sha256": "2fe77928e3f20266afb88b14d398ae15821b92c464dc129421fdd9f5fd8f18fe"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_repos-1-0.dll",
+      "bytes": 245191,
+      "sha256": "c73cf4dcdc2d1cd3755963bf3b8815e8b40ced66cc73b45548efe45cca92a39f"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_subr-1-0.dll",
+      "bytes": 777371,
+      "sha256": "7e2e9e4597a89b27d83c4b94e11f8085527badcca07274137f5fc6bbbc8c618c"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_swig_perl-1-0.dll",
+      "bytes": 42140,
+      "sha256": "afada6a9ef3c72b15205dd8d305478bbe5231aa6cddf80476ccc3db7c090eda0"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-svn_wc-1-0.dll",
+      "bytes": 726474,
+      "sha256": "a2a773840c50fbdf3bb8ed4a3d294c6ba1334f4e79bf522bf696d7898a2740e8"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-tasn1-6.dll",
+      "bytes": 73656,
+      "sha256": "57fb7c61d7eeb0c9b74a8b8673551a6fee5ec370f7fd05f0af82b537f355ee4b"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-ticw6.dll",
+      "bytes": 64883,
+      "sha256": "7919e4d8b5b48486b55aaaf98eb2c1efd391981acc30fcb938487fb5c7a6258a"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-unistring-5.dll",
+      "bytes": 2123146,
+      "sha256": "d1418c7a5ae07f9e8d705f68d458859e6ec1e29f87f80f3370877fe02507ceb5"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-uuid-1.dll",
+      "bytes": 28624,
+      "sha256": "c77dcf56e4bdc490ae56a0460273e05c91e16676e3b2c653a0eee5cb20be5c15"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-wind-0.dll",
+      "bytes": 164937,
+      "sha256": "4e516c0d25ee1f01e48afb81081e0d7f7078358628e135b33ef822485eb357ca"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-z.dll",
+      "bytes": 91648,
+      "sha256": "f548bb1632160282c3853415182d695c655d0eb7c12aa42a0538161898694b6f"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\msys-zstd-1.dll",
+      "bytes": 1136580,
+      "sha256": "0ebf082dc73962688a14bd26465e05972a51a3ac5ef11fdf8cc71b93b89cea8d"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\winpty.dll",
+      "bytes": 279552,
+      "sha256": "5d892d04b5051d998907147c514f6ae058e5d0bbbf98e2ed78cd1d30dd5d0360"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\gpg.exe",
+      "bytes": 1130330,
+      "sha256": "a5140c85353e8399da8d6bd7e3741524cd76a4e69be88af12042b1c9ef022984"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\usr\\bin\\gpgv.exe",
+      "bytes": 514306,
+      "sha256": "f4d13204d77fdf63c02b0e6742230f83a833128c28f7b715709c2c63a96c427b"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-archive-key.metadata.txt",
+      "bytes": 11861,
+      "sha256": "c2a9a16fde95e037bafd0fa6b7e31f41b4ff1e85851de5558f19a2a2f0e955e2"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-security-key.metadata.txt",
+      "bytes": 11873,
+      "sha256": "74f81645b4e3156d1e9a88c8dd9259271b89c7099d64af89a2a6996b592faa1f"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-stable-key.metadata.txt",
+      "bytes": 461,
+      "sha256": "521e9f6a9f9b92ee8d5ce74345e8cfd04028dae9db6f571259d584b293549824"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-updates-InRelease.metadata.txt",
+      "bytes": 55403,
+      "sha256": "3b7239dddb070ffe6ec71cff03de321ab5768cab4e33dc2695c0745784130909"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-InRelease.metadata.txt",
+      "bytes": 151075,
+      "sha256": "77737fa4b34f2693e982cc9ee35736816c35a7778fc2d326cc1bbf5b301fe1aa"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-historical-releases-20261016\\bookworm-updates-InRelease.metadata.txt",
+      "bytes": 55446,
+      "sha256": "c9bf70f517ffebac26af3eaa5745c9691eb255a2f3d9ffbafd96168d25a10f5e"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-metadata-20261016\\bookworm-security-InRelease.metadata.txt",
+      "bytes": 34770,
+      "sha256": "cc4faccaccd78de33d69187eedc585a398213f15df38416551e95a935e444d08"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-trust-public-historical-releases-20261016\\bookworm-security-InRelease.metadata.txt",
+      "bytes": 34770,
+      "sha256": "d5bbca73ea2f07ed7cf308d04de4f72f0e9a778c0fcf6e9ac438517697a8c951"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\document-assembler-official-Debian-trust-policy-v3-20261016.json",
+      "bytes": 108143,
+      "sha256": "13bd77f40356ef37ae01f3baf05172a035423815b33e9a292a7736ec699150a5"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\document-assembler-retained-release-signature-effect-plan-v1-20261016.json",
+      "bytes": 13885,
+      "sha256": "ce5cf5c2440c7ace3ca572073883e18d2abf66b16125556d319fa8e9ab6bea02"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-signature-source-v4-local117-20261017\\status_projection.py",
+      "bytes": 15522,
+      "sha256": "8401b441e3ecccd386aace046d71bb7a0941f74d105addc6a22965f7bdae0f3b"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-signature-source-v4-local117-20261017\\test_status_projection.py",
+      "bytes": 12839,
+      "sha256": "b6dbd29d53c94e350c81b2d2fc419a3c4d40e2e83b74c12ea3ea9476bcc2b098"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\debian-signature-source-v4-local117-20261017\\signature_supervisor.py",
+      "bytes": 16183,
+      "sha256": "a32f91379525c0a3732c30dae9d1f4a73c3e710949589b6cea22be3d1f2d1553"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\artifacts\\extractor-wheels-65a8dafb-source-20261016\\windows_inspector_controller.py",
+      "bytes": 19347,
+      "sha256": "579b1b0be6de75c594533730cc3875a0b1f5585846030f4e0f7cfa9cd37b3402"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\scripts\\windows-api-job-2g-pdh-recovery.py",
+      "bytes": 28592,
+      "sha256": "c050bd16622be034a4ef8db050a1554c0ee492a4519ff0b581c647af14f5fd6d"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\scripts\\windows-codex-auth-only-655035ec.py",
+      "bytes": 22785,
+      "sha256": "3fa9eb79e8596a6c12f53886ca8c52d59fd2cf2feaf1620862a5657375cc6031"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\scripts\\windows-job-inventory.py",
+      "bytes": 3180,
+      "sha256": "52cf3bd64fc39e8c986cf80eb7022b70e58b59f6e2ad3db443d8ab924f4da844"
+    },
+    {
+      "path": "E:\\Luci-local-acceptance\\scripts\\windows-pdh-cpu-format-recovery.py",
+      "bytes": 7441,
+      "sha256": "2bc56957918bc577b206b4aede979aab867c929a3f48799fd7be477f564d2b49"
+    },
+    {
+      "path": "E:/Luci-local-acceptance/artifacts/extractor-debian-metadata-20261016/base-rootfs.debian-sources-snapshot",
+      "bytes": 372,
+      "sha256": "615c3e2f894afdad54d0ff676117ae6be513b4bf500b05660cecbcb5238f7feb"
+    },
+    {
+      "path": "E:/Luci-local-acceptance/artifacts/extractor-wheels-65a8dafb-source-20261016/dependency-lock.json",
+      "bytes": 691742,
+      "sha256": "91f2739b1ccfb8c5277e41ebbcaa45ba7ba16f1018abdf0122fc39c1ec0d0423"
+    },
+    {
+      "path": "E:/Luci-local-acceptance/artifacts/extractor-wheels-65a8dafb-source-20261016/acquisition-inspection-manifest.json",
+      "bytes": 178791,
+      "sha256": "f839f2d1edaf0fbc1f039d20fcc4abd83b04accba2d0846e369174a0f2bad8b2"
+    }
+  ],
+  "historicalAnchor": {
+    "schema": 1,
+    "id": "bookworm-base-rootfs-20260918",
+    "snapshotTimestamp": "20260918T000000Z",
+    "snapshotSource": {
+      "role": "base-rootfs-debian-sources-snapshot",
+      "path": "E:/Luci-local-acceptance/artifacts/extractor-debian-metadata-20261016/base-rootfs.debian-sources-snapshot",
+      "bytes": 372,
+      "sha256": "615c3e2f894afdad54d0ff676117ae6be513b4bf500b05660cecbcb5238f7feb"
+    },
+    "trustPolicySha256": "13bd77f40356ef37ae01f3baf05172a035423815b33e9a292a7736ec699150a5",
+    "dependencyLockSha256": "91f2739b1ccfb8c5277e41ebbcaa45ba7ba16f1018abdf0122fc39c1ec0d0423",
+    "baseSubject": {
+      "bootstrapConfigDigest": "sha256:db9f02c6bde9fa90cc8074c92754b2b046947392f1a857726e77f041febb7b82",
+      "debuerreotypeRootfsArchiveSha256": "ca543f89919cb79fc16c8e96b957e75c64bed1dcecc64f320c7388aefc9676a8",
+      "compressedLayer": {
+        "role": "oci-compressed-base-layer",
+        "sha256": "774043ccc8ccd0d0833a9ee0792142ab7ad93df971e59dd248fbf82db16d0150",
+        "bytes": 28238443
+      }
+    },
+    "releaseBindings": {
+      "bookworm": {
+        "releaseUrl": "https://snapshot.debian.org/file/736a99b8b096598d48c438eb356bd074fecfbf23/InRelease",
+        "inputSha256": "77737fa4b34f2693e982cc9ee35736816c35a7778fc2d326cc1bbf5b301fe1aa",
+        "allowedRootIDs": [
+          "bookworm-archive",
+          "bookworm-stable"
+        ]
+      },
+      "bookworm-updates": {
+        "releaseUrl": "https://snapshot.debian.org/file/687ccd7b002f07b47ce02cb263b8c5ebd600c537/InRelease",
+        "inputSha256": "c9bf70f517ffebac26af3eaa5745c9691eb255a2f3d9ffbafd96168d25a10f5e",
+        "allowedRootIDs": [
+          "bookworm-archive"
+        ]
+      },
+      "bookworm-security": {
+        "releaseUrl": "https://snapshot.debian.org/file/9251d774959e2f7d72e3dcf6c42764ac7dc45ac4/InRelease",
+        "inputSha256": "d5bbca73ea2f07ed7cf308d04de4f72f0e9a778c0fcf6e9ac438517697a8c951",
+        "allowedRootIDs": [
+          "bookworm-security"
+        ]
+      }
+    }
+  }
+}
