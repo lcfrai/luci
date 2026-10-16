@@ -26,4 +26,12 @@ func TestCoordinatorPreviewKindCannotInheritLegacyApproval(t *testing.T) {
 	if reviewDigest(legacy) == reviewDigest(source) {
 		t.Fatal("origin digest must bind the explicit kind")
 	}
+	if !coordinatorPreviewRequestMatchesPlan(source, 0, 3000, "reviewed-source", "") ||
+		coordinatorPreviewRequestMatchesPlan(source, 0, 3000, "", "") ||
+		coordinatorPreviewRequestMatchesPlan(source, 0, 3000, "reviewed-source", "Dockerfile") ||
+		coordinatorPreviewRequestMatchesPlan(source, 1, 3000, "reviewed-source", "") ||
+		coordinatorPreviewRequestMatchesPlan(legacy, 0, 3000, "reviewed-source", "Dockerfile") ||
+		!coordinatorPreviewRequestMatchesPlan(legacy, 0, 3000, "", "Dockerfile") {
+		t.Fatal("release request did not retain its exact kind, config revision, port and Dockerfile binding")
+	}
 }

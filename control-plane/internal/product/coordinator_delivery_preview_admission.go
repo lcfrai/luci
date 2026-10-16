@@ -31,6 +31,10 @@ func coordinatorPreviewPolicyMatches(mode string, plan *CoordinatorPreviewPlan) 
 	return plan != nil && ((plan.Kind == "reviewed-source" && mode == "reviewed-source") || (plan.Kind == "" && mode == "checked-source"))
 }
 
+func coordinatorPreviewRequestMatchesPlan(plan *CoordinatorPreviewPlan, configurationRevision, port int, kind, dockerfile string) bool {
+	return plan != nil && plan.ExpectedConfigurationRevision == configurationRevision && plan.Port == port && plan.Kind == kind && plan.Dockerfile == dockerfile
+}
+
 type CoordinatorPreviewAction struct {
 	ActionID  string                     `json:"actionId"`
 	ReleaseID string                     `json:"releaseId"`
@@ -180,7 +184,7 @@ func (s *Server) admitCoordinatorPreviewKind(ctx context.Context, p project.Proj
 	if err = s.coordinatorPreviewAuthorityLocked(ctx, p, row); err != nil {
 		return "", "", nil, err
 	}
-	if row.Delivery.Preview == nil || row.Delivery.Preview.Status != "pending" || origin.ActionID != row.Delivery.Preview.ActionID || origin.ReleaseID != row.Delivery.Preview.ReleaseID || origin.BindingDigest != coordinatorPreviewBinding(row) || row.Delivery.Commit != commit || row.PreviewPlan.ExpectedConfigurationRevision != configurationRevision || row.PreviewPlan.Port != port || row.PreviewPlan.Kind != kind || row.PreviewPlan.Dockerfile != dockerfile {
+	if row.Delivery.Preview == nil || row.Delivery.Preview.Status != "pending" || origin.ActionID != row.Delivery.Preview.ActionID || origin.ReleaseID != row.Delivery.Preview.ReleaseID || origin.BindingDigest != coordinatorPreviewBinding(row) || row.Delivery.Commit != commit || !coordinatorPreviewRequestMatchesPlan(row.PreviewPlan, configurationRevision, port, kind, dockerfile) {
 		return "", "", nil, ErrOrchestratorConflict
 	}
 	releases, err := s.readReleases(p.ID)
