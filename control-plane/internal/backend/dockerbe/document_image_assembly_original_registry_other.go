@@ -14,3 +14,9 @@ func prepareAssemblyOriginalGuard([]backend.DocumentImageAssemblyEvidenceObject)
 func acquireAssemblyPreparedSources(context.Context, *assemblySourceGuard, []backend.DocumentImageAssemblyEvidenceObject) error {
 	return backend.ErrUnsupported
 }
+func prepareAssemblyOriginalNamespaceGuard(string) (*assemblySourceGuard, error) {
+	return nil, backend.ErrUnsupported
+}
+func acquireAssemblyPreparedNamespace(context.Context, *assemblySourceGuard, string) error {
+	return backend.ErrUnsupported
+}

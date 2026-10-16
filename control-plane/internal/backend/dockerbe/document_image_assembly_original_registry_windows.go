@@ -15,6 +15,18 @@ func (g *assemblySourceGuard) originalRegistry() *assemblyOriginalRegistry { ret
 // Pure finite path plan. No directory walk, file open, payload/hash or OS query.
 // Exact same unique root/ancestor/leaf ordering as the actual collector.
 func prepareAssemblyOriginalGuard(objects []backend.DocumentImageAssemblyEvidenceObject) (*assemblySourceGuard, error) {
+	paths := make([]assemblyOriginalSlot, len(objects))
+	for i, object := range objects {
+		paths[i] = assemblyOriginalSlot{path: object.Path, directory: false, bytes: object.Bytes}
+	}
+	return prepareAssemblyOriginalPathGuard(paths)
+}
+
+func prepareAssemblyOriginalNamespaceGuard(directory string) (*assemblySourceGuard, error) {
+	return prepareAssemblyOriginalPathGuard([]assemblyOriginalSlot{{path: directory, directory: true}})
+}
+
+func prepareAssemblyOriginalPathGuard(objects []assemblyOriginalSlot) (*assemblySourceGuard, error) {
 	var slots []assemblyOriginalSlot
 	seen := map[string]int{}
 	add := func(path string, directory bool, bytes int64) error {
@@ -39,7 +51,7 @@ func prepareAssemblyOriginalGuard(objects []backend.DocumentImageAssemblyEvidenc
 	}
 	for _, object := range objects {
 		var parents []string
-		for parent := filepath.Dir(object.Path); ; parent = filepath.Dir(parent) {
+		for parent := filepath.Dir(object.path); ; parent = filepath.Dir(parent) {
 			parents = append(parents, parent)
 			if parent == filepath.Dir(parent) {
 				break
@@ -53,7 +65,7 @@ func prepareAssemblyOriginalGuard(objects []backend.DocumentImageAssemblyEvidenc
 				return nil, err
 			}
 		}
-		if err := add(object.Path, false, object.Bytes); err != nil {
+		if err := add(object.path, object.directory, object.bytes); err != nil {
 			return nil, err
 		}
 	}
@@ -61,6 +73,16 @@ func prepareAssemblyOriginalGuard(objects []backend.DocumentImageAssemblyEvidenc
 		return nil, backend.ErrUnsupported
 	}
 	return &assemblySourceGuard{registry: newAssemblyOriginalRegistry(true, slots)}, nil
+}
+
+func acquireAssemblyPreparedNamespace(ctx context.Context, g *assemblySourceGuard, directory string) error {
+	if g == nil || g.registry == nil { return backend.ErrLaunchFenceOwnership }
+	if err := g.registry.start(); err != nil {
+		g.registry.stopUnstarted()
+		return err
+	}
+	defer g.registry.stop() // only this actual returning collector frame
+	return collectAssemblyNamespace(ctx, g, directory)
 }
 
 func acquireAssemblyPreparedSources(ctx context.Context, g *assemblySourceGuard, objects []backend.DocumentImageAssemblyEvidenceObject) error {
