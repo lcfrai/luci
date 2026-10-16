@@ -111,13 +111,16 @@ func swarmRepairBudgetForOperation(run ProjectRun, operationID string) error {
 	if matches > 1 {
 		return ErrProjectRunConflict
 	}
+	if latest != nil && latest.CandidateOperationID == op.ID {
+		return ErrProjectRunConflict // failed reviewed bytes cannot start again
+	}
 	if matches == 1 {
 		if repairOrdinal > limit {
 			return errAutomaticRepairLimit
 		}
 		return nil
 	}
-	if latest != nil && latest.CandidateOperationID != op.ID {
+	if latest != nil {
 		return ErrProjectRunConflict // an unlinked task retry cannot bypass the cap
 	}
 	return nil

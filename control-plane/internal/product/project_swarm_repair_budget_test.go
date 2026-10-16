@@ -140,6 +140,9 @@ func TestAutomaticRepairBudgetExactOrdinalAndNoRefund(t *testing.T) {
 	if err := swarmRepairBudgetForOperation(run, "foreign-retry"); err == nil {
 		t.Fatal("unlinked retry bypassed failed finding")
 	}
+	if err := swarmRepairBudgetForOperation(run, "candidate"); err == nil {
+		t.Fatal("failed reviewed candidate authorized replacement allocation")
+	}
 	run.Swarm.ReviewObligations = append(run.Swarm.ReviewObligations, ProjectSwarmReviewObligation{TaskID: "task-other", State: "repair-required", CandidateOperationID: "other", CandidateChildID: "child-other"})
 	run.Operations = append(run.Operations, ProjectRunOperation{ID: "other", TaskID: "task-other", ChildID: "child-other"})
 	if err := swarmRepairBudgetForCheckpoint(run, "other"); err != nil || swarmRepairsConsumed(run, "task-a") != 1 {
