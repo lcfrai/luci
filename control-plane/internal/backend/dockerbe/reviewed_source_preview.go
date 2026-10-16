@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"path"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -236,6 +237,30 @@ func (b *Backend) prepareReviewedSource(ctx context.Context, p backend.PreparedP
 	if !node24 {
 		return backend.PreparedPreview{}, backend.ErrUnsupported
 	}
+	// Docker otherwise merges image Env into ContainerConfig.Env. Resolve the
+	// complete declared environment now, bind its exact unique-key multiset and
+	// pass every entry explicitly. Runtime version entries remain intact.
+	environment := append([]string(nil), image.Config.Env...)
+	for _, override := range sourcePreviewEnvironment {
+		key, _, _ := strings.Cut(override, "=")
+		filtered := environment[:0]
+		for _, entry := range environment {
+			if !strings.HasPrefix(entry, key+"=") {
+				filtered = append(filtered, entry)
+			}
+		}
+		environment = append(filtered, override)
+	}
+	var validEnvironment bool
+	p.SourceEnvironment, validEnvironment = canonicalSourceEnvironment(environment)
+	if !validEnvironment {
+		return backend.PreparedPreview{}, backend.ErrUnsupported
+	}
+	environmentDigest := sourceEnvironmentDigest(p.SourceEnvironment)
+	if s.Identity.EnvironmentDigest != "" && s.Identity.EnvironmentDigest != environmentDigest {
+		return backend.PreparedPreview{}, backend.ErrLaunchFenceOwnership
+	}
+	p.Spec.Identity.EnvironmentDigest = environmentDigest
 	if s.ImageID != "" && s.ImageID != image.ID || s.Identity.RuntimeImageID != "" && s.Identity.RuntimeImageID != image.ID {
 		return backend.PreparedPreview{}, backend.ErrLaunchFenceOwnership
 	}
@@ -263,9 +288,35 @@ func (b *Backend) prepareReviewedSource(ctx context.Context, p backend.PreparedP
 
 var sourcePreviewEnvironment = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=/nonexistent", "NODE_OPTIONS=", "NODE_PATH=", "NODE_ENV=production"}
 
+func canonicalSourceEnvironment(environment []string) ([]string, bool) {
+	seen, total := map[string]bool{}, 0
+	canonical := make([]string, 0, len(environment))
+	for _, entry := range environment {
+		key, _, ok := strings.Cut(entry, "=")
+		total += len(entry) + 1
+		if !ok || seen[key] || total > 4096 || strings.ContainsAny(entry, "\x00\r\n") {
+			return nil, false
+		}
+		switch key {
+		case "PATH", "HOME", "NODE_OPTIONS", "NODE_PATH", "NODE_ENV", "NODE_VERSION", "YARN_VERSION":
+		default:
+			return nil, false
+		}
+		seen[key] = true
+		canonical = append(canonical, entry)
+	}
+	sort.Strings(canonical)
+	return canonical, true
+}
+
+func sourceEnvironmentDigest(environment []string) string {
+	raw, _ := json.Marshal(environment)
+	return sourceDigest(raw)
+}
+
 func configureReviewedSource(p backend.PreparedPreview, config *container.Config, host *container.HostConfig) {
 	config.Entrypoint, config.Cmd = []string{"/usr/local/bin/node"}, sourcePreviewCommand(p)
-	config.User, config.WorkingDir, config.Env = "1001:1001", "/", append([]string(nil), sourcePreviewEnvironment...)
+	config.User, config.WorkingDir, config.Env = "1001:1001", "/", append([]string(nil), p.SourceEnvironment...)
 	config.Healthcheck, config.StopSignal = &container.HealthConfig{Test: []string{"NONE"}}, "SIGTERM"
 	config.Labels[previewPrefix+"command"] = sourceCommandDigest(config.Cmd)
 	host.ReadonlyRootfs = true
@@ -296,12 +347,17 @@ func ownedReviewedSource(v backend.PreviewIdentity, cfg *container.Config, host 
 	if sourceDigest([]byte(payload.String())) != args[5] {
 		return false
 	}
+	environment, valid := canonicalSourceEnvironment(cfg.Env)
+	if !valid || sourceEnvironmentDigest(environment) != v.EnvironmentDigest {
+		return false
+	}
 	for _, want := range sourcePreviewEnvironment {
 		key, _, _ := strings.Cut(want, "=")
 		got := ""
-		for _, env := range cfg.Env {
+		for _, env := range environment {
 			if strings.HasPrefix(env, key+"=") {
 				got = env
+				break
 			}
 		}
 		if got != want {

@@ -36,7 +36,7 @@ type previewExecutionLease struct {
 }
 
 func validPreviewIdentity(v backend.PreviewIdentity) bool {
-	return (v.Kind == "" && v.SnapshotDigest == "" && v.CommandDigest == "" && v.RuntimeImageID == "" || v.Kind == backend.ReviewedSourcePreview && checkHex(v.SnapshotDigest, 32) && checkHex(v.CommandDigest, 32) && strings.HasPrefix(v.RuntimeImageID, "sha256:") && checkHex(strings.TrimPrefix(v.RuntimeImageID, "sha256:"), 32)) && v.Protocol == backend.PreviewExecutionProtocol && v.EngineID != "" && len(v.EngineID) <= 200 &&
+	return (v.Kind == "" && v.SnapshotDigest == "" && v.CommandDigest == "" && v.EnvironmentDigest == "" && v.RuntimeImageID == "" || v.Kind == backend.ReviewedSourcePreview && checkHex(v.SnapshotDigest, 32) && checkHex(v.CommandDigest, 32) && checkHex(v.EnvironmentDigest, 32) && strings.HasPrefix(v.RuntimeImageID, "sha256:") && checkHex(strings.TrimPrefix(v.RuntimeImageID, "sha256:"), 32)) && v.Protocol == backend.PreviewExecutionProtocol && v.EngineID != "" && len(v.EngineID) <= 200 &&
 		!strings.ContainsAny(v.EngineID, "\x00\r\n") && backend.ValidateInstance(v.InstanceID) == nil &&
 		checkLogicalID(v.AllocationID) && checkLogicalID(v.ReleaseID) && checkLogicalID(v.ProjectID) &&
 		checkHex(v.ScopeDigest, 32) && checkHex(v.SourceDigest, 32) && (checkHex(v.Commit, 20) || checkHex(v.Commit, 32))

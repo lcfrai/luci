@@ -22,6 +22,7 @@ func (f *sourcePreviewBackendFixture) PreparePreview(ctx context.Context, s back
 	if s.Kind == backend.ReviewedSourcePreview {
 		p.Spec.Identity.SnapshotDigest = strings.Repeat("d", 64)
 		p.Spec.Identity.CommandDigest = strings.Repeat("e", 64)
+		p.Spec.Identity.EnvironmentDigest = strings.Repeat("9", 64)
 		p.Spec.Identity.RuntimeImageID = "sha256:" + strings.Repeat("f", 64)
 		p.Spec.ImageID = p.Spec.Identity.RuntimeImageID
 		p.Spec.ContextDigest = p.Spec.Identity.SnapshotDigest

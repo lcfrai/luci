@@ -379,6 +379,7 @@ func (a *API) startReviewedSourcePreview(ctx context.Context, req previewruntime
 	}
 	preparedID := serving.Spec.Identity
 	id.EngineID, id.InstanceID, id.SnapshotDigest, id.CommandDigest, id.RuntimeImageID = preparedID.EngineID, preparedID.InstanceID, preparedID.SnapshotDigest, preparedID.CommandDigest, preparedID.RuntimeImageID
+	id.EnvironmentDigest = preparedID.EnvironmentDigest
 	if !validPreviewIdentity(preparedID) || preparedID != id || serving.Spec.Kind != backend.ReviewedSourcePreview || serving.Spec.Resources != resources || serving.ContextDigest != id.SnapshotDigest || serving.Spec.ContextDigest != id.SnapshotDigest || !checkHex(id.SnapshotDigest, 32) || len(serving.SourcePayload) == 0 || serving.Spec.ImageID != id.RuntimeImageID {
 		return fail("preview_runtime_identity", "The prepared static snapshot or serving identity changed. Nothing was allocated.", errors.New("invalid reviewed-source preparation"))
 	}
