@@ -374,6 +374,14 @@ func (b *DocumentImageAssembler) createOwnedAssemblyAllocation(ctx context.Conte
 	if err != nil || ctx.Err() != nil || !fenceHex(created.ID, 32) {
 		return "", backend.ErrUnavailable
 	}
+	// A delayed successful SDK response is not current ownership. An exact
+	// independently acknowledged fence may already have retired this claim.
+	b.sourceMu.Lock()
+	current := b.sourceClaim == claim && !claim.closed && claim.createAttempted && claim.identity == prepared.Spec.Identity && claim.guard.CheckCurrent(ctx) == nil
+	b.sourceMu.Unlock()
+	if !current {
+		return "", backend.ErrUnavailable
+	}
 	return created.ID, nil
 }
 func (b *DocumentImageAssembler) releaseAssemblySources(identity backend.DocumentImageAssemblyIdentity) error {

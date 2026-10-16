@@ -236,6 +236,7 @@ type assemblyBlockedCreateProbe struct {
 	*documentProbe
 	entered chan struct{}
 	release chan struct{}
+	lateACK bool
 }
 
 func (f *assemblyBlockedCreateProbe) ContainerCreate(ctx context.Context, config *container.Config, host *container.HostConfig, networking *network.NetworkingConfig, platform *ocispec.Platform, name string) (container.CreateResponse, error) {
@@ -247,10 +248,20 @@ func (f *assemblyBlockedCreateProbe) ContainerCreate(ctx context.Context, config
 	// independent marker Create below still returns a real acknowledged result.
 	close(f.entered)
 	<-f.release
+	if f.lateACK {
+		return created, nil
+	}
 	return container.CreateResponse{}, context.DeadlineExceeded
 }
 
 func TestAssemblyBlockedCreateACKCannotBlockAcknowledgedFenceGuardSettlement(t *testing.T) {
+	for _, lateACK := range []bool{false, true} {
+		t.Run(fmt.Sprintf("late-valid-ACK-%t", lateACK), func(t *testing.T) { assemblyBlockedCreateFenceFixture(t, lateACK) })
+	}
+}
+
+func assemblyBlockedCreateFenceFixture(t *testing.T, lateACK bool) {
+	t.Helper()
 	b, probe, spec, object := assemblyGuardFixture(t)
 	view, err := b.AcquireDocumentImageAssemblyInputs(context.Background(), spec, []backend.DocumentImageAssemblyRetainedObject{object})
 	if err != nil {
@@ -261,7 +272,7 @@ func TestAssemblyBlockedCreateACKCannotBlockAcknowledgedFenceGuardSettlement(t *
 	if err := b.bindAssemblyInputs(context.Background(), prepared.Spec); err != nil {
 		t.Fatal(err)
 	}
-	blocked := &assemblyBlockedCreateProbe{documentProbe: probe, entered: make(chan struct{}), release: make(chan struct{})}
+	blocked := &assemblyBlockedCreateProbe{documentProbe: probe, entered: make(chan struct{}), release: make(chan struct{}), lateACK: lateACK}
 	b.api = blocked
 	var once sync.Once
 	release := func() { once.Do(func() { close(blocked.release) }) }
