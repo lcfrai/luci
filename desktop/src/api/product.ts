@@ -299,6 +299,7 @@ export interface RequirementCheckBinding {
   expectedDesignPlanRevision: number;
 }
 export interface Release {
+  kind?: 'reviewed-source';
   canStop?: boolean;
   revision?: number;
   canCancel?: boolean;
@@ -852,13 +853,17 @@ export function createProductClient(
         expectedRevision,
         updates,
       }),
-    release: (id: string, port: number, dockerfile: string, expectedCommit?: string) =>
-      request<Release>(
+    release: async (id: string, port: number, dockerfile: string, expectedCommit?: string, kind?: 'reviewed-source') => {
+      if (kind && (kind !== 'reviewed-source' || dockerfile !== '' || !expectedCommit || !/^[a-f0-9]{40}([a-f0-9]{24})?$/.test(expectedCommit))) throw new Error('Reviewed-source preview requires an empty Dockerfile and the full exact checked commit.');
+      const value = await request<Release>(
         `${project(id)}/releases`,
-        { target: "local", port, dockerfile, ...(expectedCommit ? { expectedCommit } : {}) },
+        { ...(kind ? { kind } : {}), target: "local", port, dockerfile, ...(expectedCommit ? { expectedCommit } : {}) },
         "POST",
         180_000,
-      ),
+      );
+      if (kind && (value.kind !== kind || value.projectId !== id || value.commit !== expectedCommit || value.target !== 'local')) throw new Error('The reviewed-source release response did not match the exact request. Refresh release history before any further action.');
+      return value;
+    },
     cancelRelease: async (id: string, releaseId: string, expectedRevision: number) => {
       if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw new Error("Refresh this exact build before requesting cancellation.");
       const value = await request<Release>(`${project(id)}/releases/${encodeURIComponent(releaseId)}/cancel`, { expectedRevision });

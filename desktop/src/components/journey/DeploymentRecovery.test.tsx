@@ -80,6 +80,17 @@ it("requires source review and acknowledgement before building a replacement at 
   expect(productApi.stopRelease).not.toHaveBeenCalled();
   expect(await screen.findByText("Earlier preview retained.")).not.toBeNull();
 });
+it('requires a fresh reviewed-source choice and keeps the replacement pinned to its selected commit', async () => {
+  vi.spyOn(productApi, 'configuration').mockResolvedValue({ revision: 0, variables: [], updatedAt: '' });
+  render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Prepare replacement preview' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Review replacement preview' });
+  await userEvent.selectOptions(within(dialog).getByRole('combobox', { name: 'Replacement preview kind' }), 'reviewed-source');
+  expect(within(dialog).queryByLabelText('Replacement Dockerfile')).toBeNull();
+  await userEvent.click(within(dialog).getByRole('checkbox'));
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Build replacement preview' }));
+  await waitFor(() => expect(productApi.release).toHaveBeenCalledExactlyOnceWith('p-1', 3000, '', nextCommit, 'reviewed-source'));
+});
 
 it("preserves replacement review when the server rejects changed source and never retries implicitly", async () => {
   vi.mocked(productApi.release).mockRejectedValue(new Error("The checked source changed. Review and verify the new commit."));

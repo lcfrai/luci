@@ -107,6 +107,32 @@ it("uses the default build without expanding technical options and retains truth
   await userEvent.click(summary);
   expect(screen.getByRole("spinbutton", { name: /App port/ })).not.toBeNull();
 });
+it('serves only an explicit clean full commit with empty configuration as reviewed static source', async () => {
+  const commit = 'a'.repeat(40);
+  vi.spyOn(productApi, 'releases').mockResolvedValue({ releases: [] });
+  vi.spyOn(productApi, 'gitDelivery').mockResolvedValue({ branch: 'main', head: commit });
+  vi.spyOn(productApi, 'git').mockResolvedValue({ branch: 'main', clean: true, changes: [], log: [], diff: '' });
+  const release = vi.spyOn(productApi, 'release').mockResolvedValue({ ...ready, kind: 'reviewed-source', commit });
+  render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(screen.getByText('Preview build options', { selector: 'summary' }));
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Preview kind' }), 'reviewed-source');
+  expect(screen.queryByLabelText('Dockerfile')).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Serve reviewed source' }));
+  await waitFor(() => expect(release).toHaveBeenCalledExactlyOnceWith('p-1', 3000, '', commit, 'reviewed-source'));
+});
+it.each(['unclean', 'configured'])('refuses a reviewed-source preview when the current source or configuration is %s', async problem => {
+  vi.spyOn(productApi, 'releases').mockResolvedValue({ releases: [] });
+  vi.spyOn(productApi, 'gitDelivery').mockResolvedValue({ branch: 'main', head: 'a'.repeat(40) });
+  vi.spyOn(productApi, 'git').mockResolvedValue({ branch: 'main', clean: problem !== 'unclean', changes: [], log: [], diff: '' });
+  if (problem === 'configured') vi.spyOn(productApi, 'configuration').mockResolvedValue({ revision: 1, variables: [{ name: 'PRIVATE' }], updatedAt: '' });
+  const release = vi.spyOn(productApi, 'release');
+  render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(screen.getByText('Preview build options', { selector: 'summary' }));
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Preview kind' }), 'reviewed-source');
+  await userEvent.click(screen.getByRole('button', { name: 'Serve reviewed source' }));
+  await screen.findByText(problem === 'unclean' ? /reviewed source changed or is uncommitted/ : /require empty runtime configuration/);
+  expect(release).not.toHaveBeenCalled();
+});
 it("reveals a collapsed preview option when the browser reports invalid input", () => {
   vi.spyOn(productApi, "releases").mockResolvedValue({ releases: [] });
   const release = vi.spyOn(productApi, "release");
