@@ -10,9 +10,9 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 )
 
-// A lower-layer metadata reservation ONLY. No native registry lease, alias,
-// Create borrower, census or child exists in this implementation. It cannot be
-// used as a captured-run/completion/adoption capability or enable a producer.
+// This reservation alone is metadata ONLY. It may be consumed by the sealed
+// original-slot transport, but supplies no alias/child/census or captured-run
+// completion/adoption capability and cannot enable a producer.
 type DocumentImageAssemblyBinaryReadReservation struct {
 	mu                                       sync.Mutex // metadata only, never native I/O; owner locks use TryLock
 	retiring                                 atomic.Bool
@@ -22,6 +22,8 @@ type DocumentImageAssemblyBinaryReadReservation struct {
 	packageActive, indexActive, sourceActive bool
 	indexCharged, sourceCharged              bool
 	complete, released                       bool
+	consumed                                 bool
+	transport                                *assemblyBinaryTransportState
 }
 
 // Reserve exact existing owners/generations, not a fresh budget or copied guard.
@@ -185,7 +187,18 @@ func (r *DocumentImageAssemblyBinaryReadReservation) State() backend.DocumentIma
 	if r.released {
 		phase = "unallocated-borrows-released"
 	}
-	out := backend.DocumentImageAssemblyBinaryReadReservationState{Purpose: r.request.Purpose, LoanID: r.request.LoanID, ScopeDigest: r.request.ScopeDigest, Phase: phase, NativeCensusState: "not-collected", NativeAliasState: "not-created"}
+	census, aliases := "not-collected", "not-created"
+	if r.consumed {
+		phase = "consumed-original-transport"
+		if r.retiring.Load() {
+			phase = "consumed-retirement-only"
+		}
+		if r.released {
+			phase = "retired-original-borrows-released-api-unobserved"
+		}
+		census, aliases = "unobserved-api-owned-after-consumption", "unobserved-api-owned-after-consumption"
+	}
+	out := backend.DocumentImageAssemblyBinaryReadReservationState{Purpose: r.request.Purpose, LoanID: r.request.LoanID, ScopeDigest: r.request.ScopeDigest, Phase: phase, NativeCensusState: census, NativeAliasState: aliases}
 	if r.indexCharged {
 		out.IndexBytesCharged = backend.DocumentImageAssemblyBinaryIndexLoanBytes
 		out.IndexCallsCharged = backend.DocumentImageAssemblyBinaryIndexLoanCalls
@@ -202,9 +215,8 @@ func (r *DocumentImageAssemblyBinaryReadReservation) State() backend.DocumentIma
 	return out
 }
 
-// Valid only for THIS lower-layer reservation: no native effect/alias API exists
-// here. A future actual broker must consume it through a reviewed concrete
-// native-owner transition BEFORE any effect and disable this release path.
+// Valid only before sealed original-transport consumption. Consumption disables
+// this unallocated release path permanently, before any possible API effect.
 // Releasing borrows neither refunds quota nor closes caller-owned originals nor
 // proves process/resource settlement. Busy metadata owners remain explicitly held.
 func (r *DocumentImageAssemblyBinaryReadReservation) ReleaseUnallocated() error {
@@ -214,6 +226,15 @@ func (r *DocumentImageAssemblyBinaryReadReservation) ReleaseUnallocated() error 
 	r.retiring.Store(true)
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.consumed {
+		return backend.ErrUnavailable
+	}
+	return r.releaseOriginalBorrowsLocked()
+}
+
+// Metadata-only exact borrower release, with r.mu held. Its caller proves only
+// original-operation bookkeeping; it NEVER proves API alias/child settlement.
+func (r *DocumentImageAssemblyBinaryReadReservation) releaseOriginalBorrowsLocked() error {
 	if r.released {
 		return nil
 	}
