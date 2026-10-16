@@ -85,3 +85,34 @@ func TestDebianNativeRetirementBorrowPreventsConcurrentOriginalJobClose(t *testi
  close(release);if !settleInertDebianOwner(o){t.Fatal("original handle did not settle after termination borrower returned")}
 }
 func settleInertDebianOwner(o *debianProofNativeOwner)bool{until:=time.Now().Add(time.Second);for time.Now().Before(until){if o.settle(){return true};time.Sleep(time.Millisecond)};return false}
+func TestDebianNativePendingGenerationConsumesLateCreateAfterWholeDeadline(t *testing.T){testDebianNativePendingGeneration(t,false)}
+func TestDebianNativePendingGenerationConsumesPartialCreateError(t *testing.T){testDebianNativePendingGeneration(t,true)}
+func testDebianNativePendingGeneration(t *testing.T,partialError bool){
+ t.Helper();k:=&inertDebianKernel{closed:map[windows.Handle]bool{},enter:make(chan struct{}),release:make(chan struct{})};o:=inertDebianOwner(k)
+ originalCreate:=o.calls.CreateProcess
+ if partialError{o.calls.CreateProcess=func(app,command *uint16,processSA,threadSA *windows.SecurityAttributes,inherit bool,flags uint32,env,dir *uint16,start *windows.StartupInfo,pi *windows.ProcessInformation)error{if e:=originalCreate(app,command,processSA,threadSA,inherit,flags,env,dir,start,pi);e!=nil{return e};return errors.New("synthetic partial original Create ACK plus error")}}
+ firstEntered,secondEntered,releaseFirst,releaseSecond:=make(chan struct{}),make(chan struct{}),make(chan struct{}),make(chan struct{})
+ var childOnce,firstOnce,secondOnce sync.Once
+ releaseChild:=func(){childOnce.Do(func(){close(k.release)})};releaseOld:=func(){firstOnce.Do(func(){close(releaseFirst)})};releaseNew:=func(){secondOnce.Do(func(){close(releaseSecond)})}
+ defer releaseChild();defer releaseOld();defer releaseNew()
+ o.calls.TerminateJob=func(windows.Handle,uint32)error{switch k.terminated.Add(1){case 1:close(firstEntered);<-releaseFirst;case 2:close(secondEntered);<-releaseSecond;default:t.Error("same generation received a replacement termination")};return nil}
+ g:=executionTestGate(t,filepath.Join(t.TempDir(),"shared"));row:=nativeLeaseFixture();row.Scope=g.scope
+ if e:=g.mutate(context.Background(),func(l *executionLeaseLedger)error{l.InputProofs=append(l.InputProofs,row);return nil});e!=nil{t.Fatal(e)}
+ p:=&debianProducerPlan{identity:row.Identity,directory:t.TempDir(),environment:[]uint16{0,0}};p.commands[0]=[]string{"synthetic-held-gpg"}
+ type response struct{result debianProofChildResult;err error};finished:=make(chan response,1)
+ go func(){r,e:=o.child(context.Background(),g.api,p,0,p.commands[0]);finished<-response{r,e}}()
+ select{case<-k.enter:case<-time.After(time.Second):t.Fatal("synthetic original Create not entered")}
+ o.retire();select{case<-firstEntered:case<-time.After(time.Second):t.Fatal("original pre-ACK termination not entered")}
+ // Explicit fake scheduling boundary: whole deadline and watchdog have already
+ // settled while BOTH original calls remain borrowed. No real native effect.
+ o.wholeDeadline=time.Now().Add(-time.Second);close(o.watchDone);releaseChild()
+ var got response;select{case got=<-finished:case<-time.After(time.Second):t.Fatal("late original Create did not return")}
+ if got.err==nil||k.resumed.Load()!=0||len(o.lifetimes)!=1||len(o.lifetimes[0].handles)!=8||o.lifetimes[0].handles[6]!=201||o.lifetimes[0].handles[7]!=202{t.Fatal("late/partial original handles or refusal were lost")}
+ j:=o.jobs[0];j.mu.Lock();pending:=j.generation==1&&j.lastTerminationGeneration==0&&j.terminating&&j.borrowers==1;j.mu.Unlock();if !pending{t.Fatal("new original generation was not pending under exact old borrower")}
+ releaseOld();select{case<-secondEntered:case<-time.After(time.Second):t.Fatal("returning original borrower stranded the late generation")}
+ j.mu.Lock();held:=j.handle==77&&j.borrowers==1&&j.lastTerminationGeneration==1;j.mu.Unlock();if !held{t.Fatal("pending handoff exposed a closable original Job")}
+ if o.settle(){t.Fatal("expired whole deadline labelled native settlement positive")};k.mu.Lock();closed:=k.closed[77];k.mu.Unlock();if closed{t.Fatal("original Job closed during pending termination")}
+ releaseNew();until:=time.Now().Add(time.Second)
+ for time.Now().Before(until){j.mu.Lock();settled:=!j.terminating&&j.borrowers==0;j.mu.Unlock();if settled{o.retire();if k.terminated.Load()!=2{t.Fatal("duplicate generation termination")};return};time.Sleep(time.Millisecond)}
+ t.Fatal("exact pending borrower did not return")
+}

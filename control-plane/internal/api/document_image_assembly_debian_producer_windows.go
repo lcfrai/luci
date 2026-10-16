@@ -55,7 +55,8 @@ func newDebianProofWindowsCalls()*debianProofWindowsCalls{return &debianProofWin
  DeleteAttributes:func(p unsafe.Pointer){proofDeleteAttributes.Call(uintptr(p))},
 }}
 
-type debianProofJob struct {mu sync.Mutex;handle windows.Handle;settled,closing,terminating,terminationStarted bool;borrowers int;ordinal int;pid,lastTerminationPID uint32}
+type debianProofJob struct {mu sync.Mutex;handle windows.Handle;settled,closing,terminating,terminationStarted,retirementRequested bool;borrowers int;ordinal int;generation,lastTerminationGeneration uint8}
+type debianProofTerminationBorrow struct {job *debianProofJob;handle windows.Handle;generation uint8}
 type debianProofProducedFile struct {handle windows.Handle}
 type debianProofLifetime struct {handles []windows.Handle; readersSettled bool;processSettled bool;stdout,stderr chan proofPipeRead;outResult,errResult *proofPipeRead;pid uint32;creation uint64}
 type debianProofNativeOwner struct {
@@ -111,13 +112,35 @@ func(o *debianProofNativeOwner) retire(){
  o.stopped.Store(true);o.cancel();o.mu.Lock();jobs:=append([]*debianProofJob(nil),o.jobs...);o.mu.Unlock()
  // Jobs remain original and open until watchDone; never PID reopen or close
  // while a concurrent emergency retirement can still use the handle.
- for _,j:=range jobs{j.mu.Lock();h:=j.handle;if h==0||j.closing||j.terminating||j.terminationStarted&&j.lastTerminationPID==j.pid{j.mu.Unlock();continue};j.borrowers++;j.terminating=true;j.terminationStarted=true;j.lastTerminationPID=j.pid;j.mu.Unlock()
-  // A blocked native termination cannot block the API deadline/cancel latch.
-  // This exact borrower retains the original Job until its call returns. One
-  // pre-ACK empty-Job attempt and one distinct original-child ACK are possible;
-  // repeated watchdog/wait observations never create replacement call loops.
-  go func(j *debianProofJob,h windows.Handle){_ = o.calls.TerminateJob(h,1);j.mu.Lock();j.borrowers--;j.terminating=false;j.mu.Unlock()}(j,h)
- }
+ for _,j:=range jobs{o.requestJobRetirement(j)}
+}
+// Called under this exact original Job's mutex. Each Job has at most two
+// generations: before Create acknowledgement and one nonzero original PI ACK.
+// Repeated watchdog/wait/cancel observations cannot schedule the same generation.
+func takeDebianProofTerminationLocked(j *debianProofJob)*debianProofTerminationBorrow{
+ if !j.retirementRequested||j.handle==0||j.closing||j.terminating||j.terminationStarted&&j.lastTerminationGeneration==j.generation{return nil}
+ j.borrowers++;j.terminating=true;j.terminationStarted=true;j.lastTerminationGeneration=j.generation
+ return &debianProofTerminationBorrow{job:j,handle:j.handle,generation:j.generation}
+}
+func(o *debianProofNativeOwner)requestJobRetirement(j *debianProofJob){
+ j.mu.Lock();j.retirementRequested=true;borrow:=takeDebianProofTerminationLocked(j);j.mu.Unlock()
+ if borrow!=nil{go o.terminateOriginalJob(borrow)}
+}
+func(o *debianProofNativeOwner)terminateOriginalJob(borrow *debianProofTerminationBorrow){
+ _ = o.calls.TerminateJob(borrow.handle,1)
+ j:=borrow.job;j.mu.Lock();j.borrowers--;j.terminating=false
+ // Consume a late original ACK atomically with relinquishing the old borrower.
+ // No closer can see zero borrowers between these exact two generations. This
+ // is a finite handoff, not polling, a new Job, or replacement termination loop.
+ next:=takeDebianProofTerminationLocked(j);j.mu.Unlock()
+ if next!=nil{o.terminateOriginalJob(next)}
+}
+func(o *debianProofNativeOwner)acknowledgeOriginalCreate(ordinal int,pi windows.ProcessInformation){
+ if pi.Process==0&&pi.Thread==0{return}
+ o.mu.Lock();var owned *debianProofJob;for _,j:=range o.jobs{if j.ordinal==ordinal{owned=j;break}};o.mu.Unlock()
+ if owned==nil{return}
+ owned.mu.Lock();owned.generation=1;borrow:=takeDebianProofTerminationLocked(owned);owned.mu.Unlock()
+ if borrow!=nil{go o.terminateOriginalJob(borrow)}
 }
 func(o *debianProofNativeOwner) settle()bool{
  o.stopOnce.Do(func(){close(o.stopWatch)});left:=time.Until(o.wholeDeadline);if left<=0{return false}
@@ -224,10 +247,12 @@ func(o *debianProofNativeOwner) child(ctx context.Context,a *API,p *debianProduc
  runtime.KeepAlive(attributes);runtime.KeepAlive(childHandles);runtime.KeepAlive(jobs);runtime.KeepAlive(command);runtime.KeepAlive(environment)
  deleteAttributes()
  *handles=append(*handles,pi.Process,pi.Thread)
+ // Any nonzero original PI return creates the owned generation even when the
+ // SDK also reports an error. No exit or creation-time identity is inferred.
+ o.acknowledgeOriginalCreate(ordinal,pi)
  // Parent WRITE copies MUST close before any wait for reader EOF.
  write1,write2,stdinClosed:=closeAt(1),closeAt(3),closeAt(4);writesClosed:=write1&&write2&&stdinClosed
  if e!=nil{return result,e};result.OriginalHandleOwned=true;result.PID=pi.ProcessId
- o.mu.Lock();for _,j:=range o.jobs{if j.ordinal==ordinal{j.mu.Lock();j.pid=pi.ProcessId;j.mu.Unlock();break}};o.mu.Unlock()
  var create,exit,kernel,user windows.Filetime;if e=o.calls.Times(pi.Process,&create,&exit,&kernel,&user);e!=nil{return result,e};result.CreationTime=uint64(create.HighDateTime)<<32|uint64(create.LowDateTime)
  life.pid,life.creation=result.PID,result.CreationTime
  stdout,stderr:=make(chan proofPipeRead,1),make(chan proofPipeRead,1);life.stdout,life.stderr=stdout,stderr;go proofReadPipe(o,outRead,128<<10,stdout);go proofReadPipe(o,errRead,128<<10,stderr)
