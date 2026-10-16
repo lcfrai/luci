@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "abi": "luci-debian-binary-entry-v1",
+  "state": "source-only-unwired-not-native-or-product-acceptance",
+  "argvOrder": ["--abi", "--operation-id", "--loan-id", "--source-binding-sha256", "--selection-sha256", "--selection-bytes", "--selection-identity", "--work-deadline-tick-ms", "--handles"],
+  "argvEncoding": "Each fixed flag has exactly one value in this order; identity is eight unsigned decimal fields in sharedIdentityFields order; handles are181comma-separated lowercase hexadecimal values derived ONLY from SAME actual parent184HANDLE_LIST. No public request/path/PID/HANDLE mint.",
+  "startupSlots": {"0": "stdin-read", "1": "stdout-write", "2": "stderr-write", "3..176": "174package-original-read-aliases", "177..180": "fourPackages-index-original-read-aliases", "181": "selection-original-read-alias", "182": "frozen179reader-original-read-alias", "183": "frozen06binspector-original-read-alias"},
+  "originalSlots": {"0..173": "packages in lock ordinal order", "174..177": "fourSHA-sortedPackages.xz", "178": "selection", "179": "reader", "180": "inspector"},
+  "sharedIdentityFields": ["fileType", "fileAttributes", "volumeSerial", "fileIndex", "bytes", "creationFileTime", "lastWriteFileTime", "links"],
+  "childLocalFlags": "GetHandleInformation requires inherit and no protect-from-close on CHILDaliases. Flags never compare with noninheritable parent-original fingerprint and never prove granted read access. LastAccessTime also excluded from shared identity.",
+  "selectionKeys": ["schema", "abi", "operationId", "loanId", "sourceBindingSha256", "signedIndexes", "selection", "indexes", "fingerprints"],
+  "selectionIdentity": "Actual parent fixedargv binds selection's own bytes/SHA/shared identity after its durable guard. Selection JSON binds other180fingerprints, excluding its own slot178; no self-referential hash. Parent currentauthority/CAS/native ownership remains separately required.",
+  "sources": {"reader": {"bytes": 22824, "sha256": "2f52054fc43e926389180ba038ae40650318b940ef3efce5f767492f918f451b"}, "inspector": {"bytes": 39189, "sha256": "06b77ce9d7f2d6d06ec5b532cfc965acccd4619322aaf5e17cfa138e6a90acba"}},
+  "positioning": "ALL181initialcheckedseek0 BEFORE firstinputread/hash/decode/projectsource load. Then only178one inter-pass rewinds through unchanged179verified_pass; maximum359attempts, same global/class min1debits and calls. No thirdseek/pathreopen.",
+  "limits": {"globalCompressedBytes": 335544320, "readSeekCalls": 50000, "actualExpandedBytes": 536870912, "indexClassBytes": 19044408, "indexClassCalls": 768, "smallClassBytes": 393216, "smallClassCalls": 16, "seekCalls": 359, "metadataCalls": 1086, "clockCalls": 1000000, "conversions": 181, "sourceSelectionBytes": 262144, "jsonDepth": 16, "jsonStructuralTokens": 8192, "wireBytes": 20971520, "writeCalls": 32768, "stderrBytes": 65536},
+  "clock": "Absolute system GetTickCount64 deadline from SAME parent original workDeadline; parent tickFIRST thenGoNowSECOND conservative conversion, child one-time remaining conversion with earlierPythonmonotonic snapshot. Fixed clock checked before/after effects and in same179Budget.check. No fresh300s, callback, callerUTC or extra event handle. Parent independentJob retirement remains authoritative.",
+  "wire": {"magic": "LUCI-DBBE1\n", "header": "<BBI32s", "headerBytes": 38, "frames": 23, "order": "part0..10:kind1bundle thenkind2rawPartDTO;lastkind3summary/part255", "bundleEach": 4194304, "bundleTotal": 16777216, "partEach": 65536, "summary": 65536},
+  "result": "Raw child observations only. Parent must canonicalize Go part bytes/refs and create actual owned producer receipt/evidence-index before existing root validation/adoption. EOF/summary/childclaims do not prove exit0, Job/alias/reader/PDH settlement, current grants or fullclosure.",
+  "missing": ["parent fixedcommand/clock/purpose and selectionmint", "authenticated packaged interpreter/stdlib/support/profile", "actual package/index bytes and current signedcontext", "native child/capture/completion/canonicalization/adoption", "real Windows inheritedcursor/partialACK/cancel/pressure acceptance"]
+}
