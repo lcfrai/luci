@@ -124,6 +124,8 @@ def module_zip_h1(root, module, maximum, expanded_maximum, entry_maximum, raw_sh
             entries = archive.infolist()
             refuse(0 < len(entries) <= entry_maximum, "module zip entry count outside bound")
             for entry in entries:
+                refuse(entry.orig_filename == entry.filename,
+                       "module zip original name differs from decoded filename")
                 name = entry.filename
                 relative = name[len(prefix):] if name.startswith(prefix) else ""
                 parts = relative.split("/")

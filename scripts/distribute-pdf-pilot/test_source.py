@@ -1,6 +1,7 @@
 """No-module, no-render source and refusal checks for the held pilot."""
 
 import base64
+import io
 import json
 import os
 from pathlib import Path
@@ -167,6 +168,25 @@ for call in calls:
                     raw_sha = hashlib.sha256((root / "pilot.zip").read_bytes()).hexdigest()
                     with self.assertRaisesRegex(ValueError, "outside exact module"):
                         preflight.module_zip_h1(root, module, 1024, 1024, 8, raw_sha)
+
+    def test_module_h1_rejects_raw_local_and_central_nul_name(self):
+        with tempfile.TemporaryDirectory(dir=os.environ.get("LUCI_PDF_PILOT_TMPDIR")) as folder:
+            root = Path(folder)
+            name = "example.com/pilot@v1.0.0/aX.txt"
+            with zipfile.ZipFile(root / "pilot.zip", "w") as archive:
+                archive.writestr(name, b"alpha")
+            raw = (root / "pilot.zip").read_bytes()
+            self.assertEqual(raw.count(b"aX.txt"), 2)  # local and central name fields
+            raw = raw.replace(b"aX.txt", b"a\x00.txt")
+            (root / "pilot.zip").write_bytes(raw)
+            with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+                entry = archive.infolist()[0]
+                self.assertNotEqual(entry.orig_filename, entry.filename)
+                self.assertIn("\x00", entry.orig_filename)
+            module = {"name": "example.com/pilot", "version": "v1.0.0", "input": "pilot.zip",
+                      "h1": "h1:" + "A" * 44}
+            with self.assertRaisesRegex(ValueError, "original name differs"):
+                preflight.module_zip_h1(root, module, 1024, 1024, 8, hashlib.sha256(raw).hexdigest())
 
     def test_go_mod_h1_is_separate_from_raw_sha(self):
         with tempfile.TemporaryDirectory(dir=os.environ.get("LUCI_PDF_PILOT_TMPDIR")) as folder:
