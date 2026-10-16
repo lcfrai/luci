@@ -52,6 +52,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const [initialReview] = useState(() => { try { return { value: readContractReview(reviewScope, projectId, actorId), error: '' }; } catch (cause) { return { value: null, error: errorText(cause) }; } });
   const [contractReview, setContractReview] = useState<ExecutionContractReviewRequest | null>(initialReview.value);
   const [contractView, setContractView] = useState<OrchestrationContractView | null>(null);
+  const [preparingReview, setPreparingReview] = useState(false), preparingReviewKey = useRef<string | null>(null);
   const [storageError, setStorageError] = useState(initial.error || initialReview.error);
   const [rows, setRows] = useState<CoordinatorContinuation[]>([]), [contextCommits, setContextCommits] = useState<NonNullable<CoordinatorContinuationState['contextCommits']>>([]), [selected, setSelected] = useState('');
   const [acceptedReview, setAcceptedReview] = useState<CoordinatorAcceptedReview | null>(null);
@@ -74,7 +75,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const [executionLocation, setExecutionLocation] = useState<'local-docker' | 'cloud-microvm'>('local-docker');
   const worktreeId = useCockpit(state => state.selection.worktreeId), worktree = useCockpit(selectWorktreeById(worktreeId ?? ''));
   const alive = useRef(true), generation = useRef(0), working = useRef(false), readController = useRef<AbortController | null>(null);
-  const latest = useRef({ canRead, canEdit, canExecute, canDeploy, blocked, view, worktree }); latest.current = { canRead, canEdit, canExecute, canDeploy, blocked, view, worktree };
+  const latest = useRef({ canRead, canEdit, canExecute, canDeploy, blocked, view, worktree, acceptedReview }); latest.current = { canRead, canEdit, canExecute, canDeploy, blocked, view, worktree, acceptedReview };
   function persist(value: Pending | null) {
     try {
       if (storageError || localStorage.getItem(key) !== rawRef.current) throw new Error('Another window changed the retained continuation. Reopen this project before starting more work.');
@@ -192,7 +193,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const cloudProviderLabel = cloudCapacity?.provider === 'azure-e2b-embed' ? 'Azure microVM' : 'Configured microVM';
   async function reviewAcceptedChange() {
     const accepted = acceptedReview, route = savedRoute?.route;
-    if (!accepted?.selection || accepted.status !== 'review-required' || !route || !fresh || !canEdit || !canExecute || pendingRef.current || contractReview || working.current || storageError || readDenied) return;
+    if (!accepted?.selection || accepted.status !== 'review-required' || !route || !fresh || !canEdit || !canExecute || pendingRef.current || contractReview || working.current || preparingReviewKey.current || storageError || readDenied) return;
     if (!['codex', 'claude-code', 'opencode'].includes(route.harness) || !['ask', 'bypass'].includes(route.permissionMode) || !worktree?.isPrimary || route.worktreeId !== worktree.id || worktree.projectId !== projectId) {
       setError('The saved route cannot prepare this changed contract. Review the current upstream connection and project checkout before continuing.'); return;
     }
@@ -202,13 +203,28 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     const review: ExecutionContractReviewRequest = { version: 1, projectId, actorId, runKey: key, request, acceptedEventId: accepted.eventId };
     try { retainContractReview(reviewScope, review); setContractReview(review); setContractView(null); }
     catch (cause) { setError(errorText(cause)); return; }
+    const ticket = generation.current;
+    preparingReviewKey.current = key; setPreparingReview(true);
     try {
       const value = await orchestrationContractsApi.prepare(projectId, request);
-      if (!alive.current || !latest.current.canRead) return;
+      const currentAccepted = latest.current.acceptedReview;
+      if (!current(ticket) || !latest.current.canEdit || !latest.current.canExecute ||
+          currentAccepted?.eventId !== accepted.eventId || currentAccepted.status !== 'review-required' ||
+          JSON.stringify(currentAccepted.selection) !== JSON.stringify(accepted.selection)) return;
+      // Another window or the review controls may have archived or replaced
+      // the exact pending request while the effects-free prepare was in flight.
+      // An absent key must never be recreated by a late response.
+      const saved = readContractReview(reviewScope, projectId, actorId);
+      if (!saved || saved.runKey !== key || saved.acceptedEventId !== accepted.eventId ||
+          saved.contractId !== undefined || JSON.stringify(saved.request) !== JSON.stringify(request)) {
+        if (!saved) { setContractReview(null); setContractView(null); }
+        return;
+      }
       if (value.contract.actor.id !== actorId) throw new Error('The prepared contract belongs to another person.');
       const retained = { ...review, contractId: value.contract.id };
       retainContractReview(reviewScope, retained); setContractReview(retained); setContractView(value);
-    } catch (cause) { if (alive.current) setError(`${errorText(cause)} The exact changed-contract review is retained for readback; no replacement run was started.`); }
+    } catch (cause) { if (current(ticket)) setError(`${errorText(cause)} Inspect the exact retained changed-contract request; no replacement run was started.`); }
+    finally { if (preparingReviewKey.current === key) { preparingReviewKey.current = null; if (alive.current) setPreparingReview(false); } }
   }
   const start = (location: 'local-docker' | 'cloud-microvm' = 'local-docker') => {
     if (issue || deliverySetupIssue || checkSelection.problem || previewSelection.problem || deploymentSelection.problem || pendingRef.current || contractReview || working.current || storageError || !policy || !ownTurn || !worktree) return;
@@ -267,7 +283,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     <p>Run on: {runOn}. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.</p>
     {deliveryReadWarning && <p role="status">{deliveryReadWarning} Automatic reuse remains blocked. Review current configuration or pause the delegation.</p>}{error && <p role="alert">{error}</p>}{storageError && <p role="alert">{storageError}</p>}{notice && <p role="status">{notice}</p>}
     {pending && <p role="status">A continuation request is retained. New requests are paused until its exact outcome is read back.</p>}
-    {contractReview && !pending && <ExecutionContractReview key={contractReview.request.idempotencyKey} pending={contractReview} initialView={contractView} scope={reviewScope} actorId={actorId} canRead={canRead} canEdit={canEdit && canExecute && fresh && !readDenied} continuation={!contractReview.acceptedEventId} approvalOnly={!!contractReview.acceptedEventId} onPrepared={(next, value) => { setContractReview(next); setContractView(value); }} onCreate={contractReview.acceptedEventId ? finishAcceptedReview : createReviewedContinuation} onComplete={() => { setContractReview(null); setContractView(null); }} onReviewInputs={() => { setContractReview(null); setContractView(null); setPicker(null); }} />}
+    {contractReview && !pending && <ExecutionContractReview key={contractReview.request.idempotencyKey} pending={contractReview} initialView={contractView} scope={reviewScope} actorId={actorId} canRead={canRead} canEdit={canEdit && canExecute && fresh && !readDenied} preparing={preparingReview && preparingReviewKey.current === contractReview.runKey} continuation={!contractReview.acceptedEventId} approvalOnly={!!contractReview.acceptedEventId} onPrepared={(next, value) => { setContractReview(next); setContractView(value); }} onCreate={contractReview.acceptedEventId ? finishAcceptedReview : createReviewedContinuation} onComplete={() => { setContractReview(null); setContractView(null); }} onReviewInputs={() => { generation.current++; setContractReview(null); setContractView(null); setPicker(null); }} />}
     {!readDenied && canRead && <section aria-label="Cloud task swarm activation">
       <h4>Build with a cloud agent swarm</h4>
       <p>{tasks.length} unfinished reviewed task{tasks.length === 1 ? '' : 's'} in this plan. Luci schedules saved dependencies and gives each admitted upstream agent its own owned microVM. Run on the selected cloud service; deploy to is a separate reviewed decision.</p>

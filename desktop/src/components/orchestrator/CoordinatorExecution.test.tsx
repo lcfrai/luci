@@ -14,6 +14,7 @@ import { aWorktree } from '../../test/fixtures';
 import { context, proposalTurn, view } from './fixtures';
 import { orchestrationContractsApi, type OrchestrationContractView, type PrepareOrchestrationContract } from '../../api/orchestrationContracts';
 import { contractViewFixture } from '../../test/orchestrationContractFixtures';
+import { archiveContractReview, readContractReview } from '../develop/ExecutionContractReview';
 
 // Tests the continuation boundary, not the separately tested picker keyboard UI.
 vi.mock('../topbar/SessionPicker', () => ({ SessionPicker: ({ open, implementationContext, onSubmit, onClose, children, progressLabel }: { open: boolean; implementationContext: CreateSessionRequest['implementationContext']; onSubmit(value: CreateSessionRequest): Promise<unknown>; onClose(): void; children: ReactNode; progressLabel: string }) => open ? <div role="dialog" aria-label="Existing upstream route picker">{children}<p>{progressLabel}</p><button onClick={() => void onSubmit({ worktreeId: 'w-1', harness: 'codex', model: 'model', permissionMode: 'bypass', agentConnectionId: 'configured', implementationContext })}>Submit reviewed route</button><button onClick={onClose}>Close picker</button></div> : null }));
@@ -337,6 +338,41 @@ it('shows reconciliation first, then reviews the exact accepted selection withou
   await userEvent.click(screen.getByRole('checkbox', { name: /I reviewed these exact scopes/ }));
   await userEvent.click(screen.getByRole('button', { name: 'Approve changed execution contract' }));
   await screen.findByText(/changed execution contract is approved/);
+  expect(api.create).not.toHaveBeenCalled();
+});
+it('does not resurrect an archived accepted-event review when its prepare response arrives late', async () => {
+  const scope = 'local/alice/p-1/continued-work';
+  const selection = { projectId: 'p-1', briefRevision: 1, planRevision: 1, specificationRevision: 2, designPlanRevision: 1, taskIds: ['T-1'] };
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row()], savedRoute: savedRoute(), acceptedReview: { eventId: 'coord-event-changed', status: 'review-required', reason: 'Review changed plan.', selection } });
+  const held = deferred<OrchestrationContractView>();
+  vi.mocked(orchestrationContractsApi.prepare).mockReturnValue(held.promise);
+  render(<CoordinatorExecution {...withRequirements()} />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Review changed execution contract' }));
+  await screen.findByRole('region', { name: 'Execution contract review' });
+  expect(screen.getByRole('button', { name: 'Keep original request and review updated plan' })).toHaveProperty('disabled', true);
+  const original = readContractReview(scope, 'p-1', 'alice')!;
+  archiveContractReview(scope, original); // A second tab archived the original while preparation was in flight.
+  const value = contractViewFixture(); value.contract.actor.id = 'alice';
+  await act(async () => held.resolve(value));
+  await waitFor(() => expect(screen.queryByRole('region', { name: 'Execution contract review' })).toBeNull());
+  expect(readContractReview(scope, 'p-1', 'alice')).toBeNull();
+  expect(localStorage.getItem('luci.execution-contract-review.v1:' + encodeURIComponent(scope) + ':archive:' + original.request.idempotencyKey)).not.toBeNull();
+  expect(api.create).not.toHaveBeenCalled();
+});
+it.each(['policy epoch', 'read grant'])('keeps the original uncertain review after a %s change during prepare', async change => {
+  const scope = 'local/alice/p-1/continued-work';
+  const selection = { projectId: 'p-1', briefRevision: 1, planRevision: 1, specificationRevision: 2, designPlanRevision: 1, taskIds: ['T-1'] };
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row()], savedRoute: savedRoute(), acceptedReview: { eventId: 'coord-event-changed', status: 'review-required', reason: 'Review changed plan.', selection } });
+  const held = deferred<OrchestrationContractView>();
+  vi.mocked(orchestrationContractsApi.prepare).mockReturnValue(held.promise);
+  const input = withRequirements(), ui = render(<CoordinatorExecution {...input} />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Review changed execution contract' }));
+  const retained = readContractReview(scope, 'p-1', 'alice')!;
+  ui.rerender(<CoordinatorExecution {...input} {...(change === 'policy epoch' ? { policyEpoch: 1 } : { canRead: false })} />);
+  const value = contractViewFixture(); value.contract.actor.id = 'alice';
+  await act(async () => held.resolve(value));
+  expect(readContractReview(scope, 'p-1', 'alice')).toEqual(retained);
+  expect(screen.queryByText('Current context and policy')).toBeNull();
   expect(api.create).not.toHaveBeenCalled();
 });
 it.each(['acceptance', 'coverage', 'no-plan', 'manual-policy', 'unapplied', 'other-person', 'existing', 'draft', 'authority', 'checkout'])('does not automatically reuse a saved route when %s changed', async condition => {
