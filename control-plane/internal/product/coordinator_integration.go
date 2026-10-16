@@ -93,8 +93,15 @@ func (s *Server) continueCoordinatorCandidateIntegration(ctx context.Context, p 
 			continue
 		}
 		review, reviewErr := s.swarmReview(ctx, p, run, task.ID)
-		if reviewErr != nil || !review.CanIntegrate || !swarmIndependentReviewReady(run, task.ID, review) || len(review.Paths) == 0 || !hexDigest(review.ReviewDigest) {
+		if reviewErr != nil || !review.CanIntegrate || len(review.Paths) == 0 || !hexDigest(review.ReviewDigest) {
 			return false, nil
+		}
+		if !swarmIndependentReviewReady(run, task.ID, review) {
+			// This candidate still needs its own independent receipt. It must
+			// not prevent a later, independently reviewed task from integrating
+			// and releasing its dependencies. Whole-run checks still require
+			// every selected task; no pending review is treated as a pass.
+			continue
 		}
 		for _, path := range review.Paths {
 			if !swarmPathAllowed(path, task.WritePaths) {
