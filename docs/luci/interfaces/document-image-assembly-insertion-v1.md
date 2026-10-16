@@ -48,6 +48,11 @@ the same reserved/created identity/resources/deadlines and must never allocate a
 replacement. `Transition` journals exact before/after states before each RPC.
 `Finish` accepts only proven absence, reader settlement, durable full capture or
 explicit failed/interrupted outcome; never a caller success label or expiry.
+It additionally requires `WatchdogSettled`: an independently armed exact-CID stop
+lane must have positively ended. `WatchdogTriggered` and
+`WatchdogRetirementConfirmed` distinguish an emergency request from its actual
+retirement acknowledgement. Unknown retirement retains the lifecycle lock and
+lease; a bounded wait timeout never changes those facts.
 
 ## Docker shared recognizers, later dedicated checkpoint
 
@@ -72,6 +77,17 @@ recovers late. Emergency retirement of known CID precedes blocked capture/receip
 I/O; unknown lease/reader cleanup remains held. OCI capture is streamed into an
 owned bounded host artifact, not accumulated in a2GiB byte slice. Image import/
 registration is a distinct future effect; no helper can call ImageBuild/Pull/Load.
+
+LOCAL103 adds one private watchdog immediately after positive Create ACK, before
+any further hook or possible Start. Caller/compute cancellation or five seconds
+without foreground progress cancels in-flight compute and invokes only the exact
+owned retirement adapter, with the original whole deadline. It does not call
+ledger/headroom/publisher/reader hooks. Foreground status/headroom stalls cannot
+gate this lane. Reader, stream-close and watchdog settlement are separately
+required before releasing the lifecycle lock; late settlement never automatically
+releases durable capacity or accepts output. A failed exact retirement keeps the
+lock until process recovery can re-prove ownership. Normal positive exit/capture
+settles the watchdog before publishing/retiring the complete artifact.
 
 Current source declarations are not compilation or recipe compatibility evidence.
 The closed manifest constructor cannot use the unresolved existing SBOM lock or
