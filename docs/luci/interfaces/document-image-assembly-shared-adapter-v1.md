@@ -91,8 +91,10 @@ The dedicated shared adapter now implements all ten typed hooks and the explicit
 private Execute method. It resolves current installer authority at every admission
 boundary (including after the shared lock wait), retains source validation,
 refuses allocated replay, and uses the existing lifecycle lock for both execution
-and explicit retire/fence-only recovery. The complete ledger's aggregate inert
-fence bound uses the existing `backend.MaxLaunchFences` across all four purposes.
+and explicit retire/fence-only recovery. New inert fence admission uses the existing
+`backend.MaxLaunchFences` across all four purposes. The complete ledger preserves
+the historical4096 combined fence read/settlement bound for valid legacy mixed
+histories; quota changes cannot render old ownership/cleanup unreadable.
 
 Capture files are exclusively created with a pre-write2GiB cap and fsync/close.
 A bounded private receipt retains a separately verified exact exit0/non-OOM fact;

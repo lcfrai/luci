@@ -239,7 +239,10 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&ledger) != nil || decoder.Decode(new(any)) != io.EOF || ledger.Version != 1 || executionLeaseCount(ledger) > 4096 || len(ledger.Retirements) > 4096 || executionFenceCount(ledger) > backend.MaxLaunchFences {
+	// Preserve the historical bounded read/settlement domain. The current
+	// aggregate host quota applies atomically to NEW fence intents, not to
+	// already retained valid mixed-purpose history from older controllers.
+	if decoder.Decode(&ledger) != nil || decoder.Decode(new(any)) != io.EOF || ledger.Version != 1 || executionLeaseCount(ledger) > 4096 || len(ledger.Retirements) > 4096 || executionFenceCount(ledger) > 4096 {
 		return ledger, errors.New("execution capacity state cannot be verified")
 	}
 	seen := map[string]bool{}

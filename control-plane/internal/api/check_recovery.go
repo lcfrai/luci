@@ -290,7 +290,7 @@ func (g *executionAdmission) reserveCheckFence(ctx context.Context, lease checkE
 				return nil
 			}
 		}
-		if len(l.Fences)+len(l.CheckFences) >= backend.MaxLaunchFences {
+		if executionFenceCount(*l) >= backend.MaxLaunchFences {
 			return errors.New("the permanent launch recovery fence limit is occupied")
 		}
 		for i := range l.Checks {
