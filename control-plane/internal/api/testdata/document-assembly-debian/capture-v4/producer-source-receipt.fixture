@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "finding": "LOCAL117 P2",
+  "state": "source_only_successor_no_tests_or_verifier_execution",
+  "sourceDirectory": "E:/Luci-local-acceptance/artifacts/debian-signature-source-v4-local117-20261017",
+  "preservedFrozenV3": "E:/Luci-local-acceptance/artifacts/debian-signature-source-v3-20261016",
+  "priorReceiptSHA256": "5b82362aaa5ecf2cdb0131792e1626213fa8a47eaba253b92f4c9c38c96d2948",
+  "files": [
+    {
+      "file": "status_projection.py",
+      "bytes": 15522,
+      "sha256": "8401b441e3ecccd386aace046d71bb7a0941f74d105addc6a22965f7bdae0f3b",
+      "priorSha256": "6ecbe1b7461f77186eb456541a6b3eab590ecb5a7d5ed8d9cb02feaf71c6b9f9"
+    },
+    {
+      "file": "test_status_projection.py",
+      "bytes": 12839,
+      "sha256": "b6dbd29d53c94e350c81b2d2fc419a3c4d40e2e83b74c12ea3ea9476bcc2b098",
+      "priorSha256": "ac95cc56593c656d249321d9a771c5e126c1714bcaa12b8f432636f0cf486f17"
+    },
+    {
+      "file": "signature_supervisor.py",
+      "bytes": 16183,
+      "sha256": "a32f91379525c0a3732c30dae9d1f4a73c3e710949589b6cea22be3d1f2d1553",
+      "priorSha256": "878d1d18b8e0ad4bc7d275d3e528975e0e3bb8db8037554684324625f3924470"
+    },
+    {
+      "file": "signature-config.json",
+      "bytes": 41817,
+      "sha256": "64583d9f02277a0f311d1f6776850471b1720f18ea22f24bb93381c6c00b5205",
+      "priorSha256": "d0cb26d8753df2ff0fb8ebe91e9bf2ac616a0e97e7c2723f398c64c201247ec9"
+    }
+  ],
+  "diffs": [
+    {
+      "file": "status_projection.py.patch",
+      "bytes": 9280,
+      "sha256": "52e89c39e62526965176f6dc11f8fbeed7046161e3ba866d2c81b715a555184a"
+    },
+    {
+      "file": "test_status_projection.py.patch",
+      "bytes": 11324,
+      "sha256": "d1b20452c31c57f0381b1e1ff835064c6e5a09d2315654c3eb8b665cc207f8fb"
+    },
+    {
+      "file": "signature_supervisor.py.patch",
+      "bytes": 2573,
+      "sha256": "b6aed8a9ad0a7ccfc77a9de35affcb5ddb558f8a2893a2e2b10275d30b8949e6"
+    },
+    {
+      "file": "signature-config.json.patch",
+      "bytes": 6448,
+      "sha256": "67aa9af7f59b1ec322f4fb8a0fb58f2b028ff483ac6ce4c20b0a7a232f46f544"
+    }
+  ],
+  "typedOutputContract": {
+    "sha256": "319b4cd4726c49f8d9f333c7be6041fa56d8c1c1f3ada39c9069fbdc009adb4d",
+    "file": "typed-output-contract.json"
+  },
+  "changes": [
+    "Use exact configured historical-base-anchor enum, refuse unknown/nonstring eras and mismatched era/ID/signed Codename",
+    "Derive historical timestamp from raw pinned372B base-rootfs.debian-sources-snapshot; match configured timestamp and archive/suite selection, require exact historical release locator/inputSHA/allowedRoots and snapshot index URL/byHash bindings",
+    "Bind historical output to explicit configured bootstrap config, compressed OCI layer RawObjectRef, dependency lock and snapshot-source RawObjectRef; separate debuerreotype tar.xz SHA with unknown size, not ambiguous rootfs digest",
+    "Keep eligible signature fact separate from historical/current role, observation and anchor expiry facts, missing upstream expiry, unseen revocation uncertainty and explicit unevaluated server eligibility",
+    "Native inner uses changed pure release signature and output schema v2; immutable v3 untouched; fresh v4 output path only. No native lifecycle/Job/PDH/budget/child-count/crypto classifier changes",
+    "Config pins updated3 source files and adds3 finite retained metadata pins(snapshot372B,lock691742B,manifest178791B); total98, no key/package/layer acquisition or execution. No outer launch successor authored or released in LOCAL117 scope"
+  ],
+  "regressionMethods": 10,
+  "changedPureSelectors": [
+    "ProjectionTests.test_signed_index_and_distinct_freshness_states",
+    "ProjectionTests.test_historical_expiry_and_current_window_are_separate_facts",
+    "ProjectionTests.test_unknown_era_or_unbound_timestamp_refuses",
+    "ProjectionTests.test_historical_role_does_not_waive_key_revocation_or_signature_expiry",
+    "ProjectionTests.test_exact_config_era_and_snapshot_source_binding"
+  ],
+  "testInputScope": "Synthetic in-memory key/status/Release/snapshot strings and the own immutable signature-config.json source metadata only. No external key/Release/archive bytes or native tools are read/executed by tests. Own config test uses actual three historical era entries and exact configured snapshot/base pins.",
+  "sourceChecks": [
+    "Four original v3 hashes retained in receipt for immutable predecessor comparison",
+    "Successor config projectionSha256 and all3 successor source pins verified against file bytes",
+    "JSON config/typed-output metadata parsed only as source data; no Python import/AST/parser/test execution",
+    "Per-file exact Git no-index diff artifacts frozen"
+  ],
+  "cryptoBehavior": "keys() and signatures() verification code unchanged; known revoked/expired keys or expired signature remain Refusal. A historical Release classification does not override those independent verification decisions.",
+  "executionHold": "No tests,gpg/gpgv,key import,network/acquisition,archive parsing,model/Docker/compiler/API/runtime or central ledger effect. Old native outer pins v3 and cannot run v4 without separately reviewed successor and root release. Prior actual signature evidence does not exist and is not reinterpreted.",
+  "coordination": "Exact v2 logicalBinding keys/anchor objects sent directly to assembler first3-domain schema owner. Server-owned adoption/resolver/eligibility remains separate.",
+  "generatedAtUTC": "2026-10-16T03:34:00.7336841Z"
+}
