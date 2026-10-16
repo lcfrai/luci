@@ -130,6 +130,9 @@ func TestAssemblyPackageInputsPartialAndFailedCloseRetainOriginals(t *testing.T)
 	objects[173].Path += "-missing"
 	guard, err := AcquireDocumentImageAssemblyPackageInputs(context.Background(), objects)
 	if err == nil || guard == nil {
+		if guard != nil {
+			_ = guard.Close()
+		}
 		t.Fatal("partial native set lost ownership", err)
 	}
 	token := guard.(*assemblyPackageInputToken)
@@ -173,10 +176,12 @@ func TestAssemblyPackageInputsHardlinkAndSizeDriftStayRetirementOnly(t *testing.
 				}
 			}
 			guard, err := AcquireDocumentImageAssemblyPackageInputs(context.Background(), objects)
+			if guard != nil {
+				defer guard.Close()
+			}
 			if err == nil || guard == nil {
 				t.Fatal("native identity refusal lost original ownership", err)
 			}
-			defer guard.Close()
 			if guard.CheckCurrent(context.Background()) == nil {
 				t.Fatal("foreign/native drift remained current")
 			}
