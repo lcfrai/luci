@@ -232,8 +232,8 @@
       "file": "projection_protocol.json",
       "role": "support:projection/projection-protocol-v1.json",
       "runtimePath": "projection/projection-protocol-v1.json",
-      "bytes": 8180,
-      "sha256": "636ad3c320f3e9af17e8b34b1094c941c12e1fe197790e59a94e56eaa8dbb927"
+      "bytes": 8035,
+      "sha256": "b202c2c38735b9b01d5e02e5f59eebe5e97e24eddeabeb448c5e3798fd82158f"
     },
     {
       "file": "LICENSE.txt",
