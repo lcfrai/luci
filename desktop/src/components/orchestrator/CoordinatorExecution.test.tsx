@@ -52,6 +52,66 @@ beforeEach(() => {
   });
   vi.spyOn(coordinatorPolicyApi, 'save').mockResolvedValue(policy({ revision: 3 }));
 });
+it('saves explicit zero, reloads it and preserves zero through unrelated permission saves', async () => {
+  vi.mocked(coordinatorPolicyApi.save).mockResolvedValueOnce(policy({revision: 3, automaticRepairLimit: 0}));
+  const first = render(<CoordinatorExecution {...props()} />);
+  await userEvent.click(await screen.findByText('Automatic repairs'));
+  const selector = await screen.findByRole('combobox', {name: 'Automatic repairs per coding task'});
+  await waitFor(() => expect(selector).toHaveProperty('value', '2'));
+  await userEvent.selectOptions(selector, '0');
+  await userEvent.click(screen.getByRole('button', {name: 'Save automatic repair limit'}));
+  await screen.findByText(/automatic repair limit is saved/);
+  expect(coordinatorPolicyApi.save).toHaveBeenLastCalledWith('p-1', {expectedRevision: 2, mode: 'review', allowedTargets: ['specification'], automaticRepairLimit: 0});
+  expect(selector).toHaveProperty('value', '0');
+  first.unmount();
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({revision: 3, automaticRepairLimit: 0}));
+  vi.mocked(coordinatorPolicyApi.save).mockResolvedValueOnce(policy({revision: 4, executionMode: 'manual', automaticRepairLimit: 0}));
+  render(<CoordinatorExecution {...props()} />);
+  await userEvent.click(await screen.findByText('Automatic repairs'));
+  await waitFor(() => expect(screen.getByRole('combobox', {name: 'Automatic repairs per coding task'})).toHaveProperty('value', '0'));
+  await userEvent.click(screen.getByRole('button', {name: 'Pause new continuations'}));
+  await screen.findByText(/New automatic task continuations are paused/);
+  const calls = vi.mocked(coordinatorPolicyApi.save).mock.calls;
+  expect(calls[calls.length - 1][1]).not.toHaveProperty('automaticRepairLimit');
+  expect(screen.getByRole('combobox', {name: 'Automatic repairs per coding task'})).toHaveProperty('value', '0');
+  expect(api.create).not.toHaveBeenCalled();
+});
+it.each([0, 1])('reads a lost zero-budget save without resend; current value%i cannot silently replace its request', async currentLimit => {
+  vi.mocked(coordinatorPolicyApi.save).mockRejectedValueOnce(new Error('response interrupted'));
+  const first = render(<CoordinatorExecution {...props()} />);
+  await userEvent.click(await screen.findByText('Automatic repairs'));
+  const selector = await screen.findByRole('combobox', {name: 'Automatic repairs per coding task'});
+  await userEvent.selectOptions(selector, '0');
+  await userEvent.click(screen.getByRole('button', {name: 'Save automatic repair limit'}));
+  await screen.findByText(/response interrupted/);
+  expect(JSON.parse(localStorage.getItem('luci.coordinator-execution.v1:local/alice/p-1')!).automaticRepairLimit).toBe(0);
+  first.unmount();
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({revision: 3, automaticRepairLimit: currentLimit}));
+  render(<CoordinatorExecution {...props()} />);
+  await userEvent.click(await screen.findByText('Automatic repairs'));
+  await screen.findByRole('combobox', {name: 'Automatic repairs per coding task'});
+  await waitFor(() => expect(screen.getByRole('button', {name: 'Refresh continued work'})).toHaveProperty('disabled', false));
+  await userEvent.click(screen.getByRole('button', {name: 'Refresh continued work'}));
+  if (currentLimit === 0) await waitFor(() => expect(records()).toHaveLength(0));
+  else { await screen.findByText(/current saved repair limit differs/); expect(records()).toHaveLength(1); }
+  expect(coordinatorPolicyApi.save).toHaveBeenCalledTimes(1);
+  expect(api.create).not.toHaveBeenCalled();
+});
+it('keeps repair policy read-only without execution authority', async () => {
+  render(<CoordinatorExecution {...props()} canExecute={false} />);
+  await userEvent.click(await screen.findByText('Automatic repairs'));
+  expect(await screen.findByRole('combobox', {name: 'Automatic repairs per coding task'})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: 'Save automatic repair limit'})).toHaveProperty('disabled', true);
+  expect(coordinatorPolicyApi.save).not.toHaveBeenCalled();
+});
+it('keeps a retained zero request when current policy is unavailable', async () => {
+  localStorage.setItem('luci.coordinator-execution.v1:local/alice/p-1', JSON.stringify({kind: 'policy', actorId: 'alice', projectId: 'p-1', revision: 2, automaticRepairLimit: 0}));
+  vi.mocked(coordinatorPolicyApi.get).mockRejectedValue(new Error('current policy unavailable'));
+  render(<CoordinatorExecution {...props()} />);
+  await screen.findByText(/current policy unavailable/);
+  expect(JSON.parse(localStorage.getItem('luci.coordinator-execution.v1:local/alice/p-1')!).automaticRepairLimit).toBe(0);
+  expect(coordinatorPolicyApi.save).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
+});
 it('reads on mount without launch and uses current approved tasks in the reused explicit route picker', async () => {
   render(<CoordinatorExecution {...props()} />); await configure();
   expect(api.create).not.toHaveBeenCalled(); expect(screen.getByText(/No coding resource is allocated/)).not.toBeNull();

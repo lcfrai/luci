@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { approvedContractReference, orchestrationContractsApi, type OrchestrationContractReference, type OrchestrationContractView, type PrepareOrchestrationContract } from '../../api/orchestrationContracts';
 import { errorText } from '../../api/product';
+import { effectiveAutomaticRepairLimit } from '../../api/coordinatorPolicy';
 import { Button } from '../fluid/components/button';
 import type { CoordinatorContinuationRequest } from '../../api/coordinatorContinuations';
 import './ExecutionContractReview.css';
@@ -174,6 +175,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
       <dl><dt>Design and definition</dt><dd>Design {c!.input.implementation.designPlanRevision} · Definition {c!.input.implementation.specificationRevision} · Plan {c!.input.implementation.planRevision}</dd>
         <dt>Upstream route</dt><dd>{c!.input.route.harness} · {c!.input.route.model || 'configured model'} · {c!.input.route.permissionMode} · {pending.request.route.executionLocation === 'local-docker' ? 'isolated Docker on this computer' : 'configured isolated cloud microVM'}</dd>
         <dt>Intended result</dt><dd>{c!.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment, subject to separate authority'}</dd>
+        <dt>Automatic repairs per coding task</dt><dd>{effectiveAutomaticRepairLimit(c!.input.controls.automaticRepairLimit)} · {effectiveAutomaticRepairLimit(c!.input.controls.automaticRepairLimit) === 0 ? 'Stop after the first failed independent review.' : 'Maximum repair reservations in this approved run.'}{c!.input.controls.automaticRepairLimit === undefined && ' Retained contract uses the legacy default of two.'} Initial coding and independent review are separate; a repaired candidate still requires a final independent review. Cancelled or uncertain repair reservations remain consumed.</dd>
         <dt>Standards and controls</dt><dd>{c!.input.standards.status === 'team-library-assessed' ? `Team library revision ${c!.input.standards.revision}, assessment revision ${c!.input.standards.assessmentRevision}; inspect the exact controls and evidence below. This is a reviewed finding, not a compliance claim.` : c!.input.standards.status === 'team-library-unassessed' ? `Team library revision ${c!.input.standards.revision} is captured, but no current project assessment exists.` : c!.input.standards.status === 'legacy-unassessed' ? 'Approved design notes retained; standards have not been assessed against a structured control library.' : 'No team standards library is configured; no compliance assessment is claimed.'}</dd>
         <dt>Saved policy</dt><dd>Coordinator revision {c!.input.controls.coordinatorPolicyRevision} · Scheduler revision {c!.input.controls.schedulerPolicyRevision}</dd></dl>
       <p><strong>Routine decisions:</strong> {c!.input.decisionPolicy.routine}</p><p><strong>Human input:</strong> {c!.input.decisionPolicy.humanInput}</p>

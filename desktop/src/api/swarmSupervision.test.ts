@@ -1,8 +1,21 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { productApi } from './product';
-import { checkedSupervision, mergeSwarmMessages, swarmSupervisionApi, type PostSwarmMessage } from './swarmSupervision';
+import { checkedReviewObligation, checkedSupervision, mergeSwarmMessages, swarmSupervisionApi, type PostSwarmMessage, type SwarmReviewObligation } from './swarmSupervision';
 import { swarmMessageFixture, swarmSupervisionFixture } from '../test/swarmSupervisionFixtures';
 afterEach(() => vi.restoreAllMocks());
+const repairObligation = (): SwarmReviewObligation => ({id: 'review-one', taskId: 'code', candidateOperationId: 'op-code', candidateChildId: 's-code', candidateCommit: 'a'.repeat(40), contextDigest: 'b'.repeat(64), reviewDigest: 'c'.repeat(64), reviewerOperationId: 'op-review', reviewerChildId: 's-review', state: 'repair-required', attempt: 3, createdAt: '2026-10-16T00:00:00Z', keyDigest: 'd'.repeat(64), requestDigest: 'e'.repeat(64), repairLimit: 2, repairsConsumed: 2});
+it.each([0, 1, 2])('keeps failed findings and retained over-budget reservation history readable at limit%i', repairLimit => {
+  const value = {...repairObligation(), repairLimit, repairsConsumed: 3};
+  expect(checkedReviewObligation(value)).toBe(value);
+  const page = swarmSupervisionFixture({reviewObligations: [value]});
+  expect(checkedSupervision('p-1', 'run-1', 0, page)).toBe(page);
+});
+it.each([-1, 3, 0.5, '0', null])('rejects malformed public repair limit%s', repairLimit => {
+  expect(() => checkedReviewObligation(Object.assign(repairObligation(), {repairLimit}))).toThrow();
+});
+it.each([-1, 0.5, Number.MAX_SAFE_INTEGER + 1])('rejects malformed reservation count%i without conflating it with allowed repairs', repairsConsumed => {
+  expect(() => checkedReviewObligation({...repairObligation(), repairsConsumed})).toThrow();
+});
 it('reads only the exact project/run cursor with cancellation; preserves unknown fields and observed zero', async () => {
   const value = swarmSupervisionFixture({projectId: 'p/1', futurePolicy: {state: 'unknown'}, activityPhase: 'future-phase', metrics: {routineDecisions: 0, latency: null, quality: null, throughput: null, cost: null}});
   const request = vi.spyOn(productApi, 'request').mockResolvedValue(value), controller = new AbortController();

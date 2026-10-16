@@ -3,6 +3,18 @@ import { productApi } from './product';
 import { approvedContractReference, orchestrationContractsApi, ownedOrchestrationContract } from './orchestrationContracts';
 import { contractPrepareFixture, contractViewFixture } from '../test/orchestrationContractFixtures';
 afterEach(() => vi.restoreAllMocks());
+it.each([undefined, 0, 1, 2])('preserves captured repair budget %s and legacy contract bytes', automaticRepairLimit => {
+  const view = contractViewFixture();
+  if (automaticRepairLimit !== undefined) view.contract.input.controls.automaticRepairLimit = automaticRepairLimit;
+  const bytes = JSON.stringify(view);
+  expect(ownedOrchestrationContract('p-1', view)).toBe(view);
+  expect(JSON.stringify(view)).toBe(bytes);
+});
+it.each([-1, 3, 0.5, '0', null])('refuses malformed captured repair budget %s', automaticRepairLimit => {
+  const view = contractViewFixture();
+  Object.assign(view.contract.input.controls, {automaticRepairLimit});
+  expect(() => ownedOrchestrationContract('p-1', view)).toThrow(/could not be verified/);
+});
 describe('orchestration contract public client', () => {
   it('uses exact prepare route, selected Ask mode and revision/digest approval', async () => {
     const request = vi.spyOn(productApi, 'request').mockResolvedValueOnce(contractViewFixture()).mockResolvedValueOnce(contractViewFixture(true));

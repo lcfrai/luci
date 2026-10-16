@@ -1,4 +1,5 @@
 import { productApi } from './product';
+import { validAutomaticRepairLimit } from './coordinatorPolicy';
 
 /** Additive interface pinned at d2ba56f7. Unknown phases/fields grant no authority. */
 export const SWARM_MESSAGE_KINDS = ['discovery', 'question', 'dependency-result', 'review-finding', 'decision', 'lifecycle-request'] as const;
@@ -16,7 +17,7 @@ export interface SwarmReviewObligation {
   contextDigest: string; reviewDigest: string; reviewerOperationId: string; reviewerChildId: string;
   reviewerHandoffDigest?: string; findingMessageId?: string; repairOperationId?: string;
   state: 'pending' | 'passed' | 'repair-required' | 'unknown'; attempt: number; createdAt: string; resolvedAt?: string;
-  keyDigest: string; requestDigest: string; repairLimit: 2; repairsConsumed: number;
+  keyDigest: string; requestDigest: string; repairLimit: number; repairsConsumed: number;
 }
 export type SwarmAttentionAction = {kind: 'open-message' | 'open-review-obligation' | 'inspect-recovery'; targetId: string};
 export interface SwarmSupervision {
@@ -59,7 +60,7 @@ export function checkedReviewObligation(value: SwarmReviewObligation): SwarmRevi
       !digest(value.reviewDigest) || !value.reviewDigest || !id(value.reviewerOperationId) || !id(value.reviewerChildId) ||
       !digest(value.keyDigest) || !value.keyDigest || !digest(value.requestDigest) || !value.requestDigest ||
       !['pending', 'passed', 'repair-required', 'unknown'].includes(value.state) || !integer(value.attempt) || value.attempt < 1 ||
-      !id(value.createdAt) || value.repairLimit !== 2 || !integer(value.repairsConsumed) || value.repairsConsumed > 2 ||
+      !id(value.createdAt) || !validAutomaticRepairLimit(value.repairLimit) || !integer(value.repairsConsumed) ||
       value.reviewerHandoffDigest !== undefined && (!digest(value.reviewerHandoffDigest) || !value.reviewerHandoffDigest) ||
       value.findingMessageId !== undefined && !id(value.findingMessageId) || value.repairOperationId !== undefined && !id(value.repairOperationId) ||
       value.resolvedAt !== undefined && !id(value.resolvedAt)) {
