@@ -18,12 +18,14 @@ var errAssemblyDebianPublicationUncertain = errors.New("Debian domain publicatio
 // filesystem/authority IO; an intersecting retirement invalidates success.
 type assemblyDebianPublicationPermit struct {
 	candidate *assemblyDebianDomainCandidate
+	indexes *assemblyDebianIndexCandidate // exactly one concrete candidate arm
 	inFlight bool // protected by candidate.mu
 	retired bool
 }
 
 func (p *assemblyDebianPublicationPermit) begin(ctx context.Context, owner *assemblyInputOwner, next assemblyCatalogCAS) error {
-	if p==nil || p.candidate==nil { return errAssemblyDebianCapture }
+	if p==nil || (p.candidate==nil)==(p.indexes==nil) { return errAssemblyDebianCapture }
+	if p.indexes!=nil{return p.beginIndexes(ctx,owner,next)}
 	c:=p.candidate
 	c.mu.Lock()
 	if c.retiring || !c.adopting || c.capture==nil || c.capture.run==nil || c.capture.run.owner!=owner || c.targetCAS!=next || c.guard==nil || c.inputs==nil || c.publicationRetired { c.mu.Unlock();return errAssemblyDebianCapture }
@@ -37,6 +39,8 @@ func (p *assemblyDebianPublicationPermit) begin(ctx context.Context, owner *asse
 }
 
 func (p *assemblyDebianPublicationPermit) finish(result assemblyCatalogCAS, err error)(assemblyCatalogCAS,error){
+	if p==nil || (p.candidate==nil)==(p.indexes==nil){return assemblyCatalogCAS{},errAssemblyDebianCapture}
+	if p.indexes!=nil{return p.finishIndexes(result,err)}
 	c:=p.candidate;c.mu.Lock();defer c.mu.Unlock()
 	p.inFlight=false
 	if p.retired || c.retiring || c.publication!=p {
