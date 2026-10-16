@@ -20,11 +20,13 @@ const (
  debianProofOriginalReOpen
  debianProofOriginalQuery
  debianProofOriginalInheritedStdio
+ debianProofOriginalBinaryAlias
+ debianProofOriginalInheritedBinary
 )
 // Fixed native primitive sizes only; no caller/profile count or HANDLE issuer.
-func debianProofOriginalSlots(kind debianProofOriginalKind)int{switch kind{case debianProofOriginalPipe,debianProofOriginalPI:return 2;case debianProofOriginalInheritedStdio:return 3;case debianProofOriginalJob,debianProofOriginalFile,debianProofOriginalReOpen,debianProofOriginalQuery:return 1};return 0}
+func debianProofOriginalSlots(kind debianProofOriginalKind)int{switch kind{case debianProofOriginalPipe,debianProofOriginalPI:return 2;case debianProofOriginalInheritedStdio:return 3;case debianProofOriginalInheritedBinary:return 184;case debianProofOriginalJob,debianProofOriginalFile,debianProofOriginalReOpen,debianProofOriginalQuery,debianProofOriginalBinaryAlias:return 1};return 0}
 type debianProofOriginalSlot struct {value uintptr;closing,unknown bool}
-type debianProofOriginalTicket struct {owner *debianProofNativeOwner;kind debianProofOriginalKind;pending bool;slots []debianProofOriginalSlot;childOf *debianProofOriginalTicket}
+type debianProofOriginalTicket struct {owner *debianProofNativeOwner;kind debianProofOriginalKind;pending,attempted bool;slots []debianProofOriginalSlot;childOf *debianProofOriginalTicket}
 type debianProofSourceAdmission struct {
  owner *debianProofNativeOwner
  lease *dockerbe.DocumentImageAssemblyOriginalRegistryLease
@@ -35,19 +37,21 @@ type debianProofSourceAdmission struct {
  consumed,acquiring,retiring,released bool
  guard backend.DocumentImageAssemblyEvidenceGuard
  packageGuard backend.DocumentImageAssemblyPackageInputGuard
+ binaryTransport *debianBinaryNativeTransport
 }
 type debianProofEvidenceAdmission struct {source *debianProofSourceAdmission}
 type debianProofPackageAdmission struct {source *debianProofSourceAdmission}
 type debianProofQueryAdmission struct {owner *debianProofNativeOwner;ticket *debianProofOriginalTicket;consumed bool}
 // Census metadata refers to SAME original owners. It does not own replacement
 // handles, reconstruct a process, validate trust, or authorize work itself.
-type debianProofNativeCensus struct {mu sync.Mutex;owner *debianProofNativeOwner;retiring bool;reserved int;native []*debianProofOriginalTicket;sources []*debianProofSourceAdmission;query *debianProofOriginalTicket}
+type debianProofNativeCensus struct {mu sync.Mutex;owner *debianProofNativeOwner;retiring bool;reserved int;native []*debianProofOriginalTicket;sources []*debianProofSourceAdmission;query *debianProofOriginalTicket;transports []*debianBinaryNativeTransport}
 func newDebianProofNativeCensus(o *debianProofNativeOwner)*debianProofNativeCensus{return &debianProofNativeCensus{owner:o}}
+func debianProofChildDerivative(kind debianProofOriginalKind)bool{return kind==debianProofOriginalInheritedStdio||kind==debianProofOriginalInheritedBinary}
 func(c *debianProofNativeCensus)hasNativeLocked(t *debianProofOriginalTicket)bool{for _,issued:=range c.native{if issued==t{return true}};return false}
 func(c *debianProofNativeCensus)hasSourceLocked(s *debianProofSourceAdmission)bool{for _,issued:=range c.sources{if issued==s{return true}};return false}
 func(o *debianProofNativeOwner)reserveNativeOriginal(kind debianProofOriginalKind)(*debianProofOriginalTicket,error){
  c:=o.census;if c==nil||c.owner!=o{return nil,errDebianProofCensus};slots:=debianProofOriginalSlots(kind);c.mu.Lock();defer c.mu.Unlock()
- if slots==0||kind==debianProofOriginalInheritedStdio||kind==debianProofOriginalQuery||c.retiring||o.nativeRetired()||!time.Now().Before(o.workLimit())||c.reserved>1024-slots||len(c.native)>=1024{return nil,errDebianProofCensus};t:=&debianProofOriginalTicket{owner:o,kind:kind,pending:true,slots:make([]debianProofOriginalSlot,slots)};c.native=append(c.native,t);c.reserved+=slots;return t,nil
+ if slots==0||debianProofChildDerivative(kind)||kind==debianProofOriginalBinaryAlias||kind==debianProofOriginalQuery||c.retiring||o.nativeRetired()||!time.Now().Before(o.workLimit())||c.reserved>1024-slots||len(c.native)>=1024{return nil,errDebianProofCensus};t:=&debianProofOriginalTicket{owner:o,kind:kind,pending:true,slots:make([]debianProofOriginalSlot,slots)};c.native=append(c.native,t);c.reserved+=slots;return t,nil
 }
 // One fixed Create attempt reserves PI2 plus its known inherited stdio3 as a
 // single metadata transaction. No partly reserved pre-Create capacity leak.
@@ -62,12 +66,12 @@ func(o *debianProofNativeOwner)recordNativeReturn(t *debianProofOriginalTicket,v
 // on success/partial allocation remain charged; no transient refund then repair.
 func(o *debianProofNativeOwner)recordOriginalReturn(t *debianProofOriginalTicket,values []uintptr,knownZero bool)error{
  c:=o.census;if c==nil||t==nil||t.owner!=o{return errDebianProofCensus};c.mu.Lock();defer c.mu.Unlock();if !c.hasNativeLocked(t)||!t.pending||len(values)!=len(t.slots){return errDebianProofCensus};t.pending=false;var collision,unknown bool
- for i,v:=range values{t.slots[i].value=v;if v==0{if knownZero{c.reserved--}else{t.slots[i].unknown=true;unknown=true};continue};for j:=0;j<i;j++{if values[j]==v{collision=true;t.slots[i].unknown=true;t.slots[j].unknown=true}};for _,prior:=range c.native{if prior==t||prior.kind==debianProofOriginalInheritedStdio||t.kind==debianProofOriginalInheritedStdio||(prior.kind==debianProofOriginalQuery)!=(t.kind==debianProofOriginalQuery){continue};for _,s:=range prior.slots{if s.value==v{collision=true;t.slots[i].unknown=true}}}}
+ for i,v:=range values{t.slots[i].value=v;if v==0{if knownZero{c.reserved--}else{t.slots[i].unknown=true;unknown=true};continue};for j:=0;j<i;j++{if values[j]==v{collision=true;t.slots[i].unknown=true;t.slots[j].unknown=true}};for _,prior:=range c.native{if prior==t||debianProofChildDerivative(prior.kind)||debianProofChildDerivative(t.kind)||(prior.kind==debianProofOriginalQuery)!=(t.kind==debianProofOriginalQuery){continue};for _,s:=range prior.slots{if s.value==v{collision=true;t.slots[i].unknown=true}}}}
  if collision||unknown{return errDebianProofCensus};return nil
 }
 func(o *debianProofNativeOwner)beginNativeClose(value uintptr,query bool)(*debianProofOriginalTicket,int,error){
  c:=o.census;if c==nil||value==0{return nil,0,errDebianProofCensus};c.mu.Lock();defer c.mu.Unlock();var found *debianProofOriginalTicket;index:=0
- for _,t:=range c.native{if t.kind==debianProofOriginalInheritedStdio||(t.kind==debianProofOriginalQuery)!=query||t.pending{continue};for i,s:=range t.slots{if s.value==value{if found!=nil||s.closing{return nil,0,errDebianProofCensus};found,index=t,i}}};if found==nil{return nil,0,errDebianProofCensus};found.slots[index].closing=true;return found,index,nil
+ for _,t:=range c.native{if debianProofChildDerivative(t.kind)||(t.kind==debianProofOriginalQuery)!=query||t.pending{continue};for i,s:=range t.slots{if s.value==value{if found!=nil||s.closing{return nil,0,errDebianProofCensus};found,index=t,i}}};if found==nil{return nil,0,errDebianProofCensus};found.slots[index].closing=true;return found,index,nil
 }
 func(o *debianProofNativeOwner)finishNativeClose(t *debianProofOriginalTicket,index int,positive bool)error{
  c:=o.census;if c==nil||t==nil||t.owner!=o{return errDebianProofCensus};c.mu.Lock();defer c.mu.Unlock();if !c.hasNativeLocked(t)||index<0||index>=len(t.slots)||!t.slots[index].closing{return errDebianProofCensus};slot:=&t.slots[index];slot.closing=false;if positive{slot.value=0;slot.unknown=false;c.reserved--}else{slot.unknown=true};return nil

@@ -30,7 +30,7 @@ func(o *debianProofNativeOwner)recordInheritedCreateReturn(life *debianProofLife
 }
 func(o *debianProofNativeOwner)settleInheritedStdio(life *debianProofLifetime)bool{
  if life==nil{return false};if life.inherited==nil{return true} // Create not attempted.
- c:=o.census;if c==nil{return false};t:=life.inherited
+ c:=o.census;if c==nil{return false};t:=life.inherited;if !debianProofChildDerivative(t.kind)||len(t.slots)!=debianProofOriginalSlots(t.kind){return false}
  c.mu.Lock();if !c.hasNativeLocked(t)||t.childOf!=life.piTicket||t.pending{c.mu.Unlock();return false};empty:=true;for _,slot:=range t.slots{if slot.value!=0{empty=false}};c.mu.Unlock();if empty{return true}
  if !life.processSettled||life.job==nil{return false};life.job.mu.Lock();jobSettled:=life.job.settled&&life.job.handle==0&&life.job.borrowers==0&&life.job.generation==1;life.job.mu.Unlock();if !jobSettled{return false}
  c.mu.Lock();defer c.mu.Unlock();if t.pending||t.childOf!=life.piTicket{return false};for i:=range t.slots{if t.slots[i].value!=0{t.slots[i]=debianProofOriginalSlot{};c.reserved--}};return true

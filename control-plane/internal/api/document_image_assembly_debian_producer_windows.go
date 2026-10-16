@@ -34,6 +34,10 @@ type debianProofWindowsCalls struct {
  QueryJob func(windows.Handle,int32,uintptr,uint32,*uint32)error
  TerminateJob func(windows.Handle,uint32)error
  Close func(windows.Handle)error
+ Duplicate func(windows.Handle,windows.Handle,windows.Handle,*windows.Handle,uint32,bool,uint32)error
+ BinaryInitAttributes func(unsafe.Pointer,*uintptr)error
+ BinaryUpdateAttributes func(unsafe.Pointer,uintptr,unsafe.Pointer,uintptr)error
+ BinaryDeleteAttributes func(unsafe.Pointer)error
  Pipe func(*windows.Handle,*windows.Handle,*windows.SecurityAttributes,uint32)error
  HandleInfo func(windows.Handle,uint32,uint32)error
  CreateProcess func(*uint16,*uint16,*windows.SecurityAttributes,*windows.SecurityAttributes,bool,uint32,*uint16,*uint16,*windows.StartupInfo,*windows.ProcessInformation)error
@@ -54,13 +58,16 @@ type debianProofWindowsCalls struct {
  FileReOpen func(windows.Handle)(windows.Handle,error)
 }
 func newDebianProofWindowsCalls()*debianProofWindowsCalls{return &debianProofWindowsCalls{
- CreateJob:windows.CreateJobObject,SetJob:windows.SetInformationJobObject,QueryJob:windows.QueryInformationJobObject,TerminateJob:windows.TerminateJobObject,Close:windows.CloseHandle,Pipe:windows.CreatePipe,HandleInfo:windows.SetHandleInformation,CreateProcess:windows.CreateProcess,Times:windows.GetProcessTimes,Read:windows.ReadFile,Wait:windows.WaitForSingleObject,Exit:windows.GetExitCodeProcess,Resume:windows.ResumeThread,
+ CreateJob:windows.CreateJobObject,SetJob:windows.SetInformationJobObject,QueryJob:windows.QueryInformationJobObject,TerminateJob:windows.TerminateJobObject,Close:windows.CloseHandle,Duplicate:windows.DuplicateHandle,Pipe:windows.CreatePipe,HandleInfo:windows.SetHandleInformation,CreateProcess:windows.CreateProcess,Times:windows.GetProcessTimes,Read:windows.ReadFile,Wait:windows.WaitForSingleObject,Exit:windows.GetExitCodeProcess,Resume:windows.ResumeThread,
  Affinity:func(a,b *uintptr)error{r,_,_:=proofGetAffinity.Call(uintptr(windows.CurrentProcess()),uintptr(unsafe.Pointer(a)),uintptr(unsafe.Pointer(b)));if r==0{return errors.New("original affinity unavailable")};return nil},
  InJob:func(p,j windows.Handle)(bool,error){var in int32;r,_,_:=proofIsInJob.Call(uintptr(p),uintptr(j),uintptr(unsafe.Pointer(&in)));if r==0{return false,errors.New("original membership unavailable")};return in!=0,nil},
  InitAttributes:func(p unsafe.Pointer,n *uintptr)error{r,_,_:=proofInitializeAttributes.Call(uintptr(p),2,0,uintptr(unsafe.Pointer(n)));if r==0{return errors.New("startup attributes unavailable")};return nil},
  UpdateAttributes:func(p unsafe.Pointer,k uintptr,v unsafe.Pointer,n uintptr)error{r,_,_:=proofUpdateAttributes.Call(uintptr(p),0,k,uintptr(v),n,0,0);if r==0{return errors.New("startup attribute unavailable")};return nil},
  DeleteAttributes:func(p unsafe.Pointer){proofDeleteAttributes.Call(uintptr(p))},
  FileCreate:windows.CreateFile,FileInfo:windows.GetFileInformationByHandle,FileWrite:windows.WriteFile,FileFlush:windows.FlushFileBuffers,
+ BinaryInitAttributes:func(p unsafe.Pointer,n *uintptr)error{if e:=proofInitializeAttributes.Find();e!=nil{return e};r,_,_:=proofInitializeAttributes.Call(uintptr(p),2,0,uintptr(unsafe.Pointer(n)));if r==0{return errors.New("binary startup attributes unavailable")};return nil},
+ BinaryUpdateAttributes:func(p unsafe.Pointer,k uintptr,v unsafe.Pointer,n uintptr)error{if e:=proofUpdateAttributes.Find();e!=nil{return e};r,_,_:=proofUpdateAttributes.Call(uintptr(p),0,k,uintptr(v),n,0,0);if r==0{return errors.New("binary startup attribute unavailable")};return nil},
+ BinaryDeleteAttributes:func(p unsafe.Pointer)error{if e:=proofDeleteAttributes.Find();e!=nil{return e};proofDeleteAttributes.Call(uintptr(p));return nil},
  FileReOpen:func(source windows.Handle)(windows.Handle,error){if e:=proofReOpenFile.Find();e!=nil{return 0,e};h,_,e:=proofReOpenFile.Call(uintptr(source),uintptr(windows.GENERIC_READ),uintptr(windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE),uintptr(windows.FILE_FLAG_OPEN_REPARSE_POINT));handle:=windows.Handle(h);if validDebianProducedHandle(handle){return handle,nil};if e!=windows.ERROR_SUCCESS{return handle,e};return handle,errors.New("original file reopen unavailable")},
 }}
 
@@ -121,6 +128,7 @@ func(o *debianProofNativeOwner) retire(){
  // Jobs remain original and open until watchDone; never PID reopen or close
  // while a concurrent emergency retirement can still use the handle.
  for _,j:=range jobs{o.requestJobRetirement(j)}
+ o.retireBinaryTransports()
  o.retireSourceAdmissions()
 }
 // Called under this exact original Job's mutex. Each Job has at most two
