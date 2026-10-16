@@ -23,6 +23,16 @@ The initial Go command without `GOMODCACHE` failed before compile because the de
 
 The release owner still has to call `admitCoordinatorPreviewKind` from the new kind-aware endpoint and expose immutable release kind for coordinator readback. The source candidate keeps the old helper as an empty-kind wrapper and refuses cross-kind policy/plan substitution. No actual reviewed-source release has been observed.
 
+## Current approved preview journey fixture
+
+At `2715960be`, the preview journey fixture now saves an explicit reviewed source scope and reviewer task, prepares and approves a new contract after the policy and plan changes, and completes an addressed independent reviewer handoff and finding before integration. This replaces the temporary incomplete fixture experiment described above; it does not change production gates. Before running, cgroup charge was 32,802,799,616 of 34,359,738,368 bytes and host available memory was 2,718,187,520 bytes. The exact bounded command in `control-plane/` was:
+
+```sh
+GOWORK=off GOMAXPROCS=1 GOMEMLIMIT=512MiB GOGC=20 GOCACHE=/dev/shm/luci-go-cache GOMODCACHE=/dev/shm/luci-gomodcache GOPATH=/dev/shm/luci-gopath GOTMPDIR=/dev/shm/luci-gotmp TMPDIR=/dev/shm timeout 120s /dev/shm/luci-toolchain/go/bin/go test -p 1 ./internal/product -run '^TestCoordinatorPreview' -count=1 -parallel 1
+```
+
+It exited 0: `ok github.com/lcfrai/luci/control-plane/internal/product 44.312s`. This verifies the existing checked-source journey fixtures with current contract and review authority. The reviewed-source kind still requires the release owner's joined endpoint and exact handler readback test.
+
 ## Later bounded selector/client checks
 
 At `96971bf8a`, the changed `TestCoordinatorPreviewKindCannotInheritLegacyApproval` command above passed again with exact request kind/configuration/port/Dockerfile assertions. At `d3a7d63c1`, in `desktop/`:
