@@ -51,17 +51,20 @@ type documentImageAssemblyRequest struct {
 	ValidateCurrent func(context.Context) error
 }
 type documentImageAssemblyOutcome struct {
-	Identity         backend.DocumentImageAssemblyIdentity `json:"identity"`
-	Ref              string                                `json:"ref,omitempty"`
-	Stage            string                                `json:"stage"`
-	State            string                                `json:"state"`
-	Capture          backend.DocumentImageAssemblyCapture  `json:"capture,omitzero"`
-	ExitCode         *int                                  `json:"exitCode,omitempty"`
-	OOMKilled        bool                                  `json:"oomKilled"`
-	ReaderSettled    bool                                  `json:"readerSettled"`
-	CleanupConfirmed bool                                  `json:"cleanupConfirmed"`
-	ResourcesHeld    bool                                  `json:"resourcesHeld"`
-	ReasonCode       string                                `json:"reasonCode,omitempty"`
+	Identity                    backend.DocumentImageAssemblyIdentity `json:"identity"`
+	Ref                         string                                `json:"ref,omitempty"`
+	Stage                       string                                `json:"stage"`
+	State                       string                                `json:"state"`
+	Capture                     backend.DocumentImageAssemblyCapture  `json:"capture,omitzero"`
+	ExitCode                    *int                                  `json:"exitCode,omitempty"`
+	OOMKilled                   bool                                  `json:"oomKilled"`
+	ReaderSettled               bool                                  `json:"readerSettled"`
+	CleanupConfirmed            bool                                  `json:"cleanupConfirmed"`
+	ResourcesHeld               bool                                  `json:"resourcesHeld"`
+	WatchdogSettled             bool                                  `json:"watchdogSettled"`
+	WatchdogTriggered           bool                                  `json:"watchdogTriggered"`
+	WatchdogRetirementConfirmed bool                                  `json:"watchdogRetirementConfirmed"`
+	ReasonCode                  string                                `json:"reasonCode,omitempty"`
 }
 
 // Cloud's allocated shared implementation must adapt the existing ledger lock,

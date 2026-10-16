@@ -44,7 +44,7 @@ func validAssemblyRequest(req documentImageAssemblyRequest) bool {
 }
 
 func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImageAssemblyExecutor, h documentImageAssemblyHooks, req documentImageAssemblyRequest) (out documentImageAssemblyOutcome, retErr error) {
-	out = documentImageAssemblyOutcome{Identity: req.Spec.Identity, Stage: "admission", State: "not_started", ReaderSettled: true, CleanupConfirmed: true}
+	out = documentImageAssemblyOutcome{Identity: req.Spec.Identity, Stage: "admission", State: "not_started", ReaderSettled: true, CleanupConfirmed: true, WatchdogSettled: true}
 	if executor == nil || !completeAssemblyHooks(h) || !validAssemblyRequest(req) {
 		return out, backend.ErrUnsupported
 	}
@@ -79,23 +79,68 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 	if err != nil {
 		return out, err
 	}
-	releaseLock := true
+	var watchdog *assemblyStopWatchdog
+	var readerDone chan struct{}
+	var closeDone chan struct{}
 	defer func() {
-		if releaseLock {
-			unlock()
+		// Returning is not proof that the independent stop/reader has settled.
+		cancel()
+		cleanupCtx, stop := context.WithDeadline(context.Background(), req.WholeDeadline)
+		defer stop()
+		watchdog.wait(cleanupCtx, &out)
+		// An unsettled/failed exact retirement has no later positive fact that
+		// could safely release this lock. Process recovery must re-prove it.
+		if !out.CleanupConfirmed {
+			return
 		}
+		settled := func(done <-chan struct{}) bool {
+			if done == nil {
+				return true
+			}
+			select {
+			case <-done:
+				return true
+			default:
+				return false
+			}
+		}
+		if out.WatchdogSettled && settled(readerDone) && settled(closeDone) {
+			unlock()
+			return
+		}
+		// Durable capacity remains held; late settlement releases only the OS
+		// lock, never the lease, publishes success, or permits an automatic retry.
+		go func() {
+			if watchdog != nil {
+				<-watchdog.done
+			}
+			if readerDone != nil {
+				<-readerDone
+			}
+			if closeDone != nil {
+				<-closeDone
+			}
+			unlock()
+		}()
 	}()
 	state := "reserved"
 	transition := func(next, ref string) error {
+		watchdog.beat()
+		if err := compute.Err(); err != nil {
+			return err
+		}
 		if err := h.Transition(compute, out.Identity, state, next, ref); err != nil {
 			return err
 		}
+		if err := compute.Err(); err != nil {
+			return err
+		}
+		watchdog.beat()
 		state = next
 		out.Stage = next
 		return nil
 	}
 	var stream backend.DocumentImageAssemblyStream
-	var readerDone chan struct{}
 	var read assemblyReadResult
 	var sink io.WriteCloser
 	sinkOwned := false
@@ -103,13 +148,25 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 	// Emergency retirement is independent of capture/receipt I/O. A blocked
 	// writer/reader can retain the lock and lease, but cannot defer this stop.
 	cleanup := func(reason string, forceFence bool) error {
+		cancel()
 		out.State = "incomplete_resources_held"
 		out.ReasonCode = reason
 		out.ResourcesHeld = true
 		cleanupCtx, stop := context.WithDeadline(context.Background(), req.WholeDeadline)
 		defer stop()
 		var retireErr error
-		if out.Ref != "" {
+		if watchdog != nil {
+			watchdog.wait(cleanupCtx, &out)
+			if out.WatchdogSettled && !out.WatchdogTriggered {
+				retireErr = executor.RetireDocumentImageAssembly(cleanupCtx, out.Identity, out.Ref)
+				out.CleanupConfirmed = retireErr == nil
+			} else {
+				out.CleanupConfirmed = out.WatchdogSettled && out.WatchdogRetirementConfirmed
+			}
+			if !out.CleanupConfirmed {
+				retireErr = backend.ErrUnavailable
+			}
+		} else if out.Ref != "" {
 			retireErr = executor.RetireDocumentImageAssembly(cleanupCtx, out.Identity, out.Ref)
 			out.CleanupConfirmed = retireErr == nil
 		} else {
@@ -141,7 +198,8 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 		var closed chan error
 		if stream != nil {
 			closed = make(chan error, 1)
-			go func() { closed <- stream.Close() }()
+			closeDone = make(chan struct{})
+			go func() { defer close(closeDone); closed <- stream.Close() }()
 		}
 		if sinkOwned {
 			sinkOwned = false
@@ -160,8 +218,6 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 				out.ReaderSettled = false
 				// No replacement/automatic lease release. Keep the exact OS lock
 				// until the original reader settles or this process dies.
-				releaseLock = false
-				go func() { <-readerDone; unlock() }()
 			}
 		}
 		if closed != nil {
@@ -174,7 +230,11 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 				out.CleanupConfirmed = false
 			}
 		}
-		if out.CleanupConfirmed && out.ReaderSettled {
+		watchdog.observe(&out)
+		if watchdog != nil && (!out.WatchdogSettled || (out.WatchdogTriggered && !out.WatchdogRetirementConfirmed)) {
+			out.CleanupConfirmed = false
+		}
+		if out.CleanupConfirmed && out.ReaderSettled && out.WatchdogSettled {
 			out.State = "failed_owned_resources_retired"
 			if e := h.Publish(cleanupCtx, out); e != nil {
 				return e
@@ -222,6 +282,10 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 	if err != nil || !checkHex(out.Ref, 32) {
 		return fail("create_ack_unknown", backend.ErrUnavailable, true)
 	}
+	// Arm before any further hook and before Start is possible. This lane owns
+	// only the positively acknowledged allocation, independently of foreground I/O.
+	watchdog = startAssemblyStopWatchdog(compute, cancel, executor, out.Identity, out.Ref, req.WholeDeadline)
+	out.WatchdogSettled = false
 	if err = transition("created", out.Ref); err != nil {
 		return fail("created_receipt_unpublished", err, false)
 	}
@@ -237,6 +301,7 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 		read.capture, read.err = stream.Capture(compute, sink)
 		read.closeErr = sink.Close()
 	}()
+	watchdog.beat()
 	if err = assemblyRequestCurrent(compute, h, req, out.Identity); err != nil {
 		return fail("authority_changed", err, false)
 	}
@@ -261,12 +326,17 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
+		watchdog.beat()
 		if err = compute.Err(); err != nil {
 			return fail("compute_interrupted", err, false)
 		}
 		if err = h.Headroom(compute, out.Identity.EngineID, 4<<30); err != nil {
 			return fail("resource_brake", err, false)
 		}
+		if err = compute.Err(); err != nil {
+			return fail("compute_interrupted", err, false)
+		}
+		watchdog.beat()
 		observation, e := executor.InspectDocumentImageAssembly(compute, out.Identity, out.Ref)
 		if e != nil {
 			return fail("observation_unknown", e, false)
@@ -286,6 +356,19 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 			}
 			if read.err != nil || read.closeErr != nil || !checkHex(read.capture.Digest, 32) || read.capture.Bytes < 1 || read.capture.Bytes > backend.DocumentImageAssemblyOutputMaxBytes {
 				return fail("capture_incomplete", backend.ErrUnavailable, false)
+			}
+			// An emergency observation can never become an accepted assembly.
+			if err = compute.Err(); err != nil {
+				return fail("compute_interrupted", err, false)
+			}
+			// Positive exit and settled capture mean no parser is running. Settle
+			// the emergency lane before ordinary publication/retirement/Finish.
+			watchdog.stop()
+			settleCtx, settleCancel := context.WithDeadline(context.Background(), req.WholeDeadline)
+			settled := watchdog.wait(settleCtx, &out)
+			settleCancel()
+			if !settled || out.WatchdogTriggered {
+				return fail("watchdog_interrupted", backend.ErrUnavailable, false)
 			}
 			out.Capture = read.capture
 			out.State = "captured_exit_zero_not_registered"
@@ -334,7 +417,7 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 // Recovery is retire/fence-only. There is no attachment, start, import or retry.
 // A lost process cannot recreate capture; callers must expose it unavailable.
 func recoverDocumentImageAssembly(ctx context.Context, executor backend.DocumentImageAssemblyExecutor, h documentImageAssemblyHooks, lease documentImageAssemblyLease, req backend.DocumentImageAssemblyFenceRequest, proof *backend.DocumentImageAssemblyFenceProof) (documentImageAssemblyOutcome, error) {
-	out := documentImageAssemblyOutcome{Identity: lease.Identity, Ref: lease.Ref, Stage: "recovery", State: "capture_unavailable_resources_held", ResourcesHeld: true, ReaderSettled: true}
+	out := documentImageAssemblyOutcome{Identity: lease.Identity, Ref: lease.Ref, Stage: "recovery", State: "capture_unavailable_resources_held", ResourcesHeld: true, ReaderSettled: true, WatchdogSettled: true}
 	if executor == nil || !completeAssemblyHooks(h) || !validDocumentImageAssemblyLease(lease) || lease.State == "finished" || req.Identity != lease.Identity || req.ExpectedRef != lease.Ref || !checkHex(req.IntentID, 16) {
 		return out, backend.ErrUnsupported
 	}

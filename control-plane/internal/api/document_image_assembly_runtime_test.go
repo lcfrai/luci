@@ -62,6 +62,9 @@ type assemblyRuntimeExecutor struct {
 	retireErr             error
 	observation           string
 	starts                int
+	retiredIdentity       backend.DocumentImageAssemblyIdentity
+	retiredRef            string
+	retireGate            <-chan struct{}
 }
 
 func (f *assemblyRuntimeExecutor) PrepareDocumentImageAssembly(_ context.Context, s backend.DocumentImageAssemblySpec) (backend.PreparedDocumentImageAssembly, error) {
@@ -92,12 +95,16 @@ func (f *assemblyRuntimeExecutor) InspectDocumentImageAssembly(_ context.Context
 	code := 0
 	return backend.DocumentImageAssemblyObservation{Ref: ref, State: state, ExitCode: &code}, nil
 }
-func (f *assemblyRuntimeExecutor) RetireDocumentImageAssembly(context.Context, backend.DocumentImageAssemblyIdentity, string) error {
+func (f *assemblyRuntimeExecutor) RetireDocumentImageAssembly(_ context.Context, identity backend.DocumentImageAssemblyIdentity, ref string) error {
 	f.retireOnce.Do(func() {
+		f.retiredIdentity, f.retiredRef = identity, ref
 		if f.retired != nil {
 			close(f.retired)
 		}
 	})
+	if f.retireGate != nil {
+		<-f.retireGate
+	}
 	return f.retireErr
 }
 func (*assemblyRuntimeExecutor) FenceDocumentImageAssembly(context.Context, backend.DocumentImageAssemblyFenceRequest) (backend.DocumentImageAssemblyFenceProof, error) {
@@ -128,7 +135,7 @@ func assemblyRuntimeFixture(t *testing.T) (documentImageAssemblyRequest, documen
 			return nil
 		},
 		Finish: func(_ context.Context, _ backend.DocumentImageAssemblyIdentity, o documentImageAssemblyOutcome) error {
-			if !o.CleanupConfirmed || !o.ReaderSettled || o.ResourcesHeld {
+			if !o.CleanupConfirmed || !o.ReaderSettled || !o.WatchdogSettled || o.ResourcesHeld {
 				return errors.New("unsafe finish")
 			}
 			*finished++
