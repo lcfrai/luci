@@ -124,6 +124,21 @@ type pdfPilotTestReader struct {
 	endError error
 }
 
+type pdfPilotCancelAtEOFReader struct {
+	source *bytes.Reader
+	cancel context.CancelFunc
+	probes int
+}
+
+func (r *pdfPilotCancelAtEOFReader) Read(p []byte) (int, error) {
+	if r.source.Len() == 0 {
+		r.probes++
+		r.cancel()
+		return 0, io.EOF
+	}
+	return r.source.Read(p)
+}
+
 func (r *pdfPilotTestReader) Read(p []byte) (int, error) {
 	r.calls++
 	if r.onRead != nil {
@@ -252,13 +267,19 @@ func TestPDFPilotPrivateFrameBudgetAndFailureAreSticky(t *testing.T) {
 	}
 	noProgress := &pdfPilotTestReader{limit: 0, data: []byte("x")}
 	raw = &pdfPilotRawReader{ctx: context.Background(), reader: noProgress}
-	if _, err := raw.read(make([]byte, 1)); err == nil || raw.calls != 1 || raw.used != 1 || !raw.failed {
-		t.Fatal("zero-progress call was not charged and refused")
+	if _, err := raw.read(make([]byte, 8)); err == nil || raw.calls != 1 || raw.used != 8 || !raw.failed {
+		t.Fatal("zero-progress call did not retain its full reservation")
+	}
+	if _, err := raw.read(make([]byte, 1)); err == nil || noProgress.calls != 1 {
+		t.Fatal("zero-progress failure permitted subsequent IO")
 	}
 	failed := &pdfPilotTestReader{limit: 1, endError: errors.New("transport error")}
 	raw = &pdfPilotRawReader{ctx: context.Background(), reader: failed}
-	if _, err := raw.read(make([]byte, 1)); err == nil || raw.calls != 1 || raw.used != 1 || !raw.failed {
-		t.Fatal("failed underlying read was not charged and retained")
+	if _, err := raw.read(make([]byte, 8)); err == nil || raw.calls != 1 || raw.used != 8 || !raw.failed {
+		t.Fatal("failed underlying read did not retain its full reservation")
+	}
+	if _, err := raw.read(make([]byte, 1)); err == nil || failed.calls != 1 {
+		t.Fatal("failed transport permitted subsequent IO")
 	}
 }
 
@@ -271,6 +292,12 @@ func TestPDFPilotPrivateFrameEOFAndCancellation(t *testing.T) {
 		t.Fatalf("exact bytes with simultaneous EOF refused: %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	atEOF := &pdfPilotCancelAtEOFReader{source: bytes.NewReader(rawBytes), cancel: cancel}
+	candidate, err := readPDFPilotFrameCandidate(ctx, atEOF, lease, backend.PDFPilotRenderer)
+	if err == nil || candidate.Role != "" || candidate.PDF != nil || atEOF.probes != 1 {
+		t.Fatal("cancellation inside the final EOF probe yielded a candidate or further IO")
+	}
+	ctx, cancel = context.WithCancel(context.Background())
 	cancel()
 	before := &pdfPilotTestReader{data: rawBytes, limit: 1}
 	if _, err := readPDFPilotFrameCandidate(ctx, before, lease, backend.PDFPilotRenderer); err == nil || before.calls != 0 {

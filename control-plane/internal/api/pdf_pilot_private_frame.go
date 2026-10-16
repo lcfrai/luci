@@ -112,7 +112,18 @@ func (r *pdfPilotRawReader) read(p []byte) (int, error) {
 	r.calls++
 	r.used += uint64(len(p))
 	n, err := r.reader.Read(p)
+	// Cancellation may happen inside the final EOF probe (or any other Read).
+	// A returned EOF is never a complete capture if its owning context has
+	// already ended. Keep the full reservation and failure sticky.
+	if r.ctx.Err() != nil {
+		return 0, r.refuse()
+	}
 	if n < 0 || n > len(p) {
+		return 0, r.refuse()
+	}
+	if (err != nil && err != io.EOF) || (n == 0 && err == nil) {
+		// The transport may have consumed an unknown amount before failing.
+		// Retain the complete pre-read reservation on every invalid outcome.
 		return 0, r.refuse()
 	}
 	charge := n
@@ -122,8 +133,6 @@ func (r *pdfPilotRawReader) read(p []byte) (int, error) {
 	r.used -= uint64(len(p) - charge)
 	if err == io.EOF {
 		r.eof = true
-	} else if err != nil || n == 0 {
-		return 0, r.refuse()
 	}
 	return n, err
 }
@@ -278,7 +287,7 @@ func readPDFPilotFrameCandidate(ctx context.Context, source io.Reader, lease pdf
 		}
 	}
 	var end [len(pdfPilotFrameEnd)]byte
-	if logical.exact(end[:]) != nil || !bytes.Equal(end[:], []byte(pdfPilotFrameEnd)) || logical.expectEOF() != nil {
+	if logical.exact(end[:]) != nil || !bytes.Equal(end[:], []byte(pdfPilotFrameEnd)) || logical.expectEOF() != nil || ctx.Err() != nil {
 		return pdfPilotFrameCandidate{}, raw.refuse()
 	}
 	return candidate, nil
