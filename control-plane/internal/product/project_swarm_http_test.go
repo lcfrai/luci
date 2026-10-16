@@ -24,6 +24,9 @@ func swarmHTTPFixtureConfigured(t *testing.T, location string, reviewContract bo
 	return swarmHTTPFixtureConfiguredPolicy(t, location, reviewContract, false, taskOverrides...)
 }
 func swarmHTTPFixtureConfiguredPolicy(t *testing.T, location string, reviewContract, reviewedPolicy bool, taskOverrides ...ProjectTask) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
+	return swarmHTTPFixtureRepairBudget(t, location, reviewContract, reviewedPolicy, nil, taskOverrides...)
+}
+func swarmHTTPFixtureRepairBudget(t *testing.T, location string, reviewContract, reviewedPolicy bool, repairLimit *int, taskOverrides ...ProjectTask) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
 	t.Helper()
 	s, mux, p, req, selected, _ := projectRunHTTPFixture(t)
 	if location == "cloud-microvm" {
@@ -52,7 +55,11 @@ func swarmHTTPFixtureConfiguredPolicy(t *testing.T, location string, reviewContr
 		actor := contextHistoryActorHandler(mux, management.User{ID: "review-owner", Username: "owner", Role: "member"})
 		runHandler = actor
 		if reviewedPolicy {
-			journeyRequest(t, actor, "POST", base+"/orchestrator/policy", map[string]any{"expectedRevision": 0, "mode": "review", "allowedTargets": []string{"plan"}, "executionMode": "reviewed-tasks", "integrationMode": "reviewed-scopes"}, 200)
+			body := map[string]any{"expectedRevision": 0, "mode": "review", "allowedTargets": []string{"plan"}, "executionMode": "reviewed-tasks", "integrationMode": "reviewed-scopes"}
+			if repairLimit != nil {
+				body["automaticRepairLimit"] = *repairLimit
+			}
+			journeyRequest(t, actor, "POST", base+"/orchestrator/policy", body, 200)
 		}
 		prepare := contractRequest(req)
 		endpoint := base + "/orchestration-contracts"

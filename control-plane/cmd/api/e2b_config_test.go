@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend/e2bbe"
+	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/product"
 )
 
 func TestAzureGatewayTrustsOnlySelectedPrivateRoot(t *testing.T) {
@@ -135,5 +137,63 @@ func TestCloudRevocationRetainsOnlyExactOwnedObservationAndCleanupEffects(t *tes
 		if cloudOwnershipOnlyEffect(action) {
 			t.Fatalf("new or unrecognized effect inherited cleanup authority: %s", action)
 		}
+	}
+}
+
+type cloudContractEffectFixture struct {
+	readErr, budgetErr error
+	reads, validations int
+	projectID, runID, operationID string
+}
+
+func (f *cloudContractEffectFixture) GetProjectSwarmRun(projectID, runID string) (product.ProjectRun, error) {
+	f.reads++
+	f.projectID, f.runID = projectID, runID
+	return product.ProjectRun{ID: runID, ProjectID: projectID}, f.readErr
+}
+func (f *cloudContractEffectFixture) ValidateSwarmOperationExecutionContract(projectID string, run product.ProjectRun, operationID string) error {
+	f.validations++
+	f.operationID = operationID
+	if projectID != f.projectID || run.ID != f.runID || run.ProjectID != projectID {
+		return management.ErrExecutionAuthority
+	}
+	return f.budgetErr
+}
+
+func TestCloudControllerActualEffectCallbackRechecksRepairBudgetAndPreservesCleanup(t *testing.T) {
+	request := e2bbe.Request{Identity: e2bbe.Identity{ProjectID: "project-a", RunID: "run-a", AttemptID: "operation-a", OperationID: "child-a"}}
+	reader := &cloudContractEffectFixture{}
+	checks := 0
+	callback := cloudOperationEffectAuthorizer(reader, func(context.Context, e2bbe.Request, string) error {
+		checks++
+		return nil // fake current exact-owner/provider/grant/spend authority
+	})
+	if err := callback(context.Background(), request, "allocate"); err != nil || checks != 1 || reader.reads != 1 || reader.validations != 1 || reader.operationID != request.Identity.AttemptID {
+		t.Fatal("allocation did not bind the exact current product operation", err, checks, reader)
+	}
+	// A policy changes during transfer after the VM already exists. Every
+	// subsequent controller effect consumes the same current product gate.
+	reader.budgetErr = errors.New("current approved budget no longer permits repair")
+	for _, action := range []string{"stage-input", "start", "allocate"} {
+		if err := callback(context.Background(), request, action); !errors.Is(err, management.ErrExecutionAuthority) {
+			t.Fatal("changed budget reached a new controller effect", action, err)
+		}
+	}
+	beforeReads, beforeValidations := reader.reads, reader.validations
+	for _, action := range []string{"cancel", "observe", "guest-transport", "observe-launch", "observe-native-exit", "capture-output", "review-output"} {
+		if err := callback(context.Background(), request, action); err != nil || reader.reads != beforeReads || reader.validations != beforeValidations {
+			t.Fatal("revoked new-work budget blocked exact owned cleanup", action, err)
+		}
+	}
+	denied := cloudOperationEffectAuthorizer(reader, func(context.Context, e2bbe.Request, string) error { return management.ErrExecutionAuthority })
+	if err := denied(context.Background(), request, "cancel"); !errors.Is(err, management.ErrExecutionAuthority) || reader.reads != beforeReads {
+		t.Fatal("cleanup budget exception bypassed current owner authority", err)
+	}
+	reader.budgetErr, reader.readErr = nil, errors.New("current product record unavailable")
+	if err := callback(context.Background(), request, "start"); !errors.Is(err, management.ErrExecutionAuthority) {
+		t.Fatal("missing product record permitted start", err)
+	}
+	if err := callback(context.Background(), request, "unrecognized-effect"); !errors.Is(err, management.ErrExecutionAuthority) {
+		t.Fatal("unknown effect inherited new-work authority", err)
 	}
 }

@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/lcfrai/luci/control-plane/internal/management"
@@ -53,7 +54,30 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 }
 
 func coordinatorTwoRepairReviewJourney(t *testing.T, finalOutcome string) {
-	s, mux, p, run, base, selected := swarmHTTPFixtureConfiguredPolicy(t, "", true, true,
+	coordinatorRepairBudgetJourney(t, finalOutcome, nil)
+}
+
+func TestCoordinatorAutomaticRepairBudgetZeroAndOneActualJourney(t *testing.T) {
+	for _, limit := range []int{0, 1} {
+		for _, outcome := range []string{"passed", "repair-required"} {
+			if limit == 0 && outcome == "passed" {
+				continue
+			}
+			t.Run(map[int]string{0: "zero", 1: "one"}[limit]+"/"+outcome, func(t *testing.T) {
+				coordinatorRepairBudgetJourney(t, outcome, &limit)
+			})
+		}
+	}
+	for _, boundary := range []string{"race-checkpoint", "race-admission"} {
+		t.Run(boundary, func(t *testing.T) {
+			limit := 1
+			coordinatorRepairBudgetJourney(t, boundary, &limit)
+		})
+	}
+}
+
+func coordinatorRepairBudgetJourney(t *testing.T, finalOutcome string, repairLimit *int) {
+	s, mux, p, run, base, selected := swarmHTTPFixtureRepairBudget(t, "", true, true, repairLimit,
 		ProjectTask{ID: "task-a", Title: "Build component", Status: "done", RequirementIDs: []string{"AC-save"}, WritePaths: []string{"alpha.txt"}, Acceptance: "Build component"},
 		ProjectTask{ID: "task-b", Title: "Review component", Status: "todo", Role: "reviewer", ReviewOfTaskID: "task-a", RequirementIDs: []string{"AC-save"}, Acceptance: "Inspect candidate and report checks"},
 		ProjectTask{ID: "task-c", Title: "Use component", Status: "todo", RequirementIDs: []string{"AC-save"}, WritePaths: []string{"gamma.txt"}, DependsOn: []string{"task-a"}},
@@ -111,12 +135,17 @@ func coordinatorTwoRepairReviewJourney(t *testing.T, finalOutcome string) {
 		return management.WithExecutionAuthority(bounded, management.ExecutionAuthority{Actor: management.User{ID: row.Actor.ID, Role: "member"}}), nil
 	}
 	starts, admissions := 0, 0
+	repairAdmissionQueueID := ""
 	admittedIDs := []string{}
 	s.swarmScheduler.runtime = SwarmSchedulerRuntime{
 		CaptureActor: management.CaptureExecutionActor,
 		Admit: func(_ context.Context, req SwarmAdmissionRequest) (SwarmAdmissionResult, error) {
 			admissions++
 			admittedIDs = append(admittedIDs, req.QueueID)
+			if finalOutcome == "race-admission" && repairAdmissionQueueID != "" && req.QueueID == repairAdmissionQueueID {
+				journeyRequest(t, actor, "POST", "/v1/product/projects/"+p.ID+"/orchestrator/policy", map[string]any{"expectedRevision": policy.Revision, "mode": policy.Mode, "allowedTargets": policy.AllowedTargets, "automaticRepairLimit": 0}, 200)
+				repairAdmissionQueueID = ""
+			}
 			return SwarmAdmissionResult{State: "admitted", MemoryMiB: 1024, CPUMillis: 1000}, nil
 		},
 		Release: func(context.Context, string) error { return nil },
@@ -242,12 +271,59 @@ func coordinatorTwoRepairReviewJourney(t *testing.T, finalOutcome string) {
 		}
 		return func() {}, nil
 	})
+	if repairLimit != nil && *repairLimit == 0 {
+		beforeQueue, queueErr := s.ProjectSwarmQueueSnapshot(p.ID)
+		beforeAdmissions := admissions
+		if queueErr != nil {
+			t.Fatal(queueErr)
+		}
+		for i := 0; i < 2; i++ {
+			if advanced, repairErr := s.continueCoordinatorRepair(ctx, p, row); repairErr != nil || advanced {
+				t.Fatal("zero budget dispatched a repair", advanced, repairErr)
+			}
+		}
+		checkpointURL := base + "/operations/" + candidate.ID + "/checkpoint"
+		checkpointReview := checkpointReviewHTTP(t, mux, checkpointURL)
+		journeyRequest(t, actor, "POST", checkpointURL, checkpointBody(checkpointReview, "zero-budget-direct-checkpoint"), 409)
+		journeyRequest(t, actor, "POST", base+"/tasks/task-a/reserve", map[string]any{"expectedRevision": failed.Revision, "idempotencyKey": "zero-budget-relabeled-reserve"}, 409)
+		if scheduleErr := s.RunSwarmSchedulerOnce(ctx); scheduleErr != nil {
+			t.Fatal(scheduleErr)
+		}
+		after, readErr := s.GetProjectSwarmRun(p.ID, run.ID)
+		afterQueue, queueErr := s.ProjectSwarmQueueSnapshot(p.ID)
+		rows, rowErr := s.readContinuations(p, row.Actor.ID)
+		index := findContinuation(rows, row.ID)
+		if readErr != nil || queueErr != nil || rowErr != nil || index < 0 || rows.Rows[index].Message != errAutomaticRepairLimit.Error() || after.Revision != failed.Revision || len(after.Operations) != 2 || len(afterQueue.Items) != len(beforeQueue.Items) || starts != 1 || admissions != beforeAdmissions || swarmRepairsConsumed(after, "task-a") != 0 {
+			t.Fatal("zero budget changed retained work, admitted repair, or hid its finding", readErr, queueErr, rowErr, after, afterQueue, admissions, beforeAdmissions)
+		}
+		view := swarmReviewObligationView(after, after.Swarm.ReviewObligations[0])
+		if view.RepairLimit != 0 || view.RepairsConsumed != 0 || view.State != "repair-required" {
+			t.Fatal("zero budget hid final independent finding", view)
+		}
+		return
+	}
 	if advanced, e := s.continueCoordinatorRepair(ctx, p, row); e != nil || !advanced {
 		t.Fatal("failed independent review did not retain a repair intent", e, advanced)
 	}
 	queueAfterFailure, e := s.ProjectSwarmQueueSnapshot(p.ID)
 	if e != nil || len(queueAfterFailure.Items) != 2 || queueAfterFailure.Items[1].State != "paused" || queueAfterFailure.Items[1].ReasonCode != "repair_checkpoint_pending" || queueAfterFailure.Items[1].OperationID != "" || starts != 1 {
 		t.Fatal("repair intent dispatched before protected checkpoint", queueAfterFailure, starts, e)
+	}
+	if finalOutcome == "race-checkpoint" {
+		checkpointURL := base + "/operations/" + candidate.ID + "/checkpoint"
+		checkpointReview := checkpointReviewHTTP(t, mux, checkpointURL)
+		gated := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gate := coordinatorIndependentReviewGate{Row: row, Kind: "repair-checkpoint", BeforeMutation: func() {
+				journeyRequest(t, actor, "POST", "/v1/product/projects/"+p.ID+"/orchestrator/policy", map[string]any{"expectedRevision": policy.Revision, "mode": policy.Mode, "allowedTargets": policy.AllowedTargets, "automaticRepairLimit": 0}, 200)
+			}}
+			actor.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), coordinatorIndependentReviewContextKey{}, gate)))
+		})
+		journeyRequest(t, gated, "POST", checkpointURL, checkpointBody(checkpointReview, "race-budget-checkpoint-123456"), 409)
+		after, readErr := s.GetProjectSwarmRun(p.ID, run.ID)
+		if readErr != nil || after.Revision != failed.Revision || len(after.Operations) != 2 || starts != 1 || swarmRepairsConsumed(after, "task-a") != 0 {
+			t.Fatal("policy mutation crossed checkpoint CAS/copy", readErr, after, starts)
+		}
+		return
 	}
 	repairControl := "/v1/product/projects/" + p.ID + "/swarm-queue/" + queueAfterFailure.Items[1].ID
 	journeyRequest(t, actor, "POST", repairControl+"/resume", map[string]int{"expectedRevision": queueAfterFailure.Items[1].Revision}, 409)
@@ -272,6 +348,20 @@ func coordinatorTwoRepairReviewJourney(t *testing.T, finalOutcome string) {
 	queueAfterCheckpoint, queueErr := s.ProjectSwarmQueueSnapshot(p.ID)
 	if e != nil || queueErr != nil || len(repaired.Operations) != 3 || len(queueAfterCheckpoint.Items) != 2 || queueAfterCheckpoint.Items[1].State != "reserved" || queueAfterCheckpoint.Items[1].OperationID != repaired.Operations[2].ID || repaired.Swarm.ReviewObligations[0].RepairOperationID != repaired.Operations[2].ID || starts != 1 {
 		t.Fatal("repair checkpoint was not bound to failed finding and scheduler", repaired, queueAfterCheckpoint, e, queueErr)
+	}
+	if finalOutcome == "race-admission" {
+		repairAdmissionQueueID = queueAfterCheckpoint.Items[1].ID
+		for i := 0; i < 3; i++ {
+			if scheduleErr := s.RunSwarmSchedulerOnce(ctx); scheduleErr != nil {
+				t.Fatal(scheduleErr)
+			}
+		}
+		after, readErr := s.GetProjectSwarmRun(p.ID, run.ID)
+		settledQueue, queueErr := s.ProjectSwarmQueueSnapshot(p.ID)
+		if readErr != nil || queueErr != nil || starts != 1 || len(after.Operations) != 3 || after.Operations[2].ChildID != repaired.Operations[2].ChildID || len(settledQueue.Items) != 2 || settledQueue.Items[1].State != "blocked" || settledQueue.Items[1].MemoryMiB != 0 || settledQueue.Items[1].CPUMillis != 0 || swarmRepairsConsumed(after, "task-a") != 1 {
+			t.Fatal("policy changed during admission started repair or refunded identity", readErr, queueErr, after, settledQueue, starts)
+		}
+		return
 	}
 	// Simulate an interrupted response after the run saved its new operation but
 	// before the private scheduler observed it. The same durable key must read
@@ -404,8 +494,12 @@ func coordinatorTwoRepairReviewJourney(t *testing.T, finalOutcome string) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	firstRepairOutcome := "failed"
+	if repairLimit != nil && *repairLimit == 1 && finalOutcome == "passed" {
+		firstRepairOutcome = "passed"
+	}
 	s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(context.Context, TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
-		return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("first changed repair review"), Report: &TaskHandoffReport{Version: 1, Summary: "The first repair still misses a check", ChangedFiles: []string{}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect first repair", Outcome: "failed", Detail: "The edge case remains"}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}}, nil
+		return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("first changed repair review"), Report: &TaskHandoffReport{Version: 1, Summary: "The first repair received an independent check", ChangedFiles: []string{}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect first repair", Outcome: firstRepairOutcome, Detail: "The exact candidate was checked"}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}}, nil
 	})
 	var passedHandoff struct{ Run ProjectRun }
 	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+reviewRetry.ID+"/handoff/collect", map[string]any{"expectedRevision": final.Revision}, 200).Body.Bytes(), &passedHandoff)
@@ -415,6 +509,29 @@ func coordinatorTwoRepairReviewJourney(t *testing.T, finalOutcome string) {
 		}
 	}
 	failedAgain, e := s.GetProjectSwarmRun(p.ID, run.ID)
+	if repairLimit != nil && *repairLimit == 1 {
+		if e != nil || len(failedAgain.Swarm.ReviewObligations) != 2 || failedAgain.Swarm.ReviewObligations[1].State != finalOutcome || swarmRepairsConsumed(failedAgain, "task-a") != 1 || starts != 3 {
+			t.Fatal("one repair did not receive its final independent review", e, failedAgain, starts)
+		}
+		if finalOutcome == "passed" {
+			if integrated, integrationErr := s.continueCoordinatorCandidateIntegration(ctx, p, row); integrationErr != nil || !integrated {
+				t.Fatal("one repaired pass did not enter ordinary reviewed integration", integrated, integrationErr)
+			}
+		} else {
+			checkpointSource = repair
+			if advanced, repairErr := s.continueCoordinatorRepair(ctx, p, row); repairErr != nil || advanced {
+				t.Fatal("one budget allocated a second repair", advanced, repairErr)
+			}
+			checkpointURL := base + "/operations/" + repair.ID + "/checkpoint"
+			checkpointReview := checkpointReviewHTTP(t, mux, checkpointURL)
+			journeyRequest(t, actor, "POST", checkpointURL, checkpointBody(checkpointReview, "one-budget-second-repair-refused"), 409)
+			after, readErr := s.GetProjectSwarmRun(p.ID, run.ID)
+			if readErr != nil || after.Revision != failedAgain.Revision || len(after.Operations) != 4 || starts != 3 {
+				t.Fatal("one budget refusal changed retained work", readErr, after, starts)
+			}
+		}
+		return
+	}
 	if e != nil || len(failedAgain.Swarm.ReviewObligations) != 2 || failedAgain.Swarm.ReviewObligations[1].State != "repair-required" || swarmFailedReviewCount(failedAgain, "task-a") != 2 {
 		t.Fatal("second failed review did not retain both independent findings", e, failedAgain)
 	}

@@ -1,6 +1,18 @@
 {
   "version": 1,
   "basePath": "/v1/product/projects/{projectId}/orchestration-contracts",
+  "automaticRepairBudget": {
+    "policyPath": "/v1/product/projects/{projectId}/orchestrator/policy",
+    "policyField": "automaticRepairLimit: optional integer 0..2; missing legacy value means 2 without normalizing retained JSON",
+    "save": "Omitted or null preserves the current effective limit, including explicit zero. A successful new policy write stores the explicit effective integer. Existing project edit authority and expectedRevision CAS apply.",
+    "contractControl": "input.controls.automaticRepairLimit: every new preparation captures the effective integer in its approved input digest; legacy absent controls remain digest-compatible with effective 2",
+    "scope": "Per coding task in this exact approved run. Initial coding, first independent review and final review of the last allowed repair are excluded. Failed/unknown/cancelled repair reservations remain consumed. No more than the existing hard ceiling of two repairs.",
+    "staleness": "Policy revision/digest or effective limit changes require a freshly prepared approved contract before new work. Old run inputs and approvals remain immutable.",
+    "admission": "Exact finding/checkpoint/repair-operation lineage is checked before reservation and checkout copy, shared resource admission, durable dispatch intent and final native allocation/start. Direct APIs cannot relabel a failed-task retry to bypass this contract.",
+    "recovery": "Exact-key readback, child observation, Stop, cancellation and positive resource retirement remain available after new-work eligibility changes. Uncertain reservations are retained and never replayed or refunded.",
+    "publicAccounting": "Review obligation repairLimit is effective 0..2; repairsConsumed is the number of unique nonempty durable RepairOperationID reservations for that task, bounded by retained obligation limit 200. Findings are separate evidence; the final failed finding remains visible.",
+    "authority": "This control grants no resource, provider, model, deployment or acceptance authority. Zero repairs alone does not prove a total native-child ceiling."
+  },
   "prepare": {
     "method": "POST",
     "path": "/prepare",
@@ -49,7 +61,7 @@
         "outcome": "preview | publish",
         "requirements": "existing RequirementSnapshot[]",
         "tasks": [{"id": "string", "title": "string", "dependsOn": ["string"], "writePaths": ["string"], "acceptance": "string", "requirementIds": ["string"]}],
-        "controls": {"authorityPolicySource": "workspace-private-policy | team-private-policy", "authorityPolicyDigest": "sha256; digest is the version for the legacy unnumbered management policy", "executionLimits": "nonsecret saved budget, memory, CPU, concurrency and cloud/public permission fields", "teamId": "optional team identity", "teamRevision": "integer when scoped to a team", "memberRevision": "integer when scoped to a team", "projectGrantRevision": "integer when scoped to a team", "coordinatorPolicyRevision": "integer", "coordinatorPolicyDigest": "sha256", "schedulerPolicyRevision": "integer", "schedulerPolicyDigest": "sha256", "schedulerPolicy": "saved SwarmSchedulerPolicy"},
+        "controls": {"authorityPolicySource": "workspace-private-policy | team-private-policy", "authorityPolicyDigest": "sha256; digest is the version for the legacy unnumbered management policy", "executionLimits": "nonsecret saved budget, memory, CPU, concurrency and cloud/public permission fields", "teamId": "optional team identity", "teamRevision": "integer when scoped to a team", "memberRevision": "integer when scoped to a team", "projectGrantRevision": "integer when scoped to a team", "coordinatorPolicyRevision": "integer", "coordinatorPolicyDigest": "sha256", "schedulerPolicyRevision": "integer", "schedulerPolicyDigest": "sha256", "schedulerPolicy": "saved SwarmSchedulerPolicy", "automaticRepairLimit": "optional integer 0..2; effective legacy default 2, explicit zero preserved"},
         "standards": {"status": "legacy-unassessed | not-configured | team-library-unassessed | team-library-assessed", "source": "approved-freeform-context | none | team-control-library", "revision": "exact immutable library revision or Design revision", "digest": "exact imported library digest or approved freeform-context digest", "teamId": "optional team identity", "assessmentRevision": "optional exact current assessment revision", "assessmentDigest": "optional exact current assessment digest", "contentDigest": "sha256 of the bounded selected control/assessment fields without document quote text", "requirements": "for a team library, complete bounded imported control IDs, requirement/applicability/evidence fields, assessed statuses/notes and exact retained source references; selected document quotes are untrusted data. No unknown workbook columns, original bytes or credentials. A projection over 64 KiB refuses preparation instead of truncating."},
         "decisionPolicy": {"routine": "saved coordinator policy only", "humanInput": "outside saved authority, contradictory intent, or missing evidence"}
       },

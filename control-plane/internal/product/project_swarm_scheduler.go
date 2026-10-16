@@ -319,6 +319,21 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				}
 				continue
 			}
+			var budgetErr error
+			if item.OperationID != "" {
+				budgetErr = swarmRepairBudgetForOperation(run, item.OperationID)
+			} else if task.Role != "reviewer" && swarmFailedReviewCount(run, task.ID) > 0 {
+				budgetErr = ErrProjectRunConflict // failed work needs its exact repair reservation
+			}
+			if budgetErr != nil {
+				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
+					return releaseErr
+				}
+				if err = s.schedulerSetReason(item.ID, "blocked", "automatic_repair_limit_reached", errAutomaticRepairLimit.Error()); err != nil {
+					return err
+				}
+				continue
+			}
 			if item.OperationID == "" && task.Role == "reviewer" && run.Input.OrchestrationContract != nil {
 				candidateTask := swarmTask(&run, task.ReviewOfTaskID)
 				review, reviewErr := s.swarmReview(ctx, p, run, task.ReviewOfTaskID)
@@ -364,6 +379,17 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 			}
 			if err != nil {
 				return err
+			}
+		}
+		if item.OperationID != "" {
+			if gateErr := s.ValidateSwarmOperationExecutionContract(item.ProjectID, runCache[item.ProjectID+":"+item.RunID], item.OperationID); gateErr != nil {
+				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
+					return releaseErr
+				}
+				if err = s.schedulerSetReason(item.ID, "blocked", "repair_budget_changed", "The exact attempt's approved policy or repair budget changed before resource admission. No new agent started."); err != nil {
+					return err
+				}
+				continue
 			}
 		}
 		admissions++
@@ -537,7 +563,26 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				continue
 			}
 		} else {
-			err = s.schedulerSetReason(item.ID, "dispatching", "dispatching", "Starting the reserved child; an uncertain launch will never be replayed.")
+			// Policy saves serialize with this durable new-effect intent. Avoid
+			// calling a freshness helper that recursively takes s.mu here.
+			s.mu.RLock()
+			gateErr := s.swarmRepairPolicyCurrentLocked(p, run)
+			if gateErr == nil {
+				gateErr = swarmRepairBudgetForOperation(run, op.ID)
+			}
+			if gateErr == nil {
+				err = s.schedulerSetReason(item.ID, "dispatching", "dispatching", "Starting the reserved child; an uncertain launch will never be replayed.")
+			}
+			s.mu.RUnlock()
+			if gateErr != nil {
+				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
+					return releaseErr
+				}
+				if err = s.schedulerSetReason(item.ID, "blocked", "repair_budget_changed", "Current approved policy does not permit this exact repair or attempt. Its retained identity remains available for inspection and cleanup."); err != nil {
+					return err
+				}
+				continue
+			}
 		}
 		if err != nil {
 			return err

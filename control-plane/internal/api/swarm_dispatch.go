@@ -317,7 +317,7 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		if !product.OrchestrationAuthorityMatches(run, current) {
 			return admissionFailure("execution_contract_authority_changed", errors.New("The current team grant or execution policy differs from this reviewed contract."))
 		}
-		if err := a.deps.Product.ValidateRunExecutionContract(req.ProjectID, run); err != nil {
+		if err := a.deps.Product.ValidateSwarmOperationExecutionContract(req.ProjectID, run, op.ID); err != nil {
 			return admissionFailure("execution_contract_changed", err)
 		}
 		resources := a.sessionResources(ctx)

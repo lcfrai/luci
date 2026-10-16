@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -31,9 +32,6 @@ func (s *Server) continueCoordinatorRepair(ctx context.Context, p project.Projec
 		if obligation.State != "repair-required" {
 			continue
 		}
-		if swarmFailedReviewCount(run, obligation.TaskID) > maxSwarmReviewRepairs {
-			continue // A third failed review needs a new human-reviewed plan, not a third automatic repair.
-		}
 		task := swarmTask(&run, obligation.TaskID)
 		source := swarmOperation(&run, obligation.CandidateOperationID)
 		if task == nil || source == nil || source.ChildID != obligation.CandidateChildID || source.TaskID != task.ID {
@@ -58,6 +56,12 @@ func (s *Server) continueCoordinatorRepair(ctx context.Context, p project.Projec
 		}
 		if obligation.RepairOperationID != "" || task.OperationID != source.ID || eligibleSwarmCheckpoint(run, source) != nil {
 			continue
+		}
+		if budgetErr := swarmRepairBudgetForCheckpoint(run, source.ID); budgetErr != nil {
+			if errors.Is(budgetErr, errAutomaticRepairLimit) {
+				return s.coordinatorRepairBudgetAttention(p, row)
+			}
+			return false, budgetErr
 		}
 		if s.projectSwarmCheckpointAuthorize == nil || s.projectSwarmCheckpointGuard == nil {
 			continue
@@ -87,6 +91,16 @@ func (s *Server) continueCoordinatorRepair(ctx context.Context, p project.Projec
 			s.projectRunDispatchMu.Unlock()
 			return false, latestErr
 		}
+		s.mu.RLock()
+		budgetErr := s.swarmRepairPolicyCurrentLocked(p, latest)
+		if budgetErr == nil {
+			budgetErr = swarmRepairBudgetForCheckpoint(latest, source.ID)
+		}
+		if budgetErr != nil {
+			s.mu.RUnlock()
+			s.projectRunDispatchMu.Unlock()
+			return false, nil
+		}
 		s.swarmScheduler.mu.Lock()
 		ledger, ledgerErr := s.readSwarmScheduler()
 		if ledgerErr == nil && len(ledger.Items) >= swarmQueueLimit {
@@ -113,6 +127,7 @@ func (s *Server) continueCoordinatorRepair(ctx context.Context, p project.Projec
 			ledgerErr = s.saveSwarmScheduler(&ledger)
 		}
 		s.swarmScheduler.mu.Unlock()
+		s.mu.RUnlock()
 		s.projectRunDispatchMu.Unlock()
 		if ledgerErr != nil {
 			if ledgerErr == ErrProjectRunConflict {
@@ -179,6 +194,12 @@ func (s *Server) continueCoordinatorRepairIntent(ctx context.Context, p project.
 		return false, err
 	}
 	if !found {
+		if budgetErr := swarmRepairBudgetForCheckpoint(run, source.ID); budgetErr != nil {
+			return false, s.updateCoordinatorRepairIntent(item.ID, func(current *swarmQueueRecord) error {
+				schedulerReason(current, "blocked", "automatic_repair_limit_reached", errAutomaticRepairLimit.Error())
+				return nil
+			})
+		}
 		if !s.coordinatorIndependentReviewCurrent(ctx, p, row) {
 			return false, nil
 		}
@@ -243,4 +264,30 @@ func (s *Server) continueCoordinatorRepairIntent(ctx context.Context, p project.
 	}
 	s.WakeSwarmScheduler()
 	return true, nil
+}
+
+// A zero/exhausted budget is an observable decision on the existing retained
+// continuation, not a fresh queue entry or a silently repeated scheduling turn.
+func (s *Server) coordinatorRepairBudgetAttention(p project.Project, row coordinatorContinuationRecord) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	rows, err := s.readContinuations(p, row.Actor.ID)
+	if err != nil {
+		return false, err
+	}
+	index := findContinuation(rows, row.ID)
+	if index < 0 {
+		return false, ErrProjectRunNotFound
+	}
+	current := &rows.Rows[index]
+	if current.Revision != row.Revision || current.RunID != row.RunID || current.PolicyRevision != row.PolicyRevision || current.Status != "queued" {
+		return false, nil
+	}
+	if current.Message == errAutomaticRepairLimit.Error() {
+		return false, nil
+	}
+	current.Message = errAutomaticRepairLimit.Error()
+	current.Revision++
+	current.UpdatedAt = s.schedulerNow().Format(time.RFC3339Nano)
+	return false, s.saveContinuations(rows) // attention is not a newly dispatched effect
 }

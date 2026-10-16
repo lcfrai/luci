@@ -81,15 +81,11 @@ type ProjectSwarmReviewObligationView struct {
 }
 
 func swarmReviewObligationView(run ProjectRun, item ProjectSwarmReviewObligation) ProjectSwarmReviewObligationView {
-	consumed := 0
-	if run.Swarm != nil {
-		for _, prior := range run.Swarm.ReviewObligations {
-			if prior.TaskID == item.TaskID && prior.State == "repair-required" {
-				consumed++
-			}
-		}
+	limit, err := swarmAutomaticRepairLimit(run)
+	if err != nil {
+		limit = 0 // corrupt policy never projects extra repair permission
 	}
-	return ProjectSwarmReviewObligationView{ProjectSwarmReviewObligation: item, RepairLimit: maxSwarmReviewRepairs, RepairsConsumed: consumed}
+	return ProjectSwarmReviewObligationView{ProjectSwarmReviewObligation: item, RepairLimit: limit, RepairsConsumed: swarmRepairsConsumed(run, item.TaskID)}
 }
 
 func swarmReviewObligationViews(run ProjectRun) []ProjectSwarmReviewObligationView {

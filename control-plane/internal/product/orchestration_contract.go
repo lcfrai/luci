@@ -48,6 +48,7 @@ type OrchestrationControls struct {
 	SchedulerPolicyRevision   int                          `json:"schedulerPolicyRevision"`
 	SchedulerPolicyDigest     string                       `json:"schedulerPolicyDigest"`
 	SchedulerPolicy           SwarmSchedulerPolicy         `json:"schedulerPolicy"`
+	AutomaticRepairLimit      *int                         `json:"automaticRepairLimit,omitempty"`
 }
 
 // Nonsecret numeric and boolean limits are displayed; the full private
@@ -163,6 +164,9 @@ func (s *Server) readOrchestrationContracts(p project.Project) (string, orchestr
 	ids, keys := map[string]bool{}, map[string]bool{}
 	for _, record := range saved.Records {
 		c := record.Contract
+		if _, budgetErr := effectiveAutomaticRepairLimit(c.Input.Controls.AutomaticRepairLimit); budgetErr != nil {
+			return "", expected, ErrProjectRunInvalid
+		}
 		if c.ProjectID != p.ID || c.ID == "" || c.Digest != reviewDigest(c.Input) || c.Revision < 1 || c.Revision > 2 || c.State != "prepared" && c.State != "approved" || ids[c.ID] || keys[record.KeyDigest+":"+c.Actor.ID] || len(record.KeyDigest) != 64 || len(record.RequestDigest) != 64 || c.Actor.ID == "" {
 			return "", expected, ErrProjectRunInvalid
 		}
@@ -233,7 +237,11 @@ func (s *Server) orchestrationSavedControls(p project.Project) (OrchestrationCon
 	if err != nil {
 		return OrchestrationControls{}, err
 	}
-	return OrchestrationControls{CoordinatorPolicyRevision: policy.Revision, CoordinatorPolicyDigest: reviewDigest(policy), SchedulerPolicyRevision: scheduler.PolicyRevision, SchedulerPolicyDigest: reviewDigest(scheduler.Policy), SchedulerPolicy: scheduler.Policy}, nil
+	repairLimit, err := effectiveAutomaticRepairLimit(policy.AutomaticRepairLimit)
+	if err != nil {
+		return OrchestrationControls{}, err
+	}
+	return OrchestrationControls{CoordinatorPolicyRevision: policy.Revision, CoordinatorPolicyDigest: reviewDigest(policy), SchedulerPolicyRevision: scheduler.PolicyRevision, SchedulerPolicyDigest: reviewDigest(scheduler.Policy), SchedulerPolicy: scheduler.Policy, AutomaticRepairLimit: &repairLimit}, nil
 }
 
 func (s *Server) orchestrationControls(ctx context.Context, p project.Project) (OrchestrationControls, error) {
@@ -395,6 +403,13 @@ func (s *Server) orchestrationFreshness(p project.Project, c OrchestrationContra
 	if err == nil {
 		var controls OrchestrationControls
 		controls, err = s.orchestrationSavedControls(p)
+		if err == nil {
+			savedLimit, limitErr := effectiveAutomaticRepairLimit(c.Input.Controls.AutomaticRepairLimit)
+			currentLimit, currentErr := effectiveAutomaticRepairLimit(controls.AutomaticRepairLimit)
+			if limitErr != nil || currentErr != nil || savedLimit != currentLimit {
+				err = ErrProjectRunConflict
+			}
+		}
 		if err == nil && (controls.CoordinatorPolicyRevision != c.Input.Controls.CoordinatorPolicyRevision || controls.CoordinatorPolicyDigest != c.Input.Controls.CoordinatorPolicyDigest || controls.SchedulerPolicyRevision != c.Input.Controls.SchedulerPolicyRevision || controls.SchedulerPolicyDigest != c.Input.Controls.SchedulerPolicyDigest || controls.SchedulerPolicy != c.Input.Controls.SchedulerPolicy) {
 			err = ErrProjectRunConflict
 		}
@@ -579,6 +594,7 @@ func appendRunExecutionContract(capture *ReviewedContextCapture, run ProjectRun,
 			SchedulerPolicyRevision   int                          `json:"schedulerPolicyRevision"`
 			SchedulerPolicyDigest     string                       `json:"schedulerPolicyDigest"`
 			SchedulerPolicy           SwarmSchedulerPolicy         `json:"schedulerPolicy"`
+			AutomaticRepairLimit      *int                         `json:"automaticRepairLimit,omitempty"`
 		} `json:"controls"`
 		Standards      OrchestrationStandards      `json:"standards"`
 		DecisionPolicy OrchestrationDecisionPolicy `json:"decisionPolicy"`
@@ -590,6 +606,7 @@ func appendRunExecutionContract(capture *ReviewedContextCapture, run ProjectRun,
 	brief.Controls.SchedulerPolicyRevision = c.Input.Controls.SchedulerPolicyRevision
 	brief.Controls.SchedulerPolicyDigest = c.Input.Controls.SchedulerPolicyDigest
 	brief.Controls.SchedulerPolicy = c.Input.Controls.SchedulerPolicy
+	brief.Controls.AutomaticRepairLimit = c.Input.Controls.AutomaticRepairLimit
 	data, err := json.MarshalIndent(brief, "", "  ")
 	if err != nil || len(data) > 512<<10 {
 		return errors.New("The reviewed execution contract is too large for this agent context. Split the selected work into smaller reviewed tasks.")
