@@ -36,6 +36,7 @@ type DocumentImageAssembler struct {
 	handshakes    sync.Map // exact CID -> owned native connections, including failed handoff.
 	guards        sync.Map // immutable source read handles held until positive retirement/fence.
 	sourceMu      sync.Mutex
+	sourceClaim   *assemblySourceClaim // pre-Prepare owner, never reconstructed from history.
 }
 
 var _ backend.DocumentImageAssemblyExecutor = (*DocumentImageAssembler)(nil)
@@ -291,7 +292,7 @@ func walkAssemblySources(ctx context.Context, root string, visit fs.WalkDirFunc)
 func (b *DocumentImageAssembler) PrepareDocumentImageAssembly(ctx context.Context, spec backend.DocumentImageAssemblySpec) (backend.PreparedDocumentImageAssembly, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	if !assemblySourceGuardSupported() || !b.pinnedSpec(spec) || !verifyAssemblyInputs(ctx, spec) {
+	if !assemblySourceGuardSupported() || !b.pinnedSpec(spec) || b.checkAssemblyInputs(ctx, spec) != nil || !verifyAssemblyInputs(ctx, spec) {
 		return backend.PreparedDocumentImageAssembly{}, backend.ErrUnsupported
 	}
 	if _, ok := b.api.(documentAttachSource); !ok {
@@ -335,6 +336,9 @@ func (b *DocumentImageAssembler) PrepareDocumentImageAssembly(ctx context.Contex
 		return backend.PreparedDocumentImageAssembly{}, backend.ErrResourceLimitsUnsupported
 	}
 	spec.Identity.EngineID, spec.Identity.InstanceID = identity.EngineID, identity.InstanceID
+	if err := b.bindAssemblyInputs(ctx, spec); err != nil {
+		return backend.PreparedDocumentImageAssembly{}, err
+	}
 	return backend.PreparedDocumentImageAssembly{Spec: spec, BaseVirtualSizeBytes: uint64(image.Size), StorageDriver: info.Driver}, nil
 }
 func (b *DocumentImageAssembler) CreateDocumentImageAssembly(ctx context.Context, prepared backend.PreparedDocumentImageAssembly) (string, error) {
@@ -347,33 +351,17 @@ func (b *DocumentImageAssembler) CreateDocumentImageAssembly(ctx context.Context
 	}
 	b.sourceMu.Lock()
 	defer b.sourceMu.Unlock()
-	if _, exists := b.guards.Load(prepared.Spec.Identity); exists {
+	claim := b.sourceClaim
+	if claim == nil || claim.closed || claim.createAttempted || claim.identity != prepared.Spec.Identity || claim.guard.CheckCurrent(ctx) != nil {
 		return "", backend.ErrUnavailable
 	}
-	// A readonly bind does not prevent the host from changing executable bytes.
-	// Deny host write/delete through positively owned Windows handles before the
-	// final verification, retaining them through uncertain Create/Start outcomes.
-	guard, err := lockAssemblySources(ctx, prepared.Spec)
-	if guard != nil {
-		// The lifecycle's exact allocation lock forbids a concurrent duplicate.
-		// Keep a failed partial guard reachable until every close is acknowledged.
-		b.guards.Store(prepared.Spec.Identity, guard)
-	}
-	if err != nil {
-		if guard != nil {
-			_ = b.releaseAssemblySources(prepared.Spec.Identity)
-		}
-		return "", err
-	}
 	if !verifyAssemblyInputs(ctx, prepared.Spec) {
-		if b.releaseAssemblySources(prepared.Spec.Identity) != nil {
-			return "", backend.ErrUnavailable
-		}
 		return "", backend.ErrUnsupported
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	config, host := assemblyConfiguration(prepared)
+	claim.createAttempted = true // Set BEFORE the client can lose a Create ACK.
 	created, err := b.api.ContainerCreate(ctx, config, host, nil, nil, assemblyName(prepared.Spec.Identity))
 	if err != nil || ctx.Err() != nil || !fenceHex(created.ID, 32) {
 		return "", backend.ErrUnavailable
@@ -416,10 +404,15 @@ func (b *DocumentImageAssembler) releaseAssemblySources(identity backend.Documen
 		return streamErr
 	}
 	if value, ok := b.guards.Load(identity); ok {
+		b.sourceMu.Lock()
+		defer b.sourceMu.Unlock()
 		if value.(*assemblySourceGuard).Close() != nil {
 			return backend.ErrUnavailable
 		}
 		b.guards.CompareAndDelete(identity, value)
+		if claim := b.sourceClaim; claim != nil && claim.identity == identity && claim.guard == value {
+			claim.closed = true
+		}
 	}
 	return nil
 }
