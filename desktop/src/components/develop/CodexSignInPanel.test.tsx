@@ -6,6 +6,7 @@ import { CODEX_DEVICE_URL } from "../../api/codexDeviceSignIn";
 import type { ProductClient } from "../../api/product";
 import { aSession } from "../../test/fixtures";
 import { resetCockpit, useCockpit } from "../../store/store";
+import { ApiError } from "../../api/client";
 
 const mocks = vi.hoisted(() => ({ kill: vi.fn(), challenge: { code: "AB12-C345D", url: "https://auth.openai.com/codex/device", observedAt: Date.now() }, phase: "attached" }));
 vi.mock("../../api", () => ({ api: { killSession: mocks.kill } }));
@@ -79,4 +80,14 @@ it("withholds controls when account authority is unavailable", () => {
   expect((screen.getByRole("button", { name: "Save Codex sign-in" }) as HTMLButtonElement).disabled).toBe(true);
   expect((screen.getByRole("button", { name: "Start new device sign-in" }) as HTMLButtonElement).disabled).toBe(true);
   expect(screen.queryByRole("button", { name: "Copy code" })).toBeNull();
+});
+
+it("keeps a timed-out Save unconfirmed without allocating another sign-in", async () => {
+  const user = userEvent.setup(); const { save, start } = setup(true);
+  save.mockRejectedValue(new ApiError("timeout", "request timed out", 0));
+  await user.click(screen.getByRole("button", { name: "Save Codex sign-in" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("Saving this sign-in is unconfirmed");
+  expect(screen.queryByText(/Codex sign-in saved for this Luci workspace/)).toBeNull();
+  expect(start).not.toHaveBeenCalled();
+  expect(useCockpit.getState().sessions.auth).toBeDefined();
 });

@@ -108,6 +108,10 @@ func (a *API) handleCodexAccount(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer sessionRestarts.release(s.ID)
+		if s.Status != registry.StatusExited {
+			codexAccountProblem(w, errCodexSignInPending)
+			return
+		}
 		if err := a.codexStopped(r.Context(), s); err != nil {
 			codexAccountProblem(w, err)
 			return
@@ -120,16 +124,20 @@ func (a *API) handleCodexAccount(w http.ResponseWriter, r *http.Request) {
 		}
 		auth, err := a.codexSessionAuth(s)
 		if err != nil {
-			codexAccountProblem(w, err)
+			if errors.Is(err, os.ErrNotExist) || errors.Is(err, errCodexAuthIncomplete) {
+				codexAccountProblem(w, errCodexSignInIncomplete)
+			} else {
+				codexAccountProblem(w, errCodexSignInUnreadable)
+			}
 			return
 		}
 		c = &codexConnection{ID: ids.UUID(), SourceSessionID: s.ID, ActiveSessionID: s.ID, Auth: auth}
 		if err := a.writeCodexConnection(c); err != nil {
-			codexAccountProblem(w, err)
+			codexAccountProblem(w, errCodexSaveFailed)
 			return
 		}
 		if _, err = a.deps.Store.Update(s.ID, func(s *registry.Session) error { s.CodexConnectionID = c.ID; return nil }); err != nil {
-			codexAccountProblem(w, err)
+			codexAccountProblem(w, errCodexSaveFailed)
 			return
 		}
 		httpx.WriteJSON(w, 200, a.codexAccountStatus(c))
@@ -138,9 +146,26 @@ func (a *API) handleCodexAccount(w http.ResponseWriter, r *http.Request) {
 
 var errCodexBusy = errors.New("codex account has an active session")
 var errCodexDisconnected = errors.New("codex account was disconnected or replaced")
+var errCodexAuthIncomplete = errors.New("no complete ChatGPT device credential recorded")
+var errCodexSignInIncomplete = errors.New("selected codex device sign-in is incomplete")
+var errCodexSignInPending = errors.New("codex sign-in has not stopped")
+var errCodexSignInUnreadable = errors.New("codex sign-in state cannot be read safely")
+var errCodexSaveFailed = errors.New("codex account save was not confirmed")
 
 func codexAccountProblem(w http.ResponseWriter, err error) {
-	code, message := "codex_account_unavailable", "The private ChatGPT sign-in could not be read or saved safely. Complete a new device sign-in in Luci."
+	status := http.StatusConflict
+	code, message := "codex_account_unavailable", "Luci could not access the saved Codex connection safely. Keep the sign-in session and refresh the connection when the workspace service and private storage are available."
+	switch {
+	case errors.Is(err, errCodexSignInIncomplete):
+		code, message = "codex_sign_in_incomplete", "Codex has not recorded a complete device sign-in in this session. Account login alone does not approve the one-time Codex code. If the device sign-in was interrupted or failed, explicitly start a new device sign-in."
+	case errors.Is(err, errCodexSignInPending):
+		code, message = "codex_sign_in_pending", "This Codex sign-in session has not stopped. Finish the device sign-in, then stop the session before saving it."
+	case errors.Is(err, errCodexSignInUnreadable):
+		code, message = "codex_sign_in_state_unavailable", "Luci could not read this session's private Codex sign-in safely. Keep the session and check private storage availability before trying Save again; a new device sign-in is not yet indicated."
+	case errors.Is(err, errCodexSaveFailed):
+		status = http.StatusInternalServerError
+		code, message = "codex_account_save_failed", "Luci could not confirm that saving the Codex connection finished. Keep the sign-in session and refresh the connection before trying Save again."
+	}
 	if errors.Is(err, errCodexBusy) {
 		code, message = "codex_account_busy", "Stop the active Codex subscription session before starting another or saving a different sign-in."
 	}
@@ -148,7 +173,7 @@ func codexAccountProblem(w http.ResponseWriter, err error) {
 		code, message = "codex_account_required", "This session's saved ChatGPT connection was disconnected or replaced. Save a sign-in and start a new session; no API key was substituted."
 	}
 	// Deliberately never include upstream JSON, paths or credential parse errors.
-	httpx.WriteProblem(w, 409, code, message, nil)
+	httpx.WriteProblem(w, status, code, message, nil)
 }
 
 func (a *API) codexConnectionPath() string {
@@ -216,8 +241,11 @@ func validateCodexAuth(auth []byte) error {
 			Refresh string `json:"refresh_token"`
 		} `json:"tokens"`
 	}
-	if len(auth) > codexAuthLimit || json.Unmarshal(auth, &parsed) != nil || (parsed.AuthMode != "" && parsed.AuthMode != "chatgpt") || (parsed.APIKey != nil && *parsed.APIKey != "") || parsed.Tokens.Access == "" || parsed.Tokens.Refresh == "" {
-		return errors.New("no complete ChatGPT credential in native sign-in state")
+	if len(auth) > codexAuthLimit || json.Unmarshal(auth, &parsed) != nil {
+		return errors.New("invalid private sign-in state")
+	}
+	if (parsed.AuthMode != "" && parsed.AuthMode != "chatgpt") || (parsed.APIKey != nil && *parsed.APIKey != "") || parsed.Tokens.Access == "" || parsed.Tokens.Refresh == "" {
+		return errCodexAuthIncomplete
 	}
 	return nil
 }
