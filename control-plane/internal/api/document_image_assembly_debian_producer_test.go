@@ -3,6 +3,7 @@ package api
 import(
  "context"
  "encoding/json"
+ "os"
  "path/filepath"
  "sort"
  "strings"
@@ -49,13 +50,20 @@ func TestDebianProducerCallerBoundaryRejectsDiagnosticConfigAndReceipt(t *testin
 }
 func TestDebianProducerCatalogSourceBindsCanonicalCurrentSelection(t *testing.T){
  _,_,source,_,_:=assemblyCatalogFixture(t,filepath.Join(t.TempDir(),"unused"))
+ source.DependencyLockDigest,source.InputManifestDigest=assemblyDebianLockSHA,assemblyDebianManifestSHA
  raw,_:=json.Marshal(source);file:=runtimeinstall.DebianInputProofFile{Role:"catalog-source-descriptor",Bytes:int64(len(raw)),SHA256:assemblyCatalogDigest(raw)}
  snap:=assemblyInputCatalogSnapshot{Source:source,State:assemblyInputCatalogState{SourceDescriptor:assemblyCatalogRef{1,"source-descriptor",file.SHA256,file.Bytes},Policy:assemblyCatalogPolicy{Revision:"fixture",Digest:assemblyDebianPolicySourceSHA}}}
  if e:=checkDebianProducerSourceDescriptor(raw,file,snap);e!=nil{t.Fatal(e)}
  stale:=snap;stale.Source.SourceDigest=strings.Repeat("7",64);if checkDebianProducerSourceDescriptor(raw,file,stale)==nil{t.Fatal("different current source accepted")}
  stale=snap;stale.State.SourceDescriptor.Digest=strings.Repeat("8",64);if checkDebianProducerSourceDescriptor(raw,file,stale)==nil{t.Fatal("different selected descriptor accepted")}
+ for _,field:=range []string{"lock","manifest"}{bad:=source;if field=="lock"{bad.DependencyLockDigest=strings.Repeat("9",64)}else{bad.InputManifestDigest=strings.Repeat("9",64)};badRaw,_:=json.Marshal(bad);badFile:=file;badFile.Bytes,badFile.SHA256=int64(len(badRaw)),assemblyCatalogDigest(badRaw);badSnap:=snap;badSnap.Source=bad;badSnap.State.SourceDescriptor.Digest,badSnap.State.SourceDescriptor.Bytes=badFile.SHA256,badFile.Bytes;if checkDebianProducerSourceDescriptor(badRaw,badFile,badSnap)==nil{t.Fatal("self-consistent descriptor substituted finite "+field)}}
  noncanonical:=append(append([]byte{},raw...), '\n');file.Bytes=int64(len(noncanonical));file.SHA256=assemblyCatalogDigest(noncanonical);snap.State.SourceDescriptor.Digest,snap.State.SourceDescriptor.Bytes=file.SHA256,file.Bytes
  if checkDebianProducerSourceDescriptor(noncanonical,file,snap)==nil{t.Fatal("noncanonical source accepted with its own hash")}
+}
+func TestDebianProductNormativeRawRejectsHashShapedSelectedSubstitutions(t *testing.T){
+ raw:=map[string][]byte{};for _,role:=range []string{"dependency-lock","acquisition-manifest","snapshot-source"}{data,e:=os.ReadFile(filepath.Join("testdata","document-assembly-debian","capture-v4",role+".fixture"));if e!=nil{t.Fatal(e)};raw[role]=data}
+ if e:=checkDebianProductNormativeRaw(raw);e!=nil{t.Fatal(e)}
+ for _,role:=range []string{"dependency-lock","acquisition-manifest","snapshot-source"}{bad:=map[string][]byte{};for key,value:=range raw{bad[key]=value};bad[role]=[]byte("synthetic selected bytes with a valid SHA shape");if checkDebianProductNormativeRaw(bad)==nil{t.Fatal("selected ref replaced normative original "+role)}}
 }
 func TestDebianProducerNativeClaimPersistsInBothViewsAndWorkerAdmission(t *testing.T){
  g:=executionTestGate(t,filepath.Join(t.TempDir(),"shared"));row:=nativeLeaseFixture();row.Scope=g.scope

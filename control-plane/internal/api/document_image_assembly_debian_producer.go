@@ -217,7 +217,7 @@ func debianProductProfilePins(p runtimeinstall.BundledDebianInputProofProfile,fi
 }
 func checkDebianProducerSourceDescriptor(data []byte,file runtimeinstall.DebianInputProofFile,snap assemblyInputCatalogSnapshot)error{
  var source assemblyCatalogSource
- if file.Role!="catalog-source-descriptor"||assemblyCatalogDigest(data)!=file.SHA256||int64(len(data))!=file.Bytes||decodeAssemblyCatalog(data,assemblyCatalogRecordLimit,&source)!=nil||!validAssemblyCatalogSource(source)||source!=snap.Source||snap.State.SourceDescriptor.Digest!=file.SHA256||snap.State.SourceDescriptor.Bytes!=file.Bytes||snap.State.Policy.Digest!=assemblyDebianPolicySourceSHA{return errAssemblyCatalogConflict};return nil
+ if file.Role!="catalog-source-descriptor"||assemblyCatalogDigest(data)!=file.SHA256||int64(len(data))!=file.Bytes||decodeAssemblyCatalog(data,assemblyCatalogRecordLimit,&source)!=nil||!validAssemblyCatalogSource(source)||source.DependencyLockDigest!=assemblyDebianLockSHA||source.InputManifestDigest!=assemblyDebianManifestSHA||source!=snap.Source||snap.State.SourceDescriptor.Digest!=file.SHA256||snap.State.SourceDescriptor.Bytes!=file.Bytes||snap.State.Policy.Digest!=assemblyDebianPolicySourceSHA{return errAssemblyCatalogConflict};return nil
 }
 func debianProducerCommands(p *debianProducerPlan)(commands [10][]string){
  home:=filepath.Join(p.directory,"home");gpg,gpgv:=p.paths["gpg"],p.paths["gpgv"]

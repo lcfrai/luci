@@ -66,6 +66,7 @@ func captureDebianProductRun(ctx context.Context,run *assemblyDebianOwnedRun)(*a
  run.mu.Lock();if run.phase!="settled"{run.mu.Unlock();return nil,errAssemblyDebianCapture};run.phase="capturing";run.mu.Unlock()
  raw:=map[string][]byte{};total:=int64(0)
  for role,ref:=range run.objects{reader:=run.guard;if assemblyDebianInputSlot(role)||role=="catalog-source-descriptor"{reader=run.inputGuard};maximum:=ref.Bytes;if maximum==0{maximum=1};data,e:=reader.ReadBounded(ctx,role,maximum);if e!=nil||int64(len(data))!=ref.Bytes||assemblyCatalogDigest(data)!=ref.SHA256{return nil,errAssemblyDebianCapture};total+=ref.Bytes;if total>4<<20{return nil,errAssemblyDebianCapture};raw[role]=data}
+ if checkDebianProductNormativeRaw(raw)!=nil||run.source.DependencyLockDigest!=assemblyDebianLockSHA||run.source.InputManifestDigest!=assemblyDebianManifestSHA{return nil,errAssemblyDebianCapture}
  var receipt debianProductOwnerReceipt;var output assemblyDebianRawOutput
  if decodeAssemblyDebianRaw(raw["native-owner-receipt"],&receipt)!=nil||receipt.Schema!=runtimeinstall.DebianInputProofProtocol||receipt.Identity!=completion.identity||receipt.Profile.SHA256!=completion.profileSHA||len(receipt.Children)!=10||assemblyCatalogDigest(raw["native-owner-receipt"])!=completion.receiptSHA||decodeAssemblyDebianRaw(raw["producer-output"],&output)!=nil{return nil,errAssemblyDebianCapture}
  // One Go owner receipt remains one receipt. It cannot supply two external
@@ -80,3 +81,7 @@ func captureDebianProductRun(ctx context.Context,run *assemblyDebianOwnedRun)(*a
  if run.current(ctx)!=nil{return nil,errAssemblyDebianCapture};run.mu.Lock();defer run.mu.Unlock();if run.phase!="capturing"{return nil,errAssemblyDebianCapture};run.phase="captured";return &assemblyDebianCapturedRun{run:run,raw:raw,inner:inner,output:output},nil
 }
 func liveDebianProducerActor(runID string)management.ExecutionActorRef{v,ok:=liveDebianProducerRuns.Load(runID);if !ok{return management.ExecutionActorRef{}};r:=v.(*debianProducerLiveRun);r.mu.Lock();defer r.mu.Unlock();return r.actor}
+func checkDebianProductNormativeRaw(raw map[string][]byte)error{
+ snapshot:=expectedAssemblyDebianHistoricalAnchor().SnapshotSourceRef
+ if assemblyCatalogDigest(raw["dependency-lock"])!=assemblyDebianLockSHA||assemblyCatalogDigest(raw["acquisition-manifest"])!=assemblyDebianManifestSHA||int64(len(raw["snapshot-source"]))!=snapshot.Bytes||assemblyCatalogDigest(raw["snapshot-source"])!=snapshot.SHA256{return errAssemblyDebianCapture};return nil
+}
