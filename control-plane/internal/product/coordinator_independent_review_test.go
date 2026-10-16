@@ -47,6 +47,12 @@ func TestCoordinatorReviewMutationGateRejectsPolicyChangeForEveryEffect(t *testi
 }
 
 func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *testing.T) {
+	for _, finalOutcome := range []string{"passed", "repair-required"} {
+		t.Run(finalOutcome, func(t *testing.T) { coordinatorTwoRepairReviewJourney(t, finalOutcome) })
+	}
+}
+
+func coordinatorTwoRepairReviewJourney(t *testing.T, finalOutcome string) {
 	s, mux, p, run, base, selected := swarmHTTPFixtureConfiguredPolicy(t, "", true, true,
 		ProjectTask{ID: "task-a", Title: "Build component", Status: "done", RequirementIDs: []string{"AC-save"}, WritePaths: []string{"alpha.txt"}, Acceptance: "Build component"},
 		ProjectTask{ID: "task-b", Title: "Review component", Status: "todo", Role: "reviewer", ReviewOfTaskID: "task-a", RequirementIDs: []string{"AC-save"}, Acceptance: "Inspect candidate and report checks"},
@@ -67,7 +73,8 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ProjectID: p.ID, Actor: ContextActor{ID: "review-owner"}, RunID: run.ID, Status: "queued", PolicyRevision: policy.Revision, Actions: []CoordinatorAction{{}, {}, {Status: "confirmed"}}}, Run: projectRunCreateRequest{ImplementationContext: selectionContext, Harness: run.Input.Route.Harness}, CanonicalDigest: digest, CheckPlan: &CoordinatorCheckPlan{}}
+	contract := run.Input.OrchestrationContract
+	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ProjectID: p.ID, Actor: ContextActor{ID: "review-owner"}, RunID: run.ID, Status: "queued", PolicyRevision: policy.Revision, Actions: []CoordinatorAction{{}, {}, {Status: "confirmed"}}}, Run: projectRunCreateRequest{ImplementationContext: selectionContext, Harness: run.Input.Route.Harness, OrchestrationContract: &OrchestrationContractSelection{ID: contract.ID, Revision: contract.Revision, Digest: contract.Digest, ApprovalID: contract.Approval.ID}}, CanonicalDigest: digest, CheckPlan: &CoordinatorCheckPlan{}}
 	row.ID = newID("continue-")
 	row.IdempotencyKey = "review-retry-continuation-123456"
 	row.KeyDigest = reviewDigest(row.IdempotencyKey)
@@ -117,10 +124,16 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 			starts++
 			current, e := s.GetProjectSwarmRun(req.ProjectID, req.RunID)
 			op := swarmOperation(&current, req.OperationID)
-			if e != nil || op == nil || op.TaskID == "task-b" && swarmReviewAssignmentDigest(current, req.OperationID) == "" || op.TaskID == "task-a" && (op.Checkpoint == nil || current.Swarm.ReviewObligations[0].RepairOperationID != op.ID) {
+			repairBound := false
+			if op != nil && op.TaskID == "task-a" {
+				for _, item := range current.Swarm.ReviewObligations {
+					repairBound = repairBound || item.RepairOperationID == op.ID
+				}
+			}
+			if e != nil || op == nil || op.TaskID == "task-b" && swarmReviewAssignmentDigest(current, req.OperationID) == "" || op.TaskID == "task-a" && (op.Checkpoint == nil || !repairBound) {
 				t.Fatal("work dispatched without exact review or repair binding", e)
 			}
-			return SwarmDispatchResult{State: "waiting", ReasonCode: "test_no_runtime", Message: "No child started in this fixture."}, nil
+			return SwarmDispatchResult{State: "running", SessionID: op.ChildID, ReasonCode: "test_owned_child", Message: "The fixture owns this exact simulated child."}, nil
 		},
 	}
 	var queued struct{ Items []SwarmQueueItem }
@@ -222,8 +235,9 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 	// The old reviewed candidate remains retained. A repair intent must first
 	// bind that failed finding, then create a separate protected checkpoint;
 	// it must never turn a worker's failed report into an integration pass.
+	checkpointSource := candidate
 	s.SetProjectSwarmCheckpointGuard(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(_ context.Context, req ProjectSwarmRecoveryRequest) (func(), error) {
-		if req.ProjectID != p.ID || req.RunID != run.ID || req.OperationID != candidate.ID || req.ChildID != candidate.ChildID {
+		if req.ProjectID != p.ID || req.RunID != run.ID || req.OperationID != checkpointSource.ID || req.ChildID != checkpointSource.ChildID {
 			t.Fatal("repair checkpoint used another child", req)
 		}
 		return func() {}, nil
@@ -391,7 +405,7 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 		t.Fatal(e)
 	}
 	s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(context.Context, TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
-		return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("exact changed repair review"), Report: &TaskHandoffReport{Version: 1, Summary: "The repaired candidate passes the previously missing acceptance check", ChangedFiles: []string{}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect repaired candidate diff", Outcome: "passed", Detail: "The missing acceptance case is present"}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}}, nil
+		return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("first changed repair review"), Report: &TaskHandoffReport{Version: 1, Summary: "The first repair still misses a check", ChangedFiles: []string{}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect first repair", Outcome: "failed", Detail: "The edge case remains"}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}}, nil
 	})
 	var passedHandoff struct{ Run ProjectRun }
 	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+reviewRetry.ID+"/handoff/collect", map[string]any{"expectedRevision": final.Revision}, 200).Body.Bytes(), &passedHandoff)
@@ -400,9 +414,124 @@ func TestCoordinatorWaitsForCandidateThenBindsReservedReviewerBeforeDispatch(t *
 			t.Fatal("changed candidate lacked an attributed passed-review receipt", i, outcomeErr, recorded)
 		}
 	}
+	failedAgain, e := s.GetProjectSwarmRun(p.ID, run.ID)
+	if e != nil || len(failedAgain.Swarm.ReviewObligations) != 2 || failedAgain.Swarm.ReviewObligations[1].State != "repair-required" || swarmFailedReviewCount(failedAgain, "task-a") != 2 {
+		t.Fatal("second failed review did not retain both independent findings", e, failedAgain)
+	}
+	checkpointSource = repair
+	if advanced, e := s.continueCoordinatorRepair(ctx, p, row); e != nil || !advanced {
+		t.Fatal("second failed review did not reserve its bounded repair", e, advanced)
+	}
+	if advanced, e := s.continueCoordinatorRepair(ctx, p, row); e != nil || !advanced {
+		t.Fatal("second repair did not use the protected exact checkpoint", e, advanced)
+	}
+	secondQueue, e := s.ProjectSwarmQueueSnapshot(p.ID)
+	if e != nil || len(secondQueue.Items) != 4 || secondQueue.Items[3].OperationID == "" {
+		t.Fatal("second repair lost its finding or checkpoint ownership", e, secondQueue)
+	}
+	for i := 0; i < 3; i++ {
+		if e = s.RunSwarmSchedulerOnce(ctx); e != nil {
+			t.Fatal(e)
+		}
+	}
+	secondRun, e := s.GetProjectSwarmRun(p.ID, run.ID)
+	if e != nil || len(secondRun.Operations) != 5 || secondQueue.Items[3].OperationID != secondRun.Operations[4].ID {
+		t.Fatal("second repaired checkout was not retained", e, secondRun)
+	}
+	secondRepair := secondRun.Operations[4]
+	secondPath, e := s.swarmPath(p.ID, run.ID, secondRepair.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	swarmCommitFixture(t, secondPath, "alpha.txt", "candidate content with both missing acceptance checks\n")
+	secondRun, _, _, e = s.projectRuns.ClaimOperation(p.ID, p.Path, run.ID, secondRun.Revision, secondRepair.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	secondRun, e = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, secondRun.Revision, secondRepair.ID, secondRepair.ChildID, "succeeded", "The second bounded repair stopped with changed source.")
+	if e != nil {
+		t.Fatal(e)
+	}
+	s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(context.Context, TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
+		return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("second changed repair candidate"), Report: &TaskHandoffReport{Version: 1, Summary: "Both acceptance checks are now in the candidate", ChangedFiles: []string{"alpha.txt"}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect second repaired diff", Outcome: "passed", Detail: "Changed source contains both cases"}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}}, nil
+	})
+	journeyRequest(t, actor, "POST", base+"/operations/"+secondRepair.ID+"/handoff/collect", map[string]any{"expectedRevision": secondRun.Revision}, 200)
+	// The prior reviewer has stopped, but its exact queue lease remains active
+	// until the ordinary scheduler observes that terminal operation and releases
+	// it. A later review cannot silently overlap that unsettled lease.
+	for i := 0; i < 3; i++ {
+		if e = s.RunSwarmSchedulerOnce(ctx); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if advanced, e := s.continueCoordinatorReviewerRetry(ctx, p, row); e != nil || !advanced {
+		t.Fatal("second repaired candidate did not queue its final reviewer", e, advanced)
+	}
+	for i := 0; i < 3; i++ {
+		if e = s.RunSwarmSchedulerOnce(ctx); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if advanced, e := s.continueCoordinatorIndependentReview(ctx, p, row); e != nil || !advanced {
+		t.Fatal("second repair could not create its final independent obligation", e, advanced)
+	}
+	if e = s.RunSwarmSchedulerOnce(ctx); e != nil {
+		t.Fatal(e)
+	}
+	final, e = s.GetProjectSwarmRun(p.ID, run.ID)
+	if e != nil || len(final.Swarm.ReviewObligations) != 3 || final.Swarm.ReviewObligations[2].CandidateOperationID != secondRepair.ID || final.Swarm.ReviewObligations[2].State != "pending" {
+		t.Fatal("the second repair was stranded before final review", e, final)
+	}
+	lastReviewer := swarmOperation(&final, final.Swarm.ReviewObligations[2].ReviewerOperationID)
+	if lastReviewer == nil {
+		t.Fatal("final reviewer operation missing")
+	}
+	final, _, _, e = s.projectRuns.ClaimOperation(p.ID, p.Path, run.ID, final.Revision, lastReviewer.ID, swarmReviewAssignmentDigest(final, lastReviewer.ID))
+	if e != nil {
+		t.Fatal(e)
+	}
+	final, e = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, final.Revision, lastReviewer.ID, lastReviewer.ChildID, "succeeded", "Final independent reviewer stopped.")
+	if e != nil {
+		t.Fatal(e)
+	}
+	reportedOutcome := "passed"
+	if finalOutcome == "repair-required" {
+		reportedOutcome = "failed"
+	}
+	s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(context.Context, TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
+		return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("final changed repair review"), Report: &TaskHandoffReport{Version: 1, Summary: "The second repair received an exact final review", ChangedFiles: []string{}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect final repaired diff", Outcome: reportedOutcome, Detail: "The final review records its exact outcome"}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}}, nil
+	})
+	journeyRequest(t, actor, "POST", base+"/operations/"+lastReviewer.ID+"/handoff/collect", map[string]any{"expectedRevision": final.Revision}, 200)
+	for i := 0; i < 2; i++ {
+		if recorded, outcomeErr := s.continueCoordinatorReviewOutcome(ctx, p, row); outcomeErr != nil || !recorded {
+			t.Fatal("final review did not settle", i, outcomeErr, recorded)
+		}
+	}
 	passed, e := s.GetProjectSwarmRun(p.ID, run.ID)
-	if e != nil || passed.Swarm.ReviewObligations[0].State != "repair-required" || passed.Swarm.ReviewObligations[1].State != "passed" || !swarmIndependentReviewReady(passed, "task-a", ProjectSwarmReview{OperationID: repair.ID, SourceCommit: passed.Swarm.ReviewObligations[1].CandidateCommit, ReviewDigest: passed.Swarm.ReviewObligations[1].ReviewDigest}) {
-		t.Fatal("new pass did not retain the prior failed finding and exact repaired source", e, passed)
+	if finalOutcome == "repair-required" {
+		if e != nil || len(passed.Swarm.ReviewObligations) != 3 || swarmFailedReviewCount(passed, "task-a") != 3 || passed.Swarm.ReviewObligations[2].State != "repair-required" {
+			t.Fatal("third failed review was not retained", e, passed)
+		}
+		beforeLimit, queueErr := s.ProjectSwarmQueueSnapshot(p.ID)
+		if queueErr != nil {
+			t.Fatal(queueErr)
+		}
+		if advanced, repairErr := s.continueCoordinatorRepair(ctx, p, row); repairErr != nil || advanced {
+			t.Fatal("third repair exceeded the reviewed limit", repairErr, advanced)
+		}
+		checkpointSource = secondRepair
+		checkpointURL := base + "/operations/" + secondRepair.ID + "/checkpoint"
+		checkpointReview := checkpointReviewHTTP(t, mux, checkpointURL)
+		journeyRequest(t, actor, "POST", checkpointURL, checkpointBody(checkpointReview, "third-repair-refused-123456"), 409)
+		afterLimit, queueErr := s.ProjectSwarmQueueSnapshot(p.ID)
+		retained, readErr := s.GetProjectSwarmRun(p.ID, run.ID)
+		if queueErr != nil || readErr != nil || len(afterLimit.Items) != len(beforeLimit.Items) || len(retained.Operations) != len(passed.Operations) || retained.Revision != passed.Revision {
+			t.Fatal("third repair changed retained work", queueErr, readErr, beforeLimit, afterLimit)
+		}
+		return
+	}
+	if e != nil || len(passed.Swarm.ReviewObligations) != 3 || passed.Swarm.ReviewObligations[0].State != "repair-required" || passed.Swarm.ReviewObligations[1].State != "repair-required" || passed.Swarm.ReviewObligations[2].State != "passed" || !swarmIndependentReviewReady(passed, "task-a", ProjectSwarmReview{OperationID: secondRepair.ID, SourceCommit: passed.Swarm.ReviewObligations[2].CandidateCommit, ReviewDigest: passed.Swarm.ReviewObligations[2].ReviewDigest}) {
+		t.Fatal("second repair did not reach an exact independent pass", e, passed)
 	}
 	if integrated, integrationErr := s.continueCoordinatorCandidateIntegration(ctx, p, row); integrationErr != nil || !integrated {
 		t.Fatal("passed repaired candidate did not enter reviewed integration", integrationErr, integrated)

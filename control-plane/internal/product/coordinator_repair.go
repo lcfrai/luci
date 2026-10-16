@@ -31,6 +31,9 @@ func (s *Server) continueCoordinatorRepair(ctx context.Context, p project.Projec
 		if obligation.State != "repair-required" {
 			continue
 		}
+		if swarmFailedReviewCount(run, obligation.TaskID) > maxSwarmReviewRepairs {
+			continue // A third failed review needs a new human-reviewed plan, not a third automatic repair.
+		}
 		task := swarmTask(&run, obligation.TaskID)
 		source := swarmOperation(&run, obligation.CandidateOperationID)
 		if task == nil || source == nil || source.ChildID != obligation.CandidateChildID || source.TaskID != task.ID {
