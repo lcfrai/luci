@@ -16,7 +16,7 @@ import time
 BASE = Path('E:/Luci-local-acceptance')
 PYTHON = Path('C:/Users/DylanMackie/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe')
 PYTHON_SHA256 = 'b847bb9f4e48c19f585c8bf7d8b355f3f8c6d2125717ece9c9d7e16fb9f09de8'
-WORKER_SHA256 = '6953a9d85c200f3ddf633ad87eac0c475ed2e79e4fd102142536d8930a623451'
+WORKER_SHA256 = '5fad1e22757cb4974592587b971890e7dfd6fee5aceb97e497115ad8c5ad092e'
 MANIFEST_SHA256 = '04d9bf5b016ae904c2a3dc890a9c7977996bd12bc425cdd2502a6ed11a8b1d6a'
 PINS = {
     'windows-api-job-2g-pdh-recovery.py': 'c050bd16622be034a4ef8db050a1554c0ee492a4519ff0b581c647af14f5fd6d',

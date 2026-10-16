@@ -174,6 +174,44 @@ class ProductToolSourceTests(unittest.TestCase):
             with self.assertRaises(worker.Refusal):
                 zip_reader.inspect_cpython_embed_v1(value, value.expected, value.budget, pe.inspect_pe_v1)
 
+    def test_zip_split_expanded_mz_prefix_refuses_unclassified_native(self):
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream, 'w') as archive:
+            archive.writestr('python.exe', synthetic_pe())
+            archive.writestr('payload.bin', b'MZsynthetic native prefix', compress_type=zipfile.ZIP_DEFLATED)
+        real_factory = zip_reader.zlib.decompressobj
+        emitted = []
+        class SplitDecoder:
+            def __init__(self, *args):
+                self.real, self.first = real_factory(*args), True
+
+            def decompress(self, data, maximum):
+                block = self.real.decompress(data, min(maximum, 1) if self.first else maximum)
+                self.first = False
+                emitted.append(block)
+                return block
+
+            @property
+            def unconsumed_tail(self):
+                return self.real.unconsumed_tail
+
+            @property
+            def unused_data(self):
+                return self.real.unused_data
+
+            @property
+            def eof(self):
+                return self.real.eof
+        zip_reader.zlib.decompressobj = SplitDecoder
+        try:
+            value = original(stream.getvalue())
+            with self.assertRaisesRegex(worker.Refusal, 'zip_unclassified_native'):
+                zip_reader.inspect_cpython_embed_v1(value, value.expected, value.budget, pe.inspect_pe_v1)
+            self.assertEqual(emitted[0], b'M')
+            self.assertTrue(emitted[1].startswith(b'Z'))
+        finally:
+            zip_reader.zlib.decompressobj = real_factory
+
     def test_zip_trailing_oversized_expansion_and_corrupt_body_refuse(self):
         raw = synthetic_zip()
         cases = [raw + b'x', raw[:-1], raw.replace(b'synthetic notice', b'SYNTHETIC NOTICE', 1)]
@@ -212,6 +250,84 @@ class ProductToolSourceTests(unittest.TestCase):
         with self.assertRaises(worker.Refusal):
             worker.acquire({'url': 'https://example.invalid/payload'}, NeverOutput(), budget(), None, never_connection)
         self.assertEqual(calls, [])
+
+    def test_header_multiline_ceiling_precedes_raw_io_and_stays_failed(self):
+        raw = Counted(b'HTTP/1.1 200 OK\r\n' + b'A' * 60000 + b'\r\n' + b'B' * 60000 + b'\r\n\r\n')
+        b = budget()
+        reader = worker.FixedHTTPReader(raw, raw, b)
+        self.assertEqual(reader.readline(65537), b'HTTP/1.1 200 OK\r\n')
+        self.assertEqual(len(reader.readline(65537)), 60002)
+        with self.assertRaisesRegex(worker.Refusal, 'header_lifetime_bound'):
+            reader.readline(65537)
+        self.assertEqual(raw.tell(), 65536)
+        self.assertEqual(b.original, 65536)
+        self.assertEqual(b.calls, 8)
+        self.assertLessEqual(len(reader.pending), 8192)
+        calls = list(raw.effects)
+        for operation in (lambda: reader.readline(65537), lambda: reader.read(1)):
+            with self.assertRaises(worker.Refusal):
+                operation()
+        self.assertEqual(raw.effects, calls)
+        reader.close()
+        self.assertTrue(raw.closed)
+
+    def test_failed_header_read_retains_pending_debit_and_refused_begin_closes(self):
+        raw, b = Counted(fail=True), budget()
+        reader = worker.FixedHTTPReader(raw, raw, b)
+        with self.assertRaises(OSError):
+            reader.readline(65537)
+        self.assertEqual((b.original, b.calls, reader.header_bytes), (8192, 1, 8192))
+        calls = list(raw.effects)
+        with self.assertRaises(worker.Refusal):
+            reader.readline(65537)
+        self.assertEqual(raw.effects, calls)
+        reader.close()
+        self.assertTrue(raw.closed)
+
+        class Raw(io.RawIOBase):
+            def readable(self):
+                return True
+
+            def readinto(self, target):
+                raise OSError('synthetic response header failure')
+        class HeaderShell:
+            def __init__(self, stream):
+                self.stream = stream
+
+            def close(self):
+                self.stream.close()
+        class Response:
+            def __init__(self):
+                self.fp = HeaderShell(io.BufferedReader(Raw()))
+
+            def begin(self):
+                self.fp.stream.readline(65537)
+
+            def close(self):
+                self.fp.close()
+        b = budget()
+        response = worker.fixed_response_class(Response, b)()
+        with self.assertRaises(OSError):
+            response.begin()
+        self.assertTrue(response.input_reader.closed)
+        self.assertTrue(b.failed)
+        self.assertEqual((b.original, b.calls), (8192, 1))
+
+    def test_header_pending_body_uses_same_reader_and_never_resets_debit(self):
+        raw, b = Counted(b'HTTP/1.1 200 OK\r\n\r\nbody'), budget()
+        reader = worker.FixedHTTPReader(raw, raw, b)
+        self.assertEqual(reader.readline(65537), b'HTTP/1.1 200 OK\r\n')
+        self.assertEqual(reader.readline(65537), b'\r\n')
+        header_debit, calls = b.original, list(raw.effects)
+        reader.headers = False
+        ticket = b.reserve('original', 4)
+        body = reader.read(4)
+        b.finish(ticket, len(body))
+        self.assertEqual(body, b'body')
+        self.assertEqual(raw.effects, calls)
+        self.assertEqual(b.original, header_debit + 4)
+        self.assertEqual(reader.pending, b'')
+        reader.close()
 
     def test_member_ceiling_refuses_before_any_member_data(self):
         raw = bytearray(synthetic_zip())

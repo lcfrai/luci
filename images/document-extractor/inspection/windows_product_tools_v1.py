@@ -17,7 +17,7 @@ MANIFEST_SHA256 = '04d9bf5b016ae904c2a3dc890a9c7977996bd12bc425cdd2502a6ed11a8b1
 DONOR = Path('E:/Luci-local-acceptance/artifacts/extractor-wheels-65a8dafb-source-20261016/inspect_inputs.py')
 DONOR_SHA256 = '06b77ce9d7f2d6d06ec5b532cfc965acccd4619322aaf5e17cfa138e6a90acba'
 SOURCES = {
-    'windows_product_tools_zip_v1.py': 'eaab7443c00f67495f21494718897b6276ad7c8422646866ab73bb3ffe7ce63b',
+    'windows_product_tools_zip_v1.py': '57f9425451e9da39c44222d240936cd37e6453fcd1e6c600d4b1f2a2f02160ea',
     'windows_product_tools_pe_v1.py': '49c0f20562ae8020b9b9d0f90238ba01b107d7ee64a0053dac53cc5e4e09bab6',
 }
 OBJECTS = (
@@ -246,19 +246,106 @@ def load_source(path, expected, maximum=65536, budget=None):
     return namespace
 
 
+class FixedHTTPReader:
+    """Logical input accounting, not SSL/OS buffering or socket cancellation."""
+    def __init__(self, raw, close_owner, budget):
+        self.raw, self.close_owner, self.budget = raw, close_owner, budget
+        self.pending, self.header_bytes, self.headers = b'', 0, True
+
+    def readline(self, maximum=-1):
+        self.budget.check()
+        if not self.headers or not isinstance(maximum, int) or maximum == 0:
+            self.budget.fail('header_read_mode')
+        maximum = min(65537, maximum) if maximum >= 0 else 65537
+        result = bytearray()
+        while len(result) < maximum:
+            self.budget.check()
+            if self.pending:
+                newline = self.pending.find(b'\n')
+                count = min(len(self.pending) if newline < 0 else newline + 1, maximum - len(result))
+                result.extend(self.pending[:count])
+                self.pending = self.pending[count:]
+                if result.endswith(b'\n') or len(result) == maximum:
+                    break
+            amount = min(8192, 65536 - self.header_bytes)
+            if amount <= 0:
+                self.budget.fail('header_lifetime_bound')
+            ticket = self.budget.reserve('original', amount)
+            self.header_bytes += amount
+            try:
+                block = self.raw.read(amount)
+                if not isinstance(block, bytes) or len(block) > amount:
+                    self.budget.fail('header_read_ack')
+                self.budget.finish(ticket, len(block))
+            except BaseException:
+                self.budget.failed = True
+                raise
+            self.header_bytes -= amount - max(1, len(block))
+            if not block:
+                break
+            self.pending = block
+        return bytes(result)
+
+    def read(self, size):
+        # The body caller reserves its whole request before reaching this edge.
+        # Header-prefetched body stays conservatively charged a second time.
+        self.budget.check()
+        if self.headers or not isinstance(size, int) or not 1 <= size <= CHUNK:
+            self.budget.fail('body_read_mode')
+        if self.pending:
+            block, self.pending = self.pending[:size], self.pending[size:]
+            return block
+        return self.raw.read(size)
+
+    @property
+    def closed(self):
+        return self.close_owner.closed
+
+    def close(self):
+        self.close_owner.close()
+
+
+def fixed_response_class(response_class, budget):
+    class FixedResponse(response_class):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            try:
+                # Donor constructs its HeaderReader over an untouched stdlib
+                # BufferedReader. Retain that sole close owner, but bypass its
+                # prefetch: all logical header reads use the same raw SocketIO.
+                owner = self.fp.stream
+                if not isinstance(owner, io.BufferedReader) or not isinstance(owner.raw, io.RawIOBase):
+                    budget.fail('http_raw_reader_required')
+                self.input_reader = FixedHTTPReader(owner.raw, owner, budget)
+                self.fp.stream = self.input_reader
+            except BaseException:
+                budget.failed = True
+                self.close()
+                raise
+
+        def begin(self):
+            try:
+                result = super().begin()
+                budget.check()
+                self.input_reader.headers = False
+                return result
+            except BaseException:
+                budget.failed = True
+                self.close()  # getresponse may never return this owned reader.
+                raise
+    return FixedResponse
+
+
 def acquire(item, output, budget, response_class, connection_factory=http.client.HTTPSConnection):
     if item not in OBJECTS:
         budget.fail('fixed_object_only')
     url = urlsplit(item['url'])
     budget.check()
     client = connection_factory(url.hostname, port=443, timeout=min(30, max(.001, budget.deadline - time.monotonic())), context=ssl.create_default_context())
-    client.response_class = response_class
+    client.response_class = fixed_response_class(response_class, budget)
     response = None
     partial = output / (item['file'] + '.partial')
     try:
-        # Reserve the donor's entire fixed64KiB header ceiling before framing IO.
-        # It is conservatively retained, not guessed/refunded from library state.
-        budget.reserve('original', CHUNK)
         client.request('GET', url.path, headers={'Accept-Encoding': 'identity', 'Connection': 'close', 'User-Agent': 'Luci-static-product-tool-inspection/1'})
         response = client.getresponse()
         lengths = response.headers.get_all('Content-Length', [])

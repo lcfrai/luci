@@ -116,8 +116,8 @@ def inspect_cpython_embed_v1(original, wrapper, budget, pe_inspector):
             total += len(block)
             if total > expanded:
                 budget.fail('zip_expanded_identity')
-            if not first:
-                first = block[:2]
+            if len(first) < 2:
+                first += block[:2 - len(first)]
             checksum = zlib.crc32(block, checksum)
             digest.update(block)
             if keep:
