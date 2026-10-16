@@ -109,21 +109,48 @@ func TestPDFPilotDriverFrameRefusesBadOrderOverrunAndIncompleteWrite(t *testing.
 	}
 }
 
-type blockedFrameWriter struct { release <-chan struct{} }
-func (w blockedFrameWriter) Write(p []byte) (int, error) { <-w.release; return len(p), nil }
+type blockedFrameWriter struct {
+	entered chan<- struct{}
+	release <-chan struct{}
+	settled chan<- struct{}
+}
+func (w blockedFrameWriter) Write([]byte) (int, error) {
+	close(w.entered)
+	<-w.release
+	close(w.settled)
+	return 0, errRefused
+}
 
 func TestPDFPilotDriverFrameCancellationDoesNotWaitForBlockedCapture(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
+	entered := make(chan struct{})
 	release := make(chan struct{})
+	settled := make(chan struct{})
 	done := make(chan error, 1)
-	go func() { done <- emitFrame(ctx, blockedFrameWriter{release}, frameFixture(roleRender), []frameRecord{{kind: recordPDF, data: []byte("pdf")}}) }()
-	cancel()
+	go func() {
+		done <- emitFrame(ctx, blockedFrameWriter{entered: entered, release: release, settled: settled},
+			frameFixture(roleRender), []frameRecord{{kind: recordPDF, data: []byte("pdf")}})
+	}()
 	select {
-	case err := <-done:
-		if err == nil { t.Fatal("cancelled frame became accepted") }
+	case <-entered: // The first Write is now blocked on release.
+	case <-time.After(2 * time.Second):
+		cancel()
+		close(release)
+		t.Fatal("capture writer was never entered")
+	}
+	cancel()
+	var result error
+	select {
+	case result = <-done:
 	case <-time.After(time.Second):
 		close(release)
 		t.Fatal("cancelled frame waited for blocked capture")
 	}
 	close(release)
+	select {
+	case <-settled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("fake capture writer did not settle after release")
+	}
+	if result == nil { t.Fatal("cancelled frame became accepted") }
 }
