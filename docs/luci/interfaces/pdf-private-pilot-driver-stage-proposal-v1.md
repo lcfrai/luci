@@ -73,8 +73,8 @@ value or preliminary inventory cannot fill a missing field:
 | Actor/project/scope, approval revision/digest, engine/instance, attempt and both allocation IDs | `pdfPilotRequest`, `PDFPilotAllocationID`, current actor/source recheck under final mutation | Shape only; no authenticated pilot approval/source resolver. |
 | Original face-0 font bytes and original grant | `main.go` expects exactly 19,484,784 bytes and SHA-256 `b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a`; mount read-only at the one fixed path | Expected source value only. Wrapper-to-font, notice and original-file owner proofs are missing. |
 | Renderer binary and its Go toolchain/import graph | Fixed `scripts/distribute-pdf-pilot` source and selected seven-module candidate inventory | No accepted built binary, module graph closure or binary receipt. |
-| Authored driver | Proposed `cmd/pilot-driver` source, exact driver binary digest and source/grant receipt to be added to the immutable command/config digest | No driver source or binary exists yet. |
-| Standard reader tools | Exact `pdftotext` and `pdftoppm` argv below; require selected executable hashes, recursive library/archive/notice receipts and one-page capability | No selected Poppler binary/package/image closure. Host-installed tools are not eligible. |
+| Authored driver | `cmd/pilot-driver` source, exact driver binary digest and source/grant receipt to be added to the immutable command/config digest | Source exists; no compiled or accepted driver binary. |
+| Standard reader tools | Exact `pdfinfo`, `pdftotext` and `pdftoppm` argv below; require selected executable hashes, recursive library/archive/notice receipts and one-page capability | No selected Poppler binary/package/image closure. `pdfinfo` is additive to the prior two-tool inventory; host-installed tools are not eligible. |
 | Selected image and filesystem profile | Exact image digest/ABI/source/package receipt; fixed UID/GID, tmpfs options and readable font/PDF binds | No accepted image or target-engine UID/bind/ACL proof. |
 
 The accepted declaration must be copied unchanged into both role identities,
@@ -96,7 +96,9 @@ independent exact-CID watchdog; it does not execute a replacement role.
 
 The proposed binary stream begins with `LUCI-PDF-PILOT/1\n`, then a fixed
 role byte, 32 raw allocation-digest bytes and 32 raw input-digest bytes
-(original font for renderer, retained PDF for reader).
+(original font for renderer, retained PDF for reader), then one page-count
+byte (0 for renderer, 1 only after the reader's `pdfinfo` check) and one
+record-count byte.
 Renderer has exactly one `pdf` record; reader has exactly two ordered records,
 `text` then `png`. Each record has its fixed one-byte type, big-endian uint32
 length and 32 raw SHA-256 bytes followed by exactly that many payload bytes;
@@ -113,10 +115,11 @@ authority; exact owned container and approved input identities supply that.
 is positively retired. The exact retained PDF is the reader's single
 read-only input bind at `/input/pilot.pdf`, with source file identity/digest
 checked before Create and again before Start. The reader driver runs these
-two already specified Poppler argv, one after the other and without a shell:
+three fixed Poppler argv, one after the other and without a shell:
 
-1. `pdftotext -enc UTF-8 -nopgbrk /input/pilot.pdf /out/pilot-<AttemptID>/pilot.txt`
-2. `pdftoppm -f 1 -l 1 -singlefile -r 72 -png /input/pilot.pdf /out/pilot-<AttemptID>/page`
+1. `pdfinfo /input/pilot.pdf` — require one total `Pages: 1` field under `LC_ALL=C`; first-page rendering alone is not a page-count proof.
+2. `pdftotext -enc UTF-8 -nopgbrk /input/pilot.pdf /out/pilot-<AttemptID>/pilot.txt`
+3. `pdftoppm -f 1 -l 1 -singlefile -r 72 -png /input/pilot.pdf /out/pilot-<AttemptID>/page`
 
 It waits for each exact child and refuses a nonzero exit, extra output files,
 text over 1 MiB, PNG over 16 MiB, invalid UTF-8 or a PDF digest change. The
@@ -126,9 +129,11 @@ terminal line break), one 595×842 PNG and an independently checked one-page
 PDF structure; partial extraction or replacement glyphs fail. Both tools and
 their transitive libraries, original grants, driver binary and image remain
 **unselected**. These argv specify behavior, not a claim that the reader can
-run today.
+run today. The [driver source note](../../../scripts/distribute-pdf-pilot/cmd/pilot-driver/README.md)
+identifies the selected package's `pdfinfo(1)` manual and the additional
+binary/library/licence closure that remains missing.
 
-The driver must keep both subprocesses in the one owned container/cgroup,
+The driver must keep all role subprocesses in the one owned container/cgroup,
 reap them and make its own cancellation terminate them. No detached process,
 second reader container or borrowed document-extractor image. The Docker
 watchdog independently retires the exact container and all its descendants if
