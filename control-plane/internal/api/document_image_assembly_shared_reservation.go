@@ -103,7 +103,7 @@ func (g *executionAdmission) reserveDocumentImageAssembly(ctx context.Context, p
 		for _, row := range l.ImageAssemblies {
 			if row.Scope == g.scope && row.ID == id.AllocationID {
 				// An invocation may resume admission only before any allocation.
-				if row.Identity != id || row.Actor != req.Actor || row.State != "reserved" || row.Ref != "" || row.CreateDiskBytes != estimate.Bytes || row.CreatedAt != req.CreatedAt || row.ComputeDeadline != req.ComputeDeadline || row.WholeDeadline != req.WholeDeadline {
+				if row.Identity != id || row.InputClosureRef != req.InputClosureRef || row.Actor != req.Actor || row.State != "reserved" || row.Ref != "" || row.CreateDiskBytes != estimate.Bytes || row.CreatedAt != req.CreatedAt || row.ComputeDeadline != req.ComputeDeadline || row.WholeDeadline != req.WholeDeadline {
 					return backend.ErrLaunchFenceOwnership
 				}
 				result = row
@@ -122,7 +122,7 @@ func (g *executionAdmission) reserveDocumentImageAssembly(ctx context.Context, p
 				return errDocumentImageAssemblySerial
 			}
 		}
-		candidate := documentImageAssemblyLease{ID: id.AllocationID, Scope: g.scope, Actor: req.Actor, Identity: id, Resources: resources, BaseImageID: p.Spec.BaseImageID, CreateDiskBytes: estimate.Bytes, CaptureDiskBytes: backend.DocumentImageAssemblyOutputMaxBytes, HostLaunchBytes: windowsDockerHostLaunchBytes(snap, backend.KindDocker), State: "reserved", CreatedAt: req.CreatedAt, UpdatedAt: now, ComputeDeadline: req.ComputeDeadline, WholeDeadline: req.WholeDeadline}
+		candidate := documentImageAssemblyLease{ID: id.AllocationID, Scope: g.scope, Actor: req.Actor, Identity: id, InputClosureRef: req.InputClosureRef, Resources: resources, BaseImageID: p.Spec.BaseImageID, CreateDiskBytes: estimate.Bytes, CaptureDiskBytes: backend.DocumentImageAssemblyOutputMaxBytes, HostLaunchBytes: windowsDockerHostLaunchBytes(snap, backend.KindDocker), State: "reserved", CreatedAt: req.CreatedAt, UpdatedAt: now, ComputeDeadline: req.ComputeDeadline, WholeDeadline: req.WholeDeadline}
 		if !validDocumentImageAssemblyLease(candidate) {
 			return backend.ErrLaunchFenceOwnership
 		}

@@ -17,6 +17,7 @@ type documentImageAssemblyLease struct {
 	Scope            string                                `json:"scope"`
 	Actor            management.ExecutionActorRef          `json:"actor"`
 	Identity         backend.DocumentImageAssemblyIdentity `json:"identity"`
+	InputClosureRef  assemblyInputClosureRef               `json:"inputClosureRef,omitzero"`
 	Resources        backend.Resources                     `json:"resources"`
 	BaseImageID      string                                `json:"baseImageId"`
 	CreateDiskBytes  uint64                                `json:"createDiskBytes"`
@@ -46,16 +47,19 @@ type documentImageAssemblyFenceRecord struct {
 type documentImageAssemblyRequest struct {
 	Spec                                      backend.DocumentImageAssemblySpec
 	Actor                                     management.ExecutionActorRef
+	InputClosureRef                           assemblyInputClosureRef
 	CreatedAt, ComputeDeadline, WholeDeadline time.Time
-	// Server-owned current installation grant/source/CAS, not request code.
+	// Server-owned current typed evidence/grant/source/CAS validation, not request
+	// code or a digest-syntax attestation. Full resolver wiring remains pending.
 	ValidateCurrent func(context.Context) error
 }
 type documentImageAssemblyOutcome struct {
-	Identity backend.DocumentImageAssemblyIdentity `json:"identity"`
-	Ref      string                                `json:"ref,omitempty"`
-	Stage    string                                `json:"stage"`
-	State    string                                `json:"state"`
-	Capture  backend.DocumentImageAssemblyCapture  `json:"capture,omitzero"`
+	Identity        backend.DocumentImageAssemblyIdentity `json:"identity"`
+	InputClosureRef assemblyInputClosureRef               `json:"inputClosureRef,omitzero"`
+	Ref             string                                `json:"ref,omitempty"`
+	Stage           string                                `json:"stage"`
+	State           string                                `json:"state"`
+	Capture         backend.DocumentImageAssemblyCapture  `json:"capture,omitzero"`
 	// Historical digest/size only: process-loss recovery cannot reattach or
 	// certify current bytes usable. Never interpreted as a new assembly result.
 	RetainedCapture             backend.DocumentImageAssemblyCapture `json:"retainedCapture,omitzero"`
@@ -74,6 +78,8 @@ type documentImageAssemblyOutcome struct {
 // current-grant checks, resource observation and lifecycle lock to these hooks.
 // Nil/partial hooks remain unsupported; no standalone replacement ledger exists.
 type documentImageAssemblyHooks struct {
+	// A recovery adapter cannot be repurposed to prepare/admit/start work.
+	retireOnly  bool
 	Authorize   func(context.Context, management.ExecutionActorRef, backend.DocumentImageAssemblyIdentity) error
 	Admit       func(context.Context, backend.PreparedDocumentImageAssembly, documentImageAssemblyRequest) (documentImageAssemblyLease, error)
 	Lock        func(context.Context, backend.DocumentImageAssemblyIdentity) (func(), error)
@@ -90,6 +96,9 @@ type documentImageAssemblyHooks struct {
 
 func validDocumentImageAssemblyLease(value documentImageAssemblyLease) bool {
 	identity := value.Identity
+	if !retainedAssemblyInputClosureRef(value.InputClosureRef) {
+		return false
+	}
 	if !backend.ValidateDocumentImageAssemblyIdentity(identity, true) || value.ID != identity.AllocationID || value.Scope != identity.ScopeDigest || value.Actor.ProjectID != identity.ProjectID || identity.ActorDigest != backend.DocumentExtractionActorDigest(value.Actor.UserID, value.Actor.TeamID, value.Actor.ProjectID, value.Actor.Local) || value.Actor.Local && (value.Actor.UserID != "" || value.Actor.TeamID != "") || !value.Actor.Local && value.Actor.UserID == "" || len(value.Actor.UserID) > 200 || len(value.Actor.TeamID) > 200 || value.Resources != backend.DocumentImageAssemblyResources() || value.BaseImageID != backend.DocumentImageAssemblyBaseID || value.CreateDiskBytes == 0 || value.CreateDiskBytes > 1<<50 || value.CaptureDiskBytes != backend.DocumentImageAssemblyOutputMaxBytes || value.HostLaunchBytes > 4<<30 || value.CreatedAt.IsZero() || value.UpdatedAt.Before(value.CreatedAt) || value.ComputeDeadline.Sub(value.CreatedAt) != backend.DocumentImageAssemblyComputeBudget || value.WholeDeadline.Sub(value.ComputeDeadline) != backend.DocumentImageAssemblyCleanupBudget {
 		return false
 	}

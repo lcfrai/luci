@@ -31,7 +31,7 @@ func assemblyIntentID() (string, error) {
 	return hex.EncodeToString(id[:]), nil
 }
 func assemblyRequestCurrent(ctx context.Context, h documentImageAssemblyHooks, req documentImageAssemblyRequest, identity backend.DocumentImageAssemblyIdentity) error {
-	if req.ValidateCurrent == nil {
+	if req.ValidateCurrent == nil || !validAssemblyInputClosureRef(req.InputClosureRef) || h.retireOnly {
 		return backend.ErrUnsupported
 	}
 	if err := h.Authorize(ctx, req.Actor, identity); err != nil {
@@ -40,12 +40,12 @@ func assemblyRequestCurrent(ctx context.Context, h documentImageAssemblyHooks, r
 	return req.ValidateCurrent(ctx)
 }
 func validAssemblyRequest(req documentImageAssemblyRequest) bool {
-	return backend.ValidateDocumentImageAssemblySpec(req.Spec) && req.ValidateCurrent != nil && !req.CreatedAt.IsZero() && req.ComputeDeadline.Sub(req.CreatedAt) == backend.DocumentImageAssemblyComputeBudget && req.WholeDeadline.Sub(req.ComputeDeadline) == backend.DocumentImageAssemblyCleanupBudget && !req.CreatedAt.After(time.Now().UTC()) && time.Now().Before(req.ComputeDeadline)
+	return backend.ValidateDocumentImageAssemblySpec(req.Spec) && validAssemblyInputClosureRef(req.InputClosureRef) && req.ValidateCurrent != nil && !req.CreatedAt.IsZero() && req.ComputeDeadline.Sub(req.CreatedAt) == backend.DocumentImageAssemblyComputeBudget && req.WholeDeadline.Sub(req.ComputeDeadline) == backend.DocumentImageAssemblyCleanupBudget && !req.CreatedAt.After(time.Now().UTC()) && time.Now().Before(req.ComputeDeadline)
 }
 
 func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImageAssemblyExecutor, h documentImageAssemblyHooks, req documentImageAssemblyRequest) (out documentImageAssemblyOutcome, retErr error) {
-	out = documentImageAssemblyOutcome{Identity: req.Spec.Identity, Stage: "admission", State: "not_started", ReaderSettled: true, CleanupConfirmed: true, WatchdogSettled: true}
-	if executor == nil || !completeAssemblyHooks(h) || !validAssemblyRequest(req) {
+	out = documentImageAssemblyOutcome{Identity: req.Spec.Identity, InputClosureRef: req.InputClosureRef, Stage: "admission", State: "not_started", ReaderSettled: true, CleanupConfirmed: true, WatchdogSettled: true}
+	if executor == nil || h.retireOnly || !completeAssemblyHooks(h) || !validAssemblyRequest(req) {
 		return out, backend.ErrUnsupported
 	}
 	compute, cancel := context.WithDeadline(ctx, req.ComputeDeadline)
@@ -72,7 +72,7 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 		return out, err
 	}
 	out.ResourcesHeld = true
-	if !validDocumentImageAssemblyLease(lease) || lease.Identity != out.Identity || lease.Actor != req.Actor || lease.State != "reserved" || lease.CreatedAt != req.CreatedAt || lease.ComputeDeadline != req.ComputeDeadline || lease.WholeDeadline != req.WholeDeadline {
+	if !validDocumentImageAssemblyLease(lease) || lease.Identity != out.Identity || lease.InputClosureRef != req.InputClosureRef || lease.Actor != req.Actor || lease.State != "reserved" || lease.CreatedAt != req.CreatedAt || lease.ComputeDeadline != req.ComputeDeadline || lease.WholeDeadline != req.WholeDeadline {
 		return out, backend.ErrLaunchFenceOwnership
 	}
 	unlock, err := h.Lock(compute, out.Identity)
@@ -417,8 +417,8 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 // Recovery is retire/fence-only. There is no attachment, start, import or retry.
 // A lost process cannot recreate capture; callers must expose it unavailable.
 func recoverDocumentImageAssembly(ctx context.Context, executor backend.DocumentImageAssemblyExecutor, h documentImageAssemblyHooks, lease documentImageAssemblyLease, req backend.DocumentImageAssemblyFenceRequest, proof *backend.DocumentImageAssemblyFenceProof) (documentImageAssemblyOutcome, error) {
-	out := documentImageAssemblyOutcome{Identity: lease.Identity, Ref: lease.Ref, Stage: "recovery", State: "capture_unavailable_resources_held", ResourcesHeld: true, ReaderSettled: true, WatchdogSettled: true, RetainedCapture: lease.Capture}
-	if executor == nil || !completeAssemblyHooks(h) || !validDocumentImageAssemblyLease(lease) || lease.State == "finished" || req.Identity != lease.Identity || req.ExpectedRef != lease.Ref || !checkHex(req.IntentID, 16) {
+	out := documentImageAssemblyOutcome{Identity: lease.Identity, InputClosureRef: lease.InputClosureRef, Ref: lease.Ref, Stage: "recovery", State: "capture_unavailable_resources_held", ResourcesHeld: true, ReaderSettled: true, WatchdogSettled: true, RetainedCapture: lease.Capture}
+	if executor == nil || !h.retireOnly || !completeAssemblyHooks(h) || !validDocumentImageAssemblyLease(lease) || lease.State == "finished" || req.Identity != lease.Identity || req.ExpectedRef != lease.Ref || !checkHex(req.IntentID, 16) {
 		return out, backend.ErrUnsupported
 	}
 	// Recovery authorization cannot turn a revoked grant into new execution.
