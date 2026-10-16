@@ -468,7 +468,7 @@ func TestAssemblyDebianIndexTransferRetirementLatchesWhileNativeTransferIsBlocke
 			retireLaunched, readerLaunched := false, false
 			go func() {
 				defer close(transferDone)
-				transferred <- transferAssemblyDebianIndexOwners(context.Background(), c)
+				transferred <- transferAssemblyDebianIndexOwners(context.Background(), c, c.first3.keys.ObservedAt+10, time.Now())
 			}()
 			defer func() {
 				unblock()
@@ -569,7 +569,7 @@ func TestAssemblyDebianIndexTransferCancellationBeforePromotionRetainsEveryMoved
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	states[2].cancelCheck = cancel
-	if err := transferAssemblyDebianIndexOwners(ctx, c); err == nil {
+	if err := transferAssemblyDebianIndexOwners(ctx, c, c.first3.keys.ObservedAt+10, time.Now()); err == nil {
 		t.Fatal("cancelled final current check promoted candidate")
 	}
 	if c.capture.handoff != nil || c.first3.indexHandoff != nil || c.capture.guard == nil || c.first3.guard == nil || c.first3.inputs == nil {
@@ -591,7 +591,7 @@ func TestAssemblyDebianIndexTransferCancellationBeforePromotionRetainsEveryMoved
 func TestAssemblyDebianIndexTransferPartialReturnedTokenAndUnknownCloseStayOwned(t *testing.T) {
 	c, states := assemblyIndexTransferFixture(t)
 	states[0].returnTokenError, states[0].failClose = true, true
-	if err := transferAssemblyDebianIndexOwners(context.Background(), c); err == nil {
+	if err := transferAssemblyDebianIndexOwners(context.Background(), c, c.first3.keys.ObservedAt+10, time.Now()); err == nil {
 		t.Fatal("partial token return promoted")
 	}
 	current, ok := c.capture.guard.(*assemblyIndexTransferToken)
@@ -611,7 +611,7 @@ func TestAssemblyDebianIndexPromotedRetirementFollowsEitherOriginalOwner(t *test
 	for _, prior := range []string{"captured", "first3"} {
 		t.Run(prior, func(t *testing.T) {
 			c, states := assemblyIndexTransferFixture(t)
-			if err := transferAssemblyDebianIndexOwners(context.Background(), c); err != nil {
+			if err := transferAssemblyDebianIndexOwners(context.Background(), c, c.first3.keys.ObservedAt+10, time.Now()); err != nil {
 				t.Fatal(err)
 			}
 			if c.capture.handoff != c || c.first3.indexHandoff != c || c.capture.guard != nil || c.first3.guard != nil || c.first3.inputs != nil {
@@ -638,5 +638,42 @@ func TestAssemblyDebianIndexPromotedRetirementFollowsEitherOriginalOwner(t *test
 				t.Fatal("routing exact already-closed ownership failed")
 			}
 		})
+	}
+}
+
+func TestAssemblyDebianIndexTransferElapsedFreshnessBoundaryRefusesPromotion(t *testing.T) {
+	c, states := assemblyIndexTransferFixture(t)
+	// Begin one second before the exact pinned key-observation age boundary.
+	// Model 1.5s of elapsed work via the SAME monotonic start passed to the
+	// production helper; no sleep, native effect, callback or public clock hook.
+	now := c.first3.keys.ObservedAt + c.first3.policy.KeyObservationMaxAgeSeconds - 1
+	if err := checkAssemblyIndexFirst3Time(c.first3, now); err != nil {
+		t.Fatal("fixture not initially eligible", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	began := time.Now().Add(-1500 * time.Millisecond)
+	if err := transferAssemblyDebianIndexOwners(ctx, c, now, began); err == nil {
+		t.Fatal("stale first3 evidence promoted after transfers")
+	}
+	if ctx.Err() != nil {
+		t.Fatal("refusal came from context expiry rather than live freshness boundary")
+	}
+	for _, state := range states {
+		state.mu.Lock()
+		generation := state.generation
+		state.mu.Unlock()
+		if generation != 1 {
+			t.Fatal("did not drive all three transfer edges")
+		}
+	}
+	if c.capture.handoff != nil || c.first3.indexHandoff != nil || c.indexes != nil || c.output != nil || c.inputs != nil {
+		t.Fatal("stale candidate was installed")
+	}
+	if c.capture.guard == nil || c.first3.guard == nil || c.first3.inputs == nil {
+		t.Fatal("stale promotion lost original ownership")
+	}
+	if c.capture.retire() != nil || c.first3.retire() != nil {
+		t.Fatal("stale original owners could not retire")
 	}
 }

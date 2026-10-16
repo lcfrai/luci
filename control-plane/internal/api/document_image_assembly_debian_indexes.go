@@ -325,7 +325,7 @@ func newAssemblyDebianIndexCandidate(ctx context.Context, owner *assemblyInputOw
 		return nil, errAssemblyDebianCapture
 	}
 	candidate := &assemblyDebianIndexCandidate{owner: owner, first3: first3, capture: captured, expected: expected, record: value, manifest: manifest, config: profile, receipt: receipt, canonical: canonical, manifestBytes: manifestBytes, ref: ref, manifestRef: manifestRef}
-	if err := transferAssemblyDebianIndexOwners(ctx, candidate); err != nil {
+	if err := transferAssemblyDebianIndexOwners(ctx, candidate, now, began); err != nil {
 		return nil, err
 	}
 	moved = true
@@ -336,7 +336,7 @@ func newAssemblyDebianIndexCandidate(ctx context.Context, owner *assemblyInputOw
 // ownership fixtures. It cannot mint metadata or prove any index bytes. Every
 // native Transfer/CheckCurrent/Close and authority/CAS read occurs OUTSIDE the
 // prior-owner mutexes, so retirement can latch while synchronous IO is pending.
-func transferAssemblyDebianIndexOwners(ctx context.Context, c *assemblyDebianIndexCandidate) error {
+func transferAssemblyDebianIndexOwners(ctx context.Context, c *assemblyDebianIndexCandidate, now int64, began time.Time) error {
 	if c == nil || c.capture == nil || c.first3 == nil || c.first3.capture == nil || c.first3.capture.run == nil || c.owner == nil || c.capture.owner != c.owner || c.capture.first3 != c.first3 || c.first3.capture.run.owner != c.owner {
 		return errAssemblyDebianCapture
 	}
@@ -396,6 +396,12 @@ func transferAssemblyDebianIndexOwners(ctx context.Context, c *assemblyDebianInd
 	defer first3.mu.Unlock()
 	if ctx.Err() != nil || captured.phase != "transferring" || captured.handoff != nil || captured.guard != indexes || first3.retiring || first3.adopting || !first3.indexTransfer || first3.indexHandoff != nil || first3.guard != output || first3.inputs != inputs || first3.targetCAS != c.expected {
 		return errAssemblyDebianCapture
+	}
+	// Carry the constructor's original server observation and monotonic start;
+	// never freeze time across native transfers/current-authority IO. This pure
+	// bounded check occurs at promotion, not just at later catalog publication.
+	if err := checkAssemblyIndexFirst3Time(first3, assemblyIndexFinalNow(now, began)); err != nil {
+		return err
 	}
 	c.indexes, c.output, c.inputs = indexes, output, inputs
 	captured.guard = nil
