@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -118,6 +120,8 @@ func TestReviewedSourceRefusesEnvironmentDockerfileAndStaleAuthority(t *testing.
 	for _, name := range []string{"environment", "dockerfile", "source", "kind"} {
 		t.Run(name, func(t *testing.T) {
 			a, f, req := previewRuntimeFixture(t)
+			ledgerPath := a.execution.path
+			assertSourceReservationStoreNeverCreated(t, a, ledgerPath)
 			a.deps.Backend = &sourcePreviewBackendFixture{f}
 			req.Kind = previewruntime.ReviewedSourceKind
 			switch name {
@@ -136,13 +140,15 @@ func TestReviewedSourceRefusesEnvironmentDockerfileAndStaleAuthority(t *testing.
 			if f.creates+f.starts+f.builds != 0 {
 				t.Fatal("refused source request allocated resources")
 			}
-			previewRetained(t, a, 0)
+			assertSourceReservationStoreNeverCreated(t, a, ledgerPath)
 		})
 	}
 }
 
 func TestReviewedSourceWaitingAdmissionHasNoPhantomOwnedAllocation(t *testing.T) {
 	a, f, req := previewRuntimeFixture(t)
+	ledgerPath := a.execution.path
+	assertSourceReservationStoreNeverCreated(t, a, ledgerPath)
 	a.deps.Backend = &sourcePreviewBackendFixture{f}
 	req.Kind = previewruntime.ReviewedSourceKind
 	a.deps.ResourceSnapshot = nil
@@ -150,5 +156,24 @@ func TestReviewedSourceWaitingAdmissionHasNoPhantomOwnedAllocation(t *testing.T)
 	if err != nil || out.Phase != "blocked" || out.Retained() || out.ResourcesHeld || f.creates+f.starts+f.builds != 0 {
 		t.Fatal("waiting source admission invented an owned allocation", out, err)
 	}
-	previewRetained(t, a, 0)
+	assertSourceReservationStoreNeverCreated(t, a, ledgerPath)
+}
+
+// Only these fresh refusal fixtures prove non-allocation through exact store
+// absence. An unavailable observation in general does not prove zero demand.
+func assertSourceReservationStoreNeverCreated(t *testing.T, a *API, ledgerPath string) {
+	t.Helper()
+	if a.execution.path != ledgerPath {
+		t.Fatal("source refusal changed the exact reservation store")
+	}
+	lockPath := filepath.Join(filepath.Dir(ledgerPath), "leases.lock")
+	for _, path := range []string{ledgerPath, lockPath} {
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			t.Fatalf("fresh source refusal reservation state %q is not absent: %v", path, err)
+		}
+	}
+	observed := a.execution.reservationObservation(context.Background())
+	if observed.Status != "unavailable" || observed.executionReservationView != nil {
+		t.Fatalf("absent reservation store became a numeric observation: %+v", observed)
+	}
 }
