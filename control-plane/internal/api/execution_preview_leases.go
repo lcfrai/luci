@@ -219,6 +219,9 @@ func (g *executionAdmission) reservePreview(ctx context.Context, prepared backen
 		if err := addDocumentCapacity(snap, l.Documents, "", "", &demand); err != nil {
 			return err
 		}
+		if err := g.addAssemblyAdmissionCapacity(ctx, snap, l.ImageAssemblies, "", "", &demand, policy.DiskReserveMiB); err != nil {
+			return err
+		}
 		demand.HostLaunchBytes = windowsDockerHostLaunchBytes(snap, g.api.deps.Backend.Kind())
 		capacity := evaluateExecutionCapacityWithEvidence(snap, policy, resources, demand, now)
 		if capacity.Code != "" {
@@ -226,7 +229,7 @@ func (g *executionAdmission) reservePreview(ctx context.Context, prepared backen
 			return nil
 		}
 		if !existing {
-			if len(l.Leases)+len(l.Checks)+len(l.Previews)+len(l.RuntimeImages)+len(l.Documents) >= 4096 {
+			if executionLeaseCount(*l) >= 4096 {
 				return errors.New("execution capacity history needs reconciliation")
 			}
 			candidate.CreatedAt, candidate.UpdatedAt = now, now

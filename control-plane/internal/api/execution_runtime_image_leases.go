@@ -309,6 +309,9 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 		if err := addDocumentCapacity(snap, l.Documents, "", "", &demand); err != nil {
 			return err
 		}
+		if err := g.addAssemblyAdmissionCapacity(ctx, snap, l.ImageAssemblies, "", "", &demand, policy.DiskReserveMiB); err != nil {
+			return err
+		}
 		capacity := evaluateExecutionCapacityWithEvidence(snap, policy, admissionResources, demand, now)
 		if capacity.Code != "" {
 			out.Code, out.Message, out.Evidence = capacity.Code, capacity.Message, capacity.Evidence
@@ -318,7 +321,7 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 			return nil
 		}
 		if !existing {
-			if len(l.Leases)+len(l.Checks)+len(l.Previews)+len(l.RuntimeImages)+len(l.Documents) >= 4096 {
+			if executionLeaseCount(*l) >= 4096 {
 				return errors.New("execution capacity history needs reconciliation")
 			}
 			candidate.CreatedAt, candidate.UpdatedAt = now, now

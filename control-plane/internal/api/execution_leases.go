@@ -46,16 +46,18 @@ type executionLease struct {
 	UpdatedAt       time.Time                    `json:"updatedAt"`
 }
 type executionLeaseLedger struct {
-	Version        int                             `json:"version"`
-	Leases         []executionLease                `json:"leases"`
-	Retirements    []executionRetirement           `json:"retirements,omitempty"`
-	Fences         []executionFenceRecord          `json:"fences,omitempty"`
-	Checks         []checkExecutionLease           `json:"checks,omitempty"`
-	RuntimeImages  []runtimeImageExecutionLease    `json:"runtimeImages,omitempty"`
-	Previews       []previewExecutionLease         `json:"previews,omitempty"`
-	CheckFences    []checkExecutionFenceRecord     `json:"checkFences,omitempty"`
-	Documents      []documentExtractionLease       `json:"documents,omitempty"`
-	DocumentFences []documentExtractionFenceRecord `json:"documentFences,omitempty"`
+	Version             int                                `json:"version"`
+	Leases              []executionLease                   `json:"leases"`
+	Retirements         []executionRetirement              `json:"retirements,omitempty"`
+	Fences              []executionFenceRecord             `json:"fences,omitempty"`
+	Checks              []checkExecutionLease              `json:"checks,omitempty"`
+	RuntimeImages       []runtimeImageExecutionLease       `json:"runtimeImages,omitempty"`
+	Previews            []previewExecutionLease            `json:"previews,omitempty"`
+	CheckFences         []checkExecutionFenceRecord        `json:"checkFences,omitempty"`
+	Documents           []documentExtractionLease          `json:"documents,omitempty"`
+	DocumentFences      []documentExtractionFenceRecord    `json:"documentFences,omitempty"`
+	ImageAssemblies     []documentImageAssemblyLease       `json:"imageAssemblies,omitempty"`
+	ImageAssemblyFences []documentImageAssemblyFenceRecord `json:"imageAssemblyFences,omitempty"`
 }
 type executionAdmission struct {
 	api            *API
@@ -65,6 +67,9 @@ type executionAdmission struct {
 	fenceGuards    sync.Map
 	checkObserver  checkExecutionObservations
 	manualObserver manualLeaseObservations
+	// Private deterministic probe seam; production uses ObserveDisk on the
+	// exact confined capture directory. Never sourced from an HTTP request.
+	assemblyDiskProbe func(resourcebudget.DiskPath) (resourcebudget.Disk, error)
 }
 type executionReservationView struct {
 	ObservedAt time.Time `json:"observedAt"`
@@ -222,15 +227,19 @@ func (g *executionAdmission) mutateLocked(ctx context.Context, fn func(*executio
 	addPreviewReservationView(view, ledger.Previews)
 	addRuntimeImageReservationView(view, ledger.RuntimeImages)
 	addDocumentReservationView(view, ledger.Documents)
+	addDocumentImageAssemblyReservationView(view, ledger.ImageAssemblies)
 	g.snapshot.Store(view)
 	return nil
 }
 
 func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 	var ledger executionLeaseLedger
+	if len(data) > 2<<20 {
+		return ledger, errors.New("execution capacity state exceeds its private byte bound")
+	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&ledger) != nil || decoder.Decode(new(any)) != io.EOF || ledger.Version != 1 || len(ledger.Leases)+len(ledger.Checks)+len(ledger.Previews)+len(ledger.RuntimeImages)+len(ledger.Documents) > 4096 || len(ledger.Retirements) > 4096 || len(ledger.Fences)+len(ledger.CheckFences)+len(ledger.DocumentFences) > 4096 {
+	if decoder.Decode(&ledger) != nil || decoder.Decode(new(any)) != io.EOF || ledger.Version != 1 || executionLeaseCount(ledger) > 4096 || len(ledger.Retirements) > 4096 || executionFenceCount(ledger) > backend.MaxLaunchFences {
 		return ledger, errors.New("execution capacity state cannot be verified")
 	}
 	seen := map[string]bool{}
@@ -278,7 +287,31 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 	if err := validateDocumentExtractionRecords(ledger.Documents, ledger.DocumentFences); err != nil {
 		return ledger, err
 	}
+	if err := validateDocumentImageAssemblyRecords(ledger.ImageAssemblies, ledger.ImageAssemblyFences); err != nil {
+		return ledger, err
+	}
+	for _, lease := range ledger.Documents {
+		key := lease.Scope + ":" + lease.ID
+		if seen[key] {
+			return ledger, errors.New("document ownership collides with another execution purpose")
+		}
+		seen[key] = true
+	}
+	for _, lease := range ledger.ImageAssemblies {
+		key := lease.Scope + ":" + lease.ID
+		if seen[key] {
+			return ledger, errors.New("assembly ownership collides with another execution purpose")
+		}
+		seen[key] = true
+	}
 	return ledger, nil
+}
+
+func executionLeaseCount(l executionLeaseLedger) int {
+	return len(l.Leases) + len(l.Checks) + len(l.Previews) + len(l.RuntimeImages) + len(l.Documents) + len(l.ImageAssemblies)
+}
+func executionFenceCount(l executionLeaseLedger) int {
+	return len(l.Fences) + len(l.CheckFences) + len(l.DocumentFences) + len(l.ImageAssemblyFences)
 }
 
 func (g *executionAdmission) reconcileOwned(ctx context.Context, ledger *executionLeaseLedger) error {
@@ -519,12 +552,15 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 		if err := addDocumentCapacity(snap, ledger.Documents, "", "", &demand); err != nil {
 			return err
 		}
+		if err := g.addAssemblyAdmissionCapacity(ctx, snap, ledger.ImageAssemblies, "", "", &demand, policy.DiskReserveMiB); err != nil {
+			return err
+		}
 		if capacity := evaluateExecutionCapacityWithEvidence(snap, policy, resources, demand, now); capacity.Code != "" {
 			waiting(capacity.Code, capacity.Message)
 			decision.Evidence = capacity.Evidence
 			return nil
 		}
-		if len(ledger.Leases)+len(ledger.Checks)+len(ledger.Previews)+len(ledger.RuntimeImages)+len(ledger.Documents) >= 4096 {
+		if executionLeaseCount(*ledger) >= 4096 {
 			return errors.New("execution capacity history needs reconciliation")
 		}
 		if replacement != nil {

@@ -223,6 +223,12 @@ func resourceContainerNeverStarted(id string, labels map[string]string, inspect 
 }
 
 func containerResourceKind(labels map[string]string) string {
+	if _, marked := labels[assemblyLabel]; marked {
+		if _, valid := assemblyResourceIdentity(labels); valid {
+			return "document-image-assembly"
+		}
+		return "other" // mixed/foreign purpose labels cannot deduplicate a worker.
+	}
 	switch {
 	case labels[backend.LabelManaged] == "true":
 		return "agent"

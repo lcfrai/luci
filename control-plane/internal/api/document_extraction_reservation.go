@@ -128,13 +128,16 @@ func (g *executionAdmission) reserveDocument(ctx context.Context, prepared backe
 		if err := addRuntimeImageCapacity(l.RuntimeImages, "", "", &demand); err != nil {
 			return err
 		}
+		if err := g.addAssemblyAdmissionCapacity(ctx, snap, l.ImageAssemblies, "", "", &demand, policy.DiskReserveMiB); err != nil {
+			return err
+		}
 		demand.HostLaunchBytes = windowsDockerHostLaunchBytes(snap, g.api.deps.Backend.Kind())
 		if code, message := evaluateExecutionCapacity(snap, policy, resources, demand, now); code != "" {
 			out.Code, out.Message = code, message
 			return nil
 		}
 		if !existing {
-			if len(l.Leases)+len(l.Checks)+len(l.Documents)+len(l.Previews)+len(l.RuntimeImages) >= 4096 {
+			if executionLeaseCount(*l) >= 4096 {
 				return errors.New("execution capacity history needs reconciliation")
 			}
 			l.Documents = append(l.Documents, documentExtractionLease{ID: identity.AllocationID, Scope: g.scope, Actor: actor, Identity: identity, ImageID: prepared.Spec.ImageID, Resources: resources, HostLaunchBytes: demand.HostLaunchBytes, CreateDiskBytes: estimate.Bytes, State: "reserved", CreatedAt: request.CreatedAt, UpdatedAt: now, ComputeDeadline: request.ComputeDeadline, WholeDeadline: request.WholeDeadline})

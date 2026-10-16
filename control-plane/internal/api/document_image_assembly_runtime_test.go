@@ -65,6 +65,7 @@ type assemblyRuntimeExecutor struct {
 	retiredIdentity       backend.DocumentImageAssemblyIdentity
 	retiredRef            string
 	retireGate            <-chan struct{}
+	absentAfterRetire     bool
 }
 
 func (f *assemblyRuntimeExecutor) PrepareDocumentImageAssembly(_ context.Context, s backend.DocumentImageAssemblySpec) (backend.PreparedDocumentImageAssembly, error) {
@@ -91,6 +92,13 @@ func (f *assemblyRuntimeExecutor) InspectDocumentImageAssembly(_ context.Context
 	state := f.observation
 	if state == "" {
 		state = "running"
+	}
+	if f.absentAfterRetire {
+		select {
+		case <-f.retired:
+			state = "absent"
+		default:
+		}
 	}
 	code := 0
 	return backend.DocumentImageAssemblyObservation{Ref: ref, State: state, ExitCode: &code}, nil
