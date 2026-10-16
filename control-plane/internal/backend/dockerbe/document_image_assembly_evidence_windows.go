@@ -14,25 +14,30 @@ import (
 
 func lockAssemblyEvidenceSources(ctx context.Context, objects []backend.DocumentImageAssemblyEvidenceObject) (*assemblySourceGuard, error) {
 	collector := newAssemblySourceCollector(ctx)
+	defer collector.guard.registry.stop()
+	return collector.guard, collectAssemblyEvidenceSources(ctx, collector, objects)
+}
+
+func collectAssemblyEvidenceSources(ctx context.Context, collector *assemblySourceCollector, objects []backend.DocumentImageAssemblyEvidenceObject) error {
 	for _, object := range objects {
 		if err := collector.parents(object.Path); err != nil {
-			return collector.guard, err
+			return err
 		}
 		if err := collector.open(object.Path, false, object.Bytes); err != nil {
-			return collector.guard, err
+			return err
 		}
 		// The shared ordinary source collector historically treats size0 as
 		// unspecified. Evidence logs require an exact size even when empty.
 		held := collector.guard.handles[len(collector.guard.handles)-1]
 		if !strings.EqualFold(held.path, object.Path) || held.info.FileSizeHigh != uint32(uint64(object.Bytes)>>32) || held.info.FileSizeLow != uint32(object.Bytes) {
-			return collector.guard, backend.ErrUnavailable
+			return backend.ErrUnavailable
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return collector.guard, err
+		return err
 	}
 	collector.guard.ready = true
-	return collector.guard, nil
+	return nil
 }
 
 // Synchronous local-file I/O, checked at every finite chunk boundary. Context is

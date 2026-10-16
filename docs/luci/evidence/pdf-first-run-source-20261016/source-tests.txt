@@ -1,0 +1,12 @@
+test_bounded_original_read_rejects_oversize_and_link (test_source.PilotSourceTests.test_bounded_original_read_rejects_oversize_and_link) ... ok
+test_go_mod_h1_is_separate_from_raw_sha (test_source.PilotSourceTests.test_go_mod_h1_is_separate_from_raw_sha) ... ok
+test_manifest_matches_isolated_go_requirements (test_source.PilotSourceTests.test_manifest_matches_isolated_go_requirements) ... ok
+test_missing_inputs_refuse_before_effects (test_source.PilotSourceTests.test_missing_inputs_refuse_before_effects) ... ok
+test_module_h1_uses_exact_zip_members_and_rejects_unsafe_names (test_source.PilotSourceTests.test_module_h1_uses_exact_zip_members_and_rejects_unsafe_names) ... ok
+test_reader_input_is_bounded_before_pdf_parsing (test_source.PilotSourceTests.test_reader_input_is_bounded_before_pdf_parsing) ... ok
+test_reader_rejects_missing_xref_and_non_cff (test_source.PilotSourceTests.test_reader_rejects_missing_xref_and_non_cff) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.005s
+
+OK
