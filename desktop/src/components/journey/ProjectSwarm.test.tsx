@@ -271,6 +271,35 @@ it.each(['review-required', 'succeeded'])('requires exact-change review for %s b
   expect(screen.getByText('Waiting for reviewed integration: Build b.')).not.toBeNull();
 });
 
+it.each(['unknown', 'integrating'] as const)('keeps a successful %s integration response unconfirmed without repeating work', async state => {
+  const initial = base(), operation = op(initial, 'a', 'succeeded'), saved = attach(initial, operation);
+  const review: SwarmReview = {taskId: 'a', operationId: operation.id, sourceCommit: 'b'.repeat(40), targetCommit: 'a'.repeat(40), reviewDigest: 'exact-digest', paths: ['src/a.ts'], patch: '+export const a = 1;', canIntegrate: true, reason: 'Ready for integration'};
+  const reviewAction = vi.spyOn(projectSwarmApi, 'review').mockResolvedValue(review);
+  const response: ProjectRun = {...saved, revision: saved.revision + 1, swarm: {...saved.swarm!, tasks: saved.swarm!.tasks.map(task => task.id === 'a' ? {...task, integration: {state, reviewDigest: review.reviewDigest, sourceCommit: review.sourceCommit, targetCommit: review.targetCommit}} : task)}};
+  const integrate = vi.spyOn(projectSwarmApi, 'integrate').mockResolvedValue(response);
+  const reserve = vi.spyOn(projectSwarmApi, 'reserve'), create = vi.spyOn(api, 'createSession');
+  const control = vi.spyOn(projectSwarmApi, 'control'), request = vi.spyOn(productApi, 'request');
+  const check = vi.spyOn(productApi, 'runChecks'), preview = vi.spyOn(productApi, 'release'), updated = vi.fn();
+  render(<Harness initial={saved} updated={updated} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Review task changes'}));
+  const dialog = await screen.findByRole('dialog', {name: 'Review task changes'});
+  expect(within(dialog).getByRole('button', {name: 'Integrate reviewed changes'})).toHaveProperty('disabled', true);
+  await userEvent.click(within(dialog).getByRole('checkbox'));
+  await userEvent.click(within(dialog).getByRole('button', {name: 'Integrate reviewed changes'}));
+  expect(await screen.findByText('Integration is not confirmed. Refresh team status and inspect the recorded outcome before continuing. Dependent tasks still wait for reviewed integration.')).not.toBeNull();
+  expect(integrate).toHaveBeenCalledOnce();
+  expect(integrate).toHaveBeenCalledWith('p-1', 'run-1', 'a', saved.revision, 'exact-digest');
+  expect(reviewAction).toHaveBeenCalledOnce(); expect(updated).toHaveBeenCalledWith(response);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.queryByText('Integration did not complete. The task changes are retained; inspect the recorded outcome before retrying. Dependent tasks still wait for reviewed integration.')).toBeNull();
+  expect(screen.queryByText('Reviewed changes integrated. Dependent tasks can now start; the combined build still needs verification.')).toBeNull();
+  expect(screen.getByText('0 of 3 integrated')).not.toBeNull();
+  const dependent = screen.getByRole('heading', {name: 'Build c', level: 4}).closest('li')!;
+  expect(within(dependent).getByText('Waiting for reviewed integration: Build a; Build b.')).not.toBeNull();
+  expect(within(dependent).getByRole('button', {name: 'Start task'})).toHaveProperty('disabled', true);
+  for (const effect of [reserve, create, control, request, check, preview]) expect(effect).not.toHaveBeenCalled();
+});
+
 it('serializes unspecified or overlapping file scopes and blocks readers from execution', async () => {
   const initial = base(), operation = op(initial, 'a', 'running');
   let saved = attach(initial, operation);
