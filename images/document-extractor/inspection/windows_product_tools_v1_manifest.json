@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "batch": "windows-product-tools-v1",
+  "purpose": "candidate-wrapper-acquisition-and-static-outer-inspection-only",
+  "objects": [
+    {"id": "cpython", "version": "3.13.16", "file": "python-3.13.16-embed-amd64.zip", "url": "https://www.python.org/ftp/python/3.13.16/python-3.13.16-embed-amd64.zip", "bytes": 11439094, "sha256": "97dae5274cc54867065e8d5a3226e48c35017ed332a0fdb0e27d5b5821961297"},
+    {"id": "gnupg", "version": "2.5.24_20260923", "file": "gnupg-w32-2.5.24_20260923.exe", "url": "https://www.gnupg.org/ftp/gcrypt/binary/gnupg-w32-2.5.24_20260923.exe", "bytes": 5804864, "sha256": "ea6f9dee2cccd83287432625b8b399173805add81d27067fcaf019c0c4da1ad8"}
+  ],
+  "limits": {"originalBytes": 33554432, "expandedBytes": 33554432, "combinedBytes": 67108864, "calls": 8192, "chunkBytes": 65536, "members": 211, "memberBytes": 16777216, "centralDirectoryBytes": 1048576, "headersBytes": 2097152, "observationBytes": 2097152, "noticeBytesEach": 262144, "noticeBytesTotal": 1048576},
+  "notEstablished": ["payload-authentication", "NSIS-payload-decoding", "nested-stdlib-decoding", "corresponding-source-and-licence-closure", "current-host", "Product-profile", "runtime-budget-and-census"]
+}
