@@ -17,6 +17,7 @@ type assemblyEvidenceOwner struct {
 	generation                       uint64
 	ready, closing, closed, poisoned bool
 	readBytes                        int64
+	readCalls                        int
 }
 
 type assemblyEvidenceToken struct {
@@ -37,7 +38,7 @@ func AcquireDocumentImageAssemblyEvidence(ctx context.Context, objects []backend
 	var total int64
 	for _, object := range objects {
 		key := strings.ToLower(object.Path)
-		if len(object.Role) == 0 || len(object.Role) > 128 || strings.Trim(object.Role[:1], "abcdefghijklmnopqrstuvwxyz0123456789") != "" || strings.Trim(object.Role, "abcdefghijklmnopqrstuvwxyz0123456789._:-") != "" || owned[object.Role].Role != "" || !filepath.IsAbs(object.Path) || filepath.Clean(object.Path) != object.Path || len(object.Path) > 32760 || strings.ContainsAny(object.Path, "\x00\r\n") || paths[key] || object.Bytes <= 0 || object.Bytes > backend.DocumentImageAssemblyEvidenceMaxObjectBytes || object.Bytes > backend.DocumentImageAssemblyEvidenceMaxBytes-total || !fenceHex(object.Digest, 32) {
+		if len(object.Role) == 0 || len(object.Role) > 128 || strings.Trim(object.Role[:1], "abcdefghijklmnopqrstuvwxyz0123456789") != "" || strings.Trim(object.Role, "abcdefghijklmnopqrstuvwxyz0123456789._:-") != "" || owned[object.Role].Role != "" || !filepath.IsAbs(object.Path) || filepath.Clean(object.Path) != object.Path || len(object.Path) > 32760 || strings.ContainsAny(object.Path, "\x00\r\n") || paths[key] || object.Bytes < 0 || object.Bytes > backend.DocumentImageAssemblyEvidenceMaxObjectBytes || object.Bytes > backend.DocumentImageAssemblyEvidenceMaxBytes-total || !fenceHex(object.Digest, 32) || object.Bytes == 0 && object.Digest != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
 			return nil, backend.ErrUnsupported
 		}
 		owned[object.Role], paths[key] = object, true
@@ -87,11 +88,13 @@ func (token *assemblyEvidenceToken) ReadBounded(ctx context.Context, role string
 		return nil, backend.ErrUnavailable
 	}
 	object, exists := o.objects[role]
-	if !exists || maximum <= 0 || maximum > backend.DocumentImageAssemblyEvidenceMaxObjectBytes || object.Bytes > maximum || object.Bytes > backend.DocumentImageAssemblyEvidenceMaxBytes-o.readBytes {
+	charge := max(int64(1), object.Bytes)
+	if !exists || maximum <= 0 || maximum > backend.DocumentImageAssemblyEvidenceMaxObjectBytes || object.Bytes > maximum || charge > backend.DocumentImageAssemblyEvidenceMaxBytes-o.readBytes || o.readCalls >= backend.DocumentImageAssemblyEvidenceMaxReads {
 		return nil, backend.ErrUnsupported
 	}
 	// Charge before allocation/I/O, including failed reads; no reset or replay.
-	o.readBytes += object.Bytes
+	o.readBytes += charge
+	o.readCalls++
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	data, err := o.guard.readEvidence(ctx, object, maximum)

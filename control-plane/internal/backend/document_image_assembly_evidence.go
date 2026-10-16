@@ -6,6 +6,7 @@ const (
 	DocumentImageAssemblyEvidenceMaxObjects     = 256
 	DocumentImageAssemblyEvidenceMaxObjectBytes = 16 << 20
 	DocumentImageAssemblyEvidenceMaxBytes       = 64 << 20
+	DocumentImageAssemblyEvidenceMaxReads       = 1024
 )
 
 // Exact installer-owned original objects. Role is a unique logical artifact key,

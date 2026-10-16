@@ -232,3 +232,57 @@ func TestAssemblyEvidenceTransferBoundNeverDuplicatesOrClosesCurrentHandles(t *t
 		t.Fatal("refused transfer lost current owner")
 	}
 }
+
+func TestAssemblyEvidenceEmptyNativeLogsRequireExactEOFAndHash(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "empty.stdout.log")
+	if err := os.WriteFile(path, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	object := backend.DocumentImageAssemblyEvidenceObject{Role: "child-0:stdout", Path: path, Bytes: 0, Digest: documentFixtureDigest(nil)}
+	guard, err := AcquireDocumentImageAssemblyEvidence(context.Background(), []backend.DocumentImageAssemblyEvidenceObject{object})
+	if err != nil {
+		if guard != nil {
+			_ = guard.Close()
+		}
+		t.Fatal(err)
+	}
+	defer guard.Close()
+	data, err := guard.ReadBounded(context.Background(), object.Role, 1)
+	if err != nil || data == nil || len(data) != 0 {
+		t.Fatal("exact empty log refused", data, err)
+	}
+	token := guard.(*assemblyEvidenceToken)
+	if token.owner.readBytes != 1 || token.owner.readCalls != 1 {
+		t.Fatal("empty read bypassed lifetime accounting")
+	}
+	token.owner.readCalls = backend.DocumentImageAssemblyEvidenceMaxReads
+	if data, err := guard.ReadBounded(context.Background(), object.Role, 1); err == nil || data != nil {
+		t.Fatal("empty rereads bypassed finite call budget")
+	}
+	if guard.Close() != nil {
+		t.Fatal("empty log native handle not closed")
+	}
+	for _, mode := range []string{"wrong-hash", "negative", "nonempty-original"} {
+		t.Run(mode, func(t *testing.T) {
+			changed := object
+			switch mode {
+			case "wrong-hash":
+				changed.Digest = strings.Repeat("9", 64)
+			case "negative":
+				changed.Bytes = -1
+			case "nonempty-original":
+				changed.Path = assemblyEvidenceFixture(t).Path
+			}
+			partial, err := AcquireDocumentImageAssemblyEvidence(context.Background(), []backend.DocumentImageAssemblyEvidenceObject{changed})
+			if partial != nil {
+				defer partial.Close()
+			}
+			if err == nil {
+				t.Fatal("invalid empty-log claim accepted")
+			}
+			if partial != nil && partial.CheckCurrent(context.Background()) == nil {
+				t.Fatal("failed exact0size became current")
+			}
+		})
+	}
+}
