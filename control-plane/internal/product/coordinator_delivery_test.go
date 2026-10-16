@@ -81,6 +81,73 @@ func coordinatorIntegrateFixture(t *testing.T, s *Server, p project.Project, h h
 		}
 	}
 	s.SetProjectRunSessionObserver(func(context.Context, string, string, string) ([]registry.Session, error) { return nil, nil })
+	if reviewerTask := swarmTask(&run, "task-review"); reviewerTask != nil && reviewerTask.Role == "reviewer" {
+		s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(_ context.Context, req TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
+			if req.OperationID != op.ID {
+				return TaskHandoffCapture{}, errors.New("foreign candidate handoff")
+			}
+			return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("preview candidate review"), Report: &TaskHandoffReport{Version: 1, Summary: "Candidate source is ready for independent review.", ChangedFiles: []string{"result.txt"}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect result.txt", Outcome: "passed", Detail: "Candidate committed."}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}}, nil
+		})
+		journeyRequest(t, h, "POST", base+"/operations/"+op.ID+"/handoff/collect", map[string]any{"expectedRevision": run.Revision}, 200)
+		run, err = s.projectRuns.Get(p.ID, p.Path, run.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var candidateResponse struct {
+			Review ProjectSwarmReview `json:"review"`
+		}
+		decodeEvidenceResponse(t, journeyRequest(t, h, "GET", base+"/tasks/task-save/review", nil, 200).Body.Bytes(), &candidateResponse)
+		candidateReview := candidateResponse.Review
+		if candidateReview.CanIntegrate || candidateReview.IndependentReviewState != "pending" {
+			t.Fatal("candidate bypassed independent review", candidateReview)
+		}
+		run = projectRunHTTPResponse(t, journeyRequest(t, h, "POST", base+"/tasks/task-review/reserve", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "delivery-review-reserve-123456"}, 201)).ProjectRun
+		reviewer := run.Operations[len(run.Operations)-1]
+		var obligation struct {
+			Obligation ProjectSwarmReviewObligationView `json:"obligation"`
+		}
+		decodeEvidenceResponse(t, journeyRequest(t, h, "POST", base+"/tasks/task-save/review-obligations", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "delivery-review-obligation-123456", "candidateOperationId": op.ID, "reviewerOperationId": reviewer.ID, "reviewDigest": candidateReview.ReviewDigest}, 201).Body.Bytes(), &obligation)
+		run, err = s.projectRuns.Get(p.ID, p.Path, run.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assignment := swarmReviewAssignmentDigest(run, reviewer.ID)
+		if assignment == "" {
+			t.Fatal("independent reviewer has no exact assignment")
+		}
+		run, _, _, err = s.projectRuns.ClaimOperation(p.ID, p.Path, run.ID, run.Revision, reviewer.ID, assignment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, reviewer.ID, reviewer.ChildID, "succeeded", "Independent reviewer completed the controlled review.")
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.SetTaskHandoffCollector(func(context.Context, ProjectSwarmRecoveryRequest) error { return nil }, func(_ context.Context, req TaskHandoffCaptureRequest) (TaskHandoffCapture, error) {
+			if req.OperationID != reviewer.ID {
+				return TaskHandoffCapture{}, errors.New("foreign reviewer handoff")
+			}
+			return TaskHandoffCapture{Release: func() {}, Status: "captured", ContextDigest: implementationDigest("preview independent review"), Report: &TaskHandoffReport{Version: 1, Summary: "Independently checked the candidate against the saved acceptance.", ChangedFiles: []string{}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect candidate diff", Outcome: "passed", Detail: "The saved acceptance is covered."}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}}, nil
+		})
+		var handoff struct {
+			Handoff TaskHandoffView `json:"handoff"`
+		}
+		decodeEvidenceResponse(t, journeyRequest(t, h, "POST", base+"/operations/"+reviewer.ID+"/handoff/collect", map[string]any{"expectedRevision": run.Revision}, 200).Body.Bytes(), &handoff)
+		run, err = s.projectRuns.Get(p.ID, p.Path, run.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var finding struct {
+			Message     ProjectSwarmMessage `json:"message"`
+			RunRevision int                 `json:"runRevision"`
+		}
+		decodeEvidenceResponse(t, journeyRequest(t, h, "POST", base+"/operations/"+reviewer.ID+"/messages", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "delivery-review-finding-123456", "recipientTaskId": "task-save", "kind": "review-finding", "evidence": map[string]any{"kind": "handoff", "id": reviewer.ID, "digest": handoff.Handoff.Digest}, "summary": "The exact candidate passed independent review."}, 200).Body.Bytes(), &finding)
+		journeyRequest(t, h, "POST", base+"/review-obligations/"+obligation.Obligation.ID+"/resolve", map[string]any{"expectedRevision": finding.RunRevision, "outcome": "passed", "reviewerHandoffDigest": handoff.Handoff.Digest, "findingMessageId": finding.Message.ID}, 200)
+		run, err = s.projectRuns.Get(p.ID, p.Path, run.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 	var reviewed struct {
 		Review ProjectSwarmReview `json:"review"`
 	}

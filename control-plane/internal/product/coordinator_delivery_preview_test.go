@@ -28,6 +28,15 @@ func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool, co
 		t.Fatal(err)
 	}
 	base := "/v1/product/projects/" + p.ID
+	state, err := s.readApprovedJourney(p.Path, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tasks := currentPlan(state, p.ID).Tasks
+	tasks[0].WritePaths = []string{"result.txt"}
+	tasks = append(tasks, ProjectTask{ID: "task-review", Title: "Independently review checked source", Status: "todo", Role: "reviewer", ReviewOfTaskID: "task-save", RequirementIDs: []string{"AC-save"}, Acceptance: "Inspect the exact candidate and report an independent check."})
+	var plan ProjectPlan
+	decodeEvidenceResponse(t, journeyRequest(t, h, "POST", base+"/plan", map[string]any{"expectedRevision": state.Plan.Revision, "expectedSpecificationRevision": state.Specification.Revision, "tasks": tasks}, 200).Body.Bytes(), &plan)
 	journeyRequest(t, h, "POST", base+"/git/commit", reviewedCommitRequest(t, h, base+"/git/commit", "Review local preview build configuration"), 200)
 	var policy CoordinatorPolicy
 	decodeEvidenceResponse(t, journeyRequest(t, h, "POST", base+"/orchestrator/policy", map[string]any{"expectedRevision": request.ExpectedPolicyRevision, "mode": "review", "allowedTargets": []string{"plan"}, "executionMode": "reviewed-tasks", "deploymentMode": "manual", "previewMode": "checked-source"}, 200).Body.Bytes(), &policy)
@@ -42,10 +51,18 @@ func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool, co
 	}
 	request.OriginTurnID, request.ExpectedContextDigest, request.ExpectedPolicyRevision = turn.ID, view.Context.Digest, policy.Revision
 	request.Run.Outcome = outcome
+	request.Run.ImplementationContext.PlanRevision = plan.Revision
+	request.Run.ImplementationContext.TaskIDs = []string{"task-review", "task-save"}
 	request.PreviewPlan = &CoordinatorPreviewPlan{Dockerfile: "Dockerfile", Port: 3000, ExpectedConfigurationRevision: 0, AcknowledgePreviewBuild: true}
 	for _, prepare := range configure {
 		prepare(s, p, h, ctx, &request)
 	}
+	prepare := contractRequest(request.Run)
+	prepare.IdempotencyKey = "preview-current-contract-123456"
+	endpoint := base + "/orchestration-contracts"
+	prepared := contractResponse(t, journeyRequest(t, h, "POST", endpoint+"/prepare", prepare, 201).Body.Bytes())
+	approved := contractResponse(t, journeyRequest(t, h, "POST", endpoint+"/"+prepared.Contract.ID+"/approve", map[string]any{"expectedRevision": prepared.Contract.Revision, "expectedDigest": prepared.Contract.Digest}, 200).Body.Bytes())
+	request.Run.OrchestrationContract = &OrchestrationContractSelection{ID: approved.Contract.ID, Revision: approved.Contract.Revision, Digest: approved.Contract.Digest, ApprovalID: approved.Contract.Approval.ID}
 	s, p, h, ctx, row, _ := coordinatorDeliveryRequestFixture(t, s, p, h, ctx, request)
 	starts := &atomic.Int32{}
 	health := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("owned fixture health")) }))
