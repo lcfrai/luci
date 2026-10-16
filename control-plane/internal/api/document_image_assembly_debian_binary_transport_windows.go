@@ -107,6 +107,7 @@ func (o *debianProofNativeOwner) prepareBinaryInheritedHandleList(ctx context.Co
 	for _, old := range o.jobs { ownedJob = ownedJob || old == life.job }
 	if !ownedLife || !ownedJob || len(life.handles) != 6 { o.mu.Unlock(); return nil, errDebianProofCensus }
 	stdio := [3]windows.Handle{life.handles[4], life.handles[1], life.handles[3]}; o.mu.Unlock()
+	for _, handle := range stdio { if !validDebianProducedHandle(handle) { return nil, errDebianProofCensus } }
 	if t.claim == nil || life.piTicket != t.claim.pi || life.inherited != t.claim.inherited { return nil, errDebianProofCensus }
 	c := o.census; c.mu.Lock()
 	valid := !c.retiring && !o.nativeRetired() && time.Now().Before(o.workLimit())
@@ -126,6 +127,13 @@ func (o *debianProofNativeOwner) prepareBinaryInheritedHandleList(ctx context.Co
 		alias := &t.native.aliases[i]
 		if !alias.duplicateReturned || !alias.borrowReturned || alias.closing || !validDebianProducedHandle(alias.handle) { t.mu.Unlock(); return nil, errDebianProofCensus }
 		b.handles[3+i] = alias.handle
+	}
+	// Known-zero failed pipe ACKs are settled metadata, never usable stdio.
+	// A fixed HANDLE_LIST also cannot contain duplicate inherited entries.
+	// Validate the complete list BEFORE its first native attribute operation.
+	for i, handle := range b.handles {
+		if !validDebianProducedHandle(handle) { t.mu.Unlock(); return nil, errDebianProofCensus }
+		for j := 0; j < i; j++ { if b.handles[j] == handle { t.mu.Unlock(); return nil, errDebianProofCensus } }
 	}
 	t.native.startup = b // original backing retained BEFORE attribute/native calls
 	t.mu.Unlock()

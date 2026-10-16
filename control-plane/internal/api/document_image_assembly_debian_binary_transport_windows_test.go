@@ -162,17 +162,27 @@ func TestDebianBinaryTransportBlockedAliasCloseCannotBlockRetireLatch(t *testing
 	unblock(); select { case positive := <-finished: if !positive { t.Fatal("actual fake Close return failed settlement") }; case <-time.After(time.Second): t.Fatal("fake Close failed to join") }
 }
 
-func binaryInertStartup(t *testing.T) (*debianProofNativeOwner, *debianBinaryNativeTransport, *debianBinaryStartupBorrow, *inertDebianKernel) {
+func binaryInertStartupInputs(t *testing.T, pairs [3][2]windows.Handle) (*debianProofNativeOwner, *debianBinaryNativeTransport, *debianProofLifetime, *inertDebianKernel) {
 	t.Helper(); owner, transport, kernel := binaryInertTransport(t)
 	for i := range transport.native.aliases {
 		handle := windows.Handle(1000+i); transport.native.aliases[i] = debianBinaryOriginalAlias{handle: handle, issued: true, lookupReturned: true, duplicateStarted: true, duplicateReturned: true, borrowReturned: true}
 		if owner.recordKernelReturn(transport.claim.aliases[i], handle) != nil { t.Fatal("fake alias ACK failed") }
 	}
 	job := &debianProofJob{handle: 77}; owner.jobs = append(owner.jobs, job)
-	life := &debianProofLifetime{job: job, piTicket: transport.claim.pi, inherited: transport.claim.inherited, handles: []windows.Handle{101,102,103,104,105,106}, readersSettled: true}
+	life := &debianProofLifetime{job: job, piTicket: transport.claim.pi, inherited: transport.claim.inherited, readersSettled: true}
+	for _, pair := range pairs { life.handles = append(life.handles, pair[0], pair[1]) }
 	owner.lifetimes = append(owner.lifetimes, life)
 	_ = owner.recordKernelReturn(transport.claim.job, 77)
-	for i, pair := range [][2]windows.Handle{{101,102},{103,104},{105,106}} { _ = owner.recordKernelReturn(transport.claim.pipes[i], pair[0], pair[1]) }
+	for i, pair := range pairs {
+		var callErr error
+		if !validDebianProducedHandle(pair[0]) && !validDebianProducedHandle(pair[1]) { callErr = errors.New("synthetic direct failed pipe/no original outputs") }
+		_ = owner.recordKernelCallReturn(transport.claim.pipes[i], callErr, pair[0], pair[1])
+	}
+	return owner, transport, life, kernel
+}
+
+func binaryInertStartup(t *testing.T) (*debianProofNativeOwner, *debianBinaryNativeTransport, *debianBinaryStartupBorrow, *inertDebianKernel) {
+	t.Helper(); owner, transport, life, kernel := binaryInertStartupInputs(t, [3][2]windows.Handle{{101,102},{103,104},{105,106}})
 	updates := 0
 	owner.calls.BinaryUpdateAttributes = func(_ unsafe.Pointer, key uintptr, value unsafe.Pointer, bytes uintptr) error {
 		updates++
@@ -187,6 +197,35 @@ func binaryInertStartup(t *testing.T) (*debianProofNativeOwner, *debianBinaryNat
 	b, err := owner.prepareBinaryInheritedHandleList(context.Background(), transport, life)
 	if err != nil || b == nil || !b.prepared || updates != 2 || kernel.created.Load() != 0 || kernel.resumed.Load() != 0 { t.Fatal("fixed startup borrowing failed or launched native work", err) }
 	return owner, transport, b, kernel
+}
+
+func TestDebianBinaryTransportInvalidOrDuplicateListRefusesBeforeAttributes(t *testing.T) {
+	for _, name := range []string{"known-zero-pipe", "invalid-pipe", "duplicate-stdio", "duplicate-alias", "stdio-alias"} { t.Run(name, func(t *testing.T) {
+		pairs := [3][2]windows.Handle{{101,102},{103,104},{105,106}}
+		switch name {
+		case "known-zero-pipe": pairs[0] = [2]windows.Handle{0,0}
+		case "invalid-pipe": pairs[0] = [2]windows.Handle{windows.InvalidHandle,windows.InvalidHandle}
+		case "duplicate-stdio": pairs[1][1] = 102
+		}
+		owner, transport, life, kernel := binaryInertStartupInputs(t, pairs)
+		// Deliberately corrupted lower backing cases, not real Duplicate ACKs.
+		// Exact original ticket refs remain retained for cleanup assertions.
+		if name == "duplicate-alias" { transport.native.aliases[0].handle = 1001 }
+		if name == "stdio-alias" { transport.native.aliases[0].handle = 102 }
+		initializations, updates := 0, 0
+		owner.calls.BinaryInitAttributes = func(unsafe.Pointer, *uintptr) error { initializations++; return errors.New("must not enter") }
+		owner.calls.BinaryUpdateAttributes = func(unsafe.Pointer, uintptr, unsafe.Pointer, uintptr) error { updates++; return errors.New("must not enter") }
+		before := owner.census.reserved
+		b, err := owner.prepareBinaryInheritedHandleList(context.Background(), transport, life)
+		if err == nil || b != nil || initializations != 0 || updates != 0 || transport.native.startup != nil || owner.census.reserved != before { t.Fatal("invalid fixed list reached attributes, installed startup, or lost charge") }
+		if transport.claim.aliases[0].slots[0].value != 1000 || transport.native.aliases[180].handle != 1180 || kernel.closed[1000] { t.Fatal("rejected list discarded retained original alias ownership") }
+		// Restore only the intentionally corrupted fake list view. No production
+		// retry, reacquisition, quota refund or changed actual ACK is represented.
+		transport.native.aliases[0].handle = 1000
+		transport.retire()
+		if !owner.settleBinaryNativeTransport(transport) { t.Fatal("retained fake original aliases could not close after refusal") }
+		for i := range transport.native.aliases { if !kernel.closed[windows.Handle(1000+i)] { t.Fatal("allocated fake alias lost during refusal cleanup") } }
+	}) }
 }
 
 func TestDebianBinaryTransportFixed184StartupBorrowsUntilOriginalCreateReturn(t *testing.T) {
