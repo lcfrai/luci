@@ -440,6 +440,8 @@ func optionalAssemblyDebianEpoch(v int64) *int64 { if v == 0 { return nil }; ret
 
 type assemblyDebianDomainCandidate struct {
 	mu sync.Mutex
+	indexTransfer bool // latch/serialize handoff; never held across native IO
+	indexHandoff *assemblyDebianIndexCandidate // exact promoted retirement owner
 	guard, inputs backend.DocumentImageAssemblyEvidenceGuard
 	retiring bool
 	adopting bool

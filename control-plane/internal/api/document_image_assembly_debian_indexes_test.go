@@ -9,9 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
@@ -352,6 +354,288 @@ func TestAssemblyDebianIndexPermitLostACKAndUnknownCloseRetainOwnership(t *testi
 			}
 			if e = c.retire(); e != nil {
 				t.Fatal("exact remaining guard not settled", e)
+			}
+		})
+	}
+}
+
+// Fake synchronous guard boundary with the real helper's Transfer/CheckCurrent/
+// Close calls. Like the Windows guard, one native-owner mutex is held through
+// Transfer IO; a competing Close can wait, but prior-owner latches must not.
+// No actual files, handles, payload reads, processes or index SHA preimages.
+type assemblyIndexTransferState struct {
+	mu                          sync.Mutex
+	generation                  int
+	closed                      bool
+	entered, release            chan struct{}
+	cancelCheck                 context.CancelFunc
+	returnTokenError, failClose bool
+}
+type assemblyIndexTransferToken struct {
+	state      *assemblyIndexTransferState
+	generation int
+}
+
+func (g *assemblyIndexTransferToken) CheckCurrent(ctx context.Context) error {
+	g.state.mu.Lock()
+	defer g.state.mu.Unlock()
+	if g.state.cancelCheck != nil && g.generation > 0 {
+		cancel := g.state.cancelCheck
+		g.state.cancelCheck = nil
+		cancel()
+	}
+	if ctx.Err() != nil || g.state.closed || g.generation != g.state.generation {
+		return errAssemblyDebianCapture
+	}
+	return nil
+}
+func (g *assemblyIndexTransferToken) ReadBounded(context.Context, string, int64) ([]byte, error) {
+	return nil, errors.New("ownership fixture must never read payload")
+}
+func (g *assemblyIndexTransferToken) Transfer(ctx context.Context) (backend.DocumentImageAssemblyEvidenceGuard, error) {
+	g.state.mu.Lock()
+	defer g.state.mu.Unlock()
+	if ctx.Err() != nil || g.state.closed || g.generation != g.state.generation {
+		return nil, errAssemblyDebianCapture
+	}
+	if g.state.entered != nil {
+		close(g.state.entered)
+		<-g.state.release
+		g.state.entered = nil
+	}
+	// Actual guard CheckCurrent checks context at end; this fake does too. It
+	// never models a successful transfer after its context deadline/cancel.
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	g.state.generation++
+	next := &assemblyIndexTransferToken{g.state, g.state.generation}
+	if g.state.returnTokenError {
+		return next, errors.New("synthetic partial token return")
+	}
+	return next, nil
+}
+func (g *assemblyIndexTransferToken) Close() error {
+	g.state.mu.Lock()
+	defer g.state.mu.Unlock()
+	if g.generation != g.state.generation {
+		return errAssemblyDebianCapture
+	}
+	if g.state.failClose {
+		return errors.New("synthetic exact Close unknown")
+	}
+	g.state.closed = true
+	return nil
+}
+
+func assemblyIndexTransferFixture(t *testing.T) (*assemblyDebianIndexCandidate, [3]*assemblyIndexTransferState) {
+	t.Helper()
+	r, now := assemblyDebianOwnedFixture(t)
+	raw, err := captureDebianSignatureRun(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first3, err := newAssemblyDebianDomains(context.Background(), r.owner, raw, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cas, err := r.owner.adoptDebianDomainsAt(context.Background(), first3, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Settle the old fake tokens explicitly before replacing them for this
+	// lower-level handoff fixture. Canonical first3 metadata is not index proof.
+	if first3.guard.Close() != nil || first3.inputs.Close() != nil {
+		t.Fatal("fixture original token cleanup")
+	}
+	states := [3]*assemblyIndexTransferState{{}, {}, {}}
+	token := func(i int) *assemblyIndexTransferToken { return &assemblyIndexTransferToken{states[i], 0} }
+	first3.guard, first3.inputs = token(1), token(2)
+	captured := &assemblyDebianCapturedIndexes{owner: r.owner, first3: first3, guard: token(0), phase: "capturing"}
+	return &assemblyDebianIndexCandidate{owner: r.owner, first3: first3, capture: captured, expected: cas}, states
+}
+
+func TestAssemblyDebianIndexTransferRetirementLatchesWhileNativeTransferIsBlocked(t *testing.T) {
+	for _, slot := range []int{0, 1, 2} {
+		t.Run(fmt.Sprint(slot), func(t *testing.T) {
+			c, states := assemblyIndexTransferFixture(t)
+			entered, release := make(chan struct{}), make(chan struct{})
+			states[slot].entered, states[slot].release = entered, release
+			var releaseOnce sync.Once
+			unblock := func() { releaseOnce.Do(func() { close(release) }) }
+			transferred, retired, latched := make(chan error, 1), make(chan error, 1), make(chan bool, 1)
+			transferDone, retireDone, readerDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
+			retireLaunched, readerLaunched := false, false
+			go func() {
+				defer close(transferDone)
+				transferred <- transferAssemblyDebianIndexOwners(context.Background(), c)
+			}()
+			defer func() {
+				unblock()
+				doneSet := []chan struct{}{transferDone}
+				if retireLaunched {
+					doneSet = append(doneSet, retireDone)
+				}
+				if readerLaunched {
+					doneSet = append(doneSet, readerDone)
+				}
+				for _, done := range doneSet {
+					select {
+					case <-done:
+					case <-time.After(time.Second):
+						t.Error("ownership fixture goroutine not settled")
+					}
+				}
+				_ = c.capture.retire()
+				_ = c.first3.retire()
+			}()
+			select {
+			case <-entered:
+			case <-time.After(time.Second):
+				unblock()
+				t.Fatal("actual helper did not reach blocked Transfer")
+			}
+			retireLaunched = true
+			go func() {
+				defer close(retireDone)
+				if slot == 0 {
+					retired <- c.capture.retire()
+				} else {
+					retired <- c.first3.retire()
+				}
+			}()
+			readerLaunched = true
+			go func() {
+				defer close(readerDone)
+				until := time.Now().Add(time.Second)
+				for time.Now().Before(until) {
+					var stopped bool
+					if slot == 0 {
+						c.capture.mu.Lock()
+						stopped = c.capture.phase == "retiring"
+						c.capture.mu.Unlock()
+					} else {
+						c.first3.mu.Lock()
+						stopped = c.first3.retiring
+						c.first3.mu.Unlock()
+					}
+					if stopped {
+						latched <- true
+						return
+					}
+					time.Sleep(time.Millisecond)
+				}
+				latched <- false
+			}()
+			select {
+			case yes := <-latched:
+				if !yes {
+					t.Fatal("retirement did not latch while Transfer blocked")
+				}
+			case <-time.After(time.Second):
+				t.Fatal("prior owner mutex held across native Transfer")
+			}
+			unblock()
+			select {
+			case err := <-transferred:
+				if err == nil {
+					t.Fatal("retirement intersection promoted candidate")
+				}
+			case <-time.After(time.Second):
+				t.Fatal("late Transfer did not settle")
+			}
+			select {
+			case <-retired:
+			case <-time.After(time.Second):
+				t.Fatal("original retirement did not settle")
+			}
+			if c.capture.handoff != nil || c.first3.indexHandoff != nil || c.indexes != nil || c.output != nil || c.inputs != nil {
+				t.Fatal("candidate installed after prior retirement")
+			}
+			// The late successful token was registered in its original owner and
+			// closed there; other partial tokens stay exactly owned until cleanup.
+			states[slot].mu.Lock()
+			generation, closed := states[slot].generation, states[slot].closed
+			states[slot].mu.Unlock()
+			if generation != 1 || !closed {
+				t.Fatal("late exact token was lost", generation, closed)
+			}
+		})
+	}
+}
+
+func TestAssemblyDebianIndexTransferCancellationBeforePromotionRetainsEveryMovedToken(t *testing.T) {
+	c, states := assemblyIndexTransferFixture(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	states[2].cancelCheck = cancel
+	if err := transferAssemblyDebianIndexOwners(ctx, c); err == nil {
+		t.Fatal("cancelled final current check promoted candidate")
+	}
+	if c.capture.handoff != nil || c.first3.indexHandoff != nil || c.capture.guard == nil || c.first3.guard == nil || c.first3.inputs == nil {
+		t.Fatal("cancellation lost prior owner tokens")
+	}
+	for _, state := range states {
+		state.mu.Lock()
+		generation := state.generation
+		state.mu.Unlock()
+		if generation != 1 {
+			t.Fatal("did not drive all three actual Transfer edges")
+		}
+	}
+	if c.capture.retire() != nil || c.first3.retire() != nil {
+		t.Fatal("exact transferred tokens not closeable by their retained owners")
+	}
+}
+
+func TestAssemblyDebianIndexTransferPartialReturnedTokenAndUnknownCloseStayOwned(t *testing.T) {
+	c, states := assemblyIndexTransferFixture(t)
+	states[0].returnTokenError, states[0].failClose = true, true
+	if err := transferAssemblyDebianIndexOwners(context.Background(), c); err == nil {
+		t.Fatal("partial token return promoted")
+	}
+	current, ok := c.capture.guard.(*assemblyIndexTransferToken)
+	if !ok || current.generation != 1 || c.capture.phase != "retiring" || c.capture.handoff != nil {
+		t.Fatal("returned-on-error token lost exact prior owner")
+	}
+	if c.capture.retire() == nil {
+		t.Fatal("unknown Close claimed settled")
+	}
+	states[0].failClose = false
+	if c.capture.retire() != nil || c.first3.retire() != nil {
+		t.Fatal("retained exact tokens not settleable")
+	}
+}
+
+func TestAssemblyDebianIndexPromotedRetirementFollowsEitherOriginalOwner(t *testing.T) {
+	for _, prior := range []string{"captured", "first3"} {
+		t.Run(prior, func(t *testing.T) {
+			c, states := assemblyIndexTransferFixture(t)
+			if err := transferAssemblyDebianIndexOwners(context.Background(), c); err != nil {
+				t.Fatal(err)
+			}
+			if c.capture.handoff != c || c.first3.indexHandoff != c || c.capture.guard != nil || c.first3.guard != nil || c.first3.inputs != nil {
+				t.Fatal("ownership not atomically routed")
+			}
+			var err error
+			if prior == "captured" {
+				err = c.capture.retire()
+			} else {
+				err = c.first3.retire()
+			}
+			if err != nil || !c.retiring {
+				t.Fatal("old owner retirement ignored promoted token owner", err)
+			}
+			for _, state := range states {
+				state.mu.Lock()
+				closed := state.closed
+				state.mu.Unlock()
+				if !closed {
+					t.Fatal("old retirement skipped promoted native owner")
+				}
+			}
+			if c.capture.retire() != nil || c.first3.retire() != nil {
+				t.Fatal("routing exact already-closed ownership failed")
 			}
 		})
 	}

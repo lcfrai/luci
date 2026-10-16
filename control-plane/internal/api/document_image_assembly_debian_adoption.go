@@ -28,7 +28,7 @@ func (p *assemblyDebianPublicationPermit) begin(ctx context.Context, owner *asse
 	if p.indexes!=nil{return p.beginIndexes(ctx,owner,next)}
 	c:=p.candidate
 	c.mu.Lock()
-	if c.retiring || !c.adopting || c.capture==nil || c.capture.run==nil || c.capture.run.owner!=owner || c.targetCAS!=next || c.guard==nil || c.inputs==nil || c.publicationRetired { c.mu.Unlock();return errAssemblyDebianCapture }
+	if c.retiring || c.indexTransfer || c.indexHandoff!=nil || !c.adopting || c.capture==nil || c.capture.run==nil || c.capture.run.owner!=owner || c.targetCAS!=next || c.guard==nil || c.inputs==nil || c.publicationRetired { c.mu.Unlock();return errAssemblyDebianCapture }
 	output,inputs:=c.guard,c.inputs
 	c.mu.Unlock()
 	if err:=output.CheckCurrent(ctx);err!=nil{return err};if err:=inputs.CheckCurrent(ctx);err!=nil{return err}
@@ -69,12 +69,12 @@ type assemblyDebianRawManifest struct {
 
 func (c *assemblyDebianDomainCandidate) current(ctx context.Context) error {
 	if c == nil || c.capture == nil || c.capture.run == nil { return errAssemblyDebianCapture }
-	c.mu.Lock(); retiring, output, inputs := c.retiring, c.guard, c.inputs; c.mu.Unlock()
+	c.mu.Lock(); retiring, output, inputs := c.retiring || c.indexTransfer || c.indexHandoff!=nil, c.guard, c.inputs; c.mu.Unlock()
 	if retiring || output == nil || inputs == nil || ctx.Err() != nil { return errAssemblyDebianCapture }
 	if err := output.CheckCurrent(ctx); err != nil { return err }
 	if err := inputs.CheckCurrent(ctx); err != nil { return err }
 	if err:=c.capture.run.owner.authorize(ctx,c.capture.run.actor);err!=nil{return err}
-	c.mu.Lock();retiring=c.retiring;c.mu.Unlock();if retiring{return errAssemblyDebianCapture}
+	c.mu.Lock();retiring=c.retiring || c.indexTransfer || c.indexHandoff!=nil;c.mu.Unlock();if retiring{return errAssemblyDebianCapture}
 	if err:=inputs.CheckCurrent(ctx);err!=nil{return err};return output.CheckCurrent(ctx)
 }
 
@@ -83,7 +83,8 @@ func (c *assemblyDebianDomainCandidate) current(ctx context.Context) error {
 // never authorize a native allocation or stand in for full input closure.
 func (c *assemblyDebianDomainCandidate) retire() error {
 	if c == nil { return errAssemblyDebianCapture }
-	c.mu.Lock(); c.retiring=true; if c.publication!=nil && c.publication.inFlight {c.publication.retired=true;c.publicationRetired=true;c.publicationUnknown=true}; output,inputs:=c.guard,c.inputs; c.mu.Unlock()
+	c.mu.Lock(); c.retiring=true; if c.publication!=nil && c.publication.inFlight {c.publication.retired=true;c.publicationRetired=true;c.publicationUnknown=true}; output,inputs,handoff:=c.guard,c.inputs,c.indexHandoff; c.mu.Unlock()
+	if handoff!=nil{return handoff.retire()}
 	var first error
 	if output != nil { first=output.Close() }
 	if inputs != nil { if err:=inputs.Close(); first==nil { first=err } }
@@ -108,7 +109,7 @@ func (o *assemblyInputOwner) adoptDebianDomainsAt(ctx context.Context, c *assemb
 	if c==nil || c.capture==nil || c.capture.run==nil || c.capture.run.owner!=o || c.current(ctx)!=nil { return assemblyCatalogCAS{},errAssemblyDebianCapture }
 	r:=c.capture.run
 	c.mu.Lock()
-	if c.adopting || c.retiring { c.mu.Unlock(); return assemblyCatalogCAS{},errAssemblyDebianCapture }
+	if c.adopting || c.retiring || c.indexTransfer || c.indexHandoff!=nil { c.mu.Unlock(); return assemblyCatalogCAS{},errAssemblyDebianCapture }
 	c.adopting=true
 	target,targetIndex,publicationUnknown:=c.targetCAS,c.targetIndex,c.publicationUnknown
 	c.mu.Unlock()

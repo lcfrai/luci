@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"math"
 	"sort"
 	"time"
@@ -214,8 +215,12 @@ func (c *assemblyDebianCapturedIndexes) retire() error {
 	}
 	c.mu.Lock()
 	if c.phase == "candidate" {
+		handoff := c.handoff
 		c.mu.Unlock()
-		return errAssemblyDebianCapture
+		if handoff == nil {
+			return errAssemblyDebianCapture
+		}
+		return handoff.retire()
 	}
 	c.phase = "retiring"
 	guard := c.guard
@@ -319,36 +324,153 @@ func newAssemblyDebianIndexCandidate(ctx context.Context, owner *assemblyInputOw
 	if first3.current(ctx) != nil || guard.CheckCurrent(ctx) != nil || checkAssemblyIndexFirst3Time(first3, assemblyIndexFinalNow(now, began)) != nil {
 		return nil, errAssemblyDebianCapture
 	}
-	// Partial moves update the old owner immediately, preserving exact cleanup.
-	captured.mu.Lock()
-	defer captured.mu.Unlock()
-	first3.mu.Lock()
-	defer first3.mu.Unlock()
-	if captured.phase != "capturing" || captured.guard != guard || first3.retiring || first3.adopting || first3.targetCAS != expected {
-		return nil, errAssemblyDebianCapture
+	candidate := &assemblyDebianIndexCandidate{owner: owner, first3: first3, capture: captured, expected: expected, record: value, manifest: manifest, config: profile, receipt: receipt, canonical: canonical, manifestBytes: manifestBytes, ref: ref, manifestRef: manifestRef}
+	if err := transferAssemblyDebianIndexOwners(ctx, candidate); err != nil {
+		return nil, err
 	}
-	indexGuard, e := guard.Transfer(ctx)
-	if e != nil {
-		return nil, e
-	}
-	captured.guard = indexGuard
-	output, e := first3.guard.Transfer(ctx)
-	if e != nil {
-		return nil, e
-	}
-	first3.guard = output
-	inputs, e := first3.inputs.Transfer(ctx)
-	if e != nil {
-		return nil, e
-	}
-	first3.inputs = inputs
-	candidate := &assemblyDebianIndexCandidate{owner: owner, first3: first3, capture: captured, output: output, inputs: inputs, indexes: indexGuard, expected: expected, record: value, manifest: manifest, config: profile, receipt: receipt, canonical: canonical, manifestBytes: manifestBytes, ref: ref, manifestRef: manifestRef}
-	first3.guard, first3.inputs = nil, nil
-	first3.retiring = true
-	captured.guard = nil
-	captured.phase = "candidate"
 	moved = true
 	return candidate, nil
+}
+
+// This lower-level edge is shared by the real byte constructor and inert
+// ownership fixtures. It cannot mint metadata or prove any index bytes. Every
+// native Transfer/CheckCurrent/Close and authority/CAS read occurs OUTSIDE the
+// prior-owner mutexes, so retirement can latch while synchronous IO is pending.
+func transferAssemblyDebianIndexOwners(ctx context.Context, c *assemblyDebianIndexCandidate) error {
+	if c == nil || c.capture == nil || c.first3 == nil || c.first3.capture == nil || c.first3.capture.run == nil || c.owner == nil || c.capture.owner != c.owner || c.capture.first3 != c.first3 || c.first3.capture.run.owner != c.owner {
+		return errAssemblyDebianCapture
+	}
+	captured, first3 := c.capture, c.first3
+	captured.mu.Lock()
+	first3.mu.Lock()
+	if ctx.Err() != nil || captured.phase != "capturing" || captured.handoff != nil || captured.guard == nil || first3.retiring || first3.adopting || first3.indexTransfer || first3.indexHandoff != nil || first3.guard == nil || first3.inputs == nil || first3.targetCAS != c.expected {
+		first3.mu.Unlock()
+		captured.mu.Unlock()
+		return errAssemblyDebianCapture
+	}
+	captured.phase = "transferring"
+	first3.indexTransfer = true
+	first3.mu.Unlock()
+	captured.mu.Unlock()
+	promoted := false
+	defer func() {
+		if !promoted {
+			captured.mu.Lock()
+			if captured.phase == "transferring" {
+				captured.phase = "retiring"
+			}
+			captured.mu.Unlock()
+			first3.mu.Lock()
+			first3.indexTransfer = false
+			first3.retiring = true
+			first3.mu.Unlock()
+		}
+	}()
+	indexes, err := moveAssemblyDebianIndexGuard(ctx, c, 0)
+	if err != nil {
+		return err
+	}
+	output, err := moveAssemblyDebianIndexGuard(ctx, c, 1)
+	if err != nil {
+		return err
+	}
+	inputs, err := moveAssemblyDebianIndexGuard(ctx, c, 2)
+	if err != nil {
+		return err
+	}
+	for _, g := range []backend.DocumentImageAssemblyEvidenceGuard{indexes, output, inputs} {
+		if err := g.CheckCurrent(ctx); err != nil {
+			return err
+		}
+	}
+	r := first3.capture.run
+	current, err := c.owner.Current(ctx, r.actor)
+	if err != nil || current.CAS != c.expected || current.Source != r.source || current.State.Policy != r.policy || !assemblyIndexContains(current.Index, first3.records) {
+		return errAssemblyCatalogConflict
+	}
+	// CheckCurrent may itself wait in synchronous native IO. Recheck context and
+	// BOTH retirement latches afterwards, while holding only short state locks.
+	captured.mu.Lock()
+	first3.mu.Lock()
+	defer captured.mu.Unlock()
+	defer first3.mu.Unlock()
+	if ctx.Err() != nil || captured.phase != "transferring" || captured.handoff != nil || captured.guard != indexes || first3.retiring || first3.adopting || !first3.indexTransfer || first3.indexHandoff != nil || first3.guard != output || first3.inputs != inputs || first3.targetCAS != c.expected {
+		return errAssemblyDebianCapture
+	}
+	c.indexes, c.output, c.inputs = indexes, output, inputs
+	captured.guard = nil
+	captured.phase = "candidate"
+	captured.handoff = c
+	first3.guard, first3.inputs = nil, nil
+	first3.indexTransfer = false
+	first3.indexHandoff = c
+	promoted = true
+	return nil
+}
+
+func assemblyIndexHandoffLatched(ctx context.Context, c *assemblyDebianIndexCandidate) bool {
+	if ctx.Err() != nil {
+		return true
+	}
+	c.capture.mu.Lock()
+	stopped := c.capture.phase != "transferring" || c.capture.handoff != nil
+	c.capture.mu.Unlock()
+	c.first3.mu.Lock()
+	stopped = stopped || c.first3.retiring || !c.first3.indexTransfer || c.first3.indexHandoff != nil
+	c.first3.mu.Unlock()
+	return stopped
+}
+
+// Three closed ownership slots, not a callback or arbitrary owner map. A token
+// returned together with an error is still registered in its ORIGINAL owner
+// before refusal. An intersecting retirement closes the exact late token there;
+// failed Close remains retained and retire-only, never silently abandoned.
+func moveAssemblyDebianIndexGuard(ctx context.Context, c *assemblyDebianIndexCandidate, slot int) (backend.DocumentImageAssemblyEvidenceGuard, error) {
+	var old backend.DocumentImageAssemblyEvidenceGuard
+	switch slot {
+	case 0:
+		c.capture.mu.Lock()
+		old = c.capture.guard
+		c.capture.mu.Unlock()
+	case 1:
+		c.first3.mu.Lock()
+		old = c.first3.guard
+		c.first3.mu.Unlock()
+	case 2:
+		c.first3.mu.Lock()
+		old = c.first3.inputs
+		c.first3.mu.Unlock()
+	default:
+		return nil, errAssemblyDebianCapture
+	}
+	if old == nil || assemblyIndexHandoffLatched(ctx, c) {
+		return nil, errAssemblyDebianCapture
+	}
+	next, err := old.Transfer(ctx)
+	if next != nil {
+		switch slot {
+		case 0:
+			c.capture.mu.Lock()
+			c.capture.guard = next
+			c.capture.mu.Unlock()
+		case 1:
+			c.first3.mu.Lock()
+			c.first3.guard = next
+			c.first3.mu.Unlock()
+		case 2:
+			c.first3.mu.Lock()
+			c.first3.inputs = next
+			c.first3.mu.Unlock()
+		}
+	}
+	if err != nil || next == nil || next == old || assemblyIndexHandoffLatched(ctx, c) {
+		var closeErr error
+		if next != nil {
+			closeErr = next.Close()
+		}
+		return nil, errors.Join(err, errAssemblyDebianCapture, closeErr)
+	}
+	return next, nil
 }
 
 func assemblyIndexFirst3Canonical(c *assemblyDebianDomainCandidate) bool {

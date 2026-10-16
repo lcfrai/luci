@@ -74,6 +74,7 @@ type assemblyDebianCapturedIndexes struct {
 	receipt    assemblyDebianObjectRef
 	selection  assemblyDebianIndexSelectionV1
 	phase      string
+	handoff    *assemblyDebianIndexCandidate // original retirement forwards after move
 }
 
 type assemblyDebianIndexRetainedManifestV1 struct {
