@@ -43,10 +43,11 @@ func TestAssemblyEvidenceReadsOriginalHandleAndMovesSingleOwner(t *testing.T) {
 		t.Fatal("source changed while original handle held")
 	}
 	old := guard
-	guard, err = old.Transfer(context.Background())
+	next, err := old.Transfer(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
+	guard = next
 	if old.Close() == nil || old.CheckCurrent(context.Background()) == nil {
 		t.Fatal("old token retained close/read authority")
 	}
@@ -215,10 +216,11 @@ func TestAssemblyEvidenceTransferBoundNeverDuplicatesOrClosesCurrentHandles(t *t
 	defer func() { _ = guard.Close() }()
 	for i := 0; i < 256; i++ {
 		old := guard
-		guard, err = old.Transfer(context.Background())
-		if err != nil {
-			t.Fatal(i, err)
+		next, moveErr := old.Transfer(context.Background())
+		if moveErr != nil {
+			t.Fatal(i, moveErr)
 		}
+		guard = next
 		if old.Close() == nil {
 			t.Fatal("old generation closed transferred native handles")
 		}
