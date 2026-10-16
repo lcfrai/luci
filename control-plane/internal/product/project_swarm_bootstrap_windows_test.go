@@ -138,7 +138,7 @@ func TestSwarmCheckoutWindowsBootstrapRefusalBeforeMkdir(t *testing.T) {
 func bootstrapWindowsHTTPFixture(t *testing.T) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
 	t.Helper()
 	owned := ownedFixtureTempDir(t)
-	padding := 155 - len(utf16.Encode([]rune(owned))) - 1
+	padding := 149 - len(utf16.Encode([]rune(owned))) - 1
 	if padding < 1 || padding > 200 {
 		t.Fatal("handler fixture requires the separately reviewed short owned TMP root")
 	}
@@ -197,6 +197,9 @@ func bootstrapWindowsHTTPFixture(t *testing.T) (*Server, *http.ServeMux, project
 	if err != nil || len(operationID) != 27 || !errors.Is(windowsSwarmBootstrapFeasibility(worker), errSwarmBootstrapPath) || !windowsBootstrapUnitsFit(filepath.ToSlash(worker), ".git/config", 260) {
 		t.Fatal("fixture did not separate valid primary/config from infeasible worker bootstrap", err)
 	}
+	if len(utf16.Encode([]rune(filepath.Join(worker, ".git", "config")))) != 242 || len(utf16.Encode([]rune(filepath.Join(worker, ".git", "objects", "info")))) != 248 {
+		t.Fatal("fixture is not the shortest one-unit policy rejection geometry")
+	}
 	if _, err = s.swarmGit(context.Background(), p.Path, "rev-parse", "HEAD"); err != nil {
 		t.Fatal("real primary Git source is not readable", err)
 	}
@@ -244,6 +247,7 @@ func TestSwarmWindowsCheckpointHandlerBootstrapRefusal(t *testing.T) {
 	// clone, not the new Server admission; it is not a product bypass or live
 	// execution receipt. Its config is below260 even though policy refuses new
 	// bootstrap there. Unsupported real clone/setup must fail, never skip.
+	t.Log("historical checkpoint setup begins; no checkpoint handler POST has been exercised")
 	var originalPath string
 	var pathErr error
 	run, prior, created, err := s.projectRuns.ReserveSwarmTask(p.ID, p.Path, run.ID, run.Revision, "historical-bootstrap-attempt-123456", "task-save", run.Input.Implementation.SourceCommit, func(operationID string) string {
@@ -259,8 +263,13 @@ func TestSwarmWindowsCheckpointHandlerBootstrapRefusal(t *testing.T) {
 	if err = os.MkdirAll(filepath.Dir(originalPath), 0700); err != nil {
 		t.Fatal(err)
 	}
-	confinedFixtureGit(t, filepath.Dir(originalPath), "clone", "--no-local", p.Path, originalPath)
+	// This explicit fixture-only option supports pack filenames after ordinary
+	// bootstrap. It is not inherited global config or a product gate bypass.
+	confinedFixtureGit(t, filepath.Dir(originalPath), "-c", "core.longpaths=true", "clone", "--no-local", p.Path, originalPath)
 	confinedFixtureGit(t, originalPath, "config", "--local", "core.longpaths", "true")
+	if got := confinedFixtureGit(t, originalPath, "config", "--local", "--type=bool", "--get", "core.longpaths"); got != "true" {
+		t.Fatal("historical fixture setup did not retain local longpaths; handler not exercised", got)
+	}
 	if got := confinedFixtureGit(t, originalPath, "rev-parse", "HEAD"); got != prior.BaseCommit {
 		t.Fatal("historical clone did not preserve exact actual base", got)
 	}
@@ -292,5 +301,6 @@ func TestSwarmWindowsCheckpointHandlerBootstrapRefusal(t *testing.T) {
 	if !review.CanContinue || len(review.Files) != 1 || review.Files[0].After != "actual retained checkpoint bytes\n" {
 		t.Fatal("actual original checkpoint was not reviewable", review)
 	}
+	t.Log("historical setup and actual checkpoint review completed; exercising real checkpoint POST refusal")
 	assertBootstrapHTTPRefusal(t, s, mux, p, run, url, checkpointBody(review, "checkpoint-long-root-refusal-123456"))
 }
