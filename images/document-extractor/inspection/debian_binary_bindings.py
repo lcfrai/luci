@@ -57,34 +57,62 @@ class Budget:
         self.finished = set()
         self.objects = {'index': {}, 'package': {}}
         self.failed = False
+        self.pending_read = None
 
     def check(self):
+        if self.failed:
+            raise Refusal('attempt already failed/exhausted')
         if time.monotonic() >= self.deadline:
+            self.failed = True
             raise Refusal('work deadline')
 
-    def compressed_read(self, size):
+    def reserve_read(self, size):
+        """Admit the full bounded request before touching its original stream.
+
+        Short/EOF results refund unused reservation afterwards. A failed or
+        unsupported read keeps the entire reservation charged and is sticky.
+        """
         self.check()
-        if type(size) is not int or not 0 <= size <= CHUNK:
-            raise Refusal('compressed charge range')
+        if type(size) is not int or not 0 < size <= CHUNK or self.pending_read is not None or self.calls >= 50000 or size > COMPRESSED_LIMIT-self.compressed:
+            self.failed = True
+            raise Refusal('compressed request/call admission')
         self.calls += 1
-        self.compressed += max(1, size)
-        if self.calls > 50000 or self.compressed > COMPRESSED_LIMIT:
-            raise Refusal('aggregate compressed reads/attempts')
+        self.compressed += size
+        self.pending_read = (self.calls, size)
+        return self.pending_read
+
+    def settle_read(self, reservation, actual):
+        if self.pending_read != reservation or type(actual) is not int or not 0 <= actual <= reservation[1]:
+            self.failed = True
+            raise Refusal('read reservation settlement')
+        self.pending_read = None
+        self.compressed -= reservation[1] - max(1, actual)
+        self.check()
+
+    def fail_read(self, reservation):
+        # Never refund unknown/failed I/O; all further effects are forbidden.
+        if self.pending_read == reservation:
+            self.pending_read = None
+        self.failed = True
 
     def charge(self, size):
         self.check()
         if type(size) is not int or not 0 <= size <= CHUNK:
+            self.failed = True
             raise Refusal('expansion charge range')
         self.expanded += size
         if self.expanded > EXPANDED_LIMIT:
+            self.failed = True
             raise Refusal('aggregate actual expansion')
 
     def retain(self, size):
         self.check()
         if type(size) is not int or size < 0:
+            self.failed = True
             raise Refusal('retained charge range')
         self.retained += size
         if self.retained > 16 * MIB:
+            self.failed = True
             raise Refusal('aggregate retained evidence')
 
     def begin_object(self, kind, identity):
@@ -115,6 +143,7 @@ class Metered:
     complete passes on the SAME supplied original stream, never a reopened path.
     """
     def __init__(self, stream, identity, budget):
+        budget.check()
         size, digest = identity
         if type(size) is not int or not 0 < size <= 64 * MIB or not re.fullmatch('[0-9a-f]{64}', digest):
             raise Refusal('input identity')
@@ -133,21 +162,21 @@ class Metered:
             self.budget.check()
             return b''  # Section boundary, not an underlying EOF observation.
         self.budget.check()
+        if self.eof:
+            return b''
+        reservation = self.budget.reserve_read(size)
         try:
             block = self.stream.read(size)
         except BaseException:
-            self.budget.failed = True
-            self.budget.compressed_read(size)
+            self.budget.fail_read(reservation)
             raise
         if not isinstance(block, bytes) or len(block) > size:
-            self.budget.failed = True
-            self.budget.compressed_read(size)
+            self.budget.fail_read(reservation)
             raise Refusal('stream read contract')
-        self.budget.compressed_read(len(block))
-        if self.eof and block:
-            raise Refusal('bytes after original EOF')
+        self.budget.settle_read(reservation, len(block))
         self.total += len(block)
         if self.total > self.size:
+            self.budget.failed = True
             raise Refusal('input exceeds exact size')
         self.digest.update(block)
         if not block:
@@ -155,7 +184,9 @@ class Metered:
         return block
 
     def finish(self):
+        self.budget.check()
         if not self.eof or self.total != self.size or self.digest.hexdigest() != self.expected:
+            self.budget.failed = True
             raise Refusal('incomplete/changed original')
         self.budget.finished.add((self.identity, self.pass_number))
 
@@ -174,6 +205,7 @@ def verified_pass(stream, identity, budget, kind):
 
 class Expansion:
     def __init__(self, aggregate, maximum, index=False):
+        aggregate.check()
         self.aggregate, self.maximum, self.actual, self.index = aggregate, maximum, 0, index
 
     def check(self):
@@ -185,8 +217,10 @@ class Expansion:
         if self.index:
             self.aggregate.index_expanded += size
             if self.aggregate.index_expanded > 256 * MIB:
+                self.aggregate.failed = True
                 raise Refusal('aggregate index expansion')
         if self.actual > self.maximum:
+            self.aggregate.failed = True
             raise Refusal('per-stream actual expansion')
 
 

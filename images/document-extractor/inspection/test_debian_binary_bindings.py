@@ -114,6 +114,9 @@ class BinaryBindings(unittest.TestCase):
             broken.read(17)
         self.assertEqual(shared.compressed, 17)
         self.assertTrue(shared.failed)
+        with self.assertRaises(b.Refusal):
+            shared.observation_summary()
+        shared = budget()  # a distinct synthetic attempt, not an in-run reset
         archive = deb(b'Package: synthetic\nVersion: 1:2.0+BinNMU1\nArchitecture: all\n', data=b'x'*100000)
         b.read_deb_control(io.BytesIO(archive), identity(archive), item(), shared, READERS)
         self.assertGreaterEqual(shared.compressed, 2*len(archive)+17)
@@ -123,7 +126,85 @@ class BinaryBindings(unittest.TestCase):
             b.Expansion(shared, 128*b.MIB, index=True).charge(1)
         shared.compressed = b.COMPRESSED_LIMIT
         with self.assertRaises(b.Refusal):
-            shared.compressed_read(0)
+            shared.reserve_read(1)
+
+    def test_read_admission_exhaustion_performs_zero_stream_calls(self):
+        class Counted(io.BytesIO):
+            calls = 0
+            def read(self, size):
+                self.calls += 1
+                return super().read(size)
+        for which in ('bytes', 'calls', 'request-reservation'):
+            shared = budget()
+            source = Counted(b'abc')
+            stream = b.Metered(source, identity(b'abc'), shared)
+            if which == 'bytes':
+                shared.compressed = b.COMPRESSED_LIMIT
+            elif which == 'calls':
+                shared.calls = 50000
+            else:
+                shared.compressed = b.COMPRESSED_LIMIT - 1
+            with self.assertRaises(b.Refusal):
+                stream.read(2)
+            self.assertEqual(source.calls, 0)
+            self.assertTrue(shared.failed)
+            with self.assertRaises(b.Refusal):
+                stream.read(1)
+            self.assertEqual(source.calls, 0)
+
+    def test_failed_public_observation_forbids_later_read_seek_or_decode(self):
+        class Counted(io.BytesIO):
+            reads = seeks = 0
+            def read(self, size):
+                self.reads += 1
+                return super().read(size)
+            def seek(self, *args):
+                self.seeks += 1
+                return super().seek(*args)
+        class NeverDecode:
+            def __init__(self, *args):
+                raise AssertionError('decoder constructed after sticky failure')
+        class NoDecodeReaders:
+            Decoded = NeverDecode
+        shared = budget()
+        earlier = Counted(b'abc')
+        # Complete bytes but deliberately wrong hash fails before rewind/decoder.
+        with self.assertRaises(b.Refusal):
+            b.scan_packages(earlier, (3, 'a'*64), {('synthetic','1','all'): item()}, shared, NoDecodeReaders)
+        self.assertGreater(earlier.reads, 0)
+        self.assertEqual(earlier.seeks, 0)
+        for operation in (b.scan_packages, b.read_deb_control):
+            later = Counted(b'xyz')
+            with self.assertRaises(b.Refusal):
+                operation(later, identity(b'xyz'), {('synthetic','1','all'): item()} if operation is b.scan_packages else item(), shared, NoDecodeReaders)
+            self.assertEqual((later.reads,later.seeks), (0,0))
+
+    def test_short_reads_eof_and_failed_requests_account_exactly(self):
+        shared = budget()
+        source = Fragmented(b'abc')
+        stream = b.Metered(source, identity(b'abc'), shared)
+        self.assertEqual(stream.read(20), b'abc')
+        self.assertEqual((shared.compressed,shared.calls), (3,1))
+        self.assertEqual(stream.read(20), b'')
+        self.assertEqual((shared.compressed,shared.calls), (4,2))
+        stream.finish()
+        self.assertEqual(stream.read(20), b'')
+        self.assertEqual((shared.compressed,shared.calls), (4,2))
+        self.assertIsNone(shared.pending_read)
+        class Broken:
+            calls = 0
+            def read(self, size):
+                self.calls += 1
+                raise OSError('failed original')
+        failed = budget()
+        original = Broken()
+        stream = b.Metered(original, (10,'b'*64), failed)
+        with self.assertRaises(OSError):
+            stream.read(23)
+        self.assertEqual((original.calls,failed.compressed,failed.calls), (1,23,1))
+        with self.assertRaises(b.Refusal):
+            stream.read(1)
+        self.assertEqual(original.calls,1)
 
     def test_no_per_part_reset_or_third_original_pass(self):
         shared = budget()
