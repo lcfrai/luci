@@ -24,6 +24,7 @@ var proofUpdateAttributes=proofKernel.NewProc("UpdateProcThreadAttribute")
 var proofDeleteAttributes=proofKernel.NewProc("DeleteProcThreadAttributeList")
 var proofIsInJob=proofKernel.NewProc("IsProcessInJob")
 var proofGetAffinity=proofKernel.NewProc("GetProcessAffinityMask")
+var proofReOpenFile=proofKernel.NewProc("ReOpenFile")
 
 // Captured once by each concrete production owner. Only *_windows_test.go
 // supplies inert kernel scheduling outcomes; no profile/request/table setter.
@@ -50,7 +51,7 @@ type debianProofWindowsCalls struct {
  FileInfo func(windows.Handle,*windows.ByHandleFileInformation)error
  FileWrite func(windows.Handle,[]byte,*uint32,*windows.Overlapped)error
  FileFlush func(windows.Handle)error
- FileReadAlias func(windows.Handle,*windows.Handle)error
+ FileReOpen func(windows.Handle)(windows.Handle,error)
 }
 func newDebianProofWindowsCalls()*debianProofWindowsCalls{return &debianProofWindowsCalls{
  CreateJob:windows.CreateJobObject,SetJob:windows.SetInformationJobObject,QueryJob:windows.QueryInformationJobObject,TerminateJob:windows.TerminateJobObject,Close:windows.CloseHandle,Pipe:windows.CreatePipe,HandleInfo:windows.SetHandleInformation,CreateProcess:windows.CreateProcess,Times:windows.GetProcessTimes,Read:windows.ReadFile,Wait:windows.WaitForSingleObject,Exit:windows.GetExitCodeProcess,Resume:windows.ResumeThread,
@@ -60,7 +61,7 @@ func newDebianProofWindowsCalls()*debianProofWindowsCalls{return &debianProofWin
  UpdateAttributes:func(p unsafe.Pointer,k uintptr,v unsafe.Pointer,n uintptr)error{r,_,_:=proofUpdateAttributes.Call(uintptr(p),0,k,uintptr(v),n,0,0);if r==0{return errors.New("startup attribute unavailable")};return nil},
  DeleteAttributes:func(p unsafe.Pointer){proofDeleteAttributes.Call(uintptr(p))},
  FileCreate:windows.CreateFile,FileInfo:windows.GetFileInformationByHandle,FileWrite:windows.WriteFile,FileFlush:windows.FlushFileBuffers,
- FileReadAlias:func(source windows.Handle,alias *windows.Handle)error{return windows.DuplicateHandle(windows.CurrentProcess(),source,windows.CurrentProcess(),alias,windows.FILE_GENERIC_READ,false,0)},
+ FileReOpen:func(source windows.Handle)(windows.Handle,error){h,_,e:=proofReOpenFile.Call(uintptr(source),uintptr(windows.GENERIC_READ),uintptr(windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE),uintptr(windows.FILE_FLAG_OPEN_REPARSE_POINT));handle:=windows.Handle(h);if validDebianProducedHandle(handle){return handle,nil};if e!=windows.ERROR_SUCCESS{return handle,e};return handle,errors.New("original file reopen unavailable")},
 }}
 
 type debianProofJob struct {mu sync.Mutex;handle windows.Handle;settled,closing,terminating,terminationStarted,retirementRequested bool;borrowers int;ordinal int;generation,lastTerminationGeneration uint8}
@@ -178,14 +179,16 @@ func(o *debianProofNativeOwner)readProduced(path string,maximum int64)([]byte,er
 }
 func equalDebianProducedIdentity(a,b windows.ByHandleFileInformation)bool{return a.VolumeSerialNumber==b.VolumeSerialNumber&&a.FileIndexHigh==b.FileIndexHigh&&a.FileIndexLow==b.FileIndexLow&&a.FileAttributes==b.FileAttributes&&a.FileSizeHigh==b.FileSizeHigh&&a.FileSizeLow==b.FileSizeLow&&a.CreationTime==b.CreationTime&&a.LastWriteTime==b.LastWriteTime}
 func validDebianProducedHandle(h windows.Handle)bool{return h!=0&&h!=windows.InvalidHandle}
-// Retain a reduced read-only alias of the CREATED original before WRITE Close.
-// Existing560 can then adopt that same file while this alias denies mutation.
+// ReOpenFile makes a distinct read-open of the CREATED original before WRITE
+// Close. Unlike DuplicateHandle, its open-object WriteAccess is false. It keeps
+// identity and DELETE exclusion, but permits writes until560 acquires its
+// restrictive guard and validates exact expected bytes. No path-only handoff.
 func(o *debianProofNativeOwner)writeEvidenceBytes(path string,data []byte,maximum int)error{
  if maximum<=0||maximum>256<<10||len(data)>maximum||!time.Now().Before(o.workDeadline){return errors.New("native evidence output bound")};name,e:=windows.UTF16PtrFromString(path);if e!=nil{return e}
  h,e:=o.calls.FileCreate(name,windows.GENERIC_READ|windows.GENERIC_WRITE,windows.FILE_SHARE_READ,nil,windows.CREATE_NEW,windows.FILE_ATTRIBUTE_NORMAL,0);writer:=&debianProofProducedFile{handle:h,path:path};if validDebianProducedHandle(h){o.produced=append(o.produced,writer)};if e!=nil{return e};if !validDebianProducedHandle(h){return errors.New("created original file handle absent")}
  for offset:=0;offset<len(data);{if !time.Now().Before(o.workDeadline){return errors.New("evidence write deadline")};var n uint32;e=o.calls.FileWrite(h,data[offset:],&n,nil);if e!=nil{return e};if n==0||uint64(n)>uint64(len(data)-offset){return errors.New("evidence write unacknowledged")};offset+=int(n)}
  if e=o.calls.FileFlush(h);e!=nil{return e};var info windows.ByHandleFileInformation;if e=o.calls.FileInfo(h,&info);e!=nil{return e};if info.FileAttributes&(windows.FILE_ATTRIBUTE_REPARSE_POINT|windows.FILE_ATTRIBUTE_DIRECTORY)!=0||uint64(info.FileSizeHigh)<<32|uint64(info.FileSizeLow)!=uint64(len(data)){return errors.New("created original file identity unavailable")}
- var alias windows.Handle;e=o.calls.FileReadAlias(h,&alias);read:=&debianProofProducedFile{handle:alias,path:path,readOnly:true};if validDebianProducedHandle(alias){o.produced=append(o.produced,read)};if e!=nil{return e};if !validDebianProducedHandle(alias){return errors.New("original read alias absent")}
+ alias,e:=o.calls.FileReOpen(h);read:=&debianProofProducedFile{handle:alias,path:path,readOnly:true};if validDebianProducedHandle(alias){o.produced=append(o.produced,read)};if e!=nil{return e};if !validDebianProducedHandle(alias){return errors.New("independent original read open absent")}
  var actual windows.ByHandleFileInformation;if e=o.calls.FileInfo(alias,&actual);e!=nil||!equalDebianProducedIdentity(info,actual){return errors.New("original read alias identity mismatch")};read.info,read.identityKnown=actual,true
  if e=o.calls.Close(h);e!=nil{return e};writer.handle=0;return nil
 }
