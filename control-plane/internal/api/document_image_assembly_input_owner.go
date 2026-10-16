@@ -332,7 +332,9 @@ func (o *assemblyInputOwner) publishMetadata(ctx context.Context, actor manageme
 // performs storage only; callers retain their distinct metadata/domain gates.
 // No arbitrary validator callback and no recursive publishMetadata lock.
 func (o *assemblyInputOwner) publishCatalogHeadLocked(ctx context.Context, actor management.ExecutionActorRef, old assemblyInputCatalogSnapshot, source assemblyCatalogSource, policy assemblyCatalogPolicy, index assemblyCatalogIndex, permit *assemblyDebianPublicationPermit) (assemblyCatalogCAS, error) {
-	if old.State.Revision == math.MaxUint64 || !validAssemblyCatalogSource(source) || !validAssemblyCatalogPolicy(policy) || !validAssemblyCatalogIndex(index) { return assemblyCatalogCAS{}, errAssemblyCatalogInvalid }
+	if old.State.Revision == math.MaxUint64 || !validAssemblyCatalogSource(source) || !validAssemblyCatalogPolicy(policy) || !validAssemblyCatalogIndex(index) {
+		return assemblyCatalogCAS{}, errAssemblyCatalogInvalid
+	}
 	sourceData, _ := json.Marshal(source)
 	indexData, _ := json.Marshal(index)
 	sourceRef := assemblyCatalogRef{1, "source-descriptor", assemblyCatalogDigest(sourceData), int64(len(sourceData))}
@@ -354,11 +356,17 @@ func (o *assemblyInputOwner) publishCatalogHeadLocked(ctx context.Context, actor
 	}
 	// Domain publication checks the exact sealed candidate after the last
 	// potentially blocking authority hook. Metadata behavior remains unchanged.
-	if permit != nil { if err:=permit.begin(ctx,o,next);err!=nil{return assemblyCatalogCAS{},err} }
+	if permit != nil {
+		if err := permit.begin(ctx, o, next); err != nil {
+			return assemblyCatalogCAS{}, err
+		}
+	}
 	err := writeExecutionLedger(filepath.Join(root, "current.json"), data)
-	result,err:=o.reconcilePublication(ctx,next,err)
-	if permit!=nil{return permit.finish(result,err)}
-	return result,err
+	result, err := o.reconcilePublication(ctx, next, err)
+	if permit != nil {
+		return permit.finish(result, err)
+	}
+	return result, err
 }
 
 // Exact lost-ACK reconciliation; a different/newer/missing head is uncertainty,
@@ -384,16 +392,23 @@ func (o *assemblyInputOwner) writeImmutableMetadata(ctx context.Context, ref ass
 // Private shared no-replace persistence, not an adoption entry point. Raw files
 // have their own closed namespace; they cannot be selected as catalog domains.
 func (o *assemblyInputOwner) writeImmutableAssemblyObject(ctx context.Context, ref assemblyCatalogRef, data []byte, raw bool) error {
-	if ref.Schema != 1 || ref.Bytes != int64(len(data)) || ref.Digest != assemblyCatalogDigest(data) || ctx.Err() != nil || !assemblyCatalogHex(ref.Digest) { return errAssemblyCatalogInvalid }
+	if ref.Schema != 1 || ref.Bytes != int64(len(data)) || ref.Digest != assemblyCatalogDigest(data) || ctx.Err() != nil || !assemblyCatalogHex(ref.Digest) {
+		return errAssemblyCatalogInvalid
+	}
 	suffix := ".json"
 	if raw {
-		if ref.Kind != "producer-raw" || len(data) > 1<<20 { return errAssemblyCatalogInvalid }
+		if ref.Kind != "producer-raw" || len(data) > 1<<20 {
+			return errAssemblyCatalogInvalid
+		}
 		suffix = ".raw"
 	} else {
-		if !validAssemblyCatalogRef(ref) { return errAssemblyCatalogInvalid }
+		if !validAssemblyCatalogRef(ref) {
+			return errAssemblyCatalogInvalid
+		}
 		switch ref.Kind {
 		case "source-descriptor", "evidence-index", "official-root-policy", "key-observations", "release-signatures", "producer-raw-manifest":
-		default: return errAssemblyCatalogInvalid // no full closure/other domain writer
+		default:
+			return errAssemblyCatalogInvalid // no full closure/other domain writer
 		}
 	}
 	root, err := o.root()
@@ -413,11 +428,15 @@ func (o *assemblyInputOwner) writeImmutableAssemblyObject(ctx context.Context, r
 		}
 	}
 	path := filepath.Join(dir, ref.Digest+suffix)
-	readExact := func() ([]byte,error) {
-		if !raw { return o.readMetadata(ctx,ref) }
-		old,e := codexRead(filepath.Dir(root),path,ref.Bytes)
-		if e != nil || int64(len(old)) != ref.Bytes || assemblyCatalogDigest(old) != ref.Digest { return nil,errAssemblyCatalogInvalid }
-		return old,nil
+	readExact := func() ([]byte, error) {
+		if !raw {
+			return o.readMetadata(ctx, ref)
+		}
+		old, e := codexRead(filepath.Dir(root), path, ref.Bytes)
+		if e != nil || int64(len(old)) != ref.Bytes || assemblyCatalogDigest(old) != ref.Digest {
+			return nil, errAssemblyCatalogInvalid
+		}
+		return old, nil
 	}
 	if _, err = os.Lstat(path); err == nil {
 		old, readErr := readExact()
@@ -509,7 +528,9 @@ func boundedAssemblyCatalogHistory(ctx context.Context, root string, additional 
 					continue
 				}
 				suffix, limit := ".json", int64(assemblyCatalogMetadataLimit)
-				if filepath.Base(dir) == "producer-raw" { suffix, limit = ".raw", 1<<20 }
+				if filepath.Base(dir) == "producer-raw" {
+					suffix, limit = ".raw", 1<<20
+				}
 				if depth != 1 || !strings.HasSuffix(entry.Name(), suffix) || !assemblyCatalogHex(strings.TrimSuffix(entry.Name(), suffix)) {
 					return errAssemblyCatalogInvalid
 				}
