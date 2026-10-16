@@ -186,6 +186,14 @@ func TestAssemblyPrivateHookRecoveryPreservesPublishedCaptureAsUnavailableEviden
 			if err != nil {
 				t.Fatal(err)
 			}
+			// Match the real runtime: reserve/lock, open the exclusive capture,
+			// then publish creating/created/starting/running before producing data.
+			writer, err := h.CaptureSink(context.Background(), lease.Identity)
+			if err != nil {
+				release()
+				t.Fatal(err)
+			}
+			defer writer.Close()
 			ref := strings.Repeat("b", 64)
 			for _, phase := range [][2]string{{"reserved", "creating"}, {"creating", "created"}, {"created", "starting"}, {"starting", "running"}} {
 				phaseRef := ref
@@ -196,11 +204,6 @@ func TestAssemblyPrivateHookRecoveryPreservesPublishedCaptureAsUnavailableEviden
 					release()
 					t.Fatal(err)
 				}
-			}
-			writer, err := h.CaptureSink(context.Background(), lease.Identity)
-			if err != nil {
-				release()
-				t.Fatal(err)
 			}
 			if _, err = writer.Write([]byte("one")); err != nil {
 				release()
