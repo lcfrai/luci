@@ -349,19 +349,27 @@ func (b *DocumentImageAssembler) CreateDocumentImageAssembly(ctx context.Context
 	if !reflect.DeepEqual(fresh, prepared) {
 		return "", backend.ErrLaunchFenceOwnership
 	}
-	b.sourceMu.Lock()
-	defer b.sourceMu.Unlock()
-	claim := b.sourceClaim
-	if claim == nil || claim.closed || claim.createAttempted || claim.identity != prepared.Spec.Identity || claim.guard.CheckCurrent(ctx) != nil {
-		return "", backend.ErrUnavailable
-	}
 	if !verifyAssemblyInputs(ctx, prepared.Spec) {
 		return "", backend.ErrUnsupported
 	}
+	return b.createOwnedAssemblyAllocation(ctx, prepared)
+}
+
+// The sole irreversible allocation edge, after Create's full source/preparation
+// validation. No guard mutex spans SDK I/O: an independently acknowledged exact
+// fence must be able to retire the held sources while a Create ACK is lost.
+func (b *DocumentImageAssembler) createOwnedAssemblyAllocation(ctx context.Context, prepared backend.PreparedDocumentImageAssembly) (string, error) {
+	b.sourceMu.Lock()
+	claim := b.sourceClaim
+	if !b.pinnedSpec(prepared.Spec) || claim == nil || claim.closed || claim.createAttempted || claim.identity != prepared.Spec.Identity || claim.guard.CheckCurrent(ctx) != nil {
+		b.sourceMu.Unlock()
+		return "", backend.ErrUnavailable
+	}
+	claim.createAttempted = true // Set atomically BEFORE the client can lose ACK.
+	b.sourceMu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	config, host := assemblyConfiguration(prepared)
-	claim.createAttempted = true // Set BEFORE the client can lose a Create ACK.
 	created, err := b.api.ContainerCreate(ctx, config, host, nil, nil, assemblyName(prepared.Spec.Identity))
 	if err != nil || ctx.Err() != nil || !fenceHex(created.ID, 32) {
 		return "", backend.ErrUnavailable

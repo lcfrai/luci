@@ -9,8 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
+	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 )
@@ -223,5 +229,111 @@ func TestAssemblyGuardAggregateIncludesPayloadAncestorsAndRetainedObjects(t *tes
 	}
 	if err := b.ReleaseUnallocatedDocumentImageAssemblyInputs(context.Background(), spec); err != nil {
 		t.Fatal("bounded partial claim remained held", err)
+	}
+}
+
+type assemblyBlockedCreateProbe struct {
+	*documentProbe
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (f *assemblyBlockedCreateProbe) ContainerCreate(ctx context.Context, config *container.Config, host *container.HostConfig, networking *network.NetworkingConfig, platform *ocispec.Platform, name string) (container.CreateResponse, error) {
+	created, err := f.documentProbe.ContainerCreate(ctx, config, host, networking, platform, name)
+	if err != nil || config.Labels[backend.LabelLaunchFence] == "1" {
+		return created, err
+	}
+	// Simulate actual daemon allocation with a blocked/lost client ACK. The
+	// independent marker Create below still returns a real acknowledged result.
+	close(f.entered)
+	<-f.release
+	return container.CreateResponse{}, context.DeadlineExceeded
+}
+
+func TestAssemblyBlockedCreateACKCannotBlockAcknowledgedFenceGuardSettlement(t *testing.T) {
+	b, probe, spec, object := assemblyGuardFixture(t)
+	view, err := b.AcquireDocumentImageAssemblyInputs(context.Background(), spec, []backend.DocumentImageAssemblyRetainedObject{object})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared := backend.PreparedDocumentImageAssembly{Spec: spec}
+	prepared.Spec.Identity.EngineID, prepared.Spec.Identity.InstanceID = probe.info.ID, b.instance
+	if err := b.bindAssemblyInputs(context.Background(), prepared.Spec); err != nil {
+		t.Fatal(err)
+	}
+	blocked := &assemblyBlockedCreateProbe{documentProbe: probe, entered: make(chan struct{}), release: make(chan struct{})}
+	b.api = blocked
+	var once sync.Once
+	release := func() { once.Do(func() { close(blocked.release) }) }
+	defer func() {
+		release()
+		_ = b.releaseAssemblySources(prepared.Spec.Identity)
+	}()
+	created := make(chan error, 1)
+	go func() {
+		// Call the exact production allocation edge. The fake spec is NOT a
+		// closed-input fixture and makes no preparation/domain acceptance claim.
+		_, err := b.createOwnedAssemblyAllocation(context.Background(), prepared)
+		created <- err
+	}()
+	select {
+	case <-blocked.entered:
+	case <-time.After(time.Second):
+		t.Fatal("owned SDK Create was not entered")
+	}
+	if b.ReleaseUnallocatedDocumentImageAssemblyInputs(context.Background(), spec) == nil {
+		t.Fatal("live lost-ACK Create was released as unallocated")
+	}
+	if _, err := b.createOwnedAssemblyAllocation(context.Background(), prepared); err == nil {
+		t.Fatal("duplicate allocation reached SDK")
+	}
+	type result struct {
+		proof backend.DocumentImageAssemblyFenceProof
+		err   error
+	}
+	fenced := make(chan result, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+		proof, err := b.FenceDocumentImageAssembly(ctx, backend.DocumentImageAssemblyFenceRequest{Identity: prepared.Spec.Identity, IntentID: strings.Repeat("a", 32)})
+		fenced <- result{proof, err}
+	}()
+	select {
+	case outcome := <-fenced:
+		if outcome.err != nil || outcome.proof.FenceRef == "" || outcome.proof.AcknowledgedAt == "" {
+			t.Fatal("real acknowledged fence did not settle", outcome)
+		}
+	case <-time.After(time.Second):
+		release()
+		<-created
+		select {
+		case <-fenced:
+		case <-time.After(time.Second):
+		}
+		t.Fatal("source mutex stranded acknowledged fence behind blocked SDK Create")
+	}
+	// The old SDK call is still blocked, but exact source closure is proven.
+	select {
+	case <-created:
+		t.Fatal("fixture released old Create early")
+	default:
+	}
+	if !b.sourceClaim.closed || view.CheckCurrent(context.Background()) == nil {
+		t.Fatal("fence lost source closure ownership")
+	}
+	if err := os.WriteFile(object.Path, []byte("two"), 0600); err != nil {
+		t.Fatal("positive guard closure remained blocked", err)
+	}
+	if len(probe.creates) != 2 || len(probe.starts) != 0 {
+		t.Fatal("duplicate work or marker execution", probe.creates, probe.starts)
+	}
+	release()
+	select {
+	case err := <-created:
+		if !errors.Is(err, backend.ErrUnavailable) {
+			t.Fatal("late lost ACK became success", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("old SDK caller did not settle")
 	}
 }
