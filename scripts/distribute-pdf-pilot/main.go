@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,13 +20,14 @@ import (
 )
 
 const (
-	fontSize      = 19484784
-	fontSHA256    = "b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a"
-	maxFontBytes  = 32 << 20
-	maxPDFBytes   = 16 << 20
-	maxStageBytes = 16 << 20
-	originalText  = "日本語"
-	faceIndex     = 0
+	fontSize         = 19484784
+	fontSHA256       = "b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a"
+	maxFontBytes     = 32 << 20
+	maxPDFBytes      = 16 << 20
+	maxSubsetBytes   = 16 << 20
+	maxCombinedBytes = 32 << 20
+	originalText     = "日本語"
+	faceIndex        = 0
 )
 
 var ownedStage = regexp.MustCompile(`^pilot-[0-9a-f]{32}$`)
@@ -62,9 +64,23 @@ func pilot(fontPath, outDir string) error {
 	if err != nil || !st.Mode().IsRegular() || st.Size() != fontSize || st.Size() > maxFontBytes {
 		return errors.New("font input is missing, linked or outside exact byte bound")
 	}
-	input, err := os.ReadFile(fontPath)
+	f, err := os.Open(fontPath)
 	if err != nil {
 		return err
+	}
+	defer f.Close()
+	opened, err := f.Stat()
+	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(st, opened) {
+		return errors.New("font input changed before bounded read")
+	}
+	input, err := io.ReadAll(io.LimitReader(f, maxFontBytes+1))
+	if err != nil {
+		return err
+	}
+	closed, err := f.Stat()
+	named, nameErr := os.Lstat(fontPath)
+	if err != nil || nameErr != nil || len(input) != fontSize || !os.SameFile(st, closed) || !os.SameFile(st, named) || closed.Size() != int64(len(input)) {
+		return errors.New("font input changed during bounded read")
 	}
 	if fmt.Sprintf("%x", sha256.Sum256(input)) != fontSHA256 {
 		return errors.New("font original-byte digest differs")
@@ -137,7 +153,7 @@ func buildCFFPilot(input []byte) ([]byte, error) {
 		return nil, errors.New("CFF1 subset unavailable")
 	}
 	fontProgram := subset.Write()
-	if len(fontProgram) < 12 || len(fontProgram) > maxStageBytes || string(fontProgram[:4]) != "OTTO" {
+	if len(fontProgram) < 12 || len(fontProgram) > maxSubsetBytes || len(input)+len(fontProgram) > maxCombinedBytes || string(fontProgram[:4]) != "OTTO" {
 		return nil, errors.New("standalone CFF1 subset is invalid or oversized")
 	}
 	check, err := font.ParseSFNT(fontProgram, 0)
@@ -163,10 +179,10 @@ func buildCFFPilot(input []byte) ([]byte, error) {
 	if toUnicode.Len() > 4096 {
 		return nil, errors.New("ToUnicode map exceeds fixed pilot bound")
 	}
-	return makePDF(fontProgram, []byte(toUnicode.String()), widths, [4]int{int(xMin), int(yMin), int(xMax), int(yMax)})
+	return makePDF(fontProgram, []byte(toUnicode.String()), widths, [4]int{int(xMin), int(yMin), int(xMax), int(yMax)}, len(input))
 }
 
-func makePDF(fontProgram, cmap []byte, widths []int, box [4]int) ([]byte, error) {
+func makePDF(fontProgram, cmap []byte, widths []int, box [4]int, originalFontBytes int) ([]byte, error) {
 	content := []byte("BT\n/F0 24 Tf\n70 700 Td\n<000100020003> Tj\nET\n")
 	stream := func(payload []byte) []byte {
 		var b bytes.Buffer
@@ -207,8 +223,8 @@ func makePDF(fontProgram, cmap []byte, widths []int, box [4]int) ([]byte, error)
 	fmt.Fprintf(&out, "9 0 obj\n<< /Length %d /Subtype /OpenType >>\nstream\n", len(fontProgram))
 	out.Write(fontProgram)
 	out.WriteString("\nendstream\nendobj\n")
-	if out.Len() > maxPDFBytes || len(fontProgram)+out.Len() > maxStageBytes*2 {
-		return nil, errors.New("CFF and PDF intermediate bytes exceed bound")
+	if out.Len() > maxPDFBytes || originalFontBytes+len(fontProgram)+out.Len() > maxCombinedBytes {
+		return nil, errors.New("font input, CFF subset and PDF bytes exceed 32 MiB aggregate bound")
 	}
 	xref := out.Len()
 	fmt.Fprintf(&out, "xref\n0 %d\n0000000000 65535 f \n", len(offsets))

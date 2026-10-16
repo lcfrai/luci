@@ -102,6 +102,23 @@ def verify(pdf):
     }
 
 
+def read_owned_pdf(stage):
+    target = stage / "pilot.pdf"
+    named = target.lstat()
+    refuse(target.is_file() and not target.is_symlink() and 0 < named.st_size <= MAX_PDF,
+           "pilot PDF missing or oversized")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    with os.fdopen(os.open(target, flags), "rb") as handle:
+        opened = os.fstat(handle.fileno())
+        refuse(os.path.samestat(named, opened), "pilot PDF changed before read")
+        payload = handle.read(MAX_PDF + 1)
+        after = os.fstat(handle.fileno())
+        refuse(0 < len(payload) <= MAX_PDF and len(payload) == opened.st_size == after.st_size
+               and os.path.samestat(opened, after) and os.path.samestat(after, target.lstat()),
+               "pilot PDF changed during bounded read")
+    return payload
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out-dir", type=Path, required=True)
@@ -109,9 +126,7 @@ def main():
     stage = args.out_dir
     refuse(stage.is_absolute() and STAGE.fullmatch(stage.name) is not None, "stage identity differs")
     refuse(stage.is_dir() and not stage.is_symlink(), "owned stage missing or linked")
-    target = stage / "pilot.pdf"
-    refuse(target.is_file() and not target.is_symlink() and target.stat().st_size <= MAX_PDF, "pilot PDF missing or oversized")
-    result = verify(target.read_bytes())
+    result = verify(read_owned_pdf(stage))
     payload = json.dumps(result, sort_keys=True, separators=(",", ":")).encode() + b"\n"
     receipt = stage / "verification.json"
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
