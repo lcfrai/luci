@@ -22,9 +22,17 @@ import (
 // real. Only the admitted container runtime is controlled; this is not Docker,
 // provider, public deployment or application behavior acceptance evidence.
 func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool, configure ...func(*Server, project.Project, http.Handler, context.Context, *coordinatorContinuationRequest)) (*Server, project.Project, http.Handler, context.Context, CoordinatorContinuation, *atomic.Int32) {
+	return coordinatorPreviewFixtureKind(t, outcome, lostResult, "", configure...)
+}
+
+func coordinatorPreviewFixtureKind(t *testing.T, outcome string, lostResult bool, kind string, configure ...func(*Server, project.Project, http.Handler, context.Context, *coordinatorContinuationRequest)) (*Server, project.Project, http.Handler, context.Context, CoordinatorContinuation, *atomic.Int32) {
 	t.Helper()
 	s, p, h, ctx, request, _ := coordinatorContinuationFixture(t)
 	if err := os.WriteFile(filepath.Join(p.Path, "Dockerfile"), []byte("FROM scratch\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	index := []byte("<!doctype html><title>Reviewed fixture</title><h1>Local source preview</h1>")
+	if err := os.WriteFile(filepath.Join(p.Path, "index.html"), index, 0600); err != nil {
 		t.Fatal(err)
 	}
 	base := "/v1/product/projects/" + p.ID
@@ -39,7 +47,11 @@ func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool, co
 	decodeEvidenceResponse(t, journeyRequest(t, h, "POST", base+"/plan", map[string]any{"expectedRevision": state.Plan.Revision, "expectedSpecificationRevision": state.Specification.Revision, "tasks": tasks}, 200).Body.Bytes(), &plan)
 	journeyRequest(t, h, "POST", base+"/git/commit", reviewedCommitRequest(t, h, base+"/git/commit", "Review local preview build configuration"), 200)
 	var policy CoordinatorPolicy
-	decodeEvidenceResponse(t, journeyRequest(t, h, "POST", base+"/orchestrator/policy", map[string]any{"expectedRevision": request.ExpectedPolicyRevision, "mode": "review", "allowedTargets": []string{"plan"}, "executionMode": "reviewed-tasks", "deploymentMode": "manual", "previewMode": "checked-source"}, 200).Body.Bytes(), &policy)
+	mode := "checked-source"
+	if kind == previewruntime.ReviewedSourceKind {
+		mode = kind
+	}
+	decodeEvidenceResponse(t, journeyRequest(t, h, "POST", base+"/orchestrator/policy", map[string]any{"expectedRevision": request.ExpectedPolicyRevision, "mode": "review", "allowedTargets": []string{"plan"}, "executionMode": "reviewed-tasks", "deploymentMode": "manual", "previewMode": mode}, 200).Body.Bytes(), &policy)
 	turn, _ := reserveOrchestratorTest(t, s, p.ID, ctx, "Continue the checked application through its local preview", "")
 	answer := OrchestratorAnswer{Summary: "Use the saved checked-source preview policy.", Options: []string{}, Impact: []string{}, NextAction: "build"}
 	if err := s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil {
@@ -53,7 +65,11 @@ func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool, co
 	request.Run.Outcome = outcome
 	request.Run.ImplementationContext.PlanRevision = plan.Revision
 	request.Run.ImplementationContext.TaskIDs = []string{"task-review", "task-save"}
-	request.PreviewPlan = &CoordinatorPreviewPlan{Dockerfile: "Dockerfile", Port: 3000, ExpectedConfigurationRevision: 0, AcknowledgePreviewBuild: true}
+	dockerfile := "Dockerfile"
+	if kind == previewruntime.ReviewedSourceKind {
+		dockerfile = ""
+	}
+	request.PreviewPlan = &CoordinatorPreviewPlan{Kind: kind, Dockerfile: dockerfile, Port: 3000, ExpectedConfigurationRevision: 0, AcknowledgePreviewBuild: true}
 	for _, prepare := range configure {
 		prepare(s, p, h, ctx, &request)
 	}
@@ -65,7 +81,23 @@ func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool, co
 	request.Run.OrchestrationContract = &OrchestrationContractSelection{ID: approved.Contract.ID, Revision: approved.Contract.Revision, Digest: approved.Contract.Digest, ApprovalID: approved.Contract.Approval.ID}
 	s, p, h, ctx, row, _ := coordinatorDeliveryRequestFixture(t, s, p, h, ctx, request)
 	starts := &atomic.Int32{}
-	health := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("owned fixture health")) }))
+	type healthIdentity struct{ source, snapshot string }
+	var identity atomic.Pointer[healthIdentity]
+	health := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if kind == previewruntime.ReviewedSourceKind {
+			current := identity.Load()
+			if current == nil {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("X-Luci-Source-Digest", current.source)
+			w.Header().Set("X-Luci-Snapshot-Digest", current.snapshot)
+			_, _ = w.Write(index)
+			return
+		}
+		_, _ = w.Write([]byte("owned fixture health"))
+	}))
 	t.Cleanup(health.Close)
 	s.SetPreviewRuntime(previewruntime.Runtime{
 		CaptureActor: management.CaptureDeploymentActor,
@@ -80,7 +112,7 @@ func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool, co
 			if req.SourceDirectory == p.Path || req.SourceDigest != rows.Rows[0].Delivery.SourceDigest || req.Actor.UserID != "alice" || req.Actor.ProjectID != p.ID {
 				return previewruntime.Outcome{}, errors.New("preview lost checked source or stored actor")
 			}
-			for _, name := range []string{"Dockerfile", "result.txt", "LUCI.md"} {
+			for _, name := range []string{"index.html", "result.txt", "LUCI.md"} {
 				if _, err := os.Stat(filepath.Join(req.SourceDirectory, name)); err != nil {
 					return previewruntime.Outcome{}, err
 				}
@@ -88,8 +120,17 @@ func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool, co
 			if err := req.ValidateSource(ctx); err != nil {
 				return previewruntime.Outcome{}, err
 			}
+			if req.Kind != kind || req.Dockerfile != dockerfile || kind == previewruntime.ReviewedSourceKind && len(req.Environment) != 0 {
+				return previewruntime.Outcome{}, errors.New("release handler changed reviewed source kind or configuration")
+			}
 			out := previewruntime.Outcome{Identity: req.Identity, Phase: "running", URL: health.URL, ResourcesHeld: true}
-			out.BuildAllocationID, out.AllocationID, out.EngineID, out.InstanceID = "build-"+req.ReleaseID, "serve-"+req.ReleaseID, "controlled-engine", "controlled-instance"
+			if kind == previewruntime.ReviewedSourceKind {
+				out.SnapshotDigest = reviewDigest("controlled static source snapshot")
+				identity.Store(&healthIdentity{req.SourceDigest, out.SnapshotDigest})
+			} else {
+				out.BuildAllocationID = "build-" + req.ReleaseID
+			}
+			out.AllocationID, out.EngineID, out.InstanceID = "serve-"+req.ReleaseID, "controlled-engine", "controlled-instance"
 			out.ContainerID, out.Image = strings.Repeat("a", 64), "sha256:"+strings.Repeat("b", 64)
 			if err := publish(out); err != nil {
 				return out, err
@@ -163,6 +204,45 @@ func waitCoordinatorPreviewFixture(t *testing.T, s *Server, id string) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatal("controlled preview did not finish")
+}
+
+// Exercises the ordinary continuation, reviewed contract, independent review,
+// combined check and public release handler. The runtime is controlled; the
+// test makes no Docker or provider claim.
+func TestCoordinatorReviewedSourcePreviewHandlerBindsKindThroughReadback(t *testing.T) {
+	for _, drift := range []string{"exact", "public-kind", "runtime-kind"} {
+		t.Run(drift, func(t *testing.T) {
+			s, p, h, ctx, out, starts := coordinatorPreviewFixtureKind(t, "preview", false, previewruntime.ReviewedSourceKind)
+			row := coordinatorReservePreviewFixture(t, s, p, ctx, coordinatorPreviewCheckedFixture(t, s, p, h, ctx, out))
+			if err := s.invokeCoordinatorPreview(ctx, p, row); err != nil {
+				t.Fatal(err)
+			}
+			releases, err := s.readReleases(p.ID)
+			if err != nil || len(releases) != 1 || starts.Load() != 1 || releases[0].Kind != previewruntime.ReviewedSourceKind || releases[0].Runtime == nil || releases[0].Runtime.Kind != previewruntime.ReviewedSourceKind || releases[0].Runtime.BuildAllocationID != "" || releases[0].Runtime.SnapshotDigest == "" {
+				t.Fatal("source handler lost immutable kind or fabricated a build", releases, err)
+			}
+			if drift == "public-kind" {
+				releases[0].Kind = ""
+			} else if drift == "runtime-kind" {
+				releases[0].Runtime.Kind = ""
+			}
+			if drift != "exact" {
+				if err := s.storeRelease(releases[0]); err != nil {
+					t.Fatal(err)
+				}
+			}
+			current, err := s.continueCoordinatorPreview(ctx, p, row)
+			if drift != "exact" {
+				if !errors.Is(err, ErrOrchestratorConflict) || starts.Load() != 1 || current.Delivery.Preview.Evidence != nil {
+					t.Fatal("different-kind receipt was adopted", current, err)
+				}
+				return
+			}
+			if err != nil || current.Status != "preview-ready" || current.Delivery.Preview.Evidence == nil {
+				t.Fatal("exact source release did not join verified check", current, err)
+			}
+		})
+	}
 }
 
 func TestCoordinatorPreviewHTTPAdvancesExactCheckedSourceWithoutPublishing(t *testing.T) {

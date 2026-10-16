@@ -86,7 +86,7 @@ func (s *Server) continueCoordinatorPreview(ctx context.Context, p project.Proje
 		}
 		return s.persistCoordinatorPreview(ctx, p, row, "unknown", "The reserved preview has no observable release. Its build will not be replayed; inspect the interrupted operation before authorizing new work.", nil)
 	}
-	if exact.CoordinatorOriginDigest != coordinatorPreviewBinding(row) || exact.ProjectID != p.ID || exact.Target != "local" || exact.Commit != check.Commit || exact.ConfigurationRevision != row.PreviewPlan.ExpectedConfigurationRevision || exact.Runtime == nil || exact.Runtime.Identity.ProjectID != p.ID || exact.Runtime.Identity.ReleaseID != exact.ID || exact.Runtime.Identity.Target != "local" || exact.Runtime.Identity.Commit != check.Commit || exact.Runtime.Identity.SourceDigest != check.SourceDigest {
+	if exact.CoordinatorOriginDigest != coordinatorPreviewBinding(row) || !previewReleaseKindMatches(*exact, row.PreviewPlan.Kind) || exact.ProjectID != p.ID || exact.Target != "local" || exact.Commit != check.Commit || exact.ConfigurationRevision != row.PreviewPlan.ExpectedConfigurationRevision || exact.Runtime == nil || exact.Runtime.Identity.ProjectID != p.ID || exact.Runtime.Identity.ReleaseID != exact.ID || exact.Runtime.Identity.Target != "local" || exact.Runtime.Identity.Commit != check.Commit || exact.Runtime.Identity.SourceDigest != check.SourceDigest {
 		return row, ErrOrchestratorConflict
 	}
 	if exact.CancelRequested || exact.Status == "cancelled" || exact.Status == "stopped" || exact.Status == "failed" {
@@ -109,7 +109,7 @@ func (s *Server) continueCoordinatorPreview(ctx context.Context, p project.Proje
 		err = readErr
 		matched := false
 		for _, current := range currentReleases {
-			if current.ID == exact.ID && current.Revision == exact.Revision && current.CoordinatorOriginDigest == exact.CoordinatorOriginDigest && !current.CancelRequested && current.Runtime != nil && current.Runtime.Identity == exact.Runtime.Identity {
+			if current.ID == exact.ID && current.Revision == exact.Revision && current.CoordinatorOriginDigest == exact.CoordinatorOriginDigest && previewReleaseKindMatches(current, row.PreviewPlan.Kind) && !current.CancelRequested && current.Runtime != nil && current.Runtime.Identity == exact.Runtime.Identity {
 				matched = true
 			}
 		}

@@ -193,7 +193,7 @@ func (s *Server) admitCoordinatorPreviewKind(ctx context.Context, p project.Proj
 	}
 	for _, release := range releases {
 		if release.ID == origin.ReleaseID {
-			if release.CoordinatorOriginDigest != origin.BindingDigest {
+			if release.CoordinatorOriginDigest != origin.BindingDigest || !previewReleaseKindMatches(release, row.PreviewPlan.Kind) {
 				return "", "", nil, ErrOrchestratorConflict
 			}
 			return release.ID, origin.BindingDigest, &release, nil
