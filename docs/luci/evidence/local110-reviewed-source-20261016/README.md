@@ -22,3 +22,18 @@ The initial Go command without `GOMODCACHE` failed before compile because the de
 `go test -p 1 ./internal/product -run 'TestCoordinatorPreview|TestCoordinatorSavedPreviewPlan' -count=1` against the 15fb continuation-contract source reached the older preview journey fixture and failed: its changed run/policy request retained an approval for different contract bytes (`POST .../orchestrator/continuations` returned `revision_conflict` 409). A temporary local fixture reapproval reached the next missing independent-review obligation (`controlled native source was not reviewable`); that temporary edit was reverted and is **not** in the source heads. The old journey fixtures need a full current approved-contract and reviewer/candidate setup before they can exercise the new path. The three focused Go checks above passed; the broader failure is not an installed/runtime claim or evidence that the new kind reached a release.
 
 The release owner still has to call `admitCoordinatorPreviewKind` from the new kind-aware endpoint and expose immutable release kind for coordinator readback. The source candidate keeps the old helper as an empty-kind wrapper and refuses cross-kind policy/plan substitution. No actual reviewed-source release has been observed.
+
+## Later bounded selector/client checks
+
+At `96971bf8a`, the changed `TestCoordinatorPreviewKindCannotInheritLegacyApproval` command above passed again with exact request kind/configuration/port/Dockerfile assertions. At `d3a7d63c1`, in `desktop/`:
+
+| Exact command | Result |
+| --- | --- |
+| `TMPDIR=/dev/shm NODE_OPTIONS=--max-old-space-size=384 npm test -- --maxWorkers=1 src/api/product.test.ts src/components/journey/deploy.test.tsx` | initial exit 1: 1 old default-build test saw an extra `undefined` argument; 53 passed |
+| `TMPDIR=/dev/shm NODE_OPTIONS=--max-old-space-size=384 npm test -- --maxWorkers=1 src/components/journey/deploy.test.tsx -t 'uses the default build\|serves only an explicit clean full commit\|refuses a reviewed-source preview'` | exit 0: 3 passed; legacy call arity restored |
+| `TMPDIR=/dev/shm NODE_OPTIONS=--max-old-space-size=384 npm test -- --maxWorkers=1 src/api/product.test.ts -t 'binds a checked local preview\|refuses source kind substitution'` | exit 0: 2 passed |
+| `TMPDIR=/dev/shm NODE_OPTIONS=--max-old-space-size=384 npm test -- --maxWorkers=1 src/components/journey/DeploymentRecovery.test.tsx -t 'requires a fresh reviewed-source choice'` | exit 0: 1 passed |
+| `TMPDIR=/dev/shm NODE_OPTIONS=--max-old-space-size=384 npm test -- --maxWorkers=1 src/components/journey/deploy.test.tsx -t 'refuses a reviewed-source preview'` | exit 0: 2 passed (unclean source and nonempty runtime configuration) |
+| `NODE_OPTIONS=--max-old-space-size=768 ./node_modules/.bin/tsc --noEmit --pretty false` | exit 0 after final selector/client changes |
+
+These are source fixtures and static type checks. The selected release endpoint branch was not yet published at the final check; its kind-aware readback and actual release remain unverified.
