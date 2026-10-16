@@ -103,6 +103,71 @@ func TestPDFPilotOneChargeSerialHandoffAndWholeDeadline(t *testing.T) {
 	if !validPDFPilotLease(lease) {
 		t.Fatal("positively retired and independently captured reader outcome refused")
 	}
+	accepted := lease
+	for _, tt := range []struct {
+		name   string
+		change func(*pdfPilotLease)
+	}{
+		{"renderer retired before start and reader overlaps", func(v *pdfPilotLease) {
+			v.Renderer.RetiredAt = started.Add(time.Second)
+			v.Reader.StartIntentAt = started.Add(3 * time.Second)
+		}},
+		{"renderer retired before exit", func(v *pdfPilotLease) {
+			v.Renderer.RetiredAt = started.Add(10 * time.Second)
+		}},
+		{"renderer retired before capture", func(v *pdfPilotLease) {
+			v.Renderer.RetiredAt = started.Add(22 * time.Second)
+		}},
+		{"reader starts before renderer capture", func(v *pdfPilotLease) {
+			v.Reader.StartIntentAt = started.Add(24 * time.Second)
+		}},
+		{"reader starts before renderer retirement", func(v *pdfPilotLease) {
+			v.Reader.StartIntentAt = started.Add(28 * time.Second)
+		}},
+		{"reader retired before start", func(v *pdfPilotLease) {
+			v.Reader.RetiredAt = started.Add(44 * time.Second)
+		}},
+		{"reader retired before exit", func(v *pdfPilotLease) {
+			v.Reader.RetiredAt = started.Add(55 * time.Second)
+		}},
+		{"reader retired before capture", func(v *pdfPilotLease) {
+			v.Reader.RetiredAt = started.Add(62 * time.Second)
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			invalid := accepted
+			tt.change(&invalid)
+			if validPDFPilotLease(invalid) {
+				t.Fatal("out-of-order full lease was accepted")
+			}
+		})
+	}
+	retiredWithoutStart := accepted
+	retiredWithoutStart.Renderer.StartIntentAt = time.Time{}
+	retiredWithoutStart.Renderer.ExitObservedAt = time.Time{}
+	retiredWithoutStart.Renderer.CaptureAt = time.Time{}
+	retiredWithoutStart.Renderer.RetiredAt = started.Add(time.Second)
+	retiredWithoutStart.RendererOutputDigest = ""
+	retiredWithoutStart.RendererOutputBytes = 0
+	retiredWithoutStart.RendererFileIdentity = ""
+	retiredWithoutStart.Reader = pdfPilotChildLease{AllocationID: accepted.Reader.AllocationID, State: "reserved"}
+	retiredWithoutStart.ReaderTextDigest, retiredWithoutStart.ReaderTextBytes = "", 0
+	retiredWithoutStart.ReaderPNGHash, retiredWithoutStart.ReaderPNGBytes = "", 0
+	retiredWithoutStart.Closed, retiredWithoutStart.Accepted, retiredWithoutStart.OutcomeDigest = false, false, ""
+	if !validPDFPilotLease(retiredWithoutStart) {
+		t.Fatal("positive retirement of a never-started child must remain readable")
+	}
+	readerRetiredWithoutStart := accepted
+	readerRetiredWithoutStart.Reader.StartIntentAt = time.Time{}
+	readerRetiredWithoutStart.Reader.ExitObservedAt = time.Time{}
+	readerRetiredWithoutStart.Reader.CaptureAt = time.Time{}
+	readerRetiredWithoutStart.Reader.RetiredAt = started.Add(40 * time.Second)
+	readerRetiredWithoutStart.ReaderTextDigest, readerRetiredWithoutStart.ReaderTextBytes = "", 0
+	readerRetiredWithoutStart.ReaderPNGHash, readerRetiredWithoutStart.ReaderPNGBytes = "", 0
+	readerRetiredWithoutStart.Closed, readerRetiredWithoutStart.Accepted, readerRetiredWithoutStart.OutcomeDigest = false, false, ""
+	if !validPDFPilotLease(readerRetiredWithoutStart) {
+		t.Fatal("positive retirement of a never-started reader must remain readable")
+	}
 	lease.ChargeBytes = backend.PDFPilotMemoryBytes * 2
 	if validPDFPilotLease(lease) {
 		t.Fatal("concurrent two-child memory charge became valid")

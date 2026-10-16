@@ -150,10 +150,17 @@ func validPDFPilotChildTiming(value pdfPilotChildLease, start, phaseEnd time.Tim
 	if !value.CaptureAt.IsZero() && (value.ExitObservedAt.IsZero() || value.CaptureAt.Before(value.ExitObservedAt)) {
 		return false
 	}
-	// Positive readback may settle an unknown child after the original whole
-	// deadline. It remains historical evidence, never an on-time acceptance.
-	if !value.RetiredAt.IsZero() && value.RetiredAt.Before(start) {
-		return false
+	// A child may be retired without ever starting. When later events are
+	// known, retirement must follow all of them; otherwise a forged early
+	// retirement could make the serial reader eligible during capture/run.
+	// Positive late readback remains historical evidence, not acceptance.
+	if !value.RetiredAt.IsZero() {
+		if value.RetiredAt.Before(start) ||
+			!value.StartIntentAt.IsZero() && value.RetiredAt.Before(value.StartIntentAt) ||
+			!value.ExitObservedAt.IsZero() && value.RetiredAt.Before(value.ExitObservedAt) ||
+			!value.CaptureAt.IsZero() && value.RetiredAt.Before(value.CaptureAt) {
+			return false
+		}
 	}
 	if value.State == "start-unknown" || value.State == "running" || value.State == "exited" || value.State == "capture-unknown" || value.State == "captured" {
 		if value.StartIntentAt.IsZero() {
@@ -204,7 +211,8 @@ func validPDFPilotLease(value pdfPilotLease) bool {
 		!validPDFPilotChildTiming(value.Reader, value.Deadlines.ReservedAt, value.Deadlines.ReaderPhaseEnd) {
 		return false
 	}
-	if !value.Reader.StartIntentAt.IsZero() && (value.Renderer.State != "retired" || value.Renderer.RetiredAt.IsZero() || value.Reader.StartIntentAt.Before(value.Renderer.RetiredAt)) {
+	if !value.Reader.StartIntentAt.IsZero() && (value.Renderer.State != "retired" || value.Renderer.CaptureAt.IsZero() || value.Renderer.RetiredAt.IsZero() ||
+		value.Reader.StartIntentAt.Before(value.Renderer.CaptureAt) || value.Reader.StartIntentAt.Before(value.Renderer.RetiredAt)) {
 		return false
 	}
 	for _, child := range []pdfPilotChildLease{value.Renderer, value.Reader} {
