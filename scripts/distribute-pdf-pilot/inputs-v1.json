@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "purpose": "test-only-cjk-cff1-pdf",
+  "moduleZipMaxBytes": 33554432,
+  "moduleZipTotalMaxBytes": 134217728,
+  "fontInputMaxBytes": 33554432,
+  "intermediateMaxBytes": 33554432,
+  "pdfMaxBytes": 16777216,
+  "renderDeadlineSeconds": 30,
+  "jobMemoryMaxBytes": 536870912,
+  "faceIndex": 0,
+  "originalText": "日本語",
+  "toolchains": {
+    "linux-amd64": {
+      "url": "https://go.dev/dl/go1.25.0.linux-amd64.tar.gz",
+      "input": "toolchain/go1.25.0.linux-amd64.tar.gz",
+      "bytes": 59659213,
+      "sha256": "2852af0cb20a13139b3448992e69b868e50ed0f8a1e5940ee1de9e19a123b613"
+    },
+    "windows-amd64": {
+      "url": "https://go.dev/dl/go1.25.0.windows-amd64.zip",
+      "input": "toolchain/go1.25.0.windows-amd64.zip",
+      "bytes": 67418204,
+      "sha256": "89efb4f9b30812eee083cc1770fdd2913c14d301064f6454851428f9707d190b"
+    }
+  },
+  "debianPackage": {
+    "url": "https://deb.debian.org/debian/pool/main/f/fonts-noto-cjk/fonts-noto-cjk_20240730%2Brepack1-1_all.deb",
+    "input": "packages/fonts-noto-cjk_20240730+repack1-1_all.deb",
+    "bytes": 56674044,
+    "fontInput": "fonts/NotoSansCJK-Regular.ttc",
+    "fontBytes": 19484784,
+    "fontSHA256": "b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a",
+    "copyrightInput": "grants/fonts-noto-cjk/copyright",
+    "copyrightSHA256": "849f4ea9c214fa4ac3593b770c699f387534b11ce671264c1b10d85bdcb5997b",
+    "grant": "SIL OFL-1.1; retain the original Debian package notice"
+  },
+  "modules": [
+    {
+      "name": "github.com/tdewolff/font",
+      "version": "v0.0.0-20261010204837-88a7f6b56918",
+      "url": "https://proxy.golang.org/github.com/tdewolff/font/@v/v0.0.0-20261010204837-88a7f6b56918.zip",
+      "input": "modules/font.zip",
+      "h1": "h1:z7YAbjYz/bmG0AUx2pqmClRxUI2aCxP0rQMJAMcdmok=",
+      "mod": {"input": "modules/font.mod", "bytes": 1692, "sha256": "fa6f191a91c2976ed8d3906da58ec44f1ab12ad20787db5d1da37a329854cf62"},
+      "info": {"input": "modules/font.info", "bytes": 192, "sha256": "b60a919478a57184ec8b84161e915758e0c1be5b3f52703b0be1e18f96716ef4"},
+      "grants": [{"input": "grants/font/LICENSE.md", "sha256": "375ceacf38f92020f8896427fbb3e7259c72add31218107c78c692b43ade4f2f", "choice": "MIT"}]
+    },
+    {
+      "name": "github.com/tdewolff/parse/v2",
+      "version": "v2.8.16",
+      "url": "https://proxy.golang.org/github.com/tdewolff/parse/v2/@v/v2.8.16.zip",
+      "input": "modules/parse.zip",
+      "h1": "h1:bLk5svUOQRkW/Y2SJ+DeENSIkZBcTIkq+Atyv5D8feI=",
+      "mod": {"input": "modules/parse.mod", "bytes": 87, "sha256": "e87aaa58bd7157f8b4333aa3752467bf29e92164eab84a71d51e691a433f5593"},
+      "info": {"input": "modules/parse.info", "bytes": 192, "sha256": "4b66ede912868c2339b612f650988be4337e326895bddbf01fc14587ef9de949"},
+      "grants": [{"input": "grants/parse/LICENSE.md", "sha256": "0ebcdb0e336d600038ecdb7b8d339d937a66b62cb6d1128896fdc20cfe01c188", "choice": "MIT"}]
+    },
+    {
+      "name": "github.com/andybalholm/brotli",
+      "version": "v1.2.2",
+      "url": "https://proxy.golang.org/github.com/andybalholm/brotli/@v/v1.2.2.zip",
+      "input": "modules/brotli.zip",
+      "h1": "h1:HzTuoo2ErYQqf5qvcJInB8uvqSVxRttzkFexPWtnceM=",
+      "mod": {"input": "modules/brotli.mod", "bytes": 151, "sha256": "9836ed7059e6b6be9d42e666c866deea8646d5815216fcf6216966074744cb1f"},
+      "info": {"input": "modules/brotli.info", "bytes": 194, "sha256": "ce430ff9bf19d8969618730b421bf64ca4f464de81f21e76bed28862571399f2"},
+      "grants": [
+        {"input": "grants/brotli/LICENSE", "sha256": "3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94", "choice": "MIT"},
+        {"input": "grants/brotli/flate-LICENSE", "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067", "choice": "BSD-3-Clause nested flate grant"}
+      ]
+    },
+    {
+      "name": "github.com/golang/freetype",
+      "version": "v0.0.0-20170609003504-e2365dfdc4a0",
+      "url": "https://proxy.golang.org/github.com/golang/freetype/@v/v0.0.0-20170609003504-e2365dfdc4a0.zip",
+      "input": "modules/freetype.zip",
+      "h1": "h1:DACJavvAHhabrF08vX0COfcOBJRhZ8lUbR+ZWIs0Y5g=",
+      "mod": {"input": "modules/freetype.mod", "bytes": 34, "sha256": "26d471ad5950334d990718ffb46734113226ef134f19fbb87354e3d87dd34853"},
+      "info": {"input": "modules/freetype.info", "bytes": 78, "sha256": "8e79cb189fd43ec76c972eb5005aad48971ad95db6c052083f3813c805065c5d"},
+      "grants": [
+        {"input": "grants/freetype/LICENSE", "sha256": "d3ba056adc2b7909e95681deaae397fb37c97ed491a920f491214f07b62c41d0", "choice": "FTL"},
+        {"input": "grants/freetype/licenses/ftl.txt", "sha256": "f4b133e25df1f86ad3ffea453aa0e613f0474f34778dbbb3e437e7b2724937d8", "choice": "FTL original text"}
+      ]
+    },
+    {
+      "name": "golang.org/x/image",
+      "version": "v0.45.0",
+      "url": "https://proxy.golang.org/golang.org/x/image/@v/v0.45.0.zip",
+      "input": "modules/x-image.zip",
+      "h1": "h1:FMb1nTbH5H9vF55SriQHgFw5GnNL9Jg6L25BwXKzhB0=",
+      "mod": {"input": "modules/x-image.mod", "bytes": 103, "sha256": "2a11ab7cc89efdca7d5c87017af01141c3174857fabad1bf365d9a8fde1c8a89"},
+      "info": {"input": "modules/x-image.info", "bytes": 192, "sha256": "986c3d8b667ded5b2f1cfed8ae9879fefb9b4c8086b62f18689a0ff2c82051b1"},
+      "grants": [
+        {"input": "grants/x-image/LICENSE", "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad", "choice": "BSD-3-Clause"},
+        {"input": "grants/x-image/PATENTS", "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc", "choice": "original patent notice"}
+      ]
+    },
+    {
+      "name": "golang.org/x/text",
+      "version": "v0.41.0",
+      "url": "https://proxy.golang.org/golang.org/x/text/@v/v0.41.0.zip",
+      "input": "modules/x-text.zip",
+      "h1": "h1:vz/seA0lnX87Othu2f/0L24RcgrXD9/YFTSuGjj3rH8=",
+      "mod": {"input": "modules/x-text.mod", "bytes": 190, "sha256": "d9ed44f15d8656abad2642d0052ce966b8135f00c8f80c469d9e6940b49d5e0c"},
+      "info": {"input": "modules/x-text.info", "bytes": 191, "sha256": "770f4d64a885dfc36c283cf2d02b5f9d6d614de0ad2cd3fedd6a0e6c6f747c20"},
+      "grants": [
+        {"input": "grants/x-text/LICENSE", "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad", "choice": "BSD-3-Clause"},
+        {"input": "grants/x-text/PATENTS", "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc", "choice": "original patent notice"}
+      ]
+    },
+    {
+      "name": "golang.org/x/sys",
+      "version": "v0.47.0",
+      "url": "https://proxy.golang.org/golang.org/x/sys/@v/v0.47.0.zip",
+      "input": "modules/x-sys.zip",
+      "h1": "h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=",
+      "mod": {"input": "modules/x-sys.mod", "bytes": 35, "sha256": "57f4393ea18d5446a12363b35c23a616d843fa1669c7121a70a2bc3a9677d665"},
+      "info": {"input": "modules/x-sys.info", "bytes": 190, "sha256": "2f567627966f180616deee8874e9547fe34b2271f17ce14901979890510fc959"},
+      "grants": [
+        {"input": "grants/x-sys/LICENSE", "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad", "choice": "BSD-3-Clause"},
+        {"input": "grants/x-sys/PATENTS", "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc", "choice": "original patent notice"}
+      ]
+    }
+  ]
+}

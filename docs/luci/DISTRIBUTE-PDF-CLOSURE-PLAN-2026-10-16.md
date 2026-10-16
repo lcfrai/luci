@@ -1,6 +1,6 @@
 # LC21 PDF renderer: selected source closure and bounded pilot
 
-Status: source plan only. No module, font, renderer, or image has been added to a build or release. PDF export continues to refuse with 422. This plan refines [the renderer proposal](DISTRIBUTE-PDF-RENDERER-PROPOSAL-2026-10-16.md); it does not grant dependency acquisition or runtime execution.
+Status: source plan and [isolated fixed-CJK pilot source](../../scripts/distribute-pdf-pilot/README.md) only. No module, font, renderer, or image has been added to a build or release; the pilot has not been compiled or rendered. PDF export continues to refuse with 422. This plan refines [the renderer proposal](DISTRIBUTE-PDF-RENDERER-PROPOSAL-2026-10-16.md); it does not grant dependency acquisition or runtime execution.
 
 ## Exact candidate inputs
 
