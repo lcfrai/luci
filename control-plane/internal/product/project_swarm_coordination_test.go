@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"encoding/json"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -14,6 +15,216 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
+
+func TestSwarmQuestionResolutionLegacyDigestAndJSON(t *testing.T) {
+	req := swarmMessagePostRequest{Kind: "decision", RecipientTaskID: "task-a", CausalMessageID: "msg-question", Evidence: ProjectSwarmMessageEvidence{Kind: "none"}, Summary: "Use the reviewed interface."}
+	legacy := struct {
+		Recipient, Kind, Causal string
+		Evidence               ProjectSwarmMessageEvidence
+		Summary                string
+	}{req.RecipientTaskID, req.Kind, req.CausalMessageID, req.Evidence, req.Summary}
+	raw, err := json.Marshal(legacy)
+	if err != nil || string(raw) != `{"Recipient":"task-a","Kind":"decision","Causal":"msg-question","Evidence":{"kind":"none","id":"","digest":""},"Summary":"Use the reviewed interface."}` {
+		t.Fatal("legacy digest input bytes changed", string(raw), err)
+	}
+	legacyDigest := swarmMessageRequestDigest(req)
+	if legacyDigest != implementationDigest(legacy) {
+		t.Fatal("omitted resolution changed legacy digest")
+	}
+	var omitted, empty swarmMessagePostRequest
+	decodeEvidenceResponse(t, []byte(`{"kind":"decision","recipientTaskId":"task-a","causalMessageId":"msg-question","evidence":{"kind":"none"},"summary":"Use the reviewed interface."}`), &omitted)
+	decodeEvidenceResponse(t, []byte(`{"kind":"decision","recipientTaskId":"task-a","causalMessageId":"msg-question","resolvesQuestionId":"","evidence":{"kind":"none"},"summary":"Use the reviewed interface."}`), &empty)
+	if swarmMessageRequestDigest(omitted) != legacyDigest || swarmMessageRequestDigest(empty) != legacyDigest {
+		t.Fatal("empty/omitted legacy request lost exact replay identity")
+	}
+	req.ResolvesQuestionID = req.CausalMessageID
+	if swarmMessageRequestDigest(req) == legacyDigest {
+		t.Fatal("resolution was omitted from request identity")
+	}
+	msg := ProjectSwarmMessage{ID: "msg-one", Kind: "decision", RecipientTaskID: "task-a", CausalMessageID: "msg-question"}
+	raw, err = json.Marshal(msg)
+	want := `{"id":"msg-one","sequence":0,"kind":"decision","sender":{"taskId":"","operationId":"","childId":"","worktreeId":"","contextDigest":""},"recipientTaskId":"task-a","causalMessageId":"msg-question","evidence":{"kind":"","id":"","digest":""},"summary":"","attribution":"","createdAt":"","ack":null,"keyDigest":"","requestDigest":""}`
+	if err != nil || string(raw) != want {
+		t.Fatal("legacy stored message bytes changed", string(raw), err)
+	}
+	msg.ResolvesQuestionID = "msg-question"
+	raw, err = json.Marshal(msg)
+	if err != nil || !strings.Contains(string(raw), `"resolvesQuestionId":"msg-question"`) {
+		t.Fatal("explicit resolution was not retained", err)
+	}
+}
+
+func TestSwarmQuestionResolutionHTTPHistoryReplayAndRetirement(t *testing.T) {
+	s, mux, p, run, base, _ := swarmHTTPFixture(t)
+	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+	actor := coordinationHandler(s, "alice")
+	run = swarmReserveHTTP(t, mux, base, run, "task-a", "question-task-a-123456789")
+	run = swarmReserveHTTP(t, mux, base, run, "task-b", "question-task-b-123456789")
+	a, b := run.Operations[0], run.Operations[1]
+	if a.Allocation != "ready" || b.Allocation != "ready" {
+		t.Fatal("question fixture allocations are unconfirmed")
+	}
+	type messageResponse struct {
+		Message     ProjectSwarmMessage
+		RunRevision int
+	}
+	var question, reply messageResponse
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+a.ID+"/messages", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "question-request-123456789", "recipientTaskId": "task-b", "kind": "question", "summary": "Which reviewed interface should the dependent task use?", "evidence": map[string]string{"kind": "none"}}, 200).Body.Bytes(), &question)
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/messages/"+question.Message.ID+"/ack", map[string]any{"expectedRevision": question.RunRevision, "recipientOperationId": b.ID}, 200).Body.Bytes(), &question)
+	questionBytes, err := json.Marshal(question.Message)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := map[string]any{"expectedRevision": question.RunRevision, "idempotencyKey": "ordinary-decision-123456789", "recipientTaskId": "task-a", "kind": "decision", "causalMessageId": question.Message.ID, "summary": "Use the approved public interface.", "evidence": map[string]string{"kind": "none"}}
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages", req, 200).Body.Bytes(), &reply)
+	legacyTree := auditTree(t, s.stateDir)
+	req["resolvesQuestionId"] = ""
+	journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages", req, 200)
+	if !reflect.DeepEqual(legacyTree, auditTree(t, s.stateDir)) {
+		t.Fatal("empty optional field changed legacy replay or stored history")
+	}
+	delete(req, "resolvesQuestionId")
+	type projection struct {
+		Messages            []ProjectSwarmMessage
+		QuestionResolutions []swarmQuestionResolution
+		Attention           []struct{ ID, Kind string }
+	}
+	var view projection
+	decodeEvidenceResponse(t, journeyRequest(t, mux, "GET", base+"/supervision?after=0&limit=1", nil, 200).Body.Bytes(), &view)
+	if view.QuestionResolutions == nil || len(view.QuestionResolutions) != 0 || len(view.Attention) != 1 || view.Attention[0].ID != question.Message.ID {
+		t.Fatal("ack or ordinary causal decision resolved a question", view)
+	}
+	// Put the eventual resolution outside the first 50-message API page without
+	// invoking workers or creating a different source of resolution authority.
+	run, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, reply.RunRevision, func(current *ProjectRun) error {
+		for i := 0; i < 50; i++ {
+			msg := reply.Message
+			msg.ID, msg.Kind, msg.CausalMessageID = newID("msg-"), "discovery", ""
+			msg.KeyDigest = implementationDigest(msg.ID)
+			msg.RequestDigest = msg.KeyDigest
+			if _, appendErr := appendSwarmMessage(current, msg); appendErr != nil {
+				return appendErr
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req["expectedRevision"], req["idempotencyKey"], req["resolvesQuestionId"] = run.Revision, "explicit-resolution-123456789", question.Message.ID
+	for _, invalid := range []struct{ name, sender, field string; value any }{
+		{"wrong-sender", a.ID, "recipientTaskId", "task-a"},
+		{"wrong-recipient", b.ID, "recipientTaskId", "task-b"},
+		{"not-decision", b.ID, "kind", "discovery"},
+		{"wrong-causal", b.ID, "causalMessageId", reply.Message.ID},
+		{"missing-question", b.ID, "resolvesQuestionId", "msg-missing"},
+		{"stale-cas", b.ID, "expectedRevision", run.Revision - 1},
+	} {
+		t.Run(invalid.name, func(t *testing.T) {
+			bad := map[string]any{}
+			for key, value := range req { bad[key] = value }
+			bad[invalid.field] = invalid.value
+			before := auditTree(t, s.stateDir)
+			journeyRequest(t, actor, "POST", base+"/operations/"+invalid.sender+"/messages", bad, 409)
+			if !reflect.DeepEqual(before, auditTree(t, s.stateDir)) { t.Fatal("refused resolution changed history") }
+		})
+	}
+	before := auditTree(t, s.stateDir)
+	body, err := json.Marshal(req)
+	if err != nil { t.Fatal(err) }
+	revoked := httptest.NewRequest("POST", base+"/operations/"+b.ID+"/messages", strings.NewReader(string(body)))
+	revoked = revoked.WithContext(management.WithTeamAccess(revoked.Context(), management.TeamAccess{ProjectID: p.ID, Permissions: management.TeamPermissions{Read: true}}))
+	denied := httptest.NewRecorder()
+	actor.ServeHTTP(denied, revoked)
+	if denied.Code != 403 || !reflect.DeepEqual(before, auditTree(t, s.stateDir)) { t.Fatal("revoked edit authority resolved a question", denied.Code) }
+	var resolved messageResponse
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages", req, 200).Body.Bytes(), &resolved)
+	before = auditTree(t, s.stateDir)
+	journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages", req, 200)
+	decodeEvidenceResponse(t, journeyRequest(t, mux, "GET", base+"/supervision?after=0&limit=50", nil, 200).Body.Bytes(), &view)
+	if len(view.Messages) != 50 || len(view.Attention) != 0 || !reflect.DeepEqual(view.QuestionResolutions, []swarmQuestionResolution{{question.Message.ID, resolved.Message.ID}}) || !reflect.DeepEqual(before, auditTree(t, s.stateDir)) {
+		t.Fatal("off-page resolution/replay/read-only projection lost exact history", view)
+	}
+	var disposition struct { State string; Message *ProjectSwarmMessage; RunRevision int }
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages/disposition", req, 200).Body.Bytes(), &disposition)
+	if disposition.State != "recorded" || disposition.Message == nil || disposition.Message.ResolvesQuestionID != question.Message.ID { t.Fatal("lost response was not bound to exact resolution", disposition) }
+	req["resolvesQuestionId"] = ""
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages/disposition", req, 200).Body.Bytes(), &disposition)
+	if disposition.State != "key-conflict" { t.Fatal("stripped resolution matched a different request", disposition) }
+	journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages", req, 409)
+	req["resolvesQuestionId"], req["idempotencyKey"] = question.Message.ID, "competing-resolution-123456789"
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages/disposition", req, 200).Body.Bytes(), &disposition)
+	if disposition.State != "rejected" { t.Fatal("winning resolution did not settle stale competing CAS") }
+	req["expectedRevision"] = resolved.RunRevision
+	journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages", req, 409)
+	// Closing this exact uncertain revision needs shape/authority, not an open
+	// question. The already-recorded winning resolution remains untouched.
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages/retire", req, 200).Body.Bytes(), &disposition)
+	if disposition.State != "rejected" || disposition.RunRevision != resolved.RunRevision+1 { t.Fatal("competing resolution stranded retirement", disposition) }
+	decodeEvidenceResponse(t, journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages/disposition", req, 200).Body.Bytes(), &disposition)
+	if disposition.State != "rejected" { t.Fatal("lost retirement acknowledgement could not be read back") }
+	journeyRequest(t, actor, "POST", base+"/operations/"+b.ID+"/messages", req, 409)
+	stored, err := s.projectRuns.Get(p.ID, p.Path, run.ID)
+	if err != nil { t.Fatal(err) }
+	retained, err := json.Marshal(stored.Swarm.Messages[0])
+	if err != nil || string(retained) != string(questionBytes) || len(swarmQuestionResolutions(stored)) != 1 { t.Fatal("resolution rewrote original question/ack or duplicated decisions", err) }
+	for _, invalid := range []string{"worker-attribution", "sender", "recipient", "not-question", "duplicate"} {
+		t.Run("stored-"+invalid, func(t *testing.T) {
+			candidate := stored
+			swarm := *stored.Swarm
+			candidate.Swarm = &swarm
+			swarm.Messages = append([]ProjectSwarmMessage(nil), stored.Swarm.Messages...)
+			last := &swarm.Messages[len(swarm.Messages)-1]
+			switch invalid {
+			case "worker-attribution":
+				last.Attribution = "owned-worker-report"
+			case "sender":
+				last.Sender = question.Message.Sender
+			case "recipient":
+				last.RecipientTaskID = question.Message.RecipientTaskID
+			case "not-question":
+				last.CausalMessageID, last.ResolvesQuestionID = reply.Message.ID, reply.Message.ID
+			case "duplicate":
+				duplicate := *last
+				duplicate.ID, duplicate.Sequence = "msg-duplicate-resolution", len(swarm.Messages)+1
+				swarm.Messages = append(swarm.Messages, duplicate)
+			}
+			if validateSwarmCoordination(candidate) == nil {
+				t.Fatal("invalid retained resolution accepted", invalid)
+			}
+		})
+	}
+	reopened, err := NewProjectRunStore(s.stateDir)
+	if err != nil { t.Fatal(err) }
+	restored, err := reopened.Get(p.ID, p.Path, run.ID)
+	if err != nil || !reflect.DeepEqual(restored.Swarm.Messages, stored.Swarm.Messages) {
+		t.Fatal("restart changed question or resolution history", err)
+	}
+}
+
+func TestSwarmQuestionResolutionRetirementShapeAndStoredValidation(t *testing.T) {
+	for _, value := range []struct{ kind, causal, question string; valid bool }{
+		{"discovery", "", "", true}, {"decision", "msg-q", "msg-q", true},
+		{"question", "msg-q", "msg-q", false}, {"decision", "msg-other", "msg-q", false},
+	} {
+		if swarmQuestionResolutionShape(value.kind, value.causal, value.question) != value.valid { t.Fatal("unexpected resolution shape", value) }
+	}
+	s, mux, p, run, base, _ := swarmHTTPFixture(t)
+	s.SetCoordinatorAuthorizer(func(context.Context, string) error { return nil })
+	actor := coordinationHandler(s, "alice")
+	run = swarmReserveHTTP(t, mux, base, run, "task-a", "shape-task-a-123456789")
+	op := run.Operations[0]
+	bad := map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "invalid-retained-shape-123456", "recipientTaskId": "task-b", "kind": "question", "causalMessageId": "msg-q", "resolvesQuestionId": "msg-q", "summary": "Invalid retained resolution", "evidence": map[string]string{"kind": "none"}}
+	before := auditTree(t, s.stateDir)
+	for _, suffix := range []string{"", "/disposition", "/retire"} { journeyRequest(t, actor, "POST", base+"/operations/"+op.ID+"/messages"+suffix, bad, 409) }
+	if !reflect.DeepEqual(before, auditTree(t, s.stateDir)) { t.Fatal("malformed recovery request changed state") }
+	msg := ProjectSwarmMessage{ID: "msg-question", Sequence: 1, Kind: "question", Sender: ProjectSwarmMessageSender{TaskID: op.TaskID, OperationID: op.ID, ChildID: op.ChildID, WorktreeID: op.WorktreeID, ContextDigest: implementationDigest(op.Implementation)}, RecipientTaskID: "task-b", Evidence: ProjectSwarmMessageEvidence{Kind: "none"}, Summary: "Question", Attribution: "coordinator-recorded", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), KeyDigest: implementationDigest("q"), RequestDigest: implementationDigest("q")}
+	run.Swarm.Messages = []ProjectSwarmMessage{msg}
+	if err := validateSwarmCoordination(run); err != nil { t.Fatal("valid legacy question refused", p.ID, err) }
+	msg.ResolvesQuestionID, msg.CausalMessageID = msg.ID, msg.ID
+	run.Swarm.Messages[0] = msg
+	if validateSwarmCoordination(run) == nil { t.Fatal("stored self/future question resolution accepted") }
+}
 
 func TestSwarmAddressedMessageReplayAckAndReadOnlyProjection(t *testing.T) {
 	s, mux, p, run, base, _ := swarmHTTPFixture(t)

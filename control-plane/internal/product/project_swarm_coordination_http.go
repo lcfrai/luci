@@ -183,13 +183,18 @@ func (s *Server) getProjectSwarmSupervision(w http.ResponseWriter, r *http.Reque
 		} `json:"action"`
 	}
 	attention := []attentionView{}
+	questionResolutions := swarmQuestionResolutions(run)
+	resolvedQuestions := make(map[string]bool, len(questionResolutions))
+	for _, item := range questionResolutions {
+		resolvedQuestions[item.QuestionID] = true
+	}
 	addAttention := func(id, kind, taskID, actionKind, targetID string) {
 		item := attentionView{ID: id, Kind: kind, TaskID: taskID}
 		item.Action.Kind, item.Action.TargetID = actionKind, targetID
 		attention = append(attention, item)
 	}
 	for _, msg := range run.Swarm.Messages {
-		if msg.Kind == "question" {
+		if msg.Kind == "question" && !resolvedQuestions[msg.ID] {
 			addAttention(msg.ID, "question", msg.RecipientTaskID, "open-message", msg.ID)
 		}
 	}
@@ -220,6 +225,7 @@ func (s *Server) getProjectSwarmSupervision(w http.ResponseWriter, r *http.Reque
 		"context":       map[string]any{"briefRevision": run.Input.Implementation.BriefRevision, "planRevision": run.Input.Implementation.PlanRevision, "contractDigest": contractDigest, "freshness": freshness.Status},
 		"activityPhase": activity, "qualityPhase": quality, "settlement": settlement,
 		"tasks": tasks, "messages": messages, "reviewObligations": swarmReviewObligationViews(run),
+		"questionResolutions": questionResolutions,
 		"page":      map[string]any{"after": after, "nextCursor": next, "hasMore": omitted > 0, "omitted": omitted},
 		"attention": attention, "metrics": map[string]any{"routineDecisions": nil, "latency": nil, "quality": nil, "throughput": nil, "cost": nil},
 	})
@@ -253,16 +259,26 @@ func (s *Server) getProjectSwarmMessage(w http.ResponseWriter, r *http.Request) 
 }
 
 type swarmMessagePostRequest struct {
-	ExpectedRevision int                         `json:"expectedRevision"`
-	IdempotencyKey   string                      `json:"idempotencyKey"`
-	RecipientTaskID  string                      `json:"recipientTaskId"`
-	Kind             string                      `json:"kind"`
-	CausalMessageID  string                      `json:"causalMessageId"`
-	Evidence         ProjectSwarmMessageEvidence `json:"evidence"`
-	Summary          string                      `json:"summary"`
+	ExpectedRevision   int                         `json:"expectedRevision"`
+	IdempotencyKey     string                      `json:"idempotencyKey"`
+	RecipientTaskID    string                      `json:"recipientTaskId"`
+	Kind               string                      `json:"kind"`
+	CausalMessageID    string                      `json:"causalMessageId"`
+	ResolvesQuestionID string                      `json:"resolvesQuestionId,omitempty"`
+	Evidence           ProjectSwarmMessageEvidence `json:"evidence"`
+	Summary            string                      `json:"summary"`
 }
 
 func swarmMessageRequestDigest(req swarmMessagePostRequest) string {
+	if req.ResolvesQuestionID != "" {
+		legacy := req
+		legacy.ResolvesQuestionID = ""
+		return implementationDigest(struct {
+			LegacyRequestDigest string
+			ResolvesQuestionID  string
+		}{swarmMessageRequestDigest(legacy), req.ResolvesQuestionID})
+	}
+	// Keep the legacy field names, order and bytes for omitted/empty resolution.
 	return implementationDigest(struct {
 		Recipient, Kind, Causal string
 		Evidence                ProjectSwarmMessageEvidence
@@ -286,7 +302,7 @@ func (s *Server) projectSwarmMessageDisposition(w http.ResponseWriter, r *http.R
 	if !journeyDecode(w, r, &req) {
 		return
 	}
-	if req.ExpectedRevision < 1 || !validRunKey(req.IdempotencyKey) || !swarmMessageKind(req.Kind) || !handoffText(req.Summary, 1000) || strings.TrimSpace(req.Summary) == "" || !validSwarmMessageEvidenceShape(req.Evidence) {
+	if req.ExpectedRevision < 1 || !validRunKey(req.IdempotencyKey) || !swarmMessageKind(req.Kind) || !handoffText(req.Summary, 1000) || strings.TrimSpace(req.Summary) == "" || !validSwarmMessageEvidenceShape(req.Evidence) || !swarmQuestionResolutionShape(req.Kind, req.CausalMessageID, req.ResolvesQuestionID) {
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}
@@ -339,7 +355,7 @@ func (s *Server) postProjectSwarmMessage(w http.ResponseWriter, r *http.Request)
 	if !journeyDecode(w, r, &req) {
 		return
 	}
-	if !validRunKey(req.IdempotencyKey) || !swarmMessageKind(req.Kind) || !handoffText(req.Summary, 1000) || strings.TrimSpace(req.Summary) == "" {
+	if !validRunKey(req.IdempotencyKey) || !swarmMessageKind(req.Kind) || !handoffText(req.Summary, 1000) || strings.TrimSpace(req.Summary) == "" || !swarmQuestionResolutionShape(req.Kind, req.CausalMessageID, req.ResolvesQuestionID) {
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}
@@ -392,6 +408,7 @@ func (s *Server) postProjectSwarmMessage(w http.ResponseWriter, r *http.Request)
 			}
 		}
 		msg = ProjectSwarmMessage{ID: newID("msg-"), Kind: req.Kind, Sender: ProjectSwarmMessageSender{TaskID: op.TaskID, OperationID: op.ID, ChildID: op.ChildID, WorktreeID: op.WorktreeID, ContextDigest: implementationDigest(op.Implementation)}, RecipientTaskID: req.RecipientTaskID, CausalMessageID: req.CausalMessageID, Evidence: req.Evidence, Summary: req.Summary, Attribution: "coordinator-recorded", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), KeyDigest: implementationDigest(req.IdempotencyKey), RequestDigest: digest}
+		msg.ResolvesQuestionID = req.ResolvesQuestionID
 		var appendErr error
 		msg, appendErr = appendSwarmMessage(run, msg)
 		return appendErr
