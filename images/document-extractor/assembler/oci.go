@@ -62,7 +62,7 @@ func rootfsNames(ctx context.Context, root string) ([]string, error) {
 		}
 		rel = filepath.ToSlash(rel)
 		retained += len(rel)
-		if !inputName(rel) || len(names) >= 100000 || retained > 16<<20 {
+		if !relativeUnixName(rel) || len(names) >= 100000 || retained > 16<<20 {
 			return errRefused
 		}
 		info, err := entry.Info()

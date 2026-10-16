@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -80,6 +81,46 @@ func TestUnresolvedDependencyLockCannotBeRelabelledByManifestFlags(t *testing.T)
 	}
 	if !validClosedDependencyLock([]byte(`{"state":"closed-reviewed","unresolved":[]}`)) {
 		t.Fatal("closed-state syntax fixture refused; not an attestation")
+	}
+}
+func TestUnixRootfsColonNamesDoNotRelaxHostStaging(t *testing.T) {
+	name := "var/lib/dpkg/info/libc6:amd64.list"
+	if inputName(name) || !relativeUnixName(name) {
+		t.Fatal("Unix rootfs and strict staging path policies conflated")
+	}
+	for _, bad := range []string{"../foreign", "/host/absolute", "safe\nforeign", "safe\x00foreign", "safe/../foreign"} {
+		if relativeUnixName(bad) || inputName(bad) {
+			t.Fatal("unsafe member path accepted", bad)
+		}
+	}
+	if runtime.GOOS != "linux" {
+		t.Skip("colon-bearing rootfs fixture is Linux-only; never create Windows ADS")
+	}
+	root := t.TempDir()
+	payload := []byte("/usr/lib/x86_64-linux-gnu/libc.so.6\n")
+	if unpackUSTAR(bytes.NewReader(fixtureUSTAR(t, name, tar.TypeReg, payload)), root) != nil {
+		t.Fatal("valid multiarch Linux archive member refused")
+	}
+	full, err := rooted(root, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err := os.ReadFile(full)
+	if err != nil || !bytes.Equal(actual, payload) {
+		t.Fatal("multiarch member did not remain confined", err)
+	}
+	names, err := rootfsNames(context.Background(), root)
+	if err != nil {
+		t.Fatal("multiarch export inventory refused", err)
+	}
+	found := false
+	for _, entry := range names {
+		if entry == name {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("multiarch output member omitted")
 	}
 }
 func TestRootedTreatsAbsoluteLinksAsVirtualAndRefusesEscapeCycleAndFileParent(t *testing.T) {

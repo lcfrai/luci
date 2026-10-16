@@ -243,7 +243,7 @@ func unpackUSTAR(reader io.Reader, root string) error {
 			}
 			continue
 		}
-		if !inputName(name) || seen[name] || strings.HasPrefix(path.Base(name), ".wh.") {
+		if !relativeUnixName(name) || seen[name] || strings.HasPrefix(path.Base(name), ".wh.") {
 			return errRefused
 		}
 		seen[name] = true
@@ -270,7 +270,7 @@ func unpackUSTAR(reader io.Reader, root string) error {
 			} else {
 				clean = path.Join(path.Dir(name), clean)
 			}
-			if !inputName(path.Clean(clean)) || os.Symlink(target, full) != nil || os.Lchown(full, int(uid), int(gid)) != nil {
+			if !relativeUnixName(path.Clean(clean)) || os.Symlink(target, full) != nil || os.Lchown(full, int(uid), int(gid)) != nil {
 				return errRefused
 			}
 		case '1':
