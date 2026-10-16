@@ -17,6 +17,7 @@ type assemblySourceHandle struct {
 	handle syscall.Handle
 	info   syscall.ByHandleFileInformation
 	path   string
+	slotID uint64 // stable through append/Close compaction, never a slice reference
 }
 
 type assemblySourceGuard struct {
@@ -25,11 +26,57 @@ type assemblySourceGuard struct {
 	closing     bool
 	ready       bool
 	closeHandle func(syscall.Handle) error // nil in production; exact inert fault seam.
+	registry    *assemblyOriginalRegistry  // same owner, metadata only; no native values
+	// nil in production; only Windows test sources supply original API outcomes.
+	openFile func(*uint16, uint32, uint32, *syscall.SecurityAttributes, uint32, uint32, int32) (syscall.Handle, error)
 }
 
 func assemblySourceGuardSupported() bool { return true }
 
 func (g *assemblySourceGuard) Close() error {
+	if g.registry != nil {
+		if err := g.registry.beginClose(); err != nil {
+			return err
+		}
+		// Retirement prevents new original IO. Wait for existing g.mu IO only
+		// after the independent metadata latch; never hold registryMu here.
+		g.mu.Lock()
+		g.closing = true
+		held := append([]assemblySourceHandle(nil), g.handles...)
+		g.mu.Unlock()
+		var first error
+		remaining := []assemblySourceHandle{}
+		for _, h := range held {
+			if err := g.registry.beginSlotClose(h.slotID); err != nil {
+				remaining = append(remaining, h)
+				if first == nil {
+					first = err
+				}
+				continue
+			}
+			closeHandle := g.closeHandle
+			if closeHandle == nil {
+				closeHandle = syscall.CloseHandle
+			}
+			err := closeHandle(h.handle)
+			g.registry.acknowledgeClose(h.slotID, err == nil)
+			if err != nil {
+				remaining = append(remaining, h)
+				if first == nil {
+					first = err
+				}
+			}
+		}
+		g.mu.Lock()
+		g.handles = remaining
+		g.mu.Unlock()
+		g.registry.finishClose()
+		state, _ := g.registry.lease.RetirementState()
+		if !state.AllSlotsClosed && first == nil {
+			first = backend.ErrUnavailable
+		}
+		return first
+	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.closing = true
@@ -68,7 +115,7 @@ func (g *assemblySourceGuard) CheckCurrent(ctx context.Context) error {
 }
 
 func (g *assemblySourceGuard) checkCurrentLocked(ctx context.Context) error {
-	if !g.ready || g.closing || len(g.handles) == 0 || ctx.Err() != nil {
+	if !g.ready || g.closing || len(g.handles) == 0 || ctx.Err() != nil || g.registry != nil && g.registry.retiring.Load() {
 		return backend.ErrUnavailable
 	}
 	for _, held := range g.handles {
@@ -90,11 +137,16 @@ type assemblySourceCollector struct {
 }
 
 func newAssemblySourceCollector(ctx context.Context) *assemblySourceCollector {
-	g := &assemblySourceGuard{}
+	g := &assemblySourceGuard{registry: newAssemblyOriginalRegistry(false, nil)}
+	_ = g.registry.start() // fresh private dynamic legacy collector, no IO
+	return newAssemblySourceCollectorForGuard(ctx, g)
+}
+
+func newAssemblySourceCollectorForGuard(ctx context.Context, g *assemblySourceGuard) *assemblySourceCollector {
 	seen := map[string]syscall.ByHandleFileInformation{}
 	open := func(path string, directory bool, bytes int64) error {
 		volume := filepath.VolumeName(path)
-		if ctx.Err() != nil || len(path) > 32760 || !filepath.IsAbs(path) || filepath.Clean(path) != path || len(volume) != 2 || volume[1] != ':' || strings.Contains(path[len(volume):], ":") {
+		if ctx.Err() != nil || g.registry.retiring.Load() || len(path) > 32760 || !filepath.IsAbs(path) || filepath.Clean(path) != path || len(volume) != 2 || volume[1] != ':' || strings.Contains(path[len(volume):], ":") {
 			return backend.ErrUnavailable
 		}
 		key := strings.ToLower(path)
@@ -111,13 +163,34 @@ func newAssemblySourceCollector(ctx context.Context) *assemblySourceCollector {
 		if err != nil {
 			return err
 		}
+		slotID, slotErr := g.registry.open(key, directory, bytes)
+		if slotErr != nil {
+			return slotErr
+		}
+		if ctx.Err() != nil || g.registry.retiring.Load() {
+			g.registry.acknowledgeOpen(slotID, false, true) // this frame did not call the native API
+			return backend.ErrUnavailable
+		}
 		// Sharing READ only refuses already-open writers and denies subsequent
 		// writes/deletion/rename. OPEN_REPARSE_POINT lets us reject redirects.
-		h, err := syscall.CreateFile(name, syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|syscall.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+		openFile := g.openFile
+		if openFile == nil {
+			openFile = syscall.CreateFile
+		}
+		h, err := openFile(name, syscall.GENERIC_READ, syscall.FILE_SHARE_READ, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|syscall.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+		valid := h != 0 && h != syscall.InvalidHandle
+		// Retain the exact ACK before metadata/error handling, including a valid
+		// handle+error. No Close can run while this collector remains in flight.
+		if valid {
+			g.handles = append(g.handles, assemblySourceHandle{handle: h, path: path, slotID: slotID})
+		}
+		g.registry.acknowledgeOpen(slotID, valid, h == syscall.InvalidHandle)
 		if err != nil {
 			return err
 		}
-		g.handles = append(g.handles, assemblySourceHandle{handle: h, path: path})
+		if !valid {
+			return backend.ErrUnavailable
+		}
 		var info syscall.ByHandleFileInformation
 		if err = syscall.GetFileInformationByHandle(h, &info); err != nil {
 			return err
@@ -153,6 +226,7 @@ func newAssemblySourceCollector(ctx context.Context) *assemblySourceCollector {
 
 func lockAssemblySources(ctx context.Context, spec backend.DocumentImageAssemblySpec, objects ...backend.DocumentImageAssemblyRetainedObject) (*assemblySourceGuard, error) {
 	collector := newAssemblySourceCollector(ctx)
+	defer collector.guard.registry.stop()
 	g, open, parents := collector.guard, collector.open, collector.parents
 	if err := parents(spec.InputPath); err != nil {
 		return g, err

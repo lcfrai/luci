@@ -35,7 +35,18 @@ var _ backend.DocumentImageAssemblyPackageInputGuard = (*assemblyPackageInputTok
 // an in-flight Windows syscall. Independent process retirement must not wait on
 // this guard. Busy/failed Close is explicitly NOT positive settlement.
 func AcquireDocumentImageAssemblyPackageInputs(ctx context.Context, objects []backend.DocumentImageAssemblyEvidenceObject) (backend.DocumentImageAssemblyPackageInputGuard, error) {
-	if !assemblySourceGuardSupported() || ctx.Err() != nil || len(objects) != backend.DocumentImageAssemblyPackageInputCount {
+	if ctx.Err() != nil {
+		return nil, backend.ErrUnsupported
+	}
+	a, err := PrepareDocumentImageAssemblyPackageAcquisition(objects)
+	if err != nil {
+		return nil, err
+	}
+	return a.Acquire(ctx)
+}
+
+func PrepareDocumentImageAssemblyPackageAcquisition(objects []backend.DocumentImageAssemblyEvidenceObject) (*DocumentImageAssemblyPackageAcquisition, error) {
+	if !assemblySourceGuardSupported() || len(objects) != backend.DocumentImageAssemblyPackageInputCount {
 		return nil, backend.ErrUnsupported
 	}
 	paths := map[string]bool{}
@@ -55,20 +66,12 @@ func AcquireDocumentImageAssemblyPackageInputs(ctx context.Context, objects []ba
 	// The caller's slice cannot redefine a later role/ref lookup. Admission
 	// remains read-free: this is a copy of validated declarations, not a hash.
 	owned := append([]backend.DocumentImageAssemblyEvidenceObject(nil), objects...)
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	guard, err := lockAssemblyPackageInputSources(ctx, owned)
-	if guard == nil {
-		if err == nil {
-			err = backend.ErrUnavailable
-		}
+	guard, err := prepareAssemblyOriginalGuard(owned)
+	if err != nil {
 		return nil, err
 	}
-	if err == nil && ctx.Err() != nil {
-		err = ctx.Err()
-	}
-	owner := &assemblyPackageInputOwner{guard: guard, generation: 1, ready: err == nil, objects: owned}
-	return &assemblyPackageInputToken{owner, 1}, err
+	owner := &assemblyPackageInputOwner{guard: guard, generation: 1, objects: owned}
+	return &DocumentImageAssemblyPackageAcquisition{state: &assemblyOriginalAcquisition{guard: guard, packages: owner, objects: owned}}, nil
 }
 
 func (t *assemblyPackageInputToken) enter(ctx context.Context, exclusive bool) (*assemblyPackageInputOwner, error) {
