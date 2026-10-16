@@ -55,7 +55,7 @@ export interface SwarmIntegration {
 }
 function knownIntegrationDiagnostic(value?: SwarmIntegration): value is SwarmIntegration & {stage: keyof typeof integrationStages; failureCode: keyof typeof integrationFailures} {
   if (!value || value.state !== 'unknown' || typeof value.stage !== 'string' || typeof value.failureCode !== 'string' ||
-      !Object.hasOwn(integrationStages, value.stage) || !Object.hasOwn(integrationFailures, value.failureCode)) return false;
+      !Object.prototype.hasOwnProperty.call(integrationStages, value.stage) || !Object.prototype.hasOwnProperty.call(integrationFailures, value.failureCode)) return false;
   if (value.failureCode === 'target-changed') return value.stage === 'target-check';
   if (value.failureCode === 'readback-unconfirmed') return value.stage === 'candidate-readback' || value.stage === 'target-readback';
   if (value.failureCode === 'persistence-unconfirmed') return value.stage === 'candidate-record';

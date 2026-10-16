@@ -79,6 +79,18 @@ func swarmIntegrationFailureReason(stage, code string) string {
 	return "Integration is unconfirmed during " + swarmIntegrationStages[stage] + ": " + swarmIntegrationFailureLabels[code] + ". Source and target references remain recorded. Inspect this attempt and refresh history before continuing."
 }
 
+// Keep the last acknowledged identity and revision on any candidate-write
+// error, including a published write whose acknowledgment was lost. A later
+// mutation must use that revision and conflict rather than overwrite a possibly
+// newer durable receipt. The caller never retries this write.
+func recordSwarmIntegrationCandidate(acknowledged ProjectRun, write func() (ProjectRun, error)) (ProjectRun, error) {
+	updated, err := write()
+	if err != nil {
+		return acknowledged, err
+	}
+	return updated, nil
+}
+
 func (s *Server) swarmReview(ctx context.Context, p project.Project, run ProjectRun, taskID string) (ProjectSwarmReview, error) {
 	review := ProjectSwarmReview{TaskID: taskID, Paths: []string{}}
 	if err := s.validateProjectSwarmReuseCurrent(ctx, p, run); err != nil {
@@ -379,7 +391,9 @@ func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Reques
 	}
 	if err == nil {
 		stage = "candidate-record"
-		run, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, run.Revision, func(run *ProjectRun) error { swarmTask(run, taskID).Integration.Commit = candidate; return nil })
+		run, err = recordSwarmIntegrationCandidate(run, func() (ProjectRun, error) {
+			return s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, run.Revision, func(run *ProjectRun) error { swarmTask(run, taskID).Integration.Commit = candidate; return nil })
+		})
 		if err != nil {
 			failureCode = "persistence-unconfirmed"
 		}

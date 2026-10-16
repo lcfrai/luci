@@ -557,6 +557,8 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 		run, err = s.projectRuns.mutateSwarm(run.ProjectID, path, run.ID, run.Revision, func(current *ProjectRun) error {
 			receipt := swarmTask(current, task.ID).Integration
 			receipt.State = "integrated"
+			receipt.Stage = ""
+			receipt.FailureCode = ""
 			receipt.IntegratedAt = time.Now().UTC().Format(time.RFC3339Nano)
 			current.Reason = "The retained integration is exactly the current clean source. Its receipt was recovered without rerunning Git."
 			current.State = "ready"
