@@ -59,3 +59,13 @@ GOWORK=off GOMAXPROCS=1 GOMEMLIMIT=512MiB GOGC=20 GOCACHE=/dev/shm/luci-go-cache
 ```
 
 It exited 0: `ok github.com/lcfrai/luci/control-plane/internal/product 21.862s`. Compilation took about 61 seconds before the test process started. No Docker, model, image, cloud, or native preview runtime was started. LOCAL113/114 release-owner corrections and final coherent source/runtime checks remain separate.
+
+## LOCAL113/114 source join checkpoint
+
+The release-owner successor `e415b89a7879d1f1a599f74f9b6b7645ca626c18` was merged after `c9ce61902` at `cd8dbea6e`. Cgroup charge before testing was 32,876,830,720 of 34,359,738,368 bytes; host available memory was 2,645,786,624 bytes. One serial changed-selector command in `control-plane/` ran:
+
+```sh
+GOWORK=off GOMAXPROCS=1 GOMEMLIMIT=512MiB GOGC=20 GOCACHE=/dev/shm/luci-go-cache GOMODCACHE=/dev/shm/luci-gomodcache GOPATH=/dev/shm/luci-gopath GOTMPDIR=/dev/shm/luci-gotmp TMPDIR=/dev/shm timeout 240s /dev/shm/luci-toolchain/go/bin/go test -p 1 ./internal/api ./internal/backend/dockerbe ./internal/product -run 'TestSourceFirstAdmissionRefusalAfterPrepareDoesNotRetainPhantomAllocation|TestSourceReadmissionRefusalPreservesAlreadyCommittedReservation|TestSourceReservationAttemptErrorRetainsUncertaintyWithoutErrorTextInference|TestReviewedSourceEnvironmentBindsInheritedVersionsAndUniqueExactEntries|TestReviewedSourceEnvironmentRejectsChangedPreparedBindingBeforeCreate|TestCoordinatorReviewedSourcePreviewHandlerBindsKindThroughReadback' -count=1 -parallel 1
+```
+
+Result: exit 1. `internal/backend/dockerbe` passed (0.034s); `internal/product` passed (8.950s). `internal/api` failed only `TestSourceFirstAdmissionRefusalAfterPrepareDoesNotRetainPhantomAllocation` in both `source` and `authority` subcases: `previewRetained` observed `{Status:unavailable executionReservationView:<nil>}`, not a zero-count snapshot. The test calls `reservationObservation` after a proven pre-reservation refusal; its read is intentionally unavailable when no ledger/lock file has ever been created (`execution_reservation_view.go`). This is a fixture/readback mismatch in the release owner's new test, not evidence of a retained lease. No source test was changed here; the owner has the precise failing assertion. Do not count the joined batch as passing until its corrected assertion is checked. No Docker or native runtime ran.
