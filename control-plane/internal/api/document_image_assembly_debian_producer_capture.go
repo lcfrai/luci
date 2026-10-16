@@ -25,6 +25,7 @@ type debianProductOriginalCompletion struct {
  identity runtimeinstall.DebianInputProofIdentity
  profileSHA,receiptSHA string
  children []debianProofChildResult
+ pins assemblyDebianProductProfilePins
 }
 
 // Only the actual concrete Windows owner's original-handle settlement can
@@ -55,7 +56,7 @@ func mintDebianProductRun(ctx context.Context,a *API,p *debianProducerPlan,resul
  if !native.closeProduced(){return run,errAssemblyDebianCapture}
  snapshot,e:=p.owner.readCurrent(ctx);if e!=nil{return run,e};run.source,run.policy=snapshot.Source,snapshot.State.Policy
  for i:=0;i<9;i++{run.commands[i]=append([]string{},p.commands[i]...)}
- run.completion=&assemblyDebianOriginalCompletion{runID:run.id,started:float64(native.began.UnixNano())/1e9,completed:float64(receipt.Completed.UnixNano())/1e9,product:&debianProductOriginalCompletion{native:native,identity:p.identity,profileSHA:p.profile.SHA256,receiptSHA:assemblyCatalogDigest(rawReceipt),children:append([]debianProofChildResult(nil),results...)}}
+ run.completion=&assemblyDebianOriginalCompletion{runID:run.id,started:float64(native.began.UnixNano())/1e9,completed:float64(receipt.Completed.UnixNano())/1e9,product:&debianProductOriginalCompletion{native:native,identity:p.identity,profileSHA:p.profile.SHA256,receiptSHA:assemblyCatalogDigest(rawReceipt),children:append([]debianProofChildResult(nil),results...),pins:p.productPins}}
  return run,nil
 }
 func captureDebianProductRun(ctx context.Context,run *assemblyDebianOwnedRun)(*assemblyDebianCapturedRun,error){
@@ -67,16 +68,15 @@ func captureDebianProductRun(ctx context.Context,run *assemblyDebianOwnedRun)(*a
  for role,ref:=range run.objects{reader:=run.guard;if assemblyDebianInputSlot(role)||role=="catalog-source-descriptor"{reader=run.inputGuard};maximum:=ref.Bytes;if maximum==0{maximum=1};data,e:=reader.ReadBounded(ctx,role,maximum);if e!=nil||int64(len(data))!=ref.Bytes||assemblyCatalogDigest(data)!=ref.SHA256{return nil,errAssemblyDebianCapture};total+=ref.Bytes;if total>4<<20{return nil,errAssemblyDebianCapture};raw[role]=data}
  var receipt debianProductOwnerReceipt;var output assemblyDebianRawOutput
  if decodeAssemblyDebianRaw(raw["native-owner-receipt"],&receipt)!=nil||receipt.Schema!=runtimeinstall.DebianInputProofProtocol||receipt.Identity!=completion.identity||receipt.Profile.SHA256!=completion.profileSHA||len(receipt.Children)!=10||assemblyCatalogDigest(raw["native-owner-receipt"])!=completion.receiptSHA||decodeAssemblyDebianRaw(raw["producer-output"],&output)!=nil{return nil,errAssemblyDebianCapture}
- // Domain raw refs retain the new real owner receipt for both ownership layers,
- // never synthetic old PowerShell/observer fields or old supervisor SHA claims.
- raw["inner-receipt"],raw["outer-receipt"]=raw["native-owner-receipt"],raw["native-owner-receipt"]
+ // One Go owner receipt remains one receipt. It cannot supply two external
+ // diagnostic ownership layers or an exit claim for this API process.
  inner:=assemblyDebianNativeReceipt{}
  for i,c:=range receipt.Children[:9]{
   if c.Ordinal!=i||!c.OriginalHandleOwned||!c.ExitConfirmed||!c.JobEmpty||!c.HandlesClosed||!c.CaptureSettled||!c.Admission.Known||c.Admission.Physical<8<<30||c.Admission.Commit<8<<30||c.Admission.CPU>=50{return nil,errAssemblyDebianCapture}
   child:=assemblyDebianNativeChild{Index:i,PID:int(c.PID),Began:float64(c.Started.UnixNano())/1e9,Ended:float64(c.Ended.UnixNano())/1e9,Exit:int(c.Exit)}
   if i<4&&c.Exit!=0||i>=4&&c.Exit!=0&&c.Exit!=2{return nil,errAssemblyDebianCapture};inner.Children=append(inner.Children,child)
  }
- if output.Schema!="luci-retained-debian-signature-input-evidence-v2"||output.TrustPolicySHA!=assemblyDebianPolicySourceSHA||len(output.Releases)!=5||output.MonotonicPolicyState!="not-updated-by-this-read-only-batch"||output.Consumer!="server-captured AssemblyInputClosureRef; mandatory ValidateCurrent"||!equalAssemblyDebianJSON(output.Missing,[]string{"index-paragraphs","package-source-bindings","installed-manifest","source-retention","notice-closure","output-proof"}){return nil,errAssemblyDebianCapture}
+ if output.Schema!=assemblyDebianProductRawSchema||output.TrustPolicySHA!=assemblyDebianPolicySourceSHA||len(output.Releases)!=5||output.MonotonicPolicyState!="not-updated-by-this-read-only-batch"||output.Consumer!="server-captured AssemblyInputClosureRef; mandatory ValidateCurrent"||!equalAssemblyDebianJSON(output.Missing,[]string{"index-paragraphs","package-source-bindings","installed-manifest","source-retention","notice-closure","output-proof"}){return nil,errAssemblyDebianCapture}
  if run.current(ctx)!=nil{return nil,errAssemblyDebianCapture};run.mu.Lock();defer run.mu.Unlock();if run.phase!="capturing"{return nil,errAssemblyDebianCapture};run.phase="captured";return &assemblyDebianCapturedRun{run:run,raw:raw,inner:inner,output:output},nil
 }
 func liveDebianProducerActor(runID string)management.ExecutionActorRef{v,ok:=liveDebianProducerRuns.Load(runID);if !ok{return management.ExecutionActorRef{}};r:=v.(*debianProducerLiveRun);r.mu.Lock();defer r.mu.Unlock();return r.actor}

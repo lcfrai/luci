@@ -464,11 +464,29 @@ type assemblyDebianDomainCandidate struct {
 func newAssemblyDebianDomains(ctx context.Context, owner *assemblyInputOwner, captured *assemblyDebianCapturedRun, now int64) (*assemblyDebianDomainCandidate, error) {
 	if captured == nil || captured.run == nil || captured.run.owner != owner || captured.run.current(ctx) != nil { return nil, errAssemblyDebianCapture }
 	r := captured.run
+	if r.product!=nil||r.completion!=nil&&r.completion.product!=nil{return nil,errAssemblyDebianCapture}
 	policy, err := normalizeAssemblyDebianPolicy(captured.raw["policy-source"], captured.raw["producer-config"], r.policy.Revision)
 	if err != nil { return nil, err }
 	ref := func(slot, role string) assemblyDebianObjectRef { data := captured.raw[slot]; return assemblyDebianObjectRef{role, assemblyCatalogDigest(data), int64(len(data))} }
 	pins := assemblyDebianProducerPins{SourceReceipt: ref("producer-source-receipt", "producer-source-receipt"), Config: policy.ProducerConfig, ProjectionSHA256: assemblyDebianProjectionSHA, GPGSHA256: "a5140c85353e8399da8d6bd7e3741524cd76a4e69be88af12042b1c9ef022984", GPGVSHA256: "f4d13204d77fdf63c02b0e6742230f83a833128c28f7b715709c2c63a96c427b"}
 	producer := assemblyDebianProducerV1{Profile: captured.output.Schema, SourceReceipt: pins.SourceReceipt, Config: pins.Config, TypedOutput: ref("producer-output", "producer-output"), InnerReceipt: ref("inner-receipt", "inner-receipt"), OuterReceipt: ref("outer-receipt", "outer-receipt"), ProjectionSHA256: pins.ProjectionSHA256, GPGSHA256: pins.GPGSHA256, GPGVSHA256: pins.GPGVSHA256}
+	return newAssemblyDebianMappedDomains(ctx,owner,captured,now,policy,pins,producer)
+}
+func newAssemblyDebianProductDomains(ctx context.Context,owner *assemblyInputOwner,captured *assemblyDebianCapturedRun,now int64)(*assemblyDebianDomainCandidate,error){
+	if captured==nil||captured.run==nil||captured.run.owner!=owner||captured.run.product==nil||captured.run.completion==nil||captured.run.completion.product==nil||captured.run.current(ctx)!=nil||captured.output.Schema!=assemblyDebianProductRawSchema{return nil,errAssemblyDebianCapture}
+	r:=captured.run;completion:=r.completion.product;selected:=completion.pins
+	if !validAssemblyDebianProductPins(selected)||completion.profileSHA!=selected.Profile.SHA256||completion.identity!=r.product.identity||!completion.native.positiveCompletion(completion.children){return nil,errAssemblyDebianCapture}
+	policy,e:=normalizeAssemblyDebianProductPolicy(captured.raw["policy-source"],captured.raw["producer-config"],selected,r.policy.Revision);if e!=nil{return nil,e}
+	ref:=func(slot,role string)assemblyDebianObjectRef{data:=captured.raw[slot];return assemblyDebianObjectRef{role,assemblyCatalogDigest(data),int64(len(data))}}
+	pins:=assemblyDebianProducerPins{Product:&selected,SourceReceipt:selected.SourceReceipt,Config:selected.Config,ProjectionSHA256:selected.Projection.SHA256,GPGSHA256:selected.GPG.SHA256,GPGVSHA256:selected.GPGV.SHA256}
+	if ref("producer-source-receipt","producer-source-receipt")!=selected.SourceReceipt||ref("projection-source","projection-source")!=selected.Projection{return nil,errAssemblyDebianCapture}
+	producer:=assemblyDebianProducerV1{ProductOwner:&assemblyDebianProductOwnerV1{Protocol:assemblyDebianProductProtocol,Profile:selected.Profile,Receipt:ref("native-owner-receipt","product-native-owner-receipt"),Entry:selected.Entry,Python:selected.Python},Profile:assemblyDebianProductRawSchema,SourceReceipt:selected.SourceReceipt,Config:selected.Config,TypedOutput:ref("producer-output","producer-output"),ProjectionSHA256:selected.Projection.SHA256,GPGSHA256:selected.GPG.SHA256,GPGVSHA256:selected.GPGV.SHA256}
+	if producer.ProductOwner.Receipt.SHA256!=completion.receiptSHA||checkAssemblyDebianProducer(producer,pins)!=nil{return nil,errAssemblyDebianCapture}
+	return newAssemblyDebianMappedDomains(ctx,owner,captured,now,policy,pins,producer)
+}
+func newAssemblyDebianMappedDomains(ctx context.Context,owner *assemblyInputOwner,captured *assemblyDebianCapturedRun,now int64,policy assemblyDebianRootPolicyV1,pins assemblyDebianProducerPins,producer assemblyDebianProducerV1)(*assemblyDebianDomainCandidate,error){
+	r:=captured.run
+	ref:=func(slot,role string)assemblyDebianObjectRef{data:=captured.raw[slot];return assemblyDebianObjectRef{role,assemblyCatalogDigest(data),int64(len(data))}}
 	policyRef, _ := assemblyDebianRecordRef("official-root-policy", policy)
 	keys := assemblyDebianKeyObservationsV1{Schema: 1, RecordType: "luci-debian-key-observations-v1", RootPolicy: policyRef, Producer: producer, ObservedAt: captured.output.Keys.ObservedUTC, KeyListing: ref("stdout-3", "key-listing"), UnseenRevocations: captured.output.Keys.UnseenRevocations}
 	if captured.output.Keys.State != "pinned-official-key-snapshot-identities-derived" { return nil, errAssemblyDebianCapture }
@@ -483,7 +501,7 @@ func newAssemblyDebianDomains(ctx context.Context, owner *assemblyInputOwner, ca
 	}
 	sort.Slice(keys.Keys, func(i,j int) bool { return keys.Keys[i].Fingerprint < keys.Keys[j].Fingerprint })
 	keyBytes, _ := json.Marshal(keys)
-	keys, err = decodeAssemblyDebianKeySummary(keyBytes, policy, pins, now); if err != nil { return nil, err }
+	keys, err := decodeAssemblyDebianKeySummary(keyBytes, policy, pins, now); if err != nil { return nil, err }
 	keyRef, _ := assemblyDebianRecordRef("key-observations", keys)
 	signatures := assemblyDebianReleaseSignaturesV1{Schema: 1, RecordType: "luci-debian-release-signatures-v1", RootPolicy: policyRef, KeyObservations: keyRef, Producer: producer}
 	for i, release := range captured.output.Releases {
@@ -526,6 +544,7 @@ func newAssemblyDebianDomains(ctx context.Context, owner *assemblyInputOwner, ca
 		candidate.records = append(candidate.records, assemblyCatalogObject{ref, data})
 	}
 	if r.current(ctx) != nil { return nil, errAssemblyDebianCapture }
+	if pins.Product!=nil{return finishAssemblyDebianProductCandidate(ctx,r,candidate)}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.phase != "captured" { return nil, errAssemblyDebianCapture }
@@ -536,6 +555,18 @@ func newAssemblyDebianDomains(ctx context.Context, owner *assemblyInputOwner, ca
 	r.guard, r.inputGuard = nil, nil
 	r.phase = "candidate"
 	return candidate, nil
+}
+
+// The new product arm never borrows an owner mutex across original guard IO.
+// Late/partial returned tokens are reattached before refusal, so retirement can
+// latch independently and retains exact ownership rather than losing a move.
+func finishAssemblyDebianProductCandidate(ctx context.Context,r *assemblyDebianOwnedRun,c *assemblyDebianDomainCandidate)(*assemblyDebianDomainCandidate,error){
+	r.mu.Lock();if r.phase!="captured"||r.product==nil{r.mu.Unlock();return nil,errAssemblyDebianCapture};r.phase="product-candidate-transfer";output,inputs:=r.guard,r.inputGuard;r.mu.Unlock()
+	refuse:=func(e error)(*assemblyDebianDomainCandidate,error){_ = r.retire();return nil,e}
+	outputNext,e:=output.Transfer(ctx);r.mu.Lock();if outputNext!=nil{r.guard=outputNext};phase:=r.phase;r.mu.Unlock();if e!=nil{return refuse(e)};if outputNext==nil||phase!="product-candidate-transfer"||ctx.Err()!=nil{return refuse(errAssemblyDebianCapture)}
+	inputNext,e:=inputs.Transfer(ctx);r.mu.Lock();if inputNext!=nil{r.inputGuard=inputNext};phase=r.phase;r.mu.Unlock();if e!=nil{return refuse(e)};if inputNext==nil||phase!="product-candidate-transfer"||ctx.Err()!=nil{return refuse(errAssemblyDebianCapture)}
+	if e=outputNext.CheckCurrent(ctx);e!=nil{return refuse(e)};if e=inputNext.CheckCurrent(ctx);e!=nil{return refuse(e)};if e=r.product.current(ctx);e!=nil{return refuse(e)}
+	r.mu.Lock();if r.phase!="product-candidate-transfer"||r.guard!=outputNext||r.inputGuard!=inputNext||ctx.Err()!=nil{r.mu.Unlock();return refuse(errAssemblyDebianCapture)};c.guard,c.inputs=outputNext,inputNext;r.guard,r.inputGuard=nil,nil;r.phase="candidate";r.mu.Unlock();return c,nil
 }
 
 func assemblyDebianInputSlot(slot string) bool {

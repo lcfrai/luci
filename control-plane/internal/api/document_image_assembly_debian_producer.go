@@ -28,6 +28,18 @@ type debianProducerPlan struct {
  files map[string]runtimeinstall.DebianInputProofFile
  commands [10][]string
  owner *assemblyInputOwner
+ productPins assemblyDebianProductProfilePins
+}
+// Closed contract for the separately allocated fixed-file product entry. The
+// held-original copy/guard lifetime seam is not yet implemented by the existing
+// paths-map writer below; pre-reservation eligibility therefore remains refused.
+type debianProductProjectionChild struct {Ordinal int `json:"ordinal"`;Exit uint32 `json:"exit"`}
+type debianProductProjectionRequest struct {
+ Schema string `json:"schema"`
+ Protocol string `json:"protocol"`
+ ObservedUnix int64 `json:"observedUnix"`
+ Children [9]debianProductProjectionChild `json:"children"`
+ Files []assemblyDebianObjectRef `json:"files"`
 }
 type debianProducerLiveRun struct {
  mu sync.Mutex
@@ -53,6 +65,12 @@ func canonicalDebianProducerProfile(p runtimeinstall.BundledDebianInputProofProf
  return json.Marshal(struct{Schema int `json:"schema"`;ID string `json:"id"`;Protocol string `json:"protocol"`;Source string `json:"sourceSHA256"`;Files []runtimeinstall.DebianInputProofFile `json:"files"`}{1,p.ID,p.Protocol,p.SourceSHA256,p.Files})
 }
 func validateDebianProducerProfile(p runtimeinstall.BundledDebianInputProofProfile)(map[string]runtimeinstall.DebianInputProofFile,error){
+ return validateDebianProducerProfileShape(p,false)
+}
+func validateDebianProductProfile(p runtimeinstall.BundledDebianInputProofProfile)(map[string]runtimeinstall.DebianInputProofFile,error){
+ files,e:=validateDebianProducerProfileShape(p,true);if e!=nil{return nil,e};if _,e=debianProductProfilePins(p,files);e!=nil{return nil,e};return files,nil
+}
+func validateDebianProducerProfileShape(p runtimeinstall.BundledDebianInputProofProfile,product bool)(map[string]runtimeinstall.DebianInputProofFile,error){
  if !checkLogicalID(p.ID) || p.Protocol!=runtimeinstall.DebianInputProofProtocol || !filepath.IsAbs(p.Root) || len(p.Files)==0 || len(p.Files)>255 || !assemblyCatalogHex(p.SHA256) || !assemblyCatalogHex(p.SourceSHA256){return nil,runtimeinstall.ErrInputProofUnavailable}
  canonical,err:=canonicalDebianProducerProfile(p);if err!=nil || len(canonical)>64<<10 || assemblyCatalogDigest(canonical)!=p.SHA256{return nil,runtimeinstall.ErrInputProofUnavailable}
  roles,paths:=map[string]runtimeinstall.DebianInputProofFile{},map[string]bool{};total:=int64(len(canonical))
@@ -66,7 +84,9 @@ func validateDebianProducerProfile(p runtimeinstall.BundledDebianInputProofProfi
   roles[f.Role]=f;paths[strings.ToLower(relative)]=true;previous=f.Role;total+=f.Bytes;if total>64<<20{return nil,runtimeinstall.ErrInputProofUnavailable}
  }
  for _,role:=range required{if _,ok:=roles[role];!ok{return nil,runtimeinstall.ErrInputProofUnavailable}}
- if roles["projection-source"].SHA256!=assemblyDebianProjectionSHA || roles["producer-source-receipt"].SHA256!=p.SourceSHA256 || roles["gpg"].SHA256!="a5140c85353e8399da8d6bd7e3741524cd76a4e69be88af12042b1c9ef022984" || roles["gpgv"].SHA256!="f4d13204d77fdf63c02b0e6742230f83a833128c28f7b715709c2c63a96c427b" || roles["producer-config"].SHA256!=assemblyDebianConfigSHA {return nil,runtimeinstall.ErrInputProofUnavailable}
+ if roles["projection-source"].SHA256!=assemblyDebianProjectionSHA || roles["producer-source-receipt"].SHA256!=p.SourceSHA256{return nil,runtimeinstall.ErrInputProofUnavailable}
+ if !product&&(roles["gpg"].SHA256!="a5140c85353e8399da8d6bd7e3741524cd76a4e69be88af12042b1c9ef022984" || roles["gpgv"].SHA256!="f4d13204d77fdf63c02b0e6742230f83a833128c28f7b715709c2c63a96c427b" || roles["producer-config"].SHA256!=assemblyDebianConfigSHA){return nil,runtimeinstall.ErrInputProofUnavailable}
+ if product&&(p.SourceSHA256==assemblyDebianSourceReceiptSHA||roles["producer-config"].SHA256==assemblyDebianConfigSHA){return nil,runtimeinstall.ErrInputProofUnavailable}
  return roles,nil
 }
 func (p *debianProducerPlan) current(ctx context.Context,a *API)error{
@@ -103,11 +123,12 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  send:=func(out runtimeinstall.DebianInputProofOutcome)error{r.mu.Lock();r.outcome,r.identity=out,out.Identity;r.mu.Unlock();return publish(out)}
  var runErr error;var reserved bool
  out:=runtimeinstall.DebianInputProofOutcome{Identity:r.identity,Phase:"preparing",Message:"Validating the application-pinned producer profile."}
+ selected,e:=debianProductProfilePins(profile,files);if e!=nil{out.Phase="blocked";out.CleanupConfirmed=true;_ = send(out);r.mu.Lock();r.outcome,r.err=out,e;r.mu.Unlock();close(r.done);liveDebianProducerRuns.Delete(r.identity.RunID);return}
  native:=newDebianProofNativeOwner(ctx);r.mu.Lock();r.native=native;r.outcome=out;r.mu.Unlock()
  workCtx,cancelWork:=context.WithDeadline(ctx,native.workLimit());defer cancelWork();ctx=workCtx
  var candidate *assemblyDebianDomainCandidate
  var ownedRun *assemblyDebianOwnedRun
- plan:=&debianProducerPlan{identity:r.identity,profile:profile,files:files,paths:map[string]string{}}
+ plan:=&debianProducerPlan{identity:r.identity,profile:profile,files:files,paths:map[string]string{},productPins:selected}
  r.mu.Lock();r.plan=plan;r.mu.Unlock()
  defer func(){
   if runErr!=nil{native.retire()}
@@ -135,7 +156,7 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  config,e:=read("producer-config");if e!=nil{runErr=e;return};policy,e:=read("policy-source");if e!=nil{runErr=e;return}
  // Existing domain pins are mandatory. A future packaged profile needs an
  // independently reviewed closed pin seam; digest-shaped files do not bypass it.
- if _,e=normalizeAssemblyDebianPolicy(policy,config,"product-profile-v1");e!=nil{runErr=runtimeinstall.ErrInputProofUnavailable;return}
+ if _,e=normalizeAssemblyDebianProductPolicy(policy,config,plan.productPins,"product-profile-v1");e!=nil{runErr=runtimeinstall.ErrInputProofUnavailable;return}
  snap,e:=owner.readCurrent(ctx);if e!=nil{runErr=e;return}
  sourceBytes,e:=read("catalog-source-descriptor");if e!=nil{runErr=e;return}
  if checkDebianProducerSourceDescriptor(sourceBytes,files["catalog-source-descriptor"],snap)!=nil{runErr=errAssemblyCatalogConflict;return}
@@ -166,7 +187,7 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  if !native.settle(){runErr=errors.New("native owner did not positively settle");return}
  ownedRun,e=mintDebianProductRun(ctx,r.api,plan,results,native);if e!=nil{runErr=e;return}
  captured,e:=captureDebianProductRun(ctx,ownedRun);if e!=nil{runErr=e;return}
- candidate,e=newAssemblyDebianDomains(ctx,owner,captured,time.Now().Unix());if e!=nil{runErr=e;return}
+ candidate,e=newAssemblyDebianProductDomains(ctx,owner,captured,time.Now().Unix());if e!=nil{runErr=e;return}
  r.mu.Lock();r.candidate=candidate;r.mu.Unlock()
  adopted,e:=owner.adoptDebianDomains(ctx,candidate);if e!=nil{candidate.mu.Lock();out.PublicationUnknown=candidate.publicationUnknown||candidate.publicationRetired;candidate.mu.Unlock();runErr=e;return}
  out.Phase="facts-recorded";out.PublishedCAS=runtimeinstall.InputProofCAS{Revision:adopted.Revision,Digest:adopted.Digest};out.Message="Three Debian input fact domains were retained. Full dependency closure and document runtime are still unavailable."
@@ -180,7 +201,19 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
 func debianProducerProfileBeforeReservation(p runtimeinstall.BundledDebianInputProofProfile)(map[string]runtimeinstall.DebianInputProofFile,error){
  if p.SourceSHA256=="13a80135f8b3b6392d8dc69df5f441a34eae0aa9592cc94dc6710ef2e061d1e0"{return nil,runtimeinstall.ErrInputProofUnavailable}
  for _,f:=range p.Files{if f.Role=="producer-config"&&f.SHA256==assemblyDebianConfigSHA||f.Role=="producer-source-receipt"&&f.SHA256=="13a80135f8b3b6392d8dc69df5f441a34eae0aa9592cc94dc6710ef2e061d1e0"{return nil,runtimeinstall.ErrInputProofUnavailable}}
- return validateDebianProducerProfile(p)
+ if _,e:=validateDebianProductProfile(p);e!=nil{return nil,e}
+ // A closed metadata family is not a live eligibility capability. Product
+ // packaged expected objects, actual UCRT/WOW64/current-host proof and the
+ // separately reviewed held-original projection-copy protocol are absent.
+ // Refuse before PID/observer/owner registration or resource reservation even
+ // if a future source edit populates Product's registry with shape-valid data.
+ return nil,runtimeinstall.ErrInputProofUnavailable
+}
+func debianProductProfilePins(p runtimeinstall.BundledDebianInputProofProfile,files map[string]runtimeinstall.DebianInputProofFile)(assemblyDebianProductProfilePins,error){
+ ref:=func(role string)assemblyDebianObjectRef{f:=files[role];return assemblyDebianObjectRef{role,f.SHA256,f.Bytes}}
+ raw,e:=canonicalDebianProducerProfile(p);if e!=nil{return assemblyDebianProductProfilePins{},e}
+ pins:=assemblyDebianProductProfilePins{Profile:assemblyDebianObjectRef{"product-profile",p.SHA256,int64(len(raw))},SourceReceipt:ref("producer-source-receipt"),Config:ref("producer-config"),Entry:ref("projection-entry"),Projection:ref("projection-source"),Python:ref("cp-python"),GPG:ref("gpg"),GPGV:ref("gpgv")}
+ if !validAssemblyDebianProductPins(pins)||pins.SourceReceipt.SHA256!=p.SourceSHA256{return assemblyDebianProductProfilePins{},runtimeinstall.ErrInputProofUnavailable};return pins,nil
 }
 func checkDebianProducerSourceDescriptor(data []byte,file runtimeinstall.DebianInputProofFile,snap assemblyInputCatalogSnapshot)error{
  var source assemblyCatalogSource

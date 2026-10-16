@@ -11,6 +11,7 @@ import (
 // execution, cleanup or observed facts. The finite owned-capture constructor is
 // a separate reviewed seam and is not implemented or called by these functions.
 type assemblyDebianProducerPins struct {
+	Product *assemblyDebianProductProfilePins
 	SourceReceipt    assemblyDebianObjectRef
 	Config           assemblyDebianObjectRef
 	ProjectionSHA256 string
@@ -110,7 +111,7 @@ func checkAssemblyDebianReleaseTimeUse(selection assemblyDebianReleaseSelectionV
 }
 
 func checkAssemblyDebianSignatures(value assemblyDebianReleaseSignaturesV1, policy assemblyDebianRootPolicyV1, keys assemblyDebianKeyObservationsV1, pins assemblyDebianProducerPins, now int64) error {
-	if checkAssemblyDebianKeys(keys, policy, pins, now) != nil || value.Schema != 1 || value.RecordType != "luci-debian-release-signatures-v1" || checkAssemblyDebianProducer(value.Producer, pins) != nil || value.Producer != keys.Producer || len(value.Releases) != 5 || len(pins.SignedObjects) != 5 {
+	if checkAssemblyDebianKeys(keys, policy, pins, now) != nil || value.Schema != 1 || value.RecordType != "luci-debian-release-signatures-v1" || checkAssemblyDebianProducer(value.Producer, pins) != nil || !reflect.DeepEqual(value.Producer,keys.Producer) || len(value.Releases) != 5 || len(pins.SignedObjects) != 5 {
 		return errAssemblyDebianEvidence
 	}
 	policyRef, _ := assemblyDebianRecordRef("official-root-policy", policy)
@@ -207,16 +208,30 @@ func decodeAssemblyDebianSignatureSummary(data []byte, policy assemblyDebianRoot
 }
 
 func checkAssemblyDebianProducer(value assemblyDebianProducerV1, pins assemblyDebianProducerPins) error {
+	if value.ProductOwner!=nil||pins.Product!=nil{return checkAssemblyDebianProductProducer(value,pins)}
 	if value.Profile != "luci-retained-debian-signature-input-evidence-v2" || value.SourceReceipt != pins.SourceReceipt || value.Config != pins.Config || value.Config != (assemblyDebianObjectRef{"producer-config", assemblyDebianConfigSHA, 41817}) || value.ProjectionSHA256 != assemblyDebianProjectionSHA || value.ProjectionSHA256 != pins.ProjectionSHA256 || value.GPGSHA256 != pins.GPGSHA256 || value.GPGVSHA256 != pins.GPGVSHA256 || !checkAssemblyDebianObject(value.SourceReceipt, "producer-source-receipt", 65536) || !checkAssemblyDebianObject(value.Config, "producer-config", 128<<10) || !checkAssemblyDebianObject(value.TypedOutput, "producer-output", 256<<10) || !checkAssemblyDebianObject(value.InnerReceipt, "inner-receipt", 256<<10) || !checkAssemblyDebianObject(value.OuterReceipt, "outer-receipt", 256<<10) || !assemblyCatalogHex(value.ProjectionSHA256) || !assemblyCatalogHex(value.GPGSHA256) || !assemblyCatalogHex(value.GPGVSHA256) {
 		return errAssemblyDebianEvidence
 	}
 	return nil
 }
+func validAssemblyDebianProductPins(p assemblyDebianProductProfilePins)bool{
+	for _,ref:=range []assemblyDebianObjectRef{p.Profile,p.SourceReceipt,p.Config,p.Entry,p.Projection,p.Python,p.GPG,p.GPGV}{if strings.Trim(ref.SHA256,"0")==""{return false}}
+	return checkAssemblyDebianObject(p.Profile,"product-profile",64<<10)&&checkAssemblyDebianObject(p.SourceReceipt,"producer-source-receipt",64<<10)&&p.SourceReceipt.SHA256!=assemblyDebianSourceReceiptSHA&&checkAssemblyDebianObject(p.Config,"producer-config",128<<10)&&p.Config.SHA256!=assemblyDebianConfigSHA&&checkAssemblyDebianObject(p.Entry,"projection-entry",64<<10)&&p.Projection==(assemblyDebianObjectRef{"projection-source",assemblyDebianProjectionSHA,15522})&&checkAssemblyDebianObject(p.Python,"cp-python",16<<20)&&checkAssemblyDebianObject(p.GPG,"gpg",16<<20)&&checkAssemblyDebianObject(p.GPGV,"gpgv",16<<20)
+}
+func checkAssemblyDebianProductProducer(v assemblyDebianProducerV1,pins assemblyDebianProducerPins)error{
+	p:=pins.Product;o:=v.ProductOwner
+	if p==nil||o==nil||!validAssemblyDebianProductPins(*p)||v.Profile!=assemblyDebianProductRawSchema||v.SourceReceipt!=p.SourceReceipt||v.SourceReceipt!=pins.SourceReceipt||v.Config!=p.Config||v.Config!=pins.Config||v.ProjectionSHA256!=p.Projection.SHA256||v.ProjectionSHA256!=pins.ProjectionSHA256||v.GPGSHA256!=p.GPG.SHA256||v.GPGSHA256!=pins.GPGSHA256||v.GPGVSHA256!=p.GPGV.SHA256||v.GPGVSHA256!=pins.GPGVSHA256||!checkAssemblyDebianObject(v.TypedOutput,"producer-output",256<<10)||v.InnerReceipt!=(assemblyDebianObjectRef{})||v.OuterReceipt!=(assemblyDebianObjectRef{})||o.Protocol!=assemblyDebianProductProtocol||o.Profile!=p.Profile||o.Entry!=p.Entry||o.Python!=p.Python||!checkAssemblyDebianObject(o.Receipt,"product-native-owner-receipt",64<<10){return errAssemblyDebianEvidence};return nil
+}
+
+func checkAssemblyDebianProducerPolicyFamily(policy assemblyDebianRootPolicyV1,pins assemblyDebianProducerPins)bool{
+	if pins.Product==nil{return policy.ProducerProtocol==""&&policy.ProducerProfile==nil}
+	return validAssemblyDebianProductPins(*pins.Product)&&policy.ProducerProtocol==assemblyDebianProductProtocol&&policy.ProducerProfile!=nil&&*policy.ProducerProfile==pins.Product.Profile&&policy.ProducerConfig==pins.Product.Config
+}
 
 func assemblyDebianEpoch(value int64) bool { return value > 0 && value <= 4102444800 }
 
 func checkAssemblyDebianKeys(value assemblyDebianKeyObservationsV1, policy assemblyDebianRootPolicyV1, pins assemblyDebianProducerPins, now int64) error {
-	if checkAssemblyDebianPolicyShape(policy) != nil || !assemblyDebianEpoch(now) || value.Schema != 1 || value.RecordType != "luci-debian-key-observations-v1" || !assemblyDebianEpoch(value.ObservedAt) || value.ObservedAt > now+policy.FutureSkewSeconds || value.ObservedAt < now-policy.KeyObservationMaxAgeSeconds || value.UnseenRevocations != "not-established" || checkAssemblyDebianProducer(value.Producer, pins) != nil || !checkAssemblyDebianObject(value.KeyListing, "key-listing", 65536) || len(value.Snapshots) != 3 || len(value.Keys) < 3 || len(value.Keys) > 32 {
+	if !checkAssemblyDebianProducerPolicyFamily(policy,pins)||checkAssemblyDebianPolicyShape(policy) != nil || !assemblyDebianEpoch(now) || value.Schema != 1 || value.RecordType != "luci-debian-key-observations-v1" || !assemblyDebianEpoch(value.ObservedAt) || value.ObservedAt > now+policy.FutureSkewSeconds || value.ObservedAt < now-policy.KeyObservationMaxAgeSeconds || value.UnseenRevocations != "not-established" || checkAssemblyDebianProducer(value.Producer, pins) != nil || !checkAssemblyDebianObject(value.KeyListing, "key-listing", 65536) || len(value.Snapshots) != 3 || len(value.Keys)<3 || len(value.Keys) > 32 {
 		return errAssemblyDebianEvidence
 	}
 	policyRef, err := assemblyDebianRecordRef("official-root-policy", policy)

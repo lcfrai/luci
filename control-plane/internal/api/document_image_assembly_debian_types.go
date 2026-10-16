@@ -39,6 +39,8 @@ type assemblyDebianReleaseSelectionV1 struct {
 }
 
 type assemblyDebianRootPolicyV1 struct {
+	ProducerProtocol string `json:"producerProtocol,omitempty"` // absent is exact legacy; one closed product family
+	ProducerProfile *assemblyDebianObjectRef `json:"producerProfile,omitempty"`
 	Schema                      int                                `json:"schema"`         //1
 	RecordType                  string                             `json:"recordType"`     //luci-debian-official-root-policy-v1
 	SourcePolicy                assemblyDebianObjectRef            `json:"sourcePolicy"`   //exact13bd bytes
@@ -58,6 +60,7 @@ type assemblyDebianRootPolicyV1 struct {
 }
 
 type assemblyDebianProducerV1 struct {
+	ProductOwner *assemblyDebianProductOwnerV1 `json:"productOwner,omitempty"`
 	Profile          string                  `json:"profile"` //luci-retained-debian-signature-input-evidence-v2
 	SourceReceipt    assemblyDebianObjectRef `json:"sourceReceipt"`
 	Config           assemblyDebianObjectRef `json:"config"`
@@ -71,6 +74,26 @@ type assemblyDebianProducerV1 struct {
 	// nine child identities/exit codes/Job+handle+PDH closure are validated from
 	// owned receipts; these digest strings alone do not assert execution.
 }
+
+// This is attributed evidence for the ONE concrete Go original-handle owner.
+// It is not an old native-inner plus external-outer receipt, nor eligibility.
+type assemblyDebianProductOwnerV1 struct {
+	Protocol string `json:"protocol"`
+	Profile assemblyDebianObjectRef `json:"profile"`
+	Receipt assemblyDebianObjectRef `json:"receipt"`
+	Entry assemblyDebianObjectRef `json:"entry"`
+	Python assemblyDebianObjectRef `json:"python"`
+}
+
+// Closed app-selected metadata expectations, never decoded from evidence or
+// supplied by HTTP. Production derives them from Product's immutable selection;
+// this data type alone cannot satisfy missing current-host prerequisites.
+type assemblyDebianProductProfilePins struct {
+	Profile,SourceReceipt,Config,Entry,Projection,Python,GPG,GPGV assemblyDebianObjectRef
+}
+const assemblyDebianProductProtocol = "luci-debian-signature-go-owner-v1"
+const assemblyDebianProductRawSchema = "luci-product-debian-signature-input-evidence-v1"
+const assemblyDebianProductConfigSchema = "luci-debian-product-projection-config-v1"
 
 type assemblyDebianKeyV1 struct {
 	Fingerprint        string `json:"fingerprint"`
