@@ -204,7 +204,7 @@ class BinaryBindings(unittest.TestCase):
         for operation in (b.scan_packages, b.read_deb_control):
             later = Counted(b'xyz')
             with self.assertRaises(b.Refusal):
-                operation(later, identity(b'xyz'), {('synthetic','1','all'): item()} if operation is b.scan_packages else item(), shared, NoDecodeReaders)
+                operation(later, identity(b'xyz'), {('synthetic','1','all'): item()} if operation is b.scan_packages else bound_item(b'xyz'), shared, NoDecodeReaders)
             self.assertEqual((later.reads,later.seeks), (0,0))
 
     def test_short_reads_eof_and_failed_requests_account_exactly(self):
