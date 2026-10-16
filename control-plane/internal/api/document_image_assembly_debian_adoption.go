@@ -21,17 +21,21 @@ var errAssemblyDebianPublicationUncertain = errors.New("Debian domain publicatio
 // filesystem/authority IO; an intersecting retirement invalidates success.
 type assemblyDebianPublicationPermit struct {
 	candidate *assemblyDebianDomainCandidate
+	indexes   *assemblyDebianIndexCandidate // exactly one concrete candidate arm
 	inFlight  bool // protected by candidate.mu
 	retired   bool
 }
 
 func (p *assemblyDebianPublicationPermit) begin(ctx context.Context, owner *assemblyInputOwner, next assemblyCatalogCAS) error {
-	if p == nil || p.candidate == nil {
+	if p == nil || (p.candidate == nil) == (p.indexes == nil) {
 		return errAssemblyDebianCapture
+	}
+	if p.indexes != nil {
+		return p.beginIndexes(ctx, owner, next)
 	}
 	c := p.candidate
 	c.mu.Lock()
-	if c.retiring || !c.adopting || c.capture == nil || c.capture.run == nil || c.capture.run.owner != owner || c.targetCAS != next || c.guard == nil || c.inputs == nil || c.publicationRetired {
+	if c.retiring || c.indexTransfer || c.indexHandoff != nil || !c.adopting || c.capture == nil || c.capture.run == nil || c.capture.run.owner != owner || c.targetCAS != next || c.guard == nil || c.inputs == nil || c.publicationRetired {
 		c.mu.Unlock()
 		return errAssemblyDebianCapture
 	}
@@ -54,6 +58,12 @@ func (p *assemblyDebianPublicationPermit) begin(ctx context.Context, owner *asse
 }
 
 func (p *assemblyDebianPublicationPermit) finish(result assemblyCatalogCAS, err error) (assemblyCatalogCAS, error) {
+	if p == nil || (p.candidate == nil) == (p.indexes == nil) {
+		return assemblyCatalogCAS{}, errAssemblyDebianCapture
+	}
+	if p.indexes != nil {
+		return p.finishIndexes(result, err)
+	}
 	c := p.candidate
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -94,7 +104,7 @@ func (c *assemblyDebianDomainCandidate) current(ctx context.Context) error {
 		return errAssemblyDebianCapture
 	}
 	c.mu.Lock()
-	retiring, output, inputs := c.retiring, c.guard, c.inputs
+	retiring, output, inputs := c.retiring || c.indexTransfer || c.indexHandoff != nil, c.guard, c.inputs
 	c.mu.Unlock()
 	if retiring || output == nil || inputs == nil || ctx.Err() != nil {
 		return errAssemblyDebianCapture
@@ -109,7 +119,7 @@ func (c *assemblyDebianDomainCandidate) current(ctx context.Context) error {
 		return err
 	}
 	c.mu.Lock()
-	retiring = c.retiring
+	retiring = c.retiring || c.indexTransfer || c.indexHandoff != nil
 	c.mu.Unlock()
 	if retiring {
 		return errAssemblyDebianCapture
@@ -134,8 +144,11 @@ func (c *assemblyDebianDomainCandidate) retire() error {
 		c.publicationRetired = true
 		c.publicationUnknown = true
 	}
-	output, inputs := c.guard, c.inputs
+	output, inputs, handoff := c.guard, c.inputs, c.indexHandoff
 	c.mu.Unlock()
+	if handoff != nil {
+		return handoff.retire()
+	}
 	var first error
 	if output != nil {
 		first = output.Close()
@@ -176,7 +189,7 @@ func (o *assemblyInputOwner) adoptDebianDomainsAt(ctx context.Context, c *assemb
 	}
 	r := c.capture.run
 	c.mu.Lock()
-	if c.adopting || c.retiring {
+	if c.adopting || c.retiring || c.indexTransfer || c.indexHandoff != nil {
 		c.mu.Unlock()
 		return assemblyCatalogCAS{}, errAssemblyDebianCapture
 	}

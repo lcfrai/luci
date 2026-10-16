@@ -397,16 +397,26 @@ func (o *assemblyInputOwner) writeImmutableAssemblyObject(ctx context.Context, r
 	}
 	suffix := ".json"
 	if raw {
-		if ref.Kind != "producer-raw" || len(data) > 1<<20 {
+		switch ref.Kind {
+		case "producer-raw":
+			if len(data) > 1<<20 {
+				return errAssemblyCatalogInvalid
+			}
+			suffix = ".raw"
+		case "debian-index-raw":
+			if len(data) == 0 || len(data) > int(assemblyDebianIndexObjectLimit) {
+				return errAssemblyCatalogInvalid
+			}
+			suffix = ".xz"
+		default:
 			return errAssemblyCatalogInvalid
 		}
-		suffix = ".raw"
 	} else {
 		if !validAssemblyCatalogRef(ref) {
 			return errAssemblyCatalogInvalid
 		}
 		switch ref.Kind {
-		case "source-descriptor", "evidence-index", "official-root-policy", "key-observations", "release-signatures", "producer-raw-manifest":
+		case "source-descriptor", "evidence-index", "official-root-policy", "key-observations", "release-signatures", "producer-raw-manifest", "signed-index-bindings":
 		default:
 			return errAssemblyCatalogInvalid // no full closure/other domain writer
 		}
@@ -519,7 +529,7 @@ func boundedAssemblyCatalogHistory(ctx context.Context, root string, additional 
 					// Raw evidence is a storage-only namespace, never a selectable
 					// catalog domain. The file branch below enforces .raw and its
 					// existing bounded size/count/private-path constraints.
-					if depth != 0 || !assemblyCatalogKind(entry.Name()) && entry.Name() != "producer-raw" {
+					if depth != 0 || !assemblyCatalogKind(entry.Name()) && entry.Name() != "producer-raw" && entry.Name() != "debian-index-raw" {
 						return errAssemblyCatalogInvalid
 					}
 					if err = scan(path, depth+1); err != nil {
@@ -531,11 +541,14 @@ func boundedAssemblyCatalogHistory(ctx context.Context, root string, additional 
 				if filepath.Base(dir) == "producer-raw" {
 					suffix, limit = ".raw", 1<<20
 				}
+				if filepath.Base(dir) == "debian-index-raw" {
+					suffix, limit = ".xz", assemblyDebianIndexObjectLimit
+				}
 				if depth != 1 || !strings.HasSuffix(entry.Name(), suffix) || !assemblyCatalogHex(strings.TrimSuffix(entry.Name(), suffix)) {
 					return errAssemblyCatalogInvalid
 				}
 				info, err := entry.Info()
-				if err != nil || !info.Mode().IsRegular() || info.Size() < 0 || suffix == ".json" && info.Size() == 0 || info.Size() > limit {
+				if err != nil || !info.Mode().IsRegular() || info.Size() < 0 || suffix != ".raw" && info.Size() == 0 || info.Size() > limit {
 					return errAssemblyCatalogInvalid
 				}
 				count++
