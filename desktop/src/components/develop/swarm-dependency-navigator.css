@@ -2,6 +2,11 @@
 .swarm-navigator { border-block: 1px solid var(--line-soft); margin-block: 16px; padding-block: 16px; min-inline-size: 0; container-type: inline-size; }
 .swarm-navigator h4 { margin: 0; }
 .swarm-navigator-note { color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
+.swarm-fleet-overview { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-block-start: 12px; }
+.swarm-fleet-overview button { display: flex; align-items: center; gap: 8px; min-block-size: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-size: 13px; }
+.swarm-fleet-overview button:hover { background: var(--hover); }
+.swarm-fleet-overview button[aria-pressed="true"] { border-color: var(--accent); background: var(--inset); }
+.swarm-fleet-overview strong { font-variant-numeric: tabular-nums; }
 .swarm-navigator-filters { display: flex; flex-wrap: wrap; gap: 12px; }
 .swarm-navigator-filters label { display: grid; gap: 4px; min-inline-size: 0; font-size: 13px; flex: 1 1 180px; }
 .swarm-navigator select { min-block-size: 44px; inline-size: 100%; border: 1px solid var(--line-soft); border-radius: var(--r-ctl); background: var(--surface); color: var(--ink); padding: 8px; }

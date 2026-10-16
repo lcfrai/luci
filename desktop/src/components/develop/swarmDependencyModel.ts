@@ -5,11 +5,39 @@ export interface DependencyTask {
   task: SwarmTask;
   activity: string;
   active: boolean;
+  queued: boolean;
+  waiting: boolean;
+  review: boolean;
   attention: string[];
   unknown: boolean;
   waitingOn: string[];
   dependents: string[];
   integrated: boolean;
+}
+
+export type DependencyFilter = 'all' | 'attention' | 'waiting' | 'active' | 'queued' | 'review' | 'integrated' | 'unknown';
+export function matchesDependencyFilter(item: DependencyTask, filter: DependencyFilter): boolean {
+  switch (filter) {
+    case 'all': return true;
+    case 'attention': return item.attention.length > 0;
+    case 'waiting': return item.waiting;
+    case 'active': return item.active;
+    case 'queued': return item.queued;
+    case 'review': return item.review;
+    case 'integrated': return item.integrated;
+    case 'unknown': return item.unknown;
+  }
+}
+
+/** Count tasks, not attempts or queue entries. Categories deliberately overlap. */
+export function dependencyFleetCounts(tasks: DependencyTask[]): Record<DependencyFilter, number> {
+  const counts = {all: tasks.length, attention: 0, waiting: 0, active: 0, queued: 0, review: 0, integrated: 0, unknown: 0};
+  for (const item of tasks) {
+    for (const filter of ['attention', 'waiting', 'active', 'queued', 'review', 'integrated', 'unknown'] as const) {
+      if (matchesDependencyFilter(item, filter)) counts[filter]++;
+    }
+  }
+  return counts;
 }
 
 /** Saved facts only. An idle/normal exit and a reported check never prove correctness. */
@@ -34,6 +62,8 @@ export function dependencyTasks(run: ProjectRun, queue?: ProjectSwarmQueue): Dep
   const queues = new Map<string, string[]>();
   for (const item of queue?.items ?? []) {
     if (item.projectId !== run.projectId || item.runId !== run.id) continue;
+    // An explicitly retained older attempt cannot describe the selected attempt.
+    if (item.operationId && byId.get(item.taskId)?.operationId !== item.operationId) continue;
     const states = queues.get(item.taskId) ?? []; states.push(item.state); queues.set(item.taskId, states);
   }
   return tasks.map(task => {
@@ -67,7 +97,12 @@ export function dependencyTasks(run: ProjectRun, queue?: ProjectSwarmQueue): Dep
     unknown ||= states.some(state => !['queued', 'paused', 'reserved', 'running', 'blocked', 'completed', 'failed', 'cancelled'].includes(state));
     if (!owned && states.includes('queued')) activity = 'Queued; not started';
     if (!owned && states.includes('running')) { activity = 'Queue reports running; attempt unavailable'; unknown = true; }
+    // Legacy success is not an exact pending independent-review obligation.
+    if (!integrated && owned?.status === 'succeeded') { attention.push('Review disposition unconfirmed'); unknown = true; }
     if (unknown) attention.push('Unconfirmed state');
-    return {task, activity, active, attention, unknown, waitingOn, dependents: dependents.get(task.id) ?? [], integrated};
+    const queued = states.includes('queued');
+    const waiting = !integrated && (waitingOn.length > 0 || unanswered > 0 || states.some(state => ['paused', 'blocked'].includes(state)));
+    const review = !integrated && owned?.status === 'review-required';
+    return {task, activity, active, queued, waiting, review, attention, unknown, waitingOn, dependents: dependents.get(task.id) ?? [], integrated};
   });
 }

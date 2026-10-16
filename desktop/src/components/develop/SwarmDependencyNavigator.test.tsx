@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { productApi } from '../../api/product';
-import { swarmQueueFixture, swarmRunFixture } from '../../test/swarmFixtures';
+import { swarmQueueFixture, swarmQueueItem, swarmRunFixture } from '../../test/swarmFixtures';
 import { DEPENDENCY_PAGE_SIZE, SwarmDependencyNavigator } from './SwarmDependencyNavigator';
 
 it('selects a dependency by persisted ID across a filter, then jumps only on explicit request', () => {
@@ -75,4 +75,62 @@ it('retains selection across a revision, resets across runs, and keeps detail af
   expect(list.compareDocumentPosition(detail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   view.rerender(<SwarmDependencyNavigator run={{...run, id: 'another-run'}} onOpenTask={open} />);
   expect(screen.getByRole('button', {name: 'Select task Build a (a)'}).getAttribute('aria-pressed')).toBe('true');
+});
+it('exposes zero-count filters for an empty fleet without effects', () => {
+  const run = swarmRunFixture(); run.swarm!.tasks = [];
+  const request = vi.spyOn(productApi, 'request'), open = vi.fn();
+  render(<SwarmDependencyNavigator run={run} onOpenTask={open} />);
+  const overview = screen.getByRole('group', {name: 'Saved fleet overview'});
+  expect(within(overview).getAllByRole('button')).toHaveLength(8);
+  for (const button of within(overview).getAllByRole('button')) expect(button.getAttribute('aria-label')).toMatch(/: 0 tasks$/);
+  fireEvent.click(within(overview).getByRole('button', {name: 'Queued: 0 tasks'}));
+  expect(screen.getByText(/No matching tasks/)).toBeTruthy();
+  expect(screen.queryByRole('button', {name: 'Go to task controls'})).toBeNull();
+  expect(request).not.toHaveBeenCalled(); expect(open).not.toHaveBeenCalled(); request.mockRestore();
+});
+it('uses the overview as keyboard-operable local filters and opens only existing task controls', async () => {
+  const run = swarmRunFixture(), open = vi.fn(), request = vi.spyOn(productApi, 'request');
+  run.swarm!.tasks[0].operationId = 'op-a';
+  run.operations = [{id: 'op-a', kind: 'session', taskId: 'a', childId: 'session-a', attempt: 1, status: 'review-required', allocation: 'ready', requestDigest: 'request', createdAt: 'then', updatedAt: 'then'}];
+  render(<SwarmDependencyNavigator run={run} queue={swarmQueueFixture([swarmQueueItem({taskId: 'b'})])} onOpenTask={open} />);
+  fireEvent.change(screen.getByLabelText('Find by title or task ID'), {target: {value: 'no-match'}});
+  const review = screen.getByRole('button', {name: 'Review: 1 task'});
+  review.focus(); await userEvent.keyboard('{Enter}');
+  expect(review.getAttribute('aria-pressed')).toBe('true');
+  expect((screen.getByLabelText('Find by title or task ID') as HTMLInputElement).value).toBe('');
+  expect((screen.getByLabelText('Show') as HTMLSelectElement).value).toBe('review');
+  expect(within(screen.getByRole('list', {name: 'Matching saved tasks'})).getAllByRole('button')).toHaveLength(1);
+  expect(screen.getByRole('button', {name: 'Select task Build a (a)'})).toBeTruthy();
+  expect(screen.getByText(/Categories overlap/)).toBeTruthy();
+  expect(open).not.toHaveBeenCalled(); expect(request).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', {name: 'Go to task controls'})); expect(open).toHaveBeenCalledWith('a');
+  request.mockRestore();
+});
+it('retains stale saved counts and freshness warnings, excludes old queue attempts and refreshes with props', () => {
+  const run = swarmRunFixture(); run.swarm!.tasks[0].operationId = 'op-a';
+  run.operations = [{id: 'op-a', kind: 'session', taskId: 'a', childId: 'session-a', attempt: 1, status: 'running', allocation: 'ready', requestDigest: 'request', createdAt: 'then', updatedAt: 'then'}];
+  run.contextFreshness = {status: 'changed', reason: 'Design changed'};
+  const queue = {...swarmQueueFixture([swarmQueueItem({operationId: 'old'})]), hasMore: true};
+  const view = render(<SwarmDependencyNavigator run={run} queue={queue} onOpenTask={vi.fn()} />);
+  expect(screen.getByRole('button', {name: 'Working: 1 task'})).toBeTruthy();
+  expect(screen.getByRole('button', {name: 'Queued: 0 tasks'})).toBeTruthy();
+  expect(screen.getByText('Reviewed context: Design changed')).toBeTruthy();
+  expect(screen.getByText(/absence here does not prove a task is unqueued/)).toBeTruthy();
+  view.rerender(<SwarmDependencyNavigator run={{...run, operations: [{...run.operations[0], status: 'review-required'}]}} queue={queue} onOpenTask={vi.fn()} />);
+  expect(screen.getByRole('button', {name: 'Working: 0 tasks'})).toBeTruthy();
+  expect(screen.getByRole('button', {name: 'Review: 1 task'})).toBeTruthy();
+});
+it('keeps full-fleet counts independent of search and resets counted filters to the first bounded page', () => {
+  const run = swarmRunFixture(), template = run.swarm!.tasks[0];
+  run.swarm!.tasks = Array.from({length: 201}, (_, i) => ({...template, id: `task-${i}`, title: `Task ${i}`}));
+  const queue = swarmQueueFixture(run.swarm!.tasks.map(task => swarmQueueItem({id: task.id, taskId: task.id})));
+  render(<SwarmDependencyNavigator run={run} queue={queue} onOpenTask={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', {name: 'Next task page'}));
+  fireEvent.change(screen.getByLabelText('Find by title or task ID'), {target: {value: 'task-200'}});
+  expect(screen.getByRole('button', {name: 'Queued: 201 tasks'})).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', {name: 'Queued: 201 tasks'}));
+  const list = screen.getByRole('list', {name: 'Matching saved tasks'});
+  expect(within(list).getAllByRole('button')).toHaveLength(DEPENDENCY_PAGE_SIZE);
+  expect(within(list).getByRole('button', {name: 'Select task Task 0 (task-0)'})).toBeTruthy();
+  expect(screen.getByText(/Showing 1–40 of 201 matching tasks/)).toBeTruthy();
 });

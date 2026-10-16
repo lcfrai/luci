@@ -3,16 +3,20 @@ import type { ProjectRun } from '../../api/projectRuns';
 import type { ProjectSwarmQueue } from '../../api/swarmQueue';
 import { Button } from '../fluid/components/button';
 import { Input } from '../ui/input';
-import { dependencyTasks, type DependencyTask } from './swarmDependencyModel';
+import { dependencyFleetCounts, dependencyTasks, matchesDependencyFilter, type DependencyFilter, type DependencyTask } from './swarmDependencyModel';
 import './swarm-dependency-navigator.css';
 
 export const DEPENDENCY_PAGE_SIZE = 40;
 const RELATION_PAGE_SIZE = 20;
-type Filter = 'all' | 'attention' | 'waiting' | 'active' | 'integrated' | 'unknown';
-const filters: {id: Filter; label: string}[] = [
-  {id: 'all', label: 'All tasks'}, {id: 'attention', label: 'Needs attention'},
-  {id: 'waiting', label: 'Waiting on dependencies'}, {id: 'active', label: 'Recorded working'},
-  {id: 'integrated', label: 'Integrated tasks'}, {id: 'unknown', label: 'Unconfirmed'},
+const filters: {id: DependencyFilter; label: string; description: string}[] = [
+  {id: 'all', label: 'All tasks', description: 'Every saved task in this run.'},
+  {id: 'active', label: 'Working', description: 'Current attempt recorded running and ready, without a start or recovery blocker. Not a live worker observation.'},
+  {id: 'queued', label: 'Queued', description: 'Matching queue entries recorded queued. Omitted entries are not counted.'},
+  {id: 'waiting', label: 'Waiting', description: 'Not integrated and waiting on dependencies, retained unanswered questions, or a paused or blocked queue entry.'},
+  {id: 'review', label: 'Review', description: 'Current attempt explicitly records review-required and is not integrated. Inspect its task controls; independent review assignment and outcome are not available in these counts.'},
+  {id: 'attention', label: 'Needs attention', description: 'Saved input, review, recovery, queue or unconfirmed-state signals need inspection.'},
+  {id: 'integrated', label: 'Integrated', description: 'Task integration is saved. This does not prove combined checks or verification.'},
+  {id: 'unknown', label: 'Unconfirmed', description: 'Attempt, dependency, handoff, integration or queue facts are missing or unrecognized, or a legacy success lacks an explicit review disposition.'},
 ];
 interface Props { run: ProjectRun; queue?: ProjectSwarmQueue; onOpenTask(id: string): void }
 
@@ -22,17 +26,17 @@ export function SwarmDependencyNavigator(props: Props) {
   return <Navigator key={`${props.run.projectId}:${props.run.id}`} {...props} />;
 }
 function Navigator({run, queue, onOpenTask}: Props) {
-  const searchId = useId(), filterId = useId();
-  const [query, setQuery] = useState(''), [filter, setFilter] = useState<Filter>('all');
+  const searchId = useId(), filterId = useId(), overviewId = useId();
+  const [query, setQuery] = useState(''), [filter, setFilter] = useState<DependencyFilter>('all');
   const [page, setPage] = useState(0), [selectedId, setSelectedId] = useState('');
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const requestedFocus = useRef<string | null>(null);
   const model = useMemo(() => dependencyTasks(run, queue), [run, queue]);
+  const counts = useMemo(() => dependencyFleetCounts(model), [model]);
   const byId = useMemo(() => new Map(model.map(item => [item.task.id, item])), [model]);
   const normalized = query.trim().toLocaleLowerCase();
   const matches = model.filter(item => (!normalized || `${item.task.title} ${item.task.id}`.toLocaleLowerCase().includes(normalized)) &&
-    (filter === 'all' || filter === 'attention' && item.attention.length > 0 || filter === 'waiting' && !item.integrated && item.waitingOn.length > 0 ||
-      filter === 'active' && item.active || filter === 'integrated' && item.integrated || filter === 'unknown' && item.unknown));
+    matchesDependencyFilter(item, filter));
   const lastPage = Math.max(0, Math.ceil(matches.length / DEPENDENCY_PAGE_SIZE) - 1), currentPage = Math.min(page, lastPage);
   const visible = matches.slice(currentPage * DEPENDENCY_PAGE_SIZE, (currentPage + 1) * DEPENDENCY_PAGE_SIZE);
   const selected = byId.get(selectedId) ?? visible[0];
@@ -59,9 +63,18 @@ function Navigator({run, queue, onOpenTask}: Props) {
     <p className="swarm-navigator-note">Saved task and attempt records. Integrated changes still need combined checks; activity and agent reports do not prove verification.</p>
     {run.codingBlocker && <p className="journey-warning">Build attention: {run.codingBlocker.reason}</p>}
     {run.contextFreshness?.status !== 'current' && <p className="journey-warning">Reviewed context: {run.contextFreshness?.reason || 'Freshness unavailable. Inspect the build before new starts.'}</p>}
+    <div className="swarm-fleet-overview" role="group" aria-label="Saved fleet overview" aria-describedby={overviewId}>
+      {filters.map(item => <button key={item.id} type="button" title={item.description}
+        aria-label={`${item.label}: ${counts[item.id]} ${counts[item.id] === 1 ? 'task' : 'tasks'}`}
+        aria-pressed={filter === item.id} onClick={() => { setQuery(''); setFilter(item.id); setPage(0); setSelectedId(''); }}>
+        <span>{item.label}</span><strong>{counts[item.id]}</strong>
+      </button>)}
+    </div>
+    <p id={overviewId} className="swarm-navigator-note">Counts cover all {model.length} saved tasks, before search and pagination. Categories overlap; saved activity is not a live observation. Queue counts include only matching entries in this snapshot.</p>
+    <p className="swarm-navigator-note">{filters.find(item => item.id === filter)?.description}</p>
     <div className="swarm-navigator-filters">
       <label htmlFor={searchId}>Find by title or task ID<Input id={searchId} value={query} onChange={event => { setQuery(event.target.value); setPage(0); setSelectedId(''); }} /></label>
-      <label htmlFor={filterId}>Show<select id={filterId} value={filter} onChange={event => { setFilter(event.target.value as Filter); setPage(0); setSelectedId(''); }}>
+      <label htmlFor={filterId}>Show<select id={filterId} value={filter} onChange={event => { setFilter(event.target.value as DependencyFilter); setPage(0); setSelectedId(''); }}>
         {filters.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
       </select></label>
     </div>
