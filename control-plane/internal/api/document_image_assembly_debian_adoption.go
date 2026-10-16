@@ -7,6 +7,8 @@ import (
 	"math"
 	"sort"
 	"time"
+	"github.com/lcfrai/luci/control-plane/internal/product"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
 )
 
 type assemblyCatalogObject struct { ref assemblyCatalogRef; data []byte }
@@ -17,6 +19,7 @@ var errAssemblyDebianPublicationUncertain = errors.New("Debian domain publicatio
 // not a caller callback. Native resource retirement never holds this lock over
 // filesystem/authority IO; an intersecting retirement invalidates success.
 type assemblyDebianPublicationPermit struct {
+	product *product.RuntimeInputProofAdoptionPermit
 	candidate *assemblyDebianDomainCandidate
 	indexes *assemblyDebianIndexCandidate // exactly one concrete candidate arm
 	inFlight bool // protected by candidate.mu
@@ -32,6 +35,10 @@ func (p *assemblyDebianPublicationPermit) begin(ctx context.Context, owner *asse
 	output,inputs:=c.guard,c.inputs
 	c.mu.Unlock()
 	if err:=output.CheckCurrent(ctx);err!=nil{return err};if err:=inputs.CheckCurrent(ctx);err!=nil{return err}
+	if binding:=c.capture.run.product;binding!=nil{
+		if err:=binding.current(ctx);err!=nil{return err}
+		permit,err:=binding.api.deps.Product.BeginRuntimeInputProofAdoption(ctx,binding.identity,runtimeinstall.InputProofCAS{Revision:next.Revision,Digest:next.Digest});if err!=nil{return err};p.product=permit;if !permit.Current(){return errAssemblyDebianCapture}
+	}
 	c.mu.Lock();defer c.mu.Unlock()
 	if c.retiring || c.guard!=output || c.inputs!=inputs || c.targetCAS!=next || ctx.Err()!=nil { return errAssemblyDebianCapture }
 	p.inFlight=true;c.publication=p
@@ -41,6 +48,7 @@ func (p *assemblyDebianPublicationPermit) begin(ctx context.Context, owner *asse
 func (p *assemblyDebianPublicationPermit) finish(result assemblyCatalogCAS, err error)(assemblyCatalogCAS,error){
 	if p==nil || (p.candidate==nil)==(p.indexes==nil){return assemblyCatalogCAS{},errAssemblyDebianCapture}
 	if p.indexes!=nil{return p.finishIndexes(result,err)}
+	if p.product!=nil{if e:=p.product.Finish(runtimeinstall.InputProofCAS{Revision:result.Revision,Digest:result.Digest},err);e!=nil{err=errAssemblyDebianPublicationUncertain}}
 	c:=p.candidate;c.mu.Lock();defer c.mu.Unlock()
 	p.inFlight=false
 	if p.retired || c.retiring || c.publication!=p {
@@ -74,6 +82,7 @@ func (c *assemblyDebianDomainCandidate) current(ctx context.Context) error {
 	if err := output.CheckCurrent(ctx); err != nil { return err }
 	if err := inputs.CheckCurrent(ctx); err != nil { return err }
 	if err:=c.capture.run.owner.authorize(ctx,c.capture.run.actor);err!=nil{return err}
+	if c.capture.run.product!=nil{if err:=c.capture.run.product.current(ctx);err!=nil{return err}}
 	c.mu.Lock();retiring=c.retiring || c.indexTransfer || c.indexHandoff!=nil;c.mu.Unlock();if retiring{return errAssemblyDebianCapture}
 	if err:=inputs.CheckCurrent(ctx);err!=nil{return err};return output.CheckCurrent(ctx)
 }
@@ -134,6 +143,7 @@ func (o *assemblyInputOwner) adoptDebianDomainsAt(ctx context.Context, c *assemb
 	}
 	data,err:=json.Marshal(manifest); if err!=nil || len(data)>assemblyCatalogRecordLimit { return assemblyCatalogCAS{},errAssemblyDebianCapture }
 	manifestRef:=assemblyCatalogRef{1,"producer-raw-manifest",assemblyCatalogDigest(data),int64(len(data))}
+	c.mu.Lock();c.rawManifestRef=manifestRef;c.mu.Unlock()
 	objects:=append(append([]assemblyCatalogObject{},c.records...),assemblyCatalogObject{manifestRef,data})
 	if len(c.records)!=3 { return assemblyCatalogCAS{},errAssemblyDebianCapture }
 	// Recompute the canonical domain bytes, not mutable cached candidate fields.

@@ -25,6 +25,7 @@ func assemblyLeaseIndex(l *executionLeaseLedger, identity backend.DocumentImageA
 }
 
 func assemblyOtherClaims(l executionLeaseLedger, scope, id string) bool {
+	for _,row:=range l.InputProofs{if row.State!="finished"{return true}}
 	if len(l.Leases) != 0 {
 		return true
 	}
@@ -133,6 +134,7 @@ func (g *executionAdmission) reserveDocumentImageAssembly(ctx context.Context, p
 			return backend.ErrLaunchFenceOwnership
 		}
 		demand := executionCapacityDemand{RequiredCreateDiskBytes: estimate.Bytes, PendingDiskBytes: backend.DocumentImageAssemblyOutputMaxBytes, HostLaunchBytes: candidate.HostLaunchBytes}
+		if err=g.addInputProofAdmissionCapacity(ctx,l.InputProofs,"","",&demand,policy.DiskReserveMiB);err!=nil{return err}
 		// Candidate capture is charged once above; skipping its immutable lease
 		// removes only that duplicate. Exact-volume sum includes it exactly once.
 		if err = g.addAssemblyAdmissionCapacity(ctx, snap, captureRows, g.scope, id.AllocationID, &demand, policy.DiskReserveMiB); err != nil {

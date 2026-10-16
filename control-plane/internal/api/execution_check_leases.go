@@ -212,6 +212,7 @@ func (g *executionAdmission) reserveCheck(ctx context.Context, prepared backend.
 		// durable created lease. Its next RPC is Start of that immutable ref,
 		// so revalidation must not reserve another pair of VFS image copies.
 		demand := executionCapacityDemand{RequiredCreateDiskBytes: estimate.Bytes, CreateAcknowledged: ownRef != ""}
+		if err:=g.addInputProofAdmissionCapacity(ctx,l.InputProofs,"","",&demand,policy.DiskReserveMiB);err!=nil{return err}
 		observed := map[string]bool{}
 		for _, c := range snap.Execution.Containers {
 			if ownRef != "" && c.ID == ownRef && c.Kind == "check" {

@@ -21,11 +21,12 @@ const assemblyDebianInnerSHA = "a32f91379525c0a3732c30dae9d1f4a73c3e710949589b6c
 var errAssemblyDebianCapture = errors.New("owned Debian producer capture incomplete or unavailable")
 
 // A concrete original-process-owner completion, NOT a decoded receipt or a
-// caller's Verified flag. There is deliberately no production minting function
-// yet: the installer-owned Windows launch/profile bridge is a required separate
-// join. Only that bridge's original-handle completion path may populate this
-// private value. Tests can construct synthetic owners in *_test.go only.
+// caller's Verified flag. The product arm is populated only by the concrete
+// installer-owned Windows original-handle completion path. Its packaged input
+// family remains unavailable; legacy external-v4 constraints are unchanged.
+// Tests can construct synthetic owners in *_test.go only.
 type assemblyDebianOriginalCompletion struct {
+	product *debianProductOriginalCompletion // closed Go-owner arm; no API-process exit claim
 	runID string
 	outerSHA string
 	innerReceiptSHA, outerReceiptSHA, finalProjectionSHA string
@@ -42,6 +43,7 @@ type assemblyDebianOriginalCompletion struct {
 // producer-runs files after restart. This file starts no process and accepts no
 // audit-artifact path, command, grant or completion callback.
 type assemblyDebianOwnedRun struct {
+	product *debianProductProofBinding // nil only for preserved legacy external-v4/test arm
 	mu sync.Mutex
 	owner *assemblyInputOwner
 	id string
@@ -73,6 +75,7 @@ func (r *assemblyDebianOwnedRun) current(ctx context.Context) error {
 	if err := guard.CheckCurrent(ctx); err != nil { return err }
 	if err := inputs.CheckCurrent(ctx); err != nil { return err }
 	if err := owner.authorize(ctx, r.actor); err != nil { return err }
+	if r.product!=nil{if err:=r.product.current(ctx);err!=nil{return err}}
 	r.mu.Lock(); retired := r.phase == "retiring" || r.phase == "closed" || r.phase == "candidate"; r.mu.Unlock()
 	if retired { return errAssemblyDebianCapture }
 	if err := inputs.CheckCurrent(ctx); err != nil { return err }
@@ -439,6 +442,7 @@ func finiteAssemblyDebianEpoch(v float64) bool { return !math.IsNaN(v) && !math.
 func optionalAssemblyDebianEpoch(v int64) *int64 { if v == 0 { return nil }; return &v }
 
 type assemblyDebianDomainCandidate struct {
+	rawManifestRef assemblyCatalogRef
 	mu sync.Mutex
 	indexTransfer bool // latch/serialize handoff; never held across native IO
 	indexHandoff *assemblyDebianIndexCandidate // exact promoted retirement owner

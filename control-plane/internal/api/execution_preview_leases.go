@@ -165,6 +165,7 @@ func (g *executionAdmission) reservePreview(ctx context.Context, prepared backen
 			return nil
 		}
 		demand := executionCapacityDemand{RequiredCreateDiskBytes: prepared.RequiredDiskBytes, CreateAcknowledged: ownRef != ""}
+		if err:=g.addInputProofAdmissionCapacity(ctx,l.InputProofs,"","",&demand,policy.DiskReserveMiB);err!=nil{return err}
 		observed := map[string]bool{}
 		for _, c := range snap.Execution.Containers {
 			if ownRef != "" && c.ID == ownRef {
