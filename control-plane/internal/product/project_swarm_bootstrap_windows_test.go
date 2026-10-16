@@ -243,10 +243,11 @@ func TestSwarmWindowsNormalHandlerBootstrapRefusal(t *testing.T) {
 func TestSwarmWindowsCheckpointHandlerBootstrapRefusal(t *testing.T) {
 	s, mux, p, run, base, selected := bootstrapWindowsHTTPFixture(t)
 	// Construct an actual historical stopped workspace at its exact owned path.
-	// This setup deliberately uses the existing store API and real confined
-	// clone, not the new Server admission; it is not a product bypass or live
-	// execution receipt. Its config is below260 even though policy refuses new
-	// bootstrap there. Unsupported real clone/setup must fail, never skip.
+	// The existing store records the historical identity. Bootstrap genuine Git
+	// bytes at a short owned stage, then rename only this fresh fixture checkout
+	// to that identity; clone's long-root bootstrap cannot construct this setup.
+	// This is not a product admission bypass or live execution receipt. Every
+	// setup step, including real Git at the final path, must fail rather than skip.
 	t.Log("historical checkpoint setup begins; no checkpoint handler POST has been exercised")
 	var originalPath string
 	var pathErr error
@@ -263,15 +264,40 @@ func TestSwarmWindowsCheckpointHandlerBootstrapRefusal(t *testing.T) {
 	if err = os.MkdirAll(filepath.Dir(originalPath), 0700); err != nil {
 		t.Fatal(err)
 	}
-	// This explicit fixture-only option supports pack filenames after ordinary
-	// bootstrap. It is not inherited global config or a product gate bypass.
-	confinedFixtureGit(t, filepath.Dir(originalPath), "-c", "core.longpaths=true", "clone", "--no-local", p.Path, originalPath)
-	confinedFixtureGit(t, originalPath, "config", "--local", "core.longpaths", "true")
+	stage := filepath.Join(s.projectRoot(), "h")
+	stageRoot, stageErr := ownedFixtureRoot(t, filepath.Dir(stage))
+	destinationRoot, destinationErr := ownedFixtureRoot(t, filepath.Dir(originalPath))
+	if stageErr != nil || destinationErr != nil || stageRoot != destinationRoot || filepath.Dir(stage) == stageRoot || filepath.Dir(originalPath) == destinationRoot {
+		t.Fatal("historical setup parents must be strictly inside the same registered fixture root; handler not exercised", stageErr, destinationErr)
+	}
+	if _, stageErr = os.Lstat(stage); !errors.Is(stageErr, os.ErrNotExist) {
+		t.Fatal("historical staging path is not fresh; handler not exercised", stageErr)
+	}
+	if _, destinationErr = os.Lstat(originalPath); !errors.Is(destinationErr, os.ErrNotExist) {
+		t.Fatal("historical destination is not fresh; handler not exercised", destinationErr)
+	}
+	if err = s.createSwarmCheckout(context.Background(), p.Path, stage, prior.BaseCommit); err != nil {
+		t.Fatal("historical short-stage Git setup failed; handler not exercised", err)
+	}
+	if err = validateOwnedFixtureWorktree(t, stage); err != nil {
+		t.Fatal("historical stage lacks confined ordinary Git metadata; handler not exercised", err)
+	}
+	// No source bytes are fabricated or copied and no linked metadata is added.
+	// Both paths belong exclusively to this test; never replace a destination.
+	if _, destinationErr = os.Lstat(originalPath); !errors.Is(destinationErr, os.ErrNotExist) {
+		t.Fatal("historical destination appeared before rename; handler not exercised", destinationErr)
+	}
+	if err = os.Rename(stage, originalPath); err != nil {
+		t.Fatal("historical same-root fixture rename failed; handler not exercised", err)
+	}
+	if err = validateOwnedFixtureWorktree(t, originalPath); err != nil {
+		t.Fatal("historical renamed checkout is not confined; handler not exercised", err)
+	}
 	if got := confinedFixtureGit(t, originalPath, "config", "--local", "--type=bool", "--get", "core.longpaths"); got != "true" {
 		t.Fatal("historical fixture setup did not retain local longpaths; handler not exercised", got)
 	}
 	if got := confinedFixtureGit(t, originalPath, "rev-parse", "HEAD"); got != prior.BaseCommit {
-		t.Fatal("historical clone did not preserve exact actual base", got)
+		t.Fatal("historical renamed checkout did not preserve exact actual base; handler not exercised", got)
 	}
 	binding, err := s.swarmTaskBinding(context.Background(), run, prior, originalPath)
 	if err != nil {
