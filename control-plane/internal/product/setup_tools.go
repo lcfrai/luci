@@ -2,7 +2,6 @@ package product
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -32,6 +31,8 @@ type SSHKey struct {
 }
 
 type RuntimeJob struct {
+	OperationKind string `json:"operationKind,omitempty"`
+	InputProof *runtimeinstall.DebianInputProofOutcome `json:"inputProof,omitempty"`
 	ID              string                  `json:"id"`
 	Status          string                  `json:"status"`
 	Image           string                  `json:"image"`
@@ -119,7 +120,7 @@ func (s *Server) initSetupTools() error {
 	if len(data) > 32<<10 {
 		return errors.New("runtime install state exceeds its limit")
 	}
-	if err = json.Unmarshal(data, &s.runtimeJob); err != nil {
+	if err = decodeRuntimeJobState(data, &s.runtimeJob); err != nil {
 		return err
 	}
 	if runtimeInstallActive(s.runtimeJob.Status) {

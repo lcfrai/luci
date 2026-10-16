@@ -17,6 +17,9 @@ import (
 // already contribute their hard ceiling or fresh measured workload demand.
 // PendingDiskBytes carries individually pinned check image-copy demand.
 type executionCapacityDemand struct {
+	NativeHostMemoryBytes uint64
+	NativeHostCPUMillis int64
+	NativeHostDiskBytes uint64
 	PendingMemory, AllMemory uint64
 	// HostLaunchBytes and PendingHostLaunchBytes reserve host/daemon/browser
 	// demand outside container hard limits. A container or one newer host sample
@@ -88,7 +91,7 @@ func evaluateExecutionCapacityWithEvidence(snap resourcebudget.Snapshot, policy 
 	required := uint64(resources.MemoryMiB) << 20
 	headroom := policy.MemoryHeadroomBytes(*snap.Host.Memory.EffectiveTotalBytes)
 	executionHeadroom := policy.MemoryHeadroomBytes(*snap.Execution.TotalMemoryBytes)
-	hostRequired := headroom + required + demand.PendingMemory + demand.HostLaunchBytes + demand.PendingHostLaunchBytes
+	hostRequired := headroom + required + demand.PendingMemory + demand.HostLaunchBytes + demand.PendingHostLaunchBytes+demand.NativeHostMemoryBytes
 	if *snap.Host.Memory.EffectiveAvailableBytes < hostRequired || *snap.Execution.TotalMemoryBytes < demand.AllMemory+required+executionHeadroom {
 		result := refused("memory_pressure", fmt.Sprintf("Waiting for memory: this operation needs %d MiB plus %d MiB pending demand, %d MiB new launch allowance, %d MiB other unsettled launch allowance and %d MiB host reserve; %d MiB is available. You can keep planning while capacity recovers.", resources.MemoryMiB, demand.PendingMemory>>20, demand.HostLaunchBytes>>20, demand.PendingHostLaunchBytes>>20, headroom>>20, *snap.Host.Memory.EffectiveAvailableBytes>>20))
 		// Preserve the existing host-first predicate, using its exact operands.
@@ -111,6 +114,7 @@ func evaluateExecutionCapacityWithEvidence(snap resourcebudget.Snapshot, policy 
 	if demand.CPU+int64(resources.CPUMillis) > cpuCeiling {
 		return refused("cpu_capacity", "Configured worker CPU limits exceed the available execution capacity.")
 	}
+	if demand.NativeHostCPUMillis>0 && (demand.CPU>int64(^uint64(0)>>1)-demand.NativeHostCPUMillis-int64(resources.CPUMillis) || demand.CPU+int64(resources.CPUMillis)+demand.NativeHostCPUMillis>*snap.Host.CPU.EffectiveMillis*int64(100-policy.HeadroomPercent)/100){return refused("cpu_capacity","Native and container work exceed the host CPU capacity.")}
 	if len(snap.Host.Disks) == 0 {
 		return refused("disk_observation_unavailable", "Disk capacity must be measured before another worker starts.")
 	}

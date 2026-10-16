@@ -48,6 +48,7 @@ func (g *executionAdmission) reservationObservation(ctx context.Context) executi
 	addRuntimeImageReservationView(view, ledger.RuntimeImages)
 	addDocumentReservationView(view, ledger.Documents)
 	addDocumentImageAssemblyReservationView(view, ledger.ImageAssemblies)
+	addDebianInputProofReservationView(view,ledger.InputProofs)
 	return executionReservationObservation{Status: "ready", executionReservationView: view}
 }
 

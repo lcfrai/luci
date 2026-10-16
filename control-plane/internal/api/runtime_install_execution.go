@@ -46,7 +46,7 @@ func (a *API) watchRuntimeImageEngineStop(lease runtimeImageExecutionLease, obse
 }
 
 func (a *API) runtimeInstaller() runtimeinstall.Runtime {
-	return runtimeinstall.Runtime{CaptureActor: a.captureRuntimeInstallerActor, Run: a.installRuntimeImage, Reconcile: a.reconcileRuntimeImage}
+	return runtimeinstall.Runtime{CaptureActor: a.captureRuntimeInstallerActor, Run: a.installRuntimeImage, Reconcile: a.reconcileRuntimeImage,ProveDebianInputs:a.proveBundledDebianInputs,ObserveDebianInputProof:a.observeBundledDebianInputProof}
 }
 
 // Build demand is independent of a worker's configured size. Administrator

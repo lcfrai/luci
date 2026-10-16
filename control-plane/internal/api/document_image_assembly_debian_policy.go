@@ -27,6 +27,32 @@ func normalizeAssemblyDebianPolicy(source, producerConfig []byte, revision strin
 	if len(source) != 108143 || assemblyCatalogDigest(source) != assemblyDebianPolicySourceSHA || len(producerConfig) != 41817 || assemblyCatalogDigest(producerConfig) != assemblyDebianConfigSHA || !validAssemblyCatalogPolicy(assemblyCatalogPolicy{revision, assemblyDebianPolicySourceSHA}) {
 		return out, errAssemblyDebianEvidence
 	}
+	return normalizeAssemblyDebianPolicyFields(source,assemblyDebianObjectRef{"producer-config",assemblyDebianConfigSHA,int64(len(producerConfig))},revision,nil)
+}
+
+// Product config has its own canonical, app-selected object. Its semantic data
+// does not relabel diagnostic645 or make any new official-root trust decision.
+type assemblyDebianProductConfigV1 struct {
+	Schema string `json:"schema"`
+	Protocol string `json:"protocol"`
+	TrustPolicySHA256 string `json:"trustPolicySHA256"`
+	ProjectionSHA256 string `json:"projectionSHA256"`
+	DependencyLockSHA256 string `json:"dependencyLockSHA256"`
+	AcquisitionManifestSHA256 string `json:"acquisitionManifestSHA256"`
+	SnapshotSourceRef assemblyDebianObjectRef `json:"snapshotSourceRef"`
+	ProjectionConfig json.RawMessage `json:"projectionConfig"`
+}
+func normalizeAssemblyDebianProductPolicy(source,config []byte,pins assemblyDebianProductProfilePins,revision string)(assemblyDebianRootPolicyV1,error){
+	if !validAssemblyDebianProductPins(pins)||len(source)!=108143||assemblyCatalogDigest(source)!=assemblyDebianPolicySourceSHA||int64(len(config))!=pins.Config.Bytes||assemblyCatalogDigest(config)!=pins.Config.SHA256||!validAssemblyCatalogPolicy(assemblyCatalogPolicy{revision,assemblyDebianPolicySourceSHA}){return assemblyDebianRootPolicyV1{},errAssemblyDebianEvidence}
+	var input assemblyDebianProductConfigV1
+	// Config resources use compact sorted UTF8 JSON, not catalog Go-field order.
+	// Exact selected bytes above bind that format; raw DTO decoding rejects every
+	// duplicate/unknown/trailing field without rewriting resource provenance.
+	if decodeAssemblyDebianRaw(config,&input)!=nil||input.Schema!=assemblyDebianProductConfigSchema||input.Protocol!=assemblyDebianProductProtocol||input.TrustPolicySHA256!=assemblyDebianPolicySourceSHA||input.ProjectionSHA256!=pins.Projection.SHA256||input.DependencyLockSHA256!=assemblyDebianLockSHA||input.AcquisitionManifestSHA256!=assemblyDebianManifestSHA||input.SnapshotSourceRef!=expectedAssemblyDebianHistoricalAnchor().SnapshotSourceRef||len(input.ProjectionConfig)==0||len(input.ProjectionConfig)>64<<10||input.ProjectionConfig[0]!='{'{return assemblyDebianRootPolicyV1{},errAssemblyDebianEvidence}
+	return normalizeAssemblyDebianPolicyFields(source,pins.Config,revision,&pins)
+}
+func normalizeAssemblyDebianPolicyFields(source []byte,config assemblyDebianObjectRef,revision string,product *assemblyDebianProductProfilePins)(assemblyDebianRootPolicyV1,error){
+	var out assemblyDebianRootPolicyV1
 	// The source is exact digest-pinned13bd, which contains extra explanatory
 	// metadata. This small projection deliberately never interprets status flags.
 	var input struct {
@@ -67,7 +93,8 @@ func normalizeAssemblyDebianPolicy(source, producerConfig []byte, revision strin
 	out = assemblyDebianRootPolicyV1{Schema: 1, RecordType: "luci-debian-official-root-policy-v1", SourcePolicy: assemblyDebianObjectRef{Role: "policy-source", SHA256: assemblyDebianPolicySourceSHA, Bytes: int64(len(source))}, PolicyRevision: revision, DependencyLockSHA256: input.LockSHA, AcquisitionManifestSHA256: input.ManifestSHA, FutureSkewSeconds: 300, CurrentReleaseMaxAgeSeconds: 172800, RevocationKnowledge: "pinned-snapshot-only", KeyObservationMaxAgeSeconds: 86400}
 	// These are fixed normative bindings from exact v4 source metadata, not
 	// observed snapshot/crypto/base-layer receipt facts.
-	out.ProducerConfig = assemblyDebianObjectRef{"producer-config", assemblyDebianConfigSHA, int64(len(producerConfig))}
+	out.ProducerConfig = config
+	if product!=nil{out.ProducerProtocol=assemblyDebianProductProtocol;profile:=product.Profile;out.ProducerProfile=&profile}
 	out.HistoricalAnchor = expectedAssemblyDebianHistoricalAnchor()
 	for _, root := range input.RootOriginPolicy.Roots {
 		out.Roots = append(out.Roots, assemblyDebianRootV1{ID: root.ID, PrimaryFingerprint: root.Primary, SigningSubkeyFingerprint: root.Subkey, PublicKey: assemblyDebianObjectRef{Role: "public-key", SHA256: root.SHA, Bytes: root.Bytes}, OfficialOrigin: root.Origin, AnnouncedExpiryDate: root.Expiry})
@@ -155,7 +182,9 @@ func assemblyDebianRecordRef(kind string, value any) (assemblyCatalogRef, error)
 // Shape checks validate untrusted metadata only. Actual policy selection must use
 // the digest-bound normalizer above; a caller-constructed shape cannot adopt it.
 func checkAssemblyDebianPolicyShape(policy assemblyDebianRootPolicyV1) error {
-	if policy.Schema != 1 || policy.RecordType != "luci-debian-official-root-policy-v1" || policy.SourcePolicy != (assemblyDebianObjectRef{"policy-source", assemblyDebianPolicySourceSHA, 108143}) || policy.ProducerConfig != (assemblyDebianObjectRef{"producer-config", assemblyDebianConfigSHA, 41817}) || policy.HistoricalAnchor != expectedAssemblyDebianHistoricalAnchor() || policy.DependencyLockSHA256 != assemblyDebianLockSHA || policy.AcquisitionManifestSHA256 != assemblyDebianManifestSHA || !validAssemblyCatalogPolicy(assemblyCatalogPolicy{policy.PolicyRevision, assemblyDebianPolicySourceSHA}) || policy.FutureSkewSeconds != 300 || policy.CurrentReleaseMaxAgeSeconds != 172800 || policy.KeyObservationMaxAgeSeconds != 86400 || policy.RevocationKnowledge != "pinned-snapshot-only" || len(policy.Roots) != 3 || len(policy.Releases) != 6 {
+	legacy:=policy.ProducerProtocol==""&&policy.ProducerProfile==nil&&policy.ProducerConfig==(assemblyDebianObjectRef{"producer-config",assemblyDebianConfigSHA,41817})
+	product:=policy.ProducerProtocol==assemblyDebianProductProtocol&&policy.ProducerProfile!=nil&&checkAssemblyDebianObject(*policy.ProducerProfile,"product-profile",64<<10)&&checkAssemblyDebianObject(policy.ProducerConfig,"producer-config",128<<10)&&policy.ProducerConfig.SHA256!=assemblyDebianConfigSHA
+	if !legacy&&!product||policy.Schema != 1 || policy.RecordType != "luci-debian-official-root-policy-v1" || policy.SourcePolicy != (assemblyDebianObjectRef{"policy-source", assemblyDebianPolicySourceSHA, 108143}) || policy.HistoricalAnchor != expectedAssemblyDebianHistoricalAnchor() || policy.DependencyLockSHA256 != assemblyDebianLockSHA || policy.AcquisitionManifestSHA256 != assemblyDebianManifestSHA || !validAssemblyCatalogPolicy(assemblyCatalogPolicy{policy.PolicyRevision, assemblyDebianPolicySourceSHA}) || policy.FutureSkewSeconds != 300 || policy.CurrentReleaseMaxAgeSeconds != 172800 || policy.KeyObservationMaxAgeSeconds != 86400 || policy.RevocationKnowledge != "pinned-snapshot-only" || len(policy.Roots) != 3 || len(policy.Releases) != 6 {
 		return errAssemblyDebianEvidence
 	}
 	known := map[string]bool{}

@@ -46,6 +46,7 @@ type executionLease struct {
 	UpdatedAt       time.Time                    `json:"updatedAt"`
 }
 type executionLeaseLedger struct {
+	InputProofs []debianInputProofExecutionLease `json:"inputProofs,omitempty"`
 	Version             int                                `json:"version"`
 	Leases              []executionLease                   `json:"leases"`
 	Retirements         []executionRetirement              `json:"retirements,omitempty"`
@@ -228,6 +229,7 @@ func (g *executionAdmission) mutateLocked(ctx context.Context, fn func(*executio
 	addRuntimeImageReservationView(view, ledger.RuntimeImages)
 	addDocumentReservationView(view, ledger.Documents)
 	addDocumentImageAssemblyReservationView(view, ledger.ImageAssemblies)
+	addDebianInputProofReservationView(view,ledger.InputProofs)
 	g.snapshot.Store(view)
 	return nil
 }
@@ -246,6 +248,7 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 		return ledger, errors.New("execution capacity state cannot be verified")
 	}
 	seen := map[string]bool{}
+	for _,row:=range ledger.InputProofs{key:=row.Scope+":"+row.ID;if !validDebianInputProofLease(row)||seen[key]{return ledger,runtimeinstall.ErrInputProofOwnership};seen[key]=true}
 	for _, lease := range ledger.Leases {
 		key := lease.Scope + ":" + lease.ID
 		if !validExecutionLease(lease) || seen[key] {
@@ -311,7 +314,7 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 }
 
 func executionLeaseCount(l executionLeaseLedger) int {
-	return len(l.Leases) + len(l.Checks) + len(l.Previews) + len(l.RuntimeImages) + len(l.Documents) + len(l.ImageAssemblies)
+	return len(l.Leases) + len(l.Checks) + len(l.Previews) + len(l.RuntimeImages) + len(l.Documents) + len(l.ImageAssemblies)+len(l.InputProofs)
 }
 func executionFenceCount(l executionLeaseLedger) int {
 	return len(l.Fences) + len(l.CheckFences) + len(l.DocumentFences) + len(l.ImageAssemblyFences)
@@ -541,6 +544,7 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 			return nil
 		}
 		demand := executionCapacityDemand{PendingMemory: pendingMemory, AllMemory: allMemory, CPU: cpu, PendingAllocations: pendingAllocations}
+		if err:=g.addInputProofAdmissionCapacity(ctx,ledger.InputProofs,"","",&demand,policy.DiskReserveMiB);err!=nil{return err}
 		demand.HostLaunchBytes = windowsDockerHostLaunchBytes(snap, g.api.deps.Backend.Kind())
 		addWorkerHostLaunchCapacity(snap, ledger.Leases, g.scope, id, g.api.deps.Backend.Kind(), &demand)
 		if err := addCheckCapacity(snap, ledger.Checks, "", "", &demand); err != nil {

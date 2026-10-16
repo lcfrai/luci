@@ -79,6 +79,8 @@ type Runtime struct {
 	// Reconcile observes only the exact retained operation. It must not rebuild
 	// or publish/tag an image automatically after interruption or cancellation.
 	Reconcile func(context.Context, Identity, management.ExecutionActorRef, Publish) (Outcome, error)
+	ProveDebianInputs func(context.Context, DebianInputProofRequest, PublishDebianInputProof) (DebianInputProofOutcome,error)
+	ObserveDebianInputProof InputProofObserver
 }
 
 func (v Identity) Retained() bool { return v.AllocationID != "" }

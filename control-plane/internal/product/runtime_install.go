@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
@@ -13,6 +14,8 @@ import (
 // All fields are protected by Server.mu. Accepted work belongs to the server,
 // not the observing request. Closing seals publication before returning.
 type runtimeInstallState struct {
+	proofIO sync.Mutex // persistence only; cancellation/retirement never waits for it
+	proof *runtimeInputProofOwnership
 	runtime runtimeinstall.Runtime
 	cancel  context.CancelFunc
 	done    chan struct{}
@@ -31,13 +34,13 @@ func runtimeInstallActive(status string) bool {
 }
 
 func runtimeInstallRetained(job RuntimeJob) bool {
-	return job.Execution != nil && job.Execution.ResourcesHeld
+	return job.Execution != nil && job.Execution.ResourcesHeld || job.InputProof!=nil && job.InputProof.ResourcesHeld
 }
 
 // A lost image-publication ACK can be uncharged and still require exact
 // reconciliation. Keep that identity instead of overwriting it with a new job.
 func runtimeInstallUnresolved(job RuntimeJob) bool {
-	return runtimeInstallRetained(job) || job.Status == "unknown"
+	return runtimeInstallRetained(job) || job.Status == "unknown" || job.InputProof!=nil && job.InputProof.PublicationUnknown
 }
 
 func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
@@ -67,6 +70,10 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 		// when a new storage observation is unavailable.
 		writeJSON(w, 202, active)
 		return
+	}
+	if profile,selected,err:=s.selectedRuntimeInputProofProfile();selected {
+		if err!=nil {problem(w,503,"runtime_input_proof_unavailable",err.Error());return}
+		s.installRuntimeInputProof(w,r,profile);return
 	}
 	dir, err := s.runtimeSource()
 	if err != nil {
@@ -243,6 +250,8 @@ func (s *Server) cancelRuntimeInstall(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	s.mu.RLock();native:=s.runtimeJob.OperationKind==runtimeinstall.DebianInputProofKind;s.mu.RUnlock()
+	if native{s.cancelRuntimeInputProof(w,r,id);return}
 	s.mu.Lock()
 	if s.runtimeJob.ID != id {
 		s.mu.Unlock()
@@ -256,6 +265,7 @@ func (s *Server) cancelRuntimeInstall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	job.CancelRequested, job.Status, job.UpdatedAt = true, "cancelling", time.Now().UTC()
+	if s.runtimeInstall.proof!=nil {s.runtimeInstall.proof.invalid.Store(true)}
 	job.Message = "Cancellation requested. Shared capacity stays reserved until the owned build is confirmed stopped."
 	err := atomicJSON(filepath.Join(s.stateDir, "runtime-install.json"), job)
 	s.runtimeJob = job
@@ -273,6 +283,8 @@ func (s *Server) reconcileRuntimeInstall(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
+	s.mu.RLock();isProof:=s.runtimeJob.OperationKind==runtimeinstall.DebianInputProofKind;s.mu.RUnlock()
+	if isProof{s.reconcileRuntimeInputProof(w,r,id,runtime);return}
 	if runtime.Reconcile == nil {
 		problem(w, 503, "runtime_reconcile_unavailable", "This runtime cannot yet prove the interrupted operation's outcome. No replacement build was started.")
 		return
@@ -324,6 +336,7 @@ func (s *Server) reconcileRuntimeInstall(w http.ResponseWriter, r *http.Request)
 func (s *Server) closeRuntimeInstaller() {
 	s.mu.Lock()
 	s.runtimeInstall.closed = true
+	if s.runtimeInstall.proof!=nil{s.runtimeInstall.proof.invalid.Store(true)}
 	cancel, done := s.runtimeInstall.cancel, s.runtimeInstall.done
 	s.mu.Unlock()
 	if cancel != nil {
@@ -343,7 +356,7 @@ func (s *Server) closeRuntimeInstaller() {
 	if s.runtimeInstall.done != nil && runtimeInstallActive(s.runtimeJob.Status) {
 		job := s.runtimeJob
 		job.Status, job.Message, job.UpdatedAt = "unknown", "Luci closed before runtime settlement was confirmed. Check the retained operation before preparing again.", time.Now().UTC()
-		_ = atomicJSON(filepath.Join(s.stateDir, "runtime-install.json"), job)
+		if job.OperationKind!=runtimeinstall.DebianInputProofKind{_ = atomicJSON(filepath.Join(s.stateDir, "runtime-install.json"), job)}
 		s.runtimeJob = job
 	}
 }

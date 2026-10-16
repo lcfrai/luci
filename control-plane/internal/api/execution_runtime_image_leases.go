@@ -254,6 +254,7 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 			}
 		}
 		demand := executionCapacityDemand{RequiredCreateDiskBytes: prepared.RequiredDiskBytes}
+		if err:=g.addInputProofAdmissionCapacity(ctx,l.InputProofs,"","",&demand,policy.DiskReserveMiB);err!=nil{return err}
 		observed := map[string]bool{}
 		for _, c := range snap.Execution.Containers {
 			memory, cpu, ok := executionWorkloadDemand(c, now)
