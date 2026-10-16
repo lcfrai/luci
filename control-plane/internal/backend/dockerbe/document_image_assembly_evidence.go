@@ -34,7 +34,18 @@ var _ backend.DocumentImageAssemblyEvidenceGuard = (*assemblyEvidenceToken)(nil)
 // Evidence-only reuse of the existing Windows ordinary-file guard. No Spec,
 // Backend client, engine/Job selection, Prepare/Create, allocation or new store.
 func AcquireDocumentImageAssemblyEvidence(ctx context.Context, objects []backend.DocumentImageAssemblyEvidenceObject) (backend.DocumentImageAssemblyEvidenceGuard, error) {
-	if !assemblySourceGuardSupported() || len(objects) == 0 || len(objects) > backend.DocumentImageAssemblyEvidenceMaxObjects || ctx.Err() != nil {
+	if ctx.Err() != nil {
+		return nil, backend.ErrUnsupported
+	}
+	a, err := PrepareDocumentImageAssemblyEvidenceAcquisition(objects)
+	if err != nil {
+		return nil, err
+	}
+	return a.Acquire(ctx)
+}
+
+func PrepareDocumentImageAssemblyEvidenceAcquisition(objects []backend.DocumentImageAssemblyEvidenceObject) (*DocumentImageAssemblyEvidenceAcquisition, error) {
+	if !assemblySourceGuardSupported() || len(objects) == 0 || len(objects) > backend.DocumentImageAssemblyEvidenceMaxObjects {
 		return nil, backend.ErrUnsupported
 	}
 	owned := make(map[string]backend.DocumentImageAssemblyEvidenceObject, len(objects))
@@ -48,20 +59,13 @@ func AcquireDocumentImageAssemblyEvidence(ctx context.Context, objects []backend
 		owned[object.Role], paths[key] = object, true
 		total += object.Bytes
 	}
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	guard, err := lockAssemblyEvidenceSources(ctx, objects)
-	if guard == nil {
-		if err == nil {
-			err = backend.ErrUnavailable
-		}
+	copyObjects := append([]backend.DocumentImageAssemblyEvidenceObject(nil), objects...)
+	guard, err := prepareAssemblyOriginalGuard(copyObjects)
+	if err != nil {
 		return nil, err
 	}
-	if err == nil && ctx.Err() != nil {
-		err = ctx.Err()
-	}
-	owner := &assemblyEvidenceOwner{guard: guard, objects: owned, generation: 1, ready: err == nil}
-	return &assemblyEvidenceToken{owner, 1}, err
+	owner := &assemblyEvidenceOwner{guard: guard, objects: owned, generation: 1}
+	return &DocumentImageAssemblyEvidenceAcquisition{state: &assemblyOriginalAcquisition{guard: guard, evidence: owner, objects: copyObjects}}, nil
 }
 
 func (token *assemblyEvidenceToken) current() bool {
