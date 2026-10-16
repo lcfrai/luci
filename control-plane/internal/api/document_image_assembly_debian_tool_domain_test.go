@@ -81,6 +81,41 @@ func newAssemblyToolDomainFixture(t *testing.T, mixed bool) assemblyToolDomainFi
 	return f
 }
 
+// Product fixtures are declared metadata, not SHA preimages or actual tools.
+// The separate owner gate still refuses all missing packaging/current-host/
+// copied-original prerequisites before native ownership or reservation.
+func newAssemblyToolProductDomainFixture(t *testing.T, mixed bool) assemblyToolDomainFixture {
+	f := newAssemblyToolDomainFixture(t, mixed)
+	f.expected.ProducerFamily = assemblyToolProductProducerFamily
+	f.replaceProfileRef("projection-source", 15522, assemblyDebianProjectionSHA)
+	f.replaceProfileRef("producer-config", 1, assemblyCatalogDigest([]byte("synthetic-product-config")))
+	for _, role := range []string{"gpg", "gpgv"} {
+		f.replaceProfileRef(role, 1, assemblyCatalogDigest([]byte("synthetic-product:"+role)))
+	}
+	return f
+}
+
+func (f *assemblyToolDomainFixture) replaceProfileRef(role string, size int64, digest string) {
+	ref := assemblyToolFileRef{role, size, digest}
+	for i := range f.profile.Files { if f.profile.Files[i].Role == role { f.profile.Files[i].Bytes, f.profile.Files[i].SHA256 = size, digest } }
+	for i := range f.value.Packages {
+		for j := range f.value.Packages[i].RuntimeFiles { if f.value.Packages[i].RuntimeFiles[j].Role == role { f.value.Packages[i].RuntimeFiles[j] = ref } }
+	}
+	for i := range f.value.PEObjects { if f.value.PEObjects[i].File.Role == role { f.value.PEObjects[i].File = ref } }
+	if role == "producer-source-receipt" { f.profile.SourceSHA256, f.value.ProducerSourceSHA256, f.expected.ProducerSourceSHA256 = digest, digest, digest }
+}
+
+func (f *assemblyToolDomainFixture) padProfileFiles(count int) {
+	for i := len(f.profile.Files); i < count; i++ {
+		path := "tools/cpython/padding/file-"+strconv.Itoa(i)+".dat"
+		role := "support:"+path
+		ref := assemblyToolFileRef{role, 1, assemblyCatalogDigest([]byte("synthetic-padding:"+role))}
+		f.profile.Files = append(f.profile.Files, runtimeinstall.DebianInputProofFile{Role: role, RelativePath: path, Bytes: ref.Bytes, SHA256: ref.SHA256})
+		f.value.Packages[0].RuntimeFiles = append(f.value.Packages[0].RuntimeFiles, ref)
+	}
+	sort.Slice(f.value.Packages[0].RuntimeFiles, func(i,j int) bool { return f.value.Packages[0].RuntimeFiles[i].Role < f.value.Packages[0].RuntimeFiles[j].Role })
+}
+
 func (f *assemblyToolDomainFixture) seal(t *testing.T) []byte {
 	t.Helper()
 	data, err := json.Marshal(f.value)
@@ -271,4 +306,78 @@ func TestAssemblyToolDomainTransitiveBasenameAliasCannotHideBehindSeparateImport
 	sort.Slice(f.value.PEObjects, func(i,j int) bool { return f.value.PEObjects[i].File.Role < f.value.PEObjects[j].File.Role })
 	data := f.seal(t)
 	if _, err := newAssemblyDebianToolDomainV1(data, f.profile, f.expected); err == nil { t.Fatal("one process graph accepted two private DLLs with the same basename") }
+}
+
+func TestAssemblyToolDomainOmittedFamilyKeepsLegacyCanonicalBytes(t *testing.T) {
+	f := newAssemblyToolDomainFixture(t, false)
+	data := f.seal(t)
+	if f.expected.ProducerFamily != "" { t.Fatal("legacy fixture must omit the private choice") }
+	implicit, err := newAssemblyDebianToolDomainV1(data, f.profile, f.expected)
+	if err != nil { t.Fatal(err) }
+	f.expected.ProducerFamily = assemblyToolLegacyProducerFamily
+	explicit, err := newAssemblyDebianToolDomainV1(data, f.profile, f.expected)
+	if err != nil { t.Fatal(err) }
+	if string(data) != string(implicit.canonicalCopy()) || string(data) != string(explicit.canonicalCopy()) || strings.Contains(string(data), "producerFamily") { t.Fatal("private omission changed historical JSON") }
+}
+
+func TestAssemblyToolDomainProductNeedsExactApplicationFamilyChoice(t *testing.T) {
+	for _, mixedABI := range []bool{false, true} {
+		f := newAssemblyToolProductDomainFixture(t, mixedABI)
+		data := f.seal(t)
+		domain, err := newAssemblyDebianToolDomainV1(data, f.profile, f.expected)
+		if err != nil { t.Fatal("closed declared product metadata refused", err) }
+		if domain.declaredHostPrerequisites().RequiresWOW64 != mixedABI || strings.Contains(string(domain.canonicalCopy()), "producerFamily") { t.Fatal("private choice changed declared ABI or wire") }
+		// This getter returns declarations only; it observes/satisfies no host.
+		f.expected.ProducerFamily = assemblyToolLegacyProducerFamily
+		if _, err := newAssemblyDebianToolDomainV1(data, f.profile, f.expected); err == nil { t.Fatal("product manifest inferred its own validator family") }
+	}
+}
+
+func TestAssemblyToolDomainMixedUnknownOrManifestFamilyCannotSelectValidator(t *testing.T) {
+	legacy := newAssemblyToolDomainFixture(t, false)
+	legacyData := legacy.seal(t)
+	legacy.expected.ProducerFamily = assemblyToolProductProducerFamily
+	if _, err := newAssemblyDebianToolDomainV1(legacyData, legacy.profile, legacy.expected); err == nil { t.Fatal("legacy config mixed into product selection") }
+	for _, family := range []assemblyToolProducerFamily{"legacy", "product", "luci-retained-debian-signature-input-evidence-v2", assemblyToolProducerFamily(string(assemblyToolProductProducerFamily)+"/legacy")} {
+		f := newAssemblyToolDomainFixture(t, false)
+		data := f.seal(t)
+		f.expected.ProducerFamily = family
+		if _, err := newAssemblyDebianToolDomainV1(data, f.profile, f.expected); err == nil { t.Fatal("unknown private family accepted", family) }
+	}
+	for _, family := range []string{"", string(assemblyToolProductProducerFamily)} {
+		f := newAssemblyToolDomainFixture(t, false)
+		data := f.seal(t)
+		// Re-pin only synthetic manifest bytes to reach the actual closed DTO.
+		data = append([]byte("{\"producerFamily\":\""+family+"\","), data[1:]...)
+		data = f.sealBytes(t, data)
+		if _, err := newAssemblyDebianToolDomainV1(data, f.profile, f.expected); err == nil { t.Fatal("manifest-supplied family was accepted") }
+	}
+}
+
+func TestAssemblyToolDomainProductRefusesDiagnosticConfigAndSourceAliases(t *testing.T) {
+	for _, role := range []string{"producer-config", "producer-source-receipt"} {
+		f := newAssemblyToolProductDomainFixture(t, false)
+		digest := assemblyDebianConfigSHA
+		if role == "producer-source-receipt" { digest = assemblyDebianSourceReceiptSHA }
+		f.replaceProfileRef(role, 1, digest)
+		data := f.seal(t) // Exact declared pins move together to isolate alias refusal.
+		if _, err := newAssemblyDebianToolDomainV1(data, f.profile, f.expected); err == nil { t.Fatal("diagnostic alias entered product family", role) }
+	}
+	// No new authentication claim is made from diagnostic tool hashes alone.
+	// All real package/source/grant/current-host proof remains outside this type.
+}
+
+func TestAssemblyToolDomainProductSourceObjectsReserveFortyFourSlots(t *testing.T) {
+	for _, fixture := range []struct { product bool; files int; accepted bool }{
+		{true, 211, true}, {true, 212, false}, {false, 212, true}, {false, 255, true},
+	} {
+		f := newAssemblyToolDomainFixture(t, false)
+		if fixture.product { f = newAssemblyToolProductDomainFixture(t, false) }
+		f.padProfileFiles(fixture.files)
+		data := f.seal(t)
+		_, err := newAssemblyDebianToolDomainV1(data, f.profile, f.expected)
+		if (err == nil) != fixture.accepted { t.Fatal("descriptor-inclusive family bound differed", fixture.product, fixture.files, err) }
+	}
+	// These are static metadata/source-object counts, not native handles or
+	// lifetime-read enforcement. The original owner must still prove those.
 }

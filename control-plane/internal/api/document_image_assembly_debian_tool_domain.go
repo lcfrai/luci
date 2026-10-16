@@ -15,6 +15,16 @@ import (
 const (
 	assemblyToolDomainLimit = 64 << 10
 	assemblyToolDomainRole = "support:manifests/windows-input-proof-tool-closure-v1.json"
+	// Descriptor included: product leaves44 slots for the existing owner's
+	// copied/output/request purposes. This is static accounting, not live proof.
+	assemblyToolProductProfileObjectLimit = 212
+)
+
+type assemblyToolProducerFamily string
+
+const (
+	assemblyToolLegacyProducerFamily assemblyToolProducerFamily = ""
+	assemblyToolProductProducerFamily assemblyToolProducerFamily = assemblyDebianProductProtocol
 )
 
 var errAssemblyToolDomain = errors.New("the build-selected declared tool domain is unavailable")
@@ -83,6 +93,9 @@ type assemblyToolDomainRecordV1 struct {
 // value. A future reviewed application build selects every pin below. HTTP,
 // package metadata and a manifest's own hash cannot supply this authority.
 type applicationPinnedToolDomainV1 struct {
+	// Private application choice only. Never decoded from the tool manifest or
+	// inferred from its refs/hash. Omission preserves the exact legacy arm.
+	ProducerFamily assemblyToolProducerFamily `json:"-"`
 	ProfileID string
 	ProfileSHA256 string
 	ProducerSourceSHA256 string
@@ -126,6 +139,7 @@ func assemblyToolArtifactValid(ref assemblyToolArtifactRef) bool {
 }
 
 func assemblyToolExpectedValid(v applicationPinnedToolDomainV1) bool {
+	if v.ProducerFamily != assemblyToolLegacyProducerFamily && v.ProducerFamily != assemblyToolProductProducerFamily { return false }
 	if !assemblyToolDomainID.MatchString(v.ProfileID) || !assemblyToolPinnedHex(v.ProfileSHA256) || !assemblyToolPinnedHex(v.ProducerSourceSHA256) || !assemblyToolPinnedHex(v.CatalogSourceSHA256) || !assemblyToolPinnedHex(v.SystemABISHA256) ||
 		v.Manifest.Role != assemblyToolDomainRole || v.Manifest.Bytes > assemblyToolDomainLimit {
 		return false
@@ -186,12 +200,23 @@ func newAssemblyDebianToolDomainV1(data []byte, selected runtimeinstall.BundledD
 	if len(data) == 0 || len(data) > assemblyToolDomainLimit || !assemblyToolExpectedValid(expected) || selected.ID != expected.ProfileID || selected.SHA256 != expected.ProfileSHA256 || selected.SourceSHA256 != expected.ProducerSourceSHA256 {
 		return nil, errAssemblyToolDomain
 	}
-	// These two existing reviewer-owned pure functions remain the sole structural
-	// descriptor validator. This source must join their producer.go implementation.
-	files, err := validateDebianProducerProfile(selected)
+	// Only the application's closed private choice selects a reviewer-owned
+	// structural validator. Neither choice grants current host/native authority.
+	var files map[string]runtimeinstall.DebianInputProofFile
+	var err error
+	profileObjectLimit := 256
+	switch expected.ProducerFamily {
+	case assemblyToolLegacyProducerFamily:
+		files, err = validateDebianProducerProfile(selected)
+	case assemblyToolProductProducerFamily:
+		profileObjectLimit = assemblyToolProductProfileObjectLimit
+		files, err = validateDebianProductProfile(selected)
+	default:
+		return nil, errAssemblyToolDomain
+	}
 	if err != nil { return nil, errAssemblyToolDomain }
 	profileBytes, err := canonicalDebianProducerProfile(selected)
-	if err != nil || len(profileBytes) > assemblyToolDomainLimit || len(selected.Files)+1 > 256 { return nil, errAssemblyToolDomain }
+	if err != nil || len(profileBytes) > assemblyToolDomainLimit || len(selected.Files)+1 > profileObjectLimit { return nil, errAssemblyToolDomain }
 	total := int64(len(profileBytes))
 	for _, f := range selected.Files {
 		if f.Bytes <= 0 || f.Bytes > 16<<20 || f.Bytes > (64<<20)-total { return nil, errAssemblyToolDomain }
