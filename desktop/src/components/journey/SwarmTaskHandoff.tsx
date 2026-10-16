@@ -45,7 +45,7 @@ function TaskHandoff({projectId, projectName, run, operation, taskTitle, canRead
   const readKey = JSON.stringify([authority.current.readEpoch, run.revision, refresh]);
   const current = canRead && read?.key === readKey ? read : null;
   const value = current?.value;
-  const integrationDiagnostic = swarmIntegrationDiagnostic(value?.integration);
+  const integrationDiagnostic = swarmIntegrationDiagnostic(value?.integration ?? undefined);
   const visibleDraft = canRead && draft?.owner === authority.current.readEpoch ? draft : null;
   const dirty = !!visibleDraft && visibleDraft.answer !== visibleDraft.original;
   const busy = !!pending && canRead;
