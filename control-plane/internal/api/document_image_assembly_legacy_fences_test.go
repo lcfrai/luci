@@ -87,7 +87,7 @@ func TestAssemblyLegacyMixedHistoryRefusesNewFenceIntentsAcrossPurposes(t *testi
 	document.Identity.InstanceID = httpCheckInstance
 	l.Documents = append(l.Documents, document)
 	p, _ := f.PrepareDocumentImageAssembly(context.Background(), req.Spec)
-	assembly := documentImageAssemblyLease{ID: p.Spec.Identity.AllocationID, Scope: g.scope, Actor: req.Actor, Identity: p.Spec.Identity, Resources: backend.DocumentImageAssemblyResources(), BaseImageID: p.Spec.BaseImageID, CreateDiskBytes: 1, CaptureDiskBytes: backend.DocumentImageAssemblyOutputMaxBytes, State: "creating", CreatedAt: req.CreatedAt, UpdatedAt: req.CreatedAt, ComputeDeadline: req.ComputeDeadline, WholeDeadline: req.WholeDeadline}
+	assembly := documentImageAssemblyLease{ID: p.Spec.Identity.AllocationID, Scope: g.scope, Actor: req.Actor, Identity: p.Spec.Identity, InputClosureRef: req.InputClosureRef, Resources: backend.DocumentImageAssemblyResources(), BaseImageID: p.Spec.BaseImageID, CreateDiskBytes: 1, CaptureDiskBytes: backend.DocumentImageAssemblyOutputMaxBytes, State: "creating", CreatedAt: req.CreatedAt, UpdatedAt: req.CreatedAt, ComputeDeadline: req.ComputeDeadline, WholeDeadline: req.WholeDeadline}
 	l.ImageAssemblies = append(l.ImageAssemblies, assembly)
 	if err := g.mutate(context.Background(), func(current *executionLeaseLedger) error { *current = l; return nil }); err != nil {
 		t.Fatal("valid legacy mixed baseline rejected", err)

@@ -32,10 +32,31 @@ func (a *API) executeDocumentImageAssembly(ctx context.Context, executor backend
 }
 
 func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAssemblyExecutor, req documentImageAssemblyRequest) (documentImageAssemblyHooks, error) {
+	if !validAssemblyInputClosureRef(req.InputClosureRef) || req.ValidateCurrent == nil {
+		return documentImageAssemblyHooks{}, backend.ErrUnsupported
+	}
+	return a.boundDocumentImageAssemblyHooks(executor, req, nil)
+}
+
+// Cleanup uses current installation authority and an exact retained lease, not
+// continued new-work eligibility of its historical evidence. The adapter cannot
+// prepare/admit/transition/open a capture or start another invocation. No public
+// mode switch, record resolver, allocation, or new native capability is added.
+func (a *API) documentImageAssemblyRecoveryHooks(executor backend.DocumentImageAssemblyExecutor, req documentImageAssemblyRequest, lease documentImageAssemblyLease) (documentImageAssemblyHooks, error) {
+	identity := lease.Identity
+	identity.EngineID, identity.InstanceID = "", ""
+	if !validDocumentImageAssemblyLease(lease) || lease.State == "finished" || lease.Actor != req.Actor || identity != req.Spec.Identity || lease.InputClosureRef != req.InputClosureRef {
+		return documentImageAssemblyHooks{}, backend.ErrLaunchFenceOwnership
+	}
+	return a.boundDocumentImageAssemblyHooks(executor, req, &lease)
+}
+
+func (a *API) boundDocumentImageAssemblyHooks(executor backend.DocumentImageAssemblyExecutor, req documentImageAssemblyRequest, recovery *documentImageAssemblyLease) (documentImageAssemblyHooks, error) {
 	var h documentImageAssemblyHooks
-	if a == nil || a.execution == nil || a.deps.Product == nil || executor == nil || req.ValidateCurrent == nil || !backend.ValidateDocumentImageAssemblySpec(req.Spec) || req.Spec.Identity.ScopeDigest != a.execution.scope || req.Spec.Identity.ProjectID != "" || req.Actor.ProjectID != "" || req.Actor.TeamID != "" || req.Spec.Identity.ActorDigest != backend.DocumentExtractionActorDigest(req.Actor.UserID, req.Actor.TeamID, req.Actor.ProjectID, req.Actor.Local) {
+	if a == nil || a.execution == nil || a.deps.Product == nil || executor == nil || !retainedAssemblyInputClosureRef(req.InputClosureRef) || recovery == nil && (!validAssemblyInputClosureRef(req.InputClosureRef) || req.ValidateCurrent == nil) || !backend.ValidateDocumentImageAssemblySpec(req.Spec) || req.Spec.Identity.ScopeDigest != a.execution.scope || req.Spec.Identity.ProjectID != "" || req.Actor.ProjectID != "" || req.Actor.TeamID != "" || req.Spec.Identity.ActorDigest != backend.DocumentExtractionActorDigest(req.Actor.UserID, req.Actor.TeamID, req.Actor.ProjectID, req.Actor.Local) {
 		return h, backend.ErrUnsupported
 	}
+	h.retireOnly = recovery != nil
 	g := a.execution
 	bound := func(identity backend.DocumentImageAssemblyIdentity) bool {
 		copy := identity
@@ -57,10 +78,28 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 		if _, err := a.authorizeRuntimeInstaller(ctx, actor); err != nil {
 			return err
 		}
+		if recovery != nil {
+			l, err := g.readReservationLedger(ctx)
+			if err != nil {
+				return err
+			}
+			i, err := assemblyLeaseIndex(&l, identity)
+			if err != nil {
+				return err
+			}
+			row := l.ImageAssemblies[i]
+			if row.Actor != actor || row.InputClosureRef != recovery.InputClosureRef || row.Ref != recovery.Ref || row.State == "finished" {
+				return backend.ErrLaunchFenceOwnership
+			}
+			return ctx.Err()
+		}
 		return req.ValidateCurrent(ctx)
 	}
 	h.Admit = func(ctx context.Context, p backend.PreparedDocumentImageAssembly, r documentImageAssemblyRequest) (documentImageAssemblyLease, error) {
-		if r.Spec != req.Spec || r.Actor != req.Actor || r.CreatedAt != req.CreatedAt || r.ComputeDeadline != req.ComputeDeadline || r.WholeDeadline != req.WholeDeadline {
+		if recovery != nil {
+			return documentImageAssemblyLease{}, backend.ErrUnsupported
+		}
+		if r.Spec != req.Spec || r.Actor != req.Actor || r.InputClosureRef != req.InputClosureRef || r.CreatedAt != req.CreatedAt || r.ComputeDeadline != req.ComputeDeadline || r.WholeDeadline != req.WholeDeadline {
 			return documentImageAssemblyLease{}, backend.ErrLaunchFenceOwnership
 		}
 		authority, err := a.authorizeRuntimeInstaller(ctx, req.Actor)
@@ -87,7 +126,7 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 			i, err = assemblyLeaseIndex(&l, identity)
 			// The lifecycle lock also serves explicit retire/fence-only recovery.
 			// Execute's Admit independently refuses every allocated replay.
-			if err == nil && (l.ImageAssemblies[i].Actor != req.Actor || l.ImageAssemblies[i].State == "finished") {
+			if err == nil && (l.ImageAssemblies[i].Actor != req.Actor || l.ImageAssemblies[i].InputClosureRef != req.InputClosureRef || l.ImageAssemblies[i].State == "finished") {
 				err = backend.ErrLaunchFenceOwnership
 			}
 		}
@@ -98,6 +137,9 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 		return release, nil
 	}
 	h.Transition = func(ctx context.Context, identity backend.DocumentImageAssemblyIdentity, from, to, ref string) error {
+		if recovery != nil {
+			return backend.ErrUnsupported
+		}
 		if !bound(identity) {
 			return backend.ErrLaunchFenceOwnership
 		}
@@ -108,7 +150,7 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 			}
 			row := &l.ImageAssemblies[i]
 			allowed := from == "reserved" && to == "creating" || from == "creating" && to == "created" || from == "created" && to == "starting" || from == "starting" && to == "running"
-			if !allowed || row.Actor != req.Actor || row.State != from || row.Ref != "" && row.Ref != ref {
+			if !allowed || row.Actor != req.Actor || row.InputClosureRef != req.InputClosureRef || !validAssemblyInputClosureRef(row.InputClosureRef) || row.State != from || row.Ref != "" && row.Ref != ref {
 				return backend.ErrLaunchFenceOwnership
 			}
 			row.State, row.Ref, row.UpdatedAt = to, ref, time.Now().UTC()
@@ -119,6 +161,9 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 		})
 	}
 	h.Headroom = func(ctx context.Context, engine string, minimum uint64) error {
+		if recovery != nil {
+			return backend.ErrUnsupported
+		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -149,12 +194,23 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 		return g.addAssemblyAdmissionCapacity(ctx, a.deps.ResourceSnapshot(), l.ImageAssemblies, g.scope, req.Spec.Identity.AllocationID, &demand, policy.DiskReserveMiB)
 	}
 	h.CaptureSink = func(ctx context.Context, identity backend.DocumentImageAssemblyIdentity) (io.WriteCloser, error) {
+		if recovery != nil {
+			return nil, backend.ErrUnsupported
+		}
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		s, err := store(identity)
 		if err != nil {
 			return nil, err
+		}
+		l, err := g.readReservationLedger(ctx)
+		if err != nil {
+			return nil, err
+		}
+		i, err := assemblyLeaseIndex(&l, identity)
+		if err != nil || l.ImageAssemblies[i].Actor != req.Actor || l.ImageAssemblies[i].InputClosureRef != req.InputClosureRef || l.ImageAssemblies[i].State != "reserved" {
+			return nil, backend.ErrLaunchFenceOwnership
 		}
 		return s.open()
 	}
@@ -168,7 +224,7 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 				return err
 			}
 			row := &l.ImageAssemblies[i]
-			if row.Actor != req.Actor || row.State == "finished" || row.State == "reserved" || row.Ref != "" && row.Ref != fence.ExpectedRef {
+			if row.Actor != req.Actor || row.InputClosureRef != req.InputClosureRef || row.State == "finished" || row.State == "reserved" || row.Ref != "" && row.Ref != fence.ExpectedRef {
 				return backend.ErrLaunchFenceOwnership
 			}
 			for _, old := range l.ImageAssemblyFences {
@@ -196,6 +252,10 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 			return err
 		}
 		return g.mutate(ctx, func(l *executionLeaseLedger) error {
+			i, err := assemblyLeaseIndex(l, fence.Identity)
+			if err != nil || l.ImageAssemblies[i].Actor != req.Actor || l.ImageAssemblies[i].InputClosureRef != req.InputClosureRef {
+				return backend.ErrLaunchFenceOwnership
+			}
 			for i := range l.ImageAssemblyFences {
 				row := &l.ImageAssemblyFences[i]
 				if row.Scope != g.scope || row.Identity != fence.Identity {
@@ -211,6 +271,9 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 		})
 	}
 	h.Publish = func(ctx context.Context, out documentImageAssemblyOutcome) error {
+		if recovery != nil && (out.Stage != "recovery" || out.Capture != (backend.DocumentImageAssemblyCapture{})) {
+			return backend.ErrLaunchFenceOwnership
+		}
 		s, err := store(out.Identity)
 		if err != nil {
 			return err
@@ -233,7 +296,7 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 		} else if out.RetainedCapture != (backend.DocumentImageAssemblyCapture{}) {
 			return backend.ErrLaunchFenceOwnership
 		}
-		if prior.Actor != req.Actor || prior.State == "finished" || prior.Ref != "" && prior.Ref != out.Ref || prior.Capture != (backend.DocumentImageAssemblyCapture{}) && prior.Capture != retained || out.Ref != "" && prior.State == "reserved" {
+		if prior.Actor != req.Actor || prior.InputClosureRef != req.InputClosureRef || out.InputClosureRef != prior.InputClosureRef || prior.State == "finished" || prior.Ref != "" && prior.Ref != out.Ref || prior.Capture != (backend.DocumentImageAssemblyCapture{}) && prior.Capture != retained || out.Ref != "" && prior.State == "reserved" {
 			return backend.ErrLaunchFenceOwnership
 		}
 		exitVerified := false
@@ -283,7 +346,10 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 		})
 	}
 	h.Finish = func(ctx context.Context, identity backend.DocumentImageAssemblyIdentity, out documentImageAssemblyOutcome) error {
-		if !bound(identity) || out.Identity != identity || out.ResourcesHeld || !out.CleanupConfirmed || !out.ReaderSettled || !out.WatchdogSettled {
+		if recovery != nil && (out.Stage != "recovery" || out.State != "interrupted_capture_unavailable_owned_resources_retired" || out.Capture != (backend.DocumentImageAssemblyCapture{})) {
+			return backend.ErrLaunchFenceOwnership
+		}
+		if !bound(identity) || out.Identity != identity || out.InputClosureRef != req.InputClosureRef || out.ResourcesHeld || !out.CleanupConfirmed || !out.ReaderSettled || !out.WatchdogSettled {
 			return backend.ErrLaunchFenceOwnership
 		}
 		if out.State != "failed_owned_resources_retired" && out.State != "assembled_owned_resources_retired_not_registered" && out.State != "interrupted_capture_unavailable_owned_resources_retired" {
@@ -297,7 +363,7 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 		if err != nil || assemblyOutcomeDigest(receipt.Outcome) != assemblyOutcomeDigest(out) {
 			return backend.ErrLaunchFenceOwnership
 		}
-		if out.State == "assembled_owned_resources_retired_not_registered" && (out.Capture == (backend.DocumentImageAssemblyCapture{}) || !receipt.CaptureExitVerified) {
+		if out.State == "assembled_owned_resources_retired_not_registered" && (!validAssemblyInputClosureRef(out.InputClosureRef) || recovery != nil || out.Capture == (backend.DocumentImageAssemblyCapture{}) || !receipt.CaptureExitVerified) {
 			return backend.ErrLaunchFenceOwnership
 		}
 		if out.Capture != (backend.DocumentImageAssemblyCapture{}) {
@@ -323,7 +389,7 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 		} else if out.RetainedCapture != (backend.DocumentImageAssemblyCapture{}) {
 			return backend.ErrLaunchFenceOwnership
 		}
-		if before.Actor != req.Actor || before.Ref != out.Ref || before.State == "finished" || before.Capture != retained {
+		if before.Actor != req.Actor || before.InputClosureRef != out.InputClosureRef || before.Ref != out.Ref || before.State == "finished" || before.Capture != retained {
 			return backend.ErrLaunchFenceOwnership
 		}
 		fenceIndex := -1

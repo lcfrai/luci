@@ -197,10 +197,17 @@ func (s *assemblyPrivateCapture) verify(ctx context.Context, capture backend.Doc
 }
 
 func (s *assemblyPrivateCapture) publish(ctx context.Context, out documentImageAssemblyOutcome, exitVerified, retainedExitVerified bool) error {
-	if out.Identity != s.identity {
+	if out.Identity != s.identity || !retainedAssemblyInputClosureRef(out.InputClosureRef) {
 		return backend.ErrLaunchFenceOwnership
 	}
 	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if prior, err := s.read(); err == nil {
+		if prior.Outcome.InputClosureRef != out.InputClosureRef {
+			return backend.ErrLaunchFenceOwnership
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	if out.Capture != (backend.DocumentImageAssemblyCapture{}) {
@@ -251,7 +258,7 @@ func (s *assemblyPrivateCapture) read() (assemblyPrivateReceipt, error) {
 	if err = decoder.Decode(&out); err != nil {
 		return out, err
 	}
-	if decoder.Decode(new(any)) != io.EOF || out.Outcome.Identity != s.identity {
+	if decoder.Decode(new(any)) != io.EOF || out.Outcome.Identity != s.identity || !retainedAssemblyInputClosureRef(out.Outcome.InputClosureRef) {
 		return out, backend.ErrLaunchFenceOwnership
 	}
 	return out, nil

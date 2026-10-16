@@ -127,14 +127,16 @@ func assemblyRuntimeFixture(t *testing.T) (documentImageAssemblyRequest, documen
 	actor := management.ExecutionActorRef{Local: true}
 	spec := backend.DocumentImageAssemblySpec{BaseImageID: backend.DocumentImageAssemblyBaseID, InputPath: t.TempDir(), InputBytes: 1, HelperPath: filepath.Join(t.TempDir(), "helper"), HelperBytes: 1, Identity: backend.DocumentImageAssemblyIdentity{Protocol: 1, Profile: backend.DocumentImageAssemblyProfile, AllocationID: "assembly-fixture", ScopeDigest: strings.Repeat("c", 64), ActorDigest: backend.DocumentExtractionActorDigest("", "", "", true), SourceCommit: strings.Repeat("d", 40), SourceDigest: strings.Repeat("e", 64), InputDigest: strings.Repeat("f", 64), HelperDigest: strings.Repeat("a", 64), RecipeDigest: backend.DocumentImageAssemblyRecipeDigest()}}
 	spec.Identity.CommandDigest = backend.DocumentImageAssemblyCommandDigest(spec)
-	req := documentImageAssemblyRequest{Spec: spec, Actor: actor, CreatedAt: now, ComputeDeadline: now.Add(backend.DocumentImageAssemblyComputeBudget), WholeDeadline: now.Add(backend.DocumentImageAssemblyWholeBudget), ValidateCurrent: func(context.Context) error { return nil }}
+	// Synthetic handle only: this fake does not attest real evidence or enable a
+	// production resolver. All native effects are represented by the fake below.
+	req := documentImageAssemblyRequest{Spec: spec, Actor: actor, InputClosureRef: assemblyInputClosureRef{Schema: 1, Digest: strings.Repeat("7", 64)}, CreatedAt: now, ComputeDeadline: now.Add(backend.DocumentImageAssemblyComputeBudget), WholeDeadline: now.Add(backend.DocumentImageAssemblyWholeBudget), ValidateCurrent: func(context.Context) error { return nil }}
 	finished := new(int)
 	h := documentImageAssemblyHooks{
 		Authorize: func(context.Context, management.ExecutionActorRef, backend.DocumentImageAssemblyIdentity) error {
 			return nil
 		},
 		Admit: func(_ context.Context, p backend.PreparedDocumentImageAssembly, r documentImageAssemblyRequest) (documentImageAssemblyLease, error) {
-			return documentImageAssemblyLease{ID: p.Spec.Identity.AllocationID, Scope: p.Spec.Identity.ScopeDigest, Actor: r.Actor, Identity: p.Spec.Identity, Resources: backend.DocumentImageAssemblyResources(), BaseImageID: backend.DocumentImageAssemblyBaseID, CreateDiskBytes: 1, CaptureDiskBytes: backend.DocumentImageAssemblyOutputMaxBytes, HostLaunchBytes: 2 << 30, State: "reserved", CreatedAt: r.CreatedAt, UpdatedAt: r.CreatedAt, ComputeDeadline: r.ComputeDeadline, WholeDeadline: r.WholeDeadline}, nil
+			return documentImageAssemblyLease{ID: p.Spec.Identity.AllocationID, Scope: p.Spec.Identity.ScopeDigest, Actor: r.Actor, Identity: p.Spec.Identity, InputClosureRef: r.InputClosureRef, Resources: backend.DocumentImageAssemblyResources(), BaseImageID: backend.DocumentImageAssemblyBaseID, CreateDiskBytes: 1, CaptureDiskBytes: backend.DocumentImageAssemblyOutputMaxBytes, HostLaunchBytes: 2 << 30, State: "reserved", CreatedAt: r.CreatedAt, UpdatedAt: r.CreatedAt, ComputeDeadline: r.ComputeDeadline, WholeDeadline: r.WholeDeadline}, nil
 		},
 		Lock:       func(context.Context, backend.DocumentImageAssemblyIdentity) (func(), error) { return func() {}, nil },
 		Transition: func(context.Context, backend.DocumentImageAssemblyIdentity, string, string, string) error { return nil },

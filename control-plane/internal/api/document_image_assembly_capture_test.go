@@ -96,7 +96,7 @@ func TestAssemblyPrivatePublicationFailureCannotReleaseUnallocatedClaim(t *testi
 	if err = os.Mkdir(store.receipt, 0700); err != nil {
 		t.Fatal(err)
 	}
-	out := documentImageAssemblyOutcome{Identity: lease.Identity, State: "failed_owned_resources_retired", Stage: "reserved", ReaderSettled: true, WatchdogSettled: true, CleanupConfirmed: true, ResourcesHeld: true}
+	out := documentImageAssemblyOutcome{Identity: lease.Identity, InputClosureRef: lease.InputClosureRef, State: "failed_owned_resources_retired", Stage: "reserved", ReaderSettled: true, WatchdogSettled: true, CleanupConfirmed: true, ResourcesHeld: true}
 	if err = h.Publish(context.Background(), out); err == nil {
 		t.Fatal("failed private publication acknowledged")
 	}
@@ -158,7 +158,7 @@ func TestAssemblySharedFenceRequiresActualACKAndExactDurableIntent(t *testing.T)
 	if err = h.RecordFence(context.Background(), fence, proof); err != nil {
 		t.Fatal(err)
 	}
-	out := documentImageAssemblyOutcome{Identity: lease.Identity, Stage: "recovery", State: "interrupted_capture_unavailable_owned_resources_retired", ResourcesHeld: true, CleanupConfirmed: true, ReaderSettled: true, WatchdogSettled: true}
+	out := documentImageAssemblyOutcome{Identity: lease.Identity, InputClosureRef: lease.InputClosureRef, Stage: "recovery", State: "interrupted_capture_unavailable_owned_resources_retired", ResourcesHeld: true, CleanupConfirmed: true, ReaderSettled: true, WatchdogSettled: true}
 	if err = h.Publish(context.Background(), out); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestAssemblyPrivateHookRecoveryPreservesPublishedCaptureAsUnavailableEviden
 			f.observation = "exited"
 			capture := backend.DocumentImageAssemblyCapture{Digest: fixtureFenceHash("one"), Bytes: 3}
 			zero := 0
-			published := documentImageAssemblyOutcome{Identity: lease.Identity, Ref: ref, Stage: "running", State: "captured_exit_zero_not_registered", Capture: capture, ExitCode: &zero, ReaderSettled: true, WatchdogSettled: true, ResourcesHeld: true}
+			published := documentImageAssemblyOutcome{Identity: lease.Identity, InputClosureRef: lease.InputClosureRef, Ref: ref, Stage: "running", State: "captured_exit_zero_not_registered", Capture: capture, ExitCode: &zero, ReaderSettled: true, WatchdogSettled: true, ResourcesHeld: true}
 			if err = h.Publish(context.Background(), published); err != nil {
 				release()
 				t.Fatal(err)
@@ -241,13 +241,14 @@ func TestAssemblyPrivateHookRecoveryPreservesPublishedCaptureAsUnavailableEviden
 			}
 			retained := ledger.ImageAssemblies[0]
 			verified := &assemblySharedFenceExecutor{assemblyRuntimeExecutor: f}
-			h, err = g.api.documentImageAssemblySharedHooks(verified, req)
+			req.ValidateCurrent = func(context.Context) error { return errors.New("past input evidence unavailable") }
+			h, err = g.api.documentImageAssemblyRecoveryHooks(verified, req, retained)
 			if err != nil {
 				t.Fatal(err)
 			}
 			fence := backend.DocumentImageAssemblyFenceRequest{Identity: lease.Identity, ExpectedRef: ref, IntentID: strings.Repeat("a", 32)}
 			out, err := recoverDocumentImageAssembly(context.Background(), verified, h, retained, fence, nil)
-			if err != nil || out.ResourcesHeld || !out.CleanupConfirmed || out.Capture != (backend.DocumentImageAssemblyCapture{}) || out.RetainedCapture != capture || out.ExitCode != nil || out.State != "interrupted_capture_unavailable_owned_resources_retired" {
+			if err != nil || out.ResourcesHeld || !out.CleanupConfirmed || out.InputClosureRef != retained.InputClosureRef || out.Capture != (backend.DocumentImageAssemblyCapture{}) || out.RetainedCapture != capture || out.ExitCode != nil || out.State != "interrupted_capture_unavailable_owned_resources_retired" {
 				t.Fatal("published capture deadlocked cleanup or became current usable output", out, err)
 			}
 			ledger, err = g.readReservationLedger(context.Background())
@@ -255,7 +256,7 @@ func TestAssemblyPrivateHookRecoveryPreservesPublishedCaptureAsUnavailableEviden
 				t.Fatal("retained capture lineage lost or recovery started work", ledger, err)
 			}
 			receipt, err := store.read()
-			if err != nil || receipt.CaptureExitVerified || receipt.Outcome.RetainedCapture != capture || receipt.RetainedCaptureExitVerified != (scenario != "receipt_missing") {
+			if err != nil || receipt.Outcome.InputClosureRef != retained.InputClosureRef || receipt.CaptureExitVerified || receipt.Outcome.RetainedCapture != capture || receipt.RetainedCaptureExitVerified != (scenario != "receipt_missing") {
 				t.Fatal("historical verified/unknown capture evidence fabricated or erased", receipt, err)
 			}
 		})
