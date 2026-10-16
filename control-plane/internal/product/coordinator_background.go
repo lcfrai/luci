@@ -298,7 +298,7 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 					if policyErr != nil {
 						return policyErr
 					}
-					if policy.PreviewMode != "checked-source" {
+					if !coordinatorPreviewPolicyMatches(policy.PreviewMode, row.PreviewPlan) {
 						continue
 					}
 				}
