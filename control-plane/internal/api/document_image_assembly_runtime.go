@@ -417,7 +417,7 @@ func runDocumentImageAssembly(ctx context.Context, executor backend.DocumentImag
 // Recovery is retire/fence-only. There is no attachment, start, import or retry.
 // A lost process cannot recreate capture; callers must expose it unavailable.
 func recoverDocumentImageAssembly(ctx context.Context, executor backend.DocumentImageAssemblyExecutor, h documentImageAssemblyHooks, lease documentImageAssemblyLease, req backend.DocumentImageAssemblyFenceRequest, proof *backend.DocumentImageAssemblyFenceProof) (documentImageAssemblyOutcome, error) {
-	out := documentImageAssemblyOutcome{Identity: lease.Identity, Ref: lease.Ref, Stage: "recovery", State: "capture_unavailable_resources_held", ResourcesHeld: true, ReaderSettled: true, WatchdogSettled: true}
+	out := documentImageAssemblyOutcome{Identity: lease.Identity, Ref: lease.Ref, Stage: "recovery", State: "capture_unavailable_resources_held", ResourcesHeld: true, ReaderSettled: true, WatchdogSettled: true, RetainedCapture: lease.Capture}
 	if executor == nil || !completeAssemblyHooks(h) || !validDocumentImageAssemblyLease(lease) || lease.State == "finished" || req.Identity != lease.Identity || req.ExpectedRef != lease.Ref || !checkHex(req.IntentID, 16) {
 		return out, backend.ErrUnsupported
 	}

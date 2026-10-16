@@ -42,6 +42,8 @@ type assemblyPrivateCapture struct {
 type assemblyPrivateReceipt struct {
 	Outcome             documentImageAssemblyOutcome `json:"outcome"`
 	CaptureExitVerified bool                         `json:"captureExitVerified"`
+	// A past verified exit can survive unavailable current artifact bytes.
+	RetainedCaptureExitVerified bool `json:"retainedCaptureExitVerified"`
 }
 
 func (g *executionAdmission) assemblyPrivateCapture(identity backend.DocumentImageAssemblyIdentity) (*assemblyPrivateCapture, error) {
@@ -194,7 +196,7 @@ func (s *assemblyPrivateCapture) verify(ctx context.Context, capture backend.Doc
 	return ctx.Err()
 }
 
-func (s *assemblyPrivateCapture) publish(ctx context.Context, out documentImageAssemblyOutcome, exitVerified bool) error {
+func (s *assemblyPrivateCapture) publish(ctx context.Context, out documentImageAssemblyOutcome, exitVerified, retainedExitVerified bool) error {
 	if out.Identity != s.identity {
 		return backend.ErrLaunchFenceOwnership
 	}
@@ -212,7 +214,12 @@ func (s *assemblyPrivateCapture) publish(ctx context.Context, out documentImageA
 	if out.Capture != (backend.DocumentImageAssemblyCapture{}) && !exitVerified {
 		return backend.ErrLaunchFenceOwnership
 	}
-	data, err := json.Marshal(assemblyPrivateReceipt{Outcome: out, CaptureExitVerified: exitVerified})
+	if out.RetainedCapture != (backend.DocumentImageAssemblyCapture{}) {
+		if out.Stage != "recovery" || out.Capture != (backend.DocumentImageAssemblyCapture{}) || !checkHex(out.RetainedCapture.Digest, 32) || out.RetainedCapture.Bytes < 1 || out.RetainedCapture.Bytes > backend.DocumentImageAssemblyOutputMaxBytes {
+			return backend.ErrLaunchFenceOwnership
+		}
+	}
+	data, err := json.Marshal(assemblyPrivateReceipt{Outcome: out, CaptureExitVerified: exitVerified, RetainedCaptureExitVerified: retainedExitVerified})
 	if err != nil {
 		return err
 	}

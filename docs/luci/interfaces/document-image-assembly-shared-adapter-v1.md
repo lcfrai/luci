@@ -112,3 +112,14 @@ exact fence ACK/replay/current proof, and both shared Docker recognizers. These
 sources have not been executed. Also run the prior LOCAL100 standalone module,
 LOCAL103 watchdog and affected worker/check/preview/image/document accounting and
 fence/recovery regression suites in the root-reviewed coherent cloud batch.
+
+LOCAL108 recovery preserves the shared lease's previously published capture as
+`RetainedCapture` (digest/size history), while `Capture` stays empty and state
+explicitly says capture unavailable. The private receipt retains whether the
+past capture had a verified exit; a missing receipt makes that fact unknown,
+without inventing available/current bytes. Explicit recovery can settle exact
+resources through a fresh real-ACK fence even when artifact bytes are missing.
+It never reattaches, accepts the old capture as a new assembly result, or erases
+the historical lease capture. Dedicated private-hook regressions model process
+loss after successful capture publication with present/missing artifact or
+receipt; these sources remain unexecuted.

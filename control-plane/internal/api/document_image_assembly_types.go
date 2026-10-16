@@ -51,20 +51,23 @@ type documentImageAssemblyRequest struct {
 	ValidateCurrent func(context.Context) error
 }
 type documentImageAssemblyOutcome struct {
-	Identity                    backend.DocumentImageAssemblyIdentity `json:"identity"`
-	Ref                         string                                `json:"ref,omitempty"`
-	Stage                       string                                `json:"stage"`
-	State                       string                                `json:"state"`
-	Capture                     backend.DocumentImageAssemblyCapture  `json:"capture,omitzero"`
-	ExitCode                    *int                                  `json:"exitCode,omitempty"`
-	OOMKilled                   bool                                  `json:"oomKilled"`
-	ReaderSettled               bool                                  `json:"readerSettled"`
-	CleanupConfirmed            bool                                  `json:"cleanupConfirmed"`
-	ResourcesHeld               bool                                  `json:"resourcesHeld"`
-	WatchdogSettled             bool                                  `json:"watchdogSettled"`
-	WatchdogTriggered           bool                                  `json:"watchdogTriggered"`
-	WatchdogRetirementConfirmed bool                                  `json:"watchdogRetirementConfirmed"`
-	ReasonCode                  string                                `json:"reasonCode,omitempty"`
+	Identity backend.DocumentImageAssemblyIdentity `json:"identity"`
+	Ref      string                                `json:"ref,omitempty"`
+	Stage    string                                `json:"stage"`
+	State    string                                `json:"state"`
+	Capture  backend.DocumentImageAssemblyCapture  `json:"capture,omitzero"`
+	// Historical digest/size only: process-loss recovery cannot reattach or
+	// certify current bytes usable. Never interpreted as a new assembly result.
+	RetainedCapture             backend.DocumentImageAssemblyCapture `json:"retainedCapture,omitzero"`
+	ExitCode                    *int                                 `json:"exitCode,omitempty"`
+	OOMKilled                   bool                                 `json:"oomKilled"`
+	ReaderSettled               bool                                 `json:"readerSettled"`
+	CleanupConfirmed            bool                                 `json:"cleanupConfirmed"`
+	ResourcesHeld               bool                                 `json:"resourcesHeld"`
+	WatchdogSettled             bool                                 `json:"watchdogSettled"`
+	WatchdogTriggered           bool                                 `json:"watchdogTriggered"`
+	WatchdogRetirementConfirmed bool                                 `json:"watchdogRetirementConfirmed"`
+	ReasonCode                  string                               `json:"reasonCode,omitempty"`
 }
 
 // Cloud's allocated shared implementation must adapt the existing ledger lock,

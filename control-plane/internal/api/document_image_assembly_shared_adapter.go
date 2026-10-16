@@ -224,10 +224,26 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 			return err
 		}
 		prior := before.ImageAssemblies[index]
-		if prior.Actor != req.Actor || prior.State == "finished" || prior.Ref != "" && prior.Ref != out.Ref || prior.Capture != (backend.DocumentImageAssemblyCapture{}) && prior.Capture != out.Capture || out.Ref != "" && prior.State == "reserved" {
+		retained := out.Capture
+		if out.Stage == "recovery" {
+			if out.Capture != (backend.DocumentImageAssemblyCapture{}) || out.RetainedCapture != prior.Capture {
+				return backend.ErrLaunchFenceOwnership
+			}
+			retained = out.RetainedCapture
+		} else if out.RetainedCapture != (backend.DocumentImageAssemblyCapture{}) {
+			return backend.ErrLaunchFenceOwnership
+		}
+		if prior.Actor != req.Actor || prior.State == "finished" || prior.Ref != "" && prior.Ref != out.Ref || prior.Capture != (backend.DocumentImageAssemblyCapture{}) && prior.Capture != retained || out.Ref != "" && prior.State == "reserved" {
 			return backend.ErrLaunchFenceOwnership
 		}
 		exitVerified := false
+		retainedExitVerified := false
+		if out.Stage == "recovery" && retained != (backend.DocumentImageAssemblyCapture{}) {
+			previous, e := s.read()
+			if e == nil && previous.Outcome.Identity == out.Identity && previous.Outcome.Ref == out.Ref {
+				retainedExitVerified = previous.CaptureExitVerified && previous.Outcome.Capture == retained || previous.RetainedCaptureExitVerified && previous.Outcome.RetainedCapture == retained
+			}
+		}
 		if out.Capture != (backend.DocumentImageAssemblyCapture{}) {
 			previous, e := s.read()
 			if e == nil && previous.CaptureExitVerified && previous.Outcome.Identity == out.Identity && previous.Outcome.Ref == out.Ref && previous.Outcome.Capture == out.Capture {
@@ -241,7 +257,7 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 				exitVerified = true
 			}
 		}
-		if err = s.publish(ctx, out, exitVerified); err != nil {
+		if err = s.publish(ctx, out, exitVerified, retainedExitVerified); err != nil {
 			return err
 		}
 		return g.mutate(ctx, func(l *executionLeaseLedger) error {
@@ -262,7 +278,7 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 					row.State = "cleaning"
 				}
 			}
-			row.Capture, row.UpdatedAt = out.Capture, time.Now().UTC()
+			row.Capture, row.UpdatedAt = retained, time.Now().UTC()
 			return nil
 		})
 	}
@@ -298,7 +314,16 @@ func (a *API) documentImageAssemblySharedHooks(executor backend.DocumentImageAss
 			return err
 		}
 		before := l.ImageAssemblies[i]
-		if before.Actor != req.Actor || before.Ref != out.Ref || before.State == "finished" || before.Capture != out.Capture {
+		retained := out.Capture
+		if out.Stage == "recovery" {
+			if out.Capture != (backend.DocumentImageAssemblyCapture{}) {
+				return backend.ErrLaunchFenceOwnership
+			}
+			retained = out.RetainedCapture
+		} else if out.RetainedCapture != (backend.DocumentImageAssemblyCapture{}) {
+			return backend.ErrLaunchFenceOwnership
+		}
+		if before.Actor != req.Actor || before.Ref != out.Ref || before.State == "finished" || before.Capture != retained {
 			return backend.ErrLaunchFenceOwnership
 		}
 		fenceIndex := -1
