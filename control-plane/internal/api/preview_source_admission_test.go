@@ -30,6 +30,13 @@ func TestSourceFirstAdmissionRefusalAfterPrepareDoesNotRetainPhantomAllocation(t
 		t.Run(drift, func(t *testing.T) {
 			a, f, req := previewRuntimeFixture(t)
 			req.Kind = previewruntime.ReviewedSourceKind
+			ledgerPath := a.execution.path
+			lockPath := filepath.Join(filepath.Dir(ledgerPath), "leases.lock")
+			for _, path := range []string{ledgerPath, lockPath} {
+				if _, err := os.Lstat(path); !os.IsNotExist(err) {
+					t.Fatalf("fresh fixture reservation path %q is not absent: %v", path, err)
+				}
+			}
 			var sourceOK, authorityOK atomic.Bool
 			sourceOK.Store(true)
 			authorityOK.Store(true)
@@ -52,7 +59,19 @@ func TestSourceFirstAdmissionRefusalAfterPrepareDoesNotRetainPhantomAllocation(t
 			if err == nil || out.Phase != "blocked" || out.ReasonCode != "preview_admission_refused" || out.Retained() || out.ResourcesHeld || published.Retained() || published.ResourcesHeld || f.creates+f.starts+f.builds != 0 {
 				t.Fatal("proven pre-reservation refusal retained a phantom allocation", out, err)
 			}
-			previewRetained(t, a, 0)
+			if a.execution.path != ledgerPath {
+				t.Fatal("pre-reservation refusal changed the exact reservation store")
+			}
+			for _, path := range []string{ledgerPath, lockPath} {
+				if _, err := os.Lstat(path); !os.IsNotExist(err) {
+					t.Fatalf("pre-reservation refusal created reservation state %q: %v", path, err)
+				}
+			}
+			// A never-created store is unavailable, not an observed zero total.
+			observed := a.execution.reservationObservation(context.Background())
+			if observed.Status != "unavailable" || observed.executionReservationView != nil {
+				t.Fatalf("absent reservation store became a numeric observation: %+v", observed)
+			}
 		})
 	}
 }
