@@ -492,7 +492,10 @@ func boundedAssemblyCatalogHistory(ctx context.Context, root string, additional 
 				}
 				path := filepath.Join(dir, entry.Name())
 				if entry.IsDir() {
-					if depth != 0 || !assemblyCatalogKind(entry.Name()) {
+					// Raw evidence is a storage-only namespace, never a selectable
+					// catalog domain. The file branch below enforces .raw and its
+					// existing bounded size/count/private-path constraints.
+					if depth != 0 || !assemblyCatalogKind(entry.Name()) && entry.Name() != "producer-raw" {
 						return errAssemblyCatalogInvalid
 					}
 					if err = scan(path, depth+1); err != nil {

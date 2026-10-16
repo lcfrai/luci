@@ -144,3 +144,17 @@ func TestAssemblyDebianDistinctOwnedCandidatesHaveOneCatalogCASWinner(t *testing
 	if passed!=1||conflicts!=1{t.Fatal("two owned candidates bypassed catalog CAS",passed,conflicts)}
 	for _,c:=range candidates{if err:=c.retire();err!=nil{t.Fatal(err)}}
 }
+
+func TestAssemblyDebianRawStorageRetainedButNotSelectableDomain(t *testing.T){
+	r,_:=assemblyDebianOwnedFixture(t)
+	data:=[]byte{}
+	ref:=assemblyCatalogRef{1,"producer-raw",assemblyCatalogDigest(data),0}
+	if err:=r.owner.writeImmutableAssemblyObject(context.Background(),ref,data,true);err!=nil{t.Fatal("first raw storage refused",err)}
+	root,err:=r.owner.root();if err!=nil{t.Fatal(err)}
+	retained,err:=codexRead(filepath.Dir(root),filepath.Join(root,"records","producer-raw",ref.Digest+".raw"),0)
+	if err!=nil||len(retained)!=0{t.Fatal("exact empty raw object not retained/readable",err)}
+	if assemblyCatalogKind("producer-raw")||validAssemblyCatalogRef(ref){t.Fatal("raw storage became selectable domain")}
+	if err:=r.owner.writeImmutableMetadata(context.Background(),ref,data);err==nil{t.Fatal("metadata writer accepted raw storage domain")}
+	if _,err:=r.owner.publishMetadata(context.Background(),r.actor,r.expected,r.source,r.policy,assemblyCatalogIndex{1,[]assemblyCatalogRef{ref}});err==nil{t.Fatal("head selected raw storage instead of typed domain")}
+	current,err:=r.owner.Current(context.Background(),r.actor);if err!=nil||current.CAS!=r.expected{t.Fatal("raw storage changed selected head",current,err)}
+}
