@@ -25,12 +25,20 @@ func newAssemblyToolDomainFixture(t *testing.T, mixed bool) assemblyToolDomainFi
 	f.profile = runtimeinstall.BundledDebianInputProofProfile{ID: "synthetic-tools-v1", Protocol: runtimeinstall.DebianInputProofProtocol, Root: filepath.Join(t.TempDir(), "synthetic-private-bundle")}
 	add := func(role, path string) assemblyToolFileRef {
 		ref := assemblyToolFileRef{role, 1, assemblyCatalogDigest([]byte("synthetic:"+role))}
+		// Declared metadata pins satisfy the structural profile validator only.
+		// Bytes remain synthetic: no SHA preimage, real tool or native eligibility
+		// is asserted. The product caller separately rejects this legacy family.
+		switch role {
+		case "projection-source": ref.SHA256 = assemblyDebianProjectionSHA
+		case "producer-config": ref.SHA256 = assemblyDebianConfigSHA
+		case "gpg": ref.SHA256 = "a5140c85353e8399da8d6bd7e3741524cd76a4e69be88af12042b1c9ef022984"
+		case "gpgv": ref.SHA256 = "f4d13204d77fdf63c02b0e6742230f83a833128c28f7b715709c2c63a96c427b"
+		}
 		f.profile.Files = append(f.profile.Files, runtimeinstall.DebianInputProofFile{Role: role, RelativePath: path, Bytes: ref.Bytes, SHA256: ref.SHA256})
 		return ref
 	}
 	required := []string{"projection-entry", "projection-source", "producer-source-receipt", "producer-config", "policy-source", "dependency-lock", "acquisition-manifest", "snapshot-source", "catalog-source-descriptor", "public-key-0", "public-key-1", "public-key-2", "signed-release-0", "signed-release-1", "signed-release-2", "signed-release-3", "signed-release-4"}
 	for _, role := range required { add(role, "inputs/"+role+".json") }
-	for i := range f.profile.Files { if f.profile.Files[i].Role == "projection-source" { f.profile.Files[i].SHA256 = "8401b441e3ecccd386aace046d71bb7a0941f74d105addc6a22965f7bdae0f3b" } }
 	python := add("cp-python", "tools/cpython/python.exe")
 	gpg := add("gpg", "tools/gnupg/bin/gpg.exe")
 	gpgv := add("gpgv", "tools/gnupg/bin/gpgv.exe")
