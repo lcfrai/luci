@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/lcfrai/luci/control-plane/internal/registry"
@@ -61,6 +62,42 @@ func TestCoordinatorPendingReviewDoesNotStrandLaterReviewedIntegration(t *testin
 		t.Fatal(err)
 	}
 	swarmBase := base + "/runs/" + run.ID + "/swarm"
+	// A reservation receipt can retain an unknown allocation. Do not write or
+	// claim that worktree as if HTTP 201 proved allocation succeeded. Keep the
+	// real runner; retain bounded error context only for this controlled fixture.
+	commandRunner := s.runner
+	var allocationCommandMu sync.Mutex
+	var allocationCommandError string
+	s.runner = func(ctx context.Context, executable string, args []string, dir string) (string, error) {
+		output, commandErr := commandRunner(ctx, executable, args, dir)
+		if commandErr != nil {
+			allocationCommandMu.Lock()
+			allocationCommandError = commandErr.Error()
+			if len(allocationCommandError) > 4096 {
+				allocationCommandError = allocationCommandError[:4096]
+			}
+			allocationCommandMu.Unlock()
+		}
+		return output, commandErr
+	}
+	requireAllocation := func(taskID string) ProjectRunOperation {
+		t.Helper()
+		task := swarmTask(&run, taskID)
+		if task == nil {
+			t.Fatalf("reserved task %s is absent", taskID)
+		}
+		op := swarmOperation(&run, task.OperationID)
+		if op == nil {
+			t.Fatalf("reserved operation for %s is absent", taskID)
+		}
+		if run.Swarm.State != "ready" || op.Allocation != "ready" || op.Status != "reserved" {
+			allocationCommandMu.Lock()
+			commandError := allocationCommandError
+			allocationCommandMu.Unlock()
+			t.Fatalf("task %s cannot be claimed: swarm=%s allocation=%s status=%s; last native command error (possibly a benign probe): %s", taskID, run.Swarm.State, op.Allocation, op.Status, commandError)
+		}
+		return *op
+	}
 	reload := func() {
 		t.Helper()
 		run, err = s.projectRuns.Get(p.ID, p.Path, run.ID)
@@ -81,8 +118,11 @@ func TestCoordinatorPendingReviewDoesNotStrandLaterReviewedIntegration(t *testin
 	}
 	for i, name := range []string{"alpha", "beta"} {
 		taskID := []string{"task-a", "task-b"}[i]
+		allocationCommandMu.Lock()
+		allocationCommandError = ""
+		allocationCommandMu.Unlock()
 		run = projectRunHTTPResponse(t, journeyRequest(t, h, "POST", swarmBase+"/tasks/"+taskID+"/reserve", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "integration-progress-" + taskID + "-123456"}, 201)).ProjectRun
-		op := *swarmOperation(&run, swarmTask(&run, taskID).OperationID)
+		op := requireAllocation(taskID)
 		swarmCommitFixture(t, mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID), name+".txt", name+" reviewed\n")
 		run = swarmFinishFixture(t, s, p, run, op.ID)
 		report := &TaskHandoffReport{Version: 1, Summary: name + " candidate requires independent review", ChangedFiles: []string{name + ".txt"}, Decisions: []TaskHandoffDecision{}, ReportedChecks: []TaskHandoffReportedCheck{{Command: "inspect " + name, Outcome: "passed", Detail: "Worker claim only"}}, Questions: []TaskHandoffQuestion{}, Limitations: []string{}}
@@ -96,9 +136,12 @@ func TestCoordinatorPendingReviewDoesNotStrandLaterReviewedIntegration(t *testin
 	}
 	reviewTask := func(taskID, reviewerID string) {
 		t.Helper()
+		allocationCommandMu.Lock()
+		allocationCommandError = ""
+		allocationCommandMu.Unlock()
 		run = projectRunHTTPResponse(t, journeyRequest(t, h, "POST", swarmBase+"/tasks/"+reviewerID+"/reserve", map[string]any{"expectedRevision": run.Revision, "idempotencyKey": "integration-progress-" + reviewerID + "-123456"}, 201)).ProjectRun
 		candidate := *swarmOperation(&run, swarmTask(&run, taskID).OperationID)
-		reviewer := *swarmOperation(&run, swarmTask(&run, reviewerID).OperationID)
+		reviewer := requireAllocation(reviewerID)
 		review, reviewErr := s.swarmReview(ctx, p, run, taskID)
 		if reviewErr != nil || !review.CanIntegrate {
 			t.Fatal("candidate cannot receive independent review", reviewErr, review)
