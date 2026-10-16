@@ -33,6 +33,12 @@ def item():
             'sha256': 'a' * 64}
 
 
+def bound_item(archive):
+    expected = item()
+    expected['bytes'], expected['sha256'] = identity(archive)
+    return expected
+
+
 def paragraph(p=None):
     p = p or item()
     return ('Package: '+p['name']+'\nVersion: '+p['version']+'\nArchitecture: '+p['architecture']+
@@ -98,11 +104,32 @@ class BinaryBindings(unittest.TestCase):
     def test_control_only_skips_hostile_data_and_rejects_control_links(self):
         raw = b'Package: synthetic\nVersion: 1:2.0+BinNMU1\nArchitecture: all\n'
         archive = deb(raw)
-        actual = b.read_deb_control(Fragmented(archive), identity(archive), item(), budget(), READERS)
+        actual = b.read_deb_control(Fragmented(archive), identity(archive), bound_item(archive), budget(), READERS)
         self.assertEqual(actual['raw'], raw)
         for hostile in (deb(raw, tar_entry('control', b'')), deb(raw, tar_entry('../escape', b'')), deb(raw, tar_entry('linked', b'', b'2')), archive+b'extra'):
             with self.assertRaises((b.Refusal, READERS.Refusal)):
-                b.read_deb_control(io.BytesIO(hostile), identity(hostile), item(), budget(), READERS)
+                b.read_deb_control(io.BytesIO(hostile), identity(hostile), bound_item(hostile), budget(), READERS)
+
+    def test_control_exact_subject_mismatch_refuses_before_io(self):
+        class Counted(io.BytesIO):
+            reads = seeks = 0
+            def read(self, size):
+                self.reads += 1
+                return super().read(size)
+            def seek(self, *args):
+                self.seeks += 1
+                return super().seek(*args)
+        control = b'Package: synthetic\nVersion: 1:2.0+BinNMU1\nArchitecture: all\n'
+        archive = deb(control, data=b'subjectA')
+        other = deb(control, data=b'subjectB')  # same tuple, distinct real bytes
+        wrong_size = bound_item(archive)
+        wrong_size['bytes'] += 1
+        for expected in (bound_item(other), wrong_size, dict(bound_item(archive), bytes=True), dict(bound_item(archive), sha256='not-a-hash')):
+            shared, original = budget(), Counted(archive)
+            with self.assertRaises(b.Refusal):
+                b.read_deb_control(original, identity(archive), expected, shared, READERS)
+            self.assertEqual((original.reads, original.seeks), (0, 0))
+            self.assertTrue(shared.failed)
 
     def test_actual_reads_failures_skips_and_expansion_share_one_budget(self):
         shared = budget()
@@ -118,12 +145,13 @@ class BinaryBindings(unittest.TestCase):
             shared.observation_summary()
         shared = budget()  # a distinct synthetic attempt, not an in-run reset
         archive = deb(b'Package: synthetic\nVersion: 1:2.0+BinNMU1\nArchitecture: all\n', data=b'x'*100000)
-        b.read_deb_control(io.BytesIO(archive), identity(archive), item(), shared, READERS)
-        self.assertGreaterEqual(shared.compressed, 2*len(archive)+17)
+        b.read_deb_control(io.BytesIO(archive), identity(archive), bound_item(archive), shared, READERS)
+        self.assertEqual(shared.compressed, 2*len(archive)+2)  # two charged EOFs;17 belongs to failed prior attempt
         self.assertGreater(shared.expanded, 1024)
         shared.index_expanded = 256*b.MIB
         with self.assertRaises(b.Refusal):
             b.Expansion(shared, 128*b.MIB, index=True).charge(1)
+        shared = budget()  # distinct synthetic exhausted-byte attempt
         shared.compressed = b.COMPRESSED_LIMIT
         with self.assertRaises(b.Refusal):
             shared.reserve_read(1)
@@ -206,6 +234,32 @@ class BinaryBindings(unittest.TestCase):
             stream.read(1)
         self.assertEqual(original.calls,1)
 
+    def test_direct_refusals_latch_before_later_public_io(self):
+        class Counted(io.BytesIO):
+            reads = seeks = 0
+            def read(self, size):
+                self.reads += 1
+                return super().read(size)
+            def seek(self, *args):
+                self.seeks += 1
+                return super().seek(*args)
+        for which in ('malformed-read', 'third-pass', 'malformed-identity'):
+            shared = budget()
+            earlier = Counted(b'abc')
+            with self.assertRaises(b.Refusal):
+                if which == 'malformed-read':
+                    b.Metered(earlier, identity(b'abc'), shared).read(-1)
+                elif which == 'third-pass':
+                    for _ in range(3):
+                        b.Metered(earlier, identity(b'abc'), shared)
+                else:
+                    b.Metered(earlier, None, shared)
+            self.assertTrue(shared.failed)
+            later = Counted(b'xyz')
+            with self.assertRaises(b.Refusal):
+                b.scan_packages(later, identity(b'xyz'), {('synthetic','1','all'): item()}, shared, READERS)
+            self.assertEqual((earlier.reads, earlier.seeks, later.reads, later.seeks), (0,0,0,0))
+
     def test_no_per_part_reset_or_third_original_pass(self):
         shared = budget()
         data = b'abcd'
@@ -215,6 +269,7 @@ class BinaryBindings(unittest.TestCase):
             stream.finish()
         with self.assertRaises(b.Refusal):
             b.Metered(io.BytesIO(data), identity(data), shared)
+        shared = budget()  # distinct retained-evidence budget fixture
         shared.retained = 16*b.MIB
         with self.assertRaises(b.Refusal):
             shared.retain(1)

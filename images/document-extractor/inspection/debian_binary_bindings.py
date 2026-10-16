@@ -117,10 +117,12 @@ class Budget:
 
     def begin_object(self, kind, identity):
         if kind not in self.objects:
+            self.failed = True
             raise Refusal('fixed input class')
         objects = self.objects[kind]
         maximum_count, maximum_bytes = (4, 9489432) if kind == 'index' else (174, 144257468)
         if identity in objects or len(objects) >= maximum_count or identity[0] > maximum_bytes - sum(objects.values()):
+            self.failed = True
             raise Refusal('unique input class/count/aggregate')
         objects[identity] = identity[0]
 
@@ -144,12 +146,17 @@ class Metered:
     """
     def __init__(self, stream, identity, budget):
         budget.check()
+        if not isinstance(identity, tuple) or len(identity) != 2:
+            budget.failed = True
+            raise Refusal('closed input identity')
         size, digest = identity
-        if type(size) is not int or not 0 < size <= 64 * MIB or not re.fullmatch('[0-9a-f]{64}', digest):
+        if type(size) is not int or not 0 < size <= 64 * MIB or not isinstance(digest, str) or not re.fullmatch('[0-9a-f]{64}', digest):
+            budget.failed = True
             raise Refusal('input identity')
         key = (size, digest)
         budget.passes[key] = budget.passes.get(key, 0) + 1
         if budget.passes[key] > 2:
+            budget.failed = True
             raise Refusal('two complete original passes maximum')
         self.stream, self.budget, self.size, self.expected = stream, budget, size, digest
         self.identity, self.pass_number = key, budget.passes[key]
@@ -157,6 +164,7 @@ class Metered:
 
     def read(self, size=CHUNK):
         if type(size) is not int or not 0 <= size <= CHUNK:
+            self.budget.failed = True
             raise Refusal('bounded positive compressed read')
         if size == 0:
             self.budget.check()
@@ -402,6 +410,12 @@ def read_deb_control(stream, identity, expected, budget, readers):
 
 
 def _read_deb_control(stream, identity, expected, budget, readers):
+    # Tuple identity alone cannot bind a byte subject. Refuse before any original
+    # read/seek/decoder when the separately selected locked size/SHA differs.
+    if not isinstance(expected, dict) or type(expected.get('bytes')) is not int or not 0 < expected['bytes'] <= 64 * MIB or not isinstance(expected.get('sha256'), str) or not re.fullmatch('[0-9a-f]{64}', expected['sha256']) or identity != (expected['bytes'], expected['sha256']):
+        raise Refusal('expected exact package byte subject')
+    if any(not isinstance(expected.get(key), str) or not expected[key] or len(expected[key].encode('utf-8')) > maximum for key, maximum in (('name', 128), ('version', 256), ('architecture', 5))) or expected['architecture'] not in ('amd64', 'all'):
+        raise Refusal('expected closed package tuple')
     original = verified_pass(stream, identity, budget, 'package')
     if readers.exact(original, 8) != b'!<arch>\n':
         raise Refusal('ar magic')
