@@ -122,6 +122,7 @@ it("connects a stopped sign-in for future Codex sessions and keeps API billing u
         harness: "codex",
         authOnly: true,
         status: "exited",
+        createdAt: "2026-10-15T22:44:41Z",
       }),
       working: aSession({
         id: "working",
@@ -165,11 +166,16 @@ it("connects a stopped sign-in for future Codex sessions and keeps API billing u
   );
   await screen.findByText("No Codex subscription sign-in saved.");
   const selector = screen.getByLabelText(
-    "Completed sign-in session",
+    "Ended sign-in session",
   ) as HTMLSelectElement;
   expect(Array.from(selector.options, (option) => option.value)).toEqual([
     "signed",
   ]);
+  expect(selector.options[0].textContent).toContain("Started 2026-10-15T22:44:41Z");
+  expect(screen.queryByLabelText("Completed sign-in session")).toBeNull();
+  expect(screen.getByText(/An ended session does not confirm that authorization completed/)).not.toBeNull();
+  expect(screen.getByText(/Save validates and retains the sign-in for this workspace/)).not.toBeNull();
+  expect(fetcher.mock.calls.filter((call) => call[1]?.method === "POST")).toHaveLength(0);
   await userEvent.click(
     screen.getByRole("button", { name: "Save Codex sign-in" }),
   );

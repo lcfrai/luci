@@ -277,7 +277,7 @@ export function AgentConnections({
           {signInSessions.length > 0 && (
             <>
               <label className="luci-field">
-                Completed sign-in session
+                Ended sign-in session
                 <select
                   value={selectedSignIn?.id ?? ""}
                   disabled={busy}
@@ -285,11 +285,15 @@ export function AgentConnections({
                 >
                   {signInSessions.map((session) => (
                     <option key={session.id} value={session.id}>
-                      {session.title || "Codex sign-in"} · {session.createdAt}
+                      {session.title || "Codex sign-in"} · Started {session.createdAt}
                     </option>
                   ))}
                 </select>
               </label>
+              <p className="journey-muted">
+                An ended session does not confirm that authorization completed.
+                Save validates and retains the sign-in for this workspace.
+              </p>
               <Button type="button"
                 variant="secondary"
                 disabled={busy || !!account?.activeSessionId}
