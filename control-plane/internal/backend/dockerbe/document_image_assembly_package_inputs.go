@@ -16,6 +16,9 @@ type assemblyPackageInputOwner struct {
 	io                            sync.Mutex           // TryLock only: retirement never waits behind native checks
 	guard                         *assemblySourceGuard // sole existing native original-handle owner
 	generation                    uint64
+	objects                       []backend.DocumentImageAssemblyEvidenceObject // immutable request copy, never a public path accessor
+	loan                          *DocumentImageAssemblyBinaryReadReservation
+	loanEpoch                     uint64
 	ready, retiring, closed, busy bool
 }
 
@@ -49,9 +52,12 @@ func AcquireDocumentImageAssemblyPackageInputs(ctx context.Context, objects []ba
 	if total != backend.DocumentImageAssemblyPackageInputBytes {
 		return nil, backend.ErrUnsupported
 	}
+	// The caller's slice cannot redefine a later role/ref lookup. Admission
+	// remains read-free: this is a copy of validated declarations, not a hash.
+	owned := append([]backend.DocumentImageAssemblyEvidenceObject(nil), objects...)
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	guard, err := lockAssemblyPackageInputSources(ctx, objects)
+	guard, err := lockAssemblyPackageInputSources(ctx, owned)
 	if guard == nil {
 		if err == nil {
 			err = backend.ErrUnavailable
@@ -61,11 +67,11 @@ func AcquireDocumentImageAssemblyPackageInputs(ctx context.Context, objects []ba
 	if err == nil && ctx.Err() != nil {
 		err = ctx.Err()
 	}
-	owner := &assemblyPackageInputOwner{guard: guard, generation: 1, ready: err == nil}
+	owner := &assemblyPackageInputOwner{guard: guard, generation: 1, ready: err == nil, objects: owned}
 	return &assemblyPackageInputToken{owner, 1}, err
 }
 
-func (t *assemblyPackageInputToken) enter(ctx context.Context) (*assemblyPackageInputOwner, error) {
+func (t *assemblyPackageInputToken) enter(ctx context.Context, exclusive bool) (*assemblyPackageInputOwner, error) {
 	if t == nil || t.owner == nil {
 		return nil, backend.ErrLaunchFenceOwnership
 	}
@@ -77,9 +83,15 @@ func (t *assemblyPackageInputToken) enter(ctx context.Context) (*assemblyPackage
 	}
 	if ctx.Err() != nil {
 		o.retiring = true
+		if o.loan != nil {
+			o.loan.retiring.Store(true)
+		}
 		return nil, ctx.Err()
 	}
 	if !o.ready || o.retiring || o.closed {
+		return nil, backend.ErrUnavailable
+	}
+	if exclusive && o.loan != nil {
 		return nil, backend.ErrUnavailable
 	}
 	if !o.io.TryLock() {
@@ -97,7 +109,7 @@ func (o *assemblyPackageInputOwner) leave() {
 }
 
 func (t *assemblyPackageInputToken) CheckCurrent(ctx context.Context) error {
-	o, err := t.enter(ctx)
+	o, err := t.enter(ctx, false)
 	if err != nil {
 		return err
 	}
@@ -112,6 +124,9 @@ func (t *assemblyPackageInputToken) CheckCurrent(ctx context.Context) error {
 	}
 	if err != nil || ctx.Err() != nil {
 		o.retiring = true
+		if o.loan != nil {
+			o.loan.retiring.Store(true)
+		}
 		if err != nil {
 			return err
 		}
@@ -124,7 +139,7 @@ func (t *assemblyPackageInputToken) CheckCurrent(ctx context.Context) error {
 }
 
 func (t *assemblyPackageInputToken) Transfer(ctx context.Context) (backend.DocumentImageAssemblyPackageInputGuard, error) {
-	o, err := t.enter(ctx)
+	o, err := t.enter(ctx, true)
 	if err != nil {
 		return nil, err
 	}
@@ -177,6 +192,11 @@ func (t *assemblyPackageInputToken) Close() error {
 	// the exact native close cannot start or has an unknown in-flight outcome.
 	o.retiring = true
 	o.ready = false
+	if o.loan != nil {
+		o.loan.retiring.Store(true)
+		o.mu.Unlock()
+		return backend.ErrUnavailable
+	}
 	if !o.io.TryLock() {
 		o.mu.Unlock()
 		return backend.ErrUnavailable
