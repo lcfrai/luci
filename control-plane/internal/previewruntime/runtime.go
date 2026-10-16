@@ -8,7 +8,11 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
+const ReviewedSourceKind = "reviewed-source"
+
 type Identity struct {
+	Kind              string `json:"kind,omitempty"`
+	SnapshotDigest    string `json:"snapshotDigest,omitempty"`
 	ProjectID         string `json:"projectId"`
 	ReleaseID         string `json:"releaseId"`
 	Target            string `json:"target"`
@@ -67,10 +71,13 @@ func (i Identity) Retained() bool { return i.BuildAllocationID != "" || i.Alloca
 // Continues permits acknowledgement of an identity that was previously
 // unknown, but never replacement of an already recorded allocation or object.
 func Continues(before, after Identity) bool {
-	if before.ProjectID != after.ProjectID || before.ReleaseID != after.ReleaseID || before.Target != after.Target || before.Commit != after.Commit || before.SourceDigest != after.SourceDigest {
+	if before.Kind == ReviewedSourceKind && (before.BuildAllocationID != "" || after.BuildAllocationID != "") || before.Kind == "" && after.SnapshotDigest != "" {
 		return false
 	}
-	for _, pair := range [][2]string{{before.BuildAllocationID, after.BuildAllocationID}, {before.AllocationID, after.AllocationID}, {before.EngineID, after.EngineID}, {before.InstanceID, after.InstanceID}, {before.ContainerID, after.ContainerID}, {before.Image, after.Image}} {
+	if before.Kind != after.Kind || before.ProjectID != after.ProjectID || before.ReleaseID != after.ReleaseID || before.Target != after.Target || before.Commit != after.Commit || before.SourceDigest != after.SourceDigest {
+		return false
+	}
+	for _, pair := range [][2]string{{before.SnapshotDigest, after.SnapshotDigest}, {before.BuildAllocationID, after.BuildAllocationID}, {before.AllocationID, after.AllocationID}, {before.EngineID, after.EngineID}, {before.InstanceID, after.InstanceID}, {before.ContainerID, after.ContainerID}, {before.Image, after.Image}} {
 		if pair[0] != "" && pair[0] != pair[1] {
 			return false
 		}

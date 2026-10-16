@@ -36,7 +36,7 @@ type previewExecutionLease struct {
 }
 
 func validPreviewIdentity(v backend.PreviewIdentity) bool {
-	return v.Protocol == backend.PreviewExecutionProtocol && v.EngineID != "" && len(v.EngineID) <= 200 &&
+	return (v.Kind == "" && v.SnapshotDigest == "" && v.CommandDigest == "" && v.RuntimeImageID == "" || v.Kind == backend.ReviewedSourcePreview && checkHex(v.SnapshotDigest, 32) && checkHex(v.CommandDigest, 32) && strings.HasPrefix(v.RuntimeImageID, "sha256:") && checkHex(strings.TrimPrefix(v.RuntimeImageID, "sha256:"), 32)) && v.Protocol == backend.PreviewExecutionProtocol && v.EngineID != "" && len(v.EngineID) <= 200 &&
 		!strings.ContainsAny(v.EngineID, "\x00\r\n") && backend.ValidateInstance(v.InstanceID) == nil &&
 		checkLogicalID(v.AllocationID) && checkLogicalID(v.ReleaseID) && checkLogicalID(v.ProjectID) &&
 		checkHex(v.ScopeDigest, 32) && checkHex(v.SourceDigest, 32) && (checkHex(v.Commit, 20) || checkHex(v.Commit, 32))
@@ -54,9 +54,9 @@ func validPreviewExecutionLease(v previewExecutionLease) bool {
 		return false
 	}
 	if v.Kind == "preview-build" {
-		return v.Ref == "" && (v.State == "reserved" && v.Image == "" || v.State == "building" && v.Image == "" || v.State == "finished")
+		return v.Identity.Kind == "" && v.Ref == "" && (v.State == "reserved" && v.Image == "" || v.State == "building" && v.Image == "" || v.State == "finished")
 	}
-	if v.Kind != "preview" || v.Image == "" {
+	if !previewServingKind(v.Kind) || (v.Kind == backend.ReviewedSourcePreview) != (v.Identity.Kind == backend.ReviewedSourcePreview) || v.Image == "" || v.Kind == backend.ReviewedSourcePreview && v.Image != v.Identity.RuntimeImageID {
 		return false
 	}
 	switch v.State {
@@ -69,6 +69,10 @@ func validPreviewExecutionLease(v previewExecutionLease) bool {
 	default:
 		return false
 	}
+}
+
+func previewServingKind(kind string) bool {
+	return kind == "preview" || kind == backend.ReviewedSourcePreview
 }
 
 // Include pending build and serving work in ALL admission paths. An exact
@@ -256,7 +260,7 @@ func (g *executionAdmission) transitionPreview(ctx context.Context, before previ
 				return errors.New("the exact preview phase changed")
 			}
 			allowed := v.Kind == "preview-build" && v.State == "reserved" && next == "building" ||
-				v.Kind == "preview" && (v.State == "reserved" && next == "creating" || v.State == "creating" && next == "created" || (v.State == "created" || v.State == "stopped") && next == "starting" || v.State == "starting" && next == "running" || v.State == "running" && next == "stopping" || v.State == "stopping" && next == "stopped" || (v.State == "created" || v.State == "starting" || v.State == "running" || v.State == "stopping" || v.State == "stopped") && next == "cleaning")
+				previewServingKind(v.Kind) && (v.State == "reserved" && next == "creating" || v.State == "creating" && next == "created" || (v.State == "created" || v.State == "stopped") && next == "starting" || v.State == "starting" && next == "running" || v.State == "running" && next == "stopping" || v.State == "stopping" && next == "stopped" || (v.State == "created" || v.State == "starting" || v.State == "running" || v.State == "stopping" || v.State == "stopped") && next == "cleaning")
 			if !allowed || v.Ref != "" && v.Ref != ref || v.Image != "" && v.Image != image {
 				return errors.New("preview phase transition or immutable ownership is invalid")
 			}
@@ -285,7 +289,7 @@ func (g *executionAdmission) completePreview(ctx context.Context, before preview
 			if v.Scope != g.scope || v.ID != before.ID {
 				continue
 			}
-			if v != before || !(v.State == "reserved" || v.Kind == "preview-build" && v.State == "building" || v.Kind == "preview" && v.State == "cleaning") || v.Image != "" && v.Image != image {
+			if v != before || !(v.State == "reserved" || v.Kind == "preview-build" && v.State == "building" || previewServingKind(v.Kind) && v.State == "cleaning") || v.Image != "" && v.Image != image {
 				return errors.New("preview completion changed or launch remains unconfirmed")
 			}
 			v.State, v.Image, v.UpdatedAt = "finished", image, time.Now().UTC()

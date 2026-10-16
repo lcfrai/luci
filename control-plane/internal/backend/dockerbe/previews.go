@@ -41,6 +41,9 @@ func previewImageID(v string) bool {
 	return strings.HasPrefix(v, "sha256:") && fenceHex(strings.TrimPrefix(v, "sha256:"), 32)
 }
 func validPreviewIdentity(v backend.PreviewIdentity, prepared bool) bool {
+	if v.Kind != "" && v.Kind != backend.ReviewedSourcePreview || v.Kind == "" && (v.SnapshotDigest != "" || v.CommandDigest != "" || v.RuntimeImageID != "") || v.Kind == backend.ReviewedSourcePreview && ((v.SnapshotDigest != "" || prepared) && !fenceHex(v.SnapshotDigest, 32) || (v.CommandDigest != "" || prepared) && !fenceHex(v.CommandDigest, 32) || (v.RuntimeImageID != "" || prepared) && !previewImageID(v.RuntimeImageID)) {
+		return false
+	}
 	if v.Protocol != backend.PreviewExecutionProtocol || !fenceLogicalID(v.AllocationID) || !fenceLogicalID(v.ReleaseID) || !fenceLogicalID(v.ProjectID) || !fenceHex(v.ScopeDigest, 32) || !fenceHex(v.SourceDigest, 32) || (!fenceHex(v.Commit, 20) && !fenceHex(v.Commit, 32)) {
 		return false
 	}
@@ -50,13 +53,17 @@ func validPreviewIdentity(v backend.PreviewIdentity, prepared bool) bool {
 	return v.EngineID != "" && len(v.EngineID) <= 256 && strings.TrimSpace(v.EngineID) == v.EngineID && !strings.ContainsAny(v.EngineID, "\x00\r\n") && backend.ValidateInstance(v.InstanceID) == nil
 }
 func previewIdentityLabels(v backend.PreviewIdentity) map[string]string {
-	return map[string]string{
+	labels := map[string]string{
 		"luci.preview": "true", backend.LabelInstance: v.InstanceID, previewPrefix + "protocol": strconv.Itoa(v.Protocol), previewPrefix + "engine": v.EngineID, previewPrefix + "allocation": v.AllocationID, previewPrefix + "release": v.ReleaseID, previewPrefix + "scope": v.ScopeDigest, previewPrefix + "project": v.ProjectID, previewPrefix + "source": v.SourceDigest, previewPrefix + "commit": v.Commit,
 	}
+	if v.Kind != "" {
+		labels[previewPrefix+"kind"], labels[previewPrefix+"snapshot"], labels[previewPrefix+"command"], labels[previewPrefix+"image"] = v.Kind, v.SnapshotDigest, v.CommandDigest, v.RuntimeImageID
+	}
+	return labels
 }
 func previewName(v backend.PreviewIdentity) string { return "luci-preview-" + v.AllocationID }
 func validPreviewSpec(s backend.PreviewSpec) bool {
-	if !validPreviewIdentity(s.Identity, false) || (s.Kind != "preview-build" && s.Kind != "preview") || s.Resources.MemoryMiB <= 0 || int64(s.Resources.MemoryMiB) > math.MaxInt64>>20 || s.Resources.CPUMillis <= 0 || int64(s.Resources.CPUMillis) > math.MaxInt64/1000000 || s.Port < 1 || s.Port > 65535 {
+	if !validPreviewIdentity(s.Identity, false) || (s.Kind != "preview-build" && s.Kind != "preview" && s.Kind != backend.ReviewedSourcePreview) || (s.Kind == backend.ReviewedSourcePreview) != (s.Identity.Kind == backend.ReviewedSourcePreview) || s.Resources.MemoryMiB <= 0 || int64(s.Resources.MemoryMiB) > math.MaxInt64>>20 || s.Resources.CPUMillis <= 0 || int64(s.Resources.CPUMillis) > math.MaxInt64/1000000 || s.Port < 1 || s.Port > 65535 {
 		return false
 	}
 	if s.Kind == "preview" && (!previewImageID(s.ImageID) || s.SourceDirectory != "" || len(s.SourceArchive) != 0) {
@@ -149,7 +156,9 @@ func (b *Backend) PreparePreview(ctx context.Context, s backend.PreviewSpec) (ba
 		return backend.PreparedPreview{}, err
 	}
 	p := backend.PreparedPreview{Spec: s, StorageDriver: info.Driver}
-	if s.Kind == "preview-build" {
+	if s.Kind == backend.ReviewedSourcePreview {
+		return b.prepareReviewedSource(ctx, p)
+	} else if s.Kind == "preview-build" {
 		plan, e := b.planPreviewContext(ctx, s, nil)
 		if e != nil {
 			return backend.PreparedPreview{}, e
@@ -326,10 +335,15 @@ func previewConfiguration(p backend.PreparedPreview) (*container.Config, *contai
 	for _, k := range keys {
 		env = append(env, k+"="+s.Environment[k])
 	}
-	return &container.Config{Image: s.ImageID, Env: env, Labels: labels, ExposedPorts: nat.PortSet{port: {}}}, &container.HostConfig{Init: &init, AutoRemove: false, RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyDisabled}, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}, NetworkMode: container.NetworkMode(s.Network), PortBindings: nat.PortMap{port: {{HostIP: loopbackIPv4, HostPort: ""}}}, Resources: container.Resources{Memory: s.Resources.MemoryBytes(), MemorySwap: s.Resources.MemoryBytes(), NanoCPUs: s.Resources.NanoCPUs(), PidsLimit: &pids}, LogConfig: container.LogConfig{Type: "json-file", Config: map[string]string{"max-size": "10m", "max-file": "2"}}}
+	config := &container.Config{Image: s.ImageID, Env: env, Labels: labels, ExposedPorts: nat.PortSet{port: {}}}
+	host := &container.HostConfig{Init: &init, AutoRemove: false, RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyDisabled}, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}, NetworkMode: container.NetworkMode(s.Network), PortBindings: nat.PortMap{port: {{HostIP: loopbackIPv4, HostPort: ""}}}, Resources: container.Resources{Memory: s.Resources.MemoryBytes(), MemorySwap: s.Resources.MemoryBytes(), NanoCPUs: s.Resources.NanoCPUs(), PidsLimit: &pids}, LogConfig: container.LogConfig{Type: "json-file", Config: map[string]string{"max-size": "10m", "max-file": "2"}}}
+	if s.Kind == backend.ReviewedSourcePreview {
+		configureReviewedSource(p, config, host)
+	}
+	return config, host
 }
 func (b *Backend) CreatePreview(ctx context.Context, p backend.PreparedPreview) (string, error) {
-	if p.Spec.Kind != "preview" {
+	if p.Spec.Kind != "preview" && p.Spec.Kind != backend.ReviewedSourcePreview {
 		return "", backend.ErrUnsupported
 	}
 	fresh, err := b.PreparePreview(ctx, p.Spec)
@@ -364,10 +378,16 @@ func previewOwned(v backend.PreviewIdentity, ref string, r container.InspectResp
 	if h == nil {
 		return false
 	}
+	if v.Kind == "" && (cfg.Labels[previewPrefix+"kind"] != "" || cfg.Labels[previewPrefix+"snapshot"] != "") {
+		return false
+	}
 	m, e1 := strconv.Atoi(cfg.Labels[previewPrefix+"memory"])
 	cpu, e2 := strconv.Atoi(cfg.Labels[previewPrefix+"cpu"])
 	port, e3 := strconv.Atoi(cfg.Labels[previewPrefix+"port"])
 	if e1 != nil || e2 != nil || e3 != nil || m <= 0 || cpu <= 0 || port < 1 || port > 65535 || int64(m) > math.MaxInt64>>20 || int64(cpu) > math.MaxInt64/1000000 {
+		return false
+	}
+	if v.Kind == backend.ReviewedSourcePreview && !ownedReviewedSource(v, cfg, h, port) {
 		return false
 	}
 	if !previewImageID(cfg.Image) || r.Image != cfg.Image || cfg.Labels[previewPrefix+"image"] != cfg.Image || len(cfg.Volumes) != 0 || cfg.Tty || cfg.OpenStdin || h.Privileged || h.AutoRemove || h.Init == nil || !*h.Init || len(h.Binds) != 0 || len(h.Mounts) != 0 || len(r.Mounts) != 0 || len(h.VolumesFrom) != 0 || len(h.Devices) != 0 || len(h.DeviceRequests) != 0 || len(h.CapAdd) != 0 || len(h.CapDrop) != 1 || h.CapDrop[0] != "ALL" || !reflect.DeepEqual(h.SecurityOpt, []string{"no-new-privileges:true"}) || h.PidMode != "" || h.UTSMode != "" || h.UsernsMode != "" || h.IpcMode != "" && h.IpcMode != "private" || h.PublishAllPorts || h.RestartPolicy.Name != container.RestartPolicyDisabled || h.RestartPolicy.MaximumRetryCount != 0 || h.Memory != int64(m)<<20 || h.MemorySwap != h.Memory || h.NanoCPUs != int64(cpu)*1000000 || h.PidsLimit == nil || *h.PidsLimit != 256 {
