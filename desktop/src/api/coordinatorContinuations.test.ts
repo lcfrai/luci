@@ -1,6 +1,15 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { productApi } from './product';
-import { coordinatorContinuationsApi as api, type CoordinatorContinuation, type CoordinatorContinuationRequest, type CoordinatorSavedRoute } from './coordinatorContinuations';
+import { coordinatorContinuationsApi as api, coordinatorPreviewPlanValid, type CoordinatorContinuation, type CoordinatorContinuationRequest, type CoordinatorSavedRoute } from './coordinatorContinuations';
+
+it('keeps reviewed-source and legacy Dockerfile preview plans as distinct saved approvals', () => {
+  const source = { kind: 'reviewed-source', dockerfile: '', port: 3000, expectedConfigurationRevision: 0, acknowledgePreviewBuild: true };
+  expect(coordinatorPreviewPlanValid(source)).toBe(true);
+  expect(coordinatorPreviewPlanValid({ ...source, kind: undefined })).toBe(false);
+  expect(coordinatorPreviewPlanValid({ ...source, dockerfile: 'Dockerfile' })).toBe(false);
+  expect(coordinatorPreviewPlanValid({ ...source, kind: 'dockerfile' })).toBe(false);
+  expect(coordinatorPreviewPlanValid({ dockerfile: 'Dockerfile', port: 3000, expectedConfigurationRevision: 0, acknowledgePreviewBuild: true })).toBe(true);
+});
 
 it('refuses malformed cloud capacity advice without starting a task', async () => {
   vi.spyOn(productApi, 'request').mockResolvedValue({ continuations: [], savedRoute: null, cloudCapacity: {

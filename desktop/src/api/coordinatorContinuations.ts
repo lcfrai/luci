@@ -20,7 +20,7 @@ export interface CoordinatorCheckPlan {
   requirementSnapshots: { id: string; title: string; acceptance: string }[];
   acknowledgeProjectCommands: true;
 }
-export interface CoordinatorPreviewPlan { dockerfile: string; port: number; expectedConfigurationRevision: number; acknowledgePreviewBuild: true }
+export interface CoordinatorPreviewPlan { kind?: 'reviewed-source'; dockerfile: string; port: number; expectedConfigurationRevision: number; acknowledgePreviewBuild: true }
 export interface CoordinatorSavedRoute {
   revision: number;
   autoDiscussFindings?: boolean;
@@ -97,7 +97,9 @@ function deploymentVerified(action: NonNullable<NonNullable<CoordinatorContinuat
 }
 export function coordinatorPreviewPlanValid(value: unknown): value is CoordinatorPreviewPlan {
   const plan = value as CoordinatorPreviewPlan;
-  return !!plan && plan.acknowledgePreviewBuild === true && typeof plan.dockerfile === 'string' && !!plan.dockerfile.trim() && new TextEncoder().encode(plan.dockerfile).length <= 1024 && !/[\\:\0]/.test(plan.dockerfile) && !plan.dockerfile.startsWith('/') && !plan.dockerfile.split('/').some(part => part === '..' || part === '.') && Number.isSafeInteger(plan.port) && plan.port > 0 && plan.port <= 65535 && Number.isSafeInteger(plan.expectedConfigurationRevision) && plan.expectedConfigurationRevision >= 0;
+  return !!plan && plan.acknowledgePreviewBuild === true &&
+    (plan.kind === 'reviewed-source' ? plan.dockerfile === '' : plan.kind === undefined && typeof plan.dockerfile === 'string' && !!plan.dockerfile.trim() && new TextEncoder().encode(plan.dockerfile).length <= 1024 && !/[\\:\0]/.test(plan.dockerfile) && !plan.dockerfile.startsWith('/') && !plan.dockerfile.split('/').some(part => part === '..' || part === '.')) &&
+    Number.isSafeInteger(plan.port) && plan.port > 0 && plan.port <= 65535 && Number.isSafeInteger(plan.expectedConfigurationRevision) && plan.expectedConfigurationRevision >= 0;
 }
 const bytes = (value: string) => new TextEncoder().encode(value).length;
 /** Same command bounds as the production check API; this does not confer execution authority. */

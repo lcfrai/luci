@@ -452,6 +452,15 @@ it('requires separate Deploy authority and explicit preview permission consent',
   await waitFor(() => expect(coordinatorPolicyApi.save).toHaveBeenCalledExactlyOnceWith('p-1', { expectedRevision: 2, mode: 'review', allowedTargets: ['specification'], previewMode: 'checked-source' }));
   expect(api.create).not.toHaveBeenCalled();
 });
+it('saves a separate reviewed-source policy without reinterpreting a Dockerfile approval', async () => {
+  const input = props(); render(<CoordinatorExecution {...input} canDeploy />);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Enable static reviewed-source previews' })).toHaveProperty('disabled', true));
+  vi.mocked(coordinatorPolicyApi.save).mockResolvedValue(policy({ revision: 3, previewMode: 'reviewed-source' }));
+  await userEvent.click(screen.getByRole('checkbox', { name: /Allow checked-source local previews/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Enable static reviewed-source previews' }));
+  await waitFor(() => expect(coordinatorPolicyApi.save).toHaveBeenCalledExactlyOnceWith('p-1', { expectedRevision: 2, mode: 'review', allowedTargets: ['specification'], previewMode: 'reviewed-source' }));
+  expect(api.create).not.toHaveBeenCalled();
+});
 it.each(['matched', 'changed', 'revoked'])('reuses an exact saved preview only with %s current configuration and access', async condition => {
   const saved = { ...savedRoute(), previewPlan: { dockerfile: 'Dockerfile', port: 3000, expectedConfigurationRevision: 3, acknowledgePreviewBuild: true as const } };
   vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: saved }); vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ previewMode: 'checked-source' }));

@@ -5,7 +5,7 @@ export interface CoordinatorPolicy {
   projectId: string; revision: number; mode: "review" | "auto-drafts";
   reviewMode: "manual" | "approved-amendments";
   allowedTargets: CoordinatorTarget[];
-  executionMode: "manual" | "reviewed-tasks"; integrationMode?: "manual" | "reviewed-scopes"; deploymentMode: "manual" | "existing-target"; previewMode?: "manual" | "checked-source";
+  executionMode: "manual" | "reviewed-tasks"; integrationMode?: "manual" | "reviewed-scopes"; deploymentMode: "manual" | "existing-target"; previewMode?: "manual" | "checked-source" | "reviewed-source";
   updatedAt?: string; actor?: { id: string; displayName: string };
 }
 export const coordinatorTargets: CoordinatorTarget[] = ["specification", "design-plan", "plan"];
@@ -13,7 +13,7 @@ const route = (id: string) => `/v1/product/projects/${encodeURIComponent(id)}/or
 function verified(value: CoordinatorPolicy, projectId: string) {
   if (value?.projectId !== projectId || !Number.isSafeInteger(value.revision) || value.revision < 0 ||
       !["review", "auto-drafts"].includes(value.mode) || !["manual", "approved-amendments"].includes(value.reviewMode) || (value.reviewMode === "approved-amendments" && value.mode !== "auto-drafts") || !Array.isArray(value.allowedTargets) ||
-      !["manual", "reviewed-tasks"].includes(value.executionMode) || (value.integrationMode !== undefined && !["manual", "reviewed-scopes"].includes(value.integrationMode)) || !["manual", "existing-target"].includes(value.deploymentMode) || (value.previewMode !== undefined && !["manual", "checked-source"].includes(value.previewMode)) ||
+      !["manual", "reviewed-tasks"].includes(value.executionMode) || (value.integrationMode !== undefined && !["manual", "reviewed-scopes"].includes(value.integrationMode)) || !["manual", "existing-target"].includes(value.deploymentMode) || (value.previewMode !== undefined && !["manual", "checked-source", "reviewed-source"].includes(value.previewMode)) ||
       value.allowedTargets.some(target => !coordinatorTargets.includes(target)) ||
       new Set(value.allowedTargets).size !== value.allowedTargets.length ||
       (value.mode === "auto-drafts" && (!value.revision || !value.allowedTargets.length)) ||
