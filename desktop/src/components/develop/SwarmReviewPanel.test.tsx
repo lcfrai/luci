@@ -9,6 +9,14 @@ import { SwarmReviewPanel } from './SwarmReviewPanel';
 
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
+it.each([0, 1, 2])('retains exhausted findings and inspection controls at repair budget%i', repairLimit => {
+  const view = swarmSupervisionFixture({reviewObligations: [{id: 'obligation-one', taskId: 'task-a', candidateOperationId: 'op-a', candidateChildId: 's-a', candidateCommit: 'a'.repeat(40), contextDigest: 'b'.repeat(64), reviewDigest: 'c'.repeat(64), reviewerOperationId: 'op-review', reviewerChildId: 's-review', state: 'repair-required', attempt: 3, createdAt: '2026-10-16T00:00:00Z', keyDigest: 'd'.repeat(64), requestDigest: 'e'.repeat(64), repairLimit, repairsConsumed: 3}]});
+  render(<SwarmReviewPanel run={swarmRunFixture()} view={view} messages={[]} canRead canEdit={false} paused={false} recoveryScope="actor/workspace/run" onWrite={vi.fn(async (action: () => Promise<void>) => action())} onRefresh={vi.fn(async () => {})} onOpenTask={vi.fn()} />);
+  expect(screen.getByText(new RegExp('repair reservations 3/' + repairLimit))).toBeTruthy();
+  expect(screen.getByText(/finding remains saved/)).toBeTruthy();
+  expect(screen.getByRole('button', {name: 'Inspect exact review and result'})).toHaveProperty('disabled', false);
+  expect(screen.getByRole('button', {name: 'Open candidate task'})).toHaveProperty('disabled', false);
+});
 
 it('requires an approved reviewer role and an inspected exact candidate before recording an assignment', async () => {
   const run = swarmRunFixture();

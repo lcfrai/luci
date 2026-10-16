@@ -1,4 +1,5 @@
 import { productApi } from './product';
+import { validAutomaticRepairLimit } from './coordinatorPolicy';
 import type { ImplementationContext, ImplementationContextRequest } from '../store/types';
 import type { ProjectRun, RunApprovals } from './projectRuns';
 
@@ -30,7 +31,7 @@ export interface OrchestrationContractView {
       controls: { authorityPolicySource: 'workspace-private-policy' | 'team-private-policy'; authorityPolicyDigest: string;
         executionLimits: { monthlyBudgetUsd: number; sessionMemoryMiB: number; sessionCPUMillis: number; maxSessionsPerUser: number;
           maxConcurrentChecksPerUser: number; allowCloudProvisioning: boolean; allowPublicPublishing: boolean };
-        coordinatorPolicyRevision: number; coordinatorPolicyDigest: string; schedulerPolicyRevision: number; schedulerPolicyDigest: string };
+        coordinatorPolicyRevision: number; coordinatorPolicyDigest: string; schedulerPolicyRevision: number; schedulerPolicyDigest: string; automaticRepairLimit?: number };
       standards: { status: 'legacy-unassessed' | 'not-configured' | 'team-library-unassessed' | 'team-library-assessed'; source: 'approved-freeform-context' | 'none' | 'team-control-library'; revision: number; digest: string;
         teamId?:string;assessmentRevision?:number;assessmentDigest?:string;contentDigest?:string;requirements?:BoundStandardControl[] };
       decisionPolicy: { routine: string; humanInput: string };
@@ -71,6 +72,7 @@ export function ownedOrchestrationContract(projectId: string, value: Orchestrati
         task.writePaths !== undefined && !strings(task.writePaths) || task.requirementIds !== undefined && !strings(task.requirementIds) ||
         task.acceptance !== undefined && typeof task.acceptance !== 'string') ||
       !input.controls || !revision(input.controls.coordinatorPolicyRevision) || !revision(input.controls.schedulerPolicyRevision) || !sha(input.controls.coordinatorPolicyDigest) || !sha(input.controls.schedulerPolicyDigest) ||
+      input.controls.automaticRepairLimit !== undefined && !validAutomaticRepairLimit(input.controls.automaticRepairLimit) ||
       !sha(input.controls.authorityPolicyDigest) || !['workspace-private-policy', 'team-private-policy'].includes(input.controls.authorityPolicySource) ||
       !boundedStandards(input.standards) || typeof input.decisionPolicy?.routine !== 'string' || typeof input.decisionPolicy?.humanInput !== 'string' ||
       !text(input.route?.harness) || typeof input.route.model !== 'string' || !['ask', 'bypass'].includes(input.route.permissionMode) ||

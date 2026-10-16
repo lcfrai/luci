@@ -9,6 +9,22 @@ const pending = (): ExecutionContractReviewRequest => ({ version: 1, projectId: 
 beforeEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
 function props() { return { pending: pending(), initialView: contractViewFixture(), scope: 'owner/workspace/project', actorId: 'owner', canRead: true, canEdit: true,
   onPrepared: vi.fn(), onCreate: vi.fn().mockResolvedValue(undefined), onComplete: vi.fn(), onReviewInputs: vi.fn() }; }
+it.each([0, 1, 2])('shows exact captured repair budget%i before approval without consuming the first or final review', automaticRepairLimit => {
+  const p = props(); p.initialView.contract.input.controls.automaticRepairLimit = automaticRepairLimit;
+  render(<ExecutionContractReview {...p} />);
+  const term = screen.getByText('Automatic repairs per coding task');
+  expect(term.nextElementSibling?.textContent).toMatch(new RegExp('^' + automaticRepairLimit + ' ·'));
+  expect(term.nextElementSibling?.textContent).toContain('final independent review');
+  if (automaticRepairLimit === 0) expect(term.nextElementSibling?.textContent).toContain('Stop after the first failed independent review');
+  expect(screen.getByRole('button', {name: 'Approve contract and save project run'})).toHaveProperty('disabled', true);
+  expect(p.onCreate).not.toHaveBeenCalled();
+});
+it('displays legacy effective two without changing the retained contract', () => {
+  const p = props(), bytes = JSON.stringify(p.initialView);
+  render(<ExecutionContractReview {...p} />);
+  expect(screen.getByText(/Retained contract uses the legacy default of two/)).toBeTruthy();
+  expect(JSON.stringify(p.initialView)).toBe(bytes);
+});
 
 it('requires explicit review and saves one approved reference without starting coding', async () => {
   const p = props(); retainContractReview(p.scope, p.pending);
