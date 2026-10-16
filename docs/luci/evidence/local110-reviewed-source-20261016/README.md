@@ -46,4 +46,16 @@ At `96971bf8a`, the changed `TestCoordinatorPreviewKindCannotInheritLegacyApprov
 | `TMPDIR=/dev/shm NODE_OPTIONS=--max-old-space-size=384 npm test -- --maxWorkers=1 src/components/journey/deploy.test.tsx -t 'refuses a reviewed-source preview'` | exit 0: 2 passed (unclean source and nonempty runtime configuration) |
 | `NODE_OPTIONS=--max-old-space-size=768 ./node_modules/.bin/tsc --noEmit --pretty false` | exit 0 after final selector/client changes |
 
-These are source fixtures and static type checks. The selected release endpoint branch was not yet published at the final check; its kind-aware readback and actual release remain unverified.
+These are source fixtures and static type checks. At this earlier checkpoint, the selected release endpoint branch was not yet published; its kind-aware readback remained unverified until the joined check below.
+
+## Joined reviewed-source handler and LOCAL112 source check
+
+The published release-owner ref `011d1e67aec5039e1d43467181828f8c6081d837` (tree `ac64e4eabd5bc5323c7d65de680ff7fe4f1cd58e`) was merged into this branch without changing its owned backend or API files. At `d7eac72d6`, coordinator admission and both observation comparisons require the public and runtime receipt kinds to match the approved plan. The new handler journey starts from a fresh approved execution contract, an addressed independent review, a real combined source check, and the public release handler with a controlled static runtime response. It verifies a source kind without a build allocation, then refuses public or runtime kind substitutions on readback.
+
+The exact changed-path command in `control-plane/` was:
+
+```sh
+GOWORK=off GOMAXPROCS=1 GOMEMLIMIT=512MiB GOGC=20 GOCACHE=/dev/shm/luci-go-cache GOMODCACHE=/dev/shm/luci-gomodcache GOPATH=/dev/shm/luci-gopath GOTMPDIR=/dev/shm/luci-gotmp TMPDIR=/dev/shm timeout 150s /dev/shm/luci-toolchain/go/bin/go test -p 1 ./internal/product -run 'TestCoordinatorReviewedSourcePreviewHandlerBindsKindThroughReadback|TestReviewedSourceJoinHandlerRejectsKindSubstitutionOnReservedReadback' -count=1 -parallel 1
+```
+
+It exited 0: `ok github.com/lcfrai/luci/control-plane/internal/product 21.862s`. Compilation took about 61 seconds before the test process started. No Docker, model, image, cloud, or native preview runtime was started. LOCAL113/114 release-owner corrections and final coherent source/runtime checks remain separate.
