@@ -12,7 +12,7 @@ import (
 // No process/native helper fallback on unsupported platforms.
 type debianNativeSample struct {At time.Time `json:"at"`;Physical,Commit uint64;CPU float64;Known bool}
 type debianProofChildResult struct {Ordinal int `json:"ordinal"`;PID uint32 `json:"pid"`;CreationTime uint64 `json:"creationTime"`;Started,Ended time.Time;Exit uint32 `json:"exit"`;OriginalHandleOwned,ExitConfirmed,JobEmpty,HandlesClosed,CaptureSettled bool;Admission debianNativeSample;Stdout,Stderr []byte `json:"-"`}
-type debianProofNativeOwner struct {began,wholeDeadline time.Time}
+type debianProofNativeOwner struct {began,wholeDeadline time.Time;census *debianProofNativeCensus}
 func debianProducerPlatformSupported()bool{return false}
 func debianProducerHostIdentity()(uint32,uint64,error){return 0,0,runtimeinstall.ErrInputProofUnavailable}
 func debianProofEnvironment(string)([]uint16,error){return nil,runtimeinstall.ErrInputProofUnavailable}

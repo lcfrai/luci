@@ -10,7 +10,6 @@ import (
  "time"
 
  "github.com/lcfrai/luci/control-plane/internal/backend"
- "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe"
 )
 
 const debianProductReadLimit uint64 = 64<<20
@@ -52,6 +51,7 @@ type debianProductProjectionEvidence struct {
  copies []assemblyDebianObjectRef
  request assemblyDebianObjectRef
  budget *debianProductReadBudget
+ native *debianProofNativeOwner
 }
 type debianProductProjectionToken struct {owner *debianProductProjectionEvidence;generation uint64}
 func(e *debianProductProjectionEvidence)token()*debianProductProjectionToken{return &debianProductProjectionToken{e,e.generation}}
@@ -63,7 +63,7 @@ func(t *debianProductProjectionToken)validLocked()bool{return t!=nil&&t.owner!=n
 func(e *debianProductProjectionEvidence)acquire(ctx context.Context,late bool,objects []backend.DocumentImageAssemblyEvidenceObject)error{
  if err:=e.budget.acquisition(ctx,objects);err!=nil{return err}
  e.mu.Lock();if e.retiring||e.moving||e.closing||e.acquiring!=0||late&&e.phase!="early"||!late&&e.phase!="building"{e.mu.Unlock();return errDebianProductEvidence};e.acquiring++;e.mu.Unlock()
- guard,err:=dockerbe.AcquireDocumentImageAssemblyEvidence(ctx,objects)
+ var guard backend.DocumentImageAssemblyEvidenceGuard;var err error;if e.native==nil{err=errDebianProofCensus}else{guard,err=e.native.acquireEvidenceObjects(ctx,objects)}
  return e.finishAcquisition(late,guard,err)
 }
 // The exact real acquisition return is joined before its error is classified.
@@ -117,7 +117,7 @@ func buildDebianProductProjectionRequest(results []debianProofChildResult,refs [
 // and sealed aggregate census. Those capabilities remain absent/refused.
 func prepareDebianProductProjection(ctx context.Context,n *debianProofNativeOwner,p *debianProducerPlan,results []debianProofChildResult)error{
  if len(results)!=9||p.inputs==nil{return errDebianProductEvidence}
- e:=newDebianProductProjectionEvidence(p);p.projectionMu.Lock();if p.projection!=nil{p.projectionMu.Unlock();return errDebianProductEvidence};p.projection=e;p.projectionToken=e.token();p.projectionMu.Unlock()
+ e:=newDebianProductProjectionEvidence(p);e.native=n;p.projectionMu.Lock();if p.projection!=nil{p.projectionMu.Unlock();return errDebianProductEvidence};p.projection=e;p.projectionToken=e.token();p.projectionMu.Unlock()
  originals:=map[string][]byte{};objects:=[]backend.DocumentImageAssemblyEvidenceObject{}
  add:=func(role,path string,data []byte){ref:=assemblyDebianObjectRef{role,assemblyCatalogDigest(data),int64(len(data))};e.refs[role]=ref;objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:role,Path:path,Bytes:ref.Bytes,Digest:ref.SHA256})}
  for i,r:=range results{for _,v:=range []struct{prefix string;data []byte}{{"stdout",r.Stdout},{"stderr",r.Stderr}}{role:=fmt.Sprintf("%s-%d",v.prefix,i);add(role,filepath.Join(p.directory,role),v.data)}}

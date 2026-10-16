@@ -142,6 +142,7 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
   if !native.closeProduced(){settled=false}
   if candidate!=nil{if e:=candidate.retire();e!=nil{settled=false}}else if ownedRun!=nil{if e:=ownedRun.retire();e!=nil{settled=false}}else if plan.inputs!=nil{if e:=plan.inputs.Close();e!=nil{settled=false}}
   if candidate==nil&&ownedRun==nil&&plan.projectionToken!=nil{if e:=plan.projectionToken.Close();e!=nil{settled=false}}
+  cleanupCtx,cancelCensus:=context.WithDeadline(context.Background(),native.wholeDeadline);if !native.settleSourceAdmissions(cleanupCtx)||!native.originalCensusSettled(){settled=false};cancelCensus()
   out.Identity=plan.identity;out.CleanupConfirmed=settled;out.ResourcesHeld=reserved&&!settled
   r.mu.Lock();r.resourceSettlementKnown=settled;r.mu.Unlock()
   if reserved&&settled{cleanupCtx,cancel:=context.WithTimeout(context.Background(),2*time.Second);if e:=r.api.execution.advanceDebianInputProof(cleanupCtx,plan.identity,"finished",nil);e!=nil{out.ResourcesHeld=true;out.CleanupConfirmed=false;runErr=e};cancel()}
@@ -159,7 +160,10 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  canonical,_:=canonicalDebianProducerProfile(profile)
  objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:"profile-descriptor",Path:filepath.Join(profile.Root,"profile.json"),Bytes:int64(len(canonical)),Digest:profile.SHA256})
  for _,f:=range profile.Files{path:=filepath.Join(profile.Root,filepath.FromSlash(f.RelativePath));plan.paths[f.Role]=path;objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:f.Role,Path:path,Bytes:f.Bytes,Digest:f.SHA256})}
- if e=plan.readBudget.acquisition(ctx,objects);e!=nil{runErr=e;return};plan.inputs,e=dockerbe.AcquireDocumentImageAssemblyEvidence(ctx,objects);if e!=nil{runErr=e;return}
+ acquisition,e:=dockerbe.PrepareDocumentImageAssemblyEvidenceAcquisition(objects);if e!=nil{runErr=e;return}
+ admission,e:=native.registerEvidenceSource(ctx,acquisition);if e!=nil{runErr=e;return}
+ query,e:=native.reserveObserverQuery();if e!=nil{runErr=e;return};if e=native.startObserver(ctx,query);e!=nil{runErr=e;return};if e=native.initialAdmission(ctx);e!=nil{runErr=e;return}
+ if e=plan.readBudget.acquisition(ctx,objects);e!=nil{runErr=e;return};plan.inputs,e=native.acquireEvidenceSource(ctx,admission);if e!=nil{runErr=e;return}
  read:=func(role string)([]byte,error){f:=files[role];if f.Bytes<=0||f.Bytes>1<<20{return nil,runtimeinstall.ErrInputProofUnavailable};return readDebianProductGuard(ctx,plan.readBudget,plan.inputs,role,assemblyDebianObjectRef{role,f.SHA256,f.Bytes})}
  config,e:=read("producer-config");if e!=nil{runErr=e;return};policy,e:=read("policy-source");if e!=nil{runErr=e;return}
  // Existing domain pins are mandatory. A future packaged profile needs an
@@ -211,9 +215,9 @@ func debianProducerProfileBeforeReservation(p runtimeinstall.BundledDebianInputP
  for _,f:=range p.Files{if f.Role=="producer-config"&&f.SHA256==assemblyDebianConfigSHA||f.Role=="producer-source-receipt"&&f.SHA256=="13a80135f8b3b6392d8dc69df5f441a34eae0aa9592cc94dc6710ef2e061d1e0"{return nil,runtimeinstall.ErrInputProofUnavailable}}
  if _,e:=validateDebianProductProfile(p);e!=nil{return nil,e}
  // A closed metadata family is not a live eligibility capability. Product
- // packaged expected objects, actual UCRT/WOW64/current-host proof and the
- // mandatory aggregate original-handle census remain absent. Fixed-copy
- // plumbing alone does not prove any of those prerequisites.
+ // packaged expected objects and actual UCRT/WOW64/current-host proof remain
+ // absent. Unexecuted copy/census source cannot supply those prerequisites or
+ // establish an observed native ownership proof.
  // Refuse before PID/observer/owner registration or resource reservation even
  // if a future source edit populates Product's registry with shape-valid data.
  return nil,runtimeinstall.ErrInputProofUnavailable

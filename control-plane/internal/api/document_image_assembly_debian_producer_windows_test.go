@@ -50,7 +50,8 @@ func(k *inertDebianKernel)calls()*debianProofWindowsCalls{return &debianProofWin
 }}
 func inertDebianOwner(k *inertDebianKernel)*debianProofNativeOwner{
  now:=time.Now();done:=make(chan struct{});close(done)
- return &debianProofNativeOwner{calls:k.calls(),began:now,workDeadline:now.Add(40*time.Second),wholeDeadline:now.Add(60*time.Second),cancel:func(){},stopWatch:make(chan struct{}),watchDone:make(chan struct{}),observer:&debianProofObserver{sample:debianNativeSample{At:now,Physical:9<<30,Commit:9<<30,CPU:10,Known:true},stop:make(chan struct{}),done:done,closed:true}}
+ o:=&debianProofNativeOwner{calls:k.calls(),began:now,workDeadline:now.Add(40*time.Second),wholeDeadline:now.Add(60*time.Second),cancel:func(){},stopWatch:make(chan struct{}),watchDone:make(chan struct{}),observer:&debianProofObserver{sample:debianNativeSample{At:now,Physical:9<<30,Commit:9<<30,CPU:10,Known:true},stop:make(chan struct{}),done:done,closed:true}}
+ o.census=newDebianProofNativeCensus(o);o.observerStarted.Store(true);return o
 }
 func TestDebianNativeActualChildLateCreateNeverResumesAndClosesParentWrites(t *testing.T){
  k:=&inertDebianKernel{closed:map[windows.Handle]bool{},enter:make(chan struct{}),release:make(chan struct{})};o:=inertDebianOwner(k)
@@ -64,9 +65,11 @@ func TestDebianNativeActualChildLateCreateNeverResumesAndClosesParentWrites(t *t
  if k.deleted.Load(){t.Fatal("startup values freed while Create borrowed them")};close(k.release)
  var got response;select{case got=<-finished:case<-time.After(time.Second):t.Fatal("late original ACK did not join cleanup")}
  if got.err==nil||k.resumed.Load()!=0||!got.result.OriginalHandleOwned||!got.result.ExitConfirmed||!got.result.CaptureSettled||!got.result.HandlesClosed{t.Fatalf("late-ACK ownership/result mismatch: %#v %v",got.result,got.err)}
+ inherited:=o.lifetimes[0].inherited;if inherited==nil||inherited.pending||inherited.slots[0].value==0||inherited.childOf!=o.lifetimes[0].piTicket{t.Fatal("parent stdio/PI Close prematurely settled child copies")}
  k.mu.Lock();jobClosed:=k.closed[77];writers:=k.closed[102]&&k.closed[104]&&k.closed[105];k.mu.Unlock()
  if jobClosed||!writers||!k.deleted.Load(){t.Fatal("Job closed too early or parent writes/attributes not settled")}
  if !settleInertDebianOwner(o){t.Fatal("synthetic original handles failed positive settlement")}
+ if inherited.slots[0].value!=0||!o.processCensusSettled(){t.Fatal("joint original process/Job settlement did not retire inherited copies")}
 }
 func TestDebianNativeActualChildRetainsPartialPipeAndFailedClose(t *testing.T){
  k:=&inertDebianKernel{closed:map[windows.Handle]bool{},partialPipe:true,failClose:102};o:=inertDebianOwner(k)
@@ -79,7 +82,7 @@ func TestDebianNativeActualChildRetainsPartialPipeAndFailedClose(t *testing.T){
 func TestDebianNativeRetirementBorrowPreventsConcurrentOriginalJobClose(t *testing.T){
  k:=&inertDebianKernel{closed:map[windows.Handle]bool{}};o:=inertDebianOwner(k);entered,release:=make(chan struct{}),make(chan struct{})
  o.calls.TerminateJob=func(windows.Handle,uint32)error{close(entered);<-release;return nil}
- o.jobs=[]*debianProofJob{{handle:77}};close(o.watchDone);retired:=make(chan struct{});go func(){o.retire();close(retired)}();<-entered
+ ticket,e:=o.reserveNativeOriginal(debianProofOriginalJob);if e!=nil{t.Fatal(e)};if e=o.recordKernelReturn(ticket,77);e!=nil{t.Fatal(e)};o.jobs=[]*debianProofJob{{handle:77}};close(o.watchDone);retired:=make(chan struct{});go func(){o.retire();close(retired)}();<-entered
  select{case<-retired:case<-time.After(time.Second):t.Fatal("blocked native termination blocked emergency latch")}
  if o.settle(){t.Fatal("original Job closed while retirement borrowed its handle")};k.mu.Lock();closed:=k.closed[77];k.mu.Unlock();if closed{t.Fatal("borrowed handle was closed")}
  close(release);if !settleInertDebianOwner(o){t.Fatal("original handle did not settle after termination borrower returned")}
@@ -87,6 +90,13 @@ func TestDebianNativeRetirementBorrowPreventsConcurrentOriginalJobClose(t *testi
 func settleInertDebianOwner(o *debianProofNativeOwner)bool{until:=time.Now().Add(time.Second);for time.Now().Before(until){if o.settle(){return true};time.Sleep(time.Millisecond)};return false}
 func TestDebianNativePendingGenerationConsumesLateCreateAfterWholeDeadline(t *testing.T){testDebianNativePendingGeneration(t,false)}
 func TestDebianNativePendingGenerationConsumesPartialCreateError(t *testing.T){testDebianNativePendingGeneration(t,true)}
+func TestDebianNativeActualChildKnownUnallocatedCreateSettlesOnlyItsOwnDerivatives(t *testing.T){
+ k:=&inertDebianKernel{closed:map[windows.Handle]bool{}};o:=inertDebianOwner(k)
+ o.calls.CreateProcess=func(_ *uint16,_ *uint16,_ *windows.SecurityAttributes,_ *windows.SecurityAttributes,_ bool,_ uint32,_ *uint16,_ *uint16,_ *windows.StartupInfo,_ *windows.ProcessInformation)error{k.created.Add(1);return errors.New("synthetic direct Win32 false with zero original PI")}
+ g:=executionTestGate(t,filepath.Join(t.TempDir(),"shared"));row:=nativeLeaseFixture();row.Scope=g.scope;if e:=g.mutate(context.Background(),func(l *executionLeaseLedger)error{l.InputProofs=append(l.InputProofs,row);return nil});e!=nil{t.Fatal(e)}
+ p:=&debianProducerPlan{identity:row.Identity,directory:t.TempDir(),environment:[]uint16{0,0}};p.commands[0]=[]string{"synthetic-held-gpg"};result,e:=o.child(context.Background(),g.api,p,0,p.commands[0]);if e==nil||result.OriginalHandleOwned||k.created.Load()!=1||k.resumed.Load()!=0||len(o.lifetimes)!=1{t.Fatal("known unallocated Create acquired native identity")};life:=o.lifetimes[0]
+ if life.inherited==nil||life.inherited.pending||life.inherited.slots[0].value!=0||o.jobs[0].generation!=0{t.Fatal("direct false/noPI became a late allocated generation")};o.retire();close(o.watchDone);if !settleInertDebianOwner(o)||!o.originalCensusSettled(){t.Fatal("known no-allocation plus actual fake Job cleanup did not settle")}
+}
 func testDebianNativePendingGeneration(t *testing.T,partialError bool){
  t.Helper();k:=&inertDebianKernel{closed:map[windows.Handle]bool{},enter:make(chan struct{}),release:make(chan struct{})};o:=inertDebianOwner(k)
  originalCreate:=o.calls.CreateProcess
@@ -108,6 +118,7 @@ func testDebianNativePendingGeneration(t *testing.T,partialError bool){
  o.wholeDeadline=time.Now().Add(-time.Second);close(o.watchDone);releaseChild()
  var got response;select{case got=<-finished:case<-time.After(time.Second):t.Fatal("late original Create did not return")}
  if got.err==nil||k.resumed.Load()!=0||len(o.lifetimes)!=1||len(o.lifetimes[0].handles)!=8||o.lifetimes[0].handles[6]!=201||o.lifetimes[0].handles[7]!=202{t.Fatal("late/partial original handles or refusal were lost")}
+ inherited:=o.lifetimes[0].inherited;if inherited==nil||inherited.pending||inherited.childOf!=o.lifetimes[0].piTicket||inherited.slots[0].value==0{t.Fatal("late/partial Create lost possible inherited stdio generation")}
  j:=o.jobs[0];j.mu.Lock();pending:=j.generation==1&&j.lastTerminationGeneration==0&&j.terminating&&j.borrowers==1;j.mu.Unlock();if !pending{t.Fatal("new original generation was not pending under exact old borrower")}
  releaseOld();select{case<-secondEntered:case<-time.After(time.Second):t.Fatal("returning original borrower stranded the late generation")}
  j.mu.Lock();held:=j.handle==77&&j.borrowers==1&&j.lastTerminationGeneration==1;j.mu.Unlock();if !held{t.Fatal("pending handoff exposed a closable original Job")}
