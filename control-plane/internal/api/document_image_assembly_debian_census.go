@@ -34,6 +34,9 @@ type debianProofSourceAdmission struct {
  ceiling int
  evidence *dockerbe.DocumentImageAssemblyEvidenceAcquisition
  packages *dockerbe.DocumentImageAssemblyPackageAcquisition
+ namespace *dockerbe.DocumentImageAssemblyNamespaceAcquisition
+ namespaceGuard backend.DocumentImageAssemblyNamespaceGuard
+ namespacePath string
  consumed,acquiring,retiring,released bool
  guard backend.DocumentImageAssemblyEvidenceGuard
  packageGuard backend.DocumentImageAssemblyPackageInputGuard
@@ -41,10 +44,11 @@ type debianProofSourceAdmission struct {
 }
 type debianProofEvidenceAdmission struct {source *debianProofSourceAdmission}
 type debianProofPackageAdmission struct {source *debianProofSourceAdmission}
+type debianProofNamespaceAdmission struct {source *debianProofSourceAdmission}
 type debianProofQueryAdmission struct {owner *debianProofNativeOwner;ticket *debianProofOriginalTicket;consumed bool}
 // Census metadata refers to SAME original owners. It does not own replacement
 // handles, reconstruct a process, validate trust, or authorize work itself.
-type debianProofNativeCensus struct {mu sync.Mutex;owner *debianProofNativeOwner;retiring bool;reserved int;native []*debianProofOriginalTicket;sources []*debianProofSourceAdmission;query *debianProofOriginalTicket;transports []*debianBinaryNativeTransport}
+type debianProofNativeCensus struct {mu sync.Mutex;owner *debianProofNativeOwner;retiring bool;reserved int;native []*debianProofOriginalTicket;sources []*debianProofSourceAdmission;query *debianProofOriginalTicket;transports []*debianBinaryNativeTransport;spoolPool *debianBinarySpoolPool}
 func newDebianProofNativeCensus(o *debianProofNativeOwner)*debianProofNativeCensus{return &debianProofNativeCensus{owner:o}}
 func debianProofChildDerivative(kind debianProofOriginalKind)bool{return kind==debianProofOriginalInheritedStdio||kind==debianProofOriginalInheritedBinary}
 func(c *debianProofNativeCensus)hasNativeLocked(t *debianProofOriginalTicket)bool{for _,issued:=range c.native{if issued==t{return true}};return false}
@@ -85,6 +89,22 @@ func(o *debianProofNativeOwner)registerSource(ctx context.Context,lease *dockerb
 func(o *debianProofNativeOwner)registerEvidenceSource(ctx context.Context,a *dockerbe.DocumentImageAssemblyEvidenceAcquisition)(*debianProofEvidenceAdmission,error){
  if a==nil{return nil,errDebianProofCensus};lease,err:=a.RegistryLease();if err!=nil{return nil,err};s,err:=o.registerSource(ctx,lease,a,nil,nil);if err!=nil{a.RequestRetirement();return nil,err};return &debianProofEvidenceAdmission{s},nil
 }
+// By construction the fixed directory copied here is the one the sealed
+// backend acquisition actually guards. No separate caller path/guard pairing.
+func(o *debianProofNativeOwner)registerNamespaceSource(ctx context.Context,directory string)(*debianProofNamespaceAdmission,error){
+ a,err:=dockerbe.PrepareDocumentImageAssemblyNamespaceAcquisition(directory);if err!=nil{return nil,err}
+ lease,err:=a.RegistryLease();if err!=nil{a.RequestRetirement();return nil,err}
+ s,err:=o.registerSource(ctx,lease,nil,nil,nil);if err!=nil{a.RequestRetirement();return nil,err}
+ o.census.mu.Lock();s.namespace=a;s.namespacePath=directory;retired:=s.retiring||o.census.retiring;o.census.mu.Unlock()
+ if retired{a.RequestRetirement();return &debianProofNamespaceAdmission{s},errDebianProofCensus}
+ return &debianProofNamespaceAdmission{s},nil
+}
+func(o *debianProofNativeOwner)acquireNamespaceSource(ctx context.Context,p *debianProofNamespaceAdmission)(backend.DocumentImageAssemblyNamespaceGuard,error){
+ if p==nil||p.source==nil||p.source.namespace==nil{return nil,errDebianProofCensus};s:=p.source
+ if err:=o.consumeSource(ctx,s);err!=nil{return nil,err};g,err:=s.namespace.Acquire(ctx)
+ c:=o.census;c.mu.Lock();s.namespaceGuard=g;s.acquiring=false;retired:=c.retiring||s.retiring||o.nativeRetired()||ctx.Err()!=nil||!time.Now().Before(o.workLimit());c.mu.Unlock()
+ if retired||g==nil&&err==nil{return g,errDebianProofCensus};return g,err
+}
 func(o *debianProofNativeOwner)registerExistingEvidenceSource(ctx context.Context,g backend.DocumentImageAssemblyEvidenceGuard)(*debianProofEvidenceAdmission,error){
  lease,err:=dockerbe.BorrowDocumentImageAssemblyEvidenceRegistry(ctx,g);if err!=nil{return nil,err};s,err:=o.registerSource(ctx,lease,nil,nil,g);if err!=nil{return nil,err};return &debianProofEvidenceAdmission{s},nil
 }
@@ -113,7 +133,7 @@ func(o *debianProofNativeOwner)acquireEvidenceObjects(ctx context.Context,object
 }
 func(o *debianProofNativeOwner)retireSourceAdmissions(){
  c:=o.census;if c==nil{return};c.mu.Lock();c.retiring=true;sources:=append([]*debianProofSourceAdmission(nil),c.sources...);for _,s:=range sources{s.retiring=true};c.mu.Unlock()
- for _,s:=range sources{if s.evidence!=nil{s.evidence.RequestRetirement()};if s.packages!=nil{s.packages.RequestRetirement()}}
+ for _,s:=range sources{if s.evidence!=nil{s.evidence.RequestRetirement()};if s.packages!=nil{s.packages.RequestRetirement()};if s.namespace!=nil{s.namespace.RequestRetirement()}}
 }
 // Called after real source/candidate owners Close. A transferred stale token
 // is not a cleanup capability; consult the SAME backend lifetime directly.

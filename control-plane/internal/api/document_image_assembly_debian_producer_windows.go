@@ -74,7 +74,7 @@ func newDebianProofWindowsCalls()*debianProofWindowsCalls{return &debianProofWin
 type debianProofJob struct {mu sync.Mutex;handle windows.Handle;settled,closing,terminating,terminationStarted,retirementRequested bool;borrowers int;ordinal int;generation,lastTerminationGeneration uint8}
 type debianProofTerminationBorrow struct {job *debianProofJob;handle windows.Handle;generation uint8}
 type debianProofProducedFile struct {handle windows.Handle;path string;info windows.ByHandleFileInformation;readOnly,identityKnown bool}
-type debianProofLifetime struct {handles []windows.Handle; readersSettled bool;processSettled bool;stdout,stderr chan proofPipeRead;outResult,errResult *proofPipeRead;pid uint32;creation uint64;job *debianProofJob;piTicket,inherited *debianProofOriginalTicket}
+type debianProofLifetime struct {handles []windows.Handle; readersSettled bool;processSettled bool;stdout,stderr chan proofPipeRead;outResult,errResult *proofPipeRead;pid uint32;creation uint64;job *debianProofJob;piTicket,inherited *debianProofOriginalTicket;binarySpool atomic.Pointer[debianBinarySpoolSet]}
 type debianProofNativeOwner struct {
  calls *debianProofWindowsCalls
  census *debianProofNativeCensus
@@ -83,6 +83,7 @@ type debianProofNativeOwner struct {
  jobs []*debianProofJob
  lifetimes []*debianProofLifetime
  produced []*debianProofProducedFile
+ binarySpools []*debianBinarySpoolSet
  stopped atomic.Bool
  stopOnce sync.Once
  stopWatch chan struct{}
@@ -129,6 +130,7 @@ func(o *debianProofNativeOwner) retire(){
  // while a concurrent emergency retirement can still use the handle.
  for _,j:=range jobs{o.requestJobRetirement(j)}
  o.retireBinaryTransports()
+ o.retireBinarySpools()
  o.retireSourceAdmissions()
 }
 // Called under this exact original Job's mutex. Each Job has at most two
@@ -168,7 +170,7 @@ func(o *debianProofNativeOwner) settle()bool{
  for _,life:=range o.lifetimes{
   if len(life.handles)>=8 && life.handles[6]!=0 {wait:=max(time.Duration(0),time.Until(minProofTime(o.wholeDeadline,time.Now().Add(5*time.Second))));state,e:=o.calls.Wait(life.handles[6],uint32(wait/time.Millisecond));life.processSettled=e==nil&&state==windows.WAIT_OBJECT_0}
   if life.stdout!=nil{_ = life.finishReaders(o.wholeDeadline)}
-  for i,h:=range life.handles{if h==0{continue};if (i==0||i==2)&&!life.readersSettled||i>=6&&!life.processSettled{ok=false;continue};if o.closeKernelOriginal(h)!=nil{ok=false}else{life.handles[i]=0}}
+  for i,h:=range life.handles{if h==0{continue};if (i==0||i==2)&&!life.readersSettled||i>=6&&!life.processSettled{ok=false;continue};spool:=life.binarySpool.Load();if i==2&&spool!=nil&&!spool.claimStderrClose(){ok=false;continue};if o.closeKernelOriginal(h)!=nil{ok=false}else{life.handles[i]=0}}
  }
  if ok{for _,j:=range jobs{j.mu.Lock();h:=j.handle;if h==0{j.mu.Unlock();continue};if j.borrowers!=0||j.closing{j.mu.Unlock();ok=false;continue};j.closing=true;j.mu.Unlock()
   empty:=proofJobEmpty(o.calls,h);var e error;if empty{e=o.closeKernelOriginal(h)}else{e=errors.New("Job is not empty")};j.mu.Lock();if e!=nil{ok=false;j.closing=false}else{j.handle=0;j.settled=true};j.mu.Unlock()
