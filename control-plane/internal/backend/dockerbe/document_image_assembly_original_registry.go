@@ -235,6 +235,8 @@ type assemblyOriginalAcquisition struct {
 	guard    *assemblySourceGuard
 	evidence *assemblyEvidenceOwner
 	packages *assemblyPackageInputOwner
+	namespace *assemblyNamespaceOwner
+	directory string
 	objects  []backend.DocumentImageAssemblyEvidenceObject
 }
 
@@ -271,6 +273,48 @@ func (a *assemblyOriginalAcquisition) requestRetirement() {
 // shell cannot duplicate its one-shot latch, mutex or original ownership.
 type DocumentImageAssemblyEvidenceAcquisition struct{ state *assemblyOriginalAcquisition }
 type DocumentImageAssemblyPackageAcquisition struct{ state *assemblyOriginalAcquisition }
+type DocumentImageAssemblyNamespaceAcquisition struct{ state *assemblyOriginalAcquisition }
+
+func (a *DocumentImageAssemblyNamespaceAcquisition) RegistryLease() (*DocumentImageAssemblyOriginalRegistryLease, error) {
+	if a == nil || a.state == nil || a.state.namespace == nil {
+		return nil, backend.ErrLaunchFenceOwnership
+	}
+	return assemblyRegistryLease(a.state.guard)
+}
+
+// Immediate metadata latch only. The sole current token must remain retained
+// until the receiver's actual borrowers settle before explicit native Close.
+func (a *DocumentImageAssemblyNamespaceAcquisition) RequestRetirement() {
+	if a == nil || a.state == nil || a.state.namespace == nil { return }
+	s := a.state
+	s.requestRetirement()
+	o := s.namespace
+	o.mu.Lock()
+	o.closing = true
+	o.ready = false
+	o.mu.Unlock()
+}
+
+func (a *DocumentImageAssemblyNamespaceAcquisition) Acquire(ctx context.Context) (backend.DocumentImageAssemblyNamespaceGuard, error) {
+	if a == nil || a.state == nil || a.state.namespace == nil || a.state.guard == nil {
+		return nil, backend.ErrLaunchFenceOwnership
+	}
+	s := a.state
+	if err := s.begin(ctx); err != nil { return nil, err }
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	err := acquireAssemblyPreparedNamespace(ctx, s.guard, s.directory)
+	o := s.namespace
+	o.mu.Lock()
+	if err == nil && (o.closing || s.retired.Load() || s.guard.originalRegistry().retiring.Load() || ctx.Err() != nil) {
+		err = backend.ErrUnavailable
+	}
+	o.ready = err == nil
+	o.mu.Unlock()
+	// Return exact custody even on partial/late failure. Neither timeout nor
+	// failed eligibility is a collector-stop or native-close witness.
+	return &assemblyNamespaceToken{o, 1}, err
+}
 
 func (a *DocumentImageAssemblyEvidenceAcquisition) RegistryLease() (*DocumentImageAssemblyOriginalRegistryLease, error) {
 	if a == nil || a.state == nil || a.state.evidence == nil {
