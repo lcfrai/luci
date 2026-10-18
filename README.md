@@ -64,7 +64,7 @@ Shared managed ChatGPT credentials run one parent job at a time. Bounded paralle
 
 Optional native helpers require a local Codex **Bypass** task route and a server-selected immutable execution image. Installation alone is insufficient. Each coding parent may use at most two concurrent helpers sharing its permissions and worktree; they do not replace the separate Luci reviewer. **Reported helper activity · partial, unverified** shows last-reported observations, not complete conversations or confirmed cleanup.
 
-After an interrupted or uncertain action, use **Check team status** and inspect the saved queue outcome before continuing. Do not repeat an unconfirmed start. Pausing future starts leaves existing agents running. Package and live-workflow verification remain in progress.
+After an interrupted or uncertain action, use **Check team status** and **Refresh queue**, then inspect the saved outcomes before continuing. Do not repeat an unconfirmed start. Pausing future starts leaves existing agents running. Package and live-workflow verification remain in progress.
 
 ## Your work and your control
 
