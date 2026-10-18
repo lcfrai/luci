@@ -102,6 +102,13 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
   const [busy, setBusy] = useState('');
   const [consent, setConsent] = useState(false);
   const working = useRef(false), generation = useRef(0);
+  const inFlight = useRef<symbol | null>(null), mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  function settleWorking(owner: symbol) {
+    if (inFlight.current !== owner) return;
+    inFlight.current = null; working.current = false;
+    if (mounted.current) setBusy('');
+  }
   const allowed = canRead && canEdit && !!scope && actorId === pending.actorId;
   const mayWrite = useRef(allowed); mayWrite.current = allowed;
   const currentApprovalIssue = useRef(approvalIssue); currentApprovalIssue.current = approvalIssue;
@@ -121,6 +128,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
   async function refresh() {
     if (!canRead || !pending.contractId && !mayWrite.current || working.current || preparing) return;
     const current = generation.current;
+    const owner = Symbol('contract-read'); inFlight.current = owner;
     working.current = true; setBusy('Reading exact contract'); setError(''); setConsent(false);
     try {
       // A known identity is read only. An unknown preparation can be resolved
@@ -131,7 +139,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
       const next = { ...pending, contractId: value.contract.id };
       retainContractReview(scope, next); setView(value); onPrepared(next, value);
     } catch (cause) { if (generation.current === current) setError(errorText(cause)); }
-    finally { working.current = false; if (generation.current === current) setBusy(''); }
+    finally { settleWorking(owner); }
   }
   useEffect(() => {
     const current = generation.current;
@@ -141,6 +149,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
   async function approveAndCreate() {
     if (!allowed || currentApprovalIssue.current || !view || !consent || working.current || preparing || view.freshness.status !== 'current') return;
     const current = generation.current;
+    const owner = Symbol('contract-approval'); inFlight.current = owner;
     working.current = true; setBusy('Saving reviewed contract and run'); setError('');
     try {
       retainContractReview(scope, pending);
@@ -170,7 +179,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
         setError(`${errorText(cause)} The exact request is retained. ${continuation ? 'Refresh its recorded status before continuing; do not submit it again while its effect is unconfirmed.' : 'Refresh its recorded status before continuing; no coding session was started here.'}`);
         setConsent(false);
       }
-    } finally { working.current = false; if (generation.current === current) setBusy(''); }
+    } finally { settleWorking(owner); }
   }
 
   function reviewUpdatedInputs() {

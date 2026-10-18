@@ -61,6 +61,16 @@ it.each(['access', 'image'])('native helpers invalidate an awaited approval read
   await act(async () => finish(p.initialView));
   expect(approve).not.toHaveBeenCalled(); expect(p.onCreate).not.toHaveBeenCalled();
   expect(screen.getByRole('checkbox')).toHaveProperty('checked', false);
+  expect(screen.getByRole('button', {name: 'Refresh contract status'})).toHaveProperty('disabled', false);
+  const retained = localStorage.getItem(contractReviewKey(p.scope));
+  expect(retained).toBeTruthy();
+  ui.rerender(<ExecutionContractReview {...p} approvalIssue="Review the current captured route before continuing." />);
+  const reviewInputs = screen.getByRole('button', {name: 'Keep original request and review updated plan'});
+  expect(reviewInputs).toHaveProperty('disabled', false);
+  fireEvent.click(reviewInputs); expect(p.onReviewInputs).toHaveBeenCalledOnce();
+  const archive = Object.keys(localStorage).find(key => key.includes(':archive:'));
+  expect(archive).toBeDefined(); expect(localStorage.getItem(archive!)).toBe(retained);
+  expect(approve).not.toHaveBeenCalled(); expect(p.onCreate).not.toHaveBeenCalled();
 });
 it.each([0, 1, 2])('shows exact captured repair budget%i before approval without consuming the first or final review', automaticRepairLimit => {
   const p = props(); p.initialView.contract.input.controls.automaticRepairLimit = automaticRepairLimit;
