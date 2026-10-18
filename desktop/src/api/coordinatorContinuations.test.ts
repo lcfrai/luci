@@ -82,6 +82,15 @@ it('refuses a verification claim without its exact continuation delivery identit
 });
 
 const saved = (): CoordinatorSavedRoute => ({ revision: 3, route: { worktreeId: 'w-1', harness: 'codex', model: 'm', permissionMode: 'bypass', outcome: 'preview' }, maxParallel: 4, updatedAt: '2026-10-12T00:00:00Z', checkPlan: { commands: [{ label: 'npm', executable: 'npm', args: ['test'] }], requirementIds: ['REQ-1'], requirementSnapshots: [{ id: 'REQ-1', title: 'Book', acceptance: 'A visitor can book' }], acknowledgeProjectCommands: true } });
+it('native helpers preserve explicit saved intent without accepting a caller image or unknown grant', async () => {
+  const value = saved(); value.route.nativeDelegation = 'codex-native-helpers-2-v1';
+  const request = vi.mocked(productApi.request).mockResolvedValue({continuations: [], savedRoute: value});
+  expect((await api.listState('p-1', 'alice')).savedRoute?.route.nativeDelegation).toBe('codex-native-helpers-2-v1');
+  for (const extra of [{nativeDelegation: 'future'}, {nativeDelegationImage: 'sha256:' + 'a'.repeat(64)}, {executionLocation: 'cloud-microvm'}, {permissionMode: 'ask'}]) {
+    request.mockResolvedValue({continuations: [], savedRoute: {...value, route: {...value.route, ...extra}}});
+    await expect(api.listState('p-1', 'alice')).rejects.toThrow(/saved continuation route/);
+  }
+});
 it('retains exact saved-route revision and command-coverage delegation for the next current selection', async () => {
   const route = saved(); vi.mocked(productApi.request).mockResolvedValueOnce({ continuations: [], savedRoute: route });
   expect((await api.listState('p-1', 'alice')).savedRoute).toEqual(route);

@@ -87,6 +87,7 @@ export interface ProjectRun {
     requirements: RunRequirement[];
     route: {
       harness: string; model: string; permissionMode: PermissionMode; effort?: string; executionLocation?: 'cloud-microvm';
+      nativeDelegation?: 'codex-native-helpers-2-v1'; nativeDelegationImage?: string;
       connection: { id?: string; kind: string; protocol?: string; model?: string; endpoint?: string; authMode?: string; revision: number };
     };
   };
@@ -113,13 +114,29 @@ export interface CreateProjectRun {
   idempotencyKey: string; worktreeId: string; harness: string; model: string; permissionMode: PermissionMode;
   effort?: string; executionLocation?: 'cloud-microvm'; agentConnectionId?: string; outcome: 'preview' | 'publish'; implementationContext: ImplementationContextRequest;
   orchestrationContract?: OrchestrationContractReference;
+  nativeDelegation?: 'codex-native-helpers-2-v1';
 }
 const path = (project: string, run?: string) => `/v1/product/projects/${encodeURIComponent(project)}/runs${run ? '/' + encodeURIComponent(run) : ''}`;
+export const CODEX_NATIVE_HELPERS = 'codex-native-helpers-2-v1' as const;
+export function validNativeDelegation(value: unknown): boolean {
+  return value === undefined || value === '' || value === CODEX_NATIVE_HELPERS;
+}
+/** Captured identity only; neither a digest nor a profile establishes readiness. */
+export function validNativeDelegationRoute(route: {harness?: string; permissionMode?: string; executionLocation?: string; nativeDelegation?: unknown; nativeDelegationImage?: unknown}): boolean {
+  const profile = route.nativeDelegation, image = route.nativeDelegationImage;
+  if (profile === undefined || profile === '') return image === undefined || image === '';
+  if (profile !== CODEX_NATIVE_HELPERS || route.harness !== 'codex' || route.permissionMode !== 'bypass' || route.executionLocation && route.executionLocation !== 'local-docker' || typeof image !== 'string' || image.length > 330) return false;
+  if (/^sha256:[a-f0-9]{64}$/.test(image)) return true;
+  const parts = image.split('@');
+  return parts.length === 2 && parts[0].length <= 255 &&
+    /^[a-z0-9]+([._-][a-z0-9]+)*(:[0-9]{1,5})?(\/[a-z0-9]+([._-][a-z0-9]+)*)*$/.test(parts[0]) && /^sha256:[a-f0-9]{64}$/.test(parts[1]);
+}
 // Responses must belong to the requested project before any receipt is rendered.
 function owned(project: string, value: ProjectRun, id?: string): ProjectRun {
   if (!value || value.projectId !== project || value.input?.implementation?.projectId !== project || (id && value.id !== id)) {
     throw new Error('The run response belongs to another project. Refresh this project before continuing.');
   }
+  if (value.input.route && !validNativeDelegationRoute(value.input.route)) throw new Error('The captured native delegation route could not be verified. Refresh this project before continuing.');
   for (const operation of value.operations ?? []) {
     const failure = operation.startFailure;
     if (failure !== undefined && (!failure || !['provider-reservation', 'run-revalidation', 'admission', 'lifecycle-lock', 'launch-journal'].includes(failure.stage) ||
@@ -157,7 +174,9 @@ export const projectRunsApi = {
   },
   async create(project: string, input: CreateProjectRun) {
     const result = await productApi.request<{ run: ProjectRun }>(path(project), input);
-    return owned(project, result.run);
+    const run = owned(project, result.run);
+    if ((run.input.route?.nativeDelegation ?? '') !== (input.nativeDelegation ?? '')) throw new Error('The saved run native-helper profile differs from the exact request. Read its retained outcome before continuing.');
+    return run;
   },
   async reserve(project: string, run: string, expectedRevision: number, idempotencyKey: string) {
     const result = await productApi.request<{ run: ProjectRun; operation: RunOperation }>(`${path(project, run)}/operations`, { expectedRevision, idempotencyKey, kind: 'session' });

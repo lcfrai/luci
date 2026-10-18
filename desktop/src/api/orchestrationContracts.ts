@@ -1,7 +1,7 @@
 import { productApi } from './product';
 import { validAutomaticRepairLimit } from './coordinatorPolicy';
 import type { ImplementationContext, ImplementationContextRequest } from '../store/types';
-import type { ProjectRun, RunApprovals } from './projectRuns';
+import { validNativeDelegationRoute, type ProjectRun, type RunApprovals } from './projectRuns';
 
 /** Interface pinned by docs/luci/interfaces/orchestration-contract-v1.json at fb5e408b. */
 export interface PrepareOrchestrationContract {
@@ -11,6 +11,7 @@ export interface PrepareOrchestrationContract {
   route: {
     harness: 'codex' | 'claude-code' | 'opencode'; model: string; permissionMode: 'ask' | 'bypass';
     effort?: string; executionLocation: 'local-docker' | 'cloud-microvm'; agentConnectionId?: string;
+    nativeDelegation?: 'codex-native-helpers-2-v1';
   };
   outcome: 'preview' | 'publish';
 }
@@ -76,6 +77,7 @@ export function ownedOrchestrationContract(projectId: string, value: Orchestrati
       !sha(input.controls.authorityPolicyDigest) || !['workspace-private-policy', 'team-private-policy'].includes(input.controls.authorityPolicySource) ||
       !boundedStandards(input.standards) || typeof input.decisionPolicy?.routine !== 'string' || typeof input.decisionPolicy?.humanInput !== 'string' ||
       !text(input.route?.harness) || typeof input.route.model !== 'string' || !['ask', 'bypass'].includes(input.route.permissionMode) ||
+      !validNativeDelegationRoute(input.route) ||
       c.state === 'approved' && (!text(c.approval?.id) || !text(c.approval?.actor?.id) || c.approval?.digest !== c.digest)) {
     throw new Error('The execution contract response could not be verified for this project. Refresh before continuing.');
   }
@@ -96,6 +98,7 @@ export const orchestrationContractsApi = {
     const value = ownedOrchestrationContract(projectId, await productApi.request<OrchestrationContractView>(path(projectId) + '/prepare', request));
     const c = value.contract, context = request.implementationContext;
     if (c.input.route.harness !== request.route.harness || c.input.route.permissionMode !== request.route.permissionMode || c.input.outcome !== request.outcome ||
+        (c.input.route.nativeDelegation ?? '') !== (request.route.nativeDelegation ?? '') ||
         request.route.model && c.input.route.model !== request.route.model || c.input.implementation.worktreeId !== request.worktreeId ||
         c.input.implementation.briefRevision !== context.briefRevision || c.input.implementation.planRevision !== context.planRevision ||
         c.input.implementation.specificationRevision !== context.specificationRevision || c.input.implementation.designPlanRevision !== context.designPlanRevision ||

@@ -314,4 +314,17 @@ describe("SessionPicker", () => {
     render(<SessionPicker open={false} worktreeId="w-1" onClose={() => {}} />);
     expect(screen.queryByLabelText("Harness")).toBeNull();
   });
+  it("native helpers receive resolved harness changes and a closed null without starting work", async () => {
+    const changed = vi.fn(), close = vi.fn();
+    useCockpit.setState({harnesses: [claude, shell, {...codex, available: true}]});
+    const ui = render(<SessionPicker open worktreeId="w-1" onClose={close} onResolvedHarnessChange={changed} />);
+    await waitFor(() => expect(changed).toHaveBeenLastCalledWith("claude-code"));
+    await userEvent.selectOptions(screen.getByLabelText("Harness"), "shell");
+    await waitFor(() => expect(changed).toHaveBeenLastCalledWith("shell"));
+    await userEvent.selectOptions(screen.getByLabelText("Harness"), "codex");
+    await waitFor(() => expect(changed).toHaveBeenLastCalledWith("codex"));
+    ui.rerender(<SessionPicker open={false} worktreeId="w-1" onClose={close} onResolvedHarnessChange={changed} />);
+    await waitFor(() => expect(changed).toHaveBeenLastCalledWith(null));
+    expect(createSession).not.toHaveBeenCalled(); expect(close).not.toHaveBeenCalled();
+  });
 });

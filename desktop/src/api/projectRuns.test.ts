@@ -1,9 +1,37 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { productApi } from './product';
-import { projectRunsApi, swarmIntegrationDiagnostic, type ProjectRun } from './projectRuns';
+import { projectRunsApi, swarmIntegrationDiagnostic, validNativeDelegationRoute, type ProjectRun } from './projectRuns';
 
 afterEach(() => vi.restoreAllMocks());
 const receipt = { id: 'run-1', projectId: 'p-1', input: { implementation: { projectId: 'p-1' } }, operations: [{ id: 'op-1', childId: 's-1', kind: 'session' }] } as ProjectRun;
+it.each(['sha256:' + 'a'.repeat(64), 'registry.example:5000/luci/sandbox@sha256:' + 'b'.repeat(64)])('native helpers retain exact immutable run image %s without readiness', async image => {
+  const route = {harness: 'codex', model: 'opaque', permissionMode: 'bypass' as const, nativeDelegation: 'codex-native-helpers-2-v1' as const, nativeDelegationImage: image, connection: {kind: 'codex-subscription', revision: 1}};
+  const value = {...receipt, input: {...receipt.input, route}};
+  vi.spyOn(productApi, 'request').mockResolvedValue({run: value});
+  expect((await projectRunsApi.get('p-1', 'run-1')).input.route).toBe(route);
+  expect(route).not.toHaveProperty('ready');
+});
+it.each(['', 'sandbox:dev', 'https://host/repo@sha256:' + 'a'.repeat(64), 'UPPER/repo@sha256:' + 'a'.repeat(64), 'sha256:' + 'A'.repeat(64), 'repo@@sha256:' + 'a'.repeat(64)])('native helpers refuse invalid immutable image identity %s', nativeDelegationImage => {
+  expect(validNativeDelegationRoute({harness: 'codex', permissionMode: 'bypass', nativeDelegation: 'codex-native-helpers-2-v1', nativeDelegationImage})).toBe(false);
+});
+it('native helpers preserve omitted legacy route bytes and refuse orphaned run image', async () => {
+  const legacy = {harness: 'codex', model: 'm', permissionMode: 'ask' as const, connection: {kind: 'legacy', revision: 0}};
+  const bytes = JSON.stringify(legacy);
+  expect(validNativeDelegationRoute(legacy)).toBe(true); expect(JSON.stringify(legacy)).toBe(bytes);
+  const value = {...receipt, input: {...receipt.input, route: {...legacy, nativeDelegationImage: 'sha256:' + 'a'.repeat(64)}}};
+  vi.spyOn(productApi, 'request').mockResolvedValue({run: value});
+  await expect(projectRunsApi.get('p-1', 'run-1')).rejects.toThrow(/native delegation route/);
+});
+it('native helpers keep exact fresh run request intent and refuse a dropped saved grant without replay', async () => {
+  const input = {idempotencyKey: 'native-request-one', worktreeId: 'w-1', harness: 'codex', model: 'm', permissionMode: 'bypass' as const, nativeDelegation: 'codex-native-helpers-2-v1' as const, outcome: 'preview' as const,
+    implementationContext: {projectId: 'p-1', briefRevision: 1, planRevision: 1, specificationRevision: 1, designPlanRevision: 1, taskIds: ['task-1']}};
+  const route = {harness: 'codex', model: 'm', permissionMode: 'bypass' as const, nativeDelegation: input.nativeDelegation, nativeDelegationImage: 'sha256:' + 'a'.repeat(64), connection: {kind: 'legacy', revision: 0}};
+  const request = vi.spyOn(productApi, 'request').mockResolvedValueOnce({run: {...receipt, input: {...receipt.input, route}}}).mockResolvedValueOnce({run: receipt});
+  expect((await projectRunsApi.create('p-1', input)).input.route.nativeDelegationImage).toBe(route.nativeDelegationImage);
+  expect(request.mock.calls[0][1]).toBe(input); expect(input).not.toHaveProperty('nativeDelegationImage');
+  await expect(projectRunsApi.create('p-1', input)).rejects.toThrow(/differs/);
+  expect(request).toHaveBeenCalledTimes(2);
+});
 
 it('keeps owned unknown integration readable and renders only closed diagnostic labels', async () => {
   const integration = {state: 'unknown', sourceCommit: 'a', targetCommit: 'b', reviewDigest: 'd', stage: 'target-check', failureCode: 'target-changed'};

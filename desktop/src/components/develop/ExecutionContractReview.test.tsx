@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { orchestrationContractsApi } from '../../api/orchestrationContracts';
 import { contractPrepareFixture, contractViewFixture } from '../../test/orchestrationContractFixtures';
@@ -9,6 +9,69 @@ const pending = (): ExecutionContractReviewRequest => ({ version: 1, projectId: 
 beforeEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
 function props() { return { pending: pending(), initialView: contractViewFixture(), scope: 'owner/workspace/project', actorId: 'owner', canRead: true, canEdit: true,
   onPrepared: vi.fn(), onCreate: vi.fn().mockResolvedValue(undefined), onComplete: vi.fn(), onReviewInputs: vi.fn() }; }
+function nativeProps() {
+  const p = props(); p.pending.request.route.nativeDelegation = 'codex-native-helpers-2-v1'; p.pending.request.route.permissionMode = 'bypass'; p.pending.request.route.harness = 'codex';
+  Object.assign(p.initialView.contract.input.route, {harness: 'codex', permissionMode: 'bypass', nativeDelegation: 'codex-native-helpers-2-v1', nativeDelegationImage: 'sha256:' + 'a'.repeat(64)});
+  return p;
+}
+it('native helpers show exact captured image and honest parent-only observation before consent', () => {
+  const p = nativeProps(); render(<ExecutionContractReview {...p} />);
+  expect(screen.getByText('sha256:' + 'a'.repeat(64))).toBeTruthy();
+  expect(screen.getByText(/individual helper activity is not fully tracked/)).toBeTruthy();
+  expect(screen.getByText(/review or repair tasks receive no helper grant/)).toBeTruthy();
+  expect(p.onCreate).not.toHaveBeenCalled();
+});
+it.each(['read-profile', 'read-image', 'approval-image'])('native helpers refuse changed captured binding at %s without creating', async boundary => {
+  const p = nativeProps(); retainContractReview(p.scope, p.pending);
+  const changed = structuredClone(p.initialView);
+  if (boundary === 'read-profile') { delete changed.contract.input.route.nativeDelegation; delete changed.contract.input.route.nativeDelegationImage; }
+  else changed.contract.input.route.nativeDelegationImage = 'sha256:' + 'b'.repeat(64);
+  vi.spyOn(orchestrationContractsApi, 'get').mockResolvedValue(boundary === 'approval-image' ? p.initialView : changed);
+  const approved = {...changed, contract: {...changed.contract, revision: 2, state: 'approved' as const, approval: {id: 'approval-1', actor: {id: 'owner', displayName: 'Owner'}, at: '2026-10-16T00:00:00Z', digest: changed.contract.digest}}};
+  const approve = vi.spyOn(orchestrationContractsApi, 'approve').mockResolvedValue(approved);
+  render(<ExecutionContractReview {...p} />);
+  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button', {name: 'Approve contract and save project run'}));
+  await screen.findByRole('alert'); expect(p.onCreate).not.toHaveBeenCalled();
+  if (boundary !== 'approval-image') expect(approve).not.toHaveBeenCalled();
+  expect(readContractReview(p.scope, 'p-1', 'owner')?.request.route.nativeDelegation).toBe('codex-native-helpers-2-v1');
+});
+it('native helpers preserve explicit recovery intent and reject caller image or changed continuation profile', () => {
+  const p = nativeProps(); retainContractReview(p.scope, p.pending);
+  expect(readContractReview(p.scope, 'p-1', 'owner')?.request.route.nativeDelegation).toBe('codex-native-helpers-2-v1');
+  const forged = structuredClone(p.pending); Object.assign(forged.request.route, {nativeDelegationImage: 'sha256:' + 'a'.repeat(64)});
+  localStorage.setItem(contractReviewKey(p.scope), JSON.stringify(forged));
+  expect(() => readContractReview(p.scope, 'p-1', 'owner')).toThrow(/could not be verified/);
+  const mismatch = structuredClone(p.pending);
+  mismatch.continuation = {idempotencyKey: mismatch.runKey, originTurnId: 'turn-1', expectedContextDigest: 'a'.repeat(64), expectedPolicyRevision: 1, maxParallel: 1,
+    run: {worktreeId: mismatch.request.worktreeId, harness: 'codex', model: mismatch.request.route.model, permissionMode: 'bypass', outcome: mismatch.request.outcome, implementationContext: mismatch.request.implementationContext}};
+  localStorage.setItem(contractReviewKey(p.scope), JSON.stringify(mismatch));
+  expect(() => readContractReview(p.scope, 'p-1', 'owner')).toThrow(/could not be verified/);
+});
+it.each(['access', 'image'])('native helpers invalidate an awaited approval read across %s change and return', async boundary => {
+  const p = nativeProps(); retainContractReview(p.scope, p.pending);
+  let finish!: (value: typeof p.initialView) => void;
+  vi.spyOn(orchestrationContractsApi, 'get').mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const approve = vi.spyOn(orchestrationContractsApi, 'approve');
+  const ui = render(<ExecutionContractReview {...p} />);
+  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button', {name: 'Approve contract and save project run'}));
+  await waitFor(() => expect(finish).toBeDefined());
+  const changed = structuredClone(p.initialView); changed.contract.input.route.nativeDelegationImage = 'sha256:' + 'b'.repeat(64);
+  ui.rerender(<ExecutionContractReview {...p} {...(boundary === 'access' ? {canEdit: false} : {initialView: changed})} />);
+  ui.rerender(<ExecutionContractReview {...p} />);
+  await act(async () => finish(p.initialView));
+  expect(approve).not.toHaveBeenCalled(); expect(p.onCreate).not.toHaveBeenCalled();
+  expect(screen.getByRole('checkbox')).toHaveProperty('checked', false);
+  expect(screen.getByRole('button', {name: 'Refresh contract status'})).toHaveProperty('disabled', false);
+  const retained = localStorage.getItem(contractReviewKey(p.scope));
+  expect(retained).toBeTruthy();
+  ui.rerender(<ExecutionContractReview {...p} approvalIssue="Review the current captured route before continuing." />);
+  const reviewInputs = screen.getByRole('button', {name: 'Keep original request and review updated plan'});
+  expect(reviewInputs).toHaveProperty('disabled', false);
+  fireEvent.click(reviewInputs); expect(p.onReviewInputs).toHaveBeenCalledOnce();
+  const archive = Object.keys(localStorage).find(key => key.includes(':archive:'));
+  expect(archive).toBeDefined(); expect(localStorage.getItem(archive!)).toBe(retained);
+  expect(approve).not.toHaveBeenCalled(); expect(p.onCreate).not.toHaveBeenCalled();
+});
 it.each([0, 1, 2])('shows exact captured repair budget%i before approval without consuming the first or final review', automaticRepairLimit => {
   const p = props(); p.initialView.contract.input.controls.automaticRepairLimit = automaticRepairLimit;
   render(<ExecutionContractReview {...p} />);
