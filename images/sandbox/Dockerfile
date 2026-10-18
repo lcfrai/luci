@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Agent harnesses. Pinned so a sandbox image is reproducible. Version
 # observed via `npm view @anthropic-ai/claude-code version` on 2026-09-17.
 RUN NODE_OPTIONS=--max-old-space-size=512 npm_config_jobs=1 npm install -g @anthropic-ai/claude-code@2.1.274 @openai/codex@0.160.0 opencode-ai@1.18.34
+COPY images/sandbox/codex-native-task.cjs /usr/local/lib/luci/codex-native-task.cjs
 
 RUN useradd -m -u 1001 -s /bin/bash dev
 COPY --from=build /out/sandboxd /usr/local/bin/sandboxd
