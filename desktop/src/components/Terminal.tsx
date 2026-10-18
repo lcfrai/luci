@@ -8,6 +8,7 @@ import {
   setAttachReadOnly,
   setAttachPermission,
   updateAttachSession,
+  useNativeHelperActivity,
 } from "../api/attachRegistry";
 import type { AttachHandle, TermLike } from "../api/attachRegistry";
 import {
@@ -122,6 +123,7 @@ function TerminalImpl({
   const verifiedPermission = useRef({scope:'',allowed:false});
   if (!access.loading) verifiedPermission.current = {scope:permissionScope,allowed:canAttach};
   const streamPermitted = canAttach || (access.loading && verifiedPermission.current.scope===permissionScope && verifiedPermission.current.allowed);
+  const helperActivity = useNativeHelperActivity(streamPermitted ? session : undefined);
   const hasSession = session !== undefined;
   /** The handle, so the focus effect below can reach it. `focused` must NOT join the mount
    *  effect's dependency array — a focus change would re-acquire and re-append the terminal,
@@ -210,11 +212,24 @@ function TerminalImpl({
   // OD-9: the marker useKeyboardMap's isInsideTerminal looks for. Spread from the constant, so
   // the attribute is named once.
   return (
+    <div style={{ width: "100%", height: "100%", minHeight: 0, display: "flex", flexDirection: "column" }}>
     <div
       ref={host}
       {...{ [TERMINAL_HOST_ATTRIBUTE]: "" }}
-      style={{ width: "100%", height: "100%" }}
+      style={{ width: "100%", flex: "1 1 0", minHeight: 0 }}
     />
+    {helperActivity.calls.length > 0 && <details style={{ flex: "0 0 auto", maxHeight: "35%", overflow: "auto", borderTop: "1px solid var(--line)", padding: "6px 10px", fontSize: 12, color: "var(--ink)" }}>
+      <summary>Reported helper activity · partial, unverified</summary>
+      <p>The parent terminal is the observed unit. Individual helpers are not fully tracked. Reports do not confirm completion, review or cleanup; a separate Luci reviewer is still required.</p>
+      {helperActivity.partial && <p>Earlier or malformed reports may be missing from this bounded view.</p>}
+      {helperActivity.disconnected && <p>The parent stream ended or disconnected. Reconnection may replay reports.</p>}
+      <ul>{helperActivity.calls.map(call => <li key={call.id}>
+        <code>{call.tool}</code> · reported {call.phase === "item.started" ? "call started" : "call completed"}
+        <div>Sender: <code>{call.sender}</code>; receivers: {call.receivers.length ? call.receivers.join(", ") : "none reported"}</div>
+        {call.states.map(state => <div key={state.id}><code>{state.id}</code>: reported {state.status}</div>)}
+      </li>)}</ul>
+    </details>}
+    </div>
   );
 }
 
