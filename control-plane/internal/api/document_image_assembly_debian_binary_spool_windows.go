@@ -201,7 +201,7 @@ func(s *debianBinarySpoolSet)joinAndHash(ctx context.Context,slot int,g backend.
 // Explicit retirement only. No waiting for busy IO, no automatic repeated
 // Close on a failed original, and no native process/lease/completion assertion.
 func(s *debianBinarySpoolSet)closeRetiredRaw(ctx context.Context)error{
- if s==nil||ctx==nil{return errDebianBinarySpool};s.requestRetirement();s.mu.Lock()
+ if s==nil||ctx==nil||s.owner==nil{return errDebianBinarySpool};s.owner.retire();s.mu.Lock()
  if s.busy||s.stderrPending||s.closing{s.mu.Unlock();return errDebianBinarySpool};s.busy=true;s.closing=true;s.mu.Unlock()
  defer func(){s.mu.Lock();s.busy=false;s.closing=false;s.mu.Unlock()}()
  for i:=range s.native.files{f:=&s.native.files[i];for _,v:=range []struct{handle *windows.Handle;attempted *bool}{{&f.writer,&f.writerClose},{&f.bridge,&f.bridgeClose},{&f.joined,&f.joinClose}}{
