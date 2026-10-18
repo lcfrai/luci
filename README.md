@@ -51,6 +51,21 @@ The interface and saved projects remain available when a worker must wait for ca
 
 Follow the [getting started guide](docs/luci/GETTING-STARTED.md) for Windows download, first setup and your first project. Source builds, package prerequisites and verification details are in the [release guide](docs/luci/RELEASE.md). The [Docker distribution](distribution/docker/README.md) can also package the application and its private execution engine without host Go, Node.js or Python.
 
+## Work with an agent team
+
+In a compatible testing build, review the saved definition, design and implementation plan. Check task acceptance criteria, intended files and dependencies, plus the captured connection, permissions and concurrency limit before approving continued work.
+
+1. Choose **Prepare agent team**, then **Prepare team**. Preparation records the team; it does not start agents. Check that independent coding tasks have separate scopes and that dependent tasks wait for the changes they need.
+2. In **Background queue**, choose **Queue reviewed tasks**, review the selected work and **Authorize queued tasks**. Work waits for capacity. **Open task session** shows the parent agent's terminal; **Task result and questions** shows reported decisions and unresolved questions.
+3. Use a distinct Luci reviewer for each candidate. Inspect **Review task changes** before **Integrate reviewed changes**. A worker's reported checks are claims, and an integrated commit still needs independent checks against the combined source.
+4. Review those checks, then open the checked-source preview through **Open Deploy** when ready. Try its important user journeys; a running preview alone does not establish correctness or authorize public deployment.
+
+Shared managed ChatGPT credentials run one parent job at a time. Bounded parallel jobs require an explicitly selected supported API route, current access and available resources.
+
+Optional native helpers require a local Codex **Bypass** task route and a server-selected immutable execution image. Installation alone is insufficient. Each coding parent may use at most two concurrent helpers sharing its permissions and worktree; they do not replace the separate Luci reviewer. **Reported helper activity · partial, unverified** shows last-reported observations, not complete conversations or confirmed cleanup.
+
+After an interrupted or uncertain action, use **Check team status** and inspect the saved queue outcome before continuing. Do not repeat an unconfirmed start. Pausing future starts leaves existing agents running. Package and live-workflow verification remain in progress.
+
 ## Your work and your control
 
 Luci keeps project context, task history and reviewed outputs together. Editing, running code, using secrets and publishing are distinct permissions. A completed coding task is not automatically a passed check or an approved release. Uncertain external outcomes remain visible so they can be reconciled without silently repeating an action.
