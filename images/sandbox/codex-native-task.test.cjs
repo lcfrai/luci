@@ -2,6 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
+const { constants } = require('node:os');
 const { runNativeTask, createControl, PREFIX } = require('./codex-native-task.cjs');
 
 function fixture() {
@@ -122,13 +123,15 @@ test('native helper model interruption is sticky and signals only its live origi
 });
 
 test('native helper model exit78 and Unix signal remain distinct from compatibility failure', async t => {
-  for (const signal of [null, 'SIGINT', 'SIGTERM', 'SIGKILL', 'SIGBUS', 'SIGILL']) await t.test(String(signal), async () => {
+  for (const signal of [null, 'SIGINT', 'SIGTERM', 'SIGKILL', 'SIGBUS', 'SIGILL', 'LUCI_UNSUPPORTED_SIGNAL']) await t.test(String(signal), async () => {
     const f = fixture(), result = runNativeTask(f.args, f.io);
     f.settle(f.children[0]); await Promise.resolve();
     f.children[1].emit('close', signal ? null : 78, signal);
     const observed = await result;
-    assert.equal(observed.phase, 'model'); assert.equal(observed.signal, signal);
-    assert.equal(observed.code, signal === 'SIGINT' ? 130 : signal === 'SIGTERM' ? 143 : signal === 'SIGKILL' ? 137 : signal === 'SIGBUS' ? 135 : signal === 'SIGILL' ? 132 : 78);
+    const number = signal && Object.hasOwn(constants.signals, signal) ? constants.signals[signal] : null;
+    const supported = Number.isSafeInteger(number) && number > 0 && number < 128;
+    assert.equal(observed.phase, 'model'); assert.equal(observed.signal, supported ? signal : null);
+    assert.equal(observed.code, supported ? 128 + number : 78);
     assert.deepEqual(f.kills, []);
   });
 });
