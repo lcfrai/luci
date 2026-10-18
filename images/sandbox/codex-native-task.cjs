@@ -2,12 +2,13 @@
 
 // Compatibility is not image provenance or transitive process retirement.
 const { spawn } = require('node:child_process');
+const { constants } = require('node:os');
 const CODEX = '/usr/local/bin/codex';
 const VERSION = Buffer.from('codex-cli 0.160.0\n', 'ascii');
 const PREFIX = ['-c', 'cli_auth_credentials_store="file"', '-c', 'agents.enabled=true',
   '-c', 'agents.max_concurrent_threads_per_session=2', '-c', 'features.multi_agent_v2=false'];
 const FAILURE = 78;
-const SIGNALS = { SIGHUP: 1, SIGINT: 2, SIGQUIT: 3, SIGABRT: 6, SIGKILL: 9, SIGSEGV: 11, SIGPIPE: 13, SIGTERM: 15 };
+const SIGNALS = constants.signals;
 
 function validArguments(args) {
   if (!Array.isArray(args) || args.length < PREFIX.length + 5 || args.length > 24 ||
@@ -111,7 +112,7 @@ async function runNativeTask(args, io, control = createControl(io)) {
     child.on('close', (code, signal) => {
       original.closed = true;
       const effectiveSignal = signal || control.signal;
-      if (effectiveSignal && Object.hasOwn(SIGNALS, effectiveSignal)) resolve({ phase: 'model', code: 128 + SIGNALS[effectiveSignal], signal: effectiveSignal });
+      if (typeof effectiveSignal === 'string' && Object.hasOwn(SIGNALS, effectiveSignal) && Number.isSafeInteger(SIGNALS[effectiveSignal]) && SIGNALS[effectiveSignal] > 0 && SIGNALS[effectiveSignal] < 128) resolve({ phase: 'model', code: 128 + SIGNALS[effectiveSignal], signal: effectiveSignal });
       else resolve({ phase: 'model', code: !failed && effectiveSignal == null && Number.isInteger(code) && code >= 0 && code <= 255 ? code : FAILURE, signal: null });
     });
     // A signal or partial return during spawn is latched before classification.
@@ -129,7 +130,7 @@ if (require.main === module) {
   runNativeTask(process.argv.slice(2), io, control).then(result => {
     if (result.phase === 'compatibility') process.stderr.write('The configured Codex native-helper task profile is incompatible or interrupted. No model work was started.\n');
     process.exitCode = result.code;
-    // Preserve selected Unix signal termination after the actual model close.
+    // Preserve runtime-supported Unix signal termination after actual close.
     // 128+signal is the bounded fallback if self-delivery is unavailable.
     if (result.signal) {
       for (const [signal, handler] of handlers) process.removeListener(signal, handler);

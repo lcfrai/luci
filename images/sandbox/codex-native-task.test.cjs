@@ -122,13 +122,13 @@ test('native helper model interruption is sticky and signals only its live origi
 });
 
 test('native helper model exit78 and Unix signal remain distinct from compatibility failure', async t => {
-  for (const signal of [null, 'SIGINT', 'SIGTERM', 'SIGKILL']) await t.test(String(signal), async () => {
+  for (const signal of [null, 'SIGINT', 'SIGTERM', 'SIGKILL', 'SIGBUS', 'SIGILL']) await t.test(String(signal), async () => {
     const f = fixture(), result = runNativeTask(f.args, f.io);
     f.settle(f.children[0]); await Promise.resolve();
     f.children[1].emit('close', signal ? null : 78, signal);
     const observed = await result;
     assert.equal(observed.phase, 'model'); assert.equal(observed.signal, signal);
-    assert.equal(observed.code, signal === 'SIGINT' ? 130 : signal === 'SIGTERM' ? 143 : signal === 'SIGKILL' ? 137 : 78);
+    assert.equal(observed.code, signal === 'SIGINT' ? 130 : signal === 'SIGTERM' ? 143 : signal === 'SIGKILL' ? 137 : signal === 'SIGBUS' ? 135 : signal === 'SIGILL' ? 132 : 78);
     assert.deepEqual(f.kills, []);
   });
 });
