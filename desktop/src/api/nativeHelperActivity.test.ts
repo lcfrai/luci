@@ -87,6 +87,40 @@ describe("native helper reports", () => {
     expect(JSON.stringify(capture.snapshot)).not.toContain("not-a-trusted-success");
   });
 
+  it("discovers a spawn receiver once on completion and retains the exact identity through replay", () => {
+    const capture = new NativeHelperActivityCapture();
+    capture.feed(bytes(report({ receiver_thread_ids: [] })));
+    expect(capture.snapshot.calls[0].receivers).toEqual([]);
+    const completed = report({ agents_states: { child: { status: "running" } } }, "item.completed");
+    capture.feed(bytes(completed));
+    expect(capture.snapshot.calls[0].phase).toBe("item.completed");
+    expect(capture.snapshot.calls[0].receivers).toEqual(["child"]);
+    expect(capture.snapshot.partial).toBe(false);
+    const before = capture.snapshot;
+    capture.feed(bytes(completed));
+    expect(capture.snapshot).toBe(before);
+    capture.feed(bytes(report({ receiver_thread_ids: [] })));
+    expect(capture.snapshot).toBe(before);
+    expect(capture.snapshot.calls[0].phase).toBe("item.completed");
+    expect(capture.snapshot.calls[0].receivers).toEqual(["child"]);
+    capture.feed(bytes(report({ receiver_thread_ids: ["different-child"] }, "item.completed")));
+    expect(capture.snapshot.calls[0].receivers).toEqual(["child"]);
+    expect(capture.snapshot.partial).toBe(true);
+  });
+
+  it.each([
+    { tool: "wait", receiver_thread_ids: ["child"] },
+    { tool: "spawn_agent", receiver_thread_ids: ["child", "second-child"] },
+    { tool: "spawn_agent", receiver_thread_ids: ["child"], sender_thread_id: "different-parent" },
+  ])("refuses receiver discovery outside the exact spawn transition %#", fields => {
+    const capture = new NativeHelperActivityCapture();
+    capture.feed(bytes(report({ tool: fields.tool, receiver_thread_ids: [] })));
+    capture.feed(bytes(report(fields, "item.completed")));
+    expect(capture.snapshot.calls[0].phase).toBe("item.started");
+    expect(capture.snapshot.calls[0].receivers).toEqual([]);
+    expect(capture.snapshot.partial).toBe(true);
+  });
+
   it("retains a bounded immutable window and records loss instead of lifetime counts", () => {
     const capture = new NativeHelperActivityCapture();
     for (let i = 0; i <= HELPER_CALLS; i++) capture.feed(bytes(report({ id: `call-${i}` })));

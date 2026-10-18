@@ -125,8 +125,18 @@ export class NativeHelperActivityCapture {
     const calls = this.value.calls;
     const previous = calls.find(call => call.id === next.id);
     if (previous) {
+      // A successful spawn starts before its child ID exists. Only this exact
+      // forward phase transition may discover one receiver; later replays must
+      // agree with the discovered identity.
+      const spawnDiscovery = previous.tool === "spawn_agent" && next.tool === "spawn_agent" &&
+        previous.phase === "item.started" && next.phase === "item.completed" &&
+        previous.receivers.length === 0 && next.receivers.length === 1;
+      const spawnStartReplay = previous.tool === "spawn_agent" && next.tool === "spawn_agent" &&
+        previous.sender === next.sender && previous.phase === "item.completed" &&
+        next.phase === "item.started" && previous.receivers.length === 1 && next.receivers.length === 0;
+      if (spawnStartReplay) return;
       if (previous.tool !== next.tool || previous.sender !== next.sender ||
-          JSON.stringify(previous.receivers) !== JSON.stringify(next.receivers)) {
+          (!spawnDiscovery && JSON.stringify(previous.receivers) !== JSON.stringify(next.receivers))) {
         this.set(calls, true, this.value.disconnected); return;
       }
       // Replays do not regress a reported completed phase or inflate the bounded window.
