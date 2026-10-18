@@ -31,7 +31,7 @@ func (s *Server) acceptedEventApprovedContract(ctx context.Context, p project.Pr
 		if c.Actor.ID != actor || c.Approval == nil || c.State != "approved" || c.Approval.Actor.ID != actor || c.ProjectID != p.ID ||
 			i.ProjectID != selection.ProjectID || i.WorktreeID != route.Route.WorktreeID || i.BriefRevision != selection.BriefRevision || i.PlanRevision != selection.PlanRevision ||
 			i.SpecificationRevision != selection.SpecificationRevision || i.DesignPlanRevision != selection.DesignPlanRevision || exactTasks && !sameReviewedTaskIDs(i.TaskIDs, selection.TaskIDs) ||
-			c.Input.Route.Harness != route.Route.Harness || (route.Route.Model != "" && c.Input.Route.Model != route.Route.Model) || c.Input.Route.PermissionMode != route.Route.PermissionMode || (route.Route.Effort != "" && c.Input.Route.Effort != route.Route.Effort) ||
+			c.Input.Route.Harness != route.Route.Harness || c.Input.Route.NativeDelegation != route.Route.NativeDelegation || (route.Route.Model != "" && c.Input.Route.Model != route.Route.Model) || c.Input.Route.PermissionMode != route.Route.PermissionMode || (route.Route.Effort != "" && c.Input.Route.Effort != route.Route.Effort) ||
 			(c.Input.Route.ExecutionLocation != route.Route.ExecutionLocation && !(route.Route.ExecutionLocation == "" && c.Input.Route.ExecutionLocation == "local-docker")) || c.Input.Outcome != route.Route.Outcome {
 			continue
 		}
@@ -336,7 +336,7 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 	if stopErr != nil || !settled {
 		return false, stopErr // No revised admission while an old child/charge is uncertain.
 	}
-	run := projectRunCreateRequest{WorktreeID: route.Route.WorktreeID, Harness: route.Route.Harness, Model: route.Route.Model, PermissionMode: route.Route.PermissionMode, Effort: route.Route.Effort, ExecutionLocation: route.Route.ExecutionLocation, AgentConnectionID: route.Route.AgentConnectionID, Outcome: route.Route.Outcome, ImplementationContext: selection, OrchestrationContract: contract}
+	run := projectRunCreateRequest{NativeDelegation: route.Route.NativeDelegation, WorktreeID: route.Route.WorktreeID, Harness: route.Route.Harness, Model: route.Route.Model, PermissionMode: route.Route.PermissionMode, Effort: route.Route.Effort, ExecutionLocation: route.Route.ExecutionLocation, AgentConnectionID: route.Route.AgentConnectionID, Outcome: route.Route.Outcome, ImplementationContext: selection, OrchestrationContract: contract}
 	req := coordinatorContinuationRequest{IdempotencyKey: "accepted-" + events[len(events)-1].Event.ID, OriginTurnID: events[len(events)-1].Intent.TurnID, ExpectedContextDigest: view.ContextDigest, ExpectedPolicyRevision: policy.Revision, Run: run, MaxParallel: route.MaxParallel, ExpectedRouteRevision: &route.Revision, CheckPlan: route.CheckPlan, PreviewPlan: route.PreviewPlan, DeploymentPlan: route.DeploymentPlan}
 	for _, event := range events {
 		req.AcceptedEvents = append(req.AcceptedEvents, event.Receipt)

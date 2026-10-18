@@ -29,6 +29,68 @@ func TestAcceptedAmendmentSelectsTransitiveDependentsAndPreservesIndependentTask
 	}
 }
 
+func TestNativeDelegationAcceptedEventRetainsExactProfileAndRefusesMismatch(t *testing.T) {
+	for _, match := range []bool{true, false} {
+		name := "matching-profile"; if !match { name = "mismatched-profile" }
+		t.Run(name, func(t *testing.T) {
+			s, p, h, ctx, req, starts := coordinatorContinuationFixture(t)
+			s.sandboxImage = nativeFixtureImage()
+			anchor := coordinatorCreate(t, h, p, req, 201)
+			req.Run.NativeDelegation = NativeDelegationCodexHelpers2
+			s.mu.Lock()
+			rows, err := s.readContinuations(p, "alice")
+			if err == nil {
+				rows.Rows[0].Status = "blocked"
+				rows.SavedRoute = &CoordinatorSavedRoute{Revision: 1, Route: coordinatorRoute(req.Run), MaxParallel: 1, UpdatedAt: anchor.CreatedAt}
+				err = s.saveContinuations(rows)
+			}
+			s.mu.Unlock()
+			if err != nil { t.Fatal(err) }
+			turn, snapshot := reserveOrchestratorTest(t, s, p.ID, ctx, "Improve the reviewed coding task", "")
+			plan := snapshot.Plan
+			plan.Tasks[0].Role, plan.Tasks[0].Acceptance = "coding", "The revised authored value round trips through saving."
+			answer := OrchestratorAnswer{Summary: "Revise the coding task", Options: []string{}, Impact: []string{}, Proposal: &OrchestratorProposal{Target: "plan", Summary: "Revise acceptance", Plan: &plan}}
+			if err = s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &answer); err != nil { t.Fatal(err) }
+			view, err := s.OrchestratorView(ctx, p.ID, 0)
+			if err != nil { t.Fatal(err) }
+			if err = s.applyOrchestratorProposal(ctx, p.ID, turn.ID, view.Revision, view.Context.Digest); err != nil { t.Fatal(err) }
+			s.coordinatorBackground.authorize = coordinatorFixtureReauthorize
+			if err = s.RunCoordinatorOnce(context.Background()); err != nil { t.Fatal(err) }
+			rows, err = s.readContinuations(p, "alice")
+			if err != nil || len(rows.ContextCommits) != 1 || rows.ContextCommits[0].Status != "confirmed" { t.Fatal("accepted source not committed before approval", err) }
+			review := s.acceptedCoordinatorReview(ctx, p, rows)
+			if review == nil || review.Selection == nil { t.Fatal("missing actual changed-input review", review) }
+			prepare := contractRequest(req.Run)
+			prepare.IdempotencyKey = "native-event-reviewed-" + strings.TrimPrefix(review.EventID, "coord-event-")
+			prepare.ImplementationContext = *review.Selection
+			if match { prepare.Route.NativeDelegation = NativeDelegationCodexHelpers2 }
+			endpoint := "/v1/product/projects/" + p.ID + "/orchestration-contracts"
+			prepared := contractResponse(t, journeyRequest(t, h, "POST", endpoint+"/prepare", prepare, 201).Body.Bytes())
+			approved := contractResponse(t, journeyRequest(t, h, "POST", endpoint+"/"+prepared.Contract.ID+"/approve", map[string]any{"expectedRevision": prepared.Contract.Revision, "expectedDigest": prepared.Contract.Digest}, 200).Body.Bytes())
+			if approved.Contract.Approval == nil || approved.Freshness.Status != "current" { t.Fatal("fixture did not approve current inputs", approved) }
+			_, policy, ok := management.ActorFromContext(ctx)
+			if !ok { t.Fatal("fixture actor policy absent") }
+			s.coordinatorBackground.authorize = func(parent context.Context, ref management.ExecutionActorRef, harness string, secrets bool) (context.Context, error) {
+				if ref.UserID != "alice" || ref.ProjectID != p.ID { return nil, errCoordinatorAuthority }
+				return management.WithExecutionAuthority(parent, management.ExecutionAuthority{Actor: management.User{ID: "alice", Role: "member"}, Policy: policy}), nil
+			}
+			if err = s.RunCoordinatorOnce(context.Background()); err != nil { t.Fatal(err) }
+			retained, err := s.readContinuations(p, "alice")
+			if err != nil || retained.SavedRoute == nil || retained.SavedRoute.Route.NativeDelegation != NativeDelegationCodexHelpers2 || *starts != 0 { t.Fatal("saved intent or no-model boundary changed", err) }
+			if !match {
+				if len(retained.Rows) != 1 { t.Fatal("ordinary approval silently replaced helper intent", retained.Rows) }
+			} else {
+				if len(retained.Rows) != 2 || retained.Rows[1].Run.NativeDelegation != NativeDelegationCodexHelpers2 || len(retained.Rows[1].AcceptedEvents) != 1 { t.Fatal("accepted caller dropped exact helper profile", retained.Rows) }
+				actual, readErr := s.projectRuns.Get(p.ID, p.Path, retained.Rows[1].RunID)
+				if readErr != nil || actual.Input.Route.NativeDelegationImage != nativeFixtureImage() || actual.Input.Route.NativeDelegation != NativeDelegationCodexHelpers2 { t.Fatal("accepted run lost server image binding", readErr) }
+			}
+			if err = s.RunCoordinatorOnce(context.Background()); err != nil { t.Fatal(err) }
+			again, err := s.readContinuations(p, "alice")
+			if err != nil || len(again.Rows) != len(retained.Rows) { t.Fatal("accepted event replay allocated another run", err) }
+		})
+	}
+}
+
 func TestCoordinatorAcceptedPlanEventStartsOnlyAffectedReviewedWorkOnce(t *testing.T) {
 	s, p, h, ctx, req, starts := coordinatorContinuationFixture(t)
 	anchor := coordinatorCreate(t, h, p, req, 201)
