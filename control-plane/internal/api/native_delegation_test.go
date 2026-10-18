@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http/httptest"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -62,6 +63,7 @@ func nativeQueuedFixture(t *testing.T, managed bool) (*swarmSessionFixture, mana
 		if !found { t.Fatal("synthetic managed connection missing") }
 		// Opaque fake OAuth bytes in this test-owned private store only. No
 		// actual sign-in, provider request or credential inspection occurs.
+		if err := os.MkdirAll(f.env.api.deps.ConversationsDir, 0700); err != nil { t.Fatal(err) }
 		if err := f.env.api.writeCodexConnection(&codexConnection{ID: "codex-native-helper-fixture", SourceSessionID: "s-stopped-native-helper-fixture", Auth: json.RawMessage(codexFixtureAuth)}); err != nil { t.Fatal(err) }
 		selectedModel = "default"
 	}
