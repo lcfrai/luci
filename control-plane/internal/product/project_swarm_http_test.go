@@ -410,7 +410,7 @@ func TestProjectSwarmHTTPSubscriptionPreparationRequiresSingleSlot(t *testing.T)
 	run := projectRunHTTPResponse(t, journeyRequest(t, mux, "POST", base, req, 201)).ProjectRun
 	base += "/" + run.ID + "/swarm"
 	response := journeyRequest(t, mux, "POST", base, map[string]int{"expectedRevision": run.Revision, "maxParallel": 2}, 409)
-	if !strings.Contains(response.Body.String(), "one active coding session") {
+	if !strings.Contains(response.Body.String(), "share managed ChatGPT credentials") {
 		t.Fatal(response.Body.String())
 	}
 	stored, err := s.projectRuns.Get(p.ID, p.Path, run.ID)
