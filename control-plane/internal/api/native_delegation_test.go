@@ -51,6 +51,13 @@ func nativeQueuedFixture(t *testing.T) (*swarmSessionFixture, management.Executi
 	f.reopen(t)
 	user := management.User{ID: "native-helper-fixture-owner", Username: "owner", Role: "super-admin"}
 	policy := management.Policy{AllowHostCommands: true, MaxSessionsPerUser: 8, MaxConcurrentChecksPerUser: 2, SessionMemoryMiB: 1024, SessionCPUMillis: 1000, CheckMemoryMiB: 1024, CheckCPUMillis: 1000, AllowedHarnesses: []string{"codex", "shell"}, BackingMode: "docker", InstanceName: "Native helper fixture"}
+	f.env.api.deps.Product.SetCoordinatorAuthorizer(func(ctx context.Context, projectID string) error {
+		actor, _, ok := management.ActorFromContext(ctx)
+		if ctx.Err() != nil || !ok || actor.Disabled || actor.ID != user.ID || actor.Role != user.Role || projectID != f.owner.ID {
+			return product.ErrProjectRunInvalid
+		}
+		return nil
+	})
 	f.env.api.deps.AuthorizeExecution = func(_ context.Context, ref management.ExecutionActorRef, _ string, _ bool) (management.ExecutionAuthority, error) {
 		if ref.UserID != user.ID || ref.ProjectID != f.owner.ID { t.Error("fixture current authority scope changed", ref) }
 		return management.ExecutionAuthority{Actor: user, Policy: policy}, nil
