@@ -57,7 +57,13 @@ function compatibility(io, control) {
         streams.every(stream => stream.ended) && output.equals(VERSION) && errorBytes === 0);
     };
     const refuse = () => {
-      if (!failed) { failed = true; control.signalLive('SIGKILL'); }
+      if (finished) return;
+      if (!failed) {
+        failed = true;
+        if (original && !original.closed && control.active === original && Number.isSafeInteger(child.pid) && child.pid > 0) {
+          try { io.kill(-child.pid, 'SIGKILL'); } catch { /* Exact original only; no closure proof. */ }
+        }
+      }
       finish();
     };
     try { child = io.spawn(CODEX, ['--version'], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }); }
@@ -66,6 +72,7 @@ function compatibility(io, control) {
     original = { child, closed: false, refuse }; control.active = original;
     child.on('error', refuse);
     child.on('close', (status, terminatedBy) => {
+      if (finished) return;
       original.closed = true; code = status; signal = terminatedBy;
       if (code !== 0 || signal != null || !output.equals(VERSION) || errorBytes !== 0) refuse();
       finish();
@@ -78,14 +85,14 @@ function compatibility(io, control) {
         state.closed = true; failed = true; continue;
       }
       stream.on('data', bytes => {
-        if (failed) return;
+        if (failed || finished) return;
         if (!Buffer.isBuffer(bytes) || (index === 0 ? output.length : errorBytes) + bytes.length > 128) { refuse(); return; }
         if (index === 0) output = Buffer.concat([output, bytes]);
         else { errorBytes += bytes.length; if (bytes.length) refuse(); }
       });
-      stream.on('end', () => { state.ended = true; });
+      stream.on('end', () => { if (!finished) state.ended = true; });
       stream.on('error', refuse);
-      stream.on('close', () => { state.closed = true; if (!state.ended) refuse(); finish(); });
+      stream.on('close', () => { if (finished) return; state.closed = true; if (!state.ended) refuse(); finish(); });
     }
     timer = io.setTimeout(refuse, 2000);
     if (failed || control.signal) { failed = false; refuse(); }

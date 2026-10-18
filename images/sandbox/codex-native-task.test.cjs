@@ -132,3 +132,13 @@ test('native helper model exit78 and Unix signal remain distinct from compatibil
     assert.deepEqual(f.kills, []);
   });
 });
+
+test('native helper late compatibility callbacks cannot signal the model original', async () => {
+  const f = fixture(), result = runNativeTask(f.args, f.io), version = f.children[0];
+  f.settle(version); await Promise.resolve(); assert.equal(f.calls.length, 2);
+  version.emit('error', new Error('late synthetic')); version.stdout.emit('error', new Error('late stream'));
+  version.stdout.emit('close'); version.emit('close', 1, null); f.timers[0].fn();
+  assert.deepEqual(f.kills, []); assert.equal(f.calls.length, 2);
+  f.children[1].emit('close', 0, null);
+  assert.deepEqual(await result, { phase: 'model', code: 0, signal: null });
+});
