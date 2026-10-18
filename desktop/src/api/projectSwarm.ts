@@ -1,5 +1,25 @@
 import { productApi } from './product';
 import type { ProjectRun, RunOperation } from './projectRuns';
+import { MAX_SWARM_PARALLEL_TASKS } from './swarmLimits';
+
+export const managedCredentialGuidance = 'These independent Luci jobs share managed ChatGPT credentials and run one at a time to protect credential refresh. For bounded parallel jobs, explicitly select and review a supported API model connection. Current access, provider and resource limits still apply.';
+export type SwarmParallelPolicy = { mode: 'managed-credential-serial' | 'bounded-api-route' | 'unknown'; maximumSlots?: number; message: string };
+/** Saved route support only. A receipt does not prove current readiness or authority. */
+export function swarmParallelPolicy(route?: ProjectRun['input']['route']): SwarmParallelPolicy {
+  const c = route?.connection;
+  if (c?.kind === 'codex-subscription' || route?.harness === 'codex' && c?.authMode === 'chatgpt') return {mode: 'managed-credential-serial', maximumSlots: 1, message: managedCredentialGuidance};
+  const protocol = route?.harness === 'codex' ? 'responses' : route?.harness === 'claude-code' ? 'anthropic-messages' : route?.harness === 'opencode' ? 'chat-completions' : undefined;
+  if (c && ['litellm', 'compatible-api', 'direct-api'].includes(c.kind) && typeof c.id === 'string' && c.id.length > 0 && Number.isSafeInteger(c.revision) && c.revision > 0 && c.authMode === 'api-key' && protocol && c.protocol === protocol && typeof c.endpoint === 'string' && c.endpoint.length > 0 && typeof c.model === 'string' && c.model.length > 0 && c.model === route?.model) {
+    return {mode: 'bounded-api-route', maximumSlots: MAX_SWARM_PARALLEL_TASKS, message: 'This saved API route supports bounded parallel jobs in Luci. Current connection, access, provider and resource checks still determine whether any task can start.'};
+  }
+  return {mode: 'unknown', message: 'Parallel support is not established for this saved route. Select and review a supported API model connection before requesting parallel jobs. Current readiness has not been established.'};
+}
+export function swarmParallelLimitIssue(route: ProjectRun['input']['route'] | undefined, limit: number): string {
+  const policy = swarmParallelPolicy(route);
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_SWARM_PARALLEL_TASKS) return 'Choose a concurrency limit within the supported task count.';
+  if (limit > (policy.maximumSlots ?? 1)) return policy.message;
+  return '';
+}
 
 export interface SwarmReview {
   taskId: string; operationId: string; sourceCommit: string; targetCommit: string;

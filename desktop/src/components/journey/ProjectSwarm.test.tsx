@@ -14,7 +14,11 @@ import { resetCockpit, useCockpit } from '../../store/store';
 import { ProjectSwarm } from './ProjectSwarm';
 vi.mock('./SwarmRunQueue', () => ({ SwarmRunQueue: () => null }));
 
-const base = swarmRunFixture;
+const base = () => {
+  const value = swarmRunFixture();
+  value.input.route.connection = {...value.input.route.connection, kind: 'compatible-api', protocol: 'responses', authMode: 'api-key', model: value.input.route.model, endpoint: 'https://example.invalid/v1'};
+  return value;
+};
 const op = (run: ProjectRun, id: string, status = 'reserved'): RunOperation => ({id: `op-${id}`, kind: 'session', taskId: id, childId: `session-${id}`, worktreeId: `isolated-${id}`, attempt: 1, status, allocation: 'ready', baseCommit: 'a'.repeat(40), implementation: {...run.input.implementation, worktreeId: `isolated-${id}`, taskIds: [id], taskTitles: [`Build ${id}`]}, requestDigest: 'request', createdAt: run.createdAt, updatedAt: run.updatedAt});
 const attach = (run: ProjectRun, operation: RunOperation): ProjectRun => ({...run, revision: run.revision + 1, operations: [...run.operations.filter(item => item.id !== operation.id), operation], swarm: {...run.swarm!, tasks: run.swarm!.tasks.map(item => item.id === operation.taskId ? {...item, operationId: operation.id} : item)}});
 const child = (run: ProjectRun, operation: RunOperation) => aSession({id:operation.childId,worktreeId:operation.worktreeId!,projectId:run.projectId,projectRunId:run.id,projectRunOperationId:operation.id,status:'starting'});
@@ -353,7 +357,7 @@ it.each(['integrating', 'unknown'] as const)('opens retained %s integration deta
   for (const effect of [request, review, integrate, control, reserve, abandon, create, busy, updated, openSession]) expect(effect).not.toHaveBeenCalled();
 });
 
-it('offers the saved subscription route only one slot and prepares without starting an agent', async () => {
+it('route parallel policy explains shared managed credentials and prepares one slot without starting an agent', async () => {
   const initial = base(); delete initial.swarm;
   initial.input.route.connection = {...initial.input.route.connection, kind: 'codex-subscription', authMode: 'chatgpt'};
   const prepare = vi.spyOn(projectSwarmApi, 'prepare').mockResolvedValue({...initial, swarm: {...base().swarm!, maxParallel: 1}, revision: 2});
@@ -362,11 +366,39 @@ it('offers the saved subscription route only one slot and prepares without start
   await userEvent.click(screen.getByRole('button', {name: 'Prepare agent team'}));
   const dialog = await screen.findByRole('dialog', {name: 'Prepare agent team'});
   expect(within(dialog).getByRole('spinbutton', {name: 'Maximum parallel agents'})).toHaveProperty('value', '1');
-  expect(within(dialog).getByRole('spinbutton', {name: 'Maximum parallel agents'})).toHaveProperty('disabled', true);
-  expect(within(dialog).getByText(/supports one active agent/)).not.toBeNull();
+  expect(within(dialog).getByRole('spinbutton', {name: 'Maximum parallel agents'})).toHaveProperty('disabled', false);
+  expect(within(dialog).getByText(/share managed ChatGPT credentials/)).not.toBeNull();
   await userEvent.click(within(dialog).getByRole('button', {name: 'Prepare team'}));
   await waitFor(() => expect(prepare).toHaveBeenCalledWith('p-1', 'run-1', 1, 1));
   expect(create).not.toHaveBeenCalled();
+});
+
+it('route parallel policy preserves an explicit draft limit after the route becomes managed', async () => {
+  const initial = base(); delete initial.swarm;
+  const props = {canEdit: true, canExecute: true, busy: false, onBusy: vi.fn(), onUpdate: vi.fn(), onOpenSession: vi.fn()};
+  const prepare = vi.spyOn(projectSwarmApi, 'prepare');
+  const ui = render(<ProjectSwarm {...props} run={initial} />);
+  const changed = {...initial, input: {...initial.input, route: {...initial.input.route, connection: {...initial.input.route.connection, kind: 'codex-subscription', authMode: 'chatgpt'}}}};
+  ui.rerender(<ProjectSwarm {...props} run={changed} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Prepare agent team'}));
+  const dialog = await screen.findByRole('dialog', {name: 'Prepare agent team'});
+  expect(within(dialog).getByRole('spinbutton', {name: 'Maximum parallel agents'})).toHaveProperty('value', '2');
+  expect(within(dialog).getByRole('alert').textContent).toContain('requested limit is unchanged');
+  expect(within(dialog).getByRole('button', {name: 'Prepare team'})).toHaveProperty('disabled', true);
+  expect(prepare).not.toHaveBeenCalled();
+});
+
+it('route parallel policy leaves unknown routes at one and refuses explicit parallel preparation', async () => {
+  const initial = base(); delete initial.swarm; initial.input.route.connection.kind = 'legacy';
+  const prepare = vi.spyOn(projectSwarmApi, 'prepare');
+  render(<Harness initial={initial} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Prepare agent team'}));
+  const dialog = await screen.findByRole('dialog', {name: 'Prepare agent team'});
+  const limit = within(dialog).getByRole('spinbutton', {name: 'Maximum parallel agents'});
+  expect(limit).toHaveProperty('value', '1');
+  await userEvent.clear(limit); await userEvent.type(limit, '2');
+  expect(within(dialog).getByRole('button', {name: 'Prepare team'})).toHaveProperty('disabled', true);
+  expect(prepare).not.toHaveBeenCalled();
 });
 
 it('requires an explicit recovery choice, retains output and does not launch the retry', async () => {

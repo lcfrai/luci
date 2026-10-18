@@ -5,7 +5,7 @@ import { errorText } from '../../api/product';
 import { projectRunsApi, runOperationNeedsRecovery, runOperationNeedsReview, runSessionRequest, swarmIntegrationDiagnostic, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
 import { swarmTaskCapability } from '../../api/swarmTaskCapability';
 import { MAX_SWARM_PARALLEL_TASKS } from '../../api/swarmLimits';
-import { projectSwarmApi, type SwarmReview, type SwarmRecoveryAvailability } from '../../api/projectSwarm';
+import { projectSwarmApi, swarmParallelPolicy, swarmParallelLimitIssue, type SwarmReview, type SwarmRecoveryAvailability } from '../../api/projectSwarm';
 import { useCockpit } from '../../store/store';
 import { Button } from '../fluid/components/button';
 import { Input } from '../ui/input';
@@ -94,7 +94,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   const projectName = useCockpit(state => state.projects.find(project => project.id === run.projectId)?.name) || run.projectId;
   const capability = swarmTaskCapability(run, harnesses);
   const [dialog, setDialog] = useState<'prepare' | 'cancel' | null>(null);
-  const [limit, setLimit] = useState(2), [review, setReview] = useState<IntegrationReview | null>(null), [approved, setApproved] = useState(false);
+  const [limit, setLimit] = useState(() => run.swarm?.maxParallel ?? (swarmParallelPolicy(run.input.route).mode === 'bounded-api-route' ? 2 : 1)), [review, setReview] = useState<IntegrationReview | null>(null), [approved, setApproved] = useState(false);
   const [retire, setRetire] = useState<string | null>(null);
   const [launchRecovery, setLaunchRecovery] = useState<{projectId: string; runId: string; taskId: string; operationId: string; childId: string; revision: number; epoch: number} | null>(null);
   const [checkpoint, setCheckpoint] = useState<{projectId: string; runId: string; taskId: string; operationId: string; childId: string; revision: number; epoch: number} | null>(null);
@@ -170,9 +170,10 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   useEffect(() => { setReview(null); setApproved(false); setRetire(null); setLaunchRecovery(null); setCheckpoint(null); setDialog(null); }, [run.projectId, run.id, run.revision, canEdit, canExecute, capability.signature]);
   const usable = (epoch: number) => live.current && generation.current === epoch;
   const blocked = !!run.codingBlocker || !!run.contextFreshness && run.contextFreshness.status !== 'current' || ['cancelled', 'complete'].includes(run.state);
-  const subscription = run.input.route.connection.kind === 'codex-subscription' || run.input.route.connection.authMode === 'chatgpt';
-  const selectedLimit = subscription ? 1 : limit;
-  const validLimit = Number.isInteger(selectedLimit) && selectedLimit >= 1 && selectedLimit <= MAX_SWARM_PARALLEL_TASKS;
+  const parallelPolicy = swarmParallelPolicy(run.input.route);
+  const selectedLimit = limit;
+  const parallelIssue = swarmParallelLimitIssue(run.input.route, selectedLimit);
+  const validLimit = !parallelIssue;
   const tasks = run.swarm?.tasks || [], active = tasks.filter(task => inFlight(operationFor(run, task))).length;
   const retiringTask = tasks.find(task => task.id === retire);
   const finishingRecovery = !!retiringTask && runOperationNeedsRecovery(operationFor(run, retiringTask));
@@ -402,6 +403,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     {error && <p role="alert" className="journey-error">{error}</p>}
     {notice && <p role="status">{notice}</p>}
     <p className="project-swarm-permission">{run.input.route.harness} · Permission: {capability.mode}. Commands run without interactive approvals inside Docker; results need review.</p>
+    <p className="journey-muted">{parallelPolicy.message} Route policy is separate from current readiness.</p>
     {!capability.allowed && <p role="status" className="journey-warning">{capability.reason}</p>}
     {!capability.allowed && <div className="journey-actions">{onReviewPlan && <Button variant="secondary" disabled={busy || !canEdit} onClick={onReviewPlan}>Review plan and create a new build</Button>}<Button variant="tertiary" disabled={busy} onClick={() => void operate('Refreshing task capability', async epoch => { const values = await api.listHarnesses(); if (usable(epoch)) useCockpit.getState().setHarnesses(values); }, 'read')}>Refresh task capability</Button></div>}
     {!run.swarm ? <>
@@ -509,10 +511,11 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     {dialog === 'prepare' && <WorkflowDialog readAccess={projectAccess} title="Prepare agent team" onClose={() => setDialog(null)} busy={busy} description="Use this build’s saved tasks and model connection. Preparation records the team; it does not start agents.">
       <p>Saved permission: {capability.mode}. Task commands run without interactive approvals inside {run.input.route.executionLocation === 'cloud-microvm' ? 'separate owned cloud microVMs' : 'isolated Docker workspaces'}. Each task exits after its response; review and integration remain your choice.</p>
       {capability.notice && <p>{capability.notice}</p>}
-      <label className="luci-field">Maximum parallel agents<Input type="number" min={1} max={subscription ? 1 : MAX_SWARM_PARALLEL_TASKS} step={1} value={Number.isNaN(selectedLimit) ? '' : selectedLimit} disabled={busy || subscription} onChange={event => setLimit(event.target.value === '' ? NaN : Number(event.target.value))} /></label>
+      <label className="luci-field">Maximum parallel agents<Input type="number" min={1} max={parallelPolicy.maximumSlots ?? 1} step={1} value={Number.isNaN(selectedLimit) ? '' : selectedLimit} disabled={busy} onChange={event => setLimit(event.target.value === '' ? NaN : Number(event.target.value))} /></label>
       {!validLimit && <p role="alert">Choose a whole number from 1 to {MAX_SWARM_PARALLEL_TASKS}.</p>}
       <p>Actual starts also depend on ready tasks and the current workspace, account, provider and resource limits.</p>
-      {subscription && <p>This saved Codex subscription connection supports one active agent at a time. To run independent tasks in parallel, prepare a new build with a compatible API or local-model connection.</p>}
+      <p>{parallelPolicy.message}</p>
+      {parallelIssue && <p role="alert">The requested limit is unchanged. {parallelIssue}</p>}
       <p>Each active agent uses memory, disk and provider usage. Workspace and provider limits may keep additional tasks queued. This limit controls concurrency, not provider billing.</p>
       <p>Commit the starting project first. Include each selected task’s dependencies in this build. Conflicting or unspecified file scopes are scheduled separately.</p>
       {error && <p role="alert">{error}</p>}

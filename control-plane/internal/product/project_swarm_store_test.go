@@ -52,6 +52,8 @@ func TestProjectSwarmStoreSubscriptionConnectionKeepsOneActiveCredentialLease(t 
 	run, _ = reserveStoredSwarmTask(t, s, path, run, "a")
 	if _, _, created, err := s.ReserveSwarmTask(id, path, run.ID, run.Revision, "subscription-second-123456789", "b", run.Input.Implementation.SourceCommit, func(string) string { t.Fatal("second subscription lease allocated"); return "" }); err == nil || created {
 		t.Fatal("parallel task bypassed single subscription credential lease", created, err)
+	} else if !strings.Contains(err.Error(), "share managed ChatGPT credentials") {
+		t.Fatal("credential serialization was described as provider entitlement", err)
 	}
 }
 

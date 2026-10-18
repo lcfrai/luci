@@ -94,3 +94,34 @@ it('preserves an original uncertain request before allowing genuinely updated pl
   expect(readContractReview('scope', 'p-1', 'owner')).toBeNull();
   expect(localStorage.getItem(contractReviewKey('scope') + ':archive:' + original.request.idempotencyKey)).toBe(raw);
 });
+
+it('route approval issue preserves refresh and updated-input recovery on a current contract', async () => {
+  const p = props(); retainContractReview(p.scope, p.pending);
+  vi.spyOn(orchestrationContractsApi, 'get').mockResolvedValue(p.initialView);
+  const approve = vi.spyOn(orchestrationContractsApi, 'approve');
+  render(<ExecutionContractReview {...p} approvalIssue="Shared managed credentials require one slot." />);
+  expect(screen.getByRole('checkbox')).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: 'Approve contract and save project run'})).toHaveProperty('disabled', true);
+  await fireEvent.click(screen.getByRole('button', {name: 'Refresh contract status'}));
+  await waitFor(() => expect(p.onPrepared).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByRole('button', {name: 'Keep original request and review updated plan'}));
+  expect(p.onReviewInputs).toHaveBeenCalledTimes(1); expect(approve).not.toHaveBeenCalled(); expect(p.onCreate).not.toHaveBeenCalled();
+  expect(localStorage.getItem(contractReviewKey(p.scope) + ':archive:' + p.pending.request.idempotencyKey)).not.toBeNull();
+});
+
+it.each(['read', 'approval'])('route approval issue arriving during awaited %s prevents the next write and retains exact recovery', async boundary => {
+  const p = props(); retainContractReview(p.scope, p.pending);
+  let settle!: (value: ReturnType<typeof contractViewFixture>) => void;
+  const held = new Promise<ReturnType<typeof contractViewFixture>>(resolve => { settle = resolve; });
+  vi.spyOn(orchestrationContractsApi, 'get').mockImplementation(() => boundary === 'read' ? held : Promise.resolve(p.initialView));
+  const approve = vi.spyOn(orchestrationContractsApi, 'approve').mockImplementation(() => held);
+  const ui = render(<ExecutionContractReview {...p} />);
+  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button', {name: 'Approve contract and save project run'}));
+  if (boundary === 'approval') await waitFor(() => expect(approve).toHaveBeenCalledTimes(1));
+  ui.rerender(<ExecutionContractReview {...p} approvalIssue="Route no longer supports this concurrency." />);
+  settle(contractViewFixture(boundary === 'approval'));
+  await waitFor(() => expect(screen.getByRole('button', {name: 'Refresh contract status'})).toHaveProperty('disabled', false));
+  if (boundary === 'read') expect(approve).not.toHaveBeenCalled();
+  expect(p.onCreate).not.toHaveBeenCalled(); expect(p.onComplete).not.toHaveBeenCalled();
+  expect(readContractReview(p.scope, p.pending.projectId, p.pending.actorId)?.runKey).toBe(p.pending.runKey);
+});

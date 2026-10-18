@@ -1,9 +1,33 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { productApi } from './product';
 import { runSessionRequest, type ProjectRun, type RunOperation } from './projectRuns';
-import { projectSwarmApi } from './projectSwarm';
+import { projectSwarmApi, swarmParallelPolicy, swarmParallelLimitIssue } from './projectSwarm';
 
 afterEach(() => vi.restoreAllMocks());
+
+it.each([['codex', 'responses'], ['claude-code', 'anthropic-messages'], ['opencode', 'chat-completions']])('route parallel policy preserves opaque %s API receipt without claiming readiness', (harness, protocol) => {
+  const route = {harness, model: 'CaseSensitive/Model', permissionMode: 'bypass', connection: {id: 'saved', revision: 3, kind: 'compatible-api', protocol, authMode: 'api-key', model: 'CaseSensitive/Model', endpoint: 'http://localhost:3120/CaseSensitive/v1'}};
+  const before = JSON.stringify(route);
+  expect(swarmParallelPolicy(route)).toMatchObject({mode: 'bounded-api-route', maximumSlots: 200});
+  expect(swarmParallelPolicy(route).message).toContain('checks still determine');
+  expect(swarmParallelLimitIssue(route, 2)).toBe('');
+  expect(JSON.stringify(route)).toBe(before);
+});
+it.each(['codex-subscription', 'legacy'])('route parallel policy serializes managed %s credentials without a provider entitlement claim', kind => {
+  const route = {...receipt.input.route, connection: {id: 'managed', revision: 1, kind, authMode: 'chatgpt'}};
+  expect(swarmParallelPolicy(route)).toMatchObject({mode: 'managed-credential-serial', maximumSlots: 1});
+  expect(swarmParallelLimitIssue(route, 2)).toContain('protect credential refresh');
+  expect(swarmParallelLimitIssue(route, 1)).toBe('');
+});
+it.each(['kind', 'protocol', 'authMode', 'model', 'endpoint', 'id', 'revision'])('route parallel policy refuses unknown %s parallel support without rewriting the receipt', field => {
+  const route = {...receipt.input.route, model: 'Model', connection: {id: 'saved', revision: 1, kind: 'direct-api', protocol: 'responses', authMode: 'api-key', model: 'Model', endpoint: 'https://example.invalid/v1'}};
+  const changed = {...route, connection: {...route.connection, [field]: field === 'revision' ? 0 : ''}};
+  const before = JSON.stringify(changed);
+  expect(swarmParallelPolicy(changed).mode).toBe('unknown');
+  expect(swarmParallelLimitIssue(changed, 2)).toContain('not established');
+  expect(swarmParallelLimitIssue(changed, 1)).toBe('');
+  expect(JSON.stringify(changed)).toBe(before);
+});
 const operation: RunOperation = {id: 'op-a', kind: 'session', taskId: 'task-a', childId: 'child-a', worktreeId: 'isolated-a', status: 'reserved', allocation: 'ready', attempt: 1, requestDigest: 'digest', createdAt: '', updatedAt: '', implementation: {projectId: 'p-1', worktreeId: 'isolated-a', taskIds: ['task-a'], taskTitles: ['Only A'], briefRevision: 1, planRevision: 2, specificationRevision: 3, designPlanRevision: 4, requirementIds: [], briefDigest: 'b', planDigest: 'p', specificationDigest: 's', designPlanDigest: 'd', sourceCommit: 'a'.repeat(40), sourceDigest: 'exact', sourceDirty: false}};
 const receipt = {id: 'run-1', projectId: 'p-1', worktreeId: 'main', input: {implementation: {projectId: 'p-1', taskIds: ['task-a', 'task-b']}, route: {harness: 'codex', model: 'recorded-model', permissionMode: 'ask', connection: {id: 'original', revision: 2}}}, swarm: {state: 'ready', maxParallel: 2, tasks: [{id: 'task-a', operationId: operation.id}]}, operations: [operation]} as ProjectRun;
 

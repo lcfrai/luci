@@ -42,6 +42,7 @@ beforeEach(() => {
     contract = contractViewFixture(); contract.contract.actor.id = 'alice'; contract.contract.input.implementation.projectId = request.implementationContext.projectId;
     contract.contract.input.implementation.worktreeId = request.worktreeId; contract.contract.input.implementation.taskIds = [...request.implementationContext.taskIds];
     contract.contract.input.route.harness = request.route.harness; contract.contract.input.route.model = request.route.model;
+    contract.contract.input.route.connection = {id: 'configured', revision: 1, kind: 'compatible-api', authMode: 'api-key', protocol: request.route.harness === 'codex' ? 'responses' : request.route.harness === 'claude-code' ? 'anthropic-messages' : 'chat-completions', model: request.route.model, endpoint: 'https://example.invalid/v1'};
     contract.contract.input.route.permissionMode = request.route.permissionMode; contract.contract.input.outcome = request.outcome;
     return contract;
   });
@@ -51,6 +52,35 @@ beforeEach(() => {
     return contract;
   });
   vi.spyOn(coordinatorPolicyApi, 'save').mockResolvedValue(policy({ revision: 3 }));
+});
+
+it('route parallel policy starts an untouched coordinator draft at one without allocating work', async () => {
+  const input = props(); input.view.context.plan.tasks.push({...input.view.context.plan.tasks[0], id: 'T-2', title: 'Second independent task'});
+  render(<CoordinatorExecution {...input} />); await configure();
+  expect(screen.getByLabelText('Maximum parallel tasks')).toHaveProperty('value', '1');
+  expect(api.create).not.toHaveBeenCalled(); expect(orchestrationContractsApi.prepare).not.toHaveBeenCalled();
+});
+
+it.each(['managed', 'unknown'])('route parallel policy retains requested two for a prepared %s route and leaves review recovery usable', async mode => {
+  const input = props(); input.view.context.plan.tasks.push({...input.view.context.plan.tasks[0], id: 'T-2', title: 'Second independent task'});
+  vi.mocked(orchestrationContractsApi.prepare).mockImplementation(async (_project, request) => {
+    const value = contractViewFixture(); value.contract.actor.id = 'alice';
+    value.contract.input.route = {...value.contract.input.route, harness: 'codex', model: 'model', permissionMode: 'bypass', connection: {id: 'configured', revision: 1, kind: mode === 'managed' ? 'codex-subscription' : 'legacy', authMode: mode === 'managed' ? 'chatgpt' : undefined}};
+    value.contract.input.implementation = {...value.contract.input.implementation, ...request.implementationContext, worktreeId: request.worktreeId};
+    return value;
+  });
+  render(<CoordinatorExecution {...input} />); await configure();
+  const limit = screen.getByLabelText('Maximum parallel tasks'); await userEvent.clear(limit); await userEvent.type(limit, '2');
+  await userEvent.click(screen.getByRole('button', {name: 'Submit reviewed route'}));
+  await screen.findByRole('alert');
+  expect(screen.getByRole('button', {name: 'Approve contract and continue reviewed work'})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: 'Refresh contract status'})).toHaveProperty('disabled', false);
+  // Contract recovery is separately retained; inspect its exact continuation.
+  const reviewKey = Object.keys(localStorage).find(key => key.startsWith('luci.execution-contract-review.') && !key.includes(':archive:'));
+  expect(reviewKey).toBeDefined();
+  expect(JSON.parse(localStorage.getItem(reviewKey!)!).continuation.maxParallel).toBe(2);
+  await userEvent.click(screen.getByRole('button', {name: 'Keep original request and review updated plan'}));
+  expect(api.create).not.toHaveBeenCalled(); expect(orchestrationContractsApi.approve).not.toHaveBeenCalled();
 });
 it('saves explicit zero, reloads it and preserves zero through unrelated permission saves', async () => {
   vi.mocked(coordinatorPolicyApi.save).mockResolvedValueOnce(policy({revision: 3, automaticRepairLimit: 0}));

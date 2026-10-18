@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { approvedContractReference, orchestrationContractsApi, type OrchestrationContractReference, type OrchestrationContractView, type PrepareOrchestrationContract } from '../../api/orchestrationContracts';
+import { swarmParallelLimitIssue } from '../../api/projectSwarm';
 import { errorText } from '../../api/product';
 import { effectiveAutomaticRepairLimit } from '../../api/coordinatorPolicy';
 import { Button } from '../fluid/components/button';
@@ -81,12 +82,13 @@ export function archiveContractReview(scope: string, value: ExecutionContractRev
   localStorage.removeItem(key);
 }
 
-export function ExecutionContractReview({ pending, initialView, scope, actorId, canRead, canEdit, preparing = false, continuation = false, approvalOnly = false, onPrepared, onCreate, onComplete, onReviewInputs }: {
+export function ExecutionContractReview({ pending, initialView, scope, actorId, canRead, canEdit, preparing = false, continuation = false, approvalOnly = false, approvalIssue = '', onPrepared, onCreate, onComplete, onReviewInputs }: {
   pending: ExecutionContractReviewRequest; initialView: OrchestrationContractView | null; scope: string | null;
   actorId: string; canRead: boolean; canEdit: boolean;
   preparing?: boolean;
   continuation?: boolean;
   approvalOnly?: boolean;
+  approvalIssue?: string;
   onPrepared(pending: ExecutionContractReviewRequest, view: OrchestrationContractView): void;
   onCreate(request: PrepareOrchestrationContract, reference: OrchestrationContractReference, idempotencyKey: string): Promise<void>;
   onComplete(): void;
@@ -99,9 +101,11 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
   const working = useRef(false), generation = useRef(0);
   const allowed = canRead && canEdit && !!scope && actorId === pending.actorId;
   const mayWrite = useRef(allowed); mayWrite.current = allowed;
+  const currentApprovalIssue = useRef(approvalIssue); currentApprovalIssue.current = approvalIssue;
   const mayRead = useRef(canRead); mayRead.current = canRead;
   useEffect(() => { generation.current++; return () => { generation.current++; }; }, []);
   useEffect(() => { setView(initialView); setConsent(false); }, [initialView]);
+  useEffect(() => { setConsent(false); }, [approvalIssue]);
 
   function own(value: OrchestrationContractView) {
     if (value.contract.actor.id !== actorId) throw new Error('This execution contract belongs to another person. Refresh the workspace.');
@@ -128,7 +132,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
   }, [pending.contractId, canRead]);
 
   async function approveAndCreate() {
-    if (!allowed || !view || !consent || working.current || preparing || view.freshness.status !== 'current') return;
+    if (!allowed || currentApprovalIssue.current || !view || !consent || working.current || preparing || view.freshness.status !== 'current') return;
     const current = generation.current;
     working.current = true; setBusy('Saving reviewed contract and run'); setError('');
     try {
@@ -137,11 +141,15 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
       // write. Approval is not execution, spending or deployment permission.
       let latest = own(await orchestrationContractsApi.get(pending.projectId, view.contract.id));
       if (generation.current !== current || !mayWrite.current) return;
+      const readIssue = currentApprovalIssue.current || (pending.continuation ? swarmParallelLimitIssue(latest.contract.input.route, pending.continuation.maxParallel) : '');
+      if (readIssue) { setView(latest); onPrepared(pending, latest); throw new Error(readIssue); }
       if (latest.freshness.status !== 'current' || latest.contract.digest !== view.contract.digest || latest.contract.revision !== view.contract.revision) {
         setView(latest); setConsent(false); throw new Error(latest.freshness.reason || 'The contract changed. Inspect the current selection before continuing.');
       }
       if (latest.contract.state !== 'approved') latest = own(await orchestrationContractsApi.approve(pending.projectId, latest));
       if (generation.current !== current || !mayWrite.current) return;
+      const approvedIssue = currentApprovalIssue.current || (pending.continuation ? swarmParallelLimitIssue(latest.contract.input.route, pending.continuation.maxParallel) : '');
+      if (approvedIssue) { setView(latest); onPrepared(pending, latest); throw new Error(approvedIssue); }
       setView(latest); onPrepared(pending, latest);
       await onCreate(pending.request, approvedContractReference(latest), pending.runKey);
       if (generation.current !== current || !mayWrite.current) return;
@@ -170,6 +178,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
     <h3>Review how Luci will build</h3>
     <p>{approvalOnly ? 'Review and approve the changed contract. This step starts no new run; Luci resumes the accepted change only after a fresh authority and source check.' : continuation ? 'Review and approve the exact contract before the retained continuation can prepare or queue work. Coding, public deployment and paid resources keep their existing controls.' : 'This saves an exact contract and a project run. Coding, public deployment and paid resources keep their existing separate controls.'}</p>
     {error && <p role="alert">{error}</p>}
+    {approvalIssue && <p role="alert">{approvalIssue} The retained contract and requested concurrency have not been changed.</p>}
     {!view ? <p>The preparation outcome is not yet confirmed. Inspect the retained request before preparing another selection.</p> : <>
       <p role={view.freshness.status === 'current' ? undefined : 'status'}><strong>{view.freshness.status === 'current' ? 'Current context and policy' : 'Context needs reconciliation'}</strong>{view.freshness.reason && ` · ${view.freshness.reason}`}</p>
       <dl><dt>Design and definition</dt><dd>Design {c!.input.implementation.designPlanRevision} · Definition {c!.input.implementation.specificationRevision} · Plan {c!.input.implementation.planRevision}</dd>
@@ -183,11 +192,11 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
       <details><summary>Reviewed requirement criteria · {c!.input.requirements.length}</summary>{c!.input.requirements.map(requirement => <div key={requirement.id}><h4>{requirement.title}</h4><p>{requirement.acceptance}</p></div>)}</details>
       {c!.input.standards.source==='team-control-library'&&<details><summary>Imported control requirements and evidence · {c!.input.standards.requirements?.length??0}</summary>{c!.input.standards.requirements?.map(control=><div key={control.id}><h4>{control.id} · {control.requirement}</h4><p>Applies: {control.applicability||'Unspecified'} · Expected evidence: {control.evidenceExpected||'Unspecified'}</p><p>Assessment: {control.assessmentStatus||'unassessed'}{control.assessmentNote?` · ${control.assessmentNote}`:''}</p>{control.evidence?.map((item,index)=><p key={`${control.id}-${index}`}>Untrusted source quote: {item.text||'Exact retained source reference'} · {item.link.documentId}, page {item.link.page}</p>)}</div>)}</details>}
       <details><summary>Exact contract identity</summary><p>{c!.id} · revision {c!.revision}</p><code>{c!.digest}</code><p>Starting commit: {c!.input.implementation.sourceCommit || 'not committed'}</p><p>Standards source: {c!.input.standards.source} · revision {c!.input.standards.revision}</p></details>
-      <label className="setup-check"><input type="checkbox" checked={consent} disabled={!allowed || !!busy || preparing || view.freshness.status !== 'current'} onChange={event => setConsent(event.target.checked)} />I reviewed these exact scopes, acceptance criteria and decision boundaries.</label>
+      <label className="setup-check"><input type="checkbox" checked={consent} disabled={!allowed || !!approvalIssue || !!busy || preparing || view.freshness.status !== 'current'} onChange={event => setConsent(event.target.checked)} />I reviewed these exact scopes, acceptance criteria and decision boundaries.</label>
     </>}
     <div className="workflow-actions"><Button variant="secondary" disabled={!!busy || preparing || !canRead || !pending.contractId && !allowed} onClick={() => void refresh()}>Refresh contract status</Button>
-      {view && <Button disabled={!allowed || !consent || !!busy || preparing || view.freshness.status !== 'current'} loading={!!busy} onClick={() => void approveAndCreate()}>{approvalOnly ? c!.state === 'approved' ? 'Confirm changed contract approval' : 'Approve changed execution contract' : continuation ? c!.state === 'approved' ? 'Continue reviewed work' : 'Approve contract and continue reviewed work' : c!.state === 'approved' ? 'Save reviewed project run' : 'Approve contract and save project run'}</Button>}</div>
-    {(!view || view.freshness.status !== 'current') && <><p>Choosing updated inputs preserves this original request and its exact keys. It does not cancel or settle any previously saved run.</p>
+      {view && <Button disabled={!allowed || !!approvalIssue || !consent || !!busy || preparing || view.freshness.status !== 'current'} loading={!!busy} onClick={() => void approveAndCreate()}>{approvalOnly ? c!.state === 'approved' ? 'Confirm changed contract approval' : 'Approve changed execution contract' : continuation ? c!.state === 'approved' ? 'Continue reviewed work' : 'Approve contract and continue reviewed work' : c!.state === 'approved' ? 'Save reviewed project run' : 'Approve contract and save project run'}</Button>}</div>
+    {(!view || !!approvalIssue || view.freshness.status !== 'current') && <><p>Choosing updated inputs preserves this original request and its exact keys. It does not cancel or settle any previously saved run.</p>
       <Button variant="ghost" disabled={!allowed || !!busy || preparing} onClick={reviewUpdatedInputs}>Keep original request and review updated plan</Button></>}
   </section>;
 }

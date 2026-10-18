@@ -6,6 +6,7 @@ import type { CreateSessionRequest } from '../../api/client';
 import { ApiError } from '../../api/client';
 import { errorText, ProductApiError } from '../../api/product';
 import { MAX_SWARM_PARALLEL_TASKS } from '../../api/swarmLimits';
+import { swarmParallelPolicy, swarmParallelLimitIssue } from '../../api/projectSwarm';
 import { useCockpit } from '../../store/store';
 import { selectWorktreeById } from '../../store/selectors';
 import { Button } from '../fluid/components/button';
@@ -51,6 +52,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const reviewScope = `${scope}/continued-work`;
   const [initialReview] = useState(() => { try { return { value: readContractReview(reviewScope, projectId, actorId), error: '' }; } catch (cause) { return { value: null, error: errorText(cause) }; } });
   const [contractReview, setContractReview] = useState<ExecutionContractReviewRequest | null>(initialReview.value);
+  const currentReview = useRef(contractReview); currentReview.current = contractReview;
   const [contractView, setContractView] = useState<OrchestrationContractView | null>(null);
   const [preparingReview, setPreparingReview] = useState(false), preparingReviewKey = useRef<string | null>(null);
   const [storageError, setStorageError] = useState(initial.error || initialReview.error);
@@ -73,7 +75,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const [cloudCapacity, setCloudCapacity] = useState<CoordinatorCloudCapacity | null>(null);
   const [checkSelection, setCheckSelection] = useState<CoordinatorCheckSelection>({ plan: null, dirty: true, problem: 'Reading retained check setup…', draftDigest: '' }), [recordedDraft, setRecordedDraft] = useState('');
   const checkChanged = useCallback((value: CoordinatorCheckSelection) => setCheckSelection(value), []);
-  const [parallel, setParallel] = useState(2), [outcome, setOutcome] = useState<'preview' | 'publish'>('preview');
+  const [parallel, setParallel] = useState(1), [outcome, setOutcome] = useState<'preview' | 'publish'>('preview');
   const [executionLocation, setExecutionLocation] = useState<'local-docker' | 'cloud-microvm'>('local-docker');
   const worktreeId = useCockpit(state => state.selection.worktreeId), worktree = useCockpit(selectWorktreeById(worktreeId ?? ''));
   const alive = useRef(true), generation = useRef(0), working = useRef(false), readController = useRef<AbortController | null>(null);
@@ -243,8 +245,8 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     if (issue || deliverySetupIssue || checkSelection.problem || previewSelection.problem || deploymentSelection.problem || pendingRef.current || contractReview || working.current || storageError || !policy || !ownTurn || !worktree) return;
     if (location === 'cloud-microvm' && !cloudReady) return;
     setExecutionLocation(location);
-    setParallel(Math.min(2, tasks.length)); setOutcome(deploymentSelection.plan ? 'publish' : 'preview'); setRememberRoute(false);
-    setPicker({ idempotencyKey: crypto.randomUUID(), originTurnId: ownTurn.id, expectedContextDigest: view.context.digest, expectedPolicyRevision: policy.revision, maxParallel: Math.min(2, tasks.length), run: { worktreeId: worktree.id, harness: '', model: '', permissionMode: 'ask', outcome: 'preview', implementationContext: { projectId, briefRevision: view.context.brief.revision, planRevision: view.context.plan.revision, specificationRevision: view.context.specification.revision, designPlanRevision: view.context.designPlan.revision, taskIds: tasks.map(task => task.id) } } });
+    setParallel(1); setOutcome(deploymentSelection.plan ? 'publish' : 'preview'); setRememberRoute(false);
+    setPicker({ idempotencyKey: crypto.randomUUID(), originTurnId: ownTurn.id, expectedContextDigest: view.context.digest, expectedPolicyRevision: policy.revision, maxParallel: 1, run: { worktreeId: worktree.id, harness: '', model: '', permissionMode: 'ask', outcome: 'preview', implementationContext: { projectId, briefRevision: view.context.brief.revision, planRevision: view.context.plan.revision, specificationRevision: view.context.specification.revision, designPlanRevision: view.context.designPlan.revision, taskIds: tasks.map(task => task.id) } } });
   };
   async function create(selection: CreateSessionRequest) {
     if (!picker || issue || latest.current.blocked || picker.expectedContextDigest !== latest.current.view.context.digest || !selection.implementationContext || JSON.stringify(selection.implementationContext) !== JSON.stringify(picker.run.implementationContext)) return { ok: false as const, message: 'The reviewed selection changed. Close this picker and read the current context before continuing.' };
@@ -274,6 +276,11 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   async function createReviewedContinuation(prepared: PrepareOrchestrationContract, reference: OrchestrationContractReference, key: string) {
     const review = contractReview;
     if (!review?.continuation || review.runKey !== key || JSON.stringify(review.request) !== JSON.stringify(prepared) || pendingRef.current || !fresh || !latest.current.canEdit || !latest.current.canExecute) throw new Error('The reviewed continuation changed. Read its exact retained state.');
+    const observed = await orchestrationContractsApi.get(projectId, reference.id);
+    if (observed.contract.id !== reference.id || observed.contract.revision !== reference.revision || observed.contract.digest !== reference.digest || observed.contract.approval?.id !== reference.approvalId || observed.contract.actor.id !== actorId || observed.freshness.status !== 'current') throw new Error('Read the current exact approved contract before continuing.');
+    const routeIssue = swarmParallelLimitIssue(observed.contract.input.route, review.continuation.maxParallel);
+    if (routeIssue) throw new Error(routeIssue);
+    if (!alive.current || !latest.current.canEdit || !latest.current.canExecute || currentReview.current !== review || latest.current.blocked) throw new Error('The reviewed continuation changed during readback.');
     const input: CoordinatorContinuationRequest = { ...review.continuation, run: { ...review.continuation.run, orchestrationContract: reference } };
     const ok = await mutate('create', { kind: 'create', projectId, actorId, input }, () => coordinatorContinuationsApi.create(projectId, actorId, input), value => { remember(value); if (input.checkPlan) setRecordedDraft(checkSelection.draftDigest); if (input.previewPlan) setRecordedPreview(previewSelection.draftDigest); if (input.deploymentPlan) setRecordedDeployment(deploymentSelection.draftDigest); setPicker(null); setNotice('The approved continuation is retained. Queued work is not yet verified or deployed.'); });
     if (!ok) throw new Error('The exact continuation needs readback. Do not submit another request.');
@@ -291,12 +298,15 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     await mutate('advance', { kind: 'advance', actorId, projectId, id: row.id, revision: row.revision }, () => coordinatorContinuationsApi.advance(projectId, actorId, row.id, row.revision), remember);
   }
   if (!canRead) return null;
+  const reviewedLimit = contractReview?.continuation?.maxParallel ?? (contractReview?.acceptedEventId ? savedRoute?.maxParallel : undefined);
+  const approvalIssue = contractView && reviewedLimit !== undefined ? swarmParallelLimitIssue(contractView.contract.input.route, reviewedLimit) : '';
   return <section aria-label="Continued work" className="orchestrator-agent">
     <h3>Continue with Luci</h3>
     <p>Run on: {runOn}. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.</p>
     {deliveryReadWarning && <p role="status">{deliveryReadWarning} Automatic reuse remains blocked. Review current configuration or pause the delegation.</p>}{error && <p role="alert">{error}</p>}{storageError && <p role="alert">{storageError}</p>}{notice && <p role="status">{notice}</p>}
     {pending && <p role="status">A continuation request is retained. New requests are paused until its exact outcome is read back.</p>}
-    {contractReview && !pending && <ExecutionContractReview key={contractReview.request.idempotencyKey} pending={contractReview} initialView={contractView} scope={reviewScope} actorId={actorId} canRead={canRead} canEdit={canEdit && canExecute && fresh && !readDenied} preparing={preparingReview && preparingReviewKey.current === contractReview.runKey} continuation={!contractReview.acceptedEventId} approvalOnly={!!contractReview.acceptedEventId} onPrepared={(next, value) => { setContractReview(next); setContractView(value); }} onCreate={contractReview.acceptedEventId ? finishAcceptedReview : createReviewedContinuation} onComplete={() => { setContractReview(null); setContractView(null); }} onReviewInputs={() => { generation.current++; setContractReview(null); setContractView(null); setPicker(null); }} />}
+    {contractView && contractReview && <p role="status">{swarmParallelPolicy(contractView.contract.input.route).message} Route policy is separate from current readiness.</p>}
+    {contractReview && !pending && <ExecutionContractReview key={contractReview.request.idempotencyKey} pending={contractReview} initialView={contractView} scope={reviewScope} actorId={actorId} canRead={canRead} canEdit={canEdit && canExecute && fresh && !readDenied} approvalIssue={approvalIssue} preparing={preparingReview && preparingReviewKey.current === contractReview.runKey} continuation={!contractReview.acceptedEventId} approvalOnly={!!contractReview.acceptedEventId} onPrepared={(next, value) => { setContractReview(next); setContractView(value); }} onCreate={contractReview.acceptedEventId ? finishAcceptedReview : createReviewedContinuation} onComplete={() => { setContractReview(null); setContractView(null); }} onReviewInputs={() => { generation.current++; setContractReview(null); setContractView(null); setPicker(null); }} />}
     {!readDenied && canRead && <section aria-label="Cloud task swarm activation">
       <h4>Build with a cloud agent swarm</h4>
       <p>{tasks.length} unfinished reviewed task{tasks.length === 1 ? '' : 's'} in this plan. Luci schedules saved dependencies and gives each admitted upstream agent its own owned microVM. Run on the selected cloud service; deploy to is a separate reviewed decision.</p>
@@ -354,6 +364,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
       <p>{executionLocation === 'cloud-microvm' ? 'Cloud tasks require an operator-configured microVM service, current cloud provisioning and spending permission, and an explicit upstream API-key connection. Each VM remains charged until exact retirement is observed. Luci will refuse an unavailable cloud route rather than fall back to Docker.' : `Run on: ${runOn}.`} This starts only the selected saved tasks; successful deployment is not implied.</p>
       {executionLocation === 'cloud-microvm' && (cloudReady ? <p role="status">Configured {cloudProviderLabel} in {cloudCapacity.region}: {cloudCapacity.configuredAvailableSlots} task VM slots presently available under Luci limits (global {cloudCapacity.configuredGlobalSlots}, project {cloudCapacity.configuredProjectSlots}). Configured cost estimate per task ${(cloudCapacity.estimatedTaskCostMicros / 1_000_000).toFixed(2)} USD for up to {cloudCapacity.maxTaskSeconds} seconds; your current-month retained estimate is ${(cloudCapacity.estimatedMonthMicros / 1_000_000).toFixed(2)} of ${(cloudCapacity.monthlyBudgetMicros / 1_000_000).toFixed(2)} USD. {cloudCapacity.limitation}</p> : <p role="status">Cloud work cannot start while the setup or policy needs above remain. For an unconnected workspace, a workspace administrator can use Setup → Bring your own cloud to prepare and verify an Azure connection; Luci Cloud is not available yet.</p>)}
       <label className="luci-field">Maximum parallel tasks<input type="number" min={1} max={Math.min(MAX_SWARM_PARALLEL_TASKS, picker?.run.implementationContext.taskIds.length ?? 1)} value={parallel} onChange={event => setParallel(Number(event.target.value))} /></label>
+      <p>Shared managed ChatGPT credentials use one job at a time. Parallel jobs require an explicitly selected supported API route; the prepared contract will show its policy. Current readiness and resource limits are checked separately.</p>
       <label className="luci-field">Intended delivery outcome<select value={outcome} onChange={event => setOutcome(event.target.value as typeof outcome)}><option value="preview">Working preview</option><option value="publish">Published application</option></select></label>
       <label className="setup-check"><input type="checkbox" checked={rememberRoute} onChange={event => { setRememberRoute(event.target.checked); if (!event.target.checked) setAutoDiscussFindings(false); }} />Reuse this upstream route and exact check delegation for my later approved amendments under the current policy.</label>
       {rememberRoute && <label className="setup-check"><input type="checkbox" checked={autoDiscussFindings} onChange={event => setAutoDiscussFindings(event.target.checked)} />Allow Luci to use my saved provider and model for one bounded conversation turn per new recorded finding. Provider charges may apply when project auto-draft policy is enabled. A turn can ask a question or propose a draft; it cannot approve, execute or deploy by itself.</label>}

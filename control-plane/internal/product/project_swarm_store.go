@@ -227,7 +227,7 @@ func swarmTaskReady(run ProjectRun, task ProjectSwarmTask) error {
 		}
 	}
 	if swarmSubscription(run) && pending >= 1 {
-		return errors.New("This saved ChatGPT subscription permits one active coding session. Observe its existing child before starting another task.")
+		return errors.New(swarmManagedCredentialMessage + " Observe the existing child before starting another task.")
 	}
 	if pending >= run.Swarm.MaxParallel {
 		return errors.New("All reserved agent slots are occupied. Observe existing work before starting another task.")

@@ -85,10 +85,7 @@ func (s *Server) initializeProjectSwarm(w http.ResponseWriter, r *http.Request) 
 	if !journeyDecode(w, r, &req) {
 		return
 	}
-	if req.MaxParallel == 0 {
-		req.MaxParallel = 2
-	}
-	if req.MaxParallel < 1 || req.MaxParallel > MaxSwarmParallelTasks {
+	if req.MaxParallel < 0 || req.MaxParallel > MaxSwarmParallelTasks {
 		projectRunProblem(w, fmt.Errorf("Choose between 1 and %d parallel task slots. Actual starts remain subject to resource, account and provider limits.", MaxSwarmParallelTasks))
 		return
 	}
@@ -101,12 +98,19 @@ func (s *Server) initializeProjectSwarm(w http.ResponseWriter, r *http.Request) 
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}
+	if req.MaxParallel == 0 {
+		req.MaxParallel = defaultSwarmParallelLimit(run.Input.Route)
+	}
 	if err = validateSwarmTaskRoute(run); err != nil {
 		projectRunProblem(w, err)
 		return
 	}
 	if swarmSubscription(run) && req.MaxParallel > 1 {
-		projectRunProblem(w, errors.New("This saved ChatGPT subscription permits one active coding session. Choose one slot, or create a run using an API model connection for parallel workers."))
+		projectRunProblem(w, errors.New(swarmManagedCredentialMessage))
+		return
+	}
+	if req.MaxParallel > 1 && projectSwarmParallelPolicy(run.Input.Route).Mode != "bounded-api-route" {
+		projectRunProblem(w, errors.New("Parallel support is not established for this saved route. Explicitly select and review a supported API model connection before preparing parallel jobs."))
 		return
 	}
 	if _, err = s.resolveProjectRunSelection(r.Context(), run); err != nil {
