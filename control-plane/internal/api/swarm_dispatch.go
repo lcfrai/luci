@@ -347,6 +347,10 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		if decision.State != "admitted" {
 			return admissionDecisionFailure(decision)
 		}
+		// Authority and reservation above may wait on mutable current state.
+		// Keep the actual Spec image captured, and fence changes across those waits.
+		currentProfile, err = a.nativeDelegationDispatchProfile(run, op.ID, a.sessionImage())
+		if err != nil || currentProfile != nativeProfile || a.sessionImage() != image { return admissionFailure("native_helper_profile_changed", product.ErrNativeDelegation) }
 		return nil
 	}
 	stored, err := a.allocatePreparedSession(ctx, preparedSessionAllocation{Record: candidate, Spec: backend.Spec{ID: candidate.ID, SessionID: candidate.ID, Image: image, Command: command, Args: argv, Env: sandboxEnv, AttachToken: candidate.AttachToken, Resources: capacity.Resources, WorkDir: sessionWorkDir, Mounts: mounts}, Account: account, Revalidate: admission.Revalidate, BeforeAllocate: finalAuth, BeforeBackendStart: func(ctx context.Context) error {
