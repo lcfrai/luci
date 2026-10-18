@@ -384,6 +384,7 @@ it('route parallel policy preserves an explicit draft limit after the route beco
   const dialog = await screen.findByRole('dialog', {name: 'Prepare agent team'});
   expect(within(dialog).getByRole('spinbutton', {name: 'Maximum parallel agents'})).toHaveProperty('value', '2');
   expect(within(dialog).getByRole('alert').textContent).toContain('requested limit is unchanged');
+  expect(within(dialog).queryByText(/Choose a whole number/)).toBeNull();
   expect(within(dialog).getByRole('button', {name: 'Prepare team'})).toHaveProperty('disabled', true);
   expect(prepare).not.toHaveBeenCalled();
 });

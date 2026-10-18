@@ -16,7 +16,9 @@ func projectSwarmParallelPolicy(route ProjectRunRoute) swarmParallelPolicy {
 	}
 	knownKind := c.Kind == "litellm" || c.Kind == "compatible-api" || c.Kind == "direct-api"
 	protocol := map[string]string{"codex": "responses", "claude-code": "anthropic-messages", "opencode": "chat-completions"}[route.Harness]
-	if knownKind && c.ID != "" && c.Revision > 0 && c.AuthMode == "api-key" && protocol != "" && c.Protocol == protocol && c.Endpoint != "" && c.Model != "" && c.Model == route.Model {
+	expectedModel := c.Model
+	if route.Harness == "opencode" { expectedModel = "luci-gateway/" + c.Model }
+	if knownKind && c.ID != "" && c.Revision > 0 && c.AuthMode == "api-key" && protocol != "" && c.Protocol == protocol && c.Endpoint != "" && c.Model != "" && expectedModel == route.Model {
 		return swarmParallelPolicy{Mode: "bounded-api-route", Maximum: MaxSwarmParallelTasks}
 	}
 	return swarmParallelPolicy{Mode: "unknown"}

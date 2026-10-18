@@ -9,7 +9,8 @@ export function swarmParallelPolicy(route?: ProjectRun['input']['route']): Swarm
   const c = route?.connection;
   if (c?.kind === 'codex-subscription' || route?.harness === 'codex' && c?.authMode === 'chatgpt') return {mode: 'managed-credential-serial', maximumSlots: 1, message: managedCredentialGuidance};
   const protocol = route?.harness === 'codex' ? 'responses' : route?.harness === 'claude-code' ? 'anthropic-messages' : route?.harness === 'opencode' ? 'chat-completions' : undefined;
-  if (c && ['litellm', 'compatible-api', 'direct-api'].includes(c.kind) && typeof c.id === 'string' && c.id.length > 0 && Number.isSafeInteger(c.revision) && c.revision > 0 && c.authMode === 'api-key' && protocol && c.protocol === protocol && typeof c.endpoint === 'string' && c.endpoint.length > 0 && typeof c.model === 'string' && c.model.length > 0 && c.model === route?.model) {
+  const expectedModel = route?.harness === 'opencode' ? `luci-gateway/${c?.model}` : c?.model;
+  if (c && ['litellm', 'compatible-api', 'direct-api'].includes(c.kind) && typeof c.id === 'string' && c.id.length > 0 && Number.isSafeInteger(c.revision) && c.revision > 0 && c.authMode === 'api-key' && protocol && c.protocol === protocol && typeof c.endpoint === 'string' && c.endpoint.length > 0 && typeof c.model === 'string' && c.model.length > 0 && expectedModel === route?.model) {
     return {mode: 'bounded-api-route', maximumSlots: MAX_SWARM_PARALLEL_TASKS, message: 'This saved API route supports bounded parallel jobs in Luci. Current connection, access, provider and resource checks still determine whether any task can start.'};
   }
   return {mode: 'unknown', message: 'Parallel support is not established for this saved route. Select and review a supported API model connection before requesting parallel jobs. Current readiness has not been established.'};

@@ -82,6 +82,33 @@ it.each(['managed', 'unknown'])('route parallel policy retains requested two for
   await userEvent.click(screen.getByRole('button', {name: 'Keep original request and review updated plan'}));
   expect(api.create).not.toHaveBeenCalled(); expect(orchestrationContractsApi.approve).not.toHaveBeenCalled();
 });
+
+it.each(['context', 'policy', 'scope', 'project', 'read-grant'])('route parallel policy invalidates the final approved read across a %s change and return without persisting a continuation', async boundary => {
+  const input = props(), held = deferred<OrchestrationContractView>();
+  const read = vi.mocked(orchestrationContractsApi.get).getMockImplementation()!;
+  let reads = 0, approved!: OrchestrationContractView;
+  vi.mocked(orchestrationContractsApi.get).mockImplementation(async (project, id) => {
+    const value = await read(project, id);
+    if (++reads === 2) { approved = value; return held.promise; }
+    return value;
+  });
+  const ui = render(<CoordinatorExecution {...input} policyEpoch={0} />); await configure();
+  await submitReviewedRoute(); await waitFor(() => expect(reads).toBe(2));
+  expect(approved.contract.state).toBe('approved');
+  const writes = vi.spyOn(Storage.prototype, 'setItem');
+  const changed = {...input,
+    ...(boundary === 'context' ? {view: {...input.view, context: {...input.view.context, digest: 'b'.repeat(64)}}} : {}),
+    ...(boundary === 'scope' ? {scope: input.scope + '/changed'} : {}),
+    ...(boundary === 'project' ? {projectId: 'p-2', scope: 'local/alice/p-2', view: view({projectId: 'p-2', context: context('p-2')})} : {}),
+    ...(boundary === 'read-grant' ? {canRead: false} : {}),
+  };
+  ui.rerender(<CoordinatorExecution {...changed} policyEpoch={boundary === 'policy' ? 1 : 0} />);
+  ui.rerender(<CoordinatorExecution {...input} policyEpoch={0} />);
+  await act(async () => held.resolve(approved));
+  expect(api.create).not.toHaveBeenCalled();
+  expect(records()).toEqual([]);
+  expect(writes.mock.calls.filter(([key]) => String(key).startsWith('luci.coordinator-execution.v1:'))).toEqual([]);
+});
 it('saves explicit zero, reloads it and preserves zero through unrelated permission saves', async () => {
   vi.mocked(coordinatorPolicyApi.save).mockResolvedValueOnce(policy({revision: 3, automaticRepairLimit: 0}));
   const first = render(<CoordinatorExecution {...props()} />);

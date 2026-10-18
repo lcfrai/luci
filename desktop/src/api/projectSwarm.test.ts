@@ -6,11 +6,19 @@ import { projectSwarmApi, swarmParallelPolicy, swarmParallelLimitIssue } from '.
 afterEach(() => vi.restoreAllMocks());
 
 it.each([['codex', 'responses'], ['claude-code', 'anthropic-messages'], ['opencode', 'chat-completions']])('route parallel policy preserves opaque %s API receipt without claiming readiness', (harness, protocol) => {
-  const route = {harness, model: 'CaseSensitive/Model', permissionMode: 'bypass', connection: {id: 'saved', revision: 3, kind: 'compatible-api', protocol, authMode: 'api-key', model: 'CaseSensitive/Model', endpoint: 'http://localhost:3120/CaseSensitive/v1'}};
+  const route = {harness, model: harness === 'opencode' ? 'luci-gateway/CaseSensitive/Model' : 'CaseSensitive/Model', permissionMode: 'bypass', connection: {id: 'saved', revision: 3, kind: 'compatible-api', protocol, authMode: 'api-key', model: 'CaseSensitive/Model', endpoint: 'http://localhost:3120/CaseSensitive/v1'}};
   const before = JSON.stringify(route);
   expect(swarmParallelPolicy(route)).toMatchObject({mode: 'bounded-api-route', maximumSlots: 200});
   expect(swarmParallelPolicy(route).message).toContain('checks still determine');
   expect(swarmParallelLimitIssue(route, 2)).toBe('');
+  expect(JSON.stringify(route)).toBe(before);
+});
+it.each(['CaseSensitive/Model', 'luci-gateway/CaseSensitive/Model'])('route parallel policy binds OpenCode exact opaque raw model %s once', raw => {
+  const route = {harness: 'opencode', model: `luci-gateway/${raw}`, permissionMode: 'bypass', connection: {id: 'saved', revision: 1, kind: 'compatible-api', protocol: 'chat-completions', authMode: 'api-key', model: raw, endpoint: 'http://localhost:3120/v1'}};
+  const before = JSON.stringify(route);
+  expect(swarmParallelPolicy(route).mode).toBe('bounded-api-route');
+  expect(swarmParallelPolicy({...route, model: raw}).mode).toBe('unknown');
+  expect(swarmParallelPolicy({...route, model: `luci-gateway/luci-gateway/${raw}`}).mode).toBe('unknown');
   expect(JSON.stringify(route)).toBe(before);
 });
 it.each(['codex-subscription', 'legacy'])('route parallel policy serializes managed %s credentials without a provider entitlement claim', kind => {

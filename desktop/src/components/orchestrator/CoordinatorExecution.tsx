@@ -79,7 +79,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const [executionLocation, setExecutionLocation] = useState<'local-docker' | 'cloud-microvm'>('local-docker');
   const worktreeId = useCockpit(state => state.selection.worktreeId), worktree = useCockpit(selectWorktreeById(worktreeId ?? ''));
   const alive = useRef(true), generation = useRef(0), working = useRef(false), readController = useRef<AbortController | null>(null);
-  const latest = useRef({ canRead, canEdit, canExecute, canDeploy, blocked, view, worktree, acceptedReview }); latest.current = { canRead, canEdit, canExecute, canDeploy, blocked, view, worktree, acceptedReview };
+  const latest = useRef({ projectId, scope, policyEpoch, canRead, canEdit, canExecute, canDeploy, blocked, view, worktree, acceptedReview }); latest.current = { projectId, scope, policyEpoch, canRead, canEdit, canExecute, canDeploy, blocked, view, worktree, acceptedReview };
   function persist(value: Pending | null) {
     try {
       if (storageError || localStorage.getItem(key) !== rawRef.current) throw new Error('Another window changed the retained continuation. Reopen this project before starting more work.');
@@ -140,7 +140,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     if (!canRead) { setRows([]); setContextCommits([]); setAcceptedReview(null); setPolicy(null); setSavedRoute(null); setCloudCapacity(null); return; }
     void load(false);
     return () => readController.current?.abort();
-  }, [projectId, actorId, canRead, canEdit, canExecute, canDeploy, view.context.digest, policyEpoch]);
+  }, [projectId, scope, actorId, canRead, canEdit, canExecute, canDeploy, view.context.digest, policyEpoch]);
   async function mutate<T>(label: string, record: Pending, operation: () => Promise<T>, accept: (value: T) => void) {
     const needsDeploy = record.kind === 'create' && (!!record.input.previewPlan || !!record.input.deploymentPlan) || record.kind === 'policy' && record.requiresDeploy;
     if (needsDeploy && !latest.current.canDeploy) return false;
@@ -276,7 +276,9 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   async function createReviewedContinuation(prepared: PrepareOrchestrationContract, reference: OrchestrationContractReference, key: string) {
     const review = contractReview;
     if (!review?.continuation || review.runKey !== key || JSON.stringify(review.request) !== JSON.stringify(prepared) || pendingRef.current || !fresh || !latest.current.canEdit || !latest.current.canExecute) throw new Error('The reviewed continuation changed. Read its exact retained state.');
+    const ticket = generation.current, contextDigest = latest.current.view.context.digest;
     const observed = await orchestrationContractsApi.get(projectId, reference.id);
+    if (!current(ticket) || latest.current.projectId !== projectId || latest.current.scope !== scope || latest.current.policyEpoch !== policyEpoch || latest.current.view.context.digest !== contextDigest || currentReview.current !== review) throw new Error('The reviewed context or policy changed during readback. Refresh the retained review.');
     if (observed.contract.id !== reference.id || observed.contract.revision !== reference.revision || observed.contract.digest !== reference.digest || observed.contract.approval?.id !== reference.approvalId || observed.contract.actor.id !== actorId || observed.freshness.status !== 'current') throw new Error('Read the current exact approved contract before continuing.');
     const routeIssue = swarmParallelLimitIssue(observed.contract.input.route, review.continuation.maxParallel);
     if (routeIssue) throw new Error(routeIssue);

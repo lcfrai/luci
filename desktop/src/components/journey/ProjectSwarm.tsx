@@ -172,8 +172,9 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   const blocked = !!run.codingBlocker || !!run.contextFreshness && run.contextFreshness.status !== 'current' || ['cancelled', 'complete'].includes(run.state);
   const parallelPolicy = swarmParallelPolicy(run.input.route);
   const selectedLimit = limit;
-  const parallelIssue = swarmParallelLimitIssue(run.input.route, selectedLimit);
-  const validLimit = !parallelIssue;
+  const numericLimitValid = Number.isInteger(selectedLimit) && selectedLimit >= 1 && selectedLimit <= MAX_SWARM_PARALLEL_TASKS;
+  const parallelIssue = numericLimitValid ? swarmParallelLimitIssue(run.input.route, selectedLimit) : '';
+  const validLimit = numericLimitValid && !parallelIssue;
   const tasks = run.swarm?.tasks || [], active = tasks.filter(task => inFlight(operationFor(run, task))).length;
   const retiringTask = tasks.find(task => task.id === retire);
   const finishingRecovery = !!retiringTask && runOperationNeedsRecovery(operationFor(run, retiringTask));
@@ -512,7 +513,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       <p>Saved permission: {capability.mode}. Task commands run without interactive approvals inside {run.input.route.executionLocation === 'cloud-microvm' ? 'separate owned cloud microVMs' : 'isolated Docker workspaces'}. Each task exits after its response; review and integration remain your choice.</p>
       {capability.notice && <p>{capability.notice}</p>}
       <label className="luci-field">Maximum parallel agents<Input type="number" min={1} max={parallelPolicy.maximumSlots ?? 1} step={1} value={Number.isNaN(selectedLimit) ? '' : selectedLimit} disabled={busy} onChange={event => setLimit(event.target.value === '' ? NaN : Number(event.target.value))} /></label>
-      {!validLimit && <p role="alert">Choose a whole number from 1 to {MAX_SWARM_PARALLEL_TASKS}.</p>}
+      {!numericLimitValid && <p role="alert">Choose a whole number from 1 to {MAX_SWARM_PARALLEL_TASKS}.</p>}
       <p>Actual starts also depend on ready tasks and the current workspace, account, provider and resource limits.</p>
       <p>{parallelPolicy.message}</p>
       {parallelIssue && <p role="alert">The requested limit is unchanged. {parallelIssue}</p>}
