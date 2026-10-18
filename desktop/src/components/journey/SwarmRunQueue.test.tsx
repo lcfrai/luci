@@ -112,7 +112,7 @@ it('keeps waiting-task control separate from active-session stops and hides othe
 });
 
 it('pauses repair continuation explicitly and resumes only to the retained checkpoint wait', async () => {
-  const pending = swarmQueueItem({state:'paused', reasonCode:'repair_checkpoint_pending', reason:'The exact failed finding is awaiting a protected stopped-attempt checkpoint. No agent is admitted yet.'});
+  const pending = swarmQueueItem({state:'paused', reasonCode:'repair_checkpoint_pending'});
   const paused = {...pending, revision:pending.revision + 1, reasonCode:'operator_paused', reason:'Future starts are paused. No running process was stopped.'};
   const restored = {...pending, revision:paused.revision + 1};
   const initialQueue = swarmQueueFixture([pending]), pausedQueue = swarmQueueFixture([paused]), restoredQueue = swarmQueueFixture([restored]);
@@ -125,6 +125,7 @@ it('pauses repair continuation explicitly and resumes only to the retained check
   render(<Harness changed={changed} />);
   await openQueueControls();
   expect(await screen.findByText(/Repair continuation is waiting for a protected checkpoint/)).toBeTruthy();
+  expect(screen.getByText(/No repair agent has started for this continuation/)).toBeTruthy();
   expect(screen.queryByRole('button', {name:'Resume queued task'})).toBeNull();
   expect(control).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', {name:'Pause repair continuation'}));
@@ -147,6 +148,7 @@ it('pauses repair continuation explicitly and resumes only to the retained check
   await act(async () => settleResume(restoredQueue));
   await waitFor(() => expect(screen.getByRole('button', {name:'Pause repair continuation'})).toHaveProperty('disabled', false));
   expect(screen.getByText(/Repair continuation is waiting for a protected checkpoint/)).toBeTruthy();
+  expect(screen.getByText(/No repair agent has started for this continuation/)).toBeTruthy();
   expect(screen.queryByRole('button', {name:'Resume queued task'})).toBeNull();
   expect(changed.mock.calls.map(([queue]) => queue)).toEqual([initialQueue, pausedQueue, restoredQueue]);
   expect(control).toHaveBeenCalledTimes(2); expect(enqueue).not.toHaveBeenCalled();
