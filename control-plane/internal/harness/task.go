@@ -54,7 +54,10 @@ func BuildTask(r Request) (command string, argv []string, err error) {
 	case Codex:
 		// All config overrides stay before the subcommand: the pinned parser
 		// otherwise replaces earlier root -c values with the subcommand's -c.
-		argv = []string{"-c", `cli_auth_credentials_store="file"`}
+		// These controller-owned tasks have no captured child-agent allowance.
+		// Disable both pinned upstream agent paths; V2 overrides agents.enabled.
+		argv = []string{"-c", `cli_auth_credentials_store="file"`,
+			"-c", "agents.enabled=false", "-c", "features.multi_agent_v2=false"}
 		if r.ProjectBrief || r.ReviewedContext {
 			argv = append(argv, "-c", "developer_instructions="+strconv.Quote(projectContextPrompt(r)))
 		}

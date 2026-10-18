@@ -3,6 +3,7 @@ package harness_test
 import (
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -74,5 +75,59 @@ func TestTaskCapabilityDoesNotLeakMutablePermissionSlices(t *testing.T) {
 				t.Fatal("caller changed authoritative task permissions")
 			}
 		}
+	}
+}
+
+func TestCodexTaskDisablesUncapturedChildrenOnlyAtRoot(t *testing.T) {
+	const prompt = "implement the captured task --literal agents.enabled=false"
+	for _, tc := range []struct {
+		name     string
+		brief    bool
+		reviewed bool
+	}{
+		{"no-context", false, false},
+		{"project-brief", true, false},
+		{"reviewed-context", false, true},
+		{"reviewed-over-brief", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := harness.Request{Harness: harness.Codex, Model: "fixture-model", Permission: harness.PermissionBypass, ProjectBrief: tc.brief, ReviewedContext: tc.reviewed, OpeningPrompt: prompt}
+			context := []string{}
+			if tc.brief || tc.reviewed {
+				instructions := harness.ProjectBriefPrompt
+				if tc.reviewed {
+					instructions = harness.ReviewedContextPrompt
+				}
+				context = []string{"-c", "developer_instructions=" + strconv.Quote(instructions)}
+			}
+			want := []string{"-c", `cli_auth_credentials_store="file"`, "-c", "agents.enabled=false", "-c", "features.multi_agent_v2=false"}
+			want = append(want, context...)
+			want = append(want, "exec", "--color", "never", "--dangerously-bypass-approvals-and-sandbox", "--model", r.Model, "--", prompt)
+			command, argv, err := harness.BuildTask(r)
+			if err != nil || command != "codex" || !slices.Equal(argv, want) {
+				t.Fatalf("controller-owned task must disable both upstream child paths without changing its captured inputs: %q %v %v", command, argv, err)
+			}
+			for _, setting := range []string{"agents.enabled=false", "features.multi_agent_v2=false"} {
+				count := 0
+				for i, arg := range argv {
+					if arg == setting {
+						count++
+						if i == 0 || argv[i-1] != "-c" || i >= slices.Index(argv, "exec") {
+							t.Fatalf("task setting escaped root config: %v", argv)
+						}
+					}
+				}
+				if count != 1 {
+					t.Fatalf("task setting must occur exactly once: %s in %v", setting, argv)
+				}
+			}
+			interactive := []string{"--no-alt-screen", "--no-daemon", "-c", `cli_auth_credentials_store="file"`}
+			interactive = append(interactive, context...)
+			interactive = append(interactive, "--model", r.Model, "--dangerously-bypass-approvals-and-sandbox", "--", prompt)
+			command, argv, err = harness.Build(r)
+			if err != nil || command != "codex" || !slices.Equal(argv, interactive) {
+				t.Fatalf("interactive Codex argv changed with task-only child bounds: %q %v %v", command, argv, err)
+			}
+		})
 	}
 }
