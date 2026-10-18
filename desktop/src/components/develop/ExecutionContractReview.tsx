@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { approvedContractReference, orchestrationContractsApi, type OrchestrationContractReference, type OrchestrationContractView, type PrepareOrchestrationContract } from '../../api/orchestrationContracts';
 import { swarmParallelLimitIssue } from '../../api/projectSwarm';
+import { validNativeDelegation, validNativeDelegationRoute } from '../../api/projectRuns';
 import { errorText } from '../../api/product';
 import { effectiveAutomaticRepairLimit } from '../../api/coordinatorPolicy';
 import { Button } from '../fluid/components/button';
@@ -31,15 +32,17 @@ export function readContractReview(scope: string | null, projectId: string, acto
       !['local-docker', 'cloud-microvm'].includes(route.executionLocation) || !['preview', 'publish'].includes(request.outcome) ||
       !text(request.worktreeId, 256) || !request.worktreeId || !text(route.model, 512) || route.effort !== undefined && !text(route.effort, 64) ||
       route.agentConnectionId !== undefined && !text(route.agentConnectionId, 256) || value.contractId !== undefined && !text(value.contractId, 256) ||
+      !validNativeDelegation(route.nativeDelegation) || route.nativeDelegation && (route.harness !== 'codex' || route.permissionMode !== 'bypass' || route.executionLocation !== 'local-docker') ||
       ![context.briefRevision, context.planRevision, context.specificationRevision, context.designPlanRevision].every(x => Number.isSafeInteger(x) && x > 0) ||
       !Array.isArray(context.taskIds) || context.taskIds.length < 1 || context.taskIds.length > 200 || context.taskIds.some(x => !text(x, 256) || !x) ||
       value.continuation !== undefined && (value.continuation.idempotencyKey !== value.runKey || value.continuation.run?.implementationContext?.projectId !== projectId || value.continuation.run?.orchestrationContract !== undefined ||
         value.continuation.run?.worktreeId !== request.worktreeId || value.continuation.run?.harness !== route.harness || value.continuation.run?.model !== route.model || value.continuation.run?.permissionMode !== route.permissionMode || value.continuation.run?.outcome !== request.outcome ||
+        !validNativeDelegation(value.continuation.run?.nativeDelegation) || (value.continuation.run?.nativeDelegation ?? '') !== (route.nativeDelegation ?? '') || Object.keys(value.continuation.run).includes('nativeDelegationImage') ||
         JSON.stringify(value.continuation.run?.implementationContext) !== JSON.stringify(context)) ||
       value.acceptedEventId !== undefined && (!/^coord-event-[a-zA-Z0-9_-]+$/.test(value.acceptedEventId) || value.continuation !== undefined) ||
       !fields(value, ['version', 'projectId', 'actorId', 'request', 'runKey', 'contractId', 'continuation', 'acceptedEventId']) ||
       !fields(request, ['idempotencyKey', 'worktreeId', 'implementationContext', 'route', 'outcome']) ||
-      !fields(route, ['harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'agentConnectionId']) ||
+      !fields(route, ['harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'agentConnectionId', 'nativeDelegation']) ||
       !fields(context, ['projectId', 'briefRevision', 'planRevision', 'specificationRevision', 'designPlanRevision', 'taskIds'])) {
     throw new Error('The retained execution contract request could not be verified.');
   }
@@ -103,12 +106,16 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
   const mayWrite = useRef(allowed); mayWrite.current = allowed;
   const currentApprovalIssue = useRef(approvalIssue); currentApprovalIssue.current = approvalIssue;
   const mayRead = useRef(canRead); mayRead.current = canRead;
-  useEffect(() => { generation.current++; return () => { generation.current++; }; }, []);
+  const nativeBinding = JSON.stringify([initialView?.contract.input.route.nativeDelegation ?? '', initialView?.contract.input.route.nativeDelegationImage ?? '']);
+  useEffect(() => { generation.current++; setConsent(false); return () => { generation.current++; }; }, [scope, actorId, canRead, canEdit, pending.request, approvalIssue, nativeBinding]);
   useEffect(() => { setView(initialView); setConsent(false); }, [initialView]);
   useEffect(() => { setConsent(false); }, [approvalIssue]);
 
   function own(value: OrchestrationContractView) {
     if (value.contract.actor.id !== actorId) throw new Error('This execution contract belongs to another person. Refresh the workspace.');
+    const route = value.contract.input.route;
+    if (!validNativeDelegationRoute(route) || (route.nativeDelegation ?? '') !== (pending.request.route.nativeDelegation ?? '') ||
+        view && (route.nativeDelegationImage ?? '') !== (view.contract.input.route.nativeDelegationImage ?? '')) throw new Error('The captured native-helper profile or image changed. Review the exact inputs before approving.');
     return value;
   }
   async function refresh() {
@@ -183,6 +190,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
       <p role={view.freshness.status === 'current' ? undefined : 'status'}><strong>{view.freshness.status === 'current' ? 'Current context and policy' : 'Context needs reconciliation'}</strong>{view.freshness.reason && ` · ${view.freshness.reason}`}</p>
       <dl><dt>Design and definition</dt><dd>Design {c!.input.implementation.designPlanRevision} · Definition {c!.input.implementation.specificationRevision} · Plan {c!.input.implementation.planRevision}</dd>
         <dt>Upstream route</dt><dd>{c!.input.route.harness} · {c!.input.route.model || 'configured model'} · {c!.input.route.permissionMode} · {pending.request.route.executionLocation === 'local-docker' ? 'isolated Docker on this computer' : 'configured isolated cloud microVM'}</dd>
+        {c!.input.route.nativeDelegation && <><dt>Native coding helpers</dt><dd>{c!.input.route.nativeDelegation} · Captured image: <code>{c!.input.route.nativeDelegationImage}</code>. One parent with at most two concurrent helpers, sharing its worktree and permissions. Luci observes the parent containment and status; individual helper activity is not fully tracked. Helpers do not replace the required separate Luci reviewer, and review or repair tasks receive no helper grant. This profile does not establish current image or account readiness.</dd></>}
         <dt>Intended result</dt><dd>{c!.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment, subject to separate authority'}</dd>
         <dt>Automatic repairs per coding task</dt><dd>{effectiveAutomaticRepairLimit(c!.input.controls.automaticRepairLimit)} · {effectiveAutomaticRepairLimit(c!.input.controls.automaticRepairLimit) === 0 ? 'Stop after the first failed independent review.' : 'Maximum repair reservations in this approved run.'}{c!.input.controls.automaticRepairLimit === undefined && ' Retained contract uses the legacy default of two.'} Initial coding and independent review are separate; a repaired candidate still requires a final independent review. Cancelled or uncertain repair reservations remain consumed.</dd>
         <dt>Standards and controls</dt><dd>{c!.input.standards.status === 'team-library-assessed' ? `Team library revision ${c!.input.standards.revision}, assessment revision ${c!.input.standards.assessmentRevision}; inspect the exact controls and evidence below. This is a reviewed finding, not a compliance claim.` : c!.input.standards.status === 'team-library-unassessed' ? `Team library revision ${c!.input.standards.revision} is captured, but no current project assessment exists.` : c!.input.standards.status === 'legacy-unassessed' ? 'Approved design notes retained; standards have not been assessed against a structured control library.' : 'No team standards library is configured; no compliance assessment is claimed.'}</dd>

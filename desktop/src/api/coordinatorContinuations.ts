@@ -1,7 +1,7 @@
 import { productApi, type CheckCommand } from './product';
 import { coordinatorDeploymentPlanValid, type CoordinatorDeploymentPlan } from './coordinatorDeployment';
 import { MAX_SWARM_PARALLEL_TASKS } from './swarmLimits';
-import type { CreateProjectRun, ProjectRun } from './projectRuns';
+import { validNativeDelegation, type CreateProjectRun, type ProjectRun } from './projectRuns';
 import type { OrchestratorView } from './orchestrator';
 
 export type CoordinatorActionKind = 'create-run' | 'prepare-tasks' | 'queue-tasks';
@@ -121,7 +121,8 @@ function savedRoute(value: CoordinatorSavedRoute | null | undefined) {
   if (value == null) return null;
   const route = value.route;
   if (!Number.isSafeInteger(value.revision) || value.revision < 1 || (value.autoDiscussFindings !== undefined && typeof value.autoDiscussFindings !== 'boolean') || !Number.isSafeInteger(value.maxParallel) || value.maxParallel < 1 || value.maxParallel > MAX_SWARM_PARALLEL_TASKS ||
-      !Number.isFinite(Date.parse(value.updatedAt)) || !route || Object.keys(route).some(key => !['worktreeId', 'harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'agentConnectionId', 'outcome'].includes(key)) || !text(route.worktreeId) || !text(route.harness) || typeof route.model !== 'string' ||
+      !Number.isFinite(Date.parse(value.updatedAt)) || !route || Object.keys(route).some(key => !['worktreeId', 'harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'agentConnectionId', 'outcome', 'nativeDelegation'].includes(key)) || !text(route.worktreeId) || !text(route.harness) || typeof route.model !== 'string' ||
+      !validNativeDelegation(route.nativeDelegation) || route.nativeDelegation && (route.harness !== 'codex' || route.permissionMode !== 'bypass' || route.executionLocation === 'cloud-microvm') ||
       !['ask', 'bypass', 'plan'].includes(route.permissionMode) || !['preview', 'publish'].includes(route.outcome) ||
       route.executionLocation !== undefined && (route.executionLocation !== 'cloud-microvm' || route.permissionMode !== 'bypass' || !['codex', 'claude-code'].includes(route.harness)) ||
       route.effort !== undefined && typeof route.effort !== 'string' || route.agentConnectionId !== undefined && typeof route.agentConnectionId !== 'string' ||

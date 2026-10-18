@@ -7,6 +7,7 @@ import { ApiError } from '../../api/client';
 import { errorText, ProductApiError } from '../../api/product';
 import { MAX_SWARM_PARALLEL_TASKS } from '../../api/swarmLimits';
 import { swarmParallelPolicy, swarmParallelLimitIssue } from '../../api/projectSwarm';
+import { CODEX_NATIVE_HELPERS, validNativeDelegationRoute } from '../../api/projectRuns';
 import { useCockpit } from '../../store/store';
 import { selectWorktreeById } from '../../store/selectors';
 import { Button } from '../fluid/components/button';
@@ -79,6 +80,15 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const [executionLocation, setExecutionLocation] = useState<'local-docker' | 'cloud-microvm'>('local-docker');
   const worktreeId = useCockpit(state => state.selection.worktreeId), worktree = useCockpit(selectWorktreeById(worktreeId ?? ''));
   const alive = useRef(true), generation = useRef(0), working = useRef(false), readController = useRef<AbortController | null>(null);
+  const [pickerHarness, setPickerHarness] = useState<string | null>(null), [nativeDelegation, setNativeDelegation] = useState(false);
+  const nativeChoice = useRef(false);
+  const resolvedHarnessChanged = useCallback((harness: string | null) => {
+    setPickerHarness(harness);
+    if (harness !== 'codex') {
+      if (harness !== null && nativeChoice.current) generation.current++;
+      nativeChoice.current = false; setNativeDelegation(false);
+    }
+  }, []);
   const latest = useRef({ projectId, scope, policyEpoch, canRead, canEdit, canExecute, canDeploy, blocked, view, worktree, acceptedReview }); latest.current = { projectId, scope, policyEpoch, canRead, canEdit, canExecute, canDeploy, blocked, view, worktree, acceptedReview };
   function persist(value: Pending | null) {
     try {
@@ -136,7 +146,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   }
   useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; readController.current?.abort(); }; }, []);
   useEffect(() => {
-    generation.current++; setConsent(false); setIntegrationConsent(false); setPreviewConsent(false); setDeploymentConsent(false); setFindingConsent(false); setDeploymentFresh(false); setPicker(null); setFresh(false); setRememberRoute(false); setAutoDiscussFindings(false);
+    generation.current++; setConsent(false); setIntegrationConsent(false); setPreviewConsent(false); setDeploymentConsent(false); setFindingConsent(false); setDeploymentFresh(false); setPicker(null); setFresh(false); setRememberRoute(false); setAutoDiscussFindings(false); nativeChoice.current = false; setNativeDelegation(false);
     if (!canRead) { setRows([]); setContextCommits([]); setAcceptedReview(null); setPolicy(null); setSavedRoute(null); setCloudCapacity(null); return; }
     void load(false);
     return () => readController.current?.abort();
@@ -214,7 +224,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     }
     const key = crypto.randomUUID();
     const request: PrepareOrchestrationContract = { idempotencyKey: key, worktreeId: route.worktreeId, implementationContext: accepted.selection,
-      route: { harness: route.harness as PrepareOrchestrationContract['route']['harness'], model: route.model, permissionMode: route.permissionMode as 'ask' | 'bypass', executionLocation: route.executionLocation === 'cloud-microvm' ? 'cloud-microvm' : 'local-docker', ...(route.effort ? { effort: route.effort } : {}), ...(route.agentConnectionId !== undefined ? { agentConnectionId: route.agentConnectionId } : {}) }, outcome: route.outcome };
+      route: { harness: route.harness as PrepareOrchestrationContract['route']['harness'], model: route.model, permissionMode: route.permissionMode as 'ask' | 'bypass', executionLocation: route.executionLocation === 'cloud-microvm' ? 'cloud-microvm' : 'local-docker', ...(route.nativeDelegation ? {nativeDelegation: route.nativeDelegation} : {}), ...(route.effort ? { effort: route.effort } : {}), ...(route.agentConnectionId !== undefined ? { agentConnectionId: route.agentConnectionId } : {}) }, outcome: route.outcome };
     const review: ExecutionContractReviewRequest = { version: 1, projectId, actorId, runKey: key, request, acceptedEventId: accepted.eventId };
     try { retainContractReview(reviewScope, review); setContractReview(review); setContractView(null); }
     catch (cause) { setError(errorText(cause)); return; }
@@ -245,12 +255,14 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     if (issue || deliverySetupIssue || checkSelection.problem || previewSelection.problem || deploymentSelection.problem || pendingRef.current || contractReview || working.current || storageError || !policy || !ownTurn || !worktree) return;
     if (location === 'cloud-microvm' && !cloudReady) return;
     setExecutionLocation(location);
+    nativeChoice.current = false; setNativeDelegation(false); setPickerHarness(null);
     setParallel(1); setOutcome(deploymentSelection.plan ? 'publish' : 'preview'); setRememberRoute(false);
     setPicker({ idempotencyKey: crypto.randomUUID(), originTurnId: ownTurn.id, expectedContextDigest: view.context.digest, expectedPolicyRevision: policy.revision, maxParallel: 1, run: { worktreeId: worktree.id, harness: '', model: '', permissionMode: 'ask', outcome: 'preview', implementationContext: { projectId, briefRevision: view.context.brief.revision, planRevision: view.context.plan.revision, specificationRevision: view.context.specification.revision, designPlanRevision: view.context.designPlan.revision, taskIds: tasks.map(task => task.id) } } });
   };
   async function create(selection: CreateSessionRequest) {
     if (!picker || issue || latest.current.blocked || picker.expectedContextDigest !== latest.current.view.context.digest || !selection.implementationContext || JSON.stringify(selection.implementationContext) !== JSON.stringify(picker.run.implementationContext)) return { ok: false as const, message: 'The reviewed selection changed. Close this picker and read the current context before continuing.' };
     if (!['codex', 'claude-code', 'opencode'].includes(selection.harness ?? '') || !['ask', 'bypass'].includes(selection.permissionMode ?? 'ask')) return { ok: false as const, message: 'Choose a supported harness and an explicit Ask or approved noninteractive mode.' };
+    if (nativeDelegation && (executionLocation !== 'local-docker' || selection.harness !== 'codex' || selection.permissionMode !== 'bypass')) return { ok: false as const, message: 'Native helpers require an explicitly selected local Codex Bypass task route. Your selected route and permission mode have not been changed.' };
     if (!Number.isInteger(parallel) || parallel < 1 || parallel > Math.min(MAX_SWARM_PARALLEL_TASKS, tasks.length)) return { ok: false as const, message: 'Choose a concurrency limit within the selected task count.' };
     if (executionLocation === 'cloud-microvm' && !cloudReady) return { ok: false as const, message: 'Cloud setup or spending advice is unavailable or blocked. Refresh and review the exact setup need before another request.' };
     if (executionLocation === 'cloud-microvm' && (!['codex', 'claude-code'].includes(selection.harness ?? '') || selection.permissionMode !== 'bypass' || !selection.agentConnectionId)) return { ok: false as const, message: 'Cloud microVM tasks need a reviewed Codex or Claude Code route, noninteractive permission and an explicit API-key model connection. The server will verify current cloud authority and capacity.' };
@@ -258,19 +270,21 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     if (previewSelection.problem || previewSelection.dirty && !previewSelection.plan || previewSelection.plan && (!checkSelection.plan || !latest.current.canDeploy || policy?.previewMode !== (previewSelection.plan.kind === 'reviewed-source' ? 'reviewed-source' : 'checked-source'))) return { ok: false as const, message: previewSelection.problem || 'Delegate exact independent checks and matching current preview configuration before starting this preview-enabled continuation.' };
     if (deploymentSelection.problem || deploymentSelection.dirty && !deploymentSelection.plan || deploymentSelection.plan && (!checkSelection.plan || !previewSelection.plan || outcome !== 'publish' || !latest.current.canDeploy || policy?.deploymentMode !== 'existing-target')) return { ok: false as const, message: deploymentSelection.problem || 'Delegate exact checks, local preview and a published outcome before continuing to the selected deployment target.' };
     if (contractReview || pendingRef.current || storageError) return { ok: false as const, message: 'Inspect the retained execution review or continuation before preparing another.' };
-    const input: CoordinatorContinuationRequest = { ...picker, rememberRoute, autoDiscussFindings: rememberRoute && autoDiscussFindings, ...(deploymentSelection.plan ? { deploymentPlan: deploymentSelection.plan } : {}), ...(previewSelection.plan ? { previewPlan: previewSelection.plan } : {}), ...(checkSelection.plan ? { checkPlan: checkSelection.plan } : {}), maxParallel: parallel, run: { ...picker.run, worktreeId: selection.worktreeId, harness: selection.harness ?? '', model: selection.model ?? '', permissionMode: selection.permissionMode ?? 'ask', ...(executionLocation === 'cloud-microvm' ? { executionLocation } : {}), ...(selection.effort ? { effort: selection.effort } : {}), ...(selection.agentConnectionId !== undefined ? { agentConnectionId: selection.agentConnectionId } : {}), outcome } };
+    const input: CoordinatorContinuationRequest = { ...picker, rememberRoute, autoDiscussFindings: rememberRoute && autoDiscussFindings, ...(deploymentSelection.plan ? { deploymentPlan: deploymentSelection.plan } : {}), ...(previewSelection.plan ? { previewPlan: previewSelection.plan } : {}), ...(checkSelection.plan ? { checkPlan: checkSelection.plan } : {}), maxParallel: parallel, run: { ...picker.run, worktreeId: selection.worktreeId, harness: selection.harness ?? '', model: selection.model ?? '', permissionMode: selection.permissionMode ?? 'ask', ...(nativeDelegation ? {nativeDelegation: CODEX_NATIVE_HELPERS} : {}), ...(executionLocation === 'cloud-microvm' ? { executionLocation } : {}), ...(selection.effort ? { effort: selection.effort } : {}), ...(selection.agentConnectionId !== undefined ? { agentConnectionId: selection.agentConnectionId } : {}), outcome } };
     const request: PrepareOrchestrationContract = { idempotencyKey: crypto.randomUUID(), worktreeId: input.run.worktreeId, implementationContext: input.run.implementationContext,
-      route: { harness: input.run.harness as PrepareOrchestrationContract['route']['harness'], model: input.run.model, permissionMode: input.run.permissionMode as 'ask' | 'bypass', executionLocation: input.run.executionLocation === 'cloud-microvm' ? 'cloud-microvm' : 'local-docker', ...(input.run.effort ? { effort: input.run.effort } : {}), ...(input.run.agentConnectionId !== undefined ? { agentConnectionId: input.run.agentConnectionId } : {}) }, outcome: input.run.outcome };
+      route: { harness: input.run.harness as PrepareOrchestrationContract['route']['harness'], model: input.run.model, permissionMode: input.run.permissionMode as 'ask' | 'bypass', ...(input.run.nativeDelegation ? {nativeDelegation: input.run.nativeDelegation} : {}), executionLocation: input.run.executionLocation === 'cloud-microvm' ? 'cloud-microvm' : 'local-docker', ...(input.run.effort ? { effort: input.run.effort } : {}), ...(input.run.agentConnectionId !== undefined ? { agentConnectionId: input.run.agentConnectionId } : {}) }, outcome: input.run.outcome };
+    const ticket = generation.current;
     const review: ExecutionContractReviewRequest = { version: 1, projectId, actorId, runKey: input.idempotencyKey, request, continuation: input };
     try { retainContractReview(reviewScope, review); setContractReview(review); setPicker(null); }
     catch (cause) { return { ok: false as const, message: errorText(cause) }; }
     try {
       const value = await orchestrationContractsApi.prepare(projectId, request);
-      if (!alive.current || !latest.current.canRead) return { ok: true as const };
+      if (!current(ticket) || !latest.current.canEdit || !latest.current.canExecute) return { ok: true as const };
+      if ((value.contract.input.route.nativeDelegation ?? '') !== (request.route.nativeDelegation ?? '') || !validNativeDelegationRoute(value.contract.input.route)) throw new Error('The prepared native-helper route differs from the retained request.');
       if (value.contract.actor.id !== actorId) throw new Error('The prepared contract belongs to another person.');
       const retained = { ...review, contractId: value.contract.id };
       retainContractReview(reviewScope, retained); setContractReview(retained); setContractView(value);
-    } catch (cause) { if (alive.current) setError(`${errorText(cause)} The exact preparation request is retained; refresh it before continuing.`); }
+    } catch (cause) { if (current(ticket)) setError(`${errorText(cause)} The exact preparation request is retained; refresh it before continuing.`); }
     return { ok: true as const };
   }
   async function createReviewedContinuation(prepared: PrepareOrchestrationContract, reference: OrchestrationContractReference, key: string) {
@@ -280,6 +294,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     const observed = await orchestrationContractsApi.get(projectId, reference.id);
     if (!current(ticket) || latest.current.projectId !== projectId || latest.current.scope !== scope || latest.current.policyEpoch !== policyEpoch || latest.current.view.context.digest !== contextDigest || currentReview.current !== review) throw new Error('The reviewed context or policy changed during readback. Refresh the retained review.');
     if (observed.contract.id !== reference.id || observed.contract.revision !== reference.revision || observed.contract.digest !== reference.digest || observed.contract.approval?.id !== reference.approvalId || observed.contract.actor.id !== actorId || observed.freshness.status !== 'current') throw new Error('Read the current exact approved contract before continuing.');
+    if ((observed.contract.input.route.nativeDelegation ?? '') !== (review.request.route.nativeDelegation ?? '') || !validNativeDelegationRoute(observed.contract.input.route) || (contractView && (observed.contract.input.route.nativeDelegationImage ?? '') !== (contractView.contract.input.route.nativeDelegationImage ?? ''))) throw new Error('The approved native-helper profile or image changed. Review the exact captured route again.');
     const routeIssue = swarmParallelLimitIssue(observed.contract.input.route, review.continuation.maxParallel);
     if (routeIssue) throw new Error(routeIssue);
     if (!alive.current || !latest.current.canEdit || !latest.current.canExecute || currentReview.current !== review || latest.current.blocked) throw new Error('The reviewed continuation changed during readback.');
@@ -361,10 +376,11 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     </>}
     <Button variant="ghost" disabled={!!busy} onClick={() => void load(true)}>Refresh continued work</Button>
     {busy && <p role="status">{busy === 'read' ? 'Reading retained continuation and current policy…' : busy === 'policy' ? 'Saving implementation permission…' : 'Continuing exact reviewed work…'}</p>}
-    <SessionPicker open={!!picker && canRead && canEdit && canExecute && !readDenied} worktreeId={picker?.run.worktreeId ?? null} implementationContext={picker?.run.implementationContext} onClose={() => setPicker(null)} onSubmit={create} submitLabel="Review execution contract" progressLabel="Preparing the exact contract for review. No coding resource is allocated by this step." failureGuidance="Inspect the retained contract preparation before choosing a new route." onCreated={() => setPicker(null)}>
-      <label className="luci-field">Develop execution location<select value={executionLocation} onChange={event => setExecutionLocation(event.target.value as typeof executionLocation)}><option value="local-docker">This computer · isolated Docker</option><option value="cloud-microvm">Configured cloud · one isolated microVM per task</option></select></label>
+    <SessionPicker onResolvedHarnessChange={resolvedHarnessChanged} open={!!picker && canRead && canEdit && canExecute && !readDenied} worktreeId={picker?.run.worktreeId ?? null} implementationContext={picker?.run.implementationContext} onClose={() => setPicker(null)} onSubmit={create} submitLabel="Review execution contract" progressLabel="Preparing the exact contract for review. No coding resource is allocated by this step." failureGuidance="Inspect the retained contract preparation before choosing a new route." onCreated={() => setPicker(null)}>
+      <label className="luci-field">Develop execution location<select value={executionLocation} onChange={event => { generation.current++; setExecutionLocation(event.target.value as typeof executionLocation); nativeChoice.current = false; setNativeDelegation(false); }}><option value="local-docker">This computer · isolated Docker</option><option value="cloud-microvm">Configured cloud · one isolated microVM per task</option></select></label>
       <p>{executionLocation === 'cloud-microvm' ? 'Cloud tasks require an operator-configured microVM service, current cloud provisioning and spending permission, and an explicit upstream API-key connection. Each VM remains charged until exact retirement is observed. Luci will refuse an unavailable cloud route rather than fall back to Docker.' : `Run on: ${runOn}.`} This starts only the selected saved tasks; successful deployment is not implied.</p>
       {executionLocation === 'cloud-microvm' && (cloudReady ? <p role="status">Configured {cloudProviderLabel} in {cloudCapacity.region}: {cloudCapacity.configuredAvailableSlots} task VM slots presently available under Luci limits (global {cloudCapacity.configuredGlobalSlots}, project {cloudCapacity.configuredProjectSlots}). Configured cost estimate per task ${(cloudCapacity.estimatedTaskCostMicros / 1_000_000).toFixed(2)} USD for up to {cloudCapacity.maxTaskSeconds} seconds; your current-month retained estimate is ${(cloudCapacity.estimatedMonthMicros / 1_000_000).toFixed(2)} of ${(cloudCapacity.monthlyBudgetMicros / 1_000_000).toFixed(2)} USD. {cloudCapacity.limitation}</p> : <p role="status">Cloud work cannot start while the setup or policy needs above remain. For an unconnected workspace, a workspace administrator can use Setup → Bring your own cloud to prepare and verify an Azure connection; Luci Cloud is not available yet.</p>)}
+      {executionLocation === 'local-docker' && pickerHarness === 'codex' && <label className="setup-check"><input type="checkbox" checked={nativeDelegation} onChange={event => { generation.current++; nativeChoice.current = event.target.checked; setNativeDelegation(event.target.checked); }} />Allow this local Codex coding task to use at most two concurrent native helpers. Helpers share its worktree and permissions; a separate Luci reviewer is still required. Explicit Bypass is required. Image and account readiness are checked separately.</label>}
       <label className="luci-field">Maximum parallel tasks<input type="number" min={1} max={Math.min(MAX_SWARM_PARALLEL_TASKS, picker?.run.implementationContext.taskIds.length ?? 1)} value={parallel} onChange={event => setParallel(Number(event.target.value))} /></label>
       <p>Shared managed ChatGPT credentials use one job at a time. Parallel jobs require an explicitly selected supported API route; the prepared contract will show its policy. Current readiness and resource limits are checked separately.</p>
       <label className="luci-field">Intended delivery outcome<select value={outcome} onChange={event => setOutcome(event.target.value as typeof outcome)}><option value="preview">Working preview</option><option value="publish">Published application</option></select></label>

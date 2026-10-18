@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { CoordinatorExecution } from './CoordinatorExecution';
 import { coordinatorContinuationsApi as api, type CoordinatorCloudCapacity, type CoordinatorContinuation, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
 import { coordinatorDeploymentApi, type CoordinatorDeploymentPlan } from '../../api/coordinatorDeployment';
@@ -17,7 +17,11 @@ import { contractViewFixture } from '../../test/orchestrationContractFixtures';
 import { archiveContractReview, readContractReview } from '../develop/ExecutionContractReview';
 
 // Tests the continuation boundary, not the separately tested picker keyboard UI.
-vi.mock('../topbar/SessionPicker', () => ({ SessionPicker: ({ open, implementationContext, onSubmit, onClose, children, progressLabel }: { open: boolean; implementationContext: CreateSessionRequest['implementationContext']; onSubmit(value: CreateSessionRequest): Promise<unknown>; onClose(): void; children: ReactNode; progressLabel: string }) => open ? <div role="dialog" aria-label="Existing upstream route picker">{children}<p>{progressLabel}</p><button onClick={() => void onSubmit({ worktreeId: 'w-1', harness: 'codex', model: 'model', permissionMode: 'bypass', agentConnectionId: 'configured', implementationContext })}>Submit reviewed route</button><button onClick={onClose}>Close picker</button></div> : null }));
+vi.mock('../topbar/SessionPicker', () => ({ SessionPicker: ({ open, implementationContext, onSubmit, onClose, children, progressLabel, onResolvedHarnessChange }: { open: boolean; implementationContext: CreateSessionRequest['implementationContext']; onSubmit(value: CreateSessionRequest): Promise<unknown>; onClose(): void; children: ReactNode; progressLabel: string; onResolvedHarnessChange?(harness: string | null): void }) => {
+  const [harness, setHarness] = useState('codex');
+  useEffect(() => { onResolvedHarnessChange?.(open ? harness : null); }, [open, harness, onResolvedHarnessChange]);
+  return open ? <div role="dialog" aria-label="Existing upstream route picker">{children}<p>{progressLabel}</p><button onClick={() => void onSubmit({worktreeId: 'w-1', harness, model: 'model', permissionMode: 'bypass', agentConnectionId: 'configured', implementationContext})}>Submit reviewed route</button><button onClick={() => void onSubmit({worktreeId: 'w-1', harness, model: 'model', permissionMode: 'ask', implementationContext})}>Submit Ask route</button><button onClick={() => setHarness('claude-code')}>Choose Claude route</button><button onClick={() => setHarness('codex')}>Choose Codex route</button><button onClick={onClose}>Close picker</button></div> : null;
+} }));
 const row = (patch: Partial<CoordinatorContinuation> = {}): CoordinatorContinuation => ({ id: 'continue-one', projectId: 'p-1', actor: { id: 'alice', displayName: 'Alice' }, idempotencyKey: 'request-one', originTurnId: 'turn-1', contextDigest: context().digest, policyRevision: 2, revision: 4, status: 'queued', message: 'Tasks queued', runId: 'run-one', queueIds: ['queue-one'], actions: [], createdAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:01Z', ...patch });
 const policy = (patch: Partial<CoordinatorPolicy> = {}): CoordinatorPolicy => ({ projectId: 'p-1', revision: 2, mode: 'review', reviewMode: 'manual', allowedTargets: ['specification'], executionMode: 'reviewed-tasks', deploymentMode: 'manual', actor: { id: 'alice', displayName: 'Alice' }, updatedAt: '2026-10-12T00:00:00Z', ...patch });
 const currentView = () => view({ context: { ...context(), designPlan: { ...context().designPlan, status: 'approved' }, plan: { ...context().plan, specificationRevision: 2 } }, turns: [{ ...proposalTurn(), appliedRevision: 3 }] });
@@ -44,6 +48,7 @@ beforeEach(() => {
     contract.contract.input.route.harness = request.route.harness; contract.contract.input.route.model = request.route.model;
     contract.contract.input.route.connection = {id: 'configured', revision: 1, kind: 'compatible-api', authMode: 'api-key', protocol: request.route.harness === 'codex' ? 'responses' : request.route.harness === 'claude-code' ? 'anthropic-messages' : 'chat-completions', model: request.route.model, endpoint: 'https://example.invalid/v1'};
     contract.contract.input.route.permissionMode = request.route.permissionMode; contract.contract.input.outcome = request.outcome;
+    if (request.route.nativeDelegation) Object.assign(contract.contract.input.route, {nativeDelegation: request.route.nativeDelegation, nativeDelegationImage: 'sha256:' + 'a'.repeat(64)});
     return contract;
   });
   vi.spyOn(orchestrationContractsApi, 'get').mockImplementation(async () => contract);
@@ -741,4 +746,72 @@ it('keeps readable history when Edit is revoked and does not perform Edit-only d
   render(<CoordinatorExecution {...withRequirements()} canDeploy canEdit={false} />);
   expect(await screen.findByRole('article', { name: 'Selected continuation' })).not.toBeNull();
   expect(prepare).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
+});
+
+it('native helpers default off even with saved intent and require explicit fresh review before continuing', async () => {
+  const saved: CoordinatorSavedRoute = {revision: 1, route: {worktreeId: 'w-1', harness: 'codex', model: 'model', permissionMode: 'bypass', outcome: 'preview', nativeDelegation: 'codex-native-helpers-2-v1'}, maxParallel: 1, updatedAt: '2026-10-19T00:00:00Z'};
+  vi.mocked(api.listState).mockResolvedValue({continuations: [], savedRoute: saved});
+  render(<CoordinatorExecution {...props()} />); await configure();
+  const choice = screen.getByRole('checkbox', {name: /Allow this local Codex coding task/});
+  expect(choice).toHaveProperty('checked', false);
+  await userEvent.click(choice); await submitReviewedRoute();
+  await waitFor(() => expect(api.create).toHaveBeenCalledOnce());
+  const prepared = vi.mocked(orchestrationContractsApi.prepare).mock.calls[0][1];
+  expect(prepared.route.nativeDelegation).toBe('codex-native-helpers-2-v1'); expect(prepared.route).not.toHaveProperty('nativeDelegationImage');
+  const input = vi.mocked(api.create).mock.calls[0][2];
+  expect(input.run.nativeDelegation).toBe(prepared.route.nativeDelegation);
+  expect(input.run.orchestrationContract?.approvalId).toBe('approval-1'); expect(input.run).not.toHaveProperty('nativeDelegationImage');
+  expect(input.maxParallel).toBe(1); expect(input.run.permissionMode).toBe('bypass');
+});
+it('native helpers reset off after incompatible harness or closed picker without changing the route', async () => {
+  render(<CoordinatorExecution {...props()} />); await configure();
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/}));
+  await userEvent.click(screen.getByRole('button', {name: 'Choose Claude route'}));
+  expect(screen.queryByRole('checkbox', {name: /Allow this local Codex coding task/})).toBeNull();
+  await userEvent.click(screen.getByRole('button', {name: 'Choose Codex route'}));
+  expect(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/})).toHaveProperty('checked', false);
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/}));
+  await userEvent.click(screen.getByRole('button', {name: 'Close picker'})); await configure();
+  expect(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/})).toHaveProperty('checked', false);
+  expect(orchestrationContractsApi.prepare).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
+});
+it('native helpers refuse actual Ask submission without switching permission or preparing', async () => {
+  render(<CoordinatorExecution {...props()} />); await configure();
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/}));
+  await userEvent.click(screen.getByRole('button', {name: 'Submit Ask route'}));
+  expect(orchestrationContractsApi.prepare).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
+});
+it('native helpers clear an explicit draft when location becomes cloud and stay off on return', async () => {
+  render(<CoordinatorExecution {...props()} />); await configure();
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/}));
+  await userEvent.selectOptions(screen.getByLabelText('Develop execution location'), 'cloud-microvm');
+  expect(screen.queryByRole('checkbox', {name: /Allow this local Codex coding task/})).toBeNull();
+  await userEvent.selectOptions(screen.getByLabelText('Develop execution location'), 'local-docker');
+  expect(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/})).toHaveProperty('checked', false);
+  expect(orchestrationContractsApi.prepare).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
+});
+it('native helpers discard a delayed preparation view after execute access changes and returns', async () => {
+  const input = props(), held = deferred<OrchestrationContractView>();
+  const prepare = vi.mocked(orchestrationContractsApi.prepare).getMockImplementation()!;
+  let result!: OrchestrationContractView;
+  vi.mocked(orchestrationContractsApi.prepare).mockImplementation(async (project, request) => { result = await prepare(project, request); return held.promise; });
+  const ui = render(<CoordinatorExecution {...input} />); await configure();
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/}));
+  await userEvent.click(screen.getByRole('button', {name: 'Submit reviewed route'}));
+  await waitFor(() => expect(result).toBeDefined());
+  ui.rerender(<CoordinatorExecution {...input} canExecute={false} />); ui.rerender(<CoordinatorExecution {...input} />);
+  await act(async () => held.resolve(result));
+  expect(orchestrationContractsApi.approve).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
+  const review = readContractReview(input.scope + '/continued-work', 'p-1', 'alice');
+  expect(review?.request.route.nativeDelegation).toBe('codex-native-helpers-2-v1'); expect(review?.contractId).toBeUndefined();
+});
+it('native helpers refuse image substitution on the final approved continuation read', async () => {
+  const read = vi.mocked(orchestrationContractsApi.get).getMockImplementation()!; let reads = 0;
+  vi.mocked(orchestrationContractsApi.get).mockImplementation(async (project, id) => {
+    const value = await read(project, id);
+    return ++reads === 2 ? {...value, contract: {...value.contract, input: {...value.contract.input, route: {...value.contract.input.route, nativeDelegationImage: 'sha256:' + 'b'.repeat(64)}}}} : value;
+  });
+  render(<CoordinatorExecution {...props()} />); await configure();
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/})); await submitReviewedRoute();
+  await screen.findByRole('alert'); expect(api.create).not.toHaveBeenCalled(); expect(records()).toEqual([]);
 });

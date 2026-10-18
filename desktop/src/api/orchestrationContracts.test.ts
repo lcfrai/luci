@@ -3,6 +3,31 @@ import { productApi } from './product';
 import { approvedContractReference, orchestrationContractsApi, ownedOrchestrationContract } from './orchestrationContracts';
 import { contractPrepareFixture, contractViewFixture } from '../test/orchestrationContractFixtures';
 afterEach(() => vi.restoreAllMocks());
+it('native helpers preserve explicit preparation and server-captured image without caller image authority', async () => {
+  const input = contractPrepareFixture(), view = contractViewFixture();
+  input.route.nativeDelegation = 'codex-native-helpers-2-v1'; input.route.permissionMode = 'bypass'; input.route.harness = 'codex';
+  Object.assign(view.contract.input.route, {harness: 'codex', nativeDelegation: input.route.nativeDelegation, nativeDelegationImage: 'sha256:' + 'a'.repeat(64), permissionMode: 'bypass'});
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue(view);
+  expect(await orchestrationContractsApi.prepare('p-1', input)).toBe(view);
+  expect(request.mock.calls[0][1]).toBe(input);
+  expect(input.route).not.toHaveProperty('nativeDelegationImage');
+  delete view.contract.input.route.nativeDelegation; delete view.contract.input.route.nativeDelegationImage;
+  await expect(orchestrationContractsApi.prepare('p-1', input)).rejects.toThrow(/differs/);
+});
+it.each(['unknown', 'orphan-image', 'missing-image', 'mutable-image', 'cloud', 'other-harness', 'ask', 'null'])('native helpers reject malformed captured contract %s', kind => {
+  const view = contractViewFixture();
+  Object.assign(view.contract.input.route, {harness: 'codex', permissionMode: 'bypass', nativeDelegation: 'codex-native-helpers-2-v1', nativeDelegationImage: 'sha256:' + 'a'.repeat(64)});
+  const route = view.contract.input.route;
+  if (kind === 'unknown') Object.assign(route, {nativeDelegation: 'future'});
+  if (kind === 'orphan-image') delete route.nativeDelegation;
+  if (kind === 'missing-image') delete route.nativeDelegationImage;
+  if (kind === 'mutable-image') route.nativeDelegationImage = 'luci/sandbox:dev';
+  if (kind === 'cloud') route.executionLocation = 'cloud-microvm';
+  if (kind === 'other-harness') route.harness = 'claude-code';
+  if (kind === 'ask') route.permissionMode = 'ask';
+  if (kind === 'null') Object.assign(route, {nativeDelegationImage: null});
+  expect(() => ownedOrchestrationContract('p-1', view)).toThrow(/could not be verified/);
+});
 it.each([undefined, 0, 1, 2])('preserves captured repair budget %s and legacy contract bytes', automaticRepairLimit => {
   const view = contractViewFixture();
   if (automaticRepairLimit !== undefined) view.contract.input.controls.automaticRepairLimit = automaticRepairLimit;

@@ -52,6 +52,8 @@ export function SessionPicker(props: {
   /** Describe an alternative action truthfully if it can start reviewed work. */
   progressLabel?: string;
   failureGuidance?: string;
+  /** Resolved draft identity only, never availability or execution authority. */
+  onResolvedHarnessChange?: (harness: string | null) => void;
   children?: ReactNode;
 }): JSX.Element | null {
   const { open, worktreeId, onClose, initialPrompt = "" } = props;
@@ -107,6 +109,9 @@ export function SessionPicker(props: {
   if (connectionChanged) effective.agentConnectionId = draft.agentConnectionId;
   const isShell = effective.harness === "shell";
   const harness = harnesses.find((h) => h.id === effective.harness);
+  useEffect(() => {
+    props.onResolvedHarnessChange?.(open && harness ? effective.harness : null);
+  }, [open, harness?.id, effective.harness, props.onResolvedHarnessChange]);
   const connection = isShell ? undefined : selectedAgentConnection(catalogue, effective.agentConnectionId);
   const savedModel = configuredAgentModel(connection, effective.harness);
   const connectionIssue = isShell ? "" : agentConnectionIssue(connection, effective.harness, effective.agentConnectionId ?? catalogue?.activeConnectionId);
