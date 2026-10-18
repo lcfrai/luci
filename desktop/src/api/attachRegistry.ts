@@ -10,6 +10,8 @@ import { api } from "./index";
 import type { Session, SessionId } from "../store/types";
 import { CodexDevicePromptCapture, isCodexDeviceSignIn } from "./codexDeviceSignIn";
 import type { CodexDeviceChallenge } from "./codexDeviceSignIn";
+import { EMPTY_HELPER_ACTIVITY, NativeHelperActivityCapture } from "./nativeHelperActivity";
+import type { NativeHelperActivity } from "./nativeHelperActivity";
 
 /** WebSocket.OPEN, fixed at 1 by the HTML spec. Read from a constant so the registry never
  *  touches a global the test's fake socket does not own — decision (f). */
@@ -100,6 +102,7 @@ export interface RegistryDeps {
 }
 
 interface Entry {
+  helperActivity: NativeHelperActivityCapture;
   devicePrompt: CodexDevicePromptCapture | null;
   id: SessionId;
   session: Session;
@@ -172,6 +175,7 @@ export function acquireAttach(
     element.style.width = "100%";
     element.style.height = "100%";
     entry = {
+      helperActivity: new NativeHelperActivityCapture(),
       devicePrompt: isCodexDeviceSignIn(session) ? new CodexDevicePromptCapture() : null,
       id: session.id,
       session,
@@ -313,6 +317,10 @@ export function updateAttachSession(session: Session): void {
   const entry = entries.get(session.id);
   if (!entry || !sameSessionScope(entry.session, session)) return;
   const generation = knownExecutionGeneration(session);
+  if ((generation !== null && generation !== entry.executionGeneration) || session.harness !== "codex" || session.authOnly) {
+    entry.helperActivity.clear();
+    notify(entry.id, entry.state);
+  }
   const replacement = generation !== null && entry.executionGeneration !== null && generation !== entry.executionGeneration;
   const acknowledgedColdRestart = generation !== null && generation === entry.acknowledgedRestartGeneration &&
     !entry.terminalExit && !entry.everAttached && session.status !== "exited";
@@ -369,6 +377,7 @@ function waitForAttachReadiness(entry: Entry): void {
   entry.opening = false;
   const socket = entry.ws;
   entry.ws = null;
+  if (socket) entry.helperActivity.gap();
   socket?.close(1000, "session endpoint is being prepared");
   entry.waitingForReadiness = true;
   entry.attempts = 0;
@@ -398,6 +407,10 @@ export function setAttachPermission(sessionId: SessionId, permitted: boolean, co
   const entry = entries.get(sessionId);
   if (!entry || entry.destroyed || (entry.permitted === permitted && entry.connectPermitted === connectPermitted)) return;
   entry.permitted = permitted;
+  if (!permitted) {
+    entry.helperActivity.clear();
+    notify(entry.id, entry.state);
+  }
   entry.connectPermitted = permitted && connectPermitted;
   if (entry.connectPermitted) {
     openIfLive(entry);
@@ -411,6 +424,7 @@ export function setAttachPermission(sessionId: SessionId, permitted: boolean, co
   const ws = entry.ws;
   if (permitted && ws?.readyState === WS_OPEN) return;
   entry.ws = null;
+  if (permitted && ws) entry.helperActivity.gap();
   ws?.close(1000, "project execution access paused");
   if (entry.session.status !== "exited" && !entry.overloaded) publish(entry, {
     phase: "detached", attempts: 0, ladderStartedAt: 0,
@@ -538,6 +552,24 @@ export function getCodexDeviceChallenge(sessionId: SessionId): CodexDeviceChalle
 export function useCodexDeviceChallenge(sessionId: SessionId): CodexDeviceChallenge | null {
   const subscribe = useCallback((changed: () => void) => subscribeAttach(sessionId, changed), [sessionId]);
   const snapshot = useCallback(() => getCodexDeviceChallenge(sessionId), [sessionId]);
+  return useSyncExternalStore(subscribe, snapshot);
+}
+
+/** The current caller's scope is mandatory: an ID alone cannot relabel cached reports. */
+export function getNativeHelperActivity(session: Session | undefined): NativeHelperActivity {
+  const entry = session && entries.get(session.id);
+  return entry && session && !entry.destroyed && entry.permitted &&
+    session.harness === "codex" && !session.authOnly &&
+    entry.session.harness === "codex" && !entry.session.authOnly &&
+    sameSessionScope(entry.session, session) &&
+    entry.executionGeneration !== null &&
+    knownExecutionGeneration(session) === entry.executionGeneration
+    ? entry.helperActivity.snapshot : EMPTY_HELPER_ACTIVITY;
+}
+
+export function useNativeHelperActivity(session: Session | undefined): NativeHelperActivity {
+  const subscribe = useCallback((changed: () => void) => session ? subscribeAttach(session.id, changed) : () => {}, [session?.id]);
+  const snapshot = useCallback(() => getNativeHelperActivity(session), [session]);
   return useSyncExternalStore(subscribe, snapshot);
 }
 
@@ -700,12 +732,13 @@ function bindSocket(entry: Entry, ws: WebSocket): void {
     if (kind === Kind.Stdout) {
       if (entry.permitted && !entry.terminalExit && entry.session.status !== "exited" &&
           isCodexDeviceSignIn(entry.session) && entry.devicePrompt?.observe(payload)) notify(entry.id, entry.state);
-      writeOut(entry, payload);
+      writeOut(entry, payload, true);
     }
     else if (kind === Kind.Exit && !entry.terminalExit) {
       // The typed frame ends this allocation, irrespective of its textual reason.
       // It does not prove success, output verification, cleanup or integration.
       entry.terminalExit = true;
+      entry.helperActivity.gap();
       writeOut(entry, BANNER_ENDED);
       if (!entry.overloaded) publishTerminalExit(entry);
     }
@@ -715,6 +748,7 @@ function bindSocket(entry: Entry, ws: WebSocket): void {
     if (entry.ws !== ws) return;
     entry.ws = null;
     if (entry.destroyed) return;
+    entry.helperActivity.gap();
     if (event.code === 1013) {
       pauseOverloaded(entry);
       return;
@@ -729,7 +763,7 @@ function bindSocket(entry: Entry, ws: WebSocket): void {
 
 /** Browser WebSockets do not provide receive backpressure. Bound the application queue
  * and xterm's asynchronous parser together; stop this view visibly if it cannot keep up. */
-function writeOut(entry: Entry, bytes: Uint8Array): void {
+function writeOut(entry: Entry, bytes: Uint8Array, actualStdout = false): void {
   if (entry.destroyed || entry.overloaded || bytes.length === 0) return;
   if (bytes.length + entry.pendingBytes + entry.writingBytes > MAX_OUTPUT_BYTES || entry.pending.length >= MAX_OUTPUT_CHUNKS) {
     pauseOverloaded(entry);
@@ -737,6 +771,12 @@ function writeOut(entry: Entry, bytes: Uint8Array): void {
   }
   entry.pending.push(bytes);
   entry.pendingBytes += bytes.length;
+  if (actualStdout && entry.permitted && !entry.terminalExit && entry.session.status !== "exited" &&
+      entry.executionGeneration !== null && entry.session.harness === "codex" && !entry.session.authOnly) {
+    const before = entry.helperActivity.snapshot;
+    entry.helperActivity.feed(bytes);
+    if (before !== entry.helperActivity.snapshot) notify(entry.id, entry.state);
+  }
   scheduleFlush(entry);
 }
 
@@ -746,6 +786,7 @@ function scheduleFlush(entry: Entry): void {
 }
 
 function pauseOverloaded(entry: Entry): void {
+  entry.helperActivity.gap();
   entry.overloaded = true;
   clearRetry(entry);
   if (entry.flushTimer !== null) clearTimeout(entry.flushTimer);
@@ -972,6 +1013,7 @@ function clearRetry(entry: Entry): void {
 function destroy(entry: Entry): void {
   if (entry.destroyed) return;
   entry.destroyed = true;
+  entry.helperActivity.clear();
   entry.devicePrompt?.clear();
   clearRetry(entry);
   if (entry.flushTimer !== null) {

@@ -16,6 +16,7 @@ import type { AttachHandle } from "../api/attachRegistry";
 import { resetCockpit, useCockpit } from "../store/store";
 import type { Session } from "../store/types";
 import { Terminal } from "./Terminal";
+import { encode, Kind } from "../lib/wire";
 const projectAccess = vi.hoisted(() => ({ canExecute: true, loading: false, permissions: { secrets: true, admin: true } }));
 vi.mock('../hooks/useProjectAccess', () => ({ useProjectAccess: () => projectAccess }));
 import {
@@ -88,6 +89,62 @@ beforeEach(() => {
 afterEach(() => {
   __resetAttachRegistry();
   updateAppearance(DEFAULT_APPEARANCE);
+});
+
+describe("Terminal reported helpers", () => {
+  const report = JSON.stringify({ type: "item.completed", item: { id: "call-1", type: "collab_tool_call", tool: "wait", sender_thread_id: "parent", receiver_thread_ids: ["child"], prompt: "PRIVATE PROMPT", agents_states: { child: { status: "completed", message: "PRIVATE MESSAGE" } } } }) + "\n";
+  const current = () => session({ harness: "codex", executionGeneration: "a".repeat(64) });
+  const send = (socket: FakeWebSocket, value = report) => act(() => socket.emitBinary(encode(Kind.Stdout, new TextEncoder().encode(value))));
+
+  it("keeps ordinary terminals free of a panel even after malformed report-like output", () => {
+    seed(current()); const view = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const socket = FakeWebSocket.last()!; act(() => socket.acceptOpen()); send(socket, '{broken\nplain text\n');
+    expect(view.queryByText(/Reported helper activity/)).toBeNull();
+  });
+
+  it("shows only reported routing and phases without claiming lifecycle or exposing messages", () => {
+    seed(current()); const view = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const socket = FakeWebSocket.last()!; act(() => socket.acceptOpen()); send(socket);
+    expect(view.getByText("Reported helper activity · partial, unverified")).toBeTruthy();
+    expect(view.getByText(/reported call completed/)).toBeTruthy();
+    expect(view.getByText(/a separate Luci reviewer is still required/)).toBeTruthy();
+    expect(view.container.textContent).not.toMatch(/PRIVATE PROMPT|PRIVATE MESSAGE/);
+    expect(view.container.querySelector("details button, details a")).toBeNull();
+  });
+
+  it("retains the terminal host, one socket and focus ownership when a read-only report footer appears", () => {
+    const s = current(); seed(s);
+    const view = render(<Terminal sessionId="s-1" readOnly focused />);
+    const host = view.container.querySelector(`[${TERMINAL_HOST_ATTRIBUTE}]`)!;
+    const held = acquireAttach(s, { createTerm: () => { throw new Error("duplicate terminal"); }, readOnly: true });
+    releaseAttach(s.id);
+    const term = held.term as FakeTerm; const focused = term.focused;
+    const socket = FakeWebSocket.last()!; act(() => socket.acceptOpen()); send(socket);
+    expect(view.container.querySelector(`[${TERMINAL_HOST_ATTRIBUTE}]`)).toBe(host);
+    expect(host.contains(held.element)).toBe(true); expect(term.focused).toBe(focused);
+    expect(term.opens).toBe(1); expect(FakeWebSocket.instances).toHaveLength(1);
+    const sent = socket.sent.length; term.type("not forwarded"); expect(socket.sent).toHaveLength(sent);
+    expect(view.getByText("Reported helper activity · partial, unverified")).toBeTruthy();
+  });
+
+  it("hides reports immediately on current permission loss and does not restore them on grant", () => {
+    seed(current()); const view = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const socket = FakeWebSocket.last()!; act(() => socket.acceptOpen()); send(socket);
+    projectAccess.canExecute = false;
+    view.rerender(<Terminal sessionId="s-1" readOnly={false} focused />);
+    expect(view.queryByText(/Reported helper activity/)).toBeNull();
+    projectAccess.canExecute = true;
+    view.rerender(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    expect(view.queryByText(/Reported helper activity/)).toBeNull();
+  });
+
+  it("never relabels cached reports under the same session ID with a different project", () => {
+    const s = current(); seed(s); const view = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const socket = FakeWebSocket.last()!; act(() => socket.acceptOpen()); send(socket);
+    act(() => seed({ ...s, projectId: "new-project" }));
+    expect(view.queryByText(/Reported helper activity/)).toBeNull();
+    expect(FakeWebSocket.instances).toHaveLength(1);
+  });
 });
 
 /** Reach the entry the component built without re-creating it. The factory throws if it is
@@ -270,7 +327,7 @@ describe("Terminal", () => {
       const { container, unmount } = render(
         <Terminal sessionId="s-1" readOnly={false} focused={false} />,
       );
-      const host = container.firstElementChild;
+      const host = container.querySelector(`[${TERMINAL_HOST_ATTRIBUTE}]`);
 
       expect(observed.length).toBe(1);
       // The host, NOT the registry's element: that one outlives this component and is
@@ -605,7 +662,7 @@ describe("Terminal lets the cockpit's chords past xterm", () => {
       const { container } = render(
         <Terminal sessionId="s-1" readOnly={readOnly} focused={focused} />,
       );
-      const host = container.firstElementChild as HTMLElement;
+      const host = container.querySelector(`[${TERMINAL_HOST_ATTRIBUTE}]`) as HTMLElement;
       expect([
         host.hasAttribute(TERMINAL_HOST_ATTRIBUTE),
         host.contains(grab().element),
