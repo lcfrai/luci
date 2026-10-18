@@ -44,6 +44,10 @@ export function SwarmRunQueue(props: Props) {
     return () => notify?.(false);
   }, [run.projectId, run.id]);
   const epoch = useRef(0), live = useRef(true), working = useRef(false), reading = useRef(false);
+  const runScope = useRef({projectId:run.projectId, runId:run.id, generation:0});
+  if (runScope.current.projectId !== run.projectId || runScope.current.runId !== run.id) {
+    runScope.current = {projectId:run.projectId, runId:run.id, generation:runScope.current.generation + 1};
+  }
   const identity = `${run.projectId}:${run.id}:${readAccess.canRead}:${canEdit}:${canExecute}:${capability.signature}`;
   const previousIdentity = useRef(identity);
   if (identity !== previousIdentity.current) { previousIdentity.current = identity; epoch.current++; }
@@ -57,14 +61,14 @@ export function SwarmRunQueue(props: Props) {
     uncertainRef.current = next;
     setUncertainControls(next);
   }
-  function reconcileControls(value: ProjectSwarmQueue, generation: number) {
+  function reconcileControls(value: ProjectSwarmQueue, generation: number, fromRead: boolean) {
     updateUncertain(previous => previous.flatMap(entry => {
       if (entry.item.projectId !== run.projectId || entry.item.runId !== run.id) return [entry];
       if (value.hasMore) return [{...entry, readBackEpoch:undefined}];
       const matches = controlItemMatches(value.items, entry.item);
       if (matches.length !== 1 || !sameControlScope(matches[0], entry.item)) return [{...entry, readBackEpoch:undefined}]; // An absent or incomplete read is not a result.
       if (matches[0].revision !== entry.item.revision) return []; // Current state changed; origin is unknown.
-      return [{...entry, readBackEpoch: sameControlItem(matches[0], entry.item) ? generation : undefined}];
+      return [{...entry, readBackEpoch: fromRead && sameControlItem(matches[0], entry.item) ? generation : undefined}];
     }));
   }
   async function refresh(signal?: AbortSignal) {
@@ -74,7 +78,7 @@ export function SwarmRunQueue(props: Props) {
     try {
       const value = await swarmQueueApi.get(run.projectId, signal);
       if (live.current && generation === epoch.current && attempt === readAttempt.current && current.current.readAccess.canRead) {
-        receive(value); reconcileControls(value, generation); setError(''); setUnconfirmed(false);
+        receive(value); reconcileControls(value, generation, true); setError(''); setUnconfirmed(false);
       }
     } catch (cause) {
       if (live.current && generation === epoch.current && !signal?.aborted && attempt === readAttempt.current) {
@@ -90,7 +94,7 @@ export function SwarmRunQueue(props: Props) {
     tick();
     const timer = window.setInterval(tick, 5000);
     document.addEventListener('visibilitychange', tick);
-    return () => { live.current = false; epoch.current++; controller.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', tick); };
+    return () => { live.current = false; epoch.current++; runScope.current.generation++; controller.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', tick); };
   }, [run.projectId, run.id]);
   useEffect(() => { updateUncertain(() => []); }, [run.projectId, run.id]);
   useEffect(() => { setConfirm(false); }, [run.revision, canEdit, canExecute, capability.signature]);
@@ -139,19 +143,23 @@ export function SwarmRunQueue(props: Props) {
   async function control(item: SwarmQueueItem, action: 'pause' | 'resume' | 'cancel' | 'priority' | 'stop', generation: number, value?: QueuePriority, retry = false) {
     const unresolved = uncertainRef.current.find(entry => sameControlScope(entry.item, item));
     if (unresolved && (!retry || unresolved.action !== action || !retryReady(unresolved))) return;
+    const originalItem = {...item}, originalRunScope = runScope.current.generation;
     try {
       const result = await swarmQueueApi.control(run.projectId, item, action, value);
       if (usable(generation)) {
         receive(result);
+        reconcileControls(result, generation, false);
         if (action === 'pause' || action === 'resume' || action === 'cancel') {
           updateUncertain(previous => previous.filter(entry => !sameControlScope(entry.item, item)));
         }
         setNotice(action === 'stop' ? 'Exact task stop requested. Refresh status until its child and reservation are confirmed settled; saved output remains available.' : action === 'cancel' ? 'Future starts cancelled for this queue entry. Existing sessions and saved output are retained.' : 'Queue updated. Active work keeps its own session controls.');
       }
     } catch (cause) {
-      if (usable(generation) && (action === 'pause' || action === 'resume' || action === 'cancel')) {
+      if (live.current && runScope.current.generation === originalRunScope &&
+          current.current.run.projectId === originalItem.projectId && current.current.run.id === originalItem.runId &&
+          (action === 'pause' || action === 'resume' || action === 'cancel')) {
         const originalAction: QueueControlAction = action;
-        updateUncertain(previous => [...previous.filter(entry => !sameControlScope(entry.item, item)), {item, action:originalAction}]);
+        updateUncertain(previous => [...previous.filter(entry => !sameControlScope(entry.item, originalItem)), {item:originalItem, action:originalAction}]);
       }
       throw cause;
     }
