@@ -8,9 +8,9 @@ import { resetCockpit, useCockpit } from '../../store/store';
 import { SwarmRunQueue } from './SwarmRunQueue';
 const initial = swarmRunFixture();
 async function openQueueControls() { await userEvent.click(screen.getByText(/^Queue status and controls/)); }
-function Harness({run = initial, edit = true, execute = true, changed = vi.fn()} = {}) {
+function Harness({run = initial, read = true, edit = true, execute = true, changed = vi.fn()} = {}) {
   const [busy, setBusy] = useState('');
-  return <SwarmRunQueue readAccess={{canRead:true,loading:false,error:''}} run={run} canEdit={edit} canExecute={execute} busy={!!busy} onBusy={setBusy} onQueueChange={changed} />;
+  return <SwarmRunQueue readAccess={{canRead:read,loading:false,error:''}} run={run} canEdit={edit} canExecute={execute} busy={!!busy} onBusy={setBusy} onQueueChange={changed} />;
 }
 beforeEach(() => { resetCockpit(); useCockpit.getState().setHarnesses([swarmHarnessFixture()]); vi.spyOn(swarmQueueApi, 'get').mockResolvedValue(swarmQueueFixture()); });
 afterEach(() => { vi.restoreAllMocks(); });
@@ -172,8 +172,139 @@ it.each(['pause', 'resume'] as const)('retains the repair queue receipt after a 
   await userEvent.click(screen.getByRole('button', {name:'Refresh queue'}));
   await waitFor(() => expect(changed).toHaveBeenCalledTimes(2));
   expect(changed).toHaveBeenLastCalledWith(queue);
-  expect(screen.getByRole('button', {name})).toHaveProperty('disabled', false);
+  expect(screen.getByRole('button', {name})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name:`Retry exact ${action}`})).toHaveProperty('disabled', false);
   expect(control).toHaveBeenCalledTimes(1); expect(enqueue).not.toHaveBeenCalled();
+});
+
+it.each(['pause', 'resume', 'cancel'] as const)('requires an explicit same-revision %s retry after an unchanged readback', async action => {
+  const item = swarmQueueItem(action === 'resume' ? {state:'paused', reasonCode:'operator_paused'} : {});
+  const other = swarmQueueItem({id:'q-b', taskId:'b', taskTitle:'Build b'});
+  const initialQueue = swarmQueueFixture([item, other]);
+  const updated = {...item, revision:item.revision + 1, ...(
+    action === 'pause' ? {state:'paused' as const, reasonCode:'operator_paused'} :
+    action === 'resume' ? {state:'queued' as const, reasonCode:'ready'} :
+    {state:'cancelled' as const, reasonCode:'operator_cancelled'})};
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(initialQueue);
+  const control = vi.spyOn(swarmQueueApi, 'control').mockRejectedValueOnce(new Error('Connection interrupted'))
+    .mockResolvedValue(swarmQueueFixture([updated, other]));
+  const enqueue = vi.spyOn(swarmQueueApi, 'enqueueMany');
+  render(<Harness />); await openQueueControls();
+  const row = (await screen.findByText('Build a')).closest('li')!;
+  const name = action === 'pause' ? 'Pause queued task' : action === 'resume' ? 'Resume queued task' : 'Cancel queued task';
+  await userEvent.click(within(row).getByRole('button', {name}));
+  expect(await screen.findByText(new RegExp(`The ${action} result for Build a is unconfirmed`))).toBeTruthy();
+  expect(control).toHaveBeenCalledTimes(1);
+  expect(control).toHaveBeenCalledWith('p-1', item, action, undefined);
+  expect(within(row).getByRole('button', {name})).toHaveProperty('disabled', true);
+  expect(within(row).getByRole('button', {name:'Cancel queued task'})).toHaveProperty('disabled', true);
+  expect(within(row).getByRole('combobox')).toHaveProperty('disabled', true);
+  expect(within(row).getByRole('button', {name:`Retry exact ${action}`})).toHaveProperty('disabled', true);
+  const otherRow = screen.getByText('Build b').closest('li')!;
+  expect(within(otherRow).getByRole('button', {name:'Pause queued task'})).toHaveProperty('disabled', false);
+  await userEvent.click(screen.getByRole('button', {name:'Refresh queue'}));
+  await waitFor(() => expect(within(row).getByRole('button', {name:`Retry exact ${action}`})).toHaveProperty('disabled', false));
+  expect(screen.getByText(/does not prove the request has finished/)).toBeTruthy();
+  expect(within(row).getByRole('button', {name})).toHaveProperty('disabled', true);
+  expect(control).toHaveBeenCalledTimes(1); // A read never replays the action.
+  await userEvent.click(within(row).getByRole('button', {name:`Retry exact ${action}`}));
+  await waitFor(() => expect(control).toHaveBeenCalledTimes(2));
+  expect(control).toHaveBeenNthCalledWith(2, 'p-1', item, action, undefined);
+  await waitFor(() => expect(screen.queryByText(new RegExp(`The ${action} result for Build a is unconfirmed`))).toBeNull());
+  expect(screen.queryByRole('button', {name:`Retry exact ${action}`})).toBeNull();
+  expect(enqueue).not.toHaveBeenCalled();
+});
+
+it.each(['failed', 'missing', 'partial'] as const)('retains uncertain control after a %s readback', async readback => {
+  const item = swarmQueueItem();
+  const queue = swarmQueueFixture([item]);
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(queue);
+  const control = vi.spyOn(swarmQueueApi, 'control').mockRejectedValue(new Error('Connection interrupted'));
+  const changed = vi.fn();
+  render(<Harness changed={changed} />); await openQueueControls();
+  await userEvent.click(await screen.findByRole('button', {name:'Pause queued task'}));
+  expect(await screen.findByText(/The pause result for Build a is unconfirmed/)).toBeTruthy();
+  if (readback === 'failed') vi.mocked(swarmQueueApi.get).mockRejectedValue(new Error('Read unavailable'));
+  if (readback === 'missing') vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([]));
+  if (readback === 'partial') vi.mocked(swarmQueueApi.get).mockResolvedValue({...queue, hasMore:true});
+  await userEvent.click(screen.getByRole('button', {name:'Refresh queue'}));
+  if (readback === 'failed') expect(await screen.findByText(/Queue update unavailable: Read unavailable/)).toBeTruthy();
+  else await waitFor(() => expect(changed).toHaveBeenCalledTimes(2));
+  expect(screen.getByText(/The pause result for Build a is unconfirmed/)).toBeTruthy();
+  if (readback === 'missing') expect(screen.queryByRole('button', {name:'Retry exact pause'})).toBeNull();
+  else expect(screen.getByRole('button', {name:'Retry exact pause'})).toHaveProperty('disabled', true);
+  expect(control).toHaveBeenCalledTimes(1);
+});
+
+it('settles uncertainty from a changed authoritative revision without assigning its origin', async () => {
+  const item = swarmQueueItem(), changedItem = {...item, revision:item.revision + 1, state:'paused' as const, reasonCode:'operator_paused'};
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([item]));
+  const control = vi.spyOn(swarmQueueApi, 'control').mockRejectedValue(new Error('Connection interrupted'));
+  render(<Harness />); await openQueueControls();
+  await userEvent.click(await screen.findByRole('button', {name:'Pause queued task'}));
+  expect(await screen.findByText(/The pause result for Build a is unconfirmed/)).toBeTruthy();
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([changedItem]));
+  await userEvent.click(screen.getByRole('button', {name:'Refresh queue'}));
+  await waitFor(() => expect(screen.queryByText(/The pause result for Build a is unconfirmed/)).toBeNull());
+  expect(screen.getByRole('button', {name:'Resume queued task'})).toBeTruthy();
+  expect(screen.queryByRole('button', {name:'Retry exact pause'})).toBeNull();
+  expect(control).toHaveBeenCalledTimes(1);
+});
+
+it('keeps one uncertain item held when a different item succeeds', async () => {
+  const first = swarmQueueItem(), second = swarmQueueItem({id:'q-b', taskId:'b', taskTitle:'Build b'});
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([first, second]));
+  const control = vi.spyOn(swarmQueueApi, 'control').mockRejectedValueOnce(new Error('Connection interrupted'))
+    .mockResolvedValue(swarmQueueFixture([first, {...second, revision:second.revision + 1, state:'paused', reasonCode:'operator_paused'}]));
+  render(<Harness />); await openQueueControls();
+  const firstRow = (await screen.findByText('Build a')).closest('li')!, secondRow = screen.getByText('Build b').closest('li')!;
+  await userEvent.click(within(firstRow).getByRole('button', {name:'Pause queued task'}));
+  expect(await screen.findByText(/The pause result for Build a is unconfirmed/)).toBeTruthy();
+  await userEvent.click(within(secondRow).getByRole('button', {name:'Pause queued task'}));
+  await waitFor(() => expect(control).toHaveBeenCalledTimes(2));
+  expect(screen.getByText(/The pause result for Build a is unconfirmed/)).toBeTruthy();
+  expect(within(firstRow).getByRole('button', {name:'Pause queued task'})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name:'Resume queued task'})).toBeTruthy();
+});
+
+it.each(['access', 'project'] as const)('discards a stale %s response without retaining it as a new queue uncertainty', async change => {
+  const item = swarmQueueItem();
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([item]));
+  let reject!: (cause: Error) => void;
+  const control = vi.spyOn(swarmQueueApi, 'control').mockReturnValue(new Promise<ProjectSwarmQueue>((_, fail) => {reject = fail;}));
+  const view = render(<Harness />); await openQueueControls();
+  await userEvent.click(await screen.findByRole('button', {name:'Pause queued task'}));
+  expect(control).toHaveBeenCalledTimes(1);
+  if (change === 'access') view.rerender(<Harness read={false} edit={false} />);
+  else view.rerender(<Harness run={{...initial, projectId:'p-2', id:'run-2'}} />);
+  await act(async () => reject(new Error('Connection interrupted')));
+  expect(screen.queryByText(/result for Build a is unconfirmed/)).toBeNull();
+  expect(screen.queryByRole('button', {name:'Retry exact pause'})).toBeNull();
+  expect(control).toHaveBeenCalledTimes(1);
+});
+
+it.each(['execution permission', 'source freshness', 'task capability'] as const)('rechecks %s before an explicit resume retry', async guard => {
+  const item = swarmQueueItem({state:'paused', reasonCode:'operator_paused'});
+  const queue = swarmQueueFixture([item]);
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(queue);
+  const control = vi.spyOn(swarmQueueApi, 'control').mockRejectedValue(new Error('Connection interrupted'));
+  const view = render(<Harness />); await openQueueControls();
+  await userEvent.click(await screen.findByRole('button', {name:'Resume queued task'}));
+  expect(await screen.findByText(/The resume result for Build a is unconfirmed/)).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', {name:'Refresh queue'}));
+  await waitFor(() => expect(screen.getByRole('button', {name:'Retry exact resume'})).toHaveProperty('disabled', false));
+  if (guard === 'execution permission') view.rerender(<Harness execute={false} />);
+  if (guard === 'source freshness') view.rerender(<Harness run={{...initial, state:'cancelled' as const}} />);
+  if (guard === 'task capability') act(() => useCockpit.getState().setHarnesses([{...swarmHarnessFixture(), autonomousTask:false}]));
+  expect(screen.getByRole('button', {name:'Retry exact resume'})).toHaveProperty('disabled', true);
+  await userEvent.click(screen.getByRole('button', {name:'Retry exact resume'}));
+  expect(control).toHaveBeenCalledTimes(1);
+  if (guard === 'execution permission') {
+    view.rerender(<Harness execute={true} />);
+    expect(screen.getByRole('button', {name:'Retry exact resume'})).toHaveProperty('disabled', true);
+    await userEvent.click(screen.getByRole('button', {name:'Refresh queue'}));
+    await waitFor(() => expect(screen.getByRole('button', {name:'Retry exact resume'})).toHaveProperty('disabled', false));
+  }
 });
 
 it.each([
