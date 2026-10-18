@@ -752,7 +752,7 @@ it('native helpers default off even with saved intent and require explicit fresh
   const saved: CoordinatorSavedRoute = {revision: 1, route: {worktreeId: 'w-1', harness: 'codex', model: 'model', permissionMode: 'bypass', outcome: 'preview', nativeDelegation: 'codex-native-helpers-2-v1'}, maxParallel: 1, updatedAt: '2026-10-19T00:00:00Z'};
   vi.mocked(api.listState).mockResolvedValue({continuations: [], savedRoute: saved});
   render(<CoordinatorExecution {...props()} />); await configure();
-  const choice = screen.getByRole('checkbox', {name: /Allow this local Codex coding task/});
+  const choice = screen.getByRole('checkbox', {name: /Allow each local Codex coding task in this run/});
   expect(choice).toHaveProperty('checked', false);
   await userEvent.click(choice); await submitReviewedRoute();
   await waitFor(() => expect(api.create).toHaveBeenCalledOnce());
@@ -765,29 +765,29 @@ it('native helpers default off even with saved intent and require explicit fresh
 });
 it('native helpers reset off after incompatible harness or closed picker without changing the route', async () => {
   render(<CoordinatorExecution {...props()} />); await configure();
-  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/}));
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow each local Codex coding task in this run/}));
   await userEvent.click(screen.getByRole('button', {name: 'Choose Claude route'}));
-  expect(screen.queryByRole('checkbox', {name: /Allow this local Codex coding task/})).toBeNull();
+  expect(screen.queryByRole('checkbox', {name: /Allow each local Codex coding task in this run/})).toBeNull();
   await userEvent.click(screen.getByRole('button', {name: 'Choose Codex route'}));
-  expect(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/})).toHaveProperty('checked', false);
-  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/}));
+  expect(screen.getByRole('checkbox', {name: /Allow each local Codex coding task in this run/})).toHaveProperty('checked', false);
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow each local Codex coding task in this run/}));
   await userEvent.click(screen.getByRole('button', {name: 'Close picker'})); await configure();
-  expect(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/})).toHaveProperty('checked', false);
+  expect(screen.getByRole('checkbox', {name: /Allow each local Codex coding task in this run/})).toHaveProperty('checked', false);
   expect(orchestrationContractsApi.prepare).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
 });
 it('native helpers refuse actual Ask submission without switching permission or preparing', async () => {
   render(<CoordinatorExecution {...props()} />); await configure();
-  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/}));
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow each local Codex coding task in this run/}));
   await userEvent.click(screen.getByRole('button', {name: 'Submit Ask route'}));
   expect(orchestrationContractsApi.prepare).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
 });
 it('native helpers clear an explicit draft when location becomes cloud and stay off on return', async () => {
   render(<CoordinatorExecution {...props()} />); await configure();
-  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/}));
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow each local Codex coding task in this run/}));
   await userEvent.selectOptions(screen.getByLabelText('Develop execution location'), 'cloud-microvm');
-  expect(screen.queryByRole('checkbox', {name: /Allow this local Codex coding task/})).toBeNull();
+  expect(screen.queryByRole('checkbox', {name: /Allow each local Codex coding task in this run/})).toBeNull();
   await userEvent.selectOptions(screen.getByLabelText('Develop execution location'), 'local-docker');
-  expect(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/})).toHaveProperty('checked', false);
+  expect(screen.getByRole('checkbox', {name: /Allow each local Codex coding task in this run/})).toHaveProperty('checked', false);
   expect(orchestrationContractsApi.prepare).not.toHaveBeenCalled(); expect(api.create).not.toHaveBeenCalled();
 });
 it('native helpers discard a delayed preparation view after execute access changes and returns', async () => {
@@ -796,7 +796,7 @@ it('native helpers discard a delayed preparation view after execute access chang
   let result!: OrchestrationContractView;
   vi.mocked(orchestrationContractsApi.prepare).mockImplementation(async (project, request) => { result = await prepare(project, request); return held.promise; });
   const ui = render(<CoordinatorExecution {...input} />); await configure();
-  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/}));
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow each local Codex coding task in this run/}));
   await userEvent.click(screen.getByRole('button', {name: 'Submit reviewed route'}));
   await waitFor(() => expect(result).toBeDefined());
   ui.rerender(<CoordinatorExecution {...input} canExecute={false} />); ui.rerender(<CoordinatorExecution {...input} />);
@@ -812,6 +812,6 @@ it('native helpers refuse image substitution on the final approved continuation 
     return ++reads === 2 ? {...value, contract: {...value.contract, input: {...value.contract.input, route: {...value.contract.input.route, nativeDelegationImage: 'sha256:' + 'b'.repeat(64)}}}} : value;
   });
   render(<CoordinatorExecution {...props()} />); await configure();
-  await userEvent.click(screen.getByRole('checkbox', {name: /Allow this local Codex coding task/})); await submitReviewedRoute();
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow each local Codex coding task in this run/})); await submitReviewedRoute();
   await screen.findByRole('alert'); expect(api.create).not.toHaveBeenCalled(); expect(records()).toEqual([]);
 });
