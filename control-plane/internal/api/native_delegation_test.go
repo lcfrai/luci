@@ -43,12 +43,28 @@ func TestNativeDelegationDispatchLeavesLegacyTaskPolicyUnchanged(t *testing.T) {
 // Reuse the ordinary owned Git/HTTP queue fixture, then create a fresh reviewed
 // helper run through real trusted-worker prepare/approval/create handlers. The
 // backend is fake: neither the wrapper nor a provider/CLI is executed.
-func nativeQueuedFixture(t *testing.T) (*swarmSessionFixture, management.ExecutionActorRef, management.Policy) {
+func nativeQueuedFixture(t *testing.T, managed bool) (*swarmSessionFixture, management.ExecutionActorRef, management.Policy) {
 	t.Helper()
 	f := newSwarmSessionFixtureTasks(t)
 	image := "sha256:" + strings.Repeat("7", 64)
 	f.options.SandboxImage, f.env.api.deps.Image = image, image
 	f.reopen(t)
+	selectedModel := f.run.Input.Route.Model
+	if managed {
+		body, _ := json.Marshal(map[string]any{"action": "save", "expectedRevision": 1, "name": "Synthetic managed native helper", "kind": "codex-subscription", "enabled": true})
+		w := f.env.do(t, "POST", "/v1/setup/agent-connections", string(body))
+		var catalog struct { Connections []product.AgentConnection }
+		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &catalog) != nil { t.Fatal("synthetic managed connection", w.Code, w.Body.String()) }
+		found := false
+		for _, connection := range catalog.Connections {
+			if connection.Kind == "codex-subscription" { f.connectionID, found = connection.ID, true }
+		}
+		if !found { t.Fatal("synthetic managed connection missing") }
+		// Opaque fake OAuth bytes in this test-owned private store only. No
+		// actual sign-in, provider request or credential inspection occurs.
+		if err := f.env.api.writeCodexConnection(&codexConnection{ID: "codex-native-helper-fixture", SourceSessionID: "s-stopped-native-helper-fixture", Auth: json.RawMessage(codexFixtureAuth)}); err != nil { t.Fatal(err) }
+		selectedModel = "default"
+	}
 	user := management.User{ID: "native-helper-fixture-owner", Username: "owner", Role: "super-admin"}
 	policy := management.Policy{AllowHostCommands: true, MaxSessionsPerUser: 8, MaxConcurrentChecksPerUser: 2, SessionMemoryMiB: 1024, SessionCPUMillis: 1000, CheckMemoryMiB: 1024, CheckCPUMillis: 1000, AllowedHarnesses: []string{"codex", "shell"}, BackingMode: "docker", InstanceName: "Native helper fixture"}
 	f.env.api.deps.Product.SetCoordinatorAuthorizer(func(ctx context.Context, projectID string) error {
@@ -82,7 +98,7 @@ func nativeQueuedFixture(t *testing.T) (*swarmSessionFixture, management.Executi
 	for _, args := range [][]string{{"add", "."}, {"-c", "user.name=Native helper fixture", "-c", "user.email=native-helper@example.invalid", "commit", "-m", "Capture native helper fixture inputs"}} {
 		if _, err := product.RunCommand(context.Background(), "git", args, f.owner.Path); err != nil { t.Fatal(err) }
 	}
-	prepare := product.OrchestrationPrepareRequest{IdempotencyKey: "native-queue-contract-prepare-123", WorktreeID: f.run.WorktreeID, ImplementationContext: selection, Outcome: "preview", Route: product.OrchestrationRouteRequest{NativeDelegation: product.NativeDelegationCodexHelpers2, Harness: "codex", Model: f.run.Input.Route.Model, PermissionMode: "bypass", ExecutionLocation: "local-docker", AgentConnectionID: &f.connectionID}}
+	prepare := product.OrchestrationPrepareRequest{IdempotencyKey: "native-queue-contract-prepare-123", WorktreeID: f.run.WorktreeID, ImplementationContext: selection, Outcome: "preview", Route: product.OrchestrationRouteRequest{NativeDelegation: product.NativeDelegationCodexHelpers2, Harness: "codex", Model: selectedModel, PermissionMode: "bypass", ExecutionLocation: "local-docker", AgentConnectionID: &f.connectionID}}
 	endpoint := "/v1/product/projects/"+f.owner.ID+"/orchestration-contracts"
 	var view product.OrchestrationContractView
 	if json.Unmarshal(request(endpoint+"/prepare", prepare, 201).Body.Bytes(), &view) != nil { t.Fatal("prepare response") }
@@ -98,10 +114,11 @@ func nativeQueuedFixture(t *testing.T) (*swarmSessionFixture, management.Executi
 }
 
 func TestNativeDelegationQueuedDispatchSpecAndFinalCurrentImage(t *testing.T) {
-	for _, changed := range []bool{false, true} {
-		name := "captured-spec"; if changed { name = "changed-during-final-authorization" }
-		t.Run(name, func(t *testing.T) {
-			f, actor, policy := nativeQueuedFixture(t); a := f.env.api
+	for _, test := range []struct { name string; managed, changed bool }{{name: "captured-spec"}, {name: "managed-captured-spec", managed: true}, {name: "changed-during-final-authorization", changed: true}} {
+		t.Run(test.name, func(t *testing.T) {
+			changed := test.changed
+			f, actor, policy := nativeQueuedFixture(t, test.managed); a := f.env.api
+			if controlledAllocationCount(f.env.be) != 0 { t.Fatal("fixture allocated a backend before dispatch") }
 			a.deps.ResourceSnapshot = executionFixtureSnapshot; a.deps.Resources = backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}
 			calls := 0
 			a.deps.AuthorizeExecution = func(_ context.Context, got management.ExecutionActorRef, harness string, secrets bool) (management.ExecutionAuthority, error) {
@@ -120,16 +137,25 @@ func TestNativeDelegationQueuedDispatchSpecAndFinalCurrentImage(t *testing.T) {
 			got, err := a.dispatchQueuedSwarm(context.Background(), dispatch)
 			if err != nil { t.Fatal(err) }
 			if changed {
-				if calls < 3 || got.State != "failed" || got.ReasonCode != "native_helper_profile_changed" || controlledAllocationCount(f.env.be) != 0 { t.Fatal("late image change reached backend", calls, got) }
+				if controlledAllocationCount(f.env.be) != 0 { t.Fatal("late image change reached Backend.Create") }
+				if calls < 3 || got.State != "failed" || got.ReasonCode != "admission_unavailable" { t.Fatal("late image change lost normalized admission refusal", calls, got) }
 				row, readErr := f.store.Get(got.SessionID)
 				if readErr != nil || row.Status != registry.StatusExited || row.StartFailure != registry.NewSessionStartFailure("admission", "native_helper_profile_changed") { t.Fatal("final refusal lost exact owned settlement", row, readErr) }
 				replay, replayErr := a.dispatchQueuedSwarm(context.Background(), dispatch)
-				if replayErr != nil || replay != got || controlledAllocationCount(f.env.be) != 0 { t.Fatal("late refusal replay escaped reservation", replay, replayErr) }
+				if controlledAllocationCount(f.env.be) != 0 { t.Fatal("late refusal replay reached Backend.Create") }
+				if replayErr != nil || replay != got { t.Fatal("late refusal replay changed retained result", replay, replayErr) }
 			} else {
 				sessionsAwaitWatch(t, done)
 				if got.State != "running" || controlledAllocationCount(f.env.be) != 1 { t.Fatal("captured task did not reach fake backend", got) }
 				f.env.be.mu.Lock(); spec := f.env.be.specs[0]; f.env.be.mu.Unlock()
-				if spec.Image != f.run.Input.Route.NativeDelegationImage || spec.Command != "/usr/local/bin/node" || len(spec.Args) == 0 || spec.Args[0] != "/usr/local/lib/luci/codex-native-task.cjs" || !slices.Contains(spec.Args, "agents.enabled=true") || !slices.Contains(spec.Args, "agents.max_concurrent_threads_per_session=2") || slices.Contains(spec.Args, "agents.enabled=false") { t.Fatal("actual Spec lost captured profile/image", spec.Image, spec.Command, spec.Args) }
+				prefix := []string{"/usr/local/lib/luci/codex-native-task.cjs", "-c", `cli_auth_credentials_store="file"`, "-c", "agents.enabled=true", "-c", "agents.max_concurrent_threads_per_session=2", "-c", "features.multi_agent_v2=false"}
+				if spec.Image != f.run.Input.Route.NativeDelegationImage || spec.Command != "/usr/local/bin/node" || len(spec.Args) < len(prefix)+4 || !slices.Equal(spec.Args[:len(prefix)], prefix) || slices.Contains(spec.Args, "agents.enabled=false") { t.Fatal("actual Spec lost captured profile/image", spec.Image, spec.Command, spec.Args) }
+				authArgs := spec.Args[len(prefix):len(prefix)+4]
+				if test.managed {
+					if !slices.Equal(authArgs, []string{"-c", `forced_login_method="chatgpt"`, "-c", `model_provider="openai"`}) || spec.Env["OPENAI_API_KEY"] != "" || spec.Env["CODEX_API_KEY"] != "" { t.Fatal("managed auth decoration crossed wrapper/policy boundary") }
+				} else {
+					if !slices.Equal(authArgs, []string{"-c", `model_provider="luci-openai"`, "-c", `model_providers.luci-openai={name="Luci selected API",base_url="http://host.docker.internal:4000/v1",env_key="OPENAI_API_KEY",wire_api="responses",supports_websockets=false}`}) { t.Fatal("API auth decoration crossed wrapper/policy boundary", authArgs) }
+				}
 			}
 		})
 	}

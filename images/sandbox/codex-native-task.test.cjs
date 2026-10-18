@@ -70,6 +70,42 @@ test('native helper rejects altered policy and extra argv before compatibility s
   }
 });
 
+test('native helper accepts only the controller auth tuples behind its fixed policy', async t => {
+  const config = 'model_providers.luci-openai={name="Luci selected API",base_url="http://host.docker.internal:4000/v1",env_key="OPENAI_API_KEY",wire_api="responses",supports_websockets=false}';
+  for (const [name, auth] of [['managed', ['-c', 'forced_login_method="chatgpt"', '-c', 'model_provider="openai"']], ['api', ['-c', 'model_provider="luci-openai"', '-c', config]]]) {
+    await t.test(name, async () => {
+      const f = fixture(), args = [...PREFIX, ...auth, ...f.args.slice(PREFIX.length)];
+      const result = runNativeTask(args, f.io); f.settle(f.children[0]); await Promise.resolve();
+      assert.equal(f.calls.length, 2); assert.deepEqual(f.calls[1].args, args);
+      f.children[1].emit('close', 0, null); assert.deepEqual(await result, { phase: 'model', code: 0, signal: null });
+    });
+  }
+});
+
+test('native helper rejects malformed auth tuples and reordered policy before any child', async t => {
+  const managed = ['-c', 'forced_login_method="chatgpt"', '-c', 'model_provider="openai"'];
+  const config = 'model_providers.luci-openai={name="Luci selected API",base_url="http://host.docker.internal:4000/v1",env_key="OPENAI_API_KEY",wire_api="responses",supports_websockets=false}';
+  const api = ['-c', 'model_provider="luci-openai"', '-c', config];
+  const cases = [
+    ['managed-wrong-provider', ['-c', managed[1], '-c', 'model_provider="other"']],
+    ['managed-reversed', ['-c', managed[3], '-c', managed[1]]],
+    ['api-wrong-name', ['-c', api[1], '-c', config.replace('Luci selected API', 'other')]],
+    ['api-extra-key', ['-c', api[1], '-c', config.replace('supports_websockets=false}', 'supports_websockets=false,api_key="fake"}')]],
+    ['api-extra-policy', [...api, '-c', 'agents.enabled=false']],
+    ['api-base-unquoted', ['-c', api[1], '-c', config.replace('"http://host.docker.internal:4000/v1"', 'http://host.docker.internal:4000/v1')]],
+    ['api-base-oversized', ['-c', api[1], '-c', config.replace('http://host.docker.internal:4000/v1', 'x'.repeat(4097))]],
+    ['both-auth-tuples', [...managed, ...api]],
+    ['unknown-config', ['-c', 'unreviewed_key=true']],
+  ];
+  for (const [name, auth] of cases) await t.test(name, async () => {
+    const f = fixture(); assert.equal((await runNativeTask([...PREFIX, ...auth, ...f.args.slice(PREFIX.length)], f.io)).code, 78); assert.equal(f.calls.length, 0);
+  });
+  await t.test('reordered-policy', async () => {
+    const f = fixture(), args = [...f.args]; [args[1], args[3]] = [args[3], args[1]];
+    assert.equal((await runNativeTask(args, f.io)).code, 78); assert.equal(f.calls.length, 0);
+  });
+});
+
 test('native helper model error cannot become a successful wrapper exit', async () => {
   const f = fixture(), result = runNativeTask(f.args, f.io);
   f.settle(f.children[0]); await Promise.resolve();

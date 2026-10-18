@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/harness"
@@ -245,11 +246,23 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	if route.Harness == "opencode" && sandboxEnv["OPENCODE_CONFIG_CONTENT"] == "" {
 		return refuse("provider_unavailable", errors.New("An explicit model connection is required."))
 	}
-	argv = codexSubscriptionArgs(argv, sandboxEnv, authMode)
+	// Provider overrides belong to Codex, behind the fixed Node wrapper and
+	// captured policy. Never present a Codex -c option as a Node option.
+	prefixLength := 0
+	if nativeProfile != "" {
+		prefix := []string{"/usr/local/lib/luci/codex-native-task.cjs", "-c", `cli_auth_credentials_store="file"`,
+			"-c", "agents.enabled=true", "-c", "agents.max_concurrent_threads_per_session=2", "-c", "features.multi_agent_v2=false"}
+		if command != "/usr/local/bin/node" || len(argv) < len(prefix) || !slices.Equal(argv[:len(prefix)], prefix) {
+			return refuse("harness_unavailable", errors.New("The captured native-helper entry policy changed."))
+		}
+		prefixLength = len(prefix)
+	}
+	providerArgv := codexSubscriptionArgs(argv[prefixLength:], sandboxEnv, authMode)
 	if a.deps.Backend.Kind() == backend.KindDocker {
 		nativeDockerEndpoint(sandboxEnv)
 	}
-	argv = nativeArgs(route.Harness, argv, sandboxEnv, false)
+	providerArgv = nativeArgs(route.Harness, providerArgv, sandboxEnv, false)
+	argv = append(append([]string(nil), argv[:prefixLength]...), providerArgv...)
 	nativeSandboxEnvironment(sandboxEnv)
 	candidate := registry.Session{ProjectID: req.ProjectID, WorktreeID: op.WorktreeID, BranchID: branch, Harness: route.Harness, Model: model, Effort: route.Effort, PermissionMode: route.PermissionMode, OpeningPrompt: prompt, AuthMode: authMode, CodexConnectionID: codexConnectionID(account), AgentConnectionID: connection.ID, AgentConnectionRevision: connection.Revision, AgentConnectionKind: connection.Kind, AgentConnectionProtocol: connection.Protocol, ImplementationContext: capture.Binding, ProjectRunID: req.RunID, ProjectRunOperationID: req.OperationID}
 	enabled, err := a.deps.Product.SwarmSchedulerDispatchEnabled()

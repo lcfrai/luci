@@ -15,6 +15,21 @@ function validArguments(args) {
       args.some(value => typeof value !== 'string' || Buffer.byteLength(value) > 512 * 1024 || value.includes('\0')) ||
       PREFIX.some((value, index) => args[index] !== value)) return false;
   let i = PREFIX.length;
+  // These are the two exact controller-owned auth shapes. The API base is a
+  // bounded JSON string inside otherwise fixed fields, never extra TOML keys.
+  if (args[i] === '-c' && args[i + 1] === 'forced_login_method="chatgpt"') {
+    if (args[i + 2] !== '-c' || args[i + 3] !== 'model_provider="openai"') return false;
+    i += 4;
+  } else if (args[i] === '-c' && args[i + 1] === 'model_provider="luci-openai"') {
+    const start = 'model_providers.luci-openai={name="Luci selected API",base_url=';
+    const end = ',env_key="OPENAI_API_KEY",wire_api="responses",supports_websockets=false}';
+    const config = args[i + 3];
+    if (args[i + 2] !== '-c' || typeof config !== 'string' || !config.startsWith(start) || !config.endsWith(end)) return false;
+    let base;
+    try { base = JSON.parse(config.slice(start.length, -end.length)); } catch { return false; }
+    if (typeof base !== 'string' || base === '' || Buffer.byteLength(base) > 4096 || /[\u0000-\u0020\\]/.test(base)) return false;
+    i += 4;
+  }
   if (args[i] === '-c') {
     if (!args[i + 1]?.startsWith('developer_instructions=')) return false;
     i += 2;
