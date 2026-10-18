@@ -52,6 +52,12 @@ func (a *API) reuseProjectRunSession(w http.ResponseWriter, r *http.Request, req
 		return true
 	}
 	if existing == nil {
+		run, readErr := a.deps.Product.GetProjectSwarmRun(projectID, req.ProjectRunID)
+		if readErr != nil { httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, "The reserved run could not be read. Its existing ownership is retained.", nil); return true }
+		if run.Input.Route.NativeDelegation != "" || run.Input.Route.NativeDelegationImage != "" {
+			httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, "This native-helper run must use its reviewed queued task dispatcher. A direct session cannot discard its captured helper policy.", nil)
+			return true
+		}
 		return false
 	}
 	if !projectRunSessionRequestMatches(req, *existing) {
@@ -61,6 +67,12 @@ func (a *API) reuseProjectRunSession(w http.ResponseWriter, r *http.Request, req
 	w.Header().Set("Location", sessionBasePath+"/sessions/"+existing.ID)
 	httpx.WriteJSON(w, http.StatusOK, a.sessionJSON(*existing, sessionBasePath))
 	return true
+}
+
+// This is a new-work gate. Existing owned session lookup/retirement occurs first.
+func (a *API) nativeDelegationDispatchProfile(run product.ProjectRun, operationID, image string) (string, error) {
+	if run.Input.Route.NativeDelegation != "" && (a.deps.Backend == nil || a.deps.Backend.Kind() != backend.KindDocker) { return "", product.ErrNativeDelegation }
+	return product.NativeDelegationForOperation(run, operationID, image)
 }
 
 func projectRunSessionRequestMatches(req sessionCreateRequest, existing registry.Session) bool {

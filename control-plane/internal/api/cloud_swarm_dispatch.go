@@ -58,6 +58,9 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 		}
 		return product.SwarmDispatchResult{State: "running", SessionID: op.ChildID, ReasonCode: "cloud_running", Message: "The exact upstream agent is running in its owned microVM."}, nil
 	}
+	if run.Input.Route.NativeDelegation != "" || run.Input.Route.NativeDelegationImage != "" {
+		return blocked("native_helper_profile_unsupported", "Native-helper task profiles require their reviewed local owned container. No new cloud task was started.")
+	}
 	if run.Input.Route.Harness != "codex" && run.Input.Route.Harness != "claude-code" || run.Input.Route.PermissionMode != "bypass" {
 		return blocked("cloud_harness_unsupported", "This cloud run needs an explicitly reviewed noninteractive Codex or Claude Code route.")
 	}

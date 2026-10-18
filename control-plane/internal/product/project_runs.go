@@ -218,6 +218,7 @@ func (s *Server) getProjectRun(w http.ResponseWriter, r *http.Request) {
 }
 
 type projectRunCreateRequest struct {
+	NativeDelegation string `json:"nativeDelegation,omitempty"`
 	IdempotencyKey        string                          `json:"idempotencyKey"`
 	WorktreeID            string                          `json:"worktreeId"`
 	Harness               string                          `json:"harness"`
@@ -330,6 +331,8 @@ func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	input := ProjectRunInput{Implementation: *implementation, Approvals: approvals, Route: ProjectRunRoute{Harness: selected.Harness, Model: selected.Model, PermissionMode: selected.PermissionMode, Effort: selected.Effort, ExecutionLocation: req.ExecutionLocation, Connection: selected.Connection}, Outcome: req.Outcome, Requirements: binding.RequirementSnapshots}
+	if err := s.captureNativeDelegation(req.NativeDelegation, &input.Route); err != nil { projectRunProblem(w, err); return }
+	if req.NativeDelegation != "" && req.OrchestrationContract == nil { projectRunProblem(w, ErrNativeDelegation); return }
 	if req.OrchestrationContract != nil {
 		contract, err := s.contractApprovedForRun(r.Context(), p, *req.OrchestrationContract, input)
 		if err != nil {
@@ -352,6 +355,7 @@ func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) resolveProjectRunSelection(ctx context.Context, run ProjectRun) (ProjectRunSelection, error) {
 	var zero ProjectRunSelection
+	if err := ValidateNativeDelegationCurrent(run.Input.Route, s.sandboxImage); err != nil { return zero, err }
 	if err := s.OrchestratorExecutionGate(run.ProjectID); err != nil {
 		return zero, err
 	}
@@ -425,6 +429,10 @@ func (s *Server) reserveProjectRunOperation(w http.ResponseWriter, r *http.Reque
 	}
 	if run.Revision != req.ExpectedRevision {
 		projectRunProblem(w, ErrProjectRunConflict)
+		return
+	}
+	if run.Input.Route.NativeDelegation != "" {
+		projectRunProblem(w, errors.New("Native-helper runs require their reviewed isolated swarm task dispatcher, not a direct session operation."))
 		return
 	}
 	selected, err := s.resolveProjectRunSelection(r.Context(), run)

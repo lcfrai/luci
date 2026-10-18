@@ -19,6 +19,7 @@ const orchestrationContractLimit = 200
 const orchestrationContractFileLimit = 2 << 20
 
 type OrchestrationRouteRequest struct {
+	NativeDelegation string `json:"nativeDelegation,omitempty"`
 	Harness           string  `json:"harness"`
 	Model             string  `json:"model"`
 	PermissionMode    string  `json:"permissionMode"`
@@ -340,6 +341,12 @@ func (s *Server) prepareOrchestrationInput(ctx context.Context, p project.Projec
 		placement = ""
 	} // existing run input convention
 	out = OrchestrationPreparedInput{Implementation: *implementation, Approvals: approvals, Route: ProjectRunRoute{Harness: selected.Harness, Model: selected.Model, PermissionMode: selected.PermissionMode, Effort: selected.Effort, ExecutionLocation: placement, Connection: selected.Connection}, Outcome: req.Outcome, Requirements: binding.RequirementSnapshots, Tasks: tasks, Controls: controls, Standards: standards, DecisionPolicy: OrchestrationDecisionPolicy{Routine: routine, HumanInput: "outside saved authority, contradictory intent, or missing evidence"}}
+	if err := s.captureNativeDelegation(req.Route.NativeDelegation, &out.Route); err != nil { return OrchestrationPreparedInput{}, err }
+	if out.Route.NativeDelegation != "" {
+		coding := false
+		for _, task := range tasks { if task.Role == "coding" { coding = true } }
+		if !coding { return OrchestrationPreparedInput{}, ErrNativeDelegation }
+	}
 	return out, nil
 }
 
@@ -432,6 +439,9 @@ func orchestrationContractRecordByID(ledger orchestrationContractLedger, id, act
 
 func (s *Server) contractView(ctx context.Context, p project.Project, c OrchestrationContract) OrchestrationContractView {
 	freshness := s.orchestrationFreshness(p, c)
+	if freshness.Status == "current" && ValidateNativeDelegationCurrent(c.Input.Route, s.sandboxImage) != nil {
+		freshness = ProjectRunContextFreshness{Status: "changed", Reason: "The native-helper profile or configured image changed. Review a new execution contract."}
+	}
 	if freshness.Status == "current" && !orchestrationAuthorityMatchesContext(ctx, c.Input.Controls) {
 		freshness = ProjectRunContextFreshness{Status: "changed", Reason: "Current team grant or execution policy changed. Review and prepare a new contract."}
 	}
@@ -471,6 +481,7 @@ func normalizeOrchestrationPrepare(req *OrchestrationPrepareRequest) error {
 	if req.Route.Harness == "" {
 		req.Route.Harness = "claude-code"
 	}
+	if err := validateNativeDelegationRequest(req.Route.NativeDelegation, req.Route.Harness, req.Route.PermissionMode, req.Route.ExecutionLocation); err != nil { return err }
 	if req.Route.ExecutionLocation == "cloud-microvm" && (req.Route.PermissionMode != "bypass" || req.Route.Harness != "codex" && req.Route.Harness != "claude-code") {
 		return ErrProjectRunInvalid
 	}
@@ -502,6 +513,7 @@ func (s *Server) contractApprovedForRun(ctx context.Context, p project.Project, 
 }
 
 func (s *Server) orchestrationSelectedRoute(ctx context.Context, c OrchestrationContract) (ProjectRunSelection, error) {
+	if err := ValidateNativeDelegationCurrent(c.Input.Route, s.sandboxImage); err != nil { return ProjectRunSelection{}, err }
 	if s.projectRunSelectionResolver == nil {
 		return ProjectRunSelection{}, ErrProjectRunConflict
 	}
@@ -527,6 +539,7 @@ func (s *Server) orchestrationSourceCurrent(ctx context.Context, c Orchestration
 }
 
 func (s *Server) contractCurrentForRun(p project.Project, run ProjectRun) error {
+	if err := ValidateNativeDelegationCurrent(run.Input.Route, s.sandboxImage); err != nil { return err }
 	if run.Input.OrchestrationContract == nil {
 		return nil
 	}
@@ -578,6 +591,8 @@ func appendRunExecutionContract(capture *ReviewedContextCapture, run ProjectRun,
 		return errors.New("The approved team standards have no captured requirements; prepare and approve a current execution contract.")
 	}
 	brief := struct {
+		NativeDelegation string `json:"nativeDelegation,omitempty"`
+		NativeDelegationImage string `json:"nativeDelegationImage,omitempty"`
 		Version        int                   `json:"version"`
 		ContractID     string                `json:"contractId"`
 		ContractDigest string                `json:"contractDigest"`
@@ -599,6 +614,7 @@ func appendRunExecutionContract(capture *ReviewedContextCapture, run ProjectRun,
 		Standards      OrchestrationStandards      `json:"standards"`
 		DecisionPolicy OrchestrationDecisionPolicy `json:"decisionPolicy"`
 	}{Version: 1, ContractID: c.ID, ContractDigest: c.Digest, RunID: run.ID, TaskID: taskID, Outcome: c.Input.Outcome, Requirements: c.Input.Requirements, Tasks: c.Input.Tasks, Standards: c.Input.Standards, DecisionPolicy: c.Input.DecisionPolicy}
+	brief.NativeDelegation, brief.NativeDelegationImage = c.Input.Route.NativeDelegation, c.Input.Route.NativeDelegationImage
 	brief.Controls.AuthorityPolicyDigest = c.Input.Controls.AuthorityPolicyDigest
 	brief.Controls.ExecutionLimits = c.Input.Controls.ExecutionLimits
 	brief.Controls.CoordinatorPolicyRevision = c.Input.Controls.CoordinatorPolicyRevision

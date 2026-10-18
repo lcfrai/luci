@@ -78,6 +78,37 @@ func TestTaskCapabilityDoesNotLeakMutablePermissionSlices(t *testing.T) {
 	}
 }
 
+func TestTaskNativeDelegationUsesFixedOwnedCompatibilityEntry(t *testing.T) {
+	r := harness.Request{Harness: harness.Codex, Model: "opaque-model", Permission: harness.PermissionBypass, DockerBoundary: true, ReviewedContext: true, NativeDelegation: "codex-native-helpers-2-v1", OpeningPrompt: "Implement only the captured coding task"}
+	command, argv, err := harness.BuildTask(r)
+	if err != nil || command != "/usr/local/bin/node" || len(argv) < 10 || argv[0] != "/usr/local/lib/luci/codex-native-task.cjs" { t.Fatal(command, argv, err) }
+	for _, value := range []string{"agents.enabled=true", "agents.max_concurrent_threads_per_session=2", "features.multi_agent_v2=false"} {
+		if !slices.Contains(argv, value) { t.Fatal("fixed helper policy missing", value, argv) }
+	}
+	if slices.Contains(argv, "agents.enabled=false") || argv[len(argv)-1] != r.OpeningPrompt || slices.Index(argv, "exec") < 8 { t.Fatal("conflicting policy or changed prompt", argv) }
+	r.NativeDelegation = ""
+	command, argv, err = harness.BuildTask(r)
+	if err != nil || command != "codex" || !slices.Contains(argv, "agents.enabled=false") || !slices.Contains(argv, "features.multi_agent_v2=false") || slices.Contains(argv, "agents.max_concurrent_threads_per_session=2") { t.Fatal("default task child boundary changed", command, argv, err) }
+}
+
+func TestTaskNativeDelegationRejectsUncapturedUnsupportedAndInteractiveRequests(t *testing.T) {
+	for _, name := range []string{"unknown", "non-codex", "non-docker", "uncaptured", "ask", "resume"} {
+		t.Run(name, func(t *testing.T) {
+			r := harness.Request{Harness: harness.Codex, Permission: harness.PermissionBypass, DockerBoundary: true, ReviewedContext: true, NativeDelegation: "codex-native-helpers-2-v1", OpeningPrompt: "Captured task"}
+			switch name {
+			case "unknown": r.NativeDelegation = "other"
+			case "non-codex": r.Harness = harness.ClaudeCode
+			case "non-docker": r.DockerBoundary = false
+			case "uncaptured": r.ReviewedContext = false
+			case "ask": r.Permission = harness.PermissionAsk
+			case "resume": r.Resume, r.Conversation = sourceConversation, forkConversation
+			}
+			command, argv, err := harness.BuildTask(r)
+			if err == nil || command != "" || argv != nil { t.Fatal("unsupported helper request produced executable argv", command, argv, err) }
+		})
+	}
+}
+
 func TestCodexTaskDisablesUncapturedChildrenOnlyAtRoot(t *testing.T) {
 	const prompt = "implement the captured task --literal agents.enabled=false"
 	for _, tc := range []struct {

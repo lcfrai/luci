@@ -5,6 +5,7 @@ import "strings"
 // A saved route is a person's explicit nonsecret preference. It contains no
 // approved revisions, tasks, authority snapshot or credentials.
 type CoordinatorRoute struct {
+	NativeDelegation string `json:"nativeDelegation,omitempty"`
 	WorktreeID        string  `json:"worktreeId"`
 	Harness           string  `json:"harness"`
 	Model             string  `json:"model"`
@@ -28,7 +29,7 @@ type CoordinatorSavedRoute struct {
 }
 
 func coordinatorRoute(req projectRunCreateRequest) CoordinatorRoute {
-	out := CoordinatorRoute{WorktreeID: strings.TrimSpace(req.WorktreeID), Harness: strings.TrimSpace(req.Harness), Model: strings.TrimSpace(req.Model), PermissionMode: strings.TrimSpace(req.PermissionMode), Effort: strings.TrimSpace(req.Effort), ExecutionLocation: strings.TrimSpace(req.ExecutionLocation), Outcome: req.Outcome}
+	out := CoordinatorRoute{NativeDelegation: req.NativeDelegation, WorktreeID: strings.TrimSpace(req.WorktreeID), Harness: strings.TrimSpace(req.Harness), Model: strings.TrimSpace(req.Model), PermissionMode: strings.TrimSpace(req.PermissionMode), Effort: strings.TrimSpace(req.Effort), ExecutionLocation: strings.TrimSpace(req.ExecutionLocation), Outcome: req.Outcome}
 	if req.AgentConnectionID != nil {
 		value := strings.TrimSpace(*req.AgentConnectionID)
 		out.AgentConnectionID = &value
@@ -49,6 +50,7 @@ func validCoordinatorRoute(saved *CoordinatorSavedRoute) bool {
 		return false
 	}
 	r := saved.Route
+	if validateNativeDelegationRequest(r.NativeDelegation, r.Harness, r.PermissionMode, r.ExecutionLocation) != nil { return false }
 	if saved.Revision < 1 || saved.MaxParallel < 1 || saved.MaxParallel > MaxSwarmParallelTasks || !validConnectionToken(r.WorktreeID, 200, false) || !validConnectionToken(r.Harness, 128, false) || !validConnectionToken(r.Model, 200, true) || !validConnectionToken(r.PermissionMode, 128, false) || !validConnectionToken(r.Effort, 128, true) || (r.ExecutionLocation != "" && r.ExecutionLocation != "cloud-microvm") || (r.ExecutionLocation == "cloud-microvm" && (r.PermissionMode != "bypass" || r.Harness != "codex" && r.Harness != "claude-code")) || (r.Outcome != "preview" && r.Outcome != "publish") {
 		return false
 	}

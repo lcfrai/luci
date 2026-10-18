@@ -37,6 +37,9 @@ func ValidateTask(id ID, permission PermissionMode) error {
 // --print, and OpenCode 1.18.34 run. Swarm retries are separate reviewed attempts;
 // resuming a CLI here would silently replay an earlier operation.
 func BuildTask(r Request) (command string, argv []string, err error) {
+	if r.NativeDelegation != "" && (r.NativeDelegation != "codex-native-helpers-2-v1" || r.Harness != Codex || !r.DockerBoundary || !r.ReviewedContext) {
+		return "", nil, fmt.Errorf("%w: native helpers require their captured local Codex task profile", ErrUnsupportedOption)
+	}
 	command, _, err = Build(r)
 	if err != nil {
 		return "", nil, err
@@ -58,6 +61,11 @@ func BuildTask(r Request) (command string, argv []string, err error) {
 		// Disable both pinned upstream agent paths; V2 overrides agents.enabled.
 		argv = []string{"-c", `cli_auth_credentials_store="file"`,
 			"-c", "agents.enabled=false", "-c", "features.multi_agent_v2=false"}
+		if r.NativeDelegation != "" {
+			command = "/usr/local/bin/node"
+			argv = []string{"/usr/local/lib/luci/codex-native-task.cjs", "-c", `cli_auth_credentials_store="file"`,
+				"-c", "agents.enabled=true", "-c", "agents.max_concurrent_threads_per_session=2", "-c", "features.multi_agent_v2=false"}
+		}
 		if r.ProjectBrief || r.ReviewedContext {
 			argv = append(argv, "-c", "developer_instructions="+strconv.Quote(projectContextPrompt(r)))
 		}

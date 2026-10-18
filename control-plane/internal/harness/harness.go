@@ -111,6 +111,7 @@ type Request struct {
 	DockerBoundary  bool
 	ProjectBrief    bool // instruct the agent to read LUCI.md as untrusted project context
 	ReviewedContext bool // use the server-captured read-only reviewed context instead of live checkout exports
+	NativeDelegation string // exact captured task profile; interactive Build callers never populate this
 	Harness         ID
 	Model           string
 	Effort          Effort

@@ -70,6 +70,9 @@ func (a *API) admitQueuedSwarm(ctx context.Context, req product.SwarmAdmissionRe
 	if err := harness.ValidateTask(harness.ID(run.Input.Route.Harness), harness.PermissionMode(run.Input.Route.PermissionMode)); err != nil {
 		return blocked("task_permission_requires_interactive", err.Error())
 	}
+	if product.ValidateNativeDelegationCurrent(run.Input.Route, a.sessionImage()) != nil || run.Input.Route.NativeDelegation != "" && (a.deps.Backend == nil || a.deps.Backend.Kind() != backend.KindDocker) {
+		return blocked("native_helper_profile_changed", product.ErrNativeDelegation.Error())
+	}
 	if run.Input.Route.ExecutionLocation == "cloud-microvm" {
 		if a.deps.CloudTasks == nil {
 			return blocked("cloud_microvm_unavailable", "A verified cloud microVM execution service is not configured.")
@@ -150,6 +153,9 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		_ = authority // current authority was checked before cloud selection
 		return a.dispatchCloudSwarm(ctx, req, run, *op)
 	}
+	image := a.sessionImage()
+	nativeProfile, err := a.nativeDelegationDispatchProfile(run, op.ID, image)
+	if err != nil { return refuse("native_helper_profile_changed", err) }
 	policy, err := a.deps.Product.SwarmSchedulerPolicy()
 	if err != nil {
 		return refuse("policy_unavailable", err)
@@ -216,7 +222,7 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		conversation = ids.UUID()
 	}
 	prompt := product.ImplementationOpeningPrompt(capture.Binding)
-	command, argv, err := harness.BuildTask(harness.Request{DockerBoundary: a.deps.Backend.Kind() == backend.KindDocker, ProjectBrief: true, ReviewedContext: true, Harness: harness.ID(route.Harness), Model: model, Effort: harness.Effort(route.Effort), Permission: harness.PermissionMode(route.PermissionMode), OpeningPrompt: prompt, Conversation: conversation})
+	command, argv, err := harness.BuildTask(harness.Request{DockerBoundary: a.deps.Backend.Kind() == backend.KindDocker, ProjectBrief: true, ReviewedContext: true, NativeDelegation: nativeProfile, Harness: harness.ID(route.Harness), Model: model, Effort: harness.Effort(route.Effort), Permission: harness.PermissionMode(route.PermissionMode), OpeningPrompt: prompt, Conversation: conversation})
 	if err != nil {
 		return refuse("harness_unavailable", err)
 	}
@@ -303,6 +309,8 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		return refuse("capacity_changed", err)
 	}
 	finalAuth := func(ctx context.Context) error {
+		currentProfile, err := a.nativeDelegationDispatchProfile(run, op.ID, a.sessionImage())
+		if err != nil || currentProfile != nativeProfile || a.sessionImage() != image { return admissionFailure("native_helper_profile_changed", product.ErrNativeDelegation) }
 		enabled, err := a.deps.Product.SwarmSchedulerDispatchEnabled()
 		if err != nil {
 			return admissionFailure("dispatch_policy_unavailable", err)
@@ -341,7 +349,7 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		}
 		return nil
 	}
-	stored, err := a.allocatePreparedSession(ctx, preparedSessionAllocation{Record: candidate, Spec: backend.Spec{ID: candidate.ID, SessionID: candidate.ID, Image: a.sessionImage(), Command: command, Args: argv, Env: sandboxEnv, AttachToken: candidate.AttachToken, Resources: capacity.Resources, WorkDir: sessionWorkDir, Mounts: mounts}, Account: account, Revalidate: admission.Revalidate, BeforeAllocate: finalAuth, BeforeBackendStart: func(ctx context.Context) error {
+	stored, err := a.allocatePreparedSession(ctx, preparedSessionAllocation{Record: candidate, Spec: backend.Spec{ID: candidate.ID, SessionID: candidate.ID, Image: image, Command: command, Args: argv, Env: sandboxEnv, AttachToken: candidate.AttachToken, Resources: capacity.Resources, WorkDir: sessionWorkDir, Mounts: mounts}, Account: account, Revalidate: admission.Revalidate, BeforeAllocate: finalAuth, BeforeBackendStart: func(ctx context.Context) error {
 		return a.execution.markBackendStarting(ctx, req.QueueID, candidate.ID, candidate.ID)
 	}, AfterBackendCreate: func(ctx context.Context, sandboxID string) error {
 		return a.execution.markBackendSettled(ctx, req.QueueID, candidate.ID, sandboxID)

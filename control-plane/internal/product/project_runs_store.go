@@ -35,6 +35,8 @@ var (
 )
 
 type ProjectRunRoute struct {
+	NativeDelegation string `json:"nativeDelegation,omitempty"`
+	NativeDelegationImage string `json:"nativeDelegationImage,omitempty"`
 	Harness           string                 `json:"harness"`
 	Model             string                 `json:"model"`
 	PermissionMode    string                 `json:"permissionMode"`
@@ -561,6 +563,7 @@ func validRunApprovals(a ProjectRunApprovalSelection) bool {
 }
 
 func validateRunInput(projectID string, in ProjectRunInput) error {
+	if validateNativeDelegationInput(in) != nil { return ErrProjectRunInvalid }
 	c := in.Implementation
 	if c.ProjectID != projectID || !prototypeReleaseID.MatchString(c.WorktreeID) || c.PlanRevision < 1 || len(c.TaskIDs) == 0 || len(c.TaskIDs) > 200 || len(c.TaskIDs) != len(c.TaskTitles) || !hexDigest(c.SourceDigest) || !hexDigest(c.BriefDigest) || !hexDigest(c.PlanDigest) || !validRunApprovals(in.Approvals) || (in.Outcome != "preview" && in.Outcome != "publish") || len(in.Requirements) > 100 {
 		return ErrProjectRunInvalid
