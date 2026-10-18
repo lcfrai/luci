@@ -17,7 +17,7 @@ function fixture() {
     setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
     clearTimeout: () => {},
   };
-  const args = [...PREFIX, 'exec', '--color', 'never', '--dangerously-bypass-approvals-and-sandbox', '--', 'Implement only the reviewed task'];
+  const args = [...PREFIX, 'exec', '--json', '--color', 'never', '--dangerously-bypass-approvals-and-sandbox', '--', 'Implement only the reviewed task'];
   const settle = (child, text = 'codex-cli 0.160.0\n', code = 0, signal = null) => {
     child.stdout.emit('data', Buffer.from(text)); child.stdout.emit('end'); child.stdout.emit('close');
     child.stderr.emit('end'); child.stderr.emit('close'); child.emit('close', code, signal);
@@ -63,11 +63,43 @@ test('native helper failure stays sticky through a late success-shaped return', 
 });
 
 test('native helper rejects altered policy and extra argv before compatibility spawn', async t => {
-  for (const args of [[], [...PREFIX, 'exec', '--color', 'never', '--dangerously-bypass-approvals-and-sandbox', '-c', 'agents.enabled=false', '--', 'task'], ['-c', 'agents.enabled=true'], [...PREFIX, 'exec', '--color', 'never', '--dangerously-bypass-approvals-and-sandbox', '--', 'task', 'extra']]) {
+  for (const args of [[], [...PREFIX, 'exec', '--json', '--color', 'never', '--dangerously-bypass-approvals-and-sandbox', '-c', 'agents.enabled=false', '--', 'task'], ['-c', 'agents.enabled=true'], [...PREFIX, 'exec', '--json', '--color', 'never', '--dangerously-bypass-approvals-and-sandbox', '--', 'task', 'extra']]) {
     await t.test(String(args.length), async () => {
       const f = fixture(); assert.equal((await runNativeTask(args, f.io)).code, 78); assert.equal(f.calls.length, 0);
     });
   }
+});
+
+test('native helper requires fixed JSON placement before any child', async t => {
+  const tail = ['--color', 'never', '--dangerously-bypass-approvals-and-sandbox', '--', 'task'];
+  const cases = [
+    ['missing', [...PREFIX, 'exec', ...tail]],
+    ['duplicate', [...PREFIX, 'exec', '--json', '--json', ...tail]],
+    ['before-exec', [...PREFIX, '--json', 'exec', ...tail]],
+    ['after-color', [...PREFIX, 'exec', '--color', 'never', '--json', ...tail.slice(2)]],
+    ['after-model', [...PREFIX, 'exec', ...tail.slice(0, 3), '--model', 'opaque-model', '--json', '--', 'task']],
+    ['after-prompt', [...PREFIX, 'exec', '--json', ...tail, '--json']],
+    ['assigned-value', [...PREFIX, 'exec', '--json=true', ...tail]],
+    ['wrong-case', [...PREFIX, 'exec', '--JSON', ...tail]],
+  ];
+  for (const [name, args] of cases) await t.test(name, async () => {
+    const f = fixture();
+    assert.deepEqual(await runNativeTask(args, f.io), { phase: 'compatibility', code: 78, signal: null });
+    assert.equal(f.calls.length, 0); assert.deepEqual(f.kills, []); assert.deepEqual(f.timers, []);
+  });
+});
+
+test('native helper JSON mode preserves opaque model prompt and inherited terminal streams', async () => {
+  const f = fixture();
+  const config = 'model_providers.luci-openai={name="Luci selected API",base_url="http://host.docker.internal:4000/v1",env_key="OPENAI_API_KEY",wire_api="responses",supports_websockets=false}';
+  const args = [...PREFIX, '-c', 'model_provider="luci-openai"', '-c', config, '-c', 'developer_instructions="Captured context"', 'exec', '--json', '--color', 'never', '--dangerously-bypass-approvals-and-sandbox', '--model', 'opaque/json-model', '--', '--json'];
+  const result = runNativeTask(args, f.io);
+  f.settle(f.children[0]); await Promise.resolve();
+  assert.equal(f.calls.length, 2);
+  assert.deepEqual(f.calls[1].args, args);
+  assert.deepEqual(f.calls[1].options, { detached: true, stdio: 'inherit' });
+  f.children[1].emit('close', 0, null);
+  assert.deepEqual(await result, { phase: 'model', code: 0, signal: null });
 });
 
 test('native helper accepts only the controller auth tuples behind its fixed policy', async t => {

@@ -34,7 +34,8 @@ function validArguments(args) {
     if (!args[i + 1]?.startsWith('developer_instructions=')) return false;
     i += 2;
   }
-  if (args[i++] !== 'exec' || args[i++] !== '--color' || args[i++] !== 'never' ||
+  // Keep the helper report format fixed; its partial output is not authority.
+  if (args[i++] !== 'exec' || args[i++] !== '--json' || args[i++] !== '--color' || args[i++] !== 'never' ||
       args[i++] !== '--dangerously-bypass-approvals-and-sandbox') return false;
   if (args[i] === '--model') {
     if (!args[i + 1] || args[i + 1].length > 512) return false;

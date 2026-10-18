@@ -69,7 +69,13 @@ func BuildTask(r Request) (command string, argv []string, err error) {
 		if r.ProjectBrief || r.ReviewedContext {
 			argv = append(argv, "-c", "developer_instructions="+strconv.Quote(projectContextPrompt(r)))
 		}
-		argv = append(argv, "exec", "--color", "never", "--dangerously-bypass-approvals-and-sandbox")
+		argv = append(argv, "exec")
+		if r.NativeDelegation != "" {
+			// Partial collaboration reports travel on the existing parent stream.
+			// JSON output grants no completion, review or retirement authority.
+			argv = append(argv, "--json")
+		}
+		argv = append(argv, "--color", "never", "--dangerously-bypass-approvals-and-sandbox")
 		if r.Model != "" && r.Model != "default" {
 			argv = append(argv, "--model", r.Model)
 		}

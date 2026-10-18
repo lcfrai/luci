@@ -109,6 +109,60 @@ func TestTaskNativeDelegationRejectsUncapturedUnsupportedAndInteractiveRequests(
 	}
 }
 
+func TestTaskJSONOutputIsLimitedToCapturedNativeHelpers(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		id          harness.ID
+		model       string
+		helpers     bool
+		interactive bool
+	}{
+		{"helper-model", harness.Codex, "opaque/json-model", true, false},
+		{"helper-default-model", harness.Codex, "default", true, false},
+		{"default-codex", harness.Codex, "opaque/json-model", false, false},
+		{"default-claude", harness.ClaudeCode, "opaque-model", false, false},
+		{"default-opencode", harness.OpenCode, "opaque-model", false, false},
+		{"interactive-codex", harness.Codex, "opaque-model", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const prompt = "Captured task: literal --json remains prompt text"
+			r := harness.Request{Harness: tc.id, Model: tc.model, Permission: harness.PermissionBypass, DockerBoundary: true, ReviewedContext: true, OpeningPrompt: prompt}
+			if tc.helpers {
+				r.NativeDelegation = "codex-native-helpers-2-v1"
+			}
+			build := harness.BuildTask
+			if tc.interactive {
+				build = harness.Build
+			}
+			command, argv, err := build(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			count := 0
+			for _, arg := range argv {
+				if arg == "--json" {
+					count++
+				}
+			}
+			if !tc.helpers {
+				if count != 0 || command == "/usr/local/bin/node" {
+					t.Fatal("ordinary or interactive route gained helper JSON output", command, argv)
+				}
+				return
+			}
+			at := slices.Index(argv, "exec")
+			want := []string{"exec", "--json", "--color", "never", "--dangerously-bypass-approvals-and-sandbox"}
+			if tc.model != "default" {
+				want = append(want, "--model", tc.model)
+			}
+			want = append(want, "--", prompt)
+			if command != "/usr/local/bin/node" || count != 1 || at < 9 || !slices.Equal(argv[at:], want) {
+				t.Fatal("captured helper lost its exact JSON ABI or opaque input", command, argv)
+			}
+		})
+	}
+}
+
 func TestCodexTaskDisablesUncapturedChildrenOnlyAtRoot(t *testing.T) {
 	const prompt = "implement the captured task --literal agents.enabled=false"
 	for _, tc := range []struct {
