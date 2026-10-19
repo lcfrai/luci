@@ -23,6 +23,13 @@ function Get-LuciWindowsSigningContext([string]$Thumbprint, [string]$TimestampUr
     return @{thumbprint=$Thumbprint.ToUpperInvariant(); timestampUrl=$TimestampUrl; tool=$luciTool; subject=$luciCertificate.Subject; issuer=$luciCertificate.Issuer}
 }
 
+function Get-LuciWindowsVerificationContext([string]$Thumbprint, [string]$SignToolPath = '') {
+    # Consumer verification needs only the independently supplied public signer.
+    # Never resolve a certificate store entry or require possession of its key.
+    if (-not $IsWindows -or $Thumbprint -notmatch '^[0-9a-fA-F]{40}$') { throw 'Windows verification requires an exact expected public signer SHA1 thumbprint.' }
+    return @{thumbprint=$Thumbprint.ToUpperInvariant(); tool=(Get-LuciSignTool $SignToolPath)}
+}
+
 function Get-LuciTauriSigningCommand([hashtable]$Context, [string]$PowerShellPath, [string]$ScriptPath, [string]$CoreSHA256) {
     # Tauri's object form preserves spaces in paths and substitutes only %1.
     # Reuse the bounded signer for the shell, installer and generated uninstaller.
@@ -91,4 +98,12 @@ function Set-LuciWindowsSignature([string]$Path, [hashtable]$Context, [string]$R
     $luciFile = Get-LuciOrdinarySigningFile $Path
     Invoke-LuciSignTool $Context.tool @('sign','/s','My','/sha1',$Context.thumbprint,'/fd','SHA256','/tr',$Context.timestampUrl,'/td','SHA256','/d','Luci',$luciFile.FullName)
     return Confirm-LuciWindowsSignature $luciFile.FullName $Context $Role
+}
+
+function Confirm-LuciInstalledWindowsSignatures([string]$InstallDirectory, [hashtable]$Context) {
+    $luciUninstallers = @(Get-ChildItem -LiteralPath $InstallDirectory -File -Filter '*uninstall*.exe')
+    if ($luciUninstallers.Count -ne 1) { throw 'Expected one installed NSIS uninstaller for signature verification.' }
+    Confirm-LuciWindowsSignature (Join-Path $InstallDirectory 'luci.exe') $Context 'installed-app'
+    Confirm-LuciWindowsSignature (Join-Path $InstallDirectory 'luci-api.exe') $Context 'installed-api'
+    Confirm-LuciWindowsSignature $luciUninstallers[0].FullName $Context 'installed-uninstaller'
 }

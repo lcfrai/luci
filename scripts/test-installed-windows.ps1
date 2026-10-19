@@ -2,7 +2,9 @@ param(
   [Parameter(Mandatory = $true)][string]$Installer,
   [string]$PreviousInstaller = '',
   [string]$PreviousVersion = '',
-  [string]$Evidence = 'artifacts/native-installed-eval'
+  [string]$Evidence = 'artifacts/native-installed-eval',
+  [string]$ExpectedSignerThumbprint = '',
+  [string]$SignToolPath = ''
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -49,8 +51,19 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {
   throw 'Installed-app acceptance is restricted to a disposable Windows GitHub runner.'
 }
 if ($env:LUCI_API) { throw 'LUCI_API would bypass the installed app-owned sidecar.' }
+if ($SignToolPath -and -not $ExpectedSignerThumbprint) { throw 'SignToolPath requires ExpectedSignerThumbprint; unsigned developer acceptance must omit both.' }
+$signatureContext = $null
+if ($ExpectedSignerThumbprint) {
+  . (Join-Path $PSScriptRoot 'windows-signing.ps1')
+  $signatureContext = Get-LuciWindowsVerificationContext $ExpectedSignerThumbprint $SignToolPath
+}
 $candidate = (Resolve-Path -LiteralPath $Installer).Path
 $prior = if ($PreviousInstaller) { (Resolve-Path -LiteralPath $PreviousInstaller).Path } else { '' }
+$installerSignatures = @()
+if ($signatureContext) {
+  $installerSignatures += Confirm-LuciWindowsSignature $candidate $signatureContext 'candidate-installer'
+  if ($prior) { $installerSignatures += Confirm-LuciWindowsSignature $prior $signatureContext 'previous-installer' }
+}
 if ($PreviousVersion -and (-not $prior -or $PreviousVersion -notmatch '^\d+\.\d+\.\d+$')) { throw 'PreviousVersion requires a previous installer and an exact semantic version.' }
 $evidencePath = [IO.Path]::GetFullPath($Evidence)
 $taskRoot = Join-Path $env:RUNNER_TEMP ('luci-installed-' + [guid]::NewGuid().ToString('N'))
@@ -64,9 +77,12 @@ New-Item -ItemType Directory -Path $taskRoot,$toolsDir,$evidencePath -Force | Ou
 $receipt = [ordered]@{
   passed = $false; installer = [IO.Path]::GetFileName($candidate)
   installerSHA256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $candidate).Hash.ToLowerInvariant()
+  signatureAcceptance = $(if ($signatureContext) { 'expected-signer-required' } else { 'unsigned-developer-mode-not-signing-acceptance' })
+  signatureFiles = @($installerSignatures)
   sourceCommit = $env:GITHUB_SHA; checks = @(); limitations = @(
     'Disposable Windows runner; existing WebView2 runtime. No model/cloud calls.',
-    'Silent NSIS lifecycle is exercised; graphical installer wizard and code signing are not covered.'
+    'Silent NSIS lifecycle is exercised; graphical installer wizard, antivirus clearance and SmartScreen reputation are not covered.'
+    $(if ($signatureContext) { 'Expected signer and trusted timestamps are required for installer and installed app/API/uninstaller; no signing key is accessed.' } else { 'Unsigned developer mode: code signing is not covered and this is not signed-release acceptance.' })
   )
 }
 $driver = $null
@@ -90,6 +106,9 @@ function Install-Candidate([string]$Path) {
   Run-Installer $Path @('/S', "/D=$installDir")
   foreach ($name in @('luci.exe','luci-api.exe','runtime\images\sandbox\Dockerfile','licenses\manifest.json','cloud\luci-cloud-linux-amd64.tar.gz')) {
     if (-not (Test-Path -LiteralPath (Join-Path $installDir $name))) { throw "Installed resource is missing: $name" }
+  }
+  if ($signatureContext) {
+    $receipt.signatureFiles += @(Confirm-LuciInstalledWindowsSignatures $installDir $signatureContext)
   }
 }
 function Run-UI([string]$Mode, [string]$PassName, [string]$ExpectedVersion = '') {
@@ -208,6 +227,11 @@ try {
   $script:stage = 'uninstall'
   $uninstallers = @(Get-ChildItem -LiteralPath $installDir -File -Filter '*uninstall*.exe')
   if ($uninstallers.Count -ne 1) { throw 'Expected one installed NSIS uninstaller.' }
+  if ($signatureContext) {
+    # Recheck the exact executable immediately before invoking it, including
+    # after the same-version reinstall. A failure never reaches Run-Installer.
+    $receipt.signatureFiles += Confirm-LuciWindowsSignature $uninstallers[0].FullName $signatureContext 'uninstaller-before-execution'
+  }
   Run-Installer $uninstallers[0].FullName @('/S')
   # The NSIS launcher may return before its copied uninstaller completes. The
   # executable is removed before thousands of bundled resource files; wait for
