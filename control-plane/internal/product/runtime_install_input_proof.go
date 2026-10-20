@@ -21,17 +21,18 @@ func validateRuntimeJobKind(j RuntimeJob) error {
 func (s *Server) installRuntimeInputProof(w http.ResponseWriter,r *http.Request,p runtimeinstall.BundledDebianInputProofProfile){
  s.mu.RLock();rt:=s.runtimeInstall.runtime;closed:=s.runtimeInstall.closed;s.mu.RUnlock()
  if closed || rt.CaptureActor==nil || rt.ProveDebianInputs==nil {problem(w,503,"runtime_input_proof_unavailable",runtimeinstall.ErrInputProofUnavailable.Error());return}
+ limits,valid:=runtimeinstall.DebianInputProofLimits(p.Purpose);if !valid{problem(w,503,"runtime_input_proof_unavailable",runtimeinstall.ErrInputProofUnavailable.Error());return}
  actor,err:=rt.CaptureActor(r.Context());if err!=nil{problem(w,403,"runtime_forbidden",err.Error());return}
  // Serialize the initial durable binding before exposing its cancellable job.
  // No Product state lock is held while waiting for persistence or doing IO.
  s.runtimeInstall.proofIO.Lock()
  s.mu.Lock()
  if s.runtimeInstall.closed || s.runtimeInstall.done!=nil || runtimeInstallActive(s.runtimeJob.Status) || runtimeInstallUnresolved(s.runtimeJob){j:=s.runtimeJob;s.mu.Unlock();s.runtimeInstall.proofIO.Unlock();writeJSON(w,202,j);return}
- now:=time.Now().UTC();id:=runtimeinstall.DebianInputProofIdentity{JobID:newID("runtime-"),JobGeneration:newID("generation-"),RunID:newID("proof-"),AllocationID:newID("native-"),ProfileID:p.ID,ProfileSHA256:p.SHA256,SourceSHA256:p.SourceSHA256}
+ now:=time.Now().UTC();id:=runtimeinstall.DebianInputProofIdentity{Purpose:p.Purpose,JobID:newID("runtime-"),JobGeneration:newID("generation-"),RunID:newID("proof-"),AllocationID:newID("native-"),ProfileID:p.ID,ProfileSHA256:p.SHA256,SourceSHA256:p.SourceSHA256}
  out:=runtimeinstall.DebianInputProofOutcome{Identity:id,Phase:"queued",Message:"Checking the bundled input proof profile before reserving native resources."}
  j:=RuntimeJob{ID:id.JobID,OperationKind:runtimeinstall.DebianInputProofKind,InputProof:&out,Status:"installing",Message:out.Message,CreatedAt:now,UpdatedAt:now}
- ctx,cancel:=context.WithTimeout(context.Background(),60*time.Second);done:=make(chan struct{})
- s.runtimeJob=j;s.runtimeInstall.cancel,s.runtimeInstall.done=cancel,done;s.runtimeInstall.proof=&runtimeInputProofOwnership{identity:id,deadline:now.Add(40*time.Second),projectsRoot:s.config.ProjectsDir,runtimeRoot:s.runtimeDir};s.mu.Unlock()
+ ctx,cancel:=context.WithTimeout(context.Background(),limits.Whole);done:=make(chan struct{})
+ s.runtimeJob=j;s.runtimeInstall.cancel,s.runtimeInstall.done=cancel,done;s.runtimeInstall.proof=&runtimeInputProofOwnership{identity:id,deadline:now.Add(limits.Work),projectsRoot:s.config.ProjectsDir,runtimeRoot:s.runtimeDir};s.mu.Unlock()
  err=atomicJSON(filepath.Join(s.stateDir,"runtime-install.json"),j)
  s.runtimeInstall.proofIO.Unlock()
  if err!=nil {cancel();s.mu.Lock();s.runtimeInstall.proof.invalid.Store(true);s.runtimeJob.Status="unknown";s.runtimeInstall.cancel,s.runtimeInstall.done=nil,nil;close(done);s.mu.Unlock();problem(w,500,"runtime_save_failed",err.Error());return}

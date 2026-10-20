@@ -83,6 +83,16 @@ func TestDebianProducerNativeClaimPersistsInBothViewsAndWorkerAdmission(t *testi
 func nativeLeaseFixture()debianInputProofExecutionLease{
  now:=time.Now().UTC();return debianInputProofExecutionLease{Scope:strings.Repeat("a",64),ID:"native-fixture",Actor:management.ExecutionActorRef{Local:true},Identity:runtimeinstall.DebianInputProofIdentity{JobID:"j",JobGeneration:"g",RunID:"r",AllocationID:"native-fixture",ProfileID:"p",ProfileSHA256:strings.Repeat("b",64),SourceSHA256:strings.Repeat("c",64),OwnerPID:123,OwnerCreationTime:456},Resources:backend.Resources{MemoryMiB:192,CPUMillis:1000},State:"unknown",DiskBytes:70<<20,CreatedAt:now,WholeDeadline:now.Add(60*time.Second)}
 }
+
+func TestDebianBinaryLeaseCannotBorrowSignatureCeilings(t *testing.T){
+ row:=nativeLeaseFixture();row.Identity.Purpose=runtimeinstall.DebianBinaryInputProofPurpose;row.Resources.MemoryMiB=2048;row.DiskBytes=128<<20;row.WholeDeadline=row.CreatedAt.Add(420*time.Second)
+ if !validDebianInputProofLease(row){t.Fatal("fixed binary lease refused")}
+ for _,kind:=range []string{"memory","deadline","second-child","unknown-purpose"}{t.Run(kind,func(t *testing.T){
+  bad:=row;switch kind{case "memory":bad.Resources.MemoryMiB=192;case "deadline":bad.WholeDeadline=bad.WholeDeadline.Add(time.Nanosecond);case "second-child":bad.Children=[]debianInputProofChildIdentity{{0,1,1},{1,2,2}};case "unknown-purpose":bad.Identity.Purpose="arbitrary"}
+  if validDebianInputProofLease(bad){t.Fatal("binary resource or ordinal contract widened")}
+ })}
+ legacy:=row;legacy.Identity.Purpose="";if validDebianInputProofLease(legacy){t.Fatal("binary memory/deadline relabelled signature")}
+}
 func TestDebianProducerUnknownLeaseDecoderViewsAndDemand(t *testing.T){
  row:=nativeLeaseFixture();ledger:=executionLeaseLedger{Version:1,Leases:[]executionLease{},InputProofs:[]debianInputProofExecutionLease{row}};data,_:=json.Marshal(ledger);decoded,e:=decodeExecutionLedger(data);if e!=nil||executionLeaseCount(decoded)!=1{t.Fatal(e)}
  view:=&executionReservationView{};addDebianInputProofReservationView(view,decoded.InputProofs);if view.Count!=1||view.MemoryMiB!=192||view.CPUMillis!=1000{t.Fatal("unknown demand disappeared")}

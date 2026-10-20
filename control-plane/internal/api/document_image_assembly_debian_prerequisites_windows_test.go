@@ -29,6 +29,25 @@ func TestDebianHostProductionEntryRefusesAbsentCensus(t *testing.T){
 	if _,e:=observeDebianHostPrerequisites(context.Background(),a.owner,a.requirements);e!=errDebianHostCensus{t.Fatalf("missing census did not refuse: %v",e)}
 }
 
+func TestDebianHostSameOwnerIssuanceIsOneShotAndRetained(t *testing.T){
+ a:=fakeDebianHostAttempt(false);o:=a.owner;o.census=newDebianProofNativeCensus(o)
+ issued,err:=o.reserveHostObservation(context.Background(),a.requirements)
+ if err!=nil||issued==nil||o.hostObservation!=issued||issued.owner!=o||o.census.reserved!=0{t.Fatal("fixed host backing was not retained before query",err)}
+ if _,err=o.reserveHostObservation(context.Background(),a.requirements);err==nil{t.Fatal("host attempt replayed")}
+ if o.hostObservationSettled(){t.Fatal("unreturned query backing called settled")}
+ events:=[]string{};if _,err=issued.collectFixedQueries(context.Background(),fakeDebianHostCalls(&events));err!=nil{t.Fatal(err)}
+ if !o.hostObservationSettled()||len(events)!=3{t.Fatal("actual fake returns not reflected in settlement")}
+ o.retireHostObservation();if !issued.retired||o.hostObservation!=issued{t.Fatal("retirement dropped original backing")}
+}
+
+func TestDebianHostIssuanceRefusesRetiredForeignAndCancelledOwners(t *testing.T){
+ for _,kind:=range []string{"foreign-census","retired","cancelled","requirements"}{t.Run(kind,func(t *testing.T){
+  a:=fakeDebianHostAttempt(false);o:=a.owner;o.census=newDebianProofNativeCensus(o);ctx,cancel:=context.WithCancel(context.Background());defer cancel()
+  switch kind{case "foreign-census":o.census.owner=&debianProofNativeOwner{};case "retired":o.stopped.Store(true);case "cancelled":cancel();case "requirements":a.requirements.minimumBuild=0}
+  if got,err:=o.reserveHostObservation(ctx,a.requirements);err==nil||got!=nil||o.hostObservation!=nil{t.Fatal("refused issuer retained fake authority")}
+ })}
+}
+
 func TestDebianHostFixedFakeQueryOrderAndConditionalGuest(t *testing.T){
 	for _,guest:=range []bool{false,true}{
 		a:=fakeDebianHostAttempt(guest);events:=[]string{};f,e:=a.collectFixedQueries(context.Background(),fakeDebianHostCalls(&events));if e!=nil{t.Fatal(e)}

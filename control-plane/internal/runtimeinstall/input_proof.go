@@ -11,11 +11,23 @@ import (
 
 const DebianInputProofKind = "document-input-proof"
 const DebianInputProofProtocol = "luci-debian-signature-go-owner-v1"
+// Empty purpose preserves the original ten-stage signature proof. A binary
+// proof is a separate captured resource contract, never an argv override.
+const DebianBinaryInputProofPurpose = "binary-bindings"
+type InputProofLimits struct { Children,MemoryMiB,CPUMillis int; DiskBytes uint64; Work,Whole time.Duration }
+func DebianInputProofLimits(purpose string)(InputProofLimits,bool){
+ switch purpose {
+ case "":return InputProofLimits{10,192,1000,70<<20,40*time.Second,60*time.Second},true
+ case DebianBinaryInputProofPurpose:return InputProofLimits{1,2048,1000,128<<20,300*time.Second,420*time.Second},true
+ default:return InputProofLimits{},false
+ }
+}
 var ErrInputProofUnavailable = errors.New("the application-pinned Debian proof profile and licensed tool closure are unavailable")
 var ErrInputProofOwnership = errors.New("the current installer no longer owns this input proof")
 
 type InputProofCAS struct { Revision uint64 `json:"revision"`; Digest string `json:"digest"` }
 type DebianInputProofIdentity struct {
+ Purpose string `json:"purpose,omitempty"`
  JobID string `json:"jobId"`
  JobGeneration string `json:"jobGeneration"`
  RunID string `json:"runId"`
@@ -46,6 +58,7 @@ type PublishDebianInputProof func(DebianInputProofOutcome) error
 // trust root. Browser input cannot supply this descriptor or its root directory.
 type DebianInputProofFile struct { Role string `json:"role"`; RelativePath string `json:"relativePath"`; Bytes int64 `json:"bytes"`; SHA256 string `json:"sha256"` }
 type BundledDebianInputProofProfile struct {
+ Purpose string `json:"purpose,omitempty"`
  ID string `json:"id"`
  Protocol string `json:"protocol"`
  SHA256 string `json:"sha256"`
@@ -57,6 +70,7 @@ type BundledDebianInputProofProfile struct {
 func InputProofHex(s string) bool { return len(s)==64 && strings.Trim(s,"0123456789abcdef")=="" }
 func inputProofID(s string)bool{return len(s)>0&&len(s)<=128&&strings.Trim(s,"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")==""}
 func ValidInputProofIdentity(v DebianInputProofIdentity) bool {
+ if _,ok:=DebianInputProofLimits(v.Purpose);!ok{return false}
  return inputProofID(v.JobID) && inputProofID(v.JobGeneration) && inputProofID(v.RunID) && inputProofID(v.AllocationID) && inputProofID(v.ProfileID) && InputProofHex(v.ProfileSHA256) && InputProofHex(v.SourceSHA256) && ((v.ExpectedCAS.Revision==0 && v.ExpectedCAS.Digest=="") || (v.ExpectedCAS.Revision>0 && InputProofHex(v.ExpectedCAS.Digest))) && ((v.OwnerPID==0)==(v.OwnerCreationTime==0))
 }
 func SameInputProofOperation(a,b DebianInputProofIdentity) bool {

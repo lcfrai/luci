@@ -44,6 +44,22 @@ func TestRuntimeInputProofCurrentGenerationAndOnceOnlyPermits(t *testing.T){
  target:=runtimeinstall.InputProofCAS{Revision:2,Digest:strings.Repeat("d",64)};p,e:=s.BeginRuntimeInputProofAdoption(context.Background(),req.Identity,target);if e!=nil{t.Fatal(e)}
  s.mu.Lock();s.runtimeInstall.proof.invalid.Store(true);s.mu.Unlock();if p.Current()||p.Finish(target,nil)==nil{t.Fatal("retirement became publication success")}
 }
+
+func TestRuntimeBinaryProofCapturesPurposeAndSingleResume(t *testing.T){
+ s,mux:=proofProductFixture(t);bundledDebianProofProfiles[0].Purpose=runtimeinstall.DebianBinaryInputProofPurpose
+ started,release:=make(chan runtimeinstall.DebianInputProofRequest,1),make(chan struct{})
+ s.SetRuntimeInstaller(runtimeinstall.Runtime{CaptureActor:runtimeActorFixture,ProveDebianInputs:func(ctx context.Context,req runtimeinstall.DebianInputProofRequest,_ runtimeinstall.PublishDebianInputProof)(runtimeinstall.DebianInputProofOutcome,error){started<-req;select{case<-release:case<-ctx.Done():};return runtimeinstall.DebianInputProofOutcome{Identity:req.Identity,Phase:"cancelled",CleanupConfirmed:true},nil}})
+ journeyRequest(t,mux,"POST","/v1/setup/runtime/install",map[string]any{},202);req:=<-started;defer close(release)
+ if req.Identity.Purpose!=runtimeinstall.DebianBinaryInputProofPurpose{t.Fatal("purpose was not captured")}
+ s.mu.RLock();deadline:=s.runtimeInstall.proof.deadline;s.mu.RUnlock()
+ if time.Until(deadline)<290*time.Second||time.Until(deadline)>300*time.Second{t.Fatal("binary work reused signature clock")}
+ wrong:=req.Identity;wrong.Purpose="";if s.CheckRuntimeInputProofCurrent(context.Background(),wrong)==nil{t.Fatal("purpose substituted on current operation")}
+ target:=runtimeinstall.InputProofCAS{Revision:2,Digest:strings.Repeat("d",64)}
+ if _,e:=s.BeginRuntimeInputProofAdoption(context.Background(),req.Identity,target);e==nil{t.Fatal("adoption before original resume")}
+ permit,e:=s.BeginRuntimeInputProofResume(context.Background(),req.Identity,0);if e!=nil||permit.Finish(true)!=nil{t.Fatal("single binary resume refused",e)}
+ if _,e=s.BeginRuntimeInputProofResume(context.Background(),req.Identity,1);e==nil{t.Fatal("second binary child admitted")}
+ if _,e=s.BeginRuntimeInputProofAdoption(context.Background(),req.Identity,target);e!=nil{t.Fatal("completed single stage did not permit exact adoption",e)}
+}
 func TestRuntimeInputProofPersistenceCannotBlockCancelLatch(t *testing.T){
  s,mux:=proofProductFixture(t);started,cancelled:=make(chan runtimeinstall.DebianInputProofRequest,1),make(chan struct{})
  s.SetRuntimeInstaller(runtimeinstall.Runtime{CaptureActor:runtimeActorFixture,ProveDebianInputs:func(ctx context.Context,req runtimeinstall.DebianInputProofRequest,_ runtimeinstall.PublishDebianInputProof)(runtimeinstall.DebianInputProofOutcome,error){started<-req;<-ctx.Done();close(cancelled);return runtimeinstall.DebianInputProofOutcome{Identity:req.Identity,Phase:"cancelled",CleanupConfirmed:true},nil}})

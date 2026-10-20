@@ -81,11 +81,31 @@ type debianHostObservationAttempt struct {
 	facts debianHostFacts
 }
 
-// This is the only production collection entry. Missing real receiver issuance
-// remains refusal. A future integration must replace this boundary only after
-// exact owner/identity/census registration, never with a bool or fake issuer.
-func observeDebianHostPrerequisites(context.Context, *debianProofNativeOwner, debianHostRequirements) (debianHostFacts,error) {
-	return debianHostFacts{},errDebianHostCensus
+// The same retained producer owns this one fixed query attempt. Register its
+// backing before the first synchronous OS call; cancellation only latches it.
+// These queries create no kernel HANDLEs and cannot release census slots.
+func observeDebianHostPrerequisites(ctx context.Context, o *debianProofNativeOwner, r debianHostRequirements) (debianHostFacts,error) {
+	a,err:=o.reserveHostObservation(ctx,r);if err!=nil{return debianHostFacts{},err}
+	return a.collectFixedQueries(ctx,fixedDebianHostPlatformCalls())
+}
+
+func(o *debianProofNativeOwner)reserveHostObservation(ctx context.Context,r debianHostRequirements)(*debianHostObservationAttempt,error){
+	if o==nil||ctx==nil||ctx.Err()!=nil||!r.valid()||o.census==nil{return nil,errDebianHostCensus}
+	c:=o.census;c.mu.Lock();defer c.mu.Unlock()
+	if c.owner!=o||c.retiring||o.nativeRetired()||!time.Now().Before(o.workLimit())||o.hostObservation!=nil{return nil,errDebianHostCensus}
+	a:=&debianHostObservationAttempt{owner:o,requirements:r,workDeadline:o.workLimit(),wholeDeadline:o.wholeDeadline}
+	o.hostObservation=a
+	return a,nil
+}
+
+func(o *debianProofNativeOwner)retireHostObservation(){
+	if o==nil||o.census==nil{return};o.census.mu.Lock();a:=o.hostObservation;o.census.mu.Unlock()
+	if a!=nil{a.requestRetirement()}
+}
+
+func(o *debianProofNativeOwner)hostObservationSettled()bool{
+	if o==nil||o.census==nil{return false};o.census.mu.Lock();a:=o.hostObservation;o.census.mu.Unlock()
+	if a==nil{return true};a.mu.Lock();defer a.mu.Unlock();return a.returned&&!a.pending
 }
 
 func (a *debianHostObservationAttempt) current(ctx context.Context) bool {

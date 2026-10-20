@@ -84,6 +84,7 @@ type debianProofNativeOwner struct {
  lifetimes []*debianProofLifetime
  produced []*debianProofProducedFile
  binarySpools []*debianBinarySpoolSet
+ hostObservation *debianHostObservationAttempt
  stopped atomic.Bool
  stopOnce sync.Once
  stopWatch chan struct{}
@@ -131,6 +132,7 @@ func(o *debianProofNativeOwner) retire(){
  for _,j:=range jobs{o.requestJobRetirement(j)}
  o.retireBinaryTransports()
  o.retireBinarySpools()
+ o.retireHostObservation()
  o.retireSourceAdmissions()
 }
 // Called under this exact original Job's mutex. Each Job has at most two
@@ -162,6 +164,7 @@ func(o *debianProofNativeOwner)acknowledgeOriginalCreate(ordinal int,pi windows.
  if borrow!=nil{go o.terminateOriginalJob(borrow)}
 }
 func(o *debianProofNativeOwner) settle()bool{
+ if !o.hostObservationSettled(){return false}
  if !o.observerStarted.Load(){return len(o.jobs)==0&&len(o.lifetimes)==0&&o.processCensusSettled()}
  o.stopOnce.Do(func(){close(o.stopWatch)});left:=time.Until(o.wholeDeadline);if left<=0{return false}
  select{case<-o.watchDone:case<-time.After(left):return false}

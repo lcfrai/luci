@@ -1,6 +1,16 @@
 package runtimeinstall
 
-import("strings";"testing")
+import("strings";"testing";"time")
+
+func TestInputProofPurposeKeepsSeparateFiniteContracts(t *testing.T){
+ legacy,ok:=DebianInputProofLimits("");if !ok||legacy.Children!=10||legacy.MemoryMiB!=192||legacy.Work!=40*time.Second||legacy.Whole!=60*time.Second{t.Fatal("legacy limits changed")}
+ binary,ok:=DebianInputProofLimits(DebianBinaryInputProofPurpose);if !ok||binary.Children!=1||binary.MemoryMiB!=2048||binary.CPUMillis!=1000||binary.Work!=300*time.Second||binary.Whole!=420*time.Second{t.Fatal("binary arm not finite and separate")}
+ if _,ok:=DebianInputProofLimits("binary");ok{t.Fatal("unknown purpose admitted")}
+ id:=DebianInputProofIdentity{JobID:"j",JobGeneration:"g",RunID:"r",AllocationID:"a",ProfileID:"p",ProfileSHA256:strings.Repeat("a",64),SourceSHA256:strings.Repeat("b",64)}
+ other:=id;other.Purpose=DebianBinaryInputProofPurpose
+ if !ValidInputProofIdentity(other)||SameInputProofOperation(id,other){t.Fatal("purpose was not captured in operation identity")}
+ other.Purpose="unknown";if ValidInputProofIdentity(other){t.Fatal("unknown purpose accepted")}
+}
 
 func TestInputProofIdentityAllowsOnlyOnceKnownBinding(t *testing.T){
  id:=DebianInputProofIdentity{JobID:"j",JobGeneration:"g",RunID:"r",AllocationID:"a",ProfileID:"p",ProfileSHA256:strings.Repeat("a",64),SourceSHA256:strings.Repeat("b",64)}
