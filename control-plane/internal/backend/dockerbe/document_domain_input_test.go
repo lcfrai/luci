@@ -20,10 +20,21 @@ func TestDocumentDomainInputMetadataDemand(t *testing.T){
 	inputs:=[]backend.DomainInput{domainTestInput("base","base/image.tar",123),domainTestInput("wheel","wheels/package.whl",456)}
 	demand,err:=PlanDocumentDomainInputs(root,inputs)
 	if err!=nil{t.Fatal(err)}
-	if demand.Inputs!=2||demand.DeclaredBytes!=579||demand.OriginalHandles<6||demand.OriginalHandles>backend.DocumentDomainInputHandleLimit||demand.BlockBytes!=64<<10||demand.ReadCalls!=131072||demand.ReadBytes!=2<<30{t.Fatalf("unexpected finite demand: %+v",demand)}
+	if demand.Inputs!=2||demand.DeclaredBytes!=579||demand.OriginalHandles<6||demand.OriginalHandles>backend.DocumentDomainInputHandleLimit||demand.BlockBytes!=64<<10||demand.ReadCalls!=1048576||demand.ReadBytes!=64<<30{t.Fatalf("unexpected finite demand: %+v",demand)}
 	p,err:=planDocumentDomainInputs(root,inputs);if err!=nil{t.Fatal(err)}
 	inputs[0].Role="mutated"
 	if p.inputs[0].Role!="base"{t.Fatal("plan aliases caller metadata")}
+}
+
+func TestDocumentDomainSourceRetentionDoesNotAuthorizeLargeReadBuffers(t *testing.T){
+	root:=filepath.Join(t.TempDir(),"root")
+	inputs:=[]backend.DomainInput{domainTestInput("chromium","source/chromium.tar.xz",8<<30),domainTestInput("pdfium","source/pdfium.tar.xz",7<<30)}
+	demand,err:=PlanDocumentDomainInputs(root,inputs)
+	if err!=nil||demand.DeclaredBytes!=15<<30||demand.ReadBytes!=64<<30||demand.ReadCalls!=1048576||demand.ReadBufferBytes!=2*(64<<10){t.Fatalf("large original streaming demand unavailable: %+v %v",demand,err)}
+	// Numeric request validation, no multi-gigabyte fixture or allocation.
+	if !validDomainReadAtBytes(128<<20)||validDomainReadAtBytes((128<<20)+1)||validDomainReadAtBytes(8<<30)||validDomainReadAtBytes(-1){t.Fatal("source-retention envelope leaked into caller-buffer authority")}
+	inputs=append(inputs,domainTestInput("third","source/third.tar.xz",2<<30))
+	if _,err=PlanDocumentDomainInputs(root,inputs);err==nil{t.Fatal("16GiB unique retained-input ceiling widened")}
 }
 
 func TestDocumentDomainInputMetadataRefusesAmbiguityAndEnvelope(t *testing.T){

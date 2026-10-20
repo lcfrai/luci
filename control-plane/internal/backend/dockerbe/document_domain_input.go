@@ -71,6 +71,8 @@ func domainRelativePath(value string) bool {
 	return true
 }
 
+func validDomainReadAtBytes(count int64)bool{return count>=0&&count<=backend.DocumentDomainInputReadAtBytes}
+
 // Open returns a partial owner with an error whenever acquisition began. Its
 // opening context must have a deadline and must remain live for all inspection.
 // Callers must retain the owner on any failed Close; no admission is supplied.

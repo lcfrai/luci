@@ -285,7 +285,7 @@ func(r *domainInputReader)ReadAt(dst []byte,offset int64)(int,error){
 	s:=r.owner
 	if err:=s.enter(r.ctx);err!=nil{return 0,err};defer func(){<-s.gate}()
 	size:=int64(uint64(r.file.info.FileSizeHigh)<<32|uint64(r.file.info.FileSizeLow))
-	if offset<0||len(dst)>int(backend.DocumentDomainInputFileBytes){return 0,backend.ErrUnsupported}
+	if offset<0||!validDomainReadAtBytes(int64(len(dst))){return 0,backend.ErrUnsupported}
 	if len(dst)==0{return 0,nil};if offset>=size{return 0,io.EOF}
 	limit:=len(dst);if int64(limit)>size-offset{limit=int(size-offset)}
 	n:=0
