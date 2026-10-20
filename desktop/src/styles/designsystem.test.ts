@@ -21,6 +21,7 @@
 
 import { describe, expect, it } from "vitest";
 import { findHexLiterals, stripCssComments } from "../test/fakes";
+import { designSceneErrors, newDesignFrame, newDesignNode } from "../api/designScene";
 
 const CSS_RAW = import.meta.glob<string>("/src/**/*.css", {
   query: "?raw",
@@ -60,6 +61,10 @@ function read(file: string): string {
 }
 
 const TOKENS = "src/styles/tokens.css";
+const SCENE_MODEL = "src/api/designScene.ts";
+/** Persisted scalar document data, not editor chrome. Keep the exception private, immutable,
+ *  exact in value and location; everything outside this single declaration is still audited. */
+const SCENE_PALETTE_DECLARATION = /^const DESIGN_SCENE_DOCUMENT_PALETTE = Object\.freeze\(\{\n  paper: '#ffffff', ink: '#18181b', shape: '#e4e4e7', stroke: '#a1a1aa',\n\}\);$/m;
 
 /** What a rule reads: the real tree, or the real tree with one file planted or replaced. Every
  *  rule below takes one, so that the canaries at the bottom of this file can hand it the fault
@@ -254,7 +259,9 @@ function hexInStylesheets(t: Tree): string[] {
 function hexInSource(t: Tree): string[] {
   const offenders: string[] = [];
   for (const file of t.ts) {
-    for (const hex of findHexLiterals(t.read(file))) offenders.push(`${file}  ${hex}`);
+    const source = t.read(file).replace(/\r\n/g, "\n");
+    const chrome = file === SCENE_MODEL ? source.replace(SCENE_PALETTE_DECLARATION, "") : source;
+    for (const hex of findHexLiterals(chrome)) offenders.push(`${file}  ${hex}`);
   }
   return offenders;
 }
@@ -612,11 +619,29 @@ describe("the design-system audit", () => {
     expect(hexInStylesheets(REAL)).toEqual([]);
   });
 
-  it("uses no literal hex in any non-test source file", () => {
+  it("uses no literal hex outside the exact persisted Design document palette", () => {
     // Task 19 already lives by this rule: xterm cannot read a CSS variable, so its theme is
     // resolved from the token layer at construction rather than hard-coded. Any red here is
-    // fixed the same way, never by widening the exclusion list.
+    // fixed the same way. Saved Design colours instead cross a literal-only wire schema;
+    // only their exact private data declaration is removed, never the surrounding source file.
     expect(hexInSource(REAL)).toEqual([]);
+    expect(read(SCENE_MODEL).replace(/\r\n/g, "\n")).toMatch(SCENE_PALETTE_DECLARATION);
+  });
+
+  it("keeps the persisted Design palette schema-valid and independent of the editor theme", () => {
+    const frame = newDesignFrame({id: "screen-home", name: "Home", route: "/", purpose: "Home screen", states: [], widths: [390], requirementIds: [], accessibility: "Keyboard navigation"});
+    const kinds = ["rectangle", "text", "button", "input", "divider"] as const;
+    frame.nodes = kinds.map(kind => newDesignNode(kind, frame));
+    expect(frame.background).toBe("#ffffff");
+    expect(frame.nodes.map(node => [node.style.fill, node.style.stroke, node.style.color])).toEqual([
+      ["#e4e4e7", "transparent", "#18181b"],
+      ["transparent", "transparent", "#18181b"],
+      ["#18181b", "transparent", "#ffffff"],
+      ["transparent", "#a1a1aa", "#18181b"],
+      ["#e4e4e7", "transparent", "#18181b"],
+    ]);
+    expect(designSceneErrors(JSON.parse(JSON.stringify({version: 1, frames: [frame]})))).toEqual([]);
+    expect(designSceneErrors({version: 1, frames: [{...frame, background: "var(--surface)"}]})).not.toEqual([]);
   });
 
   it("contains the indigo/violet tell nowhere at all", () => {
@@ -762,6 +787,10 @@ const loopFaults = (t: Tree): string[] => loops(t).offenders;
 const CANARIES: Canary[] = [
   { fault: "a hex in a stylesheet", rule: hexInStylesheets, file: PLANT_CSS, text: sheet(".p { color: #ff0000; }") },
   { fault: "a hex in source", rule: hexInSource, file: PLANT_TSX, text: 'export const INK = "#ff0000";\n' },
+  { fault: "a changed persisted Design palette value", rule: hexInSource, file: SCENE_MODEL, text: read(SCENE_MODEL).replace("'#ffffff'", "'#fefefe'") },
+  { fault: "a literal outside the persisted Design palette in its own model", rule: hexInSource, file: SCENE_MODEL, text: `${read(SCENE_MODEL)}\nconst chrome = "#ffffff";\n` },
+  { fault: "the persisted Design palette copied to a component", rule: hexInSource, file: PLANT_TSX, text: read(SCENE_MODEL) },
+  { fault: "an exported persisted Design palette available to chrome", rule: hexInSource, file: SCENE_MODEL, text: read(SCENE_MODEL).replace("const DESIGN_SCENE_DOCUMENT_PALETTE", "export const DESIGN_SCENE_DOCUMENT_PALETTE") },
   // Upper case on purpose: the tell is banned by value, however it is spelled.
   { fault: "the tell #6366f1", rule: violetTell, file: PLANT_TSX, text: 'export const A = "#6366F1";\n' },
   { fault: "the tell #8b5cf6", rule: violetTell, file: PLANT_TSX, text: 'export const B = "#8b5cf6";\n' },

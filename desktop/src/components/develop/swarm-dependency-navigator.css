@@ -6,7 +6,7 @@
 .swarm-fleet-overview .luci-ui-button { min-block-size: 44px; padding: 8px 10px; }
 .swarm-fleet-overview .luci-ui-button > span { display: flex; align-items: center; gap: 8px; }
 .swarm-fleet-overview button[aria-pressed="true"] { border-color: var(--accent); background: var(--inset); }
-.swarm-fleet-overview strong { font-variant-numeric: tabular-nums; }
+.swarm-fleet-overview strong { font-variant-numeric: var(--numeric); }
 .swarm-navigator-filters { display: flex; flex-wrap: wrap; gap: 12px; }
 .swarm-navigator-filters label { display: grid; gap: 4px; min-inline-size: 0; font-size: 13px; flex: 1 1 180px; }
 .swarm-navigator select { min-block-size: 44px; inline-size: 100%; border: 1px solid var(--line-soft); border-radius: var(--r-ctl); background: var(--surface); color: var(--ink); padding: 8px; }

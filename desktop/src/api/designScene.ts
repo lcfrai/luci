@@ -19,6 +19,11 @@ export interface EditableDesignScene { version: 1; frames: DesignSceneFrame[] }
 export interface DesignRasterPin {
   sourceCommit: string; gitBlob: string; digest: string; mimeType: 'image/png' | 'image/jpeg'; bytes: number; width: number; height: number;
 }
+/** Saved document data, independent of the editor theme. The scene wire schema accepts
+ * literal colours, not CSS variables; the design-system audit pins this exact palette. */
+const DESIGN_SCENE_DOCUMENT_PALETTE = Object.freeze({
+  paper: '#ffffff', ink: '#18181b', shape: '#e4e4e7', stroke: '#a1a1aa',
+});
 const fields = (value: object, names: string[]) => Object.keys(value).every(name => names.includes(name));
 const integer = (value: unknown, min: number, max: number): value is number => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= max;
 const text = (value: unknown, max: number): value is string => typeof value === 'string' && new TextEncoder().encode(value).length <= max && !value.includes('\0');
@@ -77,14 +82,14 @@ export function designSceneErrors(scene: unknown, plan?: Pick<DesignPlan, 'scree
 export const editableDesignSceneValid = (value: unknown): value is EditableDesignScene => designSceneErrors(value).length === 0;
 export const newDesignId = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 12)}`;
 export function newDesignFrame(screen: DesignPlan['screens'][number]): DesignSceneFrame {
-  return {id: newDesignId('frame'), name: screen.name || 'Untitled screen', screenId: screen.id, state: '', width: screen.widths[0] || 390, height: 844, background: '#ffffff', nodes: []};
+  return {id: newDesignId('frame'), name: screen.name || 'Untitled screen', screenId: screen.id, state: '', width: screen.widths[0] || 390, height: 844, background: DESIGN_SCENE_DOCUMENT_PALETTE.paper, nodes: []};
 }
 export function newDesignNode(kind: Exclude<DesignNodeKind, 'image'>, frame: DesignSceneFrame): DesignSceneNode {
   const width = Math.min(kind === 'text' ? 240 : 160, frame.width), height = Math.min(kind === 'divider' ? 2 : kind === 'rectangle' ? 120 : 48, frame.height);
   return {id: newDesignId('node'), kind, name: kind === 'text' ? 'Text' : kind[0].toUpperCase() + kind.slice(1), x: Math.min(24, frame.width - width), y: Math.min(24, frame.height - height), width, height,
     text: kind === 'text' ? 'Edit this text' : kind === 'button' ? 'Button' : kind === 'input' ? 'Input label' : '', assetId: '', hidden: false, locked: false,
-    style: {fill: kind === 'button' ? '#18181b' : kind === 'rectangle' || kind === 'divider' ? '#e4e4e7' : 'transparent', stroke: kind === 'input' ? '#a1a1aa' : 'transparent', strokeWidth: kind === 'input' ? 1 : 0, radius: kind === 'button' || kind === 'input' ? 8 : 0,
-      color: kind === 'button' ? '#ffffff' : '#18181b', fontSize: kind === 'text' ? 24 : 16, fontWeight: 400, fontFamily: 'system', textAlign: 'left', padding: kind === 'button' || kind === 'input' ? 12 : 0, opacity: 100}, behavior: {kind: 'none', targetFrameId: ''}};
+    style: {fill: kind === 'button' ? DESIGN_SCENE_DOCUMENT_PALETTE.ink : kind === 'rectangle' || kind === 'divider' ? DESIGN_SCENE_DOCUMENT_PALETTE.shape : 'transparent', stroke: kind === 'input' ? DESIGN_SCENE_DOCUMENT_PALETTE.stroke : 'transparent', strokeWidth: kind === 'input' ? 1 : 0, radius: kind === 'button' || kind === 'input' ? 8 : 0,
+      color: kind === 'button' ? DESIGN_SCENE_DOCUMENT_PALETTE.paper : DESIGN_SCENE_DOCUMENT_PALETTE.ink, fontSize: kind === 'text' ? 24 : 16, fontWeight: 400, fontFamily: 'system', textAlign: 'left', padding: kind === 'button' || kind === 'input' ? 12 : 0, opacity: 100}, behavior: {kind: 'none', targetFrameId: ''}};
 }
 export function constrainDesignNode(node: DesignSceneNode, frame: DesignSceneFrame): DesignSceneNode {
   const width = Math.max(1, Math.min(frame.width, Math.round(node.width))), height = Math.max(1, Math.min(frame.height, Math.round(node.height)));

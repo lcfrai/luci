@@ -1,3 +1,4 @@
+@import "../../styles/tokens.css";
 .external-handoff-entry { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; border-block-end: 1px solid var(--line-soft); background: var(--surface); }
 .external-handoff-entry h2 { font-size: 16px; font-weight: 550; margin: 0 0 6px; }
 .external-handoff-entry p { margin: 0; color: var(--ink-2); max-inline-size: 68ch; line-height: 1.5; }

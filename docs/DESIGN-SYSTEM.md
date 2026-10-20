@@ -32,6 +32,8 @@ Depth comes from stacking these, not from blur.
 
 **Colour space:** OKLCH, so light and dark are derived rather than inverted. Equal numeric steps in OKLCH read as equal *perceptual* steps; hand-picked hex ramps go muddy or banded in the low-lightness range these tools live in.
 
+The token rule governs Luci's interface, not the contents of a saved Design document. The scene wire schema stores literal six-digit colours or `transparent`, so documents retain their appearance across themes and exports. `api/designScene.ts` keeps its four existing default colours in one private, frozen document palette. The audit pins those exact values and location, checks factory output against the scene schema, and still rejects literals elsewhere in that file or in interface code. This is not a second UI palette.
+
 ### Locked palette
 
 - **Base: warm graphite, not blue-tinted.** Nearly every generated dark UI is cold-tinted, so warmth reads as considered on sight.

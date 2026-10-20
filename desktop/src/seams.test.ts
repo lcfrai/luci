@@ -61,6 +61,11 @@ function text(rel: string): string {
 const DOC = "docs/SEAMS.md";
 const RESULTS = "docs/verification/2026-09-27-phase-2-results.md";
 const FENCE = "`".repeat(3);
+const DOCUMENT_CAPTURE_FILES = [
+  "control-plane/internal/backend/dockerbe/document_extractor_result.go",
+  "control-plane/internal/backend/dockerbe/document_image_assembly_stream.go",
+];
+const NATIVE_EXIT_OBSERVER = "control-plane/internal/backend/e2bbe/observation.go";
 
 /** Comments blanked, literals kept whole, newlines kept — for `absent` anchors and the tree rules.
  *  Rounds 1 to 3 shared defects.test.tsx's one-line stripper, which blanks from any `//` to the
@@ -546,6 +551,14 @@ const SEAMS: Seam[] = [
       // It owns revocation tracking, never a second terminal frame implementation.
       { file: "control-plane/internal/management/team_runtime.go", present: /^func \(g \*Gateway\) teamExecutionHandler\(ctx context\.Context, teamID string, actor User, policy Policy\) \(http\.Handler, error\) \{$/m },
       { file: "control-plane/internal/management/team_runtime.go", absent: /\bwebsocket\.|\b(?:ReadMessage|WriteMessage|RelayHooked)\b/ },
+      // These consume bounded one-shot output, never forward a terminal to another peer.
+      { file: DOCUMENT_CAPTURE_FILES[0], present: /const documentRawStreamBytes = backend\.DocumentResultMaxBytes \+ \(16 << 10\)/ },
+      { file: DOCUMENT_CAPTURE_FILES[0], present: /if stream\.used \{/ },
+      { file: DOCUMENT_CAPTURE_FILES[1], present: /if stream\.used \|\| stream\.closed \|\| sink == nil \{/ },
+      { file: DOCUMENT_CAPTURE_FILES[1], present: /r\.frames > 65536/ },
+      ...DOCUMENT_CAPTURE_FILES.map(file => ({ file, present: /container\.AttachOptions\{Stream: true, Stdout: true\}/ })),
+      { file: NATIVE_EXIT_OBSERVER, present: /kind != websocket\.MessageBinary \|\| len\(b\) == 0 \|\| observedBytes > 64<<20/ },
+      { file: NATIVE_EXIT_OBSERVER, present: /ValidateNativeExitReceipt\(receipt, r\)/ },
     ],
     // And not in another file: `func Relay(` re-added as proxy/relay.go, or a method, passed the
     // proxy.go anchors (mutation A2 of task 26's report). Any exported-style *Relay* function or
@@ -592,7 +605,15 @@ const SEAMS: Seam[] = [
         absent: /(?<!\)\s*\(\*?)\b\w+\.Conn\b/,
         // Management tracks admitted network connections for expiry and revocation,
         // while the worker's existing RelayHooked owns terminal frame transport.
-        except: ["control-plane/internal/proxy/proxy.go", "control-plane/internal/api/attach.go", "control-plane/internal/management/management.go", "control-plane/internal/management/sockets.go", "control-plane/internal/management/team_runtime.go"],
+        except: ["control-plane/internal/proxy/proxy.go", "control-plane/internal/api/attach.go", "control-plane/internal/management/management.go", "control-plane/internal/management/sockets.go", "control-plane/internal/management/team_runtime.go", ...DOCUMENT_CAPTURE_FILES],
+      },
+      {
+        dir: "control-plane",
+        // Only []net.Conn ownership lists and Docker's response.Conn field are allowed.
+        // New connection parameters/fields, websocket.Conn lists and message APIs still trip.
+        absent: /(?<!\)\s*\(\*?)\b(?!(?<=\[\])net\.Conn\b|response\.Conn\b)\w+\.Conn\b/,
+        except: [],
+        only: DOCUMENT_CAPTURE_FILES,
       },
       {
         dir: "control-plane",
@@ -631,7 +652,16 @@ const SEAMS: Seam[] = [
           "control-plane/internal/management/runtime.go",
           "control-plane/internal/management/team_runtime.go",
           "control-plane/internal/management/sockets.go",
+          NATIVE_EXIT_OBSERVER,
         ],
+      },
+      {
+        dir: "control-plane",
+        // Existing attach-protocol exit observation reads a binary discriminant only;
+        // it neither copies frames to another client nor admits text/stream/proxy APIs.
+        absent: /\b(?!websocket\.MessageBinary\b)\w+\.(?:MessageType|MessageBinary|MessageText|NetConn)\b|\bhttputil\.|\.Hijack\(/,
+        only: [NATIVE_EXIT_OBSERVER],
+        except: [],
       },
       {
         dir: "control-plane",
@@ -893,6 +923,27 @@ describe("the named seams — docs/SEAMS.md", () => {
     // A trip is not necessarily a defect: it is usually the later phase arriving. Update
     // the seam's row in docs/SEAMS.md to say where the thing now lives, then the rule.
     expect(tripped).toEqual([]);
+  });
+
+  it("S8.7 permits only the existing non-terminal capture and native-exit primitives", () => {
+    const rules = SEAMS.find(seam => seam.id === "S8.7")?.trees ?? [];
+    const trips = (file: string, source: string) => rules.some(rule =>
+      file.startsWith(`${rule.dir}/`) && !rule.except.includes(file) &&
+      (rule.only === undefined || rule.only.includes(file)) && rule.absent.test(codeOnly(source, file)));
+    expect(rules.length).toBeGreaterThan(0);
+    for (const file of DOCUMENT_CAPTURE_FILES) {
+      expect(trips(file, "type owner struct { connections []net.Conn }\nremaining := []net.Conn{}\nif response.Conn != nil { response.Close() }\nfunc dial() (net.Conn, error) { return nil, nil }"), file).toBe(false);
+      expect(trips(file, "type owner struct { connection net.Conn }"), file).toBe(true);
+      expect(trips(file, "type owner struct { connections []websocket.Conn }"), file).toBe(true);
+      expect(trips(file, "kind := websocket.MessageBinary"), file).toBe(true);
+    }
+    expect(trips(NATIVE_EXIT_OBSERVER, "if kind != websocket.MessageBinary { return ErrUnknown }")).toBe(false);
+    for (const source of ["kind := websocket.MessageText", "kind := other.MessageBinary", "conn := websocket.NetConn(ctx, socket, kind)", "proxy := httputil.NewSingleHostReverseProxy(target)"]) {
+      expect(trips(NATIVE_EXIT_OBSERVER, source), source).toBe(true);
+    }
+    const other = "control-plane/internal/backend/planted/other.go";
+    expect(trips(other, "type owner struct { connections []net.Conn }")).toBe(true);
+    expect(trips(other, "kind := websocket.MessageBinary")).toBe(true);
   });
 
   it("SX.2: types.ts is byte-identical to contract §2, line endings aside", () => {

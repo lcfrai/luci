@@ -1,3 +1,4 @@
+@import "../../styles/tokens.css";
 .discover-documents { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .discover-document-toolbar, .discover-document-pagination { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
 .discover-document-layout { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 24px; align-items: start; }
