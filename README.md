@@ -21,7 +21,9 @@ Luci coordinates existing coding harnesses; model access comes from the connecti
 
 The application source includes an all-project home with personal pins and distinct working, needs-input and recent-stopped indicators. Discover retains original documents, extracted text and reviewed corrections alongside the project conversation. Design includes a versioned canvas with direct editing, undo and interactive previews. Develop brings agent terminals, files and previews into a tiled workspace.
 
-**Distribute** provides editable artifact drafts and reviewed exports, plus a team-admin workflow for importing an XLSX control checklist, assessing evidence and proposing amendments. Source implementation and automated checks do not establish that a release package works end to end. PDF extraction, OCR and document rendering still require a verified document runtime; unavailable capabilities are shown explicitly. Package, live-provider and cross-device acceptance remain pending. See the [five-D contract and implementation map](docs/luci/FIVE-D-AMENDMENT-2026-10-15.md).
+**Distribute** provides editable artifact drafts and reviewed DOCX, PPTX, XLSX and PDF exports, plus a team-admin workflow for importing an XLSX control checklist, assessing evidence and proposing amendments. PDF export uses the release's bundled, licensed fonts and retains the draft's sources, gaps, assumptions and review state. If text cannot be represented within the supported font and layout limits, the export reports the problem and preserves the saved draft.
+
+Importing PDFs, OCR and extracting other documents use a separate verified document runtime. An available PDF export does not establish that extraction is ready. Source implementation and automated checks also do not establish that a release package works end to end; package, live-provider and cross-device acceptance remain pending. See the [five-D contract and implementation map](docs/luci/FIVE-D-AMENDMENT-2026-10-15.md).
 
 Develop is the main delivery focus: turn an approved design and team standards into coordinated coding tasks, run them in isolated environments, review and repair their results, and prove the app works. Luci aims to handle routine decisions while keeping meaningful questions, progress and outputs clear. This orchestration work is still being completed and verified; no autonomy or productivity percentage is claimed. See the [Develop implementation contract](docs/luci/DEVELOP-ORCHESTRATION-AMENDMENT-2026-10-16.md).
 
@@ -32,7 +34,7 @@ First setup offers three options:
 | Option | How it works | Availability |
 | --- | --- | --- |
 | **Local** | Luci runs on your computer. Coding work runs in isolated Docker environments with configurable CPU, memory and scheduling limits. | The local application is the current testing candidate. |
-| **Bring your own cloud** | Use your own infrastructure and account. Guided setup provides commands to prepare the environment and connect it to Luci. | Azure is the first target. Its setup and runtime integration are being prepared; live Azure acceptance is still pending. AWS is deferred. |
+| **Bring your own cloud** | Use your own infrastructure and account. Guided Azure setup prepares the environment and supplies a connection only after controller installation and finalization. | Azure is the first target; live Azure acceptance is still pending. AWS is deferred. |
 | **Luci Cloud** | A future hosted service operated by Luci. | Not available yet. We will develop and validate the service before launch. |
 
 Running an application you built and running Luci's development workers are separate choices. A deployment target does not, by itself, supply a cloud coding environment. The app should only show a connection as ready after the relevant checks succeed.
@@ -62,6 +64,8 @@ In a compatible testing build, review the saved definition, design and implement
 2. In **Background queue**, choose **Queue reviewed tasks**, review the selected work and **Authorize queued tasks**. Work waits for capacity. **Open task session** shows the parent agent's terminal; **Task result and questions** shows reported decisions and unresolved questions.
 3. Use a distinct Luci reviewer for each candidate. Inspect **Review task changes** before **Integrate reviewed changes**. A worker's reported checks are claims, and an integrated commit still needs independent checks against the combined source.
 4. Review those checks, then open the checked-source preview through **Open Deploy** when ready. Try its important user journeys; a running preview alone does not establish correctness or authorize public deployment.
+
+For unattended continuation, configure the automatic repair limit and explicitly enable repairs after settled combined-check failures before approving a fresh run. These repairs share the same per-task budget as repairs requested by an independent reviewer. Luci keeps the failed check, creates fresh coding attempts in its covered task scopes, requires new independent reviews and integrations, then checks the resulting combined source under a new check identity. Blocked, cancelled or uncertain checks require attention. Earlier run approvals do not acquire this permission when the setting changes.
 
 Shared managed ChatGPT credentials run one parent job at a time. Bounded parallel jobs require an explicitly selected supported API route, current access and available resources.
 

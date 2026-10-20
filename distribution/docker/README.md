@@ -16,9 +16,12 @@ run `./start-luci.sh`. The first
 launch builds the controller image from the included release bundle and downloads
 its pinned tools. Go, Node.js and Python are not required on your host. The launcher
 opens the first-account page using a private token without printing that token.
-Choose your own username and password, choose this computer, AWS, Azure or an
-existing workspace, and connect your coding agent through its official sign-in.
+Choose your own username and password, choose Local, guided Bring your own cloud
+(Azure first), or an existing workspace, and connect your coding agent through its official sign-in.
 There is no default account or automatic paid resource creation.
+
+Luci Cloud is not available, and AWS setup is deferred. Including cloud command-line
+tools in the image does not make those services configured or verified.
 
 The app opens at <http://127.0.0.1:8730/>. Verified application previews use the
 separate loopback gateway on port 8731. Both ports remain local to your computer.
