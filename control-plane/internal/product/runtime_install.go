@@ -50,7 +50,7 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if req.Mode != "" && req.Mode != "packaged" && req.Mode != "compressed-pull" && req.Mode != "advanced-build" {
+	if req.Mode != "" && req.Mode != "packaged" && req.Mode != "compressed-pull" && req.Mode != "advanced-build" && req.Mode!=runtimeinstall.DocumentRuntimeInstallMode {
 		problem(w, 400, "runtime_install_mode_invalid", "Select the compressed packaged runtime or an explicit diagnostic install mode.")
 		return
 	}
@@ -71,11 +71,14 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 202, active)
 		return
 	}
-	if profile,selected,err:=s.selectedRuntimeInputProofProfile();selected {
-		if err!=nil {problem(w,503,"runtime_input_proof_unavailable",err.Error());return}
-		s.installRuntimeInputProof(w,r,profile);return
+	if mode!=runtimeinstall.DocumentRuntimeInstallMode{
+		if profile,selected,err:=s.selectedRuntimeInputProofProfile();selected {
+			if err!=nil {problem(w,503,"runtime_input_proof_unavailable",err.Error());return}
+			s.installRuntimeInputProof(w,r,profile);return
+		}
 	}
-	dir, err := s.runtimeSource()
+	var dir string;var err error
+	if mode==runtimeinstall.DocumentRuntimeInstallMode{dir,err=s.documentRuntimeSource()}else{dir,err=s.runtimeSource()}
 	if err != nil {
 		problem(w, 409, "runtime_source_missing", err.Error())
 		return
@@ -107,6 +110,7 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now().UTC()
 	job := RuntimeJob{ID: newID("runtime-"), Status: "installing", Image: s.sandboxImage, Message: "Checking shared capacity before preparing the bundled runtime.", CreatedAt: now, UpdatedAt: now}
+	if mode==runtimeinstall.DocumentRuntimeInstallMode{job.OperationKind="document-runtime-image";job.Image=runtimeinstall.DocumentRuntimeImageTag;job.Message="Checking shared capacity before importing the independently verified document runtime."}
 	job.Execution = &runtimeinstall.Outcome{Identity: runtimeinstall.Identity{JobID: job.ID, ImageTag: job.Image}, Phase: "queued", Message: job.Message}
 	if err = atomicJSON(filepath.Join(s.stateDir, "runtime-install.json"), job); err != nil {
 		s.mu.Unlock()

@@ -98,6 +98,7 @@ func (a *API) captureRuntimeInstallerActor(ctx context.Context) (management.Exec
 // tag request after an uncertain acknowledgement. A finished ledger row retains
 // the engine-wide installer slot until publication is durably acknowledged.
 func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Request, publish runtimeinstall.Publish) (runtimeinstall.Outcome, error) {
+	document:=req.Mode==runtimeinstall.DocumentRuntimeInstallMode
 	out := runtimeinstall.Outcome{Identity: req.Identity, Phase: "blocked", Message: "Runtime installation has not started."}
 	fail := func(code, message string, cause error) (runtimeinstall.Outcome, error) {
 		out.ReasonCode, out.Message = code, message
@@ -108,11 +109,16 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 		}
 		return out, cause
 	}
-	if publish == nil || !checkLogicalID(req.JobID) || req.ImageTag == "" || req.SourceDirectory == "" || req.Retained() || req.EngineID != "" || req.InstanceID != "" || req.SourceDigest != "" || req.ImageID != "" || req.Mode != "" && req.Mode != "packaged" && req.Mode != "compressed-pull" && req.Mode != "advanced-build" {
+	if publish == nil || !checkLogicalID(req.JobID) || req.ImageTag == "" || req.SourceDirectory == "" || req.Retained() || req.EngineID != "" || req.InstanceID != "" || req.SourceDigest != "" || req.ImageID != "" || req.Mode != "" && req.Mode != "packaged" && req.Mode != "compressed-pull" && req.Mode != "advanced-build" && !document {
 		return fail("runtime_install_request_invalid", "The bundled runtime request is invalid; nothing was started.", backend.ErrUnsupported)
 	}
 	if _, err := a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
 		return fail("runtime_install_forbidden", "Current administrator access is required.", err)
+	}
+	if document{
+		source,err:=a.documentRuntimeDirectory()
+		if err!=nil||source!=req.SourceDirectory||req.ImageTag!=runtimeinstall.DocumentRuntimeImageTag||a.deps.DocumentRuntimeInstaller==nil{return fail("document_runtime_package_unavailable","The independently verified document runtime package and selected Docker installer are required.",backend.ErrUnsupported)}
+		req.Mode="packaged"
 	}
 	unlock, err := a.execution.lockChildLifecycle(ctx, "runtime-install-"+req.JobID)
 	if err != nil {
@@ -120,6 +126,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	}
 	defer unlock()
 	executor, ok := a.deps.Backend.(backend.RuntimeImageExecutor)
+	if document{executor,ok=a.deps.DocumentRuntimeInstaller,a.deps.DocumentRuntimeInstaller!=nil}
 	if !ok {
 		return fail("runtime_install_unsupported", "The configured engine does not support bounded runtime installation.", backend.ErrUnsupported)
 	}
@@ -155,6 +162,7 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	if req.Mode == "packaged" {
 		var supported bool
 		importer, supported = a.deps.Backend.(backend.RuntimeImageImportExecutor)
+		if document{importer,supported=a.deps.DocumentRuntimeInstaller,a.deps.DocumentRuntimeInstaller!=nil}
 		if !supported {
 			return fail("runtime_import_unsupported", "This installation cannot verify and import its packaged runtime; the advanced build was not started.", backend.ErrUnsupported)
 		}
@@ -178,8 +186,10 @@ func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Reques
 	if prepared.PullBundle != nil {
 		defer prepared.PullBundle.Close()
 	}
+	if prepared.DocumentBundle!=nil{defer prepared.DocumentBundle.Close()}
 	id := prepared.Spec.Identity
-	if id.Protocol != spec.Identity.Protocol || id.JobID != req.JobID || id.AllocationID != allocation || id.ScopeDigest != a.execution.scope || !checkHex(id.SourceDigest, 32) || id.EngineID == "" || backend.ValidateInstance(id.InstanceID) != nil || prepared.Spec.ImageTag != canonicalTag || prepared.Spec.Resources != resources || prepared.Spec.SourceDirectory != req.SourceDirectory || prepared.Spec.PullStagingDirectory != spec.PullStagingDirectory || prepared.RequiredDiskBytes < backend.RuntimeImageRequiredDiskBytes || prepared.AdmissionMemoryMiB != 0 && (prepared.AdmissionMemoryMiB < resources.MemoryMiB || prepared.AdmissionMemoryMiB > 65536) || (req.Mode == "packaged") != (prepared.Bundle != nil) || (req.Mode == "compressed-pull") != (prepared.PullBundle != nil) || req.Mode == "packaged" && (prepared.ContextDigest != id.SourceDigest || prepared.Bundle.Manifest.CanonicalInputDigest != id.SourceDigest) || req.Mode == "compressed-pull" && (prepared.ContextDigest != id.SourceDigest || prepared.PullBundle.Manifest.CanonicalInputDigest != id.SourceDigest) {
+	_,packaged:=preparedPackagedRuntimeImageID(prepared)
+	if id.Protocol != spec.Identity.Protocol || id.JobID != req.JobID || id.AllocationID != allocation || id.ScopeDigest != a.execution.scope || !checkHex(id.SourceDigest, 32) || id.EngineID == "" || backend.ValidateInstance(id.InstanceID) != nil || prepared.Spec.ImageTag != canonicalTag || prepared.Spec.Resources != resources || prepared.Spec.SourceDirectory != req.SourceDirectory || prepared.Spec.PullStagingDirectory != spec.PullStagingDirectory || prepared.RequiredDiskBytes < backend.RuntimeImageRequiredDiskBytes || prepared.AdmissionMemoryMiB != 0 && (prepared.AdmissionMemoryMiB < resources.MemoryMiB || prepared.AdmissionMemoryMiB > 65536) || (req.Mode == "packaged") != packaged || document!=(prepared.DocumentBundle!=nil) || (req.Mode == "compressed-pull") != (prepared.PullBundle != nil) || req.Mode == "packaged" && (prepared.ContextDigest != id.SourceDigest || prepared.Bundle!=nil&&prepared.Bundle.Manifest.CanonicalInputDigest != id.SourceDigest || prepared.DocumentBundle!=nil&&prepared.DocumentBundle.ManifestSHA256!=id.SourceDigest) || req.Mode == "compressed-pull" && (prepared.ContextDigest != id.SourceDigest || prepared.PullBundle.Manifest.CanonicalInputDigest != id.SourceDigest) {
 		return fail("runtime_install_identity_changed", "The prepared runtime identity changed; nothing was started.", backend.ErrLaunchFenceOwnership)
 	}
 	admit := func(afterPull bool) (executionDecision, runtimeImageExecutionLease, error) {
@@ -370,7 +380,8 @@ func (a *API) importRuntimeImage(ctx context.Context, req runtimeinstall.Request
 		}
 		return out, false, nil
 	}
-	if lease.DistributionMode != "packaged" || lease.ImportStage != "importing" || prepared.Bundle == nil {
+	packagedID,packaged:=preparedPackagedRuntimeImageID(prepared)
+	if lease.DistributionMode != "packaged" || lease.ImportStage != "importing" || !packaged {
 		return out, backend.ErrLaunchFenceOwnership
 	}
 	if _, err := a.authorizeRuntimeInstaller(ctx, req.Actor); err != nil {
@@ -380,7 +391,7 @@ func (a *API) importRuntimeImage(ctx context.Context, req runtimeinstall.Request
 	if result, done, err := settle(loaded, loadErr, "runtime_import"); done {
 		return result, err
 	}
-	if loaded.ImageID != prepared.Bundle.Manifest.Image.ID {
+	if loaded.ImageID != packagedID {
 		return out, backend.ErrLaunchFenceOwnership
 	}
 	record, cancel := previewRecordContext(ctx)
@@ -437,6 +448,12 @@ func (a *API) importRuntimeImage(ctx context.Context, req runtimeinstall.Request
 	if publishErr != nil || !publication.Acknowledged || publication.ImageID != derived.ImageID || publication.ImageTag != prepared.Spec.ImageTag {
 		out.Phase, out.ReasonCode, out.Message = "unknown", "runtime_publication_unconfirmed", "The image is settled but tag publication is unconfirmed. Review this exact installation; it will not import or retag automatically."
 		return out, errors.Join(publishErr, publish(out), backend.ErrUnavailable)
+	}
+	if prepared.DocumentBundle!=nil{
+		if err=a.retainDocumentRuntime(ctx,prepared,derived.ImageID);err!=nil{
+			out.Phase,out.ReasonCode,out.Message="unknown","document_runtime_registration_unconfirmed","The image publication settled, but the exact private document runtime binding was not confirmed. Reconcile this installation; no import or tag will be replayed."
+			return out,errors.Join(err,publish(out))
+		}
 	}
 	out.Phase, out.ReasonCode, out.Message = "ready", "", "The verified packaged runtime is ready."
 	return finish(nil)
@@ -680,6 +697,12 @@ func (a *API) reconcileRuntimeImage(ctx context.Context, id runtimeinstall.Ident
 	out.ImageID, out.ResourcesHeld, out.CleanupConfirmed = lease.Image, false, true
 	if lease.Image == "" {
 		out.Phase, out.ReasonCode, out.Message = "failed", "runtime_build_failed", "The runtime build is settled without a published image."
+	} else if lease.DocumentManifestSHA256!=""{
+		if err=a.restoreDocumentRuntimeLease(ctx,lease);err!=nil{
+			out.Phase,out.ReasonCode,out.Message="unknown","document_runtime_registration_unconfirmed","The settled document image or its exact private registration could not be verified. No image import or tag request was replayed."
+			return out,errors.Join(err,publish(out))
+		}
+		out.Phase,out.ReasonCode,out.Message="ready","","The exact published document runtime is verified and available for contained extraction."
 	} else {
 		executor, ok := a.deps.Backend.(backend.RuntimeImageExecutor)
 		if !ok {

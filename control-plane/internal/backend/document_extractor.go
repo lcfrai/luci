@@ -85,16 +85,20 @@ type DocumentExtractionFenceProof struct {
 // Caller journals every before/after RPC under the shared lifecycle lock and
 // retains shared capacity until exact positive absence/fence acknowledgment.
 // No method pulls/builds an image, retries Start, or adopts a named container.
+type DocumentExtractionRetirementExecutor interface {
+	InspectDocument(context.Context, DocumentExtractionIdentity, string) (DocumentExtractionObservation, error)
+	RetireDocument(context.Context, DocumentExtractionIdentity, string) error
+	FenceDocumentLaunch(context.Context, DocumentExtractionFenceRequest) (DocumentExtractionFenceProof, error)
+	VerifyDocumentLaunchFence(context.Context, DocumentExtractionFenceRequest, DocumentExtractionFenceProof) error
+}
+
 type DocumentExtractionExecutor interface {
+	DocumentExtractionRetirementExecutor
 	DocumentImageID() string // Trusted immutable configuration; no lookup/pull.
 	PrepareDocument(context.Context, DocumentExtractionSpec) (PreparedDocumentExtraction, error)
 	CreateDocument(context.Context, PreparedDocumentExtraction) (string, error)
 	StartDocument(context.Context, DocumentExtractionIdentity, string) error
-	InspectDocument(context.Context, DocumentExtractionIdentity, string) (DocumentExtractionObservation, error)
 	AttachDocumentResult(context.Context, DocumentExtractionIdentity, string) (DocumentExtractionResultStream, error)
-	RetireDocument(context.Context, DocumentExtractionIdentity, string) error
-	FenceDocumentLaunch(context.Context, DocumentExtractionFenceRequest) (DocumentExtractionFenceProof, error)
-	VerifyDocumentLaunchFence(context.Context, DocumentExtractionFenceRequest, DocumentExtractionFenceProof) error
 }
 
 var documentLogicalID = regexp.MustCompile(`^[a-z0-9_-]{1,200}$`)

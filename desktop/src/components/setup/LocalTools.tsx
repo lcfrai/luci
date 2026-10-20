@@ -86,13 +86,14 @@ export function LocalTools({
     }, 3000);
     return () => { alive = false; controller.abort(); clearInterval(timer); };
   }, [client, runtime?.id, runtime?.status]);
-  const runtimeAction = (action: "install" | "cancel" | "reconcile") => {
-    if (!manageBacking || working.current || (action !== "install" && !runtime?.id)) return;
-    if (action === "install" && (runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime))) return;
+  const runtimeAction = (action: "install" | "documents" | "cancel" | "reconcile") => {
+    const starts = action === 'install' || action === 'documents';
+    if (!manageBacking || working.current || (!starts && !runtime?.id)) return;
+    if (starts && (runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime))) return;
     const currentGeneration = generation.current;
     const selectedMutation = ++mutation.current;
-    void run(action === "install" ? "Starting runtime installation" : action === "cancel" ? "Requesting cancellation" : "Checking interrupted installation", async () => {
-      const next = action === "install" ? await client.installRuntime() : action === "cancel" ? await client.cancelRuntime(runtime!.id) : await client.reconcileRuntime(runtime!.id);
+    void run(starts ? action === 'documents' ? 'Preparing contained document extraction' : "Starting runtime installation" : action === "cancel" ? "Requesting cancellation" : "Checking interrupted installation", async () => {
+      const next = action === 'documents' ? await client.installRuntime('document-packaged') : action === "install" ? await client.installRuntime() : action === "cancel" ? await client.cancelRuntime(runtime!.id) : await client.reconcileRuntime(runtime!.id);
       if (generation.current === currentGeneration && mutation.current === selectedMutation) setRuntime(next);
     });
   };
@@ -227,6 +228,10 @@ export function LocalTools({
                   {runtimeInstallActive(runtime)
                     ? "Runtime preparation in progress…"
                     : "Install agent runtime"}
+                </Button>
+                <p className="journey-muted">PDF and image evidence uses a separate contained document runtime. Preparing it imports only this installation’s independently verified document package; it does not install agent tools or download a replacement image. An incomplete package remains unavailable.</p>
+                <Button type="button" variant="secondary" disabled={!loaded || !!busy || !!runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime)} onClick={() => runtimeAction('documents')}>
+                  Prepare document extraction
                 </Button>
                 {runtime?.id && runtimeInstallActive(runtime) && runtime.status !== "reconciling" && (
                   <Button type="button" variant="secondary" disabled={!!busy || !!runtime.cancelRequested || runtime.status === "cancelling"} onClick={() => runtimeAction("cancel")}>

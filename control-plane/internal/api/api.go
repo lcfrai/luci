@@ -104,6 +104,7 @@ type Deps struct {
 	// Optional exact selected-engine contained document executor. Nil leaves
 	// PDF/image extraction unavailable without affecting text intake.
 	DocumentExtractor backend.DocumentExtractionExecutor
+	DocumentRuntimeInstaller backend.DocumentRuntimeInstaller
 
 	// BackendReady is the cached liveness of that backend, refreshed by task
 	// 13's reaper on its own timer. Contract §3.3 calls it "a cached result of
@@ -373,6 +374,9 @@ type API struct {
 	taskObservations        taskCompletionObservations
 	execution               *executionAdmission
 	deps                    Deps
+	documentExtractorMu sync.RWMutex
+	documentRestoreMu sync.Mutex
+	documentRuntimeExtractor backend.DocumentExtractionExecutor
 	handler                 http.Handler
 	codexAccountMu          sync.Mutex // serializes this user's retained account and private snapshots
 	assistMu                sync.Mutex

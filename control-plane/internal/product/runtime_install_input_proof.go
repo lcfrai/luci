@@ -12,7 +12,7 @@ import (
 
 func validateRuntimeJobKind(j RuntimeJob) error {
  switch j.OperationKind {
- case "","image-install": if j.InputProof!=nil{return runtimeinstall.ErrInputProofOwnership}
+ case "","image-install","document-runtime-image": if j.InputProof!=nil{return runtimeinstall.ErrInputProofOwnership}
  case runtimeinstall.DebianInputProofKind:
   if j.Execution!=nil || j.InputProof==nil || j.ID!=j.InputProof.Identity.JobID || !runtimeinstall.ValidInputProofOutcome(*j.InputProof){return runtimeinstall.ErrInputProofOwnership}
  default:return runtimeinstall.ErrInputProofOwnership

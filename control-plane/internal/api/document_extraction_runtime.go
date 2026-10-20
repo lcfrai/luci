@@ -20,9 +20,7 @@ func (a *API) documentExtractionRuntime() product.DiscoveryExtractionRuntime {
 }
 
 func (a *API) documentExtractionBusy(ctx context.Context, projectID, documentID string) (bool, error) {
-	if a.deps.DocumentExtractor == nil {
-		return false, backend.ErrUnsupported
-	}
+	if _,err:=a.resolveDocumentExtractor(ctx);err!=nil{return false,err}
 	busy := false
 	// Called only by an explicit extraction POST, not a GET. Initialize an
 	// absent ledger under its usual lock; unknown/corrupt ownership stays busy.
@@ -71,8 +69,8 @@ func (a *API) executeDocumentExtraction(ctx context.Context, req product.Discove
 	if !product.ValidateDiscoveryExtractionRequest(req) || req.ValidateCurrent == nil || req.OriginalUserID < 1 || req.OriginalGroupID < 1 || req.ExpectedDocumentRevision < 1 || !time.Now().Before(req.ComputeDeadline) {
 		return fail("document_scope_invalid", "The exact private original, attempt or total deadline cannot be verified.")
 	}
-	executor := a.deps.DocumentExtractor
-	if executor == nil {
+	executor,resolveErr := a.resolveDocumentExtractor(ctx)
+	if resolveErr!=nil || executor == nil {
 		return fail("document_extractor_unavailable", "No reviewed contained extractor is configured; the original remains retained.")
 	}
 	compute, cancel := context.WithDeadline(ctx, req.ComputeDeadline)

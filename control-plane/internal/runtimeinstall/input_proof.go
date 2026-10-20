@@ -83,9 +83,13 @@ const DebianSignatureProfilePath="profiles/signature-profile.json"
 type DocumentRuntimeConfiguration struct {
  ProfileSHA256 string
  ToolDomainSHA256 string
+ ImageManifestSHA256 string
 }
-func(c DocumentRuntimeConfiguration)Configured()bool{return c!=(DocumentRuntimeConfiguration{})}
-func(c DocumentRuntimeConfiguration)Valid()bool{return !c.Configured()||InputProofHex(c.ProfileSHA256)&&InputProofHex(c.ToolDomainSHA256)}
+func(c DocumentRuntimeConfiguration)Configured()bool{return c.ProfileSHA256!=""||c.ToolDomainSHA256!=""}
+func(c DocumentRuntimeConfiguration)Valid()bool{return (!c.Configured()||InputProofHex(c.ProfileSHA256)&&InputProofHex(c.ToolDomainSHA256))&&(c.ImageManifestSHA256==""||InputProofHex(c.ImageManifestSHA256))}
+
+const DocumentRuntimeInstallMode="document-packaged"
+const DocumentRuntimeImageTag="luci/document-extractor:packaged"
 
 type bundledDebianProfileDescriptor struct {
  Schema int `json:"schema"`

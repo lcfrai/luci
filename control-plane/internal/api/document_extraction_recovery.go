@@ -78,10 +78,6 @@ func (a *API) recoverDocumentExtraction(ctx context.Context, req product.Discove
 	if err = persist(out); err != nil {
 		return out, err
 	}
-	executor := a.deps.DocumentExtractor
-	if executor == nil {
-		return out, backend.ErrUnsupported
-	}
 	if lease.State == "reserved" {
 		out.CleanupConfirmed = true
 		if err = persist(out); err != nil {
@@ -90,7 +86,12 @@ func (a *API) recoverDocumentExtraction(ctx context.Context, req product.Discove
 		if err = a.execution.completeDocument(bounded, lease.Identity, "", out, backend.DocumentExtractionObservation{}); err != nil {
 			return out, err
 		}
-	} else if lease.State == "creating" || lease.State == "fencing" {
+		out.ResourcesHeld=false
+		return out,persist(out)
+	}
+	executor,resolveErr := a.documentRetirementExecutor()
+	if resolveErr!=nil || executor == nil {return out,errors.Join(resolveErr,backend.ErrUnsupported)}
+	if lease.State == "creating" || lease.State == "fencing" {
 		record, err := a.execution.reserveDocumentFence(bounded, lease)
 		if err != nil {
 			return out, err

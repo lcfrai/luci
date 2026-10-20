@@ -54,6 +54,16 @@ func TestConfiguredBinaryProfileSelectsOnlyPinnedSignaturePrerequisite(t *testin
  if _,_,err=s.selectedRuntimeInputProofProfile();err==nil{t.Fatal("changed transitive descriptor gained native eligibility")}
 }
 
+func TestDocumentInstallModeDoesNotRunWindowsInputProofOrSelectBrowserSource(t *testing.T){
+ s,mux:=proofProductFixture(t);s.documentRuntime.ImageManifestSHA256=strings.Repeat("a",64)
+ root:=filepath.Join(s.runtimeDir,"document-image");if err:=os.Mkdir(root,0700);err!=nil{t.Fatal(err)}
+ for _,name:=range []string{"document-runtime-manifest-v1.json","document-image-linux-amd64.tar"}{if err:=os.WriteFile(filepath.Join(root,name),[]byte("inert declared package"),0600);err!=nil{t.Fatal(err)}}
+ called:=make(chan runtimeinstall.Request,1)
+ s.SetRuntimeInstaller(runtimeinstall.Runtime{CaptureActor:runtimeActorFixture,ProveDebianInputs:func(context.Context,runtimeinstall.DebianInputProofRequest,runtimeinstall.PublishDebianInputProof)(runtimeinstall.DebianInputProofOutcome,error){t.Error("prebuilt install requested native Windows proof");return runtimeinstall.DebianInputProofOutcome{},nil},Run:func(_ context.Context,req runtimeinstall.Request,_ runtimeinstall.Publish)(runtimeinstall.Outcome,error){called<-req;return runtimeinstall.Outcome{Identity:req.Identity,Phase:"blocked",CleanupConfirmed:true},nil}})
+ journeyRequest(t,mux,"POST","/v1/setup/runtime/install",map[string]any{"mode":runtimeinstall.DocumentRuntimeInstallMode},202)
+ select{case req:=<-called:if req.Mode!=runtimeinstall.DocumentRuntimeInstallMode||req.SourceDirectory!=root||req.ImageTag!=runtimeinstall.DocumentRuntimeImageTag{t.Fatal("document source/image did not come from the installation",req)};case<-time.After(time.Second):t.Fatal("explicit configured document operation was not dispatched")}
+}
+
 // The selected registry entry and all positive owner facts below are ONLY
 // synthetic metadata in this test. No packaged tools or native proof is minted.
 func proofProductFixture(t *testing.T)(*Server,*http.ServeMux){

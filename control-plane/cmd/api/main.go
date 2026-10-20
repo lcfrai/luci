@@ -333,7 +333,15 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			stopCloudTasks()
 		}()
 	}
+	var documentInstaller backend.DocumentRuntimeInstaller
+	if cfg.DocumentRuntime.ImageManifestSHA256!=""{
+		if selected,ok:=be.(*dockerbe.Backend);ok{
+			documentInstaller,err=dockerbe.NewDocumentRuntimeInstaller(selected,cfg.DocumentRuntime.ImageManifestSHA256,dockerbe.DocumentAttachConfiguration{Headers:map[string]string{}})
+			if err!=nil{return fmt.Errorf("configure verified document runtime: %w",err)}
+		}
+	}
 	handler, err := api.New(api.Deps{
+		DocumentRuntimeInstaller:documentInstaller,
 		ObserveTaskCompletions: true,
 		ExecutionStateDir:      executionStateDir,
 		ResourceSnapshot:       sampler.Latest,

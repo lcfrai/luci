@@ -205,10 +205,34 @@ it('keeps manual runtime preparation blocked until the actual readiness state pe
   await screen.findByDisplayValue('Builder');
   const install = await screen.findByRole('button', { name: 'Install agent runtime' });
   expect((install as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByRole('button', {name: 'Prepare document extraction'})).toHaveProperty('disabled', true);
   await userEvent.click(install);
   expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST')).toHaveLength(0);
   view.rerender(<LocalTools client={client} runtimeBlockedReason="" />);
   await userEvent.click(install);
   await screen.findByText('installing · Real job accepted.');
   expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST')).toHaveLength(1);
+});
+
+it('prepares the distinct document package only on explicit administrator action', async () => {
+ const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => new Response(JSON.stringify(
+  String(url).endsWith('/git/identity') ? {name: 'Builder', email: 'builder@example.invalid'} : String(url).endsWith('/runtime/install') ? init?.method === 'POST' ? {id: 'document-job', status: 'installing', message: 'Verifying the document package.'} : {status: 'idle'} : {providers: []}
+ )));
+ render(<LocalTools client={createProductClient('http://localhost', fetcher)} />);
+ await userEvent.click(screen.getByText('Git identity, agent connection and runtime'));
+ await screen.findByDisplayValue('Builder');
+ expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST')).toHaveLength(0);
+ await userEvent.click(screen.getByRole('button', {name: 'Prepare document extraction'}));
+ await screen.findByText('installing · Verifying the document package.');
+ const writes = fetcher.mock.calls.filter(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST');
+ expect(writes).toHaveLength(1);expect(JSON.parse(writes[0][1]!.body as string)).toEqual({mode: 'document-packaged'});
+ expect(screen.getByRole('button', {name: 'Prepare document extraction'})).toHaveProperty('disabled', true);
+});
+
+it('does not offer document preparation without current backing management permission', async () => {
+ const fetcher=vi.fn<typeof fetch>().mockImplementation(async()=>new Response(JSON.stringify({name: '', email: ''})));
+ render(<LocalTools client={createProductClient('http://localhost', fetcher)} manageBacking={false} />);
+ await userEvent.click(screen.getByText('Git identity, agent connection and runtime'));
+ expect(screen.queryByRole('button', {name: 'Prepare document extraction'})).toBeNull();
+ expect(fetcher.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(0);
 });
