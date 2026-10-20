@@ -417,3 +417,26 @@ it.each(['mismatched-target', 'unknown-action'] as const)('does not interpret %s
   expect(screen.queryByRole('button', {name: /Inspect question/})).toBeNull(); expect(screen.queryByRole('link')).toBeNull();
   expect(exact).not.toHaveBeenCalled();
 });
+
+it.each(['exact-message', 'question-page'] as const)('drops a delayed %s rejection after scope changes and returns while restoring read controls', async phase => {
+  const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture());
+  const exact = vi.spyOn(swarmSupervisionApi, 'message').mockResolvedValue({projectId: 'p-1', runId: 'run-1', runRevision: 1, message: swarmMessageFixture()});
+  const post = vi.spyOn(swarmSupervisionApi, 'post'), ack = vi.spyOn(swarmSupervisionApi, 'ack');
+  const p = props(), page = render(<SwarmSupervisionPanel {...p} />);
+  const inspect = await screen.findByRole('button', {name: 'Inspect question msg-1'});
+  let reject!: (cause: Error) => void;
+  const delayed = new Promise<never>((_, fail) => { reject = fail; });
+  if (phase === 'exact-message') exact.mockReturnValueOnce(delayed);
+  else get.mockReturnValueOnce(delayed);
+  fireEvent.click(inspect);
+  await waitFor(() => expect(phase === 'exact-message' ? exact.mock.calls.length : get.mock.calls.length).toBe(phase === 'exact-message' ? 1 : 2));
+  page.rerender(<SwarmSupervisionPanel {...p} recoveryScope="other-actor/workspace" />);
+  page.rerender(<SwarmSupervisionPanel {...p} />);
+  await act(async () => { reject(new Error('Old scope private read failed')); await delayed.catch(() => {}); });
+  await waitFor(() => expect(screen.queryByText('Reading saved supervision…')).toBeNull());
+  expect(screen.queryByRole('alert')).toBeNull(); expect(screen.queryByText('Old scope private read failed')).toBeNull();
+  expect(screen.getByText(swarmMessageFixture().summary)).toBeTruthy();
+  expect((screen.getByRole('button', {name: 'Inspect question msg-1'}) as HTMLButtonElement).disabled).toBe(false);
+  expect(exact).toHaveBeenCalledOnce(); expect(get).toHaveBeenCalledTimes(phase === 'exact-message' ? 1 : 2);
+  expect(post).not.toHaveBeenCalled(); expect(ack).not.toHaveBeenCalled(); expect(p.onWrite).not.toHaveBeenCalled();
+});

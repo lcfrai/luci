@@ -125,7 +125,7 @@ export function SwarmSupervisionPanel(props: Props & {recoveryScope: string | nu
       checkedSupervision(run.projectId, run.id, after, value, merged);
       setMessages(merged); if (replace) setWindowStart(after); setView(value); settleAck(value);
     } catch (cause) {
-      if (live.current && latest.current.canRead && !controller.signal.aborted && epoch === readEpoch.current) setError(errorText(cause));
+      if (live.current && latest.current.canRead && !controller.signal.aborted && epoch === readEpoch.current && (inspectionEpoch === null || inspectionEpoch === completionEpoch.current.value)) setError(errorText(cause));
     } finally {
       if (readRequest.current === controller) { readRequest.current = null; readingRef.current = false; if (live.current) setReading(false); }
     }
@@ -146,7 +146,7 @@ export function SwarmSupervisionPanel(props: Props & {recoveryScope: string | nu
       if (result.message.kind !== 'question' || result.runRevision < latest.current.run.revision || result.runRevision < (viewRef.current?.runRevision ?? 0) || result.runRevision < confirmedResolutionRevision.current) throw new Error('The saved question readback is stale or unavailable. Refresh saved messages before continuing.');
       target = {after: result.message.sequence - 1, runRevision: result.runRevision};
     } catch (cause) {
-      if (live.current && latest.current.canRead && !controller.signal.aborted && epoch === readEpoch.current) setError(errorText(cause));
+      if (live.current && latest.current.canRead && !controller.signal.aborted && epoch === readEpoch.current && inspectionEpoch === completionEpoch.current.value) setError(errorText(cause));
     } finally {
       if (readRequest.current === controller) { readRequest.current = null; readingRef.current = false; if (live.current) setReading(false); }
     }
