@@ -36,8 +36,8 @@ def refuse(reason: str):
 def regular(path: Path, maximum: int) -> int:
     path = path.absolute()
     for item in [path, *path.parents]:
-        mode = item.lstat().st_mode
-        if stat.S_ISLNK(mode):
+        info = item.lstat()
+        if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 1024:
             refuse("linked input")
     info = path.stat()
     if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size < 1 or info.st_size > maximum:
@@ -84,16 +84,33 @@ def encoded(value) -> bytes:
     return (json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n").encode()
 
 
-def pinned_json(path: Path, pin: str):
+def pinned_metadata(path: Path, pin: str):
     if not HEX.fullmatch(pin) or regular(path, MAX_META) > MAX_META:
         refuse("metadata pin missing")
-    raw = path.read_bytes()
+    with path.open("rb") as source:
+        before = os.fstat(source.fileno())
+        raw = source.read(MAX_META + 1)
+        after = os.fstat(source.fileno())
+    if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or len(raw) > MAX_META or len(raw) != before.st_size or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+        refuse("metadata changed or exceeded its bound")
     if hashlib.sha256(raw).hexdigest() != pin:
         refuse("metadata differs from independent pin")
     value = decode(raw)
     if not isinstance(value, dict):
         refuse("pinned metadata must be an object")
-    return value
+    return value, raw
+
+
+def pinned_json(path: Path, pin: str):
+    return pinned_metadata(path, pin)[0]
+
+
+def notice_name(name: str) -> bool:
+    if not member_name(name) or not name.startswith("notices/") or ":" in name:
+        return False
+    devices = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
+    return all(not part.endswith((" ", ".")) and part.split(".")[0].upper() not in devices
+               for part in name.split("/"))
 
 
 def member_name(name: str) -> bool:
@@ -186,13 +203,15 @@ def inspect_layer(layer_path: Path, closure, identity, notice_closure):
     if notice_closure.get("schema") != 1 or notice_closure.get("kind") != "luci-document-notice-source-closure-v1" or notice_closure.get("inputClosureSha256") != closure["digest"] or not HEX.fullmatch(str(notice_closure.get("sourceRetentionDigest", ""))) or not isinstance(expected_notices, list) or not 1 <= len(expected_notices) <= 512:
         refuse("notice closure is absent or mismatched")
     notices = {}
+    notice_paths = set()
     notice_bytes = 0
     for item in expected_notices:
-        if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not item["path"].startswith("notices/") or not member_name(item["path"]) or not HEX.fullmatch(str(item.get("sha256", ""))) or type(item.get("bytes")) is not int or not 1 <= item["bytes"] <= 1 << 20 or not all(isinstance(item.get(k), str) and 0 < len(item[k]) <= 512 for k in ("component", "version", "grant", "provenance")):
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not notice_name(item["path"]) or not HEX.fullmatch(str(item.get("sha256", ""))) or type(item.get("bytes")) is not int or not 1 <= item["bytes"] <= 1 << 20 or not all(isinstance(item.get(k), str) and 0 < len(item[k]) <= 512 for k in ("component", "version", "grant", "provenance")):
             refuse("notice closure entry invalid")
         path = "opt/luci/licenses/" + item["path"][len("notices/"):]
-        if path in notices:
+        if item["path"].casefold() in notice_paths:
             refuse("duplicate notice")
+        notice_paths.add(item["path"].casefold())
         notice_bytes += item["bytes"]
         if notice_bytes > MAX_NOTICES:
             refuse("notice sidecars exceed aggregate bound")
@@ -252,14 +271,15 @@ def finalize(args):
     receipt = pinned_json(Path(args.assembly_receipt), args.assembly_receipt_sha256)
     outcome, closure, identity = exact_receipt(receipt, capture_hash, capture_bytes)
     notice_path = Path(args.notice_closure)
-    notice = pinned_json(notice_path, args.notice_closure_sha256)
+    notice, notice_bytes = pinned_metadata(notice_path, args.notice_closure_sha256)
     target = Path(args.output_dir).absolute()
-    if target.exists():
+    for parent in target.parents:
+        info = parent.lstat()
+        if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 1024:
+            refuse("output parent is not an ordinary directory")
+    if target.exists() or target.is_symlink():
         refuse("output directory already exists")
     target.mkdir(mode=0o700)
-    notice_bytes = notice_path.read_bytes()
-    if len(notice_bytes) > MAX_META or hashlib.sha256(notice_bytes).hexdigest() != args.notice_closure_sha256:
-        refuse("notice closure changed after pin check")
     (target / "document-runtime-notices-v1.json").write_bytes(notice_bytes)
     layer_path = target / "layer.tar"
     metadata = {}

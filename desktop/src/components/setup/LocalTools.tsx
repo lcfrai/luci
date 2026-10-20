@@ -229,7 +229,7 @@ export function LocalTools({
                     ? "Runtime preparation in progress…"
                     : "Install agent runtime"}
                 </Button>
-                <p className="journey-muted">PDF and image evidence uses a separate contained document runtime. Preparing it imports only this installation’s independently verified document package; it does not install agent tools or download a replacement image. An incomplete package remains unavailable.</p>
+                <p className="journey-muted">Prepare PDF and image extraction using the document tools included with Luci. This requires a complete installation package.</p>
                 <Button type="button" variant="secondary" disabled={!loaded || !!busy || !!runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime)} onClick={() => runtimeAction('documents')}>
                   Prepare document extraction
                 </Button>

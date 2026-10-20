@@ -85,10 +85,17 @@ def fixture(root):
     return SimpleNamespace(capture=str(capture_path), capture_sha256=digest(capture),
                            assembly_receipt=str(receipt_path), assembly_receipt_sha256=digest(receipt_raw),
                            notice_closure=str(notice_path), notice_closure_sha256=digest(notice_raw),
-                           output_dir=str(root / "candidate")), notice
+                           output_dir=str(root / "candidate")), notices
 
 
 class DocumentFinalizerSourceTest(unittest.TestCase):
+    def test_sidecar_names_are_portable_ordinary_paths(self):
+        self.assertTrue(FINALIZER.notice_name("notices/component/LICENCE.txt"))
+        for name in ("notices/NOTICE:stream", "notices/CON.txt", "notices/aux/a",
+                     "notices/item.", "notices/item ", "notices/../other"):
+            with self.subTest(name=name):
+                self.assertFalse(FINALIZER.notice_name(name))
+
     def test_producer_layer_names_keep_directory_and_library_spelling(self):
         self.assertEqual(FINALIZER.layer_name("usr/", True), "usr")
         self.assertEqual(FINALIZER.layer_name("./opt/luci/document_extractor.py", False), "opt/luci/document_extractor.py")
