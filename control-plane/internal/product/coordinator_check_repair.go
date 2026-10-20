@@ -96,10 +96,14 @@ func (s *Server) continueCoordinatorCheckRepair(ctx context.Context, p project.P
 		s.projectRunDispatchMu.Lock()
 		defer s.projectRunDispatchMu.Unlock()
 		if !s.coordinatorIndependentReviewCurrent(ctx, p, row) { return row, true, ErrOrchestratorConflict }
-		s.mu.RLock()
-		defer s.mu.RUnlock()
-		if err = s.swarmRepairPolicyCurrentLocked(p, run); err != nil { return row, true, err }
-		_, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, run.Revision, func(current *ProjectRun) error {
+		_, err = s.projectRuns.reserveCheckRepairWave(p.ID, p.Path, run.ID, run.Revision, func(current ProjectRun) (func(), error) {
+			s.mu.RLock()
+			rows, readErr := s.readContinuations(p, row.Actor.ID)
+			index := findContinuation(rows, row.ID)
+			if readErr != nil || index < 0 || rows.Rows[index].Revision != row.Revision { return s.mu.RUnlock, ErrOrchestratorConflict }
+			if authorityErr := s.coordinatorDeliveryAuthorityLocked(ctx, p, rows.Rows[index]); authorityErr != nil { return s.mu.RUnlock, authorityErr }
+			return s.mu.RUnlock, s.swarmRepairPolicyCurrentLocked(p, current)
+		}, func(current *ProjectRun) error {
 			currentCovered, coverageErr := checkRepairCoveredTasks(*current, created.RequirementIDs)
 			if coverageErr != nil || reviewDigest(currentCovered) != reviewDigest(covered) || activeCoordinatorCheckRepair(current, row) != nil || !coordinatorCheckRepairEligible(*current, row, check) { return ErrProjectRunConflict }
 			for _, member := range created.Tasks { if swarmRepairsConsumed(*current, member.TaskID)+1 != member.BudgetOrdinal { return ErrProjectRunConflict } }
@@ -130,28 +134,33 @@ func (s *Server) continueCoordinatorCheckRepair(ctx context.Context, p project.P
 }
 
 func (s *Server) persistCoordinatorCheckRepair(ctx context.Context, p project.Project, row coordinatorContinuationRecord, finished bool) (coordinatorContinuationRecord, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	rows, err := s.readContinuations(p, row.Actor.ID)
-	index := findContinuation(rows, row.ID)
-	if err != nil || index < 0 { return row, ErrOrchestratorConflict }
-	current := rows.Rows[index]
-	if current.Revision != row.Revision || s.coordinatorDeliveryAuthorityLocked(ctx, p, current) != nil { return current, ErrOrchestratorConflict }
-	run, err := s.projectRuns.Get(p.ID, p.Path, row.RunID)
-	if err != nil || activeCoordinatorCheckRepair(&run, current) == nil { return current, ErrOrchestratorConflict }
-	if finished {
-		wave := activeCoordinatorCheckRepair(&run, current)
-		for _, member := range wave.Tasks { if !checkRepairMemberIntegrated(run, member) { return current, ErrOrchestratorConflict } }
-		if _, ready := coordinatorIntegratedRun(run, current); !ready { return current, ErrOrchestratorConflict }
-		current.PriorDeliveries = append(current.PriorDeliveries, *current.Delivery)
-		current.Delivery = nil
-		current.Message = "Repaired coding scopes have fresh independent reviews and integrations. A new exact combined-check identity will be reserved next."
-	} else { current.Message = "A settled combined-check failure has a bounded repair wave. Its failed check and prior attempts remain retained; fresh candidates require independent review and integration." }
-	current.Status = "queued"
-	current.Revision++
-	current.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
-	rows.Rows[index] = current
-	return current, s.saveContinuations(rows)
+	out := row
+	err := s.projectRuns.withCheckRepairSnapshot(p.ID, p.Path, row.RunID, func(run ProjectRun) error {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		rows, err := s.readContinuations(p, row.Actor.ID)
+		index := findContinuation(rows, row.ID)
+		if err != nil || index < 0 { return ErrOrchestratorConflict }
+		current := rows.Rows[index]
+		out = current
+		if current.Revision != row.Revision || s.coordinatorDeliveryAuthorityLocked(ctx, p, current) != nil || activeCoordinatorCheckRepair(&run, current) == nil { return ErrOrchestratorConflict }
+		if finished {
+			wave := activeCoordinatorCheckRepair(&run, current)
+			for _, member := range wave.Tasks { if !checkRepairMemberIntegrated(run, member) { return ErrOrchestratorConflict } }
+			if _, ready := coordinatorIntegratedRun(run, current); !ready { return ErrOrchestratorConflict }
+			current.PriorDeliveries = append(current.PriorDeliveries, *current.Delivery)
+			current.Delivery = nil
+			current.Message = "Repaired coding scopes have fresh independent reviews and integrations. A new exact combined-check identity will be reserved next."
+		} else { current.Message = "A settled combined-check failure has a bounded repair wave. Its failed check and prior attempts remain retained; fresh candidates require independent review and integration." }
+		current.Status = "queued"
+		current.Revision++
+		current.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		rows.Rows[index] = current
+		if err = s.saveContinuations(rows); err != nil { return err }
+		out = current
+		return nil
+	})
+	return out, err
 }
 
 func (s *Server) queueCoordinatorCheckRepair(ctx context.Context, p project.Project, row coordinatorContinuationRecord, run ProjectRun, wave ProjectSwarmCheckRepair, member ProjectSwarmCheckRepairTask) (bool, error) {

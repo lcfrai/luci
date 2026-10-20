@@ -194,6 +194,36 @@ func (s *ProjectRunStore) mutateSwarm(projectID, path, id string, revision int, 
 		return true, nil
 	})
 }
+
+// Check-repair continuation publication uses the same store -> server lock
+// order as reservation gates. The callback sees an immutable current run while
+// it CAS-saves the corresponding continuation; it must not re-enter this store.
+func (s *ProjectRunStore) withCheckRepairSnapshot(projectID, path, id string, publish func(ProjectRun) error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	scope, err := s.projectScope(projectID, path)
+	if err != nil { return err }
+	row, err := s.read(projectID, scope, id)
+	if err != nil { return err }
+	return publish(row.Run)
+}
+
+// Acquire the current server-policy permit only after the store lock, and keep
+// it until the wave intent has actually been saved. Neither callback may re-enter
+// this store. This matches the order used by task reservation gates.
+func (s *ProjectRunStore) reserveCheckRepairWave(projectID, path, id string, revision int, permit func(ProjectRun) (func(), error), change func(*ProjectRun) error) (ProjectRun, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var release func()
+	defer func() { if release != nil { release() } }()
+	return s.mutate(projectID, path, id, revision, func(row *storedProjectRun) (bool, error) {
+		var err error
+		release, err = permit(row.Run)
+		if err != nil { return false, err }
+		if err = change(&row.Run); err != nil { return false, err }
+		return true, nil
+	})
+}
 func swarmSlotPending(op ProjectRunOperation) bool {
 	return swarmRetirementPending(op) || op.Status == "reserved" || op.Status == "dispatching" || op.Status == "running" || op.Status == "unknown" || op.Allocation == "allocating" || op.Allocation == "unknown"
 }

@@ -3,13 +3,66 @@ package product
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
+
+func TestCheckRepairStorePublicationKeepsLockOrderAndPermitThroughSave(t *testing.T) {
+	for _, boundary := range []string{"saved", "permit-refused", "change-refused", "stale-revision"} {
+		t.Run(boundary, func(t *testing.T) {
+			store, projectID, path, input := projectRunStoreFixture(t)
+			run := createStoredRun(t, store, projectID, path, input)
+			var authority sync.RWMutex
+			permitted, changed, released := 0, 0, 0
+			refused := errors.New("current authority refused")
+			assertStoreHeld := func() {
+				if store.mu.TryLock() { store.mu.Unlock(); t.Error("server authority acquired without the run snapshot lock") }
+			}
+			revision := run.Revision
+			if boundary == "stale-revision" { revision-- }
+			_, err := store.reserveCheckRepairWave(projectID, path, run.ID, revision, func(current ProjectRun) (func(), error) {
+				assertStoreHeld()
+				authority.RLock()
+				permitted++
+				if current.Revision != run.Revision { t.Error("permit received a stale run") }
+				release := func() {
+					assertStoreHeld()
+					scope, readErr := store.projectScope(projectID, path)
+					saved, readErr2 := store.read(projectID, scope, run.ID)
+					if readErr != nil || readErr2 != nil { t.Error(readErr, readErr2) }
+					if boundary == "saved" && (saved.Run.Revision != run.Revision+1 || saved.Run.Reason != "Exact wave saved") { t.Error("authority permit released before durable save") }
+					if boundary != "saved" && saved.Run.Revision != run.Revision { t.Error("refused wave changed the run") }
+					released++
+					authority.RUnlock()
+				}
+				if boundary == "permit-refused" { return release, refused }
+				return release, nil
+			}, func(current *ProjectRun) error {
+				assertStoreHeld()
+				if authority.TryLock() { authority.Unlock(); t.Error("authority permit ended before mutation") }
+				changed++
+				current.Reason = "Exact wave saved"
+				if boundary == "change-refused" { return refused }
+				return nil
+			})
+			if boundary == "saved" && err != nil || boundary != "saved" && err == nil { t.Fatal("unexpected publication result", err) }
+			expectedChanges := 1
+			if boundary == "permit-refused" { expectedChanges = 0 }
+			if boundary == "stale-revision" {
+				if permitted != 0 || changed != 0 || released != 0 { t.Fatal("stale CAS obtained an authority permit") }
+			} else if permitted != 1 || released != 1 || changed != expectedChanges { t.Fatal("permit ownership was not settled exactly once", permitted, changed, released) }
+			if !authority.TryLock() { t.Fatal("authority permit remained held after publication returned") }; authority.Unlock()
+			if err = store.withCheckRepairSnapshot(projectID, path, run.ID, func(current ProjectRun) error { assertStoreHeld(); if boundary == "saved" && current.Revision != run.Revision+1 { t.Error("completion snapshot missed the committed revision") }; return nil }); err != nil { t.Fatal(err) }
+			if !store.mu.TryLock() { t.Fatal("run snapshot lock remained held after completion returned") }; store.mu.Unlock()
+		})
+	}
+}
 
 func TestCheckFailureRepairRequiresTypedSettledCommandSuffix(t *testing.T) {
 	zero, failure, held := 0, 7, false
