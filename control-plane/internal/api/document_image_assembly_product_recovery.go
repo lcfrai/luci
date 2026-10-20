@@ -29,7 +29,7 @@ func(a *API)reconcileDocumentAssembly(ctx context.Context,id runtimeinstall.Iden
  out.AllocationID,out.EngineID,out.InstanceID,out.SourceDigest=row.ID,row.Identity.EngineID,row.Identity.InstanceID,row.Identity.SourceDigest
  if row.Stage!=nil&&row.Stage.State!="closed"{
   var live *liveDocumentAssemblyStage
-  if actual,ok:=liveDocumentAssemblyStages.Load(a.execution.assemblyStageKey(row.ID));ok{live=actual.(*liveDocumentAssemblyStage)}else if row.State=="staging"&&row.Stage.State=="reserved"{live=&liveDocumentAssemblyStage{}}
+  if actual,ok:=liveDocumentAssemblyStages.Load(a.execution.assemblyStageKey(row.ID));ok{live=actual.(*liveDocumentAssemblyStage)}else if row.State=="staging"&&row.Stage.State=="reserved"{live=a.execution.retainRecoveredDocumentAssemblyStage(row.ID)}
   if live==nil{return out,backend.ErrUnavailable}
   if e=a.execution.waitDocumentAssemblyStageRetirement(ctx,row,live,true,true);e!=nil{return out,e}
   ledger,readErr:=a.execution.readReservationLedger(ctx);if readErr!=nil{return out,readErr};i,readErr:=assemblyLeaseIndex(&ledger,row.Identity);if readErr!=nil{return out,readErr};row=ledger.ImageAssemblies[i]
@@ -62,5 +62,10 @@ func(a *API)reconcileDocumentAssembly(ctx context.Context,id runtimeinstall.Iden
  }
  out.Phase="cancelled";out.ResourcesHeld=false;out.CleanupConfirmed=true;out.Message="The exact historical assembly retired. Capture is unavailable; no build or import was replayed."
  return out,publish(out)
+}
+
+func(g *executionAdmission)retainRecoveredDocumentAssemblyStage(id string)*liveDocumentAssemblyStage{
+ actual,_:=liveDocumentAssemblyStages.LoadOrStore(g.assemblyStageKey(id),&liveDocumentAssemblyStage{})
+ return actual.(*liveDocumentAssemblyStage)
 }
 

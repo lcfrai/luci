@@ -2,6 +2,7 @@ package api
 
 import (
  "context"
+ "errors"
  "os"
  "path/filepath"
  "runtime"
@@ -86,4 +87,31 @@ func TestDocumentAssemblyStageHelperModeDoesNotAlterItsPinnedBytes(t *testing.T)
  file,e:=os.Stat(filepath.Join(root,"helper"));if e!=nil{t.Fatal(e)}
  if runtime.GOOS!="windows"&&file.Mode().Perm()!=0700{t.Fatal("Linux assembly helper not executable by its owner")}
  actual,e:=os.ReadFile(filepath.Join(root,"helper"));if e!=nil||string(actual)!=string(payload){t.Fatal("mode change replaced pinned helper bytes",e)}
+}
+
+func TestDocumentAssemblyOriginalWholeDeadlineDoesNotScheduleLateCleanup(t *testing.T){
+ g:=&executionAdmission{}
+ original:=make(chan struct{})
+ live:=&liveDocumentAssemblyStage{workerDone:original,workerRunning:true}
+ row:=documentImageAssemblyLease{WholeDeadline:time.Now().Add(-time.Second)}
+ done,e:=g.beginDocumentAssemblyStageRetirement(context.Background(),row,live,true,false);if e!=nil{t.Fatal(e)}
+ select{case <-done:case <-time.After(time.Second):t.Fatal("expired original cleanup waited for blocked stage")}
+ live.mu.Lock();e=live.retirementErr;retained:=live.workerRunning&&live.retiring;live.mu.Unlock()
+ if !errors.Is(e,context.DeadlineExceeded)||!retained{t.Fatal("original deadline manufactured return or fresh cleanup window",e)}
+ // A late actual return does not restart the old cleanup worker. Only a later
+ // explicitly authorized reconcile can request its separate cleanup window.
+ live.mu.Lock();live.workerRunning=false;close(original);same:=live.retirementDone;live.mu.Unlock()
+ if same!=done{t.Fatal("late return silently created another cleanup worker")}
+}
+
+func TestDocumentAssemblyRecoveryRetainsOneOriginalStageAcrossObservers(t *testing.T){
+ g:=&executionAdmission{path:filepath.Join(t.TempDir(),"ledger"),scope:strings.Repeat("a",64)}
+ first:=g.retainRecoveredDocumentAssemblyStage("assembly-one")
+ defer liveDocumentAssemblyStages.Delete(g.assemblyStageKey("assembly-one"))
+ first.mu.Lock();first.retiring=true;first.retirementDone=make(chan struct{});first.mu.Unlock()
+ second:=g.retainRecoveredDocumentAssemblyStage("assembly-one")
+ if second!=first||second.retirementDone!=first.retirementDone{t.Fatal("recovery replaced an outstanding original retirement worker")}
+ other:=g.retainRecoveredDocumentAssemblyStage("assembly-two")
+ defer liveDocumentAssemblyStages.Delete(g.assemblyStageKey("assembly-two"))
+ if other==first{t.Fatal("different exact allocations shared retirement custody")}
 }

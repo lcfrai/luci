@@ -55,21 +55,24 @@ func(g *executionAdmission)runDocumentAssemblyStageWork(ctx context.Context,row 
   live.mu.Lock();e:=live.workerErr;live.mu.Unlock()
   return errors.Join(e,g.waitDocumentAssemblyStageRetirement(ctx,row,live,e!=nil,false))
  case <-ctx.Done():
-  _,_ = g.beginDocumentAssemblyStageRetirement(row,live,true,false)
+  _,_ = g.beginDocumentAssemblyStageRetirement(ctx,row,live,true,false)
   return ctx.Err()
  }
 }
 
-func(g *executionAdmission)beginDocumentAssemblyStageRetirement(row documentImageAssemblyLease,live *liveDocumentAssemblyStage,abandon,retry bool)(<-chan struct{},error){
+func(g *executionAdmission)beginDocumentAssemblyStageRetirement(ctx context.Context,row documentImageAssemblyLease,live *liveDocumentAssemblyStage,abandon,retry bool)(<-chan struct{},error){
  if live==nil{return nil,backend.ErrUnavailable}
  live.mu.Lock();live.retiring=true;live.abandoned=live.abandoned||abandon
  if live.retirementDone!=nil{select{case <-live.retirementDone:if live.retirementErr==nil||!retry{done:=live.retirementDone;live.mu.Unlock();return done,nil};default:done:=live.retirementDone;live.mu.Unlock();return done,nil}}
  if live.workerDone==nil{if live.workerRunning||live.opening||live.writing{live.mu.Unlock();return nil,backend.ErrUnavailable};live.workerDone=make(chan struct{});close(live.workerDone)}
+ deadline:=row.WholeDeadline
+ if retry{deadline=time.Now().Add(backend.DocumentImageAssemblyCleanupBudget);if caller,ok:=ctx.Deadline();ok&&caller.Before(deadline){deadline=caller}}
  originalDone:=live.workerDone;done:=make(chan struct{});live.retirementDone=done;live.mu.Unlock()
  go func(){
-  <-originalDone
-  cleanup,stop:=context.WithTimeout(context.Background(),backend.DocumentImageAssemblyCleanupBudget);defer stop()
-  e:=g.closeDocumentAssemblyStage(cleanup,row,live)
+  cleanup,stop:=context.WithDeadline(context.Background(),deadline);defer stop()
+  var e error
+  select{case <-originalDone:e=cleanup.Err();case <-cleanup.Done():e=cleanup.Err()}
+  if e==nil{e=g.closeDocumentAssemblyStage(cleanup,row,live)}
   live.mu.Lock();abandoned:=live.abandoned;live.mu.Unlock()
   if e==nil&&abandoned{e=g.finishUnstartedDocumentAssembly(cleanup,row)}
   live.mu.Lock();live.retirementErr=e;close(done);live.mu.Unlock()
@@ -78,7 +81,7 @@ func(g *executionAdmission)beginDocumentAssemblyStageRetirement(row documentImag
 }
 
 func(g *executionAdmission)waitDocumentAssemblyStageRetirement(ctx context.Context,row documentImageAssemblyLease,live *liveDocumentAssemblyStage,abandon,retry bool)error{
- done,e:=g.beginDocumentAssemblyStageRetirement(row,live,abandon,retry);if e!=nil{return e}
+ done,e:=g.beginDocumentAssemblyStageRetirement(ctx,row,live,abandon,retry);if e!=nil{return e}
  select{case <-done:live.mu.Lock();e=live.retirementErr;live.mu.Unlock();return e;case <-ctx.Done():live.mu.Lock();live.abandoned=true;live.retiring=true;live.mu.Unlock();return ctx.Err()}
 }
 var liveDocumentAssemblyStages sync.Map
