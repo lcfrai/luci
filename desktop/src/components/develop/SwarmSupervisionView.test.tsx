@@ -36,9 +36,18 @@ it('LOCAL152 settles the captured resolution while its own parent is busy and re
   render(<BusyResolutionParent value={p} />);
   const receipt: Result = {message: resolutionMessage(), runRevision: 2};
   try {
-    fireEvent.click(await screen.findByRole('button', {name: 'Resolve question 1'}));
+    // A rendered question can precede read settlement. Exercise an admitted
+    // action rather than letting fireEvent silently ignore a disabled button.
+    const resolve = await screen.findByRole('button', {name: 'Resolve question 1'});
+    await waitFor(() => expect((resolve as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(resolve);
+    await screen.findByText(/Resolution draft for question msg-1/);
     fireEvent.change(screen.getByLabelText('Attributed claim'), {target: {value: receipt.message.summary}});
-    fireEvent.click(screen.getByRole('button', {name: 'Record resolution'}));
+    const record = screen.getByRole('button', {name: 'Record resolution'});
+    await waitFor(() => expect((record as HTMLButtonElement).disabled).toBe(false));
+    expect(post).not.toHaveBeenCalled(); expect(p.onWrite).not.toHaveBeenCalled();
+    fireEvent.click(record);
+    await waitFor(() => expect(post).toHaveBeenCalledOnce());
     await screen.findByText('Parent write pending');
     await screen.findByText(/Resolution draft is stale/);
     expect(post).toHaveBeenCalledOnce(); expect(p.onWrite).toHaveBeenCalledOnce();
