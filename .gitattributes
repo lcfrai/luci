@@ -3,6 +3,7 @@
 # Retained upstream grants and historical evidence keep their exact bytes.
 third-party/** -text
 control-plane/internal/platform/supabase_assets/** -text
+control-plane/internal/product/distribute_pdf_fonts/** -text
 docs/legacy/** -text
 third-party/licenses/npmcli-agent-4.0.2/LICENSE whitespace=-blank-at-eol
 third-party/licenses/distribution-producer-3.0.0/LICENSE whitespace=-blank-at-eof

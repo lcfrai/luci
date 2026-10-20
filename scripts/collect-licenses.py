@@ -16,6 +16,7 @@ import sys
 import tarfile
 from retained_ui import SHADCN_ROOT, SHADCN_REVISION, read_shadcn, verify_shadcn
 from retained_e2b import E2B_ROOT, E2B_REVISION, verify_e2b
+from retained_pdf_fonts import verify_pdf_fonts
 
 
 def json_stream(text):
@@ -177,6 +178,17 @@ def collect(root, output, native):
                 if family.is_dir():
                     add("font", family.name, "excalidraw-" + package["version"], family)
 
+    pdf_fonts = verify_pdf_fonts(root)
+    add("font", "noto-pdf-fonts", pdf_fonts["digest"], pdf_fonts["directory"], "OFL-1.1",
+        extra=[root / "third-party" / "pdf-fonts" / "UPSTREAM.json"])
+    pdf_record = next(record for record in records if (
+        record["ecosystem"], record["name"], record["version"]
+    ) == ("font", "noto-pdf-fonts", pdf_fonts["digest"]))
+    pdf_record["fontFiles"] = [
+        {key: font[key] for key in ("id", "file", "bytes", "sha256", "faceIndex", "outline")}
+        for font in pdf_fonts["manifest"]["fonts"]
+    ]
+
     modules = {}
     for cwd, args, env in [
         (root, ["go", "list", "-deps", "-json", "./control-plane/cmd/api"], {}),
@@ -225,7 +237,7 @@ def collect(root, output, native):
         add("rust", "standard-library", rust_version, rustroot / "share" / "doc" / "rust", "MIT OR Apache-2.0 (see bundled library notices)")
 
     missing = [f'{r["ecosystem"]}:{r["name"]}@{r["version"]}' for r in records if r["missingLicense"]]
-    manifest = {"schemaVersion": 1, "scope": "Installed npm runtime packages, bundled Excalidraw font families, compiled Go modules and standard library" + (", reachable native Windows Cargo packages and installed Rust library notices" if native else ""), "reviewRequired": "Collected notices are evidence, not a compatibility or legal approval. Separately installed software and container images need their own review.", "missingLicenses": missing, "components": records}
+    manifest = {"schemaVersion": 1, "scope": "Installed npm runtime packages, bundled Excalidraw and PDF font families, compiled Go modules and standard library" + (", reachable native Windows Cargo packages and installed Rust library notices" if native else ""), "reviewRequired": "Collected notices are evidence, not a compatibility or legal approval. Separately installed software and container images need their own review.", "missingLicenses": missing, "components": records}
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     (output / "MISSING-LICENSES.txt").write_text("\n".join(missing) + ("\n" if missing else ""), encoding="utf-8")
     (output / "README.txt").write_text(
