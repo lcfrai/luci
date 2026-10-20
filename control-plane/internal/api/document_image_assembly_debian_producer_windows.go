@@ -38,6 +38,8 @@ type debianProofWindowsCalls struct {
  BinaryInitAttributes func(unsafe.Pointer,*uintptr)error
  BinaryUpdateAttributes func(unsafe.Pointer,uintptr,unsafe.Pointer,uintptr)error
  BinaryDeleteAttributes func(unsafe.Pointer)error
+ BinaryPeek func(windows.Handle,*uint32)error
+ BinaryTick func()(uint64,error)
  Pipe func(*windows.Handle,*windows.Handle,*windows.SecurityAttributes,uint32)error
  HandleInfo func(windows.Handle,uint32,uint32)error
  CreateProcess func(*uint16,*uint16,*windows.SecurityAttributes,*windows.SecurityAttributes,bool,uint32,*uint16,*uint16,*windows.StartupInfo,*windows.ProcessInformation)error
@@ -68,6 +70,8 @@ func newDebianProofWindowsCalls()*debianProofWindowsCalls{return &debianProofWin
  BinaryInitAttributes:func(p unsafe.Pointer,n *uintptr)error{if e:=proofInitializeAttributes.Find();e!=nil{return e};r,_,_:=proofInitializeAttributes.Call(uintptr(p),2,0,uintptr(unsafe.Pointer(n)));if r==0{return errors.New("binary startup attributes unavailable")};return nil},
  BinaryUpdateAttributes:func(p unsafe.Pointer,k uintptr,v unsafe.Pointer,n uintptr)error{if e:=proofUpdateAttributes.Find();e!=nil{return e};r,_,_:=proofUpdateAttributes.Call(uintptr(p),0,k,uintptr(v),n,0,0);if r==0{return errors.New("binary startup attribute unavailable")};return nil},
  BinaryDeleteAttributes:func(p unsafe.Pointer)error{if e:=proofDeleteAttributes.Find();e!=nil{return e};proofDeleteAttributes.Call(uintptr(p));return nil},
+ BinaryPeek:func(h windows.Handle,n *uint32)error{if e:=binaryPeekPipe.Find();e!=nil{return e};r,_,e:=binaryPeekPipe.Call(uintptr(h),0,0,0,uintptr(unsafe.Pointer(n)),0);if r==0{return e};return nil},
+ BinaryTick:func()(uint64,error){if e:=binaryTickCount.Find();e!=nil{return 0,e};tick,_,_:=binaryTickCount.Call();return uint64(tick),nil},
  FileReOpen:func(source windows.Handle)(windows.Handle,error){if e:=proofReOpenFile.Find();e!=nil{return 0,e};h,_,e:=proofReOpenFile.Call(uintptr(source),uintptr(windows.GENERIC_READ),uintptr(windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE),uintptr(windows.FILE_FLAG_OPEN_REPARSE_POINT));handle:=windows.Handle(h);if validDebianProducedHandle(handle){return handle,nil};if e!=windows.ERROR_SUCCESS{return handle,e};return handle,errors.New("original file reopen unavailable")},
 }}
 

@@ -8,6 +8,10 @@ import (
  "github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
 )
 
+const debianBinaryEntryRole="support:inspection/debian_binary_binding_entry.py"
+const debianBinaryEntryBytes=int64(34087)
+const debianBinaryEntrySHA="94f196ca6f9f49aad943e03395b03027890baa8a46bffb07b849dab64f595483"
+
 // A semantic support role may contain its distribution-relative path. Backend
 // evidence roles deliberately cannot. Map the opaque role, never its path, to
 // a collision-resistant bounded ID while retaining the original profile refs.

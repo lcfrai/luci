@@ -28,6 +28,7 @@ type debianBinarySpoolNative struct {
  life *debianProofLifetime
  stderrClosing bool
  stderrAttempt *debianBinarySpoolReadAttempt
+ stdoutAttempt *debianBinarySpoolReadAttempt
 }
 
 // Mechanically guards an already-existing private directory. It is NOT the
