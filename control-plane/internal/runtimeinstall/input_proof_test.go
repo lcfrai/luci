@@ -35,3 +35,11 @@ func TestInputProofFactsCannotBecomeImageReadinessOrFalseSettlement(t *testing.T
  out:=DebianInputProofOutcome{Identity:id,Phase:"unknown",ResourcesHeld:true};if !ValidInputProofOutcome(out){t.Fatal("unknown retained rejected")};out.CleanupConfirmed=true;if ValidInputProofOutcome(out){t.Fatal("held plus clean accepted")}
  out.ResourcesHeld=false;out.Phase="ready";if ValidInputProofOutcome(out){t.Fatal("proof became image ready")};out.Phase="facts-recorded";if ValidInputProofOutcome(out){t.Fatal("missing domains/head accepted")}
 }
+
+func TestBinaryProofOutcomeCannotBorrowSignatureDomainOrClaimRuntimeReady(t *testing.T){
+ id:=DebianInputProofIdentity{Purpose:DebianBinaryInputProofPurpose,JobID:"j",JobGeneration:"g",RunID:"r",AllocationID:"a",ProfileID:"p",ProfileSHA256:strings.Repeat("a",64),SourceSHA256:strings.Repeat("b",64)}
+ out:=DebianInputProofOutcome{Identity:id,Phase:"facts-recorded",CleanupConfirmed:true,PublishedCAS:InputProofCAS{Revision:2,Digest:strings.Repeat("c",64)}}
+ for _,kind:=range []string{"signed-index-bindings","debian-binaries","input-closure","producer-raw-manifest"}{out.Domains=append(out.Domains,InputProofDomainRef{Kind:kind,SHA256:strings.Repeat("d",64),Bytes:128})}
+ if !ValidInputProofOutcome(out){t.Fatal("exact binary fact publication refused")}
+ for _,kind:=range []string{"signature-domain","legacy-purpose","ready","held","duplicate"}{t.Run(kind,func(t *testing.T){bad:=out;bad.Domains=append([]InputProofDomainRef(nil),out.Domains...);switch kind{case "signature-domain":bad.Domains[0].Kind="official-root-policy";case "legacy-purpose":bad.Identity.Purpose="";case "ready":bad.Phase="ready";case "held":bad.ResourcesHeld=true;case "duplicate":bad.Domains[0]=bad.Domains[1]};if ValidInputProofOutcome(bad){t.Fatal("different domain/settlement gained closure authority")}})}
+}

@@ -33,7 +33,7 @@ type debianBinaryNativeTransport struct {
 	mu sync.Mutex // metadata only; no backend, guard, native or authority I/O
 	owner *debianProofNativeOwner
 	selection debianBinaryTransportSelection
-	sources [3]*debianProofSourceAdmission
+	sources []*debianProofSourceAdmission
 	packages backend.DocumentImageAssemblyPackageInputGuard
 	indexes, smallSources backend.DocumentImageAssemblyEvidenceGuard
 	claim *debianProofBinaryOriginalClaim
@@ -50,19 +50,24 @@ type debianBinaryNativeTransport struct {
 // There is deliberately no production binary-purpose caller yet: the actual
 // Product/source/host/profile gate stays closed and the first3 child is unchanged.
 func (o *debianProofNativeOwner) prepareBinaryReadTransport(ctx context.Context, selection debianBinaryTransportSelection, packages *debianProofPackageAdmission, indexes, smallSources *debianProofEvidenceAdmission) (*debianBinaryNativeTransport, error) {
+	return o.prepareBinaryReadTransportSelection(ctx,selection,packages,indexes,smallSources,nil)
+}
+func (o *debianProofNativeOwner) prepareBinaryReadTransportSelection(ctx context.Context, selection debianBinaryTransportSelection, packages *debianProofPackageAdmission, indexes, smallSources,selected *debianProofEvidenceAdmission) (*debianBinaryNativeTransport, error) {
 	if ctx == nil || ctx.Err() != nil || o == nil || o.census == nil || !debianProducerPlatformSupported() || packages == nil || indexes == nil || smallSources == nil {
 		return nil, errDebianProofCensus
 	}
 	c := o.census
-	t := &debianBinaryNativeTransport{owner: o, selection: selection, sources: [3]*debianProofSourceAdmission{packages.source, indexes.source, smallSources.source}, preparing: true}
+	t := &debianBinaryNativeTransport{owner: o, selection: selection, sources: []*debianProofSourceAdmission{packages.source, indexes.source, smallSources.source}, preparing: true}
+	if selected!=nil{t.sources=append(t.sources,selected.source)}
 	c.mu.Lock()
 	if c.owner != o || c.retiring || o.nativeRetired() || !time.Now().Before(o.workLimit()) || indexes.source == smallSources.source {
 		c.mu.Unlock(); return nil, errDebianProofCensus
 	}
-	for _, s := range t.sources {
+	for n, s := range t.sources {
 		if s == nil || s.owner != o || !c.hasSourceLocked(s) || !s.consumed || s.acquiring || s.retiring || s.released || s.binaryTransport != nil {
 			c.mu.Unlock(); return nil, errDebianProofCensus
 		}
+		for prior:=0;prior<n;prior++{if t.sources[prior]==s||t.sources[prior].charge.SameRegistry(s.charge){c.mu.Unlock();return nil,errDebianProofCensus}}
 	}
 	t.packages, t.indexes, t.smallSources = packages.source.packageGuard, indexes.source.guard, smallSources.source.guard
 	if t.packages == nil || t.indexes == nil || t.smallSources == nil {
@@ -80,7 +85,10 @@ func (o *debianProofNativeOwner) prepareBinaryReadTransport(ctx context.Context,
 	if err != nil { t.retire(); return t, err }
 	sourceLease, err := dockerbe.BorrowDocumentImageAssemblyEvidenceRegistry(ctx, t.smallSources)
 	if err != nil { t.retire(); return t, err }
-	for i, lease := range []*dockerbe.DocumentImageAssemblyOriginalRegistryLease{packageLease, indexLease, sourceLease} {
+	leases:=[]*dockerbe.DocumentImageAssemblyOriginalRegistryLease{packageLease,indexLease,sourceLease}
+	var selectionGuard backend.DocumentImageAssemblyEvidenceGuard
+	if selected!=nil{selectionGuard=selected.source.guard;if selectionGuard==nil{t.retire();return t,errDebianProofCensus};lease,e:=dockerbe.BorrowDocumentImageAssemblyEvidenceRegistry(ctx,selectionGuard);if e!=nil{t.retire();return t,e};leases=append(leases,lease)}
+	for i, lease := range leases {
 		charge, e := lease.Charge()
 		if e != nil || !charge.SameRegistry(t.sources[i].charge) { t.retire(); return t, errDebianProofCensus }
 	}
@@ -91,13 +99,15 @@ func (o *debianProofNativeOwner) prepareBinaryReadTransport(ctx context.Context,
 	// Each compared snapshot has just passed the concrete backend token getter;
 	// its dynamic type is the backend's pointer token, not a caller equality hook.
 	valid = valid && t.sources[0].packageGuard == t.packages && t.sources[1].guard == t.indexes && t.sources[2].guard == t.smallSources
+	if selected!=nil{valid=valid&&t.sources[3].guard==selectionGuard}
 	if !valid { c.mu.Unlock(); t.retire(); return t, errDebianProofCensus }
 	claim, err := o.reserveBinaryOriginalTransportLocked()
 	if err == nil { t.claim = claim }
 	c.mu.Unlock()
 	if err != nil { t.retire(); return t, err }
 	t.mu.Lock(); t.reserveStarted = true; t.mu.Unlock()
-	reservation, err := dockerbe.ReserveDocumentImageAssemblyBinaryReadLoan(ctx, t.selection.request, t.packages, t.indexes, t.smallSources)
+	var reservation *dockerbe.DocumentImageAssemblyBinaryReadReservation
+	if selected==nil{reservation,err=dockerbe.ReserveDocumentImageAssemblyBinaryReadLoan(ctx,t.selection.request,t.packages,t.indexes,t.smallSources)}else{reservation,err=dockerbe.ReserveDocumentImageAssemblyBinaryReadLoanWithSelection(ctx,t.selection.request,t.packages,t.indexes,t.smallSources,selectionGuard)}
 	err = t.finishReservation(ctx, reservation, err)
 	if err != nil { return t, err }
 	t.mu.Lock()

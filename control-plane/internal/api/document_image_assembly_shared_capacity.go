@@ -27,6 +27,7 @@ func assemblyCaptureDemand(rows []documentImageAssemblyLease, reserveMiB int) (u
 			return 0, errors.New("assembly capture demand overflow")
 		}
 		demand += row.CaptureDiskBytes
+		if row.Stage!=nil{if row.Stage.DirectoryBytes>^uint64(0)-demand{return 0,errors.New("assembly staging demand overflow")};demand+=row.Stage.DirectoryBytes}
 	}
 	return demand, nil
 }

@@ -26,6 +26,8 @@ type Request struct {
 	// compressed-pull is the ordinary source-bound install. The v1 packaged
 	// ImageLoad and source build remain explicit diagnostic modes only.
 	Mode string
+	// Server-captured from the exact completed binary job, never HTTP input.
+	DocumentAssembly *DocumentAssemblyArtifact
 }
 
 type Outcome struct {
@@ -36,6 +38,19 @@ type Outcome struct {
 	ReasonCode       string                `json:"reasonCode,omitempty"`
 	Message          string                `json:"message"`
 	Admission        *AdmissionObservation `json:"admission,omitempty"`
+	DocumentAssembly *DocumentAssemblyArtifact `json:"documentAssembly,omitempty"`
+}
+
+// A settled maintainer artifact is not an installed image or extraction
+// readiness. Ref is the private fixed capture identity, never a caller path.
+type DocumentAssemblyArtifact struct {
+ InputClosureSHA256 string `json:"inputClosureSha256"`
+ ProfileSHA256 string `json:"profileSha256"`
+ SourceSHA256 string `json:"sourceSha256"`
+ Ref string `json:"ref,omitempty"`
+ CaptureSHA256 string `json:"captureSha256,omitempty"`
+ CaptureBytes int64 `json:"captureBytes,omitempty"`
+ ReceiptSHA256 string `json:"receiptSha256,omitempty"`
 }
 
 // AdmissionObservation is a bounded projection of the actual refusing sample,

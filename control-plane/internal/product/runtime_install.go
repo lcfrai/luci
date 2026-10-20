@@ -50,7 +50,7 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if req.Mode != "" && req.Mode != "packaged" && req.Mode != "compressed-pull" && req.Mode != "advanced-build" && req.Mode!=runtimeinstall.DocumentRuntimeInstallMode {
+	if req.Mode != "" && req.Mode != "packaged" && req.Mode != "compressed-pull" && req.Mode != "advanced-build" && req.Mode!=runtimeinstall.DocumentRuntimeInstallMode && req.Mode!=runtimeinstall.DocumentRuntimeAssemblyMode {
 		problem(w, 400, "runtime_install_mode_invalid", "Select the compressed packaged runtime or an explicit diagnostic install mode.")
 		return
 	}
@@ -71,14 +71,14 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 202, active)
 		return
 	}
-	if mode!=runtimeinstall.DocumentRuntimeInstallMode{
+	if mode!=runtimeinstall.DocumentRuntimeInstallMode&&mode!=runtimeinstall.DocumentRuntimeAssemblyMode{
 		if profile,selected,err:=s.selectedRuntimeInputProofProfile();selected {
 			if err!=nil {problem(w,503,"runtime_input_proof_unavailable",err.Error());return}
 			s.installRuntimeInputProof(w,r,profile);return
 		}
 	}
-	var dir string;var err error
-	if mode==runtimeinstall.DocumentRuntimeInstallMode{dir,err=s.documentRuntimeSource()}else{dir,err=s.runtimeSource()}
+	var dir string;var err error;var assembly *runtimeinstall.DocumentAssemblyArtifact
+	if mode==runtimeinstall.DocumentRuntimeInstallMode{dir,err=s.documentRuntimeSource()}else if mode==runtimeinstall.DocumentRuntimeAssemblyMode{dir,assembly,err=s.documentAssemblySelection(active)}else{dir,err=s.runtimeSource()}
 	if err != nil {
 		problem(w, 409, "runtime_source_missing", err.Error())
 		return
@@ -108,16 +108,20 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 202, job)
 		return
 	}
+	if assembly!=nil&&(s.runtimeJob.ID!=active.ID||s.runtimeJob.InputProof==nil||s.runtimeJob.InputProof.Identity!=active.InputProof.Identity){s.mu.Unlock();problem(w,409,"document_assembly_source_changed","Read the current completed input proof before assembling.");return}
 	now := time.Now().UTC()
 	job := RuntimeJob{ID: newID("runtime-"), Status: "installing", Image: s.sandboxImage, Message: "Checking shared capacity before preparing the bundled runtime.", CreatedAt: now, UpdatedAt: now}
 	if mode==runtimeinstall.DocumentRuntimeInstallMode{job.OperationKind="document-runtime-image";job.Image=runtimeinstall.DocumentRuntimeImageTag;job.Message="Checking shared capacity before importing the independently verified document runtime."}
+	if assembly!=nil{job.OperationKind=runtimeinstall.DocumentRuntimeAssemblyMode;job.Image="luci/document-extractor:assembly";job.Message="Preparing the exact verified document inputs for contained assembly."}
 	job.Execution = &runtimeinstall.Outcome{Identity: runtimeinstall.Identity{JobID: job.ID, ImageTag: job.Image}, Phase: "queued", Message: job.Message}
+	if assembly!=nil{captured:=*assembly;job.Execution.DocumentAssembly=&captured}
 	if err = atomicJSON(filepath.Join(s.stateDir, "runtime-install.json"), job); err != nil {
 		s.mu.Unlock()
 		problem(w, 500, "runtime_save_failed", err.Error())
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), runtimeBuildTimeout)
+	budget:=runtimeBuildTimeout;if assembly!=nil{budget=420*time.Second}
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	done := make(chan struct{})
 	s.runtimeJob = job
 	s.runtimeInstall.cancel, s.runtimeInstall.done = cancel, done
@@ -129,7 +133,8 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 		if err := s.runtimeStoragePreflight(); err != nil {
 			return runtimeinstall.Outcome{}, err
 		}
-		return runtime.Run(ctx, runtimeinstall.Request{Identity: job.Execution.Identity, SourceDirectory: dir, Actor: actor, Mode: mode}, publish)
+		var captured *runtimeinstall.DocumentAssemblyArtifact;if assembly!=nil{copy:=*assembly;captured=&copy}
+		return runtime.Run(ctx, runtimeinstall.Request{Identity: job.Execution.Identity, SourceDirectory: dir, Actor: actor, Mode: mode,DocumentAssembly:captured}, publish)
 	})
 	writeJSON(w, 202, job)
 }
@@ -144,10 +149,16 @@ func (s *Server) publishRuntimeInstall(id string, outcome runtimeinstall.Outcome
 		return errors.New("runtime installation outcome has no confirmed settlement")
 	}
 	job := s.runtimeJob
+	if job.OperationKind==runtimeinstall.DocumentRuntimeAssemblyMode{
+		before,after:=job.Execution.DocumentAssembly,outcome.DocumentAssembly
+		if before==nil||after==nil||before.InputClosureSHA256!=after.InputClosureSHA256||before.ProfileSHA256!=after.ProfileSHA256||before.SourceSHA256!=after.SourceSHA256{return errors.New("document assembly captured input changed")}
+		if outcome.Phase=="assembled"&&(outcome.ResourcesHeld||!outcome.CleanupConfirmed||!runtimeinstall.InputProofHex(after.Ref)||!runtimeinstall.InputProofHex(after.CaptureSHA256)||!runtimeinstall.InputProofHex(after.ReceiptSHA256)||after.CaptureBytes<=0||after.CaptureBytes>2<<30){return errors.New("document assembly artifact is not positively settled")}
+		if outcome.Phase=="ready"{return errors.New("assembly cannot grant runtime image readiness")}
+	}
 	job.Execution = &outcome
 	job.Message, job.UpdatedAt = outcome.Message, time.Now().UTC()
 	switch outcome.Phase {
-	case "ready", "failed", "blocked", "cancelled", "unknown":
+	case "ready", "assembled", "failed", "blocked", "cancelled", "unknown":
 		job.Status = outcome.Phase
 	default:
 		job.Status = "installing"
@@ -177,13 +188,13 @@ func (s *Server) runRuntimeInstall(ctx context.Context, cancel context.CancelFun
 		s.mu.Unlock()
 	}()
 	out, err := run(func(value runtimeinstall.Outcome) error {
-		if value.Phase == "ready" && ctx.Err() != nil {
+		if (value.Phase == "ready"||value.Phase=="assembled") && ctx.Err() != nil {
 			return ctx.Err()
 		}
 		return s.publishRuntimeInstall(id, value)
 	})
 	if out.JobID != "" {
-		if out.Phase == "ready" && ctx.Err() != nil {
+		if (out.Phase == "ready"||out.Phase=="assembled") && ctx.Err() != nil {
 			err = ctx.Err()
 		} else if saveErr := s.publishRuntimeInstall(id, out); saveErr != nil {
 			err = saveErr

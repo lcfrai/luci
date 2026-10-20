@@ -234,5 +234,32 @@ it('does not offer document preparation without current backing management permi
  render(<LocalTools client={createProductClient('http://localhost', fetcher)} manageBacking={false} />);
  await userEvent.click(screen.getByText('Git identity, agent connection and runtime'));
  expect(screen.queryByRole('button', {name: 'Prepare document extraction'})).toBeNull();
+ expect(screen.queryByRole('button', {name: 'Assemble document image artifact'})).toBeNull();
+ expect(fetcher.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(0);
+});
+
+it('requires a positively settled binary proof and explicit action for maintainer assembly', async () => {
+ const fetcher=vi.fn<typeof fetch>().mockImplementation(async(url,init)=>new Response(JSON.stringify(
+  String(url).endsWith('/git/identity')?{name:'Maintainer',email:'maintainer@example.invalid'}:String(url).endsWith('/runtime/install')?init?.method==='POST'?{id:'assembly-job',status:'installing',message:'Staging exact verified inputs.'}:{id:'binary-job',status:'facts-recorded',inputProof:{identity:{purpose:'binary-bindings'},phase:'facts-recorded',cleanupConfirmed:true,resourcesHeld:false,publicationUnknown:false}}:{providers:[]}
+ )));
+ render(<LocalTools client={createProductClient('http://localhost',fetcher)} />);
+ await userEvent.click(screen.getByText('Git identity, agent connection and runtime'));
+ await screen.findByDisplayValue('Maintainer');
+ expect(fetcher.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(0);
+ await userEvent.click(screen.getByText('Maintainer document image assembly'));
+ await userEvent.click(screen.getByRole('button',{name:'Assemble document image artifact'}));
+ await screen.findByText('installing · Staging exact verified inputs.');
+ const writes=fetcher.mock.calls.filter(([,init])=>init?.method==='POST');
+ expect(writes).toHaveLength(1);expect(JSON.parse(writes[0][1]!.body as string)).toEqual({mode:'document-assemble'});
+ expect(screen.getByText(/does not prepare extraction/)).toBeTruthy();
+});
+
+it.each(['signature-proof','held','unknown'])('does not offer assembly authority for a %s result',async(kind)=>{
+ const proof={identity:{purpose:kind==='signature-proof'?'signature-bindings':'binary-bindings'},phase:'facts-recorded',cleanupConfirmed:kind!=='held',resourcesHeld:kind==='held',publicationUnknown:kind==='unknown'};
+ const fetcher=vi.fn<typeof fetch>().mockImplementation(async(url)=>new Response(JSON.stringify(String(url).endsWith('/git/identity')?{name:'Maintainer',email:'maintainer@example.invalid'}:String(url).endsWith('/runtime/install')?{id:'proof-job',status:'facts-recorded',inputProof:proof}:{providers:[]})));
+ render(<LocalTools client={createProductClient('http://localhost',fetcher)} />);
+ await userEvent.click(screen.getByText('Git identity, agent connection and runtime'));await screen.findByDisplayValue('Maintainer');
+ await userEvent.click(screen.getByText('Maintainer document image assembly'));
+ const action=screen.getByRole('button',{name:'Assemble document image artifact'});expect(action).toHaveProperty('disabled',true);await userEvent.click(action);
  expect(fetcher.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(0);
 });

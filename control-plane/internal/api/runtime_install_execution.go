@@ -98,6 +98,7 @@ func (a *API) captureRuntimeInstallerActor(ctx context.Context) (management.Exec
 // tag request after an uncertain acknowledgement. A finished ledger row retains
 // the engine-wide installer slot until publication is durably acknowledged.
 func (a *API) installRuntimeImage(ctx context.Context, req runtimeinstall.Request, publish runtimeinstall.Publish) (runtimeinstall.Outcome, error) {
+	if req.Mode==runtimeinstall.DocumentRuntimeAssemblyMode{return a.assembleCurrentDocumentImage(ctx,req,publish)}
 	document:=req.Mode==runtimeinstall.DocumentRuntimeInstallMode
 	out := runtimeinstall.Outcome{Identity: req.Identity, Phase: "blocked", Message: "Runtime installation has not started."}
 	fail := func(code, message string, cause error) (runtimeinstall.Outcome, error) {
@@ -486,6 +487,7 @@ func (a *API) stopImportedRuntimeImage(ctx context.Context, publish runtimeinsta
 }
 
 func (a *API) reconcileRuntimeImage(ctx context.Context, id runtimeinstall.Identity, actor management.ExecutionActorRef, publish runtimeinstall.Publish) (runtimeinstall.Outcome, error) {
+	if id.ImageTag==documentAssemblyImageTag{return a.reconcileDocumentAssembly(ctx,id,actor,publish)}
 	out := runtimeinstall.Outcome{Identity: id, Phase: "unknown", Message: "The exact runtime installation still requires settlement."}
 	invalid := func(err error) (runtimeinstall.Outcome, error) { return runtimeinstall.Outcome{}, err }
 	if publish == nil || !checkLogicalID(id.JobID) || id.AllocationID != "" && !checkLogicalID(id.AllocationID) {

@@ -106,7 +106,7 @@ func assemblyCatalogHex(value string) bool {
 
 func assemblyCatalogKind(kind string) bool {
 	switch kind {
-	case "source-descriptor", "evidence-index", "producer-raw-manifest", "official-root-policy", "key-observations", "release-signatures", "signed-index-bindings", "debian-binaries", "debian-sources", "base-rootfs", "wheels", "dependency-closure", "expected-installed-files", "notices-and-sources", "luci-source-helper", "input-closure":
+	case "source-descriptor", "evidence-index", "producer-raw-manifest", "official-root-policy", "key-observations", "release-signatures", "signed-index-bindings", "debian-binaries", "debian-sources", "base-rootfs", "wheels", "dependency-closure", "expected-installed-files", "notices-and-sources", "luci-source-helper", "input-closure", "input-closure-domain":
 		return true
 	}
 	return false
@@ -408,6 +408,8 @@ func (o *assemblyInputOwner) writeImmutableAssemblyObject(ctx context.Context, r
 				return errAssemblyCatalogInvalid
 			}
 			suffix = ".xz"
+		case "binary-raw":
+			if len(data)==0||len(data)>4<<20{return errAssemblyCatalogInvalid};suffix=".raw"
 		default:
 			return errAssemblyCatalogInvalid
 		}
@@ -416,7 +418,7 @@ func (o *assemblyInputOwner) writeImmutableAssemblyObject(ctx context.Context, r
 			return errAssemblyCatalogInvalid
 		}
 		switch ref.Kind {
-		case "source-descriptor", "evidence-index", "official-root-policy", "key-observations", "release-signatures", "producer-raw-manifest", "signed-index-bindings":
+		case "source-descriptor", "evidence-index", "official-root-policy", "key-observations", "release-signatures", "producer-raw-manifest", "signed-index-bindings", "debian-binaries", "debian-sources", "base-rootfs", "wheels", "dependency-closure", "expected-installed-files", "notices-and-sources", "luci-source-helper", "input-closure", "input-closure-domain":
 		default:
 			return errAssemblyCatalogInvalid // no full closure/other domain writer
 		}
@@ -529,7 +531,7 @@ func boundedAssemblyCatalogHistory(ctx context.Context, root string, additional 
 					// Raw evidence is a storage-only namespace, never a selectable
 					// catalog domain. The file branch below enforces .raw and its
 					// existing bounded size/count/private-path constraints.
-					if depth != 0 || !assemblyCatalogKind(entry.Name()) && entry.Name() != "producer-raw" && entry.Name() != "debian-index-raw" {
+					if depth != 0 || !assemblyCatalogKind(entry.Name()) && entry.Name() != "producer-raw" && entry.Name() != "debian-index-raw" && entry.Name()!="binary-raw" {
 						return errAssemblyCatalogInvalid
 					}
 					if err = scan(path, depth+1); err != nil {
@@ -544,6 +546,7 @@ func boundedAssemblyCatalogHistory(ctx context.Context, root string, additional 
 				if filepath.Base(dir) == "debian-index-raw" {
 					suffix, limit = ".xz", assemblyDebianIndexObjectLimit
 				}
+				if filepath.Base(dir)=="binary-raw"{suffix,limit=".raw",4<<20}
 				if depth != 1 || !strings.HasSuffix(entry.Name(), suffix) || !assemblyCatalogHex(strings.TrimSuffix(entry.Name(), suffix)) {
 					return errAssemblyCatalogInvalid
 				}

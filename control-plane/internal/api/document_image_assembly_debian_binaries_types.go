@@ -149,6 +149,7 @@ type assemblyDebianBinaryFrame struct {
 	span                assemblyDebianBinarySpanV1
 	fields              map[string]string
 	claims              *assemblyDebianBinarySelectedFieldsV1
+	rawClaims           []byte
 }
 
 // A pure bounded decoder result, not native completion/guard/authority proof.

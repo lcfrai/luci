@@ -86,14 +86,18 @@ export function LocalTools({
     }, 3000);
     return () => { alive = false; controller.abort(); clearInterval(timer); };
   }, [client, runtime?.id, runtime?.status]);
-  const runtimeAction = (action: "install" | "documents" | "cancel" | "reconcile") => {
-    const starts = action === 'install' || action === 'documents';
+  const assemblyAvailable = runtime?.inputProof?.identity.purpose === 'binary-bindings'
+    && runtime.inputProof.phase === 'facts-recorded' && runtime.inputProof.cleanupConfirmed
+    && !runtime.inputProof.resourcesHeld && !runtime.inputProof.publicationUnknown;
+  const runtimeAction = (action: "install" | "documents" | "assemble" | "cancel" | "reconcile") => {
+    const starts = action === 'install' || action === 'documents' || action === 'assemble';
     if (!manageBacking || working.current || (!starts && !runtime?.id)) return;
     if (starts && (runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime))) return;
+    if (action === 'assemble' && !assemblyAvailable) return;
     const currentGeneration = generation.current;
     const selectedMutation = ++mutation.current;
-    void run(starts ? action === 'documents' ? 'Preparing contained document extraction' : "Starting runtime installation" : action === "cancel" ? "Requesting cancellation" : "Checking interrupted installation", async () => {
-      const next = action === 'documents' ? await client.installRuntime('document-packaged') : action === "install" ? await client.installRuntime() : action === "cancel" ? await client.cancelRuntime(runtime!.id) : await client.reconcileRuntime(runtime!.id);
+    void run(starts ? action === 'assemble' ? 'Assembling document image artifact' : action === 'documents' ? 'Preparing contained document extraction' : "Starting runtime installation" : action === "cancel" ? "Requesting cancellation" : "Checking interrupted installation", async () => {
+      const next = action === 'assemble' ? await client.installRuntime('document-assemble') : action === 'documents' ? await client.installRuntime('document-packaged') : action === "install" ? await client.installRuntime() : action === "cancel" ? await client.cancelRuntime(runtime!.id) : await client.reconcileRuntime(runtime!.id);
       if (generation.current === currentGeneration && mutation.current === selectedMutation) setRuntime(next);
     });
   };
@@ -233,6 +237,14 @@ export function LocalTools({
                 <Button type="button" variant="secondary" disabled={!loaded || !!busy || !!runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime)} onClick={() => runtimeAction('documents')}>
                   Prepare document extraction
                 </Button>
+                <details>
+                  <summary>Maintainer document image assembly</summary>
+                  <p className="journey-muted">Assemble a document image artifact from this installation’s completed input proof. This separate operation does not prepare extraction: finalize and package the artifact before installing it.</p>
+                  {!assemblyAvailable && <p className="journey-muted">Complete the configured document input proof before assembling its image.</p>}
+                  <Button type="button" variant="secondary" disabled={!loaded || !!busy || !!runtimeBlockedReason || !assemblyAvailable || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime)} onClick={() => runtimeAction('assemble')}>
+                    Assemble document image artifact
+                  </Button>
+                </details>
                 {runtime?.id && runtimeInstallActive(runtime) && runtime.status !== "reconciling" && (
                   <Button type="button" variant="secondary" disabled={!!busy || !!runtime.cancelRequested || runtime.status === "cancelling"} onClick={() => runtimeAction("cancel")}>
                     {runtime.cancelRequested || runtime.status === "cancelling" ? "Cancellation requested" : "Cancel runtime preparation"}

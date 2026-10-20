@@ -22,12 +22,14 @@ type assemblyDebianPublicationPermit struct {
 	product *product.RuntimeInputProofAdoptionPermit
 	candidate *assemblyDebianDomainCandidate
 	indexes *assemblyDebianIndexCandidate // exactly one concrete candidate arm
+	accepted *assemblyAcceptedInputCandidate
 	inFlight bool // protected by candidate.mu
 	retired bool
 }
 
 func (p *assemblyDebianPublicationPermit) begin(ctx context.Context, owner *assemblyInputOwner, next assemblyCatalogCAS) error {
-	if p==nil || (p.candidate==nil)==(p.indexes==nil) { return errAssemblyDebianCapture }
+	if !p.oneArm(){return errAssemblyDebianCapture}
+	if p.accepted!=nil{return p.beginClosure(ctx,owner,next)}
 	if p.indexes!=nil{return p.beginIndexes(ctx,owner,next)}
 	c:=p.candidate
 	c.mu.Lock()
@@ -46,7 +48,8 @@ func (p *assemblyDebianPublicationPermit) begin(ctx context.Context, owner *asse
 }
 
 func (p *assemblyDebianPublicationPermit) finish(result assemblyCatalogCAS, err error)(assemblyCatalogCAS,error){
-	if p==nil || (p.candidate==nil)==(p.indexes==nil){return assemblyCatalogCAS{},errAssemblyDebianCapture}
+	if !p.oneArm(){return assemblyCatalogCAS{},errAssemblyDebianCapture}
+	if p.accepted!=nil{return p.finishClosure(result,err)}
 	if p.indexes!=nil{return p.finishIndexes(result,err)}
 	if p.product!=nil{if e:=p.product.Finish(runtimeinstall.InputProofCAS{Revision:result.Revision,Digest:result.Digest},err);e!=nil{err=errAssemblyDebianPublicationUncertain}}
 	c:=p.candidate;c.mu.Lock();defer c.mu.Unlock()
@@ -60,6 +63,7 @@ func (p *assemblyDebianPublicationPermit) finish(result assemblyCatalogCAS, err 
 	c.publicationUnknown=false
 	return result,nil
 }
+func(p *assemblyDebianPublicationPermit)oneArm()bool{if p==nil{return false};n:=0;if p.candidate!=nil{n++};if p.indexes!=nil{n++};if p.accepted!=nil{n++};return n==1}
 type assemblyDebianRawManifestEntry struct {
 	Slot string `json:"slot"`
 	Object assemblyDebianObjectRef `json:"object"`

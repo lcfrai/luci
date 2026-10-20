@@ -415,6 +415,8 @@ export interface RuntimeAdmissionObservation {
   maximumPercent?: number;
 }
 export interface RuntimeJob {
+  operationKind?: string;
+  inputProof?: { identity: { purpose?: string }; phase: string; cleanupConfirmed: boolean; resourcesHeld: boolean; publicationUnknown: boolean };
   execution?: { jobId: string; allocationId?: string; engineId?: string; instanceId?: string; sourceDigest?: string; imageId?: string; imageTag?: string; phase: string; resourcesHeld: boolean; cleanupConfirmed: boolean; reasonCode?: string; message: string; admission?: RuntimeAdmissionObservation };
   cancelRequested?: boolean;
   id: string;
@@ -658,7 +660,7 @@ export function createProductClient(
       }>("/v1/setup/ssh/key", {}),
     runtime: (signal?: AbortSignal) =>
       request<RuntimeJob>("/v1/setup/runtime/install", undefined, "GET", 120_000, signal),
-    installRuntime: (mode?: 'document-packaged') => request<RuntimeJob>("/v1/setup/runtime/install", mode ? {mode} : {}),
+    installRuntime: (mode?: 'document-packaged' | 'document-assemble') => request<RuntimeJob>("/v1/setup/runtime/install", mode ? {mode} : {}),
     cancelRuntime: (jobId: string) => request<RuntimeJob>("/v1/setup/runtime/install/cancel", { jobId }),
     reconcileRuntime: (jobId: string) => request<RuntimeJob>("/v1/setup/runtime/install/reconcile", { jobId }),
     cloudJobs: () => request<{ jobs: CloudJob[] }>("/v1/setup/cloud/jobs"),

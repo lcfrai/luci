@@ -42,6 +42,7 @@ func addDocumentImageAssemblyCapacity(snapshot resourcebudget.Snapshot, values [
 			return errors.New("assembly capture reserve overflow")
 		}
 		demand.PendingDiskBytes += lease.CaptureDiskBytes
+		if lease.Stage!=nil&&lease.State!="staging"{if demand.PendingDiskBytes>^uint64(0)-lease.Stage.DirectoryBytes{return errors.New("assembly input staging demand overflow")};demand.PendingDiskBytes+=lease.Stage.DirectoryBytes}
 		demand.PendingHostLaunchBytes += lease.HostLaunchBytes
 	}
 	return nil

@@ -34,6 +34,10 @@ type debianProducerPlan struct {
  projection *debianProductProjectionEvidence
  projectionToken *debianProductProjectionToken
  toolDomain *assemblyDebianToolDomainV1
+ binary *debianBinaryProducerInputs
+ domainMu sync.Mutex
+ domainInputs backend.DocumentDomainInputs
+ domainOpening,domainRetiring bool
 }
 // Closed contract for the separately allocated fixed-file product entry. The
 // Copies use original evidence guards; packaged prerequisites and the actual
@@ -56,12 +60,13 @@ type debianProducerLiveRun struct {
  outcome runtimeinstall.DebianInputProofOutcome
 	 capturedOwner *assemblyDebianOwnedRun
 	 candidate *assemblyDebianDomainCandidate
+	 accepted *assemblyAcceptedInputCandidate
 	 resourceSettlementKnown bool
  err error
  done chan struct{}
 }
 type debianProductProofBinding struct {api *API;identity runtimeinstall.DebianInputProofIdentity;actor management.ExecutionActorRef}
-func(b *debianProductProofBinding)current(ctx context.Context)error{if b==nil||b.api==nil||b.api.deps.Product==nil{return runtimeinstall.ErrInputProofOwnership};if err:=b.api.deps.Product.CheckRuntimeInputProofCurrent(ctx,b.identity);err!=nil{return err};authority,err:=b.api.authorizeRuntimeInstaller(ctx,b.actor);if err!=nil{return err};if !b.actor.Local&&(authority.Policy.CheckMemoryMiB<192||authority.Policy.CheckCPUMillis<1000){return errCheckResourcePolicy};return nil}
+func(b *debianProductProofBinding)current(ctx context.Context)error{if b==nil||b.api==nil||b.api.deps.Product==nil{return runtimeinstall.ErrInputProofOwnership};if err:=b.api.deps.Product.CheckRuntimeInputProofCurrent(ctx,b.identity);err!=nil{return err};authority,err:=b.api.authorizeRuntimeInstaller(ctx,b.actor);if err!=nil{return err};limits,ok:=runtimeinstall.DebianInputProofLimits(b.identity.Purpose);if !ok||!b.actor.Local&&(authority.Policy.CheckMemoryMiB<limits.MemoryMiB||authority.Policy.CheckCPUMillis<limits.CPUMillis){return errCheckResourcePolicy};return nil}
 // Process-local ownership only. Durable metadata cannot populate this map or
 // recreate a native capability. Unknown live creators/guards remain reachable.
 var liveDebianProducerRuns sync.Map
@@ -81,7 +86,7 @@ func validateDebianProducerProfileShape(p runtimeinstall.BundledDebianInputProof
  canonical,err:=canonicalDebianProducerProfile(p);if err!=nil || len(canonical)>64<<10 || assemblyCatalogDigest(canonical)!=p.SHA256{return nil,runtimeinstall.ErrInputProofUnavailable}
  roles,paths:=map[string]runtimeinstall.DebianInputProofFile{},map[string]bool{};total:=int64(len(canonical))
  required:=[]string{"cp-python","gpg","gpgv","projection-entry","projection-source","producer-source-receipt","producer-config","policy-source","dependency-lock","acquisition-manifest","snapshot-source","catalog-source-descriptor"}
- if p.Purpose==runtimeinstall.DebianBinaryInputProofPurpose{required=append(required,runtimeinstall.DebianSignatureProfileRole,debianBinaryEntryRole,"binary-reader","binary-inspector")}
+ if p.Purpose==runtimeinstall.DebianBinaryInputProofPurpose{required=append(required,runtimeinstall.DebianSignatureProfileRole,debianBinaryEntryRole,"binary-reader","binary-inspector","binary-input-paths","assembly-helper-executable","assembly-dependency-closure","assembly-installed-files","assembly-notices-sources","assembly-luci-helper","assembly-base-rootfs","assembly-wheels","assembly-debian-sources")}
  for i:=0;i<3;i++{required=append(required,"public-key-"+strconv.Itoa(i))};for i:=0;i<5;i++{required=append(required,"signed-release-"+strconv.Itoa(i))}
  requiredRoles:=map[string]bool{};for _,role:=range required{requiredRoles[role]=true}
  previous:=""
@@ -105,6 +110,7 @@ func validateDebianProducerProfileShape(p runtimeinstall.BundledDebianInputProof
 func (p *debianProducerPlan) current(ctx context.Context,a *API)error{
  if p==nil || p.inputs==nil || a.deps.Product==nil || p.owner==nil{return runtimeinstall.ErrInputProofOwnership}
  if err:=p.inputs.CheckCurrent(ctx);err!=nil{return err};if err:=a.deps.Product.CheckRuntimeInputProofCurrent(ctx,p.identity);err!=nil{return err}
+ if p.binary!=nil{if err:=p.binary.current(ctx);err!=nil{return err}}
  // Actor comes from the exact live request, never the profile manifest.
  value,ok:=liveDebianProducerRuns.Load(p.identity.RunID);if !ok{return runtimeinstall.ErrInputProofOwnership};run:=value.(*debianProducerLiveRun);run.mu.Lock();actor:=run.actor;run.mu.Unlock()
  if err:=(&debianProductProofBinding{api:a,identity:p.identity,actor:actor}).current(ctx);err!=nil{return err}
@@ -115,7 +121,7 @@ func (p *debianProducerPlan) current(ctx context.Context,a *API)error{
 func (a *API) proveBundledDebianInputs(ctx context.Context,req runtimeinstall.DebianInputProofRequest,publish runtimeinstall.PublishDebianInputProof)(runtimeinstall.DebianInputProofOutcome,error){
  out:=runtimeinstall.DebianInputProofOutcome{Identity:req.Identity,Phase:"blocked",CleanupConfirmed:true,ReasonCode:"input_proof_unavailable",Message:runtimeinstall.ErrInputProofUnavailable.Error()}
  if publish==nil || a.deps.Product==nil || a.execution==nil || a.deps.ResourceSnapshot==nil || a.deps.Store==nil || !runtimeinstall.ValidInputProofIdentity(req.Identity){return out,runtimeinstall.ErrInputProofOwnership}
- authority,err:=a.authorizeRuntimeInstaller(ctx,req.Actor);if err!=nil{return out,err};if !req.Actor.Local&&(authority.Policy.CheckMemoryMiB<192||authority.Policy.CheckCPUMillis<1000){return out,errCheckResourcePolicy}
+ authority,err:=a.authorizeRuntimeInstaller(ctx,req.Actor);if err!=nil{return out,err};required,ok:=runtimeinstall.DebianInputProofLimits(req.Identity.Purpose);if !ok||!req.Actor.Local&&(authority.Policy.CheckMemoryMiB<required.MemoryMiB||authority.Policy.CheckCPUMillis<required.CPUMillis){return out,errCheckResourcePolicy}
  profile,err:=a.deps.Product.RuntimeInputProofProfile(ctx,req.Identity);if err!=nil{return out,err}
  files,err:=a.configuredDebianProducerProfileBeforeReservation(profile);if err!=nil{return out,err}
  if !debianProducerPlatformSupported(){return out,runtimeinstall.ErrInputProofUnavailable}
@@ -125,15 +131,18 @@ func (a *API) proveBundledDebianInputs(ctx context.Context,req runtimeinstall.De
  // The retained worker owns partial acquisition and late native returns. A
  // request deadline cannot discard its original handles or trigger a retry.
  go run.execute(ctx,profile,files,publish)
- timer:=time.NewTimer(60*time.Second);defer timer.Stop()
+ limits,_:=runtimeinstall.DebianInputProofLimits(profile.Purpose)
+ timer:=time.NewTimer(limits.Whole);defer timer.Stop()
  select{case<-run.done:run.mu.Lock();out,err=run.outcome,run.err;run.mu.Unlock();return out,err
  case<-ctx.Done():run.retire();case<-timer.C:run.retire()}
- run.mu.Lock();out=run.outcome;candidate:=run.candidate;out.Phase="unknown";out.CleanupConfirmed=false;out.Message="The exact native producer or its original byte owners remain unsettled; no retry was started.";run.mu.Unlock()
+ run.mu.Lock();out=run.outcome;candidate,accepted:=run.candidate,run.accepted;out.Phase="unknown";out.CleanupConfirmed=false;out.Message="The exact native producer or its original byte owners remain unsettled; no retry was started.";run.mu.Unlock()
  if candidate!=nil{candidate.mu.Lock();out.PublicationUnknown=out.PublicationUnknown||candidate.publicationUnknown||candidate.publicationRetired||candidate.publication!=nil&&candidate.publication.inFlight;candidate.mu.Unlock()}
+ if accepted!=nil{accepted.mu.Lock();out.PublicationUnknown=out.PublicationUnknown||accepted.publicationUnknown||accepted.publicationRetired||accepted.publication!=nil&&accepted.publication.inFlight;accepted.mu.Unlock()}
  return out,errors.New("native input proof settlement unknown")
 }
-func(r *debianProducerLiveRun) retire(){r.mu.Lock();native,plan:=r.native,r.plan;r.mu.Unlock();if native!=nil{native.retire()};if plan!=nil{plan.projectionMu.Lock();projection:=plan.projection;plan.projectionMu.Unlock();if projection!=nil{projection.requestRetirement()}}}
+func(r *debianProducerLiveRun) retire(){r.mu.Lock();native,plan,accepted:=r.native,r.plan,r.accepted;r.mu.Unlock();if accepted!=nil{accepted.mu.Lock();accepted.retiring=true;if accepted.publication!=nil&&accepted.publication.inFlight{accepted.publication.retired=true;accepted.publicationRetired=true;accepted.publicationUnknown=true};accepted.mu.Unlock()};if native!=nil{native.retire()};if plan!=nil{plan.projectionMu.Lock();projection:=plan.projection;plan.projectionMu.Unlock();if projection!=nil{projection.requestRetirement()}}}
 func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstall.BundledDebianInputProofProfile,files map[string]runtimeinstall.DebianInputProofFile,publish runtimeinstall.PublishDebianInputProof){
+ if profile.Purpose==runtimeinstall.DebianBinaryInputProofPurpose{r.executeBinary(ctx,profile,files,publish);return}
  send:=func(out runtimeinstall.DebianInputProofOutcome)error{r.mu.Lock();r.outcome,r.identity=out,out.Identity;r.mu.Unlock();return publish(out)}
  var runErr error;var reserved bool
  out:=runtimeinstall.DebianInputProofOutcome{Identity:r.identity,Phase:"preparing",Message:"Validating the application-pinned producer profile."}
@@ -150,6 +159,7 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
   if !native.closeProduced(){settled=false}
   if candidate!=nil{if e:=candidate.retire();e!=nil{settled=false}}else if ownedRun!=nil{if e:=ownedRun.retire();e!=nil{settled=false}}else if plan.inputs!=nil{if e:=plan.inputs.Close();e!=nil{settled=false}}
   if candidate==nil&&ownedRun==nil&&plan.projectionToken!=nil{if e:=plan.projectionToken.Close();e!=nil{settled=false}}
+  if !plan.retireDocumentDomains(){settled=false}
   cleanupCtx,cancelCensus:=context.WithDeadline(context.Background(),native.wholeDeadline);if !native.settleSourceAdmissions(cleanupCtx)||!native.originalCensusSettled(){settled=false};cancelCensus()
   out.Identity=plan.identity;out.CleanupConfirmed=settled;out.ResourcesHeld=reserved&&!settled
   r.mu.Lock();r.resourceSettlementKnown=settled;r.mu.Unlock()
@@ -181,7 +191,7 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  plan.toolDomain,e=r.api.currentConfiguredDebianToolDomain(ctx,plan);if e!=nil{runErr=e;return}
  requirements,e:=debianHostRequirementsFromDomain(plan.toolDomain);if e!=nil{runErr=e;return}
  if _,e=observeDebianHostPrerequisites(ctx,native,requirements);e!=nil{runErr=e;return}
- snap,e:=owner.readCurrent(ctx);if e!=nil{runErr=e;return}
+ snap,e:=plan.currentOrInitializeCatalog(ctx,r.actor);if e!=nil{runErr=e;return}
  sourceBytes,e:=read("catalog-source-descriptor");if e!=nil{runErr=e;return}
  if checkDebianProducerSourceDescriptor(sourceBytes,files["catalog-source-descriptor"],snap)!=nil{runErr=errAssemblyCatalogConflict;return}
  plan.identity.ExpectedCAS=runtimeinstall.InputProofCAS{Revision:snap.CAS.Revision,Digest:snap.CAS.Digest}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"reflect"
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
@@ -420,7 +421,7 @@ func (a *API) boundDocumentImageAssemblyHooks(executor backend.DocumentImageAsse
 			if e != nil {
 				return e
 			}
-			if current.ImageAssemblies[index] != before {
+			if !reflect.DeepEqual(current.ImageAssemblies[index], before) {
 				return backend.ErrLaunchFenceOwnership
 			}
 			if fenceIndex >= 0 {

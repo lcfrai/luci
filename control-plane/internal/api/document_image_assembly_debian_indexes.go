@@ -20,6 +20,13 @@ func normalizeAssemblyDebianIndexSelection(source, config []byte) (assemblyDebia
 	if err != nil {
 		return out, err
 	}
+	return normalizeAssemblyDebianIndexSelectionFields(config,policy)
+}
+
+// The product arm supplies its independently pinned projection and already
+// validated policy. It never relabels the legacy diagnostic config digest.
+func normalizeAssemblyDebianIndexSelectionFields(config []byte,policy assemblyDebianRootPolicyV1)(assemblyDebianIndexSelectionV1,error){
+	var out assemblyDebianIndexSelectionV1
 	var input struct {
 		Releases []struct {
 			SHA        string `json:"sha256"`

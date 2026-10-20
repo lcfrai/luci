@@ -89,6 +89,7 @@ func(c DocumentRuntimeConfiguration)Configured()bool{return c.ProfileSHA256!=""|
 func(c DocumentRuntimeConfiguration)Valid()bool{return (!c.Configured()||InputProofHex(c.ProfileSHA256)&&InputProofHex(c.ToolDomainSHA256))&&(c.ImageManifestSHA256==""||InputProofHex(c.ImageManifestSHA256))}
 
 const DocumentRuntimeInstallMode="document-packaged"
+const DocumentRuntimeAssemblyMode="document-assemble"
 const DocumentRuntimeImageTag="luci/document-extractor:packaged"
 
 type bundledDebianProfileDescriptor struct {
@@ -135,7 +136,7 @@ func ValidInputProofOutcome(v DebianInputProofOutcome) bool {
  case "blocked","failed","cancelled": if v.ResourcesHeld || !v.CleanupConfirmed { return false }
  default:return false }
  seen:=map[string]bool{}
- for _,r:=range v.Domains { if seen[r.Kind] || !InputProofHex(r.SHA256) || r.Bytes<=0 || r.Bytes>64<<10 {return false};switch r.Kind {case "official-root-policy","key-observations","release-signatures","producer-raw-manifest":default:return false};seen[r.Kind]=true }
+ for _,r:=range v.Domains { if seen[r.Kind] || !InputProofHex(r.SHA256) || r.Bytes<=0 || r.Bytes>64<<10 {return false};if v.Identity.Purpose==DebianBinaryInputProofPurpose{switch r.Kind{case "signed-index-bindings","debian-binaries","input-closure","producer-raw-manifest":default:return false}}else{switch r.Kind {case "official-root-policy","key-observations","release-signatures","producer-raw-manifest":default:return false}};seen[r.Kind]=true }
  return true
 }
 

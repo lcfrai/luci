@@ -316,6 +316,7 @@ func decodeAssemblyDebianBinaryBundle(data []byte, ref assemblyDebianObjectRef, 
 				return empty, errAssemblyDebianEvidence
 			}
 			frame.claims = &claims
+			frame.rawClaims = append([]byte(nil),payload...)
 		}
 		if kind == 1 {
 			if slot != paragraphSlots[ordinal] {
