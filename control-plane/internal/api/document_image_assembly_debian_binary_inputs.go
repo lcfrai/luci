@@ -227,7 +227,9 @@ func debianBinaryDeclaredObjects(raw []byte, root string, b *debianBinaryProduce
 	for _, v := range paths.Files {
 		ref, ok := expected[v.Role]
 		relative := filepath.FromSlash(v.RelativePath)
-		if !ok || v.Role <= previous || v.SHA256 != ref.SHA256 || v.Bytes != ref.Bytes || relative == "" || relative == "." || strings.ContainsAny(v.RelativePath, "\\:\x00\r\n") || filepath.IsAbs(relative) || filepath.VolumeName(relative) != "" || filepath.Clean(relative) != relative || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		// A slash-rooted path has no Windows volume, but is never a
+		// profile-relative declaration even when IsAbs returns false.
+		if !ok || v.Role <= previous || v.SHA256 != ref.SHA256 || v.Bytes != ref.Bytes || relative == "" || relative == "." || strings.HasPrefix(v.RelativePath, "/") || strings.ContainsAny(v.RelativePath, "\\:\x00\r\n") || filepath.IsAbs(relative) || filepath.VolumeName(relative) != "" || filepath.Clean(relative) != relative || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 			return nil, nil, errAssemblyDebianEvidence
 		}
 		for _, part := range strings.Split(v.RelativePath, "/") {

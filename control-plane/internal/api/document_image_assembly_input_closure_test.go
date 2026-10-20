@@ -93,15 +93,28 @@ func TestAssemblyAcceptedCandidateCannotBeMintedFromSyntaxOrMissingOwner(t *test
 
 func TestAssemblyPersistedControlFieldsBindExactSelectedClaimBytes(t *testing.T) {
 	name, version, architecture, depends, source := "example", "1.0", "amd64", "libc6 (>= 2.36)", "source-example (1.0)"
-	claim := assemblyDebianBinarySelectedFieldsV1{Schema: 1, Control: assemblyDebianBinaryFieldsV1{Package: &name, Version: &version, Architecture: &architecture, Depends: &depends, Source: &source}, Indexes: []assemblyDebianBinaryIndexFieldsV1{}}
+	fields := assemblyDebianBinaryFieldsV1{Package: &name, Version: &version, Architecture: &architecture, Depends: &depends, Source: &source}
+	claim := assemblyDebianBinarySelectedFieldsV1{Schema: 1, Control: fields, Indexes: []assemblyDebianBinaryIndexFieldsV1{{BindingOrdinals: []int{0}, Fields: fields}}}
 	raw, err := json.Marshal(claim)
 	if err != nil {
 		t.Fatal(err)
 	}
-	binding := assemblyDebianBinaryBindingV1{Name: name, Version: version, Architecture: architecture, SelectedFieldClaims: assemblyDebianBinarySpanV1{Bytes: int64(len(raw)), SHA256: assemblyCatalogDigest(raw)}, Matches: []assemblyDebianBinaryMatchV1{}}
+	binding := assemblyDebianBinaryBindingV1{Name: name, Version: version, Architecture: architecture, SelectedFieldClaims: assemblyDebianBinarySpanV1{Bytes: int64(len(raw)), SHA256: assemblyCatalogDigest(raw)}, Matches: []assemblyDebianBinaryMatchV1{{IndexBindingOrdinals: []int{0}}}}
 	projection, err := assemblyProjectionFromClaimBytes(raw, binding)
 	if err != nil || projection.Depends != depends || projection.Source != source {
 		t.Fatal("actual claim fields not retained", err)
+	}
+	missingIndex := claim
+	missingIndex.Indexes = []assemblyDebianBinaryIndexFieldsV1{}
+	missingRaw, err := json.Marshal(missingIndex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	missingBinding := binding
+	missingBinding.Matches = []assemblyDebianBinaryMatchV1{}
+	missingBinding.SelectedFieldClaims = assemblyDebianBinarySpanV1{Bytes: int64(len(missingRaw)), SHA256: assemblyCatalogDigest(missingRaw)}
+	if _, err = assemblyProjectionFromClaimBytes(missingRaw, missingBinding); err == nil {
+		t.Fatal("self-consistent bytes without an observed index accepted")
 	}
 	for _, field := range []string{"depends", "source"} {
 		changed := claim
