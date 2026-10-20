@@ -320,10 +320,13 @@ it.each(['integrating', 'unknown'] as const)('retains %s integration uncertainty
   const initial = base();
   initial.swarm!.tasks[0].integration = {state, reviewDigest: 'retained', sourceCommit: 'b'.repeat(40), targetCommit: 'a'.repeat(40)};
   render(<Harness initial={initial} />);
+  const taskRow = screen.getByRole('heading', {name: 'Build a', level: 4}).closest('li')!;
+  const dependentRow = screen.getByRole('heading', {name: 'Build c', level: 4}).closest('li')!;
   expect(screen.getByText('0 of 3 integrated')).not.toBeNull();
-  expect(screen.getByText('Integration outcome unconfirmed')).not.toBeNull();
-  expect(screen.getByText('Waiting for reviewed integration: Build a; Build b.')).not.toBeNull();
-  expect(screen.queryByText('Integrated', {exact: true})).toBeNull();
+  expect(within(taskRow).getByText('Integration outcome unconfirmed')).not.toBeNull();
+  expect(within(taskRow).getByText(`Retained integration attempt: ${state}. Its outcome has not been confirmed.`)).not.toBeNull();
+  expect(within(dependentRow).getByText('Waiting for reviewed integration: Build a; Build b.')).not.toBeNull();
+  expect(within(taskRow).queryByText('Integrated', {exact: true})).toBeNull();
 });
 
 it.each(['integrating', 'unknown'] as const)('opens retained %s integration details locally without replay or recovery', async state => {
