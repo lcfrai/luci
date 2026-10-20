@@ -100,6 +100,65 @@ it('uses a new review key after the same artifact is revised',async()=>{
   expect(review.mock.calls[1][1]).toMatchObject({id:draft.id,revision:3,digest:revised.digest});
 });
 
+it('preserves typed key-point lines until saving exactly two normalized bullets',async()=>{
+  const bullets=['Audience: local users','Second key point'];
+  const revised={...draft,revision:2,digest:'b'.repeat(64),sections:[{...draft.sections[0],bullets}]};
+  vi.mocked(distributeArtifactsApi.list).mockResolvedValue({projectId:'p-one',artifacts:[{id:draft.id,kind:draft.kind,title:draft.title,revision:1,state:'draft',freshness:'current',digest}]});
+  vi.spyOn(distributeArtifactsApi,'get').mockResolvedValue({artifact:draft,freshness:'current'});
+  const revise=vi.spyOn(distributeArtifactsApi,'revise').mockResolvedValue({artifact:revised,freshness:'current'});
+  const review=vi.spyOn(distributeArtifactsApi,'review');
+  render(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+  await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+  const points=screen.getByLabelText('Key points, one per line');
+  await userEvent.click(points);
+  await userEvent.keyboard('{End}{Enter}  Second key point  {Enter}{Enter}');
+  expect(points).toHaveProperty('value','Audience: local users\n  Second key point  \n\n');
+  expect(revise).not.toHaveBeenCalled();
+  expect(screen.getByRole('button',{name:'Mark reviewed'})).toHaveProperty('disabled',true);
+  expect(screen.getByRole('button',{name:'Download DOCX'})).toHaveProperty('disabled',true);
+  await userEvent.click(screen.getByRole('button',{name:'Save artifact edits'}));
+  await screen.findByText('New private draft revision saved; review is still required.');
+  expect(revise).toHaveBeenCalledExactlyOnceWith('p-one',draft,draft.title,[{...draft.sections[0],bullets}],draft.gaps,draft.assumptions,expect.stringMatching(/^distribute-artifact-/));
+  expect(points).toHaveProperty('value',bullets.join('\n'));
+  expect(draft.sections[0].bullets).toEqual(['Audience: local users']);
+  expect(review).not.toHaveBeenCalled();
+});
+
+it('keeps raw key points on a blocked artifact switch and restores the selected saved draft on discard',async()=>{
+  const other={...draft,id:'artifact-other',title:'Other private review',sections:[{...draft.sections[0],bullets:['Other saved point']}]};
+  vi.mocked(distributeArtifactsApi.list).mockResolvedValue({projectId:'p-one',artifacts:[draft,other].map(row=>({id:row.id,kind:row.kind,title:row.title,revision:1,state:row.state,freshness:'current',digest:row.digest}))});
+  const get=vi.spyOn(distributeArtifactsApi,'get').mockImplementation(async(_project,id)=>({artifact:id===draft.id?draft:other,freshness:'current'}));
+  const revise=vi.spyOn(distributeArtifactsApi,'revise');
+  render(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+  await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+  await userEvent.click(screen.getByLabelText('Key points, one per line'));
+  await userEvent.keyboard('{End}{Enter}Unsent point{Enter}');
+  await userEvent.click(screen.getByRole('button',{name:/Other private review · revision 1/}));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent','Save or discard artifact edits before opening another artifact.');
+  expect(screen.getByLabelText('Key points, one per line')).toHaveProperty('value','Audience: local users\nUnsent point\n');
+  expect(get).toHaveBeenCalledTimes(1);
+  await userEvent.click(screen.getByRole('button',{name:'Discard edits'}));
+  expect(screen.getByLabelText('Key points, one per line')).toHaveProperty('value','Audience: local users');
+  await userEvent.click(screen.getByRole('button',{name:/Other private review · revision 1/}));
+  await waitFor(()=>expect(screen.getByLabelText('Key points, one per line')).toHaveProperty('value','Other saved point'));
+  expect(get).toHaveBeenLastCalledWith('p-one',other.id);
+  expect(revise).not.toHaveBeenCalled();
+});
+
+it.each(['read-only','outdated source'] as const)('does not edit key points with %s',async(mode)=>{
+  vi.mocked(distributeArtifactsApi.list).mockResolvedValue({projectId:'p-one',artifacts:[{id:draft.id,kind:draft.kind,title:draft.title,revision:1,state:'draft',freshness:'current',digest}]});
+  vi.spyOn(distributeArtifactsApi,'get').mockResolvedValue({artifact:draft,freshness:mode==='read-only'?'current':'outdated'});
+  const revise=vi.spyOn(distributeArtifactsApi,'revise');
+  render(<ArtifactWorkspace projectId="p-one" canRead canEdit={mode!=='read-only'}/>);
+  await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+  const points=screen.getByLabelText('Key points, one per line');
+  expect(points).toHaveProperty('disabled',true);
+  await userEvent.type(points,'{Enter}Unadmitted point');
+  expect(points).toHaveProperty('value','Audience: local users');
+  expect(screen.getByRole('button',{name:'Save artifact edits'})).toHaveProperty('disabled',true);
+  expect(revise).not.toHaveBeenCalled();
+});
+
 it('retries an uncertain exact review with the same key after switching artifacts',async()=>{
   const other={...draft,id:'artifact-other',title:'Other private review',digest:'b'.repeat(64)};
   vi.mocked(distributeArtifactsApi.list).mockResolvedValue({projectId:'p-one',artifacts:[draft,other].map(row=>({id:row.id,kind:row.kind,title:row.title,revision:row.revision,state:row.state,freshness:'current',digest:row.digest}))});
