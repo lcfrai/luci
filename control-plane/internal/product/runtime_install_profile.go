@@ -2,6 +2,8 @@ package product
 
 import (
  "context"
+ "io"
+ "os"
  "path/filepath"
  "sync/atomic"
  "time"
@@ -10,10 +12,30 @@ import (
  "github.com/lcfrai/luci/control-plane/internal/hostpath"
 )
 
-// Populated only by a reviewed application-source packaging change. There is
-// currently no redistributable tool/profile closure in this repository. Never
-// fall back to installed diagnostic tools, PATH or a profile's self-hash.
+// Legacy build-selected profiles remain available. Configured distributions
+// instead supply an independently pinned descriptor through startup Options.
+// Neither route falls back to PATH or a descriptor's own digest declaration.
 var bundledDebianProofProfiles = []runtimeinstall.BundledDebianInputProofProfile{}
+
+func(s *Server)DocumentRuntimeConfiguration()runtimeinstall.DocumentRuntimeConfiguration{return s.documentRuntime}
+func(s *Server)runtimeInputProofProfiles()([]runtimeinstall.BundledDebianInputProofProfile,error){
+ if !s.documentRuntime.Configured(){return bundledDebianProofProfiles,nil}
+ if !s.documentRuntime.Valid(){return nil,runtimeinstall.ErrInputProofUnavailable}
+ root,err:=s.runtimeInputProofRoot();if err!=nil{return nil,err}
+ name:=filepath.Join(root,"profile.json")
+ before,err:=os.Lstat(name);if err!=nil||!before.Mode().IsRegular()||before.Size()<1||before.Size()>64<<10{return nil,runtimeinstall.ErrInputProofUnavailable}
+ file,err:=os.Open(name);if err!=nil{return nil,err};defer file.Close()
+ opened,err:=file.Stat();if err!=nil||!os.SameFile(before,opened){return nil,runtimeinstall.ErrInputProofUnavailable}
+ data,err:=io.ReadAll(io.LimitReader(file,(64<<10)+1));if err!=nil||int64(len(data))!=opened.Size(){return nil,runtimeinstall.ErrInputProofUnavailable}
+ after,err:=file.Stat();if err!=nil||!os.SameFile(opened,after)||opened.Size()!=after.Size()||opened.ModTime()!=after.ModTime(){return nil,runtimeinstall.ErrInputProofUnavailable}
+ p,err:=runtimeinstall.DecodeDebianInputProofProfile(data,s.documentRuntime.ProfileSHA256);if err!=nil{return nil,err}
+ p.Root=root
+ // The independently configured tool domain must be among the exact profile
+ // bytes held again by the native owner's evidence acquisition before use.
+ found:=false;for _,f:=range p.Files{if f.Role=="support:manifests/windows-input-proof-tool-closure-v1.json"{found=f.SHA256==s.documentRuntime.ToolDomainSHA256&&f.Bytes>0&&f.Bytes<=64<<10}}
+ if !found{return nil,runtimeinstall.ErrInputProofUnavailable}
+ return []runtimeinstall.BundledDebianInputProofProfile{p},nil
+}
 
 type runtimeInputProofOwnership struct {
  identity runtimeinstall.DebianInputProofIdentity
@@ -45,7 +67,8 @@ func (s *Server) CheckRuntimeInputProofCurrent(ctx context.Context,id runtimeins
 }
 func (s *Server) RuntimeInputProofProfile(ctx context.Context,id runtimeinstall.DebianInputProofIdentity)(runtimeinstall.BundledDebianInputProofProfile,error){
  if err:=s.CheckRuntimeInputProofCurrent(ctx,id);err!=nil{return runtimeinstall.BundledDebianInputProofProfile{},err}
- for _,p:=range bundledDebianProofProfiles { if p.Purpose==id.Purpose && p.ID==id.ProfileID && p.SHA256==id.ProfileSHA256 && p.SourceSHA256==id.SourceSHA256 {root,err:=s.runtimeInputProofRoot();if err!=nil{return p,err};p.Root=root;p.Files=append([]runtimeinstall.DebianInputProofFile(nil),p.Files...);return p,nil} }
+ profiles,err:=s.runtimeInputProofProfiles();if err!=nil{return runtimeinstall.BundledDebianInputProofProfile{},err}
+ for _,p:=range profiles { if p.Purpose==id.Purpose && p.ID==id.ProfileID && p.SHA256==id.ProfileSHA256 && p.SourceSHA256==id.SourceSHA256 {root,err:=s.runtimeInputProofRoot();if err!=nil{return p,err};p.Root=root;p.Files=append([]runtimeinstall.DebianInputProofFile(nil),p.Files...);return p,nil} }
  return runtimeinstall.BundledDebianInputProofProfile{},runtimeinstall.ErrInputProofUnavailable
 }
 func (s *Server) BeginRuntimeInputProofResume(ctx context.Context,id runtimeinstall.DebianInputProofIdentity,ordinal int)(*RuntimeInputProofResumePermit,error){
@@ -63,9 +86,10 @@ func (s *Server) BeginRuntimeInputProofAdoption(ctx context.Context,id runtimein
 
 // The server's closed bundled plan, never request JSON, selects this component.
 func (s *Server) selectedRuntimeInputProofProfile()(runtimeinstall.BundledDebianInputProofProfile,bool,error){
- if len(bundledDebianProofProfiles)==0{return runtimeinstall.BundledDebianInputProofProfile{},false,nil}
- if len(bundledDebianProofProfiles)!=1{return runtimeinstall.BundledDebianInputProofProfile{},true,runtimeinstall.ErrInputProofUnavailable}
- p:=bundledDebianProofProfiles[0]
+ profiles,err:=s.runtimeInputProofProfiles();if err!=nil{return runtimeinstall.BundledDebianInputProofProfile{},true,err}
+ if len(profiles)==0{return runtimeinstall.BundledDebianInputProofProfile{},false,nil}
+ if len(profiles)!=1{return runtimeinstall.BundledDebianInputProofProfile{},true,runtimeinstall.ErrInputProofUnavailable}
+ p:=profiles[0]
  if _,ok:=runtimeinstall.DebianInputProofLimits(p.Purpose);!ok{return p,true,runtimeinstall.ErrInputProofUnavailable}
  if p.ID=="" || p.Protocol!=runtimeinstall.DebianInputProofProtocol || !runtimeinstall.InputProofHex(p.SHA256) || !runtimeinstall.InputProofHex(p.SourceSHA256) || len(p.Files)==0 || len(p.Files)>256 {return runtimeinstall.BundledDebianInputProofProfile{},true,runtimeinstall.ErrInputProofUnavailable}
  root,err:=s.runtimeInputProofRoot();if err!=nil{return p,true,err};p.Root=root;return p,true,nil

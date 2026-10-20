@@ -19,6 +19,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/instance"
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
 	"github.com/lcfrai/luci/control-plane/internal/statepath"
 )
 
@@ -34,6 +35,10 @@ const (
 	envProjectsDir            = "LUCI_PROJECTS_DIR"
 	envWebDir                 = "LUCI_WEB_DIR"
 	envRuntimeDir             = "LUCI_RUNTIME_DIR"
+	// Independently trusted installer pins for runtime/windows/debian-signature.
+	// Both must be provided; the descriptor may never nominate its own trust root.
+	envDocumentProfileSHA256 = "LUCI_DOCUMENT_PROFILE_SHA256"
+	envDocumentToolDomainSHA256 = "LUCI_DOCUMENT_TOOL_DOMAIN_SHA256"
 	envCloudBundle            = "LUCI_CLOUD_BUNDLE"
 	envE2BConfig              = "LUCI_E2B_CONFIG"
 	envBrowserPreviewAddr     = "LUCI_BROWSER_PREVIEW_ADDR"
@@ -168,6 +173,7 @@ type Config struct {
 	PublicAppOrigin                                                                                       string
 	PreviewBaseDomain                                                                                     string
 	RuntimeDir                                                                                            string
+	DocumentRuntime runtimeinstall.DocumentRuntimeConfiguration
 	CloudBundle                                                                                           string
 	E2BConfigPath                                                                                         string
 	WebDir                                                                                                string
@@ -265,6 +271,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	}
 
 	cfg := Config{
+		DocumentRuntime: runtimeinstall.DocumentRuntimeConfiguration{ProfileSHA256:raw(envDocumentProfileSHA256),ToolDomainSHA256:raw(envDocumentToolDomainSHA256)},
 		Addr:          get(envAddr, defaultAddr),
 		Backend:       strings.ToLower(get(envBackend, defaultBackend)),
 		SandboxImage:  get(envSandboxImage, defaultSandboxImage),
@@ -276,6 +283,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		Namespace:     get(envNamespace, defaultNamespace),
 		LogLevel:      slog.LevelInfo,
 	}
+	if !cfg.DocumentRuntime.Valid()||cfg.DocumentRuntime.Configured()&&(cfg.Backend!="docker"||parseFlag(raw(envWorker))){return Config{},errors.New("document runtime requires both trusted descriptor/tool-domain SHA-256 pins on the local Docker controller")}
 	if cfg.E2BConfigPath != "" && !filepath.IsAbs(cfg.E2BConfigPath) {
 		return Config{}, fmt.Errorf("%s must name an absolute private operator configuration file", envE2BConfig)
 	}

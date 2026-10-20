@@ -2,9 +2,13 @@ package product
 
 import (
  "context"
+ "crypto/sha256"
+ "fmt"
  "encoding/json"
  "net/http"
  "net/http/httptest"
+ "os"
+ "path/filepath"
  "strings"
  "testing"
  "time"
@@ -12,6 +16,23 @@ import (
  "github.com/lcfrai/luci/control-plane/internal/management"
  "github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
 )
+
+func TestConfiguredDocumentProfileUsesStartupPinsAndRejectsChangedDescriptor(t *testing.T){
+ s,_:=proofProductFixture(t);root,err:=s.runtimeInputProofRoot();if err!=nil{t.Fatal(err)}
+ if err=os.MkdirAll(root,0700);err!=nil{t.Fatal(err)}
+ p:=runtimeinstall.BundledDebianInputProofProfile{ID:"configured",Protocol:runtimeinstall.DebianInputProofProtocol,SourceSHA256:strings.Repeat("b",64),Files:[]runtimeinstall.DebianInputProofFile{{Role:"support:manifests/windows-input-proof-tool-closure-v1.json",RelativePath:"manifests/windows-input-proof-tool-closure-v1.json",Bytes:1,SHA256:strings.Repeat("c",64)}}}
+ raw,err:=runtimeinstall.CanonicalDebianInputProofProfile(p);if err!=nil{t.Fatal(err)}
+ s.documentRuntime=runtimeinstall.DocumentRuntimeConfiguration{ProfileSHA256:fmt.Sprintf("%x",sha256.Sum256(raw)),ToolDomainSHA256:strings.Repeat("c",64)}
+ if err=os.WriteFile(filepath.Join(root,"profile.json"),raw,0600);err!=nil{t.Fatal(err)}
+ selected,exists,err:=s.selectedRuntimeInputProofProfile();if err!=nil||!exists||selected.ID!="configured"||selected.Root!=root{t.Fatal("configured profile was not selected",err)}
+ // A retained legacy application entry cannot silently replace bad configured
+ // input, and the file cannot repin itself by changing its declared fields.
+ if err=os.WriteFile(filepath.Join(root,"profile.json"),append(raw,'\n'),0600);err!=nil{t.Fatal(err)}
+ if _,_,err=s.selectedRuntimeInputProofProfile();err==nil{t.Fatal("changed configured descriptor fell back to legacy registry")}
+ s.documentRuntime.ToolDomainSHA256=strings.Repeat("d",64)
+ if err=os.WriteFile(filepath.Join(root,"profile.json"),raw,0600);err!=nil{t.Fatal(err)}
+ if _,_,err=s.selectedRuntimeInputProofProfile();err==nil{t.Fatal("different independently selected tool domain admitted")}
+}
 
 // The selected registry entry and all positive owner facts below are ONLY
 // synthetic metadata in this test. No packaged tools or native proof is minted.

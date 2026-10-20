@@ -25,6 +25,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/previewruntime"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
+	"github.com/lcfrai/luci/control-plane/internal/runtimeinstall"
 )
 
 const Version = "0.5.0"
@@ -54,6 +55,7 @@ type Options struct {
 	CloudBundle             string
 	Shutdown                func()
 	RuntimeDir              string
+	DocumentRuntime         runtimeinstall.DocumentRuntimeConfiguration
 	AzureOperatorPath       string
 	StateDir                string
 	ProjectsDir             string
@@ -142,6 +144,7 @@ type Server struct {
 	runtimeResourceSnapshot         func() resourcebudget.Snapshot
 	authJobs                        map[string]*ProviderLoginJob
 	runtimeDir                      string
+	documentRuntime                 runtimeinstall.DocumentRuntimeConfiguration
 	azureOperatorPath               string
 	mu                              sync.RWMutex
 	functionSourceMu                sync.RWMutex
@@ -165,6 +168,7 @@ type Server struct {
 }
 
 func New(opts Options) (*Server, error) {
+	if !opts.DocumentRuntime.Valid(){return nil,runtimeinstall.ErrInputProofUnavailable}
 	if !filepath.IsAbs(opts.StateDir) {
 		return nil, errors.New("Luci's state directory must be absolute")
 	}
@@ -175,7 +179,7 @@ func New(opts Options) (*Server, error) {
 	if root == "" {
 		root = filepath.Join(opts.StateDir, "projects")
 	}
-	s := &Server{swarmSchedulerPolicyDir: opts.SwarmSchedulerPolicyDir, nativePrototypeReleases: opts.NativePrototypeReleases, clearBranchReady: opts.ClearBranchReady, branchSessions: opts.BranchSessions, cloudDataBindings: opts.CloudDataBindings, stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
+	s := &Server{swarmSchedulerPolicyDir: opts.SwarmSchedulerPolicyDir, nativePrototypeReleases: opts.NativePrototypeReleases, clearBranchReady: opts.ClearBranchReady, branchSessions: opts.BranchSessions, cloudDataBindings: opts.CloudDataBindings, stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, documentRuntime: opts.DocumentRuntime, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
 		sandboxImage: opts.SandboxImage, plans: make(map[string]CloudPlan),
 		managedWorkspace: opts.ManagedWorkspace, configured: opts.ManagedWorkspace,
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}

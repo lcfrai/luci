@@ -1,6 +1,18 @@
 package runtimeinstall
 
-import("strings";"testing";"time")
+import("strings";"testing";"time";"crypto/sha256";"fmt";"bytes")
+
+func TestConfiguredInputProofDescriptorRequiresIndependentExactBytes(t *testing.T){
+ p:=BundledDebianInputProofProfile{ID:"fixture",Protocol:DebianInputProofProtocol,SourceSHA256:strings.Repeat("a",64),Files:[]DebianInputProofFile{{Role:"fixture",RelativePath:"fixture",Bytes:1,SHA256:strings.Repeat("b",64)}}}
+ data,err:=CanonicalDebianInputProofProfile(p);if err!=nil{t.Fatal(err)};pin:=fmt.Sprintf("%x",sha256.Sum256(data))
+ got,err:=DecodeDebianInputProofProfile(data,pin);if err!=nil||got.ID!=p.ID||got.SHA256!=pin||got.Root!=""{t.Fatal("exact descriptor did not decode",err)}
+ for _,kind:=range []string{"wrong-pin","unknown-field","duplicate-key","noncanonical","unknown-purpose"}{t.Run(kind,func(t *testing.T){
+  body:=append([]byte(nil),data...);expected:=pin
+  switch kind{case "wrong-pin":expected=strings.Repeat("c",64);case "unknown-field":body=append(body[:len(body)-1],[]byte(`,"extra":1}`)...);case "duplicate-key":body=bytes.Replace(body,[]byte(`"schema":1`),[]byte(`"schema":1,"schema":1`),1);case "noncanonical":body=append(body,'\n');case "unknown-purpose":other:=p;other.Purpose="unknown";body,_=CanonicalDebianInputProofProfile(other)}
+  if kind!="wrong-pin"{expected=fmt.Sprintf("%x",sha256.Sum256(body))};if _,err:=DecodeDebianInputProofProfile(body,expected);err==nil{t.Fatal("untrusted or malformed descriptor admitted")}
+ })}
+ if (DocumentRuntimeConfiguration{ProfileSHA256:pin}).Valid()||(DocumentRuntimeConfiguration{ToolDomainSHA256:pin}).Valid(){t.Fatal("partial configured trust accepted")}
+}
 
 func TestInputProofPurposeKeepsSeparateFiniteContracts(t *testing.T){
  legacy,ok:=DebianInputProofLimits("");if !ok||legacy.Children!=10||legacy.MemoryMiB!=192||legacy.Work!=40*time.Second||legacy.Whole!=60*time.Second{t.Fatal("legacy limits changed")}

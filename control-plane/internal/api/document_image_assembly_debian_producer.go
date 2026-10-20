@@ -33,6 +33,7 @@ type debianProducerPlan struct {
  projectionMu sync.Mutex
  projection *debianProductProjectionEvidence
  projectionToken *debianProductProjectionToken
+ toolDomain *assemblyDebianToolDomainV1
 }
 // Closed contract for the separately allocated fixed-file product entry. The
 // Copies use original evidence guards; packaged prerequisites and the actual
@@ -66,7 +67,7 @@ func(b *debianProductProofBinding)current(ctx context.Context)error{if b==nil||b
 var liveDebianProducerRuns sync.Map
 
 func canonicalDebianProducerProfile(p runtimeinstall.BundledDebianInputProofProfile)([]byte,error){
- return json.Marshal(struct{Schema int `json:"schema"`;ID string `json:"id"`;Protocol string `json:"protocol"`;Source string `json:"sourceSHA256"`;Files []runtimeinstall.DebianInputProofFile `json:"files"`}{1,p.ID,p.Protocol,p.SourceSHA256,p.Files})
+ return runtimeinstall.CanonicalDebianInputProofProfile(p)
 }
 func validateDebianProducerProfile(p runtimeinstall.BundledDebianInputProofProfile)(map[string]runtimeinstall.DebianInputProofFile,error){
  return validateDebianProducerProfileShape(p,false)
@@ -109,7 +110,7 @@ func (a *API) proveBundledDebianInputs(ctx context.Context,req runtimeinstall.De
  if publish==nil || a.deps.Product==nil || a.execution==nil || a.deps.ResourceSnapshot==nil || a.deps.Store==nil || !runtimeinstall.ValidInputProofIdentity(req.Identity){return out,runtimeinstall.ErrInputProofOwnership}
  authority,err:=a.authorizeRuntimeInstaller(ctx,req.Actor);if err!=nil{return out,err};if !req.Actor.Local&&(authority.Policy.CheckMemoryMiB<192||authority.Policy.CheckCPUMillis<1000){return out,errCheckResourcePolicy}
  profile,err:=a.deps.Product.RuntimeInputProofProfile(ctx,req.Identity);if err!=nil{return out,err}
- files,err:=debianProducerProfileBeforeReservation(profile);if err!=nil{return out,err}
+ files,err:=a.configuredDebianProducerProfileBeforeReservation(profile);if err!=nil{return out,err}
  if !debianProducerPlatformSupported(){return out,runtimeinstall.ErrInputProofUnavailable}
  pid,creation,err:=debianProducerHostIdentity();if err!=nil{return out,err};req.Identity.OwnerPID,req.Identity.OwnerCreationTime=pid,creation
  run:=&debianProducerLiveRun{api:a,identity:req.Identity,actor:req.Actor,done:make(chan struct{}),outcome:out}
@@ -159,7 +160,7 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  objects:=make([]backend.DocumentImageAssemblyEvidenceObject,0,len(files)+1)
  canonical,_:=canonicalDebianProducerProfile(profile)
  objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:"profile-descriptor",Path:filepath.Join(profile.Root,"profile.json"),Bytes:int64(len(canonical)),Digest:profile.SHA256})
- for _,f:=range profile.Files{path:=filepath.Join(profile.Root,filepath.FromSlash(f.RelativePath));plan.paths[f.Role]=path;objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:f.Role,Path:path,Bytes:f.Bytes,Digest:f.SHA256})}
+ for _,f:=range profile.Files{path:=filepath.Join(profile.Root,filepath.FromSlash(f.RelativePath));plan.paths[f.Role]=path;objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:debianProfileEvidenceRole(f.Role),Path:path,Bytes:f.Bytes,Digest:f.SHA256})}
  acquisition,e:=dockerbe.PrepareDocumentImageAssemblyEvidenceAcquisition(objects);if e!=nil{runErr=e;return}
  admission,e:=native.registerEvidenceSource(ctx,acquisition);if e!=nil{runErr=e;return}
  query,e:=native.reserveObserverQuery();if e!=nil{runErr=e;return};if e=native.startObserver(ctx,query);e!=nil{runErr=e;return};if e=native.initialAdmission(ctx);e!=nil{runErr=e;return}
@@ -169,6 +170,9 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  // Existing domain pins are mandatory. A future packaged profile needs an
  // independently reviewed closed pin seam; digest-shaped files do not bypass it.
  if _,e=normalizeAssemblyDebianProductPolicy(policy,config,plan.productPins,"product-profile-v1");e!=nil{runErr=runtimeinstall.ErrInputProofUnavailable;return}
+ plan.toolDomain,e=r.api.currentConfiguredDebianToolDomain(ctx,plan);if e!=nil{runErr=e;return}
+ requirements,e:=debianHostRequirementsFromDomain(plan.toolDomain);if e!=nil{runErr=e;return}
+ if _,e=observeDebianHostPrerequisites(ctx,native,requirements);e!=nil{runErr=e;return}
  snap,e:=owner.readCurrent(ctx);if e!=nil{runErr=e;return}
  sourceBytes,e:=read("catalog-source-descriptor");if e!=nil{runErr=e;return}
  if checkDebianProducerSourceDescriptor(sourceBytes,files["catalog-source-descriptor"],snap)!=nil{runErr=errAssemblyCatalogConflict;return}

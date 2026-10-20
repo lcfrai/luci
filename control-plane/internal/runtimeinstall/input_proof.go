@@ -1,7 +1,11 @@
 package runtimeinstall
 
 import (
+ "bytes"
  "context"
+ "crypto/sha256"
+ "encoding/hex"
+ "encoding/json"
  "errors"
  "strings"
  "time"
@@ -66,6 +70,41 @@ type BundledDebianInputProofProfile struct {
  Files []DebianInputProofFile `json:"files"`
  // Root is set by the Product owner, never decoded from manifest JSON.
  Root string `json:"-"`
+}
+
+// Installer-owned configuration supplies independent expected hashes. Neither
+// HTTP input nor a digest inside the distributed descriptor establishes trust.
+type DocumentRuntimeConfiguration struct {
+ ProfileSHA256 string
+ ToolDomainSHA256 string
+}
+func(c DocumentRuntimeConfiguration)Configured()bool{return c!=(DocumentRuntimeConfiguration{})}
+func(c DocumentRuntimeConfiguration)Valid()bool{return !c.Configured()||InputProofHex(c.ProfileSHA256)&&InputProofHex(c.ToolDomainSHA256)}
+
+type bundledDebianProfileDescriptor struct {
+ Schema int `json:"schema"`
+ ID string `json:"id"`
+ Protocol string `json:"protocol"`
+ Source string `json:"sourceSHA256"`
+ Files []DebianInputProofFile `json:"files"`
+ Purpose string `json:"purpose,omitempty"`
+}
+func CanonicalDebianInputProofProfile(p BundledDebianInputProofProfile)([]byte,error){
+ return json.Marshal(bundledDebianProfileDescriptor{1,p.ID,p.Protocol,p.SourceSHA256,p.Files,p.Purpose})
+}
+// Exact canonical bytes reject duplicate/unknown keys and preserve the legacy
+// descriptor layout. File/type/current-owner checks remain at the caller.
+func DecodeDebianInputProofProfile(data []byte,expected string)(BundledDebianInputProofProfile,error){
+ var empty BundledDebianInputProofProfile
+ if !InputProofHex(expected)||len(data)==0||len(data)>64<<10{return empty,ErrInputProofUnavailable}
+ digest:=sha256.Sum256(data);if hex.EncodeToString(digest[:])!=expected{return empty,ErrInputProofUnavailable}
+ var d bundledDebianProfileDescriptor
+ if json.Unmarshal(data,&d)!=nil||d.Schema!=1{return empty,ErrInputProofUnavailable}
+ p:=BundledDebianInputProofProfile{Purpose:d.Purpose,ID:d.ID,Protocol:d.Protocol,SHA256:expected,SourceSHA256:d.Source,Files:d.Files}
+ canonical,err:=CanonicalDebianInputProofProfile(p)
+ if err!=nil||!bytes.Equal(data,canonical)||!inputProofID(p.ID)||p.Protocol!=DebianInputProofProtocol||!InputProofHex(p.SourceSHA256)||len(p.Files)==0||len(p.Files)>212{return empty,ErrInputProofUnavailable}
+ if _,ok:=DebianInputProofLimits(p.Purpose);!ok{return empty,ErrInputProofUnavailable}
+ return p,nil
 }
 func InputProofHex(s string) bool { return len(s)==64 && strings.Trim(s,"0123456789abcdef")=="" }
 func inputProofID(s string)bool{return len(s)>0&&len(s)<=128&&strings.Trim(s,"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")==""}
