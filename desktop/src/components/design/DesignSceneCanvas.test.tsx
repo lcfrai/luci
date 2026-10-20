@@ -60,3 +60,46 @@ it('adds a real saved pinned image through the same editable scene', () => {
   expect(added).toMatchObject({kind:'image',assetId:'hero',width:200,height:100,text:image.purpose});
   expect(new TextEncoder().encode(added.name).length).toBeLessThanOrEqual(200);
 });
+
+it('keeps frame interactions read-only without discarding the draft or its undo history', () => {
+  const changed = vi.fn();
+  render(<Harness changed={changed} />);
+  const node = screen.getByRole('button', {name: 'Select Page title (node-title)'});
+  fireEvent.keyDown(node, {key: 'ArrowRight'});
+  fireEvent.keyUp(node, {key: 'ArrowRight'});
+  expect(changed).toHaveBeenCalledOnce();
+  expect(changed.mock.calls[0][0].scene.frames[0].nodes[0].x).toBe(25);
+
+  fireEvent.click(screen.getByRole('button', {name: 'Try frame interactions'}));
+  expect(screen.getByRole('button', {name: 'Add frame'})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: 'Undo scene edit'})).toHaveProperty('disabled', true);
+  const previewNode = screen.getByRole('button', {name: 'Try Page title (node-title)'});
+  fireEvent.keyDown(previewNode, {key: 'z', ctrlKey: true});
+  fireEvent.keyDown(previewNode, {key: 'Delete'});
+  fireEvent.keyDown(previewNode, {key: 'ArrowRight'});
+  expect(changed).toHaveBeenCalledOnce();
+
+  fireEvent.click(screen.getByRole('button', {name: 'Try frame interactions'}));
+  fireEvent.click(screen.getByRole('button', {name: 'Undo scene edit'}));
+  expect(changed.mock.calls[1][0].scene.frames[0].nodes[0].x).toBe(24);
+  fireEvent.click(screen.getByRole('button', {name: 'Try frame interactions'}));
+  expect(screen.getByRole('button', {name: 'Redo scene edit'})).toHaveProperty('disabled', true);
+  fireEvent.keyDown(screen.getByRole('button', {name: 'Try Page title (node-title)'}), {key: 'z', metaKey: true, shiftKey: true});
+  expect(changed).toHaveBeenCalledTimes(2);
+  fireEvent.click(screen.getByRole('button', {name: 'Try frame interactions'}));
+  fireEvent.click(screen.getByRole('button', {name: 'Redo scene edit'}));
+  expect(changed.mock.calls[2][0].scene.frames[0].nodes[0].x).toBe(25);
+});
+
+it('still navigates between preview frames by keyboard without changing the design', () => {
+  const initial = designScenePlanFixture(), changed = vi.fn();
+  const first = initial.scene!.frames[0];
+  const second = {...first, id: 'frame-saved', name: 'Saved phone', state: 'Saved', nodes: []};
+  first.nodes[0].behavior = {kind: 'navigate', targetFrameId: second.id};
+  initial.scene!.frames.push(second);
+  render(<Harness initial={initial} changed={changed} />);
+  fireEvent.click(screen.getByRole('button', {name: 'Try frame interactions'}));
+  fireEvent.keyDown(screen.getByRole('button', {name: 'Try Page title (node-title)'}), {key: 'Enter'});
+  expect(screen.getByLabelText('Frame')).toHaveProperty('value', second.id);
+  expect(changed).not.toHaveBeenCalled();
+});

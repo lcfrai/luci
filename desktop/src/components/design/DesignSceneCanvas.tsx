@@ -27,7 +27,7 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
   const nodeElements = useRef(new Map<string, HTMLDivElement>()), pendingFocus = useRef<string | null>(null);
   const sceneValue = gestureScene ?? scene, frame = sceneValue.frames.find(item => item.id === frameId) ?? sceneValue.frames[0];
   const node = frame?.nodes.find(item => item.id === nodeId), screen = plan.screens.find(item => item.id === frame?.screenId);
-  const readOnly = !canEdit || busy || preview || !active, canModify = canRead && canEdit && !busy && active;
+  const readOnly = !canEdit || busy || preview || !active, canModify = canRead && canEdit && !busy && active && !preview;
   const structuralErrors = designSceneErrors(scene), errors = structuralErrors.length ? structuralErrors : designSceneErrors(scene, plan);
   const editing = useRef(false); editing.current = canModify;
   useEffect(() => {
