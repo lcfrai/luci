@@ -21,7 +21,7 @@ export function DiscoverDocuments({projectId}:{projectId:string}) {
 }
 export function ProjectDiscoverDocuments({projectId,scope,canRead,canEdit}:{projectId:string;scope:string|null;canRead:boolean;canEdit:boolean}) {
   const [documents,setDocuments]=useState<DiscoveryDocument[]>([]),[selected,setSelected]=useState<DiscoveryDocument|null>(null),[nextCursor,setNextCursor]=useState('');
-  const [cursor,setCursor]=useState(''),[previous,setPrevious]=useState<string[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
+  const [cursor,setCursor]=useState(''),[previous,setPrevious]=useState<string[]>([]),[omitted,setOmitted]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
   const [pending,setPending]=useState<PendingDiscoveryRequest|null>(null),[recoveryError,setRecoveryError]=useState(''),[rejected,setRejected]=useState(false);
   const [links,setLinks]=useState<DiscoverySourceLink[]>([]),[question,setQuestion]=useState('');
   const alive=useRef(true),working=useRef(false),generation=useRef(0),requests=useRef(new Set<AbortController>()),download=useRef('');
@@ -34,9 +34,28 @@ export function ProjectDiscoverDocuments({projectId,scope,canRead,canEdit}:{proj
   async function readPage(after=cursor) {
     if(!current.current.canRead)return;const request=new AbortController();requests.current.add(request);const turn=++generation.current;setError('');
     try{const page=await discoveryDocumentsApi.list(projectId,after,request.signal);if(!alive.current || request.signal.aborted || turn!==generation.current || !current.current.canRead)return;
-      if(!page || !Array.isArray(page.documents) || page.documents.length>25 || !page.documents.every(item=>discoveryDocumentValid(item,projectId)) || typeof page.nextCursor!=='string')throw new Error('The private document page could not be verified.');
-      setDocuments(page.documents);setNextCursor(page.nextCursor);
+      if(!page || !Array.isArray(page.documents) || page.documents.length>25 || !page.documents.every(item=>discoveryDocumentValid(item,projectId)) || typeof page.nextCursor!=='string' || typeof page.omitted!=='boolean')throw new Error('The private document page could not be verified.');
+      setDocuments(page.documents);setNextCursor(page.nextCursor);setOmitted(page.omitted===true);
     }catch(cause){if(alive.current && !request.signal.aborted)setError(errorText(cause));}finally{requests.current.delete(request);}
+  }
+  async function refreshDocuments() {
+    if(!current.current.canRead || working.current || correctionDirty)return;
+    working.current=true;setBusy(true);setError('');setNotice('');
+    const request=new AbortController();requests.current.add(request);const turn=++generation.current;
+    const prior=selected;
+    const currentRead=()=>alive.current && !request.signal.aborted && turn===generation.current && current.current.canRead;
+    try{
+      const page=await discoveryDocumentsApi.list(projectId,cursor,request.signal);
+      if(!currentRead())return;
+      if(!page || !Array.isArray(page.documents) || page.documents.length>25 || !page.documents.every(item=>discoveryDocumentValid(item,projectId)) || typeof page.nextCursor!=='string' || typeof page.omitted!=='boolean')throw new Error('The private document page could not be verified.');
+      const document=prior?await discoveryDocumentsApi.get(projectId,prior.id,request.signal):null;
+      if(!currentRead())return;
+      if(prior && (!document || !discoveryDocumentValid(document,projectId) || document.id!==prior.id || document.original.digest!==prior.original.digest || document.revision<prior.revision))throw new Error('The selected document readback could not be verified. Its previous evidence remains open.');
+      setDocuments(page.documents);setNextCursor(page.nextCursor);setOmitted(page.omitted);
+      if(document){setSelected(document);if(document.revision!==prior?.revision)setLinks([]);}
+      setNotice('Saved documents and the open source are refreshed. No extraction or other document action was repeated.');
+    }catch(cause){if(currentRead())setError(errorText(cause));}
+    finally{requests.current.delete(request);working.current=false;if(alive.current)setBusy(false);}
   }
   useEffect(()=>{if(canRead)void readPage(cursor);},[projectId,canRead,cursor]);
   async function inspect(documentId:string) {
@@ -91,9 +110,10 @@ export function ProjectDiscoverDocuments({projectId,scope,canRead,canEdit}:{proj
   return <section className="discover-documents" aria-label="Discover document evidence">
     <JourneyHeader title="Understand the work" subtitle="Bring source evidence into your conversation with Luci. Inspect uncertainties and contradictions before accepting project context."/>
     <div className="discover-document-toolbar"><label className="luci-field">Attach a private document<input aria-label="Attach a private document" type="file" disabled={!canEdit || !scope || correctionDirty || busy || !!recoveryError || !!pending && pending.action!=='upload'} onChange={event=>{const file=event.target.files?.[0];if(file)void chooseFile(file);event.target.value='';}}/></label>
-      <Button variant="secondary" disabled={busy} onClick={()=>void readPage(cursor)}>Refresh documents</Button><Button variant="secondary" disabled={busy} onClick={()=>window.dispatchEvent(new CustomEvent('luci:orchestrator-open',{detail:{projectId,scope,message:'Help me discover the project. Investigate the saved context and selected evidence, identify contradictions and useful dependent questions, explain recommended decisions, and propose a source-backed specification through the normal review flow.'}}))}>Talk with Luci</Button>
+      <Button variant="secondary" disabled={busy || correctionDirty} onClick={()=>void refreshDocuments()}>Refresh documents</Button><Button variant="secondary" disabled={busy} onClick={()=>window.dispatchEvent(new CustomEvent('luci:orchestrator-open',{detail:{projectId,scope,message:'Help me discover the project. Investigate the saved context and selected evidence, identify contradictions and useful dependent questions, explain recommended decisions, and propose a source-backed specification through the normal review flow.'}}))}>Talk with Luci</Button>
     </div>
     <p className="journey-muted">Originals stay private to this workspace and project. UTF-8 TXT and Markdown extract locally. PDF and raster originals can be retained, but their required contained extraction/OCR runtime is not available yet. Attaching a file does not send it to a model.</p>
+    {correctionDirty && <p role="status">Save or discard your document correction before refreshing saved evidence.</p>}
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{recoveryError && <p role="alert">{recoveryError} Preserve the retained request before replacing its storage.</p>}
     {pending && <section className="discover-pending" aria-label="Retained document request"><p>Retained {pending.action} request · {pending.idempotencyKey}. Its response may be uncertain.</p><Button variant="secondary" disabled={busy} onClick={()=>void inspectPending()}>Inspect exact saved request</Button>
       {pending.action!=='upload' && !rejected && <Button variant="secondary" disabled={busy || !canEdit || !!recoveryError} onClick={()=>void mutate(pending)}>Retry exact retained request</Button>}
@@ -103,6 +123,7 @@ export function ProjectDiscoverDocuments({projectId,scope,canRead,canEdit}:{proj
       <ul>{documents.map(item=><li key={item.id}><button type="button" disabled={busy || correctionDirty} aria-pressed={selected?.id===item.id} onClick={()=>void inspect(item.id)}><span>{item.original.name}</span><small>{item.original.bytes.toLocaleString()} bytes · {item.attempts.length?item.attempts[item.attempts.length-1].status:'retained original'}</small></button></li>)}</ul>
       <div className="discover-document-pagination"><Button variant="tertiary" disabled={!previous.length || busy} onClick={()=>{const values=[...previous];setCursor(values.pop() ?? '');setPrevious(values);}}>Previous sources</Button><Button variant="tertiary" disabled={!nextCursor || busy} onClick={()=>{setPrevious([...previous,cursor]);setCursor(nextCursor);}}>Next sources</Button></div>
       {nextCursor && <p className="journey-muted">More source documents are available on the next page.</p>}
+      {omitted && <p role="status">Some retained source records could not be read. This list is incomplete; refresh to check again. No originals were removed.</p>}
     </aside><div className="discover-document-inspection">
       {selected?<><h2>{selected.original.name}</h2><p className="discover-source-identity">Original SHA-256 <code>{selected.original.digest}</code><br/>Retained by {selected.createdBy.displayName} · document revision {selected.revision}</p>
         <div className="discover-document-toolbar"><Button variant="secondary" disabled={busy} onClick={()=>void inspectOriginal()}>Inspect original file</Button><Button variant="secondary" disabled={blocked || !canEdit || selected.original.mimeType!=='text/plain' && selected.original.mimeType!=='text/markdown'} onClick={()=>void mutate({action:'extract',idempotencyKey:requestKey(),documentId:selected.id,expectedRevision:selected.revision})}>Extract text / start fresh attempt</Button></div>
