@@ -34,6 +34,26 @@ func TestConfiguredDocumentProfileUsesStartupPinsAndRejectsChangedDescriptor(t *
  if _,_,err=s.selectedRuntimeInputProofProfile();err==nil{t.Fatal("different independently selected tool domain admitted")}
 }
 
+func TestConfiguredBinaryProfileSelectsOnlyPinnedSignaturePrerequisite(t *testing.T){
+ s,_:=proofProductFixture(t);root,err:=s.runtimeInputProofRoot();if err!=nil{t.Fatal(err)}
+ if err=os.MkdirAll(filepath.Join(root,"profiles"),0700);err!=nil{t.Fatal(err)}
+ tool:=runtimeinstall.DebianInputProofFile{Role:"support:manifests/windows-input-proof-tool-closure-v1.json",RelativePath:"manifests/windows-input-proof-tool-closure-v1.json",Bytes:1,SHA256:strings.Repeat("c",64)}
+ child:=runtimeinstall.BundledDebianInputProofProfile{ID:"staged",Protocol:runtimeinstall.DebianInputProofProtocol,SourceSHA256:strings.Repeat("b",64),Files:[]runtimeinstall.DebianInputProofFile{tool}}
+ childRaw,_:=runtimeinstall.CanonicalDebianInputProofProfile(child);childSHA:=fmt.Sprintf("%x",sha256.Sum256(childRaw))
+ primary:=child;primary.Purpose=runtimeinstall.DebianBinaryInputProofPurpose;primary.Files=[]runtimeinstall.DebianInputProofFile{{Role:runtimeinstall.DebianSignatureProfileRole,RelativePath:runtimeinstall.DebianSignatureProfilePath,Bytes:int64(len(childRaw)),SHA256:childSHA},tool}
+ primaryRaw,_:=runtimeinstall.CanonicalDebianInputProofProfile(primary);primarySHA:=fmt.Sprintf("%x",sha256.Sum256(primaryRaw))
+ s.documentRuntime=runtimeinstall.DocumentRuntimeConfiguration{ProfileSHA256:primarySHA,ToolDomainSHA256:tool.SHA256}
+ if err=os.WriteFile(filepath.Join(root,"profile.json"),primaryRaw,0600);err!=nil{t.Fatal(err)}
+ if err=os.WriteFile(filepath.Join(root,filepath.FromSlash(runtimeinstall.DebianSignatureProfilePath)),childRaw,0600);err!=nil{t.Fatal(err)}
+ selected,exists,err:=s.selectedRuntimeInputProofProfile()
+ if err!=nil||!exists||selected.Purpose!=""||selected.SHA256!=childSHA||selected.DescriptorRelativePath!=runtimeinstall.DebianSignatureProfilePath||s.ValidateDocumentRuntimeProfile(context.Background(),selected)!=nil{t.Fatal("first stage did not select the exact pinned descriptor",err)}
+ wrong:=selected;wrong.DescriptorRelativePath="profile.json";if s.ValidateDocumentRuntimeProfile(context.Background(),wrong)==nil{t.Fatal("selected stage adopted a different descriptor path")}
+ s.runtimeJob.InputProof=&runtimeinstall.DebianInputProofOutcome{Identity:runtimeinstall.DebianInputProofIdentity{ProfileSHA256:childSHA},Phase:"facts-recorded",CleanupConfirmed:true}
+ selected,_,err=s.selectedRuntimeInputProofProfile();if err!=nil||selected.Purpose!=runtimeinstall.DebianBinaryInputProofPurpose||selected.SHA256!=primarySHA{t.Fatal("settled prerequisite did not select a separate binary stage",err)}
+ if err=os.WriteFile(filepath.Join(root,filepath.FromSlash(runtimeinstall.DebianSignatureProfilePath)),append(childRaw,'\n'),0600);err!=nil{t.Fatal(err)}
+ if _,_,err=s.selectedRuntimeInputProofProfile();err==nil{t.Fatal("changed transitive descriptor gained native eligibility")}
+}
+
 // The selected registry entry and all positive owner facts below are ONLY
 // synthetic metadata in this test. No packaged tools or native proof is minted.
 func proofProductFixture(t *testing.T)(*Server,*http.ServeMux){

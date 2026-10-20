@@ -22,19 +22,47 @@ func(s *Server)runtimeInputProofProfiles()([]runtimeinstall.BundledDebianInputPr
  if !s.documentRuntime.Configured(){return bundledDebianProofProfiles,nil}
  if !s.documentRuntime.Valid(){return nil,runtimeinstall.ErrInputProofUnavailable}
  root,err:=s.runtimeInputProofRoot();if err!=nil{return nil,err}
- name:=filepath.Join(root,"profile.json")
- before,err:=os.Lstat(name);if err!=nil||!before.Mode().IsRegular()||before.Size()<1||before.Size()>64<<10{return nil,runtimeinstall.ErrInputProofUnavailable}
- file,err:=os.Open(name);if err!=nil{return nil,err};defer file.Close()
- opened,err:=file.Stat();if err!=nil||!os.SameFile(before,opened){return nil,runtimeinstall.ErrInputProofUnavailable}
- data,err:=io.ReadAll(io.LimitReader(file,(64<<10)+1));if err!=nil||int64(len(data))!=opened.Size(){return nil,runtimeinstall.ErrInputProofUnavailable}
- after,err:=file.Stat();if err!=nil||!os.SameFile(opened,after)||opened.Size()!=after.Size()||opened.ModTime()!=after.ModTime(){return nil,runtimeinstall.ErrInputProofUnavailable}
- p,err:=runtimeinstall.DecodeDebianInputProofProfile(data,s.documentRuntime.ProfileSHA256);if err!=nil{return nil,err}
- p.Root=root
+ p,err:=readRuntimeInputProofDescriptor(root,"profile.json",s.documentRuntime.ProfileSHA256);if err!=nil{return nil,err}
  // The independently configured tool domain must be among the exact profile
  // bytes held again by the native owner's evidence acquisition before use.
  found:=false;for _,f:=range p.Files{if f.Role=="support:manifests/windows-input-proof-tool-closure-v1.json"{found=f.SHA256==s.documentRuntime.ToolDomainSHA256&&f.Bytes>0&&f.Bytes<=64<<10}}
  if !found{return nil,runtimeinstall.ErrInputProofUnavailable}
- return []runtimeinstall.BundledDebianInputProofProfile{p},nil
+ profiles:=[]runtimeinstall.BundledDebianInputProofProfile{p}
+ for _,f:=range p.Files{if f.Role==runtimeinstall.DebianSignatureProfileRole{
+  if p.Purpose!=runtimeinstall.DebianBinaryInputProofPurpose||f.RelativePath!=runtimeinstall.DebianSignatureProfilePath||f.Bytes<1||f.Bytes>64<<10{return nil,runtimeinstall.ErrInputProofUnavailable}
+  child,e:=readRuntimeInputProofDescriptor(root,f.RelativePath,f.SHA256);if e!=nil{return nil,e}
+  raw,e:=runtimeinstall.CanonicalDebianInputProofProfile(child)
+  if e!=nil||int64(len(raw))!=f.Bytes||child.Purpose!=""||child.ID!=p.ID||child.Protocol!=p.Protocol||child.SourceSHA256!=p.SourceSHA256{return nil,runtimeinstall.ErrInputProofUnavailable}
+  for _,nested:=range child.Files{if nested.Role==runtimeinstall.DebianSignatureProfileRole{return nil,runtimeinstall.ErrInputProofUnavailable}}
+  profiles=append(profiles,child)
+ }}
+ return profiles,nil
+}
+
+// A selected stage is re-resolved through the independently pinned primary
+// descriptor. Matching user-supplied profile fields never establish authority.
+func(s *Server)ValidateDocumentRuntimeProfile(ctx context.Context,p runtimeinstall.BundledDebianInputProofProfile)error{
+ if ctx==nil||ctx.Err()!=nil{return runtimeinstall.ErrInputProofUnavailable}
+ profiles,err:=s.runtimeInputProofProfiles();if err!=nil{return err}
+ expected,e:=runtimeinstall.CanonicalDebianInputProofProfile(p);if e!=nil{return e}
+ for _,current:=range profiles{raw,re:=runtimeinstall.CanonicalDebianInputProofProfile(current);if re==nil&&current.SHA256==p.SHA256&&current.Root==p.Root&&current.DescriptorRelativePath==p.DescriptorRelativePath&&string(raw)==string(expected){return nil}}
+ return runtimeinstall.ErrInputProofUnavailable
+}
+
+func readRuntimeInputProofDescriptor(root,relative,digest string)(runtimeinstall.BundledDebianInputProofProfile,error){
+ var empty runtimeinstall.BundledDebianInputProofProfile
+ if relative!="profile.json"&&relative!=runtimeinstall.DebianSignatureProfilePath{return empty,runtimeinstall.ErrInputProofUnavailable}
+ name:=filepath.Join(root,filepath.FromSlash(relative))
+ if _,err:=hostpath.Confine(root,name);err!=nil{return empty,runtimeinstall.ErrInputProofUnavailable}
+ before,err:=os.Lstat(name);if err!=nil||!before.Mode().IsRegular()||before.Size()<1||before.Size()>64<<10{return empty,runtimeinstall.ErrInputProofUnavailable}
+ file,err:=os.Open(name);if err!=nil{return empty,err};closed:=false;defer func(){if !closed{_ = file.Close()}}()
+ opened,err:=file.Stat();if err!=nil||!os.SameFile(before,opened){return empty,runtimeinstall.ErrInputProofUnavailable}
+ data,err:=io.ReadAll(io.LimitReader(file,(64<<10)+1));if err!=nil||int64(len(data))!=opened.Size(){return empty,runtimeinstall.ErrInputProofUnavailable}
+ after,err:=file.Stat();if err!=nil||!os.SameFile(opened,after)||opened.Size()!=after.Size()||opened.ModTime()!=after.ModTime(){return empty,runtimeinstall.ErrInputProofUnavailable}
+ closed=true;if err=file.Close();err!=nil{return empty,err}
+ p,err:=runtimeinstall.DecodeDebianInputProofProfile(data,digest);if err!=nil{return empty,err}
+ p.Root,p.DescriptorRelativePath=root,relative
+ return p,nil
 }
 
 type runtimeInputProofOwnership struct {
@@ -88,8 +116,15 @@ func (s *Server) BeginRuntimeInputProofAdoption(ctx context.Context,id runtimein
 func (s *Server) selectedRuntimeInputProofProfile()(runtimeinstall.BundledDebianInputProofProfile,bool,error){
  profiles,err:=s.runtimeInputProofProfiles();if err!=nil{return runtimeinstall.BundledDebianInputProofProfile{},true,err}
  if len(profiles)==0{return runtimeinstall.BundledDebianInputProofProfile{},false,nil}
- if len(profiles)!=1{return runtimeinstall.BundledDebianInputProofProfile{},true,runtimeinstall.ErrInputProofUnavailable}
+ if len(profiles)>2{return runtimeinstall.BundledDebianInputProofProfile{},true,runtimeinstall.ErrInputProofUnavailable}
  p:=profiles[0]
+ if p.Purpose==runtimeinstall.DebianBinaryInputProofPurpose&&s.documentRuntime.Configured(){
+  if len(profiles)!=2||profiles[1].Purpose!=""{return p,true,runtimeinstall.ErrInputProofUnavailable}
+  // This chooses a requested stage only. The API must independently resolve
+  // current fact records, guards, source/CAS, host and native authority.
+  s.mu.RLock();prior:=s.runtimeJob.InputProof;ready:=prior!=nil&&prior.Phase=="facts-recorded"&&prior.CleanupConfirmed&&!prior.ResourcesHeld&&!prior.PublicationUnknown&&prior.Identity.ProfileSHA256==profiles[1].SHA256;s.mu.RUnlock()
+  if !ready{p=profiles[1]}
+ }
  if _,ok:=runtimeinstall.DebianInputProofLimits(p.Purpose);!ok{return p,true,runtimeinstall.ErrInputProofUnavailable}
  if p.ID=="" || p.Protocol!=runtimeinstall.DebianInputProofProtocol || !runtimeinstall.InputProofHex(p.SHA256) || !runtimeinstall.InputProofHex(p.SourceSHA256) || len(p.Files)==0 || len(p.Files)>256 {return runtimeinstall.BundledDebianInputProofProfile{},true,runtimeinstall.ErrInputProofUnavailable}
  root,err:=s.runtimeInputProofRoot();if err!=nil{return p,true,err};p.Root=root;return p,true,nil

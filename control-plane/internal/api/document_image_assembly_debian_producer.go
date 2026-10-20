@@ -81,6 +81,7 @@ func validateDebianProducerProfileShape(p runtimeinstall.BundledDebianInputProof
  canonical,err:=canonicalDebianProducerProfile(p);if err!=nil || len(canonical)>64<<10 || assemblyCatalogDigest(canonical)!=p.SHA256{return nil,runtimeinstall.ErrInputProofUnavailable}
  roles,paths:=map[string]runtimeinstall.DebianInputProofFile{},map[string]bool{};total:=int64(len(canonical))
  required:=[]string{"cp-python","gpg","gpgv","projection-entry","projection-source","producer-source-receipt","producer-config","policy-source","dependency-lock","acquisition-manifest","snapshot-source","catalog-source-descriptor"}
+ if p.Purpose==runtimeinstall.DebianBinaryInputProofPurpose{required=append(required,runtimeinstall.DebianSignatureProfileRole,debianBinaryEntryRole,"binary-reader","binary-inspector")}
  for i:=0;i<3;i++{required=append(required,"public-key-"+strconv.Itoa(i))};for i:=0;i<5;i++{required=append(required,"signed-release-"+strconv.Itoa(i))}
  requiredRoles:=map[string]bool{};for _,role:=range required{requiredRoles[role]=true}
  previous:=""
@@ -90,6 +91,12 @@ func validateDebianProducerProfileShape(p runtimeinstall.BundledDebianInputProof
   roles[f.Role]=f;paths[strings.ToLower(relative)]=true;previous=f.Role;total+=f.Bytes;if total>64<<20{return nil,runtimeinstall.ErrInputProofUnavailable}
  }
  for _,role:=range required{if _,ok:=roles[role];!ok{return nil,runtimeinstall.ErrInputProofUnavailable}}
+ if p.Purpose==runtimeinstall.DebianBinaryInputProofPurpose{
+  for _,expected:=range []struct{role,sha string;bytes int64}{{debianBinaryEntryRole,debianBinaryEntrySHA,debianBinaryEntryBytes},{"binary-reader","2f52054fc43e926389180ba038ae40650318b940ef3efce5f767492f918f451b",22824},{"binary-inspector","06b77ce9d7f2d6d06ec5b532cfc965acccd4619322aaf5e17cfa138e6a90acba",39189}}{
+   f:=roles[expected.role];if f.SHA256!=expected.sha||f.Bytes!=expected.bytes{return nil,runtimeinstall.ErrInputProofUnavailable}
+  }
+  if f:=roles[runtimeinstall.DebianSignatureProfileRole];f.RelativePath!=runtimeinstall.DebianSignatureProfilePath||f.Bytes>64<<10{return nil,runtimeinstall.ErrInputProofUnavailable}
+ }
  if roles["projection-source"].SHA256!=assemblyDebianProjectionSHA || roles["producer-source-receipt"].SHA256!=p.SourceSHA256{return nil,runtimeinstall.ErrInputProofUnavailable}
  if !product&&(roles["gpg"].SHA256!="a5140c85353e8399da8d6bd7e3741524cd76a4e69be88af12042b1c9ef022984" || roles["gpgv"].SHA256!="f4d13204d77fdf63c02b0e6742230f83a833128c28f7b715709c2c63a96c427b" || roles["producer-config"].SHA256!=assemblyDebianConfigSHA){return nil,runtimeinstall.ErrInputProofUnavailable}
  if product&&(p.SourceSHA256==assemblyDebianSourceReceiptSHA||roles["producer-config"].SHA256==assemblyDebianConfigSHA){return nil,runtimeinstall.ErrInputProofUnavailable}
@@ -159,7 +166,8 @@ func(r *debianProducerLiveRun) execute(ctx context.Context,profile runtimeinstal
  if e=os.Mkdir(plan.directory,0700);e!=nil{runErr=e;return}
  objects:=make([]backend.DocumentImageAssemblyEvidenceObject,0,len(files)+1)
  canonical,_:=canonicalDebianProducerProfile(profile)
- objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:"profile-descriptor",Path:filepath.Join(profile.Root,"profile.json"),Bytes:int64(len(canonical)),Digest:profile.SHA256})
+ descriptor:=profile.DescriptorRelativePath;if descriptor==""{descriptor="profile.json"}
+ objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:"profile-descriptor",Path:filepath.Join(profile.Root,filepath.FromSlash(descriptor)),Bytes:int64(len(canonical)),Digest:profile.SHA256})
  for _,f:=range profile.Files{path:=filepath.Join(profile.Root,filepath.FromSlash(f.RelativePath));plan.paths[f.Role]=path;objects=append(objects,backend.DocumentImageAssemblyEvidenceObject{Role:debianProfileEvidenceRole(f.Role),Path:path,Bytes:f.Bytes,Digest:f.SHA256})}
  acquisition,e:=dockerbe.PrepareDocumentImageAssemblyEvidenceAcquisition(objects);if e!=nil{runErr=e;return}
  admission,e:=native.registerEvidenceSource(ctx,acquisition);if e!=nil{runErr=e;return}

@@ -70,7 +70,13 @@ type BundledDebianInputProofProfile struct {
  Files []DebianInputProofFile `json:"files"`
  // Root is set by the Product owner, never decoded from manifest JSON.
  Root string `json:"-"`
+ // Descriptor is set only by the Product-owned primary/stage loader. It is
+ // never decoded from the descriptor itself or accepted from HTTP.
+ DescriptorRelativePath string `json:"-"`
 }
+
+const DebianSignatureProfileRole="signature-profile"
+const DebianSignatureProfilePath="profiles/signature-profile.json"
 
 // Installer-owned configuration supplies independent expected hashes. Neither
 // HTTP input nor a digest inside the distributed descriptor establishes trust.
