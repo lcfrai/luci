@@ -10,13 +10,14 @@ import (
 
 type assemblyInputInventory struct {
 	files map[string]assemblyObservedFile
+	directories map[string]bool
 	notices map[string]map[string]int64
 	packageNames map[string]bool
 	hasBaseOwner bool
 }
 
 func newAssemblyInputInventory()*assemblyInputInventory {
-	return &assemblyInputInventory{files:map[string]assemblyObservedFile{},notices:map[string]map[string]int64{},packageNames:map[string]bool{}}
+	return &assemblyInputInventory{files:map[string]assemblyObservedFile{},directories:map[string]bool{},notices:map[string]map[string]int64{},packageNames:map[string]bool{}}
 }
 
 func (s *assemblyInputInventory) notice(component,digest string,bytes int64) {
@@ -32,7 +33,11 @@ func (s *assemblyInputInventory) addBase(base documentinputs.Base)error {
 	for _,pkg:=range base.Packages{s.packageNames[pkg.Name]=true}
 	for _,file:=range base.Files {
 		owner:=strings.TrimSuffix(file.Owner,":amd64")
-		if file.Kind=="directory"&&owner==""{continue}
+		if file.Kind=="directory"&&owner=="" {
+			name,err:=s.resolve(file.Path,false);if err!=nil{return err}
+			s.directories[name]=true
+			continue
+		}
 		component:="base/rootfs"
 		if s.packageNames[owner]{component="debian/"+owner}
 		if err:=s.put(file,component,"",false);err!=nil{return err}
@@ -95,12 +100,22 @@ func (s *assemblyInputInventory) addWheel(selected assemblyWheelSelection,wheel 
 func (s *assemblyInputInventory) put(file documentinputs.File,owner,policy string,replace bool)error {
 	if len(s.files)>=100000||!assemblyClosureSafePath(file.Path){return errAssemblyClosureDomain}
 	name,err:=s.resolve(file.Path,false);if err!=nil{return err}
+	if old,ok:=s.files[name];ok&&replace&&file.Kind=="directory"&&old.Kind=="symlink" {
+		// dpkg directory headers preserve an existing directory alias such as
+		// /lib -> /usr/lib. The target must be an actual observed directory.
+		target,err:=s.resolve(name,true);if err!=nil{return err}
+		if actual,exists:=s.files[target];exists {
+			if actual.Kind!="directory"{return errAssemblyClosureDomain}
+		} else if !s.directories[target] {return errAssemblyClosureDomain}
+		return nil
+	}
 	value:=assemblyObservedFile{Path:name,Owner:owner,Kind:file.Kind,Bytes:file.Bytes,SHA256:file.SHA256,Target:file.Target,Policy:policy}
 	if old,ok:=s.files[name];ok&&!replace {
 		if old.Kind=="directory"&&value.Kind=="directory"{return nil}
 		return errAssemblyClosureDomain
 	}
 	s.files[name]=value
+	if value.Kind=="directory"{s.directories[name]=true}else{delete(s.directories,name)}
 	return nil
 }
 

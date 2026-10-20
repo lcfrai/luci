@@ -21,6 +21,26 @@ func TestAssemblyInventoryRetainsMaterializedHardlinkAcrossUpgrade(t *testing.T)
 	if s.files["usr/lib/alias"].SHA256!=old||s.files["usr/lib/target"].SHA256!=next{t.Fatal("hardlink was rebound to a later replacement")}
 }
 
+func TestAssemblyInventoryPreservesBaseDirectoryAlias(t *testing.T) {
+	for _,targetKind:=range []string{"directory","regular"} {
+		t.Run(targetKind,func(t *testing.T){
+			s:=newAssemblyInputInventory()
+			base:=documentinputs.Base{Files:[]documentinputs.File{
+				{Path:"usr/lib",Kind:targetKind,Bytes:3,SHA256:assemblyCatalogDigest([]byte("old"))},
+				{Path:"lib",Kind:"symlink",Target:"usr/lib"},
+			}}
+			if err:=s.addBase(base);err!=nil{t.Fatal(err)}
+			payload:=assemblyCatalogDigest([]byte("new"))
+			err:=s.addDeb(documentinputs.Deb{Package:documentinputs.Package{Name:"sample",Version:"1",Architecture:"amd64"},
+				Files:[]documentinputs.File{{Path:"lib",Kind:"directory"},{Path:"lib/sample.so",Kind:"regular",Bytes:3,SHA256:payload}}})
+			if targetKind=="regular" {if err==nil{t.Fatal("directory alias to regular file accepted")};return}
+			if err!=nil{t.Fatal(err)}
+			if s.files["lib"].Kind!="symlink"||s.files["usr/lib/sample.so"].SHA256!=payload{t.Fatal("package directory overwrote base alias")}
+			if _,exists:=s.files["lib/sample.so"];exists{t.Fatal("payload escaped the base directory alias")}
+		})
+	}
+}
+
 func TestAssemblyInventoryNoticeMustMatchSelectedPackage(t *testing.T) {
 	s:=newAssemblyInputInventory()
 	old:=assemblyCatalogDigest([]byte("old grant"));next:=assemblyCatalogDigest([]byte("new grant"))
