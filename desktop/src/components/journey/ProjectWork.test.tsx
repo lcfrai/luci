@@ -15,7 +15,11 @@ import { ProjectWork } from './ProjectWork';
 const identity = vi.hoisted(() => ({ scope: 'account-a/workspace-a', read: true, edit: true }));
 const runActions = vi.hoisted(() => ({ open: undefined as undefined | ((target: { scope: string; projectId: string; sessionId: string; origin: Element | null }) => void) }));
 vi.mock('../../hooks/useProjectDraft', async original => ({ ...await original<typeof import('../../hooks/useProjectDraft')>(), useProjectDraftScope: () => identity.scope }));
-vi.mock('../../hooks/useProjectAccess', () => ({ useProjectAccess: () => ({ canRead: identity.read, canEdit: identity.edit, canExecute: identity.edit, canAssist: identity.edit, message: identity.read ? '' : 'Project reading access is unavailable.' }) }));
+vi.mock('../../hooks/useProjectAccess', () => ({ useProjectAccess: () => ({
+  canRead: identity.read, canEdit: identity.edit, canExecute: identity.edit, canAssist: identity.edit,
+  permissions: { read: identity.read, edit: identity.edit, execute: identity.edit, secrets: identity.edit, deploy: identity.edit, admin: identity.edit },
+  loading: false, error: '', message: identity.read ? '' : 'Project reading access is unavailable.',
+}) }));
 vi.mock('./ProjectRuns', () => ({ ProjectRuns: ({ onOpenCodingSession }: { onOpenCodingSession: typeof runActions.open }) => { runActions.open = onOpenCodingSession; return null; } }));
 const saved = context();
 const sketch: Design = { projectId: 'p-1', revision: 0, briefRevision: 0, frames: [], updatedAt: '' };

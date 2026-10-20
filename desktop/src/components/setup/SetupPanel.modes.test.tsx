@@ -72,7 +72,12 @@ it('keeps the three-choice review reachable for a returning configured workspace
   await userEvent.click(screen.getByRole('button',{name:'Bring your own cloud'}));
   await screen.findByRole('heading',{name:'Bring your own cloud'});
   expect(f.fetcher).toHaveBeenCalledTimes(1);
-  expect(screen.getByText(/rendered plan is not a connected workspace/)).toBeTruthy();
+  expect(screen.getByRole('region',{name:'Guided Azure setup'})).toBeTruthy();
+  expect(screen.getByRole('button',{name:'Prepare Azure instructions'})).toBeTruthy();
+  expect(screen.getByText(/Run setup, load its files, then connect your workspace/)).toBeTruthy();
+  expect(screen.getByText(/Setup preference saved. Your active connection and existing projects are unchanged/)).toBeTruthy();
+  expect(new URL(String(f.fetcher.mock.calls[0][0])).pathname).toBe('/v1/setup/choice');
+  expect(JSON.parse(String(f.fetcher.mock.calls[0][1]?.body))).toEqual({expectedRevision:2,mode:'bring-your-own-cloud'});
   await userEvent.click(screen.getByRole('button',{name:'Workspace setup'}));
   expect(screen.getByRole('button',{name:'Bring your own cloud'}).getAttribute('aria-pressed')).toBe('true');
 });
