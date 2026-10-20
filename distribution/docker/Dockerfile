@@ -56,6 +56,9 @@ RUN chmod 0755 /opt/luci/luci /usr/local/bin/entrypoint.sh /usr/local/bin/health
     && test -x /opt/luci/luci \
     && test -s /opt/luci/web/index.html \
     && test -s /opt/luci/runtime/images/sandbox/Dockerfile \
+    && test -s /opt/luci/document-image-manifest-pin \
+    && test -s /opt/luci/runtime/document-image/document-runtime-manifest-v1.json \
+    && test -s /opt/luci/runtime/document-image/document-image-linux-amd64.tar \
     && test -s /opt/luci/LICENSE
 ENV HOME=/luci-workspace/home \
     TMPDIR=/luci-workspace/tmp \

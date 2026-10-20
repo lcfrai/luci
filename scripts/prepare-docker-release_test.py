@@ -7,6 +7,7 @@ import shutil
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 SOURCE_ROOT = Path(__file__).resolve().parent.parent
@@ -34,6 +35,11 @@ class DockerReleaseBoundary(unittest.TestCase):
         (self.bundle / "licenses/manifest.json").write_text('{"missingLicenses": []}', encoding="utf-8")
         (self.bundle / "licenses/MISSING-LICENSES.txt").write_bytes(b"")
         shutil.copytree(SOURCE_ROOT / "distribution/docker", self.repo / "distribution/docker")
+        # This suite owns archive/context boundaries. Component validators have
+        # separate source regressions; synthetic bytes are not runtime images.
+        component_verifier = mock.patch.object(packaging, "verify_runtime_components")
+        self.component_verifier = component_verifier.start()
+        self.addCleanup(component_verifier.stop)
         self.archive()
 
     def archive(self, extra=None):
@@ -49,6 +55,7 @@ class DockerReleaseBoundary(unittest.TestCase):
 
     def test_prepares_only_attested_bundle_and_distribution_files(self):
         manifest, files = packaging.verify_release(self.release, "0.4.4")
+        self.component_verifier.assert_called_once_with(self.bundle, "a" * 40)
         output = self.repo / "artifacts/docker/0.4.4"
         result = packaging.prepare(self.repo, self.release, "0.4.4", output, manifest, files)
         self.assertEqual(result["sourceCommit"], "a" * 40)
@@ -116,6 +123,49 @@ class DockerReleaseBoundary(unittest.TestCase):
         self.assertEqual(sentinel.read_text(encoding="utf-8"), "owned existing files")
         with self.assertRaisesRegex(ValueError, "beneath artifacts/docker"):
             packaging.bounded_output(self.repo, self.repo / "artifacts/docker/../private-output")
+
+    def test_changed_release_bytes_cannot_enter_verified_context(self):
+        manifest, files = packaging.verify_release(self.release, "0.4.4")
+        (self.bundle / "luci").write_bytes(b"x" * 20)
+        with self.assertRaisesRegex(ValueError, "changed during context copy"):
+            packaging.prepare(self.repo, self.release, "0.4.4",
+                              self.repo / "artifacts/docker/changed", manifest, files)
+
+    def test_image_payloads_share_one_budget_without_expanding_core(self):
+        for name in ("runtime/document-image/document-image-linux-amd64.tar",
+                     "cloud/luci-cloud-linux-amd64.tar.gz",
+                     "runtime/" + packaging.pull_payload.registry_store.STORE_NAME):
+            target = self.bundle / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(b"x" * 32)
+        self.archive()
+        with mock.patch.object(packaging, "MAX_RUNTIME_BYTES", 95):
+            with self.assertRaisesRegex(ValueError, "bounded context size"):
+                packaging.verify_release(self.release, "0.4.4")
+
+
+class DockerRuntimeComponents(unittest.TestCase):
+    def test_v2_release_keeps_document_verification_and_requires_full_companion(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            bundle = Path(temporary)
+            runtime = bundle / "runtime"
+            runtime.mkdir()
+            (runtime / packaging.pull_payload.MANIFEST).write_text("{}")
+            (bundle / "package-identity").write_bytes(b"a" * 64 + b"\n")
+            with mock.patch.object(packaging.pull_payload, "verify") as v2, \
+                 mock.patch.object(packaging.runtime_payload, "verify") as v1, \
+                 mock.patch.object(packaging.document_runtime_package, "verify_package"), \
+                 mock.patch.object(packaging.document_runtime_package, "verify_image_package", return_value=None) as image, \
+                 mock.patch.object(packaging.portable_package, "package_identity", return_value="a" * 64):
+                with self.assertRaisesRegex(ValueError, "document image companion"):
+                    packaging.verify_runtime_components(bundle, "b" * 40)
+                v2.assert_called_once_with(runtime, package=bundle, canonical=runtime, source_commit="b" * 40)
+                v1.assert_not_called()
+                image.return_value = {"manifestSHA256": "c" * 64}
+                packaging.verify_runtime_components(bundle, "b" * 40)
+                (bundle / "package-identity").write_bytes(b"d" * 64 + b"\n")
+                with self.assertRaisesRegex(ValueError, "identity changed"):
+                    packaging.verify_runtime_components(bundle, "b" * 40)
 
 
 if __name__ == "__main__":

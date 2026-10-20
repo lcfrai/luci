@@ -15,15 +15,25 @@ import zipfile
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent / 'runtime-oci'))
+sys.path.insert(0, str(Path(__file__).parent))
 import payload as runtime_payload
+import pull_payload
+import document_runtime_package
+import package as portable_package
 
 VERSION = re.compile(r"^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$")
-TOP_LEVEL = {"luci", "web", "runtime", "cloud", "licenses", "docs", "LICENSE", "NOTICE", "README.md", "DESIGN.md", "start-luci.sh", "package-identity"}
+TOP_LEVEL = {"luci", "web", "runtime", "cloud", "licenses", "docs", "LICENSE", "NOTICE", "README.md", "DESIGN.md", "start-luci.sh", "package-identity", "document-runtime-pins", "document-image-manifest-pin"}
 REQUIRED = {"luci", "web/index.html", "runtime/images/sandbox/Dockerfile", "runtime/images/sandbox/entrypoint.sh", "cloud/luci-cloud-linux-amd64.tar.gz", "LICENSE", "NOTICE", "licenses/manifest.json", "licenses/MISSING-LICENSES.txt"}
 PACKAGING_FILES = ("Dockerfile", "compose.yaml", "entrypoint.sh", "engine-entrypoint.sh", "workspace-init.sh", "healthcheck.sh", "start-luci.sh", "Start-Luci.ps1", "Start-Luci.cmd", "README.md", ".dockerignore")
 MAX_FILES = 20000
 MAX_BYTES = 512 * 1024 * 1024
 MAX_RUNTIME_BYTES = 8 * 1024 * 1024 * 1024
+RUNTIME_PAYLOAD_PATHS = {
+    "runtime/" + runtime_payload.PAYLOAD,
+    "runtime/" + pull_payload.registry_store.STORE_NAME,
+    "runtime/document-image/document-image-linux-amd64.tar",
+    "cloud/luci-cloud-linux-amd64.tar.gz",
+}
 
 
 def digest(path: Path) -> str:
@@ -86,7 +96,7 @@ def verify_release(release: Path, version: str) -> tuple[dict, dict[str, tuple[s
                 raise ValueError("Linked, special or oversized release archive refused")
             if member.isdir():
                 continue
-            if relative == 'runtime/' + runtime_payload.PAYLOAD:
+            if relative in RUNTIME_PAYLOAD_PATHS:
                 runtime_total += member.size
             else:
                 total += member.size
@@ -118,9 +128,49 @@ def verify_release(release: Path, version: str) -> tuple[dict, dict[str, tuple[s
     licenses = json.loads((bundle / "licenses/manifest.json").read_text(encoding="utf-8"))
     if licenses.get("missingLicenses") != [] or (bundle / "licenses/MISSING-LICENSES.txt").stat().st_size != 0:
         raise ValueError("The portable bundle has incomplete licence evidence")
-    runtime_payload.verify(bundle / 'runtime', package=bundle, canonical=bundle / 'runtime', source_commit=manifest['sourceCommit'])
-    runtime_payload.source_receipt(runtime_payload.read_json(bundle / 'runtime' / runtime_payload.SOURCE), manifest['sourceCommit'])
+    verify_runtime_components(bundle, manifest["sourceCommit"])
     return manifest, expected
+
+
+def verify_runtime_components(bundle: Path, source_commit: str) -> None:
+    runtime = bundle / "runtime"
+    if (runtime / pull_payload.MANIFEST).exists():
+        pull_payload.verify(runtime, package=bundle, canonical=runtime, source_commit=source_commit)
+    else:
+        runtime_payload.verify(runtime, package=bundle, canonical=runtime, source_commit=source_commit)
+        runtime_payload.source_receipt(runtime_payload.read_json(runtime / runtime_payload.SOURCE), source_commit)
+    document_runtime_package.verify_package(bundle)
+    if document_runtime_package.verify_image_package(bundle) is None:
+        raise ValueError("Docker distribution requires its verified document image companion")
+    identity = bundle / "package-identity"
+    regular_path(identity)
+    expected_identity = (portable_package.package_identity(bundle, "linux") + "\n").encode("ascii")
+    if identity.stat().st_size != len(expected_identity) or identity.read_bytes() != expected_identity:
+        raise ValueError("Portable package identity changed")
+
+
+def copy_attested(source: Path, destination: Path, expected: tuple[str, int, int]) -> None:
+    regular_path(source)
+    before = source.stat()
+    if not stat.S_ISREG(before.st_mode) or before.st_size != expected[1]:
+        raise ValueError("Release input changed before context copy")
+    value = hashlib.sha256()
+    count = 0
+    with source.open("rb") as incoming, destination.open("xb") as outgoing:
+        opened = os.fstat(incoming.fileno())
+        if not os.path.samestat(before, opened):
+            raise ValueError("Release input identity changed before context copy")
+        for block in iter(lambda: incoming.read(1024 * 1024), b""):
+            count += len(block)
+            if count > expected[1]:
+                raise ValueError("Release input grew during context copy")
+            value.update(block)
+            outgoing.write(block)
+        after = os.fstat(incoming.fileno())
+        if (count != expected[1] or value.hexdigest() != expected[0]
+                or opened.st_size != after.st_size or opened.st_mtime_ns != after.st_mtime_ns):
+            raise ValueError("Release input changed during context copy")
+    destination.chmod(0o755 if expected[2] & 0o111 else 0o644)
 
 
 def verify_checkout(repo: Path, manifest: dict) -> None:
@@ -166,12 +216,11 @@ def prepare(repo: Path, release: Path, version: str, output: Path, manifest: dic
             destination.chmod(0o755)
     bundle = target / "bundle"
     bundle.mkdir()
-    for relative, (_, _, mode) in sorted(files.items()):
+    for relative, expected in sorted(files.items()):
         source = release / "luci-linux-amd64" / relative
         destination = bundle / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, destination)
-        destination.chmod(0o755 if mode & 0o111 else 0o644)
+        copy_attested(source, destination, expected)
     output_files = [path for path in target.rglob("*") if path.is_file()]
     result = {
         "kind": "luci-docker-distribution", "version": version,
