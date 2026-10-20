@@ -168,7 +168,8 @@ func compareAssemblyBinaryControl(capture *debianBinarySemanticCapture,ordinal i
 	return nil
 }
 
-// Helper paths inside wheels use Debian's fixed Python 3.11 local scheme.
+// The explicit pip --target recipe moves purelib, platlib and data contents
+// from its temporary posix_home scheme into this one target directory.
 func assemblyWheelInstalledPath(name string)(string,error) {
 	if !assemblyClosureSafePath(name){return "",errAssemblyClosureDomain}
 	parts:=strings.Split(name,"/")
@@ -176,7 +177,7 @@ func assemblyWheelInstalledPath(name string)(string,error) {
 		if len(parts)<3{return "",errAssemblyClosureDomain}
 		switch parts[1] {
 		case "purelib","platlib":return path.Join("usr/local/lib/python3.11/dist-packages",path.Join(parts[2:]...)),nil
-		case "data":return path.Join("usr/local",path.Join(parts[2:]...)),nil
+		case "data":return path.Join("usr/local/lib/python3.11/dist-packages",path.Join(parts[2:]...)),nil
 		default:return "",errAssemblyClosureDomain // scripts/headers need an explicit recipe
 		}
 	}

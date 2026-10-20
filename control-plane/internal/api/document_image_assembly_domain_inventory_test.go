@@ -74,3 +74,9 @@ func TestAssemblyBinaryInventoryMustMatchOriginalControlRelations(t *testing.T) 
 	value.Depends=""
 	if err:=compareAssemblyBinaryControl(capture,0,value);err==nil{t.Fatal("package inventory severed from original dependency control")}
 }
+
+func TestAssemblyWheelDataUsesExplicitTargetDirectory(t *testing.T) {
+	got,err:=assemblyWheelInstalledPath("sample-1.data/data/share/sample/license")
+	if err!=nil||got!="usr/local/lib/python3.11/dist-packages/share/sample/license"{t.Fatalf("data mapping: %q %v",got,err)}
+	if _,err=assemblyWheelInstalledPath("sample-1.data/scripts/sample");err==nil{t.Fatal("unreviewed archive script scheme accepted")}
+}
