@@ -11,6 +11,8 @@ import tarfile
 import zipfile
 
 # The runtime module is source-controlled tooling, never a package-supplied module.
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
+import document_runtime_package
 sys.path.insert(0, str(pathlib.Path(__file__).parent / 'runtime-oci'))
 import payload as runtime_payload
 import pull_payload
@@ -53,7 +55,14 @@ def package_identity(root, platform):
             runtime_payload.verify_companion(runtime)
         bound_runtime = [runtime / runtime_payload.COMPANION, runtime / runtime_payload.SOURCE]
     files.extend(bound_runtime)
-    digest = hashlib.sha256(b'luci-portable-package-v2\n' if bound_runtime else b'luci-portable-package-v1\n')
+    document_proof = document_runtime_package.verify_package(root)
+    if document_proof is not None:
+        files.extend(document_proof['files'])
+    document_image = document_runtime_package.verify_image_package(root)
+    if document_image is not None:
+        files.extend(document_image['files'])
+    identity_domain = b'luci-portable-package-v3\n' if document_proof is not None or document_image is not None else (b'luci-portable-package-v2\n' if bound_runtime else b'luci-portable-package-v1\n')
+    digest = hashlib.sha256(identity_domain)
     for file in files:
         if file.is_symlink() or not stat.S_ISREG(file.lstat().st_mode):
             raise ValueError('Package identity requires an ordinary service binary')
@@ -74,7 +83,9 @@ def build_package(root, platform):
             raise ValueError('Package refuses linked or special members')
         if stat.S_ISREG(mode):
             if file.relative_to(root).as_posix() in ('runtime/' + runtime_payload.PAYLOAD,
-                                                    'runtime/' + pull_payload.registry_store.STORE_NAME):
+                                                    'runtime/' + pull_payload.registry_store.STORE_NAME,
+                                                    (document_runtime_package.IMAGE_ROOT / document_runtime_package.IMAGE_ARCHIVE).as_posix(),
+                                                    'cloud/luci-cloud-linux-amd64.tar.gz'):
                 payload_bytes += file.stat().st_size
             else:
                 core_bytes += file.stat().st_size

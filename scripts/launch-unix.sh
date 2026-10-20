@@ -29,12 +29,39 @@ luci_package_id=$(head -c 66 "$luci_package_path" | tr -d '\r\n')
 if [[ ! "$luci_package_id" =~ ^[0-9a-f]{64}$ ]]; then
  printf '%s\n' 'This package has invalid identity metadata. Extract the complete verified Luci archive into a new folder.' >&2; exit 1
 fi
+luci_document_profile=''
+luci_document_tool_domain=''
+luci_document_pin_file="$luci_root/document-runtime-pins"
+if [[ -e "$luci_document_pin_file" || -L "$luci_document_pin_file" ]]; then
+ if [[ ! -f "$luci_document_pin_file" || -L "$luci_document_pin_file" ]] || (( $(wc -c < "$luci_document_pin_file") != 130 )); then
+  printf '%s\n' 'Invalid packaged document proof configuration.' >&2; exit 1
+ fi
+ # Exact two lowercase hex lines plus terminal LF reject padding or CRLF.
+ luci_document_profile=$(head -n 1 "$luci_document_pin_file")
+ luci_document_tool_domain=$(sed -n '2p' "$luci_document_pin_file")
+ if [[ ! "$luci_document_profile" =~ ^[0-9a-f]{64}$ || ! "$luci_document_tool_domain" =~ ^[0-9a-f]{64}$ ]] || [[ $(tail -c 1 "$luci_document_pin_file" | od -An -tu1 | tr -d ' ') != 10 ]]; then
+  printf '%s\n' 'Invalid packaged document proof configuration.' >&2; exit 1
+ fi
+fi
+luci_document_image=''
+luci_document_image_pin_file="$luci_root/document-image-manifest-pin"
+if [[ -e "$luci_document_image_pin_file" || -L "$luci_document_image_pin_file" ]]; then
+ if [[ ! -f "$luci_document_image_pin_file" || -L "$luci_document_image_pin_file" ]] || (( $(wc -c < "$luci_document_image_pin_file") != 65 )); then
+  printf '%s\n' 'Invalid packaged document image configuration.' >&2; exit 1
+ fi
+ luci_document_image=$(head -n 1 "$luci_document_image_pin_file")
+ if [[ ! "$luci_document_image" =~ ^[0-9a-f]{64}$ ]] || [[ $(tail -c 1 "$luci_document_image_pin_file" | od -An -tu1 | tr -d ' ') != 10 ]]; then
+  printf '%s\n' 'Invalid packaged document image configuration.' >&2; exit 1
+ fi
+fi
 umask 077
 mkdir -p "$luci_state"
 export LUCI_STATE_DIR="$luci_state" LUCI_ADDR="127.0.0.1:$luci_port"
 export LUCI_PORTABLE_OWNER_ACCESS=1 LUCI_LOCAL_ACCESS_TOKEN='' LUCI_ALLOW_PUBLIC_BIND='' LUCI_WORKER=''
 export LUCI_PORTABLE_PACKAGE_ID="$luci_package_id"
 export LUCI_WEB_DIR="$luci_root/web" LUCI_RUNTIME_DIR="$luci_root/runtime" LUCI_CLOUD_BUNDLE="$luci_root/cloud/luci-cloud-linux-amd64.tar.gz"
+export LUCI_DOCUMENT_PROFILE_SHA256="$luci_document_profile" LUCI_DOCUMENT_TOOL_DOMAIN_SHA256="$luci_document_tool_domain"
+export LUCI_DOCUMENT_IMAGE_MANIFEST_SHA256="$luci_document_image"
 luci_lifecycle=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \r\n')
 export LUCI_MANAGED_SHUTDOWN_TOKEN="$luci_lifecycle"
 luci_base="http://127.0.0.1:$luci_port"

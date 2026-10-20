@@ -17,6 +17,7 @@ import tarfile
 from retained_ui import SHADCN_ROOT, SHADCN_REVISION, read_shadcn, verify_shadcn
 from retained_e2b import E2B_ROOT, E2B_REVISION, verify_e2b
 from retained_pdf_fonts import verify_pdf_fonts
+import document_runtime_package
 
 
 def json_stream(text):
@@ -43,7 +44,56 @@ def licence_name(name):
     }
 
 
-def collect(root, output, native):
+def collect_document_notices(directory, expected, output):
+    """Retain exact producer-declared grants, without asserting SBOM closure.
+
+    The document finalizer's pinned provenance identifies the image and notice
+    closure. This collector does not parse the image or independently discharge
+    source-retention obligations. Normal package staging separately checks the
+    actual image archive and copies these same ordinary-file sidecars.
+    """
+    raw, manifest = document_runtime_package.image_manifest(directory, expected)
+    notice_raw, notices = document_runtime_package.image_notices(directory, manifest)
+    output = document_runtime_package.plain_directory(output)
+    destination = output / 'document-image'
+    if destination.exists():
+        raise ValueError('Document licence collection requires a fresh output subtree')
+    document_runtime_package.make_directory(destination, output)
+    for name, data in ((document_runtime_package.IMAGE_MANIFEST, raw), (document_runtime_package.IMAGE_NOTICES, notice_raw)):
+        with (destination / name).open('xb') as target:
+            target.write(data)
+    records, by_component = [], {}
+    for notice in notices:
+        target = destination / notice['path']
+        document_runtime_package.make_directory(target.parent, output)
+        document_runtime_package.verify_file(pathlib.Path(directory) / notice['path'], notice['bytes'], notice['sha256'], target)
+        key = notice['component'], notice['version']
+        if key not in by_component:
+            record = {
+                'ecosystem': 'document-image', 'name': notice['component'], 'version': notice['version'],
+                'declaredLicense': notice['grant'], 'missingLicense': False,
+                'evidenceScope': 'Exact producer-declared retained grant bytes; not an independent SBOM or source-offer fulfillment finding.',
+                'producerDeclarations': [], 'files': [],
+            }
+            by_component[key] = record
+            records.append(record)
+        record = by_component[key]
+        if record['declaredLicense'] != notice['grant']:
+            record['declaredLicense'] = None  # No inferred AND/OR of different grants.
+        record['producerDeclarations'].append({key: notice[key] for key in ('path', 'grant', 'provenance')})
+        record['files'].append({'path': target.relative_to(output).as_posix(), 'bytes': notice['bytes'], 'sha256': notice['sha256']})
+    return records, {
+        'manifestSHA256': expected, 'imageID': manifest['image']['id'],
+        'noticeCount': len(notices), 'provenance': manifest['provenance'],
+        'manifestFile': (destination / document_runtime_package.IMAGE_MANIFEST).relative_to(output).as_posix(),
+        'noticeClosureFile': (destination / document_runtime_package.IMAGE_NOTICES).relative_to(output).as_posix(),
+        'coverage': 'Producer-selected retained notices only; completeness and source obligations require independent review.',
+    }
+
+
+def collect(root, output, native, document_image_dir=None, document_image_manifest_sha256=None):
+    if bool(document_image_dir) != bool(document_image_manifest_sha256):
+        raise ValueError('Document licence collection requires both selected directory and independent manifest pin')
     root, output = root.resolve(), output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     records, seen = [], set()
@@ -236,8 +286,15 @@ def collect(root, output, native):
         rust_version = command(["rustc", "--version"], root).split()[1]
         add("rust", "standard-library", rust_version, rustroot / "share" / "doc" / "rust", "MIT OR Apache-2.0 (see bundled library notices)")
 
+    document_record = None
+    if document_image_dir:
+        document_records, document_record = collect_document_notices(document_image_dir, document_image_manifest_sha256, output)
+        records.extend(document_records)
     missing = [f'{r["ecosystem"]}:{r["name"]}@{r["version"]}' for r in records if r["missingLicense"]]
     manifest = {"schemaVersion": 1, "scope": "Installed npm runtime packages, bundled Excalidraw and PDF font families, compiled Go modules and standard library" + (", reachable native Windows Cargo packages and installed Rust library notices" if native else ""), "reviewRequired": "Collected notices are evidence, not a compatibility or legal approval. Separately installed software and container images need their own review.", "missingLicenses": missing, "components": records}
+    if document_record is not None:
+        manifest['documentRuntime'] = document_record
+        manifest['scope'] += ', plus exact producer-declared document image notices'
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     (output / "MISSING-LICENSES.txt").write_text("\n".join(missing) + ("\n" if missing else ""), encoding="utf-8")
     (output / "README.txt").write_text(
@@ -261,8 +318,10 @@ if __name__ == "__main__":
     parser.add_argument("output", type=pathlib.Path)
     parser.add_argument("--native", action="store_true")
     parser.add_argument("--allow-missing", action="store_true", help="Diagnostic report only; not a distributable release gate")
+    parser.add_argument("--document-image-dir", type=pathlib.Path)
+    parser.add_argument("--document-image-manifest-sha256")
     args = parser.parse_args()
-    count, missing = collect(args.repository, args.output, args.native)
+    count, missing = collect(args.repository, args.output, args.native, args.document_image_dir, args.document_image_manifest_sha256)
     print(f"Collected licence evidence for {count} components; {len(missing)} require licence files.")
     for component in missing:
         print(component)

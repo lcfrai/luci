@@ -8,13 +8,32 @@ $luciPackageInfo = Get-Item -LiteralPath $luciPackageFile -Force
 if (($luciPackageInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $luciPackageInfo.Length -gt 66) { throw 'This package has invalid identity metadata. Extract the complete verified Luci archive into a new folder.' }
 $luciPackageId = (Get-Content -LiteralPath $luciPackageFile -Raw).Trim()
 if ($luciPackageId -cnotmatch '^[0-9a-f]{64}$') { throw 'This package has invalid identity metadata. Extract the complete verified Luci archive into a new folder.' }
+$luciDocumentPins = @('','')
+$luciDocumentPinFile = Join-Path $PSScriptRoot 'document-runtime-pins'
+if (Test-Path -LiteralPath $luciDocumentPinFile) {
+    $luciDocumentPinInfo = Get-Item -LiteralPath $luciDocumentPinFile -Force
+    if ($luciDocumentPinInfo.PSIsContainer -or ($luciDocumentPinInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $luciDocumentPinInfo.Length -ne 130) { throw 'Invalid packaged document proof configuration.' }
+    $luciDocumentPinBytes = [IO.File]::ReadAllBytes($luciDocumentPinFile)
+    $luciDocumentPinText = [Text.Encoding]::ASCII.GetString($luciDocumentPinBytes)
+    if ($luciDocumentPinText -cnotmatch '\A[0-9a-f]{64}\n[0-9a-f]{64}\n\z') { throw 'Invalid packaged document proof configuration.' }
+    $luciDocumentPins = $luciDocumentPinText.Split("`n")
+}
+$luciDocumentImagePin = ''
+$luciDocumentImagePinFile = Join-Path $PSScriptRoot 'document-image-manifest-pin'
+if (Test-Path -LiteralPath $luciDocumentImagePinFile) {
+    $luciDocumentImagePinInfo = Get-Item -LiteralPath $luciDocumentImagePinFile -Force
+    if ($luciDocumentImagePinInfo.PSIsContainer -or ($luciDocumentImagePinInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $luciDocumentImagePinInfo.Length -ne 65) { throw 'Invalid packaged document image configuration.' }
+    $luciDocumentImagePinText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($luciDocumentImagePinFile))
+    if ($luciDocumentImagePinText -cnotmatch '\A[0-9a-f]{64}\n\z') { throw 'Invalid packaged document image configuration.' }
+    $luciDocumentImagePin = $luciDocumentImagePinText.Substring(0,64)
+}
 if (-not $StateDir) { $StateDir = if ($env:LUCI_STATE_DIR) { $env:LUCI_STATE_DIR } else { Join-Path $env:LOCALAPPDATA 'Luci/state' } }
 $luciState = [IO.Path]::GetFullPath($StateDir)
 New-Item -ItemType Directory -Force -Path $luciState | Out-Null
 $luciBase = 'http://127.0.0.1:' + $Port
 $luciOwned = $null
 $luciPriorEnvironment = @{}
-foreach ($luciKey in @('LUCI_STATE_DIR','LUCI_ADDR','LUCI_MANAGED_SHUTDOWN_TOKEN','LUCI_LOCAL_ACCESS_TOKEN','LUCI_PORTABLE_OWNER_ACCESS','LUCI_PORTABLE_PACKAGE_ID','LUCI_ALLOW_PUBLIC_BIND','LUCI_WORKER','LUCI_WEB_DIR','LUCI_RUNTIME_DIR','LUCI_CLOUD_BUNDLE')) {
+foreach ($luciKey in @('LUCI_STATE_DIR','LUCI_ADDR','LUCI_MANAGED_SHUTDOWN_TOKEN','LUCI_LOCAL_ACCESS_TOKEN','LUCI_PORTABLE_OWNER_ACCESS','LUCI_PORTABLE_PACKAGE_ID','LUCI_ALLOW_PUBLIC_BIND','LUCI_WORKER','LUCI_WEB_DIR','LUCI_RUNTIME_DIR','LUCI_CLOUD_BUNDLE','LUCI_DOCUMENT_PROFILE_SHA256','LUCI_DOCUMENT_TOOL_DOMAIN_SHA256','LUCI_DOCUMENT_IMAGE_MANIFEST_SHA256')) {
     $luciPriorEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process')
 }
 $luciLifecycle = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
@@ -38,6 +57,11 @@ try {
     $env:LUCI_WEB_DIR = Join-Path $PSScriptRoot 'web'
     $env:LUCI_RUNTIME_DIR = Join-Path $PSScriptRoot 'runtime'
     $env:LUCI_CLOUD_BUNDLE = Join-Path $PSScriptRoot 'cloud/luci-cloud-linux-amd64.tar.gz'
+    # These are selected release inputs, never inherited user environment or a
+    # self-hash of the runtime descriptor. An omitted developer profile clears both.
+    $env:LUCI_DOCUMENT_PROFILE_SHA256 = $luciDocumentPins[0]
+    $env:LUCI_DOCUMENT_TOOL_DOMAIN_SHA256 = $luciDocumentPins[1]
+    $env:LUCI_DOCUMENT_IMAGE_MANIFEST_SHA256 = $luciDocumentImagePin
     try { $luciStatus = Invoke-RestMethod -Uri ($luciBase + '/v1/control-plane/status') -TimeoutSec 2 } catch { $luciStatus = $null }
     if ($null -eq $luciStatus) {
         $luciOwned = Start-Process -FilePath $luciExe -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $luciState 'service.out.log') -RedirectStandardError (Join-Path $luciState 'service.err.log')

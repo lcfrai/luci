@@ -1,10 +1,16 @@
 #requires -Version 7.0
-param([string]$Version = '0.5.0', [switch]$Native, [switch]$RequireSigned, [string]$CertificateThumbprint = '', [string]$SignToolPath = '', [string]$TimestampUrl = 'https://timestamp.digicert.com', [Parameter(Mandatory=$true)][string]$RuntimePayloadDir, [ValidateSet('v2','advanced-v1')][string]$RuntimeFormat = 'v2', [ValidateSet('all','windows-amd64','linux-amd64','darwin-arm64')][string]$Target = 'all', [string]$E2BSource = '')
+param([string]$Version = '0.5.0', [switch]$Native, [switch]$RequireSigned, [string]$CertificateThumbprint = '', [string]$SignToolPath = '', [string]$TimestampUrl = 'https://timestamp.digicert.com', [Parameter(Mandatory=$true)][string]$RuntimePayloadDir, [ValidateSet('v2','advanced-v1')][string]$RuntimeFormat = 'v2', [ValidateSet('all','windows-amd64','linux-amd64','darwin-arm64')][string]$Target = 'all', [string]$E2BSource = '', [string]$DocumentProfileDir = '', [string]$DocumentProfileSHA256 = '', [string]$DocumentToolDomainSHA256 = '', [string]$DocumentImageDir = '', [string]$DocumentImageManifestSHA256 = '', [switch]$AllowIncompleteDocumentRuntimeForDevelopment)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($RequireSigned -and (-not $Native -or -not $CertificateThumbprint)) { throw 'RequireSigned requires -Native and an explicit CertificateThumbprint; unsigned fallback is refused.' }
 if ($CertificateThumbprint -and -not $Native) { throw 'CertificateThumbprint requires -Native.' }
 if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$') { throw 'Version must be a semantic version.' }
+$luciHasDocumentProof = [bool]($DocumentProfileDir -or $DocumentProfileSHA256 -or $DocumentToolDomainSHA256)
+if ($luciHasDocumentProof -and (-not [IO.Path]::IsPathFullyQualified($DocumentProfileDir) -or $DocumentProfileSHA256 -cnotmatch '^[0-9a-f]{64}$' -or $DocumentToolDomainSHA256 -cnotmatch '^[0-9a-f]{64}$')) { throw 'Document proof packaging requires an absolute profile directory and both independently selected lowercase SHA256 pins.' }
+$luciHasDocumentImage = [bool]($DocumentImageDir -or $DocumentImageManifestSHA256)
+if ($luciHasDocumentImage -and (-not [IO.Path]::IsPathFullyQualified($DocumentImageDir) -or $DocumentImageManifestSHA256 -cnotmatch '^[0-9a-f]{64}$')) { throw 'Document runtime packaging requires an absolute verified prebuilt directory and its independently selected manifest SHA256.' }
+if (-not $luciHasDocumentImage -and -not $AllowIncompleteDocumentRuntimeForDevelopment) { throw 'A full release requires -DocumentImageDir and -DocumentImageManifestSHA256 for its verified document runtime companion. Only an explicitly incomplete development build may omit them.' }
+if ($AllowIncompleteDocumentRuntimeForDevelopment -and ($RequireSigned -or $CertificateThumbprint)) { throw 'An incomplete development document runtime is not a signed full release.' }
 $luciRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $luciOutput = Join-Path $luciRoot ('artifacts/releases/' + $Version)
 $luciStage = Join-Path $luciOutput ('.stage-' + [guid]::NewGuid().ToString('N'))
@@ -22,7 +28,7 @@ if ($CertificateThumbprint) {
     $luciSigningContext = Get-LuciWindowsSigningContext $CertificateThumbprint $TimestampUrl $SignToolPath
     $luciNativeSigning = @{requested=$true;verified=$false;status='pending';required=[bool]$RequireSigned;certificateThumbprint=$luciSigningContext.thumbprint;signerSubject=$luciSigningContext.subject;timestampUrl=$TimestampUrl;files=@()}
 }
-foreach ($luciKey in @('PATH','GOOS','GOARCH','CGO_ENABLED','GOFLAGS','CARGO_TARGET_DIR','GOMAXPROCS','GOMEMLIMIT','NODE_OPTIONS','VITE_LUCI_API')) { $luciSavedEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process') }
+foreach ($luciKey in @('PATH','GOOS','GOARCH','CGO_ENABLED','GOFLAGS','CARGO_TARGET_DIR','GOMAXPROCS','GOMEMLIMIT','NODE_OPTIONS','VITE_LUCI_API','LUCI_BUILD_DOCUMENT_PROFILE_SHA256','LUCI_BUILD_DOCUMENT_TOOL_DOMAIN_SHA256','LUCI_BUILD_DOCUMENT_IMAGE_MANIFEST_SHA256','LUCI_BUILD_DOCUMENT_BUNDLE_REQUIRED')) { $luciSavedEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process') }
 
 function Confirm-Exit([string]$Operation) {
     if ($LASTEXITCODE -ne 0) { throw ($Operation + ' failed (exit ' + $LASTEXITCODE + ').') }
@@ -94,6 +100,25 @@ try {
     $luciCargoBin = Join-Path $env:USERPROFILE '.cargo/bin'
     if (Test-Path -LiteralPath $luciCargoBin) { $env:PATH = $luciCargoBin + [IO.Path]::PathSeparator + $env:PATH }
     foreach ($luciTool in @('go','python','npm')) { Get-Command $luciTool -ErrorAction Stop | Out-Null }
+    $luciDocumentProofTool = Join-Path $PSScriptRoot 'document_runtime_package.py'
+    if ($luciHasDocumentProof) {
+        & python $luciDocumentProofTool verify-source --profile-dir $DocumentProfileDir --profile-sha256 $DocumentProfileSHA256 --tool-domain-sha256 $DocumentToolDomainSHA256 | Out-Null
+        Confirm-Exit 'Independently pinned document proof source verification'
+    }
+    $luciDocumentImageRecord = $null
+    $luciDocumentLicenseArguments = @()
+    if ($luciHasDocumentImage) {
+        $luciDocumentImageJSON = (& python $luciDocumentProofTool verify-image-source --image-dir $DocumentImageDir --image-manifest-sha256 $DocumentImageManifestSHA256)
+        Confirm-Exit 'Independently pinned prebuilt document runtime verification'
+        $luciDocumentImageRecord = $luciDocumentImageJSON | ConvertFrom-Json
+        $luciDocumentLicenseArguments = @('--document-image-dir',$DocumentImageDir,'--document-image-manifest-sha256',$DocumentImageManifestSHA256)
+    }
+    $env:LUCI_BUILD_DOCUMENT_PROFILE_SHA256 = $DocumentProfileSHA256
+    $env:LUCI_BUILD_DOCUMENT_TOOL_DOMAIN_SHA256 = $DocumentToolDomainSHA256
+    # Only a separately verified prebuilt companion may supply this pin. Ambient
+    # environment is not a maintainer-selected release input.
+    $env:LUCI_BUILD_DOCUMENT_IMAGE_MANIFEST_SHA256 = $DocumentImageManifestSHA256
+    $env:LUCI_BUILD_DOCUMENT_BUNDLE_REQUIRED = if ($AllowIncompleteDocumentRuntimeForDevelopment) { '' } else { '1' }
     & python $luciPayloadTool verify --payload $RuntimePayloadDir
     Confirm-Exit 'Preverified source-bound runtime payload'
     # npm.ps1 reparses MyInvocation.Statement and can corrupt arguments inside a
@@ -149,11 +174,19 @@ try {
         Copy-Tree $luciRuntime (Join-Path $luciPackage 'runtime')
         Copy-Tree $luciGuides $luciPackage
         $luciLicenses = Join-Path $luciPackage 'licenses'
-        & python (Join-Path $PSScriptRoot 'collect-licenses.py') $luciRoot $luciLicenses
+        & python (Join-Path $PSScriptRoot 'collect-licenses.py') $luciRoot $luciLicenses @luciDocumentLicenseArguments
         Confirm-Exit ($luciName + ' strict licence collection')
         $luciCount = Confirm-Licenses $luciLicenses
         & python $luciPayloadTool stage --payload $RuntimePayloadDir --repo $luciRoot --revision $luciSource.sourceCommit --package $luciPackage
         Confirm-Exit ($luciName + ' verified runtime payload and source receipt')
+        if ($luciHasDocumentProof) {
+            & python $luciDocumentProofTool stage --profile-dir $DocumentProfileDir --profile-sha256 $DocumentProfileSHA256 --tool-domain-sha256 $DocumentToolDomainSHA256 --package $luciPackage | Out-Null
+            Confirm-Exit ($luciName + ' independently pinned document proof staging')
+        }
+        if ($luciHasDocumentImage) {
+            & python $luciDocumentProofTool stage-image --image-dir $DocumentImageDir --image-manifest-sha256 $DocumentImageManifestSHA256 --package $luciPackage | Out-Null
+            Confirm-Exit ($luciName + ' prebuilt document runtime staging')
+        }
         if ($luciTarget.os -eq 'windows') {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'launch-windows.ps1') -Destination (Join-Path $luciPackage 'Start-Luci.ps1')
             Set-Content -LiteralPath (Join-Path $luciPackage 'Start-Luci.cmd') -Value '@powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-Luci.ps1"' -Encoding ascii
@@ -166,6 +199,14 @@ try {
     $luciLinux = ($luciPackages | Where-Object { $_.os -eq 'linux' }).path
     & python $luciPayloadTool core-from-package --package $luciLinux --output $luciCloudRoot
     Confirm-Exit 'Explicit management-core runtime companion contract'
+    if ($luciHasDocumentProof) {
+        & python $luciDocumentProofTool verify --package $luciCloudRoot --profile-sha256 $DocumentProfileSHA256 --tool-domain-sha256 $DocumentToolDomainSHA256 | Out-Null
+        Confirm-Exit 'Management-core copied document proof verification'
+    }
+    if ($luciHasDocumentImage) {
+        & python $luciDocumentProofTool verify-image --package $luciCloudRoot --image-manifest-sha256 $DocumentImageManifestSHA256 | Out-Null
+        Confirm-Exit 'Management-core copied document runtime verification'
+    }
     & python (Join-Path $PSScriptRoot 'package.py') $luciCloudRoot linux
     Confirm-Exit 'Linux cloud runtime archive'
     $luciCloudArchive = $luciCloudRoot + '.tar.gz'
@@ -185,7 +226,7 @@ try {
         $luciWindowsPackage = ($luciPackages | Where-Object { $_.os -eq 'windows' }).path
         $env:GOOS = 'windows'; $env:GOARCH = 'amd64'
         $luciNativeLicenses = Join-Path $luciStage 'native-licenses'
-        & python (Join-Path $PSScriptRoot 'collect-licenses.py') $luciRoot $luciNativeLicenses --native
+        & python (Join-Path $PSScriptRoot 'collect-licenses.py') $luciRoot $luciNativeLicenses --native @luciDocumentLicenseArguments
         Confirm-Exit 'Native strict licence collection'
         $luciNativeCount = Confirm-Licenses $luciNativeLicenses
         Copy-Tree (Join-Path $luciWindowsPackage 'licenses/runtime-image') (Join-Path $luciNativeLicenses 'runtime-image')
@@ -241,6 +282,8 @@ try {
     }
     $luciRelease = @{version=$Version;sourceCommit=$luciSource.sourceCommit;sourceDirty=$luciSource.sourceDirty;builtAt=[DateTime]::UtcNow.ToString('o');artifacts=$luciArtifactRecords;portableLicenseComponents=@($luciPackages | ForEach-Object {@{target=$_.name;count=$_.licenses;missing=0}});nativeLicenseComponents=$luciNativeCount;nativeRequested=[bool]$Native;nativeSigning=$luciNativeSigning;stage=$luciStage}
     $luciRelease.runtimeDistribution = $luciRuntimeRecord
+    $luciRelease.documentInputProof = if ($luciHasDocumentProof) { @{profileSHA256=$DocumentProfileSHA256;toolDomainSHA256=$DocumentToolDomainSHA256} } else { $null }
+    $luciRelease.documentRuntime = @{status=$(if ($luciHasDocumentImage) { 'packaged-prebuilt' } else { 'omitted-development' });incompleteDevelopment=[bool]$AllowIncompleteDocumentRuntimeForDevelopment;companion=$luciDocumentImageRecord}
     $luciRelease | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $luciOutput 'release-manifest.json') -Encoding utf8NoBOM
     $luciBuildSucceeded = $true
 } finally {
