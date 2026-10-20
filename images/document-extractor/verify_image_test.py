@@ -62,6 +62,12 @@ class VerifierPureTests(unittest.TestCase):
             with self.assertRaises(verifier.Refused):
                 verifier.compatible_wheel_tags([tag], 11, 36)
 
+    def test_plugin_entrypoint_metadata_does_not_grant_an_installed_command(self):
+        data = b"[example.plugins]\nplugin = example:plugin\n[console_scripts]\nexample = example:main\n"
+        self.assertEqual(verifier.command_entry_points(data), [
+            {"group": "console_scripts", "name": "example", "value": "example:main"}])
+        self.assertEqual(verifier.command_entry_points(b"[example.plugins]\nplugin = example:plugin\n"), [])
+
 
 @unittest.skipUnless(sys.platform.startswith("linux") and sys.version_info[:2] == (3, 11), "actual verifier is fixed Linux CPython3.11 assembly-only")
 class VerifierConfinedFileTests(unittest.TestCase):

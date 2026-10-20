@@ -557,21 +557,13 @@ def verify_wheels(root, wheels, inventory):
         refuse(compatible_wheel_tags(list(tags), sys.version_info.minor, 36))
         verify_python_requirements(headers["Requires-Python"], requires, wheels)
         scripts = set()
-        observed_entries = []
         try:
             entry_bytes = read_regular(root, directory+"entry_points.txt", 65536)
         except FileNotFoundError:
             entry_bytes = b""
-        if entry_bytes:
-            parser = configparser.RawConfigParser(interpolation=None, strict=True)
-            parser.optionxform = str
-            parser.read_string(entry_bytes.decode("utf-8"))
-            for group in parser.sections():
-                refuse(group in ("console_scripts", "gui_scripts"))
-                for entry, value in parser.items(group):
-                    refuse(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", entry))
-                    observed_entries.append({"group": group, "name": entry, "value": value.strip()})
-                    scripts.add(site+"bin/"+entry)
+        observed_entries = command_entry_points(entry_bytes)
+        for entry in observed_entries:
+            scripts.add(site+"bin/"+entry["name"])
         refuse(observed_entries == (wheel["entryPoints"] or []))
         record_name = directory+"RECORD"
         refuse(read_regular(root, directory+"INSTALLER", 64) == b"pip\n")
@@ -610,6 +602,25 @@ def verify_wheels(root, wheels, inventory):
         refuse(record_name in paths and directory+"METADATA" in paths and directory+"WHEEL" in paths)
         installed_paths.update(paths)
     return installed_paths
+
+
+def command_entry_points(data):
+    refuse(isinstance(data, bytes) and len(data) <= 65536)
+    if not data:
+        return []
+    parser = configparser.RawConfigParser(interpolation=None, strict=True)
+    parser.optionxform = str
+    parser.read_string(data.decode("utf-8"))
+    entries = []
+    for group in parser.sections():
+        # Plugin metadata is not a generated command. The original file still
+        # has its immutable inventory hash; only these two groups grant scripts.
+        if group not in ("console_scripts", "gui_scripts"):
+            continue
+        for entry, value in parser.items(group):
+            refuse(len(entries) < 128 and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", entry))
+            entries.append({"group": group, "name": entry, "value": value.strip()})
+    return entries
 
 
 def installed_wheel_record_path(relative):
