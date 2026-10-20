@@ -109,15 +109,18 @@ export function SwarmSupervisionPanel(props: Props & {recoveryScope: string | nu
     clearMessageRecovery(recoveryScope, retained); pendingRef.current = null; setPending(null); setRetirable(false);
     setNotice('Delivery receipt confirmed in saved history. This does not approve or execute work.');
   }
-  async function read(after: number, replace: boolean, duringWrite = false) {
+  async function read(after: number, replace: boolean, duringWrite = false, question?: {id: string; runRevision: number}) {
     if (!latest.current.canRead || !duringWrite && latest.current.paused || readingRef.current) return;
     const controller = new AbortController(), epoch = ++readEpoch.current;
+    const inspectionEpoch = question ? completionEpoch.current.value : null;
     readRequest.current?.abort(); readRequest.current = controller; readingRef.current = true; setReading(true); setError('');
     try {
       const value = await swarmSupervisionApi.get(run.projectId, run.id, after, controller.signal);
       if (!live.current || !latest.current.canRead || controller.signal.aborted || epoch !== readEpoch.current) return;
+      if (inspectionEpoch !== null && inspectionEpoch !== completionEpoch.current.value) return;
       if (viewRef.current && value.runRevision < viewRef.current.runRevision) throw new Error('The supervision response predates the retained run snapshot. Its newer history was preserved.');
       if (value.runRevision < confirmedResolutionRevision.current) throw new Error('The supervision response predates a confirmed resolution receipt. Refresh saved messages before recording another decision.');
+      if (question && (value.runRevision < question.runRevision || !value.messages.some(message => message.id === question.id && message.kind === 'question'))) throw new Error('The requested question page is missing or predates its exact readback. Refresh saved messages before continuing.');
       const merged = mergeSwarmMessages(replace ? [] : messageWindow.current, value.messages);
       checkedSupervision(run.projectId, run.id, after, value, merged);
       setMessages(merged); if (replace) setWindowStart(after); setView(value); settleAck(value);
@@ -131,6 +134,26 @@ export function SwarmSupervisionPanel(props: Props & {recoveryScope: string | nu
     if (canRead && !paused) void read(0, true);
     return () => { readEpoch.current++; readRequest.current?.abort(); readRequest.current = null; readingRef.current = false; };
   }, [run.revision, canRead, paused]);
+  async function inspectQuestion(messageId: string) {
+    if (!latest.current.canRead || latest.current.paused || readingRef.current || writingRef.current) return;
+    const controller = new AbortController(), epoch = ++readEpoch.current;
+    const inspectionEpoch = completionEpoch.current.value;
+    readRequest.current?.abort(); readRequest.current = controller; readingRef.current = true; setReading(true); setError('');
+    let target: {after: number; runRevision: number} | null = null;
+    try {
+      const result = await swarmSupervisionApi.message(run.projectId, run.id, messageId, controller.signal);
+      if (!live.current || !latest.current.canRead || latest.current.paused || controller.signal.aborted || epoch !== readEpoch.current || inspectionEpoch !== completionEpoch.current.value) return;
+      if (result.message.kind !== 'question' || result.runRevision < latest.current.run.revision || result.runRevision < (viewRef.current?.runRevision ?? 0) || result.runRevision < confirmedResolutionRevision.current) throw new Error('The saved question readback is stale or unavailable. Refresh saved messages before continuing.');
+      target = {after: result.message.sequence - 1, runRevision: result.runRevision};
+    } catch (cause) {
+      if (live.current && latest.current.canRead && !controller.signal.aborted && epoch === readEpoch.current) setError(errorText(cause));
+    } finally {
+      if (readRequest.current === controller) { readRequest.current = null; readingRef.current = false; if (live.current) setReading(false); }
+    }
+    // One explicit exact read locates one bounded page; never drain history or
+    // treat viewing a question as delivery, resolution or execution consent.
+    if (target && epoch === readEpoch.current && !controller.signal.aborted && inspectionEpoch === completionEpoch.current.value) await read(target.after, true, false, {id: messageId, runRevision: target.runRevision});
+  }
   async function send(value: PendingSwarmMessage) {
     if (!admitted || writingRef.current || !recoveryScope) return;
     // The parent may refuse a stale/busy write. Retain only inside its admitted action.
@@ -247,7 +270,7 @@ export function SwarmSupervisionPanel(props: Props & {recoveryScope: string | nu
       {view.runRevision < run.revision && <p role="status">This message snapshot predates the current run. Refresh before writing.</p>}
       {view.runRevision < confirmedResolutionRevision.current && <p role="status">A confirmed resolution receipt is newer than this message snapshot. Refresh saved messages before recording another decision.</p>}
       <p className="swarm-supervision-note">{Object.entries(view.metrics).filter(([name]) => ['routineDecisions', 'latency', 'quality', 'throughput', 'cost'].includes(name)).map(([name, value]) => `${name}: ${typeof value === 'number' && Number.isFinite(value) ? `${value} reported; units and cohort unavailable` : value === null ? 'not measured' : 'unknown measurement shape'}`).join(' · ')}. No autonomy percentage is inferred.</p>
-      <Attention key={`${run.id}:${view.runRevision}`} value={view} taskLink={taskLink} />
+      <Attention key={`${run.id}:${view.runRevision}`} value={view} taskLink={taskLink} inspectQuestion={inspectQuestion} readingDisabled={!canRead || paused || reading || writing} />
       <SwarmReviewPanel run={run} view={view} canRead={canRead} canEdit={canEdit} paused={paused} recoveryScope={recoveryScope} onWrite={onWrite} onRefresh={() => read(0, true, true)} onOpenTask={onOpenTask} messages={messages} />
       <ol className="swarm-message-list" aria-label="Saved attributed messages">{messages.map(message => {
         const sender = operations.get(message.sender.operationId), recipient = currentOperations.find(operation => operation.taskId === message.recipientTaskId);
@@ -306,10 +329,10 @@ export function SwarmSupervisionPanel(props: Props & {recoveryScope: string | nu
     </details>}
   </section>;
 }
-function Attention({value, taskLink}: {value: SwarmSupervision; taskLink(id: string): ReactNode}) {
+function Attention({value, taskLink, inspectQuestion, readingDisabled}: {value: SwarmSupervision; taskLink(id: string): ReactNode; inspectQuestion(id: string): Promise<void>; readingDisabled: boolean}) {
   const [page, setPage] = useState(0), current = Math.min(page, Math.max(0, Math.ceil(value.attention.length / 20) - 1));
   return <div className="swarm-supervision-attention"><h5>Recorded attention ({value.attention.length})</h5>
-    <ul>{value.attention.slice(current * 20, current * 20 + 20).map((item, index) => <li key={`${item.id}:${index}`}>{['question', 'review', 'repair', 'unknown', 'blocked'].includes(item.kind) ? item.kind : 'Unknown attention kind'} · {item.id} {taskLink(item.taskId)}</li>)}</ul>
+    <ul>{value.attention.slice(current * 20, current * 20 + 20).map((item, index) => <li key={`${item.id}:${index}`}>{['question', 'review', 'repair', 'unknown', 'blocked'].includes(item.kind) ? item.kind : 'Unknown attention kind'} · {item.id} <div className="journey-actions">{taskLink(item.taskId)}{item.kind === 'question' && item.action.kind === 'open-message' && item.action.targetId === item.id && <Button variant="tertiary" disabled={readingDisabled} onClick={() => void inspectQuestion(item.id)}>Inspect question {item.id}</Button>}</div></li>)}</ul>
     {value.attention.length > 20 && <div className="journey-actions"><Button variant="tertiary" disabled={!current} onClick={() => setPage(current - 1)}>Previous attention page</Button><span>Page {current + 1}; other attention entries omitted from this page</span><Button variant="tertiary" disabled={(current + 1) * 20 >= value.attention.length} onClick={() => setPage(current + 1)}>Next attention page</Button></div>}
     {!value.attention.length && <p>No attention entries reported in this snapshot. Quality and settlement remain separate.</p>}
   </div>;
