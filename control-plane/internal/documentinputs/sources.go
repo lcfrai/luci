@@ -142,13 +142,13 @@ func InspectSources(parent context.Context, compressedInput io.Reader, binding S
 		if !ok || directory != row["Directory"] {
 			return nil, ErrInvalid
 		}
-		rows := strings.Split(row["Checksums-Sha256"], "\n")
-		if len(rows) == 0 || len(rows) > 256 {
+		checksums := strings.Split(row["Checksums-Sha256"], "\n")
+		if len(checksums) == 0 || len(checksums) > 256 {
 			return nil, ErrInvalid
 		}
 		candidate := &Source{Name: name, Version: version, Archives: []SourceArchive{}}
 		seen := map[string]bool{}
-		for _, line := range rows {
+		for _, line := range checksums {
 			if strings.TrimSpace(line) == "" {
 				continue
 			}
