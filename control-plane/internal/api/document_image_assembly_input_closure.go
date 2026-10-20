@@ -82,6 +82,17 @@ type assemblyClosureBinaryRow struct {
 	IndexSelection *assemblyDebianIndexSelectionV1 `json:"indexSelection,omitempty"`
 	Part *assemblyDebianBinaryPartV1 `json:"part,omitempty"`
 	Controls []assemblyDependencyPackage `json:"controls,omitempty"`
+	ClaimPart *assemblyClosureClaimPart `json:"claimPart,omitempty"`
+}
+
+type assemblyClosureClaimPart struct { Ordinal int `json:"ordinal"`;Part int `json:"part"`;Data string `json:"data"` }
+
+func assemblyProjectionFromClaimBytes(raw []byte,binding assemblyDebianBinaryBindingV1)(assemblyDependencyPackage,error) {
+	if len(raw)==0||len(raw)>65536||int64(len(raw))!=binding.SelectedFieldClaims.Bytes||assemblyCatalogDigest(raw)!=binding.SelectedFieldClaims.SHA256||checkAssemblyBinaryClaimKeys(raw)!=nil{return assemblyDependencyPackage{},errAssemblyClosureDomain}
+	var claims assemblyDebianBinarySelectedFieldsV1
+	if decodeAssemblyDebianRaw(raw,&claims)!=nil||claims.Schema!=1||len(claims.Indexes)!=len(binding.Matches){return assemblyDependencyPackage{},errAssemblyClosureDomain}
+	for i,claim:=range claims.Indexes {if !equalAssemblyDebianJSON(claim.BindingOrdinals,binding.Matches[i].IndexBindingOrdinals){return assemblyDependencyPackage{},errAssemblyClosureDomain}}
+	value,err:=assemblyDependencyFromControl(claims.Control);if err!=nil||value.Name!=binding.Name||value.Version!=binding.Version||value.Architecture!=binding.Architecture{return assemblyDependencyPackage{},errAssemblyClosureDomain};return value,nil
 }
 
 type assemblyClosureDependencyRow struct {
@@ -95,6 +106,8 @@ type assemblyVerificationFile struct { input backend.DocumentImageAssemblyInput;
 type assemblyInstalledVerificationV1 struct {
 	Schema int `json:"schema"`
 	SourceLockSHA256 string `json:"sourceLockSha256"`
+	Source assemblyCatalogSource `json:"source"`
+	Helper assemblyObservedHelper `json:"helper"`
 	Packages []assemblyDependencyPackage `json:"packages"`
 	Wheels []assemblyObservedWheel `json:"wheels"`
 	InstalledInputs []backend.DocumentImageAssemblyInput `json:"installedInputs"`
@@ -125,7 +138,7 @@ func deriveAssemblyVerificationFiles(files []assemblyObservedFile)([]assemblyVer
 
 func deriveAssemblyClosedLock(original []byte,source assemblyCatalogSource,dependency assemblyDependencyClosureV1,domains *assemblyObservedDomains,verification []assemblyVerificationFile,notices []backend.DocumentImageAssemblyInput)([]byte,error) {
 	if len(original)==0||len(original)>1<<20||assemblyCatalogDigest(original)!=source.DependencyLockDigest||!json.Valid(original)||domains==nil||len(verification)==0{return nil,errAssemblyClosureDomain}
-	observed:=assemblyInstalledVerificationV1{Schema:1,SourceLockSHA256:source.DependencyLockDigest,Packages:dependency.Packages,Wheels:domains.wheels,Notices:notices}
+	observed:=assemblyInstalledVerificationV1{Schema:1,SourceLockSHA256:source.DependencyLockDigest,Source:source,Helper:domains.helper,Packages:dependency.Packages,Wheels:domains.wheels,Notices:notices}
 	for _,file:=range verification {observed.InstalledInputs=append(observed.InstalledInputs,file.input)}
 	// Original metadata remains attributed and nested as historical input. No
 	// unresolved source flag inside it is silently rewritten into an observation.
@@ -240,24 +253,28 @@ func (o *assemblyInputOwner) resolveCurrentAssemblyClosure(ctx context.Context,a
 	files,err:=decodeAssemblyClosureRows[assemblyObservedFile](rows["expected-installed-files"]);if err!=nil{return nil,err}
 	notices,err:=decodeAssemblyClosureRows[assemblyObservedNotice](rows["notices-and-sources"]);if err!=nil{return nil,err}
 	helper,err:=decodeAssemblyClosureRows[assemblyObservedHelper](rows["luci-source-helper"]);if err!=nil||len(helper)!=1{return nil,errAssemblyClosureDomain}
-	binaries,err:=decodeAssemblyClosureRows[assemblyClosureBinaryRow](rows["debian-binaries"]);if err!=nil||len(binaries)!=17{return nil,errAssemblyClosureDomain}
-	for _,row:=range binaries {count:=0;for _,present:=range []bool{row.Root!=nil,row.TrustPolicy!=nil,row.TrustKeys!=nil,row.TrustSignatures!=nil,row.TrustPins!=nil,row.IndexSelection!=nil,row.Part!=nil}{if present{count++}};if count!=1||row.Part==nil&&len(row.Controls)!=0{return nil,errAssemblyClosureDomain}}
+	binaries,err:=decodeAssemblyClosureRows[assemblyClosureBinaryRow](rows["debian-binaries"]);if err!=nil||len(binaries)<17+174||len(binaries)>17+174*4{return nil,errAssemblyClosureDomain}
+	for _,row:=range binaries {count:=0;for _,present:=range []bool{row.Root!=nil,row.TrustPolicy!=nil,row.TrustKeys!=nil,row.TrustSignatures!=nil,row.TrustPins!=nil,row.IndexSelection!=nil,row.Part!=nil,row.ClaimPart!=nil}{if present{count++}};if count!=1||row.Part==nil&&len(row.Controls)!=0{return nil,errAssemblyClosureDomain}}
 	if binaries[0].Root==nil||binaries[1].TrustPolicy==nil||binaries[2].TrustKeys==nil||binaries[3].TrustSignatures==nil||binaries[4].TrustPins==nil||binaries[5].IndexSelection==nil{return nil,errAssemblyClosureDomain}
 	trust:=assemblyObservedTrust{Policy:*binaries[1].TrustPolicy,Keys:*binaries[2].TrustKeys,Signatures:*binaries[3].TrustSignatures,Pins:*binaries[4].TrustPins};if err=checkAssemblyClosureTrust(trust,root.Policy,time.Now().Unix());err!=nil{return nil,err}
 	binaryRoot:=binaries[0].Root
 	if binaryRoot.Schema!=1||binaryRoot.RecordType!="luci-debian-binary-bindings-v1"||binaryRoot.PackageCount!=174||binaryRoot.PackageBytes!=assemblyDebianBinaryBytes||binaryRoot.DependencyLockSHA256!=root.Source.DependencyLockDigest||binaryRoot.AcquisitionManifestSHA256!=root.Source.InputManifestDigest||len(binaryRoot.Parts)!=11{return nil,errAssemblyClosureDomain}
+	claimBytes:=[174][]byte{};claimParts:=[174]int{};previousOrdinal:=-1
+	for _,row:=range binaries[17:] {part:=row.ClaimPart;if part==nil||part.Ordinal<0||part.Ordinal>=174||part.Ordinal<previousOrdinal||part.Ordinal>previousOrdinal+1||part.Part!=claimParts[part.Ordinal]{return nil,errAssemblyClosureDomain};raw,e:=base64.StdEncoding.Strict().DecodeString(part.Data);if e!=nil||len(raw)==0||len(raw)>16384||base64.StdEncoding.EncodeToString(raw)!=part.Data||len(claimBytes[part.Ordinal])+len(raw)>65536{return nil,errAssemblyClosureDomain};claimBytes[part.Ordinal]=append(claimBytes[part.Ordinal],raw...);claimParts[part.Ordinal]++;previousOrdinal=part.Ordinal}
+	if previousOrdinal!=173{return nil,errAssemblyClosureDomain}
 	controls:=[]assemblyDependencyPackage{};packages:=[]backend.DocumentImageAssemblyPackage{}
-	for part,row:=range binaries[6:] {
+	for part,row:=range binaries[6:17] {
 		if row.Part==nil||row.Part.Part!=part||row.Part.FirstLockOrdinal!=part*16||len(row.Part.Bindings)!=len(row.Controls)||len(row.Controls)!=min(16,174-part*16)||row.Part.SignedIndexes!=binaryRoot.SignedIndexes||row.Part.DependencyLockSHA256!=binaryRoot.DependencyLockSHA256{return nil,errAssemblyClosureDomain}
 		canonical,e:=json.Marshal(row.Part);binding:=binaryRoot.Parts[part]
 		if e!=nil||binding.Part!=part||binding.FirstLockOrdinal!=part*16||binding.Count!=len(row.Controls)||binding.Object!=(assemblyDebianObjectRef{"binary-binding-part",assemblyCatalogDigest(canonical),int64(len(canonical))}){return nil,errAssemblyClosureDomain}
-		for i,control:=range row.Controls {b:=row.Part.Bindings[i];if b.LockOrdinal!=part*16+i||b.Name!=control.Name||b.Version!=control.Version||b.Architecture!=control.Architecture||!assemblyCatalogHex(b.DebObject.SHA256)||b.DebObject.Bytes<=0{return nil,errAssemblyClosureDomain};packages=append(packages,backend.DocumentImageAssemblyPackage{DocumentImageAssemblyInput:backend.DocumentImageAssemblyInput{Path:"debs/"+path.Base(b.Filename),Bytes:b.DebObject.Bytes,Digest:b.DebObject.SHA256},Name:b.Name,Version:b.Version,Architecture:b.Architecture})}
+		for i,control:=range row.Controls {b:=row.Part.Bindings[i];projection,e:=assemblyProjectionFromClaimBytes(claimBytes[part*16+i],b);if e!=nil||!equalAssemblyDebianJSON(projection,control)||b.LockOrdinal!=part*16+i||!assemblyCatalogHex(b.DebObject.SHA256)||b.DebObject.Bytes<=0{return nil,errAssemblyClosureDomain};packages=append(packages,backend.DocumentImageAssemblyPackage{DocumentImageAssemblyInput:backend.DocumentImageAssemblyInput{Path:"debs/"+path.Base(b.Filename),Bytes:b.DebObject.Bytes,Digest:b.DebObject.SHA256},Name:b.Name,Version:b.Version,Architecture:b.Architecture})}
 		controls=append(controls,row.Controls...)
 	}
 	actualBinary,err:=assemblyClosureObject("debian-binaries",binaryRoot);if err!=nil||!selected[actualBinary.ref]||!selected[binaryRoot.SignedIndexes]{return nil,errAssemblyClosureDomain}
 	indexBytes,err:=o.readMetadata(ctx,binaryRoot.SignedIndexes);if err!=nil{return nil,err};var indexes assemblyDebianSignedIndexBindingsV1
 	if decodeAssemblyCatalog(indexBytes,assemblyCatalogRecordLimit,&indexes)!=nil||checkAssemblyDebianIndexBindings(indexes,trust.Policy,trust.Keys,trust.Signatures,*binaries[5].IndexSelection)!=nil||!selected[indexes.Capture.RetainedManifest]{return nil,errAssemblyClosureDomain}
 	records=append(records,actualBinary.ref,binaryRoot.SignedIndexes,indexes.Capture.RetainedManifest)
+	for _,entry:=range []struct{ref assemblyCatalogRef;value any}{{indexes.RootPolicy,trust.Policy},{indexes.KeyObservations,trust.Keys},{indexes.ReleaseSignatures,trust.Signatures}} {canonical,e:=assemblyClosureObject(entry.ref.Kind,entry.value);if e!=nil||canonical.ref!=entry.ref||!selected[entry.ref]{return nil,errAssemblyClosureDomain};actual,e:=o.readMetadata(ctx,entry.ref);if e!=nil||string(actual)!=string(canonical.data){return nil,errAssemblyClosureDomain};records=append(records,entry.ref)}
 	observed:=&assemblyObservedDomains{base:base[0],wheels:wheels,sources:sources,installed:files,notices:notices,helper:helper[0]}
 	dependency,err:=validateAssemblyObservedDomains(observed,root.Source,controls);if err!=nil{return nil,err}
 	dependencyRows,err:=decodeAssemblyClosureRows[assemblyClosureDependencyRow](rows["dependency-closure"]);if err!=nil{return nil,err}
@@ -344,19 +361,16 @@ func buildDocumentAssemblyClosure(ctx context.Context,a *API,p *debianProducerPl
 	if domains==nil||domains.plan!=p||domains.binary!=binary||domains.current(ctx,a)!=nil{return nil,errAssemblyClosureDomain}
 	snapshot,err:=p.owner.readCurrent(ctx);if err!=nil{return nil,err}
 	if snapshot.CAS!=(assemblyCatalogCAS{p.identity.ExpectedCAS.Revision,p.identity.ExpectedCAS.Digest}){return nil,errAssemblyCatalogConflict}
-	bundles:=make([]assemblyDebianBinaryBundle,11)
 	controls:=make([]assemblyDependencyPackage,0,174)
 	if p.binary==nil{return nil,errAssemblyClosureDomain}
 	binaryRows:=[]assemblyClosureBinaryRow{{Root:&binary.root},{TrustPolicy:&domains.trust.Policy},{TrustKeys:&domains.trust.Keys},{TrustSignatures:&domains.trust.Signatures},{TrustPins:&domains.trust.Pins},{IndexSelection:&p.binary.indexSelection}}
 	for part:=0;part<11;part++ {
-		raw,e:=binary.spool.readSemanticObject(ctx,part*2);if e!=nil{return nil,e}
-		ref:=assemblyDebianObjectRef{"binary-binding-bundle",assemblyCatalogDigest(raw),int64(len(raw))}
-		bundle,e:=decodeAssemblyDebianBinaryBundle(raw,ref,part);if e!=nil{return nil,e};bundles[part]=bundle
 		row:=assemblyClosureBinaryRow{Part:&binary.parts[part]}
-		for _,frame:=range bundle.frames {if frame.kind==3 {if frame.claims==nil{return nil,errAssemblyClosureDomain};value,e:=assemblyDependencyFromControl(frame.claims.Control);if e!=nil{return nil,e};row.Controls=append(row.Controls,value);controls=append(controls,value)}}
+		if len(row.Part.Bindings)!=min(16,174-part*16){return nil,errAssemblyClosureDomain}
+		for i,binding:=range row.Part.Bindings {ordinal:=part*16+i;value,e:=assemblyProjectionFromClaimBytes(binary.claimBytes[ordinal],binding);retained,retainedErr:=assemblyDependencyFromControl(binary.controls[ordinal]);if e!=nil||retainedErr!=nil||!equalAssemblyDebianJSON(value,retained){return nil,errAssemblyClosureDomain};row.Controls=append(row.Controls,value);controls=append(controls,value)}
 		binaryRows=append(binaryRows,row)
 	}
-	if checkAssemblyDebianBinaryCoverage(binary.expected.Selection,binary.indexes,binary.root,binary.parts[:],bundles)!=nil{return nil,errAssemblyClosureDomain}
+	for ordinal,raw:=range binary.claimBytes {for at:=0;at<len(raw); {end:=min(at+16384,len(raw));binaryRows=append(binaryRows,assemblyClosureBinaryRow{ClaimPart:&assemblyClosureClaimPart{ordinal,at/16384,base64.StdEncoding.EncodeToString(raw[at:end])}});at=end}}
 	dependency,err:=validateAssemblyObservedDomains(domains,snapshot.Source,controls);if err!=nil{return nil,err}
 	manifest:=backend.DocumentImageAssemblyManifest{Version:1,Profile:backend.DocumentImageAssemblyProfile,SourceCommit:snapshot.Source.SourceCommit,SourceDigest:snapshot.Source.SourceDigest,HelperDigest:snapshot.Source.HelperDigest,RecipeDigest:snapshot.Source.RecipeDigest,SourceRetentionDigest:snapshot.Source.SourceRetentionDigest,BaseLayer:domains.base.Layer,Extractor:domains.helper.Extractor,Verifier:domains.helper.Verifier,Requirements:domains.helper.Requirements,DependencyLock:domains.helper.DependencyLock}
 	for _,tuple:=range binary.expected.Selection.Packages {manifest.Packages=append(manifest.Packages,backend.DocumentImageAssemblyPackage{DocumentImageAssemblyInput:backend.DocumentImageAssemblyInput{Path:"debs/"+path.Base(tuple.Filename),Bytes:tuple.Bytes,Digest:tuple.SHA256},Name:tuple.Name,Version:tuple.Version,Architecture:tuple.Architecture})}

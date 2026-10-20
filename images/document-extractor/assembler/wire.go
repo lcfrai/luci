@@ -26,7 +26,7 @@ const (
 
 // This fixed recipe is a distinct identity, never a retry/adoption of a runtime
 // producer, CheckExecutor, parser, agent, public route or arbitrary Dockerfile.
-const DocumentImageAssemblyRecipe = "document-flat-oci-v1\nclosed-inputs;chroot-dpkg-unpack-configure;pip-no-index-no-deps-only-binary-hashes;eng-osd;verify-installed;flat-oci\nuid=0;caps=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID,SYS_CHROOT,MKNOD;memory=2147483648;swap-total=2147483648;cpu=1000;pids=64;work=2147483648;tmp=134217728;network=none;root=readonly;no-sys-admin;no-proc-mount\n"
+const DocumentImageAssemblyRecipe = "document-flat-oci-v1\nclosed-inputs;chroot-dpkg-unpack-configure;pip-no-index-no-deps-only-binary-hashes;pip-target=/usr/local/lib/python3.11/dist-packages;eng-osd;verify-installed;flat-oci\nuid=0;caps=CHOWN,DAC_OVERRIDE,FOWNER,FSETID,SETUID,SETGID,SYS_CHROOT,MKNOD;memory=2147483648;swap-total=2147483648;cpu=1000;pids=64;work=2147483648;tmp=134217728;network=none;root=readonly;no-sys-admin;no-proc-mount\n"
 
 type DocumentImageAssemblyInput struct {
 	Path   string `json:"path"`

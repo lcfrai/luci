@@ -24,10 +24,12 @@ const (
 	assemblyBaseRootfsRole = "assembly-base-rootfs"
 	assemblyWheelsRole = "assembly-wheels"
 	assemblyDebianSourcesRole = "assembly-debian-sources"
+	assemblyRetainedSourceMaxBytes int64 = backend.DocumentDomainInputFileBytes
+	assemblyRetainedSourcesMaxBytes int64 = backend.DocumentDomainInputTotalBytes
 )
 
 var errAssemblyClosureDomain = errors.New("document assembly input domain is incomplete or inconsistent")
-var assemblyRelationAtom = regexp.MustCompile(`^([a-z0-9][a-z0-9+.-]{0,199})(?::(any|native|amd64))?(?:[ \t]+\((<<|<=|=|>=|>>)[ \t]+([^() \t]+)\))?$`)
+var assemblyRelationAtom = regexp.MustCompile(`^([a-z0-9][a-z0-9+.-]{0,199})(?::(any|native|amd64))?(?:[ \t]*\([ \t]*(<<|<=|=|>=|>>)[ \t]*([^() \t]+)[ \t]*\))?$`)
 
 // Only captureDocumentAssemblyDomains, the concrete same-owner inspection
 // constructor, supplies this handoff. None of these fields is decoded as an
@@ -63,8 +65,24 @@ type assemblyObservedBase struct {
 type assemblyObservedWheel struct {
 	ID string `json:"id"`
 	Version string `json:"version"`
+	InstalledOwner string `json:"installedOwner"`
 	Archive backend.DocumentImageAssemblyInput `json:"archive"`
-	Components []string `json:"components"`
+	Components []assemblyObservedNativeComponent `json:"components"`
+	RequiresDist []string `json:"requiresDist"`
+	RequiresPython string `json:"requiresPython"`
+	Tags []string `json:"tags"`
+	RootIsPurelib *bool `json:"rootIsPurelib"`
+	EntryPoints []assemblyObservedWheelEntryPoint `json:"entryPoints"`
+}
+
+type assemblyObservedWheelEntryPoint struct {Group string `json:"group"`;Name string `json:"name"`;Value string `json:"value"`}
+
+type assemblyObservedNativeComponent struct {
+	ID string `json:"id"`
+	Path string `json:"path"`
+	Digest string `json:"digest"`
+	Version string `json:"version"`
+	Sources []string `json:"sources"`
 }
 
 // Source IDs are qualified (debian/name, wheel/name or luci). Components bind
@@ -238,7 +256,7 @@ func assemblyRelationVersionMatches(relation assemblyRelation,version string)boo
 }
 
 func assemblyPackageProvides(p assemblyDependencyPackage,r assemblyRelation)(string,bool) {
-	if r.architecture=="any"&&p.MultiArch!="allowed"&&p.MultiArch!="foreign" {return "",false}
+	if r.architecture=="any"&&p.MultiArch!="allowed" {return "",false}
 	if p.Name==r.name&&assemblyRelationVersionMatches(r,p.Version) {return p.Version,true}
 	provides,err:=parseAssemblyRelations(p.Provides);if err!=nil {return "",false}
 	for _,group:=range provides { for _,v:=range group {
@@ -305,7 +323,7 @@ func assemblyClosureInputValid(input backend.DocumentImageAssemblyInput)bool {
 }
 
 func assemblyClosureComponent(value string)bool {
-	if value=="luci"{return true}
+	if value=="luci"||value=="base/rootfs"{return true}
 	parts:=strings.Split(value,"/")
 	if len(parts)<2||len(parts)>4||parts[0]!="debian"&&parts[0]!="wheel" {return false}
 	for _,part:=range parts[1:] {if part==""||len(part)>200||strings.Trim(part,"abcdefghijklmnopqrstuvwxyz0123456789+._-")!=""||part=="."||part==".."{return false}}
@@ -329,6 +347,13 @@ func assemblyPackageSourceRequirements(p assemblyDependencyPackage)([]string,err
 	return unique,nil
 }
 
+func assemblyNoticeSourcesCover(required,provided []string,available map[string]bool)bool {
+	if len(required)==0||len(provided)==0||len(provided)>128{return false}
+	seen:=map[string]bool{};for _,source:=range provided {if !available[source]||seen[source]{return false};seen[source]=true}
+	for _,source:=range required {if !seen[source]{return false}}
+	return true
+}
+
 // All input slices here come from the concrete inspection handoff, not decoded
 // profile claims. This joins independently observed domains and checks their
 // exact relationships before any assembly acceptance flags can be derived.
@@ -342,31 +367,41 @@ func validateAssemblyObservedDomains(d *assemblyObservedDomains,source assemblyC
 	for _,p:=range packages {if selected[p.Name]{return empty,errAssemblyClosureDomain};selected[p.Name]=true;merged[p.Name]=p}
 	universe:=make([]assemblyDependencyPackage,0,len(merged));for _,p:=range merged {universe=append(universe,p)}
 	dependency,err:=deriveAssemblyDependencyClosure(universe);if err!=nil{return empty,err}
+	if err=validateAssemblyPythonWheels(d.wheels,dependency.Packages);err!=nil{return empty,err}
 	required:=map[string][]string{}
 	for _,p:=range dependency.Packages {requirements,e:=assemblyPackageSourceRequirements(p);if e!=nil{return empty,e};required["debian/"+p.Name]=requirements}
+	natives:=map[string]assemblyObservedNativeComponent{}
 	for _,wheel:=range d.wheels {
 		if !assemblyClosureComponent(wheel.ID)||!strings.HasPrefix(wheel.ID,"wheel/")||len(strings.Split(wheel.ID,"/"))!=2||wheel.Version==""||len(wheel.Version)>128||strings.ContainsAny(wheel.Version,"@\x00\r\n")||!assemblyClosureInputValid(wheel.Archive)||len(wheel.Components)==0||len(wheel.Components)>128{return empty,errAssemblyClosureDomain}
 		if _,exists:=required[wheel.ID];exists{return empty,errAssemblyClosureDomain}
 		required[wheel.ID]=[]string{wheel.ID+"@"+wheel.Version}
 		seen:=map[string]bool{}
-		for _,component:=range wheel.Components {if !strings.HasPrefix(component,wheel.ID+"/")||!assemblyClosureComponent(component)||seen[component]{return empty,errAssemblyClosureDomain};seen[component]=true;required[component]=nil}
+		for _,component:=range wheel.Components {
+			if !assemblyClosureSafePath(component.Path)||component.ID!=wheel.ID+"/native-"+assemblyCatalogDigest([]byte(component.Path))[:16]||!assemblyCatalogHex(component.Digest)||component.Version==""||len(component.Version)>256||strings.ContainsAny(component.Version,"@\x00\r\n")||len(component.Sources)==0||len(component.Sources)>32||seen[component.ID]{return empty,errAssemblyClosureDomain}
+			seen[component.ID]=true;natives[component.ID]=component;required[component.ID]=append([]string(nil),component.Sources...)
+		}
 	}
 	required["luci"]=[]string{"luci@"+source.SourceCommit}
-	sources:=map[string]bool{};sourcePaths:=map[string]backend.DocumentImageAssemblyInput{}
+	for _,file:=range d.installed {if file.Owner=="base/rootfs"{required["base/rootfs"]=[]string{"base/rootfs@"+d.base.Layer.Digest};break}}
+	sources:=map[string]bool{};sourcePaths:=map[string]backend.DocumentImageAssemblyInput{};sourceBytes:=int64(0)
 	for _,s:=range d.sources {
 		if !assemblyClosureComponent(s.ID)||s.Version==""||len(s.Version)>256||strings.ContainsAny(s.Version,"@\x00\r\n")||len(s.Archives)==0||len(s.Archives)>16{return empty,errAssemblyClosureDomain}
 		key:=s.ID+"@"+s.Version;if sources[key]{return empty,errAssemblyClosureDomain};sources[key]=true
-		for _,archive:=range s.Archives {if !assemblyClosureInputValid(archive){return empty,errAssemblyClosureDomain};if old,exists:=sourcePaths[archive.Path];exists&&old!=archive{return empty,errAssemblyClosureDomain};sourcePaths[archive.Path]=archive}
+		for _,archive:=range s.Archives {
+			// Corresponding source stays retained under its separate guarded
+			// streaming budget. It is never an assembly payload/memory allowance.
+			if !assemblyClosureSafePath(archive.Path)||archive.Bytes<=0||archive.Bytes>assemblyRetainedSourceMaxBytes||!assemblyCatalogHex(archive.Digest){return empty,errAssemblyClosureDomain}
+			if old,exists:=sourcePaths[archive.Path];exists {if old!=archive{return empty,errAssemblyClosureDomain}}else{if archive.Bytes>assemblyRetainedSourcesMaxBytes-sourceBytes{return empty,errAssemblyClosureDomain};sourceBytes+=archive.Bytes}
+			sourcePaths[archive.Path]=archive
+		}
 	}
 	noticed:=map[string]bool{};noticePaths:=map[string]backend.DocumentImageAssemblyInput{}
 	usedSources:=map[string]bool{}
 	for _,notice:=range d.notices {
 		needs,exists:=required[notice.Component]
-		if !exists||!assemblyClosureInputValid(notice.File)||!strings.HasPrefix(notice.File.Path,"notices/")||len(notice.Sources)==0||len(notice.Sources)>128{return empty,errAssemblyClosureDomain}
+		if !exists||!assemblyClosureInputValid(notice.File)||notice.File.Bytes>1<<20||!strings.HasPrefix(notice.File.Path,"notices/")||!assemblyNoticeSourcesCover(needs,notice.Sources,sources){return empty,errAssemblyClosureDomain}
 		if old,exists:=noticePaths[notice.File.Path];exists&&old!=notice.File{return empty,errAssemblyClosureDomain};noticePaths[notice.File.Path]=notice.File
-		provided:=map[string]bool{}
-		for _,id:=range notice.Sources {if !sources[id]||provided[id]{return empty,errAssemblyClosureDomain};provided[id]=true;usedSources[id]=true}
-		for _,id:=range needs {if !provided[id]{return empty,errAssemblyClosureDomain}}
+		for _,id:=range notice.Sources {usedSources[id]=true}
 		noticed[notice.Component]=true
 	}
 	for component:=range required {if !noticed[component]{return empty,errAssemblyClosureDomain}}
@@ -377,7 +412,7 @@ func validateAssemblyObservedDomains(d *assemblyObservedDomains,source assemblyC
 		if _,exists:=paths[file.Path];exists{return empty,errAssemblyClosureDomain};paths[file.Path]=file
 		metadataBytes+=len(file.Path)+len(file.Owner)+len(file.Target)+len(file.SHA256)+64;if metadataBytes>32<<20{return empty,errAssemblyClosureDomain}
 		if file.Policy!=""&&file.Policy!="immutable" {
-			if file.Kind!="regular"||file.Policy=="debian-conffile"&&!strings.HasPrefix(file.Owner,"debian/")||file.Policy=="generated-metadata"&&!assemblyGeneratedMetadataPath(file.Path,merged)||file.Policy!="debian-conffile"&&file.Policy!="generated-metadata" {return empty,errAssemblyClosureDomain}
+			if file.Policy=="generated-alternative" {if file.Kind!="symlink"||!strings.HasPrefix(file.Path,"etc/alternatives/")||strings.Contains(strings.TrimPrefix(file.Path,"etc/alternatives/"),"/"){return empty,errAssemblyClosureDomain}}else if file.Policy=="wheel-installer-metadata" {if file.Kind!="regular"||!assemblyWheelMetadataPath(file.Path,file.Owner,d.wheels){return empty,errAssemblyClosureDomain}}else if file.Kind!="regular"||file.Policy=="debian-conffile"&&!strings.HasPrefix(file.Owner,"debian/")||file.Policy=="generated-metadata"&&!assemblyGeneratedMetadataPath(file.Path,merged)||file.Policy!="debian-conffile"&&file.Policy!="generated-metadata" {return empty,errAssemblyClosureDomain}
 		}
 		switch file.Kind {
 		case "regular":if file.Bytes<0||file.Bytes>backend.DocumentImageAssemblyOutputMaxBytes-totalBytes||!assemblyCatalogHex(file.SHA256)||file.Target!=""||file.Bytes==0&&file.SHA256!=assemblyCatalogDigest(nil){return empty,errAssemblyClosureDomain};totalBytes+=file.Bytes
@@ -386,6 +421,7 @@ func validateAssemblyObservedDomains(d *assemblyObservedDomains,source assemblyC
 		default:return empty,errAssemblyClosureDomain
 		}
 	}
+	for id,native:=range natives {file,ok:=paths["usr/local/lib/python3.11/dist-packages/"+native.Path];if !ok||file.Owner!=id||file.Kind!="regular"||file.SHA256!=native.Digest||file.Policy!=""&&file.Policy!="immutable" {return empty,errAssemblyClosureDomain}}
 	// This is an expected namespace, not a claim that every link resolves.
 	// Debian slim can retain a dangling documentation link. Actual notice reads
 	// must resolve a confined immutable target in the inspection constructor;
@@ -398,11 +434,65 @@ func validateAssemblyObservedDomains(d *assemblyObservedDomains,source assemblyC
 
 func assemblyGeneratedMetadataPath(name string,packages map[string]assemblyDependencyPackage)bool {
 	switch name {
-	case "var/lib/dpkg/status","var/lib/dpkg/status-old","var/lib/dpkg/available","var/lib/dpkg/available-old","var/lib/dpkg/lock","var/lib/dpkg/lock-frontend","var/lib/dpkg/triggers/File","var/lib/dpkg/triggers/Unincorp","var/lib/dpkg/triggers/Lock","etc/ld.so.cache","etc/passwd","etc/passwd-","etc/group","etc/group-","etc/shadow","etc/shadow-","etc/gshadow","etc/gshadow-":return true
+	case "var/lib/dpkg/status","var/lib/dpkg/status-old","var/lib/dpkg/available","var/lib/dpkg/available-old","var/lib/dpkg/lock","var/lib/dpkg/lock-frontend","var/lib/dpkg/triggers/File","var/lib/dpkg/triggers/Unincorp","var/lib/dpkg/triggers/Lock","etc/ld.so.cache","etc/passwd","etc/passwd-","etc/group","etc/group-","etc/shadow","etc/shadow-","etc/gshadow","etc/gshadow-","var/log/dpkg.log","var/log/alternatives.log":return true
 	}
 	if !strings.HasPrefix(name,"var/lib/dpkg/info/"){return false}
 	stem:=strings.TrimPrefix(name,"var/lib/dpkg/info/");dot:=strings.LastIndexByte(stem,'.');if dot<0{return false}
 	suffix:=stem[dot+1:];stem=strings.TrimSuffix(stem[:dot],":amd64")
 	if _,ok:=packages[stem];!ok{return false}
 	switch suffix {case "list","md5sums","conffiles","triggers","preinst","postinst","prerm","postrm","shlibs","symbols":return true};return false
+}
+
+func assemblyWheelMetadataPath(name,owner string,wheels []assemblyObservedWheel)bool {
+	for _,wheel:=range wheels {if owner!=wheel.ID{continue};prefix:="usr/local/lib/python3.11/dist-packages/"+wheel.InstalledOwner+"/";if !strings.HasPrefix(name,prefix){continue};switch strings.TrimPrefix(name,prefix){case "RECORD","INSTALLER","REQUESTED","direct_url.json":return true}}
+	return false
+}
+
+var assemblyPythonConstraint=regexp.MustCompile(`^(>=|<=|==|!=|>|<)([0-9]{1,5})(?:\.([0-9]{1,5}))?(?:\.([0-9]{1,5}|\*))?$`)
+var assemblyInactiveExtraRequirement=regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,199}(?:\[[A-Za-z0-9_,.-]+\])?(?:[ \t]*[!<>=~]{1,2}[ \t]*[0-9][A-Za-z0-9.*+!_,=<>~ \t-]*|[ \t]*\([!<>=~]{1,2}[ \t]*[0-9][A-Za-z0-9.*+!_,=<>~ \t-]*\))?[ \t]*;[ \t]*extra[ \t]*==[ \t]*(?:"[A-Za-z0-9._-]+"|'[A-Za-z0-9._-]+')[ \t]*$`)
+var assemblyWheelEntryName=regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
+var assemblyWheelEntryValue=regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$`)
+
+// This is deliberately NOT a generic PEP440/508 implementation. The selected
+// profile has two wheels and selects no extras. Unsupported metadata refuses
+// rather than dropping an active dependency while pip runs with --no-deps.
+func validateAssemblyPythonWheels(wheels []assemblyObservedWheel,packages []assemblyDependencyPackage)error {
+	python:=[3]int{};found:=false;glibcMinor:=-1
+	for _,p:=range packages {if p.Name=="python3.11" {_,upstream,_:=splitAssemblyDebianVersion(p.Version);pieces:=strings.Split(upstream,".");if len(pieces)!=3{return errAssemblyClosureDomain};for i,piece:=range pieces {n,e:=strconv.Atoi(piece);if e!=nil||n<0||n>65535{return errAssemblyClosureDomain};python[i]=n};found=true}}
+	for _,p:=range packages {if p.Name=="libc6" {_,upstream,_:=splitAssemblyDebianVersion(p.Version);pieces:=strings.Split(upstream,".");if len(pieces)<2||pieces[0]!="2"{return errAssemblyClosureDomain};n,e:=strconv.Atoi(pieces[1]);if e!=nil{return errAssemblyClosureDomain};glibcMinor=n}}
+	if !found||python[0]!=3||python[1]!=11||glibcMinor!=36||len(wheels)!=2{return errAssemblyClosureDomain}
+	for _,wheel:=range wheels {
+		if wheel.RootIsPurelib==nil||len(wheel.Tags)==0||len(wheel.Tags)>16||len(wheel.RequiresPython)>512||len(wheel.RequiresDist)>128||len(wheel.InstalledOwner)>255||!strings.HasSuffix(wheel.InstalledOwner,".dist-info")||strings.Contains(wheel.InstalledOwner,"/")||!assemblyClosureSafePath(wheel.InstalledOwner){return errAssemblyClosureDomain}
+		seen:=map[string]bool{}
+		compatible:=false
+		for _,tag:=range wheel.Tags {if seen[tag]{return errAssemblyClosureDomain};seen[tag]=true;ok,e:=assemblyWheelTagCompatible(tag,python[1],glibcMinor);if e!=nil{return e};compatible=compatible||ok};if !compatible{return errAssemblyClosureDomain}
+		if wheel.RequiresPython!="" {for _,clause:=range strings.Split(wheel.RequiresPython,",") {
+			match:=assemblyPythonConstraint.FindStringSubmatch(strings.TrimSpace(clause));if match==nil{return errAssemblyClosureDomain}
+			want:=[3]int{};for i:=0;i<3;i++ {if match[i+2]!=""&&match[i+2]!="*"{want[i],_=strconv.Atoi(match[i+2])}}
+			limit:=3;if match[4]=="*" {if match[1]!="=="&&match[1]!="!="{return errAssemblyClosureDomain};limit=2}
+			comparison:=0;for i:=0;i<limit;i++ {if python[i]<want[i]{comparison=-1;break};if python[i]>want[i]{comparison=1;break}}
+			ok:=false;switch match[1] {case ">=":ok=comparison>=0;case "<=":ok=comparison<=0;case ">":ok=comparison>0;case "<":ok=comparison<0;case "==":ok=comparison==0;case "!=":ok=comparison!=0};if !ok{return errAssemblyClosureDomain}
+		} }
+		for _,requirement:=range wheel.RequiresDist {if len(requirement)>4096||!assemblyInactiveExtraRequirement.MatchString(requirement){return errAssemblyClosureDomain}}
+		if len(wheel.EntryPoints)>128{return errAssemblyClosureDomain};entries:=map[string]bool{}
+		for _,entry:=range wheel.EntryPoints {if entry.Group!="console_scripts"&&entry.Group!="gui_scripts"||!assemblyWheelEntryName.MatchString(entry.Name)||!assemblyWheelEntryValue.MatchString(entry.Value)||entries[entry.Name]{return errAssemblyClosureDomain};entries[entry.Name]=true}
+	}
+	return nil
+}
+
+func assemblyWheelTagCompatible(tag string,pythonMinor,glibcMinor int)(bool,error) {
+	parts:=strings.Split(tag,"-");if len(tag)>512||len(parts)!=3{return false,errAssemblyClosureDomain}
+	interpreters,abis,platforms:=strings.Split(parts[0],"."),strings.Split(parts[1],"."),strings.Split(parts[2],".")
+	if len(interpreters)>4||len(abis)>4||len(platforms)>4{return false,errAssemblyClosureDomain}
+	compatible:=false
+	for _,platform:=range platforms {
+		minor:=-1
+		if platform=="manylinux2014_x86_64"{minor=17}else{match:=regexp.MustCompile(`^manylinux_2_([0-9]{1,2})_x86_64$`).FindStringSubmatch(platform);if match==nil{return false,errAssemblyClosureDomain};minor,_=strconv.Atoi(match[1]);if minor<17||minor>36{return false,errAssemblyClosureDomain}}
+		for _,interpreter:=range interpreters {for _,abi:=range abis {
+			if interpreter=="py3" {if abi!="none"{return false,errAssemblyClosureDomain};compatible=compatible||minor<=glibcMinor;continue}
+			match:=regexp.MustCompile(`^cp3([0-9]{1,2})$`).FindStringSubmatch(interpreter);if match==nil{return false,errAssemblyClosureDomain};required,_:=strconv.Atoi(match[1]);if required<6||required>13{return false,errAssemblyClosureDomain}
+			if abi=="abi3" {compatible=compatible||required<=pythonMinor&&minor<=glibcMinor}else if abi==interpreter {compatible=compatible||required==pythonMinor&&minor<=glibcMinor}else{return false,errAssemblyClosureDomain}
+		} }
+	}
+	return compatible,nil
 }

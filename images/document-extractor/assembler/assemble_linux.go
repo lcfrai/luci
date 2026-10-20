@@ -104,7 +104,7 @@ func assemble(ctx context.Context, manifest DocumentImageAssemblyManifest, input
 	if runChroot(ctx, root, "/usr/bin/dpkg", []string{"--configure", "-a"}) != nil {
 		return errRefused
 	}
-	if runChroot(ctx, root, "/usr/bin/python3.11", []string{"-I", "-m", "pip", "install", "--break-system-packages", "--no-index", "--no-deps", "--no-cache-dir", "--no-compile", "--require-hashes", "--only-binary=:all:", "--find-links=/opt/luci/build-input/wheels", "-r", "/opt/luci/build-input/wheel-requirements.txt"}) != nil {
+	if runChroot(ctx, root, "/usr/bin/python3.11", []string{"-I", "-m", "pip", "install", "--break-system-packages", "--target=/usr/local/lib/python3.11/dist-packages", "--no-index", "--no-deps", "--no-cache-dir", "--no-compile", "--require-hashes", "--only-binary=:all:", "--find-links=/opt/luci/build-input/wheels", "-r", "/opt/luci/build-input/wheel-requirements.txt"}) != nil {
 		return errRefused
 	}
 	if ensureQuietProcesses(ctx) != nil {

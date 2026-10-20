@@ -70,3 +70,32 @@ func TestAssemblyDependencyParserHasFiniteBoundsAndNoIgnoredSyntax(t *testing.T)
 	if _,err:=deriveAssemblyDependencyClosure(make([]assemblyDependencyPackage,513));err==nil{t.Fatal("unbounded universe accepted")}
 	if _,err:=assemblyDependencyFromControl(assemblyDebianBinaryFieldsV1{});err==nil{t.Fatal("missing observed package identity accepted")}
 }
+
+func TestAssemblyDependencyAnyRequiresAllowedNotForeign(t *testing.T) {
+	for _,provides:=range []string{"","virtual (= 1)"} {
+		name:="provider";if provides!=""{name="virtual"}
+		rows:=[]assemblyDependencyPackage{{Name:"consumer",Version:"1",Architecture:"amd64",Depends:name+":any"},{Name:"provider",Version:"1",Architecture:"amd64",MultiArch:"foreign",Provides:provides}}
+		if _,err:=deriveAssemblyDependencyClosure(rows);err==nil{t.Fatal("foreign incorrectly satisfied :any",provides)}
+		rows[0].Depends=name;if _,err:=deriveAssemblyDependencyClosure(rows);err!=nil{t.Fatal("unqualified same-host foreign refused",err)}
+		rows[0].Depends=name+":any";rows[1].MultiArch="allowed";if _,err:=deriveAssemblyDependencyClosure(rows);err!=nil{t.Fatal("allowed :any refused",err)}
+	}
+}
+
+func TestAssemblyNativeComponentCannotBorrowAnotherExistingSource(t *testing.T) {
+	required:=[]string{"wheel/libbar@1.2.3"}
+	available:=map[string]bool{"wheel/libbar@1.2.3":true,"luci@0123456789012345678901234567890123456789":true}
+	if assemblyNoticeSourcesCover(required,[]string{"luci@0123456789012345678901234567890123456789"},available){t.Fatal("unrelated existing source closed native notice")}
+	if assemblyNoticeSourcesCover(nil,required,available){t.Fatal("untyped native source requirement accepted")}
+	if !assemblyNoticeSourcesCover(required,required,available){t.Fatal("exact retained upstream source refused")}
+	if assemblyNoticeSourcesCover(required,[]string{required[0],required[0]},available){t.Fatal("duplicate source accepted")}
+}
+
+func TestAssemblyPythonWheelTagsAndNoActiveDependencyClosure(t *testing.T) {
+	pure:=false
+	packages:=[]assemblyDependencyPackage{{Name:"python3.11",Version:"3.11.2-6+deb12u6",Architecture:"amd64"},{Name:"libc6",Version:"2.36-9+deb12u13",Architecture:"amd64"}}
+	wheels:=[]assemblyObservedWheel{{InstalledOwner:"one-1.dist-info",Tags:[]string{"cp39-abi3-manylinux_2_17_x86_64"},RequiresPython:">=3.9",RootIsPurelib:&pure,RequiresDist:[]string{`numpy>=1; extra == "optional"`}},{InstalledOwner:"two-1.dist-info",Tags:[]string{"py3-none-manylinux2014_x86_64"},RootIsPurelib:&pure}}
+	if err:=validateAssemblyPythonWheels(wheels,packages);err!=nil{t.Fatal("closed ABI/no-extra profile refused",err)}
+	wheels[0].RequiresDist=[]string{"numpy>=1"};if err:=validateAssemblyPythonWheels(wheels,packages);err==nil{t.Fatal("active Python dependency silently dropped")}
+	wheels[0].RequiresDist=nil;wheels[0].Tags=[]string{"cp312-abi3-manylinux_2_17_x86_64"};if err:=validateAssemblyPythonWheels(wheels,packages);err==nil{t.Fatal("future Python stable ABI accepted")}
+	wheels[0].Tags=[]string{"cp39-abi3-manylinux_2_17_aarch64"};if err:=validateAssemblyPythonWheels(wheels,packages);err==nil{t.Fatal("wrong platform accepted")}
+}

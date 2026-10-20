@@ -56,6 +56,21 @@ func TestAssemblyAcceptedCandidateCannotBeMintedFromSyntaxOrMissingOwner(t *test
 	if string(candidate.records[0].data)!="one"{t.Fatal("canonicalCopy leaked mutable retained bytes")}
 }
 
+func TestAssemblyPersistedControlFieldsBindExactSelectedClaimBytes(t *testing.T) {
+	name,version,architecture,depends,source:="example","1.0","amd64","libc6 (>= 2.36)","source-example (1.0)"
+	claim:=assemblyDebianBinarySelectedFieldsV1{Schema:1,Control:assemblyDebianBinaryFieldsV1{Package:&name,Version:&version,Architecture:&architecture,Depends:&depends,Source:&source},Indexes:[]assemblyDebianBinaryIndexFieldsV1{}}
+	raw,err:=json.Marshal(claim);if err!=nil{t.Fatal(err)}
+	binding:=assemblyDebianBinaryBindingV1{Name:name,Version:version,Architecture:architecture,SelectedFieldClaims:assemblyDebianBinarySpanV1{Bytes:int64(len(raw)),SHA256:assemblyCatalogDigest(raw)},Matches:[]assemblyDebianBinaryMatchV1{}}
+	projection,err:=assemblyProjectionFromClaimBytes(raw,binding);if err!=nil||projection.Depends!=depends||projection.Source!=source{t.Fatal("actual claim fields not retained",err)}
+	for _,field:=range []string{"depends","source"} {
+		changed:=claim
+		other:="different"
+		if field=="depends"{changed.Control.Depends=&other}else{changed.Control.Source=&other}
+		mutated,_:=json.Marshal(changed)
+		if _,err=assemblyProjectionFromClaimBytes(mutated,binding);err==nil{t.Fatal("changed field with unchanged tuple/span accepted",field)}
+	}
+}
+
 // Synthetic handles and fake current-record callbacks test binding only. There
 // is no real closure resolver, cryptographic proof, Docker or native execution.
 type assemblyClosureExecutor struct {
