@@ -69,18 +69,15 @@ func InspectBase(parent context.Context, input io.Reader, pin Pin)(Base,error){
 			keepNotice:=strings.HasPrefix(name,"usr/share/doc/")&&strings.HasSuffix(name,"/copyright")
 			limit:=int64(16<<20);if keepNotice{limit=1<<20}
 			if (keepStatus||keepList||keepNotice)&&entry.Size>limit{return Base{},ErrInvalid}
-			h:=sha256.New();var kept bytes.Buffer;var first bool;var isELF bool
+			h:=sha256.New();var kept bytes.Buffer;var native elfCapture
 			var block [readBlock]byte;var readTotal int64
 			for readTotal<entry.Size{
 				if ctx.Err()!=nil{return Base{},ErrInvalid}
 				need:=int64(len(block));if entry.Size-readTotal<need{need=entry.Size-readTotal}
 				n,e:=archive.Read(block[:int(need)]);if n<1||e!=nil&&e!=io.EOF{return Base{},ErrInvalid}
-				if !first {first=true;isELF=n>=4&&string(block[:4])=="\x7fELF"}
 				readTotal+=int64(n);_,_=h.Write(block[:n])
-				if keepStatus||keepList||keepNotice||isELF {
-					if isELF&&readTotal>maxELFBytes{return Base{},ErrInvalid}
-					_,_=kept.Write(block[:n])
-				}
+				if native.write(block[:n])!=nil{return Base{},ErrInvalid}
+				if keepStatus||keepList||keepNotice{_,_=kept.Write(block[:n])}
 			}
 			file.SHA256=hex.EncodeToString(h.Sum(nil))
 			if keepStatus{status=append([]byte(nil),kept.Bytes()...)}
@@ -93,7 +90,7 @@ func InspectBase(parent context.Context, input io.Reader, pin Pin)(Base,error){
 				noticesTotal+=entry.Size;if noticesTotal>maxNoticeBytes{return Base{},ErrInvalid}
 				result.Notices=append(result.Notices,Notice{Path:name,Bytes:entry.Size,SHA256:file.SHA256,Contents:append([]byte(nil),kept.Bytes()...)})
 			}
-			if isELF{arch,needed,e:=nativeComponent(kept.Bytes());if e!=nil{return Base{},ErrInvalid};file.Architecture,file.Needed=arch,needed}
+			if native.isELF{arch,needed,e:=nativeComponent(native.raw.Bytes());if e!=nil{return Base{},ErrInvalid};file.Architecture,file.Needed=arch,needed}
 		default:return Base{},ErrInvalid
 		}
 		result.Files=append(result.Files,file)

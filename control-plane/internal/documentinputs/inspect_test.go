@@ -30,7 +30,8 @@ func TestWheelRECORDAndActualNoticeBytes(t *testing.T) {
 	owner:=WheelOwner{ID:"sample",Version:"1.0",InstalledOwner:"sample-1.0.dist-info"}
 	files:=map[string][]byte{
 		"sample/__init__.py":[]byte("value=1\n"),
-		"sample-1.0.dist-info/METADATA":[]byte("Metadata-Version: 2.4\nName: sample\nVersion: 1.0\nRequires-Dist: alpha >= 1\nRequires-Dist: beta >= 2\nClassifier: Topic :: Utilities\nClassifier: Programming Language :: Python\n\nA wheel description:\nwith non-header lines and ünicode.\n"),
+		"sample-1.0.dist-info/METADATA":[]byte("Metadata-Version: 2.4\nName: sample\nVersion: 1.0\nRequires-Dist: alpha >= 1\nRequires-Dist: beta >= 2\nRequires-Python: >=3.10\nClassifier: Topic :: Utilities\nClassifier: Programming Language :: Python\n\nA wheel description:\nwith non-header lines and ünicode.\n"),
+		"sample-1.0.dist-info/WHEEL":[]byte("Wheel-Version: 1.0\nGenerator: source-fixture\nRoot-Is-Purelib: true\nTag: py3-none-any\n"),
 		"sample-1.0.dist-info/LICENSE":[]byte("The original grant\n"),
 	}
 	var record bytes.Buffer;csvWriter:=csv.NewWriter(&record)
@@ -44,7 +45,7 @@ func TestWheelRECORDAndActualNoticeBytes(t *testing.T) {
 	encode:=func()[]byte{var out bytes.Buffer;writer:=zip.NewWriter(&out);for name,raw:=range files{entry,e:=writer.Create(name);if e!=nil{t.Fatal(e)};if _,e=entry.Write(raw);e!=nil{t.Fatal(e)}};if e:=writer.Close();e!=nil{t.Fatal(e)};return out.Bytes()}
 	wheel:=encode()
 	observed,e:=InspectWheel(context.Background(),bytes.NewReader(wheel),int64(len(wheel)),fixturePin(wheel),owner)
-	if e!=nil||len(observed.Files)!=4||len(observed.Notices)!=1||string(observed.Notices[0].Contents)!="The original grant\n"{t.Fatalf("actual wheel inventory unavailable: %v",e)}
+	if e!=nil||len(observed.Files)!=5||len(observed.Notices)!=1||string(observed.Notices[0].Contents)!="The original grant\n"||len(observed.RequiresDist)!=2||observed.RequiresPython!=">=3.10"||len(observed.Tags)!=1||observed.Tags[0]!="py3-none-any"||!observed.RootIsPurelib{t.Fatalf("actual wheel inventory unavailable: %v",e)}
 	files["sample/__init__.py"]=[]byte("changed\n")
 	changed:=encode()
 	if _,e=InspectWheel(context.Background(),bytes.NewReader(changed),int64(len(changed)),fixturePin(changed),owner);e==nil{t.Fatal("RECORD mismatch accepted")}
@@ -57,9 +58,24 @@ func TestParagraphFieldsAcceptsDebianIdentityAndSourceChecksumKeys(t *testing.T)
 
 func TestWheelMetadataRepeatedHeadersAndDescription(t *testing.T) {
 	raw:=[]byte("Metadata-Version: 2.4\nName: sample\nVersion: 1.0\nRequires-Dist: alpha\nRequires-Dist: beta\nClassifier: one\nClassifier: two\n\nDescription: this is body text, not a header\n")
-	name,version,e:=wheelMetadataIdentity(raw)
-	if e!=nil||name!="sample"||version!="1.0"{t.Fatalf("valid wheel metadata unavailable: %v",e)}
-	if _,_,e=wheelMetadataIdentity([]byte("Name: sample\nName: other\nVersion: 1.0\n"));e==nil{t.Fatal("ambiguous wheel identity accepted")}
+	identity,e:=parseWheelMetadata(raw)
+	if e!=nil||identity.name!="sample"||identity.version!="1.0"||len(identity.requiresDist)!=2{t.Fatalf("valid wheel metadata unavailable: %v",e)}
+	if _,e=parseWheelMetadata([]byte("Name: sample\nName: other\nVersion: 1.0\n"));e==nil{t.Fatal("ambiguous wheel identity accepted")}
+}
+
+func TestWheelDirectoryPreflightRefusesUnboundedEntryCount(t *testing.T) {
+	record:=make([]byte,22)
+	copy(record,[]byte("PK\x05\x06"))
+	record[8]=0xff;record[9]=0xff;record[10]=0xff;record[11]=0xff
+	if preflightWheelDirectory(bytes.NewReader(record),int64(len(record)))==nil{t.Fatal("unbounded central-directory count accepted")}
+}
+
+func TestELFMagicAccumulatesAcrossShortReads(t *testing.T) {
+	var capture elfCapture
+	for _,part:=range [][]byte{{0x7f},{'E'},{'L'},{'F',1,2}} {
+		if capture.write(part)!=nil{t.Fatal("short ELF prefix rejected")}
+	}
+	if !capture.isELF||!bytes.Equal(capture.raw.Bytes(),[]byte{0x7f,'E','L','F',1,2}){t.Fatal("short reads lost native magic or bytes")}
 }
 
 func TestBaseStatusFilesAndCopyrightAreObserved(t *testing.T){
@@ -110,4 +126,18 @@ func TestSignedSourcesBindingAndRetainedArchiveBytes(t *testing.T){
 	changed:=append([]byte(nil),archive...);changed[0]^=1
 	inputs[0].Reader=bytes.NewReader(changed)
 	if _,e=InspectSources(context.Background(),bytes.NewReader(compressed.Bytes()),binding,inputs);e==nil{t.Fatal("changed original source archive accepted")}
+}
+
+func TestSourcesRequireEverySelectedChecksumMember(t *testing.T) {
+	first:=[]byte("first source archive")
+	second:=[]byte("second source archive")
+	index:=[]byte(fmt.Sprintf("Package: sample-src\nVersion: 1.0\nDirectory: pool/main/s/sample\nChecksums-Sha256:\n %s %d sample_1.0.dsc\n %s %d sample_1.0.orig.tar.gz\n\n",hashBytes(first),len(first),hashBytes(second),len(second)))
+	var compressed bytes.Buffer;writer,e:=xz.NewWriter(&compressed);if e!=nil{t.Fatal(e)}
+	if _,e=writer.Write(index);e!=nil{t.Fatal(e)};if e=writer.Close();e!=nil{t.Fatal(e)}
+	binding:=SourcesBinding{SignedReleaseSHA256:strings.Repeat("a",64),IndexPath:"main/source/Sources.xz",CompressedIndex:fixturePin(compressed.Bytes()),Cleartext:fixturePin(index)}
+	inputs:=[]SourceArchiveInput{{SourceName:"sample-src",SourceVersion:"1.0",FileName:"pool/main/s/sample/sample_1.0.dsc",Pin:fixturePin(first),Reader:bytes.NewReader(first)}}
+	if _,e=InspectSources(context.Background(),bytes.NewReader(compressed.Bytes()),binding,inputs);e==nil{t.Fatal("subset of selected source archives accepted")}
+	inputs=append(inputs,SourceArchiveInput{SourceName:"sample-src",SourceVersion:"1.0",FileName:"pool/main/s/sample/sample_1.0.orig.tar.gz",Pin:fixturePin(second),Reader:bytes.NewReader(second)})
+	selected,e:=InspectSources(context.Background(),bytes.NewReader(compressed.Bytes()),binding,inputs)
+	if e!=nil||len(selected)!=1||len(selected[0].Archives)!=2{t.Fatalf("complete selected source unavailable: %v",e)}
 }
