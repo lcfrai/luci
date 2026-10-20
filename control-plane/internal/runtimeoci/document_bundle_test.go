@@ -41,15 +41,17 @@ func TestDocumentPrebuiltRequiresIndependentPinAndActualExtractorBytes(t *testin
 	root:=t.TempDir()
 	if err=os.WriteFile(filepath.Join(root,manifest.Archive.FileName),archive,0600);err!=nil{t.Fatal(err)}
 	if err=os.WriteFile(filepath.Join(root,"document-runtime-manifest-v1.json"),raw,0600);err!=nil{t.Fatal(err)}
-	if _,_,err=OpenDocument(root,strings.Repeat("a",64));err==nil{t.Fatal("self asserted document manifest was accepted")}
-	b,held,err:=OpenDocument(root,documentTestHash(raw));if err!=nil{t.Fatal(err)};defer b.Close()
-	if err=VerifyDocumentArchive(b,held);err!=nil{t.Fatal(err)}
+	if _,err=OpenDocument(root,strings.Repeat("a",64));err==nil{t.Fatal("self asserted document manifest was accepted")}
+	b,err:=OpenDocument(root,documentTestHash(raw));if err!=nil{t.Fatal(err)};defer b.Close()
+	if err=b.VerifyArchive();err!=nil{t.Fatal(err)}
 	changed:=append([]byte(nil),raw...);changed[len(changed)-2]='x'
-	if err=VerifyDocumentArchive(b,changed);err==nil{t.Fatal("changed manifest accepted")}
+	previous:=b.manifestBytes;b.manifestBytes=changed
+	if err=b.VerifyArchive();err==nil{t.Fatal("changed manifest accepted")}
+	b.manifestBytes=previous
 	manifest.ExtractorSHA256=strings.Repeat("b",64)
 	changed,err=json.Marshal(manifest);if err!=nil{t.Fatal(err)}
 	if err=os.WriteFile(filepath.Join(root,"document-runtime-manifest-v1.json"),changed,0600);err!=nil{t.Fatal(err)}
-	if _,_,err=OpenDocument(root,documentTestHash(changed));err==nil{t.Fatal("missing actual extractor digest accepted")}
+	if _,err=OpenDocument(root,documentTestHash(changed));err==nil{t.Fatal("missing actual extractor digest accepted")}
 }
 
 func TestDocumentPrebuiltRefusesSandboxAndMalformedMembers(t *testing.T) {
