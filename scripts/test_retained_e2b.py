@@ -7,6 +7,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 from retained_e2b import E2B_ROOT, verify_e2b
+from retained_pdf_fonts import PDF_FONTS
 
 
 class RetainedE2BTests(unittest.TestCase):
@@ -22,6 +23,9 @@ class RetainedE2BTests(unittest.TestCase):
 
     def test_actual_collector_includes_original_apache_grant_and_attribution(self):
         root = self.fixture()
+        repository = Path(__file__).resolve().parent.parent
+        shutil.copytree(repository / PDF_FONTS, root / PDF_FONTS)
+        shutil.copytree(repository / "third-party/pdf-fonts", root / "third-party/pdf-fonts")
         (root / "desktop").mkdir()
         (root / "desktop/package-lock.json").write_text('{"packages":{}}')
         goroot = root / "fixture-toolchain"
