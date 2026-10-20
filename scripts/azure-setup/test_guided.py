@@ -43,6 +43,34 @@ class GuidedTest(unittest.TestCase):
                     "properties": {"provisioningState": "Succeeded", "storageProfile": {"source": {"id": plan["managedImageID"]}}}}
         return root, core, selected, plan, observed
 
+    def connection_fixture(self):
+        root, core, selected, _, _ = self.fixture()
+        selection = core.private_json(selected)
+        selection['terraformVariables'].update(management_source_cidr='192.168.1.0/24', controller_private_ip='10.240.1.10',
+            resource_group_name='luci-rg', controller_mount_path='/mnt/luci-controller', generation='gen-one',
+            controller_owner_id='owner-one', controller_operator_template_sha256='c' * 64)
+        core.atomic_json(selected, selection)
+        controller_id = '/subscriptions/' + '1' * 36 + '/resourcegroups/luci-rg/providers/microsoft.compute/virtualmachines/luci-controller'
+        disk_id = controller_id.replace('virtualmachines/luci-controller', 'disks/luci-state')
+        vm_id = '12345678-1234-1234-1234-123456789abc'
+        core.atomic_json(root / 'azure-setup-state.json', {'state': 'controller_finalized_private_route_unverified',
+            'selectionDigest': core.digest(selection), 'resourceIDs': {'controller_instance_id': controller_id, 'controller_disk_id': disk_id}})
+        core.atomic_json(root / 'azure-template-state.json', {'state': 'template_ready_provider_guest_unverified',
+            'sourceCommit': 'a' * 40, 'scope': 'luci-fixture', 'generation': 'gen-one', 'selectionDigest': core.digest(selection)})
+        envelope = {'payload': {'sourceCommit': 'a' * 40, 'scope': 'luci-fixture', 'generation': 'gen-one',
+            'templateSHA256': 'c' * 64, 'controllerInstanceId': controller_id, 'diskID': disk_id, 'controllerBootID': vm_id}}
+        core.atomic_json(root / 'azure-operator-finalization.json', envelope)
+        core.atomic_json(root / 'azure-operator-install-state.json', {'state': 'operator_finalized_private_route_unverified',
+            'sourceCommit': 'a' * 40, 'scope': 'luci-fixture', 'generation': 'gen-one',
+            'finalizationDigest': core.digest(envelope),
+            'readback': {'sha256': core.digest(envelope), 'generation': 'gen-one', 'sourceCommit': 'a' * 40}})
+        raw = b'\x00\x00\x00\x0bssh-ed25519\x00\x00\x00\x20' + b'K' * 32
+        observed = {'vmID': vm_id, 'bootID': vm_id,
+            'generation': {'generation': 'gen-one', 'controllerInstanceId': controller_id, 'azureDataDiskId': disk_id},
+            'disk': {'scope': 'luci-fixture', 'ownerId': 'owner-one', 'azureDataDiskId': disk_id},
+            'hostKey': 'ssh-ed25519 ' + guided.base64.b64encode(raw).decode() + ' fixture'}
+        return root, core, selected, controller_id, observed
+
     def test_rfc1918_only_including_full_range_not_merely_start_address(self):
         for value in ("10.20.1.0/24", "172.16.0.0/12", "192.168.0.4/32"):
             self.assertEqual(guided.private_cidr(value), value)
@@ -149,20 +177,8 @@ class GuidedTest(unittest.TestCase):
             guided.configure_private(core, root, selected, "10.241.0.0/16", "192.168.1.0/24", True)
 
     def test_authenticated_host_key_binding_and_stale_generation_refusal(self):
-        root, core, selected, _, _ = self.fixture()
-        selection = core.private_json(selected)
-        selection["terraformVariables"].update(management_source_cidr="192.168.1.0/24", controller_private_ip="10.240.1.10",
-            resource_group_name="luci-rg", controller_mount_path="/mnt/luci-controller", generation="gen-one", controller_owner_id="owner-one")
-        core.atomic_json(selected, selection)
-        controller_id = "/subscriptions/" + "1" * 36 + "/resourcegroups/luci-rg/providers/microsoft.compute/virtualmachines/luci-controller"
-        disk_id = controller_id.replace("virtualmachines/luci-controller", "disks/luci-state")
-        core.atomic_json(root / "azure-setup-state.json", {"state": "controller_bootstrapped_gateway_unverified",
-            "selectionDigest": core.digest(selection), "resourceIDs": {"controller_instance_id": controller_id, "controller_disk_id": disk_id}})
-        vm_id = "12345678-1234-1234-1234-123456789abc"
-        raw = b'\x00\x00\x00\x0bssh-ed25519\x00\x00\x00\x20' + b'K' * 32
-        observed = {"vmID": vm_id, "bootID": vm_id, "generation": {"generation": "gen-one", "controllerInstanceId": controller_id, "azureDataDiskId": disk_id},
-            "disk": {"scope": "luci-fixture", "ownerId": "owner-one", "azureDataDiskId": disk_id},
-            "hostKey": "ssh-ed25519 " + guided.base64.b64encode(raw).decode() + " fixture"}
+        root, core, selected, controller_id, observed = self.connection_fixture()
+        vm_id = observed['vmID']
         def provider(arguments):
             if arguments[0] == "rest":
                 return {"id": controller_id, "properties": {"vmId": vm_id}}
@@ -176,6 +192,58 @@ class GuidedTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "fenced generation"):
             guided.connection_descriptor(core, root, selected, provider=provider)
         self.assertEqual(core.private_json(root / "azure-connection-state.json")["state"], "host_identity_readback_pending")
+
+    def test_connection_refuses_unfinalized_operator_or_template_before_provider_read(self):
+        root, core, selected, _, _ = self.connection_fixture()
+        calls = []
+        def provider(arguments): calls.append(arguments); self.fail('unfinalized setup must not query Azure')
+        state = core.private_json(root / 'azure-setup-state.json')
+        state['state'] = 'controller_bootstrapped_gateway_unverified'
+        core.atomic_json(root / 'azure-setup-state.json', state)
+        with self.assertRaisesRegex(ValueError, 'finalized controller'):
+            guided.connection_descriptor(core, root, selected, provider=provider)
+        state['state'] = 'controller_finalized_private_route_unverified'
+        core.atomic_json(root / 'azure-setup-state.json', state)
+        install = core.private_json(root / 'azure-operator-install-state.json')
+        install['state'] = 'operator_install_pending'
+        core.atomic_json(root / 'azure-operator-install-state.json', install)
+        with self.assertRaisesRegex(ValueError, 'Installed operator'):
+            guided.connection_descriptor(core, root, selected, provider=provider)
+        install['state'] = 'operator_finalized_private_route_unverified'
+        core.atomic_json(root / 'azure-operator-install-state.json', install)
+        template = core.private_json(root / 'azure-template-state.json')
+        template['pendingAction'] = 'start'
+        core.atomic_json(root / 'azure-template-state.json', template)
+        with self.assertRaisesRegex(ValueError, 'Current template'):
+            guided.connection_descriptor(core, root, selected, provider=provider)
+        self.assertEqual(calls, [])
+        self.assertFalse((root / 'azure-connection-state.json').exists())
+
+    def test_connection_binds_finalized_boot_and_successor_host_delivery(self):
+        root, core, selected, controller_id, observed = self.connection_fixture()
+        def provider(arguments):
+            if arguments[0] == 'rest': return {'id': controller_id, 'properties': {'vmId': observed['vmID']}}
+            return {'value': [{'message': 'LUCI_AZURE_HOST_IDENTITY=' + json.dumps(observed)}]}
+        observed['bootID'] = 'ffffffff-ffff-ffff-ffff-ffffffffffff'
+        with self.assertRaisesRegex(RuntimeError, 'fenced generation'):
+            guided.connection_descriptor(core, root, selected, provider=provider)
+        observed['bootID'] = observed['vmID']
+        state = core.private_json(root / 'azure-setup-state.json')
+        state['predecessorGeneration'] = 'gen-old'
+        host = {'generation': 'gen-one', 'controllerPrivateIP': '10.240.1.10'}
+        state['resourceIDs'].update(controller_generation_receipt_sha256='d' * 64, runtime_host_config_sha256=core.digest(host))
+        core.atomic_json(root / 'azure-setup-state.json', state)
+        (root / 'azure-template-state.json').unlink()
+        install = core.private_json(root / 'azure-operator-install-state.json')
+        install.pop('readback')
+        core.atomic_json(root / 'azure-operator-install-state.json', install)
+        core.atomic_json(root / 'azure-active-host-config.json', {'hostConfig': host,
+            'generationReceiptSHA256': 'd' * 64, 'hostReceiptSHA256': 'e' * 64})
+        self.assertEqual(guided.connection_descriptor(core, root, selected, provider=provider)['vmID'], observed['vmID'])
+        state['resourceIDs']['runtime_host_config_sha256'] = 'f' * 64
+        core.atomic_json(root / 'azure-setup-state.json', state)
+        with self.assertRaisesRegex(ValueError, 'Protected successor host delivery'):
+            guided.connection_descriptor(core, root, selected, provider=provider)
 
 
 if __name__ == "__main__":

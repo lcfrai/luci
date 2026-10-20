@@ -418,6 +418,65 @@ PY
 """ % repr(mount)
 
 
+def protected_connection_binding(core, parent, manifest, selection, infrastructure):
+    """A host key alone cannot authorize a controller without its installed operator."""
+    variables = core.requested(selection)
+    identities = infrastructure.get('resourceIDs', {})
+    if (infrastructure.get('state') != 'controller_finalized_private_route_unverified' or
+            infrastructure.get('selectionDigest') != core.digest(selection) or
+            not (parent / 'azure-operator-finalization.json').exists() or
+            not (parent / 'azure-operator-install-state.json').exists()):
+        raise ValueError('Connection needs the exact finalized controller and installed operator')
+    envelope = core.private_json(parent / 'azure-operator-finalization.json')
+    installed = core.private_json(parent / 'azure-operator-install-state.json')
+    payload = envelope.get('payload', {})
+    finalization_digest = core.digest(envelope)
+    if (not isinstance(payload, dict) or
+            not isinstance(payload.get('controllerInstanceId'), str) or
+            not isinstance(payload.get('diskID'), str) or
+            not isinstance(payload.get('controllerBootID'), str) or
+            installed.get('state') != 'operator_finalized_private_route_unverified' or
+            any(installed.get(key) != value for key, value in (
+                ('sourceCommit', manifest['luciRevision']), ('scope', variables['scope']),
+                ('generation', variables['generation']), ('finalizationDigest', finalization_digest))) or
+            any(payload.get(key) != value for key, value in (
+                ('sourceCommit', manifest['luciRevision']), ('scope', variables['scope']),
+                ('generation', variables['generation']),
+                ('templateSHA256', variables['controller_operator_template_sha256']))) or
+            payload.get('controllerInstanceId', '').lower() != identities.get('controller_instance_id', '').lower() or
+            payload.get('diskID', '').lower() != identities.get('controller_disk_id', '').lower() or
+            not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', payload.get('controllerBootID', ''))):
+        raise ValueError('Installed operator does not match the selected source, disk and generation')
+    if infrastructure.get('predecessorGeneration'):
+        # Replacement generations retain a signed successor and delivered host
+        # config, rather than replaying the predecessor's template publication.
+        path = parent / 'azure-active-host-config.json'
+        if not path.exists():
+            raise ValueError('Protected successor host delivery is unavailable')
+        active = core.private_json(path)
+        host = active.get('hostConfig', {})
+        if (not isinstance(host, dict) or
+                active.get('generationReceiptSHA256') != identities.get('controller_generation_receipt_sha256') or
+                not re.fullmatch(r'[0-9a-f]{64}', active.get('hostReceiptSHA256', '')) or
+                host.get('generation') != variables['generation'] or
+                host.get('controllerPrivateIP') != variables['controller_private_ip'] or
+                core.digest(host) != identities.get('runtime_host_config_sha256')):
+            raise ValueError('Protected successor host delivery changed')
+    else:
+        path = parent / 'azure-template-state.json'
+        if not path.exists():
+            raise ValueError('Current template publication is unavailable')
+        template = core.private_json(path)
+        if (template.get('state') != 'template_ready_provider_guest_unverified' or template.get('pendingAction') or
+                any(template.get(key) != value for key, value in (
+                    ('sourceCommit', manifest['luciRevision']), ('scope', variables['scope']),
+                    ('generation', variables['generation']), ('selectionDigest', core.digest(selection)))) or
+                installed.get('readback') != {'sha256': finalization_digest,
+                    'generation': variables['generation'], 'sourceCommit': manifest['luciRevision']}):
+            raise ValueError('Current template and operator installation are not confirmed')
+    return payload['controllerBootID']
+
+
 def connection_descriptor(core, bundle_root, selection_path, provider=None):
     provider = provider or az_json
     manifest = core.bundle(bundle_root)
@@ -428,8 +487,7 @@ def connection_descriptor(core, bundle_root, selection_path, provider=None):
     private_cidr(host + "/32")
     parent = Path(selection_path).parent
     state = core.private_json(parent / "azure-setup-state.json")
-    if state.get("state") not in ("controller_bootstrapped_gateway_unverified", "controller_finalized_private_route_unverified") or state.get("selectionDigest") != core.digest(selection):
-        raise ValueError("Connection needs exact bootstrapped infrastructure readback")
+    signed_boot_id = protected_connection_binding(core, parent, manifest, selection, state)
     identities = state["resourceIDs"]
     controller_id = identities["controller_instance_id"].lower()
     prefix = "/subscriptions/" + selection["stateBackend"]["subscriptionId"] + "/resourcegroups/" + variables["resource_group_name"] + "/providers/microsoft.compute/virtualmachines/"
@@ -453,7 +511,7 @@ def connection_descriptor(core, bundle_root, selection_path, provider=None):
     generation = observed.get("generation", {})
     disk = observed.get("disk", {})
     key = observed.get("hostKey", "").split()
-    if (observed.get("vmID") != vm_id or not re.fullmatch(uuid_pattern, observed.get("bootID", "")) or
+    if (observed.get("vmID") != vm_id or observed.get("bootID") != signed_boot_id or
             generation.get("generation") != variables["generation"] or generation.get("controllerInstanceId", "").lower() != controller_id or
             generation.get("azureDataDiskId", "").lower() != identities["controller_disk_id"].lower() or
             disk.get("scope") != variables["scope"] or disk.get("ownerId") != variables["controller_owner_id"] or
