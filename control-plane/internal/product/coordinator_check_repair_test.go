@@ -276,7 +276,7 @@ func TestCoordinatorCheckFailureRepairFreshSourceReviewIntegrationAndCheck(t *te
 	}
 	tasks := currentPlan(state, p.ID).Tasks
 	tasks[0].Role, tasks[0].WritePaths = "coding", []string{"result.txt"}
-	tasks = append(tasks, ProjectTask{ID: "task-review", Title: "Review exact repaired source", Role: "reviewer", ReviewOfTaskID: "task-save", RequirementIDs: []string{"AC-save"}, Acceptance: "Independently inspect the changed candidate."})
+	tasks = append(tasks, ProjectTask{ID: "task-review", Title: "Review exact repaired source", Status: "todo", Role: "reviewer", ReviewOfTaskID: "task-save", RequirementIDs: []string{"AC-save"}, Acceptance: "Independently inspect the changed candidate."})
 	var plan ProjectPlan
 	decodeEvidenceResponse(t, journeyRequest(t, h, "POST", base+"/plan", map[string]any{"expectedRevision": state.Plan.Revision, "expectedSpecificationRevision": state.Specification.Revision, "tasks": tasks}, 200).Body.Bytes(), &plan)
 	journeyRequest(t, h, "POST", base+"/git/commit", reviewedCommitRequest(t, h, base+"/git/commit", "Save bounded check repair scopes"), 200)
