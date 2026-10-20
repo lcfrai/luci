@@ -16,6 +16,31 @@ import (
 
 type sourceArchiveKey struct { name,version,fileName string }
 
+func validatedSourceArchives(archives []SourceArchiveInput)(map[sourceArchiveKey]SourceArchiveInput,map[[2]string]bool,error){
+	if len(archives)<1||len(archives)>1024{return nil,nil,ErrInvalid}
+	wanted:=map[sourceArchiveKey]SourceArchiveInput{}
+	selectedPairs:=map[[2]string]bool{}
+	physical:=map[string]Pin{}
+	var uniqueBytes int64
+	for _,archive:=range archives{
+		name,ok:=cleanName(archive.FileName,false)
+		key:=sourceArchiveKey{archive.SourceName,archive.SourceVersion,name}
+		if !ok||name!=archive.FileName||archive.SourceName==""||archive.SourceVersion==""||
+			len(archive.SourceName)>200||len(archive.SourceVersion)>200||archive.Reader==nil||
+			!validPin(archive.Pin,maxSourceArchiveBytes)||wanted[key].Reader!=nil{return nil,nil,ErrInvalid}
+		if previous,exists:=physical[name];exists{
+			if previous!=archive.Pin{return nil,nil,ErrInvalid}
+		}else{
+			uniqueBytes+=archive.Pin.Bytes
+			if uniqueBytes>maxSelectedSourceArchiveBytes{return nil,nil,ErrInvalid}
+			physical[name]=archive.Pin
+		}
+		selectedPairs[[2]string{archive.SourceName,archive.SourceVersion}]=true
+		wanted[key]=archive
+	}
+	return wanted,selectedPairs,nil
+}
+
 // InspectSources requires the compressed Sources.xz retained under an
 // independently authenticated release/index binding. The caller proves that
 // relation; this parser verifies exact compressed and expanded bytes, selected
@@ -25,24 +50,9 @@ func InspectSources(parent context.Context, compressedInput io.Reader, binding S
 	if compressedInput==nil||!validHex(binding.SignedReleaseSHA256)||binding.IndexPath!="main/source/Sources.xz"||
 		!validPin(binding.CompressedIndex,maxSourceIndexBytes)||!validPin(binding.Cleartext,maxSourceCleartextBytes)||
 		len(archives)<1||len(archives)>1024{return nil,ErrInvalid}
-	wanted:=map[sourceArchiveKey]SourceArchiveInput{}
-	selectedPairs:=map[[2]string]bool{}
-	physical:=map[string]Pin{}
-	var archiveBytes int64
-	for _,archive:=range archives{
-		name,ok:=cleanName(archive.FileName,false)
-		key:=sourceArchiveKey{archive.SourceName,archive.SourceVersion,name}
-		if !ok||name!=archive.FileName||archive.SourceName==""||archive.SourceVersion==""||
-			len(archive.SourceName)>200||len(archive.SourceVersion)>200||archive.Reader==nil||
-			!validPin(archive.Pin,maxSourceArchiveBytes)||wanted[key].Reader!=nil{return nil,ErrInvalid}
-		if previous,exists:=physical[name];exists&&previous!=archive.Pin{return nil,ErrInvalid}
-		physical[name]=archive.Pin
-		selectedPairs[[2]string{archive.SourceName,archive.SourceVersion}]=true
-		archiveBytes+=archive.Pin.Bytes
-		if archiveBytes>maxSelectedSourceArchiveBytes{return nil,ErrInvalid}
-		wanted[key]=archive
-	}
-	compressed,e:=io.ReadAll(io.LimitReader(compressedInput,binding.CompressedIndex.Bytes+1))
+	wanted,selectedPairs,e:=validatedSourceArchives(archives);if e!=nil{return nil,ErrInvalid}
+	snapshot:=&meteredReader{ctx:ctx,source:compressedInput,maxBytes:binding.CompressedIndex.Bytes+1}
+	compressed,e:=io.ReadAll(io.LimitReader(snapshot,binding.CompressedIndex.Bytes+1))
 	if e!=nil||int64(len(compressed))!=binding.CompressedIndex.Bytes||hashBytes(compressed)!=binding.CompressedIndex.SHA256{return nil,ErrInvalid}
 	if preflightXZ(ctx,bytes.NewReader(compressed),int64(len(compressed)),binding.Cleartext.Bytes)!=nil{return nil,ErrInvalid}
 	compressedHash:=sha256.New()

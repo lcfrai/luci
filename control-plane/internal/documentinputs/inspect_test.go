@@ -84,7 +84,7 @@ func TestELFMagicAccumulatesAcrossShortReads(t *testing.T) {
 func TestBaseStatusFilesAndCopyrightAreObserved(t *testing.T){
 	layer:=fixtureTar(t,map[string][]byte{
 		"var/lib/dpkg/status":[]byte("Package: sample\nVersion: 1.0\nArchitecture: amd64\nStatus: install ok installed\nSource: sample-src (1.0)\nBuilt-Using: helper (= 2)\n\n"),
-		"var/lib/dpkg/info/sample.list":[]byte("/usr/bin/sample\n/usr/share/doc/sample/copyright\n"),
+		"var/lib/dpkg/info/sample.list":[]byte("\n/.\n/usr/bin/sample\n\n/usr/share/doc/sample/copyright\n"),
 		"usr/bin/sample":[]byte("#!/bin/sh\nexit 0\n"),
 		"usr/share/doc/sample/copyright":[]byte("Original copyright grant\n"),
 	})
@@ -206,4 +206,40 @@ func TestSourcesSharedOrigArchiveAcrossTwoSelectedVersions(t *testing.T) {
 	if e!=nil||len(observed)!=2||len(observed[0].Archives)!=1||len(observed[1].Archives)!=1{t.Fatalf("shared original archive across source versions unavailable: %v",e)}
 	inputs[1].Pin.SHA256=strings.Repeat("b",64)
 	if _,e=InspectSources(context.Background(),bytes.NewReader(compressed),binding,inputs);e==nil{t.Fatal("same physical path with different source hash accepted")}
+}
+
+func TestSourcesUniqueOriginalBudgetStillHashesEachLogicalVersion(t *testing.T) {
+	shared:=Pin{SHA256:strings.Repeat("a",64),Bytes:8<<30}
+	small:=Pin{SHA256:strings.Repeat("b",64),Bytes:1}
+	archives:=[]SourceArchiveInput{
+		{SourceName:"sample",SourceVersion:"1",FileName:"pool/sample.orig.tar.gz",Pin:shared,Reader:bytes.NewReader(nil)},
+		{SourceName:"sample",SourceVersion:"2",FileName:"pool/sample.orig.tar.gz",Pin:shared,Reader:bytes.NewReader(nil)},
+		{SourceName:"sample",SourceVersion:"2",FileName:"pool/sample_2.dsc",Pin:small,Reader:bytes.NewReader(nil)},
+	}
+	wanted,pairs,e:=validatedSourceArchives(archives)
+	if e!=nil||len(wanted)!=3||len(pairs)!=2{t.Fatalf("shared original should count once but preserve each archive stream: %v",e)}
+	archives=append(archives,SourceArchiveInput{SourceName:"sample",SourceVersion:"2",FileName:"pool/other.orig.tar.gz",Pin:shared,Reader:bytes.NewReader(nil)})
+	if _,_,e=validatedSourceArchives(archives);e==nil{t.Fatal("distinct originals over 16 GiB accepted")}
+	archives[1].Pin=small
+	if _,_,e=validatedSourceArchives(archives[:3]);e==nil{t.Fatal("same physical name with conflicting pin accepted")}
+}
+
+type oneByteSourceReader struct { calls int }
+func (r *oneByteSourceReader) Read(p []byte)(int,error){r.calls++;p[0]=0;return 1,nil}
+
+func TestSourcesCompressedSnapshotStopsAtReadCallBudget(t *testing.T) {
+	reader:=&oneByteSourceReader{}
+	binding:=SourcesBinding{SignedReleaseSHA256:strings.Repeat("a",64),IndexPath:"main/source/Sources.xz",CompressedIndex:Pin{SHA256:strings.Repeat("b",64),Bytes:maxCalls+1},Cleartext:Pin{SHA256:strings.Repeat("c",64),Bytes:1}}
+	archives:=[]SourceArchiveInput{{SourceName:"sample",SourceVersion:"1",FileName:"pool/sample.dsc",Pin:Pin{SHA256:strings.Repeat("d",64),Bytes:1},Reader:bytes.NewReader(nil)}}
+	if _,e:=InspectSources(context.Background(),reader,binding,archives);e==nil||reader.calls!=maxCalls{t.Fatalf("snapshot read calls were not bounded before XZ preflight: %v, calls=%d",e,reader.calls)}
+}
+
+func TestBaseListBlankLineBudget(t *testing.T) {
+	layer:=fixtureTar(t,map[string][]byte{
+		"var/lib/dpkg/status":[]byte("Package: sample\nVersion: 1.0\nArchitecture: amd64\nStatus: install ok installed\n\n"),
+		"var/lib/dpkg/info/sample.list":bytes.Repeat([]byte{'\n'},maxMembers+1),
+		"usr/bin/sample":[]byte("sample\n"),
+	})
+	compressed:=fixtureGzip(t,layer)
+	if _,e:=InspectBase(context.Background(),bytes.NewReader(compressed),fixturePin(compressed));e==nil{t.Fatal("blank dpkg list line flood accepted")}
 }

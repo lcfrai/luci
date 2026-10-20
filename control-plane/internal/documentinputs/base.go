@@ -118,12 +118,15 @@ func InspectBase(parent context.Context, input io.Reader, pin Pin)(Base,error){
 		packages[pkg.Name]=true;packages[pkg.Name+":"+pkg.Architecture]=true;result.Packages=append(result.Packages,pkg)
 	}
 	if len(result.Packages)==0||len(result.Packages)>10000{return Base{},ErrInvalid}
-	owners:=map[string]string{};multi:=map[string]bool{}
+	owners:=map[string]string{};multi:=map[string]bool{};listLines:=0
 	for name,raw:=range lists{
 		pkg:=strings.TrimSuffix(strings.TrimPrefix(name,"var/lib/dpkg/info/"),".list")
 		if !packages[pkg]{continue}
-		for _,line:=range bytes.Split(raw,[]byte{'\n'}) {
-			value:=strings.TrimSpace(string(line));if value==""||value=="/."{continue}
+		for len(raw)>0 {
+			end:=bytes.IndexByte(raw,'\n');line:=raw
+			if end>=0{line=raw[:end];raw=raw[end+1:]}else{raw=nil}
+			listLines++;if listLines>maxMembers||len(line)>1025{return Base{},ErrInvalid}
+			value:=string(bytes.TrimSpace(line));if value==""||value=="/."{continue}
 			value=strings.TrimPrefix(value,"/");normalized,ok:=cleanName(value,true);if !ok{return Base{},ErrInvalid}
 			if old:=owners[normalized];old!=""&&old!=pkg{multi[normalized]=true}
 			owners[normalized]=pkg
