@@ -89,6 +89,10 @@ type WheelOwner struct {
 type Wheel struct {
 	ID string `json:"id"`
 	Version string `json:"version"`
+	RequiresDist []string `json:"requiresDist"`
+	RequiresPython string `json:"requiresPython,omitempty"`
+	Tags []string `json:"tags"`
+	RootIsPurelib bool `json:"rootIsPurelib"`
 	Components []Component `json:"components"`
 	Files []File `json:"files"`
 	Notices []Notice `json:"notices"`
@@ -189,12 +193,39 @@ func hashReaderAt(ctx context.Context, reader io.ReaderAt, size int64, budget *b
 }
 
 func nativeComponent(raw []byte) (string,[]string,error) {
-	if len(raw) < 4 || string(raw[:4]) != "\x7fELF" { return "",nil,ErrInvalid }
+	if len(raw) < 6 || string(raw[:4]) != "\x7fELF" || raw[5] != byte(elf.ELFDATA2LSB) { return "",nil,ErrInvalid }
 	if int64(len(raw)) > maxELFBytes { return "",nil,ErrInvalid }
 	parsed,err := elf.NewFile(bytes.NewReader(raw))
-	if err != nil || parsed.Class != elf.ELFCLASS64 || parsed.Machine != elf.EM_X86_64 || parsed.Type != elf.ET_DYN && parsed.Type != elf.ET_EXEC { return "",nil,ErrInvalid }
+	if err != nil || parsed.Class != elf.ELFCLASS64 || parsed.Data != elf.ELFDATA2LSB || parsed.Machine != elf.EM_X86_64 || parsed.Type != elf.ET_DYN && parsed.Type != elf.ET_EXEC { return "",nil,ErrInvalid }
 	needed,err := parsed.ImportedLibraries(); if err != nil { return "",nil,ErrInvalid }
 	if len(needed) > 512 { return "",nil,ErrInvalid }
 	for _, name := range needed { if _,ok := cleanName(name,false); !ok || strings.Contains(name,"/") { return "",nil,ErrInvalid } }
 	return "amd64",needed,nil
+}
+
+// elfCapture retains bytes only after the first four bytes prove ELF. Archive
+// readers may return fewer than four bytes in any individual successful read.
+type elfCapture struct {
+	prefix [4]byte
+	prefixBytes int
+	decided bool
+	isELF bool
+	raw bytes.Buffer
+}
+
+func (c *elfCapture) write(part []byte) error {
+	if !c.decided {
+		need:=len(c.prefix)-c.prefixBytes
+		if need>len(part){need=len(part)}
+		copy(c.prefix[c.prefixBytes:],part[:need]);c.prefixBytes+=need;part=part[need:]
+		if c.prefixBytes==len(c.prefix) {
+			c.decided=true;c.isELF=string(c.prefix[:])=="\x7fELF"
+			if c.isELF {_,_=c.raw.Write(c.prefix[:])}
+		}
+	}
+	if c.isELF {
+		if int64(c.raw.Len())+int64(len(part))>maxELFBytes{return ErrInvalid}
+		_,_=c.raw.Write(part)
+	}
+	return nil
 }

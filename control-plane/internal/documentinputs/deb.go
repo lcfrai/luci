@@ -143,18 +143,18 @@ func readDebDataTar(ctx context.Context,reader io.ReaderAt,entry arEntry,owner s
 			if item.Size>128<<20{return nil,nil,ErrInvalid};file.Kind="regular"
 			keepNotice:=strings.HasPrefix(name,"usr/share/doc/")&&strings.HasSuffix(name,"/copyright")
 			if keepNotice&&item.Size>1<<20{return nil,nil,ErrInvalid}
-			h:=sha256.New();var kept bytes.Buffer;var first,isELF bool;var readTotal int64
+			h:=sha256.New();var kept bytes.Buffer;var native elfCapture;var readTotal int64
 			var block [readBlock]byte
 			for readTotal<item.Size{
 				if ctx.Err()!=nil{return nil,nil,ErrInvalid}
 				need:=int64(len(block));if item.Size-readTotal<need{need=item.Size-readTotal}
 				n,e:=archive.Read(block[:int(need)]);if n<1||e!=nil&&e!=io.EOF{return nil,nil,ErrInvalid}
-				if !first{first=true;isELF=n>=4&&string(block[:4])=="\x7fELF"}
 				readTotal+=int64(n);_,_=h.Write(block[:n])
-				if keepNotice||isELF{if isELF&&readTotal>maxELFBytes{return nil,nil,ErrInvalid};_,_=kept.Write(block[:n])}
+				if native.write(block[:n])!=nil{return nil,nil,ErrInvalid}
+				if keepNotice{_,_=kept.Write(block[:n])}
 			}
 			file.SHA256=hex.EncodeToString(h.Sum(nil))
-			if isELF{arch,needed,e:=nativeComponent(kept.Bytes());if e!=nil{return nil,nil,ErrInvalid};file.Architecture,file.Needed=arch,needed}
+			if native.isELF{arch,needed,e:=nativeComponent(native.raw.Bytes());if e!=nil{return nil,nil,ErrInvalid};file.Architecture,file.Needed=arch,needed}
 			if keepNotice{noticeTotal+=item.Size;if noticeTotal>maxNoticeBytes{return nil,nil,ErrInvalid};notices=append(notices,Notice{Path:name,Owner:owner,Bytes:item.Size,SHA256:file.SHA256,Contents:append([]byte(nil),kept.Bytes()...)})}
 		default:return nil,nil,ErrInvalid
 		}

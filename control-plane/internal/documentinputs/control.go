@@ -18,7 +18,9 @@ func validFieldName(key string) bool {
 func paragraphFields(raw []byte, max int) ([]map[string]string,error) {
 	if len(raw)==0||len(raw)>max{return nil,ErrInvalid}
 	rows:=[]map[string]string{};current:=map[string]string{};last:=""
-	for _,line:=range bytes.Split(raw,[]byte{'\n'}) {
+	for len(raw)>0 {
+		end:=bytes.IndexByte(raw,'\n');var line []byte
+		if end<0 {line=raw;raw=nil} else {line=raw[:end];raw=raw[end+1:]}
 		if len(line)>1<<20{return nil,ErrInvalid}
 		line=bytes.TrimSuffix(line,[]byte{'\r'})
 		if len(line)==0 {

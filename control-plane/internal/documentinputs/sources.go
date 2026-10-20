@@ -1,6 +1,7 @@
 package documentinputs
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -40,24 +41,27 @@ func InspectSources(parent context.Context, compressedInput io.Reader, binding S
 	// allocating memory outside the caller's admission budget.
 	decoder,err:=(xz.ReaderConfig{DictCap:64<<20}).NewReader(bounded)
 	if err!=nil{return nil,ErrInvalid}
-	clear,err:=io.ReadAll(io.LimitReader(decoder,binding.Cleartext.Bytes+1))
-	if err!=nil||int64(len(clear))!=binding.Cleartext.Bytes||hashBytes(clear)!=binding.Cleartext.SHA256{return nil,ErrInvalid}
-	var extra [1]byte
-	if n,e:=decoder.Read(extra[:]);n!=0||e!=io.EOF{return nil,ErrInvalid}
-	if bounded.bytes!=binding.CompressedIndex.Bytes||hex.EncodeToString(compressedHash.Sum(nil))!=binding.CompressedIndex.SHA256{return nil,ErrInvalid}
-	if n,e:=bounded.Read(extra[:]);n!=0||e!=io.EOF{return nil,ErrInvalid}
+	clearHash:=sha256.New()
+	clearReader:=&meteredReader{ctx:ctx,source:decoder,maxBytes:binding.Cleartext.Bytes+1,hash:clearHash}
+	lines:=bufio.NewReaderSize(clearReader,readBlock)
 	selected:=map[string]*Source{};matched:=map[string]bool{}
-	paragraphs:=0
-	for _,block:=range bytes.Split(clear,[]byte("\n\n")) {
+	paragraphs:=0;block:=make([]byte,0,readBlock)
+	for {
 		if ctx.Err()!=nil{return nil,ErrInvalid}
-		if len(bytes.TrimSpace(block))==0{continue}
+		line,lineErr:=boundedSourceLine(lines,1<<20)
+		if lineErr!=nil&&lineErr!=io.EOF{return nil,ErrInvalid}
+		if len(block)+len(line)>1<<20{return nil,ErrInvalid}
+		block=append(block,line...)
+		blank:=bytes.Equal(line,[]byte{'\n'})||bytes.Equal(line,[]byte{'\r','\n'})
+		if !blank&&lineErr!=io.EOF{continue}
+		if len(bytes.TrimSpace(block))==0 {block=block[:0];if lineErr==io.EOF{break};continue}
 		paragraphs++;if paragraphs>100000||len(block)>1<<20{return nil,ErrInvalid}
 		rows,e:=paragraphFields(block,1<<20);if e!=nil||len(rows)!=1{return nil,ErrInvalid}
 		row:=rows[0];name,version:=row["Package"],row["Version"]
 		if name==""||version==""||len(name)>200||len(version)>200{return nil,ErrInvalid}
 		key:=name+"\x00"+version
 		needed:=false;for _,candidate:=range archives{if candidate.SourceName==name&&candidate.SourceVersion==version{needed=true;break}}
-		if !needed{continue}
+		if !needed{block=block[:0];if lineErr==io.EOF{break};continue}
 		if selected[key]!=nil{return nil,ErrInvalid}
 		directory,ok:=cleanName(row["Directory"],false);if !ok||directory!=row["Directory"]{return nil,ErrInvalid}
 		rows:=strings.Split(row["Checksums-Sha256"],"\n")
@@ -70,7 +74,7 @@ func InspectSources(parent context.Context, compressedInput io.Reader, binding S
 			amount,e:=strconv.ParseInt(fields[1],10,64);if e!=nil||amount<1||amount>maxSourceArchiveBytes{return nil,ErrInvalid}
 			base,ok:=cleanName(fields[2],false);if !ok||strings.Contains(base,"/"){return nil,ErrInvalid}
 			full:=directory+"/"+base;if seen[full]{return nil,ErrInvalid};seen[full]=true
-			input,exists:=wanted[full];if !exists{continue}
+			input,exists:=wanted[full];if !exists{return nil,ErrInvalid}
 			if input.SourceName!=name||input.SourceVersion!=version||input.Pin.Bytes!=amount||input.Pin.SHA256!=fields[0]||matched[full]{return nil,ErrInvalid}
 			budget:=&boundedReaderAt{ctx:ctx,reader:input.Reader,maxBytes:input.Pin.Bytes+readBlock}
 			actual,e:=hashReaderAt(ctx,input.Reader,input.Pin.Bytes,budget);if e!=nil||actual!=input.Pin.SHA256{return nil,ErrInvalid}
@@ -79,13 +83,30 @@ func InspectSources(parent context.Context, compressedInput io.Reader, binding S
 		}
 		if len(candidate.Archives)==0{return nil,ErrInvalid}
 		selected[key]=candidate
+		block=block[:0]
+		if lineErr==io.EOF{break}
 	}
+	if clearReader.bytes!=binding.Cleartext.Bytes||hex.EncodeToString(clearHash.Sum(nil))!=binding.Cleartext.SHA256{return nil,ErrInvalid}
+	if bounded.bytes!=binding.CompressedIndex.Bytes||hex.EncodeToString(compressedHash.Sum(nil))!=binding.CompressedIndex.SHA256{return nil,ErrInvalid}
+	var extra [1]byte
+	if n,e:=bounded.Read(extra[:]);n!=0||e!=io.EOF{return nil,ErrInvalid}
 	if len(matched)!=len(wanted){return nil,ErrInvalid}
 	out:=make([]Source,0,len(selected))
 	for _,candidate:=range selected{out=append(out,*candidate)}
 	// Stable order is part of the observation contract and not proof of grants.
 	sortSources(out)
 	return out,nil
+}
+
+func boundedSourceLine(reader *bufio.Reader,limit int)([]byte,error){
+	line:=make([]byte,0,256)
+	for {
+		part,e:=reader.ReadSlice('\n')
+		if len(part)>limit-len(line){return nil,ErrInvalid}
+		line=append(line,part...)
+		if e==bufio.ErrBufferFull{continue}
+		return line,e
+	}
 }
 
 func sortSources(rows []Source) {
