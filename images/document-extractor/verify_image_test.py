@@ -103,6 +103,27 @@ class VerifierConfinedFileTests(unittest.TestCase):
         with self.assertRaises(verifier.Refused):
             verifier.verify_namespace(self.root, {}, set(), set())
 
+    def test_generated_cache_body_never_becomes_executable_authority(self):
+        source = "usr/lib/python3.11/example.py"
+        cache = "usr/lib/python3.11/__pycache__/example.cpython-311.pyc"
+        self.write(source, b"retained = True\n")
+        self.write(cache, b"forged header and arbitrary bytecode body")
+        inventory = {source: {"kind": "regular", "policy": "", "bytes": 16}}
+        verifier.verify_namespace(self.root, inventory, set(), set())
+        self.assertFalse((self.path/cache).exists())
+        self.assertEqual((self.path/source).read_bytes(), b"retained = True\n")
+        self.write("usr/lib/python3.11/__pycache__/unseen.cpython-311.pyc", b"untrusted")
+        with self.assertRaises(verifier.Refused):
+            verifier.verify_namespace(self.root, inventory, set(), set())
+
+    def test_namespace_keeps_the_complete_selected_package_metadata_set(self):
+        for package in ("libc6", "tesseract-ocr-eng", "tesseract-ocr-osd"):
+            self.write("var/lib/dpkg/info/"+package+".list", b"/owned\n")
+        directories = {"var", "var/lib", "var/lib/dpkg", "var/lib/dpkg/info"}
+        verifier.verify_namespace(self.root, {}, {"libc6", "tesseract-ocr-eng", "tesseract-ocr-osd"}, directories)
+        with self.assertRaises(verifier.Refused):
+            verifier.verify_namespace(self.root, {}, {"bytes", "digest"}, directories)
+
     def test_actual_alternative_must_resolve_to_an_inventoried_file(self):
         self.write("usr/bin/example", b"inert")
         self.write("var/lib/dpkg/alternatives/example", b"auto\n/usr/bin/alias\n\n/usr/bin/example\n10\n")

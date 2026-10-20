@@ -437,15 +437,12 @@ def verify_namespace(root, inventory, package_names, extra):
                     continue
                 source = pyc_source(name, inventory)
                 if source:
-                    raw = read_regular(root, name, 4 << 20)
-                    refuse(len(raw) >= 16 and raw[:4] == importlib.util.MAGIC_NUMBER)
-                    flags = struct.unpack_from("<I", raw, 4)[0]
-                    refuse(flags in (0, 1, 3))
-                    if flags & 1:
-                        original = read_regular(root, source, 16 << 20)
-                        refuse(raw[8:16] == importlib.util.source_hash(original))
-                    else:
-                        refuse(struct.unpack_from("<I", raw, 12)[0] == inventory[source]["bytes"])
+                    # A pyc header is not proof of its marshalled code body.
+                    # Drop only derived, non-inventoried caches for an exact
+                    # immutable source. Python can load that retained source;
+                    # inspected bytecode is never imported or unmarshalled.
+                    refuse(stat.S_ISREG(info.st_mode) and info.st_size <= 4 << 20)
+                    os.unlink(entry.name, dir_fd=fd)
                     continue
                 raise Refused("unexpected installed path")
     visit(root, "", 0)
@@ -771,8 +768,8 @@ def verify(root, lock_name):
         source = "usr/share/tesseract-ocr/5/tessdata/"+language+".traineddata"
         refuse(source in files and files[source]["kind"] == "regular"
                and files[source]["policy"] in ("", "immutable"))
-        expected = {"bytes": files[source]["bytes"], "digest": files[source]["sha256"]}
-        read_regular(root, "opt/luci/tessdata/"+language+".traineddata", 128 << 20, expected)
+        language_pin = {"bytes": files[source]["bytes"], "digest": files[source]["sha256"]}
+        read_regular(root, "opt/luci/tessdata/"+language+".traineddata", 128 << 20, language_pin)
     manifest = decode(read_regular(root, "opt/luci/assembly-manifest.json", 256 << 10), 256 << 10)
     source = observed["source"]
     for key in ("sourceCommit", "sourceDigest", "helperDigest", "recipeDigest", "sourceRetentionDigest"):
