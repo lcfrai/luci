@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"unicode/utf8"
 )
 
 // DocumentPackagedManifest is a separate, externally pinned prebuilt profile.
@@ -22,6 +23,18 @@ type DocumentPackagedManifest struct {
 	Version int `json:"version"`
 	Kind string `json:"kind"`
 	ToolProtocol int `json:"toolProtocol"`
+	Provenance struct {
+		AssemblyReceiptSHA256 string `json:"assemblyReceiptSha256"`
+		InputClosureSHA256 string `json:"inputClosureSha256"`
+		CaptureSHA256 string `json:"captureSha256"`
+		CaptureBytes int64 `json:"captureBytes"`
+		NoticeClosureSHA256 string `json:"noticeClosureSha256"`
+		NoticeClosureFileName string `json:"noticeClosureFileName"`
+		NoticeClosureBytes int64 `json:"noticeClosureBytes"`
+		SourceCommit string `json:"sourceCommit"`
+		SourceDigest string `json:"sourceDigest"`
+		SourceRetentionDigest string `json:"sourceRetentionDigest"`
+	} `json:"provenance"`
 	Archive struct {
 		FileName string `json:"fileName"`
 		SHA256 string `json:"sha256"`
@@ -46,6 +59,7 @@ type DocumentBundle struct {
 	ManifestSHA256 string
 	Archive *os.File
 	manifestBytes []byte
+	noticeBytes []byte
 }
 
 func (b *DocumentBundle) Close() error {
@@ -57,6 +71,11 @@ func (b *DocumentBundle) VerifyArchive() error { return VerifyDocumentArchive(b)
 
 func validDocumentManifest(m DocumentPackagedManifest) bool {
 	if m.Version != 1 || m.Kind != "luci-document-prebuilt-docker-save" || m.ToolProtocol != 1 ||
+		!digestPattern.MatchString(m.Provenance.AssemblyReceiptSHA256) || !digestPattern.MatchString(m.Provenance.InputClosureSHA256) ||
+		!digestPattern.MatchString(m.Provenance.CaptureSHA256) || m.Provenance.CaptureBytes < 1024 || m.Provenance.CaptureBytes > 2<<30 ||
+		!digestPattern.MatchString(m.Provenance.NoticeClosureSHA256) || m.Provenance.NoticeClosureFileName != "document-runtime-notices-v1.json" ||
+		m.Provenance.NoticeClosureBytes < 1 || m.Provenance.NoticeClosureBytes > maxMetadata || !commitPattern.MatchString(m.Provenance.SourceCommit) ||
+		!digestPattern.MatchString(m.Provenance.SourceDigest) || !digestPattern.MatchString(m.Provenance.SourceRetentionDigest) ||
 		m.Archive.FileName != "document-image-linux-amd64.tar" || m.Archive.Bytes < 1024 || m.Archive.Bytes > MaxArchiveBytes ||
 		!digestPattern.MatchString(m.Archive.SHA256) || !imagePattern.MatchString(m.Image.ID) ||
 		m.Image.ConfigPath != strings.TrimPrefix(m.Image.ID, "sha256:")+".json" ||
@@ -79,6 +98,21 @@ func validDocumentManifest(m DocumentPackagedManifest) bool {
 	return true
 }
 
+// Docker rootfs tar writers may spell a directory "usr/" and a member
+// "./opt/luci/...". Normalize only those two spellings; every other alias,
+// absolute path, traversal segment or duplicate normalized name is refused.
+func documentLayerName(raw string, directory bool) (string, bool) {
+	if !utf8.ValidString(raw) || raw == "" || len(raw) > 1024 || strings.HasPrefix(raw, "/") || strings.ContainsRune(raw, '\\') {
+		return "", false
+	}
+	for _, r := range raw { if r < 32 || r == 127 { return "", false } }
+	for strings.HasPrefix(raw, "./") { raw = strings.TrimPrefix(raw, "./") }
+	if directory { raw = strings.TrimSuffix(raw, "/") } else if strings.HasSuffix(raw, "/") { return "", false }
+	if raw == "" { return "", false }
+	for _, part := range strings.Split(raw, "/") { if part == "" || part == "." || part == ".." { return "", false } }
+	return raw, true
+}
+
 // OpenDocument holds the original archive descriptor and checks the complete
 // Docker-save stream before any daemon call. A manifest inside the package is
 // not a trust root: its exact bytes must match the separately supplied pin.
@@ -90,6 +124,10 @@ func OpenDocument(root, pinnedManifestSHA256 string) (*DocumentBundle, error) {
 	if err != nil || sumHex(raw) != pinnedManifestSHA256 { return nil,errors.New("document manifest does not match trusted pin") }
 	var m DocumentPackagedManifest
 	if decodeStrict(raw,&m) != nil || !validDocumentManifest(m) { return nil,errors.New("document manifest invalid") }
+	notice, err := readRegular(root,m.Provenance.NoticeClosureFileName,maxMetadata)
+	if err != nil || int64(len(notice)) != m.Provenance.NoticeClosureBytes || sumHex(notice) != m.Provenance.NoticeClosureSHA256 {
+		return nil,errors.New("document notice closure does not match pinned package")
+	}
 	path := filepath.Join(root,m.Archive.FileName)
 	if err=rejectLinkedPath(root,m.Archive.FileName);err!=nil{return nil,err}
 	before, err := os.Lstat(path)
@@ -98,13 +136,13 @@ func OpenDocument(root, pinnedManifestSHA256 string) (*DocumentBundle, error) {
 	if err != nil { return nil,err }
 	opened, err := f.Stat()
 	if err != nil || !os.SameFile(before,opened) { f.Close(); return nil,errors.New("document archive identity changed") }
-	b := &DocumentBundle{Archive:f, Manifest:m, ManifestSHA256:pinnedManifestSHA256, manifestBytes:raw}
+	b := &DocumentBundle{Archive:f, Manifest:m, ManifestSHA256:pinnedManifestSHA256, manifestBytes:raw, noticeBytes:notice}
 	if err = b.VerifyArchive(); err != nil { b.Close(); return nil,err }
 	return b,nil
 }
 
 func VerifyDocumentArchive(b *DocumentBundle) error {
-	if b == nil || b.Archive == nil || sumHex(b.manifestBytes) != b.ManifestSHA256 { return errors.New("document bundle pin changed") }
+	if b == nil || b.Archive == nil || sumHex(b.manifestBytes) != b.ManifestSHA256 || sumHex(b.noticeBytes) != b.Manifest.Provenance.NoticeClosureSHA256 || int64(len(b.noticeBytes)) != b.Manifest.Provenance.NoticeClosureBytes { return errors.New("document bundle pin changed") }
 	var m DocumentPackagedManifest
 	if decodeStrict(b.manifestBytes,&m) != nil || !validDocumentManifest(m) || !reflect.DeepEqual(m,b.Manifest) { return errors.New("document bundle identity changed") }
 	if _,err := b.Archive.Seek(0,io.SeekStart); err != nil { return err }
@@ -114,6 +152,8 @@ func VerifyDocumentArchive(b *DocumentBundle) error {
 	r := tar.NewReader(io.TeeReader(limited,whole))
 	var saved, config []byte
 	var extractorFound bool
+	seenLayer := make(map[string]bool)
+	layerNamesBytes := 0
 	for _,want := range m.Archive.Members {
 		h,err := r.Next()
 		if err != nil || h.Name != want.Path || h.Size != want.Bytes || h.Typeflag != tar.TypeReg && h.Typeflag != tar.TypeRegA || h.Linkname != "" || h.PAXRecords != nil { return errors.New("document archive member invalid") }
@@ -125,9 +165,15 @@ func VerifyDocumentArchive(b *DocumentBundle) error {
 			for {
 				item,e := layer.Next()
 				if e == io.EOF { break }
-				if e != nil || item.Size < 0 || item.Size > h.Size-consumed || !safePath(item.Name) { return errors.New("document layer invalid") }
+				if e != nil || item.Size < 0 || item.Size > h.Size-consumed { return errors.New("document layer invalid") }
+				name, valid := documentLayerName(item.Name, item.Typeflag == tar.TypeDir)
+				layerNamesBytes += len(item.Name)
+				if !valid || seenLayer[name] || len(seenLayer) >= 100000 || layerNamesBytes > 16<<20 { return errors.New("document layer name invalid or duplicated") }
+				seenLayer[name] = true
+				if item.Typeflag != tar.TypeReg && item.Typeflag != tar.TypeRegA && item.Typeflag != tar.TypeDir && item.Typeflag != tar.TypeSymlink || item.Typeflag != tar.TypeReg && item.Typeflag != tar.TypeRegA && item.Size != 0 { return errors.New("document layer member type invalid") }
+				if item.Typeflag == tar.TypeSymlink && (name == "opt" || name == "opt/luci" || name == "opt/luci/document_extractor.py") { return errors.New("document tool path is linked") }
 				consumed += item.Size
-				if strings.TrimPrefix(item.Name,"./") == "opt/luci/document_extractor.py" {
+				if name == "opt/luci/document_extractor.py" {
 					if extractorFound || item.Typeflag != tar.TypeReg || item.Size < 1 || item.Size > maxMetadata { return errors.New("document extractor invalid") }
 					toolHash := sha256.New()
 					if _,e = io.CopyN(toolHash,layer,item.Size); e != nil || hex.EncodeToString(toolHash.Sum(nil)) != m.ExtractorSHA256 { return errors.New("document extractor changed") }
@@ -151,10 +197,16 @@ func VerifyDocumentArchive(b *DocumentBundle) error {
 	if err != nil || info.Size() != m.Archive.Bytes || hex.EncodeToString(whole.Sum(nil)) != m.Archive.SHA256 || !extractorFound { return errors.New("document archive digest or extractor changed") }
 	var save []struct{ Config string `json:"Config"`; RepoTags []string `json:"RepoTags"`; Layers []string `json:"Layers"` }
 	if uniqueJSON(json.NewDecoder(bytes.NewReader(saved))) != nil || decodeStrict(saved,&save) != nil || len(save) != 1 || save[0].Config != m.Image.ConfigPath || len(save[0].RepoTags) != 0 || !equalStrings(save[0].Layers,[]string{m.Image.LayerPath}) { return errors.New("document save index invalid") }
-	var cfg struct { OS string `json:"os"`; Architecture string `json:"architecture"`; Config struct { User string `json:"User"`; Entrypoint []string `json:"Entrypoint"`; Volumes map[string]json.RawMessage `json:"Volumes"`; ExposedPorts map[string]json.RawMessage `json:"ExposedPorts"` } `json:"config"`; RootFS struct { DiffIDs []string `json:"diff_ids"` } `json:"rootfs"` }
+	var cfg struct { OS string `json:"os"`; Architecture string `json:"architecture"`; Config struct { User string `json:"User"`; Entrypoint []string `json:"Entrypoint"`; WorkingDir string `json:"WorkingDir"`; Labels map[string]string `json:"Labels"`; Volumes map[string]json.RawMessage `json:"Volumes"`; ExposedPorts map[string]json.RawMessage `json:"ExposedPorts"` } `json:"config"`; RootFS struct { DiffIDs []string `json:"diff_ids"` } `json:"rootfs"` }
 	// Docker image configs contain additional engine-owned fields (history,
 	// created, container_config). Reject duplicate keys, then inspect the
 	// security-relevant fields without requiring a vendor-specific full shape.
-	if uniqueJSON(json.NewDecoder(bytes.NewReader(config))) != nil || json.Unmarshal(config,&cfg) != nil || cfg.OS != "linux" || cfg.Architecture != "amd64" || len(cfg.Config.Volumes) != 0 || len(cfg.Config.ExposedPorts) != 0 || !equalStrings(cfg.RootFS.DiffIDs,[]string{m.Image.DiffID}) { return errors.New("document image config invalid") }
+	if uniqueJSON(json.NewDecoder(bytes.NewReader(config))) != nil || json.Unmarshal(config,&cfg) != nil || cfg.OS != "linux" || cfg.Architecture != "amd64" ||
+		cfg.Config.User != "1001:1001" || cfg.Config.WorkingDir != "/tmp" ||
+		!equalStrings(cfg.Config.Entrypoint,[]string{"/usr/bin/python3","-I","/opt/luci/document_extractor.py"}) ||
+		cfg.Config.Labels["org.opencontainers.image.revision"] != m.Provenance.SourceCommit ||
+		cfg.Config.Labels["luci.document-source"] != m.Provenance.SourceDigest ||
+		cfg.Config.Labels["luci.document-source-retention"] != m.Provenance.SourceRetentionDigest ||
+		len(cfg.Config.Volumes) != 0 || len(cfg.Config.ExposedPorts) != 0 || !equalStrings(cfg.RootFS.DiffIDs,[]string{m.Image.DiffID}) { return errors.New("document image config invalid") }
 	return nil
 }
