@@ -243,3 +243,27 @@ it('requires a known account and workspace before offering private artifact down
   expect(screen.getByRole('button',{name:'Download DOCX'}).hasAttribute('disabled')).toBe(true);
   expect(pending.request).not.toHaveBeenCalled();
 });
+
+it('keeps PDF unavailable when the server has not advertised its verified font bundle',async()=>{
+  const pending=deferredArtifactExport();
+  render(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+  await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+  expect(screen.queryByRole('button',{name:'Download PDF'})).toBeNull();
+  expect(pending.request).not.toHaveBeenCalled();
+});
+
+it.each(['current','read grant revoked and restored'] as const)('downloads a server-advertised PDF only while its read identity remains %s',async(state)=>{
+  const pending=deferredArtifactExport();
+  vi.mocked(distributeArtifactsApi.list).mockResolvedValue({projectId:'p-one',artifacts:[{id:draft.id,kind:draft.kind,title:draft.title,revision:draft.revision,state:draft.state,freshness:'current',digest}],exportFormats:['docx','pptx','xlsx','pdf']});
+  const view=render(<ArtifactWorkspace projectId="p-one" canRead canEdit={false}/>);
+  await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+  await userEvent.click(screen.getByRole('button',{name:'Download PDF'}));
+  expect(pending.request).toHaveBeenCalledExactlyOnceWith(`/v1/product/projects/p-one/distribute/artifacts/${draft.id}/exports/pdf?digest=${digest}`);
+  if(state!=='current'){
+    view.rerender(<ArtifactWorkspace projectId="p-one" canRead={false} canEdit={false}/>);
+    view.rerender(<ArtifactWorkspace projectId="p-one" canRead canEdit={false}/>);
+  }
+  await act(async()=>{pending.finish()});
+  expect(pending.create).toHaveBeenCalledTimes(state==='current'?1:0);
+  expect(pending.click).toHaveBeenCalledTimes(state==='current'?1:0);
+});

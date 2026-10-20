@@ -398,6 +398,7 @@ func (s *Server) registerDistributeArtifacts(mux Registrar) {
 	mux.HandleFunc("POST "+base, s.boundedDistributeWork(s.saveDistributeArtifact))
 	mux.HandleFunc("GET "+base+"/{artifactId}", s.getDistributeArtifact)
 	mux.HandleFunc("GET "+base+"/{artifactId}/exports/{format}", s.boundedDistributeWork(s.exportDistributeArtifact))
+	mux.HandleFunc("GET "+base+"/{artifactId}/exports/pdf", s.boundedDistributePDFWork(s.exportDistributePDFArtifact))
 	mux.HandleFunc("POST "+base+"/{artifactId}/revise", s.reviseDistributeArtifact)
 	mux.HandleFunc("POST "+base+"/{artifactId}/review", s.reviewDistributeArtifact)
 }
@@ -585,7 +586,7 @@ func (s *Server) listDistributeArtifacts(w http.ResponseWriter, r *http.Request)
 		}
 		rows = append(rows, map[string]any{"id": row.ID, "kind": row.Kind, "title": row.Title, "revision": row.Revision, "state": row.State, "freshness": freshness, "digest": row.Digest})
 	}
-	journeyJSON(w, 200, map[string]any{"projectId": p.ID, "artifacts": rows})
+	journeyJSON(w, 200, map[string]any{"projectId": p.ID, "artifacts": rows, "exportFormats": artifactExportFormats()})
 }
 func (s *Server) getDistributeArtifact(w http.ResponseWriter, r *http.Request) {
 	if !artifactAccess(w, r, false) {

@@ -140,7 +140,7 @@ func TestDistributeArtifactPrepareSaveReviewAndSourceCAS(t *testing.T) {
 		}
 	}
 	controlTestRequest(t, h, "GET", artifactURL+"/exports/docx?digest="+strings.Repeat("0", 64), nil, 409)
-	controlTestRequest(t, h, "GET", artifactURL+"/exports/pdf?digest="+saved.Artifact.Digest, nil, 422)
+	controlTestRequest(t, h, "GET", artifactURL+"/exports/html?digest="+saved.Artifact.Digest, nil, 422)
 	controlTestRequest(t, h, "POST", artifactURL+"/review", map[string]any{"expectedRevision": 3, "expectedDigest": saved.Artifact.Digest, "idempotencyKey": "artifact-duplicate-review-123456"}, 409)
 	path, err := teamControlPath(s, "team-test-control")
 	if err != nil {

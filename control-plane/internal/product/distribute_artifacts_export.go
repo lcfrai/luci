@@ -259,8 +259,12 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 		return
 	}
 	format := r.PathValue("format")
-	if format != "docx" && format != "xlsx" && format != "pptx" {
-		journeyError(w, 422, "artifact_format_unavailable", "This format has no verified native exporter yet. Choose DOCX, PPTX or XLSX.")
+	if format != "docx" && format != "xlsx" && format != "pptx" && format != "pdf" {
+		journeyError(w, 422, "artifact_format_unavailable", "Choose an available DOCX, PPTX, XLSX or PDF export.")
+		return
+	}
+	if format == "pdf" && !artifactPDFAssetsAvailable() {
+		journeyError(w, 503, "artifact_pdf_assets_unavailable", "The required PDF font bundle could not be verified. Your saved artifact is unchanged.")
 		return
 	}
 	digest := r.URL.Query().Get("digest")
@@ -321,11 +325,20 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 		data, err = artifactDOCX(r.Context(), lines)
 	} else if format == "xlsx" {
 		data, err = artifactXLSX(r.Context(), lines)
-	} else {
+	} else if format == "pptx" {
 		data, err = artifactPPTX(r.Context(), lines)
+	} else {
+		data, err = artifactPDF(r.Context(), lines)
 	}
 	if err != nil {
+		if format == "pdf" {
+			journeyError(w, 422, "artifact_pdf_unavailable", "The artifact could not be preserved within PDF font, layout or size limits. Your saved content is unchanged; use an Office export or revise the draft.")
+			return
+		}
 		artifactProblem(w, err)
+		return
+	}
+	if err := r.Context().Err(); err != nil {
 		return
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
@@ -334,9 +347,24 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 	} else if format == "xlsx" {
 		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	} else {
+	} else if format == "pptx" {
 		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+	} else {
+		w.Header().Set("Content-Type", "application/pdf")
 	}
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	_, _ = w.Write(data)
+}
+
+func (s *Server) exportDistributePDFArtifact(w http.ResponseWriter, r *http.Request) {
+	r.SetPathValue("format", "pdf")
+	s.exportDistributeArtifact(w, r)
+}
+
+func artifactExportFormats() []string {
+	formats := []string{"docx", "pptx", "xlsx"}
+	if artifactPDFAssetsAvailable() {
+		formats = append(formats, "pdf")
+	}
+	return formats
 }

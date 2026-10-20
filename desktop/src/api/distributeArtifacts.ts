@@ -1,6 +1,7 @@
 import { productApi } from './product';
 
 export type ArtifactKind = 'risk' | 'go-to-market' | 'proposal' | 'pricing' | 'presentation';
+export type ArtifactExportFormat = 'docx' | 'pptx' | 'xlsx' | 'pdf';
 export interface ArtifactSource {
   briefRevision:number;briefDigest:string;specificationRevision:number;specificationDigest:string;
   designRevision:number;designDigest:string;planRevision:number;planDigest:string;
@@ -16,7 +17,7 @@ export interface DistributeArtifact {
 }
 export interface ArtifactView {artifact:DistributeArtifact;freshness:'current'|'outdated'|'unavailable'|'readback';history?:DistributeArtifact[]}
 export interface ArtifactSummary {id:string;kind:ArtifactKind;title:string;revision:number;state:'draft'|'reviewed';freshness:'current'|'outdated'|'requires-readback';digest:string}
-export interface ArtifactList {projectId:string;artifacts:ArtifactSummary[]}
+export interface ArtifactList {projectId:string;artifacts:ArtifactSummary[];exportFormats?:ArtifactExportFormat[]}
 const root=(projectId:string)=>`/v1/product/projects/${encodeURIComponent(projectId)}/distribute/artifacts`;
 const item=(projectId:string,id:string)=>`${root(projectId)}/${encodeURIComponent(id)}`;
 export const distributeArtifactsApi={
@@ -26,7 +27,7 @@ export const distributeArtifactsApi={
   get:(projectId:string,id:string,signal?:AbortSignal)=>productApi.request<ArtifactView>(item(projectId,id),undefined,'GET',30_000,signal),
   revise:(projectId:string,row:DistributeArtifact,title:string,sections:ArtifactSection[],gaps:string[],assumptions:string[],idempotencyKey:string)=>productApi.request<ArtifactView>(`${item(projectId,row.id)}/revise`,{expectedRevision:row.revision,expectedDigest:row.digest,expectedSourceDigest:row.sourceDigest,idempotencyKey,title,sections,gaps,assumptions},'POST'),
   review:(projectId:string,row:DistributeArtifact,idempotencyKey:string)=>productApi.request<ArtifactView>(`${item(projectId,row.id)}/review`,{expectedRevision:row.revision,expectedDigest:row.digest,idempotencyKey},'POST'),
-  download:async(projectId:string,row:DistributeArtifact,format:'docx'|'pptx'|'xlsx',current:()=>boolean)=>{
+  download:async(projectId:string,row:DistributeArtifact,format:ArtifactExportFormat,current:()=>boolean)=>{
     const blob=await productApi.requestBlob(`${item(projectId,row.id)}/exports/${format}?digest=${encodeURIComponent(row.digest)}`);
     if(!current())return;
     if(blob.size<1||blob.size>16*1024*1024)throw new Error('The bounded artifact export is incomplete. Refresh this artifact and try again.');

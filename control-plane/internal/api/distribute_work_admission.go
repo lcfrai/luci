@@ -27,6 +27,24 @@ func (a *API) admitDistributeWork(ctx context.Context) (func(), error) {
 }
 
 func (a *API) admitDistributeWorkWith(ctx context.Context, policy product.SwarmSchedulerPolicy) (func(), error) {
+	return a.admitDistributeWorkWithCharge(ctx, policy, 256<<20)
+}
+
+func (a *API) admitDistributePDFWork(ctx context.Context) (func(), error) {
+	if a.deps.Product == nil {
+		return nil, errors.New("saved execution policy is unavailable")
+	}
+	policy, err := a.deps.Product.SwarmSchedulerPolicy()
+	if err != nil {
+		return nil, err
+	}
+	return a.admitDistributeWorkWithCharge(ctx, policy, 512<<20)
+}
+
+func (a *API) admitDistributeWorkWithCharge(ctx context.Context, policy product.SwarmSchedulerPolicy, charge uint64) (func(), error) {
+	if charge != 256<<20 && charge != 512<<20 {
+		return nil, errors.New("unsupported distribute work charge")
+	}
 	root, err := a.execution.prepareExecutionDirectory()
 	if err != nil {
 		return nil, err
@@ -80,9 +98,13 @@ func (a *API) admitDistributeWorkWith(ctx context.Context, policy product.SwarmS
 	if ctx.Err() != nil || snapshot.Host.Status != "ready" || !snapshot.Host.Fresh(now, 5*time.Second) || snapshot.Host.Memory.EffectiveAvailableBytes == nil || snapshot.Host.Memory.EffectiveTotalBytes == nil {
 		return nil, errors.New("fresh host capacity is unavailable")
 	}
-	// One job's parser/output buffers are bounded in product; charge 256 MiB
-	// in addition to the configured host reserve before admitting it.
-	needed := policy.MemoryHeadroomBytes(*snapshot.Host.Memory.EffectiveTotalBytes) + (256 << 20)
+	// This is admission headroom, not an OS memory cap. Only fixed internal
+	// Office/workbook and PDF classes reach this helper.
+	reserve := policy.MemoryHeadroomBytes(*snapshot.Host.Memory.EffectiveTotalBytes)
+	if ^uint64(0)-reserve < charge {
+		return nil, errors.New("distribute memory reserve overflows")
+	}
+	needed := reserve + charge
 	if *snapshot.Host.Memory.EffectiveAvailableBytes < needed {
 		return nil, errors.New("host memory reserve is unavailable")
 	}

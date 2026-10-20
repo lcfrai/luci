@@ -444,6 +444,7 @@ func New(d Deps) (*API, error) {
 	a.execution = newExecutionAdmission(a)
 	if d.Product != nil {
 		d.Product.SetDistributeWorkAdmission(a.admitDistributeWork)
+		d.Product.SetDistributePDFWorkAdmission(a.admitDistributePDFWork)
 		d.Product.SetPreviewRuntime(a.previewRuntime())
 		d.Product.SetDiscoveryExtractionRuntime(a.documentExtractionRuntime())
 		d.Product.SetRuntimeInstaller(a.runtimeInstaller())
