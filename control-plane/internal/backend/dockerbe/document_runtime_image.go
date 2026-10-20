@@ -21,8 +21,8 @@ type DocumentRuntimeInstaller struct {
 	attach DocumentAttachConfiguration
 	mu sync.Mutex
 	pinnedImageID string // established only by the held, separately pinned package
-	loaded map[string]string // exact allocation -> positively settled immutable image
-	published map[string]string // exact allocation -> positively acknowledged image/tag
+	loaded map[backend.RuntimeImageIdentity]string // exact identity -> positively settled immutable image
+	published map[backend.RuntimeImageIdentity]string // exact identity -> positively acknowledged image/tag
 }
 
 var _ backend.DocumentRuntimeInstaller = (*DocumentRuntimeInstaller)(nil)
@@ -33,7 +33,7 @@ func NewDocumentRuntimeInstaller(selected *Backend, pinnedManifestSHA256 string,
 	// image effects and copies the caller's exact trusted profile.
 	validated,err := NewDocumentExtractor(selected,"sha256:"+pinnedManifestSHA256,attach)
 	if err != nil { return nil,err }
-	return &DocumentRuntimeInstaller{selected:selected,manifestSHA256:pinnedManifestSHA256,attach:DocumentAttachConfiguration{Headers:validated.attachHeaders},loaded:map[string]string{},published:map[string]string{}},nil
+	return &DocumentRuntimeInstaller{selected:selected,manifestSHA256:pinnedManifestSHA256,attach:DocumentAttachConfiguration{Headers:validated.attachHeaders},loaded:map[backend.RuntimeImageIdentity]string{},published:map[backend.RuntimeImageIdentity]string{}},nil
 }
 
 func (d *DocumentRuntimeInstaller) PrepareRuntimeImage(ctx context.Context,spec backend.RuntimeImageSpec)(backend.PreparedRuntimeImage,error){return d.PreparePackagedRuntimeImage(ctx,spec)}
@@ -81,7 +81,7 @@ func(d *DocumentRuntimeInstaller) inspectDocument(ctx context.Context,p backend.
 func(d *DocumentRuntimeInstaller) LoadPackagedRuntimeImage(ctx context.Context,p backend.PreparedRuntimeImage)(backend.RuntimeImageBuildResult,error){
 	if !d.validPrepared(p){return backend.RuntimeImageBuildResult{Settled:true},backend.ErrLaunchFenceOwnership}
 	if err:=d.inspectDocument(ctx,p);err==nil {
-		d.mu.Lock();d.loaded[p.Spec.Identity.AllocationID]=p.Bundle.Manifest.Image.ID;d.mu.Unlock()
+		d.mu.Lock();d.loaded[p.Spec.Identity]=p.Bundle.Manifest.Image.ID;d.mu.Unlock()
 		return backend.RuntimeImageBuildResult{ImageID:p.Bundle.Manifest.Image.ID,Settled:true},nil
 	}else if !errdefs.IsNotFound(err){return backend.RuntimeImageBuildResult{Settled:true},err}
 	if err:=d.selected.runtimeImageIdentity(ctx,p.Spec.Identity);err!=nil{return backend.RuntimeImageBuildResult{Settled:true},err}
@@ -96,7 +96,7 @@ func(d *DocumentRuntimeInstaller) LoadPackagedRuntimeImage(ctx context.Context,p
 	if failed!=""{return backend.RuntimeImageBuildResult{Settled:true},backend.ErrUnavailable}
 	probe,cancel:=context.WithTimeout(context.WithoutCancel(ctx),10*time.Second);defer cancel()
 	if err:=d.inspectDocument(probe,p);err!=nil{return backend.RuntimeImageBuildResult{},err}
-	d.mu.Lock();d.loaded[p.Spec.Identity.AllocationID]=p.Bundle.Manifest.Image.ID;d.mu.Unlock()
+	d.mu.Lock();d.loaded[p.Spec.Identity]=p.Bundle.Manifest.Image.ID;d.mu.Unlock()
 	return backend.RuntimeImageBuildResult{ImageID:p.Bundle.Manifest.Image.ID,Settled:true},nil
 }
 
@@ -105,7 +105,7 @@ func(d *DocumentRuntimeInstaller) LoadPackagedRuntimeImage(ctx context.Context,p
 // owner lifetime. A lost load response is never converted into settlement.
 func(d *DocumentRuntimeInstaller) DerivePackagedRuntimeImage(ctx context.Context,p backend.PreparedRuntimeImage)(backend.RuntimeImageBuildResult,error){
 	if !d.validPrepared(p){return backend.RuntimeImageBuildResult{Settled:true},backend.ErrLaunchFenceOwnership}
-	d.mu.Lock();loaded:=d.loaded[p.Spec.Identity.AllocationID];d.mu.Unlock()
+	d.mu.Lock();loaded:=d.loaded[p.Spec.Identity];d.mu.Unlock()
 	if loaded!=p.Bundle.Manifest.Image.ID{return backend.RuntimeImageBuildResult{},backend.ErrUnavailable}
 	if err:=d.inspectDocument(ctx,p);err!=nil{return backend.RuntimeImageBuildResult{},err}
 	return backend.RuntimeImageBuildResult{ImageID:loaded,Settled:true},nil
@@ -113,7 +113,7 @@ func(d *DocumentRuntimeInstaller) DerivePackagedRuntimeImage(ctx context.Context
 
 func(d *DocumentRuntimeInstaller) PublishRuntimeImage(ctx context.Context,p backend.PreparedRuntimeImage,imageID string)(backend.RuntimeImagePublishResult,error){
 	if !d.validPrepared(p)||imageID!=p.Bundle.Manifest.Image.ID{return backend.RuntimeImagePublishResult{},backend.ErrLaunchFenceOwnership}
-	d.mu.Lock();loaded:=d.loaded[p.Spec.Identity.AllocationID];d.mu.Unlock()
+	d.mu.Lock();loaded:=d.loaded[p.Spec.Identity];d.mu.Unlock()
 	if loaded!=imageID{return backend.RuntimeImagePublishResult{},backend.ErrUnavailable}
 	if err:=d.inspectDocument(ctx,p);err!=nil{return backend.RuntimeImagePublishResult{},err}
 	api:=d.selected.api.(runtimeImageClient)
@@ -125,7 +125,7 @@ func(d *DocumentRuntimeInstaller) PublishRuntimeImage(ctx context.Context,p back
 	current,err=api.ImageInspect(ctx,tag)
 	if err!=nil||current.ID!=imageID||ctx.Err()!=nil{return backend.RuntimeImagePublishResult{},backend.ErrUnavailable}
 	if err=d.inspectDocument(ctx,p);err!=nil{return backend.RuntimeImagePublishResult{},err}
-	d.mu.Lock();d.published[p.Spec.Identity.AllocationID]=imageID+"\x00"+tag;d.mu.Unlock()
+	d.mu.Lock();d.published[p.Spec.Identity]=imageID+"\x00"+tag;d.mu.Unlock()
 	return backend.RuntimeImagePublishResult{ImageID:imageID,ImageTag:tag,Acknowledged:true},nil
 }
 
@@ -151,7 +151,7 @@ func(d *DocumentRuntimeInstaller) ObserveRuntimeImage(ctx context.Context,id bac
 // coordinator explicitly reconciles and performs a positive no-write load.
 func(d *DocumentRuntimeInstaller) DocumentImageID(ctx context.Context,p backend.PreparedRuntimeImage,settledImageID string)(string,error){
 	if !d.validPrepared(p)||settledImageID!=p.Bundle.Manifest.Image.ID{return "",backend.ErrLaunchFenceOwnership}
-	d.mu.Lock();loaded,published:=d.loaded[p.Spec.Identity.AllocationID],d.published[p.Spec.Identity.AllocationID];d.mu.Unlock()
+	d.mu.Lock();loaded,published:=d.loaded[p.Spec.Identity],d.published[p.Spec.Identity];d.mu.Unlock()
 	if loaded!=settledImageID||published!=settledImageID+"\x00"+p.Spec.ImageTag{return "",backend.ErrUnavailable}
 	if err:=d.inspectDocument(ctx,p);err!=nil{return "",err}
 	obs,err:=d.ObserveRuntimeImage(ctx,p.Spec.Identity,settledImageID,p.Spec.ImageTag)
