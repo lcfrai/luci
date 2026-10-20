@@ -77,6 +77,7 @@ type DocumentImageAssemblyManifest struct {
 	Requirements              DocumentImageAssemblyInput     `json:"requirements"`
 	DependencyLock            DocumentImageAssemblyInput     `json:"dependencyLock"`
 	Notices                   []DocumentImageAssemblyInput   `json:"notices"`
+	VerificationInputs        []DocumentImageAssemblyInput   `json:"verificationInputs,omitempty"`
 }
 
 // The trusted constructor config pins this complete spec. No HTTP caller can
@@ -173,6 +174,7 @@ func ValidateDocumentImageAssemblyManifest(value DocumentImageAssemblyManifest) 
 	inputs := []DocumentImageAssemblyInput{value.BaseLayer, value.Extractor, value.Verifier, value.Requirements, value.DependencyLock}
 	inputs = append(inputs, value.Wheels...)
 	inputs = append(inputs, value.Notices...)
+	inputs = append(inputs, value.VerificationInputs...)
 	packages := map[string]bool{}
 	for _, item := range value.Packages {
 		if !assemblyPackage.MatchString(item.Name) || packages[item.Name] || len(item.Version) < 1 || len(item.Version) > 256 || strings.ContainsAny(item.Version, "\x00\r\n") || item.Architecture != "amd64" && item.Architecture != "all" || !strings.HasPrefix(item.Path, "debs/") || !strings.HasSuffix(item.Path, ".deb") {
@@ -220,6 +222,13 @@ func ValidateDocumentImageAssemblyManifest(value DocumentImageAssemblyManifest) 
 			return false
 		}
 	}
+	if len(value.VerificationInputs)>64 { return false }
+	verificationBytes:=int64(0)
+	for i,item:=range value.VerificationInputs {
+		if item.Bytes>1<<20 || !regexp.MustCompile(`^verification/installed-[0-9]{4}\.json$`).MatchString(item.Path) || i>0&&value.VerificationInputs[i-1].Path>=item.Path { return false }
+		verificationBytes+=item.Bytes
+		if verificationBytes>32<<20 { return false }
+	}
 	return true
 }
 
@@ -229,5 +238,6 @@ func DocumentImageAssemblyInputs(value DocumentImageAssemblyManifest) []Document
 		items = append(items, item.DocumentImageAssemblyInput)
 	}
 	items = append(items, value.Wheels...)
-	return append(items, value.Notices...)
+	items=append(items, value.Notices...)
+	return append(items,value.VerificationInputs...)
 }
