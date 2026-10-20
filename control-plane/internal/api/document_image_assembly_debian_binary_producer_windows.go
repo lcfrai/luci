@@ -25,6 +25,17 @@ func newDebianBinaryProofNativeOwner(ctx context.Context)*debianProofNativeOwner
  o:=newDebianProofNativeOwner(ctx);o.workDeadline=o.began.Add(300*time.Second);o.wholeDeadline=o.began.Add(420*time.Second);return o
 }
 
+func(o *debianProofNativeOwner)positiveBinaryCompletion(result debianProofChildResult)bool{
+ if o==nil||o.stopped.Load()||!o.observerStarted.Load()||!o.processCensusSettled()||len(o.jobs)!=1||len(o.lifetimes)!=1||!time.Now().Before(o.workLimit()){return false}
+ select{case<-o.watchDone:default:return false}
+ o.observer.mu.Lock();closed:=o.observer.closed&&o.observer.err==nil;o.observer.mu.Unlock();if !closed{return false}
+ job:=o.jobs[0];job.mu.Lock();closed=job.settled&&job.handle==0&&job.borrowers==0&&job.ordinal==0;job.mu.Unlock();if !closed{return false}
+ life:=o.lifetimes[0]
+ if !life.processSettled||!life.readersSettled||life.pid!=result.PID||life.creation!=result.CreationTime{return false}
+ for _,h:=range life.handles{if h!=0{return false}}
+ return result.Ordinal==0&&result.PID!=0&&result.CreationTime!=0&&result.Exit==0&&result.OriginalHandleOwned&&result.ExitConfirmed&&result.JobEmpty&&result.HandlesClosed&&result.CaptureSettled&&!result.Started.IsZero()&&!result.Ended.Before(result.Started)&&result.Ended.Sub(result.Started)<=300*time.Second
+}
+
 func binaryOriginalIdentity(v windows.ByHandleFileInformation)string{
  values:=[]uint64{1,uint64(v.FileAttributes),uint64(v.VolumeSerialNumber),uint64(v.FileIndexHigh)<<32|uint64(v.FileIndexLow),uint64(v.FileSizeHigh)<<32|uint64(v.FileSizeLow),uint64(v.CreationTime.HighDateTime)<<32|uint64(v.CreationTime.LowDateTime),uint64(v.LastWriteTime.HighDateTime)<<32|uint64(v.LastWriteTime.LowDateTime),uint64(v.NumberOfLinks)}
  parts:=make([]string,len(values));for i,v:=range values{parts[i]=strconv.FormatUint(v,10)};return strings.Join(parts,",")

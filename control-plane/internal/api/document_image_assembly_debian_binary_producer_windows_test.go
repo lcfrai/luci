@@ -46,3 +46,17 @@ func TestBinaryNewOwnerHasIndependentFixedClocksWithoutResettingSignatureOwner(t
  if signature.workDeadline.Sub(signature.began)!=40*time.Second||signature.wholeDeadline.Sub(signature.began)!=60*time.Second||binary.workDeadline.Sub(binary.began)!=300*time.Second||binary.wholeDeadline.Sub(binary.began)!=420*time.Second{t.Fatal("purpose clocks reset or widened legacy owner")}
  if signature.observerStarted.Load()||binary.observerStarted.Load(){t.Fatal("metadata construction started native observation")}
 }
+
+func TestBinarySemanticCompletionRequiresOriginalSettledLifetime(t *testing.T){
+ // Inert original-handle metadata only; no Windows call is installed/executed.
+ for _,boundary:=range []string{"complete","pid","creation","readers","process","handle","job","watchdog","observer","nonzero","unclosed"}{t.Run(boundary,func(t *testing.T){
+  now:=time.Now();done:=make(chan struct{});close(done)
+  o:=&debianProofNativeOwner{began:now,workDeadline:now.Add(time.Minute),watchDone:done,observer:&debianProofObserver{closed:true}}
+  o.census=newDebianProofNativeCensus(o);o.observerStarted.Store(true)
+  o.jobs=[]*debianProofJob{{settled:true,ordinal:0}}
+  o.lifetimes=[]*debianProofLifetime{{processSettled:true,readersSettled:true,pid:10,creation:20}}
+  result:=debianProofChildResult{Ordinal:0,PID:10,CreationTime:20,Started:now,Ended:now,OriginalHandleOwned:true,ExitConfirmed:true,JobEmpty:true,HandlesClosed:true,CaptureSettled:true}
+  switch boundary{case "pid":result.PID++;case "creation":result.CreationTime++;case "readers":o.lifetimes[0].readersSettled=false;case "process":o.lifetimes[0].processSettled=false;case "handle":o.lifetimes[0].handles=[]windows.Handle{99};case "job":o.jobs[0].handle=99;case "watchdog":o.watchDone=make(chan struct{});case "observer":o.observer.closed=false;case "nonzero":result.Exit=7;case "unclosed":result.HandlesClosed=false}
+  if o.positiveBinaryCompletion(result)!=(boundary=="complete"){t.Fatal("native closure boundary lost",boundary)}
+ })}
+}
