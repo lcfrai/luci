@@ -22,6 +22,7 @@ type assemblyEvidenceOwner struct {
 	busy                             bool
 	loan                             *DocumentImageAssemblyBinaryReadReservation
 	loanEpoch                        uint64
+	binaryMetadataUsed               bool
 }
 
 type assemblyEvidenceToken struct {

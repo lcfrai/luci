@@ -20,6 +20,23 @@ type DocumentImageAssemblyBinaryReadSubject struct {
 	Digest string
 }
 
+// Read-only shared identity of one already-held ordinary original. No HANDLE,
+// path, cursor or ownership capability is exported by this description.
+type DocumentImageAssemblyBinaryIdentity struct {
+ FileType uint32 `json:"fileType"`
+ FileAttributes uint32 `json:"fileAttributes"`
+ VolumeSerial uint32 `json:"volumeSerial"`
+ FileIndex uint64 `json:"fileIndex"`
+ Bytes uint64 `json:"bytes"`
+ CreationFileTime uint64 `json:"creationFileTime"`
+ LastWriteFileTime uint64 `json:"lastWriteFileTime"`
+ Links uint32 `json:"links"`
+}
+type DocumentImageAssemblyBinaryFingerprint struct {
+ Slot uint16 `json:"slot"`
+ Identity DocumentImageAssemblyBinaryIdentity `json:"identity"`
+}
+
 type DocumentImageAssemblyBinaryReadRequest struct {
 	Purpose      string
 	LoanID       string

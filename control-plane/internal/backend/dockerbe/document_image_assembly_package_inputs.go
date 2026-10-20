@@ -19,6 +19,7 @@ type assemblyPackageInputOwner struct {
 	objects                       []backend.DocumentImageAssemblyEvidenceObject // immutable request copy, never a public path accessor
 	loan                          *DocumentImageAssemblyBinaryReadReservation
 	loanEpoch                     uint64
+	binaryMetadataUsed            bool
 	ready, retiring, closed, busy bool
 }
 
