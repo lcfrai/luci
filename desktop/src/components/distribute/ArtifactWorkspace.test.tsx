@@ -1,15 +1,19 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { distributeArtifactsApi, type DistributeArtifact } from '../../api/distributeArtifacts';
 import { projectRunsApi } from '../../api/projectRuns';
+import { productApi } from '../../api/product';
 import { resetCockpit } from '../../store/store';
 import { ArtifactWorkspace } from './ArtifactWorkspace';
 
+const workspace=vi.hoisted(()=>({scope:'account-one/workspace-one/p-one' as string|null}));
+vi.mock('../../hooks/useProjectDraft',()=>({useProjectDraftScope:()=>workspace.scope}));
+const retirementTimers:number[]=[];
 const digest='a'.repeat(64);
 const draft:DistributeArtifact={id:'artifact-123',projectId:'p-one',revision:1,kind:'risk',source:{briefRevision:1,briefDigest:digest,specificationRevision:1,specificationDigest:digest,designRevision:1,designDigest:digest,planRevision:1,planDigest:digest,checks:'not-selected',release:'not-selected'},sourceDigest:digest,title:'Risk and evidence review',sections:[{id:'purpose',heading:'Saved product purpose',body:'Saved Orchard tasklist brief',bullets:['Audience: local users'],sourceRefs:[`brief:1:${digest}`]}],gaps:['No exact check receipt was selected.'],assumptions:['Likelihood requires review.'],state:'draft',digest,at:'2026-10-15T00:00:00Z'};
-beforeEach(()=>{vi.restoreAllMocks();resetCockpit();vi.spyOn(distributeArtifactsApi,'list').mockResolvedValue({projectId:'p-one',artifacts:[]})});
-afterEach(cleanup);
+beforeEach(()=>{vi.restoreAllMocks();workspace.scope='account-one/workspace-one/p-one';resetCockpit();vi.spyOn(distributeArtifactsApi,'list').mockResolvedValue({projectId:'p-one',artifacts:[]})});
+afterEach(()=>{cleanup();for(const timer of retirementTimers.splice(0))window.clearTimeout(timer);vi.unstubAllGlobals()});
 
 it('keeps preparation private, saves exact source, then records a review without publication',async()=>{
   const prepare=vi.spyOn(distributeArtifactsApi,'prepare').mockResolvedValue({draft,prepareDigest:digest});
@@ -112,4 +116,71 @@ it('retries an uncertain exact review with the same key after switching artifact
   expect(review.mock.calls[0][2]).toBe(review.mock.calls[1][2]);
   expect(review.mock.calls[0][1]).toMatchObject({id:draft.id,revision:1,digest:draft.digest});
   expect(review.mock.calls[1][1]).toMatchObject({id:draft.id,revision:1,digest:draft.digest});
+});
+
+function deferredArtifactExport(){
+  vi.mocked(distributeArtifactsApi.list).mockResolvedValue({projectId:'p-one',artifacts:[{id:draft.id,kind:draft.kind,title:draft.title,revision:draft.revision,state:draft.state,freshness:'current',digest:draft.digest}]});
+  vi.spyOn(distributeArtifactsApi,'get').mockResolvedValue({artifact:draft,freshness:'current'});
+  let finish!:(value:Blob)=>void;
+  const request=vi.spyOn(productApi,'requestBlob').mockImplementation(()=>new Promise<Blob>(resolve=>{finish=resolve}));
+  const create=vi.fn(()=> 'blob:private-artifact');
+  const revoke=vi.fn();
+  vi.stubGlobal('URL',class extends URL {static createObjectURL=create;static revokeObjectURL=revoke});
+  const click=vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(()=>{});
+  const originalTimeout=window.setTimeout.bind(window);
+  vi.spyOn(window,'setTimeout').mockImplementation((handler,timeout,...args)=>{
+    const timer=originalTimeout(handler,timeout,...args);
+    // Keep the real timing; clear pending one-second URL callbacks before
+    // restoring the URL test double. No timeout fires early to pass a test.
+    if(timeout===1000)retirementTimers.push(timer);
+    return timer;
+  });
+  return {request,create,click,revoke,finish:()=>finish(new Blob(['private saved artifact']))};
+}
+
+it.each(['unmount','project change and back','account change and back','workspace change and back','read grant change and back'])(
+  'does not publish a delayed private artifact export after %s',async(change)=>{
+    const pending=deferredArtifactExport();
+    const view=render(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+    await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+    await userEvent.click(screen.getByRole('button',{name:'Download DOCX'}));
+    expect(pending.request).toHaveBeenCalledExactlyOnceWith(`/v1/product/projects/p-one/distribute/artifacts/${draft.id}/exports/docx?digest=${digest}`);
+    if(change==='unmount')view.unmount();
+    else if(change==='project change and back'){
+      view.rerender(<ArtifactWorkspace projectId="p-two" canRead canEdit/>);
+      view.rerender(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+    }else if(change==='read grant change and back'){
+      view.rerender(<ArtifactWorkspace projectId="p-one" canRead={false} canEdit={false}/>);
+      view.rerender(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+    }else{
+      workspace.scope=change==='account change and back'?'account-two/workspace-one/p-one':'account-one/workspace-two/p-one';
+      view.rerender(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+      workspace.scope='account-one/workspace-one/p-one';
+      view.rerender(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+    }
+    await act(async()=>{pending.finish()});
+    expect(pending.create).not.toHaveBeenCalled();
+    expect(pending.click).not.toHaveBeenCalled();
+    expect(pending.request).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each(['DOCX','PPTX','XLSX'])('downloads the exact saved %s artifact while current read-only access remains valid',async(format)=>{
+  const pending=deferredArtifactExport();
+  render(<ArtifactWorkspace projectId="p-one" canRead canEdit={false}/>);
+  await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+  await userEvent.click(screen.getByRole('button',{name:`Download ${format}`}));
+  await act(async()=>{pending.finish()});
+  expect(pending.request).toHaveBeenCalledExactlyOnceWith(`/v1/product/projects/p-one/distribute/artifacts/${draft.id}/exports/${format.toLowerCase()}?digest=${digest}`);
+  expect(pending.create).toHaveBeenCalledTimes(1);
+  expect(pending.click).toHaveBeenCalledTimes(1);
+});
+
+it('requires a known account and workspace before offering private artifact downloads',async()=>{
+  const pending=deferredArtifactExport();
+  workspace.scope=null;
+  render(<ArtifactWorkspace projectId="p-one" canRead canEdit/>);
+  await userEvent.click(await screen.findByRole('button',{name:/Risk and evidence review · revision 1/}));
+  expect(screen.getByRole('button',{name:'Download DOCX'}).hasAttribute('disabled')).toBe(true);
+  expect(pending.request).not.toHaveBeenCalled();
 });
