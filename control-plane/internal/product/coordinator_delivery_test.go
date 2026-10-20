@@ -20,6 +20,34 @@ import (
 func coordinatorDeliveryFixture(t *testing.T, commands ...CheckCommand) (*Server, project.Project, http.Handler, context.Context, CoordinatorContinuation, *atomic.Int32) {
 	t.Helper()
 	s, p, h, ctx, request, _ := coordinatorContinuationFixture(t)
+	base := "/v1/product/projects/" + p.ID
+	state, err := s.readApprovedJourney(p.Path, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tasks := currentPlan(state, p.ID).Tasks
+	tasks[0].Role, tasks[0].WritePaths = "coding", []string{"result.txt"}
+	tasks = append(tasks, ProjectTask{ID: "task-review", Title: "Independently review delivered source", Status: "todo", Role: "reviewer", ReviewOfTaskID: "task-save", RequirementIDs: []string{"AC-save"}, Acceptance: "Inspect the exact candidate and report an independent review."})
+	var plan ProjectPlan
+	decodeEvidenceResponse(t, journeyRequest(t, h, "POST", base+"/plan", map[string]any{"expectedRevision": state.Plan.Revision, "expectedSpecificationRevision": state.Specification.Revision, "tasks": tasks}, 200).Body.Bytes(), &plan)
+	journeyRequest(t, h, "POST", base+"/git/commit", reviewedCommitRequest(t, h, base+"/git/commit", "Save independent delivery review scope"), 200)
+	turn, _ := reserveOrchestratorTest(t, s, p.ID, ctx, "Continue independently reviewed delivery", "")
+	if err = s.CompleteOrchestratorTurn(p.ID, turn.ID, turn.JobID, "succeeded", &OrchestratorAnswer{Summary: "Use the saved coding and independent reviewer scopes.", Options: []string{}, Impact: []string{}, NextAction: "build"}); err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.OrchestratorView(ctx, p.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.OriginTurnID, request.ExpectedContextDigest = turn.ID, view.Context.Digest
+	request.Run.ImplementationContext.PlanRevision = plan.Revision
+	request.Run.ImplementationContext.TaskIDs = []string{"task-save", "task-review"}
+	prepare := contractRequest(request.Run)
+	prepare.IdempotencyKey = "delivery-reviewed-contract-123456"
+	endpoint := base + "/orchestration-contracts"
+	prepared := contractResponse(t, journeyRequest(t, h, "POST", endpoint+"/prepare", prepare, 201).Body.Bytes())
+	approved := contractResponse(t, journeyRequest(t, h, "POST", endpoint+"/"+prepared.Contract.ID+"/approve", map[string]any{"expectedRevision": prepared.Contract.Revision, "expectedDigest": prepared.Contract.Digest}, 200).Body.Bytes())
+	request.Run.OrchestrationContract = &OrchestrationContractSelection{ID: approved.Contract.ID, Revision: approved.Contract.Revision, Digest: approved.Contract.Digest, ApprovalID: approved.Contract.Approval.ID}
 	return coordinatorDeliveryRequestFixture(t, s, p, h, ctx, request, commands...)
 }
 

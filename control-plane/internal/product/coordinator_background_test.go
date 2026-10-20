@@ -3,6 +3,8 @@ package product
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -38,7 +40,17 @@ func coordinatorFixtureReauthorize(ctx context.Context, ref management.Execution
 	if ref.UserID != "alice" || ref.Local || harness != "codex" || !secrets {
 		return nil, errCoordinatorAuthority
 	}
-	return management.WithExecutionAuthority(ctx, management.ExecutionAuthority{Actor: management.User{ID: "alice", Role: "member"}}), nil
+	// Reacquire the same authenticated fixture policy captured at approval;
+	// a zero-policy authority is a real policy change, not a fresh grant.
+	var current context.Context
+	handler := contextHistoryActorHandler(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		current = r.Context()
+	}), management.User{ID: "alice", Username: "alice", DisplayName: "Alice", Role: "member"})
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(ctx, http.MethodGet, "http://fixture.invalid/", nil))
+	if current == nil {
+		return nil, errCoordinatorAuthority
+	}
+	return current, nil
 }
 func TestCoordinatorBackgroundContinuesWithoutBrowserAndReopensWithoutReplay(t *testing.T) {
 	s, p, _, request, req, starts := coordinatorContinuationFixture(t)
