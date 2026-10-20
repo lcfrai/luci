@@ -18,11 +18,24 @@ const statuses:ControlStatus[]=['unreviewed','unknown','supported','partial','mi
 function emptyResults(view:AssessmentView):ControlResult[]{return view.library?.controls.map(row=>view.assessment.results.find(result=>result.controlId===row.id)??{controlId:row.id,status:'unreviewed',evidenceRefs:[],note:''})??[];}
 
 function EvidencePicker({projectId,onSelect}:{projectId:string;onSelect:(link:ControlResult['evidenceRefs'][number])=>void}){
-  const [documents,setDocuments]=useState<DiscoveryDocument[]>([]),[document,setDocument]=useState<DiscoveryDocument|null>(null),[choice,setChoice]=useState(''),[error,setError]=useState('');
+  const [documents,setDocuments]=useState<DiscoveryDocument[]>([]),[document,setDocument]=useState<DiscoveryDocument|null>(null),[documentId,setDocumentId]=useState(''),[choice,setChoice]=useState(''),[error,setError]=useState('');
   const [cursor,setCursor]=useState(''),[segmentPage,setSegmentPage]=useState(0);
-  useEffect(()=>{let live=true;discoveryDocumentsApi.list(projectId).then(view=>{if(live){setDocuments(view.documents);setCursor(view.nextCursor)}}).catch(cause=>{if(live)setError(errorText(cause))});return()=>{live=false}},[projectId]);
+  const current=useRef({mounted:true,generation:0,controller:null as AbortController|null});
+  useEffect(()=>{let live=true;current.current.mounted=true;discoveryDocumentsApi.list(projectId).then(view=>{if(live){setDocuments(view.documents);setCursor(view.nextCursor)}}).catch(cause=>{if(live)setError(errorText(cause))});return()=>{live=false;current.current.mounted=false;current.current.generation++;current.current.controller?.abort()}},[projectId]);
+  function selectDocument(id:string){
+    const generation=++current.current.generation;
+    current.current.controller?.abort();current.current.controller=null;
+    setDocumentId(id);setDocument(null);setChoice('');setSegmentPage(0);setError('');
+    if(!id)return;
+    const controller=new AbortController();current.current.controller=controller;
+    discoveryDocumentsApi.get(projectId,id,controller.signal).then(next=>{
+      if(!current.current.mounted||generation!==current.current.generation||controller.signal.aborted)return;
+      if(next.id!==id||next.projectId!==projectId){setError('The selected document could not be verified. Choose it again.');return}
+      setDocument(next);
+    }).catch(cause=>{if(current.current.mounted&&generation===current.current.generation&&!controller.signal.aborted)setError(errorText(cause))}).finally(()=>{if(generation===current.current.generation)current.current.controller=null});
+  }
   const segments=useMemo(()=>document?.extractions.filter(row=>row.status==='ready'||row.status==='needs-review').flatMap(extraction=>extraction.pages.flatMap(page=>page.segments.map(segment=>({extraction,page,segment}))))??[],[document]);
-  return <div className="distribute-evidence"><label>Private document<select value={document?.id??''} onChange={event=>{const id=event.target.value;setDocument(null);setChoice('');setSegmentPage(0);if(id)discoveryDocumentsApi.get(projectId,id).then(setDocument).catch(cause=>setError(errorText(cause)))}}><option value="">Choose a document</option>{documents.map(row=><option key={row.id} value={row.id}>{row.original.name}</option>)}</select></label>{cursor&&<Button type="button" variant="tertiary" onClick={()=>discoveryDocumentsApi.list(projectId,cursor).then(view=>{setDocuments(old=>[...old,...view.documents]);setCursor(view.nextCursor)}).catch(cause=>setError(errorText(cause)))}>More documents</Button>}
+  return <div className="distribute-evidence"><label>Private document<select value={documentId} onChange={event=>selectDocument(event.target.value)}><option value="">Choose a document</option>{documents.map(row=><option key={row.id} value={row.id}>{row.original.name}</option>)}</select></label>{cursor&&<Button type="button" variant="tertiary" onClick={()=>discoveryDocumentsApi.list(projectId,cursor).then(view=>{setDocuments(old=>[...old,...view.documents]);setCursor(view.nextCursor)}).catch(cause=>setError(errorText(cause)))}>More documents</Button>}
     <label>Extracted source segment<select value={choice} onChange={event=>setChoice(event.target.value)}><option value="">Choose a segment</option>{segments.slice(segmentPage*100,segmentPage*100+100).map(({extraction,page,segment})=><option key={`${extraction.revision}:${page.page}:${segment.id}`} value={`${extraction.revision}:${page.page}:${segment.id}`}>Page {page.page} · {segment.text.slice(0,100)}</option>)}</select></label>{segments.length>100&&<div className="journey-actions"><Button type="button" variant="tertiary" disabled={segmentPage===0} onClick={()=>{setSegmentPage(value=>value-1);setChoice('')}}>Previous segments</Button><span>Segments {segmentPage*100+1}–{Math.min((segmentPage+1)*100,segments.length)} of {segments.length}</span><Button type="button" variant="tertiary" disabled={(segmentPage+1)*100>=segments.length} onClick={()=>{setSegmentPage(value=>value+1);setChoice('')}}>Next segments</Button></div>}
     <Button type="button" variant="secondary" disabled={!document||!choice} onClick={()=>{const match=segments.find(({extraction,page,segment})=>`${extraction.revision}:${page.page}:${segment.id}`===choice);if(document&&match)onSelect(discoverySourceLink(document,match.extraction,match.page,match.segment))}}>Link exact source</Button>{error&&<p role="alert">{error}</p>}</div>;
 }
