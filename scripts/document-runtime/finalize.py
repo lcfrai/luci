@@ -16,17 +16,15 @@ import os
 from pathlib import Path
 import re
 import stat
-import struct
 import tarfile
 
 HEX = re.compile(r"^[0-9a-f]{64}$")
 COMMIT = re.compile(r"^[0-9a-f]{40}$")
-MAGIC = b"LUCI-DOCUMENT-OCI/1\n"
-END = b"\nLUCI-DOCUMENT-OCI-END/1\n"
 MAX_CAPTURE = 2 << 30
 MAX_META = 1 << 20
 MAX_LAYER = 2 << 30
 MAX_ARCHIVE = 8 << 30
+MAX_NOTICES = 32 << 20
 BLOCK = 64 << 10
 ENTRY = ["/usr/bin/python3", "-I", "/opt/luci/document_extractor.py"]
 
@@ -188,12 +186,16 @@ def inspect_layer(layer_path: Path, closure, identity, notice_closure):
     if notice_closure.get("schema") != 1 or notice_closure.get("kind") != "luci-document-notice-source-closure-v1" or notice_closure.get("inputClosureSha256") != closure["digest"] or not HEX.fullmatch(str(notice_closure.get("sourceRetentionDigest", ""))) or not isinstance(expected_notices, list) or not 1 <= len(expected_notices) <= 512:
         refuse("notice closure is absent or mismatched")
     notices = {}
+    notice_bytes = 0
     for item in expected_notices:
-        if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not item["path"].startswith("notices/") or not member_name(item["path"]) or not HEX.fullmatch(str(item.get("sha256", ""))) or not 1 <= item.get("bytes", 0) <= 1 << 20 or not all(isinstance(item.get(k), str) and 0 < len(item[k]) <= 512 for k in ("component", "version", "grant", "provenance")):
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not item["path"].startswith("notices/") or not member_name(item["path"]) or not HEX.fullmatch(str(item.get("sha256", ""))) or type(item.get("bytes")) is not int or not 1 <= item["bytes"] <= 1 << 20 or not all(isinstance(item.get(k), str) and 0 < len(item[k]) <= 512 for k in ("component", "version", "grant", "provenance")):
             refuse("notice closure entry invalid")
         path = "opt/luci/licenses/" + item["path"][len("notices/"):]
         if path in notices:
             refuse("duplicate notice")
+        notice_bytes += item["bytes"]
+        if notice_bytes > MAX_NOTICES:
+            refuse("notice sidecars exceed aggregate bound")
         notices[path] = item
     wanted = {"opt/luci/document_extractor.py", "opt/luci/assembly-manifest.json", *notices}
     found = {}
@@ -237,14 +239,16 @@ def inspect_layer(layer_path: Path, closure, identity, notice_closure):
     extractor = found["opt/luci/document_extractor.py"]
     if hashlib.sha256(extractor).hexdigest() != manifest.get("extractor", {}).get("digest"):
         refuse("embedded extractor differs")
-    return hashlib.sha256(extractor).hexdigest(), manifest
+    sidecars = {item["path"]: found[path] for path, item in notices.items()}
+    return hashlib.sha256(extractor).hexdigest(), sidecars
 
 
 def finalize(args):
     capture = Path(args.capture)
-    capture_hash, capture_bytes = digest_file(capture, MAX_CAPTURE)
-    if capture_hash != args.capture_sha256:
-        refuse("capture differs from independent pin")
+    capture_bytes = regular(capture, MAX_CAPTURE)
+    capture_hash = args.capture_sha256
+    if not HEX.fullmatch(capture_hash):
+        refuse("independent capture pin missing")
     receipt = pinned_json(Path(args.assembly_receipt), args.assembly_receipt_sha256)
     outcome, closure, identity = exact_receipt(receipt, capture_hash, capture_bytes)
     notice_path = Path(args.notice_closure)
@@ -260,13 +264,10 @@ def finalize(args):
     layer_path = target / "layer.tar"
     metadata = {}
     with capture.open("rb") as source:
-        if source.read(len(MAGIC)) != MAGIC:
-            refuse("assembler frame magic changed")
-        declared = struct.unpack(">Q", source.read(8))[0]
-        frame_digest = source.read(32)
-        if declared < 1024 or declared > MAX_CAPTURE - len(MAGIC) - 8 - 32 - len(END) or len(frame_digest) != 32:
-            refuse("assembler frame length invalid")
-        bounded = BoundedHashReader(source, declared)
+        opened = os.fstat(source.fileno())
+        if not stat.S_ISREG(opened.st_mode) or opened.st_size != capture_bytes or opened.st_nlink != 1:
+            refuse("retained capture identity changed")
+        bounded = BoundedHashReader(source, capture_bytes)
         with tarfile.open(fileobj=bounded, mode="r|") as archive:
             seen = set()
             layer_descriptor = None
@@ -274,15 +275,17 @@ def finalize(args):
                 if not member.isfile() or not member_name(member.name) or member.name in seen or member.size < 1:
                     refuse("OCI member invalid or duplicated")
                 seen.add(member.name)
+                if len(seen) > 5:
+                    refuse("OCI archive has extra members")
                 stream = archive.extractfile(member)
                 if stream is None:
                     refuse("OCI member unreadable")
-                if member.name in ("oci-layout", "index.json") or member.name.startswith("blobs/sha256/") and member.size <= MAX_META:
-                    if member.size > MAX_META or len(metadata) >= 4:
+                if len(seen) <= 4:
+                    if member.size > MAX_META or not (member.name in ("oci-layout", "index.json") or member.name.startswith("blobs/sha256/") and HEX.fullmatch(member.name[len("blobs/sha256/"):])):
                         refuse("OCI metadata bound exceeded")
                     metadata[member.name] = stream.read(MAX_META + 1)
                 else:
-                    if layer_descriptor is not None or not metadata.get("index.json"):
+                    if layer_descriptor is not None or len(metadata) != 4:
                         refuse("OCI layer order invalid")
                     layer_descriptor, config_bytes, config, diff = oci_index(metadata)
                     if member.name != "blobs/sha256/" + layer_descriptor["digest"][7:] or member.size != layer_descriptor["size"] or member.size > MAX_CAPTURE:
@@ -304,16 +307,20 @@ def finalize(args):
                     if compressed.hash.hexdigest() != layer_descriptor["digest"][7:] or expanded_hash.hexdigest() != diff[7:]:
                         refuse("OCI layer digest differs")
         bounded.drain()
-        if bounded.hash.digest() != frame_digest or source.read(len(END)) != END or source.read(1) != b"":
-            refuse("assembler frame digest, ending or EOF invalid")
+        after = os.fstat(source.fileno())
+        if bounded.hash.hexdigest() != capture_hash or bounded.read_bytes != capture_bytes or source.read(1) != b"" or (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+            refuse("retained bare OCI capture digest, identity or EOF changed")
     if layer_descriptor is None or len(seen) != 5:
         refuse("OCI inventory incomplete")
-    if digest_file(capture, MAX_CAPTURE) != (capture_hash, capture_bytes):
-        refuse("captured assembler bytes changed during conversion")
     labels = config["config"].get("Labels") or {}
     if labels.get("org.opencontainers.image.revision") != identity["sourceCommit"] or labels.get("luci.document-source") != identity["sourceDigest"] or labels.get("luci.document-input-manifest") != identity["inputDigest"] or labels.get("luci.document-source-retention") != notice.get("sourceRetentionDigest"):
         refuse("OCI config source binding differs")
-    extractor_sha, assembly_manifest = inspect_layer(layer_path, closure, identity, notice)
+    extractor_sha, sidecars = inspect_layer(layer_path, closure, identity, notice)
+    for name, contents in sorted(sidecars.items()):
+        destination = target / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with destination.open("xb") as output:
+            output.write(contents)
     image_id = "sha256:" + hashlib.sha256(config_bytes).hexdigest()
     layer_name = "layer/layer.tar"
     config_name = image_id[7:] + ".json"
@@ -350,7 +357,9 @@ def finalize(args):
     (target / "document-runtime-finalizer-receipt-v1.json").write_bytes(encoded({
         "version": 1, "kind": "luci-document-finalizer-candidate", "manifestSha256": hashlib.sha256(manifest_bytes).hexdigest(),
         "captureSha256": capture_hash, "assemblyReceiptSha256": args.assembly_receipt_sha256,
-        "noticeClosureSha256": args.notice_closure_sha256, "releaseAuthority": "none"}))
+        "noticeClosureSha256": args.notice_closure_sha256,
+        "noticeSidecars": [{"path": name, "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)} for name, data in sorted(sidecars.items())],
+        "releaseAuthority": "none"}))
 
 
 def main():
