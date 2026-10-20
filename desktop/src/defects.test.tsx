@@ -18,6 +18,8 @@ import {
 import { ApiError } from "./api/client";
 import { productApi, type SetupStatus } from "./api/product";
 import { projectRunsApi } from "./api/projectRuns";
+import { projectHomeApi } from "./api/projectHome";
+import * as projectDraft from "./hooks/useProjectDraft";
 import { completeOnboardingVisit, onboardingKey } from "./preferences/onboarding";
 import type { CockpitClient } from "./api/client";
 import { POLL_INTERVAL_MS } from "./api/poller";
@@ -182,6 +184,17 @@ beforeEach(() => {
     return status;
   });
   vi.spyOn(projectRunsApi, "list").mockResolvedValue([]);
+  // App is mounted without the outer account provider here. Model its known
+  // actor/workspace scope and the independent Home projection, rather than
+  // expecting the rail to expose unprojected catalogue rows.
+  vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue("fixture:actor:workspace");
+  vi.spyOn(projectHomeApi, "getAll").mockImplementation(async () => {
+    if (server.fail) throw server.fail;
+    const projects = server.projects as { id: string; name: string }[];
+    return { version: 1, revision: 1, pinnedProjectIds: projects.map(project => project.id),
+      projects: projects.map(project => ({ id: project.id, name: project.name,
+        working: false, needsInput: false, queued: false, unknown: false, stops: [] })) };
+  });
   for (const key of Object.keys(server.calls) as (keyof typeof server.calls)[]) {
     server.calls[key] = 0;
   }
@@ -335,6 +348,7 @@ describe("the assembled cockpit", () => {
     const { container } = render(<App />);
     await settle();
     expect(shownError()).toContain("projects answered 500");
+    expect([...container.querySelectorAll(".rail .rail-name")].map(el => el.textContent)).not.toContain("luci");
     const firstTicks = server.calls.sessions;
 
     // Every value written, not the end state (clause 7). The retry on each good tick fails again
@@ -533,6 +547,7 @@ describe("the assembled cockpit", () => {
     await settle(POLL_INTERVAL_MS * 2);
     expect(useCockpit.getState().projects).toHaveLength(0);
     expect(server.calls.projects).toBe(1);
+    expect([...container.querySelectorAll(".rail .rail-name")].map(el => el.textContent)).not.toContain("luci");
 
     server.fail = null;
     await settle(POLL_INTERVAL_MS);
@@ -541,6 +556,10 @@ describe("the assembled cockpit", () => {
     expect(state.projects).toHaveLength(1);
     expect(state.harnesses).toHaveLength(1);
     expect(state.lastError).toBeNull();
+    // Catalogue recovery still happens on the first good session tick above.
+    // Home has its own 15-second read cycle; its failed launch read must recover
+    // before the rail can truthfully show this actor's pinned project.
+    await settle(15_000);
     const names = [...container.querySelectorAll(".rail .rail-name")].map((el) => el.textContent);
     expect(names).toContain("luci");
   });
@@ -835,13 +854,14 @@ describe("defect 1, in the assembled app", () => {
     useCockpit.setState({
       selection: { projectId: "p-1", branchId: "b-1", worktreeId: null, sessionId: null },
       lens: "develop",
+      workspaceSurface: "tools",
     });
 
     render(<App />);
     await settle();
 
     // A zero here is not a defect-1 failure: it means the pane never rendered. Check that
-    // the worktree load resolved, that `lens` is still "develop", and that AppShell's
+    // the worktree load resolved, that the Develop tools are open, and that AppShell's
     // Develop arm returns <DevelopLens/> rather than task 18's reserved LensPlaceholder.
     expect(FakeWebSocket.instances).toHaveLength(1);
     const term = grabTerm("s-1");
