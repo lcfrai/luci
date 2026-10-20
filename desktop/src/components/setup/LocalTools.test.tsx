@@ -230,9 +230,19 @@ it('prepares the distinct document package only on explicit administrator action
 });
 
 it('does not offer document preparation without current backing management permission', async () => {
- const fetcher=vi.fn<typeof fetch>().mockImplementation(async()=>new Response(JSON.stringify({name: '', email: ''})));
+ const fetcher=vi.fn<typeof fetch>().mockImplementation(async(url)=>{
+  const endpoint=String(url);
+  if(endpoint.endsWith('/git/identity'))return new Response(JSON.stringify({name:'Reader',email:'reader@example.invalid'}));
+  if(endpoint.endsWith('/runtime/install'))return new Response(JSON.stringify({status:'idle'}));
+  if(endpoint.endsWith('/setup/agents'))return new Response(JSON.stringify({providers:[{id:'anthropic',name:'Claude Code',configured:true}]}));
+  if(endpoint.endsWith('/setup/agent-connections'))return new Response(JSON.stringify({revision:0,activeConnectionId:'',connections:[]}));
+  throw new Error('Unexpected fixture request: '+endpoint);
+ });
  render(<LocalTools client={createProductClient('http://localhost', fetcher)} manageBacking={false} />);
  await userEvent.click(screen.getByText('Git identity, agent connection and runtime'));
+ await screen.findByDisplayValue('Reader');
+ expect(await screen.findByRole('button',{name:'Remove saved key'})).toBeTruthy();
+ expect(screen.queryByText('Loading Git identity and runtime…')).toBeNull();
  expect(screen.queryByRole('button', {name: 'Prepare document extraction'})).toBeNull();
  expect(screen.queryByRole('button', {name: 'Assemble document image artifact'})).toBeNull();
  expect(fetcher.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(0);
