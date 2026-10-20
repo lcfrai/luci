@@ -13,6 +13,7 @@ use tauri_plugin_shell::{
     process::Command,
     ShellExt,
 };
+mod document_runtime;
 mod local_access;
 mod state_dir;
 #[cfg(windows)]
@@ -269,6 +270,9 @@ pub fn run() {
                             .env("LUCI_LOCAL_ACCESS_TOKEN", access_token)
                             .env("LUCI_RUNTIME_DIR", runtime)
                             .env("LUCI_CLOUD_BUNDLE", cloud_bundle);
+                        let command = document_runtime::bundled_environment()
+                            .into_iter()
+                            .fold(command, |command, (name, value)| command.env(name, value));
                         spawn_owned_sidecar(command, Arc::clone(&exited))
                     }) {
                         Ok(process) => {
