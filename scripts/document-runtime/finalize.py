@@ -92,7 +92,10 @@ def pinned_json(path: Path, pin: str):
     raw = path.read_bytes()
     if hashlib.sha256(raw).hexdigest() != pin:
         refuse("metadata differs from independent pin")
-    return decode(raw)
+    value = decode(raw)
+    if not isinstance(value, dict):
+        refuse("pinned metadata must be an object")
+    return value
 
 
 def member_name(name: str) -> bool:
@@ -305,6 +308,8 @@ def finalize(args):
             refuse("assembler frame digest, ending or EOF invalid")
     if layer_descriptor is None or len(seen) != 5:
         refuse("OCI inventory incomplete")
+    if digest_file(capture, MAX_CAPTURE) != (capture_hash, capture_bytes):
+        refuse("captured assembler bytes changed during conversion")
     labels = config["config"].get("Labels") or {}
     if labels.get("org.opencontainers.image.revision") != identity["sourceCommit"] or labels.get("luci.document-source") != identity["sourceDigest"] or labels.get("luci.document-input-manifest") != identity["inputDigest"] or labels.get("luci.document-source-retention") != notice.get("sourceRetentionDigest"):
         refuse("OCI config source binding differs")
