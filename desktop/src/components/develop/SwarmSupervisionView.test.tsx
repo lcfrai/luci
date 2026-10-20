@@ -317,3 +317,126 @@ it('loads later pages only on request and appends in saved sequence order', asyn
   fireEvent.click(screen.getByRole('button', {name: 'Load next message page'})); await screen.findByText('Next claim');
   expect(get.mock.calls[1][2]).toBe(1); expect(screen.getByText(swarmMessageFixture().summary)).toBeTruthy();
 });
+
+it('opens an off-page attention question through one exact read and one bounded page without writes', async () => {
+  const question = swarmMessageFixture({id: 'msg-301', sequence: 301, summary: 'Which interface revision should the second coder use?'});
+  const attention = [{id: question.id, kind: 'question', taskId: 'b', action: {kind: 'open-message' as const, targetId: question.id}}];
+  const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture({attention}));
+  const exact = vi.spyOn(swarmSupervisionApi, 'message').mockResolvedValue({projectId: 'p-1', runId: 'run-1', runRevision: 1, message: question});
+  const post = vi.spyOn(swarmSupervisionApi, 'post'), ack = vi.spyOn(swarmSupervisionApi, 'ack'), p = props();
+  render(<SwarmSupervisionPanel {...p} canEdit={false} />);
+  const inspect = await screen.findByRole('button', {name: 'Inspect question msg-301'});
+  expect(exact).not.toHaveBeenCalled(); expect(get).toHaveBeenCalledOnce();
+  get.mockResolvedValue(swarmSupervisionFixture({attention, messages: [question], page: {after: 300, nextCursor: 301, hasMore: true, omitted: 25}}));
+  fireEvent.click(inspect);
+  await screen.findByText(question.summary);
+  expect(exact).toHaveBeenCalledOnce(); expect(exact).toHaveBeenCalledWith('p-1', 'run-1', question.id, expect.any(AbortSignal));
+  expect(get).toHaveBeenCalledTimes(2); expect(get.mock.calls[1][2]).toBe(300);
+  expect(screen.queryByText(swarmMessageFixture().summary)).toBeNull();
+  expect(screen.getByRole('button', {name: 'Return to first message page'})).toBeTruthy();
+  expect(screen.queryByRole('button', {name: 'Record resolution'})).toBeNull();
+  expect(post).not.toHaveBeenCalled(); expect(ack).not.toHaveBeenCalled(); expect(p.onWrite).not.toHaveBeenCalled();
+});
+
+it.each(['access', 'scope'] as const)('does not follow a delayed attention question after %s changes and returns', async change => {
+  const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture());
+  type Result = Awaited<ReturnType<typeof swarmSupervisionApi.message>>;
+  let complete!: (result: Result) => void;
+  const delayed = new Promise<Result>(resolve => { complete = resolve; });
+  const exact = vi.spyOn(swarmSupervisionApi, 'message').mockReturnValue(delayed), p = props();
+  const page = render(<SwarmSupervisionPanel {...p} />);
+  fireEvent.click(await screen.findByRole('button', {name: 'Inspect question msg-1'}));
+  await waitFor(() => expect(exact).toHaveBeenCalledOnce());
+  page.rerender(<SwarmSupervisionPanel {...p} {...(change === 'access' ? {canRead: false} : {recoveryScope: 'other-actor/workspace'})} />);
+  page.rerender(<SwarmSupervisionPanel {...p} />);
+  await act(async () => {});
+  const before = get.mock.calls.length;
+  await act(async () => { complete({projectId: 'p-1', runId: 'run-1', runRevision: 1, message: swarmMessageFixture()}); await delayed; });
+  await waitFor(() => expect(screen.queryByText('Reading saved supervision…')).toBeNull());
+  expect(get.mock.calls.length).toBe(before); expect(p.onWrite).not.toHaveBeenCalled();
+  expect((screen.getByRole('button', {name: 'Inspect question msg-1'}) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it('keeps the current page when an attention read returns a different message kind', async () => {
+  const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture());
+  vi.spyOn(swarmSupervisionApi, 'message').mockResolvedValue({projectId: 'p-1', runId: 'run-1', runRevision: 1, message: swarmMessageFixture({kind: 'decision'})});
+  render(<SwarmSupervisionPanel {...props()} />);
+  fireEvent.click(await screen.findByRole('button', {name: 'Inspect question msg-1'}));
+  await screen.findByText(/saved question readback is stale or unavailable/);
+  expect(get).toHaveBeenCalledOnce(); expect(screen.getByText(swarmMessageFixture().summary)).toBeTruthy();
+});
+
+it('preserves the old page if the selected question is absent from the exact bounded page', async () => {
+  const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture());
+  vi.spyOn(swarmSupervisionApi, 'message').mockResolvedValue({projectId: 'p-1', runId: 'run-1', runRevision: 1, message: swarmMessageFixture({sequence: 301})});
+  render(<SwarmSupervisionPanel {...props()} />);
+  const inspect = await screen.findByRole('button', {name: 'Inspect question msg-1'});
+  get.mockResolvedValue(swarmSupervisionFixture({messages: [], page: {after: 300, nextCursor: 300, hasMore: false, omitted: 0}}));
+  fireEvent.click(inspect);
+  await screen.findByText(/requested question page is missing or predates its exact readback/);
+  expect(get).toHaveBeenCalledTimes(2); expect(screen.getByText(swarmMessageFixture().summary)).toBeTruthy();
+});
+
+it('refuses a question page older than the preceding exact message readback', async () => {
+  const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture());
+  const question = swarmMessageFixture({sequence: 301, summary: 'Newer exact question'});
+  vi.spyOn(swarmSupervisionApi, 'message').mockResolvedValue({projectId: 'p-1', runId: 'run-1', runRevision: 2, message: question});
+  render(<SwarmSupervisionPanel {...props()} />);
+  const inspect = await screen.findByRole('button', {name: 'Inspect question msg-1'});
+  get.mockResolvedValue(swarmSupervisionFixture({messages: [question], page: {after: 300, nextCursor: 301, hasMore: false, omitted: 0}}));
+  fireEvent.click(inspect);
+  await screen.findByText(/requested question page is missing or predates its exact readback/);
+  expect(screen.queryByText(question.summary)).toBeNull(); expect(screen.getByText(swarmMessageFixture().summary)).toBeTruthy();
+});
+
+it.each(['access', 'scope'] as const)('drops a delayed question page after %s changes and returns', async change => {
+  const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture());
+  const question = swarmMessageFixture({sequence: 301, summary: 'Do not publish an old-scope question page'});
+  vi.spyOn(swarmSupervisionApi, 'message').mockResolvedValue({projectId: 'p-1', runId: 'run-1', runRevision: 1, message: question});
+  const p = props(), page = render(<SwarmSupervisionPanel {...p} />);
+  const inspect = await screen.findByRole('button', {name: 'Inspect question msg-1'});
+  let complete!: (result: ReturnType<typeof swarmSupervisionFixture>) => void;
+  const delayed = new Promise<ReturnType<typeof swarmSupervisionFixture>>(resolve => { complete = resolve; });
+  get.mockReturnValueOnce(delayed);
+  fireEvent.click(inspect);
+  await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+  page.rerender(<SwarmSupervisionPanel {...p} {...(change === 'access' ? {canRead: false} : {recoveryScope: 'other-actor/workspace'})} />);
+  page.rerender(<SwarmSupervisionPanel {...p} />);
+  await act(async () => { complete(swarmSupervisionFixture({messages: [question], page: {after: 300, nextCursor: 301, hasMore: false, omitted: 0}})); await delayed; });
+  await waitFor(() => expect(screen.queryByText('Reading saved supervision…')).toBeNull());
+  expect(screen.queryByText(question.summary)).toBeNull(); expect(p.onWrite).not.toHaveBeenCalled();
+  expect((screen.getByRole('button', {name: 'Inspect question msg-1'}) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it.each(['mismatched-target', 'unknown-action'] as const)('does not interpret %s attention as a question navigation grant', async kind => {
+  const attention = [{id: 'msg-1', kind: 'question', taskId: 'b', action: {kind: kind === 'unknown-action' ? 'https://outside.invalid/' : 'open-message', targetId: kind === 'mismatched-target' ? 'different-message' : 'msg-1'}}];
+  vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture({attention: attention as ReturnType<typeof swarmSupervisionFixture>['attention']}));
+  const exact = vi.spyOn(swarmSupervisionApi, 'message');
+  render(<SwarmSupervisionPanel {...props()} />);
+  await screen.findByText(/supervision page could not be verified/);
+  expect(screen.queryByRole('button', {name: /Inspect question/})).toBeNull(); expect(screen.queryByRole('link')).toBeNull();
+  expect(exact).not.toHaveBeenCalled();
+});
+
+it.each(['exact-message', 'question-page'] as const)('drops a delayed %s rejection after scope changes and returns while restoring read controls', async phase => {
+  const get = vi.spyOn(swarmSupervisionApi, 'get').mockResolvedValue(swarmSupervisionFixture());
+  const exact = vi.spyOn(swarmSupervisionApi, 'message').mockResolvedValue({projectId: 'p-1', runId: 'run-1', runRevision: 1, message: swarmMessageFixture()});
+  const post = vi.spyOn(swarmSupervisionApi, 'post'), ack = vi.spyOn(swarmSupervisionApi, 'ack');
+  const p = props(), page = render(<SwarmSupervisionPanel {...p} />);
+  const inspect = await screen.findByRole('button', {name: 'Inspect question msg-1'});
+  let reject!: (cause: Error) => void;
+  const delayed = new Promise<never>((_, fail) => { reject = fail; });
+  if (phase === 'exact-message') exact.mockReturnValueOnce(delayed);
+  else get.mockReturnValueOnce(delayed);
+  fireEvent.click(inspect);
+  await waitFor(() => expect(phase === 'exact-message' ? exact.mock.calls.length : get.mock.calls.length).toBe(phase === 'exact-message' ? 1 : 2));
+  page.rerender(<SwarmSupervisionPanel {...p} recoveryScope="other-actor/workspace" />);
+  page.rerender(<SwarmSupervisionPanel {...p} />);
+  await act(async () => { reject(new Error('Old scope private read failed')); await delayed.catch(() => {}); });
+  await waitFor(() => expect(screen.queryByText('Reading saved supervision…')).toBeNull());
+  expect(screen.queryByRole('alert')).toBeNull(); expect(screen.queryByText('Old scope private read failed')).toBeNull();
+  expect(screen.getByText(swarmMessageFixture().summary)).toBeTruthy();
+  expect((screen.getByRole('button', {name: 'Inspect question msg-1'}) as HTMLButtonElement).disabled).toBe(false);
+  expect(exact).toHaveBeenCalledOnce(); expect(get).toHaveBeenCalledTimes(phase === 'exact-message' ? 1 : 2);
+  expect(post).not.toHaveBeenCalled(); expect(ack).not.toHaveBeenCalled(); expect(p.onWrite).not.toHaveBeenCalled();
+});
