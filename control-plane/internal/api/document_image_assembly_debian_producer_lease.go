@@ -24,11 +24,13 @@ type debianInputProofExecutionLease struct {
  Children []debianInputProofChildIdentity `json:"children,omitempty"`
  State string `json:"state"`
  DiskBytes uint64 `json:"diskBytes"`
+ DomainInputs *backend.DocumentDomainInputDemand `json:"domainInputs,omitempty"`
  CreatedAt time.Time `json:"createdAt"`;WholeDeadline time.Time `json:"wholeDeadline"`
 }
 func validDebianInputProofLease(v debianInputProofExecutionLease) bool {
  limits,ok:=runtimeinstall.DebianInputProofLimits(v.Identity.Purpose)
  if !ok||v.Resources.MemoryMiB!=limits.MemoryMiB||v.Resources.CPUMillis!=limits.CPUMillis||len(v.Children)>limits.Children||v.DiskBytes>limits.DiskBytes||v.WholeDeadline.Sub(v.CreatedAt)>limits.Whole{return false}
+ if v.DomainInputs!=nil&&(v.Identity.Purpose!=runtimeinstall.DebianBinaryInputProofPurpose||!validDocumentDomainDemand(*v.DomainInputs)){return false}
  if !checkHex(v.Scope,32) || !checkLogicalID(v.ID) || v.ID!=v.Identity.AllocationID || !runtimeinstall.ValidInputProofIdentity(v.Identity) || v.Identity.OwnerPID==0 || v.Actor.TeamID!="" || v.Actor.ProjectID!="" || len(v.Actor.UserID)>200 || v.Actor.Local&&v.Actor.UserID!="" || !v.Actor.Local&&v.Actor.UserID=="" || v.DiskBytes==0 || v.CreatedAt.IsZero() || !v.WholeDeadline.After(v.CreatedAt) {return false}
  switch v.State{case "reserved","preparing","creating-suspended","running","settling","retiring","unknown","finished":default:return false}
  seen:=map[uint32]bool{};for i,c:=range v.Children{if c.Ordinal!=i || c.PID==0 || c.CreationTime==0 || seen[c.PID]{return false};seen[c.PID]=true};return true

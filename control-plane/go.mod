@@ -10,6 +10,7 @@ require (
 	github.com/shopspring/decimal v1.4.0
 	github.com/stripe/stripe-go/v87 v87.0.0
 	github.com/tdewolff/font v0.0.0-20261010204837-88a7f6b56918
+	github.com/ulikunitz/xz v0.5.16
 	golang.org/x/crypto v0.55.0
 	golang.org/x/sys v0.47.0
 	k8s.io/api v0.31.1
