@@ -461,6 +461,19 @@ describe("attachRegistry — input", () => {
     off();
     expect(seen).toEqual(["ended"]); // a re-publish every 2 s is a re-render every 2 s
   });
+
+  it.each(["claude-code", "shell"] as const)("does not publish an unchanged %s session poll with no observable side channel", (harness) => {
+    const current = live({harness});
+    acquireAttach(current, {createTerm, readOnly: false});
+    socket().acceptOpen();
+    const seen: string[] = [];
+    const off = subscribeAttach(current.id, state => seen.push(state.phase));
+    updateAttachSession({...current});
+    updateAttachSession({...current});
+    off();
+    expect(seen).toEqual([]);
+    expect(getAttachState(current.id).phase).toBe("attached");
+  });
 });
 
 describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => {

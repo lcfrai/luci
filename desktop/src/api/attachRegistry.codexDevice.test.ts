@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from "vitest";
-import { __resetAttachRegistry, acquireAttach, configureAttachRegistry, getCodexDeviceChallenge, setAttachPermission, updateAttachSession } from "./attachRegistry";
+import { __resetAttachRegistry, acquireAttach, configureAttachRegistry, getAttachState, getCodexDeviceChallenge, setAttachPermission, subscribeAttach, updateAttachSession } from "./attachRegistry";
 import { aSession } from "../test/fixtures";
 import { FakeTerm, FakeWebSocket } from "../test/fakes";
 import { Kind, encode } from "../lib/wire";
@@ -32,4 +32,16 @@ it("hides the code after permission revocation or exited polling state", () => {
   expect(getCodexDeviceChallenge(session.id)).toBeNull();
   updateAttachSession({ ...session, status: "exited" });
   expect(getCodexDeviceChallenge(session.id)).toBeNull();
+});
+it("notifies once when an observed device challenge is hidden by repeated exited polls", () => {
+  const {session} = open();
+  expect(getCodexDeviceChallenge(session.id)?.code).toBe("AB12-C345D");
+  const snapshots: unknown[] = [];
+  const off = subscribeAttach(session.id, () => snapshots.push(getCodexDeviceChallenge(session.id)));
+  updateAttachSession({...session, status: "exited"});
+  updateAttachSession({...session, status: "exited"});
+  off();
+  expect(snapshots).toEqual([null]);
+  // An open transport can still deliver output; polling alone does not end it.
+  expect(getAttachState(session.id).phase).toBe("attached");
 });

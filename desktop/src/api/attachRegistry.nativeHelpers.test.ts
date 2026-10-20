@@ -79,6 +79,19 @@ describe("attach helper observation", () => {
     expect(getNativeHelperActivity(current)).toBe(EMPTY_HELPER_ACTIVITY);
   });
 
+  it("notifies once when an observable helper report is cleared and stays quiet on an unchanged poll", () => {
+    const {socket, current} = mount(); emit(socket);
+    expect(getNativeHelperActivity(current).calls).toHaveLength(1);
+    const next = {...current, harness: "shell" as const};
+    const snapshots: unknown[] = [];
+    const off = subscribeAttach(current.id, () => snapshots.push(getNativeHelperActivity(next)));
+    updateAttachSession(next);
+    updateAttachSession({...next});
+    off();
+    expect(snapshots).toEqual([EMPTY_HELPER_ACTIVITY]);
+    expect(getNativeHelperActivity(current)).toBe(EMPTY_HELPER_ACTIVITY);
+  });
+
   it("discloses reconnect gaps and discards a transport's partial line", () => {
     const { socket, current } = mount(); emit(socket); emit(socket, '{"type":'); socket.emitClose(1006);
     expect(getNativeHelperActivity(current).disconnected).toBe(true);
