@@ -153,7 +153,7 @@
 }
 
 .home-activity-list { display: grid; gap: .75rem; list-style: none; padding: 0; margin: 1rem 0; }
-.home-activity-list > li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem; border: 1px solid var(--border, #52605e); border-radius: .75rem; }
+.home-activity-list > li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: .75rem; }
 .home-activity-status, .home-activity-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 .home-activity-status { margin-top: .4rem; font-size: .875rem; }
 .home-activity-status span { padding: .15rem .45rem; border: 1px solid currentColor; border-radius: .45rem; }

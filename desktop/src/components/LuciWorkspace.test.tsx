@@ -7,6 +7,8 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { AppShell } from './AppShell';
 import { resetCockpit, useCockpit } from '../store/store';
 import { aProject } from '../test/fixtures';
+import { projectHomeApi } from '../api/projectHome';
+import * as projectDraft from '../hooks/useProjectDraft';
 const { Phase } = vi.hoisted(() => ({ Phase: vi.fn() }));
 vi.mock('./lens/DiscoverLens', () => ({ DiscoverLens: () => <Phase label="Discover" /> }));
 vi.mock('./lens/DesignLens', () => ({ DesignLens: () => <Phase label="Design" /> }));
@@ -18,11 +20,21 @@ function PhaseEditor({ label }: { label: string }) {
   useEffect(() => { const state = useCockpit.getState(); state.setUnsavedProjectDraft('test-editor', text ? { projectId, label: `${label} draft`, lens: label.toLowerCase() as 'discover', retained: true, discard: () => setText('') } : null); return () => state.setUnsavedProjectDraft('test-editor', null); }, [text, projectId, label]);
   return <textarea aria-label={`${label} editor`} value={text} onChange={event => setText(event.target.value)} />;
 }
-beforeEach(() => { vi.restoreAllMocks(); resetCockpit(); localStorage.clear(); Phase.mockImplementation(PhaseEditor); useCockpit.setState({ projects: [aProject({ id: 'p-1', name: 'Atlas' }), aProject({ id: 'p-2', name: 'Beacon' }), aProject({ id: 'p-3', name: 'Cedar' }), aProject({ id: 'p-4', name: 'Delta' })], selection: { projectId: 'p-1', branchId: null, worktreeId: null, sessionId: null }, lens: 'discover' }); });
+beforeEach(() => { vi.restoreAllMocks(); resetCockpit(); localStorage.clear(); Phase.mockImplementation(PhaseEditor); useCockpit.setState({ projects: [aProject({ id: 'p-1', name: 'Atlas' }), aProject({ id: 'p-2', name: 'Beacon' }), aProject({ id: 'p-3', name: 'Cedar' }), aProject({ id: 'p-4', name: 'Delta' })], selection: { projectId: 'p-1', branchId: null, worktreeId: null, sessionId: null }, lens: 'discover' });
+  // Project navigation consumes an account-scoped Home projection, not the
+  // catalogue alone. Keep that real projection path in this isolated shell.
+  vi.spyOn(projectDraft, 'useProjectDraftScope').mockReturnValue('fixture:actor:workspace');
+  vi.spyOn(projectHomeApi, 'getAll').mockImplementation(async () => {
+    const projects = useCockpit.getState().projects;
+    return { version: 1, revision: 1, pinnedProjectIds: projects.map(project => project.id),
+      projects: projects.map(project => ({ id: project.id, name: project.name,
+        working: false, needsInput: false, queued: false, unknown: false, stops: [] })) };
+  });
+});
 it('defaults to the scoped main Luci conversation without mounting phase editors', () => {
   render(<AppShell />); expect(screen.getByRole('region', { name: 'Luci conversation' }).getAttribute('data-project')).toBe('p-1');
   expect(screen.getByRole('button', { name: 'Luci' }).getAttribute('aria-current')).toBe('page'); expect(screen.getByLabelText('Current project: Atlas')).not.toBeNull();
-  expect(Phase).not.toHaveBeenCalled(); for (const name of ['Discover', 'Design', 'Develop', 'Deploy']) expect(screen.getByRole('button', { name }).getAttribute('aria-current')).toBeNull();
+  expect(Phase).not.toHaveBeenCalled(); for (const name of ['Discover', 'Design', 'Develop', 'Deploy', 'Distribute']) expect(screen.getByRole('button', { name }).getAttribute('aria-current')).toBeNull();
 });
 it('keeps the current editor mounted and its unsaved text intact through keyboard Luci and same-phase return', async () => {
   const ui = render(<AppShell />); await userEvent.click(screen.getByRole('button', { name: 'Discover' }));
@@ -41,7 +53,7 @@ it('retains the primary conversation when a dirty different-phase switch is canc
 });
 it('keeps project selection and context bound through guarded switches in the primary view', async () => {
   render(<AppShell />); await userEvent.click(screen.getByRole('button', { name: 'Discover' })); await userEvent.type(screen.getByLabelText('Discover editor'), 'Atlas draft'); await userEvent.click(screen.getByRole('button', { name: 'Luci' }));
-  await userEvent.click(screen.getByRole('treeitem', { name: /Beacon/ })); await screen.findByRole('dialog', { name: 'Keep your changes?' }); expect(screen.getByRole('region', { name: 'Luci conversation', hidden: true }).getAttribute('data-project')).toBe('p-1');
+  await userEvent.click(await screen.findByRole('treeitem', { name: /Beacon/ })); await screen.findByRole('dialog', { name: 'Keep your changes?' }); expect(screen.getByRole('region', { name: 'Luci conversation', hidden: true }).getAttribute('data-project')).toBe('p-1');
   await userEvent.click(screen.getByRole('button', { name: 'Keep drafts and continue' })); await waitFor(() => expect(useCockpit.getState().selection.projectId).toBe('p-2'));
   expect(useCockpit.getState().workspaceSurface).toBe('luci'); expect(screen.getByLabelText('Current project: Beacon')).not.toBeNull(); expect(screen.getByRole('region', { name: 'Luci conversation' }).getAttribute('data-project')).toBe('p-2'); expect(screen.queryByText('Conversation for p-1')).toBeNull();
 });
@@ -53,7 +65,7 @@ it('opens the primary view only for the currently selected project event', async
 it('keeps compact Projects navigation accessible, returns focus after Escape, and selects a scoped conversation', async () => {
   const media = vi.spyOn(window, 'matchMedia').mockImplementation(query => ({ matches: query === '(max-width: 760px)', media: query, onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: () => false }));
   try { const ui = render(<AppShell />); const projects = screen.getByRole('button', { name: 'Projects' }); await userEvent.click(projects); expect(ui.container.querySelector('.shell-main')?.hasAttribute('inert')).toBe(true);
-    await userEvent.keyboard('{Escape}'); expect(document.activeElement).toBe(projects); await userEvent.click(projects); await userEvent.click(screen.getByRole('treeitem', { name: /Beacon/ }));
+    await userEvent.keyboard('{Escape}'); expect(document.activeElement).toBe(projects); await userEvent.click(projects); await userEvent.click(await screen.findByRole('treeitem', { name: /Beacon/ }));
     expect(projects.getAttribute('aria-expanded')).toBe('false'); expect(screen.getByRole('region', { name: 'Luci conversation' }).getAttribute('data-project')).toBe('p-2');
   } finally { media.mockRestore(); }
 });
@@ -66,7 +78,7 @@ it('provides a Luci starting point without pretending an unselected project has 
 it('selects four separate primary conversation destinations without merging their scopes', async () => {
   render(<AppShell />);
   for (const [id, name] of [['p-2', 'Beacon'], ['p-3', 'Cedar'], ['p-4', 'Delta'], ['p-1', 'Atlas']]) {
-    await userEvent.click(screen.getByRole('treeitem', { name: new RegExp(name) }));
+    await userEvent.click(await screen.findByRole('treeitem', { name: new RegExp(name) }));
     expect(screen.getByRole('region', { name: 'Luci conversation' }).getAttribute('data-project')).toBe(id);
     expect(screen.getByLabelText(`Current project: ${name}`)).not.toBeNull(); expect(useCockpit.getState().workspaceSurface).toBe('luci');
   }
@@ -83,6 +95,6 @@ it('keeps Luci and its selected project through desktop to compact and back with
 });
 it('does not remount a previously visited project editor invisibly after switching away and back', async () => {
   render(<AppShell />); await userEvent.click(screen.getByRole('button', { name: 'Discover' })); expect(screen.getByLabelText('Discover editor')).not.toBeNull();
-  await userEvent.click(screen.getByRole('button', { name: 'Luci' })); await userEvent.click(screen.getByRole('treeitem', { name: /Beacon/ })); await userEvent.click(screen.getByRole('treeitem', { name: /Atlas/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Luci' })); await userEvent.click(await screen.findByRole('treeitem', { name: /Beacon/ })); await userEvent.click(await screen.findByRole('treeitem', { name: /Atlas/ }));
   expect(screen.getByRole('region', { name: 'Luci conversation' }).getAttribute('data-project')).toBe('p-1'); expect(screen.queryByLabelText('Discover editor')).toBeNull();
 });

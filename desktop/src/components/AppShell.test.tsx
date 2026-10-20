@@ -13,6 +13,8 @@ import userEvent from "@testing-library/user-event";
 import { AppShell } from "./AppShell";
 import { LENSES } from "./subrail/SubRail";
 import { resetCockpit, useCockpit } from "../store/store";
+import { projectHomeApi } from "../api/projectHome";
+import * as projectDraft from "../hooks/useProjectDraft";
 import {
   TERMINAL_HOST_ATTRIBUTE,
   isInsideTerminal,
@@ -78,6 +80,15 @@ describe("AppShell", () => {
   beforeEach(() => {
     createSession.mockReset();
     resetCockpit();
+    // This composition mount omits account/setup providers. Supply their known
+    // scope and Home read, keeping the real provider and rail projection gates.
+    vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue("fixture:actor:workspace");
+    vi.spyOn(projectHomeApi, "getAll").mockImplementation(async () => {
+      const projects = useCockpit.getState().projects;
+      return { version: 1, revision: 1, pinnedProjectIds: projects.map(project => project.id),
+        projects: projects.map(project => ({ id: project.id, name: project.name,
+          working: false, needsInput: false, queued: false, unknown: false, stops: [] })) };
+    });
   });
 
   it("starts at Projects home with direct creation and import actions", () => {
@@ -137,15 +148,15 @@ describe("AppShell", () => {
   });
 
   // §6.3 and AGENTIC-UX §4 rule 12: entry into any lens is legal from any state. Not one of
-  // the six may be disabled, numbered or marked complete.
-  it("offers all four journey sections and keeps Files and Git inside Develop", async () => {
+  // the five may be disabled, numbered or marked complete.
+  it("offers all five journey sections and keeps Files and Git inside Develop", async () => {
     populate();
     render(<AppShell />);
     for (const lens of LENSES) {
       const row = screen.getByRole("button", { name: lens.label });
       expect(row.hasAttribute("disabled")).toBe(false);
     }
-    expect(LENSES).toHaveLength(4);
+    expect(LENSES.map(lens => lens.label)).toEqual(["Discover", "Design", "Develop", "Deploy", "Distribute"]);
 
     // And every one routes to something honest rather than a dead panel.
     await userEvent.click(screen.getByRole("button", { name: "Git" }));
@@ -212,7 +223,7 @@ describe("AppShell", () => {
     expect(screen.queryByRole("menu")).toBeNull();
     await userEvent.pointer({
       keys: "[MouseRight]",
-      target: screen.getByRole("treeitem", { name: /portal/ }),
+      target: await screen.findByRole("treeitem", { name: /portal/ }),
     });
     expect(useCockpit.getState().contextMenu?.kind).toBe("project");
     expect(screen.getAllByRole("menu")).toHaveLength(1);
@@ -346,7 +357,7 @@ describe("AppShell", () => {
         name: "Projects",
       });
       await userEvent.click(trigger);
-      await userEvent.click(screen.getByRole("treeitem", { name: /garden/ }));
+      await userEvent.click(await screen.findByRole("treeitem", { name: /garden/ }));
       expect(trigger.getAttribute("aria-expanded")).toBe("false");
       expect(useCockpit.getState().selection.projectId).toBe("p-2");
     } finally {

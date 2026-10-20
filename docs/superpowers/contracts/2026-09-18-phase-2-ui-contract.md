@@ -589,6 +589,8 @@ export interface Session {
   agentConnectionKind?: string;
   agentConnectionProtocol?: string;
   implementationContext?: ImplementationContext;
+  /** Owned native process state only. Candidate and check evidence remain separate. */
+  implementationOutcome?: { state: "starting" | "working" | "quiet" | "ended" | "stopped" | "failed" | "unknown"; evidence: "session-only" | "project-run" };
   /** Recorded delivery at allocation, not a live filesystem integrity check. */
   reviewedContextDelivery?: {
     status: "captured" | "legacy-live";
@@ -624,7 +626,7 @@ export type Layout = "columns" | "canvas";
 /** The six lens rows of the sub-rail. No order, no numbering, no completion state —
  *  docs/AGENTIC-UX.md §4 rule 12. Only "develop" has a surface in Phase 2. */
 export type Lens =
-  "discover" | "design" | "develop" | "files" | "merge" | "deploy";
+  "discover" | "design" | "develop" | "files" | "merge" | "deploy" | "distribute";
 
 /** A hand-placed Canvas tile. Persisted per session — known defect 6. */
 export interface TilePosition {

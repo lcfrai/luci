@@ -104,7 +104,12 @@ it('focuses the exact task heading when the recorded continuation cannot yet sta
   const dialog=screen.getByRole('dialog',{name:action});await userEvent.click(await within(dialog).findByRole('checkbox'));
   await userEvent.click(within(dialog).getByRole('button',{name:confirm}));
   await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());
-  await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole('heading',{name:result.run.swarm!.tasks[0].title})));
+  const capturedTask = result.run.swarm!.tasks.find(task=>task.id===result.operation.taskId)!;
+  await waitFor(()=>{
+    const taskHeading=screen.getByRole('heading',{name:capturedTask.title,level:4});
+    expect(taskHeading.hasAttribute('data-task-heading')).toBe(true);
+    expect(document.activeElement).toBe(taskHeading);
+  });
   expect(screen.queryByRole('button',{name:'Continue reserved task'})).toBeNull();
 });
 it('does not restore an old task target or commit a late reservation after switching build scope',async()=>{
@@ -131,8 +136,15 @@ it('reports an HTTP-successful retained integration conflict without claiming in
   const run=retained();run.operations[0].status='review-required';
   vi.spyOn(projectSwarmApi,'review').mockResolvedValue({taskId:'a',operationId:'op-a',sourceCommit:'b'.repeat(40),targetCommit:'a'.repeat(40),reviewDigest:'d'.repeat(64),paths:['src/a.ts'],patch:'+new',canIntegrate:true,reason:'Ready for reviewed integration.'});
   const changed={...run,revision:run.revision+1,state:'blocked' as const,swarm:{...run.swarm!,tasks:run.swarm!.tasks.map(task=>task.id==='a'?{...task,integration:{state:'unknown' as const,sourceCommit:'b'.repeat(40),targetCommit:'a'.repeat(40),reviewDigest:'d'.repeat(64)}}:task)}};
-  vi.spyOn(projectSwarmApi,'integrate').mockResolvedValue(changed);
+  const integrate=vi.spyOn(projectSwarmApi,'integrate').mockResolvedValue(changed), create=vi.spyOn(api,'createSession'), reserve=vi.spyOn(swarmCheckpointApi,'reserve');
   render(<Harness initial={run}/>);await userEvent.click(screen.getByRole('button',{name:'Review task changes'}));const dialog=await screen.findByRole('dialog',{name:'Review task changes'});
   await userEvent.click(within(dialog).getByRole('checkbox'));await userEvent.click(within(dialog).getByRole('button',{name:'Integrate reviewed changes'}));
-  await screen.findByText(/Integration did not complete/);expect(screen.queryByText(/Reviewed changes integrated/)).toBeNull();expect(screen.getByText(/Dependent tasks still wait/)).not.toBeNull();
+  await screen.findByText('Integration is not confirmed. Refresh team status and inspect the recorded outcome before continuing. Dependent tasks still wait for reviewed integration.');
+  const taskRow=screen.getByRole('heading',{name:'Build a',level:4}).closest('li')!;
+  const dependentRow=screen.getByRole('heading',{name:'Build c',level:4}).closest('li')!;
+  expect(within(taskRow).getByText('Retained integration attempt: unknown. Its outcome has not been confirmed.')).not.toBeNull();
+  expect(within(taskRow).queryByText('Integrated',{exact:true})).toBeNull();
+  expect(within(dependentRow).getByText('Waiting for reviewed integration: Build a; Build b.')).not.toBeNull();
+  expect(screen.queryByText(/Reviewed changes integrated/)).toBeNull();
+  expect(integrate).toHaveBeenCalledOnce();expect(create).not.toHaveBeenCalled();expect(reserve).not.toHaveBeenCalled();
 });

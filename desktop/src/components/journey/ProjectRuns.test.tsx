@@ -77,7 +77,9 @@ it('prioritizes unintegrated task review over whole-build verification after a n
   expect(screen.getByText(/Review the exited task’s output and integrate accepted changes before verifying/)).not.toBeNull();
   expect(screen.getByRole('button', {name: 'Review task changes'})).toBeTruthy();
   await userEvent.click(screen.getByRole('button', {name: 'Review tasks'}));
-  expect(document.activeElement).toBe(screen.getByRole('heading', {name:'Build a'}));
+  const taskHeading = screen.getByRole('heading', {name:'Build a', level:4});
+  expect(taskHeading.hasAttribute('data-task-heading')).toBe(true);
+  expect(document.activeElement).toBe(taskHeading);
   expect(screen.queryByRole('dialog')).toBeNull(); expect(review).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', {name: 'Review and accept outcome'})).toBeNull();
   expect(create).not.toHaveBeenCalled();

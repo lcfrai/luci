@@ -52,9 +52,12 @@ it("renders first-run onboarding as a dedicated portal, then returns to projects
   await screen.findByRole("heading", { name: "Choose your workspace" });
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(screen.queryByRole("heading", { name: "Project home" })).toBeNull();
-  expect(
-    screen.getByRole("button", { name: "On this computer" }),
-  ).not.toBeNull();
+  for (const name of ["Local", "Bring your own cloud", "Luci Cloud"])
+    expect(screen.getByRole("button", { name })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Connect to an existing workspace" })).not.toBeNull();
+  expect(screen.getByText(/Azure first · cloud and model charges are separate/)).not.toBeNull();
+  expect(screen.getByText(/Not available yet · choose Local or Bring your own cloud/)).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Prepare Azure instructions" })).toBeNull();
   await userEvent.click(
     screen.getByRole("button", { name: "Continue to projects" }),
   );
@@ -101,8 +104,10 @@ it("shows the location chooser for a new account with an assigned, configured fo
   });
   render(<SetupProvider onProjectsChanged={vi.fn()}><Home /></SetupProvider>);
   await screen.findByRole("heading", { name: "Choose your workspace" });
-  for (const name of ["On this computer", "AWS", "Azure", "Connect to an existing workspace"])
+  for (const name of ["Local", "Bring your own cloud", "Luci Cloud", "Connect to an existing workspace"])
     expect(screen.getByRole("button", { name })).not.toBeNull();
+  expect(screen.getByText(/Choosing a mode saves a preference/)).not.toBeNull();
+  expect(screen.getByText(/Not available yet · choose Local or Bring your own cloud/)).not.toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Continue to projects" }));
   expect(screen.getByRole("heading", { name: "Project home" })).not.toBeNull();
   expect(useCockpit.getState().projects).toEqual([]);
