@@ -280,12 +280,20 @@ it("isolates drafts when accounts, remote accounts, workspaces, project roots, A
 
 it("retains structured design edits through remount and discards a browser draft without saving it", async () => {
   const save = vi.spyOn(designPlanApi, "save");
+  const openScreenPlan = async () => {
+    const tab = await screen.findByRole("tab", { name: "Screens and states" });
+    await waitFor(() => expect(tab.getAttribute("aria-disabled")).not.toBe("true"));
+    await userEvent.click(tab);
+    return screen.findByLabelText("Screen name");
+  };
   const view = render(<DesignWorkspace projectId="p-1" />);
-  await screen.findByLabelText("Screen name"); edit("Screen name", "Unsaved screen"); view.unmount();
-  const recovered = render(<DesignWorkspace projectId="p-1" />); await screen.findByLabelText("Screen name");
+  expect((await openScreenPlan() as HTMLInputElement).value).toBe("Saved screen");
+  edit("Screen name", "Unsaved screen"); view.unmount();
+  const recovered = render(<DesignWorkspace projectId="p-1" />);
+  expect((await openScreenPlan() as HTMLInputElement).value).toBe("Saved screen");
   await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
   expect((screen.getByLabelText("Screen name") as HTMLInputElement).value).toBe("Unsaved screen"); recovered.unmount();
-  render(<DesignWorkspace projectId="p-1" />); await screen.findByLabelText("Screen name");
+  render(<DesignWorkspace projectId="p-1" />); await openScreenPlan();
   await userEvent.click(screen.getByRole("button", { name: "Discard browser draft" }));
   expect((screen.getByLabelText("Screen name") as HTMLInputElement).value).toBe("Saved screen");
   expect(storedDrafts()).toHaveLength(0); expect(save).not.toHaveBeenCalled();
