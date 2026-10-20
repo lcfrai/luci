@@ -46,7 +46,9 @@ beforeEach(() => {
   vi.spyOn(orchestratorApi, "cancel").mockResolvedValue(job({ status: "cancelled" }));
   vi.spyOn(orchestratorApi, "reconcile").mockResolvedValue(job({ status: "succeeded" }));
   vi.spyOn(orchestratorApi, "apply").mockResolvedValue(view({ revision: 4 }));
-  vi.spyOn(coordinatorContinuationsApi, "list").mockResolvedValue([]);
+  // The rendered continuation owner reads the full state, not the old list
+  // projection. Keep that independent read on the fixture instead of real HTTP.
+  vi.spyOn(coordinatorContinuationsApi, "listState").mockResolvedValue({ continuations: [], savedRoute: null });
   vi.spyOn(coordinatorPolicyApi, "get").mockImplementation(async projectId => ({ projectId, revision: 0, mode: "review", reviewMode: "manual", allowedTargets: ["specification", "design-plan", "plan"], executionMode: "manual", deploymentMode: "manual" }));
 });
 async function ready() {
@@ -177,7 +179,11 @@ it.each(["raw-provider-error", "__proto__"])("keeps unknown failure code %s gene
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [{ ...turn(), status: "failed", failureCode: failureCode as never, answer: undefined }] }));
   render(<OrchestratorPanel projectId="p-1" primary />);
   expect(await screen.findByText("Request failed")).toBeTruthy();
+  await waitFor(() => expect(coordinatorContinuationsApi.listState).toHaveBeenCalledWith("p-1", "owner", expect.any(AbortSignal)));
+  const refresh = screen.getByRole("button", { name: "Refresh continued work" });
+  await waitFor(() => expect((refresh as HTMLButtonElement).disabled).toBe(false));
   expect(screen.queryByText(failureCode)).toBeNull();
+  expect(document.body.textContent).not.toContain(failureCode);
   expect(screen.queryByRole("alert")).toBeNull();
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
