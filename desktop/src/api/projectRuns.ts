@@ -27,6 +27,7 @@ export interface RunOperation {
   integration?: SwarmTask['integration'];
   /** Reviewed seed for a distinct attempt; never task integration or verification. */
   checkpoint?: SwarmCheckpointProvenance;
+  checkRepair?: {waveId: string; checkId: string; failedCommit: string; sourceOperationId: string; budgetOrdinal: number};
   /** Bounded reference to a retained report; reported claims are not verification. */
   handoff?: TaskHandoffReference;
   startFailure?: StartFailure;
@@ -77,6 +78,7 @@ export interface SwarmTask {
   integration?: SwarmIntegration;
 }
 export interface ProjectSwarmState {
+  checkRepairs?: {id: string; continuationId: string; checkId: string; checkBinding: string; commit: string; sourceDigest: string; integrationDigest: string; requirementIds: string[]; createdAt: string; tasks: {taskId: string; sourceOperationId: string; sourceIntegration: SwarmIntegration; budgetOrdinal: number; operationId?: string}[]}[];
   state: 'ready' | 'paused' | 'cancelled'; maxParallel: number; tasks: SwarmTask[];
 }
 export interface ProjectRun {

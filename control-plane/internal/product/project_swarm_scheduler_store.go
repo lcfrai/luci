@@ -299,6 +299,9 @@ func (s *Server) validateSwarmScheduler(row swarmSchedulerLedger) error {
 				return ErrProjectRunInvalid
 			}
 		}
+		if item.CheckRepairWaveID != "" || item.CheckRepairContinuationID != "" || item.CheckRepairActorID != "" {
+			if !prototypeReleaseID.MatchString(item.CheckRepairWaveID) || !prototypeReleaseID.MatchString(item.CheckRepairContinuationID) || !prototypeReleaseID.MatchString(item.CheckRepairActorID) || item.RepairObligationID != "" || item.AutoReviewContinuationID != "" { return ErrProjectRunInvalid }
+		}
 		if item.AutoReviewContinuationID != "" || item.AutoReviewActorID != "" || item.AutoReviewCandidateID != "" {
 			if !prototypeReleaseID.MatchString(item.AutoReviewContinuationID) || !prototypeReleaseID.MatchString(item.AutoReviewActorID) || !prototypeReleaseID.MatchString(item.AutoReviewCandidateID) {
 				return ErrProjectRunInvalid

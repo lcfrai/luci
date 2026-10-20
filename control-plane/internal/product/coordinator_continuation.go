@@ -54,6 +54,7 @@ type CoordinatorContinuation struct {
 	CreatedAt      string                     `json:"createdAt"`
 	UpdatedAt      string                     `json:"updatedAt"`
 	NextAction     *OrchestratorAction        `json:"nextAction,omitempty"`
+	PriorDeliveries []CoordinatorDelivery `json:"priorDeliveries,omitempty"`
 	Delivery       *CoordinatorDelivery       `json:"delivery,omitempty"`
 }
 type coordinatorContinuationRecord struct {

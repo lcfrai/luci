@@ -287,13 +287,14 @@ func (s *Server) reserveProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID, taskID, key string, revision int) (ProjectRun, ProjectRunOperation, error) {
+	waveID, _ := ctx.Value(coordinatorCheckRepairContextKey{}).(string)
 	// Recover immutable reservations before any mutable provider or source read.
 	run, op, found, err := s.projectRuns.FindOperationByKey(p.ID, p.Path, runID, key, "session")
 	if err != nil {
 		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	if found {
-		if op.TaskID != taskID || op.Checkpoint != nil {
+		if op.TaskID != taskID || op.Checkpoint != nil || (op.CheckRepair != nil && op.CheckRepair.WaveID != waveID) || (op.CheckRepair == nil && waveID != "") {
 			return ProjectRun{}, ProjectRunOperation{}, ErrProjectRunKeyConflict
 		}
 		return run, op, nil
@@ -313,7 +314,8 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 	if task == nil {
 		return ProjectRun{}, ProjectRunOperation{}, ErrProjectRunNotFound
 	}
-	if err = swarmTaskReady(run, *task); err != nil {
+	if waveID != "" { err = swarmCheckRepairReady(run, *task, waveID) } else { err = swarmTaskReady(run, *task) }
+	if err != nil {
 		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	if err = validateSwarmTaskRoute(run); err != nil {
@@ -368,7 +370,9 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 	}
 	var worktreeErr error
 	coordinatorIndependentReviewBeforeMutation(ctx)
-	run, op, created, err := s.projectRuns.reserveSwarmTaskGated(p.ID, p.Path, run.ID, revision, key, taskID, head, func(id string) string {
+	var checkRepair *ProjectSwarmCheckRepairOrigin
+	if waveID != "" { wave := swarmCheckRepairWave(&run, waveID); member := swarmCheckRepairTask(wave, taskID); if member == nil { return ProjectRun{}, ProjectRunOperation{}, ErrProjectRunConflict }; checkRepair = swarmCheckRepairOrigin(*wave, *member) }
+	run, op, created, err := s.projectRuns.reserveSwarmTaskWithCheckRepair(p.ID, p.Path, run.ID, revision, key, taskID, head, func(id string) string {
 		path, pathErr := s.swarmPath(p.ID, run.ID, id)
 		if pathErr == nil {
 			pathErr = swarmBootstrapFeasibility(path)
@@ -378,7 +382,8 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 			return "" // Refuse before dependency capture; never hash an empty path.
 		}
 		return project.WorktreeID(path)
-	}, nil, func(current ProjectRun) error {
+	}, nil, checkRepair, func(current ProjectRun) error {
+		if waveID != "" { return s.checkCoordinatorCheckRepairGate(ctx, p, current, waveID) }
 		return s.checkCoordinatorIndependentReviewGate(ctx, p, current, "reviewer-retry")
 	})
 	if worktreeErr != nil {
@@ -462,6 +467,8 @@ func (s *Server) swarmTaskCapture(ctx context.Context, run ProjectRun, op Projec
 	if err != nil {
 		return nil, err
 	}
+	capture, err = appendCheckRepairContext(run, op, capture)
+	if err != nil { return nil, err }
 	return s.appendSwarmCoordinationCapture(ctx, p, run, op, capture)
 }
 
@@ -847,6 +854,7 @@ func swarmExpectedHead(run ProjectRun) string {
 	if run.Swarm == nil {
 		return expected
 	}
+	if len(run.Swarm.CheckRepairs) > 0 { expected = run.Swarm.CheckRepairs[len(run.Swarm.CheckRepairs)-1].Commit }
 	for pass := 0; pass < len(run.Swarm.Tasks); pass++ {
 		for _, task := range run.Swarm.Tasks {
 			if task.Integration != nil && task.Integration.State == "integrated" && task.Integration.TargetCommit == expected {

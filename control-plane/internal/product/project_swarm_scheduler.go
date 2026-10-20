@@ -227,7 +227,7 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				candidateTask := swarmTask(&run, task.ReviewOfTaskID)
 				bound := task.Role == "reviewer" && candidateTask != nil && candidateTask.OperationID == item.AutoReviewCandidateID
 				if bound {
-					bound = false
+					bound = swarmCheckRepairCandidate(run, item.AutoReviewCandidateID)
 					for _, prior := range run.Swarm.ReviewObligations {
 						if prior.TaskID == candidateTask.ID && prior.State == "repair-required" && prior.RepairOperationID == item.AutoReviewCandidateID {
 							bound = true
@@ -286,8 +286,19 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				}
 				continue
 			}
+			if item.CheckRepairWaveID != "" {
+				p, projectErr := s.resolveProject(item.ProjectID)
+				if projectErr == nil { _, cancel, authErr := s.coordinatorCheckRepairAuthority(ctx, p, item); if cancel != nil { cancel() }; projectErr = authErr }
+				if projectErr != nil {
+					if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil { return releaseErr }
+					if err = s.schedulerSetReason(item.ID, "blocked", "check_repair_authority_changed", "The saved check repair is no longer authorized. No resource admission or checkout will be attempted."); err != nil { return err }
+					continue
+				}
+			}
 			if item.OperationID == "" {
-				if readyErr := swarmTaskReady(run, *task); readyErr != nil {
+				readyErr := swarmTaskReady(run, *task)
+				if item.CheckRepairWaveID != "" { readyErr = swarmCheckRepairReady(run, *task, item.CheckRepairWaveID) }
+				if readyErr != nil {
 					if err = s.schedulerSetReason(item.ID, item.State, "dependencies_or_scope", readyErr.Error()); err != nil {
 						return err
 					}
@@ -322,7 +333,7 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 			var budgetErr error
 			if item.OperationID != "" {
 				budgetErr = swarmRepairBudgetForOperation(run, item.OperationID)
-			} else if task.Role != "reviewer" && swarmFailedReviewCount(run, task.ID) > 0 {
+			} else if item.CheckRepairWaveID == "" && task.Role != "reviewer" && swarmFailedReviewCount(run, task.ID) > 0 {
 				budgetErr = ErrProjectRunConflict // failed work needs its exact repair reservation
 			}
 			if budgetErr != nil {
@@ -461,6 +472,16 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 		var reserveErr error
 		reserveCtx := ctx
 		var autoReviewRow coordinatorContinuationRecord
+		if item.CheckRepairWaveID != "" {
+			var cancel context.CancelFunc
+			reserveCtx, cancel, reserveErr = s.coordinatorCheckRepairAuthority(ctx, p, item)
+			if reserveErr != nil {
+				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil { return releaseErr }
+				if err = s.schedulerSetReason(item.ID, "blocked", "check_repair_authority_changed", "The exact check repair lost current actor, policy or context authority. No checkout was allocated."); err != nil { return err }
+				continue
+			}
+			defer cancel()
+		}
 		if item.AutoReviewContinuationID != "" {
 			var cancel context.CancelFunc
 			reserveCtx, autoReviewRow, cancel, reserveErr = s.coordinatorReviewerRetryAuthority(ctx, p, item)

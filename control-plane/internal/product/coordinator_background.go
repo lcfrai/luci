@@ -271,7 +271,7 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				if (pass == 0 && key <= cursor) || (pass == 1 && key > cursor) {
 					continue
 				}
-				if row.ExecutionActor.UserID == "" || row.Status == "refused" || row.Status == "blocked" || row.Status == "deployed" || row.Status == "deployment-blocked" || row.Status == "preview-blocked" {
+				if row.ExecutionActor.UserID == "" || row.Status == "refused" || (row.Status == "blocked" && !s.coordinatorCheckRepairBackgroundCandidate(p, row)) || row.Status == "deployed" || row.Status == "deployment-blocked" || row.Status == "preview-blocked" {
 					continue
 				}
 				if row.Status == "preview-ready" {
@@ -325,6 +325,11 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				}
 				if stale {
 					return nil // retain prior results; the accepted event owns replan
+				}
+				if row.Delivery != nil && row.Delivery.Status == "blocked" {
+					updated, handled, repairErr := s.continueCoordinatorCheckRepair(fresh, p, row)
+					if repairErr != nil { return repairErr }
+					if handled && (updated.Revision != row.Revision || row.Status != "queued") { return nil }
 				}
 				assigned, assignmentErr := s.continueCoordinatorIndependentReview(fresh, p, row)
 				if assignmentErr != nil {

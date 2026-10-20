@@ -25,6 +25,9 @@ type CheckCommand struct {
 	Args       []string `json:"args"`
 }
 type CheckCommandResult struct {
+	// Issued only by the sequential runner for a never-entered suffix after
+	// a recorded nonzero failure and positive cleanup. Omitted for old receipts.
+	NotStartedAfterFailure bool `json:"notStartedAfterFailure,omitempty"`
 	CheckCommand
 	AllocationID     string `json:"allocationId,omitempty"`
 	Stage            string `json:"stage,omitempty"`
@@ -501,6 +504,7 @@ func (s *Server) runProjectChecks(ctx context.Context, job *projectCheckJob, dir
 				row.Commands[i].Status = "skipped"
 			}
 		}
+		markCheckFailureNotStartedSuffix(row)
 		if final == "passed" || final == "failed" {
 			row.Message = "Commands finished with recorded exit codes and confirmed cleanup. This does not automatically verify completion criteria."
 		}
@@ -516,6 +520,21 @@ func (s *Server) runProjectChecks(ctx context.Context, job *projectCheckJob, dir
 		_ = s.projectCheckRuntime.AcknowledgeCompleted(ack, job.run.ProjectID, job.run.ID)
 		cancel()
 	}
+}
+
+func markCheckFailureNotStartedSuffix(row *ProjectCheckRun) {
+	if row.Status != "failed" || row.ResourcesHeld == nil || *row.ResourcesHeld { return }
+	failed := false
+	for i := range row.Commands {
+		command := &row.Commands[i]
+		if command.Status == "skipped" {
+			if !failed || command.ExitCode != nil || command.Stage != "" { return }
+			continue
+		}
+		if failed || command.NotStartedAfterFailure || command.AllocationID == "" || !command.CleanupConfirmed || command.ExitCode == nil { return }
+		if command.Status == "failed" && *command.ExitCode != 0 { failed = true } else if command.Status != "passed" || *command.ExitCode != 0 { return }
+	}
+	if failed { for i := range row.Commands { if row.Commands[i].Status == "skipped" { row.Commands[i].NotStartedAfterFailure = true } } }
 }
 func (s *Server) cancelProjectCheck(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)

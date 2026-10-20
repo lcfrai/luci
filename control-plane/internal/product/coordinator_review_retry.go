@@ -12,6 +12,17 @@ func coordinatorReviewerRetryKey(obligationID, candidateID string) string {
 	return "coordinator-review-retry-" + reviewDigest(obligationID + "/" + candidateID)[:24]
 }
 
+// Idempotency is candidate/reviewer-local. A retained first review must not
+// suppress another independent ready candidate's distinct reviewer intent.
+func coordinatorReviewerRetryExists(items []swarmQueueRecord, projectID, runID, continuationID, actorID, reviewerID, candidateID, key string) (bool, error) {
+	for _, prior := range items {
+		if prior.ProjectID != projectID || prior.BatchKeyDigest != reviewDigest(key) { continue }
+		if prior.RunID != runID || prior.TaskID != reviewerID || prior.AutoReviewContinuationID != continuationID || prior.AutoReviewActorID != actorID || prior.AutoReviewCandidateID != candidateID { return false, ErrProjectRunKeyConflict }
+		return true, nil
+	}
+	return false, nil
+}
+
 // A changed repaired candidate requires a distinct reviewer attempt. The
 // private queue is only an intent; the normal scheduler still owns resource
 // admission, checkout allocation, exact assignment and child dispatch.
@@ -26,13 +37,14 @@ func (s *Server) continueCoordinatorReviewerRetry(ctx context.Context, p project
 	if s.contractCurrentForRun(p, run) != nil || s.validateProjectSwarmReuseCurrent(ctx, p, run) != nil {
 		return false, nil
 	}
-	for _, failed := range run.Swarm.ReviewObligations {
-		if failed.State != "repair-required" || failed.RepairOperationID == "" {
+candidateLoop:
+	for _, failed := range coordinatorRepairReviewCandidates(run) {
+		if failed.RepairOperationID == "" {
 			continue
 		}
 		candidateTask := swarmTask(&run, failed.TaskID)
 		candidate := swarmOperation(&run, failed.RepairOperationID)
-		if candidateTask == nil || candidate == nil || candidateTask.OperationID != candidate.ID || candidate.Checkpoint == nil || candidate.Checkpoint.SourceOperationID != failed.CandidateOperationID || candidate.Allocation != "ready" || swarmRetirementPending(*candidate) {
+		if candidateTask == nil || candidate == nil || candidateTask.OperationID != candidate.ID || (!swarmCheckRepairCandidate(run, candidate.ID) && (candidate.Checkpoint == nil || candidate.Checkpoint.SourceOperationID != failed.CandidateOperationID)) || candidate.Allocation != "ready" || swarmRetirementPending(*candidate) {
 			continue
 		}
 		if candidate.Status != "succeeded" && candidate.Status != "review-required" && candidate.Status != "failed" {
@@ -67,14 +79,9 @@ func (s *Server) continueCoordinatorReviewerRetry(ctx context.Context, p project
 			if readErr != nil {
 				return false, readErr
 			}
-			for _, prior := range ledger.Items {
-				if prior.ProjectID == p.ID && prior.BatchKeyDigest == reviewDigest(key) {
-					if prior.RunID != run.ID || prior.TaskID != reviewer.ID || prior.AutoReviewContinuationID != row.ID || prior.AutoReviewActorID != row.Actor.ID || prior.AutoReviewCandidateID != candidate.ID {
-						return false, ErrProjectRunKeyConflict
-					}
-					return false, nil // queued, settled or uncertain: never append twice
-				}
-			}
+			queued, queuedErr := coordinatorReviewerRetryExists(ledger.Items, p.ID, run.ID, row.ID, row.Actor.ID, reviewer.ID, candidate.ID, key)
+			if queuedErr != nil { return false, queuedErr }
+			if queued { continue candidateLoop } // never duplicate; consider other candidates
 			s.swarmScheduler.mu.Lock()
 			runtime := s.swarmScheduler.runtime
 			s.swarmScheduler.mu.Unlock()

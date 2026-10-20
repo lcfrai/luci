@@ -22,7 +22,7 @@ import { ExecutionContractReview, readContractReview, retainContractReview, arch
 type Pending = { actorId: string; projectId: string; rejected?: true } & (
   { kind: 'create'; input: CoordinatorContinuationRequest } |
   { kind: 'advance'; id: string; revision: number } |
-  { kind: 'policy'; revision: number; requiresDeploy?: true; automaticRepairLimit?: number }
+  { kind: 'policy'; revision: number; requiresDeploy?: true; automaticRepairLimit?: number; checkFailureRepairs?: boolean }
 );
 const refused = (error: unknown) => error instanceof ProductApiError && [400, 401, 403, 409].includes(error.status);
 const denied = (error: unknown) => error instanceof ApiError && [401, 403].includes(error.status);
@@ -37,7 +37,7 @@ function initialRequest(key: string, projectId: string, actorId: string) {
     const value = JSON.parse(raw) as Pending;
     if (new TextEncoder().encode(raw).length > MAX_PENDING_BYTES || value.actorId !== actorId || value.projectId !== projectId || (value.rejected !== undefined && value.rejected !== true) || !['create', 'advance', 'policy'].includes(value.kind) ||
         value.kind === 'create' && (!value.input?.idempotencyKey || value.input.run?.implementationContext?.projectId !== projectId) ||
-        value.kind === 'advance' && (!value.id || !Number.isSafeInteger(value.revision)) || value.kind === 'policy' && (!Number.isSafeInteger(value.revision) || value.requiresDeploy !== undefined && value.requiresDeploy !== true || value.automaticRepairLimit !== undefined && !validAutomaticRepairLimit(value.automaticRepairLimit))) throw new Error('The retained continuation request cannot be read. Keep it for recovery; new work is paused.');
+        value.kind === 'advance' && (!value.id || !Number.isSafeInteger(value.revision)) || value.kind === 'policy' && (!Number.isSafeInteger(value.revision) || value.requiresDeploy !== undefined && value.requiresDeploy !== true || value.automaticRepairLimit !== undefined && !validAutomaticRepairLimit(value.automaticRepairLimit) || value.checkFailureRepairs !== undefined && typeof value.checkFailureRepairs !== 'boolean')) throw new Error('The retained continuation request cannot be read. Keep it for recovery; new work is paused.');
     return { raw, value, error: '' };
   } catch (cause) { return { raw: null, value: null as Pending | null, error: errorText(cause) }; }
 }
@@ -61,7 +61,8 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const [acceptedReview, setAcceptedReview] = useState<CoordinatorAcceptedReview | null>(null);
   const [policy, setPolicy] = useState<CoordinatorPolicy | null>(null), [fresh, setFresh] = useState(false);
   const [repairLimit, setRepairLimit] = useState(2);
-  useEffect(() => { if (policy) setRepairLimit(effectiveAutomaticRepairLimit(policy.automaticRepairLimit)); }, [policy]);
+  const [checkFailureRepairs, setCheckFailureRepairs] = useState(false);
+  useEffect(() => { if (policy) { setRepairLimit(effectiveAutomaticRepairLimit(policy.automaticRepairLimit)); setCheckFailureRepairs(policy.checkFailureRepairs === true); } }, [policy]);
   const [deliveryReadWarning, setDeliveryReadWarning] = useState('');
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(''), [readDenied, setReadDenied] = useState(false);
   const [consent, setConsent] = useState(false), [integrationConsent, setIntegrationConsent] = useState(false), [picker, setPicker] = useState<CoordinatorContinuationRequest | null>(null);
@@ -128,9 +129,10 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
       if (explicit && retained) {
         const match = retained.kind === 'create' ? nextRows.find(row => row.idempotencyKey === retained.input.idempotencyKey && row.originTurnId === retained.input.originTurnId && row.contextDigest === retained.input.expectedContextDigest && row.policyRevision === retained.input.expectedPolicyRevision) : retained.kind === 'advance' ? nextRows.find(row => row.id === retained.id && row.revision > retained.revision && !row.actions.some(action => action.status === 'pending' || action.status === 'unknown')) : undefined;
         const policyObserved = retained.kind === 'policy' && nextPolicy.revision > retained.revision &&
-          (retained.automaticRepairLimit === undefined || nextPolicy.automaticRepairLimit === retained.automaticRepairLimit);
-        if (retained.kind === 'policy' && retained.automaticRepairLimit !== undefined && nextPolicy.revision > retained.revision && !policyObserved && !retained.rejected) {
-          setNotice('The current saved repair limit differs from the retained request. Its outcome remains unconfirmed; the request was not submitted again.');
+          (retained.automaticRepairLimit === undefined || nextPolicy.automaticRepairLimit === retained.automaticRepairLimit) &&
+          (retained.checkFailureRepairs === undefined || (nextPolicy.checkFailureRepairs === true) === retained.checkFailureRepairs);
+        if (retained.kind === 'policy' && (retained.automaticRepairLimit !== undefined || retained.checkFailureRepairs !== undefined) && nextPolicy.revision > retained.revision && !policyObserved && !retained.rejected) {
+          setNotice('The current saved repair controls differ from the retained request. Its outcome remains unconfirmed; the request was not submitted again.');
         }
         if (retained.rejected || match || policyObserved) {
           if (retained.kind === 'create' && contractReview?.runKey === retained.input.idempotencyKey) {
@@ -174,9 +176,9 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     await mutate('policy', { kind: 'policy', actorId, projectId, revision: policy.revision }, () => coordinatorPolicyApi.save(projectId, { expectedRevision: policy.revision, mode: policy.mode, allowedTargets: policy.allowedTargets, executionMode: mode }), value => { setPolicy(value); onPolicyUpdated?.(); setNotice(mode === 'manual' ? 'New automatic task continuations are paused. Already allocated tasks keep their current controls; they have not been cancelled.' : 'Reviewed-task continuation is enabled. Saved context approvals, current access and resource limits still apply. Deployment remains separately controlled.'); });
   }
   async function saveRepairLimit() {
-    if (!policy || !validAutomaticRepairLimit(repairLimit) || repairLimit === effectiveAutomaticRepairLimit(policy.automaticRepairLimit)) return;
-    await mutate('policy', { kind: 'policy', actorId, projectId, revision: policy.revision, automaticRepairLimit: repairLimit },
-      () => coordinatorPolicyApi.save(projectId, { expectedRevision: policy.revision, mode: policy.mode, allowedTargets: policy.allowedTargets, automaticRepairLimit: repairLimit }),
+    if (!policy || !validAutomaticRepairLimit(repairLimit) || repairLimit === effectiveAutomaticRepairLimit(policy.automaticRepairLimit) && checkFailureRepairs === (policy.checkFailureRepairs === true)) return;
+    await mutate('policy', { kind: 'policy', actorId, projectId, revision: policy.revision, automaticRepairLimit: repairLimit, checkFailureRepairs },
+      () => coordinatorPolicyApi.save(projectId, { expectedRevision: policy.revision, mode: policy.mode, allowedTargets: policy.allowedTargets, automaticRepairLimit: repairLimit, checkFailureRepairs }),
       value => { setPolicy(value); onPolicyUpdated?.(); setNotice('The automatic repair limit is saved. Prepare and approve a fresh execution contract before new work. Earlier contracts and retained attempts were not changed or cancelled.'); });
   }
   async function saveFindingPreference(enabled: boolean) {
@@ -358,8 +360,10 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
           <option value={0}>0 · Stop after the first failed review</option><option value={1}>1 · Allow one repair</option><option value={2}>2 · Allow two repairs (default)</option>
         </select></label>
         <p>Caps repair reservations for each coding task in an approved run. Initial coding and independent review do not consume this budget; a repaired candidate still receives a final independent review. Cancelled or uncertain reservations are not refunded.</p>
+        <label className="setup-check"><input type="checkbox" checked={checkFailureRepairs} disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError} onChange={event => setCheckFailureRepairs(event.target.checked)} />Allow settled combined-check failures to use this same repair budget in a freshly approved run.</label>
+        <p>Check repairs start from the exact failed combined source, require new independent review and integration, then run a new check. Unconfirmed, cancelled or still-running checks never authorize repair.</p>
         <p>Changing this policy requires a fresh contract review and approval. It does not authorize more work under an earlier contract.</p>
-        <Button variant="secondary" disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError || repairLimit === effectiveAutomaticRepairLimit(policy.automaticRepairLimit)} onClick={() => void saveRepairLimit()}>Save automatic repair limit</Button>
+        <Button variant="secondary" disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError || repairLimit === effectiveAutomaticRepairLimit(policy.automaticRepairLimit) && checkFailureRepairs === (policy.checkFailureRepairs === true)} onClick={() => void saveRepairLimit()}>Save automatic repair limit</Button>
       </details>}
       {policy && <details><summary>Reviewed candidate integration</summary><p>Allow Luci to integrate a stopped upstream candidate only inside its saved nonempty task write paths. Failed or uncertain attempts, unanswered questions and changed source remain for explicit review. Independent checks on the combined source still run afterward.</p>{policy.integrationMode === 'reviewed-scopes' ? <Button variant="tertiary" disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError} onClick={() => void saveIntegrationMode('manual')}>Pause automatic integration</Button> : <><label className="setup-check"><input type="checkbox" checked={integrationConsent} disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending} onChange={event => setIntegrationConsent(event.target.checked)} />Allow reviewed-scope candidate integration for future continuations.</label><Button variant="secondary" disabled={!integrationConsent || !canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError} onClick={() => void saveIntegrationMode('reviewed-scopes')}>Enable reviewed integration</Button></>}</details>}
       {policy && <details><summary>Checked-source preview permission</summary><p>Choose static reviewed-source serving or a Dockerfile build from the exact independently checked commit. The two approvals are distinct. Current Deploy access and resource limits apply; public deployment remains separate.</p>{policy.previewMode === 'checked-source' || policy.previewMode === 'reviewed-source' ? <><p>Approved preview kind: {policy.previewMode === 'reviewed-source' ? 'static reviewed source' : 'Dockerfile build'}.</p><Button variant="tertiary" disabled={!canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending || !!storageError} onClick={() => void savePreviewMode('manual')}>Pause automatic previews</Button></> : <><label className="setup-check"><input type="checkbox" checked={previewConsent} disabled={!canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending} onChange={event => setPreviewConsent(event.target.checked)} />Allow checked-source local previews for this project.</label><Button variant="secondary" disabled={!previewConsent || !canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending || !!storageError} onClick={() => void savePreviewMode('reviewed-source')}>Enable static reviewed-source previews</Button><Button variant="secondary" disabled={!previewConsent || !canEdit || !canExecute || !canDeploy || !fresh || !!busy || !!pending || !!storageError} onClick={() => void savePreviewMode('checked-source')}>Enable checked-source previews</Button></>}</details>}

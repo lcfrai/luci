@@ -8,6 +8,7 @@ export interface CoordinatorPolicy {
   executionMode: "manual" | "reviewed-tasks"; integrationMode?: "manual" | "reviewed-scopes"; deploymentMode: "manual" | "existing-target"; previewMode?: "manual" | "checked-source" | "reviewed-source";
   updatedAt?: string; actor?: { id: string; displayName: string };
   automaticRepairLimit?: number;
+  checkFailureRepairs?: boolean;
 }
 export const validAutomaticRepairLimit = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= 2;
 /** Display only; never add defaults to retained policy/contract JSON. */
@@ -17,6 +18,7 @@ const route = (id: string) => `/v1/product/projects/${encodeURIComponent(id)}/or
 function verified(value: CoordinatorPolicy, projectId: string) {
   if (value?.projectId !== projectId || !Number.isSafeInteger(value.revision) || value.revision < 0 ||
       value.automaticRepairLimit !== undefined && !validAutomaticRepairLimit(value.automaticRepairLimit) ||
+      value.checkFailureRepairs !== undefined && typeof value.checkFailureRepairs !== 'boolean' ||
       !["review", "auto-drafts"].includes(value.mode) || !["manual", "approved-amendments"].includes(value.reviewMode) || (value.reviewMode === "approved-amendments" && value.mode !== "auto-drafts") || !Array.isArray(value.allowedTargets) ||
       !["manual", "reviewed-tasks"].includes(value.executionMode) || (value.integrationMode !== undefined && !["manual", "reviewed-scopes"].includes(value.integrationMode)) || !["manual", "existing-target"].includes(value.deploymentMode) || (value.previewMode !== undefined && !["manual", "checked-source", "reviewed-source"].includes(value.previewMode)) ||
       value.allowedTargets.some(target => !coordinatorTargets.includes(target)) ||
@@ -31,11 +33,15 @@ export const coordinatorPolicyApi = {
   async get(projectId: string, signal?: AbortSignal) {
     return verified(await productApi.request<CoordinatorPolicy>(route(projectId), undefined, "GET", 120_000, signal), projectId);
   },
-  async save(projectId: string, input: { expectedRevision: number; mode: CoordinatorPolicy["mode"]; reviewMode?: CoordinatorPolicy["reviewMode"]; allowedTargets: CoordinatorTarget[]; executionMode?: CoordinatorPolicy["executionMode"]; integrationMode?: CoordinatorPolicy["integrationMode"]; previewMode?: CoordinatorPolicy["previewMode"]; deploymentMode?: CoordinatorPolicy["deploymentMode"]; automaticRepairLimit?: number | null }) {
+  async save(projectId: string, input: { expectedRevision: number; mode: CoordinatorPolicy["mode"]; reviewMode?: CoordinatorPolicy["reviewMode"]; allowedTargets: CoordinatorTarget[]; executionMode?: CoordinatorPolicy["executionMode"]; integrationMode?: CoordinatorPolicy["integrationMode"]; previewMode?: CoordinatorPolicy["previewMode"]; deploymentMode?: CoordinatorPolicy["deploymentMode"]; automaticRepairLimit?: number | null; checkFailureRepairs?: boolean }) {
     if (input.automaticRepairLimit != null && !validAutomaticRepairLimit(input.automaticRepairLimit)) throw new Error("Choose an automatic repair limit from zero to two.");
+    if (input.checkFailureRepairs !== undefined && typeof input.checkFailureRepairs !== 'boolean') throw new Error("Choose explicitly whether settled check failures may use the approved repair budget.");
     const value = verified(await productApi.request<CoordinatorPolicy>(route(projectId), input), projectId);
     if (input.automaticRepairLimit != null && value.automaticRepairLimit !== input.automaticRepairLimit) {
       throw new Error("The saved repair limit did not match this change. Refresh to observe its outcome before changing it again.");
+    }
+    if (input.checkFailureRepairs !== undefined && (value.checkFailureRepairs === true) !== input.checkFailureRepairs) {
+      throw new Error("The saved check repair allowance did not match this change. Refresh to observe its outcome before changing it again.");
     }
     if (value.revision !== input.expectedRevision + 1 || value.mode !== input.mode ||
         value.allowedTargets.join(",") !== input.allowedTargets.join(",") || (input.reviewMode !== undefined && value.reviewMode !== input.reviewMode) || (input.executionMode !== undefined && value.executionMode !== input.executionMode) || (input.integrationMode !== undefined && value.integrationMode !== input.integrationMode) || (input.previewMode !== undefined && value.previewMode !== input.previewMode) || (input.deploymentMode !== undefined && value.deploymentMode !== input.deploymentMode)) {

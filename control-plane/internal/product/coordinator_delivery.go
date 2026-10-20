@@ -110,6 +110,7 @@ func (s *Server) coordinatorDeliveryAuthorityLocked(ctx context.Context, p proje
 // return the retained receipt. Reservation precedes the one allowed invocation;
 // all later calls observe its exact ID, including after process death.
 func (s *Server) continueCoordinatorDelivery(ctx context.Context, p project.Project, selected coordinatorContinuationRecord) (coordinatorContinuationRecord, error) {
+	if repaired, handled, repairErr := s.continueCoordinatorCheckRepair(ctx, p, selected); handled || repairErr != nil { return repaired, repairErr }
 	release, err := s.AcquireGitSessionAdmission(ctx, p.ID)
 	if err != nil {
 		return selected, errCoordinatorSourceBusy
@@ -131,7 +132,7 @@ func (s *Server) continueCoordinatorDelivery(ctx context.Context, p project.Proj
 		s.mu.Unlock()
 		return row, ErrOrchestratorConflict
 	}
-	actionID := row.ID + "-checks"
+	actionID := coordinatorCheckActionID(row.ID, len(row.PriorDeliveries))
 	if s.coordinatorActions[actionID] {
 		s.mu.Unlock()
 		return row, nil
@@ -184,7 +185,7 @@ func (s *Server) continueCoordinatorDelivery(ctx context.Context, p project.Proj
 	invoke := row.Delivery == nil
 	if invoke {
 		now := time.Now().UTC().Format(time.RFC3339Nano)
-		row.Delivery = &CoordinatorDelivery{ActionID: actionID, CheckID: coordinatorCheckID(row.ID), Status: "pending", Commit: commit, SourceDigest: digest, IntegrationDigest: integration, StartedAt: now, UpdatedAt: now}
+		row.Delivery = &CoordinatorDelivery{ActionID: actionID, CheckID: coordinatorDeliveryCheckID(row.ID, len(row.PriorDeliveries)), Status: "pending", Commit: commit, SourceDigest: digest, IntegrationDigest: integration, StartedAt: now, UpdatedAt: now}
 		row, err = s.persistCoordinatorDelivery(ctx, p, row, "pending", "The exact check identity and integrated source are reserved before command execution.")
 		if err != nil {
 			return row, err

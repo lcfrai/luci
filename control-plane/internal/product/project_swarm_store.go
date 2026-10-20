@@ -11,6 +11,7 @@ import (
 // Swarms coordinate existing reviewed sessions. A task is released only by an
 // integration receipt, never a task-board checkbox or successful process exit.
 type ProjectSwarm struct {
+	CheckRepairs []ProjectSwarmCheckRepair `json:"checkRepairs,omitempty"`
 	State              string                         `json:"state"`
 	MaxParallel        int                            `json:"maxParallel"`
 	Tasks              []ProjectSwarmTask             `json:"tasks"`
@@ -64,7 +65,7 @@ func swarmOperation(run *ProjectRun, id string) *ProjectRunOperation {
 func validateProjectSwarm(run ProjectRun) error {
 	if run.Swarm == nil {
 		for _, op := range run.Operations {
-			if op.Handoff != nil || op.DependencyContext != nil || op.Checkpoint != nil || op.UnclaimedRetirement || op.TaskID != "" || op.WorktreeID != "" || op.Implementation != nil || op.Allocation != "" || op.AbsenceRetirement != nil || op.LaunchRecovery != nil || op.LaunchRecoveryProof != nil || op.Recovery != nil || op.Status == "review-required" {
+			if op.CheckRepair != nil || op.Handoff != nil || op.DependencyContext != nil || op.Checkpoint != nil || op.UnclaimedRetirement || op.TaskID != "" || op.WorktreeID != "" || op.Implementation != nil || op.Allocation != "" || op.AbsenceRetirement != nil || op.LaunchRecovery != nil || op.LaunchRecoveryProof != nil || op.Recovery != nil || op.Status == "review-required" {
 				return ErrProjectRunInvalid
 			}
 		}
@@ -177,6 +178,7 @@ func validateProjectSwarm(run ProjectRun) error {
 			return ErrProjectRunInvalid
 		}
 	}
+	if !validSwarmCheckRepairs(run) { return ErrProjectRunInvalid }
 	if err := validateSwarmCoordination(run); err != nil {
 		return err
 	}
@@ -246,6 +248,10 @@ func (s *ProjectRunStore) reserveSwarmTask(projectID, path, id string, revision 
 }
 
 func (s *ProjectRunStore) reserveSwarmTaskGated(projectID, path, id string, revision int, key, taskID, base string, worktree func(string) string, checkpoint *ProjectSwarmCheckpoint, gate func(ProjectRun) error) (ProjectRun, ProjectRunOperation, bool, error) {
+	return s.reserveSwarmTaskWithCheckRepair(projectID, path, id, revision, key, taskID, base, worktree, checkpoint, nil, gate)
+}
+
+func (s *ProjectRunStore) reserveSwarmTaskWithCheckRepair(projectID, path, id string, revision int, key, taskID, base string, worktree func(string) string, checkpoint *ProjectSwarmCheckpoint, checkRepair *ProjectSwarmCheckRepairOrigin, gate func(ProjectRun) error) (ProjectRun, ProjectRunOperation, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !validRunKey(key) || !deliverySHA.MatchString(base) {
@@ -261,7 +267,7 @@ func (s *ProjectRunStore) reserveSwarmTaskGated(projectID, path, id string, revi
 	}
 	if prior, ok := row.OperationKeys[reviewDigest(key)]; ok {
 		op := swarmOperation(&row.Run, prior)
-		if op == nil || op.TaskID != taskID || !sameSwarmCheckpointSelection(op.Checkpoint, checkpoint) {
+		if op == nil || op.TaskID != taskID || !sameSwarmCheckpointSelection(op.Checkpoint, checkpoint) || reviewDigest(op.CheckRepair) != reviewDigest(checkRepair) {
 			return ProjectRun{}, ProjectRunOperation{}, false, ErrProjectRunKeyConflict
 		}
 		return row.Run, *op, false, nil
@@ -274,7 +280,7 @@ func (s *ProjectRunStore) reserveSwarmTaskGated(projectID, path, id string, revi
 			if err := swarmRepairBudgetForCheckpoint(row.Run, checkpoint.SourceOperationID); err != nil {
 				return false, err
 			}
-		} else if swarmFailedReviewCount(row.Run, taskID) > 0 {
+		} else if checkRepair == nil && swarmFailedReviewCount(row.Run, taskID) > 0 {
 			return false, ErrProjectRunConflict
 		}
 		if gate != nil {
@@ -285,6 +291,12 @@ func (s *ProjectRunStore) reserveSwarmTaskGated(projectID, path, id string, revi
 		task := swarmTask(&row.Run, taskID)
 		if task == nil {
 			return false, ErrProjectRunNotFound
+		}
+		if checkRepair != nil {
+			if err := swarmCheckRepairReady(row.Run, *task, checkRepair.WaveID); err != nil { return false, err }
+			member := swarmCheckRepairTask(swarmCheckRepairWave(&row.Run, checkRepair.WaveID), taskID)
+			if reviewDigest(checkRepair) != reviewDigest(swarmCheckRepairOrigin(*swarmCheckRepairWave(&row.Run, checkRepair.WaveID), *member)) { return false, ErrProjectRunConflict }
+			task.Integration = nil
 		}
 		if err := swarmTaskReady(row.Run, *task); err != nil {
 			return false, err
@@ -298,6 +310,7 @@ func (s *ProjectRunStore) reserveSwarmTaskGated(projectID, path, id string, revi
 			saved := *checkpoint
 			op.Checkpoint = &saved
 		}
+		if checkRepair != nil { saved := *checkRepair; op.CheckRepair = &saved; swarmCheckRepairTask(swarmCheckRepairWave(&row.Run, saved.WaveID), taskID).OperationID = op.ID }
 		op.WorktreeID = worktree(op.ID)
 		if op.WorktreeID == "" {
 			return false, ErrProjectRunInvalid

@@ -11,6 +11,28 @@ import (
 	"testing"
 )
 
+func TestCheckFailureRepairAllowanceCapturedDefaultOffAndPolicyInvalidation(t *testing.T) {
+	s, handler, req, base, _, _ := contractFixture(t)
+	prepare := contractRequest(req)
+	legacy := contractResponse(t, journeyRequest(t, handler, http.MethodPost, base+"/orchestration-contracts/prepare", prepare, 201).Body.Bytes())
+	before, _ := json.Marshal(legacy.Contract.Input)
+	if legacy.Contract.Input.Controls.CheckFailureRepairs || bytes.Contains(before, []byte("checkFailureRepairs")) { t.Fatal("legacy preparation gained check repair authority") }
+	journeyRequest(t, handler, http.MethodPost, base+"/orchestrator/policy", map[string]any{"expectedRevision": 0, "mode": "review", "allowedTargets": []string{"plan"}, "checkFailureRepairs": "true"}, 400)
+	journeyRequest(t, handler, http.MethodPost, base+"/orchestrator/policy", map[string]any{"expectedRevision": 0, "mode": "review", "allowedTargets": []string{"plan"}, "automaticRepairLimit": 1, "checkFailureRepairs": true}, 200)
+	prepare.IdempotencyKey = "check-failure-new-contract-123456"
+	current := contractResponse(t, journeyRequest(t, handler, http.MethodPost, base+"/orchestration-contracts/prepare", prepare, 201).Body.Bytes())
+	if !current.Contract.Input.Controls.CheckFailureRepairs || current.Contract.Digest == legacy.Contract.Digest { t.Fatal("new allowance was not captured under fresh consent") }
+	// An unrelated old client save preserves the explicit optional allowance.
+	journeyRequest(t, handler, http.MethodPost, base+"/orchestrator/policy", map[string]any{"expectedRevision": 1, "mode": "review", "allowedTargets": []string{"plan"}}, 200)
+	p, err := s.resolveProject(req.ImplementationContext.ProjectID)
+	if err != nil { t.Fatal(err) }
+	policy, err := s.readCoordinatorPolicy(p)
+	if err != nil || !policy.CheckFailureRepairs { t.Fatal("old client save dropped explicit allowance", err) }
+	stale := contractResponse(t, journeyRequest(t, handler, http.MethodGet, base+"/orchestration-contracts/"+legacy.Contract.ID, nil, 200).Body.Bytes())
+	after, _ := json.Marshal(stale.Contract.Input)
+	if stale.Freshness.Status != "changed" || !bytes.Equal(before, after) { t.Fatal("policy change silently amended retained input") }
+}
+
 func TestAutomaticRepairLimitPolicyHTTPPreservesZeroAndRejectsInvalid(t *testing.T) {
 	s, p, handler, _ := coordinatorPolicyFixture(t)
 	url := "/v1/product/projects/" + p.ID + "/orchestrator/policy"

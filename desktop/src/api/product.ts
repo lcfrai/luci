@@ -241,6 +241,8 @@ export interface CheckCommand {
   args: string[];
 }
 export interface CheckResult extends CheckCommand {
+	/** Runner attests this command was not started after a settled failure. */
+	notStartedAfterFailure?: boolean;
   allocationId?: string;
   stage?: string;
   reasonCode?: string;

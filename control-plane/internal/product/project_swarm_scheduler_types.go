@@ -131,6 +131,9 @@ type swarmQueueRecord struct {
 	RequestDigest  string                       `json:"requestDigest"`
 	// Internal automatic repair is tied to one retained failed finding and
 	// stopped source attempt. These fields never replace its run receipts.
+	CheckRepairWaveID string `json:"checkRepairWaveId,omitempty"`
+	CheckRepairContinuationID string `json:"checkRepairContinuationId,omitempty"`
+	CheckRepairActorID string `json:"checkRepairActorId,omitempty"`
 	RepairObligationID      string `json:"repairObligationId,omitempty"`
 	RepairSourceOperationID string `json:"repairSourceOperationId,omitempty"`
 	RepairReviewDigest      string `json:"repairReviewDigest,omitempty"`

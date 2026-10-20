@@ -11,6 +11,7 @@ export interface CoordinatorContinuation {
   status: 'ready' | 'continuing' | 'queued' | 'checking' | 'checks-verified' | 'unknown' | 'refused' | 'blocked' | 'previewing' | 'preview-ready' | 'preview-blocked' | 'deploying' | 'deployed' | 'deployment-blocked'; message: string;
   runId?: string; queueIds: string[];
   actions: { id: string; kind: CoordinatorActionKind; status: 'pending' | 'confirmed' | 'unknown' | 'refused'; referenceId?: string; message?: string; startedAt: string; finishedAt?: string }[];
+  priorDeliveries?: NonNullable<CoordinatorContinuation['delivery']>[];
   delivery?: { actionId: string; checkId: string; status: 'pending' | 'running' | 'verified' | 'unknown' | 'blocked'; commit: string; sourceDigest: string; integrationDigest: string; message: string; startedAt: string; updatedAt: string; preview?: { actionId: string; releaseId: string; status: 'pending' | 'running' | 'ready' | 'unknown' | 'blocked'; message: string; startedAt: string; updatedAt: string; evidence?: ProjectRun['releases'][number] & { projectId: string } }; gitPublication?: { actionId: string; status: 'pending' | 'unknown' | 'verified' | 'blocked'; repository: string; branch: string; commit: string; startedAt: string; updatedAt: string; message: string }; deployment?: { actionId: string; releaseId: string; status: 'pending' | 'running' | 'ready' | 'unknown' | 'blocked'; message: string; startedAt: string; updatedAt: string; evidence?: ProjectRun['releases'][number] & { projectId: string } } };
   createdAt: string; updatedAt: string; nextAction?: OrchestratorView['nextAction'];
 }
@@ -66,12 +67,17 @@ function verified(value: CoordinatorContinuation, project: string, actor: string
       value.delivery?.gitPublication && !gitVerified(value.delivery.gitPublication, value) ||
       value.delivery?.deployment && !deploymentVerified(value.delivery.deployment, value, project) ||
       value.delivery?.preview && !previewVerified(value.delivery.preview, value, project) ||
-      value.delivery && (value.delivery.actionId !== `${value.id}-checks` || !text(value.delivery.checkId) || !['pending', 'running', 'verified', 'unknown', 'blocked'].includes(value.delivery.status) || !/^[0-9a-f]{40,64}$/.test(value.delivery.commit) || !/^[0-9a-f]{64}$/.test(value.delivery.sourceDigest) || !/^[0-9a-f]{64}$/.test(value.delivery.integrationDigest) || typeof value.delivery.message !== 'string') ||
+      value.priorDeliveries !== undefined && (!Array.isArray(value.priorDeliveries) || value.priorDeliveries.length > 2 || value.priorDeliveries.some((item, index) => !deliveryVerified(item, value.id, index) || item.status !== 'blocked' || !!item.preview || !!item.deployment || !!item.gitPublication)) ||
+      value.delivery && (value.delivery.actionId !== checkActionId(value.id, value.priorDeliveries?.length ?? 0) || !text(value.delivery.checkId) || !['pending', 'running', 'verified', 'unknown', 'blocked'].includes(value.delivery.status) || !/^[0-9a-f]{40,64}$/.test(value.delivery.commit) || !/^[0-9a-f]{64}$/.test(value.delivery.sourceDigest) || !/^[0-9a-f]{64}$/.test(value.delivery.integrationDigest) || typeof value.delivery.message !== 'string') ||
       !Number.isFinite(Date.parse(value.createdAt)) || !Number.isFinite(Date.parse(value.updatedAt)) ||
       value.nextAction && (!['discover', 'design', 'develop', 'deploy'].includes(value.nextAction.lens) || !text(value.nextAction.label) || typeof value.nextAction.reason !== 'string')) {
     throw new Error('The continuation response could not be verified for this person and project. Refresh its exact outcome before continuing.');
   }
   return value;
+}
+const checkActionId = (id: string, ordinal: number) => ordinal === 0 ? `${id}-checks` : `${id}-checks-${ordinal + 1}`;
+function deliveryVerified(value: NonNullable<CoordinatorContinuation['delivery']>, id: string, ordinal: number) {
+  return !!value && value.actionId === checkActionId(id, ordinal) && text(value.checkId) && ['pending', 'running', 'verified', 'unknown', 'blocked'].includes(value.status) && /^[0-9a-f]{40,64}$/.test(value.commit) && /^[0-9a-f]{64}$/.test(value.sourceDigest) && /^[0-9a-f]{64}$/.test(value.integrationDigest) && typeof value.message === 'string' && Number.isFinite(Date.parse(value.startedAt)) && Number.isFinite(Date.parse(value.updatedAt));
 }
 function previewVerified(preview: NonNullable<NonNullable<CoordinatorContinuation['delivery']>['preview']>, row: CoordinatorContinuation, project: string) {
   if (preview.actionId !== `${row.id}-preview` || !/^rel-[a-zA-Z0-9_-]+$/.test(preview.releaseId) || !['pending', 'running', 'ready', 'unknown', 'blocked'].includes(preview.status) || typeof preview.message !== 'string' || !Number.isFinite(Date.parse(preview.startedAt)) || !Number.isFinite(Date.parse(preview.updatedAt))) return false;

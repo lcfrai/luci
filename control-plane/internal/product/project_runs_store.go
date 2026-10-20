@@ -57,6 +57,7 @@ type ProjectRunInput struct {
 }
 
 type ProjectRunOperation struct {
+	CheckRepair *ProjectSwarmCheckRepairOrigin `json:"checkRepair,omitempty"`
 	Handoff                *TaskHandoffReference           `json:"handoff,omitempty"`
 	DependencyContext      *TaskDependencyReference        `json:"dependencyContext,omitempty"`
 	Checkpoint             *ProjectSwarmCheckpoint         `json:"checkpoint,omitempty"`

@@ -2,7 +2,25 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { productApi } from './product';
 import { approvedContractReference, orchestrationContractsApi, ownedOrchestrationContract } from './orchestrationContracts';
 import { contractPrepareFixture, contractViewFixture } from '../test/orchestrationContractFixtures';
+import { coordinatorPolicyApi, type CoordinatorPolicy } from './coordinatorPolicy';
 afterEach(() => vi.restoreAllMocks());
+it.each([undefined, false, true])('check repair allowance retains exact optional captured value %s', value => {
+  const view = contractViewFixture();
+  if (value !== undefined) view.contract.input.controls.checkFailureRepairs = value;
+  const bytes = JSON.stringify(view);
+  expect(ownedOrchestrationContract('p-1', view).contract.input.controls.checkFailureRepairs).toBe(value);
+  expect(JSON.stringify(view)).toBe(bytes);
+});
+it.each([null, 'true', 1])('check repair allowance refuses malformed captured value %s', value => {
+  const view = contractViewFixture();
+  Object.assign(view.contract.input.controls, {checkFailureRepairs: value});
+  expect(() => ownedOrchestrationContract('p-1', view)).toThrow();
+});
+it.each([false, true])('check repair policy refuses a mismatching saved allowance %s', requested => {
+  const value: CoordinatorPolicy = {projectId: 'p-1', revision: 2, mode: 'review', reviewMode: 'manual', allowedTargets: ['plan'], executionMode: 'reviewed-tasks', deploymentMode: 'manual', updatedAt: '2026-10-20T00:00:00Z', actor: {id: 'owner', displayName: 'Owner'}, checkFailureRepairs: !requested};
+  vi.spyOn(productApi, 'request').mockResolvedValue(value);
+  return expect(coordinatorPolicyApi.save('p-1', {expectedRevision: 1, mode: 'review', allowedTargets: ['plan'], checkFailureRepairs: requested})).rejects.toThrow(/allowance did not match/);
+});
 it('native helpers preserve explicit preparation and server-captured image without caller image authority', async () => {
   const input = contractPrepareFixture(), view = contractViewFixture();
   input.route.nativeDelegation = 'codex-native-helpers-2-v1'; input.route.permissionMode = 'bypass'; input.route.harness = 'codex';

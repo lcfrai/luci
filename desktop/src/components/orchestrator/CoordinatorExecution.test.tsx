@@ -123,7 +123,7 @@ it('saves explicit zero, reloads it and preserves zero through unrelated permiss
   await userEvent.selectOptions(selector, '0');
   await userEvent.click(screen.getByRole('button', {name: 'Save automatic repair limit'}));
   await screen.findByText(/automatic repair limit is saved/);
-  expect(coordinatorPolicyApi.save).toHaveBeenLastCalledWith('p-1', {expectedRevision: 2, mode: 'review', allowedTargets: ['specification'], automaticRepairLimit: 0});
+  expect(coordinatorPolicyApi.save).toHaveBeenLastCalledWith('p-1', {expectedRevision: 2, mode: 'review', allowedTargets: ['specification'], automaticRepairLimit: 0, checkFailureRepairs: false});
   expect(selector).toHaveProperty('value', '0');
   first.unmount();
   vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({revision: 3, automaticRepairLimit: 0}));
@@ -137,6 +137,34 @@ it('saves explicit zero, reloads it and preserves zero through unrelated permiss
   expect(calls[calls.length - 1][1]).not.toHaveProperty('automaticRepairLimit');
   expect(screen.getByRole('combobox', {name: 'Automatic repairs per coding task'})).toHaveProperty('value', '0');
   expect(api.create).not.toHaveBeenCalled();
+});
+it('check repair policy defaults off and saves only explicit choice without starting a continuation', async () => {
+  vi.mocked(coordinatorPolicyApi.save).mockResolvedValueOnce(policy({revision: 3, automaticRepairLimit: 2, checkFailureRepairs: true}));
+  render(<CoordinatorExecution {...props()} />);
+  await userEvent.click(await screen.findByText('Automatic repairs'));
+  const choice = screen.getByRole('checkbox', {name: /Allow settled combined-check failures/});
+  expect(choice).toHaveProperty('checked', false);
+  await userEvent.click(choice);
+  await userEvent.click(screen.getByRole('button', {name: 'Save automatic repair limit'}));
+  await screen.findByText(/automatic repair limit is saved/);
+  expect(coordinatorPolicyApi.save).toHaveBeenCalledWith('p-1', {expectedRevision: 2, mode: 'review', allowedTargets: ['specification'], automaticRepairLimit: 2, checkFailureRepairs: true});
+  expect(api.create).not.toHaveBeenCalled(); expect(orchestrationContractsApi.prepare).not.toHaveBeenCalled();
+});
+it('check repair policy preserves an interrupted explicit choice across mismatching readback without resend', async () => {
+  vi.mocked(coordinatorPolicyApi.save).mockRejectedValueOnce(new Error('choice response interrupted'));
+  const first = render(<CoordinatorExecution {...props()} />);
+  await userEvent.click(await screen.findByText('Automatic repairs'));
+  await userEvent.click(screen.getByRole('checkbox', {name: /Allow settled combined-check failures/}));
+  await userEvent.click(screen.getByRole('button', {name: 'Save automatic repair limit'}));
+  await screen.findByText(/choice response interrupted/);
+  first.unmount();
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({revision: 3, automaticRepairLimit: 2}));
+  render(<CoordinatorExecution {...props()} />);
+  await waitFor(() => expect(screen.getByRole('button', {name: 'Refresh continued work'})).toHaveProperty('disabled', false));
+  await userEvent.click(screen.getByRole('button', {name: 'Refresh continued work'}));
+  await screen.findByText(/current saved repair controls differ/);
+  expect(JSON.parse(localStorage.getItem('luci.coordinator-execution.v1:local/alice/p-1')!).checkFailureRepairs).toBe(true);
+  expect(coordinatorPolicyApi.save).toHaveBeenCalledTimes(1); expect(api.create).not.toHaveBeenCalled();
 });
 it.each([0, 1])('reads a lost zero-budget save without resend; current value%i cannot silently replace its request', async currentLimit => {
   vi.mocked(coordinatorPolicyApi.save).mockRejectedValueOnce(new Error('response interrupted'));
@@ -155,7 +183,7 @@ it.each([0, 1])('reads a lost zero-budget save without resend; current value%i c
   await waitFor(() => expect(screen.getByRole('button', {name: 'Refresh continued work'})).toHaveProperty('disabled', false));
   await userEvent.click(screen.getByRole('button', {name: 'Refresh continued work'}));
   if (currentLimit === 0) await waitFor(() => expect(records()).toHaveLength(0));
-  else { await screen.findByText(/current saved repair limit differs/); expect(records()).toHaveLength(1); }
+  else { await screen.findByText(/current saved repair controls differ/); expect(records()).toHaveLength(1); }
   expect(coordinatorPolicyApi.save).toHaveBeenCalledTimes(1);
   expect(api.create).not.toHaveBeenCalled();
 });

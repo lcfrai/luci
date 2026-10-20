@@ -27,6 +27,7 @@ type CoordinatorPolicy struct {
 	PreviewMode          string        `json:"previewMode"`
 	DeploymentMode       string        `json:"deploymentMode"`
 	AutomaticRepairLimit *int          `json:"automaticRepairLimit,omitempty"`
+	CheckFailureRepairs   bool          `json:"checkFailureRepairs,omitempty"`
 	AllowedTargets       []string      `json:"allowedTargets"`
 	UpdatedAt            string        `json:"updatedAt,omitempty"`
 	Actor                *ContextActor `json:"actor,omitempty"`
@@ -204,6 +205,7 @@ func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 		PreviewMode          *string  `json:"previewMode"`
 		DeploymentMode       *string  `json:"deploymentMode"`
 		AutomaticRepairLimit *int     `json:"automaticRepairLimit"`
+		CheckFailureRepairs   *bool    `json:"checkFailureRepairs"`
 		AllowedTargets       []string `json:"allowedTargets"`
 	}
 	if !journeyDecode(w, r, &req) {
@@ -272,6 +274,10 @@ func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 	actor, _ := authenticatedContextActor(r.Context())
 	policy := CoordinatorPolicy{ProjectID: p.ID, Revision: current.Revision + 1, Mode: req.Mode, ReviewMode: reviewMode, ExecutionMode: executionMode, IntegrationMode: integrationMode, PreviewMode: previewMode, DeploymentMode: deploymentMode, AllowedTargets: targets, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano), Actor: &actor}
 	policy.AutomaticRepairLimit = &repairLimit
+	policy.CheckFailureRepairs = current.CheckFailureRepairs
+	if req.CheckFailureRepairs != nil {
+		policy.CheckFailureRepairs = *req.CheckFailureRepairs
+	}
 	scope, err := s.approvalScopes(p.Path, p.ID)
 	if err != nil {
 		coordinatorPolicyProblem(w, err)

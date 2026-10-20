@@ -40,7 +40,9 @@ func swarmRepairsConsumed(run ProjectRun, taskID string) int {
 			}
 		}
 	}
-	return len(seen)
+	count := len(seen)
+	if run.Swarm != nil { for _, wave := range run.Swarm.CheckRepairs { if swarmCheckRepairTask(&wave, taskID) != nil { count++ } } }
+	return count
 }
 
 func swarmRepairBudgetForCheckpoint(run ProjectRun, sourceID string) error {
@@ -83,6 +85,7 @@ func swarmRepairBudgetForOperation(run ProjectRun, operationID string) error {
 	if run.Swarm == nil {
 		return nil // serial reviewed runs have no independent-review repair lineage
 	}
+	if op.CheckRepair != nil { return swarmCheckRepairBudget(run, *op) }
 	limit, err := swarmAutomaticRepairLimit(run)
 	if err != nil {
 		return err
@@ -115,7 +118,7 @@ func swarmRepairBudgetForOperation(run ProjectRun, operationID string) error {
 		return ErrProjectRunConflict // failed reviewed bytes cannot start again
 	}
 	if matches == 1 {
-		if repairOrdinal > limit {
+		if repairOrdinal > limit || swarmRepairsConsumed(run, op.TaskID) > limit {
 			return errAutomaticRepairLimit
 		}
 		return nil
@@ -139,7 +142,7 @@ func (s *Server) swarmRepairPolicyCurrentLocked(p project.Project, run ProjectRu
 	controls := run.Input.OrchestrationContract.Input.Controls
 	savedLimit, savedErr := effectiveAutomaticRepairLimit(controls.AutomaticRepairLimit)
 	currentLimit, currentErr := effectiveAutomaticRepairLimit(policy.AutomaticRepairLimit)
-	if savedErr != nil || currentErr != nil || savedLimit != currentLimit || policy.Revision != controls.CoordinatorPolicyRevision || reviewDigest(policy) != controls.CoordinatorPolicyDigest {
+	if savedErr != nil || currentErr != nil || savedLimit != currentLimit || controls.CheckFailureRepairs != policy.CheckFailureRepairs || policy.Revision != controls.CoordinatorPolicyRevision || reviewDigest(policy) != controls.CoordinatorPolicyDigest {
 		return ErrProjectRunConflict
 	}
 	return nil
@@ -161,7 +164,7 @@ func (s *Server) ValidateSwarmOperationExecutionContract(projectID string, captu
 		return ErrProjectRunConflict
 	}
 	old, op := swarmOperation(&captured, operationID), swarmOperation(&current, operationID)
-	if old == nil || op == nil || old.ChildID != op.ChildID || old.TaskID != op.TaskID || old.WorktreeID != op.WorktreeID || !reflect.DeepEqual(old.Checkpoint, op.Checkpoint) || !reflect.DeepEqual(old.Implementation, op.Implementation) || current.State == "cancelled" || current.State == "blocked" {
+	if old == nil || op == nil || old.ChildID != op.ChildID || old.TaskID != op.TaskID || old.WorktreeID != op.WorktreeID || old.BaseCommit != op.BaseCommit || !reflect.DeepEqual(old.Checkpoint, op.Checkpoint) || !reflect.DeepEqual(old.CheckRepair, op.CheckRepair) || !reflect.DeepEqual(old.Implementation, op.Implementation) || current.State == "cancelled" || current.State == "blocked" {
 		return ErrProjectRunConflict
 	}
 	if err = s.contractCurrentForRun(p, current); err != nil {

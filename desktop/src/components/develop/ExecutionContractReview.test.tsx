@@ -9,6 +9,14 @@ const pending = (): ExecutionContractReviewRequest => ({ version: 1, projectId: 
 beforeEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
 function props() { return { pending: pending(), initialView: contractViewFixture(), scope: 'owner/workspace/project', actorId: 'owner', canRead: true, canEdit: true,
   onPrepared: vi.fn(), onCreate: vi.fn().mockResolvedValue(undefined), onComplete: vi.fn(), onReviewInputs: vi.fn() }; }
+it.each([false, true])('check repair review shows the captured allowance %s without changing consent or starting work', enabled => {
+  const p = props(); p.initialView.contract.input.controls.checkFailureRepairs = enabled;
+  const bytes = JSON.stringify(p.initialView);
+  render(<ExecutionContractReview {...p} />);
+  expect(screen.getByText(enabled ? /Enabled within the same per-task repair budget/ : /Not enabled\. Failed checks remain/)).toBeTruthy();
+  expect(screen.getByRole('checkbox')).toHaveProperty('checked', false);
+  expect(p.onCreate).not.toHaveBeenCalled(); expect(JSON.stringify(p.initialView)).toBe(bytes);
+});
 function nativeProps() {
   const p = props(); p.pending.request.route.nativeDelegation = 'codex-native-helpers-2-v1'; p.pending.request.route.permissionMode = 'bypass'; p.pending.request.route.harness = 'codex';
   Object.assign(p.initialView.contract.input.route, {harness: 'codex', permissionMode: 'bypass', nativeDelegation: 'codex-native-helpers-2-v1', nativeDelegationImage: 'sha256:' + 'a'.repeat(64)});
