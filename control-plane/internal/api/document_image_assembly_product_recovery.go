@@ -31,7 +31,7 @@ func(a *API)reconcileDocumentAssembly(ctx context.Context,id runtimeinstall.Iden
   var live *liveDocumentAssemblyStage
   if actual,ok:=liveDocumentAssemblyStages.Load(a.execution.assemblyStageKey(row.ID));ok{live=actual.(*liveDocumentAssemblyStage)}else if row.State=="staging"&&row.Stage.State=="reserved"{live=&liveDocumentAssemblyStage{}}
   if live==nil{return out,backend.ErrUnavailable}
-  if e=a.execution.closeDocumentAssemblyStage(ctx,row,live);e!=nil{return out,e}
+  if e=a.execution.waitDocumentAssemblyStageRetirement(ctx,row,live,true,true);e!=nil{return out,e}
   ledger,readErr:=a.execution.readReservationLedger(ctx);if readErr!=nil{return out,readErr};i,readErr:=assemblyLeaseIndex(&ledger,row.Identity);if readErr!=nil{return out,readErr};row=ledger.ImageAssemblies[i]
  }
  if row.State=="staging"{if e=a.execution.finishUnstartedDocumentAssembly(ctx,row);e!=nil{return out,e};out.Phase="cancelled";out.ResourcesHeld=false;out.CleanupConfirmed=true;out.Message="Original staging inputs retired; assembly was never started and was not replayed.";return out,publish(out)}

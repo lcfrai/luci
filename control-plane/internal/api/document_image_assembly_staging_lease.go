@@ -22,14 +22,65 @@ type documentAssemblyStageBinding struct{
  State string `json:"state"` // reserved, opening, open, unknown, closed
  WriterHandles int `json:"writerHandles"`
  WriterBufferBytes int `json:"writerBufferBytes"`
+ StageWorkers int `json:"stageWorkers"`
+ StageRetirementWorkers int `json:"stageRetirementWorkers"`
 }
 func validDocumentAssemblyStage(s documentAssemblyStageBinding)bool{
  d:=s.Demand
- if s.WriterHandles!=1||s.WriterBufferBytes!=64<<10||d.DeclaredBytes<=0||d.OriginalHandles<=d.Inputs||s.DirectoryBytes<uint64(d.DeclaredBytes){return false}
+ if s.WriterHandles!=1||s.WriterBufferBytes!=64<<10||s.StageWorkers!=1||s.StageRetirementWorkers!=1||d.DeclaredBytes<=0||d.OriginalHandles<=d.Inputs||s.DirectoryBytes<uint64(d.DeclaredBytes){return false}
  if !assemblyCatalogHex(s.InputsDigest)||d.Inputs<1||d.Inputs>backend.DocumentDomainInputLimit||d.OriginalHandles<2||d.OriginalHandles>backend.DocumentDomainInputHandleLimit||d.DeclaredBytes<0||d.DeclaredBytes>backend.DocumentDomainInputTotalBytes||d.ReadCalls!=backend.DocumentDomainInputReadCalls||d.ReadBytes!=backend.DocumentDomainInputReadBytes||d.BlockBytes!=backend.DocumentDomainInputBlockBytes||d.ReadBufferBytes!=2*backend.DocumentDomainInputBlockBytes||d.AcquisitionWorkers!=1||d.RetirementWorkers!=1||d.CancellationWorkers!=1||d.CancellationCallbacks!=d.Inputs+2||s.DirectoryBytes<1{return false}
  switch s.State{case "reserved","opening","open","unknown","closed":return true};return false
 }
-type liveDocumentAssemblyStage struct{mu sync.Mutex;owner backend.DocumentDomainInputs;writer *os.File;opening,closing,retiring,writing,writerUnknown bool}
+type liveDocumentAssemblyStage struct{
+ mu sync.Mutex;owner backend.DocumentDomainInputs;writer *os.File
+ opening,closing,retiring,writing,writerUnknown,workerRunning,abandoned bool
+ workerDone,retirementDone chan struct{}
+ workerErr,retirementErr error
+}
+
+// Exactly one stage worker and one retirement worker may be outstanding. A
+// deadline latches retirement and returns to the caller independently of a
+// blocked original Open/Write/Sync/Close. Their backing and charge stay in live
+// custody until the actual stage return and positive Close, never a timer ACK.
+func(g *executionAdmission)runDocumentAssemblyStage(ctx context.Context,row documentImageAssemblyLease,live *liveDocumentAssemblyStage,source,directory string,stage assemblyStageSelection,current func(context.Context)error)error{
+ return g.runDocumentAssemblyStageWork(ctx,row,live,func()error{return g.stageDocumentAssembly(ctx,row,live,source,directory,stage,current)})
+}
+
+func(g *executionAdmission)runDocumentAssemblyStageWork(ctx context.Context,row documentImageAssemblyLease,live *liveDocumentAssemblyStage,work func()error)error{
+ if live==nil||work==nil{return backend.ErrUnsupported}
+ live.mu.Lock();if live.workerDone!=nil||live.retiring{live.mu.Unlock();return backend.ErrLaunchFenceOwnership};live.workerDone=make(chan struct{});live.workerRunning=true;done:=live.workerDone;live.mu.Unlock()
+ go func(){e:=work();live.mu.Lock();live.workerErr=e;live.workerRunning=false;close(done);live.mu.Unlock()}()
+ select{
+ case <-done:
+  live.mu.Lock();e:=live.workerErr;live.mu.Unlock()
+  return errors.Join(e,g.waitDocumentAssemblyStageRetirement(ctx,row,live,e!=nil,false))
+ case <-ctx.Done():
+  _,_ = g.beginDocumentAssemblyStageRetirement(row,live,true,false)
+  return ctx.Err()
+ }
+}
+
+func(g *executionAdmission)beginDocumentAssemblyStageRetirement(row documentImageAssemblyLease,live *liveDocumentAssemblyStage,abandon,retry bool)(<-chan struct{},error){
+ if live==nil{return nil,backend.ErrUnavailable}
+ live.mu.Lock();live.retiring=true;live.abandoned=live.abandoned||abandon
+ if live.retirementDone!=nil{select{case <-live.retirementDone:if live.retirementErr==nil||!retry{done:=live.retirementDone;live.mu.Unlock();return done,nil};default:done:=live.retirementDone;live.mu.Unlock();return done,nil}}
+ if live.workerDone==nil{if live.workerRunning||live.opening||live.writing{live.mu.Unlock();return nil,backend.ErrUnavailable};live.workerDone=make(chan struct{});close(live.workerDone)}
+ originalDone:=live.workerDone;done:=make(chan struct{});live.retirementDone=done;live.mu.Unlock()
+ go func(){
+  <-originalDone
+  cleanup,stop:=context.WithTimeout(context.Background(),backend.DocumentImageAssemblyCleanupBudget);defer stop()
+  e:=g.closeDocumentAssemblyStage(cleanup,row,live)
+  live.mu.Lock();abandoned:=live.abandoned;live.mu.Unlock()
+  if e==nil&&abandoned{e=g.finishUnstartedDocumentAssembly(cleanup,row)}
+  live.mu.Lock();live.retirementErr=e;close(done);live.mu.Unlock()
+ }()
+ return done,nil
+}
+
+func(g *executionAdmission)waitDocumentAssemblyStageRetirement(ctx context.Context,row documentImageAssemblyLease,live *liveDocumentAssemblyStage,abandon,retry bool)error{
+ done,e:=g.beginDocumentAssemblyStageRetirement(row,live,abandon,retry);if e!=nil{return e}
+ select{case <-done:live.mu.Lock();e=live.retirementErr;live.mu.Unlock();return e;case <-ctx.Done():live.mu.Lock();live.abandoned=true;live.retiring=true;live.mu.Unlock();return ctx.Err()}
+}
 var liveDocumentAssemblyStages sync.Map
 func(g *executionAdmission)assemblyStageKey(id string)string{return g.path+"\x00"+g.scope+"\x00"+id}
 
@@ -64,7 +115,7 @@ func(g *executionAdmission)advanceDocumentAssemblyStage(ctx context.Context,id b
 
 func(g *executionAdmission)closeDocumentAssemblyStage(ctx context.Context,row documentImageAssemblyLease,live *liveDocumentAssemblyStage)error{
  if live==nil{return backend.ErrUnavailable}
- live.mu.Lock();live.retiring=true;if live.opening||live.closing||live.writing||live.writerUnknown{live.mu.Unlock();return backend.ErrUnavailable};owner:=live.owner;live.closing=true;live.mu.Unlock()
+ live.mu.Lock();live.retiring=true;if live.workerRunning||live.opening||live.closing||live.writing||live.writerUnknown{live.mu.Unlock();return backend.ErrUnavailable};owner:=live.owner;live.closing=true;live.mu.Unlock()
  var e error;if owner!=nil{e=owner.Close()}
  live.mu.Lock();live.closing=false;if e==nil{live.owner=nil};live.mu.Unlock();if e!=nil{return e}
  ledger,e:=g.readReservationLedger(ctx);if e!=nil{return e};i,e:=assemblyLeaseIndex(&ledger,row.Identity);if e!=nil{return e};actual:=ledger.ImageAssemblies[i]

@@ -61,7 +61,7 @@ func selectDocumentAssemblyStage(ctx context.Context,profile runtimeinstall.Bund
  return selected,nil
 }
 
-func writeAssemblyStageFile(ctx context.Context,live *liveDocumentAssemblyStage,root,name string,reader io.ReaderAt,expected int64,digest string,generated []byte)(result error){
+func writeAssemblyStageFile(ctx context.Context,live *liveDocumentAssemblyStage,root,name string,reader io.ReaderAt,expected int64,digest string,generated []byte,executable bool)(result error){
  if live==nil{return backend.ErrUnsupported}
  live.mu.Lock();if live.retiring||live.writing||live.writerUnknown{live.mu.Unlock();return backend.ErrUnavailable};live.writing=true;live.mu.Unlock()
  defer func(){live.mu.Lock();live.writing=false;live.mu.Unlock()}()
@@ -77,7 +77,7 @@ func writeAssemblyStageFile(ctx context.Context,live *liveDocumentAssemblyStage,
   if generated!=nil{if int64(len(generated))!=expected{return backend.ErrUnsupported};copy(buffer[:count],generated[offset:offset+int64(count)])}else{if reader==nil{return backend.ErrUnsupported};n,re:=reader.ReadAt(buffer[:count],offset);if n!=count||re!=nil{return errors.Join(backend.ErrUnavailable,re)}}
   n,we:=file.Write(buffer[:count]);if we!=nil||n!=count{return errors.Join(io.ErrShortWrite,we)};_,_=hash.Write(buffer[:count]);offset+=int64(count)
  }
- if hex.EncodeToString(hash.Sum(nil))!=digest{return backend.ErrLaunchFenceOwnership};if e=file.Sync();e!=nil{return e};return ctx.Err()
+ if hex.EncodeToString(hash.Sum(nil))!=digest{return backend.ErrLaunchFenceOwnership};if executable{if e=file.Chmod(0700);e!=nil{return e}};if e=file.Sync();e!=nil{return e};return ctx.Err()
 }
 
 func assemblyStageParents(root,parent string)error{

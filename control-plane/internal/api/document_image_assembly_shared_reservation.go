@@ -104,7 +104,7 @@ func (g *executionAdmission) reserveDocumentImageAssembly(ctx context.Context, p
 		for _, row := range l.ImageAssemblies {
 			if row.Scope == g.scope && row.ID == id.AllocationID {
 				if row.State=="staging"{
-				 if row.Identity!=id||row.InputClosureRef!=req.InputClosureRef||row.Actor!=req.Actor||row.Stage==nil||row.Stage.State!="closed"||row.Spec==nil||*row.Spec!=p.Spec||row.CreatedAt!=req.CreatedAt||row.ComputeDeadline!=req.ComputeDeadline||row.WholeDeadline!=req.WholeDeadline{return backend.ErrLaunchFenceOwnership};result=row;continue
+				 if row.Identity!=id||row.InputClosureRef!=req.InputClosureRef||row.Actor!=req.Actor||row.Stage==nil||row.Stage.State!="closed"||row.Spec==nil||*row.Spec!=p.Spec||row.DocumentSelection==nil||req.DocumentSelection==nil||*row.DocumentSelection!=*req.DocumentSelection||row.DocumentJobID!=req.DocumentJobID||row.CreatedAt!=req.CreatedAt||row.ComputeDeadline!=req.ComputeDeadline||row.WholeDeadline!=req.WholeDeadline{return backend.ErrLaunchFenceOwnership};result=row;continue
 				}
 				// An invocation may resume admission only before any allocation.
 				if row.Identity != id || row.InputClosureRef != req.InputClosureRef || row.Actor != req.Actor || row.State != "reserved" || row.Ref != "" || row.CreateDiskBytes != estimate.Bytes || row.CreatedAt != req.CreatedAt || row.ComputeDeadline != req.ComputeDeadline || row.WholeDeadline != req.WholeDeadline {

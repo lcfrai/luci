@@ -50,7 +50,7 @@ func(a *API)assembleCurrentDocumentImage(ctx context.Context,r runtimeinstall.Re
  inputsJSON,e:=json.Marshal(stage.inputs);if e!=nil{return fail(e)}
  if a.deps.ResourceSnapshot==nil{return fail(backend.ErrUnavailable)}
  snapshot:=a.deps.ResourceSnapshot()
- binding:=documentAssemblyStageBinding{InputsDigest:assemblyCatalogDigest(inputsJSON),Demand:demand,DirectoryBytes:stage.directoryBytes,State:"reserved",WriterHandles:1,WriterBufferBytes:64<<10}
+ binding:=documentAssemblyStageBinding{InputsDigest:assemblyCatalogDigest(inputsJSON),Demand:demand,DirectoryBytes:stage.directoryBytes,State:"reserved",WriterHandles:1,WriterBufferBytes:64<<10,StageWorkers:1,StageRetirementWorkers:1}
  captured:=selection
  row:=documentImageAssemblyLease{ID:allocation,Scope:a.execution.scope,Actor:r.Actor,Identity:identity,InputClosureRef:closure.closure,Resources:backend.DocumentImageAssemblyResources(),BaseImageID:backend.DocumentImageAssemblyBaseID,CreateDiskBytes:stage.directoryBytes,CaptureDiskBytes:backend.DocumentImageAssemblyOutputMaxBytes,HostLaunchBytes:windowsDockerHostLaunchBytes(snapshot,backend.KindDocker),State:"staging",CreatedAt:started,UpdatedAt:started,ComputeDeadline:computeDeadline,WholeDeadline:wholeDeadline,Spec:&preparedSpec,DocumentSelection:&captured,DocumentJobID:r.JobID,Stage:&binding}
  policy,e:=a.deps.Product.SwarmSchedulerPolicy();if e!=nil{return fail(e)}
@@ -66,14 +66,13 @@ func(a *API)assembleCurrentDocumentImage(ctx context.Context,r runtimeinstall.Re
  defer func(){
   if admitted{return}
   cleanup,stop:=context.WithDeadline(context.Background(),wholeDeadline);defer stop()
-  if ce:=a.execution.closeDocumentAssemblyStage(cleanup,row,live);ce!=nil{out.ResourcesHeld=true;out.CleanupConfirmed=false;out.Phase="unknown";retErr=errors.Join(retErr,ce);return}
+  if ce:=a.execution.waitDocumentAssemblyStageRetirement(cleanup,row,live,true,false);ce!=nil{out.ResourcesHeld=true;out.CleanupConfirmed=false;out.Phase="unknown";retErr=errors.Join(retErr,ce);return}
   if ce:=a.execution.finishUnstartedDocumentAssembly(cleanup,row);ce!=nil{out.ResourcesHeld=true;out.CleanupConfirmed=false;out.Phase="unknown";retErr=errors.Join(retErr,ce);return}
   out.ResourcesHeld=false;out.CleanupConfirmed=true;if out.Phase!="assembled"{out.Phase="failed"};if publish!=nil{retErr=errors.Join(retErr,publish(out))}
  }()
  if e=publish(out);e!=nil{return out,e}
  if e=validate(compute);e!=nil{return out,e}
- if e=a.execution.stageDocumentAssembly(compute,row,live,profile.Root,directory,stage,validate);e!=nil{return out,e}
- if e=a.execution.closeDocumentAssemblyStage(compute,row,live);e!=nil{return out,e}
+ if e=a.execution.runDocumentAssemblyStage(compute,row,live,profile.Root,directory,stage,validate);e!=nil{return out,e}
  request:=documentImageAssemblyRequest{Spec:spec,Actor:r.Actor,InputClosureRef:closure.closure,CreatedAt:started,ComputeDeadline:computeDeadline,WholeDeadline:wholeDeadline,ValidateCurrent:validate,DocumentSelection:&captured,DocumentJobID:r.JobID}
  result,e:=a.executeDocumentImageAssembly(compute,executor,request)
  settlement,settledCancel:=context.WithDeadline(context.Background(),wholeDeadline);defer settledCancel()
@@ -107,16 +106,17 @@ func(g *executionAdmission)stageDocumentAssembly(ctx context.Context,row documen
   if entry.generated==nil{reader=readers[entry.input.Role];if reader==nil{reader,e=original.ReaderAt(ctx,entry.input.Role);if e!=nil{return e};readers[entry.input.Role]=reader}}
   var bytes int64;var digest string
   if entry.generated!=nil{bytes=int64(len(entry.generated));digest=assemblyCatalogDigest(entry.generated)}else{bytes=entry.input.Bytes;digest=entry.input.SHA256}
-  if e=writeAssemblyStageFile(ctx,live,input,entry.destination,reader,bytes,digest,entry.generated);e!=nil{return e}
+  if e=writeAssemblyStageFile(ctx,live,input,entry.destination,reader,bytes,digest,entry.generated,false);e!=nil{return e}
  }
  helper,e:=original.ReaderAt(ctx,"assembly-helper");if e!=nil{return e}
- if e=writeAssemblyStageFile(ctx,live,directory,"helper",helper,stage.helper.Bytes,stage.helper.SHA256,nil);e!=nil{return e}
- if e=writeAssemblyStageFile(ctx,live,input,"assembly-manifest.json",nil,int64(len(stage.manifest)),assemblyCatalogDigest(stage.manifest),stage.manifest);e!=nil{return e}
+ if e=writeAssemblyStageFile(ctx,live,directory,"helper",helper,stage.helper.Bytes,stage.helper.SHA256,nil,true);e!=nil{return e}
+ if e=writeAssemblyStageFile(ctx,live,input,"assembly-manifest.json",nil,int64(len(stage.manifest)),assemblyCatalogDigest(stage.manifest),stage.manifest,false);e!=nil{return e}
  if e=original.CheckCurrent(ctx);e!=nil{return e};return current(ctx)
 }
 
 func(g *executionAdmission)finishUnstartedDocumentAssembly(ctx context.Context,before documentImageAssemblyLease)error{
  ledger,e:=g.readReservationLedger(ctx);if e!=nil{return e};i,e:=assemblyLeaseIndex(&ledger,before.Identity);if e!=nil{return e};row:=ledger.ImageAssemblies[i]
+ if row.State=="finished"{capture,e:=g.assemblyPrivateCapture(row.Identity);if e!=nil{return e};receipt,e:=capture.read();if e!=nil||receipt.Outcome.State!="failed_owned_resources_retired"||!receipt.Outcome.CleanupConfirmed||receipt.Outcome.ResourcesHeld||receipt.Outcome.Capture!=(backend.DocumentImageAssemblyCapture{})||row.OutcomeDigest!=assemblyOutcomeDigest(receipt.Outcome){return backend.ErrLaunchFenceOwnership};return nil}
  if row.State!="staging"||row.Stage==nil||row.Stage.State!="closed"||row.Ref!=""{return backend.ErrLaunchFenceOwnership}
  out:=documentImageAssemblyOutcome{Identity:row.Identity,InputClosureRef:row.InputClosureRef,Stage:"staging",State:"failed_owned_resources_retired",ReaderSettled:true,CleanupConfirmed:true,WatchdogSettled:true}
  capture,e:=g.assemblyPrivateCapture(row.Identity);if e!=nil{return e};if e=capture.publish(ctx,out,false,false);e!=nil{return e}
