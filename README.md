@@ -10,17 +10,18 @@ Luci is an open-source workspace for planning, designing, building and deliverin
 - **Design how it should work.** Develop the experience, screens and acceptance criteria alongside the conversation.
 - **Develop with your chosen coding agent.** Give Codex, Claude Code or a supported OpenCode connection the project's context and an isolated working environment. Review the resulting changes and run checks against the recorded source.
 - **Deploy reviewed work.** Preview an application, configure its runtime and publish through a supported deployment target under your approval and spending policy.
+- **Distribute the supporting material.** Prepare and review risk assessments, GTM material, proposals, pricing and presentations. Connect team controls to exact project evidence and return unresolved gaps to Discover and Design.
 - **Change direction without starting over.** Bring a new request back into the conversation. Luci tracks the updated context, affected work and decisions still needing review.
 
 Discover, Design, Develop, Deploy and Distribute are the five connected activities in Luci's product direction you can revisit. You can switch between projects, prioritize work, inspect outputs and recover interrupted tasks. Projects remain ordinary files and Git repositories. Team workspaces add shared, versioned context and distinct permissions for editing, execution, secrets and review.
 
 Luci coordinates existing coding harnesses; model access comes from the connection you choose. Model subscriptions, API usage and any cloud resources have their own costs.
 
-## The next workspace update
+## The five-D workspace
 
-The active product plan adds an all-project home with personal pins and distinct working, needs-input and recent-stopped indicators. Discover becomes a document-aware conversation with OCR; Design adds a canvas that you can edit directly or through chat; Develop brings real agent terminals, files and previews into a Cube-style tiled workspace.
+The application source includes an all-project home with personal pins and distinct working, needs-input and recent-stopped indicators. Discover retains original documents, extracted text and reviewed corrections alongside the project conversation. Design includes a versioned canvas with direct editing, undo and interactive previews. Develop brings agent terminals, files and previews into a tiled workspace.
 
-The fifth activity, **Distribute**, will prepare risk assessments, GTM material, proposals, pricing and presentations. A team admin will be able to upload an XLSX control checklist, assess project evidence against it, and send unresolved gaps back into Discover and Design. These additions are under implementation, not verified features of the current package. See the [five-D contract and implementation map](docs/luci/FIVE-D-AMENDMENT-2026-10-15.md).
+**Distribute** provides editable artifact drafts and reviewed exports, plus a team-admin workflow for importing an XLSX control checklist, assessing evidence and proposing amendments. Source implementation and automated checks do not establish that a release package works end to end. PDF extraction, OCR and document rendering still require a verified document runtime; unavailable capabilities are shown explicitly. Package, live-provider and cross-device acceptance remain pending. See the [five-D contract and implementation map](docs/luci/FIVE-D-AMENDMENT-2026-10-15.md).
 
 Develop is the main delivery focus: turn an approved design and team standards into coordinated coding tasks, run them in isolated environments, review and repair their results, and prove the app works. Luci aims to handle routine decisions while keeping meaningful questions, progress and outputs clear. This orchestration work is still being completed and verified; no autonomy or productivity percentage is claimed. See the [Develop implementation contract](docs/luci/DEVELOP-ORCHESTRATION-AMENDMENT-2026-10-16.md).
 
@@ -43,11 +44,13 @@ The next verified Windows package is still being prepared. Current development i
 When a verified candidate is available:
 
 1. Get its Windows installer or portable package from the [releases page](https://github.com/lcfrai/luci/releases), following the setup notes supplied with that build. Extract portable packages before running their launcher.
-2. Create your account and choose **Local** or **Bring your own cloud**. Setup explains the required tools and connection steps. Local coding work needs a running Docker engine; a local model is optional.
+2. Create your Luci account and choose **Local** or **Bring your own cloud**. You do not need an existing Luci or lcfr.ai sign-in. A fresh workspace uses the launcher's one-time setup handoff to create its first owner. Setup explains the required tools and connection steps. Local coding work needs a running Docker engine; a local model is optional.
 3. Connect a supported coding harness and model. Codex subscription sign-in and API-based access are separate connection choices.
 4. Create a project, clone an existing repository, or open your work. Tell Luci what you want to build.
 
 The interface and saved projects remain available when a worker must wait for capacity. Resource settings control concurrent work and retain space for the rest of your computer. Local model requirements depend on the model and available CPU/GPU memory; using a connected model provider is a separate choice from where coding work runs.
+
+If the workspace already contains accounts, use its normal local launcher, an invitation or account recovery. Opening a plain local browser address does not grant owner access. Keep the existing workspace and its projects intact.
 
 Follow the [getting started guide](docs/luci/GETTING-STARTED.md) for Windows download, first setup and your first project. Source builds, package prerequisites and verification details are in the [release guide](docs/luci/RELEASE.md). The [Docker distribution](distribution/docker/README.md) can also package the application and its private execution engine without host Go, Node.js or Python.
 

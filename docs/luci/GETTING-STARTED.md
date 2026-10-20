@@ -1,6 +1,6 @@
 # Start using Luci
 
-Luci brings your conversation, project decisions, design, coding work and reviews together. Start with one project and a small, useful change. You can return to Discover, Design, Develop or Deploy as the project changes.
+Luci brings your conversation, project decisions, design, coding work and reviews together. Start with one project and a small, useful change. You can return to Discover, Design, Develop, Deploy or Distribute as the project changes.
 
 ## Open the Windows portable app
 
@@ -8,6 +8,8 @@ Luci brings your conversation, project decisions, design, coding work and review
 2. Compare the ZIP's SHA-256 hash with its entry in `SHA256SUMS`. In PowerShell, run `Get-FileHash -Algorithm SHA256 -LiteralPath .\luci-windows-amd64.zip` from the download folder.
 3. Extract the **whole ZIP** into a new folder. Keep its files together, then open `Start-Luci.cmd`. Luci opens in your browser; leave the launch terminal open while you use it.
 4. Complete account setup and choose where you want Luci to run.
+
+You do not need an existing Luci or lcfr.ai account. In a fresh workspace, the normal launcher provides the one-time setup handoff for creating the first owner; choose and enter your own credentials in Luci. If the workspace already has accounts, use the local launcher's account flow, an invitation or recovery. Keep existing workspace data intact; a plain local browser address does not grant owner access.
 
 You do not need Go, Node.js or Python to run the portable app. Local project work needs Git, and coding sessions need a running Docker engine. The complete release package includes the coding runtime. Setup verifies and imports it into Docker, so ordinary installation does not compile the coding tools on your computer. Keep the bundled runtime and licence files with the app. Setup identifies missing prerequisites. A model running on your computer is optional: you can instead connect a supported model account or API.
 
