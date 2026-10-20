@@ -91,7 +91,20 @@ func captureAssemblySourceArchives(r *assemblyDomainReaders,b *debianBinaryProdu
 		// exact release/source relationship is the independently pinned profile
 		// statement; original bytes were hashed during this owner's acquisition.
 		if !strings.HasPrefix(source.ID,"wheel/")||covered[key]{return errAssemblyClosureDomain}
-		out.sources=append(out.sources,source.assemblyObservedSource)
+		if err:=appendAssemblyObservedSource(out,source.assemblyObservedSource);err!=nil{return err}
 	}
+	return nil
+}
+
+// A wheel's primary source may also be selected in the common source table.
+// Collapse only an exactly identical selection; conflicting originals refuse.
+func appendAssemblyObservedSource(out *assemblyObservedDomains,source assemblyObservedSource)error {
+	if out==nil{return errAssemblyClosureDomain}
+	for _,existing:=range out.sources {
+		if existing.ID!=source.ID||existing.Version!=source.Version{continue}
+		if !equalAssemblyDebianJSON(existing,source){return errAssemblyClosureDomain}
+		return nil
+	}
+	out.sources=append(out.sources,source)
 	return nil
 }

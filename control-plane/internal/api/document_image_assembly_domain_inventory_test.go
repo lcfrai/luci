@@ -3,6 +3,7 @@ package api
 import (
 	"testing"
 
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/documentinputs"
 )
 
@@ -79,4 +80,17 @@ func TestAssemblyWheelDataUsesExplicitTargetDirectory(t *testing.T) {
 	got,err:=assemblyWheelInstalledPath("sample-1.data/data/share/sample/license")
 	if err!=nil||got!="usr/local/lib/python3.11/dist-packages/share/sample/license"{t.Fatalf("data mapping: %q %v",got,err)}
 	if _,err=assemblyWheelInstalledPath("sample-1.data/scripts/sample");err==nil{t.Fatal("unreviewed archive script scheme accepted")}
+}
+
+func TestAssemblySharedWheelSourceRequiresExactOriginals(t *testing.T) {
+	source:=assemblyObservedSource{ID:"wheel/pillow",Version:"1",Archives:[]backend.DocumentImageAssemblyInput{
+		{Path:"sources/pillow.tar.gz",Bytes:3,Digest:assemblyCatalogDigest([]byte("old"))},
+	}}
+	out:=&assemblyObservedDomains{}
+	if err:=appendAssemblyObservedSource(out,source);err!=nil{t.Fatal(err)}
+	if err:=appendAssemblyObservedSource(out,source);err!=nil||len(out.sources)!=1{t.Fatal("identical primary source duplicated")}
+	changed:=source
+	changed.Archives=append([]backend.DocumentImageAssemblyInput(nil),source.Archives...)
+	changed.Archives[0].Digest=assemblyCatalogDigest([]byte("new"))
+	if err:=appendAssemblyObservedSource(out,changed);err==nil{t.Fatal("conflicting selected source silently coalesced")}
 }
