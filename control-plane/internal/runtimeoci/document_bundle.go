@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
 
@@ -35,6 +36,24 @@ type DocumentPackagedManifest struct {
 	} `json:"image"`
 	ExtractorSHA256 string `json:"extractorSha256"`
 }
+
+// DocumentBundle is deliberately separate from Bundle. The latter's manifest,
+// receipts and verifier describe the sandbox harness and cannot attest to a
+// document extractor. The manifest bytes remain held with the original archive
+// descriptor for re-verification immediately before ImageLoad.
+type DocumentBundle struct {
+	Manifest DocumentPackagedManifest
+	ManifestSHA256 string
+	Archive *os.File
+	manifestBytes []byte
+}
+
+func (b *DocumentBundle) Close() error {
+	if b == nil || b.Archive == nil { return nil }
+	return b.Archive.Close()
+}
+
+func (b *DocumentBundle) VerifyArchive() error { return VerifyDocumentArchive(b) }
 
 func validDocumentManifest(m DocumentPackagedManifest) bool {
 	if m.Version != 1 || m.Kind != "luci-document-prebuilt-docker-save" || m.ToolProtocol != 1 ||
@@ -63,42 +82,31 @@ func validDocumentManifest(m DocumentPackagedManifest) bool {
 // OpenDocument holds the original archive descriptor and checks the complete
 // Docker-save stream before any daemon call. A manifest inside the package is
 // not a trust root: its exact bytes must match the separately supplied pin.
-func OpenDocument(root, pinnedManifestSHA256 string) (*Bundle, []byte, error) {
-	if !digestPattern.MatchString(pinnedManifestSHA256) { return nil,nil,errors.New("document manifest pin missing") }
+func OpenDocument(root, pinnedManifestSHA256 string) (*DocumentBundle, error) {
+	if !digestPattern.MatchString(pinnedManifestSHA256) { return nil,errors.New("document manifest pin missing") }
 	rootInfo, err := os.Lstat(root)
-	if err != nil || !rootInfo.IsDir() || rootInfo.Mode()&os.ModeSymlink != 0 { return nil,nil,errors.New("document bundle root invalid") }
+	if err != nil || !rootInfo.IsDir() || rootInfo.Mode()&os.ModeSymlink != 0 { return nil,errors.New("document bundle root invalid") }
 	raw, err := readRegular(root, "document-runtime-manifest-v1.json", maxMetadata)
-	if err != nil || sumHex(raw) != pinnedManifestSHA256 { return nil,nil,errors.New("document manifest does not match trusted pin") }
+	if err != nil || sumHex(raw) != pinnedManifestSHA256 { return nil,errors.New("document manifest does not match trusted pin") }
 	var m DocumentPackagedManifest
-	if decodeStrict(raw,&m) != nil || !validDocumentManifest(m) { return nil,nil,errors.New("document manifest invalid") }
+	if decodeStrict(raw,&m) != nil || !validDocumentManifest(m) { return nil,errors.New("document manifest invalid") }
 	path := filepath.Join(root,m.Archive.FileName)
-	if err=rejectLinkedPath(root,m.Archive.FileName);err!=nil{return nil,nil,err}
+	if err=rejectLinkedPath(root,m.Archive.FileName);err!=nil{return nil,err}
 	before, err := os.Lstat(path)
-	if err != nil || !before.Mode().IsRegular() || before.Size() != m.Archive.Bytes { return nil,nil,errors.New("document archive unavailable") }
+	if err != nil || !before.Mode().IsRegular() || before.Size() != m.Archive.Bytes { return nil,errors.New("document archive unavailable") }
 	f, err := os.Open(path)
-	if err != nil { return nil,nil,err }
+	if err != nil { return nil,err }
 	opened, err := f.Stat()
-	if err != nil || !os.SameFile(before,opened) { f.Close(); return nil,nil,errors.New("document archive identity changed") }
-	b := &Bundle{Archive:f, ManifestSHA256:pinnedManifestSHA256}
-	b.Manifest.Kind = m.Kind
-	b.Manifest.Version = m.Version
-	b.Manifest.CanonicalInputDigest = pinnedManifestSHA256
-	b.Manifest.Archive.FileName = m.Archive.FileName
-	b.Manifest.Archive.Bytes = m.Archive.Bytes
-	b.Manifest.Archive.SHA256 = m.Archive.SHA256
-	b.Manifest.Archive.Members = m.Archive.Members
-	b.Manifest.Image.ID = m.Image.ID
-	b.Manifest.Image.ConfigPath = m.Image.ConfigPath
-	b.Manifest.Image.LayerPaths = []string{m.Image.LayerPath}
-	b.Manifest.Image.DiffIDs = []string{m.Image.DiffID}
-	if err = VerifyDocumentArchive(b,raw); err != nil { b.Close(); return nil,nil,err }
-	return b,raw,nil
+	if err != nil || !os.SameFile(before,opened) { f.Close(); return nil,errors.New("document archive identity changed") }
+	b := &DocumentBundle{Archive:f, Manifest:m, ManifestSHA256:pinnedManifestSHA256, manifestBytes:raw}
+	if err = b.VerifyArchive(); err != nil { b.Close(); return nil,err }
+	return b,nil
 }
 
-func VerifyDocumentArchive(b *Bundle, raw []byte) error {
-	if b == nil || b.Archive == nil || sumHex(raw) != b.ManifestSHA256 { return errors.New("document bundle pin changed") }
+func VerifyDocumentArchive(b *DocumentBundle) error {
+	if b == nil || b.Archive == nil || sumHex(b.manifestBytes) != b.ManifestSHA256 { return errors.New("document bundle pin changed") }
 	var m DocumentPackagedManifest
-	if decodeStrict(raw,&m) != nil || !validDocumentManifest(m) || m.Image.ID != b.Manifest.Image.ID || m.Archive.SHA256 != b.Manifest.Archive.SHA256 { return errors.New("document bundle identity changed") }
+	if decodeStrict(b.manifestBytes,&m) != nil || !validDocumentManifest(m) || !reflect.DeepEqual(m,b.Manifest) { return errors.New("document bundle identity changed") }
 	if _,err := b.Archive.Seek(0,io.SeekStart); err != nil { return err }
 	defer b.Archive.Seek(0,io.SeekStart)
 	whole := sha256.New()

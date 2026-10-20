@@ -42,7 +42,7 @@ func (d *DocumentRuntimeInstaller) BuildRuntimeImage(context.Context,backend.Pre
 func (d *DocumentRuntimeInstaller) PreparePackagedRuntimeImage(ctx context.Context,spec backend.RuntimeImageSpec)(backend.PreparedRuntimeImage,error){
 	if !validRuntimeIdentity(spec.Identity,false) || spec.Resources.MemoryMiB <= 0 || spec.Resources.CPUMillis <= 0 { return backend.PreparedRuntimeImage{},backend.ErrUnsupported }
 	tag,err := runtimeImageTag(spec.ImageTag);if err != nil{return backend.PreparedRuntimeImage{},err};spec.ImageTag=tag
-	bundle,raw,err:=runtimeoci.OpenDocument(spec.SourceDirectory,d.manifestSHA256)
+	bundle,err:=runtimeoci.OpenDocument(spec.SourceDirectory,d.manifestSHA256)
 	if err != nil{return backend.PreparedRuntimeImage{},err}
 	closeBundle:=true;defer func(){if closeBundle{_ =bundle.Close()}}()
 	probe,cancel:=context.WithTimeout(ctx,10*time.Second);defer cancel()
@@ -56,37 +56,47 @@ func (d *DocumentRuntimeInstaller) PreparePackagedRuntimeImage(ctx context.Conte
 	if info.Driver!="vfs"&&info.Driver!="overlay2"&&info.Driver!="overlayfs"{return backend.PreparedRuntimeImage{},backend.ErrUnsupported}
 	if _,ok=d.selected.api.(runtimeImageLoadClient);!ok{return backend.PreparedRuntimeImage{},backend.ErrUnsupported}
 	if _,ok=d.selected.api.(runtimeImageClient);!ok{return backend.PreparedRuntimeImage{},backend.ErrUnsupported}
-	admission,err:=packagedLoadAdmissionMiB(bundle.Manifest,spec.Resources.MemoryMiB);if err!=nil{return backend.PreparedRuntimeImage{},err}
+	admission,err:=documentLoadAdmissionMiB(bundle.Manifest,spec.Resources.MemoryMiB);if err!=nil{return backend.PreparedRuntimeImage{},err}
 	d.mu.Lock()
 	if d.pinnedImageID!=""&&d.pinnedImageID!=bundle.Manifest.Image.ID{d.mu.Unlock();return backend.PreparedRuntimeImage{},backend.ErrLaunchFenceOwnership}
 	d.pinnedImageID=bundle.Manifest.Image.ID
 	d.mu.Unlock()
 	closeBundle=false
-	return backend.PreparedRuntimeImage{Spec:spec,PreparedContext:raw,ContextDigest:d.manifestSHA256,RequiredDiskBytes:backend.RuntimeImageRequiredDiskBytes,AdmissionMemoryMiB:admission,StorageDriver:info.Driver,Bundle:bundle},nil
+	return backend.PreparedRuntimeImage{Spec:spec,ContextDigest:d.manifestSHA256,RequiredDiskBytes:backend.RuntimeImageRequiredDiskBytes,AdmissionMemoryMiB:admission,StorageDriver:info.Driver,DocumentBundle:bundle},nil
+}
+
+func documentLoadAdmissionMiB(m runtimeoci.DocumentPackagedManifest, workerMiB int)(int,error){
+	if workerMiB<128||workerMiB>32768||m.Archive.Bytes<1024||m.Archive.Bytes>runtimeoci.MaxArchiveBytes{return 0,backend.ErrUnsupported}
+	var layerBytes int64
+	for _,member:=range m.Archive.Members{if member.Path==m.Image.LayerPath{layerBytes=member.Bytes}}
+	if layerBytes<1||layerBytes>m.Archive.Bytes{return 0,backend.ErrUnsupported}
+	const mib=int64(1<<20)
+	bytes:=m.Archive.Bytes+layerBytes+int64(runtimeImportDaemonAllowanceMiB)*mib
+	return max(workerMiB,int((bytes+mib-1)/mib)),nil
 }
 
 func(d *DocumentRuntimeInstaller) validPrepared(p backend.PreparedRuntimeImage) bool {
-	return p.Bundle!=nil && p.PullBundle==nil && p.Bundle.Manifest.Kind=="luci-document-prebuilt-docker-save" && p.Bundle.ManifestSHA256==d.manifestSHA256 && p.ContextDigest==d.manifestSHA256 && p.Spec.Identity.SourceDigest==d.manifestSHA256 && validRuntimeIdentity(p.Spec.Identity,true) && runtimeImageID(p.Bundle.Manifest.Image.ID) && runtimeoci.VerifyDocumentArchive(p.Bundle,p.PreparedContext)==nil
+	return p.DocumentBundle!=nil && p.Bundle==nil && p.PullBundle==nil && p.DocumentBundle.Manifest.Kind=="luci-document-prebuilt-docker-save" && p.DocumentBundle.ManifestSHA256==d.manifestSHA256 && p.ContextDigest==d.manifestSHA256 && p.Spec.Identity.SourceDigest==d.manifestSHA256 && validRuntimeIdentity(p.Spec.Identity,true) && runtimeImageID(p.DocumentBundle.Manifest.Image.ID) && p.DocumentBundle.VerifyArchive()==nil
 }
 
 func(d *DocumentRuntimeInstaller) inspectDocument(ctx context.Context,p backend.PreparedRuntimeImage) error {
 	if err:=d.selected.runtimeImageIdentity(ctx,p.Spec.Identity);err!=nil{return err}
 	api,ok:=d.selected.api.(runtimeImageLoadClient);if !ok{return backend.ErrUnsupported}
-	row,err:=api.ImageInspect(ctx,p.Bundle.Manifest.Image.ID)
+	row,err:=api.ImageInspect(ctx,p.DocumentBundle.Manifest.Image.ID)
 	if err!=nil {if errdefs.IsNotFound(err){return err};return backend.ErrUnavailable}
-	if row.ID!=p.Bundle.Manifest.Image.ID||!runtimeBaseValid(row)||row.Architecture!="amd64"||len(row.Config.ExposedPorts)!=0||len(row.Config.Volumes)!=0{return backend.ErrLaunchFenceOwnership}
+	if row.ID!=p.DocumentBundle.Manifest.Image.ID||!runtimeBaseValid(row)||row.Architecture!="amd64"||len(row.Config.ExposedPorts)!=0||len(row.Config.Volumes)!=0{return backend.ErrLaunchFenceOwnership}
 	return d.selected.runtimeImageIdentity(ctx,p.Spec.Identity)
 }
 
 func(d *DocumentRuntimeInstaller) LoadPackagedRuntimeImage(ctx context.Context,p backend.PreparedRuntimeImage)(backend.RuntimeImageBuildResult,error){
 	if !d.validPrepared(p){return backend.RuntimeImageBuildResult{Settled:true},backend.ErrLaunchFenceOwnership}
 	if err:=d.inspectDocument(ctx,p);err==nil {
-		d.mu.Lock();d.loaded[p.Spec.Identity]=p.Bundle.Manifest.Image.ID;d.mu.Unlock()
-		return backend.RuntimeImageBuildResult{ImageID:p.Bundle.Manifest.Image.ID,Settled:true},nil
+		d.mu.Lock();d.loaded[p.Spec.Identity]=p.DocumentBundle.Manifest.Image.ID;d.mu.Unlock()
+		return backend.RuntimeImageBuildResult{ImageID:p.DocumentBundle.Manifest.Image.ID,Settled:true},nil
 	}else if !errdefs.IsNotFound(err){return backend.RuntimeImageBuildResult{Settled:true},err}
 	if err:=d.selected.runtimeImageIdentity(ctx,p.Spec.Identity);err!=nil{return backend.RuntimeImageBuildResult{Settled:true},err}
 	api:=d.selected.api.(runtimeImageLoadClient)
-	response,err:=api.ImageLoad(ctx,io.LimitReader(p.Bundle.Archive,p.Bundle.Manifest.Archive.Bytes))
+	response,err:=api.ImageLoad(ctx,io.LimitReader(p.DocumentBundle.Archive,p.DocumentBundle.Manifest.Archive.Bytes))
 	if err!=nil||response.Body==nil {if response.Body!=nil{_ =response.Body.Close()};return backend.RuntimeImageBuildResult{},backend.ErrUnavailable}
 	reader:=&io.LimitedReader{R:response.Body,N:runtimeImageStreamLimit+1};decoder:=json.NewDecoder(reader)
 	failed,complete:="",false
@@ -96,8 +106,8 @@ func(d *DocumentRuntimeInstaller) LoadPackagedRuntimeImage(ctx context.Context,p
 	if failed!=""{return backend.RuntimeImageBuildResult{Settled:true},backend.ErrUnavailable}
 	probe,cancel:=context.WithTimeout(context.WithoutCancel(ctx),10*time.Second);defer cancel()
 	if err:=d.inspectDocument(probe,p);err!=nil{return backend.RuntimeImageBuildResult{},err}
-	d.mu.Lock();d.loaded[p.Spec.Identity]=p.Bundle.Manifest.Image.ID;d.mu.Unlock()
-	return backend.RuntimeImageBuildResult{ImageID:p.Bundle.Manifest.Image.ID,Settled:true},nil
+	d.mu.Lock();d.loaded[p.Spec.Identity]=p.DocumentBundle.Manifest.Image.ID;d.mu.Unlock()
+	return backend.RuntimeImageBuildResult{ImageID:p.DocumentBundle.Manifest.Image.ID,Settled:true},nil
 }
 
 // The prebuilt image is already immutable and usable. This phase deliberately
@@ -106,13 +116,13 @@ func(d *DocumentRuntimeInstaller) LoadPackagedRuntimeImage(ctx context.Context,p
 func(d *DocumentRuntimeInstaller) DerivePackagedRuntimeImage(ctx context.Context,p backend.PreparedRuntimeImage)(backend.RuntimeImageBuildResult,error){
 	if !d.validPrepared(p){return backend.RuntimeImageBuildResult{Settled:true},backend.ErrLaunchFenceOwnership}
 	d.mu.Lock();loaded:=d.loaded[p.Spec.Identity];d.mu.Unlock()
-	if loaded!=p.Bundle.Manifest.Image.ID{return backend.RuntimeImageBuildResult{},backend.ErrUnavailable}
+	if loaded!=p.DocumentBundle.Manifest.Image.ID{return backend.RuntimeImageBuildResult{},backend.ErrUnavailable}
 	if err:=d.inspectDocument(ctx,p);err!=nil{return backend.RuntimeImageBuildResult{},err}
 	return backend.RuntimeImageBuildResult{ImageID:loaded,Settled:true},nil
 }
 
 func(d *DocumentRuntimeInstaller) PublishRuntimeImage(ctx context.Context,p backend.PreparedRuntimeImage,imageID string)(backend.RuntimeImagePublishResult,error){
-	if !d.validPrepared(p)||imageID!=p.Bundle.Manifest.Image.ID{return backend.RuntimeImagePublishResult{},backend.ErrLaunchFenceOwnership}
+	if !d.validPrepared(p)||imageID!=p.DocumentBundle.Manifest.Image.ID{return backend.RuntimeImagePublishResult{},backend.ErrLaunchFenceOwnership}
 	d.mu.Lock();loaded:=d.loaded[p.Spec.Identity];d.mu.Unlock()
 	if loaded!=imageID{return backend.RuntimeImagePublishResult{},backend.ErrUnavailable}
 	if err:=d.inspectDocument(ctx,p);err!=nil{return backend.RuntimeImagePublishResult{},err}
@@ -150,7 +160,7 @@ func(d *DocumentRuntimeInstaller) ObserveRuntimeImage(ctx context.Context,id bac
 // After restart an uncertain prior import remains unusable until the trusted
 // coordinator explicitly reconciles and performs a positive no-write load.
 func(d *DocumentRuntimeInstaller) DocumentImageID(ctx context.Context,p backend.PreparedRuntimeImage,settledImageID string)(string,error){
-	if !d.validPrepared(p)||settledImageID!=p.Bundle.Manifest.Image.ID{return "",backend.ErrLaunchFenceOwnership}
+	if !d.validPrepared(p)||settledImageID!=p.DocumentBundle.Manifest.Image.ID{return "",backend.ErrLaunchFenceOwnership}
 	d.mu.Lock();loaded,published:=d.loaded[p.Spec.Identity],d.published[p.Spec.Identity];d.mu.Unlock()
 	if loaded!=settledImageID||published!=settledImageID+"\x00"+p.Spec.ImageTag{return "",backend.ErrUnavailable}
 	if err:=d.inspectDocument(ctx,p);err!=nil{return "",err}

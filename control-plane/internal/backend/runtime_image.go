@@ -48,6 +48,10 @@ type PreparedRuntimeImage struct {
 	// Bundle holds the exact verified packaged tar descriptor for the ordinary
 	// installed path. It is never serialized into the durable lease.
 	Bundle *runtimeoci.Bundle
+	// DocumentBundle is a separately pinned document distribution. Its verifier
+	// never enters the sandbox Bundle path; callers close its held descriptor
+	// after the same durable phase and settlement handling.
+	DocumentBundle *runtimeoci.DocumentBundle
 	// PullBundle is v2's verified compressed store and small bootstrap archive.
 	// It cannot be interchanged with the v1 diagnostic ImageLoad bundle.
 	PullBundle *runtimeoci.PullBundle
