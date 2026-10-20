@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,11 +30,17 @@ var _ backend.DocumentRuntimeInstaller = (*DocumentRuntimeInstaller)(nil)
 
 func NewDocumentRuntimeInstaller(selected *Backend, pinnedManifestSHA256 string, attach DocumentAttachConfiguration) (*DocumentRuntimeInstaller,error) {
 	if selected == nil || !fenceHex(pinnedManifestSHA256,32) { return nil,backend.ErrUnsupported }
-	// Reuse the pure selected-client attach-header validation; it has no SDK or
-	// image effects and copies the caller's exact trusted profile.
-	validated,err := NewDocumentExtractor(selected,"sha256:"+pinnedManifestSHA256,attach)
-	if err != nil { return nil,err }
-	return &DocumentRuntimeInstaller{selected:selected,manifestSHA256:pinnedManifestSHA256,attach:DocumentAttachConfiguration{Headers:validated.attachHeaders},loaded:map[backend.RuntimeImageIdentity]string{},published:map[backend.RuntimeImageIdentity]string{}},nil
+	// Validate and copy the exact selected-client transport declaration before
+	// any package or Docker read. No provisional image identity is invented.
+	if attach.Headers==nil||len(attach.Headers)>32{return nil,backend.ErrUnsupported}
+	headers:=make(map[string]string,len(attach.Headers));total:=0
+	for name,value:=range attach.Headers{
+		total+=len(name)+len(value)
+		if name==""||strings.ContainsAny(name+value,"\x00\r\n")||total>16<<10{return nil,backend.ErrUnsupported}
+		switch strings.ToLower(name){case "host","connection","upgrade","content-length","content-type":return nil,backend.ErrUnsupported}
+		headers[name]=value
+	}
+	return &DocumentRuntimeInstaller{selected:selected,manifestSHA256:pinnedManifestSHA256,attach:DocumentAttachConfiguration{Headers:headers},loaded:map[backend.RuntimeImageIdentity]string{},published:map[backend.RuntimeImageIdentity]string{}},nil
 }
 
 func (d *DocumentRuntimeInstaller) PrepareRuntimeImage(ctx context.Context,spec backend.RuntimeImageSpec)(backend.PreparedRuntimeImage,error){return d.PreparePackagedRuntimeImage(ctx,spec)}
