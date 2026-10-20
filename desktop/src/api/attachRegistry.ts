@@ -317,9 +317,13 @@ export function updateAttachSession(session: Session): void {
   const entry = entries.get(session.id);
   if (!entry || !sameSessionScope(entry.session, session)) return;
   const generation = knownExecutionGeneration(session);
+  // Side-channel readers share terminal-state subscribers; an idempotent clear
+  // must not publish a change to data those readers could never observe.
+  const helperBefore = getNativeHelperActivity(entry.session);
+  const challengeBefore = getCodexDeviceChallenge(entry.id);
   if ((generation !== null && generation !== entry.executionGeneration) || session.harness !== "codex" || session.authOnly) {
     entry.helperActivity.clear();
-    notify(entry.id, entry.state);
+    if (helperBefore !== getNativeHelperActivity(session)) notify(entry.id, entry.state);
   }
   const replacement = generation !== null && entry.executionGeneration !== null && generation !== entry.executionGeneration;
   const acknowledgedColdRestart = generation !== null && generation === entry.acknowledgedRestartGeneration &&
@@ -328,7 +332,7 @@ export function updateAttachSession(session: Session): void {
   entry.session = session;
   if (replacement || acknowledgedColdRestart || session.status === "exited" || !isCodexDeviceSignIn(session)) {
     entry.devicePrompt?.clear();
-    notify(entry.id, entry.state);
+    if (challengeBefore !== getCodexDeviceChallenge(entry.id)) notify(entry.id, entry.state);
   }
   if (replacement || acknowledgedColdRestart) {
     entry.acknowledgedRestartGeneration = null;
