@@ -50,9 +50,15 @@ func swarmReviewRepairSuccessor(run ProjectRun, taskID string, candidate Project
 		return ErrProjectRunConflict
 	}
 	if candidate.CheckRepair != nil && swarmCheckRepairCandidate(run, candidate.ID) {
-		if candidateCommit != "" && candidateCommit == candidate.CheckRepair.FailedCommit { return errors.New("A combined-check repair must produce changed committed source before independent review.") }
+		if candidateCommit != "" && candidateCommit == candidate.CheckRepair.FailedCommit {
+			return errors.New("A combined-check repair must produce changed committed source before independent review.")
+		}
 		// A later genuine failed finding still requires its own checkpoint repair.
-		for _, finding := range run.Swarm.ReviewObligations { if finding.CandidateOperationID == candidate.ID && finding.State == "repair-required" { return ErrProjectRunConflict } }
+		for _, finding := range run.Swarm.ReviewObligations {
+			if finding.CandidateOperationID == candidate.ID && finding.State == "repair-required" {
+				return ErrProjectRunConflict
+			}
+		}
 		return nil
 	}
 	for i := len(run.Swarm.ReviewObligations) - 1; i >= 0; i-- {

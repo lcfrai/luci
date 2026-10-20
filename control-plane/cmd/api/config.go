@@ -28,53 +28,53 @@ import (
 // visible here and a test constructs a Config instead of editing the
 // environment it is running in.
 const (
-	envAddr                   = "LUCI_ADDR"
-	envAllowPublicBind        = "LUCI_ALLOW_PUBLIC_BIND"
-	envBackend                = "LUCI_BACKEND"
-	envSandboxImage           = "LUCI_SANDBOX_IMAGE"
-	envProjectsDir            = "LUCI_PROJECTS_DIR"
-	envWebDir                 = "LUCI_WEB_DIR"
-	envRuntimeDir             = "LUCI_RUNTIME_DIR"
+	envAddr            = "LUCI_ADDR"
+	envAllowPublicBind = "LUCI_ALLOW_PUBLIC_BIND"
+	envBackend         = "LUCI_BACKEND"
+	envSandboxImage    = "LUCI_SANDBOX_IMAGE"
+	envProjectsDir     = "LUCI_PROJECTS_DIR"
+	envWebDir          = "LUCI_WEB_DIR"
+	envRuntimeDir      = "LUCI_RUNTIME_DIR"
 	// Independently trusted installer pins for runtime/windows/debian-signature.
 	// Both must be provided; the descriptor may never nominate its own trust root.
-	envDocumentProfileSHA256 = "LUCI_DOCUMENT_PROFILE_SHA256"
-	envDocumentToolDomainSHA256 = "LUCI_DOCUMENT_TOOL_DOMAIN_SHA256"
+	envDocumentProfileSHA256       = "LUCI_DOCUMENT_PROFILE_SHA256"
+	envDocumentToolDomainSHA256    = "LUCI_DOCUMENT_TOOL_DOMAIN_SHA256"
 	envDocumentImageManifestSHA256 = "LUCI_DOCUMENT_IMAGE_MANIFEST_SHA256"
-	envCloudBundle            = "LUCI_CLOUD_BUNDLE"
-	envE2BConfig              = "LUCI_E2B_CONFIG"
-	envBrowserPreviewAddr     = "LUCI_BROWSER_PREVIEW_ADDR"
-	envBrowserPreviewPort     = "LUCI_BROWSER_PREVIEW_PORT"
-	envStripeAPIKey           = "LUCI_STRIPE_API_KEY"
-	envStripeWebhookSecret    = "LUCI_STRIPE_WEBHOOK_SECRET"
-	envStripeAccountID        = "LUCI_STRIPE_ACCOUNT_ID"
-	envStripePriceID          = "LUCI_STRIPE_PRICE_ID"
-	envBillingTermsURL        = "LUCI_BILLING_TERMS_URL"
-	envBillingPrivacyURL      = "LUCI_BILLING_PRIVACY_URL"
-	envPublicAppOrigin        = "LUCI_PUBLIC_APP_ORIGIN"
-	envPreviewBaseDomain      = "LUCI_PREVIEW_BASE_DOMAIN"
-	envAllowedOrigins         = "LUCI_ALLOWED_ORIGINS"
-	envIdleAfter              = "LUCI_IDLE_AFTER"
-	envIdleTimeout            = "LUCI_IDLE_TIMEOUT"
-	envReapInterval           = "LUCI_REAP_INTERVAL"
-	envSessionCPUMillis       = "LUCI_SESSION_CPU_MILLIS"
-	envSessionMemoryMiB       = "LUCI_SESSION_MEMORY_MIB"
-	envRuntimeBuildMemoryMiB  = "LUCI_RUNTIME_BUILD_MEMORY_MIB"
-	envRuntimeBuildCPUMillis  = "LUCI_RUNTIME_BUILD_CPU_MILLIS"
-	envDockerHost             = "LUCI_DOCKER_HOST"
-	envKubeconfig             = "LUCI_KUBECONFIG"
-	envNamespace              = "LUCI_NAMESPACE"
-	envLogLevel               = "LUCI_LOG_LEVEL"
-	envHarnessAllowUnverified = "LUCI_HARNESS_ALLOW_UNVERIFIED"
-	envWorker                 = "LUCI_WORKER"
-	envWorkerToken            = "LUCI_WORKER_TOKEN"
-	envWorkerAddressFile      = "LUCI_WORKER_ADDRESS_FILE"
-	envBacking                = "LUCI_BACKING"
-	envInstanceName           = "LUCI_INSTANCE_NAME"
-	envManagedTeamID          = "LUCI_MANAGED_TEAM_ID"
-	envManagedShutdownToken   = "LUCI_MANAGED_SHUTDOWN_TOKEN"
-	envLocalAccessToken       = "LUCI_LOCAL_ACCESS_TOKEN"
-	envPortableOwnerAccess    = "LUCI_PORTABLE_OWNER_ACCESS"
-	envPortablePackageID      = "LUCI_PORTABLE_PACKAGE_ID"
+	envCloudBundle                 = "LUCI_CLOUD_BUNDLE"
+	envE2BConfig                   = "LUCI_E2B_CONFIG"
+	envBrowserPreviewAddr          = "LUCI_BROWSER_PREVIEW_ADDR"
+	envBrowserPreviewPort          = "LUCI_BROWSER_PREVIEW_PORT"
+	envStripeAPIKey                = "LUCI_STRIPE_API_KEY"
+	envStripeWebhookSecret         = "LUCI_STRIPE_WEBHOOK_SECRET"
+	envStripeAccountID             = "LUCI_STRIPE_ACCOUNT_ID"
+	envStripePriceID               = "LUCI_STRIPE_PRICE_ID"
+	envBillingTermsURL             = "LUCI_BILLING_TERMS_URL"
+	envBillingPrivacyURL           = "LUCI_BILLING_PRIVACY_URL"
+	envPublicAppOrigin             = "LUCI_PUBLIC_APP_ORIGIN"
+	envPreviewBaseDomain           = "LUCI_PREVIEW_BASE_DOMAIN"
+	envAllowedOrigins              = "LUCI_ALLOWED_ORIGINS"
+	envIdleAfter                   = "LUCI_IDLE_AFTER"
+	envIdleTimeout                 = "LUCI_IDLE_TIMEOUT"
+	envReapInterval                = "LUCI_REAP_INTERVAL"
+	envSessionCPUMillis            = "LUCI_SESSION_CPU_MILLIS"
+	envSessionMemoryMiB            = "LUCI_SESSION_MEMORY_MIB"
+	envRuntimeBuildMemoryMiB       = "LUCI_RUNTIME_BUILD_MEMORY_MIB"
+	envRuntimeBuildCPUMillis       = "LUCI_RUNTIME_BUILD_CPU_MILLIS"
+	envDockerHost                  = "LUCI_DOCKER_HOST"
+	envKubeconfig                  = "LUCI_KUBECONFIG"
+	envNamespace                   = "LUCI_NAMESPACE"
+	envLogLevel                    = "LUCI_LOG_LEVEL"
+	envHarnessAllowUnverified      = "LUCI_HARNESS_ALLOW_UNVERIFIED"
+	envWorker                      = "LUCI_WORKER"
+	envWorkerToken                 = "LUCI_WORKER_TOKEN"
+	envWorkerAddressFile           = "LUCI_WORKER_ADDRESS_FILE"
+	envBacking                     = "LUCI_BACKING"
+	envInstanceName                = "LUCI_INSTANCE_NAME"
+	envManagedTeamID               = "LUCI_MANAGED_TEAM_ID"
+	envManagedShutdownToken        = "LUCI_MANAGED_SHUTDOWN_TOKEN"
+	envLocalAccessToken            = "LUCI_LOCAL_ACCESS_TOKEN"
+	envPortableOwnerAccess         = "LUCI_PORTABLE_OWNER_ACCESS"
+	envPortablePackageID           = "LUCI_PORTABLE_PACKAGE_ID"
 
 	// envReadyTimeout is NOT in contract §4's table. Task 5 records it as a
 	// cross-task dependency of this task: dockerbe.Config.ReadyTimeout exists
@@ -174,7 +174,7 @@ type Config struct {
 	PublicAppOrigin                                                                                       string
 	PreviewBaseDomain                                                                                     string
 	RuntimeDir                                                                                            string
-	DocumentRuntime runtimeinstall.DocumentRuntimeConfiguration
+	DocumentRuntime                                                                                       runtimeinstall.DocumentRuntimeConfiguration
 	CloudBundle                                                                                           string
 	E2BConfigPath                                                                                         string
 	WebDir                                                                                                string
@@ -272,19 +272,21 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	}
 
 	cfg := Config{
-		DocumentRuntime: runtimeinstall.DocumentRuntimeConfiguration{ProfileSHA256:raw(envDocumentProfileSHA256),ToolDomainSHA256:raw(envDocumentToolDomainSHA256),ImageManifestSHA256:raw(envDocumentImageManifestSHA256)},
-		Addr:          get(envAddr, defaultAddr),
-		Backend:       strings.ToLower(get(envBackend, defaultBackend)),
-		SandboxImage:  get(envSandboxImage, defaultSandboxImage),
-		StateDir:      get(envStateDir, ""),
-		ProjectsDir:   get(envProjectsDir, ""),
-		E2BConfigPath: raw(envE2BConfig),
-		DockerHost:    get(envDockerHost, ""),
-		Kubeconfig:    get(envKubeconfig, ""),
-		Namespace:     get(envNamespace, defaultNamespace),
-		LogLevel:      slog.LevelInfo,
+		DocumentRuntime: runtimeinstall.DocumentRuntimeConfiguration{ProfileSHA256: raw(envDocumentProfileSHA256), ToolDomainSHA256: raw(envDocumentToolDomainSHA256), ImageManifestSHA256: raw(envDocumentImageManifestSHA256)},
+		Addr:            get(envAddr, defaultAddr),
+		Backend:         strings.ToLower(get(envBackend, defaultBackend)),
+		SandboxImage:    get(envSandboxImage, defaultSandboxImage),
+		StateDir:        get(envStateDir, ""),
+		ProjectsDir:     get(envProjectsDir, ""),
+		E2BConfigPath:   raw(envE2BConfig),
+		DockerHost:      get(envDockerHost, ""),
+		Kubeconfig:      get(envKubeconfig, ""),
+		Namespace:       get(envNamespace, defaultNamespace),
+		LogLevel:        slog.LevelInfo,
 	}
-	if !cfg.DocumentRuntime.Valid()||(cfg.DocumentRuntime.Configured()||cfg.DocumentRuntime.ImageManifestSHA256!="")&&(cfg.Backend!="docker"||parseFlag(raw(envWorker))){return Config{},errors.New("document runtime requires valid independent package pins on the local Docker controller; source proof descriptor/tool pins must be supplied together")}
+	if !cfg.DocumentRuntime.Valid() || (cfg.DocumentRuntime.Configured() || cfg.DocumentRuntime.ImageManifestSHA256 != "") && (cfg.Backend != "docker" || parseFlag(raw(envWorker))) {
+		return Config{}, errors.New("document runtime requires valid independent package pins on the local Docker controller; source proof descriptor/tool pins must be supplied together")
+	}
 	if cfg.E2BConfigPath != "" && !filepath.IsAbs(cfg.E2BConfigPath) {
 		return Config{}, fmt.Errorf("%s must name an absolute private operator configuration file", envE2BConfig)
 	}

@@ -27,7 +27,7 @@ type CoordinatorPolicy struct {
 	PreviewMode          string        `json:"previewMode"`
 	DeploymentMode       string        `json:"deploymentMode"`
 	AutomaticRepairLimit *int          `json:"automaticRepairLimit,omitempty"`
-	CheckFailureRepairs   bool          `json:"checkFailureRepairs,omitempty"`
+	CheckFailureRepairs  bool          `json:"checkFailureRepairs,omitempty"`
 	AllowedTargets       []string      `json:"allowedTargets"`
 	UpdatedAt            string        `json:"updatedAt,omitempty"`
 	Actor                *ContextActor `json:"actor,omitempty"`
@@ -205,7 +205,7 @@ func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 		PreviewMode          *string  `json:"previewMode"`
 		DeploymentMode       *string  `json:"deploymentMode"`
 		AutomaticRepairLimit *int     `json:"automaticRepairLimit"`
-		CheckFailureRepairs   *bool    `json:"checkFailureRepairs"`
+		CheckFailureRepairs  *bool    `json:"checkFailureRepairs"`
 		AllowedTargets       []string `json:"allowedTargets"`
 	}
 	if !journeyDecode(w, r, &req) {

@@ -35,14 +35,14 @@ var (
 )
 
 type ProjectRunRoute struct {
-	NativeDelegation string `json:"nativeDelegation,omitempty"`
-	NativeDelegationImage string `json:"nativeDelegationImage,omitempty"`
-	Harness           string                 `json:"harness"`
-	Model             string                 `json:"model"`
-	PermissionMode    string                 `json:"permissionMode"`
-	Effort            string                 `json:"effort,omitempty"`
-	ExecutionLocation string                 `json:"executionLocation,omitempty"`
-	Connection        AgentConnectionReceipt `json:"connection"`
+	NativeDelegation      string                 `json:"nativeDelegation,omitempty"`
+	NativeDelegationImage string                 `json:"nativeDelegationImage,omitempty"`
+	Harness               string                 `json:"harness"`
+	Model                 string                 `json:"model"`
+	PermissionMode        string                 `json:"permissionMode"`
+	Effort                string                 `json:"effort,omitempty"`
+	ExecutionLocation     string                 `json:"executionLocation,omitempty"`
+	Connection            AgentConnectionReceipt `json:"connection"`
 }
 
 // ProjectRunInput is constructed by admission code, never decoded from a client.
@@ -57,7 +57,7 @@ type ProjectRunInput struct {
 }
 
 type ProjectRunOperation struct {
-	CheckRepair *ProjectSwarmCheckRepairOrigin `json:"checkRepair,omitempty"`
+	CheckRepair            *ProjectSwarmCheckRepairOrigin  `json:"checkRepair,omitempty"`
 	Handoff                *TaskHandoffReference           `json:"handoff,omitempty"`
 	DependencyContext      *TaskDependencyReference        `json:"dependencyContext,omitempty"`
 	Checkpoint             *ProjectSwarmCheckpoint         `json:"checkpoint,omitempty"`
@@ -564,7 +564,9 @@ func validRunApprovals(a ProjectRunApprovalSelection) bool {
 }
 
 func validateRunInput(projectID string, in ProjectRunInput) error {
-	if validateNativeDelegationInput(in) != nil { return ErrProjectRunInvalid }
+	if validateNativeDelegationInput(in) != nil {
+		return ErrProjectRunInvalid
+	}
 	c := in.Implementation
 	if c.ProjectID != projectID || !prototypeReleaseID.MatchString(c.WorktreeID) || c.PlanRevision < 1 || len(c.TaskIDs) == 0 || len(c.TaskIDs) > 200 || len(c.TaskIDs) != len(c.TaskTitles) || !hexDigest(c.SourceDigest) || !hexDigest(c.BriefDigest) || !hexDigest(c.PlanDigest) || !validRunApprovals(in.Approvals) || (in.Outcome != "preview" && in.Outcome != "publish") || len(in.Requirements) > 100 {
 		return ErrProjectRunInvalid

@@ -56,21 +56,33 @@ func TestDistributeWorkAdmissionSerializesManagedWorkersAndRespectsHostReserve(t
 }
 
 func TestDistributePDFWorkKeepsItsLargerFixedCharge(t *testing.T) {
-	a:=sessionsNewEnv(t).api
-	a.deps.ExecutionStateDir=filepath.Join(t.TempDir(),"execution")
-	a.execution=newExecutionAdmission(a)
-	policy:=executionFixturePolicy()
-	a.deps.ResourceSnapshot=func()resourcebudget.Snapshot{
-		snap:=executionFixtureSnapshot()
-		available:=policy.MemoryHeadroomBytes(*snap.Host.Memory.EffectiveTotalBytes)+(384<<20)
-		snap.Host.Memory.EffectiveAvailableBytes=&available
+	a := sessionsNewEnv(t).api
+	a.deps.ExecutionStateDir = filepath.Join(t.TempDir(), "execution")
+	a.execution = newExecutionAdmission(a)
+	policy := executionFixturePolicy()
+	a.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
+		snap := executionFixtureSnapshot()
+		available := policy.MemoryHeadroomBytes(*snap.Host.Memory.EffectiveTotalBytes) + (384 << 20)
+		snap.Host.Memory.EffectiveAvailableBytes = &available
 		return snap
 	}
-	release,err:=a.admitDistributeWorkWith(context.Background(),policy)
-	if err!=nil{t.Fatal("unchanged Office charge refused",err)};release()
-	if release,err=a.admitDistributeWorkWithCharge(context.Background(),policy,512<<20);err==nil{release();t.Fatal("PDF used the smaller charge")}
-	if release,err=a.admitDistributeWorkWithCharge(context.Background(),policy,1);err==nil{release();t.Fatal("arbitrary charge accepted")}
-	a.deps.ResourceSnapshot=executionFixtureSnapshot
-	release,err=a.admitDistributeWorkWithCharge(context.Background(),policy,512<<20)
-	if err!=nil{t.Fatal("PDF fixed charge unavailable with capacity",err)};release()
+	release, err := a.admitDistributeWorkWith(context.Background(), policy)
+	if err != nil {
+		t.Fatal("unchanged Office charge refused", err)
+	}
+	release()
+	if release, err = a.admitDistributeWorkWithCharge(context.Background(), policy, 512<<20); err == nil {
+		release()
+		t.Fatal("PDF used the smaller charge")
+	}
+	if release, err = a.admitDistributeWorkWithCharge(context.Background(), policy, 1); err == nil {
+		release()
+		t.Fatal("arbitrary charge accepted")
+	}
+	a.deps.ResourceSnapshot = executionFixtureSnapshot
+	release, err = a.admitDistributeWorkWithCharge(context.Background(), policy, 512<<20)
+	if err != nil {
+		t.Fatal("PDF fixed charge unavailable with capacity", err)
+	}
+	release()
 }

@@ -86,11 +86,13 @@ func (a *API) recoverDocumentExtraction(ctx context.Context, req product.Discove
 		if err = a.execution.completeDocument(bounded, lease.Identity, "", out, backend.DocumentExtractionObservation{}); err != nil {
 			return out, err
 		}
-		out.ResourcesHeld=false
-		return out,persist(out)
+		out.ResourcesHeld = false
+		return out, persist(out)
 	}
-	executor,resolveErr := a.documentRetirementExecutor()
-	if resolveErr!=nil || executor == nil {return out,errors.Join(resolveErr,backend.ErrUnsupported)}
+	executor, resolveErr := a.documentRetirementExecutor()
+	if resolveErr != nil || executor == nil {
+		return out, errors.Join(resolveErr, backend.ErrUnsupported)
+	}
 	if lease.State == "creating" || lease.State == "fencing" {
 		record, err := a.execution.reserveDocumentFence(bounded, lease)
 		if err != nil {

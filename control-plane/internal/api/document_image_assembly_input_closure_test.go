@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
-	"encoding/base64"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -17,57 +17,104 @@ import (
 )
 
 func TestAssemblyDerivedLockRetainsOriginalBytesAndSeparateInventory(t *testing.T) {
-	original:=[]byte("{\n  \"state\": \"unresolved\", \"sbomClosed\": false\n}\n")
-	source:=assemblyCatalogSource{DependencyLockDigest:assemblyCatalogDigest(original)}
-	files:=[]assemblyObservedFile{{Path:"usr/bin/example",Owner:"debian/example",Kind:"regular",Bytes:1,SHA256:strings.Repeat("a",64)}}
-	verification,err:=deriveAssemblyVerificationFiles(files);if err!=nil||len(verification)!=1{t.Fatal(err)}
-	dependency:=assemblyDependencyClosureV1{Schema:1,Packages:[]assemblyDependencyPackage{{Name:"example",Version:"1",Architecture:"amd64"}},Edges:[]assemblyDependencyEdge{}}
-	data,err:=deriveAssemblyClosedLock(original,source,dependency,&assemblyObservedDomains{},verification,[]backend.DocumentImageAssemblyInput{})
-	if err!=nil{t.Fatal(err)}
+	original := []byte("{\n  \"state\": \"unresolved\", \"sbomClosed\": false\n}\n")
+	source := assemblyCatalogSource{DependencyLockDigest: assemblyCatalogDigest(original)}
+	files := []assemblyObservedFile{{Path: "usr/bin/example", Owner: "debian/example", Kind: "regular", Bytes: 1, SHA256: strings.Repeat("a", 64)}}
+	verification, err := deriveAssemblyVerificationFiles(files)
+	if err != nil || len(verification) != 1 {
+		t.Fatal(err)
+	}
+	dependency := assemblyDependencyClosureV1{Schema: 1, Packages: []assemblyDependencyPackage{{Name: "example", Version: "1", Architecture: "amd64"}}, Edges: []assemblyDependencyEdge{}}
+	data, err := deriveAssemblyClosedLock(original, source, dependency, &assemblyObservedDomains{}, verification, []backend.DocumentImageAssemblyInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	var lock assemblyClosedLockV1
-	if decodeAssemblyCatalog(data,2<<20,&lock)!=nil||lock.State!="closed-reviewed"||lock.Unresolved==nil||len(lock.Unresolved)!=0||lock.Observed.SourceLockSHA256!=source.DependencyLockDigest{t.Fatal("derived lock omitted exact origin")}
-	retained,err:=base64.StdEncoding.Strict().DecodeString(lock.SourceMetadata)
-	if err!=nil||string(retained)!=string(original)||len(lock.Observed.InstalledInputs)!=1||lock.Observed.InstalledInputs[0].Path!="verification/installed-0000.json"{t.Fatal("source metadata rewritten or inventory disguised as notice")}
-	if _,err=deriveAssemblyClosedLock(append(original,' '),source,dependency,&assemblyObservedDomains{},verification,nil);err==nil{t.Fatal("different original accepted")}
+	if decodeAssemblyCatalog(data, 2<<20, &lock) != nil || lock.State != "closed-reviewed" || lock.Unresolved == nil || len(lock.Unresolved) != 0 || lock.Observed.SourceLockSHA256 != source.DependencyLockDigest {
+		t.Fatal("derived lock omitted exact origin")
+	}
+	retained, err := base64.StdEncoding.Strict().DecodeString(lock.SourceMetadata)
+	if err != nil || string(retained) != string(original) || len(lock.Observed.InstalledInputs) != 1 || lock.Observed.InstalledInputs[0].Path != "verification/installed-0000.json" {
+		t.Fatal("source metadata rewritten or inventory disguised as notice")
+	}
+	if _, err = deriveAssemblyClosedLock(append(original, ' '), source, dependency, &assemblyObservedDomains{}, verification, nil); err == nil {
+		t.Fatal("different original accepted")
+	}
 }
 
 func TestAssemblyVerificationPagesAreCanonicalBoundedAndDetached(t *testing.T) {
-	files:=make([]assemblyObservedFile,4000)
-	for i:=range files {files[i]=assemblyObservedFile{Path:strings.Repeat("a",900)+string(rune(0x1000+i)),Owner:"luci",Kind:"regular",Bytes:0,SHA256:assemblyCatalogDigest(nil)}}
-	pages,err:=deriveAssemblyVerificationFiles(files);if err!=nil||len(pages)<2{t.Fatal("large inventory not paged",err)}
-	count:=0
-	for _,page:=range pages {
-		if len(page.data)>1<<20||page.input.Bytes!=int64(len(page.data))||page.input.Digest!=assemblyCatalogDigest(page.data){t.Fatal("incorrect page bound/pin")}
-		var decoded []assemblyObservedFile
-		if decodeAssemblyCatalog(page.data,1<<20,&decoded)!=nil{t.Fatal("noncanonical page")};count+=len(decoded)
+	files := make([]assemblyObservedFile, 4000)
+	for i := range files {
+		files[i] = assemblyObservedFile{Path: strings.Repeat("a", 900) + string(rune(0x1000+i)), Owner: "luci", Kind: "regular", Bytes: 0, SHA256: assemblyCatalogDigest(nil)}
 	}
-	if count!=len(files){t.Fatal("lost input inventory entry")}
-	before:=string(pages[0].data);files[0].Path="changed";if string(pages[0].data)!=before{t.Fatal("retained caller backing")}
+	pages, err := deriveAssemblyVerificationFiles(files)
+	if err != nil || len(pages) < 2 {
+		t.Fatal("large inventory not paged", err)
+	}
+	count := 0
+	for _, page := range pages {
+		if len(page.data) > 1<<20 || page.input.Bytes != int64(len(page.data)) || page.input.Digest != assemblyCatalogDigest(page.data) {
+			t.Fatal("incorrect page bound/pin")
+		}
+		var decoded []assemblyObservedFile
+		if decodeAssemblyCatalog(page.data, 1<<20, &decoded) != nil {
+			t.Fatal("noncanonical page")
+		}
+		count += len(decoded)
+	}
+	if count != len(files) {
+		t.Fatal("lost input inventory entry")
+	}
+	before := string(pages[0].data)
+	files[0].Path = "changed"
+	if string(pages[0].data) != before {
+		t.Fatal("retained caller backing")
+	}
 }
 
 func TestAssemblyAcceptedCandidateCannotBeMintedFromSyntaxOrMissingOwner(t *testing.T) {
-	ctx:=context.Background()
-	for _,candidate:=range []*assemblyAcceptedInputCandidate{nil,{}, {retiring:true}, {closure:assemblyInputClosureRef{1,strings.Repeat("a",64)}}} {
-		if candidate.current(ctx)==nil{t.Fatal("metadata without actual original owners accepted")}
+	ctx := context.Background()
+	for _, candidate := range []*assemblyAcceptedInputCandidate{nil, {}, {retiring: true}, {closure: assemblyInputClosureRef{1, strings.Repeat("a", 64)}}} {
+		if candidate.current(ctx) == nil {
+			t.Fatal("metadata without actual original owners accepted")
+		}
 	}
-	if candidate,err:=buildDocumentAssemblyClosure(ctx,nil,nil,nil);err==nil||candidate!=nil{t.Fatal("absent domains created acceptance")}
-	data:=[]byte("one");candidate:=&assemblyAcceptedInputCandidate{records:[]assemblyCatalogObject{{assemblyCatalogRef{},data}}}
-	copy:=candidate.canonicalCopy();copy[0].data[0]='X'
-	if string(candidate.records[0].data)!="one"{t.Fatal("canonicalCopy leaked mutable retained bytes")}
+	if candidate, err := buildDocumentAssemblyClosure(ctx, nil, nil, nil); err == nil || candidate != nil {
+		t.Fatal("absent domains created acceptance")
+	}
+	data := []byte("one")
+	candidate := &assemblyAcceptedInputCandidate{records: []assemblyCatalogObject{{assemblyCatalogRef{}, data}}}
+	copy := candidate.canonicalCopy()
+	copy[0].data[0] = 'X'
+	if string(candidate.records[0].data) != "one" {
+		t.Fatal("canonicalCopy leaked mutable retained bytes")
+	}
 }
 
 func TestAssemblyPersistedControlFieldsBindExactSelectedClaimBytes(t *testing.T) {
-	name,version,architecture,depends,source:="example","1.0","amd64","libc6 (>= 2.36)","source-example (1.0)"
-	claim:=assemblyDebianBinarySelectedFieldsV1{Schema:1,Control:assemblyDebianBinaryFieldsV1{Package:&name,Version:&version,Architecture:&architecture,Depends:&depends,Source:&source},Indexes:[]assemblyDebianBinaryIndexFieldsV1{}}
-	raw,err:=json.Marshal(claim);if err!=nil{t.Fatal(err)}
-	binding:=assemblyDebianBinaryBindingV1{Name:name,Version:version,Architecture:architecture,SelectedFieldClaims:assemblyDebianBinarySpanV1{Bytes:int64(len(raw)),SHA256:assemblyCatalogDigest(raw)},Matches:[]assemblyDebianBinaryMatchV1{}}
-	projection,err:=assemblyProjectionFromClaimBytes(raw,binding);if err!=nil||projection.Depends!=depends||projection.Source!=source{t.Fatal("actual claim fields not retained",err)}
-	for _,field:=range []string{"depends","source"} {
-		changed:=claim
-		other:="different"
-		if field=="depends"{changed.Control.Depends=&other}else{changed.Control.Source=&other}
-		mutated,_:=json.Marshal(changed)
-		if _,err=assemblyProjectionFromClaimBytes(mutated,binding);err==nil{t.Fatal("changed field with unchanged tuple/span accepted",field)}
+	name, version, architecture, depends, source := "example", "1.0", "amd64", "libc6 (>= 2.36)", "source-example (1.0)"
+	claim := assemblyDebianBinarySelectedFieldsV1{Schema: 1, Control: assemblyDebianBinaryFieldsV1{Package: &name, Version: &version, Architecture: &architecture, Depends: &depends, Source: &source}, Indexes: []assemblyDebianBinaryIndexFieldsV1{}}
+	raw, err := json.Marshal(claim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := assemblyDebianBinaryBindingV1{Name: name, Version: version, Architecture: architecture, SelectedFieldClaims: assemblyDebianBinarySpanV1{Bytes: int64(len(raw)), SHA256: assemblyCatalogDigest(raw)}, Matches: []assemblyDebianBinaryMatchV1{}}
+	projection, err := assemblyProjectionFromClaimBytes(raw, binding)
+	if err != nil || projection.Depends != depends || projection.Source != source {
+		t.Fatal("actual claim fields not retained", err)
+	}
+	for _, field := range []string{"depends", "source"} {
+		changed := claim
+		other := "different"
+		if field == "depends" {
+			changed.Control.Depends = &other
+		} else {
+			changed.Control.Source = &other
+		}
+		mutated, _ := json.Marshal(changed)
+		if _, err = assemblyProjectionFromClaimBytes(mutated, binding); err == nil {
+			t.Fatal("changed field with unchanged tuple/span accepted", field)
+		}
 	}
 }
 

@@ -8,8 +8,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/csv"
 	"encoding/binary"
+	"encoding/csv"
 	"fmt"
 	"hash/crc32"
 	"strings"
@@ -18,228 +18,391 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-func fixturePin(raw []byte) Pin { return Pin{SHA256:hashBytes(raw),Bytes:int64(len(raw))} }
-func fixtureTar(t *testing.T,entries map[string][]byte) []byte {
-	t.Helper();var out bytes.Buffer;writer:=tar.NewWriter(&out)
-	for name,raw:=range entries{if e:=writer.WriteHeader(&tar.Header{Name:name,Mode:0444,Size:int64(len(raw))});e!=nil{t.Fatal(e)};if _,e:=writer.Write(raw);e!=nil{t.Fatal(e)}}
-	if e:=writer.Close();e!=nil{t.Fatal(e)};return out.Bytes()
+func fixturePin(raw []byte) Pin { return Pin{SHA256: hashBytes(raw), Bytes: int64(len(raw))} }
+func fixtureTar(t *testing.T, entries map[string][]byte) []byte {
+	t.Helper()
+	var out bytes.Buffer
+	writer := tar.NewWriter(&out)
+	for name, raw := range entries {
+		if e := writer.WriteHeader(&tar.Header{Name: name, Mode: 0444, Size: int64(len(raw))}); e != nil {
+			t.Fatal(e)
+		}
+		if _, e := writer.Write(raw); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if e := writer.Close(); e != nil {
+		t.Fatal(e)
+	}
+	return out.Bytes()
 }
-func fixtureGzip(t *testing.T,raw []byte) []byte {
-	t.Helper();var out bytes.Buffer;writer:=gzip.NewWriter(&out)
-	if _,e:=writer.Write(raw);e!=nil{t.Fatal(e)};if e:=writer.Close();e!=nil{t.Fatal(e)};return out.Bytes()
+func fixtureGzip(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	var out bytes.Buffer
+	writer := gzip.NewWriter(&out)
+	if _, e := writer.Write(raw); e != nil {
+		t.Fatal(e)
+	}
+	if e := writer.Close(); e != nil {
+		t.Fatal(e)
+	}
+	return out.Bytes()
 }
 func TestWheelRECORDAndActualNoticeBytes(t *testing.T) {
-	owner:=WheelOwner{ID:"sample",Version:"1.0",InstalledOwner:"sample-1.0.dist-info"}
-	files:=map[string][]byte{
-		"sample/__init__.py":[]byte("value=1\n"),
-		"sample-1.0.dist-info/METADATA":[]byte("Metadata-Version: 2.4\nName: sample\nVersion: 1.0\nRequires-Dist: alpha >= 1\nRequires-Dist: beta >= 2\nRequires-Python: >=3.10\nClassifier: Topic :: Utilities\nClassifier: Programming Language :: Python\n\nA wheel description:\nwith non-header lines and ünicode.\n"),
-		"sample-1.0.dist-info/WHEEL":[]byte("Wheel-Version: 1.0\nGenerator: source-fixture\nRoot-Is-Purelib: true\nTag: py3-none-any\n"),
-		"sample-1.0.dist-info/entry_points.txt":[]byte("[console_scripts]\nsample-cli = sample.cli:main\n[plugin.other]\nnot-a-console = sample.plugin:start\n"),
-		"sample-1.0.dist-info/LICENSE":[]byte("The original grant\n"),
+	owner := WheelOwner{ID: "sample", Version: "1.0", InstalledOwner: "sample-1.0.dist-info"}
+	files := map[string][]byte{
+		"sample/__init__.py":                    []byte("value=1\n"),
+		"sample-1.0.dist-info/METADATA":         []byte("Metadata-Version: 2.4\nName: sample\nVersion: 1.0\nRequires-Dist: alpha >= 1\nRequires-Dist: beta >= 2\nRequires-Python: >=3.10\nClassifier: Topic :: Utilities\nClassifier: Programming Language :: Python\n\nA wheel description:\nwith non-header lines and ünicode.\n"),
+		"sample-1.0.dist-info/WHEEL":            []byte("Wheel-Version: 1.0\nGenerator: source-fixture\nRoot-Is-Purelib: true\nTag: py3-none-any\n"),
+		"sample-1.0.dist-info/entry_points.txt": []byte("[console_scripts]\nsample-cli = sample.cli:main\n[plugin.other]\nnot-a-console = sample.plugin:start\n"),
+		"sample-1.0.dist-info/LICENSE":          []byte("The original grant\n"),
 	}
-	var record bytes.Buffer;csvWriter:=csv.NewWriter(&record)
-	for name,raw:=range files{
-		sum:=sha256.Sum256(raw)
-		if e:=csvWriter.Write([]string{name,"sha256="+base64.RawURLEncoding.EncodeToString(sum[:]),fmt.Sprint(len(raw))});e!=nil{t.Fatal(e)}
+	var record bytes.Buffer
+	csvWriter := csv.NewWriter(&record)
+	for name, raw := range files {
+		sum := sha256.Sum256(raw)
+		if e := csvWriter.Write([]string{name, "sha256=" + base64.RawURLEncoding.EncodeToString(sum[:]), fmt.Sprint(len(raw))}); e != nil {
+			t.Fatal(e)
+		}
 	}
-	if e:=csvWriter.Write([]string{"sample-1.0.dist-info/RECORD","",""});e!=nil{t.Fatal(e)}
-	csvWriter.Flush();if csvWriter.Error()!=nil{t.Fatal(csvWriter.Error())}
-	files["sample-1.0.dist-info/RECORD"]=record.Bytes()
-	encode:=func()[]byte{var out bytes.Buffer;writer:=zip.NewWriter(&out);for name,raw:=range files{entry,e:=writer.Create(name);if e!=nil{t.Fatal(e)};if _,e=entry.Write(raw);e!=nil{t.Fatal(e)}};if e:=writer.Close();e!=nil{t.Fatal(e)};return out.Bytes()}
-	wheel:=encode()
-	observed,e:=InspectWheel(context.Background(),bytes.NewReader(wheel),int64(len(wheel)),fixturePin(wheel),owner)
-	if e!=nil||len(observed.Files)!=6||len(observed.Notices)!=1||string(observed.Notices[0].Contents)!="The original grant\n"||len(observed.RequiresDist)!=2||observed.RequiresPython!=">=3.10"||len(observed.Tags)!=1||observed.Tags[0]!="py3-none-any"||observed.RootIsPurelib==nil||!*observed.RootIsPurelib||observed.InstalledOwner!=owner.InstalledOwner||len(observed.EntryPoints)!=1||observed.EntryPoints[0].Name!="sample-cli"{t.Fatalf("actual wheel inventory unavailable: %v",e)}
-	files["sample/__init__.py"]=[]byte("changed\n")
-	changed:=encode()
-	if _,e=InspectWheel(context.Background(),bytes.NewReader(changed),int64(len(changed)),fixturePin(changed),owner);e==nil{t.Fatal("RECORD mismatch accepted")}
+	if e := csvWriter.Write([]string{"sample-1.0.dist-info/RECORD", "", ""}); e != nil {
+		t.Fatal(e)
+	}
+	csvWriter.Flush()
+	if csvWriter.Error() != nil {
+		t.Fatal(csvWriter.Error())
+	}
+	files["sample-1.0.dist-info/RECORD"] = record.Bytes()
+	encode := func() []byte {
+		var out bytes.Buffer
+		writer := zip.NewWriter(&out)
+		for name, raw := range files {
+			entry, e := writer.Create(name)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if _, e = entry.Write(raw); e != nil {
+				t.Fatal(e)
+			}
+		}
+		if e := writer.Close(); e != nil {
+			t.Fatal(e)
+		}
+		return out.Bytes()
+	}
+	wheel := encode()
+	observed, e := InspectWheel(context.Background(), bytes.NewReader(wheel), int64(len(wheel)), fixturePin(wheel), owner)
+	if e != nil || len(observed.Files) != 6 || len(observed.Notices) != 1 || string(observed.Notices[0].Contents) != "The original grant\n" || len(observed.RequiresDist) != 2 || observed.RequiresPython != ">=3.10" || len(observed.Tags) != 1 || observed.Tags[0] != "py3-none-any" || observed.RootIsPurelib == nil || !*observed.RootIsPurelib || observed.InstalledOwner != owner.InstalledOwner || len(observed.EntryPoints) != 1 || observed.EntryPoints[0].Name != "sample-cli" {
+		t.Fatalf("actual wheel inventory unavailable: %v", e)
+	}
+	files["sample/__init__.py"] = []byte("changed\n")
+	changed := encode()
+	if _, e = InspectWheel(context.Background(), bytes.NewReader(changed), int64(len(changed)), fixturePin(changed), owner); e == nil {
+		t.Fatal("RECORD mismatch accepted")
+	}
 }
 
 func TestParagraphFieldsAcceptsDebianIdentityAndSourceChecksumKeys(t *testing.T) {
-	rows,e:=paragraphFields([]byte("Package: sample\nName: displayed\nChecksums-Sha256:\n abc123 7 archive.tar.gz\n\n"),1<<20)
-	if e!=nil||len(rows)!=1||rows[0]["Package"]!="sample"||rows[0]["Name"]!="displayed"||rows[0]["Checksums-Sha256"]!="\nabc123 7 archive.tar.gz"{t.Fatalf("ordinary control keys unavailable: %v",e)}
+	rows, e := paragraphFields([]byte("Package: sample\nName: displayed\nChecksums-Sha256:\n abc123 7 archive.tar.gz\n\n"), 1<<20)
+	if e != nil || len(rows) != 1 || rows[0]["Package"] != "sample" || rows[0]["Name"] != "displayed" || rows[0]["Checksums-Sha256"] != "\nabc123 7 archive.tar.gz" {
+		t.Fatalf("ordinary control keys unavailable: %v", e)
+	}
 }
 
 func TestWheelMetadataRepeatedHeadersAndDescription(t *testing.T) {
-	raw:=[]byte("Metadata-Version: 2.4\nName: sample\nVersion: 1.0\nRequires-Dist: alpha\nRequires-Dist: beta\nClassifier: one\nClassifier: two\n\nDescription: this is body text, not a header\n")
-	identity,e:=parseWheelMetadata(raw)
-	if e!=nil||identity.name!="sample"||identity.version!="1.0"||len(identity.requiresDist)!=2{t.Fatalf("valid wheel metadata unavailable: %v",e)}
-	if _,e=parseWheelMetadata([]byte("Name: sample\nName: other\nVersion: 1.0\n"));e==nil{t.Fatal("ambiguous wheel identity accepted")}
+	raw := []byte("Metadata-Version: 2.4\nName: sample\nVersion: 1.0\nRequires-Dist: alpha\nRequires-Dist: beta\nClassifier: one\nClassifier: two\n\nDescription: this is body text, not a header\n")
+	identity, e := parseWheelMetadata(raw)
+	if e != nil || identity.name != "sample" || identity.version != "1.0" || len(identity.requiresDist) != 2 {
+		t.Fatalf("valid wheel metadata unavailable: %v", e)
+	}
+	if _, e = parseWheelMetadata([]byte("Name: sample\nName: other\nVersion: 1.0\n")); e == nil {
+		t.Fatal("ambiguous wheel identity accepted")
+	}
 }
 
 func TestWheelDirectoryPreflightRefusesUnboundedEntryCount(t *testing.T) {
-	record:=make([]byte,22)
-	copy(record,[]byte("PK\x05\x06"))
-	record[8]=0xff;record[9]=0xff;record[10]=0xff;record[11]=0xff
-	if preflightWheelDirectory(bytes.NewReader(record),int64(len(record)))==nil{t.Fatal("unbounded central-directory count accepted")}
+	record := make([]byte, 22)
+	copy(record, []byte("PK\x05\x06"))
+	record[8] = 0xff
+	record[9] = 0xff
+	record[10] = 0xff
+	record[11] = 0xff
+	if preflightWheelDirectory(bytes.NewReader(record), int64(len(record))) == nil {
+		t.Fatal("unbounded central-directory count accepted")
+	}
 }
 
 func TestELFMagicAccumulatesAcrossShortReads(t *testing.T) {
 	var capture elfCapture
-	for _,part:=range [][]byte{{0x7f},{'E'},{'L'},{'F',1,2}} {
-		if capture.write(part)!=nil{t.Fatal("short ELF prefix rejected")}
+	for _, part := range [][]byte{{0x7f}, {'E'}, {'L'}, {'F', 1, 2}} {
+		if capture.write(part) != nil {
+			t.Fatal("short ELF prefix rejected")
+		}
 	}
-	if !capture.isELF||!bytes.Equal(capture.raw.Bytes(),[]byte{0x7f,'E','L','F',1,2}){t.Fatal("short reads lost native magic or bytes")}
+	if !capture.isELF || !bytes.Equal(capture.raw.Bytes(), []byte{0x7f, 'E', 'L', 'F', 1, 2}) {
+		t.Fatal("short reads lost native magic or bytes")
+	}
 }
 
-func TestBaseStatusFilesAndCopyrightAreObserved(t *testing.T){
-	layer:=fixtureTar(t,map[string][]byte{
-		"var/lib/dpkg/status":[]byte("Package: sample\nVersion: 1.0\nArchitecture: amd64\nStatus: install ok installed\nSource: sample-src (1.0)\nBuilt-Using: helper (= 2)\n\n"),
-		"var/lib/dpkg/info/sample.list":[]byte("\n/.\n/usr/bin/sample\n\n/usr/share/doc/sample/copyright\n"),
-		"usr/bin/sample":[]byte("#!/bin/sh\nexit 0\n"),
-		"usr/share/doc/sample/copyright":[]byte("Original copyright grant\n"),
+func TestBaseStatusFilesAndCopyrightAreObserved(t *testing.T) {
+	layer := fixtureTar(t, map[string][]byte{
+		"var/lib/dpkg/status":            []byte("Package: sample\nVersion: 1.0\nArchitecture: amd64\nStatus: install ok installed\nSource: sample-src (1.0)\nBuilt-Using: helper (= 2)\n\n"),
+		"var/lib/dpkg/info/sample.list":  []byte("\n/.\n/usr/bin/sample\n\n/usr/share/doc/sample/copyright\n"),
+		"usr/bin/sample":                 []byte("#!/bin/sh\nexit 0\n"),
+		"usr/share/doc/sample/copyright": []byte("Original copyright grant\n"),
 	})
-	compressed:=fixtureGzip(t,layer)
-	observed,e:=InspectBase(context.Background(),bytes.NewReader(compressed),fixturePin(compressed))
-	if e!=nil||len(observed.Packages)!=1||observed.Packages[0].Source!="sample-src (1.0)"||len(observed.Notices)!=1||string(observed.Notices[0].Contents)!="Original copyright grant\n"{t.Fatalf("actual base inventory unavailable: %v",e)}
-	if observed.Notices[0].Owner!="sample"{t.Fatal("dpkg .list owner was not joined")}
+	compressed := fixtureGzip(t, layer)
+	observed, e := InspectBase(context.Background(), bytes.NewReader(compressed), fixturePin(compressed))
+	if e != nil || len(observed.Packages) != 1 || observed.Packages[0].Source != "sample-src (1.0)" || len(observed.Notices) != 1 || string(observed.Notices[0].Contents) != "Original copyright grant\n" {
+		t.Fatalf("actual base inventory unavailable: %v", e)
+	}
+	if observed.Notices[0].Owner != "sample" {
+		t.Fatal("dpkg .list owner was not joined")
+	}
 }
 
-func fixtureAR(t *testing.T,entries [][2][]byte) []byte {
-	t.Helper();var out bytes.Buffer;out.WriteString("!<arch>\n")
-	for _,entry:=range entries{
-		name,data:=string(entry[0]),entry[1]
-		header:=fmt.Sprintf("%-16s%-12d%-6d%-6d%-8o%-10d`\n",name+"/",0,0,0,0644,len(data))
-		if len(header)!=60{t.Fatalf("bad ar fixture header %d",len(header))}
-		out.WriteString(header);out.Write(data);if len(data)%2==1{out.WriteByte('\n')}
+func fixtureAR(t *testing.T, entries [][2][]byte) []byte {
+	t.Helper()
+	var out bytes.Buffer
+	out.WriteString("!<arch>\n")
+	for _, entry := range entries {
+		name, data := string(entry[0]), entry[1]
+		header := fmt.Sprintf("%-16s%-12d%-6d%-6d%-8o%-10d`\n", name+"/", 0, 0, 0, 0644, len(data))
+		if len(header) != 60 {
+			t.Fatalf("bad ar fixture header %d", len(header))
+		}
+		out.WriteString(header)
+		out.Write(data)
+		if len(data)%2 == 1 {
+			out.WriteByte('\n')
+		}
 	}
 	return out.Bytes()
 }
 
-func TestDebControlTupleAndRealDataInventory(t *testing.T){
-	control:=fixtureGzip(t,fixtureTar(t,map[string][]byte{"control":[]byte("Package: sample\nVersion: 1.0\nArchitecture: amd64\nMulti-Arch: same\nDepends: libc6 (>= 2)\n\n"),"conffiles":[]byte("/etc/sample.conf\n")}))
-	data:=fixtureGzip(t,fixtureTar(t,map[string][]byte{"usr/bin/sample":[]byte("binary content\n"),"etc/sample.conf":[]byte("setting=yes\n"),"usr/share/doc/sample/copyright":[]byte("Debian grant bytes\n")}))
-	deb:=fixtureAR(t,[][2][]byte{{[]byte("debian-binary"),[]byte("2.0\n")},{[]byte("control.tar.gz"),control},{[]byte("data.tar.gz"),data}})
-	observed,e:=InspectDeb(context.Background(),bytes.NewReader(deb),int64(len(deb)),fixturePin(deb),DebExpectation{Name:"sample",Version:"1.0",Architecture:"amd64"})
-	if e!=nil||observed.Package.MultiArch!="same"||len(observed.Files)!=3||len(observed.Conffiles)!=1||observed.Conffiles[0]!="/etc/sample.conf"||len(observed.Notices)!=1||string(observed.Notices[0].Contents)!="Debian grant bytes\n"{t.Fatalf("actual deb inventory unavailable: %v",e)}
-	if _,e=InspectDeb(context.Background(),bytes.NewReader(deb),int64(len(deb)),fixturePin(deb),DebExpectation{Name:"other",Version:"1.0",Architecture:"amd64"});e==nil{t.Fatal("different expected package accepted")}
-	missing:=fixtureGzip(t,fixtureTar(t,map[string][]byte{"usr/bin/sample":[]byte("binary content\n")}))
-	withoutConffile:=fixtureAR(t,[][2][]byte{{[]byte("debian-binary"),[]byte("2.0\n")},{[]byte("control.tar.gz"),control},{[]byte("data.tar.gz"),missing}})
-	if _,e=InspectDeb(context.Background(),bytes.NewReader(withoutConffile),int64(len(withoutConffile)),fixturePin(withoutConffile),DebExpectation{Name:"sample",Version:"1.0",Architecture:"amd64"});e==nil{t.Fatal("declared conffile absent from data tar accepted")}
+func TestDebControlTupleAndRealDataInventory(t *testing.T) {
+	control := fixtureGzip(t, fixtureTar(t, map[string][]byte{"control": []byte("Package: sample\nVersion: 1.0\nArchitecture: amd64\nMulti-Arch: same\nDepends: libc6 (>= 2)\n\n"), "conffiles": []byte("/etc/sample.conf\n")}))
+	data := fixtureGzip(t, fixtureTar(t, map[string][]byte{"usr/bin/sample": []byte("binary content\n"), "etc/sample.conf": []byte("setting=yes\n"), "usr/share/doc/sample/copyright": []byte("Debian grant bytes\n")}))
+	deb := fixtureAR(t, [][2][]byte{{[]byte("debian-binary"), []byte("2.0\n")}, {[]byte("control.tar.gz"), control}, {[]byte("data.tar.gz"), data}})
+	observed, e := InspectDeb(context.Background(), bytes.NewReader(deb), int64(len(deb)), fixturePin(deb), DebExpectation{Name: "sample", Version: "1.0", Architecture: "amd64"})
+	if e != nil || observed.Package.MultiArch != "same" || len(observed.Files) != 3 || len(observed.Conffiles) != 1 || observed.Conffiles[0] != "/etc/sample.conf" || len(observed.Notices) != 1 || string(observed.Notices[0].Contents) != "Debian grant bytes\n" {
+		t.Fatalf("actual deb inventory unavailable: %v", e)
+	}
+	if _, e = InspectDeb(context.Background(), bytes.NewReader(deb), int64(len(deb)), fixturePin(deb), DebExpectation{Name: "other", Version: "1.0", Architecture: "amd64"}); e == nil {
+		t.Fatal("different expected package accepted")
+	}
+	missing := fixtureGzip(t, fixtureTar(t, map[string][]byte{"usr/bin/sample": []byte("binary content\n")}))
+	withoutConffile := fixtureAR(t, [][2][]byte{{[]byte("debian-binary"), []byte("2.0\n")}, {[]byte("control.tar.gz"), control}, {[]byte("data.tar.gz"), missing}})
+	if _, e = InspectDeb(context.Background(), bytes.NewReader(withoutConffile), int64(len(withoutConffile)), fixturePin(withoutConffile), DebExpectation{Name: "sample", Version: "1.0", Architecture: "amd64"}); e == nil {
+		t.Fatal("declared conffile absent from data tar accepted")
+	}
 }
 
-func TestSignedSourcesBindingAndRetainedArchiveBytes(t *testing.T){
-	archive:=[]byte("original selected source bytes\n")
-	index:=[]byte(fmt.Sprintf("Package: sample-src\nVersion: 1.0\nDirectory: pool/main/s/sample\nChecksums-Sha256:\n %s %d sample_1.0.orig.tar.gz\n\n",hashBytes(archive),len(archive)))
-	var compressed bytes.Buffer;writer,e:=xz.NewWriter(&compressed);if e!=nil{t.Fatal(e)}
-	if _,e=writer.Write(index);e!=nil{t.Fatal(e)};if e=writer.Close();e!=nil{t.Fatal(e)}
-	binding:=SourcesBinding{SignedReleaseSHA256:strings.Repeat("a",64),IndexPath:"main/source/Sources.xz",CompressedIndex:fixturePin(compressed.Bytes()),Cleartext:fixturePin(index)}
-	inputs:=[]SourceArchiveInput{{SourceName:"sample-src",SourceVersion:"1.0",FileName:"pool/main/s/sample/sample_1.0.orig.tar.gz",Pin:fixturePin(archive),Reader:bytes.NewReader(archive)}}
-	observed,e:=InspectSources(context.Background(),bytes.NewReader(compressed.Bytes()),binding,inputs)
-	if e!=nil||len(observed)!=1||len(observed[0].Archives)!=1||observed[0].Archives[0].SHA256!=hashBytes(archive){t.Fatalf("selected Sources paragraph unavailable: %v",e)}
-	changed:=append([]byte(nil),archive...);changed[0]^=1
-	inputs[0].Reader=bytes.NewReader(changed)
-	if _,e=InspectSources(context.Background(),bytes.NewReader(compressed.Bytes()),binding,inputs);e==nil{t.Fatal("changed original source archive accepted")}
+func TestSignedSourcesBindingAndRetainedArchiveBytes(t *testing.T) {
+	archive := []byte("original selected source bytes\n")
+	index := []byte(fmt.Sprintf("Package: sample-src\nVersion: 1.0\nDirectory: pool/main/s/sample\nChecksums-Sha256:\n %s %d sample_1.0.orig.tar.gz\n\n", hashBytes(archive), len(archive)))
+	var compressed bytes.Buffer
+	writer, e := xz.NewWriter(&compressed)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = writer.Write(index); e != nil {
+		t.Fatal(e)
+	}
+	if e = writer.Close(); e != nil {
+		t.Fatal(e)
+	}
+	binding := SourcesBinding{SignedReleaseSHA256: strings.Repeat("a", 64), IndexPath: "main/source/Sources.xz", CompressedIndex: fixturePin(compressed.Bytes()), Cleartext: fixturePin(index)}
+	inputs := []SourceArchiveInput{{SourceName: "sample-src", SourceVersion: "1.0", FileName: "pool/main/s/sample/sample_1.0.orig.tar.gz", Pin: fixturePin(archive), Reader: bytes.NewReader(archive)}}
+	observed, e := InspectSources(context.Background(), bytes.NewReader(compressed.Bytes()), binding, inputs)
+	if e != nil || len(observed) != 1 || len(observed[0].Archives) != 1 || observed[0].Archives[0].SHA256 != hashBytes(archive) {
+		t.Fatalf("selected Sources paragraph unavailable: %v", e)
+	}
+	changed := append([]byte(nil), archive...)
+	changed[0] ^= 1
+	inputs[0].Reader = bytes.NewReader(changed)
+	if _, e = InspectSources(context.Background(), bytes.NewReader(compressed.Bytes()), binding, inputs); e == nil {
+		t.Fatal("changed original source archive accepted")
+	}
 }
 
 func TestSourcesRequireEverySelectedChecksumMember(t *testing.T) {
-	first:=[]byte("first source archive")
-	second:=[]byte("second source archive")
-	index:=[]byte(fmt.Sprintf("Package: sample-src\nVersion: 1.0\nDirectory: pool/main/s/sample\nChecksums-Sha256:\n %s %d sample_1.0.dsc\n %s %d sample_1.0.orig.tar.gz\n\n",hashBytes(first),len(first),hashBytes(second),len(second)))
-	var compressed bytes.Buffer;writer,e:=xz.NewWriter(&compressed);if e!=nil{t.Fatal(e)}
-	if _,e=writer.Write(index);e!=nil{t.Fatal(e)};if e=writer.Close();e!=nil{t.Fatal(e)}
-	binding:=SourcesBinding{SignedReleaseSHA256:strings.Repeat("a",64),IndexPath:"main/source/Sources.xz",CompressedIndex:fixturePin(compressed.Bytes()),Cleartext:fixturePin(index)}
-	inputs:=[]SourceArchiveInput{{SourceName:"sample-src",SourceVersion:"1.0",FileName:"pool/main/s/sample/sample_1.0.dsc",Pin:fixturePin(first),Reader:bytes.NewReader(first)}}
-	if _,e=InspectSources(context.Background(),bytes.NewReader(compressed.Bytes()),binding,inputs);e==nil{t.Fatal("subset of selected source archives accepted")}
-	inputs=append(inputs,SourceArchiveInput{SourceName:"sample-src",SourceVersion:"1.0",FileName:"pool/main/s/sample/sample_1.0.orig.tar.gz",Pin:fixturePin(second),Reader:bytes.NewReader(second)})
-	selected,e:=InspectSources(context.Background(),bytes.NewReader(compressed.Bytes()),binding,inputs)
-	if e!=nil||len(selected)!=1||len(selected[0].Archives)!=2{t.Fatalf("complete selected source unavailable: %v",e)}
+	first := []byte("first source archive")
+	second := []byte("second source archive")
+	index := []byte(fmt.Sprintf("Package: sample-src\nVersion: 1.0\nDirectory: pool/main/s/sample\nChecksums-Sha256:\n %s %d sample_1.0.dsc\n %s %d sample_1.0.orig.tar.gz\n\n", hashBytes(first), len(first), hashBytes(second), len(second)))
+	var compressed bytes.Buffer
+	writer, e := xz.NewWriter(&compressed)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = writer.Write(index); e != nil {
+		t.Fatal(e)
+	}
+	if e = writer.Close(); e != nil {
+		t.Fatal(e)
+	}
+	binding := SourcesBinding{SignedReleaseSHA256: strings.Repeat("a", 64), IndexPath: "main/source/Sources.xz", CompressedIndex: fixturePin(compressed.Bytes()), Cleartext: fixturePin(index)}
+	inputs := []SourceArchiveInput{{SourceName: "sample-src", SourceVersion: "1.0", FileName: "pool/main/s/sample/sample_1.0.dsc", Pin: fixturePin(first), Reader: bytes.NewReader(first)}}
+	if _, e = InspectSources(context.Background(), bytes.NewReader(compressed.Bytes()), binding, inputs); e == nil {
+		t.Fatal("subset of selected source archives accepted")
+	}
+	inputs = append(inputs, SourceArchiveInput{SourceName: "sample-src", SourceVersion: "1.0", FileName: "pool/main/s/sample/sample_1.0.orig.tar.gz", Pin: fixturePin(second), Reader: bytes.NewReader(second)})
+	selected, e := InspectSources(context.Background(), bytes.NewReader(compressed.Bytes()), binding, inputs)
+	if e != nil || len(selected) != 1 || len(selected[0].Archives) != 2 {
+		t.Fatalf("complete selected source unavailable: %v", e)
+	}
 }
 
-func fixtureXZ(t *testing.T,raw []byte) []byte {
-	t.Helper();var out bytes.Buffer;writer,e:=xz.NewWriter(&out);if e!=nil{t.Fatal(e)}
-	if _,e=writer.Write(raw);e!=nil{t.Fatal(e)};if e=writer.Close();e!=nil{t.Fatal(e)}
+func fixtureXZ(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	var out bytes.Buffer
+	writer, e := xz.NewWriter(&out)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = writer.Write(raw); e != nil {
+		t.Fatal(e)
+	}
+	if e = writer.Close(); e != nil {
+		t.Fatal(e)
+	}
 	return out.Bytes()
 }
 
 func TestXZPreflightRejectsOversizedDictionaryInLaterStream(t *testing.T) {
-	first:=fixtureXZ(t,[]byte("first selected source"))
-	second:=fixtureXZ(t,[]byte("second selected source"))
-	valid:=append(append([]byte(nil),first...),second...)
-	if preflightXZ(context.Background(),bytes.NewReader(valid),int64(len(valid)),128<<20)!=nil{t.Fatal("valid two-stream xz refused")}
-	block:=second[12:]
-	headerSize:=int(block[0]+1)*4
-	if headerSize<8||headerSize>len(block){t.Fatal("fixture block header unavailable")}
-	header:=block[:headerSize]
-	at:=2
-	if header[1]&0x40!=0{if _,ok:=xzVLI(header[:headerSize-4],&at);!ok{t.Fatal("fixture compressed size unavailable")}}
-	if header[1]&0x80!=0{if _,ok:=xzVLI(header[:headerSize-4],&at);!ok{t.Fatal("fixture uncompressed size unavailable")}}
-	id,ok:=xzVLI(header[:headerSize-4],&at);if !ok||id!=0x21{t.Fatal("fixture LZMA2 filter unavailable")}
-	properties,ok:=xzVLI(header[:headerSize-4],&at);if !ok||properties!=1||at>=headerSize-4{t.Fatal("fixture dictionary property unavailable")}
-	header[at]=40 // decoded dictionary is 4 GiB, above the 64 MiB preflight cap
-	binary.LittleEndian.PutUint32(header[headerSize-4:],crc32.ChecksumIEEE(header[:headerSize-4]))
-	joined:=append(append([]byte(nil),first...),second...)
-	if preflightXZ(context.Background(),bytes.NewReader(joined),int64(len(joined)),128<<20)==nil{t.Fatal("later oversized dictionary accepted")}
+	first := fixtureXZ(t, []byte("first selected source"))
+	second := fixtureXZ(t, []byte("second selected source"))
+	valid := append(append([]byte(nil), first...), second...)
+	if preflightXZ(context.Background(), bytes.NewReader(valid), int64(len(valid)), 128<<20) != nil {
+		t.Fatal("valid two-stream xz refused")
+	}
+	block := second[12:]
+	headerSize := int(block[0]+1) * 4
+	if headerSize < 8 || headerSize > len(block) {
+		t.Fatal("fixture block header unavailable")
+	}
+	header := block[:headerSize]
+	at := 2
+	if header[1]&0x40 != 0 {
+		if _, ok := xzVLI(header[:headerSize-4], &at); !ok {
+			t.Fatal("fixture compressed size unavailable")
+		}
+	}
+	if header[1]&0x80 != 0 {
+		if _, ok := xzVLI(header[:headerSize-4], &at); !ok {
+			t.Fatal("fixture uncompressed size unavailable")
+		}
+	}
+	id, ok := xzVLI(header[:headerSize-4], &at)
+	if !ok || id != 0x21 {
+		t.Fatal("fixture LZMA2 filter unavailable")
+	}
+	properties, ok := xzVLI(header[:headerSize-4], &at)
+	if !ok || properties != 1 || at >= headerSize-4 {
+		t.Fatal("fixture dictionary property unavailable")
+	}
+	header[at] = 40 // decoded dictionary is 4 GiB, above the 64 MiB preflight cap
+	binary.LittleEndian.PutUint32(header[headerSize-4:], crc32.ChecksumIEEE(header[:headerSize-4]))
+	joined := append(append([]byte(nil), first...), second...)
+	if preflightXZ(context.Background(), bytes.NewReader(joined), int64(len(joined)), 128<<20) == nil {
+		t.Fatal("later oversized dictionary accepted")
+	}
 }
 
 func TestDebXZMembersUsePreflightBeforeInventory(t *testing.T) {
-	control:=fixtureXZ(t,fixtureTar(t,map[string][]byte{"control":[]byte("Package: sample\nVersion: 1.0\nArchitecture: amd64\n\n")}))
-	data:=fixtureXZ(t,fixtureTar(t,map[string][]byte{"usr/share/doc/sample/copyright":[]byte("Actual Debian copyright bytes\n")}))
-	deb:=fixtureAR(t,[][2][]byte{{[]byte("debian-binary"),[]byte("2.0\n")},{[]byte("control.tar.xz"),control},{[]byte("data.tar.xz"),data}})
-	observed,e:=InspectDeb(context.Background(),bytes.NewReader(deb),int64(len(deb)),fixturePin(deb),DebExpectation{Name:"sample",Version:"1.0",Architecture:"amd64"})
-	if e!=nil||len(observed.Notices)!=1||string(observed.Notices[0].Contents)!="Actual Debian copyright bytes\n"{t.Fatalf("bounded xz deb input unavailable: %v",e)}
+	control := fixtureXZ(t, fixtureTar(t, map[string][]byte{"control": []byte("Package: sample\nVersion: 1.0\nArchitecture: amd64\n\n")}))
+	data := fixtureXZ(t, fixtureTar(t, map[string][]byte{"usr/share/doc/sample/copyright": []byte("Actual Debian copyright bytes\n")}))
+	deb := fixtureAR(t, [][2][]byte{{[]byte("debian-binary"), []byte("2.0\n")}, {[]byte("control.tar.xz"), control}, {[]byte("data.tar.xz"), data}})
+	observed, e := InspectDeb(context.Background(), bytes.NewReader(deb), int64(len(deb)), fixturePin(deb), DebExpectation{Name: "sample", Version: "1.0", Architecture: "amd64"})
+	if e != nil || len(observed.Notices) != 1 || string(observed.Notices[0].Contents) != "Actual Debian copyright bytes\n" {
+		t.Fatalf("bounded xz deb input unavailable: %v", e)
+	}
 }
 
 func TestSourceArchiveAndDebInputBoundsRemainDistinct(t *testing.T) {
-	large:=Pin{SHA256:strings.Repeat("a",64),Bytes:8<<30}
-	if !validPin(large,maxSourceArchiveBytes)||validPin(large,maxDebBytes){t.Fatal("source hash input and deb decode limits conflated")}
+	large := Pin{SHA256: strings.Repeat("a", 64), Bytes: 8 << 30}
+	if !validPin(large, maxSourceArchiveBytes) || validPin(large, maxDebBytes) {
+		t.Fatal("source hash input and deb decode limits conflated")
+	}
 }
 
 func TestWheelEntryPointsOnlyReportBoundedExecutableGroups(t *testing.T) {
-	rows,e:=parseWheelEntryPoints([]byte("[console_scripts]\ntool = package.cli:main\n[gui_scripts]\nwindow = package.ui:open\n[plugin.other]\nplugin = package.plugin:start\n"))
-	if e!=nil||len(rows)!=2||rows[0].Group!="console_scripts"||rows[1].Group!="gui_scripts"{t.Fatalf("real executable entries unavailable: %v",e)}
-	if _,e=parseWheelEntryPoints([]byte("[console_scripts]\ntool = package.cli:main\n[gui_scripts]\ntool = package.ui:open\n"));e==nil{t.Fatal("duplicate generated command accepted")}
-	if _,e=parseWheelEntryPoints([]byte("[console_scripts]\ntool = package.cli:main [extra]\n"));e==nil{t.Fatal("unbounded script target accepted")}
+	rows, e := parseWheelEntryPoints([]byte("[console_scripts]\ntool = package.cli:main\n[gui_scripts]\nwindow = package.ui:open\n[plugin.other]\nplugin = package.plugin:start\n"))
+	if e != nil || len(rows) != 2 || rows[0].Group != "console_scripts" || rows[1].Group != "gui_scripts" {
+		t.Fatalf("real executable entries unavailable: %v", e)
+	}
+	if _, e = parseWheelEntryPoints([]byte("[console_scripts]\ntool = package.cli:main\n[gui_scripts]\ntool = package.ui:open\n")); e == nil {
+		t.Fatal("duplicate generated command accepted")
+	}
+	if _, e = parseWheelEntryPoints([]byte("[console_scripts]\ntool = package.cli:main [extra]\n")); e == nil {
+		t.Fatal("unbounded script target accepted")
+	}
 }
 
 func TestSourcesSharedOrigArchiveAcrossTwoSelectedVersions(t *testing.T) {
-	shared:=[]byte("same retained original source archive")
-	line:=fmt.Sprintf(" %s %d sample_1.orig.tar.gz\n",hashBytes(shared),len(shared))
-	index:=[]byte("Package: sample-src\nVersion: 1.0\nDirectory: pool/main/s/sample\nChecksums-Sha256:\n"+line+"\n"+
-		"Package: sample-src\nVersion: 1.1\nDirectory: pool/main/s/sample\nChecksums-Sha256:\n"+line+"\n")
-	compressed:=fixtureXZ(t,index)
-	binding:=SourcesBinding{SignedReleaseSHA256:strings.Repeat("a",64),IndexPath:"main/source/Sources.xz",CompressedIndex:fixturePin(compressed),Cleartext:fixturePin(index)}
-	inputs:=[]SourceArchiveInput{
-		{SourceName:"sample-src",SourceVersion:"1.0",FileName:"pool/main/s/sample/sample_1.orig.tar.gz",Pin:fixturePin(shared),Reader:bytes.NewReader(shared)},
-		{SourceName:"sample-src",SourceVersion:"1.1",FileName:"pool/main/s/sample/sample_1.orig.tar.gz",Pin:fixturePin(shared),Reader:bytes.NewReader(shared)},
+	shared := []byte("same retained original source archive")
+	line := fmt.Sprintf(" %s %d sample_1.orig.tar.gz\n", hashBytes(shared), len(shared))
+	index := []byte("Package: sample-src\nVersion: 1.0\nDirectory: pool/main/s/sample\nChecksums-Sha256:\n" + line + "\n" +
+		"Package: sample-src\nVersion: 1.1\nDirectory: pool/main/s/sample\nChecksums-Sha256:\n" + line + "\n")
+	compressed := fixtureXZ(t, index)
+	binding := SourcesBinding{SignedReleaseSHA256: strings.Repeat("a", 64), IndexPath: "main/source/Sources.xz", CompressedIndex: fixturePin(compressed), Cleartext: fixturePin(index)}
+	inputs := []SourceArchiveInput{
+		{SourceName: "sample-src", SourceVersion: "1.0", FileName: "pool/main/s/sample/sample_1.orig.tar.gz", Pin: fixturePin(shared), Reader: bytes.NewReader(shared)},
+		{SourceName: "sample-src", SourceVersion: "1.1", FileName: "pool/main/s/sample/sample_1.orig.tar.gz", Pin: fixturePin(shared), Reader: bytes.NewReader(shared)},
 	}
-	observed,e:=InspectSources(context.Background(),bytes.NewReader(compressed),binding,inputs)
-	if e!=nil||len(observed)!=2||len(observed[0].Archives)!=1||len(observed[1].Archives)!=1{t.Fatalf("shared original archive across source versions unavailable: %v",e)}
-	inputs[1].Pin.SHA256=strings.Repeat("b",64)
-	if _,e=InspectSources(context.Background(),bytes.NewReader(compressed),binding,inputs);e==nil{t.Fatal("same physical path with different source hash accepted")}
+	observed, e := InspectSources(context.Background(), bytes.NewReader(compressed), binding, inputs)
+	if e != nil || len(observed) != 2 || len(observed[0].Archives) != 1 || len(observed[1].Archives) != 1 {
+		t.Fatalf("shared original archive across source versions unavailable: %v", e)
+	}
+	inputs[1].Pin.SHA256 = strings.Repeat("b", 64)
+	if _, e = InspectSources(context.Background(), bytes.NewReader(compressed), binding, inputs); e == nil {
+		t.Fatal("same physical path with different source hash accepted")
+	}
 }
 
 func TestSourcesUniqueOriginalBudgetStillHashesEachLogicalVersion(t *testing.T) {
-	shared:=Pin{SHA256:strings.Repeat("a",64),Bytes:8<<30}
-	small:=Pin{SHA256:strings.Repeat("b",64),Bytes:1}
-	archives:=[]SourceArchiveInput{
-		{SourceName:"sample",SourceVersion:"1",FileName:"pool/sample.orig.tar.gz",Pin:shared,Reader:bytes.NewReader(nil)},
-		{SourceName:"sample",SourceVersion:"2",FileName:"pool/sample.orig.tar.gz",Pin:shared,Reader:bytes.NewReader(nil)},
-		{SourceName:"sample",SourceVersion:"2",FileName:"pool/sample_2.dsc",Pin:small,Reader:bytes.NewReader(nil)},
+	shared := Pin{SHA256: strings.Repeat("a", 64), Bytes: 8 << 30}
+	small := Pin{SHA256: strings.Repeat("b", 64), Bytes: 1}
+	archives := []SourceArchiveInput{
+		{SourceName: "sample", SourceVersion: "1", FileName: "pool/sample.orig.tar.gz", Pin: shared, Reader: bytes.NewReader(nil)},
+		{SourceName: "sample", SourceVersion: "2", FileName: "pool/sample.orig.tar.gz", Pin: shared, Reader: bytes.NewReader(nil)},
+		{SourceName: "sample", SourceVersion: "2", FileName: "pool/sample_2.dsc", Pin: small, Reader: bytes.NewReader(nil)},
 	}
-	wanted,pairs,e:=validatedSourceArchives(archives)
-	if e!=nil||len(wanted)!=3||len(pairs)!=2{t.Fatalf("shared original should count once but preserve each archive stream: %v",e)}
-	archives=append(archives,SourceArchiveInput{SourceName:"sample",SourceVersion:"2",FileName:"pool/other.orig.tar.gz",Pin:shared,Reader:bytes.NewReader(nil)})
-	if _,_,e=validatedSourceArchives(archives);e==nil{t.Fatal("distinct originals over 16 GiB accepted")}
-	archives[1].Pin=small
-	if _,_,e=validatedSourceArchives(archives[:3]);e==nil{t.Fatal("same physical name with conflicting pin accepted")}
+	wanted, pairs, e := validatedSourceArchives(archives)
+	if e != nil || len(wanted) != 3 || len(pairs) != 2 {
+		t.Fatalf("shared original should count once but preserve each archive stream: %v", e)
+	}
+	archives = append(archives, SourceArchiveInput{SourceName: "sample", SourceVersion: "2", FileName: "pool/other.orig.tar.gz", Pin: shared, Reader: bytes.NewReader(nil)})
+	if _, _, e = validatedSourceArchives(archives); e == nil {
+		t.Fatal("distinct originals over 16 GiB accepted")
+	}
+	archives[1].Pin = small
+	if _, _, e = validatedSourceArchives(archives[:3]); e == nil {
+		t.Fatal("same physical name with conflicting pin accepted")
+	}
 }
 
-type oneByteSourceReader struct { calls int }
-func (r *oneByteSourceReader) Read(p []byte)(int,error){r.calls++;p[0]=0;return 1,nil}
+type oneByteSourceReader struct{ calls int }
+
+func (r *oneByteSourceReader) Read(p []byte) (int, error) { r.calls++; p[0] = 0; return 1, nil }
 
 func TestSourcesCompressedSnapshotStopsAtReadCallBudget(t *testing.T) {
-	reader:=&oneByteSourceReader{}
-	binding:=SourcesBinding{SignedReleaseSHA256:strings.Repeat("a",64),IndexPath:"main/source/Sources.xz",CompressedIndex:Pin{SHA256:strings.Repeat("b",64),Bytes:maxCalls+1},Cleartext:Pin{SHA256:strings.Repeat("c",64),Bytes:1}}
-	archives:=[]SourceArchiveInput{{SourceName:"sample",SourceVersion:"1",FileName:"pool/sample.dsc",Pin:Pin{SHA256:strings.Repeat("d",64),Bytes:1},Reader:bytes.NewReader(nil)}}
-	if _,e:=InspectSources(context.Background(),reader,binding,archives);e==nil||reader.calls!=maxCalls{t.Fatalf("snapshot read calls were not bounded before XZ preflight: %v, calls=%d",e,reader.calls)}
+	reader := &oneByteSourceReader{}
+	binding := SourcesBinding{SignedReleaseSHA256: strings.Repeat("a", 64), IndexPath: "main/source/Sources.xz", CompressedIndex: Pin{SHA256: strings.Repeat("b", 64), Bytes: maxCalls + 1}, Cleartext: Pin{SHA256: strings.Repeat("c", 64), Bytes: 1}}
+	archives := []SourceArchiveInput{{SourceName: "sample", SourceVersion: "1", FileName: "pool/sample.dsc", Pin: Pin{SHA256: strings.Repeat("d", 64), Bytes: 1}, Reader: bytes.NewReader(nil)}}
+	if _, e := InspectSources(context.Background(), reader, binding, archives); e == nil || reader.calls != maxCalls {
+		t.Fatalf("snapshot read calls were not bounded before XZ preflight: %v, calls=%d", e, reader.calls)
+	}
 }
 
 func TestBaseListBlankLineBudget(t *testing.T) {
-	layer:=fixtureTar(t,map[string][]byte{
-		"var/lib/dpkg/status":[]byte("Package: sample\nVersion: 1.0\nArchitecture: amd64\nStatus: install ok installed\n\n"),
-		"var/lib/dpkg/info/sample.list":bytes.Repeat([]byte{'\n'},maxMembers+1),
-		"usr/bin/sample":[]byte("sample\n"),
+	layer := fixtureTar(t, map[string][]byte{
+		"var/lib/dpkg/status":           []byte("Package: sample\nVersion: 1.0\nArchitecture: amd64\nStatus: install ok installed\n\n"),
+		"var/lib/dpkg/info/sample.list": bytes.Repeat([]byte{'\n'}, maxMembers+1),
+		"usr/bin/sample":                []byte("sample\n"),
 	})
-	compressed:=fixtureGzip(t,layer)
-	if _,e:=InspectBase(context.Background(),bytes.NewReader(compressed),fixturePin(compressed));e==nil{t.Fatal("blank dpkg list line flood accepted")}
+	compressed := fixtureGzip(t, layer)
+	if _, e := InspectBase(context.Background(), bytes.NewReader(compressed), fixturePin(compressed)); e == nil {
+		t.Fatal("blank dpkg list line flood accepted")
+	}
 }

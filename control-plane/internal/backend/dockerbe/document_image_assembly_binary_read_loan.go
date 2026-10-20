@@ -14,18 +14,18 @@ import (
 // original-slot transport, but supplies no alias/child/census or captured-run
 // completion/adoption capability and cannot enable a producer.
 type DocumentImageAssemblyBinaryReadReservation struct {
-	mu                                       sync.Mutex // metadata only, never native I/O; owner locks use TryLock
-	retiring                                 atomic.Bool
-	request                                  backend.DocumentImageAssemblyBinaryReadRequest
-	packages                                 *assemblyPackageInputToken
-	indexes, sources                         *assemblyEvidenceToken
-	selection                                *assemblyEvidenceToken // fixed late selection, never replacement source originals
-	selectionActive bool
-	packageActive, indexActive, sourceActive bool
+	mu                                            sync.Mutex // metadata only, never native I/O; owner locks use TryLock
+	retiring                                      atomic.Bool
+	request                                       backend.DocumentImageAssemblyBinaryReadRequest
+	packages                                      *assemblyPackageInputToken
+	indexes, sources                              *assemblyEvidenceToken
+	selection                                     *assemblyEvidenceToken // fixed late selection, never replacement source originals
+	selectionActive                               bool
+	packageActive, indexActive, sourceActive      bool
 	indexCharged, sourceCharged, selectionCharged bool
-	complete, released                       bool
-	consumed                                 bool
-	transport                                *assemblyBinaryTransportState
+	complete, released                            bool
+	consumed                                      bool
+	transport                                     *assemblyBinaryTransportState
 }
 
 // Reserve exact existing owners/generations, not a fresh budget or copied guard.
@@ -34,17 +34,19 @@ type DocumentImageAssemblyBinaryReadReservation struct {
 // Caller must retire/release this unallocated reservation and separately close
 // its original guards. No function in this source can start native effects.
 func ReserveDocumentImageAssemblyBinaryReadLoan(ctx context.Context, request backend.DocumentImageAssemblyBinaryReadRequest, packages backend.DocumentImageAssemblyPackageInputGuard, indexes, smallSources backend.DocumentImageAssemblyEvidenceGuard) (*DocumentImageAssemblyBinaryReadReservation, error) {
-	return reserveDocumentBinaryReadLoan(ctx,request,packages,indexes,smallSources,nil)
+	return reserveDocumentBinaryReadLoan(ctx, request, packages, indexes, smallSources, nil)
 }
 
 // The selection depends on metadata from the SAME held reader/inspector
 // originals. Keep their two-object collector intact and borrow a separately
 // registered single selection collector; no reopen/replace of source handles.
-func ReserveDocumentImageAssemblyBinaryReadLoanWithSelection(ctx context.Context,request backend.DocumentImageAssemblyBinaryReadRequest,packages backend.DocumentImageAssemblyPackageInputGuard,indexes,smallSources,selection backend.DocumentImageAssemblyEvidenceGuard)(*DocumentImageAssemblyBinaryReadReservation,error){
- if selection==nil{return nil,backend.ErrUnsupported}
- return reserveDocumentBinaryReadLoan(ctx,request,packages,indexes,smallSources,selection)
+func ReserveDocumentImageAssemblyBinaryReadLoanWithSelection(ctx context.Context, request backend.DocumentImageAssemblyBinaryReadRequest, packages backend.DocumentImageAssemblyPackageInputGuard, indexes, smallSources, selection backend.DocumentImageAssemblyEvidenceGuard) (*DocumentImageAssemblyBinaryReadReservation, error) {
+	if selection == nil {
+		return nil, backend.ErrUnsupported
+	}
+	return reserveDocumentBinaryReadLoan(ctx, request, packages, indexes, smallSources, selection)
 }
-func reserveDocumentBinaryReadLoan(ctx context.Context, request backend.DocumentImageAssemblyBinaryReadRequest, packages backend.DocumentImageAssemblyPackageInputGuard, indexes, smallSources,selection backend.DocumentImageAssemblyEvidenceGuard) (*DocumentImageAssemblyBinaryReadReservation, error) {
+func reserveDocumentBinaryReadLoan(ctx context.Context, request backend.DocumentImageAssemblyBinaryReadRequest, packages backend.DocumentImageAssemblyPackageInputGuard, indexes, smallSources, selection backend.DocumentImageAssemblyEvidenceGuard) (*DocumentImageAssemblyBinaryReadReservation, error) {
 	if ctx.Err() != nil || validateAssemblyBinaryReadRequest(request) != nil {
 		return nil, backend.ErrUnsupported
 	}
@@ -55,7 +57,13 @@ func reserveDocumentBinaryReadLoan(ctx context.Context, request backend.Document
 		return nil, backend.ErrLaunchFenceOwnership
 	}
 	r := &DocumentImageAssemblyBinaryReadReservation{request: request, packages: p, indexes: i, sources: s}
-	if selection!=nil{token,ok:=selection.(*assemblyEvidenceToken);if !ok||token==nil||token.owner==nil||token.owner==i.owner||token.owner==s.owner{return nil,backend.ErrLaunchFenceOwnership};r.selection=token}
+	if selection != nil {
+		token, ok := selection.(*assemblyEvidenceToken)
+		if !ok || token == nil || token.owner == nil || token.owner == i.owner || token.owner == s.owner {
+			return nil, backend.ErrLaunchFenceOwnership
+		}
+		r.selection = token
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if err := r.reservePackage(ctx); err != nil {
@@ -65,13 +73,19 @@ func reserveDocumentBinaryReadLoan(ctx context.Context, request backend.Document
 		r.retiring.Store(true)
 		return r, err
 	}
-	subjects:=request.SmallSources[:];if r.selection!=nil{subjects=subjects[1:]}
+	subjects := request.SmallSources[:]
+	if r.selection != nil {
+		subjects = subjects[1:]
+	}
 	if err := r.reserveEvidence(ctx, s, subjects, false); err != nil {
 		r.retiring.Store(true)
 		return r, err
 	}
-	if r.selection!=nil{
-	 if err:=r.reserveEvidence(ctx,r.selection,request.SmallSources[:1],false);err!=nil{r.retiring.Store(true);return r,err}
+	if r.selection != nil {
+		if err := r.reserveEvidence(ctx, r.selection, request.SmallSources[:1], false); err != nil {
+			r.retiring.Store(true)
+			return r, err
+		}
 	}
 	if ctx.Err() != nil || r.retiring.Load() {
 		r.retiring.Store(true)
@@ -175,8 +189,9 @@ func (r *DocumentImageAssemblyBinaryReadReservation) reserveEvidence(ctx context
 	if index {
 		r.indexActive = true
 		r.indexCharged = true
-	} else if token==r.selection{
-		r.selectionActive=true;r.selectionCharged=true
+	} else if token == r.selection {
+		r.selectionActive = true
+		r.selectionCharged = true
 	} else {
 		r.sourceActive = true
 		r.sourceCharged = true
@@ -227,8 +242,11 @@ func (r *DocumentImageAssemblyBinaryReadReservation) State() backend.DocumentIma
 		out.SourceBytesCharged = backend.DocumentImageAssemblyBinarySourceLoanBytes
 		out.SourceCallsCharged = backend.DocumentImageAssemblyBinarySourceLoanCalls
 	}
-	if r.selectionCharged{out.SourceBytesCharged+=backend.DocumentImageAssemblyBinarySourceLoanBytes;out.SourceCallsCharged+=backend.DocumentImageAssemblyBinarySourceLoanCalls}
-	for _, active := range []bool{r.packageActive, r.indexActive, r.sourceActive,r.selectionActive} {
+	if r.selectionCharged {
+		out.SourceBytesCharged += backend.DocumentImageAssemblyBinarySourceLoanBytes
+		out.SourceCallsCharged += backend.DocumentImageAssemblyBinarySourceLoanCalls
+	}
+	for _, active := range []bool{r.packageActive, r.indexActive, r.sourceActive, r.selectionActive} {
 		if active {
 			out.ActiveGuardBorrows++
 		}
@@ -277,7 +295,7 @@ func (r *DocumentImageAssemblyBinaryReadReservation) releaseOriginalBorrowsLocke
 	for _, item := range []struct {
 		token  *assemblyEvidenceToken
 		active *bool
-	}{{r.indexes, &r.indexActive}, {r.sources, &r.sourceActive},{r.selection,&r.selectionActive}} {
+	}{{r.indexes, &r.indexActive}, {r.sources, &r.sourceActive}, {r.selection, &r.selectionActive}} {
 		if !*item.active {
 			continue
 		}

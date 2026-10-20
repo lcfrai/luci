@@ -50,7 +50,7 @@ func consumeAssemblyBinaryReadReservation(ctx context.Context, r *DocumentImageA
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.consumed || r.transport != nil || r.released || !r.complete || r.retiring.Load() || !r.packageActive || !r.indexActive || !r.sourceActive || r.selection!=nil&&!r.selectionActive || !r.indexCharged || !r.sourceCharged {
+	if r.consumed || r.transport != nil || r.released || !r.complete || r.retiring.Load() || !r.packageActive || !r.indexActive || !r.sourceActive || r.selection != nil && !r.selectionActive || !r.indexCharged || !r.sourceCharged {
 		return nil, backend.ErrUnavailable
 	}
 	s := &assemblyBinaryTransportState{reservation: r}
@@ -119,8 +119,11 @@ func assemblyBinaryOriginalBindings(ctx context.Context, r *DocumentImageAssembl
 		subjects []backend.DocumentImageAssemblyBinaryReadSubject
 		start    int
 	}
-	groups:=[]evidenceGroup{{r.indexes,r.request.Indexes[:],174},{r.sources,r.request.SmallSources[:],178}}
-	if r.selection!=nil{groups[1]=evidenceGroup{r.sources,r.request.SmallSources[1:],179};groups=append(groups,evidenceGroup{r.selection,r.request.SmallSources[:1],178})}
+	groups := []evidenceGroup{{r.indexes, r.request.Indexes[:], 174}, {r.sources, r.request.SmallSources[:], 178}}
+	if r.selection != nil {
+		groups[1] = evidenceGroup{r.sources, r.request.SmallSources[1:], 179}
+		groups = append(groups, evidenceGroup{r.selection, r.request.SmallSources[:1], 178})
+	}
 	for _, group := range groups {
 		o := group.token.owner
 		if !o.mu.TryLock() {

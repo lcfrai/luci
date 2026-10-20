@@ -16,37 +16,39 @@ import (
 var errRuntimeImageLeaseAbsent = errors.New("exact runtime installer allocation is absent")
 
 type runtimeImageExecutionLease struct {
-	ID                   string                       `json:"id"`
-	Scope                string                       `json:"scope"`
-	Actor                management.ExecutionActorRef `json:"actor"`
-	Identity             backend.RuntimeImageIdentity `json:"identity"`
-	Resources            backend.Resources            `json:"resources"`
-	AdmissionMemoryMiB   int                          `json:"admissionMemoryMiB,omitempty"`
-	CreateDiskBytes      uint64                       `json:"createDiskBytes"`
-	ImageTag             string                       `json:"imageTag"`
-	DistributionMode     string                       `json:"distributionMode,omitempty"`
-	DocumentManifestSHA256 string `json:"documentManifestSHA256,omitempty"`
-	ImportStage          string                       `json:"importStage,omitempty"`
-	PayloadImageID       string                       `json:"payloadImageId,omitempty"`
-	PullManifestSHA256   string                       `json:"pullManifestSHA256,omitempty"`
-	PullBootstrapID      string                       `json:"pullBootstrapID,omitempty"`
-	PullNetworkID        string                       `json:"pullNetworkID,omitempty"`
-	PullHelperID         string                       `json:"pullHelperID,omitempty"`
-	PullHostPort         string                       `json:"pullHostPort,omitempty"`
-	PullCleanupIntentAt  time.Time                    `json:"pullCleanupIntentAt,omitzero"`
-	State                string                       `json:"state"`
-	Image                string                       `json:"image,omitempty"`
-	Revision             int                          `json:"revision"`
-	CreatedAt            time.Time                    `json:"createdAt"`
-	UpdatedAt            time.Time                    `json:"updatedAt"`
-	EngineRecoveryStage  string                       `json:"engineRecoveryStage,omitempty"`
-	EngineWatchStartedAt time.Time                    `json:"engineWatchStartedAt,omitzero"`
-	EngineStoppedAt      time.Time                    `json:"engineStoppedAt,omitzero"`
+	ID                     string                       `json:"id"`
+	Scope                  string                       `json:"scope"`
+	Actor                  management.ExecutionActorRef `json:"actor"`
+	Identity               backend.RuntimeImageIdentity `json:"identity"`
+	Resources              backend.Resources            `json:"resources"`
+	AdmissionMemoryMiB     int                          `json:"admissionMemoryMiB,omitempty"`
+	CreateDiskBytes        uint64                       `json:"createDiskBytes"`
+	ImageTag               string                       `json:"imageTag"`
+	DistributionMode       string                       `json:"distributionMode,omitempty"`
+	DocumentManifestSHA256 string                       `json:"documentManifestSHA256,omitempty"`
+	ImportStage            string                       `json:"importStage,omitempty"`
+	PayloadImageID         string                       `json:"payloadImageId,omitempty"`
+	PullManifestSHA256     string                       `json:"pullManifestSHA256,omitempty"`
+	PullBootstrapID        string                       `json:"pullBootstrapID,omitempty"`
+	PullNetworkID          string                       `json:"pullNetworkID,omitempty"`
+	PullHelperID           string                       `json:"pullHelperID,omitempty"`
+	PullHostPort           string                       `json:"pullHostPort,omitempty"`
+	PullCleanupIntentAt    time.Time                    `json:"pullCleanupIntentAt,omitzero"`
+	State                  string                       `json:"state"`
+	Image                  string                       `json:"image,omitempty"`
+	Revision               int                          `json:"revision"`
+	CreatedAt              time.Time                    `json:"createdAt"`
+	UpdatedAt              time.Time                    `json:"updatedAt"`
+	EngineRecoveryStage    string                       `json:"engineRecoveryStage,omitempty"`
+	EngineWatchStartedAt   time.Time                    `json:"engineWatchStartedAt,omitzero"`
+	EngineStoppedAt        time.Time                    `json:"engineStoppedAt,omitzero"`
 }
 
 func validRuntimeImageExecutionLease(v runtimeImageExecutionLease) bool {
 	i := v.Identity
-	if v.DocumentManifestSHA256!=""&&(v.DistributionMode!="packaged"||!checkHex(v.DocumentManifestSHA256,32)||v.DocumentManifestSHA256!=i.SourceDigest){return false}
+	if v.DocumentManifestSHA256 != "" && (v.DistributionMode != "packaged" || !checkHex(v.DocumentManifestSHA256, 32) || v.DocumentManifestSHA256 != i.SourceDigest) {
+		return false
+	}
 	if v.DistributionMode != "compressed-pull" && (v.PullManifestSHA256 != "" || v.PullBootstrapID != "" || v.PullNetworkID != "" || v.PullHelperID != "" || v.PullHostPort != "" || !v.PullCleanupIntentAt.IsZero()) {
 		return false
 	}
@@ -211,9 +213,11 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 	candidate := runtimeImageExecutionLease{ID: id.AllocationID, Scope: g.scope, Actor: actor, Identity: id, Resources: resources,
 		AdmissionMemoryMiB: admissionMemory, CreateDiskBytes: prepared.RequiredDiskBytes,
 		ImageTag: prepared.Spec.ImageTag, State: "reserved", Revision: 1, CreatedAt: time.Now().UTC()}
-	if _,packaged:=preparedPackagedRuntimeImageID(prepared);packaged {
+	if _, packaged := preparedPackagedRuntimeImageID(prepared); packaged {
 		candidate.DistributionMode = "packaged"
-		if prepared.DocumentBundle!=nil{candidate.DocumentManifestSHA256=prepared.DocumentBundle.ManifestSHA256}
+		if prepared.DocumentBundle != nil {
+			candidate.DocumentManifestSHA256 = prepared.DocumentBundle.ManifestSHA256
+		}
 	} else if prepared.PullBundle != nil {
 		candidate.DistributionMode = "compressed-pull"
 		candidate.PullManifestSHA256 = prepared.PullBundle.ManifestSHA256
@@ -243,7 +247,7 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 		existing := false
 		for _, v := range l.RuntimeImages {
 			if v.Scope == g.scope && v.ID == id.AllocationID {
-				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.DistributionMode != candidate.DistributionMode || v.DocumentManifestSHA256!=candidate.DocumentManifestSHA256 || v.PullManifestSHA256 != candidate.PullManifestSHA256 || v.State != "reserved" && v.State != "building" || afterPull && v.State != "building" {
+				if v.Identity != id || v.Actor != actor || v.Resources != resources || v.AdmissionMemoryMiB != admissionMemory || v.CreateDiskBytes != candidate.CreateDiskBytes || v.ImageTag != candidate.ImageTag || v.DistributionMode != candidate.DistributionMode || v.DocumentManifestSHA256 != candidate.DocumentManifestSHA256 || v.PullManifestSHA256 != candidate.PullManifestSHA256 || v.State != "reserved" && v.State != "building" || afterPull && v.State != "building" {
 					return errors.New("runtime installer allocation already claimed, changed or settled")
 				}
 				existing, result = true, v
@@ -257,7 +261,9 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 			}
 		}
 		demand := executionCapacityDemand{RequiredCreateDiskBytes: prepared.RequiredDiskBytes}
-		if err:=g.addInputProofAdmissionCapacity(ctx,l.InputProofs,"","",&demand,policy.DiskReserveMiB);err!=nil{return err}
+		if err := g.addInputProofAdmissionCapacity(ctx, l.InputProofs, "", "", &demand, policy.DiskReserveMiB); err != nil {
+			return err
+		}
 		observed := map[string]bool{}
 		for _, c := range snap.Execution.Containers {
 			memory, cpu, ok := executionWorkloadDemand(c, now)
@@ -319,7 +325,7 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 		capacity := evaluateExecutionCapacityWithEvidence(snap, policy, admissionResources, demand, now)
 		if capacity.Code != "" {
 			out.Code, out.Message, out.Evidence = capacity.Code, capacity.Message, capacity.Evidence
-			if (prepared.Bundle != nil||prepared.DocumentBundle!=nil) && capacity.Code == "memory_pressure" {
+			if (prepared.Bundle != nil || prepared.DocumentBundle != nil) && capacity.Code == "memory_pressure" {
 				out.Message = "Waiting for memory to import the verified runtime. Docker stages the image archive before registering its layers; this load allowance and the host reserve cannot fit now. You can keep using Luci while capacity recovers."
 			}
 			return nil
@@ -333,7 +339,7 @@ func (g *executionAdmission) reserveRuntimeImageStage(ctx context.Context, prepa
 			result = candidate
 		}
 		out.State, out.Code, out.Message = "admitted", "capacity_reserved", "Shared capacity reserved for the exact bundled runtime build."
-		if prepared.Bundle != nil||prepared.DocumentBundle!=nil {
+		if prepared.Bundle != nil || prepared.DocumentBundle != nil {
 			out.Message = "Shared capacity reserved for the verified runtime import."
 		}
 		return nil

@@ -23,21 +23,33 @@ func (d *DocumentRuntimeInstaller) RestoreDocumentExtractor(ctx context.Context,
 		return nil, backend.ErrLaunchFenceOwnership
 	}
 	bundle, err := runtimeoci.OpenDocument(sourceDirectory, d.manifestSHA256)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer bundle.Close()
 	if bundle.Manifest.Image.ID != receipt.ImageID || ctx.Err() != nil {
 		return nil, backend.ErrLaunchFenceOwnership
 	}
-	p := backend.PreparedRuntimeImage{Spec:backend.RuntimeImageSpec{Identity:receipt.Identity, ImageTag:tag}, DocumentBundle:bundle}
-	if err = d.inspectDocument(ctx,p); err != nil { return nil, err }
+	p := backend.PreparedRuntimeImage{Spec: backend.RuntimeImageSpec{Identity: receipt.Identity, ImageTag: tag}, DocumentBundle: bundle}
+	if err = d.inspectDocument(ctx, p); err != nil {
+		return nil, err
+	}
 	api, ok := d.selected.api.(runtimeImageClient)
-	if !ok { return nil, backend.ErrUnsupported }
-	row, err := api.ImageInspect(ctx,tag)
-	if err != nil { return nil, backend.ErrUnavailable }
+	if !ok {
+		return nil, backend.ErrUnsupported
+	}
+	row, err := api.ImageInspect(ctx, tag)
+	if err != nil {
+		return nil, backend.ErrUnavailable
+	}
 	if row.ID != receipt.ImageID || !runtimeBaseValid(row) || row.Architecture != "amd64" || ctx.Err() != nil {
 		return nil, backend.ErrLaunchFenceOwnership
 	}
-	if err = bundle.VerifyArchive(); err != nil { return nil, err }
-	if err = d.selected.runtimeImageIdentity(ctx,receipt.Identity); err != nil { return nil, err }
-	return NewDocumentExtractor(d.selected,receipt.ImageID,d.attach)
+	if err = bundle.VerifyArchive(); err != nil {
+		return nil, err
+	}
+	if err = d.selected.runtimeImageIdentity(ctx, receipt.Identity); err != nil {
+		return nil, err
+	}
+	return NewDocumentExtractor(d.selected, receipt.ImageID, d.attach)
 }

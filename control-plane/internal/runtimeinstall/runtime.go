@@ -32,25 +32,25 @@ type Request struct {
 
 type Outcome struct {
 	Identity
-	Phase            string                `json:"phase"`
-	ResourcesHeld    bool                  `json:"resourcesHeld"`
-	CleanupConfirmed bool                  `json:"cleanupConfirmed"`
-	ReasonCode       string                `json:"reasonCode,omitempty"`
-	Message          string                `json:"message"`
-	Admission        *AdmissionObservation `json:"admission,omitempty"`
+	Phase            string                    `json:"phase"`
+	ResourcesHeld    bool                      `json:"resourcesHeld"`
+	CleanupConfirmed bool                      `json:"cleanupConfirmed"`
+	ReasonCode       string                    `json:"reasonCode,omitempty"`
+	Message          string                    `json:"message"`
+	Admission        *AdmissionObservation     `json:"admission,omitempty"`
 	DocumentAssembly *DocumentAssemblyArtifact `json:"documentAssembly,omitempty"`
 }
 
 // A settled maintainer artifact is not an installed image or extraction
 // readiness. Ref is the private fixed capture identity, never a caller path.
 type DocumentAssemblyArtifact struct {
- InputClosureSHA256 string `json:"inputClosureSha256"`
- ProfileSHA256 string `json:"profileSha256"`
- SourceSHA256 string `json:"sourceSha256"`
- Ref string `json:"ref,omitempty"`
- CaptureSHA256 string `json:"captureSha256,omitempty"`
- CaptureBytes int64 `json:"captureBytes,omitempty"`
- ReceiptSHA256 string `json:"receiptSha256,omitempty"`
+	InputClosureSHA256 string `json:"inputClosureSha256"`
+	ProfileSHA256      string `json:"profileSha256"`
+	SourceSHA256       string `json:"sourceSha256"`
+	Ref                string `json:"ref,omitempty"`
+	CaptureSHA256      string `json:"captureSha256,omitempty"`
+	CaptureBytes       int64  `json:"captureBytes,omitempty"`
+	ReceiptSHA256      string `json:"receiptSha256,omitempty"`
 }
 
 // AdmissionObservation is a bounded projection of the actual refusing sample,
@@ -93,8 +93,8 @@ type Runtime struct {
 	Run          func(context.Context, Request, Publish) (Outcome, error)
 	// Reconcile observes only the exact retained operation. It must not rebuild
 	// or publish/tag an image automatically after interruption or cancellation.
-	Reconcile func(context.Context, Identity, management.ExecutionActorRef, Publish) (Outcome, error)
-	ProveDebianInputs func(context.Context, DebianInputProofRequest, PublishDebianInputProof) (DebianInputProofOutcome,error)
+	Reconcile               func(context.Context, Identity, management.ExecutionActorRef, Publish) (Outcome, error)
+	ProveDebianInputs       func(context.Context, DebianInputProofRequest, PublishDebianInputProof) (DebianInputProofOutcome, error)
 	ObserveDebianInputProof InputProofObserver
 }
 

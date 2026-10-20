@@ -67,8 +67,8 @@ type Options struct {
 }
 
 type Server struct {
-	distributeWorkAdmission          func(context.Context) (func(), error)
-	distributePDFWorkAdmission       func(context.Context) (func(), error)
+	distributeWorkAdmission         func(context.Context) (func(), error)
+	distributePDFWorkAdmission      func(context.Context) (func(), error)
 	teamControlsMu                  sync.Mutex
 	coordinatorAuthorize            func(context.Context, string) error
 	coordinatorExecuteAuthorize     func(context.Context, string, string, bool) error
@@ -168,7 +168,9 @@ type Server struct {
 }
 
 func New(opts Options) (*Server, error) {
-	if !opts.DocumentRuntime.Valid(){return nil,runtimeinstall.ErrInputProofUnavailable}
+	if !opts.DocumentRuntime.Valid() {
+		return nil, runtimeinstall.ErrInputProofUnavailable
+	}
 	if !filepath.IsAbs(opts.StateDir) {
 		return nil, errors.New("Luci's state directory must be absolute")
 	}

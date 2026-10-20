@@ -16,8 +16,8 @@ type DocumentRuntimeInstaller interface {
 // exact, durable finished packaged-publication lease. It names the historical
 // receipt; it does not grant an installer permission to settle unknown work.
 type DocumentRuntimePublishedReceipt struct {
-	Identity RuntimeImageIdentity
-	ImageID string
-	ImageTag string
+	Identity       RuntimeImageIdentity
+	ImageID        string
+	ImageTag       string
 	ManifestSHA256 string
 }

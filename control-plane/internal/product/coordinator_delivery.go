@@ -110,7 +110,9 @@ func (s *Server) coordinatorDeliveryAuthorityLocked(ctx context.Context, p proje
 // return the retained receipt. Reservation precedes the one allowed invocation;
 // all later calls observe its exact ID, including after process death.
 func (s *Server) continueCoordinatorDelivery(ctx context.Context, p project.Project, selected coordinatorContinuationRecord) (coordinatorContinuationRecord, error) {
-	if repaired, handled, repairErr := s.continueCoordinatorCheckRepair(ctx, p, selected); handled || repairErr != nil { return repaired, repairErr }
+	if repaired, handled, repairErr := s.continueCoordinatorCheckRepair(ctx, p, selected); handled || repairErr != nil {
+		return repaired, repairErr
+	}
 	release, err := s.AcquireGitSessionAdmission(ctx, p.ID)
 	if err != nil {
 		return selected, errCoordinatorSourceBusy

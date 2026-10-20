@@ -523,18 +523,34 @@ func (s *Server) runProjectChecks(ctx context.Context, job *projectCheckJob, dir
 }
 
 func markCheckFailureNotStartedSuffix(row *ProjectCheckRun) {
-	if row.Status != "failed" || row.ResourcesHeld == nil || *row.ResourcesHeld { return }
+	if row.Status != "failed" || row.ResourcesHeld == nil || *row.ResourcesHeld {
+		return
+	}
 	failed := false
 	for i := range row.Commands {
 		command := &row.Commands[i]
 		if command.Status == "skipped" {
-			if !failed || command.ExitCode != nil || command.Stage != "" { return }
+			if !failed || command.ExitCode != nil || command.Stage != "" {
+				return
+			}
 			continue
 		}
-		if failed || command.NotStartedAfterFailure || command.AllocationID == "" || !command.CleanupConfirmed || command.ExitCode == nil { return }
-		if command.Status == "failed" && *command.ExitCode != 0 { failed = true } else if command.Status != "passed" || *command.ExitCode != 0 { return }
+		if failed || command.NotStartedAfterFailure || command.AllocationID == "" || !command.CleanupConfirmed || command.ExitCode == nil {
+			return
+		}
+		if command.Status == "failed" && *command.ExitCode != 0 {
+			failed = true
+		} else if command.Status != "passed" || *command.ExitCode != 0 {
+			return
+		}
 	}
-	if failed { for i := range row.Commands { if row.Commands[i].Status == "skipped" { row.Commands[i].NotStartedAfterFailure = true } } }
+	if failed {
+		for i := range row.Commands {
+			if row.Commands[i].Status == "skipped" {
+				row.Commands[i].NotStartedAfterFailure = true
+			}
+		}
+	}
 }
 func (s *Server) cancelProjectCheck(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)

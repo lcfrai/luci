@@ -14,28 +14,28 @@ import (
 // Additive shared-ledger types, not inserted into API Deps/New or any route.
 // Expiration never settles ownership or removes demand.
 type documentImageAssemblyLease struct {
-	ID               string                                `json:"id"`
-	Scope            string                                `json:"scope"`
-	Actor            management.ExecutionActorRef          `json:"actor"`
-	Identity         backend.DocumentImageAssemblyIdentity `json:"identity"`
-	InputClosureRef  assemblyInputClosureRef               `json:"inputClosureRef,omitzero"`
-	Resources        backend.Resources                     `json:"resources"`
-	BaseImageID      string                                `json:"baseImageId"`
-	CreateDiskBytes  uint64                                `json:"createDiskBytes"`
-	CaptureDiskBytes uint64                                `json:"captureDiskBytes"`
-	HostLaunchBytes  uint64                                `json:"hostLaunchBytes"`
-	State            string                                `json:"state"`
-	Ref              string                                `json:"ref,omitempty"`
-	Capture          backend.DocumentImageAssemblyCapture  `json:"capture,omitzero"`
-	OutcomeDigest    string                                `json:"outcomeDigest,omitempty"`
-	CreatedAt        time.Time                             `json:"createdAt"`
-	UpdatedAt        time.Time                             `json:"updatedAt"`
-	ComputeDeadline  time.Time                             `json:"computeDeadline"`
-	WholeDeadline    time.Time                             `json:"wholeDeadline"`
-	Spec *backend.DocumentImageAssemblySpec `json:"spec,omitempty"`
+	ID                string                                   `json:"id"`
+	Scope             string                                   `json:"scope"`
+	Actor             management.ExecutionActorRef             `json:"actor"`
+	Identity          backend.DocumentImageAssemblyIdentity    `json:"identity"`
+	InputClosureRef   assemblyInputClosureRef                  `json:"inputClosureRef,omitzero"`
+	Resources         backend.Resources                        `json:"resources"`
+	BaseImageID       string                                   `json:"baseImageId"`
+	CreateDiskBytes   uint64                                   `json:"createDiskBytes"`
+	CaptureDiskBytes  uint64                                   `json:"captureDiskBytes"`
+	HostLaunchBytes   uint64                                   `json:"hostLaunchBytes"`
+	State             string                                   `json:"state"`
+	Ref               string                                   `json:"ref,omitempty"`
+	Capture           backend.DocumentImageAssemblyCapture     `json:"capture,omitzero"`
+	OutcomeDigest     string                                   `json:"outcomeDigest,omitempty"`
+	CreatedAt         time.Time                                `json:"createdAt"`
+	UpdatedAt         time.Time                                `json:"updatedAt"`
+	ComputeDeadline   time.Time                                `json:"computeDeadline"`
+	WholeDeadline     time.Time                                `json:"wholeDeadline"`
+	Spec              *backend.DocumentImageAssemblySpec       `json:"spec,omitempty"`
 	DocumentSelection *runtimeinstall.DocumentAssemblyArtifact `json:"documentSelection,omitempty"`
-	Stage *documentAssemblyStageBinding `json:"stage,omitempty"`
-	DocumentJobID string `json:"documentJobId,omitempty"`
+	Stage             *documentAssemblyStageBinding            `json:"stage,omitempty"`
+	DocumentJobID     string                                   `json:"documentJobId,omitempty"`
 }
 type documentImageAssemblyFenceRecord struct {
 	Scope       string                                  `json:"scope"`
@@ -56,9 +56,9 @@ type documentImageAssemblyRequest struct {
 	CreatedAt, ComputeDeadline, WholeDeadline time.Time
 	// Server-owned current typed evidence/grant/source/CAS validation, not request
 	// code or a digest-syntax attestation. Full resolver wiring remains pending.
-	ValidateCurrent func(context.Context) error
+	ValidateCurrent   func(context.Context) error
 	DocumentSelection *runtimeinstall.DocumentAssemblyArtifact
-	DocumentJobID string
+	DocumentJobID     string
 }
 type documentImageAssemblyOutcome struct {
 	Identity        backend.DocumentImageAssemblyIdentity `json:"identity"`
@@ -102,10 +102,26 @@ type documentImageAssemblyHooks struct {
 }
 
 func validDocumentImageAssemblyLease(value documentImageAssemblyLease) bool {
-	if (value.DocumentSelection==nil)!=(value.DocumentJobID=="")||value.DocumentJobID!=""&&!checkLogicalID(value.DocumentJobID){return false}
-	if (value.Spec==nil)!=(value.DocumentSelection==nil){return false}
-	if value.Spec!=nil{selection:=value.DocumentSelection;if !backend.ValidateDocumentImageAssemblySpec(*value.Spec)||value.Spec.Identity!=value.Identity||selection==nil||selection.InputClosureSHA256!=value.InputClosureRef.Digest||!runtimeinstall.InputProofHex(selection.ProfileSHA256)||!runtimeinstall.InputProofHex(selection.SourceSHA256)||selection.Ref!=""||selection.CaptureSHA256!=""||selection.CaptureBytes!=0||selection.ReceiptSHA256!=""{return false}}
-	if value.Stage!=nil{if value.Spec==nil||!validDocumentAssemblyStage(*value.Stage)||value.Stage.DirectoryBytes>backend.DocumentImageAssemblyInputMaxBytes+backend.DocumentImageAssemblyHelperMaxBytes+backend.DocumentImageAssemblyManifestMaxBytes{return false};if value.State!="staging"&&value.Stage.State!="closed"{return false}}
+	if (value.DocumentSelection == nil) != (value.DocumentJobID == "") || value.DocumentJobID != "" && !checkLogicalID(value.DocumentJobID) {
+		return false
+	}
+	if (value.Spec == nil) != (value.DocumentSelection == nil) {
+		return false
+	}
+	if value.Spec != nil {
+		selection := value.DocumentSelection
+		if !backend.ValidateDocumentImageAssemblySpec(*value.Spec) || value.Spec.Identity != value.Identity || selection == nil || selection.InputClosureSHA256 != value.InputClosureRef.Digest || !runtimeinstall.InputProofHex(selection.ProfileSHA256) || !runtimeinstall.InputProofHex(selection.SourceSHA256) || selection.Ref != "" || selection.CaptureSHA256 != "" || selection.CaptureBytes != 0 || selection.ReceiptSHA256 != "" {
+			return false
+		}
+	}
+	if value.Stage != nil {
+		if value.Spec == nil || !validDocumentAssemblyStage(*value.Stage) || value.Stage.DirectoryBytes > backend.DocumentImageAssemblyInputMaxBytes+backend.DocumentImageAssemblyHelperMaxBytes+backend.DocumentImageAssemblyManifestMaxBytes {
+			return false
+		}
+		if value.State != "staging" && value.Stage.State != "closed" {
+			return false
+		}
+	}
 	identity := value.Identity
 	if !retainedAssemblyInputClosureRef(value.InputClosureRef) {
 		return false
@@ -120,7 +136,8 @@ func validDocumentImageAssemblyLease(value documentImageAssemblyLease) bool {
 		return false
 	}
 	switch value.State {
-	case "staging":return value.Stage!=nil&&value.Ref==""&&value.Capture==(backend.DocumentImageAssemblyCapture{})
+	case "staging":
+		return value.Stage != nil && value.Ref == "" && value.Capture == (backend.DocumentImageAssemblyCapture{})
 	case "reserved", "creating":
 		return value.Ref == "" && value.Capture == (backend.DocumentImageAssemblyCapture{})
 	case "created", "starting", "running", "cleaning":

@@ -16,8 +16,12 @@ func coordinatorReviewerRetryKey(obligationID, candidateID string) string {
 // suppress another independent ready candidate's distinct reviewer intent.
 func coordinatorReviewerRetryExists(items []swarmQueueRecord, projectID, runID, continuationID, actorID, reviewerID, candidateID, key string) (bool, error) {
 	for _, prior := range items {
-		if prior.ProjectID != projectID || prior.BatchKeyDigest != reviewDigest(key) { continue }
-		if prior.RunID != runID || prior.TaskID != reviewerID || prior.AutoReviewContinuationID != continuationID || prior.AutoReviewActorID != actorID || prior.AutoReviewCandidateID != candidateID { return false, ErrProjectRunKeyConflict }
+		if prior.ProjectID != projectID || prior.BatchKeyDigest != reviewDigest(key) {
+			continue
+		}
+		if prior.RunID != runID || prior.TaskID != reviewerID || prior.AutoReviewContinuationID != continuationID || prior.AutoReviewActorID != actorID || prior.AutoReviewCandidateID != candidateID {
+			return false, ErrProjectRunKeyConflict
+		}
 		return true, nil
 	}
 	return false, nil
@@ -80,8 +84,12 @@ candidateLoop:
 				return false, readErr
 			}
 			queued, queuedErr := coordinatorReviewerRetryExists(ledger.Items, p.ID, run.ID, row.ID, row.Actor.ID, reviewer.ID, candidate.ID, key)
-			if queuedErr != nil { return false, queuedErr }
-			if queued { continue candidateLoop } // never duplicate; consider other candidates
+			if queuedErr != nil {
+				return false, queuedErr
+			}
+			if queued {
+				continue candidateLoop
+			} // never duplicate; consider other candidates
 			s.swarmScheduler.mu.Lock()
 			runtime := s.swarmScheduler.runtime
 			s.swarmScheduler.mu.Unlock()

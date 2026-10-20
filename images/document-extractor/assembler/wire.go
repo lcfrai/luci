@@ -129,12 +129,18 @@ func ValidateDocumentImageAssemblyManifest(value DocumentImageAssemblyManifest) 
 			return false
 		}
 	}
-	if len(value.VerificationInputs)>64 { return false }
-	verificationBytes:=int64(0)
-	for i,item:=range value.VerificationInputs {
-		if item.Bytes>1<<20 || !regexp.MustCompile(`^verification/installed-[0-9]{4}\.json$`).MatchString(item.Path) || i>0&&value.VerificationInputs[i-1].Path>=item.Path { return false }
-		verificationBytes+=item.Bytes
-		if verificationBytes>32<<20 { return false }
+	if len(value.VerificationInputs) > 64 {
+		return false
+	}
+	verificationBytes := int64(0)
+	for i, item := range value.VerificationInputs {
+		if item.Bytes > 1<<20 || !regexp.MustCompile(`^verification/installed-[0-9]{4}\.json$`).MatchString(item.Path) || i > 0 && value.VerificationInputs[i-1].Path >= item.Path {
+			return false
+		}
+		verificationBytes += item.Bytes
+		if verificationBytes > 32<<20 {
+			return false
+		}
 	}
 	return true
 }
@@ -145,6 +151,6 @@ func DocumentImageAssemblyInputs(value DocumentImageAssemblyManifest) []Document
 		items = append(items, item.DocumentImageAssemblyInput)
 	}
 	items = append(items, value.Wheels...)
-	items=append(items, value.Notices...)
-	return append(items,value.VerificationInputs...)
+	items = append(items, value.Notices...)
+	return append(items, value.VerificationInputs...)
 }

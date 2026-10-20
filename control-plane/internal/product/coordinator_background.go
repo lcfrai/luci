@@ -328,8 +328,12 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				}
 				if row.Delivery != nil && row.Delivery.Status == "blocked" {
 					updated, handled, repairErr := s.continueCoordinatorCheckRepair(fresh, p, row)
-					if repairErr != nil { return repairErr }
-					if handled && (updated.Revision != row.Revision || row.Status != "queued") { return nil }
+					if repairErr != nil {
+						return repairErr
+					}
+					if handled && (updated.Revision != row.Revision || row.Status != "queued") {
+						return nil
+					}
 				}
 				assigned, assignmentErr := s.continueCoordinatorIndependentReview(fresh, p, row)
 				if assignmentErr != nil {

@@ -25,7 +25,11 @@ func assemblyLeaseIndex(l *executionLeaseLedger, identity backend.DocumentImageA
 }
 
 func assemblyOtherClaims(l executionLeaseLedger, scope, id string) bool {
-	for _,row:=range l.InputProofs{if row.State!="finished"{return true}}
+	for _, row := range l.InputProofs {
+		if row.State != "finished" {
+			return true
+		}
+	}
 	if len(l.Leases) != 0 {
 		return true
 	}
@@ -103,8 +107,12 @@ func (g *executionAdmission) reserveDocumentImageAssembly(ctx context.Context, p
 		}
 		for _, row := range l.ImageAssemblies {
 			if row.Scope == g.scope && row.ID == id.AllocationID {
-				if row.State=="staging"{
-				 if row.Identity!=id||row.InputClosureRef!=req.InputClosureRef||row.Actor!=req.Actor||row.Stage==nil||row.Stage.State!="closed"||row.Spec==nil||*row.Spec!=p.Spec||row.DocumentSelection==nil||req.DocumentSelection==nil||*row.DocumentSelection!=*req.DocumentSelection||row.DocumentJobID!=req.DocumentJobID||row.CreatedAt!=req.CreatedAt||row.ComputeDeadline!=req.ComputeDeadline||row.WholeDeadline!=req.WholeDeadline{return backend.ErrLaunchFenceOwnership};result=row;continue
+				if row.State == "staging" {
+					if row.Identity != id || row.InputClosureRef != req.InputClosureRef || row.Actor != req.Actor || row.Stage == nil || row.Stage.State != "closed" || row.Spec == nil || *row.Spec != p.Spec || row.DocumentSelection == nil || req.DocumentSelection == nil || *row.DocumentSelection != *req.DocumentSelection || row.DocumentJobID != req.DocumentJobID || row.CreatedAt != req.CreatedAt || row.ComputeDeadline != req.ComputeDeadline || row.WholeDeadline != req.WholeDeadline {
+						return backend.ErrLaunchFenceOwnership
+					}
+					result = row
+					continue
 				}
 				// An invocation may resume admission only before any allocation.
 				if row.Identity != id || row.InputClosureRef != req.InputClosureRef || row.Actor != req.Actor || row.State != "reserved" || row.Ref != "" || row.CreateDiskBytes != estimate.Bytes || row.CreatedAt != req.CreatedAt || row.ComputeDeadline != req.ComputeDeadline || row.WholeDeadline != req.WholeDeadline {
@@ -127,8 +135,17 @@ func (g *executionAdmission) reserveDocumentImageAssembly(ctx context.Context, p
 			}
 		}
 		candidate := documentImageAssemblyLease{ID: id.AllocationID, Scope: g.scope, Actor: req.Actor, Identity: id, InputClosureRef: req.InputClosureRef, Resources: resources, BaseImageID: p.Spec.BaseImageID, CreateDiskBytes: estimate.Bytes, CaptureDiskBytes: backend.DocumentImageAssemblyOutputMaxBytes, HostLaunchBytes: windowsDockerHostLaunchBytes(snap, backend.KindDocker), State: "reserved", CreatedAt: req.CreatedAt, UpdatedAt: now, ComputeDeadline: req.ComputeDeadline, WholeDeadline: req.WholeDeadline}
-		if req.DocumentSelection!=nil{spec:=p.Spec;selection:=*req.DocumentSelection;candidate.Spec=&spec;candidate.DocumentSelection=&selection;candidate.DocumentJobID=req.DocumentJobID}
-		if result.State=="staging"{stage:=*result.Stage;candidate.Stage=&stage}
+		if req.DocumentSelection != nil {
+			spec := p.Spec
+			selection := *req.DocumentSelection
+			candidate.Spec = &spec
+			candidate.DocumentSelection = &selection
+			candidate.DocumentJobID = req.DocumentJobID
+		}
+		if result.State == "staging" {
+			stage := *result.Stage
+			candidate.Stage = &stage
+		}
 		if !validDocumentImageAssemblyLease(candidate) {
 			return backend.ErrLaunchFenceOwnership
 		}
@@ -139,8 +156,12 @@ func (g *executionAdmission) reserveDocumentImageAssembly(ctx context.Context, p
 			return backend.ErrLaunchFenceOwnership
 		}
 		demand := executionCapacityDemand{RequiredCreateDiskBytes: estimate.Bytes, PendingDiskBytes: backend.DocumentImageAssemblyOutputMaxBytes, HostLaunchBytes: candidate.HostLaunchBytes}
-		if candidate.Stage!=nil{demand.PendingDiskBytes+=candidate.Stage.DirectoryBytes}
-		if err=g.addInputProofAdmissionCapacity(ctx,l.InputProofs,"","",&demand,policy.DiskReserveMiB);err!=nil{return err}
+		if candidate.Stage != nil {
+			demand.PendingDiskBytes += candidate.Stage.DirectoryBytes
+		}
+		if err = g.addInputProofAdmissionCapacity(ctx, l.InputProofs, "", "", &demand, policy.DiskReserveMiB); err != nil {
+			return err
+		}
 		// Candidate capture is charged once above; skipping its immutable lease
 		// removes only that duplicate. Exact-volume sum includes it exactly once.
 		if err = g.addAssemblyAdmissionCapacity(ctx, snap, captureRows, g.scope, id.AllocationID, &demand, policy.DiskReserveMiB); err != nil {
@@ -168,7 +189,15 @@ func (g *executionAdmission) reserveDocumentImageAssembly(ctx context.Context, p
 			l.ImageAssemblies = append(l.ImageAssemblies, candidate)
 			result = candidate
 		}
-		if result.State=="staging"{for i:=range l.ImageAssemblies{if l.ImageAssemblies[i].Scope==g.scope&&l.ImageAssemblies[i].ID==id.AllocationID{l.ImageAssemblies[i]=candidate;result=candidate;break}}}
+		if result.State == "staging" {
+			for i := range l.ImageAssemblies {
+				if l.ImageAssemblies[i].Scope == g.scope && l.ImageAssemblies[i].ID == id.AllocationID {
+					l.ImageAssemblies[i] = candidate
+					result = candidate
+					break
+				}
+			}
+		}
 		return nil
 	})
 	return result, err

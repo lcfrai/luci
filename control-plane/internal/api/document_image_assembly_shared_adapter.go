@@ -100,7 +100,7 @@ func (a *API) boundDocumentImageAssemblyHooks(executor backend.DocumentImageAsse
 		if recovery != nil {
 			return documentImageAssemblyLease{}, backend.ErrUnsupported
 		}
-		if r.Spec != req.Spec || r.Actor != req.Actor || r.InputClosureRef != req.InputClosureRef || r.CreatedAt != req.CreatedAt || r.ComputeDeadline != req.ComputeDeadline || r.WholeDeadline != req.WholeDeadline || r.DocumentJobID!=req.DocumentJobID || !reflect.DeepEqual(r.DocumentSelection,req.DocumentSelection) {
+		if r.Spec != req.Spec || r.Actor != req.Actor || r.InputClosureRef != req.InputClosureRef || r.CreatedAt != req.CreatedAt || r.ComputeDeadline != req.ComputeDeadline || r.WholeDeadline != req.WholeDeadline || r.DocumentJobID != req.DocumentJobID || !reflect.DeepEqual(r.DocumentSelection, req.DocumentSelection) {
 			return documentImageAssemblyLease{}, backend.ErrLaunchFenceOwnership
 		}
 		authority, err := a.authorizeRuntimeInstaller(ctx, req.Actor)

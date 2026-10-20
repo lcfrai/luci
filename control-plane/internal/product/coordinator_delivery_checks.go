@@ -108,11 +108,19 @@ func validateCoordinatorDelivery(row coordinatorContinuationRecord) error {
 	if err := validateCoordinatorCheckPlan(row.CheckPlan); err != nil {
 		return err
 	}
-	if len(row.PriorDeliveries) > maxSwarmReviewRepairs { return ErrOrchestratorInvalid }
+	if len(row.PriorDeliveries) > maxSwarmReviewRepairs {
+		return ErrOrchestratorInvalid
+	}
 	for i, previous := range row.PriorDeliveries {
-		if previous.Status != "blocked" || previous.Preview != nil || previous.Deployment != nil || previous.GitPublication != nil { return ErrOrchestratorInvalid }
-		copy := row; copy.PriorDeliveries = nil; copy.Delivery = &previous
-		if err := validateCoordinatorDeliveryAt(copy, i); err != nil { return err }
+		if previous.Status != "blocked" || previous.Preview != nil || previous.Deployment != nil || previous.GitPublication != nil {
+			return ErrOrchestratorInvalid
+		}
+		copy := row
+		copy.PriorDeliveries = nil
+		copy.Delivery = &previous
+		if err := validateCoordinatorDeliveryAt(copy, i); err != nil {
+			return err
+		}
 	}
 	return validateCoordinatorDeliveryAt(row, len(row.PriorDeliveries))
 }

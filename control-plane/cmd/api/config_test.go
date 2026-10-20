@@ -18,22 +18,63 @@ func env(m map[string]string) func(string) string {
 	return func(k string) string { return m[k] }
 }
 
-func TestDocumentRuntimeStartupRequiresIndependentPinsAndLocalController(t *testing.T){
- for _,kind:=range []string{"absent","both","profile-only","tools-only","uppercase","worker","kata"}{t.Run(kind,func(t *testing.T){
-  values:=map[string]string{envStateDir:t.TempDir()}
-  if kind!="absent"{values[envDocumentProfileSHA256]=strings.Repeat("a",64);values[envDocumentToolDomainSHA256]=strings.Repeat("b",64)}
-  switch kind{case "profile-only":delete(values,envDocumentToolDomainSHA256);case "tools-only":delete(values,envDocumentProfileSHA256);case "uppercase":values[envDocumentProfileSHA256]=strings.Repeat("A",64);case "worker":values[envWorker]="1";case "kata":values[envBackend]="kata"}
-  cfg,err:=loadConfig(env(values));if kind=="absent"||kind=="both"{if err!=nil||cfg.DocumentRuntime.Configured()!=(kind=="both"){t.Fatal("valid startup pins refused",err)}}else if err==nil{t.Fatal("partial/untrusted route admitted")}
- })}
+func TestDocumentRuntimeStartupRequiresIndependentPinsAndLocalController(t *testing.T) {
+	for _, kind := range []string{"absent", "both", "profile-only", "tools-only", "uppercase", "worker", "kata"} {
+		t.Run(kind, func(t *testing.T) {
+			values := map[string]string{envStateDir: t.TempDir()}
+			if kind != "absent" {
+				values[envDocumentProfileSHA256] = strings.Repeat("a", 64)
+				values[envDocumentToolDomainSHA256] = strings.Repeat("b", 64)
+			}
+			switch kind {
+			case "profile-only":
+				delete(values, envDocumentToolDomainSHA256)
+			case "tools-only":
+				delete(values, envDocumentProfileSHA256)
+			case "uppercase":
+				values[envDocumentProfileSHA256] = strings.Repeat("A", 64)
+			case "worker":
+				values[envWorker] = "1"
+			case "kata":
+				values[envBackend] = "kata"
+			}
+			cfg, err := loadConfig(env(values))
+			if kind == "absent" || kind == "both" {
+				if err != nil || cfg.DocumentRuntime.Configured() != (kind == "both") {
+					t.Fatal("valid startup pins refused", err)
+				}
+			} else if err == nil {
+				t.Fatal("partial/untrusted route admitted")
+			}
+		})
+	}
 }
 
-func TestPrebuiltDocumentStartupDoesNotRequireWindowsProducerProfile(t *testing.T){
- for _,kind:=range []string{"image-only","image-and-proof","malformed-image","image-worker","image-kata"}{t.Run(kind,func(t *testing.T){
-  values:=map[string]string{envStateDir:t.TempDir(),envDocumentImageManifestSHA256:strings.Repeat("c",64)}
-  switch kind{case "image-and-proof":values[envDocumentProfileSHA256]=strings.Repeat("a",64);values[envDocumentToolDomainSHA256]=strings.Repeat("b",64);case "malformed-image":values[envDocumentImageManifestSHA256]="self-pinned";case "image-worker":values[envWorker]="1";case "image-kata":values[envBackend]="kata"}
-  cfg,err:=loadConfig(env(values))
-  if kind=="image-only"||kind=="image-and-proof"{if err!=nil||cfg.DocumentRuntime.ImageManifestSHA256!=values[envDocumentImageManifestSHA256]||cfg.DocumentRuntime.Configured()!=(kind=="image-and-proof"){t.Fatal("prebuilt configuration depended on Windows proof",err)}}else if err==nil{t.Fatal("unsupported image configuration admitted")}
- })}
+func TestPrebuiltDocumentStartupDoesNotRequireWindowsProducerProfile(t *testing.T) {
+	for _, kind := range []string{"image-only", "image-and-proof", "malformed-image", "image-worker", "image-kata"} {
+		t.Run(kind, func(t *testing.T) {
+			values := map[string]string{envStateDir: t.TempDir(), envDocumentImageManifestSHA256: strings.Repeat("c", 64)}
+			switch kind {
+			case "image-and-proof":
+				values[envDocumentProfileSHA256] = strings.Repeat("a", 64)
+				values[envDocumentToolDomainSHA256] = strings.Repeat("b", 64)
+			case "malformed-image":
+				values[envDocumentImageManifestSHA256] = "self-pinned"
+			case "image-worker":
+				values[envWorker] = "1"
+			case "image-kata":
+				values[envBackend] = "kata"
+			}
+			cfg, err := loadConfig(env(values))
+			if kind == "image-only" || kind == "image-and-proof" {
+				if err != nil || cfg.DocumentRuntime.ImageManifestSHA256 != values[envDocumentImageManifestSHA256] || cfg.DocumentRuntime.Configured() != (kind == "image-and-proof") {
+					t.Fatal("prebuilt configuration depended on Windows proof", err)
+				}
+			} else if err == nil {
+				t.Fatal("unsupported image configuration admitted")
+			}
+		})
+	}
 }
 
 func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {

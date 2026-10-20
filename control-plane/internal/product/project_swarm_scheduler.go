@@ -288,16 +288,28 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 			}
 			if item.CheckRepairWaveID != "" {
 				p, projectErr := s.resolveProject(item.ProjectID)
-				if projectErr == nil { _, cancel, authErr := s.coordinatorCheckRepairAuthority(ctx, p, item); if cancel != nil { cancel() }; projectErr = authErr }
+				if projectErr == nil {
+					_, cancel, authErr := s.coordinatorCheckRepairAuthority(ctx, p, item)
+					if cancel != nil {
+						cancel()
+					}
+					projectErr = authErr
+				}
 				if projectErr != nil {
-					if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil { return releaseErr }
-					if err = s.schedulerSetReason(item.ID, "blocked", "check_repair_authority_changed", "The saved check repair is no longer authorized. No resource admission or checkout will be attempted."); err != nil { return err }
+					if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
+						return releaseErr
+					}
+					if err = s.schedulerSetReason(item.ID, "blocked", "check_repair_authority_changed", "The saved check repair is no longer authorized. No resource admission or checkout will be attempted."); err != nil {
+						return err
+					}
 					continue
 				}
 			}
 			if item.OperationID == "" {
 				readyErr := swarmTaskReady(run, *task)
-				if item.CheckRepairWaveID != "" { readyErr = swarmCheckRepairReady(run, *task, item.CheckRepairWaveID) }
+				if item.CheckRepairWaveID != "" {
+					readyErr = swarmCheckRepairReady(run, *task, item.CheckRepairWaveID)
+				}
 				if readyErr != nil {
 					if err = s.schedulerSetReason(item.ID, item.State, "dependencies_or_scope", readyErr.Error()); err != nil {
 						return err
@@ -476,8 +488,12 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 			var cancel context.CancelFunc
 			reserveCtx, cancel, reserveErr = s.coordinatorCheckRepairAuthority(ctx, p, item)
 			if reserveErr != nil {
-				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil { return releaseErr }
-				if err = s.schedulerSetReason(item.ID, "blocked", "check_repair_authority_changed", "The exact check repair lost current actor, policy or context authority. No checkout was allocated."); err != nil { return err }
+				if releaseErr := s.releaseQueueLease(ctx, item.ID, runtime); releaseErr != nil {
+					return releaseErr
+				}
+				if err = s.schedulerSetReason(item.ID, "blocked", "check_repair_authority_changed", "The exact check repair lost current actor, policy or context authority. No checkout was allocated."); err != nil {
+					return err
+				}
 				continue
 			}
 			defer cancel()

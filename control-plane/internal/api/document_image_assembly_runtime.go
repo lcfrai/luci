@@ -40,8 +40,14 @@ func assemblyRequestCurrent(ctx context.Context, h documentImageAssemblyHooks, r
 	return req.ValidateCurrent(ctx)
 }
 func validAssemblyRequest(req documentImageAssemblyRequest) bool {
-	if (req.DocumentSelection==nil)!=(req.DocumentJobID==""){return false}
-	if selection:=req.DocumentSelection;selection!=nil{if !checkLogicalID(req.DocumentJobID)||selection.InputClosureSHA256!=req.InputClosureRef.Digest||!assemblyCatalogHex(selection.ProfileSHA256)||!assemblyCatalogHex(selection.SourceSHA256)||selection.Ref!=""||selection.CaptureSHA256!=""||selection.CaptureBytes!=0||selection.ReceiptSHA256!=""{return false}}
+	if (req.DocumentSelection == nil) != (req.DocumentJobID == "") {
+		return false
+	}
+	if selection := req.DocumentSelection; selection != nil {
+		if !checkLogicalID(req.DocumentJobID) || selection.InputClosureSHA256 != req.InputClosureRef.Digest || !assemblyCatalogHex(selection.ProfileSHA256) || !assemblyCatalogHex(selection.SourceSHA256) || selection.Ref != "" || selection.CaptureSHA256 != "" || selection.CaptureBytes != 0 || selection.ReceiptSHA256 != "" {
+			return false
+		}
+	}
 	return backend.ValidateDocumentImageAssemblySpec(req.Spec) && validAssemblyInputClosureRef(req.InputClosureRef) && req.ValidateCurrent != nil && !req.CreatedAt.IsZero() && req.ComputeDeadline.Sub(req.CreatedAt) == backend.DocumentImageAssemblyComputeBudget && req.WholeDeadline.Sub(req.ComputeDeadline) == backend.DocumentImageAssemblyCleanupBudget && !req.CreatedAt.After(time.Now().UTC()) && time.Now().Before(req.ComputeDeadline)
 }
 

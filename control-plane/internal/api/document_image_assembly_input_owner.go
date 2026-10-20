@@ -409,7 +409,10 @@ func (o *assemblyInputOwner) writeImmutableAssemblyObject(ctx context.Context, r
 			}
 			suffix = ".xz"
 		case "binary-raw":
-			if len(data)==0||len(data)>4<<20{return errAssemblyCatalogInvalid};suffix=".raw"
+			if len(data) == 0 || len(data) > 4<<20 {
+				return errAssemblyCatalogInvalid
+			}
+			suffix = ".raw"
 		default:
 			return errAssemblyCatalogInvalid
 		}
@@ -531,7 +534,7 @@ func boundedAssemblyCatalogHistory(ctx context.Context, root string, additional 
 					// Raw evidence is a storage-only namespace, never a selectable
 					// catalog domain. The file branch below enforces .raw and its
 					// existing bounded size/count/private-path constraints.
-					if depth != 0 || !assemblyCatalogKind(entry.Name()) && entry.Name() != "producer-raw" && entry.Name() != "debian-index-raw" && entry.Name()!="binary-raw" {
+					if depth != 0 || !assemblyCatalogKind(entry.Name()) && entry.Name() != "producer-raw" && entry.Name() != "debian-index-raw" && entry.Name() != "binary-raw" {
 						return errAssemblyCatalogInvalid
 					}
 					if err = scan(path, depth+1); err != nil {
@@ -546,7 +549,9 @@ func boundedAssemblyCatalogHistory(ctx context.Context, root string, additional 
 				if filepath.Base(dir) == "debian-index-raw" {
 					suffix, limit = ".xz", assemblyDebianIndexObjectLimit
 				}
-				if filepath.Base(dir)=="binary-raw"{suffix,limit=".raw",4<<20}
+				if filepath.Base(dir) == "binary-raw" {
+					suffix, limit = ".raw", 4<<20
+				}
 				if depth != 1 || !strings.HasSuffix(entry.Name(), suffix) || !assemblyCatalogHex(strings.TrimSuffix(entry.Name(), suffix)) {
 					return errAssemblyCatalogInvalid
 				}

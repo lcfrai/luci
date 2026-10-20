@@ -41,7 +41,13 @@ func swarmRepairsConsumed(run ProjectRun, taskID string) int {
 		}
 	}
 	count := len(seen)
-	if run.Swarm != nil { for _, wave := range run.Swarm.CheckRepairs { if swarmCheckRepairTask(&wave, taskID) != nil { count++ } } }
+	if run.Swarm != nil {
+		for _, wave := range run.Swarm.CheckRepairs {
+			if swarmCheckRepairTask(&wave, taskID) != nil {
+				count++
+			}
+		}
+	}
 	return count
 }
 
@@ -85,7 +91,9 @@ func swarmRepairBudgetForOperation(run ProjectRun, operationID string) error {
 	if run.Swarm == nil {
 		return nil // serial reviewed runs have no independent-review repair lineage
 	}
-	if op.CheckRepair != nil { return swarmCheckRepairBudget(run, *op) }
+	if op.CheckRepair != nil {
+		return swarmCheckRepairBudget(run, *op)
+	}
 	limit, err := swarmAutomaticRepairLimit(run)
 	if err != nil {
 		return err

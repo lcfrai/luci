@@ -37,25 +37,25 @@ type CoordinatorAction struct {
 	FinishedAt        string `json:"finishedAt,omitempty"`
 }
 type CoordinatorContinuation struct {
-	ID             string                     `json:"id"`
-	IdempotencyKey string                     `json:"idempotencyKey"`
-	ProjectID      string                     `json:"projectId"`
-	Actor          ContextActor               `json:"actor"`
-	OriginTurnID   string                     `json:"originTurnId"`
-	AcceptedEvents []CoordinationEventReceipt `json:"acceptedEvents,omitempty"`
-	ContextDigest  string                     `json:"contextDigest"`
-	PolicyRevision int                        `json:"policyRevision"`
-	Revision       int                        `json:"revision"`
-	Status         string                     `json:"status"`
-	Message        string                     `json:"message"`
-	RunID          string                     `json:"runId,omitempty"`
-	QueueIDs       []string                   `json:"queueIds"`
-	Actions        []CoordinatorAction        `json:"actions"`
-	CreatedAt      string                     `json:"createdAt"`
-	UpdatedAt      string                     `json:"updatedAt"`
-	NextAction     *OrchestratorAction        `json:"nextAction,omitempty"`
-	PriorDeliveries []CoordinatorDelivery `json:"priorDeliveries,omitempty"`
-	Delivery       *CoordinatorDelivery       `json:"delivery,omitempty"`
+	ID              string                     `json:"id"`
+	IdempotencyKey  string                     `json:"idempotencyKey"`
+	ProjectID       string                     `json:"projectId"`
+	Actor           ContextActor               `json:"actor"`
+	OriginTurnID    string                     `json:"originTurnId"`
+	AcceptedEvents  []CoordinationEventReceipt `json:"acceptedEvents,omitempty"`
+	ContextDigest   string                     `json:"contextDigest"`
+	PolicyRevision  int                        `json:"policyRevision"`
+	Revision        int                        `json:"revision"`
+	Status          string                     `json:"status"`
+	Message         string                     `json:"message"`
+	RunID           string                     `json:"runId,omitempty"`
+	QueueIDs        []string                   `json:"queueIds"`
+	Actions         []CoordinatorAction        `json:"actions"`
+	CreatedAt       string                     `json:"createdAt"`
+	UpdatedAt       string                     `json:"updatedAt"`
+	NextAction      *OrchestratorAction        `json:"nextAction,omitempty"`
+	PriorDeliveries []CoordinatorDelivery      `json:"priorDeliveries,omitempty"`
+	Delivery        *CoordinatorDelivery       `json:"delivery,omitempty"`
 }
 type coordinatorContinuationRecord struct {
 	CoordinatorContinuation
