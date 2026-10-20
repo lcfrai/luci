@@ -28,9 +28,9 @@ func InspectWheel(parent context.Context, input io.ReaderAt, size int64, pin Pin
 	actual,err:=hashReaderAt(ctx,input,size,budget);if err!=nil||actual!=pin.SHA256{return result,ErrInvalid}
 	if preflightWheelDirectory(budget,size)!=nil{return result,ErrInvalid}
 	archive,err:=zip.NewReader(budget,size);if err!=nil||len(archive.File)<1||len(archive.File)>maxWheelMembers{return result,ErrInvalid}
-	result=Wheel{ID:owner.ID,Version:owner.Version,Components:[]Component{},Files:[]File{},Notices:[]Notice{}}
+	result=Wheel{ID:owner.ID,Version:owner.Version,InstalledOwner:owner.InstalledOwner,EntryPoints:[]EntryPoint{},Components:[]Component{},Files:[]File{},Notices:[]Notice{}}
 	seen:=map[string]bool{};seenFolded:=map[string]bool{}
-	var record,metadata,wheelFile []byte
+	var record,metadata,wheelFile,entryPointsFile []byte
 	var total,noticeTotal int64
 	for _,entry:=range archive.File {
 		if ctx.Err()!=nil{return Wheel{},ErrInvalid}
@@ -45,7 +45,7 @@ func InspectWheel(parent context.Context, input io.ReaderAt, size int64, pin Pin
 		total+=int64(entry.UncompressedSize64)
 		stream,e:=entry.Open();if e!=nil{return Wheel{},ErrInvalid}
 		h:=sha256.New();var n int64
-		keepMeta:=name==owner.InstalledOwner+"/METADATA"||name==owner.InstalledOwner+"/RECORD"||name==owner.InstalledOwner+"/WHEEL"
+		keepMeta:=name==owner.InstalledOwner+"/METADATA"||name==owner.InstalledOwner+"/RECORD"||name==owner.InstalledOwner+"/WHEEL"||name==owner.InstalledOwner+"/entry_points.txt"
 		keepNotice:=wheelNoticeName(name)
 		keepNativeByName:=strings.HasSuffix(name,".so")||strings.Contains(name,".so.")
 		if keepMeta&&entry.UncompressedSize64>1<<20||keepNotice&&entry.UncompressedSize64>1<<20||keepNativeByName&&entry.UncompressedSize64>uint64(maxELFBytes){_ =stream.Close();return Wheel{},ErrInvalid}
@@ -72,6 +72,7 @@ func InspectWheel(parent context.Context, input io.ReaderAt, size int64, pin Pin
 		if name==owner.InstalledOwner+"/RECORD" {record=append([]byte(nil),retained.Bytes()...)}
 		if name==owner.InstalledOwner+"/METADATA" {metadata=append([]byte(nil),retained.Bytes()...)}
 		if name==owner.InstalledOwner+"/WHEEL" {wheelFile=append([]byte(nil),retained.Bytes()...)}
+		if name==owner.InstalledOwner+"/entry_points.txt" {entryPointsFile=append([]byte(nil),retained.Bytes()...)}
 		result.Files=append(result.Files,file)
 	}
 	if len(record)==0||len(metadata)==0||len(wheelFile)==0{return Wheel{},ErrInvalid}
@@ -80,6 +81,7 @@ func InspectWheel(parent context.Context, input io.ReaderAt, size int64, pin Pin
 	result.RequiresDist=identity.requiresDist;result.RequiresPython=identity.requiresPython
 	result.Tags,result.RootIsPurelib,err=parseWheelFile(wheelFile)
 	if err!=nil{return Wheel{},ErrInvalid}
+	if len(entryPointsFile)>0 {result.EntryPoints,err=parseWheelEntryPoints(entryPointsFile);if err!=nil{return Wheel{},ErrInvalid}}
 	if !validWheelRecord(record,owner.InstalledOwner+"/RECORD",result.Files){return Wheel{},ErrInvalid}
 	return result,nil
 }
