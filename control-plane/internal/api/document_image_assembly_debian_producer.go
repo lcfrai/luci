@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -40,9 +39,9 @@ type debianProducerPlan struct {
 	domainOpening, domainRetiring bool
 }
 
-// Closed contract for the separately allocated fixed-file product entry. The
-// Copies use original evidence guards; packaged prerequisites and the actual
-// aggregate native census remain absent, so reservation is still refused.
+// Closed contract for the separately allocated fixed-file product entry.
+// Profile declarations do not replace packaged-prerequisite, current-host or
+// registered native-census checks before reservation.
 type debianProductProjectionChild struct {
 	Ordinal int    `json:"ordinal"`
 	Exit    uint32 `json:"exit"`

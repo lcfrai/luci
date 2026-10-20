@@ -115,7 +115,7 @@ func resolveDebianBinaryFirst3(ctx context.Context, p *debianProducerPlan, snap 
 	if e != nil {
 		return nil, e
 	}
-	pins := assemblyDebianProducerPins{Product: &selected, SourceReceipt: selected.SourceReceipt, Config: selected.Config, ProjectionSHA: selected.Projection.SHA256, GPG: selected.GPG.SHA256, GPGV: selected.GPGV.SHA256}
+	pins := assemblyDebianProducerPins{Product: &selected, SourceReceipt: selected.SourceReceipt, Config: selected.Config, ProjectionSHA256: selected.Projection.SHA256, GPGSHA256: selected.GPG.SHA256, GPGVSHA256: selected.GPGV.SHA256}
 	for i := 0; i < 5; i++ {
 		f := childFiles[fmt.Sprintf("signed-release-%d", i)]
 		pins.SignedObjects = append(pins.SignedObjects, assemblyDebianObjectRef{"signed-release", f.SHA256, f.Bytes})
