@@ -72,8 +72,8 @@ func InspectWheel(parent context.Context, input io.ReaderAt, size int64, pin Pin
 		result.Files=append(result.Files,file)
 	}
 	if len(record)==0||len(metadata)==0{return Wheel{},ErrInvalid}
-	fields,err:=paragraphFields(metadata,1<<20)
-	if err!=nil||len(fields)!=1||fields[0]["Name"]!=owner.ID||fields[0]["Version"]!=owner.Version{return Wheel{},ErrInvalid}
+	name,version,err:=wheelMetadataIdentity(metadata)
+	if err!=nil||name!=owner.ID||version!=owner.Version{return Wheel{},ErrInvalid}
 	if !validWheelRecord(record,owner.InstalledOwner+"/RECORD",result.Files){return Wheel{},ErrInvalid}
 	return result,nil
 }

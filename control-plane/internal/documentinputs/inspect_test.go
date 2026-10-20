@@ -30,7 +30,7 @@ func TestWheelRECORDAndActualNoticeBytes(t *testing.T) {
 	owner:=WheelOwner{ID:"sample",Version:"1.0",InstalledOwner:"sample-1.0.dist-info"}
 	files:=map[string][]byte{
 		"sample/__init__.py":[]byte("value=1\n"),
-		"sample-1.0.dist-info/METADATA":[]byte("Name: sample\nVersion: 1.0\n"),
+		"sample-1.0.dist-info/METADATA":[]byte("Metadata-Version: 2.4\nName: sample\nVersion: 1.0\nRequires-Dist: alpha >= 1\nRequires-Dist: beta >= 2\nClassifier: Topic :: Utilities\nClassifier: Programming Language :: Python\n\nA wheel description:\nwith non-header lines and ünicode.\n"),
 		"sample-1.0.dist-info/LICENSE":[]byte("The original grant\n"),
 	}
 	var record bytes.Buffer;csvWriter:=csv.NewWriter(&record)
@@ -48,6 +48,18 @@ func TestWheelRECORDAndActualNoticeBytes(t *testing.T) {
 	files["sample/__init__.py"]=[]byte("changed\n")
 	changed:=encode()
 	if _,e=InspectWheel(context.Background(),bytes.NewReader(changed),int64(len(changed)),fixturePin(changed),owner);e==nil{t.Fatal("RECORD mismatch accepted")}
+}
+
+func TestParagraphFieldsAcceptsDebianIdentityAndSourceChecksumKeys(t *testing.T) {
+	rows,e:=paragraphFields([]byte("Package: sample\nName: displayed\nChecksums-Sha256:\n abc123 7 archive.tar.gz\n\n"),1<<20)
+	if e!=nil||len(rows)!=1||rows[0]["Package"]!="sample"||rows[0]["Name"]!="displayed"||rows[0]["Checksums-Sha256"]!="\nabc123 7 archive.tar.gz"{t.Fatalf("ordinary control keys unavailable: %v",e)}
+}
+
+func TestWheelMetadataRepeatedHeadersAndDescription(t *testing.T) {
+	raw:=[]byte("Metadata-Version: 2.4\nName: sample\nVersion: 1.0\nRequires-Dist: alpha\nRequires-Dist: beta\nClassifier: one\nClassifier: two\n\nDescription: this is body text, not a header\n")
+	name,version,e:=wheelMetadataIdentity(raw)
+	if e!=nil||name!="sample"||version!="1.0"{t.Fatalf("valid wheel metadata unavailable: %v",e)}
+	if _,_,e=wheelMetadataIdentity([]byte("Name: sample\nName: other\nVersion: 1.0\n"));e==nil{t.Fatal("ambiguous wheel identity accepted")}
 }
 
 func TestBaseStatusFilesAndCopyrightAreObserved(t *testing.T){

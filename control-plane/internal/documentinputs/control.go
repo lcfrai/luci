@@ -5,6 +5,14 @@ import (
 	"strings"
 )
 
+func validFieldName(key string) bool {
+	if len(key)==0||len(key)>80{return false}
+	for _,c:=range key {
+		if !(c>='A'&&c<='Z'||c>='a'&&c<='z'||c>='0'&&c<='9'||c=='-'){return false}
+	}
+	return true
+}
+
 // paragraphFields parses the exact Debian control/RFC822 field structure. It
 // retains relation expressions rather than interpreting package satisfaction.
 func paragraphFields(raw []byte, max int) ([]map[string]string,error) {
@@ -22,7 +30,7 @@ func paragraphFields(raw []byte, max int) ([]map[string]string,error) {
 			current[last]+="\n"+string(bytes.TrimSpace(line));continue
 		}
 		at:=bytes.IndexByte(line,':');if at<1||at>80{return nil,ErrInvalid}
-		key:=string(line[:at]);for _,c:=range key {if c<'A'||c>'Z'&&c<'a'||c>'z'&&c<'0'||c>'9'&&c!='-'{return nil,ErrInvalid}}
+		key:=string(line[:at]);if !validFieldName(key){return nil,ErrInvalid}
 		if _,exists:=current[key];exists{return nil,ErrInvalid}
 		value:=bytes.TrimSpace(line[at+1:]);if bytes.IndexByte(value,0)>=0{return nil,ErrInvalid}
 		current[key]=string(value);last=key
