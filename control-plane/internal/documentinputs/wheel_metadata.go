@@ -59,7 +59,7 @@ func parseWheelMetadata(raw []byte)(wheelMetadata,error){
 	return result,nil
 }
 
-func parseWheelFile(raw []byte)([]string,bool,error){
+func parseWheelFile(raw []byte)([]string,*bool,error){
 	tags:=[]string{};version:="";purelib:="";seenTag:=map[string]bool{}
 	err:=metadataHeaders(raw,false,func(key,value string)error{
 		switch key {
@@ -75,6 +75,7 @@ func parseWheelFile(raw []byte)([]string,bool,error){
 		}
 		return nil
 	})
-	if err!=nil||version==""||purelib==""||len(tags)==0{return nil,false,ErrInvalid}
-	return tags,purelib=="true",nil
+	if err!=nil||version==""||purelib==""||len(tags)==0{return nil,nil,ErrInvalid}
+	value:=purelib=="true"
+	return tags,&value,nil
 }

@@ -36,7 +36,7 @@ type arEntry struct { name string; offset,size int64 }
 func InspectDeb(parent context.Context, input io.ReaderAt, size int64, pin Pin, expected DebExpectation)(Deb,error){
 	var result Deb
 	ctx,cancel,err:=checkedContext(parent,120*time.Second);if err!=nil{return result,err};defer cancel()
-	if input==nil||size!=pin.Bytes||!validPin(pin,maxSourceArchiveBytes)||expected.Name==""||expected.Version==""||expected.Architecture=="" {return result,ErrInvalid}
+	if input==nil||size!=pin.Bytes||!validPin(pin,maxDebBytes)||expected.Name==""||expected.Version==""||expected.Architecture=="" {return result,ErrInvalid}
 	budget:=&boundedReaderAt{ctx:ctx,reader:input,maxBytes:3*pin.Bytes+readBlock}
 	hash,e:=hashReaderAt(ctx,input,size,budget);if e!=nil||hash!=pin.SHA256{return result,ErrInvalid}
 	var magic [8]byte
@@ -80,10 +80,25 @@ func debDecoder(source io.Reader,name string)(io.Reader,io.Closer,error){
 	return nil,nil,ErrInvalid
 }
 
+// An XZ dictionary preflight must describe the exact bytes subsequently
+// decoded. Retain only this bounded compressed member in private memory;
+// neither a second mutable original read nor an on-disk extraction can change
+// its headers between preflight and decoder construction.
+func debMemberSource(ctx context.Context,reader io.ReaderAt,entry arEntry,limit int64)(io.ReaderAt,arEntry,error){
+	if !strings.HasSuffix(entry.name,".xz"){return reader,entry,nil}
+	if entry.size<1||entry.size>maxDebBytes{return nil,arEntry{},ErrInvalid}
+	compressed:=make([]byte,entry.size)
+	if xzReadAt(ctx,reader,entry.offset,compressed)!=nil{return nil,arEntry{},ErrInvalid}
+	retained:=bytes.NewReader(compressed)
+	if preflightXZ(ctx,retained,entry.size,limit)!=nil{return nil,arEntry{},ErrInvalid}
+	return retained,arEntry{name:entry.name,offset:0,size:entry.size},nil
+}
+
 type countedInput struct { source io.Reader; bytes int64 }
 func (r *countedInput) Read(p []byte)(int,error){n,e:=r.source.Read(p);r.bytes+=int64(n);return n,e}
 
 func decodeDebMember(ctx context.Context,reader io.ReaderAt,entry arEntry,limit int64)([]byte,error){
+	reader,entry,e:=debMemberSource(ctx,reader,entry,limit);if e!=nil{return nil,ErrInvalid}
 	section:=&countedInput{source:io.NewSectionReader(reader,entry.offset,entry.size)}
 	decoded,closer,e:=debDecoder(section,entry.name);if e!=nil{return nil,e};if closer!=nil{defer closer.Close()}
 	bounded:=&meteredReader{ctx:ctx,source:decoded,maxBytes:limit+1}
@@ -121,6 +136,7 @@ func readDebControlTar(ctx context.Context,raw []byte)(map[string]string,[]strin
 }
 
 func readDebDataTar(ctx context.Context,reader io.ReaderAt,entry arEntry,owner string)([]File,[]Notice,error){
+	reader,entry,e:=debMemberSource(ctx,reader,entry,maxBaseExpanded);if e!=nil{return nil,nil,ErrInvalid}
 	section:=&countedInput{source:io.NewSectionReader(reader,entry.offset,entry.size)}
 	decoded,closer,e:=debDecoder(section,entry.name);if e!=nil{return nil,nil,e};if closer!=nil{defer closer.Close()}
 	bounded:=&meteredReader{ctx:ctx,source:decoded,maxBytes:maxBaseExpanded}

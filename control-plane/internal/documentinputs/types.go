@@ -26,8 +26,9 @@ const (
 	maxBaseExpanded int64 = 2 << 30
 	maxSourceIndexBytes int64 = 64 << 20
 	maxSourceCleartextBytes int64 = 128 << 20
-	maxSourceArchiveBytes int64 = 128 << 20
-	maxSelectedSourceArchiveBytes int64 = 512 << 20
+	maxDebBytes int64 = 128 << 20
+	maxSourceArchiveBytes int64 = 8 << 30
+	maxSelectedSourceArchiveBytes int64 = 16 << 30
 	maxNoticeBytes int64 = 32 << 20
 	maxELFBytes int64 = 32 << 20
 	maxMembers = 200000
@@ -89,13 +90,21 @@ type WheelOwner struct {
 type Wheel struct {
 	ID string `json:"id"`
 	Version string `json:"version"`
+	InstalledOwner string `json:"installedOwner"`
 	RequiresDist []string `json:"requiresDist"`
 	RequiresPython string `json:"requiresPython,omitempty"`
 	Tags []string `json:"tags"`
-	RootIsPurelib bool `json:"rootIsPurelib"`
+	RootIsPurelib *bool `json:"rootIsPurelib"`
+	EntryPoints []EntryPoint `json:"entryPoints"`
 	Components []Component `json:"components"`
 	Files []File `json:"files"`
 	Notices []Notice `json:"notices"`
+}
+
+type EntryPoint struct {
+	Group string `json:"group"`
+	Name string `json:"name"`
+	Value string `json:"value"`
 }
 
 type Base struct {

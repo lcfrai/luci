@@ -14,6 +14,8 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
+type sourceArchiveKey struct { name,version,fileName string }
+
 // InspectSources requires the compressed Sources.xz retained under an
 // independently authenticated release/index binding. The caller proves that
 // relation; this parser verifies exact compressed and expanded bytes, selected
@@ -22,29 +24,37 @@ func InspectSources(parent context.Context, compressedInput io.Reader, binding S
 	ctx,cancel,err:=checkedContext(parent,120*time.Second);if err!=nil{return nil,err};defer cancel()
 	if compressedInput==nil||!validHex(binding.SignedReleaseSHA256)||binding.IndexPath!="main/source/Sources.xz"||
 		!validPin(binding.CompressedIndex,maxSourceIndexBytes)||!validPin(binding.Cleartext,maxSourceCleartextBytes)||
-		len(archives)<1||len(archives)>256{return nil,ErrInvalid}
-	wanted:=map[string]SourceArchiveInput{}
+		len(archives)<1||len(archives)>1024{return nil,ErrInvalid}
+	wanted:=map[sourceArchiveKey]SourceArchiveInput{}
+	selectedPairs:=map[[2]string]bool{}
+	physical:=map[string]Pin{}
 	var archiveBytes int64
 	for _,archive:=range archives{
 		name,ok:=cleanName(archive.FileName,false)
+		key:=sourceArchiveKey{archive.SourceName,archive.SourceVersion,name}
 		if !ok||name!=archive.FileName||archive.SourceName==""||archive.SourceVersion==""||
 			len(archive.SourceName)>200||len(archive.SourceVersion)>200||archive.Reader==nil||
-			!validPin(archive.Pin,maxSourceArchiveBytes)||wanted[name].Reader!=nil{return nil,ErrInvalid}
+			!validPin(archive.Pin,maxSourceArchiveBytes)||wanted[key].Reader!=nil{return nil,ErrInvalid}
+		if previous,exists:=physical[name];exists&&previous!=archive.Pin{return nil,ErrInvalid}
+		physical[name]=archive.Pin
+		selectedPairs[[2]string{archive.SourceName,archive.SourceVersion}]=true
 		archiveBytes+=archive.Pin.Bytes
 		if archiveBytes>maxSelectedSourceArchiveBytes{return nil,ErrInvalid}
-		wanted[name]=archive
+		wanted[key]=archive
 	}
+	compressed,e:=io.ReadAll(io.LimitReader(compressedInput,binding.CompressedIndex.Bytes+1))
+	if e!=nil||int64(len(compressed))!=binding.CompressedIndex.Bytes||hashBytes(compressed)!=binding.CompressedIndex.SHA256{return nil,ErrInvalid}
+	if preflightXZ(ctx,bytes.NewReader(compressed),int64(len(compressed)),binding.Cleartext.Bytes)!=nil{return nil,ErrInvalid}
 	compressedHash:=sha256.New()
-	bounded:=&meteredReader{ctx:ctx,source:compressedInput,maxBytes:binding.CompressedIndex.Bytes+1,hash:compressedHash}
-	// The selected pure-Go decoder must be pinned and reviewed before source
-	// checks. Its 64 MiB dictionary cap prevents a hostile XZ header from
-	// allocating memory outside the caller's admission budget.
+	bounded:=&meteredReader{ctx:ctx,source:bytes.NewReader(compressed),maxBytes:binding.CompressedIndex.Bytes+1,hash:compressedHash}
+	// DictCap in v0.5.16 is a default, not a maximum. The complete compressed
+	// snapshot has passed preflightXZ before constructing this decoder.
 	decoder,err:=(xz.ReaderConfig{DictCap:64<<20}).NewReader(bounded)
 	if err!=nil{return nil,ErrInvalid}
 	clearHash:=sha256.New()
 	clearReader:=&meteredReader{ctx:ctx,source:decoder,maxBytes:binding.Cleartext.Bytes+1,hash:clearHash}
 	lines:=bufio.NewReaderSize(clearReader,readBlock)
-	selected:=map[string]*Source{};matched:=map[string]bool{}
+	selected:=map[string]*Source{};matched:=map[sourceArchiveKey]bool{}
 	paragraphs:=0;block:=make([]byte,0,readBlock)
 	for {
 		if ctx.Err()!=nil{return nil,ErrInvalid}
@@ -60,8 +70,7 @@ func InspectSources(parent context.Context, compressedInput io.Reader, binding S
 		row:=rows[0];name,version:=row["Package"],row["Version"]
 		if name==""||version==""||len(name)>200||len(version)>200{return nil,ErrInvalid}
 		key:=name+"\x00"+version
-		needed:=false;for _,candidate:=range archives{if candidate.SourceName==name&&candidate.SourceVersion==version{needed=true;break}}
-		if !needed{block=block[:0];if lineErr==io.EOF{break};continue}
+		if !selectedPairs[[2]string{name,version}]{block=block[:0];if lineErr==io.EOF{break};continue}
 		if selected[key]!=nil{return nil,ErrInvalid}
 		directory,ok:=cleanName(row["Directory"],false);if !ok||directory!=row["Directory"]{return nil,ErrInvalid}
 		rows:=strings.Split(row["Checksums-Sha256"],"\n")
@@ -74,11 +83,12 @@ func InspectSources(parent context.Context, compressedInput io.Reader, binding S
 			amount,e:=strconv.ParseInt(fields[1],10,64);if e!=nil||amount<1||amount>maxSourceArchiveBytes{return nil,ErrInvalid}
 			base,ok:=cleanName(fields[2],false);if !ok||strings.Contains(base,"/"){return nil,ErrInvalid}
 			full:=directory+"/"+base;if seen[full]{return nil,ErrInvalid};seen[full]=true
-			input,exists:=wanted[full];if !exists{return nil,ErrInvalid}
-			if input.SourceName!=name||input.SourceVersion!=version||input.Pin.Bytes!=amount||input.Pin.SHA256!=fields[0]||matched[full]{return nil,ErrInvalid}
+			archiveKey:=sourceArchiveKey{name,version,full}
+			input,exists:=wanted[archiveKey];if !exists{return nil,ErrInvalid}
+			if input.Pin.Bytes!=amount||input.Pin.SHA256!=fields[0]||matched[archiveKey]{return nil,ErrInvalid}
 			budget:=&boundedReaderAt{ctx:ctx,reader:input.Reader,maxBytes:input.Pin.Bytes+readBlock}
 			actual,e:=hashReaderAt(ctx,input.Reader,input.Pin.Bytes,budget);if e!=nil||actual!=input.Pin.SHA256{return nil,ErrInvalid}
-			matched[full]=true
+			matched[archiveKey]=true
 			candidate.Archives=append(candidate.Archives,SourceArchive{FileName:full,Bytes:amount,SHA256:actual})
 		}
 		if len(candidate.Archives)==0{return nil,ErrInvalid}
