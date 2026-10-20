@@ -118,12 +118,16 @@ it('does not restore a pending selected readback after read permission is revoke
   expect(discoveryDocumentsApi.start).not.toHaveBeenCalled();
 });
 
-it('labels an incomplete retained source list and clears that warning only after complete readback',async()=>{
-  vi.mocked(discoveryDocumentsApi.list).mockResolvedValue({documents:[document],nextCursor:'',omitted:true});
+it('shows ordinary bounded source pagination without reporting a document read failure',async()=>{
+  const firstPage=Array.from({length:25},(_,index)=>({...document,id:`doc-${index.toString(16).padStart(64,'0')}`}));
+  const after=firstPage[24].id;
+  vi.mocked(discoveryDocumentsApi.list).mockResolvedValueOnce({documents:firstPage,nextCursor:after,omitted:true}).mockResolvedValue({documents:[document],nextCursor:'',omitted:false});
   render(<ProjectDiscoverDocuments projectId="p-one" scope="scope-one" canRead canEdit/>);
-  await screen.findByText(/Some retained source records could not be read/);
-  vi.mocked(discoveryDocumentsApi.list).mockResolvedValue({documents:[document],nextCursor:'',omitted:false});
-  fireEvent.click(screen.getByRole('button',{name:'Refresh documents'}));
-  await waitFor(()=>expect(screen.queryByText(/Some retained source records could not be read/)).toBeNull());
+  await screen.findByText('More source documents are available on the next page.');
+  expect(screen.queryByRole('alert')).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Next sources'}));
+  await waitFor(()=>expect(discoveryDocumentsApi.list).toHaveBeenLastCalledWith('p-one',after,expect.any(AbortSignal)));
+  await waitFor(()=>expect(screen.queryByText('More source documents are available on the next page.')).toBeNull());
+  expect(screen.queryByRole('alert')).toBeNull();
   expect(discoveryDocumentsApi.get).not.toHaveBeenCalled();
 });
