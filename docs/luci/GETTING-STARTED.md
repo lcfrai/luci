@@ -21,6 +21,67 @@ You do not need Go, Node.js or Python to run the portable app. Local project wor
 
 **Luci Cloud** is the planned hosted service. It is not available yet. Choose Local to use this candidate, or prepare your own Azure environment; selecting the future hosted option does not create an account, subscription or runtime.
 
+## Set up your own Azure workspace
+
+In Luci, choose **Bring your own cloud → Azure**, enter your environment name,
+region, reviewed monthly budget and VM concurrency limit, then prepare the setup
+plan. Download the installer and use the commands shown only after Luci verifies
+its SHA-256 against that exact plan. This is the Develop microVM setup, separate
+from adding an ordinary deployment-target VM.
+
+Run those commands in **Linux or WSL2**, with Python 3, Git, OpenSSL, Terraform
+and Azure CLI available. Sign in to the intended Azure tenant/subscription with
+`az login`; user sign-in can require MFA. The selected account needs permission
+to deploy the reviewed resources and assign their scoped roles. Azure CLI login
+does not provide a private network route or model-provider access. The normal
+guided flow uses packaged source and temporary private Azure builders; local Go,
+a source checkout and a local Ubuntu image-build environment are not required.
+
+The plan's commands verify and extract `luci-azure-setup.tar`, create private
+directories, and run `init-selection` with your selected `--name`, `--region`,
+`--monthly-budget-usd` and `--max-concurrent-vms`. Keep those generated values
+and the private selection directory. The guided command is:
+
+```bash
+python3 luci-azure-setup/azure-setup/installer.py continue --bundle luci-azure-setup --selection luci-azure-private/selection.json
+```
+
+Have an Azure subscription, an existing privately reachable VNet and management
+source, an SSH public key, and the required resource/state ownership ready. The
+guide selects or creates its separately reviewed private state/Key Vault
+foundation, then asks about image builders, capacity, exact resource/cost plans,
+task limits and allowed model-provider DNS names. Review each approval before
+effects; do not supply model or account secrets in command-line examples or
+public project files. Keep generated private credentials and receipts private.
+
+Both the setup computer and the Luci computer need working private access and
+DNS to the selected environment, for example through an existing VPN/private
+route. The guide does not create that access for you. Check region/zone stock,
+both regional and VM-family vCPU quotas, and the selected sizes' nested
+virtualization support. The default Dsv5 family supports nested virtualization
+and requires Accelerated Networking, but that is not proof that the installed
+host and guest work. Public model/service endpoints also need confirmed outbound
+connectivity, or appropriately configured private endpoints; the internal
+gateway alone is not internet egress. Azure's newer private-subnet defaults make
+this explicit. A size listing, successful sign-in or prepared plan is not a
+connectivity/capacity test. See Microsoft's [quota guidance](https://learn.microsoft.com/en-us/azure/virtual-machines/quotas),
+[Dsv5 specifications](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/dsv5-series)
+and [outbound-access guidance](https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/default-outbound-access).
+
+Budgets, task estimates and deadlines do not cap Azure billing. Review compute,
+builders, disks, snapshots, gallery, Blob, Key Vault and networking/egress costs;
+retained resources can still charge after compute stops. On interruption, use
+the same `continue` command and preserve its private files. `status` with the
+same `--bundle` and `--selection` arguments reads local receipts; it does not
+query Azure or prove connectivity. Follow the bundled `azure-setup/README.md`
+for exact retirement and uncertain-operation recovery.
+
+Finally, import the produced connection files through Luci's protected
+connection flow and let its private reachability/authentication checks finish.
+Configure a supported harness/model connection before coding. This candidate's
+source and controlled-fixture checks do not establish a live Azure deployment,
+recovery or billing result; live Azure validation remains pending.
+
 ## Build and review your first change
 
 Describe the outcome and answer Luci's useful questions. Refine the requirements and design, then start a coding task with your chosen harness. Review its changes and verification results before accepting them. Publishing uses the project's deployment target and authority policy; a completed task is not automatically an approved deployment.

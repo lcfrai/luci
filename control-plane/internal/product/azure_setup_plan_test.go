@@ -130,6 +130,12 @@ func TestAzureDevelopSetupPlanAndBundleAreSourceBoundReads(t *testing.T) {
 	if json.Unmarshal(w.Body.Bytes(), &plan) != nil || plan["bundleSHA256"] != want || plan["sourceCommit"] != strings.Repeat("a", 40) || plan["status"] != "needs_prerequisites" {
 		t.Fatal("plan lost source binding or pretended readiness", w.Body.String())
 	}
+	host, okay := plan["setupHostRequirement"].(string)
+	if !okay || !strings.Contains(host, "Python 3, Git, OpenSSL, Terraform and Azure CLI") ||
+		!strings.Contains(host, "temporary private Azure builders") || !strings.Contains(host, "does not require local Go") ||
+		strings.Contains(host, "isolated Ubuntu image build environment") {
+		t.Fatal("guided setup advertised advanced local image-build prerequisites", host)
+	}
 	commands, okay := plan["commands"].([]any)
 	if !okay || len(commands) != 6 || !strings.Contains(commands[4].(string), "init-selection") ||
 		!strings.Contains(commands[4].(string), "--max-concurrent-vms 4") ||

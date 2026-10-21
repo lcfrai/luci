@@ -230,7 +230,7 @@ func (s *Server) planAzureDevelop(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{
 		"version": 1, "status": "needs_prerequisites", "purpose": "develop-microvm", "provider": "azure",
-		"setupHostRequirement": "Linux or WSL2 with Python 3, Go, Terraform, Azure CLI and an isolated Ubuntu image build environment; the installed Windows app can download this exact bundle but does not run Linux image preparation in Windows PowerShell.",
+		"setupHostRequirement": "Linux or WSL2 with Python 3, Git, OpenSSL, Terraform and Azure CLI, signed in to the selected Azure subscription with a working private route. The guided flow restores packaged source and builds images on reviewed temporary private Azure builders; it does not require local Go or a local image-build environment. The Windows app downloads and verifies the bundle; run its commands in Linux or WSL2, not Windows PowerShell.",
 		"sourceCommit":         revision, "bundleSHA256": digest, "bundleURL": "/v1/setup/cloud/azure/bundle",
 		"sourceRepository":      "https://github.com/lcfrai/luci.git",
 		"advancedAccountInputs": []string{"Azure subscription", "existing resource group and durable state Blob", "unused private network", "KVM-capable VM sizes and zone", "SSH public key", "immutable gallery images", "exact private Key Vault references"},
