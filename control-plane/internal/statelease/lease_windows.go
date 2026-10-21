@@ -175,7 +175,7 @@ func privateLeaseHandle(handle windows.Handle, user *windows.SID) error {
 			return errors.New("private access rules could not be verified")
 		}
 		sid := (*windows.SID)(unsafe.Pointer(&ace.SidStart))
-		if !trustedLeaseSID(sid, user) {
+		if !trustedLeaseAccessSID(sid, owner, user) {
 			return errors.New("access is granted to another Windows user or group")
 		}
 	}
@@ -184,4 +184,12 @@ func privateLeaseHandle(handle windows.Handle, user *windows.SID) error {
 
 func trustedLeaseSID(sid, user *windows.SID) bool {
 	return sid.Equals(user) || sid.IsWellKnown(windows.WinLocalSystemSid) || sid.IsWellKnown(windows.WinBuiltinAdministratorsSid)
+}
+
+func trustedLeaseAccessSID(sid, owner, user *windows.SID) bool {
+	// OWNER RIGHTS is relative to the opened object's actual owner, not a
+	// grant to another account. Python's Windows mode-0700 directories use it.
+	// The owner was checked above; admit this ACE only for the current user,
+	// never as an owner SID or for a different (even privileged) owner.
+	return trustedLeaseSID(sid, user) || (owner.Equals(user) && sid.IsWellKnown(windows.WinCreatorOwnerRightsSid))
 }

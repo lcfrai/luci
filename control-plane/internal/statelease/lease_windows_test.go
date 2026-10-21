@@ -200,3 +200,132 @@ func TestWindowsLeaseRetainsPrivateAdministratorOwnedRoot(t *testing.T) {
 		t.Fatal("safe administrator-owned root security was rewritten")
 	}
 }
+
+func TestWindowsLeaseRetainsOwnerRightsPrivateACL(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "owner-rights-state")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	user, err := windows.GetCurrentProcessToken().GetTokenUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sd, err := windows.GetNamedSecurityInfo(dir, windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, _, err := sd.Owner()
+	if err != nil || owner == nil || !owner.Equals(user.User.Sid) {
+		t.Fatal("fixture must belong to the current Windows user")
+	}
+	// Matches a fresh Python mode-0700 directory: OWNER RIGHTS, SYSTEM,
+	// Administrators. Do not rewrite it into an explicit per-user grant.
+	setLeaseTestACL(t, dir, "D:P(A;OICI;FA;;;OW)(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)")
+	beforeRoot := leaseTestACL(t, dir)
+	first, err := Acquire(dir, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := first.Close(); err != nil {
+		t.Fatal(err)
+	}
+	lock := filepath.Join(dir, FileName)
+	setLeaseTestACL(t, lock, "D:P(A;;FA;;;OW)(A;;FA;;;SY)(A;;FA;;;BA)")
+	beforeLock := leaseTestACL(t, lock)
+	sentinel := filepath.Join(dir, "existing-state")
+	if err := os.WriteFile(sentinel, []byte("retain existing state"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	lease, err := Acquire(dir, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Close()
+	if second, err := Acquire(dir, "test"); !errors.Is(err, ErrInUse) {
+		if second != nil {
+			second.Close()
+		}
+		t.Fatalf("OWNER RIGHTS bypassed exclusive ownership: %v", err)
+	}
+	if leaseTestACL(t, dir) != beforeRoot || leaseTestACL(t, lock) != beforeLock {
+		t.Fatal("existing OWNER RIGHTS permissions were rewritten")
+	}
+	if err := lease.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := Acquire(dir, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if leaseTestACL(t, dir) != beforeRoot || leaseTestACL(t, lock) != beforeLock {
+		t.Fatal("restart changed existing OWNER RIGHTS permissions")
+	}
+	if data, err := os.ReadFile(sentinel); err != nil || string(data) != "retain existing state" {
+		t.Fatal("contention/restart changed existing state")
+	}
+}
+
+func TestWindowsLeaseOwnerRightsRequireActualCurrentOwner(t *testing.T) {
+	token, err := windows.GetCurrentProcessToken().GetTokenUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	user := token.User.Sid
+	rights, err := windows.CreateWellKnownSid(windows.WinCreatorOwnerRightsSid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin, err := windows.CreateWellKnownSid(windows.WinBuiltinAdministratorsSid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	world, err := windows.CreateWellKnownSid(windows.WinWorldSid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := windows.StringToSid("S-1-5-21-1-2-3-4242")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trustedLeaseSID(rights, user) {
+		t.Fatal("OWNER RIGHTS must never be accepted as an object's owner")
+	}
+	for _, test := range []struct {
+		name       string
+		ace, owner *windows.SID
+		allowed    bool
+	}{
+		{"current-owner", rights, user, true},
+		{"different-user-owner", rights, other, false},
+		{"administrator-owner", rights, admin, false},
+		{"owner-rights-is-not-owner", rights, rights, false},
+		{"public-ace", world, user, false},
+		{"different-user-ace", other, user, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := trustedLeaseAccessSID(test.ace, test.owner, user); got != test.allowed {
+				t.Fatalf("access principal/actual-owner relationship: got %v, want %v", got, test.allowed)
+			}
+		})
+	}
+}
+
+func TestWindowsLeaseOwnerRightsDoNotConcealPublicAccess(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "owner-rights-with-public-access")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	setLeaseTestACL(t, dir, "D:P(A;OICI;FA;;;OW)(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;GR;;;WD)")
+	before := leaseTestACL(t, dir)
+	if lease, err := Acquire(dir, "must-not-write"); err == nil {
+		lease.Close()
+		t.Fatal("OWNER RIGHTS concealed a grant to Everyone")
+	}
+	if leaseTestACL(t, dir) != before {
+		t.Fatal("unsafe existing permissions were rewritten")
+	}
+	if _, err := os.Stat(filepath.Join(dir, FileName)); !os.IsNotExist(err) {
+		t.Fatal("unsafe root was opened for lease metadata writes")
+	}
+}
