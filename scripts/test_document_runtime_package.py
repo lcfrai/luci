@@ -288,7 +288,10 @@ class ShellDocumentReleaseArgumentsTests(unittest.TestCase):
         prefix, boundary, _ = source.partition('for executable in go npm python3; do')
         self.assertTrue(boundary)
         self.script = self.root / 'release-arguments.sh'
-        self.script.write_text(prefix + '\nprintf "%s\\0" "$has_document_image" "$has_document_proof" "$allow_incomplete_document_runtime" "$document_image_dir" "$document_image_manifest_sha256"\n')
+        selected = prefix + '\nprintf "%s\\0" "$has_document_image" "$has_document_proof" "$allow_incomplete_document_runtime" "$document_image_dir" "$document_image_manifest_sha256"\n'
+        self.script.write_text(selected, encoding='utf-8', newline='\n')
+        self.assertEqual(self.script.read_bytes(), selected.encode('utf-8'))
+        self.assertNotIn(b'\r', self.script.read_bytes())
 
     @staticmethod
     def shell_path(path):
