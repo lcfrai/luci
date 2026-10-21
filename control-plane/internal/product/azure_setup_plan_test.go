@@ -195,8 +195,10 @@ func TestAzureSetupBundleRejectsOversizedInputsBeforeReading(t *testing.T) {
 func TestAzureSetupBundleAllowsLargeLuciPackButRetainsOtherMemberBounds(t *testing.T) {
 	root := t.TempDir()
 	runtimeDir, projectsDir := filepath.Join(root, "runtime"), filepath.Join(root, "projects")
-	if err := os.Mkdir(runtimeDir, 0700); err != nil {
-		t.Fatal(err)
+	for _, directory := range []string{runtimeDir, projectsDir} {
+		if err := os.Mkdir(directory, 0700); err != nil {
+			t.Fatal(err)
+		}
 	}
 	largePack := bytes.Repeat([]byte("p"), 9<<20)
 	want := testAzureSetupArchiveWithFiles(t, runtimeDir, strings.Repeat("a", 40), map[string][]byte{"builder-source/luci.pack": largePack})
