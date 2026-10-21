@@ -101,7 +101,7 @@ func TestSetupSSHKeyIsRealReusableAndNeverOverwritesExistingKeys(t *testing.T) {
 func runtimeSourceFixture(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	for _, relative := range []string{"images/sandbox/Dockerfile", "images/sandbox/entrypoint.sh", "sandboxd/go.mod", "sandboxd/vendor/modules.txt"} {
+	for _, relative := range []string{"images/sandbox/Dockerfile", "images/sandbox/entrypoint.sh", "images/sandbox/codex-native-task.cjs", "sandboxd/go.mod", "sandboxd/vendor/modules.txt"} {
 		path := filepath.Join(dir, filepath.FromSlash(relative))
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			t.Fatal(err)
@@ -111,6 +111,34 @@ func runtimeSourceFixture(t *testing.T) string {
 		}
 	}
 	return dir
+}
+
+func TestRuntimeInstallRejectsMissingNativeHelperBeforeAdmission(t *testing.T) {
+	s, mux := journeyFixture(t)
+	s.registerSetupTools(mux)
+	runtimeInstallerFixture(t, s)
+	var calls atomic.Int32
+	s.runner = func(context.Context, string, []string, string) (string, error) {
+		calls.Add(1)
+		return "", errors.New("incomplete runtime must not start")
+	}
+	helper := filepath.Join(s.runtimeDir, "images", "sandbox", "codex-native-task.cjs")
+	if err := os.Remove(helper); err != nil {
+		t.Fatal(err)
+	}
+	w := journeyRequest(t, mux, "POST", "/v1/setup/runtime/install", map[string]any{}, 409)
+	if !strings.Contains(w.Body.String(), "runtime_source_missing") || calls.Load() != 0 || readRuntimeJob(t, mux).Status != "idle" {
+		t.Fatal("missing helper reached runtime admission or changed the saved job")
+	}
+	if err := os.WriteFile(helper, []byte("fixture\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.runtimeSource(); err != nil {
+		t.Fatalf("complete source did not recover without starting work: %v", err)
+	}
+	if calls.Load() != 0 {
+		t.Fatal("source readiness check dispatched work")
+	}
 }
 
 func readRuntimeJob(t *testing.T, mux http.Handler) RuntimeJob {

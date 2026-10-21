@@ -335,7 +335,7 @@ func (s *Server) runtimeSource() (string, error) {
 	if err != nil {
 		return "", errors.New("bundled runtime must be outside the projects folder")
 	}
-	for _, relative := range []string{"images/sandbox/Dockerfile", "images/sandbox/entrypoint.sh", "sandboxd/go.mod", "sandboxd/vendor/modules.txt"} {
+	for _, relative := range []string{"images/sandbox/Dockerfile", "images/sandbox/entrypoint.sh", "images/sandbox/codex-native-task.cjs", "sandboxd/go.mod", "sandboxd/vendor/modules.txt"} {
 		path, err := guardedProjectPath(dir, relative, false)
 		if err != nil {
 			return "", fmt.Errorf("bundled runtime is incomplete: %s", relative)

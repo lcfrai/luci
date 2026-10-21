@@ -294,8 +294,10 @@ RUN printf prepare \
     && true
 FROM node:24-bookworm-slim
 RUN true
+COPY images/sandbox/codex-native-task.cjs /usr/local/lib/luci/codex-native-task.cjs
 COPY --from=build /out/sandboxd /usr/local/bin/sandboxd
-COPY --from=build /usr/local/go /usr/local/go
+COPY --from=build /out/go-toolchain.tar.gz /tmp/go-toolchain.tar.gz
+RUN tar -C /usr/local -xzf /tmp/go-toolchain.tar.gz && rm /tmp/go-toolchain.tar.gz
 ENV PATH="/usr/local/go/bin:${PATH}"
 COPY images/sandbox/entrypoint.sh /usr/local/bin/entrypoint.sh
 USER dev
@@ -339,6 +341,7 @@ func newRuntimeImageProbe(t *testing.T) (*Backend, *runtimeImageProbe, backend.R
 	}
 	runtimeFixtureWrite(t, directory, "images/sandbox/Dockerfile", runtimeFixtureDockerfile)
 	runtimeFixtureWrite(t, directory, "images/sandbox/entrypoint.sh", "#!/bin/sh\nexec sandboxd\n")
+	runtimeFixtureWrite(t, directory, "images/sandbox/codex-native-task.cjs", "'use strict';\n")
 	runtimeFixtureWrite(t, directory, "sandboxd/go.mod", "module fixture/sandboxd\n\ngo 1.25.0\n")
 	runtimeFixtureWrite(t, directory, "sandboxd/vendor/modules.txt", "# controlled vendored fixture\n")
 	runtimeFixtureWrite(t, directory, "sandboxd/cmd/sandboxd/main.go", "package main\nfunc main() {}\n")
@@ -527,7 +530,7 @@ func TestRuntimeImagePrepareColdIsReadOnlyAndExcludesSurroundingCheckout(t *test
 		t.Fatalf("unexpected allowed bases: %v", p.BaseImages)
 	}
 	files := runtimeFixtureTar(t, p.PreparedContext)
-	if len(files) != 5 || files[".git/config"] != "" || files["docs/private.txt"] != "" {
+	if len(files) != 6 || files[".git/config"] != "" || files["docs/private.txt"] != "" || files["images/sandbox/codex-native-task.cjs"] != "'use strict';\n" {
 		t.Fatalf("context included unrelated files: %v", files)
 	}
 	dockerfile := files["images/sandbox/Dockerfile"]
@@ -538,6 +541,50 @@ func TestRuntimeImagePrepareColdIsReadOnlyAndExcludesSurroundingCheckout(t *test
 	again := runtimeFixturePrepare(t, b, spec)
 	if !reflect.DeepEqual(p, again) {
 		t.Fatal("unrelated checkout content changed the trusted context")
+	}
+	assertRuntimeNoMutation(t, f)
+}
+
+func TestRuntimeImageContextAcceptsActualBundledSandboxRecipeAndBindsHelper(t *testing.T) {
+	b, f, spec := newRuntimeImageProbe(t)
+	actual := map[string]string{}
+	for _, name := range []string{"Dockerfile", "entrypoint.sh", "codex-native-task.cjs"} {
+		contents, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "images", "sandbox", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		actual[name] = string(contents)
+		runtimeFixtureWrite(t, spec.SourceDirectory, "images/sandbox/"+name, string(contents))
+	}
+	p := runtimeFixturePrepare(t, b, spec)
+	files := runtimeFixtureTar(t, p.PreparedContext)
+	if files["images/sandbox/codex-native-task.cjs"] != actual["codex-native-task.cjs"] || files["images/sandbox/entrypoint.sh"] != actual["entrypoint.sh"] {
+		t.Fatal("actual bundled helper or entrypoint was omitted or changed")
+	}
+	dockerfile := files["images/sandbox/Dockerfile"]
+	for _, instruction := range []string{
+		"COPY sandboxd ./sandboxd",
+		"COPY images/sandbox/codex-native-task.cjs /usr/local/lib/luci/codex-native-task.cjs",
+		"COPY --from=build /out/sandboxd /usr/local/bin/sandboxd",
+		"COPY --from=build /out/go-toolchain.tar.gz /tmp/go-toolchain.tar.gz",
+		"COPY images/sandbox/entrypoint.sh /usr/local/bin/entrypoint.sh",
+	} {
+		if !strings.Contains(dockerfile, instruction+"\n") {
+			t.Fatalf("actual bundled COPY contract was lost: %s", instruction)
+		}
+	}
+	if strings.Contains(dockerfile, "COPY --from=build /usr/local/go /usr/local/go") {
+		t.Fatal("compressed Go transfer regressed to an unbounded daemon directory copy")
+	}
+	runtimeFixtureWrite(t, spec.SourceDirectory, "images/sandbox/codex-native-task.cjs", actual["codex-native-task.cjs"]+"\n")
+	fenced := spec
+	fenced.Identity.SourceDigest = p.ContextDigest
+	if _, err := b.PrepareRuntimeImage(context.Background(), fenced); !errors.Is(err, backend.ErrLaunchFenceOwnership) {
+		t.Fatalf("helper drift kept the old captured context identity: %v", err)
+	}
+	changed := runtimeFixturePrepare(t, b, spec)
+	if changed.ContextDigest == p.ContextDigest {
+		t.Fatal("helper content was not included in the prepared context digest")
 	}
 	assertRuntimeNoMutation(t, f)
 }
@@ -575,7 +622,7 @@ func TestRuntimeImageColdBuildPullsOnlyApprovedBasesThenPinsAndBoundsBuild(t *te
 			t.Fatalf("base %s remained mutable: %s", base, dockerfile)
 		}
 	}
-	if !strings.Contains(dockerfile, "COPY --from=build /usr/local/go /usr/local/go") || !strings.Contains(dockerfile, "RUN printf prepare \\\n    && true") {
+	if !strings.Contains(dockerfile, "COPY --from=build /out/go-toolchain.tar.gz /tmp/go-toolchain.tar.gz") || !strings.Contains(dockerfile, "COPY images/sandbox/codex-native-task.cjs /usr/local/lib/luci/codex-native-task.cjs") || !strings.Contains(dockerfile, "RUN printf prepare \\\n    && true") {
 		t.Fatal("trusted stage references or shell continuation changed")
 	}
 	if !strings.Contains(runtimeFixtureTar(t, p.PreparedContext)["images/sandbox/Dockerfile"], "FROM golang:1.26-bookworm AS build") {
@@ -629,6 +676,10 @@ func TestRuntimeImageContextRejectsExtraBuildAuthority(t *testing.T) {
 		"dynamic-base":   strings.Replace(runtimeFixtureDockerfile, "golang:1.26-bookworm", "$BASE", 1),
 		"third-stage":    runtimeFixtureDockerfile + "FROM node:24-bookworm-slim\n",
 		"external-copy":  strings.Replace(runtimeFixtureDockerfile, "COPY --from=build /out/sandboxd", "COPY --from=foreign:latest /out/sandboxd", 1),
+		"old-go-copy":     strings.Replace(runtimeFixtureDockerfile, "COPY --from=build /out/go-toolchain.tar.gz /tmp/go-toolchain.tar.gz", "COPY --from=build /usr/local/go /usr/local/go", 1),
+		"helper-dest":     strings.Replace(runtimeFixtureDockerfile, "/usr/local/lib/luci/codex-native-task.cjs", "/usr/local/bin/unreviewed.cjs", 1),
+		"helper-source":   strings.Replace(runtimeFixtureDockerfile, "COPY images/sandbox/codex-native-task.cjs", "COPY private/helper.cjs", 1),
+		"duplicate-copy":  runtimeFixtureDockerfile + "COPY images/sandbox/codex-native-task.cjs /usr/local/lib/luci/codex-native-task.cjs\n",
 		"label-override": runtimeFixtureDockerfile + "LABEL luci.runtime-image-allocation=foreign\n",
 		"remote-add":     runtimeFixtureDockerfile + "ADD https://example.invalid/payload /payload\n",
 		"onbuild":        runtimeFixtureDockerfile + "ONBUILD RUN true\n",
@@ -651,7 +702,7 @@ func TestRuntimeImageContextRejectsExtraBuildAuthority(t *testing.T) {
 }
 
 func TestRuntimeImageContextRefusesLinkedMissingAndOversizedInputs(t *testing.T) {
-	for _, mode := range []string{"symlink", "hardlink", "missing-vendor", "oversized"} {
+	for _, mode := range []string{"symlink", "hardlink", "missing-vendor", "missing-helper", "oversized"} {
 		t.Run(mode, func(t *testing.T) {
 			b, f, spec := newRuntimeImageProbe(t)
 			switch mode {
@@ -669,6 +720,10 @@ func TestRuntimeImageContextRefusesLinkedMissingAndOversizedInputs(t *testing.T)
 				}
 			case "missing-vendor":
 				if err := os.Remove(filepath.Join(spec.SourceDirectory, "sandboxd", "vendor", "modules.txt")); err != nil {
+					t.Fatal(err)
+				}
+			case "missing-helper":
+				if err := os.Remove(filepath.Join(spec.SourceDirectory, "images", "sandbox", "codex-native-task.cjs")); err != nil {
 					t.Fatal(err)
 				}
 			case "oversized":

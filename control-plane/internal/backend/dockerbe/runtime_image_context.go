@@ -157,7 +157,7 @@ func runtimeContext(spec backend.RuntimeImageSpec) ([]previewFile, string, error
 			return nil, "", err
 		}
 	}
-	for _, name := range []string{"Dockerfile", "entrypoint.sh"} {
+	for _, name := range []string{"Dockerfile", "entrypoint.sh", "codex-native-task.cjs"} {
 		if err = readFile(sandbox, name, "images/sandbox/"+name); err != nil {
 			return nil, "", err
 		}
@@ -321,7 +321,7 @@ func runtimePreparedContext(files []previewFile, identity backend.RuntimeImageId
 			// The source is the trusted bundle, not a project Dockerfile.
 			// RUN keeps its original shell text and ordinary continuations.
 		case "COPY":
-			allowed := fromCount == 1 && instruction == "COPY sandboxd ./sandboxd" || fromCount == 2 && (instruction == "COPY --from=build /out/sandboxd /usr/local/bin/sandboxd" || instruction == "COPY --from=build /usr/local/go /usr/local/go" || instruction == "COPY images/sandbox/entrypoint.sh /usr/local/bin/entrypoint.sh")
+			allowed := fromCount == 1 && instruction == "COPY sandboxd ./sandboxd" || fromCount == 2 && (instruction == "COPY --from=build /out/sandboxd /usr/local/bin/sandboxd" || instruction == "COPY --from=build /out/go-toolchain.tar.gz /tmp/go-toolchain.tar.gz" || instruction == "COPY images/sandbox/codex-native-task.cjs /usr/local/lib/luci/codex-native-task.cjs" || instruction == "COPY images/sandbox/entrypoint.sh /usr/local/bin/entrypoint.sh")
 			if !allowed || copies[instruction] {
 				return nil, nil, backend.ErrUnsupported
 			}
@@ -352,7 +352,7 @@ func runtimePreparedContext(files []previewFile, identity backend.RuntimeImageId
 		}
 		out = append(out, line)
 	}
-	if logical != "" || fromCount != 2 || len(copies) != 4 {
+	if logical != "" || fromCount != 2 || len(copies) != 5 {
 		return nil, nil, backend.ErrUnsupported
 	}
 	preparedFiles := append([]previewFile(nil), files...)
