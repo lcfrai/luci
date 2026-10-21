@@ -147,7 +147,7 @@ try {
 
     # Runtime allowlist: only the sandbox build context, never the whole repository or user state.
     foreach ($luciTree in @('sandboxd/cmd','sandboxd/internal','sandboxd/vendor')) { Copy-Tree (Join-Path $luciRoot $luciTree) (Join-Path $luciRuntime $luciTree) }
-    foreach ($luciFile in @('sandboxd/go.mod','sandboxd/go.sum','images/sandbox/Dockerfile','images/sandbox/entrypoint.sh')) {
+    foreach ($luciFile in @('sandboxd/go.mod','sandboxd/go.sum','images/sandbox/Dockerfile','images/sandbox/entrypoint.sh','images/sandbox/codex-native-task.cjs')) {
         $luciDestination = Join-Path $luciRuntime $luciFile
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $luciDestination) | Out-Null
         Copy-Item -LiteralPath (Join-Path $luciRoot $luciFile) -Destination $luciDestination
