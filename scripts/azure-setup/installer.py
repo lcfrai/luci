@@ -72,7 +72,9 @@ def atomic_json(path, value):
     fd, name = tempfile.mkstemp(prefix=".azure-setup-", dir=path.parent)
     try:
         os.fchmod(fd, 0o600)
-        with os.fdopen(fd, "wb") as output:
+        output = os.fdopen(fd, "wb")
+        fd = None  # The file object owns the original descriptor from here.
+        with output:
             output.write(canonical(value) + b"\n")
             output.flush()
             os.fsync(output.fileno())
@@ -83,8 +85,12 @@ def atomic_json(path, value):
         finally:
             os.close(directory)
     finally:
-        if os.path.exists(name):
-            os.unlink(name)
+        try:
+            if fd is not None:
+                os.close(fd)
+        finally:
+            if os.path.exists(name):
+                os.unlink(name)
 
 
 def bundle(root):
@@ -735,12 +741,22 @@ if target.exists():
         raise SystemExit('retained recovery selection differs')
 else:
     fd, name = tempfile.mkstemp(dir=target.parent)
-    os.fchmod(fd, 0o600)
-    with os.fdopen(fd, 'wb') as output:
-        output.write(data)
-        output.flush()
-        os.fsync(output.fileno())
-    os.replace(name, target)
+    try:
+        os.fchmod(fd, 0o600)
+        output = os.fdopen(fd, 'wb')
+        fd = None
+        with output:
+            output.write(data)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(name, target)
+    finally:
+        try:
+            if fd is not None:
+                os.close(fd)
+        finally:
+            if os.path.exists(name):
+                os.unlink(name)
 PY
 receipt=$(python3 /opt/luci/azure-controller/bin/recover.py %s /etc/luci/azure-controller-recovery.json)
 printf 'LUCI_AZURE_INITIALIZE_RECEIPT=%%s\\n' "$receipt"

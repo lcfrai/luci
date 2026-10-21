@@ -200,11 +200,12 @@ class SourceBundleTests(unittest.TestCase):
                 value = json.loads(json.dumps(original))
                 value[role]['pack']['bytes'] = size
                 self.manifest().write_text(json.dumps(value))
-                if accepted:
-                    self.assertEqual(source_bundle._manifest(self.manifest().parent)[role]['pack']['bytes'], size)
-                else:
-                    with self.assertRaisesRegex(ValueError, 'bound changed'):
-                        source_bundle._manifest(self.manifest().parent)
+                with mock.patch.object(source_bundle, 'RUNTIME_REVISION', self.revision(self.e2b)):
+                    if accepted:
+                        self.assertEqual(source_bundle._manifest(self.manifest().parent)[role]['pack']['bytes'], size)
+                    else:
+                        with self.assertRaisesRegex(ValueError, 'bound changed'):
+                            source_bundle._manifest(self.manifest().parent)
         value = json.loads(json.dumps(original))
         value['luci']['paths'][0]['bytes'] = (32 << 20) + 1
         self.manifest().write_text(json.dumps(value))

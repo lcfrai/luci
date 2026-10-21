@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import tempfile
@@ -22,8 +23,48 @@ builder_spec.loader.exec_module(builder)
 
 
 class AzureSetupTest(unittest.TestCase):
+    @staticmethod
+    def generated_json(path, value):
+        # These transport fixtures do not exercise the Linux-only private-file
+        # or directory-fsync contract. Never replace that production contract.
+        Path(path).write_bytes(installer.canonical(value) + b'\n')
+
+    def transport_fixture(self):
+        with mock.patch.object(installer, 'atomic_json', self.generated_json):
+            return self.fixture()
+
+    def test_private_selection_writers_retire_original_descriptor_if_mode_restriction_fails(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        # Only the generated Python block is exercised, with a nonsecret value
+        # and its one fixed /etc path replaced by the owned temporary fixture.
+        script = installer.initial_guest_script({'fixture': True})
+        block = script.split("python3 - <<'PY'\n", 1)[1].split('\nPY\n', 1)[0]
+        original_path = "pathlib.Path('/etc/luci/azure-controller-recovery.json')"
+        self.assertEqual(block.count(original_path), 1)
+        block = block.replace(original_path, 'pathlib.Path(' + repr(str(root / 'guest.json')) + ')')
+        for writer in ('atomic-json', 'guest-selection'):
+            with self.subTest(writer=writer):
+                captured = []
+                def refuse_mode(fd, mode):
+                    self.assertEqual(mode, 0o600)
+                    os.fstat(fd)  # The live original descriptor, not an invented ID.
+                    captured.append(fd)
+                    raise OSError('fixture mode refused')
+                with mock.patch.object(installer.os, 'fchmod', refuse_mode, create=True):
+                    with self.assertRaisesRegex(OSError, 'fixture mode refused'):
+                        if writer == 'atomic-json':
+                            installer.atomic_json(root / 'selection.json', {'fixture': True})
+                        else:
+                            exec(compile(block, '<owned-guest-selection-fixture>', 'exec'), {})
+                self.assertEqual(len(captured), 1)
+                with self.assertRaises(OSError):
+                    os.fstat(captured[0])
+                self.assertEqual(list(root.iterdir()), [])
+
     def test_large_luci_source_pack_survives_package_installer_and_private_builder_stage(self):
-        bundle, selected, _ = self.fixture()
+        bundle, selected, _ = self.transport_fixture()
         packed = b'L' * (20 << 20)
         (bundle / 'builder-source/luci.pack').write_bytes(packed)
         source = json.loads((bundle / 'builder-source/source.json').read_bytes())
@@ -39,9 +80,9 @@ class AzureSetupTest(unittest.TestCase):
         self.assertGreater(archive.stat().st_size, 8 << 20)
         self.assertEqual(package.verify_archive(archive, digest), files)
         self.assertEqual(installer.bundle(bundle), manifest)
-        core = SimpleNamespace(bundle=installer.bundle, private_json=installer.private_json,
+        core = SimpleNamespace(bundle=installer.bundle, private_json=lambda path: json.loads(Path(path).read_bytes()),
             requested=installer.requested, bounded_json=installer.bounded_json,
-            canonical=installer.canonical, atomic_json=installer.atomic_json)
+            canonical=installer.canonical, atomic_json=self.generated_json)
         stage = builder.source_payload(core, bundle, selected)
         self.assertGreater(stage['size'], 12 << 20)
         self.assertLessEqual(stage['size'], 64 << 20)
@@ -52,7 +93,7 @@ class AzureSetupTest(unittest.TestCase):
                 ('builder-source/e2b.pack', (4 << 20) + 1), ('LICENSE', (4 << 20) + 1),
                 ('builder-source/source.json', (2 << 20) + 1)):
             with self.subTest(name=name):
-                bundle, _, _ = self.fixture()
+                bundle, _, _ = self.transport_fixture()
                 manifest_path = bundle / 'manifest.json'
                 manifest = json.loads(manifest_path.read_bytes())
                 manifest['files'][name]['size'] = size
@@ -62,7 +103,7 @@ class AzureSetupTest(unittest.TestCase):
                     installer.bundle(bundle)
                 with self.assertRaises(ValueError):
                     package.check_sizes({name: size})
-        bundle, _, _ = self.fixture()
+        bundle, _, _ = self.transport_fixture()
         manifest_path = bundle / 'manifest.json'
         manifest = json.loads(manifest_path.read_bytes())
         for name in ('LICENSE', 'azure-setup/README.md', 'azure-setup/installer.py'):
