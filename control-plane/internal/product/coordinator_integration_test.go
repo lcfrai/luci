@@ -137,4 +137,14 @@ func TestCoordinatorReviewedScopeIntegratesStoppedCandidateBeforeIndependentChec
 	if err != nil || len(rows.Rows) != 1 || rows.Rows[0].Delivery == nil || rows.Rows[0].Delivery.CheckID == "" {
 		t.Fatal("integrated source did not reserve independent check", err)
 	}
+	// Reservation starts an asynchronous check. Observe its exact durable final
+	// result before fixture teardown can remove source or private history files.
+	check := waitProjectCheck(t, s, p.ID, rows.Rows[0].Delivery.CheckID)
+	if check.Status != "passed" || check.Commit != commit || check.SourceChanged || check.ResourcesHeld == nil || *check.ResourcesHeld || len(check.Commands) != 1 {
+		t.Fatalf("integrated check did not settle against its exact source: status=%s commit=%s want=%s sourceChanged=%t resourcesKnown=%t resourcesHeld=%t commands=%d", check.Status, check.Commit, commit, check.SourceChanged, check.ResourcesHeld != nil, check.ResourcesHeld != nil && *check.ResourcesHeld, len(check.Commands))
+	}
+	command := check.Commands[0]
+	if command.Status != "passed" || !command.CleanupConfirmed || command.ExitCode == nil || *command.ExitCode != 0 {
+		t.Fatalf("integrated check command did not finish with confirmed cleanup: status=%s cleanup=%t exit=%v", command.Status, command.CleanupConfirmed, command.ExitCode)
+	}
 }

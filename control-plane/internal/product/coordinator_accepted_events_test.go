@@ -531,8 +531,26 @@ func TestCoordinatorSavedDraftContinuesWithoutBrowserAndDoesNotReplayAfterRestar
 		t.Fatal(err)
 	}
 	rows, err = s.readContinuations(p, "alice")
-	if err != nil || len(rows.Rows) != 2 || rows.Rows[1].OriginTurnID != turn.ID || rows.Rows[1].PolicyRevision != policy.Revision || *starts != 0 {
-		t.Fatal("accepted draft did not bind one affected reviewed continuation", err)
+	if err != nil || len(rows.Rows) != 1 || rows.Rows[0].ID != anchor.ID || len(rows.ContextCommits) != 1 || rows.ContextCommits[0].Status != "confirmed" || *starts != 0 {
+		t.Fatalf("saved draft did not wait after its exact source commit: rows=%d commits=%+v starts=%d err=%v", len(rows.Rows), rows.ContextCommits, *starts, err)
+	}
+	review := s.acceptedCoordinatorReview(ctx, p, rows)
+	if review == nil || review.Status != "review-required" || review.Selection == nil || review.Selection.PlanRevision != plan.Revision+1 {
+		t.Fatalf("changed saved draft did not require a current contract: review=%+v", review)
+	}
+	s.coordinatorBackground.authorize = approveAcceptedChangedContract(t, s, p, h, ctx, req)
+	if err = s.RunCoordinatorOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = s.readContinuations(p, "alice")
+	if err != nil || len(rows.Rows) != 2 {
+		t.Fatalf("accepted draft did not retain exactly one new continuation: rows=%d starts=%d err=%v", len(rows.Rows), *starts, err)
+	}
+	continued := rows.Rows[1]
+	if continued.OriginTurnID != turn.ID || continued.PolicyRevision != policy.Revision || continued.Status != "queued" ||
+		len(continued.AcceptedEvents) != 1 || continued.AcceptedEvents[0].EventID != review.EventID ||
+		!sameImplementationSelection(continued.Run.ImplementationContext, *review.Selection) || *starts != 0 {
+		t.Fatalf("accepted draft lost reviewed binding: origin=%s want=%s policy=%d want=%d state=%s events=%+v selection=%+v starts=%d", continued.OriginTurnID, turn.ID, continued.PolicyRevision, policy.Revision, continued.Status, continued.AcceptedEvents, continued.Run.ImplementationContext, *starts)
 	}
 	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
 	if err != nil {
