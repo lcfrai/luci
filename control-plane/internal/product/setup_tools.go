@@ -31,16 +31,16 @@ type SSHKey struct {
 }
 
 type RuntimeJob struct {
-	OperationKind string `json:"operationKind,omitempty"`
-	InputProof *runtimeinstall.DebianInputProofOutcome `json:"inputProof,omitempty"`
-	ID              string                  `json:"id"`
-	Status          string                  `json:"status"`
-	Image           string                  `json:"image"`
-	Message         string                  `json:"message"`
-	CreatedAt       time.Time               `json:"createdAt"`
-	UpdatedAt       time.Time               `json:"updatedAt"`
-	Execution       *runtimeinstall.Outcome `json:"execution,omitempty"`
-	CancelRequested bool                    `json:"cancelRequested,omitempty"`
+	OperationKind   string                                  `json:"operationKind,omitempty"`
+	InputProof      *runtimeinstall.DebianInputProofOutcome `json:"inputProof,omitempty"`
+	ID              string                                  `json:"id"`
+	Status          string                                  `json:"status"`
+	Image           string                                  `json:"image"`
+	Message         string                                  `json:"message"`
+	CreatedAt       time.Time                               `json:"createdAt"`
+	UpdatedAt       time.Time                               `json:"updatedAt"`
+	Execution       *runtimeinstall.Outcome                 `json:"execution,omitempty"`
+	CancelRequested bool                                    `json:"cancelRequested,omitempty"`
 }
 
 // A first build downloads two base images, operating-system packages and the
