@@ -29,12 +29,13 @@ plan. Download the installer and use the commands shown only after Luci verifies
 its SHA-256 against that exact plan. This is the Develop microVM setup, separate
 from adding an ordinary deployment-target VM.
 
-Run those commands in **Linux or WSL2**, with Python 3, Git, OpenSSL, Terraform
+Run those commands in **Linux or WSL2**, with Python 3, OpenSSL, Terraform
 and Azure CLI available. Sign in to the intended Azure tenant/subscription with
 `az login`; user sign-in can require MFA. The selected account needs permission
 to deploy the reviewed resources and assign their scoped roles. Azure CLI login
 does not provide a private network route or model-provider access. The normal
-guided flow uses packaged source and temporary private Azure builders; local Go,
+guided flow installs Git and Go on temporary private Azure builders and restores
+the packaged source there; local Git, Go,
 a source checkout and a local Ubuntu image-build environment are not required.
 
 The plan's commands verify and extract `luci-azure-setup.tar`, create private

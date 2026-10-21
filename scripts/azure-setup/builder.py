@@ -56,7 +56,7 @@ def source_payload(core, bundle_root, selection_path, luci_source='', runtime_so
             import io
             info = tarfile.TarInfo('manifest.json'); info.size, info.mode = len(data), 0o600
             archive.addfile(info, io.BytesIO(data))
-        if target.stat().st_size > 12 << 20: raise ValueError('Embedded builder stage exceeds its bound')
+        if target.stat().st_size > 64 << 20: raise ValueError('Embedded builder stage exceeds its bound')
         target.chmod(0o600)
         receipt = {'version': 1, 'state': 'source_archive_prepared', 'sourceCommit': manifest['luciRevision'],
             'payloadPath': str(target), 'payloadSHA256': file_sha(target), 'size': target.stat().st_size, 'inputs': source_binding, 'connected': False}

@@ -35,7 +35,15 @@ SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure
 SOURCE_FILES = {'builder-source/source.json', 'builder-source/luci.pack', 'builder-source/e2b.pack'}
 EXPECTED_FILES = {"LICENSE"} | SCRIPT_FILES | SOURCE_FILES | {"terraform/" + name for name in MODULE_FILES | {".terraform.lock.hcl"}}
 PLAN_VERSION = 1
+MAX_BUNDLE = 64 << 20
+MAX_ENTRY = 4 << 20
+MAX_ORDINARY = 8 << 20
+PACK_LIMITS = {'builder-source/luci.pack': 40 << 20, 'builder-source/e2b.pack': 4 << 20}
 BACKEND_KEYS = {"subscriptionId", "resourceGroupName", "storageAccountName", "containerName", "key"}
+
+
+def member_limit(name):
+    return PACK_LIMITS.get(name, 2 << 20 if name == 'builder-source/source.json' else MAX_ENTRY)
 
 
 def canonical(value):
@@ -89,15 +97,16 @@ def bundle(root):
     files = manifest.get("files", {})
     if not isinstance(files, dict) or set(files) != EXPECTED_FILES:
         raise ValueError("Azure setup bundle is incomplete")
-    if any(not isinstance(row, dict) or set(row) != {'sha256','size'} or not isinstance(row['size'], int) or isinstance(row['size'], bool) or not 0 < row['size'] <= 4 << 20 for row in files.values()):
+    if any(not isinstance(row, dict) or set(row) != {'sha256','size'} or not isinstance(row['size'], int) or isinstance(row['size'], bool) or not 0 < row['size'] <= member_limit(name) for name, row in files.items()):
         raise ValueError('Azure setup bundle member bound is invalid')
-    if sum(row.get('size', 8 << 20) for row in files.values()) > 8 << 20:
+    if (sum(row['size'] for name, row in files.items() if name not in PACK_LIMITS) + (root / 'manifest.json').stat().st_size > MAX_ORDINARY or
+            sum(row['size'] for row in files.values()) + (root / 'manifest.json').stat().st_size > MAX_BUNDLE):
         raise ValueError('Azure setup bundle exceeds its bounded source inventory')
     for name, binding in files.items():
         path = root / name
         if (name.startswith("/") or "\\" in name or any(part in ("", ".", "..") for part in name.split("/")) or
                 any(parent.is_symlink() for parent in (path, *path.parents) if parent == root or root in parent.parents) or
-                not path.is_file() or not 0 < path.stat().st_size <= 4 << 20 or path.stat().st_size != binding.get("size") or
+                not path.is_file() or not 0 < path.stat().st_size <= member_limit(name) or path.stat().st_size != binding.get("size") or
                 hashlib.sha256(path.read_bytes()).hexdigest() != binding.get("sha256")):
             raise ValueError("Azure setup bundle member changed")
     source = bounded_json(root / 'builder-source/source.json', limit=2 << 20)

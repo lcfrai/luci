@@ -55,9 +55,21 @@ type azureBuilderSourceRole struct {
 	} `json:"pack"`
 }
 
-const azureSetupBundleMax = 8 << 20
+const azureSetupBundleMax = 64 << 20
 const azureSetupEntryMax = 4 << 20
+const azureSetupOrdinaryMax = 8 << 20
 const azureBuilderE2BRevision = "cf536c284434fdd2f09bbab35ec807a5dacc87e4"
+
+func azureSetupMemberMax(name string) int64 {
+	switch name {
+	case "builder-source/luci.pack":
+		return 40 << 20
+	case "builder-source/source.json":
+		return 2 << 20
+	default:
+		return azureSetupEntryMax
+	}
+}
 
 var azureSetupSHA = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var azureSetupGit = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -126,18 +138,25 @@ func readAzureSetupBundle(runtimeDir, projectRoot string) ([]byte, string, strin
 	}
 	reader := tar.NewReader(bytes.NewReader(data))
 	files := make(map[string][]byte)
+	var ordinaryBytes int64
 	for {
 		entry, nextErr := reader.Next()
 		if errors.Is(nextErr, io.EOF) {
 			break
 		}
-		if nextErr != nil || entry == nil || entry.Typeflag != tar.TypeReg || entry.Size < 1 || entry.Size > azureSetupEntryMax ||
+		if nextErr != nil || entry == nil || entry.Typeflag != tar.TypeReg || entry.Size < 1 || entry.Size > azureSetupMemberMax(entry.Name) ||
 			path.IsAbs(entry.Name) || path.Clean(entry.Name) != entry.Name || strings.Contains(entry.Name, `\`) ||
 			strings.HasPrefix(entry.Name, "../") || entry.Name == ".." || len(files) >= 40 {
 			return nil, "", "", errors.New("Azure setup bundle entry is unsafe")
 		}
 		if _, exists := files[entry.Name]; exists {
 			return nil, "", "", errors.New("Azure setup bundle entry is repeated")
+		}
+		if entry.Name != "builder-source/luci.pack" && entry.Name != "builder-source/e2b.pack" {
+			ordinaryBytes += entry.Size
+			if ordinaryBytes > azureSetupOrdinaryMax {
+				return nil, "", "", errors.New("Azure setup ordinary members exceed their aggregate bound")
+			}
 		}
 		part, readErr := io.ReadAll(io.LimitReader(reader, entry.Size+1))
 		if readErr != nil || int64(len(part)) != entry.Size {
@@ -230,7 +249,7 @@ func (s *Server) planAzureDevelop(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{
 		"version": 1, "status": "needs_prerequisites", "purpose": "develop-microvm", "provider": "azure",
-		"setupHostRequirement": "Linux or WSL2 with Python 3, Git, OpenSSL, Terraform and Azure CLI, signed in to the selected Azure subscription with a working private route. The guided flow restores packaged source and builds images on reviewed temporary private Azure builders; it does not require local Go or a local image-build environment. The Windows app downloads and verifies the bundle; run its commands in Linux or WSL2, not Windows PowerShell.",
+		"setupHostRequirement": "Linux or WSL2 with Python 3, OpenSSL, Terraform and Azure CLI, signed in to the selected Azure subscription with a working private route. The guided flow installs Git and Go, restores packaged source and builds images on reviewed temporary private Azure builders; it does not require local Git, Go or a local image-build environment. The Windows app downloads and verifies the bundle; run its commands in Linux or WSL2, not Windows PowerShell.",
 		"sourceCommit":         revision, "bundleSHA256": digest, "bundleURL": "/v1/setup/cloud/azure/bundle",
 		"sourceRepository":      "https://github.com/lcfrai/luci.git",
 		"advancedAccountInputs": []string{"Azure subscription", "existing resource group and durable state Blob", "unused private network", "KVM-capable VM sizes and zone", "SSH public key", "immutable gallery images", "exact private Key Vault references"},

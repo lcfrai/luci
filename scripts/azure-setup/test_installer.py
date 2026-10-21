@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
@@ -12,9 +13,66 @@ ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("azure_setup_installer", Path(__file__).with_name("installer.py"))
 installer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(installer)
+package_spec = importlib.util.spec_from_file_location('azure_setup_package', Path(__file__).with_name('package.py'))
+package = importlib.util.module_from_spec(package_spec)
+package_spec.loader.exec_module(package)
+builder_spec = importlib.util.spec_from_file_location('azure_setup_builder', Path(__file__).with_name('builder.py'))
+builder = importlib.util.module_from_spec(builder_spec)
+builder_spec.loader.exec_module(builder)
 
 
 class AzureSetupTest(unittest.TestCase):
+    def test_large_luci_source_pack_survives_package_installer_and_private_builder_stage(self):
+        bundle, selected, _ = self.fixture()
+        packed = b'L' * (20 << 20)
+        (bundle / 'builder-source/luci.pack').write_bytes(packed)
+        source = json.loads((bundle / 'builder-source/source.json').read_bytes())
+        source['luci']['pack'] = {'sha256': hashlib.sha256(packed).hexdigest(), 'bytes': len(packed)}
+        (bundle / 'builder-source/source.json').write_text(json.dumps(source))
+        files = {name: (bundle / name).read_bytes() for name in installer.EXPECTED_FILES}
+        manifest = {'version': 1, 'luciRevision': 'a' * 40,
+            'files': {name: {'sha256': hashlib.sha256(data).hexdigest(), 'size': len(data)} for name, data in files.items()}}
+        files['manifest.json'] = json.dumps(manifest).encode()
+        (bundle / 'manifest.json').write_bytes(files['manifest.json'])
+        archive = bundle.parent / 'installer.tar'
+        digest = package.write_archive(files, archive)
+        self.assertGreater(archive.stat().st_size, 8 << 20)
+        self.assertEqual(package.verify_archive(archive, digest), files)
+        self.assertEqual(installer.bundle(bundle), manifest)
+        core = SimpleNamespace(bundle=installer.bundle, private_json=installer.private_json,
+            requested=installer.requested, bounded_json=installer.bounded_json,
+            canonical=installer.canonical, atomic_json=installer.atomic_json)
+        stage = builder.source_payload(core, bundle, selected)
+        self.assertGreater(stage['size'], 12 << 20)
+        self.assertLessEqual(stage['size'], 64 << 20)
+        self.assertEqual(stage['inputs']['files']['builder-source/luci.pack']['sha256'], source['luci']['pack']['sha256'])
+
+    def test_role_bounds_and_ordinary_aggregate_refuse_before_member_reads(self):
+        for name, size in (('builder-source/luci.pack', (40 << 20) + 1),
+                ('builder-source/e2b.pack', (4 << 20) + 1), ('LICENSE', (4 << 20) + 1),
+                ('builder-source/source.json', (2 << 20) + 1)):
+            with self.subTest(name=name):
+                bundle, _, _ = self.fixture()
+                manifest_path = bundle / 'manifest.json'
+                manifest = json.loads(manifest_path.read_bytes())
+                manifest['files'][name]['size'] = size
+                manifest_path.write_text(json.dumps(manifest))
+                # No matching oversized file exists: refusal is on declared bounds.
+                with self.assertRaisesRegex(ValueError, 'member bound'):
+                    installer.bundle(bundle)
+                with self.assertRaises(ValueError):
+                    package.check_sizes({name: size})
+        bundle, _, _ = self.fixture()
+        manifest_path = bundle / 'manifest.json'
+        manifest = json.loads(manifest_path.read_bytes())
+        for name in ('LICENSE', 'azure-setup/README.md', 'azure-setup/installer.py'):
+            manifest['files'][name]['size'] = 3 << 20
+        manifest_path.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, 'bounded source inventory'):
+            installer.bundle(bundle)
+        with self.assertRaises(ValueError):
+            package.check_sizes({name: 3 << 20 for name in ('LICENSE', 'azure-setup/README.md', 'azure-setup/installer.py')})
+
     def test_runtime_and_both_controller_nics_bind_dsv5_acceleration_without_other_family_enablement(self):
         compute = (ROOT / 'infra/terraform/azure_embed_private/compute.tf').read_text()
         blocks = re.split(r'(?m)(?=^resource ")', compute)

@@ -18,12 +18,14 @@ import time
 
 VERSION = 1
 RUNTIME_REVISION = 'cf536c284434fdd2f09bbab35ec807a5dacc87e4'
-MAX_PACK = 4 << 20
+# Luci includes original embedded PDF fonts. E2B's sparse compose source keeps
+# its smaller envelope; neither exception changes the object/path census.
+MAX_PACK = {'luci': 40 << 20, 'e2b': 4 << 20}
 MAX_MANIFEST = 2 << 20
 MAX_PATHS = 2048
 MAX_OBJECTS = 8192
 MAX_EXPANDED = 64 << 20
-MAX_FILE = 16 << 20
+MAX_FILE = 32 << 20
 TIMEOUT = 120
 HEX40 = re.compile(r'[0-9a-f]{40}\Z')
 HEX64 = re.compile(r'[0-9a-f]{64}\Z')
@@ -203,8 +205,8 @@ def collect(luci_repo, luci_revision, e2b_repo, e2b_revision, output_dir):
             target = stage / (role + '.pack')
             with target.open('xb') as sink:
                 _git(repo, 'pack-objects', '--stdout', input_bytes=('\n'.join(sorted(ids)) + '\n').encode(), output=sink)
-            if not 0 < target.stat().st_size <= MAX_PACK:
-                raise ValueError('Builder source pack exceeds 4 MiB')
+            if not 0 < target.stat().st_size <= MAX_PACK[role]:
+                raise ValueError('Builder source pack exceeds its role bound')
             data[role] = {'revision': revision, 'tree': tree, 'pack': {'sha256': hashlib.sha256(target.read_bytes()).hexdigest(),
                 'bytes': target.stat().st_size}, 'objectCount': len(ids), 'expandedBytes': expanded, 'paths': paths}
         manifest = {'version': VERSION, 'kind': 'luci-azure-builder-source', 'luci': data['luci'], 'e2b': data['e2b']}
@@ -235,7 +237,7 @@ def _manifest(root):
         item = value[role]
         if not isinstance(item, dict) or set(item) != {'revision', 'tree', 'pack', 'objectCount', 'expandedBytes', 'paths'} or not isinstance(item['pack'], dict) or set(item['pack']) != {'sha256', 'bytes'}:
             raise ValueError('Builder source role manifest changed')
-        if not HEX40.fullmatch(item['revision']) or not HEX40.fullmatch(item['tree']) or not HEX64.fullmatch(item['pack']['sha256']) or not isinstance(item['pack']['bytes'], int) or isinstance(item['pack']['bytes'], bool) or not 0 < item['pack']['bytes'] <= MAX_PACK or not isinstance(item['objectCount'], int) or isinstance(item['objectCount'], bool) or not 0 < item['objectCount'] <= MAX_OBJECTS or not isinstance(item['expandedBytes'], int) or isinstance(item['expandedBytes'], bool) or not 0 < item['expandedBytes'] <= MAX_EXPANDED:
+        if not HEX40.fullmatch(item['revision']) or not HEX40.fullmatch(item['tree']) or not HEX64.fullmatch(item['pack']['sha256']) or not isinstance(item['pack']['bytes'], int) or isinstance(item['pack']['bytes'], bool) or not 0 < item['pack']['bytes'] <= MAX_PACK[role] or not isinstance(item['objectCount'], int) or isinstance(item['objectCount'], bool) or not 0 < item['objectCount'] <= MAX_OBJECTS or not isinstance(item['expandedBytes'], int) or isinstance(item['expandedBytes'], bool) or not 0 < item['expandedBytes'] <= MAX_EXPANDED:
             raise ValueError('Builder source identity or bound changed')
         paths = item['paths']
         if not isinstance(paths, list) or not 0 < len(paths) <= MAX_PATHS or paths != sorted(paths, key=lambda row: row['path']):
@@ -257,8 +259,8 @@ def _manifest(root):
 
 
 def _restore_role(root, item, role, target):
-    with _open_regular(root / (role + '.pack'), MAX_PACK) as source:
-        data = source.read(MAX_PACK + 1)
+    with _open_regular(root / (role + '.pack'), MAX_PACK[role]) as source:
+        data = source.read(MAX_PACK[role] + 1)
         if len(data) != item['pack']['bytes'] or hashlib.sha256(data).hexdigest() != item['pack']['sha256']:
             raise ValueError('Builder source pack changed')
         source.seek(0)

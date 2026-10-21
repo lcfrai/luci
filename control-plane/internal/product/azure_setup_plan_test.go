@@ -20,10 +20,17 @@ func testAzureSetupArchive(t *testing.T, runtimeDir string) string {
 }
 
 func testAzureSetupArchiveWithSource(t *testing.T, runtimeDir, sourceRevision string) string {
+	return testAzureSetupArchiveWithFiles(t, runtimeDir, sourceRevision, nil)
+}
+
+func testAzureSetupArchiveWithFiles(t *testing.T, runtimeDir, sourceRevision string, replace map[string][]byte) string {
 	t.Helper()
 	files := make(map[string][]byte)
 	for _, name := range azureSetupRequired {
 		files[name] = []byte("verified " + name + "\n")
+	}
+	for name, data := range replace {
+		files[name] = data
 	}
 	source := azureBuilderSourceRef{Version: 1, Kind: "luci-azure-builder-source"}
 	source.Luci.Revision = sourceRevision
@@ -131,8 +138,8 @@ func TestAzureDevelopSetupPlanAndBundleAreSourceBoundReads(t *testing.T) {
 		t.Fatal("plan lost source binding or pretended readiness", w.Body.String())
 	}
 	host, okay := plan["setupHostRequirement"].(string)
-	if !okay || !strings.Contains(host, "Python 3, Git, OpenSSL, Terraform and Azure CLI") ||
-		!strings.Contains(host, "temporary private Azure builders") || !strings.Contains(host, "does not require local Go") ||
+	if !okay || !strings.Contains(host, "Python 3, OpenSSL, Terraform and Azure CLI") ||
+		!strings.Contains(host, "temporary private Azure builders") || !strings.Contains(host, "does not require local Git, Go") ||
 		strings.Contains(host, "isolated Ubuntu image build environment") {
 		t.Fatal("guided setup advertised advanced local image-build prerequisites", host)
 	}
@@ -182,5 +189,47 @@ func TestAzureSetupBundleRejectsOversizedInputsBeforeReading(t *testing.T) {
 		if _, _, _, err := readAzureSetupBundle(runtimeDir, filepath.Join(runtimeDir, "projects")); err == nil {
 			t.Fatalf("oversized %s was read", row.name)
 		}
+	}
+}
+
+func TestAzureSetupBundleAllowsLargeLuciPackButRetainsOtherMemberBounds(t *testing.T) {
+	root := t.TempDir()
+	runtimeDir, projectsDir := filepath.Join(root, "runtime"), filepath.Join(root, "projects")
+	if err := os.Mkdir(runtimeDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	largePack := bytes.Repeat([]byte("p"), 9<<20)
+	want := testAzureSetupArchiveWithFiles(t, runtimeDir, strings.Repeat("a", 40), map[string][]byte{"builder-source/luci.pack": largePack})
+	data, digest, _, err := readAzureSetupBundle(runtimeDir, projectsDir)
+	if err != nil || digest != want || len(data) <= 8<<20 {
+		t.Fatalf("large source pack lost its independently verified installer binding: %v", err)
+	}
+	for _, name := range []string{"builder-source/luci.pack", "builder-source/e2b.pack", "LICENSE", "builder-source/source.json"} {
+		t.Run(name, func(t *testing.T) {
+			// A header alone must be refused on its declared size, before a body
+			// allocation or a missing-body error can obscure the role bound.
+			var buffer bytes.Buffer
+			writer := tar.NewWriter(&buffer)
+			if err := writer.WriteHeader(&tar.Header{Name: name, Mode: 0600, Size: azureSetupMemberMax(name) + 1, Typeflag: tar.TypeReg}); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(runtimeDir, "azure-setup.tar"), buffer.Bytes(), 0600); err != nil {
+				t.Fatal(err)
+			}
+			sum := sha256.Sum256(buffer.Bytes())
+			if err := os.WriteFile(filepath.Join(runtimeDir, "azure-setup.sha256"), []byte(hex.EncodeToString(sum[:])+"\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if _, _, _, err := readAzureSetupBundle(runtimeDir, projectsDir); err == nil || !strings.Contains(err.Error(), "entry is unsafe") {
+				t.Fatalf("ordinary or role member inherited the Luci pack allowance: %v", err)
+			}
+		})
+	}
+	testAzureSetupArchiveWithFiles(t, runtimeDir, strings.Repeat("a", 40), map[string][]byte{
+		"LICENSE": bytes.Repeat([]byte("x"), 3<<20), "azure-setup/installer.py": bytes.Repeat([]byte("x"), 3<<20),
+		"azure-setup/README.md": bytes.Repeat([]byte("x"), 3<<20),
+	})
+	if _, _, _, err := readAzureSetupBundle(runtimeDir, projectsDir); err == nil || !strings.Contains(err.Error(), "aggregate bound") {
+		t.Fatalf("ordinary aggregate inherited source pack capacity: %v", err)
 	}
 }

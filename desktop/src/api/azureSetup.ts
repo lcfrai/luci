@@ -134,7 +134,7 @@ export function createAzureSetupClient(client: Pick<ProductClient, "request" | "
       checkedPlan(plan);
       const scope = teamScopeGeneration();
       const blob = await client.requestBlob(bundlePath, { method: "GET" }, 60000, signal);
-      if (!blob.size || blob.size > 4 * 1024 * 1024) throw new Error("The Azure installer download is incomplete. Prepare fresh instructions and try again.");
+      if (!blob.size || blob.size > 64 * 1024 * 1024) throw new Error("The Azure installer download is incomplete. Prepare fresh instructions and try again.");
       if (!globalThis.crypto?.subtle) throw new Error("This browser cannot verify the installer. Open Luci on its supported local address and retry.");
       const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
       const actual = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");

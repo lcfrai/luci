@@ -17,8 +17,10 @@ import tempfile
 
 SHA = re.compile(r"[0-9a-f]{64}\Z")
 REV = re.compile(r"[0-9a-f]{40}\Z")
-MAX_ARCHIVE = 8 << 20
+MAX_ARCHIVE = 64 << 20
 MAX_ENTRY = 4 << 20
+MAX_ORDINARY = 8 << 20
+PACK_LIMITS = {'builder-source/luci.pack': 40 << 20, 'builder-source/e2b.pack': 4 << 20}
 SOURCE_MEMBERS = ('builder-source/source.json', 'builder-source/luci.pack', 'builder-source/e2b.pack')
 sys.dont_write_bytecode = True
 MODULE = ("compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf", ".terraform.lock.hcl")
@@ -29,6 +31,17 @@ SCRIPTS = ("azure-setup/installer.py", "azure-setup/credentials.py", "azure-setu
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def member_limit(name):
+    return PACK_LIMITS.get(name, 2 << 20 if name == 'builder-source/source.json' else MAX_ENTRY)
+
+
+def check_sizes(sizes):
+    if (any(not isinstance(size, int) or isinstance(size, bool) or not 0 < size <= member_limit(name) for name, size in sizes.items()) or
+            sum(size for name, size in sizes.items() if name not in PACK_LIMITS) > MAX_ORDINARY or
+            sum(sizes.values()) > MAX_ARCHIVE):
+        raise ValueError('Azure setup bundle member or aggregate exceeds its bound')
 
 
 def collect(source, revision, e2b_source=None):
@@ -64,6 +77,7 @@ def collect(source, revision, e2b_source=None):
 
 
 def write_archive(files, path):
+    check_sizes({name: len(data) for name, data in files.items()})
     with Path(path).open("wb") as sink, tarfile.open(fileobj=sink, mode="w", format=tarfile.USTAR_FORMAT) as tar:
         for name, data in sorted(files.items()):
             row = tarfile.TarInfo(name)
@@ -79,11 +93,13 @@ def verify_archive(path, expected):
     path = Path(path)
     if not SHA.fullmatch(expected) or path.is_symlink() or path.stat().st_size > MAX_ARCHIVE or sha(path.read_bytes()) != expected:
         raise ValueError("Azure setup bundle identity changed")
-    files = {}
+    files, sizes = {}, {}
     with tarfile.open(path, mode="r:") as tar:
         for row in tar:
-            if not row.isfile() or row.name in files or Path(row.name).is_absolute() or ".." in Path(row.name).parts or row.size == 0 or row.size > MAX_ENTRY:
+            if not row.isfile() or row.name in files or Path(row.name).is_absolute() or ".." in Path(row.name).parts or row.size <= 0 or row.size > member_limit(row.name):
                 raise ValueError("Azure setup bundle entry is unsafe")
+            sizes[row.name] = row.size
+            check_sizes(sizes)
             files[row.name] = tar.extractfile(row).read()
     wanted = {"LICENSE", "manifest.json"} | {"terraform/" + name for name in MODULE} | set(SCRIPTS) | set(SOURCE_MEMBERS)
     if set(files) != wanted:

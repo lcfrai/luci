@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createProductClient } from "../../api/product";
 import { setAuthToken } from "../../api/authSession";
 import { selectTeamScope } from "../../api/teamScope";
-import { readAzureConnectionDescriptor, readAzureSetupProgress, type AzureConnectionDescriptor, type AzureSetupPlan } from "../../api/azureSetup";
+import { createAzureSetupClient, readAzureConnectionDescriptor, readAzureSetupProgress, type AzureConnectionDescriptor, type AzureSetupPlan } from "../../api/azureSetup";
 import { AzureSetup } from "./AzureSetup";
 
 const archive = new TextEncoder().encode("source-bound fixture installer");
@@ -14,7 +14,7 @@ const archiveDigest = await webcrypto.subtle.digest("SHA-256", archive);
 const archiveSHA256 = Array.from(new Uint8Array(archiveDigest), byte => byte.toString(16).padStart(2, "0")).join("");
 const plan: AzureSetupPlan = {
   version: 1, status: "needs_prerequisites", purpose: "develop-microvm", provider: "azure",
-  setupHostRequirement: "Linux or WSL2 with Python 3, Go, Terraform, Azure CLI and an isolated Ubuntu build environment.",
+  setupHostRequirement: "Linux or WSL2 with Python 3, OpenSSL, Terraform and Azure CLI; temporary private Azure builders install Git and Go.",
   sourceCommit: "a".repeat(40), sourceRepository: "https://github.com/lcfrai/luci.git",
   bundleSHA256: archiveSHA256, bundleURL: "/v1/setup/cloud/azure/bundle",
   advancedAccountInputs: [], advancedSelectionTemplate: {},
@@ -148,6 +148,24 @@ it("refuses changed installer bytes and never downloads or enables copy", async 
   expect((await screen.findByRole("alert")).textContent).toMatch(/installer changed.*Prepare fresh instructions/);
   expect(URL.createObjectURL).not.toHaveBeenCalled(); expect(f.copy).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: "Copy setup commands" })).toHaveProperty("disabled", true);
+});
+
+it("verifies an installer above the old browser bound and refuses over 64 MiB before reading bytes", async () => {
+  const bytes = new Uint8Array(5 * 1024 * 1024);
+  bytes[bytes.length - 1] = 7;
+  const digest = await webcrypto.subtle.digest("SHA-256", bytes);
+  const sha = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  const blob = await new Response(bytes).blob();
+  const client = { request: vi.fn(), requestBlob: vi.fn().mockResolvedValue(blob) };
+  const api = createAzureSetupClient(client);
+  await expect(api.download({ ...plan, bundleSHA256: sha })).resolves.toBe(blob);
+  await expect(api.download(plan)).rejects.toThrow(/installer changed/);
+  const oversized = await new Response("not read").blob();
+  Object.defineProperty(oversized, "size", { value: 64 * 1024 * 1024 + 1 });
+  const read = vi.spyOn(oversized, "arrayBuffer");
+  client.requestBlob.mockResolvedValueOnce(oversized);
+  await expect(api.download(plan)).rejects.toThrow(/download is incomplete/);
+  expect(read).not.toHaveBeenCalled();
 });
 
 it("invalidates verified commands when deployment choices change", async () => {

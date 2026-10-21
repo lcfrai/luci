@@ -164,12 +164,52 @@ class SourceBundleTests(unittest.TestCase):
         self.manifest().unlink()
         self.manifest().write_bytes(original)
         with paths['luci.pack'].open('ab') as output:
-            output.truncate(source_bundle.MAX_PACK + 1)
+            output.truncate(source_bundle.MAX_PACK['luci'] + 1)
         with self.assertRaisesRegex(ValueError, 'bounded file'):
             self.restore()
         with mock.patch.object(source_bundle.subprocess, 'run', side_effect=subprocess.TimeoutExpired(['git'], 1)):
             with self.assertRaises(subprocess.TimeoutExpired):
                 source_bundle._git(self.luci, 'status', '--porcelain')
+
+
+    def test_original_asset_above_old_file_limit_is_retained_without_scope_changes(self):
+        name = 'control-plane/internal/product/distribute_pdf_fonts/fixture.ttf'
+        unit = b'original fixture bytes\n'
+        original = unit * ((17 << 20) // len(unit) + 1)
+        asset = self.luci / name
+        asset.parent.mkdir(parents=True)
+        asset.write_bytes(original)
+        subprocess.run(['git', '-C', str(self.luci), 'add', '-A'], check=True)
+        subprocess.run(['git', '-C', str(self.luci), '-c', 'user.name=Source Fixture',
+                        '-c', 'user.email=source@example.invalid', 'commit', '-qm', 'large asset'], check=True)
+        self.collect()
+        value = json.loads(self.manifest().read_bytes())
+        row, = [row for row in value['luci']['paths'] if row['path'] == name]
+        self.assertEqual(row['bytes'], len(original))
+        self.assertGreater(row['bytes'], 16 << 20)
+        with mock.patch.object(source_bundle, 'MAX_FILE', len(original) - 1):
+            with self.assertRaisesRegex(ValueError, 'file is oversized'):
+                source_bundle._tree(self.luci, self.revision(self.luci), 'luci')
+
+    def test_role_pack_and_source_file_bounds_are_checked_before_restore(self):
+        self.collect()
+        original = json.loads(self.manifest().read_bytes())
+        for role, size, accepted in (('luci', 5 << 20, True), ('luci', 40 << 20, True),
+                ('luci', (40 << 20) + 1, False), ('e2b', (4 << 20) + 1, False)):
+            with self.subTest(role=role, size=size):
+                value = json.loads(json.dumps(original))
+                value[role]['pack']['bytes'] = size
+                self.manifest().write_text(json.dumps(value))
+                if accepted:
+                    self.assertEqual(source_bundle._manifest(self.manifest().parent)[role]['pack']['bytes'], size)
+                else:
+                    with self.assertRaisesRegex(ValueError, 'bound changed'):
+                        source_bundle._manifest(self.manifest().parent)
+        value = json.loads(json.dumps(original))
+        value['luci']['paths'][0]['bytes'] = (32 << 20) + 1
+        self.manifest().write_text(json.dumps(value))
+        with self.assertRaisesRegex(ValueError, 'outside scope'):
+            source_bundle._manifest(self.manifest().parent)
 
 
 if __name__ == '__main__':
