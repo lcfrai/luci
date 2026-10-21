@@ -142,22 +142,61 @@ The accompanying `release-manifest.json` records the version, artifact hashes an
 
 Use Go 1.26.3, Node 24.19.0, Python 3.11 or newer, and the committed lockfiles. Install desktop dependencies with `npm ci` from `desktop/`. The scripts build the desktop assets themselves. Maintainer builds require the separately verified producer runtime payload and a clean checkout of E2B runtime at pinned revision `cf536c284434fdd2f09bbab35ec807a5dacc87e4`. The E2B checkout is embedded in the Azure setup bundle; installed users do not need it or its build tools. The build refuses a missing or changed E2B source before compiling the desktop.
 
-On Windows:
+Full releases also require the separately verified prebuilt document companion
+directory and its independently selected manifest SHA-256. The directory must
+contain `document-runtime-manifest-v1.json`, `document-image-linux-amd64.tar`,
+`document-runtime-notices-v1.json` and every declared original `notices/` file.
+Use the expected manifest pin from the reviewed producer handoff; hashing an
+untrusted directory's own manifest does not establish that expectation. The
+builder verifies the selected bytes, stages the companion and its notices into
+the portable and cloud packages, and records the binding in the release manifest.
+This is transport verification; runtime installation still performs its own
+archive/image/extractor verification before exposing extraction.
+
+On Windows, set `$VerifiedDocumentManifestSHA256` to that expected lowercase
+64-character pin before running:
 
 ```powershell
-./scripts/build-release.ps1 -Version 0.5.0 -RuntimePayloadDir C:\verified-runtime-payload -E2BSource C:\e2b-runtime-pinned
+./scripts/build-release.ps1 -Version 0.5.0 -RuntimePayloadDir C:\verified-runtime-payload -E2BSource C:\e2b-runtime-pinned -DocumentImageDir C:\verified-document-image -DocumentImageManifestSHA256 $VerifiedDocumentManifestSHA256
 # Also build the native Windows NSIS installer:
-./scripts/build-release.ps1 -Version 0.5.0 -RuntimePayloadDir C:\verified-runtime-payload -E2BSource C:\e2b-runtime-pinned -Native
+./scripts/build-release.ps1 -Version 0.5.0 -RuntimePayloadDir C:\verified-runtime-payload -E2BSource C:\e2b-runtime-pinned -DocumentImageDir C:\verified-document-image -DocumentImageManifestSHA256 $VerifiedDocumentManifestSHA256 -Native
 ```
 
 Native Windows builds also need stable Rust with the MSVC target and the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/). Tauri receives the Cargo lock flag after its argument separator: `npm run tauri -- build --bundles nsis -- --locked`. The [NSIS distribution documentation](https://v2.tauri.app/distribute/windows-installer/) describes the installer and signing options.
 
-On Linux or macOS:
+On Linux or macOS, set `VERIFIED_DOCUMENT_MANIFEST_SHA256` to the same kind of
+independently selected expected pin:
 
 ```bash
-bash scripts/build-release.sh 0.5.0 linux-amd64 /absolute/verified-runtime-payload --e2b-source /absolute/e2b-runtime-pinned
-bash scripts/build-release.sh 0.5.0 darwin-arm64 /absolute/verified-runtime-payload --e2b-source /absolute/e2b-runtime-pinned
+bash scripts/build-release.sh 0.5.0 linux-amd64 /absolute/verified-runtime-payload --e2b-source /absolute/e2b-runtime-pinned --document-image-dir /absolute/verified-document-image --document-image-manifest-sha256 "${VERIFIED_DOCUMENT_MANIFEST_SHA256:?Set the independently verified document manifest pin}"
+bash scripts/build-release.sh 0.5.0 darwin-arm64 /absolute/verified-runtime-payload --e2b-source /absolute/e2b-runtime-pinned --document-image-dir /absolute/verified-document-image --document-image-manifest-sha256 "${VERIFIED_DOCUMENT_MANIFEST_SHA256:?Set the independently verified document manifest pin}"
 ```
+
+Only an explicitly incomplete development build may omit the document companion:
+use `-AllowIncompleteDocumentRuntimeForDevelopment` in PowerShell or
+`--allow-incomplete-document-runtime-for-development` in Bash. Such a build is
+recorded as incomplete, lacks packaged document extraction and is not a full
+release. It cannot be combined with Windows release signing. An optional Windows
+source-proof profile is separate from the prebuilt companion; supply all three
+`DocumentProfileDir`/`DocumentProfileSHA256`/`DocumentToolDomainSHA256` parameters
+(Bash: `--document-profile-dir`, `--document-profile-sha256`,
+`--document-tool-domain-sha256`) together when that independently verified proof
+family is required. It is not a substitute for the document image.
+
+For Azure Develop deployment, the default Dsv5 sizes require Accelerated
+Networking, which the builder and private runtime/controller NIC configuration
+enable for that family. Other selected families retain their prior NIC setting;
+their size, nested virtualization and image-driver compatibility still require
+verification. [Microsoft's Dsv5 specification](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/dsv5-series)
+lists the supported features. Review actual outbound connectivity as part of the
+private-network handoff: the pinned AzureRM provider currently sends the older
+subnet outbound default, while Azure APIs released after March 31, 2026 default
+new VNets to private subnets. Those subnets need explicit outbound connectivity
+for public model/service endpoints. The private gateway is not an internet NAT;
+this source does not create one or authorize its cost.
+[Microsoft's outbound-access guidance](https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/default-outbound-access)
+describes the API-version distinction. A prepared deployment remains unconnected
+until its actual private route, installed runtime and authenticated join pass.
 
 Archives and their checksums are written under `artifacts/releases/0.5.0/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
 

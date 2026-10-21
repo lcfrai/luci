@@ -3,6 +3,9 @@ resource "azurerm_network_interface" "controller" {
   location            = var.location
   resource_group_name = var.resource_group_name
   tags                = var.tags
+  # Dsv5 requires Accelerated Networking; other explicitly selected families
+  # retain their existing non-accelerated configuration.
+  accelerated_networking_enabled = can(regex("^Standard_D[0-9]+s_v5$", var.controller_vm_size))
 
   ip_configuration {
     name                          = "private"
@@ -70,6 +73,7 @@ resource "azurerm_network_interface" "controller_recovery" {
   location            = var.location
   resource_group_name = var.resource_group_name
   tags                = var.tags
+  accelerated_networking_enabled = can(regex("^Standard_D[0-9]+s_v5$", var.controller_vm_size))
 
   ip_configuration {
     name                          = "private"
@@ -170,6 +174,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "runtime" {
   network_interface {
     name    = "private"
     primary = true
+    enable_accelerated_networking = can(regex("^Standard_D[0-9]+s_v5$", var.runtime_vm_size))
     ip_configuration {
       name                                   = "private"
       primary                                = true

@@ -15,6 +15,23 @@ spec.loader.exec_module(installer)
 
 
 class AzureSetupTest(unittest.TestCase):
+    def test_runtime_and_both_controller_nics_bind_dsv5_acceleration_without_other_family_enablement(self):
+        compute = (ROOT / 'infra/terraform/azure_embed_private/compute.tf').read_text()
+        blocks = re.split(r'(?m)(?=^resource ")', compute)
+        for resource, setting, size in (
+                ('azurerm_network_interface" "controller"', 'accelerated_networking_enabled', 'controller_vm_size'),
+                ('azurerm_network_interface" "controller_recovery"', 'accelerated_networking_enabled', 'controller_vm_size'),
+                ('azurerm_linux_virtual_machine_scale_set" "runtime"', 'enable_accelerated_networking', 'runtime_vm_size')):
+            with self.subTest(resource=resource):
+                block, = [block for block in blocks if block.startswith('resource "' + resource)]
+                expression = re.search(r'(?m)^\s*' + setting + r'\s*=\s*can\(regex\("([^"]+)", var\.([a-z_]+)\)\)', block)
+                self.assertIsNotNone(expression)
+                self.assertEqual(expression[2], size)
+                for sku in ('Standard_D2s_v5', 'Standard_D4s_v5', 'Standard_D8s_v5'):
+                    self.assertIsNotNone(re.search(expression[1], sku))
+                for sku in ('Standard_B2s', 'Standard_D4s_v3', 'Standard_D4_v5'):
+                    self.assertIsNone(re.search(expression[1], sku))
+
     def fixture(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

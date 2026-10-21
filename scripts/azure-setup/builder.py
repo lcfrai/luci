@@ -229,7 +229,10 @@ def allocate(core, bundle_root, selection_path, plan_digest, role, arm, acknowle
     properties = (image or {}).get('properties', {})
     if properties.get('osDiskImage', {}).get('operatingSystem') != 'Linux' or properties.get('hyperVGeneration') != 'V2' or properties.get('architecture') != 'x64':
         raise ValueError('Exact available x64 Gen2 Canonical Ubuntu base metadata is required')
-    nic = {'location': proposal['region'], 'tags': entry['tags'], 'properties': {'ipConfigurations': [{'name': 'private', 'properties': {'subnet': {'id': proposal['endpointSubnetID']}, 'privateIPAllocationMethod': 'Dynamic'}}]}}
+    # The default Dsv5 builder requires this NIC capability. Do not enable it
+    # for arbitrary user-selected families whose capability is not established.
+    accelerated = re.fullmatch(r'Standard_D[0-9]+s_v5', proposal['builderSize']) is not None
+    nic = {'location': proposal['region'], 'tags': entry['tags'], 'properties': {'enableAcceleratedNetworking': accelerated, 'ipConfigurations': [{'name': 'private', 'properties': {'subnet': {'id': proposal['endpointSubnetID']}, 'privateIPAllocationMethod': 'Dynamic'}}]}}
     key = role + ':nic'
     if key not in journal['completed']:
         return arm_create(core, path, journal, key, entry['nicID'], '2023-09-01', nic, arm, acknowledge, reconcile)
@@ -266,6 +269,8 @@ def owned_vm(proposal, role, arm):
     addresses = (nic or {}).get('properties', {}).get('ipConfigurations', [])
     if not nic or nic.get('tags') != entry['tags'] or len(addresses) != 1 or any(value.get('properties', {}).get('publicIPAddress') or value.get('properties', {}).get('subnet', {}).get('id', '').lower() != proposal['endpointSubnetID'].lower() for value in addresses):
         raise ValueError('Builder NIC must retain its exact existing private subnet with no public address')
+    if re.fullmatch(r'Standard_D[0-9]+s_v5', proposal['builderSize']) and nic.get('properties', {}).get('enableAcceleratedNetworking') is not True:
+        raise ValueError('Dsv5 builder NIC must retain required Accelerated Networking')
     return row
 
 

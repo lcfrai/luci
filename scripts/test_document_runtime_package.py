@@ -2,8 +2,10 @@
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -267,6 +269,56 @@ class DocumentRuntimePackageTests(unittest.TestCase):
         self.assertEqual(retained.read_bytes(), (directory / 'notices/LICENSE-fixture.txt').read_bytes())
         self.assertEqual((output / selected['manifestFile']).read_bytes(), (directory / documents.IMAGE_MANIFEST).read_bytes())
         self.assertEqual((output / selected['noticeClosureFile']).read_bytes(), (directory / documents.IMAGE_NOTICES).read_bytes())
+
+
+@unittest.skipUnless(os.name == 'posix' and shutil.which('bash'), 'POSIX release argument checks require Bash')
+class PosixDocumentReleaseArgumentsTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        for name in ('runtime', 'e2b', 'document image', 'proof'):
+            (self.root / name).mkdir()
+        source = Path(__file__).with_name('build-release.sh').read_text()
+        # Execute only the actual argument/preflight section, stopping before
+        # any tool lookup/build/staging. No archive, compiler or package runs.
+        prefix, boundary, _ = source.partition('for executable in go npm python3; do')
+        self.assertTrue(boundary)
+        self.script = self.root / 'release-arguments.sh'
+        self.script.write_text(prefix + '\nprintf "%s\\0" "$has_document_image" "$has_document_proof" "$allow_incomplete_document_runtime" "$document_image_dir" "$document_image_manifest_sha256"\n')
+
+    def run_arguments(self, *args):
+        return subprocess.run(['bash', str(self.script), '0.5.0', 'linux-amd64', str(self.root / 'runtime'),
+                               '--e2b-source', str(self.root / 'e2b'), *args],
+                              stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              timeout=5, check=False)
+
+    def test_full_release_missing_or_partial_companion_refuses_before_build(self):
+        for args in ((), ('--document-image-dir', str(self.root / 'document image')),
+                     ('--document-image-manifest-sha256', 'a' * 64),
+                     ('--document-image-dir', str(self.root / 'document image'), '--document-image-manifest-sha256', 'A' * 64)):
+            with self.subTest(args=args):
+                result = self.run_arguments(*args)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, b'')
+
+    def test_verified_companion_paths_and_independent_pins_survive_argument_parsing(self):
+        directory = str(self.root / 'document image')
+        result = self.run_arguments('--document-image-dir', directory, '--document-image-manifest-sha256', 'a' * 64,
+                                    '--document-profile-dir', str(self.root / 'proof'),
+                                    '--document-profile-sha256', 'b' * 64, '--document-tool-domain-sha256', 'c' * 64)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(result.stdout.split(b'\0'), [b'true', b'true', b'false', directory.encode(), b'a' * 64, b''])
+
+    def test_only_explicit_development_omission_is_accepted_and_duplicate_or_partial_pins_refuse(self):
+        flag = '--allow-incomplete-document-runtime-for-development'
+        result = self.run_arguments(flag)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(result.stdout.split(b'\0')[:3], [b'false', b'false', b'true'])
+        for args in ((flag, flag), (flag, '--document-profile-sha256', 'b' * 64),
+                     ('--document-image-dir', str(self.root / 'document image'), '--document-image-dir', str(self.root / 'document image'), '--document-image-manifest-sha256', 'a' * 64)):
+            with self.subTest(args=args):
+                self.assertEqual(self.run_arguments(*args).returncode, 2)
 
 
 if __name__ == '__main__':

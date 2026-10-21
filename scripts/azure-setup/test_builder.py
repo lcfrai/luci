@@ -22,7 +22,7 @@ builder, guest = module('builder'), module('builder_guest')
 
 
 class BuilderTests(unittest.TestCase):
-    def fixture(self):
+    def fixture(self, builder_size='Standard_D4s_v5'):
         temporary = tempfile.TemporaryDirectory(); self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
         def write(path, value): Path(path).write_text(json.dumps(value))
@@ -40,7 +40,7 @@ class BuilderTests(unittest.TestCase):
         write(root / 'azure-builder-source.json', {'state': 'source_archive_prepared', 'sourceCommit': 'a' * 40, 'payloadPath': str(payload), 'payloadSHA256': builder.file_sha(payload), 'size': payload.stat().st_size})
         write(root / 'azure-private-location.json', {'endpointSubnetID': '/subscriptions/' + subscription + '/resourceGroups/existing/providers/Microsoft.Network/virtualNetworks/private/subnets/endpoints'})
         write(root / 'azure-foundation-state.json', {'state': 'foundation_bound_private_data_route_observed'})
-        proposal = builder.plan(core, root, path, {'publisher': 'Canonical', 'offer': 'ubuntu-24_04-lts', 'sku': 'server', 'version': '24.04.202610010'}, 'Standard_D4s_v5', 'luciGallery', '1.0.1', 7200)
+        proposal = builder.plan(core, root, path, {'publisher': 'Canonical', 'offer': 'ubuntu-24_04-lts', 'sku': 'server', 'version': '24.04.202610010'}, builder_size, 'luciGallery', '1.0.1', 7200)
         resources, calls = {}, []
         storage_id = proposal['containerID'].split('/blobServices/')[0]
         resources[storage_id] = {'properties': {'publicNetworkAccess': 'Disabled', 'allowSharedKeyAccess': False}}
@@ -128,6 +128,24 @@ class BuilderTests(unittest.TestCase):
         for _ in range(3): builder.retire_staging(*common, arm, cli, acknowledge=True)
         self.assertNotIn(proposal['containerID'], resources)
         for role in ('runtime', 'controller'): self.assertIn(proposal['roles'][role]['imageVersionID'], resources)
+
+    def test_dsv5_builder_requests_and_rechecks_required_accelerated_networking(self):
+        root, core, path, proposal, resources, calls, arm, cli = self.fixture()
+        common = (core, root, path, proposal['planDigest'])
+        for _ in range(2): builder.allocate(*common, 'runtime', arm, acknowledge=True)
+        nic = resources[proposal['roles']['runtime']['nicID']]
+        self.assertIs(nic['properties']['enableAcceleratedNetworking'], True)
+        self.assertTrue(builder.owned_vm(proposal, 'runtime', arm))
+        nic['properties']['enableAcceleratedNetworking'] = False
+        before = len(calls)
+        with self.assertRaisesRegex(ValueError, 'Accelerated Networking'):
+            builder.owned_vm(proposal, 'runtime', arm)
+        self.assertTrue(all(method == 'GET' for method, _ in calls[before:]))
+
+    def test_other_selected_builder_family_does_not_gain_unverified_nic_capability(self):
+        root, core, path, proposal, resources, calls, arm, cli = self.fixture('Standard_B2s')
+        builder.allocate(core, root, path, proposal['planDigest'], 'runtime', arm, acknowledge=True)
+        self.assertIs(resources[proposal['roles']['runtime']['nicID']]['properties']['enableAcceleratedNetworking'], False)
 
     def test_private_single_active_and_cost_refusals_precede_mutations(self):
         root, core, path, proposal, resources, calls, arm, cli = self.fixture()
