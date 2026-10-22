@@ -65,11 +65,11 @@ function RecordGroup<T extends { id: string }>({ title, help, items, fields, cre
   </details>;
 }
 
-export function DefinitionWorkspace({ projectId }: { projectId: string }) {
+export function DefinitionWorkspace({ projectId, onContextEdit }: { projectId: string; onContextEdit?(): void }) {
   const scope = useProjectDraftScope(projectId);
-  return <ProjectDefinition key={`${scope}:${projectId}`} projectId={projectId} scope={scope} />;
+  return <ProjectDefinition key={`${scope}:${projectId}`} projectId={projectId} scope={scope} onContextEdit={onContextEdit} />;
 }
-function ProjectDefinition({ projectId, scope }: { projectId: string; scope: string | null }) {
+function ProjectDefinition({ projectId, scope, onContextEdit }: { projectId: string; scope: string | null; onContextEdit?(): void }) {
   const access = useProjectAccess(projectId);
   const { canRead, canEdit } = access;
   const [spec, setSpec] = useState<ProjectSpecification | null>(null);
@@ -84,11 +84,11 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
     if (!spec || !canRead) return;
     const edit = () => {
       const target = takeProjectContextEdit(scope, projectId, "definition");
-      if (target) { setTab("specification"); setQuestionTarget(target.questionId ?? null); setQuestionNotice(""); }
+      if (target) { onContextEdit?.(); setTab("specification"); setQuestionTarget(target.questionId ?? null); setQuestionNotice(""); }
     };
     edit(); window.addEventListener(PROJECT_CONTEXT_EDIT, edit);
     return () => window.removeEventListener(PROJECT_CONTEXT_EDIT, edit);
-  }, [scope, projectId, !!spec, canRead]);
+  }, [scope, projectId, !!spec, canRead, onContextEdit]);
   const [dirty, setDirty] = useState(false);
   const draftBase = base ? JSON.stringify(base) : null;
   const draft = useProjectDraft({ scope, kind: "definition", base: draftBase, baseValue: savedSpec.current, value: spec, dirty, valid: definitionDraftValid });
