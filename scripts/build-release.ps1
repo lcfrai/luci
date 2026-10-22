@@ -247,6 +247,8 @@ try {
         $luciOverride | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $luciTauriOverride -Encoding utf8NoBOM
         Push-Location (Join-Path $luciRoot 'desktop')
         try { & $luciNpm run tauri -- build --config $luciTauriOverride --bundles nsis -- --locked; Confirm-Exit 'Native NSIS build' } finally { Pop-Location }
+        & (Join-Path $env:CARGO_TARGET_DIR 'release/luci.exe') --check-embedded-frontend
+        Confirm-Exit 'Native embedded frontend verification'
         $luciInstaller = Join-Path $env:CARGO_TARGET_DIR ('release/bundle/nsis/Luci_' + $Version + '_x64-setup.exe')
         if (-not (Test-Path -LiteralPath $luciInstaller -PathType Leaf)) { throw ('Missing expected installer: ' + $luciInstaller) }
         if ($luciSigningContext) {

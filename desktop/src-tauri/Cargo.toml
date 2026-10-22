@@ -16,6 +16,11 @@ edition = "2021"
 name = "luci_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# Standalone Cargo builds must embed the frontend, just like `tauri build`.
+# Keep this opt-in so `tauri dev` can continue using its development server.
+custom-protocol = ["tauri/custom-protocol"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

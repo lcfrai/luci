@@ -202,8 +202,59 @@ fn bootstrap_token(state: tauri::State<'_, LocalService>) -> Result<Option<Strin
     Ok(Some(token.to_owned()))
 }
 
+fn validate_embedded_frontend(context: &tauri::Context<tauri::Wry>) -> Result<usize, String> {
+    let assets = context.assets();
+    let index = assets
+        .get(&"index.html".into())
+        .ok_or("index.html is absent; build the standalone app with --features custom-protocol")?;
+    let html = std::str::from_utf8(&index).map_err(|_| "index.html is not UTF-8")?;
+    if !html.contains("id=\"root\"") || !html.contains("type=\"module\"") {
+        return Err("index.html is not the Luci application entrypoint".into());
+    }
+    // Vite emits double-quoted src/href attributes. Inspect the compiled asset
+    // provider, not an adjacent web directory which Tauri does not serve.
+    let mut checked = 0;
+    let mut javascript = false;
+    let mut stylesheet = false;
+    for attribute in ["src=\"", "href=\""] {
+        for suffix in html.split(attribute).skip(1) {
+            let reference = suffix.split('"').next().unwrap_or_default();
+            if reference.is_empty() || reference.starts_with('#')
+                || reference.starts_with("//") || reference.contains(':')
+            {
+                continue;
+            }
+            let path = reference.split(['?', '#']).next().unwrap_or_default();
+            let path = path.strip_prefix("./").unwrap_or(path);
+            let content = assets.get(&path.into())
+                .ok_or_else(|| format!("entrypoint asset is absent: {path}"))?;
+            if content.is_empty() {
+                return Err(format!("entrypoint asset is empty: {path}"));
+            }
+            javascript |= path.ends_with(".js");
+            stylesheet |= path.ends_with(".css");
+            checked += 1;
+        }
+    }
+    if !javascript || !stylesheet {
+        return Err("entrypoint must reference embedded JavaScript and CSS".into());
+    }
+    Ok(checked)
+}
+
+/// Checks the actual compiled assets without opening a window, starting a
+/// service, or reading workspace state. Used before accepting native packages.
+pub fn check_embedded_frontend() -> Result<usize, String> {
+    validate_embedded_frontend(&tauri::generate_context!())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let context = tauri::generate_context!();
+    if !tauri::is_dev() {
+        validate_embedded_frontend(&context)
+            .expect("Luci's embedded frontend is incomplete; rebuild the native package");
+    }
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
@@ -295,7 +346,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("Luci could not start its desktop window");
     app.run(|handle, event| {
         if matches!(event, tauri::RunEvent::Exit) {
