@@ -39,10 +39,13 @@ it("recovers cloud settings across both Deploy tabs and navigation without resto
   await userEvent.click(screen.getByRole("tab", { name: "Your cloud" }));
   await readyForm();
   await userEvent.selectOptions(screen.getByLabelText("Deployment server"), target.id);
+  await userEvent.selectOptions(screen.getByLabelText("Repository access"), "private");
+  expect(screen.getByLabelText("Repository access")).toHaveProperty("value", "private");
   edit("Application domain", "launch.example.com");
   await userEvent.click(screen.getByText("Build and health options", { selector: "summary" }));
   edit("Cloud Dockerfile", "deploy/Dockerfile"); edit("Cloud app port", "8080"); edit("Health check path", "/ready");
-  edit("Deployment server key ID", "ephemeral-server-key");
+  fireEvent.change(screen.getByRole("textbox", { name: /^Deployment server key ID/ }), { target: { value: "ephemeral-server-key" } });
+  expect(screen.getByRole("textbox", { name: /^Deployment server key ID/ })).toHaveProperty("value", "ephemeral-server-key");
   expect(draftRecords()).toHaveLength(1);
   expect(draftRecords()[0]).not.toContain("ephemeral-server-key");
   expect(JSON.parse(draftRecords()[0]).value).toMatchObject({ targetId: target.id, domain: "launch.example.com", port: 8080, healthPath: "/ready", dockerfile: "deploy/Dockerfile" });
@@ -56,7 +59,8 @@ it("recovers cloud settings across both Deploy tabs and navigation without resto
     await userEvent.click(screen.getByRole("button", { name: "Restore cloud deployment draft" }));
     expect(screen.getByLabelText("Application domain")).toHaveProperty("value", "launch.example.com");
     expect(screen.getByLabelText("Cloud app port")).toHaveProperty("value", "8080");
-    expect(screen.getByLabelText("Deployment server key ID")).toHaveProperty("value", "");
+    expect(screen.getByLabelText("Repository access")).toHaveProperty("value", "private");
+    expect(screen.getByRole("textbox", { name: /^Deployment server key ID/ })).toHaveProperty("value", "");
   }
   act(() => useCockpit.getState().setLens("design"));
   expect(useCockpit.getState().pendingNavigation).toEqual({ kind: "lens", lens: "design" });

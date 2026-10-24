@@ -6,7 +6,7 @@
 // { prefs: {...} } shape would silently drop every key added after the snapshot was written.
 
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { createDataSlice, initialDataState, type DataSlice } from "./slices/dataSlice";
 import { createUiSlice, initialUiState, type UiSlice } from "./slices/uiSlice";
 import { createPrefsSlice, initialPrefsState, type PrefsSlice } from "./slices/prefsSlice";
@@ -64,6 +64,37 @@ export function migrate(persisted: unknown, from: number): Partial<Persisted> {
   return persisted as Partial<Persisted>;
 }
 
+/** Preference persistence is best effort. Zustand writes after *every* set, including live
+ *  draft-guard registration; an unavailable browser must not throw out of that React effect.
+ *  Resolve storage per operation so a denied getter can recover without restarting. Reads
+ *  still reach onRehydrateStorage's error handler. This boundary does not wrap draft storage:
+ *  useProjectDraft must continue reporting failed retention and protecting unsaved edits. */
+function createPreferenceStorage(): StateStorage {
+  let writeFailed = false;
+  let removalFailed = false;
+  return {
+    getItem: name => localStorage.getItem(name),
+    setItem: (name, value) => {
+      try {
+        localStorage.setItem(name, value);
+        writeFailed = false;
+      } catch {
+        if (!writeFailed) console.error("[cockpit] could not save preferences; changes remain in memory only.");
+        writeFailed = true;
+      }
+    },
+    removeItem: name => {
+      try {
+        localStorage.removeItem(name);
+        removalFailed = false;
+      } catch {
+        if (!removalFailed) console.error("[cockpit] could not clear saved preferences; the browser snapshot may still remain.");
+        removalFailed = true;
+      }
+    },
+  };
+}
+
 /** A fresh, independently persisted store. `useCockpit` is the app's one instance; the
  *  factory exists so a test can build a store over a seeded localStorage without disturbing
  *  the singleton every other suite shares. */
@@ -78,7 +109,7 @@ export const createCockpitStore = () =>
       {
         name: PERSIST_KEY,
         version: PERSIST_VERSION,
-        storage: createJSONStorage(() => localStorage),
+        storage: createJSONStorage(createPreferenceStorage),
         partialize,
         migrate,
         // Contract §12, open question 3. The only report a swallowed storage failure gets.
