@@ -6,12 +6,15 @@ import { RecordedRunAttention } from "../common/RecordedRunAttention";
 import type { ProjectRunAttention } from "../../api/runAttention";
 import "./project-understanding.css";
 
-type Stage = OrchestratorView["nextAction"]["lens"];
+// The overview can visit every product stage. A navigation destination does not extend
+// the server's narrower next-action schema or authorize an operation in that stage.
+type Stage = OrchestratorView["nextAction"]["lens"] | "distribute";
 const stages: { lens: Stage; label: string; purpose: string }[] = [
   { lens: "discover", label: "Discover", purpose: "Agree the idea and outcomes" },
   { lens: "design", label: "Design", purpose: "Decide how it should work" },
   { lens: "develop", label: "Develop", purpose: "Build and verify the agreed work" },
   { lens: "deploy", label: "Deploy", purpose: "Release and look after the application" },
+  { lens: "distribute", label: "Distribute", purpose: "Prepare the product for people to use and adopt" },
 ];
 const runLabels: Record<string, string> = {
   ready: "Build prepared", coding: "Building", "awaiting-checks": "Ready for independent checks",

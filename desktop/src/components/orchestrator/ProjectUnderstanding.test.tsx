@@ -5,6 +5,19 @@ import { ProjectUnderstanding } from "./ProjectUnderstanding";
 import { context, view } from "./fixtures";
 import type { OrchestratorRunSummary } from "../../api/orchestrator";
 
+it("offers all five stages to a reader without turning Distribute navigation into an operation", async () => {
+  const navigate = vi.fn(), ask = vi.fn(), reply = vi.fn(), edit = vi.fn();
+  render(<ProjectUnderstanding view={view()} onAsk={ask} onReply={reply} onNavigate={navigate} onEdit={edit} canEdit={false} />);
+  const nav = screen.getByRole("navigation", { name: "Project stages" });
+  expect(within(nav).getAllByRole("button").map(button => button.textContent)).toEqual(["Discover", "Design", "Develop", "Deploy", "Distribute"]);
+  const suggested = within(nav).getByRole("button", { name: "Open Design stage" });
+  expect(suggested.getAttribute("aria-current")).toBe("step");
+  await userEvent.click(within(nav).getByRole("button", { name: "Open Distribute stage" }));
+  expect(navigate).toHaveBeenCalledExactlyOnceWith("distribute");
+  expect(suggested.getAttribute("aria-current")).toBe("step");
+  expect(ask).not.toHaveBeenCalled(); expect(reply).not.toHaveBeenCalled(); expect(edit).not.toHaveBeenCalled();
+});
+
 it("targets the implementation plan for its next action even when the reader cannot edit", async () => {
   const edit = vi.fn(), navigate = vi.fn(), ask = vi.fn();
   render(<ProjectUnderstanding view={view({ nextAction: { id: "plan", label: "Review implementation tasks", reason: "Review the plan against the current definition.", lens: "develop" } })} onAsk={ask} onReply={vi.fn()} onNavigate={navigate} onEdit={edit} canEdit={false} />);

@@ -91,7 +91,9 @@ export function TopBar({
             ? "Discover"
             : lens === "design"
               ? "Design"
-              : "Deploy"}
+              : lens === "distribute"
+                ? "Distribute"
+                : "Deploy"}
         </span>
       )}
       <span className="top-spacer" />
