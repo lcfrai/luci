@@ -29,6 +29,7 @@ type swarmFixtureTiming struct {
 
 type swarmSessionFixture struct {
 	connectionID string
+	harness      string
 	peers        *[]*swarmSessionFixture
 	timings      []swarmFixtureTiming
 	env          *sessionsEnv
@@ -48,7 +49,14 @@ func newSwarmSessionFixture(t *testing.T) *swarmSessionFixture {
 
 func newSwarmSessionFixtureTasks(t *testing.T, tasksToReserve ...string) *swarmSessionFixture {
 	t.Helper()
-	f := &swarmSessionFixture{storePath: filepath.Join(t.TempDir(), "sessions.json")}
+	return newSwarmSessionFixtureRoute(t, "codex", func(env *sessionsEnv) string {
+		return sessionSaveConnection(t, env, 0, "", "codex", true).ID
+	}, tasksToReserve...)
+}
+
+func newSwarmSessionFixtureRoute(t *testing.T, harness string, saveConnection func(*sessionsEnv) string, tasksToReserve ...string) *swarmSessionFixture {
+	t.Helper()
+	f := &swarmSessionFixture{storePath: filepath.Join(t.TempDir(), "sessions.json"), harness: harness}
 	peers := []*swarmSessionFixture{f}
 	f.peers = &peers
 	var err error
@@ -76,7 +84,7 @@ func newSwarmSessionFixtureTasks(t *testing.T, tasksToReserve ...string) *swarmS
 		d.ProjectsDir = f.options.ProjectsDir
 	})
 	f.env.mux = f.env.api.guarded
-	f.connectionID = sessionSaveConnection(t, f.env, 0, "", "codex", true).ID
+	f.connectionID = saveConnection(f.env)
 	f.prepareProject(t, "swarm-session-app", tasksToReserve...)
 	return f
 }
@@ -85,7 +93,7 @@ func newSwarmSessionFixtureTasks(t *testing.T, tasksToReserve ...string) *swarmS
 // registry. Four independent fixtures would not exercise a global scheduler.
 func (f *swarmSessionFixture) anotherProject(t *testing.T, name string, tasksToReserve ...string) *swarmSessionFixture {
 	t.Helper()
-	next := &swarmSessionFixture{env: f.env, options: f.options, storePath: f.storePath, store: f.store, connectionID: f.connectionID, peers: f.peers}
+	next := &swarmSessionFixture{env: f.env, options: f.options, storePath: f.storePath, store: f.store, connectionID: f.connectionID, harness: f.harness, peers: f.peers}
 	*f.peers = append(*f.peers, next)
 	next.prepareProject(t, name, tasksToReserve...)
 	return next
@@ -122,7 +130,7 @@ func (f *swarmSessionFixture) prepareProject(t *testing.T, name string, tasksToR
 	}
 	// This controlled task fixture deliberately opts into unattended execution;
 	// production must never convert an existing Ask route to Bypass.
-	body, _ = json.Marshal(map[string]any{"idempotencyKey": "create-swarm-session-fixture", "worktreeId": project.WorktreeID(f.owner.Path), "harness": "codex", "permissionMode": "bypass", "agentConnectionId": f.connectionID, "outcome": "preview", "implementationContext": selection})
+	body, _ = json.Marshal(map[string]any{"idempotencyKey": "create-swarm-session-fixture", "worktreeId": project.WorktreeID(f.owner.Path), "harness": f.harness, "permissionMode": "bypass", "agentConnectionId": f.connectionID, "outcome": "preview", "implementationContext": selection})
 	started := time.Now()
 	f.readRun(t, f.env.do(t, "POST", f.base(), string(body)), 201)
 	f.timings = append(f.timings, swarmFixtureTiming{Stage: "create-run", Elapsed: time.Since(started)})

@@ -202,7 +202,7 @@ func BuildProjectTaskGraph(tasks []ProjectTask) ProjectTaskGraph {
 		byID[task.ID] = task
 	}
 	for _, task := range tasks {
-		if len(task.WritePaths) == 0 {
+		if task.Role != "reviewer" && len(task.WritePaths) == 0 {
 			graph.UnscopedTaskIDs = append(graph.UnscopedTaskIDs, task.ID)
 		}
 		if task.Status == "done" {

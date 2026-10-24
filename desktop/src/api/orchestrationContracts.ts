@@ -28,7 +28,7 @@ export interface OrchestrationContractView {
     input: {
       implementation: ImplementationContext; approvals: RunApprovals; route: ProjectRun['input']['route']; outcome: 'preview' | 'publish';
       requirements: ProjectRun['input']['requirements'];
-      tasks: { id: string; title: string; dependsOn?: string[]; writePaths?: string[]; acceptance?: string; requirementIds?: string[] }[];
+      tasks: { id: string; title: string; role?: 'coding' | 'reviewer'; reviewOfTaskId?: string; dependsOn?: string[]; writePaths?: string[]; acceptance?: string; requirementIds?: string[] }[];
       controls: { authorityPolicySource: 'workspace-private-policy' | 'team-private-policy'; authorityPolicyDigest: string;
         executionLimits: { monthlyBudgetUsd: number; sessionMemoryMiB: number; sessionCPUMillis: number; maxSessionsPerUser: number;
           maxConcurrentChecksPerUser: number; allowCloudProvisioning: boolean; allowPublicPublishing: boolean };
@@ -46,6 +46,15 @@ const sha = (value: unknown): value is string => typeof value === 'string' && /^
 const text = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
 const revision = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(x => typeof x === 'string');
+// The contract projects selected tasks, not the full plan. A review target may
+// therefore be absent here; full-plan target existence is a server admission gate.
+function validTaskRole(task: OrchestrationContractView['contract']['input']['tasks'][number], tasks: OrchestrationContractView['contract']['input']['tasks']): boolean {
+  if (task.role !== undefined && !['coding', 'reviewer'].includes(task.role) ||
+      task.reviewOfTaskId !== undefined && !text(task.reviewOfTaskId)) return false;
+  if (task.role !== 'reviewer') return task.reviewOfTaskId === undefined;
+  return text(task.reviewOfTaskId) && task.reviewOfTaskId !== task.id && !task.writePaths?.length && !task.dependsOn?.length &&
+    !!task.acceptance?.trim() && !tasks.some(candidate => candidate.id === task.reviewOfTaskId && candidate.role === 'reviewer');
+}
 function boundedStandards(value:OrchestrationContractView['contract']['input']['standards']):boolean {
   if (!value || !['legacy-unassessed','not-configured','team-library-unassessed','team-library-assessed'].includes(value.status) ||
       !['approved-freeform-context','none','team-control-library'].includes(value.source) || !revision(value.revision) || !(value.digest===''||sha(value.digest))) return false;
@@ -71,7 +80,8 @@ export function ownedOrchestrationContract(projectId: string, value: Orchestrati
       !Array.isArray(input.tasks) || input.tasks.length < 1 || input.tasks.length > 200 ||
       input.tasks.some(task => !text(task.id) || !text(task.title) || task.dependsOn !== undefined && !strings(task.dependsOn) ||
         task.writePaths !== undefined && !strings(task.writePaths) || task.requirementIds !== undefined && !strings(task.requirementIds) ||
-        task.acceptance !== undefined && typeof task.acceptance !== 'string') ||
+        task.acceptance !== undefined && typeof task.acceptance !== 'string' ||
+        !validTaskRole(task, input.tasks)) ||
       !input.controls || !revision(input.controls.coordinatorPolicyRevision) || !revision(input.controls.schedulerPolicyRevision) || !sha(input.controls.coordinatorPolicyDigest) || !sha(input.controls.schedulerPolicyDigest) ||
       input.controls.automaticRepairLimit !== undefined && !validAutomaticRepairLimit(input.controls.automaticRepairLimit) ||
       input.controls.checkFailureRepairs !== undefined && typeof input.controls.checkFailureRepairs !== 'boolean' ||

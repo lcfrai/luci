@@ -4,6 +4,35 @@ import { approvedContractReference, orchestrationContractsApi, ownedOrchestratio
 import { contractPrepareFixture, contractViewFixture } from '../test/orchestrationContractFixtures';
 import { coordinatorPolicyApi, type CoordinatorPolicy } from './coordinatorPolicy';
 afterEach(() => vi.restoreAllMocks());
+it('preserves explicit read-only reviewer roles and legacy coding without changing contract bytes', () => {
+  const view = contractViewFixture();
+  view.contract.input.tasks.push({id: 'review-1', title: 'Review journal', role: 'reviewer', reviewOfTaskId: 'task-1', acceptance: 'Inspect exact candidate and checks'});
+  const bytes = JSON.stringify(view);
+  expect(ownedOrchestrationContract('p-1', view)).toBe(view);
+  expect(JSON.stringify(view)).toBe(bytes);
+});
+it('preserves a reviewer-only contract projection without inventing its unselected target or server authority', () => {
+  const view = contractViewFixture();
+  view.contract.input.tasks = [{id: 'review-1', title: 'Review journal', role: 'reviewer', reviewOfTaskId: 'unselected-coding-task', acceptance: 'Inspect exact candidate and checks'}];
+  const bytes = JSON.stringify(view);
+  expect(ownedOrchestrationContract('p-1', view)).toBe(view);
+  expect(JSON.stringify(view)).toBe(bytes);
+  expect(() => approvedContractReference(view)).toThrow();
+});
+it.each(['unknown-role', 'missing-target', 'self-target', 'reviewer-target', 'write-path', 'dependency', 'empty-acceptance', 'coding-target'])('refuses malformed captured reviewer role %s', kind => {
+  const view = contractViewFixture();
+  const review: typeof view.contract.input.tasks[number] = {id: 'review-1', title: 'Review journal', role: 'reviewer', reviewOfTaskId: 'task-1', acceptance: 'Inspect exact candidate and checks'};
+  view.contract.input.tasks.push(review);
+  if (kind === 'unknown-role') Object.assign(review, {role: 'observer'});
+  if (kind === 'missing-target') delete review.reviewOfTaskId;
+  if (kind === 'self-target') review.reviewOfTaskId = review.id;
+  if (kind === 'reviewer-target') { view.contract.input.tasks[0].role = 'reviewer'; view.contract.input.tasks[0].reviewOfTaskId = review.id; }
+  if (kind === 'write-path') review.writePaths = ['src'];
+  if (kind === 'dependency') review.dependsOn = ['task-1'];
+  if (kind === 'empty-acceptance') review.acceptance = ' ';
+  if (kind === 'coding-target') review.role = 'coding';
+  expect(() => ownedOrchestrationContract('p-1', view)).toThrow(/could not be verified/);
+});
 it.each([undefined, false, true])('check repair allowance retains exact optional captured value %s', value => {
   const view = contractViewFixture();
   if (value !== undefined) view.contract.input.controls.checkFailureRepairs = value;

@@ -261,6 +261,14 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	if a.deps.Backend.Kind() == backend.KindDocker {
 		nativeDockerEndpoint(sandboxEnv)
 	}
+	if route.Harness == "opencode" {
+		if err := clearReviewedOpenCodeInstructions(sandboxEnv); err != nil {
+			return refuse("provider_unavailable", err)
+		}
+		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend); err != nil {
+			return refuse("provider_unavailable", err)
+		}
+	}
 	providerArgv = nativeArgs(route.Harness, providerArgv, sandboxEnv, false)
 	argv = append(append([]string(nil), argv[:prefixLength]...), providerArgv...)
 	nativeSandboxEnvironment(sandboxEnv)

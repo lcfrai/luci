@@ -90,6 +90,30 @@ func TestProjectTaskGraphReviewerRoleMustBeExplicitAndCannotReplaceCoding(t *tes
 	}
 }
 
+func TestProjectTaskGraphReadOnlyReviewerDoesNotNeedWriteScope(t *testing.T) {
+	coding := graphTask("code")
+	coding.WritePaths = []string{"src"}
+	reviewer := graphTask("review")
+	reviewer.Role, reviewer.ReviewOfTaskID, reviewer.Acceptance = "reviewer", coding.ID, "Inspect the exact candidate without editing it"
+	unscoped := graphTask("unscoped")
+	tasks := []ProjectTask{coding, reviewer, unscoped}
+	if err := validatePlan(ProjectPlan{Tasks: tasks}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := json.Marshal(tasks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph := BuildProjectTaskGraph(tasks)
+	if !reflect.DeepEqual(graph.UnscopedTaskIDs, []string{unscoped.ID}) {
+		t.Fatalf("write advice confused independent review with unscoped coding: %v", graph.UnscopedTaskIDs)
+	}
+	after, err := json.Marshal(tasks)
+	if err != nil || string(after) != string(before) || reviewer.Role != "reviewer" || len(reviewer.WritePaths) != 0 {
+		t.Fatal("derived advice changed the saved task contract", err)
+	}
+}
+
 func TestProjectTaskGraphSeparatesStructuralWavesRecordedProgressAndFileConflicts(t *testing.T) {
 	// Saved order is deliberately not topological. The independent documentation
 	// task can run with either the schema or API work, though it appears in wave 1.

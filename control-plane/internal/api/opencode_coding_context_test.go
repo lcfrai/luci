@@ -15,6 +15,126 @@ func codingModelEnvironment() map[string]string {
 	return map[string]string{"OPENCODE_CONFIG_CONTENT": `{"model":"luci-local/luci-acceptance-qwen2.5-general-8k:latest","instructions":["LUCI.md"],"provider":{"luci-local":{"options":{"baseURL":"http://host.docker.internal:11434/v1","apiKey":"{env:OPENCODE_LOCAL_API_KEY}"},"models":{"luci-acceptance-qwen2.5-general-8k:latest":{"name":"saved"}}}}}`}
 }
 
+func TestNamedLocalOpenCodeSharesReviewedPolicyAndExactContext(t *testing.T) {
+	for _, provider := range []string{"luci-local", "luci-gateway"} {
+		t.Run(provider, func(t *testing.T) {
+			env := codingModelEnvironment()
+			env["OPENCODE_CONFIG_CONTENT"] = strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "luci-local", provider)
+			if err := clearReviewedOpenCodeInstructions(env); err != nil {
+				t.Fatal(err)
+			}
+			engineCalls, modelCalls := 0, 0
+			err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { engineCalls++; return nil }, func(_ context.Context, host, alias string) (int, error) {
+				modelCalls++
+				if engineCalls != 1 || host != "127.0.0.1:11434" || alias != "luci-acceptance-qwen2.5-general-8k:latest" {
+					t.Fatal("probe changed the selected host/model or preceded engine authority", host, alias)
+				}
+				return 8192, nil
+			})
+			if err != nil || engineCalls != 1 || modelCalls != 1 {
+				t.Fatal("selected route did not complete exact context preparation", err)
+			}
+			var config map[string]any
+			if err := json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config); err != nil {
+				t.Fatal(err)
+			}
+			selected, err := selectedLocalOpenCodeOllama(config)
+			if err != nil || selected == nil {
+				t.Fatal("prepared route lost its selected model", err)
+			}
+			limit := selected.entry["limit"].(map[string]any)
+			build := config["agent"].(map[string]any)["build"].(map[string]any)
+			permissions := build["permission"].(map[string]any)
+			if limit["context"] != float64(8192) || limit["output"] != float64(2048) || build["prompt"] != reviewedLocalOpenCodePrompt || len(config["instructions"].([]any)) != 0 || !strings.Contains(reviewedLocalOpenCodePrompt, "existing selected permissions") {
+				t.Fatal("named and legacy routes disagree on the reviewed task or model window")
+			}
+			for _, tool := range []string{"task", "webfetch", "websearch"} {
+				if permissions[tool] != "deny" || config["tools"].(map[string]any)[tool] != false {
+					t.Fatal("reviewed local tool policy lost", tool)
+				}
+			}
+			for _, tool := range []string{"edit", "write", "bash"} {
+				if _, changed := permissions[tool]; changed {
+					t.Fatal("local preparation changed selected coding permissions", tool)
+				}
+			}
+		})
+	}
+}
+
+func TestNamedOpenCodeRecognizesOnlyExactLocalOllamaSelection(t *testing.T) {
+	for _, endpoint := range []string{"http://localhost:11434/v1", "http://127.0.0.1:11434/v1", "http://[::1]:11434/v1", "http://host.docker.internal:11434/v1"} {
+		t.Run(endpoint, func(t *testing.T) {
+			var config map[string]any
+			raw := strings.ReplaceAll(codingModelEnvironment()["OPENCODE_CONFIG_CONTENT"], "luci-local", "luci-gateway")
+			raw = strings.ReplaceAll(raw, "http://host.docker.internal:11434/v1", endpoint)
+			if err := json.Unmarshal([]byte(raw), &config); err != nil {
+				t.Fatal(err)
+			}
+			selected, err := selectedLocalOpenCodeOllama(config)
+			if err != nil || selected == nil || selected.alias != "luci-acceptance-qwen2.5-general-8k:latest" {
+				t.Fatal("exact supported local route was not recognized", err)
+			}
+		})
+	}
+	for _, endpoint := range []string{"http://example.invalid:11434/v1", "https://localhost:11434/v1", "http://localhost:4000/v1", "http://localhost:11434/other", "http://localhost:11434/v1?model=other", "http://localhost:11434/v1?", "http://localhost:11434/v1#other", "http://name@localhost:11434/v1", "http://localhost:11434/%76%31"} {
+		t.Run(endpoint, func(t *testing.T) {
+			env := codingModelEnvironment()
+			env["OPENCODE_CONFIG_CONTENT"] = strings.ReplaceAll(strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "luci-local", "luci-gateway"), "http://host.docker.internal:11434/v1", endpoint)
+			if err := clearReviewedOpenCodeInstructions(env); err != nil {
+				t.Fatal(err)
+			}
+			before := env["OPENCODE_CONFIG_CONTENT"]
+			err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("nonlocal route checked local engine"); return nil }, func(context.Context, string, string) (int, error) { t.Fatal("nonlocal route probed host model"); return 0, nil })
+			if err != nil || env["OPENCODE_CONFIG_CONTENT"] != before || strings.Contains(before, "automatic reminder") || !strings.Contains(before, `"instructions":[]`) {
+				t.Fatal("nonlocal named route acquired local context/policy", err)
+			}
+		})
+	}
+	t.Run("selected alias missing", func(t *testing.T) {
+		env := codingModelEnvironment()
+		var config map[string]any
+		if err := json.Unmarshal([]byte(strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "luci-local", "luci-gateway")), &config); err != nil {
+			t.Fatal(err)
+		}
+		config["model"] = "luci-gateway/different-model"
+		data, err := json.Marshal(config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		env["OPENCODE_CONFIG_CONTENT"] = string(data)
+		before := env["OPENCODE_CONFIG_CONTENT"]
+		err = prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("missing exact model reached engine"); return nil }, func(context.Context, string, string) (int, error) { t.Fatal("missing exact model was probed"); return 0, nil })
+		if err == nil || env["OPENCODE_CONFIG_CONTENT"] != before {
+			t.Fatal("missing selected alias was accepted or mutated")
+		}
+	})
+	t.Run("provider must match selection", func(t *testing.T) {
+		env := codingModelEnvironment()
+		env["OPENCODE_CONFIG_CONTENT"] = strings.Replace(env["OPENCODE_CONFIG_CONTENT"], `"model":"luci-local/`, `"model":"luci-gateway/`, 1)
+		if err := clearReviewedOpenCodeInstructions(env); err != nil {
+			t.Fatal(err)
+		}
+		before := env["OPENCODE_CONFIG_CONTENT"]
+		err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("unselected provider reached engine"); return nil }, func(context.Context, string, string) (int, error) { t.Fatal("unselected provider was probed"); return 0, nil })
+		if err != nil || before != env["OPENCODE_CONFIG_CONTENT"] || strings.Contains(before, "automatic reminder") {
+			t.Fatal("local provider entry overrode a different selected route", err)
+		}
+	})
+	t.Run("legacy remote prompt remains unchanged", func(t *testing.T) {
+		env := codingModelEnvironment()
+		env["OPENCODE_CONFIG_CONTENT"] = strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "http://host.docker.internal:11434/v1", "http://example.invalid:4000/v1")
+		if err := clearReviewedOpenCodeInstructions(env); err != nil {
+			t.Fatal(err)
+		}
+		before := env["OPENCODE_CONFIG_CONTENT"]
+		err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("legacy remote route reached engine"); return nil }, func(context.Context, string, string) (int, error) { t.Fatal("legacy remote route was probed"); return 0, nil })
+		if err != nil || before != env["OPENCODE_CONFIG_CONTENT"] || !strings.Contains(before, "automatic reminder") {
+			t.Fatal("legacy local-provider prompt behavior changed", err)
+		}
+	})
+}
+
 func TestReviewedOpenCodeTaskUsesCapturedContextAndVerifiedModelLimit(t *testing.T) {
 	ctx := context.Background()
 	read := func(_ context.Context, host, alias string) (int, error) {

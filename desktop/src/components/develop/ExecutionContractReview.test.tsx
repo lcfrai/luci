@@ -9,6 +9,20 @@ const pending = (): ExecutionContractReviewRequest => ({ version: 1, projectId: 
 beforeEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
 function props() { return { pending: pending(), initialView: contractViewFixture(), scope: 'owner/workspace/project', actorId: 'owner', canRead: true, canEdit: true,
   onPrepared: vi.fn(), onCreate: vi.fn().mockResolvedValue(undefined), onComplete: vi.fn(), onReviewInputs: vi.fn() }; }
+it('presents a captured reviewer as read-only without inventing a missing write scope or consenting', () => {
+  const p = props();
+  p.initialView.contract.input.tasks.push({id: 'review-1', title: 'Independently review journal', role: 'reviewer', reviewOfTaskId: 'task-1', acceptance: 'Inspect the exact candidate and its checks'});
+  const bytes = JSON.stringify(p.initialView);
+  render(<ExecutionContractReview {...p} />);
+  fireEvent.click(screen.getByText('Tasks, ownership and acceptance · 2'));
+  expect(screen.getByText('Independent read-only review of Build journal')).toBeTruthy();
+  expect(screen.getByText('Write scope: no write paths assigned.')).toBeTruthy();
+  expect(screen.getByText('Write scope: src')).toBeTruthy();
+  expect(screen.queryByText(/Unscoped; review before automatic integration/)).toBeNull();
+  expect(screen.getByRole('checkbox')).toHaveProperty('checked', false);
+  expect(p.onCreate).not.toHaveBeenCalled();
+  expect(JSON.stringify(p.initialView)).toBe(bytes);
+});
 it.each([false, true])('check repair review shows the captured allowance %s without changing consent or starting work', enabled => {
   const p = props(); p.initialView.contract.input.controls.checkFailureRepairs = enabled;
   const bytes = JSON.stringify(p.initialView);

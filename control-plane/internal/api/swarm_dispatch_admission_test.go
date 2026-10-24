@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -86,4 +87,82 @@ func controlledAllocationCount(b *sessionsBackend) int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return len(b.specs)
+}
+
+func TestQueuedOpenCodePreparesExactSavedRouteBeforeClaimOrAllocation(t *testing.T) {
+	for _, local := range []bool{true, false} {
+		t.Run(map[bool]string{true: "named local refuses unverified engine", false: "named remote retains captured context"}[local], func(t *testing.T) {
+			f := newSwarmSessionFixtureRoute(t, "opencode", func(env *sessionsEnv) string {
+				endpoint := "http://127.0.0.1:4000/v1"
+				if local {
+					endpoint = "http://127.0.0.1:11434/v1"
+				}
+				body, err := json.Marshal(map[string]any{"action": "save", "expectedRevision": 0, "name": "Controlled named model", "kind": "compatible-api", "enabled": true,
+					"models": product.AgentConnectionModels{OpenCode: "exact-model:latest"}, "endpoints": product.AgentConnectionEndpoints{ChatCompletions: endpoint}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				w := env.do(t, "POST", "/v1/setup/agent-connections", string(body))
+				var catalogue struct {
+					Connections []product.AgentConnection `json:"connections"`
+				}
+				if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &catalogue) != nil || len(catalogue.Connections) != 1 {
+					t.Fatal("named fixture connection was not saved", w.Code)
+				}
+				return catalogue.Connections[0].ID
+			}, "api")
+			a := f.env.api
+			a.deps.ResourceSnapshot = executionFixtureSnapshot
+			a.deps.Resources = backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}
+			actor := management.ExecutionActorRef{Local: true, ProjectID: f.owner.ID}
+			policy, err := a.deps.Product.SwarmSchedulerPolicy()
+			if err != nil {
+				t.Fatal(err)
+			}
+			queueID := "queue-named-opencode"
+			admitted, err := a.admitQueuedSwarm(context.Background(), product.SwarmAdmissionRequest{QueueID: queueID, ProjectID: f.owner.ID, RunID: f.run.ID, Actor: actor, Policy: policy})
+			if err != nil || admitted.State != "admitted" {
+				t.Fatal(admitted, err)
+			}
+			// This controlled backend deliberately has no LaunchFencer. A local
+			// route must refuse before any real host model request or child claim.
+			var done <-chan string
+			if !local {
+				sessionsStubReady(t, nil)
+				done = sessionsWatchDone(t)
+			}
+			got, err := a.dispatchQueuedSwarm(context.Background(), product.SwarmDispatchRequest{QueueID: queueID, ProjectID: f.owner.ID, RunID: f.run.ID, OperationID: f.ops[0].ID, Actor: actor})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if local {
+				rows, readErr := f.store.List()
+				if got.State != "blocked" || got.ReasonCode != "provider_unavailable" || got.SessionID != "" || readErr != nil || len(rows) != 0 || controlledAllocationCount(f.env.be) != 0 {
+					t.Fatal("local preflight crossed durable admission or Backend.Create", got, readErr)
+				}
+				current, readErr := a.deps.Product.GetProjectSwarmRun(f.owner.ID, f.run.ID)
+				if readErr != nil || current.Revision != f.run.Revision || current.Input.Route.Connection != f.run.Input.Route.Connection {
+					t.Fatal("refusal changed the captured run or connection", readErr)
+				}
+				return
+			}
+			sessionsAwaitWatch(t, done)
+			if got.State != "running" || got.SessionID != f.ops[0].ChildID || controlledAllocationCount(f.env.be) != 1 {
+				t.Fatal("named remote route no longer dispatches", got)
+			}
+			spec := f.env.be.spec(t, 0)
+			var config struct {
+				Instructions []string `json:"instructions"`
+				Model        string `json:"model"`
+				Agent        map[string]any `json:"agent"`
+			}
+			if json.Unmarshal([]byte(spec.Env["OPENCODE_CONFIG_CONTENT"]), &config) != nil || len(config.Instructions) != 0 || config.Model != "luci-gateway/exact-model:latest" || config.Agent["build"] != nil {
+				t.Fatal("queued remote route lost cleared instructions or gained local policy")
+			}
+			row, readErr := f.store.Get(got.SessionID)
+			if readErr != nil || row.ImplementationContext == nil || row.ReviewedContext == nil || row.OpeningPrompt != product.ImplementationOpeningPrompt(row.ImplementationContext) || row.PermissionMode != "bypass" || !strings.Contains(strings.Join(spec.Args, "\n"), row.OpeningPrompt) {
+				t.Fatal("queued OpenCode lost captured task or explicit permissions", readErr)
+			}
+		})
+	}
 }
