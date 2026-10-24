@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { productApi, errorText, type GitState } from "../../api/product";
+import { productApi, ProductApiError, errorText, type GitState } from "../../api/product";
+import { Button } from "../fluid/components/button";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { useProjectDraftScope } from "../../hooks/useProjectDraft";
 import { ProjectRequired, JourneyHeader } from "../journey/shared";
@@ -26,6 +27,7 @@ function ProjectGitReview({ projectId }: { projectId: string }) {
   const [state, setState] = useState<GitState | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [identityRequired, setIdentityRequired] = useState(false);
   const [notice, setNotice] = useState<{ message: string; success: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,11 +53,13 @@ function ProjectGitReview({ projectId }: { projectId: string }) {
       if (current()) {
         setState(value);
         setError("");
+        setIdentityRequired(false);
         if (clearReviewRequired) setReviewRequired(false);
       }
     } catch (cause) {
       if (current()) {
         setError(errorText(cause));
+        setIdentityRequired(false);
         setReviewRequired(true);
       }
     } finally {
@@ -75,10 +79,11 @@ function ProjectGitReview({ projectId }: { projectId: string }) {
       saving.current = null;
       setBusy(false);
       setError("");
+      setIdentityRequired(false);
       setNotice({ message: "Project access changed while committing. Refresh the review and check Recent commits before trying again. Your message is kept.", success: false });
       setReviewRequired(true);
     }
-    if (!access.canRead) { setState(null); setError(""); setRefreshing(false); }
+    if (!access.canRead) { setState(null); setError(""); setIdentityRequired(false); setRefreshing(false); }
   }, [access.canRead, grantedEdit]);
   useEffect(() => {
     // A read grant restores visibility; only an explicit refresh resolves an
@@ -108,9 +113,13 @@ function ProjectGitReview({ projectId }: { projectId: string }) {
       </JourneyHeader>
       {access.message && <p className="journey-muted" role="status">{access.message}</p>}
       {access.canRead && error && (
-        <p className="journey-error" role="alert">
-          {error}
-        </p>
+        <div className="journey-error" role="alert">
+          <p>{error}</p>
+          {identityRequired && setup && <>
+            <p>In Settings, choose {setup.workspace?.mode === "cloud" ? "This workspace" : "This machine"}, then expand “Git identity, agent connection and runtime”. Save your commit author name and email, return here and refresh this review. Your commit message is kept.</p>
+            <Button type="button" variant="secondary" disabled={!grantedEdit || busy} onClick={() => setup.openSettings()}>Set Git commit identity</Button>
+          </>}
+        </div>
       )}
       {access.canRead && notice && (
         <p className={notice.success ? "journey-success" : "journey-warning"} role="status">
@@ -150,6 +159,7 @@ function ProjectGitReview({ projectId }: { projectId: string }) {
                 };
                 setBusy(true);
                 setError("");
+                setIdentityRequired(false);
                 setNotice(null);
                 void productApi
                   .commit(projectId, message.trim(), state.reviewDigest)
@@ -166,6 +176,8 @@ function ProjectGitReview({ projectId }: { projectId: string }) {
                   .catch((cause) => {
                     if (current()) {
                       setError(errorText(cause));
+                      const body = cause instanceof ProductApiError ? cause.body : null;
+                      setIdentityRequired(typeof body === "object" && body !== null && "error" in body && body.error === "git_identity_required");
                       setReviewRequired(true);
                     }
                   })

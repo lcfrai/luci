@@ -8,9 +8,12 @@ import { aBranch, aProject, aSession, aWorktree } from "../../test/fixtures";
 import type { CockpitState } from "../../store/store";
 import { personalPermissions } from "../../api/teams";
 import type { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
+import type { useProjectHome } from "../projects/ProjectHomeProvider";
 
 const teamWorkspace = vi.hoisted(() => ({ value: null as ReturnType<typeof useTeamWorkspace> }));
 const setup = vi.hoisted(() => ({ openProject: vi.fn(), openSettings: vi.fn() }));
+const projectHome = vi.hoisted(() => ({ value: null as ReturnType<typeof useProjectHome> }));
+vi.mock('../projects/ProjectHomeProvider', () => ({ useProjectHome: () => projectHome.value }));
 vi.mock('../teams/TeamWorkspaceProvider', async importOriginal => ({
   ...await importOriginal<typeof import('../teams/TeamWorkspaceProvider')>(),
   useTeamWorkspace: () => teamWorkspace.value,
@@ -78,8 +81,61 @@ function seed(over: Partial<CockpitState> = {}): void {
   });
 }
 
+function verifiedHome(pinned = false, working = false): NonNullable<ReturnType<typeof useProjectHome>> {
+  return {
+    home: { version: 1, revision: 1, pinnedProjectIds: pinned ? [project.id] : [], projects: [
+      { id: project.id, name: project.name, working, needsInput: false, queued: false, unknown: false, stops: [] },
+    ] },
+    error: '', busy: false, activityAvailable: true,
+    refresh: vi.fn(), pin: vi.fn().mockResolvedValue(undefined), open: vi.fn(),
+  };
+}
+
 describe("Rail", () => {
-  beforeEach(() => { seed(); teamWorkspace.value = null; setup.openProject.mockClear(); setup.openSettings.mockClear(); });
+  beforeEach(() => { seed(); teamWorkspace.value = null; projectHome.value = null; setup.openProject.mockClear(); setup.openSettings.mockClear(); });
+
+  it('keeps a verified selected idle project actionable without pinning it or claiming activity', async () => {
+    seed({ selection: { projectId: project.id, branchId: null, worktreeId: null, sessionId: null }, sessions: {}, sessionIdsByWorktree: {}, expandedProjects: {}, expandedBranches: {} });
+    projectHome.value = verifiedHome();
+    render(<Rail />);
+    const current = screen.getByRole('group', { name: 'Current project' });
+    expect(within(current).getByRole('treeitem', { name: project.name }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByRole('group', { name: 'Active projects' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Pinned projects' })).toBeNull();
+    expect(screen.queryByText('No active projects. Find all projects in Home.')).toBeNull();
+    await userEvent.click(within(current).getByRole('button', { name: `Expand ${project.name}` }));
+    await userEvent.click(within(current).getByRole('treeitem', { name: /evidence-upload$/ }));
+    await userEvent.click(within(current).getByRole('treeitem', { name: /wt-evidence$/ }));
+    expect(useCockpit.getState().selection.worktreeId).toBe(worktree.id);
+    expect(useCockpit.getState().lens).toBe('develop');
+    expect(useCockpit.getState().sessions).toEqual({});
+    expect(projectHome.value.pin).not.toHaveBeenCalled();
+  });
+
+  it.each(['pinned', 'working'] as const)('does not duplicate the selected %s project as Current', kind => {
+    seed({ selection: { projectId: project.id, branchId: null, worktreeId: null, sessionId: null } });
+    projectHome.value = verifiedHome(kind === 'pinned', kind === 'working');
+    render(<Rail />);
+    expect(screen.queryByRole('group', { name: 'Current project' })).toBeNull();
+    expect(screen.getAllByRole('treeitem', { name: project.name })).toHaveLength(1);
+    expect(screen.getByRole('group', { name: kind === 'pinned' ? 'Pinned projects' : 'Active projects' })).toBeTruthy();
+  });
+
+  it('never exposes a selected catalogue project after its verified scope is lost or read access is removed', () => {
+    seed({ selection: { projectId: project.id, branchId: null, worktreeId: null, sessionId: null } });
+    const verified = verifiedHome();
+    projectHome.value = verified;
+    const view = render(<Rail />);
+    expect(screen.getByRole('group', { name: 'Current project' })).toBeTruthy();
+    projectHome.value = { ...verified, home: null, activityAvailable: false };
+    view.rerender(<Rail />);
+    expect(screen.queryByRole('treeitem', { name: project.name })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Current project' })).toBeNull();
+    projectHome.value = { ...verified, home: { ...verified.home!, projects: [] } };
+    view.rerender(<Rail />);
+    expect(screen.queryByRole('treeitem', { name: project.name })).toBeNull();
+    expect(useCockpit.getState().projects).toContainEqual(project);
+  });
 
   it('does not invite a nonadmin team member to create a project from the sidebar', async () => {
     seed({ projects: [] }); teamWorkspace.value = teamScope(true, false);

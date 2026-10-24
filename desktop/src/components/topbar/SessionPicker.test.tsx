@@ -297,6 +297,37 @@ describe("SessionPicker", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("closes session settings without starting a session or saving the edited draft", async () => {
+    const close = vi.fn();
+    const defaults = useCockpit.getState().branchDefaults;
+    render(<SessionPicker open worktreeId="w-1" onClose={close} />);
+    expect(screen.getByRole("heading", { name: "New session" })).toBeDefined();
+    await userEvent.selectOptions(screen.getByLabelText("Permission mode"), "plan");
+    await userEvent.type(screen.getByLabelText("Opening prompt"), "Keep this unsent.");
+    await userEvent.click(screen.getByRole("button", { name: "Close session settings" }));
+    expect(close).toHaveBeenCalledOnce();
+    expect(createSession).not.toHaveBeenCalled();
+    expect(useCockpit.getState().branchDefaults).toEqual(defaults);
+  });
+
+  it("keeps close, Escape and outside dismissal blocked while session creation is pending", async () => {
+    const close = vi.fn();
+    let finish!: (value: ReturnType<typeof aSession>) => void;
+    createSession.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    render(<SessionPicker open worktreeId="w-1" onClose={close} />);
+    await userEvent.click(screen.getByRole("button", { name: "Create session" }));
+    await screen.findByRole("status");
+    const dismiss = screen.getByRole("button", { name: "Close session settings" }) as HTMLButtonElement;
+    expect(dismiss.disabled).toBe(true);
+    await userEvent.click(dismiss);
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(document.body);
+    expect(close).not.toHaveBeenCalled();
+    await act(async () => finish(aSession({ id: "s-pending", worktreeId: "w-1" })));
+    await waitFor(() => expect(close).toHaveBeenCalledOnce());
+    expect(createSession).toHaveBeenCalledOnce();
+  });
+
   it("describes an explicitly allocating continuation without promising no launch or urging an uncertain retry", async () => {
     let finish!: (value: { ok: false; message: string }) => void;
     const submit = vi.fn(() => new Promise<{ ok: false; message: string }>(resolve => { finish = resolve; }));

@@ -2,14 +2,15 @@ import { StrictMode } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { productApi, type GitState } from "../../api/product";
+import { productApi, ProductApiError, type GitState } from "../../api/product";
 import { ProjectGit } from "./MergeLens";
 
 const identity = vi.hoisted(() => ({ actor: "alice", workspace: "local" }));
 const access = vi.hoisted(() => ({ loading: false, error: "", permissions: { read: true, edit: true, execute: false, secrets: false, deploy: false, admin: false } }));
 const refreshProjects = vi.hoisted(() => vi.fn());
+const openSettings = vi.hoisted(() => vi.fn());
 vi.mock("../auth/AuthProvider", () => ({ useAuth: () => ({ profile: { user: { id: identity.actor } } }) }));
-vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ refreshProjects, workspace: { mode: "local", connectionId: identity.workspace, host: "" }, status: { config: { projectsDir: "/projects" }, access: { user: { username: identity.actor } } } }) }));
+vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ refreshProjects, openSettings, workspace: { mode: "local", connectionId: identity.workspace, host: "" }, status: { config: { projectsDir: "/projects" }, access: { user: { username: identity.actor } } } }) }));
 vi.mock("../teams/TeamWorkspaceProvider", () => ({ useTeamProjectPermissions: () => access, useTeamWorkspace: () => null }));
 vi.mock("../journey/ProjectDelivery", () => ({ ProjectDelivery: () => <section aria-label="Project delivery" /> }));
 vi.mock("../journey/ProjectBackup", () => ({ ProjectBackup: () => <section aria-label="Project backup" /> }));
@@ -32,6 +33,7 @@ const refresh = () => userEvent.click(screen.getByRole("button", { name: "Refres
 async function ready() { await screen.findByLabelText("Commit message"); await waitFor(() => expect((screen.getByRole("button", { name: "Refresh review" }) as HTMLButtonElement).disabled).toBe(false)); }
 
 beforeEach(() => {
+  openSettings.mockClear();
   identity.actor = "alice"; identity.workspace = "local"; access.loading = false; access.error = "";
   Object.assign(access.permissions, { read: true, edit: true, execute: false, secrets: false, deploy: false, admin: false });
   vi.spyOn(productApi, "git").mockResolvedValue(review);
@@ -46,6 +48,30 @@ it("commits only the displayed review with editing access and preserves the loca
   expect(productApi.commit).toHaveBeenCalledExactlyOnceWith("p-1", "Improve application", review.reviewDigest);
   expect(message().value).toBe(""); expect(refreshProjects).toHaveBeenCalledOnce();
   expect(screen.getByText(/Nothing is pushed\./)).not.toBeNull();
+});
+
+it("offers normal identity settings only for the service's missing-identity error and never retries the commit", async () => {
+  vi.mocked(productApi.commit).mockRejectedValue(new ProductApiError("conflict", "Set your Git user.name and user.email before committing.", 409, {error: "git_identity_required"}));
+  render(<ProjectGit projectId="p-1" />); await ready(); typeMessage("My first application commit");
+  await userEvent.click(commitButton());
+  const identitySettings = await screen.findByRole("button", {name: "Set Git commit identity"});
+  expect(screen.getByText(/then expand “Git identity, agent connection and runtime”/)).toBeTruthy();
+  expect(message().value).toBe("My first application commit");
+  expect(commitButton().disabled).toBe(true);
+  await userEvent.click(identitySettings);
+  expect(openSettings).toHaveBeenCalledExactlyOnceWith();
+  expect(productApi.commit).toHaveBeenCalledExactlyOnceWith("p-1", "My first application commit", review.reviewDigest);
+  expect(message().value).toBe("My first application commit");
+});
+
+it("does not infer an identity action from an untyped commit error's wording", async () => {
+  vi.mocked(productApi.commit).mockRejectedValue(new Error("Set your Git user.name and user.email before committing."));
+  render(<ProjectGit projectId="p-1" />); await ready(); typeMessage();
+  await userEvent.click(commitButton());
+  await screen.findByRole("alert");
+  expect(screen.queryByRole("button", {name: "Set Git commit identity"})).toBeNull();
+  expect(openSettings).not.toHaveBeenCalled();
+  expect(message().value).toBe("Improve application");
 });
 
 it("requires a source identity from the service before admitting a commit", async () => {

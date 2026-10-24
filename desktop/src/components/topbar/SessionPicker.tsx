@@ -13,6 +13,8 @@ import { productApi } from "../../api/product";
 import { useAgentConnections, selectedAgentConnection, configuredAgentModel, agentConnectionIssue } from "../../hooks/useAgentConnections";
 import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
 import { useSetup } from "../setup/SetupProvider";
+import { Button } from "../ui/button";
+import { NavigationIcon } from "../common/NavigationIcon";
 import type {
   Effort,
   ImplementationContextRequest,
@@ -69,6 +71,8 @@ export function SessionPicker(props: {
   const generation = useRef(0);
   const modelsId = useId();
   const modelHelpId = useId();
+  const titleId = useId();
+  const descriptionId = useId();
   const ref = useDismissable<HTMLDivElement>(open, () => {
     if (!working.current) onClose();
   });
@@ -133,11 +137,29 @@ export function SessionPicker(props: {
     <div
       ref={ref}
       role="dialog"
-      aria-label={props.submitLabel || "New session"}
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
       tabIndex={-1}
       className="pop pick-panel"
     >
       <div className="pick" aria-busy={busy}>
+        <header className="pick-header">
+          <div>
+            <h2 id={titleId}>{props.submitLabel || "New session"}</h2>
+            <p id={descriptionId}>{props.onSubmit ? "Review the settings before continuing." : "Choose an agent or terminal and where it will run."}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="pick-close"
+            aria-label="Close session settings"
+            disabled={busy}
+            onClick={() => { if (!working.current) onClose(); }}
+          >
+            <NavigationIcon name="close" />
+          </Button>
+        </header>
+        <div className="pick-body">
         {props.implementationContext && <p className="pick-note">Saved handoff · Brief {props.implementationContext.briefRevision} · Plan {props.implementationContext.planRevision} · Definition {props.implementationContext.specificationRevision} · Design {props.implementationContext.designPlanRevision} · {props.implementationContext.taskIds.length} selected tasks</p>}
         {contextIssue && <p className="journey-error" role="alert">{contextIssue}</p>}
         {error && (
@@ -181,7 +203,7 @@ export function SessionPicker(props: {
             <datalist id={modelsId}>{harness.models.map(model => <option key={model.id} value={model.id}>{model.name}</option>)}</datalist>
             {modelReadOnly && <p className="pick-note" id={modelHelpId}>
               {connection ? "The selected agent connection" : "Your saved local model endpoint"} supplies this model. To change it, update the saved model in{" "}
-              <button type="button" className="top-btn" onClick={() => { onClose(); setup?.openAgents(); }}>Agent connections</button>, then reopen this session setup.
+              <Button variant="link" className="pick-note-link" onClick={() => { onClose(); setup?.openAgents(); }}>Agent connections</Button>, then reopen this session setup.
             </p>}
           </> : harness.models.length === 0 ? null : (
             <label className="pick-field">
@@ -278,10 +300,10 @@ export function SessionPicker(props: {
             </p>
           )}
         </fieldset>
-        <div className="pick-actions">
-          {!props.onSubmit && <button
-            type="button"
-            className="top-btn"
+        </div>
+        <footer className="pick-actions">
+          {!props.onSubmit && <Button
+            variant="outline"
             disabled={busy || branchId === null}
             title={branchId === null ? "Select a branch first." : undefined}
             onClick={() => {
@@ -290,10 +312,8 @@ export function SessionPicker(props: {
             }}
           >
             Save as branch default
-          </button>}
-          <button
-            type="button"
-            className="top-split-main"
+          </Button>}
+          <Button
             disabled={
               target === null ||
               busy ||
@@ -327,8 +347,8 @@ export function SessionPicker(props: {
             }}
           >
             {busy ? (props.onSubmit ? "Saving run…" : "Starting session…") : props.submitLabel || "Create session"}
-          </button>
-        </div>
+          </Button>
+        </footer>
       </div>
     </div>
   );

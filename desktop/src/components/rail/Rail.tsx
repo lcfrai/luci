@@ -38,6 +38,7 @@ export function Rail({
   const canCreate = !team?.teamId || !!(team.selected?.permissions.edit && team.selected.permissions.admin);
   const projects = useCockpit(useShallow((s) => s.projects));
   const home = useProjectHome();
+  const selectedProjectId = useCockpit((s) => s.selection.projectId);
   const activity = new Map(home?.activityAvailable ? home.home?.projects.map(project => [project.id, project]) : []);
   // A stale catalogue must not reveal a team project after its read grant is
   // removed. Only a same-scope, previously verified projection may survive a
@@ -51,9 +52,12 @@ export function Rail({
     const row = activity.get(project.id);
     return !pinnedSet.has(project.id) && !!row && (row.working || row.needsInput || row.queued || row.unknown || row.stops.length > 0);
   }) : allowed.filter(project => !pinnedSet.has(project.id));
+  // Selection is navigation, not a pin or proof of running work. Keep a new
+  // idle project reachable, but only after this scope's Home projection verifies it.
+  const current = allowed.find(project => project.id === selectedProjectId
+    && !pinnedSet.has(project.id) && !active.some(item => item.id === project.id));
   const machine = useCockpit(selectDefaultMachine);
   const expandedProjects = useCockpit((s) => s.expandedProjects);
-  const selectedProjectId = useCockpit((s) => s.selection.projectId);
   const toggleProject = useCockpit((s) => s.toggleProject);
   const toggleBranch = useCockpit((s) => s.toggleBranch);
   const toggleWorktree = useCockpit((s) => s.toggleWorktree);
@@ -239,9 +243,10 @@ export function Rail({
               : "No projects shared yet. Ask your team administrator to share a project."}</p>
         ) : <>
           {pinned.length > 0 && <div role="group" aria-label="Pinned projects"><p className="rail-section-title">Pinned</p>{pinned.map(project => <ProjectRow key={project.id} project={project} activity={activity.get(project.id)} onOpen={home?.open} selected={project.id === selectedProjectId} expanded={expandedProjects[project.id] === true} />)}</div>}
+          {current && <div role="group" aria-label="Current project"><p className="rail-section-title">Current</p><ProjectRow project={current} activity={activity.get(current.id)} onOpen={home?.open} selected expanded={expandedProjects[current.id] === true} /></div>}
           {home?.home && !home.activityAvailable && <p className="rail-empty" role="status">Activity unavailable. Showing last verified projects and pins.</p>}
           {active.length > 0 && <div role="group" aria-label={home && !home.activityAvailable ? 'Last verified projects' : 'Active projects'}><p className="rail-section-title">{home && !home.activityAvailable ? 'Projects' : 'Active'}</p>{active.map(project => <ProjectRow key={project.id} project={project} activity={activity.get(project.id)} onOpen={home?.open} selected={project.id === selectedProjectId} expanded={expandedProjects[project.id] === true} />)}</div>}
-          {home?.home && pinned.length === 0 && active.length === 0 && <p className="rail-empty">No active projects. Find all projects in Home.</p>}
+          {home?.home && pinned.length === 0 && active.length === 0 && !current && <p className="rail-empty">No active projects. Find all projects in Home.</p>}
         </>}
       </div>
       <RailFooter />

@@ -4,7 +4,8 @@
   padding: 0;
   margin: 0;
   min-inline-size: 0;
-  display: contents;
+  display: grid;
+  gap: 16px;
 }
 .top-tools {
   display: flex;
@@ -108,25 +109,155 @@
 .pick-panel {
   inset-block-start: 52px;
   inset-inline-end: 12px;
+  inline-size: min(30rem, calc(100vw - 24px));
+  min-inline-size: 0;
+  max-block-size: calc(100dvh - 64px);
+  box-sizing: border-box;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .pick {
   display: grid;
-  gap: 8px;
-  min-inline-size: 300px;
-  padding: 4px;
+  min-inline-size: 0;
+}
+.pick-header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 24px 16px;
+  background: var(--surface);
+  border-block-end: 1px solid var(--line);
+}
+.pick-header > div {
+  min-inline-size: 0;
+  flex: 1;
+}
+.pick-header h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.pick-header p {
+  margin: 6px 0 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pick-close {
+  flex: none;
+}
+.pick-body {
+  display: grid;
+  gap: 16px;
+  min-inline-size: 0;
+  padding: 20px 24px;
+}
+.pick-body > p {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 .pick-field {
   display: grid;
-  gap: 3px;
+  gap: 8px;
+  min-inline-size: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.pick-field > input,
+.pick-field > select,
+.pick-field > textarea {
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  min-block-size: 40px;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-ctl);
+  background: var(--field);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.pick-field > select {
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+.pick-field > textarea {
+  resize: vertical;
+  min-block-size: 88px;
+}
+.pick-field > :is(input, textarea)::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+.pick-field > :is(input, select, textarea):hover:not(:disabled):not([readonly]) {
+  border-color: var(--ink-3);
+}
+.pick-field > :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.pick-field > input[readonly] {
+  background: var(--canvas);
+  color: var(--ink-2);
+}
+.pick-field > :is(input, select, textarea):disabled {
+  background: var(--inset);
+  color: var(--ink-3);
+  cursor: not-allowed;
 }
 .pick-note {
+  min-inline-size: 0;
+  margin: 0;
   color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.6;
   white-space: normal;
+  overflow-wrap: anywhere;
+}
+.pick-note .pick-note-link {
+  display: inline;
+  min-block-size: 0;
+  block-size: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  white-space: normal;
+  vertical-align: baseline;
+  text-align: start;
 }
 .pick-actions {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+  padding: 16px 24px;
+  background: var(--surface);
+  border-block-start: 1px solid var(--line);
+}
+.pick-actions .luci-ui-button {
+  min-block-size: 40px;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  white-space: normal;
+}
+.pick-actions .luci-ui-button:last-child {
+  margin-inline-start: auto;
 }
 
 .top {
@@ -176,13 +307,6 @@
 .top-title {
   font-size: 13px;
 }
-.pick {
-  min-inline-size: min(300px, calc(100vw - 40px));
-}
-.pick-panel {
-  max-block-size: calc(100dvh - 100px);
-  overflow-y: auto;
-}
 @media (max-width: 760px) {
   .top {
     padding: 8px 12px;
@@ -214,6 +338,21 @@
   }
   .pick-panel {
     inset-block-start: 12px;
+    max-block-size: calc(100dvh - 24px);
+  }
+  .pick-header,
+  .pick-body,
+  .pick-actions {
+    padding-inline: 20px;
+  }
+  .pick-field > :is(input, select, textarea),
+  .pick-actions .luci-ui-button {
+    min-block-size: 44px;
+  }
+}
+@media (max-width: 480px) {
+  .pick-actions .luci-ui-button {
+    flex: 1 1 100%;
   }
 }
 
