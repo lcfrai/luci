@@ -45,8 +45,18 @@ func TestNamedLocalOpenCodeSharesReviewedPolicyAndExactContext(t *testing.T) {
 			limit := selected.entry["limit"].(map[string]any)
 			build := config["agent"].(map[string]any)["build"].(map[string]any)
 			permissions := build["permission"].(map[string]any)
-			if limit["context"] != float64(8192) || limit["output"] != float64(2048) || build["prompt"] != reviewedLocalOpenCodePrompt || len(config["instructions"].([]any)) != 0 || !strings.Contains(reviewedLocalOpenCodePrompt, "existing selected permissions") {
+			if limit["context"] != float64(8192) || limit["output"] != float64(2048) || build["prompt"] != reviewedLocalOpenCodePrompt || len(config["instructions"].([]any)) != 0 {
 				t.Fatal("named and legacy routes disagree on the reviewed task or model window")
+			}
+			for _, guidance := range []string{"obeying its captured role and write scope", "For an implementation task with assigned write paths", "create the required file only when that task allows it", "complete the selected task", "Use only tools allowed by the selected task and existing permissions"} {
+				if !strings.Contains(reviewedLocalOpenCodePrompt, guidance) {
+					t.Fatal("fixed prompt lost the selected task's role or permission boundary", guidance)
+				}
+			}
+			for _, blanket := range []string{"continue its implementation", "Use direct coding and check tools", "in the writable checkout"} {
+				if strings.Contains(reviewedLocalOpenCodePrompt, blanket) {
+					t.Fatal("fixed prompt biases a captured reviewer toward implementation", blanket)
+				}
 			}
 			for _, tool := range []string{"task", "webfetch", "websearch"} {
 				if permissions[tool] != "deny" || config["tools"].(map[string]any)[tool] != false {
