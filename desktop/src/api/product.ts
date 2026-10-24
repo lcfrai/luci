@@ -660,7 +660,7 @@ export function createProductClient(
       }>("/v1/setup/ssh/key", {}),
     runtime: (signal?: AbortSignal) =>
       request<RuntimeJob>("/v1/setup/runtime/install", undefined, "GET", 120_000, signal),
-    installRuntime: (mode?: 'document-packaged' | 'document-assemble') => request<RuntimeJob>("/v1/setup/runtime/install", mode ? {mode} : {}),
+    installRuntime: (mode?: 'advanced-build' | 'document-packaged' | 'document-assemble') => request<RuntimeJob>("/v1/setup/runtime/install", mode ? {mode} : {}),
     cancelRuntime: (jobId: string) => request<RuntimeJob>("/v1/setup/runtime/install/cancel", { jobId }),
     reconcileRuntime: (jobId: string) => request<RuntimeJob>("/v1/setup/runtime/install/reconcile", { jobId }),
     cloudJobs: () => request<{ jobs: CloudJob[] }>("/v1/setup/cloud/jobs"),

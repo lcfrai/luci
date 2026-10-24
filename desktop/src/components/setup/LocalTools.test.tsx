@@ -204,14 +204,81 @@ it('keeps manual runtime preparation blocked until the actual readiness state pe
   await userEvent.click(screen.getByText('Git identity, agent connection and runtime'));
   await screen.findByDisplayValue('Builder');
   const install = await screen.findByRole('button', { name: 'Install agent runtime' });
+  await userEvent.click(screen.getByText('Build from bundled source', { selector: 'summary' }));
+  const build = screen.getByRole('button', { name: 'Build from bundled source' });
   expect((install as HTMLButtonElement).disabled).toBe(true);
+  expect(build).toHaveProperty('disabled', true);
   expect(screen.getByRole('button', {name: 'Prepare document extraction'})).toHaveProperty('disabled', true);
   await userEvent.click(install);
+  await userEvent.click(build);
   expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST')).toHaveLength(0);
   view.rerender(<LocalTools client={client} runtimeBlockedReason="" />);
   await userEvent.click(install);
   await screen.findByText('installing · Real job accepted.');
   expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST')).toHaveLength(1);
+  const write = fetcher.mock.calls.find(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST')!;
+  expect(JSON.parse(write[1]!.body as string)).toEqual({});
+});
+
+it('keeps compressed installation as the default and builds source only after a separate explicit choice', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+    const endpoint = String(url);
+    if (endpoint.endsWith('/git/identity')) return new Response(JSON.stringify({name: 'Builder', email: 'builder@example.invalid'}));
+    if (endpoint.endsWith('/setup/agents')) return new Response(JSON.stringify({providers: []}));
+    if (endpoint.endsWith('/setup/agent-connections')) return new Response(JSON.stringify({revision: 0, activeConnectionId: '', connections: []}));
+    if (endpoint.endsWith('/runtime/install')) {
+      if (init?.method !== 'POST') return new Response(JSON.stringify({status: 'idle'}));
+      const body = JSON.parse(init.body as string);
+      return body.mode === 'advanced-build'
+        ? new Response(JSON.stringify({id: 'source-build', status: 'installing', message: 'Building the selected source.'}))
+        : new Response(JSON.stringify({error: 'runtime_distribution_missing', message: 'The compressed runtime distribution is not included.'}), {status: 409});
+    }
+    throw new Error('Unexpected fixture request: ' + endpoint);
+  });
+  render(<LocalTools client={createProductClient('http://localhost', fetcher)} />);
+  await userEvent.click(screen.getByText('Git identity, agent connection and runtime'));
+  await screen.findByDisplayValue('Builder');
+  await userEvent.click(screen.getByText('Build from bundled source', {selector: 'summary'}));
+  expect(screen.getByText(/downloads Linux base images/)).toBeTruthy();
+  const writes = () => fetcher.mock.calls.filter(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST');
+  expect(writes()).toHaveLength(0);
+  await userEvent.click(screen.getByRole('button', {name: 'Install agent runtime'}));
+  expect((await screen.findByRole('alert')).textContent).toBe('The compressed runtime distribution is not included.');
+  expect(writes()).toHaveLength(1);
+  expect(JSON.parse(writes()[0][1]!.body as string)).toEqual({});
+  await userEvent.dblClick(screen.getByRole('button', {name: 'Build from bundled source'}));
+  await screen.findByText('installing · Building the selected source.');
+  expect(writes()).toHaveLength(2);
+  expect(JSON.parse(writes()[1][1]!.body as string)).toEqual({mode: 'advanced-build'});
+  expect(screen.getByRole('button', {name: 'Build from bundled source'})).toHaveProperty('disabled', true);
+});
+
+it.each([
+  {id: 'active', status: 'installing'},
+  {id: 'uncertain', status: 'unknown'},
+  {id: 'retained', status: 'failed', execution: {resourcesHeld: true}},
+  {id: 'proof-held', status: 'facts-recorded', inputProof: {identity: {purpose: 'binary-bindings'}, phase: 'facts-recorded', cleanupConfirmed: false, resourcesHeld: true, publicationUnknown: false}},
+  {id: 'publication-unknown', status: 'facts-recorded', inputProof: {identity: {purpose: 'binary-bindings'}, phase: 'facts-recorded', cleanupConfirmed: true, resourcesHeld: false, publicationUnknown: true}},
+])('does not start a source build while the $id runtime operation needs settlement', async (job) => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+    const endpoint = String(url);
+    if (endpoint.endsWith('/git/identity')) return new Response(JSON.stringify({name: 'Builder', email: 'builder@example.invalid'}));
+    if (endpoint.endsWith('/runtime/install')) return new Response(JSON.stringify(job));
+    if (endpoint.endsWith('/setup/agents')) return new Response(JSON.stringify({providers: []}));
+    if (endpoint.endsWith('/setup/agent-connections')) return new Response(JSON.stringify({revision: 0, activeConnectionId: '', connections: []}));
+    throw new Error('Unexpected fixture request: ' + endpoint);
+  });
+  render(<LocalTools client={createProductClient('http://localhost', fetcher)} />);
+  await userEvent.click(screen.getByText('Git identity, agent connection and runtime'));
+  await screen.findByDisplayValue('Builder');
+  await userEvent.click(screen.getByText('Build from bundled source', {selector: 'summary'}));
+  const build = screen.getByRole('button', {name: 'Build from bundled source'});
+  expect(build).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: /^(Install agent runtime|Runtime preparation in progress…)$/})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: 'Prepare document extraction'})).toHaveProperty('disabled', true);
+  if (job.inputProof) expect(screen.getByRole('button', {name: 'Check interrupted installation'})).toBeTruthy();
+  await userEvent.click(build);
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
 });
 
 it('prepares the distinct document package only on explicit administrator action', async () => {
@@ -244,6 +311,8 @@ it('does not offer document preparation without current backing management permi
  expect(await screen.findByRole('button',{name:'Remove saved key'})).toBeTruthy();
  expect(screen.queryByText('Loading Git identity and runtime…')).toBeNull();
  expect(screen.queryByRole('button', {name: 'Prepare document extraction'})).toBeNull();
+ expect(screen.queryByRole('button', {name: 'Build from bundled source'})).toBeNull();
+ expect(screen.queryByText('Build from bundled source', {selector: 'summary'})).toBeNull();
  expect(screen.queryByRole('button', {name: 'Assemble document image artifact'})).toBeNull();
  expect(fetcher.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(0);
 });

@@ -89,15 +89,18 @@ export function LocalTools({
   const assemblyAvailable = runtime?.inputProof?.identity.purpose === 'binary-bindings'
     && runtime.inputProof.phase === 'facts-recorded' && runtime.inputProof.cleanupConfirmed
     && !runtime.inputProof.resourcesHeld && !runtime.inputProof.publicationUnknown;
-  const runtimeAction = (action: "install" | "documents" | "assemble" | "cancel" | "reconcile") => {
-    const starts = action === 'install' || action === 'documents' || action === 'assemble';
+  const runtimeRetained = runtimeInstallRetained(runtime)
+    || runtime?.inputProof?.resourcesHeld === true
+    || runtime?.inputProof?.publicationUnknown === true;
+  const runtimeAction = (action: "install" | "source" | "documents" | "assemble" | "cancel" | "reconcile") => {
+    const starts = action === 'install' || action === 'source' || action === 'documents' || action === 'assemble';
     if (!manageBacking || working.current || (!starts && !runtime?.id)) return;
-    if (starts && (runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime))) return;
+    if (starts && (!loaded || runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeRetained)) return;
     if (action === 'assemble' && !assemblyAvailable) return;
     const currentGeneration = generation.current;
     const selectedMutation = ++mutation.current;
-    void run(starts ? action === 'assemble' ? 'Assembling document image artifact' : action === 'documents' ? 'Preparing contained document extraction' : "Starting runtime installation" : action === "cancel" ? "Requesting cancellation" : "Checking interrupted installation", async () => {
-      const next = action === 'assemble' ? await client.installRuntime('document-assemble') : action === 'documents' ? await client.installRuntime('document-packaged') : action === "install" ? await client.installRuntime() : action === "cancel" ? await client.cancelRuntime(runtime!.id) : await client.reconcileRuntime(runtime!.id);
+    void run(starts ? action === 'assemble' ? 'Assembling document image artifact' : action === 'documents' ? 'Preparing contained document extraction' : action === 'source' ? 'Building agent runtime from bundled source' : "Starting runtime installation" : action === "cancel" ? "Requesting cancellation" : "Checking interrupted installation", async () => {
+      const next = action === 'assemble' ? await client.installRuntime('document-assemble') : action === 'documents' ? await client.installRuntime('document-packaged') : action === 'source' ? await client.installRuntime('advanced-build') : action === "install" ? await client.installRuntime() : action === "cancel" ? await client.cancelRuntime(runtime!.id) : await client.reconcileRuntime(runtime!.id);
       if (generation.current === currentGeneration && mutation.current === selectedMutation) setRuntime(next);
     });
   };
@@ -210,10 +213,11 @@ export function LocalTools({
               <section className="setup-plan">
                 <h2>Isolated agent runtime</h2>
                 <p className="journey-muted">
-                  Build Luci’s sandbox image using Docker on{" "}
-                  {cloud ? "the cloud workspace" : "this machine"}. This
-                  downloads its open-source dependencies and can take several
-                  minutes.
+                  If workspace checks report the agent runtime ready, you can
+                  continue without reinstalling it. Install agent runtime uses
+                  the verified compressed runtime supplied with a complete Luci
+                  package. An installation containing only source cannot use
+                  that option; it will not silently build instead.
                 </p>
                 {runtime && (
                   <p role="status">
@@ -225,7 +229,7 @@ export function LocalTools({
                 <Button type="button"
                   variant="secondary"
                   disabled={
-                    !loaded || !!busy || !!runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime)
+                    !loaded || !!busy || !!runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeRetained
                   }
                   onClick={() => runtimeAction("install")}
                 >
@@ -233,15 +237,35 @@ export function LocalTools({
                     ? "Runtime preparation in progress…"
                     : "Install agent runtime"}
                 </Button>
+                <details>
+                  <summary>Build from bundled source</summary>
+                  <p className="journey-muted">
+                    Use this explicit alternative when this installation includes
+                    runtime source but not the compressed runtime package. Docker
+                    must be running Linux containers on{" "}
+                    {cloud ? "the cloud workspace" : "this machine"}. The build
+                    downloads Linux base images, operating-system packages and
+                    pinned agent tools from their publishers. It needs network
+                    access, sufficient memory and disk space, and can take several
+                    minutes. Existing permission and resource checks still apply.
+                    No model is called.
+                  </p>
+                  <Button type="button" variant="secondary"
+                    disabled={!loaded || !!busy || !!runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeRetained}
+                    onClick={() => runtimeAction("source")}
+                  >
+                    Build from bundled source
+                  </Button>
+                </details>
                 <p className="journey-muted">Prepare PDF and image extraction using the document tools included with Luci. This requires a complete installation package.</p>
-                <Button type="button" variant="secondary" disabled={!loaded || !!busy || !!runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime)} onClick={() => runtimeAction('documents')}>
+                <Button type="button" variant="secondary" disabled={!loaded || !!busy || !!runtimeBlockedReason || runtimeInstallActive(runtime) || runtimeRetained} onClick={() => runtimeAction('documents')}>
                   Prepare document extraction
                 </Button>
                 <details>
                   <summary>Maintainer document image assembly</summary>
                   <p className="journey-muted">Assemble a document image artifact from this installation’s completed input proof. This separate operation does not prepare extraction: finalize and package the artifact before installing it.</p>
                   {!assemblyAvailable && <p className="journey-muted">Complete the configured document input proof before assembling its image.</p>}
-                  <Button type="button" variant="secondary" disabled={!loaded || !!busy || !!runtimeBlockedReason || !assemblyAvailable || runtimeInstallActive(runtime) || runtimeInstallRetained(runtime)} onClick={() => runtimeAction('assemble')}>
+                  <Button type="button" variant="secondary" disabled={!loaded || !!busy || !!runtimeBlockedReason || !assemblyAvailable || runtimeInstallActive(runtime) || runtimeRetained} onClick={() => runtimeAction('assemble')}>
                     Assemble document image artifact
                   </Button>
                 </details>
@@ -250,7 +274,7 @@ export function LocalTools({
                     {runtime.cancelRequested || runtime.status === "cancelling" ? "Cancellation requested" : "Cancel runtime preparation"}
                   </Button>
                 )}
-                {runtime?.id && !runtimeInstallActive(runtime) && runtimeInstallRetained(runtime) && (
+                {runtime?.id && !runtimeInstallActive(runtime) && runtimeRetained && (
                   <Button type="button" variant="secondary" disabled={!!busy} onClick={() => runtimeAction("reconcile")}>
                     Check interrupted installation
                   </Button>
