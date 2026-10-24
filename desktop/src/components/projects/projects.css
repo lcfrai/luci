@@ -15,7 +15,7 @@
   margin-inline: auto;
 }
 .projects-heading h1 {
-  font-size: clamp(28px, 3vw, 38px);
+  font-size: clamp(24px, 2.2vw, 28px);
   letter-spacing: -0.035em;
   line-height: 1.2;
   margin: 0 0 12px;
@@ -146,7 +146,7 @@
   }
   .projects-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; }
   .projects-heading > div { display: contents; }
-  .projects-heading h1 { grid-column: 1; grid-row: 1; margin: 0; font-size: 27px; }
+  .projects-heading h1 { grid-column: 1; grid-row: 1; margin: 0; font-size: 24px; }
   .projects-heading > button { grid-column: 2; grid-row: 1; }
   .projects-heading p { grid-column: 1 / -1; grid-row: 2; font-size: 13px; }
   .projects-tools { margin-block: 6px; }

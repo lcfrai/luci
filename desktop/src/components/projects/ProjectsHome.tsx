@@ -16,7 +16,7 @@ export function ProjectsHome() {
   const [showDetails, setShowDetails] = useState(false);
   const home = useProjectHome();
   const visibleIDs = home ? new Set(home.home?.projects.map(project => project.id) ?? []) : null;
-  const activity = new Map(home?.home?.projects.map(project => [project.id, project]) ?? []);
+  const activity = new Map(home?.activityAvailable ? home.home?.projects.map(project => [project.id, project]) : []);
   const setup = useSetup();
   const team = useTeamWorkspace();
   const canCreate = !team?.teamId || !!(team.selected?.permissions.edit && team.selected.permissions.admin);
@@ -128,6 +128,10 @@ export function ProjectsHome() {
               <strong>Deploy</strong>
               <span>Preview locally, then publish.</span>
             </li>
+            <li>
+              <strong>Distribute</strong>
+              <span>Prepare your product for people to use and adopt.</span>
+            </li>
           </ol>
           <Button type="button"
             variant="secondary"
@@ -140,7 +144,8 @@ export function ProjectsHome() {
       ) : (
         <>
           {home?.error && <p className="journey-error" role="status">{home.error} <Button variant="secondary" onClick={home.refresh}>Refresh activity</Button></p>}
-          {!home?.home && <p role="status">{home?.busy ? 'Loading project activity…' : 'Project activity is unavailable. Open a project to inspect its saved work.'}</p>}
+          {!home?.home && <p role="status">{home?.busy ? 'Loading project activity…' : 'Project activity is unavailable. Refresh activity to verify your accessible projects.'}</p>}
+          {home?.home && !home.activityAvailable && <p role="status">Showing last verified projects. Activity is unavailable; refresh before changing pins or queue controls.</p>}
           {(!home || home.home) && <ul className="home-activity-list">{filtered.map(project => {
             const row = activity.get(project.id);
             const pinned = !!home?.home?.pinnedProjectIds.includes(project.id);
@@ -152,13 +157,13 @@ export function ProjectsHome() {
                 {row && !row.working && !row.needsInput && !row.queued && !row.unknown && !row.stops.length && <span>Ready to open</span>}
               </div></div>
               <div className="home-activity-actions">
-                <Button variant="secondary" disabled={!row || !!home?.busy} aria-pressed={pinned} onClick={() => void home?.pin(project.id, !pinned)}>{pinned ? 'Unpin' : 'Pin'}</Button>
+                <Button variant="secondary" disabled={!row || !!home?.busy || !home?.activityAvailable} aria-pressed={pinned} onClick={() => void home?.pin(project.id, !pinned)}>{pinned ? 'Unpin' : 'Pin'}</Button>
                 <Button variant="primary" onClick={() => { if (home) home.open(project.id); else useCockpit.getState().selectProject(project.id); }}>Open project</Button>
               </div>
             </li>;
           })}</ul>}
-          {(!home || home.home) && <Button type="button" variant="secondary" aria-expanded={showDetails} onClick={() => setShowDetails(value => !value)}>{showDetails ? 'Hide detailed overview' : 'Detailed overview and queue controls'}</Button>}
-          {showDetails && (!home || home.home) && <ProjectOverviewBoard projects={filtered} />}
+          {(!home || home.home) && <Button type="button" variant="secondary" disabled={!!home && !home.activityAvailable} aria-expanded={showDetails && (!home || home.activityAvailable)} onClick={() => setShowDetails(value => !value)}>{showDetails ? 'Hide detailed overview' : 'Detailed overview and queue controls'}</Button>}
+          {showDetails && (!home || home.activityAvailable) && <ProjectOverviewBoard projects={filtered} />}
         </>
       )}
       {projects.length > 0 && filtered.length === 0 && query && (!home || home.home) && (

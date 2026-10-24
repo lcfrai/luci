@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "../fluid/components/button";
+import { LuciMark } from "../common/LuciMark";
 import type { ControlUser } from "./AuthProvider";
 
 export interface ControlStatus {
@@ -97,6 +98,7 @@ export function AuthEntry({
   return (
     <main className="auth-screen">
       <section className="auth-card" aria-labelledby="auth-title">
+        <div className="auth-brand"><LuciMark size={28} /><span>Luci</span></div>
         <h1 id="auth-title" ref={heading} tabIndex={-1}>
           {!status
             ? "Connect to Luci."
@@ -124,7 +126,7 @@ export function AuthEntry({
                   ? local.available
                     ? "Create a separate account on this computer, with its own projects and administrator access. Existing accounts and their projects stay intact. To return to existing projects, recover the original account instead."
                     : "Use an invitation from this workspace’s administrator and choose your own sign-in. An invitation is needed because this workspace already has an owner."
-                  : "Use the account created for this workspace. If this is a new installation, Luci may have found a workspace saved by an earlier installation."}
+                  : "Use your workspace account to return to your projects."}
           </p>
         )}
       {status && !fresh && !local.available && portableLocal && mode !== "sign-in" && (
@@ -137,12 +139,15 @@ export function AuthEntry({
           mode === "sign-in" &&
           local.available &&
           local.owner && (
-            <p className="journey-muted">
-              Saved owner:{" "}
+            <details className="auth-owner">
+              <summary>About this workspace</summary>
+              <p className="journey-muted">
+              Workspace owner:{" "}
               <strong>{local.owner.displayName || local.owner.username}</strong>{" "}
-              · {local.owner.username}. Sign in to this account to return to its
-              projects.
-            </p>
+              · {local.owner.username}. Each account has its own projects. Sign
+              in with your own username, or create a separate account.
+              </p>
+            </details>
           )}
         {loading && <p role="status">Connecting to your workspace…</p>}
         {(validation || error) && (

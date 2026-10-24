@@ -13,7 +13,7 @@
 .luci-ui-button-link { background: transparent; color: var(--accent); text-underline-offset: 4px; }
 .luci-ui-button-link:hover { text-decoration: underline; }
 .luci-ui-button:focus-visible, .luci-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.luci-ui-button[aria-disabled="true"] { pointer-events: none; opacity: 0.5; }
+.luci-ui-button:disabled, .luci-ui-button[aria-disabled="true"] { pointer-events: none; opacity: 1; background: var(--inset); color: var(--ink-3); border-color: var(--line); }
 .luci-ui-button-spinner { width: 16px; height: 16px; animation: luci-control-spin 900ms linear infinite; }
 @keyframes luci-control-spin { to { transform: rotate(360deg); } }
 .luci-input { min-height: var(--field-min-size); border-color: var(--line-strong); border-radius: var(--r-ctl); background: var(--field); color: var(--ink); font-family: var(--sans); font-size: 13px; }

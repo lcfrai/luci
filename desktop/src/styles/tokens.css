@@ -11,7 +11,7 @@
  *   1. No component CSS contains a literal hex. Every colour is a var() from this file.
  *   2. The accent appears ONLY on interactive and current state. Never on a card, an icon,
  *      a border or a fill that is not carrying "you can act here" or "this is selected".
- *   3. Elevation is a 1px ring PLUS a layered shadow. Never a flat border.
+ *   3. Resting surfaces use tone and a hairline; shadows belong to overlays.
  *   4. Radius is tied to element size: chip 6 / control 8 / card 10 / window 14.
  *   5. Status colour is a separate vocabulary from the accent and always ships with a shape.
  */
@@ -105,14 +105,10 @@
   --r-card: 12px; /* cards, panes, tiles, popovers */
   --r-window: 14px; /* the palette, modals — anything that reads as its own window */
 
-  /* ── Elevation: a 1px ring PLUS a layered shadow. Never a flat border. ─────────────
-   * Five steps. The ring is what makes the edge legible on a dark ground; the shadow is
-   * what places it in depth. Either alone looks wrong, which is the whole point. */
+  /* Resting surfaces stay flat. Popovers, menus and dialogs retain real elevation. */
   --e-hair: 0 0 0 1px var(--line);
   --e-btn: 0 0 0 1px var(--line), 0 1px 1px oklch(0% 0 0 / 0.35);
-  --e-card:
-    0 0 0 1px var(--line), 0 1px 2px oklch(0% 0 0 / 0.4),
-    0 4px 12px oklch(0% 0 0 / 0.22);
+  --e-card: 0 0 0 1px var(--line);
   --e-raised:
     0 0 0 1px var(--line-strong), 0 2px 4px oklch(0% 0 0 / 0.45),
     0 14px 36px oklch(0% 0 0 / 0.4);
@@ -190,8 +186,7 @@
   --need-tint: oklch(47.88% 0.10021 71.12 / 0.071);
   --fail-tint: oklch(50.4% 0.15984 28.39 / 0.071);
   --e-btn: 0 0 0 1px var(--line), 0 1px 1px oklch(25.99% 0.00745 67 / 0.047);
-  --e-card:
-    0 0 0 1px var(--line), 0 4px 12px oklch(25.99% 0.00745 67 / 0.047);
+  --e-card: 0 0 0 1px var(--line);
   --e-raised:
     0 0 0 1px var(--line-strong),
     0 12px 36px oklch(25.99% 0.00745 67 / 0.125);

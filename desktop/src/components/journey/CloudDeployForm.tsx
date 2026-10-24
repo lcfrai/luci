@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   errorText,
   productApi,
@@ -7,6 +7,23 @@ import {
   type GitState,
 } from "../../api/product";
 import { Button } from "../fluid/components/button";
+import { useProjectDraft, useProjectDraftScope } from "../../hooks/useProjectDraft";
+import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
+
+type CloudDeploymentDraft = {
+  targetId: string; repository: string; domain: string; port: number; healthPath: string; dockerfile: string;
+  source: "public" | "private"; dataClientFramework: "none" | "vite" | "nextjs";
+};
+const emptyDraft: CloudDeploymentDraft = { targetId: "", repository: "", domain: "", port: 3000, healthPath: "/", dockerfile: "Dockerfile", source: "private", dataClientFramework: "none" };
+const draftKeys = Object.keys(emptyDraft).sort().join(",");
+function validCloudDraft(value: unknown): value is CloudDeploymentDraft {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join(",") !== draftKeys) return false;
+  const row = value as CloudDeploymentDraft;
+  // Keep credentials, key references, URL userinfo/query tokens and consent out of browser recovery.
+  return Object.entries(emptyDraft).every(([key, example]) => typeof example === "number" ? Number.isInteger(row.port) && row.port > 0 && row.port <= 65535
+    : typeof row[key as keyof CloudDeploymentDraft] === "string" && (row[key as keyof CloudDeploymentDraft] as string).length <= 4096 && !/[\r\n\0]/.test(row[key as keyof CloudDeploymentDraft] as string)) &&
+    !/[@?#]/.test(row.repository + row.domain + row.healthPath) && ["public", "private"].includes(row.source) && ["none", "vite", "nextjs"].includes(row.dataClientFramework);
+}
 type CloudDeployFormProps = {
   projectId: string;
   busy: string;
@@ -15,9 +32,11 @@ type CloudDeployFormProps = {
   onSetup(): void;
   canManageBacking?: boolean;
   canPrepareAccess?: boolean;
+  onUnretainedChange?(unretained: boolean): void;
 };
 export function CloudDeployForm(props: CloudDeployFormProps) {
-  return <ProjectCloudDeployForm key={props.projectId} {...props} />;
+  const scope = useProjectDraftScope(props.projectId);
+  return <ProjectCloudDeployForm key={JSON.stringify([scope, props.projectId])} {...props} scope={scope} />;
 }
 function ProjectCloudDeployForm({
   projectId,
@@ -27,7 +46,9 @@ function ProjectCloudDeployForm({
   onSetup,
   canManageBacking = true,
   canPrepareAccess = true,
-}: CloudDeployFormProps) {
+  onUnretainedChange,
+  scope,
+}: CloudDeployFormProps & { scope: string | null }) {
   const alive = useRef(true),
     preparing = useRef(false);
   const checking = useRef(false);
@@ -47,6 +68,20 @@ function ProjectCloudDeployForm({
     [healthPath, setHealthPath] = useState("/"),
     [dockerfile, setDockerfile] = useState("Dockerfile");
   const [dataClientFramework, setDataClientFramework] = useState<"none" | "vite" | "nextjs">("none");
+  const [changed, setChanged] = useState(false);
+  const baseline = useRef<CloudDeploymentDraft>(emptyDraft);
+  const value = useMemo(() => ({ targetId, repository, domain, port, healthPath, dockerfile, source, dataClientFramework }), [targetId, repository, domain, port, healthPath, dockerfile, source, dataClientFramework]);
+  const draft = useProjectDraft({ scope: scope ? JSON.stringify([scope, "cloud-deployment-form"]) : null, kind: "preview-setup", base: projectId, value, dirty: changed, valid: validCloudDraft });
+  function applySettings(next: CloudDeploymentDraft) {
+    setTargetId(next.targetId); setRepository(next.repository); setDomain(next.domain); setPort(next.port);
+    setHealthPath(next.healthPath); setDockerfile(next.dockerfile); setSource(next.source); setDataClientFramework(next.dataClientFramework);
+    setPrivateKeyUuid(""); setKeyMessage(""); setError("");
+  }
+  function discardDraft() { draft.clear(); applySettings(baseline.current); setChanged(false); }
+  useUnsavedProjectDraft(projectId, changed || !!draft.pending, "Cloud deployment settings", "deploy", { retained: draft.retained || !!draft.pending, discard: discardDraft });
+  const unretained = changed && !draft.retained;
+  useEffect(() => { onUnretainedChange?.(unretained); return () => onUnretainedChange?.(false); }, [unretained, onUnretainedChange]);
+  const fieldsLocked = !!busy || keyBusy || loading || !!draft.pending;
   const load = async (initial = false) => {
     if (checking.current || preparing.current) return;
     checking.current = true;
@@ -61,6 +96,7 @@ function ProjectCloudDeployForm({
       ]);
       if (!alive.current || generation.current !== ticket) return;
       if (initial) {
+        baseline.current = { ...emptyDraft, repository: delivery.origin || "", source: delivery.publication?.visibility === "public" ? "public" : "private" };
         setRepository(delivery.origin || "");
         setSource(
           delivery.publication?.visibility === "public" ? "public" : "private",
@@ -85,7 +121,7 @@ function ProjectCloudDeployForm({
     };
   }, [projectId]);
   async function prepareAccess() {
-    if (!canPrepareAccess || preparing.current || loading || busy || !targetId || !repository.trim()) return;
+    if (!canPrepareAccess || preparing.current || loading || busy || draft.pending || !targetId || !repository.trim()) return;
     preparing.current = true;
     const ticket = generation.current;
     setKeyBusy(true);
@@ -119,7 +155,7 @@ function ProjectCloudDeployForm({
       onSubmit={(e) => {
         e.preventDefault();
         if (
-          !disabled && !busy && !keyBusy && !loading && git?.clean &&
+          !disabled && !busy && !keyBusy && !loading && !draft.pending && git?.clean &&
           head &&
           selectedTarget &&
           (source === "public" || privateKeyUuid.trim())
@@ -146,6 +182,14 @@ function ProjectCloudDeployForm({
         Deploy your reviewed repository to a connected server. Luci checks the
         deployed commit and HTTPS health before showing a ready release.
       </p>
+      {draft.pending && <section className="setup-plan" aria-label="Cloud deployment draft recovery">
+        <h3>Recover cloud deployment settings</h3>
+        <p>Settings from this account, workspace and project are available in this browser. Restore them to review the current server and source again. Access keys and deployment approval are not restored.</p>
+        <Button type="button" variant="secondary" disabled={!!busy || keyBusy || loading || disabled} onClick={() => { const restored = draft.take(); if (restored) { applySettings(restored.value); setChanged(true); } }}>Restore cloud deployment draft</Button>
+        <Button type="button" variant="tertiary" disabled={!!busy || keyBusy} onClick={discardDraft}>Discard cloud deployment draft</Button>
+      </section>}
+      {draft.error && <p role="alert" className="journey-warning">Cloud deployment settings could not be retained safely. Keep this form open or discard the draft before leaving. Credentials must stay out of saved URLs.</p>}
+      {changed && !draft.pending && <div className="journey-actions">{draft.retained && <p role="status">Cloud deployment settings are kept in this browser. Access keys must be selected or prepared again after recovery.</p>}<Button type="button" variant="tertiary" disabled={!!busy || keyBusy} onClick={discardDraft}>Discard cloud deployment draft</Button></div>}
       {error && (
         <p className="journey-error" role="alert">
           {error}
@@ -168,9 +212,10 @@ function ProjectCloudDeployForm({
         Deployment server
         <select
           required
-          disabled={!!busy || keyBusy || loading}
+          disabled={fieldsLocked}
           value={targetId}
           onChange={(e) => {
+            setChanged(true);
             setTargetId(e.target.value);
             setPrivateKeyUuid("");
             setKeyMessage("");
@@ -190,9 +235,10 @@ function ProjectCloudDeployForm({
           <input
             required
             type="url"
-            disabled={!!busy || keyBusy || loading}
+            disabled={fieldsLocked}
             value={repository}
             onChange={(e) => {
+              setChanged(true);
               setRepository(e.target.value);
               setPrivateKeyUuid("");
               setKeyMessage("");
@@ -205,8 +251,8 @@ function ProjectCloudDeployForm({
           <input
             required
             value={domain}
-            disabled={!!busy || keyBusy || loading}
-            onChange={(e) => setDomain(e.target.value)}
+            disabled={fieldsLocked}
+            onChange={(e) => { setChanged(true); setDomain(e.target.value); }}
             placeholder="app.example.com"
           />
         </label>
@@ -219,8 +265,8 @@ function ProjectCloudDeployForm({
           <input
             required
             value={dockerfile}
-            disabled={!!busy || keyBusy || loading}
-            onChange={(e) => setDockerfile(e.target.value)}
+            disabled={fieldsLocked}
+            onChange={(e) => { setChanged(true); setDockerfile(e.target.value); }}
           />
         </label>
         <label className="luci-field">
@@ -231,8 +277,8 @@ function ProjectCloudDeployForm({
             min="1"
             max="65535"
             value={port}
-            disabled={!!busy || keyBusy || loading}
-            onChange={(e) => setPort(Number(e.target.value))}
+            disabled={fieldsLocked}
+            onChange={(e) => { setChanged(true); setPort(Number(e.target.value)); }}
           />
         </label>
         <label className="luci-field">
@@ -240,15 +286,15 @@ function ProjectCloudDeployForm({
           <input
             required
             value={healthPath}
-            disabled={!!busy || keyBusy || loading}
-            onChange={(e) => setHealthPath(e.target.value)}
+            disabled={fieldsLocked}
+            onChange={(e) => { setChanged(true); setHealthPath(e.target.value); }}
             placeholder="/health"
           />
         </label>
         </div>
         <label className="luci-field">
           <span id={`${fieldId}-data-label`}>Browser data variables</span>
-          <select aria-labelledby={`${fieldId}-data-label`} aria-describedby={`${fieldId}-data-help`} value={dataClientFramework} disabled={!!busy || keyBusy || loading} onChange={event => setDataClientFramework(event.target.value as "none" | "vite" | "nextjs")}>
+          <select aria-labelledby={`${fieldId}-data-label`} aria-describedby={`${fieldId}-data-help`} value={dataClientFramework} disabled={fieldsLocked} onChange={event => { setChanged(true); setDataClientFramework(event.target.value as "none" | "vite" | "nextjs"); }}>
             <option value="none">Runtime only</option>
             <option value="vite">Vite · VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY</option>
             <option value="nextjs">Next.js · NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY</option>
@@ -260,8 +306,8 @@ function ProjectCloudDeployForm({
         Repository access
         <select
           value={source}
-          disabled={!!busy || keyBusy || loading}
-          onChange={(event) => setSource(event.target.value as typeof source)}
+          disabled={fieldsLocked}
+          onChange={(event) => { setChanged(true); setSource(event.target.value as typeof source); setPrivateKeyUuid(""); setKeyMessage(""); }}
         >
           <option value="private">
             Private repository · read-only deploy key
@@ -279,7 +325,7 @@ function ProjectCloudDeployForm({
           <Button type="button"
             variant="secondary"
             loading={keyBusy}
-            disabled={!canPrepareAccess || !!busy || keyBusy || loading || !targetId || !repository.trim()}
+            disabled={!canPrepareAccess || fieldsLocked || !targetId || !repository.trim()}
             onClick={() => void prepareAccess()}
           >
             {keyBusy
@@ -292,8 +338,8 @@ function ProjectCloudDeployForm({
             Deployment server key ID
             <input
               value={privateKeyUuid}
-              disabled={!!busy || keyBusy}
-              onChange={(event) => setPrivateKeyUuid(event.target.value)}
+              disabled={fieldsLocked}
+              onChange={(event) => { setChanged(true); setPrivateKeyUuid(event.target.value); }}
             />
             <small>
               Filled after preparing access. You may instead enter an existing
@@ -314,7 +360,7 @@ function ProjectCloudDeployForm({
           variant="primary"
           loading={!!busy}
           disabled={
-            disabled || !!busy ||
+            disabled || !!draft.pending || !!busy ||
             keyBusy ||
             loading ||
             !selectedTarget ||

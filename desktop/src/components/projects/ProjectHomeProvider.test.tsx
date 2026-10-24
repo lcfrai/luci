@@ -3,6 +3,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import { ProjectHomeProvider, useProjectHome } from './ProjectHomeProvider';
 import { projectHomeApi } from '../../api/projectHome';
 import { resetCockpit, useCockpit } from '../../store/store';
+import { ApiError } from '../../api/client';
 
 const identity = vi.hoisted(() => ({scope: 'actor:workspace'}));
 vi.mock('../../hooks/useProjectDraft', () => ({ useProjectDraftScope: () => identity.scope }));
@@ -51,4 +52,29 @@ it('hides the old actor workspace projection on a scope change before a new resp
   expect(view?.home).toBeNull();
   act(() => resolveNext({...home, projects: []}));
   await waitFor(() => expect(view?.home?.projects).toHaveLength(0));
+});
+
+it.each(['actor workspace', 'catalogue epoch'])('never restores a retained outage projection across a changed %s', async boundary => {
+  vi.spyOn(projectHomeApi, 'getAll').mockResolvedValueOnce(home)
+    .mockRejectedValueOnce(new ApiError('network_unavailable', 'Connection interrupted.', 0))
+    .mockImplementation(() => new Promise<typeof home>(() => {}));
+  const rendered = render(<ProjectHomeProvider><Probe /></ProjectHomeProvider>);
+  await waitFor(() => expect(view?.activityAvailable).toBe(true));
+  act(() => view!.refresh());
+  await waitFor(() => expect(view?.error).toBe('Connection interrupted.'));
+  expect(view?.home?.projects).toHaveLength(2);
+  expect(view?.activityAvailable).toBe(false);
+  if (boundary === 'actor workspace') {
+    identity.scope = 'other:workspace';
+    rendered.rerender(<ProjectHomeProvider><Probe /></ProjectHomeProvider>);
+  } else {
+    act(() => useCockpit.setState(state => ({ projectCatalogueEpoch: state.projectCatalogueEpoch + 1 })));
+  }
+  expect(view?.home).toBeNull();
+  expect(view?.activityAvailable).toBe(false);
+  if (boundary === 'actor workspace') {
+    identity.scope = 'actor:workspace';
+    rendered.rerender(<ProjectHomeProvider><Probe /></ProjectHomeProvider>);
+    expect(view?.home).toBeNull();
+  }
 });

@@ -15,7 +15,7 @@ the account, resources, domain and cost approval before creating resources.
 The owner's 7 October identity selection is **Fourfold**, with four equal parts
 forming one continuous loop. Canonical source and motion direction are in
 [docs/luci/IDENTITY.md](docs/luci/IDENTITY.md). The activities are now **Discover,
-Design, Develop, Deploy**, concurrent and iterative. This supersedes earlier
+Design, Develop, Deploy and Distribute**, concurrent and iterative. This supersedes earlier
 Define/Describe vocabulary and prior logo directions. The asset handoff does
 not itself change the running app or supply an animation.
 
@@ -46,6 +46,16 @@ Everyday use should be calm, clear and easy. Show one main action and the result
 that matters; place runtime details, revisions and recovery tools behind deliberate
 disclosures. Develop is the exception: show the user's actual CLI work and output.
 Do not hide failures, invent progress or replace working actions with visual demos.
+
+The 24 October review uses Taste v2.1.4's app-screen guidance, with its
+true-black-flat direction (seed 774433968). Keep Luci's warm graphite, teal,
+bundled Inter and Fourfold identity. This is a restyle of the existing application:
+the dealt no-sidebar shell does not replace the working project tree, pins or
+five-stage navigation. The product's signature is the same project and personal
+Luci context carried through five revisitable workspaces, rather than five
+unrelated tools. Resting panels stay flat, overlays retain elevation, and disabled
+controls remain readable. Sign-in names the workspace without implying that every
+person must use its owner's account; long account forms scroll inside the viewport.
 
 ## Layout and interaction
 

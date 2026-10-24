@@ -111,9 +111,11 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
   const [dockerfile, setDockerfile] = useState("Dockerfile");
   const [releaseKind, setReleaseKind] = useState<'dockerfile' | 'reviewed-source'>('dockerfile');
   const [busy, setBusy] = useState("");
+  const [cloudDraftUnretained, setCloudDraftUnretained] = useState(false);
   const [localConfigurationBusy, setConfigurationBusy] = useState(false);
   const configurationBusy = localConfigurationBusy || externalConfigurationBusy;
   const locked = !!busy || configurationBusy;
+  const navigationLocked = locked || cloudDraftUnretained;
   const cancellationUnresolved = Object.values(cancelFeedback).some(feedback => feedback.state === "sending" || feedback.state === "uncertain") || releases.some(release => release.target === "local" && release.cancelRequested && ["preparing", "queued", "building", "deploying", "verifying", "cancelling", "unknown"].includes(release.status));
   const buildLocked = locked || cancellationUnresolved || !canDeploy || (!!intent && (!binding.run || binding.loading || !!binding.error));
   const [error, setError] = useState("");
@@ -127,7 +129,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
   const setup = useSetup();
   const auth = useAuth();
   const manageBacking = !auth || auth.profile.permissions.manageBacking;
-  useEffect(() => { onBusyChange?.(!!busy); return () => onBusyChange?.(false); }, [busy, onBusyChange]);
+  useEffect(() => { onBusyChange?.(!!busy || cloudDraftUnretained); return () => onBusyChange?.(false); }, [busy, cloudDraftUnretained, onBusyChange]);
   const remotePreview = (release: Release) =>
     setup?.workspace?.mode === "cloud" &&
     release.target === "local" &&
@@ -342,10 +344,10 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
         <div className="journey-actions"><Button variant="secondary" disabled={locked || binding.loading} onClick={() => void binding.validate().catch(() => {})}>Refresh checked source</Button>
         <Button variant="secondary" disabled={locked} onClick={returnToRun}>Return to build results</Button></div>
       </section>}
-      <TabsSubtle className="deployment-destinations" aria-label="Deployment destination" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => { if (!locked && (!intent || (intent.outcome === "preview" ? index === 0 : index !== 0))) setMode(index === 0 ? "local" : index === 1 ? "cloud" : "pages"); }}>
-        <TabsSubtleItem index={0} label={setup?.workspace?.mode === "cloud" ? "This workspace" : "On this machine"} aria-disabled={locked || intent?.outcome === "publish"} />
-        <TabsSubtleItem index={1} label="Your cloud" aria-disabled={locked || intent?.outcome === "preview"} />
-        <TabsSubtleItem index={2} label="GitHub Pages" aria-disabled={locked || intent?.outcome === "preview"} />
+      <TabsSubtle className="deployment-destinations" aria-label="Deployment destination" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => { if (!navigationLocked && (!intent || (intent.outcome === "preview" ? index === 0 : index !== 0))) setMode(index === 0 ? "local" : index === 1 ? "cloud" : "pages"); }}>
+        <TabsSubtleItem index={0} label={setup?.workspace?.mode === "cloud" ? "This workspace" : "On this machine"} aria-disabled={navigationLocked || intent?.outcome === "publish"} />
+        <TabsSubtleItem index={1} label="Your cloud" aria-disabled={navigationLocked || intent?.outcome === "preview"} />
+        <TabsSubtleItem index={2} label="GitHub Pages" aria-disabled={navigationLocked || intent?.outcome === "preview"} />
       </TabsSubtle>
       {Object.entries(cancelFeedback).filter(([id]) => !releases.some(release => release.id === id)).map(([id, feedback]) => <p key={id} role={feedback.state === "uncertain" ? "alert" : "status"}>{feedback.message}</p>)}
       {error && (
@@ -421,6 +423,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
           }
           canManageBacking={manageBacking}
           canPrepareAccess={projectAccess.permissions.secrets}
+          onUnretainedChange={setCloudDraftUnretained}
           onSetup={() => setup?.openCloud()}
           onDeploy={(input) =>
             void operate("Submitting cloud deployment", () =>

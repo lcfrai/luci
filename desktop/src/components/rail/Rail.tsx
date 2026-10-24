@@ -38,17 +38,19 @@ export function Rail({
   const canCreate = !team?.teamId || !!(team.selected?.permissions.edit && team.selected.permissions.admin);
   const projects = useCockpit(useShallow((s) => s.projects));
   const home = useProjectHome();
-  const activity = new Map(home?.home?.projects.map(project => [project.id, project]) ?? []);
+  const activity = new Map(home?.activityAvailable ? home.home?.projects.map(project => [project.id, project]) : []);
   // A stale catalogue must not reveal a team project after its read grant is
-  // removed. While the current Home projection is unavailable, show no rows.
-  const allowed = home ? projects.filter(project => activity.has(project.id)) : projects;
+  // removed. Only a same-scope, previously verified projection may survive a
+  // transient activity outage; never fall back to an unverified catalogue.
+  const verifiedIDs = new Set(home?.home?.projects.map(project => project.id) ?? []);
+  const allowed = home ? projects.filter(project => verifiedIDs.has(project.id)) : projects;
   const pinnedIDs = home?.home?.pinnedProjectIds ?? [];
   const pinned = pinnedIDs.map(id => allowed.find(project => project.id === id)).filter((project): project is (typeof projects)[number] => !!project);
   const pinnedSet = new Set(pinned.map(project => project.id));
-  const active = home?.home ? allowed.filter(project => {
+  const active = home?.activityAvailable ? allowed.filter(project => {
     const row = activity.get(project.id);
     return !pinnedSet.has(project.id) && !!row && (row.working || row.needsInput || row.queued || row.unknown || row.stops.length > 0);
-  }) : allowed;
+  }) : allowed.filter(project => !pinnedSet.has(project.id));
   const machine = useCockpit(selectDefaultMachine);
   const expandedProjects = useCockpit((s) => s.expandedProjects);
   const selectedProjectId = useCockpit((s) => s.selection.projectId);
@@ -232,12 +234,13 @@ export function Rail({
         }}
       >
         {allowed.length === 0 ? (
-          <p className="rail-empty">{home?.home ? 'Open Home to choose a project.' : canCreate
+          <p className="rail-empty">{home && !home.home ? home.error ? 'Project activity is unavailable. Refresh activity in Home to verify your projects.' : 'Loading project activity…' : canCreate
               ? "No projects yet. Create a project or import a repository from your projects home."
               : "No projects shared yet. Ask your team administrator to share a project."}</p>
         ) : <>
           {pinned.length > 0 && <div role="group" aria-label="Pinned projects"><p className="rail-section-title">Pinned</p>{pinned.map(project => <ProjectRow key={project.id} project={project} activity={activity.get(project.id)} onOpen={home?.open} selected={project.id === selectedProjectId} expanded={expandedProjects[project.id] === true} />)}</div>}
-          {active.length > 0 && <div role="group" aria-label="Active projects"><p className="rail-section-title">Active</p>{active.map(project => <ProjectRow key={project.id} project={project} activity={activity.get(project.id)} onOpen={home?.open} selected={project.id === selectedProjectId} expanded={expandedProjects[project.id] === true} />)}</div>}
+          {home?.home && !home.activityAvailable && <p className="rail-empty" role="status">Activity unavailable. Showing last verified projects and pins.</p>}
+          {active.length > 0 && <div role="group" aria-label={home && !home.activityAvailable ? 'Last verified projects' : 'Active projects'}><p className="rail-section-title">{home && !home.activityAvailable ? 'Projects' : 'Active'}</p>{active.map(project => <ProjectRow key={project.id} project={project} activity={activity.get(project.id)} onOpen={home?.open} selected={project.id === selectedProjectId} expanded={expandedProjects[project.id] === true} />)}</div>}
           {home?.home && pinned.length === 0 && active.length === 0 && <p className="rail-empty">No active projects. Find all projects in Home.</p>}
         </>}
       </div>

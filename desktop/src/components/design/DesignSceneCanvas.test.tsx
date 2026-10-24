@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { DesignPlan } from '../../api/designPlan';
 import { designScenePlanFixture } from '../../test/designSceneFixtures';
 import { DesignSceneCanvas } from './DesignSceneCanvas';
+import sceneStyles from './design-scene.css?raw';
 beforeEach(() => {
   vi.stubGlobal('PointerEvent', class extends MouseEvent { pointerId: number; constructor(type: string, init: PointerEventInit = {}) { super(type, init); this.pointerId = init.pointerId ?? 1; } });
 });
@@ -12,6 +13,20 @@ function Harness({initial = designScenePlanFixture(), edit = true, changed = vi.
   const [plan, setPlan] = useState(initial);
   return <DesignSceneCanvas plan={plan} canRead canEdit={edit} busy={false} workScope={null} onChange={scene => { const next = {...plan, scene}; setPlan(next); changed(next); }} onAsk={ask} onPlan={vi.fn()} />;
 }
+it('keeps the draft history counter out of the visible canvas layout', () => {
+  const style = document.createElement('style'); style.textContent = sceneStyles; document.head.append(style);
+  try {
+    render(<Harness />);
+    const counter = screen.getByText(/^Draft history update /);
+    const computed = getComputedStyle(counter);
+    expect(computed.position).toBe('absolute');
+    expect(computed.overflow).toBe('hidden');
+    expect(computed.getPropertyValue('clip-path')).toBe('inset(50%)');
+    expect(computed.getPropertyValue('inline-size')).toBe('1px');
+    expect(computed.getPropertyValue('block-size')).toBe('1px');
+    expect(getComputedStyle(screen.getByRole('region', { name: 'Editable design canvas' })).position).not.toBe('absolute');
+  } finally { style.remove(); }
+});
 it('selects real persisted components and edits escaped content through the same draft/history', () => {
   const changed = vi.fn(), initial = designScenePlanFixture(); render(<Harness initial={initial} changed={changed} />);
   fireEvent.click(screen.getByRole('button', {name: 'Select Page title (node-title)'}));

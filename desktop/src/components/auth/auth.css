@@ -2,22 +2,33 @@
 @import "../journey/journey.css";
 .auth-screen {
   display: grid;
-  place-items: center;
-  min-block-size: 100dvh;
-  padding: 30px;
+  align-items: safe center;
+  justify-items: center;
+  block-size: 100dvh;
+  min-block-size: 0;
+  overflow: auto;
+  padding: clamp(16px, 4vw, 30px);
   background: var(--page);
 }
 .auth-card {
   inline-size: min(100%, 490px);
+  margin-block: auto;
   background: var(--surface);
-  padding: 34px;
+  padding: clamp(24px, 4vw, 34px);
   border-radius: var(--r-card);
   box-shadow: var(--e-card);
 }
 .auth-card h1 {
-  font-size: 30px;
+  font-size: 24px;
   letter-spacing: -0.035em;
+  line-height: 1.25;
+  margin: 24px 0 8px;
 }
+.auth-brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-size: 16px; font-weight: 600; }
+.auth-card .auth-workspace { margin: 0 0 20px; font-size: 14px; }
+.auth-owner { color: var(--ink-2); font-size: 13px; margin-block: 8px; }
+.auth-owner summary { cursor: pointer; min-block-size: 36px; padding-block: 8px; }
+.auth-owner p { margin-block: 8px 0; }
 .auth-card .journey-form {
   margin-block: 24px;
 }
@@ -125,21 +136,6 @@
   }
 }
 
-.auth-screen {
-  block-size: 100dvh;
-  overflow-y: auto;
-}
-.auth-card {
-  margin-block: auto;
-}
-.auth-card h1 {
-  line-height: 1.2;
-  margin-block: 0 12px;
-}
-.auth-card .auth-workspace {
-  margin-block: 0 20px;
-  font-size: 14px;
-}
 .auth-card small {
   font-size: 12px;
   color: var(--ink-3);
@@ -194,8 +190,5 @@
   }
   .auth-card {
     padding: 26px 22px;
-  }
-  .auth-card h1 {
-    font-size: 28px;
   }
 }
