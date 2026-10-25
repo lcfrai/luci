@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/lcfrai/luci/control-plane/internal/proxy"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
@@ -15,15 +16,19 @@ type attachedExitObserver struct {
 	mu     sync.Mutex
 	closed bool
 	done   chan struct{}
-	commit func()
+	commit func(proxy.ProcessExit)
 }
 
 func (a *API) newAttachedExitObserver(observed registry.Session) *attachedExitObserver {
 	observed = observed.Clone()
-	return &attachedExitObserver{commit: func() { a.markAttachedSessionExited(observed) }}
+	return &attachedExitObserver{commit: func(exit proxy.ProcessExit) { a.markAttachedSessionExitedWithExit(observed, exit) }}
 }
 
 func (o *attachedExitObserver) observe() {
+	o.observeExit(proxy.ProcessExit{})
+}
+
+func (o *attachedExitObserver) observeExit(exit proxy.ProcessExit) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.closed || o.done != nil {
@@ -32,7 +37,7 @@ func (o *attachedExitObserver) observe() {
 	o.done = make(chan struct{})
 	go func() {
 		defer close(o.done)
-		o.commit()
+		o.commit(exit)
 	}()
 }
 
@@ -50,6 +55,10 @@ func (o *attachedExitObserver) finish() {
 // its allocation or that work succeeded. This only publishes terminal status;
 // it never destroys a sandbox, frees a lease, or interprets command output.
 func (a *API) markAttachedSessionExited(observed registry.Session) {
+	a.markAttachedSessionExitedWithExit(observed, proxy.ProcessExit{})
+}
+
+func (a *API) markAttachedSessionExitedWithExit(observed registry.Session, exit proxy.ProcessExit) {
 	if observed.ID == "" || observed.Backend == "" || observed.SandboxID == "" ||
 		observed.SandboxRef == "" || observed.AttachToken == "" {
 		return
@@ -57,18 +66,33 @@ func (a *API) markAttachedSessionExited(observed registry.Session) {
 	_, err := a.deps.Store.Update(observed.ID, func(current *registry.Session) error {
 		// Mutable timestamps/counts may advance during this same attachment.
 		// The private allocation identity instead fences every same-ID restart
-		// and scope change. A cleared token is unknown, never a matching epoch.
-		if current.Status == registry.StatusExited || current.ID != observed.ID ||
+		// and scope change. Live rows still require the captured private token;
+		// the terminal-only diagnostic exception below grants no execution power.
+		if current.ID != observed.ID ||
 			current.Backend != observed.Backend || current.SandboxID != observed.SandboxID ||
-			current.SandboxRef != observed.SandboxRef || current.AttachToken != observed.AttachToken ||
+			current.SandboxRef != observed.SandboxRef ||
 			current.ProjectID != observed.ProjectID || current.WorktreeID != observed.WorktreeID ||
 			current.BranchID != observed.BranchID || current.ProjectRunID != observed.ProjectRunID ||
 			current.ProjectRunOperationID != observed.ProjectRunOperationID {
 			return sessionErrMoved
 		}
+		if current.Status == registry.StatusExited {
+			// The reaper may have observed the same original allocation first.
+			// Upgrade only its generic process observation, never a user stop,
+			// custom failure or newer allocation. Terminal token clearing is not
+			// permission to operate on the backend: this changes metadata only.
+			if !exit.Known() || current.ExitReason != "process exited" || current.AttachToken != "" || !current.CreatedAt.Equal(observed.CreatedAt) {
+				return sessionErrMoved
+			}
+			current.ExitReason = exit.Reason()
+			return nil
+		}
+		if current.AttachToken != observed.AttachToken {
+			return sessionErrMoved
+		}
 		current.Status = registry.StatusExited
 		if current.ExitReason == "" {
-			current.ExitReason = "process exited"
+			current.ExitReason = exit.Reason()
 		}
 		current.Endpoint, current.AttachToken = "", ""
 		return nil

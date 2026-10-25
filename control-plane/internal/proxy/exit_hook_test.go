@@ -79,6 +79,43 @@ func exitHookForward(t *testing.T, ctx context.Context, from, to *websocket.Conn
 	}
 }
 
+func TestRelayProcessExitObservesOnlyFirstTypedUpstreamResult(t *testing.T) {
+	for _, test := range []struct{ payload, reason string }{
+		{"exit status 17", "process exited with code 17"},
+		{"untrusted /private/provider-error", "process exited"},
+	} {
+		t.Run(test.reason, func(t *testing.T) {
+			var mu sync.Mutex
+			var reasons []string
+			legacyExits := 0
+			client, peer, ctx := exitHookRelay(t, proxy.Hooks{OnUpstreamExit: func() {
+				mu.Lock()
+				defer mu.Unlock()
+				legacyExits++
+			}, OnUpstreamProcessExit: func(exit proxy.ProcessExit) {
+				mu.Lock()
+				defer mu.Unlock()
+				reasons = append(reasons, exit.Reason())
+			}})
+			exitHookForward(t, ctx, client, peer, websocket.MessageBinary, []byte("\x03exit status 9"))
+			exitHookForward(t, ctx, peer, client, websocket.MessageText, []byte("\x03exit status 9"))
+			exitHookForward(t, ctx, peer, client, websocket.MessageBinary, []byte("\x00exit status 9"))
+			mu.Lock()
+			if len(reasons) != 0 || legacyExits != 0 {
+				t.Error("client, text or stdout lookalike became a process result")
+			}
+			mu.Unlock()
+			exitHookForward(t, ctx, peer, client, websocket.MessageBinary, append([]byte{0x03}, []byte(test.payload)...))
+			exitHookForward(t, ctx, peer, client, websocket.MessageBinary, []byte("\x03exit status 0"))
+			mu.Lock()
+			defer mu.Unlock()
+			if !reflect.DeepEqual(reasons, []string{test.reason}) || legacyExits != 1 {
+				t.Fatal("duplicate Exit changed the original process observation", reasons)
+			}
+		})
+	}
+}
+
 func TestRelayUpstreamExitHookDiscriminatesDirectionAndType(t *testing.T) {
 	var mu sync.Mutex
 	var upstreamSizes, clientSizes []int

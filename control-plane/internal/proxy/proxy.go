@@ -1,6 +1,7 @@
 // Package proxy relays WebSocket traffic between a desktop client and a
 // sandbox. It recognizes the upstream Exit discriminant; agent output and
-// the remaining frame payload stay opaque.
+// the remaining frame payload stay opaque, except a bounded closed process
+// code/signal observation from the genuine upstream terminal Exit frame.
 package proxy
 
 import (
@@ -12,15 +13,18 @@ import (
 
 // Hooks observe message sizes and the upstream terminal Exit discriminant.
 // They never receive payload bytes or derive meaning from agent output. The
-// attach handler uses OnUpstream for LastOutputAt and OnUpstreamExit to request
-// an authoritative session observation. A nil function is skipped. Hooks run
-// inline and should return promptly.
+// attach handler uses OnUpstream for LastOutputAt and OnUpstreamProcessExit for
+// a generation-bound code/signal observation. A nil function is skipped. Hooks
+// run inline and should return promptly.
 type Hooks struct {
 	OnUpstream func(n int) // sandbox → desktop, i.e. the agent produced output
 	OnClient   func(n int) // desktop → sandbox, i.e. the user typed
 	// OnUpstreamExit fires once per relay for a binary upstream Exit frame.
 	// It conveys no exit payload or success claim.
 	OnUpstreamExit func()
+	// OnUpstreamProcessExit receives only a closed code/signal value, never
+	// payload bytes. Unknown or malformed Exit text produces its zero value.
+	OnUpstreamProcessExit func(ProcessExit)
 }
 
 // RelayHooked copies messages between client and upstream until either closes
@@ -37,7 +41,7 @@ func RelayHooked(ctx context.Context, client, upstream *websocket.Conn, h Hooks)
 
 	errs := make(chan error, 2)
 
-	copyMessages := func(dst, src *websocket.Conn, observe func(int), observeExit func()) {
+	copyMessages := func(dst, src *websocket.Conn, observe func(int), observeExit func(), observeProcessExit func(ProcessExit)) {
 		exitObserved := false
 		for {
 			typ, data, err := src.Read(ctx)
@@ -63,9 +67,14 @@ func RelayHooked(ctx context.Context, client, upstream *websocket.Conn, h Hooks)
 			if observe != nil {
 				observe(len(data))
 			}
-			if !exitObserved && observeExit != nil && typ == websocket.MessageBinary && len(data) > 0 && data[0] == 0x03 {
+			if !exitObserved && (observeExit != nil || observeProcessExit != nil) && typ == websocket.MessageBinary && len(data) > 0 && data[0] == 0x03 {
 				exitObserved = true
-				observeExit()
+				if observeProcessExit != nil {
+					observeProcessExit(DecodeProcessExit(data[1:]))
+				}
+				if observeExit != nil {
+					observeExit()
+				}
 			}
 			if err := dst.Write(ctx, typ, data); err != nil {
 				errs <- err
@@ -74,8 +83,8 @@ func RelayHooked(ctx context.Context, client, upstream *websocket.Conn, h Hooks)
 		}
 	}
 
-	go copyMessages(upstream, client, h.OnClient, nil)
-	go copyMessages(client, upstream, h.OnUpstream, h.OnUpstreamExit)
+	go copyMessages(upstream, client, h.OnClient, nil, nil)
+	go copyMessages(client, upstream, h.OnUpstream, h.OnUpstreamExit, h.OnUpstreamProcessExit)
 
 	err := <-errs
 	cancel()

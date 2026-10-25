@@ -219,7 +219,7 @@ func (a *API) relayAttached(r *http.Request, log *slog.Logger, client *websocket
 	// registry bookkeeping. The observer is owned by this attach lifecycle.
 	defer terminal.finish()
 	relayErr := proxy.RelayHooked(r.Context(), client, upstream, proxy.Hooks{
-		OnUpstream: tracker.observe, OnUpstreamExit: terminal.observe,
+		OnUpstream: tracker.observe, OnUpstreamProcessExit: terminal.observeExit,
 	})
 	if relayErr != nil {
 		// A dropped desktop is the normal case, not an incident.

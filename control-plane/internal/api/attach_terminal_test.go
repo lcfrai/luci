@@ -18,11 +18,89 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/lcfrai/luci/control-plane/internal/proxy"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 func terminalFixtureSession(s *registry.Session) {
 	s.ProjectID, s.WorktreeID, s.BranchID = "project-terminal", "worktree-terminal", "branch-terminal"
+}
+
+func TestAttachTypedExitRetainsOnlySafeCodeOrSignal(t *testing.T) {
+	for _, test := range []struct{ payload, reason string }{
+		{"exit status 0", "process exited with code 0"},
+		{"exit status 17", "process exited with code 17"},
+		{"signal: killed", "process ended after SIGKILL; cause unconfirmed"},
+		{"exit status 2 /private/provider-secret", "process exited"},
+	} {
+		t.Run(test.reason, func(t *testing.T) {
+			f := attachNewFixture(t, nil, terminalFixtureSession)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			c := f.dial(ctx, t)
+			defer c.CloseNow()
+			f.sandboxd.push(append([]byte{0x03}, []byte(test.payload)...))
+			if _, _, err := c.Read(ctx); err != nil {
+				t.Fatal(err)
+			}
+			attachWaitFor(t, 5*time.Second, func() bool {
+				row, err := f.store.Get(f.id)
+				return err == nil && row.Status == registry.StatusExited && row.ExitReason == test.reason
+			}, "safe upstream process result was not retained")
+			if f.be.destroyCount() != 0 {
+				t.Fatal("process diagnostic changed backend cleanup")
+			}
+		})
+	}
+}
+
+func TestAttachKnownExitUpgradesOnlySameAllocationGenericTerminalReason(t *testing.T) {
+	for _, kind := range []string{"generic-reaper", "killed", "new-allocation", "changed-token", "changed-creation", "unknown-payload"} {
+		t.Run(kind, func(t *testing.T) {
+			f := attachNewFixture(t, nil, terminalFixtureSession)
+			observed, err := f.store.Get(f.id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = f.store.Update(f.id, func(row *registry.Session) error {
+				row.Status, row.ExitReason, row.Endpoint, row.AttachToken = registry.StatusExited, "process exited", "", ""
+				if kind == "killed" {
+					row.ExitReason = "killed"
+				}
+				if kind == "new-allocation" {
+					row.SandboxRef = "new-immutable-ref"
+				}
+				if kind == "changed-token" {
+					row.AttachToken = "new-token"
+				}
+				if kind == "changed-creation" {
+					row.CreatedAt = row.CreatedAt.Add(time.Second)
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, _ := f.store.Get(f.id)
+			exit := proxy.DecodeProcessExit([]byte("exit status 17"))
+			if kind == "unknown-payload" {
+				exit = proxy.DecodeProcessExit([]byte("private provider error"))
+			}
+			o := f.api.newAttachedExitObserver(observed)
+			o.observeExit(exit)
+			o.finish()
+			after, err := f.store.Get(f.id)
+			if kind == "generic-reaper" {
+				before.ExitReason = "process exited with code 17"
+			}
+			// Store bookkeeping timestamps may advance; allocation/lifecycle
+			// identity, attachment state and every retained field stay unchanged.
+			after.UpdatedAt, before.UpdatedAt = time.Time{}, time.Time{}
+			if err != nil || !reflect.DeepEqual(before, after) || f.be.destroyCount() != 0 {
+				t.Fatal("process detail overwrote a lifecycle decision or allocation", kind, err)
+			}
+		})
+	}
 }
 
 func TestAttachTypedExitPublishesCurrentRoutesWithoutReaper(t *testing.T) {
@@ -118,7 +196,7 @@ func TestAttachLateTypedExitCannotTerminateReplacement(t *testing.T) {
 }
 
 func TestAttachTerminalObservationFencesIdentityAndPersistsWithoutLeaseRelease(t *testing.T) {
-	for _, name := range []string{"current", "backend", "sandbox", "reference", "token", "token-cleared", "captured-token-missing", "project", "worktree", "branch", "run", "operation", "already-exited", "mutable-observation"} {
+	for _, name := range []string{"current", "current-code", "current-signal", "backend", "sandbox", "reference", "token", "token-cleared", "captured-token-missing", "project", "worktree", "branch", "run", "operation", "already-exited", "mutable-observation"} {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
 			path := filepath.Join(dir, "sessions.json")
@@ -169,7 +247,16 @@ func TestAttachTerminalObservationFencesIdentityAndPersistsWithoutLeaseRelease(t
 				t.Fatal(err)
 			}
 			a := &API{deps: Deps{Store: store, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}, execution: &executionAdmission{path: ledgerPath}}
-			a.markAttachedSessionExited(observed)
+			wantReason := "process exited"
+			if name == "current-code" {
+				a.markAttachedSessionExitedWithExit(observed, proxy.DecodeProcessExit([]byte("exit status 17")))
+				wantReason = "process exited with code 17"
+			} else if name == "current-signal" {
+				a.markAttachedSessionExitedWithExit(observed, proxy.DecodeProcessExit([]byte("signal: killed")))
+				wantReason = "process ended after SIGKILL; cause unconfirmed"
+			} else {
+				a.markAttachedSessionExited(observed)
+			}
 			after, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatal(err)
@@ -182,8 +269,8 @@ func TestAttachTerminalObservationFencesIdentityAndPersistsWithoutLeaseRelease(t
 			if err != nil {
 				t.Fatal(err)
 			}
-			if name == "current" || name == "mutable-observation" {
-				if got.Status != registry.StatusExited || got.ExitReason != "process exited" || got.Endpoint != "" || got.AttachToken != "" || got.SandboxID != observed.SandboxID || got.SandboxRef != observed.SandboxRef || got.AttachCount != current.AttachCount {
+			if name == "current" || name == "current-code" || name == "current-signal" || name == "mutable-observation" {
+				if got.Status != registry.StatusExited || got.ExitReason != wantReason || got.Endpoint != "" || got.AttachToken != "" || got.SandboxID != observed.SandboxID || got.SandboxRef != observed.SandboxRef || got.AttachCount != current.AttachCount {
 					t.Fatal("terminal observation not durably recorded with allocation retained")
 				}
 				a.markAttachedSessionExited(observed)
@@ -205,11 +292,18 @@ func TestAttachTerminalObservationFencesIdentityAndPersistsWithoutLeaseRelease(t
 func TestAttachTerminalObserverJoinsOneAcceptedWriteAfterCancellation(t *testing.T) {
 	started, release, finished := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	var calls atomic.Int64
-	o := &attachedExitObserver{commit: func() { calls.Add(1); close(started); <-release }}
+	o := &attachedExitObserver{commit: func(exit proxy.ProcessExit) {
+		if exit.Reason() != "process exited with code 17" {
+			t.Error("accepted process status changed before persistence")
+		}
+		calls.Add(1)
+		close(started)
+		<-release
+	}}
 	var releaseOnce sync.Once
 	unblock := func() { releaseOnce.Do(func() { close(release) }) }
 	defer unblock()
-	o.observe()
+	o.observeExit(proxy.DecodeProcessExit([]byte("exit status 17")))
 	<-started
 	for range 100 {
 		o.observe()
@@ -278,7 +372,7 @@ func TestAttachTerminalPersistenceCannotDelaySocketClose(t *testing.T) {
 	release()
 	attachWaitFor(t, 5*time.Second, func() bool {
 		row, err := f.store.Get(f.id)
-		return err == nil && row.Status == registry.StatusExited && row.AttachCount == 0
+		return err == nil && row.Status == registry.StatusExited && row.ExitReason == "process exited with code 0" && row.AttachCount == 0
 	}, "accepted completion was not joined before relay bookkeeping settled")
 	if f.be.destroyCount() != 0 {
 		t.Fatal("process completion destroyed allocation")
