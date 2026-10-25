@@ -90,15 +90,20 @@ func controlledAllocationCount(b *sessionsBackend) int {
 }
 
 func TestQueuedOpenCodePreparesExactSavedRouteBeforeClaimOrAllocation(t *testing.T) {
-	for _, local := range []bool{true, false} {
-		t.Run(map[bool]string{true: "named local refuses unverified engine", false: "named remote retains captured context"}[local], func(t *testing.T) {
+	for _, tc := range []struct {
+		name, endpoint string
+		service        product.AgentConnectionOpenCodeService
+		local          bool
+	}{
+		{"named legacy local refuses unverified engine", "http://127.0.0.1:11434/v1", "", true},
+		{"named legacy compatible retains captured context", "http://127.0.0.1:4000/v1", "", false},
+		{"explicit local configured port refuses unverified engine", "http://127.0.0.1:43123/v1", product.AgentConnectionOpenCodeLocalOllama, true},
+		{"explicit compatible default port stays generic", "http://127.0.0.1:11434/v1", product.AgentConnectionOpenCodeCompatibleAPI, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			f := newSwarmSessionFixtureRoute(t, "opencode", func(env *sessionsEnv) string {
-				endpoint := "http://127.0.0.1:4000/v1"
-				if local {
-					endpoint = "http://127.0.0.1:11434/v1"
-				}
 				body, err := json.Marshal(map[string]any{"action": "save", "expectedRevision": 0, "name": "Controlled named model", "kind": "compatible-api", "enabled": true,
-					"models": product.AgentConnectionModels{OpenCode: "exact-model:latest"}, "endpoints": product.AgentConnectionEndpoints{ChatCompletions: endpoint}})
+					"models": product.AgentConnectionModels{OpenCode: "exact-model:latest"}, "endpoints": product.AgentConnectionEndpoints{ChatCompletions: tc.endpoint}, "openCodeService": tc.service})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -127,7 +132,7 @@ func TestQueuedOpenCodePreparesExactSavedRouteBeforeClaimOrAllocation(t *testing
 			// This controlled backend deliberately has no LaunchFencer. A local
 			// route must refuse before any real host model request or child claim.
 			var done <-chan string
-			if !local {
+			if !tc.local {
 				sessionsStubReady(t, nil)
 				done = sessionsWatchDone(t)
 			}
@@ -135,7 +140,7 @@ func TestQueuedOpenCodePreparesExactSavedRouteBeforeClaimOrAllocation(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
-			if local {
+			if tc.local {
 				rows, readErr := f.store.List()
 				if got.State != "blocked" || got.ReasonCode != "provider_unavailable" || got.SessionID != "" || readErr != nil || len(rows) != 0 || controlledAllocationCount(f.env.be) != 0 {
 					t.Fatal("local preflight crossed durable admission or Backend.Create", got, readErr)
@@ -152,8 +157,8 @@ func TestQueuedOpenCodePreparesExactSavedRouteBeforeClaimOrAllocation(t *testing
 			}
 			spec := f.env.be.spec(t, 0)
 			var config struct {
-				Instructions []string `json:"instructions"`
-				Model        string `json:"model"`
+				Instructions []string       `json:"instructions"`
+				Model        string         `json:"model"`
 				Agent        map[string]any `json:"agent"`
 			}
 			if json.Unmarshal([]byte(spec.Env["OPENCODE_CONFIG_CONTENT"]), &config) != nil || len(config.Instructions) != 0 || config.Model != "luci-gateway/exact-model:latest" || config.Agent["build"] != nil {

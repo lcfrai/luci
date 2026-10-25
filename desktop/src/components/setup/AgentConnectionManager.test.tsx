@@ -15,7 +15,7 @@ function mount(fail = false, saved = initial()) {
       if (input.action === "save") {
         const previous = catalogue.connections.find(item => item.id === input.id);
         if (input.kind === "codex-subscription" && (input.apiKey === undefined ? previous?.keyPresent : input.apiKey !== "")) return new Response(JSON.stringify({ code: "invalid_connection", message: "Codex subscription connections cannot contain an API key." }), { status: 400 });
-        const connection = { id: input.id || "gateway-two", revision: (previous?.revision ?? 0) + 1, name: input.name, kind: input.kind, enabled: input.enabled, endpoints: input.endpoints, models: input.models, configured: true, keyPresent: input.apiKey === undefined ? previous?.keyPresent ?? false : input.apiKey !== "" };
+        const connection = { id: input.id || "gateway-two", revision: (previous?.revision ?? 0) + 1, name: input.name, kind: input.kind, enabled: input.enabled, endpoints: input.endpoints, models: input.models, openCodeThinking: input.openCodeThinking ?? previous?.openCodeThinking, openCodeService: input.openCodeService ?? previous?.openCodeService, configured: true, keyPresent: input.apiKey === undefined ? previous?.keyPresent ?? false : input.apiKey !== "" };
         catalogue = { ...catalogue, revision: catalogue.revision + 1, connections: [...catalogue.connections.filter(item => item.id !== connection.id), connection] };
       }
     }
@@ -39,6 +39,8 @@ it("keeps saved keys private and preserves them on an ordinary connection edit",
   const input = JSON.parse(post[1]?.body as string);
   expect(input).toMatchObject({ action: "save", expectedRevision: 4, id: "gateway-one", name: "My revised gateway", endpoints: initial().connections[0].endpoints, models: initial().connections[0].models });
   expect(input).not.toHaveProperty("apiKey");
+  expect(input).not.toHaveProperty("openCodeThinking");
+  expect(input).not.toHaveProperty("openCodeService");
 });
 it("turns the gateway off explicitly without deleting the saved connection", async () => {
   const fetcher = mount();
@@ -51,7 +53,11 @@ it("turns the gateway off explicitly without deleting the saved connection", asy
   expect(screen.getAllByRole("option", { name: "My gateway" }).length).toBeGreaterThan(0);
 });
 it("converts a keyed gateway to Codex subscription by explicitly clearing only that connection's key", async () => {
-  const fetcher = mount();
+  const saved = initial();
+  saved.connections[0].openCodeThinking = "off";
+  saved.connections[0].openCodeService = "local-ollama";
+  saved.connections[0].endpoints.chatCompletions = "http://localhost:43123/v1";
+  const fetcher = mount(false, saved);
   await screen.findByText(/New sessions use My gateway\./);
   await userEvent.click(screen.getByText("Add or edit a connection"));
   await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
@@ -64,7 +70,7 @@ it("converts a keyed gateway to Codex subscription by explicitly clearing only t
   await screen.findByText(/Connection saved\. Choose it as the active connection/);
   const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
   expect(posts).toHaveLength(1);
-  expect(JSON.parse(posts[0][1]?.body as string)).toEqual({ action: "save", expectedRevision: 4, id: "gateway-one", name: "My Codex subscription", kind: "codex-subscription", enabled: true, endpoints: {}, models: { codex: "my-coder" }, apiKey: "" });
+  expect(JSON.parse(posts[0][1]?.body as string)).toEqual({ action: "save", expectedRevision: 4, id: "gateway-one", name: "My Codex subscription", kind: "codex-subscription", enabled: true, endpoints: {}, models: { codex: "my-coder" }, openCodeThinking: "", openCodeService: "", apiKey: "" });
   expect(screen.getByText(/New sessions use My Codex subscription\./)).not.toBeNull();
   expect((screen.getByRole("switch", { name: "Use gateway" }) as HTMLInputElement).checked).toBe(false);
   expect(screen.queryByText("Saving this type removes this connection’s saved API key.")).toBeNull();
@@ -83,6 +89,88 @@ it("clears a key only through an explicit choice", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Save connection" }));
   await waitFor(() => expect(fetcher.mock.calls.some(call => call[1]?.method === "POST")).toBe(true));
   expect(JSON.parse(fetcher.mock.calls.find(call => call[1]?.method === "POST")![1]?.body as string)).toHaveProperty("apiKey", "");
+});
+
+it("saves explicit OpenCode thinking without selecting the gateway or changing endpoint, models or key", async () => {
+  const saved = initial();
+  saved.activeConnectionId = "";
+  saved.connections[0].kind = "compatible-api";
+  const fetcher = mount(false, saved);
+  await screen.findByText("New sessions use the direct accounts configured below.");
+  await userEvent.click(screen.getByText("Add or edit a connection"));
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
+  expect((screen.getByLabelText("OpenCode thinking", { exact: false }) as HTMLSelectElement).value).toBe("");
+  await userEvent.selectOptions(screen.getByLabelText("OpenCode thinking", { exact: false }), "off");
+  expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
+  await userEvent.click(screen.getByRole("button", { name: "Save connection" }));
+  await screen.findByText(/Connection saved\. Choose it as the active connection/);
+
+  const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
+  expect(posts).toHaveLength(1);
+  const input = JSON.parse(posts[0][1]?.body as string);
+  expect(input).toMatchObject({ action: "save", expectedRevision: 4, id: "gateway-one", openCodeThinking: "off", endpoints: saved.connections[0].endpoints, models: saved.connections[0].models });
+  expect(input).not.toHaveProperty("apiKey");
+  expect((screen.getByRole("switch", { name: "Use gateway" }) as HTMLInputElement).checked).toBe(false);
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "");
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
+  expect((screen.getByLabelText("OpenCode thinking", { exact: false }) as HTMLSelectElement).value).toBe("off");
+
+  await userEvent.selectOptions(screen.getByLabelText("OpenCode thinking", { exact: false }), "");
+  await userEvent.click(screen.getByRole("button", { name: "Save connection" }));
+  await waitFor(() => expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(2));
+  const reset = JSON.parse(fetcher.mock.calls.filter(call => call[1]?.method === "POST")[1][1]?.body as string);
+  expect(reset).toMatchObject({ action: "save", expectedRevision: 5, id: "gateway-one", openCodeThinking: "" });
+  expect(reset).not.toHaveProperty("apiKey");
+});
+
+it("retains a saved thinking choice when a save is refused and hides it for Codex subscription", async () => {
+  const saved = initial();
+  saved.connections[0].openCodeThinking = "off";
+  const fetcher = mount(true, saved);
+  await screen.findByText(/New sessions use My gateway\./);
+  await userEvent.click(screen.getByText("Add or edit a connection"));
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
+  expect((screen.getByLabelText("OpenCode thinking", { exact: false }) as HTMLSelectElement).value).toBe("off");
+  await userEvent.click(screen.getByRole("button", { name: "Save connection" }));
+  await screen.findByRole("alert");
+  expect((screen.getByLabelText("OpenCode thinking", { exact: false }) as HTMLSelectElement).value).toBe("off");
+  expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
+  await userEvent.selectOptions(screen.getByLabelText("Connection type"), "codex-subscription");
+  expect(screen.queryByLabelText("OpenCode thinking", { exact: false })).toBeNull();
+});
+
+it("labels legacy detection accurately and saves explicit local or generic service without changing selection", async () => {
+  const saved = initial();
+  saved.activeConnectionId = "";
+  saved.connections[0].kind = "compatible-api";
+  const fetcher = mount(false, saved);
+  await screen.findByText("New sessions use the direct accounts configured below.");
+  await userEvent.click(screen.getByText("Add or edit a connection"));
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
+  expect((screen.getByLabelText("OpenCode service") as HTMLSelectElement).value).toBe("");
+  expect(screen.getByRole("option", { name: "Automatic · legacy default-port detection" })).not.toBeNull();
+  await userEvent.selectOptions(screen.getByLabelText("OpenCode service"), "local-ollama");
+  await userEvent.clear(screen.getByLabelText("OpenCode · Chat Completions base URL"));
+  await userEvent.type(screen.getByLabelText("OpenCode · Chat Completions base URL"), "http://localhost:43123/v1");
+  expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
+  await userEvent.click(screen.getByRole("button", { name: "Save connection" }));
+  await screen.findByText(/Connection saved\. Choose it as the active connection/);
+  const first = JSON.parse(fetcher.mock.calls.filter(call => call[1]?.method === "POST")[0][1]?.body as string);
+  expect(first).toMatchObject({ action: "save", expectedRevision: 4, id: "gateway-one", openCodeService: "local-ollama", models: saved.connections[0].models, endpoints: { chatCompletions: "http://localhost:43123/v1" } });
+  expect(first).not.toHaveProperty("apiKey");
+  expect((screen.getByRole("switch", { name: "Use gateway" }) as HTMLInputElement).checked).toBe(false);
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "");
+  expect((screen.getByLabelText("OpenCode service") as HTMLSelectElement).value).toBe("compatible-api");
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
+  expect((screen.getByLabelText("OpenCode service") as HTMLSelectElement).value).toBe("local-ollama");
+  await userEvent.selectOptions(screen.getByLabelText("OpenCode service"), "compatible-api");
+  await userEvent.clear(screen.getByLabelText("OpenCode · Chat Completions base URL"));
+  await userEvent.type(screen.getByLabelText("OpenCode · Chat Completions base URL"), "http://localhost:11434/v1");
+  await userEvent.click(screen.getByRole("button", { name: "Save connection" }));
+  await waitFor(() => expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(2));
+  const second = JSON.parse(fetcher.mock.calls.filter(call => call[1]?.method === "POST")[1][1]?.body as string);
+  expect(second).toMatchObject({ action: "save", expectedRevision: 5, id: "gateway-one", openCodeService: "compatible-api", endpoints: { chatCompletions: "http://localhost:11434/v1" } });
+  expect(second).not.toHaveProperty("apiKey");
 });
 it("retains the connection draft after a refused save and clears the submitted secret", async () => {
   const fetcher = mount(true);
@@ -115,6 +203,7 @@ it("applies one LiteLLM address to the explicitly selected agents and exact mode
   await waitFor(() => expect(fetcher.mock.calls.some(call => call[1]?.method === "POST")).toBe(true));
   const input = JSON.parse(fetcher.mock.calls.find(call => call[1]?.method === "POST")![1]?.body as string);
   expect(input).toMatchObject({ kind: "litellm", endpoints: { responses: "https://models.example/team/v1", anthropicMessages: "https://models.example/team", chatCompletions: "https://models.example/team/v1" }, models: { codex: "supplied-coder", claudeCode: "supplied-claude", opencode: "supplied-local" } });
+  expect(input.openCodeService).toBe("compatible-api");
 });
 
 it("preserves custom saved paths when editing without explicitly applying the address preset", async () => {

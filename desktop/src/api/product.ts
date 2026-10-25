@@ -32,17 +32,21 @@ export interface AgentConnections {
   providers: AgentProvider[];
 }
 export type AgentConnectionKind = "litellm" | "compatible-api" | "codex-subscription" | "direct-api";
+export type AgentConnectionOpenCodeThinking = "" | "off";
+export type AgentConnectionOpenCodeService = "" | "compatible-api" | "local-ollama";
 export interface AgentConnection {
   id: string; name: string; kind: AgentConnectionKind; revision: number; enabled: boolean;
   endpoints: { responses?: string; anthropicMessages?: string; chatCompletions?: string };
   models: { codex?: string; claudeCode?: string; opencode?: string };
+  openCodeThinking?: AgentConnectionOpenCodeThinking;
+  openCodeService?: AgentConnectionOpenCodeService;
   configured: boolean; keyPresent: boolean; blockedReason?: string;
 }
 export interface AgentConnectionCatalogue {
   revision: number; activeConnectionId: string; connections: AgentConnection[];
 }
 export type AgentConnectionMutation =
-  | { action: "save"; expectedRevision: number; id?: string; name: string; kind: AgentConnectionKind; enabled: boolean; endpoints: AgentConnection["endpoints"]; models: AgentConnection["models"]; apiKey?: string }
+  | { action: "save"; expectedRevision: number; id?: string; name: string; kind: AgentConnectionKind; enabled: boolean; endpoints: AgentConnection["endpoints"]; models: AgentConnection["models"]; openCodeThinking?: AgentConnectionOpenCodeThinking; openCodeService?: AgentConnectionOpenCodeService; apiKey?: string }
   | { action: "select" | "delete"; expectedRevision: number; id: string };
 export interface CodexAccountConnection {
   configured: boolean;

@@ -73,7 +73,12 @@ func (s *Server) ResolveAgentConnection(harness string, selection *string) (Agen
 			return receipt, nil, errors.New("This connection requires an explicit ChatCompletions base URL and OpenCode model.")
 		}
 		receipt.Protocol, receipt.Endpoint, receipt.Model = "chat-completions", selected.Endpoints.ChatCompletions, selected.Models.OpenCode
-		config := map[string]any{"model": "luci-gateway/" + receipt.Model, "small_model": "luci-gateway/" + receipt.Model, "enabled_providers": []string{"luci-gateway"}, "autoupdate": false, "share": "disabled", "instructions": []string{"LUCI.md"}, "provider": map[string]any{"luci-gateway": map[string]any{"npm": "@ai-sdk/openai-compatible", "name": "Luci selected connection", "options": map[string]any{"baseURL": receipt.Endpoint, "apiKey": "{env:LUCI_GATEWAY_API_KEY}"}, "models": map[string]any{receipt.Model: map[string]any{"name": receipt.Model}}}}}
+		receipt.OpenCodeService = selected.OpenCodeService
+		model := map[string]any{"name": receipt.Model}
+		if selected.OpenCodeThinking == AgentConnectionOpenCodeThinkingOff {
+			model["options"] = map[string]any{"reasoningEffort": "none"}
+		}
+		config := map[string]any{"model": "luci-gateway/" + receipt.Model, "small_model": "luci-gateway/" + receipt.Model, "enabled_providers": []string{"luci-gateway"}, "autoupdate": false, "share": "disabled", "instructions": []string{"LUCI.md"}, "provider": map[string]any{"luci-gateway": map[string]any{"npm": "@ai-sdk/openai-compatible", "name": "Luci selected connection", "options": map[string]any{"baseURL": receipt.Endpoint, "apiKey": "{env:LUCI_GATEWAY_API_KEY}"}, "models": map[string]any{receipt.Model: model}}}}
 		data, err := json.Marshal(config)
 		if err != nil {
 			return receipt, nil, errors.New("Could not prepare the selected OpenCode model configuration.")

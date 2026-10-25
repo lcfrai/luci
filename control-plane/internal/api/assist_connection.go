@@ -88,7 +88,7 @@ func (a *API) resolveAssistanceConnection(ctx context.Context, harness, model, l
 	}
 	receipt.AuthMode, receipt.Model = auth, model
 	if harness == "opencode" {
-		if err := assistance.ReadOnlyOpenCode(env, model); err != nil {
+		if err := assistance.ReadOnlyOpenCodeWithService(env, model, string(receipt.OpenCodeService)); err != nil {
 			return receipt, nil, nil, err
 		}
 		receipt.Model = env["LUCI_OPENCODE_MODEL"]

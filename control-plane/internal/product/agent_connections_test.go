@@ -270,6 +270,218 @@ func TestAgentConnectionProtocolsProduceIsolatedPrivateEnvironments(t *testing.T
 	}
 }
 
+func TestAgentConnectionOpenCodeThinkingIsExplicitRevisionedAndPersistent(t *testing.T) {
+	s, mux := journeyFixture(t)
+	s.registerSetupTools(mux)
+	got := connectionSave(t, mux, connectionSaveBody(0))
+	id := got.Connections[0].ID
+	beforeReceipt, defaultEnv, err := s.ResolveAgentConnection("opencode", &id)
+	if err != nil || got.Connections[0].OpenCodeThinking != "" {
+		t.Fatal("legacy connection did not retain provider default")
+	}
+	var defaultConfig map[string]any
+	if json.Unmarshal([]byte(defaultEnv["OPENCODE_CONFIG_CONTENT"]), &defaultConfig) != nil {
+		t.Fatal("default runtime config is invalid")
+	}
+	beforeOther := map[string]map[string]string{}
+	for _, harness := range []string{"codex", "claude-code"} {
+		_, env, err := s.ResolveAgentConnection(harness, &id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		beforeOther[harness] = env
+	}
+	body := connectionSaveBody(1)
+	body["id"], body["openCodeThinking"] = id, "off"
+	delete(body, "apiKey")
+	got = connectionSave(t, mux, body)
+	receipt, offEnv, err := s.ResolveAgentConnection("opencode", &id)
+	if err != nil || got.Revision != 2 || receipt.ID != beforeReceipt.ID || receipt.Revision != 2 || receipt.Revision == beforeReceipt.Revision || got.Connections[0].OpenCodeThinking != AgentConnectionOpenCodeThinkingOff || !got.Connections[0].KeyPresent || got.ActiveConnectionID != "" {
+		t.Fatal("thinking preference did not retain revision, selection and credential boundaries")
+	}
+	var offConfig map[string]any
+	if json.Unmarshal([]byte(offEnv["OPENCODE_CONFIG_CONTENT"]), &offConfig) != nil {
+		t.Fatal("off runtime config is invalid")
+	}
+	provider := offConfig["provider"].(map[string]any)["luci-gateway"].(map[string]any)
+	models := provider["models"].(map[string]any)
+	model := models["local-alias"].(map[string]any)
+	if len(models) != 1 || !reflect.DeepEqual(model["options"], map[string]any{"reasoningEffort": "none"}) {
+		t.Fatal("explicit Off was not confined to the selected OpenCode model")
+	}
+	delete(model, "options")
+	if !reflect.DeepEqual(offConfig, defaultConfig) || offEnv["LUCI_GATEWAY_API_KEY"] != defaultEnv["LUCI_GATEWAY_API_KEY"] || len(offEnv) != len(defaultEnv) {
+		t.Fatal("thinking preference changed unrelated configuration or credentials")
+	}
+	for harness, before := range beforeOther {
+		_, env, err := s.ResolveAgentConnection(harness, &id)
+		if err != nil || !reflect.DeepEqual(env, before) {
+			t.Fatalf("OpenCode preference changed %s", harness)
+		}
+	}
+	// The prior revision cannot overwrite this preference, and another saved
+	// connection does not inherit it just because it uses the same model ID.
+	body["openCodeThinking"] = ""
+	journeyRequest(t, mux, "POST", "/v1/setup/agent-connections", body, 409)
+	if connectionRead(t, mux).Revision != 2 {
+		t.Fatal("stale preference save changed the catalogue")
+	}
+	got = connectionSave(t, mux, connectionSaveBody(2))
+	otherID := got.Connections[1].ID
+	_, otherEnv, err := s.ResolveAgentConnection("opencode", &otherID)
+	if err != nil || otherEnv["OPENCODE_CONFIG_CONTENT"] != defaultEnv["OPENCODE_CONFIG_CONTENT"] {
+		t.Fatal("unselected connection inherited Off")
+	}
+	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, reopenedEnv, err := reopened.ResolveAgentConnection("opencode", &id)
+	reopened.Close()
+	if err != nil || reopenedEnv["OPENCODE_CONFIG_CONTENT"] != offEnv["OPENCODE_CONFIG_CONTENT"] {
+		t.Fatal("saved preference did not survive restart")
+	}
+	// Clients predating this optional field preserve it on ordinary edits.
+	body["expectedRevision"] = 3
+	delete(body, "openCodeThinking")
+	got = connectionSave(t, mux, body)
+	if got.Connections[0].OpenCodeThinking != AgentConnectionOpenCodeThinkingOff {
+		t.Fatal("omitted optional preference reset the saved choice")
+	}
+	body["expectedRevision"], body["openCodeThinking"] = 4, ""
+	got = connectionSave(t, mux, body)
+	resetReceipt, resetEnv, err := s.ResolveAgentConnection("opencode", &id)
+	if err != nil || got.Connections[0].OpenCodeThinking != "" || resetReceipt.Revision != 5 || !reflect.DeepEqual(resetEnv, defaultEnv) {
+		t.Fatal("explicit Provider default did not restore unchanged provider behavior")
+	}
+}
+
+func TestAgentConnectionRejectsInvalidOpenCodeThinkingWithoutPublishing(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(map[string]any)
+		status int
+	}{
+		{"unknown choice", func(body map[string]any) { body["openCodeThinking"] = "low" }, 409},
+		{"boolean is not a choice", func(body map[string]any) { body["openCodeThinking"] = false }, 400},
+		{"arbitrary options", func(body map[string]any) { body["openCodeThinking"] = map[string]any{"reasoningEffort": "none"} }, 400},
+		{"missing model", func(body map[string]any) {
+			body["openCodeThinking"] = "off"
+			body["models"] = AgentConnectionModels{Codex: "coder"}
+		}, 409},
+		{"missing protocol", func(body map[string]any) {
+			body["openCodeThinking"] = "off"
+			body["endpoints"] = AgentConnectionEndpoints{Responses: "https://gateway.example.test/v1"}
+		}, 409},
+		{"subscription", func(body map[string]any) {
+			body["openCodeThinking"] = "off"
+			body["kind"] = "codex-subscription"
+			body["apiKey"] = ""
+			body["models"] = AgentConnectionModels{Codex: "coder"}
+			body["endpoints"] = AgentConnectionEndpoints{}
+		}, 409},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, mux := journeyFixture(t)
+			body := connectionSaveBody(0)
+			tc.change(body)
+			journeyRequest(t, mux, "POST", "/v1/setup/agent-connections", body, tc.status)
+			if got := connectionRead(t, mux); got.Revision != 0 || len(got.Connections) != 0 {
+				t.Fatal("invalid thinking choice published state")
+			}
+			if _, err := os.Stat(filepath.Join(s.stateDir, "agent-connections.json")); !os.IsNotExist(err) {
+				t.Fatal("invalid thinking choice wrote private state")
+			}
+		})
+	}
+}
+
+func TestAgentConnectionOpenCodeServiceIsExplicitRevisionedAndPersistent(t *testing.T) {
+	s, mux := journeyFixture(t)
+	got := connectionSave(t, mux, connectionSaveBody(0))
+	id := got.Connections[0].ID
+	if got.Connections[0].OpenCodeService != "" {
+		t.Fatal("old connection did not preserve automatic legacy detection")
+	}
+	body := connectionSaveBody(1)
+	body["id"], body["openCodeService"] = id, "local-ollama"
+	body["endpoints"] = AgentConnectionEndpoints{ChatCompletions: "http://127.0.0.1:43123/v1"}
+	delete(body, "apiKey")
+	got = connectionSave(t, mux, body)
+	receipt, _, err := s.ResolveAgentConnection("opencode", &id)
+	if err != nil || got.Revision != 2 || receipt.Revision != 2 || receipt.OpenCodeService != AgentConnectionOpenCodeLocalOllama || receipt.Endpoint != "http://127.0.0.1:43123/v1" || !got.Connections[0].KeyPresent || got.ActiveConnectionID != "" {
+		t.Fatal("explicit service lost the exact route, revision or credentials")
+	}
+	encoded, err := json.Marshal(receipt)
+	var captured AgentConnectionReceipt
+	if err != nil || json.Unmarshal(encoded, &captured) != nil || captured != receipt {
+		t.Fatal("service choice was lost from the captured execution route")
+	}
+	journeyRequest(t, mux, "POST", "/v1/setup/agent-connections", body, 409)
+	if connectionRead(t, mux).Revision != 2 {
+		t.Fatal("stale profile save changed state")
+	}
+	reopened, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, _, err := reopened.ResolveAgentConnection("opencode", &id)
+	reopened.Close()
+	if err != nil || loaded != receipt {
+		t.Fatal("service choice did not survive private-state reload")
+	}
+	body["expectedRevision"] = 2
+	delete(body, "openCodeService")
+	got = connectionSave(t, mux, body)
+	if got.Connections[0].OpenCodeService != AgentConnectionOpenCodeLocalOllama {
+		t.Fatal("an older client silently cleared the service choice")
+	}
+	body["expectedRevision"], body["openCodeService"] = 3, "compatible-api"
+	body["endpoints"] = AgentConnectionEndpoints{ChatCompletions: "http://localhost:11434/v1"}
+	got = connectionSave(t, mux, body)
+	receipt, _, err = s.ResolveAgentConnection("opencode", &id)
+	if err != nil || receipt.OpenCodeService != AgentConnectionOpenCodeCompatibleAPI || receipt.Revision != 4 || got.Connections[0].OpenCodeService != AgentConnectionOpenCodeCompatibleAPI {
+		t.Fatal("explicit compatible service was normalized into automatic detection")
+	}
+	body["expectedRevision"], body["openCodeService"] = 4, ""
+	got = connectionSave(t, mux, body)
+	if got.Connections[0].OpenCodeService != "" || got.Revision != 5 {
+		t.Fatal("explicit reset did not retain the legacy choice")
+	}
+}
+
+func TestAgentConnectionLocalOllamaServiceValidatesOnlyKnownLocalEndpoints(t *testing.T) {
+	for _, endpoint := range []string{"http://localhost:43123/v1", "http://127.0.0.1:43123/v1", "http://[::1]:43123/v1", "http://host.docker.internal:43123/v1"} {
+		if !ValidLocalOllamaEndpoint(endpoint) {
+			t.Fatal("valid explicit local port rejected", endpoint)
+		}
+	}
+	for _, endpoint := range []string{"https://localhost:43123/v1", "http://model.invalid:43123/v1", "http://192.168.1.4:43123/v1", "http://127.0.0.2:43123/v1", "http://localhost/v1", "http://localhost:0/v1", "http://localhost:65536/v1", "http://localhost:abc/v1", "http://localhost:43123/v1/", "http://localhost:43123/%761", "http://localhost:43123/v1?", "http://localhost:43123/v1?q=x", "http://localhost:43123/v1#x", "http://user@localhost:43123/v1"} {
+		t.Run(endpoint, func(t *testing.T) {
+			s, mux := journeyFixture(t)
+			body := connectionSaveBody(0)
+			body["openCodeService"] = "local-ollama"
+			body["endpoints"] = AgentConnectionEndpoints{ChatCompletions: endpoint}
+			journeyRequest(t, mux, "POST", "/v1/setup/agent-connections", body, 409)
+			if got := connectionRead(t, mux); got.Revision != 0 || len(got.Connections) != 0 {
+				t.Fatal("invalid profile published state")
+			}
+			if _, err := os.Stat(filepath.Join(s.stateDir, "agent-connections.json")); !os.IsNotExist(err) {
+				t.Fatal("invalid profile wrote private state")
+			}
+		})
+	}
+	for _, choice := range []string{"ollama", "LOCAL-OLLAMA"} {
+		s, mux := journeyFixture(t)
+		body := connectionSaveBody(0)
+		body["openCodeService"] = choice
+		journeyRequest(t, mux, "POST", "/v1/setup/agent-connections", body, 409)
+		if connectionRead(t, mux).Revision != 0 || s.agentConnections.Revision != 0 {
+			t.Fatal("unknown service choice changed the catalogue")
+		}
+	}
+}
+
 func TestAgentConnectionSubscriptionAndUnauthenticatedLocalAreExplicit(t *testing.T) {
 	s, mux := journeyFixture(t)
 	s.registerSetupTools(mux)

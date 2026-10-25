@@ -1,4 +1,4 @@
-import { productApi, type CheckCommand } from './product';
+import { productApi, type CheckCommand, type AgentConnectionOpenCodeService } from './product';
 import type { CreateSessionRequest } from './client';
 import type { ImplementationContext, ImplementationContextRequest, PermissionMode, StartFailure } from '../store/types';
 import type { SwarmCheckpointProvenance } from './swarmCheckpoint';
@@ -90,7 +90,7 @@ export interface ProjectRun {
     route: {
       harness: string; model: string; permissionMode: PermissionMode; effort?: string; executionLocation?: 'cloud-microvm';
       nativeDelegation?: 'codex-native-helpers-2-v1'; nativeDelegationImage?: string;
-      connection: { id?: string; kind: string; protocol?: string; model?: string; endpoint?: string; authMode?: string; revision: number };
+      connection: { id?: string; kind: string; protocol?: string; model?: string; endpoint?: string; authMode?: string; revision: number; openCodeService?: AgentConnectionOpenCodeService };
     };
   };
   operations: RunOperation[];

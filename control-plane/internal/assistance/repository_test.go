@@ -16,6 +16,17 @@ import (
 	"time"
 )
 
+func repositoryFixturePython(t *testing.T) string {
+	t.Helper()
+	for _, name := range []string{"python3", "python"} {
+		if path, err := exec.LookPath(name); err == nil {
+			return path
+		}
+	}
+	t.Skip("Python runtime required for the actual launcher fixture")
+	return ""
+}
+
 func TestRepositoryProviderSelectionAndOpenCodeConfigurationAreExplicitReadOnly(t *testing.T) {
 	for _, choice := range [][3]string{{"codex", "gpt-selected", "chatgpt"}, {"codex", "gpt-selected", "api"}, {"claude-code", "sonnet", "api"}, {"opencode", "luci-local/model", "configured"}} {
 		if ValidateSelection(choice[0], choice[1], choice[2]) != nil {
@@ -62,11 +73,59 @@ func TestRepositoryProviderSelectionAndOpenCodeConfigurationAreExplicitReadOnly(
 	}
 }
 
-func TestNativeQuestionSchemaChecksRootFieldsAndBlockingBranch(t *testing.T) {
-	python, err := exec.LookPath("python3")
-	if err != nil {
-		t.Skip("Python is required to exercise the embedded native verifier")
+func TestReadOnlyOpenCodeHonorsExplicitServiceAndExactConfiguredPort(t *testing.T) {
+	for _, tc := range []struct {
+		service, endpoint string
+		local, refused    bool
+	}{
+		{"", "http://localhost:11434/v1", true, false},
+		{"", "http://localhost:43123/v1", false, false},
+		{"compatible-api", "http://localhost:11434/v1", false, false},
+		{"local-ollama", "http://localhost:43123/v1", true, false},
+		{"local-ollama", "http://[::1]:43123/v1", true, false},
+		{"local-ollama", "http://model.invalid:43123/v1", false, true},
+		{"local-ollama", "http://localhost:43123/v1?", false, true},
+		{"local-ollama", "http://localhost:43123/v1/", false, true},
+		{"local-ollama", "http://localhost/v1", false, true},
+		{"local-ollama", "http://localhost:0/v1", false, true},
+		{"unknown", "http://localhost:43123/v1", false, true},
+	} {
+		t.Run(tc.service+"/"+tc.endpoint, func(t *testing.T) {
+			config, _ := json.Marshal(map[string]any{"model": "luci-gateway/exact-model", "provider": map[string]any{"luci-gateway": map[string]any{"options": map[string]string{"baseURL": tc.endpoint}, "models": map[string]any{"exact-model": map[string]any{"name": "exact-model", "options": map[string]any{"reasoningEffort": "none"}}}}}})
+			env := map[string]string{"OPENCODE_CONFIG_CONTENT": string(config), "OPENCODE_LOCAL_API_KEY": "selected-fixture-key"}
+			err := ReadOnlyOpenCodeWithService(env, "exact-model", tc.service)
+			if tc.refused {
+				if err == nil || env["OPENCODE_CONFIG_CONTENT"] != string(config) || len(env) != 2 {
+					t.Fatal("invalid explicit service did not refuse without environment mutation")
+				}
+				return
+			}
+			if err != nil || (env["OPENCODE_LUCI_OLLAMA_PREFLIGHT"] == "1") != tc.local || env["OPENCODE_LOCAL_API_KEY"] != "selected-fixture-key" {
+				t.Fatal("service profile or key boundary changed", err)
+			}
+			var prepared map[string]any
+			json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &prepared)
+			model := prepared["provider"].(map[string]any)["luci-gateway"].(map[string]any)["models"].(map[string]any)["exact-model"].(map[string]any)
+			if !reflect.DeepEqual(model["options"], map[string]any{"reasoningEffort": "none"}) || prepared["permission"].(map[string]any)["*"] != "deny" {
+				t.Fatal("read-only service profile changed thinking choice or tool denial")
+			}
+			if tc.local {
+				u, _ := url.Parse(tc.endpoint)
+				if env["OPENCODE_LUCI_OLLAMA_PORT"] != u.Port() || prepared["tools"].(map[string]any)["StructuredOutput"] != nil {
+					t.Fatal("local preflight lost exact port or enabled tools")
+				}
+				if err := ReadOnlyOpenCodeWithService(env, "exact-model", "compatible-api"); err != nil || env["OPENCODE_LUCI_OLLAMA_PORT"] != "" || env["OPENCODE_LUCI_OLLAMA_PREFLIGHT"] != "" {
+					t.Fatal("explicit generic service retained old Ollama routing hints", err)
+				}
+			} else if env["OPENCODE_LUCI_OLLAMA_PORT"] != "" || prepared["tools"].(map[string]any)["StructuredOutput"] != true {
+				t.Fatal("generic service inferred Ollama or lost its sole output tool")
+			}
+		})
 	}
+}
+
+func TestNativeQuestionSchemaChecksRootFieldsAndBlockingBranch(t *testing.T) {
+	python := repositoryFixturePython(t)
 	type answer struct {
 		Summary  string `json:"summary"`
 		Blocking bool   `json:"blocking"`
@@ -114,13 +173,7 @@ assert all(verify(value,shape)==expected for value,expected in cases)
 }
 
 func TestRepositoryBatchAdaptersExecuteWithoutRawOutputAndRejectOversizedProviderResponses(t *testing.T) {
-	python, err := exec.LookPath("python3")
-	if err != nil {
-		python, err = exec.LookPath("python")
-	}
-	if err != nil {
-		t.Skip("Python runtime required for the actual batch launcher")
-	}
+	python := repositoryFixturePython(t)
 	for _, test := range []struct {
 		provider, auth string
 		bad            bool
@@ -209,10 +262,7 @@ else:
 }
 
 func TestOpenCodeLocalStructuredSessionReceivesLongContextTailAndExactSchema(t *testing.T) {
-	python, err := exec.LookPath("python3")
-	if err != nil {
-		t.Skip("Python runtime required for the actual launcher")
-	}
+	python := repositoryFixturePython(t)
 	dir := t.TempDir()
 	input, output := filepath.Join(dir, "input"), filepath.Join(dir, "output")
 	if err := os.Mkdir(input, 0700); err != nil {
@@ -281,6 +331,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
    tool=[] if os.environ.get('FIXTURE_NO_TOOL')=='1' else [{'type':'function','function':{'name':'StructuredOutput','parameters':{'type':'object'}}}]
    if os.environ.get('FIXTURE_EXTRA_TOOL')=='1': tool.append({'type':'function','function':{'name':'shell','parameters':{'type':'object'}}})
    model_body={'model':'fixture','messages':[{'role':'user','content':'PRIVATE_PROMPT_SENT_TO_MODEL'}]}
+   saved_options=json.loads(os.environ['OPENCODE_CONFIG_CONTENT'])['provider']['luci-local']['models']['fixture'].get('options',{})
+   if 'reasoningEffort' in saved_options: model_body['reasoning_effort']=saved_options['reasoningEffort']
    if not native: model_body.update({'tools':tool,'tool_choice':'required'})
    request=urllib.request.Request(base+'/chat/completions',data=json.dumps(model_body).encode(),headers={'Content-Type':'application/json'},method='POST')
    native_answer=None
@@ -323,12 +375,14 @@ server.serve_forever()
 	if err := os.WriteFile(fake, []byte(code), 0600); err != nil {
 		t.Fatal(err)
 	}
-	var servingContext, evaluatedTokens, forwardedRequests, responseMode, nativeRequests, nativeMode atomic.Int64
+	var servingContext, evaluatedTokens, forwardedRequests, responseMode, nativeRequests, nativeMode, modelProbeRequests atomic.Int64
+	var expectThinkingOff atomic.Bool
 	servingContext.Store(8192)
 	evaluatedTokens.Store(1800)
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/generate":
+			modelProbeRequests.Add(1)
 			var request struct {
 				Model   string `json:"model"`
 				Prompt  string `json:"prompt"`
@@ -351,6 +405,7 @@ server.serve_forever()
 			var request struct {
 				Model    string                           `json:"model"`
 				Stream   bool                             `json:"stream"`
+				Think    *bool                            `json:"think"`
 				Format   map[string]any                   `json:"format"`
 				Messages []struct{ Role, Content string } `json:"messages"`
 				Options  struct {
@@ -359,6 +414,10 @@ server.serve_forever()
 			}
 			if r.Method != "POST" || json.NewDecoder(http.MaxBytesReader(w, r.Body, 128<<10)).Decode(&request) != nil || request.Model != "fixture" || request.Stream || request.Options.NumPredict != 2048 || len(request.Format) == 0 || len(request.Messages) != 1 || request.Messages[0].Role != "user" || request.Messages[0].Content != "PRIVATE_PROMPT_SENT_TO_MODEL" {
 				http.Error(w, "bad native schema request", 400)
+				return
+			}
+			if expectThinkingOff.Load() && (request.Think == nil || *request.Think) || !expectThinkingOff.Load() && request.Think != nil {
+				http.Error(w, "thinking preference not preserved", 400)
 				return
 			}
 			var exact map[string]any
@@ -433,7 +492,7 @@ server.serve_forever()
 	modelConfig, _ := json.Marshal(map[string]any{"model": "luci-local/fixture", "provider": map[string]any{"luci-local": map[string]any{"options": map[string]string{"baseURL": modelServer.URL + "/v1"}, "models": map[string]any{"fixture": map[string]any{"limit": map[string]int{"context": 8192, "output": 2048}}}}}})
 	launcher := strings.ReplaceAll(RepositoryLauncher, "/luci-input", filepath.ToSlash(input))
 	launcher = strings.ReplaceAll(launcher, "/luci-output", filepath.ToSlash(output))
-	launcher = strings.Replace(launcher, "base.port != 11434", "base.port != "+strconv.Itoa(port), 1)
+	t.Setenv("OPENCODE_LUCI_OLLAMA_PORT", strconv.Itoa(port))
 	quoted, _ := json.Marshal(filepath.ToSlash(python))
 	quotedFake, _ := json.Marshal(filepath.ToSlash(fake))
 	launcher = strings.ReplaceAll(launcher, "['opencode',", "["+string(quoted)+","+string(quotedFake)+",")
@@ -441,6 +500,25 @@ server.serve_forever()
 	if err := os.WriteFile(entry, []byte(launcher), 0600); err != nil {
 		t.Fatal(err)
 	}
+	t.Run("mismatched captured port refuses before model or provider", func(t *testing.T) {
+		wrongPort := "1"
+		if port == 1 {
+			wrongPort = "2"
+		}
+		beforeProbes, beforeForwarded := modelProbeRequests.Load(), forwardedRequests.Load()
+		cmd := exec.Command(python, entry)
+		cmd.Env = append(os.Environ(), "OPENCODE_LUCI_OLLAMA_PORT="+wrongPort, "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig))
+		if logs, err := cmd.CombinedOutput(); err == nil || len(logs) != 0 || modelProbeRequests.Load() != beforeProbes || forwardedRequests.Load() != beforeForwarded {
+			t.Fatal("mismatched port reached a model/provider or leaked output", err)
+		}
+		data, err := os.ReadFile(filepath.Join(output, "exit.json"))
+		var exit struct {
+			FailureCode string `json:"failureCode"`
+		}
+		if err != nil || json.Unmarshal(data, &exit) != nil || exit.FailureCode != "local_model_context_unverified" {
+			t.Fatal("mismatched port lost its bounded refusal", err)
+		}
+	})
 	boolPtr := func(value bool) *bool { return &value }
 	for _, test := range []struct {
 		name                   string
@@ -519,23 +597,34 @@ server.serve_forever()
 		}
 	}
 	for _, tc := range []struct {
-		name     string
-		mode     int64
-		accepted bool
+		name        string
+		mode        int64
+		accepted    bool
+		thinkingOff bool
 	}{
-		{"native-complete-answer", 0, true},
-		{"native-missing-required-field", 1, false},
-		{"native-deferred-proposal", 2, false},
-		{"native-tool-call-refused", 3, false},
-		{"native-enum-refused", 4, false},
-		{"native-placeholder-acceptance-refused", 5, false},
+		{"native-complete-answer", 0, true, false},
+		{"native-thinking-off", 0, true, true},
+		{"native-missing-required-field", 1, false, false},
+		{"native-deferred-proposal", 2, false, false},
+		{"native-tool-call-refused", 3, false, false},
+		{"native-enum-refused", 4, false, false},
+		{"native-placeholder-acceptance-refused", 5, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			os.Remove(filepath.Join(output, "result.json"))
 			nativeMode.Store(tc.mode)
+			expectThinkingOff.Store(tc.thinkingOff)
+			defer expectThinkingOff.Store(false)
+			selectedConfig := modelConfig
+			if tc.thinkingOff {
+				var configured map[string]any
+				json.Unmarshal(modelConfig, &configured)
+				configured["provider"].(map[string]any)["luci-local"].(map[string]any)["models"].(map[string]any)["fixture"].(map[string]any)["options"] = map[string]any{"reasoningEffort": "none"}
+				selectedConfig, _ = json.Marshal(configured)
+			}
 			before := nativeRequests.Load()
 			cmd := exec.Command(python, entry)
-			cmd.Env = append(os.Environ(), "FIXTURE_NATIVE_JSON=1", "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_LUCI_NATIVE_JSON=1", "OPENCODE_CONFIG_CONTENT="+string(modelConfig))
+			cmd.Env = append(os.Environ(), "FIXTURE_NATIVE_JSON=1", "FIXTURE_EXPECTED="+filepath.Join(input, "prompt.txt"), "FIXTURE_SCHEMA="+filepath.Join(input, "schema.json"), "OPENCODE_LUCI_INPUT_BYTES=14000", "OPENCODE_LUCI_OLLAMA_PREFLIGHT=1", "OPENCODE_LUCI_NATIVE_JSON=1", "OPENCODE_CONFIG_CONTENT="+string(selectedConfig))
 			logs, runErr := cmd.CombinedOutput()
 			if len(logs) != 0 || (runErr == nil) != tc.accepted || nativeRequests.Load() != before+1 {
 				t.Fatal("native route did not make exactly one bounded request and enforce the result", runErr, string(logs), nativeRequests.Load()-before)

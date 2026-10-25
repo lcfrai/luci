@@ -1400,12 +1400,12 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	if harnessID == harness.OpenCode {
 		if implementationContext != nil {
-			if err := clearReviewedOpenCodeInstructions(sandboxEnv); err != nil {
+			if err := clearReviewedOpenCodeInstructionsWithService(sandboxEnv, agentConnection.OpenCodeService); err != nil {
 				httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
 				return
 			}
 		}
-		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend); err != nil {
+		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend, agentConnection.OpenCodeService); err != nil {
 			httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
 			return
 		}
@@ -2263,12 +2263,12 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	}
 	if sess.Harness == string(harness.OpenCode) {
 		if sess.ImplementationContext != nil {
-			if err := clearReviewedOpenCodeInstructions(sandboxEnv); err != nil {
+			if err := clearReviewedOpenCodeInstructionsWithService(sandboxEnv, agentConnection.OpenCodeService); err != nil {
 				httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
 				return
 			}
 		}
-		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend); err != nil {
+		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend, agentConnection.OpenCodeService); err != nil {
 			httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
 			return
 		}

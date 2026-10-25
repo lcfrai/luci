@@ -38,39 +38,57 @@ type AgentConnectionModels struct {
 	OpenCode   string `json:"opencode,omitempty"`
 }
 
+// Empty preserves the provider's default; Off is an explicit model preference.
+type AgentConnectionOpenCodeThinking string
+
+const AgentConnectionOpenCodeThinkingOff AgentConnectionOpenCodeThinking = "off"
+
+// Empty retains legacy default-port detection for existing saved connections.
+type AgentConnectionOpenCodeService string
+
+const (
+	AgentConnectionOpenCodeCompatibleAPI AgentConnectionOpenCodeService = "compatible-api"
+	AgentConnectionOpenCodeLocalOllama   AgentConnectionOpenCodeService = "local-ollama"
+)
+
 // AgentConnection is deliberately a public projection, never the saved key.
 type AgentConnection struct {
-	ID            string                   `json:"id"`
-	Name          string                   `json:"name"`
-	Kind          string                   `json:"kind"`
-	Enabled       bool                     `json:"enabled"`
-	Revision      int                      `json:"revision"`
-	Endpoints     AgentConnectionEndpoints `json:"endpoints"`
-	Models        AgentConnectionModels    `json:"models"`
-	Configured    bool                     `json:"configured"`
-	KeyPresent    bool                     `json:"keyPresent"`
-	BlockedReason string                   `json:"blockedReason,omitempty"`
+	ID               string                          `json:"id"`
+	Name             string                          `json:"name"`
+	Kind             string                          `json:"kind"`
+	Enabled          bool                            `json:"enabled"`
+	Revision         int                             `json:"revision"`
+	Endpoints        AgentConnectionEndpoints        `json:"endpoints"`
+	Models           AgentConnectionModels           `json:"models"`
+	OpenCodeThinking AgentConnectionOpenCodeThinking `json:"openCodeThinking,omitempty"`
+	OpenCodeService  AgentConnectionOpenCodeService  `json:"openCodeService,omitempty"`
+	Configured       bool                            `json:"configured"`
+	KeyPresent       bool                            `json:"keyPresent"`
+	BlockedReason    string                          `json:"blockedReason,omitempty"`
 }
 
 type AgentConnectionReceipt struct {
-	ID       string `json:"id,omitempty"`
-	Kind     string `json:"kind"`
-	Protocol string `json:"protocol,omitempty"`
-	Model    string `json:"model,omitempty"`
-	Endpoint string `json:"endpoint,omitempty"`
-	AuthMode string `json:"authMode,omitempty"`
-	Revision int    `json:"revision"`
+	ID              string                         `json:"id,omitempty"`
+	Kind            string                         `json:"kind"`
+	Protocol        string                         `json:"protocol,omitempty"`
+	Model           string                         `json:"model,omitempty"`
+	Endpoint        string                         `json:"endpoint,omitempty"`
+	AuthMode        string                         `json:"authMode,omitempty"`
+	Revision        int                            `json:"revision"`
+	OpenCodeService AgentConnectionOpenCodeService `json:"openCodeService,omitempty"`
 }
 
 type privateAgentConnection struct {
-	ID        string                   `json:"id"`
-	Name      string                   `json:"name"`
-	Kind      string                   `json:"kind"`
-	Enabled   bool                     `json:"enabled"`
-	Revision  int                      `json:"revision"`
-	Endpoints AgentConnectionEndpoints `json:"endpoints"`
-	Models    AgentConnectionModels    `json:"models"`
-	APIKey    string                   `json:"apiKey,omitempty"`
+	ID               string                          `json:"id"`
+	Name             string                          `json:"name"`
+	Kind             string                          `json:"kind"`
+	Enabled          bool                            `json:"enabled"`
+	Revision         int                             `json:"revision"`
+	Endpoints        AgentConnectionEndpoints        `json:"endpoints"`
+	Models           AgentConnectionModels           `json:"models"`
+	OpenCodeThinking AgentConnectionOpenCodeThinking `json:"openCodeThinking,omitempty"`
+	OpenCodeService  AgentConnectionOpenCodeService  `json:"openCodeService,omitempty"`
+	APIKey           string                          `json:"apiKey,omitempty"`
 }
 
 type agentConnectionStore struct {
@@ -151,10 +169,33 @@ func validateAgentConnection(c privateAgentConnection) bool {
 			return false
 		}
 	}
+	if c.OpenCodeThinking != "" && (c.OpenCodeThinking != AgentConnectionOpenCodeThinkingOff || c.Endpoints.ChatCompletions == "" || c.Models.OpenCode == "") {
+		return false
+	}
+	if c.OpenCodeService != "" && c.OpenCodeService != AgentConnectionOpenCodeCompatibleAPI && c.OpenCodeService != AgentConnectionOpenCodeLocalOllama {
+		return false
+	}
+	if c.OpenCodeService == AgentConnectionOpenCodeLocalOllama && (c.Models.OpenCode == "" || !ValidLocalOllamaEndpoint(c.Endpoints.ChatCompletions)) {
+		return false
+	}
 	if c.Kind == "codex-subscription" {
-		return c.APIKey == "" && c.Endpoints == (AgentConnectionEndpoints{}) && c.Models.ClaudeCode == "" && c.Models.OpenCode == ""
+		return c.APIKey == "" && c.Endpoints == (AgentConnectionEndpoints{}) && c.Models.ClaudeCode == "" && c.Models.OpenCode == "" && c.OpenCodeThinking == "" && c.OpenCodeService == ""
 	}
 	return true
+}
+
+// ValidLocalOllamaEndpoint permits only an explicitly selected host-local service.
+// A compatible API elsewhere is never an implicit Ollama metadata-probe target.
+func ValidLocalOllamaEndpoint(base string) bool {
+	if !validConnectionEndpoint(base) || strings.ContainsAny(base, "?#") {
+		return false
+	}
+	u, err := url.Parse(base)
+	if err != nil || u.Scheme != "http" || u.Port() == "" || u.Path != "/v1" || u.RawPath != "" || u.RawFragment != "" {
+		return false
+	}
+	host := u.Hostname()
+	return host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "host.docker.internal"
 }
 
 func agentConnectionConfigured(c privateAgentConnection) bool {
@@ -166,7 +207,7 @@ func agentConnectionConfigured(c privateAgentConnection) bool {
 
 func publicAgentConnection(c privateAgentConnection) AgentConnection {
 	configured := agentConnectionConfigured(c)
-	value := AgentConnection{ID: c.ID, Name: c.Name, Kind: c.Kind, Enabled: c.Enabled, Revision: c.Revision, Endpoints: c.Endpoints, Models: c.Models, Configured: configured, KeyPresent: c.APIKey != ""}
+	value := AgentConnection{ID: c.ID, Name: c.Name, Kind: c.Kind, Enabled: c.Enabled, Revision: c.Revision, Endpoints: c.Endpoints, Models: c.Models, OpenCodeThinking: c.OpenCodeThinking, OpenCodeService: c.OpenCodeService, Configured: configured, KeyPresent: c.APIKey != ""}
 	if !c.Enabled {
 		value.BlockedReason = "This connection is disabled. Enable it before starting a new agent."
 	} else if !configured {
@@ -244,15 +285,17 @@ func (s *Server) getAgentConnections(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) setAgentConnection(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Action           string                   `json:"action"`
-		ExpectedRevision int                      `json:"expectedRevision"`
-		ID               string                   `json:"id"`
-		Name             string                   `json:"name"`
-		Kind             string                   `json:"kind"`
-		Enabled          bool                     `json:"enabled"`
-		Endpoints        AgentConnectionEndpoints `json:"endpoints"`
-		Models           AgentConnectionModels    `json:"models"`
-		APIKey           *string                  `json:"apiKey"`
+		Action           string                           `json:"action"`
+		ExpectedRevision int                              `json:"expectedRevision"`
+		ID               string                           `json:"id"`
+		Name             string                           `json:"name"`
+		Kind             string                           `json:"kind"`
+		Enabled          bool                             `json:"enabled"`
+		Endpoints        AgentConnectionEndpoints         `json:"endpoints"`
+		Models           AgentConnectionModels            `json:"models"`
+		OpenCodeThinking *AgentConnectionOpenCodeThinking `json:"openCodeThinking"`
+		OpenCodeService  *AgentConnectionOpenCodeService  `json:"openCodeService"`
+		APIKey           *string                          `json:"apiKey"`
 	}
 	if !readJSON(w, r, &req) {
 		return
@@ -293,6 +336,12 @@ func (s *Server) setAgentConnection(w http.ResponseWriter, r *http.Request) {
 			c = store.Connections[index]
 		}
 		c.Name, c.Kind, c.Enabled, c.Endpoints, c.Models, c.Revision = req.Name, req.Kind, req.Enabled, req.Endpoints, req.Models, store.Revision+1
+		if req.OpenCodeThinking != nil {
+			c.OpenCodeThinking = *req.OpenCodeThinking
+		}
+		if req.OpenCodeService != nil {
+			c.OpenCodeService = *req.OpenCodeService
+		}
 		if req.APIKey != nil {
 			c.APIKey = *req.APIKey
 		}

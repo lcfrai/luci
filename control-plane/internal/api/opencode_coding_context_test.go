@@ -4,16 +4,135 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/product"
 )
 
 func codingModelEnvironment() map[string]string {
 	return map[string]string{"OPENCODE_CONFIG_CONTENT": `{"model":"luci-local/luci-acceptance-qwen2.5-general-8k:latest","instructions":["LUCI.md"],"provider":{"luci-local":{"options":{"baseURL":"http://host.docker.internal:11434/v1","apiKey":"{env:OPENCODE_LOCAL_API_KEY}"},"models":{"luci-acceptance-qwen2.5-general-8k:latest":{"name":"saved"}}}}}`}
+}
+
+func TestExplicitLocalOpenCodeUsesExactConfiguredPortAndSavedModel(t *testing.T) {
+	for _, endpoint := range []string{"http://localhost:43123/v1", "http://127.0.0.1:43123/v1", "http://[::1]:43123/v1", "http://host.docker.internal:43123/v1"} {
+		for _, reviewed := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/reviewed=%v", endpoint, reviewed), func(t *testing.T) {
+				env := codingModelEnvironment()
+				env["OPENCODE_PERMISSION"] = `{"*":"ask"}`
+				env["OPENCODE_CONFIG_CONTENT"] = strings.ReplaceAll(strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "luci-local", "luci-gateway"), "http://host.docker.internal:11434/v1", endpoint)
+				nativeDockerEndpoint(env)
+				if reviewed {
+					if err := clearReviewedOpenCodeInstructionsWithService(env, product.AgentConnectionOpenCodeLocalOllama); err != nil {
+						t.Fatal(err)
+					}
+				}
+				engineCalls, probeCalls := 0, 0
+				err := prepareLocalOpenCodeCodingContextWithService(context.Background(), env, product.AgentConnectionOpenCodeLocalOllama, func(context.Context) error { engineCalls++; return nil }, func(_ context.Context, host, alias string) (int, error) {
+					probeCalls++
+					if engineCalls != 1 || host != "127.0.0.1:43123" || alias != "luci-acceptance-qwen2.5-general-8k:latest" {
+						t.Fatal("configured route or engine-before-probe fence changed", host, alias)
+					}
+					return 65536, nil
+				})
+				if err != nil || engineCalls != 1 || probeCalls != 1 || env["OPENCODE_PERMISSION"] != `{"*":"ask"}` || env["BUN_OPTIONS"] != "--smol" {
+					t.Fatal("explicit local route did not retain context and permission gates", err)
+				}
+				var config map[string]any
+				if json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config) != nil {
+					t.Fatal("invalid prepared config")
+				}
+				selected, err := selectedLocalOpenCodeOllamaWithService(config, product.AgentConnectionOpenCodeLocalOllama)
+				if err != nil || selected == nil || selected.port != "43123" || !reflect.DeepEqual(selected.entry["limit"], map[string]any{"context": float64(65536), "output": float64(2048)}) {
+					t.Fatal("explicit model context was changed or guessed", err)
+				}
+				build := config["agent"].(map[string]any)["build"].(map[string]any)
+				if reviewed && (build["prompt"] != reviewedLocalOpenCodePrompt || config["tools"].(map[string]any)["task"] != false) || !reviewed && build["prompt"] != ordinaryLocalOpenCodePrompt {
+					t.Fatal("configured port lost the existing task prompt policy")
+				}
+			})
+		}
+	}
+}
+
+func TestExplicitCompatibleOpenCodeNeverInfersOllamaFromDefaultPort(t *testing.T) {
+	for _, provider := range []string{"luci-local", "luci-gateway"} {
+		t.Run(provider, func(t *testing.T) {
+			env := codingModelEnvironment()
+			env["OPENCODE_CONFIG_CONTENT"] = strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "luci-local", provider)
+			if err := clearReviewedOpenCodeInstructionsWithService(env, product.AgentConnectionOpenCodeCompatibleAPI); err != nil {
+				t.Fatal(err)
+			}
+			before := env["OPENCODE_CONFIG_CONTENT"]
+			err := prepareLocalOpenCodeCodingContextWithService(context.Background(), env, product.AgentConnectionOpenCodeCompatibleAPI, func(context.Context) error { t.Fatal("generic route checked the local engine"); return nil }, func(context.Context, string, string) (int, error) {
+				t.Fatal("generic route probed Ollama")
+				return 0, nil
+			})
+			if err != nil || env["OPENCODE_CONFIG_CONTENT"] != before || env["BUN_OPTIONS"] != "" {
+				t.Fatal("explicit compatible route gained local behavior", err)
+			}
+			var config map[string]any
+			json.Unmarshal([]byte(before), &config)
+			if config["agent"] != nil || config["tools"] != nil || len(config["instructions"].([]any)) != 0 {
+				t.Fatal("generic reviewed route lost captured instructions or gained local restrictions")
+			}
+		})
+	}
+}
+
+func TestExplicitLocalOpenCodeProfileRefusesInvalidRoutesWithoutMutation(t *testing.T) {
+	for _, endpoint := range []string{"https://localhost:43123/v1", "http://model.invalid:43123/v1", "http://localhost/v1", "http://localhost:0/v1", "http://localhost:43123/v1?", "http://localhost:43123/v1#fragment", "http://user@localhost:43123/v1", "http://localhost:43123/v1/"} {
+		t.Run(endpoint, func(t *testing.T) {
+			env := codingModelEnvironment()
+			env["OPENCODE_CONFIG_CONTENT"] = strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "http://host.docker.internal:11434/v1", endpoint)
+			before := env["OPENCODE_CONFIG_CONTENT"]
+			err := prepareLocalOpenCodeCodingContextWithService(context.Background(), env, product.AgentConnectionOpenCodeLocalOllama, func(context.Context) error { t.Fatal("invalid route checked engine"); return nil }, func(context.Context, string, string) (int, error) {
+				t.Fatal("invalid route probed model")
+				return 0, nil
+			})
+			if err == nil || env["OPENCODE_CONFIG_CONTENT"] != before || len(env) != 1 {
+				t.Fatal("invalid explicit route was silently skipped or mutated")
+			}
+		})
+	}
+}
+
+func TestConfiguredPortOpenCodeRetainsFailureAndCancellationFences(t *testing.T) {
+	for _, failure := range []string{"engine", "model", "window", "cancelled read"} {
+		t.Run(failure, func(t *testing.T) {
+			env := codingModelEnvironment()
+			env["OPENCODE_CONFIG_CONTENT"] = strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], ":11434/v1", ":43123/v1")
+			before := env["OPENCODE_CONFIG_CONTENT"]
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			err := prepareLocalOpenCodeCodingContextWithService(ctx, env, product.AgentConnectionOpenCodeLocalOllama, func(context.Context) error {
+				if failure == "engine" {
+					return errors.New("unverified engine")
+				}
+				return nil
+			}, func(context.Context, string, string) (int, error) {
+				if failure == "engine" {
+					t.Fatal("refused engine reached model probe")
+				}
+				if failure == "model" {
+					return 0, errors.New("unavailable model")
+				}
+				if failure == "window" {
+					return 0, nil
+				}
+				cancel()
+				return 65536, nil
+			})
+			if err == nil || env["OPENCODE_CONFIG_CONTENT"] != before || len(env) != 1 {
+				t.Fatal("configured port bypassed a final refusal or cancellation")
+			}
+		})
+	}
 }
 
 func TestNamedLocalOpenCodeSharesReviewedPolicyAndExactContext(t *testing.T) {

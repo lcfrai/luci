@@ -159,7 +159,9 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	}
 	image := a.sessionImage()
 	nativeProfile, err := a.nativeDelegationDispatchProfile(run, op.ID, image)
-	if err != nil { return refuse("native_helper_profile_changed", err) }
+	if err != nil {
+		return refuse("native_helper_profile_changed", err)
+	}
 	policy, err := a.deps.Product.SwarmSchedulerPolicy()
 	if err != nil {
 		return refuse("policy_unavailable", err)
@@ -265,10 +267,10 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		nativeDockerEndpoint(sandboxEnv)
 	}
 	if route.Harness == "opencode" {
-		if err := clearReviewedOpenCodeInstructions(sandboxEnv); err != nil {
+		if err := clearReviewedOpenCodeInstructionsWithService(sandboxEnv, connection.OpenCodeService); err != nil {
 			return refuse("provider_unavailable", err)
 		}
-		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend); err != nil {
+		if err := prepareLocalOpenCodeCodingContext(ctx, sandboxEnv, a.deps.Backend, connection.OpenCodeService); err != nil {
 			return refuse("provider_unavailable", err)
 		}
 	}
@@ -334,7 +336,9 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	}
 	finalAuth := func(ctx context.Context) error {
 		currentProfile, err := a.nativeDelegationDispatchProfile(run, op.ID, a.sessionImage())
-		if err != nil || currentProfile != nativeProfile || a.sessionImage() != image { return admissionFailure("native_helper_profile_changed", product.ErrNativeDelegation) }
+		if err != nil || currentProfile != nativeProfile || a.sessionImage() != image {
+			return admissionFailure("native_helper_profile_changed", product.ErrNativeDelegation)
+		}
 		enabled, err := a.deps.Product.SwarmSchedulerDispatchEnabled()
 		if err != nil {
 			return admissionFailure("dispatch_policy_unavailable", err)
@@ -374,7 +378,9 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		// Authority and reservation above may wait on mutable current state.
 		// Keep the actual Spec image captured, and fence changes across those waits.
 		currentProfile, err = a.nativeDelegationDispatchProfile(run, op.ID, a.sessionImage())
-		if err != nil || currentProfile != nativeProfile || a.sessionImage() != image { return admissionFailure("native_helper_profile_changed", product.ErrNativeDelegation) }
+		if err != nil || currentProfile != nativeProfile || a.sessionImage() != image {
+			return admissionFailure("native_helper_profile_changed", product.ErrNativeDelegation)
+		}
 		return nil
 	}
 	stored, err := a.allocatePreparedSession(ctx, preparedSessionAllocation{Record: candidate, Spec: backend.Spec{ID: candidate.ID, SessionID: candidate.ID, Image: image, Command: command, Args: argv, Env: sandboxEnv, AttachToken: candidate.AttachToken, Resources: capacity.Resources, WorkDir: sessionWorkDir, Mounts: mounts}, Account: account, Revalidate: admission.Revalidate, BeforeAllocate: finalAuth, BeforeBackendStart: func(ctx context.Context) error {

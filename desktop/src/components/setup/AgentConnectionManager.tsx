@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from "react";
-import { errorText, type AgentConnection, type AgentConnectionKind, type AgentConnectionMutation, type ProductClient } from "../../api/product";
+import { useEffect, useId, useRef, useState } from "react";
+import { errorText, type AgentConnection, type AgentConnectionKind, type AgentConnectionMutation, type AgentConnectionOpenCodeThinking, type AgentConnectionOpenCodeService, type ProductClient } from "../../api/product";
 import { AGENT_CONNECTIONS_CHANGED, useAgentConnections } from "../../hooks/useAgentConnections";
 import { Button } from "../fluid/components/button";
 import { emptyGatewaySupport, gatewayAgents, gatewayBaseAddress, savedGatewayAddress } from "./gatewayPreset";
 
-const emptyDraft = () => ({ id: "", name: "", kind: "litellm" as AgentConnectionKind, enabled: true, endpoints: {} as AgentConnection["endpoints"], models: {} as AgentConnection["models"] });
+const emptyDraft = () => ({ id: "", name: "", kind: "litellm" as AgentConnectionKind, enabled: true, endpoints: {} as AgentConnection["endpoints"], models: {} as AgentConnection["models"], openCodeThinking: "" as AgentConnectionOpenCodeThinking, openCodeService: "compatible-api" as AgentConnectionOpenCodeService });
 export function AgentConnectionManager({ client }: { client: ProductClient }) {
+  const thinkingHelpId = useId();
+  const serviceHelpId = useId();
   const { catalogue, setCatalogue, error, setError, reload, loading } = useAgentConnections(client);
   const [draft, setDraft] = useState(emptyDraft), [apiKey, setApiKey] = useState(""), [clearKey, setClearKey] = useState(false);
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
@@ -22,7 +24,7 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
   const subscription = draft.kind === "codex-subscription";
   const chooseDraft = (id: string) => {
     const value = entries.find(item => item.id === id);
-    setDraft(value ? { id: value.id, name: value.name, kind: value.kind, enabled: value.enabled, endpoints: { ...value.endpoints }, models: { ...value.models } } : emptyDraft());
+    setDraft(value ? { id: value.id, name: value.name, kind: value.kind, enabled: value.enabled, endpoints: { ...value.endpoints }, models: { ...value.models }, openCodeThinking: value.openCodeThinking ?? "", openCodeService: value.openCodeService ?? "" } : emptyDraft());
     setApiKey(""); setClearKey(false); setNotice("");
     setGatewayAddress(value ? savedGatewayAddress(value.endpoints) : "");
     setGatewaySupport(value ? Object.fromEntries(gatewayAgents.map(agent => [agent.model, !!value.endpoints[agent.endpoint] || !!value.models[agent.model]])) as typeof gatewaySupport : emptyGatewaySupport());
@@ -51,7 +53,7 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
       setClearKey(false); setNotice(success);
       if (input.action === "save" && !draft.id) {
         const added = value.connections.find(item => !entries.some(previous => previous.id === item.id));
-        if (added) setDraft({ id: added.id, name: added.name, kind: added.kind, enabled: added.enabled, endpoints: { ...added.endpoints }, models: { ...added.models } });
+        if (added) setDraft({ id: added.id, name: added.name, kind: added.kind, enabled: added.enabled, endpoints: { ...added.endpoints }, models: { ...added.models }, openCodeThinking: added.openCodeThinking ?? "", openCodeService: added.openCodeService ?? "" });
       }
       if (input.action === "delete") chooseDraft("");
     } catch (cause) { if (alive.current) setError(errorText(cause)); }
@@ -81,13 +83,15 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
       event.preventDefault(); if (!catalogue) return;
       const endpoints = subscription ? {} : Object.fromEntries(Object.entries(draft.endpoints).filter(([, value]) => value?.trim()).map(([key, value]) => [key, value!.trim()]));
       const models = Object.fromEntries(Object.entries(draft.models).filter(([key, value]) => value?.trim() && (!subscription || key === "codex")).map(([key, value]) => [key, value!.trim()]));
-      void mutate({ action: "save", expectedRevision: catalogue.revision, ...(draft.id ? { id: draft.id } : {}), name: draft.name.trim(), kind: draft.kind, enabled: draft.enabled, endpoints, models, ...(subscription ? { apiKey: "" } : apiKey || clearKey ? { apiKey: clearKey ? "" : apiKey } : {}) }, "Connection saved. Choose it as the active connection when you are ready. Saving does not verify model access.");
+      const thinking = subscription ? "" : draft.openCodeThinking;
+      const service = subscription ? "" : draft.openCodeService;
+      void mutate({ action: "save", expectedRevision: catalogue.revision, ...(draft.id ? { id: draft.id } : {}), name: draft.name.trim(), kind: draft.kind, enabled: draft.enabled, endpoints, models, ...(thinking || saved?.openCodeThinking ? { openCodeThinking: thinking } : {}), ...(service || saved?.openCodeService ? { openCodeService: service } : {}), ...(subscription ? { apiKey: "" } : apiKey || clearKey ? { apiKey: clearKey ? "" : apiKey } : {}) }, "Connection saved. Choose it as the active connection when you are ready. Saving does not verify model access.");
     }}>
       <fieldset disabled={busy || !catalogue} className="definition-fields">
         <label className="luci-field">Edit saved connection<select value={draft.id} onChange={event => chooseDraft(event.target.value)}><option value="">Add a connection</option>{entries.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <div className="setup-field-grid">
           <label className="luci-field">Connection name<input required value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} placeholder="A name you recognise" /></label>
-          <label className="luci-field">Connection type<select value={draft.kind} onChange={event => { setDraft({ ...draft, kind: event.target.value as AgentConnectionKind }); setApiKey(""); setClearKey(false); setPresetError(""); }}><option value="litellm">LiteLLM gateway</option><option value="compatible-api">Compatible API</option><option value="codex-subscription">My Codex subscription</option><option value="direct-api">Direct provider API</option></select></label>
+          <label className="luci-field">Connection type<select value={draft.kind} onChange={event => { setDraft({ ...draft, kind: event.target.value as AgentConnectionKind, openCodeThinking: event.target.value === "codex-subscription" ? "" : draft.openCodeThinking, openCodeService: event.target.value === "codex-subscription" ? "" : draft.openCodeService }); setApiKey(""); setClearKey(false); setPresetError(""); }}><option value="litellm">LiteLLM gateway</option><option value="compatible-api">Compatible API</option><option value="codex-subscription">My Codex subscription</option><option value="direct-api">Direct provider API</option></select></label>
         </div>
         <label className="data-check"><input type="checkbox" checked={draft.enabled} onChange={event => setDraft({ ...draft, enabled: event.target.checked })} />Enable this connection</label>
         {subscription ? <><p className="journey-muted">Uses your saved official Codex sign-in. Complete the Codex account sign-in below once; no API key or endpoint is needed here.</p>{saved?.keyPresent && <p className="journey-muted">Saving this type removes this connection’s saved API key.</p>}</> : <>
@@ -97,7 +101,7 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
             <fieldset><legend>Agents to use</legend><p className="journey-muted">Select only agents and exact model aliases available on your gateway. Claude Code needs a Claude-backed model with Messages support.</p>
               {gatewayAgents.map(agent => <div key={agent.model}><label className="data-check"><input type="checkbox" checked={gatewaySupport[agent.model]} onChange={event => {
                 setGatewaySupport({ ...gatewaySupport, [agent.model]: event.target.checked }); setPresetError("");
-                if (!event.target.checked) { const endpoints = { ...draft.endpoints }, models = { ...draft.models }; delete endpoints[agent.endpoint]; delete models[agent.model]; setDraft({ ...draft, endpoints, models }); }
+                if (!event.target.checked) { const endpoints = { ...draft.endpoints }, models = { ...draft.models }; delete endpoints[agent.endpoint]; delete models[agent.model]; setDraft({ ...draft, endpoints, models, openCodeThinking: agent.model === "opencode" ? "" : draft.openCodeThinking, openCodeService: agent.model === "opencode" ? "compatible-api" : draft.openCodeService }); }
               }} />Use {agent.name}</label>{gatewaySupport[agent.model] && <label className="luci-field">{agent.modelLabel}<input autoComplete="off" value={draft.models[agent.model] ?? ""} onChange={event => { setDraft({ ...draft, models: { ...draft.models, [agent.model]: event.target.value } }); setPresetError(""); }} placeholder="Exact model alias supplied by your gateway" /></label>}</div>)}
             </fieldset>
             <Button type="button" variant="secondary" onClick={applyGatewayAddress}>Apply gateway address</Button>
@@ -106,6 +110,8 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
             {presetError && <p className="journey-error" role="alert">{presetError}</p>}
           </> : <p className="journey-muted">Enter the base URL and exact model ID for each supported protocol in Advanced. Leave unsupported protocols empty.</p>}
           <details open={draft.kind !== "litellm"}><summary>Advanced · protocol addresses</summary><div className="setup-field-grid">{gatewayAgents.map(agent => <div key={agent.endpoint}><label className="luci-field">{agent.endpointLabel}<input type="url" value={draft.endpoints[agent.endpoint] ?? ""} onChange={event => setDraft({ ...draft, endpoints: { ...draft.endpoints, [agent.endpoint]: event.target.value } })} /></label>{draft.kind !== "litellm" && <label className="luci-field">{agent.modelLabel}<input autoComplete="off" value={draft.models[agent.model] ?? ""} onChange={event => setDraft({ ...draft, models: { ...draft.models, [agent.model]: event.target.value } })} /></label>}</div>)}</div></details>
+          <label className="luci-field">OpenCode service<select aria-label="OpenCode service" aria-describedby={serviceHelpId} value={draft.openCodeService} onChange={event => setDraft({ ...draft, openCodeService: event.target.value as AgentConnectionOpenCodeService })}>{draft.openCodeService === "" && <option value="">Automatic · legacy default-port detection</option>}<option value="compatible-api">Compatible API</option><option value="local-ollama">Local Ollama</option></select><small id={serviceHelpId}>Choose Local Ollama to verify the exact saved model’s context before new work. Use an HTTP /v1 address on localhost, loopback or host.docker.internal with an explicit port. Compatible API skips Ollama-specific checks. Saving does not contact or download a model.</small></label>
+          <label className="luci-field">OpenCode thinking<select aria-label="OpenCode thinking" aria-describedby={thinkingHelpId} value={draft.openCodeThinking} onChange={event => setDraft({ ...draft, openCodeThinking: event.target.value as AgentConnectionOpenCodeThinking })}><option value="">Provider default</option><option value="off">Off</option></select><small id={thinkingHelpId}>Choose Off for faster responses from models that support disabling thinking. Provider default keeps the model’s usual behavior. Tool approvals stay the same.</small></label>
           <label className="luci-field">Connection API key<input aria-label="Connection API key" type="password" autoComplete="off" value={apiKey} disabled={clearKey} onChange={event => setApiKey(event.target.value)} /><small>{saved?.keyPresent ? "A key is saved. Leave this blank to keep it, or enter a replacement." : "The key stays in this workspace’s private settings."}</small></label>
           {saved?.keyPresent && <label className="data-check"><input type="checkbox" checked={clearKey} onChange={event => { setClearKey(event.target.checked); setApiKey(""); }} />Clear the saved key when saving</label>}
         </>}
