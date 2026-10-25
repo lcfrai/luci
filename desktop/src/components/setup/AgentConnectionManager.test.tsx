@@ -96,7 +96,7 @@ it("saves explicit OpenCode thinking without selecting the gateway or changing e
   saved.activeConnectionId = "";
   saved.connections[0].kind = "compatible-api";
   const fetcher = mount(false, saved);
-  await screen.findByText("New sessions use the direct accounts configured below.");
+  await screen.findByText(/^New sessions use the direct accounts configured below\./);
   await userEvent.click(screen.getByText("Add or edit a connection"));
   await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
   expect((screen.getByLabelText("OpenCode thinking", { exact: false }) as HTMLSelectElement).value).toBe("");
@@ -144,7 +144,7 @@ it("labels legacy detection accurately and saves explicit local or generic servi
   saved.activeConnectionId = "";
   saved.connections[0].kind = "compatible-api";
   const fetcher = mount(false, saved);
-  await screen.findByText("New sessions use the direct accounts configured below.");
+  await screen.findByText(/^New sessions use the direct accounts configured below\./);
   await userEvent.click(screen.getByText("Add or edit a connection"));
   await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
   expect((screen.getByLabelText("OpenCode service") as HTMLSelectElement).value).toBe("");
