@@ -25,12 +25,14 @@ type Props = {
   projectId: string;
   children?: ReactNode;
   expanded?: boolean;
+  controlsHidden?: boolean;
+  onReveal?(): void;
 };
 export function ProjectWork(props: Props) {
   const navigationScope = useProjectDraftScope(props.projectId);
   return <ProjectWorkView key={JSON.stringify([productApi.baseUrl, navigationScope, props.projectId])} {...props} navigationScope={navigationScope} />;
 }
-function ProjectWorkView({ projectId, children, expanded = true, navigationScope }: Props & { navigationScope: string | null }) {
+function ProjectWorkView({ projectId, children, expanded = true, controlsHidden = false, onReveal, navigationScope }: Props & { navigationScope: string | null }) {
   const access = useProjectAccess(projectId);
   const canRead = useRef(access.canRead); canRead.current = access.canRead;
   const alive = useRef(true), read = useRef(0);
@@ -50,9 +52,13 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
   const planRegion = useRef<HTMLElement>(null);
   const [planFocus, setPlanFocus] = useState<{ origin: Element | null; fromDialog: boolean } | null>(null);
   const [sessionFocus, setSessionFocus] = useState<{ sessionId: string; origin: Element | null } | null>(null);
+  const revealControls = useRef(onReveal); revealControls.current = onReveal;
   const verification = useCockpit(state => state.projectRunVerification);
   useEffect(() => {
-    if (navigationScope && verification?.scope === navigationScope && verification.projectId === projectId && details.current) details.current.open = true;
+    if (navigationScope && verification?.scope === navigationScope && verification.projectId === projectId && details.current) {
+      revealControls.current?.();
+      details.current.open = true;
+    }
   }, [verification, navigationScope, projectId]);
   const load = useCallback(
     async () => {
@@ -98,6 +104,7 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
     if (!access.canRead) return;
     const reveal = () => {
       if (!takeProjectContextEdit(navigationScope, projectId, "plan")) return;
+      revealControls.current?.();
       if (details.current) details.current.open = true;
       setPlanFocus({ origin: document.activeElement, fromDialog: !!document.activeElement?.closest('[role="dialog"]') });
     };
@@ -111,7 +118,7 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
     return () => { document.removeEventListener("pointerdown", cancel, true); document.removeEventListener("keydown", cancel, true); };
   }, [planFocus]);
   useEffect(() => {
-    if (!planFocus || !facts || !access.canRead) return;
+    if (!planFocus || !facts || !access.canRead || controlsHidden) return;
     let second = 0;
     // A guarded navigation dialog restores its trigger first. Reveal the
     // requested plan after that restoration rather than losing final focus.
@@ -125,7 +132,7 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
       setPlanFocus(null);
     }); });
     return () => { cancelAnimationFrame(frame); cancelAnimationFrame(second); };
-  }, [planFocus, facts, access.canRead]);
+  }, [planFocus, facts, access.canRead, controlsHidden]);
   useEffect(() => {
     if (!sessionFocus) return;
     const cancel = () => setSessionFocus(null);
@@ -148,9 +155,16 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
   const reviewStatus = (status: string, stale: boolean) => stale ? "Needs review" : status === "approved" ? "Approved" : "Draft";
   const stateCount = facts?.handoff.screens.reduce((count, screen) => count + screen.states.length, 0) ?? 0;
   if (!access.canRead) return <section className="project-work"><p role="status">{access.message}</p></section>;
+  function revealPlan() {
+    revealControls.current?.();
+    if (details.current) details.current.open = true;
+    // The parent unhides this mounted subtree before the existing guarded
+    // double-frame focus/scroll path runs. No draft or context is consumed here.
+    setPlanFocus({ origin: document.activeElement, fromDialog: !!document.activeElement?.closest('[role="dialog"]') });
+  }
   return (
-    <>
-    <ProjectRuns projectId={projectId} draft={runDraft} onDraftClose={() => setRunDraft(undefined)} onReviewPlan={() => { if (details.current) { details.current.open = true; details.current.scrollIntoView({ block: 'nearest' }); } }} onOpenCodingSession={target => {
+    <div className="develop-project-controls" hidden={controlsHidden}>
+    <ProjectRuns projectId={projectId} draft={runDraft} onDraftClose={() => setRunDraft(undefined)} onReviewPlan={revealPlan} onOpenCodingSession={target => {
       const current = useCockpit.getState();
       if (target.scope === navigationScope && target.projectId === projectId && current.selection.projectId === projectId && current.selection.sessionId === target.sessionId && !current.pendingNavigation && details.current && (document.activeElement === target.origin || document.activeElement === document.body)) {
         details.current.open = false;
@@ -159,7 +173,7 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
         setSessionFocus({ sessionId: target.sessionId, origin: target.origin });
       }
     }} />
-    <ExternalToolHandoff projectId={projectId} onReviewPlan={() => { if (details.current) { details.current.open = true; details.current.scrollIntoView({ block: 'nearest' }); } }} />
+    <ExternalToolHandoff projectId={projectId} onReviewPlan={revealPlan} />
     <details className="project-work" open={expanded} ref={details}>
       <summary>
         <strong role="heading" aria-level={1}>Project plan and checks</strong>
@@ -281,6 +295,6 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
         )}
       </div>
     </details>
-    </>
+    </div>
   );
 }

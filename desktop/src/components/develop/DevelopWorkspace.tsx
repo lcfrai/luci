@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { useCockpit } from '../../store/store';
 import { selectFocusedSessionId } from '../../store/selectors';
@@ -24,16 +24,19 @@ function SessionChoice({ id, selected, onChoose }: { id: SessionId; selected: bo
   </button>;
 }
 
-export function DevelopWorkspace({ projectId, sessionIds, canvasIds }: { projectId: string | null; sessionIds: SessionId[]; canvasIds: SessionId[] }) {
+type WorkspaceProps = { projectId: string | null; sessionIds: SessionId[]; canvasIds: SessionId[];
+  onFocusModeChange?(focused: boolean): void; revealRequest?: number };
+export function DevelopWorkspace({ projectId, sessionIds, canvasIds, onFocusModeChange, revealRequest = 0 }: WorkspaceProps) {
   const scope = useProjectDraftScope(projectId ?? '');
   const branchId = useCockpit(state => state.selection.branchId);
   const key = workspaceLayoutKey(scope, branchId);
   // Changing account, workspace or branch remounts only layout chrome. Actual
   // sessions and their drafts remain in the existing registry/store.
-  return <Workspace key={key ?? JSON.stringify([projectId, branchId])} storageKey={key} sessionIds={sessionIds} canvasIds={canvasIds} />;
+  return <Workspace key={key ?? JSON.stringify([projectId, branchId])} storageKey={key} sessionIds={sessionIds} canvasIds={canvasIds}
+    onFocusModeChange={onFocusModeChange} revealRequest={revealRequest} />;
 }
 
-function Workspace({ storageKey, sessionIds, canvasIds }: { storageKey: string | null; sessionIds: SessionId[]; canvasIds: SessionId[] }) {
+function Workspace({ storageKey, sessionIds, canvasIds, onFocusModeChange, revealRequest }: Omit<WorkspaceProps, 'projectId'> & { storageKey: string | null; revealRequest: number }) {
   const [initial] = useState(() => {
     try { return { value: readWorkspaceLayout(storageKey), error: '' }; }
     catch { return { value: { ...DEFAULT_WORKSPACE_LAYOUT }, error: 'The saved layout could not be read. Changes apply here; adjust the layout to try saving again.' }; }
@@ -49,6 +52,15 @@ function Workspace({ storageKey, sessionIds, canvasIds }: { storageKey: string |
   const setLens = useCockpit(state => state.setLens);
   const focusSession = useCockpit(state => state.focusSession);
   const single = compact || prefs.mode === 'focus';
+  const lastReveal = useRef(revealRequest);
+  useLayoutEffect(() => { onFocusModeChange?.(prefs.mode === 'focus'); }, [prefs.mode, onFocusModeChange]);
+  useLayoutEffect(() => {
+    // A persisted Focus preference survives mounting (including branch changes).
+    // Only a new explicit plan/review request restores the surrounding controls.
+    if (lastReveal.current === revealRequest) return;
+    lastReveal.current = revealRequest;
+    update({ ...prefs, mode: 'tiles' });
+  }, [revealRequest]);
 
   useEffect(() => {
     const element = host.current;

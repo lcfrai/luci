@@ -4,14 +4,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetCockpit, useCockpit } from '../../store/store';
 import { aBranch, aProject, aSession, aWorktree } from '../../test/fixtures';
 import { DevelopWorkspace } from './DevelopWorkspace';
+import { DevelopLens } from './DevelopLens';
 import { CanvasLayout } from './CanvasLayout';
 import { workspaceLayoutKey } from './workspaceLayout';
 
-const mocks = vi.hoisted(() => ({ scope: 'person-one/workspace/project', ended: vi.fn() }));
+const mocks = vi.hoisted(() => ({ scope: 'person-one/workspace/project', ended: vi.fn(),
+  reveal: undefined as undefined | (() => void), projectEnded: vi.fn() }));
 vi.mock('../../hooks/useProjectDraft', () => ({ useProjectDraftScope: () => mocks.scope }));
+vi.mock('./EmptyDevelop', () => ({ EmptyDevelop: () => <p>No open sessions</p> }));
 vi.mock('./SessionPane', () => ({ SessionPane: function MockSessionPane({ sessionId }: { sessionId: string }) {
   useEffect(() => () => mocks.ended(sessionId), [sessionId]);
   return <section data-session-id={sessionId}><textarea aria-label={`Terminal ${sessionId}`} className="xterm-helper-textarea" /></section>;
+} }));
+vi.mock('../journey/ProjectWork', () => ({ ProjectWork: function MockProjectWork({ controlsHidden, onReveal }: {
+  controlsHidden?: boolean; onReveal?(): void;
+}) {
+  mocks.reveal = onReveal;
+  useEffect(() => () => mocks.projectEnded(), []);
+  return <div className="develop-project-controls" hidden={controlsHidden}><input aria-label="Retained implementation draft" defaultValue="Original task" /></div>;
 } }));
 
 let resize: ResizeObserverCallback = () => {};
@@ -37,6 +47,7 @@ function seed() {
 
 beforeEach(() => {
   resetCockpit(); localStorage.clear(); seed(); mocks.ended.mockReset(); mocks.scope = 'person-one/workspace/project';
+  mocks.projectEnded.mockReset(); mocks.reveal = undefined;
   vi.stubGlobal('ResizeObserver', FakeResizeObserver);
   vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
 });
@@ -123,5 +134,77 @@ describe('Develop workspace', () => {
     const size = screen.getByRole('button', { name: 'Resize Implement orchard' });
     fireEvent.keyDown(size, { key: 'ArrowRight' });
     expect(useCockpit.getState().tiles.one.w).toBe(470);
+  });
+
+  it('gives Focus the workspace while retaining the project draft and exact terminal inputs for Tiles', () => {
+    const view = render(<DevelopLens />);
+    const draft = screen.getByLabelText('Retained implementation draft') as HTMLInputElement;
+    const terminal = screen.getByLabelText('Terminal one') as HTMLTextAreaElement;
+    fireEvent.change(draft, { target: { value: 'Unsubmitted implementation task' } });
+    terminal.value = 'Unsent terminal input';
+    const selection = useCockpit.getState().selection;
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    expect(view.container.querySelector<HTMLElement>('.develop-project-controls')?.hidden).toBe(true);
+    expect(screen.getByLabelText('Terminal one')).toBe(terminal);
+    fireEvent.click(screen.getByRole('button', { name: 'Tiles' }));
+    expect(view.container.querySelector<HTMLElement>('.develop-project-controls')?.hidden).toBe(false);
+    expect(screen.getByLabelText('Retained implementation draft')).toBe(draft);
+    expect(draft.value).toBe('Unsubmitted implementation task');
+    expect(terminal.value).toBe('Unsent terminal input');
+    expect(useCockpit.getState().selection).toBe(selection);
+    expect(useCockpit.getState().sessions.one.status).toBe('running');
+    expect(mocks.ended).not.toHaveBeenCalled(); expect(mocks.projectEnded).not.toHaveBeenCalled();
+  });
+
+  it('keeps persisted Focus on mount and restores Tiles only for a new reveal request even when storage fails', () => {
+    localStorage.setItem(workspaceLayoutKey(mocks.scope, 'b')!, JSON.stringify({ mode: 'focus', columnWidth: 640 }));
+    const view = render(<DevelopWorkspace projectId="p" sessionIds={['one', 'two']} canvasIds={['one', 'two']} revealRequest={7} />);
+    const terminal = screen.getByLabelText('Terminal one');
+    expect(screen.getByRole('button', { name: 'Focus' }).getAttribute('aria-pressed')).toBe('true');
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+    view.rerender(<DevelopWorkspace projectId="p" sessionIds={['one', 'two']} canvasIds={['one', 'two']} revealRequest={8} />);
+    expect(screen.getByRole('button', { name: 'Tiles' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('status').textContent).toContain('could not be saved');
+    expect(screen.getByLabelText('Terminal one')).toBe(terminal);
+    expect(mocks.ended).not.toHaveBeenCalled();
+  });
+
+  it('keeps the project draft mounted across branch layout changes and ignores the previous branch reveal callback', () => {
+    const view = render(<DevelopLens />);
+    const draft = screen.getByLabelText('Retained implementation draft') as HTMLInputElement;
+    draft.value = 'Project-wide unsaved draft';
+    const oldReveal = mocks.reveal!;
+    localStorage.setItem(workspaceLayoutKey(mocks.scope, 'b-two')!, JSON.stringify({ mode: 'focus', columnWidth: 520 }));
+    act(() => useCockpit.setState(state => ({
+      branchesByProject: { p: [...state.branchesByProject.p, aBranch({ id: 'b-two', projectId: 'p' })] },
+      worktreesByBranch: { ...state.worktreesByBranch, 'b-two': [aWorktree({ id: 'w-two', projectId: 'p', branchId: 'b-two' })] },
+      sessions: { ...state.sessions, three: aSession({ id: 'three', projectId: 'p', branchId: 'b-two', worktreeId: 'w-two' }) },
+      sessionIdsByWorktree: { ...state.sessionIdsByWorktree, 'w-two': ['three'] },
+      selection: { projectId: 'p', branchId: 'b-two', worktreeId: 'w-two', sessionId: 'three' },
+    })));
+    expect(screen.getByLabelText('Retained implementation draft')).toBe(draft);
+    expect(draft.value).toBe('Project-wide unsaved draft');
+    expect(mocks.projectEnded).not.toHaveBeenCalled();
+    expect(view.container.querySelector<HTMLElement>('.develop-project-controls')?.hidden).toBe(true);
+    act(() => oldReveal());
+    expect(screen.getByRole('button', { name: 'Focus' }).getAttribute('aria-pressed')).toBe('true');
+    expect(view.container.querySelector<HTMLElement>('.develop-project-controls')?.hidden).toBe(true);
+    act(() => mocks.reveal?.());
+    expect(screen.getByRole('button', { name: 'Tiles' }).getAttribute('aria-pressed')).toBe('true');
+    expect(view.container.querySelector<HTMLElement>('.develop-project-controls')?.hidden).toBe(false);
+  });
+
+  it('shows planning controls when no sessions remain and does not carry another account layout into the current one', () => {
+    const view = render(<DevelopLens />);
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    const oldReveal = mocks.reveal!;
+    mocks.scope = 'person-two/workspace/project'; view.rerender(<DevelopLens />);
+    expect(screen.getByRole('button', { name: 'Tiles' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
+    act(() => oldReveal());
+    expect(screen.getByRole('button', { name: 'Focus' }).getAttribute('aria-pressed')).toBe('true');
+    act(() => useCockpit.setState({ sessionIdsByWorktree: { w: [] } }));
+    expect(view.container.querySelector<HTMLElement>('.develop-project-controls')?.hidden).toBe(false);
+    expect(view.container.querySelector('.develop-workspace--planning')).not.toBeNull();
   });
 });

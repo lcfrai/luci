@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -13,14 +14,14 @@ import { DraftNavigationDialog } from '../common/DraftNavigationDialog';
 import { ProjectWork } from './ProjectWork';
 
 const identity = vi.hoisted(() => ({ scope: 'account-a/workspace-a', read: true, edit: true }));
-const runActions = vi.hoisted(() => ({ open: undefined as undefined | ((target: { scope: string; projectId: string; sessionId: string; origin: Element | null }) => void) }));
+const runActions = vi.hoisted(() => ({ open: undefined as undefined | ((target: { scope: string; projectId: string; sessionId: string; origin: Element | null }) => void), review: undefined as undefined | (() => void) }));
 vi.mock('../../hooks/useProjectDraft', async original => ({ ...await original<typeof import('../../hooks/useProjectDraft')>(), useProjectDraftScope: () => identity.scope }));
 vi.mock('../../hooks/useProjectAccess', () => ({ useProjectAccess: () => ({
   canRead: identity.read, canEdit: identity.edit, canExecute: identity.edit, canAssist: identity.edit,
   permissions: { read: identity.read, edit: identity.edit, execute: identity.edit, secrets: identity.edit, deploy: identity.edit, admin: identity.edit },
   loading: false, error: '', message: identity.read ? '' : 'Project reading access is unavailable.',
 }) }));
-vi.mock('./ProjectRuns', () => ({ ProjectRuns: ({ onOpenCodingSession }: { onOpenCodingSession: typeof runActions.open }) => { runActions.open = onOpenCodingSession; return null; } }));
+vi.mock('./ProjectRuns', () => ({ ProjectRuns: ({ onOpenCodingSession, onReviewPlan }: { onOpenCodingSession: typeof runActions.open; onReviewPlan: () => void }) => { runActions.open = onOpenCodingSession; runActions.review = onReviewPlan; return <section aria-label="Project runs" />; } }));
 const saved = context();
 const sketch: Design = { projectId: 'p-1', revision: 0, briefRevision: 0, frames: [], updatedAt: '' };
 const handoff = { ...saved.designPlan, revision: 2, status: 'approved' as const, screens: [
@@ -31,7 +32,7 @@ const git: GitState = { clean: true, branch: 'main', changes: [], log: [{ hash: 
 function deferred<T>() { let resolve!: (value: T) => void; return { promise: new Promise<T>(done => { resolve = done; }), resolve }; }
 beforeEach(() => {
   vi.restoreAllMocks(); localStorage.clear(); resetCockpit(); Object.assign(identity, { scope: 'account-a/workspace-a', read: true, edit: true });
-  runActions.open = undefined;
+  runActions.open = undefined; runActions.review = undefined;
   vi.spyOn(productApi, 'brief').mockImplementation(async id => ({ ...saved.brief, projectId: id }));
   vi.spyOn(productApi, 'design').mockImplementation(async id => ({ ...sketch, projectId: id }));
   vi.spyOn(productApi, 'git').mockResolvedValue(git);
@@ -262,4 +263,66 @@ it('ignores coding-session destinations from another context scope or project', 
   });
   expect(mounted.container.querySelector<HTMLDetailsElement>('.project-work')?.open).toBe(true);
   expect(scroll).not.toHaveBeenCalled();
+});
+
+function FocusedProjectWork() {
+  const [hidden, setHidden] = useState(false);
+  return <><button onClick={() => setHidden(true)}>Focus coding</button><button onClick={() => setHidden(false)}>Show controls</button>
+    <ProjectWork projectId="p-1" expanded controlsHidden={hidden} onReveal={() => setHidden(false)} /></>;
+}
+
+it('retains the exact hidden plan draft and reveals it only after the matching scoped plan request', async () => {
+  const mounted = render(<FocusedProjectWork />);
+  const task = await screen.findByLabelText('Task 1') as HTMLInputElement;
+  fireEvent.change(task, { target: { value: 'Keep this unsaved implementation task' } });
+  const plan = screen.getByRole('region', { name: 'Implementation plan' });
+  fireEvent.click(screen.getByRole('button', { name: 'Focus coding' }));
+  expect(mounted.container.querySelector<HTMLElement>('.develop-project-controls')?.hidden).toBe(true);
+  expect(task.isConnected).toBe(true);
+  act(() => notifyProjectContextChanged(identity.scope, 'p-1'));
+  await waitFor(() => expect(designPlanApi.get).toHaveBeenCalledTimes(2));
+  expect(mounted.container.querySelector<HTMLElement>('.develop-project-controls')?.hidden).toBe(true);
+  const foreign = requestProjectContextEdit('other-workspace', 'p-1', 'plan');
+  expect(mounted.container.querySelector<HTMLElement>('.develop-project-controls')?.hidden).toBe(true); foreign();
+  identity.edit = false; mounted.rerender(<FocusedProjectWork />);
+  act(() => { requestProjectContextEdit(identity.scope, 'p-1', 'plan'); });
+  await waitFor(() => expect(document.activeElement).toBe(plan));
+  expect(mounted.container.querySelector<HTMLElement>('.develop-project-controls')?.hidden).toBe(false);
+  expect(screen.getByLabelText('Task 1')).toBe(task);
+  expect(task.value).toBe('Keep this unsaved implementation task');
+  expect(productApi.plan).toHaveBeenCalledTimes(1);
+});
+
+it('waits for the controls to be unhidden before a run review scrolls and focuses the retained plan', async () => {
+  const reveal = vi.fn();
+  const mounted = render(<ProjectWork projectId="p-1" controlsHidden onReveal={reveal} />);
+  await waitFor(() => expect(mounted.container.querySelector('.project-plan')).not.toBeNull());
+  const plan = screen.getByRole('region', { name: 'Implementation plan', hidden: true });
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { frames.push(callback); return frames.length; });
+  const scroll = vi.spyOn(plan, 'scrollIntoView');
+  act(() => runActions.review?.());
+  expect(reveal).toHaveBeenCalledTimes(1);
+  expect(frames).toHaveLength(0); expect(scroll).not.toHaveBeenCalled();
+  mounted.rerender(<ProjectWork projectId="p-1" controlsHidden={false} onReveal={reveal} />);
+  act(() => { frames.shift()?.(0); frames.shift()?.(0); });
+  expect(document.activeElement).toBe(plan);
+  expect(scroll).toHaveBeenCalledWith({ block: 'start' });
+});
+
+it('does not replay a matching verification merely because the branch reveal callback changes', async () => {
+  const first = vi.fn(), next = vi.fn();
+  const mounted = render(<ProjectWork projectId="p-1" controlsHidden onReveal={first} />);
+  await waitFor(() => expect(mounted.container.querySelector('.project-plan')).not.toBeNull());
+  act(() => useCockpit.setState({ projectRunVerification: { scope: 'other-workspace', projectId: 'p-1', runId: 'r-1' } }));
+  expect(first).not.toHaveBeenCalled();
+  act(() => useCockpit.setState({ projectRunVerification: { scope: identity.scope, projectId: 'p-1', runId: 'r-1' } }));
+  expect(first).toHaveBeenCalledTimes(1);
+  mounted.rerender(<ProjectWork projectId="p-1" controlsHidden onReveal={next} />);
+  expect(next).not.toHaveBeenCalled();
+  act(() => notifyProjectContextChanged(identity.scope, 'p-1'));
+  await waitFor(() => expect(designPlanApi.get).toHaveBeenCalledTimes(2));
+  expect(next).not.toHaveBeenCalled();
+  act(() => useCockpit.setState({ projectRunVerification: { scope: identity.scope, projectId: 'p-1', runId: 'r-2' } }));
+  expect(next).toHaveBeenCalledTimes(1);
 });
