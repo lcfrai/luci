@@ -482,10 +482,10 @@ describe("persistence", () => {
     "layout", "railCollapsed",
     "expandedProjects", "expandedBranches", "expandedWorktrees",
     "selection", "lens",
-    "sendChordsToTerminal",
+    "sendChordsToTerminal", "preferenceOwner",
   ];
 
-  it("partializes exactly the thirteen keys §3.5 names, and nothing else", () => {
+  it("partializes only preferences and their snapshot owner, never live authority", () => {
     const s = useCockpit.getState();
     s.setHarnesses(CATALOGUE);
     s.replaceSessions(sessionsOn("w-1", ["s-1"]), ["w-1"]);
@@ -573,7 +573,7 @@ describe("persistence", () => {
   });
 
   it("upgrades every version 1 preference without inventing a connection selection", () => {
-    const snapshot: ReturnType<typeof partialize> = {
+    const snapshot: Omit<ReturnType<typeof partialize>, 'preferenceOwner'> = {
       defaults: { ...APP_DEFAULTS, effort: "high" as const },
       projectDefaults: { "p-1": { model: "project-model" } },
       branchDefaults: { "b-1": { permissionMode: "plan" as const } },
@@ -585,11 +585,11 @@ describe("persistence", () => {
     };
     localStorage.setItem(PERSIST_KEY, JSON.stringify({ state: snapshot, version: 1 }));
     const state = createCockpitStore().getState();
-    expect(partialize(state)).toEqual(snapshot);
+    expect(partialize(state)).toEqual({ ...snapshot, preferenceOwner: null });
     expect(state.defaults).not.toHaveProperty("agentConnectionId");
     expect(state.projectDefaults["p-1"]).not.toHaveProperty("agentConnectionId");
     expect(state.branchDefaults["b-1"]).not.toHaveProperty("agentConnectionId");
-    expect(JSON.parse(localStorage.getItem(PERSIST_KEY)!)).toEqual({ state: snapshot, version: 2 });
+    expect(JSON.parse(localStorage.getItem(PERSIST_KEY)!)).toEqual({ state: { ...snapshot, preferenceOwner: null }, version: 2 });
   });
 
   it.each([undefined, "", "gateway-one"])("preserves connection choice %s at all three levels across migration and restart", (agentConnectionId) => {

@@ -58,8 +58,17 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
     permissionReads.invalidate();
     detachAllTerminals();
     let sameStoredScope=false;
-    try { sameStoredScope=localStorage.getItem(storageKey+'.cockpit')===id; } catch { /* Re-fetch without restoring navigation. */ }
+    const owner = JSON.stringify([storageKey,id]);
+    try {
+      // Older per-account markers cannot identify the shared cockpit snapshot's
+      // owner. Reset unowned snapshots once; never infer ownership from a URL.
+      sameStoredScope=localStorage.getItem(storageKey+'.cockpit')===id &&
+        useCockpit.getState().preferenceOwner===owner;
+    } catch { /* Re-fetch without restoring navigation. */ }
     if(!initial||!sameStoredScope) resetCockpit();
+    // Persist the owner in the same JSON write as its preferences. A failed
+    // storage write must not relabel an older account's snapshot.
+    useCockpit.setState({preferenceOwner:owner});
     selectTeamScope(id); active.current=id; deniedScope.current=null; denialRefresh.current=false;
     setSelected(id); setEpoch(v=>v+1); setError(''); setBlocked(false); setPending(null);
     try { localStorage.setItem(storageKey,id); localStorage.setItem(storageKey+'.cockpit',id); } catch { /* Selection can remain session-only. */ }

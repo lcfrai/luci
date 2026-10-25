@@ -11,7 +11,10 @@ import { createDataSlice, initialDataState, type DataSlice } from "./slices/data
 import { createUiSlice, initialUiState, type UiSlice } from "./slices/uiSlice";
 import { createPrefsSlice, initialPrefsState, type PrefsSlice } from "./slices/prefsSlice";
 
-export type CockpitState = DataSlice & UiSlice & PrefsSlice;
+export type CockpitState = DataSlice & UiSlice & PrefsSlice & {
+  /** Owner of this exact persisted preference snapshot, never proof of access. */
+  preferenceOwner: string | null;
+};
 
 export const PERSIST_KEY = "luci.cockpit";
 export const PERSIST_VERSION = 2;
@@ -24,7 +27,7 @@ type Persisted = Pick<
   | "layout" | "railCollapsed"
   | "expandedProjects" | "expandedBranches" | "expandedWorktrees"
   | "selection" | "lens"
-  | "sendChordsToTerminal"
+  | "sendChordsToTerminal" | "preferenceOwner"
 >;
 
 /** OD-9 added `sendChordsToTerminal` at schema version 1, with no bump and no migration. The
@@ -45,6 +48,7 @@ export const partialize = (s: CockpitState): Persisted => ({
   selection: s.selection,
   lens: s.lens,
   sendChordsToTerminal: s.sendChordsToTerminal,
+  preferenceOwner: s.preferenceOwner,
 });
 
 /** Version 0 is any snapshot written before this contract existed — a pre-release dev build.
@@ -105,6 +109,7 @@ export const createCockpitStore = () =>
         ...createDataSlice(...a),
         ...createUiSlice(...a),
         ...createPrefsSlice(...a),
+        preferenceOwner: null,
       }),
       {
         name: PERSIST_KEY,
@@ -128,6 +133,6 @@ export const useCockpit = createCockpitStore();
  *  reason this merges rather than replacing. Clearing the snapshot is second, because the
  *  setState above writes one. Used by every component suite's beforeEach. */
 export function resetCockpit(): void {
-  useCockpit.setState({ ...initialDataState, ...initialUiState, ...initialPrefsState });
+  useCockpit.setState({ ...initialDataState, ...initialUiState, ...initialPrefsState, preferenceOwner: null });
   useCockpit.persist.clearStorage();
 }

@@ -8,6 +8,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import "./components/journey/designAssets";
 import { initializeAppearance } from "./preferences/appearance";
 import { FluidProvider } from "./components/fluid/FluidProvider";
+import { bindNativePreferenceIdentity } from "./preferences/serviceIdentity";
 
 initializeAppearance();
 
@@ -20,9 +21,11 @@ async function launch() {
       const runtime = await invoke<{
         apiUrl: string;
         startupError: string | null;
+        stateDir: string | null;
       }>("runtime_info");
       if (runtime.startupError) throw new Error(runtime.startupError);
       window.__LUCI_API__ = runtime.apiUrl;
+      bindNativePreferenceIdentity(runtime.apiUrl, runtime.stateDir);
       root.render(
         <div style={{ padding: 40 }}>
           <h1>Luci</h1>

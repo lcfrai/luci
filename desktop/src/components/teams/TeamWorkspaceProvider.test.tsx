@@ -9,7 +9,9 @@ import { productApi } from '../../api/product';
 import { ApiError } from '../../api/client';
 import { selectedTeamId, selectTeamScope } from '../../api/teamScope';
 import { detachAllTerminals } from '../../api/attachRegistry';
-import { resetCockpit, useCockpit } from '../../store/store';
+import { createCockpitStore, PERSIST_KEY, resetCockpit, useCockpit } from '../../store/store';
+import { teamWorkspaceStorageKey } from '../../api/teamWorkspacePreference';
+import { bindNativePreferenceIdentity } from '../../preferences/serviceIdentity';
 
 const auth = vi.hoisted(() => ({ userId: 'alice', logout: vi.fn() }));
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ profile: { user: { id: auth.userId } }, logout: auth.logout }) }));
@@ -24,10 +26,11 @@ const summary = (id = teamA): TeamSummary => ({
 const access = (projectId = 'project-a', permissions = personalPermissions): ProjectAccess => ({
   team: summary().team, projectId, permissions, grants: [],
 });
-const storageKey = () => JSON.stringify(['luci.workspace', productApi.baseUrl.replace(/\/v1\/teams\/[^/]+\/workspace$/, ''), 'alice']);
+const storageKey = () => teamWorkspaceStorageKey(productApi.baseUrl, 'alice');
 function remembered(id = teamA, cockpit = id) {
   localStorage.setItem(storageKey(), id);
   localStorage.setItem(storageKey() + '.cockpit', cockpit);
+  useCockpit.setState({preferenceOwner:JSON.stringify([storageKey(),cockpit])});
 }
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -52,13 +55,14 @@ const permissions = () => JSON.parse(screen.getByTestId('access').textContent!);
 const renderWorkspace = (projectId = 'project-a') => render(<TeamWorkspaceProvider><Probe projectId={projectId} /></TeamWorkspaceProvider>);
 
 beforeEach(() => {
+  bindNativePreferenceIdentity('', null);
   auth.userId = 'alice'; auth.logout.mockReset().mockResolvedValue(undefined);
   selectTeamScope(''); localStorage.clear(); resetCockpit();
   vi.mocked(detachAllTerminals).mockClear();
   vi.spyOn(teamsApi, 'list').mockResolvedValue({ teams: [summary(), summary(teamB)] });
   vi.spyOn(teamsApi, 'projectAccess').mockImplementation(async (_teamId, projectId) => access(projectId));
 });
-afterEach(() => { vi.restoreAllMocks(); selectTeamScope(''); localStorage.clear(); resetCockpit(); });
+afterEach(() => { vi.restoreAllMocks(); bindNativePreferenceIdentity('', null); selectTeamScope(''); localStorage.clear(); resetCockpit(); });
 
 it('resolves the remembered team before mounting project content or issuing project requests', async () => {
   remembered();
@@ -285,6 +289,99 @@ it.each([true, false])('restores navigation only when its stored workspace marke
   renderWorkspace();
   await screen.findByTestId('scope');
   expect(useCockpit.getState().selection.projectId).toBe(matching ? 'saved-navigation' : null);
+});
+
+it('retains persisted branch defaults when the same owned native service restarts on a different port', async () => {
+  const stateDir = 'E:/Luci/native-state';
+  const address = vi.spyOn(productApi, 'baseUrl', 'get').mockReturnValue('http://127.0.0.1:51001');
+  bindNativePreferenceIdentity(productApi.baseUrl, stateDir);
+  remembered('');
+  const first = renderWorkspace();
+  await screen.findByTestId('scope');
+  const defaults = { harness: 'opencode' as const, model: 'cpu2-alias', permissionMode: 'ask' as const, agentConnectionId: 'qa-model' };
+  act(() => useCockpit.getState().setBranchDefaults('counter-main', defaults));
+  first.unmount();
+
+  // A fresh store rehydrates real preference storage before the workspace mounts.
+  expect(createCockpitStore().getState().branchDefaults['counter-main']).toEqual(defaults);
+  address.mockReturnValue('http://127.0.0.1:51002');
+  bindNativePreferenceIdentity(productApi.baseUrl, stateDir);
+  renderWorkspace();
+  await screen.findByTestId('scope');
+  expect(useCockpit.getState().branchDefaults['counter-main']).toEqual(defaults);
+});
+
+it.each(['native installation', 'remote service', 'unbound loopback port', 'external override', 'account', 'workspace'] as const)(
+  'does not restore another %s snapshot even when a destination marker exists', async change => {
+    const address = vi.spyOn(productApi, 'baseUrl', 'get').mockReturnValue('http://127.0.0.1:51001');
+    bindNativePreferenceIdentity(productApi.baseUrl, 'E:/Luci/native-state');
+    remembered('');
+    useCockpit.getState().setBranchDefaults('counter-main', { harness: 'opencode', agentConnectionId: 'qa-model' });
+    if (change === 'native installation') {
+      address.mockReturnValue('http://127.0.0.1:51002');
+      bindNativePreferenceIdentity(productApi.baseUrl, 'E:/Luci/other-native-state');
+    } else if (change === 'remote service') address.mockReturnValue('https://other.example');
+    else if (change === 'unbound loopback port') address.mockReturnValue('http://127.0.0.1:51002');
+    else if (change === 'external override') bindNativePreferenceIdentity(productApi.baseUrl, null);
+    else if (change === 'account') auth.userId = 'bob';
+    const key = teamWorkspaceStorageKey(productApi.baseUrl, auth.userId);
+    const workspace = change === 'workspace' ? teamB : '';
+    // The old per-account marker alone must not override the global snapshot owner.
+    localStorage.setItem(key, workspace);
+    localStorage.setItem(key + '.cockpit', workspace);
+    renderWorkspace();
+    await screen.findByTestId('scope');
+    expect(useCockpit.getState().branchDefaults).toEqual({});
+    expect(selectedTeamId()).toBe(workspace);
+  },
+);
+
+it('resets an unowned legacy snapshot even when both accounts have matching remote markers', async () => {
+  vi.spyOn(productApi, 'baseUrl', 'get').mockReturnValue('https://existing.example');
+  localStorage.setItem(storageKey(), '');
+  localStorage.setItem(storageKey() + '.cockpit', '');
+  const otherKey = teamWorkspaceStorageKey(productApi.baseUrl, 'bob');
+  localStorage.setItem(otherKey, '');
+  localStorage.setItem(otherKey + '.cockpit', '');
+  useCockpit.getState().setBranchDefaults('counter-main', { harness: 'opencode' });
+  renderWorkspace();
+  await screen.findByTestId('scope');
+  expect(useCockpit.getState().branchDefaults).toEqual({});
+  expect(useCockpit.getState().preferenceOwner).toBe(JSON.stringify([storageKey(),'']));
+});
+
+it('never relabels an older account snapshot when preference writes and removal fail', async () => {
+  remembered('');
+  useCockpit.getState().setBranchDefaults('alice-main', { harness: 'opencode' });
+  const aliceSnapshot = localStorage.getItem(PERSIST_KEY);
+  const setItem = Storage.prototype.setItem;
+  const removeItem = Storage.prototype.removeItem;
+  const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+    if (key === PERSIST_KEY) throw new DOMException('Unavailable', 'QuotaExceededError');
+    setItem.call(this, key, value);
+  });
+  const remove = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key) {
+    if (key === PERSIST_KEY) throw new DOMException('Unavailable', 'SecurityError');
+    removeItem.call(this, key);
+  });
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  auth.userId = 'bob';
+  const first = renderWorkspace();
+  await screen.findByTestId('scope');
+  expect(useCockpit.getState().branchDefaults).toEqual({});
+  act(() => useCockpit.getState().setBranchDefaults('bob-main', { harness: 'shell' }));
+  expect(localStorage.getItem(PERSIST_KEY)).toBe(aliceSnapshot);
+  first.unmount();
+  write.mockRestore(); remove.mockRestore();
+  const restored = createCockpitStore().getState();
+  expect(restored.preferenceOwner).toBe(JSON.stringify([storageKey(),'']));
+  expect(restored.branchDefaults).toEqual({ 'alice-main': { harness: 'opencode' } });
+  // Model the next launch rehydrating that unchanged old snapshot, then opening Bob.
+  useCockpit.setState({ branchDefaults: restored.branchDefaults, preferenceOwner: restored.preferenceOwner });
+  renderWorkspace();
+  await screen.findByTestId('scope');
+  expect(useCockpit.getState().branchDefaults).toEqual({});
+  expect(createCockpitStore().getState().preferenceOwner).toBe(JSON.stringify([teamWorkspaceStorageKey(productApi.baseUrl, 'bob'),'']));
 });
 
 it('does not broadcast draft registry changes while workspace selection still guards the current drafts', async () => {

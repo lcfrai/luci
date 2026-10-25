@@ -1,5 +1,7 @@
+import { preferenceServiceIdentity } from "../preferences/serviceIdentity";
+
 export function teamWorkspaceStorageKey(baseUrl: string, userId: string) {
-  return JSON.stringify(["luci.workspace", baseUrl.replace(/\/v1\/teams\/[^/]+\/workspace$/, ""), userId]);
+  return JSON.stringify(["luci.workspace", preferenceServiceIdentity(baseUrl), userId]);
 }
 
 // This is a navigation preference, never proof of membership. The workspace
