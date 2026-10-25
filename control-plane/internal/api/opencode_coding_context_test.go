@@ -95,6 +95,103 @@ func TestLocalOpenCodeLowMemoryProfilePreservesExplicitRuntimeOptions(t *testing
 	}
 }
 
+func TestOrdinaryLocalOpenCodeUsesConciseTaskPromptWithoutReviewedAuthority(t *testing.T) {
+	for _, provider := range []string{"luci-local", "luci-gateway"} {
+		for _, shape := range []string{"no agents", "other agent", "configured build"} {
+			t.Run(provider+"/"+shape, func(t *testing.T) {
+				env := codingModelEnvironment()
+				var config map[string]any
+				if err := json.Unmarshal([]byte(strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "luci-local", provider)), &config); err != nil {
+					t.Fatal(err)
+				}
+				instructions := []any{"LUCI.md", "docs/conventions.md"}
+				tools := map[string]any{"edit": true, "webfetch": false}
+				permission := map[string]any{"*": "ask", "external_directory": "deny"}
+				plan := map[string]any{"prompt": "Keep the selected plan agent", "temperature": 0.2}
+				buildFields := map[string]any{}
+				config["instructions"], config["tools"], config["permission"] = instructions, tools, permission
+				if shape != "no agents" {
+					agents := map[string]any{"plan": plan}
+					if shape == "configured build" {
+						buildFields = map[string]any{"temperature": 0.3, "permission": map[string]any{"edit": "ask"}, "description": "Configured build"}
+						agents["build"] = buildFields
+					}
+					config["agent"] = agents
+				}
+				raw, err := json.Marshal(config)
+				if err != nil {
+					t.Fatal(err)
+				}
+				env["OPENCODE_CONFIG_CONTENT"] = string(raw)
+				env["OPENCODE_PERMISSION"] = `{"*":"ask"}`
+				// Ordinary create/restart call this helper without clearing LUCI.md
+				// or supplying an implementation-context bundle.
+				if err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { return nil }, func(context.Context, string, string) (int, error) { return 8192, nil }); err != nil {
+					t.Fatal(err)
+				}
+				if err := json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config); err != nil {
+					t.Fatal(err)
+				}
+				agents := config["agent"].(map[string]any)
+				build := agents["build"].(map[string]any)
+				prompt, _ := build["prompt"].(string)
+				if prompt != ordinaryLocalOpenCodePrompt || len(prompt) > 1300 || strings.Contains(prompt, "/home/dev/.luci-reviewed-context") || strings.Contains(prompt, "human-reviewed") {
+					t.Fatal("ordinary task retained broad defaults or claimed reviewed authority")
+				}
+				for _, guidance := range []string{"human's current task", "current worktree", "available tools", "allowed edits", "applicable tests", "dependency and network limits", "existing permissions", "After compaction", "without evidence"} {
+					if !strings.Contains(prompt, guidance) {
+						t.Fatal("ordinary task prompt lost its scope or evidence boundary", guidance)
+					}
+				}
+				delete(build, "prompt")
+				if !reflect.DeepEqual(build, buildFields) || !reflect.DeepEqual(config["instructions"], instructions) || !reflect.DeepEqual(config["tools"], tools) || !reflect.DeepEqual(config["permission"], permission) || shape != "no agents" && !reflect.DeepEqual(agents["plan"], plan) {
+					t.Fatal("ordinary prompt replaced unrelated agent fields or project/tool policy")
+				}
+				selection, err := selectedLocalOpenCodeOllama(config)
+				if err != nil || selection == nil {
+					t.Fatal("ordinary prompt lost the exact selected model", err)
+				}
+				limit := selection.entry["limit"].(map[string]any)
+				if limit["context"] != float64(8192) || limit["output"] != float64(2048) || env["BUN_OPTIONS"] != "--smol" || env["OPENCODE_PERMISSION"] != `{"*":"ask"}` {
+					t.Fatal("ordinary prompt changed model limits, runtime profile or approval mode")
+				}
+			})
+		}
+	}
+}
+
+func TestOrdinaryLocalOpenCodePreservesExplicitBuildPrompt(t *testing.T) {
+	for _, provider := range []string{"luci-local", "luci-gateway"} {
+		for _, tc := range []struct{ name, prompt string }{{"empty", ""}, {"custom", "Explicit current task policy"}, {"reviewed", reviewedLocalOpenCodePrompt}} {
+			t.Run(provider+"/"+tc.name, func(t *testing.T) {
+				env := codingModelEnvironment()
+				var config map[string]any
+				if err := json.Unmarshal([]byte(strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "luci-local", provider)), &config); err != nil {
+					t.Fatal(err)
+				}
+				build := map[string]any{"prompt": tc.prompt, "temperature": 0.4}
+				plan := map[string]any{"prompt": "Other agent"}
+				config["agent"] = map[string]any{"build": build, "plan": plan}
+				raw, err := json.Marshal(config)
+				if err != nil {
+					t.Fatal(err)
+				}
+				env["OPENCODE_CONFIG_CONTENT"] = string(raw)
+				if err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { return nil }, func(context.Context, string, string) (int, error) { return 8192, nil }); err != nil {
+					t.Fatal(err)
+				}
+				if err := json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config); err != nil {
+					t.Fatal(err)
+				}
+				agents := config["agent"].(map[string]any)
+				if !reflect.DeepEqual(agents["build"], build) || !reflect.DeepEqual(agents["plan"], plan) {
+					t.Fatal("local default replaced explicit empty/custom/reviewed prompt or other agent fields")
+				}
+			})
+		}
+	}
+}
+
 func TestOpenCodeLowMemoryProfileRequiresSuccessfulLocalContext(t *testing.T) {
 	base := codingModelEnvironment()["OPENCODE_CONFIG_CONTENT"]
 	for _, tc := range []struct {
