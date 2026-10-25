@@ -492,6 +492,36 @@ server.serve_forever()
 	modelConfig, _ := json.Marshal(map[string]any{"model": "luci-local/fixture", "provider": map[string]any{"luci-local": map[string]any{"options": map[string]string{"baseURL": modelServer.URL + "/v1"}, "models": map[string]any{"fixture": map[string]any{"limit": map[string]int{"context": 8192, "output": 2048}}}}}})
 	launcher := strings.ReplaceAll(RepositoryLauncher, "/luci-input", filepath.ToSlash(input))
 	launcher = strings.ReplaceAll(launcher, "/luci-output", filepath.ToSlash(output))
+	// The production launcher runs in Linux, where select accepts child pipes.
+	// Exercise the same readiness/parser deadline on Windows with its pipe API;
+	// Python's Windows select accepts sockets only. This opens no new handle.
+	launcher = strings.Replace(launcher, "LIMIT = 262144\n", `if os.name == 'nt':
+    import ctypes as _ctypes, msvcrt as _msvcrt
+    from ctypes import wintypes as _wintypes
+    _peek = _ctypes.WinDLL('kernel32',use_last_error=True).PeekNamedPipe
+    _peek.argtypes = [_wintypes.HANDLE,_wintypes.LPVOID,_wintypes.DWORD,_wintypes.LPVOID,_ctypes.POINTER(_wintypes.DWORD),_wintypes.LPVOID]
+    _peek.restype = _wintypes.BOOL
+    def fixture_pipe_select(readers,writers,errors,timeout):
+        if len(readers)!=1 or writers or errors or not 0<=timeout<=1 or server is None or readers[0] is not server.stdout:
+            raise ValueError('unsupported fixture select inventory')
+        until = time.monotonic()+timeout
+        handle = _msvcrt.get_osfhandle(readers[0].fileno())
+        while True:
+            available = _wintypes.DWORD()
+            if not _peek(handle,None,0,None,_ctypes.byref(available),None):
+                error = _ctypes.get_last_error()
+                if error==109:
+                    return readers,[],[]
+                raise OSError(error,'fixture pipe observation failed')
+            if available.value:
+                return readers,[],[]
+            remaining = until-time.monotonic()
+            if remaining<=0:
+                return [],[],[]
+            time.sleep(min(0.01,remaining))
+    select.select = fixture_pipe_select
+LIMIT = 262144
+`, 1)
 	t.Setenv("OPENCODE_LUCI_OLLAMA_PORT", strconv.Itoa(port))
 	quoted, _ := json.Marshal(filepath.ToSlash(python))
 	quotedFake, _ := json.Marshal(filepath.ToSlash(fake))

@@ -383,6 +383,7 @@ func TestAgentConnectionRejectsInvalidOpenCodeThinkingWithoutPublishing(t *testi
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, mux := journeyFixture(t)
+			s.registerSetupTools(mux)
 			body := connectionSaveBody(0)
 			tc.change(body)
 			journeyRequest(t, mux, "POST", "/v1/setup/agent-connections", body, tc.status)
@@ -398,6 +399,7 @@ func TestAgentConnectionRejectsInvalidOpenCodeThinkingWithoutPublishing(t *testi
 
 func TestAgentConnectionOpenCodeServiceIsExplicitRevisionedAndPersistent(t *testing.T) {
 	s, mux := journeyFixture(t)
+	s.registerSetupTools(mux)
 	got := connectionSave(t, mux, connectionSaveBody(0))
 	id := got.Connections[0].ID
 	if got.Connections[0].OpenCodeService != "" {
@@ -459,6 +461,7 @@ func TestAgentConnectionLocalOllamaServiceValidatesOnlyKnownLocalEndpoints(t *te
 	for _, endpoint := range []string{"https://localhost:43123/v1", "http://model.invalid:43123/v1", "http://192.168.1.4:43123/v1", "http://127.0.0.2:43123/v1", "http://localhost/v1", "http://localhost:0/v1", "http://localhost:65536/v1", "http://localhost:abc/v1", "http://localhost:43123/v1/", "http://localhost:43123/%761", "http://localhost:43123/v1?", "http://localhost:43123/v1?q=x", "http://localhost:43123/v1#x", "http://user@localhost:43123/v1"} {
 		t.Run(endpoint, func(t *testing.T) {
 			s, mux := journeyFixture(t)
+			s.registerSetupTools(mux)
 			body := connectionSaveBody(0)
 			body["openCodeService"] = "local-ollama"
 			body["endpoints"] = AgentConnectionEndpoints{ChatCompletions: endpoint}
@@ -473,6 +476,7 @@ func TestAgentConnectionLocalOllamaServiceValidatesOnlyKnownLocalEndpoints(t *te
 	}
 	for _, choice := range []string{"ollama", "LOCAL-OLLAMA"} {
 		s, mux := journeyFixture(t)
+		s.registerSetupTools(mux)
 		body := connectionSaveBody(0)
 		body["openCodeService"] = choice
 		journeyRequest(t, mux, "POST", "/v1/setup/agent-connections", body, 409)
