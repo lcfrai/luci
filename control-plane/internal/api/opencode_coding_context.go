@@ -78,7 +78,17 @@ func prepareLocalOpenCodeCodingContextWith(ctx context.Context, env map[string]s
 	if err != nil {
 		return errors.New("Could not prepare the saved OpenCode model context.")
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	env["OPENCODE_CONFIG_CONTENT"] = string(encoded)
+	// The official OpenCode 1.18.34 standalone build uses Bun 1.3.14,
+	// whose BUN_OPTIONS supports --smol without recompiling the worker.
+	// Keep this lower-memory GC profile local to the verified Ollama route;
+	// it does not change the container limit or promise the task will fit.
+	if _, explicit := env["BUN_OPTIONS"]; !explicit {
+		env["BUN_OPTIONS"] = "--smol"
+	}
 	return nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +34,9 @@ func TestNamedLocalOpenCodeSharesReviewedPolicyAndExactContext(t *testing.T) {
 			})
 			if err != nil || engineCalls != 1 || modelCalls != 1 {
 				t.Fatal("selected route did not complete exact context preparation", err)
+			}
+			if env["BUN_OPTIONS"] != "--smol" {
+				t.Fatal("verified local route did not select the lower-memory runtime profile")
 			}
 			var config map[string]any
 			if err := json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config); err != nil {
@@ -72,6 +76,78 @@ func TestNamedLocalOpenCodeSharesReviewedPolicyAndExactContext(t *testing.T) {
 	}
 }
 
+func TestLocalOpenCodeLowMemoryProfilePreservesExplicitRuntimeOptions(t *testing.T) {
+	for _, provider := range []string{"luci-local", "luci-gateway"} {
+		for _, options := range []string{"", "--smol", "--use-system-ca", "--use-system-ca --smol"} {
+			t.Run(provider+"/"+options, func(t *testing.T) {
+				env := codingModelEnvironment()
+				env["OPENCODE_CONFIG_CONTENT"] = strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "luci-local", provider)
+				env["BUN_OPTIONS"] = options
+				env["OPENCODE_PERMISSION"] = `{"*":"ask"}`
+				if err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { return nil }, func(context.Context, string, string) (int, error) { return 8192, nil }); err != nil {
+					t.Fatal(err)
+				}
+				if actual, present := env["BUN_OPTIONS"]; !present || actual != options || env["OPENCODE_PERMISSION"] != `{"*":"ask"}` {
+					t.Fatal("local preparation replaced explicit runtime options or selected permissions")
+				}
+			})
+		}
+	}
+}
+
+func TestOpenCodeLowMemoryProfileRequiresSuccessfulLocalContext(t *testing.T) {
+	base := codingModelEnvironment()["OPENCODE_CONFIG_CONTENT"]
+	for _, tc := range []struct {
+		name             string
+		raw              string
+		engineErr        error
+		modelErr         error
+		window           int
+		cancelBefore     bool
+		cancelDuringRead bool
+		wantErr          bool
+		wantEngine       bool
+		wantModel        bool
+	}{
+		{name: "malformed", raw: "{"},
+		{name: "remote", raw: strings.ReplaceAll(base, "http://host.docker.internal:11434/v1", "https://model.example.invalid/v1")},
+		{name: "unselected provider", raw: strings.Replace(base, `"model":"luci-local/`, `"model":"luci-gateway/`, 1)},
+		{name: "missing selected alias", raw: strings.Replace(base, `"model":"luci-local/luci-acceptance-qwen2.5-general-8k:latest"`, `"model":"luci-local/other"`, 1), wantErr: true},
+		{name: "engine refused", raw: base, engineErr: errors.New("fixture engine unavailable"), wantErr: true, wantEngine: true},
+		{name: "context refused", raw: base, modelErr: errors.New("fixture model unavailable"), wantErr: true, wantEngine: true, wantModel: true},
+		{name: "unsupported window", raw: base, window: 2048, wantErr: true, wantEngine: true, wantModel: true},
+		{name: "already cancelled", raw: base, cancelBefore: true, wantErr: true},
+		{name: "cancelled read returns valid window", raw: base, window: 8192, cancelDuringRead: true, wantErr: true, wantEngine: true, wantModel: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tc.cancelBefore {
+				cancel()
+			}
+			env := map[string]string{"OPENCODE_CONFIG_CONTENT": tc.raw, "OPENCODE_PERMISSION": `{"*":"ask"}`}
+			before := map[string]string{}
+			for key, value := range env {
+				before[key] = value
+			}
+			engineCalled, modelCalled := false, false
+			err := prepareLocalOpenCodeCodingContextWith(ctx, env, func(context.Context) error {
+				engineCalled = true
+				return tc.engineErr
+			}, func(context.Context, string, string) (int, error) {
+				modelCalled = true
+				if tc.cancelDuringRead {
+					cancel()
+				}
+				return tc.window, tc.modelErr
+			})
+			if (err != nil) != tc.wantErr || engineCalled != tc.wantEngine || modelCalled != tc.wantModel || !reflect.DeepEqual(env, before) {
+				t.Fatalf("unaccepted preparation changed the worker environment: err=%v engine=%t model=%t", err, engineCalled, modelCalled)
+			}
+		})
+	}
+}
+
 func TestNamedOpenCodeRecognizesOnlyExactLocalOllamaSelection(t *testing.T) {
 	for _, endpoint := range []string{"http://localhost:11434/v1", "http://127.0.0.1:11434/v1", "http://[::1]:11434/v1", "http://host.docker.internal:11434/v1"} {
 		t.Run(endpoint, func(t *testing.T) {
@@ -95,7 +171,10 @@ func TestNamedOpenCodeRecognizesOnlyExactLocalOllamaSelection(t *testing.T) {
 				t.Fatal(err)
 			}
 			before := env["OPENCODE_CONFIG_CONTENT"]
-			err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("nonlocal route checked local engine"); return nil }, func(context.Context, string, string) (int, error) { t.Fatal("nonlocal route probed host model"); return 0, nil })
+			err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("nonlocal route checked local engine"); return nil }, func(context.Context, string, string) (int, error) {
+				t.Fatal("nonlocal route probed host model")
+				return 0, nil
+			})
 			if err != nil || env["OPENCODE_CONFIG_CONTENT"] != before || strings.Contains(before, "automatic reminder") || !strings.Contains(before, `"instructions":[]`) {
 				t.Fatal("nonlocal named route acquired local context/policy", err)
 			}
@@ -114,7 +193,10 @@ func TestNamedOpenCodeRecognizesOnlyExactLocalOllamaSelection(t *testing.T) {
 		}
 		env["OPENCODE_CONFIG_CONTENT"] = string(data)
 		before := env["OPENCODE_CONFIG_CONTENT"]
-		err = prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("missing exact model reached engine"); return nil }, func(context.Context, string, string) (int, error) { t.Fatal("missing exact model was probed"); return 0, nil })
+		err = prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("missing exact model reached engine"); return nil }, func(context.Context, string, string) (int, error) {
+			t.Fatal("missing exact model was probed")
+			return 0, nil
+		})
 		if err == nil || env["OPENCODE_CONFIG_CONTENT"] != before {
 			t.Fatal("missing selected alias was accepted or mutated")
 		}
@@ -126,7 +208,10 @@ func TestNamedOpenCodeRecognizesOnlyExactLocalOllamaSelection(t *testing.T) {
 			t.Fatal(err)
 		}
 		before := env["OPENCODE_CONFIG_CONTENT"]
-		err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("unselected provider reached engine"); return nil }, func(context.Context, string, string) (int, error) { t.Fatal("unselected provider was probed"); return 0, nil })
+		err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("unselected provider reached engine"); return nil }, func(context.Context, string, string) (int, error) {
+			t.Fatal("unselected provider was probed")
+			return 0, nil
+		})
 		if err != nil || before != env["OPENCODE_CONFIG_CONTENT"] || strings.Contains(before, "automatic reminder") {
 			t.Fatal("local provider entry overrode a different selected route", err)
 		}
@@ -138,7 +223,10 @@ func TestNamedOpenCodeRecognizesOnlyExactLocalOllamaSelection(t *testing.T) {
 			t.Fatal(err)
 		}
 		before := env["OPENCODE_CONFIG_CONTENT"]
-		err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("legacy remote route reached engine"); return nil }, func(context.Context, string, string) (int, error) { t.Fatal("legacy remote route was probed"); return 0, nil })
+		err := prepareLocalOpenCodeCodingContextWith(context.Background(), env, func(context.Context) error { t.Fatal("legacy remote route reached engine"); return nil }, func(context.Context, string, string) (int, error) {
+			t.Fatal("legacy remote route was probed")
+			return 0, nil
+		})
 		if err != nil || before != env["OPENCODE_CONFIG_CONTENT"] || !strings.Contains(before, "automatic reminder") {
 			t.Fatal("legacy local-provider prompt behavior changed", err)
 		}
