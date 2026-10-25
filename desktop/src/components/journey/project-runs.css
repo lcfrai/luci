@@ -3,6 +3,10 @@
 .project-runs h2 { font-size: 16px; margin: 0; }
 .project-runs h3 { font-size: 14px; }
 .project-runs-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.project-runs[data-compact="true"] { padding: 8px 12px; max-block-size: 30%; }
+.project-runs-heading > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-inline-size: 0; }
+.project-run-summary { color: var(--ink-2); font-size: 12px; }
+.project-run-controls[hidden] { display: none; }
 .project-run-next > span { color: var(--ink-3); margin-inline-start: 14px; font-size: 12px; }
 .project-runs p { line-height: 1.6; overflow-wrap: anywhere; margin-block: 8px; }
 .project-runs details { margin-block-start: 12px; font-size: 13px; }

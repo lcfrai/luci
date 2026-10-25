@@ -58,6 +58,7 @@ describe('Develop workspace', () => {
 
   it('selects real session identities and retains hidden terminal DOM and input', () => {
     const view = render(workspace());
+    expect(screen.getByRole('button', { name: 'Focus' }).getAttribute('aria-pressed')).toBe('true');
     const terminal = screen.getByLabelText('Terminal one') as HTMLTextAreaElement;
     terminal.value = 'unsent input';
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
@@ -71,6 +72,7 @@ describe('Develop workspace', () => {
   });
 
   it('switches a narrow container to one pane without changing the saved wide arrangement', () => {
+    localStorage.setItem(workspaceLayoutKey(mocks.scope, 'b')!, JSON.stringify({ mode: 'tiles', columnWidth: 520 }));
     const view = render(workspace());
     act(() => resize([{ contentRect: { width: 600 } } as ResizeObserverEntry], {} as ResizeObserver));
     expect(view.container.querySelector('[data-single-pane="true"]')).not.toBeNull();
@@ -82,6 +84,7 @@ describe('Develop workspace', () => {
 
   it('saves and restores width and mode only for the exact account/workspace/branch', () => {
     const view = render(workspace());
+    fireEvent.click(screen.getByRole('button', { name: 'Tiles' }));
     fireEvent.change(screen.getByRole('slider'), { target: { value: '640' } });
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
     const key = workspaceLayoutKey(mocks.scope, 'b')!;
@@ -91,6 +94,8 @@ describe('Develop workspace', () => {
     expect(screen.getByRole('button', { name: 'Focus' }).getAttribute('aria-pressed')).toBe('true');
     again.unmount(); mocks.scope = 'person-two/workspace/project';
     render(workspace());
+    expect(screen.getByRole('button', { name: 'Focus' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Tiles' }));
     expect((screen.getByRole('slider') as HTMLInputElement).value).toBe('520');
   });
 
@@ -119,6 +124,7 @@ describe('Develop workspace', () => {
 
   it('reports storage failures while keeping layout controls usable', () => {
     const view = render(workspace());
+    fireEvent.click(screen.getByRole('button', { name: 'Tiles' }));
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
     fireEvent.change(screen.getByRole('slider'), { target: { value: '600' } });
     expect(screen.getByRole('status').textContent).toContain('could not be saved');
@@ -199,7 +205,7 @@ describe('Develop workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
     const oldReveal = mocks.reveal!;
     mocks.scope = 'person-two/workspace/project'; view.rerender(<DevelopLens />);
-    expect(screen.getByRole('button', { name: 'Tiles' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Focus' }).getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'Focus' }));
     act(() => oldReveal());
     expect(screen.getByRole('button', { name: 'Focus' }).getAttribute('aria-pressed')).toBe('true');

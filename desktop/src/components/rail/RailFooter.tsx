@@ -1,5 +1,5 @@
-// Contract §6.2: the user chip, the ⌘K hint, and THE single API-error line. §7.7 makes this
-// the owner of the "control plane not running" state in the rail.
+// The footer owns API notices outside Home. On Home it links to the single
+// main notice instead of announcing the same failure twice.
 import type { JSX } from "react";
 import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
@@ -7,8 +7,10 @@ import { useAuth } from "../auth/AuthProvider";
 import "./rail.css";
 import { TeamWorkspaceControl } from "../teams/TeamWorkspaceControl";
 import { clientKeyboardPlatform, shortcutLabel } from "../../lib/keyboardPlatform";
+import { ApiProblemNotice } from '../common/ApiProblemNotice';
+import { Button } from '../fluid/components/button';
 
-export function RailFooter(): JSX.Element {
+export function RailFooter({ errorPresentedInMain = false }: { errorPresentedInMain?: boolean } = {}): JSX.Element {
   const setup = useSetup();
   const auth = useAuth();
   const lastError = useCockpit((s) => s.lastError);
@@ -51,14 +53,10 @@ export function RailFooter(): JSX.Element {
             )}
         </div>
       )}
-      {lastError === null ? null : (
-        // The server's own sentence, verbatim. There are sixteen error codes and the cockpit
-        // does not paraphrase any of them — non_loopback_publish in particular describes a
-        // sandbox that IS running, so any locally invented "not running" phrasing is a lie.
-        <p className="rail-footer-error" role="status">
-          {lastError.message}
-        </p>
-      )}
+      {lastError && (errorPresentedInMain ? <Button variant="ghost" onClick={() => {
+        const notice = document.getElementById('home-api-notice');
+        notice?.scrollIntoView?.({ block: 'nearest' }); notice?.focus({ preventScroll: true });
+      }}>View project notice</Button> : <ApiProblemNotice problem={lastError} />)}
     </div>
   );
 }

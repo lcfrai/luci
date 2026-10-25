@@ -51,6 +51,30 @@ beforeEach(() => {
   vi.spyOn(platformApi, 'project').mockResolvedValue({ busy: false, project: { projectId: 'p-1', deployments: [], database: { engine: 'postgres', status: 'missing', message: '' }, backups: [] } });
 });
 
+it('keeps run status and failures visible in Focus and reveals the same mounted controls without dispatch', async () => {
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'blocked', reason: 'The selected source needs review.' })]);
+  const expand = vi.fn(), create = vi.spyOn(api, 'createSession'), reserve = vi.spyOn(projectRunsApi, 'reserve');
+  const initial = props();
+  const mounted = render(<ProjectRuns {...initial} compact onExpandControls={expand} />);
+  const region = screen.getByRole('region', { name: 'Project runs' });
+  await waitFor(() => expect(region.querySelector('.project-run-summary')?.textContent).toBe('Needs attention'));
+  expect(region.querySelector(':scope > .journey-muted')?.textContent).toBe('The selected source needs review.');
+  const retained = region.querySelector('.project-run-controls');
+  expect(retained).toHaveProperty('hidden', true);
+  expect(screen.queryByRole('button', { name: 'Refresh history' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Show controls' }));
+  expect(expand).toHaveBeenCalledOnce();
+  mounted.rerender(<ProjectRuns {...initial} compact={false} onExpandControls={expand} />);
+  expect(region.querySelector('.project-run-controls')).toBe(retained);
+  expect(retained).toHaveProperty('hidden', false);
+  vi.mocked(projectRunsApi.list).mockRejectedValueOnce(new Error('History is unavailable.'));
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh history' }));
+  await screen.findByRole('alert');
+  mounted.rerender(<ProjectRuns {...initial} compact onExpandControls={expand} />);
+  expect(screen.getByRole('alert').textContent).toContain('History is unavailable.');
+  expect(create).not.toHaveBeenCalled(); expect(reserve).not.toHaveBeenCalled();
+});
+
 it('only reads on mount and refresh, and retains ended or unknown coding as unverified', async () => {
   vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'awaiting-checks', reason: 'CLI exited zero; application outcome unverified.', operations: [{ ...operation, status: 'succeeded' }], allowedActions: ['join-check', 'reconcile', 'cancel'] })]);
   const reconcile = vi.spyOn(projectRunsApi, 'reconcile');

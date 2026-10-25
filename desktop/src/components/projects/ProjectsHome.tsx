@@ -7,6 +7,7 @@ import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import "./projects.css";
 import { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
+import { ApiProblemNotice } from '../common/ApiProblemNotice';
 
 export function ProjectsHome() {
   const projects = useCockpit((state) => state.projects);
@@ -81,17 +82,7 @@ export function ProjectsHome() {
           agents and previews need Docker and the agent runtime.
         </p>
       )}
-      {lastError && (
-        <p className="journey-error" role="alert">
-          {lastError.message}{" "}
-          <Button type="button"
-            variant="secondary" loading={loading}
-            onClick={() => setup?.refreshProjects()}
-          >
-            Refresh projects
-          </Button>
-        </p>
-      )}
+      {lastError && <ApiProblemNotice id="home-api-notice" problem={lastError} />}
       {projects.length > 0 && (
         <label className="luci-field projects-filter">
           Find a project

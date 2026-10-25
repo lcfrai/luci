@@ -104,7 +104,7 @@ function PlanComparison({ projectId, run }: { projectId: string; run: ProjectRun
   </details>;
 }
 
-export function ProjectRuns(props: { projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void; onOpenCodingSession?(target: OpenCodingSessionTarget): void }) {
+export function ProjectRuns(props: { projectId: string; compact?: boolean; onExpandControls?(): void; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void; onOpenCodingSession?(target: OpenCodingSessionTarget): void }) {
   const auth = useAuth(), setup = useSetup();
   const navigationScope = useProjectDraftScope(props.projectId);
   const identity = scope([productApi.baseUrl, auth?.profile.user.id, setup?.workspace, setup?.status?.access?.user, props.projectId, navigationScope]);
@@ -114,8 +114,8 @@ export function ProjectRuns(props: { projectId: string; draft?: ProjectRunDraft;
   return <RunWorkspace key={identity} {...props} navigationScope={navigationScope} draft={prepared.current.identity === identity ? props.draft : undefined} />;
 }
 
-function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodingSession, navigationScope }: {
-  projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void; onOpenCodingSession?(target: OpenCodingSessionTarget): void; navigationScope: string | null;
+function RunWorkspace({ projectId, compact, onExpandControls, draft, onDraftClose, onReviewPlan, onOpenCodingSession, navigationScope }: {
+  projectId: string; compact?: boolean; onExpandControls?(): void; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void; onOpenCodingSession?(target: OpenCodingSessionTarget): void; navigationScope: string | null;
 }) {
   const access = useProjectAccess(projectId);
   const { canRead, canEdit, canExecute } = access;
@@ -397,11 +397,15 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
   }
   const actionLabel: Record<string, string> = { 'review-decisions': run?.codingBlocker?.kind === 'question' ? 'Review blocking question' : 'Check project decisions', 'review-plan': 'Review current plan', verify: 'Verify this build', deploy: run?.input.outcome === 'publish' ? 'Prepare deployment' : 'Preview this build', 'start-coding': 'Start coding', 'continue-coding': 'Continue reserved coding', 'join-check': 'Select check evidence', 'join-release': 'Select release evidence', reconcile: 'Check run status', accept: 'Review and accept outcome', cancel: 'Cancel run' };
   if (!canRead) return <section className="project-runs" aria-label="Project runs"><p role="status">{access.message}</p></section>;
-  return <section ref={region} tabIndex={-1} className="project-runs" aria-label="Project runs" aria-busy={!!busy || loading}>
-    <div className="project-runs-heading"><h2>Project run</h2><Button variant="tertiary" disabled={!!busy || loading} onClick={() => void load()}>{loading ? 'Reading history…' : 'Refresh history'}</Button></div>
+  return <section ref={region} tabIndex={-1} className="project-runs" data-compact={!!compact} aria-label="Project runs" aria-busy={!!busy || loading}>
+    <div className="project-runs-heading"><div><h2>Project run</h2>{compact && <span className="project-run-summary">{run ? runLabel(run) : loading ? 'Reading history…' : 'No run selected'}</span>}</div>{compact ? <Button variant="ghost" onClick={onExpandControls}>Show controls</Button> : <Button variant="tertiary" disabled={!!busy || loading} onClick={() => void load()}>{loading ? 'Reading history…' : 'Refresh history'}</Button>}</div>
     {access.message && <p role="status" className="journey-muted">{access.message}</p>}
     {error && <p role="alert" className="journey-error">{error}</p>}
     {notice && <p role="status" className="journey-muted">{notice}</p>}
+    {compact && run && !codingBlocked(run) && <p className="journey-muted">{run.reason}</p>}
+    {compact && run?.codingBlocker && <p className="journey-warning">{run.codingBlocker.reason}</p>}
+    {compact && contextNeedsReview(run) && <p className="journey-warning">{run?.contextFreshness?.reason}</p>}
+    <div className="project-run-controls" hidden={!!compact}>
     {!run ? <><p className="journey-muted">Keep reviewed tasks, coding, checks and a verified release together. Creating a run saves its inputs; each next operation remains your choice.</p><Button variant="secondary" onClick={onReviewPlan}>Review implementation plan</Button></> : <>
       <div className="project-run-next"><strong>{runLabel(run)}</strong><span>{run.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span>{!codingBlocked(run) && (!run.swarm || run.state === 'blocked' || run.state === 'cancelled' || recordedCodingActivity(run) === 'Coding outcome unconfirmed') && <p>{run.reason}</p>}
         {!!recordedCodingActivity(run) && <p className="journey-muted">{recordedCodingActivity(run)}. Open the coding session or use Check run status for a fresh status update.</p>}
@@ -465,6 +469,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
       </details>
     </>}
     {runs.length > 0 && <details className="project-run-history"><summary>Run history · {runs.length}</summary><ul>{runs.map(item => <li key={item.id}><Button variant={item.id === run?.id ? 'secondary' : 'tertiary'} disabled={!!busy} aria-pressed={item.id === run?.id} onClick={() => { setSelected(item.id); setDialog(null); setError(''); setNotice(''); }}>{runLabel(item)} · {when(item.createdAt)}</Button><span>{item.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span></li>)}</ul></details>}
+    </div>
     {recovery.error && <p role="alert">{recovery.error} Retained review storage must be available before preparing a new contract.</p>}
     {contractReview && <ExecutionContractReview key={contractReview.request.idempotencyKey} pending={contractReview} initialView={contractView} scope={navigationScope} actorId={actorId} canRead={canRead} canEdit={canEdit} preparing={busy === 'Preparing execution contract'}
       onPrepared={(pending, view) => { setContractReview(pending); setContractView(view); }} onCreate={createContractRun}

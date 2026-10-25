@@ -34,6 +34,7 @@ type SetupContextValue = {
   openOnboarding(): void;
   openCloud(): void;
   refreshProjects(): void;
+  retryBranches?(problem: import('../../store/slices/dataSlice').CatalogueProblem): void;
 };
 const SetupContext = createContext<SetupContextValue | null>(null);
 export const useSetup = () => useContext(SetupContext);
@@ -41,9 +42,11 @@ export const useSetup = () => useContext(SetupContext);
 export function SetupProvider({
   children,
   onProjectsChanged,
+  onRetryBranches,
 }: {
   children: ReactNode;
   onProjectsChanged(): void;
+  onRetryBranches?(problem: import('../../store/slices/dataSlice').CatalogueProblem): void;
 }) {
   const auth = useAuth();
   const team = useTeamWorkspace();
@@ -135,6 +138,7 @@ export function SetupProvider({
         },
         openCloud,
         refreshProjects: onProjectsChanged,
+        retryBranches: onRetryBranches,
       }}
     >
       {teamWorkspace && (open || portal) && <TeamSettings status={status} onStatus={setStatus} onClose={() => {setOpen(false);finishVisit();}} onSessionStarted={() => {setOpen(false);finishVisit();}}/>}

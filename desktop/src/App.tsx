@@ -19,6 +19,8 @@ import { SetupProvider } from "./components/setup/SetupProvider";
 import { useCockpit } from "./store/store";
 import type { CockpitState } from "./store/store";
 import type { BranchId, ProjectId } from "./store/types";
+import { teamScopeGeneration } from "./api/teamScope";
+import type { CatalogueProblem } from "./store/slices/dataSlice";
 
 type Store = typeof useCockpit;
 
@@ -27,7 +29,7 @@ type Store = typeof useCockpit;
  *  key vocabulary is a compile error here rather than a silently unmatched string. */
 type LoadKey = Parameters<CockpitState["setLoading"]>[0];
 
-type Problem = { code: string; message: string };
+type Problem = CatalogueProblem;
 
 function asError(error: unknown): Problem {
   return error instanceof ApiError
@@ -61,6 +63,7 @@ function projectOfBranch(state: CockpitState, branchId: BranchId): ProjectId | n
 
 export interface Catalogue {
   refreshProjects(): void;
+  retryBranches(problem: CatalogueProblem): void;
   /** After this returns, nothing this loader started writes the store — the same contract as
    *  `startPolling`'s stop, and for the same reason: a reply that lands after unmount must not
    *  repopulate anything. */
@@ -121,9 +124,10 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
     if (stopped || store.getState().projectCatalogueEpoch !== epoch || inFlight.has(key) || failed.has(key)) return;
     inFlight.add(key);
     store.getState().setLoading(key, true);
+    const requestScope = teamScopeGeneration(), requestService = client.baseUrl;
     try {
       const value = await fetch();
-      if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
+      if (stopped || store.getState().projectCatalogueEpoch !== epoch || teamScopeGeneration() !== requestScope || client.baseUrl !== requestService) return;
       // No longer outstanding, and taken out BEFORE the commit: the commit is a store write,
       // which runs `sync`, which would otherwise put this list's own stale report back.
       const mine = raised.get(key);
@@ -136,15 +140,19 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
       // which is an object or null.
       if (store.getState().lastError === mine) store.getState().setError(null);
     } catch (error) {
-      if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
+      if (stopped || store.getState().projectCatalogueEpoch !== epoch || teamScopeGeneration() !== requestScope || client.baseUrl !== requestService) return;
       failed.add(key);
       const problem = asError(error);
+      if (key.startsWith('branches:')) problem.branchLoad = {
+        projectId: key.slice('branches:'.length), catalogueEpoch: epoch,
+        workspaceGeneration: requestScope, service: requestService,
+      };
       raised.delete(key);   // re-inserted, so the newest failure is the one `sync` puts back
       raised.set(key, problem);
       store.getState().setError(problem);
     } finally {
       inFlight.delete(key);
-      if (!stopped && store.getState().projectCatalogueEpoch === epoch) store.getState().setLoading(key, false);
+      if (!stopped && store.getState().projectCatalogueEpoch === epoch && teamScopeGeneration() === requestScope && client.baseUrl === requestService) store.getState().setLoading(key, false);
     }
   };
 
@@ -215,6 +223,19 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
   sync();
 
   return {
+    retryBranches: problem => {
+      const origin = problem.branchLoad;
+      if (!origin || stopped || store.getState().projectCatalogueEpoch !== epoch || origin.catalogueEpoch !== epoch ||
+          origin.workspaceGeneration !== teamScopeGeneration() || origin.service !== client.baseUrl) return;
+      const key = `branches:${origin.projectId}` as LoadKey;
+      // A delayed click from another account/workspace or an older failure never
+      // replays its request through the current loader. Only this exact failure
+      // and its original, still-visible project may be retried.
+      if (raised.get(key) !== problem || store.getState().lastError !== problem ||
+          !store.getState().projects.some(project => project.id === origin.projectId) || inFlight.has(key)) return;
+      failed.delete(key);
+      void run(key, () => client.listBranches(origin.projectId), branches => store.getState().setBranches(origin.projectId, branches));
+    },
     refreshProjects: () => {
       if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
       arrived.delete("projects");
@@ -258,5 +279,5 @@ export default function App(): JSX.Element {
     };
   }, [catalogueEpoch]);
 
-  return <SetupProvider onProjectsChanged={() => catalogueRef.current?.refreshProjects()}><AppShell /></SetupProvider>;
+  return <SetupProvider onProjectsChanged={() => catalogueRef.current?.refreshProjects()} onRetryBranches={problem => catalogueRef.current?.retryBranches(problem)}><AppShell /></SetupProvider>;
 }

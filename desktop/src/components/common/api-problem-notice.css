@@ -1,0 +1,7 @@
+.api-problem-notice { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-control); color: var(--ink); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.api-problem-notice > p { margin: 0; }
+.api-problem-mark { display: inline-block; inline-size: 6px; block-size: 6px; margin-inline-end: 8px; border-radius: 50%; background: var(--fail); vertical-align: middle; }
+.api-problem-notice details { margin-block-start: 4px; color: var(--ink-2); }
+.api-problem-notice summary { cursor: pointer; min-block-size: 28px; }
+.api-problem-notice details > p { max-block-size: 10rem; overflow: auto; margin-block: 6px; }
+.api-problem-notice:focus-visible, .api-problem-notice summary:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }

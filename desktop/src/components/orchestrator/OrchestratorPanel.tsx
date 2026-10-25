@@ -61,13 +61,13 @@ const failureAdvice = new Map<string, string>([
   ["local_model_project_answer_invalid", "The local model completed, but its answer did not meet this project's draft rules. Your context is saved and no proposal was accepted. Review your request or choose a more capable supported model before trying again."],
 ]);
 
-export function OrchestratorPanel({ projectId, primary = false }: { projectId: string; primary?: boolean }) {
+export function OrchestratorPanel({ projectId, primary = false, defaultCollapsed = false }: { projectId: string; primary?: boolean; defaultCollapsed?: boolean }) {
   const scope = useProjectDraftScope(projectId);
   if (!scope) return null;
-  return <ProjectConversation key={scope} projectId={projectId} scope={scope} primary={primary} />;
+  return <ProjectConversation key={scope} projectId={projectId} scope={scope} primary={primary} defaultCollapsed={defaultCollapsed} />;
 }
 
-function ProjectConversation({ projectId, scope, primary }: { projectId: string; scope: string; primary: boolean }) {
+function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { projectId: string; scope: string; primary: boolean; defaultCollapsed: boolean }) {
   const access = useProjectAccess(projectId), setup = useSetup();
   const actorId = useAuth()?.profile.user.id ?? "";
   const workTeam = useTeamWorkspace();
@@ -84,7 +84,11 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
   // The responsive default applies only until an explicit choice. Keep the
   // body mounted when collapsed so discussion, review and drafts are retained.
   const [openChoice, setOpenChoice] = useState<boolean | null>(null);
-  const open = primary || (openChoice ?? !compact);
+  const overviewBody = useRef<HTMLDivElement>(null);
+  // A newly visible coding pane may change the default, but never hide the
+  // overview control someone is using or override an explicit Show/Hide choice.
+  const overviewHasFocus = !!overviewBody.current?.contains(document.activeElement);
+  const open = primary || (openChoice ?? ((!compact && !defaultCollapsed) || overviewHasFocus));
   const [view, setView] = useState<OrchestratorView | null>(null);
   // Defer the hidden discussion until it is requested. Once opened, preserve
   // its controls and focus targets through closing within this project scope.
@@ -173,7 +177,6 @@ function ProjectConversation({ projectId, scope, primary }: { projectId: string;
   const messageRef = useRef(message); messageRef.current = message;
   const replyToRef = useRef(replyTo); replyToRef.current = replyTo;
   const composer = useRef<HTMLTextAreaElement>(null), conversationEnd = useRef<HTMLDivElement>(null), agentDetails = useRef<HTMLDetailsElement>(null);
-  const overviewBody = useRef<HTMLDivElement>(null);
   const contentId = useId();
   const cancelEditRequest = useRef<(() => void) | null>(null);
   const editRequestNeedsWrite = useRef(true);

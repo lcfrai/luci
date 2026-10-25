@@ -163,8 +163,8 @@ function ProjectWorkView({ projectId, children, expanded = true, controlsHidden 
     setPlanFocus({ origin: document.activeElement, fromDialog: !!document.activeElement?.closest('[role="dialog"]') });
   }
   return (
-    <div className="develop-project-controls" hidden={controlsHidden}>
-    <ProjectRuns projectId={projectId} draft={runDraft} onDraftClose={() => setRunDraft(undefined)} onReviewPlan={revealPlan} onOpenCodingSession={target => {
+    <div className="develop-project-controls">
+    <ProjectRuns projectId={projectId} compact={controlsHidden} onExpandControls={() => revealControls.current?.()} draft={runDraft} onDraftClose={() => setRunDraft(undefined)} onReviewPlan={revealPlan} onOpenCodingSession={target => {
       const current = useCockpit.getState();
       if (target.scope === navigationScope && target.projectId === projectId && current.selection.projectId === projectId && current.selection.sessionId === target.sessionId && !current.pendingNavigation && details.current && (document.activeElement === target.origin || document.activeElement === document.body)) {
         details.current.open = false;
@@ -173,6 +173,7 @@ function ProjectWorkView({ projectId, children, expanded = true, controlsHidden 
         setSessionFocus({ sessionId: target.sessionId, origin: target.origin });
       }
     }} />
+    <div className="develop-secondary-controls" hidden={controlsHidden}>
     <ExternalToolHandoff projectId={projectId} onReviewPlan={revealPlan} />
     <details className="project-work" open={expanded} ref={details}>
       <summary>
@@ -295,6 +296,7 @@ function ProjectWorkView({ projectId, children, expanded = true, controlsHidden 
         )}
       </div>
     </details>
+    </div>
     </div>
   );
 }

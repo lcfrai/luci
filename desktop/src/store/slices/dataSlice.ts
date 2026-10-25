@@ -28,6 +28,12 @@ export type LoadKey =
   | `branches:${string}`
   | `worktrees:${string}`;
 
+export interface CatalogueProblem {
+  code: string;
+  message: string;
+  branchLoad?: { projectId: string; catalogueEpoch: number; workspaceGeneration: number; service: string };
+}
+
 export interface DataSlice {
   machines: Machine[];
   projects: Project[];
@@ -41,7 +47,7 @@ export interface DataSlice {
   loading: Partial<Record<LoadKey, boolean>>;
   /** The last API failure, for the one status line in the rail footer. Cleared by an
    *  explicit setError(null) and by nothing else — see decision (a). */
-  lastError: { code: string; message: string } | null;
+  lastError: CatalogueProblem | null;
 
   setMachines(machines: Machine[]): void;
   setProjects(projects: Project[]): void;
@@ -52,7 +58,7 @@ export interface DataSlice {
   upsertSession(session: Session): void;
   removeSession(id: SessionId): void;
   setLoading(key: LoadKey, value: boolean): void;
-  setError(error: { code: string; message: string } | null): void;
+  setError(error: CatalogueProblem | null): void;
 }
 
 type DataState = Pick<

@@ -540,8 +540,11 @@
 /* Workspace chrome is compact; real output owns the remaining space. */
 .develop-project-controls { display: contents; }
 .develop-project-controls[hidden] { display: none; }
+.develop-secondary-controls { display: contents; }
+.develop-secondary-controls[hidden] { display: none; }
 .develop-workspace--planning > .develop-project-controls > .project-runs,
 .develop-workspace--planning > .develop-project-controls > .project-work { flex: 0 0 auto; max-block-size: none; overflow: visible; }
+.develop-workspace--planning .develop-secondary-controls > .project-work { flex: 0 0 auto; max-block-size: none; overflow: visible; }
 .develop-live-workspace { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
 .develop-workspace-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 12px; background: var(--canvas); border-block-end: 1px solid var(--line-soft); }
 .develop-workspace-views, .develop-workspace-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }

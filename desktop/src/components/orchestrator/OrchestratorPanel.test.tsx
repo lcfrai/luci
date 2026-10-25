@@ -588,6 +588,23 @@ function responsiveOverview(initialCompact: boolean) {
   };
 }
 
+it('starts live Develop with a collapsed overview on desktop but preserves an explicit open choice and its draft', async () => {
+  responsiveOverview(false);
+  const mounted = render(<OrchestratorPanel projectId="p-1" defaultCollapsed />);
+  await screen.findByText('Design · Saved context');
+  expect(screen.getByRole('button', { name: 'Show project overview' }).getAttribute('aria-expanded')).toBe('false');
+  await userEvent.click(screen.getByRole('button', { name: 'Show project overview' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Talk to Luci' }));
+  const composer = await screen.findByLabelText('Message Luci') as HTMLTextAreaElement;
+  await userEvent.type(composer, 'Keep this unsent amendment');
+  mounted.rerender(<OrchestratorPanel projectId="p-1" defaultCollapsed={false} />);
+  mounted.rerender(<OrchestratorPanel projectId="p-1" defaultCollapsed />);
+  expect(screen.getByRole('button', { name: 'Hide project overview' }).getAttribute('aria-expanded')).toBe('true');
+  expect(screen.getByLabelText('Message Luci')).toBe(composer);
+  expect(composer.value).toBe('Keep this unsent amendment');
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
 it("opens the same project conversation from compact Develop and preserves its amendment through all activities", async () => {
   const media = responsiveOverview(true);
   useCockpit.setState(state => ({ lens: "develop", selection: { ...state.selection, projectId: "p-1" } }));

@@ -27,11 +27,13 @@ export function Rail({
   hidden,
   drawerOpen,
   onClose,
+  errorPresentedInMain,
 }: {
   panelRef?: RefObject<HTMLElement | null>;
   hidden?: boolean;
   drawerOpen?: boolean;
   onClose?: () => void;
+  errorPresentedInMain?: boolean;
 } = {}): JSX.Element {
   const setup = useSetup();
   const team = useTeamWorkspace();
@@ -249,7 +251,7 @@ export function Rail({
           {home?.home && pinned.length === 0 && active.length === 0 && !current && <p className="rail-empty">No active projects. Find all projects in Home.</p>}
         </>}
       </div>
-      <RailFooter />
+      <RailFooter errorPresentedInMain={errorPresentedInMain} />
     </nav>
   );
 }
