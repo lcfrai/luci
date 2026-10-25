@@ -1,8 +1,8 @@
 // The session lifecycle verbs, shared by the rail's right-click menu and the pane's ⋯ menu.
 // Contract §6.5 and §9's task 22 row. Two commit shapes, chosen per verb:
 //
-//   deferred  — the store changes now, the request is HELD for the Undo window, and Undo
-//               cancels it. For verbs with no compensating request: Kill, Forget.
+//   deferred  — the request is HELD for the Undo window, and Undo cancels it. Forget hides
+//               its row now; Kill retains the observed status until the server answers.
 //   immediate — the store changes now, the request goes now, a refusal restores the
 //               snapshot. For verbs the server can undo: Rename, Restart.
 //
@@ -170,7 +170,7 @@ function clearOwnReport(): void {
 function runDeferred<T>(opts: {
   sessionId: SessionId;
   message: string;
-  /** The optimistic patch. Applied synchronously, before anything is sent. */
+  /** The optional optimistic effect; Kill leaves its observed session unchanged. */
   apply: () => void;
   /** The exact inverse of `apply`. Used by Undo, and by a late failure. */
   rollback: () => void;
@@ -588,22 +588,20 @@ function tailVerbs(
           ? act(() =>
               runDeferred({
                 sessionId: id,
-                message: `Killed ${session.title}.`,
-                apply: () =>
-                  useCockpit
-                    .getState()
-                    .upsertSession({
-                      ...session,
-                      status: "exited",
-                      exitReason: "killed",
-                    }),
-                rollback: restoreSession(session),
+                message: `Kill pending for ${session.title}. Keep Luci open until confirmed.`,
+                // The worker is still live during Undo and may remain live while the
+                // request waits. Pending gates repeat actions without inventing an exit.
+                apply: () => {},
+                rollback: () => {},
                 commit: () => api.killSession(id),
                 // The server's own object, for the reason `runImmediate` argues at length: it
                 // carries `updatedAt` and an `attachPath` the cockpit cannot derive. Discarding
                 // it used to read as harmless only because the 2 s poller overwrote it — which
                 // is precisely what this round's suppression now prevents.
-                adopt: (killed) => useCockpit.getState().upsertSession(killed),
+                adopt: (killed) => {
+                  useCockpit.getState().upsertSession(killed);
+                  useCockpit.getState().pushToast(`Kill confirmed for ${session.title}.`);
+                },
               }),
             )
           : undefined,
