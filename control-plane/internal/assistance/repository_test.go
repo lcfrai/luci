@@ -519,9 +519,9 @@ server.serve_forever()
             if remaining<=0:
                 return [],[],[]
             time.sleep(min(0.01,remaining))
-    select.select = fixture_pipe_select
 LIMIT = 262144
 `, 1)
+	launcher = strings.Replace(launcher, "select.select([server.stdout],[],[],waiting)", "(fixture_pipe_select([server.stdout],[],[],waiting) if os.name == 'nt' else select.select([server.stdout],[],[],waiting))", 1)
 	t.Setenv("OPENCODE_LUCI_OLLAMA_PORT", strconv.Itoa(port))
 	quoted, _ := json.Marshal(filepath.ToSlash(python))
 	quotedFake, _ := json.Marshal(filepath.ToSlash(fake))
