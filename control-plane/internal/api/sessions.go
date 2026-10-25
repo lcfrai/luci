@@ -1117,6 +1117,11 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Wait only for background storage publication, before any branch lock.
+	if err := a.awaitWorkerStorageRefresh(ctx); err != nil {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, "The session start was cancelled before capacity admission.", nil)
+		return
+	}
 	// 2. The harness.
 	releaseBranch, ok := a.sessionBranchAdmission(w, r, req.WorktreeID, "")
 	if !ok {
@@ -2088,6 +2093,10 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 
 	sess, ok := a.sessionByID(w, r)
 	if !ok {
+		return
+	}
+	if err := a.awaitWorkerStorageRefresh(r.Context()); err != nil {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, "The session restart was cancelled before capacity admission. The original session has not been stopped.", nil)
 		return
 	}
 	// Managed restarts share the exact child's durable lifecycle fence with

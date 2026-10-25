@@ -84,6 +84,9 @@ func (a *API) admitQueuedSwarm(ctx context.Context, req product.SwarmAdmissionRe
 		return product.SwarmAdmissionResult{State: "admitted"}, nil
 	}
 	provider, limit := providerCapacity(run.Input.Route, req.Policy)
+	if err := a.awaitWorkerStorageRefresh(ctx); err != nil {
+		return product.SwarmAdmissionResult{}, err
+	}
 	decision, err := a.execution.reserve(ctx, req.QueueID, req.ProjectID, provider, limit, req.Actor, authority, req.Policy)
 	if err != nil {
 		return product.SwarmAdmissionResult{}, err
