@@ -62,6 +62,11 @@ func TestAttachKnownExitUpgradesOnlySameAllocationGenericTerminalReason(t *testi
 			if err != nil {
 				t.Fatal(err)
 			}
+			if kind == "changed-creation" {
+				// FileStore owns CreatedAt and restores it on Update. Exercise
+				// a genuinely stale captured observation, not an ignored row edit.
+				observed.CreatedAt = observed.CreatedAt.Add(-time.Second)
+			}
 			_, err = f.store.Update(f.id, func(row *registry.Session) error {
 				row.Status, row.ExitReason, row.Endpoint, row.AttachToken = registry.StatusExited, "process exited", "", ""
 				if kind == "killed" {
@@ -73,15 +78,15 @@ func TestAttachKnownExitUpgradesOnlySameAllocationGenericTerminalReason(t *testi
 				if kind == "changed-token" {
 					row.AttachToken = "new-token"
 				}
-				if kind == "changed-creation" {
-					row.CreatedAt = row.CreatedAt.Add(time.Second)
-				}
 				return nil
 			})
 			if err != nil {
 				t.Fatal(err)
 			}
-			before, _ := f.store.Get(f.id)
+			before, err := f.store.Get(f.id)
+			if err != nil || kind == "changed-creation" && before.CreatedAt.Equal(observed.CreatedAt) {
+				t.Fatal("stale observation fixture did not differ from the immutable creation identity", err)
+			}
 			exit := proxy.DecodeProcessExit([]byte("exit status 17"))
 			if kind == "unknown-payload" {
 				exit = proxy.DecodeProcessExit([]byte("private provider error"))
