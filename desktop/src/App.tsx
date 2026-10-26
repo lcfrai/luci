@@ -90,8 +90,8 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
   let stopped = false;
   const inFlight = new Set<LoadKey>();
   /** Keys whose last attempt threw. `sync` runs on EVERY store write — including this loader's
-   *  own `setLoading` and `setError` — so without this memo a failure would feed itself. Only
-   *  `retry` clears it. */
+   *  own `setLoading` and `setError` — so without this memo a failure would feed itself.
+   *  Only explicit retry or refresh clears it. */
   const failed = new Set<LoadKey>();
   /** The three lists that belong to no selection, once their reply has landed. Tracked here
    *  rather than read off the store, because an empty list is a real answer. */
@@ -240,6 +240,11 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
       if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
       arrived.delete("projects");
       failed.delete("projects");
+      // Refresh can also recover a failed root read, without fetching healthy
+      // machine/harness catalogues again or duplicating a request in flight.
+      for (const key of ["machines", "harnesses"] as const) {
+        if (failed.has(key)) failed.delete(key);
+      }
       loadRoots();
       // An initial commit creates the first branch without changing the project id.
       // Refresh open branch lists explicitly instead of treating cached empty lists as final.

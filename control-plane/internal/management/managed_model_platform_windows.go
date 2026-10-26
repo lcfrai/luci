@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net"
 	"net/http"
 	"os"
@@ -485,6 +484,7 @@ type windowsManagedModelService struct {
 	diagnostics, gpuOutput *managedModelPipe
 	gpu                    managedModelGPU
 	host                   *resourcebudget.HostProbe
+	initialHostSample      bool
 	endpoint               string
 	http                   *http.Client
 	transport              *http.Transport
@@ -493,18 +493,8 @@ type windowsManagedModelService struct {
 	startupDeadline        time.Time
 }
 
-func managedModelHostCapacity(h resourcebudget.HostSnapshot, start bool) error {
-	min := uint64(4 << 30)
-	if start {
-		min = 8 << 30
-	}
-	if time.Since(h.ObservedAt) < 0 || time.Since(h.ObservedAt) > 5*time.Second || h.Memory.PhysicalAvailableBytes == nil || h.Memory.CommitAvailableBytes == nil || h.CPU.UtilizationPercent == nil || *h.Memory.PhysicalAvailableBytes < min || *h.Memory.CommitAvailableBytes < min || math.IsNaN(*h.CPU.UtilizationPercent) || math.IsInf(*h.CPU.UtilizationPercent, 0) || *h.CPU.UtilizationPercent >= 50 || *h.CPU.UtilizationPercent < 0 {
-		return errors.New("host capacity unavailable")
-	}
-	return nil
-}
 func (platform windowsManagedModelPlatform) start(ctx context.Context, c managedModelConfig, gen uint64) (managedModelService, error) {
-	s := &windowsManagedModelService{config: c, host: resourcebudget.NewHostProbe(resourcebudget.ProbeOptions{}), endpoint: "http://127.0.0.1:" + strconv.Itoa(c.Port)}
+	s := &windowsManagedModelService{config: c, host: resourcebudget.NewHostProbe(resourcebudget.ProbeOptions{}), initialHostSample: true, endpoint: "http://127.0.0.1:" + strconv.Itoa(c.Port)}
 	s.startupDeadline, _ = ctx.Deadline()
 	stage := "model_store_unavailable"
 	fail := func(e error) (managedModelService, error) {
@@ -512,6 +502,10 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 		var detail *managedModelStartError
 		if errors.As(e, &detail) {
 			failure.code, failure.exitCode = detail.code, detail.exitCode
+		}
+		var hostFailure *managedHostCapacityError
+		if errors.As(e, &hostFailure) {
+			failure.code = "host_capacity_unavailable"
 		}
 		cleanup, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -609,7 +603,7 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 	case <-time.After(time.Second):
 	}
 	stage = "host_capacity_unavailable"
-	if e = managedModelHostCapacity(s.host.Sample(ctx), true); e != nil {
+	if _, e = observeManagedModelHost(ctx, s.host.Sample, time.Now, waitManagedModelHostRecheck, true, managedHostStartupAdmission, false); e != nil {
 		return fail(e)
 	}
 	stage = "model_unavailable"
@@ -625,7 +619,7 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 		if e := c.authorize(); e != nil {
 			return e
 		}
-		if e := managedModelHostCapacity(s.host.Sample(ctx), true); e != nil {
+		if _, e := observeManagedModelHost(ctx, s.host.Sample, time.Now, waitManagedModelHostRecheck, true, managedHostPreResume, true); e != nil {
 			return e
 		}
 		if e := s.gpu.check(true); e != nil {
@@ -807,8 +801,13 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	result := managedModelSample{}
-	host := s.host.Sample(ctx)
-	if e := managedModelHostCapacity(host, false); e != nil {
+	phase, initial := managedHostMonitor, s.initialHostSample
+	s.initialHostSample = false
+	if initial {
+		phase = managedHostInitialMonitor
+	}
+	host, e := observeManagedModelHost(ctx, s.host.Sample, time.Now, waitManagedModelHostRecheck, false, phase, initial)
+	if e != nil {
 		result.failure = "host_capacity_unavailable"
 		return result, e
 	}

@@ -91,7 +91,7 @@ describe("AppShell", () => {
     });
   });
 
-  it("starts at Projects home with direct creation and import actions", () => {
+  it("starts at Projects home with direct creation and import actions", async () => {
     render(<AppShell />);
     expect(screen.getByRole("region", { name: "Projects" })).not.toBeNull();
     expect(screen.queryByRole("tree")).toBeNull();
@@ -106,6 +106,9 @@ describe("AppShell", () => {
       screen.getByRole("button", { name: "Restore backup" }),
     ).not.toBeNull();
     expect(screen.queryByRole("button", { name: /new session/i })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Luci" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Luci" }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your projects" })));
   });
 
   // §6.1: the grid always has three columns and the middle one animates from 0. With no branch
@@ -319,7 +322,7 @@ describe("AppShell", () => {
       last.focus();
       await userEvent.tab();
       expect(document.activeElement).toBe(
-        screen.getByRole("button", { name: "All projects" }),
+        screen.getByRole("button", { name: "Luci home" }),
       );
       await userEvent.tab({ shift: true });
       expect(document.activeElement).toBe(last);

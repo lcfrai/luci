@@ -20,6 +20,7 @@ import { useSetup } from "../setup/SetupProvider";
 import { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
 import { NavigationIcon } from "../common/NavigationIcon";
 import { LuciMark } from "../common/LuciMark";
+import { Button } from "../fluid/components/button";
 import "./rail.css";
 
 export function Rail({
@@ -41,6 +42,11 @@ export function Rail({
   const projects = useCockpit(useShallow((s) => s.projects));
   const home = useProjectHome();
   const selectedProjectId = useCockpit((s) => s.selection.projectId);
+  const homeSelected = useCockpit((s) => s.selection.projectId === null && s.selection.branchId === null && s.selection.sessionId === null);
+  const openHome = (): void => {
+    useCockpit.getState().selectProject(null);
+    onClose?.();
+  };
   const activity = new Map(home?.activityAvailable ? home.home?.projects.map(project => [project.id, project]) : []);
   // A stale catalogue must not reveal a team project after its read grant is
   // removed. Only a same-scope, previously verified projection may survive a
@@ -182,11 +188,8 @@ export function Rail({
         <div className="rail-brand">
           <button
             className="rail-home"
-            aria-label="All projects"
-            onClick={() => {
-              useCockpit.getState().selectProject(null);
-              onClose?.();
-            }}
+            aria-label="Luci home"
+            onClick={openHome}
           >
             <LuciMark />
             Luci
@@ -213,6 +216,16 @@ export function Rail({
             )}
           </div>
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          className="rail-all-projects"
+          aria-current={homeSelected ? "page" : undefined}
+          onClick={openHome}
+        >
+          <NavigationIcon name="projects" />
+          All projects
+        </Button>
         {setup?.workspace?.mode === "cloud" && (
           <button
             className="rail-workspace"

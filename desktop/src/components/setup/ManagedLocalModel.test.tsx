@@ -213,6 +213,25 @@ it("does not present an old observation as a selectable service", async () => {
   expect(screen.getByRole("button", { name: "Use for OpenCode" }).matches(":disabled")).toBe(true);
 });
 
+it("distinguishes an unavailable CPU observation from low memory without starting work", async () => {
+  const value = snapshot("blocked");
+  value.status.failure = { code: "host_capacity_unavailable", hostCapacity: {
+    phase: "initial_monitor", reason: "cpu_unavailable", physicalAvailableBytes: 12 * 2 ** 30,
+    commitAvailableBytes: 14 * 2 ** 30, cpuPercent: null, sampleAgeMillis: 0,
+  } };
+  const fixture = mount(value);
+  await screen.findByText("Luci could not get a current CPU reading. Try starting the model again.");
+  const details = screen.getByText("Capacity details").parentElement as HTMLDetailsElement;
+  expect(details.open).toBe(false);
+  expect(details.textContent).toContain("12.0 GiB");
+  expect(details.textContent).toContain("14.0 GiB");
+  expect(details.textContent).toContain("Unavailable");
+  expect(details.textContent).not.toContain("0.0%");
+  expect(screen.getAllByRole("alert")).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "Use for OpenCode" })).toHaveProperty("disabled", true);
+  expect(fixture.posts()).toHaveLength(0);
+});
+
 it.each([
   ["gpu_binary_untrusted", "Luci could not verify the installed NVIDIA tool’s signature. Model startup is paused."],
   ["gpu_metadata_unavailable", "Luci could not verify the installed NVIDIA tool’s version information. Model startup is paused."],

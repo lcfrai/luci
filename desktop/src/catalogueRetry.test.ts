@@ -39,6 +39,32 @@ it('retries only the exact failed branch read and clears its own report on succe
   expect(useCockpit.getState().lastError).toBeNull();
 });
 
+it('refreshes a failed harness root once without invalidating healthy roots or clearing its error before recovery', async () => {
+  let resolveHarnesses!: (value: unknown[]) => void;
+  const harnesses = new Promise<unknown[]>(resolve => { resolveHarnesses = resolve; });
+  const client = {
+    baseUrl: 'http://127.0.0.1:62000',
+    listMachines: vi.fn().mockResolvedValue([]),
+    listProjects: vi.fn().mockResolvedValue([aProject({ id: 'p' })]),
+    listHarnesses: vi.fn().mockRejectedValueOnce(new ApiError('timeout', 'Original harness timeout', 0)).mockReturnValue(harnesses),
+    listBranches: vi.fn().mockResolvedValue([]),
+    listWorktrees: vi.fn().mockResolvedValue([]),
+  };
+  catalogue = startCatalogue(client as unknown as CockpitClient, useCockpit);
+  await settle();
+  const original = useCockpit.getState().lastError;
+  expect(original?.message).toBe('Original harness timeout');
+  expect(useCockpit.getState().projects.map(project => project.id)).toEqual(['p']);
+  catalogue.refreshProjects(); catalogue.refreshProjects();
+  await settle();
+  expect(client.listHarnesses).toHaveBeenCalledTimes(2);
+  expect(client.listMachines).toHaveBeenCalledTimes(1);
+  expect(useCockpit.getState().lastError).toBe(original);
+  resolveHarnesses([]); await settle();
+  expect(client.listHarnesses).toHaveBeenCalledTimes(2);
+  expect(useCockpit.getState().lastError).toBeNull();
+});
+
 it.each(['account catalogue', 'workspace', 'service', 'error identity', 'project removal', 'stopped loader'] as const)('refuses a retained retry after %s changes', async change => {
   const client = fixture(); await settle(); const original = useCockpit.getState().lastError!;
   if (change === 'account catalogue') useCockpit.setState(state => ({ projectCatalogueEpoch: state.projectCatalogueEpoch + 1 }));

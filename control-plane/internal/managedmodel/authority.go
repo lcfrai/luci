@@ -70,8 +70,20 @@ type Profile struct {
 func FixedProfile() Profile { return Profile{16384, "q8_0", true, 1, 7168, 6656, 20} }
 
 type Failure struct {
-	Code     string  `json:"code"`
-	ExitCode *uint32 `json:"exitCode,omitempty"`
+	Code         string                  `json:"code"`
+	ExitCode     *uint32                 `json:"exitCode,omitempty"`
+	HostCapacity *HostCapacityDiagnostic `json:"hostCapacity,omitempty"`
+}
+
+// Fixed reasons and bounded numeric observations only; never host paths,
+// environment, vendor output or an inferred cause when evidence is missing.
+type HostCapacityDiagnostic struct {
+	Phase                  string   `json:"phase"`
+	Reason                 string   `json:"reason"`
+	PhysicalAvailableBytes *uint64  `json:"physicalAvailableBytes"`
+	CommitAvailableBytes   *uint64  `json:"commitAvailableBytes"`
+	CPUPercent             *float64 `json:"cpuPercent"`
+	SampleAgeMillis        *int64   `json:"sampleAgeMillis"`
 }
 type Status struct {
 	State      string    `json:"state"`

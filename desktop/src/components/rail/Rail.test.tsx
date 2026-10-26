@@ -94,6 +94,25 @@ function verifiedHome(pinned = false, working = false): NonNullable<ReturnType<t
 describe("Rail", () => {
   beforeEach(() => { seed(); teamWorkspace.value = null; projectHome.value = null; setup.openProject.mockClear(); setup.openSettings.mockClear(); });
 
+  it('returns to All projects without changing pins, activity or running sessions and closes the drawer', async () => {
+    seed({ selection: { projectId: project.id, branchId: branch.id, worktreeId: worktree.id, sessionId: running.id } });
+    projectHome.value = verifiedHome(true, true);
+    const sessions = useCockpit.getState().sessions;
+    const onClose = vi.fn();
+    render(<Rail drawerOpen onClose={onClose} />);
+    const allProjects = screen.getByRole('button', { name: 'All projects' });
+    expect(allProjects.textContent).toBe('All projects');
+    expect(allProjects.getAttribute('aria-current')).toBeNull();
+    await userEvent.click(allProjects);
+    expect(useCockpit.getState().selection).toEqual({ projectId: null, branchId: null, worktreeId: null, sessionId: null });
+    expect(allProjects.getAttribute('aria-current')).toBe('page');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(useCockpit.getState().sessions).toEqual(sessions);
+    expect(projectHome.value.pin).not.toHaveBeenCalled();
+    expect(projectHome.value.open).not.toHaveBeenCalled();
+    expect(screen.getByRole('group', { name: 'Pinned projects' })).toBeTruthy();
+  });
+
   it('keeps a verified selected idle project actionable without pinning it or claiming activity', async () => {
     seed({ selection: { projectId: project.id, branchId: null, worktreeId: null, sessionId: null }, sessions: {}, sessionIdsByWorktree: {}, expandedProjects: {}, expandedBranches: {} });
     projectHome.value = verifiedHome();
@@ -295,6 +314,10 @@ describe("Rail", () => {
     fireEvent.click(screen.getByRole("treeitem", { name: other.name }));
     expect(useCockpit.getState().selection.projectId).toBe(project.id);
     expect(useCockpit.getState().pendingNavigation).toEqual({ kind: "project", projectId: other.id });
+    expect(useCockpit.getState().expandedProjects).toEqual({});
+    fireEvent.click(screen.getByRole("button", { name: "All projects" }));
+    expect(useCockpit.getState().selection.projectId).toBe(project.id);
+    expect(useCockpit.getState().pendingNavigation).toEqual({ kind: "project", projectId: null });
     expect(useCockpit.getState().expandedProjects).toEqual({});
   });
 

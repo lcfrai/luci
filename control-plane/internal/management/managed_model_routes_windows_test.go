@@ -156,3 +156,233 @@ func TestManagedControlPublicationDoesNotRenewStaleReadiness(t *testing.T) {
 		t.Fatal("stale readiness was admitted after failed-stop restoration")
 	}
 }
+
+type managedTestHostError struct {
+	diagnostic *managedmodel.HostCapacityDiagnostic
+}
+
+func (e *managedTestHostError) Error() string { return "private probe detail" }
+func (e *managedTestHostError) HostCapacityDiagnostic() *managedmodel.HostCapacityDiagnostic {
+	return e.diagnostic
+}
+
+type managedRestartService struct {
+	sampleError       error
+	stopError         error
+	sampled, retiring chan struct{}
+	release           <-chan struct{}
+}
+
+func (s *managedRestartService) sample(context.Context) (managedModelSample, error) {
+	if s.sampled != nil {
+		select {
+		case s.sampled <- struct{}{}:
+		default:
+		}
+	}
+	if s.sampleError != nil {
+		return managedModelSample{failure: "host_capacity_unavailable"}, s.sampleError
+	}
+	return managedModelSample{at: time.Now()}, nil
+}
+func (s *managedRestartService) stop(ctx context.Context) error {
+	if s.retiring != nil {
+		select {
+		case s.retiring <- struct{}{}:
+		default:
+		}
+	}
+	if s.release != nil {
+		select {
+		case <-s.release:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return s.stopError
+}
+
+type managedRestartPlatform struct {
+	services    <-chan managedModelService
+	generations chan uint64
+}
+
+func (p managedRestartPlatform) start(ctx context.Context, _ managedModelConfig, gen uint64) (managedModelService, error) {
+	select {
+	case p.generations <- gen:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	select {
+	case service := <-p.services:
+		return service, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func TestManagedMonitorFailureRetiresBeforeFreshExplicitRestart(t *testing.T) {
+	for _, failedRetirement := range []bool{false, true} {
+		name := "settled"
+		if failedRetirement {
+			name = "quarantined"
+		}
+		t.Run(name, func(t *testing.T) {
+			g, m := managedRouteFixture(t)
+			g.opts.ExecutionStateDir = t.TempDir()
+			m.saved = managedModelSaved{Revision: 3, AuthorizingActorID: "admin", Config: managedModelConfig{Enabled: true, Port: 24567, Model: "installed:latest"}}
+			diagnostic := &managedmodel.HostCapacityDiagnostic{Phase: "monitor", Reason: "cpu_unavailable"}
+			release := make(chan struct{})
+			first := &managedRestartService{sampleError: errors.Join(errors.New("private observation context"), &managedTestHostError{diagnostic}), retiring: make(chan struct{}, 1), release: release}
+			if failedRetirement {
+				first.stopError = errors.New("retirement unknown")
+			}
+			second := &managedRestartService{sampled: make(chan struct{}, 1)}
+			services := make(chan managedModelService, 2)
+			services <- first
+			services <- second
+			generations := make(chan uint64, 2)
+			m.platform = managedRestartPlatform{services, generations}
+			defer func() {
+				select {
+				case <-release:
+				default:
+					close(release)
+				}
+				m.mu.Lock()
+				cancel, done := m.cancel, m.done
+				m.mu.Unlock()
+				if cancel != nil {
+					cancel()
+				}
+				if done != nil {
+					select {
+					case <-done:
+					case <-time.After(2 * time.Second):
+						t.Error("test run did not finish")
+					}
+				}
+			}()
+			await := func(done <-chan struct{}) {
+				t.Helper()
+				select {
+				case <-done:
+				case <-time.After(2 * time.Second):
+					t.Fatal("controlled lifecycle did not progress")
+				}
+			}
+			if generation, e := m.beginStart(3); e != nil || generation != "1" {
+				t.Fatal("first explicit start refused", e)
+			}
+			m.mu.Lock()
+			done := m.done
+			m.mu.Unlock()
+			await(first.retiring)
+			if _, e := m.beginStart(3); e == nil {
+				t.Fatal("replacement started before retirement completed")
+			}
+			close(release)
+			await(done)
+			m.mu.Lock()
+			owner, run, cancel := m.owner, m.done, m.cancel
+			failure, state, generation := m.status.Failure, m.status.State, m.generation
+			m.mu.Unlock()
+			if failure == nil || failure.HostCapacity == nil || failure.HostCapacity.Reason != "cpu_unavailable" || generation != 1 || m.saved.Revision != 3 {
+				t.Fatal("failure evidence or generation changed")
+			}
+			if failedRetirement {
+				if owner != first || run != done || cancel == nil || state != "unknown" || failure.Code != "cleanup_unknown" {
+					t.Fatal("unknown owner was released")
+				}
+				if _, e := m.beginStart(3); e == nil {
+					t.Fatal("unknown retirement admitted replacement")
+				}
+				return
+			}
+			if owner != nil || run != nil || cancel != nil || state != "blocked" || failure.Code != "host_capacity_unavailable" {
+				t.Fatal("retired run left stale start bookkeeping")
+			}
+			if _, e := m.beginStart(2); e == nil {
+				t.Fatal("stale revision admitted replacement")
+			}
+			m.mu.Lock()
+			m.stopping = true
+			m.mu.Unlock()
+			if _, e := m.beginStart(3); e == nil {
+				t.Fatal("start bypassed concurrent stop")
+			}
+			m.mu.Lock()
+			m.stopping = false
+			m.mu.Unlock()
+			if next, e := m.beginStart(3); e != nil || next != "2" {
+				t.Fatal("fresh explicit restart refused", e)
+			}
+			await(second.sampled)
+			if <-generations != 1 || <-generations != 2 || len(generations) != 0 {
+				t.Fatal("unexpected allocation generation")
+			}
+			ctx, cancelStop := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancelStop()
+			if e := m.stopExpected(ctx, false, 3, "2"); e != nil {
+				t.Fatal("replacement did not retire normally", e)
+			}
+		})
+	}
+}
+
+type managedDiagnosticStartPlatform struct {
+	owner managedModelService
+	err   error
+}
+
+func (p managedDiagnosticStartPlatform) start(context.Context, managedModelConfig, uint64) (managedModelService, error) {
+	return p.owner, p.err
+}
+
+func TestManagedHostDiagnosticsPropagateJoinedStartupFailureWithoutAliasing(t *testing.T) {
+	for _, unknownOwner := range []bool{false, true} {
+		name := "settled"
+		if unknownOwner {
+			name = "cleanup_unknown"
+		}
+		t.Run(name, func(t *testing.T) {
+			_, m := managedRouteFixture(t)
+			physical, commit, cpu, age := uint64(9<<30), uint64(10<<30), 51.0, int64(20)
+			diagnostic := &managedmodel.HostCapacityDiagnostic{Phase: "pre_resume", Reason: "cpu_busy", PhysicalAvailableBytes: &physical, CommitAvailableBytes: &commit, CPUPercent: &cpu, SampleAgeMillis: &age}
+			var owner managedModelService
+			if unknownOwner {
+				owner = &managedRestartService{}
+			}
+			m.platform = managedDiagnosticStartPlatform{owner: owner, err: errors.Join(errors.New("private runtime context"), &managedModelStartError{code: "host_capacity_unavailable", cause: &managedTestHostError{diagnostic}})}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			m.generation, m.done, m.cancel = 7, make(chan struct{}), cancel
+			done := m.done
+			m.run(ctx, managedModelConfig{}, 7, done)
+			select {
+			case <-done:
+			default:
+				t.Fatal("startup completion not joined")
+			}
+			failure := m.status.Failure
+			if failure == nil || failure.Code != "host_capacity_unavailable" || failure.HostCapacity == nil || failure.HostCapacity.Phase != "pre_resume" || failure.HostCapacity.Reason != "cpu_busy" {
+				t.Fatal("joined host diagnostic lost")
+			}
+			physical, commit, cpu, age = 0, 0, 0, 0
+			if *failure.HostCapacity.PhysicalAvailableBytes != 9<<30 || *failure.HostCapacity.CommitAvailableBytes != 10<<30 || *failure.HostCapacity.CPUPercent != 51 || *failure.HostCapacity.SampleAgeMillis != 20 {
+				t.Fatal("published diagnostic aliases source snapshot")
+			}
+			if unknownOwner {
+				if m.status.State != "unknown" || m.owner != owner || m.done != done || m.cancel == nil {
+					t.Fatal("unknown startup owner was cleared")
+				}
+			} else if m.status.State != "blocked" || m.owner != nil || m.done != nil || m.cancel != nil {
+				t.Fatal("settled startup left bookkeeping")
+			}
+			raw, e := json.Marshal(m.projectionLocked(true))
+			if e != nil || strings.Contains(string(raw), "private") {
+				t.Fatal("raw startup cause leaked")
+			}
+		})
+	}
+}

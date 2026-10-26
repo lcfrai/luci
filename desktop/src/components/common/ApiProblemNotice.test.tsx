@@ -43,6 +43,18 @@ it('presents the full branch notice in the footer outside Home and keeps loading
   expect(screen.getByRole('button', { name: 'Retry branches' })).toHaveProperty('disabled', true);
 });
 
+it('keeps workspace timeout transport details collapsed behind a clear recovery action', () => {
+  const message = 'The control plane did not answer GET http://127.0.0.1:55411/v1/harnesses within 10000ms';
+  render(<ApiProblemNotice problem={{ code: 'timeout', message }} />);
+  expect(screen.getByText('The workspace took too long to respond. Try refreshing.')).toBeTruthy();
+  const details = screen.getByText('Technical details').parentElement as HTMLDetailsElement;
+  expect(details.open).toBe(false);
+  expect(details.textContent).toContain(message);
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh projects' }));
+  expect(setup.refreshProjects).toHaveBeenCalledTimes(1);
+  expect(setup.retryBranches).not.toHaveBeenCalled();
+});
+
 it('keeps unrelated refusal text verbatim rather than classifying a URL or the word timeout', () => {
   const message = 'A timeout was mentioned, but this sandbox is still running; public publishing was refused.';
   render(<ApiProblemNotice problem={{ code: 'non_loopback_publish', message }} />);

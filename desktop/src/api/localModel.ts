@@ -19,6 +19,15 @@ export interface LocalModelConfiguration {
   profile: LocalModelProfile;
 }
 
+export interface LocalModelHostCapacity {
+  phase: string;
+  reason: string;
+  physicalAvailableBytes: number | null;
+  commitAvailableBytes: number | null;
+  cpuPercent: number | null;
+  sampleAgeMillis: number | null;
+}
+
 export interface LocalModelSnapshot {
   available: boolean;
   canManage: boolean;
@@ -31,7 +40,7 @@ export interface LocalModelSnapshot {
     observedAt: string;
     endpoint?: string;
     model?: string;
-    failure?: { code: string; exitCode?: number };
+    failure?: { code: string; exitCode?: number; hostCapacity?: LocalModelHostCapacity };
   };
 }
 

@@ -209,6 +209,22 @@
   display: flex;
   gap: 4px;
 }
+.rail-all-projects.luci-ui-button {
+  display: flex;
+  justify-content: flex-start;
+  inline-size: calc(100% - 32px);
+  min-block-size: 36px;
+  margin: 0 16px 8px;
+}
+.rail-all-projects[aria-current="page"] {
+  background: var(--hover);
+  color: var(--ink);
+}
+.rail-all-projects > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 .rail-brand button {
   min-block-size: 36px;
   min-inline-size: 36px;
@@ -253,6 +269,7 @@
   overflow-wrap: anywhere;
 }
 @media (max-width: 760px), (pointer: coarse) {
+  .rail-all-projects.luci-ui-button,
   .rail-brand button,
   .rail-row,
   .rail-settings,

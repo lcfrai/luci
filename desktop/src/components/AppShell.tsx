@@ -168,10 +168,7 @@ export function AppShell(): JSX.Element {
               </div>
             </section>
           ) : projectId === null && branchId === null ? (
-            <>
-              {workspaceSurface === "luci" && <header className="luci-start"><h1 tabIndex={-1}>Luci</h1><p>Choose a project to continue its conversation, or start a new project. Your context and work stay with the selected project.</p></header>}
-              <ProjectsHome />
-            </>
+            <ProjectsHome />
           ) : (
             (toolsVisible || visitedTool === toolKey) && <LensRouter key={toolKey} lens={lens} />
           )}

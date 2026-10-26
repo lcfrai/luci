@@ -28,7 +28,7 @@ export function ProjectsHome() {
     <section className="projects-home">
       <header className="projects-heading">
         <div>
-          <h1>Your projects</h1>
+          <h1 tabIndex={-1}>Your projects</h1>
           <p>
             {setup?.workspace?.mode === "cloud"
               ? `Working in ${setup.workspace.host}. Your account’s projects stay in this workspace.`
@@ -149,7 +149,7 @@ export function ProjectsHome() {
               </div></div>
               <div className="home-activity-actions">
                 <Button variant="secondary" disabled={!row || !!home?.busy || !home?.activityAvailable} aria-pressed={pinned} onClick={() => void home?.pin(project.id, !pinned)}>{pinned ? 'Unpin' : 'Pin'}</Button>
-                <Button variant="primary" onClick={() => { if (home) home.open(project.id); else useCockpit.getState().selectProject(project.id); }}>Open project</Button>
+                <Button variant="ghost" onClick={() => { if (home) home.open(project.id); else useCockpit.getState().selectProject(project.id); }}>Open project</Button>
               </div>
             </li>;
           })}</ul>}

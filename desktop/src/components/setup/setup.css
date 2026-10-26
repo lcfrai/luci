@@ -310,6 +310,11 @@
 .local-model-summary > div { display: grid; gap: 5px; min-inline-size: 0; }
 .local-model-summary span { color: var(--ink-2); font-size: 12px; }
 .local-model-summary strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.managed-local-model .journey-error > p { margin: 0; }
+.managed-local-model .journey-error > p + p { margin-block-start: 8px; }
+.managed-local-model .journey-error details { margin-block-start: 12px; }
+.managed-local-model .journey-error dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 20px; }
+.managed-local-model .journey-error dd { margin: 0; text-align: end; font-variant-numeric: tabular-nums; }
 .setup-plan li {
   padding-block: 4px;
 }

@@ -13,17 +13,22 @@ export function ApiProblemNotice({ problem, id }: { problem: CatalogueProblem; i
   const project = useCockpit(state => origin ? state.projects.find(item => item.id === origin.projectId) : undefined);
   const loading = useCockpit(state => origin ? !!state.loading[`branches:${origin.projectId}`] : false);
   const branchTimeout = problem.code === 'timeout' && !!origin;
+  const timeout = problem.code === 'timeout';
   const current = !origin || (origin.catalogueEpoch === epoch && origin.workspaceGeneration === teamScopeGeneration() && origin.service === api.baseUrl);
   // Never expose a previous workspace's route or retry it through the new one.
   if (!current) return null;
   return <div id={id} className="api-problem-notice" role="alert" tabIndex={-1}>
     <p><span className="api-problem-mark" aria-hidden="true" />{branchTimeout
       ? project ? `Branches for ${project.name} took too long to load.` : 'The project’s branches took too long to load.'
+      : timeout ? 'The workspace took too long to respond. Try refreshing.'
       : problem.message}</p>
     {branchTimeout ? <>
       <Button type="button" variant="ghost" loading={loading} disabled={!project || !setup?.retryBranches}
         onClick={() => setup?.retryBranches?.(problem)}>Retry branches</Button>
       <details><summary>Technical details</summary><p>{problem.message}</p><code>{problem.code}</code></details>
-    </> : <Button type="button" variant="ghost" onClick={() => setup?.refreshProjects()}>Refresh projects</Button>}
+    </> : <>
+      <Button type="button" variant="ghost" onClick={() => setup?.refreshProjects()}>Refresh projects</Button>
+      {timeout && <details><summary>Technical details</summary><p>{problem.message}</p><code>{problem.code}</code></details>}
+    </>}
   </div>;
 }

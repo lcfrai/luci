@@ -56,7 +56,7 @@ export function TopBar({
       <Button variant={inTools ? "ghost" : "secondary"} size="compact" aria-current={!inTools ? "page" : undefined} onClick={() => {
         showLuci();
         if (projectId) window.dispatchEvent(new CustomEvent(ORCHESTRATOR_OPEN, { detail: { projectId } }));
-        else requestAnimationFrame(() => { const state = useCockpit.getState(); if (!state.selection.projectId && state.workspaceSurface === "luci") document.querySelector<HTMLElement>(".luci-start h1")?.focus(); });
+        else requestAnimationFrame(() => { const state = useCockpit.getState(); if (!state.selection.projectId && state.workspaceSurface === "luci") document.querySelector<HTMLElement>(".projects-home h1")?.focus(); });
       }}>Luci</Button>
       {!inTools && projectId ? <span className="top-title" title={projectName} aria-label={`Current project: ${projectName || "Selected project"}`}>{projectName || "Selected project"}</span> : projectId === null ? (
         <span className="top-title">Projects</span>

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { errorText, type AgentConnection, type ProductClient } from "../../api/product";
-import type { LocalModelSave, LocalModelSnapshot } from "../../api/localModel";
+import type { LocalModelHostCapacity, LocalModelSave, LocalModelSnapshot } from "../../api/localModel";
 import { selectedTeamId, teamScopeGeneration, TEAM_WORKSPACE_CHANGED } from "../../api/teamScope";
 import { AGENT_CONNECTIONS_CHANGED } from "../../hooks/useAgentConnections";
 import { useAuth } from "../auth/AuthProvider";
@@ -52,6 +52,19 @@ const failureMessages: Record<string, string> = {
   previous_work_unsettled: "End or reconcile the previous managed-model session in Luci before starting a replacement.",
   configuration_unavailable: "Luci could not read the saved model configuration. Refresh before changing it.",
 };
+
+function capacityMessage(detail?: LocalModelHostCapacity): string {
+  const start = detail?.phase === "startup_admission" || detail?.phase === "pre_resume";
+  switch (detail?.reason) {
+    case "cpu_unavailable": return "Luci could not get a current CPU reading. Try starting the model again.";
+    case "cpu_busy": return "CPU use is too high right now. Wait for other work to finish, then start the model.";
+    case "physical_low": return `The model needs at least ${start ? 8 : 4} GiB of free RAM. Close other memory-heavy work before starting again.`;
+    case "commit_low": return `The model needs at least ${start ? 8 : 4} GiB of available system commit. Free some memory before starting again.`;
+    default: return "Luci could not confirm the computer’s current capacity. Refresh the status before starting again.";
+  }
+}
+
+const capacityBytes = (value: number | null) => Number.isSafeInteger(value) && value !== null && value >= 0 ? `${(value / 2 ** 30).toFixed(1)} GiB` : "Unavailable";
 
 function usable(snapshot: LocalModelSnapshot | null): snapshot is LocalModelSnapshot {
   if (!snapshot?.available || !snapshot.config?.enabled || !["available", "loaded"].includes(snapshot.status.state)) return false;
@@ -190,6 +203,8 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
   const canStart = !!snapshot?.canManage && !!snapshot.config?.enabled && !configurationLocked && !dirty && !staleDraft && !error && !observationError;
   const canStop = !!snapshot?.canManage && !!snapshot.status.generation && /^(?:[1-9]\d{0,19})$/.test(snapshot.status.generation) && state !== "stopped" && state !== "disabled" && state !== "unknown";
   const failure = snapshot?.status.failure;
+  const canUse = !busy && !loading && !error && !observationError && !dirty && usable(snapshot);
+  const capacity = failure?.code === "host_capacity_unavailable" ? failure.hostCapacity : undefined;
   const setField = <K extends keyof Draft>(key: K, value: Draft[K]) => { edits.current++; setDraft(previous => ({ ...previous, [key]: value })); setDirty(true); setNotice(""); };
   return <section className="setup-plan managed-local-model" aria-label="Local model" aria-busy={!!busy}>
     <div className="local-model-heading"><div><h2>Local model</h2><p>Run an installed Ollama model on this PC. Luci manages its process and resource limits.</p></div><span role="status" className="local-model-state">{observationFailed ? "Status unavailable" : snapshot ? stateLabels[snapshot.status.state] ?? "Status unconfirmed" : "Checking availability…"}</span></div>
@@ -197,14 +212,21 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
     {!observationFailed && state === "available" && <p className="journey-muted">The server is available. The model loads when a session needs it.</p>}
     {!observationFailed && state === "loaded" && <p className="journey-muted">The configured model is currently loaded. A completed task still needs its own checks.</p>}
     {state === "unknown" && <p role="alert" className="journey-error">Luci cannot confirm the previous process has closed. Starting a replacement is disabled.</p>}
-    {failure && <p role="alert" className="journey-error">{failureMessages[failure.code] ?? "The local model service needs attention. Check its configuration and refresh its status."}{failure.exitCode !== undefined ? ` Exit code: ${failure.exitCode}.` : ""}</p>}
-    {error && <p role="alert" className="journey-error">{error}</p>}
-    {observationError && <p role="alert" className="journey-error">{observationError}</p>}
+    {(failure || error || observationError) && <div role="alert" className="journey-error">
+      {failure && <p>{capacity ? capacityMessage(capacity) : failureMessages[failure.code] ?? "The local model service needs attention. Check its configuration and refresh its status."}{failure.exitCode !== undefined ? ` Exit code: ${failure.exitCode}.` : ""}</p>}
+      {error && <p>{error}</p>}
+      {observationError && <p>{observationError}</p>}
+      {capacity && <details><summary>Capacity details</summary><dl>
+        <dt>Free RAM</dt><dd>{capacityBytes(capacity.physicalAvailableBytes)}</dd>
+        <dt>Available system commit</dt><dd>{capacityBytes(capacity.commitAvailableBytes)}</dd>
+        <dt>CPU use</dt><dd>{capacity.cpuPercent !== null && Number.isFinite(capacity.cpuPercent) && capacity.cpuPercent >= 0 && capacity.cpuPercent <= 100 ? `${capacity.cpuPercent.toFixed(1)}%` : "Unavailable"}</dd>
+      </dl></details>}
+    </div>}
     {notice && <p role="status" className="journey-success">{notice}</p>}
     <div className="setup-actions">
-      {snapshot?.canManage && <Button type="button" disabled={!!busy || loading || !canStart} loading={busy === "start"} onClick={() => void change("start")}>Start model</Button>}
+      {snapshot?.canManage && <Button type="button" variant={canStart && !canUse ? "primary" : "secondary"} disabled={!!busy || loading || !canStart} loading={busy === "start"} onClick={() => void change("start")}>Start model</Button>}
       {snapshot?.canManage && <Button type="button" variant="secondary" disabled={!!busy || !canStop || state === "stopping"} loading={busy === "stop"} onClick={() => void change("stop")}>Stop model</Button>}
-      <Button type="button" variant="secondary" disabled={!!busy || loading || !!error || !!observationError || dirty || !usable(snapshot)} loading={busy === "use"} onClick={() => void useModel()}>Use for OpenCode</Button>
+      <Button type="button" variant={canUse ? "primary" : "secondary"} disabled={!canUse} loading={busy === "use"} onClick={() => void useModel()}>Use for OpenCode</Button>
       <Button type="button" variant="ghost" disabled={!!busy} loading={loading} onClick={() => { setError(""); void read(); }}>Refresh model status</Button>
     </div>
     {snapshot && !snapshot.canManage && <p className="journey-muted">A host administrator manages this service. You can select it when it is available.</p>}
@@ -212,6 +234,10 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
       <fieldset disabled={!!busy || configurationLocked}>
         {active && <p className="journey-muted">Stop the model before changing its configuration.</p>}
         {staleDraft && <p role="alert">Configuration changed elsewhere. Your draft is preserved. Reload the saved configuration before saving.</p>}
+        <details><summary>Where to find these settings</summary>
+          <p>Choose the Ollama application already installed on this computer and its existing models folder. On Windows, the application is usually in <code>%LOCALAPPDATA%\Programs\Ollama\ollama.exe</code>.</p>
+          <p>Use the exact installed model name, including its tag. This service requires a model prepared with a 16,384-token context. It does not download or prepare models from this form.</p>
+        </details>
         <div className="setup-field-grid">
           <label className="luci-field">Ollama application<input aria-label="Ollama application" aria-describedby={`${helpId}-application`} required autoComplete="off" spellCheck={false} value={draft.executablePath} onChange={event => setField("executablePath", event.target.value)} /><small id={`${helpId}-application`}>The installed Ollama executable on this PC.</small></label>
           <label className="luci-field">Model folder<input aria-label="Model folder" aria-describedby={`${helpId}-folder`} required autoComplete="off" spellCheck={false} value={draft.modelStore} onChange={event => setField("modelStore", event.target.value)} /><small id={`${helpId}-folder`}>The existing folder containing the installed model.</small></label>

@@ -49,6 +49,37 @@ type managedModelStartError struct {
 func (e *managedModelStartError) Error() string { return e.code }
 func (e *managedModelStartError) Unwrap() error { return e.cause }
 
+func managedHostCapacityDiagnostic(err error) *managedmodel.HostCapacityDiagnostic {
+	var reported interface {
+		HostCapacityDiagnostic() *managedmodel.HostCapacityDiagnostic
+	}
+	if !errors.As(err, &reported) {
+		return nil
+	}
+	source := reported.HostCapacityDiagnostic()
+	if source == nil {
+		return nil
+	}
+	copy := *source
+	if source.PhysicalAvailableBytes != nil {
+		value := *source.PhysicalAvailableBytes
+		copy.PhysicalAvailableBytes = &value
+	}
+	if source.CommitAvailableBytes != nil {
+		value := *source.CommitAvailableBytes
+		copy.CommitAvailableBytes = &value
+	}
+	if source.CPUPercent != nil {
+		value := *source.CPUPercent
+		copy.CPUPercent = &value
+	}
+	if source.SampleAgeMillis != nil {
+		value := *source.SampleAgeMillis
+		copy.SampleAgeMillis = &value
+	}
+	return &copy
+}
+
 type managedModelService interface {
 	sample(context.Context) (managedModelSample, error)
 	stop(context.Context) error
@@ -326,7 +357,21 @@ func (m *managedModelManager) beginStart(revision int, initiators ...string) (st
 	return strconv.FormatUint(gen, 10), nil
 }
 func (m *managedModelManager) run(ctx context.Context, c managedModelConfig, gen uint64, done chan struct{}) {
-	defer close(done)
+	defer func() {
+		m.mu.Lock()
+		// Only this completed generation may release its start bookkeeping,
+		// and only after the owner has positively retired. Close under the same
+		// lock so no replacement can observe cleared fields before completion.
+		if m.done == done && m.generation == gen && m.owner == nil {
+			if m.cancel != nil {
+				m.cancel()
+			}
+			m.cancel = nil
+			m.done = nil
+		}
+		close(done)
+		m.mu.Unlock()
+	}()
 	startup := time.Now().Add(30 * time.Second)
 	startCtx, cancel := context.WithDeadline(ctx, startup)
 	owner, err := m.platform.start(startCtx, c, gen)
@@ -344,6 +389,7 @@ func (m *managedModelManager) run(ctx context.Context, c managedModelConfig, gen
 			code = "startup_timeout"
 		}
 		m.status.Failure = &managedmodel.Failure{Code: code}
+		m.status.Failure.HostCapacity = managedHostCapacityDiagnostic(err)
 		if typed != nil {
 			m.status.Failure.ExitCode = typed.exitCode
 		}
@@ -351,8 +397,6 @@ func (m *managedModelManager) run(ctx context.Context, c managedModelConfig, gen
 			m.status.State = "unknown"
 		}
 		_ = m.publishLocked()
-		m.done = nil
-		m.cancel = nil
 		m.mu.Unlock()
 		return
 	}
@@ -376,11 +420,11 @@ func (m *managedModelManager) run(ctx context.Context, c managedModelConfig, gen
 			if code == "" {
 				code = "observation_unavailable"
 			}
-			m.status.Failure = &managedmodel.Failure{Code: code, ExitCode: sample.exitCode}
+			m.status.Failure = &managedmodel.Failure{Code: code, ExitCode: sample.exitCode, HostCapacity: managedHostCapacityDiagnostic(e)}
 			m.withdrawing = true
 			_ = m.publishLocked()
 			m.mu.Unlock()
-			m.retireFailedOwner(owner)
+			m.retireFailedOwner(owner, gen, done)
 			return
 		}
 		if sample.loaded {
@@ -397,7 +441,7 @@ func (m *managedModelManager) run(ctx context.Context, c managedModelConfig, gen
 				m.withdrawing = true
 				_ = m.publishLocked()
 				m.mu.Unlock()
-				m.retireFailedOwner(owner)
+				m.retireFailedOwner(owner, gen, done)
 				return
 			}
 			m.status.ObservedAt = sample.at.UTC()
@@ -408,7 +452,7 @@ func (m *managedModelManager) run(ctx context.Context, c managedModelConfig, gen
 			m.withdrawing = true
 			_ = m.publishLocked()
 			m.mu.Unlock()
-			m.retireFailedOwner(owner)
+			m.retireFailedOwner(owner, gen, done)
 			return
 		}
 		m.status.Endpoint = "http://127.0.0.1:" + strconv.Itoa(c.Port) + "/v1"
@@ -429,15 +473,22 @@ func (g *Gateway) managedModelAuthorized(id string) bool {
 	record, ok := g.state.Users[id]
 	return id != "" && ok && !g.closed && !record.User.Disabled && PermissionsFor(record.User, g.state.Policy).ManageBacking
 }
-func (m *managedModelManager) retireFailedOwner(owner managedModelService) {
+func (m *managedModelManager) retireFailedOwner(owner managedModelService, gen uint64, done chan struct{}) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	err := owner.stop(ctx)
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.done != done || m.generation != gen {
+		return
+	}
 	if err != nil {
 		m.status.State = "unknown"
-		m.status.Failure = &managedmodel.Failure{Code: "cleanup_unknown"}
+		var host *managedmodel.HostCapacityDiagnostic
+		if m.status.Failure != nil {
+			host = m.status.Failure.HostCapacity
+		}
+		m.status.Failure = &managedmodel.Failure{Code: "cleanup_unknown", HostCapacity: host}
 	} else {
 		m.owner = nil
 	}
