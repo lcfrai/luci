@@ -22,6 +22,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
 	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
 	"golang.org/x/sys/windows"
 )
@@ -492,9 +493,15 @@ type windowsManagedModelService struct {
 	content                []*managedModelPinnedFile
 	startupDeadline        time.Time
 	metadataReady          bool
+	cpuVersionVerified     bool
 }
 
 func (platform windowsManagedModelPlatform) start(ctx context.Context, c managedModelConfig, gen uint64) (managedModelService, error) {
+	mode, modeErr := managedmodel.NormalizeExecutionMode(c.ExecutionMode)
+	if modeErr != nil {
+		return nil, &managedModelStartError{code: "model_profile_mismatch", cause: modeErr}
+	}
+	c.ExecutionMode = mode
 	s := &windowsManagedModelService{config: c, host: resourcebudget.NewHostProbe(resourcebudget.ProbeOptions{}), initialHostSample: true, endpoint: "http://127.0.0.1:" + strconv.Itoa(c.Port)}
 	s.startupDeadline, _ = ctx.Deadline()
 	stage := "model_store_unavailable"
@@ -527,28 +534,40 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 		}
 		return fail(e)
 	}
+	if c.ExecutionMode == managedmodel.ExecutionModeCPU && !managedCPUCompatibleBinary(s.binary) {
+		stage = "cpu_binary_unsupported"
+		return fail(errors.New("CPU mode requires the reviewed Ollama build"))
+	}
 	stage = "gpu_binary_untrusted"
+	if c.ExecutionMode == managedmodel.ExecutionModeCPU {
+		stage = "startup_exit"
+	}
 	sys, e := windows.GetSystemDirectory()
 	if e != nil {
 		return fail(e)
 	}
-	s.gpuBinary, e = pinManagedModelBinary(filepath.Join(sys, "nvidia-smi.exe"), "Microsoft Windows Hardware Compatibility Publisher")
-	if e != nil {
-		return fail(e)
-	}
-	stage = "gpu_metadata_unavailable"
-	if e = verifyManagedNVIDIAMetadata(s.gpuBinary.path); e != nil {
-		return fail(e)
+	if c.ExecutionMode == managedmodel.ExecutionModeGPU {
+		stage = "gpu_binary_untrusted"
+		s.gpuBinary, e = pinManagedModelBinary(filepath.Join(sys, "nvidia-smi.exe"), "Microsoft Windows Hardware Compatibility Publisher")
+		if e != nil {
+			return fail(e)
+		}
+		stage = "gpu_metadata_unavailable"
+		if e = verifyManagedNVIDIAMetadata(s.gpuBinary.path); e != nil {
+			return fail(e)
+		}
 	}
 	stage = "startup_exit"
 	s.diagnostics, e = newManagedModelPipe(nil)
 	if e != nil {
 		return fail(e)
 	}
-	stage = "gpu_pipe_unavailable"
-	s.gpuOutput, e = newManagedModelPipe(s.gpu.line)
-	if e != nil {
-		return fail(e)
+	if c.ExecutionMode == managedmodel.ExecutionModeGPU {
+		stage = "gpu_pipe_unavailable"
+		s.gpuOutput, e = newManagedModelPipe(s.gpu.line)
+		if e != nil {
+			return fail(e)
+		}
 	}
 	stage = "startup_exit"
 	root, e := windows.GetWindowsDirectory()
@@ -570,31 +589,38 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 	env["OLLAMA_DEBUG"] = "0"
 	env["OLLAMA_DEBUG_LOG_REQUESTS"] = "false"
 	env["OLLAMA_MAX_TRANSFER_STREAMS"] = "1"
+	if c.ExecutionMode == managedmodel.ExecutionModeCPU {
+		managedCPUEnvironment(env)
+	}
 	// Refuse every preexisting listener. A free-port race is detected again by
 	// original Job listener membership before any HTTP metadata can be trusted.
 	stage = "port_unavailable"
 	if _, e = managedModelListener(c.Port); !errors.Is(e, os.ErrNotExist) {
 		return fail(errors.New("configured port is already occupied or cannot be observed"))
 	}
-	stage = "gpu_process_unavailable"
-	s.gpuOwner, e = startManagedModelProcess(ctx, managedModelProcessSpec{inheritEnvironment: true, stdout: s.gpuOutput.write, executable: s.gpuBinary.path, directory: sys, args: []string{"--query-gpu=uuid,memory.total,memory.free", "--format=csv,noheader,nounits", "--loop-ms=1000"}, generation: gen, limits: managedModelLimits{jobBytes: 256 << 20, processBytes: 192 << 20, processes: 1, cpuRate: 200, stopTimeout: 30 * time.Second}})
-	if e != nil {
-		return fail(e)
-	}
-	stage = "gpu_pipe_unavailable"
-	if e = s.gpuOutput.closeWriter(); e != nil {
-		return fail(e)
-	}
-	s.host.Sample(ctx)
-	if e = waitManagedGPUStartup(ctx, &s.gpu, s.gpuOwner.observe, s.gpuOutput.observationError, time.Now, func(ctx context.Context, delay time.Duration) error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(delay):
-			return nil
+	if c.ExecutionMode == managedmodel.ExecutionModeGPU {
+		stage = "gpu_process_unavailable"
+		s.gpuOwner, e = startManagedModelProcess(ctx, managedModelProcessSpec{inheritEnvironment: true, stdout: s.gpuOutput.write, executable: s.gpuBinary.path, directory: sys, args: []string{"--query-gpu=uuid,memory.total,memory.free", "--format=csv,noheader,nounits", "--loop-ms=1000"}, generation: gen, limits: managedModelLimits{jobBytes: 256 << 20, processBytes: 192 << 20, processes: 1, cpuRate: 200, stopTimeout: 30 * time.Second}})
+		if e != nil {
+			return fail(e)
 		}
-	}); e != nil {
-		return fail(e)
+		stage = "gpu_pipe_unavailable"
+		if e = s.gpuOutput.closeWriter(); e != nil {
+			return fail(e)
+		}
+		s.host.Sample(ctx)
+		if e = waitManagedGPUStartup(ctx, &s.gpu, s.gpuOwner.observe, s.gpuOutput.observationError, time.Now, func(ctx context.Context, delay time.Duration) error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(delay):
+				return nil
+			}
+		}); e != nil {
+			return fail(e)
+		}
+	} else {
+		s.host.Sample(ctx)
 	}
 	stage = "startup_exit"
 	// Two increasing samples are required for CPU; no fabricated utilization.
@@ -623,12 +649,14 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 		if _, e := observeManagedModelHost(ctx, s.host.Sample, time.Now, waitManagedModelHostRecheck, true, managedHostPreResume, true); e != nil {
 			return e
 		}
-		if e := s.gpu.check(true); e != nil {
-			return e
-		}
-		state, e := s.gpuOwner.observe()
-		if e != nil || state.terminal {
-			return errors.New("original GPU query unavailable before model resume")
+		if c.ExecutionMode == managedmodel.ExecutionModeGPU {
+			if e := s.gpu.check(true); e != nil {
+				return e
+			}
+			state, e := s.gpuOwner.observe()
+			if e != nil || state.terminal {
+				return errors.New("original GPU query unavailable before model resume")
+			}
 		}
 		return ctx.Err()
 	}
@@ -759,12 +787,20 @@ func managedModelPeerPID(buf []byte, serverPort, clientPort int) (uint32, error)
 	return pid, nil
 }
 func (s *windowsManagedModelService) metadata(ctx context.Context, path string, body string, out any) error {
+	if s.config.ExecutionMode == managedmodel.ExecutionModeCPU && !s.cpuVersionVerified && path != "/api/version" {
+		return errors.New("CPU runtime version has not been verified")
+	}
 	return managedModelMetadata(ctx, s.http, s.endpoint, path, body, out, s.listener)
 }
 func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSample, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	result := managedModelSample{}
+	mode, modeErr := managedmodel.NormalizeExecutionMode(s.config.ExecutionMode)
+	if modeErr != nil {
+		result.failure = "model_profile_mismatch"
+		return result, modeErr
+	}
 	phase, initial := managedHostMonitor, s.initialHostSample
 	s.initialHostSample = false
 	if initial {
@@ -775,20 +811,22 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 		result.failure = "host_capacity_unavailable"
 		return result, e
 	}
-	if e := s.gpu.check(false); e != nil {
-		result.failure = "gpu_capacity_unavailable"
-		return result, e
-	}
 	result.at = host.ObservedAt
-	s.gpu.mu.Lock()
-	if s.gpu.at.Before(result.at) {
-		result.at = s.gpu.at
-	}
-	s.gpu.mu.Unlock()
-	gpu, e := s.gpuOwner.observe()
-	if e != nil || gpu.terminal {
-		result.failure = "gpu_observation_unavailable"
-		return result, errors.New("GPU original query exited")
+	if mode == managedmodel.ExecutionModeGPU {
+		if e := s.gpu.check(false); e != nil {
+			result.failure = "gpu_capacity_unavailable"
+			return result, e
+		}
+		s.gpu.mu.Lock()
+		if s.gpu.at.Before(result.at) {
+			result.at = s.gpu.at
+		}
+		s.gpu.mu.Unlock()
+		gpu, e := s.gpuOwner.observe()
+		if e != nil || gpu.terminal {
+			result.failure = "gpu_observation_unavailable"
+			return result, errors.New("GPU original query exited")
+		}
 	}
 	owner, e := s.owner.observe()
 	if e != nil || owner.terminal {
@@ -801,6 +839,12 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 	}
 	if e = s.listener(); e != nil {
 		return s.listenerFailure(result, e)
+	}
+	if s.config.ExecutionMode == managedmodel.ExecutionModeCPU && !s.cpuVersionVerified {
+		if e = managedCPUVersion(ctx, s.metadata); e != nil {
+			return s.cpuVersionFailure(result, e)
+		}
+		s.cpuVersionVerified = true
 	}
 	var tags struct {
 		Models []struct {
@@ -845,12 +889,7 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 		return result, managedObservationFailure("show", "profile_mismatch", nil, 0)
 	}
 	var loaded struct {
-		Models []struct {
-			Name    string `json:"name"`
-			Digest  string `json:"digest"`
-			Context int    `json:"context_length"`
-			VRAM    uint64 `json:"size_vram"`
-		} `json:"models"`
+		Models []managedLoadedModel `json:"models"`
 	}
 	if e = s.metadata(ctx, "/api/ps", "", &loaded); e != nil {
 		return s.metadataFailure(result, e)
@@ -860,7 +899,7 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 		return result, managedObservationFailure("ps", "loaded_count_mismatch", nil, 0)
 	}
 	for _, m := range loaded.Models {
-		if m.Name != s.config.Model || m.Digest != digest || m.Context != 16384 || m.VRAM == 0 {
+		if !managedLoadedModelMatches(s.config, digest, m) {
 			result.failure = "loaded_model_profile_mismatch"
 			return result, managedObservationFailure("ps", "loaded_profile_mismatch", nil, 0)
 		}

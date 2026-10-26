@@ -27,6 +27,7 @@ type managedModelConfig struct {
 	ModelStore     string               `json:"modelStore,omitempty"`
 	Port           int                  `json:"port"`
 	Model          string               `json:"model"`
+	ExecutionMode  string               `json:"executionMode"`
 	Profile        managedmodel.Profile `json:"profile"`
 }
 type managedModelSaved struct {
@@ -92,7 +93,7 @@ func managedObservationDiagnostic(err error) *managedmodel.ObservationDiagnostic
 		return nil
 	}
 	switch source.Stage {
-	case "listener", "peer", "tags", "show", "ps":
+	case "listener", "peer", "version", "tags", "show", "ps":
 	default:
 		return nil
 	}
@@ -145,6 +146,7 @@ type managedModelManager struct {
 func newManagedModelManager(g *Gateway) (*managedModelManager, error) {
 	m := &managedModelManager{gateway: g, path: filepath.Join(g.dir, "managed-local-model-status.json"), status: managedmodel.Status{State: "disabled", Generation: "0", ObservedAt: time.Now().UTC()}}
 	m.saved.Config.Profile = managedmodel.FixedProfile()
+	m.saved.Config.ExecutionMode = managedmodel.ExecutionModeGPU
 	var random [32]byte
 	if _, err := rand.Read(random[:]); err != nil {
 		return nil, err
@@ -166,7 +168,11 @@ func newManagedModelManager(g *Gateway) (*managedModelManager, error) {
 		}
 		raw, e := io.ReadAll(io.LimitReader(f, 16385))
 		closeErr := f.Close()
-		if e != nil || closeErr != nil || len(raw) > 16384 || json.Unmarshal(raw, &m.saved) != nil || m.saved.Revision < 1 || validateManagedModelConfig(m.saved.Config) != nil {
+		if e != nil || closeErr != nil || len(raw) > 16384 {
+			return nil, errors.New("saved managed model configuration cannot be verified")
+		}
+		m.saved, err = decodeManagedModelSaved(raw)
+		if err != nil {
 			return nil, errors.New("saved managed model configuration cannot be verified")
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -195,10 +201,45 @@ func newManagedModelManager(g *Gateway) (*managedModelManager, error) {
 	return m, nil
 }
 func validateManagedModelConfig(c managedModelConfig) error {
-	if c.Profile != managedmodel.FixedProfile() || c.Port < 1024 || c.Port > 65535 || c.Model == "" || len(c.Model) > 200 || strings.ContainsAny(c.Model, "\x00\r\n\t \\/") || !filepath.IsAbs(c.ExecutablePath) || filepath.Clean(c.ExecutablePath) != c.ExecutablePath || !filepath.IsAbs(c.ModelStore) || filepath.Clean(c.ModelStore) != c.ModelStore || !strings.EqualFold(filepath.Base(c.ExecutablePath), "ollama.exe") {
+	profile, err := managedmodel.ProfileForExecutionMode(c.ExecutionMode)
+	if err != nil || c.Profile != profile || c.Port < 1024 || c.Port > 65535 || c.Model == "" || len(c.Model) > 200 || strings.ContainsAny(c.Model, "\x00\r\n\t \\/") || !filepath.IsAbs(c.ExecutablePath) || filepath.Clean(c.ExecutablePath) != c.ExecutablePath || !filepath.IsAbs(c.ModelStore) || filepath.Clean(c.ModelStore) != c.ModelStore || !strings.EqualFold(filepath.Base(c.ExecutablePath), "ollama.exe") {
 		return errors.New("Choose an installed Ollama executable, an existing model store, a local port and an installed model.")
 	}
 	return nil
+}
+
+func managedModelRequestedExecutionMode(raw json.RawMessage) (string, error) {
+	if len(raw) == 0 {
+		return managedmodel.ExecutionModeGPU, nil
+	}
+	var mode string
+	if json.Unmarshal(raw, &mode) != nil || mode == "" {
+		return "", errors.New("invalid managed model execution mode")
+	}
+	return managedmodel.NormalizeExecutionMode(mode)
+}
+
+func decodeManagedModelSaved(raw []byte) (managedModelSaved, error) {
+	// Retain the original GPU profile for legacy files, but use field presence
+	// rather than a preseeded string to distinguish omission from null/empty.
+	saved := managedModelSaved{Config: managedModelConfig{Profile: managedmodel.FixedProfile()}}
+	var fields struct {
+		Config struct {
+			ExecutionMode json.RawMessage `json:"executionMode"`
+		} `json:"config"`
+	}
+	if len(raw) > 16384 || json.Unmarshal(raw, &saved) != nil || json.Unmarshal(raw, &fields) != nil || saved.Revision < 1 {
+		return managedModelSaved{}, errors.New("invalid saved managed model configuration")
+	}
+	mode, err := managedModelRequestedExecutionMode(fields.Config.ExecutionMode)
+	if err != nil {
+		return managedModelSaved{}, err
+	}
+	saved.Config.ExecutionMode = mode
+	if err = validateManagedModelConfig(saved.Config); err != nil {
+		return managedModelSaved{}, err
+	}
+	return saved, nil
 }
 func (m *managedModelManager) publishLocked() error {
 	if m.platform == nil {
@@ -272,18 +313,25 @@ func (g *Gateway) saveManagedModel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var q struct {
-		ExpectedRevision int    `json:"expectedRevision"`
-		Enabled          bool   `json:"enabled"`
-		StartWithLuci    bool   `json:"startWithLuci"`
-		ExecutablePath   string `json:"executablePath"`
-		ModelStore       string `json:"modelStore"`
-		Port             int    `json:"port"`
-		Model            string `json:"model"`
+		ExpectedRevision int             `json:"expectedRevision"`
+		Enabled          bool            `json:"enabled"`
+		StartWithLuci    bool            `json:"startWithLuci"`
+		ExecutablePath   string          `json:"executablePath"`
+		ModelStore       string          `json:"modelStore"`
+		Port             int             `json:"port"`
+		Model            string          `json:"model"`
+		ExecutionMode    json.RawMessage `json:"executionMode"`
 	}
 	if !decode(w, r, &q) {
 		return
 	}
-	c := managedModelConfig{Enabled: q.Enabled, StartWithLuci: q.StartWithLuci, ExecutablePath: q.ExecutablePath, ModelStore: q.ModelStore, Port: q.Port, Model: q.Model, Profile: managedmodel.FixedProfile()}
+	mode, err := managedModelRequestedExecutionMode(q.ExecutionMode)
+	if err != nil {
+		fail(w, 400, "invalid_managed_model", "Choose GPU or CPU for the managed model.")
+		return
+	}
+	profile, _ := managedmodel.ProfileForExecutionMode(mode)
+	c := managedModelConfig{Enabled: q.Enabled, StartWithLuci: q.StartWithLuci, ExecutablePath: q.ExecutablePath, ModelStore: q.ModelStore, Port: q.Port, Model: q.Model, ExecutionMode: mode, Profile: profile}
 	if err := validateManagedModelConfig(c); err != nil {
 		fail(w, 400, "invalid_managed_model", err.Error())
 		return

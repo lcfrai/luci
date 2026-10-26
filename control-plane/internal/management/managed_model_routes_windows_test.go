@@ -52,7 +52,7 @@ func TestManagedModelSetupSaveIsScopedRevisionedAndHasNoLaunchSideEffect(t *test
 		Config               managedModelConfig
 		Status               managedmodel.Status
 	}
-	if json.Unmarshal(w.Body.Bytes(), &snapshot) != nil || !snapshot.Available || !snapshot.CanManage || snapshot.Revision != 1 || snapshot.Status.State != "stopped" || snapshot.Status.Generation != "0" {
+	if json.Unmarshal(w.Body.Bytes(), &snapshot) != nil || !snapshot.Available || !snapshot.CanManage || snapshot.Revision != 1 || snapshot.Status.State != "stopped" || snapshot.Status.Generation != "0" || snapshot.Config.ExecutionMode != "gpu" || snapshot.Config.Profile != managedmodel.FixedProfile() {
 		t.Fatal("mutation did not return the agreed full snapshot", w.Body.String())
 	}
 	if m.owner != nil || m.done != nil || m.saved.AuthorizingActorID != "admin" {
@@ -60,6 +60,91 @@ func TestManagedModelSetupSaveIsScopedRevisionedAndHasNoLaunchSideEffect(t *test
 	}
 	if w = modelRequest(g, "POST", "/v1/setup/local-model", "admin", "admin", body); w.Code != 409 || m.saved.Revision != 1 {
 		t.Fatal("stale revision overwrote config")
+	}
+}
+
+func TestManagedModelExecutionModeSaveIsExplicitStoppedAndRevisionBound(t *testing.T) {
+	g, m := managedRouteFixture(t)
+	body := map[string]any{"expectedRevision": 0, "enabled": true, "startWithLuci": false, "executablePath": `C:\Tools\Ollama\ollama.exe`, "modelStore": `E:\Models`, "port": 24567, "model": "installed:latest", "executionMode": "cpu"}
+	for _, tc := range []struct {
+		name string
+		mode any
+	}{
+		{"automatic_fallback", "auto"},
+		{"unknown_case", "CPU"},
+		{"null", nil},
+		{"empty", ""},
+		{"non_string", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body["executionMode"] = tc.mode
+			if w := modelRequest(g, "POST", "/v1/setup/local-model", "admin", "admin", body); w.Code != 400 || m.saved.Revision != 0 || m.owner != nil || m.done != nil {
+				t.Fatal("invalid mode changed settings or started a provider", w.Code)
+			}
+		})
+	}
+	body["executionMode"] = "cpu"
+	w := modelRequest(g, "POST", "/v1/setup/local-model", "admin", "admin", body)
+	profile, _ := managedmodel.ProfileForExecutionMode("cpu")
+	if w.Code != 200 || m.saved.Revision != 1 || m.saved.Config.ExecutionMode != "cpu" || m.saved.Config.Profile != profile || m.saved.Config.Model != "installed:latest" || m.owner != nil || m.done != nil || m.status.State != "stopped" {
+		t.Fatal("CPU save changed the alias, started work or failed to bind its profile", w.Code, w.Body.String())
+	}
+	body["executionMode"] = "gpu"
+	if w = modelRequest(g, "POST", "/v1/setup/local-model", "admin", "admin", body); w.Code != 409 || m.saved.Config.ExecutionMode != "cpu" {
+		t.Fatal("stale revision replaced the CPU profile")
+	}
+	body["expectedRevision"] = 1
+	m.done = make(chan struct{})
+	if w = modelRequest(g, "POST", "/v1/setup/local-model", "admin", "admin", body); w.Code != 409 || m.saved.Config.ExecutionMode != "cpu" {
+		t.Fatal("active lifecycle permitted a mode change")
+	}
+	m.done = nil
+	w = modelRequest(g, "POST", "/v1/setup/local-model", "member", "member", body)
+	if w.Code != 403 || m.saved.Revision != 1 {
+		t.Fatal("mode change widened host authority")
+	}
+	delete(body, "executionMode")
+	w = modelRequest(g, "POST", "/v1/setup/local-model", "admin", "admin", body)
+	if w.Code != 200 || m.saved.Revision != 2 || m.saved.Config.ExecutionMode != "gpu" || m.saved.Config.Profile != managedmodel.FixedProfile() {
+		t.Fatal("legacy omission did not retain the original GPU contract")
+	}
+}
+
+func TestManagedSavedExecutionModeDistinguishesLegacyFromInvalidPresence(t *testing.T) {
+	cpu, _ := managedmodel.ProfileForExecutionMode("cpu")
+	for _, tc := range []struct {
+		name, expected string
+		mode           any
+		omitted        bool
+		profile        managedmodel.Profile
+		allow          bool
+	}{
+		{"legacy_missing", "gpu", nil, true, managedmodel.FixedProfile(), true},
+		{"explicit_gpu", "gpu", "gpu", false, managedmodel.FixedProfile(), true},
+		{"explicit_cpu", "cpu", "cpu", false, cpu, true},
+		{"null", "", nil, false, managedmodel.FixedProfile(), false},
+		{"empty", "", "", false, managedmodel.FixedProfile(), false},
+		{"unknown", "", "auto", false, managedmodel.FixedProfile(), false},
+		{"cpu_with_gpu_profile", "", "cpu", false, managedmodel.FixedProfile(), false},
+		{"gpu_with_cpu_profile", "", "gpu", false, cpu, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := map[string]any{"enabled": true, "startWithLuci": true, "executablePath": `C:\Installed\ollama.exe`, "modelStore": `E:\InstalledModels`, "port": 11435, "model": "installed:latest", "profile": tc.profile}
+			if !tc.omitted {
+				config["executionMode"] = tc.mode
+			}
+			raw, err := json.Marshal(map[string]any{"revision": 7, "authorizingActorId": "host-admin", "config": config})
+			if err != nil {
+				t.Fatal(err)
+			}
+			saved, err := decodeManagedModelSaved(raw)
+			if (err == nil) != tc.allow {
+				t.Fatal("persisted invalid mode was defaulted or legacy mode lost", err)
+			}
+			if tc.allow && (saved.Revision != 7 || saved.AuthorizingActorID != "host-admin" || saved.Config.ExecutionMode != tc.expected || saved.Config.Profile != tc.profile || saved.Config.Model != "installed:latest" || !saved.Config.StartWithLuci) {
+				t.Fatal("mode normalization changed persisted identity, profile or autostart intent")
+			}
+		})
 	}
 }
 func TestManagedModelStatusRedactsPathsAndCurrentActorRevocationBlocksStart(t *testing.T) {

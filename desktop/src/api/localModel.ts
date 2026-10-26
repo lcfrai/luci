@@ -1,3 +1,5 @@
+export type LocalModelExecutionMode = "gpu" | "cpu";
+
 export interface LocalModelProfile {
   contextTokens: number;
   kvCacheType: string;
@@ -11,6 +13,8 @@ export interface LocalModelProfile {
 export interface LocalModelConfiguration {
   enabled: boolean;
   startWithLuci: boolean;
+  // Missing legacy configuration retains GPU mode.
+  executionMode?: LocalModelExecutionMode;
   // The service projects paths only to the current host administrator.
   executablePath?: string;
   modelStore?: string;
@@ -54,6 +58,7 @@ export interface LocalModelSave {
   expectedRevision: number;
   enabled: boolean;
   startWithLuci: boolean;
+  executionMode: LocalModelExecutionMode;
   executablePath: string;
   modelStore: string;
   port: number;

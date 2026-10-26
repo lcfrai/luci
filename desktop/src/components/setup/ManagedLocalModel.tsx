@@ -1,16 +1,19 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { errorText, type AgentConnection, type ProductClient } from "../../api/product";
-import type { LocalModelHostCapacity, LocalModelObservation, LocalModelSave, LocalModelSnapshot } from "../../api/localModel";
+import type { LocalModelExecutionMode, LocalModelHostCapacity, LocalModelObservation, LocalModelSave, LocalModelSnapshot } from "../../api/localModel";
 import { selectedTeamId, teamScopeGeneration, TEAM_WORKSPACE_CHANGED } from "../../api/teamScope";
 import { AGENT_CONNECTIONS_CHANGED } from "../../hooks/useAgentConnections";
 import { useAuth } from "../auth/AuthProvider";
 import { Button } from "../fluid/components/button";
 
 type Draft = Omit<LocalModelSave, "expectedRevision">;
-const emptyDraft = (): Draft => ({ enabled: true, startWithLuci: false, executablePath: "", modelStore: "", port: 11435, model: "" });
+const executionMode = (value: unknown): LocalModelExecutionMode | null => value === undefined || value === "gpu" ? "gpu" : value === "cpu" ? "cpu" : null;
+const modeLabel = (value: unknown) => executionMode(value) === "cpu" ? "CPU · slower" : executionMode(value) === "gpu" ? "GPU" : "Unconfirmed";
+const emptyDraft = (): Draft => ({ enabled: true, startWithLuci: false, executionMode: "gpu", executablePath: "", modelStore: "", port: 11435, model: "" });
 const draftFrom = (snapshot: LocalModelSnapshot): Draft => snapshot.config ? {
   enabled: snapshot.config.enabled,
   startWithLuci: snapshot.config.startWithLuci,
+  executionMode: executionMode(snapshot.config.executionMode) ?? "gpu",
   executablePath: snapshot.config.executablePath ?? "",
   modelStore: snapshot.config.modelStore ?? "",
   port: snapshot.config.port,
@@ -38,6 +41,8 @@ const failureMessages: Record<string, string> = {
   gpu_sample_missing: "Luci did not confirm GPU capacity within five seconds. No model was started.",
   gpu_sample_stale: "The GPU capacity check did not produce a current observation. No model was started.",
   gpu_capacity_low: "The GPU needs at least 6 GiB of free memory to start this model. Close other GPU work before trying again.",
+  cpu_binary_unsupported: "Luci has not verified CPU mode for this installed Ollama version. Model startup is paused.",
+  cpu_runtime_unsupported: "Luci could not confirm this model server’s CPU mode. Model startup is paused.",
   binary_unavailable: "Luci cannot find the saved Ollama application. Check its location.",
   binary_untrusted: "Luci could not verify the saved Ollama application’s identity and publisher.",
   model_store_unavailable: "Luci cannot access the saved model folder. Check its location and permissions.",
@@ -66,7 +71,7 @@ function capacityMessage(detail?: LocalModelHostCapacity): string {
 
 const observationStages: Record<string, string> = {
   listener: "Local port", peer: "Server connection", tags: "Installed models",
-  show: "Model settings", ps: "Loaded models",
+  show: "Model settings", ps: "Loaded models", version: "Server version",
 };
 const observationReasons: Record<string, { label: string; message: string }> = {
   ownership_unavailable: { label: "Connection could not be verified", message: "Luci could not verify its connection to the model server. Refresh its status before starting again." },
@@ -98,6 +103,7 @@ const capacityBytes = (value: number | null) => Number.isSafeInteger(value) && v
 
 function usable(snapshot: LocalModelSnapshot | null): snapshot is LocalModelSnapshot {
   if (!snapshot?.available || !snapshot.config?.enabled || !["available", "loaded"].includes(snapshot.status.state)) return false;
+  if (executionMode(snapshot.config.executionMode) === null) return false;
   const age = Date.now() - Date.parse(snapshot.status.observedAt);
   return Number.isFinite(age) && age >= -1000 && age <= 5000 && !!snapshot.status.endpoint && snapshot.status.model === snapshot.config.model;
 }
@@ -141,7 +147,7 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
       const result = await client.localModel(signal);
       if (!current()) return;
       setSnapshot(result); setObservationError("");
-      if ((!initialized.current || replaceDraft) && editSequence === edits.current) {
+      if ((!initialized.current || replaceDraft) && editSequence === edits.current && (!result.config || executionMode(result.config.executionMode) !== null)) {
         initialized.current = true;
         setDraft(draftFrom(result)); setDraftRevision(result.revision); setDirty(false);
       }
@@ -169,6 +175,7 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
 
   async function change(action: "save" | "start" | "stop") {
     if (working.current || !snapshot?.canManage || !inCurrentWorkspace()) return;
+    if (action !== "stop" && snapshot.config && executionMode(snapshot.config.executionMode) === null) return;
     const generation = lifetime.current;
     const current = () => generation === lifetime.current && inCurrentWorkspace();
     working.current = true; readNumber.current++; setBusy(action); setError(""); setNotice("");
@@ -180,6 +187,7 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
       if (!current()) return;
       setSnapshot(result); setObservationError("");
       if (action === "save") {
+        if (result.config && executionMode(result.config.executionMode) === null) return;
         setDraft(draftFrom(result)); setDraftRevision(result.revision); setDirty(false);
         setNotice("Configuration saved. The model has not been started or downloaded.");
       }
@@ -228,7 +236,8 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
   if (!inPersonalLocalWorkspace || (snapshot && !snapshot.available)) return null;
   const state = snapshot?.status.state;
   const active = !!state && runningStates.has(state);
-  const configurationLocked = active || state === "unknown";
+  const modeUnavailable = !!snapshot?.config && executionMode(snapshot.config.executionMode) === null;
+  const configurationLocked = active || state === "unknown" || modeUnavailable;
   const staleDraft = snapshot !== null && snapshot.revision !== draftRevision;
   const canStart = !!snapshot?.canManage && !!snapshot.config?.enabled && !configurationLocked && !dirty && !staleDraft && !error && !observationError;
   const canStop = !!snapshot?.canManage && !!snapshot.status.generation && /^(?:[1-9]\d{0,19})$/.test(snapshot.status.generation) && state !== "stopped" && state !== "disabled" && state !== "unknown";
@@ -238,12 +247,13 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
   const observation = observationDetail(failure?.observation);
   const setField = <K extends keyof Draft>(key: K, value: Draft[K]) => { edits.current++; setDraft(previous => ({ ...previous, [key]: value })); setDirty(true); setNotice(""); };
   return <section className="setup-plan managed-local-model" aria-label="Local model" aria-busy={!!busy}>
-    <div className="local-model-heading"><div><h2>Local model</h2><p>Run an installed Ollama model on this PC. Luci manages its process and resource limits.</p></div><span role="status" className="local-model-state">{observationFailed ? "Status unavailable" : snapshot ? stateLabels[snapshot.status.state] ?? "Status unconfirmed" : "Checking availability…"}</span></div>
-    {snapshot?.config && <div className="local-model-summary"><div><span>Model</span><strong>{snapshot.config.model}</strong></div><div><span>Context</span><strong>{snapshot.config.profile.contextTokens.toLocaleString()} tokens</strong></div><div><span>Starts with Luci</span><strong>{snapshot.config.startWithLuci ? "On" : "Off"}</strong></div></div>}
-    {!observationFailed && state === "available" && <p className="journey-muted">The server is available. The model loads when a session needs it.</p>}
-    {!observationFailed && state === "loaded" && <p className="journey-muted">The configured model is currently loaded. A completed task still needs its own checks.</p>}
+    <div className="local-model-heading"><div><h2>Local model</h2><p>Run an installed Ollama model on this PC. Luci manages its process and resource limits.</p></div><span role="status" className="local-model-state">{observationFailed ? "Status unavailable" : modeUnavailable ? "Status unconfirmed" : snapshot ? stateLabels[snapshot.status.state] ?? "Status unconfirmed" : "Checking availability…"}</span></div>
+    {snapshot?.config && <div className="local-model-summary"><div><span>Model</span><strong>{snapshot.config.model}</strong></div><div><span>Run on</span><strong>{modeLabel(snapshot.config.executionMode)}</strong></div><div><span>Context</span><strong>{snapshot.config.profile.contextTokens.toLocaleString()} tokens</strong></div><div><span>Starts with Luci</span><strong>{snapshot.config.startWithLuci ? "On" : "Off"}</strong></div></div>}
+    {!observationFailed && !modeUnavailable && state === "available" && <p className="journey-muted">The server is available. The model loads when a session needs it.</p>}
+    {!observationFailed && !modeUnavailable && state === "loaded" && <p className="journey-muted">The configured model is currently loaded. A completed task still needs its own checks.</p>}
     {state === "unknown" && <p role="alert" className="journey-error">Luci cannot confirm the previous process has closed. Starting a replacement is disabled.</p>}
-    {(failure || error || observationError) && <div role="alert" className="journey-error">
+    {(failure || error || observationError || modeUnavailable) && <div role="alert" className="journey-error">
+      {modeUnavailable && <p>The saved model mode is not supported. Refresh model status before starting.</p>}
       {failure && <p>{capacity ? capacityMessage(capacity) : observation?.message ?? failureMessages[failure.code] ?? "The local model service needs attention. Check its configuration and refresh its status."}{failure.exitCode !== undefined ? ` Exit code: ${failure.exitCode}.` : ""}</p>}
       {error && <p>{error}</p>}
       {observationError && <p>{observationError}</p>}
@@ -275,6 +285,10 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
           <p>Use the exact installed model name, including its tag. This service requires a model prepared with a 16,384-token context. It does not download or prepare models from this form.</p>
         </details>
         <div className="setup-field-grid">
+          <label className="luci-field" style={{ gridColumn: "1 / -1" }}>Run on<select aria-label="Run on" aria-describedby={`${helpId}-mode`} value={modeUnavailable ? "" : draft.executionMode} onChange={event => { const mode = executionMode(event.target.value); if (mode) setField("executionMode", mode); }}>
+            {modeUnavailable && <option value="" disabled>Unconfirmed</option>}
+            <option value="gpu">GPU</option><option value="cpu">CPU · slower</option>
+          </select><small id={`${helpId}-mode`}>{modeUnavailable ? "Refresh model status to confirm the saved mode." : draft.executionMode === "cpu" ? "CPU uses system memory and may take longer." : "GPU requires free graphics memory. Save your choice before starting."}</small></label>
           <label className="luci-field">Ollama application<input aria-label="Ollama application" aria-describedby={`${helpId}-application`} required autoComplete="off" spellCheck={false} value={draft.executablePath} onChange={event => setField("executablePath", event.target.value)} /><small id={`${helpId}-application`}>The installed Ollama executable on this PC.</small></label>
           <label className="luci-field">Model folder<input aria-label="Model folder" aria-describedby={`${helpId}-folder`} required autoComplete="off" spellCheck={false} value={draft.modelStore} onChange={event => setField("modelStore", event.target.value)} /><small id={`${helpId}-folder`}>The existing folder containing the installed model.</small></label>
           <label className="luci-field">Installed model<input aria-label="Installed model" aria-describedby={`${helpId}-model`} required autoComplete="off" spellCheck={false} value={draft.model} onChange={event => setField("model", event.target.value)} /><small id={`${helpId}-model`}>Exact model name configured for a 16k context.</small></label>

@@ -69,6 +69,35 @@ type Profile struct {
 
 func FixedProfile() Profile { return Profile{16384, "q8_0", true, 1, 7168, 6656, 20} }
 
+const (
+	ExecutionModeGPU = "gpu"
+	ExecutionModeCPU = "cpu"
+)
+
+// An absent mode is the original GPU profile, never an automatic fallback.
+func NormalizeExecutionMode(mode string) (string, error) {
+	switch mode {
+	case "", ExecutionModeGPU:
+		return ExecutionModeGPU, nil
+	case ExecutionModeCPU:
+		return ExecutionModeCPU, nil
+	default:
+		return "", errors.New("unsupported managed model execution mode")
+	}
+}
+
+func ProfileForExecutionMode(mode string) (Profile, error) {
+	mode, err := NormalizeExecutionMode(mode)
+	if err != nil {
+		return Profile{}, err
+	}
+	profile := FixedProfile()
+	if mode == ExecutionModeCPU {
+		profile.KVCacheType, profile.FlashAttention = "f16", false
+	}
+	return profile, nil
+}
+
 type Failure struct {
 	Code         string                  `json:"code"`
 	ExitCode     *uint32                 `json:"exitCode,omitempty"`

@@ -64,6 +64,8 @@ func managedMetadataRequestFailure(stage, fallback string, cause error, status i
 func managedModelMetadata(ctx context.Context, client *http.Client, endpoint, path, body string, out any, verify func() error) (err error) {
 	stage := ""
 	switch path {
+	case "/api/version":
+		stage = "version"
 	case "/api/tags":
 		stage = "tags"
 	case "/api/show":
