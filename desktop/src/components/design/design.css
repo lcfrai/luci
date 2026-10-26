@@ -1,5 +1,8 @@
 @import "../../styles/tokens.css";
 .design-workspace { max-inline-size: 1400px; margin-inline: auto; }
+.design-workspace > .journey-header { flex-wrap: wrap; }
+.design-workspace > .journey-header > div { flex: 1 1 auto; }
+.design-workspace > .journey-header > .journey-revision { flex: 0 0 auto; white-space: nowrap; }
 .design-plan-layout { display: grid; grid-template-columns: minmax(0,1fr) 280px; gap: 36px; align-items: start; }
 .design-plan-content { min-inline-size: 0; }
 .design-pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }

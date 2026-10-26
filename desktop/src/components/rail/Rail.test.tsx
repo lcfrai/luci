@@ -227,6 +227,21 @@ describe("Rail", () => {
     expect(screen.getByRole("button", { name: "Create project" })).not.toBeNull();
   });
 
+  it('announces a pending verified catalogue instead of claiming the newly selected project does not exist', () => {
+    seed({selection: {projectId: project.id, branchId: null, worktreeId: null, sessionId: null}});
+    projectHome.value = {...verifiedHome(), home: null, busy: true, activityAvailable: false};
+    const page = render(<Rail />);
+    expect(within(screen.getByRole('region', {name: 'Projects'})).getByRole('status').textContent).toBe('Loading projects…');
+    expect(screen.queryByText(/No projects yet/)).toBeNull();
+    expect(screen.queryByRole('treeitem', {name: /engagement-portal/})).toBeNull();
+    projectHome.value = verifiedHome();
+    page.rerender(<Rail />);
+    expect(screen.queryByText('Loading projects…')).toBeNull();
+    const current = screen.getByRole('group', {name: 'Current project'});
+    expect(within(current).getByRole('treeitem', {name: /engagement-portal/})).not.toBeNull();
+    expect(projectHome.value.pin).not.toHaveBeenCalled();
+  });
+
   it("retains tree navigation when projects arrive and returns to a labelled region after the last project disappears", async () => {
     seed({ projects: [] });
     render(<Rail />);

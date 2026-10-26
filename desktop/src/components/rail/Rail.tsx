@@ -253,7 +253,7 @@ export function Rail({
         }}
       >
         {allowed.length === 0 ? (
-          <p className="rail-empty">{home && !home.home ? home.error ? 'Project activity is unavailable. Refresh activity in Home to verify your projects.' : 'Loading project activity…' : canCreate
+          <p className="rail-empty" role={home && !home.home ? 'status' : undefined}>{home && !home.home ? home.error ? 'Project activity is unavailable. Refresh activity in Home to verify your projects.' : 'Loading projects…' : canCreate
               ? "No projects yet. Create a project or import a repository from your projects home."
               : "No projects shared yet. Ask your team administrator to share a project."}</p>
         ) : <>

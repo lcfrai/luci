@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { projectHomeApi, type ProjectHome } from '../../api/projectHome';
 import { ApiError } from '../../api/client';
 import { useProjectDraftScope } from '../../hooks/useProjectDraft';
@@ -16,10 +16,14 @@ export const useProjectHome = () => useContext(ProjectHomeContext);
 export function ProjectHomeProvider({ children }: {children: ReactNode}) {
   const scope = useProjectDraftScope('home');
   const catalogueEpoch = useCockpit(state => state.projectCatalogueEpoch);
+  const projects = useCockpit(state => state.projects);
+  // Membership changes need a fresh authorized projection. Catalogue reordering,
+  // renaming and ordinary selection changes must not restart the polling loop.
+  const catalogueIDs = useMemo(() => JSON.stringify([...new Set(projects.map(project => project.id))].sort()), [projects]);
   const selectedProjectId = useCockpit(state => state.selection.projectId);
   const pendingNavigation = useCockpit(state => state.pendingNavigation);
-  const [snapshot, setSnapshot] = useState<{scope: string; epoch: number; value: ProjectHome} | null>(null);
-  const home = snapshot?.scope === scope && snapshot.epoch === catalogueEpoch ? snapshot.value : null;
+  const [snapshot, setSnapshot] = useState<{scope: string; epoch: number; catalogueIDs: string; value: ProjectHome} | null>(null);
+  const home = snapshot?.scope === scope && snapshot.epoch === catalogueEpoch && snapshot.catalogueIDs === catalogueIDs ? snapshot.value : null;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -30,7 +34,10 @@ export function ProjectHomeProvider({ children }: {children: ReactNode}) {
   const pendingOpen = useRef<{projectId: string; stopIds: string[]} | null>(null);
   const refresh = useCallback(() => setRefreshKey(value => value + 1), []);
   useEffect(() => {
-    setSnapshot(null); setError(''); pendingOpen.current = null;
+    setSnapshot(null); setError('');
+  }, [scope, catalogueEpoch, catalogueIDs]);
+  useEffect(() => {
+    pendingOpen.current = null;
   }, [scope, catalogueEpoch]);
   useEffect(() => {
     if (!scope) return;
@@ -41,10 +48,10 @@ export function ProjectHomeProvider({ children }: {children: ReactNode}) {
       active = true; setBusy(true);
       try {
         const value = await projectHomeApi.getAll(controller.signal);
-        if (!controller.signal.aborted) { setSnapshot({scope, epoch: catalogueEpoch, value}); setError(''); }
+        if (!controller.signal.aborted) { setSnapshot({scope, epoch: catalogueEpoch, catalogueIDs, value}); setError(''); }
       } catch (cause) {
         if (!controller.signal.aborted) {
-          // Preserve only already verified names in this exact scope/epoch for
+          // Preserve only already verified names in this exact scope/epoch/catalogue for
           // transport/server outages. Denials and invalid responses still fail closed.
           const transient = cause instanceof ApiError &&
             ((cause.status === 0 && (cause.code === 'network_unavailable' || cause.code === 'timeout')) || (cause.status >= 500 && cause.status < 600));
@@ -59,7 +66,7 @@ export function ProjectHomeProvider({ children }: {children: ReactNode}) {
     const visible = () => { if (document.visibilityState === 'visible') { clearTimeout(timer); void load(); } };
     void load(); document.addEventListener('visibilitychange', visible);
     return () => { controller.abort(); clearTimeout(timer); document.removeEventListener('visibilitychange', visible); };
-  }, [scope, catalogueEpoch, refreshKey]);
+  }, [scope, catalogueEpoch, catalogueIDs, refreshKey]);
   useEffect(() => {
     const intent = pendingOpen.current;
     if (!intent || pendingNavigation) return;
