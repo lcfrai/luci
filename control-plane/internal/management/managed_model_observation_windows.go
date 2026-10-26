@@ -99,7 +99,7 @@ func managedModelMetadata(ctx context.Context, client *http.Client, endpoint, pa
 		return managedMetadataRequestFailure(stage, "request_failed", e, response.StatusCode)
 	}
 	if e = verify(); e != nil {
-		return managedObservationFailure("listener", "ownership_unavailable", e, response.StatusCode)
+		return managedListenerObservation("listener", e, response.StatusCode)
 	}
 	if e = ctx.Err(); e != nil {
 		return managedMetadataRequestFailure(stage, "request_failed", e, response.StatusCode)

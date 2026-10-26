@@ -99,7 +99,9 @@ func managedObservationDiagnostic(err error) *managedmodel.ObservationDiagnostic
 	switch source.Reason {
 	case "ownership_unavailable", "request_failed", "cancelled", "timeout", "connect_refused", "connection_lost", "http_status", "response_too_large", "response_read_failed", "response_invalid", "response_close_failed", "parameters_ambiguous", "model_identity_mismatch", "profile_mismatch", "loaded_count_mismatch", "loaded_profile_mismatch":
 	default:
-		return nil
+		if !managedListenerReasonAllowed(source.Reason) || (source.Stage != "listener" && source.Stage != "peer") {
+			return nil
+		}
 	}
 	copy := *source
 	copy.HTTPStatus = nil
@@ -108,6 +110,14 @@ func managedObservationDiagnostic(err error) *managedmodel.ObservationDiagnostic
 		copy.HTTPStatus = &value
 	}
 	return &copy
+}
+
+func managedListenerReasonAllowed(reason string) bool {
+	switch reason {
+	case "listener_missing", "listener_table_size_failed", "listener_table_resize_required", "listener_table_read_failed", "listener_table_invalid", "listener_address_mismatch", "listener_multiple", "listener_pid_unavailable", "owner_stopping", "owner_pid_mismatch", "owner_wait_failed", "owner_exited", "job_query_failed", "owner_not_in_job":
+		return true
+	}
+	return false
 }
 
 type managedModelService interface {

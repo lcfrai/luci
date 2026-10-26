@@ -644,7 +644,7 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 			return nil, errors.New("model endpoint changed")
 		}
 		if e := s.listener(); e != nil {
-			return nil, managedObservationFailure("listener", "ownership_unavailable", e, 0)
+			return nil, managedListenerObservation("listener", e, 0)
 		}
 		conn, e := (&net.Dialer{Timeout: time.Second}).DialContext(ctx, network, address)
 		if e != nil {
@@ -652,7 +652,7 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 		}
 		if e = s.peer(conn); e != nil {
 			closeErr := conn.Close()
-			return nil, managedObservationFailure("peer", "ownership_unavailable", errors.Join(e, closeErr), 0)
+			return nil, managedListenerObservation("peer", errors.Join(e, closeErr), 0)
 		}
 		return conn, nil
 	}}
@@ -661,35 +661,18 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 }
 func managedModelListener(port int) (uint32, error) {
 	proc := windows.NewLazySystemDLL("iphlpapi.dll").NewProc("GetExtendedTcpTable")
-	var n uint32
-	r, _, _ := proc.Call(0, uintptr(unsafe.Pointer(&n)), 0, 2, 3, 0)
-	if r != uintptr(windows.ERROR_INSUFFICIENT_BUFFER) || n < 4 || n > 1<<20 {
-		return 0, errors.New("listener inventory unavailable")
-	}
-	buf := make([]byte, n)
-	r, _, _ = proc.Call(uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&n)), 0, 2, 3, 0)
-	if r != 0 {
-		return 0, errors.New("listener inventory unavailable")
-	}
-	count := binary.LittleEndian.Uint32(buf[:4])
-	if uint64(count)*24+4 > uint64(len(buf)) {
-		return 0, errors.New("listener inventory incomplete")
-	}
-	var pid uint32
-	for i := uint32(0); i < count; i++ {
-		row := buf[4+i*24 : 4+(i+1)*24]
-		p := int(binary.BigEndian.Uint16(row[8:10]))
-		if p == port {
-			if row[4] != 127 || row[5] != 0 || row[6] != 0 || row[7] != 1 || pid != 0 {
-				return 0, errors.New("listener address or multiplicity differs")
-			}
-			pid = binary.LittleEndian.Uint32(row[20:24])
+	buf, err := managedListenerTable(func(buf []byte, size *uint32) uint32 {
+		if len(buf) == 0 {
+			r, _, _ := proc.Call(0, uintptr(unsafe.Pointer(size)), 0, 2, 3, 0)
+			return uint32(r)
 		}
+		r, _, _ := proc.Call(uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(size)), 0, 2, 3, 0)
+		return uint32(r)
+	})
+	if err != nil {
+		return 0, err
 	}
-	if pid == 0 {
-		return 0, os.ErrNotExist
-	}
-	return pid, nil
+	return managedListenerPID(buf, port)
 }
 func (s *windowsManagedModelService) listener() error {
 	pid, e := managedModelListener(s.config.Port)
@@ -702,26 +685,29 @@ func (s *windowsManagedModelService) ownedPID(pid uint32) error {
 	s.owner.mu.Lock()
 	defer s.owner.mu.Unlock()
 	if s.owner.stopRequested || s.owner.process.attempted {
-		return errors.New("model owner is stopping")
+		return managedListenerBranch("owner_stopping", nil)
 	}
 	original := s.owner.latest.Load().(managedModelOwnerStatus)
 	if pid != original.identity.pid {
-		return errors.New("model socket does not belong to original server")
+		return managedListenerBranch("owner_pid_mismatch", nil)
 	}
 	terminal, e := s.owner.kernel.wait(s.owner.process.value, 0)
-	if e != nil || terminal {
-		return errors.New("model original server is not live")
+	if e != nil {
+		return managedListenerBranch("owner_wait_failed", e)
+	}
+	if terminal {
+		return managedListenerBranch("owner_exited", nil)
 	}
 	state, e := s.owner.kernel.jobState(s.owner.job.value)
 	if e != nil {
-		return e
+		return managedListenerBranch("job_query_failed", e)
 	}
 	for _, p := range state.pids {
 		if p == pid {
 			return nil
 		}
 	}
-	return errors.New("model server is outside original owned Job")
+	return managedListenerBranch("owner_not_in_job", nil)
 }
 func (s *windowsManagedModelService) peer(conn net.Conn) error {
 	local, ok := conn.LocalAddr().(*net.TCPAddr)
@@ -814,20 +800,7 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 		return result, errors.New("model original process exited")
 	}
 	if e = s.listener(); e != nil {
-		if errors.Is(e, os.ErrNotExist) {
-			if !s.metadataReady && time.Now().Before(s.startupDeadline) {
-				result.failure = "starting"
-				return result, nil
-			}
-			if !s.metadataReady {
-				result.failure = "startup_timeout"
-			} else {
-				result.failure = "listener_ownership_unavailable"
-			}
-			return result, managedObservationFailure("listener", "ownership_unavailable", e, 0)
-		}
-		result.failure = "listener_ownership_unavailable"
-		return result, managedObservationFailure("listener", "ownership_unavailable", e, 0)
+		return s.listenerFailure(result, e)
 	}
 	var tags struct {
 		Models []struct {
@@ -899,7 +872,7 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 func (s *windowsManagedModelService) metadataFailure(result managedModelSample, e error) (managedModelSample, error) {
 	diagnostic := managedObservationDiagnostic(e)
 	if diagnostic != nil {
-		if diagnostic.Reason == "ownership_unavailable" {
+		if diagnostic.Reason == "ownership_unavailable" || managedListenerReasonAllowed(diagnostic.Reason) {
 			result.failure = "listener_ownership_unavailable"
 		} else if !s.metadataReady && (diagnostic.Reason == "timeout" || diagnostic.Reason == "connect_refused" || diagnostic.Reason == "connection_lost") {
 			if time.Now().Before(s.startupDeadline) {
