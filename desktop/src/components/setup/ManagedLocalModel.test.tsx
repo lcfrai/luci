@@ -212,3 +212,23 @@ it("does not present an old observation as a selectable service", async () => {
   await screen.findByText("Model loaded");
   expect(screen.getByRole("button", { name: "Use for OpenCode" }).matches(":disabled")).toBe(true);
 });
+
+it.each([
+  ["gpu_binary_untrusted", "Luci could not verify the installed NVIDIA tool’s signature. Model startup is paused."],
+  ["gpu_metadata_unavailable", "Luci could not verify the installed NVIDIA tool’s version information. Model startup is paused."],
+  ["gpu_process_unavailable", "Luci could not start or observe its GPU capacity check. No model was started."],
+  ["gpu_process_exited", "The GPU capacity check exited before it produced a usable observation. No model was started."],
+  ["gpu_pipe_unavailable", "Luci could not read the GPU capacity check’s output. No model was started."],
+  ["gpu_sample_invalid", "The GPU capacity check returned invalid or changing device information. No model was started."],
+  ["gpu_sample_missing", "Luci did not confirm GPU capacity within five seconds. No model was started."],
+  ["gpu_sample_stale", "The GPU capacity check did not produce a current observation. No model was started."],
+  ["gpu_capacity_low", "The GPU needs at least 6 GiB of free memory to start this model. Close other GPU work before trying again."],
+] as const)("explains %s without selecting or starting a model", async (code, message) => {
+  const value = snapshot("blocked");
+  value.status.failure = { code, ...(code === "gpu_process_exited" ? { exitCode: 17 } : {}) };
+  const fixture = mount(value);
+  await screen.findByText(code === "gpu_process_exited" ? `${message} Exit code: 17.` : message);
+  expect(screen.getByRole("button", { name: "Use for OpenCode" }).matches(":disabled")).toBe(true);
+  expect(fixture.posts()).toHaveLength(0);
+  expect(screen.queryByText(/private vendor output/)).toBeNull();
+});

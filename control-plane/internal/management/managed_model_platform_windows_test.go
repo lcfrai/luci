@@ -77,6 +77,145 @@ func TestManagedGPUCSVRejectsMissingChangedAndPressureObservations(t *testing.T)
 		t.Fatal("stale GPU admitted")
 	}
 }
+
+func TestManagedGPUStartupUsesFixedDiagnosticsAndOriginalExit(t *testing.T) {
+	start := time.Unix(1000, 0)
+	for _, test := range []struct {
+		name, want        string
+		free              uint64
+		at                time.Time
+		invalid           bool
+		state             managedModelOwnerStatus
+		ownerErr, pipeErr error
+		wait              bool
+	}{
+		{name: "ready", free: 7 << 30, at: start},
+		{name: "missing", want: "gpu_sample_missing", wait: true},
+		{name: "low", want: "gpu_capacity_low", free: 5 << 30, at: start, wait: true},
+		{name: "stale", want: "gpu_sample_stale", free: 7 << 30, at: start.Add(-6 * time.Second), wait: true},
+		{name: "future", want: "gpu_sample_stale", free: 7 << 30, at: start.Add(time.Minute), wait: true},
+		{name: "invalid", want: "gpu_sample_invalid", invalid: true},
+		{name: "owner-unknown", want: "gpu_process_unavailable", ownerErr: errors.New("private vendor output")},
+		{name: "pipe-error", want: "gpu_pipe_unavailable", pipeErr: errors.New("private vendor output")},
+		{name: "exit-zero", want: "gpu_process_exited", state: managedModelOwnerStatus{terminal: true}},
+		{name: "exit-17", want: "gpu_process_exited", state: managedModelOwnerStatus{terminal: true, exitCode: 17}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			now, pauses := start, 0
+			gpu := managedModelGPU{uuid: "GPU-own", free: test.free, at: test.at, invalid: test.invalid}
+			err := waitManagedGPUStartup(context.Background(), &gpu,
+				func() (managedModelOwnerStatus, error) { return test.state, test.ownerErr },
+				func() error { return test.pipeErr }, func() time.Time { return now },
+				func(_ context.Context, delay time.Duration) error { pauses++; now = now.Add(delay); return nil })
+			if test.want == "" {
+				if err != nil || pauses != 0 {
+					t.Fatalf("ready original refused: %v", err)
+				}
+				return
+			}
+			var detail *managedModelStartError
+			if !errors.As(err, &detail) || detail.code != test.want {
+				t.Fatalf("wrong fixed diagnostic: %v", err)
+			}
+			if test.wait && now.Sub(start) != 5*time.Second || !test.wait && pauses != 0 {
+				t.Fatal("original wait budget changed or terminal/error was delayed")
+			}
+			if test.state.terminal {
+				if detail.exitCode == nil || *detail.exitCode != test.state.exitCode {
+					t.Fatal("original numeric exit lost")
+				}
+			} else if detail.exitCode != nil {
+				t.Fatal("unknown exit invented")
+			}
+			if strings.Contains(err.Error(), "private") {
+				t.Fatal("raw cause exposed as diagnostic")
+			}
+		})
+	}
+}
+
+func TestManagedGPUStartupBudgetRecoveryCancellationAndPipeEOF(t *testing.T) {
+	start, now := time.Unix(2000, 0), time.Unix(2000, 0)
+	var gpu managedModelGPU
+	live := func() (managedModelOwnerStatus, error) { return managedModelOwnerStatus{}, nil }
+	pipeOK := func() error { return nil }
+	// A new insufficient observation must not start a fresh five-second budget.
+	err := waitManagedGPUStartup(context.Background(), &gpu, live, pipeOK, func() time.Time { return now }, func(_ context.Context, delay time.Duration) error {
+		now = now.Add(delay)
+		if now.Sub(start) >= 2*time.Second {
+			gpu.free, gpu.at = 5<<30, now
+		}
+		return nil
+	})
+	var detail *managedModelStartError
+	if !errors.As(err, &detail) || detail.code != "gpu_capacity_low" || now.Sub(start) != 5*time.Second {
+		t.Fatal("changing samples renewed startup deadline")
+	}
+	now = start
+	gpu = managedModelGPU{}
+	err = waitManagedGPUStartup(context.Background(), &gpu, live, pipeOK, func() time.Time { return now }, func(_ context.Context, delay time.Duration) error {
+		now = now.Add(delay)
+		if now.Sub(start) >= time.Second {
+			gpu.free, gpu.at = 7<<30, now
+		}
+		return nil
+	})
+	if err != nil || now.Sub(start) != time.Second {
+		t.Fatal("fresh sample could not recover within original budget")
+	}
+	// An observation callback that returns late cannot admit a sample outside
+	// the same absolute deadline, even if that sample is individually fresh.
+	now = start
+	gpu = managedModelGPU{}
+	err = waitManagedGPUStartup(context.Background(), &gpu, func() (managedModelOwnerStatus, error) {
+		now = now.Add(6 * time.Second)
+		gpu.free, gpu.at = 7<<30, now
+		return managedModelOwnerStatus{}, nil
+	}, pipeOK, func() time.Time { return now }, func(context.Context, time.Duration) error { t.Fatal("expired startup waited"); return nil })
+	if !errors.As(err, &detail) || detail.code != "gpu_sample_missing" {
+		t.Fatal("late fresh observation bypassed original budget")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	gpu = managedModelGPU{free: 7 << 30, at: now}
+	err = waitManagedGPUStartup(ctx, &gpu, func() (managedModelOwnerStatus, error) { cancel(); return managedModelOwnerStatus{}, nil }, pipeOK, func() time.Time { return now }, func(context.Context, time.Duration) error { t.Fatal("cancelled startup waited"); return nil })
+	if !errors.Is(err, context.Canceled) {
+		t.Fatal("cancelled observation admitted")
+	}
+	done := make(chan struct{})
+	close(done)
+	pipe := &managedModelPipe{done: done}
+	err = waitManagedGPUStartup(context.Background(), &gpu, live, pipe.observationError, func() time.Time { return now }, func(context.Context, time.Duration) error { t.Fatal("closed pipe waited"); return nil })
+	if !errors.As(err, &detail) || detail.code != "gpu_pipe_unavailable" {
+		t.Fatal("clean EOF mistaken for live observation")
+	}
+}
+
+type failedManagedGPUPlatform struct{ failure *managedModelStartError }
+
+func (p failedManagedGPUPlatform) start(context.Context, managedModelConfig, uint64) (managedModelService, error) {
+	return nil, p.failure
+}
+
+func TestManagedGPUStartupProjectsOnlyFixedCodeAndNumericExit(t *testing.T) {
+	for _, code := range []uint32{0, 17} {
+		_, m := managedRouteFixture(t)
+		m.platform = failedManagedGPUPlatform{failure: &managedModelStartError{code: "gpu_process_exited", exitCode: &code, cause: errors.New("private vendor output or path")}}
+		done := make(chan struct{})
+		m.run(context.Background(), managedModelConfig{}, 1, done)
+		select {
+		case <-done:
+		default:
+			t.Fatal("failed startup did not finish")
+		}
+		if m.status.State != "blocked" || m.status.Failure == nil || m.status.Failure.Code != "gpu_process_exited" || m.status.Failure.ExitCode == nil || *m.status.Failure.ExitCode != code {
+			t.Fatal("actual exit not projected")
+		}
+		raw, err := json.Marshal(m.projectionLocked(true))
+		if err != nil || strings.Contains(string(raw), "private") {
+			t.Fatal("startup cause leaked")
+		}
+	}
+}
 func TestManagedDiagnosticsExposeOnlyFixedCodes(t *testing.T) {
 	for _, c := range []struct{ raw, code string }{{"private prompt CUDA_ERROR_OUT_OF_MEMORY secret", "model_memory_unavailable"}, {"address already in use privatepath", "port_unavailable"}, {"model privatealias not found", "model_unavailable"}, {"arbitrary secret output", "startup_exit"}} {
 		p := managedModelPipe{tail: []byte(c.raw)}

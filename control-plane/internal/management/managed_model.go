@@ -41,8 +41,9 @@ type managedModelSample struct {
 	at       time.Time
 }
 type managedModelStartError struct {
-	code  string
-	cause error
+	code     string
+	cause    error
+	exitCode *uint32
 }
 
 func (e *managedModelStartError) Error() string { return e.code }
@@ -343,6 +344,9 @@ func (m *managedModelManager) run(ctx context.Context, c managedModelConfig, gen
 			code = "startup_timeout"
 		}
 		m.status.Failure = &managedmodel.Failure{Code: code}
+		if typed != nil {
+			m.status.Failure.ExitCode = typed.exitCode
+		}
 		if owner != nil {
 			m.status.State = "unknown"
 		}

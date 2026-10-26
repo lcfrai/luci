@@ -339,6 +339,19 @@ func (p *managedModelPipe) failureCode() string {
 	}
 }
 
+func (p *managedModelPipe) observationError() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.readErr == nil {
+		select {
+		case <-p.done:
+			return errors.New("GPU observation pipe closed")
+		default:
+		}
+	}
+	return p.readErr
+}
+
 type managedModelGPU struct {
 	mu          sync.Mutex
 	uuid        string
@@ -380,6 +393,65 @@ func (g *managedModelGPU) check(start bool) error {
 	return nil
 }
 
+// Startup diagnostics use only fixed codes and the retained query's exit status.
+// Missing/low samples may recover within the original five-second wait; malformed
+// data, a failed pipe or a terminal original cannot become successful evidence.
+func (g *managedModelGPU) startupFailure(now time.Time) string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	switch {
+	case g.invalid:
+		return "gpu_sample_invalid"
+	case g.at.IsZero():
+		return "gpu_sample_missing"
+	case now.Before(g.at) || now.Sub(g.at) > 5*time.Second:
+		return "gpu_sample_stale"
+	case g.free < 6<<30:
+		return "gpu_capacity_low"
+	default:
+		return ""
+	}
+}
+
+func waitManagedGPUStartup(ctx context.Context, gpu *managedModelGPU,
+	observe func() (managedModelOwnerStatus, error), pipeError func() error,
+	now func() time.Time, pause func(context.Context, time.Duration) error) error {
+	deadline := now().Add(5 * time.Second)
+	for {
+		if e := ctx.Err(); e != nil {
+			return e
+		}
+		state, e := observe()
+		if e != nil {
+			return &managedModelStartError{code: "gpu_process_unavailable", cause: e}
+		}
+		if state.terminal {
+			code := state.exitCode
+			return &managedModelStartError{code: "gpu_process_exited", exitCode: &code}
+		}
+		if e = pipeError(); e != nil {
+			return &managedModelStartError{code: "gpu_pipe_unavailable", cause: e}
+		}
+		if e = ctx.Err(); e != nil {
+			return e
+		}
+		observed := now()
+		code := gpu.startupFailure(observed)
+		if code == "" && !observed.After(deadline) {
+			return nil
+		}
+		if code == "" {
+			code = "gpu_sample_missing"
+		}
+		if code == "gpu_sample_invalid" || !observed.Before(deadline) {
+			return &managedModelStartError{code: code}
+		}
+		if e = pause(ctx, 100*time.Millisecond); e != nil {
+			return e
+		}
+	}
+}
+
 type windowsManagedModelService struct {
 	config                 managedModelConfig
 	owner, gpuOwner        *managedModelProcessOwner
@@ -411,6 +483,10 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 	stage := "model_store_unavailable"
 	fail := func(e error) (managedModelService, error) {
 		failure := &managedModelStartError{code: stage, cause: e}
+		var detail *managedModelStartError
+		if errors.As(e, &detail) {
+			failure.code, failure.exitCode = detail.code, detail.exitCode
+		}
 		cleanup, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if ce := s.stop(cleanup); ce != nil {
@@ -430,7 +506,7 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 		}
 		return fail(e)
 	}
-	stage = "gpu_observation_unavailable"
+	stage = "gpu_binary_untrusted"
 	sys, e := windows.GetSystemDirectory()
 	if e != nil {
 		return fail(e)
@@ -439,17 +515,21 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 	if e != nil {
 		return fail(e)
 	}
+	stage = "gpu_metadata_unavailable"
 	if e = verifyManagedNVIDIAMetadata(s.gpuBinary.path); e != nil {
 		return fail(e)
 	}
+	stage = "startup_exit"
 	s.diagnostics, e = newManagedModelPipe(nil)
 	if e != nil {
 		return fail(e)
 	}
+	stage = "gpu_pipe_unavailable"
 	s.gpuOutput, e = newManagedModelPipe(s.gpu.line)
 	if e != nil {
 		return fail(e)
 	}
+	stage = "startup_exit"
 	root, e := windows.GetWindowsDirectory()
 	if e != nil {
 		return fail(e)
@@ -475,32 +555,27 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 	if _, e = managedModelListener(c.Port); !errors.Is(e, os.ErrNotExist) {
 		return fail(errors.New("configured port is already occupied or cannot be observed"))
 	}
-	stage = "gpu_observation_unavailable"
+	stage = "gpu_process_unavailable"
 	s.gpuOwner, e = startManagedModelProcess(ctx, managedModelProcessSpec{inheritEnvironment: true, stdout: s.gpuOutput.write, executable: s.gpuBinary.path, directory: sys, args: []string{"--query-gpu=uuid,memory.total,memory.free", "--format=csv,noheader,nounits", "--loop-ms=1000"}, generation: gen, limits: managedModelLimits{jobBytes: 256 << 20, processBytes: 192 << 20, processes: 1, cpuRate: 200, stopTimeout: 30 * time.Second}})
 	if e != nil {
 		return fail(e)
 	}
+	stage = "gpu_pipe_unavailable"
 	if e = s.gpuOutput.closeWriter(); e != nil {
 		return fail(e)
 	}
 	s.host.Sample(ctx)
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		if ctx.Err() != nil {
-			return fail(ctx.Err())
-		}
-		if s.gpu.check(true) == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			return fail(errors.New("GPU startup observation unavailable"))
-		}
+	if e = waitManagedGPUStartup(ctx, &s.gpu, s.gpuOwner.observe, s.gpuOutput.observationError, time.Now, func(ctx context.Context, delay time.Duration) error {
 		select {
 		case <-ctx.Done():
-			return fail(ctx.Err())
-		case <-time.After(100 * time.Millisecond):
+			return ctx.Err()
+		case <-time.After(delay):
+			return nil
 		}
+	}); e != nil {
+		return fail(e)
 	}
+	stage = "startup_exit"
 	// Two increasing samples are required for CPU; no fabricated utilization.
 	select {
 	case <-ctx.Done():
