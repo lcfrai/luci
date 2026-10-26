@@ -137,6 +137,21 @@ func (e *managedModelVendorMismatch) Error() string {
 	return "installed executable is not signed by the supported vendor"
 }
 
+// These are distinct verified routes, not interchangeable trusted publishers.
+// The GPU selector retains its WHCP catalog policy, while the exact installed
+// NVIDIA tool may carry NVIDIA's own embedded signature. Ollama stays embedded.
+func managedModelPublisherAllowed(vendor, verifiedVia, publisher string) bool {
+	switch vendor {
+	case "Microsoft Windows Hardware Compatibility Publisher":
+		return verifiedVia == "embedded" && publisher == "NVIDIA Corporation" ||
+			verifiedVia == "catalog" && publisher == vendor
+	case "Ollama Inc.":
+		return verifiedVia == "embedded" && publisher == vendor
+	default:
+		return false
+	}
+}
+
 func managedModelTrustVendor(d *windows.WinTrustData, vendor, verifiedVia string) error {
 	dll := windows.NewLazySystemDLL("wintrust.dll")
 	data, _, _ := dll.NewProc("WTHelperProvDataFromStateData").Call(uintptr(d.StateData))
@@ -168,7 +183,7 @@ func managedModelTrustVendor(d *windows.WinTrustData, vendor, verifiedVia string
 		return errors.New("vendor identity unavailable")
 	}
 	actual := windows.UTF16ToString(name[:n])
-	if actual != vendor {
+	if !managedModelPublisherAllowed(vendor, verifiedVia, actual) {
 		return &managedModelVendorMismatch{publisher: actual, verifiedVia: verifiedVia}
 	}
 	return nil

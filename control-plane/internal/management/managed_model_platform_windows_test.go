@@ -229,6 +229,37 @@ func TestManagedDiagnosticsExposeOnlyFixedCodes(t *testing.T) {
 		}
 	}
 }
+
+// The policy receives a leaf only after successful offline WinTrust, including
+// exact retained-file membership for catalog signatures. This tests the closed
+// route/publisher policy; the opt-in installed test exercises the real verifier.
+func TestManagedModelPublisherPolicyBindsVerifiedRoute(t *testing.T) {
+	const gpu = "Microsoft Windows Hardware Compatibility Publisher"
+	for _, test := range []struct {
+		name, vendor, route, publisher string
+		allowed                       bool
+	}{
+		{"gpu-embedded-nvidia", gpu, "embedded", "NVIDIA Corporation", true},
+		{"gpu-catalog-whcp", gpu, "catalog", gpu, true},
+		{"gpu-embedded-whcp", gpu, "embedded", gpu, false},
+		{"gpu-catalog-nvidia", gpu, "catalog", "NVIDIA Corporation", false},
+		{"gpu-other-trusted-publisher", gpu, "embedded", "Microsoft Corporation", false},
+		{"gpu-publisher-lookalike", gpu, "embedded", "NVIDIA Corporation ", false},
+		{"gpu-publisher-case", gpu, "embedded", "nvidia corporation", false},
+		{"gpu-unknown-route", gpu, "unknown", "NVIDIA Corporation", false},
+		{"gpu-missing-route", gpu, "", "NVIDIA Corporation", false},
+		{"ollama-embedded", "Ollama Inc.", "embedded", "Ollama Inc.", true},
+		{"ollama-catalog-refused", "Ollama Inc.", "catalog", "Ollama Inc.", false},
+		{"ollama-nvidia-refused", "Ollama Inc.", "embedded", "NVIDIA Corporation", false},
+		{"unsupported-vendor-selector", "Other Vendor", "embedded", "Other Vendor", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if managedModelPublisherAllowed(test.vendor, test.route, test.publisher) != test.allowed {
+				t.Fatal("verified route/publisher policy differs")
+			}
+		})
+	}
+}
 func TestManagedModelProfileAndConfigurationAreClosed(t *testing.T) {
 	c := managedModelConfig{Enabled: true, ExecutablePath: `C:\Tools\Ollama\ollama.exe`, ModelStore: `E:\Models`, Port: 24567, Model: "installed:latest", Profile: managedmodel.FixedProfile()}
 	if e := validateManagedModelConfig(c); e != nil {
