@@ -6,22 +6,20 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tauri::Manager;
-use tauri_plugin_shell::{
-    process::Command,
-    ShellExt,
-};
+use tauri_plugin_shell::{process::Command, ShellExt};
 mod document_runtime;
 mod local_access;
+mod startup_navigation;
 mod state_dir;
 #[cfg(windows)]
 mod windows_sidecar;
-#[cfg(windows)]
-use windows_sidecar::OwnedChild;
 #[cfg(not(windows))]
 use tauri_plugin_shell::process::{CommandChild as OwnedChild, CommandEvent};
+#[cfg(windows)]
+use windows_sidecar::OwnedChild;
 
 fn spawn_owned_sidecar(command: Command, exited: Arc<AtomicBool>) -> Result<OwnedChild, String> {
     #[cfg(windows)]
@@ -79,6 +77,25 @@ struct LocalService {
     state_dir: Option<PathBuf>,
     lifecycle_token: Option<String>,
     local_access_token: Option<String>,
+}
+
+// The API has one 35s managed-close budget, including dependent workers and
+// its model owner's remaining allowance. Leave 10s for transport/exit overhead.
+const LOCAL_SERVICE_SHUTDOWN_GRACE: Duration = Duration::from_secs(45);
+
+fn wait_for_service_exit(
+    exited: &AtomicBool,
+    mut remaining: impl FnMut() -> Duration,
+    mut pause: impl FnMut(Duration),
+) -> bool {
+    while !exited.load(Ordering::Acquire) {
+        let left = remaining();
+        if left.is_zero() {
+            return exited.load(Ordering::Acquire);
+        }
+        pause(left.min(Duration::from_millis(50)));
+    }
+    true
 }
 
 fn owned_access_connection(
@@ -156,8 +173,15 @@ async fn recover_local_owner(
 }
 
 #[tauri::command]
-fn runtime_info(state: tauri::State<'_, LocalService>) -> RuntimeInfo {
-    state.info.clone()
+async fn runtime_info(
+    window: tauri::WebviewWindow,
+    navigation: tauri::State<'_, startup_navigation::StartupNavigation>,
+    state: tauri::State<'_, LocalService>,
+) -> Result<RuntimeInfo, String> {
+    // main.tsx awaits this before importing App/AuthProvider. Accepting it
+    // permanently disarms initial navigation recovery for this window.
+    navigation.admit_frontend(&window).await?;
+    Ok(state.info.clone())
 }
 
 #[tauri::command]
@@ -219,14 +243,17 @@ fn validate_embedded_frontend(context: &tauri::Context<tauri::Wry>) -> Result<us
     for attribute in ["src=\"", "href=\""] {
         for suffix in html.split(attribute).skip(1) {
             let reference = suffix.split('"').next().unwrap_or_default();
-            if reference.is_empty() || reference.starts_with('#')
-                || reference.starts_with("//") || reference.contains(':')
+            if reference.is_empty()
+                || reference.starts_with('#')
+                || reference.starts_with("//")
+                || reference.contains(':')
             {
                 continue;
             }
             let path = reference.split(['?', '#']).next().unwrap_or_default();
             let path = path.strip_prefix("./").unwrap_or(path);
-            let content = assets.get(&path.into())
+            let content = assets
+                .get(&path.into())
                 .ok_or_else(|| format!("entrypoint asset is absent: {path}"))?;
             if content.is_empty() {
                 return Err(format!("entrypoint asset is empty: {path}"));
@@ -255,7 +282,18 @@ pub fn run() {
         validate_embedded_frontend(&context)
             .expect("Luci's embedded frontend is incomplete; rebuild the native package");
     }
+    let navigation = startup_navigation::StartupNavigation::new(context.config(), tauri::is_dev());
     let app = tauri::Builder::default()
+        .manage(navigation.clone())
+        .on_page_load(|webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                if let Some(navigation) =
+                    webview.try_state::<startup_navigation::StartupNavigation>()
+                {
+                    navigation.page_finished(webview.label(), payload.url());
+                }
+            }
+        })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
@@ -288,7 +326,9 @@ pub fn run() {
                 info.api_url = format!("http://{address}");
                 let explicit_state = std::env::var_os("LUCI_STATE_DIR").map(PathBuf::from);
                 if let Some(managed_state) = info.select_state(explicit_state.as_deref(), || {
-                    let current = app.path().app_data_dir()
+                    let current = app
+                        .path()
+                        .app_data_dir()
                         .map_err(|error| std::io::Error::other(error.to_string()))?;
                     let legacy = if cfg!(windows) {
                         std::env::var_os("LOCALAPPDATA")
@@ -313,19 +353,23 @@ pub fn run() {
                         .resource_dir()?
                         .join("cloud")
                         .join("luci-cloud-linux-amd64.tar.gz");
-                    match app.shell().sidecar("luci-api").map_err(|error| error.to_string()).and_then(|command| {
-                        let command = command
-                            .env("LUCI_ADDR", address)
-                            .env("LUCI_STATE_DIR", managed_state)
-                            .env("LUCI_MANAGED_SHUTDOWN_TOKEN", shutdown_token)
-                            .env("LUCI_LOCAL_ACCESS_TOKEN", access_token)
-                            .env("LUCI_RUNTIME_DIR", runtime)
-                            .env("LUCI_CLOUD_BUNDLE", cloud_bundle);
-                        let command = document_runtime::bundled_environment()
-                            .into_iter()
-                            .fold(command, |command, (name, value)| command.env(name, value));
-                        spawn_owned_sidecar(command, Arc::clone(&exited))
-                    }) {
+                    match app
+                        .shell()
+                        .sidecar("luci-api")
+                        .map_err(|error| error.to_string())
+                        .and_then(|command| {
+                            let command = command
+                                .env("LUCI_ADDR", address)
+                                .env("LUCI_STATE_DIR", managed_state)
+                                .env("LUCI_MANAGED_SHUTDOWN_TOKEN", shutdown_token)
+                                .env("LUCI_LOCAL_ACCESS_TOKEN", access_token)
+                                .env("LUCI_RUNTIME_DIR", runtime)
+                                .env("LUCI_CLOUD_BUNDLE", cloud_bundle);
+                            let command = document_runtime::bundled_environment()
+                                .into_iter()
+                                .fold(command, |command, (name, value)| command.env(name, value));
+                            spawn_owned_sidecar(command, Arc::clone(&exited))
+                        }) {
                         Ok(process) => {
                             child = Some(process);
                         }
@@ -348,11 +392,18 @@ pub fn run() {
         })
         .build(context)
         .expect("Luci could not start its desktop window");
+    navigation.install(app.handle());
     app.run(|handle, event| {
         if matches!(event, tauri::RunEvent::Exit) {
+            if let Some(navigation) = handle.try_state::<startup_navigation::StartupNavigation>() {
+                navigation.stop();
+            }
             if let Some(service) = handle.try_state::<LocalService>() {
                 if let Ok(mut child) = service.child.lock() {
                     if let Some(process) = child.take() {
+                        // One deadline includes the shutdown HTTP request and
+                        // all waiting; it is never restarted after either step.
+                        let shutdown_deadline = Instant::now() + LOCAL_SERVICE_SHUTDOWN_GRACE;
                         // Ask our own service to stop tunnels and flush state before termination.
                         // An LUCI_API override has no owned child and never reaches this branch.
                         if let Some(address) = service.info.api_url.strip_prefix("http://") {
@@ -366,11 +417,15 @@ pub fn run() {
                                 }
                             }
                         }
-                        for _ in 0..100 {
-                            if service.exited.load(Ordering::Acquire) { break; }
-                            std::thread::sleep(Duration::from_millis(50));
+                        if !wait_for_service_exit(
+                            &service.exited,
+                            || shutdown_deadline.saturating_duration_since(Instant::now()),
+                            std::thread::sleep,
+                        ) {
+                            // Expiry still uses the original owned-child force
+                            // fallback; it does not certify graceful cleanup.
+                            let _ = process.kill();
                         }
-                        if !service.exited.load(Ordering::Acquire) { let _ = process.kill(); }
                     }
                 }
             }
@@ -383,6 +438,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn service_shutdown_keeps_one_deadline_and_observes_normal_exit() {
+        use std::cell::Cell;
+        let exited = AtomicBool::new(false);
+        // Simulate transport consuming all but the last 10ms of the original
+        // grace. Waiting must use that remainder, not start another 45s.
+        let spent = Cell::new(LOCAL_SERVICE_SHUTDOWN_GRACE - Duration::from_millis(10));
+        let pauses = Cell::new(0);
+        assert!(!wait_for_service_exit(
+            &exited,
+            || LOCAL_SERVICE_SHUTDOWN_GRACE.saturating_sub(spent.get()),
+            |duration| {
+                assert_eq!(duration, Duration::from_millis(10));
+                pauses.set(pauses.get() + 1);
+                spent.set(spent.get() + duration);
+            },
+        ));
+        assert_eq!(pauses.get(), 1);
+        // An original service exit ends the wait immediately, with no force
+        // fallback and without consuming the rest of its available allowance.
+        let pauses = Cell::new(0);
+        assert!(wait_for_service_exit(
+            &exited,
+            || LOCAL_SERVICE_SHUTDOWN_GRACE,
+            |duration| {
+                assert_eq!(duration, Duration::from_millis(50));
+                pauses.set(pauses.get() + 1);
+                exited.store(true, Ordering::Release);
+            },
+        ));
+        assert_eq!(pauses.get(), 1);
+    }
+
+    #[test]
     fn state_selection_failure_is_visible_without_starting_a_service() {
         let mut info = RuntimeInfo {
             api_url: "http://127.0.0.1:1".into(),
@@ -390,7 +478,9 @@ mod tests {
             state_dir: None,
         };
         assert!(info
-            .select_state(Some(std::path::Path::new("relative")), || panic!("invalid explicit state must not consult defaults"))
+            .select_state(Some(std::path::Path::new("relative")), || panic!(
+                "invalid explicit state must not consult defaults"
+            ))
             .is_none());
         assert!(info.state_dir.is_none());
         assert!(info
