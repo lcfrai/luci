@@ -4,7 +4,7 @@ import { AGENT_CONNECTIONS_CHANGED, useAgentConnections } from "../../hooks/useA
 import { Button } from "../fluid/components/button";
 import { emptyGatewaySupport, gatewayAgents, gatewayBaseAddress, savedGatewayAddress } from "./gatewayPreset";
 
-const emptyDraft = () => ({ id: "", name: "", kind: "litellm" as AgentConnectionKind, enabled: true, endpoints: {} as AgentConnection["endpoints"], models: {} as AgentConnection["models"], openCodeThinking: "" as AgentConnectionOpenCodeThinking, openCodeService: "compatible-api" as AgentConnectionOpenCodeService });
+const emptyDraft = () => ({ id: "", name: "", kind: "litellm" as AgentConnectionKind, enabled: true, endpoints: {} as AgentConnection["endpoints"], models: {} as AgentConnection["models"], openCodeThinking: "" as AgentConnectionOpenCodeThinking, openCodeService: "compatible-api" as AgentConnectionOpenCodeService, managedLocalModel: undefined as AgentConnection["managedLocalModel"] });
 export function AgentConnectionManager({ client }: { client: ProductClient }) {
   const thinkingHelpId = useId();
   const serviceHelpId = useId();
@@ -24,7 +24,7 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
   const subscription = draft.kind === "codex-subscription";
   const chooseDraft = (id: string) => {
     const value = entries.find(item => item.id === id);
-    setDraft(value ? { id: value.id, name: value.name, kind: value.kind, enabled: value.enabled, endpoints: { ...value.endpoints }, models: { ...value.models }, openCodeThinking: value.openCodeThinking ?? "", openCodeService: value.openCodeService ?? "" } : emptyDraft());
+    setDraft(value ? { id: value.id, name: value.name, kind: value.kind, enabled: value.enabled, endpoints: { ...value.endpoints }, models: { ...value.models }, openCodeThinking: value.openCodeThinking ?? "", openCodeService: value.openCodeService ?? "", managedLocalModel: value.managedLocalModel } : emptyDraft());
     setApiKey(""); setClearKey(false); setNotice("");
     setGatewayAddress(value ? savedGatewayAddress(value.endpoints) : "");
     setGatewaySupport(value ? Object.fromEntries(gatewayAgents.map(agent => [agent.model, !!value.endpoints[agent.endpoint] || !!value.models[agent.model]])) as typeof gatewaySupport : emptyGatewaySupport());
@@ -53,7 +53,7 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
       setClearKey(false); setNotice(success);
       if (input.action === "save" && !draft.id) {
         const added = value.connections.find(item => !entries.some(previous => previous.id === item.id));
-        if (added) setDraft({ id: added.id, name: added.name, kind: added.kind, enabled: added.enabled, endpoints: { ...added.endpoints }, models: { ...added.models }, openCodeThinking: added.openCodeThinking ?? "", openCodeService: added.openCodeService ?? "" });
+        if (added) setDraft({ id: added.id, name: added.name, kind: added.kind, enabled: added.enabled, endpoints: { ...added.endpoints }, models: { ...added.models }, openCodeThinking: added.openCodeThinking ?? "", openCodeService: added.openCodeService ?? "", managedLocalModel: added.managedLocalModel });
       }
       if (input.action === "delete") chooseDraft("");
     } catch (cause) { if (alive.current) setError(errorText(cause)); }
@@ -85,16 +85,17 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
       const models = Object.fromEntries(Object.entries(draft.models).filter(([key, value]) => value?.trim() && (!subscription || key === "codex")).map(([key, value]) => [key, value!.trim()]));
       const thinking = subscription ? "" : draft.openCodeThinking;
       const service = subscription ? "" : draft.openCodeService;
-      void mutate({ action: "save", expectedRevision: catalogue.revision, ...(draft.id ? { id: draft.id } : {}), name: draft.name.trim(), kind: draft.kind, enabled: draft.enabled, endpoints, models, ...(thinking || saved?.openCodeThinking ? { openCodeThinking: thinking } : {}), ...(service || saved?.openCodeService ? { openCodeService: service } : {}), ...(subscription ? { apiKey: "" } : apiKey || clearKey ? { apiKey: clearKey ? "" : apiKey } : {}) }, "Connection saved. Choose it as the active connection when you are ready. Saving does not verify model access.");
+      void mutate({ action: "save", expectedRevision: catalogue.revision, ...(draft.id ? { id: draft.id } : {}), name: draft.name.trim(), kind: draft.kind, enabled: draft.enabled, endpoints, models, ...(thinking || saved?.openCodeThinking ? { openCodeThinking: thinking } : {}), ...(service || saved?.openCodeService ? { openCodeService: service } : {}), ...(draft.managedLocalModel ? { managedLocalModel: draft.managedLocalModel } : {}), ...(subscription ? { apiKey: "" } : apiKey || clearKey ? { apiKey: clearKey ? "" : apiKey } : {}) }, "Connection saved. Choose it as the active connection when you are ready. Saving does not verify model access.");
     }}>
       <fieldset disabled={busy || !catalogue} className="definition-fields">
         <label className="luci-field">Edit saved connection<select value={draft.id} onChange={event => chooseDraft(event.target.value)}><option value="">Add a connection</option>{entries.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <div className="setup-field-grid">
           <label className="luci-field">Connection name<input required value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} placeholder="A name you recognise" /></label>
-          <label className="luci-field">Connection type<select value={draft.kind} onChange={event => { setDraft({ ...draft, kind: event.target.value as AgentConnectionKind, openCodeThinking: event.target.value === "codex-subscription" ? "" : draft.openCodeThinking, openCodeService: event.target.value === "codex-subscription" ? "" : draft.openCodeService }); setApiKey(""); setClearKey(false); setPresetError(""); }}><option value="litellm">LiteLLM gateway</option><option value="compatible-api">Compatible API</option><option value="codex-subscription">My Codex subscription</option><option value="direct-api">Direct provider API</option></select></label>
+          <label className="luci-field">Connection type<select disabled={!!draft.managedLocalModel} value={draft.kind} onChange={event => { setDraft({ ...draft, kind: event.target.value as AgentConnectionKind, openCodeThinking: event.target.value === "codex-subscription" ? "" : draft.openCodeThinking, openCodeService: event.target.value === "codex-subscription" ? "" : draft.openCodeService }); setApiKey(""); setClearKey(false); setPresetError(""); }}><option value="litellm">LiteLLM gateway</option><option value="compatible-api">Compatible API</option><option value="codex-subscription">My Codex subscription</option><option value="direct-api">Direct provider API</option></select></label>
         </div>
         <label className="data-check"><input type="checkbox" checked={draft.enabled} onChange={event => setDraft({ ...draft, enabled: event.target.checked })} />Enable this connection</label>
-        {subscription ? <><p className="journey-muted">Uses your saved official Codex sign-in. Complete the Codex account sign-in below once; no API key or endpoint is needed here.</p>{saved?.keyPresent && <p className="journey-muted">Saving this type removes this connection’s saved API key.</p>}</> : <>
+        {draft.managedLocalModel && <p className="journey-muted">This connection uses the model managed by Luci. Change its model and server in Local model settings. Renaming it here preserves that link.</p>}
+        {subscription ? <><p className="journey-muted">Uses your saved official Codex sign-in. Complete the Codex account sign-in below once; no API key or endpoint is needed here.</p>{saved?.keyPresent && <p className="journey-muted">Saving this type removes this connection’s saved API key.</p>}</> : <fieldset className="connection-protocol-fields" disabled={!!draft.managedLocalModel}>
           {draft.kind === "litellm" ? <>
             <p className="journey-muted">Use the gateway address and key supplied for your connection, including an lcfr.ai gateway.</p>
             <label className="luci-field">Gateway server address<input inputMode="url" autoComplete="off" value={gatewayAddress} aria-invalid={!!presetError} onChange={event => { setGatewayAddress(event.target.value); setPresetError(""); }} placeholder="Your gateway server address" /></label>
@@ -114,7 +115,7 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
           <label className="luci-field">OpenCode thinking<select aria-label="OpenCode thinking" aria-describedby={thinkingHelpId} value={draft.openCodeThinking} onChange={event => setDraft({ ...draft, openCodeThinking: event.target.value as AgentConnectionOpenCodeThinking })}><option value="">Provider default</option><option value="off">Off</option></select><small id={thinkingHelpId}>Choose Off for faster responses from models that support disabling thinking. Provider default keeps the model’s usual behavior. Tool approvals stay the same.</small></label>
           <label className="luci-field">Connection API key<input aria-label="Connection API key" type="password" autoComplete="off" value={apiKey} disabled={clearKey} onChange={event => setApiKey(event.target.value)} /><small>{saved?.keyPresent ? "A key is saved. Leave this blank to keep it, or enter a replacement." : "The key stays in this workspace’s private settings."}</small></label>
           {saved?.keyPresent && <label className="data-check"><input type="checkbox" checked={clearKey} onChange={event => { setClearKey(event.target.checked); setApiKey(""); }} />Clear the saved key when saving</label>}
-        </>}
+        </fieldset>}
         {subscription && <label className="luci-field">Codex model · optional<input value={draft.models.codex ?? ""} onChange={event => setDraft({ ...draft, models: { codex: event.target.value } })} /></label>}
         {saved?.blockedReason && <p role="status">{saved.blockedReason}</p>}
         <div className="setup-actions"><Button type="submit" disabled={!draft.name.trim()} loading={busy}>Save connection</Button>{saved && <Button type="button" variant="secondary" onClick={() => void mutate({ action: "delete", expectedRevision: catalogue!.revision, id: saved.id }, "Connection removed from new session choices.")}>Delete connection</Button>}</div>

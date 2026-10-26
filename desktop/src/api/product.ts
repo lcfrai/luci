@@ -3,6 +3,7 @@ import { workspacePath, teamScopePrefix, teamScopeGeneration } from './teamScope
 import { ApiError, DEFAULT_BASE_URL, type ProblemCode } from "./client";
 import { authHeaders, expireAuth } from "./authSession";
 import type { Session } from "../store/types";
+import type { LocalModelSave, LocalModelSnapshot } from "./localModel";
 
 export interface SetupConfig {
   projectsDir: string;
@@ -40,13 +41,14 @@ export interface AgentConnection {
   models: { codex?: string; claudeCode?: string; opencode?: string };
   openCodeThinking?: AgentConnectionOpenCodeThinking;
   openCodeService?: AgentConnectionOpenCodeService;
+  managedLocalModel?: { revision: number };
   configured: boolean; keyPresent: boolean; blockedReason?: string;
 }
 export interface AgentConnectionCatalogue {
   revision: number; activeConnectionId: string; connections: AgentConnection[];
 }
 export type AgentConnectionMutation =
-  | { action: "save"; expectedRevision: number; id?: string; name: string; kind: AgentConnectionKind; enabled: boolean; endpoints: AgentConnection["endpoints"]; models: AgentConnection["models"]; openCodeThinking?: AgentConnectionOpenCodeThinking; openCodeService?: AgentConnectionOpenCodeService; apiKey?: string }
+  | { action: "save"; expectedRevision: number; id?: string; name: string; kind: AgentConnectionKind; enabled: boolean; endpoints: AgentConnection["endpoints"]; models: AgentConnection["models"]; openCodeThinking?: AgentConnectionOpenCodeThinking; openCodeService?: AgentConnectionOpenCodeService; managedLocalModel?: { revision: number }; apiKey?: string }
   | { action: "select" | "delete"; expectedRevision: number; id: string };
 export interface CodexAccountConnection {
   configured: boolean;
@@ -535,6 +537,7 @@ export function createProductClient(
     method = body === undefined ? "GET" : "POST",
     budgetMs = 120_000,
     signal?: AbortSignal,
+    hostScoped = false,
   ): Promise<T> {
     const scopeGeneration = teamScopeGeneration();
     const controller = new AbortController();
@@ -544,7 +547,7 @@ export function createProductClient(
     const timer = setTimeout(() => controller.abort(), budgetMs);
     try {
       controller.signal.throwIfAborted();
-      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${workspacePath(path)}`, {
+      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${hostScoped ? path : workspacePath(path)}`, {
         method,
         signal: controller.signal,
         headers: authHeaders(
@@ -627,6 +630,10 @@ export function createProductClient(
     agents: () => request<AgentConnections>("/v1/setup/agents"),
     agentConnections: () => request<AgentConnectionCatalogue>("/v1/setup/agent-connections"),
     updateAgentConnection: (input: AgentConnectionMutation) => request<AgentConnectionCatalogue>("/v1/setup/agent-connections", input),
+    localModel: (signal?: AbortSignal) => request<LocalModelSnapshot>("/v1/setup/local-model", undefined, "GET", 15_000, signal, true),
+    saveLocalModel: (input: LocalModelSave) => request<LocalModelSnapshot>("/v1/setup/local-model", input, "POST", 120_000, undefined, true),
+    startLocalModel: (expectedRevision: number) => request<LocalModelSnapshot>("/v1/setup/local-model/start", { expectedRevision }, "POST", 120_000, undefined, true),
+    stopLocalModel: (expectedRevision: number, expectedGeneration: string) => request<LocalModelSnapshot>("/v1/setup/local-model/stop", { expectedRevision, expectedGeneration }, "POST", 120_000, undefined, true),
     codexAccount: () =>
       request<CodexAccountConnection>("/v1/setup/agents/codex/account"),
     startCodexSignIn: () =>

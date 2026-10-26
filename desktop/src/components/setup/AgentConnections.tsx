@@ -9,6 +9,7 @@ import {
 import { useCockpit } from "../../store/store";
 import { OWN_AGENT_PROVIDER_CHANGED } from "../../hooks/useAgentConnections";
 import { AgentConnectionManager } from "./AgentConnectionManager";
+import { ManagedLocalModel } from "./ManagedLocalModel";
 import { codexConnectionError } from "../../api/codexConnectionErrors";
 
 export function AgentConnections({
@@ -196,6 +197,7 @@ export function AgentConnections({
   }
   return (
     <>
+      <ManagedLocalModel client={client} cloud={cloud} />
       <AgentConnectionManager client={client} />
     <section className="setup-plan">
       <h2>Your own agent accounts</h2>

@@ -15,7 +15,7 @@ function mount(fail = false, saved = initial()) {
       if (input.action === "save") {
         const previous = catalogue.connections.find(item => item.id === input.id);
         if (input.kind === "codex-subscription" && (input.apiKey === undefined ? previous?.keyPresent : input.apiKey !== "")) return new Response(JSON.stringify({ code: "invalid_connection", message: "Codex subscription connections cannot contain an API key." }), { status: 400 });
-        const connection = { id: input.id || "gateway-two", revision: (previous?.revision ?? 0) + 1, name: input.name, kind: input.kind, enabled: input.enabled, endpoints: input.endpoints, models: input.models, openCodeThinking: input.openCodeThinking ?? previous?.openCodeThinking, openCodeService: input.openCodeService ?? previous?.openCodeService, configured: true, keyPresent: input.apiKey === undefined ? previous?.keyPresent ?? false : input.apiKey !== "" };
+        const connection = { id: input.id || "gateway-two", revision: (previous?.revision ?? 0) + 1, name: input.name, kind: input.kind, enabled: input.enabled, endpoints: input.endpoints, models: input.models, openCodeThinking: input.openCodeThinking ?? previous?.openCodeThinking, openCodeService: input.openCodeService ?? previous?.openCodeService, managedLocalModel: input.managedLocalModel ?? previous?.managedLocalModel, configured: true, keyPresent: input.apiKey === undefined ? previous?.keyPresent ?? false : input.apiKey !== "" };
         catalogue = { ...catalogue, revision: catalogue.revision + 1, connections: [...catalogue.connections.filter(item => item.id !== connection.id), connection] };
       }
     }
@@ -42,6 +42,33 @@ it("keeps saved keys private and preserves them on an ordinary connection edit",
   expect(input).not.toHaveProperty("openCodeThinking");
   expect(input).not.toHaveProperty("openCodeService");
 });
+it("preserves the managed model link on rename and keeps its protocol fields read-only", async () => {
+  const saved = initial();
+  saved.connections[0] = { ...saved.connections[0], kind: "compatible-api", keyPresent: false,
+    endpoints: { chatCompletions: "http://localhost:11435/v1" }, models: { opencode: "local-coder-16k:latest" },
+    openCodeService: "local-ollama", openCodeThinking: "off", managedLocalModel: { revision: 3 } };
+  const fetcher = mount(false, saved);
+  await screen.findByText(/New sessions use My gateway\./);
+  await userEvent.click(screen.getByText("Add or edit a connection"));
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
+  for (const label of ["Connection type", "OpenCode · Chat Completions base URL", "OpenCode model", "OpenCode service", "OpenCode thinking", "Connection API key"]) {
+    expect(screen.getByLabelText(label).matches(":disabled")).toBe(true);
+  }
+  await userEvent.clear(screen.getByLabelText("Connection name"));
+  await userEvent.type(screen.getByLabelText("Connection name"), "My local model");
+  await userEvent.click(screen.getByRole("button", { name: "Save connection" }));
+  await screen.findByText(/New sessions use My local model\./);
+  const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
+  expect(posts).toHaveLength(1);
+  expect(JSON.parse(posts[0][1]?.body as string)).toMatchObject({ action: "save", id: "gateway-one", name: "My local model", managedLocalModel: { revision: 3 },
+    endpoints: saved.connections[0].endpoints, models: saved.connections[0].models, openCodeService: "local-ollama", openCodeThinking: "off" });
+  expect(JSON.parse(posts[0][1]?.body as string)).not.toHaveProperty("apiKey");
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "");
+  expect(screen.getByLabelText("Connection type").matches(":disabled")).toBe(false);
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
+  expect(screen.getByLabelText("Connection type").matches(":disabled")).toBe(true);
+});
+
 it("turns the gateway off explicitly without deleting the saved connection", async () => {
   const fetcher = mount();
   await screen.findByText(/New sessions use My gateway\./);
