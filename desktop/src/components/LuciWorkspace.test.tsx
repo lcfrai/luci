@@ -83,8 +83,19 @@ it('keeps compact Projects navigation accessible, returns focus after Escape, an
 });
 it('provides a Luci starting point without pretending an unselected project has shared history', async () => {
   useCockpit.setState({ selection: { projectId: null, branchId: null, worktreeId: null, sessionId: null } }); render(<AppShell />);
-  expect(screen.getByRole('heading', { name: 'Luci' })).not.toBeNull(); expect(screen.getByText(/Choose a project to continue its conversation/)).not.toBeNull(); expect(screen.queryByRole('region', { name: 'Luci conversation' })).toBeNull();
-  await userEvent.click(screen.getByRole('button', { name: 'Luci' })); await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Luci' })));
+  const home = screen.getByRole('heading', { name: 'Your projects' });
+  expect(screen.getByRole('button', { name: 'New project' })).not.toBeNull();
+  expect(screen.queryByRole('region', { name: 'Luci conversation' })).toBeNull();
+  expect(Phase).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Luci' }));
+  await waitFor(() => expect(document.activeElement).toBe(home));
+  expect(useCockpit.getState().selection.projectId).toBeNull();
+  await userEvent.click(await screen.findByRole('treeitem', { name: /Atlas/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Luci' }));
+  const conversation = screen.getByRole('region', { name: 'Luci conversation' });
+  expect(conversation.getAttribute('data-project')).toBe('p-1');
+  expect(conversation.getAttribute('data-primary')).toBe('true');
+  expect(screen.getByLabelText('Current project: Atlas')).not.toBeNull();
 });
 
 it('selects four separate primary conversation destinations without merging their scopes', async () => {
