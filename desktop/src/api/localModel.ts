@@ -28,6 +28,12 @@ export interface LocalModelHostCapacity {
   sampleAgeMillis: number | null;
 }
 
+export interface LocalModelObservation {
+  stage: string;
+  reason: string;
+  httpStatus?: number;
+}
+
 export interface LocalModelSnapshot {
   available: boolean;
   canManage: boolean;
@@ -40,7 +46,7 @@ export interface LocalModelSnapshot {
     observedAt: string;
     endpoint?: string;
     model?: string;
-    failure?: { code: string; exitCode?: number; hostCapacity?: LocalModelHostCapacity };
+    failure?: { code: string; exitCode?: number; hostCapacity?: LocalModelHostCapacity; observation?: LocalModelObservation };
   };
 }
 

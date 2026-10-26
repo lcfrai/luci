@@ -233,6 +233,41 @@ it("distinguishes an unavailable CPU observation from low memory without startin
 });
 
 it.each([
+  ["show", "timeout", undefined, "The model server took too long to respond. Refresh its status before starting again.", "Model settings"],
+  ["peer", "ownership_unavailable", undefined, "Luci could not verify its connection to the model server. Refresh its status before starting again.", "Server connection"],
+  ["tags", "http_status", 503, "The model server returned an error. Check the saved model name and model folder.", "Installed models"],
+] as const)("explains the %s check failure without taking action", async (stage, reason, httpStatus, message, label) => {
+  const value = snapshot("blocked");
+  value.status.failure = { code: "observation_unavailable", observation: { stage, reason, httpStatus } };
+  const fixture = mount(value);
+  await screen.findByText(message);
+  const summary = screen.getByText("Connection details");
+  const details = summary.parentElement as HTMLDetailsElement;
+  expect(details.open).toBe(false);
+  expect(details.textContent).toContain(label);
+  if (httpStatus) expect(details.textContent).toContain(`HTTP ${httpStatus}`);
+  await userEvent.click(summary);
+  expect(details.open).toBe(true);
+  expect(screen.getByRole("button", { name: "Use for OpenCode" })).toHaveProperty("disabled", true);
+  expect(fixture.posts()).toHaveLength(0);
+});
+
+it("does not expose unknown observation values or invalid status numbers", async () => {
+  const value = snapshot("blocked");
+  value.status.failure = { code: "observation_unavailable", observation: { stage: "private-path", reason: "private-server-output", httpStatus: -1 } };
+  const fixture = mount(value);
+  await screen.findByText("Luci could not confirm the model’s current status.");
+  expect(screen.queryByText("Connection details")).toBeNull();
+  expect(screen.queryByText(/private-path|private-server-output|HTTP -1/)).toBeNull();
+  value.status.failure.observation = { stage: "show", reason: "timeout", httpStatus: 700 };
+  fixture.setSnapshot(value);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh model status" }));
+  await screen.findByText("The model server took too long to respond. Refresh its status before starting again.");
+  expect(screen.queryByText(/HTTP 700/)).toBeNull();
+  expect(fixture.posts()).toHaveLength(0);
+});
+
+it.each([
   ["gpu_binary_untrusted", "Luci could not verify the installed NVIDIA tool’s signature. Model startup is paused."],
   ["gpu_metadata_unavailable", "Luci could not verify the installed NVIDIA tool’s version information. Model startup is paused."],
   ["gpu_process_unavailable", "Luci could not start or observe its GPU capacity check. No model was started."],

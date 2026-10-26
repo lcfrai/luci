@@ -491,6 +491,7 @@ type windowsManagedModelService struct {
 	modelDigest            string
 	content                []*managedModelPinnedFile
 	startupDeadline        time.Time
+	metadataReady          bool
 }
 
 func (platform windowsManagedModelPlatform) start(ctx context.Context, c managedModelConfig, gen uint64) (managedModelService, error) {
@@ -643,7 +644,7 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 			return nil, errors.New("model endpoint changed")
 		}
 		if e := s.listener(); e != nil {
-			return nil, e
+			return nil, managedObservationFailure("listener", "ownership_unavailable", e, 0)
 		}
 		conn, e := (&net.Dialer{Timeout: time.Second}).DialContext(ctx, network, address)
 		if e != nil {
@@ -651,7 +652,7 @@ func (platform windowsManagedModelPlatform) start(ctx context.Context, c managed
 		}
 		if e = s.peer(conn); e != nil {
 			closeErr := conn.Close()
-			return nil, errors.Join(e, closeErr)
+			return nil, managedObservationFailure("peer", "ownership_unavailable", errors.Join(e, closeErr), 0)
 		}
 		return conn, nil
 	}}
@@ -772,30 +773,7 @@ func managedModelPeerPID(buf []byte, serverPort, clientPort int) (uint32, error)
 	return pid, nil
 }
 func (s *windowsManagedModelService) metadata(ctx context.Context, path string, body string, out any) error {
-	method := http.MethodGet
-	var input io.Reader
-	if body != "" {
-		method = http.MethodPost
-		input = strings.NewReader(body)
-	}
-	request, e := http.NewRequestWithContext(ctx, method, s.endpoint+path, input)
-	if e != nil {
-		return e
-	}
-	request.Header.Set("Content-Type", "application/json")
-	response, e := s.http.Do(request)
-	if e != nil {
-		return e
-	}
-	defer response.Body.Close()
-	if e = s.listener(); e != nil {
-		return e
-	}
-	raw, e := io.ReadAll(io.LimitReader(response.Body, 256<<10+1))
-	if e != nil || len(raw) > 256<<10 || response.StatusCode != 200 {
-		return errors.New("model metadata unavailable")
-	}
-	return json.Unmarshal(raw, out)
+	return managedModelMetadata(ctx, s.http, s.endpoint, path, body, out, s.listener)
 }
 func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSample, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -837,11 +815,19 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 	}
 	if e = s.listener(); e != nil {
 		if errors.Is(e, os.ErrNotExist) {
-			result.failure = "starting"
-			return result, nil
+			if !s.metadataReady && time.Now().Before(s.startupDeadline) {
+				result.failure = "starting"
+				return result, nil
+			}
+			if !s.metadataReady {
+				result.failure = "startup_timeout"
+			} else {
+				result.failure = "listener_ownership_unavailable"
+			}
+			return result, managedObservationFailure("listener", "ownership_unavailable", e, 0)
 		}
 		result.failure = "listener_ownership_unavailable"
-		return result, e
+		return result, managedObservationFailure("listener", "ownership_unavailable", e, 0)
 	}
 	var tags struct {
 		Models []struct {
@@ -860,7 +846,7 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 	}
 	if len(digest) != 64 || strings.Trim(digest, "0123456789abcdef") != "" || s.modelDigest != "" && s.modelDigest != digest {
 		result.failure = "model_unavailable"
-		return result, errors.New("installed model identity differs")
+		return result, managedObservationFailure("tags", "model_identity_mismatch", nil, 0)
 	}
 	s.modelDigest = digest
 	var show struct {
@@ -875,14 +861,15 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 		parts := strings.Fields(line)
 		if len(parts) == 2 {
 			if _, duplicate := params[parts[0]]; duplicate {
-				return result, errors.New("model parameters ambiguous")
+				result.failure = "model_profile_mismatch"
+				return result, managedObservationFailure("show", "parameters_ambiguous", nil, 0)
 			}
 			params[parts[0]] = parts[1]
 		}
 	}
 	if params["num_ctx"] != "16384" || params["num_thread"] != "3" || params["num_batch"] != "64" || params["num_gpu"] != "-1" {
 		result.failure = "model_profile_mismatch"
-		return result, errors.New("installed model does not match reviewed serving profile")
+		return result, managedObservationFailure("show", "profile_mismatch", nil, 0)
 	}
 	var loaded struct {
 		Models []struct {
@@ -896,22 +883,31 @@ func (s *windowsManagedModelService) sample(ctx context.Context) (managedModelSa
 		return s.metadataFailure(result, e)
 	}
 	if len(loaded.Models) > 1 {
-		return result, errors.New("loaded model count differs")
+		result.failure = "loaded_model_profile_mismatch"
+		return result, managedObservationFailure("ps", "loaded_count_mismatch", nil, 0)
 	}
 	for _, m := range loaded.Models {
 		if m.Name != s.config.Model || m.Digest != digest || m.Context != 16384 || m.VRAM == 0 {
 			result.failure = "loaded_model_profile_mismatch"
-			return result, errors.New("loaded model profile differs")
+			return result, managedObservationFailure("ps", "loaded_profile_mismatch", nil, 0)
 		}
 		result.loaded = true
 	}
+	s.metadataReady = true
 	return result, nil
 }
 func (s *windowsManagedModelService) metadataFailure(result managedModelSample, e error) (managedModelSample, error) {
-	var transport net.Error
-	if time.Now().Before(s.startupDeadline) && (errors.As(e, &transport) || errors.Is(e, io.EOF) || errors.Is(e, io.ErrUnexpectedEOF)) {
-		result.failure = "starting"
-		return result, nil
+	diagnostic := managedObservationDiagnostic(e)
+	if diagnostic != nil {
+		if diagnostic.Reason == "ownership_unavailable" {
+			result.failure = "listener_ownership_unavailable"
+		} else if !s.metadataReady && (diagnostic.Reason == "timeout" || diagnostic.Reason == "connect_refused" || diagnostic.Reason == "connection_lost") {
+			if time.Now().Before(s.startupDeadline) {
+				result.failure = "starting"
+				return result, nil
+			}
+			result.failure = "startup_timeout"
+		}
 	}
 	return result, e
 }

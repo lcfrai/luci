@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { errorText, type AgentConnection, type ProductClient } from "../../api/product";
-import type { LocalModelHostCapacity, LocalModelSave, LocalModelSnapshot } from "../../api/localModel";
+import type { LocalModelHostCapacity, LocalModelObservation, LocalModelSave, LocalModelSnapshot } from "../../api/localModel";
 import { selectedTeamId, teamScopeGeneration, TEAM_WORKSPACE_CHANGED } from "../../api/teamScope";
 import { AGENT_CONNECTIONS_CHANGED } from "../../hooks/useAgentConnections";
 import { useAuth } from "../auth/AuthProvider";
@@ -62,6 +62,36 @@ function capacityMessage(detail?: LocalModelHostCapacity): string {
     case "commit_low": return `The model needs at least ${start ? 8 : 4} GiB of available system commit. Free some memory before starting again.`;
     default: return "Luci could not confirm the computer’s current capacity. Refresh the status before starting again.";
   }
+}
+
+const observationStages: Record<string, string> = {
+  listener: "Local port", peer: "Server connection", tags: "Installed models",
+  show: "Model settings", ps: "Loaded models",
+};
+const observationReasons: Record<string, { label: string; message: string }> = {
+  ownership_unavailable: { label: "Connection could not be verified", message: "Luci could not verify its connection to the model server. Refresh its status before starting again." },
+  request_failed: { label: "Request failed", message: "Luci could not reach the model server. Check its status before starting again." },
+  cancelled: { label: "Check interrupted", message: "The model status check was interrupted. Refresh to see its current state." },
+  timeout: { label: "Response timed out", message: "The model server took too long to respond. Refresh its status before starting again." },
+  connect_refused: { label: "Server did not accept a connection", message: "The model server did not accept a connection. Check the saved application and local port." },
+  connection_lost: { label: "Connection ended early", message: "The connection to the model server ended before its check finished. Refresh its status before starting again." },
+  http_status: { label: "Server returned an error", message: "The model server returned an error. Check the saved model name and model folder." },
+  response_too_large: { label: "Response exceeded the size limit", message: "The model server returned more information than Luci can safely check. Its status could not be confirmed." },
+  response_read_failed: { label: "Response could not be read", message: "Luci could not read the model server’s response. Refresh its status before starting again." },
+  response_invalid: { label: "Response was not valid", message: "The model server returned a response Luci could not understand. Check that the saved application is Ollama." },
+  response_close_failed: { label: "Response cleanup could not be confirmed", message: "Luci could not confirm that the model status check finished cleanly. Refresh before starting new work." },
+  parameters_ambiguous: { label: "Model settings conflict", message: "The installed model has conflicting settings. Choose a model prepared for this service’s 16k context." },
+  model_identity_mismatch: { label: "Installed model did not match", message: "The installed model does not match the saved selection. Check the model name and folder." },
+  profile_mismatch: { label: "Model settings did not match", message: "The installed model does not match this service’s required settings. Choose a model prepared for its 16k context." },
+  loaded_count_mismatch: { label: "Unexpected loaded models", message: "The model server has an unexpected set of models loaded. Stop it before starting a new session." },
+  loaded_profile_mismatch: { label: "Loaded model did not match", message: "The loaded model does not match the saved model and its required settings. Stop it before starting a new session." },
+};
+function observationDetail(value?: LocalModelObservation) {
+  if (!value || !Object.prototype.hasOwnProperty.call(observationStages, value.stage) || !Object.prototype.hasOwnProperty.call(observationReasons, value.reason)) return null;
+  return {
+    stage: observationStages[value.stage], ...observationReasons[value.reason],
+    httpStatus: typeof value.httpStatus === "number" && Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599 ? value.httpStatus : undefined,
+  };
 }
 
 const capacityBytes = (value: number | null) => Number.isSafeInteger(value) && value !== null && value >= 0 ? `${(value / 2 ** 30).toFixed(1)} GiB` : "Unavailable";
@@ -205,6 +235,7 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
   const failure = snapshot?.status.failure;
   const canUse = !busy && !loading && !error && !observationError && !dirty && usable(snapshot);
   const capacity = failure?.code === "host_capacity_unavailable" ? failure.hostCapacity : undefined;
+  const observation = observationDetail(failure?.observation);
   const setField = <K extends keyof Draft>(key: K, value: Draft[K]) => { edits.current++; setDraft(previous => ({ ...previous, [key]: value })); setDirty(true); setNotice(""); };
   return <section className="setup-plan managed-local-model" aria-label="Local model" aria-busy={!!busy}>
     <div className="local-model-heading"><div><h2>Local model</h2><p>Run an installed Ollama model on this PC. Luci manages its process and resource limits.</p></div><span role="status" className="local-model-state">{observationFailed ? "Status unavailable" : snapshot ? stateLabels[snapshot.status.state] ?? "Status unconfirmed" : "Checking availability…"}</span></div>
@@ -213,13 +244,18 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
     {!observationFailed && state === "loaded" && <p className="journey-muted">The configured model is currently loaded. A completed task still needs its own checks.</p>}
     {state === "unknown" && <p role="alert" className="journey-error">Luci cannot confirm the previous process has closed. Starting a replacement is disabled.</p>}
     {(failure || error || observationError) && <div role="alert" className="journey-error">
-      {failure && <p>{capacity ? capacityMessage(capacity) : failureMessages[failure.code] ?? "The local model service needs attention. Check its configuration and refresh its status."}{failure.exitCode !== undefined ? ` Exit code: ${failure.exitCode}.` : ""}</p>}
+      {failure && <p>{capacity ? capacityMessage(capacity) : observation?.message ?? failureMessages[failure.code] ?? "The local model service needs attention. Check its configuration and refresh its status."}{failure.exitCode !== undefined ? ` Exit code: ${failure.exitCode}.` : ""}</p>}
       {error && <p>{error}</p>}
       {observationError && <p>{observationError}</p>}
       {capacity && <details><summary>Capacity details</summary><dl>
         <dt>Free RAM</dt><dd>{capacityBytes(capacity.physicalAvailableBytes)}</dd>
         <dt>Available system commit</dt><dd>{capacityBytes(capacity.commitAvailableBytes)}</dd>
         <dt>CPU use</dt><dd>{capacity.cpuPercent !== null && Number.isFinite(capacity.cpuPercent) && capacity.cpuPercent >= 0 && capacity.cpuPercent <= 100 ? `${capacity.cpuPercent.toFixed(1)}%` : "Unavailable"}</dd>
+      </dl></details>}
+      {observation && <details><summary>Connection details</summary><dl>
+        <dt>Check</dt><dd>{observation.stage}</dd>
+        <dt>Result</dt><dd>{observation.label}</dd>
+        {observation.httpStatus !== undefined && <><dt>Server response</dt><dd>HTTP {observation.httpStatus}</dd></>}
       </dl></details>}
     </div>}
     {notice && <p role="status" className="journey-success">{notice}</p>}

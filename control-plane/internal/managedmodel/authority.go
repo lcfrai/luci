@@ -73,6 +73,14 @@ type Failure struct {
 	Code         string                  `json:"code"`
 	ExitCode     *uint32                 `json:"exitCode,omitempty"`
 	HostCapacity *HostCapacityDiagnostic `json:"hostCapacity,omitempty"`
+	Observation  *ObservationDiagnostic  `json:"observation,omitempty"`
+}
+
+// Fixed local metadata stages and reasons only, never URLs or vendor output.
+type ObservationDiagnostic struct {
+	Stage      string `json:"stage"`
+	Reason     string `json:"reason"`
+	HTTPStatus *int   `json:"httpStatus,omitempty"`
 }
 
 // Fixed reasons and bounded numeric observations only; never host paths,

@@ -80,6 +80,36 @@ func managedHostCapacityDiagnostic(err error) *managedmodel.HostCapacityDiagnost
 	return &copy
 }
 
+func managedObservationDiagnostic(err error) *managedmodel.ObservationDiagnostic {
+	var reported interface {
+		ManagedModelObservationDiagnostic() *managedmodel.ObservationDiagnostic
+	}
+	if !errors.As(err, &reported) {
+		return nil
+	}
+	source := reported.ManagedModelObservationDiagnostic()
+	if source == nil {
+		return nil
+	}
+	switch source.Stage {
+	case "listener", "peer", "tags", "show", "ps":
+	default:
+		return nil
+	}
+	switch source.Reason {
+	case "ownership_unavailable", "request_failed", "cancelled", "timeout", "connect_refused", "connection_lost", "http_status", "response_too_large", "response_read_failed", "response_invalid", "response_close_failed", "parameters_ambiguous", "model_identity_mismatch", "profile_mismatch", "loaded_count_mismatch", "loaded_profile_mismatch":
+	default:
+		return nil
+	}
+	copy := *source
+	copy.HTTPStatus = nil
+	if source.HTTPStatus != nil && *source.HTTPStatus >= 100 && *source.HTTPStatus <= 599 {
+		value := *source.HTTPStatus
+		copy.HTTPStatus = &value
+	}
+	return &copy
+}
+
 type managedModelService interface {
 	sample(context.Context) (managedModelSample, error)
 	stop(context.Context) error
@@ -390,6 +420,7 @@ func (m *managedModelManager) run(ctx context.Context, c managedModelConfig, gen
 		}
 		m.status.Failure = &managedmodel.Failure{Code: code}
 		m.status.Failure.HostCapacity = managedHostCapacityDiagnostic(err)
+		m.status.Failure.Observation = managedObservationDiagnostic(err)
 		if typed != nil {
 			m.status.Failure.ExitCode = typed.exitCode
 		}
@@ -420,7 +451,7 @@ func (m *managedModelManager) run(ctx context.Context, c managedModelConfig, gen
 			if code == "" {
 				code = "observation_unavailable"
 			}
-			m.status.Failure = &managedmodel.Failure{Code: code, ExitCode: sample.exitCode, HostCapacity: managedHostCapacityDiagnostic(e)}
+			m.status.Failure = &managedmodel.Failure{Code: code, ExitCode: sample.exitCode, HostCapacity: managedHostCapacityDiagnostic(e), Observation: managedObservationDiagnostic(e)}
 			m.withdrawing = true
 			_ = m.publishLocked()
 			m.mu.Unlock()
@@ -485,10 +516,12 @@ func (m *managedModelManager) retireFailedOwner(owner managedModelService, gen u
 	if err != nil {
 		m.status.State = "unknown"
 		var host *managedmodel.HostCapacityDiagnostic
+		var observation *managedmodel.ObservationDiagnostic
 		if m.status.Failure != nil {
 			host = m.status.Failure.HostCapacity
+			observation = m.status.Failure.Observation
 		}
-		m.status.Failure = &managedmodel.Failure{Code: "cleanup_unknown", HostCapacity: host}
+		m.status.Failure = &managedmodel.Failure{Code: "cleanup_unknown", HostCapacity: host, Observation: observation}
 	} else {
 		m.owner = nil
 	}

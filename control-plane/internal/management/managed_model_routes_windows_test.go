@@ -386,3 +386,82 @@ func TestManagedHostDiagnosticsPropagateJoinedStartupFailureWithoutAliasing(t *t
 		})
 	}
 }
+
+type managedObservationService struct {
+	err     error
+	stopErr error
+}
+
+func (s *managedObservationService) sample(context.Context) (managedModelSample, error) {
+	return managedModelSample{failure: "startup_timeout"}, s.err
+}
+func (s *managedObservationService) stop(context.Context) error { return s.stopErr }
+
+func TestManagedObservationDiagnosticsSurviveManagerFailureAndCleanup(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		monitor bool
+		unknown bool
+	}{
+		{"startup_settled", false, false},
+		{"startup_unknown", false, true},
+		{"monitor_settled", true, false},
+		{"monitor_unknown", true, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, m := managedRouteFixture(t)
+			status := 200
+			detail := &managedmodel.ObservationDiagnostic{Stage: "show", Reason: "timeout", HTTPStatus: &status}
+			cause := errors.Join(errors.New("private URL/vendor context"), managedObservationCarrier{detail})
+			owner := &managedObservationService{err: cause}
+			if test.unknown {
+				owner.stopErr = errors.New("private cleanup context")
+			}
+			if test.monitor {
+				m.platform = managedDiagnosticStartPlatform{owner: owner}
+			} else {
+				var retained managedModelService
+				if test.unknown {
+					retained = owner
+				}
+				m.platform = managedDiagnosticStartPlatform{owner: retained, err: &managedModelStartError{code: "startup_timeout", cause: cause}}
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			m.generation, m.done, m.cancel = 9, make(chan struct{}), cancel
+			done := m.done
+			m.run(ctx, managedModelConfig{authorize: func() error { return nil }}, 9, done)
+			select {
+			case <-done:
+			default:
+				t.Fatal("failure retirement not joined")
+			}
+			failure := m.status.Failure
+			if failure == nil || failure.Observation == nil || failure.Observation.Stage != "show" || failure.Observation.Reason != "timeout" || failure.Observation.HTTPStatus == nil || *failure.Observation.HTTPStatus != 200 {
+				t.Fatal("fixed observation diagnostic lost through manager/cleanup")
+			}
+			if test.monitor && test.unknown {
+				if failure.Code != "cleanup_unknown" {
+					t.Fatal("failed retirement was hidden")
+				}
+			} else if failure.Code != "startup_timeout" {
+				t.Fatal("startup timeout collapsed to generic observation failure")
+			}
+			status, detail.Stage, detail.Reason = 599, "private-stage", "private-reason"
+			if failure.Observation.Stage != "show" || failure.Observation.Reason != "timeout" || *failure.Observation.HTTPStatus != 200 {
+				t.Fatal("published failure aliases private source")
+			}
+			if test.unknown {
+				if m.status.State != "unknown" || m.owner != owner || m.done != done || m.cancel == nil {
+					t.Fatal("unknown retirement lost quarantine")
+				}
+			} else if m.status.State != "blocked" || m.owner != nil || m.done != nil || m.cancel != nil {
+				t.Fatal("positive retirement left stale bookkeeping")
+			}
+			raw, e := json.Marshal(m.projectionLocked(true))
+			if e != nil || strings.Contains(string(raw), "private") || strings.Contains(string(raw), "vendor") {
+				t.Fatal("raw failure context exposed")
+			}
+		})
+	}
+}
