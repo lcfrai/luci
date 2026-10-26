@@ -9,7 +9,7 @@ it("keeps model ownership routes on the host while named connections stay worksp
   const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => new Response("{}"));
   const client = createProductClient("http://127.0.0.1:4455", fetcher);
   await client.localModel();
-  await client.saveLocalModel({ expectedRevision: 3, enabled: true, startWithLuci: false, executablePath: "C:\\Ollama\\ollama.exe", modelStore: "E:\\Models", port: 11435, model: "coder:latest" });
+  await client.saveLocalModel({ expectedRevision: 3, enabled: true, startWithLuci: false, executionMode: "gpu", executablePath: "C:\\Ollama\\ollama.exe", modelStore: "E:\\Models", port: 11435, model: "coder:latest" });
   await client.startLocalModel(3);
   await client.stopLocalModel(3, "18446744073709551614");
   await client.agentConnections();
