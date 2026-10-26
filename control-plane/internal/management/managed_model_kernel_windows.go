@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"unicode/utf16"
 	"unsafe"
 
@@ -31,6 +32,36 @@ type managedModelPIDList struct {
 type nativeManagedModelKernel struct{}
 
 var managedModelKernel32 = windows.NewLazySystemDLL("kernel32.dll")
+var managedModelSetJobInformationProc = managedModelKernel32.NewProc("SetInformationJobObject")
+var managedModelQueryJobInformationProc = managedModelKernel32.NewProc("QueryInformationJobObject")
+
+func managedModelJobCallError(result uintptr, err error) error {
+	if result != 0 {
+		return nil
+	}
+	if err == nil || err == syscall.Errno(0) {
+		return syscall.EINVAL
+	}
+	return err
+}
+
+// Keep Go buffer pointers typed until the compiler-recognized LazyProc.Call
+// boundary. The x/sys wrappers accept uintptr without go:uintptrescapes.
+func managedModelSetJobInformation(job windows.Handle, class uint32, buffer unsafe.Pointer, bytes uint32) error {
+	if err := managedModelSetJobInformationProc.Find(); err != nil {
+		return err
+	}
+	result, _, err := managedModelSetJobInformationProc.Call(uintptr(job), uintptr(class), uintptr(buffer), uintptr(bytes))
+	return managedModelJobCallError(result, err)
+}
+
+func managedModelQueryJobInformation(job windows.Handle, class int32, buffer unsafe.Pointer, bytes uint32) error {
+	if err := managedModelQueryJobInformationProc.Find(); err != nil {
+		return err
+	}
+	result, _, err := managedModelQueryJobInformationProc.Call(uintptr(job), uintptr(class), uintptr(buffer), uintptr(bytes), 0)
+	return managedModelJobCallError(result, err)
+}
 
 // Caller-owned aligned storage avoids an allocation escaping if the second
 // InitializeProcThreadAttributeList call fails. None of these calls launches a
@@ -120,19 +151,19 @@ func (nativeManagedModelKernel) setLimits(job windows.Handle, l managedModelLimi
 	info.BasicLimitInformation.LimitFlags = managedModelJobFlags
 	info.BasicLimitInformation.ActiveProcessLimit = l.processes
 	info.JobMemoryLimit, info.ProcessMemoryLimit = l.jobBytes, l.processBytes
-	if _, err := windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info))); err != nil {
+	if err := managedModelSetJobInformation(job, windows.JobObjectExtendedLimitInformation, unsafe.Pointer(&info), uint32(unsafe.Sizeof(info))); err != nil {
 		return err
 	}
 	cpu := managedModelCPUInfo{flags: managedModelCPUFlags, rate: l.cpuRate}
-	if _, err := windows.SetInformationJobObject(job, windows.JobObjectCpuRateControlInformation, uintptr(unsafe.Pointer(&cpu)), uint32(unsafe.Sizeof(cpu))); err != nil {
+	if err := managedModelSetJobInformation(job, windows.JobObjectCpuRateControlInformation, unsafe.Pointer(&cpu), uint32(unsafe.Sizeof(cpu))); err != nil {
 		return err
 	}
 	var actual windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION
 	var actualCPU managedModelCPUInfo
-	if err := windows.QueryInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&actual)), uint32(unsafe.Sizeof(actual)), nil); err != nil {
+	if err := managedModelQueryJobInformation(job, windows.JobObjectExtendedLimitInformation, unsafe.Pointer(&actual), uint32(unsafe.Sizeof(actual))); err != nil {
 		return err
 	}
-	if err := windows.QueryInformationJobObject(job, windows.JobObjectCpuRateControlInformation, uintptr(unsafe.Pointer(&actualCPU)), uint32(unsafe.Sizeof(actualCPU)), nil); err != nil {
+	if err := managedModelQueryJobInformation(job, windows.JobObjectCpuRateControlInformation, unsafe.Pointer(&actualCPU), uint32(unsafe.Sizeof(actualCPU))); err != nil {
 		return err
 	}
 	if !managedModelLimitsMatch(l, actual, actualCPU) {
@@ -284,13 +315,13 @@ func (nativeManagedModelKernel) identity(process windows.Handle) (managedModelId
 func (nativeManagedModelKernel) jobState(job windows.Handle) (managedModelJobState, error) {
 	var ids managedModelPIDList
 	var accounting managedModelAccounting
-	if err := windows.QueryInformationJobObject(job, windows.JobObjectBasicProcessIdList, uintptr(unsafe.Pointer(&ids)), uint32(unsafe.Sizeof(ids)), nil); err != nil {
+	if err := managedModelQueryJobInformation(job, windows.JobObjectBasicProcessIdList, unsafe.Pointer(&ids), uint32(unsafe.Sizeof(ids))); err != nil {
 		return managedModelJobState{}, err
 	}
 	if ids.assigned != ids.returned || ids.returned > uint32(len(ids.pids)) {
 		return managedModelJobState{}, errors.New("managed model complete job inventory unavailable")
 	}
-	if err := windows.QueryInformationJobObject(job, windows.JobObjectBasicAccountingInformation, uintptr(unsafe.Pointer(&accounting)), uint32(unsafe.Sizeof(accounting)), nil); err != nil {
+	if err := managedModelQueryJobInformation(job, windows.JobObjectBasicAccountingInformation, unsafe.Pointer(&accounting), uint32(unsafe.Sizeof(accounting))); err != nil {
 		return managedModelJobState{}, err
 	}
 	if accounting.activeProcesses > 64 {
