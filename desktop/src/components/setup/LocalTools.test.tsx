@@ -276,7 +276,8 @@ it('keeps compressed installation as the default and builds source only after a 
   const writes = () => fetcher.mock.calls.filter(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST');
   expect(writes()).toHaveLength(0);
   await userEvent.click(screen.getByRole('button', {name: 'Install agent runtime'}));
-  expect((await screen.findByRole('alert')).textContent).toBe('The compressed runtime distribution is not included.');
+  const distributionFailure = await screen.findByText('The compressed runtime distribution is not included.');
+  expect(distributionFailure.getAttribute('role')).toBe('alert');
   expect(writes()).toHaveLength(1);
   expect(JSON.parse(writes()[0][1]!.body as string)).toEqual({});
   await userEvent.dblClick(screen.getByRole('button', {name: 'Build from bundled source'}));
