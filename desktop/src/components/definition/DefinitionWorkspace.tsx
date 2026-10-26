@@ -65,11 +65,13 @@ function RecordGroup<T extends { id: string }>({ title, help, items, fields, cre
   </details>;
 }
 
-export function DefinitionWorkspace({ projectId, onContextEdit }: { projectId: string; onContextEdit?(): void }) {
+type DefinitionWorkspaceProps = { projectId: string; onContextEdit?(): void; onInitialDefinition?(empty: boolean): void; ideaFirst?: boolean };
+export function DefinitionWorkspace({ projectId, onContextEdit, onInitialDefinition, ideaFirst = false }: DefinitionWorkspaceProps) {
   const scope = useProjectDraftScope(projectId);
-  return <ProjectDefinition key={`${scope}:${projectId}`} projectId={projectId} scope={scope} onContextEdit={onContextEdit} />;
+  return <ProjectDefinition key={`${scope}:${projectId}`} projectId={projectId} scope={scope} onContextEdit={onContextEdit} onInitialDefinition={onInitialDefinition} ideaFirst={ideaFirst} />;
 }
-function ProjectDefinition({ projectId, scope, onContextEdit }: { projectId: string; scope: string | null; onContextEdit?(): void }) {
+function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinition, ideaFirst }: DefinitionWorkspaceProps & { scope: string | null }) {
+  const initialDefinitionReported = useRef(false);
   const access = useProjectAccess(projectId);
   const { canRead, canEdit } = access;
   const [spec, setSpec] = useState<ProjectSpecification | null>(null);
@@ -134,6 +136,12 @@ function ProjectDefinition({ projectId, scope, onContextEdit }: { projectId: str
       if (!alive.current || !readPermission.current || controller.signal.aborted || reading.current.generation !== generation) return;
       savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision });
       reading.current.ready = true; setSavedRead("ready"); setDirty(false); setError("");
+      if (!initialDefinitionReported.current) {
+        initialDefinitionReported.current = true;
+        onInitialDefinition?.(value.revision === 0 && value.status === "draft" && value.startingPoint === "new" &&
+          !value.purpose.trim() && !value.audience.trim() && !value.constraints.trim() &&
+          [value.outOfScope, value.requirements, value.journeys, value.roles, value.entities, value.integrations, value.glossary, value.decisions, value.questions, value.evidence ?? []].every(items => !items.length));
+      }
       if (value.purpose || value.revision) setTab("specification");
     } catch (cause) {
       if (alive.current && readPermission.current && !controller.signal.aborted && reading.current.generation === generation) { setSavedRead("failed"); setError(errorText(cause)); }
@@ -205,9 +213,15 @@ function ProjectDefinition({ projectId, scope, onContextEdit }: { projectId: str
     else if (step !== 4) patch({ [questions[step].field]: text });
   };
   const openQuestionCount = spec?.questions.filter((question) => !question.answer.trim()).length ?? 0;
+  const definitionAction = spec && canRead && (dirty || spec.status === "outdated" || !spec.revision
+    ? <Button type="button" loading={pending === "save"} disabled={!canEdit || locked || !!draft.pending || missingJourneyLinks || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
+    : spec.status === "approved"
+      ? <Button type="button" disabled={locked} onClick={() => setLens("design")}>Continue to Design</Button>
+      : <Button type="button" loading={pending === "approve"} disabled={!canEdit || locked || !!draft.pending} onClick={() => void approve()}>Approve definition</Button>);
   return <section className="journey-page definition-workspace">
-    <JourneyHeader title="Discover" subtitle="Turn an idea or existing application into a clear, testable product definition.">
+    <JourneyHeader title={ideaFirst ? "What are we building?" : "Discover"} subtitle={ideaFirst ? "Start with your idea. You can attach supporting sources whenever you need them." : "Turn an idea or existing application into a clear, testable product definition."}>
       {spec && <span className="journey-revision" role="status">{dirty ? "Unsaved changes" : `${spec.status === "approved" ? "Approved" : spec.status === "outdated" ? "Needs reconciliation" : "Draft"} · Revision ${spec.revision}`}</span>}
+      {ideaFirst && definitionAction}
     </JourneyHeader>
     <div className="definition-conversation-link">
       <p>Use this definition to agree what will be built. Luci uses it to explain the next step and the effect of a change.</p>
@@ -301,11 +315,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit }: { projectId: str
       </div>}
       </TabsSubtlePanel>)}
       <footer className="definition-footer"><div className="journey-actions">
-        {dirty || spec.status === "outdated" || !spec.revision
-          ? <Button type="button" loading={pending === "save"} disabled={!canEdit || locked || !!draft.pending || missingJourneyLinks || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
-          : spec.status === "approved"
-            ? <Button type="button" disabled={locked} onClick={() => setLens("design")}>Continue to Design</Button>
-            : <Button type="button" loading={pending === "approve"} disabled={!canEdit || locked || !!draft.pending} onClick={() => void approve()}>Approve definition</Button>}
+        {!ideaFirst && definitionAction}
       </div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} ${spec.requirements.length === 1 ? "requirement" : "requirements"} · ${openQuestionCount} definition ${openQuestionCount === 1 ? "question" : "questions"}`}</p></footer>
     </>}
     <ContextStorage projectId={projectId} />

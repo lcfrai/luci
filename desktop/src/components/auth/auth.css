@@ -76,6 +76,39 @@
   white-space: pre-wrap;
   user-select: all;
 }
+.auth-card-create {
+  inline-size: min(100%, 520px);
+  padding: 24px;
+}
+.auth-card-create h1 {
+  margin-block: 14px 6px;
+}
+.auth-card-create .auth-workspace {
+  margin-block-end: 10px;
+}
+.auth-card-create .auth-intro {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.auth-card-create .journey-form {
+  gap: 12px;
+  margin-block: 16px;
+}
+.auth-card-create .luci-field {
+  gap: 6px;
+}
+.auth-card-create .auth-password-toggle {
+  min-block-size: 44px;
+  padding-block: 4px;
+  box-shadow: none;
+}
+.auth-card-create .auth-options {
+  padding-block-start: 12px;
+}
+.auth-card-create .auth-help {
+  margin-block-start: 12px;
+}
 .admin-dialog {
   max-inline-size: 1050px;
   inline-size: calc(100vw - 60px);

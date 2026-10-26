@@ -41,6 +41,8 @@
 }
 .projects-empty {
   padding-block: 30px;
+  container-name: projects-intro;
+  container-type: inline-size;
 }
 .projects-empty h2 {
   font-size: 24px;
@@ -55,18 +57,42 @@
 .projects-empty ol {
   list-style: none;
   padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
   margin-block: 32px;
 }
 .projects-empty li {
   display: grid;
-  gap: 6px;
-  max-inline-size: 23ch;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  align-content: start;
+  gap: 6px 16px;
+  min-inline-size: 0;
 }
 .projects-empty li span {
   color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+@container projects-intro (480px <= width < 880px) {
+  .projects-empty ol {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 24px;
+  }
+  .projects-empty li {
+    grid-column: span 2;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .projects-empty li:nth-child(4) { grid-column: 2 / span 2; }
+  .projects-empty li:nth-child(5) { grid-column: 4 / span 2; }
+}
+@container projects-intro (min-width: 880px) {
+  .projects-empty ol {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 24px;
+  }
+  .projects-empty li {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .projects-list {
   padding: 0;
@@ -134,11 +160,6 @@
   .projects-utilities {
     align-items: flex-start;
     flex-direction: column;
-  }
-  .projects-empty ol {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
   }
   .projects-list .project-open {
     grid-column: 1;

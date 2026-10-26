@@ -49,6 +49,7 @@ function ScopedDeploymentWorkspace({ projectId, scope }: { projectId: string; sc
     useCockpit.setState(state => state.projectRunDeployment === pending ? { projectRunDeployment: null } : {});
   }, [pending, scope, projectId, locked]);
   return <div className="deployment-workspace">
+    {view === "platform" && <div className="deployment-heading"><JourneyHeader title="Deploy and operate" subtitle="Run the application and its backing services, inspect its health and maintain it after launch." /></div>}
     {!intent && <DeploymentOverview projectId={projectId} scope={scope} disabled={locked} onInspect={target => {
       if (locked) return;
       setInspection(previous => ({ ...target, request: (previous?.request ?? 0) + 1 })); setView(target.kind === "release" ? "publishing" : "platform");
@@ -58,7 +59,7 @@ function ScopedDeploymentWorkspace({ projectId, scope }: { projectId: string; sc
       <TabsSubtleItem index={1} label="Previews and publishing" aria-disabled={locked} />
     </TabsSubtle>
     <TabsSubtlePanel idPrefix={tabsId} index={0} selectedIndex={selectedIndex}>
-      <section className="journey-page"><JourneyHeader title="Deploy and operate" subtitle="Run the application and its backing services, inspect its health and maintain it after launch." /><fieldset className="definition-fields" disabled={configurationBusy}><PlatformWorkspace projectId={projectId} inspectionRequest={inspection?.request} inspectDeploymentId={inspection?.kind === "platform" ? inspection.id : undefined} /></fieldset></section>
+      <section className="journey-page"><fieldset className="definition-fields" disabled={configurationBusy}><PlatformWorkspace projectId={projectId} inspectionRequest={inspection?.request} inspectDeploymentId={inspection?.kind === "platform" ? inspection.id : undefined} /></fieldset></section>
     </TabsSubtlePanel>
     <TabsSubtlePanel idPrefix={tabsId} index={1} selectedIndex={selectedIndex}>
       <ProjectDeploy projectId={projectId} inspectionRequest={inspection?.request} inspectReleaseId={inspection?.kind === "release" ? inspection.id : undefined} deploymentIntent={intent} configurationManaged configurationBusy={configurationBusy} onBusyChange={setPublishingBusy} />

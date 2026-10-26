@@ -48,15 +48,18 @@ function planDraftValid(value: unknown): value is PlanDraft {
 
 export default function DesignWorkspace({ projectId }: { projectId: string }) {
   const scope = useProjectDraftScope(projectId);
-  const [view, setView] = useState<View>('canvas');
+  const [view, setView] = useState<View | null>(null);
   return <ProjectDesignWorkspace key={`${scope}:${projectId}`} projectId={projectId} scope={scope} view={view} setView={setView} />;
 }
-function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId: string; scope: string | null; view: View; setView(view: View): void }) {
+function ProjectDesignWorkspace({ projectId, scope, view: chosenView, setView }: { projectId: string; scope: string | null; view: View | null; setView(view: View): void }) {
   const access = useProjectAccess(projectId);
   const { canRead, canEdit, canExecute } = access;
   const actorId = useAuth()?.profile.user.id ?? '', team = useTeamWorkspace();
   const workScope = designWorkScope(scope, actorId, team?.teamId ?? '', projectId);
   const [plan, setPlan] = useState<PlanDraft | null>(null);
+  // Choose once from the loaded document; edits and refreshes never move tabs.
+  const [initialView, setInitialView] = useState<View | null>(null);
+  const view = chosenView ?? initialView ?? 'screens';
   const [spec, setSpec] = useState<ProjectSpecification | null>(null);
   const [baseRevision, setBaseRevision] = useState(0);
   const savedPlan = useRef<DesignPlan | null>(null);
@@ -113,6 +116,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
       const [saved, definition] = await Promise.all([designPlanApi.get(projectId), definitionApi.get(projectId)]);
       if (!current() || refreshQueued.current) return;
       savedPlan.current = saved; setPlan(saved); setBaseRevision(saved.revision); setSpec(definition); setDirty(false); setError("");
+      setInitialView(previous => previous ?? (saved.scene?.frames.length ? 'canvas' : 'screens'));
       setDocumentReadState("ready");
     } catch (cause) {
       if (current() && !refreshQueued.current) { setError(errorText(cause)); setDocumentReadState("failed"); }

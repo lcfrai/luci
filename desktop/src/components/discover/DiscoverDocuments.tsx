@@ -15,11 +15,12 @@ import { SpecificationEvidenceLinks } from './SpecificationEvidenceLinks';
 
 const requestKey=()=>`document-${crypto.randomUUID()}`;
 const utf8Bytes=(text:string)=>new TextEncoder().encode(text).length;
-export function DiscoverDocuments({projectId}:{projectId:string}) {
+export function DiscoverDocuments({projectId,onEmptySources}:{projectId:string;onEmptySources?(empty:boolean|null):void}) {
   const scope=useProjectDraftScope(projectId),access=useProjectAccess(projectId);
-  return <ProjectDiscoverDocuments key={`${scope}:${projectId}`} projectId={projectId} scope={scope} canRead={access.canRead} canEdit={access.canEdit}/>;
+  return <ProjectDiscoverDocuments key={`${scope}:${projectId}`} projectId={projectId} scope={scope} canRead={access.canRead} canEdit={access.canEdit} onEmptySources={onEmptySources}/>;
 }
-export function ProjectDiscoverDocuments({projectId,scope,canRead,canEdit}:{projectId:string;scope:string|null;canRead:boolean;canEdit:boolean}) {
+export function ProjectDiscoverDocuments({projectId,scope,canRead,canEdit,onEmptySources}:{projectId:string;scope:string|null;canRead:boolean;canEdit:boolean;onEmptySources?(empty:boolean|null):void}) {
+  const [emptyFirstPage,setEmptyFirstPage]=useState<boolean|null>(null);
   const [documents,setDocuments]=useState<DiscoveryDocument[]>([]),[selected,setSelected]=useState<DiscoveryDocument|null>(null),[nextCursor,setNextCursor]=useState('');
   const [cursor,setCursor]=useState(''),[previous,setPrevious]=useState<string[]>([]),[omitted,setOmitted]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
   const [pending,setPending]=useState<PendingDiscoveryRequest|null>(null),[recoveryError,setRecoveryError]=useState(''),[rejected,setRejected]=useState(false);
@@ -29,6 +30,7 @@ export function ProjectDiscoverDocuments({projectId,scope,canRead,canEdit}:{proj
   const pendingRef=useRef(pending);pendingRef.current=pending;
  const unsaved=useCockpit(state=>state.unsavedProjectDrafts),correctionDirty=Object.values(unsaved).some(item=>item.projectId===projectId && item.label==="Document correction");
   useEffect(()=>{try{if(scope)setPending(readDiscoveryRecovery(scope));}catch(cause){setRecoveryError(errorText(cause));}},[scope]);
+  useEffect(()=>{onEmptySources?.(canRead && emptyFirstPage!==null ? emptyFirstPage && !pending && !recoveryError && !correctionDirty : null);},[canRead,emptyFirstPage,pending,recoveryError,correctionDirty,onEmptySources]);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;generation.current++;for(const request of requests.current)request.abort();if(download.current)URL.revokeObjectURL(download.current);};},[]);
   useEffect(()=>{if(!canRead){generation.current++;for(const request of requests.current)request.abort();setDocuments([]);setSelected(null);setLinks([]);if(download.current){URL.revokeObjectURL(download.current);download.current='';}}},[canRead]);
   async function readPage(after=cursor) {
@@ -36,6 +38,7 @@ export function ProjectDiscoverDocuments({projectId,scope,canRead,canEdit}:{proj
     try{const page=await discoveryDocumentsApi.list(projectId,after,request.signal);if(!alive.current || request.signal.aborted || turn!==generation.current || !current.current.canRead)return;
       if(!page || !Array.isArray(page.documents) || page.documents.length>25 || !page.documents.every(item=>discoveryDocumentValid(item,projectId)) || typeof page.nextCursor!=='string' || typeof page.omitted!=='boolean')throw new Error('The private document page could not be verified.');
       setDocuments(page.documents);setNextCursor(page.nextCursor);setOmitted(page.omitted===true);
+      if(after==='')setEmptyFirstPage(!page.documents.length && !page.nextCursor && !page.omitted);
     }catch(cause){if(alive.current && !request.signal.aborted)setError(errorText(cause));}finally{requests.current.delete(request);}
   }
   async function refreshDocuments() {
@@ -52,6 +55,7 @@ export function ProjectDiscoverDocuments({projectId,scope,canRead,canEdit}:{proj
       if(!currentRead())return;
       if(prior && (!document || !discoveryDocumentValid(document,projectId) || document.id!==prior.id || document.original.digest!==prior.original.digest || document.revision<prior.revision))throw new Error('The selected document readback could not be verified. Its previous evidence remains open.');
       setDocuments(page.documents);setNextCursor(page.nextCursor);setOmitted(page.omitted);
+      if(cursor==='')setEmptyFirstPage(!page.documents.length && !page.nextCursor && !page.omitted);
       if(document){setSelected(document);if(document.revision!==prior?.revision)setLinks([]);}
       setNotice('Saved documents and the open source are refreshed. No extraction or other document action was repeated.');
     }catch(cause){if(currentRead())setError(errorText(cause));}

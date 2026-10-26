@@ -1,8 +1,6 @@
 // Owns responsive navigation, the single keyboard-map mount and shared overlays.
 import { useEffect, useRef, useState, type JSX } from "react";
-import { useShallow } from 'zustand/react/shallow';
 import { useCockpit } from "../store/store";
-import { selectPaneSessionIds } from '../store/selectors';
 import { Rail } from "./rail/Rail";
 import { SubRail } from "./subrail/SubRail";
 import { TopBar } from "./topbar/TopBar";
@@ -68,8 +66,6 @@ export function AppShell(): JSX.Element {
   );
   const toggleRail = useCockpit((s) => s.toggleRail);
   const toolsVisible = workspaceSurface === "tools" || !!accountSession?.authOnly;
-  const sessionIds = useCockpit(useShallow(selectPaneSessionIds));
-  const liveDevelop = toolsVisible && lens === 'develop' && sessionIds.length > 0;
   const homeVisible = projectId === null && branchId === null && !accountSession?.authOnly;
   useEffect(() => { setVisitedTool(previous => toolsVisible ? toolKey : previous === toolKey ? previous : null); }, [toolsVisible, toolKey]);
   useEffect(() => {
@@ -173,7 +169,7 @@ export function AppShell(): JSX.Element {
             (toolsVisible || visitedTool === toolKey) && <LensRouter key={toolKey} lens={lens} />
           )}
         </div>
-        {projectId && <OrchestratorPanel projectId={projectId} primary={!toolsVisible} defaultCollapsed={liveDevelop} />}
+        {projectId && <OrchestratorPanel projectId={projectId} primary={!toolsVisible} defaultCollapsed />}
         </div>
       </main>
       {drawerOpen && <div className="shell-scrim" aria-hidden="true" />}

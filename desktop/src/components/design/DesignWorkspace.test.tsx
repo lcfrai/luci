@@ -83,6 +83,55 @@ function ready(plan = fixture()) {
   vi.spyOn(productApi, "prototypeReleases").mockResolvedValue({ releases: [] });
 }
 
+it("starts an empty Design at screen planning and keeps it there after the first save", async () => {
+  ready({ ...fixture(), screens: [] });
+  vi.spyOn(designPlanApi, "save").mockImplementation(async (_id, plan) => ({ ...plan, revision: 3 }));
+  render(<DesignWorkspace projectId="p-1" />);
+  const describe = await screen.findByRole("button", { name: "Describe the first screen" });
+  expect(screen.getByRole("tab", { name: "Screens and states" }).getAttribute("aria-selected")).toBe("true");
+  await userEvent.click(describe);
+  const name = await screen.findByRole("textbox", { name: "Screen name" });
+  await userEvent.clear(name);
+  await userEvent.type(name, "Counter");
+  await userEvent.click(screen.getByRole("button", { name: "Save design plan" }));
+  await screen.findByText("Design plan 3 saved. Implementation context updated.");
+  expect(screen.getByRole("tab", { name: "Screens and states" }).getAttribute("aria-selected")).toBe("true");
+  expect(name).toHaveProperty("value", "Counter");
+});
+
+it("preserves Canvas as the initial view for a saved editable scene", async () => {
+  ready({ ...fixture(), scene: { version: 1, frames: [{ id: "frame-home", name: "Saved home", screenId: "screen-1", state: "Saved", width: 390, height: 700, background: "#ffffff", nodes: [] }] } });
+  render(<DesignWorkspace projectId="p-1" />);
+  const frame = await screen.findByLabelText("Design frame Saved home");
+  expect(screen.getByRole("tab", { name: "Canvas" }).getAttribute("aria-selected")).toBe("true");
+  expect(frame.closest('[role="tabpanel"]')).toHaveProperty("hidden", false);
+});
+
+it("never replaces an explicit Design tab during refresh or a keyed scope change", async () => {
+  ready({ ...fixture(), screens: [] });
+  let scope = "design-initial-tab";
+  vi.spyOn(projectDraft, "useProjectDraftScope").mockImplementation(() => scope);
+  vi.mocked(designPlanApi.get).mockImplementation(async projectId => ({ ...fixture(), projectId, screens: [] }));
+  const definition = vi.mocked(definitionApi.get).getMockImplementation()!;
+  vi.mocked(definitionApi.get).mockImplementation(async projectId => ({ ...await definition(projectId), projectId }));
+  const ui = render(<DesignWorkspace projectId="p-1" />);
+  await screen.findByRole("button", { name: "Describe the first screen" });
+  await userEvent.click(screen.getByRole("tab", { name: "Canvas" }));
+  await act(async () => notifyProjectContextChanged(scope, "p-1"));
+  await waitFor(() => expect(designPlanApi.get).toHaveBeenCalledTimes(2));
+  expect(screen.getByRole("tab", { name: "Canvas" }).getAttribute("aria-selected")).toBe("true");
+  scope = "design-next-scope";
+  ui.rerender(<DesignWorkspace projectId="p-2" />);
+  await waitFor(() => expect(designPlanApi.get).toHaveBeenCalledTimes(3));
+  expect(screen.getByRole("tab", { name: "Canvas" }).getAttribute("aria-selected")).toBe("true");
+  await userEvent.click(screen.getByRole("tab", { name: "Screens and states" }));
+  vi.mocked(designPlanApi.get).mockResolvedValue({ ...fixture(), projectId: "p-3", scene: { version: 1, frames: [{ id: "frame-home", name: "Saved home", screenId: "screen-1", state: "Saved", width: 390, height: 700, background: "#ffffff", nodes: [] }] } });
+  scope = "design-third-scope";
+  ui.rerender(<DesignWorkspace projectId="p-3" />);
+  await screen.findByRole("textbox", { name: "Screen name" });
+  expect(screen.getByRole("tab", { name: "Screens and states" }).getAttribute("aria-selected")).toBe("true");
+});
+
 it("keeps recovery and edits blocked until the saved design reload completes, then merges against its fresh revision", async () => {
   ready();
   const scope = "design-reload-recovery";
@@ -432,7 +481,7 @@ it("links design tabs to manually activated panels without opening sketch on key
   render(<DesignWorkspace projectId="p-1" />);
   const selected = await screen.findByRole("tab", { name: "Screens and states" });
   const user = userEvent.setup();
-  expect(screen.getByRole('tab', {name: 'Canvas'}).getAttribute('aria-selected')).toBe('true');
+  expect(selected.getAttribute('aria-selected')).toBe('true');
   await openScreenPlan();
   selected.focus();
   await user.keyboard("{ArrowRight}");

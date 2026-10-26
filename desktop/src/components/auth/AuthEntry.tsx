@@ -97,7 +97,7 @@ export function AuthEntry({
   }
   return (
     <main className="auth-screen">
-      <section className="auth-card" aria-labelledby="auth-title">
+      <section className={`auth-card${create ? " auth-card-create" : ""}`} aria-labelledby="auth-title">
         <div className="auth-brand"><LuciMark size={28} /><span>Luci</span></div>
         <h1 id="auth-title" ref={heading} tabIndex={-1}>
           {!status
@@ -115,7 +115,7 @@ export function AuthEntry({
           {local.available ? " · This computer" : ""}
         </p>
         {status && (
-          <p className="journey-muted">
+          <p className="auth-intro journey-muted">
             {fresh
               ? "Your first account owns this workspace. You will then choose this computer, your own cloud, or an existing team workspace. No lcfr.ai account is needed."
               : recover
@@ -124,7 +124,7 @@ export function AuthEntry({
                   : "Ask this workspace’s administrator to confirm your username or reset your password. Your account belongs to this workspace; there is no central lcfr.ai password reset."
                 : create
                   ? local.available
-                    ? "Create a separate account on this computer, with its own projects and administrator access. Existing accounts and their projects stay intact. To return to existing projects, recover the original account instead."
+                    ? "Your new account has its own projects and administrator access. Existing accounts and their projects stay intact."
                     : "Use an invitation from this workspace’s administrator and choose your own sign-in. An invitation is needed because this workspace already has an owner."
                   : "Use your workspace account to return to your projects."}
           </p>

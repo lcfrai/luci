@@ -14,6 +14,38 @@ it('mounts read-only evidence without uploading, extracting, correcting or sendi
   await screen.findByRole('button',{name:/brief.txt/});expect(screen.getByLabelText('Attach a private document')).toHaveProperty('disabled',true);
   expect(discoveryDocumentsApi.upload).not.toHaveBeenCalled();expect(discoveryDocumentsApi.start).not.toHaveBeenCalled();expect(discoveryDocumentsApi.discussion).not.toHaveBeenCalled();
 });
+it('reports a source-free first page only after a complete verified read and withdraws it on authority loss',async()=>{
+  const report=vi.fn();let finish!:(value:{documents:DiscoveryDocument[];nextCursor:string;omitted:boolean})=>void;
+  vi.mocked(discoveryDocumentsApi.list).mockReturnValueOnce(new Promise(resolve=>{finish=resolve;}));
+  const view=render(<ProjectDiscoverDocuments projectId="p-one" scope="scope-one" canRead canEdit onEmptySources={report}/>);
+  expect(report).toHaveBeenLastCalledWith(null);
+  await act(async()=>finish({documents:[],nextCursor:'',omitted:false}));
+  await waitFor(()=>expect(report).toHaveBeenLastCalledWith(true));
+  view.rerender(<ProjectDiscoverDocuments projectId="p-one" scope="scope-one" canRead={false} canEdit={false} onEmptySources={report}/>);
+  expect(report).toHaveBeenLastCalledWith(null);
+  expect(discoveryDocumentsApi.upload).not.toHaveBeenCalled();expect(discoveryDocumentsApi.discussion).not.toHaveBeenCalled();
+});
+it.each([
+  {label:'a saved document',documents:[document],nextCursor:'',omitted:false},
+  {label:'a next page',documents:[],nextCursor:'next-page',omitted:false},
+  {label:'omitted sources',documents:[],nextCursor:'',omitted:true},
+])('keeps evidence first when the verified page has $label',async({documents,nextCursor,omitted})=>{
+  vi.mocked(discoveryDocumentsApi.list).mockResolvedValue({documents,nextCursor,omitted});const report=vi.fn();
+  render(<ProjectDiscoverDocuments projectId="p-one" scope="scope-one" canRead canEdit onEmptySources={report}/>);
+  await waitFor(()=>expect(report).toHaveBeenLastCalledWith(false));expect(report).not.toHaveBeenCalledWith(true);
+});
+it('does not hide a retained uncertain document request behind an empty first-use source disclosure',async()=>{
+  retainDiscoveryRecovery('scope-one',{action:'extract',idempotencyKey:'document-extract-1234567',documentId:id,expectedRevision:1});
+  vi.mocked(discoveryDocumentsApi.list).mockResolvedValue({documents:[],nextCursor:'',omitted:false});const report=vi.fn();
+  render(<ProjectDiscoverDocuments projectId="p-one" scope="scope-one" canRead canEdit onEmptySources={report}/>);
+  await screen.findByRole('button',{name:'Inspect exact saved request'});
+  await waitFor(()=>expect(report).toHaveBeenLastCalledWith(false));expect(report).not.toHaveBeenCalledWith(true);
+});
+it('keeps source-read failure unknown rather than reporting an empty project',async()=>{
+  vi.mocked(discoveryDocumentsApi.list).mockRejectedValue(new Error('Source read unavailable'));const report=vi.fn();
+  render(<ProjectDiscoverDocuments projectId="p-one" scope="scope-one" canRead canEdit onEmptySources={report}/>);
+  await screen.findByRole('alert');expect(report).toHaveBeenLastCalledWith(null);expect(report).not.toHaveBeenCalledWith(true);
+});
 it('inspects exact page evidence and hands only an unsent normal Luci message to the existing conversation',async()=>{
   const opened=vi.fn();window.addEventListener('luci:orchestrator-open',opened);vi.mocked(discoveryDocumentsApi.discussion).mockResolvedValue({projectId:'p-one',message:'UNTRUSTED DOCUMENT EVIDENCE: exact selected source',links:[]});
   render(<ProjectDiscoverDocuments projectId="p-one" scope="scope-one" canRead canEdit/>);fireEvent.click(await screen.findByRole('button',{name:/brief.txt/}));

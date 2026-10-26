@@ -14,7 +14,7 @@ vi.mock('./lens/DiscoverLens', () => ({ DiscoverLens: () => <Phase label="Discov
 vi.mock('./lens/DesignLens', () => ({ DesignLens: () => <Phase label="Design" /> }));
 vi.mock('./develop/DevelopLens', () => ({ DevelopLens: () => <Phase label="Develop" /> }));
 vi.mock('./lens/DeployLens', () => ({ DeployLens: () => <Phase label="Deploy" /> }));
-vi.mock('./orchestrator/OrchestratorPanel', () => ({ ORCHESTRATOR_OPEN: 'luci:orchestrator-open', OrchestratorPanel: ({ projectId, primary }: { projectId: string; primary?: boolean }) => <section role={primary ? 'region' : 'complementary'} aria-label={primary ? 'Luci conversation' : 'Project understanding'} data-project={projectId} data-primary={String(primary)}>Conversation for {projectId}</section> }));
+vi.mock('./orchestrator/OrchestratorPanel', () => ({ ORCHESTRATOR_OPEN: 'luci:orchestrator-open', OrchestratorPanel: ({ projectId, primary, defaultCollapsed }: { projectId: string; primary?: boolean; defaultCollapsed?: boolean }) => <section role={primary ? 'region' : 'complementary'} aria-label={primary ? 'Luci conversation' : 'Project understanding'} data-project={projectId} data-primary={String(primary)} data-default-collapsed={String(defaultCollapsed)}>Conversation for {projectId}</section> }));
 function PhaseEditor({ label }: { label: string }) {
   const [text, setText] = useState(''); const projectId = useCockpit(state => state.selection.projectId)!;
   useEffect(() => { const state = useCockpit.getState(); state.setUnsavedProjectDraft('test-editor', text ? { projectId, label: `${label} draft`, lens: label.toLowerCase() as 'discover', retained: true, discard: () => setText('') } : null); return () => state.setUnsavedProjectDraft('test-editor', null); }, [text, projectId, label]);
@@ -35,6 +35,18 @@ it('defaults to the scoped main Luci conversation without mounting phase editors
   render(<AppShell />); expect(screen.getByRole('region', { name: 'Luci conversation' }).getAttribute('data-project')).toBe('p-1');
   expect(screen.getByRole('button', { name: 'Luci' }).getAttribute('aria-current')).toBe('page'); expect(screen.getByLabelText('Current project: Atlas')).not.toBeNull();
   expect(Phase).not.toHaveBeenCalled(); for (const name of ['Discover', 'Design', 'Develop', 'Deploy', 'Distribute']) expect(screen.getByRole('button', { name }).getAttribute('aria-current')).toBeNull();
+});
+it('keeps secondary project context collapsed by default in Discover and Design without hiding the primary conversation', async () => {
+  render(<AppShell />);
+  expect(screen.getByRole('region', { name: 'Luci conversation' }).getAttribute('data-primary')).toBe('true');
+  for (const name of ['Discover', 'Design']) {
+    await userEvent.click(screen.getByRole('button', { name }));
+    const context = screen.getByRole('complementary', { name: 'Project understanding' });
+    expect(context.getAttribute('data-primary')).toBe('false');
+    expect(context.getAttribute('data-default-collapsed')).toBe('true');
+  }
+  await userEvent.click(screen.getByRole('button', { name: 'Luci' }));
+  expect(screen.getByRole('region', { name: 'Luci conversation' }).getAttribute('data-primary')).toBe('true');
 });
 it('keeps the current editor mounted and its unsaved text intact through keyboard Luci and same-phase return', async () => {
   const ui = render(<AppShell />); await userEvent.click(screen.getByRole('button', { name: 'Discover' }));

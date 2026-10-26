@@ -34,9 +34,9 @@ export function DeploymentOverview({ projectId, scope, disabled, onInspect }: {
     window.addEventListener(PROJECT_CONTEXT_CHANGED, changed);
     return () => { alive.current = false; ++generation.current; window.removeEventListener(PROJECT_CONTEXT_CHANGED, changed); };
   }, [projectId, scope]);
-  return <section className="journey-section" aria-label="Application status and recovery">
-    <div className="journey-header"><div><h2>Your applications</h2><p>Find a retained release before starting another build. Saved health is a previous observation; inspect the selected app to check its current behavior.</p></div>
-      <Button variant="secondary" disabled={loading || disabled} onClick={() => void reload()}>Refresh application history</Button></div>
+  return <section className="journey-section deployment-overview" aria-label="Application status and recovery">
+    <div className="journey-header"><div><h2>Application history</h2><p>Find a retained release before starting another build. Saved health is a previous observation; inspect the selected app to check its current behavior.</p></div>
+      <Button variant="ghost" size="compact" disabled={loading || disabled} onClick={() => void reload()}>Refresh application history</Button></div>
     {loading && <p role="status">Reading this project's releases and application services…</p>}
     {issues.map(issue => <p role="alert" key={issue}>{issue}</p>)}
     {!loading && !rows.length && !issues.length && <p>No application has been released from this project yet. Start with a checked preview or prepare a persistent deployment below.</p>}
