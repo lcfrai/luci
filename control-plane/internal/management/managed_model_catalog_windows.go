@@ -104,5 +104,5 @@ func verifyManagedModelCatalog(path *uint16, file windows.Handle, vendor string)
 	if e != nil {
 		return errors.New("installed catalog signature or exact member cannot be verified offline")
 	}
-	return managedModelTrustVendor(&d, vendor)
+	return managedModelTrustVendor(&d, vendor, "catalog")
 }

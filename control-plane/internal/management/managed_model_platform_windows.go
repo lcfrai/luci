@@ -124,9 +124,20 @@ func verifyManagedModelSigner(path *uint16, file windows.Handle, vendor string) 
 		}
 		return errors.New("installed vendor signature cannot be verified offline")
 	}
-	return managedModelTrustVendor(&d, vendor)
+	return managedModelTrustVendor(&d, vendor, "embedded")
 }
-func managedModelTrustVendor(d *windows.WinTrustData, vendor string) error {
+
+// The public error remains fixed. Only the explicit installed-tool test may
+// report this verified certificate's public leaf name, never raw vendor output.
+type managedModelVendorMismatch struct {
+	publisher, verifiedVia string
+}
+
+func (e *managedModelVendorMismatch) Error() string {
+	return "installed executable is not signed by the supported vendor"
+}
+
+func managedModelTrustVendor(d *windows.WinTrustData, vendor, verifiedVia string) error {
 	dll := windows.NewLazySystemDLL("wintrust.dll")
 	data, _, _ := dll.NewProc("WTHelperProvDataFromStateData").Call(uintptr(d.StateData))
 	if data == 0 {
@@ -158,7 +169,7 @@ func managedModelTrustVendor(d *windows.WinTrustData, vendor string) error {
 	}
 	actual := windows.UTF16ToString(name[:n])
 	if actual != vendor {
-		return errors.New("installed executable is not signed by the supported vendor")
+		return &managedModelVendorMismatch{publisher: actual, verifiedVia: verifiedVia}
 	}
 	return nil
 }
