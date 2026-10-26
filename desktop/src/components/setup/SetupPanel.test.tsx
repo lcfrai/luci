@@ -816,7 +816,7 @@ it("connects an existing workspace through host verification and its account wit
   ).toBe(false);
 });
 
-it("hands automatic preparation to the backend before leaving the portal and permits planning while the build runs", async () => {
+it("checks only on request and requires separate runtime preparation before handing off a build", async () => {
   let finishCheck!: (value: Response) => void;
   let acceptInstall!: (value: Response) => void;
   const check = new Promise<Response>(resolve => { finishCheck = resolve; });
@@ -838,6 +838,9 @@ it("hands automatic preparation to the backend before leaving the portal and per
   const { unmount } = render(<SetupPanel presentation="portal" initialStatus={current} client={setupClient("http://localhost:8730", fetcher)} onStatus={vi.fn()} onProjectsChanged={vi.fn()} onClose={close} onOpenProject={openProject} />);
   await userEvent.click(screen.getByRole("button", { name: "Local" }));
   const proceed = screen.getByRole("button", { name: "Continue to projects" }) as HTMLButtonElement;
+  expect(proceed.disabled).toBe(false);
+  expect(fetcher).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Check local setup" }));
   expect(proceed.disabled).toBe(true);
   expect((screen.getByRole("button", { name: "Choose another setup option" }) as HTMLButtonElement).disabled).toBe(true);
   expect((screen.getByRole("button", { name: "Connect a coding agent" }) as HTMLButtonElement).disabled).toBe(true);
@@ -848,6 +851,10 @@ it("hands automatic preparation to the backend before leaving the portal and per
   expect(close).not.toHaveBeenCalled();
   expect(openProject).not.toHaveBeenCalled();
   await act(async () => { finishCheck(new Response(JSON.stringify(current))); await check; });
+  const prepare = await screen.findByRole("button", { name: "Prepare agent runtime" });
+  await waitFor(() => expect(proceed.disabled).toBe(false));
+  expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith("/runtime/install") && init?.method === "POST")).toHaveLength(0);
+  await userEvent.click(prepare);
   await waitFor(() => expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith("/runtime/install") && init?.method === "POST")).toHaveLength(1));
   expect(proceed.disabled).toBe(true);
   await act(async () => { acceptInstall(new Response(JSON.stringify({ status: "installing", message: "Backend build continues" }), { status: 202 })); await acceptance; });
@@ -871,6 +878,8 @@ it("allows the portal to continue after a real unavailable-Docker check without 
   const close = vi.fn();
   render(<SetupPanel presentation="portal" initialStatus={{ ...status, configured: true }} client={setupClient("http://localhost:8730", fetcher)} onStatus={vi.fn()} onProjectsChanged={vi.fn()} onClose={close} />);
   await userEvent.click(screen.getByRole("button", { name: "Local" }));
+  expect(fetcher).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Check local setup" }));
   await screen.findByText(/Open Docker Desktop and wait for its engine to start/);
   const proceed = screen.getByRole("button", { name: "Continue to projects" }) as HTMLButtonElement;
   await waitFor(() => expect(proceed.disabled).toBe(false));

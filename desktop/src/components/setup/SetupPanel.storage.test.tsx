@@ -55,6 +55,8 @@ it('keeps portal continuation usable without restarting preparation when storage
   const f=fixture(storage(),true), close=vi.fn();
   render(<SetupPanel initialStatus={ready()} presentation="portal" client={f.client} onStatus={vi.fn()} onClose={close} onProjectsChanged={vi.fn()}/>);
   await userEvent.click(screen.getByRole('button',{name:'Local'}));
+  expect(f.checkCount()).toBe(0);expect(f.readCount()).toBe(0);
+  await userEvent.click(screen.getByRole('button',{name:'Check local setup'}));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Continue to projects'})).toHaveProperty('disabled',false));
   expect(f.checkCount()).toBe(1);
   await userEvent.click(screen.getByRole('button',{name:'Refresh Docker storage status'}));
@@ -111,6 +113,7 @@ it('shows stale storage in portal preparation without probing again or blocking 
   const f=fixture(storage(),true);
   render(<SetupPanel initialStatus={ready()} presentation="portal" client={f.client} onStatus={vi.fn()} onClose={vi.fn()} onProjectsChanged={vi.fn()}/>);
   await userEvent.click(screen.getByRole('button',{name:'Local'}));
+  await userEvent.click(screen.getByRole('button',{name:'Check local setup'}));
   await waitFor(()=>expect(screen.getByRole('button',{name:'Continue to projects'})).toHaveProperty('disabled',false));
   f.observe(storage({revision:2,state:'invalidated',message:'The storage settings changed.'}));
   await userEvent.click(screen.getByRole('button',{name:'Refresh Docker storage status'}));

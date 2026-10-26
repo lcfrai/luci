@@ -30,6 +30,22 @@ const ready = {
     },
   ],
 } as SetupStatus;
+it("checks without automatic installation and waits for a separate prepare action", async () => {
+  const installRuntime = vi.fn().mockResolvedValue({ status: "installing", message: "Explicit preparation accepted" });
+  const client = {
+    check: vi.fn().mockResolvedValue(ready),
+    runtime: vi.fn().mockResolvedValue({ status: "idle" }),
+    installRuntime,
+  } as unknown as ProductClient;
+  render(<RuntimePreparation client={client} manageBacking onStatus={vi.fn()} />);
+  const prepare = await screen.findByRole("button", { name: "Prepare agent runtime" });
+  await waitFor(() => expect(prepare).toHaveProperty("disabled", false));
+  expect(screen.getByText(/These checks do not install anything/)).not.toBeNull();
+  expect(installRuntime).not.toHaveBeenCalled();
+  await userEvent.click(prepare);
+  await screen.findByText(/Installing runtime… Explicit preparation accepted/);
+  expect(installRuntime).toHaveBeenCalledOnce();
+});
 it("starts the supported runtime preparation once and displays its actual job state", async () => {
   const installRuntime = vi
     .fn()

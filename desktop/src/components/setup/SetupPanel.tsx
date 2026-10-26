@@ -165,9 +165,9 @@ export function SetupPanel({
   const [config, setConfig] = useState<SetupConfig | null>(
     initialStatus?.config ?? null,
   );
-  const [section, setSection] = useState(initialSection === 'local' && (presentation === 'portal' || initialStatus?.configured === false) && (initialStatus?.setupChoice?.mode === 'bring-your-own-cloud' || initialStatus?.setupChoice?.mode === 'luci-cloud') ? 'setup' : initialSection);
+  const [section, setSection] = useState(initialSection);
   const [route, setRoute] = useState<SetupRoute | null>(
-    initialSection === "project" ? "local" : (presentation === 'portal' || initialStatus?.configured === false) ? initialStatus?.setupChoice?.mode === 'local' ? 'local' : initialStatus?.setupChoice?.mode === 'bring-your-own-cloud' ? 'byo' : initialStatus?.setupChoice?.mode === 'luci-cloud' ? 'hosted' : null : null,
+    initialSection === "project" ? "local" : null,
   );
   const [choiceNeedsRefresh, setChoiceNeedsRefresh] = useState(false);
   const cloudWorkspace = status?.workspace?.mode === "cloud";
@@ -197,16 +197,30 @@ export function SetupPanel({
   const [sshPublicKey, setSshPublicKey] = useState("");
   const [privateKeyPath, setPrivateKeyPath] = useState("");
   const [plan, setPlan] = useState<CloudPlan | null>(null);
-  const [runtimePending, setRuntimePending] = useState(true);
+  const [runtimePending, setRuntimePending] = useState(false);
+  const localSetupScope = JSON.stringify([auth?.profile.user.id ?? "", status?.access?.user.username ?? "", status?.workspace?.mode ?? "local",
+    status?.workspace?.connectionId ?? "", status?.workspace?.host ?? "", status?.config.projectsDir ?? ""]);
+  const [localSetupRequest, setLocalSetupRequest] = useState<{ client: ProductClient; scope: string } | null>(null);
+  const currentLocalSetup = useRef({ client, scope: localSetupScope, request: localSetupRequest });
+  currentLocalSetup.current = { client, scope: localSetupScope, request: localSetupRequest };
+  const ownsSetupScope = () => currentLocalSetup.current.client === client && currentLocalSetup.current.scope === localSetupScope;
+  const ownsLocalSetupRequest = () => ownsSetupScope() && currentLocalSetup.current.request === localSetupRequest;
   const runtimeActive =
     portal && section === "local" && (!onboarding || route === "local") &&
-    busy !== "Preparing projects folder";
+    localSetupRequest?.client === client && localSetupRequest.scope === localSetupScope;
   const runtimeHandoffPending = runtimeActive && runtimePending;
   const navigationLocked = !!busy || runtimeHandoffPending;
   const runtimePendingRef = useRef(runtimeHandoffPending);
   runtimePendingRef.current = runtimeHandoffPending;
   const alive = useRef(true);
   const inFlight = useRef(false);
+  useLayoutEffect(() => {
+    setLocalSetupRequest(null);
+    setRuntimePending(false);
+    setChoiceNeedsRefresh(false);
+    setError("");
+    setNotice("");
+  }, [client, localSetupScope]);
   const heading = useRef<HTMLHeadingElement>(null);
   const panel = useDismissable<HTMLDivElement>(!portal, () => {
     if (!inFlight.current && !runtimePendingRef.current) onClose();
@@ -293,7 +307,6 @@ export function SetupPanel({
     setPlan(null);
   };
   const chooseRoute = (value: SetupRoute, provider?: "aws" | "azure") => {
-    if (value === "local") setRuntimePending(true);
     if (provider) update({ cloudProvider: provider,
       region: (config?.cloudProvider || "aws") === provider ? config?.region || "" : "",
     });
@@ -301,42 +314,34 @@ export function SetupPanel({
     setSection(value === "local" ? "local" : "cloud");
     setError("");
     setNotice("");
-    if (
-      portal &&
-      value === "local" &&
-      config &&
-      !status?.configured &&
-      canChooseProjectsDir
-    ) {
-      void run("Preparing projects folder", async () => {
-        receive(await client.configure(config));
-        onProjectsChanged();
-      });
-    }
   };
   const chooseSetupMode = (mode: SetupMode, nextRoute?: 'existing') => {
     if (choiceNeedsRefresh) return;
     void run('Saving setup choice', async () => {
       try {
         const choice = await client.chooseSetup(latestStatus.current?.setupChoice?.revision ?? 1, mode);
-        if (!alive.current) return;
+        if (!alive.current || !ownsSetupScope()) return;
         const previous = latestStatus.current;
         if (previous) receive({ ...previous, setupChoice: choice }, undefined, false);
-        if (mode === 'local' && portal && config && !previous?.configured && canChooseProjectsDir) {
-          receive(await client.configure(config)); onProjectsChanged();
-        }
-        if (!alive.current) return;
-        if (mode === 'local') setRuntimePending(true);
+        if (!alive.current || !ownsSetupScope()) return;
         setRoute(nextRoute ?? (mode === 'local' ? 'local' : mode === 'bring-your-own-cloud' ? 'byo' : 'hosted'));
         setSection(mode === 'local' ? 'local' : 'setup');
         setNotice('Setup preference saved. Your active connection and existing projects are unchanged.');
-      } catch (cause) { if (alive.current) setChoiceNeedsRefresh(true); throw cause; }
+      } catch (cause) {
+        if (!alive.current || !ownsSetupScope()) return;
+        setChoiceNeedsRefresh(true); throw cause;
+      }
     });
   };
   const refreshSetupChoice = () => void run('Refreshing setup choice', async () => {
-    const value = await client.status();
-    if (!value.setupChoice || !Number.isSafeInteger(value.setupChoice.revision) || value.setupChoice.revision < 1) throw new Error('This service does not report the saved setup choice. Update Luci before saving a mode.');
-    if (alive.current) { receive(value, undefined, false); setChoiceNeedsRefresh(false); }
+    try {
+      const value = await client.status();
+      if (!alive.current || !ownsSetupScope()) return;
+      if (!value.setupChoice || !Number.isSafeInteger(value.setupChoice.revision) || value.setupChoice.revision < 1) throw new Error('This service does not report the saved setup choice. Update Luci before saving a mode.');
+      receive(value, undefined, false); setChoiceNeedsRefresh(false);
+    } catch (cause) {
+      if (alive.current && ownsSetupScope()) throw cause;
+    }
   });
   const createProject = () => {
     if (inFlight.current || runtimePendingRef.current) return;
@@ -344,6 +349,8 @@ export function SetupPanel({
     else setSection("project");
   };
   const chooseAgain = () => {
+    setLocalSetupRequest(null);
+    setRuntimePending(false);
     setRoute(null);
     setPlan(null);
     setError("");
@@ -502,7 +509,6 @@ export function SetupPanel({
                     disabled={navigationLocked}
                     aria-current={section === id ? "page" : undefined}
                     onClick={() => {
-                      if (id === "local" && portal) setRuntimePending(true);
                       if (id === 'setup') setRoute(null);
                       setSection(id);
                     }}
@@ -593,6 +599,17 @@ export function SetupPanel({
                       )}
                     </div>
                   )}
+                  {portal && !cloudWorkspace && !runtimeActive && (
+                    <section aria-label="Local setup checks">
+                      <h2>Check local setup when you are ready</h2>
+                      <p className="journey-muted">Check installed tools and Docker before running agents. This does not install the agent runtime. You can keep planning and connect a model without running these checks.</p>
+                      <Button type="button" variant="primary" disabled={!!busy} onClick={() => {
+                        setRuntimePending(true);
+                        setLocalSetupRequest({ client, scope: localSetupScope });
+                        heading.current?.focus();
+                      }}>Check local setup</Button>
+                    </section>
+                  )}
                   {runtimeActive && (
                     <>
                       <DependencySetup
@@ -601,6 +618,7 @@ export function SetupPanel({
                         automatic
                         cloudWorkspace={cloudWorkspace}
                         onChecked={() => {
+                          if (!ownsLocalSetupRequest()) return;
                           setRuntimePending(true);
                           setToolsRevision(value => value + 1);
                         }}
@@ -611,9 +629,8 @@ export function SetupPanel({
                         statusSnapshot={status}
                         client={client}
                         manageBacking={manageBacking}
-                        automatic
-                        onPendingChange={setRuntimePending}
-                        onStatus={(value, checkedStorageRevision) => receive(value, checkedStorageRevision, false)}
+                        onPendingChange={pending => { if (ownsLocalSetupRequest()) setRuntimePending(pending); }}
+                        onStatus={(value, checkedStorageRevision) => ownsLocalSetupRequest() && receive(value, checkedStorageRevision, false)}
                       />
                     </>
                   )}
@@ -696,11 +713,11 @@ export function SetupPanel({
                       ))}
                     </div>
                   )}
-                  <DockerStorageConfirmation
+                  {(!portal || runtimeActive) && <DockerStorageConfirmation
                     client={executionStorage}
                     enabled={status?.platform === "windows" && !cloudWorkspace}
-                    onChanged={invalidateStorageReadiness}
-                  />
+                    onChanged={() => { if (!portal || ownsLocalSetupRequest()) invalidateStorageReadiness(); }}
+                  />}
                   <LocalTools
                     runtimeBlockedReason={storagePreparationBlock(status)}
                     client={client}
@@ -1130,7 +1147,7 @@ export function SetupPanel({
             {busy
               ? `${busy}…`
               : runtimeHandoffPending
-                ? "Checking your workspace and starting runtime preparation…"
+                ? "Checking installed tools and runtime status…"
               : cloudWorkspace
                 ? `Projects and agents run on ${status?.workspace?.host}`
                 : portal

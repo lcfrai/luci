@@ -113,6 +113,31 @@ it("shows the location chooser for a new account with an assigned, configured fo
   expect(useCockpit.getState().projects).toEqual([]);
 });
 
+it("keeps a fresh account's saved Local preference passive and planning visit separate", async () => {
+  const first = { ...status, setupChoice: { revision: 3, mode: "local" as const },
+    access: { user: { username: "first-account", role: "admin" }, manageBacking: true, projectsDirManaged: true } };
+  const read = vi.spyOn(productApi, "status").mockResolvedValue(first);
+  vi.spyOn(productApi, "request").mockRejectedValue(new Error("Unrequested setup action"));
+  const check = vi.spyOn(productApi, "check");
+  const install = vi.spyOn(productApi, "installRuntime");
+  const view = render(<SetupProvider onProjectsChanged={vi.fn()}><Home /></SetupProvider>);
+  await screen.findByRole("heading", { name: "Choose your workspace" });
+  expect(screen.getByRole("button", { name: "Local" }).getAttribute("aria-pressed")).toBe("true");
+  await userEvent.click(screen.getByRole("button", { name: "Continue to projects" }));
+  expect(screen.getByRole("heading", { name: "Project home" })).not.toBeNull();
+  expect(check).not.toHaveBeenCalled();
+  expect(install).not.toHaveBeenCalled();
+  expect(first.checks).toEqual([]);
+  view.unmount();
+  resetCockpit();
+  useCockpit.getState().setProjects([]);
+  read.mockResolvedValue({ ...first, access: { ...first.access, user: { username: "second-account", role: "admin" } } });
+  render(<SetupProvider onProjectsChanged={vi.fn()}><Home /></SetupProvider>);
+  await screen.findByRole("heading", { name: "Choose your workspace" });
+  expect(check).not.toHaveBeenCalled();
+  expect(install).not.toHaveBeenCalled();
+});
+
 it("remembers a completed visit without changing workspace readiness", async () => {
   const snapshot = { ...status, configured: false };
   vi.spyOn(productApi, "status").mockResolvedValue(snapshot);

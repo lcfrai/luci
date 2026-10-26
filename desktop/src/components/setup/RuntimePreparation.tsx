@@ -232,12 +232,12 @@ export function RuntimePreparation({
     >
       <h2 id="preparation-title">Prepare your workspace</h2>
       <p className="journey-muted">
-        Luci checks Git and Docker, then prepares its isolated agent runtime
-        when Docker is ready. This downloads dependencies and can take several
-        minutes. No model is called.
+        {automatic
+          ? "Luci checks Git and Docker, then prepares its isolated agent runtime when Docker is ready. This downloads dependencies and can take several minutes. No model is called."
+          : "These checks do not install anything. Choose Prepare agent runtime when you want to download and install the isolated runtime. This can take several minutes. No model is called."}
       </p>
       {checking && (
-        <p role="status">Checking dependencies and preparing your workspace…</p>
+        <p role="status">{automatic ? "Checking dependencies and preparing your workspace…" : "Checking installed tools and runtime status…"}</p>
       )}
       {error && (
         <p className="journey-error" role="alert">
