@@ -1,9 +1,10 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import type { OrchestratorRequest } from "../../api/orchestrator";
-import { finishComposerRequest, readComposerRecovery, retainComposerRequest, saveComposerDraft } from "./composerRecovery";
+import { finishComposerRequest, isComposerRecoveryKey, readComposerRecovery, retainComposerRequest, saveComposerDraft } from "./composerRecovery";
+import { bindNativePreferenceIdentity } from "../../preferences/serviceIdentity";
 
 const request = (key = "original-request-key-123"): OrchestratorRequest => ({ expectedRevision: 3, expectedContextDigest: "a".repeat(64), idempotencyKey: key, message: "My private idea", replyToTurnId: "turn-1", harness: "codex", model: "original-model", agentConnectionId: "original-connection" });
-beforeEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
+beforeEach(() => { vi.restoreAllMocks(); localStorage.clear(); bindNativePreferenceIdentity("", null); });
 it("scopes private drafts and retains the reply target without any credentials", () => {
   saveComposerDraft("actor/team/project-a", null, "My private idea", "turn-1");
   expect(readComposerRecovery("actor/team/project-a").draft).toMatchObject({ message: "My private idea", replyTo: "turn-1" });
@@ -64,4 +65,91 @@ it("keeps distinct not-sent messages when simultaneous tabs retained separate re
   saveComposerDraft("scope", firstDraft, "", "");
   expect(readComposerRecovery("scope").draft?.message).toBe(second.message);
   expect(readComposerRecovery("scope").pending).toEqual([]);
+});
+
+const nativeScope = (base: string) => [base, "actor-a", "local", "connection-a", "host-a", "workspace-user-a", "E:/projects-a", "project-a"];
+const nativeState = "E:/luci-state-a";
+
+it("recovers an unsent native message and its reply after the owned API port changes", () => {
+  const first = "http://127.0.0.1:41001", next = "http://127.0.0.1:41002";
+  bindNativePreferenceIdentity(first, nativeState);
+  const saved = saveComposerDraft(JSON.stringify(nativeScope(first)), null, "Keep this idea through restart", "turn-a")!;
+  bindNativePreferenceIdentity(next, nativeState);
+  const scope = JSON.stringify(nativeScope(next)), recovered = readComposerRecovery(scope);
+  expect(recovered).toMatchObject({ error: "", pending: [], draft: { message: saved.message, replyTo: "turn-a", slot: saved.slot } });
+  expect(isComposerRecoveryKey(scope, saved.slot)).toBe(true);
+  expect(saveComposerDraft(scope, recovered.draft, "Continue the same idea", "turn-a")?.slot).toBe(saved.slot);
+  expect(localStorage.length).toBe(1);
+});
+
+it("retains the exact unresolved native request across ports without making it editable or creating a new identity", () => {
+  const first = "http://127.0.0.1:42001", next = "http://127.0.0.1:42002";
+  bindNativePreferenceIdentity(first, nativeState);
+  const pending = retainComposerRequest(JSON.stringify(nativeScope(first)), request());
+  const key = localStorage.key(0)!, raw = localStorage.getItem(key);
+  bindNativePreferenceIdentity(next, nativeState);
+  const scope = JSON.stringify(nativeScope(next));
+  expect(readComposerRecovery(scope).pending).toEqual([pending]);
+  expect(localStorage.getItem(key)).toBe(raw); expect(localStorage.length).toBe(1);
+  expect(() => saveComposerDraft(scope, null, "Replacement", "")).toThrow("Resolve the original request");
+  expect(() => retainComposerRequest(scope, request("another-request-key-123"))).toThrow("Resolve the original request");
+  // Only the existing explicit fenced not-sent path changes the saved request.
+  finishComposerRequest(scope, pending.request, true);
+  expect(readComposerRecovery(scope)).toMatchObject({ pending: [], draft: { message: request().message, replyTo: "turn-1" } });
+});
+
+it.each([
+  [0, "http://127.0.0.1:43002/v1/teams/team-b/workspace"],
+  [1, "actor-b"], [2, "remote"], [3, "connection-b"], [4, "host-b"],
+  [5, "workspace-user-b"], [6, "E:/projects-b"], [7, "project-b"],
+] as const)("keeps native recovery isolated when scope field %i changes to %s", (field, value) => {
+  const first = "http://127.0.0.1:43001", next = "http://127.0.0.1:43002";
+  bindNativePreferenceIdentity(first, nativeState);
+  saveComposerDraft(JSON.stringify(nativeScope(first + "/v1/teams/team-a/workspace")), null, "Private team idea", "turn-a");
+  retainComposerRequest(JSON.stringify(nativeScope(first + "/v1/teams/team-a/workspace")), request());
+  bindNativePreferenceIdentity(next, nativeState);
+  const same = nativeScope(next + "/v1/teams/team-a/workspace");
+  expect(readComposerRecovery(JSON.stringify(same)).pending).toHaveLength(1);
+  const other = [...same]; other[field] = value;
+  expect(readComposerRecovery(JSON.stringify(other))).toEqual({ draft: null, pending: [], error: "" });
+});
+
+it.each([
+  ["unbound loopback", "http://127.0.0.1:44001", "http://127.0.0.1:44002", null, null],
+  ["external override", "http://127.0.0.1:45001", "http://127.0.0.1:45002", nativeState, null],
+  ["remote service", "https://first.example.test", "https://second.example.test", nativeState, nativeState],
+  ["other loopback service", "http://127.0.0.1:46001", "http://127.0.0.1:46002", nativeState, nativeState],
+  ["different native state", "http://127.0.0.1:47001", "http://127.0.0.1:47002", nativeState, "E:/luci-state-b"],
+] as const)("does not join recovery across %s", (kind, first, next, firstState, nextState) => {
+  const bound = kind === "other loopback service" ? "http://127.0.0.1:46999" : first;
+  bindNativePreferenceIdentity(bound, firstState);
+  const saved = saveComposerDraft(JSON.stringify(nativeScope(first)), null, "Private idea", "")!;
+  bindNativePreferenceIdentity(kind === "other loopback service" ? bound : next, nextState);
+  const scope = JSON.stringify(nativeScope(next));
+  expect(readComposerRecovery(scope)).toEqual({ draft: null, pending: [], error: "" });
+  expect(isComposerRecoveryKey(scope, saved.slot)).toBe(false);
+});
+
+it("does not scan or migrate an earlier transport-address bucket into native recovery", () => {
+  const base = "http://127.0.0.1:48001", scope = JSON.stringify(nativeScope(base));
+  const oldKey = "luci.orchestrator-composer.v1:" + encodeURIComponent(scope) + ":draft";
+  const raw = JSON.stringify({ message: "Earlier transport bucket", replyTo: "", updatedAt: Date.now() });
+  localStorage.setItem(oldKey, raw);
+  bindNativePreferenceIdentity(base, nativeState);
+  expect(readComposerRecovery(scope)).toEqual({ draft: null, pending: [], error: "" });
+  expect(localStorage.getItem(oldKey)).toBe(raw); expect(localStorage.length).toBe(1);
+});
+
+it("never merges an unknown nested team route with a legitimate native team route", () => {
+  const origin = "http://127.0.0.1:49001";
+  bindNativePreferenceIdentity(origin, nativeState);
+  const nested = JSON.stringify(nativeScope(origin + "/v1/teams/team-a/workspace/v1/teams/team-b/workspace"));
+  const legitimate = JSON.stringify(nativeScope(origin + "/v1/teams/team-b/workspace"));
+  const saved = saveComposerDraft(nested, null, "Private nested-route idea", "turn-a")!;
+  retainComposerRequest(nested, request());
+  expect(readComposerRecovery(legitimate)).toEqual({ draft: null, pending: [], error: "" });
+  expect(isComposerRecoveryKey(legitimate, saved.slot)).toBe(false);
+  saveComposerDraft(legitimate, null, "Legitimate team idea", "turn-b");
+  expect(readComposerRecovery(nested)).toMatchObject({ draft: { message: "Private nested-route idea", replyTo: "turn-a" }, pending: [{ request: request() }] });
+  expect(readComposerRecovery(legitimate)).toMatchObject({ draft: { message: "Legitimate team idea", replyTo: "turn-b" }, pending: [] });
 });

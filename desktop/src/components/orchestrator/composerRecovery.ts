@@ -1,4 +1,5 @@
 import type { OrchestratorRequest } from "../../api/orchestrator";
+import { preferenceServiceIdentity } from "../../preferences/serviceIdentity";
 
 // Browser-local, account/workspace/project scoped. Unsent drafts expire after
 // 30 days; unresolved dispatch identities NEVER expire or become fresh drafts.
@@ -9,7 +10,22 @@ const recordLimit = 128 * 1024, totalLimit = 2 * 1024 * 1024, recordCountLimit =
 export interface ComposerDraft { message: string; replyTo: string; updatedAt: number; slot: string }
 export interface PendingComposerRequest { request: OrchestratorRequest; createdAt: number }
 export interface ComposerRecovery { draft: ComposerDraft | null; pending: PendingComposerRequest[]; error: string }
-const keyFor = (scope: string) => prefix + encodeURIComponent(scope) + ":";
+function recoveryScope(scope: string): string {
+  try {
+    const parts: unknown = JSON.parse(scope);
+    if (!Array.isArray(parts) || parts.length !== 8 || !parts.every(part => typeof part === "string")) return scope;
+    const base = parts[0] as string;
+    const service = base.replace(/\/v1\/teams\/[^/]+\/workspace$/, "");
+    const origin = new URL(service).origin;
+    if (service !== origin && service !== origin + "/") return scope;
+    const identity = preferenceServiceIdentity(service);
+    if (identity === service) return scope; // Remote, external and unbound services keep their exact address.
+    // Only verified native boot information can stabilize the transport address.
+    // Keep the team route and every actor/backing/root/project discriminator.
+    return JSON.stringify([[identity, base.slice(service.length)], ...parts.slice(1)]);
+  } catch { return scope; }
+}
+const keyFor = (scope: string) => prefix + encodeURIComponent(recoveryScope(scope)) + ":";
 const problem = "Local message recovery is unavailable. Keep a copy of your message and enable browser storage before sending.";
 const text = (value: unknown, max: number) => typeof value === "string" && value.length <= max;
 function validRequest(value: OrchestratorRequest): boolean {
