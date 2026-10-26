@@ -1349,7 +1349,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if decision.State != "admitted" {
-			httpx.WriteProblem(w, 409, httpx.CodeConflict, decision.Message, map[string]string{"reasonCode": decision.Code})
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, manualSessionAdmissionMessage(decision), map[string]string{"reasonCode": decision.Code})
 			return
 		}
 		allocatedResources = decision.Resources
@@ -1554,7 +1554,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 				return admissionContextFailure(ctx, err)
 			}
 			if decision.State != "admitted" {
-				return admissionDecisionFailure(decision)
+				return manualSessionAdmissionFailure(decision)
 			}
 			return nil
 		}

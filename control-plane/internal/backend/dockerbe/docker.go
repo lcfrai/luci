@@ -166,7 +166,7 @@ func New(cfg Config) (*Backend, error) {
 		}
 		c, err := client.NewClientWithOpts(opts...)
 		if err != nil {
-			return nil, fmt.Errorf("dockerbe: cannot build a Docker client (check DOCKER_HOST): %v: %w", err, backend.ErrUnavailable)
+			return nil, &initializationError{stage: "docker_client_configuration_unavailable", cause: fmt.Errorf("dockerbe: cannot build a Docker client (check DOCKER_HOST): %v: %w", err, backend.ErrUnavailable)}
 		}
 		api, built = c, true
 	}
@@ -177,7 +177,7 @@ func New(cfg Config) (*Backend, error) {
 		if built {
 			_ = api.Close() // close only what we built; never the caller's client
 		}
-		return nil, fmt.Errorf("dockerbe: no Docker daemon answered — start Docker Desktop, or set LUCI_DOCKER_HOST: %v: %w", err, backend.ErrUnavailable)
+		return nil, &initializationError{stage: "docker_initial_ping_unavailable", cause: fmt.Errorf("dockerbe: no Docker daemon answered — start Docker Desktop, or set LUCI_DOCKER_HOST: %v: %w", err, backend.ErrUnavailable)}
 	}
 	return &Backend{
 		api:                             api,

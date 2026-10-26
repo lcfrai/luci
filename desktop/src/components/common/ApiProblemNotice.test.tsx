@@ -72,3 +72,46 @@ it.each(['catalogue', 'workspace', 'service'] as const)('does not expose a stale
   expect(screen.queryByRole('alert')).toBeNull();
   expect(setup.retryBranches).not.toHaveBeenCalled();
 });
+
+const sessionFailure = (): CatalogueProblem => ({ code: 'conflict', message: 'Runtime capacity is unavailable. The session was not started.', sessionCreate: {
+  projectId: 'p', service: api.baseUrl, catalogueEpoch: useCockpit.getState().projectCatalogueEpoch, workspaceGeneration: teamScopeGeneration(),
+} });
+
+it('keeps a session refusal actionable without offering an unrelated project refresh', () => {
+  const problem = sessionFailure(); useCockpit.getState().setError(problem);
+  render(<><ApiProblemNotice id="home-api-notice" problem={problem} /><RailFooter errorPresentedInMain /></>);
+  const notice = screen.getByRole('alert');
+  expect(notice.textContent).toContain(problem.message);
+  expect(screen.queryByRole('button', { name: 'Refresh projects' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'View session notice' }));
+  expect(document.activeElement).toBe(notice);
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+  expect(useCockpit.getState().lastError).toBeNull();
+  expect(setup.refreshProjects).not.toHaveBeenCalled();
+});
+
+it('does not clear a newer operation when dismissing a session notice', () => {
+  const problem = sessionFailure();
+  render(<ApiProblemNotice problem={problem} />);
+  const newer = { code: 'internal', message: 'Projects could not be loaded.' };
+  useCockpit.getState().setError(newer);
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+  expect(useCockpit.getState().lastError).toBe(newer);
+});
+
+it('preserves uncertain session timeout text without implying a retry is safe', () => {
+  const problem = { ...sessionFailure(), code: 'timeout', message: 'The request timed out; the session outcome is unknown.' };
+  render(<ApiProblemNotice problem={problem} />);
+  expect(screen.getByRole('alert').textContent).toContain(problem.message);
+  expect(screen.queryByRole('button', { name: /refresh|retry/i })).toBeNull();
+});
+
+it.each(['catalogue', 'workspace', 'service'] as const)('hides a session refusal from an earlier %s scope', change => {
+  const problem = sessionFailure();
+  if (change === 'catalogue') useCockpit.setState(state => ({ projectCatalogueEpoch: state.projectCatalogueEpoch + 1 }));
+  if (change === 'workspace') selectTeamScope('');
+  if (change === 'service') problem.sessionCreate!.service = 'http://127.0.0.1:other';
+  render(<ApiProblemNotice problem={problem} />);
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(setup.refreshProjects).not.toHaveBeenCalled();
+});

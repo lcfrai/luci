@@ -132,7 +132,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	be, err := newBackend(cfg, instanceID, log)
 	if errors.Is(err, backend.ErrUnavailable) && cfg.Backend == string(backend.KindDocker) {
 		log.Warn("Docker is not ready; Luci setup, Define and Design remain available", "err", err)
-		be = &recoveringBackend{factory: func() (backend.Backend, error) { return newBackend(cfg, instanceID, log) }}
+		be = &recoveringBackend{factory: func() (backend.Backend, error) { return newBackend(cfg, instanceID, log) }, initializationReason: safeBackendInitializationReason(err)}
 		err = nil
 	}
 	if err != nil {

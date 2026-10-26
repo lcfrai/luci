@@ -32,6 +32,7 @@ export interface CatalogueProblem {
   code: string;
   message: string;
   branchLoad?: { projectId: string; catalogueEpoch: number; workspaceGeneration: number; service: string };
+  sessionCreate?: { projectId: string; catalogueEpoch: number; workspaceGeneration: number; service: string };
 }
 
 export interface DataSlice {

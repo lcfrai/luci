@@ -1,6 +1,6 @@
 import { runtimeInstallActive, runtimeInstallRetained } from "../../api/runtimeInstall";
 import { Button } from "../fluid/components/button";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AgentConnections } from "./AgentConnections";
 import { RuntimeAdmission } from "./RuntimeAdmission";
 import { useAuth } from "../auth/AuthProvider";
@@ -17,6 +17,7 @@ export function LocalTools({
   onSessionStarted,
   identityOnly = false,
   runtimeBlockedReason = '',
+  gitIdentityRequest,
 }: {
   client: ProductClient;
   cloud?: boolean;
@@ -24,11 +25,12 @@ export function LocalTools({
   onSessionStarted?(): void;
   identityOnly?: boolean;
   runtimeBlockedReason?: string;
+  gitIdentityRequest?: number;
 }) {
   const auth = useAuth();
   const manageBacking =
     workspaceManageBacking ?? (!auth || auth.profile.permissions.manageBacking);
-  const [open, setOpen] = useState(identityOnly),
+  const [open, setOpen] = useState(identityOnly || gitIdentityRequest !== undefined),
     [loaded, setLoaded] = useState(false),
     [loadAttempt, setLoadAttempt] = useState(0),
     [loadError, setLoadError] = useState(""),
@@ -41,6 +43,19 @@ export function LocalTools({
   const working = useRef(false);
   const generation = useRef(0);
   const mutation = useRef(0);
+  const identityHeading = useRef<HTMLHeadingElement>(null);
+  const focusedRequest = useRef<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (gitIdentityRequest !== undefined) setOpen(true);
+  }, [gitIdentityRequest]);
+  useEffect(() => {
+    if (!open || gitIdentityRequest === undefined || focusedRequest.current === gitIdentityRequest) return;
+    const target = identityHeading.current;
+    if (!target) return;
+    focusedRequest.current = gitIdentityRequest;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView?.({ block: "center" });
+  }, [open, gitIdentityRequest]);
   useEffect(() => {
     generation.current += 1;
     working.current = false;
@@ -177,7 +192,7 @@ export function LocalTools({
               });
             }}
           >
-            <h2>Your Git identity</h2>
+            <h2 ref={identityHeading} tabIndex={-1}>Your Git identity</h2>
             <p className="journey-muted">
               Choose the name and email attached to your commits. Saving updates
               your global Git configuration on{" "}

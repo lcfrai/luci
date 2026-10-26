@@ -42,6 +42,7 @@ import "./setup.css";
 interface Props {
   initialStatus: SetupStatus | null;
   initialSection?: "local" | "project" | "cloud" | "appearance" | "agents" | "setup";
+  gitIdentityRequest?: number;
   presentation?: "dialog" | "portal";
   onOpenProject?(): void;
   onSessionStarted?(): void;
@@ -149,6 +150,7 @@ function SetupRoutes({
 export function SetupPanel({
   initialStatus,
   initialSection = "local",
+  gitIdentityRequest,
   presentation = "dialog",
   onOpenProject,
   onSessionStarted,
@@ -166,6 +168,9 @@ export function SetupPanel({
     initialStatus?.config ?? null,
   );
   const [section, setSection] = useState(initialSection);
+  useLayoutEffect(() => {
+    if (gitIdentityRequest !== undefined) setSection("local");
+  }, [gitIdentityRequest]);
   const [route, setRoute] = useState<SetupRoute | null>(
     initialSection === "project" ? "local" : null,
   );
@@ -226,10 +231,10 @@ export function SetupPanel({
     if (!inFlight.current && !runtimePendingRef.current) onClose();
   });
   useLayoutEffect(() => {
-    heading.current?.focus();
+    if (gitIdentityRequest === undefined) heading.current?.focus();
   }, []);
   useLayoutEffect(() => {
-    if (onboarding) heading.current?.focus();
+    if (onboarding && gitIdentityRequest === undefined) heading.current?.focus();
   }, [onboarding, route, section]);
   useLayoutEffect(() => {
     if (busy && !panel.current?.contains(document.activeElement))
@@ -719,6 +724,7 @@ export function SetupPanel({
                     onChanged={() => { if (!portal || ownsLocalSetupRequest()) invalidateStorageReadiness(); }}
                   />}
                   <LocalTools
+                    gitIdentityRequest={gitIdentityRequest}
                     runtimeBlockedReason={storagePreparationBlock(status)}
                     client={client}
                     identityOnly={portal}

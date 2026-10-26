@@ -4,6 +4,39 @@ import userEvent from "@testing-library/user-event";
 import { createProductClient } from "../../api/product";
 import { LocalTools } from "./LocalTools";
 
+it("reveals Git recovery without saving or preparing runtime and preserves edits on a new reveal request", async () => {
+  let finishIdentity!: (response: Response) => void;
+  const pending = new Promise<Response>(resolve => { finishIdentity = resolve; });
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async url => {
+    if (String(url).endsWith("/git/identity")) return pending;
+    if (String(url).endsWith("/runtime/install")) return new Response(JSON.stringify({ id: "", status: "idle", message: "Not installed" }));
+    return new Response(JSON.stringify({ providers: [] }));
+  });
+  const client = createProductClient("http://localhost", fetcher);
+  const view = render(<LocalTools client={client} gitIdentityRequest={1} />);
+  const target = screen.getByRole("heading", { name: "Your Git identity" });
+  expect(document.activeElement).toBe(target);
+  expect(target.closest("details")).toHaveProperty("open", true);
+  expect(screen.getByRole("button", { name: "Save Git identity" })).toHaveProperty("disabled", true);
+  const disclosure = screen.getByText("Git identity, agent connection and runtime");
+  disclosure.focus();
+  await act(async () => finishIdentity(new Response(JSON.stringify({ name: "Saved", email: "saved@example.invalid" }))));
+  const name = await screen.findByDisplayValue("Saved");
+  expect(document.activeElement).toBe(disclosure);
+  await userEvent.clear(name);
+  await userEvent.type(name, "Unsubmitted name");
+  await userEvent.click(disclosure);
+  view.rerender(<LocalTools client={client} gitIdentityRequest={2} />);
+  expect(screen.getByRole("textbox", { name: "Commit author name" })).toHaveProperty("value", "Unsubmitted name");
+  expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your Git identity" }));
+  const identityReads = fetcher.mock.calls.filter(([url]) => String(url).endsWith("/git/identity"));
+  const runtimeReads = fetcher.mock.calls.filter(([url]) => String(url).endsWith("/runtime/install"));
+  expect(identityReads).toHaveLength(1);
+  expect(runtimeReads).toHaveLength(1);
+  expect(fetcher.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+  expect(fetcher.mock.calls.some(([url]) => /\/setup\/(check|config)$/.test(String(url)))).toBe(false);
+});
+
 it("waits for the saved identity before allowing edits so initial loading cannot overwrite typing", async () => {
   let resolveIdentity!: (response: Response) => void;
   let resolveRuntime!: (response: Response) => void;

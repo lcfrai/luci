@@ -56,7 +56,7 @@ export function RailFooter({ errorPresentedInMain = false }: { errorPresentedInM
       {lastError && (errorPresentedInMain ? <Button variant="ghost" onClick={() => {
         const notice = document.getElementById('home-api-notice');
         notice?.scrollIntoView?.({ block: 'nearest' }); notice?.focus({ preventScroll: true });
-      }}>View project notice</Button> : <ApiProblemNotice problem={lastError} />)}
+      }}>{lastError.sessionCreate ? 'View session notice' : 'View project notice'}</Button> : <ApiProblemNotice problem={lastError} />)}
     </div>
   );
 }

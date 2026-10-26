@@ -63,7 +63,7 @@ func (a *API) prepareSessionRestart(ctx context.Context, prior registry.Session,
 		return result, err
 	}
 	if decision.State != "admitted" {
-		return result, errors.New(decision.Message)
+		return result, errors.New(manualSessionAdmissionMessage(decision))
 	}
 	result.resources = decision.Resources
 	result.revalidate = func(ctx context.Context) error {
@@ -76,7 +76,7 @@ func (a *API) prepareSessionRestart(ctx context.Context, prior registry.Session,
 			return err
 		}
 		if decision.State != "admitted" {
-			return errors.New(decision.Message)
+			return errors.New(manualSessionAdmissionMessage(decision))
 		}
 		if decision.Resources != result.resources {
 			return errors.New("Worker resource policy changed before restart. Review its current limits and retry.")

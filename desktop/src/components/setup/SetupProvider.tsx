@@ -28,7 +28,7 @@ type SetupContextValue = {
   status: SetupStatus | null;
   statusError: string;
   retryStatus(): void;
-  openSettings(): void;
+  openSettings(target?: "git-identity"): void;
   openAgents(): void;
   openProject(mode?: ProjectEntryMode): void;
   openOnboarding(): void;
@@ -58,6 +58,8 @@ export function SetupProvider({
   const evaluatedVisit = useRef("");
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [open, setOpen] = useState(false);
+  const [gitIdentityRequest, setGitIdentityRequest] = useState<number>();
+  const revealSequence = useRef(0);
   const [portal, setPortal] = useState(false);
   const [entry, setEntry] = useState<ProjectEntryMode | null>(null);
   const [statusError, setStatusError] = useState("");
@@ -104,17 +106,20 @@ export function SetupProvider({
     if (visitKey) completeOnboardingVisit(visitKey);
     setPortal(false);
   }, [visitKey]);
-  const openSettings = useCallback(() => {
+  const openSettings = useCallback((target?: "git-identity") => {
+    setGitIdentityRequest(target === "git-identity" ? ++revealSequence.current : undefined);
     setSection("local");
     setOpen(true);
   }, []);
   const openProject = useCallback((mode: ProjectEntryMode = "new") => {
     if (!canCreate) { useCockpit.getState().pushToast("Ask your team administrator to create or share a project."); return; }
+    setGitIdentityRequest(undefined);
     setOpen(false);
     finishVisit();
     setEntry(mode);
   }, [finishVisit, canCreate]);
   const openCloud = useCallback(() => {
+    setGitIdentityRequest(undefined);
     setSection("cloud");
     setOpen(true);
   }, []);
@@ -127,11 +132,13 @@ export function SetupProvider({
         retryStatus: () => setAttempt((value) => value + 1),
         openSettings,
         openAgents: () => {
+          setGitIdentityRequest(undefined);
           setSection("agents");
           setOpen(true);
         },
         openProject,
         openOnboarding: () => {
+          setGitIdentityRequest(undefined);
           setSection("local");
           setOpen(false);
           setPortal(true);
@@ -159,6 +166,7 @@ export function SetupProvider({
           onSessionStarted={() => {
             setPortal(false);
             setOpen(false);
+            setGitIdentityRequest(undefined);
           }}
           onProjectsChanged={onProjectsChanged}
         />
@@ -169,10 +177,11 @@ export function SetupProvider({
         <SetupPanel
           initialStatus={status}
           initialSection={section}
+          gitIdentityRequest={gitIdentityRequest}
           onStatus={setStatus}
-          onClose={() => setOpen(false)}
+          onClose={() => { setOpen(false); setGitIdentityRequest(undefined); }}
           onOpenProject={() => openProject()}
-          onSessionStarted={() => setOpen(false)}
+          onSessionStarted={() => { setOpen(false); setGitIdentityRequest(undefined); }}
           onProjectsChanged={onProjectsChanged}
         />
       )}

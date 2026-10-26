@@ -325,6 +325,10 @@ func TestNewIsErrUnavailableWhenNoDaemonAnswers(t *testing.T) {
 	if !strings.Contains(strings.ToLower(err.Error()), "docker desktop") {
 		t.Errorf("New error %q does not tell the operator what to start", err)
 	}
+	var diagnostic interface{ DockerInitializationStage() string }
+	if !errors.As(err, &diagnostic) || diagnostic.DockerInitializationStage() != "docker_initial_ping_unavailable" {
+		t.Fatal("failed initial Ping lost its fixed constructor diagnostic")
+	}
 }
 
 // Publishing to anything but loopback puts a shell on the LAN. It has to be a

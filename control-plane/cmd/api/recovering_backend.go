@@ -11,11 +11,12 @@ import (
 // Setup, briefs and designs remain usable when Docker has not been installed.
 // The session backend reconnects on demand when the daemon becomes available.
 type recoveringBackend struct {
-	mu          sync.Mutex
-	current     backend.Backend
-	factory     func() (backend.Backend, error)
-	nextAttempt time.Time
-	closed      bool
+	mu                   sync.Mutex
+	current              backend.Backend
+	factory              func() (backend.Backend, error)
+	nextAttempt          time.Time
+	closed               bool
+	initializationReason string // Fixed public reason only; never a raw constructor error.
 }
 
 func (b *recoveringBackend) Kind() backend.Kind { return backend.KindDocker }
@@ -33,9 +34,11 @@ func (b *recoveringBackend) get() (backend.Backend, error) {
 	}
 	value, err := b.factory()
 	if err != nil {
+		b.initializationReason = safeBackendInitializationReason(err)
 		b.nextAttempt = time.Now().Add(5 * time.Second)
 		return nil, err
 	}
+	b.initializationReason = ""
 	b.current = value
 	return value, nil
 }

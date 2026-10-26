@@ -5,13 +5,13 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { productApi, ProductApiError, type GitState } from "../../api/product";
 import { ProjectGit } from "./MergeLens";
 
-const identity = vi.hoisted(() => ({ actor: "alice", workspace: "local" }));
+const identity = vi.hoisted(() => ({ actor: "alice", workspace: "local", team: false }));
 const access = vi.hoisted(() => ({ loading: false, error: "", permissions: { read: true, edit: true, execute: false, secrets: false, deploy: false, admin: false } }));
 const refreshProjects = vi.hoisted(() => vi.fn());
 const openSettings = vi.hoisted(() => vi.fn());
 vi.mock("../auth/AuthProvider", () => ({ useAuth: () => ({ profile: { user: { id: identity.actor } } }) }));
 vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ refreshProjects, openSettings, workspace: { mode: "local", connectionId: identity.workspace, host: "" }, status: { config: { projectsDir: "/projects" }, access: { user: { username: identity.actor } } } }) }));
-vi.mock("../teams/TeamWorkspaceProvider", () => ({ useTeamProjectPermissions: () => access, useTeamWorkspace: () => null }));
+vi.mock("../teams/TeamWorkspaceProvider", () => ({ useTeamProjectPermissions: () => access, useTeamWorkspace: () => identity.team ? { teamId: "team-current" } : null }));
 vi.mock("../journey/ProjectDelivery", () => ({ ProjectDelivery: () => <section aria-label="Project delivery" /> }));
 vi.mock("../journey/ProjectBackup", () => ({ ProjectBackup: () => <section aria-label="Project backup" /> }));
 
@@ -34,7 +34,7 @@ async function ready() { await screen.findByLabelText("Commit message"); await w
 
 beforeEach(() => {
   openSettings.mockClear();
-  identity.actor = "alice"; identity.workspace = "local"; access.loading = false; access.error = "";
+  identity.actor = "alice"; identity.workspace = "local"; identity.team = false; access.loading = false; access.error = "";
   Object.assign(access.permissions, { read: true, edit: true, execute: false, secrets: false, deploy: false, admin: false });
   vi.spyOn(productApi, "git").mockResolvedValue(review);
   vi.spyOn(productApi, "commit").mockResolvedValue(committed);
@@ -55,11 +55,11 @@ it("offers normal identity settings only for the service's missing-identity erro
   render(<ProjectGit projectId="p-1" />); await ready(); typeMessage("My first application commit");
   await userEvent.click(commitButton());
   const identitySettings = await screen.findByRole("button", {name: "Set Git commit identity"});
-  expect(screen.getByText(/then expand “Git identity, agent connection and runtime”/)).toBeTruthy();
+  expect(screen.getByText(/Open your Git identity in Settings and save/)).toBeTruthy();
   expect(message().value).toBe("My first application commit");
   expect(commitButton().disabled).toBe(true);
   await userEvent.click(identitySettings);
-  expect(openSettings).toHaveBeenCalledExactlyOnceWith();
+  expect(openSettings).toHaveBeenCalledExactlyOnceWith("git-identity");
   expect(productApi.commit).toHaveBeenCalledExactlyOnceWith("p-1", "My first application commit", review.reviewDigest);
   expect(message().value).toBe("My first application commit");
 });
@@ -72,6 +72,18 @@ it("does not infer an identity action from an untyped commit error's wording", a
   expect(screen.queryByRole("button", {name: "Set Git commit identity"})).toBeNull();
   expect(openSettings).not.toHaveBeenCalled();
   expect(message().value).toBe("Improve application");
+});
+
+it("keeps team identity recovery with the authorized operator rather than opening unrelated personal settings", async () => {
+  identity.team = true;
+  vi.mocked(productApi.commit).mockRejectedValue(new ProductApiError("conflict", "Set your Git identity before committing.", 409, { error: "git_identity_required" }));
+  render(<ProjectGit projectId="p-1" />); await ready(); typeMessage("Team context commit");
+  await userEvent.click(commitButton());
+  await screen.findByText(/Ask a team administrator or installation operator/);
+  expect(screen.queryByRole("button", { name: "Set Git commit identity" })).toBeNull();
+  expect(openSettings).not.toHaveBeenCalled();
+  expect(message().value).toBe("Team context commit");
+  expect(productApi.commit).toHaveBeenCalledOnce();
 });
 
 it("requires a source identity from the service before admitting a commit", async () => {

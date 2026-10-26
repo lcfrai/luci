@@ -5,11 +5,12 @@ import { NewSessionButton } from "./NewSessionButton";
 import { __resetCreateSession } from "../../hooks/useCreateSession";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { aHarness, aSession, aWorktree } from "../../test/fixtures";
+import { teamScopeGeneration } from "../../api/teamScope";
 
 // vi.hoisted, not a bare const: vi.mock is hoisted above the module body, so a factory that
 // closed over a plain const would read it in the temporal dead zone.
 const { createSession } = vi.hoisted(() => ({ createSession: vi.fn() }));
-vi.mock("../../api", () => ({ api: { createSession } }));
+vi.mock("../../api", () => ({ api: { createSession, baseUrl: 'http://127.0.0.1:61999' } }));
 
 const claude = aHarness({
   id: "claude-code",
@@ -167,6 +168,12 @@ describe("NewSessionButton", () => {
       expect(useCockpit.getState().lastError).toEqual({
         code: "network_unavailable",
         message: "fetch failed",
+        sessionCreate: {
+          projectId: useCockpit.getState().worktreesByBranch['b-1'][0].projectId,
+          catalogueEpoch: useCockpit.getState().projectCatalogueEpoch,
+          workspaceGeneration: teamScopeGeneration(),
+          service: 'http://127.0.0.1:61999',
+        },
       });
     });
 

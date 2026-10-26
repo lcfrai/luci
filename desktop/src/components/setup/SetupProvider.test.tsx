@@ -30,6 +30,7 @@ function Home() {
       <h1>Project home</h1>
       <button onClick={() => setup?.openProject()}>New project</button>
       <button onClick={() => setup?.openSettings()}>Settings</button>
+      <button onClick={() => setup?.openSettings("git-identity")}>Set Git commit identity</button>
     </>
   );
 }
@@ -160,4 +161,36 @@ it("keeps a returning account in its existing project when no visit preference e
   await screen.findByRole("heading", { name: "Project home" });
   expect(screen.queryByRole("heading", { name: "Choose your workspace" })).toBeNull();
   expect(useCockpit.getState().selection.projectId).toBe(project.id);
+});
+
+it("reveals and focuses Git recovery directly, then opens ordinary Settings without retaining the reveal", async () => {
+  useCockpit.getState().setProjects([aProject({ id: "p-existing" })]);
+  vi.spyOn(productApi, "status").mockResolvedValue(status);
+  const identity = vi.spyOn(productApi, "gitIdentity").mockResolvedValue({ name: "Builder", email: "builder@example.invalid" });
+  vi.spyOn(productApi, "runtime").mockResolvedValue({ id: "", status: "idle", image: "", message: "Not installed", createdAt: "", updatedAt: "" });
+  const save = vi.spyOn(productApi, "saveGitIdentity");
+  const check = vi.spyOn(productApi, "check");
+  const install = vi.spyOn(productApi, "installRuntime");
+  vi.spyOn(productApi, "request").mockRejectedValue(new Error("Unrequested settings operation"));
+  vi.spyOn(productApi, "agents").mockResolvedValue({ providers: [] });
+  vi.spyOn(productApi, "localModel").mockRejectedValue(new Error("Managed model unavailable in this fixture"));
+  vi.spyOn(productApi, "agentConnections").mockResolvedValue({ revision: 0, activeConnectionId: "", connections: [] });
+  render(<SetupProvider onProjectsChanged={vi.fn()}><Home /></SetupProvider>);
+  await screen.findByRole("heading", { name: "Project home" });
+  await userEvent.click(screen.getByRole("button", { name: "Set Git commit identity" }));
+  const target = await screen.findByRole("heading", { name: "Your Git identity" });
+  expect(document.activeElement).toBe(target);
+  expect(target.closest("details")).toHaveProperty("open", true);
+  await screen.findByDisplayValue("Builder");
+  expect(document.activeElement).toBe(target);
+  expect(save).not.toHaveBeenCalled();
+  expect(check).not.toHaveBeenCalled();
+  expect(install).not.toHaveBeenCalled();
+  expect(identity).toHaveBeenCalledOnce();
+  await userEvent.click(screen.getByRole("button", { name: "Close settings" }));
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Set Git commit identity" }));
+  await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+  expect(screen.queryByRole("heading", { name: "Your Git identity" })).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Settings" }));
+  expect(identity).toHaveBeenCalledOnce();
 });

@@ -7,6 +7,7 @@ import { ProjectRequired, JourneyHeader } from "../journey/shared";
 import { useSetup } from "../setup/SetupProvider";
 import { ProjectDelivery } from "../journey/ProjectDelivery";
 import { ProjectBackup } from "../journey/ProjectBackup";
+import { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
 
 export function MergeLens() {
   return (
@@ -22,6 +23,7 @@ export function ProjectGit({ projectId }: { projectId: string }) {
 
 function ProjectGitReview({ projectId }: { projectId: string }) {
   const setup = useSetup();
+  const team = useTeamWorkspace();
   const access = useProjectAccess(projectId);
   const grantedEdit = access.canRead && access.permissions.edit;
   const [state, setState] = useState<GitState | null>(null);
@@ -116,8 +118,10 @@ function ProjectGitReview({ projectId }: { projectId: string }) {
         <div className="journey-error" role="alert">
           <p>{error}</p>
           {identityRequired && setup && <>
-            <p>In Settings, choose {setup.workspace?.mode === "cloud" ? "This workspace" : "This machine"}, then expand “Git identity, agent connection and runtime”. Save your commit author name and email, return here and refresh this review. Your commit message is kept.</p>
-            <Button type="button" variant="secondary" disabled={!grantedEdit || busy} onClick={() => setup.openSettings()}>Set Git commit identity</Button>
+            {team?.teamId ? <p>Ask a team administrator or installation operator to configure the Git commit identity for this team workspace. Then refresh this review. Your commit message is kept.</p> : <>
+              <p>Open your Git identity in Settings and save your commit author name and email. Then return here and refresh this review. Your commit message is kept.</p>
+              <Button type="button" variant="secondary" disabled={!grantedEdit || busy} onClick={() => setup.openSettings("git-identity")}>Set Git commit identity</Button>
+            </>}
           </>}
         </div>
       )}

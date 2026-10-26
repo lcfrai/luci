@@ -2,13 +2,14 @@
 // is 201, not 200), §6.4 (one click for the common case, no dialog).
 import { useCallback, useRef } from "react";
 import { useProjectAccess } from "./useProjectAccess";
-import { selectedTeamId } from "../api/teamScope";
+import { selectedTeamId, teamScopeGeneration } from "../api/teamScope";
 import { api } from "../api";
 import type { ApiError } from "../api/client";
 import { classify } from "../api/problems";
 import { resolveDefaults, toCreateRequest } from "../store/defaults";
 import { selectResolvedDefaults } from "../store/selectors";
 import { useCockpit } from "../store/store";
+import type { CatalogueProblem } from "../store/slices/dataSlice";
 import type {
   HarnessId,
   ImplementationContextRequest,
@@ -63,7 +64,7 @@ function sentenceFor(error: ApiError): string {
  *  successful create used to call `setError(null)` outright, which wiped a catalogue list's
  *  failure off the footer while that list was still missing from the rail. Contract §3.2: an
  *  operation clears only its own report. */
-let raised: { code: string; message: string } | null = null;
+let raised: CatalogueProblem | null = null;
 
 /** Test-only, mirroring __resetSessionVerbs. vitest's restoreMocks does not clear module state,
  *  and a `raised` left by one test's failed create hides the `raised !== null` guard from the
@@ -128,6 +129,12 @@ export function useCreateSession(projectId?: string): (
       }
 
       state.setLoading("sessions", true);
+      const sessionCreate = {
+        projectId: target?.projectId ?? current.scope,
+        catalogueEpoch: state.projectCatalogueEpoch,
+        workspaceGeneration: teamScopeGeneration(),
+        service: api.baseUrl,
+      };
       try {
         const session = await api.createSession(
           toCreateRequest(worktreeId, resolved, harness, {
@@ -150,7 +157,7 @@ export function useCreateSession(projectId?: string): (
         return { ok: true, sessionId: session.id };
       } catch (caught) {
         const error = caught as ApiError;
-        raised = { code: error.code, message: error.message };
+        raised = { code: error.code, message: error.message, sessionCreate };
         state.setError(raised);
         state.pushToast(sentenceFor(error));
         return { ok: false, message: sentenceFor(error) };
