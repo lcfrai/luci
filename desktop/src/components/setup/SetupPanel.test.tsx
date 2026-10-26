@@ -839,7 +839,9 @@ it("checks only on request and requires separate runtime preparation before hand
   await userEvent.click(screen.getByRole("button", { name: "Local" }));
   const proceed = screen.getByRole("button", { name: "Continue to projects" }) as HTMLButtonElement;
   expect(proceed.disabled).toBe(false);
-  expect(fetcher).not.toHaveBeenCalled();
+  await waitFor(() => expect(fetcher.mock.calls.map(([url, init]) => [init?.method ?? "GET", new URL(String(url)).pathname]).sort()).toEqual([
+    ["GET", "/v1/setup/git/identity"], ["GET", "/v1/setup/runtime/install"],
+  ]));
   await userEvent.click(screen.getByRole("button", { name: "Check local setup" }));
   expect(proceed.disabled).toBe(true);
   expect((screen.getByRole("button", { name: "Choose another setup option" }) as HTMLButtonElement).disabled).toBe(true);
@@ -878,7 +880,9 @@ it("allows the portal to continue after a real unavailable-Docker check without 
   const close = vi.fn();
   render(<SetupPanel presentation="portal" initialStatus={{ ...status, configured: true }} client={setupClient("http://localhost:8730", fetcher)} onStatus={vi.fn()} onProjectsChanged={vi.fn()} onClose={close} />);
   await userEvent.click(screen.getByRole("button", { name: "Local" }));
-  expect(fetcher).not.toHaveBeenCalled();
+  await waitFor(() => expect(fetcher.mock.calls.map(([url, init]) => [init?.method ?? "GET", new URL(String(url)).pathname]).sort()).toEqual([
+    ["GET", "/v1/setup/git/identity"], ["GET", "/v1/setup/runtime/install"],
+  ]));
   await userEvent.click(screen.getByRole("button", { name: "Check local setup" }));
   await screen.findByText(/Open Docker Desktop and wait for its engine to start/);
   const proceed = screen.getByRole("button", { name: "Continue to projects" }) as HTMLButtonElement;
