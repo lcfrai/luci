@@ -115,7 +115,7 @@ it("shows the location chooser for a new account with an assigned, configured fo
 
 it("keeps a fresh account's saved Local preference passive and planning visit separate", async () => {
   const first = { ...status, setupChoice: { revision: 3, mode: "local" as const },
-    access: { user: { username: "first-account", role: "admin" }, manageBacking: true, projectsDirManaged: true } };
+    access: { user: { username: "first-account", role: "admin" as const }, manageBacking: true, projectsDirManaged: true } };
   const read = vi.spyOn(productApi, "status").mockResolvedValue(first);
   vi.spyOn(productApi, "request").mockRejectedValue(new Error("Unrequested setup action"));
   const check = vi.spyOn(productApi, "check");
