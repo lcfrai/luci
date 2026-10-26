@@ -533,7 +533,7 @@ func (s *Server) orchestrationSelectedRoute(ctx context.Context, c Orchestration
 	route := c.Input.Route
 	id := route.Connection.ID
 	selected, err := s.projectRunSelectionResolver(ctx, ProjectRunSelectionRequest{ProjectID: c.ProjectID, WorktreeID: c.Input.Implementation.WorktreeID, Harness: route.Harness, Model: route.Model, PermissionMode: route.PermissionMode, Effort: route.Effort, AgentConnectionID: &id})
-	if err != nil || selected.ProjectID != c.ProjectID || selected.WorktreeID != c.Input.Implementation.WorktreeID || selected.Harness != route.Harness || selected.Model != route.Model || selected.PermissionMode != route.PermissionMode || selected.Effort != route.Effort || selected.Connection != route.Connection {
+	if err != nil || selected.ProjectID != c.ProjectID || selected.WorktreeID != c.Input.Implementation.WorktreeID || selected.Harness != route.Harness || selected.Model != route.Model || selected.PermissionMode != route.PermissionMode || selected.Effort != route.Effort || !selected.Connection.Equal(route.Connection) {
 		return ProjectRunSelection{}, ErrProjectRunConflict
 	}
 	return selected, nil

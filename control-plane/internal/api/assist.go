@@ -15,6 +15,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/ids"
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
 	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
@@ -453,6 +454,14 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 				exitReason = assistMemoryLimitMessage
 			}
 			a.markSessionExited(job.SessionID, exitReason)
+			if session.ManagedLocalModel != nil {
+				if err := a.execution.releaseSession(cleanup, job.SessionID); err != nil {
+					status = "failed"
+					message = "The assistant ended, but its exact managed-model allocation still needs reconciliation in Luci."
+					result = nil
+					orchestratorResult = nil
+				}
+			}
 			if failureCode == "memory_limit" {
 				_, _ = a.deps.Store.Update(job.SessionID, func(current *registry.Session) error {
 					if current.Status == registry.StatusExited && (current.ExitReason == "definition assistant finished" || current.ExitReason == "process exited") {
@@ -495,16 +504,67 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 		}
 	}()
 	if spec != nil {
+		var releaseModel func()
+		if b := session.ManagedLocalModel; b != nil {
+			var o managedmodel.Observation
+			var err error
+			releaseModel, o, err = managedmodel.Hold(ctx, &managedmodel.Reference{Revision: b.Revision}, b.Endpoint, b.Model)
+			if err != nil {
+				return
+			}
+			if o.Boot != b.Boot || o.Status.Generation != b.Generation {
+				releaseModel()
+				return
+			}
+			binding := *b
+			binding.AssistanceJobID = job.ID
+			_, err = a.deps.Store.Update(job.SessionID, func(s *registry.Session) error {
+				if s.SandboxID != spec.ID || s.Status != registry.StatusStarting {
+					return sessionErrMoved
+				}
+				s.ManagedLocalModel = &binding
+				return nil
+			})
+			if err != nil {
+				releaseModel()
+				return
+			}
+		}
+		defer func() {
+			if releaseModel != nil {
+				releaseModel()
+			}
+		}()
 		current, readErr := a.assistanceStore().Read(job.ID)
 		if readErr != nil || assistance.Terminal(current.Status) || ctx.Err() != nil {
 			return
+		}
+		if b := session.ManagedLocalModel; b != nil {
+			if err := a.execution.markBackendStarting(ctx, b.LeaseID, job.SessionID, spec.ID); err != nil {
+				return
+			}
 		}
 		sb, err := a.deps.Backend.Create(ctx, *spec)
 		if err != nil {
 			return
 		}
+		if b := session.ManagedLocalModel; b != nil {
+			if sb.ID != spec.ID {
+				return
+			}
+			ack, done := context.WithTimeout(context.Background(), 5*time.Second)
+			err = a.execution.markBackendSettled(ack, b.LeaseID, job.SessionID, sb.ID)
+			done()
+			if err != nil {
+				return
+			}
+		}
 		if _, err = a.recordUtilitySandbox(job.SessionID, sb); err != nil {
 			return
+		}
+		if releaseModel != nil {
+			releaseModel()
+			releaseModel = nil
 		}
 		_, _ = a.deps.Store.Update(job.SessionID, func(s *registry.Session) error {
 			if s.Status == registry.StatusStarting {

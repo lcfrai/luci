@@ -1597,7 +1597,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			CarriedConversationID: carriedConversation,
 		},
 		Spec:    backend.Spec{ID: sessionID, SessionID: sessionID, Image: a.sessionImage(), Command: command, Args: argv, Env: sandboxEnv, AttachToken: token, Resources: allocatedResources, WorkDir: sessionWorkDir, Mounts: sandboxMounts},
-		Account: account, Revalidate: runAdmission.Revalidate, BeforeAllocate: revalidateExecution, BeforeBackendStart: markExecutionStart, AfterBackendCreate: markExecutionSettled, Staging: staging, HasReviewedContext: reviewedDescriptor != nil, ExecutionLeaseID: executionLeaseID,
+		Account: account, Revalidate: runAdmission.Revalidate, BeforeAllocate: revalidateExecution, BeforeBackendStart: markExecutionStart, AfterBackendCreate: markExecutionSettled, Staging: staging, HasReviewedContext: reviewedDescriptor != nil, ExecutionLeaseID: executionLeaseID, ManagedConnection: agentConnection,
 	})
 	if err != nil {
 		a.writeSessionAllocationProblem(w, r, err)
@@ -2149,6 +2149,12 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer restartAdmission.release()
+	releaseModel, modelBinding, modelErr := a.holdManagedModel(ctx, agentConnection, restartAdmission.leaseID)
+	if modelErr != nil {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, modelErr.Error(), nil)
+		return
+	}
+	defer releaseModel()
 	if sess.Harness == "codex" && (agentConnection.Kind == "legacy" || agentConnection.Kind == "codex-subscription") {
 		a.codexAccountMu.Lock()
 		defer a.codexAccountMu.Unlock()
@@ -2416,6 +2422,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		sess.AgentConnectionRevision = agentConnection.Revision
 		sess.AgentConnectionKind = agentConnection.Kind
 		sess.AgentConnectionProtocol = agentConnection.Protocol
+		sess.ManagedLocalModel = modelBinding
 		sess.ConversationID = conversation
 		sess.EarlierConversationIDs = earlier
 		sess.Status = registry.StatusStarting
@@ -2450,6 +2457,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// restart's Docker calls exactly as it cancels a create's.
 	createCtx, endCreate := a.sessionCreateContext(ctx)
 	defer endCreate()
+	if err := a.checkManagedBinding(modelBinding); err != nil {
+		a.markSessionExited(id, "managed model changed before restart allocation")
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
+		return
+	}
 	sb, err := a.deps.Backend.Create(createCtx, backend.Spec{
 		ID:          sandboxID,
 		SessionID:   sess.ID,

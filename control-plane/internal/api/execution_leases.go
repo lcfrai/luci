@@ -16,6 +16,7 @@ import (
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
@@ -26,27 +27,28 @@ import (
 // Every persisted lease accounts for a pending allocation even before Docker
 // sees it. Unknown outcomes retain their reservation across process restart.
 type executionLease struct {
-	ID              string                       `json:"id"`
-	Scope           string                       `json:"scope"`
-	Actor           management.ExecutionActorRef `json:"actor"`
-	ProjectID       string                       `json:"projectId"`
-	Provider        string                       `json:"provider"`
-	ProviderLimit   int                          `json:"providerLimit"`
-	SessionID       string                       `json:"sessionId,omitempty"`
-	SandboxID       string                       `json:"sandboxId,omitempty"`
-	State           string                       `json:"state"`
-	LaunchGuard     int                          `json:"launchGuard,omitempty"`
-	FenceProtocol   int                          `json:"fenceProtocol,omitempty"`
-	FenceEngineID   string                       `json:"fenceEngineId,omitempty"`
-	FenceInstanceID string                       `json:"fenceInstanceId,omitempty"`
-	FenceIntentID   string                       `json:"fenceIntentId,omitempty"`
-	Resources       backend.Resources            `json:"resources"`
-	HostLaunchBytes uint64                       `json:"hostLaunchBytes,omitempty"`
-	CreatedAt       time.Time                    `json:"createdAt"`
-	UpdatedAt       time.Time                    `json:"updatedAt"`
+	ManagedLocalModel *managedmodel.Binding        `json:"managedLocalModel,omitempty"`
+	ID                string                       `json:"id"`
+	Scope             string                       `json:"scope"`
+	Actor             management.ExecutionActorRef `json:"actor"`
+	ProjectID         string                       `json:"projectId"`
+	Provider          string                       `json:"provider"`
+	ProviderLimit     int                          `json:"providerLimit"`
+	SessionID         string                       `json:"sessionId,omitempty"`
+	SandboxID         string                       `json:"sandboxId,omitempty"`
+	State             string                       `json:"state"`
+	LaunchGuard       int                          `json:"launchGuard,omitempty"`
+	FenceProtocol     int                          `json:"fenceProtocol,omitempty"`
+	FenceEngineID     string                       `json:"fenceEngineId,omitempty"`
+	FenceInstanceID   string                       `json:"fenceInstanceId,omitempty"`
+	FenceIntentID     string                       `json:"fenceIntentId,omitempty"`
+	Resources         backend.Resources            `json:"resources"`
+	HostLaunchBytes   uint64                       `json:"hostLaunchBytes,omitempty"`
+	CreatedAt         time.Time                    `json:"createdAt"`
+	UpdatedAt         time.Time                    `json:"updatedAt"`
 }
 type executionLeaseLedger struct {
-	InputProofs []debianInputProofExecutionLease `json:"inputProofs,omitempty"`
+	InputProofs         []debianInputProofExecutionLease   `json:"inputProofs,omitempty"`
 	Version             int                                `json:"version"`
 	Leases              []executionLease                   `json:"leases"`
 	Retirements         []executionRetirement              `json:"retirements,omitempty"`
@@ -229,7 +231,7 @@ func (g *executionAdmission) mutateLocked(ctx context.Context, fn func(*executio
 	addRuntimeImageReservationView(view, ledger.RuntimeImages)
 	addDocumentReservationView(view, ledger.Documents)
 	addDocumentImageAssemblyReservationView(view, ledger.ImageAssemblies)
-	addDebianInputProofReservationView(view,ledger.InputProofs)
+	addDebianInputProofReservationView(view, ledger.InputProofs)
 	g.snapshot.Store(view)
 	return nil
 }
@@ -248,7 +250,13 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 		return ledger, errors.New("execution capacity state cannot be verified")
 	}
 	seen := map[string]bool{}
-	for _,row:=range ledger.InputProofs{key:=row.Scope+":"+row.ID;if !validDebianInputProofLease(row)||seen[key]{return ledger,runtimeinstall.ErrInputProofOwnership};seen[key]=true}
+	for _, row := range ledger.InputProofs {
+		key := row.Scope + ":" + row.ID
+		if !validDebianInputProofLease(row) || seen[key] {
+			return ledger, runtimeinstall.ErrInputProofOwnership
+		}
+		seen[key] = true
+	}
 	for _, lease := range ledger.Leases {
 		key := lease.Scope + ":" + lease.ID
 		if !validExecutionLease(lease) || seen[key] {
@@ -314,7 +322,7 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 }
 
 func executionLeaseCount(l executionLeaseLedger) int {
-	return len(l.Leases) + len(l.Checks) + len(l.Previews) + len(l.RuntimeImages) + len(l.Documents) + len(l.ImageAssemblies)+len(l.InputProofs)
+	return len(l.Leases) + len(l.Checks) + len(l.Previews) + len(l.RuntimeImages) + len(l.Documents) + len(l.ImageAssemblies) + len(l.InputProofs)
 }
 func executionFenceCount(l executionLeaseLedger) int {
 	return len(l.Fences) + len(l.CheckFences) + len(l.DocumentFences) + len(l.ImageAssemblyFences)
@@ -544,7 +552,9 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 			return nil
 		}
 		demand := executionCapacityDemand{PendingMemory: pendingMemory, AllMemory: allMemory, CPU: cpu, PendingAllocations: pendingAllocations}
-		if err:=g.addInputProofAdmissionCapacity(ctx,ledger.InputProofs,"","",&demand,policy.DiskReserveMiB);err!=nil{return err}
+		if err := g.addInputProofAdmissionCapacity(ctx, ledger.InputProofs, "", "", &demand, policy.DiskReserveMiB); err != nil {
+			return err
+		}
 		demand.HostLaunchBytes = windowsDockerHostLaunchBytes(snap, g.api.deps.Backend.Kind())
 		addWorkerHostLaunchCapacity(snap, ledger.Leases, g.scope, id, g.api.deps.Backend.Kind(), &demand)
 		if err := addCheckCapacity(snap, ledger.Checks, "", "", &demand); err != nil {
@@ -713,6 +723,9 @@ func executionSessionProvider(row registry.Session) string {
 }
 
 func validExecutionLease(lease executionLease) bool {
+	if !managedmodel.ValidBinding(lease.ManagedLocalModel) || lease.ManagedLocalModel != nil && (lease.ManagedLocalModel.RuntimeScope != lease.Scope || lease.ManagedLocalModel.LeaseID != lease.ID) {
+		return false
+	}
 	scope, err := hex.DecodeString(lease.Scope)
 	if err != nil || len(scope) != 32 || lease.LaunchGuard < 0 || lease.LaunchGuard > 1 || lease.ID == "" || len(lease.ID) > 200 || lease.ProjectID == "" || len(lease.ProjectID) > 200 || lease.Actor.ProjectID != lease.ProjectID || len(lease.Actor.UserID) > 200 || len(lease.Actor.TeamID) > 200 || lease.Provider == "" || len(lease.Provider) > 200 || lease.ProviderLimit < 1 || lease.ProviderLimit > product.MaxSwarmScheduledTasks || lease.Resources.MemoryMiB < 128 || lease.Resources.MemoryMiB > 32768 || lease.Resources.CPUMillis < 100 || lease.Resources.CPUMillis > 16000 || lease.HostLaunchBytes > 4<<30 || lease.CreatedAt.IsZero() || lease.UpdatedAt.Before(lease.CreatedAt) || len(lease.SessionID) > 200 || len(lease.SandboxID) > 200 {
 		return false
@@ -775,6 +788,13 @@ func (g *executionAdmission) markBackendStarting(ctx context.Context, id, sessio
 					return errors.New("the exact reserved child is no longer starting; backend launch refused")
 				}
 				v.State = "backend-dispatching"
+				if row.ManagedLocalModel != nil {
+					binding := *row.ManagedLocalModel
+					if binding.LeaseID != v.ID || binding.RuntimeScope != v.Scope {
+						return errors.New("managed model execution lease differs")
+					}
+					v.ManagedLocalModel = &binding
+				}
 				v.UpdatedAt = time.Now().UTC()
 				return nil
 			}

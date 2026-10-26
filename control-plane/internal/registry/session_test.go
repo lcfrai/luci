@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 	"github.com/lcfrai/luci/control-plane/internal/statepath"
 )
@@ -179,8 +180,14 @@ func TestCloneDeepCopiesEarlierConversationIDs(t *testing.T) {
 
 func TestCloneCopiesEveryOtherField(t *testing.T) {
 	orig := sampleSession()
-	if !reflect.DeepEqual(orig.Clone(), orig) {
+	orig.ManagedLocalModel = &managedmodel.Binding{Boot: strings.Repeat("a", 64), Generation: "7", Revision: 2, RuntimeScope: strings.Repeat("b", 64), LeaseID: "manual-copy", Endpoint: "http://127.0.0.1:24567/v1", Model: "installed:latest"}
+	cloned := orig.Clone()
+	if !reflect.DeepEqual(cloned, orig) {
 		t.Fatal("Clone is not value-identical to its source — a field was dropped")
+	}
+	cloned.ManagedLocalModel.Generation = "8"
+	if orig.ManagedLocalModel.Generation != "7" {
+		t.Fatal("clone mutation changed the original managed-model authority binding")
 	}
 }
 
@@ -193,6 +200,7 @@ var cloneDeepCopies = map[string]bool{
 	"EarlierConversationIDs": true,
 	"ImplementationContext":  true,
 	"ReviewedContext":        true,
+	"ManagedLocalModel":      true,
 }
 
 // TestCloneCoversEveryReferenceTypedField is a tripwire for the next field, not

@@ -1,6 +1,9 @@
 package registry
 
-import "time"
+import (
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
+	"time"
+)
 
 // Status is the session status the user sees.
 //
@@ -40,12 +43,13 @@ const (
 // as present, and a key that disappears while a session has not exited yet is a
 // key the TypeScript side would have to defend against for no reason.
 type Session struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	MachineID  string `json:"machineId"`
-	ProjectID  string `json:"projectId"`
-	BranchID   string `json:"branchId"`
-	WorktreeID string `json:"worktreeId"`
+	ManagedLocalModel *managedmodel.Binding `json:"managedLocalModel,omitempty"` // Private generation/lease authority; never session DTO.
+	ID                string                `json:"id"`
+	Title             string                `json:"title"`
+	MachineID         string                `json:"machineId"`
+	ProjectID         string                `json:"projectId"`
+	BranchID          string                `json:"branchId"`
+	WorktreeID        string                `json:"worktreeId"`
 
 	Harness           string   `json:"harness"` // harness.ID
 	Model             string   `json:"model"`
@@ -140,6 +144,10 @@ type Session struct {
 // surface emits null or [] is the projection's decision, not the record's.
 func (s Session) Clone() Session {
 	out := s
+	if s.ManagedLocalModel != nil {
+		binding := *s.ManagedLocalModel
+		out.ManagedLocalModel = &binding
+	}
 	out.Args = cloneStrings(s.Args)
 	out.EarlierConversationIDs = cloneStrings(s.EarlierConversationIDs)
 	out.ImplementationContext = s.ImplementationContext.Clone()

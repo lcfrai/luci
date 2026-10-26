@@ -3,6 +3,7 @@ package product
 import (
 	"encoding/json"
 	"errors"
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
 )
 
 // ResolveAgentConnection returns a public route receipt and a fresh private
@@ -41,6 +42,16 @@ func (s *Server) ResolveAgentConnection(harness string, selection *string) (Agen
 		return legacy, nil, errors.New("The selected agent connection is missing, disabled or incomplete. Refresh your connections and choose an enabled route.")
 	}
 	receipt := AgentConnectionReceipt{ID: selected.ID, Kind: selected.Kind, Revision: selected.Revision}
+	if selected.ManagedLocalModel != nil {
+		if harness != "opencode" {
+			return receipt, nil, errors.New("This managed model connection is for OpenCode.")
+		}
+		if _, err := managedmodel.Check(selected.ManagedLocalModel, selected.Endpoints.ChatCompletions, selected.Models.OpenCode); err != nil {
+			return receipt, nil, err
+		}
+		copy := *selected.ManagedLocalModel
+		receipt.ManagedLocalModel = &copy
+	}
 	if selected.Kind == "codex-subscription" {
 		if harness != "codex" {
 			return receipt, nil, errors.New("This connection uses a Codex subscription. Choose Codex or select a compatible API connection.")

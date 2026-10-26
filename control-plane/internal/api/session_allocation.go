@@ -9,6 +9,7 @@ import (
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
@@ -16,6 +17,7 @@ import (
 // scheduler nor this allocator constructs an HTTP request or borrows a user's
 // old request context to create a child.
 type preparedSessionAllocation struct {
+	ManagedConnection  product.AgentConnectionReceipt
 	Record             registry.Session
 	Spec               backend.Spec
 	Account            *codexConnection
@@ -50,6 +52,12 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 		}
 		return registry.Session{}, &sessionAllocationError{Kind: kind, SessionID: row.ID, Cause: err, StartFailure: diagnostic}
 	}
+	releaseModel, binding, modelErr := a.holdManagedModel(ctx, prepared.ManagedConnection, prepared.ExecutionLeaseID)
+	if modelErr != nil {
+		return failure("changed", modelErr)
+	}
+	defer releaseModel()
+	row.ManagedLocalModel = binding
 	if row.ID == "" || row.ID != spec.ID || row.ID != spec.SessionID || row.Status != registry.StatusStarting || row.SandboxID != row.ID || !row.StartFailure.IsZero() {
 		return failure("invalid", errors.New("The prepared session has no matching durable execution identity."))
 	}
@@ -102,6 +110,9 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 	}
 	createCtx, cancel := a.sessionCreateContext(ctx)
 	defer cancel()
+	if err := a.checkManagedBinding(binding); err != nil {
+		return refuseStart("changed", "managed-model", err)
+	}
 	sb, err := a.deps.Backend.Create(createCtx, spec)
 	if err != nil {
 		a.sessionLog().Error("create the sandbox", "sessionId", row.ID, "err", err)

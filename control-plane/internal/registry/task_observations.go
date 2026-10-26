@@ -57,7 +57,7 @@ func sameTaskObservationGeneration(before, after Session) bool {
 		before.PermissionMode == after.PermissionMode && before.AuthMode == after.AuthMode &&
 		before.AgentConnectionID == after.AgentConnectionID && before.AgentConnectionKind == after.AgentConnectionKind &&
 		before.AgentConnectionProtocol == after.AgentConnectionProtocol && before.AgentConnectionRevision == after.AgentConnectionRevision &&
-		before.CodexConnectionID == after.CodexConnectionID && reflect.DeepEqual(before.ImplementationContext, after.ImplementationContext)
+		before.CodexConnectionID == after.CodexConnectionID && reflect.DeepEqual(before.ManagedLocalModel, after.ManagedLocalModel) && reflect.DeepEqual(before.ImplementationContext, after.ImplementationContext)
 }
 
 // TaskObservationPage visits at most 128 stored positions and returns at most

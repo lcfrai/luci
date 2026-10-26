@@ -12,6 +12,7 @@ import (
 )
 
 type sessionRestartAdmission struct {
+	leaseID    string
 	resources  backend.Resources
 	revalidate func(context.Context) error
 	bind       func(context.Context, string) error
@@ -45,6 +46,7 @@ func (a *API) prepareSessionRestart(ctx context.Context, prior registry.Session,
 		return result, errors.New("Current execution policy is unavailable. The original session has not been stopped.")
 	}
 	leaseID := ids.New("restart")
+	result.leaseID = leaseID
 	reserve := func(ctx context.Context, current management.ExecutionAuthority) (executionDecision, error) {
 		if actor.UserID != "" {
 			ctx = management.WithExecutionAuthority(ctx, current)

@@ -37,6 +37,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/diagnostics"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/instance"
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/platform"
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
@@ -94,6 +95,11 @@ func run(getenv func(string) string, errOut io.Writer) int {
 }
 
 func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
+	if cfg.Worker {
+		if err := managedmodel.ConfigureFromEnvironment(); err != nil {
+			return err
+		}
+	}
 	executionStateDir, err := executionStateDirectory(cfg, os.Getenv("LUCI_EXECUTION_STATE_DIR"))
 	if err != nil {
 		return err
@@ -432,6 +438,14 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 
 	platformHandler := platformService.Handler()
 	combined := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/internal/managed-model-dependents" {
+			if !cfg.Worker || subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Luci-Model-Control")), []byte(cfg.WorkerToken)) != 1 {
+				http.NotFound(w, r)
+				return
+			}
+			workerManagedModel(w, r, handler)
+			return
+		}
 		if r.URL.Path == "/v1/internal/host-pressure" {
 			if !cfg.Worker || subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Luci-Host-Pressure-Control")), []byte(cfg.WorkerToken)) != 1 {
 				http.NotFound(w, r)
@@ -448,6 +462,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	})
 	engine := productService.ProxyWorkspace(combined)
 	var control *management.Gateway
+	controlClosed := false
 	if cfg.Worker {
 		engine = management.WorkerHandler(cfg.WorkerToken, engine)
 		if err := management.WriteWorkerAddress(cfg.WorkerAddressFile, "http://"+ln.Addr().String()); err != nil {
@@ -460,7 +475,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
 		}
 		storage, _ := be.(management.ExecutionStorageConfigurer)
-		control, err = management.New(management.Options{ExecutionStateDir: executionStateDir, ExecutionStorage: storage, StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess, PortablePackageID: cfg.PortablePackageID, HostPressureInitialObservation: handler.HostPressureObservation, HostPressureInitialStop: handler.StopHostPressureCandidate, HostPressureLog: func(err error) { log.Warn("local host pressure response", "err", err) }})
+		control, err = management.New(management.Options{ExecutionStateDir: executionStateDir, ExecutionStorage: storage, StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess, PortablePackageID: cfg.PortablePackageID, HostPressureInitialObservation: handler.HostPressureObservation, HostPressureInitialStop: handler.StopHostPressureCandidate, ManagedModelDependents: handler.ManagedModelDependents, HostPressureLog: func(err error) { log.Warn("local host pressure response", "err", err) }})
 		if err != nil {
 			_ = ln.Close()
 			return fmt.Errorf("initialise control-plane management: %w", err)
@@ -472,7 +487,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		executionControlAuthority = control.AuthorizeExecutionControl
 		executionReady.Store(true)
 		defer func() {
-			cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			if controlClosed {
+				return
+			}
+			cleanup, cancel := context.WithTimeout(context.Background(), 35*time.Second)
 			defer cancel()
 			_ = control.Close(cleanup)
 		}()
@@ -529,11 +547,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
 	}
 
-	shutdownService = func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		_ = srv.Shutdown(shutdownCtx)
-	}
+	shutdown := newManagedShutdownSignal(time.Now)
+	shutdownService = shutdown.request
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 	log.Info("control plane listening",
@@ -547,28 +562,36 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		"caBundle", cfg.CABundle,
 	)
 
+	var serveFailure error
 	select {
 	case err := <-serveErr:
-		if errors.Is(err, http.ErrServerClosed) {
-			return nil
+		if !errors.Is(err, http.ErrServerClosed) {
+			serveFailure = fmt.Errorf("serve: %w", err)
 		}
-		return fmt.Errorf("serve: %w", err)
+		shutdownService()
 	case <-ctx.Done():
+		shutdownService()
+	case <-shutdown.done:
 	}
 
 	log.Info("shutting down")
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithDeadline(context.Background(), shutdown.deadline)
 	defer cancel()
+	var closeOwned func(context.Context) error
+	if control != nil {
+		controlClosed = true
+		closeOwned = control.Close
+	}
 	// Shutdown does not close hijacked connections, and coder/websocket hijacks
 	// every /attach. Those relays end when the process does; the sandbox and its
 	// PTY survive (Group A task 3), so the desktop reattaches with scrollback.
-	if err := srv.Shutdown(shutdownCtx); err != nil {
+	if err := finishManagedShutdown(shutdownCtx, closeOwned, srv.Shutdown); err != nil {
 		log.Warn("graceful shutdown did not finish in time; closing what is left", "err", err)
 		_ = srv.Close()
 	}
 	// The reaper is stopped and drained by the deferred function above, after
 	// the HTTP server has finished and before the backend is closed.
-	return nil
+	return serveFailure
 }
 
 // newScanner is the projects directory's scanner, which serve hands the HTTP

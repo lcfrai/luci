@@ -387,7 +387,7 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		return a.execution.markBackendStarting(ctx, req.QueueID, candidate.ID, candidate.ID)
 	}, AfterBackendCreate: func(ctx context.Context, sandboxID string) error {
 		return a.execution.markBackendSettled(ctx, req.QueueID, candidate.ID, sandboxID)
-	}, HasReviewedContext: true, ExecutionLeaseID: req.QueueID})
+	}, HasReviewedContext: true, ExecutionLeaseID: req.QueueID, ManagedConnection: connection})
 	if err != nil {
 		var failure *sessionAllocationError
 		if errors.As(err, &failure) && failure.StartFailure.Valid() {

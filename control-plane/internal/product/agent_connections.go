@@ -19,6 +19,7 @@ import (
 	"unicode"
 
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
 )
 
 const agentConnectionLimit = 256 << 10
@@ -53,42 +54,52 @@ const (
 
 // AgentConnection is deliberately a public projection, never the saved key.
 type AgentConnection struct {
-	ID               string                          `json:"id"`
-	Name             string                          `json:"name"`
-	Kind             string                          `json:"kind"`
-	Enabled          bool                            `json:"enabled"`
-	Revision         int                             `json:"revision"`
-	Endpoints        AgentConnectionEndpoints        `json:"endpoints"`
-	Models           AgentConnectionModels           `json:"models"`
-	OpenCodeThinking AgentConnectionOpenCodeThinking `json:"openCodeThinking,omitempty"`
-	OpenCodeService  AgentConnectionOpenCodeService  `json:"openCodeService,omitempty"`
-	Configured       bool                            `json:"configured"`
-	KeyPresent       bool                            `json:"keyPresent"`
-	BlockedReason    string                          `json:"blockedReason,omitempty"`
+	ManagedLocalModel *managedmodel.Reference         `json:"managedLocalModel,omitempty"`
+	ID                string                          `json:"id"`
+	Name              string                          `json:"name"`
+	Kind              string                          `json:"kind"`
+	Enabled           bool                            `json:"enabled"`
+	Revision          int                             `json:"revision"`
+	Endpoints         AgentConnectionEndpoints        `json:"endpoints"`
+	Models            AgentConnectionModels           `json:"models"`
+	OpenCodeThinking  AgentConnectionOpenCodeThinking `json:"openCodeThinking,omitempty"`
+	OpenCodeService   AgentConnectionOpenCodeService  `json:"openCodeService,omitempty"`
+	Configured        bool                            `json:"configured"`
+	KeyPresent        bool                            `json:"keyPresent"`
+	BlockedReason     string                          `json:"blockedReason,omitempty"`
 }
 
 type AgentConnectionReceipt struct {
-	ID              string                         `json:"id,omitempty"`
-	Kind            string                         `json:"kind"`
-	Protocol        string                         `json:"protocol,omitempty"`
-	Model           string                         `json:"model,omitempty"`
-	Endpoint        string                         `json:"endpoint,omitempty"`
-	AuthMode        string                         `json:"authMode,omitempty"`
-	Revision        int                            `json:"revision"`
-	OpenCodeService AgentConnectionOpenCodeService `json:"openCodeService,omitempty"`
+	ManagedLocalModel *managedmodel.Reference        `json:"managedLocalModel,omitempty"`
+	ID                string                         `json:"id,omitempty"`
+	Kind              string                         `json:"kind"`
+	Protocol          string                         `json:"protocol,omitempty"`
+	Model             string                         `json:"model,omitempty"`
+	Endpoint          string                         `json:"endpoint,omitempty"`
+	AuthMode          string                         `json:"authMode,omitempty"`
+	Revision          int                            `json:"revision"`
+	OpenCodeService   AgentConnectionOpenCodeService `json:"openCodeService,omitempty"`
+}
+
+func (a AgentConnectionReceipt) Equal(b AgentConnectionReceipt) bool {
+	ar, br := a.ManagedLocalModel, b.ManagedLocalModel
+	a.ManagedLocalModel = nil
+	b.ManagedLocalModel = nil
+	return a == b && (ar == nil && br == nil || ar != nil && br != nil && *ar == *br)
 }
 
 type privateAgentConnection struct {
-	ID               string                          `json:"id"`
-	Name             string                          `json:"name"`
-	Kind             string                          `json:"kind"`
-	Enabled          bool                            `json:"enabled"`
-	Revision         int                             `json:"revision"`
-	Endpoints        AgentConnectionEndpoints        `json:"endpoints"`
-	Models           AgentConnectionModels           `json:"models"`
-	OpenCodeThinking AgentConnectionOpenCodeThinking `json:"openCodeThinking,omitempty"`
-	OpenCodeService  AgentConnectionOpenCodeService  `json:"openCodeService,omitempty"`
-	APIKey           string                          `json:"apiKey,omitempty"`
+	ManagedLocalModel *managedmodel.Reference         `json:"managedLocalModel,omitempty"`
+	ID                string                          `json:"id"`
+	Name              string                          `json:"name"`
+	Kind              string                          `json:"kind"`
+	Enabled           bool                            `json:"enabled"`
+	Revision          int                             `json:"revision"`
+	Endpoints         AgentConnectionEndpoints        `json:"endpoints"`
+	Models            AgentConnectionModels           `json:"models"`
+	OpenCodeThinking  AgentConnectionOpenCodeThinking `json:"openCodeThinking,omitempty"`
+	OpenCodeService   AgentConnectionOpenCodeService  `json:"openCodeService,omitempty"`
+	APIKey            string                          `json:"apiKey,omitempty"`
 }
 
 type agentConnectionStore struct {
@@ -153,6 +164,9 @@ func validConnectionEndpoint(value string) bool {
 }
 
 func validateAgentConnection(c privateAgentConnection) bool {
+	if c.ManagedLocalModel != nil && (c.ManagedLocalModel.Revision < 1 || c.OpenCodeThinking != AgentConnectionOpenCodeThinkingOff || c.OpenCodeService != AgentConnectionOpenCodeLocalOllama || c.Kind != "compatible-api" || c.APIKey != "" || c.Endpoints.Responses != "" || c.Endpoints.AnthropicMessages != "" || c.Models.Codex != "" || c.Models.ClaudeCode != "") {
+		return false
+	}
 	if !agentConnectionID.MatchString(c.ID) || c.Revision < 1 || len(c.Name) == 0 || len(c.Name) > 160 || strings.TrimSpace(c.Name) != c.Name || !validConnectionToken(c.APIKey, 8192, true) {
 		return false
 	}
@@ -208,6 +222,10 @@ func agentConnectionConfigured(c privateAgentConnection) bool {
 func publicAgentConnection(c privateAgentConnection) AgentConnection {
 	configured := agentConnectionConfigured(c)
 	value := AgentConnection{ID: c.ID, Name: c.Name, Kind: c.Kind, Enabled: c.Enabled, Revision: c.Revision, Endpoints: c.Endpoints, Models: c.Models, OpenCodeThinking: c.OpenCodeThinking, OpenCodeService: c.OpenCodeService, Configured: configured, KeyPresent: c.APIKey != ""}
+	if c.ManagedLocalModel != nil {
+		copy := *c.ManagedLocalModel
+		value.ManagedLocalModel = &copy
+	}
 	if !c.Enabled {
 		value.BlockedReason = "This connection is disabled. Enable it before starting a new agent."
 	} else if !configured {
@@ -285,17 +303,18 @@ func (s *Server) getAgentConnections(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) setAgentConnection(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Action           string                           `json:"action"`
-		ExpectedRevision int                              `json:"expectedRevision"`
-		ID               string                           `json:"id"`
-		Name             string                           `json:"name"`
-		Kind             string                           `json:"kind"`
-		Enabled          bool                             `json:"enabled"`
-		Endpoints        AgentConnectionEndpoints         `json:"endpoints"`
-		Models           AgentConnectionModels            `json:"models"`
-		OpenCodeThinking *AgentConnectionOpenCodeThinking `json:"openCodeThinking"`
-		OpenCodeService  *AgentConnectionOpenCodeService  `json:"openCodeService"`
-		APIKey           *string                          `json:"apiKey"`
+		Action            string                           `json:"action"`
+		ExpectedRevision  int                              `json:"expectedRevision"`
+		ID                string                           `json:"id"`
+		Name              string                           `json:"name"`
+		Kind              string                           `json:"kind"`
+		Enabled           bool                             `json:"enabled"`
+		Endpoints         AgentConnectionEndpoints         `json:"endpoints"`
+		Models            AgentConnectionModels            `json:"models"`
+		OpenCodeThinking  *AgentConnectionOpenCodeThinking `json:"openCodeThinking"`
+		OpenCodeService   *AgentConnectionOpenCodeService  `json:"openCodeService"`
+		APIKey            *string                          `json:"apiKey"`
+		ManagedLocalModel json.RawMessage                  `json:"managedLocalModel"`
 	}
 	if !readJSON(w, r, &req) {
 		return
@@ -345,6 +364,36 @@ func (s *Server) setAgentConnection(w http.ResponseWriter, r *http.Request) {
 		if req.APIKey != nil {
 			c.APIKey = *req.APIKey
 		}
+		if req.ManagedLocalModel != nil {
+			if string(req.ManagedLocalModel) == "null" {
+				if c.ManagedLocalModel != nil {
+					code, message = "managed_model_reference_required", "A managed connection keeps its service reference. Create a separate existing-server connection instead."
+				} else {
+					c.ManagedLocalModel = nil
+				}
+			} else {
+				var ref managedmodel.Reference
+				d := json.NewDecoder(bytes.NewReader(req.ManagedLocalModel))
+				d.DisallowUnknownFields()
+				if d.Decode(&ref) != nil || ref.Revision < 1 {
+					code, message = "invalid_managed_model_reference", "Choose the current managed model configuration."
+				} else {
+					c.ManagedLocalModel = &ref
+				}
+			}
+		}
+		if code == "" && c.ManagedLocalModel != nil {
+			preserved := false
+			if index >= 0 {
+				old := store.Connections[index]
+				preserved = old.ManagedLocalModel != nil && *old.ManagedLocalModel == *c.ManagedLocalModel && old.Endpoints == c.Endpoints && old.Models == c.Models && old.Kind == c.Kind && old.OpenCodeService == c.OpenCodeService
+			}
+			if !preserved {
+				if _, e := managedmodel.Check(c.ManagedLocalModel, c.Endpoints.ChatCompletions, c.Models.OpenCode); e != nil {
+					code, message = "managed_model_unavailable", e.Error()
+				}
+			}
+		}
 		if code == "" && (!validateAgentConnection(c) || c.Enabled && !agentConnectionConfigured(c)) {
 			code, message = "invalid_agent_connection", "Use a supported connection kind, protocol base URLs, explicit models and the required private key. Subscription connections cannot contain an API key or endpoint."
 		}
@@ -358,6 +407,13 @@ func (s *Server) setAgentConnection(w http.ResponseWriter, r *http.Request) {
 	case "select":
 		if req.ID != "" && (index < 0 || !store.Connections[index].Enabled || !agentConnectionConfigured(store.Connections[index])) {
 			code, message = "agent_connection_unavailable", "Choose a saved, enabled connection with a compatible endpoint and model."
+		} else if req.ID != "" && store.Connections[index].ManagedLocalModel != nil {
+			c := store.Connections[index]
+			if _, err := managedmodel.Check(c.ManagedLocalModel, c.Endpoints.ChatCompletions, c.Models.OpenCode); err != nil {
+				code, message = "managed_model_unavailable", err.Error()
+			} else {
+				store.ActiveConnectionID = req.ID
+			}
 		} else {
 			store.ActiveConnectionID = req.ID
 		}

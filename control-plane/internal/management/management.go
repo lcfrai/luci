@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 	"io"
 	"net"
@@ -91,6 +92,7 @@ type Options struct {
 	HostPressureInitialObservation func(context.Context, uint64) (HostPressureObservation, error)
 	HostPressureInitialStop        func(context.Context, HostPressureCandidate) (bool, error)
 	HostPressureLog                func(error)
+	ManagedModelDependents         func(context.Context, string, string, bool) error
 }
 type userRecord struct {
 	User         User   `json:"user"`
@@ -148,6 +150,7 @@ type Gateway struct {
 	teamSockets         map[net.Conn]teamSocketScope
 	teamBrowser         *teamBrowserAccess
 	hostPressure        hostPressureState
+	localModels         *managedModelManager
 }
 
 func New(opts Options) (*Gateway, error) {
@@ -264,6 +267,13 @@ func New(opts Options) (*Gateway, error) {
 		return nil, err
 	}
 	g.scheduleBillingExpiryLocked()
+	g.localModels, err = newManagedModelManager(g)
+	if err != nil {
+		g.localModels = &managedModelManager{gateway: g, status: managedmodel.Status{State: "blocked", Generation: "0", ObservedAt: time.Now().UTC(), Failure: &managedmodel.Failure{Code: "configuration_unavailable"}}}
+	}
+	if g.localModels.platform != nil && g.localModels.saved.Config.Enabled && g.localModels.saved.Config.StartWithLuci {
+		_, _ = g.localModels.beginStart(g.localModels.saved.Revision)
+	}
 	return g, nil
 }
 func randomToken() string {
@@ -353,6 +363,7 @@ func (g *Gateway) userListLocked() []User {
 }
 func (g *Gateway) Handler() http.Handler {
 	mux := http.NewServeMux()
+	g.registerManagedModel(mux)
 	g.registerTeams(mux)
 	mux.HandleFunc("GET /v1/control-plane/status", g.status)
 	mux.HandleFunc("POST /v1/auth/bootstrap", g.bootstrap)
@@ -384,7 +395,7 @@ func (g *Gateway) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/setup/dependencies/{id}/install", g.installDependency)
 	mux.HandleFunc("/", g.route)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == hostPressurePath || r.URL.Path == "/api"+hostPressurePath {
+		if r.URL.Path == hostPressurePath || r.URL.Path == "/api"+hostPressurePath || r.URL.Path == managedModelDependentsPath || r.URL.Path == "/api"+managedModelDependentsPath {
 			fail(w, 404, "not_found", "This route is private to the local controller.")
 			return
 		}
@@ -456,6 +467,13 @@ func (g *Gateway) status(w http.ResponseWriter, r *http.Request) {
 }
 func (g *Gateway) Close(ctx context.Context) error {
 	defer g.removePortableOwnerAccess()
+	if g.localModels != nil && g.localModels.platform != nil {
+		g.localModels.mu.Lock()
+		g.localModels.closing = true
+		g.localModels.withdrawing = true
+		_ = g.localModels.publishLocked()
+		g.localModels.mu.Unlock()
+	}
 	g.mu.Lock()
 	g.closed = true
 	if g.billing != nil && g.billing.expiry != nil {
@@ -470,8 +488,14 @@ func (g *Gateway) Close(ctx context.Context) error {
 		list = append(list, rt)
 	}
 	g.mu.Unlock()
+	// Withdraw and retire only exact managed-model dependents while their private
+	// authenticated APIs still exist. All phases consume this same caller budget.
+	var modelErr error
+	if g.localModels != nil && g.localModels.platform != nil {
+		modelErr = g.localModels.stop(ctx, true)
+	}
 	for _, rt := range list {
-		rt.stop()
+		rt.stopContext(ctx)
 	}
 	if err := g.dependencies.close(ctx); err != nil {
 		return err
@@ -483,5 +507,12 @@ func (g *Gateway) Close(ctx context.Context) error {
 			return ctx.Err()
 		}
 	}
-	return nil
+	if g.localModels != nil && g.localModels.barrier != nil {
+		closeErr := g.localModels.barrier.Close()
+		modelErr = errors.Join(modelErr, closeErr)
+		if modelErr == nil {
+			managedmodel.ReleaseAuthority(g.localModels.path, g.localModels.boot)
+		}
+	}
+	return modelErr
 }

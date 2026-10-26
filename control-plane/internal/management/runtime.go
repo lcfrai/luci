@@ -39,6 +39,11 @@ type userRuntime struct {
 
 func (rt *userRuntime) snapshot() RuntimeStatus { rt.mu.Lock(); defer rt.mu.Unlock(); return rt.status }
 func (rt *userRuntime) stop() {
+	ctx, cancel := context.WithTimeout(context.Background(), 2500*time.Millisecond)
+	defer cancel()
+	rt.stopContext(ctx)
+}
+func (rt *userRuntime) stopContext(parent context.Context) {
 	rt.stopOnce.Do(func() {
 		rt.mu.Lock()
 		kill, address, secret, u, p := rt.kill, rt.address, rt.secret, rt.user, rt.policy
@@ -46,7 +51,7 @@ func (rt *userRuntime) stop() {
 		rt.status.Message = "Stopping this user's runtime."
 		rt.mu.Unlock()
 		if address != "" {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			ctx, cancel := context.WithTimeout(parent, 2*time.Second)
 			req, _ := http.NewRequestWithContext(ctx, "POST", address+"/v1/setup/shutdown", strings.NewReader("{}"))
 			req.Header.Set("Content-Type", "application/json")
 			setWorkerHeaders(req, u, p, secret)
@@ -62,6 +67,7 @@ func (rt *userRuntime) stop() {
 			select {
 			case <-rt.done:
 				return
+			case <-parent.Done():
 			case <-time.After(500 * time.Millisecond):
 			}
 		}
@@ -126,7 +132,7 @@ func WorkerHandler(token string, next http.Handler) http.Handler {
 					u.Role = "admin"
 				}
 				ctx = WithTeamAccess(withActor(ctx, u, p), access)
-			} else if !(r.Method == http.MethodGet && (r.URL.Path == "/v1/setup/status" || r.URL.Path == "/v1/healthz" || r.URL.Path == hostPressurePath)) && !(r.Method == http.MethodPost && (r.URL.Path == "/v1/setup/shutdown" || r.URL.Path == hostPressurePath)) {
+			} else if !(r.Method == http.MethodGet && (r.URL.Path == "/v1/setup/status" || r.URL.Path == "/v1/healthz" || r.URL.Path == hostPressurePath)) && !(r.Method == http.MethodPost && (r.URL.Path == "/v1/setup/shutdown" || r.URL.Path == hostPressurePath || r.URL.Path == managedModelDependentsPath)) {
 				fail(w, 403, "worker_team_scope_required", "This runtime requires an authorized team membership scope.")
 				return
 			}
@@ -287,6 +293,9 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 		billingConfigID = g.billing.configID
 	}
 	cmd.Env = append(cmd.Env, "LUCI_EXECUTION_AUTHORITY_FILE="+filepath.Join(g.dir, "identity.json"), "LUCI_EXECUTION_MANAGED_TEAM="+g.managedTeamID, "LUCI_EXECUTION_BILLING_CONFIG="+billingConfigID, "LUCI_EXECUTION_STATE_DIR="+g.opts.ExecutionStateDir)
+	if g.localModels != nil && g.localModels.platform != nil {
+		cmd.Env = append(cmd.Env, "LUCI_MANAGED_MODEL_STATUS_FILE="+g.localModels.path, "LUCI_MANAGED_MODEL_BOOT="+g.localModels.boot)
+	}
 
 	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
 	kill, err := startOwnedProcess(cmd)

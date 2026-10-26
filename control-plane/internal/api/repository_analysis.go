@@ -138,7 +138,21 @@ func (a *API) assistantSession(ctx context.Context, projectID, title, contextRef
 	if err = backend.ValidateSpec(spec); err != nil {
 		return s, spec, errors.New("The selected assistant configuration cannot enter the private sandbox.")
 	}
+	releaseModel, modelBinding, modelErr := a.reserveManagedAssistant(ctx, s, connection, spec.Resources)
+	if modelErr != nil {
+		return s, spec, modelErr
+	}
+	defer releaseModel()
+	s.ManagedLocalModel = modelBinding
 	if err = a.deps.Store.Create(s); err != nil {
+		if modelBinding != nil {
+			_ = a.execution.release(ctx, modelBinding.LeaseID)
+		}
+		return s, spec, err
+	}
+	if err = a.bindManagedAssistant(ctx, s, modelBinding); err != nil {
+		a.markSessionExited(s.ID, "managed model admission could not be retained")
+		_ = a.execution.releaseSession(ctx, s.ID)
 		return s, spec, err
 	}
 	if err = a.leaseCodexConnection(account, id); err != nil {
