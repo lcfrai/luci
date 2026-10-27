@@ -260,7 +260,7 @@ it("preserves preferences when connection selection fails", async () => {
   await screen.findByText("Server available");
   const original = fixture.fetcher.getMockImplementation()!;
   fixture.fetcher.mockImplementation((url, init) => {
-    if (init?.body && JSON.parse(String(init.body)).action === "select") return Promise.reject(new Error("selection refused"));
+    if (init?.body && JSON.parse(String(init.body)).action === "select") return Promise.resolve(new Response(JSON.stringify({ error: "conflict", message: "selection refused" }), { status: 409 }));
     return original(url, init);
   });
   const before = useCockpit.getState();
