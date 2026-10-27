@@ -8,9 +8,40 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
 )
 
 const connectionFixtureKey = "fixture-gateway-key-not-a-live-credential-12345"
+
+func TestManagedConnectionThinkingKeepsClosedChoiceAndRouteFences(t *testing.T) {
+	base := privateAgentConnection{ID: "agent-" + strings.Repeat("a", 24), Name: "Managed", Kind: "compatible-api", Enabled: true, Revision: 1,
+		Endpoints: AgentConnectionEndpoints{ChatCompletions: "http://127.0.0.1:24567/v1"}, Models: AgentConnectionModels{OpenCode: "installed:latest"},
+		OpenCodeService: AgentConnectionOpenCodeLocalOllama, OpenCodeThinking: AgentConnectionOpenCodeThinkingOff, ManagedLocalModel: &managedmodel.Reference{Revision: 2}}
+	for _, tc := range []struct {
+		name   string
+		change func(*privateAgentConnection)
+		valid  bool
+	}{
+		{"provider default", func(c *privateAgentConnection) { c.OpenCodeThinking = "" }, true},
+		{"off", func(c *privateAgentConnection) { c.OpenCodeThinking = AgentConnectionOpenCodeThinkingOff }, true},
+		{"unknown thinking", func(c *privateAgentConnection) { c.OpenCodeThinking = "low" }, false},
+		{"unbound reference", func(c *privateAgentConnection) { c.ManagedLocalModel.Revision = 0 }, false},
+		{"generic service", func(c *privateAgentConnection) { c.OpenCodeService = AgentConnectionOpenCodeCompatibleAPI }, false},
+		{"private key", func(c *privateAgentConnection) { c.APIKey = "fixture-key" }, false},
+		{"another protocol", func(c *privateAgentConnection) { c.Endpoints.Responses = "https://example.test/v1" }, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := base
+			ref := *base.ManagedLocalModel
+			c.ManagedLocalModel = &ref
+			tc.change(&c)
+			if validateAgentConnection(c) != tc.valid {
+				t.Fatal("managed thinking choice changed a route or authority fence")
+			}
+		})
+	}
+}
 
 type connectionCatalogue struct {
 	Revision           int               `json:"revision"`

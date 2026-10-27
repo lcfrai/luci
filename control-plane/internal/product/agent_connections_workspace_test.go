@@ -2,6 +2,7 @@ package product
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,7 +10,81 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/managedmodel"
 )
+
+func TestManagedConnectionThinkingSaveReloadPreservesRuntimeAndReference(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "status.json")
+	boot := strings.Repeat("b", 64)
+	if err := managedmodel.Configure(path, boot); err != nil {
+		t.Fatal(err)
+	}
+	defer managedmodel.ReleaseAuthority(path, boot)
+	observation := managedmodel.Observation{Version: 1, Boot: boot, Revision: 2, Status: managedmodel.Status{State: "available", Generation: "7", ObservedAt: time.Now().UTC(), Endpoint: "http://127.0.0.1:24567/v1", Model: "installed:latest"}}
+	raw, err := json.Marshal(observation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	s, mux := journeyFixture(t)
+	s.registerSetupTools(mux)
+	body := map[string]any{"action": "save", "expectedRevision": 0, "name": "Managed local", "kind": "compatible-api", "enabled": true,
+		"endpoints": AgentConnectionEndpoints{ChatCompletions: observation.Status.Endpoint}, "models": AgentConnectionModels{OpenCode: observation.Status.Model},
+		"openCodeService": "local-ollama", "openCodeThinking": "", "managedLocalModel": managedmodel.Reference{Revision: 2}, "apiKey": ""}
+	catalogue := connectionSave(t, mux, body)
+	id := catalogue.Connections[0].ID
+	firstReceipt, defaultEnv, err := s.ResolveAgentConnection("opencode", &id)
+	if err != nil || catalogue.Connections[0].OpenCodeThinking != "" || firstReceipt.ManagedLocalModel == nil || firstReceipt.ManagedLocalModel.Revision != 2 {
+		t.Fatal("explicit managed provider default was not preserved", err)
+	}
+	body["id"], body["expectedRevision"], body["openCodeThinking"] = id, catalogue.Revision, "off"
+	catalogue = connectionSave(t, mux, body)
+	offReceipt, offEnv, err := s.ResolveAgentConnection("opencode", &id)
+	if err != nil || offReceipt.Revision != firstReceipt.Revision+1 || firstReceipt.Equal(offReceipt) {
+		t.Fatal("thinking save did not advance the connection receipt", err)
+	}
+	var offConfig map[string]any
+	if json.Unmarshal([]byte(offEnv["OPENCODE_CONFIG_CONTENT"]), &offConfig) != nil {
+		t.Fatal("Off runtime config is invalid")
+	}
+	model := offConfig["provider"].(map[string]any)["luci-gateway"].(map[string]any)["models"].(map[string]any)[observation.Status.Model].(map[string]any)
+	if model["options"].(map[string]any)["reasoningEffort"] != "none" {
+		t.Fatal("Off did not retain its existing adapter option")
+	}
+	oldOffConfig := offEnv["OPENCODE_CONFIG_CONTENT"]
+	body["expectedRevision"], body["openCodeThinking"] = catalogue.Revision, ""
+	catalogue = connectionSave(t, mux, body)
+	restarted, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restarted.Close()
+	receipt, env, err := restarted.ResolveAgentConnection("opencode", &id)
+	if err != nil || receipt.Revision != offReceipt.Revision+1 || receipt.ManagedLocalModel == nil || *receipt.ManagedLocalModel != *firstReceipt.ManagedLocalModel || receipt.Equal(offReceipt) {
+		t.Fatal("reloaded thinking choice changed its managed reference or revision", err)
+	}
+	if env["OPENCODE_CONFIG_CONTENT"] != defaultEnv["OPENCODE_CONFIG_CONTENT"] || offEnv["OPENCODE_CONFIG_CONTENT"] != oldOffConfig || catalogue.ActiveConnectionID != "" || catalogue.Connections[0].KeyPresent {
+		t.Fatal("provider default changed earlier runtime config, selection or private-key boundaries")
+	}
+	var config map[string]any
+	if json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config) != nil {
+		t.Fatal("default runtime config is invalid")
+	}
+	model = config["provider"].(map[string]any)["luci-gateway"].(map[string]any)["models"].(map[string]any)[observation.Status.Model].(map[string]any)
+	if _, exists := model["options"]; exists {
+		t.Fatal("provider default silently forced a reasoning option")
+	}
+	if _, _, err := restarted.ResolveAgentConnection("claude-code", &id); err == nil {
+		t.Fatal("managed thinking choice enabled another harness")
+	}
+	if _, err := os.Stat(filepath.Join(s.stateDir, "agent-credentials.json")); !os.IsNotExist(err) {
+		t.Fatal("managed thinking save created personal credentials")
+	}
+}
 
 func TestAgentConnectionsFollowSelectedWorkspaceWithoutLocalFallback(t *testing.T) {
 	local, localMux := journeyFixture(t)

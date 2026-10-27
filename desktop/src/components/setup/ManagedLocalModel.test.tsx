@@ -44,7 +44,10 @@ function mount(initial = snapshot()) {
     else if (path === "/v1/setup/local-model/stop") current = { ...current, status: { ...current.status, state: "stopped" } };
     else if (path === "/v1/setup/local-model" && body) current = { ...current, revision: current.revision + 1, config: { ...current.config!, ...body, profile: snapshot("stopped", body.executionMode).config!.profile }, status: { state: body.enabled ? "stopped" : "disabled", generation: current.status.generation, observedAt: new Date().toISOString() } };
     if (path === "/v1/setup/agent-connections") {
-      if (body?.action === "save") catalogue = { ...catalogue, revision: catalogue.revision + 1, connections: [...catalogue.connections, { ...body, id: "managed-one", revision: 1, configured: true, keyPresent: false }] };
+      if (body?.action === "save") {
+        const id = body.id || "managed-one", previous = catalogue.connections.find(entry => entry.id === id);
+        catalogue = { ...catalogue, revision: catalogue.revision + 1, connections: [...catalogue.connections.filter(entry => entry.id !== id), { ...body, id, revision: (previous?.revision ?? 0) + 1, configured: true, keyPresent: false }] };
+      }
       if (body?.action === "select") catalogue = { ...catalogue, revision: catalogue.revision + 1, activeConnectionId: body.id };
       return new Response(JSON.stringify(catalogue));
     }
@@ -167,6 +170,70 @@ it("creates a managed connection and selects it without overwriting a same-name 
   expect(bodies[0]).toMatchObject({ action: "save", expectedRevision: 7, managedLocalModel: { revision: 3 }, openCodeService: "local-ollama", openCodeThinking: "off", endpoints: { chatCompletions: "http://localhost:11435/v1" }, models: { opencode: "local-coder-16k:latest" } });
   expect(bodies[0]).not.toHaveProperty("id");
   expect(bodies[1]).toEqual({ action: "select", expectedRevision: 8, id: "managed-one" });
+});
+
+const managedEntry = (thinking: "" | "off" | undefined, revision = 3): AgentConnectionCatalogue["connections"][number] => ({
+  id: "managed-existing", name: "Existing local", kind: "compatible-api", revision: 2, enabled: true, configured: true, keyPresent: false,
+  endpoints: { chatCompletions: "http://localhost:11435/v1" }, models: { opencode: "local-coder-16k:latest" },
+  openCodeService: "local-ollama", openCodeThinking: thinking, managedLocalModel: { revision },
+});
+
+it.each([["explicit", ""], ["omitted legacy", undefined]] as const)("preserves %s provider default on an already active managed connection", async (_label, thinking) => {
+  const fixture = mount(snapshot("available"));
+  fixture.setCatalogue({ revision: 7, activeConnectionId: "managed-existing", connections: [managedEntry(thinking)] });
+  await screen.findByText("Server available");
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await screen.findByText(/Local model selected for new OpenCode sessions/);
+  expect(selectResolvedDefaults(useCockpit.getState())).toMatchObject({ harness: "opencode", agentConnectionId: "managed-existing" });
+  expect(fixture.posts()).toHaveLength(0);
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it.each([["provider default", ""], ["Off", "off"]] as const)("preserves saved %s when refreshing a managed configuration reference", async (_label, thinking) => {
+  const fixture = mount(snapshot("available", "cpu"));
+  fixture.setCatalogue({ revision: 7, activeConnectionId: "managed-existing", connections: [managedEntry(thinking, 2)] });
+  await screen.findByText("Server available");
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await screen.findByText(/Local model selected for new OpenCode sessions/);
+  expect(fixture.posts()).toHaveLength(1);
+  expect(JSON.parse(String(fixture.posts()[0][1]?.body))).toMatchObject({ action: "save", id: "managed-existing", expectedRevision: 7,
+    openCodeThinking: thinking, managedLocalModel: { revision: 3 }, openCodeService: "local-ollama", endpoints: managedEntry(thinking).endpoints, models: managedEntry(thinking).models, apiKey: "" });
+  expect(selectResolvedDefaults(useCockpit.getState())).toMatchObject({ harness: "opencode", agentConnectionId: "managed-existing" });
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it.each([["unknown", "low"], ["null", null]] as const)("refuses a saved %s thinking value without changing preferences", async (_label, thinking) => {
+  const fixture = mount(snapshot("available")), entry = managedEntry("off");
+  entry.openCodeThinking = thinking as never;
+  fixture.setCatalogue({ revision: 7, activeConnectionId: "managed-existing", connections: [entry] });
+  const before = useCockpit.getState();
+  await screen.findByText("Server available");
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await screen.findByText(/unsupported thinking choice/);
+  expect(fixture.posts()).toHaveLength(0);
+  expect(selectResolvedDefaults(useCockpit.getState())).toEqual(selectResolvedDefaults(before));
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it("does not select or apply preferences when a managed save changes the captured thinking choice", async () => {
+  const fixture = mount(snapshot("available"));
+  fixture.setCatalogue({ revision: 7, activeConnectionId: "", connections: [managedEntry("", 2)] });
+  const original = fixture.fetcher.getMockImplementation()!, before = useCockpit.getState();
+  fixture.fetcher.mockImplementation(async (url, init) => {
+    const response = await original(url, init);
+    if (init?.body && JSON.parse(String(init.body)).action === "save") {
+      const value = await response.json() as AgentConnectionCatalogue;
+      value.connections.find(entry => entry.id === "managed-existing")!.openCodeThinking = "off";
+      return new Response(JSON.stringify(value));
+    }
+    return response;
+  });
+  await screen.findByText("Server available");
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await screen.findByText(/saved local connection is not ready to select/);
+  expect(fixture.posts()).toHaveLength(1);
+  expect(selectResolvedDefaults(useCockpit.getState())).toEqual(selectResolvedDefaults(before));
+  expect(createSession).not.toHaveBeenCalled();
 });
 
 it("rechecks a changed owner before writing or selecting a connection", async () => {
@@ -306,7 +373,7 @@ it("does not select a managed route when OpenCode is unavailable", async () => {
   expect(createSession).not.toHaveBeenCalled();
 });
 
-it.each(["active ID", "model"] as const)("does not change preferences when the returned selection has an unconfirmed %s", async field => {
+it.each(["active ID", "model", "thinking"] as const)("does not change preferences when the returned selection has an unconfirmed %s", async field => {
   const fixture = mount(snapshot("available"));
   await screen.findByText("Server available");
   const original = fixture.fetcher.getMockImplementation()!;
@@ -315,7 +382,8 @@ it.each(["active ID", "model"] as const)("does not change preferences when the r
     if (init?.body && JSON.parse(String(init.body)).action === "select") {
       const value = await response.json() as AgentConnectionCatalogue;
       if (field === "active ID") value.activeConnectionId = "byo";
-      else value.connections = value.connections.map(entry => entry.id === "managed-one" ? { ...entry, models: { opencode: "different-model" } } : entry);
+      else if (field === "model") value.connections = value.connections.map(entry => entry.id === "managed-one" ? { ...entry, models: { opencode: "different-model" } } : entry);
+      else value.connections = value.connections.map(entry => entry.id === "managed-one" ? { ...entry, openCodeThinking: "" as const } : entry);
       return new Response(JSON.stringify(value));
     }
     return response;

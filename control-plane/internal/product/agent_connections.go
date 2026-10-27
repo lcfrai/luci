@@ -164,7 +164,7 @@ func validConnectionEndpoint(value string) bool {
 }
 
 func validateAgentConnection(c privateAgentConnection) bool {
-	if c.ManagedLocalModel != nil && (c.ManagedLocalModel.Revision < 1 || c.OpenCodeThinking != AgentConnectionOpenCodeThinkingOff || c.OpenCodeService != AgentConnectionOpenCodeLocalOllama || c.Kind != "compatible-api" || c.APIKey != "" || c.Endpoints.Responses != "" || c.Endpoints.AnthropicMessages != "" || c.Models.Codex != "" || c.Models.ClaudeCode != "") {
+	if c.ManagedLocalModel != nil && (c.ManagedLocalModel.Revision < 1 || (c.OpenCodeThinking != "" && c.OpenCodeThinking != AgentConnectionOpenCodeThinkingOff) || c.OpenCodeService != AgentConnectionOpenCodeLocalOllama || c.Kind != "compatible-api" || c.APIKey != "" || c.Endpoints.Responses != "" || c.Endpoints.AnthropicMessages != "" || c.Models.Codex != "" || c.Models.ClaudeCode != "") {
 		return false
 	}
 	if !agentConnectionID.MatchString(c.ID) || c.Revision < 1 || len(c.Name) == 0 || len(c.Name) > 160 || strings.TrimSpace(c.Name) != c.Name || !validConnectionToken(c.APIKey, 8192, true) {

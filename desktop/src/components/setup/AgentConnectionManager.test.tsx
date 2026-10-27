@@ -51,9 +51,10 @@ it("preserves the managed model link on rename and keeps its protocol fields rea
   await screen.findByText(/New sessions use My gateway\./);
   await userEvent.click(screen.getByText("Add or edit a connection"));
   await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
-  for (const label of ["Connection type", "OpenCode · Chat Completions base URL", "OpenCode model", "OpenCode service", "OpenCode thinking", "Connection API key"]) {
+  for (const label of ["Connection type", "OpenCode · Chat Completions base URL", "OpenCode model", "OpenCode service", "Connection API key"]) {
     expect(screen.getByLabelText(label).matches(":disabled")).toBe(true);
   }
+  expect(screen.getByLabelText("OpenCode thinking").matches(":disabled")).toBe(false);
   await userEvent.clear(screen.getByLabelText("Connection name"));
   await userEvent.type(screen.getByLabelText("Connection name"), "My local model");
   await userEvent.click(screen.getByRole("button", { name: "Save connection" }));
@@ -67,6 +68,37 @@ it("preserves the managed model link on rename and keeps its protocol fields rea
   expect(screen.getByLabelText("Connection type").matches(":disabled")).toBe(false);
   await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
   expect(screen.getByLabelText("Connection type").matches(":disabled")).toBe(true);
+});
+
+it("changes only the managed thinking preference on explicit save", async () => {
+  const saved = initial();
+  saved.connections[0] = { ...saved.connections[0], kind: "compatible-api", keyPresent: false,
+    endpoints: { chatCompletions: "http://localhost:11435/v1" }, models: { opencode: "local-coder-16k:latest" },
+    openCodeService: "local-ollama", openCodeThinking: "off", managedLocalModel: { revision: 3 } };
+  const fetcher = mount(false, saved);
+  await screen.findByText(/New sessions use My gateway\./);
+  await userEvent.click(screen.getByText("Add or edit a connection"));
+  await userEvent.selectOptions(screen.getByLabelText("Edit saved connection"), "gateway-one");
+  await userEvent.selectOptions(screen.getByLabelText("OpenCode thinking"), "");
+  expect(fetcher.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  for (const label of ["Connection type", "OpenCode · Chat Completions base URL", "OpenCode model", "OpenCode service", "Connection API key"]) {
+    expect(screen.getByLabelText(label).matches(":disabled")).toBe(true);
+  }
+  await userEvent.click(screen.getByRole("button", { name: "Save connection" }));
+  await screen.findByText(/Connection saved\./);
+  expect((screen.getByLabelText("OpenCode thinking") as HTMLSelectElement).value).toBe("");
+  let posts = fetcher.mock.calls.filter(([, init]) => init?.method === "POST");
+  expect(posts).toHaveLength(1);
+  expect(JSON.parse(String(posts[0][1]?.body))).toMatchObject({ action: "save", expectedRevision: 4, id: "gateway-one", openCodeThinking: "",
+    endpoints: saved.connections[0].endpoints, models: saved.connections[0].models, openCodeService: "local-ollama", managedLocalModel: { revision: 3 } });
+  expect(JSON.parse(String(posts[0][1]?.body))).not.toHaveProperty("apiKey");
+  await userEvent.selectOptions(screen.getByLabelText("OpenCode thinking"), "off");
+  await userEvent.click(screen.getByRole("button", { name: "Save connection" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save connection" }).matches(":disabled")).toBe(false));
+  posts = fetcher.mock.calls.filter(([, init]) => init?.method === "POST");
+  expect(posts).toHaveLength(2);
+  expect(JSON.parse(String(posts[1][1]?.body))).toMatchObject({ action: "save", expectedRevision: 5, id: "gateway-one", openCodeThinking: "off", managedLocalModel: { revision: 3 } });
+  expect(posts.every(([url]) => String(url).endsWith("/v1/setup/agent-connections"))).toBe(true);
 });
 
 it("turns the gateway off explicitly without deleting the saved connection", async () => {

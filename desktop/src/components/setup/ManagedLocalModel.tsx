@@ -10,6 +10,11 @@ import { Button } from "../fluid/components/button";
 type Draft = Omit<LocalModelSave, "expectedRevision">;
 const executionMode = (value: unknown): LocalModelExecutionMode | null => value === undefined || value === "gpu" ? "gpu" : value === "cpu" ? "cpu" : null;
 const modeLabel = (value: unknown) => executionMode(value) === "cpu" ? "CPU · slower" : executionMode(value) === "gpu" ? "GPU" : "Unconfirmed";
+function managedThinking(connection: AgentConnection): "" | "off" {
+  const value = connection.openCodeThinking === undefined ? "" : connection.openCodeThinking;
+  if (value !== "" && value !== "off") throw new Error("The saved local connection has an unsupported thinking choice. Review Agent connections before selecting it.");
+  return value;
+}
 const emptyDraft = (): Draft => ({ enabled: true, startWithLuci: false, executionMode: "gpu", executablePath: "", modelStore: "", port: 11435, model: "" });
 const draftFrom = (snapshot: LocalModelSnapshot): Draft => snapshot.config ? {
   enabled: snapshot.config.enabled,
@@ -219,20 +224,22 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
       let catalogue = await client.agentConnections();
       if (!current()) return;
       // A matching display name never grants ownership of a BYO connection.
-      let connection: AgentConnection | undefined = catalogue.connections.find(entry => entry.managedLocalModel?.revision === observed.revision && entry.kind === "compatible-api" && entry.openCodeService === "local-ollama" && entry.openCodeThinking === "off" && entry.endpoints.chatCompletions === observed.status.endpoint && entry.models.opencode === observed.status.model);
+      let connection: AgentConnection | undefined = catalogue.connections.find(entry => entry.managedLocalModel?.revision === observed.revision && entry.kind === "compatible-api" && entry.openCodeService === "local-ollama" && entry.endpoints.chatCompletions === observed.status.endpoint && entry.models.opencode === observed.status.model);
+      const owned = connection ?? catalogue.connections.find(entry => entry.managedLocalModel);
+      // Omitted legacy values mean provider default. Never replace an explicit choice on Use.
+      const expectedThinking = owned ? managedThinking(owned) : "off";
       if (!connection?.enabled || !connection.configured) {
-        const owned = connection ?? catalogue.connections.find(entry => entry.managedLocalModel);
         const previousIDs = new Set(catalogue.connections.map(entry => entry.id));
         catalogue = await client.updateAgentConnection({
           action: "save", expectedRevision: catalogue.revision, ...(owned ? { id: owned.id } : {}),
           name: owned?.name ?? `Local · ${observed.config!.model}`, kind: "compatible-api", enabled: true,
           endpoints: { chatCompletions: observed.status.endpoint }, models: { opencode: observed.config!.model },
-          openCodeService: "local-ollama", openCodeThinking: "off", managedLocalModel: { revision: observed.revision }, apiKey: "",
+          openCodeService: "local-ollama", openCodeThinking: expectedThinking, managedLocalModel: { revision: observed.revision }, apiKey: "",
         });
         if (!current()) return;
         window.dispatchEvent(new Event(AGENT_CONNECTIONS_CHANGED));
         connection = catalogue.connections.find(entry => (owned ? entry.id === owned.id : !previousIDs.has(entry.id)) && entry.managedLocalModel?.revision === observed.revision);
-        if (!connection?.enabled || !connection.configured) throw new Error("The saved local connection is not ready to select. Refresh saved connections to inspect it.");
+        if (!connection?.enabled || !connection.configured || managedThinking(connection) !== expectedThinking) throw new Error("The saved local connection is not ready to select. Refresh saved connections to inspect it.");
       }
       const connectionId = connection.id;
       if (catalogue.activeConnectionId !== connectionId) {
@@ -242,7 +249,7 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
       }
       const confirmed = catalogue.connections.find(entry => entry.id === connectionId);
       if (catalogue.activeConnectionId !== connectionId || !confirmed?.enabled || !confirmed.configured
-        || confirmed.kind !== "compatible-api" || confirmed.openCodeService !== "local-ollama" || confirmed.openCodeThinking !== "off"
+        || confirmed.kind !== "compatible-api" || confirmed.openCodeService !== "local-ollama" || managedThinking(confirmed) !== expectedThinking
         || confirmed.managedLocalModel?.revision !== observed.revision || confirmed.endpoints.chatCompletions !== observed.status.endpoint
         || confirmed.models.opencode !== observed.config!.model) throw new Error("The local model selection was not confirmed. Refresh saved connections before starting a session.");
       const state = useCockpit.getState();

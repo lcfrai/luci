@@ -71,7 +71,7 @@ func TestManagedConnectionValidationAndReceiptEqualityPreserveExplicitProfile(t 
 	if !validateAgentConnection(valid) {
 		t.Fatal("typed managed profile refused")
 	}
-	for _, change := range []func(*privateAgentConnection){func(c *privateAgentConnection) { c.OpenCodeThinking = "" }, func(c *privateAgentConnection) { c.OpenCodeService = AgentConnectionOpenCodeCompatibleAPI }, func(c *privateAgentConnection) { c.APIKey = "key" }, func(c *privateAgentConnection) { c.Models.Codex = "other" }} {
+	for _, change := range []func(*privateAgentConnection){func(c *privateAgentConnection) { c.OpenCodeThinking = "low" }, func(c *privateAgentConnection) { c.OpenCodeService = AgentConnectionOpenCodeCompatibleAPI }, func(c *privateAgentConnection) { c.APIKey = "key" }, func(c *privateAgentConnection) { c.Models.Codex = "other" }} {
 		c := valid
 		change(&c)
 		if validateAgentConnection(c) {
