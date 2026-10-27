@@ -1,13 +1,30 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createProductClient, type AgentConnectionCatalogue } from "../../api/product";
 import type { LocalModelExecutionMode, LocalModelSnapshot } from "../../api/localModel";
 import { ManagedLocalModel } from "./ManagedLocalModel";
 import { selectTeamScope } from "../../api/teamScope";
 import { setAuthToken } from "../../api/authSession";
+import { resetCockpit, useCockpit } from "../../store/store";
+import { selectResolvedDefaults } from "../../store/selectors";
+import { aHarness, aSession, aWorktree } from "../../test/fixtures";
+import { NewSessionButton } from "../topbar/NewSessionButton";
+import { __resetCreateSession } from "../../hooks/useCreateSession";
+
+const { createSession } = vi.hoisted(() => ({ createSession: vi.fn() }));
+vi.mock("../../api", () => ({ api: { createSession, baseUrl: "http://localhost" } }));
 
 vi.mock("../auth/AuthProvider", () => ({ useAuth: () => ({ profile: { user: { id: "qa" } } }) }));
+
+beforeEach(() => {
+  resetCockpit(); __resetCreateSession(); createSession.mockReset();
+  createSession.mockResolvedValue(aSession({ id: "s-managed", worktreeId: "w-managed" }));
+  useCockpit.setState({ harnesses: [
+    aHarness({ id: "claude-code", name: "Claude Code", models: [{ id: "opus", name: "Opus" }], defaultModel: "opus", permissionModes: ["ask", "plan"] }),
+    aHarness({ id: "opencode", name: "OpenCode", supportsCustomModel: true, permissionModes: ["ask", "plan"] }),
+  ] });
+});
 
 afterEach(() => { vi.useRealTimers(); setAuthToken(null); selectTeamScope(""); });
 
@@ -35,7 +52,7 @@ function mount(initial = snapshot()) {
   });
   const client = createProductClient("http://localhost", fetcher);
   const view = render(<ManagedLocalModel client={client} cloud={false} />);
-  return { fetcher, client, view, setSnapshot: (value: LocalModelSnapshot) => { current = value; }, posts: () => fetcher.mock.calls.filter(([, init]) => init?.method === "POST") };
+  return { fetcher, client, view, setCatalogue: (value: AgentConnectionCatalogue) => { catalogue = value; }, setSnapshot: (value: LocalModelSnapshot) => { current = value; }, posts: () => fetcher.mock.calls.filter(([, init]) => init?.method === "POST") };
 }
 
 it("viewing and saving configuration never starts, downloads or selects a model", async () => {
@@ -159,6 +176,155 @@ it("rechecks a changed owner before writing or selecting a connection", async ()
   await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
   await screen.findByText(/The local model changed/);
   expect(fixture.posts()).toHaveLength(0);
+});
+
+it.each(["branch", "project", "app"] as const)("uses the managed model for the ordinary New session action at the current %s scope", async target => {
+  const projectId = target === "app" ? null : "p-managed";
+  const branchId = target === "branch" ? "b-managed" : null;
+  useCockpit.setState({
+    selection: { projectId, branchId, worktreeId: "w-managed", sessionId: null },
+    defaults: { harness: "claude-code", model: "opus", effort: "", permissionMode: target === "project" ? "plan" : "ask" },
+    projectDefaults: { "p-other": { harness: "claude-code", model: "other-model", permissionMode: "plan" } },
+    branchDefaults: { "b-other": { harness: "claude-code", permissionMode: "plan" }, ...(branchId ? { [branchId]: { harness: "claude-code" as const, permissionMode: "ask" as const, effort: "high" as const } } : {}) },
+    worktreesByBranch: { "b-managed": [aWorktree({ id: "w-managed", branchId: "b-managed", projectId: "p-managed" })] },
+  });
+  const before = useCockpit.getState();
+  const fixture = mount(snapshot("available"));
+  render(<NewSessionButton worktreeId="w-managed" />);
+  await screen.findByText("Server available");
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await screen.findByText(/Local model selected for new OpenCode sessions/);
+  const state = useCockpit.getState();
+  const permissionMode = target === "project" ? "plan" : "ask";
+  expect(selectResolvedDefaults(state)).toMatchObject({ harness: "opencode", agentConnectionId: "managed-one", model: "local-coder-16k:latest", permissionMode });
+  expect(state.branchDefaults["b-other"]).toEqual(before.branchDefaults["b-other"]);
+  expect(state.projectDefaults["p-other"]).toEqual(before.projectDefaults["p-other"]);
+  if (target !== "app") expect(state.defaults).toEqual(before.defaults);
+  if (target === "branch") expect(state.projectDefaults).toEqual(before.projectDefaults);
+  if (target === "branch") expect(state.branchDefaults["b-managed"].effort).toBe("high");
+  expect(createSession).not.toHaveBeenCalled();
+  expect(fixture.posts().map(([, init]) => JSON.parse(String(init?.body)).action)).toEqual(["save", "select"]);
+  await userEvent.click(screen.getByRole("button", { name: /new session/i }));
+  await waitFor(() => expect(createSession).toHaveBeenCalledTimes(1));
+  expect(createSession.mock.calls[0][0]).toMatchObject({ worktreeId: "w-managed", harness: "opencode", model: "local-coder-16k:latest", agentConnectionId: "managed-one", permissionMode });
+  expect(useCockpit.getState().pickerOpen).toBe(false);
+});
+
+it("updates quick-create preferences when the exact managed connection was already active", async () => {
+  const fixture = mount(snapshot("available"));
+  fixture.setCatalogue({ revision: 7, activeConnectionId: "managed-active", connections: [{
+    id: "managed-active", name: "Existing local", kind: "compatible-api", revision: 1, enabled: true, configured: true, keyPresent: false,
+    endpoints: { chatCompletions: "http://localhost:11435/v1" }, models: { opencode: "local-coder-16k:latest" },
+    openCodeService: "local-ollama", openCodeThinking: "off", managedLocalModel: { revision: 3 },
+  }] });
+  await screen.findByText("Server available");
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await screen.findByText(/Local model selected for new OpenCode sessions/);
+  expect(selectResolvedDefaults(useCockpit.getState())).toMatchObject({ harness: "opencode", agentConnectionId: "managed-active" });
+  expect(fixture.posts()).toHaveLength(0);
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it.each(["branch", "project", "catalogue", "preference owner"] as const)("drops a late selection after the %s scope changes away and back", async target => {
+  useCockpit.setState({ selection: { projectId: "p-managed", branchId: "b-managed", worktreeId: null, sessionId: null } });
+  const fixture = mount(snapshot("available"));
+  await screen.findByText("Server available");
+  let finish!: (value: Response) => void;
+  fixture.fetcher.mockImplementationOnce(async () => new Response(JSON.stringify(snapshot("available"))));
+  fixture.fetcher.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const before = useCockpit.getState();
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await waitFor(() => expect(finish).toBeDefined());
+  await act(async () => {
+    if (target === "catalogue") useCockpit.setState({ projectCatalogueEpoch: before.projectCatalogueEpoch + 1 });
+    else if (target === "preference owner") {
+      useCockpit.setState({ preferenceOwner: "another-owner" });
+      useCockpit.setState({ preferenceOwner: before.preferenceOwner });
+    }
+    else {
+      useCockpit.setState({ selection: { ...before.selection, ...(target === "branch" ? { branchId: "b-other" } : { projectId: "p-other" }) } });
+      useCockpit.setState({ selection: before.selection });
+    }
+    finish(new Response(JSON.stringify({ revision: 7, connections: [], activeConnectionId: "" })));
+  });
+  expect(fixture.posts()).toHaveLength(0);
+  expect(useCockpit.getState().defaults).toEqual(before.defaults);
+  expect(useCockpit.getState().branchDefaults).toEqual(before.branchDefaults);
+  expect(useCockpit.getState().projectDefaults).toEqual(before.projectDefaults);
+  expect(screen.queryByText(/Local model selected for new OpenCode sessions/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Use for OpenCode" })).toHaveProperty("disabled", false);
+});
+
+it("preserves preferences when connection selection fails", async () => {
+  const fixture = mount(snapshot("available"));
+  await screen.findByText("Server available");
+  const original = fixture.fetcher.getMockImplementation()!;
+  fixture.fetcher.mockImplementation((url, init) => {
+    if (init?.body && JSON.parse(String(init.body)).action === "select") return Promise.reject(new Error("selection refused"));
+    return original(url, init);
+  });
+  const before = useCockpit.getState();
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await screen.findByText(/selection refused/);
+  expect(useCockpit.getState().defaults).toEqual(before.defaults);
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it("does not apply branch preferences after leaving while the route selection is pending", async () => {
+  useCockpit.setState({ selection: { projectId: "p-managed", branchId: "b-managed", worktreeId: null, sessionId: null } });
+  const fixture = mount(snapshot("available"));
+  await screen.findByText("Server available");
+  const original = fixture.fetcher.getMockImplementation()!;
+  let finish!: (value: Response) => void;
+  fixture.fetcher.mockImplementation((url, init) => {
+    if (init?.body && JSON.parse(String(init.body)).action === "select") return new Promise(resolve => { finish = resolve; });
+    return original(url, init);
+  });
+  const before = useCockpit.getState();
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await waitFor(() => expect(finish).toBeDefined());
+  await act(async () => {
+    useCockpit.setState({ selection: { ...before.selection, branchId: "b-other" } });
+    finish(new Response(JSON.stringify({ revision: 9, connections: [], activeConnectionId: "managed-one" })));
+  });
+  expect(useCockpit.getState().branchDefaults).toEqual(before.branchDefaults);
+  expect(useCockpit.getState().defaults).toEqual(before.defaults);
+  expect(screen.queryByText(/Local model selected for new OpenCode sessions/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Use for OpenCode" })).toHaveProperty("disabled", false);
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it("does not select a managed route when OpenCode is unavailable", async () => {
+  useCockpit.setState({ harnesses: [aHarness({ id: "claude-code" })] });
+  const fixture = mount(snapshot("available"));
+  await screen.findByText("Server available");
+  const before = useCockpit.getState();
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await screen.findByText(/OpenCode is not available/);
+  expect(fixture.posts()).toHaveLength(0);
+  expect(useCockpit.getState().defaults).toEqual(before.defaults);
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it.each(["active ID", "model"] as const)("does not change preferences when the returned selection has an unconfirmed %s", async field => {
+  const fixture = mount(snapshot("available"));
+  await screen.findByText("Server available");
+  const original = fixture.fetcher.getMockImplementation()!;
+  fixture.fetcher.mockImplementation(async (url, init) => {
+    const response = await original(url, init);
+    if (init?.body && JSON.parse(String(init.body)).action === "select") {
+      const value = await response.json() as AgentConnectionCatalogue;
+      if (field === "active ID") value.activeConnectionId = "byo";
+      else value.connections = value.connections.map(entry => entry.id === "managed-one" ? { ...entry, models: { opencode: "different-model" } } : entry);
+      return new Response(JSON.stringify(value));
+    }
+    return response;
+  });
+  const before = useCockpit.getState();
+  await userEvent.click(screen.getByRole("button", { name: "Use for OpenCode" }));
+  await screen.findByText(/The local model selection was not confirmed/);
+  expect(useCockpit.getState().defaults).toEqual(before.defaults);
+  expect(createSession).not.toHaveBeenCalled();
 });
 
 it("does not continue a multi-step selection after leaving the screen", async () => {

@@ -3,6 +3,7 @@ import { errorText, type AgentConnection, type ProductClient } from "../../api/p
 import type { LocalModelExecutionMode, LocalModelHostCapacity, LocalModelObservation, LocalModelSave, LocalModelSnapshot } from "../../api/localModel";
 import { selectedTeamId, teamScopeGeneration, TEAM_WORKSPACE_CHANGED } from "../../api/teamScope";
 import { AGENT_CONNECTIONS_CHANGED } from "../../hooks/useAgentConnections";
+import { useCockpit } from "../../store/store";
 import { useAuth } from "../auth/AuthProvider";
 import { Button } from "../fluid/components/button";
 
@@ -126,11 +127,17 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
   const observationFailed = !!observationError;
   const lifetime = useRef(0), readNumber = useRef(0), working = useRef(false), initialized = useRef(false);
   const edits = useRef(0);
+  const selectionGeneration = useRef(0);
   const identity = useRef({ client, actor, scope, cloud });
   identity.current = { client, actor, scope, cloud };
   const inPersonalLocalWorkspace = !cloud && !selectedTeamId();
   const inCurrentWorkspace = () => !cloud && !selectedTeamId() && scope === teamScopeGeneration()
     && identity.current.client === client && identity.current.actor === actor && identity.current.scope === scope && !identity.current.cloud;
+
+  useEffect(() => useCockpit.subscribe((state, previous) => {
+    if (state.selection.projectId !== previous.selection.projectId || state.selection.branchId !== previous.selection.branchId
+      || state.projectCatalogueEpoch !== previous.projectCatalogueEpoch || state.preferenceOwner !== previous.preferenceOwner) selectionGeneration.current++;
+  }), []);
 
   useEffect(() => {
     const changed = () => setScope(teamScopeGeneration());
@@ -198,9 +205,13 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
   async function useModel() {
     if (working.current || !usable(snapshot) || !inCurrentWorkspace()) return;
     const generation = lifetime.current;
+    const selected = useCockpit.getState();
+    const selectionVersion = selectionGeneration.current;
     working.current = true; readNumber.current++; setBusy("use"); setError(""); setNotice("");
-    const current = () => generation === lifetime.current && inCurrentWorkspace();
+    const workspaceCurrent = () => generation === lifetime.current && inCurrentWorkspace();
+    const current = () => workspaceCurrent() && selectionVersion === selectionGeneration.current;
     try {
+      if (!selected.harnesses.some(harness => harness.id === "opencode" && harness.available)) throw new Error("OpenCode is not available. Review Session options before selecting this model.");
       const observed = await client.localModel();
       if (!current()) return;
       setSnapshot(observed); setObservationError("");
@@ -223,14 +234,29 @@ export function ManagedLocalModel({ client, cloud }: { client: ProductClient; cl
         connection = catalogue.connections.find(entry => (owned ? entry.id === owned.id : !previousIDs.has(entry.id)) && entry.managedLocalModel?.revision === observed.revision);
         if (!connection?.enabled || !connection.configured) throw new Error("The saved local connection is not ready to select. Refresh saved connections to inspect it.");
       }
-      if (catalogue.activeConnectionId !== connection.id) {
-        await client.updateAgentConnection({ action: "select", expectedRevision: catalogue.revision, id: connection.id });
+      const connectionId = connection.id;
+      if (catalogue.activeConnectionId !== connectionId) {
+        catalogue = await client.updateAgentConnection({ action: "select", expectedRevision: catalogue.revision, id: connectionId });
         if (!current()) return;
         window.dispatchEvent(new Event(AGENT_CONNECTIONS_CHANGED));
       }
-      setNotice("Local model selected for new OpenCode sessions. Existing sessions keep their current connection.");
+      const confirmed = catalogue.connections.find(entry => entry.id === connectionId);
+      if (catalogue.activeConnectionId !== connectionId || !confirmed?.enabled || !confirmed.configured
+        || confirmed.kind !== "compatible-api" || confirmed.openCodeService !== "local-ollama" || confirmed.openCodeThinking !== "off"
+        || confirmed.managedLocalModel?.revision !== observed.revision || confirmed.endpoints.chatCompletions !== observed.status.endpoint
+        || confirmed.models.opencode !== observed.config!.model) throw new Error("The local model selection was not confirmed. Refresh saved connections before starting a session.");
+      const state = useCockpit.getState();
+      if (!current()) return;
+      if (!state.harnesses.some(harness => harness.id === "opencode" && harness.available)) throw new Error("OpenCode is no longer available. Review Session options before starting a session.");
+      // Only this navigation scope changes. Permissions and other scopes keep their preferences.
+      const defaults = { harness: "opencode" as const, agentConnectionId: confirmed.id, model: observed.config!.model };
+      if (selected.selection.branchId) state.setBranchDefaults(selected.selection.branchId, defaults);
+      else if (selected.selection.projectId) state.setProjectDefaults(selected.selection.projectId, defaults);
+      else state.setDefaults(defaults);
+      const target = selected.selection.branchId ? "this branch" : selected.selection.projectId ? "this project" : "the app";
+      setNotice(`Local model selected for new OpenCode sessions. New session now uses it for ${target}. Existing sessions keep their current connection.`);
     } catch (cause) { if (current()) setError(`${errorText(cause)} Refresh saved connections before trying again.`); }
-    finally { if (current()) { working.current = false; setBusy(""); setLoading(false); } }
+    finally { if (workspaceCurrent()) { working.current = false; setBusy(""); setLoading(false); } }
   }
 
   if (!inPersonalLocalWorkspace || (snapshot && !snapshot.available)) return null;
