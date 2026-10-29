@@ -25,9 +25,9 @@ afterEach(cleanup);
 
 it('shows causal task and coordinator evidence and opens the exact existing run', async () => {
   const user = userEvent.setup(); render(<PortfolioAttention projects={projects} />);
-  expect(await screen.findByText('Review blocked work')).toBeInTheDocument();
-  expect(screen.getByText(/Affected task: Build notes/)).toBeInTheDocument();
-  expect(screen.getByText(/Saved Luci continuation: blocked/)).toBeInTheDocument();
+  expect(await screen.findByText('Review blocked work')).not.toBeNull();
+  expect(screen.getByText(/Affected task: Build notes/)).not.toBeNull();
+  expect(screen.getByText(/Saved Luci continuation: blocked/)).not.toBeNull();
   await user.click(screen.getByRole('button', { name: 'Review project work' }));
   expect(useCockpit.getState().selection.projectId).toBe('p-one');
   expect(useCockpit.getState().lens).toBe('develop');
@@ -44,7 +44,7 @@ it('withdraws old actor responses before a new scope can render them', async () 
   view.rerender(<PortfolioAttention projects={projects} />);
   await screen.findByText('No recorded interventions for the projects shown.');
   await act(async () => { resolveOld(snapshot()); });
-  expect(screen.queryByText('Review blocked work')).not.toBeInTheDocument();
+  expect(screen.queryByText('Review blocked work')).toBeNull();
 });
 
 it('removes revoked membership immediately and keeps partial empty results uncertain', async () => {
@@ -52,10 +52,10 @@ it('removes revoked membership immediately and keeps partial empty results uncer
   vi.mocked(portfolioApi.get).mockResolvedValue(partial);
   const view = render(<PortfolioAttention projects={projects} />);
   await screen.findByText(/No confirmed interventions to show/);
-  expect(screen.queryByText('No recorded interventions for the projects shown.')).not.toBeInTheDocument();
+  expect(screen.queryByText('No recorded interventions for the projects shown.')).toBeNull();
   environment.blocked = true;
   view.rerender(<PortfolioAttention projects={projects} />);
-  expect(screen.queryByRole('heading', { name: 'Needs your attention' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Needs your attention' })).toBeNull();
 });
 
 it('retains the normal unsaved-project navigation guard when opening an intervention', async () => {
