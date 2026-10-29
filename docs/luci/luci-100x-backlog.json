@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-29T22:55:06.590Z",
+  "updatedAt": "2026-10-29T23:36:10.220Z",
   "baseline": "f4801fdc9caf07c1610ead1d1a3b74125e4aacd1",
   "branch": "codex/product-engine-20261029",
   "principle": "Prototype structure, engine and connectors first; integrate and test afterward. 100x is an ambition, not a measured claim.",
@@ -18,7 +18,11 @@
         "control-plane/internal/product/specification_roadmap.go",
         "desktop/src/components/definition/SpecificationRoadmap.tsx"
       ],
-      "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied."
+      "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied.",
+      "remainingWork": [
+        "Strategic research and assumption tracking",
+        "Cross-activity change impact"
+      ]
     },
     {
       "id": "L100-02",
@@ -54,15 +58,19 @@
       "id": "L100-05",
       "stage": "Design",
       "title": "Reusable design systems and visual implementation guidance",
-      "status": "in_progress",
+      "status": "prototype",
       "owner": "Design",
       "work": "Carry approved components, tokens, assets, accessibility requirements and frame references into each agent task; support versioned design-system reuse.",
       "dependsOn": "L100-04,L100-06",
       "evidence": "",
       "progress": {
         "date": "2026-10-30",
-        "state": "Source implemented; exact validation and remaining integration recorded in current plan"
-      }
+        "state": "Approved frame references joined to tasks and captured handoff; focused source cases passed; full TypeScript pending"
+      },
+      "remainingWork": [
+        "Generated visual iterations and responsive flows",
+        "Reusable design-system libraries"
+      ]
     },
     {
       "id": "L100-06",
@@ -76,7 +84,12 @@
       "progress": {
         "date": "2026-10-30",
         "state": "Source implemented; exact validation and remaining integration recorded in current plan"
-      }
+      },
+      "remainingWork": [
+        "Orchestrator-assisted skill selection",
+        "Richer licence/provenance/tool metadata",
+        "Useful team-throughput integration"
+      ]
     },
     {
       "id": "L100-07",
@@ -142,21 +155,29 @@
         "control-plane/internal/api/portfolio.go",
         "desktop/src/components/projects/PortfolioAttention.tsx"
       ],
-      "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied."
+      "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied.",
+      "remainingWork": [
+        "Personal portfolio briefing and routing",
+        "Capacity allocation integration"
+      ]
     },
     {
       "id": "L100-13",
       "stage": "Portfolio",
       "title": "Portfolio goal and capacity management",
-      "status": "in_progress",
+      "status": "prototype",
       "owner": "Engine",
       "work": "Build on existing global/per-project slots and priority aging. Add goals, deadlines, resource budgets, dependencies across projects and project-level allocation explanations.",
       "dependsOn": "L100-12,L100-07",
       "evidence": "",
       "progress": {
         "date": "2026-10-30",
-        "state": "Portfolio goal/capacity source patch in preparation outside checkout"
-      }
+        "state": "Private goals, queue review and explicit priority Apply joined in source; no execution/capacity policy changes; new checks pending"
+      },
+      "remainingWork": [
+        "Personal orchestrator recommendations",
+        "Enforced capacity and dependency policy"
+      ]
     },
     {
       "id": "L100-14",
@@ -186,7 +207,11 @@
       "progress": {
         "state": "Deploy editor/API integration implemented in source; checks in progress",
         "date": "2026-10-30"
-      }
+      },
+      "remainingWork": [
+        "Live Azure/Kubernetes lifecycle connector",
+        "Inference health/scaling and analytics"
+      ]
     },
     {
       "id": "L100-16",
@@ -240,7 +265,11 @@
       "progress": {
         "date": "2026-10-30",
         "state": "Source implemented; exact validation and remaining integration recorded in current plan"
-      }
+      },
+      "remainingWork": [
+        "Creative strategy refinement",
+        "Launch publishing and feedback connectors"
+      ]
     },
     {
       "id": "L100-21",
@@ -253,8 +282,13 @@
       "evidence": "",
       "progress": {
         "date": "2026-10-30",
-        "state": "Source implemented; exact validation and remaining integration recorded in current plan"
-      }
+        "state": "Exact commercial scenarios plus editable saved-GTM landing/brief/channel drafts joined; new asset checks pending"
+      },
+      "remainingWork": [
+        "Richer campaign creative generation",
+        "Authorized publishing",
+        "Customer/revenue feedback"
+      ]
     },
     {
       "id": "L100-22",
@@ -367,6 +401,37 @@
         "sourceFixesJoined": true,
         "rerun": "pending"
       }
+    },
+    {
+      "source": "06a09bc65dd2528ce15d6d8982e1c5a0971f1266",
+      "go": {
+        "passed": 75,
+        "failed": 6,
+        "named": 81
+      },
+      "frontend": {
+        "rawPassed": 273,
+        "assertionFailed": 0,
+        "uniqueTitleGuard": "failed for three old parameterized tables",
+        "targeted": "not_reached"
+      },
+      "typescript": "not_reached"
+    },
+    {
+      "source": "6a6f35df1be8aa2b544f89af1c66b31d148a8d23",
+      "go": {
+        "passed": 10,
+        "failed": 0,
+        "scope": "corrected merge-fixture top only; retain other71 passes"
+      },
+      "frontend": {
+        "wholePassed": 33,
+        "namesUnique": true,
+        "targetedPassed": 0,
+        "targetedSkipped": 56
+      },
+      "typescript": "not_reached",
+      "harnessFix": "exact CLI suite names and raw JSON report names must be bound separately; source-reviewed for next batch"
     }
   ]
 }

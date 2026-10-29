@@ -32,6 +32,8 @@ type DistributeArtifactEvidence struct {
 }
 
 type DistributeArtifactSource struct {
+	GTMRevision           int                         `json:"gtmRevision,omitempty"`
+	GTMDigest             string                      `json:"gtmDigest,omitempty"`
 	BriefRevision         int                         `json:"briefRevision"`
 	BriefDigest           string                      `json:"briefDigest"`
 	SpecificationRevision int                         `json:"specificationRevision"`
@@ -94,7 +96,7 @@ type distributeArtifactLedger struct {
 
 func validArtifactKind(kind string) bool {
 	switch kind {
-	case "risk", "go-to-market", "proposal", "pricing", "presentation":
+	case "risk", "go-to-market", "proposal", "pricing", "presentation", "landing-copy", "launch-brief", "channel-copy":
 		return true
 	}
 	return false
@@ -141,6 +143,9 @@ func validArtifactNewText(value DistributeArtifact) bool {
 	return true
 }
 func validArtifactSource(value DistributeArtifactSource) bool {
+	if value.GTMRevision < 0 || value.GTMRevision == 0 && value.GTMDigest != "" || value.GTMRevision > 0 && !hexDigest(value.GTMDigest) {
+		return false
+	}
 	if !hexDigest(value.BriefDigest) || !hexDigest(value.SpecificationDigest) || !hexDigest(value.DesignDigest) || !hexDigest(value.PlanDigest) || value.BriefRevision < 0 || value.SpecificationRevision < 0 || value.DesignRevision < 0 || value.PlanRevision < 0 || value.LibraryRevision < 0 || value.AssessmentRevision < 0 {
 		return false
 	}
@@ -160,6 +165,9 @@ func validArtifactSource(value DistributeArtifactSource) bool {
 	return true
 }
 func validArtifactContent(value DistributeArtifact) bool {
+	if launchArtifactKind(value.Kind) != (value.Source.GTMRevision > 0) {
+		return false
+	}
 	if !validArtifactKind(value.Kind) || !validArtifactSource(value.Source) || !validArtifactStoredText(value.Title) || strings.TrimSpace(value.Title) == "" || len(value.Title) > 200 || len(value.Sections) == 0 || len(value.Sections) > 40 || len(value.Gaps) > 100 || len(value.Assumptions) > 100 {
 		return false
 	}
@@ -307,13 +315,13 @@ func (s *Server) artifactSource(ctx context.Context, p project.Project, selected
 	return source, state, library, nil, nil
 }
 
-func generatedArtifact(kind, projectID string, source DistributeArtifactSource, state journeyState, library *TeamControlRevision, assessment *ControlAssessment) DistributeArtifact {
+func generatedArtifactBase(kind, projectID string, source DistributeArtifactSource, state journeyState, library *TeamControlRevision, assessment *ControlAssessment) DistributeArtifact {
 	brief, spec, design, plan := state.Brief, currentSpecification(state), currentDesignPlan(state), currentPlan(state, projectID)
 	value := DistributeArtifact{ProjectID: projectID, Kind: kind, Source: source, SourceDigest: reviewDigest(source), Sections: []DistributeArtifactSection{}, Gaps: []string{}, Assumptions: []string{}, State: "draft"}
 	add := func(id, heading, body string, bullets []string, refs ...string) {
 		value.Sections = append(value.Sections, DistributeArtifactSection{ID: id, Heading: heading, Body: body, Bullets: bullets, SourceRefs: refs})
 	}
-	value.Title = map[string]string{"risk": "Risk and evidence review", "go-to-market": "Go-to-market plan", "proposal": "Product proposal", "pricing": "Pricing evidence and assumptions", "presentation": "Project presentation"}[kind] + ": " + projectID
+	value.Title = map[string]string{"risk": "Risk and evidence review", "go-to-market": "Go-to-market plan", "proposal": "Product proposal", "pricing": "Pricing evidence and assumptions", "presentation": "Project presentation", "landing-copy": "Landing-page copy", "launch-brief": "Launch brief", "channel-copy": "Channel or email copy"}[kind] + ": " + projectID
 	add("purpose", "Saved product purpose", brief.Purpose, []string{"Audience: " + brief.Audience, "Constraints: " + brief.Constraints}, fmt.Sprintf("brief:%d:%s", source.BriefRevision, source.BriefDigest))
 	if len(spec.Requirements) > 0 {
 		items := []string{}
@@ -368,6 +376,15 @@ func generatedArtifact(kind, projectID string, source DistributeArtifactSource, 
 		selected := source.SelectedEvidence
 		add("verification", "Selected accepted run evidence", "The named run retains an exact checked candidate and accepted observed release. The evidence records this project's past outcome; it does not verify new edits.", []string{"Run: " + selected.RunID, "Check: " + selected.CheckID, "Release: " + selected.ReleaseID, "Candidate commit: " + selected.Commit}, "run:"+selected.RunID+":"+selected.CheckDigest, "release:"+selected.ReleaseID+":"+selected.ReleaseDigest)
 	}
+	return value
+}
+
+func generatedArtifact(kind, projectID string, source DistributeArtifactSource, state journeyState, library *TeamControlRevision, assessment *ControlAssessment) DistributeArtifact {
+	value := generatedArtifactBase(kind, projectID, source, state, library, assessment)
+	brief := state.Brief
+	add := func(id, heading, body string, bullets []string, refs ...string) {
+		value.Sections = append(value.Sections, DistributeArtifactSection{ID: id, Heading: heading, Body: body, Bullets: bullets, SourceRefs: refs})
+	}
 	switch kind {
 	case "risk":
 		add("risk-register", "Risks to review", "This is a review queue, not a scored or mitigated risk register.", []string{"Evidence quality: check each cited source and unresolved assessment gap.", "Delivery: confirm the saved tasks have passing independent checks before claiming readiness.", "Operations: confirm an accepted release and recovery evidence before external delivery."}, fmt.Sprintf("specification:%d:%s", source.SpecificationRevision, source.SpecificationDigest))
@@ -407,7 +424,9 @@ func artifactAccess(w http.ResponseWriter, r *http.Request, edit bool) bool {
 	return discoveryDocumentAccess(w, r, edit)
 }
 func artifactProblem(w http.ResponseWriter, err error) {
-	if errors.Is(err, errArtifact) {
+	if errors.Is(err, errLaunchGTM) {
+		journeyError(w, 409, "gtm_launch_source_unavailable", err.Error())
+	} else if errors.Is(err, errArtifact) {
 		journeyError(w, 409, "artifact_unavailable", err.Error())
 	} else {
 		journeyError(w, 409, "artifact_source_unavailable", "The exact saved project source cannot be verified. Refresh before changing this artifact.")
@@ -435,14 +454,13 @@ func (s *Server) prepareDistributeArtifact(w http.ResponseWriter, r *http.Reques
 	}
 	s.mu.RLock()
 	s.teamControlsMu.Lock()
-	source, state, library, assessment, err := s.artifactSource(r.Context(), p, req.RunID)
+	draft, err := s.artifactDraftForKindLocked(r.Context(), p, req.Kind, req.RunID)
 	s.teamControlsMu.Unlock()
 	s.mu.RUnlock()
 	if err != nil {
 		artifactProblem(w, err)
 		return
 	}
-	draft := generatedArtifact(req.Kind, p.ID, source, state, library, assessment)
 	if !validArtifactContent(draft) {
 		journeyError(w, 413, "artifact_source_too_large", "The complete saved source exceeds the bounded artifact draft; split the reviewed scope.")
 		return
@@ -524,12 +542,11 @@ func (s *Server) saveDistributeArtifact(w http.ResponseWriter, r *http.Request) 
 		journeyError(w, 409, "artifact_history_full", "This project reached its bounded artifact history. Existing records remain readable.")
 		return
 	}
-	source, state, library, assessment, err := s.artifactSource(r.Context(), p, req.RunID)
+	row, err := s.artifactDraftForKindLocked(r.Context(), p, req.Kind, req.RunID)
 	if err != nil {
 		artifactProblem(w, err)
 		return
 	}
-	row := generatedArtifact(req.Kind, p.ID, source, state, library, assessment)
 	if artifactDigest(row) != req.PrepareDigest || !validArtifactContent(row) {
 		journeyError(w, 409, "artifact_source_changed", "The prepared source changed or exceeds the artifact bound. Prepare again before saving.")
 		return
@@ -550,7 +567,7 @@ func (s *Server) saveDistributeArtifact(w http.ResponseWriter, r *http.Request) 
 		artifactProblem(w, err)
 		return
 	}
-	journeyJSON(w, 201, artifactCurrentView(row, source))
+	journeyJSON(w, 201, artifactCurrentView(row, row.Source))
 }
 func (s *Server) listDistributeArtifacts(w http.ResponseWriter, r *http.Request) {
 	if !artifactAccess(w, r, false) {
@@ -581,7 +598,7 @@ func (s *Server) listDistributeArtifacts(w http.ResponseWriter, r *http.Request)
 			continue
 		}
 		freshness := artifactCurrentView(row, source)["freshness"]
-		if row.Source.SelectedEvidence != nil {
+		if row.Source.SelectedEvidence != nil || launchArtifactKind(row.Kind) {
 			freshness = "requires-readback"
 		}
 		rows = append(rows, map[string]any{"id": row.ID, "kind": row.Kind, "title": row.Title, "revision": row.Revision, "state": row.State, "freshness": freshness, "digest": row.Digest})
@@ -620,7 +637,7 @@ func (s *Server) getDistributeArtifact(w http.ResponseWriter, r *http.Request) {
 	if row.Source.SelectedEvidence != nil {
 		selectedRun = row.Source.SelectedEvidence.RunID
 	}
-	source, _, _, _, err := s.artifactSource(r.Context(), p, selectedRun)
+	source, _, _, _, err := s.artifactSourceForKindLocked(r.Context(), p, row.Kind, selectedRun)
 	if err != nil {
 		journeyJSON(w, 200, map[string]any{"artifact": row, "history": record.Revisions, "freshness": "unavailable"})
 		return
@@ -682,7 +699,7 @@ func (s *Server) reviseDistributeArtifact(w http.ResponseWriter, r *http.Request
 	if prior.Source.SelectedEvidence != nil {
 		selectedRun = prior.Source.SelectedEvidence.RunID
 	}
-	source, _, _, _, err := s.artifactSource(r.Context(), p, selectedRun)
+	source, _, _, _, err := s.artifactSourceForKindLocked(r.Context(), p, prior.Kind, selectedRun)
 	if err != nil {
 		artifactProblem(w, err)
 		return
@@ -777,7 +794,7 @@ func (s *Server) reviewDistributeArtifact(w http.ResponseWriter, r *http.Request
 	if prior.Source.SelectedEvidence != nil {
 		selectedRun = prior.Source.SelectedEvidence.RunID
 	}
-	source, _, _, _, err := s.artifactSource(r.Context(), p, selectedRun)
+	source, _, _, _, err := s.artifactSourceForKindLocked(r.Context(), p, prior.Kind, selectedRun)
 	if err != nil {
 		artifactProblem(w, err)
 		return

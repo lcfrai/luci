@@ -70,6 +70,7 @@ type Server struct {
 	distributeWorkAdmission         func(context.Context) (func(), error)
 	distributePDFWorkAdmission      func(context.Context) (func(), error)
 	teamControlsMu                  sync.Mutex
+	portfolioGoalsMu                sync.Mutex
 	coordinatorAuthorize            func(context.Context, string) error
 	coordinatorExecuteAuthorize     func(context.Context, string, string, bool) error
 	coordinatorDeploymentAuthorize  management.DeploymentAuthorizer

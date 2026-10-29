@@ -513,11 +513,7 @@ func (s *Server) controlProjectSwarmQueue(w http.ResponseWriter, r *http.Request
 				item.Reason = "Future execution was cancelled. Retained attempts and results remain available."
 				item.PausedFromState, item.PausedFromCode, item.PausedFromReason = "", "", ""
 			case "priority":
-				if !swarmQueuePriority(req.Priority) {
-					err = ErrProjectRunInvalid
-				} else {
-					item.Priority = req.Priority
-				}
+				err = setSwarmQueuePriority(item, req.ExpectedRevision, req.Priority, "")
 			default:
 				err = ErrProjectRunInvalid
 			}

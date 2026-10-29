@@ -1,8 +1,9 @@
 import { productApi } from './product';
 
-export type ArtifactKind = 'risk' | 'go-to-market' | 'proposal' | 'pricing' | 'presentation';
+export type ArtifactKind = 'risk' | 'go-to-market' | 'proposal' | 'pricing' | 'presentation' | 'landing-copy' | 'launch-brief' | 'channel-copy';
 export type ArtifactExportFormat = 'docx' | 'pptx' | 'xlsx' | 'pdf';
 export interface ArtifactSource {
+  gtmRevision?:number;gtmDigest?:string;
   briefRevision:number;briefDigest:string;specificationRevision:number;specificationDigest:string;
   designRevision:number;designDigest:string;planRevision:number;planDigest:string;
   teamId?:string;libraryRevision?:number;libraryDigest?:string;assessmentRevision?:number;assessmentDigest?:string;

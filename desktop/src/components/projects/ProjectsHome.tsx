@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ProjectOverviewBoard } from "./ProjectOverviewBoard";
 import { PortfolioAttention } from "./PortfolioAttention";
+import { PortfolioGoals } from "./PortfolioGoals";
 import { useProjectHome } from "./ProjectHomeProvider";
 import { Input } from "../ui/input";
 import { Button } from "../fluid/components/button";
@@ -155,6 +156,7 @@ export function ProjectsHome() {
             </li>;
           })}</ul>}
           {(!home || home.activityAvailable) && <PortfolioAttention projects={filtered} />}
+          <PortfolioGoals projects={projects.filter(project => !visibleIDs || visibleIDs.has(project.id))} />
           {(!home || home.home) && <Button type="button" variant="secondary" disabled={!!home && !home.activityAvailable} aria-expanded={showDetails && (!home || home.activityAvailable)} onClick={() => setShowDetails(value => !value)}>{showDetails ? 'Hide detailed overview' : 'Detailed overview and queue controls'}</Button>}
           {showDetails && (!home || home.activityAvailable) && <ProjectOverviewBoard projects={filtered} />}
         </>

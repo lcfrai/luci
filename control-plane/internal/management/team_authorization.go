@@ -94,6 +94,13 @@ var teamRouteRules = []teamRouteRule{
 	{"GET /v1/projects", teamRead},
 	{"GET /v1/product/home", teamRead},
 	{"GET /v1/product/portfolio", teamRead},
+	{"GET /v1/product/portfolio-goals", teamRead},
+	{"POST /v1/product/portfolio-goals", teamRead},
+	{"POST /v1/product/portfolio-goals/{goalId}/review", teamRead},
+	// Collection read permits private intentions, never queue-control writes.
+	// Apply separately checks the existing team/project control grant per item.
+	{"POST /v1/product/portfolio-goals/{goalId}/apply", teamRead},
+	{"GET /v1/product/portfolio-goals/applications/{applicationId}", teamRead},
 	{"GET /v1/product/projects/{projectId}/distribute/gtm", teamRead},
 	{"POST /v1/product/projects/{projectId}/distribute/gtm", teamEdit},
 	{"GET /v1/product/projects/{projectId}/skills", teamRead},
@@ -353,6 +360,10 @@ func classifyTeamRoute(r *http.Request) (TeamRouteScope, teamCapability, bool) {
 		scope.Collection = "projects"
 	case "GET /v1/product/home":
 		scope.Collection = "home"
+	case "GET /v1/product/portfolio-goals", "POST /v1/product/portfolio-goals",
+		"POST /v1/product/portfolio-goals/{goalId}/review", "POST /v1/product/portfolio-goals/{goalId}/apply",
+		"GET /v1/product/portfolio-goals/applications/{applicationId}":
+		scope.Collection = "portfolio-goals"
 	case "GET /v1/product/portfolio":
 		scope.Collection = "portfolio"
 	case "GET /v1/sessions":

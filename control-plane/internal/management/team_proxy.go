@@ -381,6 +381,16 @@ func (g *Gateway) routeTeamWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer finish()
+	if scope.Collection == "portfolio-goals" {
+		capture := newTeamCapture()
+		g.route(capture, inner)
+		if inner.Context().Err() != nil {
+			fail(w, 403, "team_access_changed", "Project access changed. Earlier saved changes are not rolled back; read the retained application when access is restored.")
+			return
+		}
+		g.recheckTeamPortfolioGoals(w, capture, teamID, actor.ID, inner.Method != http.MethodGet && inner.Method != http.MethodHead)
+		return
+	}
 	if scope.Collection == "portfolio" {
 		capture := newTeamCapture()
 		g.route(capture, inner)
