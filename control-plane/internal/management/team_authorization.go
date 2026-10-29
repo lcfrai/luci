@@ -93,6 +93,8 @@ var teamRouteRules = []teamRouteRule{
 	{"GET /v1/harnesses", teamRead},
 	{"GET /v1/projects", teamRead},
 	{"GET /v1/product/home", teamRead},
+	{"GET /v1/product/portfolio", teamRead},
+	{"POST /v1/product/projects/{projectId}/deployment-blueprint", teamRead},
 	{"PUT /v1/product/home/pins", teamRead},
 	{"POST /v1/product/home/stops/ack", teamRead},
 	{"GET /v1/projects/{projectId}/branches", teamRead},
@@ -347,6 +349,8 @@ func classifyTeamRoute(r *http.Request) (TeamRouteScope, teamCapability, bool) {
 		scope.Collection = "projects"
 	case "GET /v1/product/home":
 		scope.Collection = "home"
+	case "GET /v1/product/portfolio":
+		scope.Collection = "portfolio"
 	case "GET /v1/sessions":
 		scope.Collection = "sessions"
 	case "GET /v1/machines":

@@ -1,0 +1,291 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-29T14:31:49.540Z",
+  "baseline": "f4801fdc9caf07c1610ead1d1a3b74125e4aacd1",
+  "branch": "codex/product-engine-20261029",
+  "principle": "Prototype structure, engine and connectors first; integrate and test afterward. 100x is an ambition, not a measured claim.",
+  "items": [
+    {
+      "id": "L100-01",
+      "stage": "Discover",
+      "title": "Managed product roadmap",
+      "status": "prototype",
+      "owner": "Auth",
+      "work": "Existing specification has requirements and decisions; add milestones, outcomes, dependencies, linked requirements and agent-context export.",
+      "dependsOn": "Specification revision → roadmap DAG → approved implementation context",
+      "evidence": "Implemented on codex/product-engine-20261029; not packaged/native accepted.",
+      "sourceFiles": [
+        "control-plane/internal/product/specification_roadmap.go",
+        "desktop/src/components/definition/SpecificationRoadmap.tsx"
+      ],
+      "validation": "Independent source review accepted; focused tests pending."
+    },
+    {
+      "id": "L100-02",
+      "stage": "Discover",
+      "title": "Evidence-led product strategy",
+      "status": "planned",
+      "owner": "Product",
+      "work": "Document extraction and source links exist. Add competitive research, target customer, problem hypotheses, opportunity sizing and assumption tracking.",
+      "dependsOn": "L100-01",
+      "evidence": ""
+    },
+    {
+      "id": "L100-03",
+      "stage": "Discover",
+      "title": "Adaptive planning and amendment impact",
+      "status": "partial",
+      "owner": "Engine",
+      "work": "Versioned amendments and stale-context handling exist. Join requirement changes to roadmap, wireframes, tasks, deployment and GTM impacts.",
+      "dependsOn": "L100-01",
+      "evidence": ""
+    },
+    {
+      "id": "L100-04",
+      "stage": "Design",
+      "title": "Visual wireframes as the shared design contract",
+      "status": "partial",
+      "owner": "Design",
+      "work": "Editable scenes and approval binding exist. Add explicit text-only vs visual design state, responsive flows, interaction coverage and generated design iterations.",
+      "dependsOn": "L100-01",
+      "evidence": ""
+    },
+    {
+      "id": "L100-05",
+      "stage": "Design",
+      "title": "Reusable design systems and visual implementation guidance",
+      "status": "planned",
+      "owner": "Design",
+      "work": "Carry approved components, tokens, assets, accessibility requirements and frame references into each agent task; support versioned design-system reuse.",
+      "dependsOn": "L100-04,L100-06",
+      "evidence": ""
+    },
+    {
+      "id": "L100-06",
+      "stage": "Develop",
+      "title": "Versioned skill registry and assignment",
+      "status": "planned",
+      "owner": "Engine",
+      "work": "Existing context snapshots and team standards are not a skill registry. Add skill ID/version/digest/provenance, role matching, context budgets and task-bound selection.",
+      "dependsOn": "Existing context exporter",
+      "evidence": ""
+    },
+    {
+      "id": "L100-07",
+      "stage": "Develop",
+      "title": "Orchestrator decomposition and replanning",
+      "status": "partial",
+      "owner": "Engine",
+      "work": "Model advice plus durable coordinator already exist. Add outcome-driven plans with specialist roles, write ownership, dependencies and event-triggered replanning; reuse existing execution engine.",
+      "dependsOn": "L100-01,L100-06",
+      "evidence": ""
+    },
+    {
+      "id": "L100-08",
+      "stage": "Develop",
+      "title": "Parallel teams that integrate their work",
+      "status": "partial",
+      "owner": "Engine",
+      "work": "Scheduler, reservations, workspaces, messages, review, repair and integration exist. Close provider event/continuation gaps and prevent duplicated or conflicting work.",
+      "dependsOn": "L100-07",
+      "evidence": ""
+    },
+    {
+      "id": "L100-09",
+      "stage": "Develop",
+      "title": "Harness connectors with consistent event contracts",
+      "status": "partial",
+      "owner": "Connectors",
+      "work": "Codex, Claude Code and OpenCode connections exist. Normalize sessions, streaming output, tool approvals, checkpoints, interruption and resumed work behind existing adapters.",
+      "dependsOn": "Existing harness adapters",
+      "evidence": ""
+    },
+    {
+      "id": "L100-10",
+      "stage": "Develop",
+      "title": "Cloud swarm placement and lifecycle",
+      "status": "partial",
+      "owner": "Cloud",
+      "work": "Azure foundation/microVM source exists. Complete per-agent ownership, elastic placement, quota/backpressure, retained artifacts and host-loss reconciliation.",
+      "dependsOn": "L100-08,L100-09",
+      "evidence": ""
+    },
+    {
+      "id": "L100-11",
+      "stage": "Develop",
+      "title": "Independent review and repair loop",
+      "status": "partial",
+      "owner": "Engine",
+      "work": "Review/check-repair/integration continuation already implemented. Make it visible and reliable as ordinary work, with defect-specific repair and bounded retries.",
+      "dependsOn": "L100-08",
+      "evidence": ""
+    },
+    {
+      "id": "L100-12",
+      "stage": "Portfolio",
+      "title": "One causal attention queue across projects",
+      "status": "prototype",
+      "owner": "Local",
+      "work": "Home and priority/fair scheduling exist. Add ranked interventions showing why work is blocked, what it affects, and the exact next action; integrate existing Home.",
+      "dependsOn": "Existing project authorization/overview/coordinator",
+      "evidence": "Implemented on codex/product-engine-20261029; not packaged/native accepted.",
+      "sourceFiles": [
+        "control-plane/internal/product/portfolio.go",
+        "control-plane/internal/api/portfolio.go",
+        "desktop/src/components/projects/PortfolioAttention.tsx"
+      ],
+      "validation": "Independent source review accepted; focused tests pending."
+    },
+    {
+      "id": "L100-13",
+      "stage": "Portfolio",
+      "title": "Portfolio goal and capacity management",
+      "status": "planned",
+      "owner": "Engine",
+      "work": "Build on existing global/per-project slots and priority aging. Add goals, deadlines, resource budgets, dependencies across projects and project-level allocation explanations.",
+      "dependsOn": "L100-12,L100-07",
+      "evidence": ""
+    },
+    {
+      "id": "L100-14",
+      "stage": "Portfolio",
+      "title": "Persistent personal Luci across projects",
+      "status": "partial",
+      "owner": "Engine",
+      "work": "Project-scoped conversation and coordination exist. Add coherent personal briefing, cross-project intent routing and project-specific context boundaries.",
+      "dependsOn": "L100-12,L100-13",
+      "evidence": ""
+    },
+    {
+      "id": "L100-15",
+      "stage": "Deploy",
+      "title": "Typed deployment blueprint and manifest compiler",
+      "status": "prototype",
+      "owner": "Dist",
+      "work": "Existing VM/Coolify/Pages execution remains. Add app/inference/telemetry topology, dependency graph, connector contracts and generated Kubernetes manifests without applying them.",
+      "dependsOn": "Exact source/config references",
+      "evidence": "Implemented on codex/product-engine-20261029; not packaged/native accepted.",
+      "sourceFiles": [
+        "control-plane/internal/deploymentplan/plan.go",
+        "control-plane/internal/deploymentplan/manifests.go",
+        "control-plane/internal/api/deployment_blueprint.go"
+      ],
+      "validation": "Independent source review accepted; focused tests pending."
+    },
+    {
+      "id": "L100-16",
+      "stage": "Deploy",
+      "title": "Managed bring-your-own infrastructure connectors",
+      "status": "planned",
+      "owner": "Cloud",
+      "work": "Connect blueprint to existing Azure provisioning, then cluster lifecycle, registry, DNS/TLS, secret references, storage and quotas. AWS follows Azure.",
+      "dependsOn": "L100-15",
+      "evidence": ""
+    },
+    {
+      "id": "L100-17",
+      "stage": "Deploy",
+      "title": "Inference as a project service",
+      "status": "planned",
+      "owner": "Cloud",
+      "work": "Keep managed local development inference separate from customer production inference. Add model/image/resource selection, serving configuration, health and scaling.",
+      "dependsOn": "L100-15,L100-16",
+      "evidence": ""
+    },
+    {
+      "id": "L100-18",
+      "stage": "Deploy",
+      "title": "Operational telemetry and product analytics",
+      "status": "planned",
+      "owner": "Platform",
+      "work": "OTel traces/metrics/logs and customer product events are different needs. Add deployment instrumentation plus a product-event schema, destinations and dashboards.",
+      "dependsOn": "L100-15,L100-16",
+      "evidence": ""
+    },
+    {
+      "id": "L100-19",
+      "stage": "Deploy",
+      "title": "Continuous preview, release and recovery",
+      "status": "partial",
+      "owner": "Delivery",
+      "work": "Commit-bound deployment and rollback source exists. Connect branch previews, promotion, release observations and safe recovery; distinguish code rollback from data restore.",
+      "dependsOn": "L100-08,L100-15",
+      "evidence": ""
+    },
+    {
+      "id": "L100-20",
+      "stage": "Distribute",
+      "title": "Structured go-to-market workspace",
+      "status": "planned",
+      "owner": "GTM",
+      "work": "Evidence-linked draft documents exist. Add editable customer segment, positioning, competitors, offer, pricing assumptions, channels and launch milestones as versioned records.",
+      "dependsOn": "L100-01,L100-02",
+      "evidence": ""
+    },
+    {
+      "id": "L100-21",
+      "stage": "Distribute",
+      "title": "Commercial models and launch assets",
+      "status": "planned",
+      "owner": "GTM",
+      "work": "Add explicit price/cost/currency/unit economics, pricing experiments, website/campaign/sales/support assets and project-linked publishing drafts.",
+      "dependsOn": "L100-20",
+      "evidence": ""
+    },
+    {
+      "id": "L100-22",
+      "stage": "Distribute",
+      "title": "Launch connectors and feedback loop",
+      "status": "planned",
+      "owner": "GTM",
+      "work": "Add approved channel publishing and analytics/revenue imports; translate findings into roadmap changes. No unsolicited outreach or automatic ad spending.",
+      "dependsOn": "L100-18,L100-20,L100-21",
+      "evidence": ""
+    },
+    {
+      "id": "L100-23",
+      "stage": "Platform",
+      "title": "Reusable solutions through Glasses",
+      "status": "partial",
+      "owner": "Platform",
+      "work": "Existing Glasses integration/catalogue is the starting point. Add task-level reuse recommendations with licences, provenance and compatibility decisions.",
+      "dependsOn": "L100-05,L100-06",
+      "evidence": ""
+    },
+    {
+      "id": "L100-24",
+      "stage": "Platform",
+      "title": "Memory, checkpoints and restart continuity",
+      "status": "partial",
+      "owner": "Engine",
+      "work": "Reuse durable snapshots/events rather than accumulating chat history. Add concise role-specific context refresh, decision summaries and recovery across project sessions.",
+      "dependsOn": "L100-07,L100-14",
+      "evidence": ""
+    },
+    {
+      "id": "L100-25",
+      "stage": "Platform",
+      "title": "Outcome and coordination feedback",
+      "status": "planned",
+      "owner": "Product",
+      "work": "Record useful work completed, waiting time, rework, review load, cost and human decisions. Do not equate tokens, agents or lines of code with customer value.",
+      "dependsOn": "L100-08,L100-18,L100-22",
+      "evidence": ""
+    },
+    {
+      "id": "L100-26",
+      "stage": "Delivery",
+      "title": "Integrated prototype, then representative testing",
+      "status": "planned",
+      "owner": "Delivery",
+      "work": "First join the new structures to the actual app; then run focused tests and representative multi-project journeys. A CLI toy task is not a prerequisite for source implementation.",
+      "dependsOn": "L100-01,L100-12,L100-15",
+      "evidence": ""
+    }
+  ],
+  "statusDefinitions": {
+    "prototype": "Implemented source; validation and broader integration reported separately.",
+    "partial": "Existing source foundation with missing work listed.",
+    "planned": "Not implemented in this pass."
+  }
+}

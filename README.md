@@ -1,8 +1,10 @@
 # Luci
 
-**One conversation, from an idea to an application.**
+**Your AI team, from idea to market. Across your projects.**
 
-Luci is an open-source workspace for planning, designing, building and delivering software. Your Luci keeps the purpose of a project, its decisions, design, implementation and reviews together, so you can keep improving the same idea instead of rebuilding context for every tool.
+Luci is an AI product orchestrator in development. Its direction is to turn goals into plans and visual designs, coordinate skilled agent teams, integrate their work, deploy to your infrastructure and build the route to customers and revenue. It keeps each project’s context together while helping you prioritize work across a portfolio.
+
+See the [100× leverage implementation plan](docs/luci/LUCI-100X-PLAN-2026-10-30.md) for the current architecture, research, gaps and delivery sequence, and the [tracked backlog](docs/luci/luci-100x-backlog.json) for implementation status.
 
 ## What you can do
 

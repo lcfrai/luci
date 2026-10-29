@@ -381,6 +381,16 @@ func (g *Gateway) routeTeamWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer finish()
+	if scope.Collection == "portfolio" {
+		capture := newTeamCapture()
+		g.route(capture, inner)
+		if inner.Context().Err() != nil {
+			fail(w, 403, "team_access_changed", errTeamAccess.Error())
+			return
+		}
+		g.filterTeamPortfolio(w, capture, teamID, actor.ID)
+		return
+	}
 	if scope.Collection == "home" {
 		capture := newTeamCapture()
 		g.route(capture, inner)

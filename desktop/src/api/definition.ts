@@ -9,8 +9,10 @@ export interface Integration { id: string; name: string; purpose: string; constr
 export interface GlossaryTerm { id: string; term: string; meaning: string }
 export interface ProductDecision { id: string; title: string; decision: string; reason: string; alternatives: string }
 export interface OpenQuestion { id: string; question: string; answer: string }
+export interface RoadmapPhase { id: string; title: string; outcome: string; requirementIds: string[]; dependsOn: string[]; completionCriteria: string[] }
 export interface ProjectSpecification {
  evidence?: DiscoverySourceLink[];
+  roadmap?: RoadmapPhase[];
   projectId: string; version: 1; revision: number; briefRevision: number;
   startingPoint: "new" | "existing"; purpose: string; audience: string; constraints: string;
   outOfScope: string[]; requirements: Requirement[]; journeys: UserJourney[]; roles: AccessRole[];
