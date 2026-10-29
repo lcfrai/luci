@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-29T14:31:49.540Z",
+  "updatedAt": "2026-10-29T15:03:02.367Z",
   "baseline": "f4801fdc9caf07c1610ead1d1a3b74125e4aacd1",
   "branch": "codex/product-engine-20261029",
   "principle": "Prototype structure, engine and connectors first; integrate and test afterward. 100x is an ambition, not a measured claim.",
@@ -13,12 +13,12 @@
       "owner": "Auth",
       "work": "Existing specification has requirements and decisions; add milestones, outcomes, dependencies, linked requirements and agent-context export.",
       "dependsOn": "Specification revision → roadmap DAG → approved implementation context",
-      "evidence": "Implemented on codex/product-engine-20261029; not packaged/native accepted.",
+      "evidence": "Source fe023ba0; test-only correction d6643def. See LUCI-100X-PLAN-2026-10-30.md overnight progress.",
       "sourceFiles": [
         "control-plane/internal/product/specification_roadmap.go",
         "desktop/src/components/definition/SpecificationRoadmap.tsx"
       ],
-      "validation": "Independent source review accepted; focused tests pending."
+      "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied."
     },
     {
       "id": "L100-02",
@@ -128,13 +128,13 @@
       "owner": "Local",
       "work": "Home and priority/fair scheduling exist. Add ranked interventions showing why work is blocked, what it affects, and the exact next action; integrate existing Home.",
       "dependsOn": "Existing project authorization/overview/coordinator",
-      "evidence": "Implemented on codex/product-engine-20261029; not packaged/native accepted.",
+      "evidence": "Source fe023ba0; test-only correction d6643def. See LUCI-100X-PLAN-2026-10-30.md overnight progress.",
       "sourceFiles": [
         "control-plane/internal/product/portfolio.go",
         "control-plane/internal/api/portfolio.go",
         "desktop/src/components/projects/PortfolioAttention.tsx"
       ],
-      "validation": "Independent source review accepted; focused tests pending."
+      "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied."
     },
     {
       "id": "L100-13",
@@ -164,13 +164,13 @@
       "owner": "Dist",
       "work": "Existing VM/Coolify/Pages execution remains. Add app/inference/telemetry topology, dependency graph, connector contracts and generated Kubernetes manifests without applying them.",
       "dependsOn": "Exact source/config references",
-      "evidence": "Implemented on codex/product-engine-20261029; not packaged/native accepted.",
+      "evidence": "Source fe023ba0; test-only correction d6643def. See LUCI-100X-PLAN-2026-10-30.md overnight progress.",
       "sourceFiles": [
         "control-plane/internal/deploymentplan/plan.go",
         "control-plane/internal/deploymentplan/manifests.go",
         "control-plane/internal/api/deployment_blueprint.go"
       ],
-      "validation": "Independent source review accepted; focused tests pending."
+      "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied."
     },
     {
       "id": "L100-16",
@@ -287,5 +287,22 @@
     "prototype": "Implemented source; validation and broader integration reported separately.",
     "partial": "Existing source foundation with missing work listed.",
     "planned": "Not implemented in this pass."
+  },
+  "checks": {
+    "go": {
+      "source": "fe023ba08c7b2a32c00dc06798a9187bce943472",
+      "topLevel": 22,
+      "subcases": 29,
+      "passed": 51,
+      "failed": 0
+    },
+    "frontend": {
+      "source": "d6643def7b1d81855fdfe7beede39edd62cf15f8",
+      "wholeFiles": 4,
+      "passed": 39,
+      "failed": 0,
+      "typescriptExit": 0
+    },
+    "qualification": "Unit/component checks after structure implementation. Native app not rebuilt or launched. Earlier UI35pass4fail remains recorded; fixed two tests, production code unchanged."
   }
 }
