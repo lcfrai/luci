@@ -36,7 +36,7 @@ it("exports the private ledger and requires its reviewed storage digest for rota
 it.each([
   view({ projectId: "other" }), view({ context: context("other") }), view({ turns: [turn({ projectId: "other" })] }),
   view({ turns: [turn({ context: context("other") })] }), view({ turns: [turn(), turn()] }),
-])("rejects foreign or duplicate conversation content before rendering", async value => {
+])("rejects foreign or duplicate conversation content before rendering [case %#]", async value => {
   vi.spyOn(productApi, "request").mockResolvedValue(value);
   await expect(orchestratorApi.get("p-1")).rejects.toThrow("could not be verified");
 });
@@ -108,7 +108,7 @@ it.each([
   [{ ...reviewObligation, state: "complete" }], [{ ...reviewObligation, state: "cancelled" }],
   [{ ...reviewObligation, kind: "running" }], [{ ...reviewObligation, contextStatus: "verified" }],
   Array.from({ length: 201 }, (_, index) => ({ ...reviewObligation, id: String(index) })),
-])("rejects invalid review projections without treating their identities as navigation authority", async needsAttention => {
+])("rejects invalid review projections without treating their identities as navigation authority [case %#]", async needsAttention => {
   vi.spyOn(productApi, "request").mockResolvedValue(view({ context: { ...context(), needsAttention } as never }));
   await expect(orchestratorApi.get("p-1")).rejects.toThrow("could not be verified");
 });
@@ -118,7 +118,7 @@ it.each([
   [{ ...pendingBuild(), operations: [null] }],
   [{ ...pendingBuild(), operations: [{ ...pendingBuild().operations[0], status: "succeeded" }] }],
   [{ ...pendingBuild(), operations: [{ ...pendingBuild().operations[0], updatedAt: "invalid" }] }],
-])("rejects malformed active activity instead of presenting misleading execution state", async activeRuns => {
+])("rejects malformed active activity instead of presenting misleading execution state [case %#]", async activeRuns => {
   vi.spyOn(productApi, "request").mockResolvedValue(view({ context: { ...context(), activeRuns } as never }));
   await expect(orchestratorApi.get("p-1")).rejects.toThrow("could not be verified");
 });
