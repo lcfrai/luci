@@ -39,7 +39,7 @@ func journeyContextFile(relative string) bool {
 		return true
 	}
 	switch relative {
-	case ".luci/state.json", ".luci/design.json", ".luci/plan.json",
+	case ".luci/state.json", ".luci/design.json", ".luci/plan.json", ".luci/skills.json",
 		".luci/specification.json", ".luci/specification.md",
 		".luci/design-handoff.json", ".luci/design-handoff.md":
 		return true

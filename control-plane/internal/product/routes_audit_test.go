@@ -32,6 +32,8 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/distribute/gtm":                                             "Reads bounded private GTM revisions and current project context without modifying drafts, publishing, contacting providers or compiling model output.",
+	"GET /v1/product/projects/{id}/skills":                                                     "Reads the versioned project skill registry and selections without changing source or dispatching agents.",
 	"GET /v1/product/team-controls":                                                            "Reads one bounded exact team control library revision without import or assessment mutation.",
 	"GET /v1/product/projects/{id}/control-assessment":                                         "Reads exact saved assessment and current source digests without correction or new work.",
 	"GET /v1/product/projects/{id}/control-assessment/report.xlsx":                             "Renders an inert bounded private XLSX from saved current assessment bytes without running macros or writes.",
@@ -300,7 +302,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			if strings.Contains(pattern, "/discovery/documents") {
 				status = 401 // Private source history requires an authenticated actor, even for GET/HEAD.
 			}
-			if pattern == "GET /v1/product/team-controls" || strings.Contains(pattern, "/control-assessment") || strings.Contains(pattern, "/distribute/artifacts") {
+			if pattern == "GET /v1/product/team-controls" || strings.Contains(pattern, "/control-assessment") || strings.Contains(pattern, "/distribute/artifacts") || strings.HasSuffix(pattern, "/distribute/gtm") {
 				status = 401 // Team and private artifact reads require an authenticated actor in this fixture.
 			}
 			if strings.Contains(pattern, "/orchestrator/continuations/{continuationId}") {

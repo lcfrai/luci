@@ -20,8 +20,19 @@ type Blueprint struct {
 // Source is caller-supplied intent. Compilation does not attest to a commit,
 // configuration revision, successful checks or permission to release it.
 type Source struct {
-	Commit                string `json:"commit"`
-	ConfigurationRevision int    `json:"configurationRevision"`
+	Commit                string            `json:"commit"`
+	ConfigurationRevision int               `json:"configurationRevision"`
+	Context               *ContextReference `json:"context,omitempty"`
+}
+
+// ContextReference binds the caller's observed definition/design revisions to
+// the plan digest. It is not approval or an independent current-context check.
+type ContextReference struct {
+	BriefRevision         int    `json:"briefRevision"`
+	SpecificationRevision int    `json:"specificationRevision"`
+	SpecificationDigest   string `json:"specificationDigest,omitempty"`
+	DesignRevision        int    `json:"designRevision"`
+	DesignDigest          string `json:"designDigest,omitempty"`
 }
 
 type Infrastructure struct {
@@ -130,6 +141,11 @@ type Connector interface {
 	Plan(context.Context, Blueprint) (Plan, error)
 	Observe(context.Context, ObservationRequest) (Observation, error)
 	Apply(context.Context, ApplyRequest) (Observation, error)
+}
+
+// Planner can be implemented without advertising observation or effect support.
+type Planner interface {
+	Plan(context.Context, Blueprint) (Plan, error)
 }
 
 type ObservationRequest struct {

@@ -11,6 +11,7 @@ import (
 // complete reviewed documents. It is not a separate approval, a current status
 // observation, or evidence that prerequisites passed checks or were integrated.
 type reviewedTaskBrief struct {
+	Skills             []selectedProjectSkill     `json:"skills,omitempty"`
 	PlanRevision       int                        `json:"planRevision"`
 	PlanDigest         string                     `json:"planDigest"`
 	DefinitionRevision int                        `json:"definitionRevision"`
@@ -60,6 +61,19 @@ func renderReviewedTaskBrief(state journeyState, binding *registry.Implementatio
 		DefinitionRevision: binding.SpecificationRevision, DefinitionDigest: binding.SpecificationDigest,
 		SelectedTasks: []reviewedAssignedTask{}, Dependencies: []reviewedTaskDependency{}, LinkedRequirements: []SpecificationRequirement{},
 	}
+	skills, err := selectedSkills(state, binding.TaskIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(skills) != len(binding.Skills) {
+		return nil, errors.New("The selected skills changed after this task was captured.")
+	}
+	for i, skill := range skills {
+		if skill.ImplementationSkill != binding.Skills[i] {
+			return nil, errors.New("The selected skill revision does not match this assignment.")
+		}
+	}
+	brief.Skills = skills
 	dependencies, requirements := map[string]bool{}, map[string]bool{}
 	for _, task := range plan.Tasks {
 		title, assigned := selected[task.ID]

@@ -6,6 +6,29 @@ telemetry receiver one inspectable topology. It does not replace the existing
 Local, GitHub Pages, Coolify or AWS/Azure single-machine execution paths.
 Those paths retain their current authority and acceptance gates.
 
+## Deploy workspace integration
+
+The Deploy workspace now includes **Service blueprint**, beside Application
+platform and Previews and publishing. Its in-memory editor supports multiple
+apps/inference services, explicit dependencies and an optional existing
+telemetry receiver. Empty inputs are left unresolved. Removing a service keeps
+its incoming dependency links visible for explicit repair; new service IDs do
+not reuse a removed identity within the draft.
+
+Generate reads this project's Git/source, configuration and definition/design
+revision metadata, calls the authenticated Plan-only endpoint, verifies each
+returned manifest digest and re-reads metadata before displaying output. A
+changed source/context withdraws the result. The source reference optionally
+contains `context` with brief/specification/design revisions and saved digests;
+these enter the plan digest, but remain caller-observed rather than independent
+approval evidence. Uncommitted work leaves the source commit unresolved.
+
+Drafts stay in memory across Deploy tabs; they are not written to browser
+storage or shared project files. Scope changes remove them and normal unsaved
+navigation remains guarded. Export is a user-requested JSON download. The
+existing release-path action opens the existing Local/Cloud/Pages forms and
+their existing permissions; it does not apply or promote Kubernetes manifests.
+
 ## What it produces
 
 `deploymentplan.Compile` is deterministic and performs no I/O. It returns:
@@ -96,6 +119,11 @@ observation. No implementation of live `Apply` ships in this prototype.
 An approval reference is opaque and is not self-authorizing. A future adapter
 must resolve it against current actor/project authority, exact source and
 target, expected state, acknowledged effects and current provider costs.
+
+`ManifestPlanner` implements only the narrower `Planner` capability and is used
+by the plan endpoint. It checks cancellation around compilation and deliberately
+does not implement `Observe` or `Apply`; there is no fake successful effect
+adapter or unavailable-method stub behind an Apply button.
 
 An ambiguous provider result must remain `unknown` with its original IDs;
 it must not become absent or trigger an automatic create replay. A future

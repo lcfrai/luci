@@ -52,7 +52,7 @@ func (a *API) handleDeploymentBlueprint(w http.ResponseWriter, r *http.Request) 
 		httpx.WriteProblem(w, 400, "blueprint_invalid", "Provide exactly one JSON blueprint.", nil)
 		return
 	}
-	plan, err := a.deps.Product.DeploymentBlueprint(id, request)
+	plan, err := a.deps.Product.DeploymentBlueprint(r.Context(), id, request)
 	if err != nil {
 		httpx.WriteProblem(w, 422, "blueprint_invalid", err.Error(), nil)
 		return

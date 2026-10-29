@@ -169,7 +169,7 @@ func validContextChangeEvent(event ContextChangeEvent, projectID string) bool {
 		return false
 	}
 	switch event.Kind {
-	case "brief", "specification", "sketch", "design", "plan":
+	case "brief", "specification", "sketch", "design", "plan", "skills":
 		return true
 	default:
 		return false
@@ -197,6 +197,10 @@ func (s *Server) saveContextHistory(saved contextHistoryStore) error {
 
 func contextRevisionSnapshot(state journeyState, kind string) (int, any, error) {
 	switch kind {
+	case "skills":
+		if state.Skills != nil {
+			return state.Skills.Revision, *state.Skills, nil
+		}
 	case "brief":
 		return state.Brief.Revision, state.Brief, nil
 	case "sketch":

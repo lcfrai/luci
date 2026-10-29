@@ -7,6 +7,31 @@ import (
 	"testing"
 )
 
+func TestSkillsAndGTMTeamRoutesSeparateReadFromEditWithoutExecutionAuthority(t *testing.T) {
+	viewer := TeamPermissions{Read: true}
+	editor := TeamPermissions{Read: true, Edit: true}
+	for _, path := range []string{"/v1/product/projects/p-one/skills", "/v1/product/projects/p-one/distribute/gtm"} {
+		for _, method := range []string{"GET", "HEAD", "POST"} {
+			r := httptest.NewRequest(method, path, nil)
+			scope, ok := ClassifyTeamRoute(r)
+			if !ok || scope.ProjectID != "p-one" || scope.Collection != "" {
+				t.Fatalf("wrong project route classification: %s %s %+v", method, path, scope)
+			}
+			if !authorizeTeamRoute(httptest.NewRecorder(), r, editor) ||
+				authorizeTeamRoute(httptest.NewRecorder(), r, viewer) != (method != "POST") ||
+				authorizeTeamRoute(httptest.NewRecorder(), r, TeamPermissions{Edit: true}) {
+				t.Fatalf("read/edit authority drift: %s %s", method, path)
+			}
+		}
+		for _, method := range []string{"PUT", "PATCH", "DELETE"} {
+			r := httptest.NewRequest(method, path, nil)
+			if _, ok := ClassifyTeamRoute(r); ok || authorizeTeamRoute(httptest.NewRecorder(), r, editor) {
+				t.Fatalf("unsupported method admitted: %s %s", method, path)
+			}
+		}
+	}
+}
+
 func TestDiscoveryDocumentRoutesKeepReadAndEditAuthority(t *testing.T) {
 	base := "/v1/product/projects/p-one/discovery/documents"
 	viewer := TeamPermissions{Read: true}

@@ -17,6 +17,7 @@ import (
 
 var namePattern = regexp.MustCompile(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`)
 var commitPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
+var contextDigestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var imagePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._:/-]*@sha256:[0-9a-f]{64}$`)
 
 func validName(value string) bool { return len(value) <= 63 && namePattern.MatchString(value) }
@@ -51,6 +52,21 @@ func Compile(input Blueprint) (Plan, error) {
 	}
 	if b.Source.ConfigurationRevision < 0 || b.Source.ConfigurationRevision > 1_000_000 {
 		return Plan{}, fmt.Errorf("invalid configuration revision")
+	}
+	if c := b.Source.Context; c != nil {
+		for _, revision := range []int{c.BriefRevision, c.SpecificationRevision, c.DesignRevision} {
+			if revision < 0 || revision > 1_000_000 {
+				return Plan{}, fmt.Errorf("invalid context revision")
+			}
+		}
+		for _, value := range []string{c.SpecificationDigest, c.DesignDigest} {
+			if value != "" && !contextDigestPattern.MatchString(value) {
+				return Plan{}, fmt.Errorf("invalid context digest")
+			}
+		}
+		if c.SpecificationDigest != "" && c.SpecificationRevision == 0 || c.DesignDigest != "" && c.DesignRevision == 0 {
+			return Plan{}, fmt.Errorf("context digest requires its saved revision")
+		}
 	}
 	if b.Source.Commit != "" && !commitPattern.MatchString(b.Source.Commit) {
 		return Plan{}, fmt.Errorf("source commit must be a full lowercase Git SHA-1")

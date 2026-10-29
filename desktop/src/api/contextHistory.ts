@@ -3,7 +3,7 @@ import { productApi } from "./product";
 export interface ContextChangeEvent {
   id: string;
   projectId: string;
-  kind: "brief" | "specification" | "sketch" | "design" | "plan";
+  kind: "brief" | "specification" | "sketch" | "design" | "plan" | "skills";
   action: "save" | "approve" | "apply-analysis";
   revision: number;
   digest: string;
@@ -21,7 +21,7 @@ function text(value: unknown, limit: number): value is string {
 }
 function event(value: unknown, projectId: string): value is ContextChangeEvent {
   return record(value) && value.projectId === projectId && typeof value.id === "string" && /^context-[a-f0-9]{24}$/.test(value.id) &&
-    ["brief", "specification", "sketch", "design", "plan"].includes(String(value.kind)) &&
+    ["brief", "specification", "sketch", "design", "plan", "skills"].includes(String(value.kind)) &&
     ["save", "approve", "apply-analysis"].includes(String(value.action)) &&
     Number.isSafeInteger(value.revision) && Number(value.revision) > 0 &&
     typeof value.digest === "string" && /^[a-f0-9]{64}$/.test(value.digest) &&

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-29T15:03:02.367Z",
+  "updatedAt": "2026-10-29T22:16:14.848Z",
   "baseline": "f4801fdc9caf07c1610ead1d1a3b74125e4aacd1",
   "branch": "codex/product-engine-20261029",
   "principle": "Prototype structure, engine and connectors first; integrate and test afterward. 100x is an ambition, not a measured claim.",
@@ -64,11 +64,15 @@
       "id": "L100-06",
       "stage": "Develop",
       "title": "Versioned skill registry and assignment",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Engine",
       "work": "Existing context snapshots and team standards are not a skill registry. Add skill ID/version/digest/provenance, role matching, context budgets and task-bound selection.",
       "dependsOn": "Existing context exporter",
-      "evidence": ""
+      "evidence": "",
+      "progress": {
+        "state": "source implemented; independent review and combined checks in progress",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "L100-07",
@@ -170,7 +174,11 @@
         "control-plane/internal/deploymentplan/manifests.go",
         "control-plane/internal/api/deployment_blueprint.go"
       ],
-      "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied."
+      "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied.",
+      "progress": {
+        "state": "Deploy editor/API integration implemented in source; checks in progress",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "L100-16",
@@ -216,21 +224,29 @@
       "id": "L100-20",
       "stage": "Distribute",
       "title": "Structured go-to-market workspace",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "GTM",
-      "work": "Evidence-linked draft documents exist. Add editable customer segment, positioning, competitors, offer, pricing assumptions, channels and launch milestones as versioned records.",
+      "work": "Evidence-linked draft documents exist. Add editable customer segment, positioning, competitors, offer, pricing assumptions, channels and launch milestones as versioned records. Connect orchestrator-generated strategy drafts and reviewed amendments to these versioned records.",
       "dependsOn": "L100-01,L100-02",
-      "evidence": ""
+      "evidence": "",
+      "progress": {
+        "state": "source implemented; independent review and combined checks in progress",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "L100-21",
       "stage": "Distribute",
       "title": "Commercial models and launch assets",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "GTM",
       "work": "Add explicit price/cost/currency/unit economics, pricing experiments, website/campaign/sales/support assets and project-linked publishing drafts.",
       "dependsOn": "L100-20",
-      "evidence": ""
+      "evidence": "",
+      "progress": {
+        "state": "source implemented; independent review and combined checks in progress",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "L100-22",

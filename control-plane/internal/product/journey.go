@@ -70,6 +70,7 @@ type journeyState struct {
 	SpecificationRevisions []ProjectSpecification `json:"specificationRevisions,omitempty"`
 	DesignPlan             *ProjectDesignPlan     `json:"designPlan,omitempty"`
 	DesignPlanRevisions    []ProjectDesignPlan    `json:"designPlanRevisions,omitempty"`
+	Skills                 *ProjectSkillRegistry  `json:"skills,omitempty"`
 }
 
 func readJourney(dir, projectID string) (journeyState, error) {
@@ -126,6 +127,9 @@ func readJourney(dir, projectID string) (journeyState, error) {
 	}
 	if state.DesignPlan != nil && (state.DesignPlan.ProjectID != projectID || validateDesignPlan(*state.DesignPlan) != nil) {
 		return state, errors.New("design handoff is invalid or belongs to another project")
+	}
+	if state.Skills != nil && (state.Skills.ProjectID != projectID || validateSkillRegistry(*state.Skills) != nil) {
+		return state, errors.New("skill registry is invalid or belongs to another project")
 	}
 	if state.Brief.Criteria == nil {
 		state.Brief.Criteria = []string{}
