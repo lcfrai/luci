@@ -38,7 +38,12 @@ it('edits structured customer value and saves only on explicit action with sourc
 
 it('keeps a read-only strategy visible without authoring or save authority', async () => {
   render(<GTMWorkspace projectId="p-one" canRead canEdit={false} />);
-  expect((await screen.findByLabelText('Positioning') as HTMLTextAreaElement).disabled).toBe(true);
+  const positioning = await screen.findByLabelText('Positioning') as HTMLTextAreaElement;
+  // Native fieldset disabled state is inherited; the child's own disabled
+  // property stays false even though user input is correctly refused.
+  expect(positioning.matches(':disabled')).toBe(true);
+  await userEvent.setup().type(positioning, 'Must not author');
+  expect(positioning.value).toBe('');
   expect((screen.getByRole('button', { name: 'Add customer segment' }) as HTMLButtonElement).disabled).toBe(true);
   expect((screen.getByRole('button', { name: 'Save GTM revision' }) as HTMLButtonElement).disabled).toBe(true);
   expect(gtmWorkspaceApi.save).not.toHaveBeenCalled();
@@ -102,8 +107,11 @@ it('parses decimal money exactly and displays the saved scenario as currency amo
   await user.click(screen.getByRole('checkbox', { name: 'Include a commercial scenario' }));
   await user.clear(screen.getByLabelText('Scenario currency (3-letter code)'));
   await user.type(screen.getByLabelText('Scenario currency (3-letter code)'), 'aud');
-  await user.clear(screen.getByLabelText('Price per customer'));
-  await user.type(screen.getByLabelText('Price per customer'), '29.50');
+  const price = screen.getByLabelText('Price per customer');
+  await user.clear(price);
+  // Clearing deliberately renders inline invalid-value guidance inside the
+  // label. Keep the same real input while typing a valid replacement amount.
+  await user.type(price, '29.50');
   await user.clear(screen.getByLabelText('Customers or units per period'));
   await user.type(screen.getByLabelText('Customers or units per period'), '3');
   await user.click(screen.getByRole('button', { name: 'Save GTM revision' }));

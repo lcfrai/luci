@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProjectSkills } from './ProjectSkills';
 import { projectSkillsApi, type ProjectSkillRegistry } from '../../api/projectSkills';
@@ -19,7 +19,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 async function openSkills() {
   const summary = screen.getByText('Project skills');
   await userEvent.click(summary);
-  fireEvent.toggle(summary.closest('details')!, { target: { open: true } });
+  await waitFor(() => expect((summary.closest('details') as HTMLDetailsElement).open).toBe(true));
   await screen.findByText('Registry revision 2 · 1 immutable versions');
 }
 
@@ -65,7 +65,8 @@ it('ignores a late old-scope response and hides content immediately when read au
   let resolve!: (value: ProjectSkillRegistry) => void;
   vi.mocked(projectSkillsApi.get).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
   const view = render(<ProjectSkills projectId="p-skills" />);
-  const summary = screen.getByText('Project skills'); await userEvent.click(summary); fireEvent.toggle(summary.closest('details')!, { target: { open: true } });
+  const summary = screen.getByText('Project skills'); await userEvent.click(summary);
+  await waitFor(() => expect((summary.closest('details') as HTMLDetailsElement).open).toBe(true));
   await waitFor(() => expect(projectSkillsApi.get).toHaveBeenCalledOnce());
   state.scope = 'different-owner-workspace'; view.rerender(<ProjectSkills projectId="p-skills" />);
   await screen.findByText('Registry revision 2 · 1 immutable versions');

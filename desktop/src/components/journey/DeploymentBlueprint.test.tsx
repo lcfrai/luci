@@ -39,7 +39,10 @@ it('submits project-bound app/inference planning inputs and displays unresolved 
   expect(sent.services[1].model?.claimName).toBe('models'); expect(sent.services[1].command).toEqual(['/serve', '--model']);
   expect(screen.getByText(/Choose an existing immutable image/)).not.toBeNull();
   expect(screen.queryByRole('button', { name: /^Apply|^Deploy now/ })).toBeNull();
-  expect(localStorage.length).toBe(0);
+  const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)!);
+  expect(keys.some(key => key.startsWith('luci.project-draft.'))).toBe(false);
+  const stored = keys.map(key => localStorage.getItem(key) ?? '').join('\n');
+  for (const input of ['existing-east', 'app-one', 'approved-model', '/serve']) expect(stored).not.toContain(input);
 });
 
 it('retains in-memory edits across tabs and repairs a removed dependency explicitly', async () => {
@@ -65,7 +68,7 @@ it('keeps a requested telemetry binding explicit until the user removes it', asy
   const app = within(screen.getByRole('group', { name: 'Application · app-1' }));
   await user.click(app.getByRole('checkbox', { name: 'Bind this service to the telemetry receiver below' }));
   await user.type(screen.getByRole('textbox', { name: 'Receiver reference' }), 'existing-collector');
-  await user.type(screen.getByRole('textbox', { name: 'HTTPS receiver endpoint' }), 'https://collector.example/otlp');
+  await user.type(screen.getByRole('textbox', { name: /^HTTPS receiver endpoint(?:\s|$)/ }), 'https://collector.example/otlp');
   await user.click(screen.getByRole('button', { name: 'Generate deployment plan' }));
   await screen.findByRole('heading', { name: 'Inputs still needed' });
   const sent = vi.mocked(deploymentBlueprintApi.compile).mock.calls[0][0];

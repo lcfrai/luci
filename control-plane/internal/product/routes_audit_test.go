@@ -40,6 +40,7 @@ var productReadOnlyRoutes = map[string]string{
 	"GET /v1/product/projects/{id}/distribute/artifacts":                                       "Reads bounded saved project artifact metadata and source revisions without generating, reviewing or exporting.",
 	"GET /v1/product/projects/{id}/distribute/artifacts/{artifactId}":                          "Reads one exact saved private artifact and its bounded immutable revision history without mutation.",
 	"GET /v1/product/projects/{id}/distribute/artifacts/{artifactId}/exports/{format}":         "Renders a bounded inert native document from the exact saved revision; creates no files or publication effect.",
+	"GET /v1/product/projects/{id}/distribute/artifacts/{artifactId}/exports/pdf":              "Exports the exact saved artifact as a bounded inert in-memory PDF under its dedicated capacity permit; no external renderer, file writes or publication. Anonymous audit refuses before permits and fonts.",
 	"GET /v1/product/projects/{id}/runs/{runId}/swarm/supervision":                             "Projects bounded saved run/task/message/review evidence with no provider observation or dispatch.",
 	"GET /v1/product/projects/{id}/runs/{runId}/swarm/messages/{messageId}":                    "Reads one exact saved attributed message without delivery, ack or replay.",
 	"GET /v1/product/projects/{id}/runs/{runId}/swarm/review-obligations/{obligationId}":       "Reads one exact saved reviewer obligation without assigning or resolving it.",
