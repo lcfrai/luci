@@ -14,7 +14,7 @@ export interface CoordinatorTeamIntentsProps {
 type Draft = { intentId: string; supersededBy: string; reason: string };
 type Pending = { intentId: string; input: ResolveCoordinatorIntent };
 type Retained = { version: 1; projectId: string; actorId: string; draft?: Draft; pending?: Pending };
-const labels = { specification: "Discover context", "design-plan": "Design", plan: "Implementation plan" };
+const labels = { specification: "Discover context", "design-plan": "Design", plan: "Implementation plan", gtm: "Go-to-market workspace" };
 const digest = (value: unknown) => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 const id = (value: unknown) => typeof value === "string" && value.startsWith("intent-") && value.length <= 128;
 function readRetained(key: string, projectId: string, actorId: string) {

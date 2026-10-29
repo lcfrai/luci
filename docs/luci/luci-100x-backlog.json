@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-29T22:16:14.848Z",
+  "updatedAt": "2026-10-29T22:55:06.590Z",
   "baseline": "f4801fdc9caf07c1610ead1d1a3b74125e4aacd1",
   "branch": "codex/product-engine-20261029",
   "principle": "Prototype structure, engine and connectors first; integrate and test afterward. 100x is an ambition, not a measured claim.",
@@ -54,24 +54,28 @@
       "id": "L100-05",
       "stage": "Design",
       "title": "Reusable design systems and visual implementation guidance",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Design",
       "work": "Carry approved components, tokens, assets, accessibility requirements and frame references into each agent task; support versioned design-system reuse.",
       "dependsOn": "L100-04,L100-06",
-      "evidence": ""
+      "evidence": "",
+      "progress": {
+        "date": "2026-10-30",
+        "state": "Source implemented; exact validation and remaining integration recorded in current plan"
+      }
     },
     {
       "id": "L100-06",
       "stage": "Develop",
       "title": "Versioned skill registry and assignment",
-      "status": "in_progress",
+      "status": "prototype",
       "owner": "Engine",
       "work": "Existing context snapshots and team standards are not a skill registry. Add skill ID/version/digest/provenance, role matching, context budgets and task-bound selection.",
       "dependsOn": "Existing context exporter",
       "evidence": "",
       "progress": {
-        "state": "source implemented; independent review and combined checks in progress",
-        "date": "2026-10-30"
+        "date": "2026-10-30",
+        "state": "Source implemented; exact validation and remaining integration recorded in current plan"
       }
     },
     {
@@ -144,11 +148,15 @@
       "id": "L100-13",
       "stage": "Portfolio",
       "title": "Portfolio goal and capacity management",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Engine",
       "work": "Build on existing global/per-project slots and priority aging. Add goals, deadlines, resource budgets, dependencies across projects and project-level allocation explanations.",
       "dependsOn": "L100-12,L100-07",
-      "evidence": ""
+      "evidence": "",
+      "progress": {
+        "date": "2026-10-30",
+        "state": "Portfolio goal/capacity source patch in preparation outside checkout"
+      }
     },
     {
       "id": "L100-14",
@@ -224,28 +232,28 @@
       "id": "L100-20",
       "stage": "Distribute",
       "title": "Structured go-to-market workspace",
-      "status": "in_progress",
+      "status": "prototype",
       "owner": "GTM",
       "work": "Evidence-linked draft documents exist. Add editable customer segment, positioning, competitors, offer, pricing assumptions, channels and launch milestones as versioned records. Connect orchestrator-generated strategy drafts and reviewed amendments to these versioned records.",
       "dependsOn": "L100-01,L100-02",
       "evidence": "",
       "progress": {
-        "state": "source implemented; independent review and combined checks in progress",
-        "date": "2026-10-30"
+        "date": "2026-10-30",
+        "state": "Source implemented; exact validation and remaining integration recorded in current plan"
       }
     },
     {
       "id": "L100-21",
       "stage": "Distribute",
       "title": "Commercial models and launch assets",
-      "status": "in_progress",
+      "status": "prototype",
       "owner": "GTM",
       "work": "Add explicit price/cost/currency/unit economics, pricing experiments, website/campaign/sales/support assets and project-linked publishing drafts.",
       "dependsOn": "L100-20",
       "evidence": "",
       "progress": {
-        "state": "source implemented; independent review and combined checks in progress",
-        "date": "2026-10-30"
+        "date": "2026-10-30",
+        "state": "Source implemented; exact validation and remaining integration recorded in current plan"
       }
     },
     {
@@ -292,17 +300,22 @@
       "id": "L100-26",
       "stage": "Delivery",
       "title": "Integrated prototype, then representative testing",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Delivery",
       "work": "First join the new structures to the actual app; then run focused tests and representative multi-project journeys. A CLI toy task is not a prerequisite for source implementation.",
       "dependsOn": "L100-01,L100-12,L100-15",
-      "evidence": ""
+      "evidence": "",
+      "progress": {
+        "date": "2026-10-30",
+        "state": "Connected source prototypes and focused regression batches active"
+      }
     }
   ],
   "statusDefinitions": {
     "prototype": "Implemented source; validation and broader integration reported separately.",
     "partial": "Existing source foundation with missing work listed.",
-    "planned": "Not implemented in this pass."
+    "planned": "Not implemented in this pass.",
+    "in_progress": "Source implementation or integration actively under way; exact checked state recorded separately."
   },
   "checks": {
     "go": {
@@ -320,5 +333,40 @@
       "typescriptExit": 0
     },
     "qualification": "Unit/component checks after structure implementation. Native app not rebuilt or launched. Earlier UI35pass4fail remains recorded; fixed two tests, production code unchanged."
-  }
+  },
+  "validationBatches": [
+    {
+      "source": "3417a32c68d1df1de1b2d1596b506513ab862bae",
+      "go": {
+        "passed": 76,
+        "failed": 1,
+        "named": 77
+      },
+      "frontend": {
+        "passed": 95,
+        "failed": 8,
+        "total": 103
+      },
+      "typescript": "not_reached"
+    },
+    {
+      "source": "5fdf256460a5145ad0ed134dec36c9473fb26e37",
+      "go": {
+        "passed": 1,
+        "failed": 0,
+        "scope": "corrected route audit only"
+      },
+      "frontend": {
+        "passed": 16,
+        "failed": 0,
+        "wholeFiles": 3
+      },
+      "typescript": {
+        "exit": 2,
+        "errors": 3,
+        "sourceFixesJoined": true,
+        "rerun": "pending"
+      }
+    }
+  ]
 }

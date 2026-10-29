@@ -161,6 +161,11 @@ func coordinationImpact(turn storedOrchestratorTurn) (requirements, tasks []stri
 	reqs, selected := map[string]bool{}, map[string]bool{}
 	changes := coordinationChanges(&turn)
 	target := turn.Answer.Proposal.Target
+	// Commercial drafts neither invalidate implementation tasks nor authorize
+	// a continuation/model/worker. Their acceptance remains a review receipt.
+	if target == "gtm" {
+		return []string{}, []string{}, false
+	}
 	for path := range changes {
 		parts := strings.SplitN(path, "/", 2)
 		if len(parts) == 2 && parts[0] == "requirements" {

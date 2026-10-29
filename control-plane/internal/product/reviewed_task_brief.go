@@ -11,6 +11,9 @@ import (
 // complete reviewed documents. It is not a separate approval, a current status
 // observation, or evidence that prerequisites passed checks or were integrated.
 type reviewedTaskBrief struct {
+	DesignPlanRevision int                        `json:"designPlanRevision,omitempty"`
+	DesignPlanDigest   string                     `json:"designPlanDigest,omitempty"`
+	DesignFrames       []reviewedTaskDesignFrame  `json:"designFrames,omitempty"`
 	Skills             []selectedProjectSkill     `json:"skills,omitempty"`
 	PlanRevision       int                        `json:"planRevision"`
 	PlanDigest         string                     `json:"planDigest"`
@@ -29,6 +32,18 @@ type reviewedAssignedTask struct {
 	WritePaths     []string `json:"writePaths"`
 	Acceptance     string   `json:"acceptance"`
 	RequirementIDs []string `json:"requirementIds"`
+	DesignFrameIDs []string `json:"designFrameIds,omitempty"`
+}
+
+// Focused references point into the complete immutable design-handoff.json.
+// Geometry, components, assets and accessibility remain in that same capture.
+type reviewedTaskDesignFrame struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	ScreenID string `json:"screenId"`
+	State    string `json:"state,omitempty"`
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
 }
 
 type reviewedTaskDependency struct {
@@ -74,7 +89,7 @@ func renderReviewedTaskBrief(state journeyState, binding *registry.Implementatio
 		}
 	}
 	brief.Skills = skills
-	dependencies, requirements := map[string]bool{}, map[string]bool{}
+	dependencies, requirements, frameIDs := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, task := range plan.Tasks {
 		title, assigned := selected[task.ID]
 		if !assigned {
@@ -87,7 +102,11 @@ func renderReviewedTaskBrief(state journeyState, binding *registry.Implementatio
 			ID: task.ID, Title: task.Title, RecordedStatus: task.Status,
 			DependsOn: append([]string{}, task.DependsOn...), WritePaths: append([]string{}, task.WritePaths...),
 			Acceptance: task.Acceptance, RequirementIDs: append([]string{}, task.RequirementIDs...),
+			DesignFrameIDs: append([]string(nil), task.DesignFrameIDs...),
 		})
+		for _, id := range task.DesignFrameIDs {
+			frameIDs[id] = true
+		}
 		for _, id := range task.DependsOn {
 			dependencies[id] = true
 		}
@@ -97,6 +116,24 @@ func renderReviewedTaskBrief(state journeyState, binding *registry.Implementatio
 	}
 	if len(brief.SelectedTasks) != len(selected) {
 		return nil, errors.New("A selected task is missing from its captured plan.")
+	}
+	if len(frameIDs) > 0 {
+		_, design := currentEvidenceApprovals(state, binding.ProjectID)
+		if binding.DesignPlanRevision != design.Revision || binding.DesignPlanDigest != design.Digest {
+			return nil, errors.New("The focused frame contract does not match the captured approved design.")
+		}
+		if err := validateBoundTaskDesignFrames(plan, design); err != nil {
+			return nil, err
+		}
+		brief.DesignPlanRevision, brief.DesignPlanDigest = design.Revision, design.Digest
+		for _, frame := range design.Scene.Frames {
+			if frameIDs[frame.ID] {
+				brief.DesignFrames = append(brief.DesignFrames, reviewedTaskDesignFrame{frame.ID, frame.Name, frame.ScreenID, frame.State, frame.Width, frame.Height})
+			}
+		}
+		if len(brief.DesignFrames) != len(frameIDs) {
+			return nil, errors.New("A selected task's captured frame is unavailable.")
+		}
 	}
 	// Preserve canonical order and include shared dependencies/requirements once.
 	// Unselected tasks are context only, never additional work assignments.

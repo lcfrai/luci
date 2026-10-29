@@ -215,6 +215,7 @@ export interface ImplementationTask {
   title: string;
   status: "todo" | "doing" | "done";
   requirementIds?: string[];
+  designFrameIds?: string[];
   dependsOn?: string[];
   writePaths?: string[];
 	role?: 'coding' | 'reviewer';
@@ -237,6 +238,8 @@ export interface ImplementationPlan {
   briefRevision: number;
   specificationRevision?: number;
   specificationDigest?: string;
+  designPlanRevision?: number;
+  designPlanDigest?: string;
   tasks: ImplementationTask[];
   graph?: ImplementationTaskGraph;
   updatedAt: string;
@@ -820,11 +823,13 @@ export function createProductClient(
       expectedRevision: number,
       tasks: ImplementationTask[],
       expectedSpecificationRevision?: number,
+      expectedDesignPlanRevision?: number,
     ) =>
       request<ImplementationPlan>(`${project(id)}/plan`, {
         expectedRevision,
         tasks,
         ...(expectedSpecificationRevision === undefined ? {} : { expectedSpecificationRevision }),
+        ...(expectedDesignPlanRevision === undefined ? {} : { expectedDesignPlanRevision }),
       }),
     checks: async (id: string, signal?: AbortSignal) => {
       const value = await request<{ runs: CheckRun[]; suggested: CheckCommand[]; coverage?: RequirementCoverage }>(`${project(id)}/checks`, undefined, 'GET', 30_000, signal);

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { notifyProjectContextChanged, PROJECT_CONTEXT_CHANGED, type ProjectContextIdentity } from '../../api/projectContextEvents';
 import { emptyGTM, gtmDraftValid, gtmWorkspaceApi, type CommercialModelInput, type GTMContent, type GTMView } from '../../api/gtmWorkspace';
 import { distributeArtifactsApi, type ArtifactSummary } from '../../api/distributeArtifacts';
 import { errorText } from '../../api/product';
@@ -24,6 +25,7 @@ function ScopedGTM({ projectId, scope, canRead, canEdit }: { projectId: string; 
   const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
   const owner = useRef({ mounted: true, request: 0 });
   const saveKey = useRef('');
+  const publishingContext = useRef(false);
   const base = view ? `${view.workspace?.revision ?? 0}:${view.workspace?.digest ?? ''}:${view.sourceDigest}` : null;
   const draft = useProjectDraft({ scope, kind: 'go-to-market', base: needsReview && base ? `review-required:${base}` : base, baseValue: view?.workspace?.content ?? emptyGTM(), value: content, dirty, valid: gtmDraftValid });
   useUnsavedProjectDraft(projectId, dirty, 'Go-to-market workspace', 'distribute', { retained: draft.retained && gtmDraftValid(content), discard: () => { setContent(view?.workspace?.content ?? emptyGTM()); setDirty(false); draft.clear(); } });
@@ -37,13 +39,25 @@ function ScopedGTM({ projectId, scope, canRead, canEdit }: { projectId: string; 
     }).catch(cause => { if (!controller.signal.aborted) setError(errorText(cause)); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => { controller.abort(); owner.current.mounted = false; owner.current.request++; };
   }, [projectId, canRead, scope]);
+  useEffect(() => {
+    const changed = (event: Event) => {
+      const identity = (event as CustomEvent<ProjectContextIdentity>).detail;
+      if (publishingContext.current || !identity || identity.projectId !== projectId || identity.scope !== scope) return;
+      // Retain unsaved content. The existing review-current action fetches a
+      // fresh baseline without silently overwriting a person's draft.
+      setNeedsReview(true); setRelinked(false);
+      setNotice('Saved project context changed. Refresh or review the current context before saving.');
+    };
+    window.addEventListener(PROJECT_CONTEXT_CHANGED, changed);
+    return () => window.removeEventListener(PROJECT_CONTEXT_CHANGED, changed);
+  }, [projectId, scope]);
   function edit(next: GTMContent) { setContent(next); setDirty(true); setNotice(''); saveKey.current = ''; }
   const editable = !!scope && canEdit && !!view && view.freshness !== 'unavailable' && view.freshness !== 'readback' && !loading && !busy && !draft.pending;
   const validDraft = gtmDraftValid(content);
   async function refresh() {
     if (dirty || draft.pending || busy) return;
     const request = ++owner.current.request; setBusy(true); setError('');
-    try { const value = await gtmWorkspaceApi.get(projectId); if (!owner.current.mounted || request !== owner.current.request) return; setView(value); setContent(value.workspace?.content ?? emptyGTM()); setRelinked(false); }
+    try { const value = await gtmWorkspaceApi.get(projectId); if (!owner.current.mounted || request !== owner.current.request) return; setView(value); setContent(value.workspace?.content ?? emptyGTM()); setRelinked(false); setNeedsReview(false); }
     catch (cause) { if (owner.current.mounted && request === owner.current.request) setError(errorText(cause)); }
     finally { if (owner.current.mounted && request === owner.current.request) setBusy(false); }
   }
@@ -52,6 +66,8 @@ function ScopedGTM({ projectId, scope, canRead, canEdit }: { projectId: string; 
     const request = ++owner.current.request; setBusy(true); setError(''); saveKey.current ||= key();
     try { const value = await gtmWorkspaceApi.save(projectId, view, content, saveKey.current); if (!owner.current.mounted || request !== owner.current.request) return;
       setView(value); setContent(value.workspace?.content ?? content); setDirty(false); setRelinked(false); setNeedsReview(false); draft.clear(); saveKey.current = ''; setNotice('GTM revision saved.');
+      publishingContext.current = true;
+      try { notifyProjectContextChanged(scope, projectId); } finally { publishingContext.current = false; }
     } catch (cause) { if (owner.current.mounted && request === owner.current.request) setError(errorText(cause)); }
     finally { if (owner.current.mounted && request === owner.current.request) setBusy(false); }
   }
@@ -74,6 +90,7 @@ function ScopedGTM({ projectId, scope, canRead, canEdit }: { projectId: string; 
   const segmentOptions = content.segments.map(r => ({ id: r.id, title: r.name || r.id }));
   const channelOptions = content.channels.map(r => ({ id: r.id, title: r.name || r.id }));
   return <section className="distribute-card" aria-label="Go-to-market workspace"><h2>Go to market</h2><p>Plan your audience, offer and launch. Track what you learn as you test demand.</p>
+    <Button variant="secondary" disabled={!editable || dirty || needsReview} onClick={() => window.dispatchEvent(new CustomEvent('luci:orchestrator-open', { detail: { projectId, message: 'Draft or amend the structured go-to-market workspace using the saved project definition and GTM strategy. Preserve unrelated content and stable IDs. Keep customer, competitor, pricing and channel claims as assumptions; do not invent experiment results. Propose changes for my explicit review, without publishing or spending.' } }))}>Draft or amend with Luci</Button>
     {!canRead || !scope ? <p role="status">Current account and project read access are required.</p> : <>
       {loading && <p role="status">Loading GTM workspace…</p>}{error && <p role="alert" className="journey-error">{error}</p>}{notice && <p role="status">{notice}</p>}{draft.error && <p role="alert">{draft.error}</p>}
       {draft.pending && <div className="distribute-evidence"><p>Unsent GTM edits are available from this account and workspace.</p><Button disabled={busy || loading || !canEdit} onClick={restore}>Restore GTM draft</Button><Button variant="secondary" disabled={busy} onClick={draft.clear}>Discard recovered draft</Button></div>}

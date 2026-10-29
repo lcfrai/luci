@@ -52,6 +52,9 @@ func implementationSnapshot(state journeyState, req ImplementationContextRequest
 	if design.Status != "approved" || req.DesignPlanRevision != design.Revision {
 		return nil, errors.New("Approve the current design handoff and refresh the plan before starting its task.")
 	}
+	if err := validateBoundTaskDesignFrames(plan, design); err != nil {
+		return nil, err
+	}
 	if len(req.TaskIDs) < 1 || len(req.TaskIDs) > 200 {
 		return nil, errors.New("Choose one or more saved implementation tasks.")
 	}

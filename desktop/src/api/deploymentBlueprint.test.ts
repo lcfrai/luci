@@ -1,7 +1,8 @@
-import { createHash, webcrypto } from 'node:crypto';
 import { afterEach, expect, it, vi } from 'vitest';
 import { deploymentBlueprintApi, validDeploymentBlueprintPlan, type DeploymentBlueprint, type DeploymentBlueprintPlan } from './deploymentBlueprint';
 import { productApi } from './product';
+
+const { webcrypto } = await vi.importActual<{ webcrypto: Crypto }>('node:crypto');
 
 const request = (): DeploymentBlueprint => ({ version: 1, projectId: 'p-one', source: { commit: 'a'.repeat(40), configurationRevision: 2, context: { briefRevision: 1, specificationRevision: 3, designRevision: 4 } },
   infrastructure: { id: 'cluster', kind: 'kubernetes', reference: 'existing-east', namespace: 'app-one' },
@@ -14,7 +15,7 @@ function result(input = request()): DeploymentBlueprintPlan {
     resourceSummary: { replicas: 1, requestMilliCpu: 100, limitMilliCpu: 500, requestMemoryMiB: 128, limitMemoryMiB: 512, gpuCount: 0 },
     artifacts: ['deployment', 'service'].map(kind => {
       const content = JSON.stringify({ apiVersion: kind === 'deployment' ? 'apps/v1' : 'v1', kind: kind === 'deployment' ? 'Deployment' : 'Service', metadata: { namespace: 'app-one', annotations: { 'luci.ai/plan-digest': digest } } })+'\n';
-      return { name: `app-deadbeef.${kind}.json`, mediaType: 'application/json' as const, content, sha256: createHash('sha256').update(content).digest('hex') };
+      return { name: `app-deadbeef.${kind}.json`, mediaType: 'application/json' as const, content, sha256: 'c'.repeat(64) };
     }),
   };
 }
@@ -42,6 +43,10 @@ it('requires unresolved plans to contain decisions and no partial manifests', ()
 it('checks exact manifest bytes before accepting output and forwards only the planning request', async () => {
   vi.stubGlobal('crypto', webcrypto);
   const plan = result(), send = vi.spyOn(productApi, 'request').mockResolvedValue(plan);
+  for (const artifact of plan.artifacts) {
+    const hash = await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(artifact.content));
+    artifact.sha256 = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
+  }
   const input = request(), signal = new AbortController().signal;
   expect(await deploymentBlueprintApi.compile(input, signal)).toEqual(plan);
   expect(send).toHaveBeenCalledExactlyOnceWith('/v1/product/projects/p-one/deployment-blueprint', input, 'POST', 30_000, signal);

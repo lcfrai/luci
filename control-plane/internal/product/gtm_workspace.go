@@ -1,6 +1,7 @@
 package product
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -66,17 +67,23 @@ type GTMContent struct {
 	Experiments        []GTMExperiment       `json:"experiments"`
 	ArtifactLinks      []GTMArtifactLink     `json:"artifactLinks"`
 }
+type GTMOrchestratorOrigin struct {
+	TurnID         string `json:"turnId"`
+	ProposalDigest string `json:"proposalDigest"`
+	ContextDigest  string `json:"contextDigest"`
+}
 type GTMWorkspace struct {
-	ProjectID        string                   `json:"projectId"`
-	Revision         int                      `json:"revision"`
-	Source           DistributeArtifactSource `json:"source"`
-	SourceDigest     string                   `json:"sourceDigest"`
-	Content          GTMContent               `json:"content"`
-	Digest           string                   `json:"digest"`
-	Actor            ContextActor             `json:"actor"`
-	At               string                   `json:"at"`
-	RequestKeyDigest string                   `json:"requestKeyDigest"`
-	RequestDigest    string                   `json:"requestDigest"`
+	OrchestratorOrigin *GTMOrchestratorOrigin   `json:"orchestratorOrigin,omitempty"`
+	ProjectID          string                   `json:"projectId"`
+	Revision           int                      `json:"revision"`
+	Source             DistributeArtifactSource `json:"source"`
+	SourceDigest       string                   `json:"sourceDigest"`
+	Content            GTMContent               `json:"content"`
+	Digest             string                   `json:"digest"`
+	Actor              ContextActor             `json:"actor"`
+	At                 string                   `json:"at"`
+	RequestKeyDigest   string                   `json:"requestKeyDigest"`
+	RequestDigest      string                   `json:"requestDigest"`
 }
 type gtmLedger struct {
 	Version      int            `json:"version"`
@@ -254,7 +261,7 @@ func (s *Server) readGTMLedger(p project.Project) (string, gtmLedger, error) {
 	}
 	keys := map[string]bool{}
 	for i, row := range ledger.Revisions {
-		if row.ProjectID != p.ID || row.Revision != i+1 || validateGTM(row.Content) != nil || !validArtifactSource(row.Source) || row.SourceDigest != reviewDigest(row.Source) || row.Digest != gtmDigest(row) || !hexDigest(row.RequestKeyDigest) || keys[row.RequestKeyDigest] || !hexDigest(row.RequestDigest) || row.Actor.ID == "" || row.Actor.DisplayName == "" {
+		if !validGTMOrchestratorOrigin(row.OrchestratorOrigin) || row.ProjectID != p.ID || row.Revision != i+1 || validateGTM(row.Content) != nil || !validArtifactSource(row.Source) || row.SourceDigest != reviewDigest(row.Source) || row.Digest != gtmDigest(row) || !hexDigest(row.RequestKeyDigest) || keys[row.RequestKeyDigest] || !hexDigest(row.RequestDigest) || row.Actor.ID == "" || row.Actor.DisplayName == "" {
 			return "", empty, errArtifact
 		}
 		keys[row.RequestKeyDigest] = true
@@ -335,66 +342,113 @@ func (s *Server) saveGTMWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor, _ := authenticatedContextActor(r.Context())
-	var req struct {
-		ExpectedRevision     int        `json:"expectedRevision"`
-		ExpectedDigest       string     `json:"expectedDigest"`
-		ExpectedSourceDigest string     `json:"expectedSourceDigest"`
-		IdempotencyKey       string     `json:"idempotencyKey"`
-		Content              GTMContent `json:"content"`
-	}
+	var req gtmSaveRequest
 	if !journeyDecode(w, r, &req) {
 		return
 	}
-	if req.ExpectedRevision < 0 || (req.ExpectedRevision == 0 && req.ExpectedDigest != "") || (req.ExpectedRevision > 0 && !hexDigest(req.ExpectedDigest)) || !hexDigest(req.ExpectedSourceDigest) || !validRunKey(req.IdempotencyKey) {
-		journeyError(w, 400, "gtm_request_invalid", "Use the current revision, source and request key.")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.teamControlsMu.Lock()
+	defer s.teamControlsMu.Unlock()
+	prepared, err := s.prepareGTMRevisionLocked(r.Context(), p, actor, req, nil)
+	if err != nil {
+		gtmSaveProblem(w, err)
 		return
 	}
-	if err := validateGTM(req.Content); err != nil {
-		journeyError(w, 422, "gtm_content_invalid", err.Error())
+	if !prepared.Replay {
+		if err := persistGTMRevisionLocked(r.Context(), prepared); err != nil {
+			gtmSaveProblem(w, err)
+			return
+		}
+	}
+	view := gtmView(p, prepared.Ledger, prepared.Row.Source, prepared.State)
+	if prepared.Replay {
+		view.Freshness = "readback"
+	}
+	journeyJSON(w, 200, view)
+}
+
+type gtmSaveRequest struct {
+	ExpectedRevision     int        `json:"expectedRevision"`
+	ExpectedDigest       string     `json:"expectedDigest"`
+	ExpectedSourceDigest string     `json:"expectedSourceDigest"`
+	IdempotencyKey       string     `json:"idempotencyKey"`
+	Content              GTMContent `json:"content"`
+}
+
+type gtmSaveFailure struct {
+	Status        int
+	Code, Message string
+}
+
+func (e *gtmSaveFailure) Error() string { return e.Message }
+func gtmSaveProblem(w http.ResponseWriter, err error) {
+	var failure *gtmSaveFailure
+	if errors.As(err, &failure) {
+		journeyError(w, failure.Status, failure.Code, failure.Message)
 		return
+	}
+	artifactProblem(w, err)
+}
+
+type preparedGTMRevision struct {
+	Path   string
+	Ledger gtmLedger
+	Row    GTMWorkspace
+	State  journeyState
+	Replay bool
+}
+
+// Caller holds s.mu then teamControlsMu. No write occurs until the exact row
+// has passed current source CAS and current project requirement/artifact joins.
+func (s *Server) prepareGTMRevisionLocked(ctx context.Context, p project.Project, actor ContextActor, req gtmSaveRequest, origin *GTMOrchestratorOrigin) (preparedGTMRevision, error) {
+	fail := func(status int, code, message string) (preparedGTMRevision, error) {
+		return preparedGTMRevision{}, &gtmSaveFailure{status, code, message}
+	}
+	if actor.ID == "" || !validGTMOrchestratorOrigin(origin) || req.ExpectedRevision < 0 || (req.ExpectedRevision == 0 && req.ExpectedDigest != "") || (req.ExpectedRevision > 0 && !hexDigest(req.ExpectedDigest)) || !hexDigest(req.ExpectedSourceDigest) || !validRunKey(req.IdempotencyKey) {
+		return fail(400, "gtm_request_invalid", "Use the current revision, source and request key.")
+	}
+	if err := validateGTM(req.Content); err != nil {
+		return fail(422, "gtm_content_invalid", err.Error())
 	}
 	if req.Content.CommercialModel != nil {
 		normalized, _ := CompileCommercialModel(*req.Content.CommercialModel)
 		req.Content.CommercialModel = &normalized.Input
 	}
 	key, requestDigest := artifactRequestKey(p.ID, actor.ID, req.IdempotencyKey), reviewDigest(req)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.teamControlsMu.Lock()
-	defer s.teamControlsMu.Unlock()
+	if origin != nil {
+		// Domain separation prevents a manual HTTP key from impersonating an
+		// orchestrator-origin row, even if the caller guesses the turn ID.
+		key = reviewDigest([]string{"orchestrator-gtm", p.ID, origin.TurnID})
+		requestDigest = reviewDigest(struct {
+			Request gtmSaveRequest
+			Origin  *GTMOrchestratorOrigin
+		}{req, origin})
+	}
 	path, ledger, err := s.readGTMLedger(p)
 	if err != nil {
-		artifactProblem(w, err)
-		return
+		return preparedGTMRevision{}, err
 	}
 	for _, row := range ledger.Revisions {
 		if row.RequestKeyDigest == key {
-			if row.RequestDigest != requestDigest {
-				journeyError(w, 409, "gtm_request_changed", "This request key already names different edits.")
-				return
+			if row.RequestDigest != requestDigest || reviewDigest(row.OrchestratorOrigin) != reviewDigest(origin) {
+				return fail(409, "gtm_request_changed", "This request key already names different edits.")
 			}
-			view := gtmView(p, gtmLedger{Revisions: []GTMWorkspace{row}}, row.Source, journeyState{})
-			view.Freshness = "readback"
-			journeyJSON(w, 200, view)
-			return
+			return preparedGTMRevision{Path: path, Ledger: gtmLedger{Revisions: []GTMWorkspace{row}}, Row: row, Replay: true}, nil
 		}
 	}
 	if len(ledger.Revisions) != req.ExpectedRevision || req.ExpectedRevision > 0 && ledger.Revisions[len(ledger.Revisions)-1].Digest != req.ExpectedDigest {
-		journeyError(w, 409, "gtm_changed", "The saved GTM workspace changed. Keep your edits and review its current revision.")
-		return
+		return fail(409, "gtm_changed", "The saved GTM workspace changed. Keep your edits and review its current revision.")
 	}
 	if len(ledger.Revisions) >= gtmHistoryLimit {
-		journeyError(w, 409, "gtm_history_full", "This workspace reached its bounded revision history. Existing revisions remain readable.")
-		return
+		return fail(409, "gtm_history_full", "This workspace reached its bounded revision history. Existing revisions remain readable.")
 	}
-	source, state, _, _, err := s.artifactSource(r.Context(), p, "")
+	source, state, _, _, err := s.artifactSource(ctx, p, "")
 	if err != nil {
-		artifactProblem(w, err)
-		return
+		return preparedGTMRevision{}, err
 	}
 	if req.ExpectedSourceDigest != reviewDigest(source) {
-		journeyError(w, 409, "gtm_source_changed", "Project context changed. Refresh and explicitly link your draft to the new source.")
-		return
+		return fail(409, "gtm_source_changed", "Project context changed. Refresh and explicitly link your draft to the new source.")
 	}
 	requirements := map[string]bool{}
 	for _, r := range currentSpecification(state).Requirements {
@@ -403,16 +457,14 @@ func (s *Server) saveGTMWorkspace(w http.ResponseWriter, r *http.Request) {
 	for _, segment := range req.Content.Segments {
 		for _, id := range segment.RequirementIDs {
 			if !requirements[id] {
-				journeyError(w, 422, "gtm_requirement_changed", "Repair requirement links against the current project definition.")
-				return
+				return fail(422, "gtm_requirement_changed", "Repair requirement links against the current project definition.")
 			}
 		}
 	}
 	if len(req.Content.ArtifactLinks) > 0 {
-		_, artifacts, e := s.readArtifactLedger(p)
-		if e != nil {
-			artifactProblem(w, e)
-			return
+		_, artifacts, err := s.readArtifactLedger(p)
+		if err != nil {
+			return preparedGTMRevision{}, err
 		}
 		for _, link := range req.Content.ArtifactLinks {
 			found := false
@@ -426,25 +478,22 @@ func (s *Server) saveGTMWorkspace(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			if !found {
-				journeyError(w, 422, "gtm_artifact_changed", "Choose an exact retained artifact revision from this project.")
-				return
+				return fail(422, "gtm_artifact_changed", "Choose an exact retained artifact revision from this project.")
 			}
 		}
 	}
-	row := GTMWorkspace{ProjectID: p.ID, Revision: len(ledger.Revisions) + 1, Source: source, SourceDigest: reviewDigest(source), Content: req.Content, Actor: actor, At: time.Now().UTC().Format(time.RFC3339Nano), RequestKeyDigest: key, RequestDigest: requestDigest}
+	row := GTMWorkspace{ProjectID: p.ID, Revision: len(ledger.Revisions) + 1, Source: source, SourceDigest: reviewDigest(source), Content: req.Content, Actor: actor, At: time.Now().UTC().Format(time.RFC3339Nano), RequestKeyDigest: key, RequestDigest: requestDigest, OrchestratorOrigin: origin}
 	row.Digest = gtmDigest(row)
 	ledger.Revisions = append(ledger.Revisions, row)
-	raw, err := json.Marshal(ledger)
+	return preparedGTMRevision{Path: path, Ledger: ledger, Row: row, State: state}, nil
+}
+func persistGTMRevisionLocked(ctx context.Context, prepared preparedGTMRevision) error {
+	raw, err := json.Marshal(prepared.Ledger)
 	if err != nil || len(raw) > artifactLedgerLimit {
-		journeyError(w, 413, "gtm_history_full", "The bounded GTM history is full.")
-		return
+		return &gtmSaveFailure{413, "gtm_history_full", "The bounded GTM history is full."}
 	}
-	if r.Context().Err() != nil {
-		return
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	if err = durableRunJSON(path, ledger); err != nil {
-		artifactProblem(w, err)
-		return
-	}
-	journeyJSON(w, 200, gtmView(p, ledger, source, state))
+	return durableRunJSON(prepared.Path, prepared.Ledger)
 }

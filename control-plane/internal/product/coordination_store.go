@@ -208,7 +208,7 @@ func validateCoordinationShape(saved, out coordinationLedger) error {
 		if !strings.HasPrefix(intent.ID, "intent-") || !prototypeReleaseID.MatchString(intent.ID) || seen[intent.ID] || turns[intent.TurnID] || keys[intent.Key] || !hexDigest(intent.Key) || !hexDigest(intent.Request) || !hexDigest(intent.BaseContextDigest) || !hexDigest(intent.ProposalDigest) || !prototypeReleaseID.MatchString(intent.TurnID) || !strings.HasPrefix(intent.TurnID, "turn-") || !validConnectionToken(intent.Actor.ID, 128, false) || intent.Actor.DisplayName == "" || len(intent.Actor.DisplayName) > 512 || intent.LuciID != coordinationLuciID(saved.AccountScope, intent.Actor.ID) || len(intent.RequestedChange) > 16000 || len(intent.ChangedPaths) > 1024 || len(intent.DependsOn) > 16 || len(intent.TaskIDs) > 200 || len(intent.RequirementIDs) > 200 {
 			return ErrOrchestratorInvalid
 		}
-		if intent.Target != "specification" && intent.Target != "design-plan" && intent.Target != "plan" {
+		if intent.Target != "specification" && intent.Target != "design-plan" && intent.Target != "plan" && intent.Target != "gtm" {
 			return ErrOrchestratorInvalid
 		}
 		if intent.Status != "pending" && intent.Status != "applied" && intent.Status != "superseded" {

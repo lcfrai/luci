@@ -62,13 +62,15 @@ type storedOrchestratorTurn struct {
 	OrchestratorTurn
 	// ProjectSpecification's legacy omitempty encoding cannot distinguish an
 	// explicit [] removal from an omitted evidence field after durable JSON.
-	EvidenceExplicitEmpty bool   `json:"evidenceExplicitEmpty,omitempty"`
-	AdmissionRevision     *int   `json:"admissionRevision,omitempty"`
-	KeyDigest             string `json:"keyDigest"`
-	RequestDigest         string `json:"requestDigest"`
-	ApplyIntent           string `json:"applyIntent,omitempty"`
-	ApplyTargetRevision   int    `json:"applyTargetRevision,omitempty"`
-	ApplyTargetDigest     string `json:"applyTargetDigest,omitempty"`
+	EvidenceExplicitEmpty bool          `json:"evidenceExplicitEmpty,omitempty"`
+	AdmissionRevision     *int          `json:"admissionRevision,omitempty"`
+	KeyDigest             string        `json:"keyDigest"`
+	RequestDigest         string        `json:"requestDigest"`
+	ApplyIntent           string        `json:"applyIntent,omitempty"`
+	ApplyGTM              *GTMWorkspace `json:"applyGtm,omitempty"`
+	ApplyGTMBaseDigest    string        `json:"applyGtmBaseDigest,omitempty"`
+	ApplyTargetRevision   int           `json:"applyTargetRevision,omitempty"`
+	ApplyTargetDigest     string        `json:"applyTargetDigest,omitempty"`
 }
 type orchestratorLedger struct {
 	Version       int                      `json:"version"`
@@ -171,6 +173,9 @@ func decodeOrchestratorLedger(data []byte, out orchestratorLedger) (orchestrator
 		if turn.Answer != nil && validateStoredOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
 			return out, ErrOrchestratorInvalid
 		}
+		if !validOrchestratorGTMPending(turn) {
+			return out, ErrOrchestratorInvalid
+		}
 		seen[turn.ID] = true
 		previousSequence = turn.Sequence
 	}
@@ -248,6 +253,17 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 			Base, Team, Digest, Assessment string
 			Revision, AssessmentRevision   int
 		}{value.Digest, standards.TeamID, standards.Digest, standards.AssessmentDigest, standards.Revision, standards.AssessmentRevision})
+	}
+	gtm, err := s.orchestratorGTMContextLocked(ctx, p)
+	if err != nil {
+		return OrchestratorContext{}, err
+	}
+	if gtm != nil {
+		value.GTM = gtm
+		value.Digest = reviewDigest(struct {
+			Base string
+			GTM  *OrchestratorGTMContext
+		}{value.Digest, gtm})
 	}
 	coordination, err := s.readCoordination(p)
 	if err != nil {

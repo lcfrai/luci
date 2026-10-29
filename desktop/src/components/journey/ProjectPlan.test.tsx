@@ -8,6 +8,9 @@ import { aBranch, aHarness, aProject, aSession, aWorktree } from "../../test/fix
 import { implementationPrompt, ProjectPlan } from "./ProjectPlan";
 import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
 import { planDraftValid } from "../../hooks/projectDraftValidation";
+import { designPlanApi, type DesignPlan } from "../../api/designPlan";
+
+const frameDesign: DesignPlan = { projectId: "p-1", revision: 8, briefRevision: 2, specificationRevision: 6, sketchRevision: 1, status: "approved", digest: "design-8", updatedAt: "", screens: [], tokens: [], assets: [], implementationNotes: "", prototypeReleaseId: "", prototypeCommit: "", scene: { version: 1, frames: [{ id: "frame-editor", name: "Editor phone", screenId: "editor", state: "Empty", width: 390, height: 844, background: "#ffffff", nodes: [] }] } };
 
 const { createSession, reviewedContext, nativeTurn, draftIdentity } = vi.hoisted(() => ({ createSession: vi.fn(), reviewedContext: vi.fn(), nativeTurn: vi.fn(), draftIdentity: { value: "plan-permission-test" } }));
 vi.mock("../../api", () => ({ api: { createSession, getSessionReviewedContext: reviewedContext, getSessionNativeTurn: nativeTurn } }));
@@ -22,10 +25,22 @@ beforeEach(() => {
   draftIdentity.value = "plan-permission-test";
   useCockpit.setState({ projects: [aProject({ id: "p-1" })], branchesByProject: { "p-1": [aBranch({ id: "b-1", projectId: "p-1" })] }, worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", projectId: "p-1", branchId: "b-1", isPrimary: true })] }, selection: { projectId: "p-1", branchId: "b-1", worktreeId: "w-1", sessionId: null }, harnesses: [aHarness({ id: "claude-code", name: "Claude Code", command: "claude", available: true, supportsOpeningPrompt: true })] });
   vi.spyOn(productApi, "plan").mockResolvedValue(plan);
+  vi.spyOn(designPlanApi, "get").mockResolvedValue(frameDesign);
   vi.spyOn(productApi, "checks").mockResolvedValue({ runs: [], suggested: [], coverage });
   vi.spyOn(productApi, "agents").mockResolvedValue({ providers: [] });
   vi.spyOn(productApi, "agentConnections").mockResolvedValue({ revision: 0, activeConnectionId: "", connections: [] });
   createSession.mockImplementation(async request => aSession({ id: "s-bound", title: "Bound implementation", projectId: "p-1", branchId: "b-1", worktreeId: "w-1", status: "starting", implementationContext: snapshot({ ...request.implementationContext, taskTitles: request.implementationContext.taskIds.map((id: string) => plan.tasks.find(task => task.id === id)!.title) }) }));
+});
+
+it("saves explicit frame choices against the current design revision without starting work", async () => {
+  const save = vi.spyOn(productApi, "savePlan").mockImplementation(async (_id, revision, tasks) => ({ ...plan, revision: revision + 1, tasks, designPlanRevision: 8, designPlanDigest: "design-8" }));
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  await screen.findByText("Design frames for task 1 · 0 linked");
+  await userEvent.click(screen.getByText("Design frames for task 1 · 0 linked"));
+  await userEvent.click(await screen.findByLabelText("Link frame frame-editor to task 1"));
+  await userEvent.click(screen.getByRole("button", { name: "Save implementation plan" }));
+  await waitFor(() => expect(save).toHaveBeenCalledWith("p-1", 3, expect.arrayContaining([expect.objectContaining({ id: "t-1", designFrameIds: ["frame-editor"] })]), 6, 8));
+  expect(createSession).not.toHaveBeenCalled();
 });
 
 it("binds only unfinished saved tasks and canonical handoff revisions after picker review, without changing progress", async () => {

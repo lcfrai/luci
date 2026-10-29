@@ -85,6 +85,7 @@ func rebindJourneyIdentity(state *journeyState, id string) {
 	if state.Plan != nil {
 		state.Plan.ProjectID = id
 		state.Plan.SpecificationDigest = ""
+		state.Plan.DesignPlanRevision, state.Plan.DesignPlanDigest = 0, ""
 	}
 	rebindSpecification := func(spec *ProjectSpecification) { spec.ProjectID = id; spec.Status = "draft"; spec.Digest = "" }
 	rebindDesign := func(design *ProjectDesignPlan) {

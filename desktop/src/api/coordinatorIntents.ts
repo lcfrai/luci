@@ -2,7 +2,7 @@ import { productApi } from "./product";
 
 export interface CoordinatorIntent {
   id: string; turnId: string; actor: { id: string; displayName: string }; luciId: string;
-  baseContextDigest: string; proposalDigest: string; target: "specification" | "design-plan" | "plan";
+  baseContextDigest: string; proposalDigest: string; target: "specification" | "design-plan" | "plan" | "gtm";
   requestedChange: string; changedPaths: string[]; requirementIds: string[]; taskIds: string[];
   affectsAllTasks: boolean; dependsOn: string[]; status: "pending" | "applied" | "superseded"; createdAt: string;
   appliedRevision?: number; applyBaseContextDigest?: string; candidateProposalDigest?: string;
@@ -38,7 +38,7 @@ const timestamp = (value: unknown) => typeof value === "string" && Number.isFini
 function validIntent(value: CoordinatorIntent) {
   return value && text(value.id, 128) && value.id.startsWith("intent-") && text(value.turnId, 128) && value.turnId.startsWith("turn-") &&
     actor(value.actor) && text(value.luciId, 128) && value.luciId.startsWith("luci-") && hash(value.baseContextDigest) && hash(value.proposalDigest) &&
-    ["specification", "design-plan", "plan"].includes(value.target) && text(value.requestedChange, 16000, true) &&
+    ["specification", "design-plan", "plan", "gtm"].includes(value.target) && text(value.requestedChange, 16000, true) &&
     list(value.changedPaths, 1024) && list(value.requirementIds, 200) && list(value.taskIds, 200) && list(value.dependsOn, 16) &&
     typeof value.affectsAllTasks === "boolean" && ["pending", "applied", "superseded"].includes(value.status) && timestamp(value.createdAt) &&
     [value.applyBaseContextDigest, value.candidateProposalDigest, value.appliedTargetDigest, value.acceptedContextDigest].every(v => v === undefined || hash(v)) &&

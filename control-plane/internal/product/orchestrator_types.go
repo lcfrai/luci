@@ -75,7 +75,18 @@ type OrchestratorTeamIntents struct {
 	ConflictsOmitted int                        `json:"conflictsOmitted"`
 }
 
+// Optional fields keep historical immutable conversation encodings unchanged.
+type OrchestratorGTMContext struct {
+	Revision         int               `json:"revision"`
+	Digest           string            `json:"digest"`
+	SourceDigest     string            `json:"sourceDigest"`
+	Content          GTMContent        `json:"content"`
+	ArtifactLinks    []GTMArtifactLink `json:"artifactLinks"`
+	ArtifactsOmitted int               `json:"artifactsOmitted"`
+}
+
 type OrchestratorContext struct {
+	GTM           *OrchestratorGTMContext `json:"gtm,omitempty"`
 	TeamStandards *OrchestrationStandards `json:"teamStandards,omitempty"`
 	// Optional to preserve earlier immutable snapshot digests.
 	TaskHandoffs *OrchestratorTaskHandoffs `json:"taskHandoffs,omitempty"`
@@ -98,6 +109,7 @@ type OrchestratorContext struct {
 	ReleasesSummary string                   `json:"releasesSummary"`
 }
 type OrchestratorProposal struct {
+	GTM           *GTMContent           `json:"gtm,omitempty"`
 	Target        string                `json:"target"`
 	Summary       string                `json:"summary"`
 	Specification *ProjectSpecification `json:"specification"`
