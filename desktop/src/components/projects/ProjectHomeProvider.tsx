@@ -8,7 +8,7 @@ import type { Lens } from '../../store/types';
 interface HomeContextValue {
   home: ProjectHome | null; error: string; busy: boolean; activityAvailable: boolean;
   refresh(): void; pin(projectId: string, pinned: boolean): Promise<void>;
-  open(projectId: string, lens?: Lens): void;
+  open(projectId: string, lens?: Lens, surface?: "luci" | "tools"): void;
 }
 const ProjectHomeContext = createContext<HomeContextValue | null>(null);
 export const useProjectHome = () => useContext(ProjectHomeContext);
@@ -21,6 +21,8 @@ export function ProjectHomeProvider({ children }: {children: ReactNode}) {
   // renaming and ordinary selection changes must not restart the polling loop.
   const catalogueIDs = useMemo(() => JSON.stringify([...new Set(projects.map(project => project.id))].sort()), [projects]);
   const selectedProjectId = useCockpit(state => state.selection.projectId);
+  const selectedLens = useCockpit(state => state.lens);
+  const selectedSurface = useCockpit(state => state.workspaceSurface);
   const pendingNavigation = useCockpit(state => state.pendingNavigation);
   const [snapshot, setSnapshot] = useState<{scope: string; epoch: number; catalogueIDs: string; value: ProjectHome} | null>(null);
   const home = snapshot?.scope === scope && snapshot.epoch === catalogueEpoch && snapshot.catalogueIDs === catalogueIDs ? snapshot.value : null;
@@ -31,7 +33,7 @@ export function ProjectHomeProvider({ children }: {children: ReactNode}) {
   const latest = useRef<ProjectHome | null>(null);
   // A retained projection permits navigation, not fresh activity mutations.
   latest.current = activityAvailable ? home : null;
-  const pendingOpen = useRef<{projectId: string; stopIds: string[]} | null>(null);
+  const pendingOpen = useRef<{projectId: string; stopIds: string[]; lens?: Lens; surface?: "luci" | "tools"} | null>(null);
   const refresh = useCallback(() => setRefreshKey(value => value + 1), []);
   useEffect(() => {
     setSnapshot(null); setError('');
@@ -71,16 +73,17 @@ export function ProjectHomeProvider({ children }: {children: ReactNode}) {
     const intent = pendingOpen.current;
     if (!intent || pendingNavigation) return;
     pendingOpen.current = null;
-    if (selectedProjectId !== intent.projectId || intent.stopIds.length === 0 || !latest.current) return;
+    if (selectedProjectId !== intent.projectId || intent.lens !== undefined && selectedLens !== intent.lens || intent.surface !== undefined && selectedSurface !== intent.surface || intent.stopIds.length === 0 || !latest.current) return;
     void projectHomeApi.acknowledge(intent.projectId, intent.stopIds, latest.current.revision)
       .then(() => refresh()).catch(() => { setError('Stopped activity could not be acknowledged. Refresh Home before trying again.'); refresh(); });
-  }, [selectedProjectId, pendingNavigation, refreshKey, refresh]);
-  const open = useCallback((projectId: string, lens?: Lens) => {
+  }, [selectedProjectId, selectedLens, selectedSurface, pendingNavigation, refreshKey, refresh]);
+  const open = useCallback((projectId: string, lens?: Lens, surface?: "luci" | "tools") => {
     const row = latest.current?.projects.find(project => project.id === projectId);
-    pendingOpen.current = { projectId, stopIds: row?.stops.map(stop => stop.id) ?? [] };
-    useCockpit.getState().selectProject(projectId, lens);
+    pendingOpen.current = { projectId, stopIds: row?.stops.map(stop => stop.id) ?? [], lens, surface: surface ?? (lens ? "tools" : undefined) };
+    if (surface) useCockpit.getState().selectProject(projectId, lens, surface);
+    else useCockpit.getState().selectProject(projectId, lens);
     const state = useCockpit.getState();
-    if (!state.pendingNavigation && state.selection.projectId === projectId) {
+    if (!state.pendingNavigation && state.selection.projectId === projectId && (lens === undefined || state.lens === lens) && (surface === undefined || state.workspaceSurface === surface)) {
       const intent = pendingOpen.current; pendingOpen.current = null;
       if (intent?.stopIds.length && latest.current) {
         void projectHomeApi.acknowledge(projectId, intent.stopIds, latest.current.revision)

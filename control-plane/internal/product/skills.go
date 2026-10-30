@@ -42,7 +42,8 @@ type ProjectSkillRegistry struct {
 }
 
 type ProjectSkillsSave struct {
-	ExpectedRevision int `json:"expectedRevision"`
+	ExpectedPlanRevision *int `json:"expectedPlanRevision,omitempty"`
+	ExpectedRevision     int  `json:"expectedRevision"`
 	// At most one new immutable version per save. No client digest or revision.
 	Skill       *ProjectSkillInput       `json:"skill,omitempty"`
 	Assignments []ProjectSkillAssignment `json:"assignments"`
@@ -140,6 +141,9 @@ func validateSkillAssignmentTasks(saved ProjectSkillRegistry, tasks []ProjectTas
 
 func applySkillsSave(state journeyState, req ProjectSkillsSave) (ProjectSkillRegistry, error) {
 	saved := currentSkills(state)
+	if req.ExpectedPlanRevision != nil && (*req.ExpectedPlanRevision < 0 || currentPlan(state, saved.ProjectID).Revision != *req.ExpectedPlanRevision) {
+		return saved, errors.New("The implementation plan changed. Review current tasks before saving these skill assignments.")
+	}
 	if saved.Revision != req.ExpectedRevision {
 		return saved, errors.New("The skill registry changed. Reload before saving.")
 	}

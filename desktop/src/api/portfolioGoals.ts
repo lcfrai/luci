@@ -1,4 +1,5 @@
 import { productApi } from './product';
+import type { PortfolioIntervention, PortfolioProject } from './portfolio';
 
 export type GoalPriority = 'low' | 'normal' | 'high';
 export interface GoalProject { projectId: string; priority: GoalPriority; requestedSlots: number; dependsOn: string[] }
@@ -14,7 +15,16 @@ export interface GoalApplication {
   status: 'no_changes' | 'applied' | 'partial' | 'not_applied' | 'unknown'; createdAt: string;
   results: { action: PriorityAction; status: 'not_attempted' | 'pending' | 'applied' | 'blocked' | 'unknown'; message: string; appliedRevision?: number; intentDigest: string }[];
 }
-export interface GoalsView { revision: number; goals: PortfolioGoal[]; applications: GoalApplication[]; partial: boolean }
+export interface PortfolioOutcomeRoute {
+  id: string; goalId: string; goalRevision: number; projectId: string;
+  status: 'unknown' | 'attention' | 'recorded' | 'not-configured'; reason: string;
+  coordinator?: PortfolioProject['coordinator']; evidence: PortfolioIntervention['evidence']; nextAction: PortfolioIntervention['nextAction'];
+}
+export interface PortfolioOutcomeRouting {
+  version: 1; status: 'ready' | 'partial'; observedAt: string; routes: PortfolioOutcomeRoute[];
+  readProjects: number; omittedProjects: number; omittedRoutes: number; unknownProjects: number;
+}
+export interface GoalsView { revision: number; goals: PortfolioGoal[]; applications: GoalApplication[]; partial: boolean; outcomeRouting?: PortfolioOutcomeRouting }
 const id = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const digest = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const integer = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum;
@@ -61,7 +71,37 @@ export function validGoalApplication(value: GoalApplication): boolean {
 export function validGoalsView(value: GoalsView): boolean {
   return !!value && integer(value.revision) && typeof value.partial === 'boolean' && Array.isArray(value.goals) && value.goals.length <= 16 && value.goals.every(validGoal) &&
     new Set(value.goals.map(goal => goal.id)).size === value.goals.length && Array.isArray(value.applications) && value.applications.length <= 32 && value.applications.every(validGoalApplication) &&
-    new Set(value.applications.map(application => application.id)).size === value.applications.length && value.applications.every(application => value.goals.some(goal => goal.id === application.goalId));
+    new Set(value.applications.map(application => application.id)).size === value.applications.length && value.applications.every(application => value.goals.some(goal => goal.id === application.goalId)) &&
+    (value.outcomeRouting === undefined || validOutcomeRouting(value.outcomeRouting, value.goals, value.partial));
+}
+export function validOutcomeRouting(value: PortfolioOutcomeRouting, goals: PortfolioGoal[], partial: boolean): boolean {
+  const pairs = goals.reduce((count, goal) => count + goal.projects.length, 0);
+  const projects = new Set(goals.flatMap(goal => goal.projects.map(row => row.projectId)));
+  if (!value || value.version !== 1 || !['ready', 'partial'].includes(value.status) || !date(value.observedAt) ||
+      !integer(value.readProjects) || value.readProjects > 16 || !integer(value.omittedProjects) || projects.size !== value.readProjects + value.omittedProjects ||
+      !integer(value.omittedRoutes) || !integer(value.unknownProjects) || value.unknownProjects > value.readProjects ||
+      !Array.isArray(value.routes) || value.routes.length > 32 || pairs !== value.routes.length + value.omittedRoutes ||
+      value.status === 'ready' && (partial || value.omittedRoutes > 0 || value.omittedProjects > 0 || value.unknownProjects > 0)) return false;
+  const seen = new Set<string>(), ids = new Set<string>(), unknown = new Set<string>();
+  for (const route of value.routes) {
+    if (!route || !digest(route.id) || ids.has(route.id) || !id(route.goalId) || !id(route.projectId) || !integer(route.goalRevision, 1) ||
+        !goals.some(goal => goal.id === route.goalId && goal.revision === route.goalRevision && goal.projects.some(p => p.projectId === route.projectId)) ||
+        !['unknown', 'attention', 'recorded', 'not-configured'].includes(route.status) || !text(route.reason, 1200) || !route.reason.trim() ||
+        !Array.isArray(route.evidence) || route.evidence.length < 1 || route.evidence.length > 4 || route.evidence.some(row => !row || !id(row.id) ||
+          !['overview', 'run', 'questions', 'run-history', 'queue-item', 'queue', 'coordinator', 'finding', 'project'].includes(row.source) ||
+          row.revision !== undefined && !integer(row.revision) || row.observedAt !== undefined && !date(row.observedAt))) return false;
+    const action = route.nextAction;
+    if (!action || !text(action.label, 200) || !action.label.trim() || action.runId !== undefined && !id(action.runId) ||
+        !(action.id === 'inspect-run' ? action.lens === 'develop' : ['answer-question', 'review-context', 'open-conversation'].includes(action.id) && action.lens === 'discover' && action.runId === undefined)) return false;
+    const c = route.coordinator;
+    if (c !== undefined && (!c || c.status !== 'recorded' || !id(c.id) || !integer(c.revision, 1) || !text(c.state, 100) || !c.state?.trim() || !date(c.updatedAt) || !integer(c.unresolved) || c.runId !== undefined && !id(c.runId))) return false;
+    if (route.status === 'recorded' && c === undefined || route.status === 'not-configured' && c !== undefined) return false;
+    const pair = `${route.goalId}:${route.projectId}`;
+    if (seen.has(pair)) return false;
+    seen.add(pair); ids.add(route.id);
+    if (route.status === 'unknown') unknown.add(route.projectId);
+  }
+  return new Set(value.routes.map(route => route.projectId)).size <= value.readProjects && unknown.size <= value.unknownProjects;
 }
 function checked<T>(value: T, valid: (value: T) => boolean): T {
   if (!valid(value)) throw new Error('The saved goal or queue result could not be verified. Read the current portfolio before continuing.');

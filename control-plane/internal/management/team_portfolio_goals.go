@@ -40,6 +40,46 @@ func portfolioGoalResponseProjects(data []byte) ([]string, error) {
 					return err
 				}
 			}
+			if raw, present := envelope["outcomeRouting"]; present {
+				var routing struct {
+					Routes []struct {
+						GoalID       string `json:"goalId"`
+						GoalRevision int    `json:"goalRevision"`
+						ProjectID    string `json:"projectId"`
+					} `json:"routes"`
+				}
+				if json.Unmarshal(raw, &routing) != nil || routing.Routes == nil || len(routing.Routes) > 32 {
+					return errors.New("invalid outcome routes")
+				}
+				type goalRef struct {
+					ID       string `json:"id"`
+					Revision int    `json:"revision"`
+					Projects []struct {
+						ProjectID string `json:"projectId"`
+					} `json:"projects"`
+				}
+				known := map[string]goalRef{}
+				for _, raw := range rows {
+					var goal goalRef
+					if json.Unmarshal(raw, &goal) != nil {
+						return errors.New("invalid outcome goal")
+					}
+					known[goal.ID] = goal
+				}
+				for _, route := range routing.Routes {
+					goal, found := known[route.GoalID]
+					linked := false
+					for _, project := range goal.Projects {
+						linked = linked || project.ProjectID == route.ProjectID
+					}
+					if !found || goal.Revision != route.GoalRevision || !linked {
+						return errors.New("orphan or stale outcome route")
+					}
+					if err := add(route.ProjectID); err != nil {
+						return err
+					}
+				}
+			}
 			return nil
 		}
 		if projects, ok := envelope["projects"]; ok {

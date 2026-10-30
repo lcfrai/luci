@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-29T23:36:10.220Z",
+  "updatedAt": "2026-10-30",
   "baseline": "f4801fdc9caf07c1610ead1d1a3b74125e4aacd1",
   "branch": "codex/product-engine-20261029",
   "principle": "Prototype structure, engine and connectors first; integrate and test afterward. 100x is an ambition, not a measured claim.",
@@ -86,7 +86,6 @@
         "state": "Source implemented; exact validation and remaining integration recorded in current plan"
       },
       "remainingWork": [
-        "Orchestrator-assisted skill selection",
         "Richer licence/provenance/tool metadata",
         "Useful team-throughput integration"
       ]
@@ -95,11 +94,20 @@
       "id": "L100-07",
       "stage": "Develop",
       "title": "Orchestrator decomposition and replanning",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Engine",
       "work": "Model advice plus durable coordinator already exist. Add outcome-driven plans with specialist roles, write ownership, dependencies and event-triggered replanning; reuse existing execution engine.",
       "dependsOn": "L100-01,L100-06",
-      "evidence": ""
+      "evidence": "",
+      "progress": {
+        "date": "2026-10-30",
+        "state": "Bounded saved-skill context, exact plan recommendations and separately reviewed task-skill save joined to existing orchestrator; focused checks pending"
+      },
+      "remainingWork": [
+        "Event-triggered outcome replanning",
+        "Specialist decomposition quality and useful parallel delivery",
+        "Shared review/repair/integration throughput"
+      ]
     },
     {
       "id": "L100-08",
@@ -187,7 +195,16 @@
       "owner": "Engine",
       "work": "Project-scoped conversation and coordination exist. Add coherent personal briefing, cross-project intent routing and project-specific context boundaries.",
       "dependsOn": "L100-12,L100-13",
-      "evidence": ""
+      "evidence": "",
+      "progress": {
+        "date": "2026-10-30",
+        "state": "Private goal-to-owned-work routes joined to Home with current actor/project evidence and dirty-navigation preservation; focused checks pending"
+      },
+      "remainingWork": [
+        "Persistent private cross-project conversational transcript and briefing",
+        "Intent-to-delivery coordination beyond navigation",
+        "Enforced reviewed capacity allocation"
+      ]
     },
     {
       "id": "L100-15",
@@ -217,11 +234,21 @@
       "id": "L100-16",
       "stage": "Deploy",
       "title": "Managed bring-your-own infrastructure connectors",
-      "status": "planned",
+      "status": "prototype",
       "owner": "Cloud",
       "work": "Connect blueprint to existing Azure provisioning, then cluster lifecycle, registry, DNS/TLS, secret references, storage and quotas. AWS follows Azure.",
       "dependsOn": "L100-15",
-      "evidence": ""
+      "evidence": "",
+      "progress": {
+        "date": "2026-10-30",
+        "state": "Blueprint-bound existing Azure VM foundation create/observe/remove handoff joined; focused mocked/component checks pending, no cloud operations"
+      },
+      "remainingWork": [
+        "Kubernetes workload application and cluster lifecycle",
+        "Registry/storage/secret/DNS/TLS connectors",
+        "Production inference and telemetry deployment/health",
+        "Actual authorized cloud journey"
+      ]
     },
     {
       "id": "L100-17",
@@ -366,7 +393,15 @@
       "failed": 0,
       "typescriptExit": 0
     },
-    "qualification": "Unit/component checks after structure implementation. Native app not rebuilt or launched. Earlier UI35pass4fail remains recorded; fixed two tests, production code unchanged."
+    "qualification": "Unit/component checks after structure implementation. Native app not rebuilt or launched. Earlier UI35pass4fail remains recorded; fixed two tests, production code unchanged.",
+    "latestConnectedSource": {
+      "source": "eab0c9d19e19852731badcfba31353154646a354",
+      "eightPrototypeChecksPassed": true,
+      "fullTypeScriptExit": 0,
+      "newSourceJoin": "outcome-v3 / skills-v2 / azure-v4; focused checks pending",
+      "nativeLaunch": false,
+      "fullAcceptance": false
+    }
   },
   "validationBatches": [
     {
@@ -432,6 +467,37 @@
       },
       "typescript": "not_reached",
       "harnessFix": "exact CLI suite names and raw JSON report names must be bound separately; source-reviewed for next batch"
+    },
+    {
+      "source": "16f76049cab68f7daa7518c7f294a4daf62a0a38",
+      "go": {
+        "passed": 39,
+        "failed": 0,
+        "named": 39,
+        "packages": 3
+      },
+      "frontend": {
+        "wholePassed": 44,
+        "targetedPassed": 2,
+        "targetedFiltered": 54
+      },
+      "typescript": {
+        "exit": 2,
+        "errors": 1,
+        "detail": "manual GTM target reached automatic policy target union; corrected next"
+      }
+    },
+    {
+      "source": "eab0c9d19e19852731badcfba31353154646a354",
+      "frontend": {
+        "wholePassed": 24,
+        "failed": 0,
+        "scope": "CoordinatorPolicy regression only"
+      },
+      "typescript": {
+        "exit": 0
+      },
+      "scope": "Other unchanged pe37 source results retained; no repeated Go or prior frontend selections"
     }
   ]
 }

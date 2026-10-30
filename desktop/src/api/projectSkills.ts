@@ -9,6 +9,7 @@ export interface ProjectSkillAssignment { role: SkillRole; taskId?: string; skil
 export interface ProjectSkillRegistry { projectId: string; revision: number; versions: ProjectSkillVersion[]; assignments: ProjectSkillAssignment[] }
 export interface ProjectSkillsSave {
   expectedRevision: number;
+  expectedPlanRevision?: number;
   skill?: Omit<ProjectSkillVersion, 'revision' | 'digest'>;
   assignments: ProjectSkillAssignment[];
 }

@@ -45,14 +45,15 @@ interface SessionNavigation {
   projectPath: string; worktreePath: string;
 }
 export type PendingNavigation =
-  | { kind: "project"; projectId: ProjectId | null; lens?: Lens }
+  | { kind: "project"; projectId: ProjectId | null; lens?: Lens; surface?: "luci" | "tools" }
   | { kind: "branch"; projectId: ProjectId; branchId: BranchId; worktreeId?: WorktreeId }
   | { kind: "lens"; lens: Lens }
   | SessionNavigation;
 export interface BranchManagerTarget { projectId: ProjectId; action: "create" | "switch"; branchId?: BranchId }
 const navigationState = (navigation: PendingNavigation, state: CockpitState): Partial<UiSlice> => {
   let selection = state.selection, lens = state.lens;
-  const workspaceSurface = navigation.kind !== "project" || navigation.lens ? "tools" : state.workspaceSurface;
+  const workspaceSurface = navigation.kind === "project" && (navigation.surface === "luci" || navigation.surface === "tools")
+    ? navigation.surface : navigation.kind !== "project" || navigation.lens ? "tools" : state.workspaceSurface;
   if (navigation.kind === "project") {
     selection = { ...NO_SELECTION, projectId: navigation.projectId };
     const saved = navigation.projectId ? state.projectPositions[navigation.projectId] : undefined;
@@ -148,7 +149,7 @@ export interface UiSlice {
   closeBranchManager(): void;
   acceptBranchChange(projectId: ProjectId, branches: Branch[], worktree: Worktree): void;
 
-  selectProject(id: ProjectId | null, lens?: Lens): void;
+  selectProject(id: ProjectId | null, lens?: Lens, surface?: "luci" | "tools"): void;
   /** Sets lens to "develop", clears the session, and selects an explicit checkout or clears the worktree. */
   selectBranch(projectId: ProjectId, id: BranchId, worktreeId?: WorktreeId): void;
   selectWorktree(id: WorktreeId | null): void;
@@ -246,17 +247,19 @@ export const createUiSlice: StateCreator<
   // A project selection clears checkout-specific focus; its own stage is restored.
   // Decision (a): a project selection clears everything below it, so the rail and the
   // Columns view can never disagree about which branch is in view.
-  selectProject: (id, lens) => {
+  selectProject: (id, lens, surface) => {
     const state = get();
-    if ((lens || state.projectNavigationScope) && id !== null && !state.projects.some(project => project.id === id)) {
+    if ((lens || surface || state.projectNavigationScope) && id !== null && !state.projects.some(project => project.id === id)) {
       state.pushToast("This project is no longer available. Refresh your projects before opening its files.");
       return;
     }
+    const navigation: PendingNavigation = { kind: "project", projectId: id, ...(lens ? { lens } : {}), ...(surface ? { surface } : {}) };
     if (id === state.selection.projectId && state.selection.branchId === null && (!lens || lens === state.lens)) {
-      if (lens && state.workspaceSurface !== "tools") set({ workspaceSurface: "tools" });
+      const destinationSurface = surface ?? (lens ? "tools" : state.workspaceSurface);
+      if (surface !== undefined && destinationSurface !== state.workspaceSurface && Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === state.selection.projectId)) set({ pendingNavigation: navigation });
+      else if (state.workspaceSurface !== destinationSurface) set({ workspaceSurface: destinationSurface });
       return;
     }
-    const navigation: PendingNavigation = { kind: "project", projectId: id, ...(lens ? { lens } : {}) };
     if (Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === state.selection.projectId)) set({ pendingNavigation: navigation });
     else set(navigationState(navigation, state));
   },
@@ -311,7 +314,7 @@ export const createUiSlice: StateCreator<
   discardDraftsAndNavigate: (keepDrafts = false) => {
     const current = get();
     const destination = current.pendingNavigation;
-    if (destination?.kind === "project" && (destination.lens || current.projectNavigationScope) && destination.projectId !== null &&
+    if (destination?.kind === "project" && (destination.lens || destination.surface || current.projectNavigationScope) && destination.projectId !== null &&
         !current.projects.some(project => project.id === destination.projectId)) {
       set({ pendingNavigation: null });
       current.pushToast("This project is no longer available. Your edited draft is still here.");

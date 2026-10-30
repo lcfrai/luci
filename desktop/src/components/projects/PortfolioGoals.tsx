@@ -8,6 +8,7 @@ import { useUnsavedProjectDraft } from '../../hooks/useUnsavedProjectDraft';
 import type { Project } from '../../store/types';
 import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import { Button } from '../fluid/components/button';
+import { PortfolioOutcomeRoutes } from './PortfolioOutcomeRoutes';
 
 const freshGoal = (): PortfolioGoal => ({ id: '', revision: 0, title: '', outcome: '', projects: [], updatedAt: '' });
 const cloneGoal = (goal: PortfolioGoal) => ({ ...goal, projects: goal.projects.map(row => ({ ...row, dependsOn: [...row.dependsOn] })) });
@@ -111,6 +112,7 @@ function GoalEditor({ projects }: { projects: Project[] }) {
     {!view && <p role="status">{busy ? 'Reading saved portfolio goals…' : 'Saved goals are unavailable.'}</p>}
     <Button variant="secondary" disabled={busy} onClick={() => { setPlan(null); setApplication(null); setRetry(value => value + 1); }}>Read latest saved goals</Button>
     {view && <>
+      <PortfolioOutcomeRoutes view={view} projects={projects} />
       <label className="luci-field">Saved goal<select value={draft.id} disabled={busy || dirty} onChange={event => choose(view.goals.find(goal => goal.id === event.target.value) ?? freshGoal())}>
         <option value="">New goal</option>{view.goals.map(goal => <option key={goal.id} value={goal.id}>{goal.title} · revision {goal.revision}</option>)}
       </select></label>

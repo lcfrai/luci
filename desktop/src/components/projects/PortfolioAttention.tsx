@@ -1,13 +1,12 @@
 import { useEffect, useId, useState } from 'react';
-import { portfolioApi, type Portfolio, type PortfolioIntervention } from '../../api/portfolio';
+import { portfolioApi, type Portfolio } from '../../api/portfolio';
 import { teamScopeGeneration } from '../../api/teamScope';
 import { errorText } from '../../api/product';
 import { useProjectDraftScope } from '../../hooks/useProjectDraft';
-import { useCockpit } from '../../store/store';
 import type { Project } from '../../store/types';
 import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import { Button } from '../fluid/components/button';
-import { useProjectHome } from './ProjectHomeProvider';
+import { PortfolioActionDestination } from './PortfolioActionDestination';
 
 export function PortfolioAttention({ projects }: { projects: Project[] }) {
   const scope = useProjectDraftScope('portfolio-attention');
@@ -60,30 +59,10 @@ function ScopedAttention({ projects }: { projects: Project[] }) {
           {project?.coordinator.status === 'recorded' && <p className="overview-meta">Saved Luci continuation: {project.coordinator.state}{project.coordinator.unresolved > 0 ? ` · ${project.coordinator.unresolved} unresolved` : ''}.</p>}
           {project?.coordinator.status === 'unavailable' && <p className="overview-meta">Luci continuation unavailable.</p>}
           <details><summary>Recorded evidence</summary><ul>{item.evidence.map(e => <li key={`${e.source}:${e.id}`}>{e.source}: <code>{e.id}</code>{e.revision ? ` · revision ${e.revision}` : ''}{e.observedAt ? ` · ${e.observedAt}` : ''}</li>)}</ul></details>
-        </div><InterventionDestination item={item} project={allowed.get(item.projectId)!} generation={generation} /></li>;
+        </div><PortfolioActionDestination action={item.nextAction} project={allowed.get(item.projectId)!} generation={generation} /></li>;
       })}</ol>
       {items.length > limit && <Button variant="secondary" onClick={() => setLimit(value => value + 5)}>Show more decisions and blockers</Button>}
       {snapshot.omittedInterventions > 0 && <p>{snapshot.omittedInterventions} additional interventions are omitted. Inspect project queues for the full retained records.</p>}
     </>}
   </section>;
-}
-
-function InterventionDestination({ item, project, generation }: { item: PortfolioIntervention; project: Project; generation: number }) {
-  const scope = useProjectDraftScope(project.id);
-  const home = useProjectHome();
-  function open() {
-    if (!scope || generation !== teamScopeGeneration()) return;
-    const lens = item.nextAction.lens;
-    if (home) home.open(project.id, lens); else useCockpit.getState().selectProject(project.id, lens);
-    const state = useCockpit.getState(), pending = state.pendingNavigation;
-    const accepted = pending ? pending.kind === 'project' && pending.projectId === project.id && pending.lens === lens
-      : state.selection.projectId === project.id && state.lens === lens;
-    if (!accepted || !state.projects.some(p => p.id === project.id && p.path === project.path)) return;
-    // Navigation intent only. The destination reloads current evidence and
-    // owns approvals; the ordinary unsaved-draft guard remains in control.
-    useCockpit.setState({ projectRunInspection: lens === 'develop' && item.nextAction.runId
-      ? { scope, projectId: project.id, runId: item.nextAction.runId, refresh: true } : null });
-    if (item.nextAction.id === 'open-conversation' && !state.pendingNavigation && state.selection.projectId === project.id) state.showLuci();
-  }
-  return <Button variant="secondary" disabled={!scope} onClick={open}>{item.nextAction.label}</Button>;
 }

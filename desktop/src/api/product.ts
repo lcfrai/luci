@@ -125,6 +125,7 @@ export interface WorkspaceInstall {
   updatedAt: string;
 }
 export interface CloudPlanRequest {
+ foundation?: { blueprint: import("./deploymentBlueprint").DeploymentBlueprint; expectedBlueprintDigest: string };
   provider: "aws" | "azure";
   name: string;
   region: string;
@@ -134,6 +135,7 @@ export interface CloudPlanRequest {
   sshPublicKey: string;
 }
 export interface CloudPlan {
+ foundation?: { version: 1; request: { blueprint: import("./deploymentBlueprint").DeploymentBlueprint; expectedBlueprintDigest: string }; actor: { userId: string; projectId: string; teamId?: string }; contextDigest: string; planDigest: string; fit: { blueprintDigest: string; tier: string; fits: boolean; capacityVerified: false; milliCpu: number; memoryMiB: number; systemReserveMiB: number; decisions: { path: string; code: string; message: string }[] } };
   id: string;
   provider: string;
   name: string;
@@ -626,8 +628,8 @@ export function createProductClient(
       request<SetupStatus>("/v1/setup/check", {}, "POST", 120_000, signal),
     configure: (config: SetupConfig) =>
       request<SetupStatus>("/v1/setup/config", config),
-    cloudPlan: (input: CloudPlanRequest) =>
-      request<CloudPlan>("/v1/setup/cloud/plan", input),
+    cloudPlan: (input: CloudPlanRequest, signal?: AbortSignal) =>
+      request<CloudPlan>("/v1/setup/cloud/plan", input, "POST", 30_000, signal),
     gitIdentity: () =>
       request<{ name: string; email: string }>("/v1/setup/git/identity"),
     agents: () => request<AgentConnections>("/v1/setup/agents"),

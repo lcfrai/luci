@@ -116,17 +116,23 @@ type PortfolioGoalApply struct {
 }
 
 type PortfolioGoalsView struct {
-	Revision     int                        `json:"revision"`
-	Goals        []PortfolioGoal            `json:"goals"`
-	Applications []PortfolioGoalApplication `json:"applications"`
-	Partial      bool                       `json:"partial"`
+	Revision       int                        `json:"revision"`
+	Goals          []PortfolioGoal            `json:"goals"`
+	Applications   []PortfolioGoalApplication `json:"applications"`
+	Partial        bool                       `json:"partial"`
+	OutcomeRouting *PortfolioOutcomeRouting   `json:"outcomeRouting,omitempty"`
 }
 
 type portfolioGoalsLedger struct {
 	Version      int    `json:"version"`
 	AccountScope string `json:"accountScope"`
 	ActorID      string `json:"actorId"`
-	PortfolioGoalsView
+	// Keep the legacy stored JSON and field order. Derived routing belongs to
+	// the public read view only and can never become a stored approval or turn.
+	Revision     int                        `json:"revision"`
+	Goals        []PortfolioGoal            `json:"goals"`
+	Applications []PortfolioGoalApplication `json:"applications"`
+	Partial      bool                       `json:"partial"`
 }
 
 func portfolioGoalActor(ctx context.Context) (string, error) {
@@ -221,7 +227,7 @@ func (s *Server) portfolioGoalsPath(actor string, create bool) (string, error) {
 }
 
 func (s *Server) readPortfolioGoals(actor string) (portfolioGoalsLedger, error) {
-	empty := portfolioGoalsLedger{Version: 1, AccountScope: s.projectRuns.accountScope, ActorID: actor, PortfolioGoalsView: PortfolioGoalsView{Goals: []PortfolioGoal{}, Applications: []PortfolioGoalApplication{}}}
+	empty := portfolioGoalsLedger{Version: 1, AccountScope: s.projectRuns.accountScope, ActorID: actor, Goals: []PortfolioGoal{}, Applications: []PortfolioGoalApplication{}}
 	path, err := s.portfolioGoalsPath(actor, false)
 	if errors.Is(err, os.ErrNotExist) {
 		return empty, nil

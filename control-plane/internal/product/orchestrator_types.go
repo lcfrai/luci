@@ -86,8 +86,9 @@ type OrchestratorGTMContext struct {
 }
 
 type OrchestratorContext struct {
-	GTM           *OrchestratorGTMContext `json:"gtm,omitempty"`
-	TeamStandards *OrchestrationStandards `json:"teamStandards,omitempty"`
+	Skills        *OrchestratorSkillsContext `json:"skills,omitempty"`
+	GTM           *OrchestratorGTMContext    `json:"gtm,omitempty"`
+	TeamStandards *OrchestrationStandards    `json:"teamStandards,omitempty"`
 	// Optional to preserve earlier immutable snapshot digests.
 	TaskHandoffs *OrchestratorTaskHandoffs `json:"taskHandoffs,omitempty"`
 	TeamIntents  *OrchestratorTeamIntents  `json:"teamIntents,omitempty"`
@@ -109,12 +110,13 @@ type OrchestratorContext struct {
 	ReleasesSummary string                   `json:"releasesSummary"`
 }
 type OrchestratorProposal struct {
-	GTM           *GTMContent           `json:"gtm,omitempty"`
-	Target        string                `json:"target"`
-	Summary       string                `json:"summary"`
-	Specification *ProjectSpecification `json:"specification"`
-	DesignPlan    *ProjectDesignPlan    `json:"designPlan"`
-	Plan          *ProjectPlan          `json:"plan"`
+	SuggestedSkillAssignments []OrchestratorSkillSuggestion `json:"suggestedSkillAssignments,omitempty"`
+	GTM                       *GTMContent                   `json:"gtm,omitempty"`
+	Target                    string                        `json:"target"`
+	Summary                   string                        `json:"summary"`
+	Specification             *ProjectSpecification         `json:"specification"`
+	DesignPlan                *ProjectDesignPlan            `json:"designPlan"`
+	Plan                      *ProjectPlan                  `json:"plan"`
 }
 type OrchestratorAnswer struct {
 	Summary    string                `json:"summary"`

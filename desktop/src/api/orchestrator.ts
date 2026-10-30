@@ -4,6 +4,7 @@ import type { ProjectSpecification } from "./definition";
 import type { DesignPlan } from "./designPlan";
 import type { ProjectRun } from "./projectRuns";
 import { validRunAttention, type ProjectRunAttention } from "./runAttention";
+import { validOrchestratorSkillsContext, validSuggestedTaskSkills, type OrchestratorSkillsContext, type OrchestratorSkillSuggestion } from "./orchestratorSkills";
 
 export interface OrchestratorRunSummary {
   id: string; state: string; valid: boolean; reason: string;
@@ -25,6 +26,7 @@ export interface OrchestratorGTMContext {
   artifactLinks: { id: string; revision: number; digest: string }[]; artifactsOmitted: number;
 }
 export interface OrchestratorContext {
+  skills?: OrchestratorSkillsContext;
   gtm?: OrchestratorGTMContext;
   projectId: string; digest: string; brief: Brief; specification: ProjectSpecification;
   designPlan: DesignPlan; plan: ImplementationPlan; sketchRevision: number;
@@ -35,6 +37,7 @@ export interface OrchestratorContext {
   checksSummary: string; releasesSummary: string;
 }
 export interface OrchestratorProposal {
+  suggestedSkillAssignments?: OrchestratorSkillSuggestion[];
   target: "specification" | "design-plan" | "plan" | "gtm"; summary: string;
   gtm?: GTMContent | null;
   specification: ProjectSpecification | null; designPlan: DesignPlan | null; plan: ImplementationPlan | null;
@@ -125,6 +128,7 @@ function verifiedView(value: OrchestratorView, projectId: string): OrchestratorV
       !Array.isArray(value.turns) || !Array.isArray(value.blockingQuestions) ||
       value.turns.some(turn => turn.projectId !== projectId || turn.context?.projectId !== projectId) ||
       new Set(value.turns.map(turn => turn.id)).size !== value.turns.length ||
+      !validOrchestratorSkillsContext(value.context.skills, projectId) || value.turns.some(turn => !validOrchestratorSkillsContext(turn.context.skills, projectId) || !validSuggestedTaskSkills(turn.context, turn.answer?.proposal)) ||
       !validActiveRuns(value.context) || !validActivity(value.activity) || !validGTMContext(value.context.gtm) ||
       value.turns.some(turn => !validGTMContext(turn.context.gtm) || turn.answer?.proposal?.target === "gtm" && (!turn.context.gtm || !gtmDraftValid(turn.answer.proposal.gtm) || turn.answer.proposal.specification !== null || turn.answer.proposal.designPlan !== null || turn.answer.proposal.plan !== null)) ||
       value.activity?.findings?.some(finding => finding.projectId !== projectId) ||
@@ -171,6 +175,7 @@ function verifiedJob(value: OrchestratorJob, projectId: string): OrchestratorJob
   if (value?.projectId !== projectId || value.kind !== "orchestrator" || value.orchestratorContext?.projectId !== projectId) {
     throw new Error("The assistance response belongs to a different conversation. Refresh before continuing.");
   }
+  if (!validOrchestratorSkillsContext(value.orchestratorContext.skills, projectId) || !validSuggestedTaskSkills(value.orchestratorContext, value.orchestratorResult?.proposal)) throw new Error("The assistance skill recommendations could not be verified.");
   return value;
 }
 export const orchestratorApi = {

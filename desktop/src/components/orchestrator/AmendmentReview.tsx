@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { emptyGTM } from "../../api/gtmWorkspace";
+import { SuggestedTaskSkillList } from "./SuggestedTaskSkills";
 import type { OrchestratorTurn, OrchestratorView } from "../../api/orchestrator";
 import { Button } from "../fluid/components/button";
 import { WorkflowDialog, type WorkflowDialogReadAccess } from "../common/WorkflowDialog";
@@ -36,6 +37,7 @@ export function AmendmentReview({ turn, view, readAccess, busy, blocked, error, 
         <div><h4>Proposed draft</h4><p>{readable(after![key])}</p></div>
       </div></section>) : <p>No document content changes were proposed.</p>}
     </div>
+    <SuggestedTaskSkillList turn={turn} />
     {stale && <p role="alert">The saved context changed after this proposal. Ask Luci to reconcile it with the current context before applying.</p>}
     {blocked && <p role="status">{blocked}</p>}
     {error && <p role="alert">{error}</p>}

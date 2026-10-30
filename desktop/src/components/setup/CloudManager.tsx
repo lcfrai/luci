@@ -23,6 +23,8 @@ export function CloudManager({
   activeConnectionId,
   manageTargets = false,
   azureDescriptor,
+  foundationOnly = false,
+  onlyPlanId,
 }: {
   client: ProductClient;
   plan: CloudPlan | null;
@@ -31,6 +33,8 @@ export function CloudManager({
   activeConnectionId?: string;
   manageTargets?: boolean;
   azureDescriptor?: AzureConnectionDescriptor;
+  foundationOnly?: boolean;
+  onlyPlanId?: string;
 }) {
   const [jobs, setJobs] = useState<CloudJob[]>([]);
   const [targets, setTargets] = useState<DeploymentTarget[]>([]);
@@ -64,13 +68,13 @@ export function CloudManager({
   const load = async () => {
     const [j, t, c] = await Promise.allSettled([
       mode === "existing" ? Promise.resolve({ jobs: [] }) : client.cloudJobs(),
-      mode === "existing" && !manageTargets
+      foundationOnly || mode === "existing" && !manageTargets
         ? Promise.resolve({ targets: [] })
         : client.targets(),
-      client.tunnels(),
+      foundationOnly ? Promise.resolve({ connections: [] }) : client.tunnels(),
     ]);
     if (alive.current) {
-      if (j.status === "fulfilled") setJobs(j.value.jobs ?? []);
+      if (j.status === "fulfilled") setJobs((j.value.jobs ?? []).filter(job => !onlyPlanId || job.planId === onlyPlanId));
       if (t.status === "fulfilled") setTargets(t.value.targets ?? []);
       if (c.status === "fulfilled") setTunnels(c.value.connections ?? []);
     }
@@ -87,7 +91,7 @@ export function CloudManager({
     return () => {
       alive.current = false;
     };
-  }, [client, mode, manageTargets]);
+  }, [client, mode, manageTargets, foundationOnly, onlyPlanId]);
   useEffect(() => {
     setCost(false);
     setUnknownPrice(false);
@@ -171,7 +175,7 @@ export function CloudManager({
       )}
       {mode !== "existing" && plan && !created && (
         <section className="setup-plan">
-          <h2>Create this cloud home</h2>
+          <h2>{foundationOnly ? "Create this Azure VM foundation" : "Create this cloud home"}</h2>
           <p>
             Provision <strong>{plan.name}</strong> in{" "}
             {plan.provider.toUpperCase()} · {plan.region}. Charges continue
@@ -232,8 +236,7 @@ export function CloudManager({
           </div>
           {!jobs.length && (
             <p className="journey-muted">
-              Your cloud jobs will appear here. You can also connect an existing
-              server below.
+              {foundationOnly ? "This plan’s retained foundation operation will appear here. No application or inference workload is started." : "Your cloud jobs will appear here. You can also connect an existing server below."}
             </p>
           )}
           {jobs.map((job) => (
@@ -282,7 +285,7 @@ export function CloudManager({
                     >
                       Check DNS
                     </Button>
-                    <Button type="button"
+                    {!foundationOnly && <Button type="button"
                       variant="secondary"
                       onClick={() => {
                         changeSSH({ host: job.publicIp });
@@ -290,7 +293,7 @@ export function CloudManager({
                       }}
                     >
                       Connect this server
-                    </Button>
+                    </Button>}
                   </>
                 )}
                 {!["deleted", "deleting", "creating"].includes(job.status) && (
@@ -361,6 +364,7 @@ export function CloudManager({
           ))}
         </section>
       )}
+      {!foundationOnly && <>
       <section className="setup-plan">
         <h2>
           {azureDescriptor
@@ -699,6 +703,7 @@ export function CloudManager({
           )}
         </section>
       )}
+      </>}
     </div>
   );
 }

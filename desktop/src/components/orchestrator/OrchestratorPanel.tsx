@@ -12,6 +12,7 @@ import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
 import { Button } from "../fluid/components/button";
 import { WorkflowDialog } from "../common/WorkflowDialog";
 import { AmendmentReview } from "./AmendmentReview";
+import { SuggestedTaskSkills } from "./SuggestedTaskSkills";
 import { ProjectUnderstanding } from "./ProjectUnderstanding";
 import { ConversationStorage } from "./ConversationStorage";
 import { CoordinatorPolicy } from "./CoordinatorPolicy";
@@ -773,6 +774,7 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
                 <p className="orchestrator-muted">Existing builds retain the context they started with. Reviewing this document does not stop or change those agents.</p>
                 <Button variant="secondary" disabled={!!busy || contextStale || contextRefreshQueued || !canRead || (turn.answer.proposal.target !== "plan" && !canEdit)} onClick={() => { const target = turn.answer!.proposal!.target; if (target === "gtm") setLens("distribute"); else edit(amendmentEditors[target]); }}>Open current {amendmentLabels[turn.answer.proposal.target]}</Button>
               </section> : <Button variant="secondary" disabled={!!busy} onClick={() => { setReview({ turn, revision: view.revision, digest: view.context.digest }); setError(""); }}>Review amendment</Button>}</div>}
+              {!!turn.appliedRevision && !!turn.answer.proposal?.suggestedSkillAssignments?.length && <SuggestedTaskSkills key={`${scope}/${turn.id}`} turn={turn} scope={scope} canRead={canRead} canEdit={canEdit} blocked={!!busy || contextStale || contextRefreshQueued || !!contextDrafts} />}
               {turn.answer.nextAction && <p className="orchestrator-muted">Suggested next step: {turn.answer.nextAction}</p>}
             </div>}
             {turnStatusLabel(turn, pendingJob) === statuses.unknown || turnStatusLabel(turn, pendingJob) === statuses.reserved ? <p>The request is unconfirmed. Refresh to observe it; Luci will not start a duplicate request automatically.</p> : null}

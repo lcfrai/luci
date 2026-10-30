@@ -47,6 +47,9 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		return nil
 	}
 	proposal := answer.Proposal
+	if err := validateOrchestratorSkillSuggestions(snapshot, proposal); err != nil {
+		return err
+	}
 	count := 0
 	for _, present := range []bool{proposal.Specification != nil, proposal.DesignPlan != nil, proposal.Plan != nil, proposal.GTM != nil} {
 		if present {

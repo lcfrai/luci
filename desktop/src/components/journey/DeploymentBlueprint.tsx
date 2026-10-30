@@ -9,6 +9,7 @@ import { useUnsavedProjectDraft } from '../../hooks/useUnsavedProjectDraft';
 import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import { Button } from '../fluid/components/button';
 import './deployment-blueprint.css';
+import { AzureFoundationHandoff } from './AzureFoundationHandoff';
 
 type ServiceDraft = BlueprintService & { useTelemetry: boolean; commandText: string; argsText: string };
 type Editor = { reference: string; namespace: string; services: ServiceDraft[]; telemetry: boolean; telemetryReference: string; endpoint: string };
@@ -141,6 +142,7 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
       <p>Requested totals: {plan.resourceSummary.replicas} replicas · {plan.resourceSummary.requestMilliCpu} millicores · {plan.resourceSummary.requestMemoryMiB} MiB memory · {plan.resourceSummary.gpuCount} NVIDIA GPUs. These are planned requests, not available capacity or a price quote.</p>
       {plan.artifacts.map(artifact => <details key={artifact.name}><summary>{artifact.name}</summary><p className="journey-muted">SHA-256: {artifact.sha256}</p><pre tabIndex={0}>{artifact.content}</pre><Button type="button" variant="secondary" onClick={() => download(artifact.name, artifact.content)}>Download {artifact.name}</Button></details>)}
       <div className="journey-actions"><Button type="button" variant="secondary" onClick={() => download('luci-deployment-plan.json', JSON.stringify(plan, null, 2)+'\n')}>Export plan JSON</Button><Button type="button" variant="secondary" disabled={disabled} onClick={onPublishing}>Open existing release paths</Button></div>
+      <AzureFoundationHandoff key={plan.digest} plan={plan} active={active && canPlan && !disabled} />
       <details><summary>Capabilities and review notes</summary><p>Plan <code>{plan.digest}</code>. Exporting does not deploy the manifests. Local, your cloud and GitHub Pages keep their existing release forms and permissions; they do not apply Kubernetes manifests. Cluster application and observation are not connected yet.</p><ul>{plan.capabilities.map(row => <li key={row.id}><strong>{row.id} · {row.state}</strong>: {row.description}</li>)}{plan.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>
     </section>}
   </section>;

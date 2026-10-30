@@ -89,7 +89,7 @@ func (a *API) handlePortfolioGoals(w http.ResponseWriter, r *http.Request) {
 		}
 		value, err = a.deps.Product.SavePortfolioGoal(r.Context(), request, access)
 	} else {
-		value, err = a.deps.Product.ReadPortfolioGoals(r.Context(), access)
+		value, err = a.deps.Product.ReadPortfolioGoalsWithOutcomes(r.Context(), access)
 	}
 	if err != nil {
 		goal, _ := value.(product.PortfolioGoal)

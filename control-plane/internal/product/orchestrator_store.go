@@ -241,6 +241,17 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 		Plan   ProjectPlan
 		Sketch Design
 	}{value.Brief, value.Specification, value.DesignPlan, value.Plan, state.Design})
+	skills, err := orchestratorSkillsContext(state)
+	if err != nil {
+		return OrchestratorContext{}, err
+	}
+	if skills != nil {
+		value.Skills = skills
+		value.Digest = reviewDigest(struct {
+			Base   string
+			Skills *OrchestratorSkillsContext
+		}{value.Digest, skills})
+	}
 	standards, err := s.teamStandardsContext(ctx, p, state, false)
 	if err != nil {
 		return OrchestratorContext{}, err
