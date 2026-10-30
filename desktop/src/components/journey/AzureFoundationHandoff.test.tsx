@@ -10,12 +10,18 @@ vi.mock('../../hooks/useProjectAccess', () => ({ useProjectAccess: () => ({ canR
 vi.mock('../../hooks/useUnsavedProjectDraft', () => ({ useUnsavedProjectDraft: () => undefined }));
 vi.mock('../setup/CloudManager', () => ({ CloudManager: ({ plan, foundationOnly, onlyPlanId }: { plan: CloudPlan; foundationOnly: boolean; onlyPlanId: string }) => <div>Existing manager {plan.id} · {String(foundationOnly)} · {onlyPlanId}</div> }));
 const plan = { digest: 'a'.repeat(64), blueprint: { projectId: 'p-one' } } as DeploymentBlueprintPlan;
-const foundation = (): CloudPlan => ({ id: 'cp-one', provider: 'azure', resources: ['Existing Azure VM'], foundation: { version: 1, request: { blueprint: plan.blueprint, expectedBlueprintDigest: plan.digest }, actor: { userId: 'alice', projectId: 'p-one' }, contextDigest: 'b'.repeat(64), planDigest: 'c'.repeat(64), fit: { blueprintDigest: plan.digest, tier: 'small', fits: true, capacityVerified: false, milliCpu: 2000, memoryMiB: 4096, systemReserveMiB: 1024, decisions: [] } } } as unknown as CloudPlan);
+const foundation = (): CloudPlan => ({
+ id: 'cp-one', provider: 'azure', name: 'my-foundation', region: 'australiaeast', domain: 'example.com',
+ resources: ['Existing Azure VM'],
+ estimate: { currency: 'USD', monthly: null, verified: false, explanation: 'No live quote is available in this fixture.' },
+ steps: [], files: [], commands: [], warnings: ['No live quote.'], createdAt: '2026-10-30T00:00:00Z',
+ foundation: { version: 1, request: { blueprint: plan.blueprint, expectedBlueprintDigest: plan.digest }, actor: { userId: 'alice', projectId: 'p-one' }, contextDigest: 'b'.repeat(64), planDigest: 'c'.repeat(64), fit: { blueprintDigest: plan.digest, tier: 'small', fits: true, capacityVerified: false, milliCpu: 2000, memoryMiB: 4096, systemReserveMiB: 1024, decisions: [] } },
+});
 beforeEach(() => { vi.restoreAllMocks(); environment.canEdit = true; });
 afterEach(cleanup);
 async function fill() {
  const user = userEvent.setup(); await user.click(screen.getByText('Use this blueprint to size an Azure VM foundation'));
- for (const [label, value] of [['Azure resource-group name', 'my-foundation'], ['Azure region', 'australiaeast'], ['Domain you control', 'example.com'], ['Monthly planning budget (USD)', '50'], ['Your SSH public key', 'ssh-ed25519 public-key-for-test']]) await user.type(screen.getByLabelText(label), value);
+ for (const [label, value] of [['Azure resource-group name', 'my-foundation'], ['Azure region', 'australiaeast'], ['Domain you control', 'example.com'], ['Monthly planning budget (USD)', '50'], ['Your SSH public key', 'ssh-ed25519 public-key-for-test']]) await user.type(screen.getByLabelText(label === 'Your SSH public key' ? /^Your SSH public key/ : label), value);
  return user;
 }
 it('reviews the exact project blueprint before showing the existing explicit-cost manager', async () => {
@@ -24,7 +30,7 @@ it('reviews the exact project blueprint before showing the existing explicit-cos
  expect(prepare).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
  await user.click(screen.getByRole('button', { name: 'Review Azure foundation' }));
  await screen.findByText('Existing manager cp-one · true · cp-one');
- expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ provider: 'azure', size: 'small', foundation: { blueprint: plan.blueprint, expectedBlueprintDigest: plan.digest } }), expect.any(AbortSignal));
+ expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ provider: 'azure', size: 'small', sshPublicKey: 'ssh-ed25519 public-key-for-test', foundation: { blueprint: plan.blueprint, expectedBlueprintDigest: plan.digest } }), expect.any(AbortSignal));
  expect(create).not.toHaveBeenCalled();
  await user.selectOptions(screen.getByLabelText('Foundation tier'), 'standard');
  expect(screen.queryByText(/Existing manager/)).toBeNull();

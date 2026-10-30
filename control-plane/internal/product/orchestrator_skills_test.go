@@ -114,6 +114,7 @@ func TestSuggestedSkillSaveFencesPlanRevisionBeforeAnyRegistryMutation(t *testin
 
 func TestSuggestedSkillSaveStalePlanLeavesPersistedRegistryAndHistoryUntouched(t *testing.T) {
 	s, mux := journeyFixture(t)
+	s.registerProjectWork(mux)
 	p := createJourneyProject(t, mux, "skill-route-cas")
 	handler := contextHistoryActorHandler(mux, management.User{ID: "skill-editor", Username: "editor", Role: "member"})
 	base := "/v1/product/projects/" + p.ID

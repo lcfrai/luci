@@ -8,7 +8,12 @@ afterEach(cleanup);
 it('shows only the selected foundation job and observes it through the existing retained-job route', async () => {
  const job = { id: 'cj-one', planId: 'cp-one', provider: 'azure', name: 'selected-foundation', region: 'australiaeast', domain: 'example.com', status: 'unknown', message: 'Retained operation needs observation', publicIp: '192.0.2.1' };
  const fetcher = vi.fn<typeof fetch>().mockImplementation(async url => new Response(JSON.stringify(String(url).endsWith('/refresh') ? { ...job, status: 'provisioning', message: 'Owned VM observed' } : { jobs: [job, { ...job, id: 'other', planId: 'cp-other', name: 'unrelated-foundation' }] }), { status: 200 }));
- const plan = { id: 'cp-one', provider: 'azure' } as CloudPlan;
+ const plan: CloudPlan = {
+  id: 'cp-one', provider: 'azure', name: 'selected-foundation', region: 'australiaeast', domain: 'example.com',
+  resources: ['Existing Azure VM'],
+  estimate: { currency: 'USD', monthly: null, verified: false, explanation: 'No live quote is available in this fixture.' },
+  steps: [], files: [], commands: [], warnings: ['No live quote.'], createdAt: '2026-10-30T00:00:00Z',
+ };
  render(<CloudManager client={createProductClient('http://localhost', fetcher)} plan={plan} mode="managed" foundationOnly onlyPlanId="cp-one"/>);
  await screen.findByText('selected-foundation');
  expect(screen.queryByText('unrelated-foundation')).toBeNull();

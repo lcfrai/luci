@@ -401,6 +401,16 @@
       "newSourceJoin": "outcome-v3 / skills-v2 / azure-v4; focused checks pending",
       "nativeLaunch": false,
       "fullAcceptance": false
+    },
+    "currentRepair": {
+      "base": "8645b9b1d9e93f9c1c2094a74e074ba713909eba",
+      "testFiles": 4,
+      "productionChanges": false,
+      "goRerunNamed": 2,
+      "frontendRerunWhole": 2,
+      "frontendRerunNamed": 4,
+      "fullTypeScript": "pending",
+      "unchangedPriorResultsRetained": true
     }
   },
   "validationBatches": [
@@ -498,6 +508,24 @@
         "exit": 0
       },
       "scope": "Other unchanged pe37 source results retained; no repeated Go or prior frontend selections"
+    },
+    {
+      "source": "8645b9b1d9e93f9c1c2094a74e074ba713909eba",
+      "go": {
+        "passed": 70,
+        "failed": 2,
+        "named": 72,
+        "topLevel": 43,
+        "packages": 4
+      },
+      "frontend": {
+        "passed": 249,
+        "failed": 4,
+        "wholeFiles": 18,
+        "named": 253
+      },
+      "typescript": "not_reached",
+      "qualification": "Six failures in four new test fixture files. Production guards unchanged. Normal no-force retirement and failed aggregates retained."
     }
   ]
 }

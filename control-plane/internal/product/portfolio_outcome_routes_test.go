@@ -32,10 +32,10 @@ func TestGoalOutcomeRoutesReuseAttentionAndPinOwnContinuationWithoutExecuting(t 
 			t.Fatal("substituted continuation owner")
 		}
 		row, _, _ := outcomeRead(context.Background(), id, actor)
-		row.Coordinator = PortfolioCoordinator{Status: "recorded", ID: "continue-alice", Revision: 7, State: "working", RunID: "run-one", UpdatedAt: now.Format(time.RFC3339Nano)}
+		row.Coordinator = PortfolioCoordinator{Status: "recorded", ID: "continue-alice", Revision: 7, State: "working", RunID: "run-aaaaaaaaaaaaaaaaaaaaaaaa", UpdatedAt: now.Format(time.RFC3339Nano)}
 		items := []PortfolioIntervention{
 			{ID: reviewDigest("question"), ProjectID: id, Kind: "question", Reason: "A decision is unanswered.", NextAction: OrchestratorAction{ID: "answer-question", Label: "Review questions", Lens: "discover"}, Evidence: []PortfolioEvidence{{Source: "questions", ID: id}}},
-			{ID: reviewDigest("unknown"), ProjectID: id, Kind: "unconfirmed", Reason: "An existing worker outcome is unconfirmed.", NextAction: OrchestratorAction{ID: "inspect-run", Label: "Review project work", Lens: "develop", RunID: "run-one"}, Evidence: []PortfolioEvidence{{Source: "queue-item", ID: "queue-one", Revision: 4}}},
+			{ID: reviewDigest("unknown"), ProjectID: id, Kind: "unconfirmed", Reason: "An existing worker outcome is unconfirmed.", NextAction: OrchestratorAction{ID: "inspect-run", Label: "Review project work", Lens: "develop", RunID: "run-aaaaaaaaaaaaaaaaaaaaaaaa"}, Evidence: []PortfolioEvidence{{Source: "queue-item", ID: "queue-one", Revision: 4}}},
 		}
 		return row, items, nil
 	}
@@ -45,7 +45,7 @@ func TestGoalOutcomeRoutesReuseAttentionAndPinOwnContinuationWithoutExecuting(t 
 		t.Fatalf("deduped read: %+v %v reads=%d", got, err, reads)
 	}
 	first := got.OutcomeRouting.Routes[0]
-	if first.GoalID != "goal-one" || first.GoalRevision != 3 || first.Status != "unknown" || first.NextAction.ID != "inspect-run" || first.NextAction.RunID != "run-one" || first.Coordinator.ID != "continue-alice" || first.Coordinator.Revision != 7 || first.Evidence[0].ID != "queue-one" || got.OutcomeRouting.UnknownProjects != 1 {
+	if first.GoalID != "goal-one" || first.GoalRevision != 3 || first.Status != "unknown" || first.NextAction.ID != "inspect-run" || first.NextAction.RunID != "run-aaaaaaaaaaaaaaaaaaaaaaaa" || first.Coordinator.ID != "continue-alice" || first.Coordinator.Revision != 7 || first.Evidence[0].ID != "queue-one" || got.OutcomeRouting.UnknownProjects != 1 {
 		t.Fatal("lost exact goal/owned-work identity, uncertainty or existing attention order", first)
 	}
 	got.OutcomeRouting.Routes[0].Coordinator.ID = "mutated-return"
