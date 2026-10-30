@@ -123,12 +123,13 @@ type ProjectSwarmQueue struct {
 }
 type swarmQueueRecord struct {
 	SwarmQueueItem
-	Actor          management.ExecutionActorRef `json:"actor"`
-	StopActor      management.ExecutionActorRef `json:"stopActor,omitzero"`
-	InputDigest    string                       `json:"inputDigest"`
-	KeyDigest      string                       `json:"keyDigest"`
-	BatchKeyDigest string                       `json:"batchKeyDigest"`
-	RequestDigest  string                       `json:"requestDigest"`
+	PriorityChangeDigest string                       `json:"priorityChangeDigest,omitempty"`
+	Actor                management.ExecutionActorRef `json:"actor"`
+	StopActor            management.ExecutionActorRef `json:"stopActor,omitzero"`
+	InputDigest          string                       `json:"inputDigest"`
+	KeyDigest            string                       `json:"keyDigest"`
+	BatchKeyDigest       string                       `json:"batchKeyDigest"`
+	RequestDigest        string                       `json:"requestDigest"`
 	// Internal automatic repair is tied to one retained failed finding and
 	// stopped source attempt. These fields never replace its run receipts.
 	CheckRepairWaveID         string `json:"checkRepairWaveId,omitempty"`

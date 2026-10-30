@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { emptyGTM } from "../../api/gtmWorkspace";
+import { SuggestedTaskSkillList } from "./SuggestedTaskSkills";
 import type { OrchestratorTurn, OrchestratorView } from "../../api/orchestrator";
 import { Button } from "../fluid/components/button";
 import { WorkflowDialog, type WorkflowDialogReadAccess } from "../common/WorkflowDialog";
 
-const names = { specification: "definition", "design-plan": "design handoff", plan: "implementation plan" };
+const names = { specification: "definition", "design-plan": "design handoff", plan: "implementation plan", gtm: "go-to-market workspace" };
 const metadata = new Set(["projectId", "version", "revision", "briefRevision", "specificationRevision", "specificationDigest", "sketchRevision", "status", "digest", "updatedAt"]);
 const label = (value: string) => value.replace(/([A-Z])/g, " $1").replace(/^./, first => first.toUpperCase());
 function readable(value: unknown, depth = 0): string {
@@ -21,11 +23,11 @@ export function AmendmentReview({ turn, view, readAccess, busy, blocked, error, 
   const proposal = turn.answer?.proposal;
   if (!proposal) return null;
   const property = proposal.target === "design-plan" ? "designPlan" : proposal.target;
-  const before = turn.context[property] as unknown as Record<string, unknown>;
+  const before = (proposal.target === "gtm" ? turn.context.gtm?.content ?? emptyGTM() : turn.context[property as "specification" | "designPlan" | "plan"]) as unknown as Record<string, unknown>;
   const after = proposal[property] as unknown as Record<string, unknown> | null;
   const changes = after ? Object.keys(after).filter(key => !metadata.has(key) && JSON.stringify(before[key]) !== JSON.stringify(after[key])) : [];
   const stale = turn.contextDigest !== view.context.digest;
-  return <WorkflowDialog readAccess={readAccess} title={`Review ${names[proposal.target]} amendment`} description="Compare the saved context Luci used with the proposed draft. Applying does not approve the document, start coding or deploy anything." busy={busy} onClose={onClose}>
+  return <WorkflowDialog readAccess={readAccess} title={`Review ${names[proposal.target]} amendment`} description={proposal.target === "gtm" ? "Compare the saved strategy with this proposed draft. Applying saves a private GTM revision; it does not run experiments, publish campaigns or spend money." : "Compare the saved context Luci used with the proposed draft. Applying does not approve the document, start coding or deploy anything."} busy={busy} onClose={onClose}>
     <p>{proposal.summary}</p>
     {turn.answer?.rationale && <p><strong>Why this change: </strong>{turn.answer.rationale}</p>}
     {!!turn.answer?.impact?.length && <div><strong>Affected work</strong><ul>{turn.answer.impact.map((impact, index) => <li key={index}>{impact}</li>)}</ul></div>}
@@ -35,10 +37,11 @@ export function AmendmentReview({ turn, view, readAccess, busy, blocked, error, 
         <div><h4>Proposed draft</h4><p>{readable(after![key])}</p></div>
       </div></section>) : <p>No document content changes were proposed.</p>}
     </div>
+    <SuggestedTaskSkillList turn={turn} />
     {stale && <p role="alert">The saved context changed after this proposal. Ask Luci to reconcile it with the current context before applying.</p>}
     {blocked && <p role="status">{blocked}</p>}
     {error && <p role="alert">{error}</p>}
-    <label className="orchestrator-ack"><input type="checkbox" checked={acknowledged} disabled={busy} onChange={event => setAcknowledged(event.target.checked)} />I reviewed these changes. Save them as a draft and clear any affected approvals.</label>
+    <label className="orchestrator-ack"><input type="checkbox" checked={acknowledged} disabled={busy} onChange={event => setAcknowledged(event.target.checked)} />{proposal.target === "gtm" ? "I reviewed these assumptions and changes. Save a GTM revision." : "I reviewed these changes. Save them as a draft and clear any affected approvals."}</label>
     <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={onClose}>Keep current context</Button><Button disabled={busy || !acknowledged || !!blocked || stale || !changes.length} onClick={onApply}>{busy ? "Applying amendment…" : "Apply reviewed amendment"}</Button></div>
   </WorkflowDialog>;
 }

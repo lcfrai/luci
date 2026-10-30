@@ -14,6 +14,7 @@ import { PROJECT_CONTEXT_CHANGED, PROJECT_CONTEXT_EDIT, takeProjectContextEdit, 
 import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import { ProjectPlan } from "./ProjectPlan";
+import { ProjectSkills } from "../develop/ProjectSkills";
 import { ProjectChecks } from "./ProjectChecks";
 import { ProjectRuns, type ProjectRunDraft } from "./ProjectRuns";
 import { ExternalToolHandoff } from "./ExternalToolHandoff";
@@ -290,6 +291,7 @@ function ProjectWorkView({ projectId, children, expanded = true, controlsHidden 
               </section>
             </div>
             <section ref={planRegion} tabIndex={-1} aria-label="Implementation plan"><ProjectPlan projectId={projectId} brief={facts.brief} onPrepareRun={setRunDraft} /></section>
+            <ProjectSkills projectId={projectId} />
             <ProjectChecks projectId={projectId} />
             {children}
           </>

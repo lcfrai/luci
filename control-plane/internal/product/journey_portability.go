@@ -39,6 +39,9 @@ func normalizeJourneyIdentity(state *journeyState, projectID string) error {
 	if state.Plan != nil && state.Plan.ProjectID != sourceID || state.Specification != nil && state.Specification.ProjectID != sourceID || state.DesignPlan != nil && state.DesignPlan.ProjectID != sourceID {
 		return errors.New("saved project context has inconsistent project identities")
 	}
+	if state.Skills != nil && (state.Skills.ProjectID != sourceID || validateSkillRegistry(*state.Skills) != nil) {
+		return errors.New("saved skills have inconsistent identity or content")
+	}
 	for _, row := range state.BriefRevisions {
 		if row.ProjectID != sourceID {
 			return errors.New("saved brief history has inconsistent project identities")
@@ -76,9 +79,13 @@ func rebindJourneyIdentity(state *journeyState, id string) {
 	state.approvalAuthority = nil
 	state.Brief.ProjectID = id
 	state.Design.ProjectID = id
+	if state.Skills != nil {
+		state.Skills.ProjectID = id
+	}
 	if state.Plan != nil {
 		state.Plan.ProjectID = id
 		state.Plan.SpecificationDigest = ""
+		state.Plan.DesignPlanRevision, state.Plan.DesignPlanDigest = 0, ""
 	}
 	rebindSpecification := func(spec *ProjectSpecification) { spec.ProjectID = id; spec.Status = "draft"; spec.Digest = "" }
 	rebindDesign := func(design *ProjectDesignPlan) {

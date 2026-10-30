@@ -14,27 +14,28 @@ import (
 // A specification is an immutable, revisioned product definition. The legacy
 // brief remains a compatible summary; saving either cannot silently approve it.
 type ProjectSpecification struct {
-	Evidence      []DiscoveryEvidenceLink    `json:"evidence,omitempty"`
-	ProjectID     string                     `json:"projectId"`
-	Version       int                        `json:"version"`
-	Revision      int                        `json:"revision"`
-	BriefRevision int                        `json:"briefRevision"`
-	StartingPoint string                     `json:"startingPoint"`
-	Purpose       string                     `json:"purpose"`
-	Audience      string                     `json:"audience"`
-	Constraints   string                     `json:"constraints"`
-	OutOfScope    []string                   `json:"outOfScope"`
-	Requirements  []SpecificationRequirement `json:"requirements"`
-	Journeys      []SpecificationJourney     `json:"journeys"`
-	Roles         []SpecificationRole        `json:"roles"`
-	Entities      []SpecificationEntity      `json:"entities"`
-	Integrations  []SpecificationIntegration `json:"integrations"`
-	Glossary      []SpecificationTerm        `json:"glossary"`
-	Decisions     []SpecificationDecision    `json:"decisions"`
-	Questions     []SpecificationQuestion    `json:"questions"`
-	Status        string                     `json:"status" enum:"draft"`
-	Digest        string                     `json:"digest" output:"empty"`
-	UpdatedAt     string                     `json:"updatedAt"`
+	Evidence      []DiscoveryEvidenceLink     `json:"evidence,omitempty"`
+	Roadmap       []SpecificationRoadmapPhase `json:"roadmap,omitempty"`
+	ProjectID     string                      `json:"projectId"`
+	Version       int                         `json:"version"`
+	Revision      int                         `json:"revision"`
+	BriefRevision int                         `json:"briefRevision"`
+	StartingPoint string                      `json:"startingPoint"`
+	Purpose       string                      `json:"purpose"`
+	Audience      string                      `json:"audience"`
+	Constraints   string                      `json:"constraints"`
+	OutOfScope    []string                    `json:"outOfScope"`
+	Requirements  []SpecificationRequirement  `json:"requirements"`
+	Journeys      []SpecificationJourney      `json:"journeys"`
+	Roles         []SpecificationRole         `json:"roles"`
+	Entities      []SpecificationEntity       `json:"entities"`
+	Integrations  []SpecificationIntegration  `json:"integrations"`
+	Glossary      []SpecificationTerm         `json:"glossary"`
+	Decisions     []SpecificationDecision     `json:"decisions"`
+	Questions     []SpecificationQuestion     `json:"questions"`
+	Status        string                      `json:"status" enum:"draft"`
+	Digest        string                      `json:"digest" output:"empty"`
+	UpdatedAt     string                      `json:"updatedAt"`
 }
 
 type SpecificationRequirement struct {
@@ -237,7 +238,7 @@ func validateSpecification(spec ProjectSpecification) error {
 			return err
 		}
 	}
-	return nil
+	return validateSpecificationRoadmap(spec, ids, false)
 }
 
 func (s *Server) getSpecification(w http.ResponseWriter, r *http.Request) {
@@ -305,6 +306,10 @@ func (s *Server) saveSpecification(w http.ResponseWriter, r *http.Request) {
 	current := currentSpecification(state)
 	if current.Revision != req.ExpectedRevision || state.Brief.Revision != req.ExpectedBriefRevision {
 		problem(w, 409, "revision_conflict", "The definition changed. Reload saved work before merging your draft.")
+		return
+	}
+	if len(current.Roadmap) > 0 && spec.Roadmap == nil {
+		problem(w, 400, "roadmap_omitted", "The saved definition has a roadmap. Preserve its phases, or send an explicit empty roadmap to remove them after review.")
 		return
 	}
 	if err := s.validateDiscoveryEvidenceLinks(r.Context(), p, spec.Evidence); err != nil {
@@ -397,6 +402,10 @@ func (s *Server) approveSpecification(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if err := validateSpecificationRoadmap(spec, nil, true); err != nil {
+		problem(w, 422, "roadmap_incomplete", err.Error())
+		return
+	}
 	if spec.Status == "approved" {
 		if err := writeJourneyContext(p.Path, state); err != nil {
 			problem(w, 500, "context_export_failed", "The private approval is retained, but its context export could not be repaired. Resolve the project paths and retry this explicit review.")
@@ -464,5 +473,6 @@ func renderSpecification(spec ProjectSpecification) []byte {
 		fmt.Fprintf(&out, "- %s\n  Answer: %s\n", r.Question, r.Answer)
 	}
 	out.WriteString(renderDiscoveryEvidence(spec.Evidence))
+	out.WriteString(renderSpecificationRoadmap(spec.Roadmap))
 	return []byte(out.String())
 }

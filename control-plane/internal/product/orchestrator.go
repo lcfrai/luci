@@ -47,8 +47,11 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		return nil
 	}
 	proposal := answer.Proposal
+	if err := validateOrchestratorSkillSuggestions(snapshot, proposal); err != nil {
+		return err
+	}
 	count := 0
-	for _, present := range []bool{proposal.Specification != nil, proposal.DesignPlan != nil, proposal.Plan != nil} {
+	for _, present := range []bool{proposal.Specification != nil, proposal.DesignPlan != nil, proposal.Plan != nil, proposal.GTM != nil} {
 		if present {
 			count++
 		}
@@ -57,6 +60,8 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		return ErrOrchestratorInvalid
 	}
 	switch proposal.Target {
+	case "gtm":
+		return validateOrchestratorGTM(snapshot, proposal.GTM)
 	case "specification":
 		next := proposal.Specification
 		if next == nil || next.ProjectID != snapshot.ProjectID || next.Revision != snapshot.Specification.Revision || next.BriefRevision != snapshot.Specification.BriefRevision || next.Status != "draft" || next.Digest != "" {
@@ -95,6 +100,9 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 			return ErrOrchestratorInvalid
 		}
 		if err := validatePlan(*next); err != nil {
+			return err
+		}
+		if err := validateTaskDesignReferences(next.Tasks, snapshot.DesignPlan); err != nil {
 			return err
 		}
 		requirements := map[string]bool{}
@@ -398,6 +406,11 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 		if err := s.validateCoordinationRecoveryLocked(ctx, p, *archived); err != nil {
 			return err
 		}
+		if archived.Answer != nil && archived.Answer.Proposal != nil && archived.Answer.Proposal.Target == "gtm" {
+			if err := s.confirmArchivedOrchestratorGTMLocked(ctx, p, *archived); err != nil {
+				return err
+			}
+		}
 		return s.finishCoordinationApplyLocked(ctx, p, *archived)
 	}
 	turn := &saved.Turns[index]
@@ -408,6 +421,11 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 	}
 	if err := s.validateCoordinationRecoveryLocked(ctx, p, *turn); err != nil {
 		return err
+	}
+	// GTM has a private ledger, not a journeyState field. Recovery must observe
+	// the exact turn-bound row before any generic journey target logic runs.
+	if turn.Answer != nil && turn.Answer.Proposal != nil && turn.Answer.Proposal.Target == "gtm" && (turn.ApplyIntent != "" || turn.AppliedRevision > 0) {
+		return s.resumeOrchestratorGTMLocked(ctx, p, &saved, index)
 	}
 	if turn.AppliedRevision > 0 {
 		return s.finishCoordinationApplyLocked(ctx, p, *turn)
@@ -450,6 +468,9 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 	proposal = answer.Proposal
 	if err := ValidateOrchestratorAnswer(snapshot, answer); err != nil {
 		return ErrOrchestratorInvalid
+	}
+	if proposal.Target == "gtm" {
+		return s.beginOrchestratorGTMLocked(ctx, p, &saved, index, snapshot, answer)
 	}
 	if proposal.Target == "design-plan" {
 		if err := s.validateDesignAssetBindings(context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir), p.Path, *proposal.DesignPlan); err != nil {
@@ -516,6 +537,16 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 		plan.BriefRevision = state.Brief.Revision
 		plan.SpecificationRevision, plan.SpecificationDigest = 0, ""
 		plan.UpdatedAt = now
+		expectedDesign := snapshot.DesignPlan.Revision
+		designRevision, designDigest, frameErr := bindTaskDesignFrames(state, plan.Tasks, &expectedDesign)
+		if frameErr != nil {
+			return ErrOrchestratorConflict
+		}
+		plan.DesignPlanRevision, plan.DesignPlanDigest = designRevision, designDigest
+		if designRevision > 0 {
+			spec, _ := currentEvidenceApprovals(state, id)
+			plan.SpecificationRevision, plan.SpecificationDigest = spec.Revision, spec.Digest
+		}
 		for _, task := range plan.Tasks {
 			if len(task.RequirementIDs) > 0 {
 				if snapshot.Specification.Status != "approved" {

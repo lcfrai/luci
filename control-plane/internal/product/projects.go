@@ -33,6 +33,8 @@ func (s *Server) registerProjects(mux Registrar) {
 	s.registerDesignPlan(mux)
 	s.registerDistributeControls(mux)
 	s.registerDistributeArtifacts(mux)
+	s.registerGTMWorkspace(mux)
+	s.registerSkills(mux)
 	s.registerReleases(mux)
 	mux.HandleFunc("POST /v1/product/projects", s.createProductProject)
 	mux.HandleFunc("GET /v1/product/project-imports/{attemptId}", s.getProjectImport)

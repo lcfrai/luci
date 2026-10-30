@@ -130,7 +130,7 @@ export function CoordinatorPolicy({ projectId, scope, actorId, view, canRead, ca
     if (!canRead || !canEdit || !fresh || policy?.mode !== "auto-drafts" || blocked || inFlight.current || storageError || retained.advance || retained.policyWrite) return;
     const turn = [...view.turns].reverse().find(candidate => candidate.actor.id === actorId);
     if (!turn || turn.actor.id !== actorId || turn.status !== "succeeded" || !turn.answer?.proposal || turn.answer.blocking || turn.appliedRevision ||
-        view.blockingQuestions.length || !policy.allowedTargets.includes(turn.answer.proposal.target)) return;
+        view.blockingQuestions.length || turn.answer.proposal.target === "gtm" || !policy.allowedTargets.includes(turn.answer.proposal.target)) return;
     const identity = `${turn.id}:${turn.contextDigest}`;
     if (attempted.current.has(identity)) return;
     const request: Advance = { turnId: turn.id, actorId, contextDigest: turn.contextDigest, expectedContextDigest: view.context.digest, revision: view.revision, policyRevision: policy.revision };

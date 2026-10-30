@@ -21,6 +21,7 @@ import { DEFAULT_BASE_URL } from "../../api/client";
 import { WorkflowDialog } from "../common/WorkflowDialog";
 import { Button } from "../fluid/components/button";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
+import { DeploymentBlueprint } from "../journey/DeploymentBlueprint";
 
 export function DeployLens() {
   return (
@@ -37,11 +38,11 @@ function ScopedDeploymentWorkspace({ projectId, scope }: { projectId: string; sc
   const pending = useCockpit(state => state.projectRunDeployment);
   const matches = (value: ProjectRunDeploymentIntent | null) => !!scope && value?.scope === scope && value.projectId === projectId;
   const [intent, setIntent] = useState<ProjectRunDeploymentIntent | null>(() => matches(pending) ? pending : null);
-  const [view, setView] = useState<"platform" | "publishing">(() => matches(pending) ? "publishing" : "platform");
+  const [view, setView] = useState<"platform" | "publishing" | "blueprint">(() => matches(pending) ? "publishing" : "platform");
   const [inspection, setInspection] = useState<(DeploymentInspection & { request: number }) | null>(null);
   const [configurationBusy, setConfigurationBusy] = useState(false);
   const [publishingBusy, setPublishingBusy] = useState(false);
-  const tabsId = useId(), selectedIndex = view === "platform" ? 0 : 1;
+  const tabsId = useId(), selectedIndex = view === "platform" ? 0 : view === "publishing" ? 1 : 2;
   const locked = configurationBusy || publishingBusy;
   useEffect(() => {
     if (!matches(pending) || locked) return;
@@ -54,13 +55,17 @@ function ScopedDeploymentWorkspace({ projectId, scope }: { projectId: string; sc
       if (locked) return;
       setInspection(previous => ({ ...target, request: (previous?.request ?? 0) + 1 })); setView(target.kind === "release" ? "publishing" : "platform");
     }} />}
-    <TabsSubtle className="deployment-tabs" aria-label="Deployment workspace" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => { if (!locked) setView(index === 0 ? "platform" : "publishing"); }}>
+    <TabsSubtle className="deployment-tabs" aria-label="Deployment workspace" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => { if (!locked) setView(index === 0 ? "platform" : index === 1 ? "publishing" : "blueprint"); }}>
       <TabsSubtleItem index={0} label="Application platform" aria-disabled={locked} />
       <TabsSubtleItem index={1} label="Previews and publishing" aria-disabled={locked} />
+      <TabsSubtleItem index={2} label="Service blueprint" aria-disabled={locked} />
     </TabsSubtle>
     <TabsSubtlePanel idPrefix={tabsId} index={0} selectedIndex={selectedIndex}>
       <section className="journey-page"><fieldset className="definition-fields" disabled={configurationBusy}><PlatformWorkspace projectId={projectId} inspectionRequest={inspection?.request} inspectDeploymentId={inspection?.kind === "platform" ? inspection.id : undefined} /></fieldset></section>
     </TabsSubtlePanel>
+    <div role="tabpanel" id={`${tabsId}-panel-2`} aria-labelledby={`${tabsId}-tab-2`} hidden={selectedIndex !== 2} tabIndex={-1}>
+      <DeploymentBlueprint projectId={projectId} active={selectedIndex === 2} disabled={locked} onPublishing={() => { if (!locked) setView("publishing"); }} />
+    </div>
     <TabsSubtlePanel idPrefix={tabsId} index={1} selectedIndex={selectedIndex}>
       <ProjectDeploy projectId={projectId} inspectionRequest={inspection?.request} inspectReleaseId={inspection?.kind === "release" ? inspection.id : undefined} deploymentIntent={intent} configurationManaged configurationBusy={configurationBusy} onBusyChange={setPublishingBusy} />
     </TabsSubtlePanel>

@@ -291,6 +291,9 @@ func (s *Server) validateSwarmScheduler(row swarmSchedulerLedger) error {
 		if _, err := time.Parse(time.RFC3339Nano, item.UpdatedAt); err != nil {
 			return ErrProjectRunInvalid
 		}
+		if item.PriorityChangeDigest != "" && !hexDigest(item.PriorityChangeDigest) {
+			return ErrProjectRunInvalid
+		}
 		if item.OperationID != "" && !prototypeReleaseID.MatchString(item.OperationID) || item.ChildID != "" && !prototypeReleaseID.MatchString(item.ChildID) {
 			return ErrProjectRunInvalid
 		}

@@ -13,7 +13,16 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
+
+// This typed refusal is local admission, not provider authentication failure.
+type foundationAdmissionRefusal struct{ cause error }
+
+func (e *foundationAdmissionRefusal) Error() string {
+	return "The current foundation plan or deployment access changed."
+}
+func (e *foundationAdmissionRefusal) Unwrap() error { return e.cause }
 
 type CloudJob struct {
 	ID         string    `json:"id"`
@@ -56,6 +65,9 @@ func (s *Server) initCloudJobs() error {
 	for _, record := range records {
 		j := record.Job
 		j.Plan = record.Plan
+		if j.Plan.Foundation != nil && (!validFoundationPlan(j.Plan) || j.PlanID != j.Plan.ID || j.Provider != "azure") {
+			return errAzureBlueprint
+		}
 		j.Owned = record.Owned
 		if j.Status == "creating" || j.Status == "deleting" {
 			j.Status = "unknown"
@@ -86,7 +98,19 @@ func (s *Server) listCloudJobs(w http.ResponseWriter, r *http.Request) {
 		jobs = append(jobs, j)
 	}
 	s.mu.RUnlock()
-	writeJSON(w, 200, map[string]any{"jobs": jobs})
+	visible := []CloudJob{}
+	for _, job := range jobs {
+		if s.foundationJobReadable(r.Context(), job) {
+			visible = append(visible, job)
+		}
+	}
+	for _, job := range visible {
+		if !s.foundationJobReadable(r.Context(), job) {
+			foundationProblem(w, errAzureBlueprint)
+			return
+		}
+	}
+	writeJSON(w, 200, map[string]any{"jobs": visible})
 }
 func (s *Server) createCloudJob(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -100,6 +124,24 @@ func (s *Server) createCloudJob(w http.ResponseWriter, r *http.Request) {
 	if !req.AcknowledgeCosts {
 		problem(w, 400, "cost_acknowledgement_required", "Accept the reviewed cloud resources and ongoing billing before creating them.")
 		return
+	}
+	s.mu.RLock()
+	inspected, found := s.plans[req.PlanID]
+	existing := false
+	for _, job := range s.jobs {
+		if job.PlanID == req.PlanID {
+			existing = true
+		}
+	}
+	s.mu.RUnlock()
+	var foundationProject project.Project
+	if found && inspected.Foundation != nil {
+		var err error
+		foundationProject, err = s.authorizeFoundationPlan(r.Context(), inspected, !existing, true)
+		if err != nil {
+			foundationProblem(w, err)
+			return
+		}
 	}
 	s.mu.Lock()
 	plan, ok := s.plans[req.PlanID]
@@ -116,7 +158,19 @@ func (s *Server) createCloudJob(w http.ResponseWriter, r *http.Request) {
 	for _, j := range s.jobs {
 		if j.PlanID == plan.ID {
 			s.mu.Unlock()
-			writeJSON(w, 200, j)
+			s.writeFoundationJobResponse(w, r, j, 200, j)
+			return
+		}
+	}
+	if plan.Foundation != nil {
+		if !validFoundationPlan(plan) || inspected.Foundation == nil || plan.Foundation.PlanDigest != inspected.Foundation.PlanDigest {
+			s.mu.Unlock()
+			foundationProblem(w, errAzureBlueprint)
+			return
+		}
+		if err := s.recheckFoundationContextLocked(foundationProject, plan); err != nil {
+			s.mu.Unlock()
+			foundationProblem(w, err)
 			return
 		}
 	}
@@ -145,7 +199,7 @@ func (s *Server) createCloudJob(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Unlock()
 	go s.provisionCloud(job)
-	writeJSON(w, 202, job)
+	s.writeFoundationJobResponse(w, r, job, 202, job)
 }
 func (s *Server) updateJob(j CloudJob, status, message string) {
 	s.mu.Lock()
@@ -159,6 +213,17 @@ func (s *Server) updateJob(j CloudJob, status, message string) {
 func (s *Server) provisionCloud(j CloudJob) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
+	var admissionRefusal *foundationAdmissionRefusal
+	defer func() {
+		if admissionRefusal != nil {
+			// Preserve the latest retained identity/ownership and uncertain costs.
+			// Earlier commands may have succeeded; there is no rollback or absence claim.
+			saved := s.jobsSnapshot(j.ID)
+			if saved.ID != "" {
+				s.updateJob(saved, "unknown", "The current foundation plan or deployment access changed. No further provider command was issued after that refusal. Earlier operations or resources may exist; inspect the retained job before any new attempt.")
+			}
+		}
+	}()
 	dir := filepath.Join(s.stateDir, "cloud", j.ID)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		s.updateJob(j, "failed", "Could not prepare the cloud template.")
@@ -174,7 +239,13 @@ func (s *Server) provisionCloud(j CloudJob) {
 			return
 		}
 	}
-	run := func(exe string, args ...string) (string, error) { return s.runner(ctx, exe, args, dir) }
+	run := func(exe string, args ...string) (string, error) {
+		if err := s.admitFoundationProvider(ctx, j); err != nil {
+			admissionRefusal = &foundationAdmissionRefusal{cause: err}
+			return "", admissionRefusal
+		}
+		return s.runner(ctx, exe, args, dir)
+	}
 	if j.Provider == "aws" {
 		if _, err := run("aws", "sts", "get-caller-identity", "--output", "json"); err != nil {
 			s.updateJob(j, "failed", "AWS is not signed in. Connect your account in setup.")
@@ -260,6 +331,10 @@ func (s *Server) jobForRequest(w http.ResponseWriter, r *http.Request) (CloudJob
 	s.mu.RLock()
 	j, ok := s.jobs[r.PathValue("jobId")]
 	s.mu.RUnlock()
+	if ok && !s.foundationJobReadable(r.Context(), j) {
+		foundationProblem(w, errAzureBlueprint)
+		return CloudJob{}, false
+	}
 	if !ok {
 		problem(w, 404, "job_not_found", "Cloud operation not found.")
 	}
@@ -271,7 +346,7 @@ func (s *Server) refreshCloudJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if j.Status == "creating" {
-		writeJSON(w, 200, j)
+		s.writeFoundationJobResponse(w, r, j, 200, j)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -292,7 +367,7 @@ func (s *Server) refreshCloudJob(w http.ResponseWriter, r *http.Request) {
 		if strings.TrimSpace(exists) == "false" {
 			if j.Status == "deleting" || j.Status == "deleted" {
 				s.updateJob(j, "deleted", "Azure confirmed the resource group has been removed.")
-				writeJSON(w, 200, s.jobsSnapshot(j.ID))
+				s.writeFoundationJobResponse(w, r, j, 200, s.jobsSnapshot(j.ID))
 				return
 			}
 			problem(w, 409, "resource_not_found", "The resource group is not present. Nothing was created or adopted.")
@@ -394,7 +469,7 @@ func (s *Server) refreshCloudJob(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	j = s.jobs[j.ID]
 	s.mu.RUnlock()
-	writeJSON(w, 200, j)
+	s.writeFoundationJobResponse(w, r, j, 200, j)
 }
 func (s *Server) deleteCloudJob(w http.ResponseWriter, r *http.Request) {
 	j, ok := s.jobForRequest(w, r)
@@ -459,12 +534,18 @@ func (s *Server) deleteCloudJob(w http.ResponseWriter, r *http.Request) {
 		exe = "az"
 		args = []string{"group", "delete", "--name", j.Name, "--yes", "--no-wait"}
 	}
+	if j.Plan.Foundation != nil {
+		if _, err := s.authorizeFoundationPlan(ctx, j.Plan, false, true); err != nil {
+			foundationProblem(w, err)
+			return
+		}
+	}
 	if _, err := s.runner(ctx, exe, args, ""); err != nil {
 		problem(w, 502, "delete_failed", "Deletion was not confirmed. Check the provider before retrying.")
 		return
 	}
 	s.updateJob(j, "deleting", "Deletion requested. Confirm in your cloud console; billing ends only after resources are removed.")
-	writeJSON(w, 202, s.jobsSnapshot(j.ID))
+	s.writeFoundationJobResponse(w, r, j, 202, s.jobsSnapshot(j.ID))
 }
 func (s *Server) jobsSnapshot(id string) CloudJob {
 	s.mu.RLock()
@@ -492,5 +573,5 @@ func (s *Server) checkCloudDNS(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		ips = []string{}
 	}
-	writeJSON(w, 200, map[string]any{"domain": j.Domain, "expectedIp": j.PublicIP, "addresses": ips, "ready": matched, "message": message})
+	s.writeFoundationJobResponse(w, r, j, 200, map[string]any{"domain": j.Domain, "expectedIp": j.PublicIP, "addresses": ips, "ready": matched, "message": message})
 }

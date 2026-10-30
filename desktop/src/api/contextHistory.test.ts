@@ -39,3 +39,9 @@ it("preserves a server error without retrying or inventing empty history", async
   await expect(contextHistoryApi.list("p-1")).rejects.toThrow("Private context attribution could not be verified.");
   expect(request).toHaveBeenCalledTimes(1);
 });
+
+it("accepts an attributed skill registry save alongside existing definition activity", async () => {
+  const result = { events: [{ ...event, id: `context-${"c".repeat(24)}`, kind: "skills", revision: 3 }, event], pruned: false };
+  vi.spyOn(productApi, "request").mockResolvedValue(result);
+  await expect(contextHistoryApi.list("p-1")).resolves.toEqual(result);
+});

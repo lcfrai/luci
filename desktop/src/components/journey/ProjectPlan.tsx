@@ -27,6 +27,8 @@ import { notifyProjectContextChanged } from "../../api/projectContextEvents";
 import type { ProjectRunDraft } from "./ProjectRuns";
 import { PlanTaskGraph, taskDependencyIssue } from "./PlanTaskGraph";
 import { TaskScope } from "./TaskScope";
+import { TaskDesignFrames } from "./TaskDesignFrames";
+import { designPlanApi, type DesignPlan } from "../../api/designPlan";
 
 export function implementationPrompt(
   brief: Brief,
@@ -46,6 +48,7 @@ export function implementationPrompt(
     task?.acceptance?.trim() ? `Task acceptance: ${task.acceptance}` : "",
     task?.dependsOn?.length ? `This task depends on: ${task.dependsOn.map(id => `${plan.tasks.find(item => item.id === id)?.title ?? id} (${id})`).join("; ")}. Inspect the prerequisite results before making changes; a recorded Done status alone is not verification.` : "",
     task?.writePaths?.length ? `Intended files and folders for this task: ${task.writePaths.join(", ")}. Stop and explain if the task needs changes beyond this scope.` : "",
+    task?.designFrameIds?.length ? `Focus on design frames: ${task.designFrameIds.join(", ")}. Read those frames in the ${context ? "captured" : "saved"} design handoff, together with the complete screen, state, asset and accessibility requirements.` : "",
     "Use the selected tasks' saved acceptance, dependencies and intended file scopes. Where these are missing or ambiguous, explain what needs clarification before expanding the work. Parallel work needs isolated execution and reviewed integration; task order alone is not proof that concurrent changes are safe.",
     plan.specificationRevision
       ? `Task requirement links refer to specification revision ${plan.specificationRevision}. ${context ? "Read the captured specification for the exact criteria." : "Read .luci/specification.json for the exact criteria."}${task?.requirementIds?.length ? ` This task links: ${task.requirementIds.join(", ")}.` : ""}`
@@ -107,7 +110,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
   const [title, setTitle] = useState("");
   const [changed, setChanged] = useState(false);
   const dirty = changed || !!title.trim();
-  const draftBase = plan ? JSON.stringify({ revision: plan.revision, briefRevision: plan.briefRevision, specificationRevision: plan.specificationRevision }) : null;
+  const draftBase = plan ? JSON.stringify({ revision: plan.revision, briefRevision: plan.briefRevision, specificationRevision: plan.specificationRevision, designPlanRevision: plan.designPlanRevision, designPlanDigest: plan.designPlanDigest }) : null;
   const draftValue = useMemo(() => ({ tasks, title }), [tasks, title]);
   const draftOriginal = useMemo(() => plan ? { tasks: plan.tasks, title: "" } : null, [plan]);
   const draft = useProjectDraft({ scope, kind: "implementation-plan", base: draftBase, baseValue: draftOriginal, value: draftValue, dirty, valid: planDraftValid });
@@ -122,6 +125,10 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
   const [coverage, setCoverage] = useState<RequirementCoverage | null>(null);
   const [requirementsError, setRequirementsError] = useState("");
   const [refreshingRequirements, setRefreshingRequirements] = useState(false);
+  const [design, setDesign] = useState<DesignPlan | null>(null);
+  const [designError, setDesignError] = useState("");
+  const [refreshingDesign, setRefreshingDesign] = useState(false);
+  const designRequest = useRef(0);
   const alive = useRef(true),
     saving = useRef<number | null>(null);
   const generation = useRef(0), requirementRequest = useRef(0);
@@ -219,7 +226,8 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
     setPlan(null); setTasks([]); setTitle(""); setChanged(false); setCoverage(null); setRequirementsError(""); setBusy(false); setError(""); setNotice(""); setPickerOpen(false); setImplementationContext(undefined);
     void load();
     void loadRequirements();
-    const unwatch = watchRequirementEvidence(projectId, () => void loadRequirements());
+    void loadDesign();
+    const unwatch = watchRequirementEvidence(projectId, () => { void loadRequirements(); void loadDesign(); });
     return () => {
       alive.current = false;
       generation.current++;
@@ -227,13 +235,34 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
       unwatch();
     };
   }, [projectId, canRead || !!plan]);
+  async function loadDesign() {
+    if (!currentAccess.current.canRead) { setDesign(null); return; }
+    const context = generation.current, request = ++designRequest.current;
+    setRefreshingDesign(true); setDesignError("");
+    try {
+      const value = await designPlanApi.get(projectId);
+      if (!alive.current || context !== generation.current || request !== designRequest.current || !currentAccess.current.canRead) return;
+      if (value.projectId !== projectId) throw new Error("Design frames belong to another project. Refresh the current Design handoff.");
+      setDesign(value);
+    } catch (cause) {
+      if (alive.current && context === generation.current && request === designRequest.current) { setDesign(null); setDesignError(errorText(cause)); }
+    } finally {
+      if (alive.current && context === generation.current && request === designRequest.current) setRefreshingDesign(false);
+    }
+  }
   const requirements = coverage?.rows ?? [];
   const approvedRequirements = coverage?.specification.status === "approved";
   const linked = tasks.some(task => task.requirementIds?.length);
   const unavailableLinks = !!coverage && tasks.some(task => task.requirementIds?.some(id => !requirements.some(row => row.requirementId === id)));
+  const frameLinked = tasks.some(task => task.designFrameIds?.length);
+  const approvedDesign = design?.status === "approved" && !designError && !refreshingDesign;
+  const unavailableFrames = tasks.some(task => task.designFrameIds?.some(id => !design?.scene?.frames.some(frame => frame.id === id)));
+  const frameIssue = frameLinked && (!approvedDesign || unavailableFrames);
+  const needsDesignRebind = frameLinked && !!design && (plan?.designPlanRevision !== design.revision || plan?.designPlanDigest !== design.digest);
   const dependencyIssue = useMemo(() => taskDependencyIssue(tasks), [tasks]);
-  const needsRebind = !!plan && (plan.briefRevision !== brief.revision || (!!approvedRequirements && plan.specificationRevision !== coverage!.specification.revision));
+  const needsRebind = !!plan && (plan.briefRevision !== brief.revision || (!!approvedRequirements && plan.specificationRevision !== coverage!.specification.revision) || needsDesignRebind);
   const handoffIssue = !canEdit ? "Editing access is required to prepare or start implementation." : savedRead !== "ready" ? "Read the current saved plan before preparing or starting implementation." : draft.pending ? "Restore or discard the browser draft before handing the plan to an agent." : dirty ? "Save changes before handing the plan to an agent."
+    : frameLinked && (frameIssue || needsDesignRebind) ? "Review the current approved design frames and save the plan before starting."
     : !plan?.revision ? "Save the implementation plan before starting."
       : refreshingRequirements ? "Checking the current definition and design approvals…"
         : !coverage ? "Refresh the current definition and design approvals before starting."
@@ -386,6 +415,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
                   Remove
                 </Button>
                 <TaskScope task={task} index={index} tasks={tasks} disabled={!canEdit || locked || !!draft.pending} onChange={next => edit(tasks.map(item => item.id === task.id ? next : item))} />
+                <TaskDesignFrames task={task} index={index} design={design} loading={refreshingDesign} error={designError} disabled={!canEdit || locked || !!draft.pending} onChange={next => edit(tasks.map(item => item.id === task.id ? next : item))} />
                 <details className="task-requirements">
                   <summary>Requirements for task {index + 1} · {task.requirementIds?.length ?? 0} linked</summary>
                   {!approvedRequirements && <p className="journey-muted">Approve the current requirements in Discover before adding links. Existing links can be removed.</p>}
@@ -451,10 +481,10 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
             {onPrepareRun && <Button type="button" disabled={!canEdit || locked || !!draft.pending || !!handoffIssue || !worktreeId || !plan.tasks.some(task => task.status !== "done")} onClick={() => handoff(undefined, true)}>Prepare project run</Button>}
             <Button type="button" variant="primary" loading={busy}
               disabled={
-                !canEdit || locked || !!draft.pending || !!dependencyIssue || (!changed && !needsRebind) || tasks.some((task) => !task.title.trim()) || (linked && (!approvedRequirements || unavailableLinks))
+                !canEdit || locked || !!draft.pending || !!dependencyIssue || !!frameIssue || (!changed && !needsRebind) || tasks.some((task) => !task.title.trim()) || (linked && (!approvedRequirements || unavailableLinks))
               }
               onClick={() => {
-                if (!currentAccess.current.canEdit || !reading.current.ready || saving.current !== null || draft.pending || dependencyIssue) return;
+                if (!currentAccess.current.canEdit || !reading.current.ready || saving.current !== null || draft.pending || dependencyIssue || frameIssue) return;
                 const context = generation.current;
                 if (saving.current === context) return;
                 saving.current = context;
@@ -463,7 +493,9 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
                 setNotice("");
                 // Preserve line edits in recovery, but do not send blank lines as paths.
                 const savedTasks = tasks.map(task => task.writePaths ? { ...task, writePaths: task.writePaths.map(path => path.trim()).filter(Boolean) } : task);
-                void (approvedRequirements
+                void (frameLinked && design
+                  ? productApi.savePlan(projectId, plan.revision, savedTasks, approvedRequirements ? coverage!.specification.revision : undefined, design.revision)
+                  : approvedRequirements
                   ? productApi.savePlan(projectId, plan.revision, savedTasks, coverage!.specification.revision)
                   : productApi.savePlan(projectId, plan.revision, savedTasks))
                   .then((value) => {
@@ -495,6 +527,8 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
               Start implementation session
             </Button>
             {linked && (!approvedRequirements || unavailableLinks) && <span className="journey-muted">Refresh and review the current approved requirements, or remove unavailable links, before saving.</span>}
+            {frameIssue && <span className="journey-muted">Refresh the approved design or remove unavailable frame links before saving.</span>}
+            <Button type="button" variant="tertiary" disabled={!canRead || busy || refreshingDesign} onClick={() => void loadDesign()}>Refresh design frames</Button>
             {dirty && (
               <span className="journey-muted">
                 {title.trim()

@@ -12,7 +12,7 @@ import {
 import { APP_DEFAULTS, CANVAS_MAX_TILES, initialPrefsState } from "./slices/prefsSlice";
 import { initialDataState } from "./slices/dataSlice";
 import { initialUiState, MAX_TOASTS, TOAST_TTL_PLAIN, TOAST_TTL_UNDO } from "./slices/uiSlice";
-import type { Session } from "./types";
+import type { ImplementationContext, Session } from "./types";
 
 /* Three harnesses, so `setHarnesses` has something with a length to assert. Composed at the
  * call site from `aHarness` rather than added to `fixtures.ts` — shared-shape §3.2 sanctions
@@ -121,6 +121,38 @@ describe("dataSlice", () => {
     }
     s.replaceSessions([{ ...original, implementationContext: undefined }], ["w-1"]);
     expect(useCockpit.getState().sessions["s-bound"].implementationContext).toBeUndefined();
+  });
+
+  it("retains equal selected skills across polls and publishes every changed skill binding", () => {
+    const skills: NonNullable<ImplementationContext["skills"]> = [
+      { taskId: "task-1", role: "coding", id: "persistence", revision: 1, digest: "a".repeat(64) },
+      { taskId: "task-review", role: "reviewer", id: "independent-review", revision: 3, digest: "c".repeat(64) },
+    ];
+    const context: ImplementationContext = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1", "task-review"], briefDigest: "brief-2", planDigest: "plan-3", specificationDigest: "spec-6", designPlanDigest: "design-8", worktreeId: "w-1", sourceCommit: "a".repeat(40), sourceDigest: "source-a", sourceDirty: false, taskTitles: ["Build editor", "Review editor"], requirementIds: ["R-EDIT"], skills };
+    const original = aSession({ id: "s-skills", worktreeId: "w-1", implementationContext: context });
+    const store = useCockpit.getState();
+    store.replaceSessions([original], ["w-1"]);
+    store.replaceSessions([structuredClone(original)], ["w-1"]);
+    expect(useCockpit.getState().sessions[original.id]).toBe(original);
+    store.upsertSession(structuredClone(original));
+    expect(useCockpit.getState().sessions[original.id]).toBe(original);
+    const changes: Partial<(typeof skills)[number]>[] = [
+      { taskId: "different-task" }, { role: "reviewer" }, { id: "different-skill" },
+      { revision: 2 }, { digest: "b".repeat(64) },
+    ];
+    const selections = changes.map(change => [{ ...skills[0], ...change }, skills[1]]);
+    selections.push([skills[1], skills[0]], [skills[0]], []);
+    for (const selected of selections) {
+      store.replaceSessions([original], ["w-1"]);
+      const updated = { ...original, implementationContext: { ...context, skills: selected } };
+      store.replaceSessions([updated], ["w-1"]);
+      expect(useCockpit.getState().sessions[original.id]).toBe(updated);
+    }
+    const legacy = { ...original, implementationContext: { ...context, skills: undefined } };
+    store.replaceSessions([legacy], ["w-1"]);
+    expect(useCockpit.getState().sessions[original.id]).toBe(legacy);
+    store.replaceSessions([structuredClone(legacy)], ["w-1"]);
+    expect(useCockpit.getState().sessions[original.id]).toBe(legacy);
   });
 
   it("keeps equal native implementation outcomes stable and publishes a changed phase", () => {

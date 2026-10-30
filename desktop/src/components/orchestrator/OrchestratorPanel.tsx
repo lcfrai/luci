@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { orchestratorApi, type OrchestratorAdvanceRequest, type OrchestratorJob, type OrchestratorRequest, type OrchestratorTurn, type OrchestratorView } from "../../api/orchestrator";
 import { errorText, productApi } from "../../api/product";
 import { ApiError } from "../../api/client";
-import { PROJECT_CONTEXT_CHANGED, requestProjectContextEdit, type ContextEditor, type ProjectContextIdentity } from "../../api/projectContextEvents";
+import { PROJECT_CONTEXT_CHANGED, notifyProjectContextChanged, requestProjectContextEdit, type ContextEditor, type ProjectContextIdentity } from "../../api/projectContextEvents";
 import { useProjectDraftScope } from "../../hooks/useProjectDraft";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { OWN_AGENT_PROVIDER_CHANGED, agentConnectionIssue, configuredAgentModel, selectedAgentConnection, useAgentConnections } from "../../hooks/useAgentConnections";
@@ -12,6 +12,7 @@ import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
 import { Button } from "../fluid/components/button";
 import { WorkflowDialog } from "../common/WorkflowDialog";
 import { AmendmentReview } from "./AmendmentReview";
+import { SuggestedTaskSkills } from "./SuggestedTaskSkills";
 import { ProjectUnderstanding } from "./ProjectUnderstanding";
 import { ConversationStorage } from "./ConversationStorage";
 import { CoordinatorPolicy } from "./CoordinatorPolicy";
@@ -33,7 +34,7 @@ export interface OrchestratorOpenDetail {
 const compactOverviewQuery = "(max-width: 1100px)";
 const stageLabels = { discover: "Discover", design: "Design", develop: "Develop", deploy: "Deploy", distribute: "Distribute" };
 const amendmentEditors = { specification: "definition", "design-plan": "design", plan: "plan" } as const;
-const amendmentLabels = { specification: "definition", "design-plan": "design", plan: "implementation plan" };
+const amendmentLabels = { specification: "definition", "design-plan": "design", plan: "implementation plan", gtm: "go-to-market workspace" };
 const pendingStatus = (status: string) => ["reserved", "queued", "running", "unknown"].includes(status);
 const readAccessDenied = (cause: unknown) => cause instanceof ApiError && (cause.status === 401 || cause.status === 403);
 const statuses: Record<OrchestratorTurn["status"], string> = {
@@ -538,7 +539,10 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
       const value = await orchestratorApi.apply(projectId, review.turn.id, { expectedRevision: review.revision, expectedContextDigest: review.digest });
       if (!alive.current || !permission.current.canRead || ticket !== generation.current) return;
       remember(value); setReview(null); setRefreshEditor(true);
-      setNotice("Amendment saved as a draft. Review the updated context and any affected approvals before implementation.");
+      if (review.turn.answer?.proposal?.target === "gtm") {
+        notifyProjectContextChanged(scope, projectId);
+        setNotice("GTM revision saved. Review your assumptions and decide which experiment to run next.");
+      } else setNotice("Amendment saved as a draft. Review the updated context and any affected approvals before implementation.");
     } catch (cause) { if (alive.current && ticket === generation.current) setError(cause instanceof ApiError && cause.code === "conflict" ? errorText(cause) : `${errorText(cause)} Keep this proposal, refresh the conversation and review the current context before applying again.`); }
     finally { if (ticket === generation.current) { working.current = false; if (alive.current) setBusy(""); } }
   }
@@ -692,7 +696,7 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
 
   const understanding = view && <ProjectUnderstanding view={view} stale={contextStale || contextRefreshQueued} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} onEdit={edit} canEdit={canEdit} />;
   const conversationContext = view && <section className="orchestrator-composer-context" aria-label="Conversation context">
-    <p>Current saved context · Definition {view.context.specification.revision} · Design {view.context.designPlan.revision} · Plan {view.context.plan.revision}</p>
+    <p>Current saved context · Definition {view.context.specification.revision} · Design {view.context.designPlan.revision} · Plan {view.context.plan.revision}{view.context.gtm && <> · GTM {view.context.gtm.revision}</>}</p>
     <p className="orchestrator-muted">Describe an idea or amendment from any activity. Luci can ask about ambiguity and propose a draft for your review. A running agent keeps its original captured scope.</p>
     {canAssist && <Button type="button" variant="ghost" size="compact" disabled={!!busy || !!pendingRequest || !!recoveredDraft || storageConflict || !!view.blockingQuestions.length} onClick={() => ask('Help break the approved goal into small dependency-aware tasks for upstream coding agents. Give each task scoped write paths, requirement references and observable acceptance. Ask me about any material gap first. I prefer one cloud microVM per agent when the configured provider, capacity and spending policy permit; do not treat this request as execution or deployment consent.')}>Plan parallel tasks with Luci</Button>}
   </section>;
@@ -768,8 +772,9 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
               {turn.answer.proposal && <div className="orchestrator-proposal"><p>{turn.answer.proposal.summary}</p>{turn.appliedRevision ? <section aria-label="Continue amendment review">
                 <p>This amendment saved {amendmentLabels[turn.answer.proposal.target]} draft revision {turn.appliedRevision}. Review the current document and its affected approvals before preparing more work.</p>
                 <p className="orchestrator-muted">Existing builds retain the context they started with. Reviewing this document does not stop or change those agents.</p>
-                <Button variant="secondary" disabled={!!busy || contextStale || contextRefreshQueued || !canRead || (turn.answer.proposal.target !== "plan" && !canEdit)} onClick={() => edit(amendmentEditors[turn.answer!.proposal!.target])}>Open current {amendmentLabels[turn.answer.proposal.target]}</Button>
+                <Button variant="secondary" disabled={!!busy || contextStale || contextRefreshQueued || !canRead || (turn.answer.proposal.target !== "plan" && !canEdit)} onClick={() => { const target = turn.answer!.proposal!.target; if (target === "gtm") setLens("distribute"); else edit(amendmentEditors[target]); }}>Open current {amendmentLabels[turn.answer.proposal.target]}</Button>
               </section> : <Button variant="secondary" disabled={!!busy} onClick={() => { setReview({ turn, revision: view.revision, digest: view.context.digest }); setError(""); }}>Review amendment</Button>}</div>}
+              {!!turn.appliedRevision && !!turn.answer.proposal?.suggestedSkillAssignments?.length && <SuggestedTaskSkills key={`${scope}/${turn.id}`} turn={turn} scope={scope} canRead={canRead} canEdit={canEdit} blocked={!!busy || contextStale || contextRefreshQueued || !!contextDrafts} />}
               {turn.answer.nextAction && <p className="orchestrator-muted">Suggested next step: {turn.answer.nextAction}</p>}
             </div>}
             {turnStatusLabel(turn, pendingJob) === statuses.unknown || turnStatusLabel(turn, pendingJob) === statuses.reserved ? <p>The request is unconfirmed. Refresh to observe it; Luci will not start a duplicate request automatically.</p> : null}

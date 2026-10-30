@@ -85,16 +85,27 @@ export const initialDataState: DataState = Object.freeze({
   lastError: null,
 });
 
-/** The immutable implementation snapshot has primitive fields and three ordered string arrays.
- *  Compare their values so an unchanged poll preserves the session object and its history row. */
+/** Skill bindings are ordered primitive records, not string IDs or object identities. */
+function sameImplementationSkills(a: ImplementationContext["skills"], b: ImplementationContext["skills"]): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((skill, index) => {
+    const other = b[index];
+    const keys = Object.keys(skill) as (keyof typeof skill)[];
+    return keys.length === Object.keys(other).length && keys.every(key => skill[key] === other[key]);
+  });
+}
+
+/** Compare exact snapshot values so an unchanged poll preserves session/history identity. */
 function sameImplementationContext(a: ImplementationContext | undefined, b: ImplementationContext | undefined): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
   const keys = Object.keys(a) as (keyof ImplementationContext)[];
   if (keys.length !== Object.keys(b).length) return false;
   return keys.every(key => {
-    const left = a[key], right = b[key];
-    return Array.isArray(left) && Array.isArray(right) ? sameIds(left, right) : left === right;
+    if (key === "skills") return sameImplementationSkills(a.skills, b.skills);
+    if (key === "taskIds" || key === "taskTitles" || key === "requirementIds") return sameIds(a[key], b[key]);
+    return a[key] === b[key];
   });
 }
 

@@ -30,7 +30,10 @@ import (
 // map; they do not touch catalogAuditRoutes. Adding a side-effecting GET means a
 // failing test that names the rule before it can be made to pass.
 var catalogReadOnlyRoutes = map[string]string{
-	"GET /v1/product/home": "One bounded catalogue, registry and private projection read for the current actor; no model, sandbox, source mutation or acknowledgment on GET.",
+	"GET /v1/product/portfolio-goals":                                      "Reads only the current actor's bounded private goals and retained applications, with current project-read checks. No create, repair, scheduling, resource probe or persistence on GET.",
+	"GET /v1/product/portfolio-goals/applications/{applicationId}":         "Reads an actor-owned retained application and original private queue intent markers. No write replay, reconciliation, probe or persistence; matching priority alone is not confirmation.",
+	"GET /v1/product/portfolio":                                            "Reads bounded actor-scoped project, queue and coordinator metadata after project-read grants and rechecks grants before returning. No model, provider, dispatch, reconciliation or persistence occurs.",
+	"GET /v1/product/home":                                                 "One bounded catalogue, registry and private projection read for the current actor; no model, sandbox, source mutation or acknowledgment on GET.",
 	"GET /v1/product/projects/{id}/assist/repository/requests/{requestId}": "Reads the authenticated actor's exact retained request in an owned project. No repair, source sampling, provider resolution, sandbox probes or allocation occurs; a missing receipt does not prove a delayed POST is absent.",
 	"GET /v1/product/projects/{id}/assist":                                 "Lists at most twenty bounded private job metadata records for an owned project. No inference, sandbox probes, recovery or project writes occur on GET.",
 	"GET /v1/product/projects/{id}/assist/{jobId}":                         "Reads a bounded private job snapshot. No model calls, sandbox probes, recovery or project writes occur on GET.",

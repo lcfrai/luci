@@ -6,7 +6,7 @@ import { Button } from "../fluid/components/button";
 import "./context-history.css";
 
 const documentNames: Record<ContextChangeEvent["kind"], string> = {
-  brief: "brief", specification: "definition", sketch: "sketch", design: "design handoff", plan: "implementation plan",
+  brief: "brief", specification: "definition", sketch: "sketch", design: "design handoff", plan: "implementation plan", skills: "skill registry",
 };
 function activity(event: ContextChangeEvent) {
   const document = documentNames[event.kind];

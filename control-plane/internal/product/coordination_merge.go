@@ -15,12 +15,21 @@ type coordinationCells map[string]json.RawMessage
 var coordinationMetadata = map[string]bool{
 	"projectId": true, "version": true, "revision": true, "briefRevision": true,
 	"specificationRevision": true, "specificationDigest": true, "sketchRevision": true,
+	"designPlanRevision": true, "designPlanDigest": true,
 	"status": true, "digest": true, "updatedAt": true,
 	"prototypeReleaseId": true, "prototypeCommit": true,
 }
 
 func coordinationDocument(snapshot OrchestratorContext, proposal *OrchestratorProposal, target string) any {
 	switch target {
+	case "gtm":
+		if proposal != nil {
+			return proposal.GTM
+		}
+		if snapshot.GTM != nil {
+			return snapshot.GTM.Content
+		}
+		return nil
 	case "specification":
 		if proposal != nil {
 			return proposal.Specification
@@ -167,6 +176,9 @@ func coordinationRebase(turn storedOrchestratorTurn, current OrchestratorContext
 	live := coordinationObject(coordinationDocument(current, nil, target))
 	changes := coordinationDiff(base, next)
 	conflicts := []string{}
+	if target == "gtm" && (turn.Context.GTM == nil || current.GTM == nil || turn.Context.GTM.SourceDigest != current.GTM.SourceDigest) {
+		return answer, []string{"gtm.source"}
+	}
 	// A different dependency document is not a harmless metadata revision. The
 	// original proposal was never reviewed/generated against that new contract.
 	if target != "specification" && len(coordinationDiff(coordinationObject(turn.Context.Specification), coordinationObject(current.Specification))) != 0 {
@@ -209,12 +221,16 @@ func coordinationRebase(turn storedOrchestratorTurn, current OrchestratorContext
 	// Current metadata remains current; the existing canonical engine increments
 	// revisions and invalidates approvals. Reconciliation grants neither approval
 	// nor permission to change task completion status.
-	if target != "plan" {
+	if target != "plan" && target != "gtm" {
 		live["status"] = json.RawMessage(`"draft"`)
 		live["digest"] = json.RawMessage(`""`)
 	}
 	raw, _ := json.Marshal(live)
 	switch target {
+	case "gtm":
+		var value GTMContent
+		_ = json.Unmarshal(raw, &value)
+		answer.Proposal.GTM = &value
 	case "specification":
 		var value ProjectSpecification
 		_ = json.Unmarshal(raw, &value)

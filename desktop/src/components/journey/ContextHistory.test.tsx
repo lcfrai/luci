@@ -43,6 +43,17 @@ it("keeps interrupted review requests explicitly unconfirmed", async () => {
   expect(screen.queryByText("approved the design handoff", { exact: false })).toBeNull();
 });
 
+it("names saved and unconfirmed skill registry changes without claiming execution or approval", async () => {
+  vi.mocked(contextHistoryApi.list).mockResolvedValue({ events: [
+    event({ kind: "skills", revision: 3 }),
+    event({ id: `context-${"d".repeat(24)}`, kind: "skills", revision: 4, status: "unconfirmed", actor: { id: "person-bob", displayName: "Bob" } }),
+  ], pruned: false });
+  render(<ContextHistory projectId="p-1" />);
+  expect((await screen.findByText("Alice")).parentElement?.textContent).toBe("Alice saved the skill registry");
+  expect(screen.getByText("Bob").parentElement?.textContent).toBe("Bob requested an update to the skill registry");
+  expect(screen.getByText(/Outcome not confirmed/)).not.toBeNull();
+});
+
 it("discloses unknown imported authorship and omitted older history without fabricating people", async () => {
   vi.mocked(contextHistoryApi.list).mockResolvedValue({ events: [], pruned: true });
   render(<ContextHistory projectId="p-1" />);

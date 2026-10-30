@@ -150,6 +150,8 @@ export interface ImplementationContextRequest {
 
 /** Immutable server snapshot. Session activity never establishes task completion or verification. */
 export interface ImplementationContext extends ImplementationContextRequest {
+  /** Exact project skill versions captured in the assigned-task contract. */
+  skills?: { taskId: string; role: 'coding' | 'reviewer'; id: string; revision: number; digest: string }[];
   /** Immutable dependency reports/answers captured for this task; absent for legacy V1 delivery. */
   dependencyContextDigest?: string;
   briefDigest: string;

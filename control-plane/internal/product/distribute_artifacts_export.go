@@ -28,6 +28,9 @@ func artifactExportLines(row DistributeArtifact, freshness string) []artifactExp
 	add("Specification", fmt.Sprintf("revision %d · %s", row.Source.SpecificationRevision, row.Source.SpecificationDigest))
 	add("Design", fmt.Sprintf("revision %d · %s", row.Source.DesignRevision, row.Source.DesignDigest))
 	add("Plan", fmt.Sprintf("revision %d · %s", row.Source.PlanRevision, row.Source.PlanDigest))
+	if row.Source.GTMRevision > 0 {
+		add("GTM strategy", fmt.Sprintf("revision %d · %s", row.Source.GTMRevision, row.Source.GTMDigest))
+	}
 	if row.Source.TeamID != "" {
 		add("Team controls", fmt.Sprintf("%s · revision %d · %s", row.Source.TeamID, row.Source.LibraryRevision, row.Source.LibraryDigest))
 		add("Project assessment", fmt.Sprintf("revision %d · %s", row.Source.AssessmentRevision, row.Source.AssessmentDigest))
@@ -306,7 +309,7 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 	if row.Source.SelectedEvidence != nil {
 		selectedRun = row.Source.SelectedEvidence.RunID
 	}
-	source, _, _, _, sourceErr := s.artifactSource(r.Context(), p, selectedRun)
+	source, _, _, _, sourceErr := s.artifactSourceForKindLocked(r.Context(), p, row.Kind, selectedRun)
 	s.teamControlsMu.Unlock()
 	s.mu.RUnlock()
 	freshness := "unavailable"

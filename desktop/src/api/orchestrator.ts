@@ -1,8 +1,10 @@
 import { productApi, type Brief, type ImplementationPlan } from "./product";
+import { gtmDraftValid, type GTMContent } from "./gtmWorkspace";
 import type { ProjectSpecification } from "./definition";
 import type { DesignPlan } from "./designPlan";
 import type { ProjectRun } from "./projectRuns";
 import { validRunAttention, type ProjectRunAttention } from "./runAttention";
+import { validOrchestratorSkillsContext, validSuggestedTaskSkills, type OrchestratorSkillsContext, type OrchestratorSkillSuggestion } from "./orchestratorSkills";
 
 export interface OrchestratorRunSummary {
   id: string; state: string; valid: boolean; reason: string;
@@ -19,7 +21,13 @@ export interface OrchestratorRunSummary {
   operationsOmitted?: boolean; operationCount?: number;
   operations?: { id: string; childId: string; status: "reserved" | "dispatching" | "running" | "unknown"; updatedAt: string }[];
 }
+export interface OrchestratorGTMContext {
+  revision: number; digest: string; sourceDigest: string; content: GTMContent;
+  artifactLinks: { id: string; revision: number; digest: string }[]; artifactsOmitted: number;
+}
 export interface OrchestratorContext {
+  skills?: OrchestratorSkillsContext;
+  gtm?: OrchestratorGTMContext;
   projectId: string; digest: string; brief: Brief; specification: ProjectSpecification;
   designPlan: DesignPlan; plan: ImplementationPlan; sketchRevision: number;
   sourceCommit: string; sourceDirty: boolean; sourceKnown: boolean;
@@ -29,7 +37,9 @@ export interface OrchestratorContext {
   checksSummary: string; releasesSummary: string;
 }
 export interface OrchestratorProposal {
-  target: "specification" | "design-plan" | "plan"; summary: string;
+  suggestedSkillAssignments?: OrchestratorSkillSuggestion[];
+  target: "specification" | "design-plan" | "plan" | "gtm"; summary: string;
+  gtm?: GTMContent | null;
   specification: ProjectSpecification | null; designPlan: DesignPlan | null; plan: ImplementationPlan | null;
 }
 export interface OrchestratorAnswer {
@@ -103,12 +113,24 @@ function validActiveRuns(value: OrchestratorContext): boolean {
         ["reserved", "dispatching", "running", "unknown"].includes(operation.status) &&
         typeof operation.updatedAt === "string" && Number.isFinite(Date.parse(operation.updatedAt))));
 }
+function validGTMContext(gtm: OrchestratorGTMContext | undefined): boolean {
+  if (gtm === undefined) return true;
+  const hash = (v: unknown) => typeof v === "string" && /^[a-f0-9]{64}$/.test(v);
+  return !!gtm && Number.isSafeInteger(gtm.revision) && gtm.revision >= 0 &&
+    (gtm.revision === 0 ? gtm.digest === "" : hash(gtm.digest)) && hash(gtm.sourceDigest) &&
+    gtmDraftValid(gtm.content) && Array.isArray(gtm.artifactLinks) && gtm.artifactLinks.length <= 50 &&
+    gtm.artifactLinks.every(x => x && typeof x.id === "string" && !!x.id && Number.isSafeInteger(x.revision) && x.revision > 0 && hash(x.digest)) &&
+    new Set(gtm.artifactLinks.map(x => `${x.id}:${x.revision}:${x.digest}`)).size === gtm.artifactLinks.length &&
+    Number.isSafeInteger(gtm.artifactsOmitted) && gtm.artifactsOmitted >= 0;
+}
 function verifiedView(value: OrchestratorView, projectId: string): OrchestratorView {
   if (value?.projectId !== projectId || value.context?.projectId !== projectId || !Number.isSafeInteger(value.revision) ||
       !Array.isArray(value.turns) || !Array.isArray(value.blockingQuestions) ||
       value.turns.some(turn => turn.projectId !== projectId || turn.context?.projectId !== projectId) ||
       new Set(value.turns.map(turn => turn.id)).size !== value.turns.length ||
-      !validActiveRuns(value.context) || !validActivity(value.activity) ||
+      !validOrchestratorSkillsContext(value.context.skills, projectId) || value.turns.some(turn => !validOrchestratorSkillsContext(turn.context.skills, projectId) || !validSuggestedTaskSkills(turn.context, turn.answer?.proposal)) ||
+      !validActiveRuns(value.context) || !validActivity(value.activity) || !validGTMContext(value.context.gtm) ||
+      value.turns.some(turn => !validGTMContext(turn.context.gtm) || turn.answer?.proposal?.target === "gtm" && (!turn.context.gtm || !gtmDraftValid(turn.answer.proposal.gtm) || turn.answer.proposal.specification !== null || turn.answer.proposal.designPlan !== null || turn.answer.proposal.plan !== null)) ||
       value.activity?.findings?.some(finding => finding.projectId !== projectId) ||
       (value.context.needsAttention !== undefined && !validRunAttention(value.context.needsAttention, 200)) ||
       (value.nextAction?.runId !== undefined && ![value.context.currentRun?.id, ...(value.context.activeRuns ?? []).map(run => run.id), ...(value.context.needsAttention ?? []).map(run => run.id)].includes(value.nextAction.runId)) ||
@@ -153,6 +175,7 @@ function verifiedJob(value: OrchestratorJob, projectId: string): OrchestratorJob
   if (value?.projectId !== projectId || value.kind !== "orchestrator" || value.orchestratorContext?.projectId !== projectId) {
     throw new Error("The assistance response belongs to a different conversation. Refresh before continuing.");
   }
+  if (!validOrchestratorSkillsContext(value.orchestratorContext.skills, projectId) || !validSuggestedTaskSkills(value.orchestratorContext, value.orchestratorResult?.proposal)) throw new Error("The assistance skill recommendations could not be verified.");
   return value;
 }
 export const orchestratorApi = {

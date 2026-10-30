@@ -17,6 +17,8 @@ type ProjectPlan struct {
 	UpdatedAt             string        `json:"updatedAt"`
 	SpecificationRevision int           `json:"specificationRevision,omitempty"`
 	SpecificationDigest   string        `json:"specificationDigest,omitempty"`
+	DesignPlanRevision    int           `json:"designPlanRevision,omitempty"`
+	DesignPlanDigest      string        `json:"designPlanDigest,omitempty"`
 }
 type ProjectTask struct {
 	ID             string   `json:"id"`
@@ -25,6 +27,7 @@ type ProjectTask struct {
 	Role           string   `json:"role,omitempty"`
 	ReviewOfTaskID string   `json:"reviewOfTaskId,omitempty"`
 	RequirementIDs []string `json:"requirementIds,omitempty"`
+	DesignFrameIDs []string `json:"designFrameIds,omitempty"`
 	DependsOn      []string `json:"dependsOn,omitempty"`
 	WritePaths     []string `json:"writePaths,omitempty"`
 	Acceptance     string   `json:"acceptance,omitempty"`
@@ -50,8 +53,11 @@ func currentPlan(state journeyState, id string) ProjectPlan {
 	return p
 }
 func validatePlan(p ProjectPlan) error {
-	if p.Revision < 0 || p.BriefRevision < 0 || p.SpecificationRevision < 0 || len(p.Tasks) > 200 {
+	if p.Revision < 0 || p.BriefRevision < 0 || p.SpecificationRevision < 0 || p.DesignPlanRevision < 0 || len(p.Tasks) > 200 {
 		return errors.New("Use at most 200 tasks and nonnegative revisions.")
+	}
+	if p.DesignPlanRevision == 0 && p.DesignPlanDigest != "" || p.DesignPlanRevision > 0 && !hexDigest(p.DesignPlanDigest) {
+		return errors.New("Linked design revisions need the exact saved approval digest.")
 	}
 	ids := make(map[string]bool)
 	for _, task := range p.Tasks {
@@ -62,6 +68,9 @@ func validatePlan(p ProjectPlan) error {
 			return errors.New("Task status must be todo, doing or done.")
 		}
 		if err := validateRequirementIDs(task.RequirementIDs); err != nil {
+			return err
+		}
+		if err := validateTaskDesignFrameIDs(task.DesignFrameIDs); err != nil {
 			return err
 		}
 		ids[task.ID] = true
@@ -90,6 +99,7 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 		ExpectedRevision              int           `json:"expectedRevision"`
 		Tasks                         []ProjectTask `json:"tasks"`
 		ExpectedSpecificationRevision *int          `json:"expectedSpecificationRevision"`
+		ExpectedDesignPlanRevision    *int          `json:"expectedDesignPlanRevision"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
@@ -133,6 +143,16 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		plan.SpecificationRevision, plan.SpecificationDigest = binding.SpecificationRevision, binding.SpecificationDigest
+	}
+	designRevision, designDigest, err := bindTaskDesignFrames(state, req.Tasks, req.ExpectedDesignPlanRevision)
+	if err != nil {
+		writeEvidenceBindingError(w, err)
+		return
+	}
+	plan.DesignPlanRevision, plan.DesignPlanDigest = designRevision, designDigest
+	if designRevision > 0 {
+		spec, _ := currentEvidenceApprovals(state, p.ID)
+		plan.SpecificationRevision, plan.SpecificationDigest = spec.Revision, spec.Digest
 	}
 	plan.Revision++
 	plan.BriefRevision = state.Brief.Revision

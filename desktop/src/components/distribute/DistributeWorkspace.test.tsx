@@ -8,6 +8,8 @@ import { distributeArtifactsApi } from '../../api/distributeArtifacts';
 import { resetCockpit, useCockpit } from '../../store/store';
 import { productApi } from '../../api/product';
 import { discoveryDocumentsApi, type DiscoveryDocument } from '../../api/discoveryDocuments';
+import { emptyGTM, gtmWorkspaceApi, type GTMView } from '../../api/gtmWorkspace';
+
 
 const scope=vi.hoisted(()=>({teamId:'team-one',read:true,edit:true,admin:true,actor:'reviewer',workspace:'local'}));
 vi.mock('../teams/TeamWorkspaceProvider',()=>({useTeamWorkspace:()=>scope.teamId?{teamId:scope.teamId,selected:{permissions:{admin:scope.admin}}}:null,useTeamProjectPermissions:()=>({permissions:{read:scope.read,edit:scope.edit},loading:false,error:null})}));
@@ -18,6 +20,17 @@ const library:ControlLibraryView={state:'configured',teamId:'team-one',revision:
 const assessment:AssessmentView={state:'unreviewed',projectId:'p-1',contextDigest:'d'.repeat(64),library:library.library,assessment:{version:1,teamId:'team-one',projectId:'p-1',revision:0,libraryRevision:0,libraryDigest:'',contextDigest:'',results:[],proposals:[],actorId:'',at:''}};
 beforeEach(()=>{vi.restoreAllMocks();resetCockpit();scope.teamId='team-one';scope.read=true;scope.edit=true;scope.admin=true;scope.actor='reviewer';scope.workspace='local';useCockpit.setState(state=>({selection:{...state.selection,projectId:'p-1'}}));vi.spyOn(distributeControlsApi,'library').mockResolvedValue(library);vi.spyOn(distributeControlsApi,'assessment').mockResolvedValue(assessment);vi.spyOn(distributeArtifactsApi,'list').mockResolvedValue({projectId:'p-1',artifacts:[]})});
 afterEach(cleanup);
+
+beforeEach(() => {
+  vi.spyOn(gtmWorkspaceApi, 'get').mockImplementation(async projectId => ({ projectId, source: { briefRevision: 0, briefDigest: 'a'.repeat(64), specificationRevision: 0, specificationDigest: 'b'.repeat(64), designRevision: 0, designDigest: 'c'.repeat(64), planRevision: 0, planDigest: 'd'.repeat(64), checks: 'not-selected', release: 'not-selected' }, sourceDigest: 'e'.repeat(64), freshness: 'none', workspace: null, history: [], requirements: [] } as GTMView));
+});
+
+it('mounts the versioned go-to-market editor in Distribute without publishing', async () => {
+  render(<DistributeWorkspace />);
+  expect(await screen.findByRole('heading', { name: 'Go to market' })).not.toBeNull();
+  expect((await screen.findByLabelText('Positioning') as HTMLTextAreaElement).value).toBe(emptyGTM().positioning);
+  expect(screen.queryByRole('button', { name: /Publish campaign/ })).toBeNull();
+});
 
 it('keeps the personal stage truthful without requesting team state',async()=>{
   scope.teamId='';render(<DistributeWorkspace/>);

@@ -3,7 +3,7 @@ import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
-import { orchestratorApi, type OrchestratorJob, type OrchestratorView } from "../../api/orchestrator";
+import { orchestratorApi, type OrchestratorJob, type OrchestratorTurn, type OrchestratorView } from "../../api/orchestrator";
 import { productApi, type AgentConnectionCatalogue } from "../../api/product";
 import { ApiError } from "../../api/client";
 import { coordinatorContinuationsApi } from "../../api/coordinatorContinuations";
@@ -20,6 +20,14 @@ import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
 import { definitionApi } from "../../api/definition";
 import { context, job, proposalTurn, turn, view } from "./fixtures";
 import { readComposerRecovery, retainComposerRequest, saveComposerDraft } from "./composerRecovery";
+import { emptyGTM } from "../../api/gtmWorkspace";
+
+function gtmProposalFixture(): OrchestratorTurn {
+  const value = proposalTurn();
+  value.context = { ...context(), gtm: { revision: 0, digest: '', sourceDigest: 'c'.repeat(64), content: emptyGTM(), artifactLinks: [], artifactsOmitted: 0 } };
+  value.answer = { ...value.answer!, proposal: { target: 'gtm', summary: 'A scoped pilot strategy', specification: null, designPlan: null, plan: null, gtm: { ...emptyGTM(), offer: 'A scoped paid pilot' } } };
+  return value;
+}
 
 vi.mock("../journey/ContextStorage", () => ({ ContextStorage: () => null }));
 // The team component has its own actual-card/API tests. Here exercise only the
@@ -1963,4 +1971,36 @@ it("shows the main conversation on compact screens and hides its private content
     identity.read = false; identity.assist = false; ui.rerender(<OrchestratorPanel projectId="p-1" primary />);
     expect(screen.queryByLabelText("Message Luci")).toBeNull(); expect(screen.queryByText("Private amendment")).toBeNull(); expect(orchestratorApi.send).not.toHaveBeenCalled();
   } finally { media.mockRestore(); }
+});
+
+it('reviews a structured GTM proposal and saves only after explicit acknowledgement', async () => {
+  const proposed = gtmProposalFixture();
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ context: proposed.context, turns: [proposed] }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole('button', { name: 'Review amendment' }));
+  const dialog = screen.getByRole('dialog', { name: 'Review go-to-market workspace amendment' });
+  expect(within(dialog).getByText('A scoped paid pilot')).not.toBeNull();
+  expect(orchestratorApi.apply).not.toHaveBeenCalled();
+  await userEvent.click(within(dialog).getByRole('checkbox'));
+  const applied = { ...proposed, appliedRevision: 1 };
+  vi.mocked(orchestratorApi.apply).mockResolvedValue(view({ revision: 4, context: proposed.context, turns: [applied] }));
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ revision: 4, context: proposed.context, turns: [applied] }));
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Apply reviewed amendment' }));
+  await waitFor(() => expect(orchestratorApi.apply).toHaveBeenCalledWith('p-1', proposed.id, { expectedRevision: 3, expectedContextDigest: proposed.contextDigest }));
+  expect(await screen.findByText('GTM revision saved. Review your assumptions and decide which experiment to run next.')).not.toBeNull();
+});
+
+it('blocks a reviewed GTM Apply while Distribute has an unsaved strategy draft', async () => {
+  const proposed = gtmProposalFixture();
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ context: proposed.context, turns: [proposed] }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole('button', { name: 'Review amendment' }));
+  const dialog = screen.getByRole('dialog', { name: 'Review go-to-market workspace amendment' });
+  await userEvent.click(within(dialog).getByRole('checkbox'));
+  act(() => useCockpit.getState().setUnsavedProjectDraft('gtm-owner', { projectId: 'p-1', label: 'Go-to-market workspace', lens: 'distribute' }));
+  const apply = within(dialog).getByRole('button', { name: 'Apply reviewed amendment' });
+  expect(apply).toHaveProperty('disabled', true);
+  await userEvent.click(apply); expect(orchestratorApi.apply).not.toHaveBeenCalled();
+  act(() => useCockpit.getState().setUnsavedProjectDraft('gtm-owner', null));
+  expect(apply).toHaveProperty('disabled', false);
 });

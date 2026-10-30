@@ -5,7 +5,7 @@ import { errorText } from "../../api/product";
 import { useCockpit } from "../../store/store";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { useProjectDraft, useProjectDraftScope } from "../../hooks/useProjectDraft";
-import { definitionDraftValid } from "../../hooks/projectDraftValidation";
+import { roadmapProblems, SpecificationRoadmap, specificationRoadmapDraftValid } from "./SpecificationRoadmap";
 import { DraftRecovery } from "../common/DraftRecovery";
 import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { ContextStorage } from "../journey/ContextStorage";
@@ -17,8 +17,8 @@ import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components
 import "./definition.css";
 
 const recordId = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 12)}`;
-type Tab = "interview" | "specification" | "history" | "repository";
-const views: [Tab, string][] = [["interview", "Guided interview"], ["specification", "Specification"], ["repository", "Repository analysis"], ["history", "Revision history"]];
+type Tab = "interview" | "specification" | "roadmap" | "history" | "repository";
+const views: [Tab, string][] = [["interview", "Guided interview"], ["specification", "Specification"], ["roadmap", "Roadmap"], ["repository", "Repository analysis"], ["history", "Revision history"]];
 const questions = [
   { field: "purpose", label: "What should this solution do?", help: "Describe the problem, the result you want and why it matters.", placeholder: "A useful outcome, in your own words…" },
   { field: "audience", label: "Who will use it?", help: "Think about the person, their situation and what they need to achieve.", placeholder: "The people and their main tasks…" },
@@ -93,7 +93,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
   }, [scope, projectId, !!spec, canRead, onContextEdit]);
   const [dirty, setDirty] = useState(false);
   const draftBase = base ? JSON.stringify(base) : null;
-  const draft = useProjectDraft({ scope, kind: "definition", base: draftBase, baseValue: savedSpec.current, value: spec, dirty, valid: definitionDraftValid });
+  const draft = useProjectDraft({ scope, kind: "definition", base: draftBase, baseValue: savedSpec.current, value: spec, dirty, valid: specificationRoadmapDraftValid });
   useUnsavedProjectDraft(projectId, dirty, "Definition", "discover", scope ? { retained: draft.retained, discard: () => { draft.clear(); setSpec(savedSpec.current); setDirty(false); } } : undefined);
   const [busy, setBusy] = useState(false);
   const [savedRead, setSavedRead] = useState<"loading" | "ready" | "failed">("loading");
@@ -126,6 +126,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
   const tabsId = useId(), selectedIndex = views.findIndex(([key]) => key === tab);
   const setLens = useCockpit((s) => s.setLens);
   const missingJourneyLinks = spec?.journeys.some(journey => journey.requirementIds.some(id => !spec.requirements.some(requirement => requirement.id === id))) ?? false;
+  const roadmapErrors = spec ? roadmapProblems(spec.roadmap ?? [], spec.requirements) : [];
   const load = async () => {
     if (!canRead || reading.current.pending || submitting.current) return;
     const generation = ++reading.current.generation;
@@ -140,7 +141,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
         initialDefinitionReported.current = true;
         onInitialDefinition?.(value.revision === 0 && value.status === "draft" && value.startingPoint === "new" &&
           !value.purpose.trim() && !value.audience.trim() && !value.constraints.trim() &&
-          [value.outOfScope, value.requirements, value.journeys, value.roles, value.entities, value.integrations, value.glossary, value.decisions, value.questions, value.evidence ?? []].every(items => !items.length));
+          [value.outOfScope, value.requirements, value.journeys, value.roles, value.entities, value.integrations, value.glossary, value.decisions, value.questions, value.evidence ?? [], value.roadmap ?? []].every(items => !items.length));
       }
       if (value.purpose || value.revision) setTab("specification");
     } catch (cause) {
@@ -175,7 +176,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
     setDirty(true); setNotice("");
   };
   async function save() {
-    if (!canEdit || !spec || !base || !reading.current.ready || submitting.current || draft.pending || missingJourneyLinks) return;
+    if (!canEdit || !spec || !base || !reading.current.ready || submitting.current || draft.pending || missingJourneyLinks || roadmapErrors.length) return;
     submitting.current = true; setBusy(true); setPending("save"); setError(""); setNotice("");
     try {
       const saved = await definitionApi.save(projectId, spec, base.revision, base.briefRevision);
@@ -214,7 +215,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
   };
   const openQuestionCount = spec?.questions.filter((question) => !question.answer.trim()).length ?? 0;
   const definitionAction = spec && canRead && (dirty || spec.status === "outdated" || !spec.revision
-    ? <Button type="button" loading={pending === "save"} disabled={!canEdit || locked || !!draft.pending || missingJourneyLinks || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
+    ? <Button type="button" loading={pending === "save"} disabled={!canEdit || locked || !!draft.pending || missingJourneyLinks || !!roadmapErrors.length || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
     : spec.status === "approved"
       ? <Button type="button" disabled={locked} onClick={() => setLens("design")}>Continue to Design</Button>
       : <Button type="button" loading={pending === "approve"} disabled={!canEdit || locked || !!draft.pending} onClick={() => void approve()}>Approve definition</Button>);
@@ -234,6 +235,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
     {spec && savedRead === "failed" && <p role="status">Reload the saved definition before editing or recovering your draft. Your browser draft is unchanged.</p>}
     <DraftRecovery merge draft={draft} label="Definition" base={draftBase} saved={savedSpec.current} busy={locked} readOnly={!canEdit} onDiscard={() => { setSpec(savedSpec.current); setDirty(false); }} onRestore={value => { if (spec) { setSpec({ ...value, projectId, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); } }} />
     {missingJourneyLinks && <p role="alert" className="journey-warning">A user journey still refers to an outcome that was removed. Review its related requirements below: choose any replacement outcome and explicitly remove the unavailable link before saving.</p>}
+    {roadmapErrors.length > 0 && tab !== "roadmap" && <p role="alert" className="journey-warning">Review the Roadmap tab before saving: {roadmapErrors[0]}</p>}
     {!spec && !error && <p role="status">Loading your project definition…</p>}
     {spec && canRead && <>
       <TabsSubtle className="definition-tabs" aria-label="Definition views" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => selectTab(views[index][0])}>
@@ -244,6 +246,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
       {index === selectedIndex && <div className="definition-layout" style={tab === "repository" ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
         <div className="definition-content">
           <fieldset disabled={!canEdit || locked || !!draft.pending} className="definition-fields">
+            {tab === "roadmap" && <SpecificationRoadmap phases={spec.roadmap ?? []} requirements={spec.requirements} onChange={roadmap => patch({roadmap})}/>}
             {tab === "interview" && <div className="definition-interview">
               <label className="luci-field">Starting point<select value={spec.startingPoint} onChange={(e) => patch({ startingPoint: e.target.value as "new" | "existing" })}><option value="new">A new idea</option><option value="existing">An existing application</option></select></label>
               {spec.startingPoint === "existing" && <div><p className="journey-muted">Analyse actual source with your chosen provider, review the observed behaviour and gaps, then apply a draft. Save any edited answers before starting.</p><Button type="button" variant="secondary" onClick={() => setTab("repository")}>Analyse this repository</Button></div>}

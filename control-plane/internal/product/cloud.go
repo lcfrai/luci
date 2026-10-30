@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/deploymentplan"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
@@ -21,13 +22,14 @@ var domainPattern = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?
 func validDomain(v string) bool { return len(v) <= 253 && domainPattern.MatchString(v) }
 
 type CloudRequest struct {
-	Provider         string  `json:"provider"`
-	Name             string  `json:"name"`
-	Region           string  `json:"region"`
-	Domain           string  `json:"domain"`
-	Size             string  `json:"size"`
-	MonthlyBudgetUSD float64 `json:"monthlyBudgetUsd"`
-	SSHPublicKey     string  `json:"sshPublicKey"`
+	Foundation       *deploymentplan.AzureFoundationRequest `json:"foundation,omitempty"`
+	Provider         string                                 `json:"provider"`
+	Name             string                                 `json:"name"`
+	Region           string                                 `json:"region"`
+	Domain           string                                 `json:"domain"`
+	Size             string                                 `json:"size"`
+	MonthlyBudgetUSD float64                                `json:"monthlyBudgetUsd"`
+	SSHPublicKey     string                                 `json:"sshPublicKey"`
 }
 type Estimate struct {
 	Currency    string   `json:"currency"`
@@ -51,19 +53,20 @@ type PlanCommand struct {
 	Args       []string `json:"args"`
 }
 type CloudPlan struct {
-	MonthlyBudgetUSD float64       `json:"monthlyBudgetUsd"`
-	ID               string        `json:"id"`
-	Provider         string        `json:"provider"`
-	Name             string        `json:"name"`
-	Region           string        `json:"region"`
-	Domain           string        `json:"domain"`
-	Resources        []string      `json:"resources"`
-	Estimate         Estimate      `json:"estimate"`
-	Steps            []PlanStep    `json:"steps"`
-	Files            []PlanFile    `json:"files"`
-	Commands         []PlanCommand `json:"commands"`
-	Warnings         []string      `json:"warnings"`
-	CreatedAt        time.Time     `json:"createdAt"`
+	Foundation       *AzureBlueprintBinding `json:"foundation,omitempty"`
+	MonthlyBudgetUSD float64                `json:"monthlyBudgetUsd"`
+	ID               string                 `json:"id"`
+	Provider         string                 `json:"provider"`
+	Name             string                 `json:"name"`
+	Region           string                 `json:"region"`
+	Domain           string                 `json:"domain"`
+	Resources        []string               `json:"resources"`
+	Estimate         Estimate               `json:"estimate"`
+	Steps            []PlanStep             `json:"steps"`
+	Files            []PlanFile             `json:"files"`
+	Commands         []PlanCommand          `json:"commands"`
+	Warnings         []string               `json:"warnings"`
+	CreatedAt        time.Time              `json:"createdAt"`
 }
 
 func validateCloud(r CloudRequest) error {
@@ -110,10 +113,27 @@ func (s *Server) handleCloudPlan(w http.ResponseWriter, r *http.Request) {
 		problem(w, 403, "budget_policy", "This plan's budget exceeds the control-plane policy. Ask a Super Admin to update the budget policy.")
 		return
 	}
+	binding, err := s.prepareFoundationBinding(r.Context(), req)
+	if err != nil {
+		foundationProblem(w, err)
+		return
+	}
 	plan, err := s.buildCloudPlan(r.Context(), req)
 	if err != nil {
 		problem(w, 500, "plan_failed", err.Error())
 		return
+	}
+	if binding != nil {
+		plan.Foundation = binding
+		plan.Foundation.PlanDigest = foundationPlanDigest(plan)
+		if !validFoundationPlan(plan) {
+			foundationProblem(w, errAzureBlueprint)
+			return
+		}
+		if _, err = s.authorizeFoundationPlan(r.Context(), plan, false, true); err != nil {
+			foundationProblem(w, err)
+			return
+		}
 	}
 	s.mu.Lock()
 	s.plans[plan.ID] = plan

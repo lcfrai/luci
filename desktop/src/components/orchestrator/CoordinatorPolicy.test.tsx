@@ -7,6 +7,7 @@ import { ApiError } from "../../api/client";
 import { ProductApiError } from "../../api/product";
 import { CoordinatorPolicy } from "./CoordinatorPolicy";
 import { context, proposalTurn, view } from "./fixtures";
+import { emptyGTM } from "../../api/gtmWorkspace";
 
 const policy = (patch: Partial<Policy> = {}): Policy => ({ projectId: "p-1", revision: 1, mode: "review", reviewMode: "manual", allowedTargets: ["specification", "design-plan", "plan"], executionMode: "manual", deploymentMode: "manual", actor: { id: "alice", displayName: "Alice" }, updatedAt: "2026-10-12T00:00:00Z", ...patch });
 const pendingView = () => view({ turns: [proposalTurn()] });
@@ -54,6 +55,22 @@ it("saves only the current person's current nonblocking proposal exactly once, e
   ui.rerender(<CoordinatorPolicy {...input} view={pendingView()} />);
   await act(async () => {});
   expect(input.onAdvance).toHaveBeenCalledTimes(1);
+});
+it("keeps GTM proposals manual without blocking later allowed context drafts", async () => {
+  vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ mode: "auto-drafts" }));
+  const input = props(), gtm = proposalTurn();
+  gtm.answer = { ...gtm.answer!, proposal: { target: "gtm", summary: "Review a scoped pilot offer", specification: null, designPlan: null, plan: null, gtm: { ...emptyGTM(), offer: "A scoped paid pilot" } } };
+  input.view = view({ turns: [gtm] });
+  const ui = render(<CoordinatorPolicy {...input} />); await open();
+  await screen.findByText("Context policy · Automatic saving");
+  expect(input.onAdvance).not.toHaveBeenCalled();
+  expect(records()).toHaveLength(0);
+  expect(screen.getAllByRole("checkbox").map(item => item.parentElement?.textContent)).toEqual([
+    "Definition", "Design", "Implementation plan", expect.stringContaining("Apply this context policy"),
+  ]);
+  ui.rerender(<CoordinatorPolicy {...input} view={pendingView()} />);
+  await waitFor(() => expect(input.onAdvance).toHaveBeenCalledExactlyOnceWith("turn-1", { expectedRevision: 3, expectedContextDigest: context().digest, expectedPolicyRevision: 1 }));
+  await waitFor(() => expect(records()).toHaveLength(0));
 });
 it.each(["other-actor", "material-question", "blocking-answer", "unselected-target", "drafts", "read-only"])("refuses automatic draft saving for %s", async reason => {
   const input = props(), p = policy({ mode: "auto-drafts" });

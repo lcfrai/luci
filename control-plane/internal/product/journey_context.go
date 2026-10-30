@@ -45,6 +45,11 @@ func journeyContextExports(state journeyState) ([]journeyContextExport, error) {
 			return nil, err
 		}
 	}
+	if state.Skills != nil {
+		if err := addJSON(".luci/skills.json", state.Skills); err != nil {
+			return nil, err
+		}
+	}
 	if state.Specification != nil {
 		if err := addJSON(".luci/specification.json", currentSpecification(state)); err != nil {
 			return nil, err

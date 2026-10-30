@@ -55,6 +55,11 @@ func captureReviewedContext(state journeyState, binding *registry.Implementation
 	files := make([]ReviewedContextFile, 0, len(exports)+2)
 	hasBrief := false
 	for _, item := range exports {
+		// Selected skill instructions are in the captured LUCI.md task contract.
+		// Do not deliver the complete mutable registry to an assigned worker.
+		if item.Path == ".luci/skills.json" {
+			continue
+		}
 		hasBrief = hasBrief || item.Path == "LUCI.md"
 		if item.Path == "LUCI.md" {
 			// The working checkout's export remains the ordinary project brief.
