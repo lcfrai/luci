@@ -186,7 +186,7 @@ func reuseSource(page reuseCataloguePage, responseDigest string) (product.TaskRe
 func (a *API) handleProjectReuse(w http.ResponseWriter, r *http.Request) {
 	actor, _, ok := management.ActorFromContext(r.Context())
 	if !ok || actor.Disabled || a.deps.Product == nil {
-		httpx.WriteProblem(w, 403, "reuse_unavailable", "Sign in to this project first.")
+		httpx.WriteProblem(w, 403, "reuse_unavailable", "Sign in to this project first.", nil)
 		return
 	}
 	ref := management.ExecutionActorRef{UserID: actor.ID, ProjectID: r.PathValue("id")}
@@ -195,7 +195,7 @@ func (a *API) handleProjectReuse(w http.ResponseWriter, r *http.Request) {
 	}
 	// The existing read-only branch resolves exact current actor/team/project grants.
 	if a.authorizeProjectFeedback(r.Context(), ref, false) != nil {
-		httpx.WriteProblem(w, 403, "reuse_unavailable", "Current project read access is required.")
+		httpx.WriteProblem(w, 403, "reuse_unavailable", "Current project read access is required.", nil)
 		return
 	}
 	var req reuseCatalogueRequest
@@ -204,7 +204,7 @@ func (a *API) handleProjectReuse(w http.ResponseWriter, r *http.Request) {
 	}
 	params, err := reuseCatalogueParams(req)
 	if err != nil {
-		httpx.WriteProblem(w, 400, "reuse_query_invalid", err.Error())
+		httpx.WriteProblem(w, 400, "reuse_query_invalid", err.Error(), nil)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
@@ -214,11 +214,11 @@ func (a *API) handleProjectReuse(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{Transport: transport, Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("Catalogue redirects are not accepted") }}
 	page, digest, err := readReuseCatalogue(ctx, params, client)
 	if err != nil {
-		httpx.WriteProblem(w, 502, "reuse_catalogue_unavailable", err.Error())
+		httpx.WriteProblem(w, 502, "reuse_catalogue_unavailable", err.Error(), nil)
 		return
 	}
 	if a.authorizeProjectFeedback(r.Context(), ref, false) != nil {
-		httpx.WriteProblem(w, 403, "reuse_unavailable", "Project access changed while reading the catalogue.")
+		httpx.WriteProblem(w, 403, "reuse_unavailable", "Project access changed while reading the catalogue.", nil)
 		return
 	}
 	if req.Action == "search" {
@@ -227,7 +227,7 @@ func (a *API) handleProjectReuse(w http.ResponseWriter, r *http.Request) {
 	}
 	source, err := reuseSource(page, digest)
 	if err != nil {
-		httpx.WriteProblem(w, 502, "reuse_source_invalid", "This candidate's source metadata is incomplete; nothing has been added.")
+		httpx.WriteProblem(w, 502, "reuse_source_invalid", "This candidate's source metadata is incomplete; nothing has been added.", nil)
 		return
 	}
 	httpx.WriteJSON(w, 200, map[string]any{"projectId": ref.ProjectID, "source": source})
