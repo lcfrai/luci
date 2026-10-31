@@ -2,7 +2,7 @@ import { act, cleanup, render, screen, waitFor, within } from '@testing-library/
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DeploymentBlueprint } from './DeploymentBlueprint';
-import { deploymentBlueprintApi, type BlueprintProjectContext, type DeploymentBlueprint, type DeploymentBlueprintPlan, type SavedDeploymentBlueprint } from '../../api/deploymentBlueprint';
+import { deploymentBlueprintApi, type BlueprintProjectContext, type DeploymentBlueprint as DeploymentBlueprintData, type DeploymentBlueprintPlan, type SavedDeploymentBlueprint } from '../../api/deploymentBlueprint';
 import { resetCockpit } from '../../store/store';
 
 const access = vi.hoisted(() => ({ canRead: true, canEdit: true, loading: false, error: '', message: '' }));
@@ -23,11 +23,11 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-function savedBlueprint(blueprint: DeploymentBlueprint, revision = 1): SavedDeploymentBlueprint {
+function savedBlueprint(blueprint: DeploymentBlueprintData, revision = 1): SavedDeploymentBlueprint {
   return { projectId: 'p-one', revision, digest: String(revision).repeat(64), planDigest: 'd'.repeat(64), blueprint,
     actor: { id: 'one', displayName: 'Project owner' }, at: '2026-10-31T00:00:00Z' };
 }
-const savedTopology = (): DeploymentBlueprint => ({ version: 1, projectId: 'p-one', source: context().source,
+const savedTopology = (): DeploymentBlueprintData => ({ version: 1, projectId: 'p-one', source: context().source,
   infrastructure: { id: 'cluster', kind: 'kubernetes', reference: 'saved-east', namespace: 'saved-app' },
   services: [{ id: 'app-4', kind: 'app', image: '', port: 0, replicas: 0, resources: { requestMilliCpu: 0, limitMilliCpu: 0, requestMemoryMiB: 0, limitMemoryMiB: 0 }, dependsOn: ['cluster'] }] });
 
