@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/lcfrai/luci/control-plane/internal/backend"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 )
 
 type terminalImageProbe struct {
@@ -27,7 +27,8 @@ func (p *terminalImageProbe) ImageInspect(context.Context, string, ...client.Ima
 func TestCodexTaskResultImageRequiresExactAdvertisedCapabilityWithoutExecution(t *testing.T) {
 	for _, kind := range []string{"valid", "missing-capability", "missing-durable-exit", "wrong-schema", "unknown-id", "wrong-platform", "inspect-error"} {
 		t.Run(kind, func(t *testing.T) {
-			p := &terminalImageProbe{row: image.InspectResponse{ID: "sha256:" + strings.Repeat("a", 64), Os: "linux", Architecture: "amd64", Config: &container.Config{Labels: map[string]string{backend.CodexTaskResultCapability: "v1", backend.CodexTaskResultSchemaLabel: backend.CodexTaskResultSchemaDigest, backend.TaskNormalZeroCapability: "v1"}}}}
+			p := &terminalImageProbe{row: image.InspectResponse{ID: "sha256:" + strings.Repeat("a", 64), Os: "linux", Architecture: "amd64", Config: &dockerspec.DockerOCIImageConfig{}}}
+			p.row.Config.Labels = map[string]string{backend.CodexTaskResultCapability: "v1", backend.CodexTaskResultSchemaLabel: backend.CodexTaskResultSchemaDigest, backend.TaskNormalZeroCapability: "v1"}
 			switch kind {
 			case "missing-capability":
 				delete(p.row.Config.Labels, backend.CodexTaskResultCapability)
@@ -56,7 +57,8 @@ func TestCodexTaskResultImageRequiresExactAdvertisedCapabilityWithoutExecution(t
 func TestOtherHarnessImagesNeedTheirSeparateExactCapability(t *testing.T) {
 	for _, harness := range []string{"claude-code", "opencode"} {
 		for _, version := range []string{"", backend.HarnessTaskResultVersion, "unknown"} {
-			p := &terminalImageProbe{row: image.InspectResponse{ID: "sha256:" + strings.Repeat("a", 64), Os: "linux", Architecture: "amd64", Config: &container.Config{Labels: map[string]string{backend.CodexTaskResultCapability: "v1", backend.CodexTaskResultSchemaLabel: backend.CodexTaskResultSchemaDigest, backend.TaskNormalZeroCapability: "v1", backend.HarnessTaskResultCapability: version}}}}
+			p := &terminalImageProbe{row: image.InspectResponse{ID: "sha256:" + strings.Repeat("a", 64), Os: "linux", Architecture: "amd64", Config: &dockerspec.DockerOCIImageConfig{}}}
+			p.row.Config.Labels = map[string]string{backend.CodexTaskResultCapability: "v1", backend.CodexTaskResultSchemaLabel: backend.CodexTaskResultSchemaDigest, backend.TaskNormalZeroCapability: "v1", backend.HarnessTaskResultCapability: version}
 			b := &Backend{api: p}
 			id, err := b.ObserveHarnessTaskResultImage(context.Background(), "luci/sandbox:dev", harness)
 			if p.calls != 1 || (err == nil) != (version == backend.HarnessTaskResultVersion) || err == nil && id != p.row.ID {
