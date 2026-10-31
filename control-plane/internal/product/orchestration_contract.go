@@ -519,7 +519,7 @@ func (s *Server) contractApprovedForRun(ctx context.Context, p project.Project, 
 	if c.State != "approved" || c.Revision != selection.Revision || c.Digest != selection.Digest || c.Approval == nil || c.Approval.ID != selection.ApprovalID || s.contractView(ctx, p, *c).Freshness.Status != "current" {
 		return nil, ErrProjectRunConflict
 	}
-	if !reflect.DeepEqual(c.Input.Implementation, input.Implementation) || c.Input.Approvals != input.Approvals || c.Input.Route != input.Route || c.Input.Outcome != input.Outcome || reviewDigest(c.Input.Requirements) != reviewDigest(input.Requirements) {
+	if !reflect.DeepEqual(c.Input.Implementation, input.Implementation) || c.Input.Approvals != input.Approvals || !reflect.DeepEqual(c.Input.Route, input.Route) || c.Input.Outcome != input.Outcome || reviewDigest(c.Input.Requirements) != reviewDigest(input.Requirements) {
 		return nil, ErrProjectRunConflict
 	}
 	return c, nil
