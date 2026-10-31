@@ -173,14 +173,15 @@ export function validDeploymentBlueprintPlan(value: unknown, request: Deployment
     if(!validSupportingArtifacts(value,request))return false;
     if(value.artifacts.filter(a=>object(a)&&typeof a.name==='string'&&a.name.endsWith('.ingress.json')).length!==(request.publicRoute?1:0))return false;
     const names = new Set<string>();
-    return value.artifacts.every(artifact => {
+    const artifacts = value.artifacts;
+    return artifacts.every(artifact => {
       if (!object(artifact) || !text(artifact.name, 100) || !/^[a-z0-9-]+\.(deployment|service|ingress|configmap)\.json$/.test(artifact.name) || names.has(artifact.name) ||
           artifact.mediaType !== 'application/json' || !hash(artifact.sha256) || !text(artifact.content, 256 << 10)) return false;
       names.add(artifact.name);
       const resource = JSON.parse(artifact.content) as Record<string, unknown>;
       return object(resource.metadata) && resource.metadata.namespace === request.infrastructure.namespace && object(resource.metadata.annotations) &&
         resource.metadata.annotations['luci.ai/plan-digest'] === value.digest &&
-        (artifact.name.endsWith('.deployment.json') ? resource.kind === 'Deployment' && resource.apiVersion === 'apps/v1' : artifact.name.endsWith('.ingress.json') ? validPublicIngressResource(resource,request,value.artifacts) : artifact.name.endsWith('.configmap.json') ? resource.kind === 'ConfigMap' && resource.apiVersion === 'v1' : resource.kind === 'Service' && resource.apiVersion === 'v1');
+        (artifact.name.endsWith('.deployment.json') ? resource.kind === 'Deployment' && resource.apiVersion === 'apps/v1' : artifact.name.endsWith('.ingress.json') ? validPublicIngressResource(resource,request,artifacts) : artifact.name.endsWith('.configmap.json') ? resource.kind === 'ConfigMap' && resource.apiVersion === 'v1' : resource.kind === 'Service' && resource.apiVersion === 'v1');
     });
   } catch { return false; }
 }

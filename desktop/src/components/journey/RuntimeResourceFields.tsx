@@ -21,7 +21,7 @@ export function RuntimeResourceFields({saved,disabled,onChange}:Props){
   if(!saved?.blueprint.infrastructure.reference||!saved.blueprint.infrastructure.namespace)problem='Build images first if needed, then save an existing target and namespace before reviewing resources.';
   onChange(value,problem,edited);
  }
- function volume(id:string,patch:Partial<VolumeDraft>){const next={...volumes,[id]:{selected:false,storageClass:'',size:'10',url:'',sha:'',bytes:'',...volumes[id],...patch}};setVolumes(next);emit(next,tls,pull,consumers,builder);}
+ function volume(id:string,patch:Partial<VolumeDraft>){const next={...volumes,[id]:{...(volumes[id]??{selected:false,storageClass:'',size:'10',url:'',sha:'',bytes:''}),...patch}};setVolumes(next);emit(next,tls,pull,consumers,builder);}
  // A new saved topology is an explicit new baseline. Retain the typed choices
  // in place, but the parent's saved-draft/review fences prevent silent Apply.
  useEffect(()=>{emit(volumes,tls,pull,consumers,builder,false);},[saved?.revision,saved?.digest]);

@@ -38,6 +38,7 @@ const stageLabels = { discover: "Discover", design: "Design", develop: "Develop"
 const amendmentEditors = { specification: "definition", "design-plan": "design", plan: "plan" } as const;
 const amendmentLabels = { specification: "definition", "design-plan": "design", plan: "implementation plan", gtm: "go-to-market workspace", "deployment-blueprint": "service blueprint" };
 const pendingStatus = (status: string) => ["reserved", "queued", "running", "unknown"].includes(status);
+const executionSetupPurposes = new Set(["verification-setup", "coordinator-setup", "runtime-preparation", "coordinator-kubernetes"]);
 const readAccessDenied = (cause: unknown) => cause instanceof ApiError && (cause.status === 401 || cause.status === 403);
 const statuses: Record<OrchestratorTurn["status"], string> = {
   reserved: "Request reserved · outcome not yet confirmed", queued: "Waiting for the agent", running: "Luci is working",
@@ -160,14 +161,17 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
   const lens = useCockpit(state => state.lens), setLens = useCockpit(state => state.setLens);
   const projectName = useCockpit(state => state.projects.find(project => project.id === projectId)?.name ?? "Selected project");
   const drafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId).map(draft => draft.label).join(", "));
-  const contextDrafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && draft.purpose !== "verification-setup" && draft.purpose !== "coordinator-setup").map(draft => draft.label).join(", "));
-  const checkSetupDraft = useCockpit(state => Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === projectId && (draft.purpose === "verification-setup" || draft.purpose === "coordinator-setup")));
+  const contextDrafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && !executionSetupPurposes.has(draft.purpose ?? "")).map(draft => draft.label).join(", "));
+  const checkSetupDraft = useCockpit(state => Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === projectId && executionSetupPurposes.has(draft.purpose ?? "")));
   const otherCheckSetup = useCockpit(state => Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === projectId && draft.purpose === "verification-setup"));
-  const checkSetupRetained = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && (draft.purpose === "verification-setup" || draft.purpose === "coordinator-setup")).every(draft => draft.retained));
+  const checkSetupRetained = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && executionSetupPurposes.has(draft.purpose ?? "")).every(draft => draft.retained));
+  const runtimeSetupDraft = useCockpit(state => Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === projectId && (draft.purpose === "runtime-preparation" || draft.purpose === "coordinator-kubernetes")));
+  const setupLabel = runtimeSetupDraft ? "runtime or deployment setup" : "verification setup";
+  const setupCopy = runtimeSetupDraft ? "settings" : "command text";
   const draftWarning = contextDrafts ? `${contextDrafts} has unsaved edits. Save or discard those edits in the editor before sending or applying; Luci uses saved context.` : "";
   const setupChangeWarning = checkSetupDraft ? checkSetupRetained
-    ? "Keep your verification setup for later by changing phase and choosing Keep drafts and continue, or discard the setup before applying this amendment."
-    : "Your verification setup is not retained in this browser. Copy the command text you need, then discard the setup before applying this amendment." : "";
+    ? `Keep your ${setupLabel} for later by changing phase and choosing Keep drafts and continue, or discard the setup before applying this amendment.`
+    : `Your ${setupLabel} is not retained in this browser. Copy the ${setupCopy} you need, then discard the setup before applying this amendment.` : "";
   const alive = useRef(true), generation = useRef(0), viewRead = useRef(0), working = useRef(false), latest = useRef(view);
   // Only display refreshes own this signal. Sends, jobs and post-write readback
   // keep their existing durable request and observation lifecycles.
@@ -804,9 +808,9 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
           {connectionError && <p role="status">Agent settings could not be refreshed: {connectionError}</p>}
           {setup && <Button type="button" variant="ghost" size="compact" onClick={() => setup.openAgents()}>Agent connections</Button>}
           {draftWarning && <p role="status">{draftWarning}</p>}
-          {checkSetupDraft && <p role="status">Your verification setup is a browser draft and is not included automatically. Paste the relevant commands or unfinished arguments into your message to ask for help. Sending does not execute them.</p>}
+          {checkSetupDraft && <p role="status">{runtimeSetupDraft ? "Your runtime or deployment setup is a browser draft and is not included automatically. Describe the settings you want help with without private credential values. Sending does not apply them." : "Your verification setup is a browser draft and is not included automatically. Paste the relevant commands or unfinished arguments into your message to ask for help. Sending does not execute them."}</p>}
           {!canAssist && canRead && <p role="status">Sending requires editing, execution and secret access. You can still read the conversation and saved context.</p>}
-          {refreshEditor && drafts && <p role="status">The amendment is saved. {contextDrafts ? "Your newer unsaved edits remain in the editor; save or discard them to refresh its context." : checkSetupRetained ? "Your verification setup remains in the editor. Change phase and choose Keep drafts and continue, or discard the setup, to refresh saved context." : "Your verification setup remains in the editor but is not retained. Copy the command text you need, then discard the setup to refresh saved context."}</p>}
+          {refreshEditor && drafts && <p role="status">The amendment is saved. {contextDrafts ? "Your newer unsaved edits remain in the editor; save or discard them to refresh its context." : checkSetupRetained ? `Your ${setupLabel} remains in the editor. Change phase and choose Keep drafts and continue, or discard the setup, to refresh saved context.` : `Your ${setupLabel} remains in the editor but is not retained. Copy the ${setupCopy} you need, then discard the setup to refresh saved context.`}</p>}
           {canAssist && replyTo && <div className="orchestrator-actions"><span>{replyQuestion ? `Replying to: ${replyQuestion}` : "Replying to a project decision"}</span><Button type="button" variant="ghost" size="compact" disabled={!!pendingRequest || !canAssist} onClick={() => editComposer(message, "")}>Clear reply</Button></div>}
           <label className="luci-field">Message Luci<textarea ref={composer} rows={3} value={canAssist ? message : ""} maxLength={16000} disabled={!canAssist || busy === "send" || !!pendingRequest || !!recoveredDraft || storageConflict} onChange={event => editComposer(event.target.value, replyTo)} placeholder="What should we build, clarify or change?" /></label>
           <div className="orchestrator-actions"><Button type="submit" disabled={!canAssist || !view || !message.trim() || !!contextDrafts || !!routeIssue || !!busy || loading || contextStale || contextRefreshQueued || !!activeTurn || !!activeJobId || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict || !!localRecovery.error}>{busy === "send" ? "Sending…" : "Send to Luci"}</Button>{activeJobId && !completedUnrecorded && !missingReservedJob && <Button type="button" variant="secondary" disabled={!canExecute || !!busy} onClick={() => void cancel()}>Cancel Luci request</Button>}</div>
