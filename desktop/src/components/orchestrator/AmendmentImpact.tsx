@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { OrchestratorContext, OrchestratorProposal } from '../../api/orchestrator';
-import { amendmentImpact } from './amendmentImpact';
+import { amendmentImpact } from './amendmentImpactModel';
 
 export function AmendmentImpact({ context, proposal }: { context: OrchestratorContext; proposal: OrchestratorProposal }) {
   const impact = useMemo(() => amendmentImpact(context, proposal), [context, proposal]);

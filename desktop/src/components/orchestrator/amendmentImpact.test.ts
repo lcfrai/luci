@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { amendmentImpact } from './amendmentImpact';
+import { amendmentImpact } from './amendmentImpactModel';
 import { context } from './fixtures';
 import { emptyGTM } from '../../api/gtmWorkspace';
 import type { OrchestratorContext, OrchestratorProposal } from '../../api/orchestrator';

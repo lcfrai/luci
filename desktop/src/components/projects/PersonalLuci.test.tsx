@@ -27,7 +27,7 @@ afterEach(cleanup);
 
 it('retains an uncertain original request across remount and checks it without another send', async () => {
   const user = userEvent.setup(); const first = render(<PersonalLuci projects={projects} />);
-  const input = await screen.findByLabelText('Message Luci'); await user.type(input, 'Help prioritize these projects'); await user.click(screen.getByRole('button', { name: 'Send', exact: true }));
+  const input = await screen.findByLabelText('Message Luci'); await user.type(input, 'Help prioritize these projects'); await user.click(screen.getByRole('button', { name: 'Send' }));
   await screen.findByRole('alert'); expect(personalLuciApi.send).toHaveBeenCalledTimes(1); const original = vi.mocked(personalLuciApi.send).mock.calls[0][0];
   first.unmount(); render(<PersonalLuci projects={projects} />);
   await screen.findByRole('button', { name: 'Check original request' });
@@ -62,7 +62,7 @@ it('continues in the same workspace while keeping the draft and selectable saved
   vi.mocked(personalLuciApi.get).mockResolvedValue({ ...view(), archived: true, turns: [turn()], archives: [{ id: 'personal-chat-one', lastMessageAt: turn().createdAt, turns: 1 }] });
   await user.selectOptions(screen.getByLabelText('Conversation history'), 'personal-chat-one');
   await screen.findByText(/Saved history. Return to Current conversation/);
-  expect(screen.getByRole('button', { name: 'Send', exact: true }).matches(':disabled')).toBe(true);
+  expect(screen.getByRole('button', { name: 'Send' }).matches(':disabled')).toBe(true);
   expect(personalLuciApi.send).not.toHaveBeenCalled();
 });
 
